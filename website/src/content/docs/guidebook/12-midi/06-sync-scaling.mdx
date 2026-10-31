@@ -15,7 +15,8 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_12_6_1 from "../../../../assets/guidebook/figs/12-midi__06-sync-scaling--1.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -34,7 +35,12 @@ There are a couple of applications for this:
 4. Leaving the clip in this mode the sync-scaling button will remain statically illuminated - not flashing. This indicates that sync-scaling is active but not on the selected clip.
 5. Press [SYNC-SCALING] to switch it off. Button will be unlit.
 
-<FigurePending id="fig-12.6-1" page={252}></FigurePending>
+<Figure
+  id="fig-12.6-1"
+  src={fig_fig_12_6_1}
+  alt={"Diagram: figure from guidebook page 252"}
+  page={252}
+/>
 
 Unlit / Off Sync-scaling off, not applied to any clip
 

@@ -15,7 +15,8 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_11_5_1 from "../../../../assets/guidebook/figs/11-effects__05-delay--1.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -23,9 +24,14 @@ Delay adopts the standard principle of taking an audio input signal and delaying
 
 #### Delay Principles
 
-<FigurePending id="fig-11.5-1" page={222}>
-  Sync · Rate · Ping-Pong (L/R) or Standard Delay · DELAY · R · Feedback Amount
-</FigurePending>
+<Figure
+  id="fig-11.5-1"
+  src={fig_fig_11_5_1}
+  alt={
+    "Diagram: Sync Rate Ping-Pong (L/R) or DELAY Standard Delay Feedback Amount"
+  }
+  page={222}
+/>
 
 L/Mono
 
@@ -76,5 +82,5 @@ or
 2. Press :key[DelayTimeAmount] affect button. Button illuminates orange.
 3. :key[Turn Upper Gold] to change delay-time RATE value or :key[Turn Lower Gold] to change delay AMOUNT.
 4. To toggle PING-PONG or standard, Press :key[Upper Gold].
-5. To toggle ANALOG or , Press :key[Lower Gold].
+5. To toggle ANALOG or, Press :key[Lower Gold].
 6. Press :key[AffectEntire] to affect the entire kit. Button lit orange. Changes will apply to the entire kit

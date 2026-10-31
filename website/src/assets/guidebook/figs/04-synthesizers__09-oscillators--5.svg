@@ -1,0 +1,60 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 349.9 374.8"><defs><path id="04-synthesizers__09-oscillators--5-s1" d="M0 0H83" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor"/><path id="04-synthesizers__09-oscillators--5-s2" d="M0 0H92.2V39.5H0Z" stroke-width=".8" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor"/></defs>
+<defs>
+<clipPath id="04-synthesizers__09-oscillators--5-clip_1">
+<path transform="matrix(1,0,0,-1,-63.8,632.4)" d="M63.8 257.5H413.7V632.4H63.8Z" clip-rule="evenodd"/>
+</clipPath>
+<mask id="04-synthesizers__09-oscillators--5-mask_2">
+<g transform="matrix(.203303,0,0,.203303,104.3,251.6)">
+<image id="04-synthesizers__09-oscillators--5-image_3" width="365" height="577" xlink:href="/guidebook/img/04-synthesizers__09-oscillators--5-1.webp"/>
+</g>
+</mask>
+</defs>
+<g>
+<g clip-path="url(#04-synthesizers__09-oscillators--5-clip_1)">
+<path transform="matrix(1,0,0,-1,-63.8,632.4)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M424.7 688.6V84.1"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(106.2 24.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">In left/right, in right or in left, are automatically</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(106.2 34.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">available when a physical line in is connected.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(107.4 100.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">An audio sample can be used as the oscillator source.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(107.4 110.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">A series of sample specific options are available in the</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(107.4 120.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">sound editor when SAMPLE is selected.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(107.4 181.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">A wavetable file can be assigned to the oscillator</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(107.4 191.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">source to create a wavetable synth. The main</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(107.4 201.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">parameter is the wave position used by the oscillator.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(107.4 211.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Navigation function of the wave is accessed in the</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(107.4 221.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">oscillator options or via the keyboard shortcut.</tspan></text>
+<g mask="url(#04-synthesizers__09-oscillators--5-mask_2)">
+<g transform="matrix(.203303,0,0,.203303,104.3,251.6)">
+<image class="gb-ink" id="04-synthesizers__09-oscillators--5-image_4" width="365" height="577" xlink:href="/guidebook/img/04-synthesizers__09-oscillators--5-2.webp"/>
+</g>
+</g>
+<text fill="currentColor" xml:space="preserve" transform="translate(205.4 308.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Wavetable navigation set per Osc.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(205.4 318.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Available when Type is Wavetable.</tspan></text>
+<path transform="matrix(1,0,0,-1,-63.8,632.4)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M255.6 322.2H266.4"/>
+<path transform="matrix(1,0,0,-1,-63.8,632.4)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M227.2 327.4H255.6V317.5H192.7"/>
+<path transform="matrix(1,0,0,-1,-63.8,632.4)" d="M74.5 606.3H157.6V614.6H74.5Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-63.8,632.4)" stroke-width=".6" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M74.5 606.3H157.6V614.6H74.5Z"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 13.4 24.4)" font-size="5.6" font-family="monospace"><tspan y="0" x="0.0" textLength="14.4" lengthAdjust="spacingAndGlyphs">INL</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 13.4 33.1)" font-size="5.6" font-family="monospace"><tspan y="0" x="0.0" textLength="15.3" lengthAdjust="spacingAndGlyphs">INR</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 13.4 41.9)" font-size="5.6" font-family="monospace"><tspan y="0" x="0.0" textLength="20.9" lengthAdjust="spacingAndGlyphs">INLR</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(10.2 14.4)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-weight="bold"><tspan y="0" x="0.0" textLength="21.8" lengthAdjust="spacingAndGlyphs">TYPE</tspan></text>
+<use href="#04-synthesizers__09-oscillators--5-s1" transform="matrix(1 0 0 -1 10.6 16.4)"/>
+<use href="#04-synthesizers__09-oscillators--5-s2" transform="matrix(1 0 0 -1 6 45.4)"/>
+<path transform="matrix(1,0,0,-1,-63.8,632.4)" d="M74.5 507.2H157.6V515.5H74.5Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-63.8,632.4)" stroke-width=".6" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M74.5 507.2H157.6V515.5H74.5Z"/>
+<text fill="currentColor" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 13.4 106.0)" font-size="5.6" font-family="monospace"><tspan y="0" x="0.0" textLength="15.3" lengthAdjust="spacingAndGlyphs">INR</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 13.4 114.7)" font-size="5.6" font-family="monospace"><tspan y="0" x="0.0" textLength="20.9" lengthAdjust="spacingAndGlyphs">INLR</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 13.4 123.5)" font-size="5.6" font-family="monospace"><tspan y="0" x="0.0" textLength="31.9" lengthAdjust="spacingAndGlyphs">SAMPLE</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(10.2 96.0)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-weight="bold"><tspan y="0" x="0.0" textLength="21.8" lengthAdjust="spacingAndGlyphs">TYPE</tspan></text>
+<use href="#04-synthesizers__09-oscillators--5-s1" transform="matrix(1 0 0 -1 10.6 98)"/>
+<use href="#04-synthesizers__09-oscillators--5-s2" transform="matrix(1 0 0 -1 6 127)"/>
+<path transform="matrix(1,0,0,-1,-63.8,632.4)" d="M74.5 416.4H157.6V424.8H74.5Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-63.8,632.4)" stroke-width=".6" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M74.5 416.4H157.6V424.8H74.5Z"/>
+<text fill="currentColor" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 13.4 196.7)" font-size="5.6" font-family="monospace"><tspan y="0" x="0.0" textLength="20.9" lengthAdjust="spacingAndGlyphs">INLR</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 13.4 205.5)" font-size="5.6" font-family="monospace"><tspan y="0" x="0.0" textLength="31.9" lengthAdjust="spacingAndGlyphs">SAMPLE</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 13.4 214.2)" font-size="5.6" font-family="monospace"><tspan y="0" x="0.0" textLength="48.7" lengthAdjust="spacingAndGlyphs">WAVETABLE</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(10.2 186.8)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-weight="bold"><tspan y="0" x="0.0" textLength="21.8" lengthAdjust="spacingAndGlyphs">TYPE</tspan></text>
+<use href="#04-synthesizers__09-oscillators--5-s1" transform="matrix(1 0 0 -1 10.6 188.8)"/>
+<use href="#04-synthesizers__09-oscillators--5-s2" transform="matrix(1 0 0 -1 6 217.7)"/>
+</g>
+</g>
+</svg>

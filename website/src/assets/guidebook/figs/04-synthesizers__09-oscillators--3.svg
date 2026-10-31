@@ -1,0 +1,21 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 322.9 92.7">
+<defs>
+<clipPath id="04-synthesizers__09-oscillators--3-clip_1">
+<path transform="matrix(1,0,0,-1,-206.4,381.5)" d="M206.4 288.8H529.3V381.5H206.4Z" clip-rule="evenodd"/>
+</clipPath>
+</defs>
+<g clip-path="url(#04-synthesizers__09-oscillators--3-clip_1)">
+<path transform="matrix(1,0,0,-1,-206.4,381.5)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M170.1 688.6V84.1"/>
+<text fill="currentColor" xml:space="preserve" transform="matrix(0 -1 1 0 183.3 56.0)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">AMPLITUDE</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(245.5 85.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">TIME</tspan></text>
+<path transform="matrix(1,0,0,-1,-206.4,381.5)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 40%, var(--gb-paper))" d="M399.0 374.6V309.5"/>
+<path transform="matrix(1,0,0,-1,-206.4,381.5)" stroke-width=".55" stroke-linecap="round" stroke-dasharray="1.6,1.6,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 40%, var(--gb-paper))" d="M399.0 343.0H522.3"/>
+<path transform="matrix(1,0,0,-1,-206.4,381.5)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M399.0 317.7V368.7H430.1V317.5H461.1"/>
+<path transform="matrix(1,0,0,-1,-206.4,381.5)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M461.2 317.7V368.7H492.3V317.5H523.3V368.9"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(60.0 83.9)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">TIME</tspan></text>
+<path transform="matrix(1,0,0,-1,-206.4,381.5)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 40%, var(--gb-paper))" d="M212.3 375.5V310.4"/>
+<path transform="matrix(1,0,0,-1,-206.4,381.5)" stroke-width=".55" stroke-linecap="round" stroke-dasharray="1.6,1.6,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 40%, var(--gb-paper))" d="M212.3 343.9H335.5"/>
+<path transform="matrix(1,0,0,-1,-206.4,381.5)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M273.8 322.1 212.3 373.3V322.4"/>
+<path transform="matrix(1,0,0,-1,-206.4,381.5)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M335.3 322.1 273.8 373.3V322.4"/>
+</g>
+</svg>

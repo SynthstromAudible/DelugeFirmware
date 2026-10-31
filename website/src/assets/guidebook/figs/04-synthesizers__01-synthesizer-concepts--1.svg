@@ -1,0 +1,65 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 325.1 313.6">
+<defs>
+<clipPath id="04-synthesizers__01-synthesizer-concepts--1-clip_1">
+<path transform="matrix(1,0,0,-1,-70.6,500.2)" d="M70.6 186.5H395.7V500.2H70.6Z" clip-rule="evenodd"/>
+</clipPath>
+</defs>
+<g clip-path="url(#04-synthesizers__01-synthesizer-concepts--1-clip_1)">
+<path transform="matrix(1,0,0,-1,-70.6,500.2)" stroke-width=".7" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="var(--gb-accent)" d="M216.3 423.8C218.0 428.0 221.2 432.4 224.1 435.0 225.1 435.9 227.2 436.9 229.9 437.3 235.4 438.0 243.4 438.0 249.9 438.0"/>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(149.9 110.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">FILTER</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(132.9 11.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">ENVELOPE and /</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(133.4 19.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">or MODULATION</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(206.5 11.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">ENVELOPE and /</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(207.0 19.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">or MODULATION</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(228.3 110.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">AMP</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(288.2 110.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">OUTPUT</tspan></text>
+<path transform="matrix(1,0,0,-1,-70.6,500.2)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M100.7 431.9H134.7"/>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(61.8 110.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">OSCILLATOR</tspan></text>
+<text xml:space="preserve" transform="translate(39.0 162.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">One or more oscillators</tspan></text>
+<text xml:space="preserve" transform="translate(50.3 171.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">provide the basic,</tspan></text>
+<text xml:space="preserve" transform="translate(28.2 180.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">harmonically rich tone. Often</tspan></text>
+<text xml:space="preserve" transform="translate(41.2 189.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">these are stacked and</tspan></text>
+<text xml:space="preserve" transform="translate(31.0 199.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">detuned against each other</tspan></text>
+<text xml:space="preserve" transform="translate(36.7 208.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">and mixed to thicken the</tspan></text>
+<text xml:space="preserve" transform="translate(72.0 217.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">sound.</tspan></text>
+<text xml:space="preserve" transform="translate(109.4 268.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Filters shape the sound by</tspan></text>
+<text xml:space="preserve" transform="translate(103.1 277.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">subtracting harmonic content.</tspan></text>
+<text xml:space="preserve" transform="translate(96.4 287.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Additional shaping is provided by</tspan></text>
+<text xml:space="preserve" transform="translate(89.1 296.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">modulation via envelopes, LFOs and</tspan></text>
+<text xml:space="preserve" transform="translate(133.6 305.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">other sources.</tspan></text>
+<text xml:space="preserve" transform="translate(182.6 166.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">The audio signal amplitude</tspan></text>
+<text xml:space="preserve" transform="translate(185.3 176.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">can also be shaped using</tspan></text>
+<text xml:space="preserve" transform="translate(191.1 185.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">envelopes and manual</tspan></text>
+<text xml:space="preserve" transform="translate(188.6 194.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">adjustments. At the final</tspan></text>
+<text xml:space="preserve" transform="translate(182.3 204.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">stage, panning and volume</tspan></text>
+<text xml:space="preserve" transform="translate(201.6 213.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">levels can be set.</tspan></text>
+<path transform="matrix(1,0,0,-1,-70.6,500.2)" stroke-width=".65" stroke-linecap="butt" stroke-dasharray="1.9,1.9,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M155.9 385.2V339.8"/>
+<path transform="matrix(1,0,0,-1,-70.6,500.2)" stroke-width=".65" stroke-linecap="butt" stroke-dasharray="1.9,1.9,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M307.1 385.2V339.8"/>
+<path transform="matrix(1,0,0,-1,-70.6,500.2)" stroke-width=".65" stroke-linecap="butt" stroke-dasharray="1.9,1.9,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M233.4 385.2V246.4"/>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(6.9 110.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">INPUT</tspan></text>
+<path transform="matrix(1,0,0,-1,-70.6,500.2)" d="M210.8 416.9H255.5V446.0H210.8ZM254.8 445.3V417.6H211.5C211.5 417.6 211.5 445.3 211.5 445.3Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-70.6,500.2)" stroke-width=".55" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M217.5 459.3 222.3 475.0 227.3 467.6H241.9L249.0 459.3"/>
+<path transform="matrix(1,0,0,-1,-70.6,500.2)" stroke-width=".55" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M291.3 459.3 296.2 475.0 301.2 467.6H315.8L322.8 459.3"/>
+<path transform="matrix(1,0,0,-1,-70.6,500.2)" d="M322.6 432.3 291.2 416.7V448.0Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-70.6,500.2)" d="M322.6 432.3 291.2 416.7V448.0ZM321.0 432.3 291.9 417.8C291.9 417.8 291.9 446.9 291.9 446.9Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-70.6,500.2)" stroke-width=".45" stroke-linecap="square" stroke-dasharray="1.3,1.3,.0001,.0001" stroke-linejoin="round" fill="none" stroke="currentColor" d="M233.1 458.7V445.9"/>
+<path transform="matrix(1,0,0,-1,-70.6,500.2)" stroke-width=".45" stroke-linecap="square" stroke-dasharray="1.3,1.3,.0001,.0001" stroke-linejoin="round" fill="none" stroke="currentColor" d="M307.0 460.5V440.2"/>
+<path transform="matrix(1,0,0,-1,-70.6,500.2)" stroke-width=".4" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M76.6 418.1H100.8V444.8H76.6Z"/>
+<path transform="matrix(1,0,0,-1,-70.6,500.2)" d="M81.2 429.3H86.5V444.8H81.2Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-70.6,500.2)" d="M76.7 442.2H100.7V444.8H76.7Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-70.6,500.2)" d="M91.2 429.3H96.4V444.8H91.2Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-70.6,500.2)" stroke-width=".4" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M84.0 430.1V418.4"/>
+<path transform="matrix(1,0,0,-1,-70.6,500.2)" stroke-width=".4" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M93.9 430.1V418.4"/>
+<path transform="matrix(1,0,0,-1,-70.6,500.2)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M424.7 688.6V84.1"/>
+<path transform="matrix(1,0,0,-1,-70.6,500.2)" d="M155.6 452.0C167.0 452.0 176.2 442.8 176.2 431.4 176.2 420.1 167.0 410.9 155.6 410.9 144.3 410.9 135.0 420.1 135.0 431.4 135.0 442.8 144.3 452.0 155.6 452.0Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-70.6,500.2)" d="M155.6 452.0C167.0 452.0 176.2 442.8 176.2 431.4 176.2 420.1 167.0 410.9 155.6 410.9 144.3 410.9 135.0 420.1 135.0 431.4 135.0 442.8 144.3 452.0 155.6 452.0ZM155.6 451.3C166.6 451.3 175.5 442.4 175.5 431.4 175.5 420.5 166.6 411.6 155.6 411.6 144.6 411.6 135.7 420.5 135.7 431.4 135.7 442.4 144.6 451.3 155.6 451.3Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-70.6,500.2)" stroke-width=".7" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M141.9 431.4C144.3 444.6 146.6 446.2 148.8 431.4 151.1 417.7 153.4 417.9 155.6 431.4"/>
+<path transform="matrix(1,0,0,-1,-70.6,500.2)" stroke-width=".7" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M155.6 431.4C158.0 444.6 160.3 446.2 162.5 431.4 164.8 417.7 167.1 417.9 169.3 431.4"/>
+<path transform="matrix(1,0,0,-1,-70.6,500.2)" d="M383.5 447.4V417.2L369.3 428.2V436.4ZM382.8 446.0V418.6C382.8 418.6 370.0 428.6 370.0 428.6 370.0 428.6 370.0 436.1 370.0 436.1Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-70.6,500.2)" d="M364.3 425.7H370.0V439.0H364.3ZM369.3 438.3V426.4C369.3 426.4 365.0 426.4 365.0 426.4V438.3Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-70.6,500.2)" d="M362.2 427.6H365.0V437.1H362.2ZM364.3 436.4V428.3H362.9C362.9 428.3 362.9 436.4 362.9 436.4Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-70.6,500.2)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M176.2 431.9H211.2"/>
+<path transform="matrix(1,0,0,-1,-70.6,500.2)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M255.5 432.3H291.2"/>
+<path transform="matrix(1,0,0,-1,-70.6,500.2)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M321.8 432.3H362.4"/>
+</g>
+</svg>

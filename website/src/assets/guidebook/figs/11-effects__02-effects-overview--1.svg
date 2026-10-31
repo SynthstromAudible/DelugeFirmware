@@ -1,0 +1,62 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 367.8 283.8"><defs><path id="11-effects__02-effects-overview--1-s1" d="M0 0V-30" stroke-width=".7" stroke-linecap="round" stroke-linejoin="bevel" fill="none" stroke="color-mix(in srgb, currentColor 41%, var(--gb-paper))"/><path id="11-effects__02-effects-overview--1-s2" d="M0 0 4.2 8.5H-4.3ZM0 1.5 -3.1 7.8C-3.1 7.8 3.1 7.8 3.1 7.8Z" fill="color-mix(in srgb, currentColor 41%, var(--gb-paper))" fill-rule="evenodd"/></defs>
+<defs>
+<clipPath id="11-effects__02-effects-overview--1-clip_1">
+<path transform="matrix(1,0,0,-1,-179.6,425.9)" d="M179.6 142.1H547.4V425.9H179.6Z" clip-rule="evenodd"/>
+</clipPath>
+</defs>
+<g clip-path="url(#11-effects__02-effects-overview--1-clip_1)">
+<path transform="matrix(1,0,0,-1,-179.6,425.9)" d="M196.7 388.6H267.5V419.7H196.7ZM266.8 419.0V389.3C266.8 389.3 204.7 389.3 197.4 389.3 197.4 389.3 197.4 419.0 197.4 419.0 197.4 419.0 266.8 419.0 266.8 419.0Z" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-179.6,425.9)" d="M196.7 319.0H267.5V350.1H196.7ZM266.8 349.4V319.7C259.9 319.7 204.3 319.7 197.4 319.7 197.4 319.7 197.4 349.4 197.4 349.4 197.4 349.4 266.8 349.4 266.8 349.4Z" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-179.6,425.9)" d="M277.5 388.7H348.3V419.9H277.5ZM347.6 419.2V389.4C347.6 389.4 278.2 389.4 278.2 389.4 278.2 389.4 278.2 419.2 278.2 419.2 278.2 419.2 347.6 419.2 347.6 419.2Z" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-179.6,425.9)" d="M277.5 319.1H348.3V350.3H277.5ZM347.6 349.6V319.8C340.7 319.8 285.1 319.8 278.2 319.8 278.2 319.8 278.2 349.6 278.2 349.6 285.1 349.6 340.7 349.6 347.6 349.6Z" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-179.6,425.9)" d="M277.5 250.9H348.3V282.1H277.5ZM347.6 281.4V251.6C347.6 251.6 278.2 251.6 278.2 251.6 278.2 251.6 278.2 281.4 278.2 281.4 278.2 281.4 347.6 281.4 347.6 281.4Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-179.6,425.9)" d="M277.5 194.0H348.3V225.2H277.5ZM347.6 224.5V194.7C347.6 194.7 278.2 194.7 278.2 194.7 278.2 194.7 278.2 224.5 278.2 224.5 285.5 224.5 347.6 224.5 347.6 224.5Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-179.6,425.9)" d="M358.2 388.8H429.1V420.0H358.2ZM428.4 419.3V389.5C428.4 389.5 358.9 389.5 358.9 389.5 358.9 389.5 358.9 419.3 358.9 419.3 365.8 419.3 421.5 419.3 428.4 419.3Z" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-179.6,425.9)" d="M358.2 319.2H429.1V350.4H358.2ZM428.4 349.7V319.9C421.5 319.9 365.8 319.9 358.9 319.9 358.9 319.9 358.9 345.1 358.9 349.7 358.9 349.7 428.4 349.7 428.4 349.7Z" fill-rule="evenodd"/>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(24.2 18.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Sound Engine</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(24.2 88.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Sound Engine</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(105.0 18.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Sound Engine</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(105.0 88.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Sound Engine</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(276.8 83.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Sound Level Effects.</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(269.7 91.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Typically set through grid</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(265.9 99.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">shortcuts or nested menus.</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(293.3 146.9)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Kit Effects.</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(266.8 154.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Typically set through affect</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(273.5 162.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">parameters with ‘affect</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(279.8 170.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">entire’ function set.</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(288.9 204.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Song Effects.</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(266.8 212.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Typically set through affect</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(273.5 220.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">parameters with ‘affect</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(279.8 227.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">entire’ function set.</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(128.0 155.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Kit</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(110.8 212.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Song Level</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(185.8 18.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Sound Engine</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(185.8 88.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Sound Engine</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(41.0 31.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Synth</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(38.8 100.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Effects</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(128.0 31.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Kit</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(119.6 100.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Effects</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(119.6 168.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Effects</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(119.6 225.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Effects</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(202.6 31.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Synth</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(200.4 100.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Effects</tspan></text>
+<path transform="matrix(1,0,0,-1,-179.6,425.9)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M185.6 181.9H541.3V238.8H185.6Z"/>
+<path transform="matrix(1,0,0,-1,-179.6,425.9)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M185.6 244.3H541.3V295.2H185.6Z"/>
+<path transform="matrix(1,0,0,-1,-179.6,425.9)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M185.6 311.5H541.3V362.4H185.6Z"/>
+<use href="#11-effects__02-effects-overview--1-s1" transform="matrix(1 0 0 -1 50.9 37.6)"/>
+<use href="#11-effects__02-effects-overview--1-s1" transform="matrix(1 0 0 -1 133.3 37.6)"/>
+<path transform="matrix(1,0,0,-1,-179.6,425.9)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="bevel" fill="none" stroke="color-mix(in srgb, currentColor 41%, var(--gb-paper))" d="M312.9 194.0V156.7"/>
+<path transform="matrix(1,0,0,-1,-179.6,425.9)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="bevel" fill="none" stroke="color-mix(in srgb, currentColor 41%, var(--gb-paper))" d="M312.9 250.6V233.5"/>
+<use href="#11-effects__02-effects-overview--1-s1" transform="matrix(1 0 0 -1 214.1 37.6)"/>
+<path transform="matrix(1,0,0,-1,-179.6,425.9)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="bevel" fill="none" stroke="color-mix(in srgb, currentColor 41%, var(--gb-paper))" d="M230.5 318.6V306.1H394.9V318.6"/>
+<path transform="matrix(1,0,0,-1,-179.6,425.9)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="bevel" fill="none" stroke="color-mix(in srgb, currentColor 41%, var(--gb-paper))" d="M312.9 319.0V291.1"/>
+<use href="#11-effects__02-effects-overview--1-s2" transform="matrix(1 0 0 -1 50.9 76.1)"/>
+<use href="#11-effects__02-effects-overview--1-s2" transform="matrix(1 0 0 -1 133.3 76.1)"/>
+<use href="#11-effects__02-effects-overview--1-s2" transform="matrix(1 0 0 -1 133.3 76.1)"/>
+<use href="#11-effects__02-effects-overview--1-s2" transform="matrix(1 0 0 -1 133.3 143.3)"/>
+<use href="#11-effects__02-effects-overview--1-s2" transform="matrix(1 0 0 -1 133.3 200.9)"/>
+<use href="#11-effects__02-effects-overview--1-s2" transform="matrix(1 0 0 -1 133.3 277.7)"/>
+<use href="#11-effects__02-effects-overview--1-s2" transform="matrix(1 0 0 -1 214.1 76.1)"/>
+<path transform="matrix(1,0,0,-1,-179.6,425.9)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M170.1 688.6V84.1"/>
+</g>
+</svg>

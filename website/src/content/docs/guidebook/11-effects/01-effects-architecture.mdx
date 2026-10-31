@@ -15,22 +15,16 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_11_1_1 from "../../../../assets/guidebook/figs/11-effects__01-effects-architecture--1.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
-<FigurePending id="fig-11.1-1" page={214}>
-  SD CARD Audio samples streamed to Deluge · Deluge: Effects Architecture 64MB
-  of internal working memory · Synth & Sounds within Kits · Decimate Bitcrush
-  Decimation / Bitcrushing Effect · Distortion · HPF High Pass Filter · LPF Low
-  Pass Amplitude Filter · Oscillator Volume · Saturation Effect · Oscillator ·
-  Envelope · Mod FX · Reverb · EQ · DELAY · Modulation Equalisation Effect ·
-  Delay Effect · Master Volume (Sound) · Reverb Send · Kit Level FX · Decimate
-  Bitcrush · HPF · LPF Low Pass Filter · High Pass Filter · Decimation /
-  Bitcrushing Effect · Mod FX · Reverb · EQ Modulation Equalisation Effect ·
-  DELAY Delay Effect · Kit Level Volume (Sound) · Reverb Send · Song Level FX ·
-  Reverb Return · Mod FX · Reverb · Reverb · Decimate Bitcrush · Stutter · EQ
-  Modulation Equalisation Effect · DELAY Delay Effect · HPF High Pass Filter ·
-  LPF Low Pass Filter · Song Level Volume (Sound) · Reverb Send · Decimation /
-  Bitcrushing Effect · Stutter Effect
-</FigurePending>
+<Figure
+  id="fig-11.1-1"
+  src={fig_fig_11_1_1}
+  alt={
+    "Diagram: SD CARD Deluge: Effects Architecture Audio samples streamed to Deluge 64MB of internal working memory Synth & Sounds within Kits Decimate…"
+  }
+  page={214}
+/>

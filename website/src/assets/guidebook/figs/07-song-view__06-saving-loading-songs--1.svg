@@ -1,0 +1,44 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 335.9 150.0"><defs><path id="07-song-view__06-saving-loading-songs--1-s1" d="M0 0C1.6 0 2.9 -1.2 2.9 -2.8 2.9 -4.4 1.6 -5.6 0 -5.6 -1.5 -5.6 -2.8 -4.4 -2.8 -2.8 -2.8 -1.2 -1.5 0 0 0Z" fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" fill-rule="evenodd"/></defs>
+<defs>
+<clipPath id="07-song-view__06-saving-loading-songs--1-clip_1">
+<path transform="matrix(1,0,0,-1,-190.6,348.3)" d="M190.6 198.2H526.5V348.3H190.6Z" clip-rule="evenodd"/>
+</clipPath>
+<mask id="07-song-view__06-saving-loading-songs--1-mask_2">
+<g transform="matrix(.036,0,0,.036,15.0,5.9)">
+<image id="07-song-view__06-saving-loading-songs--1-image_3" width="1354" height="1728" xlink:href="/guidebook/img/07-song-view__06-saving-loading-songs--1-1.webp"/>
+</g>
+</mask>
+</defs>
+<g>
+<g clip-path="url(#07-song-view__06-saving-loading-songs--1-clip_1)">
+<path transform="matrix(1,0,0,-1,-190.6,348.3)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M170.1 688.6V84.1"/>
+<g mask="url(#07-song-view__06-saving-loading-songs--1-mask_2)">
+<g transform="matrix(.036,0,0,.036,15.0,5.9)">
+<image class="gb-ink" id="07-song-view__06-saving-loading-songs--1-image_4" width="1354" height="1728" xlink:href="/guidebook/img/07-song-view__06-saving-loading-songs--1-2.webp"/>
+</g>
+</g>
+<path transform="matrix(1,0,0,-1,-190.6,348.3)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="bevel" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M362.0 275.8H520.5"/>
+<path transform="matrix(1,0,0,-1,-190.6,348.3)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="bevel" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M361.7 331.8V204.2"/>
+<use href="#07-song-view__06-saving-loading-songs--1-s1" transform="matrix(1 0 0 -1 171.1 10.9)"/>
+<use href="#07-song-view__06-saving-loading-songs--1-s1" transform="matrix(1 0 0 -1 171.1 69.7)"/>
+<use href="#07-song-view__06-saving-loading-songs--1-s1" transform="matrix(1 0 0 -1 243.1 69.7)"/>
+<use href="#07-song-view__06-saving-loading-songs--1-s1" transform="matrix(1 0 0 -1 315.1 69.7)"/>
+<use href="#07-song-view__06-saving-loading-songs--1-s1" transform="matrix(1 0 0 -1 171.1 128.5)"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(91.0 17.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Save Slot</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(145.1 17.6)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">001</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(91.0 76.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Save Slot</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(145.1 76.2)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">002</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(91.0 135.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Save Slot</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(145.1 135.0)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">003</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(232.9 88.5)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">002 2</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(305.7 88.5)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">002 3</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(261.0 93.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Sub Slot</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(237.6 123.6)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Sub-slots are automatically</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(231.4 131.6)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">generated to avoid accidentally</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(235.7 139.6)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">overwriting of existing songs</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(4.8 85.6)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">SONG folder will store</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(5.9 93.6)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">user saved song data</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(15.1 101.6)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">on the SD card.</tspan></text>
+</g>
+</g>
+</svg>

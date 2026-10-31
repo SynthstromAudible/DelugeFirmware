@@ -15,7 +15,8 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_13_2_1 from "../../../../assets/guidebook/figs/13-cv__02-cv-hardware-configuration--1.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -23,10 +24,11 @@ CV configuration requires the careful match up of both Deluge along with the ext
 
 #### Typical CV Set Up
 
-<FigurePending id="fig-13.2-1" page={269}>
-  Modular Device CV compatible device, example synth module connected with 3.5mm
-  / 1/8th Inch patch cables. · Signal (tip) · Deluge has CV grounded on the
-  sleeve and ring. Ring through a 10K resistor. · Gate CH 1 · CV CH 1 · MIDI In
-  · MIDI Out · External controller providing control to Deluge. MIDI can be
-  converted to CV within Deluge by creating a CV clip and mapping MIDI in to it.
-</FigurePending>
+<Figure
+  id="fig-13.2-1"
+  src={fig_fig_13_2_1}
+  alt={
+    "Diagram: Modular Device Signal (tip) CV compatible device, example synth module connected with 3.5mm / 1/8th Deluge has CV Inch patch cables. and…"
+  }
+  page={269}
+/>

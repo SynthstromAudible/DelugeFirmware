@@ -1,0 +1,18 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 104.2 51.3">
+<defs>
+<clipPath id="04-synthesizers__09-oscillators--1-clip_1">
+<path transform="matrix(1,0,0,-1,-298.5,653.1)" d="M298.5 601.7H402.8V653.1H298.5Z" clip-rule="evenodd"/>
+</clipPath>
+</defs>
+<g clip-path="url(#04-synthesizers__09-oscillators--1-clip_1)">
+<path transform="matrix(1,0,0,-1,-298.5,653.1)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M170.1 688.6V84.1"/>
+<path transform="matrix(1,0,0,-1,-298.5,653.1)" d="M309.2 627.0H392.3V635.3H309.2Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-298.5,653.1)" stroke-width=".6" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M309.2 627.0H392.3V635.3H309.2Z"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 13.4 24.4)" font-size="5.6" font-family="monospace"><tspan y="0" x="0.0" textLength="20.6" lengthAdjust="spacingAndGlyphs">SINE</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 13.4 33.1)" font-size="5.6" font-family="monospace"><tspan y="0" x="0.0" textLength="43.1" lengthAdjust="spacingAndGlyphs">TRIANGLE</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 13.4 41.9)" font-size="5.6" font-family="monospace"><tspan y="0" x="0.0" textLength="31.9" lengthAdjust="spacingAndGlyphs">SQUARE</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(10.2 14.4)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-weight="bold"><tspan y="0" x="0.0" textLength="43.9" lengthAdjust="spacingAndGlyphs">OSC1 TYPE</tspan></text>
+<path transform="matrix(1,0,0,-1,-298.5,653.1)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M309.1 636.7H392.1"/>
+<path transform="matrix(1,0,0,-1,-298.5,653.1)" stroke-width=".8" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M304.5 607.8H396.8V647.2H304.5Z"/>
+</g>
+</svg>

@@ -15,7 +15,8 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_4_3_1 from "../../../../assets/guidebook/figs/04-synthesizers__03-deluge-fm-synthesizer-overview--1.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -25,11 +26,11 @@ Deluge has FM synth features and parameters that are configurable.
 
 Deluge uses two carriers and two FM modulators. Regular modulation is also provided by 2 LFO and envelope options.
 
-<FigurePending id="fig-4.3-1" page={78}>
-  2 x Modulation Options · 1 x Modulation Option · 1 x Option · Env 2 · Env 1 ·
-  Sidechain · Carrier 1 · Oscillator Volume · ADSR · ADSR · Compressor · Input
-  Trigger · AMP · Effects · Modulator 1 · Modulator 2 · Main Volume · Carrier 2
-  · Oscillator Volume · LFO 1 · LFO 2 · LFO · LFO · Multiple Modulation Multiple
-  Modulation Options · Options · All Voices - No Retrigger · Per Voice -
-  Retrigger at Note On · Deluge FM Algorithms
-</FigurePending>
+<Figure
+  id="fig-4.3-1"
+  src={fig_fig_4_3_1}
+  alt={
+    "Diagram: 2 x Modulation 1 x Modulation 1 x Option Options Option Env 2 Env 1 Sidechain Carrier 1 Oscillator Volume ADSR ADSR Compressor Input…"
+  }
+  page={78}
+/>

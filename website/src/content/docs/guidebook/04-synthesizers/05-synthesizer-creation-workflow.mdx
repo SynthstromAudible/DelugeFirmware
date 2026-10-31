@@ -15,21 +15,18 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_4_5_1 from "../../../../assets/guidebook/figs/04-synthesizers__05-synthesizer-creation-workflow--1.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
 An example high level workflow on setting up the Deluge synths gives a starting point for sound design and preset creation.
 
-<FigurePending id="fig-4.5-1" page={80}>
-  Synth specific · S · Generic set-up · Create a blank preset [SHIFT] + [SYNTH]
-  · 1 · Determine synth mode Set in sound editor: Subtractive, Wavetable, FM,
-  Ring Mod · 2 · Set-up and tune oscillators / carrier - modulator Set in sound
-  editor · 3 · Adjust filters to shape sound Subtractive synths · 4 · Set-up
-  envelopes Set in sound editor. ENV 1 to shape amplitude · 5 · Iterative set up
-  steps to adjust to the desired sound 3 · Set-up modulation Optional 2 x LFO’s
-  and 2 x envelopes · 6 · 7 · Set-up effects · 8 · 9 · Finalise output Volume
-  level and pan · Save Save as a preset · 10 · 11 · Play · ‘Affect parameter’
-  controls To tweak the common parameters. Set-up custom controls if needed. ·
-  12 · E
-</FigurePending>
+<Figure
+  id="fig-4.5-1"
+  src={fig_fig_4_5_1}
+  alt={
+    "Diagram: Synth specific S Generic set-up Create a blank preset 1 [SHIFT] + [SYNTH] Determine synth mode 2 Set in sound editor: Subtractive,…"
+  }
+  page={80}
+/>

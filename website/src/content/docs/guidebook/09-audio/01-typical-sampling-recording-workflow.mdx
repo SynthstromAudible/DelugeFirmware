@@ -15,23 +15,18 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_9_1_1 from "../../../../assets/guidebook/figs/09-audio__01-typical-sampling-recording-workflow--1.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
 Deluge provides a number of audio recording, playback and editing functions. Audio clips can be recorded and aligned to the timing of other functions. Audio clips should not be mistaken for samples. Samples are raw sounds which can be used within kits and synths. Samples can also be created in other systems and imported for use in Deluge. Audio can be recorded in song and arranger views.
 
-<FigurePending id="fig-9.1-1" page={170}>
-  Synth & kit samples · S · Audio clips Recorded and synchronised by
-  time-stretching to other Deluge functions · Select a destination Record to
-  synth or kit · Create an audio clip Song or arranger view - convert clip to
-  audio clip. · 1 · Record set-up (or load) Audio can be loaded from SD or
-  recorded · Record set-up (or load) Audio can be loaded from SD or recorded · 2
-  · Set the audio input / microphone Line in (L/R/stereo) · 3 · 4 · Arm clip for
-  recording · Record Audio is recorded or sampled in · Record Audio is recorded
-  in sync’ed and linked to tempo · 5 · Slice Slice sample across s series of kit
-  slots · 6 · Quick edit Adjust length and limited edit options · Quick edit
-  Adjust length and limited edit options · 7 · Waveform edit Tighter more
-  precise editing · 8 · Waveform edit Tighter more precise editing · Play Play
-  audio clip · 9 · Resample Record output to SD card · 10 · E
-</FigurePending>
+<Figure
+  id="fig-9.1-1"
+  src={fig_fig_9_1_1}
+  alt={
+    "Diagram: Synth & kit samples S Audio clips Recorded and synchronised by time-stretching to other Deluge functions Select a destination Create an…"
+  }
+  page={170}
+/>

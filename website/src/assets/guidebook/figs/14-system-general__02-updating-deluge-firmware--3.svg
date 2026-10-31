@@ -1,0 +1,49 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 267.0 150.9">
+<defs>
+<clipPath id="14-system-general__02-updating-deluge-firmware--3-clip_1">
+<path transform="matrix(1,0,0,-1,-229.3,271.0)" d="M229.3 120.1H496.4V271.0H229.3Z" clip-rule="evenodd"/>
+</clipPath>
+<clipPath id="14-system-general__02-updating-deluge-firmware--3-clip_2">
+<path transform="matrix(1,0,0,-1,-229.3,271.0)" d="M379.9 447.4H409.3V471.5H379.9Z" clip-rule="evenodd"/>
+</clipPath>
+<clipPath id="14-system-general__02-updating-deluge-firmware--3-clip_3">
+<path transform="matrix(1,0,0,-1,-229.3,271.0)" d="M232.4 178.8H487.5V250.9H232.4Z" clip-rule="evenodd"/>
+</clipPath>
+<mask id="14-system-general__02-updating-deluge-firmware--3-mask_4">
+<g transform="matrix(.031963,0,0,.031962996,14.6,20.1)">
+<image id="14-system-general__02-updating-deluge-firmware--3-image_5" width="7260" height="2022" xlink:href="/guidebook/img/14-system-general__02-updating-deluge-firmware--3-1.webp"/>
+</g>
+</mask>
+<clipPath id="14-system-general__02-updating-deluge-firmware--3-clip_7">
+<path transform="matrix(1,0,0,-1,-229.3,271.0)" d="M381.3 126.2H405.3V155.6H381.3Z" clip-rule="evenodd"/>
+</clipPath>
+<mask id="14-system-general__02-updating-deluge-firmware--3-mask_8">
+<g transform="matrix(.018794,0,0,.018794,152.0,115.4)">
+<image id="14-system-general__02-updating-deluge-firmware--3-image_9" width="1278" height="1568" xlink:href="/guidebook/img/14-system-general__02-updating-deluge-firmware--3-2.webp"/>
+</g>
+</mask>
+</defs>
+<g>
+<g clip-path="url(#14-system-general__02-updating-deluge-firmware--3-clip_1)">
+<path transform="matrix(1,0,0,-1,-229.3,271.0)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M170.1 688.6V84.1"/>
+<g clip-path="url(#14-system-general__02-updating-deluge-firmware--3-clip_2)">
+</g>
+<g clip-path="url(#14-system-general__02-updating-deluge-firmware--3-clip_3)">
+<g mask="url(#14-system-general__02-updating-deluge-firmware--3-mask_4)">
+<g transform="matrix(.031963,0,0,.031962996,14.6,20.1)">
+<image class="gb-ink" id="14-system-general__02-updating-deluge-firmware--3-image_6" width="7260" height="2022" xlink:href="/guidebook/img/14-system-general__02-updating-deluge-firmware--3-3.webp"/>
+</g>
+</g>
+</g>
+<g clip-path="url(#14-system-general__02-updating-deluge-firmware--3-clip_7)">
+<g mask="url(#14-system-general__02-updating-deluge-firmware--3-mask_8)">
+<g transform="matrix(.018794,0,0,.018794,152.0,115.4)">
+<image class="gb-ink" id="14-system-general__02-updating-deluge-firmware--3-image_10" width="1278" height="1568" xlink:href="/guidebook/img/14-system-general__02-updating-deluge-firmware--3-4.webp"/>
+</g>
+</g>
+</g>
+<path transform="matrix(1,0,0,-1,-229.3,271.0)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M393.5 184.4V156.1"/>
+<path transform="matrix(1,0,0,-1,-229.3,271.0)" d="M490.3 265.1H235.2V245.2C261.3 236.8 287.7 236.3 314.6 245.2 351.5 254.9 386.3 254.0 419.5 245.2 444.4 239.9 468.6 237.3 490.3 245.2Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+</g>
+</g>
+</svg>

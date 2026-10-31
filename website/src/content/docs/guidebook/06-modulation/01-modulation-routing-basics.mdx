@@ -15,7 +15,9 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_6_1_1 from "../../../../assets/guidebook/figs/06-modulation__01-modulation-routing-basics--1.svg?raw"
+import fig_fig_6_1_2 from "../../../../assets/guidebook/figs/06-modulation__01-modulation-routing-basics--2.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -49,13 +51,14 @@ There are several modulation sources which are available through the nested menu
 6. The display will show the strength of the connection which is the amount of modulation between the two functions. :key[Turn Select] to adjust. Depth can be positive and negative values. Non-zero value means a modulation connection exists.
 7. Pressing :key[BackUndo] will confirm and exit the option and back up.
 
-<FigurePending id="fig-6.1-1" page={119}>
-  Destination Parameter Flashes quickly when connected to a modulation source
-  and the destination parameter is selected / in-focus. [SHIFT] + [FREQUENCY] ·
-  39 · LFO1 · LPF FREQ. · Cutoff Freq · LFO · Modulator. Flashes quickly when
-  connected to a destination and the source parameter is selected / in-focus
-  [SHIFT] + [LFO 1].
-</FigurePending>
+<Figure
+  id="fig-6.1-1"
+  src={fig_fig_6_1_1}
+  alt={
+    "OLED screen: LFO1 39 LPF FREQ. FREQUENCY] Cutoff Freq LFO Modulator. Flashes quickly when connected to a destination and the source parameter is…"
+  }
+  page={119}
+/>
 
 #### Modulation Source Nested Menu
 
@@ -92,10 +95,14 @@ Then
 1. The display will show the strength of the connection which is the amount of modulation between the two functions. :key[Turn Select] to adjust and set to ‘0’.
 2. Pressing :key[BackUndo] will confirm and exit the option and back up.
 
-<FigurePending id="fig-6.1-2" page={121}>
-  LFO1 · 39 · Destination parameter name and value are displayed along with the
-  source · LPF FREQ.
-</FigurePending>
+<Figure
+  id="fig-6.1-2"
+  src={fig_fig_6_1_2}
+  alt={
+    "OLED screen: LFO1 39 Destination parameter name and value LPF FREQ. are displayed along with the source"
+  }
+  page={121}
+/>
 
 MODULATION SOURCES
 

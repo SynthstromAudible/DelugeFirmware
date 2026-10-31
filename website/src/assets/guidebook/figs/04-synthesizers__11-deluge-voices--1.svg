@@ -1,0 +1,47 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 316.3 438.5"><defs><path id="04-synthesizers__11-deluge-voices--1-s1" d="M0 0H217.9" stroke-width="1" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)"/><path id="04-synthesizers__11-deluge-voices--1-s2" d="M0 0C1.5 0 2.7 -1.3 2.7 -2.8 2.7 -4.3 1.5 -5.5 0 -5.5 -1.5 -5.5 -2.8 -4.3 -2.8 -2.8 -2.8 -1.3 -1.5 0 0 0Z" fill="var(--gb-accent)" fill-rule="evenodd"/><path id="04-synthesizers__11-deluge-voices--1-s3" d="M0 0C1.5 0 2.8 -1.3 2.8 -2.8 2.8 -4.3 1.5 -5.5 0 -5.5 -1.5 -5.5 -2.7 -4.3 -2.7 -2.8 -2.7 -1.3 -1.5 0 0 0Z" fill="var(--gb-accent)" fill-rule="evenodd"/></defs>
+<defs>
+<clipPath id="04-synthesizers__11-deluge-voices--1-clip_1">
+<path transform="matrix(1,0,0,-1,-63.8,627.1)" d="M63.8 188.6H380.1V627.1H63.8Z" clip-rule="evenodd"/>
+</clipPath>
+</defs>
+<g clip-path="url(#04-synthesizers__11-deluge-voices--1-clip_1)">
+<path transform="matrix(1,0,0,-1,-63.8,627.1)" stroke-width=".75" stroke-linecap="round" stroke-dasharray="2.2,2.2,.0001,.0001" stroke-linejoin="round" fill="none" stroke="currentColor" d="M85.0 576.7V361.7"/>
+<path transform="matrix(1,0,0,-1,-63.8,627.1)" stroke-width=".75" stroke-linecap="round" stroke-dasharray="2.2,2.2,.0001,.0001" stroke-linejoin="round" fill="none" stroke="currentColor" d="M303.4 576.7V361.7"/>
+<path transform="matrix(1,0,0,-1,-63.8,627.1)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M424.7 688.6V84.1"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(7.0 336.6)" font-size="10" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Deluge Unison</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(7.0 358.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">The settings available in the voice menu of Deluge include number of voices</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(7.0 368.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">and the detuning of these voices. You can also use the two oscillators both</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(7.0 378.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">detuned from each other in addition to unison mode.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(7.0 400.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Multiple instances of polyphonic and unison clips are possible under</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(7.0 410.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">powerful CPU control. As the CPU becomes more loaded voices will be</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(7.0 420.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">reduced starting with notes in a ‘release’ state and the priority setting found</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(7.0 430.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">within the voice : polyphony parameter set.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(38.2 79.5)" font-size="10" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">NUM</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(38.2 90.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Number of voices from the maximum of 8.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(38.2 101.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Example 3:</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(38.2 210.0)" font-size="10" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">DET</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(38.2 221.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Detuning of voices. Example 30. This is a</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(38.2 232.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">setting between 0-50 which affects all selected</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(38.2 243.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">voices so adjustment to ear is recommended.</tspan></text>
+<use href="#04-synthesizers__11-deluge-voices--1-s1" transform="matrix(1 0 0 -1 21.2 122.8)"/>
+<use href="#04-synthesizers__11-deluge-voices--1-s1" transform="matrix(1 0 0 -1 21.2 150.4)"/>
+<use href="#04-synthesizers__11-deluge-voices--1-s1" transform="matrix(1 0 0 -1 21.2 179.2)"/>
+<use href="#04-synthesizers__11-deluge-voices--1-s2" transform="matrix(1 0 0 -1 239.5 120)"/>
+<use href="#04-synthesizers__11-deluge-voices--1-s2" transform="matrix(1 0 0 -1 239.5 147.6)"/>
+<use href="#04-synthesizers__11-deluge-voices--1-s2" transform="matrix(1 0 0 -1 239.5 176.4)"/>
+<use href="#04-synthesizers__11-deluge-voices--1-s3" transform="matrix(1 0 0 -1 21.2 120)"/>
+<use href="#04-synthesizers__11-deluge-voices--1-s3" transform="matrix(1 0 0 -1 21.2 147.6)"/>
+<use href="#04-synthesizers__11-deluge-voices--1-s3" transform="matrix(1 0 0 -1 21.2 176.4)"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(5.9 13.2)" font-size="10" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Note on</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(5.9 24.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Single note triggers multiple voices instead</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(5.9 35.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">of the single default voice allocation.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(228.1 284.1)" font-size="10" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Note off</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(228.1 295.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Note released.</tspan></text>
+<path transform="matrix(1,0,0,-1,-63.8,627.1)" d="M101.1 497.9H132.7V511.0H101.1Z" fill="var(--gb-paper)"/>
+<text xml:space="preserve" transform="translate(40.1 125.1)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Voice 1</tspan></text>
+<path transform="matrix(1,0,0,-1,-63.8,627.1)" d="M101.1 470.4H132.7V483.6H101.1Z" fill="var(--gb-paper)"/>
+<text xml:space="preserve" transform="translate(40.1 152.6)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Voice 2</tspan></text>
+<path transform="matrix(1,0,0,-1,-63.8,627.1)" d="M101.1 442.0H132.7V454.4H101.1Z" fill="var(--gb-paper)"/>
+<text xml:space="preserve" transform="translate(40.1 181.4)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Voice 3</tspan></text>
+</g>
+</svg>

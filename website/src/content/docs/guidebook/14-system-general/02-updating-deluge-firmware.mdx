@@ -15,7 +15,10 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_14_2_1 from "../../../../assets/guidebook/figs/14-system-general__02-updating-deluge-firmware--1.svg?raw"
+import fig_fig_14_2_2 from "../../../../assets/guidebook/figs/14-system-general__02-updating-deluge-firmware--2.svg?raw"
+import fig_fig_14_2_3 from "../../../../assets/guidebook/figs/14-system-general__02-updating-deluge-firmware--3.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -29,26 +32,36 @@ Synthstrom are continuously developing the functionality and performance of Delu
 4. The currently installed firmware version is displayed. No changes can be made in this menu option.
 5. Press :key[BackUndo] to back out of menu.
 
-<FigurePending id="fig-14.2-1" page={278}>
-  CURSOR RECORDING FIRMWARE VER. · SETTINGS · FIRMWARE VER. 4. 1. 0 · Firmware
-  Option · Firmware Version
-</FigurePending>
+<Figure
+  id="fig-14.2-1"
+  src={fig_fig_14_2_1}
+  alt={
+    "OLED screen: SETTINGS FIRMWARE VER. CURSOR 4. 1. 0 RECORDING FIRMWARE VER. Firmware Option Firmware Version"
+  }
+  page={278}
+/>
 
 Deluge firmware updates utilise the SD card to load the update .bin script. This needs to be prepared in advance. Ensure only one .bin file is present on the SD card when updating.
 
-<FigurePending id="fig-14.2-2" page={279}>
-  SD Card The .bin update file should be located in the root directory for the
-  SD card. Any other .bin files should be removed from the the SD card ·
-  Deluge+firmware+V4p0p1.bin KITS SONGS SYNTHS SAMPLES · Update Bin File The
-  .bin update file should be downloaded from Synthstrom and transferred by
-  PC/Mac to the SD card
-</FigurePending>
+<Figure
+  id="fig-14.2-2"
+  src={fig_fig_14_2_2}
+  alt={
+    "Diagram: SD Card The .bin update file should be located in the root directory for the SD card. Any other .bin files should be removed from the the…"
+  }
+  page={279}
+/>
 
 The SD card should be backed up by copying the entire content of the SD card to the PC/Mac while it is inserted.
 
 Deluge should be powered off. Once complete the SD card with the .bin file should be inserted into the Deluge.
 
-<FigurePending id="fig-14.2-3" page={279}></FigurePending>
+<Figure
+  id="fig-14.2-3"
+  src={fig_fig_14_2_3}
+  alt={"Diagram: figure from guidebook page 279"}
+  page={279}
+/>
 
 ### Performing a deluge update
 

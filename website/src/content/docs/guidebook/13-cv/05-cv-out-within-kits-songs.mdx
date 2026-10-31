@@ -15,7 +15,8 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_13_5_1 from "../../../../assets/guidebook/figs/13-cv__05-cv-out-within-kits-songs--1.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -27,9 +28,14 @@ As well as samples, sounds and synths, CV can also be combined within a kit as a
 2. Press & hold :key[Audition Pad] for the row which will convert to CV + press :key[CV].
 3. Hold :key[Audition Pad] for the CV row to display the gate channel information.
 
-<FigurePending id="fig-13.5-1" page={272}>
-  GATE CHANNEL 3 · Gate Channel Example: 3 from a range of 1-4
-</FigurePending>
+<Figure
+  id="fig-13.5-1"
+  src={fig_fig_13_5_1}
+  alt={
+    "OLED screen: GATE CHANNEL 3 Gate Channel Example: 3 from a range of 1-4"
+  }
+  page={272}
+/>
 
 4. While holding the audition pad, :key[Turn Lower Gold] control to change the gate channel. This process allows independent setting of gate channels.
 5. :key[Kit + Save] to save the kit and retain the CV setting.

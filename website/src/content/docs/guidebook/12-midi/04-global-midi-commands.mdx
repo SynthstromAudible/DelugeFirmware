@@ -15,7 +15,8 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_12_4_1 from "../../../../assets/guidebook/figs/12-midi__04-global-midi-commands--1.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -23,7 +24,7 @@ The Deluge can be controlled at a system level for example play and stop, using 
 
 There are a number of global commands that are already available within the MIDI section of the settings menu under ‘COMMANDS’
 
-These are:-
+These are:
 
     - ‘PLAY’ - play & stop playback. Same as pressing the :key[Play] button.
     - ‘RESTART’ - restart playback. If already playing will restart from the beginning. Same as pressing the :key[Horizontal + Play] buttons.
@@ -36,7 +37,7 @@ These are:-
 
 Notes on other MIDI command use.
 
-The common functions when using external MIDI is to control notes and parameters. Also the global commands can be controlled externally for overall control of deluge and when working with loops.. Other MIDI control functions are also available, for example, Song specific functions:-
+The common functions when using external MIDI is to control notes and parameters. Also the global commands can be controlled externally for overall control of deluge and when working with loops.. Other MIDI control functions are also available, for example, Song specific functions:
 
     - Launching of clips or sections.
     - Muting / unmuting clip rows on song mode.
@@ -56,7 +57,11 @@ The common functions when using external MIDI is to control notes and parameters
 9. The display will indicate ‘SET to show the setup is now complete and the switch is mapped to the function.
 10. To unmap the command :key[Turn Select] when the function setting is in- focus or set it to a new input.
 
-<FigurePending id="fig-12.4-1" page={248}>
-  1 Play / Stop · 2 Record · 3 Undo · 4 Redo · None Restart · None Loop · None
-  Tap · None Layer
-</FigurePending>
+<Figure
+  id="fig-12.4-1"
+  src={fig_fig_12_4_1}
+  alt={
+    "Diagram: 1 2 3 4 Play / Stop Record Undo Redo None None Restart Loop None None Tap Layer"
+  }
+  page={248}
+/>

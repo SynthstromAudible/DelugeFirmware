@@ -194,29 +194,29 @@
 <text fill="currentColor" xml:space="preserve" transform="matrix(0 -1 1 0 362.3 85.1)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">LOCRIAN</tspan></text>
 <path transform="matrix(1,0,0,-1,-164.2,694.6)" stroke-width=".45" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 41%, var(--gb-paper))" d="M533.3 588.8H179.0"/>
 <path transform="matrix(1,0,0,-1,-164.2,694.6)" stroke-width=".45" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 41%, var(--gb-paper))" d="M533.3 469.5H179.0"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(23.5 21.0)" font-size="6" font-family="monospace"><tspan y="0" x="0.0">MAJOR</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(23.5 21.0)" font-size="6" font-family="monospace"><tspan y="0" x="0.0">MAJOR</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(23.5 21.0)" font-size="6" font-family="monospace"><tspan y="0" x="0.0" textLength="28.3" lengthAdjust="spacingAndGlyphs">MAJOR</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(23.5 21.0)" font-size="6" font-family="monospace"><tspan y="0" x="0.0" textLength="28.3" lengthAdjust="spacingAndGlyphs">MAJOR</tspan></text>
 <use href="#03-sequencing__06-note-scales--2-s15" transform="matrix(1 0 0 -1 13 25.9)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(128.2 21.0)" font-size="6" font-family="monospace"><tspan y="0" x="0.0">DORIAN</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(128.2 21.0)" font-size="6" font-family="monospace"><tspan y="0" x="0.0">DORIAN</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(128.2 21.0)" font-size="6" font-family="monospace"><tspan y="0" x="0.0" textLength="34.3" lengthAdjust="spacingAndGlyphs">DORIAN</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(128.2 21.0)" font-size="6" font-family="monospace"><tspan y="0" x="0.0" textLength="34.3" lengthAdjust="spacingAndGlyphs">DORIAN</tspan></text>
 <use href="#03-sequencing__06-note-scales--2-s15" transform="matrix(1 0 0 -1 120 25.9)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(234.9 21.0)" font-size="6" font-family="monospace"><tspan y="0" x="0.0">LYDIAN</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(234.9 21.0)" font-size="6" font-family="monospace"><tspan y="0" x="0.0">LYDIAN</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(234.9 21.0)" font-size="6" font-family="monospace"><tspan y="0" x="0.0" textLength="34.3" lengthAdjust="spacingAndGlyphs">LYDIAN</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(234.9 21.0)" font-size="6" font-family="monospace"><tspan y="0" x="0.0" textLength="34.3" lengthAdjust="spacingAndGlyphs">LYDIAN</tspan></text>
 <use href="#03-sequencing__06-note-scales--2-s15" transform="matrix(1 0 0 -1 227.1 25.9)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(76.9 21.0)" font-size="6" font-family="monospace"><tspan y="0" x="0.0">MINOR</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(76.9 21.0)" font-size="6" font-family="monospace"><tspan y="0" x="0.0">MINOR</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(76.9 21.0)" font-size="6" font-family="monospace"><tspan y="0" x="0.0" textLength="28.3" lengthAdjust="spacingAndGlyphs">MINOR</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(76.9 21.0)" font-size="6" font-family="monospace"><tspan y="0" x="0.0" textLength="28.3" lengthAdjust="spacingAndGlyphs">MINOR</tspan></text>
 <use href="#03-sequencing__06-note-scales--2-s15" transform="matrix(1 0 0 -1 66.5 25.9)"/>
-<text fill="currentColor" xml:space="preserve" transform="matrix(.974039 0 -0 1.0 176.7 21.1)" font-size="5.8" font-family="monospace"><tspan y="0" x="0.0">PHRYGIAN</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="matrix(.974039 0 -0 1.0 176.7 21.1)" font-size="5.8" font-family="monospace"><tspan y="0" x="0.0">PHRYGIAN</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(.974039 0 -0 1.0 176.7 21.1)" font-size="5.8" font-family="monospace"><tspan y="0" x="0.0" textLength="45.2" lengthAdjust="spacingAndGlyphs">PHRYGIAN</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(.974039 0 -0 1.0 176.7 21.1)" font-size="5.8" font-family="monospace"><tspan y="0" x="0.0" textLength="45.2" lengthAdjust="spacingAndGlyphs">PHRYGIAN</tspan></text>
 <path transform="matrix(1,0,0,-1,-164.2,694.6)" stroke-width=".5" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M337.7 668.7H389.7V683.7H337.7Z"/>
-<text fill="currentColor" xml:space="preserve" transform="matrix(.974039 0 -0 1.0 185.2 270.6)" font-size="5.8" font-family="monospace"><tspan y="0" x="0.0">OTHER</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="matrix(.974039 0 -0 1.0 185.2 270.6)" font-size="5.8" font-family="monospace"><tspan y="0" x="0.0">OTHER</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(.974039 0 -0 1.0 185.2 270.6)" font-size="5.8" font-family="monospace"><tspan y="0" x="0.0" textLength="27.6" lengthAdjust="spacingAndGlyphs">OTHER</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(.974039 0 -0 1.0 185.2 270.6)" font-size="5.8" font-family="monospace"><tspan y="0" x="0.0" textLength="27.6" lengthAdjust="spacingAndGlyphs">OTHER</tspan></text>
 <path transform="matrix(1,0,0,-1,-164.2,694.6)" stroke-width=".5" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M337.7 419.1H389.7V434.1H337.7Z"/>
-<text fill="currentColor" xml:space="preserve" transform="matrix(.883452 0 -0 1.1 282.5 21.1)" font-size="5.4" font-family="monospace"><tspan y="0" x="0.0">MIXOLYDIAN</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="matrix(.883452 0 -0 1.1 282.5 21.1)" font-size="5.4" font-family="monospace"><tspan y="0" x="0.0">MIXOLYDIAN</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(.883452 0 -0 1.1 282.5 21.1)" font-size="5.4" font-family="monospace"><tspan y="0" x="0.0" textLength="52.8" lengthAdjust="spacingAndGlyphs">MIXOLYDIAN</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(.883452 0 -0 1.1 282.5 21.1)" font-size="5.4" font-family="monospace"><tspan y="0" x="0.0" textLength="52.8" lengthAdjust="spacingAndGlyphs">MIXOLYDIAN</tspan></text>
 <path transform="matrix(1,0,0,-1,-164.2,694.6)" stroke-width=".5" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M444.8 668.7H496.6V683.7H444.8Z"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(339.0 21.0)" font-size="6" font-family="monospace"><tspan y="0" x="0.0">LOCRIAN</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(339.0 21.0)" font-size="6" font-family="monospace"><tspan y="0" x="0.0">LOCRIAN</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(339.0 21.0)" font-size="6" font-family="monospace"><tspan y="0" x="0.0" textLength="40.3" lengthAdjust="spacingAndGlyphs">LOCRIAN</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(339.0 21.0)" font-size="6" font-family="monospace"><tspan y="0" x="0.0" textLength="40.3" lengthAdjust="spacingAndGlyphs">LOCRIAN</tspan></text>
 <use href="#03-sequencing__06-note-scales--2-s15" transform="matrix(1 0 0 -1 334 25.9)"/>
 </g>
 </svg>

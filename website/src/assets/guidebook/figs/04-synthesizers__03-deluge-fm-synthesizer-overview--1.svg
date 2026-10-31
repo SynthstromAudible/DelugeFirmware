@@ -1,0 +1,395 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 494.5 492.8"><defs><path id="04-synthesizers__03-deluge-fm-synthesizer-overview--1-s1" d="M0 0H39.7" stroke-width=".4" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))"/><path id="04-synthesizers__03-deluge-fm-synthesizer-overview--1-s2" d="M0 0C0.9 9.2 1.7 10.2 2.5 0 3.3 -9.4 4.1 -9.2 4.9 0" stroke-width=".6" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="currentColor"/><path id="04-synthesizers__03-deluge-fm-synthesizer-overview--1-s3" d="M0 0H459 229.3" stroke-width=".4" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))"/><path id="04-synthesizers__03-deluge-fm-synthesizer-overview--1-s4" d="M0 0 3.9 2V-2Z" fill="var(--gb-paper)" fill-rule="evenodd"/><path id="04-synthesizers__03-deluge-fm-synthesizer-overview--1-s5" d="M0 0 3.9 2V-2ZM0.9 0 3.5 1.3C3.5 1.3 3.5 -1.3 3.5 -1.3Z" fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" fill-rule="evenodd"/><path id="04-synthesizers__03-deluge-fm-synthesizer-overview--1-s6" d="M0 0C4.6 0 8.4 -3.8 8.4 -8.4 8.4 -13 4.6 -16.8 0 -16.8 -4.6 -16.8 -8.4 -13 -8.4 -8.4 -8.4 -3.8 -4.6 0 0 0Z" fill="var(--gb-paper)" fill-rule="evenodd"/><path id="04-synthesizers__03-deluge-fm-synthesizer-overview--1-s7" d="M0 0C4.6 0 8.4 -3.8 8.4 -8.4 8.4 -13 4.6 -16.8 0 -16.8 -4.6 -16.8 -8.4 -13 -8.4 -8.4 -8.4 -3.8 -4.6 0 0 0ZM0 -0.5C4.3 -0.5 7.9 -4 7.9 -8.4 7.9 -12.7 4.3 -16.3 0 -16.3 -4.4 -16.3 -7.9 -12.7 -7.9 -8.4 -7.9 -4 -4.4 -0.5 0 -0.5Z" fill="currentColor" fill-rule="evenodd"/><path id="04-synthesizers__03-deluge-fm-synthesizer-overview--1-s8" d="M0 0C1 5.4 1.9 6 2.8 0 3.7 -5.6 4.7 -5.5 5.6 0" stroke-width=".6" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)"/><path id="04-synthesizers__03-deluge-fm-synthesizer-overview--1-s9" d="M0 0V-3.6H13.1V8.5H8.3" fill="var(--gb-paper)" fill-rule="evenodd"/><path id="04-synthesizers__03-deluge-fm-synthesizer-overview--1-s10" d="M0 0V-3.6H13.1V8.5H8.3" stroke-width=".4" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))"/><path id="04-synthesizers__03-deluge-fm-synthesizer-overview--1-s11" d="M0 0V-3.6H13V8.4H8.2" fill="var(--gb-paper)" fill-rule="evenodd"/><path id="04-synthesizers__03-deluge-fm-synthesizer-overview--1-s12" d="M0 0V-3.6H13V8.4H8.2" stroke-width=".4" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))"/><path id="04-synthesizers__03-deluge-fm-synthesizer-overview--1-s13" d="M0 0C1 5.4 1.9 6 2.8 0 3.8 -5.6 4.7 -5.5 5.6 0" stroke-width=".6" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)"/><path id="04-synthesizers__03-deluge-fm-synthesizer-overview--1-s14" d="M0 0V-3.6H13V8.5H8.2" fill="var(--gb-paper)" fill-rule="evenodd"/><path id="04-synthesizers__03-deluge-fm-synthesizer-overview--1-s15" d="M0 0V-3.6H13V8.5H8.2" stroke-width=".4" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))"/><path id="04-synthesizers__03-deluge-fm-synthesizer-overview--1-s16" d="M0 0C4.6 0 8.4 -3.7 8.4 -8.4 8.4 -13 4.6 -16.7 0 -16.7 -4.6 -16.7 -8.4 -13 -8.4 -8.4 -8.4 -3.7 -4.6 0 0 0Z" fill="var(--gb-paper)" fill-rule="evenodd"/><path id="04-synthesizers__03-deluge-fm-synthesizer-overview--1-s17" d="M0 0C4.6 0 8.4 -3.7 8.4 -8.4 8.4 -13 4.6 -16.7 0 -16.7 -4.6 -16.7 -8.4 -13 -8.4 -8.4 -8.4 -3.7 -4.6 0 0 0ZM0 -0.5C4.3 -0.5 7.9 -4 7.9 -8.4 7.9 -12.7 4.3 -16.2 0 -16.2 -4.4 -16.2 -7.9 -12.7 -7.9 -8.4 -7.9 -4 -4.4 -0.5 0 -0.5Z" fill="currentColor" fill-rule="evenodd"/><path id="04-synthesizers__03-deluge-fm-synthesizer-overview--1-s18" d="M0 0V-3.6H-13.4V8.5H-8.5" fill="var(--gb-paper)" fill-rule="evenodd"/><path id="04-synthesizers__03-deluge-fm-synthesizer-overview--1-s19" d="M0 0V-3.6H-13.4V8.5H-8.5" stroke-width=".4" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))"/><path id="04-synthesizers__03-deluge-fm-synthesizer-overview--1-s20" d="M0 0 -3.9 1.9V-2Z" fill="var(--gb-paper)" fill-rule="evenodd"/><path id="04-synthesizers__03-deluge-fm-synthesizer-overview--1-s21" d="M0 0 -3.9 1.9V-2ZM-0.9 0 -3.5 -1.4C-3.5 -1.4 -3.5 1.3 -3.5 1.3Z" fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" fill-rule="evenodd"/><path id="04-synthesizers__03-deluge-fm-synthesizer-overview--1-s22" d="M0 0C4.9 0 8.9 -4 8.9 -8.8 8.9 -13.7 4.9 -17.7 0 -17.7 -4.8 -17.7 -8.8 -13.7 -8.8 -8.8 -8.8 -4 -4.8 0 0 0Z" fill="var(--gb-paper)" fill-rule="evenodd"/><path id="04-synthesizers__03-deluge-fm-synthesizer-overview--1-s23" d="M0 0C4.9 0 8.9 -4 8.9 -8.8 8.9 -13.7 4.9 -17.7 0 -17.7 -4.8 -17.7 -8.8 -13.7 -8.8 -8.8 -8.8 -4 -4.8 0 0 0ZM0 -0.5C4.6 -0.5 8.4 -4.2 8.4 -8.8 8.4 -13.4 4.6 -17.2 0 -17.2 -4.6 -17.2 -8.3 -13.4 -8.3 -8.8 -8.3 -4.2 -4.6 -0.5 0 -0.5Z" fill="currentColor" fill-rule="evenodd"/><path id="04-synthesizers__03-deluge-fm-synthesizer-overview--1-s24" d="M0 0C0.5 5.6 1 6.3 1.5 0 2 -6 2.5 -5.8 3 0" stroke-width=".6" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="currentColor"/><path id="04-synthesizers__03-deluge-fm-synthesizer-overview--1-s25" d="M0 0C0.6 5.6 1.1 6.3 1.6 0 2.1 -6 2.6 -5.8 3.1 0" stroke-width=".6" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="currentColor"/><path id="04-synthesizers__03-deluge-fm-synthesizer-overview--1-s26" d="M0 0C0.5 5.6 1 6.3 1.5 0 2 -6 2.6 -5.8 3.1 0" stroke-width=".6" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="currentColor"/><path id="04-synthesizers__03-deluge-fm-synthesizer-overview--1-s27" d="M0 0 -4 1.9V-2Z" fill="var(--gb-paper)" fill-rule="evenodd"/><path id="04-synthesizers__03-deluge-fm-synthesizer-overview--1-s28" d="M0 0 -4 1.9V-2ZM-0.9 0 -3.6 -1.4C-3.6 -1.4 -3.6 1.3 -3.6 1.3Z" fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" fill-rule="evenodd"/><path id="04-synthesizers__03-deluge-fm-synthesizer-overview--1-s29" d="M0 0C0.5 5.7 1 6.3 1.5 0 2 -5.9 2.5 -5.8 3 0" stroke-width=".6" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="currentColor"/><path id="04-synthesizers__03-deluge-fm-synthesizer-overview--1-s30" d="M0 0C0.6 5.7 1.1 6.3 1.6 0 2.1 -5.9 2.6 -5.8 3.1 0" stroke-width=".6" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="currentColor"/><path id="04-synthesizers__03-deluge-fm-synthesizer-overview--1-s31" d="M0 0 -3.9 2V-2Z" fill="var(--gb-paper)" fill-rule="evenodd"/><path id="04-synthesizers__03-deluge-fm-synthesizer-overview--1-s32" d="M0 0 -3.9 2V-2ZM-0.9 0 -3.5 -1.3C-3.5 -1.3 -3.5 1.3 -3.5 1.3Z" fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" fill-rule="evenodd"/><path id="04-synthesizers__03-deluge-fm-synthesizer-overview--1-s33" d="M0 0 7.2 5.8" stroke-width=".55" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))"/><path id="04-synthesizers__03-deluge-fm-synthesizer-overview--1-s34" d="M0 0 -4.4 -2.2V2.2Z" fill="var(--gb-paper)" fill-rule="evenodd"/><path id="04-synthesizers__03-deluge-fm-synthesizer-overview--1-s35" d="M0 0V23.1" stroke-width=".45" stroke-linecap="square" stroke-dasharray="1.3,1.3,.0001,.0001" stroke-linejoin="round" fill="none" stroke="currentColor"/><path id="04-synthesizers__03-deluge-fm-synthesizer-overview--1-s36" d="M0 0H35.5" stroke-width=".4" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))"/></defs>
+<defs>
+<clipPath id="04-synthesizers__03-deluge-fm-synthesizer-overview--1-clip_1">
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M44.4 83.9H538.9V576.7H44.4Z" clip-rule="evenodd"/>
+</clipPath>
+</defs>
+<g clip-path="url(#04-synthesizers__03-deluge-fm-synthesizer-overview--1-clip_1)">
+<text fill="currentColor" xml:space="preserve" transform="translate(90.8 236.6)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Carrier 2</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(92.4 64.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Carrier 1</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(51.3 151.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Modulator 1</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(175.6 151.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Modulator 2</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(194.7 236.8)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Oscillator</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(197.6 244.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Volume</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(448.2 177.6)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Main</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(443.8 185.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Volume</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(193.8 64.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Oscillator</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(196.9 71.9)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Volume</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(315.7 11.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">1 x Modulation</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(329.1 19.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Option</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(409.4 15.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">1 x Option</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(242.1 11.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">2 x Modulation</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(253.5 19.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Options</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(235.4 300.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Multiple Modulation</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(254.8 308.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Options</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(243.4 327.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">All Voices - No</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(252.3 334.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Retrigger</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(17.4 361.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Deluge FM Algorithms</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(306.7 300.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Multiple Modulation</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(326.1 308.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Options</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(304.2 327.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Per Voice - Retrigger</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(320.9 334.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">at Note On</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(332.4 52.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Env 1</tspan></text>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s1" transform="matrix(1 0 0 -1 321.5 54.3)"/>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(331.7 79.1)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">ADSR</tspan></text>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" stroke-width=".7" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M372.2 505.4 376.4 519.6 380.7 512.9H393.3L399.4 505.4"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M365.9 494.1H405.6V530.9H365.9ZM405.2 530.5V494.5C405.2 494.5 366.3 494.5 366.3 494.5 366.3 494.5 366.3 530.5 366.3 530.5Z" fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" fill-rule="evenodd"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(412.4 52.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Sidechain</tspan></text>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s1" transform="matrix(1 0 0 -1 407.9 54.3)"/>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(408.7 79.1)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Compressor</tspan></text>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M452.3 494.1H492.0V530.9H452.3ZM491.6 530.5V494.5C491.6 494.5 452.7 494.5 452.7 494.5 452.7 494.5 452.7 530.5 452.7 530.5Z" fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" fill-rule="evenodd"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(258.8 52.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Env 2</tspan></text>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" stroke-width=".4" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M292.3 522.4H331.9"/>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(258.0 79.1)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">ADSR</tspan></text>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" stroke-width=".7" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M298.5 505.4 302.7 519.6 307.0 512.9H319.6L325.8 505.4"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M292.3 494.1H331.9V530.9H292.3ZM331.5 530.5V494.5C331.5 494.5 292.7 494.5 292.7 494.5 292.7 498.2 292.7 526.8 292.7 530.5Z" fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" fill-rule="evenodd"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(257.5 238.8)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">LFO 1</tspan></text>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s1" transform="matrix(1 0 0 -1 247.3 240.9)"/>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(260.4 265.8)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">LFO</tspan></text>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M291.7 307.4H331.4V344.3H291.7ZM331.0 343.9V307.8C331.0 307.8 292.1 307.8 292.1 307.8 292.1 307.8 292.1 339.9 292.1 343.9Z" fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" stroke-width=".75" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M299.5 325.8C303.8 334.8 307.9 335.9 311.7 325.8 315.9 316.3 319.9 316.5 323.9 325.8"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(330.2 238.8)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">LFO 2</tspan></text>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" stroke-width=".4" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M364.5 335.8H404.1"/>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(333.1 265.8)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">LFO</tspan></text>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M364.5 307.4H404.1V344.3H364.5ZM403.7 343.9V307.8C403.7 307.8 364.9 307.8 364.9 307.8 364.9 307.8 364.9 343.9 364.9 343.9Z" fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" stroke-width=".75" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M372.3 325.8C376.5 334.8 380.6 335.9 384.4 325.8 388.6 316.3 392.6 316.5 396.6 325.8"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M151.3 388.8C159.1 388.8 165.4 382.4 165.4 374.6 165.4 366.8 159.1 360.4 151.3 360.4 143.4 360.4 137.1 366.8 137.1 374.6 137.1 382.4 143.4 388.8 151.3 388.8Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M151.3 388.8C159.1 388.8 165.4 382.4 165.4 374.6 165.4 366.8 159.1 360.4 151.3 360.4 143.4 360.4 137.1 366.8 137.1 374.6 137.1 382.4 143.4 388.8 151.3 388.8ZM151.3 388.3C158.8 388.3 164.9 382.1 164.9 374.6 164.9 367.0 158.8 360.9 151.3 360.9 143.7 360.9 137.6 367.0 137.6 374.6 137.6 382.1 143.7 388.3 151.3 388.3Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" stroke-width=".6" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M141.8 374.6C143.5 383.7 145.0 384.7 146.5 374.6 148.2 365.1 149.7 365.3 151.3 374.6"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" stroke-width=".6" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M151.3 374.6C152.9 383.7 154.5 384.7 156.0 374.6 157.6 365.1 159.2 365.3 160.7 374.6"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M151.3 442.5C159.1 442.5 165.4 436.2 165.4 428.3 165.4 420.5 159.1 414.2 151.3 414.2 143.4 414.2 137.1 420.5 137.1 428.3 137.1 436.2 143.4 442.5 151.3 442.5Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M151.3 442.5C159.1 442.5 165.4 436.2 165.4 428.3 165.4 420.5 159.1 414.2 151.3 414.2 143.4 414.2 137.1 420.5 137.1 428.3 137.1 436.2 143.4 442.5 151.3 442.5ZM151.3 442.0C158.8 442.0 164.9 435.9 164.9 428.3 164.9 420.8 158.8 414.7 151.3 414.7 143.7 414.7 137.6 420.8 137.6 428.3 137.6 435.9 143.7 442.0 151.3 442.0Z" fill="currentColor" fill-rule="evenodd"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s2" transform="matrix(1 0 0 -1 97.4 148.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s2" transform="matrix(1 0 0 -1 107.3 148.4)"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" stroke-width=".6" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="currentColor" d="M146.7 428.3C147.6 437.5 148.4 438.5 149.2 428.3 150.0 418.9 150.9 419.1 151.7 428.3"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" stroke-width=".6" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="currentColor" d="M156.6 428.3C157.5 437.5 158.3 438.5 159.1 428.3 159.9 418.9 160.8 419.1 161.5 428.3"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s3" transform="matrix(1 0 0 -1 17.6 427.3)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s3" transform="matrix(1 0 0 -1 17.6 366.5)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s3" transform="matrix(1 0 0 -1 17.6 486.8)"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M107.1 186.8V183.2H120.2V195.2H115.4" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" stroke-width=".4" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M107.1 186.8V183.2H120.2V195.2H115.4"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s4" transform="matrix(1 0 0 -1 71 381.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s5" transform="matrix(1 0 0 -1 71 381.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s6" transform="matrix(1 0 0 -1 62.9 373.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s7" transform="matrix(1 0 0 -1 62.9 373.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s8" transform="matrix(1 0 0 -1 57.3 381.8)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s8" transform="matrix(1 0 0 -1 62.9 381.8)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s9" transform="matrix(1 0 0 -1 62.7 450.5)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s10" transform="matrix(1 0 0 -1 62.7 450.5)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s9" transform="matrix(1 0 0 -1 62.7 476.9)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s10" transform="matrix(1 0 0 -1 62.7 476.9)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s11" transform="matrix(1 0 0 -1 212 389.9)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s12" transform="matrix(1 0 0 -1 212 389.9)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s4" transform="matrix(1 0 0 -1 220.2 381.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s5" transform="matrix(1 0 0 -1 220.2 381.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s6" transform="matrix(1 0 0 -1 212.1 373.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s7" transform="matrix(1 0 0 -1 212.1 373.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s13" transform="matrix(1 0 0 -1 206.5 381.8)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s8" transform="matrix(1 0 0 -1 212.1 381.8)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s11" transform="matrix(1 0 0 -1 212 449.9)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s12" transform="matrix(1 0 0 -1 212 449.9)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s4" transform="matrix(1 0 0 -1 220.2 441.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s5" transform="matrix(1 0 0 -1 220.2 441.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s6" transform="matrix(1 0 0 -1 212.1 433.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s7" transform="matrix(1 0 0 -1 212.1 433.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s13" transform="matrix(1 0 0 -1 206.5 441.8)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s8" transform="matrix(1 0 0 -1 212.1 441.8)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s11" transform="matrix(1 0 0 -1 338.7 449.9)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s12" transform="matrix(1 0 0 -1 338.7 449.9)"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M391.3 135.3 395.3 137.3V133.3Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M391.3 135.3 395.3 137.3V133.3ZM392.2 135.3 394.9 136.6C394.9 136.6 394.9 134.0 394.9 134.0Z" fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" fill-rule="evenodd"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s6" transform="matrix(1 0 0 -1 338.8 433.4)"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M383.2 143.3C387.8 143.3 391.6 139.5 391.6 134.9 391.6 130.3 387.8 126.5 383.2 126.5 378.6 126.5 374.8 130.3 374.8 134.9 374.8 139.5 378.6 143.3 383.2 143.3ZM383.2 142.8C387.6 142.8 391.1 139.3 391.1 134.9 391.1 130.6 387.6 127.0 383.2 127.0 378.9 127.0 375.3 130.6 375.3 134.9 375.3 139.3 378.9 142.8 383.2 142.8Z" fill="currentColor" fill-rule="evenodd"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s13" transform="matrix(1 0 0 -1 333.2 441.8)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s13" transform="matrix(1 0 0 -1 338.8 441.8)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s11" transform="matrix(1 0 0 -1 339.2 389.9)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s12" transform="matrix(1 0 0 -1 339.2 389.9)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s4" transform="matrix(1 0 0 -1 347.4 381.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s5" transform="matrix(1 0 0 -1 347.4 381.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s6" transform="matrix(1 0 0 -1 339.3 373.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s7" transform="matrix(1 0 0 -1 339.3 373.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s13" transform="matrix(1 0 0 -1 333.7 381.8)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s8" transform="matrix(1 0 0 -1 339.3 381.8)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s11" transform="matrix(1 0 0 -1 459.2 389.9)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s12" transform="matrix(1 0 0 -1 459.2 389.9)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s4" transform="matrix(1 0 0 -1 467.4 381.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s5" transform="matrix(1 0 0 -1 467.4 381.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s6" transform="matrix(1 0 0 -1 459.3 373.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s7" transform="matrix(1 0 0 -1 459.3 373.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s13" transform="matrix(1 0 0 -1 453.7 381.8)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s8" transform="matrix(1 0 0 -1 459.3 381.8)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s14" transform="matrix(1 0 0 -1 459.2 449.7)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s15" transform="matrix(1 0 0 -1 459.2 449.7)"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M511.8 135.5 515.7 137.5V133.6Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M511.8 135.5 515.7 137.5V133.6ZM512.7 135.5 515.3 136.9C515.3 136.9 515.3 134.2 515.3 134.2Z" fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" fill-rule="evenodd"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s16" transform="matrix(1 0 0 -1 459.3 433.2)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s17" transform="matrix(1 0 0 -1 459.3 433.2)"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" stroke-width=".6" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M498.1 135.1C499.1 140.5 500.0 141.2 500.9 135.1 501.9 129.5 502.8 129.7 503.7 135.1"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" stroke-width=".6" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M503.7 135.1C504.7 140.5 505.6 141.2 506.5 135.1 507.4 129.5 508.4 129.7 509.3 135.1"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s14" transform="matrix(1 0 0 -1 459.2 478.5)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s15" transform="matrix(1 0 0 -1 459.2 478.5)"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M511.8 106.7 515.7 108.7V104.8Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M511.8 106.7 515.7 108.7V104.8ZM512.7 106.7 515.3 108.1C515.3 108.1 515.3 105.4 515.3 105.4Z" fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" fill-rule="evenodd"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s16" transform="matrix(1 0 0 -1 459.3 462)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s17" transform="matrix(1 0 0 -1 459.3 462)"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" stroke-width=".6" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M498.1 106.3C499.1 111.7 500.0 112.4 500.9 106.3 501.9 100.7 502.8 100.9 503.7 106.3"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" stroke-width=".6" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M503.7 106.3C504.7 111.7 505.6 112.4 506.5 106.3 507.4 100.7 508.4 100.9 509.3 106.3"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s9" transform="matrix(1 0 0 -1 211.5 476.9)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s10" transform="matrix(1 0 0 -1 211.5 476.9)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s4" transform="matrix(1 0 0 -1 219.8 468.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s5" transform="matrix(1 0 0 -1 219.8 468.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s16" transform="matrix(1 0 0 -1 211.7 460.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s17" transform="matrix(1 0 0 -1 211.7 460.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s8" transform="matrix(1 0 0 -1 206.1 468.8)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s8" transform="matrix(1 0 0 -1 211.7 468.8)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s14" transform="matrix(1 0 0 -1 338.3 476.9)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s15" transform="matrix(1 0 0 -1 338.3 476.9)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s4" transform="matrix(1 0 0 -1 346.5 468.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s5" transform="matrix(1 0 0 -1 346.5 468.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s16" transform="matrix(1 0 0 -1 338.4 460.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s17" transform="matrix(1 0 0 -1 338.4 460.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s13" transform="matrix(1 0 0 -1 332.8 468.8)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s13" transform="matrix(1 0 0 -1 338.4 468.8)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s18" transform="matrix(1 0 0 -1 155.9 391)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s19" transform="matrix(1 0 0 -1 155.9 391)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s20" transform="matrix(1 0 0 -1 147.3 382.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s21" transform="matrix(1 0 0 -1 147.3 382.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s22" transform="matrix(1 0 0 -1 155.7 373.3)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s23" transform="matrix(1 0 0 -1 155.7 373.3)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s24" transform="matrix(1 0 0 -1 149.9 382.1)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s25" transform="matrix(1 0 0 -1 156 382.1)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s25" transform="matrix(1 0 0 -1 152.9 382.1)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s26" transform="matrix(1 0 0 -1 159.1 382.1)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s18" transform="matrix(1 0 0 -1 155.9 451)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s19" transform="matrix(1 0 0 -1 155.9 451)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s20" transform="matrix(1 0 0 -1 147.3 442.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s21" transform="matrix(1 0 0 -1 147.3 442.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s22" transform="matrix(1 0 0 -1 155.7 433.3)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s23" transform="matrix(1 0 0 -1 155.7 433.3)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s24" transform="matrix(1 0 0 -1 149.9 442.1)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s25" transform="matrix(1 0 0 -1 156 442.1)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s25" transform="matrix(1 0 0 -1 152.9 442.1)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s26" transform="matrix(1 0 0 -1 159.1 442.1)"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M327.0 125.7V122.1H313.6V134.2H318.6" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" stroke-width=".4" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M327.0 125.7V122.1H313.6V134.2H318.6"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s27" transform="matrix(1 0 0 -1 274.1 442.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s28" transform="matrix(1 0 0 -1 274.1 442.4)"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M326.9 143.4C331.7 143.4 335.7 139.4 335.7 134.6 335.7 129.7 331.7 125.7 326.9 125.7 322.0 125.7 318.0 129.7 318.0 134.6 318.0 139.4 322.0 143.4 326.9 143.4Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M326.9 143.4C331.7 143.4 335.7 139.4 335.7 134.6 335.7 129.7 331.7 125.7 326.9 125.7 322.0 125.7 318.0 129.7 318.0 134.6 318.0 139.4 322.0 143.4 326.9 143.4ZM326.9 142.9C331.5 142.9 335.2 139.2 335.2 134.6 335.2 130.0 331.5 126.2 326.9 126.2 322.3 126.2 318.5 130.0 318.5 134.6 318.5 139.2 322.3 142.9 326.9 142.9Z" fill="currentColor" fill-rule="evenodd"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s24" transform="matrix(1 0 0 -1 276.6 442.1)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s25" transform="matrix(1 0 0 -1 282.7 442.1)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s25" transform="matrix(1 0 0 -1 279.6 442.1)"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" stroke-width=".6" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="currentColor" d="M330.2 134.6C330.7 140.2 331.3 140.9 331.7 134.6 332.3 128.6 332.8 128.8 333.3 134.6"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M327.0 98.7V95.1H313.6V107.1H318.6" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" stroke-width=".4" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M327.0 98.7V95.1H313.6V107.1H318.6"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M318.5 107.2 314.5 109.2V105.2Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M318.5 107.2 314.5 109.2V105.2ZM317.6 107.2 314.9 105.9C314.9 105.9 314.9 108.5 314.9 108.5Z" fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M326.9 116.3C331.7 116.3 335.7 112.4 335.7 107.5 335.7 102.6 331.7 98.6 326.9 98.6 322.0 98.6 318.0 102.6 318.0 107.5 318.0 112.4 322.0 116.3 326.9 116.3Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M326.9 116.3C331.7 116.3 335.7 112.4 335.7 107.5 335.7 102.6 331.7 98.6 326.9 98.6 322.0 98.6 318.0 102.6 318.0 107.5 318.0 112.4 322.0 116.3 326.9 116.3ZM326.9 115.8C331.5 115.8 335.2 112.1 335.2 107.5 335.2 102.9 331.5 99.1 326.9 99.1 322.3 99.1 318.5 102.9 318.5 107.5 318.5 112.1 322.3 115.8 326.9 115.8Z" fill="currentColor" fill-rule="evenodd"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s29" transform="matrix(1 0 0 -1 276.6 469.2)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s30" transform="matrix(1 0 0 -1 282.7 469.2)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s30" transform="matrix(1 0 0 -1 279.6 469.2)"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" stroke-width=".6" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="currentColor" d="M330.2 107.5C330.7 113.2 331.3 113.8 331.7 107.5 332.3 101.6 332.8 101.7 333.3 107.5"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s18" transform="matrix(1 0 0 -1 283.1 391)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s19" transform="matrix(1 0 0 -1 283.1 391)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s20" transform="matrix(1 0 0 -1 274.5 382.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s21" transform="matrix(1 0 0 -1 274.5 382.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s22" transform="matrix(1 0 0 -1 282.9 373.3)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s23" transform="matrix(1 0 0 -1 282.9 373.3)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s24" transform="matrix(1 0 0 -1 277.1 382.1)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s25" transform="matrix(1 0 0 -1 283.2 382.1)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s25" transform="matrix(1 0 0 -1 280.1 382.1)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s26" transform="matrix(1 0 0 -1 286.3 382.1)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s18" transform="matrix(1 0 0 -1 403.1 391)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s19" transform="matrix(1 0 0 -1 403.1 391)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s20" transform="matrix(1 0 0 -1 394.5 382.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s21" transform="matrix(1 0 0 -1 394.5 382.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s22" transform="matrix(1 0 0 -1 402.9 373.3)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s23" transform="matrix(1 0 0 -1 402.9 373.3)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s24" transform="matrix(1 0 0 -1 397.1 382.1)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s25" transform="matrix(1 0 0 -1 403.2 382.1)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s25" transform="matrix(1 0 0 -1 400.1 382.1)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s26" transform="matrix(1 0 0 -1 406.3 382.1)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s18" transform="matrix(1 0 0 -1 403.1 450.7)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s19" transform="matrix(1 0 0 -1 403.1 450.7)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s31" transform="matrix(1 0 0 -1 394.5 442.2)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s32" transform="matrix(1 0 0 -1 394.5 442.2)"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M447.3 143.6C452.2 143.6 456.2 139.7 456.2 134.8 456.2 129.9 452.2 126.0 447.3 126.0 442.5 126.0 438.5 129.9 438.5 134.8 438.5 139.7 442.5 143.6 447.3 143.6Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M447.3 143.6C452.2 143.6 456.2 139.7 456.2 134.8 456.2 129.9 452.2 126.0 447.3 126.0 442.5 126.0 438.5 129.9 438.5 134.8 438.5 139.7 442.5 143.6 447.3 143.6ZM447.3 143.1C451.9 143.1 455.7 139.4 455.7 134.8 455.7 130.2 451.9 126.5 447.3 126.5 442.7 126.5 439.0 130.2 439.0 134.8 439.0 139.4 442.7 143.1 447.3 143.1Z" fill="currentColor" fill-rule="evenodd"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s29" transform="matrix(1 0 0 -1 397.1 441.9)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s30" transform="matrix(1 0 0 -1 403.2 441.9)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s30" transform="matrix(1 0 0 -1 400.1 441.9)"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" stroke-width=".6" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="currentColor" d="M450.7 134.8C451.2 140.5 451.7 141.1 452.2 134.8 452.7 128.9 453.3 129.0 453.8 134.8"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s18" transform="matrix(1 0 0 -1 283.1 417.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s19" transform="matrix(1 0 0 -1 283.1 417.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s20" transform="matrix(1 0 0 -1 274.5 408.8)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s21" transform="matrix(1 0 0 -1 274.5 408.8)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s22" transform="matrix(1 0 0 -1 282.9 399.7)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s23" transform="matrix(1 0 0 -1 282.9 399.7)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s24" transform="matrix(1 0 0 -1 277.1 408.5)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s25" transform="matrix(1 0 0 -1 283.2 408.5)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s25" transform="matrix(1 0 0 -1 280.1 408.5)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s26" transform="matrix(1 0 0 -1 286.3 408.5)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s18" transform="matrix(1 0 0 -1 403.1 417.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s19" transform="matrix(1 0 0 -1 403.1 417.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s20" transform="matrix(1 0 0 -1 394.5 408.8)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s21" transform="matrix(1 0 0 -1 394.5 408.8)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s22" transform="matrix(1 0 0 -1 402.9 399.7)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s23" transform="matrix(1 0 0 -1 402.9 399.7)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s24" transform="matrix(1 0 0 -1 397.1 408.5)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s25" transform="matrix(1 0 0 -1 403.2 408.5)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s25" transform="matrix(1 0 0 -1 400.1 408.5)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s26" transform="matrix(1 0 0 -1 406.3 408.5)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s18" transform="matrix(1 0 0 -1 403.1 477.1)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s19" transform="matrix(1 0 0 -1 403.1 477.1)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s31" transform="matrix(1 0 0 -1 394.5 468.6)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s32" transform="matrix(1 0 0 -1 394.5 468.6)"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M447.3 117.2C452.2 117.2 456.2 113.3 456.2 108.4 456.2 103.5 452.2 99.6 447.3 99.6 442.5 99.6 438.5 103.5 438.5 108.4 438.5 113.3 442.5 117.2 447.3 117.2Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M447.3 117.2C452.2 117.2 456.2 113.3 456.2 108.4 456.2 103.5 452.2 99.6 447.3 99.6 442.5 99.6 438.5 103.5 438.5 108.4 438.5 113.3 442.5 117.2 447.3 117.2ZM447.3 116.7C451.9 116.7 455.7 113.0 455.7 108.4 455.7 103.8 451.9 100.1 447.3 100.1 442.7 100.1 439.0 103.8 439.0 108.4 439.0 113.0 442.7 116.7 447.3 116.7Z" fill="currentColor" fill-rule="evenodd"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s29" transform="matrix(1 0 0 -1 397.1 468.3)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s30" transform="matrix(1 0 0 -1 403.2 468.3)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s30" transform="matrix(1 0 0 -1 400.1 468.3)"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" stroke-width=".6" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="currentColor" d="M450.7 108.4C451.2 114.1 451.7 114.7 452.2 108.4 452.7 102.5 453.3 102.6 453.8 108.4"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s4" transform="matrix(1 0 0 -1 71 442)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s5" transform="matrix(1 0 0 -1 71 442)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s4" transform="matrix(1 0 0 -1 71 468.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s5" transform="matrix(1 0 0 -1 71 468.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s20" transform="matrix(1 0 0 -1 203.7 382.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s21" transform="matrix(1 0 0 -1 203.7 382.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s20" transform="matrix(1 0 0 -1 203.7 442.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s21" transform="matrix(1 0 0 -1 203.7 442.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s27" transform="matrix(1 0 0 -1 330.5 442.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s28" transform="matrix(1 0 0 -1 330.5 442.4)"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M376.7 129.7 372.3 129.9 373.8 126.3Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M376.7 129.7 372.3 129.9 373.8 126.3ZM375.9 129.4 374.0 127.1C374.0 127.1 372.9 129.5 372.9 129.5Z" fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M376.1 112.4 371.7 112.2 373.2 115.8Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M376.1 112.4 371.7 112.2 373.2 115.8ZM375.3 112.8 372.3 112.6C372.3 112.6 373.3 115.1 373.3 115.1Z" fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" fill-rule="evenodd"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s20" transform="matrix(1 0 0 -1 203.7 468.8)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s21" transform="matrix(1 0 0 -1 203.7 468.8)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s27" transform="matrix(1 0 0 -1 330.5 468.8)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s28" transform="matrix(1 0 0 -1 330.5 468.8)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s20" transform="matrix(1 0 0 -1 330.9 382.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s21" transform="matrix(1 0 0 -1 330.9 382.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s20" transform="matrix(1 0 0 -1 450.9 382.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s21" transform="matrix(1 0 0 -1 450.9 382.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s31" transform="matrix(1 0 0 -1 450.9 442.2)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s32" transform="matrix(1 0 0 -1 450.9 442.2)"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M377.5 189.3 373.3 187.8 376.1 185.1Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M377.5 189.3 373.3 187.8 376.1 185.1ZM376.8 188.6 375.9 185.8C375.9 185.8 374.0 187.7 374.0 187.7Z" fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M497.5 110.9 493.3 112.4 496.1 115.1Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M497.5 110.9 493.3 112.4 496.1 115.1ZM496.8 111.6 494.0 112.6C494.0 112.6 495.9 114.4 495.9 114.4Z" fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M453.9 189.1 458.1 187.7 455.3 184.9Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M453.9 189.1 458.1 187.7 455.3 184.9ZM454.6 188.5 457.4 187.5C457.4 187.5 455.5 185.6 455.5 185.6Z" fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M453.6 129.0 457.8 127.7 455.1 124.9Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M453.6 129.0 457.8 127.7 455.1 124.9ZM454.2 128.4 457.1 127.5C457.1 127.5 455.2 125.6 455.2 125.6Z" fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" stroke-width=".4" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M456.6 186.4 462.9 180.0V168.1H456.3"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" stroke-width=".4" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M456.3 126.4 457.0 125.9 462.9 120.9V110.4H455.8"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M203.6 442.5C211.4 442.5 217.7 436.2 217.7 428.3 217.7 420.5 211.4 414.2 203.6 414.2 195.8 414.2 189.4 420.5 189.4 428.3 189.4 436.2 195.8 442.5 203.6 442.5Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M203.6 442.5C211.4 442.5 217.7 436.2 217.7 428.3 217.7 420.5 211.4 414.2 203.6 414.2 195.8 414.2 189.4 420.5 189.4 428.3 189.4 436.2 195.8 442.5 203.6 442.5ZM203.6 442.0C211.1 442.0 217.2 435.9 217.2 428.3 217.2 420.8 211.1 414.7 203.6 414.7 196.0 414.7 189.9 420.8 189.9 428.3 189.9 435.9 196.0 442.0 203.6 442.0Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" stroke-width=".6" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="currentColor" d="M194.1 428.3C195.0 437.5 195.8 438.5 196.6 428.3 197.4 418.9 198.3 419.1 199.1 428.3"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s2" transform="matrix(1 0 0 -1 159.6 148.4)"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" stroke-width=".6" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="currentColor" d="M199.1 428.3C199.9 437.5 200.7 438.5 201.5 428.3 202.4 418.9 203.2 419.1 204.0 428.3"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" stroke-width=".6" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="currentColor" d="M208.9 428.3C209.8 437.5 210.6 438.5 211.4 428.3 212.3 418.9 213.1 419.1 213.9 428.3"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" stroke-width=".65" stroke-linecap="round" stroke-dasharray="1.9,1.9,.0001,.0001" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M188.1 428.3H165.6"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M151.3 495.8C159.1 495.8 165.4 489.5 165.4 481.6 165.4 473.8 159.1 467.5 151.3 467.5 143.4 467.5 137.1 473.8 137.1 481.6 137.1 489.5 143.4 495.8 151.3 495.8Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M151.3 495.8C159.1 495.8 165.4 489.5 165.4 481.6 165.4 473.8 159.1 467.5 151.3 467.5 143.4 467.5 137.1 473.8 137.1 481.6 137.1 489.5 143.4 495.8 151.3 495.8ZM151.3 495.3C158.8 495.3 164.9 489.2 164.9 481.6 164.9 474.1 158.8 468.0 151.3 468.0 143.7 468.0 137.6 474.1 137.6 481.6 137.6 489.2 143.7 495.3 151.3 495.3Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" stroke-width=".6" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M141.8 481.6C143.5 490.7 145.0 491.8 146.5 481.6 148.2 472.1 149.7 472.3 151.3 481.6"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" stroke-width=".6" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M151.3 481.6C152.9 490.7 154.5 491.8 156.0 481.6 157.6 472.1 159.2 472.3 160.7 481.6"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s16" transform="matrix(1 0 0 -1 62.9 434)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s17" transform="matrix(1 0 0 -1 62.9 434)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s8" transform="matrix(1 0 0 -1 57.3 442.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s8" transform="matrix(1 0 0 -1 62.9 442.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s16" transform="matrix(1 0 0 -1 62.9 460.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s17" transform="matrix(1 0 0 -1 62.9 460.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s8" transform="matrix(1 0 0 -1 57.3 468.8)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s8" transform="matrix(1 0 0 -1 62.9 468.8)"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" stroke-width=".55" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M245.7 377.1C249.2 386.1 260.1 386.4 264.1 377.1"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s33" transform="matrix(1 0 0 -1 210.2 203.9)"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M254.8 387.6C261.8 387.6 267.5 381.9 267.5 374.8 267.5 367.8 261.8 362.1 254.8 362.1 247.7 362.1 242.0 367.8 242.0 374.8 242.0 381.9 247.7 387.6 254.8 387.6ZM254.8 387.0C261.5 387.0 267.0 381.6 267.0 374.8 267.0 368.1 261.5 362.6 254.8 362.6 248.0 362.6 242.6 368.1 242.6 374.8 242.6 381.6 248.0 387.0 254.8 387.0Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" stroke-width=".55" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M492.1 432.4C495.6 441.4 506.5 441.7 510.5 432.4"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s33" transform="matrix(1 0 0 -1 456.6 148.6)"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M501.2 442.9C508.2 442.9 513.9 437.2 513.9 430.1 513.9 423.1 508.2 417.4 501.2 417.4 494.1 417.4 488.4 423.1 488.4 430.1 488.4 437.2 494.1 442.9 501.2 442.9ZM501.2 442.3C507.9 442.3 513.4 436.9 513.4 430.1 513.4 423.4 507.9 417.9 501.2 417.9 494.4 417.9 489.0 423.4 489.0 430.1 489.0 436.9 494.4 442.3 501.2 442.3Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" stroke-width=".55" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M245.7 483.7C249.2 492.7 260.1 493.0 264.1 483.6"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s33" transform="matrix(1 0 0 -1 210.2 97.3)"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M254.8 494.1C261.8 494.1 267.5 488.4 267.5 481.4 267.5 474.3 261.8 468.6 254.8 468.6 247.7 468.6 242.0 474.3 242.0 481.4 242.0 488.4 247.7 494.1 254.8 494.1ZM254.8 493.6C261.5 493.6 267.0 488.1 267.0 481.4 267.0 474.7 261.5 469.2 254.8 469.2 248.0 469.2 242.6 474.7 242.6 481.4 242.6 488.1 248.0 493.6 254.8 493.6Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" stroke-width=".6" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="currentColor" d="M165.4 374.6H237.4"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" stroke-width=".6" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="currentColor" d="M65.5 374.6H132.5"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" stroke-width=".6" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="currentColor" d="M65.5 481.9H132.5"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" stroke-width=".6" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="currentColor" d="M165.4 481.6H238.0"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" stroke-width=".6" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="currentColor" d="M151.4 442.3V464.0"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" stroke-width=".6" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="currentColor" d="M151.4 414.0V392.3"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s34" transform="matrix(1 0 0 -1 198 202.2)"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M242.4 374.5 238.0 372.3V376.7ZM241.1 374.5 238.6 373.3C238.6 373.3 238.6 375.7 238.6 375.7Z" fill="currentColor" fill-rule="evenodd"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s34" transform="matrix(1 0 0 -1 92.7 202.1)"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M137.1 374.6 132.7 372.4V376.8ZM135.7 374.6 133.3 373.4C133.3 373.4 133.3 375.9 133.3 375.9Z" fill="currentColor" fill-rule="evenodd"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s34" transform="matrix(1 0 0 -1 92.7 94.8)"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M137.1 481.9 132.7 479.7V484.1ZM135.7 481.9 133.3 480.7C133.3 480.7 133.3 483.1 133.3 483.1Z" fill="currentColor" fill-rule="evenodd"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s34" transform="matrix(1 0 0 -1 198 95.1)"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M242.4 481.6 238.0 479.4V483.8ZM241.1 481.6 238.6 480.4C238.6 480.4 238.6 482.8 238.6 482.8Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M151.4 468.3 153.6 463.9H149.2Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M151.4 468.3 153.6 463.9H149.2ZM151.4 466.9 152.6 464.5C152.6 464.5 150.2 464.5 150.2 464.5Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M162.6 473.0 167.2 471.2 164.0 468.2Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M162.6 473.0 167.2 471.2 164.0 468.2ZM163.5 472.0 166.1 471.0C166.1 471.0 164.3 469.3 164.3 469.3Z" fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M162.6 383.8 167.2 385.5 164.0 388.5Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M162.6 383.8 167.2 385.5 164.0 388.5ZM163.5 384.7 164.3 387.4C164.3 387.4 166.1 385.7 166.1 385.7Z" fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M165.6 428.3 170.1 430.5V426.1Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M165.6 428.3 170.1 430.5V426.1ZM167.0 428.3 169.5 429.6C169.5 429.6 169.5 427.1 169.5 427.1Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M151.4 388.0 153.6 392.4H149.2Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M151.4 388.0 153.6 392.4H149.2ZM151.4 389.4 150.2 391.8C150.2 391.8 152.6 391.8 152.6 391.8Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M377.8 430.1 372.0 427.3V433.0Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M377.8 430.1 372.0 427.3V433.0ZM376.5 430.1 372.6 428.2C372.6 428.2 372.6 432.0 372.6 432.0Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M419.3 430.1 413.6 427.3V433.0Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M419.3 430.1 413.6 427.3V433.0ZM418.0 430.1 414.2 428.2C414.2 428.2 414.2 432.0 414.2 432.0Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M488.9 430.1 483.2 427.3V433.0Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M488.9 430.1 483.2 427.3V433.0ZM487.6 430.1 483.8 428.2C483.8 428.2 483.8 432.0 483.8 432.0Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M532.9 430.1 527.1 427.3V433.0Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M532.9 430.1 527.1 427.3V433.0ZM531.5 430.1 527.7 428.2C527.7 428.2 527.7 432.0 527.7 432.0Z" fill="currentColor" fill-rule="evenodd"/>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(384.9 148.8)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Effects</tspan></text>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M420.4 419.5H455.8V440.8H420.4ZM455.3 440.3V420.0C455.3 420.0 420.9 420.0 420.9 420.0 420.9 420.0 420.9 440.3 420.9 440.3Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M294.1 430.0 271.4 418.7V441.4Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M294.1 430.0 271.4 418.7V441.4ZM293.0 430.0 271.9 419.5C271.9 419.5 271.9 440.5 271.9 440.5Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M400.5 430.0 377.9 418.6V441.3Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M400.5 430.0 377.9 418.6V441.3ZM399.4 430.0 378.4 419.4C378.4 419.4 378.4 440.5 378.4 440.5Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" stroke-width=".45" stroke-linecap="square" stroke-dasharray="1.3,1.3,.0001,.0001" stroke-linejoin="round" fill="none" stroke="currentColor" d="M385.8 437.2V493.6"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" stroke-width=".45" stroke-linecap="square" stroke-dasharray="1.3,1.3,.0001,.0001" stroke-linejoin="round" fill="none" stroke="currentColor" d="M472.2 430.5V493.6"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s35" transform="matrix(1 0 0 -1 340.6 45.8)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s35" transform="matrix(1 0 0 -1 427 45.8)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s35" transform="matrix(1 0 0 -1 257.3 45.8)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s35" transform="matrix(1 0 0 -1 258.5 292.1)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s35" transform="matrix(1 0 0 -1 329.6 292.1)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s35" transform="matrix(1 0 0 -1 276.5 45.8)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s35" transform="matrix(1 0 0 -1 277.7 292.1)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s35" transform="matrix(1 0 0 -1 348.8 292.1)"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" stroke-width=".6" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="currentColor" d="M267.5 375.0H281.2"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" stroke-width=".6" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="currentColor" d="M267.5 481.6H281.2"/>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(334.9 148.9)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">AMP</tspan></text>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" stroke-width=".7" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="currentColor" d="M294.1 430.1H372.0"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" stroke-width=".7" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="currentColor" d="M399.6 430.1H413.3"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" stroke-width=".7" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="currentColor" d="M455.8 430.1H482.9"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" stroke-width=".7" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="currentColor" d="M514.1 430.1H527.1"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" d="M50.3 422.0H83.2V436.2H50.3Z" fill="var(--gb-paper)"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(14.0 145.9)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Input</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(10.6 153.6)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Trigger</tspan></text>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M458.2 520.1H469.6V516.0H486.6"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M458.2 505.5H469.6V509.9H486.6"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M281.2 481.5V436.5"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M281.2 423.4V375.0"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" stroke-width=".65" stroke-linecap="round" stroke-dasharray="1.9,1.9,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M165.6 469.7 194.0 441.4"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" stroke-width=".65" stroke-linecap="round" stroke-dasharray="1.9,1.9,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M165.6 387.0 194.0 415.4"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" stroke-width=".4" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M291.9 210.1V90.0"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" stroke-width=".4" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M414.3 209.9V90.1"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" stroke-width=".4" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M169.5 210.0V90.2"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s36" transform="matrix(1 0 0 -1 164.4 382.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s36" transform="matrix(1 0 0 -1 164.4 442.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s36" transform="matrix(1 0 0 -1 291.1 442.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s36" transform="matrix(1 0 0 -1 291.1 468.8)"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" stroke-width=".4" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M373.2 128.0 333.8 112.8"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" stroke-width=".4" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M372.7 113.9 333.7 128.9"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s36" transform="matrix(1 0 0 -1 291.6 382.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s36" transform="matrix(1 0 0 -1 411.6 382.4)"/>
+<use href="#04-synthesizers__03-deluge-fm-synthesizer-overview--1-s36" transform="matrix(1 0 0 -1 411.6 442.1)"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" stroke-width=".4" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M374.8 186.5 356.3 168.1H336.0"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" stroke-width=".4" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M494.5 113.9 475.9 131.9H455.5"/>
+<path transform="matrix(1,0,0,-1,-44.4,576.7)" stroke-width=".4" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M244.4 108.0H224.0L204.8 127.1"/>
+</g>
+</svg>

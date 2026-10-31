@@ -15,21 +15,20 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_6_6_1 from "../../../../assets/guidebook/figs/06-modulation__06-custom-parameter-affect-controls--1.svg?raw"
+import fig_fig_6_6_2 from "../../../../assets/guidebook/figs/06-modulation__06-custom-parameter-affect-controls--2.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
-<FigurePending id="fig-6.6-1" page={131}>
-  There are three parameter functions contained in the affect parameter group.
-  When using presets these will be set to a specific parameter within the
-  preset. The Deluge convention is:- · Custom 1 Typically controls pitch for
-  sample based sounds. · Portamento for synth sounds. · Custom 2 Typically
-  controls decimation for kits and sample-based sounds. · Custom 3 Typically
-  controls bitcrushing for kits and sample-based sounds. · Other Parameter
-  Controls While the custom controls are specifically designed to be assigned to
-  user parameters, the other parameter affect controls can also be assigned to
-  additional user parameters if required. · [LEARN / INPUT] + Turn (CONTROL)
-</FigurePending>
+<Figure
+  id="fig-6.6-1"
+  src={fig_fig_6_6_1}
+  alt={
+    "Diagram: There are three parameter functions contained in the affect parameter group. When using presets these will be set to a specific parameter…"
+  }
+  page={131}
+/>
 
 ### Assigning custom control parameters
 
@@ -59,10 +58,11 @@ MIDI controller controls are also assigned using the same process. MIDI Controls
 4. The screen will display ‘LEARNED’ to indicate parameter assignment. Parameter is assigned for the specific function.
 5. Unassignment is performed by reassigning the parameter control. +
 
-<FigurePending id="fig-6.6-2" page={133}>
-  Example: sidechain patched to low-pass filter cutoff frequency with a custom
-  control assigned to adjust the depth / strength of modulation. · MOD RATE ·
-  STUTTER · CUSTOM 2 · LEARN / INPUT · DEPTH · CUSTOM 1 · CUSTOM 3 · LPF · 35 ·
-  SIDECHAIN · FREQUENCY · Select parameter i.e. CUSTOM 1. Set modulation value
-  in focus. press & hold [LEARN / INPUT] + turn (LOWER) parameter control.
-</FigurePending>
+<Figure
+  id="fig-6.6-2"
+  src={fig_fig_6_6_2}
+  alt={
+    "Diagram: Example: sidechain patched to low-pass filter cutoff frequency with a custom control assigned to adjust the depth / strength of modulation.…"
+  }
+  page={133}
+/>

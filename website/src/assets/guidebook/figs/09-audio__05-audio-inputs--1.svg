@@ -1,0 +1,39 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 259.4 143.1">
+<defs>
+<clipPath id="09-audio__05-audio-inputs--1-clip_1">
+<path transform="matrix(1,0,0,-1,-94.1,625.9)" d="M94.1 482.7H353.5V625.9H94.1Z" clip-rule="evenodd"/>
+</clipPath>
+<clipPath id="09-audio__05-audio-inputs--1-clip_2">
+<path transform="matrix(1,0,0,-1,-94.1,625.9)" d="M278.7 507.4H309.9V619.6H278.7Z" clip-rule="evenodd"/>
+</clipPath>
+<mask id="09-audio__05-audio-inputs--1-mask_3">
+<g transform="matrix(0,-.163631,-.163631,-0,216.1,118.7)">
+<image id="09-audio__05-audio-inputs--1-image_4" width="689" height="194" xlink:href="/guidebook/img/09-audio__05-audio-inputs--1-1.webp"/>
+</g>
+</mask>
+</defs>
+<g>
+<g clip-path="url(#09-audio__05-audio-inputs--1-clip_1)">
+<path transform="matrix(1,0,0,-1,-94.1,625.9)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M424.8 688.6V84.1"/>
+<text xml:space="preserve" transform="translate(6.0 18.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Left (InL) Input left (tip)</tspan></text>
+<text xml:space="preserve" transform="translate(6.0 48.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Right (InR) Input right (ring)</tspan></text>
+<path transform="matrix(1,0,0,-1,-94.1,625.9)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M299.0 590.1H347.5"/>
+<text xml:space="preserve" transform="translate(6.0 79.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Stereo (InLR) Input left / right (tip/ring)</tspan></text>
+<text xml:space="preserve" transform="translate(6.2 105.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Microphone</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.0 123.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">If nothing is connected to LINE IN, the</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.0 132.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">microphone will be the default L/R input.</tspan></text>
+<path transform="matrix(1,0,0,-1,-94.1,625.9)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M234.9 610.0H288.0"/>
+<g clip-path="url(#09-audio__05-audio-inputs--1-clip_2)">
+<g mask="url(#09-audio__05-audio-inputs--1-mask_3)">
+<g transform="matrix(0,-.163631,-.163631,-0,216.1,118.7)">
+<image class="gb-ink" id="09-audio__05-audio-inputs--1-image_5" width="689" height="194" xlink:href="/guidebook/img/09-audio__05-audio-inputs--1-2.webp"/>
+</g>
+</g>
+<path transform="matrix(1,0,0,-1,-94.1,625.9)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M290.9 603.8C292.8 602.9 294.4 602.9 296.2 603.9"/>
+<path transform="matrix(1,0,0,-1,-94.1,625.9)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M290.9 598.3C292.8 597.3 294.4 597.4 296.2 598.4"/>
+</g>
+<path transform="matrix(1,0,0,-1,-94.1,625.9)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M243.1 580.5H266.6V601.4H287.8"/>
+<path transform="matrix(1,0,0,-1,-94.1,625.9)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M293.1 518.5 293.2 514.8C293.2 512.9 292.6 512.2 292.2 511.6 287.6 504.5 298.8 505.0 294.1 495.9 293.2 494.5 293.2 493.0 293.2 491.8V488.7"/>
+</g>
+</g>
+</svg>

@@ -15,26 +15,21 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_7_5_1 from "../../../../assets/guidebook/figs/07-song-view__05-song-sections--1.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
 Song sections group together clips so that they can be controlled, launched, armed etc together making it easy to play arrangements and structure live sets. Sections can be structured into a chained sequence automatically playing each. Sections are colour coded for clarity and controlled by the :key[Section Pad] column in song view.
 
-<FigurePending id="fig-7.5-1" page={145}>
-  [SECTION] Audition / section pad indicates the assignment of the clip to a
-  section, identified by its colour · Press [LAUNCH] pad to play the clip row in
-  song view. · Clips belong to the same section that is indicated by that
-  specific pad colour. Colours show the section groupings. · CHANGE SECTION
-  Press [SHIFT] + [SECTION] pad to toggle a colour coded section. · MANUALLY ARM
-  SECTION Press [SECTION] pad of the desired section to manually arm the
-  section. · REPEAT MODE Press & hold [SECTION] pad + (SELECT) to change number
-  of repeats: INFINITE (default), NUMBER, LAUNCH NON- EXCLUSIVELY · Display
-  shows countdown of section repeats when a repeat number is defined. To
-  increase the sections to play prior to launch / stop, turn (SELECT) to change
-  the section countdown. Press (SELECT) to cancel section countdown. · Mute /
-  Launch / Section · Audition
-</FigurePending>
+<Figure
+  id="fig-7.5-1"
+  src={fig_fig_7_5_1}
+  alt={
+    "Diagram: [SECTION] Audition / section pad indicates the assignment of the clip to a section, identified by its colour Press [LAUNCH] pad to play the…"
+  }
+  page={145}
+/>
 
 ### Selecting a section for a clip
 

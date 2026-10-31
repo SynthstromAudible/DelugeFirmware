@@ -15,33 +15,21 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_7_2_1 from "../../../../assets/guidebook/figs/07-song-view__02-song-view-basics--1.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
 While the synth and kit clip view is used for developing individual instrument sequences, song view provides a more holistic approach, consolidating all clips into a compressed view, each clip shown as a row. Song view is where all existing clips are managed together, new clips can be added, existing ones deleted and reordered. Controls to launch and stop clips is provided in song view. Song view is also the main area to handle loop recording and playback, covered elsewhere in this guide.
 
-<FigurePending id="fig-7.2-1" page={137}>
-  Song view compresses all clips and takes an · overall view of the song
-  ‘project’. First time entering song view only one clip will be present. Clips
-  can be created, re-ordered, deleted in song view. · Time · Clip · Clip · Empty
-  Clip · Empty Clip · Empty Clip · Empty Clip · Empty Clip · Empty Clip · Mute
-  Audition / Launch / Section · (SCROLL▼▲) Individual clips compressed to one
-  row each in song view. The rows can be navigated up and down beyond the 8
-  physically displayed. · [LAUNCH] The mute / launch column pads now takes on
-  the ‘launch’ functionality when in song view. Rows containing clips are
-  illuminated. Pressing the corresponding LAUNCH pad will trigger the clip for
-  that row. When the sequence is playing launch will firstly arm the clip, then
-  launch it, played in time with the sequence. Use [SHIFT] + [LAUNCH] for
-  instant play. · [SECTION] The audition / section column pads now takes on the
-  ‘section’ functionality when in song view. Rows containing clips are
-  illuminated. Sections enable groups of clips to be launched and controlled
-  simultaneously. Clips can be armed, stopped, played together as a group. ·
-  Deluge will only play one instrument at one time in song view. So for example,
-  if two clips use the same synth preset 1, the clip rows can each be launched
-  but each one will stop playback of the other, allowing only one instance of
-  each instrument to play at one time.
-</FigurePending>
+<Figure
+  id="fig-7.2-1"
+  src={fig_fig_7_2_1}
+  alt={
+    "Pad grid: Song view compresses all clips and takes an overall view of the song ‘project’. First time entering song view only one clip will be…"
+  }
+  page={137}
+/>
 
 ### Playing a song
 

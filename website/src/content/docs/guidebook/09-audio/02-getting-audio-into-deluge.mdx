@@ -15,17 +15,18 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_9_2_1 from "../../../../assets/guidebook/figs/09-audio__02-getting-audio-into-deluge--1.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
 There are three main ways to get audio into Deluge. Audio can be used in an oscillator as a source or sampled within kits. Many options exist when using audio.
 
-<FigurePending id="fig-9.2-1" page={171}>
-  2 Re-sampling Recording and sampling internal audio to new audio files. · 1
-  Recording & sampling Audio from line-in and mic inputs can be used to sample
-  and record external audio. · Audio clips are created and recorded in song or
-  arrangement view. · SD card folders · 3 · SAMPLES · ARTISTS DRUMS RECORD
-  RESAMPLE CLIPS · 3 SD card Files can be transferred from a computer or other
-  device onto the SD card from which Deluge can access the audio files. · 1 2 1
-</FigurePending>
+<Figure
+  id="fig-9.2-1"
+  src={fig_fig_9_2_1}
+  alt={
+    "Diagram: 2 1 Re-sampling Recording & sampling Recording and sampling internal Audio from line-in and mic inputs audio to new audio files. can be…"
+  }
+  page={171}
+/>

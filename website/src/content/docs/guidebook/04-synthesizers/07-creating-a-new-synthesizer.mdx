@@ -15,11 +15,12 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_4_7_1 from "../../../../assets/guidebook/figs/04-synthesizers__07-creating-a-new-synthesizer--1.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
-Upon start up, the Deluge is loaded with a synth clip and default patch, however the option exists to to create a new synthesizer clip at anytime.
+Upon start up, the Deluge is loaded with a synth clip and default patch, however the option exists to create a new synthesizer clip at anytime.
 
 ### Creating / loading a new synthesizer clip
 
@@ -64,11 +65,11 @@ Upon start up, the Deluge is loaded with a synth clip and default patch, however
 8. If a file is loaded that is not in a wavetable format it will still load and Deluge will make assumptions on the format, cycle size etc. As such this may not behave or sound like a typical wavetable but nevertheless still delivers interesting results.
 9. The main wavetable specific parameter to control and set up is the wave navigation and is called WAVETABLE accessed from within the oscillator menu, the wavetable shortcut pads or CUSTOM 2 for Osc 1 and CUSTOM 3 for Osc 2. This sets the wave position and interpolation for the cycle used by the oscillator. Modulating this parameter can give interesting results, especially for both oscillators.
 
-<FigurePending id="fig-4.7-1" page={89}>
-  Wavetable A file with a series of wave cycles. The ‘wavetable’ parameter
-  navigates and selects the cycle used in the Oscillator · Wavetable Position As
-  well as from the shortcut pad, the wave position is adjusted using CUSTOM 2
-  when Oscillator 1 is set to a wavetable synth and CUSTOM 3 for Oscillator 2.
-  If Only Osc 1 is a wavetable synth, CUSTOM 3 controls LFO2 depth modulating
-  the Osc 1 wave position.
-</FigurePending>
+<Figure
+  id="fig-4.7-1"
+  src={fig_fig_4_7_1}
+  alt={
+    "Diagram: Wavetable A file with a series of wave cycles. The ‘wavetable’ parameter navigates and selects the cycle used in the Oscillator Wavetable…"
+  }
+  page={89}
+/>

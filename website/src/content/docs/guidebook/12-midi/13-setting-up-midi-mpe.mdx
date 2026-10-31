@@ -15,7 +15,8 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_12_13_1 from "../../../../assets/guidebook/figs/12-midi__13-setting-up-midi-mpe--1.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -28,7 +29,7 @@ The MPE MIDI devices can be connected to Deluge with the USB or MIDI DIN connect
 3. Press :key[Shift + Select] to open the settings menu.
 4. :key[Turn Select] to navigate the menu and highlight MIDI, then press :key[Select].
 5. In the MIDI sub menu, :key[Turn Select] to highlight ‘DEVICES’. Press :key[Select] to select.
-6. The options will depend on the connected devices and may be represent the device by name or a generic name:-
+6. The options will depend on the connected devices and may be represent the device by name or a generic name:
    - DIN PORTS - MIDI DIN connected devices
    - COMPUTER - Deluge is a peripheral to a USB connected device.
 7. Highlight the device to configure and press :key[Select] to open the device sub menu.
@@ -42,16 +43,14 @@ Settings Options for MPE MIDI Zones
 
 SETTINGS &gt; MIDI &gt; DEVICES ….. Select the connected MPE device.
 
-<FigurePending id="fig-12.13-1" page={261}>
-  Sub Menu · Sub Menu · Sub Category LOWER · Setting Options Member Channels
-  OFF, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,12, 13, 14, 15 (Master Channel is
-  Channel 1) Member Channels OFF, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11,12, 13, 14,
-  15 (Master Channel is Channel 16) Member Channels OFF, 1, 2, 3, 4, 5, 6, 7, 8,
-  9, 10, 11,12, 13, 14, 15 (Master Channel is Channel 1) Member Channels OFF, 1,
-  2, 3, 4, 5, 6, 7, 8, 9, 10, 11,12, 13, 14, 15 (Master Channel is Channel 16) ·
-  IN · UPPER · MPE · LOWER · OUT · UPPER · MPE Zone data is stored automatically
-  as an MIDIDevices.xml file on the SD Card.
-</FigurePending>
+<Figure
+  id="fig-12.13-1"
+  src={fig_fig_12_13_1}
+  alt={
+    "Diagram: Sub Menu Sub Menu Sub Category Setting Options Member Channels OFF, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, LOWER 11,12, 13, 14, 15 (Master Channel…"
+  }
+  page={261}
+/>
 
 ### Automatic set up of an external MPE MIDI controller
 
@@ -74,4 +73,4 @@ When an MPE controller is set up as an input devices, the MPE dimensions can be 
 1. Ensure the MPE MIDI controller is connected and set up correctly.
 2. Press and hold Note :key[Pad] for the note to adjust on Deluge.
 3. While holding the Deluge note, apply the expression change on the same note on the connected MPE MIDI controller. For example apply more aftertouch key pressure.
-4. Release the the Deluge and MIDI controller notes. The new MPE expression value will be recorded into the note.
+4. Release the Deluge and MIDI controller notes. The new MPE expression value will be recorded into the note.

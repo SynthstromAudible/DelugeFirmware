@@ -15,12 +15,21 @@
   margin: 1.5rem 0;
 }
 
-.gb-figure svg,
+.gb-figure-art,
 .gb-figure img {
   display: block;
-  max-width: 100%;
-  height: auto;
   margin-inline: auto;
+}
+
+.gb-figure-art svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.gb-figure img {
+  width: 100%;
+  height: auto;
 }
 
 .gb-figure-art {

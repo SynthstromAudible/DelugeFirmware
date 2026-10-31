@@ -15,7 +15,11 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_6_4_1 from "../../../../assets/guidebook/figs/06-modulation__04-sidechain-compressor--1.svg?raw"
+import fig_fig_6_4_2 from "../../../../assets/guidebook/figs/06-modulation__04-sidechain-compressor--2.svg?raw"
+import fig_fig_6_4_3 from "../../../../assets/guidebook/figs/06-modulation__04-sidechain-compressor--3.svg?raw"
+import fig_fig_6_4_4 from "../../../../assets/guidebook/figs/06-modulation__04-sidechain-compressor--4.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -23,19 +27,27 @@ What is a Compressor?
 
 A compressor is a device that reduces the peaks in an audio sound automatically as they exceed a specified threshold level. This reduces the dynamic range allowing the overall audio to then be increased using make up gain if desired. Deluge compressor is not a traditional audio compressor and focuses more on being a ducking envelope.
 
-<FigurePending id="fig-6.4-1" page={127}>
-  Standard compression signal is attenuated when crossing the threshold. · Gain
-  Reduction · Threshold · Dynamic Range · Make Up Gain · Audio Over Time
-</FigurePending>
+<Figure
+  id="fig-6.4-1"
+  src={fig_fig_6_4_1}
+  alt={
+    "Diagram: Standard compression signal is attenuated when crossing the threshold. Gain Reduction Threshold Make Up Gain Audio Over Time"
+  }
+  page={127}
+/>
 
 What is a Sidechain Compressor?
 
 The principles of the sidechain compressor are identical to a standard compressor. The exception being that rather than the compressor trigger being a measure against its own input signal, an external source called a sidechain is the trigger of when to ‘duck’ i.e. reduce, the gain. Deluge, for example can use a kick drum to trigger a simultaneous gain reduction (duck) of a separate function.
 
-<FigurePending id="fig-6.4-2" page={127}>
-  Compression triggered by an external source to reduce gain at trigger points
-  and levels. · Gain Reduction · VOL DUCK · Audio Over Time
-</FigurePending>
+<Figure
+  id="fig-6.4-2"
+  src={fig_fig_6_4_2}
+  alt={
+    "Diagram: Compression triggered by an external source to reduce gain at trigger points and levels. Gain Reduction VOL DUCK Audio Over Time"
+  }
+  page={127}
+/>
 
 Dynamic Range
 
@@ -43,31 +55,27 @@ Sidechain Envelope
 
 The Deluge’s sidechain compressor effect mimics the behaviour of a sidechain compressor fed short impulses such as a kick drum. Its output, and resulting volume-ducking behaviour, is governed by AR (attack + release) envelope.
 
-<FigurePending id="fig-6.4-3" page={128}>
-  ATTACK Attack is the time to reach full compression after triggering the
-  compressor · RELEASE Release is the time to return back to normal after the
-  compressor is released. · SHAPE Tunes the shape of the release phase to affect
-  the whether the effect is more or less punchy / squishy sounding · The attack
-  and release times are important and have a key effect on the resulting feel of
-  the sidechain compression effect.
-</FigurePending>
+<Figure
+  id="fig-6.4-3"
+  src={fig_fig_6_4_3}
+  alt={
+    "Diagram: ATTACK RELEASE Attack is the time to reach Release is the time to return full compression after back to normal after the triggering the…"
+  }
+  page={128}
+/>
 
 Deluge Sidechain Example
 
 Sidechain can be patched as a modulation source to various parameters. The amount of sidechain compression is set up through the modulation connection.
 
-<FigurePending id="fig-6.4-4" page={128}>
-  Example: sidechain patched to low-pass filter cutoff frequency. Volume levels
-  are common destinations. · A single global sidechain ‘bus’ feeds destinations.
-  The bus is driven typically by kicks but others can be used. Factory kit kicks
-  are already setup to provide sidechain input. · LPF · Any new samples will be
-  analysed and if labelled as kicks or analysed as kicks will be setup to input
-  to the sidechain. · 35 · FREQUENCY · Multiple destinations can be sidechained.
-  The parameters (volume ducking, attack, release) for each can be independently
-  set up despite being supplied by the single bus. · Full parameter settings are
-  accessible with the sound editor. Volume Duck is available on the parameter
-  controls. · SIDECHAIN
-</FigurePending>
+<Figure
+  id="fig-6.4-4"
+  src={fig_fig_6_4_4}
+  alt={
+    "Diagram: Example: sidechain patched to low-pass filter cutoff A single global sidechain ‘bus’ feeds frequency. Volume levels are common…"
+  }
+  page={128}
+/>
 
 ### Setting up the sidechain
 

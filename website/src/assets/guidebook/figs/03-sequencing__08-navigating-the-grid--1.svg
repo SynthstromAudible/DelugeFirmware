@@ -184,15 +184,15 @@
 <use href="#03-sequencing__08-navigating-the-grid--1-s2" transform="matrix(1 0 0 -1 199.8 182.2)"/>
 <use href="#03-sequencing__08-navigating-the-grid--1-s2" transform="matrix(1 0 0 -1 288.6 182.2)"/>
 <use href="#03-sequencing__08-navigating-the-grid--1-s2" transform="matrix(1 0 0 -1 376.7 182.2)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(381.3 423.8)" font-size="8" font-family="monospace"><tspan y="0" x="0.0">1</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(381.3 423.8)" font-size="8" font-family="monospace"><tspan y="0" x="0.0">1</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="matrix(.974039 0 -0 1.0 389.3 423.8)" font-size="7.8" font-family="monospace"><tspan y="0" x="0.0">6TH-NOTES</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="matrix(.974039 0 -0 1.0 389.3 423.8)" font-size="7.8" font-family="monospace"><tspan y="0" x="0.0">6TH-NOTES</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(381.3 423.8)" font-size="8" font-family="monospace"><tspan y="0" x="0.0" textLength="4.4" lengthAdjust="spacingAndGlyphs">1</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(381.3 423.8)" font-size="8" font-family="monospace"><tspan y="0" x="0.0" textLength="4.4" lengthAdjust="spacingAndGlyphs">1</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(.974039 0 -0 1.0 389.3 423.8)" font-size="7.8" font-family="monospace"><tspan y="0" x="0.0" textLength="67.6" lengthAdjust="spacingAndGlyphs">6TH-NOTES</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(.974039 0 -0 1.0 389.3 423.8)" font-size="7.8" font-family="monospace"><tspan y="0" x="0.0" textLength="67.6" lengthAdjust="spacingAndGlyphs">6TH-NOTES</tspan></text>
 <path transform="matrix(1,0,0,-1,-44.4,568.6)" stroke-width=".8" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M425.0 140.9H502.4V155.9H425.0Z"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(417.5 118.8)" font-size="8" font-family="monospace"><tspan y="0" x="0.0">1</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(417.5 118.8)" font-size="8" font-family="monospace"><tspan y="0" x="0.0">1</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="matrix(.974039 0 -0 1.0 425.5 118.8)" font-size="7.8" font-family="monospace"><tspan y="0" x="0.0">:1:1</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="matrix(.974039 0 -0 1.0 425.5 118.8)" font-size="7.8" font-family="monospace"><tspan y="0" x="0.0">:1:1</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(417.5 118.8)" font-size="8" font-family="monospace"><tspan y="0" x="0.0" textLength="4.4" lengthAdjust="spacingAndGlyphs">1</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(417.5 118.8)" font-size="8" font-family="monospace"><tspan y="0" x="0.0" textLength="4.4" lengthAdjust="spacingAndGlyphs">1</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(.974039 0 -0 1.0 425.5 118.8)" font-size="7.8" font-family="monospace"><tspan y="0" x="0.0" textLength="27.7" lengthAdjust="spacingAndGlyphs">:1:1</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(.974039 0 -0 1.0 425.5 118.8)" font-size="7.8" font-family="monospace"><tspan y="0" x="0.0" textLength="27.7" lengthAdjust="spacingAndGlyphs">:1:1</tspan></text>
 <path transform="matrix(1,0,0,-1,-44.4,568.6)" stroke-width=".8" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M455.9 445.9H503.9V460.8H455.9Z"/>
 </g>
 </g>

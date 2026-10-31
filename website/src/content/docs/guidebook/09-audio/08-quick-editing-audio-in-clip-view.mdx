@@ -15,7 +15,8 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_9_8_1 from "../../../../assets/guidebook/figs/09-audio__08-quick-editing-audio-in-clip-view--1.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -46,15 +47,11 @@ Audio clips are displayed on the grid in clip view as a graphical waveforms. A n
 
 Audio clips are created in song or arrangement view. Once audio is recorded or loaded in they can be displayed on the grid as a graphical waveform with quick editing options available. Pressing a :key[Pad] for the clip row or ‘tail’ in song and arranger view respectively selects the audio clip in clip view. The waveform length on display matches the timing and synchronisation to the grid. Example, an audio waveform may fill one page as it is 1 bar in length. More precise options for editing are available in the waveform editor although this does not sync to grid timing.
 
-<FigurePending id="fig-9.8-1" page={180}>
-  Time-stretch Use [SHIFT] + (SCROLL◄►) to adjust the clip length by time
-  stretching or shrinking. · + · Audio waveform Indicated graphically across the
-  grid. This may take up multiple screen pages. · Loop edit The red column
-  cursor, selected by pressing the last column, enables editing of loop point.
-  Press the new location to move it. · Waveform length The waveform length
-  maintains synchronisation with the grid timings as shown by the grid pads. For
-  example sync to 16th intervals. · End of waveform The waveform is laid out at
-  the correct length based on the note divisions. Elements will be shown by dull
-  lit pads that are not covered. · Audio clip view Grid pads will display the
-  audio on coloured pads as opposed to white pads in waveform view.
-</FigurePending>
+<Figure
+  id="fig-9.8-1"
+  src={fig_fig_9_8_1}
+  alt={
+    "Pad grid: Time-stretch Use [SHIFT] + (SCROLL◄►) to adjust the clip length by time stretching or shrinking. + Audio waveform Loop edit Indicated…"
+  }
+  page={180}
+/>

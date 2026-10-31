@@ -1,0 +1,106 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 297.8 421.6"><defs><path id="12-midi__01-midi-connections--2-s1" d="M0 0C0 0.5 -0.4 0.9 -0.9 0.9H-6C-6.5 0.9 -6.9 0.5 -6.9 0V-5.1C-6.9 -5.6 -6.5 -6 -6 -6H-0.9C-0.4 -6 0 -5.6 0 -5.1Z" fill="var(--gb-paper)" fill-rule="evenodd"/><path id="12-midi__01-midi-connections--2-s2" d="M0 0C0 0.5 -0.4 0.9 -0.9 0.9H-6C-6.5 0.9 -6.9 0.5 -6.9 0V-5.1C-6.9 -5.6 -6.5 -6 -6 -6H-0.9C-0.4 -6 0 -5.6 0 -5.1Z" stroke-width=".35" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor"/><path id="12-midi__01-midi-connections--2-s3" d="M0 0C1.2 0 2.1 -1 2.1 -2.1 2.1 -3.3 1.2 -4.2 0 -4.2 -1.1 -4.2 -2 -3.3 -2 -2.1 -2 -1 -1.1 0 0 0Z" fill="var(--gb-paper)" fill-rule="evenodd"/><path id="12-midi__01-midi-connections--2-s4" d="M0 0C1.2 0 2.1 -1 2.1 -2.1 2.1 -3.3 1.2 -4.2 0 -4.2 -1.1 -4.2 -2 -3.3 -2 -2.1 -2 -1 -1.1 0 0 0Z" stroke-width=".35" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor"/></defs>
+<defs>
+<clipPath id="12-midi__01-midi-connections--2-clip_1">
+<path transform="matrix(1,0,0,-1,-217.4,528.5)" d="M217.4 106.9H515.2V528.5H217.4Z" clip-rule="evenodd"/>
+</clipPath>
+<mask id="12-midi__01-midi-connections--2-mask_2">
+<g transform="matrix(.038237,0,0,.038236999,73.7,5.9)">
+<image id="12-midi__01-midi-connections--2-image_3" width="5701" height="1801" xlink:href="/guidebook/img/12-midi__01-midi-connections--2-1.webp"/>
+</g>
+</mask>
+<mask id="12-midi__01-midi-connections--2-mask_5">
+<g transform="matrix(.024000003,0,0,.023999999,58.6,297.0)">
+<image id="12-midi__01-midi-connections--2-image_6" width="7260" height="4940" xlink:href="/guidebook/img/12-midi__01-midi-connections--2-2.webp"/>
+</g>
+</mask>
+<mask id="12-midi__01-midi-connections--2-mask_8">
+<g transform="matrix(.014873001,0,0,.014873001,127.9,108.7)">
+<image id="12-midi__01-midi-connections--2-image_9" width="7654" height="3002" xlink:href="/guidebook/img/12-midi__01-midi-connections--2-3.webp"/>
+</g>
+</mask>
+</defs>
+<g>
+<g clip-path="url(#12-midi__01-midi-connections--2-clip_1)">
+<path transform="matrix(1,0,0,-1,-217.4,528.5)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M170.1 688.6V84.1"/>
+<g mask="url(#12-midi__01-midi-connections--2-mask_2)">
+<g transform="matrix(.038237,0,0,.038236999,73.7,5.9)">
+<image class="gb-ink" id="12-midi__01-midi-connections--2-image_4" width="5701" height="1801" xlink:href="/guidebook/img/12-midi__01-midi-connections--2-4.webp"/>
+</g>
+</g>
+<g mask="url(#12-midi__01-midi-connections--2-mask_5)">
+<g transform="matrix(.024000003,0,0,.023999999,58.6,297.0)">
+<image class="gb-ink" id="12-midi__01-midi-connections--2-image_7" width="7260" height="4940" xlink:href="/guidebook/img/12-midi__01-midi-connections--2-5.webp"/>
+</g>
+</g>
+<path transform="matrix(1,0,0,-1,-217.4,528.5)" stroke-width=".65" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M285.9 310.3V337.9H223.3V492.0H291.1"/>
+<path transform="matrix(1,0,0,-1,-217.4,528.5)" stroke-width=".65" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M309.1 310.3V397.9H345.3"/>
+<path transform="matrix(1,0,0,-1,-217.4,528.5)" stroke-width=".65" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M364.1 229.1V302.9H400.3"/>
+<path transform="matrix(1,0,0,-1,-217.4,528.5)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M297.6 229.1V279.1"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(99.9 289.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">MIDI in</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(84.1 85.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">16 Channels can be learned in Deluge from a USB device</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(135.3 166.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Additional 16 Channels can be</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(124.5 175.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">learned in Deluge from a USB device</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(161.6 268.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">MIDI DIN 16 Channels can</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(163.6 277.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">also be learned in Deluge</tspan></text>
+<path transform="matrix(1,0,0,-1,-217.4,528.5)" d="M275.7 279.1H319.5V309.5H275.7Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-217.4,528.5)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M275.7 279.1H319.5V309.5H275.7Z"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(63.2 232.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">USB MIDI</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(72.0 241.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">HUB</tspan></text>
+<path transform="matrix(1,0,0,-1,-217.4,528.5)" d="M400.3 275.1H443.7V333.1H400.3Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-217.4,528.5)" stroke-width=".55" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M400.3 275.1H443.7V333.1H400.3Z"/>
+<use href="#12-midi__01-midi-connections--2-s1" transform="matrix(1 0 0 -1 193.7 223.1)"/>
+<use href="#12-midi__01-midi-connections--2-s2" transform="matrix(1 0 0 -1 193.7 223.1)"/>
+<use href="#12-midi__01-midi-connections--2-s1" transform="matrix(1 0 0 -1 193.7 232.7)"/>
+<use href="#12-midi__01-midi-connections--2-s2" transform="matrix(1 0 0 -1 193.7 232.7)"/>
+<use href="#12-midi__01-midi-connections--2-s1" transform="matrix(1 0 0 -1 193.7 242.3)"/>
+<use href="#12-midi__01-midi-connections--2-s2" transform="matrix(1 0 0 -1 193.7 242.3)"/>
+<use href="#12-midi__01-midi-connections--2-s1" transform="matrix(1 0 0 -1 193.7 213.5)"/>
+<use href="#12-midi__01-midi-connections--2-s2" transform="matrix(1 0 0 -1 193.7 213.5)"/>
+<use href="#12-midi__01-midi-connections--2-s1" transform="matrix(1 0 0 -1 203.3 223.1)"/>
+<use href="#12-midi__01-midi-connections--2-s2" transform="matrix(1 0 0 -1 203.3 223.1)"/>
+<use href="#12-midi__01-midi-connections--2-s1" transform="matrix(1 0 0 -1 203.3 232.7)"/>
+<use href="#12-midi__01-midi-connections--2-s2" transform="matrix(1 0 0 -1 203.3 232.7)"/>
+<use href="#12-midi__01-midi-connections--2-s1" transform="matrix(1 0 0 -1 203.3 242.3)"/>
+<use href="#12-midi__01-midi-connections--2-s2" transform="matrix(1 0 0 -1 203.3 242.3)"/>
+<use href="#12-midi__01-midi-connections--2-s1" transform="matrix(1 0 0 -1 203.3 213.5)"/>
+<use href="#12-midi__01-midi-connections--2-s2" transform="matrix(1 0 0 -1 203.3 213.5)"/>
+<use href="#12-midi__01-midi-connections--2-s1" transform="matrix(1 0 0 -1 212.9 223.1)"/>
+<use href="#12-midi__01-midi-connections--2-s2" transform="matrix(1 0 0 -1 212.9 223.1)"/>
+<use href="#12-midi__01-midi-connections--2-s1" transform="matrix(1 0 0 -1 212.9 232.7)"/>
+<use href="#12-midi__01-midi-connections--2-s2" transform="matrix(1 0 0 -1 212.9 232.7)"/>
+<use href="#12-midi__01-midi-connections--2-s1" transform="matrix(1 0 0 -1 212.9 242.3)"/>
+<use href="#12-midi__01-midi-connections--2-s2" transform="matrix(1 0 0 -1 212.9 242.3)"/>
+<use href="#12-midi__01-midi-connections--2-s1" transform="matrix(1 0 0 -1 212.9 213.5)"/>
+<use href="#12-midi__01-midi-connections--2-s2" transform="matrix(1 0 0 -1 212.9 213.5)"/>
+<use href="#12-midi__01-midi-connections--2-s1" transform="matrix(1 0 0 -1 222.5 223.1)"/>
+<use href="#12-midi__01-midi-connections--2-s2" transform="matrix(1 0 0 -1 222.5 223.1)"/>
+<use href="#12-midi__01-midi-connections--2-s1" transform="matrix(1 0 0 -1 222.5 232.7)"/>
+<use href="#12-midi__01-midi-connections--2-s2" transform="matrix(1 0 0 -1 222.5 232.7)"/>
+<use href="#12-midi__01-midi-connections--2-s1" transform="matrix(1 0 0 -1 222.5 242.3)"/>
+<use href="#12-midi__01-midi-connections--2-s2" transform="matrix(1 0 0 -1 222.5 242.3)"/>
+<use href="#12-midi__01-midi-connections--2-s1" transform="matrix(1 0 0 -1 222.5 213.5)"/>
+<use href="#12-midi__01-midi-connections--2-s2" transform="matrix(1 0 0 -1 222.5 213.5)"/>
+<g mask="url(#12-midi__01-midi-connections--2-mask_8)">
+<g transform="matrix(.014873001,0,0,.014873001,127.9,108.7)">
+<image id="12-midi__01-midi-connections--2-image_10" width="7654" height="3002" xlink:href="/guidebook/img/12-midi__01-midi-connections--2-6.webp"/>
+</g>
+</g>
+<path transform="matrix(1,0,0,-1,-217.4,528.5)" d="M407.8 329.7C408.9 329.7 409.9 328.7 409.9 327.6 409.9 326.4 408.9 325.5 407.8 325.5 406.6 325.5 405.7 326.4 405.7 327.6 405.7 328.7 406.6 329.7 407.8 329.7Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-217.4,528.5)" stroke-width=".35" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M407.8 329.7C408.9 329.7 409.9 328.7 409.9 327.6 409.9 326.4 408.9 325.5 407.8 325.5 406.6 325.5 405.7 326.4 405.7 327.6 405.7 328.7 406.6 329.7 407.8 329.7Z"/>
+<use href="#12-midi__01-midi-connections--2-s3" transform="matrix(1 0 0 -1 199.7 198.8)"/>
+<use href="#12-midi__01-midi-connections--2-s4" transform="matrix(1 0 0 -1 199.7 198.8)"/>
+<use href="#12-midi__01-midi-connections--2-s3" transform="matrix(1 0 0 -1 209.3 198.8)"/>
+<use href="#12-midi__01-midi-connections--2-s4" transform="matrix(1 0 0 -1 209.3 198.8)"/>
+<use href="#12-midi__01-midi-connections--2-s3" transform="matrix(1 0 0 -1 218.9 198.8)"/>
+<use href="#12-midi__01-midi-connections--2-s4" transform="matrix(1 0 0 -1 218.9 198.8)"/>
+<path transform="matrix(1,0,0,-1,-217.4,528.5)" d="M407.8 322.5C408.9 322.5 409.9 321.5 409.9 320.4 409.9 319.2 408.9 318.3 407.8 318.3 406.6 318.3 405.7 319.2 405.7 320.4 405.7 321.5 406.6 322.5 407.8 322.5Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-217.4,528.5)" stroke-width=".35" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M407.8 322.5C408.9 322.5 409.9 321.5 409.9 320.4 409.9 319.2 408.9 318.3 407.8 318.3 406.6 318.3 405.7 319.2 405.7 320.4 405.7 321.5 406.6 322.5 407.8 322.5Z"/>
+<use href="#12-midi__01-midi-connections--2-s3" transform="matrix(1 0 0 -1 199.7 206)"/>
+<use href="#12-midi__01-midi-connections--2-s4" transform="matrix(1 0 0 -1 199.7 206)"/>
+<use href="#12-midi__01-midi-connections--2-s3" transform="matrix(1 0 0 -1 209.3 206)"/>
+<use href="#12-midi__01-midi-connections--2-s4" transform="matrix(1 0 0 -1 209.3 206)"/>
+<use href="#12-midi__01-midi-connections--2-s3" transform="matrix(1 0 0 -1 218.9 206)"/>
+<use href="#12-midi__01-midi-connections--2-s4" transform="matrix(1 0 0 -1 218.9 206)"/>
+</g>
+</g>
+</svg>

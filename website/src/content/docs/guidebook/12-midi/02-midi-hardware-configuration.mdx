@@ -15,8 +15,6 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
-
 <div data-pagefind-filter="source:guidebook" hidden />
 
 MIDI configuration requires the match up of both Deluge along with the external device. It is important to check out the manufacturers instructions when connecting other devices.
@@ -32,27 +30,43 @@ MIDI configuration requires the match up of both Deluge along with the external 
 
 :key[Shift + Select]
 
-| Function      | Sub Category                          | Setting Options PPQN - sync pulses. Pulses per quarter note. 24 default.                                                                                                                                                                                                                                                  |
-| ------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| TRIGGER CLOCK | INPUT OUTPUT CLOCK                    | AUTO start on/off. Whether the presence of a trigger clock signal should start or stop playback automatically. PPQN - sync pulses. Pulses per quarter note. 24 default. IN - MIDI beat clock input ON or OFF. OUT - MIDI beat clock output ON or OFF.                                                                     |
-| MIDI          | MIDI-THRU                             | TEMPO MAGNITUDE MATCHING - tempo matching ON or OFF. MIDI-THRU, ON or OFF. PLAY RESTART - restart playback if already playing.                                                                                                                                                                                            |
-| MIDI Settings | COMMANDS DIFFERENTIATE INPUTS DEVICES | RECORD TAP TEMPO UNDO REDO LOOP LAYERING LOOP - same as loop but with overdubs. Sets MIDI differentiation, ON or OFF. MIDI Device setting options are available depending on the connected USB and MIDI devices e.g. din, computer etc:- MPE. Sets MPE Zone configuration. VELOCITY. Default sensitivity per MIDI device. |
+| Function      | Sub Category                          | Setting Options PPQN - sync pulses. Pulses per quarter note. 24 default.                                                                                                                                                                                                                                                 |
+| ------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| TRIGGER CLOCK | INPUT OUTPUT CLOCK                    | AUTO start on/off. Whether the presence of a trigger clock signal should start or stop playback automatically. PPQN - sync pulses. Pulses per quarter note. 24 default. IN - MIDI beat clock input ON or OFF. OUT - MIDI beat clock output ON or OFF.                                                                    |
+| MIDI          | MIDI-THRU                             | TEMPO MAGNITUDE MATCHING - tempo matching ON or OFF. MIDI-THRU, ON or OFF. PLAY RESTART - restart playback if already playing.                                                                                                                                                                                           |
+| MIDI Settings | COMMANDS DIFFERENTIATE INPUTS DEVICES | RECORD TAP TEMPO UNDO REDO LOOP LAYERING LOOP - same as loop but with overdubs. Sets MIDI differentiation, ON or OFF. MIDI Device setting options are available depending on the connected USB and MIDI devices e.g. din, computer etc: MPE. Sets MPE Zone configuration. VELOCITY. Default sensitivity per MIDI device. |
 
 #### MIDI Implementation Chart
 
-<FigurePending id="fig-12.2-1" page={241}>
-  Message · Type Note on · Transmitted Yes · Recognised Yes · Velocity · Note
-  off · No · No · Polyphonic · No · Yes · Aftertouch / Pressure · Channel · Yes
-  · Yes · Pitch bend · Yes Yes Numbers assigned Parameter must be by user Yes ·
-  Yes Yes ‘learned’ by user No · CC & general · CC 0 · Bank select · CC 32 (LSB)
-  · Yes · No · PGM change · Yes · No · All sound off · No · No · Reset all
-  controller · No · No · Channel mode · Local control · No · No · All notes off
-  · No · Yes · System exclusive · No · No · MIDI time code quarter frame · No ·
-  No · System common · Song position pointer · Yes · Yes · Song select · No · No
-  · Tune request · No · No · Clock · Yes\* · Yes · Start · Yes\* · Yes ·
-  Continue · Yes\* · Yes · System real time · Stop · Yes\* · Yes · Active
-  sensing · No · No · Reset · No \*Only if MIDI Clock output is enabled · No
-</FigurePending>
+| Message          | Type                         | Transmitted                            | Recognised                                               |
+| ---------------- | ---------------------------- | -------------------------------------- | -------------------------------------------------------- |
+|                  | Note on                      | Yes                                    | Yes                                                      |
+| Velocity         | Note off                     | No                                     | No                                                       |
+| Aftertouch /     | Polyphonic                   | No                                     | Yes                                                      |
+| Pressure         | Channel                      | Yes                                    | Yes                                                      |
+| Pitch bend       |                              | Yes                                    | Yes                                                      |
+| CC & general     |                              | Yes by user                            | Yes Numbers assigned Parameter must be ‘learned’ by user |
+|                  | CC 0                         | Yes                                    | No                                                       |
+| Bank select      | CC 32 (LSB)                  | Yes                                    | No                                                       |
+| PGM change       |                              | Yes                                    | No                                                       |
+|                  | All sound off                | No                                     | No                                                       |
+|                  | Reset all controller         | No                                     | No                                                       |
+| Channel mode     | Local control                | No                                     | No                                                       |
+|                  | All notes off                | No                                     | Yes                                                      |
+|                  | System exclusive             | No                                     | No                                                       |
+|                  | MIDI time code quarter frame | No                                     | No                                                       |
+| System common    | Song position pointer        | Yes                                    | Yes                                                      |
+|                  | Song select                  | No                                     | No                                                       |
+|                  | Tune request                 | No                                     | No                                                       |
+|                  | Clock                        | Yes\*                                  | Yes                                                      |
+|                  | Start                        | Yes\*                                  | Yes                                                      |
+|                  | Continue                     | Yes\*                                  | Yes                                                      |
+| System real time | Stop                         | Yes\*                                  | Yes                                                      |
+|                  | Active sensing               | No                                     | No                                                       |
+|                  | Reset                        | No                                     | No                                                       |
+|                  |                              | \*Only if MIDI Clock output is enabled |                                                          |
+
+<span id="fig-12.2-1"></span>
 
 Settings for MIDI are contained in the general setting menu, accessed by pressing both :key[Shift + Select]. External gear should be connected via MIDI or where a DAW or compatible software / hardware connection exists then USB is also possible.
 
@@ -69,7 +83,7 @@ Settings for MIDI are contained in the general setting menu, accessed by pressin
 
 1. Press :key[Shift + Select] to access the configuration menu.
 2. :key[Turn Select] and scroll to ‘MIDI’. Press :key[Select].
-3. :key[Turn Select] and scroll to ‘CLOCK’. This enables setting the clock sync to external gear where Deluge acts as leader or follower. Press :key[Select] to step into clock menu .
+3. :key[Turn Select] and scroll to ‘CLOCK’. This enables setting the clock sync to external gear where Deluge acts as leader or follower. Press :key[Select] to step into clock menu.
 4. :key[Turn Select] to highlighting ‘OUTPUT’ - MIDI beat clock output.
 5. Press :key[Select] and :key[Turn Select] to set to ON. OFF to disable sending commands.
 6. Playing as a follower takes precedence. Beat clock outputs will be sent out only when set up with beat clock outputs on and when not playing as a follower. Setting MIDI-THRU mode may satisfy situations where external signals are passed through Deluge to the MIDI output.
@@ -85,6 +99,6 @@ Settings for MIDI are contained in the general setting menu, accessed by pressin
 
 1. Press :key[Horizontal + Turn Tempo].
 2. Each Tempo control ‘click’ will adjust by one MIDI clock message / one 96th note.
-   - Deluge as follower: nudge Deluge’s MIDI clock .
+   - Deluge as follower: nudge Deluge’s MIDI clock.
    - Deluge as leader: nudge MIDI beat clock output to align external device.
 3. The display will indicate ‘NUDGE’, when making the adjustments.

@@ -15,8 +15,6 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
-
 <div data-pagefind-filter="source:guidebook" hidden />
 
 The CV and gate outputs and trigger input set up is accessible in the general settings menu. When Deluge is a syncing leader and sending a trigger clock signal to other devices, the gate output 4 can be set to output a trigger clock signal, and / or gate 3 can be set to output a “run” signal (goes high while playback is occurring; low otherwise).
@@ -30,17 +28,17 @@ The CV and gate outputs and trigger input set up is accessible in the general se
    - GATE - options to set each output channel are provided plus a generic off time.
    - TRIGGER CLOCK - settings for both input and output of trigger clock.
 
-<FigurePending id="fig-13.4-1" page={271}>
-  Function · Sub Category · Options Volts per octave · Setting Options Volts per
-  octave between 0.01 to 2V can be set. Alternatively HZPV sets the CV for each
-  output to Hz per Volt. Pitch adjustment in semi-tones with cent adjustments ·
-  CV OUTPUT 1 CV OUTPUT 2 · CV · Transpose · Sets gate output type between
-  S-Trig or V-Trig. Gate 1-2 will automatically match to CV 1-2 when selected. ·
-  GATE OUTPUT 1 GATE OUTPUT 2 · Type · GATE · Type “Run” Signal Clock · Sets
-  gate output type between S-Trig or V-Trig · GATE OUTPUT 3 · Run, will not
-  output notes. · GATE OUTPUT 4 · Clock, will not output notes. Minimum
-  switching time. Time off between gate notes range 0.1-10mS PPQN - sync pulses.
-  Pulses per quarter note. AUTO START on/off. On the presence of a trigger clock
-  PPQN - sync pulses. Pulses per quarter note · MINIMUM OFF-TIME · INPUT ·
-  TRIGGER CLOCK · OUTPUT
-</FigurePending>
+| Function      | Sub Category                | Options          | Setting Options                                                                                                |
+| ------------- | --------------------------- | ---------------- | -------------------------------------------------------------------------------------------------------------- |
+| CV            | CV OUTPUT 1 CV OUTPUT 2     | Volts per octave | Volts per octave between 0.01 to 2V can be set. Alternatively HZPV sets the CV for each output to Hz per Volt. |
+|               |                             | Transpose        | Pitch adjustment in semi-tones with cent adjustments                                                           |
+|               | GATE OUTPUT 1 GATE OUTPUT 2 | Type             | Sets gate output type between S-Trig or V-Trig. Gate 1-2 will automatically match to CV 1-2 when selected.     |
+| GATE          | GATE OUTPUT 3               | Type             | Sets gate output type between S-Trig or V-Trig                                                                 |
+|               |                             | “Run” Signal     | Run, will not output notes.                                                                                    |
+|               | GATE OUTPUT 4               | Clock            | Clock, will not output notes.                                                                                  |
+|               | MINIMUM OFF-TIME            |                  | Minimum switching time. Time off between gate notes range 0.1-10mS                                             |
+|               |                             |                  | PPQN - sync pulses. Pulses per quarter note.                                                                   |
+| TRIGGER CLOCK | INPUT                       |                  | AUTO START on/off. On the presence of a trigger clock                                                          |
+|               | OUTPUT                      |                  | PPQN - sync pulses. Pulses per quarter note                                                                    |
+
+<span id="fig-13.4-1"></span>

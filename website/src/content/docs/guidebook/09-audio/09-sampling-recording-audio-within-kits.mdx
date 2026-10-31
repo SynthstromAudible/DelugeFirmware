@@ -15,7 +15,8 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_9_9_1 from "../../../../assets/guidebook/figs/09-audio__09-sampling-recording-audio-within-kits--1.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -63,7 +64,11 @@ Kits are a great environment for sampling audio. Samples can be recorded and arr
 6. Press :key[Select]. Number of slices is indicated at which to divide the sample. 16 is default. :key[Turn Select] to adjust, example, to 8.
 7. Press :key[Select] to slice the sample across the elected number of pads.
 
-<FigurePending id="fig-9.9-1" page={183}>
-  1 · 2 · 3 · 4 · 5 · 6 · 7 · 8 · Single Sample Slices into number selected · 1
-  · 8 7 6 5 4 3 2 · Kit rows
-</FigurePending>
+<Figure
+  id="fig-9.9-1"
+  src={fig_fig_9_9_1}
+  alt={
+    "Pad grid: 1 2 3 4 5 6 7 8 8 7 6 5 4 3 2 Single Sample 1 Slices into number selected Kit rows"
+  }
+  page={183}
+/>

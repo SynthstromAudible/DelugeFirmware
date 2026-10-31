@@ -15,23 +15,18 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_1_4_1 from "../../../../assets/guidebook/figs/01-overview__04-system-architecture--1.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
 Deluge high level overview of the system configuration.
 
-<FigurePending id="fig-1.4-1" page={9}>
-  AUDIO IN · SD CARD Audio Samples Streamed to Deluge · Deluge: Audio & Synth
-  Engine · 64MB of Internal Working Memory. Native sample format 16/24 bit /
-  44.1kHz, and up to 32 bit / 96kHz using file formats of AIFF or WAV ·
-  Subtractive, Wavetable and FM Synthesizers · Audio Clips & Sampling · Kits
-  consisting of multiple elements · 4 Main Views Clip Song Arranger Keyboard ·
-  Osc 1 or WAV · Osc 2 or WAV · MIDI CV · SYNTH ENGINE · SYNTH ENGINE · AUDIO
-  ENGINE · MODULATION · KIT · EFFECTS CHAIN · EFFECTS CHAIN · EFFECTS CHAIN ·
-  Sound Editor · Sound Editor · MIDI & CV Config · SEQUENCER Sequenced Patterns
-  are Stored with the Song · Sequenced Clip · SONG CLIPS · Modulation · Effects
-  · Send / Return · Song Effects · Song · This is an illustration of the general
-  architecture and functions of the Deluge and is not intended as a detailed
-  schematic diagram
-</FigurePending>
+<Figure
+  id="fig-1.4-1"
+  src={fig_fig_1_4_1}
+  alt={
+    "Diagram: AUDIO IN SD CARD Audio Samples Streamed to Deluge Deluge: Audio & Synth Engine 64MB of Internal Working Memory. Native sample format 16/24…"
+  }
+  page={9}
+/>

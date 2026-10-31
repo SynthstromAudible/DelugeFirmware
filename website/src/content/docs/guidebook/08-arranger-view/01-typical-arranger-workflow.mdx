@@ -15,18 +15,18 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_8_1_1 from "../../../../assets/guidebook/figs/08-arranger-view__01-typical-arranger-workflow--1.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
 Establishing a good workflow is where speed and productivity can help make way for more creativity especially at the arrangement stage.
 
-<FigurePending id="fig-8.1-1" page={154}>
-  S · Arrangement set-up · Clear arrangement Hold [SCROLL▼▲] + [BACK / UNDO] · 1
-  · Record in from SONG view Capture a song into arranger view · 2 · 3 · Add
-  track Press [AUDITION] · 4 · Set-up track type Kit, synth, audio and presets.
-  · Build arrangement - place clip instance [PAD] · 5 · Build arrangement - edit
-  clip instance Move, length etc · 6 · Add unique ‘white’ clip instances Create
-  variations · 7 · Set-up modulation Optional 2 x LFO’s and 2 envelopes · 8 · 9
-  · Finalise output Volume level and pan · 10 · Play · E
-</FigurePending>
+<Figure
+  id="fig-8.1-1"
+  src={fig_fig_8_1_1}
+  alt={
+    "Diagram: S Arrangement set-up Clear arrangement 1 Hold [SCROLL▼▲] + [BACK / UNDO] Record in from SONG view 2 Capture a song into arranger view 3 Add…"
+  }
+  page={154}
+/>

@@ -15,19 +15,23 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_6_3_1 from "../../../../assets/guidebook/figs/06-modulation__03-envelopes-and-low-frequency-oscillators--1.svg?raw"
+import fig_fig_6_3_2 from "../../../../assets/guidebook/figs/06-modulation__03-envelopes-and-low-frequency-oscillators--2.svg?raw"
+import fig_fig_6_3_3 from "../../../../assets/guidebook/figs/06-modulation__03-envelopes-and-low-frequency-oscillators--3.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
 Envelopes are used to shape the sound typically over one cycle of the envelope. ENV1 controls volume amplitude by default. In addition it can be patched to other parameters. ENV2 has freely assignable destinations. The envelopes are traditional ADSR (attack, decay, sustain, release) type.
 
-<FigurePending id="fig-6.3-1" page={125}>
-  Note ON · Note OFF · Mod depth · destination · 25 · ATTACK (time) · DECAY
-  (time) · SUSTAIN (level) · RELEASE (time) · ENV1 ATTACK 30 · ENV1 SUSTAIN 25 ·
-  ENV1 DECAY 20 · ENV1 RELEASE 30
-</FigurePending>
-
-Mod
+<Figure
+  id="fig-6.3-1"
+  src={fig_fig_6_3_1}
+  alt={
+    "Diagram: Note ON Note OFF Mod depth 25 ATTACK DECAY SUSTAIN RELEASE (time) (time) (level) (time) ENV1 ATTACK ENV1 SUSTAIN 30 25 ENV1 DECAY ENV1…"
+  }
+  page={125}
+/>
 
 Value
 
@@ -37,12 +41,18 @@ The LFO is a continuous modulation function. Wave options are Sine, Saw, Square 
 
 Triangle Sine
 
-<FigurePending id="fig-6.3-2" page={126}>
-  TIME · TIME · AMPLITUDE · AMPLITUDE
-</FigurePending>
+<Figure
+  id="fig-6.3-2"
+  src={fig_fig_6_3_2}
+  alt={"Diagram: AMPLITUDE TIME TIME"}
+  page={126}
+/>
 
 Sawtooth Square
 
-<FigurePending id="fig-6.3-3" page={126}>
-  AMPLITUDE · AMPLITUDE · TIME · TIME
-</FigurePending>
+<Figure
+  id="fig-6.3-3"
+  src={fig_fig_6_3_3}
+  alt={"Diagram: AMPLITUDE TIME TIME"}
+  page={126}
+/>

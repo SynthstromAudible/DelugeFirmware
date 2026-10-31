@@ -1,0 +1,524 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 491 540"><defs><path id="04-synthesizers__12-arpeggiator--1-s1" d="M0 0H17.5V9.6H0ZM17.1 9.2V0.4C17.1 0.4 0.4 0.4 0.4 0.4 0.4 0.4 0.4 9.2 0.4 9.2Z" fill="currentColor" fill-rule="evenodd"/><path id="04-synthesizers__12-arpeggiator--1-s2" d="M0 0H17.6V9.6H0ZM17.2 9.2V0.4C17.2 0.4 0.4 0.4 0.4 0.4 0.4 0.4 0.4 9.2 0.4 9.2Z" fill="currentColor" fill-rule="evenodd"/><path id="04-synthesizers__12-arpeggiator--1-s3" d="M0 0H15.2V6.8H0ZM14.8 6.4V0.4C14.8 0.4 0.4 0.4 0.4 0.4 0.4 0.4 0.4 6.4 0.4 6.4Z" fill="currentColor" fill-rule="evenodd"/><path id="04-synthesizers__12-arpeggiator--1-s4" d="M0 0H15.3V6.8H0ZM14.9 6.4V0.4C14.9 0.4 0.4 0.4 0.4 0.4 0.4 0.4 0.4 6.4 0.4 6.4Z" fill="currentColor" fill-rule="evenodd"/><path id="04-synthesizers__12-arpeggiator--1-s5" d="M0 0H17.5V9.5H0ZM17.1 9.1V0.4C17.1 0.4 0.4 0.4 0.4 0.4 0.4 0.4 0.4 9.1 0.4 9.1Z" fill="currentColor" fill-rule="evenodd"/><path id="04-synthesizers__12-arpeggiator--1-s6" d="M0 0H17.6V9.5H0ZM17.2 9.1V0.4C17.2 0.4 0.4 0.4 0.4 0.4 0.4 0.4 0.4 9.1 0.4 9.1Z" fill="currentColor" fill-rule="evenodd"/><path id="04-synthesizers__12-arpeggiator--1-s7" d="M0 0H17.5V9.5H0Z" fill="var(--gb-accent)" fill-rule="evenodd"/><path id="04-synthesizers__12-arpeggiator--1-s8" d="M0 0H17.5V9.5H0ZM17.1 9.2V0.4C17.1 0.4 0.4 0.4 0.4 0.4 0.4 0.4 0.4 9.2 0.4 9.2Z" fill="currentColor" fill-rule="evenodd"/><path id="04-synthesizers__12-arpeggiator--1-s9" d="M0 0H9.7V9.6H0ZM9.3 9.2V0.4C9.3 0.4 0.4 0.4 0.4 0.4 0.4 0.4 0.4 9.2 0.4 9.2Z" fill="currentColor" fill-rule="evenodd"/><path id="04-synthesizers__12-arpeggiator--1-s10" d="M0 0H9.8V9.6H0ZM9.4 9.2V0.4C9.4 0.4 0.4 0.4 0.4 0.4 0.4 0.4 0.4 9.2 0.4 9.2Z" fill="currentColor" fill-rule="evenodd"/><path id="04-synthesizers__12-arpeggiator--1-s11" d="M0 0H9.7V9.6H0Z" fill="var(--gb-accent)" fill-rule="evenodd"/><path id="04-synthesizers__12-arpeggiator--1-s12" d="M0 0H9.7V9.5H0ZM9.3 9.1V0.4C9.3 0.4 0.4 0.4 0.4 0.4 0.4 0.4 0.4 9.1 0.4 9.1Z" fill="currentColor" fill-rule="evenodd"/><path id="04-synthesizers__12-arpeggiator--1-s13" d="M0 0H9.8V9.5H0ZM9.4 9.1V0.4C9.4 0.4 0.4 0.4 0.4 0.4 0.4 0.4 0.4 9.1 0.4 9.1Z" fill="currentColor" fill-rule="evenodd"/><path id="04-synthesizers__12-arpeggiator--1-s14" d="M0 0H9.8V9.5H0Z" fill="var(--gb-accent)" fill-rule="evenodd"/><path id="04-synthesizers__12-arpeggiator--1-s15" d="M0 0H9.7V9.5H0Z" fill="var(--gb-accent)" fill-rule="evenodd"/><path id="04-synthesizers__12-arpeggiator--1-s16" d="M0 0H39V9.9H0Z" fill-rule="evenodd"/><path id="04-synthesizers__12-arpeggiator--1-s17" d="M0 0H66.6V14.2H0ZM66.2 13.8V0.4C66.2 0.4 0.4 0.4 0.4 0.4 0.4 0.4 0.4 13.8 0.4 13.8 0.4 13.8 66.2 13.8 66.2 13.8Z" fill-rule="evenodd"/><path id="04-synthesizers__12-arpeggiator--1-s18" d="M0 0V-273.4" stroke-width=".75" stroke-linecap="round" stroke-dasharray="2.2,2.2,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))"/><path id="04-synthesizers__12-arpeggiator--1-s19" d="M0 0H365.7" stroke-width=".75" stroke-linecap="round" stroke-dasharray="2.2,2.2,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))"/></defs>
+<defs>
+<clipPath id="04-synthesizers__12-arpeggiator--1-clip_1">
+<path transform="matrix(1,0,0,-1,-50.7,631.0)" d="M50.7 91.0H541.7V631.0H50.7Z" clip-rule="evenodd"/>
+</clipPath>
+<clipPath id="04-synthesizers__12-arpeggiator--1-clip_2">
+<path transform="matrix(1,0,0,-1,-50.7,631.0)" d="M56.6 215.4H79.3V408.1H56.6Z" clip-rule="evenodd"/>
+</clipPath>
+<mask id="04-synthesizers__12-arpeggiator--1-mask_3">
+<g transform="matrix(.064081,0,0,.064081,5.9,222.9)">
+<image id="04-synthesizers__12-arpeggiator--1-image_4" width="355" height="3008" xlink:href="/guidebook/img/04-synthesizers__12-arpeggiator--1-1.webp"/>
+</g>
+</mask>
+</defs>
+<g>
+<g clip-path="url(#04-synthesizers__12-arpeggiator--1-clip_1)">
+<path transform="matrix(1,0,0,-1,-50.7,631.0)" d="M170.0 231.9H187.5V241.5H170.0Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-50.7,631.0)" d="M170.0 231.9H187.5V241.5H170.0ZM187.1 241.1V232.3C187.1 232.3 170.4 232.3 170.4 232.3 170.4 232.3 170.4 241.1 170.4 241.1Z" fill-rule="evenodd"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 141.2 399.1)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 163.1 399.1)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 185 399.1)"/>
+<path transform="matrix(1,0,0,-1,-50.7,631.0)" d="M257.6 231.9H275.1V241.5H257.6Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 206.9 399.1)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 228.8 399.1)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 250.7 399.1)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s2" transform="matrix(1 0 0 -1 272.5 399.1)"/>
+<path transform="matrix(1,0,0,-1,-50.7,631.0)" d="M345.1 231.9H362.6V241.5H345.1Z" fill="currentColor" fill-rule="evenodd"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 294.4 399.1)"/>
+<path transform="matrix(1,0,0,-1,-50.7,631.0)" d="M360.8 121.8H376.0V128.6H360.8Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s3" transform="matrix(1 0 0 -1 310.1 509.2)"/>
+<path transform="matrix(1,0,0,-1,-50.7,631.0)" d="M360.8 109.7H394.8V116.6H360.8Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-50.7,631.0)" d="M360.8 109.7H394.8V116.6H360.8ZM394.4 116.2V110.1C394.4 110.1 361.2 110.1 361.2 110.1 361.2 110.1 361.2 116.2 361.2 116.2Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-50.7,631.0)" d="M360.8 97.7H433.1V104.5H360.8Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-50.7,631.0)" d="M360.8 97.7H433.1V104.5H360.8ZM432.7 104.1V98.1C432.7 98.1 361.2 98.1 361.2 98.1 361.2 98.1 361.2 104.1 361.2 104.1Z" fill="currentColor" fill-rule="evenodd"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s3" transform="matrix(1 0 0 -1 310.1 497.3)"/>
+<path transform="matrix(1,0,0,-1,-50.7,631.0)" d="M360.8 133.7H367.2V140.5H360.8Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-50.7,631.0)" d="M360.8 133.7H367.2V140.5H360.8ZM366.8 140.1V134.1C366.8 134.1 361.2 134.1 361.2 134.1 361.2 134.1 361.2 140.1 361.2 140.1Z" fill="currentColor" fill-rule="evenodd"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s4" transform="matrix(1 0 0 -1 329.1 509.2)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s4" transform="matrix(1 0 0 -1 329.1 497.3)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s3" transform="matrix(1 0 0 -1 348.2 509.2)"/>
+<path transform="matrix(1,0,0,-1,-50.7,631.0)" d="M398.9 109.7H414.1V116.6H398.9ZM413.7 116.2V110.1C413.7 110.1 399.3 110.1 399.3 110.1 399.3 110.1 399.3 116.2 399.3 116.2Z" fill="currentColor" fill-rule="evenodd"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s3" transform="matrix(1 0 0 -1 348.2 497.3)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s4" transform="matrix(1 0 0 -1 367.2 509.2)"/>
+<path transform="matrix(1,0,0,-1,-50.7,631.0)" d="M417.9 109.7H433.2V116.6H417.9ZM432.8 116.2V110.1C432.8 110.1 418.3 110.1 418.3 110.1 418.3 110.1 418.3 116.2 418.3 116.2Z" fill="currentColor" fill-rule="evenodd"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s4" transform="matrix(1 0 0 -1 367.2 497.3)"/>
+<path transform="matrix(1,0,0,-1,-50.7,631.0)" d="M437.0 121.8H452.2V128.6H437.0Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s3" transform="matrix(1 0 0 -1 386.3 509.2)"/>
+<path transform="matrix(1,0,0,-1,-50.7,631.0)" d="M437.0 109.7H471.2V116.6H437.0Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-50.7,631.0)" d="M437.0 109.7H471.2V116.6H437.0ZM470.8 116.2V110.1C470.8 110.1 437.4 110.1 437.4 110.1 437.4 110.1 437.4 116.2 437.4 116.2Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-50.7,631.0)" d="M437.0 97.7H509.5V104.5H437.0Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-50.7,631.0)" d="M437.0 97.7H509.5V104.5H437.0ZM509.1 104.1V98.1C509.1 98.1 437.4 98.1 437.4 98.1 437.4 98.1 437.4 104.1 437.4 104.1Z" fill="currentColor" fill-rule="evenodd"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s3" transform="matrix(1 0 0 -1 386.3 497.3)"/>
+<path transform="matrix(1,0,0,-1,-50.7,631.0)" d="M437.0 133.7H443.4V140.5H437.0Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-50.7,631.0)" d="M437.0 133.7H443.4V140.5H437.0ZM443.0 140.1V134.1H437.4C437.4 134.1 437.4 140.1 437.4 140.1Z" fill="currentColor" fill-rule="evenodd"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s4" transform="matrix(1 0 0 -1 405.3 509.2)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s4" transform="matrix(1 0 0 -1 405.3 497.3)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s3" transform="matrix(1 0 0 -1 424.4 509.2)"/>
+<path transform="matrix(1,0,0,-1,-50.7,631.0)" d="M475.1 109.7H490.3V116.6H475.1ZM489.9 116.2V110.1C489.9 110.1 475.5 110.1 475.5 110.1 475.5 110.1 475.5 116.2 475.5 116.2Z" fill="currentColor" fill-rule="evenodd"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s3" transform="matrix(1 0 0 -1 424.4 497.3)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s4" transform="matrix(1 0 0 -1 443.4 509.2)"/>
+<path transform="matrix(1,0,0,-1,-50.7,631.0)" d="M494.1 109.7H509.4V116.6H494.1ZM509.0 116.2V110.1C509.0 110.1 494.5 110.1 494.5 110.1 494.5 110.1 494.5 116.2 494.5 116.2Z" fill="currentColor" fill-rule="evenodd"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s4" transform="matrix(1 0 0 -1 443.4 497.3)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 316.3 399.1)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 338.2 399.1)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 360.1 399.1)"/>
+<path transform="matrix(1,0,0,-1,-50.7,631.0)" d="M432.7 231.9H450.2V241.5H432.7Z" fill="currentColor" fill-rule="evenodd"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 382 399.1)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 403.9 399.1)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 425.8 399.1)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s2" transform="matrix(1 0 0 -1 447.6 399.1)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 119.3 385.3)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 141.2 385.3)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 163.1 385.3)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 185 385.3)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 206.9 385.3)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 228.8 385.3)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 250.7 385.3)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s6" transform="matrix(1 0 0 -1 272.5 385.3)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 294.4 385.3)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 316.3 385.3)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 338.2 385.3)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 360.1 385.3)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 382 385.3)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 403.9 385.3)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 425.8 385.3)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s6" transform="matrix(1 0 0 -1 447.6 385.3)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 119.3 371.6)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 141.2 371.6)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 163.1 371.6)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 185 371.6)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 206.9 371.6)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 228.8 371.6)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 250.7 371.6)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s6" transform="matrix(1 0 0 -1 272.5 371.6)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 294.4 371.6)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 316.3 371.6)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 338.2 371.6)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 360.1 371.6)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 382 371.6)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 403.9 371.6)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 425.8 371.6)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s6" transform="matrix(1 0 0 -1 447.6 371.6)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 119.3 357.9)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 141.2 357.9)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 163.1 357.9)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 185 357.9)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 206.9 357.9)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 228.8 357.9)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 250.7 357.9)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s2" transform="matrix(1 0 0 -1 272.5 357.9)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 294.4 357.9)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 316.3 357.9)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 338.2 357.9)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 360.1 357.9)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 382 357.9)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 403.9 357.9)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 425.8 357.9)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s2" transform="matrix(1 0 0 -1 447.6 357.9)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 119.3 344.1)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 141.2 344.1)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 163.1 344.1)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 185 344.1)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 206.9 344.1)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 228.8 344.1)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 250.7 344.1)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s6" transform="matrix(1 0 0 -1 272.5 344.1)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 294.4 344.1)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 316.3 344.1)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 338.2 344.1)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 360.1 344.1)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 382 344.1)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 403.9 344.1)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 425.8 344.1)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s6" transform="matrix(1 0 0 -1 447.6 344.1)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 119.3 330.4)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 141.2 330.4)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 163.1 330.4)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 185 330.4)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 206.9 330.4)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 228.8 330.4)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 250.7 330.4)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s2" transform="matrix(1 0 0 -1 272.5 330.4)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 294.4 330.4)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 316.3 330.4)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 338.2 330.4)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 360.1 330.4)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 382 330.4)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 403.9 330.4)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 425.8 330.4)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s2" transform="matrix(1 0 0 -1 447.6 330.4)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 119.3 316.6)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 141.2 316.6)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 163.1 316.6)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 185 316.6)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 206.9 316.6)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 228.8 316.6)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 250.7 316.6)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s6" transform="matrix(1 0 0 -1 272.5 316.6)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 294.4 316.6)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 316.3 316.6)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 338.2 316.6)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 360.1 316.6)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 382 316.6)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 403.9 316.6)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 425.8 316.6)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s6" transform="matrix(1 0 0 -1 447.6 316.6)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 119.3 302.9)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s7" transform="matrix(1 0 0 -1 141.2 302.9)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 141.2 302.9)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 163.1 302.9)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s7" transform="matrix(1 0 0 -1 185 302.9)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 185 302.9)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 206.9 302.9)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s7" transform="matrix(1 0 0 -1 228.8 302.9)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 228.8 302.9)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 250.7 302.9)"/>
+<path transform="matrix(1,0,0,-1,-50.7,631.0)" d="M323.2 328.1H340.8V337.6H323.2Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s6" transform="matrix(1 0 0 -1 272.5 302.9)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 294.4 302.9)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 316.3 302.9)"/>
+<path transform="matrix(1,0,0,-1,-50.7,631.0)" d="M388.9 328.1H406.4V337.6H388.9Z" fill="currentColor" fill-rule="evenodd"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 338.2 302.9)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 360.1 302.9)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 382 302.9)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 403.9 302.9)"/>
+<path transform="matrix(1,0,0,-1,-50.7,631.0)" d="M476.5 328.1H494.0V337.6H476.5Z" fill="currentColor" fill-rule="evenodd"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 425.8 302.9)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s6" transform="matrix(1 0 0 -1 447.6 302.9)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 119.3 289.2)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 141.2 289.2)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 163.1 289.2)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 185 289.2)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 206.9 289.2)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 228.8 289.2)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 250.7 289.2)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s2" transform="matrix(1 0 0 -1 272.5 289.2)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 294.4 289.2)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 316.3 289.2)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 338.2 289.2)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 360.1 289.2)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 382 289.2)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 403.9 289.2)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 425.8 289.2)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s2" transform="matrix(1 0 0 -1 447.6 289.2)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 119.3 275.4)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 141.2 275.4)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 163.1 275.4)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 185 275.4)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 206.9 275.4)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 228.8 275.4)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 250.7 275.4)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s6" transform="matrix(1 0 0 -1 272.5 275.4)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 294.4 275.4)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 316.3 275.4)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 338.2 275.4)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 360.1 275.4)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 382 275.4)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 403.9 275.4)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 425.8 275.4)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s6" transform="matrix(1 0 0 -1 447.6 275.4)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 119.3 261.7)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 141.2 261.7)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 163.1 261.7)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 185 261.7)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 206.9 261.7)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 228.8 261.7)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 250.7 261.7)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s6" transform="matrix(1 0 0 -1 272.5 261.7)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 294.4 261.7)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 316.3 261.7)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 338.2 261.7)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 360.1 261.7)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 382 261.7)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 403.9 261.7)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 425.8 261.7)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s6" transform="matrix(1 0 0 -1 447.6 261.7)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 119.3 248)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 141.2 248)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 163.1 248)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 185 248)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 206.9 248)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 228.8 248)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 250.7 248)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s2" transform="matrix(1 0 0 -1 272.5 248)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 294.4 248)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 316.3 248)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 338.2 248)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 360.1 248)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 382 248)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 403.9 248)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 425.8 248)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s2" transform="matrix(1 0 0 -1 447.6 248)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 119.3 234.2)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 141.2 234.2)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 163.1 234.2)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 185 234.2)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 206.9 234.2)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 228.8 234.2)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 250.7 234.2)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s6" transform="matrix(1 0 0 -1 272.5 234.2)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 294.4 234.2)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 316.3 234.2)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 338.2 234.2)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 360.1 234.2)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 382 234.2)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 403.9 234.2)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 425.8 234.2)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s6" transform="matrix(1 0 0 -1 447.6 234.2)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s8" transform="matrix(1 0 0 -1 119.3 220.5)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s8" transform="matrix(1 0 0 -1 141.2 220.5)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s8" transform="matrix(1 0 0 -1 163.1 220.5)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s8" transform="matrix(1 0 0 -1 185 220.5)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s8" transform="matrix(1 0 0 -1 206.9 220.5)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s8" transform="matrix(1 0 0 -1 228.8 220.5)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s8" transform="matrix(1 0 0 -1 250.7 220.5)"/>
+<path transform="matrix(1,0,0,-1,-50.7,631.0)" d="M323.2 410.5H340.8V420.0H323.2ZM340.4 419.7V410.9C340.4 410.9 323.6 410.9 323.6 410.9 323.6 410.9 323.6 419.7 323.6 419.7Z" fill="currentColor" fill-rule="evenodd"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s8" transform="matrix(1 0 0 -1 294.4 220.5)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s8" transform="matrix(1 0 0 -1 316.3 220.5)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s8" transform="matrix(1 0 0 -1 338.2 220.5)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s8" transform="matrix(1 0 0 -1 360.1 220.5)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s8" transform="matrix(1 0 0 -1 382 220.5)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s8" transform="matrix(1 0 0 -1 403.9 220.5)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s8" transform="matrix(1 0 0 -1 425.8 220.5)"/>
+<path transform="matrix(1,0,0,-1,-50.7,631.0)" d="M498.3 410.5H515.9V420.0H498.3ZM515.5 419.7V410.9C515.5 410.9 498.7 410.9 498.7 410.9 498.7 410.9 498.7 419.7 498.7 419.7Z" fill="currentColor" fill-rule="evenodd"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 119.3 193)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 141.2 193)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 163.1 193)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 185 193)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 206.9 193)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 228.8 193)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 250.7 193)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s6" transform="matrix(1 0 0 -1 272.5 193)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 294.4 193)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 316.3 193)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 338.2 193)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 360.1 193)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 382 193)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 403.9 193)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 425.8 193)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s6" transform="matrix(1 0 0 -1 447.6 193)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s9" transform="matrix(1 0 0 -1 120.7 107.1)"/>
+<path transform="matrix(1,0,0,-1,-50.7,631.0)" d="M183.5 523.9H193.3V533.5H183.5Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s10" transform="matrix(1 0 0 -1 132.8 107.1)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s10" transform="matrix(1 0 0 -1 145 107.1)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s9" transform="matrix(1 0 0 -1 157.2 107.1)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s9" transform="matrix(1 0 0 -1 188.1 107.1)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s11" transform="matrix(1 0 0 -1 200.3 107.1)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s9" transform="matrix(1 0 0 -1 200.3 107.1)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s9" transform="matrix(1 0 0 -1 212.5 107.1)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s10" transform="matrix(1 0 0 -1 224.6 107.1)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s9" transform="matrix(1 0 0 -1 255.8 107.1)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s11" transform="matrix(1 0 0 -1 268 107.1)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s9" transform="matrix(1 0 0 -1 268 107.1)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s10" transform="matrix(1 0 0 -1 280.1 107.1)"/>
+<path transform="matrix(1,0,0,-1,-50.7,631.0)" d="M343.0 523.9H352.8V533.5H343.0Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s10" transform="matrix(1 0 0 -1 292.3 107.1)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s9" transform="matrix(1 0 0 -1 323.5 107.1)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s10" transform="matrix(1 0 0 -1 335.6 107.1)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s10" transform="matrix(1 0 0 -1 347.8 107.1)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s11" transform="matrix(1 0 0 -1 360 107.1)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s9" transform="matrix(1 0 0 -1 360 107.1)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s10" transform="matrix(1 0 0 -1 391.1 107.1)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s10" transform="matrix(1 0 0 -1 403.3 107.1)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s9" transform="matrix(1 0 0 -1 415.5 107.1)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s9" transform="matrix(1 0 0 -1 427.7 107.1)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 119.3 179.3)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 141.2 179.3)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 163.1 179.3)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 185 179.3)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 206.9 179.3)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 228.8 179.3)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 250.7 179.3)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s2" transform="matrix(1 0 0 -1 272.5 179.3)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 294.4 179.3)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 316.3 179.3)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 338.2 179.3)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 360.1 179.3)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 382 179.3)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 403.9 179.3)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s1" transform="matrix(1 0 0 -1 425.8 179.3)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s2" transform="matrix(1 0 0 -1 447.6 179.3)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s12" transform="matrix(1 0 0 -1 120.7 88.5)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s13" transform="matrix(1 0 0 -1 132.8 88.5)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s14" transform="matrix(1 0 0 -1 145 88.5)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s13" transform="matrix(1 0 0 -1 145 88.5)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s12" transform="matrix(1 0 0 -1 157.2 88.5)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s15" transform="matrix(1 0 0 -1 188.1 88.5)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s12" transform="matrix(1 0 0 -1 188.1 88.5)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s12" transform="matrix(1 0 0 -1 200.3 88.5)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s12" transform="matrix(1 0 0 -1 212.5 88.5)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s13" transform="matrix(1 0 0 -1 224.6 88.5)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s15" transform="matrix(1 0 0 -1 255.8 88.5)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s12" transform="matrix(1 0 0 -1 255.8 88.5)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s12" transform="matrix(1 0 0 -1 268 88.5)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s13" transform="matrix(1 0 0 -1 280.1 88.5)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s13" transform="matrix(1 0 0 -1 292.3 88.5)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s15" transform="matrix(1 0 0 -1 323.5 88.5)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s12" transform="matrix(1 0 0 -1 323.5 88.5)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s13" transform="matrix(1 0 0 -1 335.6 88.5)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s13" transform="matrix(1 0 0 -1 347.8 88.5)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s12" transform="matrix(1 0 0 -1 360 88.5)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s13" transform="matrix(1 0 0 -1 391.1 88.5)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s13" transform="matrix(1 0 0 -1 403.3 88.5)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s12" transform="matrix(1 0 0 -1 415.5 88.5)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s12" transform="matrix(1 0 0 -1 427.7 88.5)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 119.3 206.7)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 141.2 206.7)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s7" transform="matrix(1 0 0 -1 163.1 206.7)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 163.1 206.7)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 185 206.7)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 206.9 206.7)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 228.8 206.7)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s7" transform="matrix(1 0 0 -1 250.7 206.7)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 250.7 206.7)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s6" transform="matrix(1 0 0 -1 272.5 206.7)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 294.4 206.7)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 316.3 206.7)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 338.2 206.7)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 360.1 206.7)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 382 206.7)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 403.9 206.7)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s5" transform="matrix(1 0 0 -1 425.8 206.7)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s6" transform="matrix(1 0 0 -1 447.6 206.7)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s15" transform="matrix(1 0 0 -1 120.7 125.6)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s12" transform="matrix(1 0 0 -1 120.7 125.6)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s13" transform="matrix(1 0 0 -1 132.8 125.6)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s13" transform="matrix(1 0 0 -1 145 125.6)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s12" transform="matrix(1 0 0 -1 157.2 125.6)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s12" transform="matrix(1 0 0 -1 188.1 125.6)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s12" transform="matrix(1 0 0 -1 200.3 125.6)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s15" transform="matrix(1 0 0 -1 212.5 125.6)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s12" transform="matrix(1 0 0 -1 212.5 125.6)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s13" transform="matrix(1 0 0 -1 224.6 125.6)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s12" transform="matrix(1 0 0 -1 255.8 125.6)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s12" transform="matrix(1 0 0 -1 268 125.6)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s14" transform="matrix(1 0 0 -1 280.1 125.6)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s13" transform="matrix(1 0 0 -1 280.1 125.6)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s13" transform="matrix(1 0 0 -1 292.3 125.6)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s12" transform="matrix(1 0 0 -1 323.5 125.6)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s14" transform="matrix(1 0 0 -1 335.6 125.6)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s13" transform="matrix(1 0 0 -1 335.6 125.6)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s14" transform="matrix(1 0 0 -1 347.8 125.6)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s13" transform="matrix(1 0 0 -1 347.8 125.6)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s12" transform="matrix(1 0 0 -1 360 125.6)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s13" transform="matrix(1 0 0 -1 391.1 125.6)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s13" transform="matrix(1 0 0 -1 403.3 125.6)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s12" transform="matrix(1 0 0 -1 415.5 125.6)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s12" transform="matrix(1 0 0 -1 427.7 125.6)"/>
+<path transform="matrix(1,0,0,-1,-50.7,631.0)" d="M99.2 229.3H165.8V243.5H99.2ZM165.4 243.1V229.7C165.4 229.7 105.1 229.7 99.6 229.7 99.6 229.7 99.6 243.1 99.6 243.1 105.1 243.1 165.4 243.1 165.4 243.1Z" fill-rule="evenodd"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s16" transform="matrix(1 0 0 -1 48.5 392.4)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s16" transform="matrix(1 0 0 -1 48.5 378.6)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s16" transform="matrix(1 0 0 -1 48.5 351.2)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s16" transform="matrix(1 0 0 -1 48.5 337.5)"/>
+<path transform="matrix(1,0,0,-1,-50.7,631.0)" d="M99.2 307.2H138.2V317.2H99.2Z" fill-rule="evenodd"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s16" transform="matrix(1 0 0 -1 48.5 296.3)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s16" transform="matrix(1 0 0 -1 48.5 282.6)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s16" transform="matrix(1 0 0 -1 48.5 255.1)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s16" transform="matrix(1 0 0 -1 48.5 241.4)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s16" transform="matrix(1 0 0 -1 48.5 227.7)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s16" transform="matrix(1 0 0 -1 48.5 200.2)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s16" transform="matrix(1 0 0 -1 48.5 186.5)"/>
+<path transform="matrix(1,0,0,-1,-50.7,631.0)" d="M99.2 243.1H165.8V257.2H99.2ZM165.4 256.8V243.5C165.4 243.5 105.1 243.5 99.6 243.5 99.6 243.5 99.6 256.8 99.6 256.8 99.6 256.8 165.4 256.8 165.4 256.8Z" fill-rule="evenodd"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s17" transform="matrix(1 0 0 -1 48.5 374.2)"/>
+<path transform="matrix(1,0,0,-1,-50.7,631.0)" d="M99.2 270.6H165.8V284.7H99.2ZM165.4 284.3V271.0C165.4 271.0 99.6 271.0 99.6 271.0 99.6 271.0 99.6 284.3 99.6 284.3 99.6 284.3 165.4 284.3 165.4 284.3Z" fill-rule="evenodd"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s17" transform="matrix(1 0 0 -1 48.5 346.7)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s17" transform="matrix(1 0 0 -1 48.5 333)"/>
+<path transform="matrix(1,0,0,-1,-50.7,631.0)" d="M99.2 311.8H165.8V325.9H99.2ZM165.4 325.5V312.2C165.4 312.2 99.6 312.2 99.6 312.2V325.5C99.6 325.5 165.4 325.5 165.4 325.5Z" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-50.7,631.0)" d="M99.2 325.5H165.8V339.7H99.2ZM165.4 339.3V325.9C165.4 325.9 105.1 325.9 99.6 325.9 99.6 325.9 99.6 339.3 99.6 339.3 99.6 339.3 165.4 339.3 165.4 339.3Z" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-50.7,631.0)" d="M99.2 339.2H165.8V353.4H99.2ZM165.4 353.0V339.6C165.4 339.6 99.6 339.6 99.6 339.6 99.6 339.6 99.6 353.0 99.6 353.0 105.1 353.0 165.4 353.0 165.4 353.0Z" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-50.7,631.0)" d="M99.2 353.0H165.8V367.2H99.2ZM165.4 366.8V353.4C165.4 353.4 99.6 353.4 99.6 353.4V366.8Z" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-50.7,631.0)" d="M99.2 366.7H165.8V380.9H99.2ZM165.4 380.5V367.1C165.4 367.1 105.1 367.1 99.6 367.1 99.6 367.1 99.6 380.5 99.6 380.5 99.6 380.5 165.4 380.5 165.4 380.5Z" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-50.7,631.0)" d="M99.2 380.5H165.8V394.6H99.2ZM165.4 394.2V380.9C165.4 380.9 99.6 380.9 99.6 380.9V394.2Z" fill-rule="evenodd"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s17" transform="matrix(1 0 0 -1 48.5 236.8)"/>
+<path transform="matrix(1,0,0,-1,-50.7,631.0)" d="M99.2 407.9H165.8V422.1H99.2ZM165.4 421.7V408.3C160.1 408.3 104.8 408.3 99.6 408.3V421.7C99.6 421.7 165.4 421.7 165.4 421.7Z" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-50.7,631.0)" d="M99.2 421.7H165.8V435.9H99.2ZM165.4 435.5V422.1C165.4 422.1 105.1 422.1 99.6 422.1 99.6 422.1 99.6 435.5 99.6 435.5 105.1 435.5 165.4 435.5 165.4 435.5Z" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-50.7,631.0)" d="M99.2 435.4H165.8V449.6H99.2ZM165.4 449.2V435.8C165.4 435.8 99.6 435.8 99.6 435.8V449.2C99.6 449.2 165.4 449.2 165.4 449.2Z" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-50.7,631.0)" d="M99.2 449.2H165.8V463.3H99.2ZM165.4 462.9V449.6C160.1 449.6 104.8 449.6 99.6 449.6V462.9C99.6 462.9 165.4 462.9 165.4 462.9Z" fill-rule="evenodd"/>
+<g clip-path="url(#04-synthesizers__12-arpeggiator--1-clip_2)">
+<g mask="url(#04-synthesizers__12-arpeggiator--1-mask_3)">
+<g transform="matrix(.064081,0,0,.064081,5.9,222.9)">
+<image class="gb-ink" id="04-synthesizers__12-arpeggiator--1-image_5" width="355" height="3008" xlink:href="/guidebook/img/04-synthesizers__12-arpeggiator--1-2.webp"/>
+</g>
+</g>
+</g>
+<use href="#04-synthesizers__12-arpeggiator--1-s18" transform="matrix(1 0 0 -1 117 156.4)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s18" transform="matrix(1 0 0 -1 292.2 156.4)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s18" transform="matrix(1 0 0 -1 468 156.4)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s19" transform="matrix(1 0 0 -1 119.3 305.1)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s19" transform="matrix(1 0 0 -1 119.3 401.3)"/>
+<use href="#04-synthesizers__12-arpeggiator--1-s19" transform="matrix(1 0 0 -1 119.3 209.1)"/>
+<path transform="matrix(1,0,0,-1,-50.7,631.0)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M96.3 339.6H90.7L82.2 409.2H70.8"/>
+<path transform="matrix(1,0,0,-1,-50.7,631.0)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M73.7 224.6H96.3"/>
+<path transform="matrix(1,0,0,-1,-50.7,631.0)" stroke-width=".75" stroke-linecap="round" stroke-dasharray="3,3,.0001,.0001" stroke-linejoin="round" fill="none" stroke="currentColor" d="M96.3 224.6 99.2 227.4"/>
+<text xml:space="preserve" transform="translate(11.6 397.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">C3</tspan></text>
+<text xml:space="preserve" transform="translate(11.6 238.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">C4</tspan></text>
+<text xml:space="preserve" transform="translate(95.9 397.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">C3</tspan></text>
+<text xml:space="preserve" transform="translate(95.9 301.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">C4</tspan></text>
+<text xml:space="preserve" transform="translate(95.9 205.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">C5</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(119.3 24.3)" font-size="10" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">MODE</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(119.3 34.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Up, down, both, random or off</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(121.4 72.9)" font-size="10" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">UP</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(188.6 72.9)" font-size="10" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">DOWN</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(258.2 72.9)" font-size="10" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">BOTH</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(323.3 72.9)" font-size="10" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">RAND</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(392.4 72.9)" font-size="10" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">OFF</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(10.9 71.5)" font-size="10" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">OCTAVE</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(10.9 79.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Arp will operate across the</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(10.9 87.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">OCTAves set. 1 octave will</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(10.9 95.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">repeat the same note, same</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(10.9 103.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">octave. 3 octaves will trigger 3</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(10.9 111.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">steps, each an octave apart.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(129.8 426.8)" font-size="10" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">SYNC</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(129.8 434.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Sets the trigger interval for the arp notes</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(129.8 442.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">played within the sequencer or manually.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(129.8 462.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Shows 16</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(162.8 460.3)" font-size="4.3" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">th</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(168.5 462.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">notes which will trigger a note</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(129.8 470.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">in this example, at each step on a 16</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(252.0 468.3)" font-size="4.3" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">th</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(129.8 478.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Grid. Every 2</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(173.6 476.3)" font-size="4.3" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">nd</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(180.5 478.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">step with a 8</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(222.6 476.3)" font-size="4.3" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">th</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(228.4 478.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">note sync</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(129.8 486.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">setting, 1 bar, once per bar, etc...</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(130.7 508.4)" font-size="10" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">RATE</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(130.7 516.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Sets the speed of the arpeggiator when</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(130.7 524.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">SYNC is off.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(313.5 426.8)" font-size="10" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">GATE</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(313.5 434.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">The amount of time the arp note is played</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(313.5 442.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">within the available time division.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(313.5 462.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Range is 0 - 50, where 50 will take up the</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(313.5 470.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">entire time slot and 25 will be 50% of the</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(313.5 478.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">note division. Examples with 8</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(414.0 476.3)" font-size="4.3" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">h</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(418.5 478.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">notes.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(299.1 496.5)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">5</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(299.1 508.5)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">12</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(299.1 520.5)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">25</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(299.1 532.5)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">50</tspan></text>
+<path transform="matrix(1,0,0,-1,-50.7,631.0)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M114.0 513.0V466.0"/>
+<path transform="matrix(1,0,0,-1,-50.7,631.0)" d="M56.6 161.7H119.9V222.9H56.6Z" fill="var(--gb-paper)"/>
+<text xml:space="preserve" transform="translate(11.6 441.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Audition Pads</tspan></text>
+<text fill="color-mix(in srgb, currentColor 41%, var(--gb-paper))" xml:space="preserve" transform="matrix(0 -1 1 0 479.0 183.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Octave</tspan></text>
+<text fill="color-mix(in srgb, currentColor 41%, var(--gb-paper))" xml:space="preserve" transform="matrix(0 -1 1 0 479.0 270.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Octave</tspan></text>
+<text fill="color-mix(in srgb, currentColor 41%, var(--gb-paper))" xml:space="preserve" transform="matrix(0 -1 1 0 479.0 362.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Octave</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(121.7 165.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Example: up/down, 16</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(195.9 163.3)" font-size="4.3" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">th</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(201.7 165.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">note sync, 3 octaves</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(296.9 165.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Example: up, 8</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(347.0 163.3)" font-size="4.3" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">th</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(352.7 165.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">note sync, 2 octaves</tspan></text>
+<path transform="matrix(1,0,0,-1,-50.7,631.0)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M68.0 225.6V198.6"/>
+<path transform="matrix(1,0,0,-1,-50.7,631.0)" d="M68.9 604.8H152.0V613.2H68.9Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-50.7,631.0)" stroke-width=".6" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M68.9 604.8H152.0V613.2H68.9Z"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 20.8 24.4)" font-size="5.6" font-family="monospace"><tspan y="0" x="0.0" textLength="14.7" lengthAdjust="spacingAndGlyphs">OFF</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 20.8 33.2)" font-size="5.6" font-family="monospace"><tspan y="0" x="0.0" textLength="9.4" lengthAdjust="spacingAndGlyphs">UP</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 20.8 42.0)" font-size="5.6" font-family="monospace"><tspan y="0" x="0.0" textLength="20.9" lengthAdjust="spacingAndGlyphs">DOWN</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(17.7 14.5)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-weight="bold"><tspan y="0" x="0.0" textLength="41.6" lengthAdjust="spacingAndGlyphs">ARP MODE</tspan></text>
+<path transform="matrix(1,0,0,-1,-50.7,631.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M68.8 614.5H151.8"/>
+<path transform="matrix(1,0,0,-1,-50.7,631.0)" stroke-width=".8" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M64.1 585.6H156.4V625.0H64.1Z"/>
+</g>
+</g>
+</svg>

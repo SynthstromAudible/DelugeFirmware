@@ -15,7 +15,8 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_12_11_1 from "../../../../assets/guidebook/figs/12-midi__11-mpe-application-for-midi-input-in-deluge--1.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -27,9 +28,12 @@ For the synthesizer engines.
 - Dimension ‘Y’ is typically vertical movement up and down a notes key. This may be patched within existing synths, for example to LPF cutoff frequency. The ‘Y’ dimension can be patched elsewhere using the Deluge ‘X’ parameter.
 - Aftertouch is the pressure applied to a notes key after it is initially pressed (illustrated as Dimension ‘A’). This may be patched within existing synths, for example to Master level. This is patched in Deluge using the ‘Aftertouch’ parameter and can be patched elsewhere.
 
-<FigurePending id="fig-12.11-1" page={259}>
-  A · Y · X
-</FigurePending>
+<Figure
+  id="fig-12.11-1"
+  src={fig_fig_12_11_1}
+  alt={"Diagram: A Y X"}
+  page={259}
+/>
 
 For kit rows.
 

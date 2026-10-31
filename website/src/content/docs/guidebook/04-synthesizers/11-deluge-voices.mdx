@@ -15,7 +15,8 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_4_11_1 from "../../../../assets/guidebook/figs/04-synthesizers__11-deluge-voices--1.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -39,19 +40,14 @@ A voice can be explained as a single signal path used by synthesizers, and is cl
 
 Unison mode enables a number of voices to be triggered by one note. By detuning these voices, rich and thick chorus-like sounds can be created.
 
-<FigurePending id="fig-4.11-1" page={100}>
-  Note on Single note triggers multiple voices instead of the single default
-  voice allocation. · NUM Number of voices from the maximum of 8. Example 3: ·
-  Voice 1 · Voice 2 · Voice 3 · DET Detuning of voices. Example 30. This is a
-  setting between 0-50 which affects all selected voices so adjustment to ear is
-  recommended. · Note off Note released. · Deluge Unison The settings available
-  in the voice menu of Deluge include number of voices and the detuning of these
-  voices. You can also use the two oscillators both detuned from each other in
-  addition to unison mode. · Multiple instances of polyphonic and unison clips
-  are possible under powerful CPU control. As the CPU becomes more loaded voices
-  will be reduced starting with notes in a ‘release’ state and the priority
-  setting found within the voice : polyphony parameter set.
-</FigurePending>
+<Figure
+  id="fig-4.11-1"
+  src={fig_fig_4_11_1}
+  alt={
+    "Diagram: Note on Single note triggers multiple voices instead of the single default voice allocation. NUM Number of voices from the maximum of 8.…"
+  }
+  page={100}
+/>
 
 ### Setting the synth unison
 

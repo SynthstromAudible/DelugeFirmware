@@ -15,7 +15,8 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_11_4_1 from "../../../../assets/guidebook/figs/11-effects__04-eq-equalisation--1.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -23,9 +24,12 @@ Equalisation, known as EQ, affects the frequency balance of an audio signal. Thi
 
 #### Frequency Range
 
-<FigurePending id="fig-11.4-1" page={219}>
-  50 · 25 · BASS · TREBLE · 0 · Low Frequency 20Hz · High Frequency 20kHz
-</FigurePending>
+<Figure
+  id="fig-11.4-1"
+  src={fig_fig_11_4_1}
+  alt={"Diagram: 50 25 BASS TREBLE 0 Low High Frequency Frequency 20Hz 20kHz"}
+  page={219}
+/>
 
 #### Bass
 

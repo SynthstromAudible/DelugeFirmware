@@ -15,7 +15,11 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_1_3_1 from "../../../../assets/guidebook/figs/01-overview__03-hardware-overview--1.svg?raw"
+import fig_fig_1_3_2 from "../../../../assets/guidebook/figs/01-overview__03-hardware-overview--2.svg?raw"
+import fig_fig_1_3_3 from "../../../../assets/guidebook/figs/01-overview__03-hardware-overview--3.svg?raw"
+import fig_fig_1_3_4 from "../../../../assets/guidebook/figs/01-overview__03-hardware-overview--4.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -24,66 +28,45 @@ import FigurePending from "../../../../components/guidebook/FigurePending.astro"
 | charge is complete or red for low-battery. selecting patches, parameters and                                                      | clip view. Also enables parameter |
 | navigating menus.                                                                                                                 | changes to ‘affect all’ functions |
 
-9 12v +
+<Figure
+  id="fig-1.3-1"
+  src={fig_fig_1_3_1}
+  alt={
+    "Diagram: USB within the context selected. + 2 Zoom & Scroll Horizontal (SCROLL◄►) and vertical (SCROLL▼▲) navigation through the grid. 6 Press and…"
+  }
+  page={4}
+/>
 
-<FigurePending id="fig-1.3-1" page={4}>
-  within the context selected. · USB · 2 Zoom & Scroll Horizontal (SCROLL◄►) and
-  vertical (SCROLL▼▲) navigation through the grid. Press and turn (SCROLL◄►)
-  will zoom in and out of the grid. · 6 · 1 · 4 · 5 · 5 Parameter Controls
-  Adjusts and affects the selected parameter, as labelled above the button
-  (UPPER) in context with the clip type: kit, synth etc Adjusts the selected
-  parameter, as labelled below the button (LOWER) in context with the clip type
-  kit, synth etc... · 5V 12V · 2 · 3 · 2 · 5 · 6 Parameter Selection Select the
-  parameter to be adjusted. The label above and below the selection can be
-  controlled by the (UPPER) & (LOWER) rotaries. Other parameters can be
-  configured in the sound editor. · 7 Pad Grid 16 x 8 grid for sequencing. Also
-  contains shortcuts using [SHIFT] + where columns represent Deluge function
-  groups and row pad represents a parameter. · 8 Alpha Numeric Keyboard Pads are
-  used for text entry for example when entering names using the QWERTY keyboard.
-  · 7 · 9 Keyboard Mode Switches synth, MIDI, or CV clip view from the normal
-  grid to an isomorphic keyboard [KEYBOARD] representation. · 9 · 8
-</FigurePending>
-
-<FigurePending id="fig-1.3-2" page={5}>
-  10 Scale Sets the scale [SCALE] mode and locks clips to the major scale or can
-  be used to change scales. · 11 Clip Type Used to select the clip type between
-  [SYNTH], [KIT], [MIDI] and [CV]. · 12 Cross Screen Edit mode [CROSS SCREEN]
-  ensures any changes to the grid view will be reflected in the grid areas that
-  are not in view. · 13 Navigation Group Navigates through the menus, saves,
-  loads and also assigns controls. · 14 Tempo & Timing Group [TAP] to set tempo
-  by tapping or turn (TEMPO) to set the tempo. · 14 · 10 · 13 · 11 · 124 · 15
-  Internal Microphone · 15 · 16 Main Output (LEVEL) to adjust main output volume
-  and headphone volume. · 16 · 17 · 17 Mode Group: Transport Controls Sequencer
-  [PLAY] and STOP. Also [RECORD], loop and resample. · 18 · 18 Shift Used in
-  conjunction with pads and buttons to select the secondary [SHIFT] function. ·
-  19 Audition / Section Column of pads are manually playable individually across
-  1 octave or as chords to play each of the designated sounds. Also to launch a
-  [SECTION]. · 19 · 20 · 20 Mute / Launch Pads are manually selectable to [MUTE]
-  or unmute clips / rows and [LAUNCH] clips. · 21 Modulation Section Grid area
-  where modulation sources are located and can be selected. · 21 · 22 SD Card
-  Slot · 22
-</FigurePending>
+<Figure
+  id="fig-1.3-2"
+  src={fig_fig_1_3_2}
+  alt={
+    "Diagram: 10 Scale 11 Clip Type 12 Cross Screen Edit mode Sets the scale [SCALE] mode and locks Used to select the clip type [CROSS SCREEN] ensures…"
+  }
+  page={5}
+/>
 
 #### Rear Panel
 
-<FigurePending id="fig-1.3-3" page={6}>
-  Line In 6.35mm / 1/4” input Stereo (configurable) · CV Out 2 x, 0-10v
-  configurable 0.01-2v V/Oct or Hz/V · Gate / Trigger Out 4 x, switchable 5-12v
-  configurable v- trig or s-trig. Trigger clock adjustable PPQN out / 192 PPQN
-  out · Line Out 2 x 6.35mm / 1/4 inch outputs · Clock In · Right · Left / Mono
-  · External Microphone 3.5mm / 1/8th inch input · On/Off Power on/off switch ·
-  2 · 1 · 4 · 3 · 2 · 1 · PSU Input Primary power and charging source. 9-12V DC.
-  Centre negative, 500mA + · Gain Microphone (external and internal) Low / Hi
-  switch · MIDI In/Out 5-pin MIDI Din · USB USB-B connector and charging source.
-  USB MIDI Connection · Headphone Output 3.5mm / 1/8” input
-</FigurePending>
+<Figure
+  id="fig-1.3-3"
+  src={fig_fig_1_3_3}
+  alt={
+    "Diagram: Line In CV Out Gate / Trigger Out 6.35mm / 1/4” input 2 x, 0-10v configurable 0.01-2v 4 x, switchable 5-12v configurable v- Stereo…"
+  }
+  page={6}
+/>
 
 #### Front Panel
 
-<FigurePending id="fig-1.3-4" page={6}>
-  Internal Speaker · SD Card Slot SD card used for presets, streaming samples,
-  firmware updates and storage. Any size, formatted to FAT32. Insert pins-up.
-</FigurePending>
+<Figure
+  id="fig-1.3-4"
+  src={fig_fig_1_3_4}
+  alt={
+    "Diagram: Internal Speaker SD Card Slot SD card used for presets, streaming samples, firmware updates and storage. Any size, formatted to FAT32.…"
+  }
+  page={6}
+/>
 
 USB
 

@@ -1,0 +1,108 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 323 218.9"><defs><path id="12-midi__04-global-midi-commands--1-s1" d="M0 0H67.1V25.6H0Z" fill="var(--gb-paper)"/><path id="12-midi__04-global-midi-commands--1-s2" d="M0 0H67.1V25.6H0Z" stroke-width=".4" stroke-linecap="butt" stroke-dasharray="1.2,1.2,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 41%, var(--gb-paper))"/><path id="12-midi__04-global-midi-commands--1-s3" d="M0 0H67V25.6H0Z" fill="var(--gb-paper)"/><path id="12-midi__04-global-midi-commands--1-s4" d="M0 0V1.8H0.6V0C0.4 -0.3 0.2 -0.3 0 0Z" fill="var(--gb-paper)" fill-rule="evenodd"/><path id="12-midi__04-global-midi-commands--1-s5" d="M0 0V1.8H0.6V0C0.4 -0.3 0.2 -0.3 0 0Z" stroke-width=".2" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor"/></defs>
+<defs>
+<clipPath id="12-midi__04-global-midi-commands--1-clip_1">
+<path transform="matrix(1,0,0,-1,-73.9,306.0)" d="M73.9 87.1H396.9V306.0H73.9Z" clip-rule="evenodd"/>
+</clipPath>
+<clipPath id="12-midi__04-global-midi-commands--1-clip_2">
+<path transform="matrix(1,0,0,-1,-73.9,306.0)" d="M129.0 93.1H338.8V173.6H129.0Z" clip-rule="evenodd"/>
+</clipPath>
+<mask id="12-midi__04-global-midi-commands--1-mask_3">
+<g transform="matrix(.021438,0,0,.021438,60.7,132.4)">
+<image id="12-midi__04-global-midi-commands--1-image_4" width="9526" height="3756" xlink:href="/guidebook/img/12-midi__04-global-midi-commands--1-1.webp"/>
+</g>
+</mask>
+</defs>
+<g>
+<g clip-path="url(#12-midi__04-global-midi-commands--1-clip_1)">
+<path transform="matrix(1,0,0,-1,-73.9,306.0)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M424.8 688.4V83.9"/>
+<path transform="matrix(1,0,0,-1,-73.9,306.0)" stroke-width=".7" stroke-linecap="butt" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M113.8 272.1V265.7H356.8V273.7"/>
+<use href="#12-midi__04-global-midi-commands--1-s1" transform="matrix(1 0 0 -1 5.9 31.6)"/>
+<path transform="matrix(1,0,0,-1,-73.9,306.0)" stroke-width=".4" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 41%, var(--gb-paper))" d="M79.8 274.4H146.9V300.0H79.8Z"/>
+<text fill="currentColor" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 36.9 16.4)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">1</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 16.7 27.6)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Play / Stop</tspan></text>
+<use href="#12-midi__04-global-midi-commands--1-s1" transform="matrix(1 0 0 -1 168.2 31.6)"/>
+<use href="#12-midi__04-global-midi-commands--1-s2" transform="matrix(1 0 0 -1 168.2 31.6)"/>
+<text fill="currentColor" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 199.2 16.4)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">3</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 190.5 27.6)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Undo</tspan></text>
+<use href="#12-midi__04-global-midi-commands--1-s1" transform="matrix(1 0 0 -1 5.9 79.1)"/>
+<use href="#12-midi__04-global-midi-commands--1-s2" transform="matrix(1 0 0 -1 5.9 79.1)"/>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 28.2 63.9)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">None</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 24.3 75.1)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Restart</tspan></text>
+<use href="#12-midi__04-global-midi-commands--1-s3" transform="matrix(1 0 0 -1 249.9 31.6)"/>
+<path transform="matrix(1,0,0,-1,-73.9,306.0)" stroke-width=".4" stroke-linecap="butt" stroke-dasharray="1.2,1.2,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 41%, var(--gb-paper))" d="M323.8 274.4H390.8V300.0H323.8Z"/>
+<text fill="currentColor" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 280.8 16.4)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">4</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 272.2 27.6)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Redo</tspan></text>
+<use href="#12-midi__04-global-midi-commands--1-s1" transform="matrix(1 0 0 -1 5.9 117.3)"/>
+<use href="#12-midi__04-global-midi-commands--1-s2" transform="matrix(1 0 0 -1 5.9 117.3)"/>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 28.2 102.2)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">None</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 31.9 113.3)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Tap</tspan></text>
+<use href="#12-midi__04-global-midi-commands--1-s1" transform="matrix(1 0 0 -1 86.5 31.6)"/>
+<path transform="matrix(1,0,0,-1,-73.9,306.0)" stroke-width=".4" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 41%, var(--gb-paper))" d="M160.4 274.4H227.5V300.0H160.4Z"/>
+<text fill="currentColor" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 117.5 16.4)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">2</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 104.9 27.6)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Record</tspan></text>
+<use href="#12-midi__04-global-midi-commands--1-s3" transform="matrix(1 0 0 -1 249.9 79.1)"/>
+<path transform="matrix(1,0,0,-1,-73.9,306.0)" stroke-width=".4" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 41%, var(--gb-paper))" d="M323.8 226.9H390.8V252.5H323.8Z"/>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 272.2 63.9)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">None</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 272.9 75.1)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Loop</tspan></text>
+<use href="#12-midi__04-global-midi-commands--1-s3" transform="matrix(1 0 0 -1 249.9 117.3)"/>
+<path transform="matrix(1,0,0,-1,-73.9,306.0)" stroke-width=".4" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 41%, var(--gb-paper))" d="M323.8 188.7H390.8V214.3H323.8Z"/>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 272.2 102.2)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">None</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 271.6 113.3)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Layer</tspan></text>
+<path transform="matrix(1,0,0,-1,-73.9,306.0)" d="M229.7 253.0V238.9C233.4 237.5 236.8 237.7 240.1 238.9V253.0C236.4 252.5 233.0 252.5 229.7 253.0Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-73.9,306.0)" d="M232.2 248.9V236.6C234.0 235.3 235.7 235.5 237.3 236.6V248.9C235.5 248.5 233.8 248.5 232.2 248.9Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-73.9,306.0)" d="M230.0 253.0C230.0 253.7 232.2 254.3 235.0 254.3 237.7 254.3 239.9 253.7 239.9 253.0 239.9 252.3 237.7 251.8 235.0 251.8 232.2 251.8 230.0 252.3 230.0 253.0Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-73.9,306.0)" stroke-width=".65" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M230.0 253.0C230.0 253.7 232.2 254.3 235.0 254.3 237.7 254.3 239.9 253.7 239.9 253.0 239.9 252.3 237.7 251.8 235.0 251.8 232.2 251.8 230.0 252.3 230.0 253.0Z"/>
+<path transform="matrix(1,0,0,-1,-73.9,306.0)" d="M238.4 255.9H239.0V257.0H238.4Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-73.9,306.0)" stroke-width=".2" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M238.4 255.9H239.0V257.0H238.4Z"/>
+<path transform="matrix(1,0,0,-1,-73.9,306.0)" d="M230.7 256.7C230.7 257.2 232.7 257.7 235.1 257.7 236.7 257.7 238.2 257.5 238.9 257.1 239.2 257.0 238.6 256.9 238.6 256.7 238.6 256.6 239.3 256.5 239.1 256.3 238.4 256.0 236.9 255.6 235.1 255.6 232.7 255.6 230.7 256.2 230.7 256.7Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-73.9,306.0)" stroke-width=".2" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M230.7 256.7C230.7 257.2 232.7 257.7 235.1 257.7 236.7 257.7 238.2 257.5 238.9 257.1 239.2 257.0 238.6 256.9 238.6 256.7 238.6 256.6 239.3 256.5 239.1 256.3 238.4 256.0 236.9 255.6 235.1 255.6 232.7 255.6 230.7 256.2 230.7 256.7Z"/>
+<path transform="matrix(1,0,0,-1,-73.9,306.0)" d="M231.4 256.6V254.8H232.0V256.6C231.8 256.8 231.6 256.9 231.4 256.6Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-73.9,306.0)" stroke-width=".2" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M231.4 256.6V254.8H232.0V256.6C231.8 256.8 231.6 256.9 231.4 256.6Z"/>
+<path transform="matrix(1,0,0,-1,-73.9,306.0)" d="M232.6 256.9V255.1H233.1V256.9C232.9 257.2 232.7 257.2 232.6 256.9Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-73.9,306.0)" stroke-width=".2" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M232.6 256.9V255.1H233.1V256.9C232.9 257.2 232.7 257.2 232.6 256.9Z"/>
+<path transform="matrix(1,0,0,-1,-73.9,306.0)" d="M233.9 257.1V255.3H234.5V257.1C234.3 257.3 234.1 257.3 233.9 257.1Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-73.9,306.0)" stroke-width=".2" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M233.9 257.1V255.3H234.5V257.1C234.3 257.3 234.1 257.3 233.9 257.1Z"/>
+<path transform="matrix(1,0,0,-1,-73.9,306.0)" d="M234.4 256.0V254.2H234.9V256.0C234.7 256.3 234.6 256.3 234.4 256.0Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-73.9,306.0)" stroke-width=".2" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M234.4 256.0V254.2H234.9V256.0C234.7 256.3 234.6 256.3 234.4 256.0Z"/>
+<path transform="matrix(1,0,0,-1,-73.9,306.0)" d="M233.0 256.1V254.3H233.6V256.1C233.4 256.4 233.2 256.4 233.0 256.1Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-73.9,306.0)" stroke-width=".2" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M233.0 256.1V254.3H233.6V256.1C233.4 256.4 233.2 256.4 233.0 256.1Z"/>
+<path transform="matrix(1,0,0,-1,-73.9,306.0)" d="M230.7 256.6V253.0C232.1 251.8 236.5 251.6 239.2 253.0V256.4L239.1 256.5C236.0 255.4 233.2 255.7 230.7 256.6Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-73.9,306.0)" stroke-width=".15" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M230.7 256.6V253.0C232.1 251.8 236.5 251.6 239.2 253.0V256.4L239.1 256.5C236.0 255.4 233.2 255.7 230.7 256.6Z"/>
+<path transform="matrix(1,0,0,-1,-73.9,306.0)" d="M229.8 175.5V189.6C233.5 191.0 236.9 190.7 240.1 189.6V175.5C236.5 176.0 233.1 176.0 229.8 175.5Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-73.9,306.0)" d="M232.3 179.6V191.9C234.1 193.2 235.8 192.9 237.4 191.9V179.6C235.6 180.0 233.9 180.0 232.3 179.6Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-73.9,306.0)" d="M230.1 175.5C230.1 174.8 232.3 174.2 235.0 174.2 237.8 174.2 240.0 174.8 240.0 175.5 240.0 176.2 237.8 176.7 235.0 176.7 232.3 176.7 230.1 176.2 230.1 175.5Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-73.9,306.0)" stroke-width=".65" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M230.1 175.5C230.1 174.8 232.3 174.2 235.0 174.2 237.8 174.2 240.0 174.8 240.0 175.5 240.0 176.2 237.8 176.7 235.0 176.7 232.3 176.7 230.1 176.2 230.1 175.5Z"/>
+<path transform="matrix(1,0,0,-1,-73.9,306.0)" d="M238.5 171.4H239.1V172.6H238.5Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-73.9,306.0)" stroke-width=".2" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M238.5 171.4H239.1V172.6H238.5Z"/>
+<path transform="matrix(1,0,0,-1,-73.9,306.0)" d="M230.8 171.8C230.8 171.2 232.7 170.8 235.1 170.8 236.8 170.8 238.3 171.0 239.0 171.3 239.3 171.5 238.7 171.6 238.7 171.7 238.7 171.9 239.4 172.0 239.2 172.1 238.5 172.5 236.9 172.9 235.2 172.9 232.8 172.9 230.8 172.3 230.8 171.8Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-73.9,306.0)" stroke-width=".2" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M230.8 171.8C230.8 171.2 232.7 170.8 235.1 170.8 236.8 170.8 238.3 171.0 239.0 171.3 239.3 171.5 238.7 171.6 238.7 171.7 238.7 171.9 239.4 172.0 239.2 172.1 238.5 172.5 236.9 172.9 235.2 172.9 232.8 172.9 230.8 172.3 230.8 171.8Z"/>
+<use href="#12-midi__04-global-midi-commands--1-s4" transform="matrix(1 0 0 -1 157.6 134.1)"/>
+<use href="#12-midi__04-global-midi-commands--1-s5" transform="matrix(1 0 0 -1 157.6 134.1)"/>
+<use href="#12-midi__04-global-midi-commands--1-s4" transform="matrix(1 0 0 -1 158.7 134.4)"/>
+<use href="#12-midi__04-global-midi-commands--1-s5" transform="matrix(1 0 0 -1 158.7 134.4)"/>
+<use href="#12-midi__04-global-midi-commands--1-s4" transform="matrix(1 0 0 -1 160.1 134.6)"/>
+<use href="#12-midi__04-global-midi-commands--1-s5" transform="matrix(1 0 0 -1 160.1 134.6)"/>
+<path transform="matrix(1,0,0,-1,-73.9,306.0)" d="M234.5 172.5V174.3H235.0V172.5C234.8 172.2 234.6 172.2 234.5 172.5Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-73.9,306.0)" stroke-width=".2" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M234.5 172.5V174.3H235.0V172.5C234.8 172.2 234.6 172.2 234.5 172.5Z"/>
+<path transform="matrix(1,0,0,-1,-73.9,306.0)" d="M233.1 172.3V174.1H233.7V172.3C233.5 172.1 233.3 172.1 233.1 172.3Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-73.9,306.0)" stroke-width=".2" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M233.1 172.3V174.1H233.7V172.3C233.5 172.1 233.3 172.1 233.1 172.3Z"/>
+<path transform="matrix(1,0,0,-1,-73.9,306.0)" d="M230.8 171.9V175.4C232.2 176.6 236.6 176.9 239.3 175.4V172.1L239.2 172.0C236.1 173.1 233.3 172.8 230.8 171.9Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-73.9,306.0)" stroke-width=".15" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M230.8 171.9V175.4C232.2 176.6 236.6 176.9 239.3 175.4V172.1L239.2 172.0C236.1 173.1 233.3 172.8 230.8 171.9Z"/>
+<g clip-path="url(#12-midi__04-global-midi-commands--1-clip_2)">
+<g mask="url(#12-midi__04-global-midi-commands--1-mask_3)">
+<g transform="matrix(.021438,0,0,.021438,60.7,132.4)">
+<image class="gb-ink" id="12-midi__04-global-midi-commands--1-image_5" width="9526" height="3756" xlink:href="/guidebook/img/12-midi__04-global-midi-commands--1-2.webp"/>
+</g>
+</g>
+</g>
+<path transform="matrix(1,0,0,-1,-73.9,306.0)" stroke-width="1.5" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="currentColor" d="M235.3 186.9C235.4 189.1 234.1 191.3 235.1 194.2 243.2 219.2 229.2 211.2 235.3 231.4 236.1 234.0 235.2 234.9 235.3 236.8"/>
+<path transform="matrix(1,0,0,-1,-73.9,306.0)" stroke-width=".7" stroke-linecap="butt" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M194.7 273.1V264.5"/>
+<path transform="matrix(1,0,0,-1,-73.9,306.0)" stroke-width=".7" stroke-linecap="butt" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M275.7 273.7V265.5"/>
+<path transform="matrix(1,0,0,-1,-73.9,306.0)" stroke-width="1" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="var(--gb-paper)" d="M231.6 217.2 237.3 222.9"/>
+<path transform="matrix(1,0,0,-1,-73.9,306.0)" stroke-width="1" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="var(--gb-paper)" d="M232.2 214.6 238.0 220.4"/>
+<path transform="matrix(1,0,0,-1,-73.9,306.0)" stroke-width="1" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="var(--gb-paper)" d="M232.8 212.1 238.6 217.8"/>
+<path transform="matrix(1,0,0,-1,-73.9,306.0)" stroke-width="1" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="var(--gb-paper)" d="M233.5 209.5 239.3 215.3"/>
+<path transform="matrix(1,0,0,-1,-73.9,306.0)" stroke-width=".7" stroke-linecap="butt" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M235.1 265.7V259.5"/>
+</g>
+</g>
+</svg>

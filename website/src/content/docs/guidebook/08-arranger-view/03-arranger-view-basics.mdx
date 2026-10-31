@@ -15,7 +15,10 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_8_3_1 from "../../../../assets/guidebook/figs/08-arranger-view__03-arranger-view-basics--1.svg?raw"
+import fig_fig_8_3_2 from "../../../../assets/guidebook/figs/08-arranger-view__03-arranger-view-basics--2.svg?raw"
+import fig_fig_8_3_3 from "../../../../assets/guidebook/figs/08-arranger-view__03-arranger-view-basics--3.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -23,33 +26,14 @@ Arranger view allows the chaining of clip instances into a longer more linear ar
 
 #### Arranger View
 
-<FigurePending id="fig-8.3-1" page={156}>
-  Clip Instance Clip instances are placed in arranger view by pressing a pad on
-  the instrument row. By default each pad will represent an instance of say 8 x
-  1/16th steps. This is dependant on the grid resolution and can be zoomed and
-  length changed. · Clip Length The first (left most pad) will be lit bright.
-  The additional dimmer pads will indicate length or ‘tail’ of the clip.
-  Pressing a dimmed pad will switch to its clip view. Setting length beyond clip
-  length will loop the clip instance and shortening it will truncate the clip. ·
-  Time · Track Row · Track Row · Track Row · Track Row · Track Row · Clip
-  instances are sequenced per track, laid out in linear fashion at defined
-  intervals and lengths. Tracks represent each instrument / MIDI / CV per row. A
-  white column ‘cursor’ will signify the play position · Track Row · Track Row ·
-  Track Row · Mute Audition / Launch / Section · Track Rows Represent a specific
-  instrument, MIDI or CV. The tracks and clip instances are represented by
-  colours as per the sections set up in song view. The rows will by default be
-  populated in synth preset order. · [MUTE] The mute / launch column pads takes
-  on the ‘mute’ functionality when in arranger view. Rows containing clip
-  instances are illuminated. Pressing the mute pad for the track / row will mute
-  it and be lit yellow, unmuted tracks lit green. Solo can be selected for the
-  track by pressing (SCROLL◄►) + [MUTE] where it will be lit blue and others
-  dimmed. · [AUDITION] The audition / section column pads play-out the tracks
-  synth root note or a kit sound. Audio tracks will not play. To load a new
-  preset to the instrument, Press [AUDITION] + turn (SELECT). Press [AUDITION] +
-  instrument or type to change it i.e. kit or synth. · White clips in arranger
-  view signify unique independent clip instances. · Audition / Section · SONG
-  VIEW
-</FigurePending>
+<Figure
+  id="fig-8.3-1"
+  src={fig_fig_8_3_1}
+  alt={
+    "Pad grid: Clip Instance Clip Length Clip instances are placed in arranger view by The first (left most pad) will be lit bright. The additional…"
+  }
+  page={156}
+/>
 
 ### Notes when working in arranger view
 
@@ -66,14 +50,14 @@ Arranger view allows the chaining of clip instances into a longer more linear ar
 2. From within song view, press :key[Song] again to switch to ARRANGER view. The song button will flash blue.
 3. Press :key[Song] again to return back to song view - button lit blue.
 
-<FigurePending id="fig-8.3-2" page={157}>
-  [SONG], [SONG] Flashing blue in arranger view · [SONG] Solid lit blue, in song
-  view · Arranger view can only be selected from within song view. Clip view
-  cannot be directly selected from arranger view using [CLIP] and needs to be in
-  song view first to then enable a switch to clip view. Alternatively pressing
-  any clip instance [PAD] other than the first, left most pad will switch the
-  clip to its clip view.
-</FigurePending>
+<Figure
+  id="fig-8.3-2"
+  src={fig_fig_8_3_2}
+  alt={
+    "Diagram: [SONG], [SONG] Flashing blue in arranger view [SONG] Solid lit blue, in song view Arranger view can only be selected from within song view.…"
+  }
+  page={157}
+/>
 
 ### Basic clip instance placement in the arranger
 
@@ -125,16 +109,19 @@ Undo / redo options are available within the arranger view. This may be particul
 
 1. Press :key[Horizontal] when in arranger view to display the current grid resolution setting. Default is 2nd.
 2. Press & :key[Turn Horizontal] to change the grid resolution for the clip instances.
-3. Options available will determine how the clip is displayed on the grid with respect to the clip length. For a 16 x 16th steps / 1 bar:- 16th 32nd 64th
+3. Options available will determine how the clip is displayed on the grid with respect to the clip length. For a 16 x 16th steps / 1 bar: 16th 32nd 64th
 
-<FigurePending id="fig-8.3-3" page={160}>
-  2nd (Default) · Arranger Pads · Clip View Contents · 4th 8th
-</FigurePending>
+<Figure
+  id="fig-8.3-3"
+  src={fig_fig_8_3_3}
+  alt={"Pad grid: (Default) Arranger Pads Clip View Contents 4th 8th"}
+  page={160}
+/>
 
 ### Adding / changing track directly in arranger
 
 1. Press & hold :key[Audition Pad] - unassigned audition pad + :key[Turn Select] to select an available preset for the track row.
-2. To change an existing preset:-
+2. To change an existing preset:
 
 - Press & hold :key[Audition Pad] for the instrument / row to change + :key[Turn Select] to scroll the presets. or
 - Press & hold :key[Audition Pad] for the instrument / row to change + track type :key[Synth], :key[Kit], :key[MIDI], :key[CV]. or

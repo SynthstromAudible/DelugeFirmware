@@ -1,0 +1,22 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 259.2 77.1">
+<defs>
+<clipPath id="01-overview__01-how-to-use-this-manual--1-clip_1">
+<path transform="matrix(1,0,0,-1,-127.7,456.2)" d="M127.7 379.1H386.9V456.2H127.7Z" clip-rule="evenodd"/>
+</clipPath>
+<clipPath id="01-overview__01-how-to-use-this-manual--1-clip_3">
+<path transform="matrix(1,0,0,-1,-127.7,456.2)" d="M133.8 385.1H224.5V450.0H133.8Z" clip-rule="evenodd"/>
+</clipPath>
+</defs>
+<g clip-path="url(#01-overview__01-how-to-use-this-manual--1-clip_1)">
+<g transform="matrix(.197318,0,0,.197318,217.0,9.8)">
+<image class="gb-ink" id="01-overview__01-how-to-use-this-manual--1-image_2" width="183" height="186" xlink:href="/guidebook/img/01-overview__01-how-to-use-this-manual--1-1.webp"/>
+</g>
+<text fill="currentColor" xml:space="preserve" transform="translate(107.5 18.6)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">[SONG]</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(107.5 49.8)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">[CLIP]</tspan></text>
+<g clip-path="url(#01-overview__01-how-to-use-this-manual--1-clip_3)">
+<g transform="matrix(.110327,0,0,.11032699,5.9,5.9)">
+<image class="gb-ink" id="01-overview__01-how-to-use-this-manual--1-image_4" width="825" height="590" xlink:href="/guidebook/img/01-overview__01-how-to-use-this-manual--1-2.webp"/>
+</g>
+</g>
+</g>
+</svg>

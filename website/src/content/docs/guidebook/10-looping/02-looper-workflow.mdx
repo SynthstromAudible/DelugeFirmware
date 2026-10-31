@@ -15,28 +15,18 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_10_2_1 from "../../../../assets/guidebook/figs/10-looping__02-looper-workflow--1.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
 The workflow for looping is simple, but the techniques and your own process should be developed as part of the creative performance. This workflow is one way to use looping within Deluge. These are only the fundamental steps, shown for audio looping.
 
-<FigurePending id="fig-10.2-1" page={201}>
-  Audio looping Overdubbing and additional loops. · S · Audio looping Recording
-  and playing first loop. · Song view - blank song [SONG] view is the defined
-  environment for looping. · 1 · Set clip as audio clip [PAD] of row + (SELECT).
-  · 2 · Set up first input source & monitoring Line-in settings or if not
-  connected, internal mic. · 3 · Arm clip for recording Hold [RECORD] to check
-  arming. Flashing mute pads are armed. Press [RECORD] to arm. · 4 · First Loop
-  · Record first clip [PLAY] audio is recorded in-sync and red cursor tracks
-  recording across its row. Recording time is unlimited. · 5 · Arm to stop
-  [LAUNCH] pad of row. Will stop at end of loop. Tempo automatically calculated.
-  · 6 · Overdub arm / record - regular [RECORD] + [PAD] of next row below
-  previous clip. Tempo will match first clip · 7 · Additional Loops · Arm to
-  stop [LAUNCH] pad of row. Will stop at end of loop while other clips play. · 8
-  · Overdub arm / record - continuous layering [RECORD] + [SECTION] of row below
-  previous clip. Recording will loop and add new clips to match previous clip
-  length · 9 · Stop continuous layer loop recording [PAD] of an armed (all red)
-  row prior to it recording. · 10 · SAVE [SAVE] and [SAVE] again to save SONG. ·
-  11 · E
-</FigurePending>
+<Figure
+  id="fig-10.2-1"
+  src={fig_fig_10_2_1}
+  alt={
+    "Diagram: Audio looping S Audio looping Overdubbing and additional loops. Recording and playing first loop. Song view - blank song 1 [SONG] view is…"
+  }
+  page={201}
+/>

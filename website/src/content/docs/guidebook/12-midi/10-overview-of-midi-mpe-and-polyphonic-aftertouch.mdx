@@ -15,7 +15,8 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_12_10_1 from "../../../../assets/guidebook/figs/12-midi__10-overview-of-midi-mpe-and-polyphonic-aftertouch--1.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -27,9 +28,11 @@ With MPE a series of channels are set up, known as zones, to communicate not onl
 
 The two zones that cluster the channels are defined in the official MIDI protocol as lower zone (most common default) and the upper zone. Each zone has a master channel which communicates all messages. The master channels are fixed as 1 for lower and at 16 for upper zones. Any subsequent member channels in the zone increment up or down from the master channel in consecutive order. Generally these can be set by a device MPE Configuration message, where the host device sends the MPE setup automatically at power on or start up. However not all devices adhere to this exact standard and manual configuration is usually possible for the devices.
 
-<FigurePending id="fig-12.10-1" page={258}>
-  Standard MIDI Control messages per channel · MPE Compatible devices Individual
-  controls per note · Instrument · Instrument · MIDI Channel · MPE Zone ·
-  Controller · Controller · 1 · Lower Zone 1 · 2 · 3 · 4 · 5 · 6 · Upper Zone ·
-  11 12 13 14 15 16 MPE Zones · MIDI Channels
-</FigurePending>
+<Figure
+  id="fig-12.10-1"
+  src={fig_fig_12_10_1}
+  alt={
+    "Diagram: Standard MIDI MPE Compatible devices Control messages per channel Individual controls per note Instrument Instrument MIDI Channel MPE Zone…"
+  }
+  page={258}
+/>

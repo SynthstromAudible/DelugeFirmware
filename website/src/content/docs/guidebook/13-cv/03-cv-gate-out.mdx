@@ -15,7 +15,8 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_13_3_1 from "../../../../assets/guidebook/figs/13-cv__03-cv-gate-out--1.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -28,8 +29,11 @@ As well as samples, sounds, synths and MIDI, CV can also be combined within a ki
 3. :key[Turn Select] to choose the CV channel 1 or 2.
 4. CV will output voltage representing note pitch on this channel and also Gate will output voltage for note on/off on the same channel number.
 
-<FigurePending id="fig-13.3-1" page={270}>
-  Deluge includes 2 CV outputs, 4 gate outputs (which may also be set
-  individually to output a trigger clock and / or “run” signal), and also has a
-  dedicated trigger clock input.
-</FigurePending>
+<Figure
+  id="fig-13.3-1"
+  src={fig_fig_13_3_1}
+  alt={
+    "Diagram: Deluge includes 2 CV outputs, 4 gate outputs (which may also be set individually to output a trigger clock and / or “run” signal), and also…"
+  }
+  page={270}
+/>

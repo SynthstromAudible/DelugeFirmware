@@ -15,7 +15,8 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_12_9_1 from "../../../../assets/guidebook/figs/12-midi__09-midi-out-within-kits-songs--1.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -27,10 +28,14 @@ As well as samples, sounds, synths, MIDI can also be combined within a kit as a 
 2. Press & hold :key[Audition Pad] for the row which will convert to MIDI + press :key[MIDI].
 3. Hold :key[Audition Pad] for the MIDI row to display the channel and note information, each separated by a dot.
 
-<FigurePending id="fig-12.9-1" page={257}>
-  MIDI CHANNEL 1, NOTE 0 · MIDI Channel Example: 1, range 1-16 · Note Example:
-  0, range 0-127
-</FigurePending>
+<Figure
+  id="fig-12.9-1"
+  src={fig_fig_12_9_1}
+  alt={
+    "OLED screen: MIDI CHANNEL 1, NOTE 0 MIDI Channel Note Example: 1, range 1-16 Example: 0, range 0-127"
+  }
+  page={257}
+/>
 
 4. While holding the audition pad, :key[Turn Lower Gold] control to change the MIDI channel.
 5. While holding the audition pad, :key[Turn Upper Gold] control to change the note value.

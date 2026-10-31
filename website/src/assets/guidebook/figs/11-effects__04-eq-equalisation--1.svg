@@ -1,0 +1,31 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 340.1 189.1">
+<defs>
+<clipPath id="11-effects__04-eq-equalisation--1-clip_1">
+<path transform="matrix(1,0,0,-1,-193.9,583.1)" d="M193.9 393.9H534.1V583.1H193.9Z" clip-rule="evenodd"/>
+</clipPath>
+</defs>
+<g clip-path="url(#11-effects__04-eq-equalisation--1-clip_1)">
+<path transform="matrix(1,0,0,-1,-193.9,583.1)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M170.1 688.6V84.1"/>
+<path transform="matrix(1,0,0,-1,-193.9,583.1)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 41%, var(--gb-paper))" d="M340.1 437.2 344.0 441.0H365.6"/>
+<path transform="matrix(1,0,0,-1,-193.9,583.1)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M217.6 506.2C222.7 506.4 230.7 506.8 233.9 505.4 236.8 504.0 267.6 479.2 306.1 503.4 322.0 513.4 375.2 494.3 394.0 512.1 421.7 538.3 444.2 540.7 476.2 509.1 482.3 503.1 499.8 505.9 510.4 506.2"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(16.8 165.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Low</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.0 173.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Frequency</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(14.9 181.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">20Hz</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(66.8 118.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">BASS</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(220.6 118.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">TREBLE</tspan></text>
+<path transform="matrix(1,0,0,-1,-193.9,583.1)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 41%, var(--gb-paper))" d="M228.4 437.2 236.1 441.0V433.3Z"/>
+<path transform="matrix(1,0,0,-1,-193.9,583.1)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 41%, var(--gb-paper))" d="M481.6 437.2 473.9 441.0V433.3Z"/>
+<path transform="matrix(1,0,0,-1,-193.9,583.1)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 41%, var(--gb-paper))" d="M236.1 437.2H340.1"/>
+<path transform="matrix(1,0,0,-1,-193.9,583.1)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 41%, var(--gb-paper))" d="M346.3 437.2H473.8"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(7.2 80.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">25</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(7.2 15.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">50</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(7.2 142.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">0</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(308.8 165.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">High</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(298.8 173.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Frequency</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(305.8 181.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">20kHz</tspan></text>
+<path transform="matrix(1,0,0,-1,-193.9,583.1)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M217.6 577.1V435.4"/>
+<path transform="matrix(1,0,0,-1,-193.9,583.1)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="currentColor" d="M218.2 506.2H510.4"/>
+<path transform="matrix(1,0,0,-1,-193.9,583.1)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M510.4 577.1V435.4"/>
+<path transform="matrix(1,0,0,-1,-193.9,583.1)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 41%, var(--gb-paper))" d="M346.3 437.2 342.5 433.3H320.3"/>
+</g>
+</svg>

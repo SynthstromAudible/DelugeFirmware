@@ -1,0 +1,84 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 462.9 340.5">
+<defs>
+<clipPath id="07-song-view__05-song-sections--1-clip_1">
+<path transform="matrix(1,0,0,-1,-84.6,600.3)" d="M84.6 259.7H547.6V600.3H84.6Z" clip-rule="evenodd"/>
+</clipPath>
+<clipPath id="07-song-view__05-song-sections--1-clip_2">
+<path transform="matrix(1,0,0,-1,-84.6,600.3)" d="M90.7 274.0H252.2V532.0H90.7Z" clip-rule="evenodd"/>
+</clipPath>
+<mask id="07-song-view__05-song-sections--1-mask_3">
+<g transform="matrix(.08576399,0,0,.085764,6.0,71.1)">
+<image id="07-song-view__05-song-sections--1-image_4" width="1813" height="2882" xlink:href="/guidebook/img/07-song-view__05-song-sections--1-1.webp"/>
+</g>
+</mask>
+</defs>
+<g>
+<g clip-path="url(#07-song-view__05-song-sections--1-clip_1)">
+<g clip-path="url(#07-song-view__05-song-sections--1-clip_2)">
+<g mask="url(#07-song-view__05-song-sections--1-mask_3)">
+<g transform="matrix(.08576399,0,0,.085764,6.0,71.1)">
+<image class="gb-ink" id="07-song-view__05-song-sections--1-image_5" width="1813" height="2882" xlink:href="/guidebook/img/07-song-view__05-song-sections--1-2.webp"/>
+</g>
+</g>
+</g>
+<text fill="currentColor" xml:space="preserve" transform="translate(124.6 12.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">[</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(127.1 12.5)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0.0">SECTION</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(167.1 12.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">]</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(77.6 22.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Audition / section pad indicates the</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(78.1 32.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">assignment of the clip to a section,</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(103.8 42.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">identified by its colour</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(187.3 73.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Press [</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(215.3 73.9)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0.0">LAUNCH</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(252.3 73.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">] pad to play the clip row in song view.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(187.3 107.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Clips belong to the same section that is indicated by that specific</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(187.3 118.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">pad colour. Colours show the section groupings.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(187.3 141.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">CHANGE SECTION</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(187.3 152.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Press [SHIFT] + [</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(256.6 152.9)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0.0">SECTION</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(296.6 152.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">] pad to toggle a colour coded section.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(187.3 175.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">MANUALLY ARM SECTION</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(187.3 186.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Press [</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(215.3 186.9)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0.0">SECTION</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(255.3 186.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">] pad of the desired section to manually arm the</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(187.3 197.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">section.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(187.3 220.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">REPEAT MODE</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(187.3 231.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Press &amp; hold [</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(243.3 231.9)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0.0">SECTION</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(283.3 231.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">] pad + (SELECT) to change number of</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(187.3 242.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">repeats: INFINITE (default), NUMBER, LAUNCH NON-</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(187.3 253.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">EXCLUSIVELY</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(187.3 276.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Display shows countdown of section repeats when a repeat number</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(187.3 287.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">is defined. To increase the sections to play prior to launch / stop,</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(187.3 298.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">turn (SELECT) to change the section countdown. Press (SELECT)</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(187.3 309.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">to cancel section countdown.</tspan></text>
+<path transform="matrix(1,0,0,-1,-84.6,600.3)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="bevel" fill="none" stroke="var(--gb-accent)" d="M215.1 265.7H248.6V529.8H215.1Z"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(136.1 319.0)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Audition</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(135.3 325.0)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">/ Section</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(110.2 318.8)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Mute</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(105.4 324.8)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">/ Launch</tspan></text>
+<path transform="matrix(1,0,0,-1,-84.6,600.3)" d="M163.6 519.6C163.6 521.0 162.5 522.2 161.0 522.2H145.5C144.1 522.2 142.9 521.0 142.9 519.6V504.1C142.9 502.6 144.1 501.5 145.5 501.5H161.0C162.5 501.5 163.6 502.6 163.6 504.1Z" fill="#f57e32" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-84.6,600.3)" d="M163.6 519.6C163.6 521.0 162.5 522.2 161.0 522.2H145.5C144.1 522.2 142.9 521.0 142.9 519.6V504.1C142.9 502.6 144.1 501.5 145.5 501.5H161.0C162.5 501.5 163.6 502.6 163.6 504.1ZM163.3 519.6V504.1C163.3 502.8 162.3 501.8 161.0 501.8H145.5C144.2 501.8 143.2 502.8 143.2 504.1V519.6C143.2 520.8 144.2 521.9 145.5 521.9H161.0C162.3 521.9 163.3 520.8 163.3 519.6Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-84.6,600.3)" d="M133.1 519.6C133.1 521.0 132.0 522.2 130.6 522.2H115.0C113.6 522.2 112.4 521.0 112.4 519.6V504.1C112.4 502.6 113.6 501.5 115.0 501.5H130.6C132.0 501.5 133.1 502.6 133.1 504.1Z" fill="#f57e32" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-84.6,600.3)" d="M133.1 519.6C133.1 521.0 132.0 522.2 130.6 522.2H115.0C113.6 522.2 112.4 521.0 112.4 519.6V504.1C112.4 502.6 113.6 501.5 115.0 501.5H130.6C132.0 501.5 133.1 502.6 133.1 504.1ZM132.8 519.6V504.1C132.8 502.8 131.8 501.8 130.6 501.8H115.0C113.8 501.8 112.7 502.8 112.7 504.1V519.6C112.7 520.8 113.8 521.9 115.0 521.9H130.6C131.8 521.9 132.8 520.8 132.8 519.6Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-84.6,600.3)" d="M133.1 489.4C133.1 490.9 132.0 492.0 130.5 492.0H115.0C113.6 492.0 112.4 490.9 112.4 489.4V473.9C112.4 472.5 113.6 471.3 115.0 471.3H130.5C132.0 471.3 133.1 472.5 133.1 473.9Z" fill="#d27eb4" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-84.6,600.3)" d="M133.1 489.4C133.1 490.9 132.0 492.0 130.5 492.0H115.0C113.6 492.0 112.4 490.9 112.4 489.4V473.9C112.4 472.5 113.6 471.3 115.0 471.3H130.5C132.0 471.3 133.1 472.5 133.1 473.9ZM132.8 489.4V473.9C132.8 472.6 131.8 471.6 130.5 471.6H115.0C113.7 471.6 112.7 472.6 112.7 473.9V489.4C112.7 490.7 113.7 491.7 115.0 491.7H130.5C131.8 491.7 132.8 490.7 132.8 489.4Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-84.6,600.3)" d="M211.9 489.4C211.9 490.8 210.7 492.0 209.3 492.0H193.7C192.3 492.0 191.2 490.8 191.2 489.4V473.8C191.2 472.4 192.3 471.3 193.7 471.3H209.3C210.7 471.3 211.9 472.4 211.9 473.8Z" fill="#62bc56" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-84.6,600.3)" d="M211.9 489.4C211.9 490.8 210.7 492.0 209.3 492.0H193.7C192.3 492.0 191.2 490.8 191.2 489.4V473.8C191.2 472.4 192.3 471.3 193.7 471.3H209.3C210.7 471.3 211.9 472.4 211.9 473.8ZM211.6 489.4V473.8C211.6 472.6 210.5 471.6 209.3 471.6H193.7C192.5 471.6 191.5 472.6 191.5 473.8V489.4C191.5 490.6 192.5 491.7 193.7 491.7H209.3C210.5 491.7 211.6 490.6 211.6 489.4Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-84.6,600.3)" d="M211.9 428.7C211.9 430.1 210.7 431.2 209.3 431.2H193.7C192.3 431.2 191.2 430.1 191.2 428.7V413.1C191.2 411.7 192.3 410.5 193.7 410.5H209.3C210.7 410.5 211.9 411.7 211.9 413.1Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-84.6,600.3)" d="M211.9 428.7C211.9 430.1 210.7 431.2 209.3 431.2H193.7C192.3 431.2 191.2 430.1 191.2 428.7V413.1C191.2 411.7 192.3 410.5 193.7 410.5H209.3C210.7 410.5 211.9 411.7 211.9 413.1ZM211.6 428.7V413.1C211.6 411.9 210.5 410.8 209.3 410.8H193.7C192.5 410.8 191.5 411.9 191.5 413.1V428.7C191.5 429.9 192.5 430.9 193.7 430.9H209.3C210.5 430.9 211.6 429.9 211.6 428.7Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-84.6,600.3)" d="M211.9 519.9C211.9 521.3 210.7 522.4 209.3 522.4H193.7C192.3 522.4 191.2 521.3 191.2 519.9V504.3C191.2 502.9 192.3 501.7 193.7 501.7H209.3C210.7 501.7 211.9 502.9 211.9 504.3Z" fill="#62bc56" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-84.6,600.3)" d="M211.9 519.9C211.9 521.3 210.7 522.4 209.3 522.4H193.7C192.3 522.4 191.2 521.3 191.2 519.9V504.3C191.2 502.9 192.3 501.7 193.7 501.7H209.3C210.7 501.7 211.9 502.9 211.9 504.3ZM211.6 519.9V504.3C211.6 503.1 210.5 502.0 209.3 502.0H193.7C192.5 502.0 191.5 503.1 191.5 504.3V519.9C191.5 521.1 192.5 522.1 193.7 522.1H209.3C210.5 522.1 211.6 521.1 211.6 519.9Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-84.6,600.3)" d="M211.9 459.0C211.9 460.5 210.7 461.6 209.3 461.6H193.7C192.3 461.6 191.2 460.5 191.2 459.0V443.5C191.2 442.1 192.3 440.9 193.7 440.9H209.3C210.7 440.9 211.9 442.1 211.9 443.5Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-84.6,600.3)" d="M211.9 459.0C211.9 460.5 210.7 461.6 209.3 461.6H193.7C192.3 461.6 191.2 460.5 191.2 459.0V443.5C191.2 442.1 192.3 440.9 193.7 440.9H209.3C210.7 440.9 211.9 442.1 211.9 443.5ZM211.6 459.0V443.5C211.6 442.2 210.5 441.2 209.3 441.2H193.7C192.5 441.2 191.5 442.2 191.5 443.5V459.0C191.5 460.3 192.5 461.3 193.7 461.3H209.3C210.5 461.3 211.6 460.3 211.6 459.0Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-84.6,600.3)" d="M242.2 489.5C242.2 490.9 241.1 492.0 239.6 492.0H224.1C222.7 492.0 221.5 490.9 221.5 489.5V473.9C221.5 472.5 222.7 471.3 224.1 471.3H239.6C241.1 471.3 242.2 472.5 242.2 473.9Z" fill="#5c96cf" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-84.6,600.3)" d="M242.2 489.5C242.2 490.9 241.1 492.0 239.6 492.0H224.1C222.7 492.0 221.5 490.9 221.5 489.5V473.9C221.5 472.5 222.7 471.3 224.1 471.3H239.6C241.1 471.3 242.2 472.5 242.2 473.9ZM241.9 489.5V473.9C241.9 472.7 240.9 471.6 239.6 471.6H224.1C222.9 471.6 221.8 472.7 221.8 473.9V489.5C221.8 490.7 222.9 491.7 224.1 491.7H239.6C240.9 491.7 241.9 490.7 241.9 489.5Z" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-84.6,600.3)" d="M242.2 428.7C242.2 430.2 241.1 431.3 239.6 431.3H224.1C222.7 431.3 221.5 430.2 221.5 428.7V413.2C221.5 411.8 222.7 410.6 224.1 410.6H239.6C241.1 410.6 242.2 411.8 242.2 413.2Z" fill="#d27eb4" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-84.6,600.3)" d="M242.2 428.7C242.2 430.2 241.1 431.3 239.6 431.3H224.1C222.7 431.3 221.5 430.2 221.5 428.7V413.2C221.5 411.8 222.7 410.6 224.1 410.6H239.6C241.1 410.6 242.2 411.8 242.2 413.2ZM241.9 428.7V413.2C241.9 411.9 240.9 410.9 239.6 410.9H224.1C222.9 410.9 221.8 411.9 221.8 413.2V428.7C221.8 430.0 222.9 431.0 224.1 431.0H239.6C240.9 431.0 241.9 430.0 241.9 428.7Z" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-84.6,600.3)" d="M242.2 519.9C242.2 521.4 241.1 522.5 239.6 522.5H224.1C222.7 522.5 221.5 521.4 221.5 519.9V504.4C221.5 503.0 222.7 501.8 224.1 501.8H239.6C241.1 501.8 242.2 503.0 242.2 504.4Z" fill="#5c96cf" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-84.6,600.3)" d="M242.2 519.9C242.2 521.4 241.1 522.5 239.6 522.5H224.1C222.7 522.5 221.5 521.4 221.5 519.9V504.4C221.5 503.0 222.7 501.8 224.1 501.8H239.6C241.1 501.8 242.2 503.0 242.2 504.4ZM241.9 519.9V504.4C241.9 503.1 240.9 502.1 239.6 502.1H224.1C222.9 502.1 221.8 503.1 221.8 504.4V519.9C221.8 521.2 222.9 522.2 224.1 522.2H239.6C240.9 522.2 241.9 521.2 241.9 519.9Z" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-84.6,600.3)" d="M242.2 458.9C242.2 460.4 241.1 461.5 239.7 461.5H224.1C222.7 461.5 221.6 460.4 221.6 458.9V443.4C221.6 442.0 222.7 440.8 224.1 440.8H239.7C241.1 440.8 242.2 442.0 242.2 443.4Z" fill="#d27eb4" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-84.6,600.3)" d="M242.2 458.9C242.2 460.4 241.1 461.5 239.7 461.5H224.1C222.7 461.5 221.6 460.4 221.6 458.9V443.4C221.6 442.0 222.7 440.8 224.1 440.8H239.7C241.1 440.8 242.2 442.0 242.2 443.4ZM241.9 458.9V443.4C241.9 442.2 240.9 441.1 239.7 441.1H224.1C222.9 441.1 221.9 442.2 221.9 443.4V458.9C221.9 460.2 222.9 461.2 224.1 461.2H239.7C240.9 461.2 241.9 460.2 241.9 458.9Z" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-84.6,600.3)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="bevel" fill="none" stroke="var(--gb-accent)" d="M231.9 530.1V554.1"/>
+</g>
+</g>
+</svg>

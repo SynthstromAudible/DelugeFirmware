@@ -15,13 +15,19 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_12_1_2 from "../../../../assets/guidebook/figs/12-midi__01-midi-connections--2.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
-MIDI is a a standard music protocol used to connect multiple devices in order to communicate and was first introduced in the early 1980’s. Deluge uses the most common 5 Pin DIN connection as well as a USB connection.
+MIDI is a standard music protocol used to connect multiple devices in order to communicate and was first introduced in the early 1980’s. Deluge uses the most common 5 Pin DIN connection as well as a USB connection.
 
-<FigurePending id="fig-12.1-1" page={236}></FigurePending>
+<Figure
+  id="fig-12.1-1"
+  img="/guidebook/img/12-midi__01-midi-connections--1.webp"
+  alt={"Photo: figure from guidebook page 236"}
+  page={236}
+/>
 
 Deluge has both a MIDI in and Out 5-pin DIN connection.
 
@@ -45,11 +51,14 @@ Hosted MIDI USB devices are supported for both MIDI input and output.
 
 MIDI devices have 16 available MIDI channels all of which can be used to communicate with Deluge by USB or the MIDI DIN port. Multiple devices can also be connected to Deluge with the use of a USB hub and also through the MIDI port which would mean more than 16 channels are present simultaneously in the network, providing input to Deluge. These channels can be set to control different functions, for example synths. Deluge can be set to differentiate between the incoming MIDI from different devices. These need to have been ‘learned’ in Deluge to assign the input controls to the correct function.
 
-<FigurePending id="fig-12.1-2" page={237}>
-  16 Channels can be learned in Deluge from a USB device · Additional 16
-  Channels can be learned in Deluge from a USB device · USB MIDI HUB · MIDI DIN
-  16 Channels can also be learned in Deluge · MIDI in
-</FigurePending>
+<Figure
+  id="fig-12.1-2"
+  src={fig_fig_12_1_2}
+  alt={
+    "Diagram: 16 Channels can be learned in Deluge from a USB device Additional 16 Channels can be learned in Deluge from a USB device USB MIDI HUB MIDI…"
+  }
+  page={237}
+/>
 
 ### Setting MIDI differentiation on
 

@@ -15,7 +15,8 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_7_4_1 from "../../../../assets/guidebook/figs/07-song-view__04-editing-clips-in-song-view--1.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -29,10 +30,7 @@ Song view also provides the functionality to edit certain features of clips from
 4. Affect parameters for the clip also become available and in-focus.
 5. Holding a clip in an empty clip row will show the instrument type and preset that it will create when tapping the clip row.
 
-<FigurePending id="fig-7.4-1" page={142}>
-  [PAD] Press & hold pad for clip row to show the instrument and preset for the
-  clip
-</FigurePending>
+<Figure id="fig-7.4-1" src={fig_fig_7_4_1} alt={"Diagram: [PAD]"} page={142} />
 
 ### Changing the clips instrument from song view
 
@@ -66,7 +64,7 @@ Song view also provides the functionality to edit certain features of clips from
 
 1. Press :key[Song] to switch to song view.
 2. Press & hold a :key[Pad] within the target clip row to clone + press a :key[Pad] on the destination row where the new cloned clip will be located.
-3. The clip will be cloned from the target to the destination and assigned a different section and won’t be launched.Cloned clips are initially linked to the original but can be edited.
+3. The clip will be cloned from the target to the destination and assigned a different section and won’t be launched. Cloned clips are initially linked to the original but can be edited.
 
 ### Unlinking cloned clips when using same preset
 

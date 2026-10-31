@@ -15,7 +15,8 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_11_6_1 from "../../../../assets/guidebook/figs/11-effects__06-reverb--1.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -23,16 +24,14 @@ Deluge’s reverb applies to the entire song as a send / return effect. Only the
 
 #### Reverb Principles
 
-<FigurePending id="fig-11.6-1" page={224}>
-  50-80m s · Room Size & Shape · Early Reflections Initial Original Signal ·
-  Subsequent Reflections · Reverb tail can vary dependant on room size. · An
-  emitted sound will be heard followed by the initial reflections, for example
-  direct from the walls within approx 100ms. Subsequent reflections typically
-  where sound bounces between walls will follow. The room size and shape will
-  therefore affect the reverberant sound. · Sends from Sounds, Instruments, Song
-  · Common Reverb · SizeSize · Damp · SEND · SEND · REVERB · Pan & Width ·
-  RETURN · SEND · Sidechain
-</FigurePending>
+<Figure
+  id="fig-11.6-1"
+  src={fig_fig_11_6_1}
+  alt={
+    "Diagram: 50-80m Room Size & s Shape Early Subsequent Reverb tail can Reflections Reflections vary dependant on room size. Initial Original Signal An…"
+  }
+  page={224}
+/>
 
 #### Reverb Parameters
 

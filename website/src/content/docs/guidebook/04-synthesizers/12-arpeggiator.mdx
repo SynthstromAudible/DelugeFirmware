@@ -15,27 +15,21 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_4_12_1 from "../../../../assets/guidebook/figs/04-synthesizers__12-arpeggiator--1.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
 Each synth clip contains an arpeggiator. The arp settings are contained in the voice section of the sound editor parameters. An arp automatically steps through a sequence of notes and across octaves in a pre-defined way. By default the arp is off for most factory synth presets, and new synth instruments created.
 
-<FigurePending id="fig-4.12-1" page={102}>
-  ARP MODE OFF UP DOWN · MODE Up, down, both, random or off · OCTAVE · UP · DOWN
-  · BOTH · RAND · OFF · Arp will operate across the OCTAves set. 1 octave will
-  repeat the same note, same octave. 3 octaves will trigger 3 steps, each an
-  octave apart. · Example: up/down, 16th note sync, 3 octaves · Example: up, 8th
-  note sync, 2 octaves · Octave · C5 · C4 · Octave · C4 · Octave · C3 · C3 ·
-  SYNC Sets the trigger interval for the arp notes played within the sequencer
-  or manually. · GATE The amount of time the arp note is played within the
-  available time division. · Audition Pads · Shows 16th notes which will trigger
-  a note in this example, at each step on a 16th Grid. Every 2nd step with a 8th
-  note sync setting, 1 bar, once per bar, etc... RATE Sets the speed of the
-  arpeggiator when SYNC is off. · Range is 0 - 50, where 50 will take up the
-  entire time slot and 25 will be 50% of the note division. Examples with 8h
-  notes. · 5 12 25 50
-</FigurePending>
+<Figure
+  id="fig-4.12-1"
+  src={fig_fig_4_12_1}
+  alt={
+    "OLED screen: ARP MODE OFF MODE UP Up, down, both, random or off DOWN OCTAVE UP DOWN BOTH RAND OFF Arp will operate across the OCTAves set. 1 octave will…"
+  }
+  page={102}
+/>
 
 ### Setting the arpeggiator
 
@@ -43,7 +37,7 @@ Each synth clip contains an arpeggiator. The arp settings are contained in the v
 2. Select synth by pressing :key[Synth] if not already selected. The synth button illuminates red.
 3. Using the shortcut options to access the arp parameters directly, e.g. press :key[Shift + Mode Pad]. Alternatively use nested menus by pressing :key[Select] and then turning :key[Select] to navigate to Arpeggiator sub- menu option within the VOICE menu. Options via the menu or directly from the :key[Shift] + shortcuts are:
    - MODE : pattern style: up, down, both, random or off for arpeggios.
-   - SYNC : Sets the time interval of the sync for the arpeggiator or OFF to deactivate tempo sync. Options are 2 bar, 1 bar, 2nd notes, 4th notes, 8th notes, 16th notes, 32nd ,64th notes and 128th notes. (384th Resolution)
+   - SYNC : Sets the time interval of the sync for the arpeggiator or OFF to deactivate tempo sync. Options are 2 bar, 1 bar, 2nd notes, 4th notes, 8th notes, 16th notes, 32nd, 64th notes and 128th notes. (384th Resolution)
    - NUMBER OF OCTAVES : Sets the range of the arpeggiator notes.
    - GATE : Sets the percentage that the note trigger will fill with respect to the available time divisions.
    - RATE : Sets the arpeggiator rate when sync is off.

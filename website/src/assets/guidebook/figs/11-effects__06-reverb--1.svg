@@ -1,0 +1,103 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 315.5 474.8"><defs><path id="11-effects__06-reverb--1-s1" d="M0 0V-22.4" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor"/><path id="11-effects__06-reverb--1-s2" d="M0 0H38" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor"/><path id="11-effects__06-reverb--1-s3" d="M0 0 -8.5 -4.3V4.2Z" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor"/><path id="11-effects__06-reverb--1-s4" d="M0 0V-11.3" stroke-width=".35" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="color-mix(in srgb, currentColor 49%, var(--gb-paper))"/></defs>
+<defs>
+<clipPath id="11-effects__06-reverb--1-clip_1">
+<path transform="matrix(1,0,0,-1,-74.1,568.8)" d="M74.1 94.0H389.6V568.8H74.1Z" clip-rule="evenodd"/>
+</clipPath>
+</defs>
+<g clip-path="url(#11-effects__06-reverb--1-clip_1)">
+<path transform="matrix(1,0,0,-1,-74.1,568.8)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M424.8 688.4V83.9"/>
+<path transform="matrix(1,0,0,-1,-74.1,568.8)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M424.8 688.4V83.9"/>
+<use href="#11-effects__06-reverb--1-s1" transform="matrix(1 0 0 -1 148.9 330.3)"/>
+<use href="#11-effects__06-reverb--1-s1" transform="matrix(1 0 0 -1 148.9 330.3)"/>
+<use href="#11-effects__06-reverb--1-s1" transform="matrix(1 0 0 -1 204.1 330.3)"/>
+<path transform="matrix(1,0,0,-1,-74.1,568.8)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M222.4 264.1C229.4 264.1 235.1 258.3 235.1 251.3 235.1 244.3 229.4 238.5 222.4 238.5 215.3 238.5 209.6 244.3 209.6 251.3 209.6 258.3 215.3 264.1 222.4 264.1Z"/>
+<path transform="matrix(1,0,0,-1,-74.1,568.8)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M277.6 264.1C284.6 264.1 290.3 258.3 290.3 251.3 290.3 244.3 284.6 238.5 277.6 238.5 270.5 238.5 264.8 244.3 264.8 251.3 264.8 258.3 270.5 264.1 277.6 264.1Z"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(157.9 379.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">REVERB</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(141.7 320.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Size</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(141.2 320.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Size</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(193.7 320.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Damp</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(147.6 285.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Common Reverb</tspan></text>
+<path transform="matrix(1,0,0,-1,-74.1,568.8)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="currentColor" d="M102.9 100.0H182.3V307.0H102.9Z"/>
+<path transform="matrix(1,0,0,-1,-74.1,568.8)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="currentColor" d="M190.8 100.0H343.8V307.0H190.8Z"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(34.2 281.6)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Sends from Sounds,</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(37.8 289.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Instruments, Song</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(229.8 374.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Pan &amp;</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(230.4 382.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Width</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(159.8 436.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Sidechain</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(260.8 378.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">RETURN</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(57.2 377.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">SEND</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(57.2 349.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">SEND</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(57.2 409.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">SEND</tspan></text>
+<use href="#11-effects__06-reverb--1-s2" transform="matrix(1 0 0 -1 85.5 375.2)"/>
+<use href="#11-effects__06-reverb--1-s2" transform="matrix(1 0 0 -1 85.5 346.4)"/>
+<use href="#11-effects__06-reverb--1-s2" transform="matrix(1 0 0 -1 85.5 406.4)"/>
+<path transform="matrix(1,0,0,-1,-74.1,568.8)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M250.3 142.6V160.7"/>
+<path transform="matrix(1,0,0,-1,-74.1,568.8)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M293.0 207.3H372.7"/>
+<path transform="matrix(1,0,0,-1,-74.1,568.8)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M292.8 178.5H372.7"/>
+<use href="#11-effects__06-reverb--1-s3" transform="matrix(1 0 0 -1 132.3 375.1)"/>
+<use href="#11-effects__06-reverb--1-s3" transform="matrix(1 0 0 -1 132.3 346.3)"/>
+<use href="#11-effects__06-reverb--1-s3" transform="matrix(1 0 0 -1 132.3 406.3)"/>
+<path transform="matrix(1,0,0,-1,-74.1,568.8)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M250.3 169.5 254.5 161.0H246.0Z"/>
+<path transform="matrix(1,0,0,-1,-74.1,568.8)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M381.7 207.3 373.2 203.1V211.6Z"/>
+<path transform="matrix(1,0,0,-1,-74.1,568.8)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M381.7 178.5 373.2 174.3V182.8Z"/>
+<path transform="matrix(1,0,0,-1,-74.1,568.8)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M207.9 170.3H293.0V215.6H207.9Z"/>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(27.8 166.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Initial Original</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(40.1 174.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Signal</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(69.1 141.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Early</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(59.1 149.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Reflections</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(51.3 20.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">50-80m</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(62.2 27.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">s</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(110.9 141.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Subsequent</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(112.4 149.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Reflections</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(201.4 141.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Reverb tail can</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(200.6 148.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">vary dependant</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(203.9 156.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">on room size.</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(244.3 19.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Room Size &amp;</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(254.3 26.9)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Shape</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(5.9 202.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">An emitted sound will be heard followed by the initial reflections, for example direct from the</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.3 211.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">walls within approx 100ms. Subsequent reflections typically where sound bounces between</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(17.1 220.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">walls will follow. The room size and shape will therefore affect the reverberant sound.</tspan></text>
+<path transform="matrix(1,0,0,-1,-74.1,568.8)" stroke-width=".35" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M110.9 562.8V449.4H337.6"/>
+<path transform="matrix(1,0,0,-1,-74.1,568.8)" stroke-width=".75" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M124.6 548.7V449.4"/>
+<path transform="matrix(1,0,0,-1,-74.1,568.8)" stroke-width=".75" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="var(--gb-accent)" d="M157.2 515.4V449.4"/>
+<path transform="matrix(1,0,0,-1,-74.1,568.8)" stroke-width=".75" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="var(--gb-accent)" d="M162.0 509.5V449.4"/>
+<path transform="matrix(1,0,0,-1,-74.1,568.8)" stroke-width=".75" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="var(--gb-accent)" d="M167.6 507.1V449.4"/>
+<path transform="matrix(1,0,0,-1,-74.1,568.8)" stroke-width=".75" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="var(--gb-accent)" d="M185.0 492.6V449.4"/>
+<path transform="matrix(1,0,0,-1,-74.1,568.8)" stroke-width=".75" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="var(--gb-accent)" d="M194.5 481.7V449.4"/>
+<path transform="matrix(1,0,0,-1,-74.1,568.8)" stroke-width=".75" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="var(--gb-accent)" d="M200.1 473.6V449.4"/>
+<path transform="matrix(1,0,0,-1,-74.1,568.8)" stroke-width=".75" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="var(--gb-accent)" d="M206.8 472.0V449.5"/>
+<path transform="matrix(1,0,0,-1,-74.1,568.8)" stroke-width=".75" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="var(--gb-accent)" d="M210.8 468.2V449.5"/>
+<path transform="matrix(1,0,0,-1,-74.1,568.8)" stroke-width=".75" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="var(--gb-accent)" d="M213.6 464.4V449.4"/>
+<path transform="matrix(1,0,0,-1,-74.1,568.8)" stroke-width=".75" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="var(--gb-accent)" d="M218.5 463.0V449.3"/>
+<path transform="matrix(1,0,0,-1,-74.1,568.8)" stroke-width=".75" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="var(--gb-accent)" d="M221.8 460.7V449.8"/>
+<path transform="matrix(1,0,0,-1,-74.1,568.8)" stroke-width=".75" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="var(--gb-accent)" d="M224.2 458.4V449.6"/>
+<path transform="matrix(1,0,0,-1,-74.1,568.8)" stroke-width=".75" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="var(--gb-accent)" d="M226.8 457.2V449.7"/>
+<path transform="matrix(1,0,0,-1,-74.1,568.8)" stroke-width=".75" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="var(--gb-accent)" d="M233.8 453.5V449.7"/>
+<path transform="matrix(1,0,0,-1,-74.1,568.8)" stroke-width=".75" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="var(--gb-accent)" d="M238.1 451.7V449.7"/>
+<path transform="matrix(1,0,0,-1,-74.1,568.8)" stroke-width=".75" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="var(--gb-accent)" d="M228.9 455.7V449.7"/>
+<path transform="matrix(1,0,0,-1,-74.1,568.8)" stroke-width=".75" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="var(--gb-accent)" d="M235.9 452.8V449.7"/>
+<path transform="matrix(1,0,0,-1,-74.1,568.8)" stroke-width=".75" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="var(--gb-accent)" d="M240.2 451.3V449.7"/>
+<path transform="matrix(1,0,0,-1,-74.1,568.8)" stroke-width=".75" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="var(--gb-accent)" d="M151.4 533.3V449.7"/>
+<path transform="matrix(1,0,0,-1,-74.1,568.8)" stroke-width=".75" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="var(--gb-accent)" d="M154.2 528.1V449.7"/>
+<path transform="matrix(1,0,0,-1,-74.1,568.8)" stroke-width=".35" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="color-mix(in srgb, currentColor 49%, var(--gb-paper))" d="M124.6 447.0V412.5"/>
+<path transform="matrix(1,0,0,-1,-74.1,568.8)" stroke-width=".35" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="color-mix(in srgb, currentColor 49%, var(--gb-paper))" d="M151.5 447.0V435.8"/>
+<use href="#11-effects__06-reverb--1-s4" transform="matrix(1 0 0 -1 50.6 6.3)"/>
+<use href="#11-effects__06-reverb--1-s4" transform="matrix(1 0 0 -1 77.5 6.3)"/>
+<path transform="matrix(1,0,0,-1,-74.1,568.8)" stroke-width=".35" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="color-mix(in srgb, currentColor 49%, var(--gb-paper))" d="M185.1 447.0V435.8"/>
+<path transform="matrix(1,0,0,-1,-74.1,568.8)" stroke-width=".35" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="color-mix(in srgb, currentColor 49%, var(--gb-paper))" d="M185.0 441.4H263.1"/>
+<path transform="matrix(1,0,0,-1,-74.1,568.8)" stroke-width=".35" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="color-mix(in srgb, currentColor 49%, var(--gb-paper))" d="M151.4 441.4H172.1"/>
+<path transform="matrix(1,0,0,-1,-74.1,568.8)" stroke-width=".35" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="color-mix(in srgb, currentColor 49%, var(--gb-paper))" d="M124.6 556.8H151.4"/>
+<use href="#11-effects__06-reverb--1-s4" transform="matrix(1 0 0 -1 257.5 122.3)"/>
+<path transform="matrix(1,0,0,-1,-74.1,568.8)" d="M323.9 548.1 288.3 521.8V481.2L323.9 507.5ZM323.7 547.7V507.6C323.7 507.6 288.5 481.6 288.5 481.6 288.5 481.6 288.5 521.7 288.5 521.7Z" fill="color-mix(in srgb, currentColor 10%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-74.1,568.8)" d="M250.1 533.9 288.5 521.8V481.1L250.1 493.3ZM250.3 533.6 288.3 521.6C288.3 519.1 288.3 484.8 288.3 481.4 288.3 481.4 250.3 493.4 250.3 493.4Z" fill="color-mix(in srgb, currentColor 10%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-74.1,568.8)" d="M285.5 560.1 249.9 533.8V493.2L285.5 519.5ZM285.3 559.7V519.6L250.1 493.6C250.1 493.6 250.1 533.7 250.1 533.7Z" fill="color-mix(in srgb, currentColor 49%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-74.1,568.8)" d="M285.5 519.5 249.9 493.2 288.4 481.0 323.9 507.4ZM285.5 519.3 323.5 507.3C323.5 507.3 288.4 481.3 288.4 481.3 286.4 481.9 254.2 492.0 250.4 493.2Z" fill="color-mix(in srgb, currentColor 49%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-74.1,568.8)" d="M285.5 560.1 323.9 548.0V507.4L285.5 519.5ZM285.7 559.8 323.7 547.8C323.7 547.8 323.7 507.6 323.7 507.6 323.7 507.6 285.7 519.6 285.7 519.6Z" fill="color-mix(in srgb, currentColor 49%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-74.1,568.8)" d="M269.9 508.6 274.6 538.4 292.8 538.3 313.2 513.6ZM270.4 509.1 275.0 538.0C275.0 538.0 292.7 537.9 292.7 537.9 292.7 537.9 312.4 513.9 312.4 513.9L270.4 509.1Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-74.1,568.8)" d="M280.4 520.1 303.7 503.7 294.3 535.3ZM281.0 520.2 294.1 534.5 303.0 504.7ZM280.4 520.1 276.2 523.1 269.9 508.6ZM279.8 520.0 276.3 522.5 271.2 510.6Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-74.1,568.8)" stroke-width=".35" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M270.8 508.1 286.9 502.2 270.7 506.2"/>
+<path transform="matrix(1,0,0,-1,-74.1,568.8)" stroke-width=".4" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M270.1 508.5 264.9 535.4 268.3 508.5"/>
+<path transform="matrix(1,0,0,-1,-74.1,568.8)" d="M270.2 510.8C271.5 510.4 272.5 509.0 272.5 507.5 272.5 506.0 271.4 505.1 270.1 505.4 268.8 505.8 267.7 507.2 267.8 508.7 267.8 510.2 268.9 511.1 270.2 510.8Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-74.1,568.8)" d="M270.2 510.8C271.5 510.4 272.5 509.0 272.5 507.5 272.5 506.0 271.4 505.1 270.1 505.4 268.8 505.8 267.7 507.2 267.8 508.7 267.8 510.2 268.9 511.1 270.2 510.8ZM270.1 510.6C271.4 510.3 272.3 508.9 272.3 507.5 272.3 506.8 272.1 506.3 271.7 505.9 271.3 505.6 270.8 505.5 270.2 505.6 268.9 505.9 267.9 507.3 268.0 508.7 268.0 509.4 268.2 509.9 268.6 510.2 269.0 510.6 269.5 510.7 270.1 510.6Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+</g>
+</svg>

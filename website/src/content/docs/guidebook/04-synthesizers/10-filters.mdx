@@ -15,33 +15,42 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_4_10_1 from "../../../../assets/guidebook/figs/04-synthesizers__10-filters--1.svg?raw"
+import fig_fig_4_10_2 from "../../../../assets/guidebook/figs/04-synthesizers__10-filters--2.svg?raw"
+import fig_fig_4_10_3 from "../../../../assets/guidebook/figs/04-synthesizers__10-filters--3.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
 Deluge has a high-pass and low-pass filter.
 
-<FigurePending id="fig-4.10-1" page={98}>
-  FREQUENCY
-</FigurePending>
+<Figure
+  id="fig-4.10-1"
+  src={fig_fig_4_10_1}
+  alt={"Diagram: FREQUENCY"}
+  page={98}
+/>
 
 HPF - HIGH-PASS FILTER ATTENUATION Allows higher frequencies to pass through the filter and cuts off lower frequencies.
 
-<FigurePending id="fig-4.10-2" page={98}>
-  LPF - LOW-PASS FILTER Allows lower frequencies to pass through the filter and
-  cuts off higher frequencies. Deluge filters are 2-pole and 4-pole and 4- pole
-  analog drive with saturation only on the LPF. Poles refer to how ‘steep’ or
-  aggressive the cutoff curve is. This is measured in dB per octave. · 2 Pole
-  12dB/Octave · 4 Pole 24dB/Octave · FREQUENCY
-</FigurePending>
+<Figure
+  id="fig-4.10-2"
+  src={fig_fig_4_10_2}
+  alt={
+    "Diagram: LPF - LOW-PASS FILTER 2 Pole 12dB/Octave Allows lower frequencies to pass through the filter and cuts off higher frequencies. Deluge…"
+  }
+  page={98}
+/>
 
 ATTENUATION
 
-<FigurePending id="fig-4.10-3" page={98}>
-  CUTOFF & RESONANCE The two parameters common to both the filters provide
-  control over the cutoff frequency and also the resonance (emphasis at the
-  cutoff point). · Cut Off Frequency · Stop Transition Band · Band · Resonance ·
-  Pass Band · FREQUENCY
-</FigurePending>
+<Figure
+  id="fig-4.10-3"
+  src={fig_fig_4_10_3}
+  alt={
+    "Diagram: Cut Off Frequency CUTOFF & RESONANCE Stop Transition Band Band Resonance The two parameters common to both the filters provide control over…"
+  }
+  page={98}
+/>
 
 ATTENUATION

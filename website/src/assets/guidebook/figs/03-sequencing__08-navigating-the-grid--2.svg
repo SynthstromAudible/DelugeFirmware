@@ -199,20 +199,20 @@
 <path transform="matrix(1,0,0,-1,-74.2,568.6)" d="M517.6 302.3C517.6 302.9 517.1 303.5 516.4 303.5H509.3C508.7 303.5 508.1 302.9 508.1 302.3V295.1C508.1 294.5 508.7 293.9 509.3 293.9H516.4C517.1 293.9 517.6 294.5 517.6 295.1ZM517.3 302.3V295.1C517.3 294.6 516.9 294.2 516.4 294.2H509.3C508.8 294.2 508.4 294.6 508.4 295.1V302.3C508.4 302.8 508.8 303.2 509.3 303.2H516.4C516.9 303.2 517.3 302.8 517.3 302.3Z" fill="currentColor" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-74.2,568.6)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M290.0 538.6H204.4V394.5"/>
 <path transform="matrix(1,0,0,-1,-74.2,568.6)" stroke-width=".45" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M303.7 418.4V372.7"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(329.9 437.9)" font-size="8" font-family="monospace"><tspan y="0" x="0.0">32</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(329.9 437.9)" font-size="8" font-family="monospace"><tspan y="0" x="0.0">32</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="matrix(.974039 0 -0 1.0 345.9 437.9)" font-size="7.8" font-family="monospace"><tspan y="0" x="0.0">ND-NOTES</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="matrix(.974039 0 -0 1.0 345.9 437.9)" font-size="7.8" font-family="monospace"><tspan y="0" x="0.0">ND-NOTES</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(329.9 437.9)" font-size="8" font-family="monospace"><tspan y="0" x="0.0" textLength="12.4" lengthAdjust="spacingAndGlyphs">32</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(329.9 437.9)" font-size="8" font-family="monospace"><tspan y="0" x="0.0" textLength="12.4" lengthAdjust="spacingAndGlyphs">32</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(.974039 0 -0 1.0 345.9 437.9)" font-size="7.8" font-family="monospace"><tspan y="0" x="0.0" textLength="59.8" lengthAdjust="spacingAndGlyphs">ND-NOTES</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(.974039 0 -0 1.0 345.9 437.9)" font-size="7.8" font-family="monospace"><tspan y="0" x="0.0" textLength="59.8" lengthAdjust="spacingAndGlyphs">ND-NOTES</tspan></text>
 <path transform="matrix(1,0,0,-1,-74.2,568.6)" stroke-width=".8" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M403.7 126.8H481.1V141.8H403.7Z"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(16.2 161.9)" font-size="8" font-family="monospace"><tspan y="0" x="0.0">1</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(16.2 161.9)" font-size="8" font-family="monospace"><tspan y="0" x="0.0">1</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="matrix(.974039 0 -0 1.0 24.2 161.9)" font-size="7.8" font-family="monospace"><tspan y="0" x="0.0">: 1 : 1</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="matrix(.974039 0 -0 1.0 24.2 161.9)" font-size="7.8" font-family="monospace"><tspan y="0" x="0.0">: 1 : 1</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(16.2 161.9)" font-size="8" font-family="monospace"><tspan y="0" x="0.0" textLength="4.4" lengthAdjust="spacingAndGlyphs">1</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(16.2 161.9)" font-size="8" font-family="monospace"><tspan y="0" x="0.0" textLength="4.4" lengthAdjust="spacingAndGlyphs">1</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(.974039 0 -0 1.0 24.2 161.9)" font-size="7.8" font-family="monospace"><tspan y="0" x="0.0" textLength="27.7" lengthAdjust="spacingAndGlyphs">: 1 : 1</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(.974039 0 -0 1.0 24.2 161.9)" font-size="7.8" font-family="monospace"><tspan y="0" x="0.0" textLength="27.7" lengthAdjust="spacingAndGlyphs">: 1 : 1</tspan></text>
 <path transform="matrix(1,0,0,-1,-74.2,568.6)" stroke-width=".8" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M84.5 402.8H132.4V417.8H84.5Z"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(239.4 161.9)" font-size="8" font-family="monospace"><tspan y="0" x="0.0">1</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(239.4 161.9)" font-size="8" font-family="monospace"><tspan y="0" x="0.0">1</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="matrix(.974039 0 -0 1.0 247.4 161.9)" font-size="7.8" font-family="monospace"><tspan y="0" x="0.0">: 3 : 1</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="matrix(.974039 0 -0 1.0 247.4 161.9)" font-size="7.8" font-family="monospace"><tspan y="0" x="0.0">: 3 : 1</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(239.4 161.9)" font-size="8" font-family="monospace"><tspan y="0" x="0.0" textLength="4.4" lengthAdjust="spacingAndGlyphs">1</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(239.4 161.9)" font-size="8" font-family="monospace"><tspan y="0" x="0.0" textLength="4.4" lengthAdjust="spacingAndGlyphs">1</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(.974039 0 -0 1.0 247.4 161.9)" font-size="7.8" font-family="monospace"><tspan y="0" x="0.0" textLength="27.7" lengthAdjust="spacingAndGlyphs">: 3 : 1</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(.974039 0 -0 1.0 247.4 161.9)" font-size="7.8" font-family="monospace"><tspan y="0" x="0.0" textLength="27.7" lengthAdjust="spacingAndGlyphs">: 3 : 1</tspan></text>
 <path transform="matrix(1,0,0,-1,-74.2,568.6)" stroke-width=".8" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M307.7 402.8H355.6V417.8H307.7Z"/>
 </g>
 </g>

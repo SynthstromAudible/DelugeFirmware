@@ -15,16 +15,21 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_7_3_1 from "../../../../assets/guidebook/figs/07-song-view__03-advanced-control-of-single-clips-in-song-view--1.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
 More advanced options are available in song view than just the start stop commands for individual clips. Clips are armed to ensure the timing of the clip start aligns with the overall song. The LAUNCH pad column (used for MUTE in clip view) is the important control function used in song view.
 
-<FigurePending id="fig-7.3-1" page={139}>
-  [LAUNCH] Mute / launch column pad enables the arming and triggering of clips
-  (per row) in time with the song. · Mute / Launch / Section · Audition
-</FigurePending>
+<Figure
+  id="fig-7.3-1"
+  src={fig_fig_7_3_1}
+  alt={
+    "Diagram: [LAUNCH] Mute / launch column pad enables the arming and triggering of clips (per row) in time with the song. Mute Audition / Launch /…"
+  }
+  page={139}
+/>
 
 Press :key[Launch Pad] to play the clip row in song view.
 

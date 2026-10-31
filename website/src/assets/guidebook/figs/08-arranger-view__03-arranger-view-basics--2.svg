@@ -1,0 +1,43 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 304.0 111.2"><defs><path id="08-arranger-view__03-arranger-view-basics--2-s1" d="M0 0V-1.5" stroke-width=".7" stroke-linecap="round" stroke-linejoin="bevel" fill="none" stroke="#5c96cf"/></defs>
+<defs>
+<clipPath id="08-arranger-view__03-arranger-view-basics--2-clip_1">
+<path transform="matrix(1,0,0,-1,-211.5,248.8)" d="M211.5 137.5H515.6V248.8H211.5Z" clip-rule="evenodd"/>
+</clipPath>
+<mask id="08-arranger-view__03-arranger-view-basics--2-mask_2">
+<g transform="matrix(.088593,0,0,.088593009,47.0,6.0)">
+<image id="08-arranger-view__03-arranger-view-basics--2-image_3" width="962" height="480" xlink:href="/guidebook/img/08-arranger-view__03-arranger-view-basics--2-1.webp"/>
+</g>
+</mask>
+</defs>
+<g>
+<g clip-path="url(#08-arranger-view__03-arranger-view-basics--2-clip_1)">
+<text fill="currentColor" xml:space="preserve" transform="translate(192.2 13.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">[SONG], [SONG]</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(168.6 21.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Flashing blue in arranger view</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(206.4 43.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">[SONG]</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(175.7 51.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Solid lit blue, in song view</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(9.5 79.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Arranger view can only be selected from within song view. Clip view cannot be directly</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(15.1 87.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">selected from arranger view using [CLIP] and needs to be in song view first to then</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.0 95.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">enable a switch to clip view. Alternatively pressing any clip instance [</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(232.8 95.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0.0">PAD</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(247.6 95.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">] other than the</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(66.8 103.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">first, left most pad will switch the clip to its clip view.</tspan></text>
+<use href="#08-arranger-view__03-arranger-view-basics--2-s1" transform="matrix(1 0 0 -1 104.1 6)"/>
+<path transform="matrix(1,0,0,-1,-211.5,248.8)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="bevel" fill="none" stroke="#5c96cf" d="M306.4 233.4H307.9"/>
+<use href="#08-arranger-view__03-arranger-view-basics--2-s1" transform="matrix(1 0 0 -1 104.1 6.3)"/>
+<use href="#08-arranger-view__03-arranger-view-basics--2-s1" transform="matrix(1 0 0 -1 104.1 23)"/>
+<path transform="matrix(1,0,0,-1,-211.5,248.8)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="bevel" fill="none" stroke="#5c96cf" d="M323.4 233.4H324.9"/>
+<path transform="matrix(1,0,0,-1,-211.5,248.8)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="bevel" fill="none" stroke="#5c96cf" d="M309.1 239.9 310.2 238.8"/>
+<path transform="matrix(1,0,0,-1,-211.5,248.8)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="bevel" fill="none" stroke="#5c96cf" d="M322.2 239.9 321.2 238.8"/>
+<path transform="matrix(1,0,0,-1,-211.5,248.8)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="bevel" fill="none" stroke="#5c96cf" d="M321.2 227.8 322.2 226.8"/>
+<path transform="matrix(1,0,0,-1,-211.5,248.8)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="bevel" fill="none" stroke="#5c96cf" d="M310.2 227.8 309.1 226.8"/>
+<use href="#08-arranger-view__03-arranger-view-basics--2-s1" transform="matrix(1 0 0 -1 104.1 23.3)"/>
+<g mask="url(#08-arranger-view__03-arranger-view-basics--2-mask_2)">
+<g transform="matrix(.088593,0,0,.088593009,47.0,6.0)">
+<image class="gb-ink" id="08-arranger-view__03-arranger-view-basics--2-image_4" width="962" height="480" xlink:href="/guidebook/img/08-arranger-view__03-arranger-view-basics--2-2.webp"/>
+</g>
+</g>
+<path transform="matrix(1,0,0,-1,-211.5,248.8)" d="M315.6 239.9C319.2 239.9 322.2 237.0 322.2 233.4 322.2 229.9 319.2 227.0 315.6 227.0 312.0 227.0 309.1 229.9 309.1 233.4 309.1 237.0 312.0 239.9 315.6 239.9Z" fill="#5c96cf" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-211.5,248.8)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M170.1 688.6V84.1"/>
+</g>
+</g>
+</svg>

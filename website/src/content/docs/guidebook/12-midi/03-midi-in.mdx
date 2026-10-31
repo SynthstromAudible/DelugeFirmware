@@ -15,7 +15,9 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_12_3_1 from "../../../../assets/guidebook/figs/12-midi__03-midi-in--1.svg?raw"
+import fig_fig_12_3_2 from "../../../../assets/guidebook/figs/12-midi__03-midi-in--2.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -31,11 +33,14 @@ The Deluge can be controlled by external MIDI keyboards, controllers or pads by 
 6. The MIDI channel plus the external keyboard notes will now be mapped to the Deluge. Pitch bend and mod wheel on the external midi controller keyboard will also function.
 7. To unmap the keyboard press & hold :key[LearnInput + Audition Pad] any pad.
 
-<FigurePending id="fig-12.3-1" page={244}>
-  + · + · = · Keyboard is mapped across the notes. For pads ensure the exact pad
-  is assigned to the audition pad required. MIDI foot switches can also be
-  mapped into Deluge.
-</FigurePending>
+<Figure
+  id="fig-12.3-1"
+  src={fig_fig_12_3_1}
+  alt={
+    "Diagram: + + = Keyboard is mapped across the notes. For pads ensure the exact pad is assigned to the audition pad required. MIDI foot switches can…"
+  }
+  page={244}
+/>
 
 ### Setting up an external controller
 
@@ -49,9 +54,12 @@ The Deluge can be controlled by external MIDI keyboards, controllers or pads by 
 8. The MIDI channel plus the external control will now be mapped to the Deluge.
 9. To unmap the keyboard press & hold :key[Shift + LearnInput] while the parameter is selected, indicated by its flashing pad. +
 
-<FigurePending id="fig-12.3-2" page={245}>
-  + · =
-</FigurePending>
+<Figure
+  id="fig-12.3-2"
+  src={fig_fig_12_3_2}
+  alt={"Diagram: + + ="}
+  page={245}
+/>
 
 ### Recording automation using an external controller
 

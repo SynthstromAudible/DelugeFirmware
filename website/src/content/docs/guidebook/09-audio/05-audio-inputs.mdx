@@ -15,7 +15,8 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_9_5_1 from "../../../../assets/guidebook/figs/09-audio__05-audio-inputs--1.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -23,11 +24,14 @@ Audio clips are recorded into Deluge from within song view or arranger View. Del
 
 #### Line In - TRS Connector
 
-<FigurePending id="fig-9.5-1" page={174}>
-  Left (InL) · Input left (tip) · Right (InR) · Input right (ring) · Stereo
-  (InLR) · Input left / right (tip/ring) · Microphone If nothing is connected to
-  LINE IN, the microphone will be the default L/R input.
-</FigurePending>
+<Figure
+  id="fig-9.5-1"
+  src={fig_fig_9_5_1}
+  alt={
+    "Diagram: Left (InL) Input left (tip) Right (InR) Input right (ring) Stereo (InLR) Input left / right (tip/ring) Microphone If nothing is connected…"
+  }
+  page={174}
+/>
 
 (sleeve)
 

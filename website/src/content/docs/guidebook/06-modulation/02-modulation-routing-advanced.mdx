@@ -15,7 +15,9 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_6_2_1 from "../../../../assets/guidebook/figs/06-modulation__02-modulation-routing-advanced--1.svg?raw"
+import fig_fig_6_2_2 from "../../../../assets/guidebook/figs/06-modulation__02-modulation-routing-advanced--2.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -25,27 +27,28 @@ Multiple sources can modulate multiple parameters. In addition, modulation sourc
 
 LFO 2 modulates LFO 1 to modulate LPF : frequency cutoff.
 
-<FigurePending id="fig-6.2-1" page={123}>
-  Destination Parameter Flashes quickly when connected to a modulation source
-  and the destination parameter is selected / in-focus. [SHIFT] + [FREQUENCY] ·
-  Cutoff Freq · Depth · Modulator. LFO 2 Modulates LFO 1 depth which in turn
-  affects Parameter frequency of LPF. Modulation sources of other modulators
-  flash pale blue. · LFO 2 · Rate
-</FigurePending>
+<Figure
+  id="fig-6.2-1"
+  src={fig_fig_6_2_1}
+  alt={
+    "Diagram: Destination Parameter Flashes quickly when connected to a modulation source and the destination parameter is selected / in-focus. [SHIFT] +…"
+  }
+  page={123}
+/>
 
 Filter
-
-LFO 1
 
 #### Example 2:
 
 As per example 1, plus also demonstrates multiple modulators LFO and ENV 1 to one destination parameter and multiple destinations of one modulator i.e. ENV 1. Follow the same process drilling down from the in focus modulator value to access available modulator options.
 
-<FigurePending id="fig-6.2-2" page={124}>
-  Destination Parameters LFP frequency and resonance · Resonance Cutoff Freq ·
-  Filter · Modulator. LFO 2 modulates LFO1 depth which in turn affects parameter
-  frequency of LPF. · Depth · LFO 1 · ENV1 trigger modulates, the cutoff
-  frequency and resonance of LPF. · LFO 2 · Rate
-</FigurePending>
+<Figure
+  id="fig-6.2-2"
+  src={fig_fig_6_2_2}
+  alt={
+    "Diagram: Destination Parameters LFP frequency and resonance Resonance Cutoff Freq Filter Modulator. Depth LFO 1 LFO 2 Rate"
+  }
+  page={124}
+/>
 
 ENV 1

@@ -1,0 +1,49 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 368.9 246"><defs><path id="06-modulation__04-sidechain-compressor--4-s1" d="M0 0H116.2" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor"/></defs>
+<defs>
+<clipPath id="06-modulation__04-sidechain-compressor--4-clip_1">
+<path transform="matrix(1,0,0,-1,-44.2,339.1)" d="M44.2 93.1H413.1V339.1H44.2Z" clip-rule="evenodd"/>
+</clipPath>
+</defs>
+<g clip-path="url(#06-modulation__04-sidechain-compressor--4-clip_1)">
+<path transform="matrix(1,0,0,-1,-44.2,339.1)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M424.7 688.6V84.1"/>
+<path transform="matrix(1,0,0,-1,-44.2,339.1)" d="M50.2 251.1H208.7V326.8H50.2Z" fill="var(--gb-paper)"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(25.3 20.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">A single global sidechain ‘bus’ feeds</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(15.3 28.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">destinations. The bus is driven typically by</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(9.0 36.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">kicks but others can be used. Factory kit kicks</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(11.7 44.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">are already setup to provide sidechain input.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(18.1 64.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Any new samples will be analysed and if</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(11.7 72.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">labelled as kicks or analysed as kicks will be</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(34.4 80.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">setup to input to the sidechain.</tspan></text>
+<path transform="matrix(1,0,0,-1,-44.2,339.1)" d="M253.0 99.2H407.1V184.2H253.0Z" fill="var(--gb-paper)"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(217.5 163.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Multiple destinations can be sidechained.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(217.9 171.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">The parameters (volume ducking, attack,</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(215.0 179.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">release) for each can be independently set</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(213.1 187.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">up despite being supplied by the single bus.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(215.0 207.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Full parameter settings are accessible with</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(215.4 215.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">the sound editor. Volume Duck is available</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(242.1 223.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">on the parameter controls.</tspan></text>
+<path transform="matrix(1,0,0,-1,-44.2,339.1)" stroke-width=".45" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="currentColor" d="M198.1 99.5H240.1V109.7H198.1Z"/>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(155.8 237.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">SIDECHAIN</tspan></text>
+<path transform="matrix(1,0,0,-1,-44.2,339.1)" stroke-width=".45" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="currentColor" d="M315.6 236.5H366.7V246.7H315.6Z"/>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(275.0 100.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">FREQUENCY</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(230.4 64.9)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">35</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(289.4 43.6)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">LPF</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(189.6 14.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Example: sidechain patched to low-pass filter cutoff</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(189.4 22.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">frequency. Volume levels are common destinations.</tspan></text>
+<path transform="matrix(1,0,0,-1,-44.2,339.1)" d="M238.4 144.9C238.4 150.2 234.1 154.4 228.9 154.4H209.8C204.5 154.4 200.2 150.2 200.2 144.9V125.8C200.2 120.5 204.5 116.2 209.8 116.2H228.9C234.1 116.2 238.4 120.5 238.4 125.8ZM237.7 144.9V125.8C237.7 120.9 233.8 116.9 228.9 116.9H209.8C204.9 116.9 200.9 120.9 200.9 125.8V144.9C200.9 149.8 204.9 153.7 209.8 153.7H228.9C233.8 153.7 237.7 149.8 237.7 144.9Z" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.2,339.1)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M219.4 269.5H334.1"/>
+<use href="#06-modulation__04-sidechain-compressor--4-s1" transform="matrix(1 0 0 -1 173.7 127.2)"/>
+<use href="#06-modulation__04-sidechain-compressor--4-s1" transform="matrix(1 0 0 -1 51.3 95.4)"/>
+<use href="#06-modulation__04-sidechain-compressor--4-s1" transform="matrix(1 0 0 -1 50.6 149.4)"/>
+<path transform="matrix(1,0,0,-1,-44.2,339.1)" d="M219.3 272.4C221.0 272.4 222.3 271.1 222.3 269.4 222.3 267.8 221.0 266.4 219.3 266.4 217.7 266.4 216.3 267.8 216.3 269.4 216.3 271.1 217.7 272.4 219.3 272.4Z" fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.2,339.1)" d="M219.3 214.8C221.0 214.8 222.3 213.5 222.3 211.8 222.3 210.2 221.0 208.8 219.3 208.8 217.7 208.8 216.3 210.2 216.3 211.8 216.3 213.5 217.7 214.8 219.3 214.8Z" fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.2,339.1)" d="M341.4 269.5 334.1 265.8V273.2ZM339.9 269.5 334.8 266.9C334.8 266.9 334.8 272.0 334.8 272.0Z" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.2,339.1)" d="M341.4 211.9 334.1 208.2V215.6ZM339.9 211.9 334.8 209.3C334.8 209.3 334.8 214.4 334.8 214.4Z" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.2,339.1)" d="M219.1 243.7 211.7 240.0V247.4ZM217.5 243.7 212.4 241.1C212.4 241.1 212.4 246.2 212.4 246.2Z" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.2,339.1)" d="M218.3 189.7 211.0 186.1V193.4ZM216.8 189.7 211.7 187.2C211.7 187.2 211.7 192.3 211.7 192.3Z" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.2,339.1)" d="M359.6 279.0C359.6 284.3 355.4 288.6 350.1 288.6H331.0C325.7 288.6 321.4 284.3 321.4 279.0V259.9C321.4 254.7 325.7 250.4 331.0 250.4H350.1C355.4 250.4 359.6 254.7 359.6 259.9ZM358.9 279.0V259.9C358.9 255.0 355.0 251.1 350.1 251.1H331.0C326.1 251.1 322.1 255.0 322.1 259.9V279.0C322.1 283.9 326.1 287.9 331.0 287.9H350.1C355.0 287.9 358.9 283.9 358.9 279.0Z" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.2,339.1)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M219.3 331.7V160.4"/>
+<path transform="matrix(1,0,0,-1,-44.2,339.1)" d="M219.5 162.8C220.9 162.8 222.1 161.6 222.1 160.2 222.1 158.7 220.9 157.5 219.5 157.5 218.0 157.5 216.9 158.7 216.9 160.2 216.9 161.6 218.0 162.8 219.5 162.8Z" fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.2,339.1)" d="M219.5 333.2C220.9 333.2 222.1 332.0 222.1 330.6 222.1 329.1 220.9 327.9 219.5 327.9 218.0 327.9 216.9 329.1 216.9 330.6 216.9 332.0 218.0 333.2 219.5 333.2Z" fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" fill-rule="evenodd"/>
+</g>
+</svg>

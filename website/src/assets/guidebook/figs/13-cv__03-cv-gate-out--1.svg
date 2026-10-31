@@ -1,0 +1,31 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 315.5 105.3">
+<defs>
+<clipPath id="13-cv__03-cv-gate-out--1-clip_1">
+<path transform="matrix(1,0,0,-1,-77.1,456.3)" d="M77.1 350.9H392.6V456.3H77.1Z" clip-rule="evenodd"/>
+</clipPath>
+<clipPath id="13-cv__03-cv-gate-out--1-clip_2">
+<path transform="matrix(1,0,0,-1,-77.1,456.3)" d="M83.0 414.1H386.6V450.1H83.0Z" clip-rule="evenodd"/>
+</clipPath>
+<mask id="13-cv__03-cv-gate-out--1-mask_3">
+<g transform="matrix(.143316,0,0,.14331602,5.9,5.9)">
+<image id="13-cv__03-cv-gate-out--1-image_4" width="2118" height="255" xlink:href="/guidebook/img/13-cv__03-cv-gate-out--1-1.webp"/>
+</g>
+</mask>
+</defs>
+<g>
+<g clip-path="url(#13-cv__03-cv-gate-out--1-clip_1)">
+<path transform="matrix(1,0,0,-1,-77.1,456.3)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M424.8 688.4V83.9"/>
+<path transform="matrix(1,0,0,-1,-77.1,456.3)" d="M90.5 350.2H355.3V393.8H90.5Z" fill="var(--gb-paper)"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(17.0 77.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Deluge includes 2 CV outputs, 4 gate outputs (which may also be</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(16.7 87.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">set individually to output a trigger clock and / or “run” signal), and</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(66.7 97.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">also has a dedicated trigger clock input.</tspan></text>
+<g clip-path="url(#13-cv__03-cv-gate-out--1-clip_2)">
+<g mask="url(#13-cv__03-cv-gate-out--1-mask_3)">
+<g transform="matrix(.143316,0,0,.14331602,5.9,5.9)">
+<image class="gb-ink" id="13-cv__03-cv-gate-out--1-image_5" width="2118" height="255" xlink:href="/guidebook/img/13-cv__03-cv-gate-out--1-2.webp"/>
+</g>
+</g>
+</g>
+</g>
+</g>
+</svg>

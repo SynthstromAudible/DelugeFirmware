@@ -1,0 +1,136 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 375.5 496.6"><defs><path id="09-audio__01-typical-sampling-recording-workflow--1-s1" d="M0 0C0.3 0 0.5 -0.2 0.5 -0.5 0.5 -0.7 0.3 -0.9 0 -0.9 -0.2 -0.9 -0.4 -0.7 -0.4 -0.5 -0.4 -0.2 -0.2 0 0 0Z" fill="color-mix(in srgb, currentColor 62%, var(--gb-paper))" fill-rule="evenodd"/><path id="09-audio__01-typical-sampling-recording-workflow--1-s2" d="M0 0C-0.2 0 -0.5 -0.2 -0.5 -0.5 -0.5 -0.7 -0.2 -0.9 0 -0.9 0.3 -0.9 0.5 -0.7 0.5 -0.5 0.5 -0.2 0.3 0 0 0Z" fill="color-mix(in srgb, currentColor 62%, var(--gb-paper))" fill-rule="evenodd"/><path id="09-audio__01-typical-sampling-recording-workflow--1-s3" d="M0 0C-0.2 0 -0.5 -0.2 -0.5 -0.5 -0.5 -0.7 -0.2 -0.9 0 -0.9 0.3 -0.9 0.5 -0.7 0.5 -0.5 0.5 -0.2 0.3 0 0 0Z" stroke-width=".6" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor"/><path id="09-audio__01-typical-sampling-recording-workflow--1-s4" d="M0 0C3.1 0 5.6 -2.6 5.6 -5.7 5.6 -8.8 3.1 -11.4 0 -11.4 -3.2 -11.4 -5.7 -8.8 -5.7 -5.7 -5.7 -2.6 -3.2 0 0 0Z" fill="var(--gb-accent)" fill-rule="evenodd"/></defs>
+<defs>
+<clipPath id="09-audio__01-typical-sampling-recording-workflow--1-clip_1">
+<path transform="matrix(1,0,0,-1,-45,589.4)" d="M45 92.7H420.5V589.4H45Z" clip-rule="evenodd"/>
+</clipPath>
+</defs>
+<g clip-path="url(#09-audio__01-typical-sampling-recording-workflow--1-clip_1)">
+<path transform="matrix(1,0,0,-1,-45,589.4)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M424.8 688.4V83.9"/>
+<path transform="matrix(1,0,0,-1,-45,589.4)" stroke-width=".35" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 62%, var(--gb-paper))" d="M119.6 572.8H286.9"/>
+<path transform="matrix(1,0,0,-1,-45,589.4)" stroke-width=".65" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 62%, var(--gb-paper))" d="M208.5 457.1H249.5"/>
+<use href="#09-audio__01-typical-sampling-recording-workflow--1-s1" transform="matrix(1 0 0 -1 204.7 131.8)"/>
+<path transform="matrix(1,0,0,-1,-45,589.4)" stroke-width=".65" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M249.7 457.6C250.0 457.6 250.2 457.4 250.2 457.1 250.2 456.9 250.0 456.7 249.7 456.7 249.5 456.7 249.3 456.9 249.3 457.1 249.3 457.4 249.5 457.6 249.7 457.6Z"/>
+<path transform="matrix(1,0,0,-1,-45,589.4)" stroke-width=".65" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 62%, var(--gb-paper))" d="M208.5 421.1H249.5"/>
+<use href="#09-audio__01-typical-sampling-recording-workflow--1-s1" transform="matrix(1 0 0 -1 204.7 167.8)"/>
+<path transform="matrix(1,0,0,-1,-45,589.4)" stroke-width=".65" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M249.7 421.6C250.0 421.6 250.2 421.4 250.2 421.1 250.2 420.9 250.0 420.7 249.7 420.7 249.5 420.7 249.3 420.9 249.3 421.1 249.3 421.4 249.5 421.6 249.7 421.6Z"/>
+<path transform="matrix(1,0,0,-1,-45,589.4)" stroke-width=".55" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 62%, var(--gb-paper))" d="M208.5 529.6H249.5"/>
+<path transform="matrix(1,0,0,-1,-45,589.4)" d="M249.7 530.0C250.0 530.0 250.2 529.8 250.2 529.6 250.2 529.4 250.0 529.2 249.7 529.2 249.5 529.2 249.3 529.4 249.3 529.6 249.3 529.8 249.5 530.0 249.7 530.0Z" fill="color-mix(in srgb, currentColor 62%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-45,589.4)" stroke-width=".55" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M249.7 530.0C250.0 530.0 250.2 529.8 250.2 529.6 250.2 529.4 250.0 529.2 249.7 529.2 249.5 529.2 249.3 529.4 249.3 529.6 249.3 529.8 249.5 530.0 249.7 530.0Z"/>
+<path transform="matrix(1,0,0,-1,-45,589.4)" stroke-width=".55" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 62%, var(--gb-paper))" d="M208.5 493.6H249.5"/>
+<path transform="matrix(1,0,0,-1,-45,589.4)" d="M249.7 494.0C250.0 494.0 250.2 493.8 250.2 493.6 250.2 493.4 250.0 493.2 249.7 493.2 249.5 493.2 249.3 493.4 249.3 493.6 249.3 493.8 249.5 494.0 249.7 494.0Z" fill="color-mix(in srgb, currentColor 62%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-45,589.4)" stroke-width=".55" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M249.7 494.0C250.0 494.0 250.2 493.8 250.2 493.6 250.2 493.4 250.0 493.2 249.7 493.2 249.5 493.2 249.3 493.4 249.3 493.6 249.3 493.8 249.5 494.0 249.7 494.0Z"/>
+<path transform="matrix(1,0,0,-1,-45,589.4)" stroke-width=".6" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 62%, var(--gb-paper))" d="M211.8 385.6H178.5"/>
+<use href="#09-audio__01-typical-sampling-recording-workflow--1-s2" transform="matrix(1 0 0 -1 133.2 203.3)"/>
+<use href="#09-audio__01-typical-sampling-recording-workflow--1-s3" transform="matrix(1 0 0 -1 133.2 203.3)"/>
+<path transform="matrix(1,0,0,-1,-45,589.4)" stroke-width=".6" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 62%, var(--gb-paper))" d="M211.8 347.2H178.5"/>
+<use href="#09-audio__01-typical-sampling-recording-workflow--1-s2" transform="matrix(1 0 0 -1 133.2 241.7)"/>
+<use href="#09-audio__01-typical-sampling-recording-workflow--1-s3" transform="matrix(1 0 0 -1 133.2 241.7)"/>
+<path transform="matrix(1,0,0,-1,-45,589.4)" stroke-width=".6" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 62%, var(--gb-paper))" d="M211.8 493.6H177.9"/>
+<path transform="matrix(1,0,0,-1,-45,589.4)" stroke-width=".6" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 62%, var(--gb-paper))" d="M211.8 529.6H177.9"/>
+<use href="#09-audio__01-typical-sampling-recording-workflow--1-s2" transform="matrix(1 0 0 -1 133.2 95.3)"/>
+<use href="#09-audio__01-typical-sampling-recording-workflow--1-s3" transform="matrix(1 0 0 -1 133.2 95.3)"/>
+<use href="#09-audio__01-typical-sampling-recording-workflow--1-s2" transform="matrix(1 0 0 -1 133.2 59.3)"/>
+<use href="#09-audio__01-typical-sampling-recording-workflow--1-s3" transform="matrix(1 0 0 -1 133.2 59.3)"/>
+<path transform="matrix(1,0,0,-1,-45,589.4)" stroke-width=".6" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 62%, var(--gb-paper))" d="M207.3 385.6H249.5"/>
+<path transform="matrix(1,0,0,-1,-45,589.4)" d="M249.7 386.1C250.0 386.1 250.2 385.9 250.2 385.6 250.2 385.3 250.0 385.1 249.7 385.1 249.5 385.1 249.2 385.3 249.2 385.6 249.2 385.9 249.5 386.1 249.7 386.1Z" fill="color-mix(in srgb, currentColor 62%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-45,589.4)" stroke-width=".6" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M249.7 386.1C250.0 386.1 250.2 385.9 250.2 385.6 250.2 385.3 250.0 385.1 249.7 385.1 249.5 385.1 249.2 385.3 249.2 385.6 249.2 385.9 249.5 386.1 249.7 386.1Z"/>
+<path transform="matrix(1,0,0,-1,-45,589.4)" stroke-width=".55" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 62%, var(--gb-paper))" d="M213.0 293.9H249.6"/>
+<use href="#09-audio__01-typical-sampling-recording-workflow--1-s1" transform="matrix(1 0 0 -1 204.7 295)"/>
+<path transform="matrix(1,0,0,-1,-45,589.4)" stroke-width=".55" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M249.7 294.4C250.0 294.4 250.2 294.2 250.2 293.9 250.2 293.7 250.0 293.5 249.7 293.5 249.5 293.5 249.3 293.7 249.3 293.9 249.3 294.2 249.5 294.4 249.7 294.4Z"/>
+<path transform="matrix(1,0,0,-1,-45,589.4)" stroke-width=".55" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 62%, var(--gb-paper))" d="M211.5 293.9H174.9"/>
+<path transform="matrix(1,0,0,-1,-45,589.4)" d="M174.8 294.4C174.5 294.4 174.3 294.2 174.3 293.9 174.3 293.7 174.5 293.5 174.8 293.5 175.0 293.5 175.2 293.7 175.2 293.9 175.2 294.2 175.0 294.4 174.8 294.4Z" fill="color-mix(in srgb, currentColor 62%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-45,589.4)" stroke-width=".55" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M174.8 294.4C174.5 294.4 174.3 294.2 174.3 293.9 174.3 293.7 174.5 293.5 174.8 293.5 175.0 293.5 175.2 293.7 175.2 293.9 175.2 294.2 175.0 294.4 174.8 294.4Z"/>
+<path transform="matrix(1,0,0,-1,-45,589.4)" stroke-width=".55" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 62%, var(--gb-paper))" d="M213.0 257.9H249.6"/>
+<use href="#09-audio__01-typical-sampling-recording-workflow--1-s1" transform="matrix(1 0 0 -1 204.7 331)"/>
+<path transform="matrix(1,0,0,-1,-45,589.4)" stroke-width=".55" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M249.7 258.4C250.0 258.4 250.2 258.2 250.2 257.9 250.2 257.7 250.0 257.5 249.7 257.5 249.5 257.5 249.3 257.7 249.3 257.9 249.3 258.2 249.5 258.4 249.7 258.4Z"/>
+<path transform="matrix(1,0,0,-1,-45,589.4)" stroke-width=".55" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 62%, var(--gb-paper))" d="M211.5 257.9H174.9"/>
+<path transform="matrix(1,0,0,-1,-45,589.4)" d="M174.8 258.4C174.5 258.4 174.3 258.2 174.3 257.9 174.3 257.7 174.5 257.5 174.8 257.5 175.0 257.5 175.2 257.7 175.2 257.9 175.2 258.2 175.0 258.4 174.8 258.4Z" fill="color-mix(in srgb, currentColor 62%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-45,589.4)" stroke-width=".55" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M174.8 258.4C174.5 258.4 174.3 258.2 174.3 257.9 174.3 257.7 174.5 257.5 174.8 257.5 175.0 257.5 175.2 257.7 175.2 257.9 175.2 258.2 175.0 258.4 174.8 258.4Z"/>
+<path transform="matrix(1,0,0,-1,-45,589.4)" stroke-width=".55" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 62%, var(--gb-paper))" d="M206.6 196.2H249.0"/>
+<path transform="matrix(1,0,0,-1,-45,589.4)" d="M249.5 196.8C249.8 196.8 250.0 196.5 250.0 196.2 250.0 196.0 249.8 195.7 249.5 195.7 249.2 195.7 249.0 196.0 249.0 196.2 249.0 196.5 249.2 196.8 249.5 196.8Z" fill="color-mix(in srgb, currentColor 62%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-45,589.4)" stroke-width=".55" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M249.5 196.8C249.8 196.8 250.0 196.5 250.0 196.2 250.0 196.0 249.8 195.7 249.5 195.7 249.2 195.7 249.0 196.0 249.0 196.2 249.0 196.5 249.2 196.8 249.5 196.8Z"/>
+<path transform="matrix(1,0,0,-1,-45,589.4)" stroke-width=".55" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 62%, var(--gb-paper))" d="M211.6 160.2H169.3"/>
+<path transform="matrix(1,0,0,-1,-45,589.4)" d="M168.8 160.8C168.5 160.8 168.2 160.5 168.2 160.2 168.2 160.0 168.5 159.7 168.8 159.7 169.0 159.7 169.3 160.0 169.3 160.2 169.3 160.5 169.0 160.8 168.8 160.8Z" fill="color-mix(in srgb, currentColor 62%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-45,589.4)" stroke-width=".55" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M168.8 160.8C168.5 160.8 168.2 160.5 168.2 160.2 168.2 160.0 168.5 159.7 168.8 159.7 169.0 159.7 169.3 160.0 169.3 160.2 169.3 160.5 169.0 160.8 168.8 160.8Z"/>
+<path transform="matrix(1,0,0,-1,-45,589.4)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M211.7 565.2V119.0"/>
+<path transform="matrix(1,0,0,-1,-45,589.4)" d="M211.7 583.4C217.6 583.4 222.4 578.6 222.4 572.7 222.4 566.8 217.6 562.0 211.7 562.0 205.7 562.0 200.9 566.8 200.9 572.7 200.9 578.6 205.7 583.4 211.7 583.4Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-45,589.4)" stroke-width=".55" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 62%, var(--gb-paper))" d="M211.7 583.4C217.6 583.4 222.4 578.6 222.4 572.7 222.4 566.8 217.6 562.0 211.7 562.0 205.7 562.0 200.9 566.8 200.9 572.7 200.9 578.6 205.7 583.4 211.7 583.4Z"/>
+<path transform="matrix(1,0,0,-1,-45,589.4)" d="M211.7 120.2C217.6 120.2 222.4 115.4 222.4 109.5 222.4 103.6 217.6 98.8 211.7 98.8 205.7 98.8 200.9 103.6 200.9 109.5 200.9 115.4 205.7 120.2 211.7 120.2Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-45,589.4)" stroke-width=".55" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 62%, var(--gb-paper))" d="M211.7 120.2C217.6 120.2 222.4 115.4 222.4 109.5 222.4 103.6 217.6 98.8 211.7 98.8 205.7 98.8 200.9 103.6 200.9 109.5 200.9 115.4 205.7 120.2 211.7 120.2Z"/>
+<path transform="matrix(1,0,0,-1,-45,589.4)" d="M211.7 580.2C215.8 580.2 219.2 576.8 219.2 572.7 219.2 568.5 215.8 565.2 211.7 565.2 207.5 565.2 204.1 568.5 204.1 572.7 204.1 576.8 207.5 580.2 211.7 580.2Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(163.0 20.6)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">S</tspan></text>
+<path transform="matrix(1,0,0,-1,-45,589.4)" d="M211.7 117.0C215.8 117.0 219.2 113.6 219.2 109.5 219.2 105.3 215.8 102.0 211.7 102.0 207.5 102.0 204.1 105.3 204.1 109.5 204.1 113.6 207.5 117.0 211.7 117.0Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(163.0 483.8)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">E</tspan></text>
+<use href="#09-audio__01-typical-sampling-recording-workflow--1-s4" transform="matrix(1 0 0 -1 166.7 54.2)"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(164.2 63.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">1</tspan></text>
+<use href="#09-audio__01-typical-sampling-recording-workflow--1-s4" transform="matrix(1 0 0 -1 166.7 90.2)"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(164.2 99.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">2</tspan></text>
+<use href="#09-audio__01-typical-sampling-recording-workflow--1-s4" transform="matrix(1 0 0 -1 166.7 126.2)"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(164.2 135.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">3</tspan></text>
+<use href="#09-audio__01-typical-sampling-recording-workflow--1-s4" transform="matrix(1 0 0 -1 166.7 162.2)"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(164.2 171.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">4</tspan></text>
+<use href="#09-audio__01-typical-sampling-recording-workflow--1-s4" transform="matrix(1 0 0 -1 166.7 198.2)"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(164.2 207.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">5</tspan></text>
+<use href="#09-audio__01-typical-sampling-recording-workflow--1-s4" transform="matrix(1 0 0 -1 166.7 236.6)"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(164.2 245.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">6</tspan></text>
+<path transform="matrix(1,0,0,-1,-45,589.4)" d="M211.7 299.7C214.8 299.7 217.3 297.2 217.3 294.1 217.3 290.9 214.8 288.4 211.7 288.4 208.5 288.4 206.0 290.9 206.0 294.1 206.0 297.2 208.5 299.7 211.7 299.7Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(164.2 298.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">7</tspan></text>
+<path transform="matrix(1,0,0,-1,-45,589.4)" d="M211.7 263.5C214.8 263.5 217.3 261.0 217.3 257.8 217.3 254.7 214.8 252.1 211.7 252.1 208.5 252.1 206.0 254.7 206.0 257.8 206.0 261.0 208.5 263.5 211.7 263.5Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(164.2 334.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">8</tspan></text>
+<path transform="matrix(1,0,0,-1,-45,589.4)" d="M211.7 201.8C214.8 201.8 217.3 199.3 217.3 196.1 217.3 193.0 214.8 190.5 211.7 190.5 208.5 190.5 206.0 193.0 206.0 196.1 206.0 199.3 208.5 201.8 211.7 201.8Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(164.6 396.1)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">9</tspan></text>
+<path transform="matrix(1,0,0,-1,-45,589.4)" d="M211.7 165.8C214.8 165.8 217.3 163.3 217.3 160.1 217.3 157.0 214.8 154.5 211.7 154.5 208.5 154.5 206.0 157.0 206.0 160.1 206.0 163.3 208.5 165.8 211.7 165.8Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(161.9 432.1)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">10</tspan></text>
+<path transform="matrix(1,0,0,-1,-45,589.4)" d="M290.3 567.0H365.7V577.0H290.3Z" fill="var(--gb-paper)"/>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(245.3 19.6)" font-size="10" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Audio clips</tspan></text>
+<path transform="matrix(1,0,0,-1,-45,589.4)" d="M52.2 567.0H146.7V577.0H52.2Z" fill="var(--gb-paper)"/>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(7.2 19.6)" font-size="10" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Synth &amp; kit samples</tspan></text>
+<path transform="matrix(1,0,0,-1,-45,589.4)" d="M254.5 520.6H389.0V536.4H254.5Z" fill="var(--gb-paper)"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(209.5 58.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Create an audio clip</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(209.5 65.5)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Song or arranger view - convert clip to audio clip.</tspan></text>
+<path transform="matrix(1,0,0,-1,-45,589.4)" d="M74.3 520.6H173.0V536.4H74.3Z" fill="var(--gb-paper)"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(66.9 58.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Select a destination</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(71.3 65.5)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Record to synth or kit</tspan></text>
+<path transform="matrix(1,0,0,-1,-45,589.4)" d="M254.5 485.5H379.5V501.3H254.5Z" fill="var(--gb-paper)"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(209.5 93.1)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Record set-up (or load)</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(209.5 100.6)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Audio can be loaded from SD or recorded</tspan></text>
+<path transform="matrix(1,0,0,-1,-45,589.4)" d="M53.4 485.5H171.9V501.3H53.4Z" fill="var(--gb-paper)"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(54.9 93.1)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Record set-up (or load)</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(16.2 100.6)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Audio can be loaded from SD or recorded</tspan></text>
+<path transform="matrix(1,0,0,-1,-45,589.4)" d="M289.7 550.0H414.5V567.0H289.7Z" fill="var(--gb-paper)"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(244.7 26.7)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Recorded and synchronised by time-stretching</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(244.7 33.7)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">to other Deluge functions</tspan></text>
+<path transform="matrix(1,0,0,-1,-45,589.4)" d="M254.3 448.8H409.9V464.6H254.3Z" fill="var(--gb-paper)"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(209.3 129.8)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Set the audio input / microphone</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(209.3 137.3)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Line in (L/R/stereo)</tspan></text>
+<path transform="matrix(1,0,0,-1,-45,589.4)" d="M254.4 417.4H410.1V424.4H254.4Z" fill="var(--gb-paper)"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(209.4 170.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Arm clip for recording</tspan></text>
+<path transform="matrix(1,0,0,-1,-45,589.4)" d="M254.3 376.9H409.9V393.3H254.3Z" fill="var(--gb-paper)"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(209.3 201.1)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Record</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(209.3 208.6)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Audio is recorded in sync’ed and linked to tempo</tspan></text>
+<path transform="matrix(1,0,0,-1,-45,589.4)" d="M52.4 376.9H169.9V393.3H52.4Z" fill="var(--gb-paper)"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(102.3 201.1)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Record</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(40.5 208.6)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Audio is recorded or sampled in</tspan></text>
+<path transform="matrix(1,0,0,-1,-45,589.4)" d="M52.4 338.5H169.9V354.9H52.4Z" fill="var(--gb-paper)"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(109.7 239.5)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Slice</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(20.9 247.0)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Slice sample across s series of kit slots</tspan></text>
+<path transform="matrix(1,0,0,-1,-45,589.4)" d="M254.3 285.5H409.9V301.9H254.3Z" fill="var(--gb-paper)"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(209.3 292.5)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Quick edit</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(209.3 300.0)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Adjust length and limited edit options</tspan></text>
+<path transform="matrix(1,0,0,-1,-45,589.4)" d="M51.0 285.5H168.4V301.9H51.0Z" fill="var(--gb-paper)"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(92.3 292.5)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Quick edit</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(25.7 300.0)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Adjust length and limited edit options</tspan></text>
+<path transform="matrix(1,0,0,-1,-45,589.4)" d="M254.3 187.7H409.9V201.9H254.3Z" fill="var(--gb-paper)"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(209.3 392.5)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Play</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(209.3 400.0)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Play audio clip</tspan></text>
+<path transform="matrix(1,0,0,-1,-45,589.4)" d="M72.6 137.4H166.1V173.9H72.6Z" fill="var(--gb-paper)"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(89.6 427.3)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Resample</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(53.4 434.8)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Record output to SD card</tspan></text>
+<path transform="matrix(1,0,0,-1,-45,589.4)" d="M254.3 247.3H409.9V261.1H254.3Z" fill="var(--gb-paper)"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(209.3 333.3)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Waveform edit</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(209.3 340.8)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Tighter more precise editing</tspan></text>
+<path transform="matrix(1,0,0,-1,-45,589.4)" d="M51.0 247.3H168.4V261.1H51.0Z" fill="var(--gb-paper)"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(78.6 333.3)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Waveform edit</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(49.3 340.8)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Tighter more precise editing</tspan></text>
+</g>
+</svg>

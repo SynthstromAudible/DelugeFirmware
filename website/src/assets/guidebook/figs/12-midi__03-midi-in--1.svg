@@ -1,0 +1,81 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 328.2 230.5"><defs><path id="12-midi__03-midi-in--1-s1" d="M0 0C0 0.4 -0.3 0.7 -0.7 0.7H-8.2C-8.6 0.7 -8.9 0.4 -8.9 0V-7.5C-8.9 -7.9 -8.6 -8.2 -8.2 -8.2H-0.7C-0.3 -8.2 0 -7.9 0 -7.5Z" stroke-width=".5" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor"/><path id="12-midi__03-midi-in--1-s2" d="M0 0C0 0.4 -0.4 0.7 -0.8 0.7H-8.3C-8.7 0.7 -9 0.4 -9 0V-7.5C-9 -7.9 -8.7 -8.2 -8.3 -8.2H-0.8C-0.4 -8.2 0 -7.9 0 -7.5Z" stroke-width=".5" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor"/></defs>
+<defs>
+<clipPath id="12-midi__03-midi-in--1-clip_1">
+<path transform="matrix(1,0,0,-1,-71.8,320.8)" d="M71.8 90.2H400V320.8H71.8Z" clip-rule="evenodd"/>
+</clipPath>
+<clipPath id="12-midi__03-midi-in--1-clip_2">
+<path transform="matrix(1,0,0,-1,-71.8,320.8)" d="M278.6 257.5H368.2V314.8H278.6Z" clip-rule="evenodd"/>
+</clipPath>
+<clipPath id="12-midi__03-midi-in--1-clip_4">
+<path transform="matrix(1,0,0,-1,-71.8,320.8)" d="M199.0 253.1H226.4V303.9H199.0Z" clip-rule="evenodd"/>
+</clipPath>
+<mask id="12-midi__03-midi-in--1-mask_5">
+<g transform="matrix(.096,0,0,.096,127.1,16.7)">
+<image id="12-midi__03-midi-in--1-image_6" width="288" height="512" xlink:href="/guidebook/img/12-midi__03-midi-in--1-1.webp"/>
+</g>
+</mask>
+<clipPath id="12-midi__03-midi-in--1-clip_8">
+<path transform="matrix(1,0,0,-1,-71.8,320.8)" d="M77.1 270.2H159.3V307.1H77.1Z" clip-rule="evenodd"/>
+</clipPath>
+<mask id="12-midi__03-midi-in--1-mask_9">
+<g transform="matrix(.111298,0,0,.111298,6.0,13.6)">
+<image id="12-midi__03-midi-in--1-image_10" width="676" height="284" xlink:href="/guidebook/img/12-midi__03-midi-in--1-2.webp"/>
+</g>
+</mask>
+</defs>
+<g>
+<g clip-path="url(#12-midi__03-midi-in--1-clip_1)">
+<path transform="matrix(1,0,0,-1,-71.8,320.8)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M424.8 688.4V83.9"/>
+<path transform="matrix(1,0,0,-1,-71.8,320.8)" d="M93.5 91.0H357.1V130.3H93.5Z" fill="var(--gb-paper)"/>
+<path transform="matrix(1,0,0,-1,-71.8,320.8)" stroke-width=".65" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 41%, var(--gb-paper))" d="M93.5 91.0H357.1V130.3H93.5Z"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(35.2 204.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Keyboard is mapped across the notes. For pads ensure the</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(33.4 213.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">exact pad is assigned to the audition pad required. MIDI foot</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(69.2 222.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">switches can also be mapped into Deluge.</tspan></text>
+<use href="#12-midi__03-midi-in--1-s1" transform="matrix(1 0 0 -1 241.2 133.4)"/>
+<use href="#12-midi__03-midi-in--1-s2" transform="matrix(1 0 0 -1 253.6 133.4)"/>
+<use href="#12-midi__03-midi-in--1-s1" transform="matrix(1 0 0 -1 265.9 133.4)"/>
+<use href="#12-midi__03-midi-in--1-s2" transform="matrix(1 0 0 -1 278.3 133.4)"/>
+<use href="#12-midi__03-midi-in--1-s1" transform="matrix(1 0 0 -1 241.2 145.3)"/>
+<use href="#12-midi__03-midi-in--1-s2" transform="matrix(1 0 0 -1 253.6 145.3)"/>
+<use href="#12-midi__03-midi-in--1-s1" transform="matrix(1 0 0 -1 265.9 145.3)"/>
+<use href="#12-midi__03-midi-in--1-s2" transform="matrix(1 0 0 -1 278.3 145.3)"/>
+<path transform="matrix(1,0,0,-1,-71.8,320.8)" stroke-width=".5" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M313.0 163.6C313.0 164.0 312.7 164.3 312.3 164.3H304.8C304.4 164.3 304.1 164.0 304.1 163.6V156.1C304.1 155.7 304.4 155.3 304.8 155.3H312.3C312.7 155.3 313.0 155.7 313.0 156.1Z"/>
+<path transform="matrix(1,0,0,-1,-71.8,320.8)" stroke-width=".5" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M325.4 163.6C325.4 164.0 325.0 164.3 324.6 164.3H317.1C316.7 164.3 316.4 164.0 316.4 163.6V156.1C316.4 155.7 316.7 155.3 317.1 155.3H324.6C325.0 155.3 325.4 155.7 325.4 156.1Z"/>
+<path transform="matrix(1,0,0,-1,-71.8,320.8)" stroke-width=".5" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M337.7 163.6C337.7 164.0 337.4 164.3 337.0 164.3H329.5C329.1 164.3 328.8 164.0 328.8 163.6V156.1C328.8 155.7 329.1 155.3 329.5 155.3H337.0C337.4 155.3 337.7 155.7 337.7 156.1Z"/>
+<path transform="matrix(1,0,0,-1,-71.8,320.8)" stroke-width=".5" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M350.1 163.6C350.1 164.0 349.7 164.3 349.3 164.3H341.8C341.4 164.3 341.1 164.0 341.1 163.6V156.1C341.1 155.7 341.4 155.3 341.8 155.3H349.3C349.7 155.3 350.1 155.7 350.1 156.1Z"/>
+<path transform="matrix(1,0,0,-1,-71.8,320.8)" stroke-width=".5" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M313.0 151.6C313.0 152.0 312.7 152.4 312.3 152.4H304.8C304.4 152.4 304.1 152.0 304.1 151.6V144.1C304.1 143.7 304.4 143.4 304.8 143.4H312.3C312.7 143.4 313.0 143.7 313.0 144.1Z"/>
+<path transform="matrix(1,0,0,-1,-71.8,320.8)" stroke-width=".5" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M325.4 151.6C325.4 152.0 325.0 152.4 324.6 152.4H317.1C316.7 152.4 316.4 152.0 316.4 151.6V144.1C316.4 143.7 316.7 143.4 317.1 143.4H324.6C325.0 143.4 325.4 143.7 325.4 144.1Z"/>
+<path transform="matrix(1,0,0,-1,-71.8,320.8)" stroke-width=".5" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M337.7 151.6C337.7 152.0 337.4 152.4 337.0 152.4H329.5C329.1 152.4 328.8 152.0 328.8 151.6V144.1C328.8 143.7 329.1 143.4 329.5 143.4H337.0C337.4 143.4 337.7 143.7 337.7 144.1Z"/>
+<path transform="matrix(1,0,0,-1,-71.8,320.8)" stroke-width=".5" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M350.1 151.6C350.1 152.0 349.7 152.4 349.3 152.4H341.8C341.4 152.4 341.1 152.0 341.1 151.6V144.1C341.1 143.7 341.4 143.4 341.8 143.4H349.3C349.7 143.4 350.1 143.7 350.1 144.1Z"/>
+<g clip-path="url(#12-midi__03-midi-in--1-clip_2)">
+<g transform="matrix(.113092999,0,0,.113093,206.6,6.0)">
+<image class="gb-ink" id="12-midi__03-midi-in--1-image_3" width="795" height="507" xlink:href="/guidebook/img/12-midi__03-midi-in--1-3.webp"/>
+</g>
+</g>
+<path transform="matrix(1,0,0,-1,-71.8,320.8)" d="M368.5 312.7 393.9 256.7H343.1Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<text xml:space="preserve" transform="translate(103.6 37.8)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">+</tspan></text>
+<text xml:space="preserve" transform="translate(173.2 37.8)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">+</tspan></text>
+<g clip-path="url(#12-midi__03-midi-in--1-clip_4)">
+<g mask="url(#12-midi__03-midi-in--1-mask_5)">
+<g transform="matrix(.096,0,0,.096,127.1,16.7)">
+<image class="gb-ink" id="12-midi__03-midi-in--1-image_7" width="288" height="512" xlink:href="/guidebook/img/12-midi__03-midi-in--1-4.webp"/>
+</g>
+</g>
+</g>
+<g clip-path="url(#12-midi__03-midi-in--1-clip_8)">
+<g mask="url(#12-midi__03-midi-in--1-mask_9)">
+<g transform="matrix(.111298,0,0,.111298,6.0,13.6)">
+<image class="gb-ink" id="12-midi__03-midi-in--1-image_11" width="676" height="284" xlink:href="/guidebook/img/12-midi__03-midi-in--1-5.webp"/>
+</g>
+</g>
+</g>
+<path transform="matrix(1,0,0,-1,-71.8,320.8)" d="M92.1 295.3C96.6 295.3 100.3 291.6 100.3 287.1 100.3 282.6 96.6 278.9 92.1 278.9 87.6 278.9 84.0 282.6 84.0 287.1 84.0 291.6 87.6 295.3 92.1 295.3Z" fill="#5c96cf" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-71.8,320.8)" stroke-width=".65" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M92.1 295.3C96.6 295.3 100.3 291.6 100.3 287.1 100.3 282.6 96.6 278.9 92.1 278.9 87.6 278.9 84.0 282.6 84.0 287.1 84.0 291.6 87.6 295.3 92.1 295.3Z"/>
+<path transform="matrix(1,0,0,-1,-71.8,320.8)" stroke-width=".65" stroke-linecap="round" stroke-dasharray="1.9,1.9,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 41%, var(--gb-paper))" d="M212.6 252.9V223.1H265.9"/>
+<path transform="matrix(1,0,0,-1,-71.8,320.8)" stroke-width=".65" stroke-linecap="round" stroke-dasharray="1.9,1.9,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 41%, var(--gb-paper))" d="M265.9 227.4H327.9V264.3"/>
+<path transform="matrix(1,0,0,-1,-71.8,320.8)" d="M263.2 211.1H281.1V235.0H263.2Z" fill="var(--gb-paper)"/>
+<text xml:space="preserve" transform="translate(197.1 101.7)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">=</tspan></text>
+<path transform="matrix(1,0,0,-1,-71.8,320.8)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 41%, var(--gb-paper))" d="M281.7 217.1H328.0V192.3"/>
+</g>
+</g>
+</svg>

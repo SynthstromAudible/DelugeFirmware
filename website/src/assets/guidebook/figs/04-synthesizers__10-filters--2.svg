@@ -1,0 +1,24 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 332.3 103.1">
+<defs>
+<clipPath id="04-synthesizers__10-filters--2-clip_1">
+<path transform="matrix(1,0,0,-1,-71.4,522.0)" d="M71.4 418.9H403.7V522.0H71.4Z" clip-rule="evenodd"/>
+</clipPath>
+</defs>
+<g clip-path="url(#04-synthesizers__10-filters--2-clip_1)">
+<path transform="matrix(1,0,0,-1,-71.4,522.0)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M424.7 688.6V84.1"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(48.3 89.7)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">FREQUENCY</tspan></text>
+<path transform="matrix(1,0,0,-1,-71.4,522.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 40%, var(--gb-paper))" d="M77.3 509.6V445.0H200.5"/>
+<path transform="matrix(1,0,0,-1,-71.4,522.0)" stroke-width=".85" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M200.5 445.0C200.5 445.0 154.6 479.9 141.9 488.9 130.1 497.3 108.0 496.9 108.0 496.9L77.3 496.9"/>
+<path transform="matrix(1,0,0,-1,-71.4,522.0)" stroke-width=".85" stroke-linecap="round" stroke-dasharray="2.5,2.5,.0001,.0001" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M142.4 445.0C142.4 445.0 127.9 479.9 123.8 488.9 120.1 497.3 113.1 496.9 113.1 496.9L99.8 496.9"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(72.9 32.3)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">2 Pole 12dB/Octave</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(9.3 71.7)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">4 Pole 24dB/Octave</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(157.6 13.2)" font-size="10" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">LPF - LOW-PASS FILTER</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(157.6 35.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Allows lower frequencies to pass through</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(157.6 45.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">the filter and cuts off higher frequencies.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(157.6 55.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Deluge filters are 2-pole and 4-pole and 4-</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(157.6 65.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">pole analog drive with saturation only on</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(157.6 75.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">the LPF. Poles refer to how ‘steep’ or</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(157.6 85.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">aggressive the cutoff curve is. This is</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(157.6 95.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">measured in dB per octave.</tspan></text>
+</g>
+</svg>

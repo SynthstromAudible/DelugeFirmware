@@ -1,0 +1,69 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 195.9 290.8"><defs><path id="04-synthesizers__13-single-cycle-waveforms--1-s1" d="M0 0V-1.3" stroke-width=".25" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)"/><path id="04-synthesizers__13-single-cycle-waveforms--1-s2" d="M0 0V-0.6" stroke-width=".25" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)"/><path id="04-synthesizers__13-single-cycle-waveforms--1-s3" d="M0 0V-0.4" stroke-width=".25" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)"/><path id="04-synthesizers__13-single-cycle-waveforms--1-s4" d="M0 0V0" stroke-width=".25" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)"/></defs>
+<defs>
+<clipPath id="04-synthesizers__13-single-cycle-waveforms--1-clip_1">
+<path transform="matrix(1,0,0,-1,-53.9,554.1)" d="M53.9 263.3H249.8V554.1H53.9Z" clip-rule="evenodd"/>
+</clipPath>
+</defs>
+<g clip-path="url(#04-synthesizers__13-single-cycle-waveforms--1-clip_1)">
+<path transform="matrix(1,0,0,-1,-53.9,554.1)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M424.7 688.6V84.1"/>
+<text xml:space="preserve" transform="translate(5.9 18.0)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-weight="bold" font-weight="bold"><tspan y="0" x="0.0">Single-cycle Waveform</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(5.9 38.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Native (preferred) 44.1kHz 16/24bit.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(5.9 46.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">WAV or AIFF up to 32bit 96kHz.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(108.8 236.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">SYNTH ENGINE</tspan></text>
+<path transform="matrix(1,0,0,-1,-53.9,554.1)" d="M148.1 304.7H233.5V336.0H148.1ZM232.8 335.3V305.4C232.8 305.4 148.8 305.4 148.8 305.4 148.8 305.4 148.8 335.3 148.8 335.3 148.8 335.3 232.8 335.3 232.8 335.3Z" fill="currentColor" fill-rule="evenodd"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(12.7 144.8)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Wavetable (preferred)</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(12.7 152.1)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">or Sample</tspan></text>
+<path transform="matrix(1,0,0,-1,-53.9,554.1)" d="M215.9 419.6C222.9 419.6 228.6 413.8 228.6 406.8 228.6 399.8 222.9 394.1 215.9 394.1 208.8 394.1 203.1 399.8 203.1 406.8 203.1 413.8 208.8 419.6 215.9 419.6Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-53.9,554.1)" d="M215.9 419.6C222.9 419.6 228.6 413.8 228.6 406.8 228.6 399.8 222.9 394.1 215.9 394.1 208.8 394.1 203.1 399.8 203.1 406.8 203.1 413.8 208.8 419.6 215.9 419.6ZM215.9 419.1C222.6 419.1 228.1 413.6 228.1 406.8 228.1 400.1 222.6 394.6 215.9 394.6 209.1 394.6 203.6 400.1 203.6 406.8 203.6 413.6 209.1 419.1 215.9 419.1Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-53.9,554.1)" stroke-width=".4" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M207.4 406.8C208.9 415.0 210.3 416.0 211.6 406.8 213.1 398.3 214.5 398.5 215.9 406.8"/>
+<path transform="matrix(1,0,0,-1,-53.9,554.1)" stroke-width=".4" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M215.9 406.8C217.4 415.0 218.8 416.0 220.1 406.8 221.6 398.3 223.0 398.5 224.4 406.8"/>
+<path transform="matrix(1,0,0,-1,-53.9,554.1)" d="M180.0 413.7C180.0 417.1 177.2 419.9 173.8 419.9H161.3C157.8 419.9 155.0 417.1 155.0 413.7V401.2C155.0 397.7 157.8 394.9 161.3 394.9H173.8C177.2 394.9 180.0 397.7 180.0 401.2ZM179.4 413.7V401.2C179.4 398.0 176.9 395.5 173.8 395.5H161.3C158.2 395.5 155.6 398.0 155.6 401.2V413.7C155.6 416.8 158.2 419.3 161.3 419.3H173.8C176.9 419.3 179.4 416.8 179.4 413.7Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-53.9,554.1)" stroke-width=".25" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 62%, var(--gb-paper))" d="M157.3 407.2H178.7"/>
+<use href="#04-synthesizers__13-single-cycle-waveforms--1-s1" transform="matrix(1 0 0 -1 104.7 146.3)"/>
+<path transform="matrix(1,0,0,-1,-53.9,554.1)" stroke-width=".25" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M159.1 408.0V406.4"/>
+<path transform="matrix(1,0,0,-1,-53.9,554.1)" stroke-width=".25" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M159.7 410.5V403.9"/>
+<path transform="matrix(1,0,0,-1,-53.9,554.1)" stroke-width=".25" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M160.2 414.0V400.4"/>
+<path transform="matrix(1,0,0,-1,-53.9,554.1)" stroke-width=".25" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M160.6 417.2V397.2"/>
+<path transform="matrix(1,0,0,-1,-53.9,554.1)" stroke-width=".25" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M161.1 415.9V398.4"/>
+<path transform="matrix(1,0,0,-1,-53.9,554.1)" stroke-width=".25" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M161.7 414.9V399.0"/>
+<path transform="matrix(1,0,0,-1,-53.9,554.1)" stroke-width=".25" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M162.2 414V400.0"/>
+<path transform="matrix(1,0,0,-1,-53.9,554.1)" stroke-width=".25" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M162.7 412.2V401.8"/>
+<path transform="matrix(1,0,0,-1,-53.9,554.1)" stroke-width=".25" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M163.2 411.5V402.4"/>
+<path transform="matrix(1,0,0,-1,-53.9,554.1)" stroke-width=".25" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M163.7 410.5V403.9"/>
+<path transform="matrix(1,0,0,-1,-53.9,554.1)" stroke-width=".25" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M164.2 410.1V404.3"/>
+<path transform="matrix(1,0,0,-1,-53.9,554.1)" stroke-width=".25" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M164.7 409.2V404.9"/>
+<path transform="matrix(1,0,0,-1,-53.9,554.1)" stroke-width=".25" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M165.2 408.9V405.1"/>
+<path transform="matrix(1,0,0,-1,-53.9,554.1)" stroke-width=".25" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M165.8 408.3V406.0"/>
+<path transform="matrix(1,0,0,-1,-53.9,554.1)" stroke-width=".25" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M166.3 408.1V406.1"/>
+<path transform="matrix(1,0,0,-1,-53.9,554.1)" stroke-width=".25" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M166.8 408.0V406.3"/>
+<path transform="matrix(1,0,0,-1,-53.9,554.1)" stroke-width=".25" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M167.3 407.9V406.4"/>
+<use href="#04-synthesizers__13-single-cycle-waveforms--1-s1" transform="matrix(1 0 0 -1 113.9 146.2)"/>
+<path transform="matrix(1,0,0,-1,-53.9,554.1)" stroke-width=".25" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M168.3 407.8V406.6"/>
+<use href="#04-synthesizers__13-single-cycle-waveforms--1-s1" transform="matrix(1 0 0 -1 115 146.2)"/>
+<path transform="matrix(1,0,0,-1,-53.9,554.1)" stroke-width=".25" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M169.4 407.8V406.6"/>
+<path transform="matrix(1,0,0,-1,-53.9,554.1)" stroke-width=".25" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M169.9 407.7V406.8"/>
+<path transform="matrix(1,0,0,-1,-53.9,554.1)" stroke-width=".25" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M170.4 407.7V406.8"/>
+<path transform="matrix(1,0,0,-1,-53.9,554.1)" stroke-width=".25" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M170.9 407.6V406.9"/>
+<path transform="matrix(1,0,0,-1,-53.9,554.1)" stroke-width=".25" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M171.4 407.6V406.9"/>
+<use href="#04-synthesizers__13-single-cycle-waveforms--1-s2" transform="matrix(1 0 0 -1 118 146.6)"/>
+<use href="#04-synthesizers__13-single-cycle-waveforms--1-s3" transform="matrix(1 0 0 -1 118.5 146.7)"/>
+<use href="#04-synthesizers__13-single-cycle-waveforms--1-s2" transform="matrix(1 0 0 -1 119 146.6)"/>
+<use href="#04-synthesizers__13-single-cycle-waveforms--1-s3" transform="matrix(1 0 0 -1 119.5 146.7)"/>
+<use href="#04-synthesizers__13-single-cycle-waveforms--1-s2" transform="matrix(1 0 0 -1 120.1 146.6)"/>
+<use href="#04-synthesizers__13-single-cycle-waveforms--1-s3" transform="matrix(1 0 0 -1 120.6 146.7)"/>
+<use href="#04-synthesizers__13-single-cycle-waveforms--1-s3" transform="matrix(1 0 0 -1 121.1 146.7)"/>
+<path transform="matrix(1,0,0,-1,-53.9,554.1)" stroke-width=".25" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M175.5 407.3V407.0"/>
+<use href="#04-synthesizers__13-single-cycle-waveforms--1-s3" transform="matrix(1 0 0 -1 122.1 146.7)"/>
+<path transform="matrix(1,0,0,-1,-53.9,554.1)" stroke-width=".25" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M176.5 407.3V407.0"/>
+<use href="#04-synthesizers__13-single-cycle-waveforms--1-s4" transform="matrix(1 0 0 -1 123.1 146.9)"/>
+<use href="#04-synthesizers__13-single-cycle-waveforms--1-s4" transform="matrix(1 0 0 -1 123.6 146.9)"/>
+<use href="#04-synthesizers__13-single-cycle-waveforms--1-s4" transform="matrix(1 0 0 -1 124.2 146.9)"/>
+<use href="#04-synthesizers__13-single-cycle-waveforms--1-s4" transform="matrix(1 0 0 -1 124.7 146.9)"/>
+<path transform="matrix(1,0,0,-1,-53.9,554.1)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M182.5 512.5C193.0 546.8 203.1 548.1 213.9 513.0 223.5 481.4 233.8 477.1 243.7 512.5"/>
+<path transform="matrix(1,0,0,-1,-53.9,554.1)" stroke-width=".7" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="currentColor" d="M215.8 394.0V335.8"/>
+<path transform="matrix(1,0,0,-1,-53.9,554.1)" stroke-width=".7" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="currentColor" d="M190.3 304.9V269.3"/>
+<path transform="matrix(1,0,0,-1,-53.9,554.1)" stroke-width=".7" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="currentColor" d="M215.8 479.1V419.8"/>
+<path transform="matrix(1,0,0,-1,-53.9,554.1)" stroke-width=".6" stroke-linecap="square" stroke-dasharray="1.8,1.8,.0001,.0001" stroke-linejoin="round" fill="none" stroke="currentColor" d="M167.2 394.1V373.3"/>
+<path transform="matrix(1,0,0,-1,-53.9,554.1)" stroke-width=".6" stroke-linecap="square" stroke-dasharray="1.8,1.8,.0001,.0001" stroke-linejoin="round" fill="none" stroke="currentColor" d="M167.2 356.6V335.8"/>
+</g>
+</svg>

@@ -1,0 +1,88 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 296.4 249.5"><defs><path id="14-system-general__02-updating-deluge-firmware--2-s1" d="M0 0C0 0.7 -0.5 1.3 -1.2 1.3H-5.1C-5.8 1.3 -6.4 0.7 -6.4 0V-2.5C-6.4 -3.2 -5.8 -3.8 -5.1 -3.8H-1.2C-0.5 -3.8 0 -3.2 0 -2.5Z" stroke-width=".35" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor"/><path id="14-system-general__02-updating-deluge-firmware--2-s2" d="M0 0C0 0.7 -0.6 1.3 -1.3 1.3H-5.2C-5.9 1.3 -6.5 0.7 -6.5 0V-2.5C-6.5 -3.2 -5.9 -3.8 -5.2 -3.8H-1.3C-0.6 -3.8 0 -3.2 0 -2.5Z" stroke-width=".35" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor"/><path id="14-system-general__02-updating-deluge-firmware--2-s3" d="M0 0C0 0.7 -0.5 1.3 -1.2 1.3H-5.2C-5.9 1.3 -6.4 0.7 -6.4 0V-2.5C-6.4 -3.2 -5.9 -3.8 -5.2 -3.8H-1.2C-0.5 -3.8 0 -3.2 0 -2.5Z" stroke-width=".35" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor"/><path id="14-system-general__02-updating-deluge-firmware--2-s4" d="M0 0H-9" stroke-width=".65" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))"/></defs>
+<defs>
+<clipPath id="14-system-general__02-updating-deluge-firmware--2-clip_1">
+<path transform="matrix(1,0,0,-1,-211.5,639.7)" d="M211.5 390.2H507.9V639.7H211.5Z" clip-rule="evenodd"/>
+</clipPath>
+<clipPath id="14-system-general__02-updating-deluge-firmware--2-clip_2">
+<path transform="matrix(1,0,0,-1,-211.5,639.7)" d="M379.9 447.4H409.3V471.5H379.9Z" clip-rule="evenodd"/>
+</clipPath>
+<mask id="14-system-general__02-updating-deluge-firmware--2-mask_3">
+<g transform="matrix(0,.018794,-.018794,0,197.8,168.2)">
+<image id="14-system-general__02-updating-deluge-firmware--2-image_4" width="1278" height="1568" xlink:href="/guidebook/img/14-system-general__02-updating-deluge-firmware--2-1.webp"/>
+</g>
+</mask>
+<clipPath id="14-system-general__02-updating-deluge-firmware--2-clip_6">
+<path transform="matrix(1,0,0,-1,-211.5,639.7)" d="M232.4 178.8H487.5V250.9H232.4Z" clip-rule="evenodd"/>
+</clipPath>
+<clipPath id="14-system-general__02-updating-deluge-firmware--2-clip_7">
+<path transform="matrix(1,0,0,-1,-211.5,639.7)" d="M381.3 126.2H405.3V155.6H381.3Z" clip-rule="evenodd"/>
+</clipPath>
+</defs>
+<g>
+<g clip-path="url(#14-system-general__02-updating-deluge-firmware--2-clip_1)">
+<path transform="matrix(1,0,0,-1,-211.5,639.7)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M170.1 688.6V84.1"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(152.8 215.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Update Bin File</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(137.7 224.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">The .bin update file should be</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(131.3 233.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">downloaded from Synthstrom and</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(125.3 242.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">transferred by PC/Mac to the SD card</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(91.7 15.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">SD Card</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(41.3 24.6)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">The .bin update file should be located in the</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(40.7 33.6)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">root directory for the SD card. Any other .bin</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(38.7 42.6)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">files should be removed from the the SD card</tspan></text>
+<g clip-path="url(#14-system-general__02-updating-deluge-firmware--2-clip_2)">
+<g mask="url(#14-system-general__02-updating-deluge-firmware--2-mask_3)">
+<g transform="matrix(0,.018794,-.018794,0,197.8,168.2)">
+<image class="gb-ink" id="14-system-general__02-updating-deluge-firmware--2-image_5" width="1278" height="1568" xlink:href="/guidebook/img/14-system-general__02-updating-deluge-firmware--2-2.webp"/>
+</g>
+</g>
+</g>
+<path transform="matrix(1,0,0,-1,-211.5,639.7)" stroke-width=".8" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M501.8 532.3C501.8 534.3 500.2 535.9 498.2 535.9H439.5C437.5 535.9 435.9 534.3 435.9 532.3V492.8C435.9 490.8 437.5 489.1 439.5 489.1H498.2C500.2 489.1 501.8 490.8 501.8 492.8Z"/>
+<path transform="matrix(1,0,0,-1,-211.5,639.7)" stroke-width=".8" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M501.8 485.2C501.8 487.2 500.2 488.9 498.2 488.9H439.5C437.5 488.9 435.9 487.2 435.9 485.2V445.8C435.9 443.7 437.5 442.1 439.5 442.1H498.2C500.2 442.1 501.8 443.7 501.8 445.8Z"/>
+<path transform="matrix(1,0,0,-1,-211.5,639.7)" stroke-width=".55" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M500.2 532.3C500.2 533.6 499.2 534.6 497.9 534.6H439.7C438.4 534.6 437.4 533.6 437.4 532.3V492.8C437.4 491.6 438.4 490.6 439.7 490.6H497.9C499.2 490.6 500.2 491.6 500.2 492.8Z"/>
+<use href="#14-system-general__02-updating-deluge-firmware--2-s1" transform="matrix(1 0 0 -1 232.3 153.6)"/>
+<use href="#14-system-general__02-updating-deluge-firmware--2-s1" transform="matrix(1 0 0 -1 232.3 159.4)"/>
+<use href="#14-system-general__02-updating-deluge-firmware--2-s1" transform="matrix(1 0 0 -1 232.3 165.4)"/>
+<use href="#14-system-general__02-updating-deluge-firmware--2-s2" transform="matrix(1 0 0 -1 239.4 153.6)"/>
+<use href="#14-system-general__02-updating-deluge-firmware--2-s2" transform="matrix(1 0 0 -1 239.4 159.4)"/>
+<use href="#14-system-general__02-updating-deluge-firmware--2-s2" transform="matrix(1 0 0 -1 239.4 165.4)"/>
+<use href="#14-system-general__02-updating-deluge-firmware--2-s1" transform="matrix(1 0 0 -1 246.4 153.6)"/>
+<use href="#14-system-general__02-updating-deluge-firmware--2-s1" transform="matrix(1 0 0 -1 246.4 159.4)"/>
+<use href="#14-system-general__02-updating-deluge-firmware--2-s1" transform="matrix(1 0 0 -1 246.4 165.4)"/>
+<use href="#14-system-general__02-updating-deluge-firmware--2-s2" transform="matrix(1 0 0 -1 253.5 153.6)"/>
+<use href="#14-system-general__02-updating-deluge-firmware--2-s2" transform="matrix(1 0 0 -1 253.5 159.4)"/>
+<use href="#14-system-general__02-updating-deluge-firmware--2-s1" transform="matrix(1 0 0 -1 260.5 153.6)"/>
+<use href="#14-system-general__02-updating-deluge-firmware--2-s1" transform="matrix(1 0 0 -1 260.5 159.4)"/>
+<path transform="matrix(1,0,0,-1,-211.5,639.7)" stroke-width=".35" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M479.0 474.3C479.0 475.0 478.4 475.6 477.7 475.6H460.1C459.4 475.6 458.8 475.0 458.8 474.3V471.8C458.8 471.1 459.4 470.5 460.1 470.5H477.7C478.4 470.5 479.0 471.1 479.0 471.8Z"/>
+<path transform="matrix(1,0,0,-1,-211.5,639.7)" stroke-width=".35" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M480.7 455.0C480.7 457.0 479.1 458.6 477.1 458.6H460.2C458.2 458.6 456.5 457.0 456.5 455.0V447.8C456.5 445.8 458.2 444.1 460.2 444.1H477.1C479.1 444.1 480.7 445.8 480.7 447.8Z"/>
+<use href="#14-system-general__02-updating-deluge-firmware--2-s2" transform="matrix(1 0 0 -1 267.6 153.6)"/>
+<use href="#14-system-general__02-updating-deluge-firmware--2-s2" transform="matrix(1 0 0 -1 267.6 159.4)"/>
+<use href="#14-system-general__02-updating-deluge-firmware--2-s1" transform="matrix(1 0 0 -1 274.6 153.6)"/>
+<use href="#14-system-general__02-updating-deluge-firmware--2-s1" transform="matrix(1 0 0 -1 274.6 159.4)"/>
+<use href="#14-system-general__02-updating-deluge-firmware--2-s1" transform="matrix(1 0 0 -1 274.6 165.4)"/>
+<use href="#14-system-general__02-updating-deluge-firmware--2-s2" transform="matrix(1 0 0 -1 281.7 153.6)"/>
+<use href="#14-system-general__02-updating-deluge-firmware--2-s2" transform="matrix(1 0 0 -1 281.7 159.4)"/>
+<use href="#14-system-general__02-updating-deluge-firmware--2-s2" transform="matrix(1 0 0 -1 281.7 165.4)"/>
+<use href="#14-system-general__02-updating-deluge-firmware--2-s3" transform="matrix(1 0 0 -1 288.7 153.6)"/>
+<use href="#14-system-general__02-updating-deluge-firmware--2-s3" transform="matrix(1 0 0 -1 288.7 159.4)"/>
+<use href="#14-system-general__02-updating-deluge-firmware--2-s3" transform="matrix(1 0 0 -1 288.7 165.4)"/>
+<path transform="matrix(1,0,0,-1,-211.5,639.7)" stroke-width=".4" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M435.4 463.1H433.9C433.8 463.1 433.7 463.0 433.7 462.8V455.4C433.7 455.3 433.8 455.2 433.9 455.2H435.4"/>
+<text fill="color-mix(in srgb, currentColor 41%, var(--gb-paper))" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 47.5 89.6)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">KITS</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 47.5 72.8)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Deluge+firmware+V4p0p1.bin</tspan></text>
+<text fill="color-mix(in srgb, currentColor 41%, var(--gb-paper))" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 47.5 106.4)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">SONGS</tspan></text>
+<text fill="color-mix(in srgb, currentColor 41%, var(--gb-paper))" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 47.5 123.2)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">SYNTHS</tspan></text>
+<text fill="color-mix(in srgb, currentColor 41%, var(--gb-paper))" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 47.5 140.0)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">SAMPLES</tspan></text>
+<path transform="matrix(1,0,0,-1,-211.5,639.7)" stroke-width=".65" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M241.4 595.4V553.1H250.1"/>
+<path transform="matrix(1,0,0,-1,-211.5,639.7)" stroke-width=".65" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M241.4 553.2V502.4H250.1"/>
+<use href="#14-system-general__02-updating-deluge-firmware--2-s4" transform="matrix(1 0 0 -1 38.8 103.1)"/>
+<use href="#14-system-general__02-updating-deluge-firmware--2-s4" transform="matrix(1 0 0 -1 38.8 69.5)"/>
+<use href="#14-system-general__02-updating-deluge-firmware--2-s4" transform="matrix(1 0 0 -1 38.8 120.1)"/>
+<path transform="matrix(1,0,0,-1,-211.5,639.7)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M217.5 489.2H418.3V633.8H217.5Z"/>
+<path transform="matrix(1,0,0,-1,-211.5,639.7)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M378.1 459.5H317.9V489.0"/>
+<path transform="matrix(1,0,0,-1,-211.5,639.7)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M412.1 459.5H432.0"/>
+<g clip-path="url(#14-system-general__02-updating-deluge-firmware--2-clip_6)">
+</g>
+<g clip-path="url(#14-system-general__02-updating-deluge-firmware--2-clip_7)">
+</g>
+</g>
+</g>
+</svg>

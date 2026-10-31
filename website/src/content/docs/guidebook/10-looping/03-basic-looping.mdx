@@ -15,7 +15,8 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_10_3_1 from "../../../../assets/guidebook/figs/10-looping__03-basic-looping--1.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -31,7 +32,7 @@ Loop recording follows a similar process to recording audio clips and samples. T
    - Example, LEFT INPUT for mono input from line-in or LEFT (MONITORING) for mono input from line-in, monitored.
    - Press :key[BackUndo] when complete.
 5. Set arming status
-   - Hold :key[Record] to check current status of :key[Launch Pad] associated with the the clip row to record into.
+   - Hold :key[Record] to check current status of :key[Launch Pad] associated with the clip row to record into.
    - Flashing coloured eg: magenta - clip is empty, armed and ready to record.
    - Flashing red - clip is armed, ready to record. It will playback as normal in loop but will mute when a new overdub is recorded.
    - Solid dim colour - unarmed and will not record. Clip may have content already recorded in.
@@ -41,25 +42,14 @@ Loop recording follows a similar process to recording audio clips and samples. T
 8. Press :key[Launch Pad] to stop at the recording. Tempo of recording is automatically calculated and set.
 9. Clip will stop recording and the record button will turn off. Playback of the recorded clip will continue to loop and to allow future overdubs.
 
-<FigurePending id="fig-10.3-1" page={203}>
-  Regular & Continuous Overdubbing · Use the global command ‘LOOP’ for regular
-  overdub looping and ‘LAYERING LOOP’ for continuous loop overdubs. · Audio Loop
-  Recording Audio is recorded into the clip continuously until the recording is
-  stopped. When loop recording mute / launch stops recording. · Loop Audio is
-  recorded into the clip which will loop on play when recording is complete. ·
-  Armed Pending Record A clip row will be indicated red until the loop ends and
-  recording starts. · Regular Overdubs A new overdub can be recorded into a clip
-  row below the existing clip, triggered by [RECORD] + [PAD]. Recording will be
-  in-time with the original clip and end when launch pad is pressed. · Arming
-  Clip Holding [RECORD] will indicate the arming status by the [LAUNCH] pad
-  colour. [RECORD] + [MUTE] to change. Arming sets the row in ready to record
-  state. Only empty rows will be armed and the mute / unmute status affects
-  overdub automatic playback state. · Recording Recording will be indicated by a
-  red cursor tracking the recording position. · Continuous Overdubs New
-  continuous overdubs can be recorded into a series of new clips below the
-  existing original clip, triggered by [RECORD] + [SECTION]. Recording will
-  continue on subsequent rows and be in time with the original clip.
-</FigurePending>
+<Figure
+  id="fig-10.3-1"
+  src={fig_fig_10_3_1}
+  alt={
+    "Pad grid: Regular & Continuous Overdubbing Use the global command ‘LOOP’ for regular overdub looping and ‘LAYERING LOOP’ for continuous loop…"
+  }
+  page={203}
+/>
 
 The first recorded clip sets the length and tempo. Subsequent overdubs will fall into line with the original first loop. Setting the arming state will dictate whether the overdubs automatically play all together or are muted. Overdubs create new clips underneath the ‘original’.
 

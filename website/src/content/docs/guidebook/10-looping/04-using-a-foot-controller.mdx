@@ -15,26 +15,21 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_10_4_1 from "../../../../assets/guidebook/figs/10-looping__04-using-a-foot-controller--1.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
 Loop recording carries a specific workflow and a foot controller when recording and playing loops especially live is a useful accessory. Guitarists for example can control the loop recording while concentrating hands-on with their guitar. Global MIDI commands provide an easy interface between Deluge and a MIDI foot switch.
 
-<FigurePending id="fig-10.4-1" page={206}>
-  MIDI Out to Deluge MIDI In · 1 LOOP · 2 LAYER · 3 PLAY · 4 UNDO · Command
-  Option PLAY · Menu · Deluge Manual Control · Description · [PLAY] · Play /
-  stop playback. · Press (SCROLL◄►) + [PLAY] · RESTART · Restart playback, if
-  already playing. · RECORD · [RECORD] · Record · Global MIDI Commands [SHIFT] +
-  (SELECT) · TAP TEMPO · Tap tempo to capture a tempo based on taps. Reset the
-  last state, undo the prior action. Restore the last state, redo the prior
-  action. Triggers a process the same as performing regular looping and
-  overdubs. Triggers a process the same as performing continuous looping and
-  overdubs. · [TAP TEMPO] · UNDO · [BACK / UNDO] · MIDI &gt; CMD · REDO ·
-  [SHIFT] + [REDO] · LOOP · Triggers a process · LAYERING LOOP · Triggers a
-  process · This is one example of a looper pedal set up. Many options exist.
-  Note data must be sent for commands to work with other MIDI controllers.
-</FigurePending>
+<Figure
+  id="fig-10.4-1"
+  src={fig_fig_10_4_1}
+  alt={
+    "Diagram: MIDI Out to Deluge MIDI In 1 2 3 4 LOOP LAYER PLAY UNDO Command Menu Deluge Manual Control Description Option PLAY [PLAY] Play / stop…"
+  }
+  page={206}
+/>
 
 ### Setting up an external foot controller for looping
 
@@ -55,7 +50,7 @@ Two main modes exist for loop recording with overdubs. Regular, which captures s
 
 LOOP LAYER
 
-Acts in the same way as regular loop Acts in the same way as continuous layer recording and overdubbing. Steps loop recording and overdubbing. Steps triggered are:- triggered are:-
+Acts in the same way as regular loop Acts in the same way as continuous layer recording and overdubbing. Steps loop recording and overdubbing. Steps triggered are: triggered are:
 
 • If playback was not previously active, • If playback was not previously active, start playback and begin recording on start playback and begin recording on any clip(s). any clip(s).
 

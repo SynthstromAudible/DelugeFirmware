@@ -150,17 +150,17 @@
 <use href="#03-sequencing__09-clip-length-position--1-s6" transform="matrix(1 0 0 -1 145.3 267)"/>
 <use href="#03-sequencing__09-clip-length-position--1-s6" transform="matrix(1 0 0 -1 213 267)"/>
 <use href="#03-sequencing__09-clip-length-position--1-s6" transform="matrix(1 0 0 -1 282.6 267)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(15.4 24.9)" font-size="8" font-family="monospace"><tspan y="0" x="0.0">0:2:0</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(15.4 24.9)" font-size="8" font-family="monospace"><tspan y="0" x="0.0">0:2:0</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(15.4 24.9)" font-size="8" font-family="monospace"><tspan y="0" x="0.0" textLength="36.4" lengthAdjust="spacingAndGlyphs">0:2:0</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(15.4 24.9)" font-size="8" font-family="monospace"><tspan y="0" x="0.0" textLength="36.4" lengthAdjust="spacingAndGlyphs">0:2:0</tspan></text>
 <use href="#03-sequencing__09-clip-length-position--1-s7" transform="matrix(1 0 0 -1 9.1 28.8)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(15.4 94.5)" font-size="8" font-family="monospace"><tspan y="0" x="0.0">0:3 0</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(15.4 94.5)" font-size="8" font-family="monospace"><tspan y="0" x="0.0">0:3 0</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(15.4 94.5)" font-size="8" font-family="monospace"><tspan y="0" x="0.0" textLength="36.4" lengthAdjust="spacingAndGlyphs">0:3 0</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(15.4 94.5)" font-size="8" font-family="monospace"><tspan y="0" x="0.0" textLength="36.4" lengthAdjust="spacingAndGlyphs">0:3 0</tspan></text>
 <use href="#03-sequencing__09-clip-length-position--1-s7" transform="matrix(1 0 0 -1 9.1 98.4)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(15.4 156.9)" font-size="8" font-family="monospace"><tspan y="0" x="0.0">0:2:2</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(15.4 156.9)" font-size="8" font-family="monospace"><tspan y="0" x="0.0">0:2:2</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(15.4 156.9)" font-size="8" font-family="monospace"><tspan y="0" x="0.0" textLength="36.4" lengthAdjust="spacingAndGlyphs">0:2:2</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(15.4 156.9)" font-size="8" font-family="monospace"><tspan y="0" x="0.0" textLength="36.4" lengthAdjust="spacingAndGlyphs">0:2:2</tspan></text>
 <use href="#03-sequencing__09-clip-length-position--1-s7" transform="matrix(1 0 0 -1 9.1 160.8)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(15.4 224.6)" font-size="8" font-family="monospace"><tspan y="0" x="0.0">1:1:0</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(15.4 224.6)" font-size="8" font-family="monospace"><tspan y="0" x="0.0">1:1:0</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(15.4 224.6)" font-size="8" font-family="monospace"><tspan y="0" x="0.0" textLength="36.4" lengthAdjust="spacingAndGlyphs">1:1:0</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(15.4 224.6)" font-size="8" font-family="monospace"><tspan y="0" x="0.0" textLength="36.4" lengthAdjust="spacingAndGlyphs">1:1:0</tspan></text>
 <use href="#03-sequencing__09-clip-length-position--1-s7" transform="matrix(1 0 0 -1 9.1 228.5)"/>
 </g>
 </svg>

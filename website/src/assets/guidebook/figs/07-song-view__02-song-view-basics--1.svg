@@ -1,0 +1,114 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 463.2 512.7"><defs><path id="07-song-view__02-song-view-basics--1-s1" d="M0 0C0 1 -0.9 1.9 -1.9 1.9H-13.3C-14.4 1.9 -15.2 1 -15.2 0V-11.5C-15.2 -12.5 -14.4 -13.4 -13.3 -13.4H-1.9C-0.9 -13.4 0 -12.5 0 -11.5ZM-0.3 0V-11.5C-0.3 -12.3 -1 -13.1 -1.9 -13.1H-13.3C-14.2 -13.1 -14.9 -12.3 -14.9 -11.5V0C-14.9 0.8 -14.2 1.6 -13.3 1.6H-1.9C-1 1.6 -0.3 0.8 -0.3 0Z" fill="currentColor" fill-rule="evenodd"/><path id="07-song-view__02-song-view-basics--1-s2" d="M0 0C0 1 -0.8 1.9 -1.9 1.9H-13.3C-14.3 1.9 -15.2 1 -15.2 0V-11.5C-15.2 -12.5 -14.3 -13.4 -13.3 -13.4H-1.9C-0.8 -13.4 0 -12.5 0 -11.5ZM-0.3 0V-11.5C-0.3 -12.3 -1 -13.1 -1.9 -13.1H-13.3C-14.2 -13.1 -14.9 -12.3 -14.9 -11.5V0C-14.9 0.8 -14.2 1.6 -13.3 1.6H-1.9C-1 1.6 -0.3 0.8 -0.3 0Z" fill="currentColor" fill-rule="evenodd"/></defs>
+<defs>
+<clipPath id="07-song-view__02-song-view-basics--1-clip_1">
+<path transform="matrix(1,0,0,-1,-56.8,613.1)" d="M56.8 100.4H520V613.1H56.8Z" clip-rule="evenodd"/>
+</clipPath>
+<mask id="07-song-view__02-song-view-basics--1-mask_2">
+<g transform="matrix(.062273,0,0,.062272997,44.2,109.3)">
+<image id="07-song-view__02-song-view-basics--1-image_3" width="6632" height="2882" xlink:href="/guidebook/img/07-song-view__02-song-view-basics--1-1.webp"/>
+</g>
+</mask>
+<mask id="07-song-view__02-song-view-basics--1-mask_5">
+<g transform="matrix(.088593,0,0,.088593009,43.0,6.0)">
+<image id="07-song-view__02-song-view-basics--1-image_6" width="962" height="480" xlink:href="/guidebook/img/07-song-view__02-song-view-basics--1-2.webp"/>
+</g>
+</mask>
+</defs>
+<g>
+<g clip-path="url(#07-song-view__02-song-view-basics--1-clip_1)">
+<g mask="url(#07-song-view__02-song-view-basics--1-mask_2)">
+<g transform="matrix(.062273,0,0,.062272997,44.2,109.3)">
+<image class="gb-ink" id="07-song-view__02-song-view-basics--1-image_4" width="6632" height="2882" xlink:href="/guidebook/img/07-song-view__02-song-view-basics--1-3.webp"/>
+</g>
+</g>
+<text fill="currentColor" xml:space="preserve" transform="translate(5.9 278.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Empty Clip</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(5.9 256.6)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Empty Clip</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(5.9 234.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Empty Clip</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(5.9 212.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Empty Clip</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(5.9 190.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Empty Clip</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(5.9 168.9)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Empty Clip</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(5.9 146.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Clip</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(5.9 124.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Clip</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(366.7 107.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Time</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(203.0 42.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Song view compresses all clips and takes an</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(227.3 50.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">overall view of the song ‘project’.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(196.7 66.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">First time entering song view only one clip will be present.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(201.6 74.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Clips can be created, re-ordered, deleted in song view.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(121.7 322.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">[</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(124.2 322.4)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0.0">LAUNCH</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(161.2 322.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">]</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(121.7 331.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">The mute / launch column pads now takes on the ‘launch’ functionality when in song</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(121.7 340.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">view. Rows containing clips are illuminated. Pressing the corresponding LAUNCH</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(121.7 349.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">pad will trigger the clip for that row. When the sequence is playing launch will firstly</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(121.7 358.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">arm the clip, then launch it, played in time with the sequence.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(121.7 367.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Use [SHIFT] + [</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(173.6 367.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0.0">LAUNCH</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(204.5 367.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">] for instant play.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(121.7 402.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">[</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(124.2 402.9)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0.0">SECTION</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(164.2 402.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">]</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(121.7 411.9)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">The audition / section column pads now takes on the ‘section’ functionality when in</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(121.7 420.9)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">song view. Rows containing clips are illuminated. Sections enable groups of clips to</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(121.7 429.9)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">be launched and controlled simultaneously. Clips can be armed, stopped, played</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(121.7 438.9)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">together as a group.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(121.7 478.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Deluge will only play one instrument at one time in song view. So for example, if two</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(121.7 487.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">clips use the same synth preset 1, the clip rows can each be launched but each one</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(121.7 496.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">will stop playback of the other, allowing only one instance of each instrument to play</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(121.7 505.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">at one time.</tspan></text>
+<path transform="matrix(1,0,0,-1,-56.8,613.1)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M481.8 305.2V268.4H459.2"/>
+<path transform="matrix(1,0,0,-1,-56.8,613.1)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M503.4 305.2V194.7H459.2"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.5 322.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">(SCROLL</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(45.5 322.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">▼ ▲</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(63.4 322.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">)</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.5 331.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Individual clips compressed to</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.5 340.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">one row each in song view.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.5 349.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">The rows can be navigated up</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.5 358.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">and down beyond the 8</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.5 367.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">physically displayed.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(438.1 291.1)" font-size="5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Audition</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(437.4 297.1)" font-size="5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">/ Section</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(419.0 291.1)" font-size="5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Mute</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(414.9 297.1)" font-size="5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">/ Launch</tspan></text>
+<path transform="matrix(1,0,0,-1,-56.8,613.1)" stroke-width=".7" stroke-linecap="butt" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M157.2 563.4V525.0"/>
+<path transform="matrix(1,0,0,-1,-56.8,613.1)" stroke-width=".7" stroke-linecap="butt" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M86.3 328.7V299.6"/>
+<path transform="matrix(1,0,0,-1,-56.8,613.1)" stroke-width=".7" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M107.6 515.1H445.0"/>
+<path transform="matrix(1,0,0,-1,-56.8,613.1)" d="M453.5 515.1 445.0 510.8V519.4ZM451.9 515.1 445.7 512.0C445.7 512.0 445.7 518.2 445.7 518.2Z" fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-56.8,613.1)" d="M123.1 475.1C123.1 476.1 122.2 477.0 121.2 477.0H109.8C108.7 477.0 107.9 476.1 107.9 475.1V463.6C107.9 462.6 108.7 461.7 109.8 461.7H121.2C122.2 461.7 123.1 462.6 123.1 463.6Z" fill="#d27eb4" fill-rule="evenodd" data-pad="1,2" data-color="#d27eb4"/>
+<use href="#07-song-view__02-song-view-basics--1-s1" transform="matrix(1 0 0 -1 66.3 138)"/>
+<path transform="matrix(1,0,0,-1,-56.8,613.1)" d="M167.2 475.1C167.2 476.1 166.4 477.0 165.3 477.0H153.9C152.9 477.0 152.0 476.1 152.0 475.1V463.6C152.0 462.6 152.9 461.7 153.9 461.7H165.3C166.4 461.7 167.2 462.6 167.2 463.6Z" fill="#62bc56" fill-rule="evenodd" data-pad="2,2" data-color="#62bc56"/>
+<use href="#07-song-view__02-song-view-basics--1-s2" transform="matrix(1 0 0 -1 110.4 138)"/>
+<path transform="matrix(1,0,0,-1,-56.8,613.1)" d="M189.3 475.1C189.3 476.1 188.4 477.0 187.4 477.0H176.0C174.9 477.0 174.1 476.1 174.1 475.1V463.6C174.1 462.6 174.9 461.7 176.0 461.7H187.4C188.4 461.7 189.3 462.6 189.3 463.6Z" fill="#d27eb4" fill-rule="evenodd" data-pad="3,2" data-color="#d27eb4"/>
+<use href="#07-song-view__02-song-view-basics--1-s1" transform="matrix(1 0 0 -1 132.5 138)"/>
+<path transform="matrix(1,0,0,-1,-56.8,613.1)" d="M211.4 475.1C211.4 476.1 210.5 477.0 209.5 477.0H198.1C197.0 477.0 196.2 476.1 196.2 475.1V463.6C196.2 462.6 197.0 461.7 198.1 461.7H209.5C210.5 461.7 211.4 462.6 211.4 463.6Z" fill="#62bc56" fill-rule="evenodd" data-pad="4,2" data-color="#62bc56"/>
+<path transform="matrix(1,0,0,-1,-56.8,613.1)" d="M211.4 475.1C211.4 476.1 210.5 477.0 209.5 477.0H198.1C197.0 477.0 196.2 476.1 196.2 475.1V463.6C196.2 462.6 197.0 461.7 198.1 461.7H209.5C210.5 461.7 211.4 462.6 211.4 463.6ZM211.1 475.1V463.6C211.1 462.8 210.3 462.0 209.5 462.0H198.1C197.2 462.0 196.5 462.8 196.5 463.6V475.1C196.5 475.9 197.2 476.7 198.1 476.7H209.5C210.3 476.7 211.1 475.9 211.1 475.1Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-56.8,613.1)" d="M255.5 475.1C255.5 476.1 254.6 477.0 253.6 477.0H242.2C241.2 477.0 240.3 476.1 240.3 475.1V463.6C240.3 462.6 241.2 461.7 242.2 461.7H253.6C254.6 461.7 255.5 462.6 255.5 463.6Z" fill="#62bc56" fill-rule="evenodd" data-pad="5,2" data-color="#62bc56"/>
+<path transform="matrix(1,0,0,-1,-56.8,613.1)" d="M255.5 475.1C255.5 476.1 254.6 477.0 253.6 477.0H242.2C241.2 477.0 240.3 476.1 240.3 475.1V463.6C240.3 462.6 241.2 461.7 242.2 461.7H253.6C254.6 461.7 255.5 462.6 255.5 463.6ZM255.2 475.1V463.6C255.2 462.8 254.5 462.0 253.6 462.0H242.2C241.3 462.0 240.6 462.8 240.6 463.6V475.1C240.6 475.9 241.3 476.7 242.2 476.7H253.6C254.5 476.7 255.2 475.9 255.2 475.1Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-56.8,613.1)" d="M388.0 497.1C388.0 498.1 387.2 499.0 386.1 499.0H374.7C373.7 499.0 372.8 498.1 372.8 497.1V485.6C372.8 484.6 373.7 483.7 374.7 483.7H386.1C387.2 483.7 388.0 484.6 388.0 485.6Z" fill="#f57e32" fill-rule="evenodd" data-pad="8,1" data-color="#f57e32"/>
+<use href="#07-song-view__02-song-view-basics--1-s2" transform="matrix(1 0 0 -1 331.2 116)"/>
+<path transform="matrix(1,0,0,-1,-56.8,613.1)" d="M489.3 497.1C489.3 498.1 488.5 499.0 487.4 499.0H476.0C475.0 499.0 474.1 498.1 474.1 497.1V485.6C474.1 484.6 475.0 483.7 476.0 483.7H487.4C488.5 483.7 489.3 484.6 489.3 485.6Z" fill="#62bc56" fill-rule="evenodd" data-pad="9,1" data-color="#62bc56"/>
+<use href="#07-song-view__02-song-view-basics--1-s2" transform="matrix(1 0 0 -1 432.5 116)"/>
+<path transform="matrix(1,0,0,-1,-56.8,613.1)" d="M511.4 497.1C511.4 498.1 510.5 499.0 509.5 499.0H498.1C497.0 499.0 496.2 498.1 496.2 497.1V485.6C496.2 484.6 497.0 483.7 498.1 483.7H509.5C510.5 483.7 511.4 484.6 511.4 485.6Z" fill="#5c96cf" fill-rule="evenodd" data-pad="10,1" data-color="#5c96cf"/>
+<path transform="matrix(1,0,0,-1,-56.8,613.1)" d="M511.4 497.1C511.4 498.1 510.5 499.0 509.5 499.0H498.1C497.0 499.0 496.2 498.1 496.2 497.1V485.6C496.2 484.6 497.0 483.7 498.1 483.7H509.5C510.5 483.7 511.4 484.6 511.4 485.6ZM511.1 497.1V485.6C511.1 484.8 510.4 484.0 509.5 484.0H498.1C497.2 484.0 496.5 484.8 496.5 485.6V497.1C496.5 497.9 497.2 498.7 498.1 498.7H509.5C510.4 498.7 511.1 497.9 511.1 497.1Z" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-56.8,613.1)" d="M123.1 497.1C123.1 498.1 122.2 499.0 121.2 499.0H109.8C108.7 499.0 107.9 498.1 107.9 497.1V485.6C107.9 484.6 108.7 483.7 109.8 483.7H121.2C122.2 483.7 123.1 484.6 123.1 485.6Z" fill="#f57e32" fill-rule="evenodd" data-pad="1,1" data-color="#f57e32"/>
+<path transform="matrix(1,0,0,-1,-56.8,613.1)" d="M123.1 497.1C123.1 498.1 122.2 499.0 121.2 499.0H109.8C108.7 499.0 107.9 498.1 107.9 497.1V485.6C107.9 484.6 108.7 483.7 109.8 483.7H121.2C122.2 483.7 123.1 484.6 123.1 485.6ZM122.8 497.1V485.6C122.8 484.8 122.0 484.0 121.2 484.0H109.8C108.9 484.0 108.2 484.8 108.2 485.6V497.1C108.2 497.9 108.9 498.7 109.8 498.7H121.2C122.0 498.7 122.8 497.9 122.8 497.1Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-56.8,613.1)" d="M211.4 497.1C211.4 498.1 210.5 499.0 209.5 499.0H198.1C197.0 499.0 196.2 498.1 196.2 497.1V485.6C196.2 484.6 197.0 483.7 198.1 483.7H209.5C210.5 483.7 211.4 484.6 211.4 485.6Z" fill="#f57e32" fill-rule="evenodd" data-pad="4,1" data-color="#f57e32"/>
+<use href="#07-song-view__02-song-view-basics--1-s1" transform="matrix(1 0 0 -1 154.6 116)"/>
+<path transform="matrix(1,0,0,-1,-56.8,613.1)" d="M299.7 497.1C299.7 498.1 298.9 499.0 297.8 499.0H286.4C285.4 499.0 284.5 498.1 284.5 497.1V485.6C284.5 484.6 285.4 483.7 286.4 483.7H297.8C298.9 483.7 299.7 484.6 299.7 485.6Z" fill="#f57e32" fill-rule="evenodd" data-pad="6,1" data-color="#f57e32"/>
+<use href="#07-song-view__02-song-view-basics--1-s2" transform="matrix(1 0 0 -1 242.9 116)"/>
+<path transform="matrix(1,0,0,-1,-56.8,613.1)" d="M365.8 475.1C365.8 476.1 365.0 477.0 364.0 477.0H352.6C351.5 477.0 350.7 476.1 350.7 475.1V463.6C350.7 462.6 351.5 461.7 352.6 461.7H364.0C365.0 461.7 365.8 462.6 365.8 463.6Z" fill="#d27eb4" fill-rule="evenodd" data-pad="7,2" data-color="#d27eb4"/>
+<path transform="matrix(1,0,0,-1,-56.8,613.1)" d="M365.8 475.1C365.8 476.1 365.0 477.0 364.0 477.0H352.6C351.5 477.0 350.7 476.1 350.7 475.1V463.6C350.7 462.6 351.5 461.7 352.6 461.7H364.0C365.0 461.7 365.8 462.6 365.8 463.6ZM365.5 475.1V463.6C365.5 462.8 364.8 462.0 364.0 462.0H352.6C351.7 462.0 351.0 462.8 351.0 463.6V475.1C351.0 475.9 351.7 476.7 352.6 476.7H364.0C364.8 476.7 365.5 475.9 365.5 475.1Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-56.8,613.1)" d="M387.9 475.1C387.9 476.1 387.1 477.0 386.0 477.0H374.6C373.6 477.0 372.7 476.1 372.7 475.1V463.6C372.7 462.6 373.6 461.7 374.6 461.7H386.0C387.1 461.7 387.9 462.6 387.9 463.6Z" fill="#d27eb4" fill-rule="evenodd" data-pad="8,2" data-color="#d27eb4"/>
+<use href="#07-song-view__02-song-view-basics--1-s2" transform="matrix(1 0 0 -1 331.1 138)"/>
+<path transform="matrix(1,0,0,-1,-56.8,613.1)" d="M489.2 475.1C489.2 476.1 488.3 477.0 487.3 477.0H475.9C474.9 477.0 474.0 476.1 474.0 475.1V463.6C474.0 462.6 474.9 461.7 475.9 461.7H487.3C488.3 461.7 489.2 462.6 489.2 463.6Z" fill="#62bc56" fill-rule="evenodd" data-pad="9,2" data-color="#62bc56"/>
+<path transform="matrix(1,0,0,-1,-56.8,613.1)" d="M489.2 475.1C489.2 476.1 488.3 477.0 487.3 477.0H475.9C474.9 477.0 474.0 476.1 474.0 475.1V463.6C474.0 462.6 474.9 461.7 475.9 461.7H487.3C488.3 461.7 489.2 462.6 489.2 463.6ZM488.9 475.1V463.6C488.9 462.8 488.2 462.0 487.3 462.0H475.9C475.0 462.0 474.3 462.8 474.3 463.6V475.1C474.3 475.9 475.0 476.7 475.9 476.7H487.3C488.2 476.7 488.9 475.9 488.9 475.1Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-56.8,613.1)" d="M511.3 475.1C511.3 476.1 510.4 477.0 509.4 477.0H498.0C496.9 477.0 496.1 476.1 496.1 475.1V463.6C496.1 462.6 496.9 461.7 498.0 461.7H509.4C510.4 461.7 511.3 462.6 511.3 463.6Z" fill="#5c96cf" fill-rule="evenodd" data-pad="10,2" data-color="#5c96cf"/>
+<path transform="matrix(1,0,0,-1,-56.8,613.1)" d="M511.3 475.1C511.3 476.1 510.4 477.0 509.4 477.0H498.0C496.9 477.0 496.1 476.1 496.1 475.1V463.6C496.1 462.6 496.9 461.7 498.0 461.7H509.4C510.4 461.7 511.3 462.6 511.3 463.6ZM511.0 475.1V463.6C511.0 462.8 510.3 462.0 509.4 462.0H498.0C497.1 462.0 496.4 462.8 496.4 463.6V475.1C496.4 475.9 497.1 476.7 498.0 476.7H509.4C510.3 476.7 511.0 475.9 511.0 475.1Z" fill-rule="evenodd"/>
+<g mask="url(#07-song-view__02-song-view-basics--1-mask_5)">
+<g transform="matrix(.088593,0,0,.088593009,43.0,6.0)">
+<image class="gb-ink" id="07-song-view__02-song-view-basics--1-image_7" width="962" height="480" xlink:href="/guidebook/img/07-song-view__02-song-view-basics--1-4.webp"/>
+</g>
+</g>
+<path transform="matrix(1,0,0,-1,-56.8,613.1)" d="M156.9 604.2C160.5 604.2 163.4 601.3 163.4 597.7 163.4 594.2 160.5 591.3 156.9 591.3 153.3 591.3 150.4 594.2 150.4 597.7 150.4 601.3 153.3 604.2 156.9 604.2Z" fill="#5c96cf" fill-rule="evenodd"/>
+</g>
+</g>
+</svg>

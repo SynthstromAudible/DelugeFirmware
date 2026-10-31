@@ -15,53 +15,63 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_4_9_1 from "../../../../assets/guidebook/figs/04-synthesizers__09-oscillators--1.svg?raw"
+import fig_fig_4_9_2 from "../../../../assets/guidebook/figs/04-synthesizers__09-oscillators--2.svg?raw"
+import fig_fig_4_9_3 from "../../../../assets/guidebook/figs/04-synthesizers__09-oscillators--3.svg?raw"
+import fig_fig_4_9_4 from "../../../../assets/guidebook/figs/04-synthesizers__09-oscillators--4.svg?raw"
+import fig_fig_4_9_5 from "../../../../assets/guidebook/figs/04-synthesizers__09-oscillators--5.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
 Deluge provides several oscillator types, set within the OSC 1 & OSC 2, TYPE Setting.
 
-<FigurePending id="fig-4.9-1" page={95}>
-  OSC1 TYPE SINE TRIANGLE SQUARE
-</FigurePending>
+<Figure
+  id="fig-4.9-1"
+  src={fig_fig_4_9_1}
+  alt={"OLED screen: OSC1 TYPE SINE TRIANGLE SQUARE"}
+  page={95}
+/>
 
 #### Digital Waveforms
 
-Triangle Sine
-
-<FigurePending id="fig-4.9-2" page={95}>
-  TIME · TIME · AMPLITUDE · AMPLITUDE
-</FigurePending>
+<Figure
+  id="fig-4.9-2"
+  src={fig_fig_4_9_2}
+  alt={"Diagram: AMPLITUDE TIME TIME"}
+  page={95}
+/>
 
 Sawtooth Square
 
-<FigurePending id="fig-4.9-3" page={95}>
-  AMPLITUDE · AMPLITUDE · TIME · TIME
-</FigurePending>
+<Figure
+  id="fig-4.9-3"
+  src={fig_fig_4_9_3}
+  alt={"Diagram: AMPLITUDE TIME TIME"}
+  page={95}
+/>
 
 #### Analog Waveforms
 
 Sawtooth ASquare
 
-<FigurePending id="fig-4.9-4" page={95}>
-  AMPLITUDE · AMPLITUDE · TIME · TIME
-</FigurePending>
+<Figure
+  id="fig-4.9-4"
+  src={fig_fig_4_9_4}
+  alt={"Diagram: AMPLITUDE TIME TIME"}
+  page={95}
+/>
 
 #### Audio / Inputs as an Oscillator Waveform
 
-Type
-
-<FigurePending id="fig-4.9-5" page={96}>
-  TYPE INL INR INLR · In left/right, in right or in left, are automatically
-  available when a physical line in is connected. · An audio sample can be used
-  as the oscillator source. A series of sample specific options are available in
-  the sound editor when SAMPLE is selected. · TYPE INR INLR SAMPLE · A wavetable
-  file can be assigned to the oscillator source to create a wavetable synth. The
-  main parameter is the wave position used by the oscillator. Navigation
-  function of the wave is accessed in the oscillator options or via the keyboard
-  shortcut. · Wavetable navigation set per Osc. Available when Type is
-  Wavetable. · TYPE INLR SAMPLE WAVETABLE
-</FigurePending>
+<Figure
+  id="fig-4.9-5"
+  src={fig_fig_4_9_5}
+  alt={
+    "OLED screen: TYPE INL In left/right, in right or in left, are automatically INR available when a physical line in is connected. INLR TYPE An audio…"
+  }
+  page={96}
+/>
 
 The ability to use a standard audio sample as an oscillator is also possible. While single cycles are also useful here, they are better applied in a wavetable synth.
 

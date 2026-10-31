@@ -15,7 +15,7 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -23,7 +23,12 @@ import FigurePending from "../../../../components/guidebook/FigurePending.astro"
 
 CV is a classic legacy technology used in the 1970’s prior to the development of the MIDI standards. This uses a gate signal to trigger a note or event followed by a CV value to control the note pitch or value of the destination parameter although standards and compatibility for CV is less defined.
 
-<FigurePending id="fig-13.1-1" page={267}></FigurePending>
+<Figure
+  id="fig-13.1-1"
+  img="/guidebook/img/13-cv__01-cv-connections-compatibility--1.webp"
+  alt={"Photo: figure from guidebook page 267"}
+  page={267}
+/>
 
 Deluge has 4 gate and 2 CV outputs which can be used to control external CV gear.
 
@@ -51,7 +56,7 @@ Gate is a control signal which accompanies CV control settings. Where CV control
 Deluge gate output can be switched between 5v and 12v. This switch is located on the top surface near the rear of Deluge. Each gate output may be set to either of:
 
     - V-trig - represents a note being on by outputting a positive voltage (12V or 5V selectable), and outputs 0V the rest of the time. Used by Roland, Sequential Circuits and ARP.
-    - S-trig - represents a note being on by “shorting” out the output to ground. When the note is off, the the Deluge “pulls up” the output’s voltage to 12V or 5V (selectable) with a 10K resistor: this is not a strict part of the S-trig standard but many devices do this and it is believed to be fully compatible and safe (see disclaimer), and is in fact necessary (\*) for Yamaha synthesizers. S-trig is used by Yamaha, Korg and Moog.
+    - S-trig - represents a note being on by “shorting” out the output to ground. When the note is off, the Deluge “pulls up” the output’s voltage to 12V or 5V (selectable) with a 10K resistor: this is not a strict part of the S-trig standard but many devices do this and it is believed to be fully compatible and safe (see disclaimer), and is in fact necessary (\*) for Yamaha synthesizers. S-trig is used by Yamaha, Korg and Moog.
 
 .
 

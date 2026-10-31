@@ -15,19 +15,18 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_7_1_1 from "../../../../assets/guidebook/figs/07-song-view__01-song-workflow--1.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
 An example high level workflow for working with SONGS on Deluge
 
-<FigurePending id="fig-7.1-1" page={136}>
-  Existing song · S · New song · New song [SHIFT] + [LOAD], [LOAD] · 1 · Load
-  SONG [LOAD], turn (SELECT) · 2 · 3 · SONG view · Select the instrument clip
-  per row Hold [PAD] or the row to edit or select a clip · 4 · Editing clips
-  Press [PAD] to select clip view · 5 · Continue building a song Option to
-  arrange · 6 · 7 · Record audio into clips · 8 · Build loops · ‘Affect
-  parameter’ controls To tweak the common parameters in SONG view, Hold [PAD]
-  for row and adjust · 9 · Record from song view into arranger view Capture a
-  full arrangement · 10 · Save [SAVE] to save the song. · 11 · E
-</FigurePending>
+<Figure
+  id="fig-7.1-1"
+  src={fig_fig_7_1_1}
+  alt={
+    "Diagram: Existing song S New song New song 1 [SHIFT] + [LOAD], [LOAD] Load SONG 2 [LOAD], turn (SELECT) 3 SONG view Select the instrument clip per…"
+  }
+  page={136}
+/>
