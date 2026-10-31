@@ -38,6 +38,7 @@
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/performance_view.h"
+#include "gui/views/session/track_link.h"
 #include "gui/views/session_view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
@@ -70,7 +71,6 @@
 #include "model/note/note_row.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
-#include "model/song/track_link.h"
 #include "model/timeline_counter.h"
 #include "modulation/arpeggiator_rhythms.h"
 #include "modulation/automation/auto_param.h"
@@ -822,7 +822,7 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 	//  }
 
 	// Track edit mode with no usable track picked yet: say so rather than leaving the knob dead.
-	if (deluge::model::track_link::modeIsOn() && !activeModControllableModelStack.modControllable) {
+	if (deluge::gui::track_link::modeIsOn() && !activeModControllableModelStack.modControllable) {
 		display->displayPopup("PICK A TRACK");
 		return;
 	}
@@ -1579,8 +1579,8 @@ void View::setModLedStates() {
 	RootUI* rootUI = getRootUI();
 
 	// Track edit mode only lives in song view.
-	if (deluge::model::track_link::modeIsOn() && rootUI != &sessionView) {
-		deluge::model::track_link::exitMode();
+	if (deluge::gui::track_link::modeIsOn() && rootUI != &sessionView) {
+		deluge::gui::track_link::exitMode();
 	}
 	UIType uiType = UIType::NONE;
 	UIType uiContextType = UIType::NONE;
@@ -1606,7 +1606,7 @@ void View::setModLedStates() {
 		// enabled
 		affectEntire = (uiContextType == UIType::INSTRUMENT_CLIP) ? ((InstrumentClip*)clip)->affectEntire : true;
 	}
-	if (deluge::model::track_link::modeIsOn()) {
+	if (deluge::gui::track_link::modeIsOn()) {
 		// Track edit mode: the Affect-entire LED flashes so it is plain that the mode is on.
 		indicator_leds::blinkLed(IndicatorLED::AFFECT_ENTIRE);
 	}

@@ -23,6 +23,7 @@
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/performance_view.h"
+#include "gui/views/session/track_link.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
@@ -46,7 +47,6 @@
 #include "model/note/note_row.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
-#include "model/song/track_link.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
@@ -377,10 +377,10 @@ PLACE_SDRAM_BSS SoundEditor soundEditor{};
 
 namespace {
 /// True when the menu is editing a clip rather than the song: in a clip view, or in Track Edit's menu, which is opened
-/// from song view on one clip of the picked track (see model/song/track_link.h). Song view is still the root UI then,
-/// so rootUIIsClipMinderScreen() alone would send that menu to the song's parameters.
+/// from song view on one clip of the picked track (see gui/views/session/track_link.h). Song view is still the root UI
+/// then, so rootUIIsClipMinderScreen() alone would send that menu to the song's parameters.
 bool editingAClip() {
-	return rootUIIsClipMinderScreen() || deluge::model::track_link::menuClip() != nullptr;
+	return rootUIIsClipMinderScreen() || deluge::gui::track_link::menuClip() != nullptr;
 }
 } // namespace
 
