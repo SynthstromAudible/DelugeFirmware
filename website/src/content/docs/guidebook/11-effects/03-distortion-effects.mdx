@@ -15,6 +15,8 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import { Steps } from "@astrojs/starlight/components"
+
 <div data-pagefind-filter="source:guidebook" hidden />
 
 Deluge has a distortion effect with three variants which all introduce a gritty aggressive nature to the sound. The three effects are saturation, decimation and bitcrush.
@@ -39,9 +41,13 @@ AMOUNT: 0-50.
 
 ### Setting sound level distortion effect amount
 
+<Steps>
+
 1. :key[Clip] view, ensure the clip is in-focus.
 2. Press :key[Shift + Decimation Pad], This is also applicable with :key[Bitcrush Pad] or :key[Saturation Pad] effects.
 3. :key[Turn Select] to adjust the amount of distortion. Be careful with volume levels when adding distortion.
+
+</Steps>
 
 or
 
@@ -53,9 +59,13 @@ or
 
 ### Setting kit and sound level distortion effect amount
 
+<Steps>
+
 1. :key[Clip] view, ensure the clip is in-focus.
 2. Press [CUSTOM 1/2] button to select the affect parameter. Button lit orange.
 3. :key[Turn Upper Gold] to change DECIMATION amount or :key[Turn Lower Gold] to change BITCRUSH amount for the sound selected.
 4. Press :key[AffectEntire] to affect the entire kit. Button lit orange.
 5. :key[Turn Upper Gold] to change DECIMATION amount or :key[Turn Lower Gold] to change BITCRUSH amount for the entire kit selected.
 6. The custom parameters are set in the factory presets by default. These can be assigned or reassigned if required.
+
+</Steps>

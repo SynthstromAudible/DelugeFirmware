@@ -15,6 +15,7 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import { Steps } from "@astrojs/starlight/components"
 import Figure from "../../../../components/guidebook/Figure.astro"
 import fig_fig_12_3_1 from "../../../../assets/guidebook/figs/12-midi__03-midi-in--1.svg?raw"
 import fig_fig_12_3_2 from "../../../../assets/guidebook/figs/12-midi__03-midi-in--2.svg?raw"
@@ -25,6 +26,8 @@ The Deluge can be controlled by external MIDI keyboards, controllers or pads by 
 
 ### Setting up an external keyboard or pads
 
+<Steps>
+
 1. Connect the keyboard MIDI-out to the MIDI-in connection of Deluge. Power both devices on.
 2. Press :key[Synth], :key[Kit] , :key[CV] or :key[MIDI] to select the instrument clip. Button selected illuminates red.
 3. Press & hold :key[LearnInput + Audition Pad] of a note / pad to map.
@@ -32,6 +35,8 @@ The Deluge can be controlled by external MIDI keyboards, controllers or pads by 
 5. The audition pads will blink and turn pink or a brighter colour when a mapping input is set.
 6. The MIDI channel plus the external keyboard notes will now be mapped to the Deluge. Pitch bend and mod wheel on the external midi controller keyboard will also function.
 7. To unmap the keyboard press & hold :key[LearnInput + Audition Pad] any pad.
+
+</Steps>
 
 <Figure
   id="fig-12.3-1"
@@ -44,6 +49,8 @@ The Deluge can be controlled by external MIDI keyboards, controllers or pads by 
 
 ### Setting up an external controller
 
+<Steps>
+
 1. Connect the controller MIDI-out to the MIDI-in connection of Deluge. Power both devices on.
 2. Press :key[Synth], :key[Kit], :key[CV] or :key[MIDI] to select the instrument clip. Button selected illuminates red.
 3. Select the parameter to map to. Press :key[Shift + Pad], where pad is the parameter to map. Example LPF frequency.
@@ -54,6 +61,8 @@ The Deluge can be controlled by external MIDI keyboards, controllers or pads by 
 8. The MIDI channel plus the external control will now be mapped to the Deluge.
 9. To unmap the keyboard press & hold :key[Shift + LearnInput] while the parameter is selected, indicated by its flashing pad. +
 
+</Steps>
+
 <Figure
   id="fig-12.3-2"
   src={fig_fig_12_3_2}
@@ -62,6 +71,8 @@ The Deluge can be controlled by external MIDI keyboards, controllers or pads by 
 />
 
 ### Recording automation using an external controller
+
+<Steps>
 
 1. Set up an external MIDI controller, whether a keyboard or pad or rotary / slider controls and map the incoming MIDI to the parameters desired.
 2. Press :key[Record] to arm recording.
@@ -72,6 +83,8 @@ The Deluge can be controlled by external MIDI keyboards, controllers or pads by 
 7. To delete MIDI in recorded automation, re-start recording and press :key[Shift] and adjust the mapped external controller.
 8. Parameters containing automation will display their name with a dot next to them when assigning a parameter knob’s MIDI parameter - so it will be easy to see where automation exists.
 9. Assigning a new MIDI parameter to a parameter knob does not move the knob’s automation over to the new MIDI parameter. Automation can be manually copied and pasted using the normal manual process.
+
+</Steps>
 
 :::note
 Any recorded data for pitch bend and aftertouch (channel pressure) MIDI inputs is captured in MIDI, Synth or CV clips and is retained with the clip even when changing presents or clip types. Also note-off velocity, if delivered by an external controller will be recorded.

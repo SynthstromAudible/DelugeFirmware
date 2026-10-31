@@ -15,11 +15,15 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import { Steps } from "@astrojs/starlight/components"
+
 <div data-pagefind-filter="source:guidebook" hidden />
 
 The CV and gate outputs and trigger input set up is accessible in the general settings menu. When Deluge is a syncing leader and sending a trigger clock signal to other devices, the gate output 4 can be set to output a trigger clock signal, and / or gate 3 can be set to output a “run” signal (goes high while playback is occurring; low otherwise).
 
 ### Accessing general CV settings
+
+<Steps>
 
 1. :key[Shift + Select] to access the settings menu.
 2. :key[Turn Select] to choose and highlight ‘CV’, ‘GATE’ or ‘TRIGGER CLOCK’, in-focus.
@@ -27,6 +31,8 @@ The CV and gate outputs and trigger input set up is accessible in the general se
    - CV - options to set each output channel are provided.
    - GATE - options to set each output channel are provided plus a generic off time.
    - TRIGGER CLOCK - settings for both input and output of trigger clock.
+
+</Steps>
 
 | Function      | Sub Category                | Options          | Setting Options                                                                                                |
 | ------------- | --------------------------- | ---------------- | -------------------------------------------------------------------------------------------------------------- |

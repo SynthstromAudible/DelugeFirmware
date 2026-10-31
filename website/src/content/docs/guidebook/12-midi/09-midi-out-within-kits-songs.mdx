@@ -15,6 +15,7 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import { Steps } from "@astrojs/starlight/components"
 import Figure from "../../../../components/guidebook/Figure.astro"
 import fig_fig_12_9_1 from "../../../../assets/guidebook/figs/12-midi__09-midi-out-within-kits-songs--1.svg?raw"
 
@@ -24,9 +25,13 @@ As well as samples, sounds, synths, MIDI can also be combined within a kit as a 
 
 ### Creating / converting to MIDI within kit clips
 
+<Steps>
+
 1. Select :key[Clip] view and select a :key[Kit].
 2. Press & hold :key[Audition Pad] for the row which will convert to MIDI + press :key[MIDI].
 3. Hold :key[Audition Pad] for the MIDI row to display the channel and note information, each separated by a dot.
+
+</Steps>
 
 <Figure
   id="fig-12.9-1"
@@ -43,6 +48,10 @@ As well as samples, sounds, synths, MIDI can also be combined within a kit as a 
 
 ### Changing clip MIDI channel within song view
 
+<Steps>
+
 1. Select :key[Song] view.
 2. Press & hold :key[Pad] for the MIDI clip row to change + :key[Turn Select] to change channel 1-16.
 3. MIDI button will flash while holding and display will show the current channel.
+
+</Steps>

@@ -15,6 +15,8 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import { Steps } from "@astrojs/starlight/components"
+
 <div data-pagefind-filter="source:guidebook" hidden />
 
 Playback of audio can be reversed and also played back in several in several modes:
@@ -28,10 +30,18 @@ Some .wav and .aiff files contain tags specifying sample loop points. The Deluge
 
 ### Reversing playback
 
+<Steps>
+
 1. With a synth type set to sample and a file loaded and in-focus use shortcuts :key[Shift + Reverse Pad] for sample 1 or sound editor - :key[Select] &gt; OSCILLATOR 1 &gt; REVERSE.
 2. :key[Turn Select] to adjust ‘REVERSE’ - reverse between on and off. ON meaning the audio is reversed.
 
+</Steps>
+
 ### Setting playback mode
+
+<Steps>
 
 1. With a synth type set to sample and a file loaded and in focus use shortcuts :key[Shift + Mode Pad] for sample 1 or sound editor - :key[Select] &gt; OSCILLATOR 1 &gt; ‘REPEAT MODE’.
 2. :key[Turn Select] to adjust. The options are ‘ONCE’, ‘LOOP’, ‘STRETCH’, ‘CUT’.
+
+</Steps>

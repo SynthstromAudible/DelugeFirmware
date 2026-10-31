@@ -15,6 +15,7 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import { Steps } from "@astrojs/starlight/components"
 import Figure from "../../../../components/guidebook/Figure.astro"
 import fig_fig_12_4_1 from "../../../../assets/guidebook/figs/12-midi__04-global-midi-commands--1.svg?raw"
 
@@ -46,6 +47,8 @@ The common functions when using external MIDI is to control notes and parameters
 
 ### Setting up an external MIDI foot switch controller
 
+<Steps>
+
 1. Connect the foot switch to the MIDI-in connection of Deluge.
 2. Global commands are ideal for controlling with an external foot controller.
 3. Press :key[Shift + Select] to open the settings menu.
@@ -56,6 +59,8 @@ The common functions when using external MIDI is to control notes and parameters
 8. Press & hold :key[LearnInput] and press the associated switch on the external MIDI foot controller.
 9. The display will indicate ‘SET to show the setup is now complete and the switch is mapped to the function.
 10. To unmap the command :key[Turn Select] when the function setting is in-focus or set it to a new input.
+
+</Steps>
 
 <Figure
   id="fig-12.4-1"

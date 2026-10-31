@@ -15,6 +15,8 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import { Steps } from "@astrojs/starlight/components"
+
 <div data-pagefind-filter="source:guidebook" hidden />
 
 As well as using the audio inputs to capture and record audio, these may also be time-stretched and pitch shifted.
@@ -30,15 +32,27 @@ By default, when you load a sample on the Deluge, its pitch and speed are linked
 
 ### Time-stretching
 
+<Steps>
+
 1. With a synth type set to sample and a file loaded and in-focus use shortcuts :key[Shift + Speed Pad] for Sample 1 or sound editor - :key[Select] &gt; OSCILLATOR 1 &gt; SPEED.
 2. :key[Turn Select] to adjust the Speed setting. Range -48 to 0 to +48. Default is 0.
 
+</Steps>
+
 ### Independent pitch / speed control
+
+<Steps>
 
 1. With a synth type set to sample and a file loaded and in-focus use shortcuts :key[Shift + Pitch Speed Pad] for Sample 1 or sound editor - :key[Select] &gt; OSCILLATOR 1 &gt; PITCH AND SPEED.
 2. :key[Turn Select] to adjust the ‘Pitch & Speed’ setting to ‘Independent’. Options are ‘Link’ or ‘Independent’.
 
+</Steps>
+
 ### Time-stretching to match current tempo
+
+<Steps>
 
 1. With a synth type set to sample and a file loaded and in-focus use shortcuts :key[Shift + Mode Pad] for sample 1 or sound editor - :key[Select] &gt; OSCILLATOR 1 &gt; REPEAT MODE.
 2. :key[Turn Select] to adjust the setting to ‘STRETCH. This automatically makes pitch and speed independent. Options are ‘LOOP’, ‘STRETCH’, ‘CUT’, ‘ONCE’.
+
+</Steps>

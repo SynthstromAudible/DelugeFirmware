@@ -15,30 +15,44 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import { Steps } from "@astrojs/starlight/components"
+
 <div data-pagefind-filter="source:guidebook" hidden />
 
 Audio can be resampled, recording the output back onto the Deluge’s SD card in the folder SAMPLES / RESAMPLING as WAV files. This is useful both as a sonic tool, where interesting sounds can be created and the user “resample” them for further use, or to allow the user to make high-quality recordings of compositions or performances. Reopening file browser will default to the last recording for easy access.
 
 ### Resampling instantly
 
+<Steps>
+
 1. Play a song, sound, pattern, audio.
 2. :key[Shift + Record]. Record button will flash red.
 3. Recording of the Deluge output will immediately be recorded.
 4. :key[Record] again to stop recording.
 
+</Steps>
+
 ### Re-sampling at the same time as play
+
+<Steps>
 
 1. Load a song, sound, pattern, audio.
 2. :key[Record + Play]. Record button will flash red.
 3. Deluge will start to play and at the same time recording of Deluge output will start.
 4. :key[Record + Play] again to stop recording at the loop end or :key[Record] to stop recording instantly while play continues.
 
+</Steps>
+
 ### Re-sampling at the same time as a voice plays
+
+<Steps>
 
 1. Play a song, sound, pattern, audio.
 2. Hold :key[Record + Audition Pad] or grid :key[Pad] in keyboard view. Record button will flash red.
 3. Deluge will play the note and record the output.
 4. :key[Record] again to stop recording.
+
+</Steps>
 
 :::note
 Don't confuse resampling which writes to the SD card directly with recording MIX or OUTP outputs which follow Deluge standard recording process.

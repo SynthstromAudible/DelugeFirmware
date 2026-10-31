@@ -15,6 +15,8 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import { Steps } from "@astrojs/starlight/components"
+
 <div data-pagefind-filter="source:guidebook" hidden />
 
 The Modulation Effects - MOD FX, includes 3 types. A chorus, flanger and a phaser. The Mod-FX can also be switched off. Chorus operates similar to a delay which ‘layers’ one or multiple signals with the delay modulated to give a thicker more lush sound. Flangers are similar to chorus with the resonance creating the unique flanging effect. A phaser sits in between the chorus and flanger in sound characteristics where typically a modulated filter delivers its characteristic sound.
@@ -43,6 +45,8 @@ Chorus only. Time offset between signal and delay.
 
 ### Setting mod-FX
 
+<Steps>
+
 1. :key[Clip] view, ensure the clip is in-focus, example: a kit.
 2. Press :key[Shift] + MOD-FX pad, Mod-FX shortcuts are as below
    - :key[Type Pad]
@@ -51,6 +55,8 @@ Chorus only. Time offset between signal and delay.
    - :key[Feedback Pad] - flanger & phaser only
    - :key[Depth Pad] - chorus & phaser only
 3. For the selected parameter, :key[Turn Select] to adjust the value.
+
+</Steps>
 
 or
 
@@ -63,6 +69,8 @@ or
 
 ### Setting a kit mod-FX with affect parameters
 
+<Steps>
+
 1. Press :key[Kit] to select. Button lit orange.
 2. Press :key[AffectEntire]. Button lit orange.
 3. Press :key[ModRateDepth] affect button. Button illuminates orange.
@@ -74,7 +82,11 @@ or
 6. :key[Turn Upper Gold] to adjust the rate. Will adjust LFO 1 without ‘Affect Entire’ selected.
 7. :key[Turn Lower Gold] to adjust the selected parameter. Will adjust vibrato without ‘Affect Entire’ selected.
 
+</Steps>
+
 ### Setting a song mod-FX with affect parameters
+
+<Steps>
 
 1. Select :key[Song] view. Button lit blue.
 2. Press :key[AffectEntire]. Button lit orange.
@@ -86,3 +98,5 @@ or
    - FEEDBACK only for flanger.
 6. :key[Turn Upper Gold] to adjust the rate. Will adjust LFO 1 without ‘Affect Entire’ selected.
 7. :key[Turn Lower Gold] to adjust the selected parameter. Will adjust vibrato without ‘Affect Entire’ selected.
+
+</Steps>

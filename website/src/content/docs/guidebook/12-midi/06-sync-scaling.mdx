@@ -15,6 +15,7 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import { Steps } from "@astrojs/starlight/components"
 import Figure from "../../../../components/guidebook/Figure.astro"
 import fig_fig_12_6_1 from "../../../../assets/guidebook/figs/12-midi__06-sync-scaling--1.svg?raw"
 
@@ -29,11 +30,15 @@ There are a couple of applications for this:
 
 ### Using sync scaling
 
+<Steps>
+
 1. :key[Clip] to enter clip view on the selected clip where sync scaling will be applied.
 2. Set its length to the beats required. This is typically an unusual length to get the best effect from sync-scaling and to fit it into the incoming sync timings.
 3. Press [SYNC-SCALING] to set clip for sync scaling. Button will flash blue.
 4. Leaving the clip in this mode the sync-scaling button will remain statically illuminated - not flashing. This indicates that sync-scaling is active but not on the selected clip.
 5. Press [SYNC-SCALING] to switch it off. Button will be unlit.
+
+</Steps>
 
 <Figure
   id="fig-12.6-1"

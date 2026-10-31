@@ -15,11 +15,15 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import { Steps } from "@astrojs/starlight/components"
+
 <div data-pagefind-filter="source:guidebook" hidden />
 
 Deluge can be a controller for external MIDI devices for example sound modules and synthesizers. MIDI clips are configured in similar way to creating synth clips. MIDI clips even have an arpeggiator. Instead of the notes triggering the synth engine, the notes will trigger the external MIDI channel.
 
 ### MIDI settings in sound editor
+
+<Steps>
 
 1. Select :key[Clip] view.
 2. Press :key[MIDI] on Deluge. Button illuminates red.
@@ -28,6 +32,8 @@ Deluge can be a controller for external MIDI devices for example sound modules a
 5. :key[Turn Select] to access the functions in the MIDI configuration through the sound editor.
 6. Press :key[Select] to choose each function and select its parameters.
 7. :key[Turn Select] to change settings.
+
+</Steps>
 
 | Function                                                                                                                                | Sub Category Parameter      | Quick Button Access | Options & Description                                                                                                                                                                                               |
 | --------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- | ------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |

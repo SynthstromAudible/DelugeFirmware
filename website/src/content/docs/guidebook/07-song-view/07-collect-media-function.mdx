@@ -15,11 +15,15 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import { Steps } from "@astrojs/starlight/components"
+
 <div data-pagefind-filter="source:guidebook" hidden />
 
 To enable portability of songs across SD cards, backup and sharing for collaboration with other Deluge users, a tool exists to collect together all content and sample files which a song file uses.
 
 ### Collecting media
+
+<Steps>
 
 1. Press :key[Save].
 2. The save window will open and the alphanumeric keyboard appears to enter a name for the song.
@@ -30,6 +34,8 @@ To enable portability of songs across SD cards, backup and sharing for collabora
    - The folder will be located within the SONGS folder on your SD card.
    - The folder will contain copies of all the song’s samples.
    - SONG SAVED - will confirm saving. This may take a while depending on the size of file.
+
+</Steps>
 
 To transfer the song to another SD card or another user, both the song file (e.g. “SONG100.XML”) and the song folder (e.g. “SONG100”) need to be placed in the SONGS folder on the destination card. The song can now be loaded from that card with all its samples.
 

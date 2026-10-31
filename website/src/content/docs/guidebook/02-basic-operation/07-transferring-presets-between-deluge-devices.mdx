@@ -15,11 +15,15 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import { Steps } from "@astrojs/starlight/components"
+
 <div data-pagefind-filter="source:guidebook" hidden />
 
 Presets can be transferred between devices when the preset has been packaged in the correct format for Deluge to import. This needs to be setup manually as there is no automated preset export function. Part of this function would be performed on a PC or Mac on the SD card folders.
 
 ### Transferring presets (SD card to SD card)
+
+<Steps>
 
 1. Insert the source SD card into the PC/Mac card reader.
 2. The preset XML file to export should be identified on the SD card. This can be copied to a folder on the PC / Mac. For example a kit preset found in the KITS folder and filename breakbeat.xml.
@@ -29,6 +33,8 @@ Presets can be transferred between devices when the preset has been packaged in 
 6. Copy the folder named after the XML and which contains the audio from the PC/Mac to the SD Card. Copy this folder to the same location, next to the XML file.
 7. Insert the SD card into Deluge.
 8. Deluge will identify the audio files when loading the ‘imported’ the preset. The imported preset can be then saved.
+
+</Steps>
 
 :::note
 Any imported presets will be retained in their original audio folder location and are not transferred elsewhere when saving the preset or a song containing it. This means the original folder should always be retained and not changed for the preset to be functional.

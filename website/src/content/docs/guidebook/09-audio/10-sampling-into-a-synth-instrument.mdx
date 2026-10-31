@@ -15,11 +15,15 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import { Steps } from "@astrojs/starlight/components"
+
 <div data-pagefind-filter="source:guidebook" hidden />
 
 Audio can be sampled directly or loaded into a synth as an oscillator source waveform thus enabling creation of melodic instruments. The recorder is accessible from within the sound editor or using grid shortcuts.
 
 ### Loading an audio sample into a synth
+
+<Steps>
 
 1. :key[Shift + Synth] to create a new synth clip in :key[Clip] view. Default is square wave, single oscillator with no filters or effects.
 2. :key[Audition Pad + Load].
@@ -31,7 +35,11 @@ Audio can be sampled directly or loaded into a synth as an oscillator source wav
 7. Press :key[Select] when audio sample is in-focus to load.
 8. The audio file replaces the synth oscillator waveform and will be mapped based on the range set. Pressing :key[Audition Pad] pads or keyboard will play automatically tuned to the correct notes.
 
+</Steps>
+
 ### Loading multisamples into a synth
+
+<Steps>
 
 1. :key[Shift + Synth] to create a new synth clip in :key[Clip] view. Default is square wave, single oscillator with no filters or effects.
 2. :key[Audition Pad + Load].
@@ -45,7 +53,11 @@ Audio can be sampled directly or loaded into a synth as an oscillator source wav
 9. The samples will be loaded and pitch automatically detected. They will be mapped across the note range, even filling in gaps if the sample set for the range isn't complete. Pressing :key[Audition Pad] pads will play matched to the correct notes.
 10. Range is displayed.
 
+</Steps>
+
 ### Recording an audio sample into a synth
+
+<Steps>
 
 1. Input will be line-in or mic (external or Internal). The mic gain can be changed on the input switch.
 2. Press :key[Shift + Synth] from clip view to create a blank synth.
@@ -59,7 +71,11 @@ Audio can be sampled directly or loaded into a synth as an oscillator source wav
 9. The recording is assigned to the oscillator.
 10. Press :key[Audition Pad] pads to play back the sample range.
 
+</Steps>
+
 ### Adjusting multisample note ranges
+
+<Steps>
 
 1. Select :key[Synth] in :key[Clip] View where a multi-sampled range of samples have been loaded to the synth.
 2. Press :key[Shift + Browse Pad] shortcut to open browser.
@@ -68,6 +84,8 @@ Audio can be sampled directly or loaded into a synth as an oscillator source wav
 5. :key[Turn Select] to adjust the note upper / lower band in focus. Neighbouring boundaries will change as needed to accommodate the change.
 6. :key[Shift + Turn Select] clockwise to insert a new range above the currently selected one. :key[Shift + Turn Select] anti-clockwise to create a new range below the currently selected one. Band in-focus will indicate flashing.
 7. :key[Shift + Save] to delete the currently selected range.
+
+</Steps>
 
 #### About sample pitch detection
 

@@ -15,11 +15,15 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import { Steps } from "@astrojs/starlight/components"
+
 <div data-pagefind-filter="source:guidebook" hidden />
 
 Arranger view is a powerful persona and view within Deluge. Understanding the basics is important to get started. More advanced functions also exist to integrate tightly with song view and align common functions such as song and clip playback.
 
 ### Opening clips in arranger directly from song view
+
+<Steps>
 
 1. Select song view :key[Song], button is lit solid blue.
 2. Press & hold :key[Pad], the clip row to drag to arranger + press :key[Song].
@@ -27,7 +31,11 @@ Arranger view is a powerful persona and view within Deluge. Understanding the ba
 4. While still holding the :key[Pad] in arranger view, :key[Turn Horizontal] to locate the position to a column across the instrument row.
 5. Release :key[Pad] to drop the clip instance in the arranger grid.
 
+</Steps>
+
 ### Opening clips in song view directly from arranger
+
+<Steps>
 
 1. Select arranger view :key[Song], :key[Song]. Button flashes blue.
 2. Press & hold :key[Pad], the clip instance to drag to song view + press :key[Song]. The typical use would be to drag over a white clip, which by default doesn't exist in song view.
@@ -36,7 +44,11 @@ Arranger view is a powerful persona and view within Deluge. Understanding the ba
 5. Release :key[Pad] to drop the clip into the song grid row position.
 6. Once in song view, the clip will change from white to an assigned section and its associated colour. This colour will now be reflected in the clip instance in arrangement view.
 
+</Steps>
+
 ### Synchronising playback between views
+
+<Steps>
 
 1. In arranger view:
    1. Press the dimly lit :key[Pad] clip ‘tail’, not the left most bright pad, which will switch to clip view.
@@ -52,10 +64,16 @@ Arranger view is a powerful persona and view within Deluge. Understanding the ba
    3. :key[Turn Horizontal] to set the playback start position in the arranger view.
    4. Press & hold :key[Horizontal + Play] to start arranger playback from the new position once the song loop completes.
 
+</Steps>
+
 ### Changing a tracks preset when in arranger view
+
+<Steps>
 
 1. Press :key[Audition Pad] to hear the instrument / sound for the row.
 2. Press & hold :key[Audition Pad] for the instrument / row to change + :key[Select] to scroll the presets.
+
+</Steps>
 
 or
 

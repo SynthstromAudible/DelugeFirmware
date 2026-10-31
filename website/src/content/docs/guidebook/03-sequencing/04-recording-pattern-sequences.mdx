@@ -15,11 +15,15 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import { Steps } from "@astrojs/starlight/components"
+
 <div data-pagefind-filter="source:guidebook" hidden />
 
 The recording of note events can be performed manually using the step sequencer or live recording using the audition pads.
 
 ### Step recording a basic synth / MIDI / CV pattern
+
+<Steps>
 
 1. Press :key[Clip] to select clip view. Clip button illuminated blue.
 2. Select SYNTH by pressing :key[Synth] if not already selected. The synth button illuminates red. Also applies to MIDI & CV.
@@ -36,7 +40,11 @@ The recording of note events can be performed manually using the step sequencer 
    - The lit audition / section pad indicates the root note by the lit button or buttons if a full octave is in view.
    - The colours will change dependant upon the pitch by row
 
+</Steps>
+
 ### Step recording a basic kit pattern
+
+<Steps>
 
 1. Press :key[Clip] to select clip view. This is indicated by the clip button illuminated blue.
 2. Selected kit by pressing :key[Kit] if not already selected. The kit button illuminates red.
@@ -52,7 +60,11 @@ The recording of note events can be performed manually using the step sequencer 
    - The lit audition / section pad indicates the selected row and hence the selected kit sound.
    - Colours are assigned to the unique kit sound on each row.
 
+</Steps>
+
 ### Live recording a basic pattern using audition pads
+
+<Steps>
 
 1. Press :key[Clip] to select clip view. This is indicated by the clip button illuminated blue.
 2. Selected SYNTH or KIT by pressing :key[Synth] or :key[Kit] if not already selected. The synth or kit button illuminates red.
@@ -71,7 +83,11 @@ The recording of note events can be performed manually using the step sequencer 
    - The lit audition / section pad indicates the root note by the lit button or buttons if a full octave is in view for synths. Lit pad for kits indicates a selected row.
    - The colours will change dependant upon the pitch by row.
 
+</Steps>
+
 ### Live recording a basic synth pattern using keyboard
+
+<Steps>
 
 1. Press :key[Clip] to select clip view. This is indicated by the clip button illuminated blue.
 2. Select SYNTH by pressing :key[Synth] if not already selected. The synth button illuminates red. Keyboard view is not available for kits.
@@ -89,7 +105,11 @@ The recording of note events can be performed manually using the step sequencer 
    - Press :key[BackUndo] to undo phases of the recording and :key[Shift + BackUndo] to restore, redo the recording.
    - The lit :key[Pad] indicates the root note by the brightest button.
 
+</Steps>
+
 ### Setting a recording count-in
+
+<Steps>
 
 1. Press :key[Shift + Select] to access the settings menu.
 2. :key[Turn Select] to highlight RECORDING
@@ -101,3 +121,5 @@ The recording of note events can be performed manually using the step sequencer 
    - With Deluge as leader, :key[Record] enabled, press :key[Play] to perform a count-in prior to recording.
    - Metronome and display counts down 4-3-2-1 prior to recording.
    - Count-in is disabled if recording is going to begin for just one audio clip from which it’s going to auto-detect the tempo.
+
+</Steps>

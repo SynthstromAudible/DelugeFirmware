@@ -15,6 +15,7 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import { Steps } from "@astrojs/starlight/components"
 import Figure from "../../../../components/guidebook/Figure.astro"
 import fig_fig_7_2_1 from "../../../../assets/guidebook/figs/07-song-view__02-song-view-basics--1.svg?raw"
 
@@ -33,24 +34,36 @@ While the synth and kit clip view is used for developing individual instrument s
 
 ### Playing a song
 
+<Steps>
+
 1. Press :key[Song] to switch to song view. The button illuminates blue. If this is a new song and the first this time the song mode is selected, the song may be empty or only show the first clip compressed to the first row.
 2. Press :key[Play]. Song will playback and the white song position cursor will travel left to right.
 3. Rows occupied by clips are lit and the :key[Launch Pad] pads will be green while the :key[Section Pad] pads are lit blue.
 4. Press :key[Play] to stop and reset playback position to the song start.
 
+</Steps>
+
 ### Creating a new clip from song view
+
+<Steps>
 
 1. Press :key[Song] to switch to song view. The button illuminates blue.
 2. Press a :key[Pad] of any empty, unlit row from the 16 x 8 main grid.
 3. Deluge creates a new clip and transfers the view from song to clip view with synth selected by default.
 4. Any edits, change to synth / kit, steps created etc in the clip will be reflected when switching back to :key[Song] view with the clip added as a compressed single row.
 
+</Steps>
+
 ### Selecting an existing clip to edit from song view
+
+<Steps>
 
 1. Press :key[Song] to switch to song view. The button illuminates blue.
 2. Press a :key[Pad] of any occupied row from the 16 x 8 main grid. The occupied rows containing clips will be illuminated fully or in part.
 3. Deluge transfers the view from song to clip view with clip selected ready to edit.
 4. Any edits, steps created etc in the clip will be reflected when switching back to :key[Song] view.
+
+</Steps>
 
 :::note
 Where there are multiple instances of the same instrument preset they will not play simultaneously. Only one will play when launched and the others with the same instrument will be stopped.

@@ -15,6 +15,7 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import { Steps } from "@astrojs/starlight/components"
 import Figure from "../../../../components/guidebook/Figure.astro"
 import fig_fig_3_5_1 from "../../../../assets/guidebook/figs/03-sequencing__05-note-characteristics--1.svg?raw"
 import fig_fig_3_5_2 from "../../../../assets/guidebook/figs/03-sequencing__05-note-characteristics--2.svg?raw"
@@ -26,10 +27,14 @@ Several basic characteristics of notes can be changed in settings. These include
 
 ### Changing a recorded synth note velocity
 
+<Steps>
+
 1. After a pattern has been recorded, notes will be at a default velocity level.
 2. Press & hold one or more :key[Pad]’s for the note to change and :key[Turn Horizontal].
 3. The system default velocity is 64, however the velocity used on the last note entry / edited will be applied to the next note entered.
 4. Velocity will be displayed and its value.
+
+</Steps>
 
 <Figure
   id="fig-3.5-1"
@@ -42,9 +47,13 @@ Several basic characteristics of notes can be changed in settings. These include
 
 ### Setting a note to repeat
 
+<Steps>
+
 1. After a pattern has been recorded, notes will be trigger individually
 2. Hold :key[Pad] + Press & :key[Turn Vertical]. :key[Pad] is the note to repeat.
 3. The value selected will determine the number of repeats to assign to the selected note, positioned equally in the time interval of the pad.
+
+</Steps>
 
 ### Changing the default recording quantization
 
@@ -61,10 +70,16 @@ Quantization sets the accuracy and resolution of how close to the grid intervals
 
 ### Clearing clip notes
 
+<Steps>
+
 1. Press :key[Horizontal + BackUndo].
 2. Display shows ‘CLIP CLEARED’. Notes and their associated automation will be cleared from the clip, including notes outside of the grid view.
 
+</Steps>
+
 ### Triplet view
+
+<Steps>
 
 1. Press :key[TripletsView] to select. The button will be illuminated blue.
 2. The grid will change to reflect triplets view by showing columns of 3 rather than 4 as is normal.
@@ -74,6 +89,8 @@ Quantization sets the accuracy and resolution of how close to the grid intervals
    - A triplet in musical terms would mean 3 notes play for the same time division as 4.
 3. Program note sequence as desired.
 4. Press :key[TripletsView] to exit. Button is unlit and the grid view changes back to normal.
+
+</Steps>
 
 <Figure
   id="fig-3.5-2"
@@ -86,7 +103,11 @@ Quantization sets the accuracy and resolution of how close to the grid intervals
 
 ### Editing notes’ length
 
+<Steps>
+
 1. Note lengths can be set when entering clip notes by pressing the note START :key[Pad] + END :key[Pad] on the same row. For kits, samples will automatically map across the pads matching the sample length.
+
+</Steps>
 
 <Figure
   id="fig-3.5-3"
@@ -111,16 +132,26 @@ Quantization sets the accuracy and resolution of how close to the grid intervals
 
 ### Adjusting a clips horizontal note event position
 
+<Steps>
+
 1. Press :key[Vertical + Turn Horizontal] control to adjust the clip note events i.e. notes and automation horizontally across the grid.
    - The note events will move 1 step incrementally across the horizontal grid. The steps are based on the zoom level.
    - Note events which scroll off the edge left or right will wrap back onto the grid from the opposite side.
 
+</Steps>
+
 ### Nudging individual notes horizontally
+
+<Steps>
 
 1. Hold :key[Pad] + Press and :key[Turn Horizontal] to nudge the selected :key[Pad] note event forward or backwards, indicated by +/- values.
 2. This will nudge at the song’s minimum resolution, default is 384th notes.
 
+</Steps>
+
 ### Copying / pasting note range
+
+<Steps>
 
 1. Press :key[LearnInput + Horizontal] to copy the clips notes.
    - This will copy the step range of notes in the current view on the grid at the current scroll and zoom position.
@@ -132,3 +163,5 @@ Quantization sets the accuracy and resolution of how close to the grid intervals
    - If the destination view is transposed from the original copied location the notes are pasted into the new transposed position.
    - If only a part of the grid is selected as the destination, the notes for the available columns are pasted and the rest discarded.
    - Notes will be pasted into any new zoom levels where notes will be stretched or reduced to meet the destination zoom view.
+
+</Steps>

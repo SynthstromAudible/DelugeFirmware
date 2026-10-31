@@ -15,6 +15,7 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import { Steps } from "@astrojs/starlight/components"
 import Figure from "../../../../components/guidebook/Figure.astro"
 import fig_fig_2_6_1 from "../../../../assets/guidebook/figs/02-basic-operation__06-clip-view-overview--1.svg?raw"
 import fig_fig_2_6_2 from "../../../../assets/guidebook/figs/02-basic-operation__06-clip-view-overview--2.svg?raw"
@@ -58,11 +59,15 @@ In clip view the pad grid is laid out with 16 x 8 physical pads which represents
 
 ### Selecting a synth preset
 
+<Steps>
+
 1. Press :key[Clip] to select clip view. This is indicated by the clip button illuminated blue.
 2. Press :key[Synth] button to select synth. Synth button illuminates red.
 3. Rotate the :key[Select] rotary control to select a synth preset. The selected preset is indicated by the number or name on the display.
 4. Press an :key[Audition Pad] to listen to the sound and the note played. This enables auditioning of the sounds for selection.
 5. Once selected, the sound displayed will be ready for use on the current clip. Synth presets are only the instrument - not a pattern.
+
+</Steps>
 
 <Figure
   id="fig-2.6-4"
@@ -75,13 +80,19 @@ In clip view the pad grid is laid out with 16 x 8 physical pads which represents
 
 ### Selecting a kit preset
 
+<Steps>
+
 1. Press :key[Clip] to select clip view. This is indicated by the clip button illuminated blue.
 2. Press :key[Kit] button to select a kit. Kit button illuminates red.
 3. Rotate the :key[Select] rotary control to select a kit preset. The selected preset is indicated by the number on the display.
 4. Press an :key[Audition Pad] up / down the pad row plays out each sound from the kit collection. This enables the auditioning of the individual sounds on each row prior to selection.
 5. Once selected, the sound displayed will be ready for use on the current Clip. Kit presets are only the kit instrument and sounds / samples - not a pattern.
 
+</Steps>
+
 ### Selecting a synth preset with selection menu
+
+<Steps>
 
 1. Press :key[Clip] to select clip view. This is indicated by the clip button illuminated blue.
 2. Select synth by pressing :key[Synth] if not already selected. The synth button illuminates red.
@@ -91,7 +102,11 @@ In clip view the pad grid is laid out with 16 x 8 physical pads which represents
 6. Press :key[Load] to load the preset.
 7. Once selected, the sound displayed will be ready for use on the current clip. Synth presets are only the instrument - not a pattern.
 
+</Steps>
+
 ### Selecting a kit preset
+
+<Steps>
 
 1. Press :key[Clip] to select clip view. This is indicated by the clip button illuminated blue.
 2. Press :key[Kit] button to select a kit. Kit button illuminates red.
@@ -101,7 +116,11 @@ In clip view the pad grid is laid out with 16 x 8 physical pads which represents
 6. Press :key[Load] to load the preset.
 7. Once selected, the sound displayed will be ready for use on the current Clip. Kit presets are only the kit instrument and sounds / samples - not a pattern.
 
+</Steps>
+
 ### Saving a synth preset in clip view / keyboard view
+
+<Steps>
 
 1. To save current preset sound, press :key[Save + Synth]. The buttons SAVE, SYNTH and BACK/UNDO plus the display will flash.
 2. The display will indicate the next available iteration of patch number i.e patch 171, if patch 171 exists, Deluge will show 171A, then 171b etc. This avoids accidentally overwriting existing patches. Turning :key[Select] allows the option to select existing patch to overwrite.
@@ -109,7 +128,11 @@ In clip view the pad grid is laid out with 16 x 8 physical pads which represents
 4. Press :key[Save] button to confirm saving or press :key[BackUndo] to cancel. A PRESET SAVED message will be displayed when complete.
 5. The patch is stored in the SYNTH folder on the SD card, named by the patch number selected i.e. for patch 171A: SYNT171A.XML.
 
+</Steps>
+
 ### Saving a kit preset in clip view
+
+<Steps>
 
 1. To save current kit, Press :key[Save + Kit]. The buttons SAVE, KIT and BACK/UNDO plus the display will flash.
 2. The display will indicate the next available iteration of patch number i.e kit 0, if kit 0 exists, Deluge will show 0A, then 0b etc. This avoids accidentally overwriting existing patches. Turning :key[Select] allows the option to select an existing kit to overwrite.
@@ -117,11 +140,15 @@ In clip view the pad grid is laid out with 16 x 8 physical pads which represents
 4. Press :key[Save] button to confirm saving or press :key[BackUndo] to cancel. A message will be displayed when complete.
 5. The kit is stored in the KIT folder on the SD card named by the kit number selected i.e. for kit 0A; KIT000A.XML.
 
+</Steps>
+
 :::note
 Any new presets saved are available in the library for selection when loading. This means the numbering may vary from the listed factory library i.e. instead of the original kits 3, 4, 5, 6 for example the list may now read 2, 3, 4, 4A, 4b, 5, 6 as well as the manually named presets.
 :::
 
 ### Creating a preset folder
+
+<Steps>
 
 1. Press :key[Clip] to select clip view. This is indicated by the clip button illuminated blue.
 2. Press :key[Synth] or :key[Kit] button to select.
@@ -130,3 +157,5 @@ Any new presets saved are available in the library for selection when loading. T
 5. Press and hold :key[Save] until CREATE FOLDER appears.
 6. Press :key[Save] to create the folder. This folder will be visible when loading and also will be available to save presets.
 7. If required, type in the preset name or number to save or press :key[BackUndo] to exit.
+
+</Steps>

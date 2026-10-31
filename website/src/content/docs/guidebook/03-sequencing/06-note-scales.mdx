@@ -15,6 +15,7 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import { Steps } from "@astrojs/starlight/components"
 import Figure from "../../../../components/guidebook/Figure.astro"
 import fig_fig_3_6_1 from "../../../../assets/guidebook/figs/03-sequencing__06-note-scales--1.svg?raw"
 import fig_fig_3_6_2 from "../../../../assets/guidebook/figs/03-sequencing__06-note-scales--2.svg?raw"
@@ -47,19 +48,31 @@ Scale mode is automatically set when new synth, MIDI and CV clips are created. S
 
 ### Manually setting a root note
 
+<Steps>
+
 1. With notes programmed into the sequence grid.
 2. Press :key[Scale + Audition Pad] for the desired root note. The audition pads can be played to display the notes assigned to each pad.
 
+</Steps>
+
 ### Manually changing scale
+
+<Steps>
 
 1. Press :key[Shift + Scale] to cycle through the seven available scales.
 2. The grid pattern will change with notes moving to the correct note row for the selected scale.
 
+</Steps>
+
 ### Transposing a clip up or down
+
+<Steps>
 
 1. Press & :key[Turn Vertical] to transpose the whole octave.
 2. Press :key[Shift] + press & :key[Turn Vertical] to transpose by semitone increments.
    - ALL clips that are in SCALE mode will be transposed by the same semitone increment when adjusting the transposition
+
+</Steps>
 
 :::note
 All songs with multiple clips set to SCALE mode will always be locked to the same scale. Changes in scale settings on one clip will affect all others in scale mode. This also includes Deluge analysis and evaluation of scale algorithm when entering scale mode, where all clip notes will be evaluated. This may lead to notes being added / changes in the clips when editing scales.
@@ -67,15 +80,23 @@ All songs with multiple clips set to SCALE mode will always be locked to the sam
 
 ### Creating a custom scale
 
+<Steps>
+
 1. Exit scale mode by pressing :key[Scale]. Button should be unlit.
 2. Select the notes on the grid that will be attributed to the new scale.
 3. Press :key[Scale], Deluge will evaluate the notes and establish a best fit scale. Button will illuminate blue.
 4. If notes selected form an existing scale this will be recognised. If the notes don't form one of the seven Deluge scales a custom scale identified on the display as OTHER SCALE will be created.
 5. Other scales for the notes would indicate CUSTOM SCALE WITH MORE THAN 7 NOTES IN USE on the display if attempted to be selected when the notes don't fit.
 
+</Steps>
+
 ### Manual sharpening / flattening notes in custom scales
+
+<Steps>
 
 1. Ensure :key[Scale] mode is on.
 2. For the selected note / row, press & hold :key[Audition Pad] + press & :key[Turn Select] to sharpen or flatten the note.
    - Note will play when pressed. To adjust silently, use :key[Shift] with the :key[Audition Pad].
    - :key[Scale] will flash quickly if changes attempted are not available. For example making a sharp the same as the next note / row.
+
+</Steps>

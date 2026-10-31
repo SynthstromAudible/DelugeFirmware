@@ -15,6 +15,7 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import { Steps } from "@astrojs/starlight/components"
 import Figure from "../../../../components/guidebook/Figure.astro"
 import fig_fig_9_8_1 from "../../../../assets/guidebook/figs/09-audio__08-quick-editing-audio-in-clip-view--1.svg?raw"
 
@@ -24,6 +25,8 @@ Audio clips are displayed on the grid in clip view as a graphical waveforms. A n
 
 ### Quick editing of audio length - time stretch
 
+<Steps>
+
 1. Within :key[Clip] view and an audio clip selected. Select from SONG by pressing :key[Pad] for clip or in ARRANGER pressing the :key[Pad] tail.
 2. Press :key[Shift + Turn Horizontal] Clockwise to ‘stretch’ the audio length longer.
 3. Press :key[Shift + Turn Horizontal] anti-clockwise to ‘shrink’ the audio length shorter.
@@ -31,7 +34,11 @@ Audio clips are displayed on the grid in clip view as a graphical waveforms. A n
 5. The audio will be time stretched.
 6. Press :key[Play] to hear the clip loop.
 
+</Steps>
+
 ### Quick editing of audio loop length - trim / extend
+
+<Steps>
 
 1. Within :key[Clip] view and the audio clip selected.
 2. Ensure the end of the waveform is in view. :key[Turn Horizontal] to navigate across the sample width.
@@ -42,6 +49,8 @@ Audio clips are displayed on the grid in clip view as a graphical waveforms. A n
 7. Pressing a red column pad will remove the red loop point cursor / editor.
 8. The audio will NOT be time-stretched when changing loop end point.
 9. Press :key[Play] to hear the clip loop.
+
+</Steps>
 
 #### Audio Clip View - Quick Editing
 

@@ -15,11 +15,15 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import { Steps } from "@astrojs/starlight/components"
+
 <div data-pagefind-filter="source:guidebook" hidden />
 
 Affect parameters are used for effect adjustments in song view. When selecting song :key[Song] view it first appears that the affect parameters are not available. However they are accessible by pressing and holding :key[Pad] in SONG mode.
 
 ### Accessing effects in song mode
+
+<Steps>
 
 1. Press :key[Song]. Button illuminates solid blue.
 2. Press & hold :key[Pad], where pad is any pad row with an active clip. This enables access to changing the parameters for the CLIP.
@@ -32,3 +36,5 @@ Affect parameters are used for effect adjustments in song view. When selecting s
    - Reverb
    - Stutter
    - Bitcrush / decimation (custom 2 & 3)
+
+</Steps>

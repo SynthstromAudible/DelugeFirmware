@@ -15,6 +15,7 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import { Steps } from "@astrojs/starlight/components"
 import Figure from "../../../../components/guidebook/Figure.astro"
 import fig_fig_13_3_1 from "../../../../assets/guidebook/figs/13-cv__03-cv-gate-out--1.svg?raw"
 
@@ -24,10 +25,14 @@ As well as samples, sounds, synths and MIDI, CV can also be combined within a ki
 
 ### Creating a basic CV clip
 
+<Steps>
+
 1. Select :key[Clip] view.
 2. Press :key[CV] to select a CV clip. Button illuminates red.
 3. :key[Turn Select] to choose the CV channel 1 or 2.
 4. CV will output voltage representing note pitch on this channel and also Gate will output voltage for note on/off on the same channel number.
+
+</Steps>
 
 <Figure
   id="fig-13.3-1"

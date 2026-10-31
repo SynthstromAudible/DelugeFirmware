@@ -15,6 +15,7 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import { Steps } from "@astrojs/starlight/components"
 import Figure from "../../../../components/guidebook/Figure.astro"
 import fig_fig_11_4_1 from "../../../../assets/guidebook/figs/11-effects__04-eq-equalisation--1.svg?raw"
 
@@ -45,12 +46,16 @@ AMOUNT: 0-50. 25 Neutral, &gt; 25 to boost, &lt; 25 to cut. FREQUENCY: 0-50 Posi
 
 ### Setting EQ at sound level
 
+<Steps>
+
 1. :key[Clip] view, ensure the clip is in-focus, example: a synth.
 2. Press :key[Shift] + BASS :key[Adjust Pad] or :key[Shift] + TREBLE :key[Adjust Pad]. This selects the EQ band to adjust
 3. :key[Turn Select] to adjust the amount of EQ where 25 is central and 25-50 boosts the frequency at the set position and 25-0 attenuates the frequency at the set position.
 4. Press :key[Shift] + BASS :key[Frequency Pad] or :key[Shift] + TREBLE :key[Frequency Pad]. This selects the EQ frequency at which to boost or cut.
 5. :key[Turn Select] to adjust the frequency between 0-50 representing the treble or bass bands.
 6. It is advised to adjust by ear iterating adjustments between step 2 - 5.
+
+</Steps>
 
 or
 
@@ -63,9 +68,13 @@ or
 
 ### Setting EQ at kit level or sound level
 
+<Steps>
+
 1. :key[Clip] view, ensure the clip is in-focus, example: a kit.
 2. Press :key[CutoffRes] affect button to select filter and - EQ parameters. Button illuminates orange.
 3. Press :key[Upper Gold] to cycle between LPF, HPF & EQ. Release the control to select EQ.
 4. :key[Turn Upper Gold] to change TREBLE band amount or :key[Turn Lower Gold] to change BASS band amount for the sound selected.
 5. Press :key[AffectEntire] to affect the entire kit. Button lit orange.
 6. :key[Turn Upper Gold] to change TREBLE band amount or :key[Turn Lower Gold] to change BASS band amount for the entire kit selected.
+
+</Steps>

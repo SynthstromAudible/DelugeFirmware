@@ -15,6 +15,7 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import { Steps } from "@astrojs/starlight/components"
 import Figure from "../../../../components/guidebook/Figure.astro"
 import fig_fig_3_11_1 from "../../../../assets/guidebook/figs/03-sequencing__11-note-creativity-probability-iteration-dependance--1.svg?raw"
 import fig_fig_3_11_2 from "../../../../assets/guidebook/figs/03-sequencing__11-note-creativity-probability-iteration-dependance--2.svg?raw"
@@ -27,9 +28,13 @@ Deluge has a number of features that bring even more creativity to sequencing. N
 
 ### Setting a note probability to add randomness
 
+<Steps>
+
 1. Press & hold one or more :key[Pad + Turn Select] anticlockwise. The pad’s selected should represent the sequence notes of where to add probability.
 2. Adjust the :key[Select] percentage between 5-100% where the % is the ‘chance’ of the note being played.
 3. To reset to default set the % to 100% where the note will be played each iteration.
+
+</Steps>
 
 <Figure
   id="fig-3.11-1"
@@ -44,9 +49,13 @@ Deluge has a number of features that bring even more creativity to sequencing. N
 
 ### Setting a note iteration dependance
 
+<Steps>
+
 1. Press & hold :key[Pad + Turn Select] clockwise. Pad selected should represent the sequence note of where you intend to add the iteration.
 2. Adjust the :key[Select] setting to one of the settings between ‘1 of 2’ up to ‘8 of 8’.
 3. The ratio represents when the note plays for every iteration (bar) that the sequencer plays. So ‘1 of 2’ plays the note on the 1st of every 2 bars, ‘3 of 4’ plays on the 3rd of each 4 rotations. 1 of 2 - Play on 1st of 2 bar cycles
+
+</Steps>
 
 <Figure
   id="fig-3.11-2"

@@ -15,6 +15,7 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import { Steps } from "@astrojs/starlight/components"
 import Figure from "../../../../components/guidebook/Figure.astro"
 import fig_fig_3_9_1 from "../../../../assets/guidebook/figs/03-sequencing__09-clip-length-position--1.svg?raw"
 import fig_fig_3_9_2 from "../../../../assets/guidebook/figs/03-sequencing__09-clip-length-position--2.svg?raw"
@@ -25,10 +26,14 @@ Default clip length is 1 bar. This however can be changed which will extend the 
 
 ### Adjusting clip length
 
+<Steps>
+
 1. Press :key[Shift + Turn Horizontal] control to adjust the clip length. Clockwise to increase length. Anti-clockwise to reduce clip length.
    - The display will show the length in bars : beats : 16th notes.
    - The column pads on the grid will also indicate the clip length by illuminating dim grey for columns outside of the length. The grid columns within the length will be unlit / off.
    - Automatic scrolling will take place if the length is extended further beyond the right side columns. Automatic zooming will take place when clip length is reduced less than half of the grid. 16th note examples:
+
+</Steps>
 
 <Figure
   id="fig-3.9-1"
@@ -41,11 +46,15 @@ Default clip length is 1 bar. This however can be changed which will extend the 
 
 ### Duplicating pattern contents - multiply clip length
 
+<Steps>
+
 1. Press :key[Shift + Horizontal] to duplicate the clip length once and associated pattern.
    - Automatic zooming out will take place when clip length is increased. The grid resolution time division may automatically change for example from 16th to 8th notes.
    - Multiplying again will therefore ‘double’ the 8th note view.
    - Zoom can be restored and scrolling to view across the entire grid if required.
    - Any iteration dependance settings may be automatically changed when duplicating / multiplying in order to retain the same sounds as the original clip.
+
+</Steps>
 
 <Figure
   id="fig-3.9-2"

@@ -15,6 +15,7 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import { Steps } from "@astrojs/starlight/components"
 import Figure from "../../../../components/guidebook/Figure.astro"
 import fig_fig_3_8_1 from "../../../../assets/guidebook/figs/03-sequencing__08-navigating-the-grid--1.svg?raw"
 import fig_fig_3_8_2 from "../../../../assets/guidebook/figs/03-sequencing__08-navigating-the-grid--2.svg?raw"
@@ -51,24 +52,36 @@ Zooming the grid also uses the scroll and zoom rotary control. Zooming is perfor
 
 ### Scrolling clips horizontally
 
+<Steps>
+
 1. Press :key[Clip] to select clip view. This is indicated by the clip button illuminated blue.
 2. Select SYNTH or KIT by pressing :key[Synth] or :key[Kit]. The selected button illuminates red.
 3. :key[Turn Horizontal] to scroll the grid in focus. If there are no notes / steps existing beyond the visible pad grid then no scrolling will take place. Scrolling will move by the full page of 16 steps.
 4. Editing of notes and steps is retained irrespective of whether the notes are in focus and viewed within the pad grid. Horizontal scrolling adjust the step columns in focus based on the time division
 
+</Steps>
+
 ### Scrolling clips vertically
+
+<Steps>
 
 1. Press :key[Clip] to select clip view. This is indicated by the clip button illuminated blue.
 2. Select SYNTH or KIT by pressing :key[Synth] or :key[Kit]. The selected button illuminates red.
 3. :key[Turn Vertical] to scroll the grid in focus. Scrolling will take place. Scrolling will move by one row at a time and for synth notes the audition pads will show the root note position for synths and the selected row for kits.
 4. Editing of notes and steps is retained irrespective of whether the notes are in focus and viewed within the pad grid. Vertical scrolling adjusts the step rows in focus based on the note pitch for synths or specific sounds for kits.
 
+</Steps>
+
 ### Zooming the grid horizontally
+
+<Steps>
 
 1. Press :key[Clip] to select clip view. This is indicated by the clip button illuminated blue.
 2. Select SYNTH or KIT by pressing :key[Synth] or :key[Kit]. The selected button illuminates red.
 3. Press + :key[Turn Horizontal] to zoom the grid showing more or less detail. Step resolution will expand up to 128th notes and shrink depending on the zoom level. Default is 16th notes.
 4. The bar, beat of the current bar and (if visible) the 16th note in the current beat flashes for a short period on the display as adjustments are made.
+
+</Steps>
 
 Bar Beat Tick
 
@@ -78,9 +91,13 @@ Bar Beat Tick
 
 ### Checking zoom level resolution
 
+<Steps>
+
 1. Press :key[Clip] to select clip view. This is indicated by the clip button illuminated blue.
 2. Select SYNTH or KIT by pressing :key[Synth] or :key[Kit]. The selected button illuminates red.
 3. Press :key[Horizontal]. The display will flash showing the timing division resolution depending on the clip length. Examples are:
+
+</Steps>
 
 16TH-NOTES 32ND-NOTES
 

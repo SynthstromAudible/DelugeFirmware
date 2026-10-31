@@ -15,6 +15,7 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import { Steps } from "@astrojs/starlight/components"
 import Figure from "../../../../components/guidebook/Figure.astro"
 import fig_fig_11_5_1 from "../../../../assets/guidebook/figs/11-effects__05-delay--1.svg?raw"
 
@@ -57,6 +58,8 @@ The delay can be synchronised to a time interval with respect to the rate. Optio
 
 ### Setting delay at sound level
 
+<Steps>
+
 1. :key[Clip] view, ensure the clip is in-focus, example: a kit.
 2. Press :key[Shift] + DELAY pad, delay shortcuts are as below
    - :key[Amount Pad]
@@ -64,6 +67,8 @@ The delay can be synchronised to a time interval with respect to the rate. Optio
    - :key[Sync Pad]
    - :key[Stereo Pad]
 3. For the selected parameter, :key[Turn Select] to adjust the value.
+
+</Steps>
 
 or
 
@@ -76,9 +81,13 @@ or
 
 ### Setting delay at kit level or sound level
 
+<Steps>
+
 1. :key[Clip] view, ensure the clip is in-focus, example: a kit.
 2. Press :key[DelayTimeAmount] affect button. Button illuminates orange.
 3. :key[Turn Upper Gold] to change delay-time RATE value or :key[Turn Lower Gold] to change delay AMOUNT.
 4. To toggle PING-PONG or standard, Press :key[Upper Gold].
 5. To toggle ANALOG or, Press :key[Lower Gold].
 6. Press :key[AffectEntire] to affect the entire kit. Button lit orange. Changes will apply to the entire kit
+
+</Steps>

@@ -15,6 +15,7 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import { Steps } from "@astrojs/starlight/components"
 import Figure from "../../../../components/guidebook/Figure.astro"
 import fig_fig_7_6_1 from "../../../../assets/guidebook/figs/07-song-view__06-saving-loading-songs--1.svg?raw"
 
@@ -24,11 +25,15 @@ Songs can be saved and loaded to/from the inserted SD card. Songs can be number 
 
 ### Saving a numbered song
 
+<Steps>
+
 1. Ensure view is in :key[Song], :key[Clip], [ARRANGER] or :key[Keyboard].
 2. Press :key[Save].
 3. The available song slot to save to will be displayed flashing. Type using the keyboard to name song, or press :key[Save] to accept suggested title.
 4. Press :key[Save] again to save the Song or :key[BackUndo] to back up and exit.
 5. Song will save and return to the previous view.
+
+</Steps>
 
 <Figure
   id="fig-7.6-1"
@@ -45,6 +50,8 @@ Saving and loading can be performed while playing. The transition is managed wit
 
 ### Saving a named song
 
+<Steps>
+
 1. Ensure view is in :key[Song], :key[Clip], [ARRANGER] or :key[Keyboard].
 2. Press :key[Save].
 3. Songs can be named using the alphanumeric grid keyboard. Subsequent iterations of the song will be automatically created when existing saves exist. Example SONGNAME will also have SONGNAME 2, SONGNAME 3 etc when iterations are saved.
@@ -53,7 +60,11 @@ Saving and loading can be performed while playing. The transition is managed wit
 6. Press :key[Save] again to save the song or :key[BackUndo] to back up and exit.
 7. Song will save and return to the previous view.
 
+</Steps>
+
 ### Loading a song
+
+<Steps>
 
 1. Ensure view is in :key[Song], :key[Clip], [ARRANGER] or :key[Keyboard].
 2. Press :key[Load].
@@ -64,7 +75,11 @@ Saving and loading can be performed while playing. The transition is managed wit
 7. Press :key[Load] again to load the song in focus or :key[BackUndo] to back up and exit.
 8. Song will load.
 
+</Steps>
+
 ### Deleting a song
+
+<Steps>
 
 1. Ensure view is in :key[Song], :key[Clip], [ARRANGER] or :key[Keyboard].
 2. Press :key[Load].
@@ -73,14 +88,22 @@ Saving and loading can be performed while playing. The transition is managed wit
 5. Press :key[Shift + Save] to select song delete mode, indicated by ‘DELETE’ on the display.
 6. Press :key[Save] again, or press :key[Select] to delete the song in focus or :key[BackUndo] to back up and exit.
 
+</Steps>
+
 ### Creating a new blank song
+
+<Steps>
 
 1. Ensure view is in :key[Song], :key[Clip], [ARRANGER] or :key[Keyboard].
 2. Press :key[Shift + Load].
 3. Display will show ‘CLEAR SONG: OK’ indicating a new blank song is about to be created.
 4. Press :key[Load] again or press :key[Select] and a new blank song is created, clearing previous data. This is the same as the default empty song at start up.
 
+</Steps>
+
 ### Loading a song during playback
+
+<Steps>
 
 1. Ensure view is in :key[Song], :key[Clip], [ARRANGER] or :key[Keyboard].
 2. Press :key[Play] or make sure the song is playing.
@@ -88,12 +111,16 @@ Saving and loading can be performed while playing. The transition is managed wit
 4. :key[Turn Select] to select the song required. Hold :key[Shift] & :key[Turn Select] to skip sub-slots when navigating. The alphanumeric keyboard can be used for selecting named samples.
 5. Press :key[Load] to load the song in-focus. Song will load ready for completion of the existing song playback at which point it will launch. Songs with large sample content may take some time to load.
 
+</Steps>
+
 or
 
 6. Press & hold :key[Load] to load and delay arming until fully loaded. ‘LOADING COMPLETE’ will be displayed when song is ready for launch. Releasing the :key[Load] button will ‘arm’ the song ready for completion of the existing song loop, showing ‘SONG WILL BEGIN…’ on screen
 7. Arming songs is applied the same way as clips. The countdown can be adjusted using :key[Select].
 
 ### Loading a song and retaining existing song tempo
+
+<Steps>
 
 1. Ensure view is in :key[Song], :key[Clip], [ARRANGER] or :key[Keyboard].
 2. Press :key[Play] or make sure the song is playing.
@@ -103,3 +130,5 @@ or
 6. Depending on the tempo mode will govern how the tempo is managed:
    - Tempo magnitude matching enabled: will apply a multiple of the old song tempo if needed to avoid drastic changes to a new tempo.
    - Synced as a follower: tempo will remain the same irrespective of tempo magnitude matching.
+
+</Steps>

@@ -15,11 +15,15 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import { Steps } from "@astrojs/starlight/components"
+
 <div data-pagefind-filter="source:guidebook" hidden />
 
 While arranger view generally uses existing, song section coloured clips to build up an arrangement, there is also a ‘white’ instance clip option. White clips are unique and special clips that can be edited independently and used to add one off fills and variations in an arrangement.
 
 ### Creating a blank white clip
+
+<Steps>
 
 1. Press & hold :key[Pad], the clip instance to create + :key[Turn Select].
 2. The clip instance options available will be selected with the select control. The pad will change its colour based on its section colour in song mode.
@@ -27,7 +31,11 @@ While arranger view generally uses existing, song section coloured clips to buil
 4. A new blank clip instance is created that is not connected to any other clip nor is it featured in the song view.
 5. Pressing the clip ‘tail’, not the left most pad, will switch to clip view, where no notes or sound patterns exist.
 
+</Steps>
+
 ### Creating a new white clip variation pattern
+
+<Steps>
 
 1. After creating a blank clip, pressing the dimly lit :key[Pad] clip ‘tail’, not the left most bright pad, will switch to clip view.
 2. The clip will currently be a blank instrument clip.
@@ -36,7 +44,11 @@ While arranger view generally uses existing, song section coloured clips to buil
 5. Press :key[Song] which will return back to the arranger view.
 6. The white clip will now host a unique variation from the other clips by playing the one off pattern from the recently created clip.
 
+</Steps>
+
 ### Converting an existing clip instance to a white clip
+
+<Steps>
 
 1. Press :key[Shift + Pad] of an existing coloured clip instance. This will be a clip instance which instead of creating a new variation, will be edited from its existing pattern to form the variation.
 2. The clip instance left most pad will turn white. Other ‘tail’ pads forming its length may be coloured dimly based on the clips event colours.
@@ -44,3 +56,5 @@ While arranger view generally uses existing, song section coloured clips to buil
 4. The clip will contain the existing note and sound events and pattern. These can be edited to form a unique variation from the original pattern.
 5. Press :key[Song] which will return back to the arranger view.
 6. The white clip will now host a unique variation from the other clips by playing the one off pattern from the recently edited clip.
+
+</Steps>

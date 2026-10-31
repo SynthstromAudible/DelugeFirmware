@@ -15,6 +15,7 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import { Steps } from "@astrojs/starlight/components"
 import Figure from "../../../../components/guidebook/Figure.astro"
 import fig_fig_2_8_1 from "../../../../assets/guidebook/figs/02-basic-operation__08-clip-view-parameter-affect-group-changes--1.svg?raw"
 
@@ -57,6 +58,8 @@ In clip view some quick access sound / synth parameters are immediately availabl
 
 ### Adjusting a parameter in the affect group
 
+<Steps>
+
 1. Press :key[Clip] to select clip view This is indicated by the clip button illuminated blue.
 2. Selected SYNTH or KIT by pressing :key[Synth] or :key[Kit]. The selected button illuminates red.
 3. Audition the synth or kit sound manually with the :key[Audition Pad] Pads. This enables adjustments to be heard and for kits selects the target sound to edit.
@@ -66,3 +69,5 @@ In clip view some quick access sound / synth parameters are immediately availabl
 7. The :key[Lower Gold] will affect the ‘release’ of envelope 1 as the button selections are for two default set parameters.
 8. Continue to audition the sound as changes are made or play a sequence to hear adjustments during playback.
 9. The preset will automatically change to a new sub slot number when saving after a parameter is adjusted e.g. from 52 to 52A to enable saving without overwriting the original if required.
+
+</Steps>

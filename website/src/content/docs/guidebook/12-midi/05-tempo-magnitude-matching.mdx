@@ -15,6 +15,8 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import { Steps } from "@astrojs/starlight/components"
+
 <div data-pagefind-filter="source:guidebook" hidden />
 
 When playing as a follower via MIDI beat clock (but not via trigger clock), if the incoming clock is around half or around double the tempo that the song was previously set to, then the Deluge will accordingly multiply or divide the tempo of the incoming clock so that the tempo at which the song on the Deluge plays is as close as possible to the tempo that it was set to.
@@ -26,6 +28,8 @@ This is useful in a couple of scenarios:
 
 ### Setting tempo magnitude matching
 
+<Steps>
+
 1. Press :key[Shift + Select] to access the configuration menu.
 2. :key[Turn Select] and scroll to ‘MIDI’. Press :key[Select].
 3. :key[Turn Select] and scroll to ‘CLOCK’. Press :key[Select] to step into clock menu.
@@ -33,6 +37,8 @@ This is useful in a couple of scenarios:
 5. Press :key[Select] and :key[Turn Select] to set to ON or OFF.
    - ON - multiplies or divides incoming clock tempo if it is a figure close to double or half the current song tempo.
    - OFF - incoming tempo is applied unaffected.
+
+</Steps>
 
 ### Manually setting tempo magnitude as follower / leader
 

@@ -15,6 +15,7 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import { Steps } from "@astrojs/starlight/components"
 import Figure from "../../../../components/guidebook/Figure.astro"
 import fig_fig_9_9_1 from "../../../../assets/guidebook/figs/09-audio__09-sampling-recording-audio-within-kits--1.svg?raw"
 
@@ -24,6 +25,8 @@ Kits are a great environment for sampling audio. Samples can be recorded and arr
 
 ### Recording an audio sample in to a new kit
 
+<Steps>
+
 1. Input will be line-IN or mic (external or internal). The mic gain can be changed on the input switch.
 2. Press :key[Shift + Kit] from clip view to create a blank a kit clip.
 3. The browser will open to select a sample from the SD card or a previous last recent recording may by appear on the grid.
@@ -32,7 +35,11 @@ Kits are a great environment for sampling audio. Samples can be recorded and arr
 6. The recording is assigned to a row of pads indicated by a green :key[Mute Pad].
 7. Press :key[Audition Pad] to play back the sample.
 
+</Steps>
+
 ### Recording an audio sample into an existing kit
+
+<Steps>
 
 1. Input will be line-IN or mic (external or internal). The mic gain can be changed on the input switch.
 2. Press :key[Kit] from clip view and selected a kit to record into.
@@ -42,7 +49,11 @@ Kits are a great environment for sampling audio. Samples can be recorded and arr
 6. The recording is assigned to a row of pads indicated by a green :key[Mute Pad].
 7. Press :key[Audition Pad] to play back the sample.
 
+</Steps>
+
 ### Setting sampling input monitoring
+
+<Steps>
 
 1. Press :key[Shift + Settings Pad] to open settings menu.
 2. :key[Turn Select] to highlight ‘RECORDING’ - recording option.
@@ -54,7 +65,11 @@ Kits are a great environment for sampling audio. Samples can be recorded and arr
    - OFF: switches monitoring when recording samples off.
    - CONDITIONAL (Default): conditional monitoring. Recording from a microphone (internal or external) AND headphones connected, monitoring will occur. Recording using the LINE IN input, monitoring will always occur.
 
+</Steps>
+
 ### Slicing audio across a new kit
+
+<Steps>
 
 1. Press :key[Shift + Kit] from clip view to create a new kit clip.
 2. The browser will open to select a sample from the SD card or a previous last recent recording may by appear on the grid.
@@ -63,6 +78,8 @@ Kits are a great environment for sampling audio. Samples can be recorded and arr
 5. :key[Turn Select] to highlight ‘SLICE’
 6. Press :key[Select]. Number of slices is indicated at which to divide the sample. 16 is default. :key[Turn Select] to adjust, example, to 8.
 7. Press :key[Select] to slice the sample across the elected number of pads.
+
+</Steps>
 
 <Figure
   id="fig-9.9-1"

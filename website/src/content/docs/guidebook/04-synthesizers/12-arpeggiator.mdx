@@ -15,6 +15,7 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import { Steps } from "@astrojs/starlight/components"
 import Figure from "../../../../components/guidebook/Figure.astro"
 import fig_fig_4_12_1 from "../../../../assets/guidebook/figs/04-synthesizers__12-arpeggiator--1.svg?raw"
 
@@ -33,6 +34,8 @@ Each synth clip contains an arpeggiator. The arp settings are contained in the v
 
 ### Setting the arpeggiator
 
+<Steps>
+
 1. Press :key[Clip] to select clip view. This is indicated by the clip button illuminated blue.
 2. Select synth by pressing :key[Synth] if not already selected. The synth button illuminates red.
 3. Using the shortcut options to access the arp parameters directly, e.g. press :key[Shift + Mode Pad]. Alternatively use nested menus by pressing :key[Select] and then turning :key[Select] to navigate to Arpeggiator sub-menu option within the VOICE menu. Options via the menu or directly from the :key[Shift] + shortcuts are:
@@ -43,3 +46,5 @@ Each synth clip contains an arpeggiator. The arp settings are contained in the v
    - RATE : Sets the arpeggiator rate when sync is off.
 4. Ensure any sequence timing and steps are taken into account when setting the arpeggiator sync and gate.
 5. Use :key[BackUndo] or tap any grid pad once to exit sub-menu and back up a level or to back out of the sound editor.
+
+</Steps>

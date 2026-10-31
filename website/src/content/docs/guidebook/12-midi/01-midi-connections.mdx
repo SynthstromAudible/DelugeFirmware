@@ -15,6 +15,7 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import { Steps } from "@astrojs/starlight/components"
 import Figure from "../../../../components/guidebook/Figure.astro"
 import fig_fig_12_1_2 from "../../../../assets/guidebook/figs/12-midi__01-midi-connections--2.svg?raw"
 
@@ -63,11 +64,15 @@ MIDI devices have 16 available MIDI channels all of which can be used to communi
 
 ### Setting MIDI differentiation on
 
+<Steps>
+
 1. Press :key[Shift + Select] to access the configuration menu.
 2. :key[Turn Select] and scroll to ‘MIDI’. Press :key[Select].
 3. :key[Turn Select] and scroll to ‘DIFFERENTIATE INPUTS’. This enables Deluge to differentiate from different connected devices across multiple channels.
 4. Press :key[Select] and then :key[Turn Select] to set to ON. This allows multiple devices to be differentiated in Deluge.
 5. Press :key[Select] and then :key[Turn Select] to set to OFF. This turns differentiation off to revert to the more traditional setup.
+
+</Steps>
 
 :::note
 MIDI Differentiation operates for standard MIDI and also MPE MIDI. It is advised to have differentiation on when using MPE devices.

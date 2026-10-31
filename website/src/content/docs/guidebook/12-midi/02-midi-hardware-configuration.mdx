@@ -15,6 +15,8 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import { Steps } from "@astrojs/starlight/components"
+
 <div data-pagefind-filter="source:guidebook" hidden />
 
 MIDI configuration requires the match up of both Deluge along with the external device. It is important to check out the manufacturers instructions when connecting other devices.
@@ -72,6 +74,8 @@ Settings for MIDI are contained in the general setting menu, accessed by pressin
 
 ### Follower: MIDI synchronisation from external gear
 
+<Steps>
+
 1. Press :key[Shift + Select] to access the configuration menu.
 2. :key[Turn Select] and scroll to ‘MIDI’. Press :key[Select].
 3. :key[Turn Select] and scroll to ‘CLOCK’. This enables setting the clock sync to external gear where Deluge acts as leader or follower. Press :key[Select] to step into clock menu.
@@ -79,7 +83,11 @@ Settings for MIDI are contained in the general setting menu, accessed by pressin
 5. Press :key[Select] and :key[Turn Select] to set ‘IN’ to ON. OFF ignores external commands. Trigger clock may also affect this function.
 6. As a follower, tempo is governed by the external lead device and cannot be changed on Deluge when playing. Control commands such as play and stop will be triggered by the external device but can be triggered from Deluge when the external controls are not triggered. ‘Synced’ LED will indicate sync status.
 
+</Steps>
+
 ### Leader: MIDI synchronisation to external gear
+
+<Steps>
 
 1. Press :key[Shift + Select] to access the configuration menu.
 2. :key[Turn Select] and scroll to ‘MIDI’. Press :key[Select].
@@ -88,17 +96,27 @@ Settings for MIDI are contained in the general setting menu, accessed by pressin
 5. Press :key[Select] and :key[Turn Select] to set to ON. OFF to disable sending commands.
 6. Playing as a follower takes precedence. Beat clock outputs will be sent out only when set up with beat clock outputs on and when not playing as a follower. Setting MIDI-THRU mode may satisfy situations where external signals are passed through Deluge to the MIDI output.
 
+</Steps>
+
 ### Setting up MIDI-thru
+
+<Steps>
 
 1. Press :key[Shift + Select] to access the configuration menu.
 2. :key[Turn Select] and scroll to ‘MIDI’. Press :key[Select].
 3. :key[Turn Select] and scroll to ‘MIDI-THRU’. This enables sending the incoming MIDI also straight to the MIDI output. Press :key[Select].
 4. :key[Turn Select] to set ‘MIDI-THRU’ to ON. Set to OFF to prevent incoming MIDI to be transferred to the MIDI out.
 
+</Steps>
+
 ### Nudging MIDI sync adjustments
+
+<Steps>
 
 1. Press :key[Horizontal + Turn Tempo].
 2. Each Tempo control ‘click’ will adjust by one MIDI clock message / one 96th note.
    - Deluge as follower: nudge Deluge’s MIDI clock.
    - Deluge as leader: nudge MIDI beat clock output to align external device.
 3. The display will indicate ‘NUDGE’, when making the adjustments.
+
+</Steps>

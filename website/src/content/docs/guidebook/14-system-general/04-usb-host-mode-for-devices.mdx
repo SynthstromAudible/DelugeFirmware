@@ -15,6 +15,8 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import { Steps } from "@astrojs/starlight/components"
+
 <div data-pagefind-filter="source:guidebook" hidden />
 
 The USB connection can also be used to host USB MIDI devices. In order to use this feature, you must power your Deluge via its DC power socket (centre-negative) - the feature is not available when running the Deluge on its battery.
@@ -31,8 +33,12 @@ MIDI USB devices are supported for MIDI input and output.
 
 ### Deluge as USB host with a USB device
 
+<Steps>
+
 1. Connect the USB device to Deluge with the USB connection
 2. Connect a DC power supply to Deluge. Host mode does not work when Deluge is operating from its battery
 3. Power ON Deluge
 4. USB Host mode will be activated.
 5. The USB device can now be connected and reconnected. A reboot is required if a PC is to be connected.
+
+</Steps>

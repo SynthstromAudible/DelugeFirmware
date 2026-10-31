@@ -15,6 +15,7 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import { Steps } from "@astrojs/starlight/components"
 import Figure from "../../../../components/guidebook/Figure.astro"
 import fig_fig_11_6_1 from "../../../../assets/guidebook/figs/11-effects__06-reverb--1.svg?raw"
 
@@ -61,6 +62,8 @@ Sidechain settings for reverb. This is a dedicated sidechain for the reverb outp
 
 ### Setting up common reverb parameters
 
+<Steps>
+
 1. :key[Clip] view, ensure the clip is in-focus, example: a kit.
 2. Press :key[Shift] + REVERB pad, reverb shortcuts are as below
    - :key[Pan Pad]
@@ -70,6 +73,8 @@ Sidechain settings for reverb. This is a dedicated sidechain for the reverb outp
    - :key[Reverb Sidechain Pad]
    - :key[Amount Pad]
 3. For the selected parameter, :key[Turn Select] to adjust the value.
+
+</Steps>
 
 or
 
@@ -82,9 +87,13 @@ or
 
 ### Setting reverb send amount
 
+<Steps>
+
 1. :key[Clip] view, ensure the clip is in-focus, example: a kit.
 2. Press :key[Shift] + REVERB :key[Amount Pad].
 3. For the selected parameter, :key[Turn Select] to adjust the send value.
+
+</Steps>
 
 or
 
@@ -103,11 +112,17 @@ or
 
 ### Selecting a reverb room size preset
 
+<Steps>
+
 1. Ensure in clip view for a kit, synth.
 2. Press :key[SidechainReverb] affect button. Button illuminates orange.
 3. Press :key[Lower Gold] to toggle reverb preset between: ‘LARGE’, ‘SMALL’, ‘MEDIUM’.
 
+</Steps>
+
 ### Setting the reverb sidechain
+
+<Steps>
 
 1. :key[Clip] view, ensure the clip is in-focus, example: a kit.
 2. Access the effects within the menu’s. Press :key[Select].
@@ -119,3 +134,5 @@ or
 8. Options are auto, 0-50.
    - AUTO takes its parameters from the sidechain compressor of the sound with the highest reverb.
    - 0-50 Takes parameters from as per the normal sidechain setting. The reverb sidechain allows sidechain compression to be applied to the reverb trails. Deluge achieves this even with a common reverb, by using the sidechain compression parameters of the sound with the most reverb and applying them to the reverb itself. This is the auto setting and typically results in a pleasing and typical sound. Alternatively, the reverb’s sidechain compression settings can be manually overridden in the sound editor if desired.
+
+</Steps>

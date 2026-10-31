@@ -15,6 +15,7 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import { Steps } from "@astrojs/starlight/components"
 import Figure from "../../../../components/guidebook/Figure.astro"
 import fig_fig_3_10_1 from "../../../../assets/guidebook/figs/03-sequencing__10-cross-screen-editing--1.svg?raw"
 
@@ -24,12 +25,16 @@ Cross-screen editing enables duplicated patterns across multiple, equivalent zoo
 
 ### Applying edits across multiple screens
 
+<Steps>
+
 1. Select a pattern and duplicate it to match your needs. Example 1 bar pattern duplicated twice and visible across 4 x ‘screens’, of the 16x8 grid with 16th resolution.
 2. Ensure the screen to edit is in focus. Example, first bar of a 4 bar pattern at 16th resolution.
 3. Edit the pattern as desired. Example, place extra kick at the end of the pattern, first bar. The edit will only affect the first bar.
 4. Press [CROSS-SCREEN] to switch the mode on. Button lit.
 5. Edit the pattern as desired. Example, place extra kick at the end of the pattern, first bar. The edit will be changed in the first bar in view and also bar 2,3 and 4 off screen.
 6. Edits in cross-screen mode are dependant on, and locked to the zoom level. Example, if 8th note resolution displays 2 bars in view and changes are made in cross-screen mode at the end of bar 2, this will also change at the end of bar 4, the screen out of view.
+
+</Steps>
 
 :::note
 Clips individually remember whether, and at what zoom level, they have cross-screen edit mode applied. Entering the mode for one track will not automatically be active for any other track that is then edited.

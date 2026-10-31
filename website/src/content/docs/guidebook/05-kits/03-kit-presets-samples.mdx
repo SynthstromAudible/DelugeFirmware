@@ -15,6 +15,7 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import { Steps } from "@astrojs/starlight/components"
 import Figure from "../../../../components/guidebook/Figure.astro"
 import fig_fig_5_3_1 from "../../../../assets/guidebook/figs/05-kits__03-kit-presets-samples--1.svg?raw"
 import fig_fig_5_3_2 from "../../../../assets/guidebook/figs/05-kits__03-kit-presets-samples--2.svg?raw"
@@ -25,13 +26,19 @@ A kit consists of a number of sounds typically based on samples, also synth, MID
 
 ### Creating a new blank kit clip
 
+<Steps>
+
 1. Press :key[Clip] to select clip view. Clip button illuminates blue.
 2. Press :key[Shift + Kit] to create a kit clip.
 3. A new blank kit is created and the file browser opens in order to choose the first sample, example: 808 CONGA HIGH from the CONH folder within the DRUM library in the SAMPLES folder.
 4. Press a blank :key[Mute Pad] button to quickly exit. Alternatively press :key[BackUndo] to back up through the menu until the file browser is exited.
 5. Blank kit is created and the preset name created is displayed.
 
+</Steps>
+
 ### Creating a new kit clip + sample
+
+<Steps>
 
 1. Press :key[Clip] to select clip view. Clip button illuminates blue.
 2. Press :key[Shift + Kit] to create a kit clip.
@@ -42,11 +49,15 @@ A kit consists of a number of sounds typically based on samples, also synth, MID
 7. Deluge will return to clip view and the file browser exited.
 8. The sample can be auditioned and played by pressing the row :key[Audition Pad].
 
+</Steps>
+
 :::note
 A synth, MIDI or CV row can be added in the kit view by pressing :key[Audition Pad + Synth], :key[Audition Pad + MIDI], :key[Audition Pad + CV]
 :::
 
 ### Adding samples to a kit
+
+<Steps>
 
 1. Press :key[Clip] to select clip view. Clip button illuminates blue.
 2. Ensure a kit or blank kit is loaded.
@@ -59,6 +70,8 @@ A synth, MIDI or CV row can be added in the kit view by pressing :key[Audition P
 9. Repeat steps 3-8 above for adding additional samples.
 10. Press :key[Audition Pad] of each pad to view sample name in the display and play out the sound. Press :key[Shift + Audition Pad] to select silently.
 
+</Steps>
+
 <Figure
   id="fig-5.3-1"
   src={fig_fig_5_3_1}
@@ -70,6 +83,8 @@ A synth, MIDI or CV row can be added in the kit view by pressing :key[Audition P
 
 ### Creating a new kit clip + multiple (folder) samples
 
+<Steps>
+
 1. Press :key[Clip] to select clip view. This is indicated by the clip button illuminates blue.
 2. Press :key[Shift + Kit] to create a kit clip.
 3. A new blank kit is created and the file browser opens in order to choose the first sample, example: 808 CONGA HIGH from the CONH folder within the DRUM library in the SAMPLES folder.
@@ -77,6 +92,8 @@ A synth, MIDI or CV row can be added in the kit view by pressing :key[Audition P
 5. Navigate to a folder to load. :key[BackUndo] will navigate back up the menu, pressing :key[Select] drills down. Select a folder in-focus to load, example: CLAVES.
 6. Press & hold :key[Select] until a menu of options appears. This should indicate ALL, if not :key[Turn Select] to select ALL.
 7. Press :key[Select]. Deluge will load the folder into the rows automatically.
+
+</Steps>
 
 etc
 
@@ -88,13 +105,19 @@ It is recommended to organise your samples in a folder that can be recognised in
 
 ### Adding a synth-based sound to a kit
 
+<Steps>
+
 1. Select :key[Clip] View and select a :key[Kit].
 2. Press & hold :key[Audition Pad] for the row which will convert to a synth + press :key[Synth].
 3. Press :key[Audition Pad] to play the kit row.
 4. Set-up the synth parameters, such as oscillator wave, LPF etc as if creating a new synth sound or use the parameter controls. Also set the pitch.
 5. Notes programmed into the row will trigger the synth. This method is ideal to play back longer audio pads.
 
+</Steps>
+
 ### Renaming sounds within a kit
+
+<Steps>
 
 1. Press :key[Clip] to select clip view. This is indicated by the clip button illuminated blue.
 2. :key[Kit] ensure a kit is loaded.
@@ -102,6 +125,8 @@ It is recommended to organise your samples in a folder that can be recognised in
 4. Press :key[Shift + Name Pad].
 5. The alphanumeric keyboard appears and RENAME ITEM shows in the display. This enables typing in of a new name.
 6. Press RETURN ‘delay amount’ :key[Pad] when typing of a new name is complete.
+
+</Steps>
 
 <Figure
   id="fig-5.3-3"
