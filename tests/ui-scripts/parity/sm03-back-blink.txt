@@ -1,0 +1,47 @@
+# E3: the BACK LED blinks while the sound menu is open (SoundEditor sets it blinking on open). Open the menu and
+# hold still for two seconds, a snapshot every 50 ms, so the blink phase can be compared with main frame by frame.
+100   snapshot boot
+300   button SelectEnc down
+320   button SelectEnc up
+1000  snapshot hold-00
+1050  snapshot hold-01
+1100  snapshot hold-02
+1150  snapshot hold-03
+1200  snapshot hold-04
+1250  snapshot hold-05
+1300  snapshot hold-06
+1350  snapshot hold-07
+1400  snapshot hold-08
+1450  snapshot hold-09
+1500  snapshot hold-10
+1550  snapshot hold-11
+1600  snapshot hold-12
+1650  snapshot hold-13
+1700  snapshot hold-14
+1750  snapshot hold-15
+1800  snapshot hold-16
+1850  snapshot hold-17
+1900  snapshot hold-18
+1950  snapshot hold-19
+2000  snapshot hold-20
+2050  snapshot hold-21
+2100  snapshot hold-22
+2150  snapshot hold-23
+2200  snapshot hold-24
+2250  snapshot hold-25
+2300  snapshot hold-26
+2350  snapshot hold-27
+2400  snapshot hold-28
+2450  snapshot hold-29
+2500  snapshot hold-30
+2550  snapshot hold-31
+2600  snapshot hold-32
+2650  snapshot hold-33
+2700  snapshot hold-34
+2750  snapshot hold-35
+2800  snapshot hold-36
+2850  snapshot hold-37
+2900  snapshot hold-38
+2950  snapshot hold-39
+3000  snapshot hold-40
+3200  quit
