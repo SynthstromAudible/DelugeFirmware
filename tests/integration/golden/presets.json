@@ -2327,6 +2327,12 @@
   "rms_db": -38.79,
   "sha256": "a1506b2cd68d4dc3383f0422bf74daa7744e938c237f3e18cdcf4a7c4b009880"
  },
+ "voice/exp_saturate": {
+  "frames": 88200,
+  "peak": 471535104,
+  "rms_db": -19.96,
+  "sha256": "d3ebcacea4776a2fd2c32b6b855d7de4318fbe7148e31b891e8b450d71b80b62"
+ },
  "voice/fm_mono_retrigger": {
   "frames": 88200,
   "peak": 567709440,

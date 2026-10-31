@@ -844,6 +844,21 @@ case(
     cables=BASE_CABLES
     + [("lfo1", "pitch", "0x10000000", [("velocity", "0x3FFFFFE8", "bipolar")])],
 )
+# Five full-depth cables on the low-pass cutoff saturate its add chain, so its exp curve asks for 33 octaves: the
+# cutoff saturates at the top of the filter's range rather than wrapping below it.
+case(
+    "voice/exp_saturate",
+    lfo1={"type": "square"},
+    params={"lfo1Rate": "0x20000000", "lpfFrequency": "0x60000000"},
+    cables=BASE_CABLES
+    + [
+        ("envelope1", "lpfFrequency", "0x3FFFFFE8"),
+        ("velocity", "lpfFrequency", "0x3FFFFFE8"),
+        ("note", "lpfFrequency", "0x3FFFFFE8"),
+        ("lfo1", "lpfFrequency", "0x3FFFFFE8"),
+        ("random", "lpfFrequency", "0x3FFFFFE8"),
+    ],
+)
 
 
 print(f"wrote {len(list(CORPUS.glob('*.xml')))} presets to {CORPUS}")
