@@ -1,7 +1,8 @@
 ---
 /**
  * "You are here" for Guidebook procedures: click a step (or press Enter/Space
- * on it) to mark it current; Up/Down move the current step. One current step
+ * on it) to mark it current; Up/Down move the current step. Each list is a
+ * single Tab stop (roving tabindex). One current step
  * per <Steps> list. Placed once per page; it enhances every list on it.
  */
 ---
@@ -9,12 +10,17 @@
 <script>
   function enhance(ol: HTMLOListElement) {
     const items = [...ol.children] as HTMLLIElement[]
+    // Roving tabindex: the list is one Tab stop; Up/Down move within it.
     const select = (li: HTMLLIElement) => {
-      for (const x of items) x.removeAttribute("aria-current")
+      for (const x of items) {
+        x.removeAttribute("aria-current")
+        x.tabIndex = -1
+      }
       li.setAttribute("aria-current", "step")
+      li.tabIndex = 0
     }
     items.forEach((li, i) => {
-      li.tabIndex = 0
+      li.tabIndex = i === 0 ? 0 : -1
       li.addEventListener("click", (e) => {
         if (!(e.target as Element).closest("a, button")) select(li)
       })

@@ -57,8 +57,10 @@
 }
 
 /* Figure animations (src/scripts/guidebook-figures.ts). */
+/* Room under the art for the replay button, so it never covers the figure. */
 .gb-figure[data-animate] {
   position: relative;
+  padding-bottom: 2.25rem;
 }
 
 .gb-figure[data-animate] .gb-figure-art {
@@ -85,7 +87,7 @@
 
 .gb-replay {
   position: absolute;
-  top: 0;
+  bottom: 0;
   right: 0;
   width: 2rem;
   height: 2rem;

@@ -55,6 +55,64 @@ const waitFor = async (fn, ms) => {
 }
 
 const checks = {
+  async replayClear(browser) {
+    const ctx = await browser.newContext({
+      viewport: { width: 390, height: 844 },
+    })
+    const page = await ctx.newPage()
+    const overlaps = []
+    for (const path of [
+      "09-audio/09-sampling-recording-audio-within-kits",
+      "03-sequencing/01-sequencing-workflow",
+    ]) {
+      await page.goto(url(path), { waitUntil: "load" })
+      overlaps.push(
+        ...(await page.evaluate(() =>
+          [...document.querySelectorAll(".gb-figure[data-animate]")].flatMap(
+            (fig) => {
+              const btn = fig.querySelector(".gb-replay")
+              btn.hidden = false
+              const b = btn.getBoundingClientRect()
+              const a = fig
+                .querySelector(".gb-figure-art")
+                .getBoundingClientRect()
+              const hit =
+                b.left < a.right &&
+                b.right > a.left &&
+                b.top < a.bottom &&
+                b.bottom > a.top
+              return hit ? [fig.id] : []
+            },
+          ),
+        )),
+      )
+    }
+    check(
+      "replay button sits outside the figure art",
+      overlaps.length === 0,
+      overlaps.join(", "),
+    )
+    await ctx.close()
+  },
+
+  async stepTabStops(browser) {
+    const page = await browser.newPage()
+    await page.goto(url("08-arranger-view/03-arranger-view-basics"), {
+      waitUntil: "load",
+    })
+    const perList = await page.evaluate(() =>
+      [...document.querySelectorAll("ol.sl-steps")].map(
+        (ol) => [...ol.children].filter((li) => li.tabIndex === 0).length,
+      ),
+    )
+    check(
+      "steps: one tab stop per list (roving tabindex)",
+      perList.length > 0 && perList.every((n) => n === 1),
+      perList.join(","),
+    )
+    await page.close()
+  },
+
   async playhead(browser) {
     const ctx = await browser.newContext()
     const { page } = await open(
