@@ -29,7 +29,6 @@
 #include "scenes/menu/menu_scene.h"
 #include "scenes/profile.h"
 
-#include "gfx/oled/icons.h"
 #include "ui/oled/list.h"
 #include "ui/oled/routing.h"
 #include "ui/oled/text.h"
@@ -456,12 +455,9 @@ void SourceSelectionItem::render(deluge::ui::oled::OledFrame& f, const MenuConte
 	deluge::ui::oled::ListRow rows[kNumPatchSources];
 	deluge::ui::shell::TextScratch scratch[kNumPatchSources];
 	for (size_t i = 0; i < n; i++) {
+		// The names alone: `shouldDrawDotOnValue` (`source_selection.cpp:52-57`) is the 7-segment display's dot, and
+		// `drawPixelsForOled` (`:59-108`) marks nothing.
 		rows[i].label = deluge_profile().text_or_digits(source_display_string(sources[i]), scratch[i]);
-		// `shouldDrawDotOnValue` (`source_selection.cpp:52-57`): legacy marks a source that already
-		// has a cable to this destination with a dot. The nearest thing this layer draws without a
-		// frame primitive is the menu-row checkbox, so that is what marks it.
-		rows[i].icon =
-		    source_is_patched(ctx, sources[i], destination) ? &deluge::gfx::oled::icons::checkedBox : nullptr;
 		rows[i].selectable = true;
 	}
 

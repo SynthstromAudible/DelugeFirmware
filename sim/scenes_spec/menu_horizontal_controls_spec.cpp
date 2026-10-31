@@ -837,6 +837,57 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		expect(any_between).to_be_false();
 	});
 
+	it("select on a patched param column opens its sources where the param row does", _ {
+		// `PatchedParam::selectButtonPress` (`patched_param.cpp:32-40`) records the param before `SourceSelection::
+		// beginSession` lands on the first source patched to it -- from a column as from the item alone.
+		select_language();
+		deluge::notify::dirty().drain();
+		int16_t vertical_cursor = -1;
+		{
+			Rig r;
+			MenuContext ctx = r.open_real(menu::nodes::lpf);
+			ctx.horizontal_menus = false;
+			menu_scene().open(menu::nodes::lpf, ctx);
+			r.shell.tick(0);
+			r.turn(1, 300);
+			r.shell.tick(310);
+			r.enter(400);
+			r.shell.tick(410);
+			expect(static_cast<int>(menu::node_id(*menu_scene().focused()))).to_equal(static_cast<int>(menu::node_id(menu::nodes::lpf_freq)));
+			r.enter(700);
+			r.shell.tick(710);
+			const uint8_t d = menu_scene().state().depth;
+			vertical_cursor = menu_scene().state().list[d].cursor;
+		}
+		expect(vertical_cursor > 0).to_be_true(); // the fixture's synth patches a source to the LPF frequency
+
+		Rig r;
+		(void)r.open_real(menu::nodes::lpf);
+		r.shell.tick(0);
+		r.press(kKitX, kKitY, 200); // focus column 1, the frequency
+		const Node* fv = menu_scene().focused_value();
+		expect(fv == nullptr ? -1 : static_cast<int>(menu::node_id(*fv))).to_equal(static_cast<int>(menu::node_id(menu::nodes::lpf_freq)));
+		r.enter(400);
+		r.shell.tick(410);
+		expect(static_cast<int>(menu_scene().state().patching_param))
+		    .to_equal(static_cast<int>(deluge::modulation::params::LOCAL_LPF_FREQ));
+		const uint8_t d = menu_scene().state().depth;
+		expect(static_cast<int>(menu_scene().state().list[d].cursor)).to_equal(static_cast<int>(vertical_cursor));
+
+		// `SourceSelection::drawPixelsForOled` (`source_selection.cpp:59-108`) draws the names alone: the patched
+		// source's dot is the 7-segment display's (`shouldDrawDotOnValue`), so the highlighted row has no mark.
+		deluge::ui::test::Rig48 rig48;
+		rig48.begin_tick(800);
+		menu_scene().render_oled(uitest::SurfaceRole::Main, rig48.frame);
+		bool marked = false;
+		for (int32_t y = 29; y <= 35; y++) {
+			for (int32_t x = 110; x <= 124; x++) {
+				marked = marked || !rig48.lit(x, y);
+			}
+		}
+		expect(marked).to_be_false();
+	});
+
 	it("with HorizontalMenus off a shortcut opens the item alone", _ {
 		// `getCurrentHorizontalMenusChain` answers nothing with the feature off (`sound_editor.cpp:2328-2330`).
 		select_language();

@@ -2120,6 +2120,11 @@ Result MenuScene::after_render() {
 			}
 			else if (const Node* chained =
 			             column->select_chain != nullptr ? column->select_chain(ctx_, st_) : nullptr) {
+				// `PatchedParam::selectButtonPress` (`patched_param.cpp:32-40`) records the param it patches. The
+				// source page reads it from the level above it, which here is the page, not the column.
+				if (column->bind.param.kind == deluge::modulation::params::Kind::PATCHED) {
+					st_.patching_param = column->bind.param.index;
+				}
 				enter_child(*chained);
 			}
 			else {
