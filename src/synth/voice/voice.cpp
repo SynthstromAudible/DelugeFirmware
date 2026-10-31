@@ -153,7 +153,7 @@ bool Voice::note_on(const deluge::synth::NoteSetup& setup, const SoundSnapshot& 
 
 	if (event.reset_envelopes) {
 		source_levels_.amplitudes_last_time.fill(0);
-		fm_engine.modulator_amplitude_last_time.fill(0);
+		fm_engine.reset_levels();
 		overall_osc_amplitude_last_time = 0;
 		done_first_render = false;
 		filter_set.reset();
@@ -232,17 +232,7 @@ bool Voice::note_on(const deluge::synth::NoteSetup& setup, const SoundSnapshot& 
 	}
 
 	if (snapshot.synth_mode == SynthMode::FM) {
-		uint32_t initial_phase = deluge::synth::va_shape::initial_phase_for_zero(OscType::SINE);
-		for (int32_t u = 0; u < snapshot.num_unison; u++) {
-			for (int32_t m = 0; m < kNumModulators; m++) {
-				if (snapshot.modulator_retrigger_phase[m] != kNoRetrigger) {
-					fm_engine.modulator_phase[u][m] = initial_phase + snapshot.modulator_retrigger_phase[m];
-				}
-				if (event.reset_envelopes) {
-					fm_engine.modulator_feedback[u][m] = 0;
-				}
-			}
-		}
+		fm_engine.note_on(snapshot.num_unison, snapshot.modulator_retrigger_phase, event.reset_envelopes);
 	}
 
 	previously_ignored_note_off = false;
@@ -316,9 +306,7 @@ void Voice::randomize_osc_phases(const SoundSnapshot& snapshot, dsp::fixed::Cong
 			// TODO: we should do sample play pos, too
 		}
 		if (snapshot.synth_mode == SynthMode::FM) {
-			for (int32_t m = 0; m < kNumModulators; m++) {
-				fm_engine.modulator_phase[u][m] = next_noise();
-			}
+			fm_engine.randomize_part(u, *noise_);
 		}
 	}
 }
@@ -361,49 +349,8 @@ void Voice::calculate_phase_increments(const deluge::synth::NoteSetup& setup, co
 		}
 	}
 
-	// FM modulators
 	if (snapshot.synth_mode == SynthMode::FM) {
-		for (int32_t m = 0; m < kNumModulators; m++) {
-
-			if (!setup.modulator_audible[m]) {
-				continue; // Only if modulator active
-			}
-
-			int32_t transposed_note_code = note_code_with_master_transpose + snapshot.modulator_transpose[m];
-			int32_t note_within_octave = (transposed_note_code + 120 - 4) % 12;
-			int32_t octave = (transposed_note_code + 120 - 4) / 12;
-			int32_t shift_right_amount = 20 - octave;
-
-			int32_t phase_increment = 0;
-
-			if (shift_right_amount >= 0) {
-				phase_increment = noteFrequencyTable[note_within_octave] >> shift_right_amount;
-			}
-
-			else {
-				// Frequency too high to render! (Higher than 22.05kHz)
-				for (int32_t u = 0; u < snapshot.num_unison; u++) {
-					fm_engine.modulator_phase_increment[u][m] = FMEngine::kInactive;
-				}
-				continue;
-			}
-
-			// Cents
-			phase_increment = snapshot.modulator_transposers[m].detune(phase_increment);
-			phase_increment = snapshot.fine_tuner.detune(phase_increment); // master transpose
-
-			// If only one unison
-			if (snapshot.num_unison == 1) {
-				fm_engine.modulator_phase_increment[0][m] = phase_increment;
-			}
-
-			// Or if multiple unison
-			else {
-				for (int32_t u = 0; u < snapshot.num_unison; u++) {
-					fm_engine.modulator_phase_increment[u][m] = snapshot.unison_detuners[u].detune(phase_increment);
-				}
-			}
-		}
+		fm_engine.calculate_phase_increments(snapshot, note_code_with_master_transpose, setup.modulator_audible);
 	}
 }
 
@@ -611,10 +558,7 @@ uint32_t Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge::m
 	auto_release_if_due(cfg, block, overall_pitch_adjust);
 
 	if (!done_first_render && params.param_final_values[params::LOCAL_ENV_0_ATTACK] > 245632) {
-		for (int32_t m = 0; m < kNumModulators; m++) {
-			fm_engine.modulator_amplitude_last_time[m] =
-			    params.param_final_values[params::LOCAL_MODULATOR_0_VOLUME + m];
-		}
+		fm_engine.set_levels(modulator_volumes());
 	}
 
 	// Apply envelope 0 to volume. This takes effect as a cut only; when the envelope is at max height, volume is
@@ -647,62 +591,14 @@ uint32_t Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge::m
 
 	SynthMode synth_mode = cfg.synth_mode;
 
-	int32_t source_amplitudes[kNumSources];
-	int32_t source_amplitude_increments[kNumSources];
-
-	bool modulators_active[kNumModulators];
-	int32_t modulator_amplitude_increments[kNumModulators];
-
 	int32_t overall_oscillator_amplitude_increment = 0;
 	const bool first_render = !done_first_render;
 
-	// params::LOCAL_OSC_x_VOLUME is normally at most a quarter of full range, but patching can take it to full range,
-	// as overall_osc_amplitude (the same range as params::LOCAL_VOLUME). Patching may amplify by at most 4x in total
-	// (not 16x), which leaves room to make each source's amplitude 4x what it could otherwise be.
 	if (synth_mode == SynthMode::FM) {
 		// FM works the overall amplitude, compensated for unison, into each carrier's, saving a multiplication per
 		// sample at the end
 		overall_osc_amplitude =
 		    multiply_32x32_rshift32_rounded(overall_osc_amplitude, cfg.volume_neutral_value_for_unison) << 3;
-
-		int32_t a =
-		    multiply_32x32_rshift32(params.param_final_values[params::LOCAL_OSC_A_VOLUME], overall_osc_amplitude);
-		int32_t b =
-		    multiply_32x32_rshift32(params.param_final_values[params::LOCAL_OSC_B_VOLUME], overall_osc_amplitude);
-
-		// Clip off those amplitudes before they get too high. I think these were originally intended to stop the
-		// amplitude rising to more than "4", whatever that meant?
-		source_amplitudes[0] = std::min(a, static_cast<int32_t>(134217727));
-		source_amplitudes[1] = std::min(b, static_cast<int32_t>(134217727));
-
-		bool should_avoid_incrementing = first_render ? (params.param_final_values[params::LOCAL_ENV_0_ATTACK] > 245632)
-		                                              : (source_levels_.filter_gain_last_time != filter_gain);
-
-		if (should_avoid_incrementing) {
-			for (int32_t s = 0; s < kNumSources; s++) {
-				source_levels_.amplitudes_last_time[s] = source_amplitudes[s];
-			}
-		}
-
-		for (int32_t s = 0; s < kNumSources; s++) {
-			source_amplitude_increments[s] =
-			    static_cast<int32_t>(source_amplitudes[s] - source_levels_.amplitudes_last_time[s]) / num_samples;
-		}
-
-		source_levels_.filter_gain_last_time = filter_gain;
-
-		// Whether each modulator sounds this block
-		for (int32_t m = 0; m < kNumModulators; m++) {
-			modulators_active[m] = (params.param_final_values[params::LOCAL_MODULATOR_0_VOLUME + m] != 0
-			                        || fm_engine.modulator_amplitude_last_time[m] != 0);
-
-			if (modulators_active[m]) {
-				modulator_amplitude_increments[m] =
-				    static_cast<int32_t>(params.param_final_values[params::LOCAL_MODULATOR_0_VOLUME + m]
-				                         - fm_engine.modulator_amplitude_last_time[m])
-				    / num_samples;
-			}
-		}
 	}
 	else {
 		if (first_render && params.param_final_values[params::LOCAL_ENV_0_ATTACK] > 245632) {
@@ -722,7 +618,6 @@ uint32_t Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge::m
 
 	// two first indicies are reserved in case we need stereo for unison spread
 	int32_t* osc_buffer = spare_buffers_[0];
-	int32_t channels = stereo_unison ? 2 : 1;
 
 	// Even if first rendering into a local Voice buffer, we'll very often still just do panning at the Sound level
 	if (!applying_pan_at_voice_level) {
@@ -741,13 +636,35 @@ uint32_t Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge::m
 	}
 
 	if (synth_mode == SynthMode::FM) {
-		// FM renders no noise
-		memset(osc_buffer, 0, channels * num_samples * sizeof(int32_t));
-		const std::array<int32_t, kNumSources> source_amplitudes_now = source_levels_.amplitudes_last_time;
-		fm_engine.render(*this, num_samples, overall_pitch_adjust, stereo_unison, source_amplitudes,
-		                 source_amplitudes_now.data(), source_amplitude_increments, modulators_active,
-		                 modulator_amplitude_increments, osc_buffer, spare_buffers_[2], spare_buffers_[3],
-		                 did_stereo_temp_buffer, cfg);
+		FmControls controls{
+		    .overall_osc_amplitude = overall_osc_amplitude,
+		    .env0_attack = params.param_final_values[params::LOCAL_ENV_0_ATTACK],
+		    .filter_gain = filter_gain,
+		    .overall_pitch_adjust = overall_pitch_adjust,
+		    .first_render = first_render,
+		    .stereo_unison = stereo_unison,
+		};
+		for (int32_t s = 0; s < kNumSources; s++) {
+			controls.carrier_volume[s] = params.param_final_values[params::LOCAL_OSC_A_VOLUME + s];
+			controls.carrier_pitch_adjust[s] = params.param_final_values[params::LOCAL_OSC_A_PITCH_ADJUST + s];
+			controls.carrier_feedback[s] = params.param_final_values[params::LOCAL_CARRIER_0_FEEDBACK + s];
+			controls.wave_index[s] = params.param_final_values[params::LOCAL_OSC_A_WAVE_INDEX + s];
+		}
+		for (int32_t m = 0; m < kNumModulators; m++) {
+			controls.modulator_volume[m] = params.param_final_values[params::LOCAL_MODULATOR_0_VOLUME + m];
+			controls.modulator_pitch_adjust[m] = params.param_final_values[params::LOCAL_MODULATOR_0_PITCH_ADJUST + m];
+			controls.modulator_feedback[m] = params.param_final_values[params::LOCAL_MODULATOR_0_FEEDBACK + m];
+		}
+		const EngineRenderResult result = fm_engine.render({
+		    .osc_buffer = osc_buffer,
+		    .num_samples = num_samples,
+		    .parts = unison_parts,
+		    .levels = &source_levels_,
+		    .cfg = &cfg,
+		    .spare_buffers = spare_buffers_,
+		    .controls = controls,
+		});
+		did_stereo_temp_buffer = result.did_stereo_buffer;
 	}
 	else {
 		DualSourceControls controls{
@@ -948,16 +865,7 @@ uint32_t Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge::m
 		}
 	}
 
-	// The dual-source engines store their own levels
-	if (synth_mode == SynthMode::FM) {
-		for (int32_t s = 0; s < kNumSources; s++) {
-			source_levels_.amplitudes_last_time[s] = source_amplitudes[s];
-			source_levels_.wave_indexes_last_time[s] = params.param_final_values[params::LOCAL_OSC_A_WAVE_INDEX + s];
-		}
-	}
-	for (int32_t m = 0; m < kNumModulators; m++) {
-		fm_engine.modulator_amplitude_last_time[m] = params.param_final_values[params::LOCAL_MODULATOR_0_VOLUME + m];
-	}
+	fm_engine.set_levels(modulator_volumes());
 	overall_osc_amplitude_last_time = overall_osc_amplitude;
 
 	return !unassign_voice_after;

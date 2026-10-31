@@ -21,6 +21,7 @@
 #include "dsp-next/fixed/filter/filter_set.h"
 #include "effects/saturation.h"
 #include "modulation/params/param.h"
+#include "synth/engines/fm_engine.h"
 #include "synth/engines/ring_mod_engine.h"
 #include "synth/engines/source_levels.h"
 #include "synth/engines/subtractive_engine.h"
@@ -28,7 +29,6 @@
 #include "synth/modulation/lfo.h"
 #include "synth/modulation/param_plane.h"
 #include "synth/modulation/patcher.h"
-#include "synth/voice/fm_engine.h"
 #include "synth/voice/sound_snapshot.h"
 #include "synth/voice/unison_part.h"
 #include "synth/voice/voice_config.h"
@@ -82,8 +82,7 @@ public:
 
 	dsp::fixed::FilterSet filter_set;
 
-	// The FM synth engine: owns one unison part's FM topology (modulators, carriers, feedback); it reads the voice's
-	// params and unison parts through the Voice& it is handed, and calls adjust_pitch.
+	// The FM engine: holds its modulators across blocks, and across notes and mode changes, as the voice's.
 	FMEngine fm_engine;
 
 	// The note before the arpeggiator and the MIDI channel it came on, indexed by MIDICharacteristic
@@ -167,6 +166,11 @@ private:
 
 	[[nodiscard]] int32_t next_noise() { return static_cast<int32_t>(noise_->next()); }
 
+	/// Each FM modulator's volume param this block.
+	[[nodiscard]] std::array<int32_t, kNumModulators> modulator_volumes() const {
+		return {params.param_final_values[deluge::modulation::params::LOCAL_MODULATOR_0_VOLUME],
+		        params.param_final_values[deluge::modulation::params::LOCAL_MODULATOR_1_VOLUME]};
+	}
 	/// Whether a source that can change during the note modulates source @p s's pitch, so its sample is not cached.
 	[[nodiscard]] bool pitch_mod_disallows_cache(const ControlBlock& control_block, const VoiceConfig& cfg,
 	                                             int32_t s) const;
