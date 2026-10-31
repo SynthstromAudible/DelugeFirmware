@@ -15,6 +15,8 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import { Steps } from "@astrojs/starlight/components"
+import StepFocus from "../../../../components/guidebook/StepFocus.astro"
 import Figure from "../../../../components/guidebook/Figure.astro"
 import fig_fig_9_12_1 from "../../../../assets/guidebook/figs/09-audio__12-waveform-view-detailed-audio-editing--1.svg?raw"
 import fig_fig_9_12_2 from "../../../../assets/guidebook/figs/09-audio__12-waveform-view-detailed-audio-editing--2.svg?raw"
@@ -53,9 +55,13 @@ Samples and audio clips can be displayed on the grid as a graphical waveform wit
 | white pads as opposed to coloured   |                                                                                                                                                                                                                                                                                                                                                                                                   |                                                                          |                                                                                        |
 | pads in quick audio clip edit view. |                                                                                                                                                                                                                                                                                                                                                                                                   | \* Loop markers available for samples but not available for audio clips. |                                                                                        |
 
+<StepFocus />
+
 ### Waveform editing length with start & end points
 
 Audio clip length is tied to the song’s tempo - e.g. “1 bar long” - and will not change. So, changing these waveform start and end points or tempo is likely to cause the waveform to be time-stretched when played.
+
+<Steps>
 
 1. With the audio clip in-focus i.e. after recording or loading.
 2. Press :key[Shift + Waveform Pad].
@@ -66,12 +72,18 @@ Audio clip length is tied to the song’s tempo - e.g. “1 bar long” - and wi
 7. Display will indicate the position of the selected marker.
 8. :key[BackUndo] to exit waveform editor.
 
+</Steps>
+
 ### ‘grabbing tempo’ to avoid time-stretching
 
 Audio clip length is tied to the song’s tempo and as such will be time-stretched when adjusting markers. Grabbing the tempo of an audio clip will avoid time-stretching.
 
+<Steps>
+
 1. Within :key[Clip] view, press :key[Tempo + Pad] on the grid.
 2. Within :key[Song] view, press :key[Tempo + Pad] on the clip’s row. This may be useful when loading an existing audio file into an audio clip and wishing to set the song to its tempo, or to return to the original tempo at which the clips were recorded if the tempo has since been changed, or after minor edits to an audio clip’s waveform’s start and end points (see previous section).
+
+</Steps>
 
 :::note
 When working with the markers it is recommended to start with the end marker adjustment first. Zoom out to work at a wider level and zoom in as finer adjustments are needed.
@@ -81,6 +93,8 @@ When working with the markers it is recommended to start with the end marker adj
 
 Loop markers can be set for samples but not audio clips.
 
+<Steps>
+
 1. With the sample in-focus i.e. kit sample.
 2. Press :key[Shift + Waveform Pad].
 3. Grid will show audio in graphical form indicated by white pads.
@@ -89,12 +103,18 @@ Loop markers can be set for samples but not audio clips.
 6. Play sample, for example press :key[Audition Pad] for the kit row sample in-focus.
 7. Sample will play from START, then RESTART at LOOP END (or END if no loop exists) and then play a loop beginning at LOOP start.
 
+</Steps>
+
 ### Deleting waveform loop markers
 
 Loop markers can be set for samples but not audio clips.
+
+<Steps>
 
 1. With the sample in-focus i.e. kit sample.
 2. Press :key[Shift + Waveform Pad].
 3. Grid will show audio in graphical form indicated by white pads. Loop markers will be blue and magenta columns.
 4. To delete LOOP START marker, press & hold :key[Pad] for the green start column + press :key[Pad] for LOOP START column.
 5. To delete LOOP END, press & hold :key[Pad] for the red end column + press :key[Pad] for LOOP END column.
+
+</Steps>
