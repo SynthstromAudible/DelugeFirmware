@@ -909,33 +909,6 @@ int32_t AutomationEditorLayoutModControllable::getAutomationParameterKnobPos(Mod
 // interpolation status of the left node or right node (depending on the reversed parameter which is
 // used to indicate what node in what direction we are looking for (e.g. we want status of left node, or
 // right node, relative to the current pos we are looking at
-bool AutomationEditorLayoutModControllable::getAutomationNodeInterpolation(ModelStackWithAutoParam* modelStack,
-                                                                           int32_t pos, bool reversed) {
-
-	if (!modelStack->autoParam->nodes.getNumElements()) {
-		return false;
-	}
-
-	int32_t rightI = modelStack->autoParam->nodes.search(pos + (int32_t)!reversed, GREATER_OR_EQUAL);
-	if (rightI >= modelStack->autoParam->nodes.getNumElements()) {
-		rightI = 0;
-	}
-	ParamNode* rightNode = modelStack->autoParam->nodes.getElement(rightI);
-
-	int32_t leftI = rightI - 1;
-	if (leftI < 0) {
-		leftI += modelStack->autoParam->nodes.getNumElements();
-	}
-	ParamNode* leftNode = modelStack->autoParam->nodes.getElement(leftI);
-
-	if (reversed) {
-		return leftNode->interpolated;
-	}
-	else {
-		return rightNode->interpolated;
-	}
-}
-
 // this function writes the new values calculated by the handleAutomationSinglePadPress and
 // handleAutomationMultiPadPress functions
 void AutomationEditorLayoutModControllable::setAutomationParameterValue(ModelStackWithAutoParam* modelStack,
@@ -962,23 +935,18 @@ void AutomationEditorLayoutModControllable::setAutomationParameterValue(ModelSta
 	// interpolation turned on to fix this, re-create those nodes with their current value with
 	// interpolation off
 
-	getInterpolationBefore() = getAutomationNodeInterpolation(modelStack, squareStart, true);
-	getInterpolationAfter() = getAutomationNodeInterpolation(modelStack, squareStart, false);
+	// Linked clips on a locked or held track preserve their own neighbouring values the same way.
 
 	// create a node to the left with the current interpolation status
 	int32_t squareNodeLeftStart = squareStart - kParamNodeWidth;
 	if (squareNodeLeftStart >= 0) {
-		int32_t currentValue = modelStack->autoParam->getValuePossiblyAtPos(squareNodeLeftStart, modelStack);
-		modelStack->autoParam->setValuePossiblyForRegion(currentValue, modelStack, squareNodeLeftStart,
-		                                                 kParamNodeWidth);
+		modelStack->autoParam->preserveRegion(squareNodeLeftStart, kParamNodeWidth, squareStart, modelStack);
 	}
 
 	// create a node to the right with the current interpolation status
 	int32_t squareNodeRightStart = squareStart + kParamNodeWidth;
 	if (squareNodeRightStart < effectiveLength) {
-		int32_t currentValue = modelStack->autoParam->getValuePossiblyAtPos(squareNodeRightStart, modelStack);
-		modelStack->autoParam->setValuePossiblyForRegion(currentValue, modelStack, squareNodeRightStart,
-		                                                 kParamNodeWidth);
+		modelStack->autoParam->preserveRegion(squareNodeRightStart, kParamNodeWidth, squareStart, modelStack);
 	}
 
 	// reset interpolation to false for the single pad we're changing (so that the nodes around it don't

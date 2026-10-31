@@ -22,6 +22,7 @@
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/performance_view.h"
+#include "gui/views/session/track_link.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
@@ -394,6 +395,10 @@ void MidiFollow::initDefaultMappings() {
 ///	   arranger performance view, arranger automation view
 /// 3) entering a clip or previousy held a clip
 Clip* MidiFollow::getSelectedOrActiveClip() {
+	if (getRootUI() == &sessionView && deluge::gui::track_link::modeIsOn()) {
+		// If the track-edit target is unavailable, do not fall back to an unrelated current clip.
+		return deluge::gui::track_link::selectedClip();
+	}
 	Clip* clip = nullptr;
 
 	clip = getSelectedClip();
@@ -577,6 +582,13 @@ MidiFollow::getModelStackWithParamForSynthClip(ModelStackWithTimelineCounter* mo
 	return modelStackWithParam;
 }
 
+static bool kitUsesGlobalEffects(InstrumentClip const& clip) {
+	// Check the target output, not the selected track: Track1-16 can control another kit.
+	// Outside track editing, preserve MIDI Follow's existing Affect Entire/drum context.
+	return clip.affectEntire
+	       || ((getRootUI() == &sessionView || getRootUI() == &arrangerView) && clip.output->trackEditsAreLinked());
+}
+
 ModelStackWithAutoParam*
 MidiFollow::getModelStackWithParamForKitClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Clip* clip,
                                              int32_t soundParamId, int32_t globalParamId) {
@@ -585,7 +597,8 @@ MidiFollow::getModelStackWithParamForKitClip(ModelStackWithTimelineCounter* mode
 	int32_t paramID = PARAM_ID_NONE;
 	InstrumentClip* instrumentClip = (InstrumentClip*)clip;
 
-	if (!instrumentClip->affectEntire) {
+	bool affect_entire = kitUsesGlobalEffects(*instrumentClip);
+	if (!affect_entire) {
 		if (soundParamId != PARAM_ID_NONE && soundParamId < params::UNPATCHED_START) {
 			paramKind = params::Kind::PATCHED;
 			paramID = soundParamId;
@@ -608,7 +621,7 @@ MidiFollow::getModelStackWithParamForKitClip(ModelStackWithTimelineCounter* mode
 	if ((paramKind != params::Kind::NONE) && (paramID != PARAM_ID_NONE)) {
 		// Note: useMenuContext parameter will always be false for MidiFollow
 		modelStackWithParam = clip->output->getModelStackWithParam(modelStackWithTimelineCounter, clip, paramID,
-		                                                           paramKind, instrumentClip->affectEntire, false);
+		                                                           paramKind, affect_entire, false);
 	}
 
 	return modelStackWithParam;
@@ -699,7 +712,7 @@ bool MidiFollow::isGlobalEffectableContext() {
 		}
 		// kits may be global effectable depending on affect entire status
 		else if (clip->output->type == OutputType::KIT) {
-			bool affectEntire = ((InstrumentClip*)clip)->affectEntire;
+			bool affectEntire = kitUsesGlobalEffects(*static_cast<InstrumentClip*>(clip));
 			// if affect entire is enabled, then midi follow controls global effectable params
 			if (affectEntire) {
 				return true;

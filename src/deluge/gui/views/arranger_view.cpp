@@ -32,7 +32,9 @@
 #include "gui/views/audio_clip_view.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
+#include "gui/views/session/track_link.h"
 #include "gui/views/session_view.h"
+#include "gui/views/track_edit_pulse.h"
 #include "gui/views/view.h"
 #include "gui/waveform/waveform_renderer.h"
 #include "hid/buttons.h"
@@ -90,6 +92,26 @@ using namespace deluge;
 using namespace gui;
 
 PLACE_SDRAM_BSS ArrangerView arrangerView{};
+
+namespace {
+// A held audition pad links edits across the track's clips, like a held Session track pad. Every output is cleared,
+// including hibernating ones (MIDI instruments hibernate in their own slot), so a replaced or removed output can't keep
+// a stale scope after the hold ends.
+void setHeldTrackEditScope(Output* held) {
+	for (Output* output = currentSong->firstOutput; output != nullptr; output = output->next) {
+		output->setTrackEditActive(false);
+	}
+	for (Output* output = currentSong->firstHibernatingInstrument; output != nullptr; output = output->next) {
+		output->setTrackEditActive(false);
+	}
+	if (currentSong->hibernatingMIDIInstrument != nullptr) {
+		currentSong->hibernatingMIDIInstrument->setTrackEditActive(false);
+	}
+	if ((held != nullptr) && deluge::gui::track_link::enabled()) {
+		held->setTrackEditActive(true);
+	}
+}
+} // namespace
 
 ArrangerView::ArrangerView() {
 	doingAutoScrollNow = false;
@@ -377,6 +399,7 @@ doChangeOutputType:
 					actionLogger.deleteAllLogs();
 
 					currentUIMode = UI_MODE_NONE;
+					setHeldTrackEditScope(nullptr);
 					endAudition(output);
 
 					loadInstrumentPresetUI.setupLoadInstrument(newOutputType, (Instrument*)output, nullptr);
@@ -470,6 +493,7 @@ void ArrangerView::deleteOutput() {
 
 	output->clipInstances.empty(); // Because none of these have Clips, this is ok
 	output->cutAllSound();
+	output->setTrackEditActive(false); // A hibernated output may be reused later; it mustn't keep the held edit scope.
 	currentSong->deleteOrHibernateOutput(output);
 
 	auditionEnded();
@@ -594,6 +618,12 @@ bool ArrangerView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth +
                                  uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
 	if (!image) {
 		return true;
+	}
+
+	for (int32_t y = 0; y < kDisplayHeight; ++y) {
+		if ((whichRows & (1u << y)) != 0u) {
+			deluge::gui::track_edit_pulse::clearPulseRow(image[y], y, true);
+		}
 	}
 
 	if (view.potentiallyRenderVUMeter(image)) {
@@ -879,7 +909,8 @@ void ArrangerView::auditionPadAction(bool on, int32_t y, UI* ui) {
 
 			currentUIMode = UI_MODE_NONE;
 
-			uiNeedsRendering(ui, 0x00000000, 0xFFFFFFFF);
+			// resetHeldPulse() below stops animating the previous row, so redraw it before its index is replaced.
+			uiNeedsRendering(ui, deluge::gui::track_link::enabled() ? (1u << yPressedEffective) : 0, 0xFFFFFFFF);
 
 			goto doNewPress;
 		}
@@ -917,6 +948,7 @@ doNewPress:
 				outputsOnScreen[yPressedEffective] = output;
 			}
 
+			deluge::gui::track_edit_pulse::resetHeldPulse();
 			currentUIMode = UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION;
 
 			view.displayOutputName(output);
@@ -930,8 +962,10 @@ doNewPress:
 				view.setActiveModControllableWithoutTimelineCounter(output->toModControllable(),
 				                                                    output->getParamManager(currentSong));
 			}
+			setHeldTrackEditScope(output);
 
-			uiNeedsRendering(ui, 0, 1 << yPressedEffective);
+			uiNeedsRendering(ui, deluge::gui::track_link::enabled() ? (1u << yPressedEffective) : 0,
+			                 1u << yPressedEffective);
 		}
 	}
 
@@ -944,6 +978,7 @@ doNewPress:
 }
 
 void ArrangerView::auditionEnded() {
+	deluge::gui::track_edit_pulse::resetHeldPulse();
 	setNoSubMode();
 	setLedStates();
 
@@ -960,6 +995,7 @@ void ArrangerView::auditionEnded() {
 	}
 
 	view.setActiveModControllableTimelineCounter(currentSong);
+	setHeldTrackEditScope(nullptr);
 }
 
 ActionResult ArrangerView::padAction(int32_t x, int32_t y, int32_t velocity) {
@@ -1000,6 +1036,7 @@ ActionResult ArrangerView::handleEditPadAction(int32_t x, int32_t y, int32_t vel
 				if (output && output->type != OutputType::CV) {
 					endAudition(output);
 					currentUIMode = UI_MODE_NONE;
+					setHeldTrackEditScope(nullptr);
 					renameOutputUI.output = output;
 					openUI(&renameOutputUI);
 					uiNeedsRendering(this, 0, 0xFFFFFFFF); // Stop audition pad being illuminated
@@ -1758,7 +1795,8 @@ void ArrangerView::exitSubModeWithoutAction(UI* ui) {
 		if (output) {
 			endAudition(output);
 			auditionEnded();
-			uiNeedsRendering(ui, 0, 1 << yPressedEffective);
+			uiNeedsRendering(ui, deluge::gui::track_link::enabled() ? (1u << yPressedEffective) : 0,
+			                 1u << yPressedEffective);
 		}
 	}
 
@@ -2243,6 +2281,7 @@ bool ArrangerView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth 
 bool ArrangerView::renderRow(ModelStack* modelStack, int32_t yDisplay, int32_t xScroll, uint32_t xZoom,
                              RGB* imageThisRow, uint8_t thisOccupancyMask[], int32_t renderWidth) {
 
+	deluge::gui::track_edit_pulse::clearPulseRow(imageThisRow, yDisplay);
 	Output* output = outputsOnScreen[yDisplay];
 
 	if (!output) {
@@ -2307,6 +2346,15 @@ bool ArrangerView::renderRow(ModelStack* modelStack, int32_t yDisplay, int32_t x
 			for (auto* it = &imageThisRow[newStartSquare];
 			     it != &imageThisRow[newStartSquare] + (newEndSquare - newStartSquare); it++) {
 				*it = colours::black;
+			}
+		}
+	}
+
+	if (deluge::gui::track_link::enabled() && isTrackPadHeld(output)) {
+		for (int32_t x = 0; x < renderWidth; ++x) {
+			if (imageThisRow[x] != colours::black) {
+				imageThisRow[x] = deluge::gui::track_edit_pulse::renderPulse(imageThisRow[x], *output, imageThisRow, x,
+				                                                             yDisplay, true);
 			}
 		}
 	}
@@ -3427,4 +3475,9 @@ void ArrangerView::requestRendering(UI* ui, uint32_t whichMainRows, uint32_t whi
 	else if (ui == &arrangerView) {
 		uiNeedsRendering(ui, whichMainRows, whichSideRows);
 	}
+}
+
+bool ArrangerView::isTrackPadHeld(Output const* output) const {
+	return currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION && yPressedEffective >= 0
+	       && yPressedEffective < kDisplayHeight && outputsOnScreen[yPressedEffective] == output;
 }

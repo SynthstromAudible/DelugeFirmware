@@ -21,6 +21,7 @@
 #include "modulation/params/param_node_vector.h"
 #include "storage/storage_manager.h"
 #include <cstdint>
+#include <optional>
 
 class InstrumentClip;
 class ParamNode;
@@ -52,7 +53,13 @@ public:
 	int32_t processCurrentPos(ModelStackWithAutoParam const* modelStack, bool reversed, bool didPinpong,
 	                          bool mayInterpolate = true, bool mustUpdateValueAtEveryNode = false);
 	void setValueForRegion(uint32_t pos, uint32_t length, int32_t value, ModelStackWithAutoParam const* modelStack,
-	                       ActionType actionType = ActionType::NOTE_EDIT);
+	                       ActionType actionType = ActionType::NOTE_EDIT,
+	                       std::optional<uint32_t> preserveAround = std::nullopt);
+	// Rewrite a region with this param's own value there, keeping the interpolation of its nodes around anchorPos, so
+	// that a following edit at anchorPos doesn't change it. Linked clips do the same with their own values.
+	void preserveRegion(int32_t pos, int32_t length, int32_t anchorPos, ModelStackWithAutoParam* modelStack);
+	// Whether the node after (or, reversed, before) pos is interpolated.
+	bool isInterpolatedAround(int32_t pos, bool reversed);
 	void setValuePossiblyForRegion(int32_t value, ModelStackWithAutoParam const* modelStack, int32_t pos,
 	                               int32_t length, bool mayDeleteNodesInLinearRun = true);
 	int32_t getValueAtPos(uint32_t pos, ModelStackWithAutoParam const* modelStack, bool reversed = false);

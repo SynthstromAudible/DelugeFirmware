@@ -47,6 +47,9 @@ struct ParameterEdit {
 	bool mayDeleteNodesInLinearRun = true;
 	bool isMPE = false;
 	std::optional<AutomationRegion> region;
+	// For a region edit: rewrite each target's own value over the region instead of `value`, keeping the interpolation
+	// of its own nodes around this position (see AutoParam::preserveRegion()).
+	std::optional<uint32_t> preserveAround;
 };
 
 } // namespace deluge::model
