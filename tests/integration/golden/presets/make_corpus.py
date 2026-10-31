@@ -138,10 +138,26 @@ def case(
     lines.append(f"\t\t<envelope1 {attrs(merged(BASE_ENV1, env1))} />")
     lines.append(f"\t\t<envelope2 {attrs(merged(BASE_ENV2, env2))} />")
     lines.append("\t\t<patchCables>")
-    for source, destination, amount in cables if cables is not None else BASE_CABLES:
+    # A cable is (source, destination, amount), or with a fourth item: the cables controlling its depth, each
+    # (source, amount, polarity).
+    for cable in cables if cables is not None else BASE_CABLES:
+        source, destination, amount = cable[:3]
+        depth = cable[3] if len(cable) > 3 else []
+        if not depth:
+            lines.append(
+                f'\t\t\t<patchCable source="{source}" destination="{destination}" amount="{amount}" />'
+            )
+            continue
         lines.append(
-            f'\t\t\t<patchCable source="{source}" destination="{destination}" amount="{amount}" />'
+            f'\t\t\t<patchCable source="{source}" destination="{destination}" amount="{amount}">'
         )
+        lines.append("\t\t\t\t<depthControlledBy>")
+        for d_source, d_amount, d_polarity in depth:
+            lines.append(
+                f'\t\t\t\t\t<patchCable source="{d_source}" amount="{d_amount}" polarity="{d_polarity}" />'
+            )
+        lines.append("\t\t\t\t</depthControlledBy>")
+        lines.append("\t\t\t</patchCable>")
     lines.append("\t\t</patchCables>")
     lines.append(
         '\t\t<equalizer bass="0x00000000" treble="0x00000000" bassFrequency="0x00000000" trebleFrequency="0x00000000" />'
@@ -815,5 +831,19 @@ case(
         "modulator1Feedback": "0x10000000",
     },
 )
+
+# --- the patcher's paths the matrix runtime must keep (voice/) ------------------
+# Velocity to the master pitch: its depth is squared and scaled so velocity's steps are semitones.
+case("voice/velocity_pitch", cables=BASE_CABLES + [("velocity", "pitch", "0x20000000")])
+# An LFO on pitch whose depth velocity controls, played by two overlapping notes of different velocities: each voice's
+# depth cable and the range it gives the LFO's cable.
+case(
+    "voice/depth_velocity_poly",
+    lfo1={"type": "sine"},
+    params={"lfo1Rate": "0x10000000"},
+    cables=BASE_CABLES
+    + [("lfo1", "pitch", "0x10000000", [("velocity", "0x3FFFFFE8", "bipolar")])],
+)
+
 
 print(f"wrote {len(list(CORPUS.glob('*.xml')))} presets to {CORPUS}")

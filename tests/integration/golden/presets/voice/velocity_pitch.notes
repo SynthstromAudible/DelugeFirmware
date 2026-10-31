@@ -1,0 +1,5 @@
+# A low and a high note, so velocity's pitch scaling is heard at two velocities.
+4608 90 3C 20
+30000 80 3C 40
+32000 90 3C 7F
+60000 80 3C 40

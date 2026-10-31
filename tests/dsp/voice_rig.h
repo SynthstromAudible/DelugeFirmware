@@ -10,6 +10,7 @@
 
 #pragma once
 
+#include "alloc_seams.h"
 #include "fake_voice_ports.h"
 #include "synth/voice/voice.h"
 
@@ -23,14 +24,6 @@
 #include <limits>
 
 void functionsInit(); // util/param_functions.cpp: fills the param scaling tables
-
-// The allocator seam the live input's pitch shifter reaches (memory/memory_allocator_interface.h), from the host heap.
-void* allocMaxSpeed(uint32_t requiredSize) {
-	return std::malloc(requiredSize);
-}
-extern "C" void delugeDealloc(void* address) {
-	std::free(address);
-}
 
 namespace deluge::synth::test {
 
