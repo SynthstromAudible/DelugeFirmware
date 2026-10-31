@@ -31,6 +31,7 @@
 #include "model/project_bridge/controls_bridge.h"
 
 #include "scenes/menu/nodes/nodes.h" // `roots()`' table (task 8)
+#include "scenes/menu/note_bridge.h"
 
 #include "scenes/bind/dispatch.h"
 #include "scenes/bind/write_sink.h"
@@ -392,6 +393,8 @@ void MenuScene::retarget(const Node& node) {
 	st_.value_node = nullptr;
 	st_.back_claimed = false;
 	st_.column_press = false;
+	ctx_.selected_note_row = false;
+	session_value_ = nullptr;
 	// Same reason as the three siblings above: an offset staged for the abandoned path has nothing
 	// left to commit through once `value_node` is gone, and a stale one would otherwise double up
 	// with whatever a fresh turn on the new path accumulates next (fix round 1, Important 1).
@@ -435,6 +438,7 @@ void MenuScene::retarget(const Node& node) {
 		// `NoRowPress`: re-rooting is `open()`, a `SceneId` deep link or the shortcut-pad jump. The
 		// jump IS a press -- on a grid pad, not on this node's row -- which is the distinction the
 		// value's name carries and the old `Restored` did not (final review, A6).
+		begin_value_session(&node); // `setup()`'s permission check
 		enter_leaf(node, FocusCause::NoRowPress);
 	}
 	else {
@@ -684,6 +688,13 @@ bool MenuScene::reroot_to_scene_opener_page() {
 	return true;
 }
 
+void MenuScene::begin_value_session(const Node* value) {
+	session_value_ = value;
+	if (value == &nodes::sequence_direction && !ctx_.is_kit) {
+		ctx_.selected_note_row = note_bridge() != nullptr && note_bridge()->row_auditioning();
+	}
+}
+
 void MenuScene::focus_column(const Node& column) {
 	const Node* page = focused();
 	if (page == nullptr) {
@@ -717,6 +728,7 @@ void MenuScene::read_value_again() {
 	const Node* node = focused();
 	if (node != nullptr) {
 		enter_leaf(*node, FocusCause::NoRowPress);
+		reread_unshown_ = true; // `Value::readValueAgain` redraws (`value.h:77-80`): `next_timer` asks for it now
 	}
 }
 
@@ -1257,6 +1269,11 @@ void MenuScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) {
 		return;
 	}
 	select_held_ = f.select_held();
+	reread_unshown_ = false;
+	// A horizontal page's `initializeItem` on every focus move and `beginSession`, read before its columns draw.
+	if (const Node* const value = focused_value(); value != session_value_) {
+		begin_value_session(value);
+	}
 	const Node* node = focused();
 	if (node == nullptr) {
 		return;
@@ -1988,6 +2005,7 @@ void MenuScene::descend_to(const Node& child) {
 	st_.columns[st_.depth] = deluge::ui::ColumnsState{};
 	st_.scroll[st_.depth] = deluge::ui::ScrollText{};
 	if (is_leaf(child.kind)) {
+		begin_value_session(&child);             // `Submenu::selectButtonPress`'s permission check
 		enter_leaf(child, FocusCause::RowPress); // the one path with a select press behind it
 	}
 	else {
@@ -2786,6 +2804,11 @@ constexpr uint32_t kVoiceUsageSampleMs = 500;
 } // namespace
 
 std::optional<uint32_t> MenuScene::next_timer() const {
+	// A value read again from outside a render is due on the panel at once. A dirty fact would not do: raised during
+	// the tick's input step, it waits for a tick nothing has scheduled.
+	if (reread_unshown_) {
+		return 0;
+	}
 	// The voice usage page's next sample, else the pad blinks: the shorter of the counter's two steps that the plan
 	// uses. Nothing blinking arms nothing.
 	if (focused() == &nodes::voice_usage) {
@@ -2806,7 +2829,7 @@ std::optional<uint32_t> MenuScene::next_timer() const {
 }
 
 deluge::ui::shell::Scene::RepaintSurfaces MenuScene::timer_repaints() const {
-	return {.oled = focused() == &nodes::voice_usage, .grid = true};
+	return {.oled = reread_unshown_ || focused() == &nodes::voice_usage, .grid = true};
 }
 
 void MenuScene::tick(uint32_t dt_ms) {

@@ -1,0 +1,52 @@
+# ShellMenu: Play Direction follows the auditioned row. With no audition, SHIFT + the PLAY DIRECTION shortcut opens it
+# on the clip's direction; BACK closes it. Holding row 3's audition pad, the same shortcut opens the row editor on that
+# row, and a turn edits the row; with row 3 released, row 5's audition re-reads it for row 5, and a turn edits row 5.
+# Then from the sound menu: down its list to PLAY DIRECTION, entered while row 2 is auditioning (the row's), turned;
+# row 6's audition re-reads it for row 6. Run on the ShellMenu card.
+100   snapshot boot
+300   button Shift down
+400   pad 4 7 down
+440   pad 4 7 up
+500   button Shift up
+1200  snapshot clip
+1400  button Back down
+1420  button Back up
+2000  snapshot closed
+2200  pad 17 3 down
+2400  button Shift down
+2500  pad 4 7 down
+2540  pad 4 7 up
+2600  button Shift up
+3300  snapshot row-open
+3500  encoder Select +1
+4200  snapshot row-turned
+4400  pad 17 3 up
+4600  pad 17 5 down
+5300  snapshot other-row
+5500  encoder Select +2
+6200  snapshot other-turned
+6400  pad 17 5 up
+7100  snapshot released
+7300  button Back down
+7320  button Back up
+7600  button SelectEnc down
+7620  button SelectEnc up
+7900  encoder Select +8
+8100  encoder Select +8
+8300  encoder Select +8
+8500  encoder Select +8
+8700  encoder Select +8
+8900  encoder Select +8
+9100  encoder Select -1
+9800  snapshot sound-root
+10000 pad 17 2 down
+10200 button SelectEnc down
+10220 button SelectEnc up
+10900 snapshot sound-entered
+11100 encoder Select -1
+11800 snapshot sound-turned
+12000 pad 17 2 up
+12200 pad 17 6 down
+12900 snapshot sound-other-row
+13100 pad 17 6 up
+13800 snapshot sound-released

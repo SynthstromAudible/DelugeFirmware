@@ -1020,6 +1020,10 @@ private:
 	bool blink_origin_known_ = false;
 	bool blink_restart_ = true;
 	const Node* blink_screen_ = nullptr;
+	/// The value the last render's session began on (`focused_value()`); a change is a new session.
+	const Node* session_value_ = nullptr;
+	/// `read_value_again` ran since the last render: the panel is stale until the next one.
+	bool reread_unshown_ = false;
 	uint32_t voice_usage_elapsed_ms_ = 0;
 	bool voice_usage_open_ = false;
 	/// What `render_horizontal`'s columns draw from, here rather than on the stack: a group page has up to
@@ -1083,6 +1087,10 @@ private:
 	/// @brief Focus @p column on the page `focused()` shows, when the page lists it visibly;
 	///        otherwise leave the focus where it is (`Submenu::focusChild`).
 	void focus_column(const Node& column);
+
+	/// @brief `Direction::checkPermissionToBeginSession`'s latch (`sequence/direction.h:117-119`): when @p value is
+	///        Play Direction on a non-kit clip, `MenuContext::selected_note_row` takes whether a row is auditioning.
+	void begin_value_session(const Node* value);
 
 public:
 	/// @name The two navigation steps a caller outside the scene takes (note-family Task 7a)

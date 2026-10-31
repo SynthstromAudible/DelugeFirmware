@@ -116,6 +116,11 @@ bool noteModeCurrentMenuItemIs(NoteModeMenuItem item);
 /// @brief `soundEditor.getCurrentMenuItem()->readValueAgain()`, ported.
 void noteModeReadValueAgain();
 
+/// @brief `potentiallyRefreshNoteRowMenu`'s test (`gui/views/instrument_clip_view.cpp`), asked of the ported menu
+///        outside the note modes: `getCurrentUI() == &soundEditor && soundEditor.selectedNoteRow` with Play
+///        Direction the current item.
+bool portedMenuOnAuditionedRowDirection();
+
 /// @brief `soundEditor.goUpOneLevel()` (`gui/ui/sound_editor.cpp:710-729`), ported.
 void noteModeGoUpOneLevel();
 

@@ -5535,6 +5535,9 @@ void InstrumentClipView::potentiallyRefreshNoteRowMenu() {
 			deluge::gui::ui::noteModeReadValueAgain();
 		}
 	}
+	else if (deluge::gui::ui::portedMenuOnAuditionedRowDirection()) {
+		deluge::gui::ui::noteModeReadValueAgain();
+	}
 	else {
 		// are we in the sound editor menu for a selected note row?
 		if (getCurrentUI() == &soundEditor && soundEditor.selectedNoteRow) {

@@ -112,6 +112,11 @@ struct MenuContext {
 	///        clip has affect-entire on but the menu is about to edit one row's params.
 	bool affect_entire = false;
 	bool is_kit = false;
+
+	/// @brief `soundEditor.selectedNoteRow`: a row was auditioning when Play Direction began its session on a
+	///        non-kit clip (`sequence/direction.h:117-119`), so it reads and writes the auditioned row, not the clip.
+	///        Latched by `MenuScene` when the item is entered or its column focused; cleared by a re-root.
+	bool selected_note_row = false;
 	bool is_drum = false;
 	bool is_audio_clip = false;
 	bool is_song_view = false;

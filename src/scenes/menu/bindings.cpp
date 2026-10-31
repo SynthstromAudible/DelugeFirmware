@@ -495,48 +495,13 @@ bool has_instrument_clip(const MenuContext& ctx) {
 	return ctx.addresses.clip.has_value() && !ctx.is_audio_clip && ctx.model != nullptr && ctx.facts != nullptr;
 }
 
-// `getIndividualNoteRow`'s non-kit auditioned-row arm (`sequence/direction.h:50-60`),
-// gated by `soundEditor.selectedNoteRow` in legacy rather than transcribed as a model read.
-//
-// **The equivalence argument, narrowed to what actually holds.** `selectedNoteRow` is
-// latched at `Direction::checkPermissionToBeginSession`'s else-if (`sequence/direction.h:117-119`):
-// `soundEditor.selectedNoteRow = isUIModeActive(UI_MODE_AUDITIONING);`, reached only when the
-// output is not a kit, and read every session this item begins. What is true is narrower than "every
-// other caller opens with `UI_MODE_NONE`": under `Root::NoteRowEditor` specifically, the latch is
-// ALWAYS true, and nothing else can make it true from this port's own entry points:
-//   * `InstrumentClipView::enterNoteRowEditor`'s own guard (`instrument_clip_view.cpp:3767`),
-//     `getNumNoteRowsAuditioning() == 1`, requires one row already auditioning before it calls
-//     `soundEditor.setup` -- the only caller that can open with `UI_MODE_AUDITIONING` already
-//     active. A row only ever becomes "auditioning" through `InstrumentClipView::startAuditioningRow`
-//     entering that UI mode itself (`instrument_clip_view.cpp:5518`) the moment a row's audition pad
-//     goes down, so the one row counted by `getNumNoteRowsAuditioning() == 1` cannot exist without
-//     that mode already being active.
-//   * Once inside the note-row editor, `handleNoteRowEditorPadAction`'s sidebar arm
-//     (`instrument_clip_view.cpp:3855-3865`) only ever calls `handleNoteRowEditorAuditionPadAction`
-//     on a press (`if (on)`, `:3857`); a pad release is silently dropped rather than exiting the UI
-//     mode, so `UI_MODE_AUDITIONING` never lapses for as long as the note-row editor stays open.
-//   * The eight gated `openShellMenu` sites (`gui/ui/shell_menu_entry.cpp`'s table) all open with
-//     `currentUIMode == UI_MODE_NONE` or `UI_MODE_NOTES_PRESSED` (site 7's arranger arm), and neither
-//     of those is `UI_MODE_AUDITIONING`, so none of the eight can latch the flag true on entry.
-// `ctx.root == Root::NoteRowEditor` on a non-kit clip is therefore `selectedNoteRow`'s exact
-// port-side equivalent for every entry point this layer has.
-//
-// **What this does NOT cover, and is not attempting to: in-menu audition editing under `Root::Sound`
-// / `Root::MidiOrCv`.** `sequenceDirectionMenu` also sits in the *regular* sound-editor roots
-// (`soundEditorRootMenu`, `gui/ui/menus.cpp:1774`/`:1802`; `soundEditorRootMenuMIDIOrCV`, `:1952`/
-// `:1964`), and `SoundEditor::padAction` forwards audition-pad presses to `instrumentClipView` while
-// any *other* item of that root is focused (`gui/ui/sound_editor.cpp:1499-1503`, "allow user to
-// interact with audition pads while in regular sound editor"). So a user can hold an audition pad,
-// select-press down into Play Direction while still holding it, and land with `selectedNoteRow`
-// latched true under `Root::Sound`/`Root::MidiOrCv` -- and `InstrumentClipView::
-// potentiallyRefreshNoteRowMenu` (`instrument_clip_view.cpp:5551-5576`) then re-reads the item on
-// every later audition press, letting the user switch which row Play Direction edits without leaving
-// the menu. This is a real legacy behaviour this port does not build: nothing in `src/scenes` names
-// `Root::Sound`/`Root::MidiOrCv` in this arm, and this comment records the gap rather than closing
-// it.
+// `getIndividualNoteRow`'s non-kit auditioned-row arm (`sequence/direction.h:50-60`), gated as legacy gates it by
+// `soundEditor.selectedNoteRow` -- `MenuContext::selected_note_row`. Under `Root::NoteRowEditor` the latch is always
+// true: `InstrumentClipView::enterNoteRowEditor` (`instrument_clip_view.cpp:3767`) opens only with one row auditioning,
+// and the editor's sidebar arm never ends that mode while it stays open (`:3855-3865`), so the root answers for it.
 bool note_row_bridge_direction(const MenuContext& ctx, int32_t* value) {
-	return ctx.root == MenuContext::Root::NoteRowEditor && !ctx.is_kit && note_bridge() != nullptr
-	       && note_bridge()->row_sequence_direction(value);
+	return (ctx.root == MenuContext::Root::NoteRowEditor || ctx.selected_note_row) && !ctx.is_kit
+	       && note_bridge() != nullptr && note_bridge()->row_sequence_direction(value);
 }
 
 } // namespace

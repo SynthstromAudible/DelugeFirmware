@@ -294,6 +294,16 @@ void noteModeReadValueAgain() {
 	deluge::scenes::menu_scene().read_value_again();
 }
 
+bool portedMenuOnAuditionedRowDirection() {
+	// `getCurrentUI() == &soundEditor`: the guest current, with the menu taking its input.
+	deluge::scenes::menu::MenuScene& menu = deluge::scenes::menu_scene();
+	if (getCurrentUI() != &shellHostUI
+	    || &shellHostUI.shell().stack().input_top() != static_cast<deluge::ui::shell::Scene*>(&menu)) {
+		return false;
+	}
+	return menu.menu_context().selected_note_row && menu.focused() == &nodes::sequence_direction;
+}
+
 void noteModeGoUpOneLevel() {
 	if (!deluge::scenes::menu_scene().go_up_one_level()) {
 		// `gui/ui/sound_editor.cpp:715-717`'s `exitCompletely()`, ported as `shell_pad_forward.cpp`

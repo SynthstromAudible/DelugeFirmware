@@ -216,24 +216,10 @@ uint32_t menu_to_unsigned(int32_t menu_value);
 ///                      option, NONE (`direction.h:103-105`).
 /// @return The `SequenceDirection` as an `int32_t`.
 ///
-/// @note **The third arm is ported too, as of Task 6 -- for `Root::NoteRowEditor` only, fix round
-///       1.** Legacy's `getIndividualNoteRow` has a non-kit arm reached only when
-///       `soundEditor.selectedNoteRow` is set (`direction.h:50-60`), which reads
-///       `instrumentClipView.lastAuditionedYDisplay` and creates a note row if none exists.
-///       `soundEditor.selectedNoteRow` is itself a UI-state latch this layer may not read directly,
-///       set only by `checkPermissionToBeginSession`'s else-if (`:117-119`,
-///       `isUIModeActive(UI_MODE_AUDITIONING)`); `bindings.cpp`'s own comment on this function works
-///       out, from every entry point this port has, that the latch is ALWAYS true under
-///       `Root::NoteRowEditor` and never true from any of the eight gated `openShellMenu` sites --
-///       **but that is narrower than "every other path opens with `UI_MODE_NONE`"**. Legacy also
-///       reaches this same item from the regular sound-editor roots (`Root::Sound`/`Root::MidiOrCv`)
-///       while an audition pad is held, which can latch the flag true there too and let the user
-///       switch rows without leaving the menu (`bindings.cpp`'s divergence note, same comment). This
-///       port does not build that case; `ctx.root == MenuContext::Root::NoteRowEditor` on a non-kit
-///       clip is the equivalent condition for the case it DOES build. That arm goes through
-///       `note_bridge()`'s `row_sequence_direction` (`scenes/menu/note_bridge.h`); a kit clip, or no
-///       bridge answer, falls through to the kit-row arm and the "no note row, use the clip's own
-///       mode" fallback below, transcribed exactly as before.
+/// @note On a non-kit clip with `MenuContext::selected_note_row` latched (always so under `Root::NoteRowEditor`),
+///       the value is the auditioned row's -- `getIndividualNoteRow`'s third arm (`direction.h:50-60`), which reads
+///       the row at `instrumentClipView.lastAuditionedYDisplay` through `note_bridge()` and creates it if none
+///       exists. Otherwise, or with no bridge answer, the kit-row arm and then the clip's own mode.
 int32_t read_sequence_direction(const MenuContext& ctx, bool* from_note_row = nullptr);
 
 /// @brief Commit a play-direction change (`sequence::Direction::writeCurrentValue`,

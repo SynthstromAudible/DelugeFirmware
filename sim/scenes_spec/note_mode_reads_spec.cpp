@@ -24,8 +24,10 @@
 #include "util/note_editor_open.h"
 
 #include "definitions_cxx.hpp"
-#include "gui/ui/shell_host_ui.h"     // shellHostUI
-#include "gui/ui/shell_note_bridge.h" // wireShellNoteBridge
+#include "deluge-project/sequence_direction.h"
+#include "gui/ui/shell_host_ui.h" // shellHostUI
+#include "gui/ui/shell_note_bridge.h"
+#include "gui/ui/shell_pad_forward.h" // wireShellNoteBridge
 #include "gui/ui/ui.h"                // setRootUILowLevel, openUI, enterUIMode, currentUIMode
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
@@ -36,6 +38,7 @@
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/gate_drum.h"
+#include "model/edits/setting_edit.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
@@ -263,6 +266,24 @@ struct LegacyViewGuard {
 		while (deluge::notify::notices().pop(n)) {}
 	}
 };
+
+/// @brief The clip's own play direction, through the clip-setting edit the model reads it back from.
+void set_clip_direction(SongFixture& fx, SequenceDirection direction) {
+	deluge::edits::clipSettingFor(
+	    *fx.clip, "sequenceDirection",
+	    deluge::serialization::Value::makeScalar(std::string{deluge::project::to_string(direction)}));
+}
+
+/// @brief Row @p y's own play direction, set the way `NoteRow::setSequenceDirectionMode` is reached.
+void set_row_direction(LegacyViewGuard& legacy, int32_t y, SequenceDirection direction) {
+	NoteRow* row = legacy.row_at(y);
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* stack = currentSong->setupModelStackWithCurrentClip(memory);
+	int32_t row_index = 0;
+	(void)getCurrentInstrumentClip()->getNoteRowOnScreen(y, currentSong, &row_index);
+	row->setSequenceDirectionMode(stack->addNoteRow(getCurrentInstrumentClip()->getNoteRowId(row, row_index), row),
+	                              direction);
+}
 
 /// @brief The last notice queued since the previous drain, or empty.
 std::string drain_last_notice() {
@@ -900,7 +921,110 @@ describe note_mode_reads_legacy_leg("each edited file's legacy arm with the port
 		currentSong->changeFillMode(false);
 	});
 });
+describe note_mode_reads_sound_direction("Play Direction under the sound menu -- getIndividualNoteRow's selectedNoteRow arm", $ {
+	before_all([] { deluge::gui::ui::wireShellNoteBridge(); });
+
+	it("with no row auditioning it reads the clip's direction", _ {
+		UiStackGuard ui_guard;
+		GlobalGuestGuard guest_guard;
+		LegacyViewGuard legacy;
+		SongFixture fx = deluge::scenes::spec::make_synth_song();
+		set_clip_direction(fx, SequenceDirection::REVERSE);
+		set_row_direction(legacy, 0, SequenceDirection::PINGPONG);
+		instrumentClipView.lastAuditionedYDisplay = 0;
+		expect(open_note_mode_over_clip_view(fx, Root::Sound)).to_be_true();
+		menu_scene().enter_submenu(nodes::sequence_direction);
+		expect(menu_scene().state().enum_index).to_equal(static_cast<int32_t>(SequenceDirection::REVERSE));
+	});
+
+	it("with a row auditioning when it is entered it reads that row's direction", _ {
+		UiStackGuard ui_guard;
+		GlobalGuestGuard guest_guard;
+		LegacyViewGuard legacy;
+		SongFixture fx = deluge::scenes::spec::make_synth_song();
+		set_clip_direction(fx, SequenceDirection::REVERSE);
+		set_row_direction(legacy, 0, SequenceDirection::PINGPONG);
+		LegacyViewGuard::audition_row(0);
+		expect(open_note_mode_over_clip_view(fx, Root::Sound)).to_be_true();
+		menu_scene().enter_submenu(nodes::sequence_direction);
+		expect(menu_scene().state().enum_index).to_equal(static_cast<int32_t>(SequenceDirection::PINGPONG));
+	});
+
+	it("the latch outlives the audition: released after entry, the row is still the one read", _ {
+		UiStackGuard ui_guard;
+		GlobalGuestGuard guest_guard;
+		LegacyViewGuard legacy;
+		SongFixture fx = deluge::scenes::spec::make_synth_song();
+		set_clip_direction(fx, SequenceDirection::REVERSE);
+		set_row_direction(legacy, 0, SequenceDirection::PINGPONG);
+		LegacyViewGuard::audition_row(0);
+		expect(open_note_mode_over_clip_view(fx, Root::Sound)).to_be_true();
+		menu_scene().enter_submenu(nodes::sequence_direction);
+		currentUIMode = UI_MODE_NONE;
+		menu_scene().read_value_again();
+		expect(menu_scene().state().enum_index).to_equal(static_cast<int32_t>(SequenceDirection::PINGPONG));
+	});
+
+	it("an audition on another row re-reads it for that row -- potentiallyRefreshNoteRowMenu's soundEditor arm", _ {
+		UiStackGuard ui_guard;
+		GlobalGuestGuard guest_guard;
+		LegacyViewGuard legacy;
+		SongFixture fx = deluge::scenes::spec::make_synth_song();
+		set_clip_direction(fx, SequenceDirection::REVERSE);
+		set_row_direction(legacy, 0, SequenceDirection::PINGPONG);
+		set_row_direction(legacy, 1, SequenceDirection::FORWARD);
+		LegacyViewGuard::audition_row(0);
+		expect(open_note_mode_over_clip_view(fx, Root::Sound)).to_be_true();
+		menu_scene().enter_submenu(nodes::sequence_direction);
+		expect(menu_scene().state().enum_index).to_equal(static_cast<int32_t>(SequenceDirection::PINGPONG));
+
+		instrumentClipView.lastAuditionedYDisplay = 1;
+		instrumentClipView.potentiallyRefreshNoteRowMenu();
+		expect(menu_scene().state().enum_index).to_equal(static_cast<int32_t>(SequenceDirection::FORWARD));
+		// `Value::readValueAgain`'s `renderUIsForOled()` (`gui/menu_item/value.h:77-80`): the panel is due at once.
+		expect(menu_scene().next_timer() == std::optional<uint32_t>{0}).to_be_true();
+		expect(menu_scene().timer_repaints().oled).to_be_true();
+	});
+
+	it("real audition presses forwarded from the menu re-read it for the newly auditioned row", _ {
+		UiStackGuard ui_guard;
+		GlobalGuestGuard guest_guard;
+		LegacyViewGuard legacy;
+		HeldButton shift_for_silence(deluge::hid::button::SHIFT); // `auditionPadAction`'s silent arm: no synth voice
+		SongFixture fx = deluge::scenes::spec::make_synth_song();
+		set_clip_direction(fx, SequenceDirection::REVERSE);
+		set_row_direction(legacy, 4, SequenceDirection::PINGPONG);
+		set_row_direction(legacy, 5, SequenceDirection::FORWARD);
+		instrumentClipView.lastAuditionedYDisplay = 0;
+		expect(open_note_mode_over_clip_view(fx, Root::Sound)).to_be_true();
+		(void)deluge::gui::ui::forwardGridPad(kDisplayWidth + 1, 4, 64);
+		menu_scene().enter_submenu(nodes::sequence_direction);
+		expect(menu_scene().state().enum_index).to_equal(static_cast<int32_t>(SequenceDirection::PINGPONG));
+
+		(void)deluge::gui::ui::forwardGridPad(kDisplayWidth + 1, 4, 0);
+		(void)deluge::gui::ui::forwardGridPad(kDisplayWidth + 1, 5, 64);
+		expect(menu_scene().state().enum_index).to_equal(static_cast<int32_t>(SequenceDirection::FORWARD));
+		(void)deluge::gui::ui::forwardGridPad(kDisplayWidth + 1, 5, 0);
+	});
+
+	it("entered with no audition, a later audition does not move it off the clip", _ {
+		UiStackGuard ui_guard;
+		GlobalGuestGuard guest_guard;
+		LegacyViewGuard legacy;
+		SongFixture fx = deluge::scenes::spec::make_synth_song();
+		set_clip_direction(fx, SequenceDirection::REVERSE);
+		set_row_direction(legacy, 1, SequenceDirection::FORWARD);
+		instrumentClipView.lastAuditionedYDisplay = 0;
+		expect(open_note_mode_over_clip_view(fx, Root::Sound)).to_be_true();
+		menu_scene().enter_submenu(nodes::sequence_direction);
+		LegacyViewGuard::audition_row(1);
+		instrumentClipView.potentiallyRefreshNoteRowMenu();
+		menu_scene().read_value_again();
+		expect(menu_scene().state().enum_index).to_equal(static_cast<int32_t>(SequenceDirection::REVERSE));
+	});
+});
 // clang-format on
 
 DELUGE_SPEC(note_mode_reads_spec, note_mode_reads_predicates, note_mode_reads_note_editor,
-            note_mode_reads_note_row_editor, note_mode_reads_menu_entries, note_mode_reads_legacy_leg)
+            note_mode_reads_note_row_editor, note_mode_reads_menu_entries, note_mode_reads_legacy_leg,
+            note_mode_reads_sound_direction)
