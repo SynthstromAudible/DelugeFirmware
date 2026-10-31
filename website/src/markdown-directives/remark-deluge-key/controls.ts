@@ -267,6 +267,38 @@ export const CONTROLS = ControlData.parse({
 
   // TODO: Implement parameter buttons (gold knob selectors)
   Param: { toAction: labelledButtonToAction() },
+  // Parameter buttons above the gold knobs, by their printed labels
+  // (used by the 4.1 Guidebook pages).
+  LevelPan: {
+    toAction: labelledButtonToAction(),
+    display: "Level/Pan",
+    didYouMean: ["Level", "Pan"],
+  },
+  CutoffRes: {
+    toAction: labelledButtonToAction(),
+    display: "Cutoff/Res",
+    didYouMean: ["Cutoff", "Res", "Resonance"],
+  },
+  DelayTimeAmount: {
+    toAction: labelledButtonToAction(),
+    display: "Delay Time/Amount",
+    didYouMean: ["Delay"],
+  },
+  SidechainReverb: {
+    toAction: labelledButtonToAction(),
+    display: "Sidechain/Reverb",
+    didYouMean: ["Sidechain", "Reverb"],
+  },
+  ModRateDepth: {
+    toAction: labelledButtonToAction(),
+    display: "Mod Rate/Depth",
+    didYouMean: ["Mod", "ModRate"],
+  },
+  StutterCustom1: {
+    toAction: labelledButtonToAction(),
+    display: "Stutter/Custom 1",
+    didYouMean: ["Stutter", "Custom1"],
+  },
 
   // Knobs
   Horizontal: { toAction: knobToAction() },
