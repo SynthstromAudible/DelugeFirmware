@@ -4556,8 +4556,13 @@ ActionResult SessionView::gridHandleScroll(int32_t offsetX, int32_t offsetY) {
 	}
 
 	if (getCurrentUI() != &deluge::gui::context_menu::midiLearnMode) {
+		const bool endingInteraction = currentUIMode != UI_MODE_NONE || gridFirstPadActive();
 		gridResetPresses();
-		clipPressEnded();
+		// Ordinary scrolling only changes the pad viewport. Ending a nonexistent clip press
+		// would unnecessarily reset the knob context and redraw the unchanged OLED.
+		if (endingInteraction) {
+			clipPressEnded();
+		}
 	}
 
 	// Fix the range
