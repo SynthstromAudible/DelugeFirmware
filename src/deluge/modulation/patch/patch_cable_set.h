@@ -158,7 +158,7 @@ public:
 	PatchCable* getPatchCableFromVelocityToLevel();
 
 	deluge::synth::RoutedDestination* getDestinationForParam(int32_t p);
-	/// @brief The compiled routing, as the Patcher reads it.
+	/// @brief The compiled routing, as the matrix compiler reads it.
 	[[nodiscard]] deluge::synth::PatchRouting routing() const {
 		return {{destinations[0], destinations[1]},
 		        {sourcesPatchedToAnything[0], sourcesPatchedToAnything[1]},

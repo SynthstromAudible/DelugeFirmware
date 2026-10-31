@@ -21,10 +21,8 @@
 #include <cstdint>
 
 // The parameter scaling/patching math, split out of the grab-bag util/functions.h so the synth core
-// (the Patcher) can reach it without dragging in functions.h's gui/colour include. functions.h re-exports
-// this header, so its existing users are unaffected. (The definitions still live in functions.cpp; moving
-// them into a standalone gui-free TU is deferred to the libdeluge-synth lib step, where getExp's own util
-// dependencies get untangled too.)
+// (the mod matrix) can reach it without dragging in functions.h's gui/colour include. functions.h re-exports
+// this header, so its existing users are unaffected. The definitions live in param_functions.cpp.
 
 // Per-param scaling tables, populated by functionsInit().
 extern int32_t paramRanges[];

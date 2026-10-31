@@ -23,14 +23,14 @@
 #include <cstdint>
 #include <utility>
 
-/// The per-scope modulation data plane: the patch source values fed into the Patcher, and the param final
+/// The per-scope modulation data plane: the patch source values the matrix reads, and the param final
 /// values it writes out. Grouped into one POD so the synth core can own a single unit (the Phase-4 Voice
-/// pool) rather than loose Voice/Sound fields. The Patcher reads/writes these through `std::span`s, so it
+/// pool) rather than loose Voice/Sound fields. The matrix reads/writes these through `std::span`s, so it
 /// is agnostic to the sizes; only the construction site points its spans at a plane.
 template <std::size_t NumSources, std::size_t NumParams>
 struct ParamPlane {
 	std::array<int32_t, NumSources> source_values{};     ///< current patch-source values (LFO / env / velocity / …)
-	std::array<int32_t, NumParams> param_final_values{}; ///< Patcher output, indexed by (param - config.firstParam)
+	std::array<int32_t, NumParams> param_final_values{}; ///< matrix output, indexed from the scope's first param
 };
 
 /// The per-voice plane: all the patch sources, the local param range.
