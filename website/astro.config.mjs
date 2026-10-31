@@ -112,6 +112,89 @@ const config = defineConfig({
             ],
           },
           {
+            label: "Guidebook (OS 4.1)",
+            icon: "document",
+            link: "/guidebook",
+            items: [
+              { label: "About", link: "/guidebook" },
+              {
+                label: "1 Overview",
+                collapsed: true,
+                autogenerate: { directory: "guidebook/01-overview" },
+              },
+              {
+                label: "2 Basic Operation",
+                collapsed: true,
+                autogenerate: { directory: "guidebook/02-basic-operation" },
+              },
+              {
+                label: "3 Sequencing",
+                collapsed: true,
+                autogenerate: { directory: "guidebook/03-sequencing" },
+              },
+              {
+                label: "4 Synthesizers",
+                collapsed: true,
+                autogenerate: { directory: "guidebook/04-synthesizers" },
+              },
+              {
+                label: "5 Kits",
+                collapsed: true,
+                autogenerate: { directory: "guidebook/05-kits" },
+              },
+              {
+                label: "6 Modulation",
+                collapsed: true,
+                autogenerate: { directory: "guidebook/06-modulation" },
+              },
+              {
+                label: "7 Song View",
+                collapsed: true,
+                autogenerate: { directory: "guidebook/07-song-view" },
+              },
+              {
+                label: "8 Arranger View",
+                collapsed: true,
+                autogenerate: { directory: "guidebook/08-arranger-view" },
+              },
+              {
+                label: "9 Audio",
+                collapsed: true,
+                autogenerate: { directory: "guidebook/09-audio" },
+              },
+              {
+                label: "10 Looping",
+                collapsed: true,
+                autogenerate: { directory: "guidebook/10-looping" },
+              },
+              {
+                label: "11 Effects",
+                collapsed: true,
+                autogenerate: { directory: "guidebook/11-effects" },
+              },
+              {
+                label: "12 MIDI",
+                collapsed: true,
+                autogenerate: { directory: "guidebook/12-midi" },
+              },
+              {
+                label: "13 CV",
+                collapsed: true,
+                autogenerate: { directory: "guidebook/13-cv" },
+              },
+              {
+                label: "14 System & General",
+                collapsed: true,
+                autogenerate: { directory: "guidebook/14-system-general" },
+              },
+              {
+                label: "15 Community Guide",
+                collapsed: true,
+                autogenerate: { directory: "guidebook/15-community-guide" },
+              },
+            ],
+          },
+          {
             label: "Resources",
             icon: "star",
             link: "/resources/applications/overview",
