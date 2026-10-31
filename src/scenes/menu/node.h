@@ -797,6 +797,10 @@ struct Node {
 	///        `HorizontalMenu::Layout::FIXED` (`horizontal_menu.cpp:494`, `:253-257`). A vertical list still drops
 	///        them.
 	bool fixed_columns = false;
+	/// @brief A horizontal page whose children are member pages, listed as one run of columns: legacy's
+	///        `HorizontalMenuGroup` (`horizontal_menu_group.{h,cpp}`). Each member's first column starts a page, and
+	///        the page title is the focused column's member's.
+	bool is_group = false;
 	/// @brief The column draws its label: false where legacy's `showColumnLabel()` is.
 	bool show_column_label = true;
 	/// @brief An edit on the column raises the value notification: false where legacy's `showNotification()` is.
@@ -1100,6 +1104,15 @@ constexpr Node submenu(uint16_t name, std::span<const Node* const> children, Lay
 	n.layout = layout;
 	n.children = children;
 	n.relevant = rel;
+	return n;
+}
+
+/// @brief A menu group (`Node::is_group`) over @p members, each a horizontal page.
+/// @param name    The group's name; its title is always a member's.
+/// @param members The member pages, in paging order.
+constexpr Node group(uint16_t name, std::span<const Node* const> members) {
+	Node n = submenu(name, members, Layout::Horizontal);
+	n.is_group = true;
 	return n;
 }
 

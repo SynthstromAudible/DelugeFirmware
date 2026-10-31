@@ -38,6 +38,7 @@
 /// lists below serve both.
 
 #include "scenes/menu/node.h"
+#include "scenes/menu/nodes/groups.h"
 #include "scenes/menu/nodes/multi_range.h"
 #include "scenes/menu/nodes/note.h"
 #include "scenes/menu/nodes/patch_cables.h"

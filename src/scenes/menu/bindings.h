@@ -56,6 +56,13 @@ enum class ListFor : uint8_t { Rows, Columns };
 size_t listed_children(const Node& node, const MenuContext& ctx, std::span<const Node*> out,
                        ListFor list_for = ListFor::Rows);
 
+/// @brief The member page column @p column of @p group's listed columns belongs to.
+/// @param group  A group (`Node::is_group`); any other node is its own member.
+/// @param ctx    The menu's context.
+/// @param column An index into `listed_children(group, ctx, ..., ListFor::Columns)`.
+/// @return The member, or null past the last column.
+const Node* group_member_of(const Node& group, const MenuContext& ctx, size_t column);
+
 /// @brief The value @p target's record holds now, as its descriptor stores it (a CHOICE row: the choice's index), for a
 ///        select chain or a relevance rule that branches on a setting.
 /// @param target The setting.

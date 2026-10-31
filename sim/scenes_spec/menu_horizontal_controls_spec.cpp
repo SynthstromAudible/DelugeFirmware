@@ -206,6 +206,19 @@ constexpr Node fixed_page =
     menu::with_fixed_columns(menu::submenu(sid(String::STRING_FOR_VOICE), kFixedChildren, menu::Layout::Horizontal));
 constexpr Node dynamic_page = menu::submenu(sid(String::STRING_FOR_VOICE), kFixedChildren, menu::Layout::Horizontal);
 
+/// A group whose middle member lists nothing: it contributes no page (`HorizontalMenuGroup::switchVisiblePage` skips a
+/// member with 0 pages).
+constexpr const Node* kGroupPageAChildren[] = {&enum_col, &toggle_col};
+constexpr Node group_page_a = menu::submenu(sid(String::STRING_FOR_LPF), kGroupPageAChildren, menu::Layout::Horizontal);
+constexpr const Node* kGroupEmptyChildren[] = {&fixed_hidden_a, &fixed_hidden_b};
+constexpr Node group_page_empty =
+    menu::submenu(sid(String::STRING_FOR_HPF), kGroupEmptyChildren, menu::Layout::Horizontal);
+constexpr const Node* kGroupPageBChildren[] = {&filler_col};
+constexpr Node group_page_b =
+    menu::submenu(sid(String::STRING_FOR_FILTER_ROUTE), kGroupPageBChildren, menu::Layout::Horizontal);
+constexpr const Node* kSyntheticGroupMembers[] = {&group_page_a, &group_page_empty, &group_page_b};
+constexpr Node synthetic_group = menu::group(sid(String::STRING_FOR_FILTERS), kSyntheticGroupMembers);
+
 // A single four-slot value column, for the LED "one wide item" exception.
 int32_t g_wide_col = 0;
 int32_t get_wide_col(const MenuContext&) {
@@ -224,7 +237,8 @@ constexpr Node wide_page = menu::submenu(sid(String::STRING_FOR_MASTER_LEVEL), k
 constexpr const Node* kVerticalChildren[] = {&chain_target};
 constexpr Node vertical_page = menu::submenu(sid(String::STRING_FOR_SETTINGS), kVerticalChildren);
 
-constexpr const Node* kRoots[] = {&horiz_page, &wide_page, &vertical_page, &fixed_page, &dynamic_page};
+constexpr const Node* kRoots[] = {
+    &horiz_page, &wide_page, &vertical_page, &fixed_page, &dynamic_page, &synthetic_group, &menu::nodes::filters_group};
 
 // ---------------------------------------------------------------------------------------------
 // Board fixture -- copied from `menu_scene_spec.cpp`'s `Rig`.
@@ -615,6 +629,81 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		    .to_equal(std::string(deluge::l10n::get(String::STRING_FOR_ANALOG_SHORT)));
 		expect(short_name(menu::nodes::voice_priority, 1))
 		    .to_equal(std::string(deluge::l10n::get(String::STRING_FOR_MEDIUM_SHORT)));
+	});
+
+	it("the filters group pages LPF, HPF and FILTER ROUTE as 1/3, 2/3, 3/3", _ {
+		// `filtersMenuGroup` (`menus.cpp:631`); `HorizontalMenuGroup::getTitle` is the current member's
+		// (`horizontal_menu_group.cpp:77-79`), and CROSS_SCREEN/SCALE page across members, wrapping.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(menu::nodes::filters_group);
+		r.shell.tick(0);
+		menu::NodeText scratch;
+		const auto title = [&] { return std::string(menu_scene().page_title(scratch)); };
+		expect(title()).to_equal(std::string(deluge::l10n::get(String::STRING_FOR_LPF)));
+		expect(static_cast<int>(menu_scene().horizontal_paging().total_pages)).to_equal(3);
+		expect(static_cast<int>(menu_scene().horizontal_paging().page)).to_equal(0);
+		r.press(kCrossScreenX, kCrossScreenY, 300);
+		r.shell.tick(400);
+		expect(title()).to_equal(std::string(deluge::l10n::get(String::STRING_FOR_HPF)));
+		expect(static_cast<int>(menu_scene().horizontal_paging().page)).to_equal(1);
+		r.press(kCrossScreenX, kCrossScreenY, 600);
+		r.shell.tick(700);
+		expect(title()).to_equal(std::string(deluge::l10n::get(String::STRING_FOR_FILTER_ROUTE)));
+		r.press(kCrossScreenX, kCrossScreenY, 900);
+		r.shell.tick(1000);
+		expect(title()).to_equal(std::string(deluge::l10n::get(String::STRING_FOR_LPF)));
+		r.press(kScaleX, kScaleY, 1200);
+		r.shell.tick(1300);
+		expect(title()).to_equal(std::string(deluge::l10n::get(String::STRING_FOR_FILTER_ROUTE)));
+	});
+
+	it("SCALE and CROSS_SCREEN light on a one-page member of a group", _ {
+		// `horizontal_menu.cpp:117-119`: lit iff `totalPages > 1`, the group's total on a group.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(menu::nodes::filters_group);
+		r.shell.tick(0);
+		deluge::ui::LedFrame f;
+		menu_scene().leds(f);
+		expect(led_on(f, ButtonId::Scale)).to_be_true();
+		expect(led_on(f, ButtonId::CrossScreen)).to_be_true();
+	});
+
+	it("a group member with no relevant columns contributes no page", _ {
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(synthetic_group);
+		r.shell.tick(0);
+		expect(static_cast<int>(menu_scene().horizontal_paging().total_pages)).to_equal(2);
+		r.press(kCrossScreenX, kCrossScreenY, 300);
+		r.shell.tick(400);
+		menu::NodeText scratch;
+		expect(std::string(menu_scene().page_title(scratch)))
+		    .to_equal(std::string(deluge::l10n::get(String::STRING_FOR_FILTER_ROUTE)));
+	});
+
+	it("reopening a group lands on the member and column last focused", _ {
+		select_language();
+		deluge::notify::dirty().drain();
+		menu_scene().forget_rows();
+		Rig r;
+		const MenuContext ctx = r.open(menu::nodes::filters_group);
+		r.shell.tick(0);
+		r.press(kCrossScreenX, kCrossScreenY, 300);
+		r.shell.tick(400);
+		const int8_t focused = menu_scene().state().columns[0].focused;
+		r.button(kBackX, kBackY, true, 500);
+		r.shell.tick(510);
+		(void)r.open(menu::nodes::filters_group);
+		r.shell.tick(600);
+		expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(static_cast<int>(focused));
+		menu::NodeText scratch;
+		expect(std::string(menu_scene().page_title(scratch))).to_equal(std::string(deluge::l10n::get(String::STRING_FOR_HPF)));
+		(void)ctx;
 	});
 
 	it("a FIXED page keeps an irrelevant column in place, drawn as a dash", _ {

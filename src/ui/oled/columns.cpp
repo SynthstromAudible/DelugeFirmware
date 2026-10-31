@@ -185,6 +185,17 @@ struct PageWindow {
 
 /// Ports legacy `HorizontalMenu::preparePaging`. See `paging_of` in the header for the two legacy
 /// quirks kept.
+/// @brief Does column @p i open a new page, given @p acquired slots already on the current one?
+///
+/// A column that does not fit starts a page only when it is relevant -- legacy's guard: an irrelevant column that does
+/// not fit is appended to the current page instead. A `page_break` column (a menu group's next member) always does.
+bool starts_page(std::span<const Column> cols, int32_t i, int32_t acquired, int32_t slots) {
+	if (i > 0 && cols[i].page_break) {
+		return true;
+	}
+	return acquired + slots > kPageSlots && cols[i].relevant;
+}
+
 PageWindow window_of(std::span<const Column> cols, int32_t focused) {
 	PageWindow w;
 	const int32_t n = static_cast<int32_t>(cols.size());
@@ -210,9 +221,7 @@ PageWindow window_of(std::span<const Column> cols, int32_t focused) {
 
 	for (int32_t i = 0; i < n; i++) {
 		const int32_t slots = std::max<int32_t>(1, cols[i].slots);
-		// The `&& cols[i].relevant` guard is legacy's: an irrelevant column that does not fit is
-		// appended to the current page instead of starting a new one.
-		if (acquired + slots > kPageSlots && cols[i].relevant) {
+		if (starts_page(cols, i, acquired, slots)) {
 			if (found && !closed) {
 				focused_last = i; // the focused column's page ends here
 				closed = true;
@@ -348,7 +357,7 @@ int32_t page_switch(std::span<const Column> cols, int32_t focused, int32_t direc
 	int32_t candidate = -1;
 	for (int32_t i = 0; i < n; i++) {
 		const int32_t slots = std::max<int32_t>(1, cols[i].slots);
-		if (acquired + slots > kPageSlots && cols[i].relevant) {
+		if (starts_page(cols, i, acquired, slots)) {
 			if (page == target_page) {
 				break; // walked off the target page with a candidate already in hand
 			}

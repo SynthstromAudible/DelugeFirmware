@@ -43,6 +43,8 @@ struct Column {
 	bool show_label = true;
 	bool relevant = true;
 	bool is_submenu = false;
+	/// Start a new page at this column (not at index 0): a menu group's member boundary.
+	bool page_break = false;
 	void (*render)(OledFrame& slot_frame, bool focused, void* ctx) = nullptr;
 	void* ctx = nullptr;
 };

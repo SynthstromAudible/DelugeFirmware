@@ -841,7 +841,48 @@ size_t MenuScene::build_column_list(const Node& node, std::span<const Node*> kid
 		cols[i].relevant = bindings::relevant(kid, ctx_);
 		cols[i].is_submenu = kid.kind == Kind::Submenu;
 	}
+	if (node.is_group) {
+		// Each member after the first opens its own page (`HorizontalMenuGroup::preparePaging`).
+		size_t first = 0;
+		for (const Node* member : node.children) {
+			if (member == nullptr) {
+				continue;
+			}
+			const Node* scratch[kMaxMenuChildren];
+			const size_t count = bindings::listed_children(*member, ctx_, scratch, bindings::ListFor::Columns);
+			if (count != 0 && first < n) {
+				cols[first].page_break = true;
+			}
+			first += count;
+		}
+	}
 	return n;
+}
+
+deluge::ui::oled::Paging MenuScene::horizontal_paging() const {
+	const Node* node = focused();
+	if (node == nullptr || !on_horizontal_page()) {
+		return {};
+	}
+	const Node* kids[kMaxMenuColumns];
+	deluge::ui::oled::Column cols[kMaxMenuColumns]{};
+	NodeText label_scratch[kMaxMenuColumns];
+	const size_t n = build_column_list(*node, std::span<const Node*>{kids, kMaxMenuColumns},
+	                                   std::span<deluge::ui::oled::Column>{cols, kMaxMenuColumns},
+	                                   std::span<NodeText>{label_scratch, kMaxMenuColumns});
+	return deluge::ui::oled::paging_of(std::span<const deluge::ui::oled::Column>{cols, n},
+	                                   st_.columns[st_.depth].focused);
+}
+
+std::string_view MenuScene::page_title(NodeText& scratch) const {
+	const Node* node = focused();
+	if (node == nullptr) {
+		return {};
+	}
+	const int32_t focus = std::max<int32_t>(0, st_.columns[st_.depth].focused);
+	const Node* member = bindings::group_member_of(*node, ctx_, static_cast<size_t>(focus));
+	const Node& titled = member != nullptr ? *member : *node;
+	return node_text(titled.title, titled, ctx_, scratch);
 }
 
 int32_t input_tick_magnitude(const MenuContext& ctx) {
@@ -1266,9 +1307,9 @@ void MenuScene::render_horizontal(deluge::ui::oled::OledFrame& f, const Node& no
 	NodeText title_scratch;
 	// `f.bounds()`, not `menu_rect(f)`: this widget owns the whole panel including its own title
 	// band (`ui/oled/columns.h:127`).
-	st_.render_resp = deluge::ui::oled::columns(f, f.bounds(), st_.columns[st_.depth],
-	                                            std::span<const deluge::ui::oled::Column>{cols, n},
-	                                            node_text(node.title, node, ctx_, title_scratch));
+	st_.render_resp =
+	    deluge::ui::oled::columns(f, f.bounds(), st_.columns[st_.depth],
+	                              std::span<const deluge::ui::oled::Column>{cols, n}, page_title(title_scratch));
 
 	// `columns` claims the press only for a submenu column (`ui/oled/columns.cpp:451-455`), so a
 	// press on a *value* column reaches nobody. `after_render` answers it as `Submenu::selectButtonPress`

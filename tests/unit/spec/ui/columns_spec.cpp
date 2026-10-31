@@ -545,6 +545,20 @@ describe columns_w("ui::oled::columns", $ {
 		matches_legacy(self, r, p, state, 0, 4, 1, nullptr);
 	});
 
+	it("a page_break column starts a new page", _ {
+		// A menu group's member boundary (`HorizontalMenuGroup::preparePaging`, `horizontal_menu_group.cpp:167-205`): the
+		// next member's first column opens a page however few slots the previous member used.
+		std::array<Column, 5> cols{};
+		cols[2].page_break = true;
+		const std::span<const Column> span{cols.data(), cols.size()};
+		expect(static_cast<int32_t>(paging_of(span, 0).total_pages)).to_equal(2);
+		expect(static_cast<int32_t>(paging_of(span, 2).page)).to_equal(1);
+		expect(static_cast<int32_t>(paging_of(span, 2).focused_on_page)).to_equal(0);
+		expect(page_switch(span, 0, 1)).to_equal(2);
+		expect(column_under_button(span, 0, 2)).to_equal(-1);
+		expect(column_under_button(span, 3, 1)).to_equal(3);
+	});
+
 	it("pages six columns and shows the legacy page counters", _ {
 		std::vector<legacy::Item> six = four_columns();
 		six.push_back(legacy::Item{.label = "DRIVE", .kind = legacy::Item::BAR, .norm = 0.75f});

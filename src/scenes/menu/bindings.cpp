@@ -150,8 +150,18 @@ bool relevant(const Node& node, const MenuContext& ctx) {
 }
 
 size_t listed_children(const Node& node, const MenuContext& ctx, std::span<const Node*> out, ListFor list_for) {
-	const bool keep_irrelevant = list_for == ListFor::Columns && node.fixed_columns;
 	size_t kept = 0;
+	if (node.is_group) {
+		// `HorizontalMenuGroup` pages across its members: their columns in order, each member listing its own (a FIXED
+		// member keeps its irrelevant ones). A member with nothing listed contributes nothing.
+		for (const Node* member : node.children) {
+			if (member != nullptr && kept < out.size()) {
+				kept += listed_children(*member, ctx, out.subspan(kept), ListFor::Columns);
+			}
+		}
+		return kept;
+	}
+	const bool keep_irrelevant = list_for == ListFor::Columns && node.fixed_columns;
 	if (node.dynamic_children != nullptr) {
 		const size_t produced = std::min(node.dynamic_children(ctx, out), out.size());
 		for (size_t i = 0; i < produced; i++) {
@@ -171,6 +181,25 @@ size_t listed_children(const Node& node, const MenuContext& ctx, std::span<const
 		}
 	}
 	return kept;
+}
+
+const Node* group_member_of(const Node& group, const MenuContext& ctx, size_t column) {
+	if (!group.is_group) {
+		return &group;
+	}
+	size_t first = 0;
+	for (const Node* member : group.children) {
+		if (member == nullptr) {
+			continue;
+		}
+		std::array<const Node*, kMaxDynamicChildren> kids{};
+		const size_t n = listed_children(*member, ctx, kids, ListFor::Columns);
+		if (column < first + n) {
+			return member;
+		}
+		first += n;
+	}
+	return nullptr;
 }
 
 std::optional<int32_t> stored(const deluge::scenes::bind::Target& target, const MenuContext& ctx) {

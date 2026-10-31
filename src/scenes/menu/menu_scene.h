@@ -815,6 +815,20 @@ private:
 	/// @brief True when `focused()` is a `Layout::Horizontal` submenu -- the gate
 	///        `HorizontalMenu::buttonAction`'s six-button arm ports (`handle()`'s button code).
 	bool on_horizontal_page() const;
+
+public:
+	/// @brief The focused horizontal page's paging (empty off one): the page counter and the SCALE/CROSS_SCREEN rule
+	/// read
+	///        the same.
+	/// @return Page, total pages and position, as `ui::oled::paging_of` answers for the focused column.
+	deluge::ui::oled::Paging horizontal_paging() const;
+	/// @brief The focused page's title: on a group (`Node::is_group`) the focused column's member's, as
+	///        `HorizontalMenuGroup::getTitle` (`horizontal_menu_group.cpp:77-79`).
+	/// @param scratch Storage the returned view may point into.
+	/// @return The title text.
+	std::string_view page_title(NodeText& scratch) const;
+
+private:
 	/// @brief Turn @p node's visible children into a `Column` span carrying label, slots,
 	///        relevance and `is_submenu` -- the part of a horizontal page's presentation
 	///        `handle()`'s button code needs as well as `render_horizontal`'s full render, factored
