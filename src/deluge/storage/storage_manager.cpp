@@ -360,7 +360,8 @@ Error StorageManager::loadInstrumentFromFile(Song* song, InstrumentClip* clip, O
 deleteInstrumentAndGetOut:
 		D_PRINTLN("abandoning load -  %s", name->get());
 		newInstrument->deleteBackedUpParamManagers(song);
-		void* toDealloc = static_cast<void*>(newInstrument);
+		// Instrument isn't the first base of SoundInstrument, so the allocation starts before newInstrument
+		void* toDealloc = dynamic_cast<void*>(newInstrument);
 		newInstrument->~Instrument();
 		delugeDealloc(toDealloc);
 
