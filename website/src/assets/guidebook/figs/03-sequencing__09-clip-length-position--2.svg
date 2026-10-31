@@ -179,8 +179,8 @@
 <use href="#03-sequencing__09-clip-length-position--2-s10" transform="matrix(1 0 0 -1 344.8 107.2)"/>
 <text fill="currentColor" xml:space="preserve" transform="translate(25.4 12.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">[SHIFT] + press (SCROLL◄►)</tspan></text>
 <text fill="currentColor" xml:space="preserve" transform="translate(173.2 145.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Press (SCROLL</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(237.7 145.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">▼ ▲</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(255.5 145.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">) + turn (SCROLL◄ ► )</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(237.7 145.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">▼▲</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(255.5 145.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">) + turn (SCROLL◄► )</tspan></text>
 <text fill="currentColor" xml:space="preserve" transform="translate(12.4 32.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Grid sequence pattern is duplicated to</tspan></text>
 <text fill="currentColor" xml:space="preserve" transform="translate(19.2 42.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">extend the entire sequence length.</tspan></text>
 <text fill="currentColor" xml:space="preserve" transform="translate(182.2 167.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Note events can be moved left and right</tspan></text>

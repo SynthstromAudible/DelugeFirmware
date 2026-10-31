@@ -70,7 +70,7 @@
 <path transform="matrix(1,0,0,-1,-44.3,637.4)" d="M228.1 568.6H353.1V584.4H228.1Z" fill="var(--gb-paper)"/>
 <text fill="currentColor" xml:space="preserve" transform="translate(183.8 58.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Clear arrangement</tspan></text>
 <text fill="currentColor" xml:space="preserve" transform="translate(183.8 65.5)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Hold [SCROLL</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(223.5 65.5)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">▼ ▲</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(223.5 65.5)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">▼▲</tspan></text>
 <text fill="currentColor" xml:space="preserve" transform="translate(235.4 65.5)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">] + [BACK / UNDO]</tspan></text>
 <path transform="matrix(1,0,0,-1,-44.3,637.4)" d="M228.1 495.4H353.1V511.2H228.1Z" fill="var(--gb-paper)"/>
 <text fill="currentColor" xml:space="preserve" transform="translate(183.8 131.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Add track</tspan></text>

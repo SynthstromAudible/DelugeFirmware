@@ -58,7 +58,7 @@
 <path transform="matrix(1,0,0,-1,-56.8,613.1)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M481.8 305.2V268.4H459.2"/>
 <path transform="matrix(1,0,0,-1,-56.8,613.1)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M503.4 305.2V194.7H459.2"/>
 <text fill="currentColor" xml:space="preserve" transform="translate(6.5 322.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">(SCROLL</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(45.5 322.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">▼ ▲</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(45.5 322.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">▼▲</tspan></text>
 <text fill="currentColor" xml:space="preserve" transform="translate(63.4 322.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">)</tspan></text>
 <text fill="currentColor" xml:space="preserve" transform="translate(6.5 331.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Individual clips compressed to</tspan></text>
 <text fill="currentColor" xml:space="preserve" transform="translate(6.5 340.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">one row each in song view.</tspan></text>
