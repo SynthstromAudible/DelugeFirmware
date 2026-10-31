@@ -673,7 +673,7 @@ void forceReleaseOneVoice(size_t num_samples) {
 
 		const Sound::ActiveVoice& voice = *best;
 
-		auto stage = voice->kernel.envelopes[0].stage();
+		auto stage = voice->kernel.envelope(0).stage();
 		if (stage < Envelope::Stage::FAST_RELEASE) {
 			D_PRINTLN("force released 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", num_samples,
 			          getNumVoices(), getNumAudio());

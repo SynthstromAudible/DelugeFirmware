@@ -34,7 +34,7 @@ using namespace deluge;
 namespace deluge::synth {
 
 bool FMEngine::note_on(const EngineNote& note) {
-	if (!Engine::note_on(note)) {
+	if (!SlotEngine::note_on(note)) {
 		return false;
 	}
 	const int32_t num_unison = note.snapshot->num_unison;
@@ -61,7 +61,7 @@ void FMEngine::randomize_part(int32_t u, dsp::fixed::Cong& noise) {
 }
 
 void FMEngine::calculate_phase_increments(const EngineNote& note) {
-	Engine::calculate_phase_increments(note);
+	SlotEngine::calculate_phase_increments(note);
 
 	const SoundSnapshot& snapshot = *note.snapshot;
 	const int32_t note_code_with_master_transpose = note.note_code + snapshot.transpose;
@@ -330,56 +330,61 @@ void FMEngine::render_sine_wave_with_feedback(int32_t* buffer_start, int32_t num
 		*last_feedback_value = feedback_value;
 	}
 	else {
-		int32_t amplitude_now = amplitude;
-		int32_t* this_sample = buffer_start;
-		int32_t* buffer_end = buffer_start + num_samples;
+		render_sine_wave(buffer_start, num_samples, phase_now, amplitude, phase_increment, add, amplitude_increment);
+	}
+}
 
-		if (amplitude_increment != 0) {
-			do {
-				auto phase_vector = Argon<uint32_t>{phase_now}.MultiplyAdd(uint32x4_t{1, 2, 3, 4}, phase_increment);
-				phase_now += phase_increment * 4;
-				int32x4_t sine_value_vector = dsp::fixed::sine(phase_vector);
+void FMEngine::render_sine_wave(int32_t* buffer_start, int32_t num_samples, uint32_t phase_now, int32_t amplitude,
+                                uint32_t phase_increment, bool add, int32_t amplitude_increment) {
+	int32_t amplitude_now = amplitude;
+	int32_t* this_sample = buffer_start;
+	int32_t* buffer_end = buffer_start + num_samples;
 
-				int32x4_t amplitude_vector;
-				for (int32_t i = 0; i < 4; i++) {
-					amplitude_now += amplitude_increment;
-					amplitude_vector[i] = amplitude_now >> 1;
-				}
+	if (amplitude_increment != 0) {
+		do {
+			auto phase_vector = Argon<uint32_t>{phase_now}.MultiplyAdd(uint32x4_t{1, 2, 3, 4}, phase_increment);
+			phase_now += phase_increment * 4;
+			int32x4_t sine_value_vector = dsp::fixed::sine(phase_vector);
 
-				int32x4_t result_value_vector = vqdmulhq_s32(amplitude_vector, sine_value_vector);
+			int32x4_t amplitude_vector;
+			for (int32_t i = 0; i < 4; i++) {
+				amplitude_now += amplitude_increment;
+				amplitude_vector[i] = amplitude_now >> 1;
+			}
 
-				if (add) {
-					int32x4_t existing_buffer_contents = vld1q_s32(this_sample);
-					int32x4_t added = vaddq_s32(existing_buffer_contents, result_value_vector);
-					vst1q_s32(this_sample, added);
-				}
-				else {
-					vst1q_s32(this_sample, result_value_vector);
-				}
+			int32x4_t result_value_vector = vqdmulhq_s32(amplitude_vector, sine_value_vector);
 
-				this_sample += 4;
-			} while (this_sample < buffer_end);
-		}
+			if (add) {
+				int32x4_t existing_buffer_contents = vld1q_s32(this_sample);
+				int32x4_t added = vaddq_s32(existing_buffer_contents, result_value_vector);
+				vst1q_s32(this_sample, added);
+			}
+			else {
+				vst1q_s32(this_sample, result_value_vector);
+			}
 
-		else {
-			do {
-				auto phase_vector = Argon<uint32_t>{phase_now}.MultiplyAdd(uint32x4_t{1, 2, 3, 4}, phase_increment);
-				phase_now += phase_increment * 4;
-				int32x4_t sine_value_vector = dsp::fixed::sine(phase_vector);
-				int32x4_t result_value_vector = vqrdmulhq_n_s32(sine_value_vector, amplitude_now >> 1);
+			this_sample += 4;
+		} while (this_sample < buffer_end);
+	}
 
-				if (add) {
-					int32x4_t existing_buffer_contents = vld1q_s32(this_sample);
-					int32x4_t added = vaddq_s32(existing_buffer_contents, result_value_vector);
-					vst1q_s32(this_sample, added);
-				}
-				else {
-					vst1q_s32(this_sample, result_value_vector);
-				}
+	else {
+		do {
+			auto phase_vector = Argon<uint32_t>{phase_now}.MultiplyAdd(uint32x4_t{1, 2, 3, 4}, phase_increment);
+			phase_now += phase_increment * 4;
+			int32x4_t sine_value_vector = dsp::fixed::sine(phase_vector);
+			int32x4_t result_value_vector = vqrdmulhq_n_s32(sine_value_vector, amplitude_now >> 1);
 
-				this_sample += 4;
-			} while (this_sample < buffer_end);
-		}
+			if (add) {
+				int32x4_t existing_buffer_contents = vld1q_s32(this_sample);
+				int32x4_t added = vaddq_s32(existing_buffer_contents, result_value_vector);
+				vst1q_s32(this_sample, added);
+			}
+			else {
+				vst1q_s32(this_sample, result_value_vector);
+			}
+
+			this_sample += 4;
+		} while (this_sample < buffer_end);
 	}
 }
 
@@ -458,68 +463,73 @@ void FMEngine::render_fm_with_feedback_add(int32_t* buffer_start, int32_t num_sa
 		*last_feedback_value = feedback_value;
 	}
 	else {
-		int32_t amplitude_now = amplitude;
-		int32_t* this_sample = buffer_start;
-		int32_t* buffer_end = buffer_start + num_samples;
-		uint32_t* fm_sample = reinterpret_cast<uint32_t*>(fm_buffer);
-		int32_t* buffer_pre_end = buffer_end - 4;
+		render_fm_add(buffer_start, num_samples, fm_buffer, phase_now, amplitude, phase_increment, amplitude_increment);
+	}
+}
 
-		uint32x4_t phase_vector;
-		for (int32_t i = 0; i < 4; i++) {
-			phase_now += phase_increment;
-			phase_vector[i] = phase_now;
-		}
+void FMEngine::render_fm_add(int32_t* buffer_start, int32_t num_samples, int32_t* fm_buffer, uint32_t phase_now,
+                             int32_t amplitude, uint32_t phase_increment, int32_t amplitude_increment) {
+	int32_t amplitude_now = amplitude;
+	int32_t* this_sample = buffer_start;
+	int32_t* buffer_end = buffer_start + num_samples;
+	auto* fm_sample = reinterpret_cast<uint32_t*>(fm_buffer);
+	int32_t* buffer_pre_end = buffer_end - 4;
 
-		uint32x4_t phase_increment_vector = vdupq_n_u32(phase_increment << 2);
+	uint32x4_t phase_vector;
+	for (int32_t i = 0; i < 4; i++) {
+		phase_now += phase_increment;
+		phase_vector[i] = phase_now;
+	}
 
-		if (amplitude_increment != 0) {
-			while (true) {
-				uint32x4_t phase_shift = vld1q_u32(fm_sample);
-				int32x4_t sine_value_vector =
-				    dsp::fixed::sine(Argon<uint32_t>{phase_vector} + (Argon<uint32_t>{phase_shift} << 8));
+	uint32x4_t phase_increment_vector = vdupq_n_u32(phase_increment << 2);
 
-				int32x4_t amplitude_vector;
-				for (int32_t i = 0; i < 4; i++) {
-					amplitude_now += amplitude_increment;
-					amplitude_vector[i] = amplitude_now >> 1;
-				}
+	if (amplitude_increment != 0) {
+		while (true) {
+			uint32x4_t phase_shift = vld1q_u32(fm_sample);
+			int32x4_t sine_value_vector =
+			    dsp::fixed::sine(Argon<uint32_t>{phase_vector} + (Argon<uint32_t>{phase_shift} << 8));
 
-				int32x4_t result_value_vector = vqdmulhq_s32(amplitude_vector, sine_value_vector);
-
-				int32x4_t existing_buffer_contents = vld1q_s32(this_sample);
-				int32x4_t added = vaddq_s32(existing_buffer_contents, result_value_vector);
-				vst1q_s32(this_sample, added);
-
-				if (this_sample >= buffer_pre_end) {
-					break;
-				}
-
-				this_sample += 4;
-				fm_sample += 4;
-				phase_vector = vaddq_u32(phase_vector, phase_increment_vector);
+			int32x4_t amplitude_vector;
+			for (int32_t i = 0; i < 4; i++) {
+				amplitude_now += amplitude_increment;
+				amplitude_vector[i] = amplitude_now >> 1;
 			}
-		}
 
-		else {
-			while (true) {
-				uint32x4_t phase_shift = vld1q_u32(fm_sample);
-				int32x4_t sine_value_vector =
-				    dsp::fixed::sine(Argon<uint32_t>{phase_vector} + (Argon<uint32_t>{phase_shift} << 8));
+			int32x4_t result_value_vector = vqdmulhq_s32(amplitude_vector, sine_value_vector);
 
-				int32x4_t result_value_vector = vqrdmulhq_n_s32(sine_value_vector, amplitude_now >> 1);
+			int32x4_t existing_buffer_contents = vld1q_s32(this_sample);
+			int32x4_t added = vaddq_s32(existing_buffer_contents, result_value_vector);
+			vst1q_s32(this_sample, added);
 
-				int32x4_t existing_buffer_contents = vld1q_s32(this_sample);
-				int32x4_t added = vaddq_s32(existing_buffer_contents, result_value_vector);
-				vst1q_s32(this_sample, added);
-
-				if (this_sample >= buffer_pre_end) {
-					break;
-				}
-
-				this_sample += 4;
-				fm_sample += 4;
-				phase_vector = vaddq_u32(phase_vector, phase_increment_vector);
+			if (this_sample >= buffer_pre_end) {
+				break;
 			}
+
+			this_sample += 4;
+			fm_sample += 4;
+			phase_vector = vaddq_u32(phase_vector, phase_increment_vector);
+		}
+	}
+
+	else {
+		while (true) {
+			uint32x4_t phase_shift = vld1q_u32(fm_sample);
+			int32x4_t sine_value_vector =
+			    dsp::fixed::sine(Argon<uint32_t>{phase_vector} + (Argon<uint32_t>{phase_shift} << 8));
+
+			int32x4_t result_value_vector = vqrdmulhq_n_s32(sine_value_vector, amplitude_now >> 1);
+
+			int32x4_t existing_buffer_contents = vld1q_s32(this_sample);
+			int32x4_t added = vaddq_s32(existing_buffer_contents, result_value_vector);
+			vst1q_s32(this_sample, added);
+
+			if (this_sample >= buffer_pre_end) {
+				break;
+			}
+
+			this_sample += 4;
+			fm_sample += 4;
+			phase_vector = vaddq_u32(phase_vector, phase_increment_vector);
 		}
 	}
 }

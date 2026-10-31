@@ -225,7 +225,7 @@ describe synth_voice_spec("synth::Voice", ${
 			}
 			loudest = std::max(loudest, peak);
 			released_before_end = released_before_end
-			    || (rig->voice.envelopes[0].stage() >= Envelope::Stage::RELEASE
+			    || (rig->voice.envelope(0).stage() >= Envelope::Stage::RELEASE
 			        && rig->samples[0][0].bytes_left_to_end() > 0);
 		}
 		expect(loudest).to_be_greater_than(int64_t{1} << 16);
@@ -241,7 +241,7 @@ describe synth_voice_spec("synth::Voice", ${
 		for (int32_t i = 0; i < 20; i++) {
 			render_block(*rig, setup, cfg, nullptr, false);
 		}
-		expect(rig->voice.envelopes[0].stage() < Envelope::Stage::RELEASE).to_be_true();
+		expect(rig->voice.envelope(0).stage() < Envelope::Stage::RELEASE).to_be_true();
 	});
 
 	it("fast-releases to silence", _{

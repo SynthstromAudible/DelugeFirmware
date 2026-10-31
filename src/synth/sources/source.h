@@ -21,7 +21,8 @@
 #include "dsp-next/core/ramp.h"   // deluge::dsp::Ramp
 #include "dsp-next/core/types.h"  // deluge::dsp::fixed::Buffer
 #include "dsp-next/fixed/noise/cong.h"
-#include "dsp-next/fixed/wavetable/wave_table_data.h" // deluge::dsp::fixed::WaveTableData (storage-independent view)
+#include "dsp-next/fixed/wavetable/wave_table_data.h"
+#include "synth/sources/backend.h" // deluge::dsp::fixed::WaveTableData (storage-independent view)
 #include <cstdint>
 #include <optional>
 
@@ -47,23 +48,23 @@ inline constexpr uint32_t kNoPorta = 0xFFFFFFFF;
 /// be built and unit-tested with zero firmware scaffolding). Pitch/phase is engine state, set when the engine
 /// is created/seeded, not passed here.
 struct BlockControls {
-	deluge::dsp::Ramp amplitude; ///< the VCA amplitude ramp (start value + per-sample increment, q31)
+	deluge::dsp::Ramp amplitude{0, 0}; ///< the VCA amplitude ramp (start value + per-sample increment, q31)
 	/// When true, VCA-scale the wave and mix it into @c output's prior contents (the normal voice path). When
 	/// false, write the raw "standalone" wave straight out (e.g. the ring-mod carrier, which is multiplied later).
-	bool apply_amplitude;
+	bool apply_amplitude{};
 	/// Raw pulse-width modulation (UQ0.32, sign-magnitude). Zero ⇒ no pulse. Each shape derives its own pulse
 	/// behaviour from this: the square turns it into a perfect (ring-modulated) pulse, while the saw/sine/
 	/// triangle/analog-square turn it into pulse-width-*as-sync* (the render phase is rewritten and the wave is
 	/// hard-synced to its own untouched-rate phase). That derivation lives in the shapes, not here.
-	uint32_t pulse_width;
+	uint32_t pulse_width{};
 	/// Raw (re)trigger / sync-reset phase offset. The per-wave tweaks (SINE +3·2^30, SAW +2^31) are applied
 	/// inside the shapes, not here.
-	uint32_t retrigger_phase;
+	uint32_t retrigger_phase{};
 	/// present ⇒ **real** hard-sync this block to this master oscillator (its phase + increment, UQ0.32). The
 	/// self-sync a pulse-width wave induces is derived in the shape and never appears here.
 	std::optional<deluge::dsp::Phasor> sync;
-	int32_t cpu_direness; ///< snapshot of AudioEngine::cpuDireness — drives the crude↔band-limited
-	                      ///< choice (and the analog-saw downgrade) without the engine reaching into processing/
+	int32_t cpu_direness{}; ///< snapshot of AudioEngine::cpuDireness — drives the crude↔band-limited
+	                        ///< choice (and the analog-saw downgrade) without the engine reaching into processing/
 };
 
 /// @brief The uniform outcome of rendering one @ref Source for one unison part, folding the per-engine return
@@ -89,10 +90,12 @@ struct SourceRelease {
 };
 
 /// @brief The master oscillator a slave hard-syncs to for one block.
-struct SyncMaster {
-	uint32_t phase{};     ///< The master's phase at block start (UQ0.32)
-	uint32_t increment{}; ///< The master's phase increment (UQ0.32); 0 when it is too high to render
+template <class B>
+struct BasicSyncMaster {
+	B::Phase phase{};     ///< The master's phase at block start
+	B::Phase increment{}; ///< The master's phase increment; 0 when it is too high to render
 };
+using SyncMaster = BasicSyncMaster<Fixed>;
 
 /// @brief A wavetable source's block inputs: its band data and morph index.
 struct WavetableBlock {
@@ -121,53 +124,61 @@ struct InputBlock {
 	int32_t interpolation_buffer_size{}; ///< The pitch shift's interpolation size for this block's increment
 };
 
-/// @brief Everything a @ref Source renders one unison part of one block from: already-computed values only, no
+/// @brief Everything a @ref BasicSource renders one unison part of one block from: already-computed values only, no
 /// engine state and nothing of the app. Each source reads the common part and its own per-type block.
-struct SourceBlock {
-	int32_t* osc_buffer{};          ///< Destination the source adds into (interleaved when @ref stereo_buffer)
-	int32_t num_samples{};          ///< Samples to render
-	bool stereo_buffer{};           ///< @ref osc_buffer is interleaved stereo: render mono into scratch, then pan
-	bool stereo_unison{};           ///< This unison part is panned
-	int32_t amplitude_l{};          ///< The unison part's left pan gain (q31)
-	int32_t amplitude_r{};          ///< The unison part's right pan gain (q31)
-	int32_t source_amplitude{};     ///< The VCA amplitude at block start (q31)
-	int32_t amplitude_increment{};  ///< The VCA amplitude's per-sample increment
-	uint32_t phase_increment{};     ///< The source's pitch (UQ0.32)
-	std::optional<SyncMaster> sync; ///< Present: hard-sync to this master this block (oscillator sources only)
-	BlockControls controls;         ///< The oscillator controls (amplitude, pulse width, sync, cpu direness)
-	int32_t* stereo_scratch{};      ///< Mono work buffer when @ref stereo_buffer
+template <class B>
+struct BasicSourceBlock {
+	B::Sample* osc_buffer{};                ///< Destination the source adds into (interleaved when @ref stereo_buffer)
+	int32_t num_samples{};                  ///< Samples to render
+	bool stereo_buffer{};                   ///< @ref osc_buffer is interleaved stereo: render mono, then pan
+	bool stereo_unison{};                   ///< This unison part is panned
+	B::Control amplitude_l{};               ///< The unison part's left pan gain
+	B::Control amplitude_r{};               ///< The unison part's right pan gain
+	B::Control source_amplitude{};          ///< The VCA amplitude at block start
+	B::Control amplitude_increment{};       ///< The VCA amplitude's per-sample increment
+	B::Phase phase_increment{};             ///< The source's pitch
+	std::optional<BasicSyncMaster<B>> sync; ///< Present: hard-sync to this master this block (oscillators only)
+	B::OscillatorControls controls{};       ///< The oscillator controls (amplitude, pulse width, sync, cpu direness)
+	B::Sample* stereo_scratch{};            ///< Mono work buffer when @ref stereo_buffer
 	int32_t stereo_scratch_clear_samples{}; ///< Samples of @ref stereo_scratch to zero before rendering into it
-	int32_t* sync_scratch{};                ///< The oscillator hard-sync work buffer
+	B::Sample* sync_scratch{};              ///< The oscillator hard-sync work buffer
 	deluge::dsp::fixed::Cong* noise{};      ///< The synth's noise stream (a live input's pitch shift draws from it)
-	WavetableBlock wavetable;
-	Dx7Block dx7;
-	SampleBlock sample;
-	InputBlock input;
+	B::Wavetable wavetable{};
+	B::Dx7 dx7{};
+	B::SampleInputs sample{};
+	B::Input input{};
 };
+using SourceBlock = BasicSourceBlock<Fixed>;
 
-/// @brief The L1 **Source** contract: one generator in one slot of one unison part. Stateful: phase, feedback and
-/// playback position live in the concrete source and persist across calls.
-class Source {
+/// @brief The L1 **Source** contract: one generator in one slot of one unison part, over the numeric backend @p B.
+/// Stateful: phase, feedback and playback position live in the concrete source and persist across calls.
+template <class B>
+class BasicSource {
 public:
-	Source() = default;
-	Source(const Source&) = default;
-	Source& operator=(const Source&) = default;
-	Source(Source&&) = default;
-	Source& operator=(Source&&) = default;
-	virtual ~Source() = default;
+	BasicSource() = default;
+	BasicSource(const BasicSource&) = default;
+	BasicSource& operator=(const BasicSource&) = default;
+	BasicSource(BasicSource&&) = default;
+	BasicSource& operator=(BasicSource&&) = default;
+	virtual ~BasicSource() = default;
 
 	/// Starts the source for a note. @return false when the note cannot play.
 	virtual bool note_on(const SourceNote& /*note*/) { return true; }
 	/// Renders one block of @p block into @c block.osc_buffer. @return the source's outcome.
-	virtual SourceRenderResult render(const SourceBlock& block) = 0;
+	virtual SourceRenderResult render(const BasicSourceBlock<B>& block) = 0;
 	/// The note-off. @return false when the source ends now (a sample with no loop end left to play out).
 	virtual bool release(const SourceRelease& /*release*/) { return true; }
 	/// Lets go of whatever the source holds for its note (a reader, a pooled voice, a pitch shifter).
 	virtual void unassign(bool /*deleting_song*/) {}
-	/// An oscillator source's phase (UQ0.32), which osc sync reads from the master; none for other sources.
-	[[nodiscard]] virtual std::optional<uint32_t> current_phase() const { return std::nullopt; }
+	/// An oscillator source's phase, which osc sync reads from the master; none for other sources.
+	[[nodiscard]] virtual std::optional<typename B::Phase> current_phase() const { return std::nullopt; }
 	/// Advances an oscillator source's phase by @p delta (a skipped osc-sync master still runs).
-	virtual void advance_phase(uint32_t /*delta*/) {}
+	virtual void advance_phase(B::Phase /*delta*/) {}
+	/// Whether the source processes the other slot's audio rather than generating its own (a resonator excited by
+	/// the other slot, Rings-style). Declared for the exciter→resonator engines to come; no source is one yet, and
+	/// no engine hands one audio.
+	[[nodiscard]] virtual bool takes_input() const { return false; }
 };
+using Source = BasicSource<Fixed>;
 
 } // namespace deluge::synth

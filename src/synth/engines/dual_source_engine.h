@@ -19,7 +19,7 @@
 
 #include "definitions_cxx.hpp" // kNumSources, kMaxNumVoicesUnison
 #include "dsp-next/fixed/noise/cong.h"
-#include "synth/engines/engine.h"
+#include "synth/engines/slot_engine.h"
 #include "synth/sources/source.h"
 #include "synth/voice/unison_part.h"
 #include "synth/voice/voice_config.h"
@@ -32,7 +32,7 @@ namespace deluge::synth {
 
 /// @brief The dual-source family: two source slots per unison part, the A→B osc sync, and the noise source.
 /// Subtractive and ring-mod derive from it and keep their own render loops.
-class DualSourceEngine : public Engine {
+class DualSourceEngine : public SlotEngine {
 public:
 	/// The note-off: a sample with loop points plays on past its loop end (or ends now), a DX7 starts its release.
 	void release(std::span<UnisonPart> parts, const ReleaseInfo& info, int32_t priority_rating) override;

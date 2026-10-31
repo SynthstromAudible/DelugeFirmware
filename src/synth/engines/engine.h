@@ -31,33 +31,37 @@
 namespace deluge::synth {
 
 /// @brief A note starting or changing, as every engine reads it.
-struct EngineNote {
-	std::span<UnisonPart> parts;     ///< The voice's unison parts, lent for the call
-	const NoteSetup* setup{};        ///< Each source's setup, the modulators' audibility
-	const SoundSnapshot* snapshot{}; ///< The sound's synth mode, unison layout, transposes and retrigger phases
-	int32_t note_code{};             ///< The note after arpeggiation
+template <class B>
+struct BasicEngineNote {
+	std::span<typename B::UnisonPart> parts; ///< The voice's unison parts, lent for the call
+	const B::Setup* setup{};                 ///< Each source's setup, the modulators' audibility
+	const B::Snapshot* snapshot{};           ///< The sound's synth mode, unison layout, transposes and retrigger phases
+	int32_t note_code{};                     ///< The note after arpeggiation
 	uint8_t velocity{};
 	uint32_t samples_late{};   ///< How far into the note playback starts
 	int32_t priority_rating{}; ///< The voice's cull rating (a sample ranks its loads by it)
 	bool reset{};              ///< A new voice; false when a voice is re-triggered and continues
 	dsp::fixed::Cong* noise{}; ///< The synth's noise stream
 };
+using EngineNote = BasicEngineNote<Fixed>;
 
 /// @brief One block of an engine: the voice's buffer, the unison parts and levels it lends, scratch, and the controls
 /// the voice derived from its params for the engine's family.
-struct EngineBlock {
-	int32_t* osc_buffer{}; ///< The voice's buffer, stereo pairs when the unison is spread
+template <class B>
+struct BasicEngineBlock {
+	B::Sample* osc_buffer{}; ///< The voice's buffer, stereo pairs when the unison is spread
 	int32_t num_samples{};
-	std::span<UnisonPart> parts;
-	SourceLevels* levels{};
-	const VoiceConfig* cfg{};
-	const VoiceBlock* voice_block{};
-	std::array<int32_t*, 4> spare_buffers{}; ///< The render's work buffers; [0] is @ref osc_buffer
-	std::span<int32_t> sync_scratch;         ///< A synced oscillator's work buffer
-	dsp::fixed::Cong* noise{};               ///< The synth's noise stream
-	DualSourceControls dual;                 ///< For subtractive and ring-mod
-	FmControls fm;                           ///< For FM
+	std::span<typename B::UnisonPart> parts;
+	B::Levels* levels{};
+	const B::Config* cfg{};
+	const B::VoiceInputs* voice_block{};
+	std::array<typename B::Sample*, 4> spare_buffers{}; ///< The render's work buffers; [0] is @ref osc_buffer
+	std::span<typename B::Sample> sync_scratch;         ///< A synced oscillator's work buffer
+	dsp::fixed::Cong* noise{};                          ///< The synth's noise stream
+	B::DualSourceControls dual{};                       ///< For the dual-source engines
+	B::FmControls fm{};                                 ///< For FM
 };
+using EngineBlock = BasicEngineBlock<Fixed>;
 
 /// @brief What an engine's block left for the voice.
 struct EngineRenderResult {
@@ -65,37 +69,58 @@ struct EngineRenderResult {
 	bool all_parts_ended{};   ///< Every unison part's sources ended (the voice unassigns, or fast-releases)
 };
 
-/// @brief The L1 **Engine** contract: one voice's timbre generator over all its unison parts. Each engine family
-/// relates the two source slots in its own way (dual-source engines mix, multiply or sync them; a whole-voice engine
-/// generates the voice itself). The voice keeps the envelopes, modulation, filters and output stage.
-class Engine {
+/// @brief A stage the instrument runs once per sound, after its voices: a physical model's soundboard and sympathetic
+/// resonance, which no single voice can hold. Declared for the engines to come; no engine has one yet, and the
+/// instrument does not run one.
+template <class B>
+class BasicSoundStage {
 public:
-	Engine() = default;
-	Engine(const Engine&) = delete;
-	Engine& operator=(const Engine&) = delete;
-	Engine(Engine&&) = delete;
-	Engine& operator=(Engine&&) = delete;
-	virtual ~Engine() = default;
+	BasicSoundStage() = default;
+	BasicSoundStage(const BasicSoundStage&) = delete;
+	BasicSoundStage& operator=(const BasicSoundStage&) = delete;
+	BasicSoundStage(BasicSoundStage&&) = delete;
+	BasicSoundStage& operator=(BasicSoundStage&&) = delete;
+	virtual ~BasicSoundStage() = default;
+	/// Processes the sound's summed voices in place.
+	virtual void render(std::span<typename B::Sample> sound_buffer) = 0;
+};
+using SoundStage = BasicSoundStage<Fixed>;
+
+/// @brief The L1 **Engine** contract, over the numeric backend @p B: one voice's timbre generator over all its unison
+/// parts. Each engine family relates the two source slots in its own way (dual-source engines mix, multiply or sync
+/// them; a whole-voice engine generates the voice itself). The voice keeps the envelopes, modulation, filters and
+/// output stage.
+template <class B>
+class BasicEngine {
+public:
+	BasicEngine() = default;
+	BasicEngine(const BasicEngine&) = delete;
+	BasicEngine& operator=(const BasicEngine&) = delete;
+	BasicEngine(BasicEngine&&) = delete;
+	BasicEngine& operator=(BasicEngine&&) = delete;
+	virtual ~BasicEngine() = default;
 
 	/// Starts the note: marks each source active in every part where it can sound, works out the phase increments,
-	/// and starts each active slot. @return false when the note cannot play.
-	virtual bool note_on(const EngineNote& note);
+	/// and starts each active source. @return false when the note cannot play.
+	virtual bool note_on(const BasicEngineNote<B>& note) = 0;
 	/// Each part's phase increments for the playing note (at note-on and on a note change); a source too high to
 	/// render goes inactive.
-	virtual void calculate_phase_increments(const EngineNote& note);
+	virtual void calculate_phase_increments(const BasicEngineNote<B>& note) = 0;
 	/// A new voice's random phases for unison part @p u beyond its sources' (drawn after theirs).
 	virtual void randomize_part(int32_t /*u*/, dsp::fixed::Cong& /*noise*/) {}
 	/// Renders one block, adding into the voice's buffer.
-	virtual EngineRenderResult render(const EngineBlock& block) = 0;
+	virtual EngineRenderResult render(const BasicEngineBlock<B>& block) = 0;
 	/// The note-off's releases of the parts' sources (a sample's loop end, a DX7's key-up).
-	virtual void release(std::span<UnisonPart> /*parts*/, const ReleaseInfo& /*info*/, int32_t /*priority_rating*/) {}
+	virtual void release(std::span<typename B::UnisonPart> /*parts*/, const B::Release& /*info*/,
+	                     int32_t /*priority_rating*/) {}
 
-protected:
-	/// Marks each source active in every part where it can sound. @return false (with @p refuse_silent) when a source
-	/// cannot sound: ring-mod needs both.
-	static bool mark_active(const EngineNote& note, bool refuse_silent);
-	/// Starts each active slot for the note. @return false when one cannot start.
-	static bool start_sources(const EngineNote& note);
+	/// Whether the engine shapes the voice's amplitude itself (a physical model's decay), so the voice would skip its
+	/// amplitude envelope. Declared for the engines to come; every engine here returns false, and the voice does not
+	/// read it yet.
+	[[nodiscard]] virtual bool owns_envelope() const { return false; }
+	/// The stage this engine needs run once per sound after its voices; none here. Declared with @ref BasicSoundStage.
+	[[nodiscard]] virtual BasicSoundStage<B>* sound_stage() { return nullptr; }
 };
+using Engine = BasicEngine<Fixed>;
 
 } // namespace deluge::synth

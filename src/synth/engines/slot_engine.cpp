@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "synth/engines/engine.h"
+#include "synth/engines/slot_engine.h"
 #include "dsp-next/core/q31_ops.h"          // multiply_32x32_rshift32
 #include "util/lookuptables/lookuptables.h" // noteFrequencyTable, noteIntervalTable
 #include <optional>
@@ -65,7 +65,7 @@ std::optional<uint32_t> base_phase_increment(const SourceSetup& source, SynthMod
 
 } // namespace
 
-bool Engine::note_on(const EngineNote& note) {
+bool SlotEngine::note_on(const EngineNote& note) {
 	if (!mark_active(note, /*refuse_silent=*/false)) {
 		return false;
 	}
@@ -73,7 +73,7 @@ bool Engine::note_on(const EngineNote& note) {
 	return start_sources(note);
 }
 
-bool Engine::mark_active(const EngineNote& note, bool refuse_silent) {
+bool SlotEngine::mark_active(const EngineNote& note, bool refuse_silent) {
 	const NoteSetup& setup = *note.setup;
 	for (int32_t s = 0; s < kNumSources; s++) {
 		bool source_ever_active = setup.sources[s].ever_active;
@@ -90,7 +90,7 @@ bool Engine::mark_active(const EngineNote& note, bool refuse_silent) {
 	return true;
 }
 
-void Engine::calculate_phase_increments(const EngineNote& note) {
+void SlotEngine::calculate_phase_increments(const EngineNote& note) {
 	const NoteSetup& setup = *note.setup;
 	const SoundSnapshot& snapshot = *note.snapshot;
 	const int32_t note_code_with_master_transpose = note.note_code + snapshot.transpose;
@@ -126,7 +126,7 @@ void Engine::calculate_phase_increments(const EngineNote& note) {
 	}
 }
 
-bool Engine::start_sources(const EngineNote& note) {
+bool SlotEngine::start_sources(const EngineNote& note) {
 	const NoteSetup& setup = *note.setup;
 	const SoundSnapshot& snapshot = *note.snapshot;
 	for (int32_t s = 0; s < kNumSources; s++) {

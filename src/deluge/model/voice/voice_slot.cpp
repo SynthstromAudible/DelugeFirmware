@@ -89,9 +89,8 @@ void VoiceSlot::change_note(ModelStackWithSoundFlags& flags, int32_t note_before
 
 void VoiceSlot::calculate_phase_increments(ModelStackWithSoundFlags& flags) {
 	auto* paramManager = static_cast<ParamManagerForTimeline*>(flags.paramManager);
-	kernel.calculate_phase_increments(
-	    note_setup_for(*this, sound, paramManager, flags, kernel.note_code_after_arpeggiation, 0, 0, true),
-	    sound.snapshot());
+	kernel.calculate_phase_increments(note_setup_for(*this, sound, paramManager, flags, kernel.note_code(), 0, 0, true),
+	                                  sound.snapshot());
 }
 
 void VoiceSlot::note_off(ParamManagerForTimeline* paramManager, bool note_tails_allowed, bool allow_release_stage) {
