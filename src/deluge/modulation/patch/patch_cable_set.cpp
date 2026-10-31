@@ -17,6 +17,7 @@
 
 #include "modulation/patch/patch_cable_set.h"
 #include "definitions_cxx.hpp"
+#include "deluge-project/edit_guard.h"
 #include "deluge-project/param_automation.h"
 #include "gui/views/view.h"
 #include "io/midi/midi_device.h"
@@ -43,6 +44,8 @@
 #include <string.h>
 
 namespace params = deluge::modulation::params;
+using deluge::project::EditGuard;
+using deluge::project::ModelEdit;
 
 void flagCable(uint32_t* flags, int32_t c) {
 	int32_t idx;
@@ -293,12 +296,14 @@ deluge::project::DocAutoParam& PatchCableSet::laneFor(PatchSource from, ParamDes
 			return lane.amount;
 		}
 	}
+	noteModelEdit(ModelEdit::PARAM_STORE);
 	table.push_back({.depth = id, .amount = {}});
 	return table.back().amount;
 }
 
 void PatchCableSet::eraseLane(PatchSource from, ParamDescriptor target) {
 	const deluge::plugin::ParamId id = deluge::bridge::cable_depth(from, target);
+	noteModelEdit(ModelEdit::PARAM_STORE);
 	std::erase_if(depths(), [&](const deluge::project::DocCableDepth& lane) { return lane.depth == id; });
 }
 
@@ -311,6 +316,7 @@ void PatchCableSet::relocateDepthsInto(std::vector<deluge::project::DocCableDept
 	if (&current == &slot) {
 		return;
 	}
+	noteModelEdit(ModelEdit::PARAM_STORE);
 	slot = std::move(current);
 	current.clear();
 	externalDepths_ = &slot;

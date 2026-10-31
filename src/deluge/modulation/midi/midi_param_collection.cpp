@@ -17,6 +17,7 @@
 
 #include "modulation/midi/midi_param_collection.h"
 #include "definitions_cxx.hpp"
+#include "deluge-project/edit_guard.h"
 #include "deluge-project/param_automation.h"
 #include "gui/views/automation_view.h"
 #include "io/midi/midi_engine.h"
@@ -34,6 +35,9 @@
 #include "storage/storage_manager.h"
 #include "util/exceptions.h"
 #include <new>
+
+using deluge::project::EditGuard;
+using deluge::project::ModelEdit;
 
 MIDIParamCollection::MIDIParamCollection(ParamCollectionSummary* summary)
     : ParamCollection(sizeof(MIDIParamCollection), summary) {
@@ -91,6 +95,7 @@ deluge::project::DocMidiParam& MIDIParamCollection::findOrCreateDomMidi(uint8_t 
 			return entry;
 		}
 	}
+	noteModelEdit(ModelEdit::PARAM_STORE);
 	domMidiRef_->push_back(deluge::project::DocMidiParam{cc, {}});
 	return domMidiRef_->back();
 }

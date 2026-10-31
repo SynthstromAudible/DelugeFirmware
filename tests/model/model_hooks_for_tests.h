@@ -13,6 +13,9 @@ struct HookCounts {
 	int depth{0};
 	int edits{0};
 	int unguarded_edits{0};
+	int lone_node_edits{0};           ///< node-vector ops made with no compound edit's guard around their own
+	int store_edits{0};               ///< ModelEdit::PARAM_STORE edits
+	int kernels{0};                   ///< ModelEdit::NODE_KERNEL edits
 	bool fail_next_allocation{false}; ///< the next deluge_model_alloc reports exhausted memory
 };
 

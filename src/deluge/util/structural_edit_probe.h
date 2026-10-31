@@ -27,6 +27,10 @@ enum class StructuralContainer : uint8_t {
 	GRAIN_BLOCK,        ///< an owner's granular State and ring hand-over (the same projection)
 	DELAY_TAPE,         ///< an owner's delay tapes given back, or the delay arena's regions changed
 	STUTTER_TAPE,       ///< the song's stutter tape handed to the render or taken back (SongStutter)
+	PARAM_STORE,        ///< a store the render resolves automation lanes through: a song's clip and backed-param maps,
+	                    ///< a manager's cable-depth and CC lanes, and an owner's store moved into them (relocation)
+	NODE_KERNEL,        ///< a compound automation-node edit: a param_edit.h kernel, or the live-record block, whose
+	                    ///< node ops and the index arithmetic between them must all run in one section
 	COUNT_,
 };
 
@@ -45,6 +49,12 @@ uint32_t unguardedStructuralEdits(StructuralContainer kind);
 /// @param kind Which container kind to report.
 /// @return The number of noteStructuralEdit() calls for @p kind.
 uint32_t notedStructuralEdits(StructuralContainer kind);
+
+/// @brief [task] Structural edits of @p kind the render made itself, since boot: the device's audio context or a host
+/// render block. A kind only the interaction tier may edit (PARAM_STORE) must keep this at 0.
+/// @param kind Which container kind to report.
+/// @return The number of noteStructuralEdit() calls for @p kind made on the render tier.
+uint32_t renderStructuralEdits(StructuralContainer kind);
 
 /// @brief [task] Structural edits of every kind made while the render could preempt them, since boot.
 /// @return The unguarded-edit count across every container kind.

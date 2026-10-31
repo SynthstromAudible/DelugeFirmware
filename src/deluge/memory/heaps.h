@@ -82,6 +82,11 @@ void noteRenderBlock(bool entering);
 /// @return True when inside a render block.
 bool inRenderBlock();
 
+/// @brief [task] [audio] [isr] Whether the caller is the audio render: the device's audio context, or a host render
+/// block (the host renders on a thread deluge_in_audio_context() does not see).
+/// @return True on the render tier.
+bool onRenderTier();
+
 #ifdef DELUGE_HOST
 /// @brief Host-only test seam: make the next allocation of exactly @p size bytes fail, once.
 ///        GeneralMemoryAllocator::alloc (delugeAlloc), alloc_fast and alloc_external honour it.

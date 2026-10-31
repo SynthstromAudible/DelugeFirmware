@@ -250,6 +250,10 @@ void countRenderAllocation() {
 }
 #endif
 
+bool onRenderTier() {
+	return deluge_in_audio_context() || inRenderBlock();
+}
+
 void* alloc_fast(std::size_t size, std::size_t align) {
 	countIfAudioTier();
 #ifdef DELUGE_HOST

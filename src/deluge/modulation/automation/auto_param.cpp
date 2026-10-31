@@ -47,6 +47,7 @@
 #include "storage/storage_manager.h"
 #include "util/exceptions.h"
 #include "util/functions.h"
+#include "util/structural_edit_probe.h"
 #include <algorithm>
 #include <cstdint>
 #include <math.h>
@@ -432,6 +433,8 @@ void AutoParam::projectRegionFromStore(ModelStackWithAutoParam const* modelStack
 
 bool AutoParam::deleteRedundantNodeInLinearRun(deluge::project::DocAutoParam& doc, int32_t lastNodeInRunI,
                                                int32_t effectiveLength, bool mayLoopAroundBackToEnd) {
+	// Its index comes from the caller's edit: that edit and this one are one compound edit.
+	deluge::noteStructuralEdit(deluge::StructuralContainer::NODE_KERNEL);
 
 	if (std::ssize(doc.nodes) < 3) {
 		return false;

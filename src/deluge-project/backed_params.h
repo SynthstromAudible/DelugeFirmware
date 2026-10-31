@@ -18,6 +18,7 @@
 #pragma once
 
 #include "deluge-project/containers.h"
+#include "deluge-project/edit_guard.h"
 #include "deluge-project/param_address.h"    // OwnerId
 #include "deluge-project/param_automation.h" // DocParamManager
 #include <compare>
@@ -63,13 +64,19 @@ struct BackedParams {
 	/// @param clipSerial The clip's id, or nullopt for the owner's shared default.
 	/// @return The store.
 	DocParamManager& getOrCreate(const OwnerId& owner, std::optional<uint32_t> clipSerial) {
-		return by_owner[BackedParamKey{owner, clipSerial}];
+		const BackedParamKey key{owner, clipSerial};
+		if (auto it = by_owner.find(key); it != by_owner.end()) {
+			return it->second;
+		}
+		noteModelEdit(ModelEdit::PARAM_STORE);
+		return by_owner[key];
 	}
 
 	/// @brief Drop the store for (owner, clipSerial).
 	/// @param owner The owning instrument or drum.
 	/// @param clipSerial The clip's id, or nullopt for the owner's shared default.
 	void remove(const OwnerId& owner, std::optional<uint32_t> clipSerial) {
+		noteModelEdit(ModelEdit::PARAM_STORE);
 		by_owner.erase(BackedParamKey{owner, clipSerial});
 	}
 
@@ -81,6 +88,7 @@ struct BackedParams {
 	/// @pre The owner's engine ParamManagers are gone, so nothing is still bound to these stores.
 	/// @param owner The owning instrument or drum.
 	void removeOwner(const OwnerId& owner) {
+		noteModelEdit(ModelEdit::PARAM_STORE);
 		auto it = by_owner.lower_bound(BackedParamKey{owner, std::nullopt});
 		while (it != by_owner.end() && it->first.owner == owner) {
 			it = by_owner.erase(it);

@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include <cstdint>
+
 /// @brief Exclude the render, unless the caller is the render itself, before a structural edit to a container the
 /// render may read; supplied by the host at link time.
 /// @return Whether it excluded, and so must be exited.
@@ -27,16 +29,33 @@ extern "C" void deluge_model_edit_exit(bool entered) noexcept;
 
 /// @brief Report one structural edit to the host's probe, which counts any made while the render could read the
 /// container mid-edit; supplied by the host at link time.
-extern "C" void deluge_model_note_structural_edit() noexcept;
+/// @param kind What was edited: a deluge::project::ModelEdit.
+extern "C" void deluge_model_note_structural_edit(uint8_t kind) noexcept;
 
 namespace deluge::project {
 
+/// @brief What a structural edit was made to, for the host's probe.
+enum class ModelEdit : uint8_t {
+	NODES,       ///< one op on an OrderedPosVector (notes, note rows, automation nodes, clip instances)
+	PARAM_STORE, ///< a store the render resolves lanes through: the clip and backed-param maps, a manager's lanes
+	NODE_KERNEL, ///< a compound automation-node edit (a param_edit.h kernel): its node ops and the index arithmetic
+	             ///< between them
+};
+
+/// @brief Report a structural edit of @p kind to the host's probe without excluding the render.
+inline void noteModelEdit(ModelEdit kind) noexcept {
+	deluge_model_note_structural_edit(static_cast<uint8_t>(kind));
+}
+
 /// @brief Brackets one structural edit (insert, erase, reorder, reallocate, hand-over) of a model container the
 /// render may read: the render reads automation and note data straight out of the model, and on the device it
-/// preempts every other context at any instruction.
+/// preempts every other context at any instruction. Guards nest: a compound edit holds one across all its steps, so
+/// the render never sees it half done.
 class EditGuard {
 public:
-	EditGuard() noexcept : entered_(deluge_model_edit_enter()) { deluge_model_note_structural_edit(); }
+	explicit EditGuard(ModelEdit kind = ModelEdit::NODES) noexcept : entered_(deluge_model_edit_enter()) {
+		noteModelEdit(kind);
+	}
 	~EditGuard() { deluge_model_edit_exit(entered_); }
 	EditGuard(const EditGuard&) = delete;
 	EditGuard& operator=(const EditGuard&) = delete;

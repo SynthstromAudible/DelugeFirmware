@@ -90,6 +90,20 @@ kinds=<kind=n,...>`:
     CG-GRAINSWAP             a synth's mod FX type set grain, chorus, grain, none by the type menu's Edit while the
                              song plays: after each change the grain holds its ring exactly when the type is the grain
                              (CG-GRAINSWAP blocks=1 noted=1 required)
+    CG-RECORDKNOB            the gold knob turned on a playing synth's volume with record on: each turn records nodes
+                             (a param_edit kernel and the linear-run trim after it, one compound edit), and the latched
+                             render writes over the nodes it reaches (CG-RECORDKNOB recorded=1 required)
+    CG-RELOCATE              automation put in a synth's own store, never relocated, which the render reaches first:
+                             the render reads it where it is and moves nothing into the song's param stores; the knob
+                             turned after moves it, from the interaction tier (CG-RELOCATE renderStoreEdits=0
+                             resident=1 required)
+    CG-CCLEARN               two CCs learned on a playing MIDI clip: its store enters the song's clip params and its CC
+                             lanes grow (CG-CCLEARN lanes=2 required)
+    CG-CABLEADD              a cable added and its depth turned, moving the cable depths into the song's backed params;
+                             then a second cable added and removed, growing and shrinking those lanes
+                             (CG-CABLEADD resident=1 required)
+    CG-DRUMDEL               a kit row deleted by its Edit while the kit plays: the drum's stores leave the song's backed
+                             params (CG-DRUMDEL stores=0 required)
     CG-CHOKE                 two choke-mode drums sounded in turn, each choking the other, over 400 blocks
     CG-BIGROW                a note row inserted below 128 others, moving them all; CG-MASK reports the edit's host
                              wall time (maskMicros=), an upper bound on the section it holds (a block is ~2900 us)
@@ -128,6 +142,11 @@ LEGS = [
     "VOICEKILL",
     "VOICEMULTIRANGE",
     "VOICEFAIL",
+    "RECORDKNOB",
+    "RELOCATE",
+    "CCLEARN",
+    "CABLEADD",
+    "DRUMDEL",
     "HEAP",
     "SLAB",
     "MODFXOOM",
@@ -231,6 +250,29 @@ def _check(gate, result) -> None:
             f"already on, or one set OFF with its feedback up, as it is ({found})"
         )
     for line, why in (
+        (
+            "CG-RECORDKNOB recorded=1",
+            "a knob turned with record on must record nodes into the param's automation",
+        ),
+        (
+            "CG-RELOCATE renderStoreEdits=0 resident=1",
+            (
+                "the render must read a store that is not in the song's param stores where it is, moving nothing into "
+                "them, and the knob turned after must move it"
+            ),
+        ),
+        (
+            "CG-CCLEARN lanes=2",
+            "two CCs learned on a playing MIDI clip must each have a lane in the clip's store",
+        ),
+        (
+            "CG-CABLEADD resident=1",
+            "a cable's depth turned must move the cable depths into the song's backed params",
+        ),
+        (
+            "CG-DRUMDEL stores=0",
+            "a deleted kit row's drum must leave no store in the song's backed params",
+        ),
         (
             "CG-DELAYOOM injected=1 passthrough=1 recovered=1 noted=1",
             (

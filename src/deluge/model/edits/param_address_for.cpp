@@ -1,7 +1,8 @@
 #include "model/edits/param_address_for.h"
 
 #include "definitions_cxx.hpp" // ALPHA_OR_BETA_VERSION
-#include "foundation/panic.h"  // FREEZE_WITH_ERROR
+#include "deluge-project/edit_guard.h"
+#include "foundation/panic.h" // FREEZE_WITH_ERROR
 #include "model/clip/clip.h"
 #include "model/drum/drum.h"
 #include "model/model_stack.h"
@@ -138,6 +139,7 @@ deluge::project::DocAutoParam* relocateAndResolve(const ModelStackWithAutoParam&
 	deluge::project::Song& proj = modelStack.song->project;
 	Clip* clip = static_cast<Clip*>(tc);
 	NoteRow* noteRow = modelStack.getNoteRowAllowNull();
+	deluge::project::noteModelEdit(deluge::project::ModelEdit::PARAM_STORE);
 
 	// Ensure the owner chain this param belongs to has a durable id, minting one for a runtime owner never
 	// saved/loaded (clips always have one from construction). After this, addressFor can build a total ParamAddress.

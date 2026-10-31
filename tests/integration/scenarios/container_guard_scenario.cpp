@@ -43,6 +43,7 @@
 #include "model/edits/edit.h"
 #include "model/edits/edit_cable.h"
 #include "model/edits/param_address_for.h"
+#include "model/edits/remove_kit_row.h"
 #include "model/edits/set_param_value.h"
 #include "model/fx/chain_inputs.h"
 #include "model/fx/song_stutter.h"
@@ -153,6 +154,11 @@ enum class Leg : uint8_t {
 	VoiceKill,
 	VoiceMultiRange,
 	VoiceFail,
+	RecordKnob,
+	Relocate,
+	CcLearn,
+	CableAdd,
+	DrumDel,
 	Heap,
 	Slab,
 	ModFxOom,
@@ -246,6 +252,16 @@ const char* legName(Leg leg) {
 		return "VOICEMULTIRANGE";
 	case Leg::VoiceFail:
 		return "VOICEFAIL";
+	case Leg::RecordKnob:
+		return "RECORDKNOB";
+	case Leg::Relocate:
+		return "RELOCATE";
+	case Leg::CcLearn:
+		return "CCLEARN";
+	case Leg::CableAdd:
+		return "CABLEADD";
+	case Leg::DrumDel:
+		return "DRUMDEL";
 	case Leg::Heap:
 		return "HEAP";
 	case Leg::Slab:
@@ -314,6 +330,10 @@ const char* kindName(StructuralContainer kind) {
 		return "delaytape";
 	case StructuralContainer::STUTTER_TAPE:
 		return "stuttertape";
+	case StructuralContainer::PARAM_STORE:
+		return "paramstore";
+	case StructuralContainer::NODE_KERNEL:
+		return "nodekernel";
 	case StructuralContainer::COUNT_:
 		break;
 	}
@@ -508,6 +528,24 @@ void turnParam(ModelStackWithThreeMainThings* ms, int32_t id, int32_t value) {
 	deluge::edits::apply(context, edit);
 }
 
+/// @brief Turns param @p id of the collection @p summary names, in @p ms's ParamManager, by its SetParamValue Edit: a
+/// MIDI clip's CC (learning it if new) or a patch cable's depth.
+void turnParamIn(ModelStackWithThreeMainThings* ms, ParamCollectionSummary* summary, int32_t id, int32_t value) {
+	if (summary == nullptr || summary->paramCollection == nullptr) {
+		fail("no param collection to turn a param in");
+		return;
+	}
+	ModelStackWithParamId* withId = ms->addParamCollectionAndId(summary->paramCollection, summary, id);
+	ModelStackWithAutoParam* withParam = withId->paramCollection->getAutoParamFromId(withId, true);
+	if (withParam == nullptr || withParam->autoParam == nullptr) {
+		fail("no param to turn");
+		return;
+	}
+	deluge::edits::Context context{*currentSong, currentSong->project};
+	deluge::edits::SetParamValue edit{deluge::edits::addressFor(*withParam), value, 0, 0, withParam};
+	deluge::edits::apply(context, edit);
+}
+
 /// @brief turnParam on @p owner with no note row: a synth's sound or a chain, its params in @p paramManager.
 void turnParam(ModControllableAudio& owner, TimelineCounter* clip, ParamManager& paramManager, int32_t id,
                int32_t value) {
@@ -594,6 +632,25 @@ NoteRow* rowFor(int32_t note, int32_t* index) {
 	return row->getNoteRowAllowNull();
 }
 
+/// @return How many automation stores the song's backed params hold for @p owner.
+int32_t backedStoresOf(const deluge::project::OwnerId& owner) {
+	return static_cast<int32_t>(std::ranges::count_if(currentSong->project.backed_params.by_owner,
+	                                                  [&](const auto& entry) { return entry.first.owner == owner; }));
+}
+
+/// @return Whether g_clip's synth's param @p id resolves to a lane in the song's param stores.
+bool paramResident(int32_t id) {
+	auto* synth = static_cast<SoundInstrument*>(g_clip->output);
+	ParamCollectionSummary* summary = g_clip->paramManager.getPatchedParamSetSummary();
+	char memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithThreeMainThings* three =
+	    setupModelStackWithThreeMainThingsButNoNoteRow(memory, currentSong, synth, g_clip, &g_clip->paramManager);
+	ModelStackWithParamId* withId = three->addParamCollectionAndId(summary->paramCollection, summary, id);
+	ModelStackWithAutoParam* withParam = withId->paramCollection->getAutoParamFromId(withId, false);
+	const std::optional<deluge::project::ParamAddress> address = deluge::edits::addressFor(*withParam);
+	return address.has_value() && currentSong->project.resolveParam(*address) != nullptr;
+}
+
 /// Audition @p note on g_clip's synth from the interaction tier, the shape a pad audition takes (no note row).
 void auditionSynth(int32_t note) {
 	auto* synth = static_cast<SoundInstrument*>(g_clip->output);
@@ -653,7 +710,7 @@ bool setupLeg() {
 	// A note row is deleted only from a kit clip (InstrumentClip::deleteNoteRow() treats the output as a Kit).
 	g_clip = (g_leg == Leg::Drum || g_leg == Leg::RowDel || g_leg == Leg::RenderSet || g_leg == Leg::RenderAlloc
 	          || g_leg == Leg::Choke || g_leg == Leg::StutterHandoff || g_leg == Leg::StutterOom
-	          || g_leg == Leg::StutterSwap || g_leg == Leg::StutterClear)
+	          || g_leg == Leg::StutterSwap || g_leg == Leg::StutterClear || g_leg == Leg::DrumDel)
 	             ? makeKitClip()
 	             : makeSynthClip();
 	if (g_clip == nullptr) {
@@ -729,6 +786,30 @@ bool setupLeg() {
 		}
 		auditionSynth(kRowNote);
 		return true;
+	}
+	case Leg::CcLearn: {
+		// The clip becomes a MIDI clip, whose CC automation is its own store in the song's clip params.
+		char memory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithTimelineCounter* ms = setupModelStackWithTimelineCounter(memory, currentSong, g_clip);
+		return (g_clip->changeOutputType(ms, OutputType::MIDI_OUT) != nullptr) ? true
+		                                                                       : fail("the clip became no MIDI clip");
+	}
+	case Leg::DrumDel: {
+		// A second drum, so the kit keeps one, and the first drum's volume turned: its automation store is in the
+		// song's backed params, which deleting the drum drops.
+		g_drum = static_cast<SoundDrum*>(g_kit->firstDrum);
+		g_row = (g_drum != nullptr) ? g_clip->getNoteRowForDrum(g_drum, &g_rowIndex) : nullptr;
+		if (g_row == nullptr || makeDrum(g_kit) == nullptr) {
+			return fail("the kit clip has no note row for its drum, or no second drum");
+		}
+		char memory[MODEL_STACK_MAX_SIZE];
+		turnParam(setupModelStackWithTimelineCounter(memory, currentSong, g_clip)
+		              ->addNoteRow(g_rowIndex, g_row)
+		              ->addOtherTwoThings(g_drum, &g_row->paramManager),
+		          deluge::modulation::params::LOCAL_VOLUME, 0x20000000);
+		return (backedStoresOf(deluge::project::OwnerId::drum(g_drum->id().value_or(0))) > 0)
+		           ? true
+		           : fail("the drum's turned param left no store in the song's backed params");
 	}
 	case Leg::Quantize:
 		g_row = rowFor(kRowNote, &g_rowIndex);
@@ -865,6 +946,135 @@ void editLeg() {
 		if (cables->numPatchCables != before) {
 			fail("the patch cable was not deleted");
 		}
+		break;
+	}
+	case Leg::RecordKnob: {
+		// The gold knob turned with record on: each turn records a node run into the volume's automation, and the
+		// render, latched, writes over the nodes it reaches.
+		g_step = "recordKnob";
+		auto* synth = static_cast<SoundInstrument*>(g_clip->output);
+		playbackHandler.recording = RecordingMode::NORMAL;
+		g_clip->armedForRecording = true;
+		for (int32_t turn = 0; turn < 6; turn++) {
+			turnParam(*synth, g_clip, g_clip->paramManager, deluge::modulation::params::LOCAL_VOLUME,
+			          (turn % 2 == 0) ? 0x30000000 : -0x30000000);
+			renderBlocks(kBlocksBefore);
+		}
+		playbackHandler.recording = RecordingMode::OFF;
+		auto* params = static_cast<ParamSet*>(g_clip->paramManager.getPatchedParamSetSummary()->paramCollection);
+		printf("CG-RECORDKNOB recorded=%d\n",
+		       params->docForParam(deluge::modulation::params::LOCAL_VOLUME)->nodes.empty() ? 0 : 1);
+		fflush(stdout);
+		break;
+	}
+	case Leg::Relocate: {
+		// Automation in a synth's own store that never went through doc(), as a preset or a clone brings it: the
+		// render reaches it first. It must read it where it is and leave the relocation into the song's stores to the
+		// knob turned after.
+		g_step = "relocate";
+		constexpr int32_t kVolume = deluge::modulation::params::LOCAL_VOLUME;
+		if (paramResident(kVolume)) {
+			fail("the synth's volume was already in the song's stores");
+			break;
+		}
+		auto* synth = static_cast<SoundInstrument*>(g_clip->output);
+		ParamCollectionSummary* summary = g_clip->paramManager.getPatchedParamSetSummary();
+		auto* params = static_cast<ParamSet*>(summary->paramCollection);
+		deluge::project::DocAutoParam* own = params->docForParam(kVolume);
+		for (const auto& [pos, value] : {std::pair{0, 0x20000000}, std::pair{g_clip->loopLength() / 2, -0x20000000}}) {
+			const int32_t i = own->nodes.insertSorted(pos).value_or(-1);
+			if (i >= 0) {
+				own->nodes[i].value = value;
+			}
+		}
+		params->paramHasAutomationNow(summary, kVolume);
+		params->ticksTilNextEvent = 0;
+		ModelStackWithThreeMainThings* three =
+		    setupModelStackWithThreeMainThingsButNoNoteRow(memory, currentSong, synth, g_clip, &g_clip->paramManager);
+		g_clip->paramManager.expectEvent(three);
+		const uint32_t renderBefore = deluge::renderStructuralEdits(StructuralContainer::PARAM_STORE);
+		renderBlocks(kMaxBlocksBefore);
+		const uint32_t renderEdits = deluge::renderStructuralEdits(StructuralContainer::PARAM_STORE) - renderBefore;
+		g_step = "relocateKnob";
+		turnParam(*synth, g_clip, g_clip->paramManager, kVolume, 0x10000000);
+		printf("CG-RELOCATE renderStoreEdits=%u resident=%d\n", static_cast<unsigned>(renderEdits),
+		       paramResident(kVolume) ? 1 : 0);
+		fflush(stdout);
+		break;
+	}
+	case Leg::CcLearn: {
+		// Two CCs learned by turning them on a playing MIDI clip: the first puts the clip's store in the song's clip
+		// params and its CC lanes in it, the second grows those lanes.
+		g_step = "learnCC";
+		ParamCollectionSummary* summary = g_clip->paramManager.getMIDIParamCollectionSummary();
+		const auto three = [&] {
+			return setupModelStackWithThreeMainThingsButNoNoteRow(
+			    memory, currentSong, g_clip->output->toModControllable(), g_clip, &g_clip->paramManager);
+		};
+		turnParamIn(three(), summary, 74, 0x20000000);
+		renderBlocks(kBlocksBefore);
+		turnParamIn(three(), summary, 75, -0x20000000);
+		deluge::project::DocParamManager* store = currentSong->project.clip_params.find(g_clip->id());
+		printf("CG-CCLEARN lanes=%d\n", store != nullptr ? static_cast<int32_t>(store->midi_params.size()) : -1);
+		fflush(stdout);
+		break;
+	}
+	case Leg::CableAdd: {
+		// A cable added and its depth turned, which moves the synth's cable depths into the song's backed params; then
+		// a second cable added and removed, which grows and shrinks those lanes there.
+		g_step = "addCable";
+		auto* synth = static_cast<SoundInstrument*>(g_clip->output);
+		ModelStackWithThreeMainThings* three =
+		    setupModelStackWithThreeMainThingsButNoNoteRow(memory, currentSong, synth, g_clip, &g_clip->paramManager);
+		PatchCableSet* cables = g_clip->paramManager.getPatchCableSet();
+		const deluge::synth::CableTarget pitch =
+		    deluge::synth::CableTarget::param(deluge::modulation::params::LOCAL_PITCH_ADJUST);
+		deluge::edits::Context ctx{*currentSong, currentSong->project};
+		const auto add = [&](PatchSource source) -> std::optional<size_t> {
+			deluge::edits::EditCable edit =
+			    deluge::edits::EditCable::add(three, {source, pitch, deluge::synth::CablePolarity::BIPOLAR});
+			return deluge::edits::apply(ctx, edit) == Error::NONE ? cables->records().find(source, pitch)
+			                                                      : std::nullopt;
+		};
+		const std::optional<size_t> first = add(PatchSource::ENVELOPE_1);
+		if (!first.has_value()) {
+			fail("the first cable was not added");
+			break;
+		}
+		g_step = "cableDepth";
+		turnParamIn(three, g_clip->paramManager.getPatchCableSetSummary(),
+		            PatchCableSet::getParamId(cables->patchCables[*first].destinationParamDescriptor,
+		                                      cables->patchCables[*first].from),
+		            0x10000000);
+		const deluge::project::DocParamManager* store = currentSong->project.backed_params.find(
+		    deluge::project::OwnerId::instrument(synth->id().value_or(0)), g_clip->id());
+		const bool resident = store != nullptr && cables->depthsRelocated();
+		g_step = "addSecondCable";
+		const std::optional<size_t> second = add(PatchSource::ENVELOPE_2);
+		if (!second.has_value()) {
+			fail("the second cable was not added");
+			break;
+		}
+		g_step = "removeSecondCable";
+		deluge::edits::EditCable remove = deluge::edits::EditCable::remove(three, *second);
+		deluge::edits::apply(ctx, remove);
+		printf("CG-CABLEADD resident=%d\n", resident ? 1 : 0);
+		fflush(stdout);
+		break;
+	}
+	case Leg::DrumDel: {
+		// The kit row deleted through its Edit while the kit plays: the drum's automation stores leave the song's
+		// backed params.
+		g_step = "removeKitRow";
+		const deluge::project::OwnerId owner = deluge::project::OwnerId::drum(g_drum->id().value_or(0));
+		ModelStackWithTimelineCounter* ms = setupModelStackWithTimelineCounter(memory, currentSong, g_clip);
+		deluge::edits::Context ctx{*currentSong, currentSong->project};
+		deluge::edits::RemoveKitRow remove{std::nullopt, g_drum, ms};
+		deluge::edits::apply(ctx, remove);
+		g_drum = nullptr;
+		g_row = nullptr;
+		printf("CG-DRUMDEL stores=%d\n", backedStoresOf(owner));
+		fflush(stdout);
 		break;
 	}
 	case Leg::Drum:
@@ -1568,6 +1778,7 @@ void reportAborted(int signal) {
 }
 
 void cleanUpLeg() {
+	playbackHandler.recording = RecordingMode::OFF;
 	if (playbackHandler.isEitherClockActive()) {
 		playbackHandler.endPlayback();
 	}
