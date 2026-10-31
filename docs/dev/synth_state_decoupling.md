@@ -1,5 +1,8 @@
 # Synth Untangling — State-Decoupling Audit & the Concrete End-Target Object Model
 
+> **The model today** is `synth_l1_engine_architecture.md` (engines and source slots in the synth library) and
+> `synth_voice_lift.md` (the voice kernel); this audit records the June state it was written against.
+
 > Status: **audit + target architecture** (2026-06-19). A fresh ground-truth pass over the *actual code* (not just
 > the phase docs), prompted by the question "architect a **concrete** end-target object model, CLAP-shaped for both
 > the engine slot and the whole instrument." The headline finding: the remaining work is overwhelmingly

@@ -84,6 +84,8 @@ set(synth_voice_spec_DEPS
   ${_repo_root}/src/deluge/util/phase_increment_fine_tuner.cpp
   ${_repo_root}/src/effects/saturation.cpp
   ${_repo_root}/tests/support/mocks/mock_panic.cpp)
+# The engines played on the host, through the voice and on their own: the same closure as the voice spec.
+set(synth_engine_spec_DEPS ${synth_voice_spec_DEPS})
 # The shared windowed-sinc kernel table + its select()/variant() variant picks.
 set(windowed_sinc_kernel_spec_DEPS ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/windowed_sinc_kernel.cpp)
 # The chunker caches each chunk's sinc kernel via windowed_sinc_kernel.select().

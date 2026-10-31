@@ -20,7 +20,7 @@
 #include "dsp-next/fixed/wavetable/wave_table_data.h" // deluge::dsp::fixed::WaveTableData (storage-independent band view)
 #include "dsp-next/fixed/wavetable/wavetable_oscillator.h" // deluge::dsp::fixed::WavetableOscillator (non-sync)
 #include "dsp-next/fixed/wavetable/wavetable_sync_oscillator.h" // deluge::dsp::fixed::WavetableSyncOscillator (+ deluge::dsp::fixed::Resetter)
-#include "synth/sources/oscillator_source.h" // OscillatorSource (+ Source, SourceRenderContext, BlockControls)
+#include "synth/sources/oscillator_source.h" // OscillatorSource (+ Source, SourceBlock, BlockControls)
 #include <cstdint>
 
 namespace deluge::synth {
@@ -48,6 +48,9 @@ public:
 
 	/// The current render phase (UQ0.32). Persists across blocks — Voice reads it for osc-sync / skip.
 	[[nodiscard]] uint32_t phase() const { return phasor_.phase(); }
+	[[nodiscard]] std::optional<uint32_t> current_phase() const override { return phase(); }
+	void advance_phase(uint32_t delta) override { seek(phase() + delta); }
+
 	/// Jump the phase (a skipped source still advances, or an external reseed). Leaves the increment.
 	void seek(uint32_t phase) { phasor_.seek(phase); }
 	/// Set the per-block pitch (UQ0.32). Voice calls this each block before @ref render_block.
@@ -79,10 +82,11 @@ public:
 	}
 
 protected:
-	void render_osc_block(const BlockControls& controls, const SourceRenderContext& ctx,
+	void render_osc_block(const BlockControls& controls, const SourceBlock& block,
 	                      deluge::dsp::fixed::Buffer out) override {
-		render_into(controls, ctx.wave_table_data, ctx.wave_index_last, ctx.wave_index_increment, ctx.phase_increment,
-		            out, deluge::dsp::fixed::Buffer{ctx.sync_scratch, static_cast<size_t>(ctx.num_samples)});
+		render_into(controls, block.wavetable.data, block.wavetable.index_last, block.wavetable.index_increment,
+		            block.phase_increment, out,
+		            deluge::dsp::fixed::Buffer{block.sync_scratch, static_cast<size_t>(block.num_samples)});
 	}
 };
 

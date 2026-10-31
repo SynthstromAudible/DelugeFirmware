@@ -1,221 +1,137 @@
-# L1 Engine Architecture — the swappable-engine boundary
+# L1 engines and sources
 
-> Status: **design / north star** (no code yet). Companion to `synth_untangling_plan.md` (the overall L0–L3
-> plan and the "Extensibility model — two plug-in boundaries" section). This doc specifies the **L1 engine
-> boundary** in depth: what a swappable engine *is*, the two layers beneath/at it, and the migration that gets
-> us there. It refines Phase 3 / Phase 4 of that plan; where they disagree, this doc is the newer thinking.
->
-> Where it lands: the engine API and the built-in engines live in the synth library at `src/synth/engines/`
-> (`engine.h` for the contract), beside `src/synth/sources/`. Engines are loaded by the Deluge instrument, never by the
-> host: what the host loads is a plugin (`src/plugin-api/`).
->
-> Next: this is the arc after the voice kernel's lift (`synth_voice_lift.md`). Today's engines —
-> `SubtractiveEngine`, `RingModEngine`, `FMEngine` — sit beside the kernel in `src/synth/voice/` and still take the
-> `synth::Voice&` they drive; the per-source loop and osc sync are still the kernel's `render_basic_source`.
+The Deluge instrument's voice (`deluge::synth::Voice`, `src/synth/voice/`, see `synth_voice_lift.md`) keeps the
+envelopes, local LFOs, modulation, porta, filters, wavefold and output stage. What it sounds like is made below it by
+two tiers, in the synth library:
 
-## Why this boundary exists
+- **Sources** (`src/synth/sources/`): one generator in one of a unison part's two slots — a virtual-analog wave, the
+  wavetable, the supersaw, a sample, the live input, a DX7 patch.
+- **Engines** (`src/synth/engines/`): one voice's timbre generator over all its unison parts. An engine family
+  decides how the two slots relate.
 
-Phase 3 *extracted* every `OscType` render body into a `*Engine` object, but it drew the boundary at the
-**single-oscillator** level: `synth::SourceEngine` (`src/synth/sources/source_engine.h`) is
-oscillator-shaped — it exposes `phase()`, takes a `BlockControls::sync` (an `optional<Phasor>` master), and a
-`pulse_width`. The consequence is that **`voice.cpp` is still the real engine**: it conducts every cross-source
-relationship.
+Engines are loaded by the Deluge instrument, never by the host: what the host loads is a plugin
+(`src/plugin-api/`). The CLAP boundary stays at the instrument (L3); this tier is a lean native C++ interface.
 
-- **Osc-sync** is orchestrated by Voice: `oscSyncPos[u] = unisonParts[u].sources[0].currentOscPhase()`
-  (`voice.cpp:1163`) makes **source 0 the master**, and the slave is rendered with `(s == 1) && doingOscSync`
-  (`voice.cpp:1261`). It applies in **both** SUBTRACTIVE and RINGMOD.
-- **Ring-mod** combines the two sources: render each raw, then `out = (src0 * src1) * amplitudeForRingMod`
-  (`voice.cpp:1421–1444`).
-- **FM** is a topology over the two sources (forced to sine carriers, `voice.cpp:336–338`) plus
-  `kNumModulators = 2` modulators with feedback and an optional `modulator1ToModulator0` route
-  (`voice.cpp:1448–1517`).
-- **Mix / stereo / unison** are all Voice's job.
+## The tiers
 
-The key realisation (the Pigments/Plaits lesson): **hard sync is a relationship _between_ oscillators, not a
-property of one.** It — like ring-mod pairing and the FM operator graph — can only live inside something that
-owns the oscillators it relates. So the swappable unit should be a **complete timbre generator for one voice**,
-and its internal structure (one osc, two oscs with sync, a ring-mod pair, four FM operators, a sample reader, a
-live tap) is **private composition, not contract surface**. Plaits and Pigments both swap at exactly this
-altitude.
+| Tier | What it is | Here | To come |
+|---|---|---|---|
+| L0 kernels (`dsp-next`) | DSP building blocks | band-limited tables, oscillators, sinc interpolator, DX7 operator graph, filters | — |
+| Sources | one generator in one slot of one unison part | VA, wavetable, supersaw, sample, live input, DX7 | Karplus-Strong, Plaits models, granular from a sample, additive |
+| Dual-source engines | the relationship between the two slots, plus noise | Subtractive (mix, A→B sync), RingMod (multiply, A→B sync) | AM, phase modulation A→B, exciter→resonator (Rings, a Clouds-style granular slot B) |
+| Whole-voice engines | one generator is the voice | FM (two modulators into two carriers, with feedback) | a whole-voice DX7, Plaits as the voice, physical models (a piano: exciter and strings per voice) |
+| Per-sound stages | run once per sound, after its voices (the instrument tier) | the sound FX chain | a physical model's soundboard and sympathetic resonance |
 
-This re-casts what Phase 3 built, honestly: `VirtualAnalogEngine` and `WavetableEngine` are **source
-components**, not swap-engines (despite the `*Engine` name). The real swap-engines — Subtractive, RingMod, FM —
-do **not exist as objects yet**; Voice is impersonating them.
+Hard sync, ring-mod pairing and the FM operator graph are relationships between generators, so they live in the
+engine that owns both, not in a source.
 
-## The two layers
+## The contracts
 
-```
-┌─ ENGINE (the L1 swap boundary) ────────────────────────────────────────────────┐
-│  flat contract:  noteOn(NoteCtx) · render(Block) → status · release · unassign │
-│  NO phase()/sync() — sync/ring-mod/FM-topology are PRIVATE composition         │
-│                                                                                │
-│   SubtractiveEngine   = N source-components + (A→B) hard-sync + mix            │
-│   RingModEngine       = 2 source-components + (A→B) hard-sync + ring-mod       │
-│   FMEngine            = 2 sine carriers + 2 modulators + feedback graph        │
-│   PlaitsEngine (whole-voice), …  ← third-party coordinator/whole-voice engines │
-│   (a whole-voice DX7 engine could live here too — deferred; DX7 is a Source)   │
-└───────────────────────────┬────────────────────────────────────────────────────┘
-                            │ owns / composes
-┌─ SOURCE COMPONENTS (below the boundary) ──────────────────────────────────────┐
-│  VA osc · wavetable osc · sample reader · live-input tap · DX7 (self-contained)│
-│  THIS layer owns Phasor / pulse-width / sync-as-phase-source                  │
-│  (DX7Source / SampleSource / InputSource are here — self-contained generators │
-│   used as one of the two composable per-source slots, not coordinator engines)│
-└───────────────────────────────────────────────────────────────────────────────┘
-```
+Both contracts are templates over a **numeric backend** (`src/synth/sources/backend.h`). `Fixed` is the q31 Deluge
+instrument's — `int32_t` samples and controls, `uint32_t` phases, the Deluge's per-type source blocks, voice types
+and control structs — and is the only one instantiated. The templates are named `Basic*<B>`; the plain names
+(`Source`, `SourceBlock`, `Engine`, `EngineBlock`, …) are their `Fixed` instantiations. Neither contract names a
+Deluge param index: the voice derives each engine's controls from its param planes.
 
-**Engines** are the swap unit and what a future registry dispatches. **Source components** are the reusable
-building blocks engines compose. Sync/ring-mod/FM never appear in the engine contract — they are how specific
-engines wire their components together.
+### Source (`src/synth/sources/source.h`)
 
-## The two contracts
+`BasicSource<B>`: stateful (phase, feedback, playback position live in the source).
 
-### Engine contract (the swap boundary) — flat
+| Member | Does |
+|---|---|
+| `note_on(const SourceNote&) → bool` | starts the source for a note (a sample's reader, a DX7's pooled voice, the input's channel); false when it cannot play |
+| `render(const BasicSourceBlock<B>&) → SourceRenderResult` | adds one block into the buffer: `ACTIVE`, `UNASSIGN` (it ended), or `SKIP` (this part sits out the block) |
+| `release(const SourceRelease&) → bool` | the note-off (a sample plays past its loop end; a DX7's key-up); false when it ends now |
+| `unassign(bool)` | lets go of what it holds |
+| `current_phase()`, `advance_phase(delta)` | an oscillator's phase, which osc sync reads from the master and advances on a skipped master |
+| `takes_input()` | declared: a processor source that renders the other slot's audio (a resonator); false everywhere |
 
-Illustrative (names/shapes not final):
+`BasicSourceBlock<B>` holds the common inputs (buffer, stereo layout and pan, the amplitude ramp, the pitch, an
+optional `SyncMaster`, scratch, the noise stream) and a small block per source type (wavetable bands and morph, DX7
+patch state, a sample's porta and cache inputs, the live input's interpolation size).
 
-```cpp
-class Engine {                       // one voice's worth of a complete timbre generator
-public:
-    virtual ~Engine() = default;
-    virtual void       init(BufferAllocator&) = 0;   // per-voice state; allocator-injected, no globals
-    virtual NoteResult noteOn(const NoteContext&)  = 0;
-    virtual RenderResult render(const RenderBlock&) = 0;  // adds into the block; returns activity/voice-death
-    virtual void       release() = 0;                 // note-off (DX7 keyup, sample loop-end, …)
-    virtual void       unassign() = 0;                // free pooled resources (explicit, pooled-slot reuse)
-};
-```
+### Source slots (`src/synth/sources/source_slot.h`)
 
-- `RenderResult` unifies today's divergent signals: VA/wavetable never die (`void`), DX7 returns `active`,
-  Sample returns `{ACTIVE, UNASSIGN, SKIP}` (`synth/sources/source.h`). One status type covers all.
-- **No** `phase()` / `set_increment()` / `sync` here — those leak oscillator structure. (osc-sync master/slave
-  is internal to Subtractive/RingMod, between *their* components.)
-- The `RenderBlock` carries the already-modulated per-block numbers (the spirit of today's
-  `synth::BlockControls`) plus output/scratch buffers — but trimmed of the oscillator-only fields
-  (`pulse_width`, `sync`), which move down to the component layer.
+A unison part (`UnisonPart`, `src/synth/voice/unison_part.h`) has two `SourceSlot`s. A slot holds:
 
-### Source-component contract (below) — the harder one
+- the note's **oscillator source** in place, in a `std::variant` of the port-free sources (VA, wavetable, supersaw),
+  built at note-on and kept across notes while its class is unchanged, so a free-running oscillator keeps its phase;
+  a VA wave change on a re-triggered voice keeps the built wave;
+- the **port-backed sources** (sample, DX7, input), bound to the firmware's ports for the voice's life;
+- the phase state every mode shares (`SlotPhase`: `osc_pos`, the stored increment, FM's carrier feedback, `active`).
 
-This is where the real difficulty is, because it must cover **heterogeneous** components uniformly:
+`source_for(type)` is the source that renders a slot's current type: the port-backed one by type, else the held
+oscillator, whatever its class; null when the slot holds none (a mode change under a live voice can leave it so), which renders nothing.
 
-- VA oscillators and the wavetable osc are clean L0/dsp-next citizens (own a `Phasor`, no upward refs) — they
-  keep `phase()` / `set_increment()` / `seek()` and the pulse/sync machinery (that's legitimate at this layer).
-- The **sample reader** and **live-input tap** are app-coupled (reach `AudioEngine`, storage, the allocator,
-  `ParamManager`). To stay buildable/testable with zero firmware, they sit behind **ports** —
-  `SampleSource` (wrapping the existing `voice_sample` path) and a live-input port — injected into the
-  component, never reached directly. (`synth_untangling_plan.md` already names the `SampleSource` port.)
+### Engine (`src/synth/engines/engine.h`)
 
-The component contract must let an engine: set per-block pitch, drive (or not) a hard-sync phase source, read a
-component's phase (for the engine's *internal* sync), and render raw or VCA'd. Most of this already exists on
-the Phase-3 objects — the work is regularising it and adding the port seam.
+`BasicEngine<B>`:
 
-## Mapping the current Deluge onto the target
+| Member | Does |
+|---|---|
+| `note_on(const BasicEngineNote<B>&) → bool` | starts the note over the parts the voice lends; false when it cannot play |
+| `calculate_phase_increments(note)` | each part's increments, at note-on and on a note change |
+| `randomize_part(u, noise)` | a new voice's random phases beyond its sources' (drawn after theirs) |
+| `render(const BasicEngineBlock<B>&) → EngineRenderResult` | adds one block into the voice's buffer; reports a stereo buffer and whether every part's sources ended |
+| `release(parts, info, rating)` | the note-off's source releases |
+| `owns_envelope()` | declared: the engine shapes the amplitude itself (a physical model's decay); false everywhere, not read yet |
+| `sound_stage()` | declared: a `BasicSoundStage<B>` the instrument would run once per sound after its voices; null everywhere |
 
-| Today | Becomes | Notes |
-|---|---|---|
-| `SynthMode::SUBTRACTIVE` (`definitions_cxx.hpp:421`) | `SubtractiveEngine` | owns the 2 source slots + A→B sync (`voice.cpp:1229–1315`) + mix |
-| `SynthMode::RINGMOD` | `RingModEngine` | 2 raw components + multiply (`voice.cpp:1366–1444`); sync still applies |
-| `SynthMode::FM` | `FMEngine` | 2 sine carriers (sources) + 2 modulators + feedback (`voice.cpp:1448–1517`) |
-| `OscType::DX7` | **`DX7Source`** (stays a Source) | a self-contained 6-op FM voice **used as a per-source oscType** — see the resolution below |
-| `OscType::{SAW,SQUARE,…,WAVETABLE}` | **source components** | VA / wavetable building blocks |
-| `OscType::{SAMPLE, INPUT_*}` | **source components** (port-backed) | used *inside* Subtractive/RingMod |
+`BasicEngineBlock<B>` carries the voice's buffer and scratch, the unison parts and the shared `SourceLevels` it lends,
+the voice config and per-voice block, the noise stream, and one control struct per family (`DualSourceControls`,
+`FmControls`, `engine_controls.h`), of which the voice fills its family's.
 
-**Feature-preservation requirement (hard constraint):** Subtractive and RingMod must keep hosting
-**heterogeneous** source components — osc A a sample or wavetable, osc B a saw, mixed or ring-modulated, exactly
-as today. The mechanism is precisely that sample/wavetable/input are *components* that plug into those engines;
-nothing about promoting the synth modes to engines removes the per-source choice.
+## The engines
 
-**Resolved (2026-06-19): DX7 is a composable Source, not a (replacement) Engine.** Verified against `voice.cpp`:
-`oscType`/`dxPatch` are **per-source** (`processing/source.h:38,47`) and DX7 dispatches per-source
-(`voice.cpp:1523` → `unisonParts[u].sources[s].dx7Source`), so a preset can run **osc A = DX7, osc B = saw, mixed**
-(non-FM modes only — `VoiceUnisonPartSource::note_on`, `synth/voice/unison_part_source.cpp`). Promoting DX7 *from* a source *to* an engine would break
-that — so **DX7 stays a `DX7Source`.** Its 6-op FM graph is *private composition* of the Source, exactly as a
-wavetable source privately owns a phasor + table. This generalizes: a self-contained foreign generator (a Plaits
-macro-oscillator) is also **Source-shaped** in the Deluge's two-source mixer — "complete timbre generator" ≠
-"Engine" here; **"Engine" = coordinator of the 2-source mixer** (Subtractive/RingMod/FM). A whole-voice **DX7
-engine** (DX7 *is* the voice, no source-mixing) is a legitimate *additional* end-state — DX7 as **both** a Source
-and an Engine — but it is **deferred** (decision: Kate, 2026-06-19): it is partly redundant (osc-A-only DX7 already
-yields a whole-voice DX7) and is a UX/product call, so it is not a near-term engine-tier slice. The `EngineRegistry`
-contract should stay open to admitting such a self-contained whole-voice engine later, alongside the coordinators.
+- **`SlotEngine`** (`slot_engine.h`): the per-source note-on every engine here shares — each source marked active in
+  every part where it can sound, its phase increments worked out, its slot started — over the Deluge voice's slots.
+- **`DualSourceEngine`** (`dual_source_engine.h`): the per-source loop through the `Source` contract, the A→B osc-sync
+  capture, the noise source, the level pre-roll helpers and the sample/DX7 releases.
+  - **`SubtractiveEngine`**: the mono sources, then the stereo ones over a stereo copy, source 1 optionally synced to
+    source 0, plus noise; the voice filters afterwards.
+  - **`RingModEngine`**: each part's two raw waves (source 1 optionally synced) multiplied and panned, plus noise; a
+    source that cannot sound fails the note.
+- **`FMEngine`** (`fm_engine.h`): a whole-voice engine. It ignores the slots' sources: its carriers render over each
+  slot's `osc_pos` and carrier feedback, and its modulator grid (phases, increments, feedback, level de-zipper) is its
+  own. It seeds and randomizes the modulators and works out their increments.
 
-## Voice / unison / Phase-4 relationship
+The voice holds **one of each** in an `EngineSet` (`engine_set.h`), whose `for_mode()` is the factory. A sound's mode
+can change under a sounding voice (undo, a preset applied, a reprojection from the record — `Sound::setSynthMode` is
+the only path that stops the voices), so every engine keeps its state while another plays, and the unison parts and
+the source levels (`SourceLevels`, the de-zipper FM and the dual engines share) stay the voice's, lent per call.
 
-- **An engine = one voice's worth.** Voice instantiates an engine **per unison part** (unison stays a
-  Voice/voice-pool concern; sync is per-unison today — `oscSyncPos[u]`). Detune/pan across unison parts remain
-  above the engine.
-- **Forming Subtractive/RingMod/FM = pulling the cross-source orchestration out of `voice.cpp`.** That *is* the
-  front half of **Phase 4** (the L2 voice kernel: "old `Voice`/`Sound::render` shrink to an adapter"). So the
-  engine cut and the voice-kernel cut are nearly the same cut — plan them as one effort, not two.
+## What stays in the voice
 
-## Extensibility tie-in
+Envelopes, local LFOs, the patcher and param planes, MPE smoothing, porta, the pitch adjust, the play-once sample's
+auto-release, the overall amplitude (with FM's unison compensation, which FM works into its carriers), the filter set,
+wavefold, saturation, pan and the output stage, the cull stamp and rating, and the decision to unassign or fast-release
+when every part's sources ended. It derives each engine's controls from its param planes
+(`Voice::dual_source_controls`, `Voice::fm_controls`), including the sample-cache test over the pitch cables.
 
-This is the **Engine API (L1)** boundary from `synth_untangling_plan.md`'s "Extensibility model — two plug-in
-boundaries." A third-party engine (Plaits, Rings) implements the flat `Engine` contract and inherits the
-Deluge's envelopes/LFOs/patch-matrix/MPE/unison/filters/FX. The **registry** dispatches *engines* (not
-oscillators) and is the substrate for runtime-pluggable engines — worth building when that's a goal. **CLAP
-stays at L3** (whole-instrument), per that doc; L1 stays a lean native C++ interface (per-voice instantiation
-rules CLAP out at L1).
+## Adding to it
 
-## Migration sketch (each slice golden-gated, x86 ≡ ARM)
+- **A port-free source** (Karplus-Strong, a Plaits model): a class deriving `Source`, an alternative in
+  `SourceSlot::Oscillator`, and a case in `SourceSlot::build_oscillator`. The voice and the engines are unchanged.
+- **An engine**: a class deriving `Engine` (or `SlotEngine` to reuse the slot lifecycle) and a case in
+  `EngineSet::for_mode`, with its control struct if it needs one; `tests/dsp/synth_engine_spec.cpp` drives an engine
+  and a source written against the contracts alone.
+- **The declared hooks** come into use with the engines that need them: `takes_input` with exciter→resonator,
+  `owns_envelope` and `sound_stage` with a physical model.
 
-High level only; each gets its own per-slice plan:
+## The float instrument plugin
 
-1. **Reframe the component layer** — name + document VA/wavetable/sample/input as *source components* (the
-   `synth::SourceEngine` name likely becomes the component base or is renamed); add the `SampleSource` /
-   live-input **port** seams.
-2. **`RingModEngine`** — relocate the ring-mod combine + sync (`voice.cpp:1366–1444`) verbatim into an engine
-   owning its 2 components. Smallest cross-source engine; good first proof.
-3. **`SubtractiveEngine`** — relocate the render-each-source + mix + A→B sync (`voice.cpp:1229–1315`).
-4. **`FMEngine`** — relocate carriers + modulators + feedback (`voice.cpp:1448–1517`).
-5. ~~**Promote `DX7`**~~ **Dropped (2026-06-19): DX7 stays a `DX7Source`** — it is a composable per-source oscType
-   (osc A = DX7, osc B = saw, mixed), so an engine-only promotion would break compat. A whole-voice DX7 *engine* is
-   a deferred *additional* end-state (DX7 as both), not a near-term slice. See "Mapping the current Deluge" above.
-6. **Registry** — replace the `SynthMode`/`oscType` dispatch with engine selection; this is the L1 plug point. Keep
-   the contract open to a future self-contained whole-voice engine (a DX7 engine, Plaits-as-voice) beside the
-   coordinators.
-7. Voice shrinks to the L2 adapter (Phase 4) as the orchestration leaves it.
+A float instrument instantiates the same contracts over its own backend (float samples and controls, its phase type,
+its own per-type blocks, voice and controls), with its own voice deriving controls from its own params (no Deluge param
+indices, no legacy format, per-block ramps) and sources built from dsp-next's `float/` backend. The tiers, the source
+lifecycle, the slots, the engine families and the declared hooks carry over. See `TODO.md`.
 
-## Open questions this doc takes a position on (to finalise during slice 1)
+## Tests
 
-- **Naming.** The Phase-3 `*Engine` classes are mis-named for the new model: `VirtualAnalogEngine`,
-  `WavetableEngine`, `SampleEngine`/`InputEngine`, **and `DX7Engine`** are all *source components* (Sample/Input/DX7
-  are used inside Subtractive/RingMod), plus the `synth::SourceEngine` interface. **None of the oscTypes is an
-  engine** — `*Engine` is reserved for the coordinator tier (Subtractive/RingMod/FM); see the DX7 resolution above.
-  Three-tier scheme:
-
-  | Layer | Suffix | Examples |
-  |---|---|---|
-  | dsp-next kernels (L0) | `*Oscillator` (exists) | `TableOscillator`, `PulseOscillator` — keep |
-  | source (per-source renderer) | `*Source` | `VirtualAnalogSource`, `WavetableSource`, `SampleSource`†, `InputSource`, **`DX7Source`**; **base `synth::Source`** (was `SourceEngine`, **folding in** the `SourceRenderResult` outcome) |
-  | engines (coordinator / swap) | `*Engine` | `SubtractiveEngine`, `RingModEngine`, `FMEngine`; base `Engine`. (A future whole-voice DX7/Plaits engine could join — deferred.) |
-
-  It reuses the Deluge's own word (osc A/B are already "sources"). **Collisions:** (a) `WavetableOscillator`
-  already exists *twice* (`dsp/oscillators/wavetable_oscillator.h` + `dsp-next/fixed/wavetable/wavetable_oscillator.h`)
-  and dsp-next owns the whole `*Oscillator` building-block vocabulary; (b) †`SampleSource` is also the reserved
-  **port** name in `synth_untangling_plan.md`; (c) the base `Source` brushes against the existing global
-  `class Source` (preset-side config, `processing/source.h`) — resolved by the namespace: the new base is
-  `deluge::synth::Source`, distinct from the global `::Source`.
-
-  **Decision (2026-06-17): rename now, base-first, not deferred.** The base interface `synth::SourceEngine`
-  becomes **`synth::Source`** and *folds in* the `SourceRenderResult` outcome (the per-source renderer reports
-  its own lifecycle, replacing the separate `renderSourceComponent` dispatch) — this is the Source tier of the
-  `Phasor → Osc → Source → Engine → Voice → Instrument` stack (`synth_untangling_plan.md`), with "Engine"
-  reserved for the *coordinator* tier above. **Slice 1 does the base rename + the fold for the VA source only**
-  (VA already implements the interface; smallest bit-exact proof), routing just the VA branch of
-  `renderSourceComponent` through `synth::Source`. **DONE — the scheme is fully realised:** the base became
-  `synth::Source`, all five sources implement it (L-vi), and the concrete-class renames landed (2026-06-17, commit
-  7f0c8fd6) — `VirtualAnalogEngine→VirtualAnalogSource`, `WavetableEngine→WavetableSource`,
-  `SampleEngine→SampleSource`, `DX7Engine→DX7Source`, `InputEngine→InputSource`. `*Engine` is now reserved for the
-  coordinator tier (`SubtractiveEngine`/`RingModEngine`/`FMEngine`).
-- **Does sync apply to non-oscillator components?** Today sync is phase-reset; it's only meaningful for
-  oscillator components. Define whether a sample/input component can be a sync slave (likely no).
-- **Where `BlockControls` lives.** Split: the amplitude/`apply_amplitude`/`cpu_direness` part stays a
-  per-block engine/component control; the oscillator-only `pulse_width`/`sync` move to the component layer.
-- **Param/mod routing.** How per-source `LOCAL_OSC_A/B_*` (and `LOCAL_MODULATOR_*`) map onto engine-internal
-  components while staying **bit-exact** — the orchestration in `voice.cpp` is load-bearing.
-- **Port shapes.** Concrete `SampleSource` / live-input port signatures (named here, designed with their slice).
-
-## Non-goals
-
-Any code change (this is the north star); the registry implementation; concrete port signatures; the FX-chain /
-CLAP-effect boundary (a separate, third plug point, out of scope per `synth_untangling_plan.md`).
+- **Golden masters** (`golden-synth`, `golden-synth-arm`): byte-identical on x86 and ARM. The
+  `voice/` and `stereo/` cases pin the engines' own paths: ring-mod sync (mono and spread), osc sync to a silent master,
+  noise without a filter and across a spread unison, a DX7 patch in osc 2, a retriggered supersaw, a mono voice's osc 1
+  turned saw → square (keeps its saw) and saw → supersaw (builds one) between notes (`RENDER_SETTING`), and FM
+  re-triggered on a mono sound.
+- **`tests/dsp/synth_engine_spec.cpp`**: an engine and a source the voice does not know, started over the voice's slots
+  and rendered; each family through a voice (subtractive mixing and syncing, ring-mod multiplying, FM modulating); a
+  voice whose sound changes mode while it sounds. `tests/dsp/synth_voice_spec.cpp` plays the voice's lifecycle.

@@ -1300,7 +1300,7 @@ overloads it on non-const `Coefficients`.
   The app passes it at every call site that draws: the voice's filter set and
   sources, the LFOs, the effect chains (through `FxInputs::noise` and
   `MasterPostInputs::noise`), DX7's note-on and the live pitch shift (through
-  `SourceRenderContext::noise`). The host harness reseeds it through
+  `SourceBlock::noise`). The host harness reseeds it through
   `deluge_seed_noise`.
 - **A kernel's noise is its Context.** The low-pass ladder, mod FX and the grain
   declare `using Context = Noise;` (a `noise_stream`, `Cong` by default) and

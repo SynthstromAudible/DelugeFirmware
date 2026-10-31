@@ -55,6 +55,5 @@ the kernel.
 
 ## What is next
 
-The L1 engine arc (`synth_l1_engine_architecture.md`): the per-source loop, osc sync and the FM path move out of the
-kernel's render into engine objects. `render_basic_source`, the engines' calls back into the voice and the FM render
-keep their legacy bodies until then.
+The engines and sources below the kernel are `synth_l1_engine_architecture.md`. Next is the mod matrix's runtime (M3),
+whose descriptor-published IDs take the synth's vocabulary out of `definitions_cxx.hpp` (`TODO.md`).

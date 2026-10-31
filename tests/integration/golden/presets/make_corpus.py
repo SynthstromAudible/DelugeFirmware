@@ -763,4 +763,57 @@ case(
     cables=BASE_CABLES + [("velocity", "pitch", "0x08000000")],
 )
 
+# --- the sources and engines' own paths (voice/ and stereo/) -------------------
+# A mono sound whose osc 1 turns from saw to square between its two overlapping notes (RENDER_SETTING, in
+# render_preset.py): the menu keeps the voice for that change, and the re-triggered voice keeps the saw it built.
+case(
+    "voice/type_change_mono_saw_square",
+    sound={"polyphonic": "mono"},
+)
+# The same voice turned to supersaw instead: a new class of source, so the re-triggered voice builds a supersaw.
+case("voice/type_change_mono_saw_supersaw", sound={"polyphonic": "mono"})
+# Ring-mod with osc 2 hard-synced to osc 1, and the same spread across stereo unison voices.
+RINGMOD_SYNC = {
+    "sound": {"mode": "ringmod"},
+    "osc1": {"type": "sine"},
+    "osc2": {"type": "saw", "transpose": "7", "oscillatorSync": "1"},
+}
+case("voice/ringmod_sync", **RINGMOD_SYNC)
+stereo_case("ringmod_sync_unison", **RINGMOD_SYNC)
+# A DX7 patch in osc 2, beside a silent osc 1.
+case(
+    "voice/dx7_osc_b",
+    osc2={
+        "type": "dx7",
+        "dx7patch": dx7_patch(ALL_SOUNDING, algorithm=4, feedback=5),
+        "dx7enginemode": "2",
+    },
+    params={"oscAVolume": "0x80000000", "oscBVolume": "0x40000000"},
+)
+# Noise with no filter on (no filter-gain fold), and across stereo unison voices (rendered once into both channels).
+NOISE = {"oscAVolume": "0x80000000", "noiseVolume": "0x40000000"}
+case("voice/noise_unfiltered", sound={"lpfMode": "Off", "hpfMode": "Off"}, params=NOISE)
+stereo_case("noise_unison", params=NOISE)
+# A supersaw retriggered at each note: its side saws start from fixed offsets of the centre one.
+case("voice/supersaw_retrigger", osc1={"type": "supersaw", "retrigPhase": "0"})
+# Osc sync with osc 1 silent: the master is skipped but its phase still advances, and osc 2 syncs to it.
+case(
+    "voice/sync_silent_master",
+    osc2={"type": "saw", "transpose": "7", "oscillatorSync": "1"},
+    params={"oscAVolume": "0x80000000", "oscBVolume": "0x40000000"},
+)
+# FM on a mono sound re-triggered by an overlapping note: free-running modulators carry on, a retriggered one restarts.
+case(
+    "voice/fm_mono_retrigger",
+    sound={"mode": "fm", "polyphonic": "mono"},
+    osc1={"type": "sine"},
+    osc2={"type": "sine"},
+    modulators=({"transpose": "12"}, {"retrigPhase": "0"}),
+    params={
+        "modulator1Amount": "0x30000000",
+        "modulator2Amount": "0x20000000",
+        "modulator1Feedback": "0x10000000",
+    },
+)
+
 print(f"wrote {len(list(CORPUS.glob('*.xml')))} presets to {CORPUS}")

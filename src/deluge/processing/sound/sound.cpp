@@ -91,8 +91,8 @@
 #include <optional>
 #include <ranges>
 
+using deluge::synth::SourceSlot;
 using deluge::synth::VoiceConfig;
-using deluge::synth::VoiceUnisonPartSource;
 
 namespace params = deluge::modulation::params;
 
@@ -533,7 +533,7 @@ void Sound::recalculatePatchingToParam(uint8_t p, ParamManager* paramManager) {
 	const ControlBlock block = patchControlBlock(*paramManager, PresetGather::ALL);
 	AudioExcludedSection section; // the render walks and edits this Sound's voices
 	for (ActiveVoice& voice : voices_) {
-		voice->kernel.patcher.recalculate_final_value_for_param_with_no_cables(p, block);
+		voice->kernel.recalculate_param_with_no_cables(p, block);
 	}
 }
 
@@ -961,7 +961,7 @@ void Sound::retriggerVoice(const ActiveVoice& voice, ModelStackWithSoundFlags* m
                            int32_t fromMIDIChannel) {
 	int32_t envelopePositions[kNumEnvelopes];
 	for (int32_t e = 0; e < kNumEnvelopes; e++) {
-		envelopePositions[e] = voice->kernel.envelopes[e].output_level();
+		envelopePositions[e] = voice->kernel.envelope(e).output_level();
 	}
 	if (sideChainSendLevel != 0) [[unlikely]] {
 		AudioEngine::registerSideChainHit(sideChainSendLevel);
@@ -973,7 +973,7 @@ void Sound::retriggerVoice(const ActiveVoice& voice, ModelStackWithSoundFlags* m
 		        sampleSyncLength, ticksLate);
 	    })) {
 		for (int32_t e = 0; e < kNumEnvelopes; e++) {
-			voice->kernel.envelopes[e].resume_attack(envelopePositions[e]);
+			voice->kernel.envelope(e).resume_attack(envelopePositions[e]);
 		}
 	}
 	else {
@@ -1003,7 +1003,7 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
 			ActiveVoice& voice = *it;
 			// if it's not MONO, and the envelope is not in release and we're allowing note tails, this is a legato
 			// voice
-			if (polyphonic != PolyphonyMode::MONO && voice->kernel.envelopes[0].stage() < Envelope::Stage::RELEASE
+			if (polyphonic != PolyphonyMode::MONO && voice->kernel.envelope(0).stage() < Envelope::Stage::RELEASE
 			    && allowNoteTails(modelStack, true)) {
 				voiceForLegato = &voice;
 				break;
@@ -1017,7 +1017,7 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
 				                           return isSourceActiveCurrently(s, paramManager)
 				                                  && sources[s].oscType != OscType::SAMPLE;
 			                           })
-			    || (voice->kernel.envelopes[0].stage() != Envelope::Stage::FAST_RELEASE
+			    || (voice->kernel.envelope(0).stage() != Envelope::Stage::FAST_RELEASE
 			        && !voice->do_fast_release(kSoftCullIncrement));
 
 			if (needs_unassign) {
@@ -1281,8 +1281,8 @@ void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 
 	for (const ActiveVoice& voice : voices_) {
-		if ((voice->kernel.note_code_after_arpeggiation == noteCode || noteCode == ALL_NOTES_OFF)
-		    && voice->kernel.envelopes[0].stage()
+		if ((voice->kernel.note_code() == noteCode || noteCode == ALL_NOTES_OFF)
+		    && voice->kernel.envelope(0).stage()
 		           < Envelope::Stage::RELEASE) { // Don't bother if it's already "releasing"
 
 			// If we have actual arpeggiation, just switch off.
@@ -2039,7 +2039,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 
 			// A note-off the voice ignored is taken now if the sound has since come to allow note tails. A voice's
 			// first render call only marks it created, so it is not taken then.
-			if (voice->just_created && voice->kernel.previously_ignored_note_off && voiceConfig.note_tails_allowed) {
+			if (voice->just_created && voice->kernel.previously_ignored_note_off() && voiceConfig.note_tails_allowed) {
 				voice->note_off(paramManager, voiceConfig.note_tails_allowed);
 			}
 #if defined(DELUGE_STREAM_BENCH)
@@ -2680,8 +2680,8 @@ void Sound::setNumUnison(int32_t newNum, ModelStackWithSoundFlags* modelStack) {
 					// For samples, set the current play pos for the new unison part, if num unison went up
 					if (newNum > oldNum) {
 
-						VoiceUnisonPartSource* newPart = &voice->kernel.unison_parts[oldNum].sources[s];
-						VoiceUnisonPartSource* oldPart = &voice->kernel.unison_parts[oldNum - 1].sources[s];
+						SourceSlot* newPart = &voice->kernel.unison_parts[oldNum].slots[s];
+						SourceSlot* oldPart = &voice->kernel.unison_parts[oldNum - 1].slots[s];
 
 						newPart->active = oldPart->active;
 
@@ -2709,7 +2709,7 @@ void Sound::setNumUnison(int32_t newNum, ModelStackWithSoundFlags* modelStack) {
 					}
 					else if (newNum < oldNum) {
 						for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
-							voice->kernel.unison_parts[newNum].sources[s].unassign(false);
+							voice->kernel.unison_parts[newNum].slots[s].unassign(false);
 						}
 					}
 				}

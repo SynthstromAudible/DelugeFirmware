@@ -50,7 +50,7 @@
 #include "util/cfunctions.h"
 #include "util/misc.h"
 
-using deluge::synth::VoiceUnisonPartSource;
+using deluge::synth::SourceSlot;
 
 using namespace deluge::gui;
 
@@ -1012,8 +1012,7 @@ void SampleMarkerEditor::graphicsRoutine() {
 				auto& assigned_voice = *std::ranges::max_element(valid_voices_view, {}, &VoiceSlot::order_sounded);
 
 				const int32_t u = soundEditor.currentSound->snapshot().num_unison >> 1;
-				VoiceUnisonPartSource* part =
-				    &assigned_voice->kernel.unison_parts[u].sources[soundEditor.currentSourceIndex];
+				SourceSlot* part = &assigned_voice->kernel.unison_parts[u].slots[soundEditor.currentSourceIndex];
 				if (part != nullptr && part->active) {
 					voiceSample = assigned_voice->ports(u, soundEditor.currentSourceIndex).sample.voiceSample();
 					guide = &assigned_voice->guides[soundEditor.currentSourceIndex];

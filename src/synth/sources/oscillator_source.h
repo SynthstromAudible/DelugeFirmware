@@ -18,7 +18,7 @@
 
 #include "dsp-next/core/q31_ops.h" // multiply_32x32_rshift32
 #include "dsp-next/core/types.h"   // deluge::dsp::fixed::Buffer
-#include "synth/sources/source.h"  // Source, SourceRenderContext, BlockControls
+#include "synth/sources/source.h"  // Source, SourceBlock, BlockControls
 #include <cstdint>
 #include <cstring>
 
@@ -30,27 +30,27 @@ namespace deluge::synth {
 /// running the block render — is the @ref renderOscBlock hook each concrete engine implements.
 class OscillatorSource : public Source {
 public:
-	SourceRenderResult render_source(const SourceRenderContext& ctx) final {
-		// Osc sync with the freq too high: skip this unison part without unassigning.
-		if (ctx.do_osc_sync && (ctx.osc_sync_phase_increment == 0u)) {
+	SourceRenderResult render(const SourceBlock& block) final {
+		// Osc sync with the master too high to render: skip this unison part without unassigning.
+		if (block.sync.has_value() && block.sync->increment == 0u) {
 			return SourceRenderResult::SKIP;
 		}
 
 		// Stereo voices render mono into a scratch buffer, then pan-fold; mono renders straight into oscBuffer.
-		int32_t* render_buffer = ctx.osc_buffer;
-		if (ctx.stereo_buffer) {
-			render_buffer = ctx.stereo_scratch;
-			memset(render_buffer, 0, ctx.stereo_scratch_clear_samples * sizeof(int32_t));
+		int32_t* render_buffer = block.osc_buffer;
+		if (block.stereo_buffer) {
+			render_buffer = block.stereo_scratch;
+			memset(render_buffer, 0, block.stereo_scratch_clear_samples * sizeof(int32_t));
 		}
 
-		render_osc_block(ctx.controls, ctx,
-		                 deluge::dsp::fixed::Buffer{render_buffer, static_cast<size_t>(ctx.num_samples)});
+		render_osc_block(block.controls, block,
+		                 deluge::dsp::fixed::Buffer{render_buffer, static_cast<size_t>(block.num_samples)});
 
-		if (ctx.stereo_buffer) {
+		if (block.stereo_buffer) {
 			// TODO: if the render buffer were typed we could use addPannedMono()
-			for (int32_t i = 0; i < ctx.num_samples; i++) {
-				ctx.osc_buffer[(i << 1)] += multiply_32x32_rshift32(render_buffer[i], ctx.amplitude_l) << 2;
-				ctx.osc_buffer[(i << 1) + 1] += multiply_32x32_rshift32(render_buffer[i], ctx.amplitude_r) << 2;
+			for (int32_t i = 0; i < block.num_samples; i++) {
+				block.osc_buffer[(i << 1)] += multiply_32x32_rshift32(render_buffer[i], block.amplitude_l) << 2;
+				block.osc_buffer[(i << 1) + 1] += multiply_32x32_rshift32(render_buffer[i], block.amplitude_r) << 2;
 			}
 		}
 		return SourceRenderResult::ACTIVE;
@@ -58,8 +58,8 @@ public:
 
 protected:
 	/// Set the engine's per-block inputs (pitch — and, for the wavetable, its table + morph index) and render the
-	/// mono block into @p out. The oscillator hard-sync work buffer is @c ctx.syncScratch.
-	virtual void render_osc_block(const BlockControls& controls, const SourceRenderContext& ctx,
+	/// mono block into @p out. The oscillator hard-sync work buffer is @c block.sync_scratch.
+	virtual void render_osc_block(const BlockControls& controls, const SourceBlock& block,
 	                              deluge::dsp::fixed::Buffer out) = 0;
 };
 

@@ -86,17 +86,13 @@ this design as follows — and the headline is: **Engines need no ports of their
   Source-layer concern (sources are the only things doing hardware/storage IO).
 - **The nesting:** `Instrument (L3) → owns Voices (L2) → own Engines → own Sources → depend on Ports ◀ firmware
   adapters`. The port adapters are injected from the firmware **down through** Voice→Engine→Source.
-- **Ownership of the sources migrates Voice → Engine.** Today the Voice owns the sources and plays the
-  coordinator through `Voice&` (`SubtractiveEngine` drives the public `render_basic_source` for the unison loop + A→B
-  sync; `FMEngine` calls back into `Voice` for `adjustPitch`). `Voice` has no `friend`s.
-  The end state (per `synth_l1_engine_architecture.md`) is that **each Engine owns its sources as private
-  composition** (Subtractive its 2 slots, RingMod its pair, FM its carriers/modulators). So "the kernel owns the
-  ported sources" above is the **interim** truth; the eventual owner is the Engine. **Ports are orthogonal to this**
-  — a port abstracts a source's IO regardless of whether the Voice (now) or an Engine (later) owns the source.
-- **The source seams here *are* the Engine↔Source seams.** The `hasOscPhase`/`oscPhase`/`seekOscPhase` facet is
-  exactly what a `SubtractiveEngine`/`RingModEngine` uses for its *internal* A→B sync; and `SourceRenderContext` is
-  the Engine↔Source contract — extracting an Engine means lifting the ctx-building + sync coordination (today smeared
-  in `render_basic_source`) *into* the Engine object. So this work is forward-compatible with the engine extraction.
+- **Ownership of the sources.** The voice owns the unison parts and their source slots (`SourceSlot`), and lends them
+  to the engine each call; the engines (`src/synth/engines/`) coordinate the slots — Subtractive and RingMod their two
+  sources and the A→B sync, FM its carriers over the slots' phase state and its own modulator grid. The voice keeps
+  them so that a mode change under a sounding voice continues from every engine's state. **Ports are orthogonal to
+  this:** a slot's port-backed sources are bound to their ports for the voice's life, whoever coordinates them.
+- **The source seams are the Engine↔Source seams.** `current_phase()`/`advance_phase()` are what a dual-source engine
+  uses for its A→B sync, and `SourceBlock` is the Engine↔Source contract (`synth_l1_engine_architecture.md`).
 - **Ordering is flexible** (`synth::Source` decouples them): an Engine can be extracted to coordinate
   `synth::Source*` whether or not the concrete impls are ported, and a source can be ported under either owner.
   Natural order: **source ports first** (the genuinely hard IO separation), then the **engine extraction** (pure

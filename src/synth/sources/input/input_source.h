@@ -18,7 +18,7 @@
 
 #include "definitions_cxx.hpp"                 // OscType
 #include "synth/sources/input/input_channel.h" // synth::InputChannel
-#include "synth/sources/source.h"              // synth::Source, SourceRenderContext, SourceRenderResult
+#include "synth/sources/source.h"              // synth::Source, SourceBlock, SourceRenderResult
 #include <cstdint>
 
 namespace deluge::synth {
@@ -36,7 +36,7 @@ class LivePitchShifter;
 class InputSource : public Source {
 	AudioInputPort* in_;
 	LivePitchShifter* live_pitch_shifter_ = nullptr;
-	/// Which input channel this source plays — latched once at note-on (see @ref prepareForNoteOn), so the per-block
+	/// Which input channel this source plays — latched once at note-on (see @ref note_on), so the per-block
 	/// render context need not carry it.
 	InputChannel channel_ = InputChannel::LEFT;
 
@@ -45,16 +45,15 @@ public:
 	/// Reads through @p in, which must outlive this source.
 	void bind_port(AudioInputPort* in) { in_ = in; }
 
-	/// Latch the configured input channel for the note about to start (from the source's `OscType`).
-	void prepare_for_note_on(OscType input_type);
+	/// Latches the input channel for the note about to start, from the source's type.
+	bool note_on(const SourceNote& note) override;
 
-	/// Render this live-input source's contribution into @c ctx.oscBuffer (always ACTIVE — live input never
-	/// self-unassigns). The @ref deluge::synth::Source seam; the channel-routing/pitch-shift render is the private
-	/// @ref render below.
-	SourceRenderResult render_source(const SourceRenderContext& ctx) override;
+	/// Renders this live-input source's contribution into @c block.osc_buffer (always ACTIVE: live input never
+	/// ends by itself). The channel routing and pitch shift are @ref render_input below.
+	SourceRenderResult render(const SourceBlock& block) override;
 
-	/// Free the pooled pitch-shifter (no-op if none held).
-	void unassign();
+	/// Frees the pooled pitch-shifter (no-op if none held).
+	void unassign(bool deleting_song) override;
 
 private:
 	/// Render one block, *summing* the live input into @p oscBuffer. Channel routing follows the latched
@@ -62,9 +61,10 @@ private:
 	/// the pitch-shifter. @p interpolationBufferSize is precomputed by Voice (only used on the pitch-shift arm).
 	/// When @p stereoUnison is set, oscBuffer is an interleaved stereo buffer and this unison part's mono input
 	/// is panned across it with @p amplitudeL / @p amplitudeR (the stereo-unison-spread fix).
-	void render(int32_t* osc_buffer, int32_t num_samples, uint32_t phase_increment, int32_t source_amplitude,
-	            int32_t amplitude_increment, bool stereo_buffer, bool stereo_unison, int32_t amplitude_l,
-	            int32_t amplitude_r, int32_t interpolation_buffer_size, dsp::fixed::Cong& noise, int32_t* mono_scratch);
+	void render_input(int32_t* osc_buffer, int32_t num_samples, uint32_t phase_increment, int32_t source_amplitude,
+	                  int32_t amplitude_increment, bool stereo_buffer, bool stereo_unison, int32_t amplitude_l,
+	                  int32_t amplitude_r, int32_t interpolation_buffer_size, dsp::fixed::Cong& noise,
+	                  int32_t* mono_scratch);
 };
 
 } // namespace deluge::synth

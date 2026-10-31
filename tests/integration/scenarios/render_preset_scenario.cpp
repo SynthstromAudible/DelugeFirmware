@@ -23,6 +23,7 @@
 #include "model/clip/clip.h"
 #include "model/model_stack.h"
 #include "model/output.h"
+#include "model/project_bridge/setting_apply.h"
 #include "model/project_bridge/source_bridge.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
@@ -86,6 +87,11 @@ uint64_t g_captured = 0;
 uint64_t g_zoneMoveBlock = 0;
 uint32_t g_zoneMoveEnd = 0;
 bool g_zoneMoved = false;
+/// The captured block at which a setting changes, as its menu changes it; 0 for none.
+uint64_t g_settingBlock = 0;
+std::string g_settingPath;
+std::string g_settingValue;
+bool g_settingApplied = false;
 
 void fail(const char* marker, const char* what) {
 	printf("%s FAIL %s\n", marker, what);
@@ -156,6 +162,20 @@ void moveZoneEnd() {
 	printf("RP-ZONE block=%llu end=%u\n", static_cast<unsigned long long>(g_blocksRendered), g_zoneMoveEnd);
 }
 
+/// Changes the synth's setting at g_settingPath mid-render, as its sound editor menu does (side effects included).
+void applySettingNow() {
+	Clip* clip = currentSong->live.clips.session_clips[0];
+	auto& sound = *static_cast<SoundInstrument*>(clip->output);
+	const Error error = deluge::bridge::applySetting(
+	    sound, g_settingPath, deluge::serialization::Value::makeScalar(g_settingValue), *currentSong);
+	if (error != Error::NONE) {
+		fail("RP-SETTING", "the setting was refused");
+		return;
+	}
+	printf("RP-SETTING block=%llu path=%s value=%s\n", static_cast<unsigned long long>(g_blocksRendered),
+	       g_settingPath.c_str(), g_settingValue.c_str());
+}
+
 void stepCapturing() {
 	g_direnessMax = std::max(g_direnessMax, static_cast<int32_t>(AudioEngine::cpuDireness));
 	g_voicesMax = std::max(g_voicesMax, static_cast<int32_t>(AudioEngine::getNumVoices()));
@@ -166,6 +186,10 @@ void stepCapturing() {
 	if (g_zoneMoveBlock != 0 && !g_zoneMoved && g_blocksRendered >= g_zoneMoveBlock) {
 		g_zoneMoved = true;
 		moveZoneEnd();
+	}
+	if (g_settingBlock != 0 && !g_settingApplied && g_blocksRendered >= g_settingBlock) {
+		g_settingApplied = true;
+		applySettingNow();
 	}
 	if (g_blocksRendered >= g_blocksWanted) {
 		g_captured = deluge_host_capture_stop();
@@ -238,6 +262,23 @@ void deluge_scenario_render_preset_begin(void) {
 		char* rest = nullptr;
 		g_zoneMoveBlock = std::strtoull(zone, &rest, 10);
 		g_zoneMoveEnd = static_cast<uint32_t>(std::strtoul(rest, nullptr, 10));
+	}
+	g_settingApplied = false;
+	g_settingBlock = 0;
+	if (const char* setting = std::getenv("RENDER_SETTING"); setting != nullptr) {
+		char* rest = nullptr;
+		g_settingBlock = std::strtoull(setting, &rest, 10);
+		const std::string pair = rest != nullptr ? rest : "";
+		const size_t path_start = pair.find_first_not_of(' ');
+		if (path_start == std::string::npos) {
+			fail("RP-SETTING", "RENDER_SETTING names no setting");
+			g_settingBlock = 0;
+		}
+		else {
+			const size_t space = pair.find(' ', path_start);
+			g_settingPath = pair.substr(path_start, space - path_start);
+			g_settingValue = space == std::string::npos ? "" : pair.substr(space + 1);
+		}
 	}
 	const char* seconds = std::getenv("RENDER_SECONDS");
 	const double wanted = std::ceil((seconds != nullptr ? std::strtod(seconds, nullptr) : 2.0) * kFramesPerSecond);

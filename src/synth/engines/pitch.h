@@ -1,5 +1,5 @@
 /*
- * Copyright © 2014-2023 Synthstrom Audible Limited
+ * Copyright © 2026 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -17,14 +17,23 @@
 
 #pragma once
 
-#include "definitions_cxx.hpp"
-#include "synth/voice/unison_part_source.h"
+#include "definitions_cxx.hpp"     // kMaxSampleValue
+#include "dsp-next/core/q31_ops.h" // multiply_32x32_rshift32_rounded
+#include <cstdint>
 
 namespace deluge::synth {
 
-// One unison part's sources, the same in every synth mode: FM's per-part modulator state lives in FMEngine.
-struct VoiceUnisonPart {
-	VoiceUnisonPartSource sources[kNumSources];
-};
+/// Scales @p phase_increment (UQ0.32) by @p adjustment, a pitch adjust where kMaxSampleValue (2^24) is unity.
+/// @return false when the result is too high to render (above 22.05 kHz); @p phase_increment is then not valid.
+[[nodiscard]] inline bool adjust_pitch(uint32_t& phase_increment, int32_t adjustment) {
+	if (adjustment != kMaxSampleValue) {
+		const int32_t output = multiply_32x32_rshift32_rounded(static_cast<int32_t>(phase_increment), adjustment);
+		if (output >= (1 << 23)) {
+			return false;
+		}
+		phase_increment = static_cast<uint32_t>(output) << 8;
+	}
+	return true;
+}
 
 } // namespace deluge::synth

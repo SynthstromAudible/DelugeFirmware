@@ -17,7 +17,7 @@
 #pragma once
 
 #include "dsp-next/core/phasor.h"            // deluge::dsp::Phasor
-#include "synth/sources/oscillator_source.h" // OscillatorSource (+ Source, SourceRenderContext, BlockControls)
+#include "synth/sources/oscillator_source.h" // OscillatorSource (+ Source, SourceBlock, BlockControls)
 #include "synth/sources/va/va_shapes.h"      // the shape vocabulary + va_shape::Wave
 #include <cstdint>
 #include <variant>
@@ -31,7 +31,7 @@ namespace deluge::synth {
 /// crude↔band-limited choice, pulse-width-as-sync, the retrigger/analog-saw-downgrade tweaks, hard sync, scale
 /// and VCA all live inside each shape — the engine owns its full per-block render derivation.
 ///
-/// The app-side adapter (`synth/voice/unison_part_source.cpp`) hands the engine the *original* (unrewritten)
+/// The source slot (`synth/sources/source_slot.cpp`) hands the engine the *original* (unrewritten)
 /// phase + increment and the *raw* @ref BlockControls, and reads @ref phase() back only to persist a real hard-sync's
 /// advanced phase. (The engine is currently rebuilt per block by that adapter; making it persistent in Voice is
 /// the following stage.)
@@ -62,6 +62,9 @@ public:
 		std::visit([&](auto& shape) { shape.set_increment(increment); }, shape_);
 	}
 
+	[[nodiscard]] std::optional<uint32_t> current_phase() const override { return phase(); }
+	void advance_phase(uint32_t delta) override { seek(phase() + delta); }
+
 	/// Jump the phase (e.g. a skipped source still advances, or an external reseed). Leaves the increment.
 	void seek(uint32_t phase) {
 		std::visit([&](auto& shape) { shape.seek(phase); }, shape_);
@@ -90,10 +93,10 @@ public:
 	}
 
 protected:
-	void render_osc_block(const BlockControls& controls, const SourceRenderContext& ctx,
+	void render_osc_block(const BlockControls& controls, const SourceBlock& block,
 	                      deluge::dsp::fixed::Buffer out) override {
-		render_into(controls, ctx.phase_increment, out,
-		            deluge::dsp::fixed::Buffer{ctx.sync_scratch, static_cast<size_t>(ctx.num_samples)});
+		render_into(controls, block.phase_increment, out,
+		            deluge::dsp::fixed::Buffer{block.sync_scratch, static_cast<size_t>(block.num_samples)});
 	}
 
 private:

@@ -17,7 +17,7 @@
 #pragma once
 
 #include "synth/sources/dx7/dx_voice_port.h" // DxVoicePort
-#include "synth/sources/source.h"            // synth::Source, SourceRenderContext, SourceRenderResult
+#include "synth/sources/source.h"            // synth::Source, SourceBlock, SourceRenderResult
 #include <cstdint>
 
 namespace deluge::synth {
@@ -26,8 +26,8 @@ namespace deluge::synth {
 /// @ref DxVoicePort.
 ///
 /// App-free: it holds only the port (the firmware's pooled `dx7::Voice` adapter lives behind it) and contributes the
-/// bespoke per-unison amplitude/stereo sum in @ref renderSource; the FM compute + the pooled-voice lifecycle are
-/// the port's job. The preset patch flows through @ref noteOn as an opaque handle (never dereferenced here). See
+/// bespoke per-unison amplitude/stereo sum in @ref render; the FM compute + the pooled-voice lifecycle are
+/// the port's job. The preset patch flows through @ref note_on as an opaque handle (never dereferenced here). See
 /// `docs/dev/synth_source_ports.md`.
 class DX7Source : public Source {
 	DxVoicePort* dx_; ///< the injected FM-voice port (a firmware adapter); not owned
@@ -37,19 +37,26 @@ public:
 	/// Plays through @p dx, which must outlive this source.
 	void bind_port(DxVoicePort* dx) { dx_ = dx; }
 
-	/// Solicit + init the FM voice for this note, caching @p patch (opaque preset handle). @return false if the
-	/// pool is empty.
-	bool note_on(void* patch, int midinote, int velocity) { return dx_->note_on(patch, midinote, velocity); }
+	/// Solicits and starts the FM voice for this note with the note's patch (an opaque preset handle). @return false
+	/// if the pool is empty.
+	bool note_on(const SourceNote& note) override { return dx_->note_on(note.dx_patch, note.note_code, note.velocity); }
 
-	/// Return the pooled FM voice (no-op if none held).
-	void unassign() { dx_->unassign(); }
+	/// Returns the pooled FM voice (no-op if none held).
+	void unassign(bool /*deleting_song*/) override {
+		if (dx_ != nullptr) {
+			dx_->unassign();
+		}
+	}
 
-	/// Note-off: begin the release of all operators.
-	void keyup() { dx_->keyup(); }
+	/// Note-off: begins the release of all operators.
+	bool release(const SourceRelease& /*release*/) override {
+		dx_->keyup();
+		return true;
+	}
 
-	/// Render this DX7 source's contribution into @c ctx.oscBuffer (the bespoke per-unison amplitude/stereo sum
-	/// over the port's FM block), reporting UNASSIGN once the FM voice has ended.
-	SourceRenderResult render_source(const SourceRenderContext& ctx) override;
+	/// Renders this DX7 source's contribution into @c block.osc_buffer (the per-unison amplitude/stereo sum over the
+	/// port's FM block), reporting UNASSIGN once the FM voice has ended.
+	SourceRenderResult render(const SourceBlock& block) override;
 };
 
 } // namespace deluge::synth

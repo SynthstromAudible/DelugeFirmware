@@ -28,17 +28,17 @@ namespace deluge::synth {
 
 // Late start, sync, caching and stereo unison, each a branch:
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
-SourceRenderResult SampleSource::render_source(const SourceRenderContext& ctx) {
-	int32_t* __restrict__ osc_buffer = ctx.osc_buffer;
-	const int32_t num_samples = ctx.num_samples;
-	const int32_t source_amplitude = ctx.source_amplitude;
-	const int32_t amplitude_increment = ctx.amplitude_increment;
-	uint32_t phase_increment = ctx.phase_increment; // mutated below by getPitchAndSpeedParams (taken by address)
-	const uint32_t phase_increment_stored_value = ctx.phase_increment_stored_value;
-	const bool stereo_unison = ctx.stereo_unison;
-	const int32_t amplitude_l = ctx.amplitude_l;
-	const int32_t amplitude_r = ctx.amplitude_r;
-	int32_t* stereo_unison_scratch = ctx.stereo_scratch;
+SourceRenderResult SampleSource::render(const SourceBlock& block) {
+	int32_t* __restrict__ osc_buffer = block.osc_buffer;
+	const int32_t num_samples = block.num_samples;
+	const int32_t source_amplitude = block.source_amplitude;
+	const int32_t amplitude_increment = block.amplitude_increment;
+	uint32_t phase_increment = block.phase_increment; // mutated below by getPitchAndSpeedParams (taken by address)
+	const uint32_t phase_increment_stored_value = block.sample.phase_increment_stored_value;
+	const bool stereo_unison = block.stereo_unison;
+	const int32_t amplitude_l = block.amplitude_l;
+	const int32_t amplitude_r = block.amplitude_r;
+	int32_t* stereo_unison_scratch = block.stereo_scratch;
 
 	const int32_t num_channels = port_->num_channels();
 
@@ -114,7 +114,7 @@ SourceRenderResult SampleSource::render_source(const SourceRenderContext& ctx) {
 		// happen to work out pitch and timestretch there as well as here (where it'll be worked out anyway),
 		// including checking the result of patching / modulation (and we *do* allow caching where, say,
 		// velocity or note is affecting pitch), and stretch-syncing.
-		if (!port_->done_first_render_yet() && !try_to_start_mid_note && ctx.porta_envelope_pos == kNoPorta) {
+		if (!port_->done_first_render_yet() && !try_to_start_mid_note && block.sample.porta_envelope_pos == kNoPorta) {
 
 			// If looping, make sure the loop isn't too short. If so, caching just wouldn't sound good /
 			// accurate
@@ -134,9 +134,9 @@ SourceRenderResult SampleSource::render_source(const SourceRenderContext& ctx) {
 			}
 
 			// If a changeable source is patched to pitch, don't cache. This scan was hoisted app-side into
-			// ctx.pitchModDisallowsCache (it reaches the patch cables + the aftertouch/sidechain source values),
-			// so render needn't reach paramManager / the param planes.
-			if (ctx.pitch_mod_disallows_cache) {
+			// block.sample.pitch_mod_disallows_cache (it reaches the patch cables + the aftertouch/sidechain source
+			// values), so render needn't reach paramManager / the param planes.
+			if (block.sample.pitch_mod_disallows_cache) {
 				goto dontUseCache;
 			}
 
@@ -144,7 +144,7 @@ SourceRenderResult SampleSource::render_source(const SourceRenderContext& ctx) {
 				// If still here, we can use cache
 				bool everything_ok = port_->possibly_set_up_cache(static_cast<int32_t>(phase_increment),
 				                                                  static_cast<int32_t>(time_stretch_ratio),
-				                                                  ctx.priority_rating, looping_type);
+				                                                  block.sample.priority_rating, looping_type);
 				if (!everything_ok) {
 					return SourceRenderResult::UNASSIGN;
 				}
@@ -176,7 +176,7 @@ dontUseCache: {}
 
 	bool still_active = port_->render(render_buffer, num_samples, looping_type, static_cast<int32_t>(phase_increment),
 	                                  static_cast<int32_t>(time_stretch_ratio), source_amplitude, amplitude_increment,
-	                                  interpolation_buffer_size, ctx.priority_rating);
+	                                  interpolation_buffer_size, block.sample.priority_rating);
 
 	if (stereo_unison) {
 		if (num_channels == 2) {

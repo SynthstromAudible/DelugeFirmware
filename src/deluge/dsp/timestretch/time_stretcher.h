@@ -29,7 +29,6 @@
 
 class VoiceSample;
 class VoiceSamplePlaybackGuide;
-class VoiceUnisonPartSource;
 struct ComputedChunk; ///< Computed/cached chunk — perc-cache + sample-cache scratch (see storage/cluster/cluster.h).
 class Sample;
 class SampleCache;
