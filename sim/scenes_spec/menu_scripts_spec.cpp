@@ -835,7 +835,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		// The real pad (8, 7) of `paramShortcutsForSounds` -- `&lpfFreqMenu` -- proven in
 		// `menu_scene_spec.cpp`'s own shortcut tests. `setup()` opens it on the LPF page, focused on
 		// it (`SoundEditor::maybeGetParentMenu`, `parent->focusChild`).
-		expect(menu_scene().focused() == &nodes::lpf).to_be_true();
+		expect(menu_scene().focused() == &nodes::filters_group).to_be_true();
 		expect(menu_scene().focused_value() == &nodes::lpf_freq).to_be_true();
 		expect(static_cast<uint32_t>(menu_scene().focused_value()->name))
 		    .to_equal(static_cast<uint32_t>(sid(String::STRING_FOR_FREQUENCY)));

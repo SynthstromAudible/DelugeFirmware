@@ -28,6 +28,7 @@
 #include "scenes/marker/marker_scene.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/node_id.h"
+#include "scenes/menu/nodes/nodes.h"
 #include "scenes/overlay/count_in_scene.h"
 #include "scenes/overlay/param_popup_scene.h"
 #include "scenes/overlay/screensaver_scene.h"
@@ -47,11 +48,10 @@ uint16_t assigned_node_ids() {
 	// menu tree becomes reachable, so it is where the tree gets numbered: one function-local
 	// static, run once, before any `Shell` can reach the scene.
 	//
-	// Over `MenuScene::roots()` rather than `nodes::kAllRoots` deliberately -- `roots()` is what
-	// `on_enter` resolves `SceneId::arg == 0` against and what `restore_state` looks a saved root
-	// up in, so numbering exactly that set is what makes those two agree. (They are the same ten
-	// nodes today; `roots()` is the one that stays right if they diverge.)
-	static const uint16_t kAssigned = menu::assign_node_ids(menu::MenuScene::roots());
+	// Over `nodes::kAllRoots`: `MenuScene::roots()` first, in the same order, so every root keeps the id
+	// `on_enter` and `restore_state` resolve; then the pages only a substitution or a chain reaches (the range picker,
+	// the note editors, the menu groups), which a shortcut landing or a saved path must also be able to name.
+	static const uint16_t kAssigned = menu::assign_node_ids(menu::nodes::kAllRoots);
 	return kAssigned;
 }
 

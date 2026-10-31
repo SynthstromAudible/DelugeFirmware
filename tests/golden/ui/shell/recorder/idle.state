@@ -3,3 +3,4 @@ scene app16/1
 led Back blink 110
 led Record blink 60
 led Synth on
+flash 0 4 0

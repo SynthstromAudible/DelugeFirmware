@@ -49,6 +49,10 @@
 320   snapshot actions_row1          # cursor on source 0's RECORD TO SAMPLE
 400   button SelectEnc down
 420   button SelectEnc up
+# `maybeGetParentMenu` enters the chain's SAMPLE RECORDER page (`recorderMenu`) focused on the item; its select
+# opens the recorder.
+450   button SelectEnc down
+470   button SelectEnc up
 500   snapshot idle                  # "Waiting"; RECORD and BACK blinking, SYNTH lit; no pads
 600   button Back down
 620   button Back up

@@ -1,5 +1,8 @@
 scene app16/224
 led Back blink 110
+led CrossScreen on
+led Midi on
+led Scale on
 indicator lower 0 0 0 0
 indicator upper 0 0 0 0
 flash 7 4 3

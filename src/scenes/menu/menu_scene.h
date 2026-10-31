@@ -815,6 +815,11 @@ private:
 	/// @brief True when `focused()` is a `Layout::Horizontal` submenu -- the gate
 	///        `HorizontalMenu::buttonAction`'s six-button arm ports (`handle()`'s button code).
 	bool on_horizontal_page() const;
+	/// @brief SHIFT + CROSS_SCREEN/SCALE at depth 0: replace the page with the next (or previous) menu of the root's
+	///        chain that has columns, landing on its first page -- mod FX's second -- as `switchHorizontalMenu` does.
+	/// @param direction +1 or -1.
+	/// @return Whether the page changed.
+	bool switch_chained_page(int32_t direction);
 
 public:
 	/// @brief The focused horizontal page's paging (empty off one): the page counter and the SCALE/CROSS_SCREEN rule
@@ -1069,6 +1074,12 @@ bool is_automation_item(const Node& item);
 /// @param target The named node.
 /// @return The page, or `nullptr`.
 const Node* shortcut_landing_page(MenuContext::Root root, const Node& target);
+
+/// @brief Does @p page list @p column among its children -- a group (`Node::is_group`) through any member page?
+/// @param page   A submenu.
+/// @param column The child to look for.
+/// @return Whether it is listed, relevant or not.
+bool page_lists(const Node& page, const Node& column);
 
 /// @brief Whether a shortcut pad's @p target may open in @p ctx, the question `SoundEditor::setup`
 ///        asks of a named item before it opens anything (`checkPermissionToBeginSession`; on `NO`

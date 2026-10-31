@@ -1,5 +1,7 @@
-scene app16/76
+scene app16/544
 led Back blink 110
+led CrossScreen on
 led Kit on
+led Scale on
 indicator lower 0 0 0 0
 indicator upper 0 0 0 0

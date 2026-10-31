@@ -216,6 +216,12 @@ constexpr Node group_page_empty =
 constexpr const Node* kGroupPageBChildren[] = {&filler_col};
 constexpr Node group_page_b =
     menu::submenu(sid(String::STRING_FOR_FILTER_ROUTE), kGroupPageBChildren, menu::Layout::Horizontal);
+/// A column that begins its own session from the horizontal page (`allowToBeginSessionFromHorizontalMenu`).
+constexpr Node session_plain_col = menu::with_allow_session_from_horizontal(menu::int_item(
+    sid(String::STRING_FOR_RECORD_TO_SAMPLE), get_filler_col, set_filler_col, deluge::ui::oled::Range{0, 50, 1}));
+constexpr const Node* kSessionPageChildren[] = {&enum_col, &session_plain_col};
+constexpr Node session_page =
+    menu::submenu(sid(String::STRING_FOR_SAMPLE_RECORDER), kSessionPageChildren, menu::Layout::Horizontal);
 constexpr const Node* kSyntheticGroupMembers[] = {&group_page_a, &group_page_empty, &group_page_b};
 constexpr Node synthetic_group = menu::group(sid(String::STRING_FOR_FILTERS), kSyntheticGroupMembers);
 
@@ -238,7 +244,8 @@ constexpr const Node* kVerticalChildren[] = {&chain_target};
 constexpr Node vertical_page = menu::submenu(sid(String::STRING_FOR_SETTINGS), kVerticalChildren);
 
 constexpr const Node* kRoots[] = {
-    &horiz_page, &wide_page, &vertical_page, &fixed_page, &dynamic_page, &synthetic_group, &menu::nodes::filters_group};
+    &horiz_page,  &wide_page, &vertical_page, &fixed_page, &dynamic_page, &synthetic_group, &menu::nodes::filters_group,
+    &session_page};
 
 // ---------------------------------------------------------------------------------------------
 // Board fixture -- copied from `menu_scene_spec.cpp`'s `Rig`.
@@ -278,6 +285,15 @@ struct Rig {
 		const MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false,
 		                                          false, /*kit_global_fx=*/false);
 		(void)menu::assign_node_ids(kRoots);
+		menu_scene().open(root, ctx);
+		shell.init(SceneId{SceneKind::FirstApp, menu::node_id(root)});
+		return ctx;
+	}
+	/// @brief `open`, numbering the application's own tree (`nodes::kAllRoots`) for a real node.
+	MenuContext open_real(const Node& root) {
+		const MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false,
+		                                          false, /*kit_global_fx=*/false);
+		(void)menu::assign_node_ids(menu::nodes::kAllRoots);
 		menu_scene().open(root, ctx);
 		shell.init(SceneId{SceneKind::FirstApp, menu::node_id(root)});
 		return ctx;
@@ -706,6 +722,25 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		(void)ctx;
 	});
 
+	it("a select on a column that begins its own session enters it", _ {
+		// `Submenu::selectButtonPress` returns the focused item when it `allowToBeginSessionFromHorizontalMenu()`
+		// (`submenu.cpp:187-194`), and the select arm enters it (`sound_editor.cpp:613-637`): the recorder, the file
+		// selectors, the cable strengths.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(session_page);
+		r.shell.tick(0);
+		r.press(kKitX, kKitY, 300);
+		r.shell.tick(400);
+		r.enter(500);
+		r.shell.tick(600);
+		expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(1);
+		expect(static_cast<int>(menu_scene().state().depth)).to_equal(1);
+		expect(r.shell.stack().depth()).to_equal(size_t(1));
+		expect(menu_scene().focused() == &session_plain_col).to_be_true();
+	});
+
 	it("a FIXED page keeps an irrelevant column in place, drawn as a dash", _ {
 		// `HorizontalMenu::Layout::FIXED` keeps irrelevant items (`horizontal_menu.cpp:494`, `:253-257`); DYNAMIC drops them.
 		select_language();
@@ -1021,20 +1056,59 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		expect(static_cast<int>(menu_scene().state().columns[0].page)).to_equal(1);
 	});
 
-	it("SHIFT + CROSS_SCREEN at depth 0 does nothing", _ {
-		// Ruling 3: legacy switches the *chained* menu here, which the port has no data for; the
-		// port does nothing rather than inventing a page switch legacy would not have done either.
+	it("SHIFT+CROSS_SCREEN at depth 0 moves to the next chained menu, SHIFT+SCALE back", _ {
+		// `HorizontalMenu::buttonAction` -> `switchHorizontalMenu` (`horizontal_menu.cpp:84-94`, `:364-394`) over
+		// `horizontalMenusChainForSound` (`menus.cpp:2028-2035`): FILTERS is followed by EQ.
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
-		(void)r.open(horiz_page);
+		(void)r.open_real(menu::nodes::filters_group);
 		r.shell.tick(0);
+		r.button(kShiftX, kShiftY, true, 250);
+		r.press(kCrossScreenX, kCrossScreenY, 300);
+		r.shell.tick(400);
+		expect(menu_scene().focused() == &menu::nodes::eq).to_be_true();
+		r.press(kScaleX, kScaleY, 600);
+		r.shell.tick(700);
+		expect(menu_scene().focused() == &menu::nodes::filters_group).to_be_true();
+		r.button(kShiftX, kShiftY, false, 800);
+	});
 
-		r.button(kShiftX, kShiftY, true, 100);
-		r.press(kCrossScreenX, kCrossScreenY, 200);
-		r.shell.tick(220);
+	it("switching onto mod FX lands on its page 1", _ {
+		// `switchHorizontalMenu`'s `desired_page` (`horizontal_menu.cpp:383`).
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		const MenuContext ctx = r.open_real(menu::nodes::eq);
+		menu::bindings::write(menu::nodes::mod_fx_type, ctx, 1); // an effect, so the page has its controls' page
+		r.shell.tick(0);
+		r.button(kShiftX, kShiftY, true, 250);
+		r.press(kCrossScreenX, kCrossScreenY, 300);
+		r.shell.tick(400);
+		r.button(kShiftX, kShiftY, false, 450);
+		expect(menu_scene().focused() == &menu::nodes::mod_fx).to_be_true();
+		expect(static_cast<int>(menu_scene().horizontal_paging().page)).to_equal(1);
+	});
 
-		expect(static_cast<int>(menu_scene().state().columns[0].page)).to_equal(0); // unchanged
+	it("select on FILTER ROUTE in Sound > FILTERS opens the filters group on its routing page, and BACK returns", _ {
+		// `SoundEditor::buttonAction`'s select arm (`sound_editor.cpp:630-634`): `maybeGetParentMenu` finds the chained
+		// group that lists the item, and it is entered focused on it.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open_real(menu::nodes::sound_filters);
+		r.shell.tick(0);
+		r.turn(2, 100);
+		r.shell.tick(150);
+		r.enter(300);
+		r.shell.tick(400);
+		expect(menu_scene().focused() == &menu::nodes::filters_group).to_be_true();
+		expect(static_cast<int>(menu_scene().horizontal_paging().page)).to_equal(2);
+		r.button(kBackX, kBackY, true, 500);
+		r.shell.tick(510);
+		r.button(kBackX, kBackY, false, 520);
+		r.shell.tick(530);
+		expect(menu_scene().focused() == &menu::nodes::sound_filters).to_be_true();
 	});
 
 	it("a select press on a value column follows its select_chain; with none, it ascends -- no notification either way",

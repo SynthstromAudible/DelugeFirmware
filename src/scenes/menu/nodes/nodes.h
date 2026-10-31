@@ -152,10 +152,35 @@ inline constexpr std::span<const Node* const> kHalfPrecisionNodes{kHalfPrecision
 /// them are reached only through `chain_targets` (their own `IterancePreset::selectButtonPress()`
 /// port) and so do not appear here themselves, exactly as `arpOctaveModeToNoteModeMenu` and its
 /// three relatives do not.
+///
+/// The menu groups (`groups.h`) follow, for the same reason as `multi_range`: only the horizontal-menu chains reach
+/// them, so without a place here a shortcut could not land on one.
 inline constexpr const Node* kAllRootArray[] = {
-    &sound_root,      &root_drum,        &root_midi_or_cv,  &root_midi_drum,       &root_gate_drum,
-    &root_audio_clip, &root_performance, &root_song,        &root_kit_global_fx,   &root_settings,
-    &root_cv,         &multi_range,      &note_editor_root, &note_row_editor_root,
+    &sound_root,
+    &root_drum,
+    &root_midi_or_cv,
+    &root_midi_drum,
+    &root_gate_drum,
+    &root_audio_clip,
+    &root_performance,
+    &root_song,
+    &root_kit_global_fx,
+    &root_settings,
+    &root_cv,
+    &multi_range,
+    &note_editor_root,
+    &note_row_editor_root,
+    &arp_group,
+    &arp_group_kit,
+    &arp_group_midi,
+    &voice_group,
+    &env_group,
+    &lfo_group,
+    &reverb_group,
+    &filters_group,
+    &global_filters_group,
+    &global_reverb_group,
+    &source_group,
 };
 inline constexpr std::span<const Node* const> kAllRoots{kAllRootArray};
 

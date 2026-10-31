@@ -86,6 +86,18 @@ extern deluge::vector<deluge::gui::menu_item::HorizontalMenu*> horizontalMenusCh
 extern deluge::vector<deluge::gui::menu_item::HorizontalMenu*> horizontalMenusChainForAudioClip;
 extern deluge::vector<deluge::gui::menu_item::HorizontalMenu*> horizontalMenusChainForMidiOrCv;
 
+// The menu groups the chains name, file-scope globals of `gui/ui/menus.cpp`; `sourceMenuGroup` is in `menus.h`.
+extern deluge::gui::menu_item::HorizontalMenuGroup arpMenuGroup;
+extern deluge::gui::menu_item::HorizontalMenuGroup arpMenuGroupKit;
+extern deluge::gui::menu_item::HorizontalMenuGroup arpMenuGroupMIDIOrCV;
+extern deluge::gui::menu_item::HorizontalMenuGroup voiceMenuGroup;
+extern deluge::gui::menu_item::HorizontalMenuGroup envMenuGroup;
+extern deluge::gui::menu_item::HorizontalMenuGroup lfoMenuGroup;
+extern deluge::gui::menu_item::HorizontalMenuGroup reverbMenuGroup;
+extern deluge::gui::menu_item::HorizontalMenuGroup filtersMenuGroup;
+extern deluge::gui::menu_item::HorizontalMenuGroup globalFiltersMenuGroup;
+extern deluge::gui::menu_item::HorizontalMenuGroup globalReverbMenuGroup;
+
 // `modSourceShortcuts` is a file-scope global in `sound_editor.cpp:66` and named in no header;
 // `LegacyVersion1` below has to restore the two cells the V1 arm writes.
 extern "C++" PatchSource modSourceShortcuts[2][8];
@@ -877,7 +889,7 @@ describe shortcuts_validation("scenes::menu shortcut tables: validation", $ {
 		// checked against *that*.
 		const uint16_t at_registry = deluge::scenes::assigned_node_ids();
 		expect(at_registry > uint16_t(0)).to_be_true();
-		expect(menu::assign_node_ids(menu::MenuScene::roots())).to_equal(at_registry);
+		expect(menu::assign_node_ids(menu::nodes::kAllRoots)).to_equal(at_registry);
 		for (const Node* root : menu::MenuScene::roots()) {
 			expect(root != nullptr).to_be_true();
 			if (root != nullptr) {
@@ -1127,6 +1139,18 @@ describe shortcut_landing("scenes::menu shortcut landing against SoundEditor::ma
 		for (const LandingRoot& lr : landing_roots()) {
 			map_tree(*lr.legacy, *menu::MenuScene::roots()[static_cast<size_t>(lr.root)], all_identity);
 		}
+		// No tree lists a group; the chains name them, so each answers for itself.
+		all_identity[&arpMenuGroup] = &nodes::arp_group;
+		all_identity[&arpMenuGroupKit] = &nodes::arp_group_kit;
+		all_identity[&arpMenuGroupMIDIOrCV] = &nodes::arp_group_midi;
+		all_identity[&voiceMenuGroup] = &nodes::voice_group;
+		all_identity[&envMenuGroup] = &nodes::env_group;
+		all_identity[&lfoMenuGroup] = &nodes::lfo_group;
+		all_identity[&reverbMenuGroup] = &nodes::reverb_group;
+		all_identity[&filtersMenuGroup] = &nodes::filters_group;
+		all_identity[&globalFiltersMenuGroup] = &nodes::global_filters_group;
+		all_identity[&globalReverbMenuGroup] = &nodes::global_reverb_group;
+		all_identity[&sourceMenuGroup] = &nodes::source_group;
 		for (const LandingRoot& lr : landing_roots()) {
 			const Node* port_root = menu::MenuScene::roots()[static_cast<size_t>(lr.root)];
 			std::map<const ::MenuItem*, const Node*> identity;

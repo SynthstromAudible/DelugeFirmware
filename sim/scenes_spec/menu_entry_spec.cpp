@@ -386,7 +386,7 @@ describe menu_entry_node_arg("openShellMenu can name a node, not only a root", $
 });
 
 describe menu_entry_shortcut("site 9: a shortcut pad from a clip view opens the ported menu on that pad's node", $ {
-	it("Shift + (8,7) on a synth clip opens the LPF page focused on nodes::lpf_freq through SceneId::arg", _ {
+	it("Shift + (8,7) on a synth clip opens the filters group focused on nodes::lpf_freq through SceneId::arg", _ {
 		// `SoundEditor::setup(clip, item, …)` lands a named item on the horizontal page that lists it,
 		// focused on it (`maybeGetParentMenu` and `parent->focusChild`, `gui/ui/sound_editor.cpp`).
 		ToggleGuard on{RuntimeFeatureStateToggle::On};
@@ -395,9 +395,9 @@ describe menu_entry_shortcut("site 9: a shortcut pad from a clip view opens the 
 
 		expect(entry::openShellMenuAtShortcut(f.clip, 8, 7, false, false, false, false)).to_be_true();
 		expect(getCurrentUI() == &shellHostUI).to_be_true();
-		expect(opened_on() == shell::SceneId{.kind = shell::SceneKind::FirstApp, .arg = menu::node_id(nodes::lpf)})
+		expect(opened_on() == shell::SceneId{.kind = shell::SceneKind::FirstApp, .arg = menu::node_id(nodes::filters_group)})
 		    .to_be_true();
-		expect(deluge::scenes::menu_scene().focused() == &nodes::lpf).to_be_true();
+		expect(deluge::scenes::menu_scene().focused() == &nodes::filters_group).to_be_true();
 		expect(deluge::scenes::menu_scene().focused_value() == &nodes::lpf_freq).to_be_true();
 		expect(deluge::scenes::menu_scene().menu_context().source_index).to_equal(int8_t{0});
 		closeGuest();

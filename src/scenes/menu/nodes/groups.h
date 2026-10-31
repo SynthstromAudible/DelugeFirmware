@@ -95,4 +95,10 @@ inline constexpr Node global_reverb_group =
 inline constexpr const Node* kSourceGroupMembers[] = {&source0, &source1, &modulator0, &modulator1, &osc_mixer};
 inline constexpr Node source_group = group(sid(deluge::l10n::String::STRING_FOR_OSCILLATOR_1), kSourceGroupMembers);
 
+/// @brief Every group, for the node-id walk and the tree validation: no submenu lists a group, the chains reach them.
+inline constexpr const Node* kAllGroups[] = {
+    &arp_group,    &arp_group_kit, &arp_group_midi,       &voice_group,         &env_group,    &lfo_group,
+    &reverb_group, &filters_group, &global_filters_group, &global_reverb_group, &source_group,
+};
+
 } // namespace deluge::scenes::menu::nodes

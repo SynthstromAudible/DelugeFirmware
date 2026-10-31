@@ -290,7 +290,9 @@ constexpr Node settings_root = menu::submenu(sid(String::STRING_FOR_SETTINGS), s
 /// The synthetic tree above **and** the real sound root: the shortcut examples below press real
 /// pads on the real `Root::Sound` table (task 9 deleted the installable stub table), and a jump
 /// target has to have been given a node id or `handle()` refuses to offer the jump at all.
-constexpr const Node* kRoots[] = {&settings_root, &nodes::sound_root};
+constexpr const Node* kRoots[] = {&settings_root,       &nodes::sound_root,   &nodes::filters_group,
+                                  &nodes::source_group, &nodes::voice_group,  &nodes::env_group,
+                                  &nodes::lfo_group,    &nodes::reverb_group, &nodes::arp_group};
 
 /// @brief Two real cells of `paramShortcutsForSounds`, and the second-layer cell that shares one of
 ///        their pads (`gui/ui/menus.cpp:2174`, `:2194`).
@@ -1154,11 +1156,11 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		r.button(kShiftX, kShiftY, true, 10);
 		r.pad(kLpfFreqX, kLpfFreqY, 64, 20);
 		r.shell.tick(30);
-		expect(menu_scene().focused() == &nodes::lpf).to_be_true();
+		expect(menu_scene().focused() == &nodes::filters_group).to_be_true();
 		expect(menu_scene().focused_value() == &nodes::lpf_freq).to_be_true();
 		expect(depth_of()).to_equal(0);
 		expect(r.shell.stack().depth()).to_equal(size_t(1));
-		expect(r.shell.state_lines().find("app16/" + std::to_string(menu::node_id(nodes::lpf)))
+		expect(r.shell.state_lines().find("app16/" + std::to_string(menu::node_id(nodes::filters_group)))
 		       != std::string::npos)
 		    .to_be_true();
 
@@ -1211,7 +1213,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		expect(res.actions.size()).to_equal(size_t(1));
 		expect(static_cast<int>(res.actions[0].kind)).to_equal(static_cast<int>(deluge::ui::shell::Action::Kind::Replace));
 		expect(static_cast<int>(res.actions[0].id.kind)).to_equal(static_cast<int>(SceneKind::FirstApp));
-		expect(static_cast<int>(res.actions[0].id.arg)).to_equal(static_cast<int>(menu::node_id(nodes::lpf)));
+		expect(static_cast<int>(res.actions[0].id.arg)).to_equal(static_cast<int>(menu::node_id(nodes::filters_group)));
 		// `handle()` itself moves nothing: the router's Replace does, through `on_enter`.
 		expect(menu_scene().focused() == &settings_root).to_be_true();
 	});
@@ -1299,7 +1301,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		expect(menu_scene().focused() == &nodes::lpf_freq).to_be_true();
 
 		runtimeFeatureSettings.set(RuntimeFeatureSettingType::HorizontalMenus, RuntimeFeatureStateToggle::On);
-		expect(menu_scene().arm_shortcut_landing(nodes::lpf_freq)).to_equal(menu::node_id(nodes::lpf));
+		expect(menu_scene().arm_shortcut_landing(nodes::lpf_freq)).to_equal(menu::node_id(nodes::filters_group));
 		r.pad(kHpfFreqX, kHpfFreqY, 64, 40);
 		r.shell.tick(50);
 		expect(menu_scene().focused_value() == &nodes::hpf_freq).to_be_true();
@@ -1340,7 +1342,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 			expect(menu_scene().arm_shortcut_landing(*node)).to_equal(menu::node_id(*node));
 		}
 		// The control: a column of a horizontal page lands on that page.
-		expect(menu_scene().arm_shortcut_landing(nodes::lpf_freq)).to_equal(menu::node_id(nodes::lpf));
+		expect(menu_scene().arm_shortcut_landing(nodes::lpf_freq)).to_equal(menu::node_id(nodes::filters_group));
 	});
 
 	it("a MustSelectRange node opens the range picker, which then heads to the node it stood in for", _ {

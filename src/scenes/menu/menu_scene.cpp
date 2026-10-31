@@ -499,7 +499,7 @@ bool MenuScene::on_enter(const SceneId& id) {
 		target = node_by_id(id.arg);
 		// A shortcut landing names the page; the permission and range gate below are the column's,
 		// as `setup()` asks them of the item before it looks at the page.
-		if (target != nullptr && column != nullptr && std::ranges::contains(target->children, column)) {
+		if (target != nullptr && column != nullptr && page_lists(*target, *column)) {
 			page = target;
 			target = column;
 		}
@@ -1787,14 +1787,14 @@ void MenuScene::enter_child(const Node& child) {
 	if (&child == st_.pending_after_range) {
 		st_.range_picker_pending = false;
 		st_.pending_after_range = nullptr;
-		// `SoundEditor`'s select arm on the picker's answer (`sound_editor.cpp`, the
-		// `maybeGetParentMenu` / `focusChild` pair before `enterSubmenu`): the item is entered on the
-		// horizontal page that lists it, focused on it, unless that page is the one already shown.
-		if (const Node* page = shortcut_landing_page(ctx_.root, child); page != nullptr && page != focused()) {
-			descend_to(*page);
-			focus_column(child);
-			return;
-		}
+	}
+	// `SoundEditor`'s select arm (`sound_editor.cpp:630-634`, the `maybeGetParentMenu` / `focusChild` pair before
+	// `enterSubmenu`): an item a chained page lists is entered on that page, focused on it, unless that page is the one
+	// already shown.
+	if (const Node* page = shortcut_landing_page(ctx_.root, child); page != nullptr && page != focused()) {
+		descend_to(*page);
+		focus_column(child);
+		return;
 	}
 	descend_to(child);
 }
@@ -2023,6 +2023,11 @@ Result MenuScene::after_render() {
 				// see `CustomItem::opens_directly_on_horizontal_select`'s doc.
 				descend_to(*column);
 			}
+			else if (column->allow_session_from_horizontal) {
+				// `Submenu::selectButtonPress` returns the item itself when it begins its own session from the
+				// horizontal page (`submenu.cpp:191-193`), and the select arm enters it the general way.
+				enter_child(*column);
+			}
 			else if (const Node* chained =
 			             column->select_chain != nullptr ? column->select_chain(ctx_, st_) : nullptr) {
 				enter_child(*chained);
@@ -2219,12 +2224,12 @@ Result MenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 			bool repaint = false;
 
 			if (page_dir != 0) {
-				// `:85-94`, `switchVisiblePage` (`:345-366`). SHIFT + CROSS_SCREEN/SCALE at depth 0
-				// switches the *chained* menu in legacy (`switchHorizontalMenu`, `:368-398`), which
-				// this port has no data for (spec E-note-family §3.3, ruling 3) -- so it does
-				// nothing there. At depth > 0 legacy has no chain either, and page-switches exactly
-				// as the unshifted case does.
-				if (!(st_.depth == 0 && ctx.shift) && n > 0) {
+				// `:85-94`: SHIFT + CROSS_SCREEN/SCALE at depth 0 switches the chained menu (`switchHorizontalMenu`,
+				// `:364-394`); otherwise, and at depth > 0 where there is no chain, `switchVisiblePage` (`:341-362`).
+				if (st_.depth == 0 && ctx.shift) {
+					repaint = switch_chained_page(page_dir);
+				}
+				else if (n > 0) {
 					const int32_t target = deluge::ui::oled::page_switch(
 					    std::span<const deluge::ui::oled::Column>{cols, n}, focused_col, page_dir);
 					if (target != focused_col) {
@@ -2567,52 +2572,30 @@ namespace {
 // `SoundEditor::getCurrentHorizontalMenusChain`'s five chains (`gui/ui/menus.cpp`,
 // `horizontalMenusChainFor*`), each `HorizontalMenuGroup` spelled as its member pages in order.
 constexpr const Node* kSoundChain[] = {
-    &nodes::recorder,   &nodes::sound_master, &nodes::source0,     &nodes::source1,
-    &nodes::modulator0, &nodes::modulator1,   &nodes::osc_mixer,   &nodes::unison,
-    &nodes::voice,      &nodes::env1,         &nodes::env2,        &nodes::env3,
-    &nodes::env4,       &nodes::lfo1,         &nodes::lfo2,        &nodes::lfo3,
-    &nodes::lfo4,       &nodes::lpf,          &nodes::hpf,         &nodes::filter_routing,
-    &nodes::eq,         &nodes::mod_fx,       &nodes::reverb,      &nodes::reverb_sidechain,
-    &nodes::delay,      &nodes::distortion,   &nodes::sidechain,   &nodes::audio_comp,
-    &nodes::stutter,    &nodes::arp_basic,    &nodes::arp_pattern, &nodes::randomizer};
-constexpr const Node* kKitChain[] = {&nodes::kit_clip_master,
-                                     &nodes::global_lpf,
-                                     &nodes::global_hpf,
-                                     &nodes::filter_routing,
-                                     &nodes::eq,
-                                     &nodes::global_mod_fx,
-                                     &nodes::global_reverb,
-                                     &nodes::reverb_sidechain,
-                                     &nodes::global_delay,
-                                     &nodes::global_distortion,
-                                     &nodes::global_sidechain,
-                                     &nodes::audio_comp,
-                                     &nodes::stutter,
-                                     &nodes::arp_basic_kit,
-                                     &nodes::arp_pattern,
-                                     &nodes::randomizer};
-constexpr const Node* kSongChain[] = {
-    &nodes::song_master,  &nodes::global_lpf,        &nodes::global_hpf,    &nodes::filter_routing,
-    &nodes::eq,           &nodes::global_mod_fx,     &nodes::global_reverb, &nodes::reverb_sidechain,
-    &nodes::global_delay, &nodes::global_distortion, &nodes::audio_comp,    &nodes::stutter};
+    &nodes::recorder,  &nodes::sound_master,  &nodes::source_group, &nodes::voice_group, &nodes::env_group,
+    &nodes::lfo_group, &nodes::filters_group, &nodes::eq,           &nodes::mod_fx,      &nodes::reverb_group,
+    &nodes::delay,     &nodes::distortion,    &nodes::sidechain,    &nodes::audio_comp,  &nodes::stutter,
+    &nodes::arp_group, &nodes::randomizer};
+constexpr const Node* kKitChain[] = {&nodes::kit_clip_master,   &nodes::global_filters_group, &nodes::eq,
+                                     &nodes::global_mod_fx,     &nodes::global_reverb_group,  &nodes::global_delay,
+                                     &nodes::global_distortion, &nodes::global_sidechain,     &nodes::audio_comp,
+                                     &nodes::stutter,           &nodes::arp_group_kit,        &nodes::randomizer};
+constexpr const Node* kSongChain[] = {&nodes::song_master,       &nodes::global_filters_group, &nodes::eq,
+                                      &nodes::global_mod_fx,     &nodes::global_reverb_group,  &nodes::global_delay,
+                                      &nodes::global_distortion, &nodes::audio_comp,           &nodes::stutter};
 constexpr const Node* kAudioClipChain[] = {&nodes::song_master,
                                            &nodes::audio_clip_sample,
-                                           &nodes::global_lpf,
-                                           &nodes::global_hpf,
-                                           &nodes::filter_routing,
+                                           &nodes::global_filters_group,
                                            &nodes::eq,
                                            &nodes::global_mod_fx,
-                                           &nodes::global_reverb,
-                                           &nodes::reverb_sidechain,
+                                           &nodes::global_reverb_group,
                                            &nodes::global_delay,
                                            &nodes::audio_clip_distortion,
                                            &nodes::global_sidechain,
                                            &nodes::audio_comp,
                                            &nodes::stutter};
-constexpr const Node* kMidiOrCvChain[] = {&nodes::arp_basic_midi, &nodes::arp_pattern, &nodes::randomizer};
+constexpr const Node* kMidiOrCvChain[] = {&nodes::arp_group_midi, &nodes::randomizer};
 
-/// @brief The chain legacy searches under @p root: a kit row and its MIDI/gate drums take the
-///        sound chain, the two session roots the song chain; the settings and note roots none.
 std::span<const Node* const> chain_for(MenuContext::Root root) {
 	switch (root) {
 	case MenuContext::Root::Sound:
@@ -2636,6 +2619,18 @@ std::span<const Node* const> chain_for(MenuContext::Root root) {
 
 } // namespace
 
+bool page_lists(const Node& page, const Node& column) {
+	if (page.kind != Kind::Submenu) {
+		return false;
+	}
+	if (std::ranges::contains(page.children, &column)) {
+		return true;
+	}
+	// A group lists what its member pages list (`HorizontalMenuGroup::hasItem`, `horizontal_menu_group.cpp:209-211`).
+	return page.is_group
+	       && std::ranges::any_of(page.children, [&](const Node* m) { return m != nullptr && page_lists(*m, column); });
+}
+
 const Node* shortcut_landing_page(MenuContext::Root root, const Node& target) {
 	// `getCurrentHorizontalMenusChain` answers nothing with the feature off, so the item opens alone.
 	if (!runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::HorizontalMenus)) {
@@ -2650,11 +2645,46 @@ const Node* shortcut_landing_page(MenuContext::Root root, const Node& target) {
 	}
 	// `maybeGetParentMenu`'s search: the first chain page that lists the item.
 	for (const Node* page : chain_for(root)) {
-		if (page->kind == Kind::Submenu && std::ranges::contains(page->children, &target)) {
+		if (page_lists(*page, target)) {
 			return page;
 		}
 	}
 	return nullptr;
+}
+
+bool MenuScene::switch_chained_page(int32_t direction) {
+	// `HorizontalMenu::switchHorizontalMenu` (`horizontal_menu.cpp:364-394`).
+	const std::span<const Node* const> chain = chain_for(ctx_.root);
+	if (chain.empty() || direction == 0) {
+		return false;
+	}
+	const auto count = static_cast<int32_t>(chain.size());
+	const auto at = std::ranges::find(chain, focused());
+	const auto current = static_cast<int32_t>(std::distance(chain.begin(), at));
+	for (int32_t step = 1; step <= count; step++) {
+		const int32_t index = ((current + direction * step) % count + count) % count;
+		const Node& target = *chain[index];
+		const Node* kids[kMaxMenuChildren];
+		if (visible_children(target, kids) == 0) {
+			continue; // no relevant items: on to the next menu
+		}
+		retarget(target);
+		st_.columns[0] = deluge::ui::ColumnsState{};
+		// Mod FX opens on its second page, the selected effect's controls (`:383`).
+		if (&target == &nodes::mod_fx || &target == &nodes::global_mod_fx) {
+			const Node* page_kids[kMaxMenuColumns];
+			deluge::ui::oled::Column cols[kMaxMenuColumns]{};
+			NodeText label_scratch[kMaxMenuColumns];
+			const size_t n = build_column_list(target, std::span<const Node*>{page_kids, kMaxMenuColumns},
+			                                   std::span<deluge::ui::oled::Column>{cols, kMaxMenuColumns},
+			                                   std::span<NodeText>{label_scratch, kMaxMenuColumns});
+			st_.columns[0].focused = static_cast<int8_t>(
+			    deluge::ui::oled::page_switch(std::span<const deluge::ui::oled::Column>{cols, n}, 0, 1));
+		}
+		deluge::notify::notice_kind(deluge::notify::Notice::Kind::CancelNotification);
+		return true;
+	}
+	return false;
 }
 
 bool shortcut_applies(const Node& target, const MenuContext& ctx) {

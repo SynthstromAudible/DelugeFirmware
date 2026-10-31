@@ -1,0 +1,62 @@
+# ShellMenu: the horizontal-menu chain. SHIFT + the LPF frequency shortcut lands on the filters group (LPF 1/3);
+# CROSS_SCREEN pages to HPF and FILTER ROUTE; SHIFT + CROSS_SCREEN and SHIFT + SCALE switch the chained menu at
+# depth 0. Then from the sound menu, FILTERS > FILTER ROUTE opens the group on its routing page, and ACTIONS >
+# RECORD TO SAMPLE opens the SAMPLE RECORDER page. Run on the ShellMenu card.
+100   snapshot boot
+300   button Shift down
+400   pad 8 7 down
+440   pad 8 7 up
+500   button Shift up
+1200  snapshot lpf
+1500  button CrossScreen down
+1520  button CrossScreen up
+2200  snapshot hpf
+2500  button CrossScreen down
+2520  button CrossScreen up
+3200  snapshot route
+3500  button Shift down
+3600  button CrossScreen down
+3620  button CrossScreen up
+3700  button Shift up
+4400  snapshot chain-next
+4700  button Shift down
+4800  button Scale down
+4820  button Scale up
+4900  button Shift up
+5600  snapshot chain-back
+5900  button Back down
+5920  button Back up
+6600  snapshot closed
+6900  button SelectEnc down
+6920  button SelectEnc up
+7600  snapshot sound-menu
+7900  encoder Select +5
+8600  snapshot on-filters
+8900  button SelectEnc down
+8920  button SelectEnc up
+9600  snapshot filters-list
+9900  encoder Select +2
+10600 snapshot filters-route-row
+10900 button SelectEnc down
+10920 button SelectEnc up
+11600 snapshot route-page
+11900 button Back down
+11920 button Back up
+12600 snapshot filters-back
+12900 button Back down
+12920 button Back up
+13600 snapshot root-back
+13900 encoder Select -5
+14600 snapshot on-actions
+14900 button SelectEnc down
+14920 button SelectEnc up
+15600 snapshot actions
+15900 encoder Select +1
+16600 snapshot actions-rec
+16900 button SelectEnc down
+16920 button SelectEnc up
+17600 snapshot recorder-page
+17900 button Back down
+17920 button Back up
+18600 snapshot recorder-back
+18900 quit

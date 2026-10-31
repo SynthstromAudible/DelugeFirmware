@@ -489,12 +489,12 @@ describe note_nodes_shape("scenes::menu note editor/note-row editor: shape again
 		expect(nodes::note_row_custom_iterance_root.layout == menu::Layout::Vertical).to_be_true();
 	});
 
-	it("appends both editor roots to the end of kAllRootArray, after multi_range", _ {
-		const size_t n = nodes::kAllRoots.size();
-		expect(n >= size_t(2)).to_be_true();
-		expect(nodes::kAllRoots[n - 2] == &nodes::note_editor_root).to_be_true();
-		expect(nodes::kAllRoots[n - 1] == &nodes::note_row_editor_root).to_be_true();
-		expect(nodes::kAllRoots[n - 3] == &nodes::multi_range).to_be_true();
+	it("lists both editor roots in kAllRootArray right after multi_range", _ {
+		const auto at = std::ranges::find(nodes::kAllRoots, &nodes::multi_range);
+		expect(at != nodes::kAllRoots.end()).to_be_true();
+		expect(std::distance(at, nodes::kAllRoots.end()) >= 3).to_be_true();
+		expect(*(at + 1) == &nodes::note_editor_root).to_be_true();
+		expect(*(at + 2) == &nodes::note_row_editor_root).to_be_true();
 	});
 
 	it("does not add either custom-iterance root to kAllRootArray -- chain_targets only", _ {
