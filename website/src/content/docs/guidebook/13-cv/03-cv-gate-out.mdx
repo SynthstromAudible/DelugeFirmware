@@ -15,17 +15,21 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+
 <div data-pagefind-filter="source:guidebook" hidden />
 
 As well as samples, sounds, synths and MIDI, CV can also be combined within a kit as a row providing a note output to a CV output channel. CV sequencing can then take place alongside other kit sounds.
 
-### Creating a basic cv clip
+### Creating a basic CV clip
 
 1. Select :key[Clip] view.
 2. Press :key[CV] to select a CV clip. Button illuminates red.
 3. :key[Turn Select] to choose the CV channel 1 or 2.
 4. CV will output voltage representing note pitch on this channel and also Gate will output voltage for note on/off on the same channel number.
 
-:::note
-Deluge includes 2 CV outputs, 4 gate outputs (which may also be set individually to output a trigger clock and / or “run” signal), and also has a dedicated trigger clock input.
-:::
+<FigurePending id="fig-13.3-1" page={270}>
+  Deluge includes 2 CV outputs, 4 gate outputs (which may also be set
+  individually to output a trigger clock and / or “run” signal), and also has a
+  dedicated trigger clock input.
+</FigurePending>
