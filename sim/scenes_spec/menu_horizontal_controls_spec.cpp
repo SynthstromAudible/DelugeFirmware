@@ -772,6 +772,12 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		expect(static_cast<int>(menu::nodes::osc0_phase.bind.horizontal_step.coarse)).to_equal(10);
 		expect(static_cast<int>(menu::nodes::osc0_phase.bind.horizontal_step.fine)).to_equal(1);
 		expect(menu::nodes::osc0_phase.bind.horizontal_step.restart_from_negative).to_be_true();
+		// The FM modulators' phases are the same class (`g_menus.inc:126,135`).
+		for (const Node* phase : {&menu::nodes::modulator0_phase_node, &menu::nodes::modulator1_phase_node}) {
+			expect(static_cast<int>(phase->bind.horizontal_step.coarse)).to_equal(10);
+			expect(static_cast<int>(phase->bind.horizontal_step.fine)).to_equal(1);
+			expect(phase->bind.horizontal_step.restart_from_negative).to_be_true();
+		}
 		expect(static_cast<int>(menu::nodes::comp_ratio.bind.horizontal_step.coarse)).to_equal(1);
 	});
 
@@ -888,6 +894,28 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		expect(marked).to_be_false();
 	});
 
+	it("a quantized stutter rate's screen has no value bar", _ {
+		// `stutter::Rate::drawPixelsForOled` (`stutter/rate.cpp:43-50`): quantized, the option label alone; otherwise
+		// `UnpatchedParam`'s continuous screen with its bar.
+		select_language();
+		deluge::notify::dirty().drain();
+		for (const bool quantized : {false, true}) {
+			Rig r;
+			MenuContext ctx = r.open_real(menu::nodes::stutter);
+			ctx.horizontal_menus = false;
+			menu::nodes::set_stutter_quantize(ctx, quantized ? 1 : 0);
+			menu_scene().open(menu::nodes::stutter, ctx);
+			r.shell.tick(0);
+			r.enter(300);
+			r.shell.tick(310);
+			expect(menu_scene().focused() == &menu::nodes::stutter_rate).to_be_true();
+			deluge::ui::test::Rig48 rig48;
+			rig48.begin_tick(400);
+			menu_scene().render_oled(uitest::SurfaceRole::Main, rig48.frame);
+			expect(rig48.lit(12, 38)).to_equal(!quantized);
+		}
+	});
+
 	it("with HorizontalMenus off a shortcut opens the item alone", _ {
 		// `getCurrentHorizontalMenusChain` answers nothing with the feature off (`sound_editor.cpp:2328-2330`).
 		select_language();
@@ -933,6 +961,39 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		r.press(kCrossScreenX, kCrossScreenY, 300);
 		r.shell.tick(400);
 		expect(static_cast<int>(menu_scene().horizontal_paging().page)).to_equal(1);
+	});
+
+	it("the oscillator group reaches its last column and counts every member's pages on an FM synth", _ {
+		// `HorizontalMenuGroup::preparePaging` (`horizontal_menu_group.cpp:167-205`) adds up each member's pages, however
+		// many columns the members list between them; an FM synth's lists seventeen.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		const MenuContext ctx = r.open_real(menu::nodes::source_group);
+		spec::menu_engine(ctx).sound->setSynthMode(SynthMode::FM, r.song.song);
+		const Node* listed[menu::kMaxDynamicChildren];
+		const size_t columns = menu::bindings::listed_children(menu::nodes::source_group, menu_scene().menu_context(),
+		                                                       listed, menu::bindings::ListFor::Columns);
+		expect(columns > 16).to_be_true();
+
+		// A shortcut to the last column lands on it (`focusChild` over every member, `horizontal_menu_group.cpp:209-221`).
+		const Node* last = listed[columns - 1];
+		const uint16_t arg = menu_scene().arm_shortcut_landing(*last);
+		r.shell.init(SceneId{SceneKind::FirstApp, arg});
+		r.shell.tick(0);
+		expect(menu_scene().focused_value() == last).to_be_true();
+
+		const auto pages_of = [&r](const Node& page) {
+			menu_scene().open(page, menu_scene().menu_context());
+			r.shell.init(SceneId{SceneKind::FirstApp, menu::node_id(page)});
+			r.shell.tick(0);
+			return static_cast<int>(menu_scene().horizontal_paging().total_pages);
+		};
+		int members = 0;
+		for (const Node* member : menu::nodes::source_group.children) {
+			members += pages_of(*member);
+		}
+		expect(pages_of(menu::nodes::source_group)).to_equal(members);
 	});
 
 	it("a mod-FX knob's name and title follow the effect, its column label the short form", _ {
@@ -1061,8 +1122,9 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 	});
 
 	it("the page switch on a FIXED page walks the same columns as main's selectMenuItem", _ {
-		// `HorizontalMenu::selectMenuItem` walks every item and selects the first relevant one on the new page
-		// (`horizontal_menu.cpp:448-462`): page 2 starts on an irrelevant column, so focus lands on the next.
+		// `preparePaging` keeps the irrelevant fifth column on page 1 (`horizontal_menu.cpp:499`), so the counter shows two
+		// pages; `selectMenuItem` breaks on slots alone (`:448-466`), so its page 2 starts at that column, which sits at
+		// the focused position: the walk stops there with no relevant column seen and the focus stays.
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
@@ -1070,8 +1132,8 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		r.shell.tick(0);
 		r.press(kCrossScreenX, kCrossScreenY, 300); // past the 140 ms navigation debounce from the clock's zero
 		r.shell.tick(400);
-		expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(5);
-		expect(static_cast<int>(menu_scene().state().columns[0].page)).to_equal(1);
+		expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(0);
+		expect(static_cast<int>(menu_scene().state().columns[0].page)).to_equal(0);
 	});
 
 	it("a select turn on a focused submenu column does nothing", _ {

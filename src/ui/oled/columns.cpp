@@ -183,8 +183,6 @@ struct PageWindow {
 	Paging paging{};
 };
 
-/// Ports legacy `HorizontalMenu::preparePaging`. See `paging_of` in the header for the two legacy
-/// quirks kept.
 /// @brief Does column @p i open a new page, given @p acquired slots already on the current one?
 ///
 /// A column that does not fit starts a page only when it is relevant -- legacy's guard: an irrelevant column that does
@@ -196,6 +194,8 @@ bool starts_page(std::span<const Column> cols, int32_t i, int32_t acquired, int3
 	return acquired + slots > kPageSlots && cols[i].relevant;
 }
 
+/// Ports legacy `HorizontalMenu::preparePaging`. See `paging_of` in the header for the two legacy
+/// quirks kept.
 PageWindow window_of(std::span<const Column> cols, int32_t focused) {
 	PageWindow w;
 	const int32_t n = static_cast<int32_t>(cols.size());
@@ -360,9 +360,8 @@ int32_t page_switch(std::span<const Column> cols, int32_t focused, int32_t direc
 		target_page += total;
 	}
 
-	// `selectMenuItem`'s walk, with `window_of`'s own page-break rule (gated on `relevant`)
-	// rather than `selectMenuItem`'s own ungated one -- see the header note on why the two are
-	// not the same rule and why this reuses the former.
+	// `selectMenuItem`'s walk, with its own page break: slots alone, not `window_of`'s relevance-gated rule. A group's
+	// member boundary still starts a page.
 	const int32_t n = static_cast<int32_t>(cols.size());
 	int32_t page = 0;
 	int32_t acquired = 0;
@@ -370,7 +369,7 @@ int32_t page_switch(std::span<const Column> cols, int32_t focused, int32_t direc
 	int32_t candidate = -1;
 	for (int32_t i = 0; i < n; i++) {
 		const int32_t slots = std::max<int32_t>(1, cols[i].slots);
-		if (starts_page(cols, i, acquired, slots)) {
+		if ((i > 0 && cols[i].page_break) || acquired + slots > kPageSlots) {
 			if (page == target_page) {
 				break; // walked off the target page with a candidate already in hand
 			}

@@ -19,26 +19,27 @@ namespace {
 
 using detail::int_to_string;
 
-/// @brief `Number::drawHorizontalBar(35, 10)` (`gui/menu_item/number.cpp:33-71`, height 8): an outline across the
-///        panel, rounded or square as `Style::rounded` says, at canvas row 35, filled from the range's zero to @p
-///        value.
+/// `Number::drawHorizontalBar(35, 10)`'s canvas row, height and side margin (`gui/menu_item/number.cpp:33-71`).
+constexpr int32_t kBarTop = 35;
+constexpr int32_t kBarHeight = 8;
+constexpr int32_t kBarMargin = 10;
+
+/// @brief `Number::drawHorizontalBar(35, 10)`: an outline across the panel, rounded or square as `Style::rounded`
+///        says, filled by inverting from the range's zero to @p value over whatever is already drawn there.
 void continuous_bar(OledFrame& f, int32_t value, Range range) {
-	constexpr int32_t kTop = 35;
-	constexpr int32_t kHeight = 8;
-	constexpr int32_t kMargin = 10;
 	OledFrame panel = panel_frame(f);
-	const int32_t left_most = kMargin + 2;
-	const int32_t right_most = panel.canvas.geometry().width - kMargin - 3;
-	panel.clear(Rect{0, kTop, panel.canvas.geometry().width, kHeight + 1});
+	const int32_t left_most = kBarMargin + 2;
+	const int32_t right_most = panel.canvas.geometry().width - kBarMargin - 3;
 	if (range.min != 0 || value != 0) {
 		const auto span = static_cast<float>(range.max - range.min);
 		const int32_t width = right_most - left_most;
 		const auto pos = static_cast<int32_t>((static_cast<float>(value - range.min) / span) * width);
 		const auto zero = static_cast<int32_t>((static_cast<float>(-range.min) / span) * width);
-		panel.invert(Rect{left_most + std::min(pos, zero), kTop + 1, std::max(1, std::abs(pos - zero)), kHeight - 1});
+		panel.invert(
+		    Rect{left_most + std::min(pos, zero), kBarTop + 1, std::max(1, std::abs(pos - zero)), kBarHeight - 1});
 	}
-	// `drawRectangleRounded(left_most, kTop, right_most - 1, kTop + kHeight)`, square when the style is.
-	panel.rect_rounded(Rect{left_most, kTop, right_most - left_most, kHeight + 1});
+	// `drawRectangleRounded(left_most, kBarTop, right_most - 1, kBarTop + kBarHeight)`, square when the style is.
+	panel.rect_rounded(Rect{left_most, kBarTop, right_most - left_most, kBarHeight + 1});
 }
 
 /// `value + delta`, clamped into \p range. Widened to 64 bits first because the sum can overflow
@@ -123,11 +124,18 @@ Response int_value(OledFrame& f, Rect rect, int32_t& value, Range range, ValueSt
 	// Ports legacy `Integer::drawPixelsForOled`'s centred digit layout. The frame's origin absorbs
 	// the topmost-pixel term, so kValueY is measured from the rect's top; with rect == f.bounds()
 	// that matches the legacy panel-relative offset and centring.
-	const gfx::oled::FontId font = style.continuous ? gfx::oled::FontId::MetricBold13 : f.style.value_font;
-	const Rect band{rect.x, rect.y + (style.continuous ? kContinuousValueY : kValueY), rect.w, text_height_for(font)};
+	// `IntegerContinuous::drawPixelsForOled` (`integer.cpp:63-72`) draws its digits in the Big face on the 48-row panel
+	// and the huge one on the 64-row, then inverts the bar over what is drawn.
+	const bool tall = f.canvas.geometry().height == 64;
+	const gfx::oled::FontId font = !style.continuous ? f.style.value_font
+	                               : tall            ? gfx::oled::FontId::MetricBold20
+	                                                 : gfx::oled::FontId::MetricBold13;
+	const int32_t value_y = !style.continuous ? kValueY : (tall ? kContinuousValueY64 : kContinuousValueY);
+	const Rect band{rect.x, rect.y + value_y, rect.w, text_height_for(font)};
 	f.clear(band);
 	if (style.continuous) {
-		continuous_bar(f, value, range);
+		OledFrame panel = panel_frame(f);
+		panel.clear(Rect{0, kBarTop, panel.canvas.geometry().width, kBarHeight + 1});
 	}
 
 	if (style.off_at_zero && value == 0) {
@@ -139,13 +147,25 @@ Response int_value(OledFrame& f, Rect rect, int32_t& value, Range range, ValueSt
 
 	// Buffer is wide enough for the digits and the unit together; legacy's fixed-size buffer held
 	// only the digits, and appending the unit could run past it.
-	std::array<char, 12 + 4> buf{};
-	const std::string_view digits = int_to_string(value, 1, std::span{buf}); // intToString(..., 1)
+	std::array<char, 12 + 4 + 1> buf{};
+	const std::string_view digits = int_to_string(value, 1, std::span{buf}.first(12 + 4)); // intToString(..., 1)
 	size_t length = digits.size();
-	for (size_t i = 0; i < style.unit.size() && i < 4 && length < buf.size(); i++) {
+	for (size_t i = 0; i < style.unit.size() && i < 4 && length < buf.size() - 1; i++) {
 		buf[length++] = style.unit[i];
 	}
-	text(f, band, std::string_view{buf.data(), length}, TextStyle{.font = font, .align = Align::Centre});
+	if (style.continuous && tall) {
+		// `drawInteger(13, 15, 20)`'s own canvas call: height 15 is no font, and the canvas draws the huge face's
+		// glyphs as fifteen rows.
+		buf[length] = '\0';
+		ClipScope scope{f.canvas, f.clip};
+		f.canvas.draw_string_centred(buf.data(), f.origin.y + rect.y + kContinuousValueY64, 13, 15);
+	}
+	else {
+		text(f, band, std::string_view{buf.data(), length}, TextStyle{.font = font, .align = Align::Centre});
+	}
+	if (style.continuous) {
+		continuous_bar(f, value, range);
+	}
 	return resp;
 }
 

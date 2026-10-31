@@ -69,10 +69,10 @@ inline constexpr uint8_t kMenuDepth = 8;
 /// costs nothing between ticks.
 inline constexpr size_t kMaxMenuChildren = kMaxDynamicChildren;
 
-/// @brief The most columns one horizontal page materialises. Legacy pages four slots at a time
-///        and a `Column` may claim several, so sixteen is well past any real page
-///        (`horizontal_menu.cpp:477`'s `preparePaging`).
-inline constexpr size_t kMaxMenuColumns = 16;
+/// @brief The most columns one horizontal page materialises: a group lists all its members' columns as one run
+///        (`HorizontalMenuGroup::preparePaging`, `horizontal_menu_group.cpp:167-205`), and the largest, the oscillator
+///        group, has 41. `menu_scene.cpp` checks every group against it.
+inline constexpr size_t kMaxMenuColumns = 48;
 
 /// @brief The debounce shared by SYNTH/KIT/MIDI/CV/CROSS_SCREEN/SCALE on a horizontal page --
 ///        `HorizontalMenu::buttonAction`'s `navigation_buttons_debounce_threshold`
@@ -89,6 +89,18 @@ struct NodeText {
 	char chars[40];
 	/// The digits fallback for an id with no text (`BoardProfile::text_or_digits`).
 	deluge::ui::shell::TextScratch digits;
+};
+
+/// @brief The storage one horizontal column's drawing points into; it outlives the `columns` call that draws it.
+struct ColumnSlot {
+	deluge::ui::oled::MeterColumn meter;
+	deluge::ui::oled::TextColumn text;
+	deluge::ui::oled::ToggleColumn toggle;
+	deluge::ui::oled::ArtColumn art;
+	deluge::ui::oled::DrawColumn draw;
+	char value[16]{};
+	char label[16]{};
+	NodeText label_scratch;
 };
 
 /// @brief Live interpreter state: the path, the widgets' own POD state, and what this tick's
@@ -826,8 +838,7 @@ private:
 
 public:
 	/// @brief The focused horizontal page's paging (empty off one): the page counter and the SCALE/CROSS_SCREEN rule
-	/// read
-	///        the same.
+	///        read the same.
 	/// @return Page, total pages and position, as `ui::oled::paging_of` answers for the focused column.
 	deluge::ui::oled::Paging horizontal_paging() const;
 	/// @brief The focused page's title: on a group (`Node::is_group`) the focused column's member's, as
@@ -954,6 +965,9 @@ private:
 	void retarget(const Node& node);
 
 	MenuState st_{};
+	/// What `render_horizontal`'s columns draw from, here rather than on the stack: a group page has up to
+	/// `kMaxMenuColumns` of them, and the scene lives in SDRAM.
+	ColumnSlot column_slots_[kMaxMenuColumns];
 	/// `HorizontalMenu::acceleration()`: one select-turn acceleration for every horizontal page, as legacy's static is.
 	deluge::ui::EncoderAcceleration horizontal_acceleration_{};
 	MenuContext ctx_{};
@@ -1077,6 +1091,13 @@ bool is_automation_item(const Node& item);
 /// @return The page, or `nullptr`.
 const Node* shortcut_landing_page(MenuContext::Root root, const Node& target);
 
+/// @brief Does @p node render and edit as a horizontal page: a `Layout::Horizontal` submenu with
+///        `MenuContext::horizontal_menus` on (`HorizontalMenu::renderingStyle()`, `horizontal_menu.cpp:592-597`)?
+/// @param node The node.
+/// @param ctx  The menu context.
+/// @return Whether it is a horizontal page.
+bool renders_horizontal(const Node& node, const MenuContext& ctx);
+
 /// @brief `shortcut_landing_page` for @p ctx's root, and null with `MenuContext::horizontal_menus` off
 ///        (`getCurrentHorizontalMenusChain` answers nothing).
 /// @param ctx    The menu context.
@@ -1128,8 +1149,7 @@ std::string_view node_text(uint16_t string_id, const Node& node, const MenuConte
 std::string_view column_label(const Node& node, const MenuContext& ctx, NodeText& scratch);
 
 /// @brief @p node's name or title as legacy's `getName()`/`getTitle()` answer: its `Binding::name_text`, else the
-/// static
-///        string (with any `title_arg`).
+///        static string (with any `title_arg`).
 /// @param node    The node.
 /// @param use     `ValueTextUse::Name` or `ValueTextUse::Title`.
 /// @param ctx     The menu context.
@@ -1142,18 +1162,6 @@ std::string_view display_text(const Node& node, ValueTextUse use, const MenuCont
 /// @param ctx The menu context.
 /// @return The magnitude.
 int32_t input_tick_magnitude(const MenuContext& ctx);
-
-/// @brief The storage one horizontal column's drawing points into; it outlives the `columns` call that draws it.
-struct ColumnSlot {
-	deluge::ui::oled::MeterColumn meter;
-	deluge::ui::oled::TextColumn text;
-	deluge::ui::oled::ToggleColumn toggle;
-	deluge::ui::oled::ArtColumn art;
-	deluge::ui::oled::DrawColumn draw;
-	char value[16]{};
-	char label[16]{};
-	NodeText label_scratch;
-};
 
 /// @brief Fill @p col's label and value drawing for @p node showing @p value: legacy's `getColumnLabel`,
 ///        `showColumnLabel` and `renderInHorizontalMenu` for that item.

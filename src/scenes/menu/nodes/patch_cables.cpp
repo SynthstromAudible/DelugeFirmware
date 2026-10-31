@@ -768,8 +768,7 @@ void PatchCableStrengthItem::commit(const MenuContext& ctx, MenuState& state) co
 	// On a horizontal page's column the new cable takes its source's default, as legacy applies the shown polarity
 	// only outside a horizontal menu (`:224`).
 	const Node* focused = focused_of(state);
-	const bool in_horizontal =
-	    focused != nullptr && focused->kind == Kind::Submenu && focused->layout == Layout::Horizontal;
+	const bool in_horizontal = focused != nullptr && renders_horizontal(*focused, ctx);
 	const Polarity polarity =
 	    in_horizontal ? PatchCable::getDefaultPolarity(strength_source(state, which_)) : state.patch_polarity;
 	const std::optional<deluge::scenes::bind::WriteRequest> request =

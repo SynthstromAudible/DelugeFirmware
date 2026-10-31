@@ -104,6 +104,8 @@ int32_t get_stutter_direction(const MenuContext& ctx);
 void set_stutter_direction(const MenuContext& ctx, int32_t value);
 int32_t get_stutter_quantize(const MenuContext& ctx);
 void set_stutter_quantize(const MenuContext& ctx, int32_t value);
+/// `stutter::Rate::drawPixelsForOled` (`stutter/rate.cpp:43-50`): quantized, its option label, with no value bar.
+bool stutter_rate_continuous(const MenuContext& ctx);
 
 /// @}
 
@@ -272,10 +274,11 @@ inline constexpr Node reverb =
 
 // --- Stutter -----------------------------------------------------------------------------------
 
-inline constexpr Node stutter_rate =
+inline constexpr Node stutter_rate = with_continuous_leaf(
     param(sid(deluge::l10n::String::STRING_FOR_RATE),
           {deluge::modulation::params::Kind::UNPATCHED_SOUND, deluge::modulation::params::UNPATCHED_STUTTER_RATE},
-          Hint::Knob, nullptr, sid(deluge::l10n::String::STRING_FOR_STUTTER_RATE));
+          Hint::Knob, nullptr, sid(deluge::l10n::String::STRING_FOR_STUTTER_RATE)),
+    stutter_rate_continuous);
 inline constexpr Node stutter_direction =
     dynamic_enumeration(sid(deluge::l10n::String::STRING_FOR_DIRECTION), stutter_direction_names, get_stutter_direction,
                         set_stutter_direction);

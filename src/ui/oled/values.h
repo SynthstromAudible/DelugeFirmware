@@ -27,8 +27,9 @@ struct ValueStyle {
 	std::string_view unit = {};
 	/// Draw "OFF" instead of `0`.
 	bool off_at_zero = false;
-	/// `IntegerContinuous::drawPixelsForOled`: the digits in the Big face at `kContinuousValueY`, over the value bar
-	///  `Number::drawHorizontalBar(35, 10)` draws.
+	/// `IntegerContinuous::drawPixelsForOled`: the digits in the Big face at `kContinuousValueY` (the huge face at
+	/// `kContinuousValueY64` on a 64-row panel), with `Number::drawHorizontalBar(35, 10)`'s value bar inverted over
+	/// them.
 	bool continuous = false;
 };
 

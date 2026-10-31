@@ -122,9 +122,9 @@ int32_t column_under_button(std::span<const Column> cols, int32_t focused, int32
 ///       `Paging::selectedItemPositionOnPage`, i.e. `paging_of(cols, focused).focused_on_page`.
 ///       Falling short of that position (a shorter target page) leaves the last relevant column
 ///       seen as the answer, matching legacy's own fall-through when the loop's `break` never
-///       fires for that page. The page break within the walk is `window_of`'s own rule (gated on
-///       `Column::relevant`), not `selectMenuItem`'s ungated one -- one page computation reused
-///       throughout, as `column_under_button` above also does.
+///       fires for that page. The walk breaks pages as `selectMenuItem` does, on slots alone (and at a
+///       `Column::page_break`), so an irrelevant column that `paging_of` keeps on the current page opens the
+///       walk's next one; landing on it leaves \p focused unchanged, as legacy keeps its current item.
 ///
 /// @param cols      The full column sequence, in page order.
 /// @param focused   Index into \p cols of the currently focused column.

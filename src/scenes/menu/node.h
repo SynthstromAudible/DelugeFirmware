@@ -228,6 +228,10 @@ using ColumnDrawFn = std::optional<deluge::ui::oled::DrawColumn> (*)(const MenuC
 ///        `selectEncoderAction` overrides that negate the offset on a horizontal page.
 using ReverseFn = bool (*)(const MenuContext& ctx);
 
+/// @brief Whether a param's full-screen value is `IntegerContinuous::drawPixelsForOled`'s, the digits over a value
+///        bar -- false where legacy's `drawPixelsForOled` override draws something else.
+using ContinuousLeafFn = bool (*)(const MenuContext& ctx);
+
 /// @brief A horizontal column's select-turn step -- legacy's `getNumberEditSize` overrides on a horizontal page.
 struct HorizontalStep {
 	/// The step a detent moves; 0 for the kind's own (a `Kind::Decimal`'s is 100, `Decimal::getNumberEditSize`).
@@ -391,6 +395,9 @@ struct Binding {
 
 	/// @brief A select turn on this node's horizontal column is reversed when this answers true. Null: never.
 	ReverseFn reverse_in_horizontal = nullptr;
+
+	/// @brief A param's full-screen value is the continuous screen while this answers true. Null: always.
+	ContinuousLeafFn continuous_leaf = nullptr;
 
 	/// @brief The select-turn step on a horizontal page (`HorizontalStep`'s own doc).
 	HorizontalStep horizontal_step{};
@@ -993,6 +1000,13 @@ constexpr Node with_wrap_in_horizontal(Node n) {
 /// @brief `n` with its horizontal select turn reversed when @p reverse answers true (`Binding::reverse_in_horizontal`).
 constexpr Node with_reverse_in_horizontal(Node n, ReverseFn reverse) {
 	n.bind.reverse_in_horizontal = reverse;
+	return n;
+}
+
+/// @brief `n` drawing its full-screen value as the continuous screen only while @p continuous answers true
+///        (`Binding::continuous_leaf`).
+constexpr Node with_continuous_leaf(Node n, ContinuousLeafFn continuous) {
+	n.bind.continuous_leaf = continuous;
 	return n;
 }
 

@@ -60,9 +60,8 @@ void filter_graph(OledFrame& f, gfx::oled::Rect slot, const FilterGraph& g);
 void envelope_graph(OledFrame& panel, int32_t attack, int32_t decay, int32_t sustain, int32_t release,
                     int32_t selected);
 
-/// @brief `eq::EqMenu::renderMenuItems` (`eq/eq_menu.h:32-111`): the shelving curve with reference lines and a handle
-/// on
-///        each of bass, bass frequency, treble frequency and treble, the focused one inverted.
+/// @brief `eq::EqMenu::renderMenuItems` (`eq/eq_menu.h:32-111`): the shelving curve with reference lines and a
+///        handle on each of bass, bass frequency, treble frequency and treble, the focused one inverted.
 /// @param panel       A whole-panel frame (`panel_frame`).
 /// @param bass        Bass gain, 0..1 (value / 50).
 /// @param treble      Treble gain, 0..1.

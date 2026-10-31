@@ -48,8 +48,7 @@ struct Node;
 /// resolved. The engine objects it was built from stay in the builder.
 struct MenuContext {
 	/// @brief The `HorizontalMenus` community feature, read when the context is made: off, every horizontal page
-	/// renders
-	///        and edits as a vertical list and the horizontal-menu chains answer nothing
+	///        renders and edits as a vertical list and the horizontal-menu chains answer nothing
 	///        (`horizontal_menu.cpp:592-597`, `sound_editor.cpp:2328-2330`).
 	bool horizontal_menus = true;
 

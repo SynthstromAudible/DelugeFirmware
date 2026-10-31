@@ -198,6 +198,10 @@ void set_stutter_direction(const MenuContext& ctx, int32_t value) {
 	}
 }
 
+bool stutter_rate_continuous(const MenuContext& ctx) {
+	return get_stutter_quantize(ctx) == 0;
+}
+
 int32_t get_stutter_quantize(const MenuContext& ctx) {
 	// `stutter/quantized.h`'s `readCurrentValue`
 	const std::optional<deluge::effects::StutterState> sc = stutter_of(ctx);

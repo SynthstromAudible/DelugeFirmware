@@ -251,6 +251,20 @@ int32_t instrument_button_index(ButtonId b) {
 ///
 /// The feature guard `getCurrentHorizontalMenusChain` opens with (`gui/ui/sound_editor.cpp:2112-2114`) is the
 /// caller's: `reroot_to_scene_opener_page` reads `MenuContext::horizontal_menus` before calling this.
+/// @brief The most columns any group lists between its members, the run `render_horizontal` materialises for it.
+consteval size_t largest_group_columns() {
+	size_t most = 0;
+	for (const Node* group : nodes::kAllGroups) {
+		size_t columns = 0;
+		for (const Node* member : group->children) {
+			columns += member->children.size();
+		}
+		most = std::max(most, columns);
+	}
+	return most;
+}
+static_assert(largest_group_columns() <= kMaxMenuColumns, "a group lists more columns than a page materialises");
+
 const Node* horizontal_page_listing(const Node& node, const Node& item) {
 	if (node.kind != Kind::Submenu) {
 		return nullptr;
@@ -834,9 +848,12 @@ bool MenuScene::on_horizontal_page() const {
 }
 
 bool MenuScene::is_horizontal(const Node& node) const {
-	// `HorizontalMenu::renderingStyle()` (`horizontal_menu.cpp:592-597`): with the feature off a horizontal page is a
-	// vertical list.
-	return node.kind == Kind::Submenu && node.layout == Layout::Horizontal && ctx_.horizontal_menus;
+	return renders_horizontal(node, ctx_);
+}
+
+bool renders_horizontal(const Node& node, const MenuContext& ctx) {
+	// With the feature off a horizontal page is a vertical list.
+	return node.kind == Kind::Submenu && node.layout == Layout::Horizontal && ctx.horizontal_menus;
 }
 
 size_t MenuScene::build_column_list(const Node& node, std::span<const Node*> kids,
@@ -1345,8 +1362,8 @@ void MenuScene::render_horizontal(deluge::ui::oled::OledFrame& f, const Node& no
 		}
 	}
 
-	// Everything a `Column` points at has to outlive the `columns` call, so it all lives in this frame.
-	ColumnSlot slots[kMaxMenuColumns];
+	// Everything a `Column` points at has to outlive the `columns` call.
+	std::span<ColumnSlot> slots{column_slots_};
 	for (size_t i = 0; i < n; i++) {
 		const Node& kid = *kids[i];
 		// A `Binding::adjust` node stages no absolute value (see the edit block above) -- only
@@ -1425,7 +1442,8 @@ void MenuScene::render_leaf_int(deluge::ui::oled::OledFrame& f, const Node& node
 	// A param is legacy's `IntegerContinuous` (`patched_param::Integer`, `UnpatchedParam`): the digits over a value
 	// bar.
 	deluge::ui::oled::ValueStyle style = node.bind.style;
-	style.continuous = node.bind.param.valid();
+	style.continuous =
+	    node.bind.param.valid() && (node.bind.continuous_leaf == nullptr || node.bind.continuous_leaf(ctx_));
 	const deluge::ui::Response r =
 	    deluge::ui::oled::int_value(f, f.bounds(), st_.edit_int, bindings::range(node, ctx_), style, /*focused=*/true);
 	st_.render_resp = r;
@@ -2073,10 +2091,8 @@ Result MenuScene::after_render() {
 			// own hook answers, because the answer is value-dependent for two of the seven ported
 			// overrides -- see `node.h`'s `SelectChainFn`.
 			//
-			// Legacy's `maybeGetParentMenu`/`focusChild` reparenting, which enters a horizontal
-			// *parent* with the named child focused rather than the child itself, is ported for the
-			// range picker's answer only (`enter_child`'s `pending_after_range` arm); other chains
-			// still enter the child itself.
+			// `enter_child` applies legacy's `maybeGetParentMenu`/`focusChild` reparenting: an item a chained page
+			// lists is entered on that page, focused on it.
 			enter_child(*chained);
 		}
 		else {
@@ -2355,17 +2371,9 @@ Result MenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 						const Node& col_node = *kids[target];
 						if (col_node.kind == Kind::Submenu || col_node.allow_session_from_horizontal) {
 							// Both answer true to `!isSubmenu() && !allowToBeginSessionFromHorizontalMenu()`'s
-							// negation, so legacy takes the SAME "enter" branch for either -- a submenu
-							// via `enter_child` (already permission-gated the general way), an
-							// `allow_session_from_horizontal` column via `enter_horizontal_item`
-							// (permission gated `handleItemAction`'s way -- see its own doc for why
-							// the two differ).
-							if (col_node.kind == Kind::Submenu) {
-								enter_child(col_node);
-							}
-							else {
-								enter_horizontal_item(col_node);
-							}
+							// negation, so legacy takes the same "enter" branch for either: `enterSubmenu` after
+							// the range check, with no chain redirect.
+							enter_horizontal_item(col_node);
 						}
 						else {
 							// `MenuItem::selectButtonPress`'s overrides any other ported column kind

@@ -52,6 +52,9 @@ constexpr int32_t kSyncValueY = 20; // big-font value baseline (+ visible_top)
 /// `IntegerContinuous::drawPixelsForOled`'s baseline (`gui/menu_item/integer.cpp:68`), in the Big font over the value
 /// bar `Number::drawHorizontalBar(35, 10)` draws.
 constexpr int32_t kContinuousValueY = 15; // big-font value baseline (+ visible_top)
+/// The same screen on a 64-row panel (`integer.cpp:65-66`, `drawInteger(13, 15, 20)`): height 15 has no font of its own
+/// and draws in the huge face.
+constexpr int32_t kContinuousValueY64 = 20; // huge-font value baseline (+ visible_top)
 /// The battery/firmware-version readout's baseline (`nodes::battery_level`/`firmware_version`'s
 /// `CustomItem`s, E2 task 2): `firmware::Version`/`battery::Level::drawPixelsForOled`
 /// (`gui/menu_item/firmware/version.h:31`, `battery/level.h:40`) both call

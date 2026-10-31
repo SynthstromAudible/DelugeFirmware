@@ -292,18 +292,21 @@ inline constexpr IntRange kTransposeRange{-9600, 9600, 1};
 	                           Hint::Bar, param_shows::kOnFm,                                                          \
 	                           sid(deluge::l10n::String::STRING_FOR_FM_MOD_FBACK_MENU_TITLE))),                        \
 	    (i) + 1);                                                                                                      \
-	inline constexpr Node modulator##i##_phase_node = with_column_name(                                                \
-	    with_value_text(                                                                                               \
-	        with_title_arg(with_hint(with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_RETRIGGER_PHASE),    \
-	                                                         Kind::Decimal,                                            \
-	                                                         {.kind = deluge::scenes::bind::Target::Kind::SOUND,       \
-	                                                          .path = modulator_path "/retrigPhase",                   \
-	                                                          .whole_kit = false}),                                    \
-	                                            sid(deluge::l10n::String::STRING_FOR_FM_MOD_RETRIG_MENU_TITLE)),       \
-	                                 Hint::Slider),                                                                    \
-	                       (i) + 1),                                                                                   \
-	        retrigger_phase_text),                                                                                     \
-	    sid(deluge::l10n::String::STRING_FOR_RETRIGGER_PHASE_SHORT))
+	inline constexpr Node modulator##i##_phase_node = with_horizontal_step(                                            \
+	    with_column_name(                                                                                              \
+	        with_value_text(                                                                                           \
+	            with_title_arg(                                                                                        \
+	                with_hint(                                                                                         \
+	                    with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_RETRIGGER_PHASE), Kind::Decimal,  \
+	                                            {.kind = deluge::scenes::bind::Target::Kind::SOUND,                    \
+	                                             .path = modulator_path "/retrigPhase",                                \
+	                                             .whole_kit = false}),                                                 \
+	                               sid(deluge::l10n::String::STRING_FOR_FM_MOD_RETRIG_MENU_TITLE)),                    \
+	                    Hint::Slider),                                                                                 \
+	                (i) + 1),                                                                                          \
+	            retrigger_phase_text),                                                                                 \
+	        sid(deluge::l10n::String::STRING_FOR_RETRIGGER_PHASE_SHORT)),                                              \
+	    HorizontalStep{.coarse = 10, .fine = 1, .restart_from_negative = true})
 
 DELUGE_OSC_SOURCE(0, STRING_FOR_OSCILLATOR_1, "osc1");
 DELUGE_OSC_SOURCE(1, STRING_FOR_OSCILLATOR_2, "osc2");

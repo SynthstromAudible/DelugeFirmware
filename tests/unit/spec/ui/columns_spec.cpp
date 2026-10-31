@@ -545,6 +545,18 @@ describe columns_w("ui::oled::columns", $ {
 		matches_legacy(self, r, p, state, 0, 4, 1, nullptr);
 	});
 
+	it("page_switch walks with selectMenuItem's ungated page break, past an irrelevant column that overflows", _ {
+		// `HorizontalMenu::selectMenuItem` (`horizontal_menu.cpp:440-476`) breaks the page on slots alone, where
+		// `preparePaging` keeps an irrelevant column that does not fit on the current page. Five one-slot columns, the
+		// fifth irrelevant, then a relevant one: the counter shows two pages, (0..4) and (5), but the walk's page 1
+		// starts at the irrelevant column, finds it at position 0 and keeps the old focus.
+		std::array<Column, 6> cols{};
+		cols[4].relevant = false;
+		const std::span<const Column> span{cols.data(), cols.size()};
+		expect(static_cast<int32_t>(paging_of(span, 0).total_pages)).to_equal(2);
+		expect(page_switch(span, 0, 1)).to_equal(0);
+	});
+
 	it("a page_break column starts a new page", _ {
 		// A menu group's member boundary (`HorizontalMenuGroup::preparePaging`, `horizontal_menu_group.cpp:167-205`): the
 		// next member's first column opens a page however few slots the previous member used.
