@@ -1,6 +1,7 @@
 // Checks the Guidebook's interactive behaviour against a running `astro preview`.
 //   node scripts/check-guidebook-animations.mjs [baseUrl]   (default http://127.0.0.1:4321)
 // Exits 1 if any check fails.
+import fs from "node:fs"
 import { chromium } from "playwright"
 
 const BASE = (process.argv[2] ?? "http://127.0.0.1:4321").replace(/\/$/, "")
@@ -205,21 +206,47 @@ const checks = {
   },
 
   async noJs(browser) {
+    // Every animated figure in the content, found from its MDX.
+    const docs = "src/content/docs/guidebook"
+    const animated = fs
+      .readdirSync(docs, { recursive: true })
+      .filter((f) => f.endsWith(".mdx"))
+      .map((f) => [
+        f.replace(/\.mdx$/, ""),
+        fs.readFileSync(`${docs}/${f}`, "utf8"),
+      ])
+      .filter(([, mdx]) => mdx.includes("animate="))
     const ctx = await browser.newContext({ javaScriptEnabled: false })
     const page = await ctx.newPage()
-    await page.goto(url("03-sequencing/01-sequencing-workflow"), {
-      waitUntil: "load",
-    })
-    const texts = page.locator(`${sel("fig-3.1-1")} svg text`)
-    const n = await texts.count()
-    const visible = await texts.first().isVisible()
-    const replay = await page
-      .locator(`${sel("fig-3.1-1")} .gb-replay`)
-      .isVisible()
+    const bad = []
+    let figures = 0
+    for (const [path] of animated) {
+      await page.goto(url(path), { waitUntil: "load" })
+      const result = await page.evaluate(() =>
+        [...document.querySelectorAll(".gb-figure[data-animate]")].map(
+          (fig) => {
+            const svg = fig.querySelector("svg")
+            const box = svg?.getBoundingClientRect()
+            const faded = [...(svg?.querySelectorAll("*") ?? [])].filter(
+              (e) =>
+                parseFloat(getComputedStyle(e).opacity) <
+                parseFloat(e.getAttribute("opacity") ?? "1"),
+            ).length
+            const replay = !fig.querySelector(".gb-replay")?.hidden
+            return {
+              id: fig.id,
+              ok: box?.width > 0 && box?.height > 0 && faded === 0 && !replay,
+            }
+          },
+        ),
+      )
+      figures += result.length
+      bad.push(...result.filter((r) => !r.ok).map((r) => r.id))
+    }
     check(
-      "no JS: 3.1 text visible, no replay button",
-      n > 0 && visible && !replay,
-      `${n} texts`,
+      "no JS: every animated figure fully drawn, no replay button",
+      figures === 29 && bad.length === 0,
+      `${figures} figures${bad.length ? `, bad: ${bad.join(", ")}` : ""}`,
     )
     await ctx.close()
   },
