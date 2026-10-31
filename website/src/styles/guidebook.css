@@ -55,3 +55,55 @@
 .gb-figure-wide .gb-figure-art {
   margin-inline: 0;
 }
+
+/* Figure animations (src/scripts/guidebook-figures.ts). */
+.gb-figure[data-animate] {
+  position: relative;
+}
+
+.gb-figure[data-animate] .gb-figure-art {
+  position: relative;
+}
+
+.gb-pad-on {
+  filter: brightness(1.4) drop-shadow(0 0 3px var(--gb-accent));
+}
+
+.gb-playhead {
+  position: absolute;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--gb-accent);
+  box-shadow: 0 0 4px var(--gb-accent);
+  border-radius: 1px;
+  pointer-events: none;
+  transition:
+    left 120ms linear,
+    top 120ms linear,
+    height 120ms linear;
+}
+
+.gb-replay {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: 50%;
+  background: var(--sl-color-black);
+  color: var(--sl-color-gray-2);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.gb-replay:hover,
+.gb-replay:focus-visible {
+  color: var(--sl-color-white);
+  border-color: var(--sl-color-accent);
+}
+
+.gb-replay[hidden] {
+  display: none;
+}

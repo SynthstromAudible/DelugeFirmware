@@ -59,5 +59,22 @@ const sizing = natural
     )
   }
   {img && <img src={`${base}${img}`} alt={alt} loading="lazy" style={sizing} />}
+  {
+    animate && src && (
+      <button
+        type="button"
+        class="gb-replay"
+        aria-label="Replay animation"
+        title="Replay animation"
+        hidden
+      >
+        ↻
+      </button>
+    )
+  }
   {caption && <figcaption>{caption}</figcaption>}
 </figure>
+
+<script>
+  import "../../scripts/guidebook-figures"
+</script>
