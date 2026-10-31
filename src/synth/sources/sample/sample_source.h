@@ -47,7 +47,11 @@ public:
 	/// The note-off: a sample with loop points plays on past its loop end. @return false when it ends now.
 	bool release(const SourceRelease& release) override { return port_->note_off_at_loop_end(release.priority_rating); }
 	/// Releases the port's reader, if it holds one.
-	void unassign(bool deleting_song) override { port_->unassign(deleting_song); }
+	void unassign(bool deleting_song) override {
+		if (port_ != nullptr) {
+			port_->unassign(deleting_song);
+		}
+	}
 
 	/// Renders one block of sample playback into @c block.osc_buffer. Reads the voice's per-block values in
 	/// @c block.sample (porta, priority, the pre-modulation phase increment, the caching pitch-mod flag); the

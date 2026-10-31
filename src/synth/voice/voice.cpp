@@ -734,12 +734,12 @@ void Voice::auto_release_if_due(const VoiceConfig& cfg, const VoiceBlock& block,
 		}
 
 		// Calculated for the last unison part, which has the highest pitch, so ends soonest
-		SourceSlot* voice_unison_part_source = &unison_parts[cfg.num_unison - 1].slots[s];
-		if (!voice_unison_part_source->active) {
+		SourceSlot* slot = &unison_parts[cfg.num_unison - 1].slots[s];
+		if (!slot->active) {
 			continue;
 		}
 
-		const deluge::synth::SamplePlaybackPort& port = *voice_unison_part_source->sample().port();
+		const deluge::synth::SamplePlaybackPort& port = *slot->sample().port();
 		int32_t bytes_left = port.bytes_left_to_end();
 		int32_t bytes_per_sample = port.bytes_per_frame();
 
@@ -747,7 +747,7 @@ void Voice::auto_release_if_due(const VoiceConfig& cfg, const VoiceBlock& block,
 
 		// The actual read rate: the last unison part's native rate, with the overall and this source's pitch adjust.
 		// If the pitch goes crazy-high, this source does not hold the auto-release back
-		uint32_t actual_sample_read_rate = voice_unison_part_source->phase_increment_stored_value;
+		uint32_t actual_sample_read_rate = slot->phase_increment_stored_value;
 		if (!adjust_pitch(actual_sample_read_rate, overall_pitch_adjust)) {
 			continue;
 		}

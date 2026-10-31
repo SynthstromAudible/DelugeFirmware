@@ -42,7 +42,11 @@ public:
 	bool note_on(const SourceNote& note) override { return dx_->note_on(note.dx_patch, note.note_code, note.velocity); }
 
 	/// Returns the pooled FM voice (no-op if none held).
-	void unassign(bool /*deleting_song*/) override { dx_->unassign(); }
+	void unassign(bool /*deleting_song*/) override {
+		if (dx_ != nullptr) {
+			dx_->unassign();
+		}
+	}
 
 	/// Note-off: begins the release of all operators.
 	bool release(const SourceRelease& /*release*/) override {

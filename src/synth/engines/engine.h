@@ -108,7 +108,7 @@ public:
 	virtual void calculate_phase_increments(const BasicEngineNote<B>& note) = 0;
 	/// A new voice's random phases for unison part @p u beyond its sources' (drawn after theirs).
 	virtual void randomize_part(int32_t /*u*/, dsp::fixed::Cong& /*noise*/) {}
-	/// Renders one block, adding into the voice's buffer.
+	/// Renders one block into the voice's buffer, which the engine starts (the noise source, or cleared) and adds into.
 	virtual EngineRenderResult render(const BasicEngineBlock<B>& block) = 0;
 	/// The note-off's releases of the parts' sources (a sample's loop end, a DX7's key-up).
 	virtual void release(std::span<typename B::UnisonPart> /*parts*/, const B::Release& /*info*/,

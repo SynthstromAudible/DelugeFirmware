@@ -35,17 +35,17 @@ public:
 		uint32_t phase_increment{}; ///< already pitch-adjusted (UQ0.32)
 		int32_t pulse_width{};      ///< the source's pulse width, pre-shifted (no-op unless square)
 		deluge::dsp::fixed::WaveTableData
-		    wave_table;            ///< the loaded table's bands (wavetable component only), else empty
-		int32_t wave_index_last{}; ///< wavetable morph index + its per-block increment
-		int32_t wave_index_increment{};
-		OscType osc_type{};         ///< selects the per-wave amplitude compensation
-		uint32_t retrigger_phase{}; ///< the source's retrigger phase, kNoRetrigger when it runs free
+		    wave_table;                 ///< the loaded table's bands (wavetable component only), else empty
+		int32_t wave_index_last{};      ///< the wavetable morph index at block start
+		int32_t wave_index_increment{}; ///< its per-sample slope
+		OscType osc_type{};             ///< selects the per-wave amplitude compensation
+		uint32_t retrigger_phase{};     ///< the source's retrigger phase, kNoRetrigger when it runs free
 	};
 
-	/// Renders @p block's ring-mod and noise, adding into its buffer, and stores the wavetable indexes the next block
-	/// starts from. The unison parts render in ascending frequency, so one too high to render ends the rest.
 	/// Starts the note; a source that cannot sound fails it, as ring-mod needs both.
 	bool note_on(const EngineNote& note) override;
+	/// Renders @p block's noise (or clears its buffer), then adds the ring-mod, and stores the wavetable indexes the
+	/// next block starts from. The unison parts render in ascending frequency, so one too high to render ends the rest.
 	EngineRenderResult render(const EngineBlock& block) override;
 
 private:

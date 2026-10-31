@@ -24,7 +24,8 @@
 namespace deluge::synth {
 
 /// @brief The source levels' de-zipper state, which FM and the dual-source engines share. The voice owns it and lends
-/// it to whichever engine plays the block, so a mode change under a live voice continues from it as before.
+/// it to whichever engine plays the block, so after a mode change under a live voice the new engine ramps from the
+/// levels the last one left.
 struct SourceLevels {
 	std::array<int32_t, kNumSources> amplitudes_last_time{}; ///< Each source's amplitude at the last block's end
 	std::array<uint32_t, kNumSources>

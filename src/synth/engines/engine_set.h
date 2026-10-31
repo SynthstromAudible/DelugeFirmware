@@ -27,7 +27,7 @@ namespace deluge::synth {
 
 /// @brief One of each engine a voice can play, and the factory that picks one by synth mode. Every engine keeps its
 /// state while another plays, so a voice whose sound changes mode while it sounds (an undo, a preset applied) carries
-/// on from it as before.
+/// each engine's state over the change.
 class EngineSet {
 public:
 	/// The engine for @p mode.

@@ -411,8 +411,8 @@ Define `SourceEngine` (init-with-allocator / render-block). Re-home the
 `SampleSource` port wrapping the existing `voice_sample` path in place.
 
 *Status:* the **extraction** is done — every `OscType` render body now lives in
-an engine (VA, wavetable, DX7, input, sample), and `render_basic_source` is pure
-dispatch. The remaining **unification** — a uniform engine interface across the
+an engine (VA, wavetable, DX7, input, sample), and the per-source loop is the dual-source engines'
+(`DualSourceEngine::render_source`, dispatching through `SourceSlot::source_for`). The remaining **unification** — a uniform engine interface across the
 foreign engines, `SAMPLE`/`INPUT_*` leaving the enum, and the registry
 replacing the `switch` — is the substrate for the **Engine API (L1)** plug-in
 boundary (see *Extensibility model* above). A closed `switch` is adequate until

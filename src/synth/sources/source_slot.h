@@ -74,8 +74,9 @@ public:
 	/// Lets go of the note: the slot goes inactive and its port-backed sources release what they hold.
 	void unassign(bool deleting_song);
 
-	/// The source that renders a source of @p type now: a port-backed one by type, else the held oscillator. Null
-	/// when the slot holds none (a mode change under a live voice can leave it so).
+	/// The source that renders a source of @p type now: a port-backed one by type, else the held oscillator, whatever
+	/// its class (a VA wave changed on a re-triggered voice keeps the wave it built). Null when the slot holds none (a
+	/// mode change under a live voice can leave it so).
 	[[nodiscard]] Source* source_for(OscType type);
 	/// The held oscillator, for an engine that renders it directly (ring-mod renders the raw wave).
 	[[nodiscard]] Oscillator& oscillator() { return oscillator_; }

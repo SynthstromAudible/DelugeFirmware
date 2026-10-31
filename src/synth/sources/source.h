@@ -21,8 +21,8 @@
 #include "dsp-next/core/ramp.h"   // deluge::dsp::Ramp
 #include "dsp-next/core/types.h"  // deluge::dsp::fixed::Buffer
 #include "dsp-next/fixed/noise/cong.h"
-#include "dsp-next/fixed/wavetable/wave_table_data.h"
-#include "synth/sources/backend.h" // deluge::dsp::fixed::WaveTableData (storage-independent view)
+#include "dsp-next/fixed/wavetable/wave_table_data.h" // deluge::dsp::fixed::WaveTableData (storage-independent view)
+#include "synth/sources/backend.h"
 #include <cstdint>
 #include <optional>
 

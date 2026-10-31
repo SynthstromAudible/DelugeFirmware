@@ -270,9 +270,15 @@ void deluge_scenario_render_preset_begin(void) {
 		g_settingBlock = std::strtoull(setting, &rest, 10);
 		const std::string pair = rest != nullptr ? rest : "";
 		const size_t path_start = pair.find_first_not_of(' ');
-		const size_t space = pair.find(' ', path_start);
-		g_settingPath = pair.substr(path_start, space - path_start);
-		g_settingValue = space == std::string::npos ? "" : pair.substr(space + 1);
+		if (path_start == std::string::npos) {
+			fail("RP-SETTING", "RENDER_SETTING names no setting");
+			g_settingBlock = 0;
+		}
+		else {
+			const size_t space = pair.find(' ', path_start);
+			g_settingPath = pair.substr(path_start, space - path_start);
+			g_settingValue = space == std::string::npos ? "" : pair.substr(space + 1);
+		}
 	}
 	const char* seconds = std::getenv("RENDER_SECONDS");
 	const double wanted = std::ceil((seconds != nullptr ? std::strtod(seconds, nullptr) : 2.0) * kFramesPerSecond);
