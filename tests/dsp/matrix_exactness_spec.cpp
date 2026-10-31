@@ -9,6 +9,8 @@
 // and every param the four-lane curves compute, with corner and random presets, on the host and on ARM.
 
 #include "alloc_seams.h"
+#include "param_regions.h"
+#include "synth/matrix/descriptors.h" // kParamNeutral, kParamRange
 
 #include "synth/matrix/matrix_fixed.h"
 
@@ -22,8 +24,7 @@
 using namespace deluge::synth;
 using namespace deluge::synth::matrix;
 namespace params = deluge::modulation::params;
-
-void functionsInit(); // util/param_functions.cpp: fills the param scaling tables
+namespace regions = deluge::synth::test::regions;
 
 namespace {
 
@@ -117,8 +118,9 @@ int32_t region_differing(int32_t from, int32_t to, CurveKind kind, Vector vector
 			for (int32_t l = 0; l < 4; ++l) {
 				preset[l] = round < static_cast<int32_t>(kCorners.size()) ? kCorners[round] : rng.next();
 			}
-			const Lanes terms = MatrixFixed::preset_terms(Lanes::Load(preset.data()), Lanes::Load(&paramRanges[p]));
-			vector(Lanes::Load(&paramNeutralValues[p]), terms).StoreTo(out.data());
+			const Lanes terms = MatrixFixed::preset_terms(Lanes::Load(preset.data()),
+			                                              Lanes::Load(&deluge::synth::matrix::kParamRange[p]));
+			vector(Lanes::Load(&deluge::synth::matrix::kParamNeutral[p]), terms).StoreTo(out.data());
 			for (int32_t l = 0; l < 4; ++l) {
 				const int32_t term = MatrixFixed::preset_term(preset[l], p + l);
 				const int32_t combination =
@@ -136,8 +138,6 @@ int32_t region_differing(int32_t from, int32_t to, CurveKind kind, Vector vector
 
 // clang-format off
 describe matrix_exactness_spec("the matrix core's four-lane forms", ${
-	before_all([] { functionsInit(); });
-
 	it("multiply high by doubling as smmul does, for a first operand that is never INT32_MIN", _{
 		auto pairs = operand_pairs([](Random& r) { return r.next(); });
 		std::erase_if(pairs, [](const auto& p) { return p[0] == kMin; });
@@ -147,15 +147,15 @@ describe matrix_exactness_spec("the matrix core's four-lane forms", ${
 	// The sound's linear and hybrid regions hold fewer than four params, so the evaluator runs them scalar
 	it("give uncabled volume, linear and hybrid params their scalar final values", _{
 		using MF = MatrixFixed;
-		auto volume = [](Lanes n, Lanes t) { return MF::curve_volume(n, MF::uncabled_multiply(t)); };
+		auto volume = [](Lanes n, Lanes t) { return MF::curve_square(n, MF::uncabled_multiply(t)); };
 		auto linear = [](Lanes n, Lanes t) { return MF::curve_linear(n, MF::uncabled_multiply(t)); };
-		auto hybrid = [](Lanes n, Lanes t) { return MF::curve_hybrid(n, t); };
-		expect(region_differing(0, params::FIRST_LOCAL_NON_VOLUME, CurveKind::VOLUME, volume)).to_equal(0);
-		expect(region_differing(params::FIRST_LOCAL_NON_VOLUME, params::FIRST_LOCAL__HYBRID, CurveKind::LINEAR, linear))
+		auto hybrid = [](Lanes n, Lanes t) { return MF::curve_bipolar(n, t); };
+		expect(region_differing(0, regions::kLocalLinear, CurveKind::SQUARE, volume)).to_equal(0);
+		expect(region_differing(regions::kLocalLinear, regions::kLocalBipolar, CurveKind::LINEAR, linear))
 		    .to_equal(0);
-		expect(region_differing(params::FIRST_LOCAL__HYBRID, params::FIRST_LOCAL_EXP, CurveKind::HYBRID, hybrid))
+		expect(region_differing(regions::kLocalBipolar, regions::kLocalExponential, CurveKind::BIPOLAR, hybrid))
 		    .to_equal(0);
-		expect(region_differing(params::FIRST_GLOBAL, params::FIRST_GLOBAL_NON_VOLUME, CurveKind::VOLUME, volume))
+		expect(region_differing(params::FIRST_GLOBAL, regions::kGlobalLinear, CurveKind::SQUARE, volume))
 		    .to_equal(0);
 	});
 });

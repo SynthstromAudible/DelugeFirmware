@@ -23,8 +23,6 @@
 #include <cstdlib>
 #include <limits>
 
-void functionsInit(); // util/param_functions.cpp: fills the param scaling tables
-
 namespace deluge::synth::test {
 
 namespace params = deluge::modulation::params;
@@ -50,7 +48,6 @@ struct Rig {
 	std::array<int32_t, kBlock * 2> out{};
 
 	Rig() {
-		functionsInit(); // the param scaling tables the patcher reads
 		for (int32_t u = 0; u < kMaxNumVoicesUnison; u++) {
 			for (int32_t s = 0; s < kNumSources; s++) {
 				voice.unison_parts[u].slots[s].bind({.sample = &samples[u][s], .dx = &dx, .input = &input});

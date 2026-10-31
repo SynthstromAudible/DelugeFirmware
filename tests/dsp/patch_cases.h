@@ -10,6 +10,7 @@
 
 #pragma once
 
+#include "param_regions.h"
 #include "reference_patcher.h"
 
 #include "dsp-next/fixed/noise/cong.h"
@@ -33,17 +34,17 @@ inline constexpr uint8_t kGlobal = 1; ///< the sound scope's
 
 inline constexpr ReferencePatcher::Config kVoiceConfig{
     .first_param = 0,
-    .first_non_volume_param = params::FIRST_LOCAL_NON_VOLUME,
-    .first_hybrid_param = params::FIRST_LOCAL__HYBRID,
-    .first_exp_param = params::FIRST_LOCAL_EXP,
+    .first_non_volume_param = regions::kLocalLinear,
+    .first_hybrid_param = regions::kLocalBipolar,
+    .first_exp_param = regions::kLocalExponential,
     .end_params = params::FIRST_GLOBAL,
     .globality = kLocal,
 };
 inline constexpr ReferencePatcher::Config kSoundConfig{
     .first_param = params::FIRST_GLOBAL,
-    .first_non_volume_param = params::FIRST_GLOBAL_NON_VOLUME,
-    .first_hybrid_param = params::FIRST_GLOBAL_HYBRID,
-    .first_exp_param = params::FIRST_GLOBAL_EXP,
+    .first_non_volume_param = regions::kGlobalLinear,
+    .first_hybrid_param = regions::kGlobalBipolar,
+    .first_exp_param = regions::kGlobalExponential,
     .end_params = params::kNumParams,
     .globality = kGlobal,
 };

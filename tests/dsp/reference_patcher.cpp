@@ -6,8 +6,9 @@
  */
 
 #include "reference_patcher.h"
+#include "synth/matrix/descriptors.h" // kParamNeutral, kParamRange
 #include "synth/modulation/cable_depth.h"
-#include "util/param_functions.h" // paramNeutralValues, paramRanges, getFinalParameterValue*, lshift_and_saturate
+#include "util/param_functions.h" // deluge::synth::matrix::kParamNeutral, deluge::synth::matrix::kParamRange, getFinalParameterValue*, lshift_and_saturate
 #include <algorithm>
 #include <array>
 #include <etl/vector.h>
@@ -28,7 +29,7 @@ void ReferencePatcher::recalculate_final_value_for_param_with_no_cables(int32_t 
 	                                                             : combine_cables_exp(nullptr, p, control_block);
 
 	int32_t final_value = 0;
-	int32_t param_neutral_value = paramNeutralValues[p];
+	int32_t param_neutral_value = deluge::synth::matrix::kParamNeutral[p];
 
 	if (p < config_.first_hybrid_param) {
 		if (p < config_.first_non_volume_param) {
@@ -106,28 +107,28 @@ void ReferencePatcher::perform_patching(uint32_t sources_changed, const Referenc
 	for (; iterator < cable_combos.end() && iterator->first < config_.first_non_volume_param; iterator++) {
 		auto [param, combo] = *iterator;
 		param_final_values_[param - config_.first_param] =
-		    getFinalParameterValueVolume(paramNeutralValues[param], combo);
+		    getFinalParameterValueVolume(deluge::synth::matrix::kParamNeutral[param], combo);
 	}
 
 	// Linear params
 	for (; iterator < cable_combos.end() && iterator->first < config_.first_hybrid_param; iterator++) {
 		auto [param, cable_combo] = *iterator;
 		param_final_values_[param - config_.first_param] =
-		    getFinalParameterValueLinear(paramNeutralValues[param], cable_combo);
+		    getFinalParameterValueLinear(deluge::synth::matrix::kParamNeutral[param], cable_combo);
 	}
 
 	// Hybrid params
 	for (; iterator < cable_combos.end() && iterator->first < config_.first_exp_param; iterator++) {
 		auto [param, cable_combo] = *iterator;
 		param_final_values_[param - config_.first_param] =
-		    getFinalParameterValueHybrid(paramNeutralValues[param], cable_combo);
+		    getFinalParameterValueHybrid(deluge::synth::matrix::kParamNeutral[param], cable_combo);
 	}
 
 	// Exp params
 	for (; iterator < cable_combos.end() && iterator->first < config_.end_params; iterator++) {
 		auto [param, cable_combo] = *iterator;
-		param_final_values_[param - config_.first_param] =
-		    getFinalParameterValueExpWithDumbEnvelopeHack(paramNeutralValues[param], cable_combo, param);
+		param_final_values_[param - config_.first_param] = getFinalParameterValueExpWithDumbEnvelopeHack(
+		    deluge::synth::matrix::kParamNeutral[param], cable_combo, param);
 	}
 }
 
@@ -206,8 +207,8 @@ ReferencePatcher::combine_cables_linear(const deluge::synth::RoutedDestination* 
 	                                   // to get bigger than 2147483647, which means "4".
 
 	// Do the "preset value" (which we treat like a "cable" here)
-	running_total =
-	    cable_to_linear_param_without_range_adjustment(running_total, control_block.preset_value(p), paramRanges[p]);
+	running_total = cable_to_linear_param_without_range_adjustment(running_total, control_block.preset_value(p),
+	                                                               deluge::synth::matrix::kParamRange[p]);
 
 	if (destination != nullptr) {
 		// For each patch cable affecting this parameter
@@ -255,7 +256,7 @@ ReferencePatcher::combine_cables_exp(const deluge::synth::RoutedDestination* des
 
 	// Do the "preset value" (which we treat like a "cable" here)
 	running_total = cable_to_exp_param_without_range_adjustment(running_total, control_block.preset_value(param),
-	                                                            paramRanges[param]);
+	                                                            deluge::synth::matrix::kParamRange[param]);
 
 	return running_total;
 }
@@ -305,26 +306,26 @@ void ReferencePatcher::perform_initial_patching(const ReferenceBlock& control_bl
 	// And now convert those "cable combinations" into "final values".
 	// Volume params
 	for (int32_t param = config_.first_param; param < config_.first_non_volume_param; param++) {
-		param_final_values_[param - config_.first_param] =
-		    getFinalParameterValueVolume(paramNeutralValues[param], param_final_values_[param - config_.first_param]);
+		param_final_values_[param - config_.first_param] = getFinalParameterValueVolume(
+		    deluge::synth::matrix::kParamNeutral[param], param_final_values_[param - config_.first_param]);
 	}
 
 	// Linear params
 	for (int32_t param = config_.first_non_volume_param; param < config_.first_hybrid_param; param++) {
-		param_final_values_[param - config_.first_param] =
-		    getFinalParameterValueLinear(paramNeutralValues[param], param_final_values_[param - config_.first_param]);
+		param_final_values_[param - config_.first_param] = getFinalParameterValueLinear(
+		    deluge::synth::matrix::kParamNeutral[param], param_final_values_[param - config_.first_param]);
 	}
 
 	// Hybrid params
 	for (int32_t param = config_.first_hybrid_param; param < config_.first_exp_param; param++) {
-		param_final_values_[param - config_.first_param] =
-		    getFinalParameterValueHybrid(paramNeutralValues[param], param_final_values_[param - config_.first_param]);
+		param_final_values_[param - config_.first_param] = getFinalParameterValueHybrid(
+		    deluge::synth::matrix::kParamNeutral[param], param_final_values_[param - config_.first_param]);
 	}
 
 	// Exp params
 	for (int32_t param = config_.first_exp_param; param < config_.end_params; param++) {
 		param_final_values_[param - config_.first_param] = getFinalParameterValueExpWithDumbEnvelopeHack(
-		    paramNeutralValues[param], param_final_values_[param - config_.first_param], param);
+		    deluge::synth::matrix::kParamNeutral[param], param_final_values_[param - config_.first_param], param);
 	}
 }
 

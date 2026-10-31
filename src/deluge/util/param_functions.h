@@ -24,10 +24,6 @@
 // (the mod matrix) can reach it without dragging in functions.h's gui/colour include. functions.h re-exports
 // this header, so its existing users are unaffected. The definitions live in param_functions.cpp.
 
-// Per-param scaling tables, populated by functionsInit().
-extern int32_t paramRanges[];
-extern int32_t paramNeutralValues[];
-
 int32_t getExp(int32_t presetValue, int32_t adjustment);
 int32_t lookupReleaseRate(int32_t input);
 

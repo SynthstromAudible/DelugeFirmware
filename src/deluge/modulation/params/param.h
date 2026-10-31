@@ -51,7 +51,7 @@ using ParamType = uint8_t;
 
 /// "Local" patched params, which apply to individual voices within the sound
 enum Local : ParamType {
-	// Local linear params begin
+	// Each param's chain, curve, neutral value and range are synth/matrix/descriptors.h's table, not its position here
 	LOCAL_OSC_A_VOLUME,
 	LOCAL_OSC_B_VOLUME,
 	LOCAL_VOLUME,
@@ -60,9 +60,7 @@ enum Local : ParamType {
 	LOCAL_MODULATOR_1_VOLUME,
 	LOCAL_FOLD,
 
-	// Local non-volume params begin
-	FIRST_LOCAL_NON_VOLUME,
-	LOCAL_MODULATOR_0_FEEDBACK = FIRST_LOCAL_NON_VOLUME,
+	LOCAL_MODULATOR_0_FEEDBACK,
 	LOCAL_MODULATOR_1_FEEDBACK,
 	LOCAL_CARRIER_0_FEEDBACK,
 	LOCAL_CARRIER_1_FEEDBACK,
@@ -75,17 +73,13 @@ enum Local : ParamType {
 	LOCAL_LPF_MORPH,
 	LOCAL_HPF_MORPH,
 
-	// Local hybrid params begin
-	FIRST_LOCAL__HYBRID,
-	LOCAL_OSC_A_PHASE_WIDTH = FIRST_LOCAL__HYBRID,
+	LOCAL_OSC_A_PHASE_WIDTH,
 	LOCAL_OSC_B_PHASE_WIDTH,
 	LOCAL_OSC_A_WAVE_INDEX,
 	LOCAL_OSC_B_WAVE_INDEX,
 	LOCAL_PAN,
 
-	// Local exp params begin
-	FIRST_LOCAL_EXP,
-	LOCAL_LPF_FREQ = FIRST_LOCAL_EXP,
+	LOCAL_LPF_FREQ,
 	LOCAL_PITCH_ADJUST,
 	LOCAL_OSC_A_PITCH_ADJUST,
 	LOCAL_OSC_B_PITCH_ADJUST,
@@ -115,25 +109,13 @@ enum Local : ParamType {
 /// ANY TIME YOU UPDATE THIS LIST, please also update getParamDisplayName and paramNameForFile!
 enum Global : ParamType {
 	FIRST_GLOBAL = LOCAL_LAST,
-	// Global (linear) params begin
 	GLOBAL_VOLUME_POST_FX = FIRST_GLOBAL,
 	GLOBAL_VOLUME_POST_REVERB_SEND,
 	GLOBAL_REVERB_AMOUNT,
 	GLOBAL_MOD_FX_DEPTH,
 
-	// Global non-volume params begin
-	FIRST_GLOBAL_NON_VOLUME,
-	GLOBAL_DELAY_FEEDBACK = FIRST_GLOBAL_NON_VOLUME,
-
-	// Global hybrid params begin
-
-	// There are no global hybrid params, so FIRST_GLOBAL_EXP is set to the same value. If you add a GLOBAL_HYBRID
-	// param, make sure you undo that!
-	FIRST_GLOBAL_HYBRID,
-
-	// Global exp params begin
-	FIRST_GLOBAL_EXP = FIRST_GLOBAL_HYBRID,
-	GLOBAL_DELAY_RATE = FIRST_GLOBAL_EXP,
+	GLOBAL_DELAY_FEEDBACK,
+	GLOBAL_DELAY_RATE,
 	GLOBAL_MOD_FX_RATE,
 	GLOBAL_LFO_FREQ_1,
 	GLOBAL_LFO_FREQ_2,

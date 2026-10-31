@@ -37,29 +37,42 @@ struct Working {
 	std::array<int32_t, kMaxCables> slots;
 };
 
-/// A scope's params, split where their chains and curves change.
-struct Regions {
+/// A scope's first param.
+[[nodiscard]] constexpr int32_t first_param_of(uint8_t scope) {
+	return scope == 0 ? 0 : int32_t{params::FIRST_GLOBAL};
+}
+
+/// A run of consecutive params sharing a curve and a chain: what the uncabled bulk computes four at a time.
+struct CurveRun {
 	int32_t first;
-	int32_t non_volume; ///< the first linear param
-	int32_t hybrid;     ///< the first add-chain param
-	int32_t exp;
 	int32_t end;
+	CurveKind curve;
+	ChainKind chain;
 };
 
-[[nodiscard]] constexpr Regions regions_of(uint8_t scope) {
-	if (scope == 0) {
-		return {.first = 0,
-		        .non_volume = params::FIRST_LOCAL_NON_VOLUME,
-		        .hybrid = params::FIRST_LOCAL__HYBRID,
-		        .exp = params::FIRST_LOCAL_EXP,
-		        .end = params::FIRST_GLOBAL};
+/// One scope's runs, in param order.
+struct ScopeRuns {
+	std::array<CurveRun, params::kNumParams> runs;
+	size_t count;
+};
+
+/// Each scope's runs, from the param table.
+inline constexpr std::array<ScopeRuns, 2> kRuns = [] {
+	std::array<ScopeRuns, 2> out{};
+	for (uint8_t scope = 0; scope < 2; ++scope) {
+		const int32_t end = scope == 0 ? int32_t{params::FIRST_GLOBAL} : int32_t{params::kNumParams};
+		for (int32_t p = first_param_of(scope); p < end; ++p) {
+			ScopeRuns& r = out[scope];
+			if (r.count != 0 && r.runs[r.count - 1].curve == curve_of(p) && r.runs[r.count - 1].chain == chain_of(p)) {
+				r.runs[r.count - 1].end = p + 1;
+			}
+			else {
+				r.runs[r.count++] = {.first = p, .end = p + 1, .curve = curve_of(p), .chain = chain_of(p)};
+			}
+		}
 	}
-	return {.first = params::FIRST_GLOBAL,
-	        .non_volume = params::FIRST_GLOBAL_NON_VOLUME,
-	        .hybrid = params::FIRST_GLOBAL_HYBRID,
-	        .exp = params::FIRST_GLOBAL_EXP,
-	        .end = params::kNumParams};
-}
+	return out;
+}();
 
 template <class B>
 void convert_slots(const ScopeView& scope, const ScopePass& pass, Working& w) {
@@ -143,30 +156,45 @@ void uncabled_run(const ScopePass& pass, const MatrixBlock& block, int32_t first
 	using L = B::Lanes;
 	int32_t p = from;
 	for (; p + 4 <= to; p += 4) {
-		const L terms = B::preset_terms(L::Load(&block.preset_values[p]), L::Load(&paramRanges[p]));
-		lanes(L::Load(&paramNeutralValues[p]), terms).StoreTo(&pass.final_values[p - first]);
+		const L terms = B::preset_terms(L::Load(&block.preset_values[p]), L::Load(&kParamRange[p]));
+		lanes(L::Load(&kParamNeutral[p]), terms).StoreTo(&pass.final_values[p - first]);
 	}
 	for (; p < to; ++p) {
 		pass.final_values[p - first] = B::curve(kind, p, uncabled_combination<B>(block, p));
 	}
 }
 
-/// The uncabled params' final values: the volume, linear and hybrid ones four at a time (the cabled among them are
-/// overwritten after), the exp ones one by one, skipping the cabled.
+/// The uncabled params' final values: the square-, linear- and bipolar-curve runs four at a time (the cabled among them
+/// are overwritten after), the exponential and release-table ones one by one, skipping the cabled.
 template <class B>
 void uncabled_params(const ScopePass& pass, const MatrixBlock& block, uint64_t cabled) {
 	using L = B::Lanes;
-	const Regions r = regions_of(pass.scope);
-	uncabled_run<B>(pass, block, r.first, r.first, r.non_volume, CurveKind::VOLUME,
-	                [](L neutral, L terms) { return B::curve_volume(neutral, B::uncabled_multiply(terms)); });
-	uncabled_run<B>(pass, block, r.first, r.non_volume, r.hybrid, CurveKind::LINEAR,
-	                [](L neutral, L terms) { return B::curve_linear(neutral, B::uncabled_multiply(terms)); });
-	uncabled_run<B>(pass, block, r.first, r.hybrid, r.exp, CurveKind::HYBRID,
-	                [](L neutral, L terms) { return B::curve_hybrid(neutral, terms); });
-	for (int32_t p = r.exp; p < r.end; ++p) {
-		if (((cabled >> (p - r.first)) & 1u) == 0u) {
-			// The exp curves differ by param inside the call
-			pass.final_values[p - r.first] = B::curve(CurveKind::EXP, p, uncabled_combination<B>(block, p));
+	const int32_t first = first_param_of(pass.scope);
+	const ScopeRuns& runs = kRuns[pass.scope];
+	for (size_t k = 0; k < runs.count; ++k) {
+		const CurveRun& run = runs.runs[k];
+		const bool multiply = run.chain == ChainKind::MULTIPLY;
+		auto combination = [multiply](L terms) { return multiply ? B::uncabled_multiply(terms) : terms; };
+		switch (run.curve) {
+		case CurveKind::SQUARE:
+			uncabled_run<B>(pass, block, first, run.first, run.end, run.curve,
+			                [&](L neutral, L terms) { return B::curve_square(neutral, combination(terms)); });
+			break;
+		case CurveKind::LINEAR:
+			uncabled_run<B>(pass, block, first, run.first, run.end, run.curve,
+			                [&](L neutral, L terms) { return B::curve_linear(neutral, combination(terms)); });
+			break;
+		case CurveKind::BIPOLAR:
+			uncabled_run<B>(pass, block, first, run.first, run.end, run.curve,
+			                [&](L neutral, L terms) { return B::curve_bipolar(neutral, combination(terms)); });
+			break;
+		default:
+			for (int32_t p = run.first; p < run.end; ++p) {
+				if (((cabled >> (p - first)) & 1u) == 0u) {
+					pass.final_values[p - first] = B::curve(run.curve, p, uncabled_combination<B>(block, p));
+				}
+			}
+			break;
 		}
 	}
 }
@@ -187,7 +215,7 @@ void Evaluator<B>::run(const ScopePass& pass, const MatrixBlock& block, uint32_t
 	convert_slots<B>(scope, pass, w);
 	// Depth destinations first: the cables they control read their results
 	depth_results<B>(scope, block, w, sources_changed);
-	const int32_t first = regions_of(pass.scope).first;
+	const int32_t first = first_param_of(pass.scope);
 	for (int32_t k = scope.num_depth_destinations; k < scope.num_destinations; ++k) {
 		const Destination& d = scope.destinations[k];
 		if ((d.sources & sources_changed) != 0u) {
@@ -206,7 +234,7 @@ void Evaluator<B>::run_initial(const ScopePass& pass, const MatrixBlock& block) 
 	Working w; // NOLINT(cppcoreguidelines-pro-type-member-init): each read entry is written first
 	convert_slots<B>(*scope, pass, w);
 	depth_results<B>(*scope, block, w, ~0u);
-	const int32_t first = regions_of(pass.scope).first;
+	const int32_t first = first_param_of(pass.scope);
 	for (int32_t k = scope->num_depth_destinations; k < scope->num_destinations; ++k) {
 		const Destination& d = scope->destinations[k];
 		pass.final_values[d.param - first] = patched_value<B>(*scope, block, w, d);
@@ -215,7 +243,7 @@ void Evaluator<B>::run_initial(const ScopePass& pass, const MatrixBlock& block) 
 
 template <class B>
 void Evaluator<B>::run_uncabled_param(const ScopePass& pass, const MatrixBlock& block, int32_t p) {
-	pass.final_values[p - regions_of(pass.scope).first] = B::curve(curve_of(p), p, uncabled_combination<B>(block, p));
+	pass.final_values[p - first_param_of(pass.scope)] = B::curve(curve_of(p), p, uncabled_combination<B>(block, p));
 }
 
 template class Evaluator<MatrixFixed>;

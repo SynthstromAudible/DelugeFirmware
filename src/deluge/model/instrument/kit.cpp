@@ -48,7 +48,8 @@
 #include "storage/storage_manager.h"
 #include "storage/value.h"
 #include "storage/value_tree_deserializer.h"
-#include "util/functions.h" // stringToInt (id-first drum peek)
+#include "synth/matrix/descriptors.h" // kParamNeutral, kParamRange
+#include "util/functions.h"           // stringToInt (id-first drum peek)
 #include "util/structural_edit_probe.h"
 #include <cstring>
 
@@ -793,7 +794,7 @@ void Kit::setupAndRenderArpPreOutput(ModelStackWithTimelineCounter* modelStackWi
 	if (arpSettings->mode != ArpMode::OFF) {
 		uint32_t gateThreshold = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_GATE) + 2147483648;
 		uint32_t phaseIncrement = arpSettings->getPhaseIncrement(
-		    getFinalParameterValueExp(paramNeutralValues[deluge::modulation::params::GLOBAL_ARP_RATE],
+		    getFinalParameterValueExp(deluge::synth::matrix::kParamNeutral[deluge::modulation::params::GLOBAL_ARP_RATE],
 		                              cableToExpParamShortcut(unpatchedParams->getValue(params::UNPATCHED_ARP_RATE))));
 
 		ArpReturnInstruction kitInstruction;
@@ -884,9 +885,9 @@ void Kit::renderNonAudioArpPostOutput(std::span<StereoSample> output) {
 
 		if (nonAudioDrum->arpSettings.mode != ArpMode::OFF) {
 			uint32_t gateThreshold = (uint32_t)nonAudioDrum->arpSettings.gate + 2147483648;
-			uint32_t phaseIncrement = nonAudioDrum->arpSettings.getPhaseIncrement(
-			    getFinalParameterValueExp(paramNeutralValues[deluge::modulation::params::GLOBAL_ARP_RATE],
-			                              cableToExpParamShortcut(nonAudioDrum->arpSettings.rate)));
+			uint32_t phaseIncrement = nonAudioDrum->arpSettings.getPhaseIncrement(getFinalParameterValueExp(
+			    deluge::synth::matrix::kParamNeutral[deluge::modulation::params::GLOBAL_ARP_RATE],
+			    cableToExpParamShortcut(nonAudioDrum->arpSettings.rate)));
 
 			ArpReturnInstruction instruction;
 			nonAudioDrum->arpeggiator.render(&nonAudioDrum->arpSettings, &instruction, output.size(), gateThreshold,

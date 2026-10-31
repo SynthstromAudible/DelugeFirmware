@@ -25,6 +25,7 @@
 #include "modulation/params/param.h"
 #include "processing/engines/cv_engine.h"
 #include "storage/storage_manager.h"
+#include "synth/matrix/descriptors.h" // kParamNeutral, kParamRange
 #include "util/functions.h"
 #include <cstring>
 
@@ -55,9 +56,9 @@ void NonAudioInstrument::renderOutput(ModelStack* modelStack, std::span<StereoSa
 
 		if (activeInstrumentClip->arpSettings.mode != ArpMode::OFF) {
 			uint32_t gateThreshold = (uint32_t)activeInstrumentClip->arpSettings.gate + 2147483648;
-			uint32_t phaseIncrement = activeInstrumentClip->arpSettings.getPhaseIncrement(
-			    getFinalParameterValueExp(paramNeutralValues[deluge::modulation::params::GLOBAL_ARP_RATE],
-			                              cableToExpParamShortcut(activeInstrumentClip->arpSettings.rate)));
+			uint32_t phaseIncrement = activeInstrumentClip->arpSettings.getPhaseIncrement(getFinalParameterValueExp(
+			    deluge::synth::matrix::kParamNeutral[deluge::modulation::params::GLOBAL_ARP_RATE],
+			    cableToExpParamShortcut(activeInstrumentClip->arpSettings.rate)));
 
 			ArpReturnInstruction instruction;
 
