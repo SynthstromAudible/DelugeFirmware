@@ -368,9 +368,11 @@ deleteInstrumentAndGetOut:
 		return error;
 	}
 
-	// Check that a ParamManager was actually loaded for the Instrument, cos if not, that'd spell havoc
-	if (!song->getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)newInstrument->toModControllable(),
-	                                                     nullptr)) {
+	// Check that a ParamManager was actually loaded for the Instrument, cos if not, that'd spell havoc. MIDI
+	// instruments create their ParamManager later and are not ModControllableAudio objects.
+	if (outputType != OutputType::MIDI_OUT
+	    && !song->getBackedUpParamManagerPreferablyWithClip(
+	        static_cast<ModControllableAudio*>(newInstrument->toModControllable()), nullptr)) {
 
 		// Prior to V2.0 (or was it only in V1.0 on the 40-pad?) Kits didn't have anything that would have caused the
 		// paramManager to be created when we read the Kit just now. So, just make one.
@@ -384,9 +386,6 @@ deleteInstrumentAndGetOut:
 			GlobalEffectableForClip::initParams(&paramManager);
 			((Kit*)newInstrument)->compensateInstrumentVolumeForResonance(&paramManager, song); // Necessary?
 			song->backUpParamManager(((Kit*)newInstrument), clip, &paramManager, true);
-		}
-		else if (outputType == OutputType::MIDI_OUT) {
-			// midi instruments make the param manager later
 		}
 		else {
 paramManagersMissing:
