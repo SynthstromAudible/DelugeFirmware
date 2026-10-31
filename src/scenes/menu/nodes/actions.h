@@ -114,6 +114,8 @@ private:
 ///        view in it.
 class PerformEditorItem final : public CustomItem {
 public:
+	/// @brief True: the legacy item is a `Value` (`CustomItem::is_value`).
+	bool is_value() const override { return true; }
 	void on_focus(const MenuContext& ctx, MenuState& state) const override;
 	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,

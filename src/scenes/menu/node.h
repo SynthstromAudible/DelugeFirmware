@@ -161,12 +161,14 @@ using DynamicNamesFn = size_t (*)(const MenuContext&, std::span<std::string_view
 ///               `adjustNoteFillWithOffset`.
 using AdjustFn = void (*)(const MenuContext&, int32_t offset);
 
-/// @brief Which of `Binding::value_text`'s two callers is asking (spec §5.3).
+/// @brief Which of `Binding::value_text`'s three callers is asking (spec §5.3).
 ///
 /// Legacy's column and its notification are not always the same string -- probability's column
 /// reads `35%`/`35L` (`renderInHorizontalMenu`) where its notification reads `35%`/`35% ltch`
-/// (`getNotificationValue`) -- so the hook is told which one it is filling.
-enum class ValueTextUse : uint8_t { Column, Notification };
+/// (`getNotificationValue`) -- so the hook is told which one it is filling. `Label` is the column's
+/// label, for the items whose `getColumnLabel` depends on the value or the context (the reverb's
+/// width, a sample's repeat mode, the mod FX knobs).
+enum class ValueTextUse : uint8_t { Column, Notification, Label };
 
 /// @brief What a `ValueTextFn` wrote into its caller's buffer.
 struct ValueText {
@@ -176,7 +178,14 @@ struct ValueText {
 	///        with a line through it. Meaningful only for `ValueTextUse::Column` -- legacy's
 	///        notification text is never struck, only the column glyph is.
 	bool strikethrough = false;
+	/// @brief The hook does not answer this use: the caller draws, notifies or labels as the node's
+	///        kind does. Legacy items override `getNotificationValue`, `renderInHorizontalMenu` and
+	///        `getColumnLabel` independently, and one hook stands in for all three.
+	bool fallback = false;
 };
+
+/// @brief The `ValueText` a hook returns for a use it does not answer.
+inline constexpr ValueText kValueTextFallback{.fallback = true};
 
 /// @brief Legacy's bespoke value strings -- `Binding::value_text` (spec §5.3).
 ///
@@ -615,6 +624,11 @@ struct CustomItem {
 	///        `MenuItem::shouldBlinkLearnLed` (`sound_editor.cpp:949-954`, `:488-492`).
 	virtual bool wants_learn_blink() const { return false; }
 
+	/// @brief Does the legacy item derive from `Value`, whose select turn uses a held Select press up
+	///        (`Value::selectEncoderAction`, `menu_item/value.h:64-67`)? A list item derived from `MenuItem` or
+	///        `Submenu` moves its cursor without using the press up.
+	virtual bool is_value() const { return false; }
+
 	/// @brief Which automatable parameter a CC would bind to on this item -- `getLearningThing()`
 	///        for a bespoke item whose answer is not a `Binding::param`.
 	///
@@ -781,6 +795,11 @@ struct Node {
 	uint16_t column_name = 0;
 	/// @brief The column draws its label: false where legacy's `showColumnLabel()` is.
 	bool show_column_label = true;
+	/// @brief An edit on the column raises the value notification: false where legacy's `showNotification()` is.
+	bool show_notification = true;
+	/// @brief LEARN enters learn mode on this item: legacy's `allowsLearnMode()` overrides on items with no param to
+	///        learn (the MIDI commands and MIDI-follow channels). An item with a learn target allows it anyway.
+	bool allows_learn_mode = false;
 
 	/// @brief The number that fills the `*` placeholder in this node's name and title: legacy's
 	///        `FormattedTitle` argument (`gui/menu_item/formatted_title.h`).
@@ -851,6 +870,18 @@ constexpr Node with_column_name(Node n, uint16_t name) {
 /// @brief `n` with its column drawn without a label (`Node::show_column_label`).
 constexpr Node without_column_label(Node n) {
 	n.show_column_label = false;
+	return n;
+}
+
+/// @brief `n` with no value notification on a column edit (`Node::show_notification`).
+constexpr Node without_notification(Node n) {
+	n.show_notification = false;
+	return n;
+}
+
+/// @brief `n` with `allows_learn_mode` set.
+constexpr Node with_learn_mode(Node n) {
+	n.allows_learn_mode = true;
 	return n;
 }
 

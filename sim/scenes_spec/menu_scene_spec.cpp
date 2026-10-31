@@ -426,6 +426,12 @@ struct Rig {
 	bool double_claimed() { return shell.lowering().ctx().claims.double_claim; }
 };
 
+/// @brief Did Select's release act on `nodes::lpf_freq` opened at depth 0: follow its chain, or leave the menu?
+template <typename R>
+bool acted(R& r) {
+	return r.shell.stack().depth() == 0 || menu_scene().focused() != &deluge::scenes::menu::nodes::lpf_freq;
+}
+
 int depth_of() {
 	return menu_scene().state().depth;
 }
@@ -919,18 +925,95 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		expect(depth_of()).to_equal(0);
 	});
 
-	it("select does nothing while LEARN is held", _ {
-		// The editor's own blocking mode, `UI_MODE_MIDI_LEARN` (`sound_editor.cpp:610-614`, `:720-745`).
+	it("select does nothing in learn mode: LEARN held on an item that allows learn", _ {
+		// On a param leaf at depth 0 Select's release follows the patch-cable chain; in learn mode it does nothing.
+		// `SoundEditor::buttonAction`'s LEARN arm enters `UI_MODE_MIDI_LEARN` (`sound_editor.cpp:716-735`), in which
+		// its Select arm does not act (`:609-614`). A param allows learn (`MenuItemWithCCLearning`).
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
-		(void)r.open(settings_root);
+		(void)r.open(nodes::lpf_freq);
 		r.shell.tick(0);
 		r.button(kLearnX, kLearnY, true, 10);
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 20);
 		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 30);
 		r.shell.tick(40);
+		r.shell.tick(50);
+		expect(acted(r)).to_be_false();
+	});
+
+	it("LEARN enters no learn mode with Shift held, a pad held, or on an item that refuses learn", _ {
+		// `:719-735`: learn mode needs `!currentUIMode` (a held pad is auditioning or notes-pressed), Shift up (Shift
+		// makes it the unlearn) and `allowsLearnMode()`. In each case Select's release acts: at depth 0 on a leaf it
+		// leaves the menu.
+		select_language();
+		deluge::notify::dirty().drain();
+		{
+			Rig r;
+			(void)r.open(nodes::lpf_freq);
+			r.shell.tick(0);
+			r.button(kShiftX, kShiftY, true, 5);
+			r.button(kLearnX, kLearnY, true, 10);
+			r.shell.tick(1'000);
+			r.button(kShiftX, kShiftY, false, 2'000); // a hold, not a tap: no sticky shift
+			r.shell.tick(2'010);
+			r.button(kSelectEncButtonX, kSelectEncButtonY, true, 2'020);
+			r.button(kSelectEncButtonX, kSelectEncButtonY, false, 2'030);
+			r.shell.tick(2'040);
+			r.shell.tick(2'050);
+			expect(acted(r)).to_be_true();
+		}
+		{
+			Rig r;
+			(void)r.open(nodes::lpf_freq);
+			r.shell.tick(0);
+			r.pad(17, 0, 127, 5); // an audition pad
+			r.shell.tick(6);
+			r.button(kLearnX, kLearnY, true, 10);
+			r.shell.tick(11);
+			r.pad(17, 0, 0, 15);
+			r.shell.tick(16);
+			r.button(kSelectEncButtonX, kSelectEncButtonY, true, 20);
+			r.button(kSelectEncButtonX, kSelectEncButtonY, false, 30);
+			r.shell.tick(40);
+			r.shell.tick(50);
+			expect(acted(r)).to_be_true();
+		}
+		{
+			Rig r;
+			(void)r.open(int_leaf); // a plain `Integer`: `MenuItem::allowsLearnMode()` is false
+			r.shell.tick(0);
+			r.button(kLearnX, kLearnY, true, 10);
+			r.button(kSelectEncButtonX, kSelectEncButtonY, true, 20);
+			r.button(kSelectEncButtonX, kSelectEncButtonY, false, 30);
+			r.shell.tick(40);
+			r.shell.tick(50);
+			expect(r.shell.stack().depth()).to_equal(size_t(0));
+		}
+	});
+
+	it("a select turn on a bespoke Value page uses the held press up", _ {
+		// The CV output selection is a `Selection` (`cv/selection.h:27`): `Value::selectEncoderAction` uses the press
+		// up while Select is held (`value.h:64-67`), so the release neither opens the output nor ascends.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		const MenuContext ctx = menu::context_for(*r.song.song, deluge::gui::menuViewOf(nullptr), 0, false, false, false, false);
+		(void)menu::assign_node_ids(nodes::kAllRoots); // the real tree: `cv_selection` lives there
+		menu_scene().open(nodes::cv_selection, ctx);
+		r.shell.init(SceneId{SceneKind::FirstApp, menu::node_id(nodes::cv_selection)});
+		r.shell.tick(0);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 10);
+		r.shell.tick(20);
+		r.turn(1, 30);
+		r.shell.tick(40);
+		expect(cursor_of(0)).to_equal(1);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 50);
+		r.shell.tick(60);
+		r.shell.tick(70);
+		expect(r.shell.stack().depth()).to_equal(size_t(1));
 		expect(depth_of()).to_equal(0);
+		expect(menu_scene().focused() == &nodes::cv_selection).to_be_true();
 	});
 
 	it("back at the root removes the scene off the stack", _ {

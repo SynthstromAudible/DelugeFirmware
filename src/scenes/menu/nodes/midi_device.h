@@ -191,6 +191,8 @@ int32_t mpe_zone_channels_value(const MenuContext& ctx, const MenuState& state);
 /// which `Node::title` cannot express.
 class MpeDirectionItem final : public CustomItem {
 public:
+	/// @brief True: the legacy item is a `Value` (`CustomItem::is_value`).
+	bool is_value() const override { return true; }
 	void on_focus(const MenuContext& ctx, MenuState& state) const override;
 	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
@@ -202,6 +204,8 @@ public:
 ///        `MpeDirectionItem`, over `MenuState::mpe_zone`, minus the runtime title.
 class MpeZoneItem final : public CustomItem {
 public:
+	/// @brief True: the legacy item is a `Value` (`CustomItem::is_value`).
+	bool is_value() const override { return true; }
 	void on_focus(const MenuContext& ctx, MenuState& state) const override;
 	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
@@ -220,6 +224,8 @@ public:
 /// (`zone_num_member_channels.cpp:66-85`) including its MCM `sendRPN` tail.
 class MpeZoneChannelsItem final : public CustomItem {
 public:
+	/// @brief True: the legacy item is a `Value` (`CustomItem::is_value`).
+	bool is_value() const override { return true; }
 	void on_focus(const MenuContext& ctx, MenuState& state) const override;
 	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
 	void commit(const MenuContext& ctx, MenuState& state) const override;

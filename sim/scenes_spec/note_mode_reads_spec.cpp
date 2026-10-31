@@ -785,6 +785,11 @@ describe note_mode_reads_menu_entries("MenuScene::go_up_one_level / enter_submen
 		expect(menu_scene().state().depth).to_equal(uint8_t{1});
 		expect(menu_scene().go_up_one_level()).to_be_false(); // a later pass, refused at depth 0
 		expect(menu_scene().state().depth).to_equal(uint8_t{0});
+		// The caller closes the editor on false; the scene asks for no close of its own afterwards.
+		const deluge::ui::shell::Result after = menu_scene().after_render();
+		for (const deluge::ui::shell::Action& action : after.actions) {
+			expect(action.kind == deluge::ui::shell::Action::Kind::Remove).to_be_false();
+		}
 		expect(menu_scene().menu_context().root == Root::Song).to_be_true(); // neither entry touches the context
 	});
 });

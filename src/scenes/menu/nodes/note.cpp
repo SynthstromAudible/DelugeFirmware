@@ -192,6 +192,9 @@ bool permitted_row(const MenuContext&) {
 /// (`:81-89`, notification: `"35%"`/`"35% ltch"`). `note_row::Probability` is byte-identical
 /// (`note_row/probability.h:63-110`).
 ValueText value_text_probability(const MenuContext&, int32_t value, ValueTextUse use, std::span<char> out) {
+	if (use == ValueTextUse::Label) {
+		return kValueTextFallback;
+	}
 	bool latching = false;
 	int32_t probability = value;
 	if (probability > kNumProbabilityValues) {
@@ -219,6 +222,9 @@ ValueText value_text_probability(const MenuContext&, int32_t value, ValueTextUse
 /// (`getNotificationValue`, `:80-82`) -- see `note_bridge.h`'s own doc on `iterance_preset_label`.
 /// `note_row::IterancePreset` is byte-identical (`note_row/iterance_preset.h:82-125`).
 ValueText value_text_iterance(const MenuContext&, int32_t value, ValueTextUse use, std::span<char> out) {
+	if (use == ValueTextUse::Label) {
+		return kValueTextFallback;
+	}
 	if (value == kDefaultIterancePreset) {
 		return ValueText{write_text("OFF", out), false};
 	}
@@ -234,6 +240,9 @@ ValueText value_text_iterance(const MenuContext&, int32_t value, ValueTextUse us
 /// `InstrumentClipView::getFillString` (`gui/views/instrument_clip_view.cpp:3564-3577`) spell the
 /// notification's three values. `note_row::Fill` is byte-identical (`note_row/fill.h:32-97`).
 ValueText value_text_fill(const MenuContext&, int32_t value, ValueTextUse use, std::span<char> out) {
+	if (use == ValueTextUse::Label) {
+		return kValueTextFallback;
+	}
 	if (use == ValueTextUse::Column) {
 		const std::string_view text = value == FillMode::OFF ? "OFF" : "FILL";
 		return ValueText{write_text(text, out), value == FillMode::NOT_FILL};

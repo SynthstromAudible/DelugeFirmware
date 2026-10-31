@@ -252,11 +252,14 @@ public:
 	/// @brief Choose the Select edge this tick's snapshot carries: the press, or the release.
 	///
 	/// Legacy's sound editor acts on Select's **release**, and only when the press was not used up and no blocking UI
-	/// mode is on (`SoundEditor::buttonAction`, `sound_editor.cpp:609-614`); every other UI acts on the press. The only
-	/// blocking mode the editor itself enters is MIDI learn, which is LEARN held (`:720-745`), so a release under a
-	/// held LEARN carries no edge. The shell calls this before rendering, for the scene that takes this tick's input.
-	/// @param on True for the release edge, false for the press edge.
-	void select_on_release(bool on) { snap_.select_pressed = on ? select_release_edge_ : select_edge_; }
+	/// mode is on (`SoundEditor::buttonAction`, `sound_editor.cpp:609-614`); every other UI acts on the press. Which
+	/// mode is on is the scene's to say (`Scene::select_release_blocked`). The shell calls this before rendering, for
+	/// the scene that takes this tick's input.
+	/// @param on      True for the release edge, false for the press edge.
+	/// @param blocked With @p on: the scene is in a mode that refuses the release, so it carries no edge.
+	void select_on_release(bool on, bool blocked = false) {
+		snap_.select_pressed = on ? select_release_edge_ && !blocked : select_edge_;
+	}
 	/// @brief Mark \p b's current press consumed, so its release does not act as well.
 	///
 	/// @note The bit belongs to the button whose *release* should be suppressed, which is not

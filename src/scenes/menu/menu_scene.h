@@ -512,6 +512,9 @@ public:
 	/// @brief Select acts on its release, as `SoundEditor::buttonAction` does (`sound_editor.cpp:609-614`).
 	/// @return True.
 	bool select_acts_on_release() const override { return true; }
+	/// @brief True in learn mode, which `SoundEditor::buttonAction`'s Select arm does not act in
+	///        (`sound_editor.cpp:609-614`).
+	bool select_release_blocked() const override { return learn_mode_; }
 	void on_model_changed(const deluge::notify::DirtySet& dirty) override;
 
 	/// @brief True: the menu draws over the base view's pads rather than replacing them.
@@ -946,14 +949,16 @@ private:
 	const Node* landing_column_ = nullptr;
 
 	/// @brief The child each submenu was last left on: legacy's per-`Submenu` `current_item_` (`submenu.cpp:9-18`),
-	///        which a fresh visit lands on. Oldest entries are overwritten once all are in use.
+	///        which a fresh visit lands on. Once all are in use the least recently recorded entry is overwritten; the
+	///        submenus on the current path are recorded on every render, so a root is never the one evicted.
 	struct RememberedRow {
 		const Node* submenu = nullptr;
 		const Node* child = nullptr;
+		uint32_t recorded = 0; ///< `remembered_clock_` when last recorded; 0 for an empty entry
 	};
 	static constexpr size_t kRememberedRows = 128;
 	RememberedRow remembered_[kRememberedRows]{};
-	size_t remembered_next_ = 0;
+	uint32_t remembered_clock_ = 0;
 	/// @brief `ascend()` went up from depth 0: legacy's `exitCompletely()`, drained by `after_render`.
 	bool close_requested_ = false;
 	/// @brief Use up the current Select press at the next `after_render`: legacy's `SoundEditor::opened` and
@@ -963,6 +968,14 @@ private:
 	/// @brief Select was held during the last render: a value edited under it uses the press up
 	///        (`Value::selectEncoderAction`, `menu_item/value.h:64-67`).
 	bool select_held_ = false;
+	/// @brief Legacy's `UI_MODE_MIDI_LEARN`: entered on a LEARN press with Shift up, no other UI mode on, and an item
+	///        that allows learn; left on LEARN's release (`sound_editor.cpp:716-745`). Select's release does nothing in
+	///        it.
+	bool learn_mode_ = false;
+
+	/// @brief `getCurrentMenuItem()->allowsLearnMode()`: on a page, its selected child's (`Submenu::allowsLearnMode`,
+	///        `submenu.cpp:233-238`), which a child page never allows.
+	bool allows_learn_mode() const;
 
 	/// @brief Record the selected child of every submenu on the current path; only while `ctx_` is the one the path
 	///        was walked with, since reading which children show runs their relevance tests.
@@ -997,8 +1010,8 @@ public:
 	///         either on the first pass, at depth 0, or on a later pass, when the loop has stepped down to
 	///         depth 0 and `:720-722` refuses that level too. Closing the whole editor is the
 	///         application's act, not the scene's -- `gui::ui::closePortedMenu()` -- so the caller does it
-	///         on false. `ascend()` alone returns silently at depth 0 (its own recorded divergence), which
-	///         is why this does not simply forward to it.
+	///         on false. `ascend()` at depth 0 asks for the scene's own close instead, which these callers
+	///         do not want, so this takes that request back on false.
 	bool go_up_one_level();
 	/// @brief Push @p node one level below the focused node -- `SoundEditor::enterSubmenu`
 	///        (`gui/ui/sound_editor.cpp:362-369`), for a caller outside the scene.
@@ -1105,5 +1118,14 @@ struct ColumnSlot {
 /// @param col   The column; its label, `show_label`, `render` and `ctx` are written.
 void present_column(const Node& node, const MenuContext& ctx, int32_t value, ColumnSlot& slot,
                     deluge::ui::oled::Column& col);
+
+/// @brief The value text of the notification an edit on @p column raises: legacy's `getNotificationValue` for that
+///        item -- its own (`Binding::value_text`), or its kind's.
+/// @param column The column's node.
+/// @param ctx    The menu context.
+/// @param value  The value to spell, in the node's own units.
+/// @param out    Storage the returned view may point into.
+/// @return The text; empty for a `Toggle`, whose legacy item spells none.
+std::string_view column_notification(const Node& column, const MenuContext& ctx, int32_t value, std::span<char> out);
 
 } // namespace deluge::scenes::menu

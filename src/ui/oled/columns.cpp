@@ -507,14 +507,29 @@ void art_column(OledFrame& slot_frame, bool /*focused*/, void* ctx) {
 		return;
 	}
 	const Rect b = slot_frame.bounds();
+	const int32_t x = b.x + data->dx;
 	const int32_t y = b.y + kHorizontalSlotYOffset + data->dy;
 	if (data->icon != nullptr) {
-		slot_frame.icon_centered(*data->icon, b.x, b.w, y, data->reversed);
+		if (data->centred) {
+			slot_frame.icon_centered(*data->icon, x, b.w, y, data->reversed);
+		}
+		else {
+			slot_frame.icon(*data->icon, x, y, data->reversed);
+		}
 		return;
 	}
-	const gfx::oled::FontId font = data->title_face ? slot_frame.style.title_font : slot_frame.style.row_font;
-	text(slot_frame, Rect{b.x, y, b.w, data->title_face ? text_height_for(font) : kTextSpacingY}, data->text,
-	     TextStyle{.font = font, .truncate = true});
+	gfx::oled::FontId font = slot_frame.style.row_font;
+	int32_t height = kTextSpacingY;
+	if (data->face == ArtColumn::Face::Title) {
+		font = slot_frame.style.title_font;
+		height = text_height_for(font);
+	}
+	else if (data->face == ArtColumn::Face::Big) {
+		// `Style` has no field for legacy's "Big" face; the sync-level leaf names it the same way.
+		font = gfx::oled::FontId::MetricBold13;
+		height = text_height_for(font);
+	}
+	text(slot_frame, Rect{x, y, b.w, height}, data->text, TextStyle{.font = font, .truncate = true});
 }
 
 void submenu_column(OledFrame& slot_frame, bool /*focused*/, void* /*ctx*/) {

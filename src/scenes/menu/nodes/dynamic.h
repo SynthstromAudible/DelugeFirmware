@@ -112,6 +112,8 @@ size_t connected_cables(std::span<MIDICable*> out);
 /// @brief `cv::Selection` -- pick which CV output the `cv_submenu` pages address.
 class CvSelectionItem final : public CustomItem {
 public:
+	/// @brief True: the legacy item is a `Value` (`CustomItem::is_value`).
+	bool is_value() const override { return true; }
 	void on_focus(const MenuContext& ctx, MenuState& state) const override;
 	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
@@ -122,6 +124,8 @@ public:
 /// @brief `gate::Selection` -- pick which gate output `gate_mode` addresses, or the off-time page.
 class GateSelectionItem final : public CustomItem {
 public:
+	/// @brief True: the legacy item is a `Value` (`CustomItem::is_value`).
+	bool is_value() const override { return true; }
 	void on_focus(const MenuContext& ctx, MenuState& state) const override;
 	/// @brief The one selector here whose backward arm does real work -- see the `.cpp`.
 	void on_focus_backward(const MenuContext& ctx, MenuState& state) const override;
@@ -134,6 +138,8 @@ public:
 /// @brief `midi::Devices` -- the scrolling list of connected MIDI cables.
 class MidiDevicesItem final : public CustomItem {
 public:
+	/// @brief True: the legacy item is a `Value` (`CustomItem::is_value`).
+	bool is_value() const override { return true; }
 	void on_focus(const MenuContext& ctx, MenuState& state) const override;
 	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,

@@ -75,9 +75,10 @@ inline constexpr IntRange kSidechainRateRange{0, 50, 1};
 // is a `patch_cable_strength::Fixed` on GLOBAL_VOLUME_POST_REVERB_SEND from the SIDECHAIN source.
 // The reverb's recompute its `writeCurrentValue` raises (`sidechain/volume.h:26-29`) is the cable
 // Edit's: SetPatchCable raises it for this cable.
-inline constexpr Node sidechain_volume =
+inline constexpr Node sidechain_volume = with_column_name(
     with_select_chain(custom(sid(deluge::l10n::String::STRING_FOR_VOLUME_DUCKING), &kSidechainVolumeItem),
-                      &patch_cable_strength_chain, kPatchCableStrengthChain);
+                      &patch_cable_strength_chain, kPatchCableStrengthChain),
+    sid(deluge::l10n::String::STRING_FOR_VOLUME_DUCKING_SHORT));
 inline constexpr Node sidechain_sync =
     with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_SYNC), Kind::SyncLevel,
                             {.kind = deluge::scenes::bind::Target::Kind::EFFECT, .path = "sidechain/syncLevel"}),
@@ -85,22 +86,27 @@ inline constexpr Node sidechain_sync =
 // `sidechain::Shape` is an `unpatched_param::UpdatingReverbParams`, not a plain `UnpatchedParam`
 // (`sidechain/shape.h:6`): the reverb recomputes after a write to it (`updating_reverb_params.h:26-29`), which
 // SetParamValue raises for the param.
-inline constexpr Node sidechain_shape =
-    (param(sid(deluge::l10n::String::STRING_FOR_SHAPE),
-           {deluge::modulation::params::Kind::UNPATCHED_SOUND, deluge::modulation::params::UNPATCHED_SIDECHAIN_SHAPE},
-           Hint::Knob, nullptr, sid(deluge::l10n::String::STRING_FOR_SIDECH_SHAPE_MENU_TITLE)));
+inline constexpr Node sidechain_shape = with_column_name(
+    param(sid(deluge::l10n::String::STRING_FOR_SHAPE),
+          {deluge::modulation::params::Kind::UNPATCHED_SOUND, deluge::modulation::params::UNPATCHED_SIDECHAIN_SHAPE},
+          Hint::Knob, nullptr, sid(deluge::l10n::String::STRING_FOR_SIDECH_SHAPE_MENU_TITLE)),
+    sid(deluge::l10n::String::STRING_FOR_SHAPE_SHORT));
 inline constexpr Node sidechain_send =
     with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_SEND_TO_SIDECHAIN), Kind::Int,
                             {.kind = deluge::scenes::bind::Target::Kind::SOUND, .path = "sideChainSend"}, Hint::Bar),
                sid(deluge::l10n::String::STRING_FOR_SEND_TO_SIDECH_MENU_TITLE));
-inline constexpr Node sidechain_attack = with_title(
-    setting_item(sid(deluge::l10n::String::STRING_FOR_ATTACK), Kind::Int,
-                 {.kind = deluge::scenes::bind::Target::Kind::EFFECT, .path = "sidechain/attack"}, Hint::Attack),
-    sid(deluge::l10n::String::STRING_FOR_SIDECH_ATTACK_MENU_TITLE));
-inline constexpr Node sidechain_release = with_title(
-    setting_item(sid(deluge::l10n::String::STRING_FOR_RELEASE), Kind::Int,
-                 {.kind = deluge::scenes::bind::Target::Kind::EFFECT, .path = "sidechain/release"}, Hint::Release),
-    sid(deluge::l10n::String::STRING_FOR_SIDECH_RELEASE_MENU_TITLE));
+inline constexpr Node sidechain_attack = with_column_name(
+    with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_ATTACK), Kind::Int,
+                            {.kind = deluge::scenes::bind::Target::Kind::EFFECT, .path = "sidechain/attack"},
+                            Hint::Attack),
+               sid(deluge::l10n::String::STRING_FOR_SIDECH_ATTACK_MENU_TITLE)),
+    sid(deluge::l10n::String::STRING_FOR_ATTACK_SHORT));
+inline constexpr Node sidechain_release = with_column_name(
+    with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_RELEASE), Kind::Int,
+                            {.kind = deluge::scenes::bind::Target::Kind::EFFECT, .path = "sidechain/release"},
+                            Hint::Release),
+               sid(deluge::l10n::String::STRING_FOR_SIDECH_RELEASE_MENU_TITLE)),
+    sid(deluge::l10n::String::STRING_FOR_RELEASE_SHORT));
 
 inline constexpr const Node* kSidechainChildren[] = {&sidechain_volume, &sidechain_sync,   &sidechain_shape,
                                                      &sidechain_send,   &sidechain_attack, &sidechain_release};

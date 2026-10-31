@@ -334,8 +334,8 @@ std::string_view node_text(uint16_t string_id, const Node& node, const MenuConte
 void MenuScene::open(const Node& root, const MenuContext& ctx) {
 	ctx_ = ctx;
 	st_ = MenuState{};
-	close_requested_ = false;
 	use_up_select_ = true;
+	learn_mode_ = false;
 	landing_column_ = nullptr;
 	retarget(root);
 }
@@ -363,6 +363,8 @@ std::span<const Node* const> MenuScene::roots() {
 }
 
 void MenuScene::retarget(const Node& node) {
+	// A re-rooted menu is not the one a pending close was asked for.
+	close_requested_ = false;
 	st_.path[0] = &node;
 	for (uint8_t i = 1; i < kMenuDepth; i++) {
 		st_.path[i] = nullptr;
@@ -430,7 +432,7 @@ void MenuScene::forget_rows() {
 	for (RememberedRow& row : remembered_) {
 		row = RememberedRow{};
 	}
-	remembered_next_ = 0;
+	remembered_clock_ = 0;
 }
 
 void MenuScene::remember_path() {
@@ -444,18 +446,18 @@ void MenuScene::remember_path() {
 		if (child == nullptr) {
 			continue;
 		}
-		RememberedRow* slot = nullptr;
+		// The submenu's own entry, else an empty one, else the least recently recorded.
+		RememberedRow* slot = &remembered_[0];
 		for (RememberedRow& row : remembered_) {
 			if (row.submenu == node) {
 				slot = &row;
 				break;
 			}
+			if (row.recorded < slot->recorded) {
+				slot = &row;
+			}
 		}
-		if (slot == nullptr) {
-			slot = &remembered_[remembered_next_];
-			remembered_next_ = (remembered_next_ + 1) % kRememberedRows;
-		}
-		*slot = RememberedRow{.submenu = node, .child = child};
+		*slot = RememberedRow{.submenu = node, .child = child, .recorded = ++remembered_clock_};
 	}
 }
 
@@ -725,6 +727,20 @@ std::optional<deluge::project::ParamTarget> MenuScene::learn_target() const {
 // `ShellHostUI`'s two `UI` overrides, through `gui/ui/shell_guest_services.h` -- and could not wire
 // `learn_cc`, which has no `UI` virtual to override. See `node.h`'s note on the declarations.
 
+bool MenuScene::allows_learn_mode() const {
+	const Node* node = focused();
+	if (node != nullptr && node->kind == Kind::Submenu) {
+		node = selected_child(*node);
+	}
+	if (node == nullptr || node->kind == Kind::Submenu) {
+		return false;
+	}
+	if (node->allows_learn_mode || bindings::learn_target(*node, ctx_).has_value()) {
+		return true;
+	}
+	return node->kind == Kind::Custom && node->custom != nullptr && !node->custom->learn_descriptor(ctx_, st_).isNull();
+}
+
 const CustomItem* MenuScene::focused_custom() const {
 	const Node* node = focused();
 	// A `Kind::Custom` node is the only kind that can carry a learn hook, and `Node::custom` is only
@@ -837,6 +853,14 @@ void present_column(const Node& node, const MenuContext& ctx, int32_t value, Col
                     deluge::ui::oled::Column& col) {
 	col.label = column_label(node, ctx, slot.label_scratch);
 	col.show_label = node.show_column_label;
+	if (node.bind.value_text != nullptr) {
+		// A `getColumnLabel` that depends on the value or the context.
+		const ValueText vt =
+		    node.bind.value_text(ctx, value, ValueTextUse::Label, std::span<char>{slot.label, sizeof(slot.label)});
+		if (!vt.fallback) {
+			col.label = std::string_view{slot.label, std::min(vt.length, sizeof(slot.label))};
+		}
+	}
 
 	const auto draw_art = [&](const deluge::ui::oled::ArtColumn& art) {
 		slot.art = art;
@@ -865,13 +889,27 @@ void present_column(const Node& node, const MenuContext& ctx, int32_t value, Col
 		// `renderInHorizontalMenu` override does for these items.
 		const ValueText vt =
 		    node.bind.value_text(ctx, value, ValueTextUse::Column, std::span<char>{slot.value, sizeof(slot.value)});
-		slot.text =
-		    deluge::ui::oled::TextColumn{.value = std::string_view{slot.value, std::min(vt.length, sizeof(slot.value))},
-		                                 .strikethrough = vt.strikethrough};
-		col.render = deluge::ui::oled::text_column;
-		col.ctx = &slot.text;
-		return;
+		if (!vt.fallback) {
+			slot.text = deluge::ui::oled::TextColumn{
+			    .value = std::string_view{slot.value, std::min(vt.length, sizeof(slot.value))},
+			    .strikethrough = vt.strikethrough};
+			col.render = deluge::ui::oled::text_column;
+			col.ctx = &slot.text;
+			return;
+		}
 	}
+
+	// `Number::renderInHorizontalMenu` (`gui/menu_item/number.cpp:75-102`): the item's rendering style picks the meter,
+	// and a plain number is a `meter_column` with `Hint::None` (`ui/oled/columns.h`'s note on the missing fifth arm).
+	const auto draw_meter = [&] {
+		const IntRange range = bindings::range(node, ctx);
+		slot.meter.hint = node.hint;
+		slot.meter.norm = normalised(value, range);
+		slot.meter.raw = value;
+		slot.meter.raw_max = range.max; // `Hint::Ducking` is the one hint that reads this
+		col.render = deluge::ui::oled::meter_column;
+		col.ctx = &slot.meter;
+	};
 
 	switch (node.kind) {
 	case Kind::Submenu:
@@ -913,8 +951,13 @@ void present_column(const Node& node, const MenuContext& ctx, int32_t value, Col
 		break;
 	}
 	case Kind::Decimal: {
-		// `Decimal::renderInHorizontalMenu` (`gui/menu_item/decimal.cpp:176-191`) keeps three characters of a value
-		// at or below -10.00, which would not fit the column.
+		// `Decimal::renderInHorizontalMenu` (`gui/menu_item/decimal.cpp:176-191`): a rendering style other than NUMBER
+		// draws as `Number` does; a NUMBER keeps three characters of a value at or below -10.00, which would not fit
+		// the column.
+		if (node.hint != Hint::None) {
+			draw_meter();
+			break;
+		}
 		char buf[16];
 		std::string_view text = format_decimal(value, node.bind.decimal_places, buf, sizeof(buf));
 		if (value <= -1000) {
@@ -923,18 +966,9 @@ void present_column(const Node& node, const MenuContext& ctx, int32_t value, Col
 		draw_text(text);
 		break;
 	}
-	default: {
-		// A plain number is a `meter_column` with `Hint::None`, not a `text_column`
-		// (`ui/oled/columns.h`'s note on the missing fifth arm).
-		const IntRange range = bindings::range(node, ctx);
-		slot.meter.hint = node.hint;
-		slot.meter.norm = normalised(value, range);
-		slot.meter.raw = value;
-		slot.meter.raw_max = range.max; // `Hint::Ducking` is the one hint that reads this
-		col.render = deluge::ui::oled::meter_column;
-		col.ctx = &slot.meter;
+	default:
+		draw_meter();
 		break;
-	}
 	}
 }
 
@@ -950,51 +984,64 @@ void MenuScene::notify_column(const Node& column) {
 	// (`shell/notices.h`). It copies into the queue's own slot, so the stack buffers below are
 	// enough.
 	//
-	// (Until note-family Task 8b this was a `Kind::Console` line, joined as "name: value". It drew
-	// at the bottom rather than at the top, and in the application legacy's drain and the shell's
-	// raced for it, so on the ported leg legacy's slot held no `NOTIFICATION` -- which
-	// `View::displayModEncoderValuePopup`'s arbitration keys on, `gui/views/view.cpp:1220`.)
-	//
-	// **`showNotification()`, not "every column".** `displayNotification` itself refuses first
-	// (`horizontal_menu.cpp:336-338`), and `Submenu::showNotification()` is the one override any
-	// ported column kind reaches (`submenu.h:67`) -- `Column::is_submenu` is exactly
-	// `kid.kind == Kind::Submenu` (`render_horizontal`), so this is that same test. Centralised
-	// here rather than at each call site: `handle()`'s new-focus button arm used to call this
-	// unconditionally and light a banner over a submenu column legacy never would.
-	if (column.kind == Kind::Submenu) {
+	// `displayNotification` refuses first when the item's `showNotification()` is false
+	// (`horizontal_menu.cpp:336-338`): every submenu (`submenu.h:69`), and the items `Node::show_notification`
+	// marks. Centralised here, so no call site lights a banner legacy never would.
+	if (column.kind == Kind::Submenu || !column.show_notification) {
 		return;
 	}
-	char value_buf[16];
-	std::string_view value;
-	if (column.bind.value_text != nullptr) {
-		// `Binding::value_text` (spec E-note-family §5.3): legacy's own `getNotificationValue` text
-		// -- `35% ltch`, `OFF`/`CUSTOM`, `FILL` -- in place of `format_int`/`format_decimal`.
-		const ValueText vt = column.bind.value_text(ctx_, bindings::read(column, ctx_), ValueTextUse::Notification,
-		                                            std::span<char>{value_buf, sizeof(value_buf)});
-		value = std::string_view{value_buf, std::min(vt.length, sizeof(value_buf))};
-	}
-	else if (column.kind == Kind::Decimal) {
-		value = format_decimal(bindings::read(column, ctx_), column.bind.decimal_places, value_buf, sizeof(value_buf));
-	}
-	else if (column.kind == Kind::Enum) {
-		// `Selection::getNotificationValue` (`selection.cpp:77-79`): the option's full name.
-		std::array<std::string_view, kMaxDynamicNames> names{};
-		std::array<deluge::ui::shell::TextScratch, kMaxDynamicNames> scratch{};
-		const size_t count = bindings::names(column, ctx_, names, scratch);
-		if (count != 0) {
-			const std::string_view name =
-			    names[static_cast<size_t>(clamp_to(bindings::read(column, ctx_), 0, static_cast<int32_t>(count) - 1))];
-			const size_t copied = std::min(name.size(), sizeof(value_buf));
-			std::memcpy(value_buf, name.data(), copied);
-			value = std::string_view{value_buf, copied};
-		}
-	}
-	else {
-		value = format_int(bindings::read(column, ctx_), value_buf, sizeof(value_buf));
-	}
+	char value_buf[32];
+	const std::string_view text =
+	    column_notification(column, ctx_, bindings::read(column, ctx_), std::span<char>{value_buf, sizeof(value_buf)});
 	NodeText name_scratch;
 	const std::string_view name = node_text(column.name, column, ctx_, name_scratch);
-	deluge::notify::notice_notification(name, value);
+	deluge::notify::notice_notification(name, text);
+}
+
+std::string_view column_notification(const Node& column, const MenuContext& ctx, int32_t value, std::span<char> out) {
+	if (column.bind.value_text != nullptr) {
+		// `Binding::value_text` (spec E-note-family §5.3): the item's own `getNotificationValue`.
+		const ValueText vt = column.bind.value_text(ctx, value, ValueTextUse::Notification, out);
+		if (!vt.fallback) {
+			return std::string_view{out.data(), std::min(vt.length, out.size())};
+		}
+	}
+	const auto copy = [&](std::string_view from) {
+		const size_t copied = std::min(from.size(), out.size());
+		std::memcpy(out.data(), from.data(), copied);
+		return std::string_view{out.data(), copied};
+	};
+	switch (column.kind) {
+	case Kind::Decimal:
+		// `Decimal::getNotificationValue` (`decimal.h:31-33`).
+		return format_decimal(value, column.bind.decimal_places, out.data(), out.size());
+	case Kind::Enum: {
+		// `Selection::getNotificationValue` (`selection.cpp:62-64`): the option's full name.
+		std::array<std::string_view, kMaxDynamicNames> names{};
+		std::array<deluge::ui::shell::TextScratch, kMaxDynamicNames> scratch{};
+		const size_t count = bindings::names(column, ctx, names, scratch);
+		if (count == 0) {
+			return {};
+		}
+		return copy(names[static_cast<size_t>(clamp_to(value, 0, static_cast<int32_t>(count) - 1))]);
+	}
+	case Kind::SyncLevel: {
+		// `Enumeration::getNotificationValue` is `getShortOption` (`enumeration.h:25`), which `SyncLevel` spells as
+		// the note length, or OFF (`sync_level.cpp:83-91`).
+		if (value == 0) {
+			return copy(deluge::l10n::getView(deluge::l10n::String::STRING_FOR_OFF));
+		}
+		etl::string<30> length;
+		syncValueToString(static_cast<uint32_t>(value), length, input_tick_magnitude(ctx));
+		return copy(std::string_view{length.data(), length.size()});
+	}
+	case Kind::Toggle:
+		// `Toggle` has no `getNotificationValue`, so the base class's empty one stands (`menu_item.h:324`).
+		return {};
+	default:
+		// `Number::getNotificationValue` (`number.cpp:429-431`): the value, doubled for the PERCENT style.
+		return format_int(column.hint == Hint::Percent ? value * 2 : value, out.data(), out.size());
+	}
 }
 
 bool MenuScene::enter_range_picker_if_needed(const Node& child, bool suppress_when_allowed) {
@@ -1783,7 +1830,11 @@ MenuActionRequest MenuScene::take_action() {
 
 Result MenuScene::after_render() {
 	Result r;
-	if (std::exchange(use_up_select_, false) || (st_.value_changed && select_held_)) {
+	// A `Value`-derived bespoke item's cursor moved under a held Select is a value edited under it.
+	const Node* const shown = focused();
+	const bool value_turned = shown != nullptr && shown->kind == Kind::Custom && shown->custom != nullptr
+	                          && shown->custom->is_value() && st_.render_resp.changed;
+	if (std::exchange(use_up_select_, false) || ((st_.value_changed || value_turned) && select_held_)) {
 		(void)r.actions.push_back(Action{.kind = Action::Kind::UseUpSelect});
 	}
 	if (close_requested_) {
@@ -2069,6 +2120,14 @@ Result MenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 	// `bindings::write` is the only reader.
 	ctx_.affect_entire_held = ctx.held.has(ButtonId::AffectEntire);
 	ctx_.addresses.affect_entire = bindings::writes_whole_kit(ctx_);
+
+	// `SoundEditor::buttonAction`'s LEARN arm (`sound_editor.cpp:716-745`): learn mode starts on a press with no UI
+	// mode on (a held pad is legacy's auditioning or notes-pressed mode, a kit-wide AFFECT ENTIRE hold its own) and
+	// Shift up, on an item that allows learn, and ends on the release. Observed only: the event goes on as before.
+	if (event.kind == UiEvent::Kind::Button && event.button == ButtonId::Learn) {
+		const bool pad_held = std::ranges::any_of(ctx.held_pads.cols, [](uint32_t col) { return col != 0; });
+		learn_mode_ = event.on && !ctx.shift && !pad_held && !ctx_.addresses.affect_entire && allows_learn_mode();
+	}
 
 	// A custom item owns its input while it is focused: it sees every event first and, if it
 	// consumes it, the scene does nothing else this call -- the same precedence legacy gives a
@@ -2452,9 +2511,9 @@ bool MenuScene::go_up_one_level() {
 		return false; // `sound_editor.cpp:715-717`, on the loop's first pass
 	}
 	ascend();
-	// `:715-717` on a later pass: `ascend()` stepped down to depth 0 and `:720-722` refused that level
-	// too, so its loop came round to depth 0 again and returned without landing.
-	return !(st_.depth == 0 && st_.path[0] != nullptr && permission_for(*st_.path[0], ctx_) == Permission::No);
+	// `:715-717` on a later pass: `ascend()` stepped down to depth 0 and `:720-722` refused that level too, so it
+	// asked for the close. The caller closes the editor itself, so the request is taken back here.
+	return !std::exchange(close_requested_, false);
 }
 
 void MenuScene::enter_submenu(const Node& node) {

@@ -179,6 +179,18 @@ std::optional<int32_t> stored(const deluge::scenes::bind::Target& target, const 
 	return deluge::scenes::bind::SlotReader{*ctx.model, *ctx.addresses.slot, *ctx.facts}.read(target.path);
 }
 
+std::optional<int32_t> listed_choice(const Node& node, const MenuContext& ctx, int32_t value) {
+	if (!node.bind.target.valid() || ctx.model == nullptr || ctx.facts == nullptr) {
+		return std::nullopt;
+	}
+	const std::optional<deluge::scenes::bind::WriteRequest> request =
+	    deluge::scenes::bind::request_for(node.bind.target, *ctx.model, ctx.addresses, *ctx.facts, value);
+	if (!request) {
+		return std::nullopt;
+	}
+	return request->menu_value;
+}
+
 int32_t read(const Node& node, const MenuContext& ctx) {
 	const Binding& bind = node.bind;
 

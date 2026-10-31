@@ -34,9 +34,12 @@ public:
 		return next_result;
 	}
 
+	bool select_acts_on_release() const override { return acts_on_release; }
+
 	Result next_result = Result::unhandled();
 	int calls = 0;
 	bool last_shift = false;
+	bool acts_on_release = false;
 
 private:
 	SceneKind kind_;
@@ -358,6 +361,40 @@ describe shell_router("shell::Router", $ {
 		r.router.route(button_event(ButtonId::Back, true), make_ctx(r.lowering));
 		expect(r.stack.depth()).to_equal(size_t(1));
 		expect(r.stack.top().kind() == kB).to_be_true();
+	});
+
+	it("a scene that acts on Select's release uses the held press up the moment it takes the input", _ {
+		// `SoundEditor::opened` / `focusRegained` set `selectButtonPressUsedUp` then and there
+		// (`sound_editor.cpp:513-516`, `:531-533`), so a release later in the same tick does not act.
+		Rig r;
+		r.scene_a.acts_on_release = true;
+		expect(r.stack.push({kB})).to_be_true();
+		r.lowering.on_board_event(board_button(4, 3, true), 10); // SelectEnc
+		expect(r.lowering.press_used_up(ButtonId::SelectEnc)).to_be_false();
+
+		Action pop;
+		pop.kind = Action::Kind::Pop;
+		Result res;
+		res.handled = true;
+		res.actions.push_back(pop);
+		r.scene_b.next_result = res;
+		r.router.route(button_event(ButtonId::Back, true), make_ctx(r.lowering));
+		expect(r.stack.top().kind() == kA).to_be_true();
+		expect(r.lowering.press_used_up(ButtonId::SelectEnc)).to_be_true();
+	});
+
+	it("a scene that acts on Select's press leaves the held press alone when it takes the input", _ {
+		Rig r;
+		expect(r.stack.push({kB})).to_be_true();
+		r.lowering.on_board_event(board_button(4, 3, true), 10); // SelectEnc
+		Action pop;
+		pop.kind = Action::Kind::Pop;
+		Result res;
+		res.handled = true;
+		res.actions.push_back(pop);
+		r.scene_b.next_result = res;
+		r.router.route(button_event(ButtonId::Back, true), make_ctx(r.lowering));
+		expect(r.lowering.press_used_up(ButtonId::SelectEnc)).to_be_false();
 	});
 
 	it("a Remove action excises only the named kind, leaving an overlay above it in place", _ {

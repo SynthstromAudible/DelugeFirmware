@@ -541,9 +541,9 @@ inline constexpr IntRange kFollowChannelRange{0, NUM_CHANNELS, 1};
 /// One follow-channel node. `n` is the `MIDIFollowChannelType` enumerator's value
 /// (`definitions_cxx.hpp:609-631`: A = 0, B = 1, C = 2, Track1 = 3 .. Track16 = 18).
 #define DELUGE_FOLLOW_CHANNEL(node_name, n, name_id)                                                                   \
-	inline constexpr Node node_name = with_title_arg(                                                                  \
+	inline constexpr Node node_name = with_learn_mode(with_title_arg(                                                  \
 	    int_item(sid(String::name_id), get_follow_channel<(n)>, set_follow_channel<(n)>, kFollowChannelRange),         \
-	    (n) >= 3 ? (n) - 2 : 0)
+	    (n) >= 3 ? (n) - 2 : 0))
 
 DELUGE_FOLLOW_CHANNEL(midi_follow_channel_a, 0, STRING_FOR_FOLLOW_CHANNEL_A);
 DELUGE_FOLLOW_CHANNEL(midi_follow_channel_b, 1, STRING_FOR_FOLLOW_CHANNEL_B);
@@ -575,8 +575,8 @@ inline constexpr const Node* kMidiFollowChannelChildren[] = {
 inline constexpr Node midi_follow_channel = submenu(sid(String::STRING_FOR_CHANNEL), kMidiFollowChannelChildren);
 
 inline constexpr Node midi_follow_kit_root_note =
-    int_item(sid(String::STRING_FOR_FOLLOW_KIT_ROOT_NOTE), get_follow_kit_root_note, set_follow_kit_root_note,
-             IntRange{0, kMaxMIDIValue, 1});
+    with_learn_mode(int_item(sid(String::STRING_FOR_FOLLOW_KIT_ROOT_NOTE), get_follow_kit_root_note,
+                             set_follow_kit_root_note, IntRange{0, kMaxMIDIValue, 1}));
 
 /// `FollowFeedbackChannelType::getOptions` (`midi/follow/follow_feedback_channel_type.h:24-42`)
 /// builds three of its eight labels at run time ("Track + A", ...), so the list is dynamic.
@@ -625,20 +625,25 @@ inline constexpr Node midi_takeover =
 /// `MidiCommandItem` (E2 task 8, `nodes/midi_command.h`) -- one per learnable `GlobalMIDICommand`.
 /// The order is `midiCommandsMenu`'s own (`menus.cpp:1430-1436`), which is NOT the enum's order.
 /// @{
-inline constexpr Node midi_command_play = custom(sid(String::STRING_FOR_PLAY), &kMidiCommandPlayItem);
-inline constexpr Node midi_command_restart = custom(sid(String::STRING_FOR_RESTART), &kMidiCommandRestartItem);
-inline constexpr Node midi_command_record = custom(sid(String::STRING_FOR_RECORD), &kMidiCommandRecordItem);
-inline constexpr Node midi_command_tap = custom(sid(String::STRING_FOR_TAP_TEMPO), &kMidiCommandTapItem);
-inline constexpr Node midi_command_undo = custom(sid(String::STRING_FOR_UNDO), &kMidiCommandUndoItem);
-inline constexpr Node midi_command_redo = custom(sid(String::STRING_FOR_REDO), &kMidiCommandRedoItem);
-inline constexpr Node midi_command_loop = custom(sid(String::STRING_FOR_LOOP), &kMidiCommandLoopItem);
+inline constexpr Node midi_command_play = with_learn_mode(custom(sid(String::STRING_FOR_PLAY), &kMidiCommandPlayItem));
+inline constexpr Node midi_command_restart =
+    with_learn_mode(custom(sid(String::STRING_FOR_RESTART), &kMidiCommandRestartItem));
+inline constexpr Node midi_command_record =
+    with_learn_mode(custom(sid(String::STRING_FOR_RECORD), &kMidiCommandRecordItem));
+inline constexpr Node midi_command_tap =
+    with_learn_mode(custom(sid(String::STRING_FOR_TAP_TEMPO), &kMidiCommandTapItem));
+inline constexpr Node midi_command_undo = with_learn_mode(custom(sid(String::STRING_FOR_UNDO), &kMidiCommandUndoItem));
+inline constexpr Node midi_command_redo = with_learn_mode(custom(sid(String::STRING_FOR_REDO), &kMidiCommandRedoItem));
+inline constexpr Node midi_command_loop = with_learn_mode(custom(sid(String::STRING_FOR_LOOP), &kMidiCommandLoopItem));
 inline constexpr Node midi_command_layering_loop =
-    custom(sid(String::STRING_FOR_LAYERING_LOOP), &kMidiCommandLayeringLoopItem);
-inline constexpr Node midi_command_fill = custom(sid(String::STRING_FOR_FILL), &kMidiCommandFillItem);
-inline constexpr Node midi_command_transpose = custom(sid(String::STRING_FOR_TRANSPOSE), &kMidiCommandTransposeItem);
+    with_learn_mode(custom(sid(String::STRING_FOR_LAYERING_LOOP), &kMidiCommandLayeringLoopItem));
+inline constexpr Node midi_command_fill = with_learn_mode(custom(sid(String::STRING_FOR_FILL), &kMidiCommandFillItem));
+inline constexpr Node midi_command_transpose =
+    with_learn_mode(custom(sid(String::STRING_FOR_TRANSPOSE), &kMidiCommandTransposeItem));
 inline constexpr Node midi_command_next_song =
-    custom(sid(String::STRING_FOR_SONG_LOAD_NEXT), &kMidiCommandNextSongItem);
-inline constexpr Node midi_command_shift = custom(sid(String::STRING_FOR_SHIFT), &kMidiCommandShiftItem);
+    with_learn_mode(custom(sid(String::STRING_FOR_SONG_LOAD_NEXT), &kMidiCommandNextSongItem));
+inline constexpr Node midi_command_shift =
+    with_learn_mode(custom(sid(String::STRING_FOR_SHIFT), &kMidiCommandShiftItem));
 /// @}
 
 inline constexpr const Node* kMidiCommandsChildren[] = {

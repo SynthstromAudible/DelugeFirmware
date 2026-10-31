@@ -126,6 +126,8 @@ public:
 /// their choice lands in, so one parameterised class covers both (the `MidiCommandItem` shape).
 class SourceSelectionItem final : public CustomItem {
 public:
+	/// @brief True: the legacy item is a `Value` (`CustomItem::is_value`).
+	bool is_value() const override { return true; }
 	enum class Which : uint8_t {
 		/// `source_selection::regularMenu`: picks the cable's own source. Destination is the bare
 		/// param (`source_selection/regular.cpp:26-30`).
@@ -157,6 +159,8 @@ private:
 /// `on_focus` does here.
 class PatchCableStrengthItem final : public CustomItem {
 public:
+	/// @brief True: the legacy item is a `Value` (`CustomItem::is_value`).
+	bool is_value() const override { return true; }
 	enum class Which : uint8_t { Regular, Range, Fixed };
 
 	/// @param which        Which of the three legacy classes this instance is.

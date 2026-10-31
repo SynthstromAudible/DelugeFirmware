@@ -197,21 +197,20 @@ struct UiContext {
 /// applies it, so navigation is testable without a shell and one scene cannot re-enter another
 /// mid-event. `kind` says which fields carry meaning.
 ///
+// clang-format off
 /// | `kind` | valid fields | effect |
 /// |---|---|---|
 /// | `Push` | `id` | `SceneStack::push(id)` |
 /// | `Replace` | `id` | `SceneStack::replace_top(id)` -- the sideways move, **not** the root |
 /// | `ReplaceRoot` | `id` | `SceneStack::replace_root(id)` |
 /// | `Pop` | `pop_to` | `SceneStack::pop(pop_to)`; `SceneKind::Null` means "just the top" |
-/// | `Remove` | `pop_to` | `SceneStack::remove(pop_to)` -- excise that one scene, wherever it sits, and leave
-/// everything else (above and below it) exactly where it was |
+/// | `Remove` | `pop_to` | `SceneStack::remove(pop_to)` -- excise that one scene, wherever it sits, and leave everything else (above and below it) exactly where it was |
 /// | `Popup` | `popup_string`, `popup_type`, `surface` | show a message, resolved through `BoardProfile::text` |
-/// | `Repaint` | `surface` | invalidate that surface for the next tick; `SurfaceRole::None` is a no-op ("no surface,
-/// never matches", `surfaces.h`) | | `RepaintAll` | none | invalidate every surface for the next tick, **the grid
-/// included** (`Router::grid_repaint_requested()` -- and that is the only way to reach the grid, since `SurfaceRole`
-/// names OLED panels only) | | `LockInput` |
-/// `lock` | take or release the input lock (the stem-export / song-load gate -- read the warning below
-/// before using it) |
+/// | `Repaint` | `surface` | invalidate that surface for the next tick; `SurfaceRole::None` is a no-op ("no surface, never matches", `surfaces.h`) |
+/// | `RepaintAll` | none | invalidate every surface for the next tick, **the grid included** (`Router::grid_repaint_requested()` -- the only way to reach the grid, since `SurfaceRole` names OLED panels only) |
+/// | `LockInput` | `lock` | take or release the input lock (the stem-export / song-load gate -- read the warning below before using it) |
+/// | `UseUpSelect` | none | mark Select's current press used up, so its release does not act (`InputLowering::mark_press_used_up`) |
+// clang-format on
 ///
 /// @warning **`LockInput` is not scene-scoped, and a scene cannot release it from `on_exit`.**
 ///          It sets one bare global bool (`InputLowering::set_input_lock`, `input_lowering.h`) with
@@ -516,6 +515,13 @@ public:
 	/// every other UI acts on the press.
 	/// @return True for the release; false (the default) for the press.
 	virtual bool select_acts_on_release() const { return false; }
+	/// @brief Is the scene in a mode in which Select's release does nothing?
+	///
+	/// Legacy's sound editor acts on the release only in its ordinary modes (`SoundEditor::buttonAction`,
+	/// `sound_editor.cpp:609-614`); MIDI learn, which it enters itself, is not one of them. Read with
+	/// `select_acts_on_release`.
+	/// @return True while the release is refused; false (the default) otherwise.
+	virtual bool select_release_blocked() const { return false; }
 	/// @brief Which grid pads this scene consumes.
 	///
 	/// The rest are forwarded to the legacy root view by `gui/ui/shell_pad_forward.cpp`, as

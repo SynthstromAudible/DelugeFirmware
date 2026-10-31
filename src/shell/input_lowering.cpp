@@ -295,7 +295,7 @@ void InputLowering::on_button(ButtonId b, bool on, uint32_t now_ms) {
 	if (on && b == ButtonId::SelectEnc) {
 		select_edge_ = true;
 	}
-	if (!on && b == ButtonId::SelectEnc && !used_up_.has(b) && !held_.has(ButtonId::Learn)) {
+	if (!on && b == ButtonId::SelectEnc && !used_up_.has(b)) {
 		select_release_edge_ = true;
 	}
 	if (on && b == ButtonId::Back) {

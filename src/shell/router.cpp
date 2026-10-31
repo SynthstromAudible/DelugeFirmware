@@ -148,6 +148,7 @@ bool Router::route_post_render(const UiEvent& event, const UiContext& ctx, const
 }
 
 void Router::apply(const Result& result) {
+	const Scene* const input_top_before = &stack_.input_top();
 	for (const Action& action : result.actions) {
 		switch (action.kind) {
 		case Action::Kind::Push:
@@ -193,6 +194,12 @@ void Router::apply(const Result& result) {
 			lowering_.mark_press_used_up(ButtonId::SelectEnc);
 			break;
 		}
+	}
+	// A scene that acts on Select's release and has just taken the input -- opened, or returned to -- uses the current
+	// press up now, before another event of this tick can release it: legacy's `SoundEditor::opened` and
+	// `focusRegained` set `Buttons::selectButtonPressUsedUp` at that moment (`sound_editor.cpp:513-516`, `:531-533`).
+	if (Scene& top = stack_.input_top(); &top != input_top_before && top.select_acts_on_release()) {
+		lowering_.mark_press_used_up(ButtonId::SelectEnc);
 	}
 }
 

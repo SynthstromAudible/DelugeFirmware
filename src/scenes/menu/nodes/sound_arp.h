@@ -60,6 +60,7 @@
 ///       art the toolkit has no meter for.
 
 #include "scenes/menu/node.h"
+#include "scenes/menu/nodes/column_hooks.h"
 #include "scenes/menu/nodes/detail.h"
 #include "scenes/menu/nodes/param_shows.h"
 #include "scenes/menu/nodes/patch_cables.h" // with_patch_chain -- every PATCHED param chains
@@ -186,8 +187,9 @@ inline std::optional<deluge::ui::oled::ArtColumn> arp_preset_art(const MenuConte
 	namespace icons = deluge::gfx::oled::icons;
 	switch (static_cast<ArpPreset>(value)) {
 	case ArpPreset::OFF:
-		return deluge::ui::oled::ArtColumn{
-		    .text = deluge::l10n::getView(deluge::l10n::String::STRING_FOR_OFF), .title_face = true, .dy = 5};
+		return deluge::ui::oled::ArtColumn{.text = deluge::l10n::getView(deluge::l10n::String::STRING_FOR_OFF),
+		                                   .face = deluge::ui::oled::ArtColumn::Face::Title,
+		                                   .dy = 5};
 	case ArpPreset::DOWN:
 		return deluge::ui::oled::ArtColumn{.icon = &icons::arpModeUp, .reversed = true, .dy = 1};
 	case ArpPreset::BOTH:
@@ -266,14 +268,17 @@ inline constexpr Node arp_rhythm_midi =
                                                                arp_row("arpeggiator/rhythm", false)),
                                                   sid(deluge::l10n::String::STRING_FOR_ARP_RHYTHM_MENU_TITLE)),
                                        2));
-inline constexpr Node arp_sequence_length = with_short_column_label(param(
-    sid(deluge::l10n::String::STRING_FOR_SEQUENCE_LENGTH),
-    {deluge::modulation::params::Kind::UNPATCHED_SOUND, deluge::modulation::params::UNPATCHED_ARP_SEQUENCE_LENGTH},
-    Hint::None, ParamShows{}, sid(deluge::l10n::String::STRING_FOR_ARP_SEQUENCE_LENGTH_MENU_TITLE)));
-inline constexpr Node arp_sequence_length_midi =
+inline constexpr Node arp_sequence_length = with_value_text(
+    with_short_column_label(param(
+        sid(deluge::l10n::String::STRING_FOR_SEQUENCE_LENGTH),
+        {deluge::modulation::params::Kind::UNPATCHED_SOUND, deluge::modulation::params::UNPATCHED_ARP_SEQUENCE_LENGTH},
+        Hint::None, ParamShows{}, sid(deluge::l10n::String::STRING_FOR_ARP_SEQUENCE_LENGTH_MENU_TITLE))),
+    off_at_zero_text);
+inline constexpr Node arp_sequence_length_midi = with_value_text(
     with_short_column_label(with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_SEQUENCE_LENGTH), Kind::Int,
                                                     arp_row("arpeggiator/sequenceLength", false)),
-                                       sid(deluge::l10n::String::STRING_FOR_ARP_SEQUENCE_LENGTH_MENU_TITLE)));
+                                       sid(deluge::l10n::String::STRING_FOR_ARP_SEQUENCE_LENGTH_MENU_TITLE))),
+    off_at_zero_text);
 
 inline constexpr const Node* kArpPatternChildren[] = {
     &arp_octaves,         &arp_step_repeat, &arp_octave_mode, &arp_note_mode,       &arp_note_mode_drums,

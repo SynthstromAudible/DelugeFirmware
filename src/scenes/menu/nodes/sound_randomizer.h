@@ -60,6 +60,7 @@
 ///       `node.h`'s doc.
 
 #include "scenes/menu/node.h"
+#include "scenes/menu/nodes/column_hooks.h"
 #include "scenes/menu/nodes/detail.h"
 #include "scenes/menu/nodes/param_shows.h"
 #include "scenes/menu/nodes/sound_arp.h" // arp_row
@@ -87,10 +88,12 @@ namespace deluge::scenes::menu::nodes {
 	          {deluge::modulation::params::Kind::UNPATCHED_SOUND, deluge::modulation::params::param_id}, hint, rel,    \
 	          sid(deluge::l10n::String::title_id)))
 
-inline constexpr Node randomizer_lock = with_short_column_label(
-    with_selection_is_toggle(with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_RANDOMIZER_LOCK), Kind::Enum,
-                                                     arp_row("arpeggiator/randomizerLock")),
-                                        sid(deluge::l10n::String::STRING_FOR_ARP_RANDOMIZER_LOCK_TITLE))));
+inline constexpr Node randomizer_lock =
+    with_column_art(with_short_column_label(with_selection_is_toggle(
+                        with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_RANDOMIZER_LOCK), Kind::Enum,
+                                                arp_row("arpeggiator/randomizerLock")),
+                                   sid(deluge::l10n::String::STRING_FOR_ARP_RANDOMIZER_LOCK_TITLE)))),
+                    lock_art);
 
 // `RandomizerUnpatchedParam::isRelevant` (`randomizer_unpatched_param.h:31-42`) -- the non-global
 // ids need the arpeggiator on, the three global ones do not.

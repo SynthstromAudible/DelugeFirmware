@@ -36,8 +36,9 @@
 ///       title are both `STRING_FOR_LPF_MORPH` (`g_menus.inc:5`). `g_menus.inc` is what the firmware
 ///       ships, so that is what is transcribed. Legacy then overrides `getName()`/`getTitle()` to
 ///       return the *filter mode's* morph name instead (`filter/param.h:40-41` ->
-///       `FilterInfo::getMorphNameOr`, `filter/info.h:78-89`) -- a dynamic name a `Node` has no
-///       field for. Recorded as a known gap; E2's dynamic-label work is where it lands.
+///       `FilterInfo::getMorphNameOr`, `filter/info.h:78-89`), and its column label to the short
+///       morph name (`filter/param.h:47-49`). Neither is carried yet: the morph columns show the
+///       static name.
 ///
 /// @note **`Node::hint` on the four `FilterParam`s is `Bar`, not `Knob`.** `FilterParam` inherits
 ///       `getRenderingStyle() == KNOB` (`gui/menu_item/number.h:48`) but overrides
@@ -46,11 +47,9 @@
 ///       is the fact the toolkit needs; the mode-dependent slider is dynamic and has no `Node`
 ///       spelling, so MORPH takes `Bar` too.
 ///
-/// @note **`showColumnLabel()`/`showNotification()` have no `Node` spelling.** `FilterRouting`
-///       returns false for both (`filter_route.h:63-64`); so do `unison::Count` (`count.h:66`),
-///       `osc::Type` (`osc/type.h:127`) and `osc::AudioRecorder` (`audio_recorder.h:78-79`). Unlike
-///       `getOccupiedSlots()` (which `Node::slots` carries), there is no field for them, so the four
-///       overrides are dropped for now and recorded here and in the task-6 report's gap list.
+/// @note **`FilterRouting` draws no label and raises no notification**: its `showColumnLabel()` and
+///       `showNotification()` are false (`filter_route.h:72-73`), so `filter_routing` is
+///       `without_column_label` and `without_notification`.
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/detail.h"
@@ -108,12 +107,12 @@ inline constexpr Node hpf = submenu(sid(deluge::l10n::String::STRING_FOR_HPF), k
 /// Four slots wide -- `FilterRouting::getOccupiedSlots()` (`filter_route.h:62`), which draws the
 /// whole page rather than one column. Affect-entire routes only the drums with both filters on
 /// (`filter_route.h:49-50`).
-inline constexpr Node filter_routing =
-    with_slots(setting_item(sid(deluge::l10n::String::STRING_FOR_FILTER_ROUTE), Kind::Enum,
-                            {.kind = deluge::scenes::bind::Target::Kind::EFFECT,
-                             .path = "filterRoute",
-                             .fan_out_when = fan_out::kBothFilters}),
-               4);
+inline constexpr Node filter_routing = without_notification(
+    without_column_label(with_slots(setting_item(sid(deluge::l10n::String::STRING_FOR_FILTER_ROUTE), Kind::Enum,
+                                                 {.kind = deluge::scenes::bind::Target::Kind::EFFECT,
+                                                  .path = "filterRoute",
+                                                  .fan_out_when = fan_out::kBothFilters}),
+                                    4)));
 
 inline constexpr const Node* kFiltersChildren[] = {&lpf, &hpf, &filter_routing};
 inline constexpr Node sound_filters = submenu(sid(deluge::l10n::String::STRING_FOR_FILTERS), kFiltersChildren);

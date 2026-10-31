@@ -62,18 +62,20 @@ inline constexpr Node comp_blend =
                                                 .path = "audioCompressor/compBlend"}),
                                   0),
               Hint::Knob);
-inline constexpr Node comp_attack =
+inline constexpr Node comp_attack = with_column_name(
     with_hint(with_decimal_places(
                   setting_item(sid(deluge::l10n::String::STRING_FOR_ATTACK), Kind::Decimal,
                                {.kind = deluge::scenes::bind::Target::Kind::EFFECT, .path = "audioCompressor/attack"}),
                   2),
-              Hint::Attack);
-inline constexpr Node comp_release =
+              Hint::Attack),
+    sid(deluge::l10n::String::STRING_FOR_ATTACK_SHORT));
+inline constexpr Node comp_release = with_column_name(
     with_hint(with_decimal_places(
                   setting_item(sid(deluge::l10n::String::STRING_FOR_RELEASE), Kind::Decimal,
                                {.kind = deluge::scenes::bind::Target::Kind::EFFECT, .path = "audioCompressor/release"}),
                   1),
-              Hint::Release);
+              Hint::Release),
+    sid(deluge::l10n::String::STRING_FOR_RELEASE_SHORT));
 inline constexpr Node comp_hpf =
     with_hint(with_decimal_places(
                   setting_item(sid(deluge::l10n::String::STRING_FOR_HPF), Kind::Decimal,

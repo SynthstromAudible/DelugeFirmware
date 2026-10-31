@@ -429,7 +429,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		expect(col.show_label).to_equal(false);
 		expect(col.render == deluge::ui::oled::art_column).to_equal(true);
 		expect(std::string(slot.art.text)).to_equal(std::string(deluge::l10n::get(String::STRING_FOR_OFF)));
-		expect(slot.art.title_face).to_equal(true);
+		expect(slot.art.face == deluge::ui::oled::ArtColumn::Face::Title).to_equal(true);
 
 		menu::present_column(menu::nodes::arp_preset, ctx, static_cast<int32_t>(ArpPreset::RANDOM), slot, col);
 		expect(slot.art.icon == &deluge::gfx::oled::icons::dice).to_equal(true);
@@ -463,7 +463,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		menu::present_column(menu::nodes::arp_sync, ctx, 0, slot, col);
 		expect(std::string(col.label)).to_equal(std::string(deluge::l10n::get(String::STRING_FOR_SYNC)));
 		expect(std::string(slot.art.text)).to_equal(std::string(deluge::l10n::get(String::STRING_FOR_OFF)));
-		expect(slot.art.title_face).to_equal(false);
+		expect(slot.art.face == deluge::ui::oled::ArtColumn::Face::Row).to_equal(true);
 
 		const int32_t sixteenth = static_cast<int32_t>(SYNC_LEVEL_16TH); // an even sync's option is its level
 		menu::present_column(menu::nodes::arp_sync, ctx, sixteenth, slot, col);
@@ -485,6 +485,102 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		expect(slot.art.icon == &deluge::gfx::oled::icons::infinity).to_equal(true);
 		menu::present_column(menu::nodes::voice_count, ctx, 8, slot, col);
 		expect(col.render == deluge::ui::oled::meter_column).to_equal(true);
+	});
+
+	it("a column whose legacy item names its own label draws main's short name", _ {
+		// `VoiceCount`, `delay::Amount`, `RetriggerPhase` and the compressor's `Attack` override `getColumnLabel`
+		// (`voice/polyphony.h:85-87`, `delay/amount.h:60-62`, `osc/retrigger_phase.h:125-127`,
+		// `audio_compressor/compressor_values.h:76-78`).
+		select_language();
+		Rig r;
+		const MenuContext ctx = r.open(horiz_page);
+		menu::ColumnSlot slot;
+		deluge::ui::oled::Column col;
+		const auto label_of = [&](const Node& node, int32_t value) {
+			menu::present_column(node, ctx, value, slot, col);
+			return std::string(col.label);
+		};
+		expect(label_of(nodes::voice_count, 8)).to_equal(std::string(deluge::l10n::get(String::STRING_FOR_MAX_VOICES_SHORT)));
+		expect(label_of(nodes::delay_amount, 20)).to_equal(std::string(deluge::l10n::get(String::STRING_FOR_AMOUNT_SHORT)));
+		expect(label_of(nodes::osc0_phase, 0)).to_equal(std::string(deluge::l10n::get(String::STRING_FOR_RETRIGGER_PHASE_SHORT)));
+		expect(label_of(nodes::comp_attack, 0)).to_equal(std::string(deluge::l10n::get(String::STRING_FOR_ATTACK_SHORT)));
+	});
+
+	it("the columns main draws without a label draw none", _ {
+		// `showColumnLabel()` is false on `osc::Type`, `lfo::Type`, `mod_fx::Type`, `FilterRouting`, `unison::Count`
+		// and `osc::AudioRecorder` (`osc/type.h:110`, `lfo/type.h:75`, `mod_fx/type.h:71`, `filter_route.h:72`,
+		// `unison/count.h:60`, `osc/audio_recorder.h:76`).
+		select_language();
+		Rig r;
+		const MenuContext ctx = r.open(horiz_page);
+		menu::ColumnSlot slot;
+		deluge::ui::oled::Column col;
+		for (const Node* node : {&nodes::osc0_type, &nodes::lfo1_type, &nodes::mod_fx_type, &nodes::filter_routing,
+		                         &nodes::unison_count, &nodes::sample0_recorder}) {
+			col = deluge::ui::oled::Column{};
+			menu::present_column(*node, ctx, 0, slot, col);
+			expect(col.show_label).to_equal(false);
+		}
+	});
+
+	it("an LFO's shape column draws the shape's icon, and a sample's reverse column the direction arrow", _ {
+		// `lfo::Type::renderInHorizontalMenu` (`lfo/type.h:77-101`); `sample::Reverse::renderInHorizontalMenu` and
+		// `getColumnLabel` (`sample/reverse.h:68-75`).
+		select_language();
+		Rig r;
+		const MenuContext ctx = r.open(horiz_page);
+		menu::ColumnSlot slot;
+		deluge::ui::oled::Column col;
+		menu::present_column(nodes::lfo1_type, ctx, static_cast<int32_t>(deluge::instrument::LFOType::SAW), slot, col);
+		expect(col.render == deluge::ui::oled::art_column).to_equal(true);
+		expect(slot.art.icon == &deluge::gfx::oled::icons::saw).to_equal(true);
+		expect(static_cast<int>(slot.art.dy)).to_equal(2);
+
+		menu::present_column(nodes::sample0_reverse, ctx, 1, slot, col);
+		expect(std::string(col.label)).to_equal(std::string(deluge::l10n::get(String::STRING_FOR_PLAY)));
+		expect(col.render == deluge::ui::oled::art_column).to_equal(true);
+		expect(slot.art.icon == &deluge::gfx::oled::icons::direction).to_equal(true);
+		expect(slot.art.reversed).to_equal(true);
+	});
+
+	it("a retrigger-phase column draws a slider, and OFF while free-running", _ {
+		// `RetriggerPhase::getRenderingStyle()` is SLIDER, which `Decimal::renderInHorizontalMenu` hands to
+		// `Number::renderInHorizontalMenu` (`decimal.cpp:176-179`); below zero it draws OFF (`retrigger_phase.h:106-115`).
+		select_language();
+		Rig r;
+		const MenuContext ctx = r.open(horiz_page);
+		menu::ColumnSlot slot;
+		deluge::ui::oled::Column col;
+		menu::present_column(nodes::osc0_phase, ctx, 90, slot, col);
+		expect(col.render == deluge::ui::oled::meter_column).to_equal(true);
+		expect(slot.meter.hint == deluge::ui::oled::Hint::Slider).to_equal(true);
+		menu::present_column(nodes::osc0_phase, ctx, -1, slot, col);
+		expect(col.render == deluge::ui::oled::text_column).to_equal(true);
+		expect(std::string(slot.text.value)).to_equal(std::string(deluge::l10n::get(String::STRING_FOR_OFF)));
+	});
+
+	it("a column's notification spells main's getNotificationValue", _ {
+		// `SyncLevel::getShortOption` (`sync_level.cpp:83-91`), `Toggle` (none), `Number`'s PERCENT doubling
+		// (`number.cpp:429-431`), `VoiceCount`'s OFF (`voice/polyphony.h:89-96`), `RetriggerPhase`'s OFF
+		// (`retrigger_phase.h:117-123`).
+		select_language();
+		Rig r;
+		const MenuContext ctx = r.open(horiz_page);
+		char buf[32];
+		const auto banner = [&](const Node& node, int32_t value) {
+			return std::string(menu::column_notification(node, ctx, value, std::span<char>{buf, sizeof(buf)}));
+		};
+		const std::string off = deluge::l10n::get(String::STRING_FOR_OFF);
+		expect(banner(nodes::arp_sync, 0)).to_equal(off);
+		const int32_t sixteenth = static_cast<int32_t>(SYNC_LEVEL_16TH);
+		etl::string<30> length;
+		syncValueToString(static_cast<uint32_t>(sixteenth), length, menu::input_tick_magnitude(ctx));
+		expect(banner(nodes::arp_sync, sixteenth)).to_equal(std::string(length.c_str()));
+		expect(banner(nodes::osc_sync, 1)).to_equal(std::string());
+		expect(banner(nodes::note_probability, 10)).to_equal(std::string("20"));
+		expect(banner(nodes::voice_count, 0)).to_equal(off);
+		expect(banner(nodes::voice_count, 5)).to_equal(std::string("5"));
+		expect(banner(nodes::osc0_phase, -1)).to_equal(off);
 	});
 
 	it("a select turn on a focused submenu column does nothing", _ {
@@ -538,10 +634,10 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(1);
 		expect(g_toggle_col).to_be_false();
 		const std::string monophonic{deluge::l10n::get(String::STRING_FOR_MONOPHONIC)};
-		{ // new-focus notification (`:437` -> `:342`)
+		{ // new-focus notification (`:437` -> `:342`); a `Toggle` spells no value (`menu_item.h:324`)
 			const deluge::notify::Notice n = expect_one_notification(self, raised_notices());
 			expect(std::string(n.notification_title())).to_equal(monophonic);
-			expect(std::string(n.notification_value()).empty()).to_be_false();
+			expect(std::string(n.notification_value()).empty()).to_be_true();
 		}
 
 		(void)last_notice(); // drain

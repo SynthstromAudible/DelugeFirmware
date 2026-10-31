@@ -95,7 +95,8 @@
 ///       distinct `CustomItem` instances).
 
 #include "scenes/menu/node.h"
-#include "scenes/menu/nodes/actions.h"            // the five action items
+#include "scenes/menu/nodes/actions.h" // the five action items
+#include "scenes/menu/nodes/column_hooks.h"
 #include "scenes/menu/nodes/context_menu_items.h" // kAudioSourceItem
 #include "scenes/menu/nodes/detail.h"
 #include "scenes/menu/nodes/edit_name.h"    // kEditDrumName
@@ -207,8 +208,9 @@ inline constexpr Node global_filters = submenu(sid(String::STRING_FOR_FILTERS), 
 // The global FX page
 
 inline constexpr Node global_delay_amount =
-    param(sid(String::STRING_FOR_AMOUNT), {mp::Kind::UNPATCHED_GLOBAL, mp::UNPATCHED_DELAY_AMOUNT}, Hint::Bar, nullptr,
-          sid(String::STRING_FOR_DELAY_AMOUNT));
+    with_column_name(param(sid(String::STRING_FOR_AMOUNT), {mp::Kind::UNPATCHED_GLOBAL, mp::UNPATCHED_DELAY_AMOUNT},
+                           Hint::Bar, nullptr, sid(String::STRING_FOR_DELAY_AMOUNT)),
+                     sid(String::STRING_FOR_AMOUNT_SHORT));
 inline constexpr Node global_delay_rate =
     param(sid(String::STRING_FOR_RATE), {mp::Kind::UNPATCHED_GLOBAL, mp::UNPATCHED_DELAY_RATE}, Hint::Knob, nullptr,
           sid(String::STRING_FOR_DELAY_RATE));
@@ -217,9 +219,10 @@ inline constexpr const Node* kGlobalDelayChildren[] = {&global_delay_amount, &de
 inline constexpr Node global_delay = submenu(sid(String::STRING_FOR_DELAY), kGlobalDelayChildren, Layout::Horizontal);
 
 // `reverb::Amount_Unpatched` renders a BAR (`reverb/amount.h:23`, the unpatched twin of `Amount`).
-inline constexpr Node global_reverb_amount =
+inline constexpr Node global_reverb_amount = with_column_name(
     param(sid(String::STRING_FOR_AMOUNT), {mp::Kind::UNPATCHED_GLOBAL, mp::UNPATCHED_REVERB_SEND_AMOUNT}, Hint::Bar,
-          nullptr, sid(String::STRING_FOR_REVERB_AMOUNT));
+          nullptr, sid(String::STRING_FOR_REVERB_AMOUNT)),
+    sid(String::STRING_FOR_AMOUNT_SHORT));
 inline constexpr const Node* kGlobalReverbChildren[] = {&global_reverb_amount, &reverb_room_size, &reverb_damping,
                                                         &reverb_width,         &reverb_model,     &reverb_pan,
                                                         &reverb_hpf,           &reverb_lpf,       &reverb_sidechain};
@@ -227,8 +230,9 @@ inline constexpr Node global_reverb =
     submenu(sid(String::STRING_FOR_REVERB), kGlobalReverbChildren, Layout::Horizontal);
 
 inline constexpr Node global_mod_fx_depth =
-    param(sid(String::STRING_FOR_DEPTH), {mp::Kind::UNPATCHED_GLOBAL, mp::UNPATCHED_MOD_FX_DEPTH}, Hint::Bar,
-          param_shows::kModFxDepth, sid(String::STRING_FOR_MOD_FX_DEPTH));
+    with_value_text(param(sid(String::STRING_FOR_DEPTH), {mp::Kind::UNPATCHED_GLOBAL, mp::UNPATCHED_MOD_FX_DEPTH},
+                          Hint::Bar, param_shows::kModFxDepth, sid(String::STRING_FOR_MOD_FX_DEPTH)),
+                    mod_fx_depth_text);
 inline constexpr Node global_mod_fx_rate =
     param(sid(String::STRING_FOR_RATE), {mp::Kind::UNPATCHED_GLOBAL, mp::UNPATCHED_MOD_FX_RATE}, Hint::Knob,
           param_shows::kModFxIsOn, sid(String::STRING_FOR_MOD_FX_RATE));
@@ -253,8 +257,9 @@ inline constexpr Node global_fx = submenu(sid(String::STRING_FOR_FX), kGlobalFxC
 // (`volume_global.h:10`), i.e. `Hint::Ducking`.
 
 inline constexpr Node global_sidechain_volume =
-    param(sid(String::STRING_FOR_VOLUME_DUCKING), {mp::Kind::UNPATCHED_GLOBAL, mp::UNPATCHED_SIDECHAIN_VOLUME},
-          Hint::Ducking);
+    with_column_name(param(sid(String::STRING_FOR_VOLUME_DUCKING),
+                           {mp::Kind::UNPATCHED_GLOBAL, mp::UNPATCHED_SIDECHAIN_VOLUME}, Hint::Ducking),
+                     sid(String::STRING_FOR_VOLUME_DUCKING_SHORT));
 inline constexpr const Node* kGlobalSidechainChildren[] = {&global_sidechain_volume, &sidechain_sync, &sidechain_shape,
                                                            &sidechain_attack, &sidechain_release};
 inline constexpr Node global_sidechain =
@@ -311,21 +316,27 @@ inline constexpr Node midi_device_definition =
 // `midi::Preset::selectEncoderAction` wraps at 129 and draws 128 as "NONE" (`midi/preset.h:34-49`),
 // so the editable range is 0..128 and `getMaxValue()` says 128 (`:22`).
 inline constexpr IntRange kMidiPresetRange{0, 128, 1};
-inline constexpr Node midi_bank = with_title(setting_item(sid(String::STRING_FOR_BANK), Kind::Int,
-                                                          {.kind = deluge::scenes::bind::Target::Kind::MODEL,
-                                                           .path = "midiBank",
-                                                           .group = deluge::project::SettingGroupId::CLIP_VALUES}),
-                                             sid(String::STRING_FOR_MIDI_BANK));
-inline constexpr Node midi_sub_bank = with_title(setting_item(sid(String::STRING_FOR_SUB_BANK_SHORT), Kind::Int,
-                                                              {.kind = deluge::scenes::bind::Target::Kind::MODEL,
-                                                               .path = "midiSub",
-                                                               .group = deluge::project::SettingGroupId::CLIP_VALUES}),
-                                                 sid(String::STRING_FOR_MIDI_SUB_BANK));
-inline constexpr Node midi_pgm = with_title(setting_item(sid(String::STRING_FOR_PGM), Kind::Int,
-                                                         {.kind = deluge::scenes::bind::Target::Kind::MODEL,
-                                                          .path = "midiPGM",
-                                                          .group = deluge::project::SettingGroupId::CLIP_VALUES}),
-                                            sid(String::STRING_FOR_MIDI_PGM_NUMB_MENU_TITLE));
+inline constexpr Node midi_bank = without_notification(
+    with_column_art(with_title(setting_item(sid(String::STRING_FOR_BANK), Kind::Int,
+                                            {.kind = deluge::scenes::bind::Target::Kind::MODEL,
+                                             .path = "midiBank",
+                                             .group = deluge::project::SettingGroupId::CLIP_VALUES}),
+                               sid(String::STRING_FOR_MIDI_BANK)),
+                    midi_preset_art));
+inline constexpr Node midi_sub_bank = without_notification(
+    with_column_art(with_title(setting_item(sid(String::STRING_FOR_SUB_BANK_SHORT), Kind::Int,
+                                            {.kind = deluge::scenes::bind::Target::Kind::MODEL,
+                                             .path = "midiSub",
+                                             .group = deluge::project::SettingGroupId::CLIP_VALUES}),
+                               sid(String::STRING_FOR_MIDI_SUB_BANK)),
+                    midi_preset_art));
+inline constexpr Node midi_pgm = without_notification(
+    with_column_art(with_title(setting_item(sid(String::STRING_FOR_PGM), Kind::Int,
+                                            {.kind = deluge::scenes::bind::Target::Kind::MODEL,
+                                             .path = "midiPGM",
+                                             .group = deluge::project::SettingGroupId::CLIP_VALUES}),
+                               sid(String::STRING_FOR_MIDI_PGM_NUMB_MENU_TITLE)),
+                    midi_preset_art));
 inline constexpr const Node* kMidiProgramChildren[] = {&midi_bank, &midi_sub_bank, &midi_pgm};
 /// `midiProgramMenu` (`:1935`) is a `HorizontalMenu` whose name *is* its title
 /// (`STRING_FOR_MIDI_PROGRAM_MENU_TITLE`, the only string its constructor is given), FIXED layout
@@ -427,11 +438,15 @@ inline constexpr Node audio_clip_transpose =
                                          2),
                      {mp::Kind::UNPATCHED_GLOBAL, mp::UNPATCHED_PITCH_ADJUST});
 /// The grid draws the clip's waveform, which a reverse turns round.
-inline constexpr Node audio_clip_reverse =
-    with_grid_repaint(setting_item(sid(String::STRING_FOR_REVERSE), Kind::Toggle,
-                                   {.kind = deluge::scenes::bind::Target::Kind::MODEL,
-                                    .path = "reversed",
-                                    .group = deluge::project::SettingGroupId::AUDIO_CLIP}));
+inline constexpr Node audio_clip_reverse = with_column_name(
+    with_value_text(
+        with_column_art(with_grid_repaint(setting_item(sid(String::STRING_FOR_REVERSE), Kind::Toggle,
+                                                       {.kind = deluge::scenes::bind::Target::Kind::MODEL,
+                                                        .path = "reversed",
+                                                        .group = deluge::project::SettingGroupId::AUDIO_CLIP})),
+                        direction_art),
+        on_off_text),
+    sid(String::STRING_FOR_PLAY));
 
 inline constexpr Node audio_clip_interpolation =
     with_title(setting_item(sid(String::STRING_FOR_INTERPOLATION), Kind::Enum,

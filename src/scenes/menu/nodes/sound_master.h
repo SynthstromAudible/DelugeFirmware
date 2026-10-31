@@ -30,13 +30,11 @@
 ///       `detail.h::with_learn_param` exists for (task-6 fix round 1, I1). Its `Hint` is `None`:
 ///       `getRenderingStyle()` returns `NUMBER` (`master_transpose.h:86`).
 ///
-/// @note **Two legacy behaviours have no `Node` spelling and are recorded, not silently dropped.**
-///       `SynthModeSelection::writeCurrentValue` ends with `view.setKnobIndicatorLevels()`
+/// @note **`SynthModeSelection::writeCurrentValue` ends with `view.setKnobIndicatorLevels()`**
 ///       (`synth_mode.h:57`) -- `gui/views/` is behind the `scenes-includes-outside` wall, and the
-///       equivalent is the `Dirty` flag `bindings::write` already raises. And
-///       `MasterTranspose::getColumnLabel` shortens the label to "TRANSPOSE"
-///       (`master_transpose.h:88`), a per-item column label `Node` does not carry (the same gap
-///       `sound_filters.h` records for its own four).
+///       equivalent is the `Dirty` flag `bindings::write` already raises.
+///       `MasterTranspose::getColumnLabel` (`master_transpose.h:74`) is `master_transpose`'s
+///       `with_column_name`.
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/detail.h"

@@ -1,0 +1,84 @@
+#pragma once
+
+/// @file
+/// @brief Legacy's horizontal-menu overrides that read the value or the context, as `Binding::column_art` and
+///        `Binding::value_text` hooks: what a column draws (`renderInHorizontalMenu`), how it is labelled
+///        (`getColumnLabel`) and what its notification says (`getNotificationValue`). The overrides that are a fixed
+///        string are `Node::column_name`, and `showColumnLabel()`/`showNotification()` are `Node` flags.
+
+#include "scenes/menu/node.h"
+#include "ui/oled/columns.h"
+
+#include <cstdint>
+#include <optional>
+#include <span>
+
+namespace deluge::scenes::menu {
+struct MenuContext;
+} // namespace deluge::scenes::menu
+
+namespace deluge::scenes::menu::nodes {
+
+/// @name Column drawings (`Binding::column_art`)
+/// @{
+
+/// `delay::PingPong::renderInHorizontalMenu` (`delay/ping_pong.h:66-70`): the switch, a row above the region.
+std::optional<deluge::ui::oled::ArtColumn> switch_art(const MenuContext& ctx, int32_t value);
+/// `randomizer::RandomizerLock::renderInHorizontalMenu` (`randomizer/randomizer_lock.h:67-71`): the big padlock.
+std::optional<deluge::ui::oled::ArtColumn> lock_art(const MenuContext& ctx, int32_t value);
+/// `sample::PitchSpeed::renderInHorizontalMenu` (`sample/pitch_speed.h:70-73`): the keyboard, crossed out when pitch
+/// and speed are independent.
+std::optional<deluge::ui::oled::ArtColumn> keyboard_art(const MenuContext& ctx, int32_t value);
+/// `sample::Reverse` and `audio_clip::Reverse::renderInHorizontalMenu` (`sample/reverse.h:68-73`,
+/// `audio_clip/reverse.h:71-75`): the direction arrow, mirrored when reversed.
+std::optional<deluge::ui::oled::ArtColumn> direction_art(const MenuContext& ctx, int32_t value);
+/// `lfo::Type::renderInHorizontalMenu` (`lfo/type.h:77-101`): the shape's icon.
+std::optional<deluge::ui::oled::ArtColumn> lfo_type_art(const MenuContext& ctx, int32_t value);
+/// `osc::Type::renderInHorizontalMenu` (`osc/type.h:112-149`) for source 1 and 2: the shape's icon, or DX7's name.
+std::optional<deluge::ui::oled::ArtColumn> osc0_type_art(const MenuContext& ctx, int32_t value);
+std::optional<deluge::ui::oled::ArtColumn> osc1_type_art(const MenuContext& ctx, int32_t value);
+/// `sample::Repeat::renderInHorizontalMenu` (`sample/repeat.h:96-112`): the mode's icon, from the region's left.
+std::optional<deluge::ui::oled::ArtColumn> repeat_art(const MenuContext& ctx, int32_t value);
+/// `unison::Count::renderInHorizontalMenu` (`unison/count.h:62-67`): the count in the "Big" face.
+std::optional<deluge::ui::oled::ArtColumn> unison_count_art(const MenuContext& ctx, int32_t value);
+/// `midi::Preset::renderInHorizontalMenu` (`midi/preset.h:62-79`): NONE at 128, else the number.
+std::optional<deluge::ui::oled::ArtColumn> midi_preset_art(const MenuContext& ctx, int32_t value);
+/// @}
+
+/// @name Column texts (`Binding::value_text`)
+/// @{
+
+/// `voice::VoiceCount` and `arpeggiator::SequenceLength`'s OFF at zero (`voice/polyphony.h:89-96`,
+/// `arpeggiator/sequence_length.h:27-44`): the column's word and the notification's.
+ValueText off_at_zero_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
+/// `osc::RetriggerPhase` (`osc/retrigger_phase.h:106-123`): OFF while free-running, and a notification of the raw
+/// number.
+ValueText retrigger_phase_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
+/// `reverb::sidechain::Volume` (`reverb/sidechain/volume.h:50-73`): AUTO below zero.
+ValueText ducking_auto_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
+/// `sample::Reverse` and `audio_clip::Reverse::getNotificationValue` (`sample/reverse.h:77-79`): ON or OFF.
+ValueText on_off_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
+/// `reverb::Width::getColumnLabel` (`reverb/width.h:50-62`): DIFFUSION for the plate models, else the short width.
+ValueText reverb_width_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
+/// `reverb::RoomSize::getName` (`reverb/room_size.h:40-49`), which its column label reads: TIME for the plate models.
+ValueText reverb_room_size_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
+/// `sample::Repeat::getColumnLabel` (`sample/repeat.h:114-116`): the mode's name.
+ValueText repeat_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
+/// `sample::PitchSpeed::getColumnLabel` (`sample/pitch_speed.h:75-78`): LINKED or INDEPENDENT.
+ValueText pitch_speed_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
+/// `osc::source::Volume::getColumnLabel` (`osc/source/volume.h:39-42`): the first four letters of the formatted
+/// name, for source 1 and 2.
+ValueText source0_volume_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
+ValueText source1_volume_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
+/// `source::patched_param::ModulatorLevel::getColumnLabel` (`source/patched_param/modulator_level.h:38`): the
+/// formatted name from its third letter, for modulator 1 and 2.
+ValueText modulator0_volume_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
+ValueText modulator1_volume_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
+/// `mod_fx::Depth`, `Feedback` and `Offset::getColumnLabel` (`mod_fx/depth_patched.h:40-42`, `feedback.h:38-41`,
+/// `offset.h:40-42`): the mod FX type's short name for the knob.
+ValueText mod_fx_depth_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
+ValueText mod_fx_feedback_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
+ValueText mod_fx_offset_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
+/// @}
+
+} // namespace deluge::scenes::menu::nodes

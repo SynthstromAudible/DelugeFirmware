@@ -15,16 +15,17 @@
 // clang-format on
 ///
 /// @note **`unisonMenu` is built with `HorizontalMenu::Layout::FIXED`** (`g_menus.inc:54`), a paging
-///       mode `Node::Layout` (Vertical / Horizontal) does not carry. That one still belongs to a
-///       later interpreter task. (`CountToStereoSpread::selectButtonPress()` used to be recorded
-///       here too; it is now ported -- see `unison_count`'s `select_chain` below.)
+///       mode `Node::Layout` (Vertical / Horizontal) does not carry.
 ///
 /// @note **Hints.** `Count` and `Detune` both override `renderInHorizontalMenu` with bespoke art -- a
-///       big centred integer (`unison/count.h:57-62`) and three splayed lines (`unison/detune.h:63-104`)
-///       -- neither of which is a `ui::oled::Hint`, so they take `Hint::None`. `StereoSpread` does not
-///       override it and so keeps `Number`'s default knob (`gui/menu_item/number.h:48`).
+///       big centred integer with no label (`unison/count.h:60-67`, `unison_count`'s
+///       `unison_count_art` and `without_column_label`) and three splayed lines (`unison/detune.h:57-98`,
+///       not carried: its column draws the number) -- neither of which is a `ui::oled::Hint`, so they
+///       take `Hint::None`. `StereoSpread` does not override it and so keeps `Number`'s default knob
+///       (`gui/menu_item/number.h:48`).
 
 #include "scenes/menu/node.h"
+#include "scenes/menu/nodes/column_hooks.h"
 #include "scenes/menu/nodes/detail.h"
 
 #include "definitions_cxx.hpp" // kMaxNumVoicesUnison, kMaxUnisonDetune, kMaxUnisonStereoSpread
@@ -71,11 +72,13 @@ inline const Node* unison_count_chain(const MenuContext&, const MenuState&) {
 	return &unison_spread;
 }
 
-inline constexpr Node unison_count = with_select_chain(
-    with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_UNISON_NUMBER), Kind::Int,
-                            {.kind = deluge::scenes::bind::Target::Kind::SOUND, .path = "unison/num"}),
-               sid(deluge::l10n::String::STRING_FOR_UNISON_NUMBER_MENU_TITLE)),
-    unison_count_chain, kUnisonCountChain);
+inline constexpr Node unison_count = with_column_art(
+    without_column_label(with_select_chain(
+        with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_UNISON_NUMBER), Kind::Int,
+                                {.kind = deluge::scenes::bind::Target::Kind::SOUND, .path = "unison/num"}),
+                   sid(deluge::l10n::String::STRING_FOR_UNISON_NUMBER_MENU_TITLE)),
+        unison_count_chain, kUnisonCountChain)),
+    unison_count_art);
 
 inline constexpr const Node* kUnisonChildren[] = {&unison_count, &unison_detune, &unison_spread};
 inline constexpr Node unison =

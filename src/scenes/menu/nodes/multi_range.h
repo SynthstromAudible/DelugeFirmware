@@ -63,6 +63,8 @@ namespace deluge::scenes::menu::nodes {
 ///        the note span it covers (`MultiRange::getText`, `multi_range.cpp:313-358`).
 class MultiRangeItem final : public CustomItem {
 public:
+	/// @brief True: the legacy item is a `Value` (`CustomItem::is_value`).
+	bool is_value() const override { return true; }
 	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
 	                                 const deluge::ui::shell::UiContext& ui_ctx, const MenuContext& ctx,

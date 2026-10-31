@@ -19,14 +19,16 @@
 ///
 /// @note **`PolyphonyType`'s option list is dynamic**: CHOKE is offered only on a kit
 ///       (`voice/polyphony.h:120-123`), so the node uses `dynamic_enumeration` rather than a static
-///       `names` span. `VoiceCount` reads OFF at zero and draws an infinity icon there
-///       (`polyphony.h:59-61`, `:73-79`) -- neither is a `Node` field, and both are recorded rather
-///       than dropped.
+///       `names` span.
+///
+/// @note **Columns.** `VoiceCount`, `PolyphonyType` and `Portamento` label their columns VCNT, MODE
+///       and PRTA (`polyphony.h:85-87`, `:156-158`, `portamento.h:30-32`); `VoiceCount` draws infinity
+///       at zero and its notification reads OFF there (`polyphony.h:89-104`). `Portamento`'s glide
+///       drawing (`portamento.h:34-66`) is not carried: its column draws the number.
 ///
 /// @note **`voiceMenu` is built `HorizontalMenu::Layout::FIXED`** (`menus.cpp:710`), a paging mode
 ///       `Node::Layout` (Vertical / Horizontal) does not carry -- the same gap `sound_unison.h`
-///       records for `unisonMenu`. (`PolyphonyType::selectButtonPress` was recorded here too; it is
-///       now ported -- see `polyphony`'s `select_chain` below.)
+///       records for `unisonMenu`.
 ///
 /// @note **`Portamento` draws bespoke art** (a glide line between two notes,
 ///       `voice/portamento.h:29-66`) with no `getRenderingStyle()` override, so legacy's declared
@@ -35,6 +37,7 @@
 
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/node.h"
+#include "scenes/menu/nodes/column_hooks.h"
 #include "scenes/menu/nodes/detail.h"
 #include "scenes/menu/nodes/fan_out_rules.h"
 #include "scenes/menu/nodes/sound_unison.h" // the fifth column
@@ -74,13 +77,16 @@ inline std::optional<deluge::ui::oled::ArtColumn> voice_count_art(const MenuCont
 	return deluge::ui::oled::ArtColumn{.icon = &deluge::gfx::oled::icons::infinity, .dy = 1};
 }
 
-inline constexpr Node voice_count =
-    with_column_art(with_value_style(setting_item(sid(deluge::l10n::String::STRING_FOR_MAX_VOICES), Kind::Int,
-                                                  {.kind = deluge::scenes::bind::Target::Kind::SOUND,
-                                                   .path = "maxVoices",
-                                                   .fan_out_when = fan_out::kPolyphonic}),
-                                     deluge::ui::oled::ValueStyle{.off_at_zero = true}),
-                    voice_count_art);
+inline constexpr Node voice_count = with_column_name(
+    with_value_text(
+        with_column_art(with_value_style(setting_item(sid(deluge::l10n::String::STRING_FOR_MAX_VOICES), Kind::Int,
+                                                      {.kind = deluge::scenes::bind::Target::Kind::SOUND,
+                                                       .path = "maxVoices",
+                                                       .fan_out_when = fan_out::kPolyphonic}),
+                                         deluge::ui::oled::ValueStyle{.off_at_zero = true}),
+                        voice_count_art),
+        off_at_zero_text),
+    sid(deluge::l10n::String::STRING_FOR_MAX_VOICES_SHORT));
 
 /// @brief `PolyphonyType::selectButtonPress()` (`voice/polyphony.h:139-143`): a select press opens
 ///        the voice count when the mode is POLY, and otherwise falls through to
@@ -93,12 +99,15 @@ inline const Node* polyphony_chain(const MenuContext& ctx, const MenuState&) {
 	return bindings::stored(kPolyphonic, ctx) == static_cast<int32_t>(PolyphonyMode::POLY) ? &voice_count : nullptr;
 }
 
-inline constexpr Node polyphony =
+inline constexpr Node polyphony = with_column_name(
     with_select_chain(setting_item(sid(deluge::l10n::String::STRING_FOR_POLYPHONY), Kind::Enum, kPolyphonic),
-                      polyphony_chain, kPolyphonyChain);
-inline constexpr Node portamento = param(
-    sid(deluge::l10n::String::STRING_FOR_PORTAMENTO),
-    {deluge::modulation::params::Kind::UNPATCHED_SOUND, deluge::modulation::params::UNPATCHED_PORTAMENTO}, Hint::None);
+                      polyphony_chain, kPolyphonyChain),
+    sid(deluge::l10n::String::STRING_FOR_POLYPHONY_SHORT));
+inline constexpr Node portamento = with_column_name(
+    param(sid(deluge::l10n::String::STRING_FOR_PORTAMENTO),
+          {deluge::modulation::params::Kind::UNPATCHED_SOUND, deluge::modulation::params::UNPATCHED_PORTAMENTO},
+          Hint::None),
+    sid(deluge::l10n::String::STRING_FOR_PORTAMENTO_SHORT));
 
 inline constexpr const Node* kVoiceChildren[] = {&voice_priority, &polyphony, &voice_count, &portamento, &unison};
 inline constexpr Node voice = submenu(sid(deluge::l10n::String::STRING_FOR_VOICE), kVoiceChildren, Layout::Horizontal);

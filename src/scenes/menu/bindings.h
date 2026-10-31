@@ -58,6 +58,16 @@ size_t listed_children(const Node& node, const MenuContext& ctx, std::span<const
 /// @return The stored value, or nullopt where the target does not resolve.
 [[nodiscard]] std::optional<int32_t> stored(const deluge::scenes::bind::Target& target, const MenuContext& ctx);
 
+/// @brief The choice the listed entry @p value of @p node's list stands for: a CHOICE row's choice index, which a
+///        menu that filters its choices does not show as the entry's position. For a column whose drawing names the
+///        choice itself (an LFO's or oscillator's shape icon).
+/// @param node  A target node.
+/// @param ctx   The menu's context.
+/// @param value The entry's position, as `read` gives it.
+/// @return The choice, or nullopt for a node with no target, an entry no choice stands for (the stale one), or a
+///         target that does not resolve.
+[[nodiscard]] std::optional<int32_t> listed_choice(const Node& node, const MenuContext& ctx, int32_t value);
+
 /// @brief Read what @p node currently shows, in menu units (0..50 for a standard param).
 ///
 /// A target binding reads through `bind::read` (a PARAM target: the value its param plays, scaled to

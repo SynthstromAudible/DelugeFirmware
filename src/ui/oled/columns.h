@@ -260,15 +260,26 @@ void text_column(OledFrame& slot_frame, bool focused, void* ctx);
 ///        word.
 ///
 /// @note Ports the overrides that draw neither a number nor an option name: `arpeggiator::PresetMode`'s big OFF and
-///       mode icons, `SyncLevel`'s sync-type icon and `voice::VoiceCount`'s infinity.
+///       mode icons, `SyncLevel`'s sync-type icon, `voice::VoiceCount`'s infinity, the LFO and oscillator shapes, the
+///       sample's direction, repeat-mode and keyboard icons, the switch and lock icons, and the words some items draw
+///       at one value (OFF, AUTO, NONE).
 struct ArtColumn {
-	/// Drawn centred when set; `text` is drawn otherwise.
+	/// The face `text` draws in.
+	enum class Face : uint8_t {
+		Row,   ///< the row face
+		Title, ///< the title face
+		Big,   ///< legacy's "Big" face, `kTextBigSpacingX`/`kTextBigSizeY`
+	};
+	/// Drawn when set; `text` is drawn otherwise.
 	const gfx::oled::Icon* icon = nullptr;
 	/// Draw `icon` mirrored.
 	bool reversed = false;
+	/// Centre `icon` across the region; otherwise draw it with its left edge at `dx`.
+	bool centred = true;
 	std::string_view text;
-	/// `text` in the title face; the row face otherwise.
-	bool title_face = false;
+	Face face = Face::Row;
+	/// Columns right of the region's left edge the drawing starts at (for centred text: the centring span's start).
+	int8_t dx = 0;
 	/// Rows below `kHorizontalSlotYOffset` the icon or text starts at (negative is above).
 	int8_t dy = 0;
 };
