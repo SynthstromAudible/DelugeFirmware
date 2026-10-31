@@ -91,6 +91,7 @@
 #include <limits>
 #include <optional>
 #include <ranges>
+#include <utility>
 
 using deluge::synth::SourceSlot;
 using deluge::synth::VoiceConfig;
@@ -477,19 +478,18 @@ deluge::synth::matrix::MatrixBlock Sound::matrixBlock(ParamManager& paramManager
 	deluge::synth::matrix::MatrixBlock block; // only what the gather fills is read
 	PatchCableSet& cables = *paramManager.getPatchCableSet();
 	block.program = cables.program();
-	const deluge::synth::PatchRouting routing = cables.routing();
 	PatchedParamSet& patched = *paramManager.getPatchedParamSet();
 	if (gather == PresetGather::ALL) {
 		for (int32_t p = 0; p < deluge::modulation::params::kNumParams; p++) {
 			block.preset_values[p] = patched.getValue(p);
 		}
 	}
-	else {
-		for (const deluge::synth::RoutedDestination* list : routing.destinations) {
-			for (const deluge::synth::RoutedDestination* d = list; d != nullptr && d->sources != 0; d++) {
-				if (d->target.is_param()) {
-					block.preset_values[d->target.param_index()] = patched.getValue(d->target.param_index());
-				}
+	else if (block.program != nullptr) {
+		// The routed params from the program the pass reads next, so a pass touches one cold structure
+		for (const deluge::synth::matrix::ScopeView& scope : block.program->scopes) {
+			for (int32_t k = scope.num_depth_destinations; std::cmp_less(k, scope.num_destinations); k++) {
+				const int32_t p = scope.destinations[k].param;
+				block.preset_values[p] = patched.getValue(p);
 			}
 		}
 	}

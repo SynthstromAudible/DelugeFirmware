@@ -57,18 +57,16 @@ MatrixRig& matrix_rig() {
 MatrixBlock control_block(MatrixRig& r, bool all_presets) {
 	MatrixBlock block;
 	block.program = r.cables.program();
-	const deluge::synth::PatchRouting routing = r.cables.routing();
 	if (all_presets) {
 		for (int32_t p = 0; p < params::kNumParams; p++) {
 			block.preset_values[p] = r.patched.getValue(p);
 		}
 	}
 	else {
-		for (const deluge::synth::RoutedDestination* list : routing.destinations) {
-			for (const deluge::synth::RoutedDestination* d = list; d != nullptr && d->sources != 0; d++) {
-				if (d->target.is_param()) {
-					block.preset_values[d->target.param_index()] = r.patched.getValue(d->target.param_index());
-				}
+		for (const deluge::synth::matrix::ScopeView& scope : block.program->scopes) {
+			for (int32_t k = scope.num_depth_destinations; std::cmp_less(k, scope.num_destinations); k++) {
+				const int32_t p = scope.destinations[k].param;
+				block.preset_values[p] = r.patched.getValue(p);
 			}
 		}
 	}
