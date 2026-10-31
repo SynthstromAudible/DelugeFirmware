@@ -5,15 +5,13 @@
  * Licensed under the GNU General Public License v3 or later; see LICENSE.
  */
 
-// Today's patching arithmetic, site by site, with values worked from the formulas; and the reference patcher
-// (tests/dsp/reference_patcher.*) shown to give the live Patcher's results on random cases.
+// Today's patching arithmetic, site by site, with values worked from the formulas; the random cases the matrix specs
+// draw from; and the frozen reference patcher (tests/dsp/reference_patcher.*) the matrix is compared against.
 
 #include "alloc_seams.h"
 #include "patch_cases.h"
 
 #include "synth/modulation/cable_depth.h"
-#include "synth/modulation/control_block.h"
-#include "synth/modulation/patcher.h"
 #include "util/param_functions.h"
 
 #include <array>
@@ -26,47 +24,6 @@ using namespace deluge::synth::test;
 namespace params = deluge::modulation::params;
 
 void functionsInit(); // util/param_functions.cpp: fills the param scaling tables
-
-namespace {
-
-/// The live Patcher's results for @p c, in the reference's shape.
-ReferenceResult live_results(const PatchCase& c, const CompiledCase& compiled) {
-	ControlBlock block{};
-	block.routing = compiled.block.routing;
-	block.preset_values = compiled.block.preset_values;
-	block.depths = compiled.block.depths;
-	const Patcher::Config voice_config{kVoiceConfig.first_param,        kVoiceConfig.first_non_volume_param,
-	                                   kVoiceConfig.first_hybrid_param, kVoiceConfig.first_exp_param,
-	                                   kVoiceConfig.end_params,         kVoiceConfig.globality};
-	const Patcher::Config sound_config{kSoundConfig.first_param,        kSoundConfig.first_non_volume_param,
-	                                   kSoundConfig.first_hybrid_param, kSoundConfig.first_exp_param,
-	                                   kSoundConfig.end_params,         kSoundConfig.globality};
-	ReferenceResult out;
-	std::array<int32_t, kNumPatchSources> voice_sources = c.sources[0];
-	std::array<int32_t, kNumGlobalSources> sound_sources{};
-	std::copy_n(c.sources[0].begin(), kNumGlobalSources, sound_sources.begin());
-	std::array<int32_t, params::FIRST_GLOBAL> voice_finals{};
-	std::array<int32_t, kNumGlobalParams> sound_finals{};
-	Patcher voice{voice_config, voice_sources, voice_finals};
-	Patcher sound{sound_config, sound_sources, sound_finals};
-	// One live Patcher runs at a time over its global depth results, as on the audio tier: the sound's pass, then the
-	// voice's, never interleaved within a block
-	sound.perform_initial_patching(block);
-	out.sound[0] = sound_finals;
-	voice.perform_initial_patching(block);
-	out.voice[0] = voice_finals;
-	for (size_t b = 0; b < c.sources_changed.size(); ++b) {
-		voice_sources = c.sources[b + 1];
-		std::copy_n(c.sources[b + 1].begin(), kNumGlobalSources, sound_sources.begin());
-		sound.perform_patching(c.sources_changed[b], block);
-		out.sound[b + 1] = sound_finals;
-		voice.perform_patching(c.sources_changed[b], block);
-		out.voice[b + 1] = voice_finals;
-	}
-	return out;
-}
-
-} // namespace
 
 // clang-format off
 describe patcher_spec("today's patching", ${
@@ -129,18 +86,6 @@ describe patcher_spec("today's patching", ${
 	});
 
 	context("the reference patcher", _{
-		it("gives the live Patcher's results on random cases", _{
-			int32_t differing = 0;
-			for (uint32_t seed = 1; seed <= 2000; ++seed) {
-				const PatchCase c = random_case(seed);
-				auto compiled = std::make_unique<CompiledCase>();
-				compile_case(c, *compiled);
-				const ReferenceResult reference = reference_results(c, *compiled, Ranges::shared);
-				const ReferenceResult live = live_results(c, *compiled);
-				differing += (reference.voice != live.voice || reference.sound != live.sound) ? 1 : 0;
-			}
-			expect(differing).to_equal(0);
-		});
 		// The Patcher's depth results are one array for every pass: a pass that skips a depth destination reads the
 		// last value any pass wrote there. The matrix runtime keeps that until the audible window fixes it.
 		it("shares its depth results across passes, which per-pass results change", _{

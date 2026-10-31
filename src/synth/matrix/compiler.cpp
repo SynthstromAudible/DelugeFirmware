@@ -18,7 +18,9 @@
 #include "synth/matrix/compiler.h"
 
 #include <cstdint>
+#include <cstring>
 #include <memory>
+#include <new>
 #include <utility>
 
 namespace deluge::synth::matrix {
@@ -185,6 +187,27 @@ const MatrixProgram* compile_program(const RoutingBuild& routing, std::span<std:
 	Carver carve{storage.data() + sizeof(MatrixProgram)};
 	for (int32_t g = 0; g < 2; ++g) {
 		compile_scope(routing, g, carve, program->scopes[g]);
+	}
+	program->bytes = storage.size();
+	return program;
+}
+
+const MatrixProgram* copy_program(const MatrixProgram& from, std::span<std::byte> storage) {
+	std::memcpy(storage.data(), &from, from.bytes);
+	auto* program = std::launder(reinterpret_cast<MatrixProgram*>(storage.data()));
+	const auto* old_base = reinterpret_cast<const std::byte*>(&from);
+	std::byte* new_base = storage.data();
+	auto rebase = [&]<class T>(const T*& pointer) {
+		pointer = reinterpret_cast<const T*>(new_base + (reinterpret_cast<const std::byte*>(pointer) - old_base));
+	};
+	for (ScopeView& scope : program->scopes) {
+		rebase(scope.slot_source);
+		rebase(scope.slot_conversion);
+		rebase(scope.cable_slot);
+		rebase(scope.cable_depth);
+		rebase(scope.cable_range);
+		rebase(scope.cable_mode);
+		rebase(scope.destinations);
 	}
 	return program;
 }

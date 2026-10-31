@@ -21,6 +21,8 @@
 #include "dsp-next/fixed/shaping/wavefolder.h"
 #include "dsp-next/fixed/vca/pan.h"
 #include "synth/engines/pitch.h"
+#include "synth/matrix/evaluator.h"
+#include "synth/matrix/matrix_fixed.h"
 #include "util/lookuptables/lookuptables.h"
 #include "util/param_functions.h"
 
@@ -35,15 +37,6 @@
 using namespace deluge;
 using deluge::dsp::fixed::get_decay4;
 namespace params = deluge::modulation::params;
-
-const Patcher::Config kPatcherConfigForVoice = {
-    .first_param = 0,
-    .first_non_volume_param = params::FIRST_LOCAL_NON_VOLUME,
-    .first_hybrid_param = params::FIRST_LOCAL__HYBRID,
-    .first_exp_param = params::FIRST_LOCAL_EXP,
-    .end_params = params::FIRST_GLOBAL,
-    .globality = GLOBALITY_LOCAL,
-};
 
 namespace deluge::synth {
 
@@ -63,8 +56,7 @@ int32_t Voice::combine_expression_values(int32_t synth_level_value, int32_t expr
 	return lshift_and_saturate<1>(combined_value);
 }
 
-Voice::Voice() : patcher_(kPatcherConfigForVoice, params_.source_values, params_.param_final_values) {
-}
+Voice::Voice() = default;
 
 // Returns false if the note cannot play and the voice must be unassigned again
 bool Voice::note_on(const deluge::synth::NoteSetup& setup, const SoundSnapshot& snapshot,
@@ -137,7 +129,7 @@ bool Voice::note_on(const deluge::synth::NoteSetup& setup, const SoundSnapshot& 
 	// know will be constantly changing, because that would make patching constantly calculate too. But that's only
 	// really the envelopes, plus the LFOs (just the local one?) if they're not square
 	std::ranges::copy(setup.global_source_values, std::begin(params_.source_values));
-	patcher_.perform_initial_patching(setup.initial_patching);
+	Evaluator::run_initial(matrix_pass(), setup.initial_patching);
 
 	// Setup and render envelopes - again. Because they're local params (since mid-late 2017), we really need to render
 	// them *after* initial patching is performed.
@@ -299,8 +291,8 @@ uint32_t Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge::m
 }
 
 // Returns false if became inactive and needs unassigning
-[[gnu::hot]] bool Voice::render(const ControlBlock& control_block, const VoiceConfig& cfg, const VoiceBlock& block,
-                                const VoiceRenderArgs& args) {
+[[gnu::hot]] bool Voice::render(const matrix::MatrixBlock& control_block, const VoiceConfig& cfg,
+                                const VoiceBlock& block, const VoiceRenderArgs& args) {
 	spare_buffers_ = args.spare_buffers; // the render helpers read these
 	sync_scratch_ = args.sync_scratch;
 	noise_ = args.noise;
@@ -454,7 +446,7 @@ uint32_t Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge::m
 	return !unassign_voice_after;
 }
 
-bool Voice::render_modulation(const ControlBlock& control_block, const VoiceConfig& cfg, const VoiceBlock& block,
+bool Voice::render_modulation(const matrix::MatrixBlock& control_block, const VoiceConfig& cfg, const VoiceBlock& block,
                               int32_t num_samples, uint32_t sources_changed) {
 	// Do envelopes - if they're patched to something (always do the first one though)
 	for (int32_t e = 0; e < kNumEnvelopes; e++) {
@@ -523,7 +515,7 @@ bool Voice::render_modulation(const ControlBlock& control_block, const VoiceConf
 		for (int32_t s = 0; std::cmp_less(s, util::to_underlying(kFirstLocalSource)); s++) {
 			params_.source_values[s] = cfg.global_source_values[s];
 		}
-		patcher_.perform_patching(sources_changed, control_block);
+		Evaluator::run(matrix_pass(), control_block, sources_changed);
 	}
 	return envelope_ended;
 }
@@ -789,7 +781,7 @@ void Voice::auto_release_if_due(const VoiceConfig& cfg, const VoiceBlock& block,
 	stamp_envelope0_stage_entry(block.clock);
 }
 
-DualSourceControls Voice::dual_source_controls(const ControlBlock& control_block, const VoiceConfig& cfg,
+DualSourceControls Voice::dual_source_controls(const matrix::MatrixBlock& control_block, const VoiceConfig& cfg,
                                                const VoiceBlock& block, int32_t filter_gain,
                                                int32_t overall_pitch_adjust, bool first_render,
                                                bool stereo_unison) const {
@@ -839,20 +831,21 @@ FmControls Voice::fm_controls(int32_t overall_osc_amplitude, int32_t filter_gain
 	return controls;
 }
 
-bool Voice::pitch_mod_disallows_cache(const ControlBlock& control_block, const VoiceConfig& cfg, int32_t s) const {
-	// A sample is not cached when a source that can change during the note modulates its pitch. The routing groups
-	// each destination's cables, so only the two pitch destinations' cables are scanned.
-	const deluge::synth::PatchRouting& routing = control_block.routing;
-	const deluge::synth::CableTarget overall_pitch = deluge::synth::CableTarget::param(params::LOCAL_PITCH_ADJUST);
-	const deluge::synth::CableTarget source_pitch =
-	    deluge::synth::CableTarget::param(params::LOCAL_OSC_A_PITCH_ADJUST + s);
-	for (const deluge::synth::RoutedDestination* d = routing.destinations[GLOBALITY_LOCAL];
-	     d != nullptr && d->sources != 0; d++) {
-		if (d->target != overall_pitch && d->target != source_pitch) {
+bool Voice::pitch_mod_disallows_cache(const matrix::MatrixBlock& control_block, const VoiceConfig& cfg,
+                                      int32_t s) const {
+	// A sample is not cached when a source that can change during the note modulates its pitch: only the two pitch
+	// destinations' cables are scanned.
+	if (control_block.program == nullptr) {
+		return false;
+	}
+	const matrix::ScopeView& scope = control_block.program->scopes[GLOBALITY_LOCAL];
+	for (int32_t k = scope.num_depth_destinations; std::cmp_less(k, scope.num_destinations); k++) {
+		const matrix::Destination& d = scope.destinations[k];
+		if (d.param != params::LOCAL_PITCH_ADJUST && d.param != params::LOCAL_OSC_A_PITCH_ADJUST + s) {
 			continue;
 		}
-		for (int32_t c = d->first_cable; std::cmp_less(c, d->end_cable); c++) {
-			const PatchSource from = routing.cables[c].source;
+		for (int32_t c = d.first_cable; c < d.first_cable + d.num_cables; c++) {
+			const auto from = static_cast<PatchSource>(scope.slot_source[scope.cable_slot[c]]);
 			if (from == PatchSource::ENVELOPE_0 || from == PatchSource::ENVELOPE_1 || from == PatchSource::LFO_GLOBAL_1
 			    || from == PatchSource::LFO_LOCAL_1 || from == PatchSource::LFO_GLOBAL_2
 			    || from == PatchSource::LFO_LOCAL_2 || from == PatchSource::RANDOM

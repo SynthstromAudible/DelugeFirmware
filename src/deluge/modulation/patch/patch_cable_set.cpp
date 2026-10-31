@@ -827,7 +827,19 @@ PatchCableSet::PatchCableSet(PatchCableSet const& other)
 				}
 				std::copy_n(other.routedCables_, numPatchCables, routedCables_);
 			}
+			if (other.program_ != nullptr) {
+				void* block =
+				    deluge::memory::alloc_fast(other.program_->bytes, alignof(deluge::synth::matrix::MatrixProgram));
+				if (block == nullptr) {
+					throw deluge::exception::BAD_ALLOC;
+				}
+				program_ = deluge::synth::matrix::copy_program(*other.program_,
+				                                               {static_cast<std::byte*>(block), other.program_->bytes});
+			}
 		} catch (deluge::exception&) {
+			if (routedCables_ != nullptr) {
+				delugeDealloc(routedCables_);
+			}
 			if (destinations[GLOBALITY_LOCAL]) {
 				delugeDealloc(destinations[GLOBALITY_LOCAL]);
 			}

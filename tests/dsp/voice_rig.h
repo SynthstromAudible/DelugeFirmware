@@ -63,8 +63,8 @@ struct Rig {
 
 /// A sound's presets: one oscillator at full level through no filter, the amplitude envelope instant with full sustain
 /// and @p release.
-inline ControlBlock presets(int32_t release) {
-	ControlBlock block{};
+inline matrix::MatrixBlock presets(int32_t release) {
+	matrix::MatrixBlock block{};
 	block.preset_values.fill(0);
 	block.preset_values[params::LOCAL_OSC_A_VOLUME] = kMax;
 	block.preset_values[params::LOCAL_OSC_B_VOLUME] = kMin;

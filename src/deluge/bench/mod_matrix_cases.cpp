@@ -1,6 +1,6 @@
 /// @file
-/// @brief The mod-matrix list's Patcher cases: today's q31 patching on the workload. The PatchCableSet is built by hand
-/// in setupPatching's layout, so no ModelStack is needed.
+/// @brief The mod-matrix list's matrix cases: the q31 matrix's patching on the workload. The PatchCableSet is built by
+/// hand and compiles its program in setupPatching, so no ModelStack is needed.
 
 #include "bench/cases.h"
 
@@ -13,9 +13,10 @@
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable.h"
 #include "modulation/patch/patch_cable_set.h"
-#include "synth/modulation/control_block.h"
+#include "synth/matrix/evaluator.h"
+#include "synth/matrix/matrix_block.h"
+#include "synth/matrix/matrix_fixed.h"
 #include "synth/modulation/param_plane.h"
-#include "synth/modulation/patcher.h"
 
 #include <array>
 #include <bitset>
@@ -31,60 +32,39 @@ namespace {
 namespace mm = mod_matrix;
 namespace params = deluge::modulation::params;
 
-const Patcher::Config kVoiceConfig{
-    .first_param = 0,
-    .first_non_volume_param = params::FIRST_LOCAL_NON_VOLUME,
-    .first_hybrid_param = params::FIRST_LOCAL__HYBRID,
-    .first_exp_param = params::FIRST_LOCAL_EXP,
-    .end_params = params::FIRST_GLOBAL,
-    .globality = GLOBALITY_LOCAL,
-};
-const Patcher::Config kSoundConfig{
-    .first_param = params::FIRST_GLOBAL,
-    .first_non_volume_param = params::FIRST_GLOBAL_NON_VOLUME,
-    .first_hybrid_param = params::FIRST_GLOBAL_HYBRID,
-    .first_exp_param = params::FIRST_GLOBAL_EXP,
-    .end_params = params::kNumParams,
-    .globality = GLOBALITY_GLOBAL,
-};
+using Evaluator = deluge::synth::matrix::Evaluator<deluge::synth::matrix::MatrixFixed>;
+using deluge::synth::matrix::MatrixBlock;
+using deluge::synth::matrix::ScopePass;
 
-template <std::size_t... I>
-std::array<Patcher, sizeof...(I)> make_voice_patchers(std::array<VoiceParams, sizeof...(I)>& planes,
-                                                      std::index_sequence<I...> /*unused*/) {
-	return {Patcher{kVoiceConfig, planes[I].source_values, planes[I].param_final_values}...};
-}
-
-struct PatcherRig {
+struct MatrixRig {
 	ParamCollectionSummary patched_summary{};
 	ParamCollectionSummary cables_summary{};
 	PatchedParamSet patched{&patched_summary};
 	PatchCableSet cables{&cables_summary};
 	GlobalParams global_plane{};
 	std::array<VoiceParams, mm::kVoices> voice_planes{};
-	Patcher global{kSoundConfig, global_plane.source_values, global_plane.param_final_values};
-	std::array<Patcher, mm::kVoices> voices =
-	    make_voice_patchers(voice_planes, std::make_index_sequence<mm::kVoices>{});
 	uint32_t block_index = 0;
 };
 
 /// Built once, in the app's fast heap, where voices live.
-PatcherRig& patcher_rig() {
-	static PatcherRig* rig = new (deluge::memory::alloc_fast(sizeof(PatcherRig), alignof(PatcherRig))) PatcherRig{};
+MatrixRig& matrix_rig() {
+	static MatrixRig* rig = new (deluge::memory::alloc_fast(sizeof(MatrixRig), alignof(MatrixRig))) MatrixRig{};
 	return *rig;
 }
 
-/// The block a sound gathers for one patching call, as Sound::patchControlBlock does: the routing, the routed
-/// destinations' presets (every param's for the initial patching) and the routed cables' depths.
-ControlBlock control_block(PatcherRig& r, bool all_presets) {
-	ControlBlock block;
-	block.routing = r.cables.routing();
+/// The block a sound gathers for one patching call, as Sound::matrixBlock does: the program, the routed destinations'
+/// presets (every param's for the initial patching) and the routed cables' depths.
+MatrixBlock control_block(MatrixRig& r, bool all_presets) {
+	MatrixBlock block;
+	block.program = r.cables.program();
+	const deluge::synth::PatchRouting routing = r.cables.routing();
 	if (all_presets) {
 		for (int32_t p = 0; p < params::kNumParams; p++) {
 			block.preset_values[p] = r.patched.getValue(p);
 		}
 	}
 	else {
-		for (const deluge::synth::RoutedDestination* list : block.routing.destinations) {
+		for (const deluge::synth::RoutedDestination* list : routing.destinations) {
 			for (const deluge::synth::RoutedDestination* d = list; d != nullptr && d->sources != 0; d++) {
 				if (d->target.is_param()) {
 					block.preset_values[d->target.param_index()] = r.patched.getValue(d->target.param_index());
@@ -98,7 +78,7 @@ ControlBlock control_block(PatcherRig& r, bool all_presets) {
 	return block;
 }
 
-void build(PatcherRig& r) {
+void build(MatrixRig& r) {
 	std::bitset<kMaxNumPatchCables> usable;
 	for (const mm::WorkloadCable& w : mm::kCables) {
 		ParamDescriptor target;
@@ -139,14 +119,14 @@ void build(PatcherRig& r) {
 	}
 }
 
-void advance_global(PatcherRig& r) {
+void advance_global(MatrixRig& r) {
 	for (std::size_t i = 0; i < mm::kNumGlobalMoving; ++i) {
 		const uint8_t s = mm::kMovingSources[i];
 		r.global_plane.source_values[s] = mm::moving_value_q31(r.block_index, 0, s);
 	}
 }
 
-void take_globals_and_advance(PatcherRig& r, std::size_t v) {
+void take_globals_and_advance(MatrixRig& r, std::size_t v) {
 	VoiceParams& plane = r.voice_planes[v];
 	for (std::size_t s = 0; s < std::to_underlying(kFirstLocalSource); ++s) {
 		plane.source_values[s] = r.global_plane.source_values[s];
@@ -155,6 +135,18 @@ void take_globals_and_advance(PatcherRig& r, std::size_t v) {
 		const uint8_t s = mm::kMovingSources[i];
 		plane.source_values[s] = mm::moving_value_q31(r.block_index, static_cast<uint32_t>(v) + 1, s);
 	}
+}
+
+ScopePass sound_pass(MatrixRig& r) {
+	return {.scope = GLOBALITY_GLOBAL,
+	        .sources = r.global_plane.source_values,
+	        .final_values = r.global_plane.param_final_values};
+}
+
+ScopePass voice_pass(MatrixRig& r, std::size_t v) {
+	return {.scope = GLOBALITY_LOCAL,
+	        .sources = r.voice_planes[v].source_values,
+	        .final_values = r.voice_planes[v].param_final_values};
 }
 
 uint32_t moving_mask(std::size_t from, std::size_t to) {
@@ -167,44 +159,44 @@ uint32_t moving_mask(std::size_t from, std::size_t to) {
 
 } // namespace
 
-void PatcherCase::setup(std::size_t /*n*/) {
-	PatcherRig& r = patcher_rig();
+void MatrixCase::setup(std::size_t /*n*/) {
+	MatrixRig& r = matrix_rig();
 	if (r.cables.numPatchCables == 0) {
 		build(r);
 	}
 	r.block_index = 0;
-	const ControlBlock cb = control_block(r, true);
+	const MatrixBlock cb = control_block(r, true);
 	advance_global(r);
-	r.global.perform_initial_patching(cb);
+	Evaluator::run_initial(sound_pass(r), cb);
 	for (std::size_t v = 0; v < mm::kVoices; ++v) {
 		take_globals_and_advance(r, v);
-		r.voices[v].perform_initial_patching(cb);
+		Evaluator::run_initial(voice_pass(r, v), cb);
 	}
 }
 
-void PatcherCase::block(std::size_t /*n*/) {
-	PatcherRig& r = patcher_rig();
+void MatrixCase::block(std::size_t /*n*/) {
+	MatrixRig& r = matrix_rig();
 	constexpr uint32_t kAll = (uint32_t{1} << kNumPatchSources) - 1;
-	const uint32_t global_mask = kind_ == ModMatrixKind::PATCHER_ALL ? kAll : moving_mask(0, mm::kNumGlobalMoving);
-	const uint32_t local_mask = kind_ == ModMatrixKind::PATCHER_ALL ? kAll : moving_mask(0, mm::kMovingSources.size());
-	const bool initial = kind_ == ModMatrixKind::PATCHER_INITIAL;
+	const uint32_t global_mask = kind_ == ModMatrixKind::ALL ? kAll : moving_mask(0, mm::kNumGlobalMoving);
+	const uint32_t local_mask = kind_ == ModMatrixKind::ALL ? kAll : moving_mask(0, mm::kMovingSources.size());
+	const bool initial = kind_ == ModMatrixKind::INITIAL;
 	advance_global(r);
 	// The sound gathers once for its own patching and once for its voices', as Sound::render does.
-	const ControlBlock sound_block = control_block(r, initial);
+	const MatrixBlock sound_block = control_block(r, initial);
 	if (initial) {
-		r.global.perform_initial_patching(sound_block);
+		Evaluator::run_initial(sound_pass(r), sound_block);
 	}
 	else {
-		r.global.perform_patching(global_mask, sound_block);
+		Evaluator::run(sound_pass(r), sound_block, global_mask);
 	}
-	const ControlBlock voice_block = control_block(r, initial);
+	const MatrixBlock voice_block = control_block(r, initial);
 	for (std::size_t v = 0; v < mm::kVoices; ++v) {
 		take_globals_and_advance(r, v);
 		if (initial) {
-			r.voices[v].perform_initial_patching(voice_block);
+			Evaluator::run_initial(voice_pass(r, v), voice_block);
 		}
 		else {
-			r.voices[v].perform_patching(local_mask, voice_block);
+			Evaluator::run(voice_pass(r, v), voice_block, local_mask);
 		}
 	}
 	++r.block_index;

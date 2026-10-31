@@ -66,6 +66,7 @@ struct ScopeView {
 /// One instrument's compiled cables.
 struct MatrixProgram {
 	std::array<ScopeView, 2> scopes{}; ///< [0] the voice scope, [1] the sound scope
+	std::size_t bytes{};               ///< the block it lives in, header included
 };
 
 } // namespace deluge::synth::matrix

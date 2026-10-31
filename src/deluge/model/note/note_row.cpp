@@ -3811,8 +3811,7 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 		}
 
 		if (clip->isActiveOnOutput()) {
-			soundDrum->patcher.perform_initial_patching(
-			    soundDrum->patchControlBlock(paramManager, Sound::PresetGather::ALL));
+			soundDrum->performInitialPatching(soundDrum->matrixBlock(paramManager, Sound::PresetGather::ALL));
 		}
 	}
 

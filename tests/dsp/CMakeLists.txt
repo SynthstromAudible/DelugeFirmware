@@ -88,6 +88,8 @@ set(synth_voice_spec_DEPS
 set(patcher_spec_DEPS ${synth_voice_spec_DEPS} ${CMAKE_CURRENT_LIST_DIR}/reference_patcher.cpp)
 # The matrix compiler against today's routing, on the patcher's random cases.
 set(matrix_compiler_spec_DEPS ${synth_voice_spec_DEPS} ${CMAKE_CURRENT_LIST_DIR}/reference_patcher.cpp)
+# The matrix evaluator against the frozen reference patcher, on random cases.
+set(matrix_evaluator_spec_DEPS ${synth_voice_spec_DEPS} ${CMAKE_CURRENT_LIST_DIR}/reference_patcher.cpp)
 # The engines played on the host, through the voice and on their own: the same closure as the voice spec.
 set(synth_engine_spec_DEPS ${synth_voice_spec_DEPS})
 # The shared windowed-sinc kernel table + its select()/variant() variant picks.
@@ -301,11 +303,12 @@ endforeach()
 # undefined symbols, no gui/model/processing/storage objects) proves libdeluge-synth is self-contained. This
 # is the link-time companion to scripts/check_synth_boundary.py's transitive include check. The dep set is the
 # `nm -u` closure of the synth objects: param-math (param_functions), the numeric LUTs, interpolation, the
-# noise stream (synth_noise), and the routing compile (patch_routing). The Patcher has no PatchCableSet dependency.
+# noise stream (synth_noise), the routing compile (patch_routing) and the matrix (compiler, evaluator).
 if(NOT DSP_SPEC_ARM)
   add_executable(synth_link_test
     ${CMAKE_CURRENT_LIST_DIR}/synth_link_main.cpp
-    ${_repo_root}/src/synth/modulation/patcher.cpp
+    ${_repo_root}/src/synth/matrix/compiler.cpp
+    ${_repo_root}/src/synth/matrix/evaluator.cpp
     ${_repo_root}/src/synth/modulation/envelope.cpp
     ${_repo_root}/src/synth/modulation/lfo.cpp
     ${_repo_root}/src/deluge/util/param_functions.cpp

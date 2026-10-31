@@ -32,4 +32,8 @@ namespace deluge::synth::matrix {
 /// hold @ref program_size bytes, aligned for MatrixProgram, and outlive the program.
 const MatrixProgram* compile_program(const RoutingBuild& routing, std::span<std::byte> storage);
 
+/// Copies @p from into @p storage (at least `from.bytes`, aligned for MatrixProgram), its tables pointing into the
+/// copy.
+const MatrixProgram* copy_program(const MatrixProgram& from, std::span<std::byte> storage);
+
 } // namespace deluge::synth::matrix

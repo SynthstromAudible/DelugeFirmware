@@ -23,10 +23,13 @@
 #include "modulation/params/param.h"
 #include "synth/engines/engine_set.h"
 #include "synth/engines/source_levels.h"
+#include "synth/matrix/evaluator.h"
+#include "synth/matrix/matrix_block.h"
+#include "synth/matrix/matrix_fixed.h"
 #include "synth/modulation/envelope.h"
 #include "synth/modulation/lfo.h"
 #include "synth/modulation/param_plane.h"
-#include "synth/modulation/patcher.h"
+#include "synth/modulation/patch_routing.h" // GLOBALITY_*
 #include "synth/voice/sound_snapshot.h"
 #include "synth/voice/unison_part.h"
 #include "synth/voice/voice_config.h"
@@ -70,14 +73,14 @@ public:
 	/// A note-off came while note tails were not allowed, and was only remembered.
 	[[nodiscard]] bool previously_ignored_note_off() const { return previously_ignored_note_off_; }
 	/// Recomputes param @p param's final value from its preset alone (it has no cables), from @p control_block.
-	void recalculate_param_with_no_cables(int32_t param, const ControlBlock& control_block) {
-		patcher_.recalculate_final_value_for_param_with_no_cables(param, control_block);
+	void recalculate_param_with_no_cables(int32_t param, const matrix::MatrixBlock& control_block) {
+		Evaluator::run_uncabled_param(matrix_pass(), control_block, param);
 	}
 
 	uint32_t get_local_lfo_phase_increment(const LFOConfig& config, deluge::modulation::params::Local param,
 	                                       uint32_t synced_phase_increment);
 	/// Renders one block, adding into @p args.buffer. @return false once the voice has ended and must be unassigned.
-	bool render(const ControlBlock& control_block, const VoiceConfig& cfg, const VoiceBlock& block,
+	bool render(const matrix::MatrixBlock& control_block, const VoiceConfig& cfg, const VoiceBlock& block,
 	            const VoiceRenderArgs& args);
 
 	/// Starts @p event's note. @p num_active_voices is the sound's voice count, which the cull order ranks by.
@@ -127,11 +130,15 @@ public:
 	bool speed_up_release(VoiceClock clock, uint32_t min_fast_release_increment = kSoftCullIncrement);
 
 private:
-	Patcher patcher_;
+	using Evaluator = matrix::Evaluator<matrix::MatrixFixed>;
+	/// The voice's patching pass over its param plane: the local params from every source.
+	[[nodiscard]] matrix::ScopePass matrix_pass() {
+		return {.scope = GLOBALITY_LOCAL, .sources = params_.source_values, .final_values = params_.param_final_values};
+	}
 
 	// The per-voice modulation data plane: the *local* param final values (specific to this Voice) plus the patch
 	// source values. At the start of source_values are local copies of the "global" sources — cheaper to copy them
-	// here than to make the Patcher pick and choose where to look.
+	// here than to make the matrix pick and choose where to look.
 	VoiceParams params_;
 
 	std::bitset<kNumExpressionDimensions> expression_sources_currently_smoothing_;
@@ -180,10 +187,10 @@ private:
 	[[nodiscard]] int32_t next_noise() { return static_cast<int32_t>(noise_->next()); }
 
 	/// The controls a dual-source engine renders this block from, derived from the voice's params.
-	[[nodiscard]] DualSourceControls dual_source_controls(const ControlBlock& control_block, const VoiceConfig& cfg,
-	                                                      const VoiceBlock& block, int32_t filter_gain,
-	                                                      int32_t overall_pitch_adjust, bool first_render,
-	                                                      bool stereo_unison) const;
+	[[nodiscard]] DualSourceControls dual_source_controls(const matrix::MatrixBlock& control_block,
+	                                                      const VoiceConfig& cfg, const VoiceBlock& block,
+	                                                      int32_t filter_gain, int32_t overall_pitch_adjust,
+	                                                      bool first_render, bool stereo_unison) const;
 	/// The controls FM renders this block from, derived from the voice's params.
 	[[nodiscard]] FmControls fm_controls(int32_t overall_osc_amplitude, int32_t filter_gain,
 	                                     int32_t overall_pitch_adjust, bool first_render, bool stereo_unison) const;
@@ -208,7 +215,7 @@ private:
 
 	/// The envelopes, local LFOs, MPE smoothing and patching for this block. @return whether the amplitude envelope
 	/// has ended, so the voice is done after this block.
-	bool render_modulation(const ControlBlock& control_block, const VoiceConfig& cfg, const VoiceBlock& block,
+	bool render_modulation(const matrix::MatrixBlock& control_block, const VoiceConfig& cfg, const VoiceBlock& block,
 	                       int32_t num_samples, uint32_t sources_changed);
 	/// Moves the MPE sources that are smoothing towards their targets for this block.
 	void smooth_expression(const VoiceConfig& cfg, int32_t num_samples);
@@ -232,7 +239,7 @@ private:
 		        params_.param_final_values[deluge::modulation::params::LOCAL_MODULATOR_1_VOLUME]};
 	}
 	/// Whether a source that can change during the note modulates source @p s's pitch, so its sample is not cached.
-	[[nodiscard]] bool pitch_mod_disallows_cache(const ControlBlock& control_block, const VoiceConfig& cfg,
+	[[nodiscard]] bool pitch_mod_disallows_cache(const matrix::MatrixBlock& control_block, const VoiceConfig& cfg,
 	                                             int32_t s) const;
 	void setup_porta(int32_t last_note_code);
 	/// Starts the release of a voice of play-once samples so that it ends with them.

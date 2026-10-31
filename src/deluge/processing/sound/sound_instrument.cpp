@@ -252,7 +252,7 @@ bool SoundInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack, P
 
 		if (modelStack) {
 			ParamManager* paramManager = &modelStack->getTimelineCounter()->paramManager;
-			patcher.perform_initial_patching(patchControlBlock(*paramManager, PresetGather::ALL));
+			performInitialPatching(matrixBlock(*paramManager, PresetGather::ALL));
 
 			// Grab mono expression params
 			ExpressionParamSet* expressionParams = paramManager->getExpressionParamSet();
@@ -283,7 +283,7 @@ void SoundInstrument::setupWithoutActiveClip(ModelStack* modelStack) {
 	if (!paramManager) {
 		FREEZE_WITH_ERROR("E173");
 	}
-	patcher.perform_initial_patching(patchControlBlock(*paramManager, PresetGather::ALL));
+	performInitialPatching(matrixBlock(*paramManager, PresetGather::ALL));
 
 	// Clear mono expression params
 	for (int32_t i = 0; i < kNumExpressionDimensions; i++) {

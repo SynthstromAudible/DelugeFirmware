@@ -24,6 +24,14 @@
 #include <cstdint>
 #include <span>
 
+/// A routing's scope: the voice's cables (local params) or the sound's (global params). Unscoped: it indexes the
+/// per-scope arrays throughout the app.
+// NOLINTNEXTLINE(cppcoreguidelines-use-enum-class)
+enum Globality {
+	GLOBALITY_LOCAL = 0,
+	GLOBALITY_GLOBAL = 1,
+};
+
 namespace deluge::synth {
 
 /// @brief One destination of a clip's routing: a param, or a cable's depth, and the run of cables [first_cable,

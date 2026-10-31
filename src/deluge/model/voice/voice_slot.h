@@ -85,7 +85,7 @@ public:
 	/// A sample's zone moved under the playing note. @return false if the voice must be unassigned now.
 	bool sample_zone_changed(ModelStackWithSoundFlags& flags, int32_t s, MarkerType marker);
 	/// Renders one block of the voice. @return false once it has ended and must be unassigned.
-	bool render(const ControlBlock& control_block, const deluge::synth::VoiceConfig& cfg,
+	bool render(const deluge::synth::matrix::MatrixBlock& control_block, const deluge::synth::VoiceConfig& cfg,
 	            const deluge::synth::VoiceRenderArgs& args);
 
 	// --- Releases, stamped by the engine's voice clock. Each returns whether the voice still sounds.
