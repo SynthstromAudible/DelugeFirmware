@@ -47,6 +47,10 @@ RANGE_RE = re.compile(
     r"num_i\((\d+)\) last_sz\((\d+)\) \(ISA=([^)]+)\) ([EN])\b(.*)\)"
 )
 CC_RE = re.compile(r"\[CC=(\d+)\]")
+RET_RE = re.compile(r"\bret\b")
+FILTER_REASON = (
+    "begin or filter"  # the TRACE_ON reason for the filter re-entering traced code
+)
 TRACE_ON_RE = re.compile(r"OCSD_GEN_TRC_ELEM_TRACE_ON\( \[([^\]]*)\]")
 BREAK_RE = re.compile(r"OCSD_GEN_TRC_ELEM_(NO_SYNC|EO_TRACE|ADDR_NACC|ADDR_UNKNOWN)")
 INSN_RE = re.compile(r"^\s*([0-9a-fA-F]+):\s+(.*\S)\s*$")
@@ -62,17 +66,29 @@ class Range:
     last_size: int
     taken: bool
     cycles: int | None
+    returns: bool = False  # its waypoint is a return, taken
 
     @property
     def last(self) -> int:
         return self.end - self.last_size
 
 
+@dataclass(frozen=True)
+class TraceOn:
+    """Trace resuming: after the filter left the traced code (a call out, an exception, a return to an
+    untraced caller) or at the capture's start. `cycles` is the count the element carries, the time the
+    trace was off."""
+
+    reason: str
+    cycles: int | None
+
+
 @dataclass
 class Decoded:
-    """The trace as a sequence of ranges, broken where the decoder lost track (None entries)."""
+    """The trace as a sequence of ranges, broken where trace resumed (TraceOn entries) or where the
+    decoder lost track (None entries)."""
 
-    items: list[Range | None] = field(default_factory=list)
+    items: list[Range | TraceOn | None] = field(default_factory=list)
     trace_on: Counter = field(default_factory=Counter)
 
 
@@ -92,11 +108,13 @@ def parse_decode(text: str) -> Decoded:
                     last_size=int(m.group(4)),
                     taken=m.group(6) == "E",
                     cycles=int(cc.group(1)) if cc else None,
+                    returns=m.group(6) == "E" and RET_RE.search(m.group(7)) is not None,
                 )
             )
         elif m := TRACE_ON_RE.search(line):
             out.trace_on[m.group(1)] += 1
-            out.items.append(None)
+            cc = CC_RE.search(line)
+            out.items.append(TraceOn(m.group(1), int(cc.group(1)) if cc else None))
         elif BREAK_RE.search(line):
             out.items.append(None)
     return out
@@ -156,11 +174,10 @@ def segments(dec: Decoded) -> list[list[Range]]:
     """Runs of ranges with no break between them."""
     runs: list[list[Range]] = [[]]
     for item in dec.items:
-        if item is None:
-            if runs[-1]:
-                runs.append([])
-        else:
+        if isinstance(item, Range):
             runs[-1].append(item)
+        elif runs[-1]:
+            runs.append([])
     return [r for r in runs if r]
 
 
@@ -206,6 +223,74 @@ def loop_iterations(dec: Decoded, lo: int, hi: int) -> dict[int, list[int]]:
     return dict(result)
 
 
+def calls(dec: Decoded, lo: int, hi: int) -> list[dict[str, int]]:
+    """Cycles per complete call of the function [@p lo, @p hi), with what it calls when that is traced
+    too.
+
+    A call runs from a range starting at @p lo to the function's own return (a taken return whose range
+    lies in [lo, hi)); what runs after that until the next entry is not its, even where it is traced
+    code reached from elsewhere. `own` sums the call's ranges' cycles; `outside` sums the trace-off time
+    between them (calls into untraced code, exceptions), from the TraceOn elements; `calls_out` counts
+    those gaps. A call the trace lost data in (a None, or trace resuming for any reason but the filter,
+    such as an overflow) or missing a cycle count is dropped, as is one the capture cuts short.
+    """
+    out: list[dict[str, int]] = []
+    current: dict[str, int] | None = None
+    for item in dec.items:
+        if item is None or (isinstance(item, TraceOn) and item.reason != FILTER_REASON):
+            current = None
+        elif isinstance(item, TraceOn):
+            if current is not None:
+                if item.cycles is None:
+                    current = None
+                else:
+                    current["outside"] += item.cycles
+                    current["calls_out"] += 1
+        else:
+            if item.start == lo:
+                current = {"own": 0, "outside": 0, "calls_out": 0}
+            if current is None:
+                continue
+            if item.cycles is None:
+                current = None
+                continue
+            current["own"] += item.cycles
+            if item.returns and lo <= item.last < hi:
+                current["total"] = current["own"] + current["outside"]
+                out.append(current)
+                current = None
+    return out
+
+
+def calls_section(name: str, result: list[dict[str, int]]) -> str:
+    """The calls table: every call, and the calls split by how many times they left the traced code."""
+    out = [
+        f"### Calls of {name}",
+        "",
+        "A call runs from an entry to the function's return; `own` is the traced code's cycles (the first",
+        "function and any other traced one it calls), `outside` the time in untraced callees and",
+        "exceptions.",
+        "",
+        "| calls | calls out | n | own mean | own p50 | own p90 | total mean | total p50 | total p90 |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
+    ]
+    groups: dict[str, list[dict[str, int]]] = {"all": result}
+    for k in sorted({c["calls_out"] for c in result}):
+        groups[str(k)] = [c for c in result if c["calls_out"] == k]
+    for label, group in groups.items():
+        if not group:
+            continue
+        own = summarize([c["own"] for c in group])
+        total = summarize([c["total"] for c in group])
+        out.append(
+            f"| {'all' if label == 'all' else 'by gaps'} | {'-' if label == 'all' else label} | "
+            f"{own['n']} | {own['mean']} | {own['p50']} | {own['p90']} | {total['mean']} | "
+            f"{total['p50']} | {total['p90']} |"
+        )
+    out.append("")
+    return "\n".join(out)
+
+
 def analyse(dec: Decoded, insns: dict[int, str], lo: int, hi: int) -> dict:
     """Blocks, loops and per-instruction counts for the function [lo, hi)."""
     addresses = sorted(a for a in insns if lo <= a < hi)
@@ -213,7 +298,7 @@ def analyse(dec: Decoded, insns: dict[int, str], lo: int, hi: int) -> dict:
     block_execs: Counter = Counter()
     insn_execs: Counter = Counter()
     for item in dec.items:
-        if item is None or not (lo <= item.start < hi):
+        if not isinstance(item, Range) or not (lo <= item.start < hi):
             continue
         key = (item.start, item.end)
         block_execs[key] += 1
@@ -346,6 +431,7 @@ def main(argv: list[str] | None = None) -> int:
         syms = []
     doc = [f"# PTM trace report: {capture.name}", ""]
     data = []
+    call_rows: list[dict[str, int]] = []
     for lo_text, hi_text in meta["ranges"]:
         lo, hi = int(lo_text, 16), int(hi_text, 16)
         sym = symbols.at(syms, lo)
@@ -353,11 +439,19 @@ def main(argv: list[str] | None = None) -> int:
         insns = disassemble(Path(args.elf), lo, hi)
         result = analyse(dec, insns, lo, hi)
         doc.append(render(name, lo, hi, result, dec))
+        if not data:
+            # The first traced function is the root: its calls include the other traced functions
+            call_rows = calls(dec, lo, hi)
+            doc.append(calls_section(name, call_rows))
         data.append({"name": name, "start": lo, "end": hi, **result})
     text = "\n".join(doc)
     (capture / "report.md").write_text(text)
     (capture / "report.json").write_text(
-        json.dumps({"trace_on": dict(dec.trace_on), "ranges": data}, indent=2) + "\n"
+        json.dumps(
+            {"trace_on": dict(dec.trace_on), "ranges": data, "calls": call_rows},
+            indent=2,
+        )
+        + "\n"
     )
     print(text)
     return 0
