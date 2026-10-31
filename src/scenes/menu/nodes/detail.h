@@ -73,8 +73,8 @@ constexpr Node with_range(Node n, IntRange r) {
 ///
 /// @note Legacy's five `IntegerWithOff` subclasses all carry it: `nodes::device_default_velocity_to_level`,
 ///       `MpeZoneChannelsItem` (which draws its own), `nodes::record_count_in`, `nodes::saturation` and
-///       `nodes::voice_count`. `voice::VoiceCount` also draws `OLED::infinityIcon` at 0 in the horizontal menu
-///       (`gui/menu_item/voice/polyphony.h:88-94`), which `ValueStyle` cannot express: that half is a column draw.
+///       `nodes::voice_count`. `ValueStyle` is the leaf's drawing only: `voice::VoiceCount`'s infinity at 0 in the
+///       horizontal menu (`gui/menu_item/voice/polyphony.h:98-104`) is its `Binding::column_art`.
 constexpr Node with_value_style(Node n, deluge::ui::oled::ValueStyle style) {
 	n.bind.style = style;
 	return n;

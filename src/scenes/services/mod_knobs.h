@@ -29,8 +29,9 @@
 ///
 /// @par Acceleration
 ///
-/// The turn's acceleration is `InputLowering::calc_next_knob_speed`, legacy's curve per encoder role (legacy shares
-/// one ramp between the two knobs, and its clock is sub-millisecond; the port's ramps are per knob, on whole ms).
+/// The turn's acceleration is `InputLowering::calc_next_knob_speed`: legacy's `EncoderAcceleration`, one ramp per gold
+/// knob as legacy keeps one per `ContinuousEncoder` (`hid/encoders.h:77`). Legacy's clock is sub-millisecond; the
+/// port's is whole milliseconds.
 ///
 /// @par Not this service's
 ///
