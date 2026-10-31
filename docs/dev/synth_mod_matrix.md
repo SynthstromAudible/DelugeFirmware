@@ -46,8 +46,8 @@ Each scope's `ScopeView` points into the program's block:
    The curve for the param's kind gives the final value.
 
 `run_initial` (a note's first patching, and the sound's whenever it re-patches every param) first computes every
-param as if uncabled, then runs every destination as above, overwriting the cabled params. The volume, linear and
-hybrid regions go four at a time, with any remainder of fewer than four through the scalar curve; the exp params go
+param as if uncabled, then runs every destination as above, overwriting the cabled params. The square-, linear- and
+bipolar-curve regions go four at a time, with any remainder of fewer than four through the scalar curve; the exponential-curve params go
 one by one, skipping the cabled. `run_uncabled_param` sets one param from its preset alone.
 
 The depth results are one array shared by every pass: a pass that skips a depth destination reads the last value any
@@ -69,7 +69,7 @@ positive).
   `lshift_and_saturate<3>(smmul(2^29, term + 2^29)) - 2^29`. With the term in [-2^30, 2^30] (a preset times a
   range of at most 2^30), `smmul(2^29, x)` is `x >> 3`, the 29-bit clamp never bites, and the shifts drop the low
   three bits; 2^29 is a multiple of 8, so subtracting it back leaves the term with those bits cleared.
-- The curves follow `getFinalParameterValueVolume`, `…Linear` and `…Hybrid` operation for operation; the volume
+- The curves follow `getFinalParameterValueVolume`, `…Linear` and `…Hybrid` operation for operation; the square
   curve's square is a wrapping 32-bit multiply in both.
 
 ## Speed
@@ -100,6 +100,6 @@ between the core and NEON registers cost more than the multiplies saved.
 `Evaluator<B>` is a template over its numeric core; `evaluator.cpp` instantiates it for `MatrixFixed` alone. A core
 provides `kOne`, `convert`, `depth`, `product`, `depth_product`, `multiply_step`, `add_step`, `preset_term`,
 `double_saturating`, `depth_result` and `curve`, and for the uncabled bulk a `Lanes` type with `preset_terms`,
-`uncabled_multiply`, `curve_volume`, `curve_linear` and `curve_hybrid`. A float core (planned, for the float
+`uncabled_multiply`, `curve_square`, `curve_linear` and `curve_bipolar`. A float core (planned, for the float
 instrument plugin in `TODO.md`) would provide the same over `float` and `Argon<float>` and add its own explicit
 instantiation; the program, the compiler and the pass order would stay as they are.
