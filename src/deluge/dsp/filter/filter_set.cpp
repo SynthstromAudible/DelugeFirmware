@@ -17,7 +17,7 @@
 
 #include "dsp/filter/filter_set.h"
 #include "definitions_cxx.hpp"
-#include "model/global_effectable/kit_output_gain.h"
+#include "model/global_effectable/output_stage_gain.h"
 
 namespace deluge::dsp::filter {
 

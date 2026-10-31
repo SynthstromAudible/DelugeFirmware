@@ -23,7 +23,7 @@
 #include "gui/views/view.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
-#include "model/global_effectable/kit_output_gain.h"
+#include "model/global_effectable/output_stage_gain.h"
 #include "processing/engines/audio_engine.h"
 #include <limits>
 #include <string.h>

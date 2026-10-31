@@ -1,5 +1,5 @@
 #include "CppUTest/TestHarness.h"
-#include "model/global_effectable/kit_output_gain.h"
+#include "model/global_effectable/output_stage_gain.h"
 #include "util/volume_param_gain.h"
 
 #include <cstdint>
@@ -102,4 +102,26 @@ TEST(VolumeParamGainTests, kitOutputStageIsAboutMinusSixDB) {
 	int32_t pos = kitOutputStageGainPos();
 	CHECK(pos > 379000000);
 	CHECK(pos < 381000000);
+}
+
+TEST(VolumeParamGainTests, songOutputStageHalvesGain) {
+	// Song::renderAudio() halves the song volume's gain. Applied to a neutral LOCAL_VOLUME, that must deliver half the
+	// neutral final gain.
+	VolumeParamGain result = applyGainToVolumeParam(0, songOutputStageGainPos());
+	CHECK(std::abs(finalGain(result.param) - (finalGain(0) >> 1)) <= finalGain(0) / 10000);
+}
+
+TEST(VolumeParamGainTests, multiplyGainPosMultipliesLinearGains) {
+	CHECK_EQUAL(kVolumeParamUnityPos, multiplyGainPos(kVolumeParamUnityPos, kVolumeParamUnityPos));
+	CHECK_EQUAL(0, multiplyGainPos(0, kVolumeParamMaxPos));
+
+	// Song and kit stages at neutral: about a quarter of the gain, -12 dB, which is what the preview used to skip.
+	int32_t combined = multiplyGainPos(songOutputStageGainPos(), kitOutputStageGainPos());
+	VolumeParamGain result = applyGainToVolumeParam(0, combined);
+	int64_t expected = finalGain(0) / 4;
+	CHECK(std::abs(finalGain(result.param) - expected) <= expected / 500);
+}
+
+TEST(VolumeParamGainTests, multiplyGainPosSaturates) {
+	CHECK_EQUAL(std::numeric_limits<int32_t>::max(), multiplyGainPos(kMaxParam, kMaxParam));
 }
