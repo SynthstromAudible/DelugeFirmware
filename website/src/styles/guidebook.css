@@ -1,0 +1,35 @@
+/* Colours used by Guidebook figure SVGs (see online-manual tools/guidebook/figsvg.py). */
+:root {
+  --gb-accent: #d61e24;
+  --gb-muted: #6b6a6b;
+  --gb-paper: #ffffff;
+}
+
+:root[data-theme="dark"] {
+  --gb-accent: #ff5a5f;
+  --gb-muted: #a0a0a0;
+  --gb-paper: #23262f;
+}
+
+.gb-figure {
+  margin: 1.5rem 0;
+}
+
+.gb-figure svg,
+.gb-figure img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin-inline: auto;
+}
+
+.gb-figure-art {
+  color: var(--sl-color-white);
+}
+
+.gb-figure figcaption {
+  margin-top: 0.5rem;
+  text-align: center;
+  font-size: var(--sl-text-sm);
+  color: var(--sl-color-gray-3);
+}

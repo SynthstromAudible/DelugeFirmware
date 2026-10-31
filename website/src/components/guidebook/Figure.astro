@@ -1,0 +1,38 @@
+---
+/**
+ * A rebuilt Guidebook figure: an inline SVG (so theme colours apply) or an
+ * image. Asset URLs under /guidebook/img/ are prefixed with the site base.
+ */
+import "../../styles/guidebook.css"
+
+type Props = {
+  id: string
+  alt: string
+  page: number
+  caption?: string
+  /** Raw SVG markup (import with ?raw) */
+  src?: string
+  /** Image URL, e.g. /guidebook/img/<asset>.webp */
+  img?: string
+}
+
+const { id, alt, page, caption, src, img } = Astro.props
+const base = import.meta.env.BASE_URL.replace(/\/$/, "")
+const withBase = (s: string) =>
+  s.replaceAll('href="/guidebook/img/', `href="${base}/guidebook/img/`)
+---
+
+<figure class="gb-figure" id={id}>
+  {
+    src && (
+      <div
+        class="gb-figure-art"
+        role="img"
+        aria-label={alt}
+        set:html={withBase(src)}
+      />
+    )
+  }
+  {img && <img src={`${base}${img}`} alt={alt} loading="lazy" />}
+  <figcaption>{caption ?? `Guidebook p.${page}`}</figcaption>
+</figure>
