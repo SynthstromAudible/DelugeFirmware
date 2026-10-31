@@ -1,7 +1,8 @@
 # ShellMenu: the drawn columns. SHIFT + the LPF frequency shortcut, then SHIFT + CROSS_SCREEN along the sound chain
 # to STUTTER: its rate, and its direction through every value; on to ARP and its pattern pages, the rhythm turned
-# off zero; then SHIFT + SCALE back to the oscillators and OSC1's type through several shapes. Navigation presses
-# are 200 ms apart, past the 140 ms debounce. Run on the ShellMenu card.
+# off zero; SHIFT + SCALE back to the oscillators and OSC1's type through several shapes; on to the voice group
+# (unison detune, portamento) and the delay (amount past 24). Navigation presses are 200 ms apart, past the 140 ms
+# debounce. Run on the ShellMenu card.
 100   snapshot boot
 300   button Shift down
 400   pad 8 7 down
@@ -97,3 +98,38 @@
 23900 snapshot osc-type-5
 24200 encoder Select +1
 24900 snapshot osc-type-6
+25200 button Shift down
+25300 button CrossScreen down
+25320 button CrossScreen up
+25500 button Shift up
+26200 snapshot unison
+26500 button Kit down
+26520 button Kit up
+27200 encoder Select +38
+27900 snapshot unison-detune
+28200 button CrossScreen down
+28220 button CrossScreen up
+28900 snapshot voice
+29200 button Cv down
+29220 button Cv up
+29900 encoder Select +20
+30600 snapshot voice-portamento
+30900 button Shift down
+31000 button CrossScreen down
+31020 button CrossScreen up
+31200 button CrossScreen down
+31220 button CrossScreen up
+31400 button CrossScreen down
+31420 button CrossScreen up
+31600 button CrossScreen down
+31620 button CrossScreen up
+31800 button CrossScreen down
+31820 button CrossScreen up
+32000 button CrossScreen down
+32020 button CrossScreen up
+32200 button CrossScreen down
+32220 button CrossScreen up
+32400 button Shift up
+33100 snapshot delay
+33400 encoder Select +30
+34100 snapshot delay-amount-high

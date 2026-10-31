@@ -643,6 +643,40 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		    .to_equal(std::string(deluge::l10n::get(String::STRING_FOR_FORWARD_PING_PONG)));
 	});
 
+	it("portamento, detune, pulse width and delay amount columns draw main's pictures", _ {
+		// `voice::Portamento`, `unison::Detune`, `osc::PulseWidth` and `delay::Amount`/`Amount_Unpatched`'s
+		// `renderInHorizontalMenu` (`voice/portamento.h:34-66`, `unison/detune.h:57-98`, `osc/pulse_width.h:54-77`,
+		// `delay/amount.h:35-58`, `delay/amount_unpatched.h:31-54`), each over its 0..50 value.
+		select_language();
+		Rig r;
+		const MenuContext ctx = r.open(horiz_page);
+		menu::ColumnSlot slot;
+		deluge::ui::oled::Column col;
+		using Shape = deluge::ui::oled::DrawColumn::Shape;
+		const auto drawn = [&](const Node& node, int32_t value) {
+			slot = {};
+			col = {};
+			menu::present_column(node, ctx, value, slot, col);
+			return col.render == deluge::ui::oled::draw_column;
+		};
+		expect(drawn(menu::nodes::portamento, 20)).to_be_true();
+		expect(slot.draw.shape == Shape::Glide).to_be_true();
+		expect(slot.draw.norm).to_equal(0.4f);
+		expect(drawn(menu::nodes::unison_detune, 10)).to_be_true();
+		expect(slot.draw.shape == Shape::Detune).to_be_true();
+		expect(slot.draw.norm).to_equal(0.2f);
+		for (const Node* pw : {&menu::nodes::osc0_pulse_width, &menu::nodes::osc1_pulse_width}) {
+			expect(drawn(*pw, 31)).to_be_true();
+			expect(slot.draw.shape == Shape::PulseWidth).to_be_true();
+			expect(static_cast<int>(slot.draw.raw)).to_equal(31);
+		}
+		for (const Node* amount : {&menu::nodes::delay_amount, &menu::nodes::global_delay_amount}) {
+			expect(drawn(*amount, 30)).to_be_true();
+			expect(slot.draw.shape == Shape::DelayAmount).to_be_true();
+			expect(static_cast<int>(slot.draw.raw)).to_equal(30);
+		}
+	});
+
 	it("master's transpose column reads TRANSPOSE and a whole number below -9.99", _ {
 		// `MasterTranspose::getColumnLabel` (`master_transpose.h:74`); `Decimal::renderInHorizontalMenu` keeps three
 		// characters of a value at or below -10.00 (`decimal.cpp:181-186`).

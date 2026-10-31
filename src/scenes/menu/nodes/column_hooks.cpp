@@ -434,6 +434,22 @@ std::optional<ui::oled::DrawColumn> morph_draw(const MenuContext& ctx, int32_t v
 
 } // namespace
 
+std::optional<ui::oled::DrawColumn> glide_draw(const MenuContext&, int32_t value) {
+	return ui::oled::DrawColumn{.shape = ui::oled::DrawColumn::Shape::Glide, .norm = static_cast<float>(value) / 50.f};
+}
+
+std::optional<ui::oled::DrawColumn> detune_draw(const MenuContext&, int32_t value) {
+	return ui::oled::DrawColumn{.shape = ui::oled::DrawColumn::Shape::Detune, .norm = static_cast<float>(value) / 50.f};
+}
+
+std::optional<ui::oled::DrawColumn> pulse_width_draw(const MenuContext&, int32_t value) {
+	return ui::oled::DrawColumn{.shape = ui::oled::DrawColumn::Shape::PulseWidth, .raw = value};
+}
+
+std::optional<ui::oled::DrawColumn> delay_amount_draw(const MenuContext&, int32_t value) {
+	return ui::oled::DrawColumn{.shape = ui::oled::DrawColumn::Shape::DelayAmount, .raw = value};
+}
+
 std::optional<ui::oled::DrawColumn> lpf_graph_draw(const MenuContext& ctx, int32_t value) {
 	return graph(ctx, value, lpf_res, lpf_morph, false);
 }

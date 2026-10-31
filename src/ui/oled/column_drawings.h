@@ -27,10 +27,21 @@ struct DrawColumn {
 		FilterGraph,
 		/// `Number::drawSlider` at @ref norm.
 		Slider,
+		/// `voice::Portamento::renderInHorizontalMenu` (`voice/portamento.h:34-66`) at @ref norm.
+		Glide,
+		/// `unison::Detune::renderInHorizontalMenu` (`unison/detune.h:57-98`) at @ref norm.
+		Detune,
+		/// `osc::PulseWidth::renderInHorizontalMenu` (`osc/pulse_width.h:54-77`) at @ref raw, 0..50.
+		PulseWidth,
+		/// `delay::Amount::renderInHorizontalMenu` (`delay/amount.h:35-58`) at @ref raw: the bar clamped to 0..24, and
+		/// an inverted "!" above it.
+		DelayAmount,
 	};
 	Shape shape = Shape::Slider;
 	FilterGraph filter;
 	float norm = 0.0f;
+	/// The value, for the drawings that read it rather than @ref norm.
+	int32_t raw = 0;
 	/// How many following columns the drawing also covers (`Column::span_next`).
 	uint8_t span_next = 0;
 };

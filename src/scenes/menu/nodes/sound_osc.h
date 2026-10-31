@@ -186,13 +186,15 @@ inline constexpr IntRange kTransposeRange{-9600, 9600, 1};
 	                           Hint::Slider, param_shows::kOscWaveIndex[i],                                            \
 	                           sid(deluge::l10n::String::STRING_FOR_OSC_WAVE_IND_MENU_TITLE))),                        \
 	    (i) + 1);                                                                                                      \
-	inline constexpr Node osc##i##_pulse_width = with_title_arg(                                                       \
-	    with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_PULSE_WIDTH),                                      \
-	                           {deluge::modulation::params::Kind::PATCHED,                                             \
-	                            static_cast<uint8_t>(deluge::modulation::params::LOCAL_OSC_A_PHASE_WIDTH + (i))},      \
-	                           Hint::None, param_shows::kOscPulseWidth[i],                                             \
-	                           sid(deluge::l10n::String::STRING_FOR_OSC_P_WIDTH_MENU_TITLE), Scaling::HalfPrecision)), \
-	    (i) + 1);                                                                                                      \
+	inline constexpr Node osc##i##_pulse_width = with_column_draw(                                                     \
+	    with_title_arg(with_patch_chain(param(                                                                         \
+	                       sid(deluge::l10n::String::STRING_FOR_PULSE_WIDTH),                                          \
+	                       {deluge::modulation::params::Kind::PATCHED,                                                 \
+	                        static_cast<uint8_t>(deluge::modulation::params::LOCAL_OSC_A_PHASE_WIDTH + (i))},          \
+	                       Hint::None, param_shows::kOscPulseWidth[i],                                                 \
+	                       sid(deluge::l10n::String::STRING_FOR_OSC_P_WIDTH_MENU_TITLE), Scaling::HalfPrecision)),     \
+	                   (i) + 1),                                                                                       \
+	    pulse_width_draw);                                                                                             \
 	inline constexpr Node source##i##_feedback = with_title_arg(                                                       \
 	    with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_FEEDBACK),                                         \
 	                           {deluge::modulation::params::Kind::PATCHED,                                             \

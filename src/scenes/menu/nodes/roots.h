@@ -219,10 +219,11 @@ inline constexpr Node global_filters = submenu(sid(String::STRING_FOR_FILTERS), 
 // ---------------------------------------------------------------------------------------------
 // The global FX page
 
-inline constexpr Node global_delay_amount =
+inline constexpr Node global_delay_amount = with_column_draw(
     with_column_name(param(sid(String::STRING_FOR_AMOUNT), {mp::Kind::UNPATCHED_GLOBAL, mp::UNPATCHED_DELAY_AMOUNT},
                            Hint::Bar, nullptr, sid(String::STRING_FOR_DELAY_AMOUNT)),
-                     sid(String::STRING_FOR_AMOUNT_SHORT));
+                     sid(String::STRING_FOR_AMOUNT_SHORT)),
+    delay_amount_draw);
 inline constexpr Node global_delay_rate =
     param(sid(String::STRING_FOR_RATE), {mp::Kind::UNPATCHED_GLOBAL, mp::UNPATCHED_DELAY_RATE}, Hint::Knob, nullptr,
           sid(String::STRING_FOR_DELAY_RATE));

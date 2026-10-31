@@ -44,10 +44,11 @@ namespace deluge::scenes::menu::nodes {
 // Ranges: `Count::getMinValue`/`getMaxValue` (`unison/count.h:64-65`), `Detune::getMaxValue`
 // (`unison/detune.h:61`), `StereoSpread::getMaxValue` (`stereoSpread.h:53`), each over `Number`'s
 // default minimum of 0 where no minimum is overridden.
-inline constexpr Node unison_detune =
+inline constexpr Node unison_detune = with_column_draw(
     with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_UNISON_DETUNE), Kind::Int,
                             {.kind = deluge::scenes::bind::Target::Kind::SOUND, .path = "unison/detune"}),
-               sid(deluge::l10n::String::STRING_FOR_UNISON_DETUNE_MENU_TITLE));
+               sid(deluge::l10n::String::STRING_FOR_UNISON_DETUNE_MENU_TITLE)),
+    detune_draw);
 // Declared before `unison_count`, which chains to it: `with_select_chain` needs its address.
 //
 // `kUnisonChildren` below still fixes the **on-screen** order (count, detune, spread) -- declaration

@@ -109,6 +109,18 @@ std::optional<ui::oled::DrawColumn> hpf_morph_draw(const MenuContext& ctx, int32
 bool hpf_morph_reversed(const MenuContext& ctx);
 /// @}
 
+/// @name Pictures (`Binding::column_draw`), each over its 0..50 value
+/// @{
+/// `voice::Portamento::renderInHorizontalMenu` (`voice/portamento.h:34-66`): the glide between two notes.
+std::optional<ui::oled::DrawColumn> glide_draw(const MenuContext& ctx, int32_t value);
+/// `unison::Detune::renderInHorizontalMenu` (`unison/detune.h:57-98`): three splaying lines.
+std::optional<ui::oled::DrawColumn> detune_draw(const MenuContext& ctx, int32_t value);
+/// `osc::PulseWidth::renderInHorizontalMenu` (`osc/pulse_width.h:54-77`): one cycle of the pulse.
+std::optional<ui::oled::DrawColumn> pulse_width_draw(const MenuContext& ctx, int32_t value);
+/// `delay::Amount` and `Amount_Unpatched::renderInHorizontalMenu` (`delay/amount.h:35-58`): the bar to 24, "!" past.
+std::optional<ui::oled::DrawColumn> delay_amount_draw(const MenuContext& ctx, int32_t value);
+/// @}
+
 /// @name Page titles (`Node::page_title`)
 /// @{
 /// `submenu::ActualSource::getTitle` (`submenu/actual_source.h:29-40`): OSC* SAMPLE past the first page of a sample

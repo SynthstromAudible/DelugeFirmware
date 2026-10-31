@@ -149,12 +149,13 @@ inline constexpr Node eq =
 
 // --- Delay -------------------------------------------------------------------------------------
 
-inline constexpr Node delay_amount =
+inline constexpr Node delay_amount = with_column_draw(
     with_column_name(with_patch_chain(param(
                          sid(deluge::l10n::String::STRING_FOR_AMOUNT),
                          {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::GLOBAL_DELAY_FEEDBACK},
                          Hint::Bar, nullptr, sid(deluge::l10n::String::STRING_FOR_DELAY_AMOUNT))),
-                     sid(deluge::l10n::String::STRING_FOR_AMOUNT_SHORT));
+                     sid(deluge::l10n::String::STRING_FOR_AMOUNT_SHORT)),
+    delay_amount_draw);
 inline constexpr Node delay_ping_pong =
     with_column_art(with_selection_is_toggle(with_title(
                         setting_item(sid(deluge::l10n::String::STRING_FOR_PINGPONG), Kind::Enum,

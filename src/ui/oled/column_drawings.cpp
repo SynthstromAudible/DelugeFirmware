@@ -2,6 +2,7 @@
 
 #include "ui/oled/meters.h"
 
+#include <algorithm>
 #include <cmath>
 
 namespace deluge::ui::oled {
@@ -266,6 +267,136 @@ void eq_graph(OledFrame& panel, float bass, float treble, float bass_freq, float
 	marks.draw(center_between(treble_x1, treble_x0), treble_y1, selected == 3);
 }
 
+namespace {
+
+/// `voice::Portamento::renderInHorizontalMenu` (`voice/portamento.h:34-66`), in canvas coordinates with its `uint8_t`s.
+void glide(OledFrame& f, gfx::oled::Rect slot, float norm) {
+	ClipScope scope{f.canvas, f.clip};
+	gfx::oled::Canvas& image = f.canvas;
+	const int32_t start_x = f.origin.x + slot.x;
+	const int32_t start_y = f.origin.y + slot.y;
+	constexpr uint8_t porta_graphics_width = 25;
+	const auto center_x = static_cast<uint8_t>(start_x + slot.w / 2);
+	const auto porta_start_x = static_cast<uint8_t>(start_x + 2);
+	const auto porta_end_x = static_cast<uint8_t>(porta_start_x + porta_graphics_width - 1);
+	constexpr uint8_t porta_graphics_height = 11;
+	const auto porta_start_y = static_cast<uint8_t>(start_y + kHorizontalSlotYOffset - 1);
+	const auto porta_end_y = static_cast<uint8_t>(porta_start_y + porta_graphics_height - 1);
+	constexpr uint8_t porta_line_width = 9;
+	const auto porta_x0 = static_cast<uint8_t>(std::lerp(center_x, center_x - porta_line_width, norm));
+	const auto porta_x1 = static_cast<uint8_t>(std::lerp(center_x, center_x + porta_line_width, norm));
+	if (porta_x0 == porta_x1) {
+		for (uint8_t y = porta_start_y; y <= porta_end_y; y += 2) {
+			image.draw_pixel(porta_x0, y);
+		}
+	}
+	else {
+		image.draw_line(porta_x0, porta_end_y, porta_x1, porta_start_y);
+	}
+	constexpr uint8_t max_note_width = 6;
+	constexpr uint8_t note_offset = 2;
+	const uint8_t lower_note_start_x = std::max<uint8_t>(porta_start_x, porta_x0 - note_offset - max_note_width);
+	const uint8_t higher_note_end_x = std::min<uint8_t>(porta_end_x, porta_x1 + note_offset + max_note_width);
+	image.draw_horizontal_line(porta_end_y, lower_note_start_x, porta_x0 - note_offset);
+	image.draw_horizontal_line(porta_end_y - 1, lower_note_start_x, porta_x0 - note_offset);
+	image.draw_horizontal_line(porta_start_y, porta_x1 + note_offset, higher_note_end_x);
+	image.draw_horizontal_line(porta_start_y + 1, porta_x1 + note_offset, higher_note_end_x);
+}
+
+/// `unison::Detune::renderInHorizontalMenu` (`unison/detune.h:57-98`): three lines splaying as the detune grows.
+void detune(OledFrame& f, gfx::oled::Rect slot, float norm) {
+	ClipScope scope{f.canvas, f.clip};
+	gfx::oled::Canvas& image = f.canvas;
+	const int32_t start_x = f.origin.x + slot.x;
+	const int32_t start_y = f.origin.y + slot.y;
+	constexpr int32_t line_spacing = 5;
+	constexpr int32_t max_y_offset = 4;
+	const int32_t x0 = start_x + 6;
+	const int32_t x1 = start_x + slot.w - 7;
+	const int32_t top = start_y + kHorizontalSlotYOffset;
+	image.draw_line(x0, top, x1, top + static_cast<int32_t>(max_y_offset * norm * 0.30f));
+
+	const int32_t middle = top + line_spacing;
+	const auto spread = static_cast<int32_t>(max_y_offset * norm * 0.5f);
+	image.draw_line(x0, middle - spread, x1, middle + spread);
+	if (norm > 0.7 && norm < 1) {
+		image.clear_pixel(x0, middle - spread);
+		image.clear_pixel(x1, middle + spread);
+		image.draw_pixel(x0, middle - spread - 1);
+		image.draw_pixel(x1, middle + spread + 1);
+	}
+
+	const int32_t bottom = top + 2 * line_spacing;
+	int32_t rise = bottom - static_cast<int32_t>(max_y_offset * norm * 0.8f);
+	if (norm > 0 && rise == bottom) {
+		rise -= 1;
+	}
+	image.draw_line(x0, rise, x1 - 8, bottom);
+	image.draw_horizontal_line(bottom, x1 - 8, x1);
+}
+
+/// `osc::PulseWidth::renderInHorizontalMenu` (`osc/pulse_width.h:54-77`): one cycle of the wave, its high part
+/// narrowing as the value grows.
+void pulse_width(OledFrame& f, gfx::oled::Rect slot, int32_t value) {
+	ClipScope scope{f.canvas, f.clip};
+	gfx::oled::Canvas& image = f.canvas;
+	const float norm = static_cast<float>(value) / 50.0f;
+	constexpr int32_t x_padding = 4;
+	const auto width = static_cast<uint8_t>(slot.w - x_padding * 2);
+	const int32_t start_x = f.origin.x + slot.x + x_padding;
+	const int32_t end_x = start_x + width - 1;
+	const int32_t start_y = f.origin.y + slot.y + kHorizontalSlotYOffset;
+	const int32_t end_y = f.origin.y + slot.y + slot.h - 6;
+	const int32_t pw_min_x = start_x + 2;
+	const int32_t pw_max_x = start_x + width / 2;
+	const int32_t pw_width = pw_max_x - pw_min_x;
+	const auto pw_x = static_cast<int32_t>(static_cast<float>(pw_max_x) - static_cast<float>(pw_width) * norm);
+	image.draw_vertical_line(start_x, start_y, end_y);
+	image.draw_horizontal_line(start_y, start_x, pw_x);
+	image.draw_vertical_line(pw_x, start_y, end_y);
+	image.draw_horizontal_line(end_y, pw_x, end_x);
+}
+
+/// `delay::Amount::renderInHorizontalMenu` (`delay/amount.h:35-58`): `Number::drawBar` (`number.cpp:156-173`) over the
+/// value clamped to 0..24, and above 24 a filled box with an inverted "!" across the bar.
+void delay_amount(OledFrame& f, gfx::oled::Rect slot, int32_t value) {
+	ClipScope scope{f.canvas, f.clip};
+	gfx::oled::Canvas& image = f.canvas;
+	constexpr int32_t kMaxShown = 24;
+	const int32_t start_x = f.origin.x + slot.x;
+	const int32_t start_y = f.origin.y + slot.y;
+	constexpr uint8_t bar_width = 21;
+	constexpr uint8_t bar_height = 5;
+	constexpr uint8_t outline_padding = 2;
+	const auto bar_start_x = static_cast<uint8_t>(start_x + 5);
+	const auto bar_start_y = static_cast<uint8_t>(start_y + kHorizontalSlotYOffset + 2);
+	const auto bar_end_x = static_cast<uint8_t>(bar_start_x + bar_width - 1);
+	const auto bar_end_y = static_cast<uint8_t>(bar_start_y + bar_height - 1);
+	image.draw_rectangle(bar_start_x - outline_padding, bar_start_y - outline_padding, bar_end_x + outline_padding,
+	                     bar_end_y + outline_padding);
+	const float norm = static_cast<float>(std::clamp<int32_t>(value, 0, kMaxShown)) / static_cast<float>(kMaxShown);
+	const auto fill_width = static_cast<uint8_t>(norm * bar_width);
+	image.invert_area(bar_start_x, fill_width, bar_start_y, bar_end_y);
+	if (value <= kMaxShown) {
+		return;
+	}
+	constexpr uint8_t excl_mark_width = 3;
+	constexpr uint8_t excl_mark_height = 11;
+	const auto center_x = static_cast<uint8_t>(start_x + slot.w / 2);
+	const auto excl_mark_start_y = static_cast<uint8_t>(start_y + kHorizontalSlotYOffset - 1);
+	const auto excl_mark_end_y = static_cast<uint8_t>(excl_mark_start_y + excl_mark_height - 1);
+	const auto excl_mark_start_x = static_cast<uint8_t>(center_x - 1);
+	for (auto x = static_cast<uint8_t>(center_x - 2); x <= center_x + 2; x++) {
+		for (auto y = static_cast<uint8_t>(excl_mark_start_y - 1); y <= excl_mark_end_y + 1; y++) {
+			image.draw_pixel(x, y);
+		}
+	}
+	image.invert_area(excl_mark_start_x, excl_mark_width, excl_mark_start_y, excl_mark_start_y + 6);
+	image.invert_area(excl_mark_start_x, excl_mark_width, excl_mark_start_y + 8, excl_mark_start_y + 10);
+}
+
+} // namespace
+
 void draw_column(OledFrame& slot_frame, bool /*focused*/, void* ctx) {
 	const auto* data = static_cast<const DrawColumn*>(ctx);
 	if (data == nullptr) {
@@ -277,6 +408,18 @@ void draw_column(OledFrame& slot_frame, bool /*focused*/, void* ctx) {
 		break;
 	case DrawColumn::Shape::Slider:
 		meter(slot_frame, slot_frame.bounds(), Hint::Slider, data->norm, 0);
+		break;
+	case DrawColumn::Shape::Glide:
+		glide(slot_frame, slot_frame.bounds(), data->norm);
+		break;
+	case DrawColumn::Shape::Detune:
+		detune(slot_frame, slot_frame.bounds(), data->norm);
+		break;
+	case DrawColumn::Shape::PulseWidth:
+		pulse_width(slot_frame, slot_frame.bounds(), data->raw);
+		break;
+	case DrawColumn::Shape::DelayAmount:
+		delay_amount(slot_frame, slot_frame.bounds(), data->raw);
 		break;
 	}
 }
