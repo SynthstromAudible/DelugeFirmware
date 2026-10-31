@@ -2730,9 +2730,17 @@ void MenuScene::restore_state(const SceneState& state) {
 	}
 }
 
+namespace {
+/// `cpu::VoiceUsage::kRefreshIntervalMs` (`cpu/voice_usage.h:91`).
+constexpr uint32_t kVoiceUsageSampleMs = 500;
+} // namespace
+
 std::optional<uint32_t> MenuScene::next_timer() const {
-	// The blinks are the only thing here that moves without input, so the timer is the shorter of
-	// the counter's two steps that the plan uses. Nothing blinking arms nothing.
+	// The voice usage page's next sample, else the pad blinks: the shorter of the counter's two steps that the plan
+	// uses. Nothing blinking arms nothing.
+	if (focused() == &nodes::voice_usage) {
+		return kVoiceUsageSampleMs - std::min(voice_usage_elapsed_ms_, kVoiceUsageSampleMs);
+	}
 	const Node* node = pad_subject();
 	if (node == nullptr) {
 		return std::nullopt;
@@ -2745,6 +2753,30 @@ std::optional<uint32_t> MenuScene::next_timer() const {
 		return kShortcutBlinkMs;
 	}
 	return std::nullopt;
+}
+
+deluge::ui::shell::Scene::RepaintSurfaces MenuScene::timer_repaints() const {
+	return {.oled = focused() == &nodes::voice_usage, .grid = true};
+}
+
+void MenuScene::tick(uint32_t dt_ms) {
+	if (focused() != &nodes::voice_usage) {
+		voice_usage_open_ = false;
+		return;
+	}
+	const int32_t live = ctx_.facts != nullptr ? ctx_.facts->live_voice_count() : 0;
+	if (!voice_usage_open_) {
+		voice_usage_open_ = true;
+		voice_usage_.reset();
+		voice_usage_.sample(live);
+		voice_usage_elapsed_ms_ = 0;
+		return;
+	}
+	voice_usage_elapsed_ms_ += dt_ms;
+	if (voice_usage_elapsed_ms_ >= kVoiceUsageSampleMs) {
+		voice_usage_elapsed_ms_ = 0;
+		voice_usage_.sample(live);
+	}
 }
 
 // ---------------------------------------------------------------------------------------------

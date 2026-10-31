@@ -105,6 +105,7 @@
 #include "scenes/menu/nodes/scales.h"       // kDefaultActiveScalesItem (task 11b)
 #include "scenes/menu/relevance.h"
 
+#include <limits>
 #include <span>
 
 namespace deluge::scenes::menu {
@@ -1223,6 +1224,32 @@ inline constexpr Node battery_level =
     with_relevant(with_title(custom(sid(String::STRING_FOR_BATTERY_LEVEL), &kBatteryLevelItem),
                              sid(String::STRING_FOR_BATTERY_LEVEL_MENU_TITLE)),
                   relevance::battery_shown);
+/// `cpu::VoiceUsage::VoiceCount` (`cpu/voice_usage.h:22-66`): a counter the page samples, read-only.
+int32_t get_voice_usage_live(const MenuContext& ctx);
+int32_t get_voice_usage_average(const MenuContext& ctx);
+int32_t get_voice_usage_maximum(const MenuContext& ctx);
+void set_voice_usage_count(const MenuContext& ctx, int32_t value);
+bool voice_usage_permitted(const MenuContext& ctx);
+inline constexpr Node voice_usage_live = with_permitted(
+    with_column_name(int_item(sid(String::STRING_FOR_LIVE_VOICE_COUNT), get_voice_usage_live, set_voice_usage_count,
+                              IntRange{0, std::numeric_limits<int32_t>::max(), 1}),
+                     sid(String::STRING_FOR_LIVE)),
+    voice_usage_permitted);
+inline constexpr Node voice_usage_average = with_permitted(
+    with_column_name(int_item(sid(String::STRING_FOR_AVERAGE_VOICE_COUNT), get_voice_usage_average,
+                              set_voice_usage_count, IntRange{0, std::numeric_limits<int32_t>::max(), 1}),
+                     sid(String::STRING_FOR_AVG)),
+    voice_usage_permitted);
+inline constexpr Node voice_usage_maximum = with_permitted(
+    with_column_name(int_item(sid(String::STRING_FOR_MAXIMUM_VOICE_COUNT), get_voice_usage_maximum,
+                              set_voice_usage_count, IntRange{0, std::numeric_limits<int32_t>::max(), 1}),
+                     sid(String::STRING_FOR_MAX)),
+    voice_usage_permitted);
+inline constexpr const Node* kVoiceUsageChildren[] = {&voice_usage_live, &voice_usage_average, &voice_usage_maximum};
+/// `voiceUsageMenu` (`menus.cpp:1063`): a FIXED page the scene samples every 500 ms (`MenuScene::tick`).
+inline constexpr Node voice_usage =
+    with_fixed_columns(submenu(sid(String::STRING_FOR_VOICE_USAGE), kVoiceUsageChildren, Layout::Horizontal));
+
 inline constexpr Node firmware_version =
     with_title(custom(sid(String::STRING_FOR_FIRMWARE_VERSION), &kFirmwareVersionItem),
                sid(String::STRING_FOR_FIRMWARE_VER_MENU_TITLE));
@@ -1230,9 +1257,9 @@ inline constexpr Node firmware_version =
 // ---------------------------------------------------------------------------------------------
 
 inline constexpr const Node* kSettingsRootChildren[] = {
-    &settings_actions,   &cv_selection,      &gate_selection, &trigger_clock,          &midi_settings,
-    &usb_audio_settings, &defaults_settings, &pads_settings,  &sample_browser_preview, &flash_status,
-    &record_settings,    &runtime_features,  &battery_level,  &firmware_version};
+    &settings_actions,  &cv_selection,  &gate_selection,         &trigger_clock, &midi_settings,   &usb_audio_settings,
+    &defaults_settings, &pads_settings, &sample_browser_preview, &flash_status,  &record_settings, &runtime_features,
+    &battery_level,     &voice_usage,   &firmware_version};
 inline constexpr Node root_settings = submenu(sid(String::STRING_FOR_SETTINGS), kSettingsRootChildren);
 
 /// @brief The settings root as a one-element span, matching `kSoundRootRoots`' shape.

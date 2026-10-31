@@ -864,6 +864,46 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		expect(banner(menu::nodes::vibrato, -250)).to_equal(std::string("-2.50"));
 	});
 
+	it("the voice usage sampler keeps main's live, average and maximum", _ {
+		// `cpu::VoiceUsage::sample` and `averageVoiceCount` (`cpu/voice_usage.h:94-106`): a whole-number average.
+		menu::VoiceUsageSampler s;
+		s.sample(4);
+		s.sample(8);
+		s.sample(3);
+		expect(static_cast<int>(s.live())).to_equal(3);
+		expect(static_cast<int>(s.average())).to_equal(5);
+		expect(static_cast<int>(s.maximum())).to_equal(8);
+		s.reset();
+		expect(static_cast<int>(s.samples())).to_equal(0);
+		expect(static_cast<int>(s.average())).to_equal(0);
+	});
+
+	it("VoiceUsage samples on entry and every 500 ms, and its columns refuse an edit", _ {
+		// `VoiceUsage::beginSession` and `timerCallback` (`cpu/voice_usage.h:70-88`), `kRefreshIntervalMs` 500;
+		// `VoiceCount::selectEncoderActionIsPermitted` is false (`:36-37`).
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		const MenuContext ctx = r.open_real(menu::nodes::voice_usage);
+		r.shell.tick(0);
+		expect(static_cast<int>(menu_scene().voice_usage().samples())).to_equal(1);
+		expect(menu_scene().next_timer().has_value()).to_be_true();
+		expect(menu_scene().timer_repaints().oled).to_be_true();
+		for (uint32_t t = 100; t <= 1600; t += 100) {
+			r.shell.tick(t);
+		}
+		expect(static_cast<int>(menu_scene().voice_usage().samples())).to_equal(4);
+		expect(menu::bindings::read(menu::nodes::voice_usage_live, ctx))
+		    .to_equal(menu_scene().voice_usage().live());
+		expect(menu::nodes::voice_usage_live.bind.permitted(ctx)).to_be_false();
+		expect(menu::nodes::voice_usage_average.bind.permitted(ctx)).to_be_false();
+		expect(menu::nodes::voice_usage_maximum.bind.permitted(ctx)).to_be_false();
+		expect(menu::nodes::voice_usage.fixed_columns).to_be_true();
+		const auto& kids = menu::nodes::kSettingsRootChildren;
+		const auto at = std::ranges::find(kids, &menu::nodes::voice_usage);
+		expect(at != std::ranges::end(kids) && *(at + 1) == &menu::nodes::firmware_version).to_be_true();
+	});
+
 	it("master's transpose column reads TRANSPOSE and a whole number below -9.99", _ {
 		// `MasterTranspose::getColumnLabel` (`master_transpose.h:74`); `Decimal::renderInHorizontalMenu` keeps three
 		// characters of a value at or below -10.00 (`decimal.cpp:181-186`).

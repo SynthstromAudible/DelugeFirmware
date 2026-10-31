@@ -1185,4 +1185,23 @@ constexpr const Node* kRoots[] = {&root_settings};
 
 const std::span<const Node* const> kSettingsRoots{kRoots};
 
+// ---------------------------------------------------------------------------------------------
+// Voice usage (`cpu/voice_usage.h`): the scene keeps the counters, sampled while the page is up.
+
+int32_t get_voice_usage_live(const MenuContext&) {
+	return menu_scene().voice_usage().live();
+}
+int32_t get_voice_usage_average(const MenuContext&) {
+	return menu_scene().voice_usage().average();
+}
+int32_t get_voice_usage_maximum(const MenuContext&) {
+	return menu_scene().voice_usage().maximum();
+}
+void set_voice_usage_count(const MenuContext&, int32_t) {
+	// `VoiceCount::selectEncoderAction` does nothing (`cpu/voice_usage.h:35`).
+}
+bool voice_usage_permitted(const MenuContext&) {
+	return false; // `VoiceCount::selectEncoderActionIsPermitted` (`:36`)
+}
+
 } // namespace deluge::scenes::menu::nodes

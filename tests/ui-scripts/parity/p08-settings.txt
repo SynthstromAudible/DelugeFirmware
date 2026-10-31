@@ -1,4 +1,4 @@
-# The settings menu from the song view.
+# The settings menu from the song view, then VOICE USAGE (its counters, sampled every 500 ms).
 100   snapshot boot
 300   button Session down
 320   button Session up
@@ -21,3 +21,15 @@
 6100  button Back down
 6120  button Back up
 6800  snapshot settings-closed
+7100  button Shift down
+7200  button SelectEnc down
+7220  button SelectEnc up
+7300  button Shift up
+8000  snapshot settings-again
+8300  encoder Select -20
+8800  encoder Select +14
+9000  snapshot voice-usage-row
+9300  button SelectEnc down
+9320  button SelectEnc up
+10000 snapshot voice-usage
+11500 snapshot voice-usage-later

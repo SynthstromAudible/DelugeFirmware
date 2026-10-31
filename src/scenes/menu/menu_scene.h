@@ -43,6 +43,7 @@
 #include "ui/grid/effects.h"
 #include "ui/oled/columns.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <optional>
 #include <span>
@@ -115,6 +116,32 @@ struct ColumnSlot {
 /// @param focused    Unused.
 /// @param ctx        Must point at a `ColumnSlot::OptionList`.
 void option_list_column(deluge::ui::oled::OledFrame& slot_frame, bool focused, void* ctx);
+
+/// @brief `cpu::VoiceUsage`'s counters (`cpu/voice_usage.h:94-111`): the last sample, the maximum, and a whole-number
+///        average over every sample since the page opened.
+class VoiceUsageSampler {
+public:
+	/// @brief Forget every sample (`VoiceUsage::beginSession`, `:70-73`).
+	void reset() { *this = {}; }
+	/// @brief Take one sample of @p live voices (`VoiceUsage::sample`, `:94-99`).
+	void sample(int32_t live) {
+		live_ = live;
+		total_ += static_cast<uint64_t>(std::max<int32_t>(live, 0));
+		count_++;
+		maximum_ = std::max(maximum_, live);
+	}
+	[[nodiscard]] int32_t live() const { return live_; }
+	[[nodiscard]] int32_t maximum() const { return maximum_; }
+	/// @brief `averageVoiceCount` (`:101-103`): 0 before any sample.
+	[[nodiscard]] int32_t average() const { return count_ == 0 ? 0 : static_cast<int32_t>(total_ / count_); }
+	[[nodiscard]] uint32_t samples() const { return count_; }
+
+private:
+	int32_t live_ = 0;
+	int32_t maximum_ = 0;
+	uint64_t total_ = 0;
+	uint32_t count_ = 0;
+};
 
 /// @brief Live interpreter state: the path, the widgets' own POD state, and what this tick's
 ///        render observed for `after_render()` to act on.
@@ -572,7 +599,12 @@ public:
 	///        never depends on it. Arming the OLED gates from it too (the fold's original default)
 	///        cost nothing in pixels but blitted both panels unconditionally, forever, whenever the
 	///        focused node had shortcut or source pads. See `Scene::timer_repaints()`'s own doc.
-	deluge::ui::shell::Scene::RepaintSurfaces timer_repaints() const override { return {.oled = false, .grid = true}; }
+	/// On the voice usage page the timer is also its 500 ms sample, which the panel shows.
+	deluge::ui::shell::Scene::RepaintSurfaces timer_repaints() const override;
+	/// @brief Advance the voice usage page's sampling clock (`VoiceUsage::timerCallback`, `cpu/voice_usage.h:77-87`).
+	void tick(uint32_t dt_ms) override;
+	/// @brief The voice usage page's counters.
+	const VoiceUsageSampler& voice_usage() const { return voice_usage_; }
 
 	/// @brief The node currently on screen (`path[depth]`), or `nullptr` before `open()`.
 	const Node* focused() const;
@@ -978,6 +1010,11 @@ private:
 	void retarget(const Node& node);
 
 	MenuState st_{};
+	/// The voice usage page's counters, and the time since its last sample; `voice_usage_open_` is whether the
+	/// page was focused at the last tick, so that arriving on it starts a fresh session.
+	VoiceUsageSampler voice_usage_;
+	uint32_t voice_usage_elapsed_ms_ = 0;
+	bool voice_usage_open_ = false;
 	/// What `render_horizontal`'s columns draw from, here rather than on the stack: a group page has up to
 	/// `kMaxMenuColumns` of them, and the scene lives in SDRAM.
 	ColumnSlot column_slots_[kMaxMenuColumns];

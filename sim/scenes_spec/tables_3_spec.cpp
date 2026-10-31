@@ -372,8 +372,8 @@ struct Pair {
 /// Each is a feature-level change to legacy that the scenes lag (`src/scenes/README.md`, "Legacy
 /// features not yet ported"); the "parks exactly" example below pins this list by identity, so porting
 /// one fails it until the item leaves the list.
-bool unported_legacy(const ::MenuItem* item) {
-	return dynamic_cast<const legacy::cpu::VoiceUsage*>(item) != nullptr; // #5005
+bool unported_legacy(const ::MenuItem* /*item*/) {
+	return false;
 }
 
 /// @brief The legacy items `walk` stepped over, in the order it met them.
@@ -1034,12 +1034,12 @@ describe tables_3_shape("scenes::menu batch-3 tables: shape", $ {
 		expect(w.pairs.empty()).to_be_false();
 	});
 
-	it("declares the settings root with the legacy child count, less the items not ported yet", _ {
+	it("declares the settings root with the legacy child count", _ {
 		// `menus.cpp`'s `settingsRootMenu` literal -- fifteen children, asserted against the live
-		// object rather than a second copy of the list -- of which Voice Usage is not ported yet.
+		// object rather than a second copy of the list.
 		const auto& kids = SubmenuPeek::items_of(settingsRootMenu);
 		expect(kids.size()).to_equal(size_t(15));
-		expect(nodes::root_settings.children.size()).to_equal(size_t(14));
+		expect(nodes::root_settings.children.size()).to_equal(size_t(15));
 	});
 
 	it("parks the reverb width and room size titles: legacy renames them under MUTABLE, the port does not yet", _ {
@@ -1067,13 +1067,11 @@ describe tables_3_shape("scenes::menu batch-3 tables: shape", $ {
 		AudioEngine::setReverbModel(saved);
 	});
 
-	it("parks exactly the legacy items the scenes have not ported: Voice Usage (#5005)", _ {
-		// The walk steps over these; this pins the list by identity, so porting one fails here until
-		// it leaves `unported_legacy` and `src/scenes/README.md`'s list.
+	it("parks no legacy item: every one is ported", _ {
+		// The walk steps over what `unported_legacy` names; a legacy feature the scenes lag goes there and in
+		// `src/scenes/README.md`'s list, and fails this until it is ported.
 		(void)tree();
-		expect(stepped_over().size()).to_equal(size_t(1));
-		expect(!stepped_over().empty() && dynamic_cast<const legacy::cpu::VoiceUsage*>(stepped_over()[0]) != nullptr)
-		    .to_be_true();
+		expect(stepped_over().size()).to_equal(size_t(0));
 	});
 
 	it("resolves each root from its own fixture's context", _ {

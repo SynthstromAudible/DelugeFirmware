@@ -214,6 +214,7 @@ private:
 class ShellRuntimeFacts final : public deluge::scenes::bind::RuntimeFacts {
 public:
 	[[nodiscard]] bool audio_inputs_present() const override;
+	[[nodiscard]] int32_t live_voice_count() const override;
 	[[nodiscard]] uint8_t loaded_sources(deluge::project::SlotAddress slot) const override;
 	[[nodiscard]] const deluge::instrument::SoundState* sound_state(deluge::project::SlotAddress slot) const override;
 	[[nodiscard]] const deluge::effects::EffectStates*
@@ -787,6 +788,10 @@ void ShellEditSink::apply(const WriteRequest& request) {
 
 bool ShellRuntimeFacts::audio_inputs_present() const {
 	return AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn;
+}
+
+int32_t ShellRuntimeFacts::live_voice_count() const {
+	return AudioEngine::getNumVoices() + (currentSong != nullptr ? currentSong->countAudioVoices() : 0);
 }
 
 uint8_t ShellRuntimeFacts::loaded_sources(deluge::project::SlotAddress slot) const {

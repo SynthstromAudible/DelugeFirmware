@@ -12229,7 +12229,33 @@
         "type": "basic"
       },
       {
+        "children": [
+          {
+            "id": 504,
+            "name": "Live Voice Count",
+            "title": "Live Voice Count",
+            "type": "basic"
+          },
+          {
+            "id": 505,
+            "name": "Avg Voice Count",
+            "title": "Avg Voice Count",
+            "type": "basic"
+          },
+          {
+            "id": 506,
+            "name": "Max Voice Count",
+            "title": "Max Voice Count",
+            "type": "basic"
+          }
+        ],
         "id": 503,
+        "name": "Voice usage",
+        "title": "Voice usage",
+        "type": "submenu"
+      },
+      {
+        "id": 507,
         "name": "Firmware Version",
         "title": "Firmware vers",
         "type": "basic"
@@ -12696,13 +12722,13 @@
         "type": "basic"
       }
     ],
-    "id": 504,
+    "id": 508,
     "name": "CV instrument",
     "title": "CV instrument",
     "type": "submenu"
   },
   {
-    "id": 505,
+    "id": 509,
     "name": "Note range",
     "select_chain": [
       {
@@ -12864,87 +12890,87 @@
   {
     "children": [
       {
-        "id": 507,
+        "id": 511,
         "name": "Velocity",
         "title": "Velocity",
         "type": "basic"
       },
       {
-        "id": 508,
+        "id": 512,
         "name": "Probability",
         "title": "Probability",
         "type": "basic"
       },
       {
-        "id": 509,
+        "id": 513,
         "name": "Iterance",
         "select_chain": [
           {
             "children": [
               {
-                "id": 511,
+                "id": 515,
                 "name": "Divisor",
                 "title": "Divisor",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_iterance_step_1",
-                "id": 512,
+                "id": 516,
                 "name": "Iteration 1",
                 "title": "Iteration 1",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_iterance_step_2",
-                "id": 513,
+                "id": 517,
                 "name": "Iteration 2",
                 "title": "Iteration 2",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_iterance_step_3",
-                "id": 514,
+                "id": 518,
                 "name": "Iteration 3",
                 "title": "Iteration 3",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_iterance_step_4",
-                "id": 515,
+                "id": 519,
                 "name": "Iteration 4",
                 "title": "Iteration 4",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_iterance_step_5",
-                "id": 516,
+                "id": 520,
                 "name": "Iteration 5",
                 "title": "Iteration 5",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_iterance_step_6",
-                "id": 517,
+                "id": 521,
                 "name": "Iteration 6",
                 "title": "Iteration 6",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_iterance_step_7",
-                "id": 518,
+                "id": 522,
                 "name": "Iteration 7",
                 "title": "Iteration 7",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_iterance_step_8",
-                "id": 519,
+                "id": 523,
                 "name": "Iteration 8",
                 "title": "Iteration 8",
                 "type": "basic"
               }
             ],
-            "id": 510,
+            "id": 514,
             "name": "Custom",
             "title": "Custom",
             "type": "submenu"
@@ -12954,13 +12980,13 @@
         "type": "basic"
       },
       {
-        "id": 520,
+        "id": 524,
         "name": "Fill",
         "title": "Fill",
         "type": "basic"
       }
     ],
-    "id": 506,
+    "id": 510,
     "name": "Note Editor",
     "title": "Note Editor",
     "type": "submenu"
@@ -12974,81 +13000,81 @@
         "type": "basic"
       },
       {
-        "id": 522,
+        "id": 526,
         "name": "Probability",
         "title": "Probability",
         "type": "basic"
       },
       {
-        "id": 523,
+        "id": 527,
         "name": "Iterance",
         "select_chain": [
           {
             "children": [
               {
-                "id": 525,
+                "id": 529,
                 "name": "Divisor",
                 "title": "Divisor",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_row_iterance_step_1",
-                "id": 526,
+                "id": 530,
                 "name": "Iteration 1",
                 "title": "Iteration 1",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_row_iterance_step_2",
-                "id": 527,
+                "id": 531,
                 "name": "Iteration 2",
                 "title": "Iteration 2",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_row_iterance_step_3",
-                "id": 528,
+                "id": 532,
                 "name": "Iteration 3",
                 "title": "Iteration 3",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_row_iterance_step_4",
-                "id": 529,
+                "id": 533,
                 "name": "Iteration 4",
                 "title": "Iteration 4",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_row_iterance_step_5",
-                "id": 530,
+                "id": 534,
                 "name": "Iteration 5",
                 "title": "Iteration 5",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_row_iterance_step_6",
-                "id": 531,
+                "id": 535,
                 "name": "Iteration 6",
                 "title": "Iteration 6",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_row_iterance_step_7",
-                "id": 532,
+                "id": 536,
                 "name": "Iteration 7",
                 "title": "Iteration 7",
                 "type": "basic"
               },
               {
                 "available_when": "nodes::relevant_note_row_iterance_step_8",
-                "id": 533,
+                "id": 537,
                 "name": "Iteration 8",
                 "title": "Iteration 8",
                 "type": "basic"
               }
             ],
-            "id": 524,
+            "id": 528,
             "name": "Custom",
             "title": "Custom",
             "type": "submenu"
@@ -13058,13 +13084,13 @@
         "type": "basic"
       },
       {
-        "id": 534,
+        "id": 538,
         "name": "Fill",
         "title": "Fill",
         "type": "basic"
       }
     ],
-    "id": 521,
+    "id": 525,
     "name": "Row Editor",
     "title": "Row Editor",
     "type": "submenu"

@@ -76,6 +76,9 @@ public:
 	virtual ~RuntimeFacts() = default;
 	/// @brief Hardware: whether a mic or line input is plugged in. No record holds it; it changes under the song.
 	[[nodiscard]] virtual bool audio_inputs_present() const = 0;
+	/// @brief Audio: the voices sounding now, synth and audio-clip (`cpu::VoiceUsage::sample`,
+	/// `cpu/voice_usage.h:94-96`). No record holds it; it changes every render. Zero for a host that renders nothing.
+	[[nodiscard]] virtual int32_t live_voice_count() const { return 0; }
 	/// @brief Storage: which sources of the sound at @p slot have an audio file loaded (bit i for source i). A file
 	/// loads after the song that names it, so whether it has is a fact of the card, not of the song.
 	[[nodiscard]] virtual uint8_t loaded_sources(project::SlotAddress slot) const = 0;

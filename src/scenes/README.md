@@ -246,7 +246,6 @@ reverb titles), so porting it fails that spec until it leaves both lists.
 
 | legacy | change | what porting it takes |
 |---|---|---|
-| `cpu::VoiceUsage voiceUsageMenu` (settings root, before firmware version) | main #5005 | a live, timer-sampled horizontal page of three counters (live, average, maximum) |
 | the reverb width/room-size items' titles | renamed to Diffusion/Time under the MUTABLE and DIGITAL models | node titles that depend on the context |
 
 ### Adding a node

@@ -658,6 +658,7 @@ const std::vector<Subtree>& subtrees() {
 	    {&nodes::kit_fx_configure_stem_export, "an option of the stem export, which the export reads: no row"},
 	    {&nodes::song_threshold_recording, "the song's recording threshold mode: a runtime field seeded from "
 	                                       "FlashStorage when the song is made, and not saved: no row"},
+	    {&nodes::voice_usage, "a readout of the voices sounding, which the scene samples: no row"},
 	};
 	return list;
 }
@@ -753,13 +754,19 @@ std::string_view unpathed_reason(const Reached& reached) {
 	return {};
 }
 
-/// @brief The nodes under the settings root that no case compared with a row, by path, and how many share each.
+/// @brief The nodes under the settings root that no case compared with a row and no `subtrees()` entry explains, by
+/// path, and how many share each.
 std::map<std::string, size_t> uncompared_device_nodes() {
 	std::set<const Node*> under;
 	collect(nodes::root_settings, under);
+	std::set<const Node*> explained;
+	for (const Subtree& subtree : subtrees()) {
+		collect(*subtree.root, explained);
+	}
 	std::map<std::string, size_t> out;
 	for (const Reached& reached : hooked_nodes()) {
-		if (under.contains(reached.node) && !tally().compared.contains(reached.node)) {
+		if (under.contains(reached.node) && !explained.contains(reached.node)
+		    && !tally().compared.contains(reached.node)) {
 			++out[reached.path];
 		}
 	}
