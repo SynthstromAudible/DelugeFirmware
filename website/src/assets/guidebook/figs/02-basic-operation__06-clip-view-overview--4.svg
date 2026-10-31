@@ -1,7 +1,7 @@
-<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 287.5 132.9">
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 350.5 132.9">
 <defs>
 <clipPath id="02-basic-operation__06-clip-view-overview--4-clip_1">
-<path transform="matrix(1,0,0,-1,-59.1,472.9)" d="M59.1 340.0H346.6V472.9H59.1Z" clip-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-59.1,472.9)" d="M59.1 340.0H409.6V472.9H59.1Z" clip-rule="evenodd"/>
 </clipPath>
 <clipPath id="02-basic-operation__06-clip-view-overview--4-clip_2">
 <path transform="matrix(1,0,0,-1,-59.1,472.9)" d="M178.8 344.7H328.8V460.9H178.8Z" clip-rule="evenodd"/>
@@ -15,6 +15,10 @@
 <g>
 <g clip-path="url(#02-basic-operation__06-clip-view-overview--4-clip_1)">
 <path transform="matrix(1,0,0,-1,-59.1,472.9)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M424.7 688.6V84.1"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(284.9 52.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Preset selected.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(284.9 23.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Preset type.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(284.9 91.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Tag indicates a</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(284.9 100.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">saved preset.</tspan></text>
 <text fill="currentColor" xml:space="preserve" transform="translate(6.0 12.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">(SELECT)</tspan></text>
 <text fill="currentColor" xml:space="preserve" transform="translate(6.0 22.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Control selects the</tspan></text>
 <text fill="currentColor" xml:space="preserve" transform="translate(6.0 32.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">respective synth or kit</tspan></text>

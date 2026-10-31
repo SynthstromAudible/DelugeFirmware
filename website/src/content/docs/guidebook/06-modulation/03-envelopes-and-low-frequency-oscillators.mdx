@@ -33,8 +33,6 @@ Envelopes are used to shape the sound typically over one cycle of the envelope. 
   page={125}
 />
 
-Value
-
 When either of the 2 envelopes modulate a parameter other than volume level, it does so with a 'bipolar' behaviour. This means that when the sustain is set to 25 (default for ENV2), that stage of the envelope will match the current setting of the target parameter without modulation. Sustain settings below 25 will then modulate the parameter lower than its current setting, also determined by mod depth. Bipolar behaviour affects all stages of the envelope but is most important when considering sustain level settings, as the others are time based.
 
 The LFO is a continuous modulation function. Wave options are Sine, Saw, Square or Triangle. LFO1 has an additional SYNC parameter to set a sync time interval or switch off. LFO1 does not retrigger and covers all voices. LFO2 is retriggerable and exists for each voice separately.

@@ -1,7 +1,7 @@
-<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 157.2 161.9">
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 301.2 161.9">
 <defs>
 <clipPath id="12-midi__06-sync-scaling--1-clip_1">
-<path transform="matrix(1,0,0,-1,-79.7,430.4)" d="M79.7 268.5H236.9V430.4H79.7Z" clip-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-79.7,430.4)" d="M79.7 268.5H380.9V430.4H79.7Z" clip-rule="evenodd"/>
 </clipPath>
 <mask id="12-midi__06-sync-scaling--1-mask_2">
 <g transform="matrix(.11035701,0,0,.110357,5.9,6.0)">
@@ -11,6 +11,12 @@
 </defs>
 <g>
 <g clip-path="url(#12-midi__06-sync-scaling--1-clip_1)">
+<text fill="currentColor" xml:space="preserve" transform="translate(153.4 85.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Unlit / Off</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(153.4 95.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Sync-scaling off, not applied to any clip</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(153.4 117.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Blue Flashing</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(153.4 127.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Sync-scaling on for the selected clip</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(153.4 149.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Blue Lit</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(153.4 159.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Sync-scaling on, but not for the selected clip</tspan></text>
 <path transform="matrix(1,0,0,-1,-79.7,430.4)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="currentColor" d="M181.4 316.2H216.2V348.6H230.3"/>
 <path transform="matrix(1,0,0,-1,-79.7,430.4)" d="M113.4 324.1C117.9 324.1 121.5 320.4 121.5 315.9 121.5 311.4 117.9 307.7 113.4 307.7 108.9 307.7 105.2 311.4 105.2 315.9 105.2 320.4 108.9 324.1 113.4 324.1Z" fill="#5c96cf" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-79.7,430.4)" stroke-width=".7" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="currentColor" d="M113.4 324.1C117.9 324.1 121.5 320.4 121.5 315.9 121.5 311.4 117.9 307.7 113.4 307.7 108.9 307.7 105.2 311.4 105.2 315.9 105.2 320.4 108.9 324.1 113.4 324.1Z"/>

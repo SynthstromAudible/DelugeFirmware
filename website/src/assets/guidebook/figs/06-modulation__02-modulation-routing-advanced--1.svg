@@ -1,7 +1,7 @@
-<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 351.7 276.8">
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 370.4 276.8">
 <defs>
 <clipPath id="06-modulation__02-modulation-routing-advanced--1-clip_1">
-<path transform="matrix(1,0,0,-1,-174.8,535.5)" d="M174.8 258.7H526.5V535.5H174.8Z" clip-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-174.8,535.5)" d="M174.8 258.7H545.2V535.5H174.8Z" clip-rule="evenodd"/>
 </clipPath>
 <clipPath id="06-modulation__02-modulation-routing-advanced--1-clip_2">
 <path transform="matrix(1,0,0,-1,-174.8,535.5)" d="M184.3 330.7H441.6V469.6H184.3Z" clip-rule="evenodd"/>
@@ -27,6 +27,9 @@
 <text fill="currentColor" xml:space="preserve" transform="translate(26.6 48.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">[SHIFT] + [</tspan></text>
 <text fill="currentColor" xml:space="preserve" transform="translate(63.0 48.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0">FREQUENCY</tspan></text>
 <text fill="currentColor" xml:space="preserve" transform="translate(110.1 48.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">]</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(348.5 172.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">LFO 1</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(347.9 105.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Filter</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(348.5 241.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">LFO 2</tspan></text>
 <text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(291.5 79.6)" font-size="7.5" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0">Cutoff Freq</tspan></text>
 <text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(302.4 269.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0">Rate</tspan></text>
 <text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="matrix(0 -1 1 0 275.0 178.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0">Depth</tspan></text>

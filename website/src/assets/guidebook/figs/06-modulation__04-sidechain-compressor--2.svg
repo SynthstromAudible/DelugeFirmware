@@ -1,12 +1,14 @@
-<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 331.7 185.1"><defs><path id="06-modulation__04-sidechain-compressor--2-s1" d="M0 0V-37.9" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)"/><path id="06-modulation__04-sidechain-compressor--2-s2" d="M0 0V-73.7" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)"/></defs>
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 357.6 185.1"><defs><path id="06-modulation__04-sidechain-compressor--2-s1" d="M0 0V-37.9" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)"/><path id="06-modulation__04-sidechain-compressor--2-s2" d="M0 0V-73.7" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)"/></defs>
 <defs>
 <clipPath id="06-modulation__04-sidechain-compressor--2-clip_1">
-<path transform="matrix(1,0,0,-1,-176.4,275.2)" d="M176.4 90.1H508.1V275.2H176.4Z" clip-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-176.4,275.2)" d="M176.4 90.1H534.1V275.2H176.4Z" clip-rule="evenodd"/>
 </clipPath>
 </defs>
 <g clip-path="url(#06-modulation__04-sidechain-compressor--2-clip_1)">
 <path transform="matrix(1,0,0,-1,-176.4,275.2)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M170.1 688.6V84.1"/>
 <text fill="currentColor" xml:space="preserve" transform="translate(166.5 177.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Audio Over Time</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(329.4 101.9)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Dynamic</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(332.7 109.9)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Range</tspan></text>
 <text fill="currentColor" xml:space="preserve" transform="translate(67.1 61.6)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">VOL DUCK</tspan></text>
 <text fill="currentColor" xml:space="preserve" transform="translate(295.1 49.8)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Gain</tspan></text>
 <text fill="currentColor" xml:space="preserve" transform="translate(286.7 57.8)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Reduction</tspan></text>

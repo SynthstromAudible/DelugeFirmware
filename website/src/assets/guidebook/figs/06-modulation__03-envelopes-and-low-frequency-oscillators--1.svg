@@ -1,90 +1,93 @@
-<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 328.6 257.0"><defs><path id="06-modulation__03-envelopes-and-low-frequency-oscillators--1-s1" d="M0 0 -5.8 -2.9V2.9Z" fill="var(--gb-paper)" fill-rule="evenodd"/><path id="06-modulation__03-envelopes-and-low-frequency-oscillators--1-s2" d="M0 0 -5.8 -2.9V2.9ZM-1.1 0 -5.3 -2.1C-5.3 -2.1 -5.3 2.1 -5.3 2.1Z" fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" fill-rule="evenodd"/><path id="06-modulation__03-envelopes-and-low-frequency-oscillators--1-s3" d="M0 0 5.8 -2.9V2.9Z" fill="var(--gb-paper)" fill-rule="evenodd"/><path id="06-modulation__03-envelopes-and-low-frequency-oscillators--1-s4" d="M0 0H83" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor"/></defs>
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 361.1 257.0"><defs><path id="06-modulation__03-envelopes-and-low-frequency-oscillators--1-s1" d="M0 0 -5.8 -2.9V2.9Z" fill="var(--gb-paper)" fill-rule="evenodd"/><path id="06-modulation__03-envelopes-and-low-frequency-oscillators--1-s2" d="M0 0 -5.8 -2.9V2.9ZM-1.1 0 -5.3 -2.1C-5.3 -2.1 -5.3 2.1 -5.3 2.1Z" fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" fill-rule="evenodd"/><path id="06-modulation__03-envelopes-and-low-frequency-oscillators--1-s3" d="M0 0 5.8 -2.9V2.9Z" fill="var(--gb-paper)" fill-rule="evenodd"/><path id="06-modulation__03-envelopes-and-low-frequency-oscillators--1-s4" d="M0 0H83" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor"/></defs>
 <defs>
 <clipPath id="06-modulation__03-envelopes-and-low-frequency-oscillators--1-clip_1">
-<path transform="matrix(1,0,0,-1,-213.8,603.4)" d="M213.8 346.3H542.4V603.4H213.8Z" clip-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-181.3,603.4)" d="M181.3 346.3H542.4V603.4H181.3Z" clip-rule="evenodd"/>
 </clipPath>
 </defs>
 <g clip-path="url(#06-modulation__03-envelopes-and-low-frequency-oscillators--1-clip_1)">
-<path transform="matrix(1,0,0,-1,-213.8,603.4)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M170.1 688.6V84.1"/>
-<path transform="matrix(1,0,0,-1,-213.8,603.4)" stroke-width=".9" stroke-linecap="square" stroke-dasharray="4.5,4.5,.0001,.0001" stroke-linejoin="round" fill="none" stroke="currentColor" d="M222.8 533.5H536.4"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(100.6 133.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">DECAY</tspan></text>
-<text fill="color-mix(in srgb, currentColor 40%, var(--gb-paper))" xml:space="preserve" transform="translate(103.7 141.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">(time)</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(154.0 133.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">SUSTAIN</tspan></text>
-<text fill="color-mix(in srgb, currentColor 41%, var(--gb-paper))" xml:space="preserve" transform="translate(159.7 141.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">(level)</tspan></text>
-<path transform="matrix(1,0,0,-1,-213.8,603.4)" stroke-width=".5" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M383.1 545.9V489.5"/>
-<path transform="matrix(1,0,0,-1,-213.8,603.4)" stroke-width=".5" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M514.0 569.3V493.1"/>
-<path transform="matrix(1,0,0,-1,-213.8,603.4)" stroke-width=".5" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M483.3 483.6H428.2"/>
-<path transform="matrix(1,0,0,-1,-213.8,603.4)" stroke-width=".5" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M342.9 483.6H310.8"/>
-<path transform="matrix(1,0,0,-1,-213.8,603.4)" stroke-width=".5" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M298.3 483.6H243.6"/>
-<path transform="matrix(1,0,0,-1,-213.8,603.4)" d="M383.1 551.9 386.0 546.1H380.2Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
-<path transform="matrix(1,0,0,-1,-213.8,603.4)" d="M383.1 551.9 386.0 546.1H380.2ZM383.1 550.8 385.2 546.6C385.2 546.6 381.0 546.6 381.0 546.6Z" fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" fill-rule="evenodd"/>
-<path transform="matrix(1,0,0,-1,-213.8,603.4)" d="M514.0 574.7 516.9 568.9H511.1Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
-<path transform="matrix(1,0,0,-1,-213.8,603.4)" d="M514.0 574.7 516.9 568.9H511.1ZM514.0 573.6 516.1 569.4C516.1 569.4 511.9 569.4 511.9 569.4Z" fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" fill-rule="evenodd"/>
-<use href="#06-modulation__03-envelopes-and-low-frequency-oscillators--1-s1" transform="matrix(1 0 0 -1 275.3 119.7)"/>
-<use href="#06-modulation__03-envelopes-and-low-frequency-oscillators--1-s2" transform="matrix(1 0 0 -1 275.3 119.7)"/>
-<use href="#06-modulation__03-envelopes-and-low-frequency-oscillators--1-s1" transform="matrix(1 0 0 -1 134.9 119.7)"/>
-<use href="#06-modulation__03-envelopes-and-low-frequency-oscillators--1-s2" transform="matrix(1 0 0 -1 134.9 119.7)"/>
-<use href="#06-modulation__03-envelopes-and-low-frequency-oscillators--1-s1" transform="matrix(1 0 0 -1 90.3 119.7)"/>
-<use href="#06-modulation__03-envelopes-and-low-frequency-oscillators--1-s2" transform="matrix(1 0 0 -1 90.3 119.7)"/>
-<path transform="matrix(1,0,0,-1,-213.8,603.4)" d="M383.1 483.7 386.0 489.5H380.2Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
-<path transform="matrix(1,0,0,-1,-213.8,603.4)" d="M383.1 483.7 386.0 489.5H380.2ZM383.1 484.8 381.0 489.0C381.0 489.0 385.2 489.0 385.2 489.0Z" fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" fill-rule="evenodd"/>
-<path transform="matrix(1,0,0,-1,-213.8,603.4)" d="M514.0 487.3 516.9 493.1H511.1Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
-<path transform="matrix(1,0,0,-1,-213.8,603.4)" d="M514.0 487.3 516.9 493.1H511.1ZM514.0 488.5 511.9 492.6C511.9 492.6 516.1 492.6 516.1 492.6Z" fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" fill-rule="evenodd"/>
-<path transform="matrix(1,0,0,-1,-213.8,603.4)" stroke-width=".7" stroke-linecap="square" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 30%, var(--gb-paper))" d="M290.2 574.7H533.7"/>
-<path transform="matrix(1,0,0,-1,-213.8,603.4)" stroke-width=".7" stroke-linecap="square" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 30%, var(--gb-paper))" d="M488.5 486.9H533.7"/>
-<path transform="matrix(1,0,0,-1,-213.8,603.4)" d="M514.0 535.8C516.0 535.8 517.6 534.8 517.6 533.6 517.6 532.4 516.0 531.4 514.0 531.4 512.1 531.4 510.5 532.4 510.5 533.6 510.5 534.8 512.1 535.8 514.0 535.8Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
-<path transform="matrix(1,0,0,-1,-213.8,603.4)" stroke-width=".7" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M514.0 535.8C516.0 535.8 517.6 534.8 517.6 533.6 517.6 532.4 516.0 531.4 514.0 531.4 512.1 531.4 510.5 532.4 510.5 533.6 510.5 534.8 512.1 535.8 514.0 535.8Z"/>
-<use href="#06-modulation__03-envelopes-and-low-frequency-oscillators--1-s3" transform="matrix(1 0 0 -1 208.6 119.7)"/>
-<path transform="matrix(1,0,0,-1,-213.8,603.4)" d="M422.4 483.7 428.2 480.8V486.6ZM423.5 483.7 427.7 485.8C427.7 485.8 427.7 481.6 427.7 481.6Z" fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" fill-rule="evenodd"/>
-<use href="#06-modulation__03-envelopes-and-low-frequency-oscillators--1-s3" transform="matrix(1 0 0 -1 91.4 119.7)"/>
-<path transform="matrix(1,0,0,-1,-213.8,603.4)" d="M305.2 483.7 311.0 480.8V486.6ZM306.4 483.7 310.5 485.8C310.5 485.8 310.5 481.6 310.5 481.6Z" fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" fill-rule="evenodd"/>
-<use href="#06-modulation__03-envelopes-and-low-frequency-oscillators--1-s3" transform="matrix(1 0 0 -1 24 119.7)"/>
-<path transform="matrix(1,0,0,-1,-213.8,603.4)" d="M237.8 483.7 243.6 480.8V486.6ZM238.9 483.7 243.1 485.8C243.1 485.8 243.1 481.6 243.1 481.6Z" fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" fill-rule="evenodd"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(222.9 133.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">RELEASE</tspan></text>
-<text fill="color-mix(in srgb, currentColor 41%, var(--gb-paper))" xml:space="preserve" transform="translate(230.6 141.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">(time)</tspan></text>
-<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(9.1 15.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Note ON</tspan></text>
-<path transform="matrix(1,0,0,-1,-213.8,603.4)" d="M493.7 583.1H533.7V597.5H493.7Z" fill="var(--gb-paper)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(283.4 15.6)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Mod depth</tspan></text>
-<path transform="matrix(1,0,0,-1,-213.8,603.4)" d="M373.6 528.1H392.7V539.5H373.6Z" fill="var(--gb-paper)"/>
-<path transform="matrix(1,0,0,-1,-213.8,603.4)" stroke-width=".24" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 41%, var(--gb-paper))" d="M373.6 528.1H392.7V539.5H373.6Z"/>
-<text fill="var(--gb-accent)" xml:space="preserve" transform="translate(164.9 72.5)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">25</tspan></text>
-<path transform="matrix(1,0,0,-1,-213.8,603.4)" d="M222.3 536.0C223.6 536.0 224.7 534.9 224.7 533.5 224.7 532.2 223.6 531.0 222.3 531.0 220.9 531.0 219.8 532.2 219.8 533.5 219.8 534.9 220.9 536.0 222.3 536.0Z" fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" fill-rule="evenodd"/>
-<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(190.2 15.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Note OFF</tspan></text>
-<path transform="matrix(1,0,0,-1,-213.8,603.4)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M237.5 583.1V452.2"/>
-<path transform="matrix(1,0,0,-1,-213.8,603.4)" stroke-width=".4" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 40%, var(--gb-paper))" d="M304.8 578.6V452.2"/>
-<path transform="matrix(1,0,0,-1,-213.8,603.4)" stroke-width=".4" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 40%, var(--gb-paper))" d="M349.1 578.6V452.2"/>
-<path transform="matrix(1,0,0,-1,-213.8,603.4)" stroke-width=".6" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 40%, var(--gb-paper))" d="M488.0 578.6V452.2"/>
-<path transform="matrix(1,0,0,-1,-213.8,603.4)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M420.7 583.1V452.2"/>
-<path transform="matrix(1,0,0,-1,-213.8,603.4)" stroke-width=".8" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M238.1 487.4 304.3 574.3 348.5 553.1 420.0 553.1 487.6 487.4"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(41.6 133.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">ATTACK</tspan></text>
-<text fill="color-mix(in srgb, currentColor 41%, var(--gb-paper))" xml:space="preserve" transform="translate(46.3 141.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">(time)</tspan></text>
-<path transform="matrix(1,0,0,-1,-213.8,603.4)" stroke-width=".6" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M229.6 409.1H312.7V415.9H229.6Z"/>
-<path transform="matrix(1,0,0,-1,-213.8,603.4)" d="M229.6 409.1H280.0V415.9H229.6Z" fill="currentColor" fill-rule="evenodd"/>
-<path transform="matrix(1,0,0,-1,-213.8,603.4)" stroke-width=".6" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M229.6 409.1H280.0V415.9H229.6Z"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(15.3 169.2)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-weight="bold"><tspan y="0" x="0" textLength="54.3" lengthAdjust="spacingAndGlyphs">ENV1 ATTACK</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(51.4 184.0)" font-size="14" font-family="Arial, Helvetica, sans-serif" font-weight="bold"><tspan y="0" x="0" textLength="14.2" lengthAdjust="spacingAndGlyphs">30</tspan></text>
-<use href="#06-modulation__03-envelopes-and-low-frequency-oscillators--1-s4" transform="matrix(1 0 0 -1 15.7 171.2)"/>
-<path transform="matrix(1,0,0,-1,-213.8,603.4)" stroke-width=".8" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M224.8 403.3H317.1V442.7H224.8Z"/>
-<path transform="matrix(1,0,0,-1,-213.8,603.4)" stroke-width=".6" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M344.8 409.1H427.9V415.9H344.8Z"/>
-<path transform="matrix(1,0,0,-1,-213.8,603.4)" d="M344.8 409.1H389.1V415.9H344.8Z" fill="currentColor" fill-rule="evenodd"/>
-<path transform="matrix(1,0,0,-1,-213.8,603.4)" stroke-width=".6" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M344.8 409.1H389.1V415.9H344.8Z"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(130.5 169.2)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-weight="bold"><tspan y="0" x="0" textLength="56.6" lengthAdjust="spacingAndGlyphs">ENV1 SUSTAIN</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(167.0 184.0)" font-size="14" font-family="Arial, Helvetica, sans-serif" font-weight="bold"><tspan y="0" x="0" textLength="14.7" lengthAdjust="spacingAndGlyphs">25</tspan></text>
-<use href="#06-modulation__03-envelopes-and-low-frequency-oscillators--1-s4" transform="matrix(1 0 0 -1 130.9 171.2)"/>
-<path transform="matrix(1,0,0,-1,-213.8,603.4)" stroke-width=".8" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M340.0 403.3H432.3V442.7H340.0Z"/>
-<path transform="matrix(1,0,0,-1,-213.8,603.4)" stroke-width=".6" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M285.2 358.2H368.3V364.9H285.2Z"/>
-<path transform="matrix(1,0,0,-1,-213.8,603.4)" d="M285.2 358.2H315.9V364.9H285.2Z" fill="currentColor" fill-rule="evenodd"/>
-<path transform="matrix(1,0,0,-1,-213.8,603.4)" stroke-width=".6" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M285.2 358.2H315.9V364.9H285.2Z"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(70.9 220.1)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-weight="bold"><tspan y="0" x="0" textLength="49" lengthAdjust="spacingAndGlyphs">ENV1 DECAY</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(106.9 235)" font-size="14" font-family="Arial, Helvetica, sans-serif" font-weight="bold"><tspan y="0" x="0" textLength="14.5" lengthAdjust="spacingAndGlyphs">20</tspan></text>
-<use href="#06-modulation__03-envelopes-and-low-frequency-oscillators--1-s4" transform="matrix(1 0 0 -1 71.3 222.1)"/>
-<path transform="matrix(1,0,0,-1,-213.8,603.4)" stroke-width=".8" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M280.5 352.3H372.8V391.8H280.5Z"/>
-<path transform="matrix(1,0,0,-1,-213.8,603.4)" stroke-width=".6" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M417.2 358.2H500.3V364.9H417.2Z"/>
-<path transform="matrix(1,0,0,-1,-213.8,603.4)" d="M417.2 358.2H467.1V364.9H417.2Z" fill="currentColor" fill-rule="evenodd"/>
-<path transform="matrix(1,0,0,-1,-213.8,603.4)" stroke-width=".6" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M417.2 358.2H467.1V364.9H417.2Z"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(202.9 220.1)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-weight="bold"><tspan y="0" x="0" textLength="58.4" lengthAdjust="spacingAndGlyphs">ENV1 RELEASE</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(239.0 235)" font-size="14" font-family="Arial, Helvetica, sans-serif" font-weight="bold"><tspan y="0" x="0" textLength="14.2" lengthAdjust="spacingAndGlyphs">30</tspan></text>
-<use href="#06-modulation__03-envelopes-and-low-frequency-oscillators--1-s4" transform="matrix(1 0 0 -1 203.3 222.1)"/>
-<path transform="matrix(1,0,0,-1,-213.8,603.4)" stroke-width=".8" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M412.5 352.3H504.8V391.8H412.5Z"/>
+<path transform="matrix(1,0,0,-1,-181.3,603.4)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M170.1 688.6V84.1"/>
+<path transform="matrix(1,0,0,-1,-181.3,603.4)" stroke-width=".9" stroke-linecap="square" stroke-dasharray="4.5,4.5,.0001,.0001" stroke-linejoin="round" fill="none" stroke="currentColor" d="M222.8 533.5H536.4"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(133.1 133.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">DECAY</tspan></text>
+<text fill="color-mix(in srgb, currentColor 40%, var(--gb-paper))" xml:space="preserve" transform="translate(136.2 141.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">(time)</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(186.5 133.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">SUSTAIN</tspan></text>
+<text fill="color-mix(in srgb, currentColor 41%, var(--gb-paper))" xml:space="preserve" transform="translate(192.2 141.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">(level)</tspan></text>
+<path transform="matrix(1,0,0,-1,-181.3,603.4)" stroke-width=".5" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M383.1 545.9V489.5"/>
+<path transform="matrix(1,0,0,-1,-181.3,603.4)" stroke-width=".5" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M514.0 569.3V493.1"/>
+<path transform="matrix(1,0,0,-1,-181.3,603.4)" stroke-width=".5" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M483.3 483.6H428.2"/>
+<path transform="matrix(1,0,0,-1,-181.3,603.4)" stroke-width=".5" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M342.9 483.6H310.8"/>
+<path transform="matrix(1,0,0,-1,-181.3,603.4)" stroke-width=".5" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M298.3 483.6H243.6"/>
+<path transform="matrix(1,0,0,-1,-181.3,603.4)" d="M383.1 551.9 386.0 546.1H380.2Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-181.3,603.4)" d="M383.1 551.9 386.0 546.1H380.2ZM383.1 550.8 385.2 546.6C385.2 546.6 381.0 546.6 381.0 546.6Z" fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-181.3,603.4)" d="M514.0 574.7 516.9 568.9H511.1Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-181.3,603.4)" d="M514.0 574.7 516.9 568.9H511.1ZM514.0 573.6 516.1 569.4C516.1 569.4 511.9 569.4 511.9 569.4Z" fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" fill-rule="evenodd"/>
+<use href="#06-modulation__03-envelopes-and-low-frequency-oscillators--1-s1" transform="matrix(1 0 0 -1 307.8 119.7)"/>
+<use href="#06-modulation__03-envelopes-and-low-frequency-oscillators--1-s2" transform="matrix(1 0 0 -1 307.8 119.7)"/>
+<use href="#06-modulation__03-envelopes-and-low-frequency-oscillators--1-s1" transform="matrix(1 0 0 -1 167.4 119.7)"/>
+<use href="#06-modulation__03-envelopes-and-low-frequency-oscillators--1-s2" transform="matrix(1 0 0 -1 167.4 119.7)"/>
+<use href="#06-modulation__03-envelopes-and-low-frequency-oscillators--1-s1" transform="matrix(1 0 0 -1 122.8 119.7)"/>
+<use href="#06-modulation__03-envelopes-and-low-frequency-oscillators--1-s2" transform="matrix(1 0 0 -1 122.8 119.7)"/>
+<path transform="matrix(1,0,0,-1,-181.3,603.4)" d="M383.1 483.7 386.0 489.5H380.2Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-181.3,603.4)" d="M383.1 483.7 386.0 489.5H380.2ZM383.1 484.8 381.0 489.0C381.0 489.0 385.2 489.0 385.2 489.0Z" fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-181.3,603.4)" d="M514.0 487.3 516.9 493.1H511.1Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-181.3,603.4)" d="M514.0 487.3 516.9 493.1H511.1ZM514.0 488.5 511.9 492.6C511.9 492.6 516.1 492.6 516.1 492.6Z" fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-181.3,603.4)" stroke-width=".7" stroke-linecap="square" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 30%, var(--gb-paper))" d="M290.2 574.7H533.7"/>
+<path transform="matrix(1,0,0,-1,-181.3,603.4)" stroke-width=".7" stroke-linecap="square" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 30%, var(--gb-paper))" d="M488.5 486.9H533.7"/>
+<path transform="matrix(1,0,0,-1,-181.3,603.4)" d="M514.0 535.8C516.0 535.8 517.6 534.8 517.6 533.6 517.6 532.4 516.0 531.4 514.0 531.4 512.1 531.4 510.5 532.4 510.5 533.6 510.5 534.8 512.1 535.8 514.0 535.8Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-181.3,603.4)" stroke-width=".7" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M514.0 535.8C516.0 535.8 517.6 534.8 517.6 533.6 517.6 532.4 516.0 531.4 514.0 531.4 512.1 531.4 510.5 532.4 510.5 533.6 510.5 534.8 512.1 535.8 514.0 535.8Z"/>
+<use href="#06-modulation__03-envelopes-and-low-frequency-oscillators--1-s3" transform="matrix(1 0 0 -1 241.1 119.7)"/>
+<path transform="matrix(1,0,0,-1,-181.3,603.4)" d="M422.4 483.7 428.2 480.8V486.6ZM423.5 483.7 427.7 485.8C427.7 485.8 427.7 481.6 427.7 481.6Z" fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" fill-rule="evenodd"/>
+<use href="#06-modulation__03-envelopes-and-low-frequency-oscillators--1-s3" transform="matrix(1 0 0 -1 123.9 119.7)"/>
+<path transform="matrix(1,0,0,-1,-181.3,603.4)" d="M305.2 483.7 311.0 480.8V486.6ZM306.4 483.7 310.5 485.8C310.5 485.8 310.5 481.6 310.5 481.6Z" fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" fill-rule="evenodd"/>
+<use href="#06-modulation__03-envelopes-and-low-frequency-oscillators--1-s3" transform="matrix(1 0 0 -1 56.5 119.7)"/>
+<path transform="matrix(1,0,0,-1,-181.3,603.4)" d="M237.8 483.7 243.6 480.8V486.6ZM238.9 483.7 243.1 485.8C243.1 485.8 243.1 481.6 243.1 481.6Z" fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" fill-rule="evenodd"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(255.4 133.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">RELEASE</tspan></text>
+<text fill="color-mix(in srgb, currentColor 41%, var(--gb-paper))" xml:space="preserve" transform="translate(263.1 141.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">(time)</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(41.6 15.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Note ON</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(11.1 65.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Mod</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(.9810028 72.4)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">destination</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(9.2 79.6)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Value</tspan></text>
+<path transform="matrix(1,0,0,-1,-181.3,603.4)" d="M493.7 583.1H533.7V597.5H493.7Z" fill="var(--gb-paper)"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(315.9 15.6)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Mod depth</tspan></text>
+<path transform="matrix(1,0,0,-1,-181.3,603.4)" d="M373.6 528.1H392.7V539.5H373.6Z" fill="var(--gb-paper)"/>
+<path transform="matrix(1,0,0,-1,-181.3,603.4)" stroke-width=".24" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 41%, var(--gb-paper))" d="M373.6 528.1H392.7V539.5H373.6Z"/>
+<text fill="var(--gb-accent)" xml:space="preserve" transform="translate(197.4 72.5)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">25</tspan></text>
+<path transform="matrix(1,0,0,-1,-181.3,603.4)" d="M222.3 536.0C223.6 536.0 224.7 534.9 224.7 533.5 224.7 532.2 223.6 531.0 222.3 531.0 220.9 531.0 219.8 532.2 219.8 533.5 219.8 534.9 220.9 536.0 222.3 536.0Z" fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" fill-rule="evenodd"/>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(222.7 15.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Note OFF</tspan></text>
+<path transform="matrix(1,0,0,-1,-181.3,603.4)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M237.5 583.1V452.2"/>
+<path transform="matrix(1,0,0,-1,-181.3,603.4)" stroke-width=".4" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 40%, var(--gb-paper))" d="M304.8 578.6V452.2"/>
+<path transform="matrix(1,0,0,-1,-181.3,603.4)" stroke-width=".4" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 40%, var(--gb-paper))" d="M349.1 578.6V452.2"/>
+<path transform="matrix(1,0,0,-1,-181.3,603.4)" stroke-width=".6" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 40%, var(--gb-paper))" d="M488.0 578.6V452.2"/>
+<path transform="matrix(1,0,0,-1,-181.3,603.4)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M420.7 583.1V452.2"/>
+<path transform="matrix(1,0,0,-1,-181.3,603.4)" stroke-width=".8" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M238.1 487.4 304.3 574.3 348.5 553.1 420.0 553.1 487.6 487.4"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(74.1 133.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">ATTACK</tspan></text>
+<text fill="color-mix(in srgb, currentColor 41%, var(--gb-paper))" xml:space="preserve" transform="translate(78.8 141.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">(time)</tspan></text>
+<path transform="matrix(1,0,0,-1,-181.3,603.4)" stroke-width=".6" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M229.6 409.1H312.7V415.9H229.6Z"/>
+<path transform="matrix(1,0,0,-1,-181.3,603.4)" d="M229.6 409.1H280.0V415.9H229.6Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-181.3,603.4)" stroke-width=".6" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M229.6 409.1H280.0V415.9H229.6Z"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(47.8 169.2)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-weight="bold"><tspan y="0" x="0" textLength="54.3" lengthAdjust="spacingAndGlyphs">ENV1 ATTACK</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(83.9 184.0)" font-size="14" font-family="Arial, Helvetica, sans-serif" font-weight="bold"><tspan y="0" x="0" textLength="14.2" lengthAdjust="spacingAndGlyphs">30</tspan></text>
+<use href="#06-modulation__03-envelopes-and-low-frequency-oscillators--1-s4" transform="matrix(1 0 0 -1 48.2 171.2)"/>
+<path transform="matrix(1,0,0,-1,-181.3,603.4)" stroke-width=".8" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M224.8 403.3H317.1V442.7H224.8Z"/>
+<path transform="matrix(1,0,0,-1,-181.3,603.4)" stroke-width=".6" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M344.8 409.1H427.9V415.9H344.8Z"/>
+<path transform="matrix(1,0,0,-1,-181.3,603.4)" d="M344.8 409.1H389.1V415.9H344.8Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-181.3,603.4)" stroke-width=".6" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M344.8 409.1H389.1V415.9H344.8Z"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(163.0 169.2)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-weight="bold"><tspan y="0" x="0" textLength="56.6" lengthAdjust="spacingAndGlyphs">ENV1 SUSTAIN</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(199.5 184.0)" font-size="14" font-family="Arial, Helvetica, sans-serif" font-weight="bold"><tspan y="0" x="0" textLength="14.7" lengthAdjust="spacingAndGlyphs">25</tspan></text>
+<use href="#06-modulation__03-envelopes-and-low-frequency-oscillators--1-s4" transform="matrix(1 0 0 -1 163.4 171.2)"/>
+<path transform="matrix(1,0,0,-1,-181.3,603.4)" stroke-width=".8" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M340.0 403.3H432.3V442.7H340.0Z"/>
+<path transform="matrix(1,0,0,-1,-181.3,603.4)" stroke-width=".6" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M285.2 358.2H368.3V364.9H285.2Z"/>
+<path transform="matrix(1,0,0,-1,-181.3,603.4)" d="M285.2 358.2H315.9V364.9H285.2Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-181.3,603.4)" stroke-width=".6" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M285.2 358.2H315.9V364.9H285.2Z"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(103.4 220.1)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-weight="bold"><tspan y="0" x="0" textLength="49" lengthAdjust="spacingAndGlyphs">ENV1 DECAY</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(139.4 235)" font-size="14" font-family="Arial, Helvetica, sans-serif" font-weight="bold"><tspan y="0" x="0" textLength="14.5" lengthAdjust="spacingAndGlyphs">20</tspan></text>
+<use href="#06-modulation__03-envelopes-and-low-frequency-oscillators--1-s4" transform="matrix(1 0 0 -1 103.8 222.1)"/>
+<path transform="matrix(1,0,0,-1,-181.3,603.4)" stroke-width=".8" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M280.5 352.3H372.8V391.8H280.5Z"/>
+<path transform="matrix(1,0,0,-1,-181.3,603.4)" stroke-width=".6" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M417.2 358.2H500.3V364.9H417.2Z"/>
+<path transform="matrix(1,0,0,-1,-181.3,603.4)" d="M417.2 358.2H467.1V364.9H417.2Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-181.3,603.4)" stroke-width=".6" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M417.2 358.2H467.1V364.9H417.2Z"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(235.4 220.1)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-weight="bold"><tspan y="0" x="0" textLength="58.4" lengthAdjust="spacingAndGlyphs">ENV1 RELEASE</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(271.5 235)" font-size="14" font-family="Arial, Helvetica, sans-serif" font-weight="bold"><tspan y="0" x="0" textLength="14.2" lengthAdjust="spacingAndGlyphs">30</tspan></text>
+<use href="#06-modulation__03-envelopes-and-low-frequency-oscillators--1-s4" transform="matrix(1 0 0 -1 235.8 222.1)"/>
+<path transform="matrix(1,0,0,-1,-181.3,603.4)" stroke-width=".8" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M412.5 352.3H504.8V391.8H412.5Z"/>
 </g>
 </svg>
