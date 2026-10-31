@@ -213,6 +213,7 @@ private:
 private:
 	// Track row gestures and rendering are internal to Session grid view.
 	ActionResult gridTrackPadAction(int32_t x, int32_t on);
+	ActionResult gridMoveHeldTrack(int32_t offset);
 	void gridEndTrackPadGesture();
 	bool gridIsTrackPadHeld(Output const* output) const;
 	void gridRenderTrackRow(RGB* image, uint8_t* occupancy);

@@ -1453,6 +1453,9 @@ void SessionView::editNumRepeatsTilLaunch(int32_t offset) {
 
 ActionResult SessionView::horizontalEncoderAction(int32_t offset) {
 	if (currentSong->sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
+		if (gridHeldTrackPad >= 0) {
+			return gridMoveHeldTrack(offset);
+		}
 		return gridHandleScroll(offset, 0);
 	}
 
@@ -4625,6 +4628,46 @@ char const* SessionView::getMacroKindString(SessionMacroKind kind) {
 	return macroKind;
 }
 
+ActionResult SessionView::gridMoveHeldTrack(int32_t offset) {
+	if (sdRoutineLock) {
+		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+	}
+	auto* output = deluge::gui::track_link::selectedOutput();
+	const int32_t count = gridTrackCount();
+	const int32_t old_index = gridTrackIndexFromTrack(output, count);
+	if (output == nullptr || old_index < 0 || count == 0) {
+		return ActionResult::DEALT_WITH;
+	}
+	const int32_t new_index = std::clamp<int32_t>(old_index + offset, 0, count - 1);
+	if (new_index == old_index) {
+		return ActionResult::DEALT_WITH;
+	}
+	auto* neighbour = gridTrackFromIndex(new_index, count);
+	actionLogger.deleteAllLogs(); // As in arranger, output reordering is not undoable.
+
+	// Grid columns run opposite to the output list. Move past the target visible
+	// track, skipping outputs without an active clip, which have no grid column.
+	Output** link = &currentSong->firstOutput;
+	while (*link != output) {
+		link = &(*link)->next;
+	}
+	*link = output->next;
+	link = &currentSong->firstOutput;
+	while (*link != neighbour) {
+		link = &(*link)->next;
+	}
+	if (new_index < old_index) {
+		link = &neighbour->next;
+	}
+	output->next = *link;
+	*link = output;
+
+	// Keep the selected column beneath the physical pad until it is released.
+	currentSong->songGridScrollX += new_index - old_index;
+	requestRendering(this);
+	return ActionResult::DEALT_WITH;
+}
+
 ActionResult SessionView::gridHandleScroll(int32_t offsetX, int32_t offsetY) {
 	if (currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW && offsetY != 0) {
 		auto track = gridTrackFromX(gridFirstPressedX, gridTrackCount());
@@ -5162,6 +5205,10 @@ int32_t SessionView::sessionClipRows() const {
 }
 
 void SessionView::gridEndTrackPadGesture() {
+	if (gridHeldTrackPad >= 0) {
+		const int32_t maxScroll = std::max<int32_t>(0, static_cast<int32_t>(gridTrackCount()) - kDisplayWidth + 1);
+		currentSong->songGridScrollX = std::clamp<int32_t>(currentSong->songGridScrollX, 0, maxScroll);
+	}
 	gridTrackClipsPulsing = false;
 	deluge::gui::track_edit_pulse::resetHeldPulse();
 	if (gridTrackAuditioning) {
