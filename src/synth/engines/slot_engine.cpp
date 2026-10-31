@@ -83,7 +83,7 @@ bool SlotEngine::mark_active(const EngineNote& note, bool refuse_silent) {
 			}
 			source_ever_active = false;
 		}
-		for (int32_t u = 0; std::cmp_less(u, note.snapshot->num_unison); u++) {
+		for (int32_t u = 0; u < note.snapshot->num_unison; u++) {
 			note.parts[u].slots[s].active = source_ever_active;
 		}
 	}
@@ -103,7 +103,7 @@ void SlotEngine::calculate_phase_increments(const EngineNote& note) {
 		        ? base_phase_increment(source, snapshot.synth_mode, note_code_with_master_transpose + source.transpose)
 		        : std::nullopt;
 		if (!base.has_value()) { // Not sounding, or too high to render (above 22.05 kHz)
-			for (int32_t u = 0; std::cmp_less(u, snapshot.num_unison); u++) {
+			for (int32_t u = 0; u < snapshot.num_unison; u++) {
 				note.parts[u].slots[s].active = false;
 			}
 			continue;
@@ -118,7 +118,7 @@ void SlotEngine::calculate_phase_increments(const EngineNote& note) {
 			note.parts[0].slots[s].phase_increment_stored_value = phase_increment;
 		}
 		else {
-			for (int32_t u = 0; std::cmp_less(u, snapshot.num_unison); u++) {
+			for (int32_t u = 0; u < snapshot.num_unison; u++) {
 				note.parts[u].slots[s].phase_increment_stored_value =
 				    static_cast<uint32_t>(snapshot.unison_detuners[u].detune(static_cast<int32_t>(phase_increment)));
 			}
@@ -133,7 +133,7 @@ bool SlotEngine::start_sources(const EngineNote& note) {
 		if (!setup.sources[s].ever_active) [[unlikely]] {
 			continue;
 		}
-		for (int32_t u = 0; std::cmp_less(u, snapshot.num_unison); u++) {
+		for (int32_t u = 0; u < snapshot.num_unison; u++) {
 			// Only a part marked active: among other things, a SAMPLE source then has a sample loaded
 			SourceSlot& slot = note.parts[u].slots[s];
 			if (slot.active

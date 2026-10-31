@@ -78,7 +78,7 @@ void FMEngine::calculate_phase_increments(const EngineNote& note) {
 
 		if (shift_right_amount < 0) {
 			// Too high to render (above 22.05 kHz)
-			for (int32_t u = 0; std::cmp_less(u, snapshot.num_unison); u++) {
+			for (int32_t u = 0; u < snapshot.num_unison; u++) {
 				modulator_phase_increment_[u][m] = kInactive;
 			}
 			continue;
@@ -93,7 +93,7 @@ void FMEngine::calculate_phase_increments(const EngineNote& note) {
 			modulator_phase_increment_[0][m] = phase_increment;
 		}
 		else {
-			for (int32_t u = 0; std::cmp_less(u, snapshot.num_unison); u++) {
+			for (int32_t u = 0; u < snapshot.num_unison; u++) {
 				modulator_phase_increment_[u][m] = snapshot.unison_detuners[u].detune(phase_increment);
 			}
 		}
@@ -116,7 +116,7 @@ EngineRenderResult FMEngine::render(const EngineBlock& block) {
 
 	// The unison parts ascend in frequency, so a carrier too high in one is too high in the rest: its amplitude is
 	// knocked to 0 for them all
-	for (int32_t u = 0; std::cmp_less(u, cfg.num_unison); u++) {
+	for (int32_t u = 0; u < cfg.num_unison; u++) {
 		const std::array<uint32_t, kNumSources> phase_increments = carrier_increments(block, u, pass);
 		render_unison_part(block, u, phase_increments, pass);
 	}

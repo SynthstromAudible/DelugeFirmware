@@ -487,7 +487,7 @@ deluge::synth::matrix::MatrixBlock Sound::matrixBlock(ParamManager& paramManager
 	else if (block.program != nullptr) {
 		// The routed params from the program the pass reads next, so a pass touches one cold structure
 		for (const deluge::synth::matrix::ScopeView& scope : block.program->scopes) {
-			for (int32_t k = scope.num_depth_destinations; std::cmp_less(k, scope.num_destinations); k++) {
+			for (int32_t k = scope.num_depth_destinations; k < scope.num_destinations; k++) {
 				const int32_t p = scope.destinations[k].param;
 				block.preset_values[p] = patched.getValue(p);
 			}

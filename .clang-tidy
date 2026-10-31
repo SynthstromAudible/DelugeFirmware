@@ -5,6 +5,8 @@
 # Off because fixed-point DSP relies on what they forbid: signed shifts are q31 arithmetic (defined since C++20),
 # std::array indexing sits in per-sample loops, NEON and sample buffers are reinterpreted and read through unions,
 # and the parentheses check flags every mixed shift/multiply. Trailing commas are layout, which clang-format owns.
+# The integer sign-comparison check is off because -Wsign-compare (an error in the libraries) catches the unsafe
+# mixed-sign comparisons; the check also flags the safe ones, where a small unsigned type promotes to int.
 Checks: >
   -*,
   readability-braces-around-statements,
@@ -30,6 +32,7 @@ Checks: >
   performance-unnecessary-value-param,
   -modernize-use-trailing-return-type,
   -modernize-avoid-c-arrays,
+  -modernize-use-integer-sign-comparison,
   -cppcoreguidelines-avoid-non-const-global-variables,
   -cppcoreguidelines-avoid-magic-numbers,
   -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
