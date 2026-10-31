@@ -63,7 +63,7 @@ struct Regions {
 
 template <class B>
 void convert_slots(const ScopeView& scope, const ScopePass& pass, Working& w) {
-	for (int32_t s = 0; std::cmp_less(s, scope.num_slots); ++s) {
+	for (int32_t s = 0; s < scope.num_slots; ++s) {
 		w.slots[s] = B::convert(scope.slot_conversion[s], pass.sources[scope.slot_source[s]]);
 	}
 }
@@ -81,7 +81,7 @@ int32_t depth_result(const ScopeView& scope, const MatrixBlock& block, const Wor
 
 template <class B>
 void depth_results(const ScopeView& scope, const MatrixBlock& block, const Working& w, uint32_t sources_changed) {
-	for (int32_t k = 0; std::cmp_less(k, scope.num_depth_destinations); ++k) {
+	for (int32_t k = 0; k < scope.num_depth_destinations; ++k) {
 		const Destination& d = scope.destinations[k];
 		if ((d.sources & sources_changed) != 0u) {
 			shared_depth_results[d.param] = depth_result<B>(scope, block, w, d);
@@ -188,7 +188,7 @@ void Evaluator<B>::run(const ScopePass& pass, const MatrixBlock& block, uint32_t
 	// Depth destinations first: the cables they control read their results
 	depth_results<B>(scope, block, w, sources_changed);
 	const int32_t first = regions_of(pass.scope).first;
-	for (int32_t k = scope.num_depth_destinations; std::cmp_less(k, scope.num_destinations); ++k) {
+	for (int32_t k = scope.num_depth_destinations; k < scope.num_destinations; ++k) {
 		const Destination& d = scope.destinations[k];
 		if ((d.sources & sources_changed) != 0u) {
 			pass.final_values[d.param - first] = patched_value<B>(scope, block, w, d);
@@ -207,7 +207,7 @@ void Evaluator<B>::run_initial(const ScopePass& pass, const MatrixBlock& block) 
 	convert_slots<B>(*scope, pass, w);
 	depth_results<B>(*scope, block, w, ~0u);
 	const int32_t first = regions_of(pass.scope).first;
-	for (int32_t k = scope->num_depth_destinations; std::cmp_less(k, scope->num_destinations); ++k) {
+	for (int32_t k = scope->num_depth_destinations; k < scope->num_destinations; ++k) {
 		const Destination& d = scope->destinations[k];
 		pass.final_values[d.param - first] = patched_value<B>(*scope, block, w, d);
 	}

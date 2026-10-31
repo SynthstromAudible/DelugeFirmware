@@ -57,7 +57,7 @@ bool DualSourceEngine::render_noise(const EngineBlock& block, int32_t channels) 
 
 std::array<uint32_t, kMaxNumVoicesUnison> DualSourceEngine::capture_sync(const EngineBlock& block) {
 	std::array<uint32_t, kMaxNumVoicesUnison> phases{};
-	for (int32_t u = 0; std::cmp_less(u, block.cfg->num_unison); u++) {
+	for (int32_t u = 0; u < block.cfg->num_unison; u++) {
 		phases[u] = block.parts[u].slots[0].current_osc_phase();
 	}
 	return phases;
@@ -84,7 +84,7 @@ void DualSourceEngine::store_levels(const EngineBlock& block, const std::array<i
 void DualSourceEngine::release(std::span<UnisonPart> parts, const ReleaseInfo& info, int32_t priority_rating) {
 	for (int32_t s = 0; s < kNumSources; s++) {
 		if (info.osc_types[s] == OscType::SAMPLE) {
-			for (int32_t u = 0; std::cmp_less(u, info.num_unison); u++) {
+			for (int32_t u = 0; u < info.num_unison; u++) {
 				SourceSlot& slot = parts[u].slots[s];
 				if (slot.active && !slot.sample().release({.priority_rating = priority_rating})) {
 					slot.unassign(false);
@@ -92,7 +92,7 @@ void DualSourceEngine::release(std::span<UnisonPart> parts, const ReleaseInfo& i
 			}
 		}
 		else if (info.osc_types[s] == OscType::DX7) {
-			for (int32_t u = 0; std::cmp_less(u, info.num_unison); u++) {
+			for (int32_t u = 0; u < info.num_unison; u++) {
 				parts[u].slots[s].dx7().release({});
 			}
 		}
@@ -108,7 +108,7 @@ bool DualSourceEngine::all_parts_inactive(const EngineBlock& block) {
 		if (!cfg.source_ever_active[s]) {
 			continue;
 		}
-		for (int32_t u = 0; std::cmp_less(u, cfg.num_unison); u++) {
+		for (int32_t u = 0; u < cfg.num_unison; u++) {
 			if (block.parts[u].slots[s].active) {
 				return false;
 			}
@@ -128,7 +128,7 @@ bool DualSourceEngine::render_source(const EngineBlock& block, int32_t s, bool s
 	const VoiceConfig& cfg = *block.cfg;
 	bool unison_part_became_inactive = false;
 
-	for (int32_t u = 0; std::cmp_less(u, cfg.num_unison); u++) {
+	for (int32_t u = 0; u < cfg.num_unison; u++) {
 		SourceSlot& slot = block.parts[u].slots[s];
 
 		// Samples may become inactive

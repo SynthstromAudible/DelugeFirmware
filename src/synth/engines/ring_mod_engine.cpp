@@ -64,7 +64,7 @@ void RingModEngine::render_parts(const EngineBlock& block, const std::array<uint
 	const DualSourceControls& c = block.dual;
 	const bool stereo_unison = c.stereo_unison;
 
-	for (int32_t u = 0; std::cmp_less(u, cfg.num_unison); u++) {
+	for (int32_t u = 0; u < cfg.num_unison; u++) {
 
 		const deluge::dsp::fixed::PanAmplitudes unison_pan_amplitudes =
 		    deluge::dsp::fixed::pan_amplitudes(stereo_unison ? cfg.unison_pan[u] : 0);

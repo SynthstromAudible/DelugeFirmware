@@ -229,7 +229,7 @@ void Voice::setup_porta(int32_t last_note_code) {
 
 void Voice::randomize_osc_phases(const SoundSnapshot& snapshot, dsp::fixed::Cong& noise) {
 	noise_ = &noise;
-	for (int32_t u = 0; std::cmp_less(u, snapshot.num_unison); u++) {
+	for (int32_t u = 0; u < snapshot.num_unison; u++) {
 		for (int32_t s = 0; s < kNumSources; s++) {
 			unison_parts[u].slots[s].osc_pos = next_noise();
 			// TODO: we should do sample play pos, too
@@ -512,7 +512,7 @@ bool Voice::render_modulation(const matrix::MatrixBlock& control_block, const Vo
 
 	// Patch all the sources to their parameters
 	if (sources_changed != 0u) {
-		for (int32_t s = 0; std::cmp_less(s, util::to_underlying(kFirstLocalSource)); s++) {
+		for (int32_t s = 0; s < util::to_underlying(kFirstLocalSource); s++) {
 			params_.source_values[s] = cfg.global_source_values[s];
 		}
 		Evaluator::run(matrix_pass(), control_block, sources_changed);
@@ -839,7 +839,7 @@ bool Voice::pitch_mod_disallows_cache(const matrix::MatrixBlock& control_block, 
 		return false;
 	}
 	const matrix::ScopeView& scope = control_block.program->scopes[GLOBALITY_LOCAL];
-	for (int32_t k = scope.num_depth_destinations; std::cmp_less(k, scope.num_destinations); k++) {
+	for (int32_t k = scope.num_depth_destinations; k < scope.num_destinations; k++) {
 		const matrix::Destination& d = scope.destinations[k];
 		if (d.param != params::LOCAL_PITCH_ADJUST && d.param != params::LOCAL_OSC_A_PITCH_ADJUST + s) {
 			continue;

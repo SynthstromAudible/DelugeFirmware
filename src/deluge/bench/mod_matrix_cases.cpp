@@ -64,7 +64,7 @@ MatrixBlock control_block(MatrixRig& r, bool all_presets) {
 	}
 	else {
 		for (const deluge::synth::matrix::ScopeView& scope : block.program->scopes) {
-			for (int32_t k = scope.num_depth_destinations; std::cmp_less(k, scope.num_destinations); k++) {
+			for (int32_t k = scope.num_depth_destinations; k < scope.num_destinations; k++) {
 				const int32_t p = scope.destinations[k].param;
 				block.preset_values[p] = r.patched.getValue(p);
 			}

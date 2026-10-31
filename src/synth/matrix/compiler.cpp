@@ -35,7 +35,7 @@ namespace params = modulation::params;
 
 [[nodiscard]] std::size_t num_routed_cables(const RoutingBuild& routing, int32_t g) {
 	std::size_t n = 0;
-	for (int32_t d = 0; std::cmp_less(d, routing.num_destinations[g]); ++d) {
+	for (int32_t d = 0; d < routing.num_destinations[g]; ++d) {
 		n += routing.destinations[g][d].end_cable - routing.destinations[g][d].first_cable;
 	}
 	return n;
@@ -80,7 +80,7 @@ struct CableTables {
 template <class SlotFor>
 uint8_t compile_cables(const RoutingBuild& routing, const RoutedDestination& routed, const Destination& dest,
                        bool depth, int32_t param, uint8_t cable, const CableTables& tables, SlotFor& slot_for) {
-	for (int32_t c = routed.first_cable; std::cmp_less(c, routed.end_cable); ++c, ++cable) {
+	for (int32_t c = routed.first_cable; c < routed.end_cable; ++c, ++cable) {
 		const RoutedCable& routed_cable = routing.cables[c];
 		tables.slot[cable] =
 		    slot_for(routed_cable.source, conversion_of(routed_cable.source, routed_cable.polarity, depth));

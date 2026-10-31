@@ -542,7 +542,7 @@ public:
 		const BlockStep s = workload_.step(b);
 		const std::span<StereoSample> buffer = out.first(s.frames);
 		for (StereoSample& sample : buffer) {
-			const bool impulse = !s.input && std::cmp_equal(s.impulse, &sample - buffer.data());
+			const bool impulse = !s.input && s.impulse == &sample - buffer.data();
 			sample = s.input ? input(k_) : impulse ? kImpulse : StereoSample{.l = 0, .r = 0};
 			++k_;
 		}
