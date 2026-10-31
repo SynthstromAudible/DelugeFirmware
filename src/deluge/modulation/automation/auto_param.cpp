@@ -19,7 +19,6 @@
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/views/automation_view.h"
-#include "gui/views/session/track_link.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
 #include "hid/display/display.h"
@@ -30,8 +29,10 @@
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
+#include "model/output.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
+#include "model/track_parameter_edit.h"
 #include "modulation/automation/copied_param_automation.h"
 #include "modulation/params/param_collection.h"
 #include "modulation/params/param_node.h"
@@ -303,8 +304,11 @@ getOut:
 	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, automationChanged, automatedBefore,
 	                                                          automatedNow);
 
-	// Song view's track edit mode: write the same value to the same parameter in the track's other clips.
-	deluge::gui::track_link::propagate(value, modelStack, shouldLogAction, mayDeleteNodesInLinearRun, doMPEMode);
+	// Link explicit edits across this output's clips when selected in Session.
+	Output::propagateParameterEdit(*modelStack, {.value = value,
+	                                             .shouldLogAction = shouldLogAction,
+	                                             .mayDeleteNodesInLinearRun = mayDeleteNodesInLinearRun,
+	                                             .isMPE = doMPEMode});
 }
 
 bool AutoParam::deleteRedundantNodeInLinearRun(int32_t lastNodeInRunI, int32_t effectiveLength,
@@ -1099,7 +1103,8 @@ setupNode:
 }
 
 void AutoParam::setValueForRegion(uint32_t pos, uint32_t length, int32_t value,
-                                  ModelStackWithAutoParam const* modelStack, ActionType actionType) {
+                                  ModelStackWithAutoParam const* modelStack, ActionType actionType,
+                                  std::optional<uint32_t> preserveAround) {
 
 	int32_t oldValue = currentValue;
 	bool automatedBefore = isAutomated();
@@ -1183,6 +1188,49 @@ yesChangeCurrentValue:
 
 	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, automationChanged, automatedBefore,
 	                                                          isAutomated());
+	Output::propagateParameterEdit(*modelStack, {.value = value,
+	                                             .region = deluge::model::AutomationRegion{pos, length, actionType},
+	                                             .preserveAround = preserveAround});
+}
+
+// previously AutomationEditorLayoutModControllable::getAutomationNodeInterpolation
+bool AutoParam::isInterpolatedAround(int32_t pos, bool reversed) {
+	if (!nodes.getNumElements()) {
+		return false;
+	}
+
+	int32_t rightI = nodes.search(pos + (int32_t)!reversed, GREATER_OR_EQUAL);
+	if (rightI >= nodes.getNumElements()) {
+		rightI = 0;
+	}
+	ParamNode* rightNode = nodes.getElement(rightI);
+
+	int32_t leftI = rightI - 1;
+	if (leftI < 0) {
+		leftI += nodes.getNumElements();
+	}
+	ParamNode* leftNode = nodes.getElement(leftI);
+
+	return reversed ? leftNode->interpolated : rightNode->interpolated;
+}
+
+void AutoParam::preserveRegion(int32_t pos, int32_t length, int32_t anchorPos, ModelStackWithAutoParam* modelStack) {
+	// The automation editor takes interpolation for region writes from these flags.
+	bool saved_before = automationView.interpolationBefore;
+	bool saved_after = automationView.interpolationAfter;
+	automationView.interpolationBefore = isInterpolatedAround(anchorPos, true);
+	automationView.interpolationAfter = isInterpolatedAround(anchorPos, false);
+
+	int32_t value = getValuePossiblyAtPos(pos, modelStack);
+	if (length && modelStack->timelineCounterIsSet()) {
+		setValueForRegion(pos, length, value, modelStack, ActionType::NOTE_EDIT, anchorPos);
+	}
+	else {
+		setCurrentValueInResponseToUserInput(value, modelStack);
+	}
+
+	automationView.interpolationBefore = saved_before;
+	automationView.interpolationAfter = saved_after;
 }
 
 #define REGION_EDGE_LEFT 0

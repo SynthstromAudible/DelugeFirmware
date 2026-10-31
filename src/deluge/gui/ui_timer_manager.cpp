@@ -23,6 +23,7 @@
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
+#include "gui/views/track_edit_pulse.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
@@ -138,6 +139,10 @@ void UITimerManager::routine() {
 
 				case TimerName::NOTE_ROW_BLINK:
 					instrumentClipView.blinkSelectedNoteRow();
+					break;
+
+				case TimerName::TRACK_LOCK_PULSE:
+					deluge::gui::track_edit_pulse::pulseTimer();
 					break;
 
 				case TimerName::SELECTED_CLIP_PULSE:

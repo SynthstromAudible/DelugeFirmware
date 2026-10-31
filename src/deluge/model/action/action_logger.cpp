@@ -24,6 +24,7 @@
 #include "gui/views/audio_clip_view.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
+#include "gui/views/session/track_link.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
@@ -190,7 +191,7 @@ Action* ActionLogger::getNewAction(ActionType newActionType, ActionAddition addT
 		newAction->tripletsOn = currentSong->tripletsOn;
 		newAction->tripletsLevel = currentSong->tripletsLevel;
 		// newAction->modKnobModeSongView = currentSong->modKnobMode;
-		newAction->affectEntireSongView = currentSong->affectEntire;
+		newAction->affectEntireSongView = deluge::gui::track_link::songAffectEntire();
 
 		newAction->view = getRootUI();
 		newAction->currentClip = getCurrentClip();
@@ -503,7 +504,8 @@ void ActionLogger::revertAction(Action* action, bool updateVisually, bool doNavi
 					if (clip->type == ClipType::INSTRUMENT) {
 						InstrumentClip* instrumentClip = (InstrumentClip*)clip;
 						instrumentClip->yScroll = action->clipStates[i].yScrollSessionView[time];
-						instrumentClip->affectEntire = action->clipStates[i].affectEntire;
+						deluge::gui::track_link::setClipAffectEntire(*instrumentClip,
+						                                             action->clipStates[i].affectEntire);
 						instrumentClip->wrapEditing = action->clipStates[i].wrapEditing;
 						instrumentClip->wrapEditLevel = action->clipStates[i].wrapEditLevel;
 
@@ -541,7 +543,7 @@ void ActionLogger::revertAction(Action* action, bool updateVisually, bool doNavi
 
 		// Other stuff
 		// currentSong->modKnobMode = action->modKnobModeSongView;
-		currentSong->affectEntire = action->affectEntireSongView;
+		deluge::gui::track_link::setSongAffectEntire(action->affectEntireSongView);
 		currentSong->tripletsOn = action->tripletsOn;
 		currentSong->tripletsLevel = action->tripletsLevel;
 

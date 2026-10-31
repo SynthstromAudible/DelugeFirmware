@@ -629,6 +629,11 @@ for (int32_t i = 0; i < clipInstances.getNumElements(); i++) {
     ClipInstance* thisInstance = clipInstances.getElement(i);
 */
 
+void Output::transferTrackStateTo(Output& replacement) {
+	replacement.trackEditActive = trackEditActive;
+	trackEditActive = false;
+}
+
 bool Output::trackEditsAreLinked() const {
 	return trackEditActive && runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::TrackEdit);
 }
@@ -671,6 +676,9 @@ ModelStackWithAutoParam* findTargetParameter(Song& song, Clip& clip, LinkedParam
 
 	// The target lacks this parameter. Only create it if the edit will write something: creating a patch cable takes
 	// one of the sound's limited cable slots.
+	if (edit.preserveAround) {
+		return nullptr; // A missing parameter has nothing to preserve.
+	}
 	if (parameter.kind == params::Kind::PATCH_CABLE && edit.value == 0) {
 		return nullptr; // A missing cable already has zero depth everywhere, live or in any region.
 	}
@@ -684,7 +692,14 @@ void applyEdit(ModelStackWithAutoParam& target, ParameterEdit const& edit) {
 	if (edit.region) {
 		uint32_t length = edit.region->lengthWithin(target.getLoopLength());
 		if (length != 0) {
-			target.autoParam->setValueForRegion(edit.region->pos, length, edit.value, &target, edit.region->actionType);
+			if (edit.preserveAround) {
+				// Keep this clip's own value and interpolation there, as the edited clip just did.
+				target.autoParam->preserveRegion(edit.region->pos, length, *edit.preserveAround, &target);
+			}
+			else {
+				target.autoParam->setValueForRegion(edit.region->pos, length, edit.value, &target,
+				                                    edit.region->actionType);
+			}
 		}
 		return;
 	}

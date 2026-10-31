@@ -73,8 +73,8 @@ OledOnlySettingToggle menuHorizontalMenus(RuntimeFeatureSettingType::HorizontalM
 SettingToggle menuTrimFromStartOfAudioClip(RuntimeFeatureSettingType::TrimFromStartOfAudioClip);
 SettingToggle menuShowBatteryLevel(RuntimeFeatureSettingType::ShowBatteryLevel);
 RoundedCornersSettingToggle menuRoundedCorners(RuntimeFeatureSettingType::RoundedCorners);
+SettingToggle menu_track_edit(RuntimeFeatureSettingType::TrackEdit);
 Setting menuShortcutOverlay(RuntimeFeatureSettingType::ShortcutOverlay);
-SettingToggle menuTrackEdit(RuntimeFeatureSettingType::TrackEdit);
 
 std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettings> subMenuEntries{
     &menuDrumRandomizer,
@@ -102,7 +102,7 @@ std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettin
     &menuTrimFromStartOfAudioClip,
     &menuShowBatteryLevel,
     &menuShortcutOverlay,
-    &menuTrackEdit};
+    &menu_track_edit};
 
 Settings::Settings(l10n::String name, l10n::String title) : menu_item::Submenu(name, title, subMenuEntries) {
 }
