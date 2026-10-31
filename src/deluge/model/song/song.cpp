@@ -384,9 +384,19 @@ bool Song::ensureAtLeastOneSessionClip() {
 	}
 
 	void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(InstrumentClip));
+	if (!memory) {
+		// Same as the Instrument allocation below - a Song must have a Clip, and there's no recovering this early
+		display->displayError(Error::INSUFFICIENT_RAM);
+		while (1) {}
+	}
 	InstrumentClip* firstClip = new (memory) InstrumentClip(this);
 
-	sessionClips.insertClipAtIndex(firstClip, 0);
+	if (sessionClips.insertClipAtIndex(firstClip, 0) != Error::NONE) {
+		firstClip->~InstrumentClip();
+		delugeDealloc(memory);
+		display->displayError(Error::INSUFFICIENT_RAM);
+		while (1) {}
+	}
 
 	firstClip->loopLength = kDefaultClipLength << insideWorldTickMagnitude;
 
