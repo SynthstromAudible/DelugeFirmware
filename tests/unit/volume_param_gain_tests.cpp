@@ -1,4 +1,5 @@
 #include "CppUTest/TestHarness.h"
+#include "model/global_effectable/kit_output_gain.h"
 #include "util/volume_param_gain.h"
 
 #include <cstdint>
@@ -81,4 +82,24 @@ TEST(VolumeParamGainTests, neutralLocalVolumeAbsorbsFullKitRange) {
 	VolumeParamGain local = applyGainToVolumeParam(0, kitGainPos);
 	CHECK_EQUAL(kVolumeParamUnityPos, local.remainingGainPos);
 	CHECK_EQUAL(finalGain(kMaxParam), finalGain(local.param));
+}
+
+TEST(VolumeParamGainTests, kitOutputStageGainMatchesRenderChain) {
+	// Mirror GlobalEffectableForClip::renderOutput() for a kit at neutral volume with its filters off: halve the
+	// volume gain, add a quarter back, then FilterSet::setConfig()'s gain adjustment. 2^27 is unity.
+	int64_t volumeAdjustment = int64_t{134217728} >> 1;
+	int64_t volumePostFX = volumeAdjustment + (volumeAdjustment >> 2);
+	volumePostFX = ((volumePostFX * 1720000000) >> 32) << 1;
+
+	// Applied to a neutral LOCAL_VOLUME, the stage gain must deliver the same final gain as the kit chain.
+	VolumeParamGain result = applyGainToVolumeParam(0, kitOutputStageGainPos());
+	CHECK_EQUAL(kVolumeParamUnityPos, result.remainingGainPos);
+	CHECK(std::abs(finalGain(result.param) - volumePostFX) <= volumePostFX / 10000);
+}
+
+TEST(VolumeParamGainTests, kitOutputStageIsAboutMinusSixDB) {
+	// The gap the preview used to miss (issue #1591): about half the gain, i.e. 1/sqrt(2) in the pos domain.
+	int32_t pos = kitOutputStageGainPos();
+	CHECK(pos > 379000000);
+	CHECK(pos < 381000000);
 }

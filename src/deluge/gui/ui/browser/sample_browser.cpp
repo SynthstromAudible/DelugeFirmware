@@ -18,6 +18,7 @@
 #include "definitions_cxx.hpp"
 #include "fatfs.hpp"
 #include "hid/button.h"
+#include "model/global_effectable/kit_output_gain.h"
 #include "model/sample/sample.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "util/try.h"
@@ -609,11 +610,11 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 
 		// Work out the volume the sample will play at once it's loaded into the current instrument / kit-row, so the
 		// preview can match it (issue #1591). The song master volume is applied to the preview downstream, so we only
-		// need the target Sound's own volume, plus - for a kit - the kit's output volume.
+		// need the target Sound's own volume, plus - for a kit - the kit's output volume and the fixed gain of its
+		// output stage.
 		//
-		// Not modelled: the kit's x1.25 postFX baseline and setupFilterSetConfig()'s resonance scaling, both applied
-		// in GlobalEffectableForClip::renderOutput(). A resonant kit will still preview slightly off. Modelling them
-		// would couple the preview path to the kit render chain.
+		// Not modelled: the kit's filter resonance, which setupFilterSetConfig() folds into its post-FX volume in
+		// GlobalEffectableForClip::renderOutput(). A resonant kit will still preview slightly off.
 		AudioEngine::PreviewVolume previewVolume = AudioEngine::PreviewVolume::neutral();
 
 		if (shouldActuallySound && soundEditor.currentSound != nullptr && soundEditor.currentParamManager != nullptr
@@ -639,10 +640,13 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 				ParamManagerForTimeline& kitParamManager = getCurrentInstrumentClip()->paramManager;
 				if (kitParamManager.containsAnyParamCollectionsIncludingExpression()) {
 					int32_t kitVolumeParam = kitParamManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_VOLUME);
-					int32_t kitGainPos = volumeParamToGainPos(kitVolumeParam);
+					// The kit's output stage halves its volume, adds a baseline and passes through the filter set's
+					// gain adjustment - about -6 dB at neutral kit volume, which the preview would otherwise skip.
+					int32_t kitGainPos = static_cast<int32_t>(
+					    (static_cast<int64_t>(volumeParamToGainPos(kitVolumeParam)) * kitOutputStageGainPos()) >> 29);
 
-					// Fold the kit's output volume into LOCAL_VOLUME first: it sits at neutral by default, so it has
-					// exactly the 4x of headroom the kit's maximum gain demands. Anything that doesn't fit - only
+					// Fold the kit's output gain into LOCAL_VOLUME first: it sits at neutral by default, so it has
+					// more than the headroom the kit's maximum gain demands. Anything that doesn't fit - only
 					// possible when the drum's own local volume is already boosted - spills into GLOBAL_VOLUME_POST_FX.
 					VolumeParamGain local = applyGainToVolumeParam(previewVolume.localVolume, kitGainPos);
 					previewVolume.localVolume = local.param;
