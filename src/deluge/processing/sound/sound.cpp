@@ -91,6 +91,9 @@
 #include <optional>
 #include <ranges>
 
+using deluge::synth::VoiceConfig;
+using deluge::synth::VoiceUnisonPartSource;
+
 namespace params = deluge::modulation::params;
 
 // Defined in voice.cpp; the per-render scratch shared engine-wide. Injected into Voice::render (the kernel no

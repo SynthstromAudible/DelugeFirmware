@@ -20,19 +20,19 @@
 #include "definitions_cxx.hpp"
 #include "dsp-next/fixed/filter/filter_set.h"
 #include "effects/saturation.h"
-#include "model/snapshot/sound_snapshot.h"
-#include "model/voice/fm_engine.h"
-#include "model/voice/ringmod_engine.h"
-#include "model/voice/source_component_render.h" // deluge::synth::SourceRenderResult
-#include "model/voice/subtractive_engine.h"
-#include "model/voice/voice_config.h"
-#include "model/voice/voice_inputs.h"
-#include "model/voice/voice_unison_part.h"
 #include "modulation/params/param.h"
 #include "synth/modulation/envelope.h"
 #include "synth/modulation/lfo.h"
 #include "synth/modulation/param_plane.h"
 #include "synth/modulation/patcher.h"
+#include "synth/voice/fm_engine.h"
+#include "synth/voice/ringmod_engine.h"
+#include "synth/voice/sound_snapshot.h"
+#include "synth/voice/source_component_render.h" // deluge::synth::SourceRenderResult
+#include "synth/voice/subtractive_engine.h"
+#include "synth/voice/voice_config.h"
+#include "synth/voice/voice_inputs.h"
+#include "synth/voice/voice_unison_part.h"
 #include <bitset>
 #include <compare>
 #include <memory>
@@ -41,9 +41,6 @@
 namespace deluge::dsp {
 struct StereoSample;
 } // namespace deluge::dsp
-using StereoSample = deluge::dsp::StereoSample;
-using SoundSnapshot = deluge::snapshot::SoundSnapshot;
-using namespace deluge;
 
 namespace deluge::synth {
 

@@ -22,14 +22,11 @@
 #include <span>
 
 namespace deluge::synth {
-class Voice;
-} // namespace deluge::synth
 
+class Voice;
 class VoiceUnisonPartSource;
 struct VoiceConfig;
-namespace deluge::synth {
 struct VoiceBlock;
-} // namespace deluge::synth
 
 /// @brief The ring-mod synth engine: the first **cross-source swap engine** (per the L1 reframe,
 /// `docs/dev/synth_l1_engine_architecture.md`). It owns the full per-voice ring-mod render: the unison loop, the
@@ -77,3 +74,5 @@ private:
 	                        int32_t unison_amplitude_r, bool stereo_unison, int32_t* osc_buffer, int32_t num_samples,
 	                        int32_t* scratch0, int32_t* scratch1, std::span<int32_t> sync_scratch);
 };
+
+} // namespace deluge::synth

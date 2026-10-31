@@ -24,7 +24,7 @@
 #include <array>
 #include <cstdint>
 
-namespace deluge::snapshot {
+namespace deluge::synth {
 
 /// @brief The engine's derived read-view of a Sound's hot render fields.
 ///
@@ -65,4 +65,4 @@ struct SoundSnapshot {
 	bool operator==(const SoundSnapshot&) const = default;
 };
 
-} // namespace deluge::snapshot
+} // namespace deluge::synth

@@ -28,6 +28,9 @@
 #include "storage/wave_table/wave_table.h"
 #include "util/synth_noise.h"
 
+using deluge::synth::VoiceConfig;
+using deluge::synth::VoiceUnisonPartSource;
+
 namespace params = deluge::modulation::params;
 using deluge::synth::NoteOnEvent;
 using deluge::synth::VoiceClock;

@@ -18,15 +18,12 @@
 
 #include <cstdint>
 
-namespace deluge::synth {
-class Voice;
-} // namespace deluge::synth
-
-class Sound;
 struct ControlBlock;
+
 namespace deluge::synth {
+
+class Voice;
 struct VoiceBlock;
-} // namespace deluge::synth
 struct VoiceConfig;
 
 /// @brief The subtractive synth engine: the cross-source *driver* for `SynthMode::SUBTRACTIVE` (per the L1
@@ -51,3 +48,5 @@ public:
 	            bool& anything_in_osc_buffer, bool& did_stereo_temp_buffer, bool& unassign_voice_after,
 	            const VoiceConfig& cfg);
 };
+
+} // namespace deluge::synth

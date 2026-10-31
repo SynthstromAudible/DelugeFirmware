@@ -21,10 +21,8 @@
 #include <cstdint>
 
 namespace deluge::synth {
-class Voice;
-} // namespace deluge::synth
 
-class Sound;
+class Voice;
 struct VoiceConfig;
 
 /// @brief The FM synth engine: the cross-source driver for `SynthMode::FM` (per the L1 reframe,
@@ -91,3 +89,5 @@ private:
 	                                        int32_t feedback_amount, int32_t* last_feedback_value,
 	                                        int32_t amplitude_increment);
 };
+
+} // namespace deluge::synth

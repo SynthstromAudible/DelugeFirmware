@@ -168,6 +168,8 @@ if(_stream_bench_on)
     target_compile_definitions(deluge_app PRIVATE DELUGE_STREAM_BENCH=1
         DELUGE_STREAM_BENCH_SONG_A="${DELUGE_STREAM_BENCH_SONG_A}"
         DELUGE_STREAM_BENCH_SONG_B="${DELUGE_STREAM_BENCH_SONG_B}")
+    # The voice kernel times its patching for the bench's render split
+    target_compile_definitions(deluge_synth PRIVATE DELUGE_STREAM_BENCH=1)
 endif()
 
 if(ENABLE_MATRIX_DEBUG)

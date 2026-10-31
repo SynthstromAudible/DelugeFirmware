@@ -19,14 +19,16 @@
 
 #include "definitions_cxx.hpp"
 #include "dsp-next/fixed/noise/cong.h"
-#include "model/voice/voice_inputs.h"
 #include "synth/sources/dx7/dx7_source.h"
 #include "synth/sources/input/input_source.h"
 #include "synth/sources/sample/sample_source.h"
 #include "synth/sources/supersaw/supersaw_source.h"
 #include "synth/sources/va/virtual_analog_source.h"
 #include "synth/sources/wavetable/wavetable_source.h"
+#include "synth/voice/voice_inputs.h"
 #include <optional>
+
+namespace deluge::synth {
 
 class VoiceUnisonPartSource {
 public:
@@ -92,3 +94,5 @@ public:
 	deluge::synth::DX7Source dx7_source{nullptr};       ///< the DX7 source (forwards FM to its port)
 	deluge::synth::InputSource input_source{nullptr};   ///< the INPUT_L/R/STEREO source (reads input through its port)
 };
+
+} // namespace deluge::synth

@@ -15,14 +15,14 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "model/voice/subtractive_engine.h"
+#include "synth/voice/subtractive_engine.h"
 #include "definitions_cxx.hpp"
-#include "model/voice/voice.h"
+#include "synth/voice/voice.h"
 #include <array>
 #include <cstring>
 #include <span>
 
-using deluge::synth::Voice;
+namespace deluge::synth {
 
 void SubtractiveEngine::render(Voice& voice, const ControlBlock& control_block, const deluge::synth::VoiceBlock& block,
                                int32_t* osc_buffer, int32_t num_samples, bool doing_osc_sync, uint32_t* osc_sync_pos,
@@ -131,3 +131,5 @@ void SubtractiveEngine::render(Voice& voice, const ControlBlock& control_block, 
 		}
 	}
 }
+
+} // namespace deluge::synth

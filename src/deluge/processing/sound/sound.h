@@ -21,7 +21,6 @@
 #include "libdeluge/system.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/sample/sample_recorder.h"
-#include "model/snapshot/sound_snapshot.h"
 #include "model/voiced.h"
 #include "modulation/arpeggiator.h"
 #include "modulation/knob.h"
@@ -34,6 +33,7 @@
 #include "synth/modulation/lfo.h"
 #include "synth/modulation/param_plane.h"
 #include "synth/modulation/patcher.h"
+#include "synth/voice/sound_snapshot.h"
 #include "util/misc.h"
 #include <bitset>
 #include <memory>
@@ -151,12 +151,12 @@ public:
 	/// at bind / doneReadingFromFile / after edits; the render reads it (getTranspose() etc.).
 	///
 	/// Always present: unbound sounds (no state_) write it directly, so the render never needs a null fallback.
-	deluge::snapshot::SoundSnapshot snapshot_{};
+	deluge::synth::SoundSnapshot snapshot_{};
 	/// @brief Re-derive snapshot_ from state_ (no-op when unbound).
 	void projectSnapshot();
 	/// @brief The derived read-view of the hot render fields.
 	/// @return The snapshot.
-	[[nodiscard]] const deluge::snapshot::SoundSnapshot& snapshot() const { return snapshot_; }
+	[[nodiscard]] const deluge::synth::SoundSnapshot& snapshot() const { return snapshot_; }
 
 	Patcher patcher;
 

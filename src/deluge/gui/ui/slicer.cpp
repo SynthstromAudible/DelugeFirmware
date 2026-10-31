@@ -195,7 +195,7 @@ void Slicer::graphicsRoutine() {
 			    *std::ranges::max_element(valid_voices_view, {}, &VoiceSlot::order_sounded);
 
 			const int32_t u = drum->snapshot().num_unison >> 1;
-			VoiceUnisonPartSource* part = &voice->kernel.unison_parts[u].sources[0];
+			deluge::synth::VoiceUnisonPartSource* part = &voice->kernel.unison_parts[u].sources[0];
 			if (part != nullptr && part->active) {
 				voiceSample = voice->ports(u, 0).sample.voiceSample();
 				guide = &voice->guides[soundEditor.currentSourceIndex];
@@ -589,7 +589,7 @@ ActionResult Slicer::padAction(int32_t x, int32_t y, int32_t on) {
 					    *std::ranges::max_element(valid_voices_view, {}, &VoiceSlot::order_sounded);
 
 					const int32_t u = drum->snapshot().num_unison >> 1;
-					VoiceUnisonPartSource* part = &assigned_voice->kernel.unison_parts[u].sources[0];
+					deluge::synth::VoiceUnisonPartSource* part = &assigned_voice->kernel.unison_parts[u].sources[0];
 					if (part != nullptr && part->active) {
 						voiceSample = assigned_voice->ports(u, 0).sample.voiceSample();
 						guide = &assigned_voice->guides[soundEditor.currentSourceIndex];

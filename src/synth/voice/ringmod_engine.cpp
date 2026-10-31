@@ -15,19 +15,20 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "model/voice/ringmod_engine.h"
+#include "synth/voice/ringmod_engine.h"
 #include "dsp-next/core/types.h" // deluge::dsp::fixed::Buffer
 #include "dsp-next/fixed/vca/pan.h"
-#include "model/voice/source_component_render.h" // voice::makeBlockControls
-#include "model/voice/voice.h"                   // Voice (member access — pre-roll + per-source state)
-#include "model/voice/voice_unison_part_source.h"
-#include "modulation/params/param.h" // LOCAL_OSC_A_PITCH_ADJUST / LOCAL_OSC_A_PHASE_WIDTH
+#include "modulation/params/param.h"             // LOCAL_OSC_A_PITCH_ADJUST / LOCAL_OSC_A_PHASE_WIDTH
+#include "synth/voice/source_component_render.h" // voice::makeBlockControls
+#include "synth/voice/unison_part_source.h"
+#include "synth/voice/voice.h" // Voice (member access — pre-roll + per-source state)
 #include "util/fixedpoint.h"
 
 using namespace deluge;
-using deluge::synth::Voice;
 
 namespace params = deluge::modulation::params;
+
+namespace deluge::synth {
 
 void RingModEngine::render(Voice& voice, int32_t* osc_buffer, int32_t num_samples, bool do_osc_sync,
                            uint32_t* osc_sync_pos, int32_t overall_pitch_adjust,
@@ -121,15 +122,18 @@ void RingModEngine::render_unison_part(const Source& src0, const Source& src1, b
 
 	for (int32_t s = 0; s < 2; s++) {
 		// Source 0 can never be the synced (slave) oscillator — it is the master.
-		bool doing_osc_sync_this_oscillator = (s == 0) ? false : do_osc_sync;
+		bool synced = (s == 0) ? false : do_osc_sync;
 		const Source& source = *sources[s];
 
-		// Both ring-moddable wave families now render through their persistent per-source engine (VA or
-		// wavetable) via the engine's public renderInto. Ring-mod renders the raw wave: applyAmplitude=false,
-		// amplitude 0. The hard-sync master is source 0 (phase oscSyncPos, increment src0.phaseIncrement).
-		const synth::BlockControls controls = voice::make_block_controls(
-		    0, 0, source.pulse_width, /*applyAmplitude=*/false, doing_osc_sync_this_oscillator, osc_sync_pos,
-		    src0.phase_increment, source.retrigger_phase, cpu_direness);
+		// Both ring-moddable wave families render through their persistent per-source engine (VA or wavetable) via
+		// its render_into. Ring-mod renders the raw wave: no amplitude applied, amplitude 0. The hard-sync master is
+		// source 0 (phase osc_sync_pos, increment src0.phase_increment).
+		// The master's phase and increment are the resetter's
+		// NOLINTBEGIN(readability-suspicious-call-argument)
+		const synth::BlockControls controls =
+		    make_block_controls(0, 0, source.pulse_width, /*apply_amplitude=*/false, synced, osc_sync_pos,
+		                        src0.phase_increment, source.retrigger_phase, cpu_direness);
+		// NOLINTEND(readability-suspicious-call-argument)
 		const dsp::fixed::Buffer out{scratch[s], static_cast<size_t>(num_samples)};
 		const dsp::fixed::Buffer sync_block = sync_scratch.first(static_cast<size_t>(num_samples));
 		if (source.part->va_source.has_value()) {
@@ -180,3 +184,5 @@ void RingModEngine::render_unison_part(const Source& src0, const Source& src1, b
 		} while (++output != osc_buffer_end);
 	}
 }
+
+} // namespace deluge::synth

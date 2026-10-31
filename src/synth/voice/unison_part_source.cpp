@@ -15,9 +15,11 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "model/voice/voice_unison_part_source.h"
+#include "synth/voice/unison_part_source.h"
 #include "dsp-next/core/phasor.h"
 #include "synth/sources/va/va_shapes.h" // va_shape::is_virtual_analog / wave_for / initial_phase_for_zero
+
+namespace deluge::synth {
 
 VoiceUnisonPartSource::~VoiceUnisonPartSource() {
 	unassign(false);
@@ -123,3 +125,5 @@ void VoiceUnisonPartSource::unassign(bool deleting_song) {
 	dx7_source.unassign();
 	input_source.unassign();
 }
+
+} // namespace deluge::synth

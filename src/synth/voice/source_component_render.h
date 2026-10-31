@@ -24,7 +24,7 @@
 /// deluge::synth::SourceRenderContext) and by
 /// @ref RingModEngine. (The per-source render itself now lives on the engines as `synth::Source::renderSource` /
 /// the engines' `renderInto`.)
-namespace deluge::voice {
+namespace deluge::synth {
 
 /// Build the already-modulated per-block controls a source component renders from (the raw values renderOsc's VA
 /// branch used to build; the component derives pulse/sync/retrigger/band/scale internally).
@@ -33,4 +33,4 @@ synth::BlockControls make_block_controls(int32_t amplitude, int32_t amplitude_in
                                          uint32_t resetter_phase_increment, uint32_t retrigger_phase,
                                          int32_t cpu_direness);
 
-} // namespace deluge::voice
+} // namespace deluge::synth

@@ -15,14 +15,14 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "model/voice/voice.h"
+#include "synth/voice/voice.h"
 #include "bench/render_profile.h"
 #include "definitions_cxx.hpp"
 #include "dsp-next/fixed/interpolation/table_interpolation.h" // get_decay4
 #include "dsp-next/fixed/shaping/wavefolder.h"
 #include "dsp-next/fixed/vca/pan.h"
-#include "model/voice/source_component_render.h"
 #include "synth/sources/interpolation_buffer_size.h"
+#include "synth/voice/source_component_render.h"
 #include "util/lookuptables/lookuptables.h"
 #include "util/param_functions.h"
 
@@ -37,8 +37,6 @@ using namespace deluge;
 using deluge::dsp::fixed::get_decay4;
 namespace params = deluge::modulation::params;
 
-using namespace deluge::voice;
-
 // Hopefully I could make this use the spareRenderingBuffer instead...
 
 const Patcher::Config kPatcherConfigForVoice = {
@@ -51,6 +49,8 @@ const Patcher::Config kPatcherConfigForVoice = {
 };
 
 namespace deluge::synth {
+
+using dsp::StereoSample;
 
 namespace {
 constexpr int32_t kQ31Max = std::numeric_limits<int32_t>::max();
@@ -1252,7 +1252,7 @@ Voice::render_source_component(int32_t u, int32_t s, const ControlBlock& control
 	    .do_osc_sync = do_osc_sync,
 	    .osc_sync_pos = osc_sync_pos_this_unison,
 	    .osc_sync_phase_increment = osc_sync_phase_increments_this_unison,
-	    .controls = make_block_controls(source_amplitude, amplitude_increment, pulse_width, /*applyAmplitude=*/true,
+	    .controls = make_block_controls(source_amplitude, amplitude_increment, pulse_width, /*apply_amplitude=*/true,
 	                                    do_osc_sync, osc_sync_pos_this_unison, osc_sync_phase_increments_this_unison,
 	                                    osc_retrigger_phase, cfg.cpu_direness),
 	    .wave_table_data = block.wave_tables[s],

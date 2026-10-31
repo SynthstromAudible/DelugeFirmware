@@ -261,7 +261,7 @@ int32_t checkSoundSnapshots(Song& song, const char* label) {
 			bad++;
 		}
 		// A copy: the unison-table check below reprojects, and every field must be compared as loaded.
-		const deluge::snapshot::SoundSnapshot snap = sound.snapshot();
+		const deluge::synth::SoundSnapshot snap = sound.snapshot();
 		auto expect = [&](bool ok, const char* field) {
 			if (!ok) {
 				std::fprintf(io.err, "M4b FAIL %s: %s snapshot != record\n", label, field);
@@ -329,7 +329,7 @@ int32_t checkSoundSnapshots(Song& song, const char* label) {
 				bad++;
 			}
 		};
-		const deluge::snapshot::SoundSnapshot before = sound.snapshot();
+		const deluge::synth::SoundSnapshot before = sound.snapshot();
 		sound.setOscillatorSync(!before.oscillator_sync);
 		roundTrip(sound.snapshot().oscillator_sync == d.oscillator_sync && d.oscillator_sync != before.oscillator_sync,
 		          "setOscillatorSync");
@@ -388,7 +388,7 @@ int32_t checkSoundSnapshots(Song& song, const char* label) {
 		sound.setUnisonDetune(before.unison_detune == 20 ? 30 : 20, nullptr);
 		sound.setUnisonStereoSpread(before.unison_stereo_spread == 10 ? 15 : 10);
 		{
-			const deluge::snapshot::SoundSnapshot edited = sound.snapshot();
+			const deluge::synth::SoundSnapshot edited = sound.snapshot();
 			roundTrip(edited.num_unison == otherUnison && d.num_unison == otherUnison
 			              && edited.unison_detune == d.unison_detune
 			              && edited.unison_stereo_spread == d.unison_stereo_spread,

@@ -24,14 +24,10 @@
 #include <bitset>
 #include <cstdint>
 
-/// @brief A per-sound snapshot of the render config the voice kernel consumes — built by the adapter
-/// (`Sound::render`) and handed to `Voice::render`. The first step of severing `Voice::render`'s `Sound&`
-/// coupling (Phase 4, see `docs/dev/synth_phase4_voice_kernel.md`): config the render used to read inline off
-/// `sound` now arrives through this struct, populated once at the adapter edge.
-///
-/// Grows cluster-by-cluster across Phase-4 slices (this slice: the filter-set config). App-side for now — its
-/// filter-enum fields live under `model/`, which `synth/` may not include; it relocates to `synth/` once the
-/// boundary types are numeric-agnostic.
+namespace deluge::synth {
+
+/// @brief A sound's render config for one block, the same for each of its voices: what the voice kernel's render reads
+/// of the sound. The sound builds it once a block and hands it to each voice's render.
 struct VoiceConfig {
 	deluge::dsp::fixed::LowPassSlot low_pass;   ///< What the low-pass slot runs: OFF when the sound needs no low-pass
 	deluge::dsp::fixed::HighPassSlot high_pass; ///< What the high-pass slot runs: OFF when the sound needs no high-pass
@@ -106,3 +102,5 @@ struct VoiceConfig {
 	/// loop-stable; the subtractive engine's per-source render gate.
 	std::array<bool, kNumSources> source_active_currently;
 };
+
+} // namespace deluge::synth

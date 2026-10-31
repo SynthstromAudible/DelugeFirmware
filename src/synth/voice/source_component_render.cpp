@@ -15,14 +15,12 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "model/voice/source_component_render.h"
+#include "synth/voice/source_component_render.h"
 #include "dsp-next/core/phasor.h" // deluge::dsp::Phasor
 #include "dsp-next/core/ramp.h"   // deluge::dsp::Ramp
 #include <optional>
 
-using namespace deluge;
-
-namespace deluge::voice {
+namespace deluge::synth {
 
 synth::BlockControls make_block_controls(int32_t amplitude, int32_t amplitude_increment, uint32_t pulse_width,
                                          bool apply_amplitude, bool do_osc_sync, uint32_t resetter_phase,
@@ -39,4 +37,4 @@ synth::BlockControls make_block_controls(int32_t amplitude, int32_t amplitude_in
 	};
 }
 
-} // namespace deluge::voice
+} // namespace deluge::synth

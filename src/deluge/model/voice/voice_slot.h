@@ -18,10 +18,10 @@
 
 #include "definitions_cxx.hpp"
 #include "model/voice/sample_playback_adapter.h"
-#include "model/voice/voice.h"
 #include "model/voice/voice_sample_playback_guide.h"
 #include "processing/dx7/dx_voice_adapter.h"
 #include "processing/live/audio_input_adapter.h"
+#include "synth/voice/voice.h"
 #include <array>
 #include <compare>
 #include <cstdint>
@@ -85,7 +85,8 @@ public:
 	/// A sample's zone moved under the playing note. @return false if the voice must be unassigned now.
 	bool sample_zone_changed(ModelStackWithSoundFlags& flags, int32_t s, MarkerType marker);
 	/// Renders one block of the voice. @return false once it has ended and must be unassigned.
-	bool render(const ControlBlock& control_block, const VoiceConfig& cfg, const deluge::synth::VoiceRenderArgs& args);
+	bool render(const ControlBlock& control_block, const deluge::synth::VoiceConfig& cfg,
+	            const deluge::synth::VoiceRenderArgs& args);
 
 	// --- Releases, stamped by the engine's voice clock. Each returns whether the voice still sounds.
 	bool do_fast_release(uint32_t release_increment);

@@ -16,7 +16,7 @@
  */
 #pragma once
 
-#include "model/voice/voice_inputs.h"
+#include "synth/voice/voice_inputs.h"
 
 class ModelStackWithSoundFlags;
 class ParamManagerForTimeline;

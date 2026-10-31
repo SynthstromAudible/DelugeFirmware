@@ -50,6 +50,8 @@
 #include "util/cfunctions.h"
 #include "util/misc.h"
 
+using deluge::synth::VoiceUnisonPartSource;
+
 using namespace deluge::gui;
 
 const uint8_t zeroes[] = {0, 0, 0, 0, 0, 0, 0, 0};

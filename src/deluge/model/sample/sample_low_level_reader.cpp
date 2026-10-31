@@ -25,9 +25,9 @@
 #include "io/debug/log.h"
 #include "libdeluge/sample_source.h"
 #include "model/sample/sample.h"
-#include "model/voice/voice.h"
 #include "model/voice/voice_sample_playback_guide.h"
 #include "storage/cluster/cluster.h"
+#include "synth/voice/voice.h"
 #include "util/functions.h"
 
 SampleLowLevelReader::~SampleLowLevelReader() {

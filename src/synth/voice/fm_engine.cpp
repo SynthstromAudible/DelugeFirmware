@@ -15,18 +15,19 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "model/voice/fm_engine.h"
+#include "synth/voice/fm_engine.h"
 #include "arm_neon_shim.h" // NEON intrinsics (SIMDe on host) for the operator renders
 #include "definitions_cxx.hpp"
 #include "dsp-next/fixed/osc/sine.h" // deluge::dsp::fixed::sine / sine_fm_operator
 #include "dsp-next/fixed/vca/pan.h"
-#include "model/voice/voice.h"
+#include "synth/voice/voice.h"
 #include "util/fixedpoint.h"
 #include <cstring>
 
 using namespace deluge;
-using deluge::synth::Voice;
 namespace params = deluge::modulation::params;
+
+namespace deluge::synth {
 
 void FMEngine::render(Voice& voice, int32_t num_samples, int32_t overall_pitch_adjust, bool stereo_unison,
                       int32_t* source_amplitudes, const int32_t* source_amplitudes_now,
@@ -424,3 +425,5 @@ void FMEngine::render_fm_with_feedback_add(int32_t* buffer_start, int32_t num_sa
 		}
 	}
 }
+
+} // namespace deluge::synth
