@@ -37,6 +37,12 @@ import test_builds as tb
 SHARED_TARGET_SUBDIR = tb.SHARED_TARGET_SUBDIR
 
 # A marker line: an upper-case tag followed by a space, '=', ':' or a further '-TAG'. What a capture records.
+# The finished tests' output and the summary go through a stream of their own on the process's standard output, so
+# nothing a check does to sys.stdout from its worker thread (redirecting it, closing it) can swallow them.
+OUT = os.fdopen(
+    os.dup(sys.stdout.fileno()), "w", buffering=1, errors="replace", closefd=True
+)
+
 MARKER = re.compile(r"^[A-Z][A-Z0-9_]*(-[A-Z0-9_]+)*([ =:]|$)")
 
 
@@ -399,7 +405,8 @@ def cmd_run(
             for future in concurrent.futures.as_completed(futures):
                 h = futures[future]
                 ok, text = future.result()
-                print(text, end="", flush=True)
+                sys.stdout.flush()
+                print(text, end="", file=OUT, flush=True)
                 outcomes[h.name] = Outcome(h.name, "PASS" if ok else "FAIL")
 
     if junit_dir is not None and not args.build_only:
@@ -430,15 +437,20 @@ def _write_junit(path: Path, outcome: Outcome) -> None:
 
 
 def _summarise(outcomes: list[Outcome], strict: bool) -> int:
+    sys.stdout.flush()
     if len(outcomes) > 1:
         width = max(len(o.name) for o in outcomes)
-        print("\n== summary")
+        print("\n== summary", file=OUT)
         for o in outcomes:
-            print(f"   {o.result}  {o.name:<{width}}  {o.note}".rstrip())
+            print(f"   {o.result}  {o.name:<{width}}  {o.note}".rstrip(), file=OUT)
     failed = [o for o in outcomes if o.result == "FAIL"]
     skipped = [o for o in outcomes if o.result == "SKIP"]
     passed = len(outcomes) - len(failed) - len(skipped)
-    print(f"\n{passed} passed, {len(failed)} failed, {len(skipped)} skipped")
+    print(
+        f"\n{passed} passed, {len(failed)} failed, {len(skipped)} skipped",
+        file=OUT,
+        flush=True,
+    )
     if skipped and strict:
         print(
             "test: a skip counts as a failure here (--strict, or the test was named)",
