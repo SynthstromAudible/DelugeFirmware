@@ -69,10 +69,8 @@
 ///       `column_hooks.h`'s `value_text` label hooks. `mod_fx::Type`'s and `StutterDirection`'s option
 ///       *lists* are genuinely dynamic and use `dynamic_enumeration`.
 ///
-/// @note **`HorizontalMenu::Layout::FIXED` has no `Node::Layout` spelling**, so `stutterMenu`
-///       (`menus.cpp:788`) and `reverbSidechainMenu` (`:841`) lose their fixed paging here, as
-///       `unisonMenu` and `voiceMenu` do (`sound_unison.h`, `sound_voice.h`). `Node::Layout` carries
-///       Vertical / Horizontal only.
+/// @note `stutterMenu` (`menus.cpp:788`) and `reverbSidechainMenu` (`:841`) are `HorizontalMenu::Layout::FIXED`:
+///       `with_fixed_columns`.
 ///
 /// @note **Columns.** The items here that override `getColumnLabel()` with a fixed string (AMNT,
 ///       Modl, Ducking, SHPE, ATK, REL, Bfrq, Tfrq) are `with_column_name`; the ping-pong switch, the
@@ -257,9 +255,9 @@ inline constexpr Node reverb_sidechain_sync = sync_level_item(
 inline constexpr const Node* kReverbSidechainChildren[] = {&reverb_sidechain_volume, &reverb_sidechain_shape,
                                                            &reverb_sidechain_attack, &reverb_sidechain_release,
                                                            &reverb_sidechain_sync};
-inline constexpr Node reverb_sidechain =
+inline constexpr Node reverb_sidechain = with_fixed_columns(
     submenu(sid(deluge::l10n::String::STRING_FOR_REVERB_SIDECHAIN), kReverbSidechainChildren, Layout::Horizontal,
-            nullptr, sid(deluge::l10n::String::STRING_FOR_REVERB_SIDECH_MENU_TITLE));
+            nullptr, sid(deluge::l10n::String::STRING_FOR_REVERB_SIDECH_MENU_TITLE)));
 
 inline constexpr const Node* kReverbChildren[] = {&reverb_amount, &reverb_room_size, &reverb_damping,
                                                   &reverb_width,  &reverb_model,     &reverb_pan,
@@ -282,7 +280,7 @@ inline constexpr Node stutter_quantize =
 
 inline constexpr const Node* kStutterChildren[] = {&stutter_rate, &stutter_direction, &stutter_quantize};
 inline constexpr Node stutter =
-    submenu(sid(deluge::l10n::String::STRING_FOR_STUTTER), kStutterChildren, Layout::Horizontal);
+    with_fixed_columns(submenu(sid(deluge::l10n::String::STRING_FOR_STUTTER), kStutterChildren, Layout::Horizontal));
 
 // --- Mod FX ------------------------------------------------------------------------------------
 

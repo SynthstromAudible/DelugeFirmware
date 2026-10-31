@@ -26,9 +26,7 @@
 ///       at zero and its notification reads OFF there (`polyphony.h:89-104`). `Portamento`'s glide
 ///       drawing (`portamento.h:34-66`) is not carried: its column draws the number.
 ///
-/// @note **`voiceMenu` is built `HorizontalMenu::Layout::FIXED`** (`menus.cpp:710`), a paging mode
-///       `Node::Layout` (Vertical / Horizontal) does not carry -- the same gap `sound_unison.h`
-///       records for `unisonMenu`.
+/// @note `voiceMenu` is built `HorizontalMenu::Layout::FIXED` (`menus.cpp:710`): `with_fixed_columns`.
 ///
 /// @note **`Portamento` draws bespoke art** (a glide line between two notes,
 ///       `voice/portamento.h:29-66`) with no `getRenderingStyle()` override, so legacy's declared
@@ -110,7 +108,8 @@ inline constexpr Node portamento = with_column_name(
     sid(deluge::l10n::String::STRING_FOR_PORTAMENTO_SHORT));
 
 inline constexpr const Node* kVoiceChildren[] = {&voice_priority, &polyphony, &voice_count, &portamento, &unison};
-inline constexpr Node voice = submenu(sid(deluge::l10n::String::STRING_FOR_VOICE), kVoiceChildren, Layout::Horizontal);
+inline constexpr Node voice =
+    with_fixed_columns(submenu(sid(deluge::l10n::String::STRING_FOR_VOICE), kVoiceChildren, Layout::Horizontal));
 
 /// @brief This file's contribution to the sound-editor root: `voiceMenu`.
 ///

@@ -43,13 +43,18 @@ namespace deluge::scenes::menu::bindings {
 /// @return Whether the node is shown.
 [[nodiscard]] bool relevant(const Node& node, const MenuContext& ctx);
 
+/// @brief Which listing a caller wants: a vertical page's rows, or a horizontal page's columns.
+enum class ListFor : uint8_t { Rows, Columns };
+
 /// @brief @p node's children a menu lists, in order: `dynamic_children` resolved first, then each child `relevant`
 ///        admits. The one rule every list and column of the menu applies.
 /// @param node The page.
 /// @param ctx  The menu's context.
 /// @param out  Where the listed children go.
+/// @param list_for `Columns` keeps a `Node::fixed_columns` page's irrelevant children in place.
 /// @return How many were written.
-size_t listed_children(const Node& node, const MenuContext& ctx, std::span<const Node*> out);
+size_t listed_children(const Node& node, const MenuContext& ctx, std::span<const Node*> out,
+                       ListFor list_for = ListFor::Rows);
 
 /// @brief The value @p target's record holds now, as its descriptor stores it (a CHOICE row: the choice's index), for a
 ///        select chain or a relevance rule that branches on a setting.

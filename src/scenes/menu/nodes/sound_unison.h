@@ -14,8 +14,7 @@
 /// | `unison` | `unisonMenu` (`:311`) | `HorizontalMenu`, `Layout::FIXED` |
 // clang-format on
 ///
-/// @note **`unisonMenu` is built with `HorizontalMenu::Layout::FIXED`** (`g_menus.inc:54`), a paging
-///       mode `Node::Layout` (Vertical / Horizontal) does not carry.
+/// @note `unisonMenu` is built with `HorizontalMenu::Layout::FIXED` (`g_menus.inc:54`): `with_fixed_columns`.
 ///
 /// @note **Hints.** `Count` and `Detune` both override `renderInHorizontalMenu` with bespoke art -- a
 ///       big centred integer with no label (`unison/count.h:60-67`, `unison_count`'s
@@ -82,7 +81,7 @@ inline constexpr Node unison_count = with_column_art(
 
 inline constexpr const Node* kUnisonChildren[] = {&unison_count, &unison_detune, &unison_spread};
 inline constexpr Node unison =
-    submenu(sid(deluge::l10n::String::STRING_FOR_UNISON), kUnisonChildren, Layout::Horizontal);
+    with_fixed_columns(submenu(sid(deluge::l10n::String::STRING_FOR_UNISON), kUnisonChildren, Layout::Horizontal));
 
 /// @brief This file's contribution to `kBatch1Roots`: `unisonMenu` (`g_menus.inc:54`).
 ///

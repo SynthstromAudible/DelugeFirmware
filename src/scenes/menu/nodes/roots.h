@@ -340,9 +340,9 @@ inline constexpr Node midi_pgm = without_notification(
 inline constexpr const Node* kMidiProgramChildren[] = {&midi_bank, &midi_sub_bank, &midi_pgm};
 /// `midiProgramMenu` (`:1935`) is a `HorizontalMenu` whose name *is* its title
 /// (`STRING_FOR_MIDI_PROGRAM_MENU_TITLE`, the only string its constructor is given), FIXED layout
-/// with two slots -- and `Layout::FIXED` has no `Node::Layout` spelling (`sound_fx.h`'s note).
-inline constexpr Node midi_program =
-    submenu(sid(String::STRING_FOR_MIDI_PROGRAM_MENU_TITLE), kMidiProgramChildren, Layout::Horizontal);
+/// with two slots and `Layout::FIXED` (`with_fixed_columns`).
+inline constexpr Node midi_program = with_fixed_columns(
+    submenu(sid(String::STRING_FOR_MIDI_PROGRAM_MENU_TITLE), kMidiProgramChildren, Layout::Horizontal));
 
 // The MIDI/CV arpeggiator: `arpMenuMIDIOrCV` (`:670`) differs from `arpMenu` only in its basic
 // page, whose gate and rate live on `ArpeggiatorSettings` rather than in a param collection

@@ -780,7 +780,8 @@ bool MenuScene::wants_learn_blink() const {
 // Tree walking
 
 size_t MenuScene::visible_children(const Node& node, std::span<const Node*> out) const {
-	return bindings::listed_children(node, ctx_, out);
+	return bindings::listed_children(
+	    node, ctx_, out, node.layout == Layout::Horizontal ? bindings::ListFor::Columns : bindings::ListFor::Rows);
 }
 
 const Node* MenuScene::child_at(const Node& node, int32_t index) const {

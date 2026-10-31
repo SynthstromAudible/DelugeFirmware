@@ -192,6 +192,20 @@ constexpr const Node* kHorizChildren[] = {&enum_col,  &toggle_col, &submenu_col,
                                           &range_col, &filler_col, &session_col};
 constexpr Node horiz_page = menu::submenu(sid(String::STRING_FOR_LPF), kHorizChildren, menu::Layout::Horizontal);
 
+/// A FIXED page (`HorizontalMenu::Layout::FIXED`): two columns are never relevant, one on each page.
+bool never_relevant(const MenuContext&) {
+	return false;
+}
+constexpr Node fixed_hidden_a = menu::int_item(sid(String::STRING_FOR_FEEDBACK), get_filler_col, set_filler_col,
+                                               deluge::ui::oled::Range{0, 50, 1}, menu::Hint::None, never_relevant);
+constexpr Node fixed_hidden_b = menu::int_item(sid(String::STRING_FOR_RESONANCE), get_filler_col, set_filler_col,
+                                               deluge::ui::oled::Range{0, 50, 1}, menu::Hint::None, never_relevant);
+constexpr const Node* kFixedChildren[] = {&enum_col,   &fixed_hidden_a, &toggle_col,
+                                          &filler_col, &fixed_hidden_b, &chain_col};
+constexpr Node fixed_page =
+    menu::with_fixed_columns(menu::submenu(sid(String::STRING_FOR_VOICE), kFixedChildren, menu::Layout::Horizontal));
+constexpr Node dynamic_page = menu::submenu(sid(String::STRING_FOR_VOICE), kFixedChildren, menu::Layout::Horizontal);
+
 // A single four-slot value column, for the LED "one wide item" exception.
 int32_t g_wide_col = 0;
 int32_t get_wide_col(const MenuContext&) {
@@ -210,7 +224,7 @@ constexpr Node wide_page = menu::submenu(sid(String::STRING_FOR_MASTER_LEVEL), k
 constexpr const Node* kVerticalChildren[] = {&chain_target};
 constexpr Node vertical_page = menu::submenu(sid(String::STRING_FOR_SETTINGS), kVerticalChildren);
 
-constexpr const Node* kRoots[] = {&horiz_page, &wide_page, &vertical_page};
+constexpr const Node* kRoots[] = {&horiz_page, &wide_page, &vertical_page, &fixed_page, &dynamic_page};
 
 // ---------------------------------------------------------------------------------------------
 // Board fixture -- copied from `menu_scene_spec.cpp`'s `Rig`.
@@ -581,6 +595,48 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		expect(banner(nodes::voice_count, 0)).to_equal(off);
 		expect(banner(nodes::voice_count, 5)).to_equal(std::string("5"));
 		expect(banner(nodes::osc0_phase, -1)).to_equal(off);
+	});
+
+	it("a FIXED page keeps an irrelevant column in place, drawn as a dash", _ {
+		// `HorizontalMenu::Layout::FIXED` keeps irrelevant items (`horizontal_menu.cpp:494`, `:253-257`); DYNAMIC drops them.
+		select_language();
+		Rig r;
+		const MenuContext ctx = r.open(fixed_page);
+		std::array<const Node*, 8> kids{};
+		expect(menu::bindings::listed_children(fixed_page, ctx, kids, menu::bindings::ListFor::Columns)).to_equal(size_t{6});
+		expect(menu::bindings::listed_children(fixed_page, ctx, kids, menu::bindings::ListFor::Rows)).to_equal(size_t{4});
+		expect(menu::bindings::listed_children(dynamic_page, ctx, kids, menu::bindings::ListFor::Columns))
+		    .to_equal(size_t{4});
+	});
+
+	it("an instrument button on a FIXED page's irrelevant column does nothing", _ {
+		// `horizontal_menu.cpp:407-410`.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(fixed_page);
+		r.shell.tick(0);
+		expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(0);
+		r.press(kKitX, kKitY, 100);
+		r.shell.tick(200);
+		expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(0);
+		r.press(kMidiX, kMidiY, 300);
+		r.shell.tick(400);
+		expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(2);
+	});
+
+	it("the page switch on a FIXED page walks the same columns as main's selectMenuItem", _ {
+		// `HorizontalMenu::selectMenuItem` walks every item and selects the first relevant one on the new page
+		// (`horizontal_menu.cpp:448-462`): page 2 starts on an irrelevant column, so focus lands on the next.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(fixed_page);
+		r.shell.tick(0);
+		r.press(kCrossScreenX, kCrossScreenY, 300); // past the 140 ms navigation debounce from the clock's zero
+		r.shell.tick(400);
+		expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(5);
+		expect(static_cast<int>(menu_scene().state().columns[0].page)).to_equal(1);
 	});
 
 	it("a select turn on a focused submenu column does nothing", _ {

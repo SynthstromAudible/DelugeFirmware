@@ -793,6 +793,10 @@ struct Node {
 	/// @brief The column label's string, when legacy's `getColumnLabel` names one other than the node's name; 0 for
 	///        the name.
 	uint16_t column_name = 0;
+	/// @brief On a horizontal page, irrelevant columns keep their place and draw a dash: legacy's
+	///        `HorizontalMenu::Layout::FIXED` (`horizontal_menu.cpp:494`, `:253-257`). A vertical list still drops
+	///        them.
+	bool fixed_columns = false;
 	/// @brief The column draws its label: false where legacy's `showColumnLabel()` is.
 	bool show_column_label = true;
 	/// @brief An edit on the column raises the value notification: false where legacy's `showNotification()` is.
@@ -864,6 +868,12 @@ constexpr Node with_short_options(Node n) {
 /// @brief `n` with its column labelled @p name (`Node::column_name`).
 constexpr Node with_column_name(Node n, uint16_t name) {
 	n.column_name = name;
+	return n;
+}
+
+/// @brief `n` with its irrelevant columns kept in place (`Node::fixed_columns`).
+constexpr Node with_fixed_columns(Node n) {
+	n.fixed_columns = true;
 	return n;
 }
 
