@@ -120,12 +120,12 @@ inline constexpr Node hpf = submenu(sid(deluge::l10n::String::STRING_FOR_HPF), k
 /// Four slots wide -- `FilterRouting::getOccupiedSlots()` (`filter_route.h:62`), which draws the
 /// whole page rather than one column. Affect-entire routes only the drums with both filters on
 /// (`filter_route.h:49-50`).
-inline constexpr Node filter_routing = without_notification(
+inline constexpr Node filter_routing = with_option_list_column(without_notification(
     without_column_label(with_slots(setting_item(sid(deluge::l10n::String::STRING_FOR_FILTER_ROUTE), Kind::Enum,
                                                  {.kind = deluge::scenes::bind::Target::Kind::EFFECT,
                                                   .path = "filterRoute",
                                                   .fan_out_when = fan_out::kBothFilters}),
-                                    4)));
+                                    4))));
 
 inline constexpr const Node* kFiltersChildren[] = {&lpf, &hpf, &filter_routing};
 inline constexpr Node sound_filters = submenu(sid(deluge::l10n::String::STRING_FOR_FILTERS), kFiltersChildren);

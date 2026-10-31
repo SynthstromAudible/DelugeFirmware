@@ -677,6 +677,78 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		}
 	});
 
+	it("the filter route and mod FX type columns draw main's full option list under a rule", _ {
+		// `FilterRouting` and `mod_fx::Type::renderInHorizontalMenu` (`filter_route.h:75-78`, `mod_fx/type.h:73-76`):
+		// `drawHorizontalLine(kScreenTitleSeparatorY, ...)` then `Selection::drawPixelsForOled`'s three-row window.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open_real(menu::nodes::filter_routing_page);
+		r.shell.tick(0);
+		menu::ColumnSlot slot;
+		deluge::ui::oled::Column col;
+		menu::present_column(menu::nodes::filter_routing, menu_scene().menu_context(), 0, slot, col);
+		expect(col.render == menu::option_list_column).to_be_true();
+		menu::present_column(menu::nodes::mod_fx_type, menu_scene().menu_context(), 0, slot, col);
+		expect(col.render == menu::option_list_column).to_be_true();
+
+		deluge::ui::test::Rig48 rig48;
+		rig48.begin_tick(100);
+		menu_scene().render_oled(uitest::SurfaceRole::Main, rig48.frame);
+		bool rule = true;
+		for (int32_t x = 0; x < 128; x++) {
+			rule = rule && rig48.lit(x, 12 + 5);
+		}
+		expect(rule).to_be_true();
+		// The current option's row is highlighted, its left edge inverted (`drawItemsForOled`, `menu_item.cpp:60-61`).
+		expect(rig48.lit(1, 14 + 5 + 1)).to_be_true();
+	});
+
+	it("the recorder, file selector, loop point and clip end columns draw main's pictures and labels", _ {
+		// `osc::AudioRecorder`, `FileSelector`, `sample::LoopPoint` and `audio_clip::SampleMarkerEditor`'s
+		// `renderInHorizontalMenu` and `getColumnLabel` (`osc/audio_recorder.h:79-112`, `file_selector.cpp:81-112`,
+		// `sample/loop_point.cpp:74-100`, `audio_clip/sample_marker_editor.cpp:42-57`).
+		select_language();
+		Rig r;
+		const MenuContext ctx = r.open(horiz_page);
+		menu::ColumnSlot slot;
+		deluge::ui::oled::Column col;
+		using Shape = deluge::ui::oled::DrawColumn::Shape;
+		const auto drawn = [&](const Node& node) {
+			slot = {};
+			col = {};
+			menu::present_column(node, ctx, 0, slot, col);
+			return col.render == deluge::ui::oled::draw_column;
+		};
+		expect(drawn(menu::nodes::sample0_recorder)).to_be_true();
+		expect(slot.draw.shape == Shape::Recorder).to_be_true();
+		expect(static_cast<int>(slot.draw.raw)).to_equal(0);
+		expect(drawn(menu::nodes::sample1_recorder)).to_be_true();
+		expect(static_cast<int>(slot.draw.raw)).to_equal(1);
+
+		const std::string end3 = std::string(deluge::l10n::get(String::STRING_FOR_END_POINT)).substr(0, 3);
+		expect(drawn(menu::nodes::sample0_start)).to_be_true();
+		expect(slot.draw.shape == Shape::LoopStart).to_be_true();
+		expect(std::string(col.label)).to_equal(std::string(deluge::l10n::get(String::STRING_FOR_START_POINT_SHORT)));
+		expect(drawn(menu::nodes::sample1_end)).to_be_true();
+		expect(slot.draw.shape == Shape::LoopEnd).to_be_true();
+		expect(std::string(col.label)).to_equal(end3);
+		expect(drawn(menu::nodes::audio_clip_waveform)).to_be_true();
+		expect(slot.draw.shape == Shape::ClipEnd).to_be_true();
+		expect(std::string(col.label)).to_equal(end3);
+
+		slot = {};
+		menu::present_column(menu::nodes::file0_selector, ctx, 0, slot, col);
+		expect(col.render == deluge::ui::oled::art_column).to_be_true();
+		expect(slot.art.icon == &deluge::gfx::oled::icons::folderBig).to_be_true();
+		expect(static_cast<int>(slot.art.dy)).to_equal(-3);
+
+		// `FileSelector::getLastFolderFromPath` (`file_selector.cpp:114-129`).
+		expect(std::string(menu::nodes::last_folder("SAMPLES/DRUMS/kick.wav"))).to_equal(std::string("DRUMS"));
+		expect(std::string(menu::nodes::last_folder("kick.wav"))).to_equal(std::string(""));
+		expect(std::string(menu::nodes::last_folder("/kick.wav"))).to_equal(std::string(""));
+	});
+
 	it("master's transpose column reads TRANSPOSE and a whole number below -9.99", _ {
 		// `MasterTranspose::getColumnLabel` (`master_transpose.h:74`); `Decimal::renderInHorizontalMenu` keeps three
 		// characters of a value at or below -10.00 (`decimal.cpp:181-186`).

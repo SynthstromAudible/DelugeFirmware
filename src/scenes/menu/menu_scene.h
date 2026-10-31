@@ -101,7 +101,20 @@ struct ColumnSlot {
 	char value[16]{};
 	char label[16]{};
 	NodeText label_scratch;
+	/// `option_list_column`'s call: the node, its context and the value.
+	struct OptionList {
+		const Node* node = nullptr;
+		const MenuContext* ctx = nullptr;
+		int32_t value = 0;
+	} list;
 };
+
+/// @brief `Column::render` for a `Node::option_list_column`: `drawHorizontalLine(kScreenTitleSeparatorY, ...)` and
+///        `Selection::drawPixelsForOled` across the panel (`filter_route.h:75-78`, `mod_fx/type.h:73-76`).
+/// @param slot_frame The column's value region; the drawing covers the panel below the title.
+/// @param focused    Unused.
+/// @param ctx        Must point at a `ColumnSlot::OptionList`.
+void option_list_column(deluge::ui::oled::OledFrame& slot_frame, bool focused, void* ctx);
 
 /// @brief Live interpreter state: the path, the widgets' own POD state, and what this tick's
 ///        render observed for `after_render()` to act on.

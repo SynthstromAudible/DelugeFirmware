@@ -307,11 +307,11 @@ inline constexpr Node stutter =
 
 // --- Mod FX ------------------------------------------------------------------------------------
 
-inline constexpr Node mod_fx_type = without_notification(without_column_label(
+inline constexpr Node mod_fx_type = with_option_list_column(without_notification(without_column_label(
     with_slots(with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_TYPE), Kind::Enum,
                                        {.kind = deluge::scenes::bind::Target::Kind::EFFECT, .path = "modFXType"}),
                           sid(deluge::l10n::String::STRING_FOR_MODFX_TYPE)),
-               4))); // `mod_fx/type.h:69-72`
+               4)))); // `mod_fx/type.h:69-72`
 inline constexpr Node mod_fx_depth = with_name_text(
     with_value_text(with_patch_chain(param(
                         sid(deluge::l10n::String::STRING_FOR_DEPTH),

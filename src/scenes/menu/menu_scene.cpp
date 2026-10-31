@@ -938,6 +938,51 @@ int32_t input_tick_magnitude(const MenuContext& ctx) {
 	                            : 0;
 }
 
+void option_list_column(deluge::ui::oled::OledFrame& slot_frame, bool /*focused*/, void* ctx) {
+	const auto* call = static_cast<const ColumnSlot::OptionList*>(ctx);
+	if (call == nullptr || call->node == nullptr || call->ctx == nullptr) {
+		return;
+	}
+	deluge::ui::oled::OledFrame panel = deluge::ui::oled::panel_frame(slot_frame);
+	const int32_t top = panel.canvas.geometry().visible_top;
+	const int32_t width = panel.canvas.geometry().width;
+	panel.hline(top + deluge::ui::kTitleSeparatorY, 0, width - 1);
+
+	std::string_view names[kMaxDynamicNames];
+	TextScratch scratch[kMaxDynamicNames];
+	const auto n = static_cast<int32_t>(bindings::names(*call->node, *call->ctx, names, scratch));
+	if (n == 0) {
+		return;
+	}
+	// `Selection::drawPixelsForOled` (`selection.cpp:8-28`): the current option in the middle row where the list
+	// allows, else as near it as the ends let it be.
+	const int32_t visible = panel.style.menu_rows;
+	const int32_t current = std::clamp(call->value, int32_t{0}, n - 1);
+	const int32_t n_before = current - std::max<int32_t>(0, current - visible);
+	const int32_t n_after = std::min<int32_t>(current + visible, n) - current;
+	int32_t pos = (visible - 1) / 2;
+	int32_t tail = visible - pos;
+	if (n_before < pos) {
+		pos = n_before;
+	}
+	else if (n_after < tail) {
+		tail = n_after;
+		pos = std::min<int32_t>(visible - tail, n_before);
+	}
+	deluge::ui::oled::ListRow rows[kMaxDynamicNames];
+	for (int32_t i = 0; i < n; i++) {
+		rows[i].label = names[i];
+	}
+	deluge::ui::ListState state{.cursor = static_cast<int16_t>(current), .scroll = static_cast<int16_t>(current - pos)};
+	deluge::ui::ScrollText scroll{};
+	const deluge::gfx::oled::Rect below_title{0, top, width, panel.canvas.geometry().height - top};
+	panel.region(below_title, deluge::ui::InputMask::none(), [&](deluge::ui::oled::OledFrame& f) {
+		(void)deluge::ui::oled::list(f, deluge::ui::oled::menu_rect(f), state,
+		                             std::span<const deluge::ui::oled::ListRow>{rows, static_cast<size_t>(n)}, scroll,
+		                             /*allow_motion=*/false);
+	});
+}
+
 void present_column(const Node& node, const MenuContext& ctx, int32_t value, ColumnSlot& slot,
                     deluge::ui::oled::Column& col) {
 	col.label = column_label(node, ctx, slot.label_scratch);
@@ -963,6 +1008,13 @@ void present_column(const Node& node, const MenuContext& ctx, int32_t value, Col
 		col.render = deluge::ui::oled::text_column;
 		col.ctx = &slot.text;
 	};
+
+	if (node.option_list_column) {
+		slot.list = ColumnSlot::OptionList{.node = &node, .ctx = &ctx, .value = value};
+		col.render = option_list_column;
+		col.ctx = &slot.list;
+		return;
+	}
 
 	if (node.bind.column_draw != nullptr) {
 		if (const auto drawing = node.bind.column_draw(ctx, value)) {

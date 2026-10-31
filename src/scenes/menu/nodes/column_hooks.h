@@ -121,6 +121,30 @@ std::optional<ui::oled::DrawColumn> pulse_width_draw(const MenuContext& ctx, int
 std::optional<ui::oled::DrawColumn> delay_amount_draw(const MenuContext& ctx, int32_t value);
 /// @}
 
+/// @name The sample and recorder columns (`file_selector.cpp:81-112`, `sample/loop_point.cpp:74-100`,
+///       `audio_clip/sample_marker_editor.cpp:42-57`, `osc/audio_recorder.h:79-112`)
+/// @{
+/// `FileSelector`'s big folder icon, a row above the region.
+std::optional<deluge::ui::oled::ArtColumn> file_selector_art(const MenuContext& ctx, int32_t value);
+/// `FileSelector::getColumnLabel` for source 1 and 2 (or the audio clip): the loaded sample's folder, "Mult", or the
+/// name.
+ValueText file0_label(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
+ValueText file1_label(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
+/// The end markers' label: the end point's name cut to three characters.
+ValueText end_point_label(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
+/// The recorder's two-slot column for source 1 and 2.
+std::optional<ui::oled::DrawColumn> recorder0_draw(const MenuContext& ctx, int32_t value);
+std::optional<ui::oled::DrawColumn> recorder1_draw(const MenuContext& ctx, int32_t value);
+/// The loop start and end markers and the audio clip's end marker.
+std::optional<ui::oled::DrawColumn> loop_start_draw(const MenuContext& ctx, int32_t value);
+std::optional<ui::oled::DrawColumn> loop_end_draw(const MenuContext& ctx, int32_t value);
+std::optional<ui::oled::DrawColumn> clip_end_draw(const MenuContext& ctx, int32_t value);
+/// @}
+
+/// `FileSelector::getLastFolderFromPath` (`file_selector.cpp:114-129`): the folder a file sits in, empty for a file at
+/// the card's root.
+std::string_view last_folder(std::string_view path);
+
 /// @name Page titles (`Node::page_title`)
 /// @{
 /// `submenu::ActualSource::getTitle` (`submenu/actual_source.h:29-40`): OSC* SAMPLE past the first page of a sample

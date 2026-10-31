@@ -1,6 +1,8 @@
 #include "gfx/oled/canvas.h"
+#include "gfx/oled/icons.h"
 #include "support/frames.h"
 #include "ui/core/metrics.h"
+#include "ui/core/style.h"
 #include "ui/oled/column_drawings.h"
 
 #include "cppspec.hpp"
@@ -149,6 +151,50 @@ void legacy_delay_amount(Canvas& image, int32_t value) {
 	}
 }
 
+/// `osc::AudioRecorder::renderInHorizontalMenu` (`osc/audio_recorder.h:79-112`) over a two-slot region.
+void legacy_recorder(Canvas& image, int32_t width, int32_t source, bool current, bool full_inversion) {
+	const uint8_t start_x = kStartX + 8;
+	const uint8_t start_y = kStartY + kSlotYOffset + 6;
+	constexpr uint8_t circle_radius = 3;
+	image.draw_circle(start_x + circle_radius + 1, start_y + circle_radius + 1, circle_radius, true);
+	image.draw_string("rec", start_x + circle_radius * 2 + 5, start_y, 6, 9);
+	const char digit[] = {static_cast<char>('1' + source), 0};
+	const uint8_t source_x = kStartX + width - 11 - 7;
+	const uint8_t source_y = kStartY + kSlotYOffset + 4;
+	if (full_inversion || current) {
+		image.draw_string(digit, source_x, source_y, 11, 13);
+	}
+	else {
+		image.draw_string(digit, source_x - 1, source_y + 2, 6, 9);
+	}
+	if (!full_inversion && source == 0) {
+		const uint8_t y0 = kStartY + kSlotYOffset + 1;
+		const uint8_t y1 = y0 + 18;
+		for (uint8_t y = y0; y <= y1; y += 2) {
+			image.draw_pixel(kStartX + width - 1, y);
+		}
+	}
+}
+
+/// `sample::LoopPoint::renderInHorizontalMenu` (`sample/loop_point.cpp:74-89`).
+void legacy_loop_point(Canvas& image, bool start) {
+	const int32_t line_x = start ? kStartX + 8 : kStartX + kWidth - 12;
+	for (int32_t y = kStartY + kSlotYOffset - 1; y <= kStartY + kHeight - 5; y += 2) {
+		image.draw_pixel(line_x, y);
+	}
+	const int32_t icon_x = start ? line_x + 4 : kStartX - 2;
+	image.draw_icon(deluge::gfx::oled::icons::loopPoint, icon_x, kStartY + kSlotYOffset, !start);
+}
+
+/// `audio_clip::SampleMarkerEditor::renderInHorizontalMenu` (`audio_clip/sample_marker_editor.cpp:42-52`).
+void legacy_clip_end(Canvas& image) {
+	const int32_t line_x = kStartX + kWidth - 6;
+	for (int32_t y = kStartY + 1; y <= kStartY + kHeight - 5; y += 2) {
+		image.draw_pixel(line_x, y);
+	}
+	image.draw_icon(deluge::gfx::oled::icons::loopPoint, kStartX + 5, kStartY + kSlotYOffset, true);
+}
+
 } // namespace
 
 // clang-format off
@@ -177,6 +223,40 @@ describe column_drawings_w("ui::oled::column_drawings", $ {
 			uitest::Rig48 r;
 			draw(r, DrawColumn{.shape = DrawColumn::Shape::PulseWidth, .raw = v});
 			legacy_pulse_width(r.reference, v);
+			expect(r.pbm()).to_equal(r.reference_pbm());
+		}
+	});
+
+	it("draws the recorder's two-slot column as main's: big digit when focused or fully inverted, rule after source 1", _ {
+		constexpr int32_t kTwoSlots = 63;
+		for (const int32_t source : {0, 1}) {
+			for (const bool focused : {false, true}) {
+				for (const Highlighting h : {Highlighting::PartialInversion, Highlighting::FullInversion}) {
+					uitest::Rig48 r;
+					Style style = r.style;
+					style.highlighting = h;
+					OledFrame frame = root_frame(r.canvas, style, r.ctx);
+					DrawColumn data{.shape = DrawColumn::Shape::Recorder, .raw = source};
+					// No label (`showColumnLabel()` false), so the whole 25-row box.
+					frame.region(Rect{kStartX, kStartY - 5, kTwoSlots, 25}, false,
+					             [&](OledFrame& slot) { draw_column(slot, focused, &data); });
+					legacy_recorder(r.reference, kTwoSlots, source, focused, h == Highlighting::FullInversion);
+					expect(r.pbm()).to_equal(r.reference_pbm());
+				}
+			}
+		}
+	});
+
+	it("draws the loop points' and the clip end's dotted line and icon as main's", _ {
+		for (const auto shape : {DrawColumn::Shape::LoopStart, DrawColumn::Shape::LoopEnd, DrawColumn::Shape::ClipEnd}) {
+			uitest::Rig48 r;
+			draw(r, DrawColumn{.shape = shape});
+			if (shape == DrawColumn::Shape::ClipEnd) {
+				legacy_clip_end(r.reference);
+			}
+			else {
+				legacy_loop_point(r.reference, shape == DrawColumn::Shape::LoopStart);
+			}
 			expect(r.pbm()).to_equal(r.reference_pbm());
 		}
 	});

@@ -1,8 +1,8 @@
 # ShellMenu: the drawn columns. SHIFT + the LPF frequency shortcut, then SHIFT + CROSS_SCREEN along the sound chain
 # to STUTTER: its rate, and its direction through every value; on to ARP and its pattern pages, the rhythm turned
 # off zero; SHIFT + SCALE back to the oscillators and OSC1's type through several shapes; on to the voice group
-# (unison detune, portamento) and the delay (amount past 24). Navigation presses are 200 ms apart, past the 140 ms
-# debounce. Run on the ShellMenu card.
+# (unison detune, portamento) and the delay (amount past 24); back to MOD FX and its type list. Navigation presses
+# are 200 ms apart, past the 140 ms debounce. Run on the ShellMenu card.
 100   snapshot boot
 300   button Shift down
 400   pad 8 7 down
@@ -133,3 +133,15 @@
 33100 snapshot delay
 33400 encoder Select +30
 34100 snapshot delay-amount-high
+34400 button Shift down
+34500 button Scale down
+34520 button Scale up
+34700 button Scale down
+34720 button Scale up
+34900 button Shift up
+35600 snapshot mod-fx
+35900 button Scale down
+35920 button Scale up
+36600 snapshot mod-fx-type
+36900 encoder Select +1
+37600 snapshot mod-fx-type-1

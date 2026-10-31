@@ -1,5 +1,8 @@
 #include "ui/oled/column_drawings.h"
 
+#include "gfx/oled/icons.h"
+#include "ui/core/metrics.h"
+#include "ui/core/style.h"
 #include "ui/oled/meters.h"
 
 #include <algorithm>
@@ -395,9 +398,69 @@ void delay_amount(OledFrame& f, gfx::oled::Rect slot, int32_t value) {
 	image.invert_area(excl_mark_start_x, excl_mark_width, excl_mark_start_y + 8, excl_mark_start_y + 10);
 }
 
+/// `osc::AudioRecorder::renderInHorizontalMenu` (`osc/audio_recorder.h:79-112`): a filled dot and "rec", the source's
+/// number in the Big face when focused or under full inversion, and a dotted rule after source 1 otherwise.
+void recorder(OledFrame& f, gfx::oled::Rect slot, int32_t source, bool focused) {
+	ClipScope scope{f.canvas, f.clip};
+	gfx::oled::Canvas& image = f.canvas;
+	const int32_t slot_x = f.origin.x + slot.x;
+	const int32_t slot_y = f.origin.y + slot.y;
+	const auto start_x = static_cast<uint8_t>(slot_x + 8);
+	const auto start_y = static_cast<uint8_t>(slot_y + kHorizontalSlotYOffset + 6);
+	constexpr uint8_t circle_radius = 3;
+	image.draw_circle(start_x + circle_radius + 1, start_y + circle_radius + 1, circle_radius, true);
+	image.draw_string("rec", start_x + circle_radius * 2 + 5, start_y, kTextSpacingX, kTextSpacingY);
+	const char digit[] = {static_cast<char>('1' + source), 0};
+	const auto source_x = static_cast<uint8_t>(slot_x + slot.w - kTextBigSpacingX - 7);
+	const auto source_y = static_cast<uint8_t>(slot_y + kHorizontalSlotYOffset + 4);
+	const bool full_inversion = f.style.highlighting == Highlighting::FullInversion;
+	if (full_inversion || focused) {
+		image.draw_string(digit, source_x, source_y, kTextBigSpacingX, kTextBigSizeY);
+	}
+	else {
+		image.draw_string(digit, source_x - 1, source_y + 2, kTextSpacingX, kTextSpacingY);
+	}
+	if (!full_inversion && source == 0) {
+		const auto y0 = static_cast<uint8_t>(slot_y + kHorizontalSlotYOffset + 1);
+		const auto y1 = static_cast<uint8_t>(y0 + 18);
+		for (uint8_t y = y0; y <= y1; y += 2) {
+			image.draw_pixel(slot_x + slot.w - 1, y);
+		}
+	}
+}
+
+/// `sample::LoopPoint::renderInHorizontalMenu` (`sample/loop_point.cpp:74-89`): a dotted marker line, the loop icon
+/// beside it, mirrored for the end.
+void loop_point(OledFrame& f, gfx::oled::Rect slot, bool start) {
+	// The end marker's icon starts two pixels left of its region, as legacy draws it.
+	ClipScope scope{f.canvas, panel_frame(f).clip};
+	gfx::oled::Canvas& image = f.canvas;
+	const int32_t slot_x = f.origin.x + slot.x;
+	const int32_t slot_y = f.origin.y + slot.y;
+	const int32_t line_x = start ? slot_x + 8 : slot_x + slot.w - 12;
+	for (int32_t y = slot_y + kHorizontalSlotYOffset - 1; y <= slot_y + slot.h - 5; y += 2) {
+		image.draw_pixel(line_x, y);
+	}
+	const int32_t icon_x = start ? line_x + 4 : slot_x - 2;
+	image.draw_icon(gfx::oled::icons::loopPoint, icon_x, slot_y + kHorizontalSlotYOffset, !start);
+}
+
+/// `audio_clip::SampleMarkerEditor::renderInHorizontalMenu` (`audio_clip/sample_marker_editor.cpp:42-52`).
+void clip_end(OledFrame& f, gfx::oled::Rect slot) {
+	ClipScope scope{f.canvas, f.clip};
+	gfx::oled::Canvas& image = f.canvas;
+	const int32_t slot_x = f.origin.x + slot.x;
+	const int32_t slot_y = f.origin.y + slot.y;
+	const int32_t line_x = slot_x + slot.w - 6;
+	for (int32_t y = slot_y + 1; y <= slot_y + slot.h - 5; y += 2) {
+		image.draw_pixel(line_x, y);
+	}
+	image.draw_icon(gfx::oled::icons::loopPoint, slot_x + 5, slot_y + kHorizontalSlotYOffset, true);
+}
+
 } // namespace
 
-void draw_column(OledFrame& slot_frame, bool /*focused*/, void* ctx) {
+void draw_column(OledFrame& slot_frame, bool focused, void* ctx) {
 	const auto* data = static_cast<const DrawColumn*>(ctx);
 	if (data == nullptr) {
 		return;
@@ -420,6 +483,16 @@ void draw_column(OledFrame& slot_frame, bool /*focused*/, void* ctx) {
 		break;
 	case DrawColumn::Shape::DelayAmount:
 		delay_amount(slot_frame, slot_frame.bounds(), data->raw);
+		break;
+	case DrawColumn::Shape::Recorder:
+		recorder(slot_frame, slot_frame.bounds(), data->raw, focused);
+		break;
+	case DrawColumn::Shape::LoopStart:
+	case DrawColumn::Shape::LoopEnd:
+		loop_point(slot_frame, slot_frame.bounds(), data->shape == DrawColumn::Shape::LoopStart);
+		break;
+	case DrawColumn::Shape::ClipEnd:
+		clip_end(slot_frame, slot_frame.bounds());
 		break;
 	}
 }

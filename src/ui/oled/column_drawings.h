@@ -36,6 +36,15 @@ struct DrawColumn {
 		/// `delay::Amount::renderInHorizontalMenu` (`delay/amount.h:35-58`) at @ref raw: the bar clamped to 0..24, and
 		/// an inverted "!" above it.
 		DelayAmount,
+		/// `osc::AudioRecorder::renderInHorizontalMenu` (`osc/audio_recorder.h:79-112`) for source @ref raw (0 or 1):
+		/// its look follows the focus and `Style::highlighting`.
+		Recorder,
+		/// `sample::LoopPoint::renderInHorizontalMenu` (`sample/loop_point.cpp:74-89`) for the start marker.
+		LoopStart,
+		/// The same for the end marker.
+		LoopEnd,
+		/// `audio_clip::SampleMarkerEditor::renderInHorizontalMenu` (`audio_clip/sample_marker_editor.cpp:42-52`).
+		ClipEnd,
 	};
 	Shape shape = Shape::Slider;
 	FilterGraph filter;

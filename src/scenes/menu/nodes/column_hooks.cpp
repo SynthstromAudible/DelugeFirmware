@@ -26,6 +26,8 @@
 #include "scenes/menu/nodes/nodes.h"
 
 #include "definitions_cxx.hpp"
+#include "deluge-project/song.h"
+#include "engines/deluge/sound_state.h"
 #include "engines/deluge/words.h"
 #include "engines/effects/words.h"
 #include "gfx/oled/icons.h"
@@ -35,6 +37,7 @@
 #include "model/mod_controllable/mod_fx_names.h"
 #include "modulation/arpeggiator_rhythms.h"
 #include "processing/engines/audio_engine.h" // lineInPluggedIn: an input oscillator's icon
+#include "scenes/bind/runtime_facts.h"
 
 #include <algorithm>
 #include <array>
@@ -433,6 +436,91 @@ std::optional<ui::oled::DrawColumn> morph_draw(const MenuContext& ctx, int32_t v
 }
 
 } // namespace
+
+std::string_view last_folder(std::string_view path) {
+	const size_t last_slash = path.rfind('/');
+	if (last_slash == std::string_view::npos || last_slash == 0) {
+		return {};
+	}
+	const size_t prev_slash = path.rfind('/', last_slash - 1);
+	const size_t start = prev_slash == std::string_view::npos ? 0 : prev_slash + 1;
+	return path.substr(start, last_slash - start);
+}
+
+namespace {
+
+/// `FileSelector::getColumnLabel` (`file_selector.cpp:86-112`) for source @p source: the loaded sample's folder,
+/// "Mult" over several ranges, the node's name with nothing loaded.
+ValueText file_label(const MenuContext& ctx, int32_t source, ValueTextUse use, std::span<char> out) {
+	if (use != ValueTextUse::Label) {
+		return kValueTextFallback;
+	}
+	if (ctx.is_audio_clip) {
+		const project::DocAudioClip* clip = ctx.model != nullptr && ctx.addresses.clip
+		                                        ? ctx.model->audio_clip_structure.find(ctx.addresses.clip->clip_id)
+		                                        : nullptr;
+		if (clip == nullptr || clip->file_path.empty()) {
+			return kValueTextFallback;
+		}
+		return put(last_folder(clip->file_path), out);
+	}
+	const instrument::SoundState* sound =
+	    ctx.facts != nullptr && ctx.addresses.slot ? ctx.facts->sound_state(*ctx.addresses.slot) : nullptr;
+	if (sound == nullptr) {
+		return ValueText{};
+	}
+	const auto& ranges = sound->sources[source].ranges;
+	if (std::ranges::none_of(ranges, [](const instrument::RangeState& r) { return !r.file_path.empty(); })) {
+		return kValueTextFallback;
+	}
+	if (ranges.size() > 1) {
+		return put("Mult", out);
+	}
+	return put(last_folder(ranges.front().file_path), out);
+}
+
+} // namespace
+
+ValueText file0_label(const MenuContext& ctx, int32_t, ValueTextUse use, std::span<char> out) {
+	return file_label(ctx, 0, use, out);
+}
+
+ValueText file1_label(const MenuContext& ctx, int32_t, ValueTextUse use, std::span<char> out) {
+	return file_label(ctx, 1, use, out);
+}
+
+ValueText end_point_label(const MenuContext&, int32_t, ValueTextUse use, std::span<char> out) {
+	// `LoopPoint::getColumnLabel`'s end arm and `SampleMarkerEditor::getColumnLabel` (`sample/loop_point.cpp:96-99`,
+	// `audio_clip/sample_marker_editor.cpp:54-57`): the name cut to three characters.
+	if (use != ValueTextUse::Label) {
+		return kValueTextFallback;
+	}
+	return put(deluge::l10n::getView(String::STRING_FOR_END_POINT).substr(0, 3), out);
+}
+
+std::optional<ArtColumn> file_selector_art(const MenuContext&, int32_t) {
+	return ArtColumn{.icon = &icons::folderBig, .dy = kAboveRegion};
+}
+
+std::optional<ui::oled::DrawColumn> recorder0_draw(const MenuContext&, int32_t) {
+	return ui::oled::DrawColumn{.shape = ui::oled::DrawColumn::Shape::Recorder, .raw = 0};
+}
+
+std::optional<ui::oled::DrawColumn> recorder1_draw(const MenuContext&, int32_t) {
+	return ui::oled::DrawColumn{.shape = ui::oled::DrawColumn::Shape::Recorder, .raw = 1};
+}
+
+std::optional<ui::oled::DrawColumn> loop_start_draw(const MenuContext&, int32_t) {
+	return ui::oled::DrawColumn{.shape = ui::oled::DrawColumn::Shape::LoopStart};
+}
+
+std::optional<ui::oled::DrawColumn> loop_end_draw(const MenuContext&, int32_t) {
+	return ui::oled::DrawColumn{.shape = ui::oled::DrawColumn::Shape::LoopEnd};
+}
+
+std::optional<ui::oled::DrawColumn> clip_end_draw(const MenuContext&, int32_t) {
+	return ui::oled::DrawColumn{.shape = ui::oled::DrawColumn::Shape::ClipEnd};
+}
 
 std::optional<ui::oled::DrawColumn> glide_draw(const MenuContext&, int32_t value) {
 	return ui::oled::DrawColumn{.shape = ui::oled::DrawColumn::Shape::Glide, .norm = static_cast<float>(value) / 50.f};

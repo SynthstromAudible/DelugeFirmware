@@ -431,8 +431,11 @@ inline constexpr Node specific_output_selector =
 // `audioClipSampleMarkerEditorMenuEnd` (`gui/ui/menus.cpp`), the only one of the two
 // `audio_clip::SampleMarkerEditor` globals any submenu names. Relevant only once the clip has a
 // sample, as the legacy item's `isRelevant` is.
-inline constexpr Node audio_clip_waveform = with_allow_session_from_horizontal(
-    custom(sid(String::STRING_FOR_WAVEFORM), &kAudioClipWaveform, relevance::audio_clip_has_sample));
+inline constexpr Node audio_clip_waveform = with_value_text(
+    with_column_draw(with_allow_session_from_horizontal(custom(sid(String::STRING_FOR_WAVEFORM), &kAudioClipWaveform,
+                                                               relevance::audio_clip_has_sample)),
+                     clip_end_draw),
+    end_point_label);
 
 inline constexpr const Node* kAudioClipDistortionChildren[] = {&saturation, &bitcrush, &decimation};
 inline constexpr Node audio_clip_distortion =

@@ -844,6 +844,10 @@ struct Node {
 	/// == Kind::Toggle` rather than replacing it -- a `Kind::Toggle` node does not also set this.
 	bool selection_is_toggle = false;
 
+	/// @brief The column is the item's full option list across the page under a rule, as its leaf screen draws it:
+	///        legacy's four-slot `Selection`s whose `renderInHorizontalMenu` is `drawPixelsForOled`.
+	bool option_list_column = false;
+
 	/// @brief The column label is the short form of the name (`gui/l10n/short_label.h`): legacy's `getColumnLabel`
 	///        overrides on the arpeggiator, randomizer and modulator items.
 	bool short_column_label = false;
@@ -917,6 +921,12 @@ constexpr Node with_allow_session_from_horizontal(Node n) {
 ///        in the whole tree set it.
 constexpr Node with_selection_is_toggle(Node n) {
 	n.selection_is_toggle = true;
+	return n;
+}
+
+/// @brief `n` with `option_list_column` set.
+constexpr Node with_option_list_column(Node n) {
+	n.option_list_column = true;
 	return n;
 }
 
