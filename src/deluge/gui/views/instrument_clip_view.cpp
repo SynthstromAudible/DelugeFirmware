@@ -247,6 +247,10 @@ ActionResult InstrumentClipView::commandExitScaleMode() {
 }
 
 ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
+	if (auto result = trackLockButtonAction(b, on, inCardRoutine); result != ActionResult::NOT_DEALT_WITH) {
+		return result;
+	}
+
 	using namespace deluge::hid::button;
 
 	maybeStartShortcutOverview(b, on);

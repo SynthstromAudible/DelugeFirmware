@@ -51,7 +51,7 @@ constexpr int32_t kPulseInterval = 50;
 constexpr int32_t kPulseMaximum = (65535 / 100) * 60;
 } // namespace
 
-// A new hold starts a complete cycle without restarting the menu indicator.
+// A new hold starts a complete cycle without restarting other tracks' lock indicators.
 // Clear old held targets immediately so a timer cannot repaint them before the next UI render.
 void resetHeldPulse() {
 	held_progress = 1;
@@ -59,6 +59,16 @@ void resetHeldPulse() {
 	for (int32_t y = 0; y < kDisplayHeight; ++y) {
 		pulse_columns[y] &= ~held_columns[y];
 		held_columns[y] = 0;
+	}
+}
+
+void settingsChanged() {
+	std::fill_n(pulse_columns, kDisplayHeight, 0);
+	std::fill_n(held_columns, kDisplayHeight, 0);
+	menu_pulse_column = -1;
+	pulse_ui = nullptr;
+	if (auto* root = getRootUI()) {
+		uiNeedsRendering(root, 0xFFFFFFFF, 0xFFFFFFFF);
 	}
 }
 
