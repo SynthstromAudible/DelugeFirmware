@@ -2219,6 +2219,18 @@
   "rms_db": -23.19,
   "sha256": "0a4605edc948f1814cc40275961c00fa0ce68d50fffe31ba96d5ff9e24e0f045"
  },
+ "stereo/noise_unison": {
+  "frames": 88200,
+  "peak": 173385984,
+  "rms_db": -30.01,
+  "sha256": "f333eb6cad2e525f682b6b30d94be02a3312c943bed0204113ac4ee6652ba3ee"
+ },
+ "stereo/ringmod_sync_unison": {
+  "frames": 88200,
+  "peak": 173388032,
+  "rms_db": -28.13,
+  "sha256": "e3f96d2517d7675546fa7bb7c6ac72ebf0405b9657df9bdc03c7dba4a4d78cfd"
+ },
  "stereo/wavefold": {
   "frames": 88200,
   "peak": 173314304,
@@ -2303,6 +2315,18 @@
   "rms_db": -25.08,
   "sha256": "94b9b58a5806e4e20322db064d552733e415138ffd0499b3ef7d141874b35ade"
  },
+ "voice/dx7_osc_b": {
+  "frames": 88200,
+  "peak": 173361920,
+  "rms_db": -38.79,
+  "sha256": "a1506b2cd68d4dc3383f0422bf74daa7744e938c237f3e18cdcf4a7c4b009880"
+ },
+ "voice/fm_mono_retrigger": {
+  "frames": 88200,
+  "peak": 567709440,
+  "rms_db": -16.17,
+  "sha256": "0ef9a759c6288031e507db1901e1e089472e33e5bd7eaf499fc0c150126329ad"
+ },
  "voice/freerun_mono_supersaw": {
   "frames": 88200,
   "peak": 173380864,
@@ -2327,6 +2351,12 @@
   "rms_db": -27.45,
   "sha256": "1e740f6992a1c4d39bf57977a659a0b59fa8816ac34bbc9b857fa7f34983fff0"
  },
+ "voice/noise_unfiltered": {
+  "frames": 88200,
+  "peak": 173381632,
+  "rms_db": -30.76,
+  "sha256": "871763c38122cf3785763e19faa47d56a942792c6978c986bc4cabf64fdb629c"
+ },
  "voice/once_auto_release": {
   "frames": 88200,
   "peak": 232155136,
@@ -2344,6 +2374,36 @@
   "peak": 173388032,
   "rms_db": -26.11,
   "sha256": "3a981db7468d3146b90ad1d218769cbb9c75f239b6d46c122dd654c963173e64"
+ },
+ "voice/ringmod_sync": {
+  "frames": 88200,
+  "peak": 173382912,
+  "rms_db": -28.0,
+  "sha256": "4cc75d0dbf6aee1861e755f690482942574e5d3aa9646acc3e3e74af0c961065"
+ },
+ "voice/supersaw_retrigger": {
+  "frames": 88200,
+  "peak": 173383936,
+  "rms_db": -27.51,
+  "sha256": "f1024654e27c5bbd5e407b64d34b3c00d4f4fc373f0fc613555b1534587b2589"
+ },
+ "voice/sync_silent_master": {
+  "frames": 88200,
+  "peak": 166102784,
+  "rms_db": -28.67,
+  "sha256": "80ef626e481c7608ccd0e42add849e24da10b66087e861f0cb5b9d0140ab44ac"
+ },
+ "voice/type_change_mono_saw_square": {
+  "frames": 88200,
+  "peak": 173388032,
+  "rms_db": -26.12,
+  "sha256": "60a4570f6955203eeb38e3da17581d7b03fff1d44f6f2857070a98319abada9c"
+ },
+ "voice/type_change_mono_saw_supersaw": {
+  "frames": 88200,
+  "peak": 173388032,
+  "rms_db": -26.41,
+  "sha256": "794bbc62adbc11e0c46ba6d06c04550acd09fde43eaf8360301b340d814d8749"
  },
  "voice/zone_end_loop": {
   "frames": 88200,

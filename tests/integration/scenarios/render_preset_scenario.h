@@ -37,6 +37,8 @@
 ///   - `RENDER_PCM_OUT`: where the harness writes the captured output (see `audio/host.rs`).
 ///   - `RENDER_ZONE_END`: `<block> <frame>` moves osc 1's first zone's end to `<frame>` once `<block>` captured blocks
 ///     have rendered, as the sample marker editor does mid-note. Unmoved otherwise.
+///   - `RENDER_SETTING`: `<block> <path> <value>` changes the synth's setting at `<path>` (a settings-schema path, e.g.
+///     `osc1/type`) to `<value>` once `<block>` captured blocks have rendered, as its sound editor menu does.
 ///
 /// Lines:
 ///   - `RP-LOADED name=<n> swapped=<0|1>`: the synth the blank song holds once its preset load has finished. A
@@ -51,6 +53,7 @@
 ///   - `RP-CAPTURE frames=<n> input=<0|1> stereo=<0|1>`: frames captured, whether the test input signal was fed, and
 ///     whether headphones were plugged in. A failure if the app rendered any captured block in the other width.
 ///   - `RP-ZONE block=<n> end=<frame>`: the zone's end moved (`RENDER_ZONE_END` only).
+///   - `RP-SETTING block=<n> path=<p> value=<v>`: the setting changed (`RENDER_SETTING` only); a failure if refused.
 ///   - `RP-RESULT failures=<n>`.
 extern "C" {
 
