@@ -25,7 +25,11 @@
 namespace deluge::synth::test {
 
 /// Which of the uniform rules apply; a rule left off keeps the Patcher's form.
-struct Rules {};
+struct Rules {
+	/// Depth results belong to their pass: every depth destination is computed on every pass, into the pass's own
+	/// results. Off: one array shared by every pass, a depth destination skipped when its sources did not change.
+	bool pass_depth = false;
+};
 
 class RulesPatcher {
 public:
@@ -41,7 +45,7 @@ public:
 
 private:
 	[[nodiscard]] int32_t range_of_(const RoutedCable& cable) const {
-		return cable.range_index < 0 ? 536870912 : range_final_values_[cable.range_index];
+		return cable.range_index < 0 ? 536870912 : depth_results()[cable.range_index];
 	}
 	int32_t combine_cables_linear_for_range_param(const RoutedDestination* destination,
 	                                              const ReferenceBlock& control_block);
@@ -62,6 +66,15 @@ private:
 	std::span<int32_t> source_values_;
 	std::span<int32_t> param_final_values_;
 	std::span<int32_t, kMaxCables> range_final_values_;
+	std::array<int32_t, kMaxCables> own_depth_results_{};
+
+	/// Where this pass's depth results live: its own, or the array every pass shares.
+	[[nodiscard]] std::span<int32_t, kMaxCables> depth_results() {
+		return rules_.pass_depth ? std::span{own_depth_results_} : range_final_values_;
+	}
+	[[nodiscard]] std::span<const int32_t, kMaxCables> depth_results() const {
+		return rules_.pass_depth ? std::span<const int32_t, kMaxCables>{own_depth_results_} : range_final_values_;
+	}
 };
 
 /// Each scope's final values after the initial patching and each of @p c's three blocks under @p rules, the sound's

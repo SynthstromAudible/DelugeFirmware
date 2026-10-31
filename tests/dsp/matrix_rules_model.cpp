@@ -66,12 +66,12 @@ void RulesPatcher::perform_patching(uint32_t sources_changed, const ReferenceBlo
 
 	// First, "range" Destinations
 	for (int32_t i = 0; destination->target.word < static_cast<uint32_t>(0xFFFFFF00); destination++, i++) {
-		if ((destination->sources & sources_changed) == 0u) {
-			continue; // And don't increment i.
+		if (!rules_.pass_depth && (destination->sources & sources_changed) == 0u) {
+			continue;
 		}
 
 		int32_t cables_combination = combine_cables_linear_for_range_param(destination, control_block);
-		range_final_values_[i] = getFinalParameterValueLinear(536870912, cables_combination);
+		depth_results()[i] = getFinalParameterValueLinear(536870912, cables_combination);
 	}
 
 	// param_id, cable_combo
@@ -288,7 +288,7 @@ void RulesPatcher::perform_initial_patching(const ReferenceBlock& control_block)
 		for (int32_t i = 0; destination->target.word < static_cast<uint32_t>(0xFFFFFF00); destination++, i++) {
 			int32_t cables_combination = combine_cables_linear_for_range_param(destination, control_block);
 
-			range_final_values_[i] = getFinalParameterValueLinear(536870912, cables_combination);
+			depth_results()[i] = getFinalParameterValueLinear(536870912, cables_combination);
 		}
 
 		// Now, regular Destinations going directly to a param

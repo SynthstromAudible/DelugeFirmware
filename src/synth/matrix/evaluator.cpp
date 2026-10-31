@@ -27,14 +27,10 @@ namespace {
 
 namespace params = modulation::params;
 
-/// Every pass's depth results, in one array that every pass writes, unguarded: the audio tier's passes and the main
-/// tier's initial patchings, which an audio pass can preempt.
-// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
-std::array<int32_t, kMaxCables> shared_depth_results{};
-
-/// One pass's working values: each polarity slot's source as its cables read it.
+/// One pass's working values: each polarity slot's source as its cables read it, and each depth destination's result.
 struct Working {
 	std::array<int32_t, kMaxCables> slots;
+	std::array<int32_t, kMaxCables> depth_results;
 };
 
 /// A scope's first param.
@@ -92,13 +88,13 @@ int32_t depth_result(const ScopeView& scope, const MatrixBlock& block, const Wor
 	return B::depth_result(total - B::kOne);
 }
 
+/// Every depth destination's result, for this pass: computed on every pass, so a cable it scales always reads the
+/// current depth, and no pass reads another's.
 template <class B>
-void depth_results(const ScopeView& scope, const MatrixBlock& block, const Working& w, uint32_t sources_changed) {
+void depth_results(const ScopeView& scope, const MatrixBlock& block, Working& w) {
 	for (int32_t k = 0; k < scope.num_depth_destinations; ++k) {
 		const Destination& d = scope.destinations[k];
-		if ((d.sources & sources_changed) != 0u) {
-			shared_depth_results[d.param] = depth_result<B>(scope, block, w, d);
-		}
+		w.depth_results[d.param] = depth_result<B>(scope, block, w, d);
 	}
 }
 
@@ -111,7 +107,7 @@ template <class B>
 		depth = B::depth(scope.cable_mode[c], depth);
 	}
 	const uint8_t r = scope.cable_range[c];
-	return B::product(w.slots[scope.cable_slot[c]], depth, r == kNoRange ? B::kOne : shared_depth_results[r]);
+	return B::product(w.slots[scope.cable_slot[c]], depth, r == kNoRange ? B::kOne : w.depth_results[r]);
 }
 
 /// A param destination's final value: a multiply chain takes the preset, then each cable's term; an add chain sums
@@ -214,7 +210,7 @@ void Evaluator<B>::run(const ScopePass& pass, const MatrixBlock& block, uint32_t
 	Working w; // NOLINT(cppcoreguidelines-pro-type-member-init): each read entry is written first
 	convert_slots<B>(scope, pass, w);
 	// Depth destinations first: the cables they control read their results
-	depth_results<B>(scope, block, w, sources_changed);
+	depth_results<B>(scope, block, w);
 	const int32_t first = first_param_of(pass.scope);
 	for (int32_t k = scope.num_depth_destinations; k < scope.num_destinations; ++k) {
 		const Destination& d = scope.destinations[k];
@@ -233,7 +229,7 @@ void Evaluator<B>::run_initial(const ScopePass& pass, const MatrixBlock& block) 
 	}
 	Working w; // NOLINT(cppcoreguidelines-pro-type-member-init): each read entry is written first
 	convert_slots<B>(*scope, pass, w);
-	depth_results<B>(*scope, block, w, ~0u);
+	depth_results<B>(*scope, block, w);
 	const int32_t first = first_param_of(pass.scope);
 	for (int32_t k = scope->num_depth_destinations; k < scope->num_destinations; ++k) {
 		const Destination& d = scope->destinations[k];

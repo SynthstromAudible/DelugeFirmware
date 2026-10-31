@@ -38,8 +38,8 @@ Each scope's `ScopeView` points into the program's block:
 
 1. Return at once if no patched source changed.
 2. Convert each polarity slot's source once.
-3. Each depth destination one of whose sources changed: its cables' terms multiplied, through the linear curve, into
-   the depth results.
+3. Every depth destination: its cables' terms multiplied, through the linear curve, into the pass's own depth
+   results.
 4. Each param destination one of whose sources changed: its cables in order, each term the slot's value scaled by
    the cable's depth (shaped on an add chain), then by its depth result; a multiply chain starts from the preset and
    multiplies each term in, an add chain sums the terms, doubles them for a wavetable index and adds the preset.
@@ -47,11 +47,11 @@ Each scope's `ScopeView` points into the program's block:
 
 `run_initial` (a note's first patching, and the sound's whenever it re-patches every param) first computes every
 param as if uncabled, then runs every destination as above, overwriting the cabled params. The square-, linear- and
-bipolar-curve regions go four at a time, with any remainder of fewer than four through the scalar curve; the exponential-curve params go
-one by one, skipping the cabled. `run_uncabled_param` sets one param from its preset alone.
+bipolar-curve runs go four at a time, with any remainder of fewer than four through the scalar curve; the
+exponential-curve params go one by one, skipping the cabled. `run_uncabled_param` sets one param from its preset alone.
 
-The depth results are one array shared by every pass: a pass that skips a depth destination reads the last value any
-pass wrote there. The audio tier's passes and the main tier's initial patchings both write it, unguarded.
+Each pass's depth results are its own, in the pass's workspace, recomputed every pass: a cable a depth destination
+scales reads its own voice's (or sound's) current result, and no pass, on either tier, reads another's.
 
 ## Exactness of the Argon forms
 

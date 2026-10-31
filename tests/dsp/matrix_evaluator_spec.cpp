@@ -5,8 +5,8 @@
  * Licensed under the GNU General Public License v3 or later; see LICENSE.
  */
 
-// The matrix evaluator against the frozen reference patcher: the same final values for both scopes, at the initial
-// patching and through three blocks of changing sources, on random cases.
+// The matrix evaluator's uncabled params against the frozen reference patcher: a param with no cables takes its preset
+// alone, as it always did. The cabled patching is matrix_rules_spec's, against the rules model.
 
 #include "alloc_seams.h"
 #include "matrix_cases.h"
@@ -28,19 +28,6 @@ using namespace deluge::synth::test;
 
 // clang-format off
 describe matrix_evaluator_spec("the matrix evaluator", ${
-	it("gives the reference patcher's final values on random cases", _{
-		int32_t differing = 0;
-		for (uint32_t seed = 1; seed <= 2000; ++seed) {
-			const PatchCase c = random_case(seed);
-			auto compiled = std::make_unique<CompiledCase>();
-			compile_case(c, *compiled);
-			const ReferenceResult reference = reference_results(c, *compiled, Ranges::shared);
-			const ReferenceResult evaluated = evaluator_results(c, *compiled);
-			differing += (reference.voice != evaluated.voice || reference.sound != evaluated.sound) ? 1 : 0;
-		}
-		expect(differing).to_equal(0);
-	});
-
 	it("gives each uncabled param its preset's value alone", _{
 		auto compiled = std::make_unique<CompiledCase>();
 		const PatchCase c = random_case(7);

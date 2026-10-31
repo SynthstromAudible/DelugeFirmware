@@ -23,7 +23,7 @@ using namespace deluge::synth::test;
 namespace {
 
 /// The rules the evaluator follows.
-constexpr Rules kLanded{};
+constexpr Rules kLanded{.pass_depth = true};
 
 int32_t differing_cases(uint32_t seeds) {
 	int32_t differing = 0;
