@@ -2315,6 +2315,12 @@
   "rms_db": -25.08,
   "sha256": "94b9b58a5806e4e20322db064d552733e415138ffd0499b3ef7d141874b35ade"
  },
+ "voice/depth_velocity_poly": {
+  "frames": 88200,
+  "peak": 284037376,
+  "rms_db": -21.96,
+  "sha256": "500c5e4e6b40229f4041eea2039cb442dddb9bf9758e9c27b63a9544ca432978"
+ },
  "voice/dx7_osc_b": {
   "frames": 88200,
   "peak": 173361920,
@@ -2404,6 +2410,12 @@
   "peak": 173388032,
   "rms_db": -26.41,
   "sha256": "794bbc62adbc11e0c46ba6d06c04550acd09fde43eaf8360301b340d814d8749"
+ },
+ "voice/velocity_pitch": {
+  "frames": 88200,
+  "peak": 279591936,
+  "rms_db": -24.92,
+  "sha256": "89283db8fa5b332cfa7b942ad39e89f4d4e3834278a27c0a38f00fa3d80ca8ed"
  },
  "voice/zone_end_loop": {
   "frames": 88200,

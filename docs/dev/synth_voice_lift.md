@@ -14,7 +14,7 @@ what the kernel reads from the sound and hands it over.
 | When | Input | Built by |
 |---|---|---|
 | Each block, per sound | `VoiceConfig` (`voice_config.h`): synth mode, filter slots and route, unison layout, each source's type, the LFO configs, CPU direness, voice priority, portamento, … | `Sound::render`, once for all its voices |
-| Each block, per sound | `ControlBlock` (`synth/modulation/control_block.h`): the compiled routing, preset values and cable depths the patcher reads | `Sound::patchControlBlock` |
+| Each block, per sound | `MatrixBlock` (`synth/matrix/matrix_block.h`): the compiled matrix program, preset values and cable depths the matrix evaluator reads (see `synth_mod_matrix.md`) | `Sound::matrixBlock` |
 | Each block, per voice | `VoiceBlock` (`voice_inputs.h`): each wavetable source's band data, whether a play-once sample may auto-release, which sources render in stereo, the sound's voice count, the voice clock | `VoiceSlot::render` |
 | Each block, per voice | `VoiceRenderArgs`: the sound's buffer and sample count, stereo and panning flags, the changed sources, the pitch adjust, and the shared scratch (spare buffers, filter scratch, osc-sync scratch) | `Sound::render` |
 | Note-on and note change | `NoteSetup`: each source's type, file pitch and DX7 patch; portamento and the previous note; the sound's MPE and global source values; which attacks are instant; which FM modulators sound; the initial-patching block. `NoteOnEvent`: the note, velocity, lateness, MPE | `note_setup_for` (`src/deluge/model/voice/voice_setup.h`) |

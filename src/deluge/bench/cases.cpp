@@ -798,9 +798,9 @@ std::span<const Case> fft_inverse_list(CaseSet& s) {
 std::span<const Case> mod_matrix_list(CaseSet& s) {
 	static const std::array mod_matrix{
 	    make_case("calibration_loop", s.calibration_loop),
-	    make_case("patcher_q31_typical", s.patcher_q31_typical),
-	    make_case("patcher_q31_all", s.patcher_q31_all),
-	    make_case("patcher_q31_initial", s.patcher_q31_initial),
+	    make_case("matrix_q31_typical", s.matrix_q31_typical),
+	    make_case("matrix_q31_all", s.matrix_q31_all),
+	    make_case("matrix_q31_initial", s.matrix_q31_initial),
 	    make_case("delay_feedback_chain_analog", s.delay_feedback_chain_analog),
 	    make_case("delay_feedback_chain_digital", s.delay_feedback_chain_digital),
 	};

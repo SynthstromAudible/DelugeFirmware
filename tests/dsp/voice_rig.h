@@ -10,6 +10,7 @@
 
 #pragma once
 
+#include "alloc_seams.h"
 #include "fake_voice_ports.h"
 #include "synth/voice/voice.h"
 
@@ -23,14 +24,6 @@
 #include <limits>
 
 void functionsInit(); // util/param_functions.cpp: fills the param scaling tables
-
-// The allocator seam the live input's pitch shifter reaches (memory/memory_allocator_interface.h), from the host heap.
-void* allocMaxSpeed(uint32_t requiredSize) {
-	return std::malloc(requiredSize);
-}
-extern "C" void delugeDealloc(void* address) {
-	std::free(address);
-}
 
 namespace deluge::synth::test {
 
@@ -70,8 +63,8 @@ struct Rig {
 
 /// A sound's presets: one oscillator at full level through no filter, the amplitude envelope instant with full sustain
 /// and @p release.
-inline ControlBlock presets(int32_t release) {
-	ControlBlock block{};
+inline matrix::MatrixBlock presets(int32_t release) {
+	matrix::MatrixBlock block{};
 	block.preset_values.fill(0);
 	block.preset_values[params::LOCAL_OSC_A_VOLUME] = kMax;
 	block.preset_values[params::LOCAL_OSC_B_VOLUME] = kMin;

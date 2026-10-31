@@ -22,6 +22,7 @@
 #include "instruments/deluge/cable_records.h"
 #include "modulation/params/param_collection.h"
 #include "modulation/patch/patch_cable.h"
+#include "synth/matrix/program.h"
 #include "synth/modulation/patch_routing.h"
 #include <bitset>
 #include <memory>
@@ -157,12 +158,15 @@ public:
 	PatchCable* getPatchCableFromVelocityToLevel();
 
 	deluge::synth::RoutedDestination* getDestinationForParam(int32_t p);
-	/// @brief The compiled routing, as the Patcher reads it.
+	/// @brief The compiled routing, as the matrix compiler reads it.
 	[[nodiscard]] deluge::synth::PatchRouting routing() const {
 		return {{destinations[0], destinations[1]},
 		        {sourcesPatchedToAnything[0], sourcesPatchedToAnything[1]},
 		        routedCables_};
 	}
+
+	/// @brief The cables compiled for the matrix evaluator; null when the compile found no storage.
+	[[nodiscard]] const deluge::synth::matrix::MatrixProgram* program() const { return program_; }
 
 	deluge::modulation::params::Kind getParamKind() override { return deluge::modulation::params::Kind::PATCH_CABLE; }
 
@@ -182,6 +186,8 @@ public:
 	/// One per cable, as the compile routed it: its source, polarity and range link. Fitted to the cables, freed with
 	/// the Destinations.
 	deluge::synth::RoutedCable* routedCables_{};
+	/// The matrix program compiled with the routing, in a block sized to fit it; freed with the Destinations.
+	const deluge::synth::matrix::MatrixProgram* program_{};
 
 	/// @brief Drop every cable from index @p count on, shrinking the storage to fit the rest.
 	///

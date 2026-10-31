@@ -517,8 +517,8 @@ void init() {
 	((PatchCableSet*)modelStackWithParamCollection->paramCollection)
 	    ->setupPatching(*static_cast<Sound*>(modelStackWithParamCollection->modControllable),
 	                    *modelStackWithParamCollection->paramManager);
-	sampleForPreview->patcher.perform_initial_patching(
-	    sampleForPreview->patchControlBlock(*paramManagerForSamplePreview, Sound::PresetGather::ALL));
+	sampleForPreview->performInitialPatching(
+	    sampleForPreview->matrixBlock(*paramManagerForSamplePreview, Sound::PresetGather::ALL));
 
 	sampleForPreview->setSideChainSendLevel(2147483647); // DOM-owned (an unbound preview sets the cache only)
 

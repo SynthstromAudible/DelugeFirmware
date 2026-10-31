@@ -92,7 +92,7 @@ NoteSetup note_setup_for(VoiceSlot& voice, Sound& sound, ParamManagerForTimeline
 		}
 		std::copy_n(sound.params.source_values.begin(), setup.global_source_values.size(),
 		            setup.global_source_values.begin());
-		setup.initial_patching = sound.patchControlBlock(*paramManager, Sound::PresetGather::ALL);
+		setup.initial_patching = sound.matrixBlock(*paramManager, Sound::PresetGather::ALL);
 	}
 	else if (paramManager != nullptr) {
 		setup.porta = paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_PORTAMENTO) != -2147483648;

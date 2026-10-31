@@ -1700,21 +1700,21 @@ private:
 	FxChainConfig config_;
 };
 
-/// @brief Which patching a Patcher case times.
+/// @brief Which patching a matrix case times.
 enum class ModMatrixKind : uint8_t {
-	PATCHER_TYPICAL, ///< performPatching with a held note's moving sources: envelopes 1 and 2, the LFOs, the sidechain.
-	PATCHER_ALL,     ///< performPatching with every source changed.
-	PATCHER_INITIAL, ///< performInitialPatching, as eight note-ons would.
+	TYPICAL, ///< a block's patching with a held note's moving sources: envelopes 1 and 2, the LFOs, the sidechain.
+	ALL,     ///< a block's patching with every source changed.
+	INITIAL, ///< the initial patching, as eight note-ons would.
 };
 
-/// @brief One block of today's q31 patching for the mod-matrix workload (bench/mod_matrix_workload.h): the instrument's
-/// pass, then eight voices' passes, each voice taking the instrument's sources first, as Voice::render does.
-/// @details The PatchCableSet is built by hand in setupPatching's layout (no ModelStack): the cables in workload
-/// order, their Destinations, the depth links into rangeFinalValues, sourcesPatchedToAnything. The figure to compare
-/// is cycles per block (cycles / k): the block size does not change the work.
-class PatcherCase {
+/// @brief One block of the q31 matrix's patching for the mod-matrix workload (bench/mod_matrix_workload.h): the
+/// instrument's pass, then eight voices' passes, each voice taking the instrument's sources first, as Voice::render
+/// does.
+/// @details The PatchCableSet is built by hand (no ModelStack) and its setupPatching compiles the program. The figure
+/// to compare is cycles per block (cycles / k): the block size does not change the work.
+class MatrixCase {
 public:
-	constexpr explicit PatcherCase(ModMatrixKind kind) : kind_{kind} {}
+	constexpr explicit MatrixCase(ModMatrixKind kind) : kind_{kind} {}
 	void setup(std::size_t n);
 	void block(std::size_t n);
 
@@ -1849,9 +1849,9 @@ struct CaseSet {
 	Dx7Case dx7_modern_alg32{kDx7ModernAlg32};                                    ///< `dx7_modern_alg32`
 	Dx7Case dx7_mki_alg1_fb{kDx7MkIAlg1Fb};                                       ///< `dx7_mki_alg1_fb`
 	Dx7Case dx7_mki_alg4_fb3{kDx7MkIAlg4Fb3};                                     ///< `dx7_mki_alg4_fb3`
-	PatcherCase patcher_q31_typical{ModMatrixKind::PATCHER_TYPICAL};              ///< `patcher_q31_typical`
-	PatcherCase patcher_q31_all{ModMatrixKind::PATCHER_ALL};                      ///< `patcher_q31_all`
-	PatcherCase patcher_q31_initial{ModMatrixKind::PATCHER_INITIAL};              ///< `patcher_q31_initial`
+	MatrixCase matrix_q31_typical{ModMatrixKind::TYPICAL};                        ///< `matrix_q31_typical`
+	MatrixCase matrix_q31_all{ModMatrixKind::ALL};                                ///< `matrix_q31_all`
+	MatrixCase matrix_q31_initial{ModMatrixKind::INITIAL};                        ///< `matrix_q31_initial`
 	FftCase fft_fwd_16{{.inverse = false, .magnitude = 4}};                       ///< `fft_fwd_16`
 	FftCase fft_fwd_32{{.inverse = false, .magnitude = 5}};                       ///< `fft_fwd_32`
 	FftCase fft_fwd_64{{.inverse = false, .magnitude = 6}};                       ///< `fft_fwd_64`
@@ -1924,7 +1924,7 @@ enum class CaseList : uint8_t {
 	FFT_FORWARD,
 	/// The calibration loop, then the int32 real FFT inverse at every size the firmware transforms, 8 to 8192 points.
 	FFT_INVERSE,
-	/// The calibration loop, today's q31 Patcher on the mod-matrix workload (a held note, every source changed,
+	/// The calibration loop, the q31 matrix on the mod-matrix workload (a held note, every source changed,
 	/// note-ons), then the feedback chain's two cases from the chain list.
 	MOD_MATRIX,
 };

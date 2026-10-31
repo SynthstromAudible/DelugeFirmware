@@ -75,8 +75,9 @@
 #include "storage/storage_manager.h"
 #include "storage/value_tree_deserializer.h"
 #include "storage/wave_table/wave_table.h"
+#include "synth/matrix/evaluator.h"
+#include "synth/matrix/matrix_fixed.h"
 #include "synth/modulation/envelope.h"
-#include "synth/modulation/patcher.h"
 #include "util/exceptions.h"
 #include "util/firmware_version.h"
 #include "util/functions.h"
@@ -90,6 +91,7 @@
 #include <limits>
 #include <optional>
 #include <ranges>
+#include <utility>
 
 using deluge::synth::SourceSlot;
 using deluge::synth::VoiceConfig;
@@ -98,15 +100,6 @@ namespace params = deluge::modulation::params;
 
 // Defined in processing/render_scratch.cpp: the render scratch shared engine-wide, handed to each voice's render.
 extern int32_t spareRenderingBuffer[][SSI_TX_BUFFER_NUM_SAMPLES];
-
-constexpr Patcher::Config kPatcherConfigForSound = {
-    .first_param = params::FIRST_GLOBAL,
-    .first_non_volume_param = params::FIRST_GLOBAL_NON_VOLUME,
-    .first_hybrid_param = params::FIRST_GLOBAL_HYBRID,
-    .first_exp_param = params::FIRST_GLOBAL_EXP,
-    .end_params = params::kNumParams,
-    .globality = GLOBALITY_GLOBAL,
-};
 
 namespace {
 /// Sounds destroyed while they still had live voices. Always on; relaxed, because it is evidence, not synchronisation:
@@ -144,8 +137,7 @@ deluge::synth::NoteOnEvent noteOnEvent(int32_t noteCodePreArp, int32_t noteCodeP
 } // namespace
 
 Sound::Sound()
-    : patcher(kPatcherConfigForSound, params.source_values, params.param_final_values),
-      chain_{deluge::model::kModFxRingAllocator, deluge::model::kGranularAllocator, deluge::model::delayArena()} {
+    : chain_{deluge::model::kModFxRingAllocator, deluge::model::kGranularAllocator, deluge::model::delayArena()} {
 	unpatchedParamKind_ = params::Kind::UNPATCHED_SOUND;
 
 	// CONTAINMENT for the cross-tier race on voices_. The audio render runs on a
@@ -482,22 +474,22 @@ void Sound::patchedParamPresetValueChanged(uint8_t p, ModelStackWithSoundFlags* 
 	}
 }
 
-ControlBlock Sound::patchControlBlock(ParamManager& paramManager, PresetGather gather) const {
-	ControlBlock block; // only what the gather fills is read
+deluge::synth::matrix::MatrixBlock Sound::matrixBlock(ParamManager& paramManager, PresetGather gather) const {
+	deluge::synth::matrix::MatrixBlock block; // only what the gather fills is read
 	PatchCableSet& cables = *paramManager.getPatchCableSet();
-	block.routing = cables.routing();
+	block.program = cables.program();
 	PatchedParamSet& patched = *paramManager.getPatchedParamSet();
 	if (gather == PresetGather::ALL) {
 		for (int32_t p = 0; p < deluge::modulation::params::kNumParams; p++) {
 			block.preset_values[p] = patched.getValue(p);
 		}
 	}
-	else {
-		for (const deluge::synth::RoutedDestination* list : block.routing.destinations) {
-			for (const deluge::synth::RoutedDestination* d = list; d != nullptr && d->sources != 0; d++) {
-				if (d->target.is_param()) {
-					block.preset_values[d->target.param_index()] = patched.getValue(d->target.param_index());
-				}
+	else if (block.program != nullptr) {
+		// The routed params from the program the pass reads next, so a pass touches one cold structure
+		for (const deluge::synth::matrix::ScopeView& scope : block.program->scopes) {
+			for (int32_t k = scope.num_depth_destinations; std::cmp_less(k, scope.num_destinations); k++) {
+				const int32_t p = scope.destinations[k].param;
+				block.preset_values[p] = patched.getValue(p);
 			}
 		}
 	}
@@ -510,13 +502,17 @@ ControlBlock Sound::patchControlBlock(ParamManager& paramManager, PresetGather g
 	return block;
 }
 
+void Sound::performInitialPatching(const deluge::synth::matrix::MatrixBlock& block) {
+	deluge::synth::matrix::Evaluator<deluge::synth::matrix::MatrixFixed>::run_initial(matrixPass(), block);
+}
+
 void Sound::recalculatePatchingToParam(uint8_t p, ParamManager* paramManager) {
 
 	const deluge::synth::RoutedDestination* destination = paramManager->getPatchCableSet()->getDestinationForParam(p);
 	if (destination != nullptr) {
 		// Pretend those sources have changed, and the param will update - for
 		// each Voice too if local.
-		sourcesChanged |= destination->sources;
+		sourcesChanged.fetch_or(destination->sources, std::memory_order_acq_rel);
 		return;
 	}
 
@@ -524,13 +520,13 @@ void Sound::recalculatePatchingToParam(uint8_t p, ParamManager* paramManager) {
 
 	// Whether global...
 	if (p >= params::FIRST_GLOBAL) {
-		patcher.recalculate_final_value_for_param_with_no_cables(p,
-		                                                         patchControlBlock(*paramManager, PresetGather::ALL));
+		deluge::synth::matrix::Evaluator<deluge::synth::matrix::MatrixFixed>::run_uncabled_param(
+		    matrixPass(), matrixBlock(*paramManager, PresetGather::ALL), p);
 		return;
 	}
 
 	// Or local (do to each voice)...
-	const ControlBlock block = patchControlBlock(*paramManager, PresetGather::ALL);
+	const deluge::synth::matrix::MatrixBlock block = matrixBlock(*paramManager, PresetGather::ALL);
 	AudioExcludedSection section; // the render walks and edits this Sound's voices
 	for (ActiveVoice& voice : voices_) {
 		voice->kernel.recalculate_param_with_no_cables(p, block);
@@ -1822,7 +1818,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		    globalLFO1.render(output.size(), snapshot_.lfo_config[LFO1_ID],
 		                      getGlobalLFOPhaseIncrement(LFO1_ID, params::GLOBAL_LFO_FREQ_1), deluge::synth_noise);
 		uint32_t anyChange = (old != params.source_values[patchSourceLFOGlobalUnderlying]);
-		sourcesChanged |= anyChange << patchSourceLFOGlobalUnderlying;
+		sourcesChanged.fetch_or(anyChange << patchSourceLFOGlobalUnderlying, std::memory_order_acq_rel);
 	}
 	if (paramManager->getPatchCableSet()->isSourcePatchedToSomething(PatchSource::LFO_GLOBAL_2)) {
 		const auto patchSourceLFOGlobalUnderlying = util::to_underlying(PatchSource::LFO_GLOBAL_2);
@@ -1836,7 +1832,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		    globalLFO3.render(output.size(), snapshot_.lfo_config[LFO3_ID],
 		                      getGlobalLFOPhaseIncrement(LFO3_ID, params::GLOBAL_LFO_FREQ_2), deluge::synth_noise);
 		uint32_t anyChange = (old != params.source_values[patchSourceLFOGlobalUnderlying]);
-		sourcesChanged |= anyChange << patchSourceLFOGlobalUnderlying;
+		sourcesChanged.fetch_or(anyChange << patchSourceLFOGlobalUnderlying, std::memory_order_acq_rel);
 	}
 
 	for (int s = 0; s < kNumSources; s++) {
@@ -1858,15 +1854,17 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		    output.size(), paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_SIDECHAIN_SHAPE),
 		    modControllableSnapshot_.effects.sidechain, playbackHandler.getTimePerInternalTickInverse());
 		uint32_t anyChange = (old != params.source_values[patchSourceSidechainUnderlying]);
-		sourcesChanged |= anyChange << patchSourceSidechainUnderlying;
+		sourcesChanged.fetch_or(anyChange << patchSourceSidechainUnderlying, std::memory_order_acq_rel);
 	}
 
 	// Perform the actual patching
-	if (sourcesChanged) {
+	const uint32_t soundSourcesChanged = sourcesChanged.load(std::memory_order_acquire);
+	if (soundSourcesChanged != 0u) {
 #if defined(DELUGE_STREAM_BENCH)
 		const uint32_t t0 = deluge::bench::render_profile::cycles();
 #endif
-		patcher.perform_patching(sourcesChanged, patchControlBlock(*paramManager, PresetGather::ROUTED));
+		deluge::synth::matrix::Evaluator<deluge::synth::matrix::MatrixFixed>::run(
+		    matrixPass(), matrixBlock(*paramManager, PresetGather::ROUTED), soundSourcesChanged);
 #if defined(DELUGE_STREAM_BENCH)
 		deluge::bench::render_profile::g_totals.sound_patch += deluge::bench::render_profile::cycles() - t0;
 		++deluge::bench::render_profile::g_totals.sound_blocks;
@@ -2030,9 +2028,9 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		    .source_active_currently = sourceActiveCurrentlys,
 		};
 
-		// The patcher's per-block input. Sound-level + stable across the voice loop (the param sets are fixed and
+		// The matrix's per-block input. Sound-level + stable across the voice loop (the param sets are fixed and
 		// paramLPF is only mutated after the loop), so build it once here rather than per voice.
-		const ControlBlock controlBlock = patchControlBlock(*paramManager, PresetGather::ROUTED);
+		const deluge::synth::matrix::MatrixBlock controlBlock = matrixBlock(*paramManager, PresetGather::ROUTED);
 
 		for (auto it = voices_.begin(); it != voices_.end();) {
 			ActiveVoice& voice = *it;
@@ -2042,6 +2040,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 			if (voice->just_created && voice->kernel.previously_ignored_note_off() && voiceConfig.note_tails_allowed) {
 				voice->note_off(paramManager, voiceConfig.note_tails_allowed);
 			}
+			const uint32_t voiceSourcesChanged = sourcesChanged.load(std::memory_order_acquire);
 #if defined(DELUGE_STREAM_BENCH)
 			const uint32_t t0 = deluge::bench::render_profile::cycles();
 #endif
@@ -2051,7 +2050,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 			                                    .num_samples = static_cast<int32_t>(sound_mono.size()),
 			                                    .sound_in_stereo = voice_rendered_in_stereo,
 			                                    .pan_at_voice_level = applyingPanAtVoiceLevel,
-			                                    .sources_changed = sourcesChanged,
+			                                    .sources_changed = voiceSourcesChanged,
 			                                    .pitch_adjust = pitchAdjust,
 			                                    .spare_buffers = {spareRenderingBuffer[0], spareRenderingBuffer[1],
 			                                                      spareRenderingBuffer[2], spareRenderingBuffer[3]},
@@ -2136,7 +2135,9 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	// add the sound to the output, i.e. output = output + sound
 	std::ranges::transform(output, sound_stereo, output.begin(), std::plus{});
 
-	sourcesChanged = 0;
+	// Only the bits the sound's own pass read: a bit marked after it is read again next block, by the sound's pass
+	// and by the voices, which may have read it already (a repeat patching gives the same values)
+	sourcesChanged.fetch_and(~soundSourcesChanged, std::memory_order_acq_rel);
 	expressionSourcesChangedAtSynthLevel.reset();
 	for (int i = 0; i < kNumSources; i++) {
 		sources[i].dxPatchChanged = false;

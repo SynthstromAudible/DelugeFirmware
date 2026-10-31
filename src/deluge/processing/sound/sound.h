@@ -30,11 +30,14 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/source.h"
 #include "serialization/value.h"
+#include "synth/matrix/evaluator.h"
+#include "synth/matrix/matrix_block.h"
 #include "synth/modulation/lfo.h"
 #include "synth/modulation/param_plane.h"
-#include "synth/modulation/patcher.h"
+#include "synth/modulation/patch_routing.h" // GLOBALITY_*
 #include "synth/voice/sound_snapshot.h"
 #include "util/misc.h"
+#include <atomic>
 #include <bitset>
 #include <memory>
 
@@ -158,7 +161,12 @@ public:
 	/// @return The snapshot.
 	[[nodiscard]] const deluge::synth::SoundSnapshot& snapshot() const { return snapshot_; }
 
-	Patcher patcher;
+	/// @brief The sound's own patching pass over its param plane: the global params from the global sources.
+	[[nodiscard]] deluge::synth::matrix::ScopePass matrixPass() {
+		return {.scope = GLOBALITY_GLOBAL, .sources = params.source_values, .final_values = params.param_final_values};
+	}
+	/// @brief A note's first patching of the sound's own params, from every source.
+	void performInitialPatching(const deluge::synth::matrix::MatrixBlock& block);
 
 	ParamLPF paramLPF{};
 
@@ -168,7 +176,10 @@ public:
 	// subtract that from your p value before indexing it; params.sourceValues holds only the global sources.
 	GlobalParams params;
 
-	uint32_t sourcesChanged{}; // Applies from first source up to FIRST_UNCHANGEABLE_SOURCE
+	/// The sources whose values changed since the sound's render last read them, one bit each up to
+	/// FIRST_UNCHANGEABLE_SOURCE. The render and param edits mark bits; the render clears only the bits its sound
+	/// pass read, so a bit marked while it renders is read by the next block rather than lost.
+	std::atomic<uint32_t> sourcesChanged{};
 
 	LFO globalLFO1;
 	LFO globalLFO3;
@@ -378,14 +389,15 @@ public:
 		return paramManager.getPatchedParamSet()->getValue(p);
 	}
 
-	/// @brief Which preset values a ControlBlock gathers: the routed destinations' (the per-block patching reads only
+	/// @brief Which preset values a MatrixBlock gathers: the routed destinations' (the per-block patching reads only
 	/// those) or every param's (the initial patching and a recalculation of a param with no cables).
 	enum class PresetGather : uint8_t { ROUTED, ALL };
 
-	/// @brief Gather the inputs the Patcher reads into a ControlBlock, as copies: the clip's routing, the preset values
+	/// @brief Gather what the matrix reads beside its program into a MatrixBlock, as copies: the program, the preset
+	/// values
 	/// @p gather asks for (the smoothed one for the param being smoothed, as getSmoothedPatchedParamValue gives) and
 	/// each routed cable's depth.
-	ControlBlock patchControlBlock(ParamManager& paramManager, PresetGather gather) const;
+	deluge::synth::matrix::MatrixBlock matrixBlock(ParamManager& paramManager, PresetGather gather) const;
 
 	void notifyValueChangeViaLPF(int32_t p, bool shouldDoParamLPF, ModelStackWithThreeMainThings const* modelStack,
 	                             int32_t oldValue, int32_t newValue, bool fromAutomation);

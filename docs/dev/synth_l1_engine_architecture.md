@@ -102,7 +102,7 @@ the source levels (`SourceLevels`, the de-zipper FM and the dual engines share) 
 
 ## What stays in the voice
 
-Envelopes, local LFOs, the patcher and param planes, MPE smoothing, porta, the pitch adjust, the play-once sample's
+Envelopes, local LFOs, the voice's matrix pass and param planes, MPE smoothing, porta, the pitch adjust, the play-once sample's
 auto-release, the overall amplitude (with FM's unison compensation, which FM works into its carriers), the filter set,
 wavefold, saturation, pan and the output stage, the cull stamp and rating, and the decision to unassign or fast-release
 when every part's sources ended. It derives each engine's controls from its param planes

@@ -11,9 +11,9 @@ namespace deluge::bench {
 
 // These cover the list, not the cases' behaviour.
 
-void PatcherCase::setup(std::size_t /*n*/) {
+void MatrixCase::setup(std::size_t /*n*/) {
 }
-void PatcherCase::block(std::size_t /*n*/) {
+void MatrixCase::block(std::size_t /*n*/) {
 }
 
 } // namespace deluge::bench

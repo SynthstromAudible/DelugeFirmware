@@ -24,6 +24,14 @@
 #include <cstdint>
 #include <span>
 
+/// A routing's scope: the voice's cables (local params) or the sound's (global params). Unscoped: it indexes the
+/// per-scope arrays throughout the app.
+// NOLINTNEXTLINE(cppcoreguidelines-use-enum-class)
+enum Globality {
+	GLOBALITY_LOCAL = 0,
+	GLOBALITY_GLOBAL = 1,
+};
+
 namespace deluge::synth {
 
 /// @brief One destination of a clip's routing: a param, or a cable's depth, and the run of cables [first_cable,
@@ -35,11 +43,12 @@ struct RoutedDestination {
 	uint8_t end_cable{};
 };
 
-/// @brief One routed cable as the Patcher reads it: its source, polarity and which range value scales its depth.
+/// @brief One routed cable as the matrix compiler reads it: its source, polarity and which range value scales its
+/// depth.
 struct RoutedCable {
 	PatchSource source{PatchSource::NONE};
 	CablePolarity polarity{CablePolarity::BIPOLAR};
-	/// The range value (the Patcher's per-call range results, counted per globality) that scales this cable's depth;
+	/// The range value (a depth destination's result, counted per globality) that scales this cable's depth;
 	/// -1 for none.
 	int8_t range_index{-1};
 };
@@ -62,7 +71,7 @@ struct RoutingBuild {
 	bool missing_range_link{};
 };
 
-/// @brief One clip's compiled routing as the Patcher reads it: storage the instrument fits and keeps, viewed.
+/// @brief One clip's compiled routing as the matrix compiler reads it: storage the instrument fits and keeps, viewed.
 struct PatchRouting {
 	/// Per globality, sorted by target word and ended by a destination with no sources; null when there are none.
 	std::array<const RoutedDestination*, 2> destinations{};

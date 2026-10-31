@@ -19,7 +19,7 @@
 /// @file
 /// @brief The mod-matrix workload: one held note's patch, 14 cables (two of them depth cables) over 8 voices and the
 /// instrument. The cables are listed in the order PatchCableSet::setupPatching leaves them (depth destinations first,
-/// then param destinations by ascending param id, the instrument's last), so the Patcher fixture can take them as
+/// then param destinations by ascending param id, the instrument's last), so the matrix fixture can take them as
 /// they are.
 
 #include "definitions_cxx.hpp"

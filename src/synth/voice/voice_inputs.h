@@ -20,7 +20,7 @@
 #include "dsp-next/fixed/filter/filter_set.h"
 #include "dsp-next/fixed/noise/cong.h"
 #include "dsp-next/fixed/wavetable/wave_table_data.h"
-#include "synth/modulation/control_block.h"
+#include "synth/matrix/matrix_block.h"
 #include "util/misc.h" // util::to_underlying
 #include "util/phase_increment_fine_tuner.h"
 #include <array>
@@ -96,7 +96,7 @@ struct NoteSetup {
 	std::array<int32_t, util::to_underlying(kFirstLocalSource)> global_source_values{};
 	std::array<bool, kNumEnvelopes> attack_is_zero{};     ///< Per envelope: its attack is at its minimum
 	std::array<bool, kNumModulators> modulator_audible{}; ///< Per FM modulator: its volume is not silent
-	ControlBlock initial_patching{}; ///< The block the initial patching reads: every param's preset
+	matrix::MatrixBlock initial_patching{}; ///< The block the initial patching reads: every param's preset
 };
 
 /// @brief One note-on as it reaches a voice.

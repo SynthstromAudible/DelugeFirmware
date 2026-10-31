@@ -117,7 +117,7 @@ void VoiceSlot::expression_event_immediate(int32_t voice_level_value, int32_t s)
 	                                  voice_level_value, s);
 }
 
-bool VoiceSlot::render(const ControlBlock& control_block, const VoiceConfig& cfg,
+bool VoiceSlot::render(const deluge::synth::matrix::MatrixBlock& control_block, const VoiceConfig& cfg,
                        const deluge::synth::VoiceRenderArgs& args) {
 	if (!just_created) {
 		just_created = true;

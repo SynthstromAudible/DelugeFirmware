@@ -439,8 +439,8 @@ const std::vector<std::string_view> kFftInverseCaseNames{
 
 /// The mod-matrix list's names, in order.
 const std::vector<std::string_view> kModMatrixCaseNames{
-    "calibration_loop",    "patcher_q31_typical",         "patcher_q31_all",
-    "patcher_q31_initial", "delay_feedback_chain_analog", "delay_feedback_chain_digital",
+    "calibration_loop",   "matrix_q31_typical",          "matrix_q31_all",
+    "matrix_q31_initial", "delay_feedback_chain_analog", "delay_feedback_chain_digital",
 };
 
 /// The effect chain list's names, in order.

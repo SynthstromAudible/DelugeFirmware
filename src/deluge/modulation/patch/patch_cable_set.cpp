@@ -32,6 +32,7 @@
 #include "processing/sound/mod_matrix_host.h"
 #include "processing/sound/sound.h"
 #include "storage/storage_manager.h"
+#include "synth/matrix/compiler.h"
 #include "util/exceptions.h"
 #include "util/misc.h"
 #include "util/structural_edit_probe.h"
@@ -72,6 +73,12 @@ inline void PatchCableSet::freeDestinationMemory(bool destructing) {
 			if (!destructing) {
 				destinations[g] = nullptr;
 			}
+		}
+	}
+	if (program_ != nullptr) {
+		delugeDealloc(const_cast<deluge::synth::matrix::MatrixProgram*>(program_));
+		if (!destructing) {
+			program_ = nullptr;
 		}
 	}
 	if (routedCables_ != nullptr) {
@@ -415,6 +422,15 @@ void PatchCableSet::setupPatching(ParamCollectionSummary& summary, std::bitset<k
 			FREEZE_WITH_ERROR("E434");
 		}
 	}
+	// The matrix program, compiled from the same routing; without it the cables cannot play, so none are installed
+	const std::size_t program_bytes = deluge::synth::matrix::program_size(build);
+	void* program_block = deluge::memory::alloc_fast(program_bytes, alignof(deluge::synth::matrix::MatrixProgram));
+	if (program_block == nullptr) {
+		freeDestinationMemory(false);
+		return;
+	}
+	program_ = deluge::synth::matrix::compile_program(build, {static_cast<std::byte*>(program_block), program_bytes});
+
 	permuteCables(std::span{build.order}.first(build.num_cables));
 	numUsablePatchCables = build.num_usable;
 
@@ -814,7 +830,19 @@ PatchCableSet::PatchCableSet(PatchCableSet const& other)
 				}
 				std::copy_n(other.routedCables_, numPatchCables, routedCables_);
 			}
+			if (other.program_ != nullptr) {
+				void* block =
+				    deluge::memory::alloc_fast(other.program_->bytes, alignof(deluge::synth::matrix::MatrixProgram));
+				if (block == nullptr) {
+					throw deluge::exception::BAD_ALLOC;
+				}
+				program_ = deluge::synth::matrix::copy_program(*other.program_,
+				                                               {static_cast<std::byte*>(block), other.program_->bytes});
+			}
 		} catch (deluge::exception&) {
+			if (routedCables_ != nullptr) {
+				delugeDealloc(routedCables_);
+			}
 			if (destinations[GLOBALITY_LOCAL]) {
 				delugeDealloc(destinations[GLOBALITY_LOCAL]);
 			}

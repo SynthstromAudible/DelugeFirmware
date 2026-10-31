@@ -24,7 +24,7 @@
 #include <limits>
 
 /// @file
-/// @brief The Patcher's per-cable arithmetic: how a cable reads its source, how a depth cable's range value scales a
+/// @brief The matrix's per-cable arithmetic: how a cable reads its source, how a depth cable's range value scales a
 /// cable's depth, and the depth curve some params apply.
 
 namespace deluge::synth {
