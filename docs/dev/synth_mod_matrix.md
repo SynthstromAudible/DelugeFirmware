@@ -86,6 +86,11 @@ cycles over 128 blocks:
 
 (Medians of three interleaved runs on one device.)
 
+In the stream bench (a song playing, then loading while it plays), the matrix's sound pass costs the same as the
+Patcher's on held notes and 4.6 % less while loading, and voice rendering is about 1 % cheaper, with no underruns
+in either. The sound's pass runs once a block with the cache cold, so its gather reads the routed params from the
+program the pass reads next rather than from the routing: one structure to bring in, not two.
+
 The cable products stay scalar. A cable-major form that multiplied four cables at a time with NEON was measured
 about 11 % slower: at a dozen cables, gathering each group's slots, depths and ranges into lanes and moving values
 between the core and NEON registers cost more than the multiplies saved.
