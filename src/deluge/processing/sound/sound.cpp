@@ -65,6 +65,7 @@
 #include "playback/playback_handler.h"
 #include "processing/dx7/dx_engine.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/render_scratch.h"
 #include "processing/sound/sound_chain_inputs.h"
 #include "processing/sound/sound_instrument.h"
 #include "storage/audio/audio_file_manager.h"
@@ -2053,6 +2054,8 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 			                                    .pitch_adjust = pitchAdjust,
 			                                    .spare_buffers = {spareRenderingBuffer[0], spareRenderingBuffer[1],
 			                                                      spareRenderingBuffer[2], spareRenderingBuffer[3]},
+			                                    .filter_scratch = deluge::render::filter_scratch(),
+			                                    .sync_scratch = deluge::render::osc_sync_scratch(),
 			                                });
 #if defined(DELUGE_STREAM_BENCH)
 			deluge::bench::render_profile::g_totals.voice_render += deluge::bench::render_profile::cycles() - t0;

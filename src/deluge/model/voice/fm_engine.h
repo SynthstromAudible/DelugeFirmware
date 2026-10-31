@@ -83,9 +83,9 @@ private:
 	static void render_sine_wave_with_feedback(int32_t* buffer_start, int32_t num_samples, uint32_t* phase,
 	                                           int32_t amplitude, uint32_t phase_increment, int32_t feedback_amount,
 	                                           int32_t* last_feedback_value, bool add, int32_t amplitude_increment);
-	static void render_fm_with_feedback(int32_t* buffer_start, int32_t num_samples, int32_t* fm_buffer, uint32_t* phase,
-	                                    int32_t amplitude, uint32_t phase_increment, int32_t feedback_amount,
-	                                    int32_t* last_feedback_value, int32_t amplitude_increment);
+	static void render_fm_with_feedback(int32_t* buffer_start, int32_t num_samples, uint32_t* phase, int32_t amplitude,
+	                                    uint32_t phase_increment, int32_t feedback_amount, int32_t* last_feedback_value,
+	                                    int32_t amplitude_increment);
 	static void render_fm_with_feedback_add(int32_t* buffer_start, int32_t num_samples, int32_t* fm_buffer,
 	                                        uint32_t* phase, int32_t amplitude, uint32_t phase_increment,
 	                                        int32_t feedback_amount, int32_t* last_feedback_value,

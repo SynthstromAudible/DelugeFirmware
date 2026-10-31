@@ -26,6 +26,7 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "storage/wave_table/wave_table.h"
+#include "util/synth_noise.h"
 
 namespace params = deluge::modulation::params;
 using deluge::synth::NoteOnEvent;
@@ -41,9 +42,10 @@ VoiceClock engineClock() {
 } // namespace
 
 VoiceSlot::VoiceSlot(Sound& sound) : sound{sound} {
+	kernel.bind_noise(deluge::synth_noise);
 	for (int32_t u = 0; u < kMaxNumVoicesUnison; u++) {
 		for (int32_t s = 0; s < kNumSources; s++) {
-			kernel.unison_parts[u].sources[s].bind(ports_[u][s]);
+			kernel.unison_parts[u].sources[s].bind(&ports_[u][s].sample, &ports_[u][s].dx, &ports_[u][s].input);
 		}
 	}
 }

@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp" // OscType
 #include "dsp-next/fixed/wavetable/wave_table_data.h"
 #include <cstdint>
+#include <span>
 
 namespace deluge::synth {
 class Voice;
@@ -64,7 +65,8 @@ public:
 	void render(deluge::synth::Voice& voice, int32_t* osc_buffer, int32_t num_samples, bool do_osc_sync,
 	            uint32_t* osc_sync_pos, int32_t overall_pitch_adjust, const int32_t* source_wave_index_increments,
 	            bool stereo_unison, int32_t filter_gain, bool& did_stereo_temp_buffer, int32_t* scratch0,
-	            int32_t* scratch1, const VoiceConfig& cfg, const deluge::synth::VoiceBlock& block);
+	            int32_t* scratch1, std::span<int32_t> sync_scratch, const VoiceConfig& cfg,
+	            const deluge::synth::VoiceBlock& block);
 
 private:
 	/// Render one unison part of the ring-mod, *adding* into @p oscBuffer. Source 0 is the hard-sync master (its
@@ -73,5 +75,5 @@ private:
 	void render_unison_part(const Source& src0, const Source& src1, bool do_osc_sync, uint32_t osc_sync_pos,
 	                        bool has_filters, int32_t cpu_direness, int32_t filter_gain, int32_t unison_amplitude_l,
 	                        int32_t unison_amplitude_r, bool stereo_unison, int32_t* osc_buffer, int32_t num_samples,
-	                        int32_t* scratch0, int32_t* scratch1);
+	                        int32_t* scratch0, int32_t* scratch1, std::span<int32_t> sync_scratch);
 };

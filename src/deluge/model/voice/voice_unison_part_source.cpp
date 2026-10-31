@@ -17,33 +17,23 @@
 
 #include "model/voice/voice_unison_part_source.h"
 #include "dsp-next/core/phasor.h"
-#include "memory/general_memory_allocator.h"
-#include "model/sample/sample_cache.h"
-#include "model/song/song.h"
-#include "model/voice/voice.h"
-#include "model/voice/voice_sample.h"
-#include "playback/playback_handler.h"
-#include "processing/dx7/dx_engine.h"
-#include "processing/dx7/dx_patch.h"
-#include "processing/engines/audio_engine.h"
-#include "processing/source.h"
-#include "storage/multi_range/multisample_range.h"
 #include "synth/sources/va/va_shapes.h" // va_shape::is_virtual_analog / wave_for / initial_phase_for_zero
-#include "util/functions.h"             // getNoise
 
 VoiceUnisonPartSource::~VoiceUnisonPartSource() {
 	unassign(false);
 }
 
-void VoiceUnisonPartSource::bind(UnisonPartPorts& ports) {
-	sample_source.bind_port(&ports.sample);
-	dx7_source.bind_port(&ports.dx);
-	input_source.bind_port(&ports.input);
+void VoiceUnisonPartSource::bind(deluge::synth::SamplePlaybackPort* sample, deluge::synth::DxVoicePort* dx,
+                                 deluge::synth::AudioInputPort* input) {
+	sample_source.bind_port(sample);
+	dx7_source.bind_port(dx);
+	input_source.bind_port(input);
 }
 
 bool VoiceUnisonPartSource::note_on(const deluge::synth::SourceSetup& source, uint32_t samples_late,
                                     uint32_t osc_retrigger_phase, bool reset_everything, SynthMode synth_mode,
-                                    int32_t note_code, uint8_t velocity, int32_t priority_rating) {
+                                    int32_t note_code, uint8_t velocity, int32_t priority_rating,
+                                    deluge::dsp::fixed::Cong& noise) {
 
 	if (synth_mode != SynthMode::FM && source.osc_type == OscType::SAMPLE) {
 		return sample_source.port()->note_on(samples_late, priority_rating);
@@ -104,7 +94,7 @@ bool VoiceUnisonPartSource::note_on(const deluge::synth::SourceSetup& source, ui
 				// would start from the same place and sweep the same way
 				Supersaw::SidePhases side_phases;
 				for (uint32_t& phase : side_phases) {
-					phase = getNoise();
+					phase = noise.next();
 				}
 				supersaw_source.emplace(osc_pos, side_phases);
 			}

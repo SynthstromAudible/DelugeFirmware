@@ -21,8 +21,7 @@
 #include "model/voice/source_component_render.h" // voice::makeBlockControls
 #include "model/voice/voice.h"                   // Voice (member access — pre-roll + per-source state)
 #include "model/voice/voice_unison_part_source.h"
-#include "modulation/params/param.h"   // LOCAL_OSC_A_PITCH_ADJUST / LOCAL_OSC_A_PHASE_WIDTH
-#include "processing/render_scratch.h" // render::osc_sync_scratch
+#include "modulation/params/param.h" // LOCAL_OSC_A_PITCH_ADJUST / LOCAL_OSC_A_PHASE_WIDTH
 #include "util/fixedpoint.h"
 
 using namespace deluge;
@@ -33,7 +32,8 @@ namespace params = deluge::modulation::params;
 void RingModEngine::render(Voice& voice, int32_t* osc_buffer, int32_t num_samples, bool do_osc_sync,
                            uint32_t* osc_sync_pos, int32_t overall_pitch_adjust,
                            const int32_t* source_wave_index_increments, bool stereo_unison, int32_t filter_gain,
-                           bool& did_stereo_temp_buffer, int32_t* scratch0, int32_t* scratch1, const VoiceConfig& cfg,
+                           bool& did_stereo_temp_buffer, int32_t* scratch0, int32_t* scratch1,
+                           std::span<int32_t> sync_scratch, const VoiceConfig& cfg,
                            const deluge::synth::VoiceBlock& block) {
 
 	if (stereo_unison) {
@@ -100,14 +100,15 @@ void RingModEngine::render(Voice& voice, int32_t* osc_buffer, int32_t num_sample
 
 		render_unison_part(ring_mod_sources[0], ring_mod_sources[1], do_osc_sync, osc_sync_pos[u], cfg.has_filters,
 		                   cfg.cpu_direness, filter_gain, unison_amplitude_l, unison_amplitude_r, stereo_unison,
-		                   osc_buffer, num_samples, scratch0, scratch1);
+		                   osc_buffer, num_samples, scratch0, scratch1, sync_scratch);
 	}
 }
 
 void RingModEngine::render_unison_part(const Source& src0, const Source& src1, bool do_osc_sync, uint32_t osc_sync_pos,
                                        bool has_filters, int32_t cpu_direness, int32_t filter_gain,
                                        int32_t unison_amplitude_l, int32_t unison_amplitude_r, bool stereo_unison,
-                                       int32_t* osc_buffer, int32_t num_samples, int32_t* scratch0, int32_t* scratch1) {
+                                       int32_t* osc_buffer, int32_t num_samples, int32_t* scratch0, int32_t* scratch1,
+                                       std::span<int32_t> sync_scratch) {
 
 	int32_t amplitude_for_ring_mod = 1 << 27;
 
@@ -130,18 +131,18 @@ void RingModEngine::render_unison_part(const Source& src0, const Source& src1, b
 		    0, 0, source.pulse_width, /*applyAmplitude=*/false, doing_osc_sync_this_oscillator, osc_sync_pos,
 		    src0.phase_increment, source.retrigger_phase, cpu_direness);
 		const dsp::fixed::Buffer out{scratch[s], static_cast<size_t>(num_samples)};
-		const dsp::fixed::Buffer sync_scratch = render::osc_sync_scratch().first(static_cast<size_t>(num_samples));
+		const dsp::fixed::Buffer sync_block = sync_scratch.first(static_cast<size_t>(num_samples));
 		if (source.part->va_source.has_value()) {
-			source.part->va_source->render_into(controls, source.phase_increment, out, sync_scratch);
+			source.part->va_source->render_into(controls, source.phase_increment, out, sync_block);
 		}
 		else if (source.part->supersaw_source.has_value()) {
 			source.part->supersaw_source->render_into(controls, source.phase_increment, source.wave_index_last,
-			                                          source.wave_index_increment, out, sync_scratch);
+			                                          source.wave_index_increment, out, sync_block);
 		}
 		else {
 			source.part->wavetable_source->render_into(controls, source.wave_table, source.wave_index_last,
 			                                           source.wave_index_increment, source.phase_increment, out,
-			                                           sync_scratch);
+			                                           sync_block);
 		}
 
 		// Sine and triangle waves come out bigger in fixed-amplitude rendering (for arbitrary reasons), so we

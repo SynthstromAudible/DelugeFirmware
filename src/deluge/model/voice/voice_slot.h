@@ -17,9 +17,11 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "model/voice/sample_playback_adapter.h"
 #include "model/voice/voice.h"
 #include "model/voice/voice_sample_playback_guide.h"
-#include "model/voice/voice_unison_part_source.h"
+#include "processing/dx7/dx_voice_adapter.h"
+#include "processing/live/audio_input_adapter.h"
 #include <array>
 #include <compare>
 #include <cstdint>
@@ -28,6 +30,13 @@
 class ModelStackWithSoundFlags;
 class ParamManagerForTimeline;
 class Sound;
+
+/// @brief The firmware side of one unison part's source: the ports its sources play through.
+struct UnisonPartPorts {
+	SamplePlaybackAdapter sample;   ///< the VoiceSample pool and reader behind synth::SamplePlaybackPort
+	deluge::dsp::DxVoiceAdapter dx; ///< the pooled dx7::Voice behind synth::DxVoicePort
+	AudioInputAdapter input;        ///< the AudioEngine-backed live input behind synth::AudioInputPort
+};
 
 /// @brief A sound's voice as the app holds it: one synth::Voice with the ports its sources play through, the playback
 /// guides of the files its note plays, and the sound it belongs to. Builds what the kernel's lifecycle reads from the

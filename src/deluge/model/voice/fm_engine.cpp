@@ -21,8 +21,6 @@
 #include "dsp-next/fixed/osc/sine.h" // deluge::dsp::fixed::sine / sine_fm_operator
 #include "dsp-next/fixed/vca/pan.h"
 #include "model/voice/voice.h"
-#include "modulation/params/param_set.h"
-#include "processing/sound/sound.h"
 #include "util/fixedpoint.h"
 #include <cstring>
 
@@ -143,7 +141,7 @@ void FMEngine::render_unison_part(Voice& voice, int32_t u, int32_t num_samples, 
 		// If mod1 is modulating mod0...
 		if (cfg.modulator1_to_modulator0) {
 			// .. render modulator0, receiving the FM from mod1
-			render_fm_with_feedback(modulator_scratch, num_samples, nullptr, modulator_phase[u].data(),
+			render_fm_with_feedback(modulator_scratch, num_samples, modulator_phase[u].data(),
 			                        modulator_amplitude_last_time[0], phase_increment_modulator[0],
 			                        voice.params.param_final_values[params::LOCAL_MODULATOR_0_FEEDBACK],
 			                        modulator_feedback[u].data(), modulator_amplitude_increments[0]);
@@ -286,9 +284,9 @@ void FMEngine::render_sine_wave_with_feedback(int32_t* buffer_start, int32_t num
 	}
 }
 
-void FMEngine::render_fm_with_feedback(int32_t* buffer_start, int32_t num_samples, int32_t* fm_buffer, uint32_t* phase,
-                                       int32_t amplitude, uint32_t phase_increment, int32_t feedback_amount,
-                                       int32_t* last_feedback_value, int32_t amplitude_increment) {
+void FMEngine::render_fm_with_feedback(int32_t* buffer_start, int32_t num_samples, uint32_t* phase, int32_t amplitude,
+                                       uint32_t phase_increment, int32_t feedback_amount, int32_t* last_feedback_value,
+                                       int32_t amplitude_increment) {
 
 	uint32_t phase_now = *phase;
 	*phase += phase_increment * num_samples;

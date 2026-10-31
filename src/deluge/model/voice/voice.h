@@ -122,6 +122,9 @@ public:
 	/// note frequency is too high and the source/modulator should be dropped). Pure — used by Voice's per-source
 	/// pitch math and by FMEngine for its modulators.
 	static bool adjust_pitch(uint32_t& phase_increment, int32_t adjustment);
+	/// Draws its random phases and values from @p noise, the synth's one noise stream, which must outlive it.
+	void bind_noise(dsp::fixed::Cong& noise) { noise_ = &noise; }
+
 	/// Renders one block, adding into @p args.buffer. @return false once the voice has ended and must be unassigned.
 	bool render(const ControlBlock& control_block, const VoiceConfig& cfg, const VoiceBlock& block,
 	            const VoiceRenderArgs& args);
@@ -194,6 +197,10 @@ private:
 	// spareRenderingBuffer). Set at the top of render(); the render helpers read it instead of reaching the global,
 	// so the kernel names no engine-wide global. Each entry is SSI_TX_BUFFER_NUM_SAMPLES wide.
 	std::array<int32_t*, 4> spare_buffers_{};
+	std::span<int32_t> sync_scratch_{}; ///< Set with the spare buffers at the top of render()
+	dsp::fixed::Cong* noise_{};
+
+	[[nodiscard]] int32_t next_noise() { return static_cast<int32_t>(noise_->next()); }
 
 	// Render one unison part of one source, dispatching by oscType to the per-source component (sample / input /
 	// dx7 / virtual-analog / wavetable) and folding their outcomes into one uniform result. The single dispatch

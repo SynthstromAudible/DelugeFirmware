@@ -17,6 +17,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp" // kNumSources, OscType, kNumExpressionDimensions, kFirstLocalSource
+#include "dsp-next/fixed/filter/filter_set.h"
 #include "dsp-next/fixed/wavetable/wave_table_data.h"
 #include "synth/modulation/control_block.h"
 #include "util/misc.h" // util::to_underlying
@@ -63,6 +64,8 @@ struct VoiceRenderArgs {
 	int32_t pitch_adjust{};     ///< The sound's pitch adjust, 2^24 for none
 	/// Shared scratch, each SSI_TX_BUFFER_NUM_SAMPLES wide: the render's stereo, ring-mod and osc-sync work buffers.
 	std::array<int32_t*, 4> spare_buffers{};
+	dsp::fixed::FilterScratch filter_scratch{}; ///< The filters' fade and parallel-route buffers
+	std::span<int32_t> sync_scratch{};          ///< A synced oscillator's work buffer, a block and four samples long
 };
 
 /// A NoteSetup's @ref NoteSetup::last_note_code when the sound has played no note yet.

@@ -21,20 +21,10 @@
 #include "dsp-next/fixed/interpolation/table_interpolation.h" // get_decay4
 #include "dsp-next/fixed/shaping/wavefolder.h"
 #include "dsp-next/fixed/vca/pan.h"
-#include "io/debug/log.h"
-#include "memory/stack_guard.h"
-#include "model/model_stack.h"
-#include "model/sample/sample.h"
-#include "model/sample/sample_holder_for_voice.h"
 #include "model/voice/source_component_render.h"
-#include "modulation/params/param_set.h"
-#include "playback/playback_handler.h"
-#include "processing/engines/audio_engine.h"
-#include "processing/render_scratch.h"
-#include "processing/sound/sound.h"
-#include "storage/audio/audio_file_manager.h"
-#include "storage/multi_range/multisample_range.h"
-#include "util/synth_noise.h"
+#include "synth/sources/interpolation_buffer_size.h"
+#include "util/lookuptables/lookuptables.h"
+#include "util/param_functions.h"
 
 #include "dsp-next/fixed/tables/decay_small.h"
 #include "util/misc.h"
@@ -145,17 +135,17 @@ bool Voice::note_on(const deluge::synth::NoteSetup& setup, const SoundSnapshot& 
 	// Setup and render local LFO
 	lfo2.set_local_initial_phase(snapshot.lfo_config[LFO2_ID]);
 	params.source_values[util::to_underlying(PatchSource::LFO_LOCAL_1)] =
-	    lfo2.render(0, snapshot.lfo_config[LFO2_ID], 0, deluge::synth_noise);
+	    lfo2.render(0, snapshot.lfo_config[LFO2_ID], 0, *noise_);
 	lfo4.set_local_initial_phase(snapshot.lfo_config[LFO4_ID]);
 	params.source_values[util::to_underlying(PatchSource::LFO_LOCAL_2)] =
-	    lfo4.render(0, snapshot.lfo_config[LFO4_ID], 0, deluge::synth_noise);
+	    lfo4.render(0, snapshot.lfo_config[LFO4_ID], 0, *noise_);
 
 	// Setup some sources which won't change for the duration of this note
 	params.source_values[util::to_underlying(PatchSource::VELOCITY)] =
 	    (event.velocity == 128) ? kQ31Max : (static_cast<int32_t>(event.velocity) - 64) * 33554432;
 
 	// "Random" source
-	params.source_values[util::to_underlying(PatchSource::RANDOM)] = getNoise();
+	params.source_values[util::to_underlying(PatchSource::RANDOM)] = next_noise();
 
 	for (int32_t m = 0; m < kNumExpressionDimensions; m++) {
 		local_expression_source_values_before_smoothing[m] = event.mpe[m] << 16;
@@ -235,7 +225,7 @@ bool Voice::note_on(const deluge::synth::NoteSetup& setup, const SoundSnapshot& 
 			if (unison_parts[u].sources[s].active) {
 				bool success = unison_parts[u].sources[s].note_on(
 				    setup.sources[s], event.samples_late, snapshot.osc_retrigger_phase[s], event.reset_envelopes,
-				    snapshot.synth_mode, note_code_after_arpeggiation, event.velocity, rating);
+				    snapshot.synth_mode, note_code_after_arpeggiation, event.velocity, rating, *noise_);
 				if (!success) [[unlikely]] {
 					return false; // This shouldn't really ever happen I don't think really...
 				}
@@ -323,12 +313,12 @@ void Voice::setup_porta(int32_t last_note_code) {
 void Voice::randomize_osc_phases(const SoundSnapshot& snapshot) {
 	for (int32_t u = 0; u < snapshot.num_unison; u++) {
 		for (int32_t s = 0; s < kNumSources; s++) {
-			unison_parts[u].sources[s].osc_pos = getNoise();
+			unison_parts[u].sources[s].osc_pos = next_noise();
 			// TODO: we should do sample play pos, too
 		}
 		if (snapshot.synth_mode == SynthMode::FM) {
 			for (int32_t m = 0; m < kNumModulators; m++) {
-				fm_engine.modulator_phase[u][m] = getNoise();
+				fm_engine.modulator_phase[u][m] = next_noise();
 			}
 		}
 	}
@@ -470,7 +460,7 @@ void Voice::note_off(const deluge::synth::ReleaseInfo& release, bool allow_relea
 
 uint32_t Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge::modulation::params::Local param,
                                               uint32_t synced_phase_increment) {
-	if (config.sync_level == SYNC_LEVEL_NONE) {
+	if (config.sync_level == deluge::plugin::SyncLevel::NONE) {
 		return params.param_final_values[param];
 	}
 	return synced_phase_increment;
@@ -480,6 +470,7 @@ uint32_t Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge::m
 [[gnu::hot]] bool Voice::render(const ControlBlock& control_block, const VoiceConfig& cfg, const VoiceBlock& block,
                                 const VoiceRenderArgs& args) {
 	spare_buffers_ = args.spare_buffers; // the render helpers read these
+	sync_scratch_ = args.sync_scratch;
 	int32_t* sound_buffer = args.buffer;
 	const int32_t num_samples = args.num_samples;
 	const bool sound_rendering_in_stereo = args.sound_in_stereo;
@@ -524,7 +515,7 @@ uint32_t Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge::m
 		    lfo2.render(num_samples, cfg.lfo2_config,
 		                get_local_lfo_phase_increment(cfg.lfo2_config, params::LOCAL_LFO_LOCAL_FREQ_1,
 		                                              cfg.lfo2_synced_phase_increment),
-		                deluge::synth_noise);
+		                *noise_);
 		uint32_t any_change =
 		    static_cast<uint32_t>(old != params.source_values[util::to_underlying(PatchSource::LFO_LOCAL_1)]);
 		sources_changed |= any_change << util::to_underlying(PatchSource::LFO_LOCAL_1);
@@ -537,7 +528,7 @@ uint32_t Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge::m
 		    lfo4.render(num_samples, cfg.lfo4_config,
 		                get_local_lfo_phase_increment(cfg.lfo4_config, params::LOCAL_LFO_LOCAL_FREQ_2,
 		                                              cfg.lfo4_synced_phase_increment),
-		                deluge::synth_noise);
+		                *noise_);
 		uint32_t any_change =
 		    static_cast<uint32_t>(old != params.source_values[util::to_underlying(PatchSource::LFO_LOCAL_2)]);
 		sources_changed |= any_change << util::to_underlying(PatchSource::LFO_LOCAL_2);
@@ -795,7 +786,7 @@ uint32_t Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge::m
 	osc_buffer = spare_buffers_[0];
 	int32_t channels = stereo_unison ? 2 : 1;
 
-	int32_t const* const osc_buffer_end = osc_buffer + num_samples * channels;
+	int32_t const* const noise_end = osc_buffer + num_samples * channels;
 
 	// If any noise, do that. By cutting a corner here, we do it just once for all "unison", rather than for each
 	// unison. Increasing number of unison cuts the volume of the oscillators
@@ -815,9 +806,9 @@ uint32_t Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge::m
 
 		int32_t* __restrict__ this_sample = osc_buffer;
 		do {
-			*this_sample = multiply_32x32_rshift32(getNoise(), noise_amplitude);
+			*this_sample = multiply_32x32_rshift32(next_noise(), noise_amplitude);
 			this_sample++;
-		} while (this_sample != osc_buffer_end);
+		} while (this_sample != noise_end);
 
 		anything_in_osc_buffer = true;
 	}
@@ -858,7 +849,7 @@ uint32_t Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge::m
 	else if (synth_mode == SynthMode::RINGMOD) {
 		ring_mod_engine.render(*this, osc_buffer, num_samples, doing_osc_sync, osc_sync_pos, overall_pitch_adjust,
 		                       source_wave_index_increments, stereo_unison, filter_gain, did_stereo_temp_buffer,
-		                       spare_buffers_[2], spare_buffers_[3], cfg, block);
+		                       spare_buffers_[2], spare_buffers_[3], sync_scratch_, cfg, block);
 	}
 
 	// FM: the engine owns the whole per-voice render (unison loop + per-source carrier pitch math + the modulator/
@@ -878,7 +869,7 @@ uint32_t Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge::m
 			dsp::fixed::Wavefolder{params.param_final_values[params::LOCAL_FOLD]}.render_block(stereo, stereo);
 		}
 		// Filters
-		filter_set.render_stereo({osc_buffer, osc_buffer_end}, deluge::render::filter_scratch(), deluge::synth_noise);
+		filter_set.render_stereo({osc_buffer, osc_buffer_end}, args.filter_scratch, *noise_);
 
 		// No clipping
 		if (cfg.clipping_amount == 0u) {
@@ -964,7 +955,7 @@ uint32_t Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge::m
 			dsp::fixed::Wavefolder{params.param_final_values[params::LOCAL_FOLD]}.render_block(mono, mono);
 		}
 
-		filter_set.render_mono({osc_buffer, osc_buffer_end}, deluge::render::filter_scratch(), deluge::synth_noise);
+		filter_set.render_mono({osc_buffer, osc_buffer_end}, args.filter_scratch, *noise_);
 
 		// No clipping
 		if (cfg.clipping_amount == 0u) {
@@ -1032,8 +1023,6 @@ uint32_t Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge::m
 			} while (++osc_buffer_pos != osc_buffer_end);
 		}
 	}
-
-renderingDone:
 
 	for (int32_t s = 0; s < kNumSources; s++) {
 		source_amplitudes_last_time[s] = source_amplitudes[s];
@@ -1271,17 +1260,18 @@ Voice::render_source_component(int32_t u, int32_t s, const ControlBlock& control
 	    .wave_index_increment = wave_index_increment,
 	    .stereo_scratch = spare_buffers_[2],
 	    .stereo_scratch_clear_samples = SSI_TX_BUFFER_NUM_SAMPLES,
-	    .sync_scratch = deluge::render::osc_sync_scratch().data(),
+	    .sync_scratch = sync_scratch_.data(),
 	    .amp_mod_param = params.param_final_values[params::LOCAL_OSC_A_PHASE_WIDTH + s], // DX7 amplitude-mod control
 	    .patch_changed = cfg.dx_patch_changed[s],                                        // DX7
 	    .midinote = note_code_after_arpeggiation,                                        // DX7
 	    .interpolation_buffer_size =
-	        SampleControls::getInterpolationBufferSize(cfg.interpolation_mode[s], phase_increment), // live input
-	    .porta_envelope_pos = porta_envelope_pos,                                                   // sample
+	        interpolation_buffer_size(cfg.interpolation_mode[s], static_cast<int32_t>(phase_increment),
+	                                  cfg.cpu_direness), // live input
+	    .porta_envelope_pos = porta_envelope_pos,        // sample
 	    .priority_rating = static_cast<int32_t>(priority_rating(cfg.voice_priority, block.num_active_voices)), // sample
 	    .phase_increment_stored_value = voice_unison_part_source->phase_increment_stored_value, // sample late-start
 	    .pitch_mod_disallows_cache = pitch_mod_disallows_cache,                                 // sample caching policy
-	    .noise = &deluge::synth_noise,                                                          // live-input hop search
+	    .noise = noise_,                                                                        // live-input hop search
 	};
 
 	// sample → sampleSource, DX7 → dx7Source, INPUT_* → inputSource, wavetable → wavetableSource, supersaw →

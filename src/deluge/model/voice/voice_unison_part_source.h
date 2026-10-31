@@ -18,11 +18,8 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "model/sample/sample.h"
-#include "model/voice/sample_playback_adapter.h"
+#include "dsp-next/fixed/noise/cong.h"
 #include "model/voice/voice_inputs.h"
-#include "processing/dx7/dx_voice_adapter.h"
-#include "processing/live/audio_input_adapter.h"
 #include "synth/sources/dx7/dx7_source.h"
 #include "synth/sources/input/input_source.h"
 #include "synth/sources/sample/sample_source.h"
@@ -30,17 +27,6 @@
 #include "synth/sources/va/virtual_analog_source.h"
 #include "synth/sources/wavetable/wavetable_source.h"
 #include <optional>
-
-class TimeStretcher;
-class VoiceSamplePlaybackGuide;
-class Source;
-
-/// @brief The firmware side of one unison part's source: the ports its sources play through.
-struct UnisonPartPorts {
-	SamplePlaybackAdapter sample;   ///< the VoiceSample pool and reader behind synth::SamplePlaybackPort
-	deluge::dsp::DxVoiceAdapter dx; ///< the pooled dx7::Voice behind synth::DxVoicePort
-	AudioInputAdapter input;        ///< the AudioEngine-backed live input behind synth::AudioInputPort
-};
 
 class VoiceUnisonPartSource {
 public:
@@ -50,10 +36,11 @@ public:
 	/// cluster loads are ranked by it). @return false if the note cannot play.
 	bool note_on(const deluge::synth::SourceSetup& source, uint32_t samples_late, uint32_t osc_phase,
 	             bool reset_everything, SynthMode synth_mode, int32_t note_code, uint8_t velocity,
-	             int32_t priority_rating);
+	             int32_t priority_rating, deluge::dsp::fixed::Cong& noise);
 	void unassign(bool deleting_song);
-	/// Plays this part's sources through @p ports, which must outlive it.
-	void bind(UnisonPartPorts& ports);
+	/// Plays this part's sources through these ports, which must outlive it.
+	void bind(deluge::synth::SamplePlaybackPort* sample, deluge::synth::DxVoicePort* dx,
+	          deluge::synth::AudioInputPort* input);
 
 	// FKA phase. No longer used for Sample playback / rate conversion position. Only waves, including wavetable.
 	// Retired for virtual-analog waves — their phase now lives in vaSource (below).

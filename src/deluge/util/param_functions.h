@@ -33,6 +33,11 @@ extern int32_t paramNeutralValues[];
 int32_t getExp(int32_t presetValue, int32_t adjustment);
 int32_t lookupReleaseRate(int32_t input);
 
+/// @brief A cable's source value scaled as an exponential param's patching adds it in.
+[[nodiscard]] inline int32_t cableToExpParamShortcut(int32_t sourceValue) {
+	return sourceValue >> 2;
+}
+
 int32_t getFinalParameterValueVolume(int32_t paramNeutralValue, int32_t patchedValue);
 int32_t getFinalParameterValueLinear(int32_t paramNeutralValue, int32_t patchedValue);
 int32_t getFinalParameterValueHybrid(int32_t paramNeutralValue, int32_t patchedValue);
