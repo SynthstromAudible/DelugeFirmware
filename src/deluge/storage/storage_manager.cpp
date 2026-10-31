@@ -564,10 +564,16 @@ Error StorageManager::loadSynthToDrum(Song* song, InstrumentClip* clip, bool may
                                       SoundDrum** getInstrument, FilePointer* filePointer, String* name,
                                       String* dirPath) {
 	OutputType outputType = OutputType::SYNTH;
-	SoundDrum* newDrum = (SoundDrum*)createNewDrum(DrumType::SOUND);
+	SoundDrum* newDrum = static_cast<SoundDrum*>(createNewDrum(DrumType::SOUND));
 	if (!newDrum) {
 		return Error::INSUFFICIENT_RAM;
 	}
+	auto deleteDrum = [song](SoundDrum* drum) {
+		song->deleteBackedUpParamManagersForModControllable(drum);
+		drum->~SoundDrum();
+		GeneralMemoryAllocator::get().dealloc(static_cast<void*>(drum));
+	};
+	std::unique_ptr<SoundDrum, decltype(deleteDrum)> drumOwner(newDrum, deleteDrum);
 
 	AudioEngine::logAction("loadSynthDrumFromFile");
 
@@ -582,23 +588,16 @@ Error StorageManager::loadSynthToDrum(Song* song, InstrumentClip* clip, bool may
 
 	bool fileSuccess = activeDeserializer->closeWriter() == FR_OK;
 
-	// If that somehow didn't work...
-	if (error != Error::NONE || !fileSuccess) {
-
-		void* toDealloc = static_cast<void*>(newDrum);
-		newDrum->~SoundDrum();
-		GeneralMemoryAllocator::get().dealloc(toDealloc);
+	if (error != Error::NONE) {
 		return error;
-
-		if (!fileSuccess) {
-			error = Error::SD_CARD;
-			return error;
-		}
+	}
+	if (!fileSuccess) {
+		return Error::SD_CARD;
 	}
 	// The caller owns whatever drum this replaces - it may still be referenced by NoteRows in several Clips, so it's up
 	// to the caller to move those over before deleting it
-	*getInstrument = newDrum;
-	return error;
+	*getInstrument = drumOwner.release();
+	return Error::NONE;
 }
 
 // After calling this, you must make sure you set dirPath of Instrument.
