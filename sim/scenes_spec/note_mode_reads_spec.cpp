@@ -984,6 +984,12 @@ describe note_mode_reads_sound_direction("Play Direction under the sound menu --
 		// `Value::readValueAgain`'s `renderUIsForOled()` (`gui/menu_item/value.h:77-80`): the panel is due at once.
 		expect(menu_scene().next_timer() == std::optional<uint32_t>{0}).to_be_true();
 		expect(menu_scene().timer_repaints().oled).to_be_true();
+		// Unrendered -- as under a framed popup -- the ask lapses after the tick that repaints, rather than holding a
+		// 0 ms deadline for the popup's whole life.
+		menu_scene().tick(1);
+		menu_scene().tick(1);
+		expect(menu_scene().next_timer() == std::optional<uint32_t>{0}).to_be_false();
+		expect(menu_scene().timer_repaints().oled).to_be_false();
 	});
 
 	it("real audition presses forwarded from the menu re-read it for the newly auditioned row", _ {

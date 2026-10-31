@@ -95,8 +95,10 @@ public:
 	/// @brief The idle period in force; 0 while the service is disabled.
 	uint32_t idle_ms() const { return idle_ms_; }
 
-	/// @brief Push the screensaver once idle and not already showing; while inhibited, take it down and re-arm the
-	///        full timeout from now (`Screensaver::tick`, `hid/display/screensaver.cpp:113-120`).
+	/// @brief Push the screensaver once idle and not already showing. The inhibitors are asked where legacy's
+	///        `Screensaver::timerEvent` asks them (`hid/display/screensaver.cpp:113-120`): when the deadline comes,
+	///        which then re-arms the full timeout from now instead of showing, and at each re-check while showing,
+	///        which takes the screensaver down and re-arms.
 	///
 	/// Inhibited by the working animation on the stack or the host's fact (`set_inhibit`). A timed or persistent
 	/// popup does not inhibit, as in legacy: a stuck one would otherwise disable burn-in protection for good.

@@ -1010,8 +1010,8 @@ private:
 	void retarget(const Node& node);
 
 	MenuState st_{};
-	/// The voice usage page's counters, and the time since its last sample; `voice_usage_open_` is whether the
-	/// page was focused at the last tick, so that arriving on it starts a fresh session.
+	/// The voice usage page's counters and the time since their last sample; `voice_usage_at_` is where the last tick
+	/// found the focus, so arriving on the page or a counter begins its session.
 	VoiceUsageSampler voice_usage_;
 	/// The shared blink phase of BACK and LEARN (`indicator_leds`' `ledBlinkState[0]`): its start on the shell's
 	/// clock, whether one has been taken, whether the next render takes a new one, and the screen it was last checked
@@ -1022,10 +1022,13 @@ private:
 	const Node* blink_screen_ = nullptr;
 	/// The value the last render's session began on (`focused_value()`); a change is a new session.
 	const Node* session_value_ = nullptr;
-	/// `read_value_again` ran since the last render: the panel is stale until the next one.
-	bool reread_unshown_ = false;
+	/// Ticks left in which `read_value_again`'s repaint is still asked for: set to 2 by it, cleared by a render.
+	uint8_t reread_unshown_ = 0;
 	uint32_t voice_usage_elapsed_ms_ = 0;
-	bool voice_usage_open_ = false;
+	/// Where the focus is relative to the voice usage page: its counters sample there.
+	enum class VoiceUsagePlace : uint8_t { None, Page, Counter };
+	VoiceUsagePlace voice_usage_place() const;
+	VoiceUsagePlace voice_usage_at_ = VoiceUsagePlace::None;
 	/// What `render_horizontal`'s columns draw from, here rather than on the stack: a group page has up to
 	/// `kMaxMenuColumns` of them, and the scene lives in SDRAM.
 	ColumnSlot column_slots_[kMaxMenuColumns];
@@ -1069,6 +1072,8 @@ private:
 	///        that allows learn; left on LEARN's release (`sound_editor.cpp:716-745`). Select's release does nothing in
 	///        it.
 	bool learn_mode_ = false;
+	/// When learn mode began, on the shell's clock: its fast blink's origin.
+	uint32_t learn_origin_ms_ = 0;
 
 	/// @brief `getCurrentMenuItem()->allowsLearnMode()`: on a page, its selected child's (`Submenu::allowsLearnMode`,
 	///        `submenu.cpp:233-238`), which a child page never allows.
@@ -1090,6 +1095,11 @@ private:
 
 	/// @brief `Direction::checkPermissionToBeginSession`'s latch (`sequence/direction.h:117-119`): when @p value is
 	///        Play Direction on a non-kit clip, `MenuContext::selected_note_row` takes whether a row is auditioning.
+	///
+	/// Taken where the item begins: a re-root, a row press, and a horizontal column gaining focus. Legacy's horizontal
+	/// page also re-takes it on the way back from the item and after each column move (`HorizontalMenu::beginSession`
+	/// and `selectEncoderAction` -> `focusChild`); Play Direction is a column only in the note-row editor, whose root
+	/// answers for the latch (`bindings.cpp`'s `note_row_bridge_direction`), so those re-takes change nothing.
 	void begin_value_session(const Node* value);
 
 public:

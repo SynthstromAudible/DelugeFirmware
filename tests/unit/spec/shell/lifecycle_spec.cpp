@@ -244,9 +244,24 @@ describe shell_lifecycle("shell::Shell lifecycle", $ {
 		r.shell.tick(1900);
 		expect(stacked(r, SceneKind::Screensaver)).to_be_false();
 		r.shell.set_screensaver_inhibit(false);
-		r.shell.tick(2000);
-		expect(stacked(r, SceneKind::Screensaver)).to_be_false();
-		r.shell.tick(2900);
+		r.shell.tick(2000); // the deadline the inhibited check at 1000 re-armed
+		expect(stacked(r, SceneKind::Screensaver)).to_be_true();
+	});
+
+	it("a working animation that ends before the idle deadline does not move it", _ {
+		// Main asks about inhibitors only when the deadline comes (`screensaver.cpp:115-120`).
+		deluge::notify::dirty().drain();
+		drain_global_notices();
+		Rig r{ShellConfig{.screensaver_idle_ms = 1000, .seed = 7}};
+		r.shell.init(SceneId{kRoot, 0});
+		r.shell.tick(0);
+		deluge::notify::notice_text("Loading", deluge::notify::Notice::Kind::Working);
+		r.shell.tick(300);
+		deluge::notify::notice_kind(deluge::notify::Notice::Kind::ClearWorking);
+		r.shell.tick(500);
+		r.shell.tick(600);
+		expect(stacked(r, SceneKind::Working)).to_be_false();
+		r.shell.tick(1000);
 		expect(stacked(r, SceneKind::Screensaver)).to_be_true();
 	});
 

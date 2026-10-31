@@ -27,14 +27,14 @@
 #include "gui/ui/root_ui.h"
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui/sound_editor.h" // soundEditor.setShortcutsVersion -- the SetShortcutsVersion arm
-#include "gui/ui/ui.h"
+#include "gui/ui/ui.h"           // openUI, getRootUI
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
-#include "hid/buttons.h" // openUI, getRootUI
+#include "hid/buttons.h" // Buttons::clearShiftSticky
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "hid/display/oled_canvas/canvas.h"

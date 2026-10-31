@@ -8,8 +8,7 @@ namespace deluge::notify {
 
 /// @brief One raised notice: an error, a message, or a display-state request, copied by value.
 struct Notice {
-	/// `Notification`/`CancelNotification` are appended rather than inserted, so every earlier
-	/// kind keeps its numeric value.
+	/// Nothing stores a kind by number: `.state` lines and scripts name it (`shell::notice_kind_name`).
 	enum class Kind : uint8_t {
 		Error,
 		Text,

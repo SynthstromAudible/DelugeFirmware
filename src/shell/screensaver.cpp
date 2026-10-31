@@ -54,15 +54,12 @@ void Screensaver::tick(uint32_t now_ms, uint32_t /*dt_ms*/) {
 	if (idle_ms_ == 0) {
 		return;
 	}
-	if (inhibited()) {
-		// `screensaver.cpp:113-120`: give the screen back, and count the full timeout again from this check. `remove`,
-		// not `pop`: the working animation is usually stacked above the screensaver and must stay.
-		if (active_) {
-			stack_.remove(SceneKind::Screensaver);
-			active_ = false;
-		}
+	if (active_ && inhibited()) {
+		// `screensaver.cpp:113-120`, at the showing screensaver's re-check: give the screen back and count the full
+		// timeout again. `remove`, not `pop`: the working animation is usually stacked above the screensaver.
+		stack_.remove(SceneKind::Screensaver);
+		active_ = false;
 		deadline_ms_ = now_ms + idle_ms_;
-		armed_ = true;
 		return;
 	}
 	if (!armed_) {
@@ -78,6 +75,11 @@ void Screensaver::tick(uint32_t now_ms, uint32_t /*dt_ms*/) {
 	// user is actively using. The same form `RepaintGate::needs_frame` (`ui/core/repaint_gate.cpp:13`),
 	// `Mirror::due` and every `InputLowering` hold comparison already use.
 	if (!active_ && !refused_ && static_cast<int32_t>(now_ms - deadline_ms_) >= 0) {
+		if (inhibited()) {
+			// The same check when the deadline comes: re-arm from now instead of showing.
+			deadline_ms_ = now_ms + idle_ms_;
+			return;
+		}
 		// `arg` is deterministic in `seed_` alone, so two services built with the same seed push
 		// the scene with the same instantiation argument every time.
 		active_ = stack_.push(SceneId{SceneKind::Screensaver, static_cast<uint16_t>(seed_ & 0xffffu)});

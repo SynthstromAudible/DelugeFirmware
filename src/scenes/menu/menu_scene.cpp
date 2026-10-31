@@ -395,6 +395,7 @@ void MenuScene::retarget(const Node& node) {
 	st_.column_press = false;
 	ctx_.selected_note_row = false;
 	session_value_ = nullptr;
+	voice_usage_at_ = VoiceUsagePlace::None;
 	// Same reason as the three siblings above: an offset staged for the abandoned path has nothing
 	// left to commit through once `value_node` is gone, and a stale one would otherwise double up
 	// with whatever a fresh turn on the new path accumulates next (fix round 1, Important 1).
@@ -728,7 +729,7 @@ void MenuScene::read_value_again() {
 	const Node* node = focused();
 	if (node != nullptr) {
 		enter_leaf(*node, FocusCause::NoRowPress);
-		reread_unshown_ = true; // `Value::readValueAgain` redraws (`value.h:77-80`): `next_timer` asks for it now
+		reread_unshown_ = 2; // `Value::readValueAgain` redraws (`value.h:77-80`): `next_timer` asks for it now
 	}
 }
 
@@ -1269,7 +1270,7 @@ void MenuScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) {
 		return;
 	}
 	select_held_ = f.select_held();
-	reread_unshown_ = false;
+	reread_unshown_ = 0;
 	// A horizontal page's `initializeItem` on every focus move and `beginSession`, read before its columns draw.
 	if (const Node* const value = focused_value(); value != session_value_) {
 		begin_value_session(value);
@@ -1862,7 +1863,8 @@ void MenuScene::leds(deluge::ui::LedFrame& f) {
 	constexpr uint16_t kLearningBlinkMs = 60;
 	if (learn_mode_) {
 		(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Learn),
-		            deluge::ui::LedState{deluge::ui::LedState::Kind::Blink, kLearningBlinkMs, 0});
+		            deluge::ui::LedState{deluge::ui::LedState::Kind::Blink, kLearningBlinkMs, 0, learn_origin_ms_,
+		                                 kLearningBlinkMs});
 	}
 	else {
 		(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Learn), wants_learn_blink() ? shared_blink : kOff);
@@ -2442,6 +2444,7 @@ Result MenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 			}
 			else {
 				learn_mode_ = true;
+				learn_origin_ms_ = ctx.now_ms; // `blinkLed(LEARN, 255, 1)` starts lit at the press
 			}
 		}
 	}
@@ -2806,12 +2809,12 @@ constexpr uint32_t kVoiceUsageSampleMs = 500;
 std::optional<uint32_t> MenuScene::next_timer() const {
 	// A value read again from outside a render is due on the panel at once. A dirty fact would not do: raised during
 	// the tick's input step, it waits for a tick nothing has scheduled.
-	if (reread_unshown_) {
+	if (reread_unshown_ > 0) {
 		return 0;
 	}
 	// The voice usage page's next sample, else the pad blinks: the shorter of the counter's two steps that the plan
 	// uses. Nothing blinking arms nothing.
-	if (focused() == &nodes::voice_usage) {
+	if (voice_usage_place() != VoiceUsagePlace::None) {
 		return kVoiceUsageSampleMs - std::min(voice_usage_elapsed_ms_, kVoiceUsageSampleMs);
 	}
 	const Node* node = pad_subject();
@@ -2829,26 +2832,53 @@ std::optional<uint32_t> MenuScene::next_timer() const {
 }
 
 deluge::ui::shell::Scene::RepaintSurfaces MenuScene::timer_repaints() const {
-	return {.oled = reread_unshown_ || focused() == &nodes::voice_usage, .grid = true};
+	return {.oled = reread_unshown_ > 0 || voice_usage_place() != VoiceUsagePlace::None, .grid = true};
+}
+
+MenuScene::VoiceUsagePlace MenuScene::voice_usage_place() const {
+	const Node* const node = focused();
+	if (node == &nodes::voice_usage) {
+		return VoiceUsagePlace::Page;
+	}
+	if (node == &nodes::voice_usage_live || node == &nodes::voice_usage_average
+	    || node == &nodes::voice_usage_maximum) {
+		return VoiceUsagePlace::Counter;
+	}
+	return VoiceUsagePlace::None;
 }
 
 void MenuScene::tick(uint32_t dt_ms) {
-	if (focused() != &nodes::voice_usage) {
-		voice_usage_open_ = false;
+	// The ask outlives the tick it was raised in and the next, whose render it arms; a menu covered on the panel is not
+	// rendered, and must not hold a 0 ms deadline for the cover's whole life.
+	if (reread_unshown_ > 0) {
+		reread_unshown_--;
+	}
+	const VoiceUsagePlace place = voice_usage_place();
+	const VoiceUsagePlace was = std::exchange(voice_usage_at_, place);
+	if (place == VoiceUsagePlace::None) {
 		return;
 	}
 	const int32_t live = ctx_.facts != nullptr ? ctx_.facts->live_voice_count() : 0;
-	if (!voice_usage_open_) {
-		voice_usage_open_ = true;
-		voice_usage_.reset();
+	if (place != was) {
+		// `VoiceUsage::beginSession` resets and samples, on arrival and on the way back from a counter
+		// (`cpu/voice_usage.h:70-76`); `VoiceCount::beginSession` samples without a reset (`:29-33`).
+		if (place == VoiceUsagePlace::Page) {
+			voice_usage_.reset();
+		}
 		voice_usage_.sample(live);
 		voice_usage_elapsed_ms_ = 0;
-		return;
 	}
-	voice_usage_elapsed_ms_ += dt_ms;
-	if (voice_usage_elapsed_ms_ >= kVoiceUsageSampleMs) {
+	else {
+		voice_usage_elapsed_ms_ += dt_ms;
+		if (voice_usage_elapsed_ms_ < kVoiceUsageSampleMs) {
+			return;
+		}
 		voice_usage_elapsed_ms_ = 0;
 		voice_usage_.sample(live);
+	}
+	// The VERTICAL style re-reads the open counter (`:81-86`); the page's columns read the sampler as they draw.
+	if (place == VoiceUsagePlace::Counter) {
+		read_value_again();
 	}
 }
 

@@ -904,6 +904,31 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		expect(at != std::ranges::end(kids) && *(at + 1) == &menu::nodes::firmware_version).to_be_true();
 	});
 
+	it("with HorizontalMenus off a voice usage counter opened as a leaf keeps sampling every 500 ms", _ {
+		// `VoiceCount::beginSession` samples without a reset and starts the timer (`cpu/voice_usage.h:29-33`); the
+		// timer re-reads the open counter in the VERTICAL style (`:81-86`).
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		MenuContext ctx = r.open_real(menu::nodes::voice_usage);
+		ctx.horizontal_menus = false;
+		menu_scene().open(menu::nodes::voice_usage, ctx);
+		r.shell.tick(0);
+		expect(static_cast<int>(menu_scene().voice_usage().samples())).to_equal(1);
+		r.enter(100);
+		r.shell.tick(110);
+		r.shell.tick(120);
+		expect(menu_scene().focused() == &menu::nodes::voice_usage_live).to_be_true();
+		expect(static_cast<int>(menu_scene().voice_usage().samples())).to_equal(2); // the counter's own, no reset
+		expect(menu_scene().next_timer().has_value()).to_be_true();
+		expect(menu_scene().timer_repaints().oled).to_be_true();
+		for (uint32_t t = 200; t <= 1700; t += 100) {
+			r.shell.tick(t);
+		}
+		expect(static_cast<int>(menu_scene().voice_usage().samples())).to_equal(5);
+		expect(menu_scene().state().edit_int).to_equal(menu_scene().voice_usage().live());
+	});
+
 	it("the BACK and LEARN blinks start at the open and restart together on a LEARN-blinking item", _ {
 		// `blinkLed(IndicatorLED::BACK)` when the editor opens (`sound_editor.cpp:571`) and `blinkLed(LEARN)` in
 		// `beginScreen` for an item that wants it (`:1167-1169`): both reset the shared `ledBlinkState[0]` and its

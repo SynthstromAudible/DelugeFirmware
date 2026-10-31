@@ -1005,6 +1005,10 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		r.shell.tick(15);
 		expect(learn_led().kind == deluge::ui::LedState::Kind::Blink).to_be_true();
 		expect(static_cast<int>(learn_led().period_ms)).to_equal(60);
+		// `ledBlinkState[1] = initialState` with the timer armed from the press (`indicator_leds.cpp:77-84`): lit
+		// for its first 60 ms from the press.
+		expect(static_cast<int>(learn_led().first_ms)).to_equal(60);
+		expect(learn_led().origin_ms >= 10 && learn_led().origin_ms <= 15).to_be_true(); // the press, as routed
 		r.button(kLearnX, kLearnY, false, 20);
 		r.shell.tick(25);
 		expect(static_cast<int>(learn_led().period_ms) == 60).to_be_false();
