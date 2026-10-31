@@ -214,6 +214,10 @@ using ColumnArtFn = std::optional<deluge::ui::oled::ArtColumn> (*)(const MenuCon
 ///        overrides that read `paging.visiblePageNumber`. A fallback answer keeps the static title.
 using PageTitleFn = ValueText (*)(const MenuContext& ctx, uint8_t page, std::span<char> out);
 
+/// @brief A horizontal page drawn whole, in panel coordinates, in place of its columns -- legacy's
+///        `renderMenuItems` overrides. @p focused is the focused column's index among the page's own.
+using PageDrawFn = void (*)(deluge::ui::oled::OledFrame& panel, const MenuContext& ctx, int32_t focused);
+
 /// @brief Legacy's drawing for one value that is neither a meter, a word nor an icon -- `Binding::column_draw`.
 /// @param ctx   What is being edited.
 /// @param value The value to draw, in the node's own units.
@@ -843,6 +847,8 @@ struct Node {
 	uint8_t title_arg = 0;
 	/// @brief The page's title by visible page (`PageTitleFn`'s own doc). Null: the static title on every page.
 	PageTitleFn page_title = nullptr;
+	/// @brief The page drawn whole in place of its columns (`PageDrawFn`'s own doc). Null: the columns draw.
+	PageDrawFn page_draw = nullptr;
 };
 
 /// @brief `Node::title_arg`'s value for "the context's `source_index` plus one".
@@ -923,6 +929,12 @@ constexpr Node without_notification(Node n) {
 /// @brief `n` with `allows_learn_mode` set.
 constexpr Node with_learn_mode(Node n) {
 	n.allows_learn_mode = true;
+	return n;
+}
+
+/// @brief `n` drawn whole by @p fn in place of its columns (`Node::page_draw`).
+constexpr Node with_page_draw(Node n, PageDrawFn fn) {
+	n.page_draw = fn;
 	return n;
 }
 

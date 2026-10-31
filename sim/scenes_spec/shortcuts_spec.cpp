@@ -54,6 +54,7 @@
 #include "model/song/song.h"
 #include "processing/sound/sound_instrument.h"
 
+#include "support/legacy_menu_order.h"
 #include "support/menu_engine.h"
 #include "support/song_fixture.h"
 
@@ -172,8 +173,8 @@ std::string text_of(uint16_t id) {
 /// @brief Read a `Submenu`'s protected child list -- `tables_2_spec`'s `SubmenuPeek`, verbatim and
 ///        for the same [class.protected] reason.
 struct SubmenuPeek : deluge::gui::menu_item::Submenu {
-	static const deluge::vector<::MenuItem*>& items_of(deluge::gui::menu_item::Submenu& menu) {
-		return menu.*(&SubmenuPeek::items);
+	static deluge::vector<::MenuItem*> items_of(deluge::gui::menu_item::Submenu& menu) {
+		return spec::in_menu_order(menu, menu.*(&SubmenuPeek::items));
 	}
 };
 

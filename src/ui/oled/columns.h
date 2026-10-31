@@ -53,6 +53,14 @@ struct Column {
 	void* ctx = nullptr;
 };
 
+/// @brief A page drawn whole in place of its columns: legacy's `HorizontalMenu::renderMenuItems` overrides
+///        (`EnvelopeMenu`, `EqMenu`). The title and the page counter still draw.
+struct PageRender {
+	/// Draws the page; @p focused is the focused column's index. Null: the columns draw.
+	void (*draw)(OledFrame& f, int32_t focused, void* ctx) = nullptr;
+	void* ctx = nullptr;
+};
+
 /// @brief Where the focused column sits in the page sequence.
 ///
 /// @note Mirrors legacy `HorizontalMenu::Paging`, minus the `visiblePageItems` span, which
@@ -189,7 +197,7 @@ int32_t page_switch(std::span<const Column> cols, int32_t focused, int32_t direc
 /// @param title_text Screen title; an empty view draws no title.
 /// @return `changed` if focus moved this frame; `entered` if a submenu column was just selected.
 Response columns(OledFrame& f, gfx::oled::Rect rect, ColumnsState& state, std::span<const Column> cols,
-                 std::string_view title_text = {});
+                 std::string_view title_text = {}, const PageRender& page = {});
 
 /// @brief The screen title, with no separator rule, shortened to make room for the page counters
 ///        when needed.

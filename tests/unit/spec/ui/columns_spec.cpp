@@ -585,6 +585,30 @@ describe columns_w("ui::oled::columns", $ {
 		expect(seen_covered.calls).to_equal(0);
 	});
 
+	it("a page render replaces the column row, keeping the title and the counter", _ {
+		// `EnvelopeMenu`/`EqMenu::renderMenuItems` (`envelope/envelope_menu.h:34-91`, `eq/eq_menu.h:32-111`) replace
+		// the items' drawing; `HorizontalMenu::renderOLED` still titles the page.
+		static int page_calls = 0;
+		static int32_t page_focused = -1;
+		static int column_calls = 0;
+		page_calls = 0;
+		page_focused = -1;
+		column_calls = 0;
+		std::array<Column, 2> cols{};
+		cols[0].render = [](OledFrame&, bool, void*) { column_calls++; };
+		cols[1].render = [](OledFrame&, bool, void*) { column_calls++; };
+		uitest::Rig48 r;
+		ColumnsState state{.focused = 1};
+		const PageRender page{.draw = [](OledFrame&, int32_t focused, void*) {
+			page_calls++;
+			page_focused = focused;
+		}};
+		columns(r.frame, r.frame.bounds(), state, std::span<const Column>{cols.data(), cols.size()}, "EQ", page);
+		expect(page_calls).to_equal(1);
+		expect(page_focused).to_equal(1);
+		expect(column_calls).to_equal(0);
+	});
+
 	it("pages six columns and shows the legacy page counters", _ {
 		std::vector<legacy::Item> six = four_columns();
 		six.push_back(legacy::Item{.label = "DRIVE", .kind = legacy::Item::BAR, .norm = 0.75f});

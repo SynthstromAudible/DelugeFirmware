@@ -49,4 +49,26 @@ void draw_column(OledFrame& slot_frame, bool focused, void* ctx);
 /// @param g    The filter's state.
 void filter_graph(OledFrame& f, gfx::oled::Rect slot, const FilterGraph& g);
 
+/// @brief `envelope::EnvelopeMenu::renderMenuItems` (`envelope/envelope_menu.h:34-91`): the ADSR shape with dotted
+///        stage lines and a square on each stage, the focused one inverted.
+/// @param panel    A whole-panel frame (`panel_frame`): legacy draws in canvas coordinates.
+/// @param attack   The four segments' values, 0..50.
+/// @param decay
+/// @param sustain
+/// @param release
+/// @param selected The focused segment, 0..3.
+void envelope_graph(OledFrame& panel, int32_t attack, int32_t decay, int32_t sustain, int32_t release,
+                    int32_t selected);
+
+/// @brief `eq::EqMenu::renderMenuItems` (`eq/eq_menu.h:32-111`): the shelving curve with reference lines and a handle
+/// on
+///        each of bass, bass frequency, treble frequency and treble, the focused one inverted.
+/// @param panel       A whole-panel frame (`panel_frame`).
+/// @param bass        Bass gain, 0..1 (value / 50).
+/// @param treble      Treble gain, 0..1.
+/// @param bass_freq   Bass frequency, 0..1.
+/// @param treble_freq Treble frequency, 0..1 (value clamped to 0..32, / 32).
+/// @param selected    The focused handle, 0..3 in that order.
+void eq_graph(OledFrame& panel, float bass, float treble, float bass_freq, float treble_freq, int32_t selected);
+
 } // namespace deluge::ui::oled

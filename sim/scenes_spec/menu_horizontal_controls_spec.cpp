@@ -742,6 +742,30 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		expect(menu_scene().focused() == &session_plain_col).to_be_true();
 	});
 
+	it("the EQ page orders its columns as main's EqMenu does", _ {
+		// `EqMenu::ensureCorrectItemsOrderAndGetValues` (`eq/eq_menu.h:120-160`): bass, bass frequency, treble frequency,
+		// treble -- the order of the graph's four handles left to right.
+		expect(menu::nodes::eq.children.size()).to_equal(size_t{4});
+		expect(menu::nodes::eq.children[0] == &menu::nodes::eq_bass).to_be_true();
+		expect(menu::nodes::eq.children[1] == &menu::nodes::eq_bass_freq).to_be_true();
+		expect(menu::nodes::eq.children[2] == &menu::nodes::eq_treble_freq).to_be_true();
+		expect(menu::nodes::eq.children[3] == &menu::nodes::eq_treble).to_be_true();
+		expect(menu::nodes::eq.page_draw != nullptr).to_be_true();
+	});
+
+	it("the envelope group pages ENV1..ENV4 as 1/4..4/4, each drawn as main's envelope graph", _ {
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open_real(menu::nodes::env_group);
+		r.shell.tick(0);
+		expect(static_cast<int>(menu_scene().horizontal_paging().total_pages)).to_equal(4);
+		expect(menu::nodes::env1.page_draw != nullptr).to_be_true();
+		r.press(kCrossScreenX, kCrossScreenY, 300);
+		r.shell.tick(400);
+		expect(static_cast<int>(menu_scene().horizontal_paging().page)).to_equal(1);
+	});
+
 	it("a mod-FX knob's name and title follow the effect, its column label the short form", _ {
 		// `mod_fx::Depth_Patched::getName`/`getTitle` (`mod_fx/depth_patched.h:34-37`): `modfx::getParamName`.
 		select_language();

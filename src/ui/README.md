@@ -76,7 +76,8 @@ under `src/ui/` → exits 1 naming `ui-includes-outside`; remove it → exits 0.
 | `FilterKind`, `StageKind`, `Hint`, `percent`, `knob_arc`, `unipolar_bar`, `pan`, `slider`, `length_slider`, `filter_curve`, `envelope_stage`, `sidechain_ducking`, `meter` | `oled/meters.h` |
 | `Column`, `Paging`, `paging_of`, `columns`, `title_paged`, `MeterColumn`/`meter_column`, `TextColumn`/`text_column`, `submenu_column`, `ToggleColumn`/`toggle_column` | `oled/columns.h` |
 | `PopupStyle`, `popup_rect_for`, `popup_frame`, `popup_text`, `working`, `progress` | `oled/popup.h` |
-| `OutputNameData`, `output_name`, `segment_digits`, `vu`, `envelope`, `graphic`, `icon` | `oled/misc.h` |
+| `OutputNameData`, `output_name`, `segment_digits`, `vu`, `graphic`, `icon` | `oled/misc.h` |
+| `DrawColumn`, `FilterGraph`, `draw_column`, `filter_graph`, `envelope_graph`, `eq_graph` | `oled/column_drawings.h` |
 | `Rainfall`, `draw_block`, `draw_rainfall` | `oled/rainfall.h` (moved out of `hid/display/` by E4 task 7 — see that file's own doc) |
 | `Starfield`, `draw_starfield` | `oled/starfield.h` (moved with it) |
 | `detail::int_to_string` | `oled/detail/int_to_string.h` (internal helper, not a widget — used by `values.h`/`meters.h`/`misc.h`'s number rendering; not listed as a catalogue entry) |
@@ -281,8 +282,8 @@ unchanged for every unclipped frame, i.e. for every caller today.
 ## Parity
 
 Every OLED widget pins legacy geometry in `tests/spec/ui` at both 128×48 and 128×64 (paired
-`*_48.pbm` / `*_64.pbm` goldens under `tests/golden/ui/widgets/`, e.g. `envelope_48.pbm` /
-`envelope_64.pbm`); grid components pin legacy colours via `.state` goldens (e.g. `macros.state`,
+`*_48.pbm` / `*_64.pbm` goldens under `tests/golden/ui/widgets/`, e.g. `meter_bar_48.pbm` /
+`meter_bar_64.pbm`); grid components pin legacy colours via `.state` goldens (e.g. `macros.state`,
 `vu_meter.state`, `greyout.state`) instead, since a pad surface has one geometry and the thing
 worth freezing is the RGB it computes.
 

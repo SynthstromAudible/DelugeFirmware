@@ -108,6 +108,7 @@ using deluge::hid::display::OLED;
 
 #include "support/fake_note_bridge.h"
 #include "support/host_flash.h"
+#include "support/legacy_menu_order.h"
 #include "support/menu_engine.h"
 #include "support/song_fixture.h"
 
@@ -159,7 +160,9 @@ namespace bindings = deluge::scenes::menu::bindings;
 /// @brief Read a `Submenu`'s protected child list -- `tables_2_spec`'s `SubmenuPeek`, verbatim and
 ///        for the same [class.protected] reason.
 struct SubmenuPeek : legacy::Submenu {
-	static const deluge::vector<::MenuItem*>& items_of(legacy::Submenu& menu) { return menu.*(&SubmenuPeek::items); }
+	static deluge::vector<::MenuItem*> items_of(legacy::Submenu& menu) {
+		return spec::in_menu_order(menu, menu.*(&SubmenuPeek::items));
+	}
 };
 
 /// @brief Reach `Output::activeClip`, which is `protected` (`model/output.h:235`) and whose only

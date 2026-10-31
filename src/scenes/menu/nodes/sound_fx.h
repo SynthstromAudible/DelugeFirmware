@@ -129,8 +129,12 @@ inline constexpr Node eq_treble_freq = with_column_name(
           {deluge::modulation::params::Kind::UNPATCHED_SOUND, deluge::modulation::params::UNPATCHED_TREBLE_FREQ}),
     sid(deluge::l10n::String::STRING_FOR_TREBLE_FREQUENCY_SHORT));
 
-inline constexpr const Node* kEqChildren[] = {&eq_bass, &eq_treble, &eq_bass_freq, &eq_treble_freq};
-inline constexpr Node eq = submenu(sid(deluge::l10n::String::STRING_FOR_EQ), kEqChildren, Layout::Horizontal);
+/// `EqMenu::ensureCorrectItemsOrderAndGetValues` (`eq/eq_menu.h:120-160`) orders the four as the graph's handles run,
+/// left to right: bass, bass frequency, treble frequency, treble.
+inline constexpr const Node* kEqChildren[] = {&eq_bass, &eq_bass_freq, &eq_treble_freq, &eq_treble};
+void eq_page_draw(deluge::ui::oled::OledFrame& panel, const MenuContext& ctx, int32_t focused);
+inline constexpr Node eq =
+    with_page_draw(submenu(sid(deluge::l10n::String::STRING_FOR_EQ), kEqChildren, Layout::Horizontal), eq_page_draw);
 
 // --- Delay -------------------------------------------------------------------------------------
 

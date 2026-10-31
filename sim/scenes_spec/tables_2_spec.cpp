@@ -89,6 +89,7 @@ using deluge::hid::display::OLED;
 #include "processing/sound/sound_instrument.h"
 #include "processing/source.h"
 
+#include "support/legacy_menu_order.h"
 #include "support/menu_engine.h"
 #include "support/song_fixture.h"
 
@@ -159,7 +160,9 @@ namespace bindings = deluge::scenes::menu::bindings;
 /// The alternative -- re-listing every submenu's children in this file -- would make the spec a
 /// second copy of the thing under test rather than a check of it.
 struct SubmenuPeek : legacy::Submenu {
-	static const deluge::vector<::MenuItem*>& items_of(legacy::Submenu& menu) { return menu.*(&SubmenuPeek::items); }
+	static deluge::vector<::MenuItem*> items_of(legacy::Submenu& menu) {
+		return spec::in_menu_order(menu, menu.*(&SubmenuPeek::items));
+	}
 };
 
 /// @brief The real app picks a language during boot; this spec renders text without booting.

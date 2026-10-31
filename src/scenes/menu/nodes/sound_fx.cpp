@@ -21,6 +21,10 @@
 
 #include "scenes/menu/nodes/sound_fx.h"
 
+#include "ui/oled/column_drawings.h"
+
+#include <algorithm>
+
 #include "scenes/l10n_bridge.h"
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
@@ -217,5 +221,14 @@ constexpr const Node* kRoots[] = {&sound_fx};
 } // namespace
 
 const std::span<const Node* const> kSoundFxChildren{kRoots};
+
+void eq_page_draw(ui::oled::OledFrame& panel, const MenuContext& ctx, int32_t focused) {
+	// `EqMenu::ensureCorrectItemsOrderAndGetValues` (`eq/eq_menu.h:127-152`): treble frequency counts up to 32 only.
+	ui::oled::eq_graph(panel, static_cast<float>(bindings::read(eq_bass, ctx)) / 50.f,
+	                   static_cast<float>(bindings::read(eq_treble, ctx)) / 50.f,
+	                   static_cast<float>(bindings::read(eq_bass_freq, ctx)) / 50.f,
+	                   static_cast<float>(std::clamp<int32_t>(bindings::read(eq_treble_freq, ctx), 0, 32)) / 32.f,
+	                   focused);
+}
 
 } // namespace deluge::scenes::menu::nodes

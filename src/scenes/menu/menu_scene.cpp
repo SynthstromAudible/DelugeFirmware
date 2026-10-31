@@ -1350,9 +1350,36 @@ void MenuScene::render_horizontal(deluge::ui::oled::OledFrame& f, const Node& no
 	NodeText title_scratch;
 	// `f.bounds()`, not `menu_rect(f)`: this widget owns the whole panel including its own title
 	// band (`ui/oled/columns.h:127`).
-	st_.render_resp =
-	    deluge::ui::oled::columns(f, f.bounds(), st_.columns[st_.depth],
-	                              std::span<const deluge::ui::oled::Column>{cols, n}, page_title(title_scratch));
+	// A member page drawn whole (`Node::page_draw`): legacy's `renderMenuItems` overrides, which number the focused
+	// item among the member's own.
+	struct PageDrawCall {
+		const Node* member;
+		const MenuContext* ctx;
+		int32_t focus;
+	};
+	PageDrawCall call{};
+	deluge::ui::oled::PageRender page_render{};
+	if (n > 0) {
+		const int32_t focus = clamp_to(st_.columns[st_.depth].focused, 0, static_cast<int32_t>(n) - 1);
+		const Node* member = bindings::group_member_of(node, ctx_, static_cast<size_t>(focus));
+		if (member != nullptr && member->page_draw != nullptr) {
+			int32_t first = focus;
+			while (first > 0 && bindings::group_member_of(node, ctx_, static_cast<size_t>(first - 1)) == member) {
+				first--;
+			}
+			call = PageDrawCall{.member = member, .ctx = &ctx_, .focus = focus - first};
+			page_render = {.draw =
+			                   [](deluge::ui::oled::OledFrame& frame, int32_t, void* ctx) {
+				                   const auto& c = *static_cast<const PageDrawCall*>(ctx);
+				                   deluge::ui::oled::OledFrame panel = deluge::ui::oled::panel_frame(frame);
+				                   c.member->page_draw(panel, *c.ctx, c.focus);
+			                   },
+			               .ctx = &call};
+		}
+	}
+	st_.render_resp = deluge::ui::oled::columns(f, f.bounds(), st_.columns[st_.depth],
+	                                            std::span<const deluge::ui::oled::Column>{cols, n},
+	                                            page_title(title_scratch), page_render);
 
 	// `columns` claims the press only for a submenu column (`ui/oled/columns.cpp:451-455`), so a
 	// press on a *value* column reaches nobody. `after_render` answers it as `Submenu::selectButtonPress`

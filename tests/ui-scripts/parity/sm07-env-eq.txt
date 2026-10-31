@@ -1,0 +1,48 @@
+# ShellMenu: the pages drawn whole. SHIFT + the LPF frequency shortcut, then SHIFT + SCALE twice back along the sound
+# chain to the envelope group (ENV1 1/4); CROSS_SCREEN to ENV2 and an edit; then SHIFT + CROSS_SCREEN forward to EQ and
+# an edit there. Run on the ShellMenu card.
+100   snapshot boot
+300   button Shift down
+400   pad 8 7 down
+440   pad 8 7 up
+500   button Shift up
+1200  snapshot lpf
+1500  button Shift down
+1600  button Scale down
+1620  button Scale up
+1700  button Shift up
+2400  snapshot lfo
+2700  button Shift down
+2800  button Scale down
+2820  button Scale up
+2900  button Shift up
+3600  snapshot env1
+3900  button CrossScreen down
+3920  button CrossScreen up
+4600  snapshot env2
+4900  button Kit down
+4920  button Kit up
+5600  snapshot env2-decay
+5900  encoder Select +3
+6600  snapshot env2-decay-edited
+6900  button Shift down
+7000  button CrossScreen down
+7020  button CrossScreen up
+7100  button Shift up
+7800  snapshot lfo-again
+8100  button Shift down
+8200  button CrossScreen down
+8220  button CrossScreen up
+8300  button Shift up
+9000  snapshot filters-again
+9300  button Shift down
+9400  button CrossScreen down
+9420  button CrossScreen up
+9500  button Shift up
+10200 snapshot eq
+10500 button Midi down
+10520 button Midi up
+11200 snapshot eq-treble-freq
+11500 encoder Select -4
+12200 snapshot eq-edited
+12500 quit

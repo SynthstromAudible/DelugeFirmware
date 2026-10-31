@@ -127,36 +127,6 @@ void vu(OledFrame& f, Rect rect, uint8_t l, uint8_t r) {
 	vu_channel(f, bottom, r);
 }
 
-void envelope(OledFrame& f, Rect rect, float a, float d, float s, float r) {
-	if (rect.w < 4 || rect.h < 2) {
-		return;
-	}
-	a = std::clamp(a, 0.0f, 1.0f);
-	d = std::clamp(d, 0.0f, 1.0f);
-	s = std::clamp(s, 0.0f, 1.0f);
-	r = std::clamp(r, 0.0f, 1.0f);
-
-	// Attack, decay and release each claim up to a quarter of the width; sustain holds the rest.
-	const float quarter = static_cast<float>(rect.w) / 4.0f;
-	const int32_t aw = static_cast<int32_t>(a * quarter);
-	const int32_t dw = static_cast<int32_t>(d * quarter);
-	const int32_t rw = static_cast<int32_t>(r * quarter);
-	const int32_t sw = std::max<int32_t>(0, rect.w - 1 - aw - dw - rw);
-
-	const int32_t top = rect.y;
-	const int32_t bottom = rect.bottom() - 1;
-	const int32_t sustain_y = bottom - static_cast<int32_t>(s * static_cast<float>(rect.h - 1));
-
-	int32_t x = rect.x;
-	f.line(x, bottom, x + aw, top);
-	x += aw;
-	f.line(x, top, x + dw, sustain_y);
-	x += dw;
-	f.line(x, sustain_y, x + sw, sustain_y);
-	x += sw;
-	f.line(x, sustain_y, x + rw, bottom);
-}
-
 void graphic(OledFrame& f, Rect rect, const uint8_t* data, int32_t w, int32_t h, int32_t bytes_tall, bool reversed) {
 	f.graphic(data, rect.x, rect.y, w, h, bytes_tall, reversed);
 }

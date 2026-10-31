@@ -445,7 +445,7 @@ void title_paged(OledFrame& f, std::string_view s, bool paged) {
 }
 
 Response columns(OledFrame& f, Rect rect, ColumnsState& state, std::span<const Column> cols,
-                 std::string_view title_text) {
+                 std::string_view title_text, const PageRender& page) {
 	Response resp{};
 	const int32_t n = static_cast<int32_t>(cols.size());
 
@@ -486,7 +486,12 @@ Response columns(OledFrame& f, Rect rect, ColumnsState& state, std::span<const C
 		f.region(rect, [&](OledFrame& sub) { title_paged(sub, title_text, w.paging.total_pages > 1); });
 	}
 	page_counters(f, rect, w.paging);
-	render_page(f, rect, cols, w, focused);
+	if (page.draw != nullptr) {
+		page.draw(f, focused, page.ctx);
+	}
+	else {
+		render_page(f, rect, cols, w, focused);
+	}
 	return resp;
 }
 

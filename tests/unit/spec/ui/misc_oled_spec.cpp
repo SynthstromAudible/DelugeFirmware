@@ -51,9 +51,8 @@ namespace uitest = deluge::ui::test;
 //    the frame's origin, as `decimal_value` does for its rows 20 and 41. On the 48-row panel
 //    that reproduces legacy exactly; on a flush 64-row panel the digits sit at legacy's rows
 //    with a topmost pixel of 0, which is the same routine.
-//  - `vu` and `envelope` have no legacy at all -- there is no OLED VU anywhere under
-//    `hid/display` (the VU meter is `View::renderVUMeter`, RGB pads) and no combined ADSR
-//    renderer. Golden-only, per the widget docs in misc.h.
+//  - `vu` has no legacy at all -- there is no OLED VU anywhere under `hid/display` (the VU meter is
+//    `View::renderVUMeter`, RGB pads). Golden-only, per the widget docs in misc.h.
 
 namespace {
 
@@ -327,25 +326,6 @@ describe misc_oled_w("ui::oled::misc", $ {
 		uitest::Rig64 r64;
 		vu(r64.frame, Rect{4, 4, 120, 18}, 200, 60);
 		expect_golden(self, "../ui/widgets/vu_64.pbm", r64.pbm());
-	});
-
-	it("draws an ADSR outline", _ {
-		// Golden only; a/d/s/r = 0.2/0.3/0.7/0.4.
-		uitest::Rig48 r;
-		envelope(r.frame, Rect{4, 4, 120, 30}, 0.2f, 0.3f, 0.7f, 0.4f);
-		expect_golden(self, "../ui/widgets/envelope_48.pbm", r.pbm());
-
-		const int32_t top = r.frame.origin.y;
-		expect(r.lit(4, top + 33)).to_be_true(); // the ramp starts at the rect's bottom-left
-
-		uitest::Rig64 r64;
-		envelope(r64.frame, Rect{4, 4, 120, 30}, 0.2f, 0.3f, 0.7f, 0.4f);
-		expect_golden(self, "../ui/widgets/envelope_64.pbm", r64.pbm());
-
-		// A different envelope is a different picture.
-		uitest::Rig48 other;
-		envelope(other.frame, Rect{4, 4, 120, 30}, 0.9f, 0.1f, 0.2f, 0.9f);
-		expect(r.pbm() == other.pbm()).to_be_false();
 	});
 
 	it("passes a graphic and an icon straight through to the canvas", _ {

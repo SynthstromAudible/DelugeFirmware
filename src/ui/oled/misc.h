@@ -100,20 +100,6 @@ void segment_digits(OledFrame& f, gfx::oled::Rect rect, std::span<const uint8_t,
 /// @param r right-channel level, 0..255, already scaled by the caller
 void vu(OledFrame& f, gfx::oled::Rect rect, uint8_t l, uint8_t r);
 
-/// @brief An ADSR outline across @p rect: a ramp up to the peak over @p a, down to @p s over
-///        @p d, held flat, then down to zero over @p r.
-///
-/// @note New; legacy has no combined ADSR renderer to match -- the closest legacy drawings are
-///       `Number::drawAttack`/`drawRelease` (single stages in a 19x11 slot), with no combined
-///       renderer anywhere.
-/// @param f the OLED frame to draw into
-/// @param rect the outline's bounds
-/// @param a attack stage length, normalised [0, 1]
-/// @param d decay stage length, normalised [0, 1]
-/// @param s sustain level, normalised [0, 1] (0 at the bottom of @p rect, 1 at the top)
-/// @param r release stage length, normalised [0, 1]
-void envelope(OledFrame& f, gfx::oled::Rect rect, float a, float d, float s, float r);
-
 /// @brief Draws a multi-line graphic bitmap, reached through the frame so a scene never holds a
 ///        `Canvas` directly.
 ///
