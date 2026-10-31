@@ -1,0 +1,130 @@
+---
+title: "1.3 Hardware Overview"
+description: "9 12v +"
+sidebar:
+  order: 2
+banner:
+  content: "From the official Guidebook for OS 4.1. Community firmware may differ."
+guidebook:
+  section: "1.3"
+  chapter: 1
+  pdfPages: [10, 11, 12, 13, 14]
+  printedPages: [4, 5, 6, 7, 8]
+  firmware: "4.1.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+| 1 Power LED 3 Select Control 4 Song or Clip View Illuminates yellow for charging, green when :key[Select] rotary control used for | Select between song, arranger and |
+| --------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
+| charge is complete or red for low-battery. selecting patches, parameters and                                                      | clip view. Also enables parameter |
+| navigating menus.                                                                                                                 | changes to ‘affect all’ functions |
+
+9 12v +
+
+<FigurePending id="fig-1.3-1" page={4}>
+  within the context selected. · USB · 2 Zoom & Scroll Horizontal (SCROLL◄►) and
+  vertical (SCROLL▼▲) navigation through the grid. Press and turn (SCROLL◄►)
+  will zoom in and out of the grid. · 6 · 1 · 4 · 5 · 5 Parameter Controls
+  Adjusts and affects the selected parameter, as labelled above the button
+  (UPPER) in context with the clip type: kit, synth etc Adjusts the selected
+  parameter, as labelled below the button (LOWER) in context with the clip type
+  kit, synth etc... · 5V 12V · 2 · 3 · 2 · 5 · 6 Parameter Selection Select the
+  parameter to be adjusted. The label above and below the selection can be
+  controlled by the (UPPER) & (LOWER) rotaries. Other parameters can be
+  configured in the sound editor. · 7 Pad Grid 16 x 8 grid for sequencing. Also
+  contains shortcuts using [SHIFT] + where columns represent Deluge function
+  groups and row pad represents a parameter. · 8 Alpha Numeric Keyboard Pads are
+  used for text entry for example when entering names using the QWERTY keyboard.
+  · 7 · 9 Keyboard Mode Switches synth, MIDI, or CV clip view from the normal
+  grid to an isomorphic keyboard [KEYBOARD] representation. · 9 · 8
+</FigurePending>
+
+<FigurePending id="fig-1.3-2" page={5}>
+  10 Scale Sets the scale [SCALE] mode and locks clips to the major scale or can
+  be used to change scales. · 11 Clip Type Used to select the clip type between
+  [SYNTH], [KIT], [MIDI] and [CV]. · 12 Cross Screen Edit mode [CROSS SCREEN]
+  ensures any changes to the grid view will be reflected in the grid areas that
+  are not in view. · 13 Navigation Group Navigates through the menus, saves,
+  loads and also assigns controls. · 14 Tempo & Timing Group [TAP] to set tempo
+  by tapping or turn (TEMPO) to set the tempo. · 14 · 10 · 13 · 11 · 124 · 15
+  Internal Microphone · 15 · 16 Main Output (LEVEL) to adjust main output volume
+  and headphone volume. · 16 · 17 · 17 Mode Group: Transport Controls Sequencer
+  [PLAY] and STOP. Also [RECORD], loop and resample. · 18 · 18 Shift Used in
+  conjunction with pads and buttons to select the secondary [SHIFT] function. ·
+  19 Audition / Section Column of pads are manually playable individually across
+  1 octave or as chords to play each of the designated sounds. Also to launch a
+  [SECTION]. · 19 · 20 · 20 Mute / Launch Pads are manually selectable to [MUTE]
+  or unmute clips / rows and [LAUNCH] clips. · 21 Modulation Section Grid area
+  where modulation sources are located and can be selected. · 21 · 22 SD Card
+  Slot · 22
+</FigurePending>
+
+#### Rear Panel
+
+<FigurePending id="fig-1.3-3" page={6}>
+  Line In 6.35mm / 1/4” input Stereo (configurable) · CV Out 2 x, 0-10v
+  configurable 0.01-2v V/Oct or Hz/V · Gate / Trigger Out 4 x, switchable 5-12v
+  configurable v- trig or s-trig. Trigger clock adjustable PPQN out / 192 PPQN
+  out · Line Out 2 x 6.35mm / 1/4 inch outputs · Clock In · Right · Left / Mono
+  · External Microphone 3.5mm / 1/8th inch input · On/Off Power on/off switch ·
+  2 · 1 · 4 · 3 · 2 · 1 · PSU Input Primary power and charging source. 9-12V DC.
+  Centre negative, 500mA + · Gain Microphone (external and internal) Low / Hi
+  switch · MIDI In/Out 5-pin MIDI Din · USB USB-B connector and charging source.
+  USB MIDI Connection · Headphone Output 3.5mm / 1/8” input
+</FigurePending>
+
+#### Front Panel
+
+<FigurePending id="fig-1.3-4" page={6}>
+  Internal Speaker · SD Card Slot SD card used for presets, streaming samples,
+  firmware updates and storage. Any size, formatted to FAT32. Insert pins-up.
+</FigurePending>
+
+USB
+
+The Deluge’s USB type-B connection enables several functions. This can be used as a connection to your computer as a USB MIDI device, for use in any software that supports MIDI. The Deluge may also be powered by its USB connection - either from a computer, or from a USB wall adaptor with an appropriate cable. The Deluge may draw up to 500mA from its power source. Deluge also can be used as a USB Host. This requires Deluge to be DC powered, a USB device connected and then Deluge to be powered up.
+
+DC Power Socket (9 - 12V)
+
+The Deluge may be powered by any centre-negative 9 - 12V DC power supply which can provide at least 500mA. It can be a shared power supply with other units in a typical daisy chained pedal configuration only if the power supply can provide adequate current. The Deluge contains circuitry to minimise ground loop noise in such a setup, although some noise may still be introduced. DC and USB power may be connected simultaneously, in which case the Deluge will draw its power from the DC power supply rather than USB.
+
+It is important to remember that the 9 - 12V DC power supply must be centre-negative, not centre-positive. Using the incorrect power supply may cause damage to the Deluge.
+
+Battery
+
+The Deluge has an internal Li-ion battery, providing 6+ hours of life. The battery charges any time a power source is connected to the USB or DC power socket, regardless of whether the Deluge is switched on. The battery status LED illuminates yellow for charging, green for charge-complete, or red for low-battery.
+
+The Deluge’s battery is an “18650” 3.7V Li-ion, and may be replaced by the user. These batteries are readily available from stores everywhere. A “protected” or “unprotected” type may be used. A battery of any mAh rating may be used - higher mAh ratings simply mean longer battery life.
+
+Please note that your Deluge will be shipped with very little charge in the battery. You will need to plug it into a power source to use it and begin charging the battery.
+
+SD card slot
+
+The Deluge uses SD (or SDHC) card storage to load and record audio samples, store presets and save songs. Typically a 16GB or 32GB is recommended, but any size can be used, formatted to FAT32. The Deluge’s firmware can also be updated via the SD card.
+
+L / MONO and R outputs
+
+The Deluge’s main audio outputs are two quasi-balanced (that is, resistor- balanced but not differential) 1/4" connectors. They will work with non- balanced cables too. For best noise rejection, use balanced cables when connecting the Deluge’s outputs to balanced / differential inputs. Output impedance: 47 ohms.
+
+Deluge will detect if only the “L / MONO” output has a cable inserted (but not the “R” output or headphone output), and will output all sound in mono. In this case all panning and ping-pong delay will be deactivated, and stereo samples will be condensed to mono. This allows you to work on your music on a stereo setup, but not necessarily need to change anything if you are faced with a mono setup.
+
+Headphone output
+
+This can drive headphones, or can be used to connect other equipment with a 3.5mm / 1/8” connector - perhaps computer speakers or a car stereo.
+
+Line input
+
+For recording from another device’s line output. The line input uses TRS 1/4” / 6.35mm connector, which may accept a single-ended / unbalanced signal, a differential / balanced signal, or a stereo signal. Input impedance: 4k.
+
+Mic input
+
+For recording with an external microphone use the 3.5mm / 1/8” jack. Gain is set via the “mic gain” switch, which also affects the internal microphone. Stereo and mono microphones are supported. 4.5V plug-in power is supplied on the tip and ring of the connector, each through a 3.9k resistor.
+
+CV, gate, and trigger clock (“CLK IN”) connectors
+
+These all have the signal on their “tip”, ground on their “sleeve”, and their “ring” connected to ground via a 10k resistor.

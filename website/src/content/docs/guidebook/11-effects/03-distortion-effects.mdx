@@ -1,0 +1,61 @@
+---
+title: "11.3 Distortion Effects"
+description: "Deluge has a distortion effect with three variants which all introduce a gritty aggressive nature to the sound."
+sidebar:
+  order: 2
+banner:
+  content: "From the official Guidebook for OS 4.1. Community firmware may differ."
+guidebook:
+  section: "11.3"
+  chapter: 11
+  pdfPages: [223, 224]
+  printedPages: [217, 218]
+  firmware: "4.1.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+Deluge has a distortion effect with three variants which all introduce a gritty aggressive nature to the sound. The three effects are saturation, decimation and bitcrush.
+
+#### Saturation
+
+Reduces the amplitude of the highest points on a waveform, introducing harmonic content. Saturation is not available at kit level. The only saturation parameter available for adjustment is the amount parameter.
+
+AMOUNT: OFF, 1-15.
+
+#### Decimation
+
+Reduces the audio's sample rate crudely without filtering, then linearly interpolates it back up to the Deluge's native sample rate. High frequency content is lost, and heavily aliased frequencies are introduced. Decimation is available at sound, kit and song level. The only decimation parameter available for adjustment is the amount parameter.
+
+AMOUNT: 0-50.
+
+#### Bitcrush
+
+Reduces the bit-depth of the audio, introducing sharp corners to the waveform. High frequency content is introduced, and most quiet sounds will become louder. Bitcrush is available at sound, kit and song level. The only bitcrush parameter available for adjustment is the amount parameter.
+
+AMOUNT: 0-50.
+
+### Setting sound level distortion effect amount
+
+1. :key[Clip] view, ensure the clip is in-focus.
+2. Press :key[Shift + Decimation Pad], This is also applicable with :key[Bitcrush Pad] or :key[Saturation Pad] effects.
+3. :key[Turn Select] to adjust the amount of distortion. Be careful with volume levels when adding distortion.
+
+or
+
+1. :key[Clip] view, ensure the clip is in-focus.
+2. Access the effects within the menu. Press :key[Select].
+3. Navigate in the menu to the FX section and press :key[Select].
+4. Select either ‘SATURATION’, ‘DECIMATION’, or ‘BITCRUSH’ and press :key[Select].
+5. Adjust the amount, :key[Turn Select] to change the parameter for the selected effect.
+
+### Setting kit and sound level distortion effect amount
+
+1. :key[Clip] view, ensure the clip is in-focus.
+2. Press [CUSTOM 1/2] button to select the affect parameter. Button lit orange.
+3. :key[Turn Upper Gold] to change DECIMATION amount or :key[Turn Lower Gold] to change BITCRUSH amount for the sound selected.
+4. Press :key[AffectEntire] to affect the entire kit. Button lit orange.
+5. :key[Turn Upper Gold] to change DECIMATION amount or :key[Turn Lower Gold] to change BITCRUSH amount for the entire kit selected.
+6. The custom parameters are set in the factory presets by default. These can be assigned or reassigned if required.

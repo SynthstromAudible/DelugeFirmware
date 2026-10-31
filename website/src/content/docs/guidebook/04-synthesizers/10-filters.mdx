@@ -1,0 +1,47 @@
+---
+title: "4.10 Filters"
+description: "Deluge has a high-pass and low-pass filter."
+sidebar:
+  order: 9
+banner:
+  content: "From the official Guidebook for OS 4.1. Community firmware may differ."
+guidebook:
+  section: "4.10"
+  chapter: 4
+  pdfPages: [104]
+  printedPages: [98]
+  firmware: "4.1.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+Deluge has a high-pass and low-pass filter.
+
+<FigurePending id="fig-4.10-1" page={98}>
+  FREQUENCY
+</FigurePending>
+
+HPF - HIGH-PASS FILTER ATTENUATION Allows higher frequencies to pass through the filter and cuts off lower frequencies.
+
+<FigurePending id="fig-4.10-2" page={98}>
+  LPF - LOW-PASS FILTER Allows lower frequencies to pass through the filter and
+  cuts off higher frequencies. Deluge filters are 2-pole and 4-pole and 4- pole
+  analog drive with saturation only on the LPF. Poles refer to how ‘steep’ or
+  aggressive the cutoff curve is. This is measured in dB per octave. · 2 Pole
+  12dB/Octave · 4 Pole 24dB/Octave · FREQUENCY
+</FigurePending>
+
+ATTENUATION
+
+<FigurePending id="fig-4.10-3" page={98}>
+  CUTOFF & RESONANCE The two parameters common to both the filters provide
+  control over the cutoff frequency and also the resonance (emphasis at the
+  cutoff point). · Cut Off Frequency · Stop Transition Band · Band · Resonance ·
+  Pass Band · FREQUENCY
+</FigurePending>
+
+ATTENUATION

@@ -1,0 +1,122 @@
+---
+title: "11.6 Reverb"
+description: "Deluge’s reverb applies to the entire song as a send / return effect."
+sidebar:
+  order: 5
+banner:
+  content: "From the official Guidebook for OS 4.1. Community firmware may differ."
+guidebook:
+  section: "11.6"
+  chapter: 11
+  pdfPages: [230, 231, 232, 233, 234]
+  printedPages: [224, 225, 226, 227, 228]
+  firmware: "4.1.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+Deluge’s reverb applies to the entire song as a send / return effect. Only the amount for each individual part can be adjusted. Reverb emulates the characteristics of a room and its shape. In the real world, audio bounces and ricochets through the room and between walls. Different rooms therefore have different characteristics giving the sense of space and distance.
+
+#### Reverb Principles
+
+<FigurePending id="fig-11.6-1" page={224}>
+  50-80m s · Room Size & Shape · Early Reflections Initial Original Signal ·
+  Subsequent Reflections · Reverb tail can vary dependant on room size. · An
+  emitted sound will be heard followed by the initial reflections, for example
+  direct from the walls within approx 100ms. Subsequent reflections typically
+  where sound bounces between walls will follow. The room size and shape will
+  therefore affect the reverberant sound. · Sends from Sounds, Instruments, Song
+  · Common Reverb · SizeSize · Damp · SEND · SEND · REVERB · Pan & Width ·
+  RETURN · SEND · Sidechain
+</FigurePending>
+
+#### Reverb Parameters
+
+Amount
+
+Sets the amount of signal sent to the reverb. This is specific to each sound, synth, etc while all other parameters are common across sounds, instruments and song. Amount range: 0-50.
+
+Pan
+
+Pans the reverb signal left and right within the stereo-field. Range is 32L-0-32R.
+
+Width
+
+Sets the spread of the reverb giving a wider stereo effect. Range is: 0-50.
+
+Dampening
+
+Emulates the softer elements of a room. For example, a crowd of people, furniture, curtains all absorb rather than reflect sounds. Dampening gives a warmer feel, reducing higher frequencies from the reverb tail.
+
+Size
+
+Sets up the room size emulation. Larger rooms would provide longer delays on the reflections. Range: 0-50.
+
+Side
+
+Sidechain settings for reverb. This is a dedicated sidechain for the reverb output, but still utilises the same source as per the generic sidechain compressor.
+
+### Setting up common reverb parameters
+
+1. :key[Clip] view, ensure the clip is in-focus, example: a kit.
+2. Press :key[Shift] + REVERB pad, reverb shortcuts are as below
+   - :key[Pan Pad]
+   - :key[Width Pad]
+   - :key[Dampening Pad]
+   - :key[Room Size Pad]
+   - :key[Reverb Sidechain Pad]
+   - :key[Amount Pad]
+3. For the selected parameter, :key[Turn Select] to adjust the value.
+
+or
+
+1. Ensure focus is clip view for a synth or kit.
+2. Access the effects within the menu’s. Press :key[Select].
+3. Navigate in the menu to the FX section and press :key[Select].
+4. Navigate in the menu to the ‘REVERB’ section and press :key[Select].
+5. Select either ’AMOUNT’, ‘ROOM SIZE’, ‘DAMPENING’, ‘WIDTH’, ‘PAN’, ‘REVERB SIDECHAIN’. Press :key[Select] for the parameter to select.
+6. Adjust the value of the selected parameter by turning :key[Select].
+
+### Setting reverb send amount
+
+1. :key[Clip] view, ensure the clip is in-focus, example: a kit.
+2. Press :key[Shift] + REVERB :key[Amount Pad].
+3. For the selected parameter, :key[Turn Select] to adjust the send value.
+
+or
+
+1. Ensure focus is clip view for a synth or kit for selected sound.
+2. Access the effects within the menu’s. Press :key[Select].
+3. Navigate in the menu to the FX section and press :key[Select].
+4. Navigate in the menu to the ‘REVERB’ section and press :key[Select].
+5. Select ‘AMOUNT’. Press :key[Select] for the parameter to select.
+6. Adjust the value of the send amount by turning :key[Select].
+
+or
+
+1. Ensure in clip view for a kit, synth.
+2. Press :key[SidechainReverb] affect button. Button illuminates orange.
+3. :key[Turn Lower Gold] to change reverb amount.
+
+### Selecting a reverb room size preset
+
+1. Ensure in clip view for a kit, synth.
+2. Press :key[SidechainReverb] affect button. Button illuminates orange.
+3. Press :key[Lower Gold] to toggle reverb preset between: ‘LARGE’, ‘SMALL’, ‘MEDIUM’.
+
+### Setting the reverb sidechain
+
+1. :key[Clip] view, ensure the clip is in-focus, example: a kit.
+2. Access the effects within the menu’s. Press :key[Select].
+3. Navigate in the menu to the FX section and press :key[Select].
+4. Navigate in the menu to the ‘REVERB’ section and press :key[Select].
+5. Select ‘REVERB SIDECHAIN’. Press :key[Select] for the parameter to select.
+6. Select ‘VOLUME DUCKING’. Press :key[Select] for the parameter to select.
+7. Adjust the level by turning :key[Select].
+8. Options are auto, 0-50.
+   - AUTO takes its parameters from the sidechain compressor of the sound with the highest reverb.
+   - 0-50 Takes parameters from as per the normal sidechain setting. The reverb sidechain allows sidechain compression to be applied to the reverb trails. Deluge achieves this even with a common reverb, by using the sidechain compression parameters of the sound with the most reverb and applying them to the reverb itself. This is the auto setting and typically results in a pleasing and typical sound. Alternatively, the reverb’s sidechain compression settings can be manually overridden in the sound editor if desired.

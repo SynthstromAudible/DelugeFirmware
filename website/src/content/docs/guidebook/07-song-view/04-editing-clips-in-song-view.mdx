@@ -1,0 +1,87 @@
+---
+title: "7.4 Editing Clips in Song View"
+description: "Song view also provides the functionality to edit certain features of clips from within this view."
+sidebar:
+  order: 3
+banner:
+  content: "From the official Guidebook for OS 4.1. Community firmware may differ."
+guidebook:
+  section: "7.4"
+  chapter: 7
+  pdfPages: [148, 149, 150]
+  printedPages: [142, 143, 144]
+  firmware: "4.1.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+Song view also provides the functionality to edit certain features of clips from within this view. Changing instruments, cloning and deleting clips is possible.
+
+### Checking the instrument for a clip
+
+1. Press :key[Song] to switch to song view.
+2. Press & hold a :key[Pad] within the clip row to check.
+3. While still holding, the instrument button will flash indicating the type selected and the display will show the instrument preset. For example synth, preset 001 SYNC BASS
+4. Affect parameters for the clip also become available and in-focus.
+5. Holding a clip in an empty clip row will show the instrument type and preset that it will create when tapping the clip row.
+
+<FigurePending id="fig-7.4-1" page={142}>
+  [PAD] Press & hold pad for clip row to show the instrument and preset for the
+  clip
+</FigurePending>
+
+### Changing the clips instrument from song view
+
+1. Press :key[Song] to switch to song view.
+2. Press & hold a :key[Pad] within the clip row to change.
+3. While still holding, select the instrument type, example :key[Synth], :key[Kit].
+4. While still holding, select the instrument preset by turning :key[Select].
+5. Holding a clip in an empty clip row will also allow changes to be made.
+
+### Creating an audio clip in song view
+
+1. Press :key[Song] to switch to song view.
+2. Press & hold a :key[Pad] within the clip row. This can be either an existing or blank row. The instrument button will flash indicating the type selected and display will show the preset or MIDI/CV Channel.
+3. While still holding the pad, press :key[Select].
+4. The track will be converted to an audio clip and the display will show the name, example: ‘AUDIO1’. If notes exist and indicator is displayed and the clip wont be converted.
+5. Selecting the audio clip will allow audio to be loaded, recorded, edited.
+
+### Deleting a clip from within song view
+
+1. Press :key[Song] to switch to song view.
+2. Press & hold a :key[Pad] of the clip row to delete + press :key[Save].
+3. The clip will be deleted and the row above moved down. Undo / redo functions are not available.
+
+### Moving a clip row from within song view
+
+1. Press :key[Song] to switch to song view.
+2. Press & hold a :key[Pad] within the clip row to move + :key[Turn Vertical].
+3. The clip will be relocated into a different row relative to the other clips.
+
+### Cloning a clip from within song view
+
+1. Press :key[Song] to switch to song view.
+2. Press & hold a :key[Pad] within the target clip row to clone + press a :key[Pad] on the destination row where the new cloned clip will be located.
+3. The clip will be cloned from the target to the destination and assigned a different section and won’t be launched.Cloned clips are initially linked to the original but can be edited.
+
+### Unlinking cloned clips when using same preset
+
+Clips with the same preset cannot be used multiple times within multiple instruments in the same song. If a preset is already in use, the preset can be unlinked from its “original” creating an independent version. Example, to reuse preset 10, a new unlinked version, can be created as 10A. This allows multiple clips with the same preset.
+
+1. :key[Load + Synth] or :key[Load + Kit] to open a preset using the preset load menu as opposed to selecting a present by turning :key[Select].
+2. The alphanumeric keyboard will open to search a preset by name if required.
+3. :key[Turn Select] to choose the same preset that Is already used. Example preset 10.
+4. Press :key[Load] will show ‘THIS PRESET IS IN-USE ELSEWHERE IN YOUR SONG’, indicating this is a preset already in use in the song.
+5. Press & hold :key[Load] until ‘CLONE’ - clone displays.
+6. Press :key[Load] again, and a new independent version will be loaded. Example 10A.
+
+### Editing clip parameters in song view
+
+1. Press :key[Song] to switch to song view.
+2. Press & hold a :key[Pad] within the clip row of which to change the parameters.
+3. While still holding, the affect parameter functions will be accessible.
+4. The 8 parameter buttons can be changes and the associated :key[Upper Gold] and :key[Lower Gold] controls adjusted while ever the :key[Pad] is held in song view.

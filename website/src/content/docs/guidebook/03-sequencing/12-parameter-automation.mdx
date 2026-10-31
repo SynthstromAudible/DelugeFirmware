@@ -1,0 +1,87 @@
+---
+title: "3.12 Parameter Automation"
+description: "Parameter automation is the creation and playback of automated changes to sound parameters, sequenced in conjunction with the other contents of a clip on…"
+sidebar:
+  order: 11
+banner:
+  content: "From the official Guidebook for OS 4.1. Community firmware may differ."
+guidebook:
+  section: "3.12"
+  chapter: 3
+  pdfPages: [72, 73, 74, 75]
+  printedPages: [66, 67, 68, 69]
+  firmware: "4.1.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+Parameter automation is the creation and playback of automated changes to sound parameters, sequenced in conjunction with the other contents of a clip on the Deluge. A filter sweep would be one common example of.
+
+### Recording parameter control movements
+
+1. Start recording with :key[Record] and then :key[Play].
+2. Select a parameter to record, example pan - :key[LevelPan], button illuminates orange. Other parameters can be used along with the :key[Upper Gold] :key[Lower Gold] control.
+3. Adjust :key[Lower Gold] - pan, control while recording. The changes in the parameter will be recorded in time with the sequence.
+4. Automation is overwritten if the sequence loops while changes are being made.
+5. The automation changes are recorded from the point of change to the point where changes stop. A smooth transition will be automatically made back to the original to ensure a smooth continuous loop.
+6. The parameters with automation attached can still be manually changed. The sequencer will transition back to the automated parameter pathway once manual changes are completed.
+7. Automation is independent of notes so will remain even if notes are deleted.
+
+### Recording manual parameter changes per pad
+
+1. Set to :key[Clip] view.
+2. Select a parameter to record, example pan - :key[LevelPan], button illuminates orange. Other parameters can be used along with the :key[Upper Gold] :key[Lower Gold] control.
+3. Press and hold :key[Pad] at the desired step + :key[Turn Lower Gold] - pan. The changes in the parameter will be made as a snapshot at the specific note step / time slot and end at the next note / step.
+4. Deluge treats any region of automation as if the entire clip is automated.
+5. Automation is independent of notes so will remain even if notes are deleted.
+
+#### Example: Automating Pan with Controls
+
+<FigurePending id="fig-3.12-1" page={67}>
+  Automation is recorded into the sequencer and can be played back. Adjusting
+  the (LOWER) - for pan, control with the target - level / pan, parameter
+  selected. · 32R · 0 · PAN · 32L · COPY · Off 49 · PASTE · LPF CUTOFF · 0 ·
+  [LEARN / INPUT] + [PARAMETER CONTROL] to copy the automation of one parameter.
+  · [SHIFT] + [LEARN / INPUT] + [PARAMETER CONTROL] to paste the copied
+  parameter automation. · Automation copy / paste operates across the time
+  region length of the ‘view’. Automation can be copied to / from different
+  parameters, different clips and song files. Zoom levels can be adjusted prior
+  to copying and automation will be adjusted to meet the new zoom setting.
+</FigurePending>
+
+#### Example: Automating Pan with Note Steps
+
+<FigurePending id="fig-3.12-2" page={68}>
+  Automation is recorded into the sequencer by holding a [PAD] and adjusting the
+  (LOWER) - For pan, control with the target - level / pan, parameter selected.
+  A parameter change is set for the specific [PAD] step and is held until the
+  next note to ensure transitions account for note release. Copy / paste
+  considers the entire region automation, not just the single step. · 32L · 0 ·
+  PAN · 32R · (SCROLL◄►) + [BACK / UNDO] to clear all notes and automation. ·
+  32L · 0 · 32R · PAN
+</FigurePending>
+
+### Deleting recorded automation for a specific parameter
+
+1. Select a parameter to delete, example pan - :key[LevelPan], button illuminates orange.
+2. Press :key[Shift + Lower Gold] - pan, upper or lower to match the parameter to delete.
+3. Automation is deleted and the display will indicate ‘AUTOMATION DELETED’ to confirm deletion.
+4. The automation changes can be undone using :key[BackUndo] or :key[Shift + BackUndo].
+
+### Copy / paste automation for time region of pads
+
+1. Select a parameter to copy, example pan - :key[LevelPan], button illuminates orange.
+2. Press :key[LearnInput + Lower Gold] - pan, i.e. upper or lower to match the parameter to COPY. Note, automation is copied for one individual parameter at a time.
+3. Display indicates ‘AUTOMATION COPIED’. If no automation is present then the display will show ‘NO AUTOMATION TO COPY’.
+4. Select a destination parameter to paste to, example cutoff - :key[CutoffRes], button illuminates orange.
+5. Press :key[Shift + LearnInput + Upper Gold] - cutoff, i.e. upper or lower to select the parameter to COPY to. Note, automation is copied for one individual parameter at a time.
+6. Display indicates ‘AUTOMATION PASTED’. If no automation has been copied then the display will show ‘NO AUTOMATION TO PASTE’.
+7. The automation changes can be undone using :key[BackUndo] or :key[Shift + BackUndo].
+
+:::note
+Stutter parameter cannot be automated. MIDI control can also be automated via MIDI messages. External MIDI controls can be automated on Deluge parameters.
+:::

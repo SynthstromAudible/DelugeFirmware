@@ -1,0 +1,70 @@
+---
+title: "7.3 Advanced Control of Single Clips in Song View"
+description: "More advanced options are available in song view than just the start stop commands for individual clips."
+sidebar:
+  order: 2
+banner:
+  content: "From the official Guidebook for OS 4.1. Community firmware may differ."
+guidebook:
+  section: "7.3"
+  chapter: 7
+  pdfPages: [145, 146, 147]
+  printedPages: [139, 140, 141]
+  firmware: "4.1.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+More advanced options are available in song view than just the start stop commands for individual clips. Clips are armed to ensure the timing of the clip start aligns with the overall song. The LAUNCH pad column (used for MUTE in clip view) is the important control function used in song view.
+
+<FigurePending id="fig-7.3-1" page={139}>
+  [LAUNCH] Mute / launch column pad enables the arming and triggering of clips
+  (per row) in time with the song. · Mute / Launch / Section · Audition
+</FigurePending>
+
+Press :key[Launch Pad] to play the clip row in song view.
+
+Launch status
+
+GREEN Clip is ‘launched’ : when playing or stopped.
+
+RED Clip is ‘stopped’ : when playing or stopped.
+
+GREEN FLASHING Clip is ‘armed’ ready to stop at its seq end: when playing.
+
+RED FLASHING Clip is ‘armed’ ready to play in time: when playing.
+
+Display shows countdown of loops to complete when a clip row is ‘armed’ and launching or stopping clips, default is 1. To increase the loops to play prior to launch / stop, :key[Turn Select] to change the loop countdown. Press :key[Select] to cancel loop countdown.
+
+Press :key[Shift + Launch Pad] to immediately play the clip row in song view.
+
+### Immediately launching / stopping a clip in song view
+
+1. With the sequencer playing, Press :key[Shift + Launch Pad], where LAUNCH is the row of the clip to play.
+2. If the clip was not playing, it will immediately play in time with the sequence.
+3. If the clip was already playing it will immediately stop.
+
+### Arming to launch / stop a clip in song view
+
+1. With the sequencer playing, Press :key[Launch Pad], where LAUNCH is the row of the clip to play.
+2. If the clip was not playing, its launch pad will flash red until the clip is aligned to the sequence loop (indicated by the display countdown number). At sequence alignment point it will play and the pad will be illuminated solid green.
+3. If the clip was already playing its pad will flash green until the sequence reaches its end. The pad will then be illuminated solid red and the clip is then stopped. The display will show the countdown number for the sequence.
+
+### Adjusting armed countdown on the fly
+
+1. When a clip is armed to launch or to stop it will flash red or green respectively. During this time the display will show a countdown number that signifies a full or part loop to complete prior to launch / stop.
+2. While the number is displayed, :key[Turn Select] to adjust the number of the loop countdown - increasing or reducing the wait timer to trigger the launch / stop command.
+3. While the number is displayed, press :key[Select] to clear the countdown timer and clear arming of the clip.
+
+### Soloing clips in song view
+
+1. To solo a clip, press & hold :key[Horizontal + Launch Pad] of clip row to solo.
+2. If the sequence is playing the solo request will be ‘armed’ to solo on the next repeat cycle. Pad will flash when armed.
+3. The launch pad will illuminate blue when the clip row is played in solo.
+4. Other clips of course will be muted and these will be dimly lit.
+5. To remove the solo, press the :key[Launch Pad].
+6. To solo immediately without arming, press & hold :key[Shift + Horizontal + Launch Pad].

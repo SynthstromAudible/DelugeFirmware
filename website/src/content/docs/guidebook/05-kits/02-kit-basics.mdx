@@ -1,0 +1,80 @@
+---
+title: "5.2 Kit Basics"
+description: "If synth clips mainly support melodic elements with the ability for sample use, kits would more often be used with samples as the primary elements."
+sidebar:
+  order: 1
+banner:
+  content: "From the official Guidebook for OS 4.1. Community firmware may differ."
+guidebook:
+  section: "5.2"
+  chapter: 5
+  pdfPages: [115, 116, 117]
+  printedPages: [109, 110, 111]
+  firmware: "4.1.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+If synth clips mainly support melodic elements with the ability for sample use, kits would more often be used with samples as the primary elements. Kits are used to form step patterns across the grid columns. These sounds can be samples, a synth, audio or even MIDI and CV. Unlike a synth which provides a sequenced melody, kits are used to typically generate a rhythm, maybe for drums or percussion or any other sequenced element.
+
+<FigurePending id="fig-5.2-1" page={109}>
+  Notes to trigger the kit’s sounds are recorded or programmed into the step
+  sequencer. Programming is done by pressing a pad to toggle it on (lit) / off
+  (unlit). · In play mode, pressing pads will silently enter the step; when not
+  in play mode, pads will additionally audition the sound when selected. · Time
+  · Sound · Sound · Sound · Sound · Sound · Sound · Sound · Sound · Individual
+  sounds per row. Typically samples but also synth-based sounds, or MIDI / CV
+  outputs. · Beats and loops as opposed to single ‘hits’ can also be used. Any
+  loops in the factory kit is set to time stretch to the current Deluge tempo.
+  These samples will extend beyond a single pad to match its length. Clips may
+  extended to match longer loops. · Audition pad to play the sounds.
+</FigurePending>
+
+### Selecting kit view
+
+1. Press :key[Kit]. The button illuminates red.
+2. Scale and keyboard view are not available for kits.
+3. The default kit preset loaded is ‘000 TR-808’.
+4. Some sounds may be off grid and can be brought into view with the :key[Vertical] control.
+5. Rows which do not contain a sound will be indicated with an unlit :key[Mute Pad]. :key[Mute Pad] will be illuminated for rows containing sounds.
+
+### Selecting a sound row
+
+1. Press :key[Kit]. The button illuminates red.
+2. Press :key[Audition Pad] for the respective row to play and select. Sound name will display while pad is pressed.
+3. The sound will play out and the audition pad will illuminate dim to indicate that the row and hence the sound is selected. Press :key[Shift + Audition Pad] to select the row silently.
+4. Selected sounds can be edited, replaced etc as individual rows.
+
+### Adjusting a kit row colour
+
+1. Press :key[Kit]. The button illuminates red.
+2. Press & hold :key[Shift + Audition Pad] for the respective row to change and :key[Turn Vertical].
+3. Colour will change as the :key[Vertical] is adjusted. Release control and buttons when the colour is selected.
+
+:::note
+Many features that are available in synth view are also available in kit view. These include the parameter affect group, mute and audition pads. Generic sequencer grid functions apply both to synth and kits.
+:::
+
+### Re-ordering kit rows in the sequencer
+
+1. Press :key[Kit]. The button illuminates red.
+2. For the row to re-order. Firstly, press & hold :key[Audition Pad] then press & hold :key[Mute Pad].
+3. While still holding both of the :key[Audition Pad] and :key[Mute Pad] buttons, :key[Turn Vertical].
+4. The row will be relocated to the new location and other rows repositioned to match the change.
+
+### Adjusting affect parameters for kits
+
+1. Press :key[Kit]. The button illuminates red.
+2. Press :key[Audition Pad] to select the row sound.
+3. The sound will play out and the audition pad will illuminate dim to indicate that the row and hence the sound is selected. :key[Shift + Audition Pad] for silent selection.
+4. Selecting the desired parameter, for example: :key[LevelPan].
+5. Turn the :key[Upper Gold] - level or the :key[Lower Gold] - pan, control to change the selected parameter for the row sound selected.
+6. To change all kit sounds in the clip, press :key[AffectEntire]. Change parameters as per steps 5-6 above. The selected parameter for ALL clip sounds are adjusted collectively.
+
+:::note
+Just a few of the sound editor settings have the ability to be edited in bulk for all sounds within a kit. These are POLYPHONY, REPEAT MODE, REVERSE, SPEED, and PITCH AND SPEED (pitch / speed). When editing any of these, you may hold down the affect-entire button while turning the select knob in order to have your edit applied to all sounds within your kit.
+:::

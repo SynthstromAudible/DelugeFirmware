@@ -1,0 +1,52 @@
+---
+title: "8.2 Arranger relationship with the other views"
+description: "Arranger consists of a group of linearly arranged instrument and audio clip instances of which reference the section colours from those in song view."
+sidebar:
+  order: 1
+banner:
+  content: "From the official Guidebook for OS 4.1. Community firmware may differ."
+guidebook:
+  section: "8.2"
+  chapter: 8
+  pdfPages: [161]
+  printedPages: [155]
+  firmware: "4.1.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+Arranger consists of a group of linearly arranged instrument and audio clip instances of which reference the section colours from those in song view. Think of arranger view as an extension of song view rather than a stand-alone function. Understanding the relationship with clip, song and arranger is important.
+
+#### Relationship Between Views
+
+<FigurePending id="fig-8.2-1" page={155}>
+  Clip View - [CLIP] Rows: discrete synth note pitch or kit sounds. · Note /
+  Sound Note / Sound Note / Sound Note / Sound Note / Sound Note / Sound Note /
+  Sound Note / Sound · Mute / launch: mute’s sounds or notes. · Audition /
+  section: auditions notes / sounds. · Clip is the entire grid. 5 types of clips
+  exist; synth, kit, MIDI, CV and audio. A clip contains sequencing or audio for
+  each discrete clip element. · The entire clip consisting of all sounds and
+  notes for the clip. Rows are pitch for synth notes and are sounds for kits.
+  Colours can be changed. · Song View - [SONG] Rows: single instrument or audio
+  clip compressed to a representative 1 row each. · Clip Clip Clip Clip Clip
+  Clip Clip Clip · Mute / launch: launches clips. Used for looping control and
+  commands. · Audition / section: sections & section launch by colour. Used for
+  looping control and commands. · Clip per row. Column notes / sounds collapse
+  down to one row, length matches clip view. Sections are groups of clip rows
+  identified by 1 of 12 audition pad section colours. · Clips are arranged into
+  single rows where they can be triggered individually or together in groups
+  managed as coloured sections. · Instances · Arranger View - [SONG] [SONG]
+  Rows: individual instrument, MIDI, CV, audio per row. · Instrument Instrument
+  Instrument Instrument Instrument Instrument Instrument Instrument · Pressing
+  the clip instance ‘tail’ switches to its clip view. · Mute / launch: mutes /
+  unmutes the ‘track’ row. · Audition / section: auditions a clip by one of its
+  sounds. · Clip instances, arranged in a linear sequencer, handled on an
+  instrument by instrument basis, covers audio clips and includes variations,
+  gaps and parts to be assembled together. · A clip instance with its start pad
+  brightly lit and the length is shown by additional pads - its ‘tail’ dependent
+  on grid resolution. Clip instance colours reflect song section colours.
+</FigurePending>

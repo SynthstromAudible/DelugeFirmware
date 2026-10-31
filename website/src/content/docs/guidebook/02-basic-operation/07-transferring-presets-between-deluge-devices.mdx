@@ -1,0 +1,35 @@
+---
+title: "2.7 Transferring Presets Between Deluge Devices"
+description: "Presets can be transferred between devices when the preset has been packaged in the correct format for Deluge to import."
+sidebar:
+  order: 6
+banner:
+  content: "From the official Guidebook for OS 4.1. Community firmware may differ."
+guidebook:
+  section: "2.7"
+  chapter: 2
+  pdfPages: [32]
+  printedPages: [26]
+  firmware: "4.1.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+Presets can be transferred between devices when the preset has been packaged in the correct format for Deluge to import. This needs to be setup manually as there is no automated preset export function. Part of this function would be performed on a PC or Mac on the SD card folders.
+
+### Transferring presets (sd card to sd card)
+
+1. Insert the source SD card into the PC/Mac card reader.
+2. The preset XML file to export should be identified on the SD card. This can be copied to a folder on the PC / Mac. For example a kit preset found in the KITS folder and filename breakbeat.xml.
+3. Identify any audio files that are associated with the preset. These should be also copied to the PC/Mac within a sub-folder with the same name as the XML file. For example name the sub-folder ‘breakbeat’.
+4. Eject the source SD card from the PC/Mac card reader and insert the destination SD Card.
+5. Copy the XML file from the PC/Mac folder into the appropriate folder on the destination SD. For example into the KITS folder.
+6. Copy the folder named after the XML and which contains the audio from the PC/Mac to the SD Card. Copy this folder to the same location, next to the XML file.
+7. Insert the SD card into Deluge.
+8. Deluge will identify the audio files when loading the ‘imported’ the preset. The imported preset can be then saved.
+
+:::note
+Any imported presets will be retained in their original audio folder location and are not transferred elsewhere when saving the preset or a song containing it. This means the original folder should always be retained and not changed for the preset to be functional.
+:::

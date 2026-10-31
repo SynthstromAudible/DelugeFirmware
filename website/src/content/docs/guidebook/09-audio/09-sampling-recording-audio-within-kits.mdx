@@ -1,0 +1,69 @@
+---
+title: "9.9 Sampling & Recording Audio within Kits"
+description: "Kits are a great environment for sampling audio."
+sidebar:
+  order: 8
+banner:
+  content: "From the official Guidebook for OS 4.1. Community firmware may differ."
+guidebook:
+  section: "9.9"
+  chapter: 9
+  pdfPages: [187, 188, 189]
+  printedPages: [181, 182, 183]
+  firmware: "4.1.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+Kits are a great environment for sampling audio. Samples can be recorded and arranged into a kit. Kits can be combination of samples or synth sounds.
+
+### Recording an audio sample in to a new kit
+
+1. Input will be line-IN or mic (external or internal). The mic gain can be changed on the input switch.
+2. Press :key[Shift + Kit] from clip view to create a blank a kit clip.
+3. The browser will open to select a sample from the SD card or a previous last recent recording may by appear on the grid.
+4. Press :key[Record]. Button illuminates flashing red and the display indicates ‘RECORDING’ to indicate that recording has started.
+5. Press :key[Record] again to end recording. Recording ends and is normalised.
+6. The recording is assigned to a row of pads indicated by a green :key[Mute Pad].
+7. Press :key[Audition Pad] to play back the sample.
+
+### Recording an audio sample into an existing kit
+
+1. Input will be line-IN or mic (external or internal). The mic gain can be changed on the input switch.
+2. Press :key[Kit] from clip view and selected a kit to record into.
+3. Press & hold :key[Audition Pad] of blank or selected row + :key[Record].
+4. Recording will start. Button illuminates flashing red and the display indicates ‘RECORDING’ to indicate that recording in progress.
+5. Press :key[Record] again to end recording. Recording ends and is normalised.
+6. The recording is assigned to a row of pads indicated by a green :key[Mute Pad].
+7. Press :key[Audition Pad] to play back the sample.
+
+### Setting sampling input monitoring
+
+1. Press :key[Shift + Settings Pad] to open settings menu.
+2. :key[Turn Select] to highlight ‘RECORDING’ - recording option.
+3. Press :key[Select].
+4. :key[Turn Select] to highlight ‘SAMPLING MONITORING’
+5. Press :key[Select] to open monitoring options.
+6. :key[Turn Select] to highlight:
+   - ON: switches monitoring when recording samples on.
+   - OFF: switches monitoring when recording samples off.
+   - CONDITIONAL (Default): conditional monitoring. Recording from a microphone (internal or external) AND headphones connected, monitoring will occur. Recording using the LINE IN input, monitoring will always occur.
+
+### Slicing audio across a new kit
+
+1. Press :key[Shift + Kit] from clip view to create a new kit clip.
+2. The browser will open to select a sample from the SD card or a previous last recent recording may by appear on the grid.
+3. To use a previous recorded samples use :key[Select] to scroll through files and folders. To select another file or folder from within the browser, press :key[BackUndo] to back out of the recording files and navigate others. Selections may default to previously selected folder / file.
+4. Press & hold :key[Select] while the desired sample is in view / in-focus to open the sampling context sub menu.
+5. :key[Turn Select] to highlight ‘SLICE’
+6. Press :key[Select]. Number of slices is indicated at which to divide the sample. 16 is default. :key[Turn Select] to adjust, example, to 8.
+7. Press :key[Select] to slice the sample across the elected number of pads.
+
+<FigurePending id="fig-9.9-1" page={183}>
+  1 · 2 · 3 · 4 · 5 · 6 · 7 · 8 · Single Sample Slices into number selected · 1
+  · 8 7 6 5 4 3 2 · Kit rows
+</FigurePending>

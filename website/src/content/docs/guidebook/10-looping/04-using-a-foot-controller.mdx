@@ -1,0 +1,66 @@
+---
+title: "10.4 Using a Foot Controller"
+description: "Loop recording carries a specific workflow and a foot controller when recording and playing loops especially live is a useful accessory."
+sidebar:
+  order: 3
+banner:
+  content: "From the official Guidebook for OS 4.1. Community firmware may differ."
+guidebook:
+  section: "10.4"
+  chapter: 10
+  pdfPages: [212, 213, 214]
+  printedPages: [206, 207, 208]
+  firmware: "4.1.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+Loop recording carries a specific workflow and a foot controller when recording and playing loops especially live is a useful accessory. Guitarists for example can control the loop recording while concentrating hands-on with their guitar. Global MIDI commands provide an easy interface between Deluge and a MIDI foot switch.
+
+<FigurePending id="fig-10.4-1" page={206}>
+  MIDI Out to Deluge MIDI In · 1 LOOP · 2 LAYER · 3 PLAY · 4 UNDO · Command
+  Option PLAY · Menu · Deluge Manual Control · Description · [PLAY] · Play /
+  stop playback. · Press (SCROLL◄►) + [PLAY] · RESTART · Restart playback, if
+  already playing. · RECORD · [RECORD] · Record · Global MIDI Commands [SHIFT] +
+  (SELECT) · TAP TEMPO · Tap tempo to capture a tempo based on taps. Reset the
+  last state, undo the prior action. Restore the last state, redo the prior
+  action. Triggers a process the same as performing regular looping and
+  overdubs. Triggers a process the same as performing continuous looping and
+  overdubs. · [TAP TEMPO] · UNDO · [BACK / UNDO] · MIDI &gt; CMD · REDO ·
+  [SHIFT] + [REDO] · LOOP · Triggers a process · LAYERING LOOP · Triggers a
+  process · This is one example of a looper pedal set up. Many options exist.
+  Note data must be sent for commands to work with other MIDI controllers.
+</FigurePending>
+
+### Setting up an external foot controller for looping
+
+1. Connect the foot switch to the MIDI in connection of Deluge while Deluge is powered off.
+2. Power up the Deluge.
+3. Press :key[Shift + Select] to open the settings menu.
+4. Navigate to MIDI settings, :key[Turn Select] and navigate to ‘COMMANDS’.
+5. With ‘COMMANDS’ in-focus, press :key[Select] to open the global MIDI command menu options.
+6. Choose the option to map to the external switch: Example: switch 1 = loop, switch 2 = layer, switch 3 = play, switch 4 = undo. This will be dependant on the device connected and number of switches.
+7. With the option in-focus press :key[Select] and the :key[LearnInput] button will blink indicating it is available for mapping. ‘NONE’ is displayed if no MIDI note or channel is currently assigned.
+8. Press & hold :key[LearnInput] and press the associated switch on the external MIDI foot controller.
+9. The display will indicate ‘SET’ to show the setup is now complete and the switch is mapped to the specific function.
+10. To unmap the command, :key[Turn Select] when the function setting is in- focus or set it to a new input.
+
+#### LOOP v LAYER Global Commands
+
+Two main modes exist for loop recording with overdubs. Regular, which captures singular audio clip loops manually or continuous which automates the ongoing recording of additional fixed audio clips. Global commands enable single MIDI inputs to trigger the looping processes when using external gear such as a foot switch.
+
+LOOP LAYER
+
+Acts in the same way as regular loop Acts in the same way as continuous layer recording and overdubbing. Steps loop recording and overdubbing. Steps triggered are:- triggered are:-
+
+• If playback was not previously active, • If playback was not previously active, start playback and begin recording on start playback and begin recording on any clip(s). any clip(s).
+
+• If recording is in progress, will finish • If recording is in progress, will finish recording of a clip (or overdub) - recording of a clip (or overdub) - either arming it to stop recording soon, either arming it to stop recording soon, or immediately “closing” a tempo- or immediately “closing” a tempo- determine first loop. determine first loop.
+
+• Create an overdub from the ‘original’ • Create overdubs from the ‘original’ last clip / overdub that was recorded. last clip / overdub that was recorded. This will overdub in a clip directly This will overdub in clips directly below below If playback is active but no If playback is active but no recording recording in progress. If you wish to in progress. If you wish to manually manually select which clip the overdub select which clip the overdub will be will be created from, hold down one of created from, hold down one of its its main 16 pads in song view and main 16 pads in song view and then then send the LOOP command. send the ‘Layer’ command.
+
+• Delete an overdub if one is pending to • Delete an overdub if one is pending to begin recording a clip - all red row in begin recording a clip - all red row in song view. song view.

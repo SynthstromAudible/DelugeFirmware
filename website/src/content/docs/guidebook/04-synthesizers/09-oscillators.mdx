@@ -1,0 +1,77 @@
+---
+title: "4.9 Oscillators"
+description: "Deluge provides several oscillator types, set within the OSC 1 & OSC 2, TYPE Setting."
+sidebar:
+  order: 8
+banner:
+  content: "From the official Guidebook for OS 4.1. Community firmware may differ."
+guidebook:
+  section: "4.9"
+  chapter: 4
+  pdfPages: [101, 102, 103]
+  printedPages: [95, 96, 97]
+  firmware: "4.1.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+Deluge provides several oscillator types, set within the OSC 1 & OSC 2, TYPE Setting.
+
+<FigurePending id="fig-4.9-1" page={95}>
+  OSC1 TYPE SINE TRIANGLE SQUARE
+</FigurePending>
+
+#### Digital Waveforms
+
+Triangle Sine
+
+<FigurePending id="fig-4.9-2" page={95}>
+  TIME · TIME · AMPLITUDE · AMPLITUDE
+</FigurePending>
+
+Sawtooth Square
+
+<FigurePending id="fig-4.9-3" page={95}>
+  AMPLITUDE · AMPLITUDE · TIME · TIME
+</FigurePending>
+
+#### Analog Waveforms
+
+Sawtooth ASquare
+
+<FigurePending id="fig-4.9-4" page={95}>
+  AMPLITUDE · AMPLITUDE · TIME · TIME
+</FigurePending>
+
+#### Audio / Inputs as an Oscillator Waveform
+
+Type The ability to use a standard audio sample as an oscillator is also possible. While single cycles are also useful here, they are better applied in a wavetable synth.
+
+<FigurePending id="fig-4.9-5" page={96}>
+  TYPE INL INR INLR · In left/right, in right or in left, are automatically
+  available when a physical line in is connected. · An audio sample can be used
+  as the oscillator source. A series of sample specific options are available in
+  the sound editor when SAMPLE is selected. · TYPE INR INLR SAMPLE · A wavetable
+  file can be assigned to the oscillator source to create a wavetable synth. The
+  main parameter is the wave position used by the oscillator. Navigation
+  function of the wave is accessed in the oscillator options or via the keyboard
+  shortcut. · Wavetable navigation set per Osc. Available when Type is
+  Wavetable. · TYPE INLR SAMPLE WAVETABLE
+</FigurePending>
+
+### Using a sample as an oscillator waveform source
+
+1. Press :key[Clip] to select clip view. This is indicated by the clip button illuminated blue.
+2. Select synth by pressing :key[Synth] if not already selected. The synth button illuminates red.
+3. Press :key[Shift + Type Pad] as quick access shortcut for OSC 1 or 2. Alternatively use the nested menu options by pressing :key[Select] and navigating to ‘TYPE’.
+4. Turning :key[Select] navigates the waveform options. Select SAMPLE.
+5. Use :key[BackUndo] to exit sub-menu and back up a level. A new set of parameters, made available by selecting the SAMPLE option are now accessible.
+6. Select a sample by navigating to ‘FILE BROWSER’ by turning :key[Select].
+7. Pressing :key[Select] while FILE BROWSER is in focus opens the option to browse and select a sample, ‘BOTTOM-TO-TOP’ will appear on the display to indicate the bottom-to-top note range.
+8. Press :key[Select] to enter the sample browser. By default the factory folders for ARTISTS, DRUMS, RECORD, RESAMPLE are available which can be selected by turning and then pressing :key[Select] when the folder is in-focus.
+9. Navigate samples and folders by turning :key[Select]. The sample will audition and an illustration of the sample will be mapped across the grid.
+10. Press :key[Select] to load the sample as the oscillator wave.

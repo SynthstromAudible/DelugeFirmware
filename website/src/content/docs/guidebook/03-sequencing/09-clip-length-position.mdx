@@ -1,0 +1,51 @@
+---
+title: "3.9 Clip Length & Position"
+description: "Default clip length is 1 bar."
+sidebar:
+  order: 8
+banner:
+  content: "From the official Guidebook for OS 4.1. Community firmware may differ."
+guidebook:
+  section: "3.9"
+  chapter: 3
+  pdfPages: [66, 67]
+  printedPages: [60, 61]
+  firmware: "4.1.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+Default clip length is 1 bar. This however can be changed which will extend the sequence beyond the grid in focus. This can be navigated using the scroll and zoom features. Automatic extending of clips will take place if recorded to a blank clip (no notes or sounds).
+
+### Adjusting clip length
+
+1. Press :key[Shift + Turn Horizontal] control to adjust the clip length. Clockwise to increase length. Anti-clockwise to reduce clip length.
+   - The display will show the length in bars : beats : 16th notes.
+   - The column pads on the grid will also indicate the clip length by illuminating dim grey for columns outside of the length. The grid columns within the length will be unlit / off.
+   - Automatic scrolling will take place if the length is extended further beyond the right side columns. Automatic zooming will take place when clip length is reduced less than half of the grid. 16th note examples:
+
+<FigurePending id="fig-3.9-1" page={60}>
+  0:2:0 · 16th grid reduced to half the length. · 0:3 0 · 16th grid reduced to
+  12 steps, 3/4 length. · 0:2:2 · 16th grid at 10 steps, bar 1, beats 2 (Qtr
+  Notes), 2 x 16th notes. · 1:1:0 · 16th grid extended to 20 steps, 1+1/4
+  length. Scroll across bars. · Bar Beat · Bar Beat · Beat · Beat · Beat
+</FigurePending>
+
+### Duplicating pattern contents - multiply clip length
+
+1. Press :key[Shift + Horizontal] to duplicate the clip length once and associated pattern.
+   - Automatic zooming out will take place when clip length is increased. The grid resolution time division may automatically change for example from 16th to 8th notes.
+   - Multiplying again will therefore ‘double’ the 8th note view.
+   - Zoom can be restored and scrolling to view across the entire grid if required.
+   - Any iteration dependance settings may be automatically changed when duplicating / multiplying in order to retain the same sounds as the original clip.
+
+<FigurePending id="fig-3.9-2" page={61}>
+  [SHIFT] + press (SCROLL◄►) Grid sequence pattern is duplicated to extend the
+  entire sequence length. · Press (SCROLL▼▲) + turn (SCROLL◄►) Note events can
+  be moved left and right on the grid. Any note events which scroll off the grid
+  will wrap to the opposite side.
+</FigurePending>

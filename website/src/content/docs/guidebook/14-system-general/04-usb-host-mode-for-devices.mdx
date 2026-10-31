@@ -1,0 +1,38 @@
+---
+title: "14.4 USB Host Mode for Devices"
+description: "The USB connection can also be used to host USB MIDI devices."
+sidebar:
+  order: 4
+banner:
+  content: "From the official Guidebook for OS 4.1. Community firmware may differ."
+guidebook:
+  section: "14.4"
+  chapter: 14
+  pdfPages: [296]
+  printedPages: [290]
+  firmware: "4.1.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+The USB connection can also be used to host USB MIDI devices. In order to use this feature, you must power your Deluge via its DC power socket (centre-negative) - the feature is not available when running the Deluge on its battery.
+
+The Deluge is able to deliver a little bit of power to connected devices, but this is very limited. More basic controllers without too many LEDs should work in many cases, but bigger controllers with advanced features may not. If your MIDI controller has the option to provide it with power externally, that will enable it to work in most cases.
+
+Deluge supports one USB MIDI ‘hub’ devices as a host. Powered USB Hubs are also useful in powering the Deluge as well as other connected USB devices. Multiple hubs especially when more than four connected may not operate correctly and ‘MAXIMUM NUMBER OF USB DEVICES ALREADY HOSTED’ is displayed if more than four devices are connected.
+
+Deluge will display ‘USB HUB ATTACHED’ when a connected hub device is detected and working and ‘USB DEVICE DETACHED’ when a device is detached.
+
+If your device doesn’t work and you get no error message, it may be a power issue - see above.
+
+MIDI USB devices are supported for MIDI input and output.
+
+### Deluge as usb host with a usb device
+
+1. Connect the USB device to Deluge with the USB connection
+2. Connect a DC power supply to Deluge. Host mode does not work when Deluge is operating from its battery
+3. Power ON Deluge
+4. USB Host mode will be activated.
+5. The USB device can now be connected and reconnected. A reboot is required if a PC is to be connected.

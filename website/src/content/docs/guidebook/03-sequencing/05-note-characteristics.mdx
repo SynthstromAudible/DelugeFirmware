@@ -1,0 +1,124 @@
+---
+title: "3.5 Note Characteristics"
+description: "Several basic characteristics of notes can be changed in settings."
+sidebar:
+  order: 4
+banner:
+  content: "From the official Guidebook for OS 4.1. Community firmware may differ."
+guidebook:
+  section: "3.5"
+  chapter: 3
+  pdfPages: [51, 52, 53, 54, 55]
+  printedPages: [45, 46, 47, 48, 49]
+  firmware: "4.1.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+Several basic characteristics of notes can be changed in settings. These include, velocity, note repeat, note length, quantization and note scales. Some of these can be edited in the sequencer.
+
+### Changing a recorded synth note velocity
+
+1. After a pattern has been recorded, notes will be at a default velocity level.
+2. Press & hold one or more :key[Pad]’s for the note to change and :key[Turn Horizontal].
+3. The system default velocity is 64, however the velocity used on the last note entry / edited will be applied to the next note entered.
+4. Velocity will be displayed and its value.
+
+<FigurePending id="fig-3.5-1" page={45}>
+  1 Lighter touch · Velocity is also a modulation source to apply to other
+  parameters as well as volume parameter. · Velocity Relates to how hard a key
+  is pressed and how this reflects the volume of the note. This captures organic
+  and human like recordings. · Heavier touch 127 · Deluge pads are not velocity
+  sensitive. The default velocity is 64 but this default level can be changed in
+  the settings options under the defaults menu.
+</FigurePending>
+
+### Setting a note to repeat
+
+1. After a pattern has been recorded, notes will be trigger individually
+2. Hold :key[Pad] + Press & :key[Turn Vertical]. :key[Pad] is the note to repeat.
+3. The value selected will determine the number of repeats to assign to the selected note, positioned equally in the time interval of the pad.
+
+### Changing the default recording quantization
+
+Quantization sets the accuracy and resolution of how close to the grid intervals notes are placed.
+
+1. Open the settings menu by pressing :key[Shift + Select].
+2. Turn the :key[Select] control to navigate the menu to select RECORDING
+3. Press :key[Select] to drill down the recording menu.
+4. Turn the :key[Select] control to navigate the menu and select QUANTIZATION in focus.
+5. Press :key[Select] to drill to the quantization settings.
+6. :key[Turn Select] to choose between off (384th), 4 bar, 2 bar, 1 bar, 2nd, 4th, 8th, 16th, 32nd and 64th note intervals. A value of 32nd is the default setting.
+7. Press :key[BackUndo] to back out of the menu when the parameter has been changed or at any time in the menu to back up.
+8. The quantization chosen will ensure tight alignment on the grid based on the time interval chosen when recording live.
+
+### Clearing clip notes
+
+1. Press :key[Horizontal + BackUndo].
+2. Display shows ‘CLIP CLEARED’. Notes and their associated automation will be cleared from the clip, including notes outside of the grid view.
+
+### Triplet view
+
+1. Press :key[TripletsView] to select. The button will be illuminated blue.
+2. The grid will change to reflect triplets view by showing columns of 3 rather than 4 as is normal.
+   - The unused 4th column is blanked out and is shown by a grey dull colour when showing 16th notes.
+   - Zooming will carry over the triplets view in the original time division.
+   - To set triplets view in a different time division, exit triplets view, change the grid time division and return to triplets view.
+   - A triplet in musical terms would mean 3 notes play for the same time division as 4.
+3. Program note sequence as desired.
+4. Press :key[TripletsView] to exit. Button is unlit and the grid view changes back to normal.
+
+<FigurePending id="fig-3.5-2" page={47}>
+  [TRIPLETS VIEW] Switches the grid to triplets view, laying out the grid with 3
+  of 4 columns in the time division. The three notes have the same time period
+  as the original 4.
+</FigurePending>
+
+### Editing notes’ length
+
+1. Note lengths can be set when entering clip notes by pressing the note START :key[Pad] + END :key[Pad] on the same row. For kits, samples will automatically map across the pads matching the sample length.
+
+<FigurePending id="fig-3.5-3" page={48}>
+  Note Brightly lit showing start of note · Note Extension Dimly lit showing
+  length of note · Grid edge
+</FigurePending>
+
+2. Reduce the note length by pressing one of the extension :key[Pad]’s to shorten it.
+3. To extend a note across grid views:-
+   - Press the :key[Pad] for the note start.
+   - Scroll to the next grid view ‘page’ using :key[Horizontal]. This would be further in time from the original note.
+   - On the same row, press :key[Horizontal + Pad] at the end position.
+   - The note will be extended across the ‘page’.
+4. To create a note for the duration of the clip, for example as a pad or to create a ‘drone’ note:-
+   - Press the :key[Pad] for the note start on the first column (left position) of the clip.
+   - On the same row, press :key[Horizontal + Pad] at the last column (right position).
+   - The note will be extended across the full clip.
+   - Deluge will ensure that these type of notes play continuously through the clip and will loop. This is handled as a special case and the note does not restart.
+
+### Adjusting a clips horizontal note event position
+
+1. Press :key[Vertical + Turn Horizontal] control to adjust the clip note events i.e. notes and automation horizontally across the grid.
+   - The note events will move 1 step incrementally across the horizontal grid. The steps are based on the zoom level.
+   - Note events which scroll off the edge left or right will wrap back onto the grid from the opposite side.
+
+### Nudging individual notes horizontally
+
+1. Hold :key[Pad] + Press and :key[Turn Horizontal] to nudge the selected :key[Pad] note event forward or backwards, indicated by +/- values.
+2. This will nudge at the song’s minimum resolution, default is 384th notes.
+
+### Copying / pasting note range
+
+1. Press :key[LearnInput + Horizontal] to copy the clips notes.
+   - This will copy the step range of notes in the current view on the grid at the current scroll and zoom position.
+   - The time range of notes is what is copied including all notes out of view above and below the pad range.
+   - Copy can be performed from one clip to another in the same or different songs as well as within the same clip.
+2. Select the new location for pasting the previously copied range. For example extend the clip length or scroll to another part of the clip.
+3. Press :key[Shift + LearnInput + Horizontal] to paste the current clips notes:
+   - When pasting, the notes are pasted into the current view.
+   - If the destination view is transposed from the original copied location the notes are pasted into the new transposed position.
+   - If only a part of the grid is selected as the destination, the notes for the available columns are pasted and the rest discarded.
+   - Notes will be pasted into any new zoom levels where notes will be stretched or reduced to meet the destination zoom view.

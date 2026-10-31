@@ -1,0 +1,37 @@
+---
+title: "9.13 Sample Playback Modes"
+description: "Playback of audio can be reversed and also played back in several in several modes:-"
+sidebar:
+  order: 12
+banner:
+  content: "From the official Guidebook for OS 4.1. Community firmware may differ."
+guidebook:
+  section: "9.13"
+  chapter: 9
+  pdfPages: [200]
+  printedPages: [194]
+  firmware: "4.1.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+Playback of audio can be reversed and also played back in several in several modes:-
+
+    - ONCE. The sample plays once, always the whole way through. Good for drum samples and short ‘hits’. Samples shorter than two seconds will by default be set to ONCE, to behave as a one-shot sample: any time the sample is triggered, the whole sample will play.
+    - CUT. The sample plays once, but may be cut short at the end of the “note” triggering the sound. Samples longer than two seconds will be set to CUT mode, to play only as long as the user is holding down the row’s audition pad - or as long as a sequenced note is sounding on that row.
+    - LOOP. The sample loops indefinitely until the “note” ends.
+    - STRETCH. The sample is time-stretched to the length of the note. Good for samples that contain pre-made beats.
+
+Some .wav and .aiff files contain tags specifying sample loop points. The Deluge will read these if they are present. See waveform view for more info.
+
+### Reversing playback
+
+1. With a synth type set to sample and a file loaded and in-focus use shortcuts :key[Shift + Reverse Pad] for sample 1 or sound editor - :key[Select] &gt; OSCILLATOR 1 &gt; REVERSE.
+2. :key[Turn Select] to adjust ‘REVERSE’ - reverse between on and off. ON meaning the audio is reversed.
+
+### Setting playback mode
+
+1. With a synth type set to sample and a file loaded and in focus use shortcuts :key[Shift + Mode Pad] for sample 1 or sound editor - :key[Select] &gt; OSCILLATOR 1 &gt; ‘REPEAT MODE’.
+2. :key[Turn Select] to adjust. The options are ‘ONCE’, ‘LOOP’, ‘STRETCH’, ‘CUT’.

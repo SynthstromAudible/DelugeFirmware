@@ -1,0 +1,62 @@
+---
+title: "12.4 Global MIDI Commands"
+description: "The Deluge can be controlled at a system level for example play and stop, using external MIDI commands."
+sidebar:
+  order: 3
+banner:
+  content: "From the official Guidebook for OS 4.1. Community firmware may differ."
+guidebook:
+  section: "12.4"
+  chapter: 12
+  pdfPages: [253, 254]
+  printedPages: [247, 248]
+  firmware: "4.1.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+The Deluge can be controlled at a system level for example play and stop, using external MIDI commands. Any external controller can be used including a keyboard, pads or a foot controller switch.
+
+There are a number of global commands that are already available within the MIDI section of the settings menu under ‘COMMANDS’
+
+These are:-
+
+    - ‘PLAY’ - play & stop playback. Same as pressing the :key[Play] button.
+    - ‘RESTART’ - restart playback. If already playing will restart from the beginning. Same as pressing the :key[Horizontal + Play] buttons.
+    - ‘RECORD’ - Same as pressing :key[Record] button.
+    - ‘TAP TEMPO’ - Will count and set tempo based on taps. Equivalent to tapping :key[TapTempo] button.
+    - ‘UNDO’ - backup the last command’s. This is the same as pressing the :key[BackUndo] button.
+    - ‘REDO’ - restate the last command’s. This is the same as pressing the :key[Shift + BackUndo] buttons.
+    - ‘LOOP’ - Will record as a loop. Essentially this will automatically step through the process; 1. Start playback. 2. Begin recording on any clip(s). 3. Finish recording of clip.
+    - ‘LAYERING LOOP’ - Same as loop but overdubs as continuous layers.
+
+Notes on other MIDI command use.
+
+The common functions when using external MIDI is to control notes and parameters. Also the global commands can be controlled externally for overall control of deluge and when working with loops.. Other MIDI control functions are also available, for example, Song specific functions:-
+
+    - Launching of clips or sections.
+    - Muting / unmuting clip rows on song mode.
+    - Playing one sound in a kit clip.
+    - Playing a synth belonging to a clip.
+
+### Setting up an external midi foot switch controller
+
+1. Connect the foot switch to the MIDI-in connection of Deluge.
+2. Global commands are ideal for controlling with an external foot controller.
+3. Press :key[Shift + Select] to open the settings menu.
+4. Navigate to MIDI settings, :key[Turn Select] and select ‘COMMANDS’
+5. With ‘COMMANDS’ in-focus, press :key[Select] to open the global MIDI command menu options.
+6. Choose the option to map to the external switch: example; switch 1 = play / stop, switch 2 = record, switch 3 = undo, switch 4 = redo.
+7. With the option in-focus press :key[Select] and the :key[LearnInput] button will blink indicating it is available for mapping. NONE displays if no MIDI note or channel is currently assigned.
+8. Press & hold :key[LearnInput] and press the associated switch on the external MIDI foot controller.
+9. The display will indicate ‘SET to show the setup is now complete and the switch is mapped to the function.
+10. To unmap the command :key[Turn Select] when the function setting is in- focus or set it to a new input.
+
+<FigurePending id="fig-12.4-1" page={248}>
+  1 Play / Stop · 2 Record · 3 Undo · 4 Redo · None Restart · None Loop · None
+  Tap · None Layer
+</FigurePending>

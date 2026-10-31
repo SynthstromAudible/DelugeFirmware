@@ -1,0 +1,108 @@
+---
+title: "4.8 Sound Editor - Synthesizer Parameters"
+description: "The commonly accessible parameters for clips are available from the eight ‘affect parameter’ controls."
+sidebar:
+  order: 7
+banner:
+  content: "From the official Guidebook for OS 4.1. Community firmware may differ."
+guidebook:
+  section: "4.8"
+  chapter: 4
+  pdfPages: [96, 97, 98, 99, 100]
+  printedPages: [90, 91, 92, 93, 94]
+  firmware: "4.1.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+The commonly accessible parameters for clips are available from the eight ‘affect parameter’ controls. A more detailed parameter set are available within Deluge. Accessing and editing the synth parameters of the currently selected synth clip can be performed using the sound editor nested menu option or via the quicker grid shortcuts option.
+
+#### Sound Editor: Nested Menus
+
+Nested menus provide access to the full parameter set available.
+
+<FigurePending id="fig-4.8-1" page={90}>
+  Menu or sub-menu heading and parameter displayed. · Press (SELECT) opens up
+  access to the sound editor nested menu and full parameter set. · SOUND
+  OSCILLATOR 1 OSCILLATOR 2 NOISE LEVEL · Press (SELECT) to select the option
+  in-focus on the display. · Turn (SELECT) to navigate the nested menu or change
+  the parameter in-focus / displayed. · [SYNTH] Select synth option with the
+  button lit red. · Example menu navigation. · Press (SELECT) to access sound
+  editor · SOUND: OSCILLATOR 1. · Press (SELECT) drill down or · OSCILLATOR1:
+  LEVEL · Turn (SELECT) to edit the parameter OSCILLATOR1: LEVEL: 50 · Press
+  [BACK / UNDO] to back up the menu structure - flashes red when available. ·
+  Grid shortcut pad for function flashes white when in-focus for editing. ·
+  SOUND OSCILLATOR 1 OSCILLATOR 2 NOISE LEVEL · Press (SELECT) to drill down or
+  turn (SELECT) to scroll through menu. · OSCILLATOR 1 TYPE LEVEL RECORD AUDIO ·
+  turn (SELECT) to scroll menu. · OSC1 LEVEL 50
+</FigurePending>
+
+### Sound editor: editing parameters in nested menus
+
+1. Press :key[Clip] to select clip view. This is indicated by the clip button illuminated blue.
+2. Select synth by pressing :key[Synth] if not already selected. The synth button illuminates red.
+3. Press the :key[Select] rotary control.
+4. The menu level options will appear, for example OSCILLATOR 1.
+5. The :key[BackUndo] button flashes red to indicate that the backup option is available. Pressing :key[BackUndo] will move a step back in the menu.
+6. Turning :key[Select] navigates other menu functions at the top level.
+7. With the selected option i.e. ‘OSCILLATOR 1’ in focus, press :key[Select]. This will step down a menu branch level within the selected parameter to access its sub functions. Number of levels in menu are dependant on the function.
+8. Turning :key[Select] navigates the sub-menu option if available or to a parameter. Press :key[Select] when the desired function is in-focus, i.e. ‘TYPE within the oscillator sub menu.
+9. When the editable options is selected, the respective grid shortcut button will flash white i.e. TYPE.
+10. :key[Turn Select] to change the parameter option or value in-focus. For oscillator, type this will be the available waveforms i.e. SAW, SINE etc.
+11. Use :key[BackUndo] to back out of the menu when the parameter has been changed.
+12. Continue to edit through the menu and set other parameters as desired.
+13. When preset parameters have all been changed to suit your requirements it is recommended to save the preset. Press :key[Save + Synth] to save the preset.
+
+#### Sound Editor: Grid Shortcuts
+
+Grid shortcuts are the quicker of the sound editing access options. Using these, synth parameter’s can be accessed directly with a single set of key strokes.
+
+<FigurePending id="fig-4.8-2" page={92}>
+  Press [SHIFT] + [PAD] or Press [AUDITION] + [PAD] where PAD is the specific
+  function and parameter. · Lines extend across pads where the function applies
+  i.e. type for osc 1 & 2 and FM mod 1 & 2. · Grid shortcut pad for function
+  flashes white when in focus for editing. · Press [BACK / UNDO] to cancel
+  selection. Button flashes red when available. · Top level function i.e.
+  oscillator 1 is labelled vertically for the column. · Actual parameter within
+  the function i.e. volume level shown as the shift option under the button. ·
+  Display indicates the parameter setting / value immediately on selection of
+  the function / parameter pad. · OSC1 LEVEL 50
+</FigurePending>
+
+### Sound editor: editing parameters using shortcuts
+
+1. Press :key[Clip] to select clip view. This is indicated by the clip button illuminated blue.
+2. Select synth by pressing :key[Synth] if not already selected. The synth button illuminates red.
+3. Press the :key[Shift + Pad] where PAD is the specific function and parameter. :key[Audition Pad + Pad] also can be used. For example OSC 1, 3rd column from left includes all OSC 1 parameters. The parameter i.e. LEVEL is labelled under the pad .
+4. The actual parameter setting or current will appear on the display, for example ‘50’ for LEVEL and the pad for its value, flashes white.
+5. If a parameter is not available, a message ‘FEATURE NOT (YET?) IMPLEMENTED’ is displayed on the display. For example FM parameters cant be accessed in subtractive mode.
+6. Turning :key[Select] adjusts the parameter setting or value.
+7. Use :key[BackUndo] to exit when the parameter has been changed. The :key[BackUndo] button flashes red to indicate that the backup option is available.
+8. Continue to edit through other settings and parameters as desired.
+9. When the parameters have all been changed to suit your requirements it is recommended to save the preset. Pressing :key[Save + Synth] and :key[Save] again to confirm saves the preset.
+
+:::note
+If the display indicates ‘FEATURE NOT (YET?) IMPLEMENTED’ when selecting a parameter with the shortcut pads, then this means a function is not implemented in this firmware version and is reserved for potential future implementation. If ‘CANT’ is displayed then the parameter isn't available for editing in the current mode or configuration.
+:::
+
+#### Sound Editor: Parameter Editing
+
+Editing the actual parameters in the nested menu or when selected with the shortcuts can be done generally, and where required can be finely tuned.
+
+<FigurePending id="fig-4.8-3" page={94}>
+  OSC1 LEVEL 50
+</FigurePending>
+
+Turn the :key[Select] rotary to adjust a parameter setting. The display will show the value as its adjusted.
+
+<FigurePending id="fig-4.8-4" page={94}>
+  OSC1 TRANSPOSE · 2.80
+</FigurePending>
+
+Some functions, for example transpose, have decimal values which can be fine tuned, at an individual digit level. Where this is applicable the digit in focus will be underscored and can be changed by turning :key[Select].
+
+Use the :key[Horizontal] control to select the digit in-focus to edit.

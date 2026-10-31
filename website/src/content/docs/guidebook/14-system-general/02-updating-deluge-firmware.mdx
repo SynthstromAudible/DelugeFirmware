@@ -1,0 +1,70 @@
+---
+title: "14.2 Updating Deluge Firmware"
+description: "Synthstrom are continuously developing the functionality and performance of Deluge."
+sidebar:
+  order: 1
+banner:
+  content: "From the official Guidebook for OS 4.1. Community firmware may differ."
+guidebook:
+  section: "14.2"
+  chapter: 14
+  pdfPages: [284, 285, 286]
+  printedPages: [278, 279, 280]
+  firmware: "4.1.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+Synthstrom are continuously developing the functionality and performance of Deluge. Firmware releases will become available at points in time that allow Deluge to be updated.
+
+### Checking the current deluge firmware version
+
+1. Press :key[Shift + Select] to access the settings configuration menu.
+2. :key[Turn Select] and scroll to the ‘FIRMWARE VERSION’ option.
+3. Press :key[Select].
+4. The currently installed firmware version is displayed. No changes can be made in this menu option.
+5. Press :key[BackUndo] to back out of menu.
+
+<FigurePending id="fig-14.2-1" page={278}>
+  CURSOR RECORDING FIRMWARE VER. · SETTINGS · FIRMWARE VER. 4. 1. 0 · Firmware
+  Option · Firmware Version
+</FigurePending>
+
+Deluge firmware updates utilise the SD card to load the update .bin script. This needs to be prepared in advance. Ensure only one .bin file is present on the SD card when updating.
+
+<FigurePending id="fig-14.2-2" page={279}>
+  SD Card The .bin update file should be located in the root directory for the
+  SD card. Any other .bin files should be removed from the the SD card ·
+  Deluge+firmware+V4p0p1.bin KITS SONGS SYNTHS SAMPLES · Update Bin File The
+  .bin update file should be downloaded from Synthstrom and transferred by
+  PC/Mac to the SD card
+</FigurePending>
+
+The SD card should be backed up by copying the entire content of the SD card to the PC/Mac while it is inserted.
+
+Deluge should be powered off. Once complete the SD card with the .bin file should be inserted into the Deluge.
+
+<FigurePending id="fig-14.2-3" page={279}></FigurePending>
+
+### Performing a deluge update
+
+1. Check and note the current firmware version from within the settings menu.
+2. Download the latest version (a .bin file) and install onto the root directory of the SD card. This is typically performed with a PC or Mac.
+3. Power Deluge OFF. Insert the SD card pins up into Deluge.
+4. Ensure Deluge has enough power or is connected to a power supply. Do not switch off during the update.
+5. Press & hold :key[Shift] on Deluge.
+6. While holding :key[Shift] power up Deluge.
+7. An update message is shown on the display while the update is being performed.
+
+FIRMWARE UPDATING.
+
+8. Once complete, ‘Firmware Updated Successfully’, is displayed.
+
+FIRMWARE UPDATED SUCCESSFULLY.
+
+9. Check the new version in the settings menu.
+10. Deluge is ready to use.

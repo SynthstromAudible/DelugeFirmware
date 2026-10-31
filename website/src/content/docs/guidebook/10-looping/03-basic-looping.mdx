@@ -1,0 +1,108 @@
+---
+title: "10.3 Basic Looping"
+description: "Loop recording follows a similar process to recording audio clips and samples."
+sidebar:
+  order: 2
+banner:
+  content: "From the official Guidebook for OS 4.1. Community firmware may differ."
+guidebook:
+  section: "10.3"
+  chapter: 10
+  pdfPages: [208, 209, 210, 211]
+  printedPages: [202, 203, 204, 205]
+  firmware: "4.1.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+Loop recording follows a similar process to recording audio clips and samples. The looper environment is :key[Song] view.
+
+### Recording a basic first audio loop
+
+1. :key[Shift + Load] to select a new song. :key[Load] to confirm.
+2. :key[Song] to select song view. Button illuminates blue.
+3. Hold :key[Pad + Select] of the clip row to change to an audio clip.
+4. Set the audio input channel
+   - Hold :key[LearnInput + Pad] of the clip row to set the input.
+   - Example, LEFT INPUT for mono input from line-in or LEFT (MONITORING) for mono input from line-in, monitored.
+   - Press :key[BackUndo] when complete.
+5. Set arming status
+   - Hold :key[Record] to check current status of :key[Launch Pad] associated with the the clip row to record into.
+   - Flashing coloured eg: magenta - clip is empty, armed and ready to record.
+   - Flashing red - clip is armed, ready to record. It will playback as normal in loop but will mute when a new overdub is recorded.
+   - Solid dim colour - unarmed and will not record. Clip may have content already recorded in.
+   - Press :key[Record + Launch Pad] to arm the clip.
+6. Press :key[Record], button illuminates red. Ensure an audio input is present to record.
+7. Press :key[Play] to start recording. Recording of the audio input will continue indefinitely until stopped.
+8. Press :key[Launch Pad] to stop at the recording. Tempo of recording is automatically calculated and set.
+9. Clip will stop recording and the record button will turn off. Playback of the recorded clip will continue to loop and to allow future overdubs.
+
+<FigurePending id="fig-10.3-1" page={203}>
+  Regular & Continuous Overdubbing · Use the global command ‘LOOP’ for regular
+  overdub looping and ‘LAYERING LOOP’ for continuous loop overdubs. · Audio Loop
+  Recording Audio is recorded into the clip continuously until the recording is
+  stopped. When loop recording mute / launch stops recording. · Loop Audio is
+  recorded into the clip which will loop on play when recording is complete. ·
+  Armed Pending Record A clip row will be indicated red until the loop ends and
+  recording starts. · Regular Overdubs A new overdub can be recorded into a clip
+  row below the existing clip, triggered by [RECORD] + [PAD]. Recording will be
+  in-time with the original clip and end when launch pad is pressed. · Arming
+  Clip Holding [RECORD] will indicate the arming status by the [LAUNCH] pad
+  colour. [RECORD] + [MUTE] to change. Arming sets the row in ready to record
+  state. Only empty rows will be armed and the mute / unmute status affects
+  overdub automatic playback state. · Recording Recording will be indicated by a
+  red cursor tracking the recording position. · Continuous Overdubs New
+  continuous overdubs can be recorded into a series of new clips below the
+  existing original clip, triggered by [RECORD] + [SECTION]. Recording will
+  continue on subsequent rows and be in time with the original clip.
+</FigurePending>
+
+The first recorded clip sets the length and tempo. Subsequent overdubs will fall into line with the original first loop. Setting the arming state will dictate whether the overdubs automatically play all together or are muted. Overdubs create new clips underneath the ‘original’.
+
+### Recording audio clips ‘pedal style”
+
+1. :key[Song] to select song view. Button illuminates blue.
+2. Ensure no other clip rows are playing and metronome is off and Deluge is a sync leader.
+3. Press :key[Record + Play] of the clip row to record
+4. Ensure the audio is playing at the input which will be recorded.
+5. Press :key[Launch Pad] of the grid row to stop recording.
+6. Recording will end and playback will continue. Tempo will be calculated and will flash on the screen.
+
+### Recording a regular audio overdub loop
+
+1. :key[Song] to select song view. Button illuminates blue.
+2. The first audio loop is created as per the previous steps 1-6, ‘Recording a Basic First Audio Loop’. Original first loop should be playing.
+3. Press :key[Record + Pad] of the clip row below the original to arm it for recording - row lit red. Recording will automatically start when the original clip loop restarts. Red recording cursor tracks the position.
+4. Ensure the audio is playing at the input which will be recorded.
+5. Press :key[Launch Pad] to stop recording.
+6. Recording will stop and playback will continue. Depending upon original clip arming status, new clip will either play alone (original muted) or play together in conjunction with the original.
+7. Overdubbing can continue manually, one clip at a time by repeating steps 3-4.
+
+### Recording continuous audio overdub loops
+
+1. :key[Song] to select song view. Button illuminates blue.
+2. The first audio loop is created as per the steps 1-6, ‘Recording a Basic First Audio Loop’. Original first loop should be playing.
+3. Press :key[Record + Section Pad] of the clip row below the original to arm it for recording - row lit red.
+   - Recording will automatically start when the original clip loop restarts. Red recording cursor tracks position.
+   - Additional clip rows will automatically be created at a fixed length.
+   - More layers will be built until stopped.
+4. Ensure the audio is playing at the input which will be recorded.
+5. Press :key[Pad] of the grid row currently armed to record - the red row.
+6. Recording will end and playback will continue.
+
+### Grabbing tempo from a loops audio clip
+
+1. :key[Song] to select song view. Button illuminates blue.
+2. Press & hold :key[Tempo + Pad] of the clip row
+
+Or
+
+1. Within clip view, press & hold :key[Tempo] + Any :key[Pad] of the clip.
+
+:::note
+Overdub loops are technically individual audio clips and as such they can be muted, deleted, and have effects applied. Undo / redo can also be applied to each overdub step.
+:::

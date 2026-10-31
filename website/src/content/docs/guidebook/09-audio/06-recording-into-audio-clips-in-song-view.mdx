@@ -1,0 +1,60 @@
+---
+title: "9.6 Recording into Audio Clips in Song View"
+description: "Audio can be recorded in song view, which also provides the functionality as a looper."
+sidebar:
+  order: 5
+banner:
+  content: "From the official Guidebook for OS 4.1. Community firmware may differ."
+guidebook:
+  section: "9.6"
+  chapter: 9
+  pdfPages: [181, 182]
+  printedPages: [175, 176]
+  firmware: "4.1.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+Audio can be recorded in song view, which also provides the functionality as a looper. Audio and MIDI looping are possible within song view both to record in and also as a live performance option. Audio clips are recorded and played in-sync with other Deluge functions, typically through time- stretching.
+
+### Creating an audio clip in song view
+
+1. Press :key[Song] to switch to song view.
+2. Press & hold a :key[Pad] within a clip row. This can be either an existing or blank row. The instrument button will flash indicating the type selected and display will show the preset or MIDI/CV Channel.
+3. While still holding the pad, press :key[Select].
+4. The track will be converted to an audio clip and the display will show the name, example: ‘AUDIO1’. When attempting to convert an instrument track, a message is displayed if notes exist and the track can’t be converted.
+5. Selecting the audio clip by pressing the row :key[Pad] will then allow audio to be loaded, recorded, edited etc.
+
+### Selecting the audio in
+
+1. Press :key[Song] to switch to song view.
+2. Press & hold :key[LearnInput + Pad] of a selected audio clip row to record into.
+3. :key[Turn Select] to change to the input desired. This should match the physical connection. Example, a mono input would typically be the LEFT input, with LEFT. for input monitoring.
+4. If input monitoring is required, a dot . version of the left, right, stereo, balanced inputs is available for thru audio monitoring.
+5. Display will indicate the selected channel input for the track on which the clip sits.
+6. Exit this setting before recording by pressing :key[Select], :key[Back], or any :key[Pad]
+
+### Arming audio clips for recording in song view
+
+1. Press :key[Song] to switch to song view.
+2. New blank clips created will automatically be armed by default.
+3. Hold :key[Record] to check current status of :key[Launch Pad] associated with the the clip row to record into:
+   - Flashing coloured eg: magenta - clip is empty, armed and ready to record.
+   - Flashing red - clip is armed, ready to record. It will playback as normal in loop but will mute when a new overdub is recorded.
+   - Solid or dim colour - unarmed and will not record. Clip may have content already recorded in.
+4. Hold :key[Record + Launch Pad] to arm or disarm any clip row.
+
+### Recording an audio clip in song view
+
+1. Press :key[Song] to switch to song view. Ensure audio input is set and clips are armed.
+2. :key[Record], button should be on and illuminate red.
+3. Press :key[Play]. Recording will start. Play and record buttons will be lit. All armed clips will record.
+4. The red recording cursor will travel left to right across the clip rows being recorded. Audio clips must also be unmuted/green for recording to occur.
+5. Recording will be continuous and not be limited by any length. Length is set only when previously recorded or existing audio exists when recording within a clip.
+6. Press :key[Launch Pad] of any clip row to STOP recording. This clip will be armed to stop at the end of the ‘loop’ of the original clip length. The clip will then begin to PLAY back from the start.
+
+:::note
+For details on overdub recording see the details covered in the looper section.
+:::

@@ -1,0 +1,32 @@
+---
+title: "13.2 CV Hardware Configuration"
+description: "CV configuration requires the careful match up of both Deluge along with the external device for CV and gate."
+sidebar:
+  order: 2
+banner:
+  content: "From the official Guidebook for OS 4.1. Community firmware may differ."
+guidebook:
+  section: "13.2"
+  chapter: 13
+  pdfPages: [275]
+  printedPages: [269]
+  firmware: "4.1.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+CV configuration requires the careful match up of both Deluge along with the external device for CV and gate. It is important to check the manufacturers instructions when connecting other devices. The only sound editor function available for CV is the arpeggiator.
+
+#### Typical CV Set Up
+
+<FigurePending id="fig-13.2-1" page={269}>
+  Modular Device CV compatible device, example synth module connected with 3.5mm
+  / 1/8th Inch patch cables. · Signal (tip) · Deluge has CV grounded on the
+  sleeve and ring. Ring through a 10K resistor. · Gate CH 1 · CV CH 1 · MIDI In
+  · MIDI Out · External controller providing control to Deluge. MIDI can be
+  converted to CV within Deluge by creating a CV clip and mapping MIDI in to it.
+</FigurePending>

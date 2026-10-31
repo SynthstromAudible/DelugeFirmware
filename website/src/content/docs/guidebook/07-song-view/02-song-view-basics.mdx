@@ -1,0 +1,69 @@
+---
+title: "7.2 Song View Basics"
+description: "While the synth and kit clip view is used for developing individual instrument sequences, song view provides a more holistic approach, consolidating all…"
+sidebar:
+  order: 1
+banner:
+  content: "From the official Guidebook for OS 4.1. Community firmware may differ."
+guidebook:
+  section: "7.2"
+  chapter: 7
+  pdfPages: [143, 144]
+  printedPages: [137, 138]
+  firmware: "4.1.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+While the synth and kit clip view is used for developing individual instrument sequences, song view provides a more holistic approach, consolidating all clips into a compressed view, each clip shown as a row. Song view is where all existing clips are managed together, new clips can be added, existing ones deleted and reordered. Controls to launch and stop clips is provided in song view. Song view is also the main area to handle loop recording and playback, covered elsewhere in this guide.
+
+<FigurePending id="fig-7.2-1" page={137}>
+  Song view compresses all clips and takes an · overall view of the song
+  ‘project’. First time entering song view only one clip will be present. Clips
+  can be created, re-ordered, deleted in song view. · Time · Clip · Clip · Empty
+  Clip · Empty Clip · Empty Clip · Empty Clip · Empty Clip · Empty Clip · Mute
+  Audition / Launch / Section · (SCROLL▼▲) Individual clips compressed to one
+  row each in song view. The rows can be navigated up and down beyond the 8
+  physically displayed. · [LAUNCH] The mute / launch column pads now takes on
+  the ‘launch’ functionality when in song view. Rows containing clips are
+  illuminated. Pressing the corresponding LAUNCH pad will trigger the clip for
+  that row. When the sequence is playing launch will firstly arm the clip, then
+  launch it, played in time with the sequence. Use [SHIFT] + [LAUNCH] for
+  instant play. · [SECTION] The audition / section column pads now takes on the
+  ‘section’ functionality when in song view. Rows containing clips are
+  illuminated. Sections enable groups of clips to be launched and controlled
+  simultaneously. Clips can be armed, stopped, played together as a group. ·
+  Deluge will only play one instrument at one time in song view. So for example,
+  if two clips use the same synth preset 1, the clip rows can each be launched
+  but each one will stop playback of the other, allowing only one instance of
+  each instrument to play at one time.
+</FigurePending>
+
+### Playing a song
+
+1. Press :key[Song] to switch to song view. The button illuminates blue. If this is a new song and the first this time the song mode is selected, the song may be empty or only show the first clip compressed to the first row.
+2. Press :key[Play]. Song will playback and the white song position cursor will travel left to right.
+3. Rows occupied by clips are lit and the :key[Launch Pad] pads will be green while the :key[Section Pad] pads are lit blue.
+4. Press :key[Play] to stop and reset playback position to the song start.
+
+### Creating a new clip from song view
+
+1. Press :key[Song] to switch to song view. The button illuminates blue.
+2. Press a :key[Pad] of any empty, unlit row from the 16 x 8 main grid.
+3. Deluge creates a new clip and transfers the view from song to clip view with synth selected by default.
+4. Any edits, change to synth / kit, steps created etc in the clip will be reflected when switching back to :key[Song] view with the clip added as a compressed single row.
+
+### Selecting an existing clip to edit from song view
+
+1. Press :key[Song] to switch to song view. The button illuminates blue.
+2. Press a :key[Pad] of any occupied row from the 16 x 8 main grid. The occupied rows containing clips will be illuminated fully or in part.
+3. Deluge transfers the view from song to clip view with clip selected ready to edit.
+4. Any edits, steps created etc in the clip will be reflected when switching back to :key[Song] view.
+
+:::note
+Where there are multiple instances of the same instrument preset they will not play simultaneously. Only one will play when launched and the others with the same instrument will be stopped.
+:::

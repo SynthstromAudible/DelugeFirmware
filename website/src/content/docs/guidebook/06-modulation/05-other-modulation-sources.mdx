@@ -1,0 +1,35 @@
+---
+title: "6.5 Other Modulation Sources"
+description: "There are several other modulation sources that can be configured."
+sidebar:
+  order: 4
+banner:
+  content: "From the official Guidebook for OS 4.1. Community firmware may differ."
+guidebook:
+  section: "6.5"
+  chapter: 6
+  pdfPages: [136]
+  printedPages: [130]
+  firmware: "4.1.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+There are several other modulation sources that can be configured. Several such as aftertouch and velocity are dependant upon the external device connected and can be set up with MIDI in/out configurations. Note, sidechain and random are internally generated.
+
+Random
+
+Generates a random number with each new voice that is created. Can be used to provide randomness or movement when connecting to destinations so that every time a note is played a new random number drives the modulation destination.
+
+<FigurePending id="fig-6.5-1" page={130}>
+  50 · RANDOM Example: Each key press generates a higher or lower noise element
+  to the sound · NOISE
+</FigurePending>
+
+Note
+
+The note modulation being played is the source for this modulation option. Sometimes called key tracking, the pitch of the note is relevant to the modulation level generated.

@@ -1,0 +1,54 @@
+---
+title: "3.11 Note Creativity: Probability & Iteration Dependance"
+description: "Deluge has a number of features that bring even more creativity to sequencing."
+sidebar:
+  order: 10
+banner:
+  content: "From the official Guidebook for OS 4.1. Community firmware may differ."
+guidebook:
+  section: "3.11"
+  chapter: 3
+  pdfPages: [70, 71]
+  printedPages: [64, 65]
+  firmware: "4.1.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+Deluge has a number of features that bring even more creativity to sequencing. Note probability and iteration dependance is a feature which uses logic to determine if the note plays on the sequence cycle or not and adds randomness.
+
+#### Probability
+
+### Setting a note probability to add randomness
+
+1. Press & hold one or more :key[Pad + Turn Select] anticlockwise. The pad’s selected should represent the sequence notes of where to add probability.
+2. Adjust the :key[Select] percentage between 5-100% where the % is the ‘chance’ of the note being played.
+3. To reset to default set the % to 100% where the note will be played each iteration.
+
+<FigurePending id="fig-3.11-1" page={64}>
+  + · SELECT · Notes set below 100% will play randomly based on the probability
+  %. · Notes set to 100% will play each iteration. · If multiple notes are set
+  at the same %, example 65%, Deluge offers an additional option indicated by
+  LATCHING, 65 & 65. The LATCHING option means the note will only trigger if the
+  previous equivalent note triggers. · If multiple notes on the same step /
+  column position total 100%, Deluge will play only one of the notes with a
+  probability % on that column.
+</FigurePending>
+
+#### Iteration Dependance
+
+### Setting a note iteration dependance
+
+1. Press & hold :key[Pad + Turn Select] clockwise. Pad selected should represent the sequence note of where you intend to add the iteration.
+2. Adjust the :key[Select] setting to one of the settings between ‘1 of 2’ up to ‘8 of 8’.
+3. The ratio represents when the note plays for every iteration (bar) that the sequencer plays. So ‘1 of 2’ plays the note on the 1st of every 2 bars, ‘3 of 4’ plays on the 3rd of each 4 rotations. 1 of 2 - Play on 1st of 2 bar cycles
+
+<FigurePending id="fig-3.11-2" page={65}>
+  + · SELECT · Notes set to the iteration ratio. · s · \* · s · 2 of 2 would
+  only play on 2nd cycle. \* · s · s · 2 of 3 - Play on 2nd of 3 bar cycles. · s
+  · s · 2 of 4 - Play on 2nd of 4 bar cycles.
+</FigurePending>

@@ -1,0 +1,43 @@
+---
+title: "12.6 Sync-scaling"
+description: "For users syncing the Deluge as a follower and wanting to make use of unusual time signatures, sync-scaling is a fun and creative feature."
+sidebar:
+  order: 5
+banner:
+  content: "From the official Guidebook for OS 4.1. Community firmware may differ."
+guidebook:
+  section: "12.6"
+  chapter: 12
+  pdfPages: [257, 258]
+  printedPages: [251, 252]
+  firmware: "4.1.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+For users syncing the Deluge as a follower and wanting to make use of unusual time signatures, sync-scaling is a fun and creative feature. A clip of an unusual time signature may be created by setting its length to an unusual number of beats, example; seven 8th-notes. Using sync-scaling, the Deluge, when synced as a follower, can make those seven 8th notes take up the same amount of time that the incoming MIDI beat clock says that eight 8th-notes are meant to take up.
+
+There are a couple of applications for this:
+
+    - The user may wish to create polyrhythms by e.g. having an external device (the syncing leader) playing a sequence in 4:4 timing, while the Deluge (the follower) squeezes 7 notes into a bar instead of 8.
+    - Some loop pedals may act as a syncing leader. However, they are likely to assume that any loop created (e.g. with a guitar) is in 4:4 timing. If the user had in fact played a guitar loop in 7:8 timing, the loop pedal would still be outputting a 4:4 MIDI beat clock - dividing the entire loop into, say, fours rather than sevens. The solution is to tell the Deluge to scale the incoming 4:4 MIDI beat clock into a 7:8 one, so that a 7:8 sequence created on the Deluge would play perfectly synced to the 7:8 guitar loop, despite the incorrect 4:4 MIDI beat clock passing between the two devices. Sync-scaling is tied to the length of one clip in a song, and tells the Deluge that that clip’s length should be squeezed into 1 bar of incoming MIDI beat clock (or 2 bars, or 4 or 8 bars, depending on how long the clip is; the Deluge will use whatever magnitude of sync-scaling causes the smallest change in tempo). Even while the Deluge is playing synced as a follower, sync-scaling may be switched on or off, and the sync-scaling clip may have its length changed. Despite any such changes, the Deluge will keep the sync- scaling clip playing in time to the syncing leader. It will also attempt to keep all other clips in time; this works best if the other clips are of the same time signature as the sync-scaling clip (that is, their lengths are the same, or half our double, or 4 times shorter or longer, etc.)
+
+### Using sync scaling
+
+1. :key[Clip] to enter clip view on the selected clip where sync scaling will be applied.
+2. Set its length to the beats required. This is typically an unusual length to get the best effect from sync-scaling and to fit it into the incoming sync timings.
+3. Press [SYNC-SCALING] to set clip for sync scaling. Button will flash blue.
+4. Leaving the clip in this mode the sync-scaling button will remain statically illuminated - not flashing. This indicates that sync-scaling is active but not on the selected clip.
+5. Press [SYNC-SCALING] to switch it off. Button will be unlit.
+
+<FigurePending id="fig-12.6-1" page={252}></FigurePending>
+
+Unlit / Off Sync-scaling off, not applied to any clip
+
+Blue Flashing Sync-scaling on for the selected clip
+
+Blue Lit Sync-scaling on, but not for the selected clip

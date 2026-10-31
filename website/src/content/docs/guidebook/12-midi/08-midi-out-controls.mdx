@@ -1,0 +1,68 @@
+---
+title: "12.8 MIDI Out Controls"
+description: ""
+sidebar:
+  order: 7
+banner:
+  content: "From the official Guidebook for OS 4.1. Community firmware may differ."
+guidebook:
+  section: "12.8"
+  chapter: 12
+  pdfPages: [260, 261, 262]
+  printedPages: [254, 255, 256]
+  firmware: "4.1.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+### Setting up an external midi channel
+
+1. Connect an external device and ensure MIDI channels and setting are configured correctly.
+2. Press :key[Clip] to select clip view.
+3. Press :key[MIDI] on Deluge. Button illuminates red.
+4. The display will indicate the existing MIDI channel set for MIDI output.
+5. :key[Turn Select] to change the channel to match the external device. Range is 1-16 channels.
+6. The :key[Audition Pad] pads should trigger the external synth when played manually.
+
+### Creating a basic midi clip
+
+1. Press :key[Clip] to select clip view.
+2. Press :key[MIDI], Button illuminates red.
+3. The display will indicate the existing MIDI channel set for MIDI output or a suffix on the channel number. \*
+4. Program a pattern using the grid by pressing the :key[Pad]’s. Rows represent the note pitch while columns represent the note timing. The same features as programming a synth exist in navigating and editing on the grid for MIDI clips.
+5. Press :key[Play] to play the pattern which in turn will trigger the connected device on the same MIDI channel.
+
+:::note \* If you wish to have more than one clip outputting on the same MIDI channel simultaneously, additional clips will be set to the same MIDI channel but will contain a suffix after their channel number, e.g. “2A”, “2B”, and so on. This is to allow them to be treated as unique “instruments”, in terms of which ones may play simultaneously, while still outputting on the same channel.
+:::
+
+### Mapping deluge to control external parameters
+
+1. Select :key[Clip] view.
+2. Press :key[MIDI] on Deluge. Button illuminates red.
+3. Ensure the destination device is set correctly to receive MIDI (channels, CC mapping etc).
+4. Press affect parameter button to choose one of the 8 available parameter slots per control. Example, :key[LevelPan]. In total 16 parameters (8 upper, 8 lower) can be set for MIDI controls.
+5. Press :key[Upper Gold] or :key[Lower Gold] to see the assigned MIDI CC message to each. NONE indicates no assignment otherwise the CC number will be displayed.
+6. Press & hold :key[Upper Gold + Turn Select]. Assign a CC number that matches the destination device CC for the parameter to control. Example, CC102 filter frequency on the external synth.
+7. CC messages range from CC0 - CC119, bend and aftertouch. CC1 is typically mod wheel.
+8. Turning :key[Upper Gold] will control the external parameter. Example filter frequency, with a range of 0-127 on Deluge as min and max values.
+9. Repeat step 4 - 8 for the :key[Lower Gold] control.
+
+### Recording automation for external parameters
+
+1. Select :key[Clip] view.
+2. Press :key[MIDI] on Deluge. Button illuminates red.
+3. Ensure the destination device is set correctly to receive MIDI (channels, CC mapping etc).
+4. Map the UPPER & LOWER gold controls to the desired MIDI parameters on the external device.
+5. Press :key[Record] to arm recording. Button illuminates red.
+6. Press :key[Play] to start the sequencer and recording.
+7. :key[Turn Upper Gold] or :key[Lower Gold] control as desired to record the MIDI CC changes into the pattern.
+8. The MIDI CC number shown when pressing :key[Upper Gold] or :key[Lower Gold] will say (AUTOMATED)
+
+### Deleting automation for an external parameters
+
+1. Select :key[Clip] view.
+2. Press :key[MIDI] on Deluge. Button illuminates red.
+3. Press :key[Shift + Upper Gold] or :key[Lower Gold] to delete the automation associated with the parameter selected by the button and the control pressed.
+4. Automation will be cleared and the MIDI CC number shown when pressing :key[Upper Gold] or :key[Lower Gold] will no longer say (AUTOMATED)

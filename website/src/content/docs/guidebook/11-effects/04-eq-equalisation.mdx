@@ -1,0 +1,67 @@
+---
+title: "11.4 EQ - Equalisation"
+description: "Equalisation, known as EQ, affects the frequency balance of an audio signal."
+sidebar:
+  order: 3
+banner:
+  content: "From the official Guidebook for OS 4.1. Community firmware may differ."
+guidebook:
+  section: "11.4"
+  chapter: 11
+  pdfPages: [225, 226, 227]
+  printedPages: [219, 220, 221]
+  firmware: "4.1.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+Equalisation, known as EQ, affects the frequency balance of an audio signal. This can affect the timbre and sound or it can be used as an audio tool for example to reduce a specifically bad frequency. Deluge has a 2- band EQ covering bass and treble frequencies at a fixed Q width.
+
+#### Frequency Range
+
+<FigurePending id="fig-11.4-1" page={219}>
+  50 · 25 · BASS · TREBLE · 0 · Low Frequency 20Hz · High Frequency 20kHz
+</FigurePending>
+
+#### Bass
+
+Low frequency range for adjustments. The bass frequency range is typically in the 0-300Hz region. The frequency position and the amount of boost or cut can be adjusted.
+
+AMOUNT: 0-50. 25 neutral, &gt; 25 to boost, &lt; 25 to cut. FREQUENCY: 0-50 Position to boost / cut across the bass range.
+
+#### Treble
+
+Mid to higher frequency range for adjustments. The treble frequency range is typically in the 2kHz - 16kHz region. The frequency position and the amount of boost or cut can be adjusted.
+
+AMOUNT: 0-50. 25 Neutral, &gt; 25 to boost, &lt; 25 to cut. FREQUENCY: 0-50 Position to boost / cut across the treble range.
+
+### Setting eq at sound level
+
+1. :key[Clip] view, ensure the clip is in-focus, example: a synth.
+2. Press :key[Shift] + BASS :key[Adjust Pad] or :key[Shift] + TREBLE :key[Adjust Pad]. This selects the EQ band to adjust
+3. :key[Turn Select] to adjust the amount of EQ where 25 is central and 25-50 boosts the frequency at the set position and 25-0 attenuates the frequency at the set position.
+4. Press :key[Shift] + BASS :key[Frequency Pad] or :key[Shift] + TREBLE :key[Frequency Pad]. This selects the EQ frequency at which to boost or cut.
+5. :key[Turn Select] to adjust the frequency between 0-50 representing the treble or bass bands.
+6. It is advised to adjust by ear iterating adjustments between step 2 - 5.
+
+or
+
+1. Ensure focus is clip view for a synth or kit.
+2. Access the effects within the menu. Press :key[Select].
+3. Navigate in the menu to the FX section and press :key[Select].
+4. Navigate in the menu to the EQ section and press :key[Select].
+5. Select either ‘BASS’ or ‘TREBLE’ to set the amount. Select ‘BASS FREQUENCY’ and ‘TREBLE FREQUENCY’ for the frequency of each band.
+6. Adjust the amount by turning :key[Select] to change the parameter for the selected effect.
+
+### Setting eq at kit level or sound level
+
+1. :key[Clip] view, ensure the clip is in-focus, example: a kit.
+2. Press :key[CutoffRes] affect button to select filter and - EQ parameters. Button illuminates orange.
+3. Press :key[Upper Gold] to cycle between LPF, HPF & EQ. Release the control to select EQ.
+4. :key[Turn Upper Gold] to change TREBLE band amount or :key[Turn Lower Gold] to change BASS band amount for the sound selected.
+5. Press :key[AffectEntire] to affect the entire kit. Button lit orange.
+6. :key[Turn Upper Gold] to change TREBLE band amount or :key[Turn Lower Gold] to change BASS band amount for the entire kit selected.

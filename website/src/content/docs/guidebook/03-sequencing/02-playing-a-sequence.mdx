@@ -1,0 +1,66 @@
+---
+title: "3.2 Playing a Sequence"
+description: "Playing the sequence is a simple process using the mode group transport controls."
+sidebar:
+  order: 1
+banner:
+  content: "From the official Guidebook for OS 4.1. Community firmware may differ."
+guidebook:
+  section: "3.2"
+  chapter: 3
+  pdfPages: [41, 42, 43]
+  printedPages: [35, 36, 37]
+  firmware: "4.1.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+Playing the sequence is a simple process using the mode group transport controls. The default direction is forwards, but reverse and ping-pong are also available as selectable options.
+
+### Playing a sequence
+
+1. Press :key[Clip] to select clip view. This is indicated by the clip button illuminated blue.
+2. Press :key[Play] to start playback. Button is lit green. Press :key[Play] again to stop the sequence. Button is off.
+3. Press :key[Horizontal + Play] to start playback from the beginning of the grid / zoom position that is in focus instead of from the sequence start position.
+
+<FigurePending id="fig-3.2-1" page={35}>
+  Press [PLAY] To start sequencer playback. Button illuminates green. · Press
+  [PLAY] A second time to stop playback. Button is unlit / off. · When playing
+  the white column cursor will move left to right across the time range and can
+  be seen in the respective pad grids. · Press & hold (SCROLL◄►) + press [PLAY]
+  to start the sequencer playback from the start of the current in focus grid
+  scroll position instead of starting at the start of the full grid. · 16x8 ·
+  16x8 · 16x8
+</FigurePending>
+
+### Setting the sequencer play direction
+
+1. Press :key[Clip] to select clip view. This is indicated by the clip button illuminated blue. For a KIT clip\*, select the row, press :key[Audition Pad].
+2. Press :key[Shift + Direction Pad] to open the setup menu options. The button will flash and the display will indicate the current play direction. The default is FORWard.
+3. :key[Turn Select] to choose the desired direction from the three available options.
+   - FORWARD. Will play the sequencer from the start - left to right. This is the normally expected playback behaviour.
+   - REVERSE. Will play the sequencer in reverse where the start will be the end of the sequence - right to left.
+   - PING-PONG. Will play the sequencer firstly from the start - left to right, then at the end will reverse back right to left.
+   - NONE. Only available for KIT rows\* when AFFECT ENTIRE is OFF. This sets the current row direction to operate based on the global kit clip direction setting.
+4. Once the direction is selected, press :key[Play] to start playback. Button is lit green. Press :key[Play] again to stop the sequence. Button is off.
+
+<FigurePending id="fig-3.2-2" page={36}>
+  DIRECTION
+</FigurePending>
+
+Note: The ‘direction’ shortcut button label may not be printed on faceplates.
+
+\*Note: Kit rows can be set to have independent direction control settings. Independent direction for rows are set in a KIT and when :key[AffectEntire] is set to OFF. To set the global direction for all rows in a kit clip, set the direction setting while the :key[AffectEntire] option is set to ON. This will therefore apply the direction to all rows.
+
+Play direction.
+
+<FigurePending id="fig-3.2-3" page={37}>
+  Play · FORWARD · Plays from the start to end of length and then loops back to
+  the start · Play · REVERSE · Plays from the end to the start i.e. in reverse
+  and then loops back to the end · Play · PING-PONG · Play Plays from the start
+  to the end, then back to the start and loops in this pattern
+</FigurePending>

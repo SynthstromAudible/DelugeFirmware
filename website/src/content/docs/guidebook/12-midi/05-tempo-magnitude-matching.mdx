@@ -1,0 +1,42 @@
+---
+title: "12.5 Tempo Magnitude Matching"
+description: "When playing as a follower via MIDI beat clock (but not via trigger clock), if the incoming clock is around half or around double the tempo that the song…"
+sidebar:
+  order: 4
+banner:
+  content: "From the official Guidebook for OS 4.1. Community firmware may differ."
+guidebook:
+  section: "12.5"
+  chapter: 12
+  pdfPages: [255, 256]
+  printedPages: [249, 250]
+  firmware: "4.1.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+When playing as a follower via MIDI beat clock (but not via trigger clock), if the incoming clock is around half or around double the tempo that the song was previously set to, then the Deluge will accordingly multiply or divide the tempo of the incoming clock so that the tempo at which the song on the Deluge plays is as close as possible to the tempo that it was set to.
+
+This is useful in a couple of scenarios:
+
+    - Perhaps the user isn't concerned with the labelling of time divisions (8th-notes, 16th-notes, etc.) and nonetheless wants to sync the Deluge as a follower without worrying about whether their song will play at the intended tempo rather than twice / half as fast.
+    - Some loop pedals (although not common) have the ability to act as a syncing leader by outputting a MIDI beat clock whose exact tempo is determined on the fly according to the length of the loop that the user creates. The user may wish, for example, to record a guitar loop with their loop pedal (with no kind of metronome or anything determining the tempo in advance), and then have the Deluge play a drum beat along to it, perfectly in sync. With a compatible loop pedal, this works. However, the loop pedal would not necessarily know the difference, say, between a loop that the user intended to be at 160bpm, and one intended to be at 80bpm (160 being double 80), and may pick the wrong option. The Deluge, knowing what tempo to approximately expect, can automatically correct the incoming MIDI beat clock if it is around double or half the tempo expected, making it a certainty that the Deluge will begin playback at somewhere near the expected tempo.
+
+### Setting tempo magnitude matching
+
+1. Press :key[Shift + Select] to access the configuration menu.
+2. :key[Turn Select] and scroll to ‘MIDI’. Press :key[Select].
+3. :key[Turn Select] and scroll to ‘CLOCK’. Press :key[Select] to step into clock menu.
+4. :key[Turn Select] to highlight ‘TEMPO MAGNITUDE MATCHING’ - MIDI beat clock input, from within the clock menu.
+5. Press :key[Select] and :key[Turn Select] to set to ON or OFF.
+   - ON - multiplies or divides incoming clock tempo if it is a figure close to double or half the current song tempo.
+   - OFF - incoming tempo is applied unaffected.
+
+### Manually setting tempo magnitude as follower / leader
+
+If errors (too fast / too slow) occur after automatically matching the tempo or when controlling a follower device and its tempo is double / half, then manual adjustments can be made. Adjustments to the relative speed can be applied.
+
+1. Press & hold :key[LearnInput + Turn Tempo].
+2. When Deluge is the leader, the display will show the tempo double / half while making manual changes.

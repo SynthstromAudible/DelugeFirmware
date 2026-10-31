@@ -1,0 +1,102 @@
+---
+title: "7.6 Saving & Loading Songs"
+description: "Songs can be saved and loaded to/from the inserted SD card."
+sidebar:
+  order: 5
+banner:
+  content: "From the official Guidebook for OS 4.1. Community firmware may differ."
+guidebook:
+  section: "7.6"
+  chapter: 7
+  pdfPages: [153, 154, 155, 156]
+  printedPages: [147, 148, 149, 150]
+  firmware: "4.1.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+Songs can be saved and loaded to/from the inserted SD card. Songs can be number 000-999 or named using the alphanumeric grid keyboard. Variations of each saved slot also has sub slots, for example if 000 is used, 000 2 etc will be incrementally offered.
+
+### Saving a numbered song
+
+1. Ensure view is in :key[Song], :key[Clip], [ARRANGER] or :key[Keyboard].
+2. Press :key[Save].
+3. The available song slot to save to will be displayed flashing. Type using the keyboard to name song, or press :key[Save] to accept suggested title.
+4. Press :key[Save] again to save the Song or :key[BackUndo] to back up and exit.
+5. Song will save and return to the previous view.
+
+<FigurePending id="fig-7.6-1" page={147}>
+  Save Slot · 001 · 002 · Save Slot · SONG folder will store user saved song
+  data on the SD card. · 002 2 · 002 3 · Sub Slot · Sub-slots are automatically
+  generated to avoid accidentally overwriting of existing songs · 003 · Save
+  Slot
+</FigurePending>
+
+:::note
+Saving and loading can be performed while playing. The transition is managed without interruption to playback, switching between at the loop end.
+:::
+
+### Saving a named song
+
+1. Ensure view is in :key[Song], :key[Clip], [ARRANGER] or :key[Keyboard].
+2. Press :key[Save].
+3. Songs can be named using the alphanumeric grid keyboard. Subsequent iterations of the song will be automatically created when existing saves exist. Example SONGNAME will also have SONGNAME 2, SONGNAME 3 etc when iterations are saved.
+4. Deleting the name manually using backspace will revert back to the numbering system.
+5. :key[Turn Select] to select the slot / name.
+6. Press :key[Save] again to save the song or :key[BackUndo] to back up and exit.
+7. Song will save and return to the previous view.
+
+### Loading a song
+
+1. Ensure view is in :key[Song], :key[Clip], [ARRANGER] or :key[Keyboard].
+2. Press :key[Load].
+3. The available songs slot to load to will be displayed flashing. Named files and numbered slots between 0-999 are available as well as sub- slots, example 001 3.
+4. :key[Turn Select] to select the song required. Hold :key[Shift] & :key[Turn Select] to skip sub-slots when navigating, - this is only for numbered songs, not named song sub-slots.
+5. The alphanumeric keyboard can be used for selecting named samples.
+6. The songs, while navigating the songs, will be previewed visually on the 16x8 grid.
+7. Press :key[Load] again to load the song in focus or :key[BackUndo] to back up and exit.
+8. Song will load.
+
+### Deleting a song
+
+1. Ensure view is in :key[Song], :key[Clip], [ARRANGER] or :key[Keyboard].
+2. Press :key[Load].
+3. The available songs will be displayed flashing. Slots between 000-999 are available as well as sub-slots, example 001 3.
+4. :key[Turn Select] to select the song required. Hold :key[Shift] & :key[Turn Select] to skip sub-slots when navigating. The alphanumeric keyboard can be used for selecting named samples.
+5. Press :key[Shift + Save] to select song delete mode, indicated by ‘DELETE’ on the display.
+6. Press :key[Save] again, or press :key[Select] to delete the song in focus or :key[BackUndo] to back up and exit.
+
+### Creating a new blank song
+
+1. Ensure view is in :key[Song], :key[Clip], [ARRANGER] or :key[Keyboard].
+2. Press :key[Shift + Load].
+3. Display will show ‘CLEAR SONG: OK’ indicating a new blank song is about to be created.
+4. Press :key[Load] again or press :key[Select] and a new blank song is created, clearing previous data. This is the same as the default empty song at start up.
+
+### Loading a song during playback
+
+1. Ensure view is in :key[Song], :key[Clip], [ARRANGER] or :key[Keyboard].
+2. Press :key[Play] or make sure the song is playing.
+3. Press :key[Load] .
+4. :key[Turn Select] to select the song required. Hold :key[Shift] & :key[Turn Select] to skip sub-slots when navigating. The alphanumeric keyboard can be used for selecting named samples.
+5. Press :key[Load] to load the song in-focus. Song will load ready for completion of the existing song playback at which point it will launch. Songs with large sample content may take some time to load.
+
+or
+
+6. Press & hold :key[Load] to load and delay arming until fully loaded. ‘LOADING COMPLETE’ will be displayed when song is ready for launch. Releasing the :key[Load] button will ‘arm’ the song ready for completion of the existing song loop, showing ‘SONG WILL BEGIN…’ on screen
+7. Arming songs is applied the same way as clips. The countdown can be adjusted using :key[Select].
+
+### Loading a song and retaining existing song tempo
+
+1. Ensure view is in :key[Song], :key[Clip], [ARRANGER] or :key[Keyboard].
+2. Press :key[Play] or make sure the song is playing.
+3. Press :key[Load] .
+4. :key[Turn Select] to select the song required.
+5. Press & hold :key[Tempo + Load] to load the song in-focus at the current tempo.
+6. Depending on the tempo mode will govern how the tempo is managed:-
+   - Tempo magnitude matching enabled: will apply a multiple of the old song tempo if needed to avoid drastic changes to a new tempo.
+   - Synced as a follower: tempo will remain the same irrespective of tempo magnitude matching.
