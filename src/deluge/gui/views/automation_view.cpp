@@ -1134,6 +1134,10 @@ void AutomationView::displayAutomation(bool padSelected, bool updateDisplay) {
 // button action
 
 ActionResult AutomationView::buttonAction(hid::Button b, bool on, bool inCardRoutine) {
+	if (auto result = trackLockButtonAction(b, on, inCardRoutine); result != ActionResult::NOT_DEALT_WITH) {
+		return result;
+	}
+
 	if (inCardRoutine) {
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}

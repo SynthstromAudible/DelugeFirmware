@@ -152,6 +152,7 @@ private:
 	void rememberInteractionWithClipInstance(int32_t yDisplay, ClipInstance* clipInstance);
 	void deleteOutput();
 	void auditionEnded();
+	bool silentTrackAudition = false;
 	// The output a held audition pad would pulse.
 	Output* heldPulseCandidate() const;
 	HoldPulse heldPulse;

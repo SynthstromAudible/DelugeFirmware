@@ -15,6 +15,8 @@ using enum String;
 PLACE_SDRAM_DATA Language seven_segment{
     "Seven Segment",
     {
+        {STRING_FOR_TRACK_LOCK_ON, "ON"},
+        {STRING_FOR_TRACK_LOCK_OFF, "OFF"},
         {STRING_FOR_PICK_A_TRACK, "PICK"},
         {STRING_FOR_TRACK_NO_MENU, "NONE"},
         {STRING_FOR_TRACK_NO_CLIP, "NONE"},
