@@ -44,6 +44,7 @@
 #include "util/functions.h"
 #include "util/try.h"
 #include "version.h"
+#include <memory>
 #include <string.h>
 
 extern "C" {
@@ -346,6 +347,18 @@ Error StorageManager::loadInstrumentFromFile(Song* song, InstrumentClip* clip, O
 		return Error::INSUFFICIENT_RAM;
 	}
 
+	// Keep ownership until the complete load succeeds, so every early return cleans up.
+	auto deleteInstrument = [song, name](Instrument* instrument) {
+		D_PRINTLN("abandoning load -  %s", name->get());
+		instrument->deleteBackedUpParamManagers(song);
+		// Instrument can be an interior base subobject (e.g. SoundInstrument).
+		// The allocator needs the start of the complete object, before its destructor runs.
+		void* toDealloc = dynamic_cast<void*>(instrument);
+		instrument->~Instrument();
+		delugeDealloc(toDealloc);
+	};
+	std::unique_ptr<Instrument, decltype(deleteInstrument)> instrumentOwner(newInstrument, deleteInstrument);
+
 	error = newInstrument->readFromFile(smDeserializer, song, clip, 0);
 
 	FRESULT fileSuccess = activeDeserializer->closeWriter();
@@ -356,16 +369,6 @@ Error StorageManager::loadInstrumentFromFile(Song* song, InstrumentClip* clip, O
 		if (!fileSuccess) {
 			error = Error::SD_CARD;
 		}
-
-deleteInstrumentAndGetOut:
-		D_PRINTLN("abandoning load -  %s", name->get());
-		newInstrument->deleteBackedUpParamManagers(song);
-		// Instrument can be an interior base subobject (e.g. SoundInstrument).
-		// The allocator needs the start of the complete object, before its destructor runs.
-		void* toDealloc = dynamic_cast<void*>(newInstrument);
-		newInstrument->~Instrument();
-		delugeDealloc(toDealloc);
-
 		return error;
 	}
 
@@ -379,7 +382,7 @@ deleteInstrumentAndGetOut:
 			ParamManagerForTimeline paramManager;
 			error = paramManager.setupUnpatched();
 			if (error != Error::NONE) {
-				goto deleteInstrumentAndGetOut;
+				return error;
 			}
 
 			GlobalEffectableForClip::initParams(&paramManager);
@@ -390,10 +393,8 @@ deleteInstrumentAndGetOut:
 			// midi instruments make the param manager later
 		}
 		else {
-paramManagersMissing:
 			D_PRINTLN("creating param manager failed -  %s", name->get());
-			error = Error::FILE_CORRUPTED;
-			goto deleteInstrumentAndGetOut;
+			return Error::FILE_CORRUPTED;
 		}
 	}
 
@@ -406,7 +407,8 @@ paramManagersMissing:
 
 				// If no backedUpParamManager...
 				if (!currentSong->getBackedUpParamManagerPreferablyWithClip(soundDrum, NULL)) {
-					goto paramManagersMissing;
+					D_PRINTLN("creating param manager failed -  %s", name->get());
+					return Error::FILE_CORRUPTED;
 				}
 			}
 		}
@@ -417,7 +419,7 @@ paramManagersMissing:
 	newInstrument->mightExistOnCard = true;
 	newInstrument->loadAllAudioFiles(mayReadSamplesFromFiles); // Needs name, directory and slots set first, above.
 
-	*getInstrument = newInstrument;
+	*getInstrument = instrumentOwner.release();
 	return Error::NONE;
 }
 
