@@ -6,13 +6,13 @@
 </defs>
 <g clip-path="url(#04-synthesizers__13-single-cycle-waveforms--1-clip_1)">
 <path transform="matrix(1,0,0,-1,-53.9,554.1)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M424.7 688.6V84.1"/>
-<text xml:space="preserve" transform="translate(5.9 18.0)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-weight="bold" font-weight="bold"><tspan y="0" x="0.0">Single-cycle Waveform</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(5.9 38.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Native (preferred) 44.1kHz 16/24bit.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(5.9 46.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">WAV or AIFF up to 32bit 96kHz.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(108.8 236.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">SYNTH ENGINE</tspan></text>
+<text xml:space="preserve" transform="translate(5.9 18.0)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-weight="bold" font-weight="bold"><tspan y="0" x="0">Single-cycle Waveform</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(5.9 38.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Native (preferred) 44.1kHz 16/24bit.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(5.9 46.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">WAV or AIFF up to 32bit 96kHz.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(108.8 236.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">SYNTH ENGINE</tspan></text>
 <path transform="matrix(1,0,0,-1,-53.9,554.1)" d="M148.1 304.7H233.5V336.0H148.1ZM232.8 335.3V305.4C232.8 305.4 148.8 305.4 148.8 305.4 148.8 305.4 148.8 335.3 148.8 335.3 148.8 335.3 232.8 335.3 232.8 335.3Z" fill="currentColor" fill-rule="evenodd"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(12.7 144.8)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Wavetable (preferred)</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(12.7 152.1)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">or Sample</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(12.7 144.8)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Wavetable (preferred)</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(12.7 152.1)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">or Sample</tspan></text>
 <path transform="matrix(1,0,0,-1,-53.9,554.1)" d="M215.9 419.6C222.9 419.6 228.6 413.8 228.6 406.8 228.6 399.8 222.9 394.1 215.9 394.1 208.8 394.1 203.1 399.8 203.1 406.8 203.1 413.8 208.8 419.6 215.9 419.6Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-53.9,554.1)" d="M215.9 419.6C222.9 419.6 228.6 413.8 228.6 406.8 228.6 399.8 222.9 394.1 215.9 394.1 208.8 394.1 203.1 399.8 203.1 406.8 203.1 413.8 208.8 419.6 215.9 419.6ZM215.9 419.1C222.6 419.1 228.1 413.6 228.1 406.8 228.1 400.1 222.6 394.6 215.9 394.6 209.1 394.6 203.6 400.1 203.6 406.8 203.6 413.6 209.1 419.1 215.9 419.1Z" fill="currentColor" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-53.9,554.1)" stroke-width=".4" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M207.4 406.8C208.9 415.0 210.3 416.0 211.6 406.8 213.1 398.3 214.5 398.5 215.9 406.8"/>

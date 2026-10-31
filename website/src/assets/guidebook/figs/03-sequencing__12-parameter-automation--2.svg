@@ -47,24 +47,24 @@
 <path transform="matrix(1,0,0,-1,-41.6,688.3)" d="M338.3 360.3C338.3 362.4 336.7 364.0 334.7 364.0H327.3C325.3 364.0 323.7 362.4 323.7 360.3V353.0C323.7 351.0 325.3 349.3 327.3 349.3H334.7C336.7 349.3 338.3 351.0 338.3 353.0ZM337.6 360.3V353.0C337.6 351.4 336.3 350.0 334.7 350.0H327.3C325.7 350.0 324.4 351.4 324.4 353.0V360.3C324.4 362.0 325.7 363.3 327.3 363.3H334.7C336.3 363.3 337.6 362.0 337.6 360.3Z" fill="currentColor" fill-rule="evenodd" data-pad="15,1" data-color="#292529"/>
 <use href="#03-sequencing__12-parameter-automation--2-s1" transform="matrix(1 0 0 -1 313.7 328)"/>
 <path transform="matrix(1,0,0,-1,-41.6,688.3)" d="M355.3 360.3C355.3 362.4 353.7 364.0 351.7 364.0H344.3C342.3 364.0 340.7 362.4 340.7 360.3V353.0C340.7 351.0 342.3 349.3 344.3 349.3H351.7C353.7 349.3 355.3 351.0 355.3 353.0ZM354.6 360.3V353.0C354.6 351.4 353.3 350.0 351.7 350.0H344.3C342.7 350.0 341.4 351.4 341.4 353.0V360.3C341.4 362.0 342.7 363.3 344.3 363.3H351.7C353.3 363.3 354.6 362.0 354.6 360.3Z" fill="currentColor" fill-rule="evenodd" data-pad="16,1" data-color="#292529"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(331.2 260.4)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">0</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(331.2 478.8)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">0</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(327.3 222.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">32L</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(327.3 440.4)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">32L</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(298.1 268.8)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">PAN</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(298.1 487.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">PAN</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(326.8 298.6)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">32R</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(326.8 517.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">32R</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(6.0 12.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Automation is recorded into the sequencer by holding a [</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(231.1 12.5)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0.0">PAD</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(249 12.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">] and adjusting the (LOWER) -</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(6.0 22.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">For</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(22.0 22.5)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0.0">pan</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(37.0 22.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">, control with the target - level / pan, parameter selected. A parameter change is set</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(6.0 32.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">for the specific [</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(69.0 32.5)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0.0">PAD</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(86.8 32.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">] step and is held until the next note to ensure transitions account for</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(6.0 42.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">note release. Copy / paste considers the entire region automation, not just the single step.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(331.2 260.4)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">0</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(331.2 478.8)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">0</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(327.3 222.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">32L</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(327.3 440.4)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">32L</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(298.1 268.8)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">PAN</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(298.1 487.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">PAN</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(326.8 298.6)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">32R</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(326.8 517.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">32R</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.0 12.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Automation is recorded into the sequencer by holding a [</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(231.1 12.5)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0">PAD</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(249 12.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">] and adjusting the (LOWER) -</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.0 22.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">For</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(22.0 22.5)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0">pan</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(37.0 22.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">, control with the target - level / pan, parameter selected. A parameter change is set</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.0 32.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">for the specific [</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(69.0 32.5)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0">PAD</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(86.8 32.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">] step and is held until the next note to ensure transitions account for</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.0 42.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">note release. Copy / paste considers the entire region automation, not just the single step.</tspan></text>
 <path transform="matrix(1,0,0,-1,-41.6,688.3)" stroke-width=".55" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M161.2 337.6V319.2"/>
 <path transform="matrix(1,0,0,-1,-41.6,688.3)" d="M161.1 345.4 165.2 337.3H157.1ZM161.1 344.2 164.3 337.9C164.3 337.9 158.0 337.9 158.0 337.9Z" fill-rule="evenodd"/>
 <g clip-path="url(#03-sequencing__12-parameter-automation--2-clip_2)">
@@ -99,8 +99,8 @@
 <path transform="matrix(1,0,0,-1,-41.6,688.3)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M220.9 469.6V320.2"/>
 <path transform="matrix(1,0,0,-1,-41.6,688.3)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M82.5 430.6H152.7V411.4H221.1V430.6H363.1"/>
 <path transform="matrix(1,0,0,-1,-41.6,688.3)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M82.5 212.2H152.7L221.1 212.2H363.1"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(105.7 420.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">(SCROLL◄►) + [BACK / UNDO]</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(106.2 430.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">to clear all notes and automation.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(105.7 420.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">(SCROLL◄►) + [BACK / UNDO]</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(106.2 430.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">to clear all notes and automation.</tspan></text>
 </g>
 </g>
 </svg>

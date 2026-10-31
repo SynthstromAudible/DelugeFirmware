@@ -2,13 +2,12 @@
 :root {
   --gb-accent: #d61e24;
   --gb-muted: #6b6a6b;
-  --gb-paper: #ffffff;
+  --gb-paper: var(--sl-color-black); /* page background */
 }
 
 :root[data-theme="dark"] {
   --gb-accent: #ff5a5f;
   --gb-muted: #a0a0a0;
-  --gb-paper: #23262f;
 }
 
 .gb-figure {
@@ -47,4 +46,12 @@
    invert them on the dark theme so they stay visible. */
 :root[data-theme="dark"] .gb-figure-art image.gb-ink {
   filter: invert(1) hue-rotate(180deg);
+}
+
+.gb-figure-wide {
+  overflow-x: auto;
+}
+
+.gb-figure-wide .gb-figure-art {
+  margin-inline: 0;
 }

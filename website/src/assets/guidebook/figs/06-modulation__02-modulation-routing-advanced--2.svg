@@ -14,18 +14,18 @@
 </defs>
 <g>
 <g clip-path="url(#06-modulation__02-modulation-routing-advanced--2-clip_1)">
-<text fill="currentColor" xml:space="preserve" transform="translate(214.3 305.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Modulator.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(171.1 313.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">LFO 2 modulates LFO1 depth which in</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(168.5 321.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">turn affects parameter frequency of LPF.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(178.0 341.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">ENV1 trigger modulates, the cutoff</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(180.3 349.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">frequency and resonance of LPF.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(9.1 12.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Destination Parameters</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(6.0 20.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">LFP frequency and resonance</tspan></text>
-<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(93.9 329.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">LFO1</tspan></text>
-<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(274.5 233.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">ENV1</tspan></text>
-<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(93.9 399.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">LFO 2</tspan></text>
-<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(38.2 236.9)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Cutoff Freq</tspan></text>
-<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(37.9 223.6)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Resonance</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(214.3 305.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Modulator.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(171.1 313.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">LFO 2 modulates LFO1 depth which in</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(168.5 321.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">turn affects parameter frequency of LPF.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(178.0 341.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">ENV1 trigger modulates, the cutoff</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(180.3 349.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">frequency and resonance of LPF.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(9.1 12.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Destination Parameters</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.0 20.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">LFP frequency and resonance</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(93.9 329.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">LFO1</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(274.5 233.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">ENV1</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(93.9 399.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">LFO 2</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(38.2 236.9)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Cutoff Freq</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(37.9 223.6)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Resonance</tspan></text>
 <g mask="url(#06-modulation__02-modulation-routing-advanced--2-mask_2)">
 <g transform="matrix(.076759997,0,0,.07676,50.2,48.6)">
 <image class="gb-ink" id="06-modulation__02-modulation-routing-advanced--2-image_4" width="3024" height="1484" xlink:href="/guidebook/img/06-modulation__02-modulation-routing-advanced--2-2.webp"/>
@@ -111,9 +111,9 @@
 <path transform="matrix(1,0,0,-1,-78.1,598.9)" d="M104.5 285.6 106.8 281.1H102.3ZM104.5 284.7 106.1 281.5C106.1 281.5 102.9 281.5 102.9 281.5Z" fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-78.1,598.9)" stroke-width=".4" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M104.5 263.9V280.9"/>
 <path transform="matrix(1,0,0,-1,-78.1,598.9)" d="M104.5 259.5 106.8 264.0H102.3ZM104.5 260.4 102.9 263.6C102.9 263.6 106.1 263.6 106.1 263.6Z" fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" fill-rule="evenodd"/>
-<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(93.1 262.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Filter</tspan></text>
-<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(47.6 426.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0.0">Rate</tspan></text>
-<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="matrix(0 -1 1 0 20.2 335.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0.0">Depth</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(93.1 262.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Filter</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(47.6 426.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0">Rate</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="matrix(0 -1 1 0 20.2 335.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0">Depth</tspan></text>
 </g>
 </g>
 </svg>

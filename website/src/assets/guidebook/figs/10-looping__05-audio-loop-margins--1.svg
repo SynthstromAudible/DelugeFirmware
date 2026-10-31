@@ -60,10 +60,10 @@
 <path transform="matrix(1,0,0,-1,-239.9,533.6)" stroke-width=".7" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M472.7 401.9V387.7H251.2V399.1"/>
 <path transform="matrix(1,0,0,-1,-239.9,533.6)" stroke-width=".7" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M251.2 405.0 253.9 399.3H248.5Z"/>
 <path transform="matrix(1,0,0,-1,-239.9,533.6)" d="M472.7 405.4C473.7 405.4 474.6 404.5 474.6 403.5 474.6 402.5 473.7 401.7 472.7 401.7 471.7 401.7 470.9 402.5 470.9 403.5 470.9 404.5 471.7 405.4 472.7 405.4Z" fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" fill-rule="evenodd"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(189.2 138.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Loop Point</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(166.2 12.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Margin</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(126.1 20.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Algorithm uses buffered audio to</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(124.0 28.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">reduce clicks and improve quality.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(189.2 138.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Loop Point</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(166.2 12.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Margin</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(126.1 20.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Algorithm uses buffered audio to</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(124.0 28.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">reduce clicks and improve quality.</tspan></text>
 <path transform="matrix(1,0,0,-1,-239.9,533.6)" stroke-width=".7" stroke-linecap="butt" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="currentColor" d="M460.2 408.5V487.7"/>
 <path transform="matrix(1,0,0,-1,-239.9,533.6)" stroke-width=".7" stroke-linecap="butt" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="currentColor" d="M245.9 408.5V487.7"/>
 <path transform="matrix(1,0,0,-1,-239.9,533.6)" stroke-width=".4" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M466.2 488.2V497.0H420.2V503.3"/>

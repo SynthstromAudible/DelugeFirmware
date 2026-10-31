@@ -7,25 +7,25 @@
 <g clip-path="url(#06-modulation__04-sidechain-compressor--3-clip_1)">
 <path transform="matrix(1,0,0,-1,-80,605.6)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M424.7 688.6V84.1"/>
 <path transform="matrix(1,0,0,-1,-80,605.6)" d="M86.0 560H182.4V599.7H86.0Z" fill="var(--gb-paper)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(40.9 16.3)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">ATTACK</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(11.0 24.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Attack is the time to reach</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(18.5 32.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">full compression after</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(11.7 40.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">triggering the compressor</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(40.9 16.3)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">ATTACK</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(11.0 24.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Attack is the time to reach</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(18.5 32.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">full compression after</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(11.7 40.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">triggering the compressor</tspan></text>
 <path transform="matrix(1,0,0,-1,-80,605.6)" d="M115.9 459.5H337.0V491.4H115.9Z" fill="var(--gb-paper)"/>
 <path transform="matrix(1,0,0,-1,-80,605.6)" stroke-width=".24" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M115.9 459.5H337.0V491.4H115.9Z"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(38.5 128.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">The attack and release times are important and have a key effect</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(52.9 136.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">on the resulting feel of the sidechain compression effect.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(38.5 128.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">The attack and release times are important and have a key effect</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(52.9 136.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">on the resulting feel of the sidechain compression effect.</tspan></text>
 <path transform="matrix(1,0,0,-1,-80,605.6)" d="M267.4 560.3H377.2V599.7H267.4Z" fill="var(--gb-paper)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(226.1 16.1)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">RELEASE</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(195.4 24.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Release is the time to return</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(202.9 32.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">back to normal after the</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(202.5 40.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">compressor is released.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(226.1 16.1)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">RELEASE</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(195.4 24.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Release is the time to return</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(202.9 32.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">back to normal after the</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(202.5 40.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">compressor is released.</tspan></text>
 <path transform="matrix(1,0,0,-1,-80,605.6)" d="M268.4 496.7H378.2V537.3H268.4Z" fill="var(--gb-paper)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(231.5 75.1)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">SHAPE</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(191.8 83.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Tunes the shape of the release</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(191.9 91.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">phase to affect the whether the</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(193.6 99.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">effect is more or less punchy /</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(214.3 107.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">squishy sounding</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(231.5 75.1)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">SHAPE</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(191.8 83.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Tunes the shape of the release</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(191.9 91.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">phase to affect the whether the</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(193.6 99.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">effect is more or less punchy /</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(214.3 107.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">squishy sounding</tspan></text>
 <path transform="matrix(1,0,0,-1,-80,605.6)" stroke-width=".8" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="var(--gb-accent)" d="M173.9 541.2 217.8 599.7 290.7 540.9"/>
 <path transform="matrix(1,0,0,-1,-80,605.6)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.8,2.8,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M217.8 599.7C236.2 573.3 259.0 555.8 282.6 539.5"/>
 </g>

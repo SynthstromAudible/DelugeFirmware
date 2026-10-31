@@ -48,31 +48,31 @@
 </g>
 <path transform="matrix(1,0,0,-1,-76.7,607.3)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M441.3 558.8V601.3H293.0V470.5"/>
 <path transform="matrix(1,0,0,-1,-76.7,607.3)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M282.3 470.5V483.4H162.0V284.7"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(292.1 396.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">External Synth or Instrument</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(268.9 405.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">An external audio source can be sampled in and</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(267.7 414.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">used to loop along side other Deluge instruments</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(287.7 423.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">or other recorded or loaded samples.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(48.9 396.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">External MIDI Keyboard</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(22.7 405.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">With the MIDI input connected to an external</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(20.8 414.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">keyboard or drum pad will allow sampling and</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(50.6 423.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">looping of recorded MIDI in.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(42.4 455.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Recording Instrument Clips</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(43.4 464.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Recording can be made by using:-</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(65.8 473.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">1. Internal keyboard</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(71.8 482.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">2. Audition pads</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(56.2 491.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">3. External MIDI controller</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(304.4 455.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Recording Audio Clips</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(291.6 464.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Recording can be made by using:-</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(292.8 473.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">1. Line on and associated options</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(311.4 482.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">2. Internal microphone</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(310.1 491.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">3. External microphone</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(40.0 36.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">External MIDI Foot Controller</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(12.8 45.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">An external MIDI foot switch or controller is an ideal</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(7.6 54.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">accompaniment to operate the generic looper controls.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(2.1 63.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Some Deluge controls are set to accept global commands</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(5.3 72.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">from external sources including UNDO, REDO, LOOP &amp;</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(.95410159 81.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">LAYER as well as PLAY/STOP, RECORD, TAP, RESTART.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(198.3 148.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">MIDI IN</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(292.1 396.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">External Synth or Instrument</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(268.9 405.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">An external audio source can be sampled in and</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(267.7 414.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">used to loop along side other Deluge instruments</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(287.7 423.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">or other recorded or loaded samples.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(48.9 396.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">External MIDI Keyboard</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(22.7 405.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">With the MIDI input connected to an external</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(20.8 414.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">keyboard or drum pad will allow sampling and</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(50.6 423.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">looping of recorded MIDI in.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(42.4 455.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Recording Instrument Clips</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(43.4 464.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Recording can be made by using:-</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(65.8 473.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">1. Internal keyboard</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(71.8 482.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">2. Audition pads</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(56.2 491.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">3. External MIDI controller</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(304.4 455.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Recording Audio Clips</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(291.6 464.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Recording can be made by using:-</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(292.8 473.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">1. Line on and associated options</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(311.4 482.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">2. Internal microphone</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(310.1 491.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">3. External microphone</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(40.0 36.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">External MIDI Foot Controller</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(12.8 45.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">An external MIDI foot switch or controller is an ideal</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(7.6 54.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">accompaniment to operate the generic looper controls.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(2.1 63.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Some Deluge controls are set to accept global commands</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(5.3 72.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">from external sources including UNDO, REDO, LOOP &amp;</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(.95410159 81.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">LAYER as well as PLAY/STOP, RECORD, TAP, RESTART.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(198.3 148.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">MIDI IN</tspan></text>
 </g>
 </g>
 </svg>

@@ -21,14 +21,14 @@
 <g>
 <g clip-path="url(#14-system-general__02-updating-deluge-firmware--2-clip_1)">
 <path transform="matrix(1,0,0,-1,-211.5,639.7)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M170.1 688.6V84.1"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(152.8 215.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Update Bin File</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(137.7 224.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">The .bin update file should be</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(131.3 233.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">downloaded from Synthstrom and</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(125.3 242.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">transferred by PC/Mac to the SD card</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(91.7 15.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">SD Card</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(41.3 24.6)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">The .bin update file should be located in the</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(40.7 33.6)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">root directory for the SD card. Any other .bin</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(38.7 42.6)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">files should be removed from the the SD card</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(152.8 215.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Update Bin File</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(137.7 224.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">The .bin update file should be</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(131.3 233.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">downloaded from Synthstrom and</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(125.3 242.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">transferred by PC/Mac to the SD card</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(91.7 15.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">SD Card</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(41.3 24.6)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">The .bin update file should be located in the</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(40.7 33.6)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">root directory for the SD card. Any other .bin</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(38.7 42.6)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">files should be removed from the the SD card</tspan></text>
 <g clip-path="url(#14-system-general__02-updating-deluge-firmware--2-clip_2)">
 <g mask="url(#14-system-general__02-updating-deluge-firmware--2-mask_3)">
 <g transform="matrix(0,.018794,-.018794,0,197.8,168.2)">
@@ -66,11 +66,11 @@
 <use href="#14-system-general__02-updating-deluge-firmware--2-s3" transform="matrix(1 0 0 -1 288.7 159.4)"/>
 <use href="#14-system-general__02-updating-deluge-firmware--2-s3" transform="matrix(1 0 0 -1 288.7 165.4)"/>
 <path transform="matrix(1,0,0,-1,-211.5,639.7)" stroke-width=".4" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M435.4 463.1H433.9C433.8 463.1 433.7 463.0 433.7 462.8V455.4C433.7 455.3 433.8 455.2 433.9 455.2H435.4"/>
-<text fill="color-mix(in srgb, currentColor 41%, var(--gb-paper))" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 47.5 89.6)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">KITS</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 47.5 72.8)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Deluge+firmware+V4p0p1.bin</tspan></text>
-<text fill="color-mix(in srgb, currentColor 41%, var(--gb-paper))" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 47.5 106.4)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">SONGS</tspan></text>
-<text fill="color-mix(in srgb, currentColor 41%, var(--gb-paper))" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 47.5 123.2)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">SYNTHS</tspan></text>
-<text fill="color-mix(in srgb, currentColor 41%, var(--gb-paper))" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 47.5 140.0)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">SAMPLES</tspan></text>
+<text fill="color-mix(in srgb, currentColor 41%, var(--gb-paper))" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 47.5 89.6)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">KITS</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 47.5 72.8)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Deluge+firmware+V4p0p1.bin</tspan></text>
+<text fill="color-mix(in srgb, currentColor 41%, var(--gb-paper))" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 47.5 106.4)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">SONGS</tspan></text>
+<text fill="color-mix(in srgb, currentColor 41%, var(--gb-paper))" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 47.5 123.2)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">SYNTHS</tspan></text>
+<text fill="color-mix(in srgb, currentColor 41%, var(--gb-paper))" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 47.5 140.0)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">SAMPLES</tspan></text>
 <path transform="matrix(1,0,0,-1,-211.5,639.7)" stroke-width=".65" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M241.4 595.4V553.1H250.1"/>
 <path transform="matrix(1,0,0,-1,-211.5,639.7)" stroke-width=".65" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M241.4 553.2V502.4H250.1"/>
 <use href="#14-system-general__02-updating-deluge-firmware--2-s4" transform="matrix(1 0 0 -1 38.8 103.1)"/>

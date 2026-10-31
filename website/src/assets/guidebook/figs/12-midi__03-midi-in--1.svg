@@ -28,9 +28,9 @@
 <path transform="matrix(1,0,0,-1,-71.8,320.8)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M424.8 688.4V83.9"/>
 <path transform="matrix(1,0,0,-1,-71.8,320.8)" d="M93.5 91.0H357.1V130.3H93.5Z" fill="var(--gb-paper)"/>
 <path transform="matrix(1,0,0,-1,-71.8,320.8)" stroke-width=".65" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 41%, var(--gb-paper))" d="M93.5 91.0H357.1V130.3H93.5Z"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(35.2 204.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Keyboard is mapped across the notes. For pads ensure the</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(33.4 213.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">exact pad is assigned to the audition pad required. MIDI foot</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(69.2 222.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">switches can also be mapped into Deluge.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(35.2 204.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Keyboard is mapped across the notes. For pads ensure the</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(33.4 213.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">exact pad is assigned to the audition pad required. MIDI foot</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(69.2 222.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">switches can also be mapped into Deluge.</tspan></text>
 <use href="#12-midi__03-midi-in--1-s1" transform="matrix(1 0 0 -1 241.2 133.4)"/>
 <use href="#12-midi__03-midi-in--1-s2" transform="matrix(1 0 0 -1 253.6 133.4)"/>
 <use href="#12-midi__03-midi-in--1-s1" transform="matrix(1 0 0 -1 265.9 133.4)"/>
@@ -53,8 +53,8 @@
 </g>
 </g>
 <path transform="matrix(1,0,0,-1,-71.8,320.8)" d="M368.5 312.7 393.9 256.7H343.1Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
-<text xml:space="preserve" transform="translate(103.6 37.8)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">+</tspan></text>
-<text xml:space="preserve" transform="translate(173.2 37.8)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">+</tspan></text>
+<text xml:space="preserve" transform="translate(103.6 37.8)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">+</tspan></text>
+<text xml:space="preserve" transform="translate(173.2 37.8)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">+</tspan></text>
 <g clip-path="url(#12-midi__03-midi-in--1-clip_4)">
 <g mask="url(#12-midi__03-midi-in--1-mask_5)">
 <g transform="matrix(.096,0,0,.096,127.1,16.7)">
@@ -74,7 +74,7 @@
 <path transform="matrix(1,0,0,-1,-71.8,320.8)" stroke-width=".65" stroke-linecap="round" stroke-dasharray="1.9,1.9,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 41%, var(--gb-paper))" d="M212.6 252.9V223.1H265.9"/>
 <path transform="matrix(1,0,0,-1,-71.8,320.8)" stroke-width=".65" stroke-linecap="round" stroke-dasharray="1.9,1.9,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 41%, var(--gb-paper))" d="M265.9 227.4H327.9V264.3"/>
 <path transform="matrix(1,0,0,-1,-71.8,320.8)" d="M263.2 211.1H281.1V235.0H263.2Z" fill="var(--gb-paper)"/>
-<text xml:space="preserve" transform="translate(197.1 101.7)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">=</tspan></text>
+<text xml:space="preserve" transform="translate(197.1 101.7)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">=</tspan></text>
 <path transform="matrix(1,0,0,-1,-71.8,320.8)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 41%, var(--gb-paper))" d="M281.7 217.1H328.0V192.3"/>
 </g>
 </g>

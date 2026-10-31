@@ -15,21 +15,21 @@
 <g>
 <g clip-path="url(#06-modulation__02-modulation-routing-advanced--1-clip_1)">
 <path transform="matrix(1,0,0,-1,-174.8,535.5)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M170.1 688.6V84.1"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(163.2 226.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Modulator.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(111.5 235.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">LFO 2 Modulates LFO 1 depth which in turn</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(105.1 244.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">affects Parameter frequency of LPF. Modulation</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(111.5 253.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">sources of other modulators flash pale blue.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(163.2 226.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Modulator.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(111.5 235.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">LFO 2 Modulates LFO 1 depth which in turn</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(105.1 244.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">affects Parameter frequency of LPF. Modulation</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(111.5 253.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">sources of other modulators flash pale blue.</tspan></text>
 <path transform="matrix(1,0,0,-1,-174.8,535.5)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M232.0 464.2V482.9"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(24.6 12.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Destination Parameter</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(8.1 21.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Flashes quickly when connected to a</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(6.0 30.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">modulation source and the destination</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(16.2 39.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">parameter is selected / in-focus.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(26.6 48.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">[SHIFT] + [</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(63.0 48.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0.0">FREQUENCY</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(110.1 48.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">]</tspan></text>
-<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(291.5 79.6)" font-size="7.5" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0.0">Cutoff Freq</tspan></text>
-<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(302.4 269.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0.0">Rate</tspan></text>
-<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="matrix(0 -1 1 0 275.0 178.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0.0">Depth</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(24.6 12.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Destination Parameter</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(8.1 21.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Flashes quickly when connected to a</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.0 30.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">modulation source and the destination</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(16.2 39.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">parameter is selected / in-focus.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(26.6 48.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">[SHIFT] + [</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(63.0 48.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0">FREQUENCY</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(110.1 48.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">]</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(291.5 79.6)" font-size="7.5" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0">Cutoff Freq</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(302.4 269.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0">Rate</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="matrix(0 -1 1 0 275.0 178.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0">Depth</tspan></text>
 <g clip-path="url(#06-modulation__02-modulation-routing-advanced--1-clip_2)">
 <g mask="url(#06-modulation__02-modulation-routing-advanced--1-mask_3)">
 <g transform="matrix(.07676,0,0,.07676,39.4,78.4)">

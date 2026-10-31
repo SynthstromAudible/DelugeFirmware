@@ -42,65 +42,65 @@
 <path transform="matrix(1,0,0,-1,-44.3,637.4)" d="M185.3 132.2C191.2 132.2 196.0 127.4 196.0 121.5 196.0 115.6 191.2 110.8 185.3 110.8 179.3 110.8 174.5 115.6 174.5 121.5 174.5 127.4 179.3 132.2 185.3 132.2Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-44.3,637.4)" stroke-width=".55" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 62%, var(--gb-paper))" d="M185.3 132.2C191.2 132.2 196.0 127.4 196.0 121.5 196.0 115.6 191.2 110.8 185.3 110.8 179.3 110.8 174.5 115.6 174.5 121.5 174.5 127.4 179.3 132.2 185.3 132.2Z"/>
 <path transform="matrix(1,0,0,-1,-44.3,637.4)" d="M185.3 628.2C189.4 628.2 192.8 624.8 192.8 620.7 192.8 616.5 189.4 613.2 185.3 613.2 181.1 613.2 177.7 616.5 177.7 620.7 177.7 624.8 181.1 628.2 185.3 628.2Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(137.3 20.6)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">S</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(137.3 20.6)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">S</tspan></text>
 <path transform="matrix(1,0,0,-1,-44.3,637.4)" d="M185.3 129.0C189.4 129.0 192.8 125.6 192.8 121.5 192.8 117.3 189.4 114.0 185.3 114.0 181.1 114.0 177.7 117.3 177.7 121.5 177.7 125.6 181.1 129.0 185.3 129.0Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(137.3 519.8)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">E</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(137.3 519.8)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">E</tspan></text>
 <use href="#08-arranger-view__01-typical-arranger-workflow--1-s4" transform="matrix(1 0 0 -1 141 54.2)"/>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(138.5 63.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">1</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(138.5 63.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">1</tspan></text>
 <use href="#08-arranger-view__01-typical-arranger-workflow--1-s4" transform="matrix(1 0 0 -1 141 90.2)"/>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(138.5 99.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">2</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(138.5 99.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">2</tspan></text>
 <use href="#08-arranger-view__01-typical-arranger-workflow--1-s4" transform="matrix(1 0 0 -1 141 126.2)"/>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(138.5 135.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">3</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(138.5 135.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">3</tspan></text>
 <use href="#08-arranger-view__01-typical-arranger-workflow--1-s4" transform="matrix(1 0 0 -1 141 162.2)"/>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(138.5 171.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">4</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(138.5 171.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">4</tspan></text>
 <use href="#08-arranger-view__01-typical-arranger-workflow--1-s4" transform="matrix(1 0 0 -1 141 198.2)"/>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(138.5 207.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">5</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(138.5 207.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">5</tspan></text>
 <use href="#08-arranger-view__01-typical-arranger-workflow--1-s4" transform="matrix(1 0 0 -1 141 236.6)"/>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(138.5 245.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">6</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(138.5 245.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">6</tspan></text>
 <use href="#08-arranger-view__01-typical-arranger-workflow--1-s5" transform="matrix(1 0 0 -1 141 272.4)"/>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(138.5 281.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">7</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(138.5 281.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">7</tspan></text>
 <path transform="matrix(1,0,0,-1,-44.3,637.4)" d="M185.3 287.5C188.4 287.5 190.9 285.0 190.9 281.8 190.9 278.7 188.4 276.1 185.3 276.1 182.1 276.1 179.6 278.7 179.6 281.8 179.6 285.0 182.1 287.5 185.3 287.5Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(138.5 358.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">9</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(138.5 358.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">9</tspan></text>
 <use href="#08-arranger-view__01-typical-arranger-workflow--1-s5" transform="matrix(1 0 0 -1 141 310.8)"/>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(138.2 319.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">8</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(138.2 319.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">8</tspan></text>
 <use href="#08-arranger-view__01-typical-arranger-workflow--1-s5" transform="matrix(1 0 0 -1 141 428.4)"/>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(136.2 436.9)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">10</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(136.2 436.9)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">10</tspan></text>
 <path transform="matrix(1,0,0,-1,-44.3,637.4)" d="M282.1 615.2H393.2V625.2H282.1Z" fill="var(--gb-paper)"/>
-<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(237.8 19.4)" font-size="10" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Arrangement set-up</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(237.8 19.4)" font-size="10" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Arrangement set-up</tspan></text>
 <path transform="matrix(1,0,0,-1,-44.3,637.4)" d="M228.1 568.6H353.1V584.4H228.1Z" fill="var(--gb-paper)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(183.8 58.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Clear arrangement</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(183.8 65.5)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Hold [SCROLL</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(223.5 65.5)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">▼ ▲</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(235.4 65.5)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">] + [BACK / UNDO]</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(183.8 58.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Clear arrangement</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(183.8 65.5)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Hold [SCROLL</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(223.5 65.5)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">▼ ▲</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(235.4 65.5)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">] + [BACK / UNDO]</tspan></text>
 <path transform="matrix(1,0,0,-1,-44.3,637.4)" d="M228.1 495.4H353.1V511.2H228.1Z" fill="var(--gb-paper)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(183.8 131.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Add track</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(183.8 138.7)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Press [</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(202.5 138.7)" font-size="6" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0.0">AUDITION</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(231.2 138.7)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">]</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(183.8 131.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Add track</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(183.8 138.7)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Press [</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(202.5 138.7)" font-size="6" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0">AUDITION</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(231.2 138.7)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">]</tspan></text>
 <path transform="matrix(1,0,0,-1,-44.3,637.4)" d="M228.1 459.6H388.0V475.4H228.1Z" fill="var(--gb-paper)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(183.8 167.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Set-up track type</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(183.8 174.5)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Kit, synth, audio and presets.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(183.8 167.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Set-up track type</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(183.8 174.5)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Kit, synth, audio and presets.</tspan></text>
 <path transform="matrix(1,0,0,-1,-44.3,637.4)" d="M227.9 424.1H383.5V439.9H227.9Z" fill="var(--gb-paper)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(183.6 202.5)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Build arrangement - place clip instance</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(183.6 210.0)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">[</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(185.2 210.0)" font-size="6" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0.0">PAD</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(197.1 210.0)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">]</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(183.6 202.5)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Build arrangement - place clip instance</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(183.6 210.0)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">[</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(185.2 210.0)" font-size="6" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0">PAD</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(197.1 210.0)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">]</tspan></text>
 <path transform="matrix(1,0,0,-1,-44.3,637.4)" d="M227.9 387.9H383.5V403.6H227.9Z" fill="var(--gb-paper)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(183.6 238.8)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Build arrangement - edit clip instance</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(183.6 246.3)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Move, length etc</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(183.6 238.8)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Build arrangement - edit clip instance</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(183.6 246.3)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Move, length etc</tspan></text>
 <path transform="matrix(1,0,0,-1,-44.3,637.4)" d="M227.9 351.7H383.5V368.1H227.9Z" fill="var(--gb-paper)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(183.6 274.3)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Add unique ‘white’ clip instances</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(183.6 281.8)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Create variations</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(183.6 274.3)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Add unique ‘white’ clip instances</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(183.6 281.8)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Create variations</tspan></text>
 <path transform="matrix(1,0,0,-1,-44.3,637.4)" d="M227.9 311.9H383.5V328.3H227.9Z" fill="var(--gb-paper)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(183.6 314.1)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Set-up modulation</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(183.6 321.6)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Optional 2 x LFO’s and 2 envelopes</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(183.6 314.1)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Set-up modulation</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(183.6 321.6)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Optional 2 x LFO’s and 2 envelopes</tspan></text>
 <path transform="matrix(1,0,0,-1,-44.3,637.4)" d="M227.9 271.7H383.5V285.9H227.9Z" fill="var(--gb-paper)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(183.6 356.5)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Finalise output</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(183.6 364.0)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Volume level and pan</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(6.0 95.9)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Record in from SONG view</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(6.0 103.4)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Capture a song into arranger view</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(183.6 356.5)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Finalise output</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(183.6 364.0)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Volume level and pan</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.0 95.9)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Record in from SONG view</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.0 103.4)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Capture a song into arranger view</tspan></text>
 <path transform="matrix(1,0,0,-1,-44.3,637.4)" d="M227.9 194.9H383.5V206.2H227.9Z" fill="var(--gb-paper)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(183.6 436.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Play</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(183.6 436.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Play</tspan></text>
 <path transform="matrix(1,0,0,-1,-44.3,637.4)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M424.8 688.4V83.9"/>
 </g>
 </svg>

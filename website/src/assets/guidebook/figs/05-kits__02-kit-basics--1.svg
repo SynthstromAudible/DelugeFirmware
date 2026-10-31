@@ -24,31 +24,31 @@
 <image class="gb-ink" id="05-kits__02-kit-basics--1-image_4" width="6632" height="2882" xlink:href="/guidebook/img/05-kits__02-kit-basics--1-3.webp"/>
 </g>
 </g>
-<text fill="currentColor" xml:space="preserve" transform="translate(12.0 292.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Sound</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(12.0 270.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Sound</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(12.0 248.6)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Sound</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(12.0 226.6)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Sound</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(12.0 204.6)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Sound</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(12.0 183.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Sound</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(12.0 160.6)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Sound</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(12.0 138.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Sound</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(366.7 121.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Time</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(192.0 16.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Notes to trigger the kit’s sounds are recorded or programmed into</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(197.1 26.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">the step sequencer. Programming is done by pressing a pad to</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(270.3 36.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">toggle it on (lit) / off (unlit).</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(191.9 56.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">In play mode, pressing pads will silently enter the step; when not in play mode,</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(230.3 64.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">pads will additionally audition the sound when selected.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(115.3 336.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Beats and loops as opposed to single ‘hits’ can also be used. Any</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(117.4 346.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">loops in the factory kit is set to time stretch to the current Deluge</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(117.7 356.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">tempo. These samples will extend beyond a single pad to match</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(139.9 366.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">its length. Clips may extended to match longer loops.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(6.0 336.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Individual sounds per</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(6.0 346.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">row. Typically samples</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(6.0 356.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">but also synth-based</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(6.0 366.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">sounds, or MIDI / CV</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(6.0 376.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">outputs.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(421.0 336.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Audition pad to</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(415.5 346.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">play the sounds.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(12.0 292.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Sound</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(12.0 270.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Sound</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(12.0 248.6)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Sound</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(12.0 226.6)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Sound</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(12.0 204.6)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Sound</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(12.0 183.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Sound</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(12.0 160.6)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Sound</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(12.0 138.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Sound</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(366.7 121.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Time</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(192.0 16.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Notes to trigger the kit’s sounds are recorded or programmed into</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(197.1 26.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">the step sequencer. Programming is done by pressing a pad to</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(270.3 36.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">toggle it on (lit) / off (unlit).</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(191.9 56.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">In play mode, pressing pads will silently enter the step; when not in play mode,</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(230.3 64.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">pads will additionally audition the sound when selected.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(115.3 336.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Beats and loops as opposed to single ‘hits’ can also be used. Any</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(117.4 346.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">loops in the factory kit is set to time stretch to the current Deluge</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(117.7 356.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">tempo. These samples will extend beyond a single pad to match</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(139.9 366.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">its length. Clips may extended to match longer loops.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.0 336.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Individual sounds per</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.0 346.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">row. Typically samples</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.0 356.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">but also synth-based</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.0 366.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">sounds, or MIDI / CV</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.0 376.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">outputs.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(421.0 336.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Audition pad to</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(415.5 346.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">play the sounds.</tspan></text>
 <path transform="matrix(1,0,0,-1,-56.8,584.1)" stroke-width=".7" stroke-linecap="butt" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M380.4 503.4V458.3"/>
 <path transform="matrix(1,0,0,-1,-56.8,584.1)" stroke-width=".7" stroke-linecap="butt" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M303.1 283.4V258.6"/>
 <path transform="matrix(1,0,0,-1,-56.8,584.1)" stroke-width=".7" stroke-linecap="butt" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M86.3 285.5V256.4"/>

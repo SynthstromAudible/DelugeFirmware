@@ -551,24 +551,24 @@
 <use href="#03-sequencing__10-cross-screen-editing--1-s22" transform="matrix(1 0 0 -1 452.7 466.2)"/>
 <use href="#03-sequencing__10-cross-screen-editing--1-s25" transform="matrix(1 0 0 -1 452.7 475.7)"/>
 <use href="#03-sequencing__10-cross-screen-editing--1-s23" transform="matrix(1 0 0 -1 452.7 475.7)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(318.5 287.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">16x8 grid in-focus, multiply to</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(330.7 297.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">double the length twice</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(245.0 394.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Double</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(127.2 292.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Double</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(16.7 107.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">In cross-screen edit mode, changes</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(8.9 117.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">within the current screen that is in focus</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(14.0 127.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">i.e. 16</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(38.5 124.8)" font-size="5.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">th</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(45.4 127.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">notes / 1 bar, will be reflected</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(16.9 137.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">across the other equivalent screens</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(47.0 147.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">that are not in-focus.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(70.2 551.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">In cross-screen edit mode, changes</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(62.2 561.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">within the current screen that is in-focus</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(70.0 571.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">i.e. 8</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(89.5 568.6)" font-size="5.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">th</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(96.4 571.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">notes, 2 bars will be reflected</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(70.4 581.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">across the other equivalent screens</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(100.5 591.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">that are not in-focus.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(318.5 287.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">16x8 grid in-focus, multiply to</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(330.7 297.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">double the length twice</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(245.0 394.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Double</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(127.2 292.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Double</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(16.7 107.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">In cross-screen edit mode, changes</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(8.9 117.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">within the current screen that is in focus</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(14.0 127.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">i.e. 16</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(38.5 124.8)" font-size="5.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">th</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(45.4 127.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">notes / 1 bar, will be reflected</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(16.9 137.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">across the other equivalent screens</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(47.0 147.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">that are not in-focus.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(70.2 551.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">In cross-screen edit mode, changes</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(62.2 561.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">within the current screen that is in-focus</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(70.0 571.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">i.e. 8</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(89.5 568.6)" font-size="5.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">th</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(96.4 571.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">notes, 2 bars will be reflected</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(70.4 581.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">across the other equivalent screens</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(100.5 591.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">that are not in-focus.</tspan></text>
 <path transform="matrix(1,0,0,-1,-55.5,696.7)" stroke-width="1" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="currentColor" d="M76.1 502.1H61.5V453.1H77.2"/>
 <path transform="matrix(1,0,0,-1,-55.5,696.7)" stroke-width="1" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M128.6 257.3H114.1V208.3H129.7"/>
 <path transform="matrix(1,0,0,-1,-55.5,696.7)" stroke-width="1" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="currentColor" d="M210.2 502.1H224.8V453.1H209.1"/>
@@ -597,16 +597,16 @@
 <use href="#03-sequencing__10-cross-screen-editing--1-s74" transform="matrix(1 0 0 -1 263.4 345.9)"/>
 <use href="#03-sequencing__10-cross-screen-editing--1-s73" transform="matrix(1 0 0 -1 380.2 345.9)"/>
 <use href="#03-sequencing__10-cross-screen-editing--1-s74" transform="matrix(1 0 0 -1 380.2 345.9)"/>
-<text xml:space="preserve" transform="translate(72.4 338.8)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">1 bar</tspan></text>
-<text xml:space="preserve" transform="translate(56.6 312.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">16</tspan></text>
-<text xml:space="preserve" transform="translate(66.6 309.7)" font-size="5.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">th</tspan></text>
-<text xml:space="preserve" transform="translate(73.5 312.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">resolution</tspan></text>
-<text xml:space="preserve" transform="translate(116.2 366.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">8</tspan></text>
-<text xml:space="preserve" transform="translate(121.2 363.8)" font-size="5.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">th</tspan></text>
-<text xml:space="preserve" transform="translate(128.1 366.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Resolution</tspan></text>
-<text xml:space="preserve" transform="translate(190.0 338.8)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">1 bar</tspan></text>
-<text xml:space="preserve" transform="translate(307.6 338.8)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">1 bar</tspan></text>
-<text xml:space="preserve" transform="translate(423.5 338.8)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">1 bar</tspan></text>
+<text xml:space="preserve" transform="translate(72.4 338.8)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">1 bar</tspan></text>
+<text xml:space="preserve" transform="translate(56.6 312.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">16</tspan></text>
+<text xml:space="preserve" transform="translate(66.6 309.7)" font-size="5.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">th</tspan></text>
+<text xml:space="preserve" transform="translate(73.5 312.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">resolution</tspan></text>
+<text xml:space="preserve" transform="translate(116.2 366.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">8</tspan></text>
+<text xml:space="preserve" transform="translate(121.2 363.8)" font-size="5.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">th</tspan></text>
+<text xml:space="preserve" transform="translate(128.1 366.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Resolution</tspan></text>
+<text xml:space="preserve" transform="translate(190.0 338.8)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">1 bar</tspan></text>
+<text xml:space="preserve" transform="translate(307.6 338.8)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">1 bar</tspan></text>
+<text xml:space="preserve" transform="translate(423.5 338.8)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">1 bar</tspan></text>
 <use href="#03-sequencing__10-cross-screen-editing--1-s75" transform="matrix(1 0 0 -1 243.9 195.4)"/>
 <use href="#03-sequencing__10-cross-screen-editing--1-s75" transform="matrix(1 0 0 -1 361.5 195.4)"/>
 <use href="#03-sequencing__10-cross-screen-editing--1-s75" transform="matrix(1 0 0 -1 476.7 195.4)"/>

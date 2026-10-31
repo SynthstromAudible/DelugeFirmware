@@ -52,11 +52,11 @@
 </defs>
 <g>
 <g clip-path="url(#01-overview__03-hardware-overview--4-clip_1)">
-<text fill="currentColor" xml:space="preserve" transform="translate(274.0 109.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">SD Card Slot</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(240.3 118.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">SD card used for presets, streaming</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(226.3 127.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">samples, firmware updates and storage. Any</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(233.9 136.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">size, formatted to FAT32. Insert pins-up.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(168.2 79.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Internal Speaker</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(274.0 109.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">SD Card Slot</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(240.3 118.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">SD card used for presets, streaming</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(226.3 127.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">samples, firmware updates and storage. Any</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(233.9 136.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">size, formatted to FAT32. Insert pins-up.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(168.2 79.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Internal Speaker</tspan></text>
 <path transform="matrix(1,0,0,-1,-53.6,248.3)" stroke-width=".9" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="currentColor" d="M354.0 164.7V149.6"/>
 <path transform="matrix(1,0,0,-1,-53.6,248.3)" stroke-width=".9" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="currentColor" d="M255.3 197.7V182.6"/>
 <g clip-path="url(#01-overview__03-hardware-overview--4-clip_2)">

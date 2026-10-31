@@ -5,49 +5,49 @@
 </clipPath>
 </defs>
 <g clip-path="url(#04-synthesizers__02-deluge-subtractive-synthesizer-overview--1-clip_1)">
-<text fill="currentColor" xml:space="preserve" transform="translate(45.4 220.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Oscillator 2</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(47.0 76.9)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Oscillator 1</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(137.4 220.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Oscillator</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(140.5 227.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Volume</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(450.2 177.6)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Main</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(445.8 185.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Volume</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(138.9 76.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Oscillator</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(142.1 84.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Volume</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(310.3 11.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Multiple Modulation</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(329.7 19.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Options</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(411.4 15.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">1 x Option</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(236.6 11.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Multiple Modulation</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(256.0 19.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Options</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(237.6 300.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Multiple Modulation</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(257.0 308.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Options</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(245.6 327.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">All Voices - No</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(254.5 334.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Retrigger</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(310.1 300.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Multiple Modulation</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(329.5 308.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Options</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(307.6 327.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Per Voice - Retrigger</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(324.2 334.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">at Note On</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(334.4 52.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Env 1</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(45.4 220.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Oscillator 2</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(47.0 76.9)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Oscillator 1</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(137.4 220.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Oscillator</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(140.5 227.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Volume</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(450.2 177.6)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Main</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(445.8 185.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Volume</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(138.9 76.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Oscillator</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(142.1 84.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Volume</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(310.3 11.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Multiple Modulation</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(329.7 19.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Options</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(411.4 15.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">1 x Option</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(236.6 11.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Multiple Modulation</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(256.0 19.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Options</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(237.6 300.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Multiple Modulation</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(257.0 308.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Options</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(245.6 327.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">All Voices - No</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(254.5 334.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Retrigger</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(310.1 300.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Multiple Modulation</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(329.5 308.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Options</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(307.6 327.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Per Voice - Retrigger</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(324.2 334.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">at Note On</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(334.4 52.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Env 1</tspan></text>
 <use href="#04-synthesizers__02-deluge-subtractive-synthesizer-overview--1-s1" transform="matrix(1 0 0 -1 323.5 54.3)"/>
-<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(333.7 79.1)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">ADSR</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(333.7 79.1)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">ADSR</tspan></text>
 <path transform="matrix(1,0,0,-1,-54.4,576.6)" stroke-width=".7" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M384.2 505.3 388.4 519.5 392.7 512.8H405.3L411.4 505.3"/>
 <path transform="matrix(1,0,0,-1,-54.4,576.6)" d="M377.9 494.0H417.6V530.8H377.9ZM417.2 530.4V494.4C417.2 494.4 382.5 494.4 378.3 494.4 378.3 494.4 378.3 530.4 378.3 530.4Z" fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" fill-rule="evenodd"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(414.4 52.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Sidechain</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(414.4 52.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Sidechain</tspan></text>
 <use href="#04-synthesizers__02-deluge-subtractive-synthesizer-overview--1-s1" transform="matrix(1 0 0 -1 409.9 54.3)"/>
-<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(410.7 79.1)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Compressor</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(410.7 79.1)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Compressor</tspan></text>
 <path transform="matrix(1,0,0,-1,-54.4,576.6)" d="M464.3 494.0H504.0V530.8H464.3ZM503.6 530.4V494.4C503.6 494.4 468.9 494.4 464.7 494.4 464.7 494.4 464.7 530.4 464.7 530.4Z" fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" fill-rule="evenodd"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(260.7 52.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Env 2</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(260.7 52.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Env 2</tspan></text>
 <path transform="matrix(1,0,0,-1,-54.4,576.6)" stroke-width=".4" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M304.3 522.3H343.9"/>
-<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(260.0 79.1)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">ADSR</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(260.0 79.1)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">ADSR</tspan></text>
 <path transform="matrix(1,0,0,-1,-54.4,576.6)" stroke-width=".7" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M310.5 505.3 314.7 519.5 319.0 512.8H331.6L337.8 505.3"/>
 <path transform="matrix(1,0,0,-1,-54.4,576.6)" d="M304.3 494.0H343.9V530.8H304.3ZM343.5 530.4V494.4C343.5 494.4 308.8 494.4 304.7 494.4 304.7 494.4 304.7 526.5 304.7 530.4Z" fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" fill-rule="evenodd"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(259.5 238.8)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">LFO 1</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(259.5 238.8)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">LFO 1</tspan></text>
 <use href="#04-synthesizers__02-deluge-subtractive-synthesizer-overview--1-s1" transform="matrix(1 0 0 -1 249.3 240.9)"/>
-<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(262.4 265.8)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">LFO</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(262.4 265.8)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">LFO</tspan></text>
 <path transform="matrix(1,0,0,-1,-54.4,576.6)" d="M303.7 307.3H343.4V344.2H303.7ZM343.0 343.8V307.7C343.0 307.7 308.3 307.7 304.1 307.7 304.1 307.7 304.1 343.8 304.1 343.8Z" fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-54.4,576.6)" stroke-width=".75" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M311.5 325.7C315.8 334.7 319.9 335.8 323.7 325.7 327.9 316.3 331.9 316.5 335.9 325.7"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(332.2 238.8)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">LFO 2</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(332.2 238.8)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">LFO 2</tspan></text>
 <path transform="matrix(1,0,0,-1,-54.4,576.6)" stroke-width=".4" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M376.5 335.7H416.1"/>
-<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(335.1 265.8)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">LFO</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(335.1 265.8)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">LFO</tspan></text>
 <path transform="matrix(1,0,0,-1,-54.4,576.6)" d="M376.5 307.3H416.1V344.2H376.5ZM415.7 343.8V307.7C415.7 307.7 376.9 307.7 376.9 307.7 376.9 307.7 376.9 339.8 376.9 343.8Z" fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-54.4,576.6)" stroke-width=".75" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M384.2 325.7C388.5 334.7 392.6 335.8 396.4 325.7 400.6 316.3 404.6 316.5 408.6 325.7"/>
 <path transform="matrix(1,0,0,-1,-54.4,576.6)" d="M120.1 405.7C127.9 405.7 134.2 399.3 134.2 391.5 134.2 383.7 127.9 377.4 120.1 377.4 112.2 377.4 105.9 383.7 105.9 391.5 105.9 399.3 112.2 405.7 120.1 405.7Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
@@ -97,14 +97,14 @@
 <path transform="matrix(1,0,0,-1,-54.4,576.6)" d="M544.8 430.0 539.1 427.2V432.9Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-54.4,576.6)" d="M544.8 430.0 539.1 427.2V432.9ZM543.5 430.0 539.7 428.1C539.7 428.1 539.7 431.9 539.7 431.9Z" fill="currentColor" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-54.4,576.6)" stroke-width=".6" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="var(--gb-accent)" d="M284.8 426.8C286.0 429.9 288.2 433.1 290.3 435.0 291.0 435.6 292.5 436.4 294.4 436.7 298.2 437.2 303.9 437.2 308.5 437.2"/>
-<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(236.2 153.1)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">HPF</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(236.2 153.1)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">HPF</tspan></text>
 <use href="#04-synthesizers__02-deluge-subtractive-synthesizer-overview--1-s5" transform="matrix(1 0 0 -1 226.5 157.8)"/>
 <path transform="matrix(1,0,0,-1,-54.4,576.6)" stroke-width=".55" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="var(--gb-accent)" d="M362.7 426.8C361.5 429.9 359.2 433.1 357.2 435.0 356.5 435.6 355.0 436.4 353.1 436.7 349.3 437.2 343.6 437.2 339.0 437.2"/>
-<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(291.0 153.1)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">LPF</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(291.0 153.1)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">LPF</tspan></text>
 <use href="#04-synthesizers__02-deluge-subtractive-synthesizer-overview--1-s5" transform="matrix(1 0 0 -1 280.7 157.8)"/>
-<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(108.2 153.8)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">NOISE</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(108.2 153.8)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">NOISE</tspan></text>
 <use href="#04-synthesizers__02-deluge-subtractive-synthesizer-overview--1-s5" transform="matrix(1 0 0 -1 103.3 158.2)"/>
-<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(386.9 148.8)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Effects</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(386.9 148.8)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Effects</tspan></text>
 <path transform="matrix(1,0,0,-1,-54.4,576.6)" d="M432.4 419.4H467.8V440.7H432.4ZM467.3 440.2V419.9C467.3 419.9 432.9 419.9 432.9 419.9 432.9 419.9 432.9 440.2 432.9 440.2Z" fill="currentColor" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-54.4,576.6)" d="M254.8 429.8 232.1 418.5V441.2Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-54.4,576.6)" d="M254.8 429.8 232.1 418.5V441.2ZM253.6 429.8 232.6 419.3C232.6 419.3 232.6 440.3 232.6 440.3Z" fill="currentColor" fill-rule="evenodd"/>
@@ -123,7 +123,7 @@
 <path transform="matrix(1,0,0,-1,-54.4,576.6)" stroke-width=".6" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="currentColor" d="M222.7 391.6H236.3"/>
 <path transform="matrix(1,0,0,-1,-54.4,576.6)" stroke-width=".6" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="currentColor" d="M119.8 406.2V448.0"/>
 <path transform="matrix(1,0,0,-1,-54.4,576.6)" stroke-width=".6" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="currentColor" d="M222.7 469.1H236.3"/>
-<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(336.9 148.9)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">AMP</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(336.9 148.9)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">AMP</tspan></text>
 <path transform="matrix(1,0,0,-1,-54.4,576.6)" stroke-width=".7" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="currentColor" d="M312.3 430.0H329.8"/>
 <path transform="matrix(1,0,0,-1,-54.4,576.6)" stroke-width=".7" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="currentColor" d="M366.5 430.0H384.0"/>
 <path transform="matrix(1,0,0,-1,-54.4,576.6)" stroke-width=".7" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="currentColor" d="M411.6 430.0H425.3"/>
@@ -131,10 +131,10 @@
 <path transform="matrix(1,0,0,-1,-54.4,576.6)" stroke-width=".7" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="currentColor" d="M526.1 430.0H539.1"/>
 <path transform="matrix(1,0,0,-1,-54.4,576.6)" stroke-width=".7" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="currentColor" d="M253.9 429.9H280.7"/>
 <path transform="matrix(1,0,0,-1,-54.4,576.6)" d="M98.7 427.9H141.2V435.0H98.7Z" fill="var(--gb-paper)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(57.2 147.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Sync</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(57.2 147.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Sync</tspan></text>
 <path transform="matrix(1,0,0,-1,-54.4,576.6)" d="M60.3 424.8H93.2V438.9H60.3Z" fill="var(--gb-paper)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(14.0 143.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Input</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(10.6 150.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Trigger</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(14.0 143.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Input</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(10.6 150.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Trigger</tspan></text>
 <path transform="matrix(1,0,0,-1,-54.4,576.6)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M470.2 520.0H481.6V515.9H498.6"/>
 <path transform="matrix(1,0,0,-1,-54.4,576.6)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M470.2 505.4H481.6V509.8H498.6"/>
 <path transform="matrix(1,0,0,-1,-54.4,576.6)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M222.7 429.8H232.1"/>

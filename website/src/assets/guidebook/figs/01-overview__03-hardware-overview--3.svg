@@ -102,45 +102,45 @@
 </defs>
 <g>
 <g clip-path="url(#01-overview__03-hardware-overview--3-clip_1)">
-<text fill="currentColor" xml:space="preserve" transform="translate(5.0 126.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">External Microphone</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(7.6 135.6)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">3.5mm / 1/8</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(47.2 133.1)" font-size="4.3" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">th</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(52.9 135.6)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">inch input</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(33.9 302.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Gain</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(.97249987 311.6)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Microphone (external and</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(3.9 320.6)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">internal) Low / Hi switch</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(434.0 126.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">On/Off</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(414.7 136.6)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Power on/off switch</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(5.0 126.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">External Microphone</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(7.6 135.6)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">3.5mm / 1/8</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(47.2 133.1)" font-size="4.3" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">th</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(52.9 135.6)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">inch input</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(33.9 302.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Gain</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(.97249987 311.6)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Microphone (external and</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(3.9 320.6)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">internal) Low / Hi switch</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(434.0 126.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">On/Off</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(414.7 136.6)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Power on/off switch</tspan></text>
 <path transform="matrix(1,0,0,-1,-48.2,675.4)" stroke-width=".9" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="currentColor" d="M493.5 532.0V496.3"/>
 <path transform="matrix(1,0,0,-1,-48.2,675.4)" stroke-width=".9" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="currentColor" d="M116.7 482.5V376.0H104.7"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(91.3 358.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Headphone Output</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(99.1 367.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">3.5mm / 1/8” input</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(219.5 357.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">MIDI In/Out</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(218.5 366.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">5-pin MIDI Din</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(324.8 280.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">PSU Input</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(298.4 289.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Primary power and charging</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(302.2 298.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">source. 9-12V DC. Centre</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(317.2 307.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">negative, 500mA</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(413.1 357.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">USB</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(386.1 366.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">USB-B connector and</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(385.9 375.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">charging source. USB</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(394.4 384.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">MIDI Connection</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(86.2 12.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Line In</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(67.4 21.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">6.35mm / 1/4” input</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(64.7 30.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Stereo (configurable)</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(280.2 14.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">CV Out</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(243.5 23.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">2 x, 0-10v configurable 0.01-2v</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(272.1 32.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">V/Oct or Hz/V</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(387.4 14.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Gate / Trigger Out</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(362.8 23.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">4 x, switchable 5-12v configurable v-</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(363.0 32.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">trig or s-trig. Trigger clock adjustable</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(379.2 41.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">PPQN out / 192 PPQN out</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(91.3 358.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Headphone Output</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(99.1 367.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">3.5mm / 1/8” input</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(219.5 357.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">MIDI In/Out</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(218.5 366.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">5-pin MIDI Din</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(324.8 280.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">PSU Input</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(298.4 289.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Primary power and charging</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(302.2 298.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">source. 9-12V DC. Centre</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(317.2 307.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">negative, 500mA</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(413.1 357.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">USB</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(386.1 366.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">USB-B connector and</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(385.9 375.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">charging source. USB</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(394.4 384.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">MIDI Connection</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(86.2 12.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Line In</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(67.4 21.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">6.35mm / 1/4” input</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(64.7 30.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Stereo (configurable)</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(280.2 14.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">CV Out</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(243.5 23.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">2 x, 0-10v configurable 0.01-2v</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(272.1 32.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">V/Oct or Hz/V</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(387.4 14.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Gate / Trigger Out</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(362.8 23.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">4 x, switchable 5-12v configurable v-</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(363.0 32.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">trig or s-trig. Trigger clock adjustable</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(379.2 41.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">PPQN out / 192 PPQN out</tspan></text>
 <path transform="matrix(1,0,0,-1,-48.2,675.4)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M396.4 582.7V613.3H472.9V627.5"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(374.9 80.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Clock In</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(162.2 57.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Line Out</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(143.4 65.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">2 x 6.35mm / 1/4 inch</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(166.9 73.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">outputs</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(144.3 95.7)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Right Left / Mono</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(374.9 80.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Clock In</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(162.2 57.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Line Out</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(143.4 65.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">2 x 6.35mm / 1/4 inch</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(166.9 73.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">outputs</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(144.3 95.7)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Right Left / Mono</tspan></text>
 <path transform="matrix(1,0,0,-1,-48.2,675.4)" stroke-width=".7" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M94.4 489.6V534.8"/>
 <path transform="matrix(1,0,0,-1,-48.2,675.4)" stroke-width=".7" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M148.3 559.4V641.7"/>
 <path transform="matrix(1,0,0,-1,-48.2,675.4)" stroke-width=".7" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M204.4 549.5V572.8"/>
@@ -149,7 +149,7 @@
 <path transform="matrix(1,0,0,-1,-48.2,675.4)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M399.1 343.7C397.9 342.8 396.3 342.2 394.7 342.2 390.7 342.2 387.6 345.4 387.6 349.3 387.6 353.2 390.7 356.4 394.7 356.4 396.0 356.4 397.2 356.0 398.2 355.4"/>
 <path transform="matrix(1,0,0,-1,-48.2,675.4)" d="M417.5 356.4C421.4 356.4 424.6 353.2 424.6 349.3 424.6 345.4 421.4 342.2 417.5 342.2 413.5 342.2 410.4 345.4 410.4 349.3 410.4 353.2 413.5 356.4 417.5 356.4ZM417.5 355.7C421.0 355.7 423.9 352.8 423.9 349.3 423.9 345.8 421.0 342.9 417.5 342.9 413.9 342.9 411.1 345.8 411.1 349.3 411.1 352.8 413.9 355.7 417.5 355.7Z" fill="currentColor" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-48.2,675.4)" d="M394.9 350.9C395.7 350.9 396.3 350.2 396.3 349.5 396.3 348.7 395.7 348.0 394.9 348.0 394.1 348.0 393.5 348.7 393.5 349.5 393.5 350.2 394.1 350.9 394.9 350.9Z" fill="currentColor" fill-rule="evenodd"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(320.2 330.2)" font-size="12" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">+</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(320.2 330.2)" font-size="12" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">+</tspan></text>
 <path transform="matrix(1,0,0,-1,-48.2,675.4)" stroke-width=".9" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="currentColor" d="M414.9 349.4H420.1"/>
 <path transform="matrix(1,0,0,-1,-48.2,675.4)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M378.7 349.5H387.2"/>
 <path transform="matrix(1,0,0,-1,-48.2,675.4)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M410.6 349.4H394.4"/>
@@ -294,12 +294,12 @@
 <path transform="matrix(1,0,0,-1,-48.2,675.4)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M328.9 576.5V582.6H358.4V576.4"/>
 <path transform="matrix(1,0,0,-1,-48.2,675.4)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M367.2 576.2 367.2 582.5H425.1V576.2"/>
 <path transform="matrix(1,0,0,-1,-48.2,675.4)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M344.3 582.8V633.0"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(285.0 174.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">2</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(319.1 174.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">4</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(354.1 174.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">2</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(301.8 174.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">1</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(336.6 174.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">3</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(370.9 174.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">1</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(285.0 174.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">2</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(319.1 174.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">4</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(354.1 174.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">2</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(301.8 174.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">1</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(336.6 174.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">3</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(370.9 174.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">1</tspan></text>
 <path transform="matrix(1,0,0,-1,-48.2,675.4)" d="M474.2 449.7 475.4 448.0 474.1 444.1 472.1 442.6H464.9L467.2 449.7Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-48.2,675.4)" stroke-width=".1" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M474.2 449.7 475.4 448.0 474.1 444.1 472.1 442.6H464.9L467.2 449.7Z"/>
 <path transform="matrix(1,0,0,-1,-48.2,675.4)" d="M472.6 448.8 470.9 443.6H467.5L469.2 448.8Z" fill="currentColor" fill-rule="evenodd"/>

@@ -6,13 +6,13 @@
 </defs>
 <g clip-path="url(#06-modulation__03-envelopes-and-low-frequency-oscillators--3-clip_1)">
 <path transform="matrix(1,0,0,-1,-77.5,435.9)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M424.7 688.6V84.1"/>
-<text fill="currentColor" xml:space="preserve" transform="matrix(0 -1 1 0 185.7 56.0)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">AMPLITUDE</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(247.9 85.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">TIME</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(0 -1 1 0 185.7 56.0)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">AMPLITUDE</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(247.9 85.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">TIME</tspan></text>
 <path transform="matrix(1,0,0,-1,-77.5,435.9)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 40%, var(--gb-paper))" d="M272.5 429.1V363.9"/>
 <path transform="matrix(1,0,0,-1,-77.5,435.9)" stroke-width=".55" stroke-linecap="round" stroke-dasharray="1.6,1.6,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 40%, var(--gb-paper))" d="M272.5 397.4H395.8"/>
 <path transform="matrix(1,0,0,-1,-77.5,435.9)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M272.5 372.1V423.1H303.6V371.9H334.6"/>
 <path transform="matrix(1,0,0,-1,-77.5,435.9)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M334.7 372.1V423.1H365.8V371.9H396.8V423.3"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(60.0 83.9)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">TIME</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(60.0 83.9)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">TIME</tspan></text>
 <path transform="matrix(1,0,0,-1,-77.5,435.9)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 40%, var(--gb-paper))" d="M83.4 430.0V364.8"/>
 <path transform="matrix(1,0,0,-1,-77.5,435.9)" stroke-width=".55" stroke-linecap="round" stroke-dasharray="1.6,1.6,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 40%, var(--gb-paper))" d="M83.4 398.3H206.6"/>
 <path transform="matrix(1,0,0,-1,-77.5,435.9)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M144.9 427.7 83.4 376.5V427.4"/>

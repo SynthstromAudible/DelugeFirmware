@@ -46,21 +46,21 @@
 <use href="#03-sequencing__03-tempo-swing--1-s6" transform="matrix(1 0 0 -1 295.9 93)"/>
 <use href="#03-sequencing__03-tempo-swing--1-s5" transform="matrix(1 0 0 -1 279.1 141)"/>
 <use href="#03-sequencing__03-tempo-swing--1-s6" transform="matrix(1 0 0 -1 279.1 141)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(17.5 39.8)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0.0">Example 1</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(10.4 49.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Timing on grid</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(25.4 59.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">50 = Off</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(111.6 12.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">16</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(121.6 9.8)" font-size="5.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">th</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(128.5 12.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Grid Intervals (8</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(192.5 9.8)" font-size="5.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">th</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(199.4 12.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">note Swung)</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(16.9 85.4)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0.0">Example 2</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(25.9 95.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Swing</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(5.9 105.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">51 - 99 = notes late</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(16.9 133.4)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0.0">Example 3</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(25.9 143.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Swing</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(5.9 153.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">1 - 49 = notes early</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(27.8 193.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Swing feature provides a rhythmic adjustment that brings a more natural and</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(19.0 203.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">organic feel to songs and operates generically and not at an individual note level.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(17.5 39.8)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0">Example 1</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(10.4 49.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Timing on grid</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(25.4 59.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">50 = Off</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(111.6 12.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">16</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(121.6 9.8)" font-size="5.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">th</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(128.5 12.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Grid Intervals (8</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(192.5 9.8)" font-size="5.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">th</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(199.4 12.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">note Swung)</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(16.9 85.4)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0">Example 2</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(25.9 95.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Swing</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(5.9 105.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">51 - 99 = notes late</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(16.9 133.4)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0">Example 3</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(25.9 143.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Swing</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(5.9 153.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">1 - 49 = notes early</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(27.8 193.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Swing feature provides a rhythmic adjustment that brings a more natural and</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(19.0 203.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">organic feel to songs and operates generically and not at an individual note level.</tspan></text>
 </g>
 </svg>

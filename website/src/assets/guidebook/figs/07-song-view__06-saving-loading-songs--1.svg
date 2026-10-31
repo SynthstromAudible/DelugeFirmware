@@ -24,21 +24,21 @@
 <use href="#07-song-view__06-saving-loading-songs--1-s1" transform="matrix(1 0 0 -1 243.1 69.7)"/>
 <use href="#07-song-view__06-saving-loading-songs--1-s1" transform="matrix(1 0 0 -1 315.1 69.7)"/>
 <use href="#07-song-view__06-saving-loading-songs--1-s1" transform="matrix(1 0 0 -1 171.1 128.5)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(91.0 17.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Save Slot</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(145.1 17.6)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">001</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(91.0 76.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Save Slot</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(145.1 76.2)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">002</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(91.0 135.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Save Slot</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(145.1 135.0)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">003</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(232.9 88.5)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">002 2</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(305.7 88.5)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">002 3</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(261.0 93.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Sub Slot</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(237.6 123.6)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Sub-slots are automatically</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(231.4 131.6)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">generated to avoid accidentally</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(235.7 139.6)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">overwriting of existing songs</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(4.8 85.6)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">SONG folder will store</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(5.9 93.6)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">user saved song data</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(15.1 101.6)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">on the SD card.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(91.0 17.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Save Slot</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(145.1 17.6)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">001</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(91.0 76.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Save Slot</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(145.1 76.2)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">002</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(91.0 135.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Save Slot</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(145.1 135.0)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">003</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(232.9 88.5)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">002 2</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(305.7 88.5)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">002 3</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(261.0 93.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Sub Slot</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(237.6 123.6)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Sub-slots are automatically</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(231.4 131.6)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">generated to avoid accidentally</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(235.7 139.6)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">overwriting of existing songs</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(4.8 85.6)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">SONG folder will store</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(5.9 93.6)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">user saved song data</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(15.1 101.6)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">on the SD card.</tspan></text>
 </g>
 </g>
 </svg>

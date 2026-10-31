@@ -52,87 +52,87 @@
 <path transform="matrix(1,0,0,-1,-40.5,637.3)" d="M211.7 132.1C217.7 132.1 222.5 127.3 222.5 121.4 222.5 115.5 217.7 110.7 211.7 110.7 205.8 110.7 201.0 115.5 201.0 121.4 201.0 127.3 205.8 132.1 211.7 132.1Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-40.5,637.3)" stroke-width=".55" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 62%, var(--gb-paper))" d="M211.7 132.1C217.7 132.1 222.5 127.3 222.5 121.4 222.5 115.5 217.7 110.7 211.7 110.7 205.8 110.7 201.0 115.5 201.0 121.4 201.0 127.3 205.8 132.1 211.7 132.1Z"/>
 <path transform="matrix(1,0,0,-1,-40.5,637.3)" d="M211.7 628.1C215.9 628.1 219.3 624.8 219.3 620.6 219.3 616.4 215.9 613.1 211.7 613.1 207.6 613.1 204.2 616.4 204.2 620.6 204.2 624.8 207.6 628.1 211.7 628.1Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(167.6 20.6)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">S</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(167.6 20.6)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">S</tspan></text>
 <path transform="matrix(1,0,0,-1,-40.5,637.3)" d="M211.7 128.9C215.9 128.9 219.3 125.6 219.3 121.4 219.3 117.2 215.9 113.9 211.7 113.9 207.6 113.9 204.2 117.2 204.2 121.4 204.2 125.6 207.6 128.9 211.7 128.9Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(167.6 519.8)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">E</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(167.6 519.8)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">E</tspan></text>
 <use href="#05-kits__01-kit-creation-workflow--1-s4" transform="matrix(1 0 0 -1 171.3 54.2)"/>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(168.7 63.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">1</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(168.7 63.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">1</tspan></text>
 <use href="#05-kits__01-kit-creation-workflow--1-s4" transform="matrix(1 0 0 -1 171.3 90.2)"/>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(168.7 99.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">2</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(168.7 99.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">2</tspan></text>
 <use href="#05-kits__01-kit-creation-workflow--1-s4" transform="matrix(1 0 0 -1 171.3 126.2)"/>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(168.7 135.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">3</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(168.7 135.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">3</tspan></text>
 <use href="#05-kits__01-kit-creation-workflow--1-s4" transform="matrix(1 0 0 -1 171.3 162.2)"/>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(168.7 171.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">4</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(168.7 171.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">4</tspan></text>
 <use href="#05-kits__01-kit-creation-workflow--1-s4" transform="matrix(1 0 0 -1 171.3 198.2)"/>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(168.7 207.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">5</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(168.7 207.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">5</tspan></text>
 <use href="#05-kits__01-kit-creation-workflow--1-s4" transform="matrix(1 0 0 -1 171.3 279.8)"/>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(168.7 288.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">7</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(168.7 288.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">7</tspan></text>
 <use href="#05-kits__01-kit-creation-workflow--1-s4" transform="matrix(1 0 0 -1 171.3 236.6)"/>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(168.7 245.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">6</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(168.7 245.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">6</tspan></text>
 <use href="#05-kits__01-kit-creation-workflow--1-s5" transform="matrix(1 0 0 -1 171.3 315.6)"/>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(168.7 324.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">8</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(168.7 324.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">8</tspan></text>
 <path transform="matrix(1,0,0,-1,-40.5,637.3)" d="M211.8 280.4C214.9 280.4 217.4 277.9 217.4 274.8 217.4 271.6 214.9 269.1 211.8 269.1 208.6 269.1 206.1 271.6 206.1 274.8 206.1 277.9 208.6 280.4 211.8 280.4Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(168.7 365.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">9</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(168.7 365.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">9</tspan></text>
 <use href="#05-kits__01-kit-creation-workflow--1-s5" transform="matrix(1 0 0 -1 171.3 393.1)"/>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(166.2 402.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">10</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(166.2 402.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">10</tspan></text>
 <use href="#05-kits__01-kit-creation-workflow--1-s5" transform="matrix(1 0 0 -1 171.3 447.6)"/>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(166.8 456.1)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">11</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(166.8 456.1)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">11</tspan></text>
 <path transform="matrix(1,0,0,-1,-40.5,637.3)" d="M295.3 614.9H404.9V624.9H295.3Z" fill="var(--gb-paper)"/>
-<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(254.8 19.6)" font-size="10" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Kit set-up from scratch</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(254.8 19.6)" font-size="10" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Kit set-up from scratch</tspan></text>
 <path transform="matrix(1,0,0,-1,-40.5,637.3)" d="M76.3 614.9H146.4V624.9H76.3Z" fill="var(--gb-paper)"/>
-<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(35.8 19.6)" font-size="10" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Kits &amp; Presets</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(35.8 19.6)" font-size="10" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Kits &amp; Presets</tspan></text>
 <path transform="matrix(1,0,0,-1,-40.5,637.3)" d="M254.6 568.5H379.6V584.3H254.6Z" fill="var(--gb-paper)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(214.1 58.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Create a new blank kit preset</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(214.1 65.5)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">[SHIFT] + [KIT]</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(214.1 58.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Create a new blank kit preset</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(214.1 65.5)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">[SHIFT] + [KIT]</tspan></text>
 <path transform="matrix(1,0,0,-1,-40.5,637.3)" d="M254.6 524.7H406.6V548.3H254.6Z" fill="var(--gb-paper)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(214.1 94.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Sound browser opens</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(214.1 101.5)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">First sound option for the kit, defaults to previously</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(214.1 109.0)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">loaded / recorded sample</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(214.1 94.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Sound browser opens</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(214.1 101.5)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">First sound option for the kit, defaults to previously</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(214.1 109.0)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">loaded / recorded sample</tspan></text>
 <path transform="matrix(1,0,0,-1,-40.5,637.3)" d="M46.5 557.9H161.1V585.0H46.5Z" fill="var(--gb-paper)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(68.8 57.3)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Load a kit preset</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(9.9 64.8)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Turn (SELECT) or [LOAD] + [KIT] to open</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(10.8 72.3)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">preset browser and search with keyboard</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(68.8 57.3)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Load a kit preset</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(9.9 64.8)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Turn (SELECT) or [LOAD] + [KIT] to open</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(10.8 72.3)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">preset browser and search with keyboard</tspan></text>
 <path transform="matrix(1,0,0,-1,-40.5,637.3)" d="M254.3 497.2H410.0V513.0H254.3Z" fill="var(--gb-paper)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(213.8 129.3)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Select sample for the kit’s first sound</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(213.8 136.8)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Search / navigate within browser - press (SELECT)</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(213.8 129.3)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Select sample for the kit’s first sound</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(213.8 136.8)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Search / navigate within browser - press (SELECT)</tspan></text>
 <path transform="matrix(1,0,0,-1,-40.5,637.3)" d="M254.3 461.2H410.0V477.0H254.3Z" fill="var(--gb-paper)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(213.8 165.3)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Load samples for other kit rows</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(213.8 172.8)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">[</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(215.5 172.8)" font-size="6" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0.0">AUDITION</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(244.2 172.8)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">] + [KIT] for the row and navigate browser</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(213.8 165.3)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Load samples for other kit rows</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(213.8 172.8)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">[</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(215.5 172.8)" font-size="6" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0">AUDITION</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(244.2 172.8)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">] + [KIT] for the row and navigate browser</tspan></text>
 <path transform="matrix(1,0,0,-1,-40.5,637.3)" d="M254.3 424.9H410.0V441.2H254.3Z" fill="var(--gb-paper)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(213.8 201.1)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Build further kit sounds</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(213.8 208.6)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Continue until complete</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(213.8 201.1)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Build further kit sounds</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(213.8 208.6)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Continue until complete</tspan></text>
 <path transform="matrix(1,0,0,-1,-40.5,637.3)" stroke-width=".7" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M206.1 433.4H156.1V470.1H194.4"/>
 <path transform="matrix(1,0,0,-1,-40.5,637.3)" stroke-width=".7" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M200.8 470.0 194.4 473.6V466.4Z"/>
 <path transform="matrix(1,0,0,-1,-40.5,637.3)" d="M254.3 343.5H410.0V359.9H254.3Z" fill="var(--gb-paper)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(213.8 282.4)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Add a synth row</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(213.8 289.9)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">[</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(215.5 289.9)" font-size="6" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0.0">AUDITION</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(244.2 289.9)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">] + [SYNTH] for the row</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(213.8 282.4)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Add a synth row</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(213.8 289.9)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">[</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(215.5 289.9)" font-size="6" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0">AUDITION</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(244.2 289.9)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">] + [SYNTH] for the row</tspan></text>
 <path transform="matrix(1,0,0,-1,-40.5,637.3)" d="M78.2 386.7H162.8V403.1H78.2Z" fill="var(--gb-paper)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(88.8 239.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Edit preset</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(65.6 246.7)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Create a new version</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(88.8 239.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Edit preset</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(65.6 246.7)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Create a new version</tspan></text>
 <path transform="matrix(1,0,0,-1,-40.5,637.3)" d="M254.3 228.4H410.0V242.6H254.3Z" fill="var(--gb-paper)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(213.8 399.7)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Add effects</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(213.8 407.2)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Volume level and pan</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(213.8 399.7)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Add effects</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(213.8 407.2)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Volume level and pan</tspan></text>
 <path transform="matrix(1,0,0,-1,-40.5,637.3)" d="M254.3 175.6H410.0V189.8H254.3Z" fill="var(--gb-paper)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(213.8 452.5)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Save</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(213.8 460.0)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">[SAVE / DELETE] + [KIT]</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(213.8 452.5)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Save</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(213.8 460.0)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">[SAVE / DELETE] + [KIT]</tspan></text>
 <path transform="matrix(1,0,0,-1,-40.5,637.3)" d="M53.2 175.6H162.8V189.8H53.2Z" fill="var(--gb-paper)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(106.3 452.5)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Save</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(55.5 460.0)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">[SAVE / DELETE] + [KIT]</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(106.3 452.5)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Save</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(55.5 460.0)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">[SAVE / DELETE] + [KIT]</tspan></text>
 <path transform="matrix(1,0,0,-1,-40.5,637.3)" d="M254.3 295.8H410.0V319.1H254.3Z" fill="var(--gb-paper)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(213.8 323.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Add MIDI or CV row</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(213.8 330.7)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">External controls can be triggered from a kit row.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(213.8 338.2)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">[</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(215.5 338.2)" font-size="6" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0.0">AUDITION</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(244.2 338.2)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">] + [MIDI] or [CV] for the row</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(213.8 323.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Add MIDI or CV row</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(213.8 330.7)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">External controls can be triggered from a kit row.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(213.8 338.2)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">[</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(215.5 338.2)" font-size="6" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0">AUDITION</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(244.2 338.2)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">] + [MIDI] or [CV] for the row</tspan></text>
 <path transform="matrix(1,0,0,-1,-40.5,637.3)" d="M254.3 258.6H410.0V282.3H254.3Z" fill="var(--gb-paper)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(213.8 360.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Record audio</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(213.8 367.5)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Record audio directly to a kit sound. [</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(312.6 367.5)" font-size="6" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0.0">AUDITION</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(341.2 367.5)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">] +</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(213.8 375.0)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">[RECORD] for the row</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(213.8 360.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Record audio</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(213.8 367.5)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Record audio directly to a kit sound. [</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(312.6 367.5)" font-size="6" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0">AUDITION</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(341.2 367.5)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">] +</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(213.8 375.0)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">[RECORD] for the row</tspan></text>
 </g>
 </svg>

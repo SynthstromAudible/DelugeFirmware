@@ -6,37 +6,37 @@
 </defs>
 <g clip-path="url(#04-synthesizers__01-synthesizer-concepts--1-clip_1)">
 <path transform="matrix(1,0,0,-1,-70.6,500.2)" stroke-width=".7" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="var(--gb-accent)" d="M216.3 423.8C218.0 428.0 221.2 432.4 224.1 435.0 225.1 435.9 227.2 436.9 229.9 437.3 235.4 438.0 243.4 438.0 249.9 438.0"/>
-<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(149.9 110.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">FILTER</tspan></text>
-<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(132.9 11.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">ENVELOPE and /</tspan></text>
-<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(133.4 19.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">or MODULATION</tspan></text>
-<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(206.5 11.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">ENVELOPE and /</tspan></text>
-<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(207.0 19.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">or MODULATION</tspan></text>
-<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(228.3 110.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">AMP</tspan></text>
-<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(288.2 110.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">OUTPUT</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(149.9 110.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">FILTER</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(132.9 11.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">ENVELOPE and /</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(133.4 19.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">or MODULATION</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(206.5 11.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">ENVELOPE and /</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(207.0 19.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">or MODULATION</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(228.3 110.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">AMP</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(288.2 110.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">OUTPUT</tspan></text>
 <path transform="matrix(1,0,0,-1,-70.6,500.2)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M100.7 431.9H134.7"/>
-<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(61.8 110.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">OSCILLATOR</tspan></text>
-<text xml:space="preserve" transform="translate(39.0 162.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">One or more oscillators</tspan></text>
-<text xml:space="preserve" transform="translate(50.3 171.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">provide the basic,</tspan></text>
-<text xml:space="preserve" transform="translate(28.2 180.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">harmonically rich tone. Often</tspan></text>
-<text xml:space="preserve" transform="translate(41.2 189.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">these are stacked and</tspan></text>
-<text xml:space="preserve" transform="translate(31.0 199.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">detuned against each other</tspan></text>
-<text xml:space="preserve" transform="translate(36.7 208.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">and mixed to thicken the</tspan></text>
-<text xml:space="preserve" transform="translate(72.0 217.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">sound.</tspan></text>
-<text xml:space="preserve" transform="translate(109.4 268.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Filters shape the sound by</tspan></text>
-<text xml:space="preserve" transform="translate(103.1 277.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">subtracting harmonic content.</tspan></text>
-<text xml:space="preserve" transform="translate(96.4 287.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Additional shaping is provided by</tspan></text>
-<text xml:space="preserve" transform="translate(89.1 296.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">modulation via envelopes, LFOs and</tspan></text>
-<text xml:space="preserve" transform="translate(133.6 305.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">other sources.</tspan></text>
-<text xml:space="preserve" transform="translate(182.6 166.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">The audio signal amplitude</tspan></text>
-<text xml:space="preserve" transform="translate(185.3 176.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">can also be shaped using</tspan></text>
-<text xml:space="preserve" transform="translate(191.1 185.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">envelopes and manual</tspan></text>
-<text xml:space="preserve" transform="translate(188.6 194.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">adjustments. At the final</tspan></text>
-<text xml:space="preserve" transform="translate(182.3 204.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">stage, panning and volume</tspan></text>
-<text xml:space="preserve" transform="translate(201.6 213.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">levels can be set.</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(61.8 110.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">OSCILLATOR</tspan></text>
+<text xml:space="preserve" transform="translate(39.0 162.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">One or more oscillators</tspan></text>
+<text xml:space="preserve" transform="translate(50.3 171.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">provide the basic,</tspan></text>
+<text xml:space="preserve" transform="translate(28.2 180.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">harmonically rich tone. Often</tspan></text>
+<text xml:space="preserve" transform="translate(41.2 189.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">these are stacked and</tspan></text>
+<text xml:space="preserve" transform="translate(31.0 199.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">detuned against each other</tspan></text>
+<text xml:space="preserve" transform="translate(36.7 208.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">and mixed to thicken the</tspan></text>
+<text xml:space="preserve" transform="translate(72.0 217.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">sound.</tspan></text>
+<text xml:space="preserve" transform="translate(109.4 268.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Filters shape the sound by</tspan></text>
+<text xml:space="preserve" transform="translate(103.1 277.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">subtracting harmonic content.</tspan></text>
+<text xml:space="preserve" transform="translate(96.4 287.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Additional shaping is provided by</tspan></text>
+<text xml:space="preserve" transform="translate(89.1 296.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">modulation via envelopes, LFOs and</tspan></text>
+<text xml:space="preserve" transform="translate(133.6 305.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">other sources.</tspan></text>
+<text xml:space="preserve" transform="translate(182.6 166.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">The audio signal amplitude</tspan></text>
+<text xml:space="preserve" transform="translate(185.3 176.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">can also be shaped using</tspan></text>
+<text xml:space="preserve" transform="translate(191.1 185.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">envelopes and manual</tspan></text>
+<text xml:space="preserve" transform="translate(188.6 194.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">adjustments. At the final</tspan></text>
+<text xml:space="preserve" transform="translate(182.3 204.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">stage, panning and volume</tspan></text>
+<text xml:space="preserve" transform="translate(201.6 213.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">levels can be set.</tspan></text>
 <path transform="matrix(1,0,0,-1,-70.6,500.2)" stroke-width=".65" stroke-linecap="butt" stroke-dasharray="1.9,1.9,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M155.9 385.2V339.8"/>
 <path transform="matrix(1,0,0,-1,-70.6,500.2)" stroke-width=".65" stroke-linecap="butt" stroke-dasharray="1.9,1.9,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M307.1 385.2V339.8"/>
 <path transform="matrix(1,0,0,-1,-70.6,500.2)" stroke-width=".65" stroke-linecap="butt" stroke-dasharray="1.9,1.9,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M233.4 385.2V246.4"/>
-<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(6.9 110.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">INPUT</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(6.9 110.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">INPUT</tspan></text>
 <path transform="matrix(1,0,0,-1,-70.6,500.2)" d="M210.8 416.9H255.5V446.0H210.8ZM254.8 445.3V417.6H211.5C211.5 417.6 211.5 445.3 211.5 445.3Z" fill="currentColor" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-70.6,500.2)" stroke-width=".55" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M217.5 459.3 222.3 475.0 227.3 467.6H241.9L249.0 459.3"/>
 <path transform="matrix(1,0,0,-1,-70.6,500.2)" stroke-width=".55" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M291.3 459.3 296.2 475.0 301.2 467.6H315.8L322.8 459.3"/>

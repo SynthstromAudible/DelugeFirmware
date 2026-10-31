@@ -55,17 +55,17 @@
 <path transform="matrix(1,0,0,-1,-173.2,672.2)" d="M495.7 362.0C495.7 364.1 494.1 365.7 492.0 365.7H484.7C482.7 365.7 481.0 364.1 481.0 362.0V354.7C481.0 352.7 482.7 351.1 484.7 351.1H492.0C494.1 351.1 495.7 352.7 495.7 354.7ZM495.0 362.0V354.7C495.0 353.1 493.7 351.8 492.0 351.8H484.7C483.1 351.8 481.7 353.1 481.7 354.7V362.0C481.7 363.7 483.1 365.0 484.7 365.0H492.0C493.7 365.0 495.0 363.7 495.0 362.0Z" fill="currentColor" fill-rule="evenodd" data-pad="15,1" data-color="#292529"/>
 <use href="#03-sequencing__12-parameter-automation--1-s1" transform="matrix(1 0 0 -1 339.5 310.2)"/>
 <path transform="matrix(1,0,0,-1,-173.2,672.2)" d="M512.7 362.0C512.7 364.1 511.1 365.7 509.0 365.7H501.7C499.7 365.7 498.0 364.1 498.0 362.0V354.7C498.0 352.7 499.7 351.1 501.7 351.1H509.0C511.1 351.1 512.7 352.7 512.7 354.7ZM512.0 362.0V354.7C512.0 353.1 510.7 351.8 509.0 351.8H501.7C500.1 351.8 498.7 353.1 498.7 354.7V362.0C498.7 363.7 500.1 365.0 501.7 365.0H509.0C510.7 365.0 512.0 363.7 512.0 362.0Z" fill="currentColor" fill-rule="evenodd" data-pad="16,1" data-color="#292529"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(356.9 242.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">0</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(354.0 380.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Off</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(352.1 204.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">32R</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(354.8 394.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">49</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(323.4 251.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">PAN</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(318.7 431.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">LPF</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(310.4 441.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">CUTOFF</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(352.7 281.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">32L</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(356.9 465.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">0</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(5.9 12.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Automation is recorded into the sequencer and can be played back. Adjusting the</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(5.9 22.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">(LOWER) - for pan, control with the target - level / pan, parameter selected.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(356.9 242.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">0</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(354.0 380.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Off</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(352.1 204.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">32R</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(354.8 394.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">49</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(323.4 251.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">PAN</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(318.7 431.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">LPF</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(310.4 441.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">CUTOFF</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(352.7 281.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">32L</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(356.9 465.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">0</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(5.9 12.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Automation is recorded into the sequencer and can be played back. Adjusting the</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(5.9 22.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">(LOWER) - for pan, control with the target - level / pan, parameter selected.</tspan></text>
 <g clip-path="url(#03-sequencing__12-parameter-automation--1-clip_2)">
 <g mask="url(#03-sequencing__12-parameter-automation--1-mask_3)">
 <g transform="matrix(.072000008,0,0,.072,28.2,72.4)">
@@ -113,20 +113,20 @@
 <path transform="matrix(1,0,0,-1,-173.2,672.2)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M240.0 247.3C278.3 244.4 286.9 264.8 310.1 247.3 334.0 229.2 379.8 228.7 408.8 255.2 439.0 282.8 483.4 245.4 520.6 247.3"/>
 <path transform="matrix(1,0,0,-1,-173.2,672.2)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M254.3 427.0V461.3H482.6V425.4"/>
 <path transform="matrix(1,0,0,-1,-173.2,672.2)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M206.0 531.9H186.9"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(114.2 478.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">[LEARN / INPUT] + [PARAMETER CONTROL]</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(125.5 488.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">to copy the automation of one parameter.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(93.6 510.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">[SHIFT] + [LEARN / INPUT] + [PARAMETER CONTROL]</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(123.0 520.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">to paste the copied parameter automation.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(43.0 547.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Automation copy / paste operates across the time region length of the ‘view’. Automation can be</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(44.4 557.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">copied to / from different parameters, different clips and song files. Zoom levels can be adjusted</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(72.6 567.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">prior to copying and automation will be adjusted to meet the new zoom setting.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(114.2 478.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">[LEARN / INPUT] + [PARAMETER CONTROL]</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(125.5 488.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">to copy the automation of one parameter.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(93.6 510.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">[SHIFT] + [LEARN / INPUT] + [PARAMETER CONTROL]</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(123.0 520.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">to paste the copied parameter automation.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(43.0 547.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Automation copy / paste operates across the time region length of the ‘view’. Automation can be</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(44.4 557.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">copied to / from different parameters, different clips and song files. Zoom levels can be adjusted</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(72.6 567.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">prior to copying and automation will be adjusted to meet the new zoom setting.</tspan></text>
 <path transform="matrix(1,0,0,-1,-173.2,672.2)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M223.9 411.0H201.2V243.7H226.7"/>
 <path transform="matrix(1,0,0,-1,-173.2,672.2)" d="M234.1 243.7 226.7 240.1V247.3ZM232.5 243.7 227.4 241.3C227.4 241.3 227.4 246.2 227.4 246.2Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-173.2,672.2)" d="M224.7 413.0C225.8 413.0 226.6 412.2 226.6 411.1 226.6 410.0 225.8 409.2 224.7 409.2 223.6 409.2 222.8 410.0 222.8 411.1 222.8 412.2 223.6 413.0 224.7 413.0Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-173.2,672.2)" d="M184.3 380.9H218.1V396.6H184.3Z" fill="var(--gb-paper)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(17.4 286.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">COPY</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(17.4 286.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">COPY</tspan></text>
 <path transform="matrix(1,0,0,-1,-173.2,672.2)" d="M184.3 258.5H218.1V274.2H184.3Z" fill="var(--gb-paper)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(16.0 408.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">PASTE</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(16.0 408.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">PASTE</tspan></text>
 </g>
 </g>
 </svg>

@@ -7,13 +7,13 @@
 <g clip-path="url(#13-cv__05-cv-out-within-kits-songs--1-clip_1)">
 <path transform="matrix(1,0,0,-1,-159.9,490.8)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M424.8 688.4V83.9"/>
 <path transform="matrix(1,0,0,-1,-159.9,490.8)" stroke-width=".6" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M185.0 451.9H250.8V478.2H185.0Z"/>
-<text fill="currentColor" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 26.8 24.6)" font-size="5.6" font-family="monospace"><tspan y="0" x="0.0" textLength="65" lengthAdjust="spacingAndGlyphs">GATE CHANNEL</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 55.5 31.6)" font-size="5.6" font-family="monospace"><tspan y="0" x="0.0" textLength="3.1" lengthAdjust="spacingAndGlyphs">3</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 26.8 24.6)" font-size="5.6" font-family="monospace"><tspan y="0" x="0" textLength="65" lengthAdjust="spacingAndGlyphs">GATE CHANNEL</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 55.5 31.6)" font-size="5.6" font-family="monospace"><tspan y="0" x="0" textLength="3.1" lengthAdjust="spacingAndGlyphs">3</tspan></text>
 <path transform="matrix(1,0,0,-1,-159.9,490.8)" stroke-width=".8" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M171.8 445.4H264.1V484.8H171.8Z"/>
 <path transform="matrix(1,0,0,-1,-159.9,490.8)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M257.8 443.9V438.2H175.8V443.9"/>
 <path transform="matrix(1,0,0,-1,-159.9,490.8)" d="M165.8 393.0H269.8V414.2H165.8Z" fill="var(--gb-paper)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(30.1 83.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Gate Channel</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(9.7 90.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Example: 3 from a range of 1-4</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(30.1 83.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Gate Channel</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(9.7 90.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Example: 3 from a range of 1-4</tspan></text>
 <path transform="matrix(1,0,0,-1,-159.9,490.8)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M216.4 438.1V419.6"/>
 </g>
 </svg>

@@ -7,11 +7,11 @@
 <g clip-path="url(#03-sequencing__05-note-characteristics--3-clip_1)">
 <path transform="matrix(1,0,0,-1,-112.2,604.3)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M424.9 688.7V84.2"/>
 <path transform="matrix(1,0,0,-1,-112.2,604.3)" stroke-width=".45" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 41%, var(--gb-paper))" d="M275.0 598.3V507.2"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(39.9 12.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Note</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(1.0 21.4)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Brightly lit showing start of note</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(60.0 87.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Note Extension</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(42.3 96.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Dimly lit showing length of note</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(169.4 95.5)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Grid edge</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(39.9 12.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Note</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(1.0 21.4)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Brightly lit showing start of note</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(60.0 87.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Note Extension</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(42.3 96.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Dimly lit showing length of note</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(169.4 95.5)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Grid edge</tspan></text>
 <path transform="matrix(1,0,0,-1,-112.2,604.3)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M161.1 564.3V578.5"/>
 <path transform="matrix(1,0,0,-1,-112.2,604.3)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M172.9 544.5V538.8H232.5V544.5"/>
 <path transform="matrix(1,0,0,-1,-112.2,604.3)" d="M135.2 560.3C134.4 560.3 133.7 559.7 133.7 558.8V547.9C133.7 547.0 134.4 546.3 135.2 546.3H146.2C147.0 546.3 147.7 547.0 147.7 547.9V558.8C147.7 559.7 147.0 560.3 146.2 560.3Z" fill="var(--gb-paper)" fill-rule="evenodd"/>

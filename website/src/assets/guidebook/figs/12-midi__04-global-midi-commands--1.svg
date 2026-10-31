@@ -18,36 +18,36 @@
 <path transform="matrix(1,0,0,-1,-73.9,306.0)" stroke-width=".7" stroke-linecap="butt" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M113.8 272.1V265.7H356.8V273.7"/>
 <use href="#12-midi__04-global-midi-commands--1-s1" transform="matrix(1 0 0 -1 5.9 31.6)"/>
 <path transform="matrix(1,0,0,-1,-73.9,306.0)" stroke-width=".4" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 41%, var(--gb-paper))" d="M79.8 274.4H146.9V300.0H79.8Z"/>
-<text fill="currentColor" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 36.9 16.4)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">1</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 16.7 27.6)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Play / Stop</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 36.9 16.4)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">1</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 16.7 27.6)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Play / Stop</tspan></text>
 <use href="#12-midi__04-global-midi-commands--1-s1" transform="matrix(1 0 0 -1 168.2 31.6)"/>
 <use href="#12-midi__04-global-midi-commands--1-s2" transform="matrix(1 0 0 -1 168.2 31.6)"/>
-<text fill="currentColor" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 199.2 16.4)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">3</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 190.5 27.6)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Undo</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 199.2 16.4)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">3</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 190.5 27.6)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Undo</tspan></text>
 <use href="#12-midi__04-global-midi-commands--1-s1" transform="matrix(1 0 0 -1 5.9 79.1)"/>
 <use href="#12-midi__04-global-midi-commands--1-s2" transform="matrix(1 0 0 -1 5.9 79.1)"/>
-<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 28.2 63.9)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">None</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 24.3 75.1)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Restart</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 28.2 63.9)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">None</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 24.3 75.1)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Restart</tspan></text>
 <use href="#12-midi__04-global-midi-commands--1-s3" transform="matrix(1 0 0 -1 249.9 31.6)"/>
 <path transform="matrix(1,0,0,-1,-73.9,306.0)" stroke-width=".4" stroke-linecap="butt" stroke-dasharray="1.2,1.2,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 41%, var(--gb-paper))" d="M323.8 274.4H390.8V300.0H323.8Z"/>
-<text fill="currentColor" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 280.8 16.4)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">4</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 272.2 27.6)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Redo</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 280.8 16.4)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">4</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 272.2 27.6)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Redo</tspan></text>
 <use href="#12-midi__04-global-midi-commands--1-s1" transform="matrix(1 0 0 -1 5.9 117.3)"/>
 <use href="#12-midi__04-global-midi-commands--1-s2" transform="matrix(1 0 0 -1 5.9 117.3)"/>
-<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 28.2 102.2)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">None</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 31.9 113.3)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Tap</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 28.2 102.2)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">None</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 31.9 113.3)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Tap</tspan></text>
 <use href="#12-midi__04-global-midi-commands--1-s1" transform="matrix(1 0 0 -1 86.5 31.6)"/>
 <path transform="matrix(1,0,0,-1,-73.9,306.0)" stroke-width=".4" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 41%, var(--gb-paper))" d="M160.4 274.4H227.5V300.0H160.4Z"/>
-<text fill="currentColor" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 117.5 16.4)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">2</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 104.9 27.6)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Record</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 117.5 16.4)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">2</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 104.9 27.6)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Record</tspan></text>
 <use href="#12-midi__04-global-midi-commands--1-s3" transform="matrix(1 0 0 -1 249.9 79.1)"/>
 <path transform="matrix(1,0,0,-1,-73.9,306.0)" stroke-width=".4" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 41%, var(--gb-paper))" d="M323.8 226.9H390.8V252.5H323.8Z"/>
-<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 272.2 63.9)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">None</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 272.9 75.1)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Loop</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 272.2 63.9)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">None</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 272.9 75.1)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Loop</tspan></text>
 <use href="#12-midi__04-global-midi-commands--1-s3" transform="matrix(1 0 0 -1 249.9 117.3)"/>
 <path transform="matrix(1,0,0,-1,-73.9,306.0)" stroke-width=".4" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 41%, var(--gb-paper))" d="M323.8 188.7H390.8V214.3H323.8Z"/>
-<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 272.2 102.2)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">None</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 271.6 113.3)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Layer</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 272.2 102.2)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">None</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 271.6 113.3)" font-size="9.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Layer</tspan></text>
 <path transform="matrix(1,0,0,-1,-73.9,306.0)" d="M229.7 253.0V238.9C233.4 237.5 236.8 237.7 240.1 238.9V253.0C236.4 252.5 233.0 252.5 229.7 253.0Z" fill="currentColor" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-73.9,306.0)" d="M232.2 248.9V236.6C234.0 235.3 235.7 235.5 237.3 236.6V248.9C235.5 248.5 233.8 248.5 232.2 248.9Z" fill="currentColor" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-73.9,306.0)" d="M230.0 253.0C230.0 253.7 232.2 254.3 235.0 254.3 237.7 254.3 239.9 253.7 239.9 253.0 239.9 252.3 237.7 251.8 235.0 251.8 232.2 251.8 230.0 252.3 230.0 253.0Z" fill="var(--gb-paper)" fill-rule="evenodd"/>

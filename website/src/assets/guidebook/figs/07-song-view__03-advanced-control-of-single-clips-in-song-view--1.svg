@@ -21,17 +21,17 @@
 </g>
 </g>
 </g>
-<text fill="currentColor" xml:space="preserve" transform="translate(95.9 12.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">[</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(98.4 12.5)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0.0">LAUNCH</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(135.4 12.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">]</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(40.8 22.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Mute / launch column pad enables the</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(39.8 32.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">arming and triggering of clips (per row)</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(74.6 42.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">in time with the song.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(95.9 12.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">[</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(98.4 12.5)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0">LAUNCH</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(135.4 12.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">]</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(40.8 22.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Mute / launch column pad enables the</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(39.8 32.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">arming and triggering of clips (per row)</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(74.6 42.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">in time with the song.</tspan></text>
 <path transform="matrix(1,0,0,-1,-84.6,600.3)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="bevel" fill="none" stroke="var(--gb-accent)" d="M184.7 265.7H218.1V529.8H184.7Z"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(136.1 319.0)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Audition</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(135.3 325.0)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">/ Section</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(110.2 318.8)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Mute</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(105.4 324.8)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">/ Launch</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(136.1 319.0)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Audition</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(135.3 325.0)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">/ Section</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(110.2 318.8)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Mute</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(105.4 324.8)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">/ Launch</tspan></text>
 <path transform="matrix(1,0,0,-1,-84.6,600.3)" d="M163.6 519.6C163.6 521.0 162.5 522.2 161.0 522.2H145.5C144.1 522.2 142.9 521.0 142.9 519.6V504.1C142.9 502.6 144.1 501.5 145.5 501.5H161.0C162.5 501.5 163.6 502.6 163.6 504.1Z" fill="#f57e32" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-84.6,600.3)" d="M163.6 519.6C163.6 521.0 162.5 522.2 161.0 522.2H145.5C144.1 522.2 142.9 521.0 142.9 519.6V504.1C142.9 502.6 144.1 501.5 145.5 501.5H161.0C162.5 501.5 163.6 502.6 163.6 504.1ZM163.3 519.6V504.1C163.3 502.8 162.3 501.8 161.0 501.8H145.5C144.2 501.8 143.2 502.8 143.2 504.1V519.6C143.2 520.8 144.2 521.9 145.5 521.9H161.0C162.3 521.9 163.3 520.8 163.3 519.6Z" fill="currentColor" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-84.6,600.3)" d="M133.1 519.6C133.1 521.0 132.0 522.2 130.6 522.2H115.0C113.6 522.2 112.4 521.0 112.4 519.6V504.1C112.4 502.6 113.6 501.5 115.0 501.5H130.6C132.0 501.5 133.1 502.6 133.1 504.1Z" fill="#f57e32" fill-rule="evenodd"/>

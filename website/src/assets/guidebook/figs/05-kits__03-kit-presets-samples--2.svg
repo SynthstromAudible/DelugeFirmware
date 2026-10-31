@@ -15,13 +15,13 @@
 <g>
 <g clip-path="url(#05-kits__03-kit-presets-samples--2-clip_1)">
 <path transform="matrix(1,0,0,-1,-77,362.8)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M424.8 688.4V83.9"/>
-<text xml:space="preserve" transform="translate(185.1 20.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Sample 6</tspan></text>
-<text xml:space="preserve" transform="translate(185.1 49.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Sample 5</tspan></text>
-<text xml:space="preserve" transform="translate(185.1 80.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Sample 4</tspan></text>
-<text xml:space="preserve" transform="translate(185.1 109.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Sample 3</tspan></text>
-<text xml:space="preserve" transform="translate(185.1 138.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Sample 2</tspan></text>
-<text xml:space="preserve" transform="translate(185.1 167.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Sample 1</tspan></text>
-<text fill="var(--gb-accent)" xml:space="preserve" transform="translate(27.2 79.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Folder</tspan></text>
+<text xml:space="preserve" transform="translate(185.1 20.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Sample 6</tspan></text>
+<text xml:space="preserve" transform="translate(185.1 49.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Sample 5</tspan></text>
+<text xml:space="preserve" transform="translate(185.1 80.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Sample 4</tspan></text>
+<text xml:space="preserve" transform="translate(185.1 109.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Sample 3</tspan></text>
+<text xml:space="preserve" transform="translate(185.1 138.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Sample 2</tspan></text>
+<text xml:space="preserve" transform="translate(185.1 167.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Sample 1</tspan></text>
+<text fill="var(--gb-accent)" xml:space="preserve" transform="translate(27.2 79.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Folder</tspan></text>
 <path transform="matrix(1,0,0,-1,-77,362.8)" stroke-width=".6" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M260.0 345.9H202.2V198.8H258.7"/>
 <path transform="matrix(1,0,0,-1,-77,362.8)" d="M345.6 353.9C345.6 355.3 344.4 356.5 342.9 356.5H324.4C322.9 356.5 321.7 355.3 321.7 353.9V335.4C321.7 333.9 322.9 332.7 324.4 332.7H342.9C344.4 332.7 345.6 333.9 345.6 335.4Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-77,362.8)" d="M345.6 353.9C345.6 355.3 344.4 356.5 342.9 356.5H324.4C322.9 356.5 321.7 355.3 321.7 353.9V335.4C321.7 333.9 322.9 332.7 324.4 332.7H342.9C344.4 332.7 345.6 333.9 345.6 335.4ZM345.0 353.9V335.4C345.0 334.2 344.1 333.3 342.9 333.3H324.4C323.3 333.3 322.3 334.2 322.3 335.4V353.9C322.3 355.0 323.3 355.9 324.4 355.9H342.9C344.1 355.9 345.0 355.0 345.0 353.9Z" fill-rule="evenodd"/>

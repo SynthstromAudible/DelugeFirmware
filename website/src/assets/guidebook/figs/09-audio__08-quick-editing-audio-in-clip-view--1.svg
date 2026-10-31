@@ -179,34 +179,34 @@
 <path transform="matrix(1,0,0,-1,-54,570.7)" d="M257.0 321.3C257.0 322.3 256.2 323.2 255.1 323.2H243.7C242.7 323.2 241.8 322.3 241.8 321.3V309.8C241.8 308.8 242.7 308 243.7 308H255.1C256.2 308 257.0 308.8 257.0 309.8ZM256.7 321.3V309.8C256.7 309.0 256.0 308.3 255.1 308.3H243.7C242.9 308.3 242.1 309.0 242.1 309.8V321.3C242.1 322.2 242.9 322.9 243.7 322.9H255.1C256.0 322.9 256.7 322.2 256.7 321.3Z" fill="currentColor" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-54,570.7)" d="M234.7 343.1C234.7 344.2 233.9 345.0 232.8 345.0H221.4C220.4 345.0 219.5 344.2 219.5 343.1V331.7C219.5 330.6 220.4 329.8 221.4 329.8H232.8C233.9 329.8 234.7 330.6 234.7 331.7Z" fill="#62bc56" fill-rule="evenodd" data-pad="5,2" data-color="#62bc56"/>
 <use href="#09-audio__08-quick-editing-audio-in-clip-view--1-s2" transform="matrix(1 0 0 -1 180.7 227.6)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(70.3 130.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Audio waveform</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(41.7 139.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Indicated graphically across the grid.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(35.4 148.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">This may take up multiple screen pages.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(202.7 417.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Waveform length</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(157.4 426.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">The waveform length maintains synchronisation</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(157.8 435.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">with the grid timings as shown by the grid pads.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(179.7 444.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">For example sync to 16</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(257.7 442.3)" font-size="4.3" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">th</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(263.4 444.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">intervals.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(70.3 130.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Audio waveform</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(41.7 139.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Indicated graphically across the grid.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(35.4 148.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">This may take up multiple screen pages.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(202.7 417.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Waveform length</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(157.4 426.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">The waveform length maintains synchronisation</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(157.8 435.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">with the grid timings as shown by the grid pads.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(179.7 444.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">For example sync to 16</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(257.7 442.3)" font-size="4.3" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">th</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(263.4 444.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">intervals.</tspan></text>
 <path transform="matrix(1,0,0,-1,-54,570.7)" stroke-width=".7" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M54.0 91.8H172.6V139.8H54.0Z"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(29.6 443.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Audio clip view</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(7.6 452.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Grid pads will display the audio</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(6.0 461.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">on coloured pads as opposed to</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(10.8 470.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">white pads in waveform view.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(367.8 417.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">End of waveform</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(326.7 426.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">The waveform is laid out at the correct length</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(326.9 435.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">based on the note divisions. Elements will be</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(330.5 444.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">shown by dull lit pads that are not covered.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(353.0 130.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Loop edit</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(297.9 139.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">The red column cursor, selected by pressing</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(296.4 148.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">the last column, enables editing of loop point.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(315.4 157.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Press the new location to move it.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(29.6 443.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Audio clip view</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(7.6 452.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Grid pads will display the audio</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.0 461.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">on coloured pads as opposed to</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(10.8 470.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">white pads in waveform view.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(367.8 417.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">End of waveform</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(326.7 426.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">The waveform is laid out at the correct length</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(326.9 435.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">based on the note divisions. Elements will be</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(330.5 444.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">shown by dull lit pads that are not covered.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(353.0 130.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Loop edit</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(297.9 139.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">The red column cursor, selected by pressing</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(296.4 148.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">the last column, enables editing of loop point.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(315.4 157.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Press the new location to move it.</tspan></text>
 <path transform="matrix(1,0,0,-1,-54,570.7)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M426.1 374.2V409.7"/>
 <path transform="matrix(1,0,0,-1,-54,570.7)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M458.6 162.7V191.4"/>
 <path transform="matrix(1,0,0,-1,-54,570.7)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M291.4 163.0V178.4"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(213.0 12.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Time-stretch</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(148.6 21.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Use [SHIFT] + (SCROLL◄►) to adjust the clip length</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(187.0 30.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">by time stretching or shrinking.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(213.0 12.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Time-stretch</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(148.6 21.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Use [SHIFT] + (SCROLL◄►) to adjust the clip length</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(187.0 30.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">by time stretching or shrinking.</tspan></text>
 <path transform="matrix(1,0,0,-1,-54,570.7)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M191.0 380.6H386.2"/>
 <path transform="matrix(1,0,0,-1,-54,570.7)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M179.2 380.5 190.5 386.2V374.9Z"/>
 <path transform="matrix(1,0,0,-1,-54,570.7)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M398.4 380.5 387.0 386.2V374.9Z"/>
@@ -227,7 +227,7 @@
 </g>
 </g>
 <path transform="matrix(1,0,0,-1,-54,570.7)" d="M254.9 488.1H287.7V508.9H254.9Z" fill="var(--gb-paper)"/>
-<text xml:space="preserve" transform="translate(214.1 76.1)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">+</tspan></text>
+<text xml:space="preserve" transform="translate(214.1 76.1)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">+</tspan></text>
 </g>
 </g>
 </svg>

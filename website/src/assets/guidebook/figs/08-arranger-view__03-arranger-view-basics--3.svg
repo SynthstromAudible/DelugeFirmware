@@ -15,9 +15,9 @@
 <g>
 <g clip-path="url(#08-arranger-view__03-arranger-view-basics--3-clip_1)">
 <path transform="matrix(1,0,0,-1,-91.8,368.7)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M424.8 688.4V83.9"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(-1.4 14.4)" font-size="6.4" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="3.5">d</tspan></text>
-<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(8.6 18.0)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">(Default)</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(136.3 18.0)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Arranger Pads</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(-1.4 14.4)" font-size="6.4" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="3.6">d</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(8.6 18.0)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">(Default)</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(136.3 18.0)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Arranger Pads</tspan></text>
 <g clip-path="url(#08-arranger-view__03-arranger-view-basics--3-clip_2)">
 <g mask="url(#08-arranger-view__03-arranger-view-basics--3-mask_3)">
 <g transform="matrix(.033118,0,0,.033117996,6.0,44.1)">
@@ -91,9 +91,9 @@
 <path transform="matrix(1,0,0,-1,-91.8,368.7)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="bevel" fill="none" stroke="currentColor" d="M238.7 209.8 244.1 222.6H286.9V233.6"/>
 <path transform="matrix(1,0,0,-1,-91.8,368.7)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="bevel" fill="none" stroke="currentColor" d="M193.4 345.8V320.2"/>
 <path transform="matrix(1,0,0,-1,-91.8,368.7)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="bevel" fill="none" stroke="currentColor" d="M193.4 209.8V235.4"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(23.1 171.4)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">4th</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(209.5 92.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Clip View Contents</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(23.1 195.4)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">8th</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(23.1 171.4)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">4th</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(209.5 92.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Clip View Contents</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(23.1 195.4)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">8th</tspan></text>
 </g>
 </g>
 </svg>

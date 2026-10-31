@@ -7,19 +7,19 @@
 <g clip-path="url(#14-system-general__02-updating-deluge-firmware--1-clip_1)">
 <path transform="matrix(1,0,0,-1,-98.6,437.3)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M424.8 688.4V83.9"/>
 <path transform="matrix(1,0,0,-1,-98.6,437.3)" d="M119.0 373.5H178.5V382.0H119.0Z" fill="var(--gb-paper)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(24.3 60.3)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Firmware Option</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(24.3 60.3)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Firmware Option</tspan></text>
 <path transform="matrix(1,0,0,-1,-98.6,437.3)" d="M258.2 373.5H317.7V382.0H258.2Z" fill="var(--gb-paper)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(162.1 60.3)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Firmware Version</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(147.1 14.4)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-weight="bold"><tspan y="0" x="0.0" textLength="61" lengthAdjust="spacingAndGlyphs">FIRMWARE VER.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(178.5 31.3)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-weight="bold"><tspan y="0" x="0.0" textLength="20.9" lengthAdjust="spacingAndGlyphs">4. 1. 0</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(162.1 60.3)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Firmware Version</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(147.1 14.4)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-weight="bold"><tspan y="0" x="0" textLength="61" lengthAdjust="spacingAndGlyphs">FIRMWARE VER.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(178.5 31.3)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-weight="bold"><tspan y="0" x="0" textLength="20.9" lengthAdjust="spacingAndGlyphs">4. 1. 0</tspan></text>
 <path transform="matrix(1,0,0,-1,-98.6,437.3)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M246.1 420.9H329.1"/>
 <path transform="matrix(1,0,0,-1,-98.6,437.3)" stroke-width=".8" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M241.5 391.9H333.8V431.4H241.5Z"/>
 <path transform="matrix(1,0,0,-1,-98.6,437.3)" d="M109.2 393.9H192.3V402.2H109.2Z" fill="currentColor" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-98.6,437.3)" stroke-width=".6" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M109.2 393.9H192.3V402.2H109.2Z"/>
-<text fill="currentColor" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 13.3 24.4)" font-size="5.6" font-family="monospace"><tspan y="0" x="0.0" textLength="32.2" lengthAdjust="spacingAndGlyphs">CURSOR</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 13.3 33.1)" font-size="5.6" font-family="monospace"><tspan y="0" x="0.0" textLength="49.4" lengthAdjust="spacingAndGlyphs">RECORDING</tspan></text>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 13.3 41.9)" font-size="5.6" font-family="monospace"><tspan y="0" x="0.0" textLength="69.1" lengthAdjust="spacingAndGlyphs">FIRMWARE VER.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(10.1 14.4)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-weight="bold"><tspan y="0" x="0.0" textLength="39" lengthAdjust="spacingAndGlyphs">SETTINGS</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 13.3 24.4)" font-size="5.6" font-family="monospace"><tspan y="0" x="0" textLength="32.2" lengthAdjust="spacingAndGlyphs">CURSOR</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 13.3 33.1)" font-size="5.6" font-family="monospace"><tspan y="0" x="0" textLength="49.4" lengthAdjust="spacingAndGlyphs">RECORDING</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 13.3 41.9)" font-size="5.6" font-family="monospace"><tspan y="0" x="0" textLength="69.1" lengthAdjust="spacingAndGlyphs">FIRMWARE VER.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(10.1 14.4)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-weight="bold"><tspan y="0" x="0" textLength="39" lengthAdjust="spacingAndGlyphs">SETTINGS</tspan></text>
 <path transform="matrix(1,0,0,-1,-98.6,437.3)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M109.1 420.9H192.1"/>
 <path transform="matrix(1,0,0,-1,-98.6,437.3)" stroke-width=".8" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M104.5 391.9H196.8V431.4H104.5Z"/>
 </g>

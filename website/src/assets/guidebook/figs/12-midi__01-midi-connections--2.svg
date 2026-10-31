@@ -36,16 +36,16 @@
 <path transform="matrix(1,0,0,-1,-217.4,528.5)" stroke-width=".65" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M309.1 310.3V397.9H345.3"/>
 <path transform="matrix(1,0,0,-1,-217.4,528.5)" stroke-width=".65" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M364.1 229.1V302.9H400.3"/>
 <path transform="matrix(1,0,0,-1,-217.4,528.5)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M297.6 229.1V279.1"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(99.9 289.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">MIDI in</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(84.1 85.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">16 Channels can be learned in Deluge from a USB device</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(135.3 166.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Additional 16 Channels can be</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(124.5 175.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">learned in Deluge from a USB device</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(161.6 268.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">MIDI DIN 16 Channels can</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(163.6 277.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">also be learned in Deluge</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(99.9 289.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">MIDI in</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(84.1 85.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">16 Channels can be learned in Deluge from a USB device</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(135.3 166.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Additional 16 Channels can be</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(124.5 175.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">learned in Deluge from a USB device</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(161.6 268.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">MIDI DIN 16 Channels can</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(163.6 277.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">also be learned in Deluge</tspan></text>
 <path transform="matrix(1,0,0,-1,-217.4,528.5)" d="M275.7 279.1H319.5V309.5H275.7Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-217.4,528.5)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M275.7 279.1H319.5V309.5H275.7Z"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(63.2 232.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">USB MIDI</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(72.0 241.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">HUB</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(63.2 232.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">USB MIDI</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(72.0 241.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">HUB</tspan></text>
 <path transform="matrix(1,0,0,-1,-217.4,528.5)" d="M400.3 275.1H443.7V333.1H400.3Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-217.4,528.5)" stroke-width=".55" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M400.3 275.1H443.7V333.1H400.3Z"/>
 <use href="#12-midi__01-midi-connections--2-s1" transform="matrix(1 0 0 -1 193.7 223.1)"/>

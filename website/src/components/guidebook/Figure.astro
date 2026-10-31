@@ -18,9 +18,11 @@ type Props = {
   img?: string
   /** Natural display width of an image in CSS px */
   width?: number
+  /** Too wide to shrink legibly (e.g. a two-page spread): show at natural size, scroll sideways */
+  wide?: boolean
 }
 
-const { id, alt, caption, src, img, width } = Astro.props
+const { id, alt, caption, src, img, width, wide } = Astro.props
 const base = import.meta.env.BASE_URL.replace(/\/$/, "")
 const withBase = (s: string) =>
   s.replaceAll('href="/guidebook/img/', `href="${base}/guidebook/img/`)
@@ -31,10 +33,14 @@ const viewBoxWidth = src?.match(
 const natural =
   width ??
   (viewBoxWidth ? Math.round(Number(viewBoxWidth) * (4 / 3)) : undefined)
-const sizing = natural ? `max-width: min(100%, ${natural}px)` : undefined
+const sizing = natural
+  ? wide
+    ? `width: ${natural}px`
+    : `max-width: min(100%, ${natural}px)`
+  : undefined
 ---
 
-<figure class="gb-figure" id={id}>
+<figure class:list={["gb-figure", { "gb-figure-wide": wide }]} id={id}>
   {
     src && (
       <div

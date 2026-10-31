@@ -20,7 +20,7 @@
 <path transform="matrix(1,0,0,-1,-229.8,169.6)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M412.8 144.0 415.5 161.8 420.9 126.3 423.4 144.1"/>
 <path transform="matrix(1,0,0,-1,-229.8,169.6)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M423.3 143.6 426.1 162.9 431.5 124.5 434.0 143.8"/>
 <path transform="matrix(1,0,0,-1,-229.8,169.6)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M434.0 143.4 436.7 163.6 442.1 123.3 444.6 143.6"/>
-<text xml:space="preserve" transform="translate(6.0 60.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Amplitude modulation can be carried out by other modulation devices such as LFO’s.</tspan></text>
-<text xml:space="preserve" transform="translate(38.8 67.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Amplitude modulation can be found in many types of synthesizer.</tspan></text>
+<text xml:space="preserve" transform="translate(6.0 60.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Amplitude modulation can be carried out by other modulation devices such as LFO’s.</tspan></text>
+<text xml:space="preserve" transform="translate(38.8 67.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Amplitude modulation can be found in many types of synthesizer.</tspan></text>
 </g>
 </svg>

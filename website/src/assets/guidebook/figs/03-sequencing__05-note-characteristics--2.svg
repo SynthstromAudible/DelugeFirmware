@@ -20,11 +20,11 @@
 <g>
 <g clip-path="url(#03-sequencing__05-note-characteristics--2-clip_1)">
 <path transform="matrix(1,0,0,-1,-191.5,383.8)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M170.1 688.6V84.1"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(155.2 43.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">[TRIPLETS VIEW]</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(113.9 53.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Switches the grid to triplets view, laying</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(117.4 63.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">out the grid with 3 of 4 columns in the</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(114.8 73.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">time division. The three notes have the</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(123.2 83.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">same time period as the original 4.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(155.2 43.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">[TRIPLETS VIEW]</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(113.9 53.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Switches the grid to triplets view, laying</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(117.4 63.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">out the grid with 3 of 4 columns in the</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(114.8 73.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">time division. The three notes have the</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(123.2 83.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">same time period as the original 4.</tspan></text>
 <g clip-path="url(#03-sequencing__05-note-characteristics--2-clip_2)">
 <g mask="url(#03-sequencing__05-note-characteristics--2-mask_3)">
 <g transform="matrix(.048,0,0,.047999998,25.7,142.9)">

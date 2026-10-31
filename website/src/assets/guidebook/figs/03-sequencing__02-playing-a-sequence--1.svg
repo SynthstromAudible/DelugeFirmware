@@ -21,19 +21,19 @@
 </g>
 </g>
 </g>
-<text fill="currentColor" xml:space="preserve" transform="translate(167.6 87.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Press [PLAY]</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(167.6 97.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">To start sequencer playback.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(167.6 107.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Button illuminates green.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(167.6 129.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Press [PLAY]</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(167.6 139.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">A second time to stop playback.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(167.6 149.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Button is unlit / off.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(167.6 171.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">When playing the white column cursor will move</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(167.6 181.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">left to right across the time range and can be</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(167.6 191.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">seen in the respective pad grids.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(166.1 344.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Press &amp; hold (SCROLL◄►) + press [PLAY]</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(166.1 354.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">to start the sequencer playback from the start of</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(166.1 364.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">the current in focus grid scroll position instead of</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(166.1 374.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">starting at the start of the full grid.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(167.6 87.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Press [PLAY]</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(167.6 97.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">To start sequencer playback.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(167.6 107.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Button illuminates green.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(167.6 129.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Press [PLAY]</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(167.6 139.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">A second time to stop playback.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(167.6 149.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Button is unlit / off.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(167.6 171.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">When playing the white column cursor will move</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(167.6 181.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">left to right across the time range and can be</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(167.6 191.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">seen in the respective pad grids.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(166.1 344.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Press &amp; hold (SCROLL◄►) + press [PLAY]</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(166.1 354.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">to start the sequencer playback from the start of</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(166.1 364.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">the current in focus grid scroll position instead of</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(166.1 374.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">starting at the start of the full grid.</tspan></text>
 <path transform="matrix(1,0,0,-1,-177,487.8)" d="M183.0 111.4H231.1V145.4H183.0ZM230.7 144.9V111.8C226.1 111.8 188.0 111.8 183.4 111.8 183.4 111.8 183.4 144.9 183.4 144.9Z" fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-177,487.8)" d="M233.4 111.4H281.5V145.4H233.4ZM280.8 144.7V112.1C275.4 112.1 239.5 112.1 234.1 112.1 234.1 112.1 234.1 139.9 234.1 144.7H280.8Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-177,487.8)" d="M283.8 111.4H331.9V145.4H283.8ZM331.5 144.9V111.8C331.5 111.8 284.2 111.8 284.2 111.8 284.2 111.8 284.2 144.9 284.2 144.9Z" fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" fill-rule="evenodd"/>
@@ -82,9 +82,9 @@
 <path transform="matrix(1,0,0,-1,-177,487.8)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M269.4 397.4H340.7"/>
 <path transform="matrix(1,0,0,-1,-177,487.8)" d="M229.9 407.5C235.1 407.5 239.3 403.3 239.3 398.1 239.3 392.9 235.1 388.7 229.9 388.7 224.7 388.7 220.5 392.9 220.5 398.1 220.5 403.3 224.7 407.5 229.9 407.5Z" fill="#6fbe44" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-177,487.8)" d="M229.9 407.5C235.1 407.5 239.3 403.3 239.3 398.1 239.3 392.9 235.1 388.7 229.9 388.7 224.7 388.7 220.5 392.9 220.5 398.1 220.5 403.3 224.7 407.5 229.9 407.5ZM229.9 406.9C234.8 406.9 238.7 403.0 238.7 398.1 238.7 393.2 234.8 389.3 229.9 389.3 225.0 389.3 221.1 393.2 221.1 398.1 221.1 403.0 225.0 406.9 229.9 406.9Z" fill-rule="evenodd"/>
-<text fill="color-mix(in srgb, currentColor 41%, var(--gb-paper))" xml:space="preserve" transform="translate(21.9 362.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">16x8</tspan></text>
-<text fill="color-mix(in srgb, currentColor 41%, var(--gb-paper))" xml:space="preserve" transform="translate(72.3 362.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">16x8</tspan></text>
-<text fill="color-mix(in srgb, currentColor 41%, var(--gb-paper))" xml:space="preserve" transform="translate(122.7 362.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">16x8</tspan></text>
+<text fill="color-mix(in srgb, currentColor 41%, var(--gb-paper))" xml:space="preserve" transform="translate(21.9 362.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">16x8</tspan></text>
+<text fill="color-mix(in srgb, currentColor 41%, var(--gb-paper))" xml:space="preserve" transform="translate(72.3 362.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">16x8</tspan></text>
+<text fill="color-mix(in srgb, currentColor 41%, var(--gb-paper))" xml:space="preserve" transform="translate(122.7 362.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">16x8</tspan></text>
 <path transform="matrix(1,0,0,-1,-177,487.8)" d="M240.1 141.3 235.3 138.9V143.7ZM239.1 141.3 235.8 139.6C235.8 139.6 235.8 142.9 235.8 142.9Z" fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-177,487.8)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M170.1 688.6V84.1"/>
 <path transform="matrix(1,0,0,-1,-177,487.8)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 41%, var(--gb-paper))" d="M399.8 194.9H439.5"/>

@@ -20,43 +20,43 @@
 <g>
 <g clip-path="url(#04-synthesizers__08-sound-editor-synthesizer-parameters--2-clip_1)">
 <path transform="matrix(1,0,0,-1,-56.3,613.7)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M424.7 688.6V84.1"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(6.0 329.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Top level function i.e.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(6.0 339.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">oscillator 1 is labelled</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(6.0 349.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">vertically for the column.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(181.2 329.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Actual parameter within the function</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(181.2 339.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">i.e. volume level shown as the shift</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(181.2 349.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">option under the button.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(58.5 396.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Display indicates the parameter setting /</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(64.7 406.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">value immediately on selection of the</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(88.5 416.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">function / parameter pad.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.0 329.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Top level function i.e.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.0 339.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">oscillator 1 is labelled</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.0 349.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">vertically for the column.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(181.2 329.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Actual parameter within the function</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(181.2 339.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">i.e. volume level shown as the shift</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(181.2 349.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">option under the button.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(58.5 396.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Display indicates the parameter setting /</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(64.7 406.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">value immediately on selection of the</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(88.5 416.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">function / parameter pad.</tspan></text>
 <path transform="matrix(1,0,0,-1,-56.3,613.7)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M188.1 379.9V282.2H161.5"/>
 <path transform="matrix(1,0,0,-1,-56.3,613.7)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M200.4 371.2V282.2H227.0"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(23.4 24.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Press [SHIFT] + [</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(92.7 24.5)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0.0">PAD</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(110.5 24.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">] or</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(23.4 34.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Press [</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(51.4 34.5)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0.0">AUDITION</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(94.4 34.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">] + [</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(109.7 34.5)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0.0">PAD</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(127.5 34.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">]</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(23.4 44.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">where</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(50.5 44.5)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0.0">PAD</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(70.8 44.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">is the specific</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(23.4 54.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">function and parameter.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(224.3 149.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Lines extend across pads</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(224.3 159.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">where the function applies</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(224.3 169.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">i.e. type for osc 1 &amp; 2 and</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(224.3 179.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">FM mod 1 &amp; 2.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(222.5 274.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Press [BACK / UNDO] to</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(222.5 284.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">cancel selection. Button</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(222.5 294.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">flashes red when available.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(223.8 209.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Grid shortcut pad for</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(223.8 219.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">function flashes white when</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(223.8 229.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">in focus for editing.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(23.4 24.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Press [SHIFT] + [</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(92.7 24.5)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0">PAD</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(110.5 24.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">] or</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(23.4 34.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Press [</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(51.4 34.5)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0">AUDITION</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(94.4 34.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">] + [</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(109.7 34.5)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0">PAD</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(127.5 34.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">]</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(23.4 44.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">where</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(50.5 44.5)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0">PAD</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(70.8 44.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">is the specific</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(23.4 54.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">function and parameter.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(224.3 149.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Lines extend across pads</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(224.3 159.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">where the function applies</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(224.3 169.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">i.e. type for osc 1 &amp; 2 and</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(224.3 179.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">FM mod 1 &amp; 2.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(222.5 274.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Press [BACK / UNDO] to</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(222.5 284.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">cancel selection. Button</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(222.5 294.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">flashes red when available.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(223.8 209.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Grid shortcut pad for</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(223.8 219.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">function flashes white when</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(223.8 229.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">in focus for editing.</tspan></text>
 <path transform="matrix(1,0,0,-1,-56.3,613.7)" d="M153.4 151.6H236.5V158.4H153.4Z" fill="currentColor" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-56.3,613.7)" stroke-width=".6" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M153.4 151.6H236.5V158.4H153.4Z"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(96.6 437.0)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-weight="bold"><tspan y="0" x="0.0" textLength="46.6" lengthAdjust="spacingAndGlyphs">OSC1 LEVEL</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(132.7 451.8)" font-size="14" font-family="Arial, Helvetica, sans-serif" font-weight="bold"><tspan y="0" x="0.0" textLength="14.2" lengthAdjust="spacingAndGlyphs">50</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(96.6 437.0)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-weight="bold"><tspan y="0" x="0" textLength="46.6" lengthAdjust="spacingAndGlyphs">OSC1 LEVEL</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(132.7 451.8)" font-size="14" font-family="Arial, Helvetica, sans-serif" font-weight="bold"><tspan y="0" x="0" textLength="14.2" lengthAdjust="spacingAndGlyphs">50</tspan></text>
 <path transform="matrix(1,0,0,-1,-56.3,613.7)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M153.3 174.7H236.3"/>
 <path transform="matrix(1,0,0,-1,-56.3,613.7)" stroke-width=".8" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M148.7 145.8H241.0V185.2H148.7Z"/>
 <path transform="matrix(1,0,0,-1,-56.3,613.7)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M137.1 553.9V478.8"/>

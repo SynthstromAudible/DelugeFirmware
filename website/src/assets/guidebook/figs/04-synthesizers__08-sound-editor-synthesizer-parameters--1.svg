@@ -15,34 +15,34 @@
 <g>
 <g clip-path="url(#04-synthesizers__08-sound-editor-synthesizer-parameters--1-clip_1)">
 <path transform="matrix(1,0,0,-1,-46.5,567.8)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M424.7 688.6V84.1"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(248.0 12.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Menu or sub-menu heading</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(248.0 21.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">and parameter displayed.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(6.0 21.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Press (SELECT)</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(6.0 31.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">opens up access to the</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(6.0 41.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">sound editor nested menu</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(6.0 51.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">and full parameter set.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(6.0 92.3)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Press (SELECT) to select the option</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(6.0 100.3)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">in-focus on the display.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(6.0 120.3)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Turn (SELECT) to navigate the</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(6.0 128.3)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">nested menu or change the</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(6.0 136.3)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">parameter in-focus / displayed.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(148.5 183.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">[SYNTH]</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(148.5 193.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Select synth option with the</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(148.5 203.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">button lit red.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(7.3 238.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Example menu navigation.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(182.8 280.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Press (SELECT) to drill down or turn</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(182.8 290.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">(SELECT) to scroll through menu.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(182.8 300.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">SOUND: OSCILLATOR 1.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(183.9 256.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Press (SELECT) to access sound editor</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(196.6 328.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Press (SELECT) drill down or</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(196.6 338.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">turn (SELECT) to scroll menu.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(196.6 348.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">OSCILLATOR1: LEVEL</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(206.2 383.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Turn (SELECT) to edit the parameter</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(206.2 393.8)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">OSCILLATOR1: LEVEL: 50</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(184.5 423.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Press [BACK / UNDO] to back up the menu</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(184.5 433.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">structure - flashes red when available.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(184.5 455.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Grid shortcut pad for function flashes white</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(184.5 465.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">when in-focus for editing.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(248.0 12.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Menu or sub-menu heading</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(248.0 21.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">and parameter displayed.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.0 21.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Press (SELECT)</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.0 31.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">opens up access to the</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.0 41.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">sound editor nested menu</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.0 51.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">and full parameter set.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.0 92.3)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Press (SELECT) to select the option</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.0 100.3)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">in-focus on the display.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.0 120.3)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Turn (SELECT) to navigate the</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.0 128.3)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">nested menu or change the</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.0 136.3)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">parameter in-focus / displayed.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(148.5 183.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">[SYNTH]</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(148.5 193.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Select synth option with the</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(148.5 203.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">button lit red.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(7.3 238.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Example menu navigation.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(182.8 280.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Press (SELECT) to drill down or turn</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(182.8 290.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">(SELECT) to scroll through menu.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(182.8 300.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">SOUND: OSCILLATOR 1.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(183.9 256.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Press (SELECT) to access sound editor</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(196.6 328.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Press (SELECT) drill down or</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(196.6 338.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">turn (SELECT) to scroll menu.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(196.6 348.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">OSCILLATOR1: LEVEL</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(206.2 383.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Turn (SELECT) to edit the parameter</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(206.2 393.8)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">OSCILLATOR1: LEVEL: 50</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(184.5 423.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Press [BACK / UNDO] to back up the menu</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(184.5 433.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">structure - flashes red when available.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(184.5 455.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Grid shortcut pad for function flashes white</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(184.5 465.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">when in-focus for editing.</tspan></text>
 <path transform="matrix(1,0,0,-1,-46.5,567.8)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M192.0 499.9H109.5V512.1"/>
 <path transform="matrix(1,0,0,-1,-46.5,567.8)" d="M226.2 480.5C230.2 480.5 233.3 477.3 233.3 473.4 233.3 469.5 230.2 466.3 226.2 466.3 222.3 466.3 219.2 469.5 219.2 473.4 219.2 477.3 222.3 480.5 226.2 480.5Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-46.5,567.8)" d="M226.2 480.5C230.2 480.5 233.3 477.3 233.3 473.4 233.3 469.5 230.2 466.3 226.2 466.3 222.3 466.3 219.2 469.5 219.2 473.4 219.2 477.3 222.3 480.5 226.2 480.5ZM226.2 480.1C230.0 480.1 233.0 477.1 233.0 473.4 233.0 469.7 230.0 466.7 226.2 466.7 222.5 466.7 219.5 469.7 219.5 473.4 219.5 477.1 222.5 480.1 226.2 480.1Z" fill="currentColor" fill-rule="evenodd"/>
@@ -76,33 +76,33 @@
 <path transform="matrix(1,0,0,-1,-46.5,567.8)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M87.8 420.9V345.8"/>
 <path transform="matrix(1,0,0,-1,-46.5,567.8)" d="M60.0 288.6H143.1V297.0H60.0Z" fill="currentColor" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-46.5,567.8)" stroke-width=".6" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M60.0 288.6H143.1V297.0H60.0Z"/>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 16.2 277.4)" font-size="5.6" font-family="monospace"><tspan y="0" x="0.0" textLength="65" lengthAdjust="spacingAndGlyphs">OSCILLATOR 1</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 16.2 286.2)" font-size="5.6" font-family="monospace"><tspan y="0" x="0.0" textLength="65" lengthAdjust="spacingAndGlyphs">OSCILLATOR 2</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 16.2 294.9)" font-size="5.6" font-family="monospace"><tspan y="0" x="0.0" textLength="59.4" lengthAdjust="spacingAndGlyphs">NOISE LEVEL</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(13.0 267.5)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-weight="bold"><tspan y="0" x="0.0" textLength="28.1" lengthAdjust="spacingAndGlyphs">SOUND</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 16.2 277.4)" font-size="5.6" font-family="monospace"><tspan y="0" x="0" textLength="65" lengthAdjust="spacingAndGlyphs">OSCILLATOR 1</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 16.2 286.2)" font-size="5.6" font-family="monospace"><tspan y="0" x="0" textLength="65" lengthAdjust="spacingAndGlyphs">OSCILLATOR 2</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 16.2 294.9)" font-size="5.6" font-family="monospace"><tspan y="0" x="0" textLength="59.4" lengthAdjust="spacingAndGlyphs">NOISE LEVEL</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(13.0 267.5)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-weight="bold"><tspan y="0" x="0" textLength="28.1" lengthAdjust="spacingAndGlyphs">SOUND</tspan></text>
 <use href="#04-synthesizers__08-sound-editor-synthesizer-parameters--1-s4" transform="matrix(1 0 0 -1 13.4 269.5)"/>
 <use href="#04-synthesizers__08-sound-editor-synthesizer-parameters--1-s5" transform="matrix(1 0 0 -1 8.8 298.4)"/>
 <path transform="matrix(1,0,0,-1,-46.5,567.8)" d="M101.9 222.5H185.0V230.8H101.9Z" fill="currentColor" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-46.5,567.8)" stroke-width=".6" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M101.9 222.5H185.0V230.8H101.9Z"/>
-<text fill="currentColor" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 58.1 335.1)" font-size="5.6" font-family="monospace"><tspan y="0" x="0.0" textLength="20.6" lengthAdjust="spacingAndGlyphs">TYPE</tspan></text>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 58.1 343.8)" font-size="5.6" font-family="monospace"><tspan y="0" x="0.0" textLength="25.6" lengthAdjust="spacingAndGlyphs">LEVEL</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 58.1 352.6)" font-size="5.6" font-family="monospace"><tspan y="0" x="0.0" textLength="66.2" lengthAdjust="spacingAndGlyphs">RECORD AUDIO</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(54.9 325.1)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-weight="bold"><tspan y="0" x="0.0" textLength="54.6" lengthAdjust="spacingAndGlyphs">OSCILLATOR 1</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 58.1 335.1)" font-size="5.6" font-family="monospace"><tspan y="0" x="0" textLength="20.6" lengthAdjust="spacingAndGlyphs">TYPE</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 58.1 343.8)" font-size="5.6" font-family="monospace"><tspan y="0" x="0" textLength="25.6" lengthAdjust="spacingAndGlyphs">LEVEL</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 58.1 352.6)" font-size="5.6" font-family="monospace"><tspan y="0" x="0" textLength="66.2" lengthAdjust="spacingAndGlyphs">RECORD AUDIO</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(54.9 325.1)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-weight="bold"><tspan y="0" x="0" textLength="54.6" lengthAdjust="spacingAndGlyphs">OSCILLATOR 1</tspan></text>
 <use href="#04-synthesizers__08-sound-editor-synthesizer-parameters--1-s4" transform="matrix(1 0 0 -1 55.3 327.1)"/>
 <use href="#04-synthesizers__08-sound-editor-synthesizer-parameters--1-s5" transform="matrix(1 0 0 -1 50.7 356)"/>
 <path transform="matrix(1,0,0,-1,-46.5,567.8)" d="M148.9 166.0H232.0V172.8H148.9Z" fill="currentColor" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-46.5,567.8)" stroke-width=".6" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M148.9 166.0H232.0V172.8H148.9Z"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(101.8 376.7)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-weight="bold"><tspan y="0" x="0.0" textLength="46.6" lengthAdjust="spacingAndGlyphs">OSC1 LEVEL</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(137.9 391.5)" font-size="14" font-family="Arial, Helvetica, sans-serif" font-weight="bold"><tspan y="0" x="0.0" textLength="14.2" lengthAdjust="spacingAndGlyphs">50</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(101.8 376.7)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-weight="bold"><tspan y="0" x="0" textLength="46.6" lengthAdjust="spacingAndGlyphs">OSC1 LEVEL</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(137.9 391.5)" font-size="14" font-family="Arial, Helvetica, sans-serif" font-weight="bold"><tspan y="0" x="0" textLength="14.2" lengthAdjust="spacingAndGlyphs">50</tspan></text>
 <use href="#04-synthesizers__08-sound-editor-synthesizer-parameters--1-s4" transform="matrix(1 0 0 -1 102.2 378.7)"/>
 <use href="#04-synthesizers__08-sound-editor-synthesizer-parameters--1-s5" transform="matrix(1 0 0 -1 97.6 407.6)"/>
-<text fill="currentColor" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 171.0 69.2)" font-size="4.6" font-family="monospace"><tspan y="0" x="0.0" textLength="54.2" lengthAdjust="spacingAndGlyphs">OSCILLATOR 2</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 171.1 75.8)" font-size="4.6" font-family="monospace"><tspan y="0" x="0.0" textLength="49.5" lengthAdjust="spacingAndGlyphs">NOISE LEVEL</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(169.3 54.9)" font-size="7" font-family="Arial, Helvetica, sans-serif" font-weight="bold"><tspan y="0" x="0.0" textLength="21.8" lengthAdjust="spacingAndGlyphs">SOUND</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 171.0 69.2)" font-size="4.6" font-family="monospace"><tspan y="0" x="0" textLength="54.2" lengthAdjust="spacingAndGlyphs">OSCILLATOR 2</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 171.1 75.8)" font-size="4.6" font-family="monospace"><tspan y="0" x="0" textLength="49.5" lengthAdjust="spacingAndGlyphs">NOISE LEVEL</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(169.3 54.9)" font-size="7" font-family="Arial, Helvetica, sans-serif" font-weight="bold"><tspan y="0" x="0" textLength="21.8" lengthAdjust="spacingAndGlyphs">SOUND</tspan></text>
 <path transform="matrix(1,0,0,-1,-46.5,567.8)" stroke-width=".6" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M216.2 511.5H299.6"/>
 <path transform="matrix(1,0,0,-1,-46.5,567.8)" d="M216.4 504.5H299.5V510.3H216.4Z" fill="currentColor" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-46.5,567.8)" stroke-width=".6" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M216.4 504.5H299.5V510.3H216.4Z"/>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 171.0 62.5)" font-size="4.6" font-family="monospace"><tspan y="0" x="0.0" textLength="54.2" lengthAdjust="spacingAndGlyphs">OSCILLATOR 1</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 171.0 62.5)" font-size="4.6" font-family="monospace"><tspan y="0" x="0" textLength="54.2" lengthAdjust="spacingAndGlyphs">OSCILLATOR 1</tspan></text>
 </g>
 </g>
 </svg>

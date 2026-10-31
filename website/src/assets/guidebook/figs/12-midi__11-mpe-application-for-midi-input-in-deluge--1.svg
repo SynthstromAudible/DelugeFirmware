@@ -54,15 +54,15 @@
 <path transform="matrix(1,0,0,-1,-236.1,407.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M405.2 371.3V338.8"/>
 <path transform="matrix(1,0,0,-1,-236.1,407.0)" d="M405.1 358.8C407.1 358.8 408.8 357.2 408.8 355.1 408.8 353.1 407.1 351.5 405.1 351.5 403.1 351.5 401.4 353.1 401.4 355.1 401.4 357.2 403.1 358.8 405.1 358.8Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-236.1,407.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M405.1 358.8C407.1 358.8 408.8 357.2 408.8 355.1 408.8 353.1 407.1 351.5 405.1 351.5 403.1 351.5 401.4 353.1 401.4 355.1 401.4 357.2 403.1 358.8 405.1 358.8Z"/>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(166.7 54.4)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Y</tspan></text>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(166.7 54.4)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Y</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(166.7 54.4)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Y</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(166.7 54.4)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Y</tspan></text>
 <path transform="matrix(1,0,0,-1,-236.1,407.0)" d="M302.4 333.4 306.0 340.5H298.9Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-236.1,407.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-paper)" d="M302.4 333.4 306.0 340.5H298.9Z"/>
 <path transform="matrix(1,0,0,-1,-236.1,407.0)" stroke-width=".75" stroke-linecap="round" stroke-dasharray="2.2,2.2,.0001,.0001" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M302.4 370.2V338.8"/>
 <path transform="matrix(1,0,0,-1,-236.1,407.0)" d="M302.3 358.8C304.4 358.8 306.0 357.2 306.0 355.1 306.0 353.1 304.4 351.5 302.3 351.5 300.3 351.5 298.7 353.1 298.7 355.1 298.7 357.2 300.3 358.8 302.3 358.8Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-236.1,407.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M302.3 358.8C304.4 358.8 306.0 357.2 306.0 355.1 306.0 353.1 304.4 351.5 302.3 351.5 300.3 351.5 298.7 353.1 298.7 355.1 298.7 357.2 300.3 358.8 302.3 358.8Z"/>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(64.0 54.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">A</tspan></text>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(64.0 54.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">A</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(64.0 54.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">A</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(64.0 54.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">A</tspan></text>
 <path transform="matrix(1,0,0,-1,-236.1,407.0)" d="M340.9 346.3 348.0 349.9V342.8Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-236.1,407.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-paper)" d="M340.9 346.3 348.0 349.9V342.8Z"/>
 <path transform="matrix(1,0,0,-1,-236.1,407.0)" d="M366.0 346.3 358.9 349.9V342.8Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
@@ -70,8 +70,8 @@
 <path transform="matrix(1,0,0,-1,-236.1,407.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M344.5 346.3H362.0"/>
 <path transform="matrix(1,0,0,-1,-236.1,407.0)" d="M350.2 346.2C350.2 348.3 351.8 349.9 353.9 349.9 355.9 349.9 357.5 348.3 357.5 346.2 357.5 344.2 355.9 342.6 353.9 342.6 351.8 342.6 350.2 344.2 350.2 346.2Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-236.1,407.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M350.2 346.2C350.2 348.3 351.8 349.9 353.9 349.9 355.9 349.9 357.5 348.3 357.5 346.2 357.5 344.2 355.9 342.6 353.9 342.6 351.8 342.6 350.2 344.2 350.2 346.2Z"/>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(115.5 63.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">X</tspan></text>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(115.5 63.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">X</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(115.5 63.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">X</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(115.5 63.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">X</tspan></text>
 <g clip-path="url(#12-midi__11-mpe-application-for-midi-input-in-deluge--1-clip_2)">
 <g mask="url(#12-midi__11-mpe-application-for-midi-input-in-deluge--1-mask_3)">
 <g transform="matrix(.088922,0,0,.088922,5.9,44.0)">

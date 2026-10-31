@@ -33,11 +33,11 @@
 <g>
 <g clip-path="url(#13-cv__02-cv-hardware-configuration--1-clip_1)">
 <path transform="matrix(1,0,0,-1,-212.3,572.0)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M170.1 688.6V84.1"/>
-<text xml:space="preserve" transform="translate(167.1 20.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Signal (tip)</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(266.4 45.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Deluge has CV</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(252.4 52.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">grounded on the sleeve</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(254.5 60.6)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">and ring. Ring through</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(267.7 68.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">a 10K resistor.</tspan></text>
+<text xml:space="preserve" transform="translate(167.1 20.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Signal (tip)</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(266.4 45.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Deluge has CV</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(252.4 52.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">grounded on the sleeve</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(254.5 60.6)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">and ring. Ring through</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(267.7 68.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">a 10K resistor.</tspan></text>
 <path transform="matrix(1,0,0,-1,-212.3,572.0)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M418.0 553.5H452.5"/>
 <g clip-path="url(#13-cv__02-cv-hardware-configuration--1-clip_2)">
 <g mask="url(#13-cv__02-cv-hardware-configuration--1-mask_3)">
@@ -55,22 +55,22 @@
 </g>
 </g>
 <path transform="matrix(1,0,0,-1,-212.3,572.0)" stroke-width=".65" stroke-linecap="round" stroke-dasharray="1.9,1.9,.0001,.0001" stroke-linejoin="round" fill="none" stroke="currentColor" d="M306.2 257.9V285.5H470.6V451.8H334.6V423.6"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(107.2 305.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">MIDI Out</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(137.6 137.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">MIDI In</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(54.0 101.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">CH 1</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(107.3 101.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">CH 1</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(53.0 92.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Gate</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(109.5 92.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">CV</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(68.3 18.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Modular Device</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(62.3 26.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">CV compatible device,</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(62.1 34.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">example synth module</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(51.9 42.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">connected with</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(104.0 42.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">3.5mm / 1/8</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(143.6 39.9)" font-size="4.3" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">th</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(69.4 50.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Inch patch cables.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(21.2 392.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">External controller providing control to Deluge. MIDI</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(22.0 402.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">can be converted to CV within Deluge by creating a</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(57.5 412.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">CV clip and mapping MIDI in to it.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(107.2 305.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">MIDI Out</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(137.6 137.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">MIDI In</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(54.0 101.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">CH 1</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(107.3 101.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">CH 1</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(53.0 92.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Gate</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(109.5 92.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">CV</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(68.3 18.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Modular Device</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(62.3 26.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">CV compatible device,</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(62.1 34.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">example synth module</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(51.9 42.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">connected with</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(104.0 42.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">3.5mm / 1/8</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(143.6 39.9)" font-size="4.3" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">th</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(69.4 50.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Inch patch cables.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(21.2 392.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">External controller providing control to Deluge. MIDI</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(22.0 402.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">can be converted to CV within Deluge by creating a</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(57.5 412.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">CV clip and mapping MIDI in to it.</tspan></text>
 <g mask="url(#13-cv__02-cv-hardware-configuration--1-mask_9)">
 <g transform="matrix(.014873001,0,0,.014873001,68.6,316.4)">
 <image id="13-cv__02-cv-hardware-configuration--1-image_11" width="7654" height="3002" xlink:href="/guidebook/img/13-cv__02-cv-hardware-configuration--1-7.webp"/>

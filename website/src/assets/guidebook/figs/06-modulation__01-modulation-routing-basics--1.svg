@@ -12,22 +12,22 @@
 <g>
 <g clip-path="url(#06-modulation__01-modulation-routing-basics--1-clip_1)">
 <path transform="matrix(1,0,0,-1,-180.1,349.6)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M170.1 688.6V84.1"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(204.3 228.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Modulator.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(144.8 237.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Flashes quickly when connected to a destination</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(147.3 246.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">and the source parameter is selected / in-focus</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(194.6 255.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">[SHIFT] + [</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(231.0 255.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0.0">LFO1</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(251.9 255.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">].</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(204.3 228.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Modulator.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(144.8 237.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Flashes quickly when connected to a destination</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(147.3 246.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">and the source parameter is selected / in-focus</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(194.6 255.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">[SHIFT] + [</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(231.0 255.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0">LFO1</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(251.9 255.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">].</tspan></text>
 <path transform="matrix(1,0,0,-1,-180.1,349.6)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M242.7 268.7V300.2"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(19.6 9.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Destination Parameter</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(3.0 18.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Flashes quickly when connected to a</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(1.0 27.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">modulation source and the destination</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(11.2 36.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">parameter is selected / in-focus.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(21.5 45.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">[SHIFT] + [</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(58.0 45.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0.0">FREQUENCY</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(105.1 45.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">]</tspan></text>
-<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(342.4 179.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">LFO</tspan></text>
-<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(327.1 95.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Cutoff Freq</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(19.6 9.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Destination Parameter</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(3.0 18.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Flashes quickly when connected to a</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(1.0 27.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">modulation source and the destination</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(11.2 36.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">parameter is selected / in-focus.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(21.5 45.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">[SHIFT] + [</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(58.0 45.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0">FREQUENCY</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(105.1 45.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">]</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(342.4 179.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">LFO</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(327.1 95.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Cutoff Freq</tspan></text>
 <path transform="matrix(1,0,0,-1,-180.1,349.6)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M405.7 179.2V132.6"/>
 <g mask="url(#06-modulation__01-modulation-routing-basics--1-mask_2)">
 <g transform="matrix(.076759997,0,0,.07676,44.8,85.5)">
@@ -70,10 +70,10 @@
 <path transform="matrix(1,0,0,-1,-180.1,349.6)" stroke-width=".6" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M358.7 309.7H441.8V315.6H358.7Z"/>
 <path transform="matrix(1,0,0,-1,-180.1,349.6)" d="M400.4 309.7H429.6V315.6H400.4Z" fill="currentColor" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-180.1,349.6)" stroke-width=".6" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M400.4 309.7H429.6V315.6H400.4Z"/>
-<text fill="currentColor" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 177.8 16.5)" font-size="5.6" font-family="monospace"><tspan y="0" x="0.0" textLength="20" lengthAdjust="spacingAndGlyphs">LFO1</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 177.9 31.2)" font-size="5.6" font-family="monospace"><tspan y="0" x="0.0" textLength="46.6" lengthAdjust="spacingAndGlyphs">LPF FREQ.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 177.8 16.5)" font-size="5.6" font-family="monospace"><tspan y="0" x="0" textLength="20" lengthAdjust="spacingAndGlyphs">LFO1</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 177.9 31.2)" font-size="5.6" font-family="monospace"><tspan y="0" x="0" textLength="46.6" lengthAdjust="spacingAndGlyphs">LPF FREQ.</tspan></text>
 <path transform="matrix(1,0,0,-1,-180.1,349.6)" stroke-width=".8" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M354.0 304.2H446.3V343.7H354.0Z"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(233.2 31.5)" font-size="30" font-family="Arial, Helvetica, sans-serif" font-weight="bold"><tspan y="0" x="0.0" textLength="30.2" lengthAdjust="spacingAndGlyphs">39</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(233.2 31.5)" font-size="30" font-family="Arial, Helvetica, sans-serif" font-weight="bold"><tspan y="0" x="0" textLength="30.2" lengthAdjust="spacingAndGlyphs">39</tspan></text>
 <path transform="matrix(1,0,0,-1,-180.1,349.6)" d="M362.7 325.1 366.3 328.8H359.1Z" fill="currentColor" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-180.1,349.6)" stroke-width="2.5" stroke-linecap="square" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M362.7 328.6V329.9"/>
 </g>

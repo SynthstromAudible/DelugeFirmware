@@ -6,12 +6,12 @@
 </defs>
 <g clip-path="url(#06-modulation__04-sidechain-compressor--1-clip_1)">
 <path transform="matrix(1,0,0,-1,-176.4,592.5)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M170.1 688.6V84.1"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(27.4 62.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Threshold</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(166.5 160.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Audio Over Time</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(258.5 33.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Gain</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(249.6 41.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Reduction</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(67.1 87.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Make Up</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(74.1 95.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Gain</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(27.4 62.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Threshold</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(166.5 160.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Audio Over Time</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(258.5 33.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Gain</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(249.6 41.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Reduction</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(67.1 87.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Make Up</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(74.1 95.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Gain</tspan></text>
 <path transform="matrix(1,0,0,-1,-176.4,592.5)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M247.1 532.9H489.8"/>
 <path transform="matrix(1,0,0,-1,-176.4,592.5)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M282.2 506.5H483.2"/>
 <path transform="matrix(1,0,0,-1,-176.4,592.5)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M289.4 510.6V501.8"/>
@@ -73,7 +73,7 @@
 <path transform="matrix(1,0,0,-1,-176.4,592.5)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M498.3 451.1 501.4 458.4H495.2Z"/>
 <path transform="matrix(1,0,0,-1,-176.4,592.5)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M498.3 567.3 501.4 560.0H495.2Z"/>
 <path transform="matrix(1,0,0,-1,-176.4,592.5)" d="M182.4 561.0H319.1V586.5H182.4Z" fill="var(--gb-paper)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(6.0 11.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Standard compression signal is</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(6.0 19.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">attenuated when crossing the threshold.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.0 11.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Standard compression signal is</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.0 19.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">attenuated when crossing the threshold.</tspan></text>
 </g>
 </svg>

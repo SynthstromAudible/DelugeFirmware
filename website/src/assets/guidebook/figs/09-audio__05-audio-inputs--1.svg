@@ -15,13 +15,13 @@
 <g>
 <g clip-path="url(#09-audio__05-audio-inputs--1-clip_1)">
 <path transform="matrix(1,0,0,-1,-94.1,625.9)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M424.8 688.6V84.1"/>
-<text xml:space="preserve" transform="translate(6.0 18.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Left (InL) Input left (tip)</tspan></text>
-<text xml:space="preserve" transform="translate(6.0 48.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Right (InR) Input right (ring)</tspan></text>
+<text xml:space="preserve" transform="translate(6.0 18.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Left (InL)</tspan><tspan y="0" x="74.5">Input left (tip)</tspan></text>
+<text xml:space="preserve" transform="translate(6.0 48.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Right (InR)</tspan><tspan y="0" x="72">Input right (ring)</tspan></text>
 <path transform="matrix(1,0,0,-1,-94.1,625.9)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M299.0 590.1H347.5"/>
-<text xml:space="preserve" transform="translate(6.0 79.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Stereo (InLR) Input left / right (tip/ring)</tspan></text>
-<text xml:space="preserve" transform="translate(6.2 105.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Microphone</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(6.0 123.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">If nothing is connected to LINE IN, the</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(6.0 132.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">microphone will be the default L/R input.</tspan></text>
+<text xml:space="preserve" transform="translate(6.0 79.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Stereo (InLR)</tspan><tspan y="0" x="72">Input left / right (tip/ring)</tspan></text>
+<text xml:space="preserve" transform="translate(6.2 105.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Microphone</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.0 123.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">If nothing is connected to LINE IN, the</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.0 132.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">microphone will be the default L/R input.</tspan></text>
 <path transform="matrix(1,0,0,-1,-94.1,625.9)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M234.9 610.0H288.0"/>
 <g clip-path="url(#09-audio__05-audio-inputs--1-clip_2)">
 <g mask="url(#09-audio__05-audio-inputs--1-mask_3)">

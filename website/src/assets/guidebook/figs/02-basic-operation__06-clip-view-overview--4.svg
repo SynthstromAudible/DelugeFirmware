@@ -15,12 +15,12 @@
 <g>
 <g clip-path="url(#02-basic-operation__06-clip-view-overview--4-clip_1)">
 <path transform="matrix(1,0,0,-1,-59.1,472.9)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M424.7 688.6V84.1"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(6.0 12.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">(SELECT)</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(6.0 22.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Control selects the</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(6.0 32.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">respective synth or kit</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(6.0 42.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">preset when in clip view.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(6.0 115.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">[SYNTH] or [KIT]</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(6.0 125.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">selection buttons</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.0 12.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">(SELECT)</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.0 22.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Control selects the</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.0 32.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">respective synth or kit</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.0 42.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">preset when in clip view.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.0 115.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">[SYNTH] or [KIT]</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.0 125.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">selection buttons</tspan></text>
 <path transform="matrix(1,0,0,-1,-59.1,472.9)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M233.9 391.2H117.3V368.2"/>
 <path transform="matrix(1,0,0,-1,-59.1,472.9)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M233.9 391.2H117.3V368.2"/>
 <path transform="matrix(1,0,0,-1,-59.1,472.9)" d="M234.1 394.9C238.0 394.9 241.1 391.7 241.1 387.8 241.1 383.9 238.0 380.7 234.1 380.7 230.1 380.7 227.0 383.9 227.0 387.8 227.0 391.7 230.1 394.9 234.1 394.9Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
@@ -33,8 +33,8 @@
 </g>
 </g>
 <path transform="matrix(1,0,0,-1,-59.1,472.9)" stroke-width=".8" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M301.4 412.9H303V415.3"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(192.6 48.8)" font-size="6" font-family="monospace"><tspan y="0" x="0.0" textLength="28.3" lengthAdjust="spacingAndGlyphs">SYNTH</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(173.4 60.4)" font-size="10" font-family="Arial, Helvetica, sans-serif" font-weight="bold"><tspan y="0" x="0.0" textLength="68.6" lengthAdjust="spacingAndGlyphs">000 RICH SAW B</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(192.6 48.8)" font-size="6" font-family="monospace"><tspan y="0" x="0" textLength="28.3" lengthAdjust="spacingAndGlyphs">SYNTH</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(173.4 60.4)" font-size="10" font-family="Arial, Helvetica, sans-serif" font-weight="bold"><tspan y="0" x="0" textLength="68.6" lengthAdjust="spacingAndGlyphs">000 RICH SAW B</tspan></text>
 <path transform="matrix(1,0,0,-1,-59.1,472.9)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-paper)" d="M266.9 430.0V451.0H294.4V465.4"/>
 <path transform="matrix(1,0,0,-1,-59.1,472.9)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-paper)" d="M304.9 412.2H325.9V384.8H340.3"/>
 <path transform="matrix(1,0,0,-1,-59.1,472.9)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M305.0 412.2H326.1V384.8H340.5"/>

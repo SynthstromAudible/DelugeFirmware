@@ -6,15 +6,15 @@
 </defs>
 <g clip-path="url(#06-modulation__01-modulation-routing-basics--2-clip_1)">
 <path transform="matrix(1,0,0,-1,-246.1,180.6)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M170.1 688.6V84.1"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(123.7 23.3)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Destination parameter name and value</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(123.7 31.3)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">are displayed along with the source</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(123.7 23.3)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Destination parameter name and value</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(123.7 31.3)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">are displayed along with the source</tspan></text>
 <path transform="matrix(1,0,0,-1,-246.1,180.6)" stroke-width=".6" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M256.8 140.7H339.9V146.6H256.8Z"/>
 <path transform="matrix(1,0,0,-1,-246.1,180.6)" d="M298.5 140.7H327.7V146.6H298.5Z" fill="currentColor" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-246.1,180.6)" stroke-width=".6" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M298.5 140.7H327.7V146.6H298.5Z"/>
-<text fill="currentColor" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 9.9 16.6)" font-size="5.6" font-family="monospace"><tspan y="0" x="0.0" textLength="20" lengthAdjust="spacingAndGlyphs">LFO1</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 9.9 31.2)" font-size="5.6" font-family="monospace"><tspan y="0" x="0.0" textLength="46.6" lengthAdjust="spacingAndGlyphs">LPF FREQ.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 9.9 16.6)" font-size="5.6" font-family="monospace"><tspan y="0" x="0" textLength="20" lengthAdjust="spacingAndGlyphs">LFO1</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 9.9 31.2)" font-size="5.6" font-family="monospace"><tspan y="0" x="0" textLength="46.6" lengthAdjust="spacingAndGlyphs">LPF FREQ.</tspan></text>
 <path transform="matrix(1,0,0,-1,-246.1,180.6)" stroke-width=".8" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M252.1 135.2H344.3V174.6H252.1Z"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(65.3 31.5)" font-size="30" font-family="Arial, Helvetica, sans-serif" font-weight="bold"><tspan y="0" x="0.0" textLength="30.2" lengthAdjust="spacingAndGlyphs">39</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(65.3 31.5)" font-size="30" font-family="Arial, Helvetica, sans-serif" font-weight="bold"><tspan y="0" x="0" textLength="30.2" lengthAdjust="spacingAndGlyphs">39</tspan></text>
 <path transform="matrix(1,0,0,-1,-246.1,180.6)" d="M260.8 156.0 264.4 159.8H257.2Z" fill="currentColor" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-246.1,180.6)" stroke-width="2.5" stroke-linecap="square" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M260.8 159.6V160.9"/>
 </g>

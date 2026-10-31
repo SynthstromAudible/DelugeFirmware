@@ -29,34 +29,34 @@
 </g>
 </g>
 </g>
-<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(83.5 275.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Semitone Intervals : Chromatic 12 Note Octave</tspan></text>
-<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="matrix(0 -1 1 0 76.6 265.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">5 Semitone (Perfect Fourth) Intervals</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(83.5 275.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Semitone Intervals : Chromatic 12 Note Octave</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="matrix(0 -1 1 0 76.6 265.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">5 Semitone (Perfect Fourth) Intervals</tspan></text>
 <path transform="matrix(1,0,0,-1,-56.7,538.6)" d="M155.3 330.3C155.3 331.3 154.5 332.2 153.4 332.2H142.0C141.0 332.2 140.1 331.3 140.1 330.3V318.8C140.1 317.8 141.0 316.9 142.0 316.9H153.4C154.5 316.9 155.3 317.8 155.3 318.8Z" fill="var(--gb-accent)" fill-rule="evenodd" data-pad="1,8" data-color="#d61d24"/>
 <path transform="matrix(1,0,0,-1,-56.7,538.6)" d="M155.3 330.3C155.3 331.3 154.5 332.2 153.4 332.2H142.0C141.0 332.2 140.1 331.3 140.1 330.3V318.8C140.1 317.8 141.0 316.9 142.0 316.9H153.4C154.5 316.9 155.3 317.8 155.3 318.8ZM155.0 330.3V318.8C155.0 318.0 154.3 317.2 153.4 317.2H142.0C141.2 317.2 140.4 318.0 140.4 318.8V330.3C140.4 331.1 141.2 331.9 142.0 331.9H153.4C154.3 331.9 155.0 331.1 155.0 330.3Z" fill="currentColor" fill-rule="evenodd"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(107.6 260.9)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">d.2</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(86.8 260.3)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">d2</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(86.0 238.3)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">G2</tspan></text>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(86.2 216.3)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">C3</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(86.5 194.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">F3</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(85.4 172.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">A.3</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(85.8 150.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">d.4</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(85.1 128.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">G.4</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(85.4 106.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">C.5</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(130.3 260.9)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">E2</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(152.6 260.9)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">F2</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(174.0 260.9)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">F.2</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(196.0 260.9)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">G2</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(217.2 260.9)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">G.2</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(240.6 260.9)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">A2</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(261.6 260.9)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">A.2</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(285.2 260.9)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">b2</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(327.9 260.9)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">C.3</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(351.7 260.9)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">d3</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(372.3 260.9)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">d.3</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(394.0 260.9)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">E.3</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(417.4 260.9)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">F3</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(107.6 260.9)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">d.2</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(86.8 260.3)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">d2</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(86.0 238.3)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">G2</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(86.2 216.3)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">C3</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(86.5 194.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">F3</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(85.4 172.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">A.3</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(85.8 150.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">d.4</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(85.1 128.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">G.4</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(85.4 106.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">C.5</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(130.3 260.9)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">E2</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(152.6 260.9)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">F2</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(174.0 260.9)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">F.2</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(196.0 260.9)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">G2</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(217.2 260.9)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">G.2</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(240.6 260.9)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">A2</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(261.6 260.9)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">A.2</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(285.2 260.9)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">b2</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(327.9 260.9)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">C.3</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(351.7 260.9)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">d3</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(372.3 260.9)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">d.3</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(394.0 260.9)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">E.3</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(417.4 260.9)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">F3</tspan></text>
 <path transform="matrix(1,0,0,-1,-56.7,538.6)" d="M399.2 447.5H483.1V457.3H399.2Z" fill="var(--gb-paper)"/>
-<text fill="var(--gb-accent)" xml:space="preserve" transform="translate(345.4 89.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">16 x 8 Grid In Focus</tspan></text>
+<text fill="var(--gb-accent)" xml:space="preserve" transform="translate(345.4 89.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">16 x 8 Grid In Focus</tspan></text>
 <path transform="matrix(1,0,0,-1,-56.7,538.6)" stroke-width=".7" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 41%, var(--gb-paper))" d="M306.6 265.1H325.0"/>
 <path transform="matrix(1,0,0,-1,-56.7,538.6)" d="M333.5 265.1 325.0 260.8V269.3ZM331.9 265.1 325.7 262.0C325.7 262.0 325.7 268.2 325.7 268.2Z" fill="color-mix(in srgb, currentColor 41%, var(--gb-paper))" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-56.7,538.6)" stroke-width=".7" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 41%, var(--gb-paper))" d="M131.1 402.8V421.1"/>
@@ -79,15 +79,15 @@
 <path transform="matrix(1,0,0,-1,-56.7,538.6)" d="M420.2 330.3C420.2 331.3 419.3 332.2 418.3 332.2H406.9C405.8 332.2 405.0 331.3 405.0 330.3V318.8C405.0 317.8 405.8 316.9 406.9 316.9H418.3C419.3 316.9 420.2 317.8 420.2 318.8ZM419.9 330.3V318.8C419.9 318.0 419.2 317.2 418.3 317.2H406.9C406.0 317.2 405.3 318.0 405.3 318.8V330.3C405.3 331.1 406.0 331.9 406.9 331.9H418.3C419.2 331.9 419.9 331.1 419.9 330.3Z" fill="currentColor" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-56.7,538.6)" d="M464.4 374.6C464.4 375.6 463.5 376.5 462.5 376.5H451.1C450.0 376.5 449.2 375.6 449.2 374.6V363.2C449.2 362.1 450.0 361.3 451.1 361.3H462.5C463.5 361.3 464.4 362.1 464.4 363.2Z" fill="var(--gb-accent)" fill-rule="evenodd" data-pad="10,6" data-color="#d61d24"/>
 <path transform="matrix(1,0,0,-1,-56.7,538.6)" d="M464.4 374.6C464.4 375.6 463.5 376.5 462.5 376.5H451.1C450.0 376.5 449.2 375.6 449.2 374.6V363.2C449.2 362.1 450.0 361.3 451.1 361.3H462.5C463.5 361.3 464.4 362.1 464.4 363.2ZM464.1 374.6V363.2C464.1 362.3 463.4 361.6 462.5 361.6H451.1C450.2 361.6 449.5 362.3 449.5 363.2V374.6C449.5 375.5 450.2 376.2 451.1 376.2H462.5C463.4 376.2 464.1 375.5 464.1 374.6Z" fill="currentColor" fill-rule="evenodd"/>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(197.1 238.6)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">C3</tspan></text>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(307.2 260.5)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">C3</tspan></text>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(351.3 216.1)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">C4</tspan></text>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(395.5 171.9)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">C5</tspan></text>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(130.5 172.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">C4</tspan></text>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(241.0 194.1)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">C4</tspan></text>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(174.9 127.9)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">C5</tspan></text>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(285.1 150.1)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">C5</tspan></text>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(329.2 105.8)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">C6</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(197.1 238.6)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">C3</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(307.2 260.5)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">C3</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(351.3 216.1)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">C4</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(395.5 171.9)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">C5</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(130.5 172.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">C4</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(241.0 194.1)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">C4</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(174.9 127.9)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">C5</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(285.1 150.1)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">C5</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(329.2 105.8)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">C6</tspan></text>
 <g clip-path="url(#03-sequencing__07-keyboard-view-chords--1-clip_6)">
 <g mask="url(#03-sequencing__07-keyboard-view-chords--1-mask_7)">
 <g transform="matrix(.096,0,0,.09599999,78.1,5.9)">
@@ -100,13 +100,13 @@
 <path transform="matrix(1,0,0,-1,-56.7,538.6)" d="M189.4 532.2C193.4 532.2 196.7 528.9 196.7 524.8 196.7 520.8 193.4 517.5 189.4 517.5 185.3 517.5 182.0 520.8 182.0 524.8 182.0 528.9 185.3 532.2 189.4 532.2Z" fill="var(--gb-accent)" fill-rule="evenodd" data-pad="2,1" data-color="#d61d24"/>
 <path transform="matrix(1,0,0,-1,-56.7,538.6)" d="M189.4 532.2C193.4 532.2 196.7 528.9 196.7 524.8 196.7 520.8 193.4 517.5 189.4 517.5 185.3 517.5 182.0 520.8 182.0 524.8 182.0 528.9 185.3 532.2 189.4 532.2ZM189.4 531.8C193.2 531.8 196.3 528.7 196.3 524.8 196.3 521.0 193.2 517.9 189.4 517.9 185.5 517.9 182.4 521.0 182.4 524.8 182.4 528.7 185.5 531.8 189.4 531.8Z" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-56.7,538.6)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M148.7 488.0V452.2"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(187.1 19.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">[KEYBOARD]</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(187.1 29.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">The keyboard view shows the grid laid</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(187.1 39.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">out based on the scale and root note.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(6.0 346.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Steps up the rows in five semitone</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(10.7 356.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">(perfect fourth) intervals and the</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(12.7 366.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">columns steps in one semitone</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(62.5 376.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">steps.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(187.1 19.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">[KEYBOARD]</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(187.1 29.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">The keyboard view shows the grid laid</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(187.1 39.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">out based on the scale and root note.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.0 346.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Steps up the rows in five semitone</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(10.7 356.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">(perfect fourth) intervals and the</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(12.7 366.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">columns steps in one semitone</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(62.5 376.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">steps.</tspan></text>
 <path transform="matrix(1,0,0,-1,-56.7,538.6)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="currentColor" d="M131.4 268.9V204.5"/>
 </g>
 </g>

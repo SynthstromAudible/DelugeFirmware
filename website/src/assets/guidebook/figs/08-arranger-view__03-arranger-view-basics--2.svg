@@ -11,16 +11,16 @@
 </defs>
 <g>
 <g clip-path="url(#08-arranger-view__03-arranger-view-basics--2-clip_1)">
-<text fill="currentColor" xml:space="preserve" transform="translate(192.2 13.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">[SONG], [SONG]</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(168.6 21.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Flashing blue in arranger view</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(206.4 43.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">[SONG]</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(175.7 51.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Solid lit blue, in song view</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(9.5 79.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Arranger view can only be selected from within song view. Clip view cannot be directly</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(15.1 87.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">selected from arranger view using [CLIP] and needs to be in song view first to then</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(6.0 95.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">enable a switch to clip view. Alternatively pressing any clip instance [</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(232.8 95.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0.0">PAD</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(247.6 95.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">] other than the</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(66.8 103.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">first, left most pad will switch the clip to its clip view.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(192.2 13.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">[SONG], [SONG]</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(168.6 21.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Flashing blue in arranger view</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(206.4 43.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">[SONG]</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(175.7 51.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Solid lit blue, in song view</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(9.5 79.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Arranger view can only be selected from within song view. Clip view cannot be directly</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(15.1 87.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">selected from arranger view using [CLIP] and needs to be in song view first to then</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.0 95.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">enable a switch to clip view. Alternatively pressing any clip instance [</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(232.8 95.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0">PAD</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(247.6 95.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">] other than the</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(66.8 103.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">first, left most pad will switch the clip to its clip view.</tspan></text>
 <use href="#08-arranger-view__03-arranger-view-basics--2-s1" transform="matrix(1 0 0 -1 104.1 6)"/>
 <path transform="matrix(1,0,0,-1,-211.5,248.8)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="bevel" fill="none" stroke="#5c96cf" d="M306.4 233.4H307.9"/>
 <use href="#08-arranger-view__03-arranger-view-basics--2-s1" transform="matrix(1 0 0 -1 104.1 6.3)"/>

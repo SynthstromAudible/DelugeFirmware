@@ -35,12 +35,12 @@
 <path transform="matrix(1,0,0,-1,-61.4,425.9)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="bevel" fill="none" stroke="var(--gb-accent)" d="M288.4 354.9H290.2"/>
 <path transform="matrix(1,0,0,-1,-61.4,425.9)" d="M278.8 362.9C283.4 362.9 287.1 359.2 287.1 354.7 287.1 350.1 283.4 346.4 278.8 346.4 274.3 346.4 270.6 350.1 270.6 354.7 270.6 359.2 274.3 362.9 278.8 362.9Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-61.4,425.9)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="bevel" fill="none" stroke="currentColor" d="M278.8 362.9C283.4 362.9 287.1 359.2 287.1 354.7 287.1 350.1 283.4 346.4 278.8 346.4 274.3 346.4 270.6 350.1 270.6 354.7 270.6 359.2 274.3 362.9 278.8 362.9Z"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(52.3 14.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">[</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(54.8 14.8)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0.0">PAD</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(72.6 14.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">]</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(1.4 24.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Press &amp; hold pad for clip row to</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(.9871979 34.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">show the instrument and preset</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(43.0 44.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">for the clip</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(52.3 14.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">[</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(54.8 14.8)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0">PAD</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(72.6 14.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">]</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(1.4 24.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Press &amp; hold pad for clip row to</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(.9871979 34.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">show the instrument and preset</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(43.0 44.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">for the clip</tspan></text>
 </g>
 </g>
 </svg>

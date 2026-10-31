@@ -312,11 +312,11 @@
 <path transform="matrix(1,0,0,-1,-219.3,518.8)" stroke-width=".85" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M308.9 484.3 305.5 485.7"/>
 <path transform="matrix(1,0,0,-1,-219.3,518.8)" stroke-width=".85" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M307.3 485.3C316.7 512.3 357.7 512.9 366.0 485.3"/>
 <path transform="matrix(1,0,0,-1,-219.3,518.8)" d="M367.9 479.1 363.2 484.3 369.3 485.9ZM367.5 480.6 364.5 483.9 368.3 484.9Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(65.1 43.9)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">+</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(65.1 43.9)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">+</tspan></text>
 <path transform="matrix(1,0,0,-1,-219.3,518.8)" d="M336.7 500.4C351.5 500.4 363.5 488.4 363.5 473.6 363.5 458.8 351.5 446.8 336.7 446.8 321.9 446.8 309.9 458.8 309.9 473.6 309.9 488.4 321.9 500.4 336.7 500.4ZM336.7 499.7C351.1 499.7 362.8 488.0 362.8 473.6 362.8 459.2 351.1 447.5 336.7 447.5 322.3 447.5 310.6 459.2 310.6 473.6 310.6 488.0 322.3 499.7 336.7 499.7Z" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-219.3,518.8)" d="M336.8 475.6C335.7 475.6 334.8 474.7 334.8 473.6 334.8 472.5 335.7 471.6 336.8 471.6 338.0 471.6 338.9 472.5 338.9 473.6 338.9 474.7 338.0 475.6 336.8 475.6ZM336.8 474.7C337.5 474.7 338.0 474.2 338.0 473.6 338.0 472.9 337.5 472.4 336.8 472.4 336.2 472.4 335.7 472.9 335.7 473.6 335.7 474.2 336.2 474.7 336.8 474.7Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-219.3,518.8)" d="M286.7 423.1H386.5V443.0H286.7Z" fill="var(--gb-paper)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(99.9 89.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">SELECT</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(99.9 89.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">SELECT</tspan></text>
 <use href="#03-sequencing__11-note-creativity-probability-iteration-dependance--2-s6" transform="matrix(1 0 0 -1 292.1 163.1)"/>
 <path transform="matrix(1,0,0,-1,-219.3,518.8)" d="M511.4 355.7C511.4 357.7 509.7 359.3 507.7 359.3H500.4C498.3 359.3 496.7 357.7 496.7 355.7V348.3C496.7 346.3 498.3 344.7 500.4 344.7H507.7C509.7 344.7 511.4 346.3 511.4 348.3ZM510.7 355.7V348.3C510.7 346.7 509.3 345.4 507.7 345.4H500.4C498.7 345.4 497.4 346.7 497.4 348.3V355.7C497.4 357.3 498.7 358.6 500.4 358.6H507.7C509.3 358.6 510.7 357.3 510.7 355.7Z" fill="currentColor" fill-rule="evenodd" data-pad="16,2" data-color="#292529"/>
 <use href="#03-sequencing__11-note-creativity-probability-iteration-dependance--2-s12" transform="matrix(1 0 0 -1 250.4 199.6)"/>
@@ -339,22 +339,22 @@
 <use href="#03-sequencing__11-note-creativity-probability-iteration-dependance--2-s13" transform="matrix(1 0 0 -1 250.4 396.4)"/>
 <path transform="matrix(1,0,0,-1,-219.3,518.8)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M265.9 354.9V457.0"/>
 <path transform="matrix(1,0,0,-1,-219.3,518.8)" d="M225.6 388.9H307.1V420.9H225.6Z" fill="var(--gb-paper)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(15.5 112.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Notes set to the</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(19.8 122.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">iteration ratio.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(66.8 242.9)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">1 of 2 - Play on 1</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(150.0 239.3)" font-size="6.4" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">st</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(158.0 242.9)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">of 2 bar cycles</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(79.5 327.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">2 of 3 - Play on 2</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(147.5 324.4)" font-size="5.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">nd</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(155.8 327.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">of 3 bar cycles.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(79.2 416.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">2 of 4 - Play on 2</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(147.2 413.3)" font-size="5.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">nd</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(155.6 416.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">of 4 bar cycles.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(75.0 254.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">2 of 2 would only play on 2</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(181.6 251.9)" font-size="5.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">nd</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(190.0 254.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">cycle.</tspan></text>
-<text fill="var(--gb-accent)" xml:space="preserve" transform="translate(215.5 254.9)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">*</tspan></text>
-<text fill="var(--gb-accent)" xml:space="preserve" transform="translate(61.2 231.0)" font-size="12" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">*</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(15.5 112.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Notes set to the</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(19.8 122.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">iteration ratio.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(66.8 242.9)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">1 of 2 - Play on 1</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(150.0 239.3)" font-size="6.4" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">st</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(158.0 242.9)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">of 2 bar cycles</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(79.5 327.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">2 of 3 - Play on 2</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(147.5 324.4)" font-size="5.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">nd</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(155.8 327.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">of 3 bar cycles.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(79.2 416.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">2 of 4 - Play on 2</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(147.2 413.3)" font-size="5.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">nd</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(155.6 416.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">of 4 bar cycles.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(75.0 254.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">2 of 2 would only play on 2</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(181.6 251.9)" font-size="5.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">nd</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(190.0 254.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">cycle.</tspan></text>
+<text fill="var(--gb-accent)" xml:space="preserve" transform="translate(215.5 254.9)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">*</tspan></text>
+<text fill="var(--gb-accent)" xml:space="preserve" transform="translate(61.2 231.0)" font-size="12" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">*</tspan></text>
 <use href="#03-sequencing__11-note-creativity-probability-iteration-dependance--2-s18" transform="matrix(1 0 0 -1 15.4 201.9)"/>
 <path transform="matrix(1,0,0,-1,-219.3,518.8)" d="M262.4 316.8 254.4 312.8V320.8Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-219.3,518.8)" d="M262.4 316.8 254.4 312.8V320.8ZM260.5 316.8 255.2 314.2C255.2 314.2 255.2 319.5 255.2 319.5Z" fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" fill-rule="evenodd"/>
@@ -383,17 +383,17 @@
 <use href="#03-sequencing__11-note-creativity-probability-iteration-dependance--2-s21" transform="matrix(1 0 0 -1 280.9 305.9)"/>
 <use href="#03-sequencing__11-note-creativity-probability-iteration-dependance--2-s20" transform="matrix(1 0 0 -1 280.9 394.2)"/>
 <use href="#03-sequencing__11-note-creativity-probability-iteration-dependance--2-s21" transform="matrix(1 0 0 -1 280.9 394.2)"/>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(8.6 204.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">s</tspan></text>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(8.6 204.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">s</tspan></text>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(8.6 283.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">s</tspan></text>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(8.6 283.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">s</tspan></text>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(8.6 358.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">s</tspan></text>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(8.6 358.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">s</tspan></text>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(278.6 226.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">s</tspan></text>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(278.6 226.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">s</tspan></text>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(278.6 313.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">s</tspan></text>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(278.6 313.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">s</tspan></text>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(278.6 401.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">s</tspan></text>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(278.6 401.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">s</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(8.6 204.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">s</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(8.6 204.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">s</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(8.6 283.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">s</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(8.6 283.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">s</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(8.6 358.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">s</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(8.6 358.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">s</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(278.6 226.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">s</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(278.6 226.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">s</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(278.6 313.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">s</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(278.6 313.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">s</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(278.6 401.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">s</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(278.6 401.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">s</tspan></text>
 </g>
 </svg>

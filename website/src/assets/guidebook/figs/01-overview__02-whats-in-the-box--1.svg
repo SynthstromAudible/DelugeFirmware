@@ -142,7 +142,7 @@
 <path transform="matrix(1,0,0,-1,-132,670.1)" stroke-width=".6" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M399.0 429.2 402.3 430.3H465.3V341.5L463.7 339.9"/>
 <path transform="matrix(1,0,0,-1,-132,670.1)" stroke-width=".3" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M465.2 430.2 463.7 429.1"/>
 <path transform="matrix(1,0,0,-1,-132,670.1)" d="M259.9 643.9H346.6V664.1H259.9Z" fill="var(--gb-paper)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(153.8 20.0)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Deluge</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(153.8 20.0)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Deluge</tspan></text>
 </g>
 </g>
 </svg>

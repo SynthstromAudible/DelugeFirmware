@@ -5,12 +5,12 @@
 </clipPath>
 </defs>
 <g clip-path="url(#03-sequencing__02-playing-a-sequence--3-clip_1)">
-<text fill="currentColor" xml:space="preserve" transform="translate(142.2 90.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">FORWARD</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(29.5 131.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Plays from the start to end of length and then loops back to the start</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(13.5 227.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Plays from the end to the start i.e. in reverse and then loops back to the end</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(11.0 337.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Plays from the start to the end, then back to the start and loops in this pattern</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(139.4 281.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">PING-PONG</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(143.6 181.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">REVERSE</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(142.2 90.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">FORWARD</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(29.5 131.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Plays from the start to end of length and then loops back to the start</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(13.5 227.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Plays from the end to the start i.e. in reverse and then loops back to the end</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(11.0 337.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Plays from the start to the end, then back to the start and loops in this pattern</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(139.4 281.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">PING-PONG</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(143.6 181.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">REVERSE</tspan></text>
 <path transform="matrix(1,0,0,-1,-198.6,650.2)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M356.2 552.8H368.5"/>
 <path transform="matrix(1,0,0,-1,-198.6,650.2)" d="M371.3 552.8 367.3 550.8V554.8Z" fill="currentColor" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-198.6,650.2)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M371.3 461.6H359.0"/>
@@ -18,10 +18,10 @@
 <path transform="matrix(1,0,0,-1,-198.6,650.2)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M370.1 359.0H357.8"/>
 <path transform="matrix(1,0,0,-1,-198.6,650.2)" d="M355.0 359.0 359.0 357.0V361.1Z" fill="currentColor" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-198.6,650.2)" d="M372.5 359.0 368.5 357.0V361.1Z" fill="currentColor" fill-rule="evenodd"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(23.6 75.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Play</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(23.6 267.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Play</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(290.0 316.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Play</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(290.0 166.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Play</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(23.6 75.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Play</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(23.6 267.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Play</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(290.0 316.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Play</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(290.0 166.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Play</tspan></text>
 <path transform="matrix(1,0,0,-1,-198.6,650.2)" d="M255.9 640.8C255.9 642.7 254.4 644.2 252.5 644.2H245.7C243.9 644.2 242.3 642.7 242.3 640.8V634.0C242.3 632.2 243.9 630.6 245.7 630.6H252.5C254.4 630.6 255.9 632.2 255.9 634.0Z" fill="color-mix(in srgb, currentColor 9%, var(--gb-paper))" fill-rule="evenodd" data-pad="2,1" data-color="#e8e9ea"/>
 <path transform="matrix(1,0,0,-1,-198.6,650.2)" d="M255.9 640.8C255.9 642.7 254.4 644.2 252.5 644.2H245.7C243.9 644.2 242.3 642.7 242.3 640.8V634.0C242.3 632.2 243.9 630.6 245.7 630.6H252.5C254.4 630.6 255.9 632.2 255.9 634.0ZM255.4 640.8V634.0C255.4 632.4 254.1 631.1 252.5 631.1H245.7C244.1 631.1 242.8 632.4 242.8 634.0V640.8C242.8 642.4 244.1 643.7 245.7 643.7H252.5C254.1 643.7 255.4 642.4 255.4 640.8Z" fill="currentColor" fill-rule="evenodd" data-pad="2,1" data-color="#292529"/>
 <path transform="matrix(1,0,0,-1,-198.6,650.2)" d="M398.0 640.8C398.0 642.7 396.5 644.2 394.6 644.2H387.8C385.9 644.2 384.4 642.7 384.4 640.8V634.0C384.4 632.2 385.9 630.6 387.8 630.6H394.6C396.5 630.6 398.0 632.2 398.0 634.0Z" fill="color-mix(in srgb, currentColor 9%, var(--gb-paper))" fill-rule="evenodd" data-pad="10,1" data-color="#e8e9ea"/>

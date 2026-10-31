@@ -58,79 +58,79 @@
 <path transform="matrix(1,0,0,-1,-45,589.4)" d="M211.7 120.2C217.6 120.2 222.4 115.4 222.4 109.5 222.4 103.6 217.6 98.8 211.7 98.8 205.7 98.8 200.9 103.6 200.9 109.5 200.9 115.4 205.7 120.2 211.7 120.2Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-45,589.4)" stroke-width=".55" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 62%, var(--gb-paper))" d="M211.7 120.2C217.6 120.2 222.4 115.4 222.4 109.5 222.4 103.6 217.6 98.8 211.7 98.8 205.7 98.8 200.9 103.6 200.9 109.5 200.9 115.4 205.7 120.2 211.7 120.2Z"/>
 <path transform="matrix(1,0,0,-1,-45,589.4)" d="M211.7 580.2C215.8 580.2 219.2 576.8 219.2 572.7 219.2 568.5 215.8 565.2 211.7 565.2 207.5 565.2 204.1 568.5 204.1 572.7 204.1 576.8 207.5 580.2 211.7 580.2Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(163.0 20.6)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">S</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(163.0 20.6)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">S</tspan></text>
 <path transform="matrix(1,0,0,-1,-45,589.4)" d="M211.7 117.0C215.8 117.0 219.2 113.6 219.2 109.5 219.2 105.3 215.8 102.0 211.7 102.0 207.5 102.0 204.1 105.3 204.1 109.5 204.1 113.6 207.5 117.0 211.7 117.0Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(163.0 483.8)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">E</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(163.0 483.8)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">E</tspan></text>
 <use href="#09-audio__01-typical-sampling-recording-workflow--1-s4" transform="matrix(1 0 0 -1 166.7 54.2)"/>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(164.2 63.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">1</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(164.2 63.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">1</tspan></text>
 <use href="#09-audio__01-typical-sampling-recording-workflow--1-s4" transform="matrix(1 0 0 -1 166.7 90.2)"/>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(164.2 99.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">2</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(164.2 99.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">2</tspan></text>
 <use href="#09-audio__01-typical-sampling-recording-workflow--1-s4" transform="matrix(1 0 0 -1 166.7 126.2)"/>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(164.2 135.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">3</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(164.2 135.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">3</tspan></text>
 <use href="#09-audio__01-typical-sampling-recording-workflow--1-s4" transform="matrix(1 0 0 -1 166.7 162.2)"/>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(164.2 171.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">4</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(164.2 171.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">4</tspan></text>
 <use href="#09-audio__01-typical-sampling-recording-workflow--1-s4" transform="matrix(1 0 0 -1 166.7 198.2)"/>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(164.2 207.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">5</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(164.2 207.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">5</tspan></text>
 <use href="#09-audio__01-typical-sampling-recording-workflow--1-s4" transform="matrix(1 0 0 -1 166.7 236.6)"/>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(164.2 245.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">6</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(164.2 245.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">6</tspan></text>
 <path transform="matrix(1,0,0,-1,-45,589.4)" d="M211.7 299.7C214.8 299.7 217.3 297.2 217.3 294.1 217.3 290.9 214.8 288.4 211.7 288.4 208.5 288.4 206.0 290.9 206.0 294.1 206.0 297.2 208.5 299.7 211.7 299.7Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(164.2 298.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">7</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(164.2 298.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">7</tspan></text>
 <path transform="matrix(1,0,0,-1,-45,589.4)" d="M211.7 263.5C214.8 263.5 217.3 261.0 217.3 257.8 217.3 254.7 214.8 252.1 211.7 252.1 208.5 252.1 206.0 254.7 206.0 257.8 206.0 261.0 208.5 263.5 211.7 263.5Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(164.2 334.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">8</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(164.2 334.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">8</tspan></text>
 <path transform="matrix(1,0,0,-1,-45,589.4)" d="M211.7 201.8C214.8 201.8 217.3 199.3 217.3 196.1 217.3 193.0 214.8 190.5 211.7 190.5 208.5 190.5 206.0 193.0 206.0 196.1 206.0 199.3 208.5 201.8 211.7 201.8Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(164.6 396.1)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">9</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(164.6 396.1)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">9</tspan></text>
 <path transform="matrix(1,0,0,-1,-45,589.4)" d="M211.7 165.8C214.8 165.8 217.3 163.3 217.3 160.1 217.3 157.0 214.8 154.5 211.7 154.5 208.5 154.5 206.0 157.0 206.0 160.1 206.0 163.3 208.5 165.8 211.7 165.8Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(161.9 432.1)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">10</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(161.9 432.1)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">10</tspan></text>
 <path transform="matrix(1,0,0,-1,-45,589.4)" d="M290.3 567.0H365.7V577.0H290.3Z" fill="var(--gb-paper)"/>
-<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(245.3 19.6)" font-size="10" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Audio clips</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(245.3 19.6)" font-size="10" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Audio clips</tspan></text>
 <path transform="matrix(1,0,0,-1,-45,589.4)" d="M52.2 567.0H146.7V577.0H52.2Z" fill="var(--gb-paper)"/>
-<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(7.2 19.6)" font-size="10" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Synth &amp; kit samples</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(7.2 19.6)" font-size="10" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Synth &amp; kit samples</tspan></text>
 <path transform="matrix(1,0,0,-1,-45,589.4)" d="M254.5 520.6H389.0V536.4H254.5Z" fill="var(--gb-paper)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(209.5 58.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Create an audio clip</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(209.5 65.5)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Song or arranger view - convert clip to audio clip.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(209.5 58.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Create an audio clip</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(209.5 65.5)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Song or arranger view - convert clip to audio clip.</tspan></text>
 <path transform="matrix(1,0,0,-1,-45,589.4)" d="M74.3 520.6H173.0V536.4H74.3Z" fill="var(--gb-paper)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(66.9 58.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Select a destination</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(71.3 65.5)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Record to synth or kit</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(66.9 58.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Select a destination</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(71.3 65.5)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Record to synth or kit</tspan></text>
 <path transform="matrix(1,0,0,-1,-45,589.4)" d="M254.5 485.5H379.5V501.3H254.5Z" fill="var(--gb-paper)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(209.5 93.1)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Record set-up (or load)</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(209.5 100.6)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Audio can be loaded from SD or recorded</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(209.5 93.1)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Record set-up (or load)</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(209.5 100.6)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Audio can be loaded from SD or recorded</tspan></text>
 <path transform="matrix(1,0,0,-1,-45,589.4)" d="M53.4 485.5H171.9V501.3H53.4Z" fill="var(--gb-paper)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(54.9 93.1)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Record set-up (or load)</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(16.2 100.6)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Audio can be loaded from SD or recorded</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(54.9 93.1)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Record set-up (or load)</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(16.2 100.6)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Audio can be loaded from SD or recorded</tspan></text>
 <path transform="matrix(1,0,0,-1,-45,589.4)" d="M289.7 550.0H414.5V567.0H289.7Z" fill="var(--gb-paper)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(244.7 26.7)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Recorded and synchronised by time-stretching</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(244.7 33.7)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">to other Deluge functions</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(244.7 26.7)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Recorded and synchronised by time-stretching</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(244.7 33.7)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">to other Deluge functions</tspan></text>
 <path transform="matrix(1,0,0,-1,-45,589.4)" d="M254.3 448.8H409.9V464.6H254.3Z" fill="var(--gb-paper)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(209.3 129.8)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Set the audio input / microphone</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(209.3 137.3)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Line in (L/R/stereo)</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(209.3 129.8)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Set the audio input / microphone</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(209.3 137.3)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Line in (L/R/stereo)</tspan></text>
 <path transform="matrix(1,0,0,-1,-45,589.4)" d="M254.4 417.4H410.1V424.4H254.4Z" fill="var(--gb-paper)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(209.4 170.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Arm clip for recording</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(209.4 170.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Arm clip for recording</tspan></text>
 <path transform="matrix(1,0,0,-1,-45,589.4)" d="M254.3 376.9H409.9V393.3H254.3Z" fill="var(--gb-paper)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(209.3 201.1)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Record</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(209.3 208.6)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Audio is recorded in sync’ed and linked to tempo</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(209.3 201.1)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Record</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(209.3 208.6)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Audio is recorded in sync’ed and linked to tempo</tspan></text>
 <path transform="matrix(1,0,0,-1,-45,589.4)" d="M52.4 376.9H169.9V393.3H52.4Z" fill="var(--gb-paper)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(102.3 201.1)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Record</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(40.5 208.6)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Audio is recorded or sampled in</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(102.3 201.1)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Record</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(40.5 208.6)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Audio is recorded or sampled in</tspan></text>
 <path transform="matrix(1,0,0,-1,-45,589.4)" d="M52.4 338.5H169.9V354.9H52.4Z" fill="var(--gb-paper)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(109.7 239.5)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Slice</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(20.9 247.0)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Slice sample across s series of kit slots</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(109.7 239.5)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Slice</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(20.9 247.0)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Slice sample across s series of kit slots</tspan></text>
 <path transform="matrix(1,0,0,-1,-45,589.4)" d="M254.3 285.5H409.9V301.9H254.3Z" fill="var(--gb-paper)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(209.3 292.5)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Quick edit</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(209.3 300.0)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Adjust length and limited edit options</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(209.3 292.5)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Quick edit</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(209.3 300.0)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Adjust length and limited edit options</tspan></text>
 <path transform="matrix(1,0,0,-1,-45,589.4)" d="M51.0 285.5H168.4V301.9H51.0Z" fill="var(--gb-paper)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(92.3 292.5)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Quick edit</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(25.7 300.0)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Adjust length and limited edit options</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(92.3 292.5)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Quick edit</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(25.7 300.0)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Adjust length and limited edit options</tspan></text>
 <path transform="matrix(1,0,0,-1,-45,589.4)" d="M254.3 187.7H409.9V201.9H254.3Z" fill="var(--gb-paper)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(209.3 392.5)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Play</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(209.3 400.0)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Play audio clip</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(209.3 392.5)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Play</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(209.3 400.0)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Play audio clip</tspan></text>
 <path transform="matrix(1,0,0,-1,-45,589.4)" d="M72.6 137.4H166.1V173.9H72.6Z" fill="var(--gb-paper)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(89.6 427.3)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Resample</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(53.4 434.8)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Record output to SD card</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(89.6 427.3)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Resample</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(53.4 434.8)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Record output to SD card</tspan></text>
 <path transform="matrix(1,0,0,-1,-45,589.4)" d="M254.3 247.3H409.9V261.1H254.3Z" fill="var(--gb-paper)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(209.3 333.3)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Waveform edit</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(209.3 340.8)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Tighter more precise editing</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(209.3 333.3)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Waveform edit</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(209.3 340.8)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Tighter more precise editing</tspan></text>
 <path transform="matrix(1,0,0,-1,-45,589.4)" d="M51.0 247.3H168.4V261.1H51.0Z" fill="var(--gb-paper)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(78.6 333.3)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Waveform edit</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(49.3 340.8)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Tighter more precise editing</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(78.6 333.3)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Waveform edit</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(49.3 340.8)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Tighter more precise editing</tspan></text>
 </g>
 </svg>

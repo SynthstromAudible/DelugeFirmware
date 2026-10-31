@@ -73,61 +73,61 @@
 </g>
 </g>
 </g>
-<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(113.0 391.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Sequence Plays Left to Right</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(117.3 379.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">1</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(139.1 379.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">2</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(161.1 379.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">3</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(183.2 379.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">4</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(205.2 379.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">5</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(227.3 379.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">6</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(249.4 379.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">7</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(271.4 379.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">8</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(293.5 379.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">9</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(313.1 379.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">10</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(335.5 379.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">11</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(357.2 379.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">12</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(379.3 379.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">13</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(401.3 379.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">14</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(423.4 379.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">15</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(445.5 379.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">16</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(55.9 351.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Lower</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(55.9 359.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">notes *</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(6.0 474.9)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">* Rows represent notes for a synth (illustrated) and samples for a kit</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(55.9 195.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Higher</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(55.9 203.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">notes *</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(37.2 150.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Higher notes or</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(37.2 158.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">more sounds</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(465.6 152.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Time</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(39.9 52.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Turn (SCROLL</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(99.6 52.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">▼ ▲</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(117.4 52.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">) to move the</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(39.9 62.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">grid focus up or down. Some rows</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(39.9 72.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">will be out of focus and hence not</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(39.9 82.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">visible within the physical grid.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(113.7 422.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Default: 16</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(157.3 419.6)" font-size="5.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">th</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(164.1 422.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">notes represented by each column of the grid.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(113.7 442.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Press (SCROLL◄►) to check the current zoom setting as shown on the display.</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(113.0 391.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Sequence Plays Left to Right</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(117.3 379.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">1</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(139.1 379.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">2</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(161.1 379.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">3</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(183.2 379.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">4</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(205.2 379.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">5</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(227.3 379.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">6</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(249.4 379.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">7</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(271.4 379.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">8</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(293.5 379.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">9</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(313.1 379.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">10</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(335.5 379.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">11</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(357.2 379.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">12</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(379.3 379.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">13</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(401.3 379.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">14</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(423.4 379.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">15</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(445.5 379.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">16</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(55.9 351.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Lower</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(55.9 359.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">notes *</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.0 474.9)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">* Rows represent notes for a synth (illustrated) and samples for a kit</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(55.9 195.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Higher</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(55.9 203.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">notes *</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(37.2 150.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Higher notes or</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(37.2 158.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">more sounds</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(465.6 152.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Time</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(39.9 52.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Turn (SCROLL</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(99.6 52.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">▼ ▲</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(117.4 52.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">) to move the</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(39.9 62.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">grid focus up or down. Some rows</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(39.9 72.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">will be out of focus and hence not</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(39.9 82.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">visible within the physical grid.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(113.7 422.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Default: 16</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(157.3 419.6)" font-size="5.2" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">th</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(164.1 422.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">notes represented by each column of the grid.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(113.7 442.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Press (SCROLL◄►) to check the current zoom setting as shown on the display.</tspan></text>
 <path transform="matrix(1,0,0,-1,-44.4,568.6)" d="M407.9 364.1H491.8V373.9H407.9Z" fill="var(--gb-paper)"/>
-<text fill="var(--gb-accent)" xml:space="preserve" transform="translate(366.4 202.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">16 x 8 Grid In Focus</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(313.8 14.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Turn (SCROLL◄►) to move the grid</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(313.8 24.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">focus left and right in time.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(313.8 34.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Display shows by temporarily flashing</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(313.8 44.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">the grid position.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(313.5 67.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">First digit - bar</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(313.5 77.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Second digit - beat in current bar</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(313.5 87.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Third digit (if visible) - 16th note within</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(313.5 97.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">the current beat.</tspan></text>
+<text fill="var(--gb-accent)" xml:space="preserve" transform="translate(366.4 202.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">16 x 8 Grid In Focus</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(313.8 14.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Turn (SCROLL◄►) to move the grid</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(313.8 24.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">focus left and right in time.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(313.8 34.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Display shows by temporarily flashing</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(313.8 44.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">the grid position.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(313.5 67.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">First digit - bar</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(313.5 77.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Second digit - beat in current bar</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(313.5 87.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Third digit (if visible) - 16th note within</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(313.5 97.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">the current beat.</tspan></text>
 <path transform="matrix(1,0,0,-1,-44.4,568.6)" d="M156.3 381.2H171.7V386.5H156.3Z" fill-rule="evenodd"/>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(113.4 186.8)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Beat</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(113.4 186.8)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Beat</tspan></text>
 <path transform="matrix(1,0,0,-1,-44.4,568.6)" d="M244.1 381.5H259.6V387.0H244.1Z" fill-rule="evenodd"/>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(201.2 186.3)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Beat</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(201.2 186.3)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Beat</tspan></text>
 <path transform="matrix(1,0,0,-1,-44.4,568.6)" d="M332.9 381.5H348.4V387.0H332.9Z" fill-rule="evenodd"/>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(290.0 186.3)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Beat</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(290.0 186.3)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Beat</tspan></text>
 <path transform="matrix(1,0,0,-1,-44.4,568.6)" d="M421.0 381.5H436.4V387.0H421.0Z" fill-rule="evenodd"/>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(378.1 186.3)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Beat</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(378.1 186.3)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Beat</tspan></text>
 <path transform="matrix(1,0,0,-1,-44.4,568.6)" d="M156.3 387.0H171.7V392.7H156.3Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(113.4 180.9)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Bar</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(113.4 180.9)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Bar</tspan></text>
 <g clip-path="url(#03-sequencing__08-navigating-the-grid--1-clip_16)">
 <g mask="url(#03-sequencing__08-navigating-the-grid--1-mask_17)">
 <g transform="matrix(.09599999,0,0,.096,170.0,6.0)">
@@ -184,15 +184,15 @@
 <use href="#03-sequencing__08-navigating-the-grid--1-s2" transform="matrix(1 0 0 -1 199.8 182.2)"/>
 <use href="#03-sequencing__08-navigating-the-grid--1-s2" transform="matrix(1 0 0 -1 288.6 182.2)"/>
 <use href="#03-sequencing__08-navigating-the-grid--1-s2" transform="matrix(1 0 0 -1 376.7 182.2)"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(381.3 423.8)" font-size="8" font-family="monospace"><tspan y="0" x="0.0" textLength="4.4" lengthAdjust="spacingAndGlyphs">1</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(381.3 423.8)" font-size="8" font-family="monospace"><tspan y="0" x="0.0" textLength="4.4" lengthAdjust="spacingAndGlyphs">1</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="matrix(.974039 0 -0 1.0 389.3 423.8)" font-size="7.8" font-family="monospace"><tspan y="0" x="0.0" textLength="67.6" lengthAdjust="spacingAndGlyphs">6TH-NOTES</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="matrix(.974039 0 -0 1.0 389.3 423.8)" font-size="7.8" font-family="monospace"><tspan y="0" x="0.0" textLength="67.6" lengthAdjust="spacingAndGlyphs">6TH-NOTES</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(381.3 423.8)" font-size="8" font-family="monospace"><tspan y="0" x="0" textLength="4.4" lengthAdjust="spacingAndGlyphs">1</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(381.3 423.8)" font-size="8" font-family="monospace"><tspan y="0" x="0" textLength="4.4" lengthAdjust="spacingAndGlyphs">1</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(.974039 0 -0 1.0 389.3 423.8)" font-size="7.8" font-family="monospace"><tspan y="0" x="0" textLength="67.6" lengthAdjust="spacingAndGlyphs">6TH-NOTES</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(.974039 0 -0 1.0 389.3 423.8)" font-size="7.8" font-family="monospace"><tspan y="0" x="0" textLength="67.6" lengthAdjust="spacingAndGlyphs">6TH-NOTES</tspan></text>
 <path transform="matrix(1,0,0,-1,-44.4,568.6)" stroke-width=".8" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M425.0 140.9H502.4V155.9H425.0Z"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(417.5 118.8)" font-size="8" font-family="monospace"><tspan y="0" x="0.0" textLength="4.4" lengthAdjust="spacingAndGlyphs">1</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(417.5 118.8)" font-size="8" font-family="monospace"><tspan y="0" x="0.0" textLength="4.4" lengthAdjust="spacingAndGlyphs">1</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="matrix(.974039 0 -0 1.0 425.5 118.8)" font-size="7.8" font-family="monospace"><tspan y="0" x="0.0" textLength="27.7" lengthAdjust="spacingAndGlyphs">:1:1</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="matrix(.974039 0 -0 1.0 425.5 118.8)" font-size="7.8" font-family="monospace"><tspan y="0" x="0.0" textLength="27.7" lengthAdjust="spacingAndGlyphs">:1:1</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(417.5 118.8)" font-size="8" font-family="monospace"><tspan y="0" x="0" textLength="4.4" lengthAdjust="spacingAndGlyphs">1</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(417.5 118.8)" font-size="8" font-family="monospace"><tspan y="0" x="0" textLength="4.4" lengthAdjust="spacingAndGlyphs">1</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(.974039 0 -0 1.0 425.5 118.8)" font-size="7.8" font-family="monospace"><tspan y="0" x="0" textLength="27.7" lengthAdjust="spacingAndGlyphs">:1:1</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(.974039 0 -0 1.0 425.5 118.8)" font-size="7.8" font-family="monospace"><tspan y="0" x="0" textLength="27.7" lengthAdjust="spacingAndGlyphs">:1:1</tspan></text>
 <path transform="matrix(1,0,0,-1,-44.4,568.6)" stroke-width=".8" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M455.9 445.9H503.9V460.8H455.9Z"/>
 </g>
 </g>

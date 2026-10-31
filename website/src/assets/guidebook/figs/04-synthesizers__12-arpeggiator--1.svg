@@ -451,72 +451,72 @@
 <path transform="matrix(1,0,0,-1,-50.7,631.0)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M96.3 339.6H90.7L82.2 409.2H70.8"/>
 <path transform="matrix(1,0,0,-1,-50.7,631.0)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M73.7 224.6H96.3"/>
 <path transform="matrix(1,0,0,-1,-50.7,631.0)" stroke-width=".75" stroke-linecap="round" stroke-dasharray="3,3,.0001,.0001" stroke-linejoin="round" fill="none" stroke="currentColor" d="M96.3 224.6 99.2 227.4"/>
-<text xml:space="preserve" transform="translate(11.6 397.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">C3</tspan></text>
-<text xml:space="preserve" transform="translate(11.6 238.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">C4</tspan></text>
-<text xml:space="preserve" transform="translate(95.9 397.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">C3</tspan></text>
-<text xml:space="preserve" transform="translate(95.9 301.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">C4</tspan></text>
-<text xml:space="preserve" transform="translate(95.9 205.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">C5</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(119.3 24.3)" font-size="10" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">MODE</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(119.3 34.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Up, down, both, random or off</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(121.4 72.9)" font-size="10" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">UP</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(188.6 72.9)" font-size="10" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">DOWN</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(258.2 72.9)" font-size="10" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">BOTH</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(323.3 72.9)" font-size="10" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">RAND</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(392.4 72.9)" font-size="10" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">OFF</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(10.9 71.5)" font-size="10" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">OCTAVE</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(10.9 79.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Arp will operate across the</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(10.9 87.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">OCTAves set. 1 octave will</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(10.9 95.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">repeat the same note, same</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(10.9 103.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">octave. 3 octaves will trigger 3</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(10.9 111.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">steps, each an octave apart.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(129.8 426.8)" font-size="10" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">SYNC</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(129.8 434.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Sets the trigger interval for the arp notes</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(129.8 442.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">played within the sequencer or manually.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(129.8 462.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Shows 16</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(162.8 460.3)" font-size="4.3" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">th</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(168.5 462.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">notes which will trigger a note</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(129.8 470.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">in this example, at each step on a 16</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(252.0 468.3)" font-size="4.3" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">th</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(129.8 478.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Grid. Every 2</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(173.6 476.3)" font-size="4.3" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">nd</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(180.5 478.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">step with a 8</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(222.6 476.3)" font-size="4.3" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">th</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(228.4 478.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">note sync</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(129.8 486.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">setting, 1 bar, once per bar, etc...</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(130.7 508.4)" font-size="10" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">RATE</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(130.7 516.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Sets the speed of the arpeggiator when</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(130.7 524.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">SYNC is off.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(313.5 426.8)" font-size="10" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">GATE</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(313.5 434.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">The amount of time the arp note is played</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(313.5 442.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">within the available time division.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(313.5 462.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Range is 0 - 50, where 50 will take up the</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(313.5 470.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">entire time slot and 25 will be 50% of the</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(313.5 478.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">note division. Examples with 8</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(414.0 476.3)" font-size="4.3" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">h</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(418.5 478.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">notes.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(299.1 496.5)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">5</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(299.1 508.5)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">12</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(299.1 520.5)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">25</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(299.1 532.5)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">50</tspan></text>
+<text xml:space="preserve" transform="translate(11.6 397.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">C3</tspan></text>
+<text xml:space="preserve" transform="translate(11.6 238.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">C4</tspan></text>
+<text xml:space="preserve" transform="translate(95.9 397.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">C3</tspan></text>
+<text xml:space="preserve" transform="translate(95.9 301.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">C4</tspan></text>
+<text xml:space="preserve" transform="translate(95.9 205.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">C5</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(119.3 24.3)" font-size="10" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">MODE</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(119.3 34.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Up, down, both, random or off</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(121.4 72.9)" font-size="10" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">UP</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(188.6 72.9)" font-size="10" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">DOWN</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(258.2 72.9)" font-size="10" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">BOTH</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(323.3 72.9)" font-size="10" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">RAND</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(392.4 72.9)" font-size="10" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">OFF</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(10.9 71.5)" font-size="10" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">OCTAVE</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(10.9 79.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Arp will operate across the</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(10.9 87.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">OCTAves set. 1 octave will</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(10.9 95.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">repeat the same note, same</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(10.9 103.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">octave. 3 octaves will trigger 3</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(10.9 111.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">steps, each an octave apart.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(129.8 426.8)" font-size="10" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">SYNC</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(129.8 434.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Sets the trigger interval for the arp notes</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(129.8 442.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">played within the sequencer or manually.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(129.8 462.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Shows 16</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(162.8 460.3)" font-size="4.3" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">th</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(168.5 462.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">notes which will trigger a note</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(129.8 470.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">in this example, at each step on a 16</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(252.0 468.3)" font-size="4.3" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">th</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(129.8 478.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Grid. Every 2</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(173.6 476.3)" font-size="4.3" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">nd</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(180.5 478.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">step with a 8</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(222.6 476.3)" font-size="4.3" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">th</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(228.4 478.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">note sync</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(129.8 486.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">setting, 1 bar, once per bar, etc...</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(130.7 508.4)" font-size="10" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">RATE</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(130.7 516.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Sets the speed of the arpeggiator when</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(130.7 524.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">SYNC is off.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(313.5 426.8)" font-size="10" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">GATE</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(313.5 434.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">The amount of time the arp note is played</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(313.5 442.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">within the available time division.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(313.5 462.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Range is 0 - 50, where 50 will take up the</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(313.5 470.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">entire time slot and 25 will be 50% of the</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(313.5 478.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">note division. Examples with 8</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(414.0 476.3)" font-size="4.3" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">h</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(418.5 478.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">notes.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(299.1 496.5)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">5</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(299.1 508.5)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">12</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(299.1 520.5)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">25</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(299.1 532.5)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">50</tspan></text>
 <path transform="matrix(1,0,0,-1,-50.7,631.0)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M114.0 513.0V466.0"/>
 <path transform="matrix(1,0,0,-1,-50.7,631.0)" d="M56.6 161.7H119.9V222.9H56.6Z" fill="var(--gb-paper)"/>
-<text xml:space="preserve" transform="translate(11.6 441.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Audition Pads</tspan></text>
-<text fill="color-mix(in srgb, currentColor 41%, var(--gb-paper))" xml:space="preserve" transform="matrix(0 -1 1 0 479.0 183.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Octave</tspan></text>
-<text fill="color-mix(in srgb, currentColor 41%, var(--gb-paper))" xml:space="preserve" transform="matrix(0 -1 1 0 479.0 270.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Octave</tspan></text>
-<text fill="color-mix(in srgb, currentColor 41%, var(--gb-paper))" xml:space="preserve" transform="matrix(0 -1 1 0 479.0 362.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Octave</tspan></text>
-<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(121.7 165.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Example: up/down, 16</tspan></text>
-<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(195.9 163.3)" font-size="4.3" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">th</tspan></text>
-<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(201.7 165.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">note sync, 3 octaves</tspan></text>
-<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(296.9 165.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Example: up, 8</tspan></text>
-<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(347.0 163.3)" font-size="4.3" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">th</tspan></text>
-<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(352.7 165.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">note sync, 2 octaves</tspan></text>
+<text xml:space="preserve" transform="translate(11.6 441.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Audition Pads</tspan></text>
+<text fill="color-mix(in srgb, currentColor 41%, var(--gb-paper))" xml:space="preserve" transform="matrix(0 -1 1 0 479.0 183.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Octave</tspan></text>
+<text fill="color-mix(in srgb, currentColor 41%, var(--gb-paper))" xml:space="preserve" transform="matrix(0 -1 1 0 479.0 270.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Octave</tspan></text>
+<text fill="color-mix(in srgb, currentColor 41%, var(--gb-paper))" xml:space="preserve" transform="matrix(0 -1 1 0 479.0 362.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Octave</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(121.7 165.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Example: up/down, 16</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(195.9 163.3)" font-size="4.3" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">th</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(201.7 165.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">note sync, 3 octaves</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(296.9 165.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Example: up, 8</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(347.0 163.3)" font-size="4.3" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">th</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(352.7 165.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">note sync, 2 octaves</tspan></text>
 <path transform="matrix(1,0,0,-1,-50.7,631.0)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M68.0 225.6V198.6"/>
 <path transform="matrix(1,0,0,-1,-50.7,631.0)" d="M68.9 604.8H152.0V613.2H68.9Z" fill="currentColor" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-50.7,631.0)" stroke-width=".6" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M68.9 604.8H152.0V613.2H68.9Z"/>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 20.8 24.4)" font-size="5.6" font-family="monospace"><tspan y="0" x="0.0" textLength="14.7" lengthAdjust="spacingAndGlyphs">OFF</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 20.8 33.2)" font-size="5.6" font-family="monospace"><tspan y="0" x="0.0" textLength="9.4" lengthAdjust="spacingAndGlyphs">UP</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 20.8 42.0)" font-size="5.6" font-family="monospace"><tspan y="0" x="0.0" textLength="20.9" lengthAdjust="spacingAndGlyphs">DOWN</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(17.7 14.5)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-weight="bold"><tspan y="0" x="0.0" textLength="41.6" lengthAdjust="spacingAndGlyphs">ARP MODE</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 20.8 24.4)" font-size="5.6" font-family="monospace"><tspan y="0" x="0" textLength="14.7" lengthAdjust="spacingAndGlyphs">OFF</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 20.8 33.2)" font-size="5.6" font-family="monospace"><tspan y="0" x="0" textLength="9.4" lengthAdjust="spacingAndGlyphs">UP</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 20.8 42.0)" font-size="5.6" font-family="monospace"><tspan y="0" x="0" textLength="20.9" lengthAdjust="spacingAndGlyphs">DOWN</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(17.7 14.5)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-weight="bold"><tspan y="0" x="0" textLength="41.6" lengthAdjust="spacingAndGlyphs">ARP MODE</tspan></text>
 <path transform="matrix(1,0,0,-1,-50.7,631.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M68.8 614.5H151.8"/>
 <path transform="matrix(1,0,0,-1,-50.7,631.0)" stroke-width=".8" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M64.1 585.6H156.4V625.0H64.1Z"/>
 </g>

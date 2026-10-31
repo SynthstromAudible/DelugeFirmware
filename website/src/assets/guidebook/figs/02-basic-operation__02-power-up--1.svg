@@ -14,15 +14,15 @@
 </defs>
 <g>
 <g clip-path="url(#02-basic-operation__02-power-up--1-clip_1)">
-<text fill="currentColor" xml:space="preserve" transform="translate(61.3 72.6)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Red: battery is low, when operating on</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(61.3 80.9)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">battery, and requires charging</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(61.3 96.6)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Yellow: unit is being charged and PSU /</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(61.3 104.9)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">powered USB is connected</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(61.3 120.9)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Green: unit is fully charged. Battery lasts</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(61.3 129.1)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">approx 6 hours from a full charge</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(61.3 142.2)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">Off: when Deluge is switched on and is</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(61.3 150.5)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">charged and operating from the internal</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(61.3 158.7)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0.0">battery source.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(61.3 72.6)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Red: battery is low, when operating on</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(61.3 80.9)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">battery, and requires charging</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(61.3 96.6)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Yellow: unit is being charged and PSU /</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(61.3 104.9)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">powered USB is connected</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(61.3 120.9)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Green: unit is fully charged. Battery lasts</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(61.3 129.1)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">approx 6 hours from a full charge</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(61.3 142.2)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Off: when Deluge is switched on and is</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(61.3 150.5)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">charged and operating from the internal</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(61.3 158.7)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">battery source.</tspan></text>
 <g clip-path="url(#02-basic-operation__02-power-up--1-clip_2)">
 <g mask="url(#02-basic-operation__02-power-up--1-mask_3)">
 <g transform="matrix(.17122,0,0,.17122002,5.9,6.0)">
