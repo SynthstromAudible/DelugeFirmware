@@ -1572,7 +1572,7 @@ void View::setModLedStates() {
 
 	RootUI* rootUI = getRootUI();
 
-	// Clear the transient Session selection on view changes.
+	// Clear only the transient Session selection; output locks survive view changes.
 	if (deluge::gui::track_link::modeIsOn() && rootUI != &sessionView) {
 		sessionView.gridEndTrackSelection();
 	}

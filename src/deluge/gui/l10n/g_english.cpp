@@ -15,6 +15,8 @@ using enum String;
 PLACE_SDRAM_DATA Language english{
     "English",
     {
+        {STRING_FOR_TRACK_LOCK_ON, "TRACK LOCK ON"},
+        {STRING_FOR_TRACK_LOCK_OFF, "TRACK LOCK OFF"},
         {STRING_FOR_PICK_A_TRACK, "PICK A TRACK"},
         {STRING_FOR_TRACK_NO_MENU, "NO MENU"},
         {STRING_FOR_TRACK_NO_CLIP, "NO CLIP"},

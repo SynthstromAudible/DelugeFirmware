@@ -21,15 +21,18 @@ class Clip;
 class Output;
 
 /// Temporary Session selection and sound-menu targeting.
-/// Output owns cross-clip parameter propagation.
+/// Output owns lock state and cross-clip parameter propagation.
 namespace deluge::gui::track_link {
 
 bool enabled();
 
 /// True while the mode is on (whether or not a track has been picked yet).
 bool modeIsOn();
+void toggleLock(Output* output);
 /// Whether the current edit target propagates parameter changes (also controls the LED).
 bool editingSelectedTrack();
+/// Toggle a clip's output lock without changing the clip's kit/drum target.
+void toggleLockForClip(Clip* clip);
 Output* selectedOutput();
 Clip* selectedClip();
 

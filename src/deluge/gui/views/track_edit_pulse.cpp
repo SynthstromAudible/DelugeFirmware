@@ -51,7 +51,7 @@ constexpr int32_t kPulseInterval = 50;
 constexpr int32_t kPulseMaximum = (65535 / 100) * 60;
 } // namespace
 
-// A new hold starts a complete cycle without restarting the menu indicator.
+// A new hold starts a complete cycle without restarting other tracks' lock indicators.
 // Clear old held targets immediately so a timer cannot repaint them before the next UI render.
 void resetHeldPulse() {
 	held_progress = 1;

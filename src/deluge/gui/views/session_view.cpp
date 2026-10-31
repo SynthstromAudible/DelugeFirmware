@@ -225,7 +225,7 @@ ActionResult SessionView::buttonAction(deluge::hid::Button b, bool on, bool inCa
 		}
 		if (b == BACK) {
 			// Cancel the held gesture and temporary track selection, restoring
-			// song controls.
+			// song controls. Saved track locks remain unchanged, and the later pad release cannot mute.
 			gridEndTrackSelection();
 			// This press dismisses track selection; do not also run Session's normal Back action.
 			return ActionResult::DEALT_WITH;
@@ -3561,8 +3561,8 @@ RGB SessionView::gridRenderClipColor(Clip* clip, int32_t x, int32_t y, bool rend
 	}
 
 	// If we're currently pulsing this clip and we have the current pulse colour, use that instead
-	if (!deluge::gui::track_link::modeIsOn() && !viewingRecordArmingActive && renderPulse
-	    && (clip == selectedClipForPulsing)) {
+	if (!clip->output->isTrackLocked() && !deluge::gui::track_link::modeIsOn() && !viewingRecordArmingActive
+	    && renderPulse && (clip == selectedClipForPulsing)) {
 		return gridSelectedClipRenderedColour;
 	}
 
@@ -5075,6 +5075,10 @@ void SessionView::gridPulseSelectedClip() {
 	}
 
 	Output& output = *clip->output;
+	// Locked tracks advertise their state on the track pad, not on a released clip.
+	if (output.isTrackLocked()) {
+		return;
+	}
 
 	// if you're holding record or the clip is armed and flashing
 	// or if the track color has not been set yet, then exit
@@ -5179,9 +5183,13 @@ ActionResult SessionView::gridTrackPadAction(int32_t x, int32_t on) {
 	if (output == nullptr) {
 		return ActionResult::DEALT_WITH;
 	}
+	bool silent = Buttons::isShiftButtonPressed();
 	gridEndTrackSelection();
 	deluge::gui::track_link::selectOutput(output, output->getActiveClip());
 	gridHeldTrackPad = x;
+	if (silent) {
+		deluge::gui::track_link::toggleLock(output);
+	}
 	view.displayOutputName(output);
 	uiTimerManager.setTimer(TimerName::SELECTED_CLIP_PULSE, kPulseRate);
 	requestRendering(this);
@@ -5196,7 +5204,7 @@ void SessionView::gridRenderTrackRow(RGB* image, uint8_t* occupancy) {
 		if (output != nullptr) {
 			colour = RGB::fromHue(output->colour);
 			bool editing_menu = deluge::gui::track_link::isMenuOpen() && deluge::gui::track_link::isSelected(output);
-			if (editing_menu) {
+			if (editing_menu || (output->isTrackLocked() && !gridIsTrackPadHeld(output))) {
 				colour = deluge::gui::track_edit_pulse::renderPulse(colour, *output, image, x, 0);
 			}
 		}

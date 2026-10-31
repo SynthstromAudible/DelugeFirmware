@@ -695,6 +695,10 @@ drawNormally:
 		if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION && yDisplay == yPressedEffective) {
 			thisColour = colours::red;
 		}
+		else if (auto* output = outputsOnScreen[yDisplay]; (output != nullptr) && output->isTrackLocked()) {
+			thisColour = deluge::gui::track_edit_pulse::renderPulse(RGB::fromHue(output->colour), *output, thisImage,
+			                                                        kDisplayWidth + 1, yDisplay);
+		}
 		else {
 			thisColour = colours::black;
 		}
@@ -742,6 +746,9 @@ Drum* ArrangerView::getDrumForAudition(Kit* kit) {
 }
 
 void ArrangerView::beginAudition(Output* output) {
+	if (silentTrackAudition && getRootUI() == this) {
+		return;
+	}
 
 	if (output->type == OutputType::AUDIO) {
 		return;
@@ -786,6 +793,9 @@ void ArrangerView::beginAudition(Output* output) {
 }
 
 void ArrangerView::endAudition(Output* output, bool evenIfPlaying) {
+	if (silentTrackAudition && getRootUI() == this) {
+		return;
+	}
 
 	if (output->type == OutputType::AUDIO) {
 		return;
@@ -930,7 +940,13 @@ doNewPress:
 
 			view.displayOutputName(output);
 
-			beginAudition(output);
+			silentTrackAudition = deluge::gui::track_link::enabled() && Buttons::isShiftButtonPressed();
+			if (silentTrackAudition) {
+				deluge::gui::track_link::toggleLock(output);
+			}
+			else {
+				beginAudition(output);
+			}
 
 			if (output->getActiveClip()) {
 				view.setActiveModControllableTimelineCounter(output->getActiveClip());
@@ -955,6 +971,7 @@ doNewPress:
 
 void ArrangerView::auditionEnded() {
 	deluge::gui::track_edit_pulse::resetHeldPulse();
+	silentTrackAudition = false;
 	setNoSubMode();
 	setLedStates();
 

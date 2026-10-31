@@ -304,7 +304,7 @@ getOut:
 	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, automationChanged, automatedBefore,
 	                                                          automatedNow);
 
-	// Link explicit edits across this output's clips when selected in Session.
+	// Link explicit edits across this output's clips when held in Session or persistently locked.
 	Output::propagateParameterEdit(*modelStack, {.value = value,
 	                                             .shouldLogAction = shouldLogAction,
 	                                             .mayDeleteNodesInLinearRun = mayDeleteNodesInLinearRun,

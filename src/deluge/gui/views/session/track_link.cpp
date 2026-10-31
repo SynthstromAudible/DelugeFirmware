@@ -36,7 +36,8 @@ namespace deluge::gui::track_link {
 
 namespace {
 
-// Session selection and its output edit scope are temporary.
+// Session selection is temporary. Persistent locks belong to Output::trackLocked
+// and must not be cleared when this state or the sound menu is dismissed.
 struct SessionSelection {
 	bool active = false;
 	Song* song = nullptr;
@@ -167,6 +168,17 @@ bool modeIsOn() {
 	return selection.active && enabled();
 }
 
+void toggleLock(Output* output) {
+	if (!enabled() || output == nullptr) {
+		return;
+	}
+	output->setTrackLocked(!output->isTrackLocked());
+	view.setModLedStates();
+	uiNeedsRendering(getRootUI());
+	display->displayPopup(output->isTrackLocked() ? deluge::l10n::get(deluge::l10n::String::STRING_FOR_TRACK_LOCK_ON)
+	                                              : deluge::l10n::get(deluge::l10n::String::STRING_FOR_TRACK_LOCK_OFF));
+}
+
 bool editingSelectedTrack() {
 	if (!enabled() || currentSong == nullptr) {
 		return false;
@@ -174,7 +186,18 @@ bool editingSelectedTrack() {
 	if (getRootUI() == &sessionView && (selectedOutput() != nullptr)) {
 		return true;
 	}
-	return false;
+	// The actual edit target determines the LED, independently of Session selection.
+	auto* timeline = view.activeModControllableModelStack.getTimelineCounterAllowNull();
+	auto* clip = findOwnedClip(*currentSong, timeline);
+	return (clip != nullptr) && clip->output->isTrackLocked();
+}
+
+void toggleLockForClip(Clip* clip) {
+	if (clip == nullptr) {
+		return;
+	}
+	toggleLock(clip->output);
+	view.setActiveModControllableTimelineCounter(clip);
 }
 
 bool isSelected(Output const* output) {
