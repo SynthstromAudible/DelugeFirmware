@@ -28,8 +28,8 @@
 
 namespace deluge::synth::matrix {
 
-/// @brief The matrix's q31 numeric core: today's patching arithmetic, operation for operation. Each function is the
-/// scalar reference the vector forms are proven against.
+/// @brief The matrix's q31 numeric core: the instrument's patching arithmetic, operation for operation. Each scalar
+/// function is the reference its four-lane form is proven against.
 struct MatrixFixed {
 	/// Four q31 lanes.
 	using Lanes = Argon<int32_t>;

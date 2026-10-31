@@ -26,7 +26,8 @@
 
 /// @file
 /// @brief The compiled matrix program: one instrument's cables, compiled for the evaluator into structure-of-arrays
-/// tables per scope (voice and sound). Immutable once compiled; it lives in one exact-size block the instrument owns.
+/// tables per scope (voice and sound). Immutable once compiled; it lives in one block, sized to fit, that the
+/// instrument owns.
 
 namespace deluge::synth::matrix {
 
@@ -58,9 +59,7 @@ struct ScopeView {
 	uint8_t num_depth_destinations{};
 	uint8_t num_destinations{};
 	uint32_t sources_patched{}; ///< the sources any of its cables read
-	uint64_t cabled{};          ///< bit (p - first_param) for each param with cables
-	uint8_t first_param{};
-	uint8_t end_param{};
+	uint64_t cabled{};          ///< bit (p - the scope's first param) for each param with cables
 };
 
 /// One instrument's compiled cables.

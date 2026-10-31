@@ -27,6 +27,8 @@ namespace deluge::synth::matrix {
 
 namespace {
 
+namespace params = modulation::params;
+
 [[nodiscard]] constexpr std::size_t align_up(std::size_t n, std::size_t alignment) {
 	return (n + alignment - 1) & ~(alignment - 1);
 }
@@ -105,8 +107,7 @@ void compile_scope(const RoutingBuild& routing, int32_t g, Carver& carve, ScopeV
 	    .mode = carve.take<DepthMode>(num_cables),
 	};
 
-	out.first_param = g == 0 ? 0 : static_cast<uint8_t>(params::FIRST_GLOBAL);
-	out.end_param = static_cast<uint8_t>(g == 0 ? int32_t{params::FIRST_GLOBAL} : int32_t{params::kNumParams});
+	const int32_t first_param = g == 0 ? 0 : int32_t{params::FIRST_GLOBAL};
 	out.sources_patched = routing.sources_patched[g];
 
 	uint8_t num_slots = 0;
@@ -136,7 +137,7 @@ void compile_scope(const RoutingBuild& routing, int32_t g, Carver& carve, ScopeV
 		dest.wave_index_double = !depth && dest.chain == ChainKind::ADD && is_wave_index(param);
 		dest.sources = routed.sources;
 		if (!depth) {
-			const auto bit = static_cast<uint32_t>(param - out.first_param);
+			const auto bit = static_cast<uint32_t>(param - first_param);
 			out.cabled |= bit < 64 ? uint64_t{1} << bit : 0;
 		}
 		cable = compile_cables(routing, routed, dest, depth, param, cable, tables, slot_for);
@@ -149,7 +150,6 @@ void compile_scope(const RoutingBuild& routing, int32_t g, Carver& carve, ScopeV
 	out.cable_mode = tables.mode;
 	out.destinations = destinations;
 	out.num_slots = num_slots;
-	out.num_cables = cable;
 	out.num_depth_destinations = num_depth;
 	out.num_destinations = static_cast<uint8_t>(num_destinations);
 }
@@ -159,8 +159,8 @@ void compile_scope(const RoutingBuild& routing, int32_t g, Carver& carve, ScopeV
 std::size_t program_size(const RoutingBuild& routing) {
 	std::size_t n = sizeof(MatrixProgram);
 	for (int32_t g = 0; g < 2; ++g) {
-		// Each table may need its alignment rounded up
-		n += scope_size(routing.num_destinations[g], num_routed_cables(routing, g)) + (7 * alignof(Destination));
+		// Each scope's destination table follows byte tables, so may need its alignment rounded up
+		n += scope_size(routing.num_destinations[g], num_routed_cables(routing, g)) + (alignof(Destination) - 1);
 	}
 	return n;
 }

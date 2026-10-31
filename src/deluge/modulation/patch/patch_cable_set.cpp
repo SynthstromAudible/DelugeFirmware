@@ -422,14 +422,17 @@ void PatchCableSet::setupPatching(ParamCollectionSummary& summary, std::bitset<k
 			FREEZE_WITH_ERROR("E434");
 		}
 	}
+	// The matrix program, compiled from the same routing; without it the cables cannot play, so none are installed
+	const std::size_t program_bytes = deluge::synth::matrix::program_size(build);
+	void* program_block = deluge::memory::alloc_fast(program_bytes, alignof(deluge::synth::matrix::MatrixProgram));
+	if (program_block == nullptr) {
+		freeDestinationMemory(false);
+		return;
+	}
+	program_ = deluge::synth::matrix::compile_program(build, {static_cast<std::byte*>(program_block), program_bytes});
+
 	permuteCables(std::span{build.order}.first(build.num_cables));
 	numUsablePatchCables = build.num_usable;
-
-	// The matrix program, compiled from the same routing
-	const std::size_t program_bytes = deluge::synth::matrix::program_size(build);
-	if (void* block = deluge::memory::alloc_fast(program_bytes, alignof(deluge::synth::matrix::MatrixProgram))) {
-		program_ = deluge::synth::matrix::compile_program(build, {static_cast<std::byte*>(block), program_bytes});
-	}
 
 	std::copy_n(build.cables.begin(), numPatchCables, routedCables_);
 	for (int32_t g = 0; g < 2; g++) {

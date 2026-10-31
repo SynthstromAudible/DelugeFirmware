@@ -34,8 +34,8 @@ struct ScopePass {
 
 /// @brief Runs a scope's pass of a compiled matrix program over the numeric core @p B.
 ///
-/// The depth results are one array for every pass, as today's Patcher kept them: a pass that skips a depth
-/// destination reads the last value any pass wrote there. The audible window gives each pass its own.
+/// The depth results are one array for every pass: a pass that skips a depth destination reads the last value any
+/// pass wrote there.
 template <class B>
 class Evaluator {
 public:

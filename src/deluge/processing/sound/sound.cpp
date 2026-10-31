@@ -1804,7 +1804,6 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	}
 
 	ParamManagerForTimeline* paramManager = (ParamManagerForTimeline*)modelStack->paramManager;
-	uint32_t sourcesRead = 0; // the changed-source bits this render read, which it clears at its end
 
 	// Do global LFO
 	if (paramManager->getPatchCableSet()->isSourcePatchedToSomething(PatchSource::LFO_GLOBAL_1)) {
@@ -1860,7 +1859,6 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 
 	// Perform the actual patching
 	const uint32_t soundSourcesChanged = sourcesChanged.load(std::memory_order_acquire);
-	sourcesRead |= soundSourcesChanged;
 	if (soundSourcesChanged != 0u) {
 #if defined(DELUGE_STREAM_BENCH)
 		const uint32_t t0 = deluge::bench::render_profile::cycles();
@@ -2043,7 +2041,6 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 				voice->note_off(paramManager, voiceConfig.note_tails_allowed);
 			}
 			const uint32_t voiceSourcesChanged = sourcesChanged.load(std::memory_order_acquire);
-			sourcesRead |= voiceSourcesChanged;
 #if defined(DELUGE_STREAM_BENCH)
 			const uint32_t t0 = deluge::bench::render_profile::cycles();
 #endif
@@ -2138,7 +2135,9 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	// add the sound to the output, i.e. output = output + sound
 	std::ranges::transform(output, sound_stereo, output.begin(), std::plus{});
 
-	sourcesChanged.fetch_and(~sourcesRead, std::memory_order_acq_rel);
+	// Only the bits the sound's own pass read: a bit marked after it is read again next block, by the sound's pass
+	// and by the voices, which may have read it already (a repeat patching gives the same values)
+	sourcesChanged.fetch_and(~soundSourcesChanged, std::memory_order_acq_rel);
 	expressionSourcesChangedAtSynthLevel.reset();
 	for (int i = 0; i < kNumSources; i++) {
 		sources[i].dxPatchChanged = false;

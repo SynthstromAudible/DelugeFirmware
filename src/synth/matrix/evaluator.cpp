@@ -25,7 +25,10 @@ namespace deluge::synth::matrix {
 
 namespace {
 
-/// Every pass's depth results, as today's Patcher shares them: one pass runs at a time, on the audio tier.
+namespace params = modulation::params;
+
+/// Every pass's depth results, in one array that every pass writes, unguarded: the audio tier's passes and the main
+/// tier's initial patchings, which an audio pass can preempt.
 // NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 std::array<int32_t, kMaxCables> shared_depth_results{};
 

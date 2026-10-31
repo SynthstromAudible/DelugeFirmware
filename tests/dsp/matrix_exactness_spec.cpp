@@ -6,7 +6,7 @@
  */
 
 // The matrix core's four-lane forms against its scalar functions, lane for lane: operand corners and random operands,
-// and every volume, linear and hybrid param with corner and random presets, on the host and on ARM.
+// and every param the four-lane curves compute, with corner and random presets, on the host and on ARM.
 
 #include "alloc_seams.h"
 
@@ -144,6 +144,7 @@ describe matrix_exactness_spec("the matrix core's four-lane forms", ${
 		expect(lanes_differing(pairs, MatrixFixed::smmul_by_doubling, multiply_32x32_rshift32)).to_equal(0);
 	});
 
+	// The sound's linear and hybrid regions hold fewer than four params, so the evaluator runs them scalar
 	it("give uncabled volume, linear and hybrid params their scalar final values", _{
 		using MF = MatrixFixed;
 		auto volume = [](Lanes n, Lanes t) { return MF::curve_volume(n, MF::uncabled_multiply(t)); };
@@ -155,10 +156,6 @@ describe matrix_exactness_spec("the matrix core's four-lane forms", ${
 		expect(region_differing(params::FIRST_LOCAL__HYBRID, params::FIRST_LOCAL_EXP, CurveKind::HYBRID, hybrid))
 		    .to_equal(0);
 		expect(region_differing(params::FIRST_GLOBAL, params::FIRST_GLOBAL_NON_VOLUME, CurveKind::VOLUME, volume))
-		    .to_equal(0);
-		expect(region_differing(params::FIRST_GLOBAL_NON_VOLUME, params::FIRST_GLOBAL_HYBRID, CurveKind::LINEAR, linear))
-		    .to_equal(0);
-		expect(region_differing(params::FIRST_GLOBAL_HYBRID, params::FIRST_GLOBAL_EXP, CurveKind::HYBRID, hybrid))
 		    .to_equal(0);
 	});
 });

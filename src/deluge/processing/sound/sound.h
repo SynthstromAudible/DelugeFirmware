@@ -177,8 +177,8 @@ public:
 	GlobalParams params;
 
 	/// The sources whose values changed since the sound's render last read them, one bit each up to
-	/// FIRST_UNCHANGEABLE_SOURCE. The render and param edits mark bits; the render clears only what it read, so a bit
-	/// marked while it renders is read by the next block rather than lost.
+	/// FIRST_UNCHANGEABLE_SOURCE. The render and param edits mark bits; the render clears only the bits its sound
+	/// pass read, so a bit marked while it renders is read by the next block rather than lost.
 	std::atomic<uint32_t> sourcesChanged{};
 
 	LFO globalLFO1;

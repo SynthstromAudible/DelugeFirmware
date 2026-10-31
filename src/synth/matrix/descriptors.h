@@ -24,8 +24,8 @@
 
 /// @file
 /// @brief What the matrix compiler reads from a source and a destination: how a cable converts its source, how a
-/// destination combines its cables and shapes the result, and how a cable's depth is shaped. Today's patching rules,
-/// as data.
+/// destination combines its cables and shapes the result, and how a cable's depth is shaped: the instrument's patching
+/// rules, as data.
 
 namespace deluge::synth::matrix {
 
@@ -38,7 +38,6 @@ enum class ChainKind : uint8_t {
 
 /// The curve that turns a destination's combination into its final value.
 enum class CurveKind : uint8_t { VOLUME, LINEAR, HYBRID, EXP, EXP_ATTACK, RELEASE_RATE };
-inline constexpr int32_t kNumCurveKinds = 6;
 
 /// How a cable's depth is shaped before it scales the source.
 enum class DepthMode : uint8_t {
@@ -56,27 +55,27 @@ enum class Conversion : uint8_t {
 	AFTERTOUCH_DEPTH,   ///< (v - 2^30) << 1: aftertouch on a depth cable, whatever its polarity
 };
 
-namespace params = modulation::params;
-
 /// The scope param @p p belongs to: 0 for the voice, 1 for the sound.
 [[nodiscard]] constexpr uint8_t scope_of(int32_t p) {
-	return p < params::FIRST_GLOBAL ? 0 : 1;
+	return p < modulation::params::FIRST_GLOBAL ? 0 : 1;
 }
 
 /// The chain that combines param @p p's cables.
 [[nodiscard]] constexpr ChainKind chain_of(int32_t p) {
-	const int32_t first_hybrid =
-	    scope_of(p) == 0 ? int32_t{params::FIRST_LOCAL__HYBRID} : int32_t{params::FIRST_GLOBAL_HYBRID};
+	const int32_t first_hybrid = scope_of(p) == 0 ? int32_t{modulation::params::FIRST_LOCAL__HYBRID}
+	                                              : int32_t{modulation::params::FIRST_GLOBAL_HYBRID};
 	return p < first_hybrid ? ChainKind::MULTIPLY : ChainKind::ADD;
 }
 
 /// The curve of param @p p.
 [[nodiscard]] constexpr CurveKind curve_of(int32_t p) {
 	const bool voice = scope_of(p) == 0;
-	const int32_t first_non_volume =
-	    voice ? int32_t{params::FIRST_LOCAL_NON_VOLUME} : int32_t{params::FIRST_GLOBAL_NON_VOLUME};
-	const int32_t first_hybrid = voice ? int32_t{params::FIRST_LOCAL__HYBRID} : int32_t{params::FIRST_GLOBAL_HYBRID};
-	const int32_t first_exp = voice ? int32_t{params::FIRST_LOCAL_EXP} : int32_t{params::FIRST_GLOBAL_EXP};
+	const int32_t first_non_volume = voice ? int32_t{modulation::params::FIRST_LOCAL_NON_VOLUME}
+	                                       : int32_t{modulation::params::FIRST_GLOBAL_NON_VOLUME};
+	const int32_t first_hybrid =
+	    voice ? int32_t{modulation::params::FIRST_LOCAL__HYBRID} : int32_t{modulation::params::FIRST_GLOBAL_HYBRID};
+	const int32_t first_exp =
+	    voice ? int32_t{modulation::params::FIRST_LOCAL_EXP} : int32_t{modulation::params::FIRST_GLOBAL_EXP};
 	if (p < first_non_volume) {
 		return CurveKind::VOLUME;
 	}
@@ -86,10 +85,10 @@ namespace params = modulation::params;
 	if (p < first_exp) {
 		return CurveKind::HYBRID;
 	}
-	if (params::LOCAL_ENV_0_DECAY <= p && p <= params::LOCAL_ENV_3_RELEASE) {
+	if (modulation::params::LOCAL_ENV_0_DECAY <= p && p <= modulation::params::LOCAL_ENV_3_RELEASE) {
 		return CurveKind::RELEASE_RATE;
 	}
-	if (params::LOCAL_ENV_0_ATTACK <= p && p <= params::LOCAL_ENV_3_ATTACK) {
+	if (modulation::params::LOCAL_ENV_0_ATTACK <= p && p <= modulation::params::LOCAL_ENV_3_ATTACK) {
 		return CurveKind::EXP_ATTACK;
 	}
 	return CurveKind::EXP;
@@ -99,13 +98,13 @@ namespace params = modulation::params;
 /// depth as it is).
 [[nodiscard]] constexpr DepthMode depth_mode_of(PatchSource from, int32_t p) {
 	switch (p) {
-	case params::LOCAL_PITCH_ADJUST:
+	case modulation::params::LOCAL_PITCH_ADJUST:
 		return from == PatchSource::VELOCITY ? DepthMode::SQUARED_PITCH_VELOCITY : DepthMode::SQUARED_PITCH_OTHER;
-	case params::LOCAL_OSC_A_PITCH_ADJUST:
-	case params::LOCAL_OSC_B_PITCH_ADJUST:
-	case params::LOCAL_MODULATOR_0_PITCH_ADJUST:
-	case params::LOCAL_MODULATOR_1_PITCH_ADJUST:
-	case params::GLOBAL_DELAY_RATE:
+	case modulation::params::LOCAL_OSC_A_PITCH_ADJUST:
+	case modulation::params::LOCAL_OSC_B_PITCH_ADJUST:
+	case modulation::params::LOCAL_MODULATOR_0_PITCH_ADJUST:
+	case modulation::params::LOCAL_MODULATOR_1_PITCH_ADJUST:
+	case modulation::params::GLOBAL_DELAY_RATE:
 		return DepthMode::SQUARED;
 	default:
 		return DepthMode::PLAIN;

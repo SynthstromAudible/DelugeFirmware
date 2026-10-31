@@ -68,7 +68,7 @@ int32_t mismatches(const Compiled& c) {
 			bad += dest.num_cables != routed.end_cable - routed.first_cable ? 1 : 0;
 			bad += dest.sources != routed.sources ? 1 : 0;
 			if (!depth) {
-				cabled |= uint64_t{1} << (routed.target.param_index() - scope.first_param);
+				cabled |= uint64_t{1} << (routed.target.param_index() - (g == 0 ? 0 : int32_t{params::FIRST_GLOBAL}));
 			}
 			for (int32_t k = 0; k < dest.num_cables; ++k) {
 				const int32_t at = dest.first_cable + k;

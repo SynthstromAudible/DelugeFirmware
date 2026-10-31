@@ -28,7 +28,7 @@ namespace deluge::synth::matrix {
 /// The bytes @ref compile_program needs for @p routing.
 [[nodiscard]] std::size_t program_size(const RoutingBuild& routing);
 
-/// Compiles @p routing (today's cable order: `compile_routing`'s) into a program laid out in @p storage, which must
+/// Compiles @p routing (keeping `compile_routing`'s cable order) into a program laid out in @p storage, which must
 /// hold @ref program_size bytes, aligned for MatrixProgram, and outlive the program.
 const MatrixProgram* compile_program(const RoutingBuild& routing, std::span<std::byte> storage);
 
