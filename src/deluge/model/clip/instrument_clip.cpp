@@ -22,6 +22,7 @@
 #include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
+#include "gui/views/session/track_link.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
@@ -43,7 +44,6 @@
 #include "model/scale/scale_change.h"
 #include "model/scale/utils.h"
 #include "model/song/song.h"
-#include "model/song/track_link.h"
 #include "modulation/arpeggiator.h"
 #include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
@@ -4374,8 +4374,8 @@ void InstrumentClip::abortRecording() {
 
 void InstrumentClip::getActiveModControllable(ModelStackWithTimelineCounter* modelStack) {
 	// Song view has no way to pick a drum, so track edit mode carries its own whole-kit / drum-row choice there.
-	bool useDrumRow = deluge::model::track_link::isSelected(output)
-	                      ? deluge::model::track_link::targetsDrumRow(output)
+	bool useDrumRow = deluge::gui::track_link::isSelected(output)
+	                      ? deluge::gui::track_link::targetsDrumRow(output)
 	                      : (!affectEntire && getRootUI() != &sessionView && getRootUI() != &arrangerView);
 
 	if (output->type == OutputType::KIT && useDrumRow) {

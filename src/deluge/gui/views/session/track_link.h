@@ -31,7 +31,7 @@ class Output;
 ///
 /// The mode itself is never saved. The values it writes are ordinary per-clip parameter values, so they are saved
 /// with the song exactly like a value set one clip at a time.
-namespace deluge::model::track_link {
+namespace deluge::gui::track_link {
 
 /// True while the mode is on (whether or not a track has been picked yet).
 bool modeIsOn();
@@ -80,4 +80,4 @@ bool returnFromMenu();
 void propagate(int32_t value, ModelStackWithAutoParam const* source, bool shouldLogAction,
                bool mayDeleteNodesInLinearRun, bool doMPEMode);
 
-} // namespace deluge::model::track_link
+} // namespace deluge::gui::track_link
