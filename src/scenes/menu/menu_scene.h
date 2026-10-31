@@ -1013,6 +1013,13 @@ private:
 	/// The voice usage page's counters, and the time since its last sample; `voice_usage_open_` is whether the
 	/// page was focused at the last tick, so that arriving on it starts a fresh session.
 	VoiceUsageSampler voice_usage_;
+	/// The shared blink phase of BACK and LEARN (`indicator_leds`' `ledBlinkState[0]`): its start on the shell's
+	/// clock, whether one has been taken, whether the next render takes a new one, and the screen it was last checked
+	/// against (`beginScreen` restarts it for a LEARN-blinking item).
+	uint32_t blink_origin_ms_ = 0;
+	bool blink_origin_known_ = false;
+	bool blink_restart_ = true;
+	const Node* blink_screen_ = nullptr;
 	uint32_t voice_usage_elapsed_ms_ = 0;
 	bool voice_usage_open_ = false;
 	/// What `render_horizontal`'s columns draw from, here rather than on the stack: a group page has up to

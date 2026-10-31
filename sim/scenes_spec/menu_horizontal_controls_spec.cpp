@@ -904,6 +904,40 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		expect(at != std::ranges::end(kids) && *(at + 1) == &menu::nodes::firmware_version).to_be_true();
 	});
 
+	it("the BACK and LEARN blinks start at the open and restart together on a LEARN-blinking item", _ {
+		// `blinkLed(IndicatorLED::BACK)` when the editor opens (`sound_editor.cpp:571`) and `blinkLed(LEARN)` in
+		// `beginScreen` for an item that wants it (`:1167-1169`): both reset the shared `ledBlinkState[0]` and its
+		// timer, so BACK restarts with LEARN (`indicator_leds.cpp:54-95`).
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open_real(menu::nodes::midi_commands);
+		r.shell.tick(0);
+		const auto led = [](ButtonId b) {
+			deluge::ui::LedFrame f;
+			menu_scene().leds(f);
+			for (const auto& [id, state] : f.entries()) {
+				if (id == static_cast<deluge::ui::LedId>(b)) {
+					return state;
+				}
+			}
+			return deluge::ui::LedState{deluge::ui::LedState::Kind::Off, 0, 0};
+		};
+		expect(static_cast<int>(led(ButtonId::Back).first_ms)).to_equal(250);
+		expect(static_cast<int>(led(ButtonId::Back).period_ms)).to_equal(110);
+		expect(static_cast<int>(led(ButtonId::Back).origin_ms)).to_equal(0);
+
+		r.enter(1000);
+		r.shell.tick(1010); // the press descends after this tick's render, and asks for the next
+		r.shell.tick(1020);
+		expect(static_cast<int>(menu::node_id(*menu_scene().focused())))
+		    .to_equal(static_cast<int>(menu::node_id(menu::nodes::midi_command_play)));
+		const uint32_t back_origin = led(ButtonId::Back).origin_ms;
+		expect(static_cast<int>(back_origin)).to_equal(1020);
+		expect(led(ButtonId::Learn).origin_ms).to_equal(back_origin);
+		expect(static_cast<int>(led(ButtonId::Learn).first_ms)).to_equal(250);
+	});
+
 	it("master's transpose column reads TRANSPOSE and a whole number below -9.99", _ {
 		// `MasterTranspose::getColumnLabel` (`master_transpose.h:74`); `Decimal::renderInHorizontalMenu` keeps three
 		// characters of a value at or below -10.00 (`decimal.cpp:181-186`).

@@ -160,6 +160,25 @@ describe shell_leds("shell::LedCompose", $ {
 		expect(led_is_on(blink(0), 0)).to_be_true();
 	});
 
+	it("a blink with a first period starts lit at its origin, as indicator_leds::blinkLed does", _ {
+		// `blinkLed(led)`: `initialState` on for `kInitialFlashTime` (250), then toggling every `kFlashTime` (110)
+		// (`hid/led/indicator_leds.cpp:78-95`, `:98-112`), measured from the call.
+		const LedState s{LedState::Kind::Blink, 110, 0, 1000, 250};
+		expect(led_is_on(s, 1000)).to_be_true();
+		expect(led_is_on(s, 1249)).to_be_true();
+		expect(led_is_on(s, 1250)).to_be_false();
+		expect(led_is_on(s, 1359)).to_be_false();
+		expect(led_is_on(s, 1360)).to_be_true();
+		expect(led_is_on(s, 1470)).to_be_false();
+		expect(*led_next_change(s, 1000)).to_equal(uint32_t(250));
+		expect(*led_next_change(s, 1250)).to_equal(uint32_t(110));
+		expect(*led_next_change(s, 1300)).to_equal(uint32_t(60));
+		// Without a first period the phase is the absolute clock's, as before.
+		const LedState plain{LedState::Kind::Blink, 110, 0};
+		expect(led_is_on(plain, 0)).to_be_true();
+		expect(led_is_on(plain, 110)).to_be_false();
+	});
+
 	it("writes only changes to the sink", _ {
 		LedSurface s;
 		const size_t play = static_cast<size_t>(static_cast<uint8_t>(kPlay));

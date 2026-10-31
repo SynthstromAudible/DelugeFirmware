@@ -25,6 +25,12 @@ struct LedState {
 	enum class Kind : uint8_t { Off, On, Blink } kind;
 	uint16_t period_ms;
 	uint32_t until_ms;
+	/// A blink's start, on the shell's clock; read only when `first_ms` is set.
+	uint32_t origin_ms = 0;
+	/// When set, a blink lit from `origin_ms` for this long and then toggling every `period_ms`, as
+	/// `indicator_leds::blinkLed` runs one (`kInitialFlashTime`, then `kFlashTime`). Zero: the phase is the absolute
+	/// clock's.
+	uint16_t first_ms = 0;
 };
 /// Per-segment LED levels of one knob's indicator column.
 struct KnobIndicator {

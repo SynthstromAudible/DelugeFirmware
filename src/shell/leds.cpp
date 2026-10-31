@@ -27,6 +27,15 @@ bool led_is_on(const LedState& s, uint32_t now_ms) {
 		if (s.period_ms == 0) {
 			return true;
 		}
+		if (s.first_ms != 0) {
+			// Lit for the first period from the origin, then toggling: off for the next `period_ms`, on for the one
+			// after (`indicator_leds::blinkLed`, `ledBlinkTimeout`).
+			const uint32_t elapsed = now_ms - s.origin_ms;
+			if (elapsed < s.first_ms) {
+				return true;
+			}
+			return (((elapsed - s.first_ms) / s.period_ms) & 1u) == 1;
+		}
 		return ((now_ms / s.period_ms) & 1u) == 0;
 	}
 	return false;
@@ -46,8 +55,12 @@ std::optional<uint32_t> led_next_change(const LedState& s, uint32_t now_ms) {
 	}
 	// The next half-period boundary. `now_ms % period` is 0 exactly on a boundary, which makes this
 	// a full period rather than zero -- correct, because the flip at `now_ms` has already been
-	// rendered by the caller that asked.
+	// rendered by the caller that asked. A blink with a first period counts from its origin instead.
 	uint32_t next = s.period_ms - (now_ms % s.period_ms);
+	if (s.first_ms != 0) {
+		const uint32_t elapsed = now_ms - s.origin_ms;
+		next = elapsed < s.first_ms ? s.first_ms - elapsed : s.period_ms - ((elapsed - s.first_ms) % s.period_ms);
+	}
 	// The alert deadline is a change too: at it the LED goes solid on, whatever phase it was in.
 	if (s.until_ms != 0) {
 		const uint32_t to_deadline = s.until_ms - now_ms;

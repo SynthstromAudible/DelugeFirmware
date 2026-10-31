@@ -349,6 +349,7 @@ void MenuScene::open(const Node& root, const MenuContext& ctx) {
 	st_ = MenuState{};
 	use_up_select_ = true;
 	learn_mode_ = false;
+	blink_restart_ = true; // `blinkLed(IndicatorLED::BACK)` as the editor opens (`sound_editor.cpp:571`)
 	landing_column_ = nullptr;
 	retarget(root);
 }
@@ -502,6 +503,7 @@ void MenuScene::restore_row() {
 }
 
 bool MenuScene::on_enter(const SceneId& id) {
+	blink_restart_ = true; // `blinkLed(IndicatorLED::BACK)` (`sound_editor.cpp:571`)
 	// `SceneId::arg` is deliberately NOT part of the `SceneState` cache key (`shell/scene.h:68`),
 	// so a re-entry restores the kind's last saved state and *then* lands here: this must
 	// overwrite `path`/`depth` from `arg` rather than trust what `restore_state` put there.
@@ -610,6 +612,8 @@ uint16_t MenuScene::arm_shortcut_landing(const Node& target) {
 }
 
 void MenuScene::on_resume() {
+	blink_restart_ =
+	    true; // `focusRegained`'s `setLedStates` -> `blinkLed(IndicatorLED::BACK)` (`sound_editor.cpp:552`)
 	// `SoundEditor::focusRegained` (`gui/ui/sound_editor.cpp:317-327`): "If just came back from a
 	// deeper nested UI", step up one level. The flag is set where the push was requested (see
 	// `after_render`), and it is what stops the item that opened the pushed scene from opening it
@@ -1257,6 +1261,17 @@ void MenuScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) {
 	if (node == nullptr) {
 		return;
 	}
+	// `beginScreen`'s `blinkLed(LEARN)` for an item that wants it (`sound_editor.cpp:1167-1169`) restarts the shared
+	// phase, BACK's too; the open's and LEARN's release are filed in `blink_restart_`.
+	if (node != blink_screen_) {
+		blink_screen_ = node;
+		blink_restart_ = blink_restart_ || wants_learn_blink();
+	}
+	if (blink_restart_) {
+		blink_restart_ = false;
+		blink_origin_ms_ = f.now_ms();
+		blink_origin_known_ = true;
+	}
 
 	st_.render_resp = {};
 	st_.column_press = false;
@@ -1813,8 +1828,14 @@ void MenuScene::leds(deluge::ui::LedFrame& f) {
 	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::CrossScreen), cross_screen ? kOn : kOff);
 	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Scale), scale ? kOn : kOff);
 
-	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Back),
-	            deluge::ui::LedState{deluge::ui::LedState::Kind::Blink, kBackBlinkMs, 0});
+	// `blinkLed`'s default blink: lit for `kInitialFlashTime` from where the shared phase last restarted, then
+	// `kFlashTime` (`indicator_leds.cpp:78-95`); before the first render has taken a start, the plain period.
+	constexpr uint16_t kInitialBlinkMs = 250;
+	const deluge::ui::LedState shared_blink =
+	    blink_origin_known_ ? deluge::ui::LedState{deluge::ui::LedState::Kind::Blink, kBackBlinkMs, 0, blink_origin_ms_,
+	                                               kInitialBlinkMs}
+	                        : deluge::ui::LedState{deluge::ui::LedState::Kind::Blink, kBackBlinkMs, 0};
+	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Back), shared_blink);
 	// `SoundEditor::beginScreen`'s tail (`sound_editor.cpp:949-954`): every screen change asks the
 	// item whether it wants the LEARN LED, and blinks or extinguishes it accordingly. Declared on
 	// every tick rather than only on a change, because that is what an `LedFrame` is -- the full
@@ -1827,9 +1848,7 @@ void MenuScene::leds(deluge::ui::LedFrame& f) {
 		            deluge::ui::LedState{deluge::ui::LedState::Kind::Blink, kLearningBlinkMs, 0});
 	}
 	else {
-		(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Learn),
-		            wants_learn_blink() ? deluge::ui::LedState{deluge::ui::LedState::Kind::Blink, kBackBlinkMs, 0}
-		                                : kOff);
+		(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Learn), wants_learn_blink() ? shared_blink : kOff);
 	}
 }
 
@@ -2393,6 +2412,9 @@ Result MenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 	if (event.kind == UiEvent::Kind::Button && event.button == ButtonId::Learn) {
 		const bool pad_held = std::ranges::any_of(ctx.held_pads.cols, [](uint32_t col) { return col != 0; });
 		learn_mode_ = false;
+		if (!event.on && wants_learn_blink()) {
+			blink_restart_ = true; // the release's `blinkLed(LEARN)` (`sound_editor.cpp:736-738`)
+		}
 		if (event.on && !pad_held && !ctx_.addresses.affect_entire) {
 			if (!allows_learn_mode()) {
 				deluge::notify::notice_string(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_CANT_LEARN));
