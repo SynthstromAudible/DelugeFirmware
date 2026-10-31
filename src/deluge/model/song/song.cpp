@@ -2189,9 +2189,8 @@ loadOutput:
 			anyOutputsSoloingInArrangement = true;
 		}
 
-		if (thisOutput->clipInstances.getNumElements() == 0
-		    && getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)thisOutput, nullptr) == nullptr
-		    && thisOutput->type == OutputType::AUDIO) {
+		if (thisOutput->type == OutputType::AUDIO && thisOutput->clipInstances.getNumElements() == 0
+		    && getBackedUpParamManagerPreferablyWithClip(static_cast<AudioOutput*>(thisOutput), nullptr) == nullptr) {
 			// This clip has no way to get a param manager, and no clips to help it out. Need to create a backup or
 			// things will go wrong later.
 			ParamManagerForTimeline paramManager{};
@@ -2199,7 +2198,7 @@ loadOutput:
 			paramManager.setupUnpatched();
 			GlobalEffectable::initParams(&paramManager);
 
-			this->backUpParamManager((ModControllableAudio*)thisOutput->toModControllable(), nullptr, &paramManager);
+			this->backUpParamManager(static_cast<AudioOutput*>(thisOutput), nullptr, &paramManager);
 		}
 
 		for (int32_t i = 0; i < thisOutput->clipInstances.getNumElements(); i++) {
