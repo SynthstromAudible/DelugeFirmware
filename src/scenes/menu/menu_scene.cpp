@@ -1163,9 +1163,15 @@ std::string_view column_notification(const Node& column, const MenuContext& ctx,
 		return std::string_view{out.data(), copied};
 	};
 	switch (column.kind) {
-	case Kind::Decimal:
-		// `Decimal::getNotificationValue` (`decimal.h:31-33`).
-		return format_decimal(value, column.bind.decimal_places, out.data(), out.size());
+	case Kind::Decimal: {
+		// `Decimal::getNotificationValue` (`decimal.h:31-33`), and what an override appends to it.
+		const std::string_view base = format_decimal(value, column.bind.decimal_places, out.data(), out.size());
+		if (column.bind.notification_suffix == nullptr) {
+			return base;
+		}
+		const size_t added = column.bind.notification_suffix(ctx, out.subspan(base.size()));
+		return std::string_view{out.data(), base.size() + added};
+	}
 	case Kind::Enum: {
 		// `Selection::getNotificationValue` (`selection.cpp:62-64`): the option's full name.
 		std::array<std::string_view, kMaxDynamicNames> names{};
@@ -1271,7 +1277,13 @@ void MenuScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) {
 		render_leaf_int(f, *node);
 		break;
 	case Kind::Decimal:
-		render_leaf_decimal(f, *node);
+		// A `DecimalWithoutScrolling` names its value and edits a step at a time, as an integer screen does.
+		if (node->bind.leaf_text != nullptr) {
+			render_leaf_int(f, *node);
+		}
+		else {
+			render_leaf_decimal(f, *node);
+		}
 		break;
 	case Kind::Enum:
 		render_leaf_enum(f, *node);

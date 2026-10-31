@@ -75,10 +75,12 @@ inline constexpr IntRange kSidechainRateRange{0, 50, 1};
 // is a `patch_cable_strength::Fixed` on GLOBAL_VOLUME_POST_REVERB_SEND from the SIDECHAIN source.
 // The reverb's recompute its `writeCurrentValue` raises (`sidechain/volume.h:26-29`) is the cable
 // Edit's: SetPatchCable raises it for this cable.
-inline constexpr Node sidechain_volume = with_column_name(
-    with_select_chain(custom(sid(deluge::l10n::String::STRING_FOR_VOLUME_DUCKING), &kSidechainVolumeItem),
-                      &patch_cable_strength_chain, kPatchCableStrengthChain),
-    sid(deluge::l10n::String::STRING_FOR_VOLUME_DUCKING_SHORT));
+inline constexpr Node sidechain_volume =
+    with_value_text(with_column_name(with_select_chain(custom(sid(deluge::l10n::String::STRING_FOR_VOLUME_DUCKING),
+                                                              &kSidechainVolumeItem),
+                                                       &patch_cable_strength_chain, kPatchCableStrengthChain),
+                                     sid(deluge::l10n::String::STRING_FOR_VOLUME_DUCKING_SHORT)),
+                    cable_strength_text);
 inline constexpr Node sidechain_sync =
     with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_SYNC), Kind::SyncLevel,
                             {.kind = deluge::scenes::bind::Target::Kind::EFFECT, .path = "sidechain/syncLevel"}),

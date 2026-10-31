@@ -129,6 +129,53 @@ std::string_view range_row_label(const MenuContext& ctx, int32_t index, char* bu
 	return {buf, len};
 }
 
+namespace {
+
+size_t transpose_range_suffix(const MenuContext& ctx, int32_t source, std::span<char> out) {
+	// `sample::Transpose::getNotificationValue` (`sample/transpose.h:158-191`): only for the chosen range of a sample
+	// source with several.
+	const int32_t count = range_count(ctx);
+	const int32_t index = ctx.range_index;
+	if (ctx.source_index != source || index < 0 || count <= 1 || index >= count) {
+		return 0;
+	}
+	const instrument::SoundState* sound =
+	    ctx.facts != nullptr && ctx.addresses.slot ? ctx.facts->sound_state(*ctx.addresses.slot) : nullptr;
+	if (sound == nullptr || sound->sources[source].osc_type != OscType::SAMPLE) {
+		return 0;
+	}
+	char* buf = out.data();
+	const size_t cap = out.size() + 1;
+	size_t len = 0;
+	deluge::ui::shell::TextScratch scratch;
+	append(buf, len, cap, " (");
+	if (index == 0) {
+		append(buf, len, cap, deluge_profile().text_or_digits(sid(String::STRING_FOR_BOTTOM), scratch));
+	}
+	else {
+		append_note_name(buf, len, cap, range_top_note(ctx, index - 1) + 1);
+	}
+	append(buf, len, cap, "-");
+	if (index == count - 1) {
+		append(buf, len, cap, "top");
+	}
+	else {
+		append_note_name(buf, len, cap, range_top_note(ctx, index));
+	}
+	append(buf, len, cap, ")");
+	return len;
+}
+
+} // namespace
+
+size_t transpose0_range_suffix(const MenuContext& ctx, std::span<char> out) {
+	return transpose_range_suffix(ctx, 0, out);
+}
+
+size_t transpose1_range_suffix(const MenuContext& ctx, std::span<char> out) {
+	return transpose_range_suffix(ctx, 1, out);
+}
+
 void MultiRangeItem::on_focus(const MenuContext& ctx, MenuState& state) const {
 	// `MultiRange::beginSession` (`multi_range.cpp:39-65`).
 	// The default is the range last chosen for this source -- the scenes' view state, by slot and source.

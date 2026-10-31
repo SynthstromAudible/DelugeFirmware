@@ -210,6 +210,10 @@ inline const PatchCableStrengthItem kVibratoItem{
     PatchCableStrengthItem::Which::Fixed, deluge::modulation::params::LOCAL_PITCH_ADJUST, PatchSource::LFO_GLOBAL_1};
 /// `sidechainVolumeShortcutMenu` (`menus.cpp:806-807`): GLOBAL_VOLUME_POST_REVERB_SEND from
 /// SIDECHAIN. The reverb copies this cable, so its Edit raises the reverb's recompute.
+/// @brief `PatchCableStrength::getNotificationValue` (`patch_cable_strength.h:71-73`): the banner of a cable strength
+///        column, its value over 100 to two places.
+ValueText cable_strength_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
+
 inline const PatchCableStrengthItem kSidechainVolumeItem{PatchCableStrengthItem::Which::Fixed,
                                                          deluge::modulation::params::GLOBAL_VOLUME_POST_REVERB_SEND,
                                                          PatchSource::SIDECHAIN};

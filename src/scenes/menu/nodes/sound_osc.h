@@ -157,6 +157,15 @@ inline constexpr IntRange kTransposeRange{-9600, 9600, 1};
 /// `source_id_` member, so each source needs its own pair, and because the `Node`s have to be
 /// distinct objects for their addresses to go in a `children` array. Bodies in the `.cpp`
 /// (`DELUGE_OSC_SOURCE_HOOKS`).
+/// @brief `sample::Transpose::getNotificationValue`'s range suffix for source 1 or 2 (`sample/transpose.h:158-191`):
+///        " (BOTTOM-C3)" and the like on a multisample's chosen range, nothing otherwise. Defined beside the range
+///        picker's labels, in `multi_range.cpp`.
+/// @param ctx The menu context: its source and range.
+/// @param out Where the suffix goes.
+/// @return Its length.
+size_t transpose0_range_suffix(const MenuContext& ctx, std::span<char> out);
+size_t transpose1_range_suffix(const MenuContext& ctx, std::span<char> out);
+
 #define DELUGE_OSC_SOURCE(i, name_id, osc_path)                                                                        \
 	int32_t get_source##i##_transpose(const MenuContext& ctx);                                                         \
 	void set_source##i##_transpose(const MenuContext& ctx, int32_t v);                                                 \
@@ -175,14 +184,16 @@ inline constexpr IntRange kTransposeRange{-9600, 9600, 1};
 	                                               &kFile##i##Selector, relevance::osc##i##_file_selector))),          \
 	                                    file_selector_art),                                                            \
 	                    file##i##_label);                                                                              \
-	inline constexpr Node source##i##_transpose = with_title_arg(                                                      \
-	    with_patch_chain(with_range_dependent(with_learn_param(                                                        \
-	        with_title(decimal_item(sid(deluge::l10n::String::STRING_FOR_TRANSPOSE), get_source##i##_transpose,        \
-	                                set_source##i##_transpose, kTransposeRange, 2, relevance::osc##i##_transpose),     \
-	                   sid(deluge::l10n::String::STRING_FOR_OSC_TRANSPOSE_MENU_TITLE)),                                \
-	        {deluge::modulation::params::Kind::PATCHED,                                                                \
-	         static_cast<uint8_t>(deluge::modulation::params::LOCAL_OSC_A_PITCH_ADJUST + (i))}))),                     \
-	    (i) + 1);                                                                                                      \
+	inline constexpr Node source##i##_transpose = with_notification_suffix(                                            \
+	    with_title_arg(                                                                                                \
+	        with_patch_chain(with_range_dependent(with_learn_param(                                                    \
+	            with_title(decimal_item(sid(deluge::l10n::String::STRING_FOR_TRANSPOSE), get_source##i##_transpose,    \
+	                                    set_source##i##_transpose, kTransposeRange, 2, relevance::osc##i##_transpose), \
+	                       sid(deluge::l10n::String::STRING_FOR_OSC_TRANSPOSE_MENU_TITLE)),                            \
+	            {deluge::modulation::params::Kind::PATCHED,                                                            \
+	             static_cast<uint8_t>(deluge::modulation::params::LOCAL_OSC_A_PITCH_ADJUST + (i))}))),                 \
+	        (i) + 1),                                                                                                  \
+	    transpose##i##_range_suffix);                                                                                  \
 	inline constexpr Node source##i##_wave_index = with_title_arg(                                                     \
 	    with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_WAVE_INDEX),                                       \
 	                           {deluge::modulation::params::Kind::PATCHED,                                             \

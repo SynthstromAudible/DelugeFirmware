@@ -30,6 +30,9 @@
 #include "shell/shell.h"
 
 #include "definitions_cxx.hpp"
+#include "dsp-next/fixed/dynamics/compressor_kernel.h"
+#include "dsp-next/fixed/dynamics/rms_feedback_compressor.h"
+#include "foundation/string_format.h"
 #include "gfx/oled/icons.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
@@ -42,6 +45,7 @@
 #include "modulation/sync.h"
 #include "processing/sound/sound_instrument.h"
 #include "processing/source.h"
+#include "util/functions.h"
 
 #include "support/menu_engine.h"
 #include "support/no_notification_sink.h"
@@ -747,6 +751,117 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		expect(std::string(menu::nodes::last_folder("SAMPLES/DRUMS/kick.wav"))).to_equal(std::string("DRUMS"));
 		expect(std::string(menu::nodes::last_folder("kick.wav"))).to_equal(std::string(""));
 		expect(std::string(menu::nodes::last_folder("/kick.wav"))).to_equal(std::string(""));
+	});
+
+	it("the compressor banners read main's display value and unit", _ {
+		// `DecimalWithoutScrolling::getNotificationValue` (`decimal.cpp:221-225`) over each `CompressorValue`'s
+		// `getDisplayValue`, places and unit (`audio_compressor/compressor_values.h:49-133`).
+		select_language();
+		Rig r;
+		const MenuContext ctx = r.open(horiz_page);
+		char buf[32];
+		const auto banner = [&](const Node& node, int32_t value) {
+			return std::string(menu::column_notification(node, ctx, value, std::span<char>{buf, sizeof(buf)}));
+		};
+		const auto shown = [](float display, int32_t places, const char* unit) {
+			char digits[24];
+			floatToString(display, digits, places, places);
+			return std::string(digits) + unit;
+		};
+		namespace fx = deluge::dsp::fixed;
+		expect(banner(menu::nodes::comp_attack, 64)).to_equal(shown(fx::compressor_attack_ms(64 << 24), 2, "MS"));
+		expect(banner(menu::nodes::comp_release, 30)).to_equal(shown(fx::compressor_release_ms(30 << 24), 1, "MS"));
+		expect(banner(menu::nodes::comp_ratio, 10)).to_equal(shown(fx::compressor_ratio(10 << 24), 2, " : 1"));
+		expect(banner(menu::nodes::comp_hpf, 0)).to_equal(shown(fx::compressor_sidechain_hz(0), 2, "HZ"));
+		expect(banner(menu::nodes::comp_blend, 128))
+		    .to_equal(std::to_string(fx::compressor_blend_percent(std::numeric_limits<int32_t>::max())) + " %");
+	});
+
+	it("a compressor value's screen is main's display value and unit, edited a step at a time", _ {
+		// `DecimalWithoutScrolling::drawPixelsForOled` (`decimal.cpp:217-219`): `drawDecimal(kTextHugeSpacingX,
+		// kTextHugeSizeY, 18)`, no edit cursor.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		MenuContext ctx = r.open_real(menu::nodes::audio_comp);
+		ctx.horizontal_menus = false;
+		menu_scene().open(menu::nodes::audio_comp, ctx);
+		r.shell.tick(0);
+		r.turn(3, 300); // threshold, ratio, blend, attack (`kCompChildren`)
+		r.shell.tick(310);
+		r.enter(5000);
+		r.shell.tick(5010);
+		expect(menu_scene().focused() == &menu::nodes::comp_attack).to_be_true();
+		const int32_t before = menu::bindings::read(menu::nodes::comp_attack, ctx);
+		r.turn(1, 5300);
+		r.shell.tick(5310);
+		r.shell.tick(5400);
+		const int32_t after = menu::bindings::read(menu::nodes::comp_attack, ctx);
+		expect(after).to_equal(before + 1);
+
+		deluge::ui::test::Rig48 rig48;
+		rig48.begin_tick(6000);
+		menu_scene().render_oled(uitest::SurfaceRole::Main, rig48.frame);
+		char digits[24];
+		floatToString(deluge::dsp::fixed::compressor_attack_ms(after << 24), digits, 2, 2);
+		const std::string text = std::string(digits) + "MS";
+		deluge::ui::test::Rig48 want;
+		want.reference.draw_string_centred(text.c_str(), 18 + 5, 18, 20);
+		bool same = true;
+		for (int32_t y = 23; y <= 42; y++) {
+			for (int32_t x = 0; x < 128; x++) {
+				same = same && rig48.lit(x, y) == want.reference_lit(x, y);
+			}
+		}
+		expect(same).to_be_true();
+	});
+
+	it("a sample transpose banner names its range on a multisample, as main's", _ {
+		// `sample::Transpose::getNotificationValue` (`sample/transpose.h:158-191`): " (BOTTOM-C3)" and the like.
+		select_language();
+		Rig r;
+		MenuContext ctx = r.open(horiz_page);
+		::Sound& sound = *spec::menu_engine(ctx).sound;
+		deluge::edits::settingFor(sound, "osc1/type", deluge::serialization::Value::makeScalar("sample"));
+		(void)sound.sources[0].getOrCreateFirstRange();
+		sound.sources[0].ranges.getElement(0)->topNote = 40;
+		sound.sources[0].ranges.insertMultiRange(1)->topNote = 60;
+		sound.sources[0].ranges.insertMultiRange(2)->topNote = 32767;
+		deluge::edits::recordRanges(sound, 0);
+		r.shell.tick(0);
+		char buf[48];
+		const auto banner = [&](int32_t value) {
+			return std::string(
+			    menu::column_notification(menu::nodes::source0_transpose, ctx, value, std::span<char>{buf, sizeof(buf)}));
+		};
+		const auto note = [](int32_t code) {
+			char name[8];
+			noteCodeToString(code, name);
+			return std::string(name);
+		};
+		ctx.source_index = 0;
+		ctx.range_index = 0;
+		expect(banner(150)).to_equal("1.50 (" + std::string(deluge::l10n::get(String::STRING_FOR_BOTTOM)) + "-" + note(40)
+		                             + ")");
+		ctx.range_index = 1;
+		expect(banner(-150)).to_equal("-1.50 (" + note(41) + "-" + note(60) + ")");
+		ctx.range_index = 2;
+		expect(banner(0)).to_equal("0.00 (" + note(61) + "-top)");
+		ctx.range_index = -1;
+		expect(banner(0)).to_equal("0.00");
+	});
+
+	it("a patch cable strength's banner is its value over 100, two places", _ {
+		// `PatchCableStrength::getNotificationValue` (`patch_cable_strength.h:71-73`).
+		select_language();
+		Rig r;
+		const MenuContext ctx = r.open(horiz_page);
+		char buf[32];
+		const auto banner = [&](const Node& node, int32_t value) {
+			return std::string(menu::column_notification(node, ctx, value, std::span<char>{buf, sizeof(buf)}));
+		};
+		expect(banner(menu::nodes::sidechain_volume, 3700)).to_equal(std::string("37.00"));
+		expect(banner(menu::nodes::vibrato, -250)).to_equal(std::string("-2.50"));
 	});
 
 	it("master's transpose column reads TRANSPOSE and a whole number below -9.99", _ {

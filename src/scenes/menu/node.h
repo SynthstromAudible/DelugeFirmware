@@ -228,6 +228,10 @@ using ColumnDrawFn = std::optional<deluge::ui::oled::DrawColumn> (*)(const MenuC
 ///        `selectEncoderAction` overrides that negate the offset on a horizontal page.
 using ReverseFn = bool (*)(const MenuContext& ctx);
 
+/// @brief `Binding::notification_suffix`'s hook: write what follows the kind's own notification text into @p out.
+/// @return How many bytes it wrote.
+using NotificationSuffixFn = size_t (*)(const MenuContext& ctx, std::span<char> out);
+
 /// @brief `Binding::turn`'s hook: the value a turn of @p offset detents makes from @p value, or `nullopt`.
 using TurnFn = std::optional<int32_t> (*)(const MenuContext& ctx, int32_t value, int32_t offset);
 
@@ -394,6 +398,10 @@ struct Binding {
 
 	/// @brief A select turn on this node's horizontal column is reversed when this answers true. Null: never.
 	ReverseFn reverse_in_horizontal = nullptr;
+
+	/// @brief Legacy's `getNotificationValue` override that appends to its base class's text. Null for every
+	///        ordinary node.
+	NotificationSuffixFn notification_suffix = nullptr;
 
 	/// @brief Legacy's `selectEncoderAction` override that moves the value its own way: the value a turn of `offset`
 	///        detents makes from `value`, on a page and full-screen alike, or `nullopt` for the kind's own step.
@@ -1016,6 +1024,12 @@ constexpr Node with_wrap_in_horizontal(Node n) {
 /// @brief `n` with its horizontal select turn reversed when @p reverse answers true (`Binding::reverse_in_horizontal`).
 constexpr Node with_reverse_in_horizontal(Node n, ReverseFn reverse) {
 	n.bind.reverse_in_horizontal = reverse;
+	return n;
+}
+
+/// @brief `n` with @p suffix after its notification text (`Binding::notification_suffix`).
+constexpr Node with_notification_suffix(Node n, NotificationSuffixFn suffix) {
+	n.bind.notification_suffix = suffix;
 	return n;
 }
 

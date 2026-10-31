@@ -22,14 +22,9 @@
 ///       `bindings.h` says a table must name at the call site because nothing can infer it. The
 ///       validator's `Flag::HalfPrecision` audit re-checks that it is set (`kHalfPrecisionNodes`).
 ///
-/// @note **The five `CompressorValue`s are `Kind::Decimal` over the raw 0..`kMaxKnobPos` knob
-///       position, not over the number legacy prints.** Legacy is a `DecimalWithoutScrolling`
-///       (`compressor_values.h:18`) whose `getDisplayValue()` returns a derived float in real units
-///       -- milliseconds, a ratio, hertz, a percentage (`:64`, `:77`, `:92`, `:104`, `:125`) -- with
-///       a unit suffix, while its stored value is the knob position. `Binding` has a
-///       `decimal_places` but no display transform and no unit, so this generation stores and edits
-///       the knob position and renders it with legacy's own decimal-place count. Recorded as a known
-///       gap for E2 (a `Binding` display hook), not a silent difference.
+/// @note **The five `CompressorValue`s store and edit the knob position** (`Kind::Decimal` over 0..`kMaxKnobPos`), as
+///       legacy's `DecimalWithoutScrolling` does (`compressor_values.h:18`); their banners and screens show
+///       `getDisplayValue()`'s real units through `compressor_banner`/`compressor_screen`.
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/detail.h"
@@ -44,51 +39,82 @@ struct MenuContext;
 
 namespace deluge::scenes::menu::nodes {
 
+/// @brief Which `audio_compressor::CompressorValue` a hook formats (`compressor_values.h:68-134`).
+enum class CompressorShown : uint8_t { Attack, Release, Ratio, SidechainHpf, Blend };
+
+/// @brief `DecimalWithoutScrolling::getNotificationValue` (`decimal.cpp:221-225`): the display value with its places
+///        and unit, for the banner only.
+template <CompressorShown kWhich>
+ValueText compressor_banner(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
+/// @brief `DecimalWithoutScrolling::drawPixelsForOled` (`decimal.cpp:217-219`): the same text, for the screen.
+template <CompressorShown kWhich>
+ValueText compressor_screen(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
+
 inline constexpr Node comp_threshold = param(
     sid(deluge::l10n::String::STRING_FOR_THRESHOLD),
     {deluge::modulation::params::Kind::UNPATCHED_SOUND, deluge::modulation::params::UNPATCHED_COMPRESSOR_THRESHOLD},
     Hint::Bar, nullptr, sid(deluge::l10n::String::STRING_FOR_COMP_THRESHOLD_MENU_TITLE), Scaling::HalfPrecision);
 // The decimal-place counts are `compressor_values.h:52`, `:78` and `:127`; the hints are
 // `getRenderingStyle()` at `:54`, `:65`, `:79` and `:106`.
-inline constexpr Node comp_ratio = with_horizontal_step(
-    with_hint(with_decimal_places(
-                  setting_item(sid(deluge::l10n::String::STRING_FOR_RATIO), Kind::Decimal,
-                               {.kind = deluge::scenes::bind::Target::Kind::EFFECT, .path = "audioCompressor/ratio"}),
-                  2),
-              Hint::Knob),
-    HorizontalStep{.coarse = 1, .fine = 1});
-inline constexpr Node comp_blend = with_horizontal_step(
-    with_hint(with_decimal_places(setting_item(sid(deluge::l10n::String::STRING_FOR_BLEND), Kind::Decimal,
-                                               {.kind = deluge::scenes::bind::Target::Kind::EFFECT,
-                                                .path = "audioCompressor/compBlend"}),
-                                  0),
-              Hint::Knob),
-    HorizontalStep{.coarse = 1, .fine = 1});
-inline constexpr Node comp_attack = with_horizontal_step(
-    with_column_name(
-        with_hint(with_decimal_places(setting_item(sid(deluge::l10n::String::STRING_FOR_ATTACK), Kind::Decimal,
-                                                   {.kind = deluge::scenes::bind::Target::Kind::EFFECT,
-                                                    .path = "audioCompressor/attack"}),
-                                      2),
-                  Hint::Attack),
-        sid(deluge::l10n::String::STRING_FOR_ATTACK_SHORT)),
-    HorizontalStep{.coarse = 1, .fine = 1});
-inline constexpr Node comp_release = with_horizontal_step(
-    with_column_name(
-        with_hint(with_decimal_places(setting_item(sid(deluge::l10n::String::STRING_FOR_RELEASE), Kind::Decimal,
-                                                   {.kind = deluge::scenes::bind::Target::Kind::EFFECT,
-                                                    .path = "audioCompressor/release"}),
-                                      1),
-                  Hint::Release),
-        sid(deluge::l10n::String::STRING_FOR_RELEASE_SHORT)),
-    HorizontalStep{.coarse = 1, .fine = 1});
-inline constexpr Node comp_hpf = with_horizontal_step(
-    with_hint(with_decimal_places(
-                  setting_item(sid(deluge::l10n::String::STRING_FOR_HPF), Kind::Decimal,
-                               {.kind = deluge::scenes::bind::Target::Kind::EFFECT, .path = "audioCompressor/compHPF"}),
-                  2),
-              Hint::Hpf),
-    HorizontalStep{.coarse = 1, .fine = 1});
+inline constexpr Node comp_ratio = with_leaf_text(
+    with_value_text(
+        with_horizontal_step(
+            with_hint(with_decimal_places(setting_item(sid(deluge::l10n::String::STRING_FOR_RATIO), Kind::Decimal,
+                                                       {.kind = deluge::scenes::bind::Target::Kind::EFFECT,
+                                                        .path = "audioCompressor/ratio"}),
+                                          2),
+                      Hint::Knob),
+            HorizontalStep{.coarse = 1, .fine = 1}),
+        compressor_banner<CompressorShown::Ratio>),
+    compressor_screen<CompressorShown::Ratio>);
+inline constexpr Node comp_blend = with_leaf_text(
+    with_value_text(
+        with_horizontal_step(
+            with_hint(with_decimal_places(setting_item(sid(deluge::l10n::String::STRING_FOR_BLEND), Kind::Decimal,
+                                                       {.kind = deluge::scenes::bind::Target::Kind::EFFECT,
+                                                        .path = "audioCompressor/compBlend"}),
+                                          0),
+                      Hint::Knob),
+            HorizontalStep{.coarse = 1, .fine = 1}),
+        compressor_banner<CompressorShown::Blend>),
+    compressor_screen<CompressorShown::Blend>);
+inline constexpr Node comp_attack = with_leaf_text(
+    with_value_text(
+        with_horizontal_step(
+            with_column_name(
+                with_hint(with_decimal_places(setting_item(sid(deluge::l10n::String::STRING_FOR_ATTACK), Kind::Decimal,
+                                                           {.kind = deluge::scenes::bind::Target::Kind::EFFECT,
+                                                            .path = "audioCompressor/attack"}),
+                                              2),
+                          Hint::Attack),
+                sid(deluge::l10n::String::STRING_FOR_ATTACK_SHORT)),
+            HorizontalStep{.coarse = 1, .fine = 1}),
+        compressor_banner<CompressorShown::Attack>),
+    compressor_screen<CompressorShown::Attack>);
+inline constexpr Node comp_release = with_leaf_text(
+    with_value_text(
+        with_horizontal_step(
+            with_column_name(
+                with_hint(with_decimal_places(setting_item(sid(deluge::l10n::String::STRING_FOR_RELEASE), Kind::Decimal,
+                                                           {.kind = deluge::scenes::bind::Target::Kind::EFFECT,
+                                                            .path = "audioCompressor/release"}),
+                                              1),
+                          Hint::Release),
+                sid(deluge::l10n::String::STRING_FOR_RELEASE_SHORT)),
+            HorizontalStep{.coarse = 1, .fine = 1}),
+        compressor_banner<CompressorShown::Release>),
+    compressor_screen<CompressorShown::Release>);
+inline constexpr Node comp_hpf = with_leaf_text(
+    with_value_text(
+        with_horizontal_step(
+            with_hint(with_decimal_places(setting_item(sid(deluge::l10n::String::STRING_FOR_HPF), Kind::Decimal,
+                                                       {.kind = deluge::scenes::bind::Target::Kind::EFFECT,
+                                                        .path = "audioCompressor/compHPF"}),
+                                          2),
+                      Hint::Hpf),
+            HorizontalStep{.coarse = 1, .fine = 1}),
+        compressor_banner<CompressorShown::SidechainHpf>),
+    compressor_screen<CompressorShown::SidechainHpf>);
 
 inline constexpr const Node* kCompChildren[] = {&comp_threshold, &comp_ratio,   &comp_blend,
                                                 &comp_attack,    &comp_release, &comp_hpf};

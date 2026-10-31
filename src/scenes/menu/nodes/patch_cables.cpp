@@ -308,6 +308,19 @@ size_t depth_of(const MenuState& state) {
 
 } // namespace
 
+ValueText cable_strength_text(const MenuContext&, int32_t value, ValueTextUse use, std::span<char> out) {
+	// `PatchCableStrength::getNotificationValue` (`patch_cable_strength.h:71-73`): the value over 100, two places.
+	if (use != ValueTextUse::Notification) {
+		return kValueTextFallback;
+	}
+	char buf[16];
+	size_t len = 0;
+	append_cable_value(buf, len, sizeof(buf), value);
+	const size_t n = std::min(len, out.size());
+	std::memcpy(out.data(), buf, n);
+	return ValueText{.length = n};
+}
+
 // ---------------------------------------------------------------------------------------------
 // PatchCablesItem -- `menu_item::PatchCables`.
 
