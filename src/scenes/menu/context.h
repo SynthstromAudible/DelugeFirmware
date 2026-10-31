@@ -47,6 +47,12 @@ struct Node;
 /// writes through: the host's runtime facts and its sink. Its flags say which kind of context `context_for()`
 /// resolved. The engine objects it was built from stay in the builder.
 struct MenuContext {
+	/// @brief The `HorizontalMenus` community feature, read when the context is made: off, every horizontal page
+	/// renders
+	///        and edits as a vertical list and the horizontal-menu chains answer nothing
+	///        (`horizontal_menu.cpp:592-597`, `sound_editor.cpp:2328-2330`).
+	bool horizontal_menus = true;
+
 	/// @brief Which root menu `setup()` would have opened (`sound_editor.cpp:1770-1826`).
 	///
 	/// `Count` is the enumerator count, not a root.

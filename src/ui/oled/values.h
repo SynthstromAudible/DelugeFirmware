@@ -27,6 +27,9 @@ struct ValueStyle {
 	std::string_view unit = {};
 	/// Draw "OFF" instead of `0`.
 	bool off_at_zero = false;
+	/// `IntegerContinuous::drawPixelsForOled`: the digits in the Big face at `kContinuousValueY`, over the value bar
+	///  `Number::drawHorizontalBar(35, 10)` draws.
+	bool continuous = false;
 };
 
 /// @brief The largest window `enum_value` materialises on the stack.

@@ -22,9 +22,8 @@ namespace deluge::ui::oled {
 /// the routines that read the raw value instead -- `percent`'s doubled value, `pan`'s -25..25 and
 /// `sidechain_ducking`'s value and maximum -- take that integer.
 ///
-/// @note `Number::drawHorizontalBar` is deliberately NOT ported here: it is the *full screen*
-///       renderer's bar, laid out against the panel width and margins rather than a slot, and no
-///       horizontal-menu dispatch reaches it.
+/// @note `Number::drawHorizontalBar` is not here: it is the full-screen number's bar, laid out against the panel
+///       rather than a slot, and `int_value` draws it (`ValueStyle::continuous`).
 
 /// @brief Which side `filter_curve` draws: `Number::drawHpf` or `Number::drawLpf`.
 enum class FilterKind : uint8_t { Lpf, Hpf };

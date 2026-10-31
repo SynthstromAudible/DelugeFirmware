@@ -1,0 +1,47 @@
+# ShellMenu with HorizontalMenus off (card-shell-menu-vertical): every horizontal page is a vertical list. Open the sound
+# menu, enter the LPF page from FILTERS, move and enter a row; then the instrument and page buttons on that list; then a
+# shortcut-pad jump, which opens the item alone. Run on card-shell-menu-vertical.
+100   snapshot boot
+300   button SelectEnc down
+320   button SelectEnc up
+1000  snapshot sound-menu
+1300  encoder Select +5
+2000  snapshot on-filters
+2300  button SelectEnc down
+2320  button SelectEnc up
+3000  snapshot filters-list
+3300  button SelectEnc down
+3320  button SelectEnc up
+4000  snapshot lpf-list
+4300  encoder Select +1
+5000  snapshot lpf-row-1
+5300  button Kit down
+5320  button Kit up
+6000  snapshot lpf-kit
+6300  button CrossScreen down
+6320  button CrossScreen up
+7000  snapshot lpf-cross-screen
+7300  button SelectEnc down
+7320  button SelectEnc up
+8000  snapshot lpf-freq-leaf
+8300  encoder Select +3
+9000  snapshot lpf-freq-edited
+9300  button Back down
+9320  button Back up
+10000 snapshot lpf-back
+10300 button Back down
+10320 button Back up
+10400 button Back down
+10420 button Back up
+10500 button Back down
+10520 button Back up
+11200 snapshot closed
+11500 button Shift down
+11600 pad 8 7 down
+11640 pad 8 7 up
+11700 button Shift up
+12400 snapshot shortcut-lpf-freq
+12700 button Back down
+12720 button Back up
+13400 snapshot shortcut-closed
+13700 quit

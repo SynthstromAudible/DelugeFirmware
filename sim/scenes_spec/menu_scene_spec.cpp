@@ -1310,23 +1310,20 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		// the item alone.
 		select_language();
 		deluge::notify::dirty().drain();
+		// The feature is read when the menu opens (`context_for`), so it is set before the open.
 		const bool was_on = runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::HorizontalMenus);
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::HorizontalMenus, RuntimeFeatureStateToggle::Off);
 		Rig r;
 		(void)r.open(settings_root);
 		r.shell.tick(0);
-		runtimeFeatureSettings.set(RuntimeFeatureSettingType::HorizontalMenus, RuntimeFeatureStateToggle::Off);
 		expect(menu_scene().arm_shortcut_landing(nodes::lpf_freq)).to_equal(menu::node_id(nodes::lpf_freq));
 		r.button(kShiftX, kShiftY, true, 10);
 		r.pad(kLpfFreqX, kLpfFreqY, 64, 20);
 		r.shell.tick(30);
 		expect(menu_scene().focused() == &nodes::lpf_freq).to_be_true();
-
-		runtimeFeatureSettings.set(RuntimeFeatureSettingType::HorizontalMenus, RuntimeFeatureStateToggle::On);
-		expect(menu_scene().arm_shortcut_landing(nodes::lpf_freq)).to_equal(menu::node_id(nodes::filters_group));
 		r.pad(kHpfFreqX, kHpfFreqY, 64, 40);
 		r.shell.tick(50);
-		expect(menu_scene().focused_value() == &nodes::hpf_freq).to_be_true();
-		expect(menu_scene().focused() != &nodes::hpf_freq).to_be_true();
+		expect(menu_scene().focused() == &nodes::hpf_freq).to_be_true();
 		runtimeFeatureSettings.set(RuntimeFeatureSettingType::HorizontalMenus,
 		                           was_on ? RuntimeFeatureStateToggle::On : RuntimeFeatureStateToggle::Off);
 	});

@@ -785,15 +785,15 @@ public:
 	/// @warning Re-rooting abandons the walk that reached the item, exactly as `retarget` does for
 	///          `open()` and the shortcut-pad jump -- every per-visit mailbox goes with it.
 	///
-	/// @return True if the menu moved. False when there is nothing to move: no scene opener
-	///         recorded, no path (`on_model_changed`'s song swap), a root out of range, or an item
-	///         no horizontal page in this root lists.
+	/// @return True if the menu moved. False when there is nothing to move: the `HorizontalMenus` feature off
+	///         (`MenuContext::horizontal_menus`), no scene opener recorded, no path (`on_model_changed`'s song swap), a
+	///         root out of range, or an item no horizontal page in this root lists.
 	bool reroot_to_scene_opener_page();
 
 	/// @brief Prepare the next `on_enter` to open a shortcut pad's @p target where
 	///        `SoundEditor::setup(clip, item, sourceIndex)` lands it, and name the node to open.
 	///
-	/// The page is `shortcut_landing_page(menu_context().root, target)`, so `open()` must already
+	/// The page is `shortcut_landing_page(menu_context(), target)`, so `open()` must already
 	/// have run. Only the column to focus is recorded; the path moves in `on_enter`.
 	///
 	/// @param target The node the pad names.
@@ -815,6 +815,9 @@ private:
 	/// @brief True when `focused()` is a `Layout::Horizontal` submenu -- the gate
 	///        `HorizontalMenu::buttonAction`'s six-button arm ports (`handle()`'s button code).
 	bool on_horizontal_page() const;
+	/// @brief True when @p node renders and edits as a horizontal page: a `Layout::Horizontal` submenu with
+	///        `MenuContext::horizontal_menus` on (`HorizontalMenu::renderingStyle()`).
+	bool is_horizontal(const Node& node) const;
 	/// @brief SHIFT + CROSS_SCREEN/SCALE at depth 0: replace the page with the next (or previous) menu of the root's
 	///        chain that has columns, landing on its first page -- mod FX's second -- as `switchHorizontalMenu` does.
 	/// @param direction +1 or -1.
@@ -1065,8 +1068,7 @@ bool is_automation_item(const Node& item);
 /// @brief The horizontal page a named @p target opens on under @p root, or `nullptr` when it opens
 ///        alone -- `SoundEditor::maybeGetParentMenu`.
 ///
-/// Null with the `HorizontalMenus` feature off (`getCurrentHorizontalMenusChain` answers nothing)
-/// and for the two sample start markers, the audio clip's waveform and the two file selectors,
+/// Null for the two sample start markers, the audio clip's waveform and the two file selectors,
 /// which open their own scenes. Otherwise the first page of @p root's horizontal-menu chain that
 /// lists it, the chain transcribed from `SoundEditor::getCurrentHorizontalMenusChain`'s (each group
 /// as its member pages; pinned against legacy's search by `shortcuts_spec`).
@@ -1074,6 +1076,13 @@ bool is_automation_item(const Node& item);
 /// @param target The named node.
 /// @return The page, or `nullptr`.
 const Node* shortcut_landing_page(MenuContext::Root root, const Node& target);
+
+/// @brief `shortcut_landing_page` for @p ctx's root, and null with `MenuContext::horizontal_menus` off
+///        (`getCurrentHorizontalMenusChain` answers nothing).
+/// @param ctx    The menu context.
+/// @param target The named node.
+/// @return The page, or `nullptr`.
+const Node* shortcut_landing_page(const MenuContext& ctx, const Node& target);
 
 /// @brief Does @p page list @p column among its children -- a group (`Node::is_group`) through its member pages'
 ///        children, never the member pages themselves?

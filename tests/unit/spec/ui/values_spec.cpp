@@ -155,6 +155,69 @@ describe values_w("ui::oled::values", $ {
 		expect(r64.pbm()).to_equal(r64.reference_pbm());
 	});
 
+	it("draws a continuous integer in the Big face over main's value bar", _ {
+		// `IntegerContinuous::drawPixelsForOled` (`gui/menu_item/integer.cpp:63-72`): `drawInteger(kTextBigSpacingX,
+		// kTextBigSizeY, 15)` then `drawHorizontalBar(35, 10)` (`number.cpp:33-71`, height 8), the bar at a
+		// canvas-absolute row with no `OLED_MAIN_TOPMOST_PIXEL` term.
+		const auto legacy_bar = [](deluge::gfx::oled::Canvas& c, int32_t value, int32_t min, int32_t max) {
+			const int32_t left_most = 10 + 2;
+			const int32_t right_most = 128 - 10 - 3;
+			if (min == 0 && value == 0) {
+				c.draw_rectangle_rounded(left_most, 35, right_most - 1, 35 + 8);
+				return;
+			}
+			const float range = static_cast<float>(max - min);
+			const int32_t width = right_most - left_most;
+			const auto pos = static_cast<int32_t>((static_cast<float>(value - min) / range) * width);
+			const auto zero = static_cast<int32_t>((static_cast<float>(-min) / range) * width);
+			if (pos == zero) {
+				c.invert_area(left_most + zero, 1, 36, 42);
+			}
+			else if (pos < zero) {
+				c.invert_area(left_most + pos, zero - pos, 36, 42);
+			}
+			else {
+				c.invert_area(left_most + zero, pos - zero, 36, 42);
+			}
+			c.draw_rectangle_rounded(left_most, 35, right_most - 1, 35 + 8);
+		};
+
+		uitest::Rig48 r;
+		int32_t value = 28;
+		int_value(r.frame, r.frame.bounds(), value, Range{.min = 0, .max = 50}, ValueStyle{.continuous = true});
+		r.reference.draw_string_centred("28", 15 + 5, 11, 13);
+		legacy_bar(r.reference, 28, 0, 50);
+		expect(r.pbm()).to_equal(r.reference_pbm());
+
+		expect(r.lit(12, 35)).to_be_false(); // the rounded corner
+
+		// Zero on a 0-based range is the outline alone; a bipolar range fills from its middle.
+		uitest::Rig48 zero;
+		int32_t z = 0;
+		int_value(zero.frame, zero.frame.bounds(), z, Range{.min = 0, .max = 50}, ValueStyle{.continuous = true});
+		zero.reference.draw_string_centred("0", 15 + 5, 11, 13);
+		legacy_bar(zero.reference, 0, 0, 50);
+		expect(zero.pbm()).to_equal(zero.reference_pbm());
+
+		uitest::Rig48 pan;
+		int32_t left = -12;
+		int_value(pan.frame, pan.frame.bounds(), left, Range{.min = -32, .max = 32}, ValueStyle{.continuous = true});
+		pan.reference.draw_string_centred("-12", 15 + 5, 11, 13);
+		legacy_bar(pan.reference, -12, -32, 32);
+		expect(pan.pbm()).to_equal(pan.reference_pbm());
+
+		// With rounded corners off the outline is `drawRectangleRounded`'s square arm, `drawRectangle`.
+		uitest::Rig48 square;
+		deluge::ui::Style square_style = square.style;
+		square_style.rounded = false;
+		OledFrame square_frame = root_frame(square.canvas, square_style, square.ctx);
+		int32_t sq = 0;
+		int_value(square_frame, square_frame.bounds(), sq, Range{.min = 0, .max = 50}, ValueStyle{.continuous = true});
+		expect(square.lit(12, 35)).to_be_true();
+		expect(square.lit(114, 43)).to_be_true();
+		expect(r.lit(12, 35)).to_be_false();
+	});
+
 	it("draws OFF at zero only with off_at_zero", _ {
 		uitest::Rig48 r;
 		int32_t value = 0;

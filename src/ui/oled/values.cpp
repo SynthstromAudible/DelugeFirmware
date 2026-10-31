@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <array>
 #include <cstddef>
+#include <cstdlib>
 #include <utility>
 
 namespace deluge::ui::oled {
@@ -17,6 +18,28 @@ using gfx::oled::Rect;
 namespace {
 
 using detail::int_to_string;
+
+/// @brief `Number::drawHorizontalBar(35, 10)` (`gui/menu_item/number.cpp:33-71`, height 8): an outline across the
+///        panel, rounded or square as `Style::rounded` says, at canvas row 35, filled from the range's zero to @p
+///        value.
+void continuous_bar(OledFrame& f, int32_t value, Range range) {
+	constexpr int32_t kTop = 35;
+	constexpr int32_t kHeight = 8;
+	constexpr int32_t kMargin = 10;
+	OledFrame panel = panel_frame(f);
+	const int32_t left_most = kMargin + 2;
+	const int32_t right_most = panel.canvas.geometry().width - kMargin - 3;
+	panel.clear(Rect{0, kTop, panel.canvas.geometry().width, kHeight + 1});
+	if (range.min != 0 || value != 0) {
+		const auto span = static_cast<float>(range.max - range.min);
+		const int32_t width = right_most - left_most;
+		const auto pos = static_cast<int32_t>((static_cast<float>(value - range.min) / span) * width);
+		const auto zero = static_cast<int32_t>((static_cast<float>(-range.min) / span) * width);
+		panel.invert(Rect{left_most + std::min(pos, zero), kTop + 1, std::max(1, std::abs(pos - zero)), kHeight - 1});
+	}
+	// `drawRectangleRounded(left_most, kTop, right_most - 1, kTop + kHeight)`, square when the style is.
+	panel.rect_rounded(Rect{left_most, kTop, right_most - left_most, kHeight + 1});
+}
 
 /// `value + delta`, clamped into \p range. Widened to 64 bits first because the sum can overflow
 /// int32 near the type's ends, and the clamp that follows would then read a wrapped value.
@@ -100,9 +123,12 @@ Response int_value(OledFrame& f, Rect rect, int32_t& value, Range range, ValueSt
 	// Ports legacy `Integer::drawPixelsForOled`'s centred digit layout. The frame's origin absorbs
 	// the topmost-pixel term, so kValueY is measured from the rect's top; with rect == f.bounds()
 	// that matches the legacy panel-relative offset and centring.
-	const gfx::oled::FontId font = f.style.value_font;
-	const Rect band{rect.x, rect.y + kValueY, rect.w, text_height_for(font)};
+	const gfx::oled::FontId font = style.continuous ? gfx::oled::FontId::MetricBold13 : f.style.value_font;
+	const Rect band{rect.x, rect.y + (style.continuous ? kContinuousValueY : kValueY), rect.w, text_height_for(font)};
 	f.clear(band);
+	if (style.continuous) {
+		continuous_bar(f, value, range);
+	}
 
 	if (style.off_at_zero && value == 0) {
 		// Ports legacy `IntegerWithOff::drawPixelsForOled`: "OFF" in place of the digits, without

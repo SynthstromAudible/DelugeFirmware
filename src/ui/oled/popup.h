@@ -243,8 +243,8 @@ void count_window(OledFrame& f, std::string_view heading, std::string_view value
 /// @brief A progress bar filling \p rect left to right at \p num / \p den.
 ///
 /// @note Legacy has no progress bar as such. The closest legacy pixels are
-///       `Number::drawHorizontalBar`, the full-screen menu bar (out of scope for `meters.h`, since
-///       no horizontal-menu slot reaches it), and this is that routine with `min_value = 0`,
+///       `Number::drawHorizontalBar`, the full-screen menu bar (`int_value`'s `ValueStyle::continuous`), and this is
+///       that routine with `min_value = 0`,
 ///       `value = num`, `max_value = den`:
 ///
 ///  - the outline is exactly \p rect;

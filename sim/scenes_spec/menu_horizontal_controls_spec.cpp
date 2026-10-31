@@ -35,6 +35,7 @@
 #include "gui/l10n/strings.h"
 #include "model/edits/setting_edit.h"
 #include "model/mod_controllable/mod_fx_names.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/params/param.h"
 #include "modulation/sync.h"
@@ -787,6 +788,76 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		       && menu::nodes::audio_clip_reverse.bind.reverse_in_horizontal(ctx))
 		    .to_be_true();
 		expect(menu::nodes::osc0_type.bind.wrap_in_horizontal).to_be_true();
+	});
+
+	it("with HorizontalMenus off a horizontal page is a vertical list", _ {
+		// `HorizontalMenu::renderingStyle()` is VERTICAL with the feature off (`horizontal_menu.cpp:592-597`): the page
+		// renders and edits as a `Submenu`, the select knob moving the row cursor.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		MenuContext ctx = r.open(horiz_page);
+		ctx.horizontal_menus = false;
+		menu_scene().open(horiz_page, ctx);
+		r.shell.tick(0);
+		r.turn(1, 100);
+		r.shell.tick(150);
+		expect(static_cast<int>(menu_scene().state().list[0].cursor)).to_equal(1);
+		expect(static_cast<int>(menu_scene().horizontal_paging().total_pages)).to_equal(0);
+	});
+
+	it("with HorizontalMenus off a param row opens main's continuous number screen", _ {
+		// `IntegerContinuous::drawPixelsForOled` (`integer.cpp:63-72`): the Big-face digits over the value bar at canvas
+		// rows 35..43, columns 12..114.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		MenuContext ctx = r.open_real(menu::nodes::lpf);
+		ctx.horizontal_menus = false;
+		menu_scene().open(menu::nodes::lpf, ctx);
+		r.shell.tick(0);
+		r.turn(1, 300);
+		r.shell.tick(310);
+		r.enter(400);
+		r.shell.tick(410);
+		expect(menu_scene().focused() == &menu::nodes::lpf_freq).to_be_true();
+
+		deluge::ui::test::Rig48 rig48;
+		rig48.begin_tick(500);
+		menu_scene().render_oled(uitest::SurfaceRole::Main, rig48.frame);
+		expect(rig48.lit(12, 38)).to_be_true();
+		expect(rig48.lit(114, 38)).to_be_true();
+		expect(rig48.lit(64, 35)).to_be_true();
+		expect(rig48.lit(64, 43)).to_be_true();
+		// The huge face's band (rows 23..42) would ink below the Big face's 20..32 between the bar's ends.
+		bool any_between = false;
+		for (int32_t x = 0; x < 128; x++) {
+			any_between = any_between || rig48.lit(x, 33) || rig48.lit(x, 34);
+		}
+		expect(any_between).to_be_false();
+	});
+
+	it("with HorizontalMenus off a shortcut opens the item alone", _ {
+		// `getCurrentHorizontalMenusChain` answers nothing with the feature off (`sound_editor.cpp:2328-2330`).
+		select_language();
+		Rig r;
+		MenuContext ctx = r.open(horiz_page);
+		ctx.horizontal_menus = false;
+		expect(menu::shortcut_landing_page(ctx, menu::nodes::lpf_freq) == nullptr).to_be_true();
+		ctx.horizontal_menus = true;
+		expect(menu::shortcut_landing_page(ctx, menu::nodes::lpf_freq) == &menu::nodes::filters_group).to_be_true();
+	});
+
+	it("reads HorizontalMenus at each open, not once", _ {
+		select_language();
+		Rig r;
+		const auto open_ctx = [&] {
+			return menu::context_for(*r.song.song, deluge::gui::menuViewOf(r.song.clip), 0, false, false, false, false);
+		};
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::HorizontalMenus, RuntimeFeatureStateToggle::Off);
+		expect(open_ctx().horizontal_menus).to_be_false();
+		runtimeFeatureSettings.set(RuntimeFeatureSettingType::HorizontalMenus, RuntimeFeatureStateToggle::On);
+		expect(open_ctx().horizontal_menus).to_be_true();
 	});
 
 	it("the EQ page orders its columns as main's EqMenu does", _ {

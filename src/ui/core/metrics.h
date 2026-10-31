@@ -49,6 +49,9 @@ constexpr int32_t kValueY = 18; // huge-font value baseline (+ visible_top)
 /// because a note-length string ("128TH-NOTES-TPLTS") is far wider than a handful of digits ever
 /// gets, and the huge font would run it off a 128px panel.
 constexpr int32_t kSyncValueY = 20; // big-font value baseline (+ visible_top)
+/// `IntegerContinuous::drawPixelsForOled`'s baseline (`gui/menu_item/integer.cpp:68`), in the Big font over the value
+/// bar `Number::drawHorizontalBar(35, 10)` draws.
+constexpr int32_t kContinuousValueY = 15; // big-font value baseline (+ visible_top)
 /// The battery/firmware-version readout's baseline (`nodes::battery_level`/`firmware_version`'s
 /// `CustomItem`s, E2 task 2): `firmware::Version`/`battery::Level::drawPixelsForOled`
 /// (`gui/menu_item/firmware/version.h:31`, `battery/level.h:40`) both call

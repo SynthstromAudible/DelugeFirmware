@@ -44,7 +44,6 @@
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/short_label.h"
 #include "gui/l10n/strings.h"
-#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h" // Song::getInputTickMagnitude() -- Kind::SyncLevel's value text
 #include "modulation/sync.h" // syncValueToString -- Kind::SyncLevel's value text
 #include "notify/notice_queue.h"
@@ -250,18 +249,8 @@ int32_t instrument_button_index(ButtonId b) {
 /// none of the roots reaches either file selector through one, so resolving them here would be
 /// machinery with no caller.
 ///
-/// @warning **One guard inside the function being ported is deliberately dropped, and it is not a
-///          detail.** `getCurrentHorizontalMenusChain` answers `nullopt` outright when
-///          `runtimeFeatureSettings.get(HorizontalMenus) == Off` (`gui/ui/sound_editor.cpp:2112-2114`),
-///          so for a user with that feature off legacy writes no heading pair at all and
-///          `claimCurrentFile` re-roots **nothing** -- it leaves the menu wherever the browser was
-///          opened from. This walks the tables regardless, so the ported menu re-roots for every
-///          user. That is the concrete consequence of the port having no equivalent of
-///          `HorizontalMenu::renderingStyle()` (`gui/menu_item/horizontal_menu.cpp:596-601`): these
-///          pages are `Layout::Horizontal` unconditionally here, so there is no "the feature is off"
-///          state for this function to answer differently in, and honouring the guard would mean
-///          suppressing the re-root on a page that is horizontal anyway. Carried as a row in
-///          `src/scenes/README.md`; the guard goes back in when `Layout` learns to read the feature.
+/// The feature guard `getCurrentHorizontalMenusChain` opens with (`gui/ui/sound_editor.cpp:2112-2114`) is the
+/// caller's: `reroot_to_scene_opener_page` reads `MenuContext::horizontal_menus` before calling this.
 const Node* horizontal_page_listing(const Node& node, const Node& item) {
 	if (node.kind != Kind::Submenu) {
 		return nullptr;
@@ -451,8 +440,8 @@ void MenuScene::remember_path() {
 		if (node == nullptr || node->kind != Kind::Submenu) {
 			continue;
 		}
-		const Node* child = node->layout == Layout::Horizontal ? child_at(*node, st_.columns[d].focused)
-		                                                       : child_at(*node, st_.list[d].cursor);
+		const Node* child =
+		    is_horizontal(*node) ? child_at(*node, st_.columns[d].focused) : child_at(*node, st_.list[d].cursor);
 		if (child == nullptr) {
 			continue;
 		}
@@ -485,7 +474,7 @@ void MenuScene::restore_row() {
 		const size_t n = visible_children(*node, kids);
 		for (size_t k = 0; k < n; k++) {
 			if (kids[k] == row.child) {
-				if (node->layout == Layout::Horizontal) {
+				if (is_horizontal(*node)) {
 					st_.columns[st_.depth].focused = static_cast<int8_t>(k);
 				}
 				else {
@@ -599,7 +588,7 @@ bool MenuScene::on_enter(const SceneId& id) {
 
 uint16_t MenuScene::arm_shortcut_landing(const Node& target) {
 	landing_column_ = nullptr;
-	if (const Node* page = shortcut_landing_page(ctx_.root, target); page != nullptr && node_id(*page) != 0) {
+	if (const Node* page = shortcut_landing_page(ctx_, target); page != nullptr && node_id(*page) != 0) {
 		landing_column_ = &target;
 		return node_id(*page);
 	}
@@ -642,6 +631,11 @@ bool MenuScene::reroot_to_scene_opener_page() {
 		// No opener recorded, or no menu at all (`on_model_changed`'s song swap empties the path).
 		// Legacy's own guard is the same shape -- the pair is only read when both halves are
 		// non-null (`gui/ui/browser/sample_browser.cpp:1111`).
+		return false;
+	}
+	// With the feature off legacy's chain is `nullopt`, so `maybeGetParentMenu` writes no pair and `claimCurrentFile`
+	// leaves the menu where the browser was opened from.
+	if (!ctx_.horizontal_menus) {
 		return false;
 	}
 	const std::span<const Node* const> r = roots();
@@ -790,8 +784,8 @@ bool MenuScene::wants_learn_blink() const {
 // Tree walking
 
 size_t MenuScene::visible_children(const Node& node, std::span<const Node*> out) const {
-	return bindings::listed_children(
-	    node, ctx_, out, node.layout == Layout::Horizontal ? bindings::ListFor::Columns : bindings::ListFor::Rows);
+	return bindings::listed_children(node, ctx_, out,
+	                                 is_horizontal(node) ? bindings::ListFor::Columns : bindings::ListFor::Rows);
 }
 
 const Node* MenuScene::child_at(const Node& node, int32_t index) const {
@@ -807,8 +801,8 @@ const Node* MenuScene::selected_child(const Node& node) const {
 	if (node.kind != Kind::Submenu) {
 		return nullptr;
 	}
-	return node.layout == Layout::Horizontal ? child_at(node, st_.columns[st_.depth].focused)
-	                                         : child_at(node, st_.list[st_.depth].cursor);
+	return is_horizontal(node) ? child_at(node, st_.columns[st_.depth].focused)
+	                           : child_at(node, st_.list[st_.depth].cursor);
 }
 
 const Node* MenuScene::focused_value() const {
@@ -819,7 +813,7 @@ const Node* MenuScene::focused_value() const {
 	if (node->kind != Kind::Submenu) {
 		return node; // a leaf IS what the encoders edit
 	}
-	if (node->layout != Layout::Horizontal) {
+	if (!is_horizontal(*node)) {
 		return nullptr; // a vertical page's row is not itself a value -- `shouldForwardButtons`
 		                // (`submenu.cpp:181-185`) only forwards on the HORIZONTAL rendering style
 	}
@@ -836,7 +830,13 @@ const Node* MenuScene::pad_subject() const {
 
 bool MenuScene::on_horizontal_page() const {
 	const Node* node = focused();
-	return node != nullptr && node->kind == Kind::Submenu && node->layout == Layout::Horizontal;
+	return node != nullptr && is_horizontal(*node);
+}
+
+bool MenuScene::is_horizontal(const Node& node) const {
+	// `HorizontalMenu::renderingStyle()` (`horizontal_menu.cpp:592-597`): with the feature off a horizontal page is a
+	// vertical list.
+	return node.kind == Kind::Submenu && node.layout == Layout::Horizontal && ctx_.horizontal_menus;
 }
 
 size_t MenuScene::build_column_list(const Node& node, std::span<const Node*> kids,
@@ -1191,7 +1191,7 @@ void MenuScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) {
 
 	switch (node->kind) {
 	case Kind::Submenu:
-		if (node->layout == Layout::Horizontal) {
+		if (is_horizontal(*node)) {
 			render_horizontal(f, *node);
 		}
 		else {
@@ -1422,9 +1422,12 @@ void MenuScene::render_leaf_int(deluge::ui::oled::OledFrame& f, const Node& node
 	// `kValueY`'s own offset and pushed the huge digit glyph low enough to clip off the panel's
 	// bottom edge -- caught by task 11's `menu_int` acceptance script/golden, which is the first
 	// place this screen was ever rendered to a `.pbm` and looked at.
+	// A param is legacy's `IntegerContinuous` (`patched_param::Integer`, `UnpatchedParam`): the digits over a value
+	// bar.
+	deluge::ui::oled::ValueStyle style = node.bind.style;
+	style.continuous = node.bind.param.valid();
 	const deluge::ui::Response r =
-	    deluge::ui::oled::int_value(f, f.bounds(), st_.edit_int, bindings::range(node, ctx_), node.bind.style,
-	                                /*focused=*/true);
+	    deluge::ui::oled::int_value(f, f.bounds(), st_.edit_int, bindings::range(node, ctx_), style, /*focused=*/true);
 	st_.render_resp = r;
 	if (r.changed) {
 		st_.value_changed = true;
@@ -1878,7 +1881,7 @@ void MenuScene::enter_child(const Node& child) {
 	// `SoundEditor`'s select arm (`sound_editor.cpp:630-634`, the `maybeGetParentMenu` / `focusChild` pair before
 	// `enterSubmenu`): an item a chained page lists is entered on that page, focused on it, unless that page is the one
 	// already shown.
-	if (const Node* page = shortcut_landing_page(ctx_.root, child); page != nullptr && page != focused()) {
+	if (const Node* page = shortcut_landing_page(ctx_, child); page != nullptr && page != focused()) {
 		descend_to(*page);
 		focus_column(child);
 		return;
@@ -2028,7 +2031,7 @@ Result MenuScene::after_render() {
 	// `notify_column` is `notice_text`'s call, factored out so `handle()`'s button code raises the
 	// same notification through the same text-building rules -- see its own doc for why the
 	// legacy call sites split across two functions of this class.
-	const bool horizontal = node->kind == Kind::Submenu && node->layout == Layout::Horizontal;
+	const bool horizontal = is_horizontal(*node);
 	if (horizontal && (st_.render_resp.changed || st_.value_changed)) {
 		if (const Node* column = selected_child(*node); column != nullptr && column->kind != Kind::Submenu) {
 			notify_column(*column);
@@ -2555,9 +2558,8 @@ void MenuScene::save_state(SceneState& state) const {
 		}
 	}
 	const Node* node = focused();
-	saved.focus = (node != nullptr && node->kind == Kind::Submenu && node->layout == Layout::Horizontal)
-	                  ? st_.columns[st_.depth].focused
-	                  : st_.list[st_.depth].cursor;
+	saved.focus =
+	    (node != nullptr && is_horizontal(*node)) ? st_.columns[st_.depth].focused : st_.list[st_.depth].cursor;
 	std::memcpy(state.bytes, &saved, sizeof(saved));
 }
 
@@ -2579,7 +2581,7 @@ void MenuScene::restore_state(const SceneState& state) {
 		// Seed the level we are leaving with the row we took out of it, so a `Back` straight after
 		// a restore lands where the user was -- legacy rebuilds exactly this through
 		// `Submenu::focusChild(navigatedBackwardFrom)` (`gui/menu_item/submenu.cpp:21-37`).
-		if (st_.path[level]->layout == Layout::Horizontal) {
+		if (is_horizontal(*st_.path[level])) {
 			st_.columns[level].focused = static_cast<int8_t>(saved.path_child[level]);
 		}
 		else {
@@ -2616,7 +2618,7 @@ void MenuScene::restore_state(const SceneState& state) {
 	}
 
 	const Node* node = focused();
-	if (node != nullptr && node->kind == Kind::Submenu && node->layout == Layout::Horizontal) {
+	if (node != nullptr && is_horizontal(*node)) {
 		st_.columns[st_.depth].focused = static_cast<int8_t>(saved.focus);
 	}
 	else {
@@ -2711,6 +2713,14 @@ std::span<const Node* const> chain_for(MenuContext::Root root) {
 
 } // namespace
 
+const Node* shortcut_landing_page(const MenuContext& ctx, const Node& target) {
+	// `getCurrentHorizontalMenusChain` answers nothing with the feature off, so the item opens alone.
+	if (!ctx.horizontal_menus) {
+		return nullptr;
+	}
+	return shortcut_landing_page(ctx.root, target);
+}
+
 bool page_lists(const Node& page, const Node& column) {
 	if (page.kind != Kind::Submenu) {
 		return false;
@@ -2725,10 +2735,6 @@ bool page_lists(const Node& page, const Node& column) {
 }
 
 const Node* shortcut_landing_page(MenuContext::Root root, const Node& target) {
-	// `getCurrentHorizontalMenusChain` answers nothing with the feature off, so the item opens alone.
-	if (!runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::HorizontalMenus)) {
-		return nullptr;
-	}
 	// `maybeGetParentMenu`'s two early answers: the start markers and the audio clip's waveform go
 	// straight to the marker editor, the file selectors straight to the browser.
 	constexpr const Node* kOpensItself[] = {&nodes::sample0_start, &nodes::sample1_start, &nodes::audio_clip_waveform,

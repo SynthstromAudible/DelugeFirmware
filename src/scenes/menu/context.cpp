@@ -61,6 +61,7 @@
 #include "scenes/menu/node.h"
 #include "scenes/services/view_state.h"
 
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 
 #include <array>
@@ -168,6 +169,7 @@ MenuContext context_for(Song& song, const services::MenuView& view, int8_t sourc
 	// `relevance::is_session_view`.
 	ctx.is_session_view = session_view_root;
 	ctx.is_performance = performance_view;
+	ctx.horizontal_menus = runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::HorizontalMenus);
 	ctx.resolved = true;
 
 	// ---------------------------------------------------------------------------------------
