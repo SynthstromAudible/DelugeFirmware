@@ -129,12 +129,13 @@ public:
 
 	void requestRendering(UI* ui, uint32_t whichMainRows = 0xFFFFFFFF, uint32_t whichSideRows = 0xFFFFFFFF);
 
+	void beginAudition(Output* output);
+	void endAudition(Output* output, bool evenIfPlaying = false);
+
 private:
 	void changeOutputType(OutputType newOutputType);
 	void moveClipToSession();
 	void auditionPadAction(bool on, int32_t y, UI* ui);
-	void beginAudition(Output* output);
-	void endAudition(Output* output, bool evenIfPlaying = false);
 
 	ModelStackWithNoteRow* getNoteRowForAudition(ModelStack* modelStack, Kit* kit);
 	Drum* getDrumForAudition(Kit* kit);
