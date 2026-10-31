@@ -25,6 +25,7 @@
 #include "model/action/action_logger.h"
 #include "model/edits/change_effect.h"
 #include "processing/engines/audio_engine.h"
+#include "synth/matrix/descriptors.h" // kParamNeutral, kParamRange
 #include "util/functions.h"
 #include <limits>
 #include <string.h>
@@ -45,7 +46,7 @@ namespace params = deluge::modulation::params;
 
 GlobalEffectableForClip::GlobalEffectableForClip()
     : chain_{deluge::model::kModFxRingAllocator, deluge::model::kGranularAllocator, deluge::model::delayArena(),
-             paramNeutralValues[params::GLOBAL_VOLUME_POST_REVERB_SEND]} {
+             deluge::synth::matrix::kParamNeutral[params::GLOBAL_VOLUME_POST_REVERB_SEND]} {
 	// A new owner's settings live in its chain state, and its filter mode and mod FX type are set, once its chain
 	// exists.
 	bindChainState();

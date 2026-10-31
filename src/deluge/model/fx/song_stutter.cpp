@@ -16,6 +16,7 @@
  */
 
 #include "model/fx/song_stutter.h"
+#include "synth/matrix/descriptors.h" // kParamNeutral, kParamRange
 
 #include "libdeluge/system.h" // AudioExcludedSection
 #include "model/mod_controllable/mod_fx_allocator.h"
@@ -105,8 +106,8 @@ int32_t stutterRate(ParamManager* paramManager, int32_t knobDiff, int32_t magnit
 	    std::clamp<int32_t>(unpatchedParams->paramValueToKnobPos(paramValue, nullptr) + knobDiff, -64, 64);
 	paramValue = unpatchedParams->knobPosToParamValue(knobPos, nullptr);
 
-	int32_t rate =
-	    getFinalParameterValueExp(paramNeutralValues[params::GLOBAL_DELAY_RATE], cableToExpParamShortcut(paramValue));
+	int32_t rate = getFinalParameterValueExp(deluge::synth::matrix::kParamNeutral[params::GLOBAL_DELAY_RATE],
+	                                         cableToExpParamShortcut(paramValue));
 
 	rate = multiply_32x32_rshift32(rate, timePerTickInverse);
 

@@ -20,7 +20,7 @@
 #include "dsp-next/core/q31_ops.h" // multiply_32x32_rshift32(_rounded), add_saturate, lshift_and_saturate
 #include "synth/matrix/descriptors.h"
 #include "synth/modulation/cable_depth.h" // apply_range
-#include "util/param_functions.h"         // paramRanges, getFinalParameterValue*
+#include "util/param_functions.h"         // kParamRange, getFinalParameterValue*
 
 #include <argon.hpp>
 #include <cstdint>
@@ -91,7 +91,7 @@ struct MatrixFixed {
 
 	/// The preset's term for param @p p.
 	[[gnu::always_inline]] static int32_t preset_term(int32_t preset, int32_t p) {
-		return multiply_32x32_rshift32(preset, paramRanges[p]);
+		return multiply_32x32_rshift32(preset, kParamRange[p]);
 	}
 
 	/// An add chain's doubling for a wavetable index: its cables reach twice as far.
@@ -104,17 +104,17 @@ struct MatrixFixed {
 
 	/// Param @p p's final value from its chain's combination.
 	[[gnu::always_inline]] static int32_t curve(CurveKind kind, int32_t p, int32_t combination) {
-		const int32_t neutral = paramNeutralValues[p];
+		const int32_t neutral = kParamNeutral[p];
 		switch (kind) {
-		case CurveKind::VOLUME:
+		case CurveKind::SQUARE:
 			return getFinalParameterValueVolume(neutral, combination);
 		case CurveKind::LINEAR:
 			return getFinalParameterValueLinear(neutral, combination);
-		case CurveKind::HYBRID:
+		case CurveKind::BIPOLAR:
 			return getFinalParameterValueHybrid(neutral, combination);
-		case CurveKind::EXP:
-		case CurveKind::EXP_ATTACK:
-		case CurveKind::RELEASE_RATE:
+		case CurveKind::EXPONENTIAL:
+		case CurveKind::EXPONENTIAL_INVERTED:
+		case CurveKind::RELEASE_TABLE:
 			return getFinalParameterValueExpWithDumbEnvelopeHack(neutral, combination, p);
 		}
 		return combination;
@@ -144,8 +144,8 @@ struct MatrixFixed {
 	/// the term's low three bits and cannot saturate, as the term lies in [-2^30, 2^30]. An add chain's is the term.
 	[[gnu::always_inline]] static Lanes uncabled_multiply(Lanes term) { return term & Lanes{~int32_t{7}}; }
 
-	/// The volume, linear and hybrid curves; the neutral values are positive.
-	[[gnu::always_inline]] static Lanes curve_volume(Lanes neutral, Lanes combination) {
+	/// The square, linear and bipolar curves; the neutral values are positive.
+	[[gnu::always_inline]] static Lanes curve_square(Lanes neutral, Lanes combination) {
 		const Lanes positive = combination + Lanes{kOne};
 		const Lanes squared = positive.ShiftRight<16>() * positive.ShiftRight<15>();
 		return saturate_shift<27, 5>(smmul_by_doubling(neutral, squared));
@@ -153,7 +153,7 @@ struct MatrixFixed {
 	[[gnu::always_inline]] static Lanes curve_linear(Lanes neutral, Lanes combination) {
 		return saturate_shift<29, 3>(smmul_by_doubling(neutral, combination + Lanes{kOne}));
 	}
-	[[gnu::always_inline]] static Lanes curve_hybrid(Lanes neutral, Lanes combination) {
+	[[gnu::always_inline]] static Lanes curve_bipolar(Lanes neutral, Lanes combination) {
 		return saturate_shift<29, 2>(neutral.ShiftRight<2>() + combination.ShiftRight<1>());
 	}
 };

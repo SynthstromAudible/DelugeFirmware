@@ -42,10 +42,9 @@ const uint8_t modButtonY[8] = {0, 1, 2, 3, 0, 1, 2, 3};
 const uint8_t modLedX[8] = {1, 1, 1, 1, 2, 2, 2, 2};
 const uint8_t modLedY[8] = {0, 1, 2, 3, 0, 1, 2, 3};
 
-// paramRanges/paramNeutralValues, getParamRange/getParamNeutralValue, functionsInit, the getFinalParameterValue*
-// family, getExp and lookupReleaseRate moved verbatim to util/param_functions.cpp (gui-free), so the synth core
-// links them without pulling gui. Declarations remain visible via util/param_functions.h (re-exported by
-// util/functions.h).
+// The getFinalParameterValue* family, getExp and lookupReleaseRate are in util/param_functions.cpp (gui-free), so the
+// synth core links them without pulling gui; each param's neutral value and range are synth/matrix/descriptors.h's.
+// Declarations remain visible via util/param_functions.h (re-exported by util/functions.h).
 
 // getFinalParameterValue* moved to util/param_functions.cpp.
 

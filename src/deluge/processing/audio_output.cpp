@@ -36,6 +36,7 @@
 #include "storage/audio/audio_file.h"
 #include "storage/storage_manager.h"
 #include "storage/value_tree_deserializer.h"
+#include "synth/matrix/descriptors.h" // kParamNeutral, kParamRange
 #include "util/functions.h"
 #include "util/lookuptables/lookuptables.h"
 #include <algorithm>
@@ -152,7 +153,7 @@ bool AudioOutput::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* m
 		auto& activeAudioClip = static_cast<AudioClip&>(*activeClip);
 		if (activeAudioClip.voiceSample) {
 
-			int32_t attackNeutralValue = paramNeutralValues[params::LOCAL_ENV_0_ATTACK];
+			int32_t attackNeutralValue = deluge::synth::matrix::kParamNeutral[params::LOCAL_ENV_0_ATTACK];
 			int32_t attack = getExp(attackNeutralValue, -(activeAudioClip.attack() / 4));
 
 renderEnvelope:

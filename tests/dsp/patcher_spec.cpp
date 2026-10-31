@@ -23,12 +23,8 @@ using namespace deluge::synth;
 using namespace deluge::synth::test;
 namespace params = deluge::modulation::params;
 
-void functionsInit(); // util/param_functions.cpp: fills the param scaling tables
-
 // clang-format off
 describe patcher_spec("today's patching", ${
-	before_all([] { functionsInit(); });
-
 	context("polarity", _{
 		it("halves a bipolar source to unipolar with C's truncating division", _{
 			expect(to_polarity(PatchSource::ENVELOPE_0, CablePolarity::UNIPOLAR, -3)).to_equal(1073741822);

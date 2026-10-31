@@ -42,6 +42,7 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/render_scratch.h"
 #include "storage/storage_manager.h"
+#include "synth/matrix/descriptors.h" // kParamNeutral, kParamRange
 #include "util/etl_string.h"
 #include "util/firmware_version.h"
 #include "util/functions.h"
@@ -922,14 +923,14 @@ deluge::effects::Delay::State GlobalEffectable::createDelayWorkingState(ParamMan
 	UnpatchedParamSet* unpatchedParams = paramManager.getUnpatchedParamSet();
 
 	delayWorkingState.delayFeedbackAmount = getFinalParameterValueLinear(
-	    paramNeutralValues[params::GLOBAL_DELAY_FEEDBACK],
+	    deluge::synth::matrix::kParamNeutral[params::GLOBAL_DELAY_FEEDBACK],
 	    cableToLinearParamShortcut(unpatchedParams->getValue(params::UNPATCHED_DELAY_AMOUNT)));
 	if (shouldLimitDelayFeedback) {
 		delayWorkingState.delayFeedbackAmount =
 		    std::min(delayWorkingState.delayFeedbackAmount, (int32_t)(1 << 30) - (1 << 26));
 	}
 	delayWorkingState.userDelayRate =
-	    getFinalParameterValueExp(paramNeutralValues[params::GLOBAL_DELAY_RATE],
+	    getFinalParameterValueExp(deluge::synth::matrix::kParamNeutral[params::GLOBAL_DELAY_RATE],
 	                              cableToExpParamShortcut(unpatchedParams->getValue(params::UNPATCHED_DELAY_RATE)));
 	uint32_t timePerTickInverse = playbackHandler.getTimePerInternalTickInverse(true);
 	core().delay().setupWorkingState(delayWorkingState, modControllableSnapshot_.effects.delay, timePerTickInverse,

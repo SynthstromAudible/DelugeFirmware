@@ -57,8 +57,6 @@ void render_block() {
 
 void StutterCase::setup(std::size_t n) {
 	if (!rig.ready) {
-		// The bench runs before the app's start-up fills the params' neutral values, which the rate is built on.
-		functionsInit();
 		rig.ready = rig.params.setupUnpatched() == Error::NONE;
 	}
 	effects::StutterChange ended{};

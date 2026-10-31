@@ -44,8 +44,6 @@ extern const uint8_t modButtonY[];
 
 extern uint8_t subModeToReturnTo;
 
-void functionsInit();
-
 char const* getThingName(OutputType outputType);
 char const* getOutputTypeName(OutputType outputType, int32_t channel);
 
