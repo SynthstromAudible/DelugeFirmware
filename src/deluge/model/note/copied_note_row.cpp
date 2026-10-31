@@ -21,6 +21,7 @@
 CopiedNoteRow::CopiedNoteRow() {
 	next = nullptr;
 	notes = nullptr;
+	numNotes = 0;
 }
 
 CopiedNoteRow::~CopiedNoteRow() {

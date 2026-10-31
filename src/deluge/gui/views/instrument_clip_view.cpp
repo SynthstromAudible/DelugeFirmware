@@ -1615,12 +1615,25 @@ ramError:
 
 							int32_t numNotes = reader.readTagOrAttributeValueInt();
 
-							newCopiedNoteRow->numNotes = numNotes;
-
-							newCopiedNoteRow->notes =
-							    (Note*)GeneralMemoryAllocator::get().allocLowSpeed(sizeof(Note) * numNotes);
-
+							// The file is untrusted: a repeated tag mustn't leak, and the size mustn't wrap (0 would
+							// ask the allocator for its biggest block)
+							if (newCopiedNoteRow->notes) {
+								delugeDealloc(newCopiedNoteRow->notes);
+								newCopiedNoteRow->notes = nullptr;
+							}
+							newCopiedNoteRow->numNotes = 0;
 							currentNote = 0;
+
+							if (numNotes > 0 && numNotes <= INT32_MAX / (int32_t)sizeof(Note)) {
+								newCopiedNoteRow->notes =
+								    (Note*)GeneralMemoryAllocator::get().allocLowSpeed(sizeof(Note) * numNotes);
+								if (!newCopiedNoteRow->notes) {
+									deleteCopiedNoteRows();
+									display->displayError(Error::INSUFFICIENT_RAM);
+									return Error::INSUFFICIENT_RAM;
+								}
+								newCopiedNoteRow->numNotes = numNotes;
+							}
 						}
 						else if (!strcmp(tagName, "yNote")) {
 							int16_t yNote = reader.readTagOrAttributeValueInt();
@@ -1655,6 +1668,12 @@ ramError:
 									goto getOut;
 								}
 
+								// Never write past what numNotes allocated (or at all, if it hasn't been read). Keep
+								// reading so the rest of the value is consumed.
+								if (currentNote >= newCopiedNoteRow->numNotes) {
+									continue;
+								}
+
 								Note* newNote = &newCopiedNoteRow->notes[currentNote];
 
 								int32_t pos = hexToIntFixedLength(hexChars, 8);
@@ -1683,6 +1702,9 @@ ramError:
 getOut: {}
 						}
 					}
+
+					// Only paste notes that were actually read - the rest of the allocation is uninitialised
+					newCopiedNoteRow->numNotes = std::min(newCopiedNoteRow->numNotes, currentNote);
 				}
 			}
 		}
