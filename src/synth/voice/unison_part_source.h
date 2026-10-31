@@ -72,13 +72,13 @@ public:
 	/// Advance the source's oscillator phase by @p delta (a skipped osc-sync master still progresses).
 	void advance_osc_phase(uint32_t delta) {
 		if (va_source.has_value()) {
-			va_source->seek(va_source->phase() + delta);
+			va_source->advance_phase(delta);
 		}
 		else if (wavetable_source.has_value()) {
-			wavetable_source->seek(wavetable_source->phase() + delta);
+			wavetable_source->advance_phase(delta);
 		}
 		else if (supersaw_source.has_value()) {
-			supersaw_source->seek(supersaw_source->phase() + delta);
+			supersaw_source->advance_phase(delta);
 		}
 		else {
 			osc_pos += delta;

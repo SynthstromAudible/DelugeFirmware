@@ -16,6 +16,7 @@
  */
 #pragma once
 
+#include "definitions_cxx.hpp"    // OscType
 #include "dsp-next/core/phasor.h" // deluge::dsp::Phasor
 #include "dsp-next/core/ramp.h"   // deluge::dsp::Ramp
 #include "dsp-next/core/types.h"  // deluge::dsp::fixed::Buffer
@@ -72,55 +73,101 @@ struct BlockControls {
 /// folds onto.
 enum class SourceRenderResult { ACTIVE, UNASSIGN, SKIP };
 
-/// @brief Everything a @ref Source needs to render one unison part of one source for this block — a synth-safe
-/// transport of *already-computed* values (no engine state, no model/processing/storage reach). Built once at the
-/// app-side adapter (`Voice::renderSourceComponent`); the wavetable arrives as a storage-independent
-/// @ref deluge::dsp::fixed::WaveTableData view (the app builds it from its `WaveTable`), and
-/// @ref BlockControls::cpu_direness is baked in there so the AudioEngine global never enters synth/. Each concrete
-/// source reads only the subset it needs; unused fields are harmless.
-struct SourceRenderContext {
-	int32_t* osc_buffer;      ///< destination; the source folds/sums its contribution into this (interleaved if stereo)
-	int32_t num_samples;      ///< samples to render this block
-	bool stereo_buffer;       ///< @c oscBuffer is interleaved stereo → render mono into scratch then pan-fold
-	bool stereo_unison;       ///< this unison part is panned (drives the per-engine stereo sum)
-	int32_t amplitude_l;      ///< unison pan-fold left gain (q31)
-	int32_t amplitude_r;      ///< unison pan-fold right gain (q31)
-	int32_t source_amplitude; ///< per-block start VCA amplitude (DX7's bespoke sum; oscillators get it via @c controls)
-	int32_t amplitude_increment;       ///< per-sample VCA increment
-	uint32_t phase_increment;          ///< per-block pitch (UQ0.32)
-	bool do_osc_sync;                  ///< hard-sync this block to source 0 (oscillators only)
-	uint32_t osc_sync_pos;             ///< the master's phase for this unison part (when @c doOscSync)
-	uint32_t osc_sync_phase_increment; ///< the master's increment for this unison part; 0 ⇒ freq too high ⇒ SKIP
-	BlockControls controls;            ///< the already-built oscillator controls (amplitude/pulse/sync/cpu_direness)
-	deluge::dsp::fixed::WaveTableData
-	    wave_table_data;                  ///< wavetable source only (storage-independent band view; null else)
-	int32_t wave_index_last;              ///< wavetable morph: previous block's index
-	int32_t wave_index_increment;         ///< wavetable morph: per-sample slope
-	int32_t* stereo_scratch;              ///< mono work buffer used when @c stereoBuffer (= the voice's spare buffer)
-	int32_t stereo_scratch_clear_samples; ///< how many samples of @c stereoScratch to zero before rendering into it
-	int32_t* sync_scratch;                ///< the oscillator hard-sync work buffer (passed in; synth/ can't reach dsp/)
-	int32_t amp_mod_param;                ///< DX7 amplitude-mod control (raw param value)
-	bool patch_changed;                   ///< DX7: re-derive the patch state this block
-	int32_t midinote;                     ///< DX7: the (post-arp) note code
-	int32_t interpolation_buffer_size;    ///< live-input only: precomputed interp size for the pitch-shift arm
-	uint32_t porta_envelope_pos;          ///< sample only: voice porta position (kNoPorta ⇒ no porta ⇒ caching ok)
-	int32_t priority_rating;              ///< sample only: voice-cull priority (caching + the VoiceSample render)
-	uint32_t phase_increment_stored_value; ///< sample only: pre-modulation phase increment (the late-start maths)
-	bool pitch_mod_disallows_cache;        ///< sample only: a changeable patch source modulates pitch ⇒ skip caching
-	deluge::dsp::fixed::Cong* noise; ///< live-input only: the noise stream the pitch shift's hop search draws from
+/// @brief A source's start at a note-on: what any source may read; each reads its own.
+struct SourceNote {
+	uint32_t samples_late{};   ///< How far into the note playback starts (a sample's late start)
+	int32_t note_code{};       ///< The note after arpeggiation (DX7)
+	uint8_t velocity{};        ///< DX7
+	int32_t priority_rating{}; ///< The voice's cull rating (a sample ranks its cluster loads by it)
+	void* dx_patch{};          ///< A DX7 source's patch, the opaque handle its port takes
+	OscType osc_type{};        ///< The source's type as set (a live input latches its channel from it)
 };
 
-/// @brief The L1 **Source** contract: render one unison part of one source's full contribution for this block,
-/// reporting its lifecycle outcome. Stateful — per-source state (phase, feedback, sample position) lives in the
-/// concrete source and persists across calls. This is the polymorphic seam `Voice::renderSourceComponent`
-/// dispatches on (the oscillator block render is an implementation detail of the oscillator sources, not part of
-/// this contract).
+/// @brief A source's release at the note-off.
+struct SourceRelease {
+	int32_t priority_rating{}; ///< The voice's cull rating (a sample's loop-end release ranks its loads by it)
+};
+
+/// @brief The master oscillator a slave hard-syncs to for one block.
+struct SyncMaster {
+	uint32_t phase{};     ///< The master's phase at block start (UQ0.32)
+	uint32_t increment{}; ///< The master's phase increment (UQ0.32); 0 when it is too high to render
+};
+
+/// @brief A wavetable source's block inputs: its band data and morph index.
+struct WavetableBlock {
+	deluge::dsp::fixed::WaveTableData data; ///< The loaded table's bands (storage-independent view); empty for none
+	int32_t index_last{};                   ///< The morph index at block start
+	int32_t index_increment{};              ///< The morph index's per-sample slope
+};
+
+/// @brief A DX7 source's block inputs.
+struct Dx7Block {
+	int32_t amp_mod_param{}; ///< The amplitude-modulation control (the source's raw pulse-width param)
+	bool patch_changed{};    ///< Re-derive the patch state this block
+	int32_t note_code{};     ///< The note after arpeggiation
+};
+
+/// @brief A sample source's block inputs.
+struct SampleBlock {
+	uint32_t porta_envelope_pos{kNoPorta};   ///< The voice's portamento position; kNoPorta when not gliding
+	int32_t priority_rating{};               ///< The voice's cull rating (the cache and the reader rank by it)
+	uint32_t phase_increment_stored_value{}; ///< The phase increment before modulation (the late-start maths)
+	bool pitch_mod_disallows_cache{};        ///< A source that can change during the note modulates its pitch
+};
+
+/// @brief A live-input source's block inputs.
+struct InputBlock {
+	int32_t interpolation_buffer_size{}; ///< The pitch shift's interpolation size for this block's increment
+};
+
+/// @brief Everything a @ref Source renders one unison part of one block from: already-computed values only, no
+/// engine state and nothing of the app. Each source reads the common part and its own per-type block.
+struct SourceBlock {
+	int32_t* osc_buffer{};          ///< Destination the source adds into (interleaved when @ref stereo_buffer)
+	int32_t num_samples{};          ///< Samples to render
+	bool stereo_buffer{};           ///< @ref osc_buffer is interleaved stereo: render mono into scratch, then pan
+	bool stereo_unison{};           ///< This unison part is panned
+	int32_t amplitude_l{};          ///< The unison part's left pan gain (q31)
+	int32_t amplitude_r{};          ///< The unison part's right pan gain (q31)
+	int32_t source_amplitude{};     ///< The VCA amplitude at block start (q31)
+	int32_t amplitude_increment{};  ///< The VCA amplitude's per-sample increment
+	uint32_t phase_increment{};     ///< The source's pitch (UQ0.32)
+	std::optional<SyncMaster> sync; ///< Present: hard-sync to this master this block (oscillator sources only)
+	BlockControls controls;         ///< The oscillator controls (amplitude, pulse width, sync, cpu direness)
+	int32_t* stereo_scratch{};      ///< Mono work buffer when @ref stereo_buffer
+	int32_t stereo_scratch_clear_samples{}; ///< Samples of @ref stereo_scratch to zero before rendering into it
+	int32_t* sync_scratch{};                ///< The oscillator hard-sync work buffer
+	deluge::dsp::fixed::Cong* noise{};      ///< The synth's noise stream (a live input's pitch shift draws from it)
+	WavetableBlock wavetable;
+	Dx7Block dx7;
+	SampleBlock sample;
+	InputBlock input;
+};
+
+/// @brief The L1 **Source** contract: one generator in one slot of one unison part. Stateful: phase, feedback and
+/// playback position live in the concrete source and persist across calls.
 class Source {
 public:
+	Source() = default;
+	Source(const Source&) = default;
+	Source& operator=(const Source&) = default;
+	Source(Source&&) = default;
+	Source& operator=(Source&&) = default;
 	virtual ~Source() = default;
 
-	/// Render this source's contribution for @p ctx into @c ctx.oscBuffer; @return the per-source outcome.
-	virtual SourceRenderResult render_source(const SourceRenderContext& ctx) = 0;
+	/// Starts the source for a note. @return false when the note cannot play.
+	virtual bool note_on(const SourceNote& /*note*/) { return true; }
+	/// Renders one block of @p block into @c block.osc_buffer. @return the source's outcome.
+	virtual SourceRenderResult render(const SourceBlock& block) = 0;
+	/// The note-off. @return false when the source ends now (a sample with no loop end left to play out).
+	virtual bool release(const SourceRelease& /*release*/) { return true; }
+	/// Lets go of whatever the source holds for its note (a reader, a pooled voice, a pitch shifter).
+	virtual void unassign(bool /*deleting_song*/) {}
+	/// An oscillator source's phase (UQ0.32), which osc sync reads from the master; none for other sources.
+	[[nodiscard]] virtual std::optional<uint32_t> current_phase() const { return std::nullopt; }
+	/// Advances an oscillator source's phase by @p delta (a skipped osc-sync master still runs).
+	virtual void advance_phase(uint32_t /*delta*/) {}
 };
 
 } // namespace deluge::synth

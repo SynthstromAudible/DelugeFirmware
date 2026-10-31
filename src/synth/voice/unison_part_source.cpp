@@ -37,17 +37,26 @@ bool VoiceUnisonPartSource::note_on(const deluge::synth::SourceSetup& source, ui
                                     int32_t note_code, uint8_t velocity, int32_t priority_rating,
                                     deluge::dsp::fixed::Cong& noise) {
 
+	const deluge::synth::SourceNote note{
+	    .samples_late = samples_late,
+	    .note_code = note_code,
+	    .velocity = velocity,
+	    .priority_rating = priority_rating,
+	    .dx_patch = source.dx_patch,
+	    .osc_type = source.osc_type,
+	};
+
 	if (synth_mode != SynthMode::FM && source.osc_type == OscType::SAMPLE) {
-		return sample_source.port()->note_on(samples_late, priority_rating);
+		return sample_source.note_on(note);
 	}
 
 	if (synth_mode != SynthMode::FM
 	    && (source.osc_type == OscType::INPUT_L || source.osc_type == OscType::INPUT_R
 	        || source.osc_type == OscType::INPUT_STEREO)) {
-		input_source.prepare_for_note_on(source.osc_type); // latch the live-input channel
+		input_source.note_on(note); // latches the live-input channel
 	}
 	else if (synth_mode != SynthMode::FM && source.osc_type == OscType::DX7) [[unlikely]] {
-		if (!dx7_source.note_on(source.dx_patch, note_code, velocity)) { // opaque patch handle → the port
+		if (!dx7_source.note_on(note)) {
 			return false;
 		}
 	}
@@ -122,8 +131,8 @@ bool VoiceUnisonPartSource::note_on(const deluge::synth::SourceSetup& source, ui
 void VoiceUnisonPartSource::unassign(bool deleting_song) {
 	active = false;
 	sample_source.unassign(deleting_song);
-	dx7_source.unassign();
-	input_source.unassign();
+	dx7_source.unassign(deleting_song);
+	input_source.unassign(deleting_song);
 }
 
 } // namespace deluge::synth

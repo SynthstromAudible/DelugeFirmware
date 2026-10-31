@@ -39,16 +39,17 @@ InputChannel channel_from_osc_type(OscType input_type) {
 }
 } // namespace
 
-void InputSource::prepare_for_note_on(OscType input_type) {
-	channel_ = channel_from_osc_type(input_type);
+bool InputSource::note_on(const SourceNote& note) {
+	channel_ = channel_from_osc_type(note.osc_type);
+	return true;
 }
 
 // Channel routing, pitch shift and stereo unison, each a branch:
 // NOLINTNEXTLINE(readability-function-cognitive-complexity)
-void InputSource::render(int32_t* osc_buffer, int32_t num_samples, uint32_t phase_increment, int32_t source_amplitude,
-                         int32_t amplitude_increment, bool stereo_buffer, bool stereo_unison, int32_t amplitude_l,
-                         int32_t amplitude_r, int32_t interpolation_buffer_size, dsp::fixed::Cong& noise,
-                         int32_t* mono_scratch) {
+void InputSource::render_input(int32_t* osc_buffer, int32_t num_samples, uint32_t phase_increment,
+                               int32_t source_amplitude, int32_t amplitude_increment, bool stereo_buffer,
+                               bool stereo_unison, int32_t amplitude_l, int32_t amplitude_r,
+                               int32_t interpolation_buffer_size, dsp::fixed::Cong& noise, int32_t* mono_scratch) {
 	// If pitch shifting and we weren't previously...
 	if (phase_increment != kMaxSampleValue) {
 
@@ -204,15 +205,15 @@ void InputSource::render(int32_t* osc_buffer, int32_t num_samples, uint32_t phas
 	}
 }
 
-SourceRenderResult InputSource::render_source(const SourceRenderContext& ctx) {
-	// Live input never self-unassigns; channel routing follows the channel latched at note-on (see render()).
-	render(ctx.osc_buffer, ctx.num_samples, ctx.phase_increment, ctx.source_amplitude, ctx.amplitude_increment,
-	       ctx.stereo_buffer, ctx.stereo_unison, ctx.amplitude_l, ctx.amplitude_r, ctx.interpolation_buffer_size,
-	       *ctx.noise, ctx.stereo_scratch);
+SourceRenderResult InputSource::render(const SourceBlock& block) {
+	// Live input never ends by itself; channel routing follows the channel latched at note-on.
+	render_input(block.osc_buffer, block.num_samples, block.phase_increment, block.source_amplitude,
+	             block.amplitude_increment, block.stereo_buffer, block.stereo_unison, block.amplitude_l,
+	             block.amplitude_r, block.input.interpolation_buffer_size, *block.noise, block.stereo_scratch);
 	return deluge::synth::SourceRenderResult::ACTIVE;
 }
 
-void InputSource::unassign() {
+void InputSource::unassign(bool /*deleting_song*/) {
 	if (live_pitch_shifter_ != nullptr) {
 		live_pitch_shifter_->~LivePitchShifter();
 		delugeDealloc(live_pitch_shifter_);

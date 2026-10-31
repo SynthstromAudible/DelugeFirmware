@@ -17,7 +17,7 @@
 #pragma once
 
 #include "synth/sources/sample/sample_playback_port.h" // SamplePlaybackPort
-#include "synth/sources/source.h"                      // deluge::synth::Source, SourceRenderContext, SourceRenderResult
+#include "synth/sources/source.h"                      // deluge::synth::Source, SourceBlock, SourceRenderResult
 #include <cstdint>
 
 /// @brief The sample-playback source (OscType::SAMPLE) for one voice-source — the library-resident render
@@ -28,7 +28,7 @@
 /// start, calls the port's render, and folds the result into the voice's oscBuffer (incl. the stereo-unison
 /// mix-down). All the app-coupled machinery — the `VoiceSample` reader, the SD cluster cache, time-stretch, the
 /// pool, storage, transport — lives App-side behind the port (@ref SamplePlaybackAdapter); this class names none
-/// of it. The note lifecycle (note-on/off, zone change, clone, cursor read-out) is the adapter's own API.
+/// of it. Zone changes, clones and the cursor read-out are the adapter's own API.
 ///
 /// @note Per the L1 reframe this is a **source component** (usable inside Subtractive/RingMod), not a swappable
 /// engine — see `docs/dev/synth_l1_engine_architecture.md`.
@@ -42,14 +42,17 @@ public:
 	[[nodiscard]] SamplePlaybackPort* port() const { return port_; }
 	/// Plays through @p port, which must outlive this source.
 	void bind_port(SamplePlaybackPort* port) { port_ = port; }
+	/// Starts the port's reader for the note, @c note.samples_late into it. @return false if it cannot play.
+	bool note_on(const SourceNote& note) override { return port_->note_on(note.samples_late, note.priority_rating); }
+	/// The note-off: a sample with loop points plays on past its loop end. @return false when it ends now.
+	bool release(const SourceRelease& release) override { return port_->note_off_at_loop_end(release.priority_rating); }
 	/// Releases the port's reader, if it holds one.
-	void unassign(bool deleting_song) { port_->unassign(deleting_song); }
+	void unassign(bool deleting_song) override { port_->unassign(deleting_song); }
 
-	/// Render one block of sample playback into @c ctx.oscBuffer (the @ref deluge::synth::Source seam). Reads the
-	/// per-block voice values in @p ctx (porta, priority, pre-modulation phaseIncrementStoredValue, the hoisted
-	/// caching pitch-mod flag); the resampling/time-stretch/cache machinery + the per-note source/guide live behind
-	/// the port. No @c Voice& reach.
-	SourceRenderResult render_source(const SourceRenderContext& ctx) override;
+	/// Renders one block of sample playback into @c block.osc_buffer. Reads the voice's per-block values in
+	/// @c block.sample (porta, priority, the pre-modulation phase increment, the caching pitch-mod flag); the
+	/// resampling, time-stretch and cache machinery and the note's source and guide live behind the port.
+	SourceRenderResult render(const SourceBlock& block) override;
 
 private:
 	/// Derive this block's pitch (@p phaseIncrement, mutated in place) + @p timeStretchRatio (+ @p noteLengthInSamples

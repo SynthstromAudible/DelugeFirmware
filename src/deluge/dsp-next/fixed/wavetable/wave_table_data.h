@@ -49,7 +49,7 @@ struct WaveTableBand {
 class WaveTableData {
 public:
 	/// A null/empty view (`num_bands() == 0`) — for the context slots of non-wavetable sources, which build the
-	/// shared @ref deluge::synth::SourceRenderContext but never read the view.
+	/// shared @ref deluge::synth::SourceBlock but never read the view.
 	WaveTableData() = default;
 
 	WaveTableData(int32_t num_cycles, int32_t num_cycle_transitions_magnitude, int32_t wave_index_multiplier,

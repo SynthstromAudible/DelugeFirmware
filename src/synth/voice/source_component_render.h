@@ -20,7 +20,7 @@
 #include <cstdint>
 
 /// @file Bundles a source's already-modulated per-block values into a @ref deluge::synth::BlockControls, for the
-/// voice's per-source render (in a @ref deluge::synth::SourceRenderContext) and for @ref RingModEngine.
+/// voice's per-source render (in a @ref deluge::synth::SourceBlock) and for @ref RingModEngine.
 namespace deluge::synth {
 
 /// Build the already-modulated per-block controls a source component renders from; the component derives its pulse,

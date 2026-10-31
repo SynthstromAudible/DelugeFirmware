@@ -20,28 +20,28 @@
 
 namespace deluge::synth {
 
-SourceRenderResult DX7Source::render_source(const SourceRenderContext& ctx) {
+SourceRenderResult DX7Source::render(const SourceBlock& block) {
 	// The port renders the FM block (a pooled dx7::Voice + log-pitch/control derivation); the bespoke per-unison
 	// amplitude+sum below is Voice's buffer layout. An empty span means the voice has ended.
-	std::span<const int32_t> fm =
-	    dx_->render(ctx.num_samples, ctx.phase_increment, ctx.amp_mod_param, ctx.patch_changed, ctx.midinote);
+	std::span<const int32_t> fm = dx_->render(block.num_samples, block.phase_increment, block.dx7.amp_mod_param,
+	                                          block.dx7.patch_changed, block.dx7.note_code);
 	if (fm.empty()) {
 		return SourceRenderResult::UNASSIGN;
 	}
 
-	int32_t source_amplitude_now = ctx.source_amplitude;
-	if (ctx.stereo_unison) {
-		for (int i = 0; i < ctx.num_samples; i++) {
-			source_amplitude_now += ctx.amplitude_increment;
+	int32_t source_amplitude_now = block.source_amplitude;
+	if (block.stereo_unison) {
+		for (int i = 0; i < block.num_samples; i++) {
+			source_amplitude_now += block.amplitude_increment;
 			int amplified = multiply_32x32_rshift32(fm[i], source_amplitude_now) << 6;
-			ctx.osc_buffer[(i << 1)] += multiply_32x32_rshift32(amplified, ctx.amplitude_l) << 2;
-			ctx.osc_buffer[(i << 1) + 1] += multiply_32x32_rshift32(amplified, ctx.amplitude_r) << 2;
+			block.osc_buffer[(i << 1)] += multiply_32x32_rshift32(amplified, block.amplitude_l) << 2;
+			block.osc_buffer[(i << 1) + 1] += multiply_32x32_rshift32(amplified, block.amplitude_r) << 2;
 		}
 	}
 	else {
-		for (int i = 0; i < ctx.num_samples; i++) {
-			source_amplitude_now += ctx.amplitude_increment;
-			ctx.osc_buffer[i] += multiply_32x32_rshift32(fm[i], source_amplitude_now) << 6;
+		for (int i = 0; i < block.num_samples; i++) {
+			source_amplitude_now += block.amplitude_increment;
+			block.osc_buffer[i] += multiply_32x32_rshift32(fm[i], source_amplitude_now) << 6;
 		}
 	}
 	return SourceRenderResult::ACTIVE;

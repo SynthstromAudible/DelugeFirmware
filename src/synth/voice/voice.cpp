@@ -441,14 +441,14 @@ void Voice::note_off(const deluge::synth::ReleaseInfo& release, bool allow_relea
 			if (release.osc_types[s] == OscType::SAMPLE) {
 				for (int32_t u = 0; u < release.num_unison; u++) {
 					if (unison_parts[u].sources[s].active
-					    && !unison_parts[u].sources[s].sample_source.port()->note_off_at_loop_end(rating)) {
+					    && !unison_parts[u].sources[s].sample_source.release({.priority_rating = rating})) {
 						unison_parts[u].sources[s].unassign(false);
 					}
 				}
 			}
 			else if (release.osc_types[s] == OscType::DX7) {
 				for (int u = 0; u < release.num_unison; u++) {
-					unison_parts[u].sources[s].dx7_source.keyup();
+					unison_parts[u].sources[s].dx7_source.release({});
 				}
 			}
 		}
@@ -1208,7 +1208,7 @@ Voice::render_source_component(int32_t u, int32_t s, const ControlBlock& control
 
 	// All five sources render through the polymorphic synth::Source seam, which owns (for oscillators) the osc-sync
 	// freq-too-high SKIP + mono-scratch/stereo-fold, and (per engine) the block render. The app-side adapter just
-	// gathers the already-modulated per-block values into the SourceRenderContext.
+	// gathers the already-modulated per-block values into the SourceBlock.
 	uint32_t osc_retrigger_phase = cfg.osc_retrigger_phase[s]; // Yes we might need this even if not doing osc sync.
 	uint32_t osc_sync_pos_this_unison = do_osc_sync ? osc_sync_pos[u] : 0;
 	uint32_t osc_sync_phase_increments_this_unison = do_osc_sync ? osc_sync_phase_increments[u] : 0;
@@ -1217,7 +1217,11 @@ Voice::render_source_component(int32_t u, int32_t s, const ControlBlock& control
 	uint32_t pulse_width =
 	    static_cast<uint32_t>(lshift_and_saturate<1>(params.param_final_values[params::LOCAL_OSC_A_PHASE_WIDTH + s]));
 
-	synth::SourceRenderContext ctx{
+	std::optional<synth::SyncMaster> sync;
+	if (do_osc_sync) {
+		sync = synth::SyncMaster{.phase = osc_sync_pos_this_unison, .increment = osc_sync_phase_increments_this_unison};
+	}
+	const synth::SourceBlock source_block{
 	    .osc_buffer = osc_buffer,
 	    .num_samples = num_samples,
 	    .stereo_buffer = stereo_buffer,
@@ -1227,29 +1231,38 @@ Voice::render_source_component(int32_t u, int32_t s, const ControlBlock& control
 	    .source_amplitude = source_amplitude,
 	    .amplitude_increment = amplitude_increment,
 	    .phase_increment = phase_increment,
-	    .do_osc_sync = do_osc_sync,
-	    .osc_sync_pos = osc_sync_pos_this_unison,
-	    .osc_sync_phase_increment = osc_sync_phase_increments_this_unison,
+	    .sync = sync,
 	    .controls = make_block_controls(source_amplitude, amplitude_increment, pulse_width, /*apply_amplitude=*/true,
 	                                    do_osc_sync, osc_sync_pos_this_unison, osc_sync_phase_increments_this_unison,
 	                                    osc_retrigger_phase, cfg.cpu_direness),
-	    .wave_table_data = block.wave_tables[s],
-	    .wave_index_last = static_cast<int32_t>(source_wave_indexes_last_time[s]),
-	    .wave_index_increment = wave_index_increment,
 	    .stereo_scratch = spare_buffers_[2],
 	    .stereo_scratch_clear_samples = SSI_TX_BUFFER_NUM_SAMPLES,
 	    .sync_scratch = sync_scratch_.data(),
-	    .amp_mod_param = params.param_final_values[params::LOCAL_OSC_A_PHASE_WIDTH + s], // DX7 amplitude-mod control
-	    .patch_changed = cfg.dx_patch_changed[s],                                        // DX7
-	    .midinote = note_code_after_arpeggiation,                                        // DX7
-	    .interpolation_buffer_size =
-	        interpolation_buffer_size(cfg.interpolation_mode[s], static_cast<int32_t>(phase_increment),
-	                                  cfg.cpu_direness), // live input
-	    .porta_envelope_pos = porta_envelope_pos,        // sample
-	    .priority_rating = static_cast<int32_t>(priority_rating(cfg.voice_priority, block.num_active_voices)), // sample
-	    .phase_increment_stored_value = voice_unison_part_source->phase_increment_stored_value, // sample late-start
-	    .pitch_mod_disallows_cache = pitch_mod_disallows_cache,                                 // sample caching policy
-	    .noise = noise_,                                                                        // live-input hop search
+	    .noise = noise_,
+	    .wavetable =
+	        {
+	            .data = block.wave_tables[s],
+	            .index_last = static_cast<int32_t>(source_wave_indexes_last_time[s]),
+	            .index_increment = wave_index_increment,
+	        },
+	    .dx7 =
+	        {
+	            .amp_mod_param = params.param_final_values[params::LOCAL_OSC_A_PHASE_WIDTH + s],
+	            .patch_changed = cfg.dx_patch_changed[s],
+	            .note_code = note_code_after_arpeggiation,
+	        },
+	    .sample =
+	        {
+	            .porta_envelope_pos = porta_envelope_pos,
+	            .priority_rating = static_cast<int32_t>(priority_rating(cfg.voice_priority, block.num_active_voices)),
+	            .phase_increment_stored_value = voice_unison_part_source->phase_increment_stored_value,
+	            .pitch_mod_disallows_cache = pitch_mod_disallows_cache,
+	        },
+	    .input =
+	        {
+	            .interpolation_buffer_size = interpolation_buffer_size(
+	                cfg.interpolation_mode[s], static_cast<int32_t>(phase_increment), cfg.cpu_direness),
+	        },
 	};
 
 	// sample → sample_source, DX7 → dx7_source, INPUT_* → input_source, else the persistent oscillator engine the
@@ -1274,7 +1287,7 @@ Voice::render_source_component(int32_t u, int32_t s, const ControlBlock& control
 	else {
 		component = &*unison_parts[u].sources[s].wavetable_source;
 	}
-	return component->render_source(ctx);
+	return component->render(source_block);
 }
 
 bool Voice::render_basic_source(const ControlBlock& control_block, const VoiceBlock& block, int32_t s,

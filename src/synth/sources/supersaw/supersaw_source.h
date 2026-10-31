@@ -17,7 +17,7 @@
 #pragma once
 
 #include "dsp-next/fixed/osc/supersaw.h"     // deluge::dsp::fixed::Supersaw
-#include "synth/sources/oscillator_source.h" // OscillatorSource (+ Source, SourceRenderContext, BlockControls)
+#include "synth/sources/oscillator_source.h" // OscillatorSource (+ Source, SourceBlock, BlockControls)
 #include <cstdint>
 
 namespace deluge::synth {
@@ -36,6 +36,9 @@ public:
 
 	/// The centre saw's phase (UQ0.32). Voice reads it to seed osc sync from this source as master.
 	[[nodiscard]] uint32_t phase() const { return centre_phase_; }
+
+	[[nodiscard]] std::optional<uint32_t> current_phase() const override { return phase(); }
+	void advance_phase(uint32_t delta) override { seek(phase() + delta); }
 
 	/// Jump the centre saw's phase, moving the side saws by the same amount so they keep their offsets (a skipped
 	/// osc-sync master still progresses).
@@ -56,10 +59,10 @@ public:
 	                 deluge::dsp::fixed::Buffer scratch);
 
 protected:
-	void render_osc_block(const BlockControls& controls, const SourceRenderContext& ctx,
+	void render_osc_block(const BlockControls& controls, const SourceBlock& block,
 	                      deluge::dsp::fixed::Buffer out) override {
-		render_into(controls, ctx.phase_increment, ctx.wave_index_last, ctx.wave_index_increment, out,
-		            deluge::dsp::fixed::Buffer{ctx.sync_scratch, static_cast<size_t>(ctx.num_samples)});
+		render_into(controls, block.phase_increment, block.wavetable.index_last, block.wavetable.index_increment, out,
+		            deluge::dsp::fixed::Buffer{block.sync_scratch, static_cast<size_t>(block.num_samples)});
 	}
 
 private:
