@@ -358,6 +358,13 @@ std::optional<View> view(const Target& target, const project::Song& model, const
 	return shown;
 }
 
+namespace {
+/// @brief Choice @p index's short spelling in @p names, or `EMPTY_STRING` when the setting has none.
+l10n::String short_choice(const l10n::SettingNames& names, size_t index) {
+	return index < names.short_choices.size() ? names.short_choices[index] : l10n::String::EMPTY_STRING;
+}
+} // namespace
+
 size_t choice_names(const Target& target, const project::Song& model, const Addresses& where, const RuntimeFacts& facts,
                     std::span<ChoiceName> out) {
 	const std::optional<Resolved> resolved = resolve(target, model, where, facts);
@@ -380,7 +387,7 @@ size_t choice_names(const Target& target, const project::Song& model, const Addr
 			if (index >= names->choices.size()) {
 				break;
 			}
-			out[written++] = {.name = names->choices[index]};
+			out[written++] = {.name = names->choices[index], .short_name = short_choice(*names, index)};
 		}
 		return written;
 	}
@@ -394,6 +401,7 @@ size_t choice_names(const Target& target, const project::Song& model, const Addr
 		const auto choice = engine::from_menu(*resolved->row, entries.menu[entry]);
 		const auto index = choice ? static_cast<size_t>(choice->first) : static_cast<size_t>(*stored);
 		out[written++] = {.name = index < names->choices.size() ? names->choices[index] : l10n::String::EMPTY_STRING,
+		                  .short_name = short_choice(*names, index),
 		                  .unavailable = entries.stale == entry};
 	}
 	return written;

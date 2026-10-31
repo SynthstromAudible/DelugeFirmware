@@ -597,6 +597,26 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		expect(banner(nodes::osc0_phase, -1)).to_equal(off);
 	});
 
+	it("a setting's column reads main's own short option", _ {
+		// `FilterModeSelection::getOptions(SHORT)` (`filter/mode.h:62-80`) and the other `getOptions(SHORT)` overrides:
+		// the setting's `short_choices`.
+		select_language();
+		Rig r;
+		const MenuContext ctx = r.open(horiz_page);
+		std::array<std::string_view, 8> names{};
+		std::array<deluge::ui::shell::TextScratch, 8> scratch{};
+		const auto short_name = [&](const Node& node, size_t index) {
+			const size_t n = menu::bindings::names(node, ctx, names, scratch, menu::bindings::NameForm::Short);
+			return index < n ? std::string(names[index]) : std::string("<none>");
+		};
+		expect(short_name(menu::nodes::hpf_mode, 2)).to_equal(std::string("12dB"));
+		expect(short_name(menu::nodes::lpf_mode, 1)).to_equal(std::string("24dB"));
+		expect(short_name(menu::nodes::delay_type, 2))
+		    .to_equal(std::string(deluge::l10n::get(String::STRING_FOR_ANALOG_SHORT)));
+		expect(short_name(menu::nodes::voice_priority, 1))
+		    .to_equal(std::string(deluge::l10n::get(String::STRING_FOR_MEDIUM_SHORT)));
+	});
+
 	it("a FIXED page keeps an irrelevant column in place, drawn as a dash", _ {
 		// `HorizontalMenu::Layout::FIXED` keeps irrelevant items (`horizontal_menu.cpp:494`, `:253-257`); DYNAMIC drops them.
 		select_language();

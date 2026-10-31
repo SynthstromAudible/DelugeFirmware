@@ -29,6 +29,9 @@ struct View {
 /// @brief One entry of a CHOICE row's list, in menu order.
 struct ChoiceName {
 	l10n::String name{l10n::String::EMPTY_STRING};
+	/// The setting's short spelling of the choice (`SettingNames::short_choices`), a horizontal column's text; empty
+	/// when the setting has none.
+	l10n::String short_name{l10n::String::EMPTY_STRING};
 	bool unavailable{false}; ///< the stored choice, listed although it no longer applies; shown marked
 };
 

@@ -352,7 +352,10 @@ size_t names(const Node& node, const MenuContext& ctx, std::span<std::string_vie
 		const size_t count = std::min(
 		    deluge::scenes::bind::choice_names(node.bind.target, *ctx.model, ctx.addresses, *ctx.facts, listed), limit);
 		for (size_t i = 0; i < count; ++i) {
-			const std::string_view name = name_of(static_cast<uint16_t>(listed[i].name), scratch[i]);
+			const std::string_view name =
+			    form == NameForm::Short && listed[i].short_name != deluge::l10n::String::EMPTY_STRING
+			        ? text.text_or_digits(static_cast<uint16_t>(listed[i].short_name), scratch[i])
+			        : name_of(static_cast<uint16_t>(listed[i].name), scratch[i]);
 			if (!listed[i].unavailable) {
 				out[i] = name;
 				continue;
