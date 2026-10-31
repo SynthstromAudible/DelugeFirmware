@@ -24,17 +24,18 @@ using namespace deluge;
 
 namespace deluge::voice {
 
-synth::BlockControls makeBlockControls(int32_t amplitude, int32_t amplitudeIncrement, uint32_t pulseWidth,
-                                       bool applyAmplitude, bool doOscSync, uint32_t resetterPhase,
-                                       uint32_t resetterPhaseIncrement, uint32_t retriggerPhase, int32_t cpuDireness) {
+synth::BlockControls make_block_controls(int32_t amplitude, int32_t amplitude_increment, uint32_t pulse_width,
+                                         bool apply_amplitude, bool do_osc_sync, uint32_t resetter_phase,
+                                         uint32_t resetter_phase_increment, uint32_t retrigger_phase,
+                                         int32_t cpu_direness) {
 	return synth::BlockControls{
-	    .amplitude = dsp::Ramp{amplitude, amplitudeIncrement},
-	    .apply_amplitude = applyAmplitude,
-	    .pulse_width = pulseWidth,
-	    .retrigger_phase = retriggerPhase,
-	    .sync =
-	        doOscSync ? std::optional<dsp::Phasor>{dsp::Phasor{resetterPhase, resetterPhaseIncrement}} : std::nullopt,
-	    .cpu_direness = cpuDireness,
+	    .amplitude = dsp::Ramp{amplitude, amplitude_increment},
+	    .apply_amplitude = apply_amplitude,
+	    .pulse_width = pulse_width,
+	    .retrigger_phase = retrigger_phase,
+	    .sync = do_osc_sync ? std::optional<dsp::Phasor>{dsp::Phasor{resetter_phase, resetter_phase_increment}}
+	                        : std::nullopt,
+	    .cpu_direness = cpu_direness,
 	};
 }
 

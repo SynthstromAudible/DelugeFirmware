@@ -29,7 +29,7 @@ class Detune final : public Integer {
 public:
 	using Integer::Integer;
 
-	void readCurrentValue() override { this->setValue(soundEditor.currentSound->snapshot().unisonDetune); }
+	void readCurrentValue() override { this->setValue(soundEditor.currentSound->snapshot().unison_detune); }
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
 		int32_t current_value = this->getValue();

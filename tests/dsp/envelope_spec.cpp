@@ -55,32 +55,32 @@ int32_t driveUntil(Envelope& env, Stage target, uint32_t attack, uint32_t decay,
 describe envelope_spec("Envelope", ${
 	it("starts a note at the bottom of the attack stage", _ {
 		Envelope env;
-		env.noteOn(false);
+		env.note_on(false);
 		expect(env.stage() == Stage::ATTACK).to_be_truthy();
-		expect(env.isAtAttackStart()).to_be_truthy();
-		expect(env.outputLevel()).to_equal(0);
+		expect(env.is_at_attack_start()).to_be_truthy();
+		expect(env.output_level()).to_equal(0);
 	});
 
 	it("can start straight in decay at full level", _ {
 		Envelope env;
-		env.noteOn(true, kFull);
+		env.note_on(true, kFull);
 		expect(env.stage() == Stage::DECAY).to_be_truthy();
-		expect(env.outputLevel()).to_equal(kFull);
+		expect(env.output_level()).to_equal(kFull);
 	});
 
 	it("rises monotonically through the attack", _ {
 		Envelope env;
-		env.noteOn(false);
+		env.note_on(false);
 		int32_t first = render(env, kRate, kRate, kFull, kRate);
 		int32_t second = render(env, kRate, kRate, kFull, kRate);
 		expect(env.stage() == Stage::ATTACK).to_be_truthy(); // still attacking at this rate
 		expect(first).to_be_less_than(second);
-		expect(env.isAtAttackStart()).to_equal(false); // it has advanced
+		expect(env.is_at_attack_start()).to_equal(false); // it has advanced
 	});
 
 	it("settles in sustain near the sustain level", _ {
 		Envelope env;
-		env.noteOn(false);
+		env.note_on(false);
 		expect(driveUntil(env, Stage::SUSTAIN, kRate, kRate, kFull, kRate)).to_be_greater_than(0);
 		// Hold a while to let the smoother settle, then the output should be near full (positive).
 		int32_t level = 0;
@@ -93,9 +93,9 @@ describe envelope_spec("Envelope", ${
 
 	it("releases down to silence and turns off", _ {
 		Envelope env;
-		env.noteOn(false);
+		env.note_on(false);
 		driveUntil(env, Stage::SUSTAIN, kRate, kRate, kFull, kRate);
-		env.noteOff(/*has_sustain=*/true);
+		env.note_off(/*has_sustain=*/true);
 		expect(env.stage() == Stage::RELEASE).to_be_truthy();
 		expect(driveUntil(env, Stage::OFF, kRate, kRate, kFull, kRate)).to_be_greater_than(0);
 		expect(render(env, kRate, kRate, kFull, kRate)).to_equal(kOff); // stays silent once off
@@ -103,25 +103,25 @@ describe envelope_spec("Envelope", ${
 
 	it("ignores a note-off when there is no sustain to release", _ {
 		Envelope env;
-		env.noteOn(false);
-		env.noteOff(/*has_sustain=*/false);
+		env.note_on(false);
+		env.note_off(/*has_sustain=*/false);
 		// The note-off is deferred, not acted on — we're still in the attack, not releasing.
 		expect(env.stage() == Stage::ATTACK).to_be_truthy();
 	});
 
 	it("reports a stage change exactly once", _ {
 		Envelope env;
-		env.noteOn(false);
-		expect(env.takeStageChanged()).to_be_truthy();
-		expect(env.takeStageChanged()).to_equal(false);
+		env.note_on(false);
+		expect(env.take_stage_changed()).to_be_truthy();
+		expect(env.take_stage_changed()).to_equal(false);
 	});
 
 	it("enters the requested stage at the requested fast-release rate", _ {
 		Envelope env;
-		env.noteOn(false);
-		env.unconditionalRelease(Stage::FAST_RELEASE, 5000);
+		env.note_on(false);
+		env.unconditional_release(Stage::FAST_RELEASE, 5000);
 		expect(env.stage() == Stage::FAST_RELEASE).to_be_truthy();
-		expect(env.fastReleaseRate()).to_equal(5000u);
+		expect(env.fast_release_rate()).to_equal(5000u);
 	});
 });
 // clang-format on

@@ -30,37 +30,37 @@ enum Globality {
 class Patcher {
 public:
 	struct Config {
-		uint8_t firstParam;
-		uint8_t firstNonVolumeParam;
-		uint8_t firstHybridParam;
-		uint8_t firstExpParam;
-		uint8_t endParams;
+		int32_t first_param;
+		int32_t first_non_volume_param;
+		int32_t first_hybrid_param;
+		int32_t first_exp_param;
+		int32_t end_params;
 		uint8_t globality;
 	};
 
 	Patcher(const Config& config, std::span<int32_t> source_values, std::span<int32_t> param_final_values)
-	    : config(config), source_values_(source_values), param_final_values_(param_final_values) {};
-	void performInitialPatching(const ControlBlock& control_block);
-	void performPatching(uint32_t sources_changed, const ControlBlock& control_block);
-	void recalculateFinalValueForParamWithNoCables(int32_t param, const ControlBlock& control_block);
+	    : config_(config), source_values_(source_values), param_final_values_(param_final_values) {};
+	void perform_initial_patching(const ControlBlock& control_block);
+	void perform_patching(uint32_t sources_changed, const ControlBlock& control_block);
+	void recalculate_final_value_for_param_with_no_cables(int32_t param, const ControlBlock& control_block);
 
 private:
-	int32_t combineCablesLinearForRangeParam(const deluge::synth::RoutedDestination* destination,
-	                                         const ControlBlock& control_block);
-	int32_t combineCablesLinear(const deluge::synth::RoutedDestination* destination, uint32_t param,
-	                            const ControlBlock& control_block);
-	int32_t combineCablesExp(const deluge::synth::RoutedDestination* destination, uint32_t param,
-	                         const ControlBlock& control_block);
-	static int32_t cableToLinearParamWithoutRangeAdjustment(int32_t running_total, int32_t source_value,
-	                                                        int32_t cable_strength);
-	static int32_t cableToLinearParam(int32_t running_total, const deluge::synth::RoutedCable& cable,
+	int32_t combine_cables_linear_for_range_param(const deluge::synth::RoutedDestination* destination,
+	                                              const ControlBlock& control_block);
+	int32_t combine_cables_linear(const deluge::synth::RoutedDestination* destination, int32_t param,
+	                              const ControlBlock& control_block);
+	int32_t combine_cables_exp(const deluge::synth::RoutedDestination* destination, int32_t param,
+	                           const ControlBlock& control_block);
+	static int32_t cable_to_linear_param_without_range_adjustment(int32_t running_total, int32_t source_value,
+	                                                              int32_t cable_strength);
+	static int32_t cable_to_linear_param(int32_t running_total, const deluge::synth::RoutedCable& cable,
+	                                     int32_t source_value, int32_t cable_strength);
+	static int32_t cable_to_exp_param_without_range_adjustment(int32_t running_total, int32_t source_value,
+	                                                           int32_t cable_strength);
+	static int32_t cable_to_exp_param(int32_t running_total, const deluge::synth::RoutedCable& cable,
 	                                  int32_t source_value, int32_t cable_strength);
-	static int32_t cableToExpParamWithoutRangeAdjustment(int32_t running_total, int32_t source_value,
-	                                                     int32_t cable_strength);
-	static int32_t cableToExpParam(int32_t running_total, const deluge::synth::RoutedCable& cable, int32_t source_value,
-	                               int32_t cable_strength);
 
-	const Config& config;
+	Config config_;
 	std::span<int32_t> source_values_{};
 	std::span<int32_t> param_final_values_{};
 };

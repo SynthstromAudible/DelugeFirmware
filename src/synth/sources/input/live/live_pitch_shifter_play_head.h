@@ -34,16 +34,16 @@ enum class PlayHeadMode {
 };
 
 struct LivePitchShifterPlayHead {
-	void render(int32_t* outputBuffer, int32_t numSamples, int32_t numChannels, int32_t phaseIncrement,
-	            int32_t amplitude, int32_t amplitudeIncrement, int32_t* repitchedBuffer, int32_t* rawBuffer,
-	            int32_t whichKernel, int32_t interpolationBufferSize);
-	int32_t getEstimatedPlaytimeRemaining(uint32_t repitchedBufferWritePos, LiveInputBuffer* liveInputBuffer,
-	                                      int32_t phaseIncrement);
+	void render(int32_t* output_buffer, int32_t num_samples, int32_t num_channels, int32_t phase_increment,
+	            int32_t amplitude, int32_t amplitude_increment, int32_t* repitched_buffer, int32_t* raw_buffer,
+	            int32_t which_kernel, int32_t interpolation_buffer_size);
+	int32_t get_estimated_playtime_remaining(uint32_t repitched_buffer_write_pos, LiveInputBuffer* live_input_buffer,
+	                                         int32_t phase_increment);
 
-	int32_t getNumRawSamplesBehindInput(LiveInputBuffer* liveInputBuffer, LivePitchShifter* livePitchShifter,
-	                                    int32_t phaseIncrement);
+	int32_t get_num_raw_samples_behind_input(LiveInputBuffer* live_input_buffer, LivePitchShifter* live_pitch_shifter,
+	                                         int32_t phase_increment);
 
-	void fillInterpolationBuffer(LiveInputBuffer* liveInputBuffer, int32_t numChannels);
+	void fill_interpolation_buffer(LiveInputBuffer* live_input_buffer, int32_t num_channels);
 
 	// Default member initializers: this class has no constructor and the OLDER play
 	// head is never explicitly initialized by LivePitchShifter, so on hardware its
@@ -54,12 +54,12 @@ struct LivePitchShifterPlayHead {
 #if INPUT_ENABLE_REPITCHED_BUFFER
 	int32_t repitchedBufferReadPos = 0;
 #endif
-	int32_t rawBufferReadPos = 0;
-	uint32_t oscPos = 0;
+	int32_t raw_buffer_read_pos = 0;
+	uint32_t osc_pos = 0;
 
 	deluge::dsp::fixed::Interpolator interpolator_;
 
-	uint32_t percPos = 0;
+	uint32_t perc_pos = 0;
 };
 
 } // namespace deluge::synth

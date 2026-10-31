@@ -31,8 +31,8 @@ public:
 
 	/// @param centrePhase the centre saw's phase (UQ0.32), which is the source's phase
 	/// @param sidePhases the six side saws' phases
-	SupersawSource(uint32_t centrePhase, const SidePhases& sidePhases)
-	    : centre_phase_{centrePhase}, side_phases_{sidePhases} {}
+	SupersawSource(uint32_t centre_phase, const SidePhases& side_phases)
+	    : centre_phase_{centre_phase}, side_phases_{side_phases} {}
 
 	/// The centre saw's phase (UQ0.32). Voice reads it to seed osc sync from this source as master.
 	[[nodiscard]] uint32_t phase() const { return centre_phase_; }
@@ -51,14 +51,15 @@ public:
 	/// (raw render) and by @ref renderOscBlock.
 	/// @param waveIndexLast the wave index param's previous block value, which sets the spread
 	/// @param waveIndexIncrement its per-sample slope; spread is taken where the block ends
-	void renderInto(const BlockControls& controls, uint32_t phaseIncrement, int32_t waveIndexLast,
-	                int32_t waveIndexIncrement, deluge::dsp::fixed::Buffer output, deluge::dsp::fixed::Buffer scratch);
+	void render_into(const BlockControls& controls, uint32_t phase_increment, int32_t wave_index_last,
+	                 int32_t wave_index_increment, deluge::dsp::fixed::Buffer output,
+	                 deluge::dsp::fixed::Buffer scratch);
 
 protected:
-	void renderOscBlock(const BlockControls& controls, const SourceRenderContext& ctx,
-	                    deluge::dsp::fixed::Buffer out) override {
-		renderInto(controls, ctx.phaseIncrement, ctx.waveIndexLast, ctx.waveIndexIncrement, out,
-		           deluge::dsp::fixed::Buffer{ctx.syncScratch, static_cast<size_t>(ctx.numSamples)});
+	void render_osc_block(const BlockControls& controls, const SourceRenderContext& ctx,
+	                      deluge::dsp::fixed::Buffer out) override {
+		render_into(controls, ctx.phase_increment, ctx.wave_index_last, ctx.wave_index_increment, out,
+		            deluge::dsp::fixed::Buffer{ctx.sync_scratch, static_cast<size_t>(ctx.num_samples)});
 	}
 
 private:

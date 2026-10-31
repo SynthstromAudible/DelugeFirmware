@@ -153,16 +153,16 @@ int32_t lfoOf(std::string_view path, std::string_view& rest) {
 /// path has no setter here.
 bool applyLfoSetting(::Sound& sound, int32_t l, std::string_view rest, const std::string& text, int32_t number,
                      ::Song& song) {
-	const LFOConfig& now = sound.snapshot().lfoConfig[l];
+	const LFOConfig& now = sound.snapshot().lfo_config[l];
 	if (rest == "type") {
 		sound.setLfoWaveType(l, deluge::instrument::parse_lfo_type(text));
 	}
 	else if (rest == "syncType") {
-		sound.setLfoSync(l, static_cast<SyncType>(number), now.syncLevel);
+		sound.setLfoSync(l, static_cast<SyncType>(number), now.sync_level);
 		sound.setupPatchingForAllParamManagers(&song);
 	}
 	else if (rest == "syncLevel") {
-		sound.setLfoSync(l, now.syncType, static_cast<SyncLevel>(number));
+		sound.setLfoSync(l, now.sync_type, static_cast<SyncLevel>(number));
 		sound.setupPatchingForAllParamManagers(&song);
 	}
 	else {

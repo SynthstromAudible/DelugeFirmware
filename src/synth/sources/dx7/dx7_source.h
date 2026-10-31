@@ -39,7 +39,7 @@ public:
 
 	/// Solicit + init the FM voice for this note, caching @p patch (opaque preset handle). @return false if the
 	/// pool is empty.
-	bool noteOn(void* patch, int midinote, int velocity) { return dx_->noteOn(patch, midinote, velocity); }
+	bool note_on(void* patch, int midinote, int velocity) { return dx_->note_on(patch, midinote, velocity); }
 
 	/// Return the pooled FM voice (no-op if none held).
 	void unassign() { dx_->unassign(); }
@@ -49,7 +49,7 @@ public:
 
 	/// Render this DX7 source's contribution into @c ctx.oscBuffer (the bespoke per-unison amplitude/stereo sum
 	/// over the port's FM block), reporting UNASSIGN once the FM voice has ended.
-	SourceRenderResult renderSource(const SourceRenderContext& ctx) override;
+	SourceRenderResult render_source(const SourceRenderContext& ctx) override;
 };
 
 } // namespace deluge::synth

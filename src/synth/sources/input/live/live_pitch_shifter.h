@@ -22,6 +22,9 @@
 #include "synth/sources/input/input_channel.h"
 #include "synth/sources/input/live/live_pitch_shifter_play_head.h"
 
+// The live pitch shifter keeps its legacy arithmetic as it is until its rewrite (TODO.md).
+// NOLINTBEGIN(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
+
 namespace deluge::synth {
 
 class LiveInputBuffer;
@@ -29,17 +32,17 @@ class AudioInputPort;
 
 class LivePitchShifter {
 public:
-	LivePitchShifter(InputChannel channel, int32_t phaseIncrement);
+	LivePitchShifter(InputChannel channel, int32_t phase_increment);
 	~LivePitchShifter();
 
 	/// Render @p numSamplesThisFunctionCall of pitch-shifted output, summed into @p outputBuffer.
 	/// @return the number of time-stretch hops performed this call. The caller folds this into the host's
 	/// per-routine hop accounting (CPU-load spreading) — the pitch-shifter itself stays free of that global.
-	[[nodiscard]] int32_t render(int32_t* outputBuffer, int32_t numSamplesThisFunctionCall, int32_t phaseIncrement,
-	                             int32_t amplitude, int32_t amplitudeIncrement, int32_t interpolationBufferSize,
-	                             AudioInputPort& port, dsp::fixed::Cong& noise);
+	[[nodiscard]] int32_t render(int32_t* output_buffer, int32_t num_samples_this_function_call,
+	                             int32_t phase_increment, int32_t amplitude, int32_t amplitude_increment,
+	                             int32_t interpolation_buffer_size, AudioInputPort& port, dsp::fixed::Cong& noise);
 
-	bool mayBeRemovedWithoutClick();
+	bool may_be_removed_without_click();
 
 #if INPUT_ENABLE_REPITCHED_BUFFER
 	int32_t* repitchedBuffer;
@@ -50,27 +53,28 @@ public:
 	uint32_t oscPos;
 #endif
 
-	int8_t numChannels;
+	int8_t num_channels;
 	InputChannel channel;
 
-	uint32_t crossfadeProgress; // Out of kMaxSampleValue
+	uint32_t crossfade_progress; // Out of kMaxSampleValue
 	// crossfadeIncrement + percThresholdForCut are only set at the first hop (before the crossfade/perc logic that
 	// reads them becomes reachable), so default-initialise them — otherwise a freshly-allocated shifter carries
 	// read-before-write garbage in these fields.
-	uint32_t crossfadeIncrement{0};
-	int32_t nextCrossfadeLength;
-	int32_t samplesTilHopEnd;
-	int32_t samplesIntoHop;
+	uint32_t crossfade_increment{0};
+	int32_t next_crossfade_length;
+	int32_t samples_til_hop_end;
+	int32_t samples_into_hop;
 
-	int32_t percThresholdForCut{0};
+	int32_t perc_threshold_for_cut{0};
 
-	LivePitchShifterPlayHead playHeads[2];
+	LivePitchShifterPlayHead play_heads[2];
 
 private:
-	void hopEnd(int32_t phaseIncrement, LiveInputBuffer* liveInputBuffer, uint64_t numRawSamplesProcessed,
-	            uint64_t numRawSamplesProcessedLatest, dsp::fixed::Cong& noise);
-	void considerRepitchedBuffer(int32_t phaseIncrement);
-	bool olderPlayHeadIsCurrentlySounding();
+	void hop_end(int32_t phase_increment, LiveInputBuffer* live_input_buffer, uint64_t num_raw_samples_processed,
+	             uint64_t num_raw_samples_processed_latest, dsp::fixed::Cong& noise);
+	void consider_repitched_buffer(int32_t phase_increment);
+	bool older_play_head_is_currently_sounding();
 };
 
 } // namespace deluge::synth
+// NOLINTEND(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)

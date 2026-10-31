@@ -17,24 +17,24 @@
 #include "processing/live/audio_input_adapter.h"
 #include "processing/engines/audio_engine.h"
 
-uint32_t AudioInputAdapter::sampleTime() const {
+uint32_t AudioInputAdapter::sample_time() const {
 	return AudioEngine::audioSampleTimer;
 }
 
-bool AudioInputAdapter::stereoInputAvailable() const {
+bool AudioInputAdapter::stereo_input_available() const {
 	return AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn;
 }
 
-const int32_t* AudioInputAdapter::ringReadPos() const {
+const int32_t* AudioInputAdapter::ring_read_pos() const {
 	return reinterpret_cast<const int32_t*>(AudioEngine::inputRingPos);
 }
 
-const int32_t* AudioInputAdapter::ringEnd() const {
+const int32_t* AudioInputAdapter::ring_end() const {
 	return AudioEngine::inputRingEnd();
 }
 
-deluge::synth::LiveInputBuffer* AudioInputAdapter::bufferForChannel(deluge::synth::InputChannel channel,
-                                                                    bool mayCreate) {
+deluge::synth::LiveInputBuffer* AudioInputAdapter::buffer_for_channel(deluge::synth::InputChannel channel,
+                                                                      bool mayCreate) {
 	using enum deluge::synth::InputChannel;
 	const OscType inputType = channel == RIGHT    ? OscType::INPUT_R
 	                          : channel == STEREO ? OscType::INPUT_STEREO
@@ -42,6 +42,6 @@ deluge::synth::LiveInputBuffer* AudioInputAdapter::bufferForChannel(deluge::synt
 	return AudioEngine::getOrCreateLiveInputBuffer(inputType, mayCreate);
 }
 
-void AudioInputAdapter::reportHops(int32_t hopsEnded) {
+void AudioInputAdapter::report_hops(int32_t hopsEnded) {
 	AudioEngine::numHopsEndedThisRoutineCall += hopsEnded;
 }

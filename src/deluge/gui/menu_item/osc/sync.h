@@ -27,7 +27,7 @@ namespace deluge::gui::menu_item::osc {
 class Sync final : public Toggle {
 public:
 	using Toggle::Toggle;
-	void readCurrentValue() override { this->setValue(soundEditor.currentSound->snapshot().oscillatorSync); }
+	void readCurrentValue() override { this->setValue(soundEditor.currentSound->snapshot().oscillator_sync); }
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
 		bool current_value = this->getValue();

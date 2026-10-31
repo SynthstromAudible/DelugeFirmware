@@ -1009,9 +1009,9 @@ void SampleMarkerEditor::graphicsRoutine() {
 			if (!valid_voices_view.empty()) {
 				auto& assigned_voice = *std::ranges::max_element(valid_voices_view, {}, &VoiceSlot::order_sounded);
 
-				const int32_t u = soundEditor.currentSound->snapshot().numUnison >> 1;
+				const int32_t u = soundEditor.currentSound->snapshot().num_unison >> 1;
 				VoiceUnisonPartSource* part =
-				    &assigned_voice->kernel.unisonParts[u].sources[soundEditor.currentSourceIndex];
+				    &assigned_voice->kernel.unison_parts[u].sources[soundEditor.currentSourceIndex];
 				if (part != nullptr && part->active) {
 					voiceSample = assigned_voice->ports(u, soundEditor.currentSourceIndex).sample.voiceSample();
 					guide = &assigned_voice->guides[soundEditor.currentSourceIndex];

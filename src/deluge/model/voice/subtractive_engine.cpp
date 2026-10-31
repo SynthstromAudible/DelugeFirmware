@@ -18,39 +18,41 @@
 #include "model/voice/subtractive_engine.h"
 #include "definitions_cxx.hpp"
 #include "model/voice/voice.h"
+#include <array>
 #include <cstring>
+#include <span>
 
 using deluge::synth::Voice;
 
-void SubtractiveEngine::render(Voice& voice, const ControlBlock& controlBlock, const deluge::synth::VoiceBlock& block,
-                               int32_t* oscBuffer, int32_t numSamples, bool doingOscSync, uint32_t* oscSyncPos,
-                               int32_t overallPitchAdjust, const int32_t* sourceAmplitudesNow,
-                               const int32_t* sourceAmplitudeIncrements, const int32_t* sourceWaveIndexIncrements,
-                               bool& anythingInOscBuffer, bool& didStereoTempBuffer, bool& unassignVoiceAfter,
+void SubtractiveEngine::render(Voice& voice, const ControlBlock& control_block, const deluge::synth::VoiceBlock& block,
+                               int32_t* osc_buffer, int32_t num_samples, bool doing_osc_sync, uint32_t* osc_sync_pos,
+                               int32_t overall_pitch_adjust, const int32_t* source_amplitudes_now,
+                               const int32_t* source_amplitude_increments, const int32_t* source_wave_index_increments,
+                               bool& anything_in_osc_buffer, bool& did_stereo_temp_buffer, bool& unassign_voice_after,
                                const VoiceConfig& cfg) {
 
-	bool unisonPartBecameInactive = false;
+	bool unison_part_became_inactive = false;
 
-	uint32_t oscSyncPhaseIncrement[kMaxNumVoicesUnison];
-	uint32_t sourcesToRenderInStereo = 0;
+	std::array<uint32_t, kMaxNumVoicesUnison> osc_sync_phase_increment; // left as is where no part writes it
+	uint32_t sources_to_render_in_stereo = 0;
 
 	// First, render any mono sources, and note whether there are any stereo ones
 	for (int32_t s = 0; s < kNumSources; s++) {
 
-		uint32_t* getPhaseIncrements = nullptr;
-		bool getOutAfterGettingPhaseIncrements = false;
+		std::span<uint32_t> get_phase_increments;
+		bool get_out_after_getting_phase_increments = false;
 
 		// If we're doing osc sync and this is osc A...
-		if ((s == 0) && doingOscSync) {
-			getPhaseIncrements = oscSyncPhaseIncrement;
+		if ((s == 0) && doing_osc_sync) {
+			get_phase_increments = osc_sync_phase_increment;
 		}
 
 		// This this source isn't active...
-		if (!cfg.sourceActiveCurrently[s]) {
+		if (!cfg.source_active_currently[s]) {
 
 			// If we're doing osc sync...
-			if (getPhaseIncrements) {
-				getOutAfterGettingPhaseIncrements = true;
+			if (!get_phase_increments.empty()) {
+				get_out_after_getting_phase_increments = true;
 
 				// Otherwise, skip it
 			}
@@ -60,66 +62,71 @@ void SubtractiveEngine::render(Voice& voice, const ControlBlock& controlBlock, c
 		}
 
 		if (!block.source_in_stereo[s]) {
-			voice.renderBasicSource(controlBlock, block, s, oscBuffer, numSamples, false, sourceAmplitudesNow[s],
-			                        &unisonPartBecameInactive, overallPitchAdjust, (s == 1) && doingOscSync, oscSyncPos,
-			                        oscSyncPhaseIncrement, sourceAmplitudeIncrements[s], getPhaseIncrements,
-			                        getOutAfterGettingPhaseIncrements, sourceWaveIndexIncrements[s], cfg);
-			anythingInOscBuffer = true;
+			unison_part_became_inactive |= voice.render_basic_source(
+			    control_block, block, s, osc_buffer, num_samples, false, source_amplitudes_now[s], overall_pitch_adjust,
+			    (s == 1) && doing_osc_sync, osc_sync_pos, osc_sync_phase_increment.data(),
+			    source_amplitude_increments[s], get_phase_increments, get_out_after_getting_phase_increments,
+			    source_wave_index_increments[s], cfg);
+			anything_in_osc_buffer = true;
 		}
 		else {
-			sourcesToRenderInStereo |= (1 << s);
+			sources_to_render_in_stereo |= (1 << s);
 		}
 	}
 
 	// If any sources need rendering in stereo
-	if (sourcesToRenderInStereo) {
+	if (sources_to_render_in_stereo != 0u) {
 
 		// If we've already got something mono in the buffer, copy that to the right-channel buffer
-		if (anythingInOscBuffer) {
-			for (int32_t i = numSamples - 1; i >= 0; i--) {
-				oscBuffer[(i << 1) + 1] = oscBuffer[i];
-				oscBuffer[(i << 1)] = oscBuffer[i];
+		if (anything_in_osc_buffer) {
+			for (int32_t i = num_samples - 1; i >= 0; i--) {
+				osc_buffer[(i << 1) + 1] = osc_buffer[i];
+				osc_buffer[(i << 1)] = osc_buffer[i];
 			}
 		}
 
 		// Otherwise, make it blank
 		else {
-			memset(&oscBuffer[numSamples], 0, numSamples * sizeof(int32_t));
+			memset(&osc_buffer[num_samples], 0, num_samples * sizeof(int32_t));
 		}
 
 		// Render each source that's stereo. Osc sync must still be applied here: with stereo unison spread, both
 		// sources get deferred into this path (see VoiceBlock::source_in_stereo), so we have to capture osc A's phase
 		// increments and sync osc B to them just like the mono path above does.
 		for (int32_t s = 0; s < kNumSources; s++) {
-			if (sourcesToRenderInStereo & (1 << s)) {
+			if ((sources_to_render_in_stereo & (1 << s)) != 0u) {
 
-				uint32_t* getPhaseIncrements = ((s == 0) && doingOscSync) ? oscSyncPhaseIncrement : nullptr;
-				bool getOutAfterGettingPhaseIncrements = getPhaseIncrements && !cfg.sourceActiveCurrently[s];
+				std::span<uint32_t> get_phase_increments;
+				if ((s == 0) && doing_osc_sync) {
+					get_phase_increments = osc_sync_phase_increment;
+				}
+				bool get_out_after_getting_phase_increments =
+				    !get_phase_increments.empty() && !cfg.source_active_currently[s];
 
-				voice.renderBasicSource(controlBlock, block, s, oscBuffer, numSamples, true, sourceAmplitudesNow[s],
-				                        &unisonPartBecameInactive, overallPitchAdjust, (s == 1) && doingOscSync,
-				                        oscSyncPos, oscSyncPhaseIncrement, sourceAmplitudeIncrements[s],
-				                        getPhaseIncrements, getOutAfterGettingPhaseIncrements,
-				                        sourceWaveIndexIncrements[s], cfg);
+				unison_part_became_inactive |= voice.render_basic_source(
+				    control_block, block, s, osc_buffer, num_samples, true, source_amplitudes_now[s],
+				    overall_pitch_adjust, (s == 1) && doing_osc_sync, osc_sync_pos, osc_sync_phase_increment.data(),
+				    source_amplitude_increments[s], get_phase_increments, get_out_after_getting_phase_increments,
+				    source_wave_index_increments[s], cfg);
 			}
 		}
 
-		didStereoTempBuffer = true;
+		did_stereo_temp_buffer = true;
 	}
 
 	// If any unison part became inactive (for either source), and no noise-source, then it might be time to
 	// unassign the voice...
-	if (unisonPartBecameInactive && voice.areAllUnisonPartsInactive(cfg)) {
+	if (unison_part_became_inactive && voice.are_all_unison_parts_inactive(cfg)) {
 
 		// If no filters, we can just unassign
-		if (!voice.filterSet.is_on()) {
-			unassignVoiceAfter = true;
+		if (!voice.filter_set.is_on()) {
+			unassign_voice_after = true;
 		}
 
 		// Otherwise, must do a fast-release to avoid a click
 		else {
 			if (voice.envelopes[0].stage() < Envelope::Stage::FAST_RELEASE) {
-				voice.envelopes[0].unconditionalRelease(Envelope::Stage::FAST_RELEASE);
+				voice.envelopes[0].unconditional_release(Envelope::Stage::FAST_RELEASE);
 			}
 		}
 	}

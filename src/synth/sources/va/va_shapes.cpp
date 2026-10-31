@@ -63,7 +63,7 @@ constexpr int32_t kAnalogSawDowngradeBand = 8;
 /// How a shape's un-amplified ("standalone") output relates to the raw value its VCA consumes: band-limited /
 /// pulse waves emit final-scale directly; the crude saw/square emit double (standalone >> 1); the crude triangle
 /// emits half (standalone << 1).
-enum class Standalone { kDirect, kHalve, kDouble };
+enum class Standalone { DIRECT, HALVE, DOUBLE };
 
 /// @brief The per-block resolution of pulse-width + hard-sync into the values the render path actually consumes.
 ///
@@ -83,10 +83,10 @@ struct Resolved {
 /// to its own original-rate phase. @p resetter_tweak shifts that self-sync master's phase before it is used (saw
 /// +half cycle, sine −3/4 cycle, triangle none); @p retrigger is added to the rewritten phase and carried to the
 /// sync render.
-Resolved multiplyPulseSync(Phasor original, uint32_t pulse_width, uint32_t retrigger, uint32_t resetter_tweak) {
+Resolved multiply_pulse_sync(Phasor original, uint32_t pulse_width, uint32_t retrigger, uint32_t resetter_tweak) {
 	const uint32_t resetter_phase = original.phase() + resetter_tweak;
 	const uint32_t resetter_increment = original.increment();
-	const uint32_t pulse_width_abs = ((int32_t)pulse_width >= 0) ? pulse_width : -pulse_width;
+	const uint32_t pulse_width_abs = (static_cast<int32_t>(pulse_width) >= 0) ? pulse_width : -pulse_width;
 
 	int32_t resetter_to_multiply = resetter_phase >> 1;
 	if (resetter_phase >= (uint32_t)-(resetter_increment >> 1)) {
@@ -95,45 +95,48 @@ Resolved multiplyPulseSync(Phasor original, uint32_t pulse_width, uint32_t retri
 		resetter_to_multiply -= kHalfCycle;
 	}
 
+	const auto half_width = static_cast<q31_t>((pulse_width_abs >> 1) + kQuarterCycle);
 	const uint32_t render_phase =
-	    ((uint32_t)multiply_32x32_rshift32_rounded((pulse_width_abs >> 1) + kQuarterCycle, resetter_to_multiply) << 3)
-	    + retrigger;
+	    (static_cast<uint32_t>(multiply_32x32_rshift32_rounded(half_width, resetter_to_multiply)) << 3) + retrigger;
 	const uint32_t render_increment =
-	    (uint32_t)multiply_32x32_rshift32_rounded((pulse_width_abs >> 1) + kQuarterCycle, resetter_increment >> 1) << 3;
+	    static_cast<uint32_t>(multiply_32x32_rshift32_rounded(half_width, static_cast<q31_t>(resetter_increment >> 1)))
+	    << 3;
 
 	return {Phasor{render_phase, render_increment}, Phasor{resetter_phase, resetter_increment}, retrigger};
 }
 
 /// Pulse-width-as-sync, "divide" family (analog square only): the same idea, but the render rate is derived by
 /// dividing the phase by the (half-)width rather than multiplying. No resetter tweak.
-Resolved dividePulseSync(Phasor original, uint32_t pulse_width, uint32_t retrigger) {
+Resolved divide_pulse_sync(Phasor original, uint32_t pulse_width, uint32_t retrigger) {
 	const uint32_t resetter_phase = original.phase();
 	const uint32_t resetter_increment = original.increment();
-	const uint32_t pulse_width_abs = ((int32_t)pulse_width >= 0) ? pulse_width : -pulse_width;
+	const uint32_t pulse_width_abs = (static_cast<int32_t>(pulse_width) >= 0) ? pulse_width : -pulse_width;
 
-	int64_t resetter_to_divide = (uint64_t)resetter_phase << 30;
+	auto resetter_to_divide = static_cast<int64_t>(static_cast<uint64_t>(resetter_phase) << 30);
 	if (resetter_phase >= (uint32_t)-(resetter_increment >> 1)) {
-		resetter_to_divide -= (uint64_t)1 << 62;
+		resetter_to_divide -= int64_t{1} << 62;
 	}
 
-	const uint32_t render_phase = resetter_to_divide / (int32_t)((pulse_width_abs + kHalfCycle) >> 1) + retrigger;
-	const uint32_t render_increment = ((uint64_t)resetter_increment << 31) / (pulse_width_abs + kHalfCycle);
+	const uint32_t render_phase =
+	    resetter_to_divide / static_cast<int32_t>((pulse_width_abs + kHalfCycle) >> 1) + retrigger;
+	const uint32_t render_increment =
+	    (static_cast<uint64_t>(resetter_increment) << 31) / (pulse_width_abs + kHalfCycle);
 
 	return {Phasor{render_phase, render_increment}, Phasor{resetter_phase, resetter_increment}, retrigger};
 }
 
 /// Resolve a "multiply-family" wave's pulse/sync: a real sync wins (no pulse rewrite); otherwise a non-zero
 /// pulse-width becomes self-sync via @ref multiplyPulseSync; otherwise the original phasor renders straight.
-Resolved resolveMultiply(Phasor original, const BlockControls& controls, uint32_t retrigger, uint32_t resetter_tweak) {
+Resolved resolve_multiply(Phasor original, const BlockControls& controls, uint32_t retrigger, uint32_t resetter_tweak) {
 	if (!controls.sync && controls.pulse_width != 0) {
-		return multiplyPulseSync(original, controls.pulse_width, retrigger, resetter_tweak);
+		return multiply_pulse_sync(original, controls.pulse_width, retrigger, resetter_tweak);
 	}
 	return {original, controls.sync, retrigger};
 }
 
 /// out = (scratch · amplitude) + out — the dsp-next Amplitude mixer with a ramped amplitude vector. The hard-sync
 /// arms render the wave into `scratch`, then mix it into `output`'s prior contents (the normal voice path).
-void mixThroughVca(Ramp amplitude, fixed::Buffer output, fixed::Buffer scratch) {
+void mix_through_vca(Ramp amplitude, fixed::Buffer output, fixed::Buffer scratch) {
 	fixed::Amplitude vca{amplitude};
 	vca.render_block(fixed::Signal{scratch}, fixed::Signal{output}, output);
 }
@@ -141,8 +144,8 @@ void mixThroughVca(Ramp amplitude, fixed::Buffer output, fixed::Buffer scratch) 
 /// Render `osc`'s raw wave, then either scale-and-mix it through its VCA (when amplitude applies) or write the
 /// standalone wave (rescaled per @p scale) straight out. `make_vca` builds the VCA only when it is needed.
 template <typename Osc, typename MakeVca>
-void renderThroughVca(Osc& osc, MakeVca make_vca, Standalone scale, bool apply_amplitude, fixed::Buffer output,
-                      fixed::Buffer scratch) {
+void render_through_vca(Osc& osc, MakeVca make_vca, Standalone scale, bool apply_amplitude, fixed::Buffer output,
+                        fixed::Buffer scratch) {
 	if (apply_amplitude) {
 		osc.render_block(scratch);
 		auto vca = make_vca();
@@ -150,12 +153,12 @@ void renderThroughVca(Osc& osc, MakeVca make_vca, Standalone scale, bool apply_a
 	}
 	else {
 		osc.render_block(output);
-		if (scale == Standalone::kHalve) {
+		if (scale == Standalone::HALVE) {
 			for (auto& sample : output) {
 				sample >>= 1;
 			}
 		}
-		else if (scale == Standalone::kDouble) {
+		else if (scale == Standalone::DOUBLE) {
 			for (auto& sample : output) {
 				sample <<= 1;
 			}
@@ -166,9 +169,9 @@ void renderThroughVca(Osc& osc, MakeVca make_vca, Standalone scale, bool apply_a
 /// Render a band-limited wave — a BandLimitedTableOscillator picks the band of `bands` for `selection_increment`
 /// — straight or hard-synced, then apply amplitude. The sync arm crossfades the seam (SyncedOscillator) and
 /// reports its advanced phase back through `phasor`.
-void renderBandLimited(const fixed::BandlimitedTable& bands, uint32_t selection_increment, Ramp amplitude,
-                       const std::optional<Phasor>& sync, uint32_t retrigger, bool apply_amplitude,
-                       fixed::Buffer output, fixed::Buffer scratch, Phasor& phasor) {
+void render_band_limited(const fixed::BandlimitedTable& bands, uint32_t selection_increment, Ramp amplitude,
+                         const std::optional<Phasor>& sync, uint32_t retrigger, bool apply_amplitude,
+                         fixed::Buffer output, fixed::Buffer scratch, Phasor& phasor) {
 	if (sync) {
 		fixed::Buffer dst = apply_amplitude ? scratch : output;
 		fixed::SyncedOscillator osc{
@@ -176,21 +179,21 @@ void renderBandLimited(const fixed::BandlimitedTable& bands, uint32_t selection_
 		    phasor.phase(), phasor.increment(), fixed::Resetter{sync->phase(), sync->increment()}, retrigger};
 		osc.render_block(dst);
 		phasor.seek(osc.phase());
-		mixThroughVca(amplitude, output, scratch);
+		mix_through_vca(amplitude, output, scratch);
 	}
 	else {
 		fixed::BandLimitedTableOscillator osc{bands, phasor.phase(), phasor.increment(), selection_increment};
-		renderThroughVca(
-		    osc, [&] { return fixed::Amplitude{amplitude}; }, Standalone::kDirect, apply_amplitude, output, scratch);
+		render_through_vca(
+		    osc, [&] { return fixed::Amplitude{amplitude}; }, Standalone::DIRECT, apply_amplitude, output, scratch);
 	}
 }
 
 /// The perfect pulse: ring-modulate two band-limited squares offset by the pulse width. It runs at half the phase
 /// rate (the legacy pulse trick), so a synced phase is doubled back before being reported. @p pulse_width is the
 /// width already offset by half a cycle; @p band_select is the (mildly band-limited) increment that picks the band.
-void renderPerfectPulse(Ramp amplitude, uint32_t pulse_width, uint32_t band_select, const std::optional<Phasor>& sync,
-                        uint32_t retrigger, bool apply_amplitude, fixed::Buffer output, fixed::Buffer scratch,
-                        Phasor& phasor) {
+void render_perfect_pulse(Ramp amplitude, uint32_t pulse_width, uint32_t band_select, const std::optional<Phasor>& sync,
+                          uint32_t retrigger, bool apply_amplitude, fixed::Buffer output, fixed::Buffer scratch,
+                          Phasor& phasor) {
 	const uint32_t phase_offset = -(pulse_width >> 1);
 	const uint32_t phase = phasor.phase() >> 1;
 	const uint32_t increment = phasor.increment() >> 1;
@@ -201,11 +204,11 @@ void renderPerfectPulse(Ramp amplitude, uint32_t pulse_width, uint32_t band_sele
 		                            retrigger};
 		osc.render_block(dst);
 		phasor.seek(osc.phase() << 1);
-		mixThroughVca(amplitude, output, scratch);
+		mix_through_vca(amplitude, output, scratch);
 	}
 	else if (apply_amplitude) {
 		pulse.render_block(scratch);
-		mixThroughVca(amplitude, output, scratch);
+		mix_through_vca(amplitude, output, scratch);
 	}
 	else {
 		pulse.render_block(output);
@@ -214,7 +217,7 @@ void renderPerfectPulse(Ramp amplitude, uint32_t pulse_width, uint32_t band_sele
 
 /// The crude↔band-limited gate for saw/square: drop to the cheap aliasing render once the band index for
 /// @p selection_increment is within @ref kQualityMargin of the dire-CPU threshold.
-[[nodiscard]] bool useCrude(uint32_t selection_increment, int32_t cpu_direness) {
+[[nodiscard]] bool use_crude(uint32_t selection_increment, int32_t cpu_direness) {
 	return fixed::get_table_number(selection_increment).first < cpu_direness + kQualityMargin;
 }
 
@@ -226,55 +229,55 @@ void Sine::render_block(const BlockControls& controls, fixed::Buffer output, fix
 	static const fixed::BandlimitedTable kSineTable{kSineBand};
 	// Retrigger shifts a quarter-cycle past half (3/4 cycle); its pulse-as-sync self-sync master shifts back 3/4.
 	const uint32_t retrigger = controls.retrigger_phase + kThreeQuarterCycle;
-	Resolved r = resolveMultiply(phasor_, controls, retrigger, 0u - kThreeQuarterCycle);
-	renderBandLimited(kSineTable, r.render.increment(), controls.amplitude, r.sync, r.retrigger,
-	                  controls.apply_amplitude, output, scratch, r.render);
+	Resolved r = resolve_multiply(phasor_, controls, retrigger, 0u - kThreeQuarterCycle);
+	render_band_limited(kSineTable, r.render.increment(), controls.amplitude, r.sync, r.retrigger,
+	                    controls.apply_amplitude, output, scratch, r.render);
 	phasor_.seek(r.render.phase());
 }
 
 void Triangle::render_block(const BlockControls& controls, fixed::Buffer output, fixed::Buffer scratch) {
 	// Triangle takes no retrigger or self-sync resetter tweak.
-	Resolved r = resolveMultiply(phasor_, controls, controls.retrigger_phase, 0u);
+	Resolved r = resolve_multiply(phasor_, controls, controls.retrigger_phase, 0u);
 	if (r.render.increment() < kTriangleCrudeIncrement || controls.cpu_direness >= 7) {
 		// Crude triangle: half-scale fed to a doubled-amplitude VCA, so the standalone output is doubled back.
 		auto make_vca = [&] { return fixed::CrudeAmplitude{controls.amplitude << 1}; };
 		if (r.sync) {
 			fixed::CrudeTriangle osc{fixed::SyncedPhasor{r.render, *r.sync, r.retrigger}};
-			renderThroughVca(osc, make_vca, Standalone::kDouble, controls.apply_amplitude, output, scratch);
+			render_through_vca(osc, make_vca, Standalone::DOUBLE, controls.apply_amplitude, output, scratch);
 			phasor_.seek(osc.phase());
 		}
 		else {
 			fixed::CrudeTriangle osc{r.render};
-			renderThroughVca(osc, make_vca, Standalone::kDouble, controls.apply_amplitude, output, scratch);
+			render_through_vca(osc, make_vca, Standalone::DOUBLE, controls.apply_amplitude, output, scratch);
 		}
 		return;
 	}
-	renderBandLimited(fixed::triangle_bandlimited_table(), r.render.increment(), controls.amplitude, r.sync,
-	                  r.retrigger, controls.apply_amplitude, output, scratch, r.render);
+	render_band_limited(fixed::triangle_bandlimited_table(), r.render.increment(), controls.amplitude, r.sync,
+	                    r.retrigger, controls.apply_amplitude, output, scratch, r.render);
 	phasor_.seek(r.render.phase());
 }
 
 void Saw::render_block(const BlockControls& controls, fixed::Buffer output, fixed::Buffer scratch) {
 	// Retrigger shifts half a cycle; its pulse-as-sync self-sync master shifts the same.
 	const uint32_t retrigger = controls.retrigger_phase + kHalfCycle;
-	Resolved r = resolveMultiply(phasor_, controls, retrigger, kHalfCycle);
+	Resolved r = resolve_multiply(phasor_, controls, retrigger, kHalfCycle);
 	// The crude/band-limited choice (and band selection) is on the *original* pitch, not the rewritten pulse rate.
-	if (useCrude(phasor_.increment(), controls.cpu_direness)) {
+	if (use_crude(phasor_.increment(), controls.cpu_direness)) {
 		// Crude saw: the phase ramp itself (full scale), so the standalone output is halved.
 		auto make_vca = [&] { return fixed::CrudeAmplitude{controls.amplitude}; };
 		if (r.sync) {
 			fixed::CrudeSaw osc{fixed::SyncedPhasor{r.render, *r.sync, r.retrigger}};
-			renderThroughVca(osc, make_vca, Standalone::kHalve, controls.apply_amplitude, output, scratch);
+			render_through_vca(osc, make_vca, Standalone::HALVE, controls.apply_amplitude, output, scratch);
 			phasor_.seek(osc.phase());
 		}
 		else {
 			fixed::CrudeSaw osc{r.render};
-			renderThroughVca(osc, make_vca, Standalone::kHalve, controls.apply_amplitude, output, scratch);
+			render_through_vca(osc, make_vca, Standalone::HALVE, controls.apply_amplitude, output, scratch);
 		}
 		return;
 	}
-	renderBandLimited(fixed::saw_bandlimited_table(), phasor_.increment(), controls.amplitude << 1, r.sync, r.retrigger,
-	                  controls.apply_amplitude, output, scratch, r.render);
+	render_band_limited(fixed::saw_bandlimited_table(), phasor_.increment(), controls.amplitude << 1, r.sync,
+	                    r.retrigger, controls.apply_amplitude, output, scratch, r.render);
 	phasor_.seek(r.render.phase());
 }
 
@@ -283,30 +286,30 @@ void Square::render_block(const BlockControls& controls, fixed::Buffer output, f
 	// a real sync resets it. The width is offset half a cycle, and the band is mildly limited (×0.6) when pulsing.
 	const bool pulse_wave = (controls.pulse_width != 0);
 	const uint32_t square_pulse_width = controls.pulse_width + kHalfCycle;
-	const uint32_t band_select = pulse_wave ? (uint32_t)(phasor_.increment() * 0.6) : phasor_.increment();
+	const uint32_t band_select = pulse_wave ? static_cast<uint32_t>(phasor_.increment() * 0.6) : phasor_.increment();
 
-	if (useCrude(band_select, controls.cpu_direness)) {
+	if (use_crude(band_select, controls.cpu_direness)) {
 		// Crude square: full-scale, so the standalone output is halved.
 		auto make_vca = [&] { return fixed::CrudeAmplitude{controls.amplitude}; };
 		if (controls.sync) {
 			fixed::CrudeSquare osc{fixed::SyncedPhasor{phasor_, *controls.sync, controls.retrigger_phase},
 			                       square_pulse_width};
-			renderThroughVca(osc, make_vca, Standalone::kHalve, controls.apply_amplitude, output, scratch);
+			render_through_vca(osc, make_vca, Standalone::HALVE, controls.apply_amplitude, output, scratch);
 			phasor_.seek(osc.phase());
 		}
 		else {
 			fixed::CrudeSquare osc{phasor_, square_pulse_width};
-			renderThroughVca(osc, make_vca, Standalone::kHalve, controls.apply_amplitude, output, scratch);
+			render_through_vca(osc, make_vca, Standalone::HALVE, controls.apply_amplitude, output, scratch);
 		}
 		return;
 	}
 	if (pulse_wave) {
-		renderPerfectPulse(controls.amplitude << 1, square_pulse_width, band_select, controls.sync,
-		                   controls.retrigger_phase, controls.apply_amplitude, output, scratch, phasor_);
+		render_perfect_pulse(controls.amplitude << 1, square_pulse_width, band_select, controls.sync,
+		                     controls.retrigger_phase, controls.apply_amplitude, output, scratch, phasor_);
 		return;
 	}
-	renderBandLimited(fixed::square_bandlimited_table(), phasor_.increment(), controls.amplitude << 1, controls.sync,
-	                  controls.retrigger_phase, controls.apply_amplitude, output, scratch, phasor_);
+	render_band_limited(fixed::square_bandlimited_table(), phasor_.increment(), controls.amplitude << 1, controls.sync,
+	                    controls.retrigger_phase, controls.apply_amplitude, output, scratch, phasor_);
 }
 
 void AnalogSaw::render_block(const BlockControls& controls, fixed::Buffer output, fixed::Buffer scratch) {
@@ -317,23 +320,23 @@ void AnalogSaw::render_block(const BlockControls& controls, fixed::Buffer output
 	const bool downgrade =
 	    (table_number >= kAnalogSawDowngradeBand && table_number < controls.cpu_direness + kQualityMargin);
 	if (downgrade) {
-		Resolved r = resolveMultiply(phasor_, controls, controls.retrigger_phase, kHalfCycle);
+		Resolved r = resolve_multiply(phasor_, controls, controls.retrigger_phase, kHalfCycle);
 		auto make_vca = [&] { return fixed::CrudeAmplitude{controls.amplitude}; };
 		if (r.sync) {
 			fixed::CrudeSaw osc{fixed::SyncedPhasor{r.render, *r.sync, r.retrigger}};
-			renderThroughVca(osc, make_vca, Standalone::kHalve, controls.apply_amplitude, output, scratch);
+			render_through_vca(osc, make_vca, Standalone::HALVE, controls.apply_amplitude, output, scratch);
 			phasor_.seek(osc.phase());
 		}
 		else {
 			fixed::CrudeSaw osc{r.render};
-			renderThroughVca(osc, make_vca, Standalone::kHalve, controls.apply_amplitude, output, scratch);
+			render_through_vca(osc, make_vca, Standalone::HALVE, controls.apply_amplitude, output, scratch);
 		}
 		return;
 	}
 	// Genuine analog saw: band-limited, no resetter or retrigger tweak.
-	Resolved r = resolveMultiply(phasor_, controls, controls.retrigger_phase, 0u);
-	renderBandLimited(fixed::analog_saw_bandlimited_table(), phasor_.increment(), controls.amplitude << 1, r.sync,
-	                  r.retrigger, controls.apply_amplitude, output, scratch, r.render);
+	Resolved r = resolve_multiply(phasor_, controls, controls.retrigger_phase, 0u);
+	render_band_limited(fixed::analog_saw_bandlimited_table(), phasor_.increment(), controls.amplitude << 1, r.sync,
+	                    r.retrigger, controls.apply_amplitude, output, scratch, r.render);
 	phasor_.seek(r.render.phase());
 }
 
@@ -341,9 +344,9 @@ void AnalogSquare::render_block(const BlockControls& controls, fixed::Buffer out
 	// Analog square's pulse-as-sync uses the "divide" rewrite; no retrigger or resetter tweak.
 	Resolved r = (controls.sync || controls.pulse_width == 0)
 	                 ? Resolved{phasor_, controls.sync, controls.retrigger_phase}
-	                 : dividePulseSync(phasor_, controls.pulse_width, controls.retrigger_phase);
-	renderBandLimited(fixed::analog_square_bandlimited_table(), phasor_.increment(), controls.amplitude << 1, r.sync,
-	                  r.retrigger, controls.apply_amplitude, output, scratch, r.render);
+	                 : divide_pulse_sync(phasor_, controls.pulse_width, controls.retrigger_phase);
+	render_band_limited(fixed::analog_square_bandlimited_table(), phasor_.increment(), controls.amplitude << 1, r.sync,
+	                    r.retrigger, controls.apply_amplitude, output, scratch, r.render);
 	phasor_.seek(r.render.phase());
 }
 
@@ -355,17 +358,17 @@ bool is_virtual_analog(OscType type) {
 Wave wave_for(OscType type) {
 	switch (type) {
 	case OscType::TRIANGLE:
-		return Wave::Triangle;
+		return Wave::TRIANGLE;
 	case OscType::SQUARE:
-		return Wave::Square;
+		return Wave::SQUARE;
 	case OscType::SAW:
-		return Wave::Saw;
+		return Wave::SAW;
 	case OscType::ANALOG_SAW_2:
-		return Wave::AnalogSaw;
+		return Wave::ANALOG_SAW;
 	case OscType::ANALOG_SQUARE:
-		return Wave::AnalogSquare;
+		return Wave::ANALOG_SQUARE;
 	default: // SINE
-		return Wave::Sine;
+		return Wave::SINE;
 	}
 }
 

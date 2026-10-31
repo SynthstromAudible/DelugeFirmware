@@ -39,6 +39,14 @@ PLACE_INTERNAL_FRUNK int32_t osc_sync[SSI_TX_BUFFER_NUM_SAMPLES + 4] __attribute
 
 } // namespace
 
+} // namespace deluge::render
+
+/// The engine's shared render scratch: voices render their stereo, ring-mod and osc-sync work in it. In internal SRAM.
+PLACE_INTERNAL_FRUNK int32_t spareRenderingBuffer[deluge::render::kSpareRenderingRows][SSI_TX_BUFFER_NUM_SAMPLES]
+    __attribute__((aligned(CACHE_LINE_SIZE)));
+
+namespace deluge::render {
+
 dsp::fixed::FilterScratch filter_scratch() {
 	return {.fade = filter_fade, .parallel = filter_parallel};
 }

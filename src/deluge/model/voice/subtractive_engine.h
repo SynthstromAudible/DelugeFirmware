@@ -44,9 +44,10 @@ public:
 	/// in place). The per-source amplitude/wave-index arrays and the osc-sync master phases are computed by Voice
 	/// and passed in; @p anythingInOscBuffer / @p didStereoTempBuffer / @p unassignVoiceAfter are updated exactly
 	/// as the inline driver did.
-	void render(deluge::synth::Voice& voice, const ControlBlock& controlBlock, const deluge::synth::VoiceBlock& block,
-	            int32_t* oscBuffer, int32_t numSamples, bool doingOscSync, uint32_t* oscSyncPos,
-	            int32_t overallPitchAdjust, const int32_t* sourceAmplitudesNow,
-	            const int32_t* sourceAmplitudeIncrements, const int32_t* sourceWaveIndexIncrements,
-	            bool& anythingInOscBuffer, bool& didStereoTempBuffer, bool& unassignVoiceAfter, const VoiceConfig& cfg);
+	void render(deluge::synth::Voice& voice, const ControlBlock& control_block, const deluge::synth::VoiceBlock& block,
+	            int32_t* osc_buffer, int32_t num_samples, bool doing_osc_sync, uint32_t* osc_sync_pos,
+	            int32_t overall_pitch_adjust, const int32_t* source_amplitudes_now,
+	            const int32_t* source_amplitude_increments, const int32_t* source_wave_index_increments,
+	            bool& anything_in_osc_buffer, bool& did_stereo_temp_buffer, bool& unassign_voice_after,
+	            const VoiceConfig& cfg);
 };

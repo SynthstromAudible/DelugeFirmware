@@ -316,7 +316,7 @@ public:
 	int16_t getMaxOscTranspose(InstrumentClip* clip);
 	int16_t getMinOscTranspose();
 	void setSynthMode(SynthMode value, Song* song);
-	[[nodiscard]] SynthMode getSynthMode() const { return snapshot_.synthMode; }
+	[[nodiscard]] SynthMode getSynthMode() const { return snapshot_.synth_mode; }
 	// Store the synth mode (bound: record, then reproject; unbound: the snapshot) without setSynthMode()'s gesture side
 	// effects (voice kill, mod-knob and filter swaps) — for the load path.
 	void assignSynthMode(SynthMode value);

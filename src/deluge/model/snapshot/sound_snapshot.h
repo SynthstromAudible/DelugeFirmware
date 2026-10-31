@@ -37,29 +37,30 @@ namespace deluge::snapshot {
 struct SoundSnapshot {
 	int16_t transpose{0}; ///< master semitone transpose (SoundState::transpose); read per-voice-start (Voice::render)
 	int8_t cents{0};      ///< master fine tune (SoundState::cents), cents
-	PhaseIncrementFineTuner fineTuner; ///< derived from cents: the master transpose's fine detune
-	uint8_t numUnison{1};              ///< SoundState::num_unison
-	int8_t unisonDetune{8};            ///< SoundState::unison_detune, cents across the spread
-	uint8_t unisonStereoSpread{0};     ///< SoundState::unison_stereo_spread
+	PhaseIncrementFineTuner fine_tuner; ///< derived from cents: the master transpose's fine detune
+	uint8_t num_unison{1};              ///< SoundState::num_unison
+	int8_t unison_detune{8};            ///< SoundState::unison_detune, cents across the spread
+	uint8_t unison_stereo_spread{0};    ///< SoundState::unison_stereo_spread
 	/// Derived from numUnison and unisonDetune: each unison part's detune. Written only when numUnison != 1; the
 	/// render reads parts below numUnison.
-	std::array<PhaseIncrementFineTuner, kMaxNumVoicesUnison> unisonDetuners{};
+	std::array<PhaseIncrementFineTuner, kMaxNumVoicesUnison> unison_detuners{};
 	/// Derived from numUnison and unisonStereoSpread: each unison part's pan offset, under the same rule.
-	std::array<int32_t, kMaxNumVoicesUnison> unisonPan{};
-	SynthMode synthMode{SynthMode::SUBTRACTIVE}; ///< SoundState::synth_mode; selects the subtractive/ring-mod/FM render
-	bool oscillatorSync{false};                  ///< SoundState::oscillator_sync
-	VoicePriority voicePriority{VoicePriority::MEDIUM}; ///< SoundState::voice_priority; ranks voices for stealing
-	bool modulator1ToModulator0{false};                 ///< SoundState::modulator1_to_modulator0 (FM routing)
-	std::array<int16_t, kNumModulators> modulatorTranspose{0, -12}; ///< SoundState::modulator_transpose, semitones
-	std::array<int8_t, kNumModulators> modulatorCents{};            ///< SoundState::modulator_cents
+	std::array<int32_t, kMaxNumVoicesUnison> unison_pan{};
+	SynthMode synth_mode{
+	    SynthMode::SUBTRACTIVE}; ///< SoundState::synth_mode; selects the subtractive/ring-mod/FM render
+	bool oscillator_sync{false}; ///< SoundState::oscillator_sync
+	VoicePriority voice_priority{VoicePriority::MEDIUM}; ///< SoundState::voice_priority; ranks voices for stealing
+	bool modulator1_to_modulator0{false};                ///< SoundState::modulator1_to_modulator0 (FM routing)
+	std::array<int16_t, kNumModulators> modulator_transpose{0, -12}; ///< SoundState::modulator_transpose, semitones
+	std::array<int8_t, kNumModulators> modulator_cents{};            ///< SoundState::modulator_cents
 	/// derived from modulatorCents: each FM modulator's fine detune
-	std::array<PhaseIncrementFineTuner, kNumModulators> modulatorTransposers{};
+	std::array<PhaseIncrementFineTuner, kNumModulators> modulator_transposers{};
 	/// SoundState::osc_retrigger_phase; a phase as a fraction of 2^32, 0xFFFFFFFF = free-running (no retrigger)
-	std::array<uint32_t, kNumSources> oscRetriggerPhase{0xFFFFFFFF, 0xFFFFFFFF};
+	std::array<uint32_t, kNumSources> osc_retrigger_phase{0xFFFFFFFF, 0xFFFFFFFF};
 	/// SoundState::modulator_retrigger_phase; same encoding as oscRetriggerPhase
-	std::array<uint32_t, kNumModulators> modulatorRetriggerPhase{};
+	std::array<uint32_t, kNumModulators> modulator_retrigger_phase{};
 	/// SoundState::lfo_wave_type / lfo_sync_type / lfo_sync_level per LFO. The LFO phase state stays on the engine.
-	std::array<LFOConfig, LFO_COUNT> lfoConfig{};
+	std::array<LFOConfig, LFO_COUNT> lfo_config{};
 
 	bool operator==(const SoundSnapshot&) const = default;
 };

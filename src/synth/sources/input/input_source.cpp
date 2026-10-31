@@ -24,13 +24,11 @@
 #include <cstring>
 #include <new>
 
-extern int32_t spareRenderingBuffer[][SSI_TX_BUFFER_NUM_SAMPLES];
-
 namespace deluge::synth {
 namespace {
 /// The input channel a live-input `OscType` names: the note-on boundary is the only place the synth reads it.
-InputChannel channelFromOscType(OscType inputType) {
-	switch (inputType) {
+InputChannel channel_from_osc_type(OscType input_type) {
+	switch (input_type) {
 	case OscType::INPUT_R:
 		return InputChannel::RIGHT;
 	case OscType::INPUT_STEREO:
@@ -41,31 +39,37 @@ InputChannel channelFromOscType(OscType inputType) {
 }
 } // namespace
 
-void InputSource::prepareForNoteOn(OscType inputType) {
-	channel_ = channelFromOscType(inputType);
+void InputSource::prepare_for_note_on(OscType input_type) {
+	channel_ = channel_from_osc_type(input_type);
 }
 
-void InputSource::render(int32_t* oscBuffer, int32_t numSamples, uint32_t phaseIncrement, int32_t sourceAmplitude,
-                         int32_t amplitudeIncrement, bool stereoBuffer, bool stereoUnison, int32_t amplitudeL,
-                         int32_t amplitudeR, int32_t interpolationBufferSize, dsp::fixed::Cong& noise) {
+// Channel routing, pitch shift and stereo unison, each a branch:
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
+void InputSource::render(int32_t* osc_buffer, int32_t num_samples, uint32_t phase_increment, int32_t source_amplitude,
+                         int32_t amplitude_increment, bool stereo_buffer, bool stereo_unison, int32_t amplitude_l,
+                         int32_t amplitude_r, int32_t interpolation_buffer_size, dsp::fixed::Cong& noise,
+                         int32_t* mono_scratch) {
 	// If pitch shifting and we weren't previously...
-	if (phaseIncrement != kMaxSampleValue) {
+	if (phase_increment != kMaxSampleValue) {
 
-		if (!livePitchShifter_) {
+		if (live_pitch_shifter_ == nullptr) {
 
 			// A configured-stereo channel folds to the left channel when the host has no stereo input.
-			InputChannel channelNow = channel_;
-			if (channelNow == InputChannel::STEREO && !in_->stereoInputAvailable()) {
-				channelNow = InputChannel::LEFT;
+			InputChannel channel_now = channel_;
+			if (channel_now == InputChannel::STEREO && !in_->stereo_input_available()) {
+				channel_now = InputChannel::LEFT;
 			}
-			LiveInputBuffer* liveInputBuffer = in_->bufferForChannel(channelNow, true);
+			LiveInputBuffer* live_input_buffer = in_->buffer_for_channel(channel_now, true);
 
-			if (liveInputBuffer) {
+			if (live_input_buffer != nullptr) {
 
 				void* memory = allocMaxSpeed(sizeof(LivePitchShifter));
 
-				if (memory) {
-					livePitchShifter_ = new (memory) LivePitchShifter(channelNow, phaseIncrement);
+				if (memory != nullptr) {
+					// Placed in the allocator's block, which unassign frees
+					// NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
+					live_pitch_shifter_ =
+					    new (memory) LivePitchShifter(channel_now, static_cast<int32_t>(phase_increment));
 				}
 			}
 		}
@@ -73,142 +77,146 @@ void InputSource::render(int32_t* oscBuffer, int32_t numSamples, uint32_t phaseI
 
 	// If not pitch shifting and we were previously...
 	else {
-		if (livePitchShifter_ && livePitchShifter_->mayBeRemovedWithoutClick()) {
-			livePitchShifter_->~LivePitchShifter();
-			delugeDealloc(livePitchShifter_);
-			livePitchShifter_ = nullptr;
+		if ((live_pitch_shifter_ != nullptr) && live_pitch_shifter_->may_be_removed_without_click()) {
+			live_pitch_shifter_->~LivePitchShifter();
+			delugeDealloc(live_pitch_shifter_);
+			live_pitch_shifter_ = nullptr;
 		}
 	}
 
 	// Yes pitch shifting
-	if (livePitchShifter_) {
+	if (live_pitch_shifter_ != nullptr) {
 		// With unison stereo spread, oscBuffer is an interleaved stereo buffer. A mono input must be rendered
 		// to a temporary mono buffer first and then panned across it, otherwise the mono render would write
 		// into the interleaved buffer as if it were mono and produce noise. Either way the shifter reports the
 		// hops it performed; the port folds them into the host's CPU-load accounting.
-		if (stereoUnison && livePitchShifter_->numChannels == 1) {
-			int32_t* renderBuffer = spareRenderingBuffer[2];
-			memset(renderBuffer, 0, numSamples * sizeof(int32_t));
+		if (stereo_unison && live_pitch_shifter_->num_channels == 1) {
+			int32_t* render_buffer = mono_scratch;
+			memset(render_buffer, 0, num_samples * sizeof(int32_t));
 
-			in_->reportHops(livePitchShifter_->render(renderBuffer, numSamples, phaseIncrement, sourceAmplitude,
-			                                          amplitudeIncrement, interpolationBufferSize, *in_, noise));
+			in_->report_hops(live_pitch_shifter_->render(render_buffer, num_samples,
+			                                             static_cast<int32_t>(phase_increment), source_amplitude,
+			                                             amplitude_increment, interpolation_buffer_size, *in_, noise));
 
-			for (int32_t i = 0; i < numSamples; i++) {
-				oscBuffer[(i << 1)] += multiply_32x32_rshift32(renderBuffer[i], amplitudeL) << 2;
-				oscBuffer[(i << 1) + 1] += multiply_32x32_rshift32(renderBuffer[i], amplitudeR) << 2;
+			for (int32_t i = 0; i < num_samples; i++) {
+				osc_buffer[(i << 1)] += multiply_32x32_rshift32(render_buffer[i], amplitude_l) << 2;
+				osc_buffer[(i << 1) + 1] += multiply_32x32_rshift32(render_buffer[i], amplitude_r) << 2;
 			}
 		}
 		else {
-			in_->reportHops(livePitchShifter_->render(oscBuffer, numSamples, phaseIncrement, sourceAmplitude,
-			                                          amplitudeIncrement, interpolationBufferSize, *in_, noise));
+			in_->report_hops(live_pitch_shifter_->render(osc_buffer, num_samples, static_cast<int32_t>(phase_increment),
+			                                             source_amplitude, amplitude_increment,
+			                                             interpolation_buffer_size, *in_, noise));
 		}
 	}
 
 	// No pitch shifting
 	else {
 
-		int32_t* __restrict__ oscBufferPos = oscBuffer;
-		int32_t const* __restrict__ inputReadPos = in_->ringReadPos();
-		int32_t const* const inputRingEnd = in_->ringEnd();
-		int32_t sourceAmplitudeThisUnison = sourceAmplitude;
+		int32_t* __restrict__ osc_buffer_pos = osc_buffer;
+		int32_t const* __restrict__ input_read_pos = in_->ring_read_pos();
+		int32_t const* const input_ring_end = in_->ring_end();
+		int32_t source_amplitude_this_unison = source_amplitude;
 
 		// Just left, or just right, or if (stereo but there's only the internal, mono mic)
-		if (channel_ != InputChannel::STEREO || !in_->stereoInputAvailable()) {
+		if (channel_ != InputChannel::STEREO || !in_->stereo_input_available()) {
 
-			int32_t channelOffset;
+			int32_t channel_offset = 0;
 			// If right, but not internal mic
-			if (channel_ == InputChannel::RIGHT && in_->stereoInputAvailable()) {
-				channelOffset = 1;
+			if (channel_ == InputChannel::RIGHT && in_->stereo_input_available()) {
+				channel_offset = 1;
 
 				// Or if left or using internal mic
 			}
 			else {
-				channelOffset = 0;
+				channel_offset = 0;
 			}
 
-			int32_t sourceAmplitudeNow = sourceAmplitudeThisUnison;
+			int32_t source_amplitude_now = source_amplitude_this_unison;
 
 			// With unison stereo spread, oscBuffer is an interleaved stereo buffer and each unison part is
 			// panned across it.
-			if (stereoUnison) {
-				int32_t const* const oscBufferEnd = oscBuffer + numSamples * 2;
+			if (stereo_unison) {
+				int32_t const* const osc_buffer_end = osc_buffer + num_samples * 2;
 				do {
-					sourceAmplitudeNow += amplitudeIncrement;
+					source_amplitude_now += amplitude_increment;
 
-					int32_t sample = multiply_32x32_rshift32(inputReadPos[channelOffset], sourceAmplitudeNow) << 4;
-					*(oscBufferPos++) += multiply_32x32_rshift32(sample, amplitudeL) << 2;
-					*(oscBufferPos++) += multiply_32x32_rshift32(sample, amplitudeR) << 2;
+					int32_t sample = multiply_32x32_rshift32(input_read_pos[channel_offset], source_amplitude_now) << 4;
+					*(osc_buffer_pos++) += multiply_32x32_rshift32(sample, amplitude_l) << 2;
+					*(osc_buffer_pos++) += multiply_32x32_rshift32(sample, amplitude_r) << 2;
 
-					inputReadPos += NUM_MONO_INPUT_CHANNELS;
-					if (inputReadPos >= inputRingEnd) {
-						inputReadPos -= SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS;
+					input_read_pos += NUM_MONO_INPUT_CHANNELS;
+					if (input_read_pos >= input_ring_end) {
+						input_read_pos -= SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS;
 					}
-				} while (oscBufferPos != oscBufferEnd);
+				} while (osc_buffer_pos != osc_buffer_end);
 			}
 			else {
-				int32_t const* const oscBufferEnd = oscBuffer + numSamples;
+				int32_t const* const osc_buffer_end = osc_buffer + num_samples;
 				do {
-					sourceAmplitudeNow += amplitudeIncrement;
+					source_amplitude_now += amplitude_increment;
 
 					// Mono / left channel (or stereo condensed to mono)
-					*(oscBufferPos++) += multiply_32x32_rshift32(inputReadPos[channelOffset], sourceAmplitudeNow) << 4;
+					*(osc_buffer_pos++) += multiply_32x32_rshift32(input_read_pos[channel_offset], source_amplitude_now)
+					                       << 4;
 
-					inputReadPos += NUM_MONO_INPUT_CHANNELS;
-					if (inputReadPos >= inputRingEnd) {
-						inputReadPos -= SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS;
+					input_read_pos += NUM_MONO_INPUT_CHANNELS;
+					if (input_read_pos >= input_ring_end) {
+						input_read_pos -= SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS;
 					}
-				} while (oscBufferPos != oscBufferEnd);
+				} while (osc_buffer_pos != osc_buffer_end);
 			}
 		}
 
 		// Stereo
 		else {
 
-			int32_t numChannelsAfterCondensing = stereoBuffer ? 2 : 1;
+			int32_t num_channels_after_condensing = stereo_buffer ? 2 : 1;
 
-			int32_t const* const oscBufferEnd = oscBuffer + numSamples * numChannelsAfterCondensing;
+			int32_t const* const osc_buffer_end = osc_buffer + num_samples * num_channels_after_condensing;
 
-			int32_t sourceAmplitudeNow = sourceAmplitudeThisUnison;
+			int32_t source_amplitude_now = source_amplitude_this_unison;
 			do {
-				sourceAmplitudeNow += amplitudeIncrement;
+				source_amplitude_now += amplitude_increment;
 
-				int32_t sampleL = inputReadPos[0];
-				int32_t sampleR = inputReadPos[1];
+				int32_t sample_l = input_read_pos[0];
+				int32_t sample_r = input_read_pos[1];
 
 				// If condensing to mono, do that now
-				if (!stereoBuffer) {
-					sampleL = ((sampleL >> 1) + (sampleR >> 1));
+				if (!stereo_buffer) {
+					sample_l = ((sample_l >> 1) + (sample_r >> 1));
 				}
 
 				// Mono / left channel (or stereo condensed to mono)
-				*(oscBufferPos++) += multiply_32x32_rshift32(sampleL, sourceAmplitudeNow) << 4;
+				*(osc_buffer_pos++) += multiply_32x32_rshift32(sample_l, source_amplitude_now) << 4;
 
 				// Right channel
-				if (stereoBuffer) {
-					*(oscBufferPos++) += multiply_32x32_rshift32(sampleR, sourceAmplitudeNow) << 4;
+				if (stereo_buffer) {
+					*(osc_buffer_pos++) += multiply_32x32_rshift32(sample_r, source_amplitude_now) << 4;
 				}
 
-				inputReadPos += NUM_MONO_INPUT_CHANNELS;
-				if (inputReadPos >= inputRingEnd) {
-					inputReadPos -= SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS;
+				input_read_pos += NUM_MONO_INPUT_CHANNELS;
+				if (input_read_pos >= input_ring_end) {
+					input_read_pos -= SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS;
 				}
-			} while (oscBufferPos != oscBufferEnd);
+			} while (osc_buffer_pos != osc_buffer_end);
 		}
 	}
 }
 
-SourceRenderResult InputSource::renderSource(const SourceRenderContext& ctx) {
+SourceRenderResult InputSource::render_source(const SourceRenderContext& ctx) {
 	// Live input never self-unassigns; channel routing follows the channel latched at note-on (see render()).
-	render(ctx.oscBuffer, ctx.numSamples, ctx.phaseIncrement, ctx.sourceAmplitude, ctx.amplitudeIncrement,
-	       ctx.stereoBuffer, ctx.stereoUnison, ctx.amplitudeL, ctx.amplitudeR, ctx.interpolationBufferSize, *ctx.noise);
+	render(ctx.osc_buffer, ctx.num_samples, ctx.phase_increment, ctx.source_amplitude, ctx.amplitude_increment,
+	       ctx.stereo_buffer, ctx.stereo_unison, ctx.amplitude_l, ctx.amplitude_r, ctx.interpolation_buffer_size,
+	       *ctx.noise, ctx.stereo_scratch);
 	return deluge::synth::SourceRenderResult::ACTIVE;
 }
 
 void InputSource::unassign() {
-	if (livePitchShifter_ != nullptr) {
-		livePitchShifter_->~LivePitchShifter();
-		delugeDealloc(livePitchShifter_);
-		livePitchShifter_ = nullptr;
+	if (live_pitch_shifter_ != nullptr) {
+		live_pitch_shifter_->~LivePitchShifter();
+		delugeDealloc(live_pitch_shifter_);
+		live_pitch_shifter_ = nullptr;
 	}
 }
 

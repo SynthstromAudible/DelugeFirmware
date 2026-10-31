@@ -252,7 +252,7 @@ bool SoundInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack, P
 
 		if (modelStack) {
 			ParamManager* paramManager = &modelStack->getTimelineCounter()->paramManager;
-			patcher.performInitialPatching(patchControlBlock(*paramManager, PresetGather::ALL));
+			patcher.perform_initial_patching(patchControlBlock(*paramManager, PresetGather::ALL));
 
 			// Grab mono expression params
 			ExpressionParamSet* expressionParams = paramManager->getExpressionParamSet();
@@ -283,7 +283,7 @@ void SoundInstrument::setupWithoutActiveClip(ModelStack* modelStack) {
 	if (!paramManager) {
 		FREEZE_WITH_ERROR("E173");
 	}
-	patcher.performInitialPatching(patchControlBlock(*paramManager, PresetGather::ALL));
+	patcher.perform_initial_patching(patchControlBlock(*paramManager, PresetGather::ALL));
 
 	// Clear mono expression params
 	for (int32_t i = 0; i < kNumExpressionDimensions; i++) {
@@ -330,9 +330,9 @@ void SoundInstrument::polyphonicExpressionEventOnChannelOrNote(int32_t newValue,
 	AudioExcludedSection section; // walks this Sound's voices, which the render edits (free on the audio tier)
 	int32_t s = expressionDimension + util::to_underlying(PatchSource::X);
 	for (const auto& voice : this->voices()) {
-		if (voice->kernel.inputCharacteristics[util::to_underlying(whichCharacteristic)] == channelOrNoteNumber) {
+		if (voice->kernel.input_characteristics[util::to_underlying(whichCharacteristic)] == channelOrNoteNumber) {
 			if (expressionValueChangesMustBeDoneSmoothly) {
-				voice->kernel.expressionEventSmooth(newValue, s);
+				voice->kernel.expression_event_smooth(newValue, s);
 			}
 			else {
 				voice->expression_event_immediate(newValue, s);
@@ -483,11 +483,11 @@ bool SoundInstrument::noteIsOn(int32_t noteCode, bool resetTimeEntered) {
 	}
 
 	for (const auto& voice : this->voices()) {
-		if ((voice->kernel.noteCodeAfterArpeggiation == noteCode)
+		if ((voice->kernel.note_code_after_arpeggiation == noteCode)
 		    && voice->kernel.envelopes[0].stage()
 		           < Envelope::Stage::RELEASE) { // Ignore releasing notes. Is this right?
 			if (resetTimeEntered) {
-				voice->kernel.resetEnvelope0TimeEntered(deluge::synth::VoiceClock{AudioEngine::nextVoiceState});
+				voice->kernel.reset_envelope0_time_entered(deluge::synth::VoiceClock{AudioEngine::nextVoiceState});
 			}
 			return true;
 		}

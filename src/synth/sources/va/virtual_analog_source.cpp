@@ -21,26 +21,26 @@ namespace deluge::synth {
 // The one note-on dispatch: build the variant alternative for the wave (replaces the legacy per-block OscType
 // megaswitch). Rendering + the per-block crude/BL/pulse/sync choice all live inside the shape. The switch is
 // exhaustive over the closed va_shape::Wave — no default, so -Wswitch flags any future wave that isn't handled.
-VirtualAnalogSource::Shape VirtualAnalogSource::makeShape(va_shape::Wave wave, deluge::dsp::Phasor seed) {
+VirtualAnalogSource::Shape VirtualAnalogSource::make_shape(va_shape::Wave wave, deluge::dsp::Phasor seed) {
 	switch (wave) {
-	case va_shape::Wave::Sine:
+	case va_shape::Wave::SINE:
 		return va_shape::Sine{seed};
-	case va_shape::Wave::Triangle:
+	case va_shape::Wave::TRIANGLE:
 		return va_shape::Triangle{seed};
-	case va_shape::Wave::Square:
+	case va_shape::Wave::SQUARE:
 		return va_shape::Square{seed};
-	case va_shape::Wave::Saw:
+	case va_shape::Wave::SAW:
 		return va_shape::Saw{seed};
-	case va_shape::Wave::AnalogSaw:
+	case va_shape::Wave::ANALOG_SAW:
 		return va_shape::AnalogSaw{seed};
-	case va_shape::Wave::AnalogSquare:
+	case va_shape::Wave::ANALOG_SQUARE:
 		return va_shape::AnalogSquare{seed};
 	}
 	return va_shape::Sine{seed}; // unreachable: Wave is closed (the switch above is exhaustive).
 }
 
 VirtualAnalogSource::VirtualAnalogSource(va_shape::Wave wave, deluge::dsp::Phasor seed)
-    : shape_{makeShape(wave, seed)} {
+    : shape_{make_shape(wave, seed)} {
 }
 
 } // namespace deluge::synth

@@ -61,23 +61,23 @@ public:
 	bool cloneVoiceSampleFrom(const SamplePlaybackAdapter& from);
 
 	// --- deluge::synth::SamplePlaybackPort (primitive queries/ops the library SampleSource drives) ------------
-	[[nodiscard]] int32_t numChannels() const override;
-	[[nodiscard]] int32_t sampleRate() const override;
-	[[nodiscard]] int32_t neutralPhaseIncrement() const override;
-	[[nodiscard]] int32_t sampleLengthAtSystemSampleRate() const override;
-	[[nodiscard]] bool isStretchRepeatMode() const override;
-	[[nodiscard]] bool pitchAndSpeedIndependent() const override;
-	[[nodiscard]] int32_t timeStretchAmount() const override;
-	[[nodiscard]] uint32_t sequenceSyncLengthTicks() const override;
-	[[nodiscard]] LoopType loopingType() const override;
-	[[nodiscard]] LoopPoints loopPoints() const override;
-	[[nodiscard]] uint64_t timePerInternalTickBig() const override;
-	[[nodiscard]] int64_t syncedNumSamplesIn() const override;
-	[[nodiscard]] int32_t numSamplesLaggingBehindSync() const override;
-	[[nodiscard]] uint32_t adjustPitchToCorrectDriftFromSync(uint32_t phaseIncrement) const override;
-	[[nodiscard]] int32_t interpolationBufferSize(uint32_t phaseIncrement) const override;
-	[[nodiscard]] uint32_t pendingSamplesLate() const override;
-	[[nodiscard]] bool doneFirstRenderYet() const override;
+	[[nodiscard]] int32_t num_channels() const override;
+	[[nodiscard]] int32_t sample_rate() const override;
+	[[nodiscard]] int32_t neutral_phase_increment() const override;
+	[[nodiscard]] int32_t sample_length_at_system_sample_rate() const override;
+	[[nodiscard]] bool is_stretch_repeat_mode() const override;
+	[[nodiscard]] bool pitch_and_speed_independent() const override;
+	[[nodiscard]] int32_t time_stretch_amount() const override;
+	[[nodiscard]] uint32_t sequence_sync_length_ticks() const override;
+	[[nodiscard]] LoopType looping_type() const override;
+	[[nodiscard]] LoopPoints loop_points() const override;
+	[[nodiscard]] uint64_t time_per_internal_tick_big() const override;
+	[[nodiscard]] int64_t synced_num_samples_in() const override;
+	[[nodiscard]] int32_t num_samples_lagging_behind_sync() const override;
+	[[nodiscard]] uint32_t adjust_pitch_to_correct_drift_from_sync(uint32_t phaseIncrement) const override;
+	[[nodiscard]] int32_t interpolation_buffer_size(uint32_t phaseIncrement) const override;
+	[[nodiscard]] uint32_t pending_samples_late() const override;
+	[[nodiscard]] bool done_first_render_yet() const override;
 	/// Solicits (or restarts in place) the pooled VoiceSample and sets up its clusters for initial play. Returns false
 	/// only on a hard failure that should silence the whole Voice; true otherwise (including an unplayable sample and
 	/// a late start).
@@ -85,9 +85,9 @@ public:
 	bool note_off_at_loop_end(int32_t priority_rating) override;
 	[[nodiscard]] int32_t bytes_left_to_end() const override;
 	[[nodiscard]] int32_t bytes_per_frame() const override;
-	LateStartOutcome attemptLateStart(int64_t rawSamplesLate, int32_t numSamples) override;
-	bool possiblySetUpCache(int32_t phaseIncrement, int32_t timeStretchRatio, int32_t priorityRating,
-	                        LoopType loopingType) override;
+	LateStartOutcome attempt_late_start(int64_t rawSamplesLate, int32_t numSamples) override;
+	bool possibly_set_up_cache(int32_t phaseIncrement, int32_t timeStretchRatio, int32_t priorityRating,
+	                           LoopType loopingType) override;
 	bool render(int32_t* buffer, int32_t numSamples, LoopType loopingType, int32_t phaseIncrement,
 	            int32_t timeStretchRatio, int32_t sourceAmplitude, int32_t amplitudeIncrement,
 	            int32_t interpolationBufferSize, int32_t priorityRating) override;

@@ -45,14 +45,14 @@ public:
 	/// One ring-moddable source for this unison part (RINGMOD only ever uses the VA / wavetable components).
 	struct Source {
 		VoiceUnisonPartSource* part; ///< holds the persistent vaSource / wavetableSource component
-		uint32_t phaseIncrement;     ///< already pitch-adjusted (UQ0.32)
-		int32_t pulseWidth;          ///< LOCAL_OSC_*_PHASE_WIDTH, pre-shifted (no-op unless square)
+		uint32_t phase_increment;    ///< already pitch-adjusted (UQ0.32)
+		int32_t pulse_width;         ///< LOCAL_OSC_*_PHASE_WIDTH, pre-shifted (no-op unless square)
 		deluge::dsp::fixed::WaveTableData
-		    waveTable;         ///< the loaded table's bands (wavetable component only), else empty
-		int32_t waveIndexLast; ///< wavetable morph index + its per-block increment
-		int32_t waveIndexIncrement;
-		OscType oscType;         ///< selects the per-wave amplitude compensation
-		uint32_t retriggerPhase; ///< oscRetriggerPhase[s]
+		    wave_table;          ///< the loaded table's bands (wavetable component only), else empty
+		int32_t wave_index_last; ///< wavetable morph index + its per-block increment
+		int32_t wave_index_increment;
+		OscType osc_type;         ///< selects the per-wave amplitude compensation
+		uint32_t retrigger_phase; ///< oscRetriggerPhase[s]
 	};
 
 	/// Render all of @p voice's ring-mod sources, *adding* into @p oscBuffer. Owns the unison loop (it iterates the
@@ -61,17 +61,17 @@ public:
 	/// (@p filterGain, @p oscSyncPos, @p sourceWaveIndexIncrements, @p stereoUnison, @p overallPitchAdjust) is
 	/// computed by Voice and passed in; @p didStereoTempBuffer is set true when @p stereoUnison. @p scratch0 /
 	/// @p scratch1 are the caller's two spare buffers (≥ @p numSamples).
-	void render(deluge::synth::Voice& voice, int32_t* oscBuffer, int32_t numSamples, bool doOscSync,
-	            uint32_t* oscSyncPos, int32_t overallPitchAdjust, const int32_t* sourceWaveIndexIncrements,
-	            bool stereoUnison, int32_t filterGain, bool& didStereoTempBuffer, int32_t* scratch0, int32_t* scratch1,
-	            const VoiceConfig& cfg, const deluge::synth::VoiceBlock& block);
+	void render(deluge::synth::Voice& voice, int32_t* osc_buffer, int32_t num_samples, bool do_osc_sync,
+	            uint32_t* osc_sync_pos, int32_t overall_pitch_adjust, const int32_t* source_wave_index_increments,
+	            bool stereo_unison, int32_t filter_gain, bool& did_stereo_temp_buffer, int32_t* scratch0,
+	            int32_t* scratch1, const VoiceConfig& cfg, const deluge::synth::VoiceBlock& block);
 
 private:
 	/// Render one unison part of the ring-mod, *adding* into @p oscBuffer. Source 0 is the hard-sync master (its
 	/// phase = @p oscSyncPos, increment = @p src0.phaseIncrement); sync is applied to source 1 only when
 	/// @p doOscSync. @p scratch0 / @p scratch1 are the caller's two spare buffers (≥ @p numSamples).
-	void renderUnisonPart(const Source& src0, const Source& src1, bool doOscSync, uint32_t oscSyncPos, bool hasFilters,
-	                      int32_t cpuDireness, int32_t filterGain, int32_t unisonAmplitudeL, int32_t unisonAmplitudeR,
-	                      bool stereoUnison, int32_t* oscBuffer, int32_t numSamples, int32_t* scratch0,
-	                      int32_t* scratch1);
+	void render_unison_part(const Source& src0, const Source& src1, bool do_osc_sync, uint32_t osc_sync_pos,
+	                        bool has_filters, int32_t cpu_direness, int32_t filter_gain, int32_t unison_amplitude_l,
+	                        int32_t unison_amplitude_r, bool stereo_unison, int32_t* osc_buffer, int32_t num_samples,
+	                        int32_t* scratch0, int32_t* scratch1);
 };

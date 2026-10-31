@@ -33,7 +33,7 @@ public:
 
 	/// Solicit + initialise a pooled voice for this note, caching @p patch for subsequent renders. @return false
 	/// if the pool is empty (the source should fail to start).
-	virtual bool noteOn(void* patch, int midinote, int velocity) = 0;
+	virtual bool note_on(void* patch, int midinote, int velocity) = 0;
 
 	/// Note-off: begin the release of all operators (no-op if no voice is held).
 	virtual void keyup() = 0;
@@ -44,8 +44,8 @@ public:
 	/// Render @p numSamples of FM. @return the rendered samples (size @p numSamples), or an **empty span** if the
 	/// voice has ended (⇒ the source should unassign). Derives log-pitch from @p phaseIncrement and the
 	/// amplitude-mod control from @p ampModParam, re-deriving the cached patch first when @p patchChanged.
-	virtual std::span<const int32_t> render(int32_t numSamples, uint32_t phaseIncrement, int32_t ampModParam,
-	                                        bool patchChanged, int midinote) = 0;
+	virtual std::span<const int32_t> render(int32_t num_samples, uint32_t phase_increment, int32_t amp_mod_param,
+	                                        bool patch_changed, int midinote) = 0;
 };
 
 } // namespace deluge::synth

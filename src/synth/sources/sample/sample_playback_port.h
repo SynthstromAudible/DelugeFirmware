@@ -54,43 +54,43 @@ public:
 
 	// --- Note-stable facts (constant for the life of the note) -----------------------------------------------
 	/// Channel count to render at: 2 for a stereo sample, else 1.
-	[[nodiscard]] virtual int32_t numChannels() const = 0;
+	[[nodiscard]] virtual int32_t num_channels() const = 0;
 	/// The sample's native sample rate (used for the sync-drift tolerance).
-	[[nodiscard]] virtual int32_t sampleRate() const = 0;
+	[[nodiscard]] virtual int32_t sample_rate() const = 0;
 	/// The phase increment that plays the sample back at its natural pitch (the "neutral" pitch). UQ0.32.
-	[[nodiscard]] virtual int32_t neutralPhaseIncrement() const = 0;
+	[[nodiscard]] virtual int32_t neutral_phase_increment() const = 0;
 	/// The sample length converted to the system sample rate (for time-stretch syncing).
-	[[nodiscard]] virtual int32_t sampleLengthAtSystemSampleRate() const = 0;
+	[[nodiscard]] virtual int32_t sample_length_at_system_sample_rate() const = 0;
 	/// True when the preset's repeat mode is STRETCH (the easy late-start path).
-	[[nodiscard]] virtual bool isStretchRepeatMode() const = 0;
+	[[nodiscard]] virtual bool is_stretch_repeat_mode() const = 0;
 	/// True when pitch and speed are treated independently (time-stretch counteracts pitch).
-	[[nodiscard]] virtual bool pitchAndSpeedIndependent() const = 0;
+	[[nodiscard]] virtual bool pitch_and_speed_independent() const = 0;
 	/// The preset's manual time-stretch amount (index into the firmware's adjust table).
-	[[nodiscard]] virtual int32_t timeStretchAmount() const = 0;
+	[[nodiscard]] virtual int32_t time_stretch_amount() const = 0;
 	/// The sequence-sync length in ticks (0 ⇒ not syncing).
-	[[nodiscard]] virtual uint32_t sequenceSyncLengthTicks() const = 0;
+	[[nodiscard]] virtual uint32_t sequence_sync_length_ticks() const = 0;
 	/// The looping type for this note (NONE / low-level / etc.), from the preset + guide.
-	[[nodiscard]] virtual LoopType loopingType() const = 0;
+	[[nodiscard]] virtual LoopType looping_type() const = 0;
 	/// The resolved loop bounds for the cache loop-length check.
-	[[nodiscard]] virtual LoopPoints loopPoints() const = 0;
+	[[nodiscard]] virtual LoopPoints loop_points() const = 0;
 
 	// --- Per-block transport / sync queries ------------------------------------------------------------------
 	/// The current time-per-internal-tick (the transport clock; UQ value the sync maths shifts down by 32).
-	[[nodiscard]] virtual uint64_t timePerInternalTickBig() const = 0;
+	[[nodiscard]] virtual uint64_t time_per_internal_tick_big() const = 0;
 	/// Samples elapsed into the synced region (the easy STRETCH late-start position).
-	[[nodiscard]] virtual int64_t syncedNumSamplesIn() const = 0;
+	[[nodiscard]] virtual int64_t synced_num_samples_in() const = 0;
 	/// How many samples the play head lags the sync grid (signed; for the small-drift no-stretch shortcut).
-	[[nodiscard]] virtual int32_t numSamplesLaggingBehindSync() const = 0;
+	[[nodiscard]] virtual int32_t num_samples_lagging_behind_sync() const = 0;
 	/// Nudge @p phaseIncrement to correct drift from the sync grid.
-	[[nodiscard]] virtual uint32_t adjustPitchToCorrectDriftFromSync(uint32_t phaseIncrement) const = 0;
+	[[nodiscard]] virtual uint32_t adjust_pitch_to_correct_drift_from_sync(uint32_t phase_increment) const = 0;
 	/// The interpolation work-buffer size for @p phaseIncrement at the preset's quality.
-	[[nodiscard]] virtual int32_t interpolationBufferSize(uint32_t phaseIncrement) const = 0;
+	[[nodiscard]] virtual int32_t interpolation_buffer_size(uint32_t phase_increment) const = 0;
 
 	// --- Voice-sample state ----------------------------------------------------------------------------------
 	/// Samples the note is waiting to start late by (0 ⇒ not a late start). Sign-magnitude UQ.
-	[[nodiscard]] virtual uint32_t pendingSamplesLate() const = 0;
+	[[nodiscard]] virtual uint32_t pending_samples_late() const = 0;
 	/// True once the first render block has run (gates the once-per-note cache setup).
-	[[nodiscard]] virtual bool doneFirstRenderYet() const = 0;
+	[[nodiscard]] virtual bool done_first_render_yet() const = 0;
 	/// Bytes from the play position to where playback ends, counted in the play direction (for the auto-release).
 	[[nodiscard]] virtual int32_t bytes_left_to_end() const = 0;
 	/// Bytes per sample frame: the byte depth times the channel count.
@@ -105,15 +105,15 @@ public:
 	/// Releases the reader the note holds, if any (on @p deleting_song, without touching what the song frees).
 	virtual void unassign(bool deleting_song) = 0;
 	/// Attempt to begin playback @p rawSamplesLate samples into the sample (a mid-note unmute / late start).
-	virtual LateStartOutcome attemptLateStart(int64_t rawSamplesLate, int32_t numSamples) = 0;
+	virtual LateStartOutcome attempt_late_start(int64_t raw_samples_late, int32_t num_samples) = 0;
 	/// Set up the resampling cache for this note if the conditions allow. @return false ⇒ unassign this source.
-	virtual bool possiblySetUpCache(int32_t phaseIncrement, int32_t timeStretchRatio, int32_t priorityRating,
-	                                LoopType loopingType) = 0;
+	virtual bool possibly_set_up_cache(int32_t phase_increment, int32_t time_stretch_ratio, int32_t priority_rating,
+	                                   LoopType looping_type) = 0;
 	/// Render @p numSamples of sample playback (resample / time-stretch / cache) into @p buffer at the given pitch
 	/// and stretch. @return false ⇒ the sample ended ⇒ unassign this source.
-	virtual bool render(int32_t* buffer, int32_t numSamples, LoopType loopingType, int32_t phaseIncrement,
-	                    int32_t timeStretchRatio, int32_t sourceAmplitude, int32_t amplitudeIncrement,
-	                    int32_t interpolationBufferSize, int32_t priorityRating) = 0;
+	virtual bool render(int32_t* buffer, int32_t num_samples, LoopType looping_type, int32_t phase_increment,
+	                    int32_t time_stretch_ratio, int32_t source_amplitude, int32_t amplitude_increment,
+	                    int32_t interpolation_buffer_size, int32_t priority_rating) = 0;
 };
 
 } // namespace deluge::synth

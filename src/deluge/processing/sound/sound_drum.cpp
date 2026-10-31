@@ -51,7 +51,7 @@ void SoundDrum::resetTimeEnteredState() {
 	AudioExcludedSection section; // walks this Sound's voices, which the render edits (free on the audio tier)
 	// the sound drum might have multiple voices sounding, but only one will be sustaining and switched to hold
 	for (const ActiveVoice& voice : this->voices()) {
-		voice->kernel.resetEnvelope0TimeEntered(deluge::synth::VoiceClock{AudioEngine::nextVoiceState});
+		voice->kernel.reset_envelope0_time_entered(deluge::synth::VoiceClock{AudioEngine::nextVoiceState});
 	}
 }
 
@@ -80,7 +80,7 @@ void SoundDrum::expressionEvent(int32_t newValue, int32_t expressionDimension) {
 	// sourcesChanged |= 1 << s; // We'd ideally not want to apply this to all voices though...
 	for (const ActiveVoice& voice : this->voices()) {
 		if (expressionValueChangesMustBeDoneSmoothly) {
-			voice->kernel.expressionEventSmooth(newValue, s);
+			voice->kernel.expression_event_smooth(newValue, s);
 		}
 		else {
 			voice->expression_event_immediate(newValue, s);

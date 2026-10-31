@@ -55,10 +55,10 @@ public:
 
 	/// The wavetable band-data **view** to render (built app-side from the source's loaded `WaveTable`) — set per
 	/// block by Voice. The storage seam is now this view, not a `WaveTable` pointer, so the source is App-free.
-	void setWaveData(const deluge::dsp::fixed::WaveTableData& data) { table_ = data; }
+	void set_wave_data(const deluge::dsp::fixed::WaveTableData& data) { table_ = data; }
 	/// The per-block wave-index (morph) inputs: @p last_index is the previous block's index, @p increment its
 	/// per-sample slope. The engine applies the legacy `+2^30` centering itself.
-	void setWaveIndex(int32_t last_index, int32_t increment) {
+	void set_wave_index(int32_t last_index, int32_t increment) {
 		wave_index_last_ = last_index;
 		wave_index_increment_ = increment;
 	}
@@ -69,20 +69,20 @@ public:
 	/// Render one block into @p output (sets the wavetable + per-block pitch + wave-index/morph inputs first), VCA
 	/// per @p controls. The public block-render API used by @ref RingModEngine (raw render) and by
 	/// @ref renderOscBlock. The engine owns its phase across blocks.
-	void renderInto(const BlockControls& controls, const deluge::dsp::fixed::WaveTableData& table,
-	                int32_t lastWaveIndex, int32_t waveIndexIncrement, uint32_t phaseIncrement,
-	                deluge::dsp::fixed::Buffer output, deluge::dsp::fixed::Buffer scratch) {
-		setWaveData(table);
-		set_increment(phaseIncrement);
-		setWaveIndex(lastWaveIndex, waveIndexIncrement);
+	void render_into(const BlockControls& controls, const deluge::dsp::fixed::WaveTableData& table,
+	                 int32_t last_wave_index, int32_t wave_index_increment, uint32_t phase_increment,
+	                 deluge::dsp::fixed::Buffer output, deluge::dsp::fixed::Buffer scratch) {
+		set_wave_data(table);
+		set_increment(phase_increment);
+		set_wave_index(last_wave_index, wave_index_increment);
 		render_block(controls, output, scratch);
 	}
 
 protected:
-	void renderOscBlock(const BlockControls& controls, const SourceRenderContext& ctx,
-	                    deluge::dsp::fixed::Buffer out) override {
-		renderInto(controls, ctx.waveTableData, ctx.waveIndexLast, ctx.waveIndexIncrement, ctx.phaseIncrement, out,
-		           deluge::dsp::fixed::Buffer{ctx.syncScratch, static_cast<size_t>(ctx.numSamples)});
+	void render_osc_block(const BlockControls& controls, const SourceRenderContext& ctx,
+	                      deluge::dsp::fixed::Buffer out) override {
+		render_into(controls, ctx.wave_table_data, ctx.wave_index_last, ctx.wave_index_increment, ctx.phase_increment,
+		            out, deluge::dsp::fixed::Buffer{ctx.sync_scratch, static_cast<size_t>(ctx.num_samples)});
 	}
 };
 

@@ -28,8 +28,9 @@ namespace deluge::voice {
 
 /// Build the already-modulated per-block controls a source component renders from (the raw values renderOsc's VA
 /// branch used to build; the component derives pulse/sync/retrigger/band/scale internally).
-synth::BlockControls makeBlockControls(int32_t amplitude, int32_t amplitudeIncrement, uint32_t pulseWidth,
-                                       bool applyAmplitude, bool doOscSync, uint32_t resetterPhase,
-                                       uint32_t resetterPhaseIncrement, uint32_t retriggerPhase, int32_t cpuDireness);
+synth::BlockControls make_block_controls(int32_t amplitude, int32_t amplitude_increment, uint32_t pulse_width,
+                                         bool apply_amplitude, bool do_osc_sync, uint32_t resetter_phase,
+                                         uint32_t resetter_phase_increment, uint32_t retrigger_phase,
+                                         int32_t cpu_direness);
 
 } // namespace deluge::voice

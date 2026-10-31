@@ -46,11 +46,12 @@ public:
 	// changes on a live voice — setSynthMode kills voices first). Indexed [unison part][modulator]. The setup that
 	// writes these (note-on phase seed + per-unison pitch derivation) still lives in Voice for now — it relocates
 	// into the engine at the kernel lift — so these stay public, as the VoiceUnisonPart fields were.
-	std::array<std::array<uint32_t, kNumModulators>, kMaxNumVoicesUnison> modulatorPhase;
-	std::array<std::array<uint32_t, kNumModulators>, kMaxNumVoicesUnison>
-	    modulatorPhaseIncrement; // 0xFFFFFFFF = inactive
-	std::array<std::array<int32_t, kNumModulators>, kMaxNumVoicesUnison> modulatorFeedback;
-	std::array<int32_t, kNumModulators> modulatorAmplitudeLastTime; // the modulator-volume de-zipper (voice-level)
+	std::array<std::array<uint32_t, kNumModulators>, kMaxNumVoicesUnison> modulator_phase;
+	/// A modulator's phase increment when it is too high to render, and is not rendered.
+	static constexpr uint32_t kInactive = 0xFFFFFFFF;
+	std::array<std::array<uint32_t, kNumModulators>, kMaxNumVoicesUnison> modulator_phase_increment; // or kInactive
+	std::array<std::array<int32_t, kNumModulators>, kMaxNumVoicesUnison> modulator_feedback;
+	std::array<int32_t, kNumModulators> modulator_amplitude_last_time; // the modulator-volume de-zipper (voice-level)
 
 	/// Render all of @p voice's FM unison parts, accumulating into @p oscBuffer. Owns the unison loop (ascending
 	/// frequency) + the per-source carrier pitch adjust (a too-high carrier zeroes that source's amplitude, which —
@@ -59,32 +60,34 @@ public:
 	/// knocked to 0/false on pitch-too-high, persisting across parts). @p didStereoTempBuffer is set when
 	/// @p stereoUnison. @p modulatorScratch / @p carrierScratch are the caller's spare buffers
 	/// (spareRenderingBuffer[2]/[3]).
-	void render(deluge::synth::Voice& voice, int32_t numSamples, int32_t overallPitchAdjust, bool stereoUnison,
-	            int32_t* sourceAmplitudes, const int32_t* sourceAmplitudesNow, const int32_t* sourceAmplitudeIncrements,
-	            bool* modulatorsActive, const int32_t* modulatorAmplitudeIncrements, int32_t* oscBuffer,
-	            int32_t* modulatorScratch, int32_t* carrierScratch, bool& didStereoTempBuffer, const VoiceConfig& cfg);
+	void render(deluge::synth::Voice& voice, int32_t num_samples, int32_t overall_pitch_adjust, bool stereo_unison,
+	            int32_t* source_amplitudes, const int32_t* source_amplitudes_now,
+	            const int32_t* source_amplitude_increments, bool* modulators_active,
+	            const int32_t* modulator_amplitude_increments, int32_t* osc_buffer, int32_t* modulator_scratch,
+	            int32_t* carrier_scratch, bool& did_stereo_temp_buffer, const VoiceConfig& cfg);
 
 private:
 	/// Render one unison part of FM, accumulating into @p oscBuffer. The per-source/per-modulator arrays +
 	/// per-unison amplitudes are computed by @ref render and passed in. @p modulatorsActive is **mutable** — entries
 	/// are knocked to false on pitch-too-high and (faithful to the inline code) that persists across unison
 	/// parts. @p modulatorScratch / @p carrierScratch are the caller's spare buffers (spareRenderingBuffer[2]/[3]).
-	void renderUnisonPart(deluge::synth::Voice& voice, int32_t u, int32_t numSamples, int32_t overallPitchAdjust,
-	                      bool stereoUnison, int32_t unisonAmplitudeL, int32_t unisonAmplitudeR,
-	                      const uint32_t* phaseIncrements, const int32_t* sourceAmplitudes,
-	                      const int32_t* sourceAmplitudesNow, const int32_t* sourceAmplitudeIncrements,
-	                      bool* modulatorsActive, const int32_t* modulatorAmplitudeIncrements, int32_t* oscBuffer,
-	                      int32_t* modulatorScratch, int32_t* carrierScratch, const VoiceConfig& cfg);
+	void render_unison_part(deluge::synth::Voice& voice, int32_t u, int32_t num_samples, int32_t overall_pitch_adjust,
+	                        bool stereo_unison, int32_t unison_amplitude_l, int32_t unison_amplitude_r,
+	                        const uint32_t* phase_increments, const int32_t* source_amplitudes,
+	                        const int32_t* source_amplitudes_now, const int32_t* source_amplitude_increments,
+	                        bool* modulators_active, const int32_t* modulator_amplitude_increments, int32_t* osc_buffer,
+	                        int32_t* modulator_scratch, int32_t* carrier_scratch, const VoiceConfig& cfg);
 
 	// The FM operator renders (pure DSP over the passed buffers/phases). Moved here from Voice — they read no
 	// Voice state, so the engine no longer needs to be a friend of Voice.
-	static void renderSineWaveWithFeedback(int32_t* bufferStart, int32_t numSamples, uint32_t* phase, int32_t amplitude,
-	                                       uint32_t phaseIncrement, int32_t feedbackAmount, int32_t* lastFeedbackValue,
-	                                       bool add, int32_t amplitudeIncrement);
-	static void renderFMWithFeedback(int32_t* bufferStart, int32_t numSamples, int32_t* fmBuffer, uint32_t* phase,
-	                                 int32_t amplitude, uint32_t phaseIncrement, int32_t feedbackAmount,
-	                                 int32_t* lastFeedbackValue, int32_t amplitudeIncrement);
-	static void renderFMWithFeedbackAdd(int32_t* bufferStart, int32_t numSamples, int32_t* fmBuffer, uint32_t* phase,
-	                                    int32_t amplitude, uint32_t phaseIncrement, int32_t feedbackAmount,
-	                                    int32_t* lastFeedbackValue, int32_t amplitudeIncrement);
+	static void render_sine_wave_with_feedback(int32_t* buffer_start, int32_t num_samples, uint32_t* phase,
+	                                           int32_t amplitude, uint32_t phase_increment, int32_t feedback_amount,
+	                                           int32_t* last_feedback_value, bool add, int32_t amplitude_increment);
+	static void render_fm_with_feedback(int32_t* buffer_start, int32_t num_samples, int32_t* fm_buffer, uint32_t* phase,
+	                                    int32_t amplitude, uint32_t phase_increment, int32_t feedback_amount,
+	                                    int32_t* last_feedback_value, int32_t amplitude_increment);
+	static void render_fm_with_feedback_add(int32_t* buffer_start, int32_t num_samples, int32_t* fm_buffer,
+	                                        uint32_t* phase, int32_t amplitude, uint32_t phase_increment,
+	                                        int32_t feedback_amount, int32_t* last_feedback_value,
+	                                        int32_t amplitude_increment);
 };

@@ -36,5 +36,5 @@ struct ControlBlock {
 	/// Each routed cable's current depth, in routing order: [-2^30, 2^30].
 	std::array<int32_t, deluge::synth::kMaxCables> depths;
 
-	[[nodiscard]] int32_t presetValue(int32_t p) const { return preset_values[p]; }
+	[[nodiscard]] int32_t preset_value(int32_t p) const { return preset_values[p]; }
 };

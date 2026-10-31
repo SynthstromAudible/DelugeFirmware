@@ -97,11 +97,11 @@ namespace params = deluge::modulation::params;
 extern int32_t spareRenderingBuffer[][SSI_TX_BUFFER_NUM_SAMPLES];
 
 constexpr Patcher::Config kPatcherConfigForSound = {
-    .firstParam = params::FIRST_GLOBAL,
-    .firstNonVolumeParam = params::FIRST_GLOBAL_NON_VOLUME,
-    .firstHybridParam = params::FIRST_GLOBAL_HYBRID,
-    .firstExpParam = params::FIRST_GLOBAL_EXP,
-    .endParams = params::kNumParams,
+    .first_param = params::FIRST_GLOBAL,
+    .first_non_volume_param = params::FIRST_GLOBAL_NON_VOLUME,
+    .first_hybrid_param = params::FIRST_GLOBAL_HYBRID,
+    .first_exp_param = params::FIRST_GLOBAL_EXP,
+    .end_params = params::kNumParams,
     .globality = GLOBALITY_GLOBAL,
 };
 
@@ -141,7 +141,7 @@ deluge::synth::NoteOnEvent noteOnEvent(int32_t noteCodePreArp, int32_t noteCodeP
 } // namespace
 
 Sound::Sound()
-    : patcher(kPatcherConfigForSound, params.sourceValues, params.paramFinalValues),
+    : patcher(kPatcherConfigForSound, params.source_values, params.param_final_values),
       chain_{deluge::model::kModFxRingAllocator, deluge::model::kGranularAllocator, deluge::model::delayArena()} {
 	unpatchedParamKind_ = params::Kind::UNPATCHED_SOUND;
 
@@ -521,7 +521,8 @@ void Sound::recalculatePatchingToParam(uint8_t p, ParamManager* paramManager) {
 
 	// Whether global...
 	if (p >= params::FIRST_GLOBAL) {
-		patcher.recalculateFinalValueForParamWithNoCables(p, patchControlBlock(*paramManager, PresetGather::ALL));
+		patcher.recalculate_final_value_for_param_with_no_cables(p,
+		                                                         patchControlBlock(*paramManager, PresetGather::ALL));
 		return;
 	}
 
@@ -529,7 +530,7 @@ void Sound::recalculatePatchingToParam(uint8_t p, ParamManager* paramManager) {
 	const ControlBlock block = patchControlBlock(*paramManager, PresetGather::ALL);
 	AudioExcludedSection section; // the render walks and edits this Sound's voices
 	for (ActiveVoice& voice : voices_) {
-		voice->kernel.patcher.recalculateFinalValueForParamWithNoCables(p, block);
+		voice->kernel.patcher.recalculate_final_value_for_param_with_no_cables(p, block);
 	}
 }
 
@@ -823,12 +824,12 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 		           : PatchCableAcceptance::EDITABLE;
 
 	case params::GLOBAL_LFO_FREQ_1:
-		return (snapshot_.lfoConfig[LFO1_ID].syncLevel == SYNC_LEVEL_NONE) ? PatchCableAcceptance::ALLOWED
-		                                                                   : PatchCableAcceptance::DISALLOWED;
+		return (snapshot_.lfo_config[LFO1_ID].sync_level == SYNC_LEVEL_NONE) ? PatchCableAcceptance::ALLOWED
+		                                                                     : PatchCableAcceptance::DISALLOWED;
 
 	case params::GLOBAL_LFO_FREQ_2:
-		return (snapshot_.lfoConfig[LFO3_ID].syncLevel == SYNC_LEVEL_NONE) ? PatchCableAcceptance::ALLOWED
-		                                                                   : PatchCableAcceptance::DISALLOWED;
+		return (snapshot_.lfo_config[LFO3_ID].sync_level == SYNC_LEVEL_NONE) ? PatchCableAcceptance::ALLOWED
+		                                                                     : PatchCableAcceptance::DISALLOWED;
 
 		// Nothing may patch to post-fx volume. This is for manual control only. The sidechain patches to post-reverb
 		// volume, and everything else patches to per-voice, "local" volume
@@ -957,7 +958,7 @@ void Sound::retriggerVoice(const ActiveVoice& voice, ModelStackWithSoundFlags* m
                            int32_t fromMIDIChannel) {
 	int32_t envelopePositions[kNumEnvelopes];
 	for (int32_t e = 0; e < kNumEnvelopes; e++) {
-		envelopePositions[e] = voice->kernel.envelopes[e].outputLevel();
+		envelopePositions[e] = voice->kernel.envelopes[e].output_level();
 	}
 	if (sideChainSendLevel != 0) [[unlikely]] {
 		AudioEngine::registerSideChainHit(sideChainSendLevel);
@@ -969,7 +970,7 @@ void Sound::retriggerVoice(const ActiveVoice& voice, ModelStackWithSoundFlags* m
 		        sampleSyncLength, ticksLate);
 	    })) {
 		for (int32_t e = 0; e < kNumEnvelopes; e++) {
-			voice->kernel.envelopes[e].resumeAttack(envelopePositions[e]);
+			voice->kernel.envelopes[e].resume_attack(envelopePositions[e]);
 		}
 	}
 	else {
@@ -1014,7 +1015,7 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
 				                                  && sources[s].oscType != OscType::SAMPLE;
 			                           })
 			    || (voice->kernel.envelopes[0].stage() != Envelope::Stage::FAST_RELEASE
-			        && !voice->do_fast_release(SOFT_CULL_INCREMENT));
+			        && !voice->do_fast_release(kSoftCullIncrement));
 
 			if (needs_unassign) {
 				if (voiceToReuse != nullptr) {
@@ -1082,7 +1083,7 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
 			    })) {
 				// Publish: the voice limit, the push and the skipping status in one step the render cannot split.
 				AudioExcludedSection section;
-				auto countsTowardLimit = [](const ActiveVoice& v) { return !v->kernel.isCullFading(); };
+				auto countsTowardLimit = [](const ActiveVoice& v) { return !v->kernel.is_cull_fading(); };
 				if (std::ranges::count_if(voices_, countsTowardLimit) >= maxVoiceCount) {
 					this->terminateOneActiveVoice();
 				}
@@ -1277,7 +1278,7 @@ void Sound::noteOffPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 
 	for (const ActiveVoice& voice : voices_) {
-		if ((voice->kernel.noteCodeAfterArpeggiation == noteCode || noteCode == ALL_NOTES_OFF)
+		if ((voice->kernel.note_code_after_arpeggiation == noteCode || noteCode == ALL_NOTES_OFF)
 		    && voice->kernel.envelopes[0].stage()
 		           < Envelope::Stage::RELEASE) { // Don't bother if it's already "releasing"
 
@@ -1529,7 +1530,7 @@ bool Sound::isNoiseActiveEver(ParamManagerForTimeline* paramManager) {
 }
 
 bool Sound::renderingOscillatorSyncCurrently(ParamManagerForTimeline* paramManager) {
-	if (!snapshot_.oscillatorSync) {
+	if (!snapshot_.oscillator_sync) {
 		return false;
 	}
 	if (getSynthMode() == SynthMode::FM) {
@@ -1540,7 +1541,7 @@ bool Sound::renderingOscillatorSyncCurrently(ParamManagerForTimeline* paramManag
 }
 
 bool Sound::renderingOscillatorSyncEver(ParamManager* paramManager) {
-	if (!snapshot_.oscillatorSync) {
+	if (!snapshot_.oscillator_sync) {
 		return false;
 	}
 	if (getSynthMode() == SynthMode::FM) {
@@ -1809,29 +1810,29 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	if (paramManager->getPatchCableSet()->isSourcePatchedToSomething(PatchSource::LFO_GLOBAL_1)) {
 		const auto patchSourceLFOGlobalUnderlying = util::to_underlying(PatchSource::LFO_GLOBAL_1);
 
-		int32_t old = params.sourceValues[patchSourceLFOGlobalUnderlying];
+		int32_t old = params.source_values[patchSourceLFOGlobalUnderlying];
 		// TODO: We don't really need to recompute phase increment unless rate, sync, or
 		// playbackHandler.getTimePerInternalTickInverse() has changed. Rate and sync changes
 		// already cause a resync. Maybe tempo changes do too? If so, this could be part of
 		// the resync logic. Note: same issue exists with LFO2 now that it supports sync.
-		params.sourceValues[patchSourceLFOGlobalUnderlying] =
-		    globalLFO1.render(output.size(), snapshot_.lfoConfig[LFO1_ID],
+		params.source_values[patchSourceLFOGlobalUnderlying] =
+		    globalLFO1.render(output.size(), snapshot_.lfo_config[LFO1_ID],
 		                      getGlobalLFOPhaseIncrement(LFO1_ID, params::GLOBAL_LFO_FREQ_1), deluge::synth_noise);
-		uint32_t anyChange = (old != params.sourceValues[patchSourceLFOGlobalUnderlying]);
+		uint32_t anyChange = (old != params.source_values[patchSourceLFOGlobalUnderlying]);
 		sourcesChanged |= anyChange << patchSourceLFOGlobalUnderlying;
 	}
 	if (paramManager->getPatchCableSet()->isSourcePatchedToSomething(PatchSource::LFO_GLOBAL_2)) {
 		const auto patchSourceLFOGlobalUnderlying = util::to_underlying(PatchSource::LFO_GLOBAL_2);
 
-		int32_t old = params.sourceValues[patchSourceLFOGlobalUnderlying];
+		int32_t old = params.source_values[patchSourceLFOGlobalUnderlying];
 		// TODO: We don't really need to recompute phase increment unless rate, sync, or
 		// playbackHandler.getTimePerInternalTickInverse() has changed. Rate and sync changes
 		// already cause a resync. Maybe tempo changes do too? If so, this could be part of
 		// the resync logic. Note: same issue exists with LFO2 now that it supports sync.
-		params.sourceValues[patchSourceLFOGlobalUnderlying] =
-		    globalLFO3.render(output.size(), snapshot_.lfoConfig[LFO3_ID],
+		params.source_values[patchSourceLFOGlobalUnderlying] =
+		    globalLFO3.render(output.size(), snapshot_.lfo_config[LFO3_ID],
 		                      getGlobalLFOPhaseIncrement(LFO3_ID, params::GLOBAL_LFO_FREQ_2), deluge::synth_noise);
-		uint32_t anyChange = (old != params.sourceValues[patchSourceLFOGlobalUnderlying]);
+		uint32_t anyChange = (old != params.source_values[patchSourceLFOGlobalUnderlying]);
 		sourcesChanged |= anyChange << patchSourceLFOGlobalUnderlying;
 	}
 
@@ -1849,11 +1850,11 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 
 		const auto patchSourceSidechainUnderlying = util::to_underlying(PatchSource::SIDECHAIN);
 
-		int32_t old = params.sourceValues[patchSourceSidechainUnderlying];
-		params.sourceValues[patchSourceSidechainUnderlying] = core().sidechain().render(
+		int32_t old = params.source_values[patchSourceSidechainUnderlying];
+		params.source_values[patchSourceSidechainUnderlying] = core().sidechain().render(
 		    output.size(), paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_SIDECHAIN_SHAPE),
 		    modControllableSnapshot_.effects.sidechain, playbackHandler.getTimePerInternalTickInverse());
-		uint32_t anyChange = (old != params.sourceValues[patchSourceSidechainUnderlying]);
+		uint32_t anyChange = (old != params.source_values[patchSourceSidechainUnderlying]);
 		sourcesChanged |= anyChange << patchSourceSidechainUnderlying;
 	}
 
@@ -1862,7 +1863,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 #if defined(DELUGE_STREAM_BENCH)
 		const uint32_t t0 = deluge::bench::render_profile::cycles();
 #endif
-		patcher.performPatching(sourcesChanged, patchControlBlock(*paramManager, PresetGather::ROUTED));
+		patcher.perform_patching(sourcesChanged, patchControlBlock(*paramManager, PresetGather::ROUTED));
 #if defined(DELUGE_STREAM_BENCH)
 		deluge::bench::render_profile::g_totals.sound_patch += deluge::bench::render_profile::cycles() - t0;
 		++deluge::bench::render_profile::g_totals.sound_blocks;
@@ -1872,7 +1873,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	// Setup some reverb-related stuff
 	int32_t reverbSendAmount =
 	    multiply_32x32_rshift32_rounded(reverbAmountAdjust,
-	                                    params.paramFinalValues[params::GLOBAL_REVERB_AMOUNT - params::FIRST_GLOBAL])
+	                                    params.param_final_values[params::GLOBAL_REVERB_AMOUNT - params::FIRST_GLOBAL])
 	    << 5;
 
 	ModelStackWithSoundFlags* modelStackWithSoundFlags = modelStack->addSoundFlags();
@@ -1890,7 +1891,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	if (arpSettings != nullptr && arpSettings->mode != ArpMode::OFF) {
 		uint32_t gateThreshold = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_GATE) + 2147483648;
 		uint32_t phaseIncrement =
-		    arpSettings->getPhaseIncrement(params.paramFinalValues[params::GLOBAL_ARP_RATE - params::FIRST_GLOBAL]);
+		    arpSettings->getPhaseIncrement(params.param_final_values[params::GLOBAL_ARP_RATE - params::FIRST_GLOBAL]);
 
 		getArp()->render(arpSettings, &instruction, output.size(), gateThreshold, phaseIncrement);
 	}
@@ -1920,12 +1921,12 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	// Setup delay
 	deluge::effects::Delay::State delayWorkingState{};
 	delayWorkingState.delayFeedbackAmount =
-	    params.paramFinalValues[params::GLOBAL_DELAY_FEEDBACK - params::FIRST_GLOBAL];
+	    params.param_final_values[params::GLOBAL_DELAY_FEEDBACK - params::FIRST_GLOBAL];
 	if (shouldLimitDelayFeedback) {
 		delayWorkingState.delayFeedbackAmount =
 		    std::min(delayWorkingState.delayFeedbackAmount, (q31_t)(1 << 30) - (1 << 26));
 	}
-	delayWorkingState.userDelayRate = params.paramFinalValues[params::GLOBAL_DELAY_RATE - params::FIRST_GLOBAL];
+	delayWorkingState.userDelayRate = params.param_final_values[params::GLOBAL_DELAY_RATE - params::FIRST_GLOBAL];
 	uint32_t timePerTickInverse = playbackHandler.getTimePerInternalTickInverse(true);
 	core().delay().setupWorkingState(delayWorkingState, modControllableSnapshot_.effects.delay, timePerTickInverse,
 	                                 !voices_.empty());
@@ -1987,44 +1988,44 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		    .high_pass = doHPF ? deluge::effects::high_pass_slot(modControllableSnapshot_.effects.filter.hpf_mode)
 		                       : deluge::dsp::fixed::HighPassSlot{},
 		    .filter_route = deluge::effects::filter_route(modControllableSnapshot_.effects.filter.route),
-		    .volumeNeutralValueForUnison = volumeNeutralValueForUnison,
+		    .volume_neutral_value_for_unison = volumeNeutralValueForUnison,
 		    .cpu_direness = AudioEngine::cpuDireness,
-		    .voice_priority = snapshot_.voicePriority,
-		    .synthMode = getSynthMode(),
-		    .lfo2Config = snapshot_.lfoConfig[LFO2_ID],
-		    .lfo4Config = snapshot_.lfoConfig[LFO4_ID],
-		    .lfo2SyncedPhaseIncrement = (snapshot_.lfoConfig[LFO2_ID].syncLevel == SYNC_LEVEL_NONE)
-		                                    ? 0
-		                                    : getSyncedLFOPhaseIncrement(snapshot_.lfoConfig[LFO2_ID]),
-		    .lfo4SyncedPhaseIncrement = (snapshot_.lfoConfig[LFO4_ID].syncLevel == SYNC_LEVEL_NONE)
-		                                    ? 0
-		                                    : getSyncedLFOPhaseIncrement(snapshot_.lfoConfig[LFO4_ID]),
-		    .hasFilters = thisHasFilters,
-		    .expressionSourcesChangedAtSynthLevel = expressionSourcesChangedAtSynthLevel,
-		    .monophonicExpressionValues = monophonicExpressionValues,
-		    .clippingAmount = modControllableSnapshot_.effects.saturation.clipping_amount,
-		    .doingOscSync = renderingOscillatorSyncCurrently(paramManager),
-		    .engineRenderingInStereo = AudioEngine::renderInStereo,
-		    .numUnison = snapshot_.numUnison,
-		    .unisonStereoSpread = snapshot_.unisonStereoSpread,
-		    .unisonPan = snapshot_.unisonPan,
-		    .oscRetriggerPhase = snapshot_.oscRetriggerPhase,
-		    .oscType = oscTypes,
-		    .repeatMode = repeatModes,
-		    .interpolationMode = interpolationModes,
-		    .dxPatchChanged = dxPatchChangeds,
-		    .globalSourceValues = params.sourceValues,
-		    .noteTailsAllowed = allowNoteTails(modelStackWithSoundFlags, true),
-		    .sourceEverActive = sourceEverActives,
-		    .noiseVolumeContainsSomething =
+		    .voice_priority = snapshot_.voice_priority,
+		    .synth_mode = getSynthMode(),
+		    .lfo2_config = snapshot_.lfo_config[LFO2_ID],
+		    .lfo4_config = snapshot_.lfo_config[LFO4_ID],
+		    .lfo2_synced_phase_increment = (snapshot_.lfo_config[LFO2_ID].sync_level == SYNC_LEVEL_NONE)
+		                                       ? 0
+		                                       : getSyncedLFOPhaseIncrement(snapshot_.lfo_config[LFO2_ID]),
+		    .lfo4_synced_phase_increment = (snapshot_.lfo_config[LFO4_ID].sync_level == SYNC_LEVEL_NONE)
+		                                       ? 0
+		                                       : getSyncedLFOPhaseIncrement(snapshot_.lfo_config[LFO4_ID]),
+		    .has_filters = thisHasFilters,
+		    .expression_sources_changed_at_synth_level = expressionSourcesChangedAtSynthLevel,
+		    .monophonic_expression_values = monophonicExpressionValues,
+		    .clipping_amount = modControllableSnapshot_.effects.saturation.clipping_amount,
+		    .doing_osc_sync = renderingOscillatorSyncCurrently(paramManager),
+		    .engine_rendering_in_stereo = AudioEngine::renderInStereo,
+		    .num_unison = snapshot_.num_unison,
+		    .unison_stereo_spread = snapshot_.unison_stereo_spread,
+		    .unison_pan = snapshot_.unison_pan,
+		    .osc_retrigger_phase = snapshot_.osc_retrigger_phase,
+		    .osc_type = oscTypes,
+		    .repeat_mode = repeatModes,
+		    .interpolation_mode = interpolationModes,
+		    .dx_patch_changed = dxPatchChangeds,
+		    .global_source_values = params.source_values,
+		    .note_tails_allowed = allowNoteTails(modelStackWithSoundFlags, true),
+		    .source_ever_active = sourceEverActives,
+		    .noise_volume_contains_something =
 		        paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].containsSomething(
 		            *paramManager->getPatchedParamSet()->docForParam(params::LOCAL_NOISE_VOLUME), -2147483648),
-		    .localSourcesPatchedToAnything =
+		    .local_sources_patched_to_anything =
 		        paramManager->getPatchCableSet()->sourcesPatchedToAnything[GLOBALITY_LOCAL],
-		    .bendRanges = {bendRangesSrc[BEND_RANGE_MAIN], bendRangesSrc[BEND_RANGE_FINGER_LEVEL]},
+		    .bend_ranges = {bendRangesSrc[BEND_RANGE_MAIN], bendRangesSrc[BEND_RANGE_FINGER_LEVEL]},
 		    .portamento = paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_PORTAMENTO),
-		    .modulator1ToModulator0 = snapshot_.modulator1ToModulator0,
-		    .sourceActiveCurrently = sourceActiveCurrentlys,
+		    .modulator1_to_modulator0 = snapshot_.modulator1_to_modulator0,
+		    .source_active_currently = sourceActiveCurrentlys,
 		};
 
 		// The patcher's per-block input. Sound-level + stable across the voice loop (the param sets are fixed and
@@ -2036,8 +2037,8 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 
 			// A note-off the voice ignored is taken now if the sound has since come to allow note tails. A voice's
 			// first render call only marks it created, so it is not taken then.
-			if (voice->just_created && voice->kernel.previouslyIgnoredNoteOff && voiceConfig.noteTailsAllowed) {
-				voice->note_off(paramManager, voiceConfig.noteTailsAllowed);
+			if (voice->just_created && voice->kernel.previously_ignored_note_off && voiceConfig.note_tails_allowed) {
+				voice->note_off(paramManager, voiceConfig.note_tails_allowed);
 			}
 #if defined(DELUGE_STREAM_BENCH)
 			const uint32_t t0 = deluge::bench::render_profile::cycles();
@@ -2182,7 +2183,7 @@ void Sound::stopSkippingRendering(ArpeggiatorSettings* arpSettings) {
 
 			// Do Mod FX
 			core().mod_fx().tick(modFXTimeOff,
-			                     params.paramFinalValues[params::GLOBAL_MOD_FX_RATE - params::FIRST_GLOBAL]);
+			                     params.param_final_values[params::GLOBAL_MOD_FX_RATE - params::FIRST_GLOBAL]);
 
 			// Do arp
 			getArpBackInTimeAfterSkippingRendering(arpSettings);
@@ -2210,8 +2211,8 @@ void Sound::getArpBackInTimeAfterSkippingRendering(ArpeggiatorSettings* arpSetti
 
 	if (skippingRendering) {
 		if (arpSettings != nullptr && arpSettings->mode != ArpMode::OFF) {
-			uint32_t phaseIncrement =
-			    arpSettings->getPhaseIncrement(params.paramFinalValues[params::GLOBAL_ARP_RATE - params::FIRST_GLOBAL]);
+			uint32_t phaseIncrement = arpSettings->getPhaseIncrement(
+			    params.param_final_values[params::GLOBAL_ARP_RATE - params::FIRST_GLOBAL]);
 			getArp()->gatePos +=
 			    (phaseIncrement >> 8) * (AudioEngine::audioSampleTimer - timeStartedSkippingRenderingArp);
 
@@ -2221,9 +2222,9 @@ void Sound::getArpBackInTimeAfterSkippingRendering(ArpeggiatorSettings* arpSetti
 }
 
 uint32_t Sound::getGlobalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::params::Global param) {
-	const LFOConfig& config = snapshot_.lfoConfig[lfoId];
-	if (config.syncLevel == SYNC_LEVEL_NONE) {
-		return params.paramFinalValues[param - params::FIRST_GLOBAL];
+	const LFOConfig& config = snapshot_.lfo_config[lfoId];
+	if (config.sync_level == SYNC_LEVEL_NONE) {
+		return params.param_final_values[param - params::FIRST_GLOBAL];
 	}
 	return getSyncedLFOPhaseIncrement(config);
 }
@@ -2231,8 +2232,8 @@ uint32_t Sound::getGlobalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::par
 uint32_t Sound::getSyncedLFOPhaseIncrement(const LFOConfig& config) {
 	uint32_t phaseIncrement =
 	    (playbackHandler.getTimePerInternalTickInverse())
-	    >> (deluge::plugin::index_of(SYNC_LEVEL_256TH) - deluge::plugin::index_of(config.syncLevel));
-	switch (config.syncType) {
+	    >> (deluge::plugin::index_of(SYNC_LEVEL_256TH) - deluge::plugin::index_of(config.sync_level));
+	switch (config.sync_type) {
 	case SYNC_TYPE_EVEN:
 		// Nothing to do
 		break;
@@ -2251,13 +2252,13 @@ void Sound::resyncGlobalLFOs(bool reset_state) {
 		return; // no clock, no sync
 	}
 	// TOOD: convert to a guard clause. Now avoiding re-indenting the whole function.
-	if (snapshot_.lfoConfig[LFO1_ID].syncLevel != SYNC_LEVEL_NONE) {
+	if (snapshot_.lfo_config[LFO1_ID].sync_level != SYNC_LEVEL_NONE) {
 
 		timeStartedSkippingRenderingLFO =
 		    AudioEngine::audioSampleTimer; // Resets the thing where the number of samples skipped is later converted
 		                                   // into LFO phase increment
 
-		globalLFO1.setGlobalInitialPhase(snapshot_.lfoConfig[LFO1_ID], reset_state);
+		globalLFO1.set_global_initial_phase(snapshot_.lfo_config[LFO1_ID], reset_state);
 
 		uint32_t timeSinceLastTick;
 
@@ -2267,8 +2268,8 @@ void Sound::resyncGlobalLFOs(bool reset_state) {
 		if (lastInternalTickDone || timeSinceLastTick) {
 			uint32_t numInternalTicksPerPeriod =
 			    3 << (deluge::plugin::index_of(SYNC_LEVEL_256TH)
-			          - deluge::plugin::index_of(snapshot_.lfoConfig[LFO1_ID].syncLevel));
-			switch (snapshot_.lfoConfig[LFO1_ID].syncType) {
+			          - deluge::plugin::index_of(snapshot_.lfo_config[LFO1_ID].sync_level));
+			switch (snapshot_.lfo_config[LFO1_ID].sync_type) {
 			case SYNC_TYPE_EVEN:
 				// Nothing to do
 				break;
@@ -2286,17 +2287,17 @@ void Sound::resyncGlobalLFOs(bool reset_state) {
 				uint32_t timePerInternalTick = playbackHandler.getTimePerInternalTick();
 				uint32_t timePerPeriod = numInternalTicksPerPeriod * timePerInternalTick;
 				uint32_t offsetTime = offsetTicks * timePerInternalTick + timeSinceLastTick;
-				globalLFO1.advancePhase((uint32_t)((float)offsetTime / timePerPeriod * 4294967296));
+				globalLFO1.advance_phase((uint32_t)((float)offsetTime / timePerPeriod * 4294967296));
 			}
 		}
 	}
-	if (snapshot_.lfoConfig[LFO3_ID].syncLevel != SYNC_LEVEL_NONE) {
+	if (snapshot_.lfo_config[LFO3_ID].sync_level != SYNC_LEVEL_NONE) {
 
 		timeStartedSkippingRenderingLFO =
 		    AudioEngine::audioSampleTimer; // Resets the thing where the number of samples skipped is later converted
 		                                   // into LFO phase increment
 
-		globalLFO3.setGlobalInitialPhase(snapshot_.lfoConfig[LFO3_ID], reset_state);
+		globalLFO3.set_global_initial_phase(snapshot_.lfo_config[LFO3_ID], reset_state);
 
 		uint32_t timeSinceLastTick;
 
@@ -2306,8 +2307,8 @@ void Sound::resyncGlobalLFOs(bool reset_state) {
 		if (lastInternalTickDone || timeSinceLastTick) {
 			uint32_t numInternalTicksPerPeriod =
 			    3 << (deluge::plugin::index_of(SYNC_LEVEL_256TH)
-			          - deluge::plugin::index_of(snapshot_.lfoConfig[LFO3_ID].syncLevel));
-			switch (snapshot_.lfoConfig[LFO3_ID].syncType) {
+			          - deluge::plugin::index_of(snapshot_.lfo_config[LFO3_ID].sync_level));
+			switch (snapshot_.lfo_config[LFO3_ID].sync_type) {
 			case SYNC_TYPE_EVEN:
 				// Nothing to do
 				break;
@@ -2325,7 +2326,7 @@ void Sound::resyncGlobalLFOs(bool reset_state) {
 				uint32_t timePerInternalTick = playbackHandler.getTimePerInternalTick();
 				uint32_t timePerPeriod = numInternalTicksPerPeriod * timePerInternalTick;
 				uint32_t offsetTime = offsetTicks * timePerInternalTick + timeSinceLastTick;
-				globalLFO3.advancePhase((uint32_t)((float)offsetTime / timePerPeriod * 4294967296));
+				globalLFO3.advance_phase((uint32_t)((float)offsetTime / timePerPeriod * 4294967296));
 			}
 		}
 	}
@@ -2515,7 +2516,7 @@ void Sound::set_cents(int8_t new_cents) {
 
 // Setup master transpose
 void Sound::recalculateFineTuner() {
-	snapshot_.fineTuner.setup((int32_t)snapshot_.cents * 42949672);
+	snapshot_.fine_tuner.setup((int32_t)snapshot_.cents * 42949672);
 }
 
 // Unusually, modelStack may be supplied as NULL, because when unassigning all voices e.g. on song swap, we won't have
@@ -2531,44 +2532,44 @@ void Sound::setupUnisonDetuners(ModelStackWithSoundFlags* modelStack) {
 }
 
 void Sound::computeUnisonDetuners() {
-	if (snapshot_.numUnison != 1) {
-		int32_t detuneScaled = (int32_t)snapshot_.unisonDetune * 42949672;
+	if (snapshot_.num_unison != 1) {
+		int32_t detuneScaled = (int32_t)snapshot_.unison_detune * 42949672;
 		int32_t lowestVoice = -(detuneScaled >> 1);
-		int32_t voiceSpacing = detuneScaled / (snapshot_.numUnison - 1);
+		int32_t voiceSpacing = detuneScaled / (snapshot_.num_unison - 1);
 
-		for (int32_t u = 0; u < snapshot_.numUnison; u++) {
+		for (int32_t u = 0; u < snapshot_.num_unison; u++) {
 
 			// Middle unison part gets no detune
-			if ((snapshot_.numUnison & 1) && u == ((snapshot_.numUnison - 1) >> 1)) {
-				snapshot_.unisonDetuners[u].setNoDetune();
+			if ((snapshot_.num_unison & 1) && u == ((snapshot_.num_unison - 1) >> 1)) {
+				snapshot_.unison_detuners[u].setNoDetune();
 			}
 			else {
-				snapshot_.unisonDetuners[u].setup(lowestVoice + voiceSpacing * u);
+				snapshot_.unison_detuners[u].setup(lowestVoice + voiceSpacing * u);
 			}
 		}
 	}
 }
 
 void Sound::setupUnisonStereoSpread() {
-	if (snapshot_.numUnison != 1) {
-		int32_t spreadScaled = (int32_t)snapshot_.unisonStereoSpread * 42949672;
+	if (snapshot_.num_unison != 1) {
+		int32_t spreadScaled = (int32_t)snapshot_.unison_stereo_spread * 42949672;
 		int32_t lowestVoice = -(spreadScaled >> 1);
-		int32_t voiceSpacing = spreadScaled / (snapshot_.numUnison - 1);
+		int32_t voiceSpacing = spreadScaled / (snapshot_.num_unison - 1);
 
-		for (int32_t u = 0; u < snapshot_.numUnison; u++) {
+		for (int32_t u = 0; u < snapshot_.num_unison; u++) {
 			// alternate the voices like -2 +1 0 -1 +2 for more balanced
 			// interaction with detune
-			bool isOdd = std::min(u, snapshot_.numUnison - 1 - u) & 1;
+			bool isOdd = std::min(u, snapshot_.num_unison - 1 - u) & 1;
 			int32_t sign = isOdd ? -1 : 1;
 
-			snapshot_.unisonPan[u] = sign * (lowestVoice + voiceSpacing * u);
+			snapshot_.unison_pan[u] = sign * (lowestVoice + voiceSpacing * u);
 		}
 	}
 }
 
 void Sound::calculateEffectiveVolume() {
 	// volumeNeutralValueForUnison = (float)getParamNeutralValue(params::LOCAL_VOLUME) / sqrt(numUnison);
-	volumeNeutralValueForUnison = (float)134217728 / sqrtf(snapshot_.numUnison);
+	volumeNeutralValueForUnison = (float)134217728 / sqrtf(snapshot_.num_unison);
 }
 
 // May change mod knob functions. You must update mod knob levels after calling this
@@ -2636,7 +2637,7 @@ void Sound::setModulatorCents(int32_t m, int32_t value, ModelStackWithSoundFlags
 
 // Can handle NULL modelStack, which you'd only want to do if no Voices active
 void Sound::recalculateModulatorTransposer(uint8_t m, ModelStackWithSoundFlags* modelStack) {
-	snapshot_.modulatorTransposers[m].setup((int32_t)snapshot_.modulatorCents[m] * 42949672);
+	snapshot_.modulator_transposers[m].setup((int32_t)snapshot_.modulator_cents[m] * 42949672);
 	recalculateAllVoicePhaseIncrements(modelStack); // Can handle NULL
 }
 
@@ -2655,7 +2656,7 @@ void Sound::recalculateAllVoicePhaseIncrements(ModelStackWithSoundFlags* modelSt
 
 void Sound::setNumUnison(int32_t newNum, ModelStackWithSoundFlags* modelStack) {
 	AudioExcludedSection section; // the render walks and edits this Sound's voices
-	int32_t oldNum = snapshot_.numUnison;
+	int32_t oldNum = snapshot_.num_unison;
 
 	assignNumUnison(static_cast<uint8_t>(newNum));
 	setupUnisonDetuners(modelStack); // Can handle NULL. Also calls recalculateAllVoicePhaseIncrements()
@@ -2674,15 +2675,15 @@ void Sound::setNumUnison(int32_t newNum, ModelStackWithSoundFlags* modelStack) {
 					// For samples, set the current play pos for the new unison part, if num unison went up
 					if (newNum > oldNum) {
 
-						VoiceUnisonPartSource* newPart = &voice->kernel.unisonParts[oldNum].sources[s];
-						VoiceUnisonPartSource* oldPart = &voice->kernel.unisonParts[oldNum - 1].sources[s];
+						VoiceUnisonPartSource* newPart = &voice->kernel.unison_parts[oldNum].sources[s];
+						VoiceUnisonPartSource* oldPart = &voice->kernel.unison_parts[oldNum - 1].sources[s];
 
 						newPart->active = oldPart->active;
 
 						if (newPart->active) {
-							newPart->oscPos = oldPart->oscPos;
-							newPart->phaseIncrementStoredValue = oldPart->phaseIncrementStoredValue;
-							newPart->carrierFeedback = oldPart->carrierFeedback;
+							newPart->osc_pos = oldPart->osc_pos;
+							newPart->phase_increment_stored_value = oldPart->phase_increment_stored_value;
+							newPart->carrier_feedback = oldPart->carrier_feedback;
 
 							SamplePlaybackAdapter& newSample = voice->ports(oldNum, s).sample;
 							if (!newSample.cloneVoiceSampleFrom(voice->ports(oldNum - 1, s).sample)) {
@@ -2703,7 +2704,7 @@ void Sound::setNumUnison(int32_t newNum, ModelStackWithSoundFlags* modelStack) {
 					}
 					else if (newNum < oldNum) {
 						for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
-							voice->kernel.unisonParts[newNum].sources[s].unassign(false);
+							voice->kernel.unison_parts[newNum].sources[s].unassign(false);
 						}
 					}
 				}
@@ -2860,32 +2861,32 @@ void Sound::writeParamsToFile(Serializer& writer, ParamManager* paramManager, bo
 // Copy the DOM-owned scalars engine->record. Assumes state_ is bound. Run from bindState and re-run at
 // doneReadingFromFile (see those for the bind-vs-parse ordering that makes the re-run necessary for SoundDrums).
 void Sound::seedScalarsInto(deluge::instrument::SoundState& d) const {
-	d.voice_priority = snapshot_.voicePriority;
+	d.voice_priority = snapshot_.voice_priority;
 	d.max_voice_count = maxVoiceCount;
 	d.side_chain_send_level = sideChainSendLevel;
 	d.output_midi_channel = outputMidiChannel;
 	d.output_midi_note_for_drum = outputMidiNoteForDrum;
-	d.oscillator_sync = snapshot_.oscillatorSync;
+	d.oscillator_sync = snapshot_.oscillator_sync;
 	// Top-level scalars (native fields kept as hot caches; record is authoritative for save). SoundDrums bind before
 	// parse, so the re-seed at doneReadingFromFile is what captures their loaded values into the record.
 	d.polyphonic = polyphonic;
-	d.synth_mode = snapshot_.synthMode;
+	d.synth_mode = snapshot_.synth_mode;
 	d.transpose = snapshot_.transpose;
 	d.cents = snapshot_.cents; // transpose lives on the snapshot; the record seeds from it (bind-time)
-	d.num_unison = snapshot_.numUnison;
-	d.unison_detune = snapshot_.unisonDetune;
-	d.unison_stereo_spread = snapshot_.unisonStereoSpread;
-	d.modulator1_to_modulator0 = snapshot_.modulator1ToModulator0;
+	d.num_unison = snapshot_.num_unison;
+	d.unison_detune = snapshot_.unison_detune;
+	d.unison_stereo_spread = snapshot_.unison_stereo_spread;
+	d.modulator1_to_modulator0 = snapshot_.modulator1_to_modulator0;
 	for (int32_t i = 0; i < 2; i++) {
-		d.modulator_transpose[i] = snapshot_.modulatorTranspose[i];
-		d.modulator_cents[i] = snapshot_.modulatorCents[i];
-		d.osc_retrigger_phase[i] = snapshot_.oscRetriggerPhase[i];
-		d.modulator_retrigger_phase[i] = snapshot_.modulatorRetriggerPhase[i];
+		d.modulator_transpose[i] = snapshot_.modulator_transpose[i];
+		d.modulator_cents[i] = snapshot_.modulator_cents[i];
+		d.osc_retrigger_phase[i] = snapshot_.osc_retrigger_phase[i];
+		d.modulator_retrigger_phase[i] = snapshot_.modulator_retrigger_phase[i];
 	}
 	for (int32_t i = 0; i < LFO_COUNT; i++) {
-		d.lfo_wave_type[i] = snapshot_.lfoConfig[i].waveType;
-		d.lfo_sync_type[i] = snapshot_.lfoConfig[i].syncType;
-		d.lfo_sync_level[i] = snapshot_.lfoConfig[i].syncLevel;
+		d.lfo_wave_type[i] = snapshot_.lfo_config[i].wave_type;
+		d.lfo_sync_type[i] = snapshot_.lfo_config[i].sync_type;
+		d.lfo_sync_level[i] = snapshot_.lfo_config[i].sync_level;
 	}
 }
 
@@ -2904,28 +2905,28 @@ void Sound::projectSnapshot() {
 	snapshot_.transpose = state_->transpose;
 	snapshot_.cents = state_->cents;
 	recalculateFineTuner();
-	snapshot_.numUnison = state_->num_unison;
-	snapshot_.unisonDetune = state_->unison_detune;
-	snapshot_.unisonStereoSpread = state_->unison_stereo_spread;
+	snapshot_.num_unison = state_->num_unison;
+	snapshot_.unison_detune = state_->unison_detune;
+	snapshot_.unison_stereo_spread = state_->unison_stereo_spread;
 	computeUnisonDetuners();
 	setupUnisonStereoSpread();
-	snapshot_.synthMode = static_cast<SynthMode>(state_->synth_mode);
-	snapshot_.oscillatorSync = state_->oscillator_sync;
-	snapshot_.voicePriority = static_cast<VoicePriority>(state_->voice_priority);
-	snapshot_.modulator1ToModulator0 = state_->modulator1_to_modulator0;
+	snapshot_.synth_mode = static_cast<SynthMode>(state_->synth_mode);
+	snapshot_.oscillator_sync = state_->oscillator_sync;
+	snapshot_.voice_priority = static_cast<VoicePriority>(state_->voice_priority);
+	snapshot_.modulator1_to_modulator0 = state_->modulator1_to_modulator0;
 	for (int32_t i = 0; i < kNumModulators; i++) {
-		snapshot_.modulatorCents[i] = state_->modulator_cents[i];
-		snapshot_.modulatorTransposers[i].setup((int32_t)snapshot_.modulatorCents[i] * 42949672);
-		snapshot_.modulatorTranspose[i] = state_->modulator_transpose[i];
-		snapshot_.modulatorRetriggerPhase[i] = state_->modulator_retrigger_phase[i];
+		snapshot_.modulator_cents[i] = state_->modulator_cents[i];
+		snapshot_.modulator_transposers[i].setup((int32_t)snapshot_.modulator_cents[i] * 42949672);
+		snapshot_.modulator_transpose[i] = state_->modulator_transpose[i];
+		snapshot_.modulator_retrigger_phase[i] = state_->modulator_retrigger_phase[i];
 	}
 	for (int32_t s = 0; s < kNumSources; s++) {
-		snapshot_.oscRetriggerPhase[s] = state_->osc_retrigger_phase[s];
+		snapshot_.osc_retrigger_phase[s] = state_->osc_retrigger_phase[s];
 	}
 	for (int32_t l = 0; l < LFO_COUNT; l++) {
-		snapshot_.lfoConfig[l].waveType = static_cast<LFOType>(state_->lfo_wave_type[l]);
-		snapshot_.lfoConfig[l].syncType = static_cast<SyncType>(state_->lfo_sync_type[l]);
-		snapshot_.lfoConfig[l].syncLevel = static_cast<SyncLevel>(state_->lfo_sync_level[l]);
+		snapshot_.lfo_config[l].wave_type = static_cast<LFOType>(state_->lfo_wave_type[l]);
+		snapshot_.lfo_config[l].sync_type = static_cast<SyncType>(state_->lfo_sync_type[l]);
+		snapshot_.lfo_config[l].sync_level = static_cast<SyncLevel>(state_->lfo_sync_level[l]);
 	}
 }
 
@@ -3053,10 +3054,10 @@ void Sound::bindState() {
 void Sound::setVoicePriority(VoicePriority value) {
 	if (state_ != nullptr) {
 		state_->voice_priority = value;
-		snapshot_.voicePriority = static_cast<VoicePriority>(state_->voice_priority);
+		snapshot_.voice_priority = static_cast<VoicePriority>(state_->voice_priority);
 	}
 	else {
-		snapshot_.voicePriority = value;
+		snapshot_.voice_priority = value;
 	}
 }
 void Sound::setMaxVoiceCount(uint8_t value) {
@@ -3086,10 +3087,10 @@ void Sound::setOutputMidiNoteForDrum(uint8_t value) {
 void Sound::setOscillatorSync(bool value) {
 	if (state_ != nullptr) {
 		state_->oscillator_sync = value;
-		snapshot_.oscillatorSync = state_->oscillator_sync;
+		snapshot_.oscillator_sync = state_->oscillator_sync;
 	}
 	else {
-		snapshot_.oscillatorSync = value;
+		snapshot_.oscillator_sync = value;
 	}
 }
 void Sound::setPolyphonic(PolyphonyMode value) {
@@ -3101,10 +3102,10 @@ void Sound::setPolyphonic(PolyphonyMode value) {
 void Sound::assignSynthMode(SynthMode value) {
 	if (state_ != nullptr) {
 		state_->synth_mode = value;
-		snapshot_.synthMode = static_cast<SynthMode>(state_->synth_mode);
+		snapshot_.synth_mode = static_cast<SynthMode>(state_->synth_mode);
 	}
 	else {
-		snapshot_.synthMode = value;
+		snapshot_.synth_mode = value;
 	}
 }
 
@@ -3122,94 +3123,94 @@ void Sound::setTranspose(int16_t value) {
 void Sound::setModulator1ToModulator0(bool value) {
 	if (state_ != nullptr) {
 		state_->modulator1_to_modulator0 = value;
-		snapshot_.modulator1ToModulator0 = state_->modulator1_to_modulator0;
+		snapshot_.modulator1_to_modulator0 = state_->modulator1_to_modulator0;
 	}
 	else {
-		snapshot_.modulator1ToModulator0 = value;
+		snapshot_.modulator1_to_modulator0 = value;
 	}
 }
 void Sound::setOscRetriggerPhase(int32_t s, uint32_t value) {
 	if (state_ != nullptr) {
 		state_->osc_retrigger_phase[s] = value;
-		snapshot_.oscRetriggerPhase[s] = state_->osc_retrigger_phase[s];
+		snapshot_.osc_retrigger_phase[s] = state_->osc_retrigger_phase[s];
 	}
 	else {
-		snapshot_.oscRetriggerPhase[s] = value;
+		snapshot_.osc_retrigger_phase[s] = value;
 	}
 }
 void Sound::setModulatorRetriggerPhase(int32_t m, uint32_t value) {
 	if (state_ != nullptr) {
 		state_->modulator_retrigger_phase[m] = value;
-		snapshot_.modulatorRetriggerPhase[m] = state_->modulator_retrigger_phase[m];
+		snapshot_.modulator_retrigger_phase[m] = state_->modulator_retrigger_phase[m];
 	}
 	else {
-		snapshot_.modulatorRetriggerPhase[m] = value;
+		snapshot_.modulator_retrigger_phase[m] = value;
 	}
 }
 void Sound::assignNumUnison(uint8_t value) {
 	if (state_ != nullptr) {
 		state_->num_unison = value;
-		snapshot_.numUnison = state_->num_unison;
+		snapshot_.num_unison = state_->num_unison;
 	}
 	else {
-		snapshot_.numUnison = value;
+		snapshot_.num_unison = value;
 	}
 }
 void Sound::assignUnisonDetune(int8_t value) {
 	if (state_ != nullptr) {
 		state_->unison_detune = value;
-		snapshot_.unisonDetune = state_->unison_detune;
+		snapshot_.unison_detune = state_->unison_detune;
 	}
 	else {
-		snapshot_.unisonDetune = value;
+		snapshot_.unison_detune = value;
 	}
 }
 void Sound::assignUnisonStereoSpread(uint8_t value) {
 	if (state_ != nullptr) {
 		state_->unison_stereo_spread = value;
-		snapshot_.unisonStereoSpread = state_->unison_stereo_spread;
+		snapshot_.unison_stereo_spread = state_->unison_stereo_spread;
 	}
 	else {
-		snapshot_.unisonStereoSpread = value;
+		snapshot_.unison_stereo_spread = value;
 	}
 }
 void Sound::assignModulatorCents(int32_t m, int8_t value) {
 	if (state_ != nullptr) {
 		state_->modulator_cents[m] = value;
-		snapshot_.modulatorCents[m] = state_->modulator_cents[m];
+		snapshot_.modulator_cents[m] = state_->modulator_cents[m];
 	}
 	else {
-		snapshot_.modulatorCents[m] = value;
+		snapshot_.modulator_cents[m] = value;
 	}
 }
 void Sound::assignModulatorTranspose(int32_t m, int16_t value) {
 	if (state_ != nullptr) {
 		state_->modulator_transpose[m] = value;
-		snapshot_.modulatorTranspose[m] = state_->modulator_transpose[m];
+		snapshot_.modulator_transpose[m] = state_->modulator_transpose[m];
 	}
 	else {
-		snapshot_.modulatorTranspose[m] = value;
+		snapshot_.modulator_transpose[m] = value;
 	}
 }
 void Sound::setLfoWaveType(int32_t lfoId, LFOType value) {
 	if (state_ != nullptr) {
 		state_->lfo_wave_type[lfoId] = value;
-		snapshot_.lfoConfig[lfoId].waveType = static_cast<LFOType>(state_->lfo_wave_type[lfoId]);
+		snapshot_.lfo_config[lfoId].wave_type = static_cast<LFOType>(state_->lfo_wave_type[lfoId]);
 	}
 	else {
-		snapshot_.lfoConfig[lfoId].waveType = value;
+		snapshot_.lfo_config[lfoId].wave_type = value;
 	}
 }
 void Sound::setLfoSync(int32_t lfoId, SyncType syncType, SyncLevel syncLevel) {
 	if (state_ != nullptr) {
 		state_->lfo_sync_type[lfoId] = syncType;
 		state_->lfo_sync_level[lfoId] = syncLevel;
-		snapshot_.lfoConfig[lfoId].syncType = static_cast<SyncType>(state_->lfo_sync_type[lfoId]);
-		snapshot_.lfoConfig[lfoId].syncLevel = static_cast<SyncLevel>(state_->lfo_sync_level[lfoId]);
+		snapshot_.lfo_config[lfoId].sync_type = static_cast<SyncType>(state_->lfo_sync_type[lfoId]);
+		snapshot_.lfo_config[lfoId].sync_level = static_cast<SyncLevel>(state_->lfo_sync_level[lfoId]);
 	}
 	else {
-		snapshot_.lfoConfig[lfoId].syncType = syncType;
-		snapshot_.lfoConfig[lfoId].syncLevel = syncLevel;
+		snapshot_.lfo_config[lfoId].sync_type = syncType;
+		snapshot_.lfo_config[lfoId].sync_level = syncLevel;
 	}
 }
 
@@ -3285,8 +3286,8 @@ int16_t Sound::getMaxOscTranspose(InstrumentClip* clip) {
 	}
 
 	if (getSynthMode() == SynthMode::FM) {
-		maxRawOscTranspose = std::max(maxRawOscTranspose, (int32_t)snapshot_.modulatorTranspose[0]);
-		maxRawOscTranspose = std::max(maxRawOscTranspose, (int32_t)snapshot_.modulatorTranspose[1]);
+		maxRawOscTranspose = std::max(maxRawOscTranspose, (int32_t)snapshot_.modulator_transpose[0]);
+		maxRawOscTranspose = std::max(maxRawOscTranspose, (int32_t)snapshot_.modulator_transpose[1]);
 	}
 
 	if (maxRawOscTranspose == -32768) {
@@ -3312,8 +3313,8 @@ int16_t Sound::getMinOscTranspose() {
 	}
 
 	if (getSynthMode() == SynthMode::FM) {
-		minRawOscTranspose = std::min(minRawOscTranspose, (int32_t)snapshot_.modulatorTranspose[0]);
-		minRawOscTranspose = std::min(minRawOscTranspose, (int32_t)snapshot_.modulatorTranspose[1]);
+		minRawOscTranspose = std::min(minRawOscTranspose, (int32_t)snapshot_.modulator_transpose[0]);
+		minRawOscTranspose = std::min(minRawOscTranspose, (int32_t)snapshot_.modulator_transpose[1]);
 	}
 
 	if (minRawOscTranspose == 32767) {
@@ -3725,7 +3726,7 @@ void Sound::fastReleaseAllVoices(ModelStackWithSoundFlags* modelStack) {
 	AudioExcludedSection section; // the render walks and edits this Sound's voices
 	for (auto it = voices_.begin(); it != voices_.end();) {
 		const ActiveVoice& voice = *it;
-		bool stillGoing = voice->do_fast_release(SOFT_CULL_INCREMENT);
+		bool stillGoing = voice->do_fast_release(kSoftCullIncrement);
 
 		if (!stillGoing) {
 			this->checkVoiceExists(voice, "E212");
@@ -3803,7 +3804,7 @@ bool Sound::renderingVoicesInStereo(ModelStackWithSoundFlags* modelStack) {
 		return true;
 	}
 
-	if (snapshot_.unisonStereoSpread && snapshot_.numUnison > 1) {
+	if (snapshot_.unison_stereo_spread && snapshot_.num_unison > 1) {
 		return true;
 	}
 
@@ -3968,7 +3969,7 @@ void Sound::terminateOneActiveVoice() {
 	// maxVoiceCount and the limiter sometimes chopped held notes instead (issue #4721).
 	ActiveVoice* best = nullptr;
 	for (ActiveVoice& voice : voices_) {
-		if (voice->kernel.isCullFading()) {
+		if (voice->kernel.is_cull_fading()) {
 			continue;
 		}
 		if (best == nullptr || (*best)->priority_rating() < voice->priority_rating()) {
@@ -3984,7 +3985,7 @@ void Sound::terminateOneActiveVoice() {
 	// SOFT_CULL_INCREMENT = a 128-sample (~2.9 ms) fade, matching release 1.2's voice-limit steal. Faster rates
 	// (the 4x, 32-sample sub-millisecond one) read as a pop on sustained material when a low maxVoices makes every
 	// note-on steal (issue #4721).
-	bool still_rendering = voice->do_fast_release(SOFT_CULL_INCREMENT);
+	bool still_rendering = voice->do_fast_release(kSoftCullIncrement);
 
 	if (!still_rendering) {
 		this->freeActiveVoice(voice);
@@ -4004,7 +4005,7 @@ void Sound::forceReleaseOneActiveVoice() {
 	// it up to the cull-fade rate. This is intentional: a slow fade shouldn't be allowed to linger under load.
 	ActiveVoice* best = nullptr;
 	for (ActiveVoice& voice : voices_) {
-		if (voice->kernel.isCullFading()) {
+		if (voice->kernel.is_cull_fading()) {
 			continue;
 		}
 		if (best == nullptr || (*best)->priority_rating() < voice->priority_rating()) {

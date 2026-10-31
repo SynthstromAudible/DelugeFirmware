@@ -43,13 +43,13 @@ VoiceClock engineClock() {
 VoiceSlot::VoiceSlot(Sound& sound) : sound{sound} {
 	for (int32_t u = 0; u < kMaxNumVoicesUnison; u++) {
 		for (int32_t s = 0; s < kNumSources; s++) {
-			kernel.unisonParts[u].sources[s].bind(ports_[u][s]);
+			kernel.unison_parts[u].sources[s].bind(ports_[u][s]);
 		}
 	}
 }
 
 uint32_t VoiceSlot::priority_rating() const {
-	return kernel.priority_rating(sound.snapshot().voicePriority, sound.numActiveVoices());
+	return kernel.priority_rating(sound.snapshot().voice_priority, sound.numActiveVoices());
 }
 
 // Returns false if fail and we need to unassign again
@@ -66,7 +66,7 @@ bool VoiceSlot::note_on(ModelStackWithSoundFlags& flags, const NoteOnEvent& even
 	for (int32_t s = 0; s < kNumSources; s++) {
 		if (sound.getSynthMode() != SynthMode::FM && sound.sources[s].oscType == OscType::SAMPLE
 		    && guides[s].audioFileHolder) {
-			for (int32_t u = 0; u < sound.snapshot().numUnison; u++) {
+			for (int32_t u = 0; u < sound.snapshot().num_unison; u++) {
 				ports(u, s).sample.bind(&sound.sources[s], &guides[s]);
 			}
 		}
@@ -85,7 +85,7 @@ void VoiceSlot::change_note(ModelStackWithSoundFlags& flags, int32_t note_before
 void VoiceSlot::calculate_phase_increments(ModelStackWithSoundFlags& flags) {
 	auto* paramManager = static_cast<ParamManagerForTimeline*>(flags.paramManager);
 	kernel.calculate_phase_increments(
-	    note_setup_for(*this, sound, paramManager, flags, kernel.noteCodeAfterArpeggiation, 0, 0, true),
+	    note_setup_for(*this, sound, paramManager, flags, kernel.note_code_after_arpeggiation, 0, 0, true),
 	    sound.snapshot());
 }
 
@@ -109,8 +109,8 @@ void VoiceSlot::randomize_osc_phases() {
 }
 
 void VoiceSlot::expression_event_immediate(int32_t voice_level_value, int32_t s) {
-	kernel.expressionEventImmediate(sound.monophonicExpressionValues[s - util::to_underlying(PatchSource::X)],
-	                                voice_level_value, s);
+	kernel.expression_event_immediate(sound.monophonicExpressionValues[s - util::to_underlying(PatchSource::X)],
+	                                  voice_level_value, s);
 }
 
 bool VoiceSlot::render(const ControlBlock& control_block, const VoiceConfig& cfg,
@@ -136,22 +136,22 @@ deluge::synth::VoiceBlock VoiceSlot::block() const {
 		    oscType == OscType::SAMPLE && holder != nullptr
 		    && !(static_cast<SampleHolderForVoice*>(holder)->loopEndPos && !guides[s].noteOffReceived);
 		block.source_in_stereo[s] =
-		    Source::renderInStereo(oscType, sound.snapshot().unisonStereoSpread, sound.snapshot().numUnison,
+		    Source::renderInStereo(oscType, sound.snapshot().unison_stereo_spread, sound.snapshot().num_unison,
 		                           static_cast<SampleHolder*>(holder));
 	}
 	return block;
 }
 
 bool VoiceSlot::do_fast_release(uint32_t release_increment) {
-	return kernel.doFastRelease(release_increment, engineClock());
+	return kernel.do_fast_release(release_increment, engineClock());
 }
 
 bool VoiceSlot::speed_up_release() {
-	return kernel.speedUpRelease(engineClock());
+	return kernel.speed_up_release(engineClock());
 }
 
 bool VoiceSlot::do_immediate_release() {
-	return kernel.doImmediateRelease(engineClock());
+	return kernel.do_immediate_release(engineClock());
 }
 
 // Unusually, flags may be supplied as NULL, because when unassigning all voices e.g. on song swap, we won't have it.
@@ -166,8 +166,8 @@ void VoiceSlot::set_as_unassigned(ModelStackWithSoundFlags* flags, bool deleting
 
 void VoiceSlot::unassign_stuff(bool deleting_song) {
 	for (int32_t s = 0; s < kNumSources; s++) {
-		for (int32_t u = 0; u < sound.snapshot().numUnison; u++) {
-			kernel.unisonParts[u].sources[s].unassign(deleting_song);
+		for (int32_t u = 0; u < sound.snapshot().num_unison; u++) {
+			kernel.unison_parts[u].sources[s].unassign(deleting_song);
 		}
 	}
 }
@@ -198,8 +198,8 @@ bool VoiceSlot::sample_zone_changed(ModelStackWithSoundFlags& flags, int32_t s, 
 
 	bool anyStillActive = false;
 
-	for (int32_t u = 0; u < sound.snapshot().numUnison; u++) {
-		VoiceUnisonPartSource* voiceUnisonPartSource = &kernel.unisonParts[u].sources[s];
+	for (int32_t u = 0; u < sound.snapshot().num_unison; u++) {
+		VoiceUnisonPartSource* voiceUnisonPartSource = &kernel.unison_parts[u].sources[s];
 
 		if (voiceUnisonPartSource->active) {
 			bool stillActive =

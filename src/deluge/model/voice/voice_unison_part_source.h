@@ -48,59 +48,60 @@ public:
 	~VoiceUnisonPartSource();
 	/// Starts this part of the source for a note. @p priorityRating is the voice's in the cull order (a sample's
 	/// cluster loads are ranked by it). @return false if the note cannot play.
-	bool noteOn(const deluge::synth::SourceSetup& source, uint32_t samplesLate, uint32_t oscPhase, bool resetEverything,
-	            SynthMode synthMode, int32_t noteCode, uint8_t velocity, int32_t priorityRating);
-	void unassign(bool deletingSong);
+	bool note_on(const deluge::synth::SourceSetup& source, uint32_t samples_late, uint32_t osc_phase,
+	             bool reset_everything, SynthMode synth_mode, int32_t note_code, uint8_t velocity,
+	             int32_t priority_rating);
+	void unassign(bool deleting_song);
 	/// Plays this part's sources through @p ports, which must outlive it.
 	void bind(UnisonPartPorts& ports);
 
 	// FKA phase. No longer used for Sample playback / rate conversion position. Only waves, including wavetable.
 	// Retired for virtual-analog waves — their phase now lives in vaSource (below).
-	uint32_t oscPos{};
+	uint32_t osc_pos{};
 	// The persistent oscillator engine for this source, when its oscType is one the engines cover (mutually
 	// exclusive). Each owns the phase across render blocks (replacing oscPos for those waves), built at note-on
 	// and kept across notes for free-running oscillators (so neither is reset in unassign). vaSource: the six
 	// virtual-analog waves (subtractive + ring-mod). wavetableSource: OscType::WAVETABLE. FM/NOISE/SAMPLE/INPUT
 	// keep oscPos.
-	std::optional<deluge::synth::VirtualAnalogSource> vaSource;
-	std::optional<deluge::synth::WavetableSource> wavetableSource;
+	std::optional<deluge::synth::VirtualAnalogSource> va_source;
+	std::optional<deluge::synth::WavetableSource> wavetable_source;
 	// supersawSource: OscType::SUPERSAW. Holds all seven saw phases; its phase is the centre saw's.
-	std::optional<deluge::synth::SupersawSource> supersawSource;
+	std::optional<deluge::synth::SupersawSource> supersaw_source;
 
 	/// The source's current oscillator phase — from whichever engine owns it, else oscPos. (Read by osc-sync to
 	/// seed the slave from the master at block start.)
-	[[nodiscard]] uint32_t currentOscPhase() const {
-		if (vaSource.has_value()) {
-			return vaSource->phase();
+	[[nodiscard]] uint32_t current_osc_phase() const {
+		if (va_source.has_value()) {
+			return va_source->phase();
 		}
-		if (wavetableSource.has_value()) {
-			return wavetableSource->phase();
+		if (wavetable_source.has_value()) {
+			return wavetable_source->phase();
 		}
-		if (supersawSource.has_value()) {
-			return supersawSource->phase();
+		if (supersaw_source.has_value()) {
+			return supersaw_source->phase();
 		}
-		return oscPos;
+		return osc_pos;
 	}
 	/// Advance the source's oscillator phase by @p delta (a skipped osc-sync master still progresses).
-	void advanceOscPhase(uint32_t delta) {
-		if (vaSource.has_value()) {
-			vaSource->seek(vaSource->phase() + delta);
+	void advance_osc_phase(uint32_t delta) {
+		if (va_source.has_value()) {
+			va_source->seek(va_source->phase() + delta);
 		}
-		else if (wavetableSource.has_value()) {
-			wavetableSource->seek(wavetableSource->phase() + delta);
+		else if (wavetable_source.has_value()) {
+			wavetable_source->seek(wavetable_source->phase() + delta);
 		}
-		else if (supersawSource.has_value()) {
-			supersawSource->seek(supersawSource->phase() + delta);
+		else if (supersaw_source.has_value()) {
+			supersaw_source->seek(supersaw_source->phase() + delta);
 		}
 		else {
-			oscPos += delta;
+			osc_pos += delta;
 		}
 	}
 
-	uint32_t phaseIncrementStoredValue{};
-	int32_t carrierFeedback{};
+	uint32_t phase_increment_stored_value{};
+	int32_t carrier_feedback{};
 	bool active{};
-	deluge::synth::SampleSource sampleSource{nullptr}; ///< the SAMPLE source (drives the reader through its port)
-	deluge::synth::DX7Source dx7Source{nullptr};       ///< the DX7 source (forwards FM to its port)
-	deluge::synth::InputSource inputSource{nullptr};   ///< the INPUT_L/R/STEREO source (reads input through its port)
+	deluge::synth::SampleSource sample_source{nullptr}; ///< the SAMPLE source (drives the reader through its port)
+	deluge::synth::DX7Source dx7_source{nullptr};       ///< the DX7 source (forwards FM to its port)
+	deluge::synth::InputSource input_source{nullptr};   ///< the INPUT_L/R/STEREO source (reads input through its port)
 };

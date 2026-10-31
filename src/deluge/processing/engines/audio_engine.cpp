@@ -517,7 +517,7 @@ void init() {
 	((PatchCableSet*)modelStackWithParamCollection->paramCollection)
 	    ->setupPatching(*static_cast<Sound*>(modelStackWithParamCollection->modControllable),
 	                    *modelStackWithParamCollection->paramManager);
-	sampleForPreview->patcher.performInitialPatching(
+	sampleForPreview->patcher.perform_initial_patching(
 	    sampleForPreview->patchControlBlock(*paramManagerForSamplePreview, Sound::PresetGather::ALL));
 
 	sampleForPreview->setSideChainSendLevel(2147483647); // DOM-owned (an unbound preview sets the cache only)
@@ -622,7 +622,7 @@ void terminateOneVoice(size_t numSamples) {
 		// seeding `best` unfiltered let an already-fast-releasing front voice absorb every cull in the window.
 		const Sound::ActiveVoice* best = nullptr;
 		for (const auto& voice : all_voices) {
-			if (voice->kernel.isCullFading()) {
+			if (voice->kernel.is_cull_fading()) {
 				continue;
 			}
 			if (best == nullptr || (*best)->priority_rating() < voice->priority_rating()) {
@@ -635,7 +635,7 @@ void terminateOneVoice(size_t numSamples) {
 		}
 
 		const Sound::ActiveVoice& voice = *best;
-		bool still_rendering = voice->do_fast_release(2 * SOFT_CULL_INCREMENT);
+		bool still_rendering = voice->do_fast_release(2 * kSoftCullIncrement);
 		if (!still_rendering) {
 			voice->sound.freeActiveVoice(voice);
 		}
@@ -659,7 +659,7 @@ void forceReleaseOneVoice(size_t num_samples) {
 		// musical-release tails keep stacking up.
 		const Sound::ActiveVoice* best = nullptr;
 		for (const auto& voice : all_voices) {
-			if (voice->kernel.isCullFading()) {
+			if (voice->kernel.is_cull_fading()) {
 				continue;
 			}
 			if (best == nullptr || (*best)->priority_rating() < voice->priority_rating()) {
@@ -2304,7 +2304,7 @@ void slowRoutine() {
 	// Discard any LiveInputBuffers which aren't in use
 	for (int32_t i = 0; i < 3; i++) {
 		if (liveInputBuffers[i]) {
-			if (liveInputBuffers[i]->upToTime != audioSampleTimer) {
+			if (liveInputBuffers[i]->up_to_time != audioSampleTimer) {
 				liveInputBuffers[i]->~LiveInputBuffer();
 				delugeDealloc(liveInputBuffers[i]);
 				liveInputBuffers[i] = nullptr;

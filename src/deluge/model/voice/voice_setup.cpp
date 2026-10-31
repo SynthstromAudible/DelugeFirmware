@@ -90,7 +90,7 @@ NoteSetup note_setup_for(VoiceSlot& voice, Sound& sound, ParamManagerForTimeline
 			setup.attack_is_zero[e] =
 			    paramManager->getPatchedParamSet()->getValue(params::LOCAL_ENV_0_ATTACK + e) == -2147483648u;
 		}
-		std::copy_n(sound.params.sourceValues.begin(), setup.global_source_values.size(),
+		std::copy_n(sound.params.source_values.begin(), setup.global_source_values.size(),
 		            setup.global_source_values.begin());
 		setup.initial_patching = sound.patchControlBlock(*paramManager, Sound::PresetGather::ALL);
 	}
@@ -130,8 +130,8 @@ ReleaseInfo release_info_for(Sound& sound, ParamManagerForTimeline* paramManager
 	ReleaseInfo release{
 	    .note_tails_allowed = noteTailsAllowed,
 	    .synth_mode = sound.getSynthMode(),
-	    .num_unison = sound.snapshot().numUnison,
-	    .voice_priority = sound.snapshot().voicePriority,
+	    .num_unison = sound.snapshot().num_unison,
+	    .voice_priority = sound.snapshot().voice_priority,
 	    .num_active_voices = sound.numActiveVoices(),
 	};
 	if (noteTailsAllowed) {

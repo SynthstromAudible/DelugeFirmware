@@ -26,42 +26,44 @@
 
 namespace deluge::synth {
 
-SourceRenderResult SampleSource::renderSource(const SourceRenderContext& ctx) {
-	int32_t* __restrict__ oscBuffer = ctx.oscBuffer;
-	const int32_t numSamples = ctx.numSamples;
-	const int32_t sourceAmplitude = ctx.sourceAmplitude;
-	const int32_t amplitudeIncrement = ctx.amplitudeIncrement;
-	uint32_t phaseIncrement = ctx.phaseIncrement; // mutated below by getPitchAndSpeedParams (taken by address)
-	const uint32_t phaseIncrementStoredValue = ctx.phaseIncrementStoredValue;
-	const bool stereoUnison = ctx.stereoUnison;
-	const int32_t amplitudeL = ctx.amplitudeL;
-	const int32_t amplitudeR = ctx.amplitudeR;
-	int32_t* stereoUnisonScratch = ctx.stereoScratch;
+// Late start, sync, caching and stereo unison, each a branch:
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
+SourceRenderResult SampleSource::render_source(const SourceRenderContext& ctx) {
+	int32_t* __restrict__ osc_buffer = ctx.osc_buffer;
+	const int32_t num_samples = ctx.num_samples;
+	const int32_t source_amplitude = ctx.source_amplitude;
+	const int32_t amplitude_increment = ctx.amplitude_increment;
+	uint32_t phase_increment = ctx.phase_increment; // mutated below by getPitchAndSpeedParams (taken by address)
+	const uint32_t phase_increment_stored_value = ctx.phase_increment_stored_value;
+	const bool stereo_unison = ctx.stereo_unison;
+	const int32_t amplitude_l = ctx.amplitude_l;
+	const int32_t amplitude_r = ctx.amplitude_r;
+	int32_t* stereo_unison_scratch = ctx.stereo_scratch;
 
-	const int32_t numChannels = port_->numChannels();
+	const int32_t num_channels = port_->num_channels();
 
 	// (The legacy TEST_SAMPLE_LOOP_POINTS fuzzing block was removed here: it mutated voice/sound state via
 	// Voice&/paramManager, incompatible with the synth::Source contract. A debug-only #ifdef, never in normal or
 	// golden builds; reintroduce app-side if wanted.)
 
 	// First figure out the time-stretching amount.
-	uint32_t timeStretchRatio;
-	uint32_t noteLengthInSamples;
+	uint32_t time_stretch_ratio = 0;
+	uint32_t note_length_in_samples = 0;
 
-	bool stillOk = getPitchAndSpeedParams(&phaseIncrement, &timeStretchRatio, &noteLengthInSamples);
-	if (!stillOk) {
+	bool still_ok = get_pitch_and_speed_params(&phase_increment, &time_stretch_ratio, &note_length_in_samples);
+	if (!still_ok) {
 		return SourceRenderResult::UNASSIGN;
 	}
 
 	// If user unmuted mid-note...
-	bool tryToStartMidNote = port_->pendingSamplesLate();
-	if (tryToStartMidNote) [[unlikely]] {
+	bool try_to_start_mid_note = port_->pending_samples_late() != 0u;
+	if (try_to_start_mid_note) [[unlikely]] {
 
-		int32_t rawSamplesLate;
+		int32_t raw_samples_late = 0;
 
 		// Synced / STRETCH - it's super easy.
-		if (port_->isStretchRepeatMode()) {
-			rawSamplesLate = port_->syncedNumSamplesIn();
+		if (port_->is_stretch_repeat_mode()) {
+			raw_samples_late = static_cast<int32_t>(port_->synced_num_samples_in());
 		}
 
 		// Or, normal - it needs a bit more explanation.
@@ -74,17 +76,18 @@ SourceRenderResult SampleSource::renderSource(const SourceRenderContext& ctx) {
 			// STRETCH mode, which we've already determined we're not in, and crucially pass it the not-patched
 			// phaseIncrementStoredValue. This fix was done in September 2020 after bug
 			// report from Clyde.
-			uint32_t timeStretchRatioWithoutModulation =
-			    getSpeedParamForNoSyncing(phaseIncrementStoredValue, port_->neutralPhaseIncrement());
+			uint32_t time_stretch_ratio_without_modulation = get_speed_param_for_no_syncing(
+			    static_cast<int32_t>(phase_increment_stored_value), port_->neutral_phase_increment());
 
 			// Cool, so now we've got phaseIncrement and timeStretchRatio equivalent values which will indicate
 			// our correct play position into the sample regardless of pitch modulation (almost always vibrato).
-			rawSamplesLate = ((((uint64_t)port_->pendingSamplesLate() * phaseIncrementStoredValue) >> 24)
-			                  * timeStretchRatioWithoutModulation)
-			                 >> 24;
+			raw_samples_late = static_cast<int32_t>(
+			    (((static_cast<uint64_t>(port_->pending_samples_late()) * phase_increment_stored_value) >> 24)
+			     * time_stretch_ratio_without_modulation)
+			    >> 24);
 		}
 
-		switch (port_->attemptLateStart(rawSamplesLate, numSamples)) {
+		switch (port_->attempt_late_start(raw_samples_late, num_samples)) {
 		case SamplePlaybackPort::LateStartOutcome::FAILURE:
 			return SourceRenderResult::UNASSIGN;
 		case SamplePlaybackPort::LateStartOutcome::WAIT:
@@ -94,16 +97,16 @@ SourceRenderResult SampleSource::renderSource(const SourceRenderContext& ctx) {
 		}
 	}
 
-	LoopType loopingType = port_->loopingType();
+	LoopType looping_type = port_->looping_type();
 
 	// Read by the reader only when the pitch changes; without a pitch change no interpolation runs.
 	int32_t interpolation_buffer_size = kInterpolationMaxNumSamples;
 
 	// If pitch adjustment...
-	if (phaseIncrement != kMaxSampleValue) {
+	if (phase_increment != kMaxSampleValue) {
 
 		// Work out what quality we're going to do that at
-		interpolation_buffer_size = port_->interpolationBufferSize(phaseIncrement);
+		interpolation_buffer_size = port_->interpolation_buffer_size(phase_increment);
 
 		// And if first render, and other conditions met, see if we can use cache.
 		// It may seem like it'd be a good idea to try and set this up on note-on, rather than here in the
@@ -111,19 +114,21 @@ SourceRenderResult SampleSource::renderSource(const SourceRenderContext& ctx) {
 		// happen to work out pitch and timestretch there as well as here (where it'll be worked out anyway),
 		// including checking the result of patching / modulation (and we *do* allow caching where, say,
 		// velocity or note is affecting pitch), and stretch-syncing.
-		if (!port_->doneFirstRenderYet() && !tryToStartMidNote && ctx.portaEnvelopePos == 0xFFFFFFFF) { // No porta
+		if (!port_->done_first_render_yet() && !try_to_start_mid_note && ctx.porta_envelope_pos == kNoPorta) {
 
 			// If looping, make sure the loop isn't too short. If so, caching just wouldn't sound good /
 			// accurate
-			if (loopingType != LoopType::NONE) {
-				SamplePlaybackPort::LoopPoints loop = port_->loopPoints();
+			if (looping_type != LoopType::NONE) {
+				SamplePlaybackPort::LoopPoints loop = port_->loop_points();
 
-				int32_t loopLength = loop.end - loop.start;
-				loopLength = std::abs(loopLength);
-				uint64_t phaseIncrementTimesTimeStretchRatio =
-				    ((uint64_t)(uint32_t)phaseIncrement * (uint32_t)timeStretchRatio) >> 24;
-				int32_t loopLengthCached = ((uint64_t)(uint32_t)loopLength << 24) / phaseIncrementTimesTimeStretchRatio;
-				if (loopLengthCached < 2205) {
+				int32_t loop_length = loop.end - loop.start;
+				loop_length = std::abs(loop_length);
+				uint64_t phase_increment_times_time_stretch_ratio =
+				    (static_cast<uint64_t>(phase_increment) * time_stretch_ratio) >> 24;
+				auto loop_length_cached =
+				    static_cast<int32_t>((static_cast<uint64_t>(static_cast<uint32_t>(loop_length)) << 24)
+				                         / phase_increment_times_time_stretch_ratio);
+				if (loop_length_cached < 2205) {
 					goto dontUseCache; // Limit is 50mS i.e. 20hZ
 				}
 			}
@@ -131,15 +136,16 @@ SourceRenderResult SampleSource::renderSource(const SourceRenderContext& ctx) {
 			// If a changeable source is patched to pitch, don't cache. This scan was hoisted app-side into
 			// ctx.pitchModDisallowsCache (it reaches the patch cables + the aftertouch/sidechain source values),
 			// so render needn't reach paramManager / the param planes.
-			if (ctx.pitchModDisallowsCache) {
+			if (ctx.pitch_mod_disallows_cache) {
 				goto dontUseCache;
 			}
 
 			{
 				// If still here, we can use cache
-				bool everythingOk =
-				    port_->possiblySetUpCache(phaseIncrement, timeStretchRatio, ctx.priorityRating, loopingType);
-				if (!everythingOk) {
+				bool everything_ok = port_->possibly_set_up_cache(static_cast<int32_t>(phase_increment),
+				                                                  static_cast<int32_t>(time_stretch_ratio),
+				                                                  ctx.priority_rating, looping_type);
+				if (!everything_ok) {
 					return SourceRenderResult::UNASSIGN;
 				}
 			}
@@ -148,16 +154,16 @@ dontUseCache: {}
 		}
 	}
 
-	int32_t* renderBuffer = oscBuffer;
+	int32_t* render_buffer = osc_buffer;
 
-	if (stereoUnison) [[unlikely]] {
+	if (stereo_unison) [[unlikely]] {
 		// TODO: I first wanted to integrate this with voiceSample->render()'s own
 		// amplitude control but it is just too complex - multiple copies of
 		// the amp logic depending if caching is used or not, timestretching or not,
 		// for now settle for "don't pay what you don't use", i e no extra copies/maths
 		// if you don't use unison stereo on a sample - bfredl
-		renderBuffer = stereoUnisonScratch; // note: spareRenderingBuffer[2] and [3] are used
-		memset(renderBuffer, 0, 2 * SSI_TX_BUFFER_NUM_SAMPLES * sizeof(int32_t));
+		render_buffer = stereo_unison_scratch; // note: spareRenderingBuffer[2] and [3] are used
+		memset(render_buffer, 0, 2 * SSI_TX_BUFFER_NUM_SAMPLES * sizeof(int32_t));
 	}
 
 	// We no longer do caching when there's just time stretching with no pitch adjustment, because the time
@@ -168,23 +174,23 @@ dontUseCache: {}
 	// increments for the hop crossfades with the overall voice ones, and having multiple crossfading hops write
 	// directly to the osc buffer).
 
-	bool still_active = port_->render(renderBuffer, numSamples, loopingType, static_cast<int32_t>(phaseIncrement),
-	                                  static_cast<int32_t>(timeStretchRatio), sourceAmplitude, amplitudeIncrement,
-	                                  interpolation_buffer_size, ctx.priorityRating);
+	bool still_active = port_->render(render_buffer, num_samples, looping_type, static_cast<int32_t>(phase_increment),
+	                                  static_cast<int32_t>(time_stretch_ratio), source_amplitude, amplitude_increment,
+	                                  interpolation_buffer_size, ctx.priority_rating);
 
-	if (stereoUnison) {
-		if (numChannels == 2) {
+	if (stereo_unison) {
+		if (num_channels == 2) {
 			// TODO: society if renderBasicSource() took a StereoSample[] buffer already
-			for (int32_t i = 0; i < numSamples; i++) {
-				oscBuffer[(i << 1)] += multiply_32x32_rshift32(renderBuffer[(i << 1)], amplitudeL) << 2;
-				oscBuffer[(i << 1) + 1] += multiply_32x32_rshift32(renderBuffer[(i << 1) + 1], amplitudeR) << 2;
+			for (int32_t i = 0; i < num_samples; i++) {
+				osc_buffer[(i << 1)] += multiply_32x32_rshift32(render_buffer[(i << 1)], amplitude_l) << 2;
+				osc_buffer[(i << 1) + 1] += multiply_32x32_rshift32(render_buffer[(i << 1) + 1], amplitude_r) << 2;
 			}
 		}
 		else {
 			// TODO: if render buffer was typed we could use addPannedMono()
-			for (int32_t i = 0; i < numSamples; i++) {
-				oscBuffer[(i << 1)] += multiply_32x32_rshift32(renderBuffer[i], amplitudeL) << 2;
-				oscBuffer[(i << 1) + 1] += multiply_32x32_rshift32(renderBuffer[i], amplitudeR) << 2;
+			for (int32_t i = 0; i < num_samples; i++) {
+				osc_buffer[(i << 1)] += multiply_32x32_rshift32(render_buffer[i], amplitude_l) << 2;
+				osc_buffer[(i << 1) + 1] += multiply_32x32_rshift32(render_buffer[i], amplitude_r) << 2;
 			}
 		}
 	}
@@ -195,50 +201,54 @@ dontUseCache: {}
 	return SourceRenderResult::ACTIVE;
 }
 
-bool SampleSource::getPitchAndSpeedParams(uint32_t* phaseIncrement, uint32_t* timeStretchRatio,
-                                          uint32_t* noteLengthInSamples) {
+// Sync to the sequence and the pitch/speed modes, each a branch:
+// NOLINTNEXTLINE(readability-function-cognitive-complexity)
+bool SampleSource::get_pitch_and_speed_params(uint32_t* phase_increment, uint32_t* time_stretch_ratio,
+                                              uint32_t* note_length_in_samples) {
 
-	int32_t pitchAdjustNeutralValue = port_->neutralPhaseIncrement();
+	int32_t pitch_adjust_neutral_value = port_->neutral_phase_increment();
 
 	// If syncing...
-	if (port_->sequenceSyncLengthTicks()) {
+	if (port_->sequence_sync_length_ticks() != 0u) {
 
-		*timeStretchRatio = kMaxSampleValue;
+		*time_stretch_ratio = kMaxSampleValue;
 
 		// That is, after converted to 44.1kHz
-		uint32_t sampleLengthInSamples = port_->sampleLengthAtSystemSampleRate();
-		*noteLengthInSamples =
-		    (port_->timePerInternalTickBig() * port_->sequenceSyncLengthTicks()) >> 32; // No rounding. Should be fine?
+		uint32_t sample_length_in_samples = port_->sample_length_at_system_sample_rate();
+		*note_length_in_samples = (port_->time_per_internal_tick_big() * port_->sequence_sync_length_ticks())
+		                          >> 32; // No rounding. Should be fine?
 
 		// To stop things getting insane, limit to 32x speed
-		if ((sampleLengthInSamples >> 5) > *noteLengthInSamples) {
+		if ((sample_length_in_samples >> 5) > *note_length_in_samples) {
 			return false;
 		}
 
 		// If time stretch, achieve syncing that way
-		if (port_->pitchAndSpeedIndependent()) {
-			*timeStretchRatio = (uint64_t)kMaxSampleValue * (uint64_t)sampleLengthInSamples / *noteLengthInSamples;
+		if (port_->pitch_and_speed_independent()) {
+			*time_stretch_ratio = static_cast<uint64_t>(kMaxSampleValue)
+			                      * static_cast<uint64_t>(sample_length_in_samples) / *note_length_in_samples;
 
 			// And if pitch was manually adjusted too, that's fine - counteract that by adjusting the time-stretch
 			// amount more
-			if (std::cmp_not_equal(*phaseIncrement, pitchAdjustNeutralValue)) {
-				*timeStretchRatio = ((uint64_t)*timeStretchRatio * pitchAdjustNeutralValue) / (uint32_t)*phaseIncrement;
+			if (std::cmp_not_equal(*phase_increment, pitch_adjust_neutral_value)) {
+				*time_stretch_ratio =
+				    (static_cast<uint64_t>(*time_stretch_ratio) * pitch_adjust_neutral_value) / *phase_increment;
 			}
 
 			// Or if no manual pitch adjustment...
 			else {
 
 				// If we'd only be time-stretching a tiiiny bit (1/10th of an octave either direction)...
-				if (*timeStretchRatio >= 15653696 && *timeStretchRatio < 17981375) {
+				if (*time_stretch_ratio >= 15653696 && *time_stretch_ratio < 17981375) {
 
 					// And if we're less than 7.8mS out of sync...
-					int32_t numSamplesLaggingBehindSync = port_->numSamplesLaggingBehindSync();
-					int32_t numSamplesDrift = std::abs(numSamplesLaggingBehindSync);
+					int32_t num_samples_lagging_behind_sync = port_->num_samples_lagging_behind_sync();
+					int32_t num_samples_drift = std::abs(num_samples_lagging_behind_sync);
 
-					if (numSamplesDrift < (port_->sampleRate() >> 7)) {
+					if (num_samples_drift < (port_->sample_rate() >> 7)) {
 
 						// We can just not time-stretch... for now
-						*timeStretchRatio = kMaxSampleValue;
+						*time_stretch_ratio = kMaxSampleValue;
 					}
 				}
 			}
@@ -249,15 +259,16 @@ bool SampleSource::getPitchAndSpeedParams(uint32_t* phaseIncrement, uint32_t* ti
 
 			// But first, if pitch was manually adjusted as well, counteract that by adjusting the time-stretch amount
 			// more
-			bool further_pitch_shifting = std::cmp_not_equal(*phaseIncrement, pitchAdjustNeutralValue);
+			bool further_pitch_shifting = std::cmp_not_equal(*phase_increment, pitch_adjust_neutral_value);
 			if (further_pitch_shifting) {
-				*timeStretchRatio = ((uint64_t)pitchAdjustNeutralValue << 24) / (uint32_t)*phaseIncrement;
+				*time_stretch_ratio = (static_cast<uint64_t>(pitch_adjust_neutral_value) << 24) / *phase_increment;
 			}
-			*phaseIncrement = (uint64_t)*phaseIncrement * (uint64_t)sampleLengthInSamples / *noteLengthInSamples;
+			*phase_increment = static_cast<uint64_t>(*phase_increment) * static_cast<uint64_t>(sample_length_in_samples)
+			                   / *note_length_in_samples;
 
 			// If we're not time stretching / pitch shifting
 			if (!further_pitch_shifting) {
-				*phaseIncrement = port_->adjustPitchToCorrectDriftFromSync(*phaseIncrement);
+				*phase_increment = port_->adjust_pitch_to_correct_drift_from_sync(*phase_increment);
 			}
 		}
 	}
@@ -265,7 +276,8 @@ bool SampleSource::getPitchAndSpeedParams(uint32_t* phaseIncrement, uint32_t* ti
 	// Or if no syncing...
 	else {
 
-		*timeStretchRatio = getSpeedParamForNoSyncing(*phaseIncrement, pitchAdjustNeutralValue);
+		*time_stretch_ratio =
+		    get_speed_param_for_no_syncing(static_cast<int32_t>(*phase_increment), pitch_adjust_neutral_value);
 	}
 
 	return true;
@@ -274,24 +286,24 @@ bool SampleSource::getPitchAndSpeedParams(uint32_t* phaseIncrement, uint32_t* ti
 // This normally only gets called from the getPitchAndSpeedParams() function, above, but occasionally we'll also call it
 // from render() when doing a "late start" on a Sample and we need to disregard any pitch modulation, so send this the
 // non-modulated phaseIncrement.
-uint32_t SampleSource::getSpeedParamForNoSyncing(int32_t phaseIncrement, int32_t pitchAdjustNeutralValue) {
+uint32_t SampleSource::get_speed_param_for_no_syncing(int32_t phase_increment, int32_t pitch_adjust_neutral_value) {
 
-	uint32_t timeStretchRatio = kMaxSampleValue;
+	uint32_t time_stretch_ratio = kMaxSampleValue;
 
 	// If pitch and time being treated independently, then achieve this by adjusting stretch to counteract pitch
-	if (port_->pitchAndSpeedIndependent()) {
-		if (phaseIncrement != pitchAdjustNeutralValue) {
-			timeStretchRatio = ((uint64_t)pitchAdjustNeutralValue << 24) / (uint32_t)phaseIncrement;
-		}
+	if (port_->pitch_and_speed_independent() && phase_increment != pitch_adjust_neutral_value) {
+		time_stretch_ratio =
+		    (static_cast<uint64_t>(pitch_adjust_neutral_value) << 24) / static_cast<uint32_t>(phase_increment);
 	}
 
 	// And whether or not that was the case, if there's a manual adjustment to time-stretch, apply that now
-	if (port_->timeStretchAmount() != 0) {
-		timeStretchRatio =
-		    ((uint64_t)timeStretchRatio * deluge::synth::time_stretch_adjust[port_->timeStretchAmount() + 48]) >> 24;
+	if (port_->time_stretch_amount() != 0) {
+		time_stretch_ratio = (static_cast<uint64_t>(time_stretch_ratio)
+		                      * deluge::synth::kTimeStretchAdjust[port_->time_stretch_amount() + 48])
+		                     >> 24;
 	}
 
-	return timeStretchRatio;
+	return time_stretch_ratio;
 }
 
 } // namespace deluge::synth

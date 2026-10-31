@@ -30,27 +30,27 @@ namespace deluge::synth {
 /// running the block render — is the @ref renderOscBlock hook each concrete engine implements.
 class OscillatorSource : public Source {
 public:
-	SourceRenderResult renderSource(const SourceRenderContext& ctx) final {
+	SourceRenderResult render_source(const SourceRenderContext& ctx) final {
 		// Osc sync with the freq too high: skip this unison part without unassigning.
-		if (ctx.doOscSync && !ctx.oscSyncPhaseIncrement) {
+		if (ctx.do_osc_sync && (ctx.osc_sync_phase_increment == 0u)) {
 			return SourceRenderResult::SKIP;
 		}
 
 		// Stereo voices render mono into a scratch buffer, then pan-fold; mono renders straight into oscBuffer.
-		int32_t* renderBuffer = ctx.oscBuffer;
-		if (ctx.stereoBuffer) {
-			renderBuffer = ctx.stereoScratch;
-			memset(renderBuffer, 0, ctx.stereoScratchClearSamples * sizeof(int32_t));
+		int32_t* render_buffer = ctx.osc_buffer;
+		if (ctx.stereo_buffer) {
+			render_buffer = ctx.stereo_scratch;
+			memset(render_buffer, 0, ctx.stereo_scratch_clear_samples * sizeof(int32_t));
 		}
 
-		renderOscBlock(ctx.controls, ctx,
-		               deluge::dsp::fixed::Buffer{renderBuffer, static_cast<size_t>(ctx.numSamples)});
+		render_osc_block(ctx.controls, ctx,
+		                 deluge::dsp::fixed::Buffer{render_buffer, static_cast<size_t>(ctx.num_samples)});
 
-		if (ctx.stereoBuffer) {
+		if (ctx.stereo_buffer) {
 			// TODO: if the render buffer were typed we could use addPannedMono()
-			for (int32_t i = 0; i < ctx.numSamples; i++) {
-				ctx.oscBuffer[(i << 1)] += multiply_32x32_rshift32(renderBuffer[i], ctx.amplitudeL) << 2;
-				ctx.oscBuffer[(i << 1) + 1] += multiply_32x32_rshift32(renderBuffer[i], ctx.amplitudeR) << 2;
+			for (int32_t i = 0; i < ctx.num_samples; i++) {
+				ctx.osc_buffer[(i << 1)] += multiply_32x32_rshift32(render_buffer[i], ctx.amplitude_l) << 2;
+				ctx.osc_buffer[(i << 1) + 1] += multiply_32x32_rshift32(render_buffer[i], ctx.amplitude_r) << 2;
 			}
 		}
 		return SourceRenderResult::ACTIVE;
@@ -59,8 +59,8 @@ public:
 protected:
 	/// Set the engine's per-block inputs (pitch — and, for the wavetable, its table + morph index) and render the
 	/// mono block into @p out. The oscillator hard-sync work buffer is @c ctx.syncScratch.
-	virtual void renderOscBlock(const BlockControls& controls, const SourceRenderContext& ctx,
-	                            deluge::dsp::fixed::Buffer out) = 0;
+	virtual void render_osc_block(const BlockControls& controls, const SourceRenderContext& ctx,
+	                              deluge::dsp::fixed::Buffer out) = 0;
 };
 
 } // namespace deluge::synth

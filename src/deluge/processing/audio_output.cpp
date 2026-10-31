@@ -114,7 +114,7 @@ void AudioOutput::resetEnvelope() {
 		AudioClip* activeAudioClip = (AudioClip*)activeClip;
 
 		bool directlyToDecay = (activeAudioClip->attack() == -2147483648);
-		envelope.noteOn(directlyToDecay, 2147483647);
+		envelope.note_on(directlyToDecay, 2147483647);
 	}
 	amplitudeLastTime = 0;
 	overrideAmplitudeEnvelopeReleaseRate = 0;
