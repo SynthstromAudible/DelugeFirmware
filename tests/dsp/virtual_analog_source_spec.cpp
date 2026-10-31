@@ -182,7 +182,7 @@ describe vae_spec("deluge::synth::VirtualAnalogSource", ${
 		expect(engine.phase()).to_equal(ref.phase());
 	});
 
-	// Voice::adjust_pitch reports success with a zero increment when its pitch multiply rounds down to nothing. A
+	// adjust_pitch (synth/engines/pitch.h) reports success with a zero increment when its pitch multiply rounds down to nothing. A
 	// pulse width turns that into a self-sync whose resetter is the oscillator's own zero increment, which no caller
 	// guard can see; an explicit sync can pass a stalled master straight through. Either divides by zero unless the
 	// sync machinery treats the stalled resetter as never crossing. Returning at all is the assertion.

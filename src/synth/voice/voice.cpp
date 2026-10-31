@@ -20,8 +20,7 @@
 #include "dsp-next/fixed/interpolation/table_interpolation.h" // get_decay4
 #include "dsp-next/fixed/shaping/wavefolder.h"
 #include "dsp-next/fixed/vca/pan.h"
-#include "synth/sources/interpolation_buffer_size.h"
-#include "synth/voice/source_component_render.h"
+#include "synth/engines/pitch.h"
 #include "util/lookuptables/lookuptables.h"
 #include "util/param_functions.h"
 
@@ -31,6 +30,7 @@
 #include <limits>
 #include <new>
 #include <optional>
+#include <utility>
 
 using namespace deluge;
 using deluge::dsp::fixed::get_decay4;
@@ -152,7 +152,7 @@ bool Voice::note_on(const deluge::synth::NoteSetup& setup, const SoundSnapshot& 
 	}
 
 	if (event.reset_envelopes) {
-		source_amplitudes_last_time.fill(0);
+		source_levels_.amplitudes_last_time.fill(0);
 		fm_engine.modulator_amplitude_last_time.fill(0);
 		overall_osc_amplitude_last_time = 0;
 		done_first_render = false;
@@ -189,7 +189,7 @@ bool Voice::note_on(const deluge::synth::NoteSetup& setup, const SoundSnapshot& 
 
 	if (event.reset_envelopes) {
 		for (int32_t s = 0; s < kNumSources; s++) {
-			source_wave_indexes_last_time[s] = params.param_final_values[params::LOCAL_OSC_A_WAVE_INDEX + s];
+			source_levels_.wave_indexes_last_time[s] = params.param_final_values[params::LOCAL_OSC_A_WAVE_INDEX + s];
 		}
 	}
 
@@ -247,7 +247,7 @@ bool Voice::note_on(const deluge::synth::NoteSetup& setup, const SoundSnapshot& 
 
 	previously_ignored_note_off = false;
 	expression_sources_currently_smoothing.reset();
-	filter_gain_last_time = 0;
+	source_levels_.filter_gain_last_time = 0;
 
 	return true;
 }
@@ -654,161 +654,75 @@ uint32_t Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge::m
 	int32_t modulator_amplitude_increments[kNumModulators];
 
 	int32_t overall_oscillator_amplitude_increment = 0;
+	const bool first_render = !done_first_render;
 
-	// If not ringmod, then sources need their volume calculated
-	if (synth_mode != SynthMode::RINGMOD) [[likely]] {
+	// params::LOCAL_OSC_x_VOLUME is normally at most a quarter of full range, but patching can take it to full range,
+	// as overall_osc_amplitude (the same range as params::LOCAL_VOLUME). Patching may amplify by at most 4x in total
+	// (not 16x), which leaves room to make each source's amplitude 4x what it could otherwise be.
+	if (synth_mode == SynthMode::FM) {
+		// FM works the overall amplitude, compensated for unison, into each carrier's, saving a multiplication per
+		// sample at the end
+		overall_osc_amplitude =
+		    multiply_32x32_rshift32_rounded(overall_osc_amplitude, cfg.volume_neutral_value_for_unison) << 3;
 
-		// params::LOCAL_OSC_x_VOLUME can normally only be up to a quarter of full range, but patching can make it up to
-		// full-range overallOscAmplitude (same range as) params::LOCAL_VOLUME, is the same.
+		int32_t a =
+		    multiply_32x32_rshift32(params.param_final_values[params::LOCAL_OSC_A_VOLUME], overall_osc_amplitude);
+		int32_t b =
+		    multiply_32x32_rshift32(params.param_final_values[params::LOCAL_OSC_B_VOLUME], overall_osc_amplitude);
 
-		// Let's impose a new limit, that only a total of 4x amplification via patching is possible (not 16x).
-		// Chances are, the user won't even need that much, let alone would have the osc volume *and* the synth master
-		// volume on full We then have space to make each osc's amplitude 4x what it could have been otherwise
+		// Clip off those amplitudes before they get too high. I think these were originally intended to stop the
+		// amplitude rising to more than "4", whatever that meant?
+		source_amplitudes[0] = std::min(a, static_cast<int32_t>(134217727));
+		source_amplitudes[1] = std::min(b, static_cast<int32_t>(134217727));
 
-		// If FM, we work the overall amplitude into each oscillator's, to avoid having to do an extra multiplication
-		// for every audio sample at the end
-		if (synth_mode == SynthMode::FM) {
-
-			// Apply compensation for unison
-			overall_osc_amplitude =
-			    multiply_32x32_rshift32_rounded(overall_osc_amplitude, cfg.volume_neutral_value_for_unison) << 3;
-
-			int32_t a =
-			    multiply_32x32_rshift32(params.param_final_values[params::LOCAL_OSC_A_VOLUME], overall_osc_amplitude);
-			int32_t b =
-			    multiply_32x32_rshift32(params.param_final_values[params::LOCAL_OSC_B_VOLUME], overall_osc_amplitude);
-
-			// Clip off those amplitudes before they get too high. I think these were originally intended to stop the
-			// amplitude rising to more than "4", whatever that meant?
-			source_amplitudes[0] = std::min(a, static_cast<int32_t>(134217727));
-			source_amplitudes[1] = std::min(b, static_cast<int32_t>(134217727));
-		}
-
-		// Or if subtractive, we don't do that, because we do want to apply the overall amplitude *after* the filter
-		else {
-			if (cfg.has_filters) {
-				source_amplitudes[0] =
-				    multiply_32x32_rshift32_rounded(params.param_final_values[params::LOCAL_OSC_A_VOLUME], filter_gain);
-				source_amplitudes[1] =
-				    multiply_32x32_rshift32_rounded(params.param_final_values[params::LOCAL_OSC_B_VOLUME], filter_gain);
-			}
-			else {
-				source_amplitudes[0] = params.param_final_values[params::LOCAL_OSC_A_VOLUME] >> 4;
-				source_amplitudes[1] = params.param_final_values[params::LOCAL_OSC_B_VOLUME] >> 4;
-			}
-		}
-
-		bool should_avoid_incrementing = done_first_render
-		                                     ? (filter_gain_last_time != filter_gain)
-		                                     : (params.param_final_values[params::LOCAL_ENV_0_ATTACK] > 245632);
+		bool should_avoid_incrementing = first_render ? (params.param_final_values[params::LOCAL_ENV_0_ATTACK] > 245632)
+		                                              : (source_levels_.filter_gain_last_time != filter_gain);
 
 		if (should_avoid_incrementing) {
 			for (int32_t s = 0; s < kNumSources; s++) {
-				source_amplitudes_last_time[s] = source_amplitudes[s];
+				source_levels_.amplitudes_last_time[s] = source_amplitudes[s];
 			}
 		}
 
 		for (int32_t s = 0; s < kNumSources; s++) {
 			source_amplitude_increments[s] =
-			    static_cast<int32_t>(source_amplitudes[s] - source_amplitudes_last_time[s]) / num_samples;
+			    static_cast<int32_t>(source_amplitudes[s] - source_levels_.amplitudes_last_time[s]) / num_samples;
 		}
 
-		filter_gain_last_time = filter_gain;
+		source_levels_.filter_gain_last_time = filter_gain;
 
-		// If FM, cache whether modulators are active
-		if (synth_mode == SynthMode::FM) {
-			for (int32_t m = 0; m < kNumModulators; m++) {
-				modulators_active[m] = (params.param_final_values[params::LOCAL_MODULATOR_0_VOLUME + m] != 0
-				                        || fm_engine.modulator_amplitude_last_time[m] != 0);
+		// Whether each modulator sounds this block
+		for (int32_t m = 0; m < kNumModulators; m++) {
+			modulators_active[m] = (params.param_final_values[params::LOCAL_MODULATOR_0_VOLUME + m] != 0
+			                        || fm_engine.modulator_amplitude_last_time[m] != 0);
 
-				if (modulators_active[m]) {
-					modulator_amplitude_increments[m] =
-					    static_cast<int32_t>(params.param_final_values[params::LOCAL_MODULATOR_0_VOLUME + m]
-					                         - fm_engine.modulator_amplitude_last_time[m])
-					    / num_samples;
-				}
+			if (modulators_active[m]) {
+				modulator_amplitude_increments[m] =
+				    static_cast<int32_t>(params.param_final_values[params::LOCAL_MODULATOR_0_VOLUME + m]
+				                         - fm_engine.modulator_amplitude_last_time[m])
+				    / num_samples;
 			}
 		}
 	}
-
-	int32_t source_wave_index_increments[kNumSources];
-
-	if (synth_mode != SynthMode::FM) {
-		if (!done_first_render && params.param_final_values[params::LOCAL_ENV_0_ATTACK] > 245632) {
+	else {
+		if (first_render && params.param_final_values[params::LOCAL_ENV_0_ATTACK] > 245632) {
 			overall_osc_amplitude_last_time = overall_osc_amplitude;
 		}
 		overall_oscillator_amplitude_increment =
 		    (overall_osc_amplitude - overall_osc_amplitude_last_time) / num_samples;
-
-		for (int32_t s = 0; s < kNumSources; s++) {
-			source_wave_index_increments[s] =
-			    static_cast<int32_t>(params.param_final_values[params::LOCAL_OSC_A_WAVE_INDEX + s]
-			                         - source_wave_indexes_last_time[s])
-			    / num_samples;
-		}
 	}
 
 	done_first_render = true;
 
-	uint32_t osc_sync_pos[kMaxNumVoicesUnison];
-	bool doing_osc_sync = cfg.doing_osc_sync;
-
-	// Oscillator sync: capture the master (source 0) phase at block start — from whichever persistent engine owns
-	// it (virtual-analog, wavetable or supersaw), else osc_pos.
-	if (doing_osc_sync) {
-		for (int32_t u = 0; u < cfg.num_unison; u++) {
-			osc_sync_pos[u] = unison_parts[u].slots[0].current_osc_phase();
-		}
-	}
-
 	// whether stereo unison actually is active. if stereo is being vetoed from higher up, don't do it.
 	bool stereo_unison = (cfg.unison_stereo_spread != 0u) && cfg.num_unison > 1 && sound_rendering_in_stereo;
-
-	int32_t* osc_buffer = nullptr;
-	bool anything_in_osc_buffer = false;
-	int32_t source_amplitudes_now[kNumSources];
-	for (int32_t s = 0; s < kNumSources; s++) {
-		source_amplitudes_now[s] = source_amplitudes_last_time[s];
-	}
 
 	int32_t amplitude_l = 0, amplitude_r = 0;
 	bool do_panning = false;
 
 	// two first indicies are reserved in case we need stereo for unison spread
-	osc_buffer = spare_buffers_[0];
+	int32_t* osc_buffer = spare_buffers_[0];
 	int32_t channels = stereo_unison ? 2 : 1;
-
-	int32_t const* const noise_end = osc_buffer + num_samples * channels;
-
-	// If any noise, do that. By cutting a corner here, we do it just once for all "unison", rather than for each
-	// unison. Increasing number of unison cuts the volume of the oscillators
-	if (params.param_final_values[params::LOCAL_NOISE_VOLUME] != 0 && synth_mode != SynthMode::FM) [[unlikely]] {
-
-		// This was >>2, but because I had a bug in V2.0.x which made noise too loud if filter on,
-		// I'm now making this louder to compensate and remain consistent by going just >>1.
-		// So now I really need to make it so that sounds made before V2.0 halve their noise volume... (Hey, did I
-		// ever do this? Who knows...)
-		int32_t n = params.param_final_values[params::LOCAL_NOISE_VOLUME] >> 1;
-		if (cfg.has_filters) {
-			n = multiply_32x32_rshift32(n, filter_gain) << 4;
-		}
-
-		// Perform the same limiting that we do above for the oscillators
-		int32_t noise_amplitude = std::min(n, static_cast<int32_t>(268435455)) >> 2;
-
-		int32_t* __restrict__ this_sample = osc_buffer;
-		do {
-			*this_sample = multiply_32x32_rshift32(next_noise(), noise_amplitude);
-			this_sample++;
-		} while (this_sample != noise_end);
-
-		anything_in_osc_buffer = true;
-	}
-
-	// Otherwise, clear the buffer
-	else {
-		memset(osc_buffer, 0, channels * num_samples * sizeof(int32_t));
-	}
 
 	// Even if first rendering into a local Voice buffer, we'll very often still just do panning at the Sound level
 	if (!applying_pan_at_voice_level) {
@@ -826,30 +740,60 @@ uint32_t Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge::m
 		}
 	}
 
-	// Normal mode: subtractive / samples. The engine owns the per-source render loop, osc sync, the stereo buffer dance
-	// and the unison-inactive unassign decision; each source's render it hands back to render_basic_source.
-	if (synth_mode == SynthMode::SUBTRACTIVE) {
-		subtractive_engine.render(*this, control_block, block, osc_buffer, num_samples, doing_osc_sync, osc_sync_pos,
-		                          overall_pitch_adjust, source_amplitudes_now, source_amplitude_increments,
-		                          source_wave_index_increments, anything_in_osc_buffer, did_stereo_temp_buffer,
-		                          unassign_voice_after, cfg);
-	}
-
-	// Ring-mod: the engine owns the whole per-voice render (unison loop + per-source pitch math + the combine),
-	// mirroring SubtractiveEngine. The per-voice pre-roll is passed in.
-	else if (synth_mode == SynthMode::RINGMOD) {
-		ring_mod_engine.render(*this, osc_buffer, num_samples, doing_osc_sync, osc_sync_pos, overall_pitch_adjust,
-		                       source_wave_index_increments, stereo_unison, filter_gain, did_stereo_temp_buffer,
-		                       spare_buffers_[2], spare_buffers_[3], sync_scratch_, cfg, block);
-	}
-
-	// FM: the engine owns the whole per-voice render (unison loop + per-source carrier pitch math + the modulator/
-	// carrier topology), mirroring SubtractiveEngine / RingModEngine. The per-voice pre-roll is passed in.
-	else {
+	if (synth_mode == SynthMode::FM) {
+		// FM renders no noise
+		memset(osc_buffer, 0, channels * num_samples * sizeof(int32_t));
+		const std::array<int32_t, kNumSources> source_amplitudes_now = source_levels_.amplitudes_last_time;
 		fm_engine.render(*this, num_samples, overall_pitch_adjust, stereo_unison, source_amplitudes,
-		                 source_amplitudes_now, source_amplitude_increments, modulators_active,
+		                 source_amplitudes_now.data(), source_amplitude_increments, modulators_active,
 		                 modulator_amplitude_increments, osc_buffer, spare_buffers_[2], spare_buffers_[3],
 		                 did_stereo_temp_buffer, cfg);
+	}
+	else {
+		DualSourceControls controls{
+		    .noise_volume = params.param_final_values[params::LOCAL_NOISE_VOLUME],
+		    .env0_attack = params.param_final_values[params::LOCAL_ENV_0_ATTACK],
+		    .filter_gain = filter_gain,
+		    .overall_pitch_adjust = overall_pitch_adjust,
+		    .porta_envelope_pos = porta_envelope_pos,
+		    .priority_rating = static_cast<int32_t>(priority_rating(cfg.voice_priority, block.num_active_voices)),
+		    .note_code = note_code_after_arpeggiation,
+		    .first_render = first_render,
+		    .stereo_unison = stereo_unison,
+		};
+		for (int32_t s = 0; s < kNumSources; s++) {
+			controls.volume[s] = params.param_final_values[params::LOCAL_OSC_A_VOLUME + s];
+			controls.pitch_adjust[s] = params.param_final_values[params::LOCAL_OSC_A_PITCH_ADJUST + s];
+			controls.phase_width[s] = params.param_final_values[params::LOCAL_OSC_A_PHASE_WIDTH + s];
+			controls.wave_index[s] = params.param_final_values[params::LOCAL_OSC_A_WAVE_INDEX + s];
+			controls.pitch_mod_disallows_cache[s] =
+			    cfg.osc_type[s] == OscType::SAMPLE && pitch_mod_disallows_cache(control_block, cfg, s);
+		}
+		const DualSourceBlock dual_block{
+		    .osc_buffer = osc_buffer,
+		    .num_samples = num_samples,
+		    .parts = unison_parts,
+		    .levels = &source_levels_,
+		    .cfg = &cfg,
+		    .voice_block = &block,
+		    .spare_buffers = spare_buffers_,
+		    .sync_scratch = sync_scratch_,
+		    .noise = noise_,
+		    .controls = controls,
+		};
+		const EngineRenderResult result = synth_mode == SynthMode::RINGMOD ? RingModEngine::render(dual_block)
+		                                                                   : SubtractiveEngine::render(dual_block);
+		did_stereo_temp_buffer = result.did_stereo_buffer;
+
+		// Every unison part's sources ended: unassign, or fast-release first to avoid a click with filters on
+		if (result.all_parts_ended) {
+			if (!filter_set.is_on()) {
+				unassign_voice_after = true;
+			}
+			else if (envelopes[0].stage() < Envelope::Stage::FAST_RELEASE) {
+				envelopes[0].unconditional_release(Envelope::Stage::FAST_RELEASE);
+			}
+		}
 	}
 
 	if (did_stereo_temp_buffer) {
@@ -1004,9 +948,12 @@ uint32_t Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge::m
 		}
 	}
 
-	for (int32_t s = 0; s < kNumSources; s++) {
-		source_amplitudes_last_time[s] = source_amplitudes[s];
-		source_wave_indexes_last_time[s] = params.param_final_values[params::LOCAL_OSC_A_WAVE_INDEX + s];
+	// The dual-source engines store their own levels
+	if (synth_mode == SynthMode::FM) {
+		for (int32_t s = 0; s < kNumSources; s++) {
+			source_levels_.amplitudes_last_time[s] = source_amplitudes[s];
+			source_levels_.wave_indexes_last_time[s] = params.param_final_values[params::LOCAL_OSC_A_WAVE_INDEX + s];
+		}
 	}
 	for (int32_t m = 0; m < kNumModulators; m++) {
 		fm_engine.modulator_amplitude_last_time[m] = params.param_final_values[params::LOCAL_MODULATOR_0_VOLUME + m];
@@ -1113,223 +1060,32 @@ void Voice::auto_release_if_due(const VoiceConfig& cfg, const VoiceBlock& block,
 	stamp_envelope0_stage_entry(block.clock);
 }
 
-bool Voice::are_all_unison_parts_inactive(const VoiceConfig& cfg) const {
-	// If no noise-source, then it might be time to unassign the voice...
-	if (!cfg.noise_volume_contains_something) {
-
-		// See if all unison parts are now inactive
-		for (int32_t s = 0; s < kNumSources; s++) {
-			if (!cfg.source_ever_active[s]) {
-				continue;
-			}
-			for (int32_t u = 0; u < cfg.num_unison; u++) {
-				if (unison_parts[u].slots[s].active) {
-					return false;
-				}
+bool Voice::pitch_mod_disallows_cache(const ControlBlock& control_block, const VoiceConfig& cfg, int32_t s) const {
+	// A sample is not cached when a source that can change during the note modulates its pitch. The routing groups
+	// each destination's cables, so only the two pitch destinations' cables are scanned.
+	const deluge::synth::PatchRouting& routing = control_block.routing;
+	const deluge::synth::CableTarget overall_pitch = deluge::synth::CableTarget::param(params::LOCAL_PITCH_ADJUST);
+	const deluge::synth::CableTarget source_pitch =
+	    deluge::synth::CableTarget::param(params::LOCAL_OSC_A_PITCH_ADJUST + s);
+	for (const deluge::synth::RoutedDestination* d = routing.destinations[GLOBALITY_LOCAL];
+	     d != nullptr && d->sources != 0; d++) {
+		if (d->target != overall_pitch && d->target != source_pitch) {
+			continue;
+		}
+		for (int32_t c = d->first_cable; std::cmp_less(c, d->end_cable); c++) {
+			const PatchSource from = routing.cables[c].source;
+			if (from == PatchSource::ENVELOPE_0 || from == PatchSource::ENVELOPE_1 || from == PatchSource::LFO_GLOBAL_1
+			    || from == PatchSource::LFO_LOCAL_1 || from == PatchSource::LFO_GLOBAL_2
+			    || from == PatchSource::LFO_LOCAL_2 || from == PatchSource::RANDOM
+			    || (from == PatchSource::AFTERTOUCH
+			        && (params.source_values[util::to_underlying(PatchSource::AFTERTOUCH)] != 0))
+			    || (from == PatchSource::SIDECHAIN
+			        && (cfg.global_source_values[util::to_underlying(PatchSource::SIDECHAIN)] != 0))) {
+				return true;
 			}
 		}
-
-		// If here, no parts active anymore!
-		return true;
 	}
-
 	return false;
-}
-
-// Returns false if it takes us above 22.05kHz, in which case it doesn't return a valid value
-bool Voice::adjust_pitch(uint32_t& phase_increment, int32_t adjustment) {
-	if (adjustment != kMaxSampleValue) {
-		int32_t output = multiply_32x32_rshift32_rounded(phase_increment, adjustment);
-		if (output >= (1 << 23)) {
-			return false;
-		}
-		phase_increment = output << 8;
-	}
-	return true;
-}
-
-// This function renders all unison for a source/oscillator. Amplitude and the incrementing thereof is done
-// independently for each unison, despite being the same for all of them, and you might be wondering why this is. Yes in
-// the case of an 8-unison sound it'd work out slightly better to apply amplitude to all unison together, but here's why
-// this just generally isn't all that advantageous:
-//	-	Doing it separately for each unison, as we are, means each unison of *both* sources can just sum itself directly
-// onto the buffer for the whole Voice, or in special cases the Sound, 		which only had to be wiped clean once. But
-// applying amplitude to the combined unisons of one source would mean we'd need to clear a buffer for that source, then
-// render our 		potentially just one unison into that (summing to the buffer's existing contents), then as amplitude
-// is applied to the buffer, we'd write the output of that into the 		Voice buffer (summing to its contents too).
-// So basically an extra level of summing and clearing would have to happen, in addition to the extra copying which is
-// obvious. 	-	And you might be thinking that for oscillator sync this would work well, because it already applies
-// amplitude in a separate step after rendering the wave. 		But no - a key part of why this works well as it is is
-// that the summing between unisons only happens along with that amplitude-application, after the initial wave render
-// has finished chopping around the contents of its buffer. Having that summed into an all-unison buffer would still
-// require an additional copying(summing) step, 		and we might as well just apply amplitude while that's
-// happening, which is exactly how it is currently.
-
-deluge::synth::SourceRenderResult
-Voice::render_source_component(int32_t u, int32_t s, const ControlBlock& control_block, int32_t* osc_buffer,
-                               int32_t num_samples, bool stereo_buffer, int32_t source_amplitude,
-                               int32_t amplitude_increment, uint32_t phase_increment, bool do_osc_sync,
-                               uint32_t* osc_sync_pos, uint32_t* osc_sync_phase_increments,
-                               int32_t wave_index_increment, bool stereo_unison, int32_t amplitude_l,
-                               int32_t amplitude_r, const VoiceConfig& cfg, const deluge::synth::VoiceBlock& block) {
-	using deluge::synth::SourceRenderResult;
-	SourceSlot* voice_unison_part_source = &unison_parts[u].slots[s];
-
-	// SAMPLE caching policy: a sample is not cached when a source that can change during the note modulates its pitch.
-	// The routing groups each destination's cables, so only the two pitch destinations' cables are scanned. Computed
-	// only for SAMPLE, the one source that reads it, and only on a sample's first render.
-	bool pitch_mod_disallows_cache = false;
-	if (cfg.osc_type[s] == OscType::SAMPLE) {
-		const deluge::synth::PatchRouting& routing = control_block.routing;
-		const deluge::synth::CableTarget overall_pitch = deluge::synth::CableTarget::param(params::LOCAL_PITCH_ADJUST);
-		const deluge::synth::CableTarget source_pitch =
-		    deluge::synth::CableTarget::param(params::LOCAL_OSC_A_PITCH_ADJUST + s);
-		for (const deluge::synth::RoutedDestination* d = routing.destinations[GLOBALITY_LOCAL];
-		     d != nullptr && d->sources != 0 && !pitch_mod_disallows_cache; d++) {
-			if (d->target != overall_pitch && d->target != source_pitch) {
-				continue;
-			}
-			for (int32_t c = d->first_cable; c < d->end_cable; c++) {
-				const PatchSource from = routing.cables[c].source;
-				if (from == PatchSource::ENVELOPE_0 || from == PatchSource::ENVELOPE_1
-				    || from == PatchSource::LFO_GLOBAL_1 || from == PatchSource::LFO_LOCAL_1
-				    || from == PatchSource::LFO_GLOBAL_2 || from == PatchSource::LFO_LOCAL_2
-				    || from == PatchSource::RANDOM
-				    || (from == PatchSource::AFTERTOUCH
-				        && (params.source_values[util::to_underlying(PatchSource::AFTERTOUCH)] != 0))
-				    || (from == PatchSource::SIDECHAIN
-				        && (cfg.global_source_values[util::to_underlying(PatchSource::SIDECHAIN)] != 0))) {
-					pitch_mod_disallows_cache = true;
-					break;
-				}
-			}
-		}
-	}
-
-	// All five sources render through the polymorphic synth::Source seam, which owns (for oscillators) the osc-sync
-	// freq-too-high SKIP + mono-scratch/stereo-fold, and (per engine) the block render. The app-side adapter just
-	// gathers the already-modulated per-block values into the SourceBlock.
-	uint32_t osc_retrigger_phase = cfg.osc_retrigger_phase[s]; // Yes we might need this even if not doing osc sync.
-	uint32_t osc_sync_pos_this_unison = do_osc_sync ? osc_sync_pos[u] : 0;
-	uint32_t osc_sync_phase_increments_this_unison = do_osc_sync ? osc_sync_phase_increments[u] : 0;
-
-	// Work out pulse width
-	uint32_t pulse_width =
-	    static_cast<uint32_t>(lshift_and_saturate<1>(params.param_final_values[params::LOCAL_OSC_A_PHASE_WIDTH + s]));
-
-	std::optional<synth::SyncMaster> sync;
-	if (do_osc_sync) {
-		sync = synth::SyncMaster{.phase = osc_sync_pos_this_unison, .increment = osc_sync_phase_increments_this_unison};
-	}
-	const synth::SourceBlock source_block{
-	    .osc_buffer = osc_buffer,
-	    .num_samples = num_samples,
-	    .stereo_buffer = stereo_buffer,
-	    .stereo_unison = stereo_unison,
-	    .amplitude_l = amplitude_l,
-	    .amplitude_r = amplitude_r,
-	    .source_amplitude = source_amplitude,
-	    .amplitude_increment = amplitude_increment,
-	    .phase_increment = phase_increment,
-	    .sync = sync,
-	    .controls = make_block_controls(source_amplitude, amplitude_increment, pulse_width, /*apply_amplitude=*/true,
-	                                    do_osc_sync, osc_sync_pos_this_unison, osc_sync_phase_increments_this_unison,
-	                                    osc_retrigger_phase, cfg.cpu_direness),
-	    .stereo_scratch = spare_buffers_[2],
-	    .stereo_scratch_clear_samples = SSI_TX_BUFFER_NUM_SAMPLES,
-	    .sync_scratch = sync_scratch_.data(),
-	    .noise = noise_,
-	    .wavetable =
-	        {
-	            .data = block.wave_tables[s],
-	            .index_last = static_cast<int32_t>(source_wave_indexes_last_time[s]),
-	            .index_increment = wave_index_increment,
-	        },
-	    .dx7 =
-	        {
-	            .amp_mod_param = params.param_final_values[params::LOCAL_OSC_A_PHASE_WIDTH + s],
-	            .patch_changed = cfg.dx_patch_changed[s],
-	            .note_code = note_code_after_arpeggiation,
-	        },
-	    .sample =
-	        {
-	            .porta_envelope_pos = porta_envelope_pos,
-	            .priority_rating = static_cast<int32_t>(priority_rating(cfg.voice_priority, block.num_active_voices)),
-	            .phase_increment_stored_value = voice_unison_part_source->phase_increment_stored_value,
-	            .pitch_mod_disallows_cache = pitch_mod_disallows_cache,
-	        },
-	    .input =
-	        {
-	            .interpolation_buffer_size = interpolation_buffer_size(
-	                cfg.interpolation_mode[s], static_cast<int32_t>(phase_increment), cfg.cpu_direness),
-	        },
-	};
-
-	// A port-backed source by the sound's current type, else the oscillator the note built. A slot holding none (a
-	// mode change under a live voice) renders nothing this block.
-	synth::Source* component = unison_parts[u].slots[s].source_for(cfg.osc_type[s]);
-	if (component == nullptr) [[unlikely]] {
-		return synth::SourceRenderResult::SKIP;
-	}
-	return component->render(source_block);
-}
-
-bool Voice::render_basic_source(const ControlBlock& control_block, const VoiceBlock& block, int32_t s,
-                                int32_t* __restrict__ osc_buffer, int32_t num_samples, bool stereo_buffer,
-                                int32_t source_amplitude, int32_t overall_pitch_adjust, bool do_osc_sync,
-                                uint32_t* __restrict__ osc_sync_pos, uint32_t* __restrict__ osc_sync_phase_increments,
-                                int32_t amplitude_increment, std::span<uint32_t> phase_increments_out,
-                                bool get_out_after_phase_increments, int32_t wave_index_increment,
-                                const VoiceConfig& cfg) {
-	bool unison_part_became_inactive = false;
-
-	for (int32_t u = 0; u < cfg.num_unison; u++) {
-
-		SourceSlot* voice_unison_part_source = &unison_parts[u].slots[s];
-
-		// Samples may become inactive
-		if (!voice_unison_part_source->active) {
-			continue;
-		}
-
-		// The overall pitch adjust, then this source's
-		uint32_t phase_increment = voice_unison_part_source->phase_increment_stored_value;
-		if (!adjust_pitch(phase_increment, overall_pitch_adjust)
-		    || !adjust_pitch(phase_increment, params.param_final_values[params::LOCAL_OSC_A_PITCH_ADJUST + s])) {
-			// Too high to render
-			if (!phase_increments_out.empty()) {
-				phase_increments_out[u] = 0;
-			}
-			continue;
-		}
-
-		if (!phase_increments_out.empty()) {
-			phase_increments_out[u] = phase_increment;
-
-			if (get_out_after_phase_increments) {
-				// Skipped source still advances its phase (it's the osc-sync master) — in whichever engine owns it.
-				voice_unison_part_source->advance_osc_phase(phase_increment * num_samples);
-				continue;
-			}
-		}
-
-		bool stereo_unison = (cfg.unison_stereo_spread != 0u) && cfg.num_unison > 1 && stereo_buffer;
-		const deluge::dsp::fixed::PanAmplitudes unison_pan_amplitudes =
-		    deluge::dsp::fixed::pan_amplitudes(stereo_unison ? cfg.unison_pan[u] : 0);
-		int32_t amplitude_l = unison_pan_amplitudes.left;
-		int32_t amplitude_r = unison_pan_amplitudes.right;
-		// used if mono source but stereoUnison active
-
-		auto result = render_source_component(u, s, control_block, osc_buffer, num_samples, stereo_buffer,
-		                                      source_amplitude, amplitude_increment, phase_increment, do_osc_sync,
-		                                      osc_sync_pos, osc_sync_phase_increments, wave_index_increment,
-		                                      stereo_unison, amplitude_l, amplitude_r, cfg, block);
-		if (result == deluge::synth::SourceRenderResult::UNASSIGN) {
-			unison_part_became_inactive = true;
-			voice_unison_part_source->unassign(false);
-		}
-	}
-	return unison_part_became_inactive;
 }
 
 bool Voice::do_fast_release(uint32_t release_increment, deluge::synth::VoiceClock clock) {

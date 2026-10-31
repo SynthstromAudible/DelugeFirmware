@@ -15,103 +15,107 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "synth/voice/ringmod_engine.h"
+#include "synth/engines/ring_mod_engine.h"
 #include "dsp-next/core/types.h" // deluge::dsp::fixed::Buffer
 #include "dsp-next/fixed/vca/pan.h"
-#include "modulation/params/param.h" // LOCAL_OSC_A_PITCH_ADJUST / LOCAL_OSC_A_PHASE_WIDTH
+#include "synth/engines/block_controls.h" // make_block_controls
+#include "synth/engines/pitch.h"
 #include "synth/sources/source_slot.h"
-#include "synth/voice/source_component_render.h" // make_block_controls
-#include "synth/voice/voice.h"                   // Voice (member access — pre-roll + per-source state)
 #include "util/fixedpoint.h"
 #include <algorithm>
 #include <type_traits>
+#include <utility>
 
 using namespace deluge;
 
-namespace params = deluge::modulation::params;
-
 namespace deluge::synth {
 
-void RingModEngine::render(Voice& voice, int32_t* osc_buffer, int32_t num_samples, bool do_osc_sync,
-                           uint32_t* osc_sync_pos, int32_t overall_pitch_adjust,
-                           const int32_t* source_wave_index_increments, bool stereo_unison, int32_t filter_gain,
-                           bool& did_stereo_temp_buffer, int32_t* scratch0, int32_t* scratch1,
-                           std::span<int32_t> sync_scratch, const VoiceConfig& cfg,
-                           const deluge::synth::VoiceBlock& block) {
+EngineRenderResult RingModEngine::render(const DualSourceBlock& block) {
+	const VoiceConfig& cfg = *block.cfg;
+	const DualSourceControls& c = block.controls;
+	const bool stereo_unison = c.stereo_unison;
 
-	if (stereo_unison) {
-		// osc_buffer is always a stereo temp buffer
-		did_stereo_temp_buffer = true;
+	const std::array<int32_t, kNumSources> wave_index_increments = DualSourceEngine::wave_index_increments(block);
+	std::array<uint32_t, kMaxNumVoicesUnison> sync_pos{};
+	if (cfg.doing_osc_sync) {
+		sync_pos = capture_sync(block);
 	}
+	render_noise(block, stereo_unison ? 2 : 1);
 
-	// For each unison part
-	for (int32_t u = 0; u < cfg.num_unison; u++) {
+	render_parts(block, sync_pos, wave_index_increments);
+
+	// The source amplitudes are not ring-mod's: it stores only the wavetable indexes
+	store_levels(block, nullptr);
+	// osc_buffer is always a stereo buffer when the unison is spread
+	return EngineRenderResult{.did_stereo_buffer = stereo_unison};
+}
+
+void RingModEngine::render_parts(const DualSourceBlock& block,
+                                 const std::array<uint32_t, kMaxNumVoicesUnison>& sync_pos,
+                                 const std::array<int32_t, kNumSources>& wave_index_increments) {
+	const VoiceConfig& cfg = *block.cfg;
+	const DualSourceControls& c = block.controls;
+	const bool stereo_unison = c.stereo_unison;
+
+	for (int32_t u = 0; std::cmp_less(u, cfg.num_unison); u++) {
 
 		const deluge::dsp::fixed::PanAmplitudes unison_pan_amplitudes =
 		    deluge::dsp::fixed::pan_amplitudes(stereo_unison ? cfg.unison_pan[u] : 0);
 		int32_t unison_amplitude_l = unison_pan_amplitudes.left;
 		int32_t unison_amplitude_r = unison_pan_amplitudes.right;
 
-		// Work out the phase increments of the two sources. If these are too high, we abandon all remaining unison
-		// parts. Yes this will affect all unison parts, which seems like it's not what we want, but since we're
-		// traversing the unison parts in ascending frequency, it's fine!
-
-		uint32_t phase_increments[kNumSources];
+		// The two sources' phase increments. One too high abandons every remaining unison part: the parts ascend in
+		// frequency, so the rest are too high as well.
+		std::array<uint32_t, kNumSources> phase_increments{};
 		for (int32_t s = 0; s < kNumSources; s++) {
-			phase_increments[s] = voice.unison_parts[u].slots[s].phase_increment_stored_value;
+			phase_increments[s] = block.parts[u].slots[s].phase_increment_stored_value;
 		}
 
 		// If overall pitch adjusted...
-		if (overall_pitch_adjust != kMaxSampleValue) {
+		if (c.overall_pitch_adjust != kMaxSampleValue) {
 			for (int32_t s = 0; s < kNumSources; s++) {
-				if (!Voice::adjust_pitch(phase_increments[s], overall_pitch_adjust)) {
-					return; // freq too high — all remaining (higher) unison parts are too high too
+				if (!adjust_pitch(phase_increments[s], c.overall_pitch_adjust)) {
+					return;
 				}
 			}
 		}
 
 		// If individual source pitch adjusted...
 		for (int32_t s = 0; s < kNumSources; s++) {
-			if (!Voice::adjust_pitch(phase_increments[s],
-			                         voice.params.param_final_values[params::LOCAL_OSC_A_PITCH_ADJUST + s])) {
-				return; // freq too high — abandon the rest of the unison spread
+			if (!adjust_pitch(phase_increments[s], c.pitch_adjust[s])) {
+				return;
 			}
 		}
 
-		// Build the per-source render context; render_unison_part owns the cross-source ring-mod relationship
-		// (render both sources raw with source 0 the hard-sync master, then multiply + pan).
-		RingModEngine::Source ring_mod_sources[kNumSources];
+		std::array<RingSource, kNumSources> ring_mod_sources{};
 		for (int32_t s = 0; s < kNumSources; s++) {
-			// Work out pulse width, from parameter. This has no effect if we're not actually using square
-			// waves, but just do it anyway, it's a simple calculation
-			int32_t pulse_width = static_cast<uint32_t>(
-			    lshift_and_saturate<1>(voice.params.param_final_values[params::LOCAL_OSC_A_PHASE_WIDTH + s]));
+			// The pulse width only matters to a square wave, but is cheap to work out for any
+			const int32_t pulse_width = lshift_and_saturate<1>(c.phase_width[s]);
 
-			OscType osc_type = cfg.osc_type[s];
-
-			ring_mod_sources[s] = RingModEngine::Source{
-			    .part = &voice.unison_parts[u].slots[s],
+			ring_mod_sources[s] = RingSource{
+			    .part = &block.parts[u].slots[s],
 			    .phase_increment = phase_increments[s],
 			    .pulse_width = pulse_width,
-			    .wave_table = block.wave_tables[s],
-			    .wave_index_last = static_cast<int32_t>(voice.source_wave_indexes_last_time[s]),
-			    .wave_index_increment = source_wave_index_increments[s],
-			    .osc_type = osc_type,
+			    .wave_table = block.voice_block->wave_tables[s],
+			    .wave_index_last = static_cast<int32_t>(block.levels->wave_indexes_last_time[s]),
+			    .wave_index_increment = wave_index_increments[s],
+			    .osc_type = cfg.osc_type[s],
 			    .retrigger_phase = cfg.osc_retrigger_phase[s],
 			};
 		}
 
-		render_unison_part(ring_mod_sources[0], ring_mod_sources[1], do_osc_sync, osc_sync_pos[u], cfg.has_filters,
-		                   cfg.cpu_direness, filter_gain, unison_amplitude_l, unison_amplitude_r, stereo_unison,
-		                   osc_buffer, num_samples, scratch0, scratch1, sync_scratch);
+		render_unison_part(ring_mod_sources[0], ring_mod_sources[1], cfg.doing_osc_sync, sync_pos[u], cfg.has_filters,
+		                   cfg.cpu_direness, c.filter_gain, unison_amplitude_l, unison_amplitude_r, stereo_unison,
+		                   block.osc_buffer, block.num_samples, block.spare_buffers[2], block.spare_buffers[3],
+		                   block.sync_scratch);
 	}
 }
 
-void RingModEngine::render_unison_part(const Source& src0, const Source& src1, bool do_osc_sync, uint32_t osc_sync_pos,
-                                       bool has_filters, int32_t cpu_direness, int32_t filter_gain,
-                                       int32_t unison_amplitude_l, int32_t unison_amplitude_r, bool stereo_unison,
-                                       int32_t* osc_buffer, int32_t num_samples, int32_t* scratch0, int32_t* scratch1,
-                                       std::span<int32_t> sync_scratch) {
+void RingModEngine::render_unison_part(const RingSource& src0, const RingSource& src1, bool do_osc_sync,
+                                       uint32_t osc_sync_pos, bool has_filters, int32_t cpu_direness,
+                                       int32_t filter_gain, int32_t unison_amplitude_l, int32_t unison_amplitude_r,
+                                       bool stereo_unison, int32_t* osc_buffer, int32_t num_samples, int32_t* scratch0,
+                                       int32_t* scratch1, std::span<int32_t> sync_scratch) {
 
 	int32_t amplitude_for_ring_mod = 1 << 27;
 
@@ -119,13 +123,13 @@ void RingModEngine::render_unison_part(const Source& src0, const Source& src1, b
 		amplitude_for_ring_mod = multiply_32x32_rshift32_rounded(amplitude_for_ring_mod, filter_gain) << 4;
 	}
 
-	const Source* sources[2] = {&src0, &src1};
-	int32_t* scratch[2] = {scratch0, scratch1};
+	const std::array<const RingSource*, kNumSources> sources{&src0, &src1};
+	const std::array<int32_t*, kNumSources> scratch{scratch0, scratch1};
 
 	for (int32_t s = 0; s < 2; s++) {
 		// Source 0 can never be the synced (slave) oscillator — it is the master.
 		bool synced = (s == 0) ? false : do_osc_sync;
-		const Source& source = *sources[s];
+		const RingSource& source = *sources[s];
 
 		// Both ring-moddable wave families render through their persistent per-source engine (VA or wavetable) via
 		// its render_into. Ring-mod renders the raw wave: no amplitude applied, amplitude 0. The hard-sync master is

@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "synth/voice/source_component_render.h"
+#include "synth/engines/block_controls.h"
 #include "dsp-next/core/phasor.h" // deluge::dsp::Phasor
 #include "dsp-next/core/ramp.h"   // deluge::dsp::Ramp
 #include <optional>

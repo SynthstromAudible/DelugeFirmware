@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "dsp-next/fixed/osc/sine.h" // deluge::dsp::fixed::sine / sine_fm_operator
 #include "dsp-next/fixed/vca/pan.h"
+#include "synth/engines/pitch.h"
 #include "synth/voice/voice.h"
 #include "util/fixedpoint.h"
 #include <cstring>
@@ -60,7 +61,7 @@ void FMEngine::render(Voice& voice, int32_t num_samples, int32_t overall_pitch_a
 		// If overall pitch adjusted...
 		if (overall_pitch_adjust != kMaxSampleValue) {
 			for (int32_t s = 0; s < kNumSources; s++) {
-				if (!Voice::adjust_pitch(phase_increments[s], overall_pitch_adjust)) {
+				if (!adjust_pitch(phase_increments[s], overall_pitch_adjust)) {
 					source_amplitudes[s] = 0;
 				}
 			}
@@ -68,8 +69,8 @@ void FMEngine::render(Voice& voice, int32_t num_samples, int32_t overall_pitch_a
 
 		// If individual source pitch adjusted...
 		for (int32_t s = 0; s < kNumSources; s++) {
-			if (!Voice::adjust_pitch(phase_increments[s],
-			                         voice.params.param_final_values[params::LOCAL_OSC_A_PITCH_ADJUST + s])) {
+			if (!adjust_pitch(phase_increments[s],
+			                  voice.params.param_final_values[params::LOCAL_OSC_A_PITCH_ADJUST + s])) {
 				source_amplitudes[s] = 0;
 			}
 		}
@@ -100,21 +101,18 @@ void FMEngine::render_unison_part(Voice& voice, int32_t u, int32_t num_samples, 
 
 	if (overall_pitch_adjust != kMaxSampleValue) {
 		for (int32_t m = 0; m < kNumModulators; m++) {
-			if (modulators_active[m]) {
-				if (!Voice::adjust_pitch(phase_increment_modulator[m], overall_pitch_adjust)) {
-					modulators_active[m] = false;
-				}
+			if (modulators_active[m] && !adjust_pitch(phase_increment_modulator[m], overall_pitch_adjust)) {
+				modulators_active[m] = false;
 			}
 		}
 	}
 
 	// Check if individual modulator pitches adjusted
 	for (int32_t m = 0; m < kNumModulators; m++) {
-		if (modulators_active[m]) {
-			if (!Voice::adjust_pitch(phase_increment_modulator[m],
-			                         voice.params.param_final_values[params::LOCAL_MODULATOR_0_PITCH_ADJUST + m])) {
-				modulators_active[m] = false;
-			}
+		if (modulators_active[m]
+		    && !adjust_pitch(phase_increment_modulator[m],
+		                     voice.params.param_final_values[params::LOCAL_MODULATOR_0_PITCH_ADJUST + m])) {
+			modulators_active[m] = false;
 		}
 	}
 

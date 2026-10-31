@@ -21,15 +21,15 @@
 #include "dsp-next/fixed/filter/filter_set.h"
 #include "effects/saturation.h"
 #include "modulation/params/param.h"
+#include "synth/engines/ring_mod_engine.h"
+#include "synth/engines/source_levels.h"
+#include "synth/engines/subtractive_engine.h"
 #include "synth/modulation/envelope.h"
 #include "synth/modulation/lfo.h"
 #include "synth/modulation/param_plane.h"
 #include "synth/modulation/patcher.h"
 #include "synth/voice/fm_engine.h"
-#include "synth/voice/ringmod_engine.h"
 #include "synth/voice/sound_snapshot.h"
-#include "synth/voice/source_component_render.h" // deluge::synth::SourceRenderResult
-#include "synth/voice/subtractive_engine.h"
 #include "synth/voice/unison_part.h"
 #include "synth/voice/voice_config.h"
 #include "synth/voice/voice_inputs.h"
@@ -82,14 +82,6 @@ public:
 
 	dsp::fixed::FilterSet filter_set;
 
-	// The ring-mod synth engine: owns the cross-source ring-mod relationship (renders both sources + combines). It
-	// holds no state: the VA and wavetable components are owned per source on the unison parts.
-	RingModEngine ring_mod_engine;
-
-	// The subtractive synth engine: owns the per-source render loop, osc sync and the mono-to-stereo dance; each
-	// source's render it hands back to render_basic_source.
-	SubtractiveEngine subtractive_engine;
-
 	// The FM synth engine: owns one unison part's FM topology (modulators, carriers, feedback); it reads the voice's
 	// params and unison parts through the Voice& it is handed, and calls adjust_pitch.
 	FMEngine fm_engine;
@@ -102,10 +94,7 @@ public:
 	int32_t porta_envelope_max_amplitude{};
 
 	int32_t overall_osc_amplitude_last_time{};
-	std::array<int32_t, kNumSources> source_amplitudes_last_time{};
-	std::array<uint32_t, kNumSources> source_wave_indexes_last_time{};
 
-	int32_t filter_gain_last_time{};
 	bool done_first_render{};
 	bool previously_ignored_note_off{};
 
@@ -113,10 +102,6 @@ public:
 
 	uint32_t get_local_lfo_phase_increment(const LFOConfig& config, deluge::modulation::params::Local param,
 	                                       uint32_t synced_phase_increment);
-	/// Scale @p phase_increment by @p adjustment (a pitch-adjust patch value); @return false if it overflows (the
-	/// note frequency is too high and the source/modulator should be dropped). Pure — used by Voice's per-source
-	/// pitch math and by FMEngine for its modulators.
-	static bool adjust_pitch(uint32_t& phase_increment, int32_t adjustment);
 	/// Renders one block, adding into @p args.buffer. @return false once the voice has ended and must be unassigned.
 	bool render(const ControlBlock& control_block, const VoiceConfig& cfg, const VoiceBlock& block,
 	            const VoiceRenderArgs& args);
@@ -167,20 +152,8 @@ public:
 
 	bool speed_up_release(VoiceClock clock, uint32_t min_fast_release_increment = kSoftCullIncrement);
 
-	// The per-source render driver and the unison-inactive predicate, public for SubtractiveEngine to drive.
-	/// Renders source @p s in each unison part. @p phase_increments_out, unless empty, takes each part's increment (0
-	/// when too high to render) for the parts osc sync follows. @return whether a unison part became inactive (its
-	/// sample ended), which the caller collects across sources.
-	[[nodiscard]] bool render_basic_source(const ControlBlock& control_block, const VoiceBlock& block, int32_t s,
-	                                       int32_t* osc_buffer, int32_t num_samples, bool stereo_buffer,
-	                                       int32_t source_amplitude, int32_t overall_pitch_adjust, bool do_osc_sync,
-	                                       uint32_t* osc_sync_pos, uint32_t* osc_sync_phase_increments,
-	                                       int32_t amplitude_increment, std::span<uint32_t> phase_increments_out,
-	                                       bool get_out_after_phase_increments, int32_t wave_index_increment,
-	                                       const VoiceConfig& cfg);
-	[[nodiscard]] bool are_all_unison_parts_inactive(const VoiceConfig& cfg) const;
-
 private:
+	SourceLevels source_levels_; ///< The source levels' de-zipper, which FM and the dual-source engines share
 	/// The output stage's saturation; its memory starts at 0 and is set silent when the envelopes reset.
 	deluge::effects::Saturation output_saturation_{0u};
 
@@ -194,14 +167,9 @@ private:
 
 	[[nodiscard]] int32_t next_noise() { return static_cast<int32_t>(noise_->next()); }
 
-	// Render one unison part of one source, dispatching by its type to the per-source component (sample, input, DX7,
-	// virtual-analog, wavetable or supersaw) and folding their outcomes into one result. Called from
-	// render_basic_source's per-unison loop after the shared pitch, pan and sync setup.
-	deluge::synth::SourceRenderResult render_source_component(
-	    int32_t u, int32_t s, const ControlBlock& control_block, int32_t* osc_buffer, int32_t num_samples,
-	    bool stereo_buffer, int32_t source_amplitude, int32_t amplitude_increment, uint32_t phase_increment,
-	    bool do_osc_sync, uint32_t* osc_sync_pos, uint32_t* osc_sync_phase_increments, int32_t wave_index_increment,
-	    bool stereo_unison, int32_t amplitude_l, int32_t amplitude_r, const VoiceConfig& cfg, const VoiceBlock& block);
+	/// Whether a source that can change during the note modulates source @p s's pitch, so its sample is not cached.
+	[[nodiscard]] bool pitch_mod_disallows_cache(const ControlBlock& control_block, const VoiceConfig& cfg,
+	                                             int32_t s) const;
 	void setup_porta(int32_t last_note_code);
 	/// Starts the release of a voice of play-once samples so that it ends with them.
 	void auto_release_if_due(const VoiceConfig& cfg, const VoiceBlock& block, int32_t overall_pitch_adjust);
