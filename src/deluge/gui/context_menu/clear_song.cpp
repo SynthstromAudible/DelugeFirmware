@@ -86,7 +86,13 @@ bool ClearSong::acceptCurrentOption() {
 		AudioEngine::songSwapAboutToHappen();
 	}
 
-	void* songMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(Song)); // TODO: error checking
+	void* songMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(Song));
+	if (songMemory == nullptr) {
+		// The old Song may already be gone (deleteOldSongBeforeLoadingNew), so there's nothing to fall back to - fail
+		// loudly like setupBlankSong() rather than placement-new a Song into a null pointer
+		FREEZE_WITH_ERROR("E458");
+		return false;
+	}
 	preLoadedSong = new (songMemory) Song();
 	preLoadedSong->paramManager.setupUnpatched(); // TODO: error checking
 	GlobalEffectable::initParams(&preLoadedSong->paramManager);
