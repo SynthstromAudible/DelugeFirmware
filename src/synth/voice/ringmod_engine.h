@@ -24,7 +24,7 @@
 namespace deluge::synth {
 
 class Voice;
-class VoiceUnisonPartSource;
+class SourceSlot;
 struct VoiceConfig;
 struct VoiceBlock;
 
@@ -40,9 +40,9 @@ class RingModEngine {
 public:
 	/// One ring-moddable source for this unison part (RINGMOD only ever uses the VA / wavetable components).
 	struct Source {
-		VoiceUnisonPartSource* part; ///< holds the persistent va_source / wavetable_source / supersaw_source
-		uint32_t phase_increment;    ///< already pitch-adjusted (UQ0.32)
-		int32_t pulse_width;         ///< LOCAL_OSC_*_PHASE_WIDTH, pre-shifted (no-op unless square)
+		SourceSlot* part;         ///< holds the oscillator (VA, wavetable or supersaw) the note built
+		uint32_t phase_increment; ///< already pitch-adjusted (UQ0.32)
+		int32_t pulse_width;      ///< LOCAL_OSC_*_PHASE_WIDTH, pre-shifted (no-op unless square)
 		deluge::dsp::fixed::WaveTableData
 		    wave_table;          ///< the loaded table's bands (wavetable component only), else empty
 		int32_t wave_index_last; ///< wavetable morph index + its per-block increment

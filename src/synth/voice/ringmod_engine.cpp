@@ -18,11 +18,13 @@
 #include "synth/voice/ringmod_engine.h"
 #include "dsp-next/core/types.h" // deluge::dsp::fixed::Buffer
 #include "dsp-next/fixed/vca/pan.h"
-#include "modulation/params/param.h"             // LOCAL_OSC_A_PITCH_ADJUST / LOCAL_OSC_A_PHASE_WIDTH
+#include "modulation/params/param.h" // LOCAL_OSC_A_PITCH_ADJUST / LOCAL_OSC_A_PHASE_WIDTH
+#include "synth/sources/source_slot.h"
 #include "synth/voice/source_component_render.h" // make_block_controls
-#include "synth/voice/unison_part_source.h"
-#include "synth/voice/voice.h" // Voice (member access — pre-roll + per-source state)
+#include "synth/voice/voice.h"                   // Voice (member access — pre-roll + per-source state)
 #include "util/fixedpoint.h"
+#include <algorithm>
+#include <type_traits>
 
 using namespace deluge;
 
@@ -56,7 +58,7 @@ void RingModEngine::render(Voice& voice, int32_t* osc_buffer, int32_t num_sample
 
 		uint32_t phase_increments[kNumSources];
 		for (int32_t s = 0; s < kNumSources; s++) {
-			phase_increments[s] = voice.unison_parts[u].sources[s].phase_increment_stored_value;
+			phase_increments[s] = voice.unison_parts[u].slots[s].phase_increment_stored_value;
 		}
 
 		// If overall pitch adjusted...
@@ -88,7 +90,7 @@ void RingModEngine::render(Voice& voice, int32_t* osc_buffer, int32_t num_sample
 			OscType osc_type = cfg.osc_type[s];
 
 			ring_mod_sources[s] = RingModEngine::Source{
-			    .part = &voice.unison_parts[u].sources[s],
+			    .part = &voice.unison_parts[u].slots[s],
 			    .phase_increment = phase_increments[s],
 			    .pulse_width = pulse_width,
 			    .wave_table = block.wave_tables[s],
@@ -136,18 +138,25 @@ void RingModEngine::render_unison_part(const Source& src0, const Source& src1, b
 		// NOLINTEND(readability-suspicious-call-argument)
 		const dsp::fixed::Buffer out{scratch[s], static_cast<size_t>(num_samples)};
 		const dsp::fixed::Buffer sync_block = sync_scratch.first(static_cast<size_t>(num_samples));
-		if (source.part->va_source.has_value()) {
-			source.part->va_source->render_into(controls, source.phase_increment, out, sync_block);
-		}
-		else if (source.part->supersaw_source.has_value()) {
-			source.part->supersaw_source->render_into(controls, source.phase_increment, source.wave_index_last,
-			                                          source.wave_index_increment, out, sync_block);
-		}
-		else {
-			source.part->wavetable_source->render_into(controls, source.wave_table, source.wave_index_last,
-			                                           source.wave_index_increment, source.phase_increment, out,
-			                                           sync_block);
-		}
+		std::visit(
+		    [&]<class Held>(Held& held) {
+			    if constexpr (std::is_same_v<Held, VirtualAnalogSource>) {
+				    held.render_into(controls, source.phase_increment, out, sync_block);
+			    }
+			    else if constexpr (std::is_same_v<Held, SupersawSource>) {
+				    held.render_into(controls, source.phase_increment, source.wave_index_last,
+				                     source.wave_index_increment, out, sync_block);
+			    }
+			    else if constexpr (std::is_same_v<Held, WavetableSource>) {
+				    held.render_into(controls, source.wave_table, source.wave_index_last, source.wave_index_increment,
+				                     source.phase_increment, out, sync_block);
+			    }
+			    else {
+				    // No oscillator held (a mode change under a live voice): a silent wave
+				    std::ranges::fill(out, 0);
+			    }
+		    },
+		    source.part->oscillator());
 
 		// Sine and triangle waves come out bigger in fixed-amplitude rendering (for arbitrary reasons), so we
 		// need to compensate

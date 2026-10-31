@@ -30,9 +30,9 @@
 #include "synth/voice/sound_snapshot.h"
 #include "synth/voice/source_component_render.h" // deluge::synth::SourceRenderResult
 #include "synth/voice/subtractive_engine.h"
+#include "synth/voice/unison_part.h"
 #include "synth/voice/voice_config.h"
 #include "synth/voice/voice_inputs.h"
-#include "synth/voice/voice_unison_part.h"
 #include <bitset>
 #include <compare>
 #include <memory>
@@ -57,8 +57,10 @@ public:
 	~Voice() = default;
 	Patcher patcher;
 
-	// Stores all oscillator positions and stuff, for each Source within each Unison too
-	std::array<VoiceUnisonPart, kMaxNumVoicesUnison> unison_parts{};
+	// Each unison part's source slots. Public: the app's slicer, sample marker editor and unison-count change read
+	// the parts' samples through it.
+	// NOLINTNEXTLINE(cppcoreguidelines-non-private-member-variables-in-classes)
+	std::array<UnisonPart, kMaxNumVoicesUnison> unison_parts{};
 
 	// The per-voice modulation data plane: the *local* param final values (specific to this Voice) plus the patch
 	// source values. At the start of source_values are local copies of the "global" sources — cheaper to copy them

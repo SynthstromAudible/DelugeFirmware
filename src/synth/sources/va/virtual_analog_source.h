@@ -31,7 +31,7 @@ namespace deluge::synth {
 /// crude↔band-limited choice, pulse-width-as-sync, the retrigger/analog-saw-downgrade tweaks, hard sync, scale
 /// and VCA all live inside each shape — the engine owns its full per-block render derivation.
 ///
-/// The app-side adapter (`synth/voice/unison_part_source.cpp`) hands the engine the *original* (unrewritten)
+/// The source slot (`synth/sources/source_slot.cpp`) hands the engine the *original* (unrewritten)
 /// phase + increment and the *raw* @ref BlockControls, and reads @ref phase() back only to persist a real hard-sync's
 /// advanced phase. (The engine is currently rebuilt per block by that adapter; making it persistent in Voice is
 /// the following stage.)

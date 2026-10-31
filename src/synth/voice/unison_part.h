@@ -18,13 +18,14 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "synth/voice/unison_part_source.h"
+#include "synth/sources/source_slot.h"
+#include <array>
 
 namespace deluge::synth {
 
-// One unison part's sources, the same in every synth mode: FM's per-part modulator state lives in FMEngine.
-struct VoiceUnisonPart {
-	VoiceUnisonPartSource sources[kNumSources];
+/// One unison part's source slots, the same in every synth mode: FM's per-part modulator state lives in FMEngine.
+struct UnisonPart {
+	std::array<SourceSlot, kNumSources> slots;
 };
 
 } // namespace deluge::synth

@@ -91,8 +91,8 @@
 #include <optional>
 #include <ranges>
 
+using deluge::synth::SourceSlot;
 using deluge::synth::VoiceConfig;
-using deluge::synth::VoiceUnisonPartSource;
 
 namespace params = deluge::modulation::params;
 
@@ -2680,8 +2680,8 @@ void Sound::setNumUnison(int32_t newNum, ModelStackWithSoundFlags* modelStack) {
 					// For samples, set the current play pos for the new unison part, if num unison went up
 					if (newNum > oldNum) {
 
-						VoiceUnisonPartSource* newPart = &voice->kernel.unison_parts[oldNum].sources[s];
-						VoiceUnisonPartSource* oldPart = &voice->kernel.unison_parts[oldNum - 1].sources[s];
+						SourceSlot* newPart = &voice->kernel.unison_parts[oldNum].slots[s];
+						SourceSlot* oldPart = &voice->kernel.unison_parts[oldNum - 1].slots[s];
 
 						newPart->active = oldPart->active;
 
@@ -2709,7 +2709,7 @@ void Sound::setNumUnison(int32_t newNum, ModelStackWithSoundFlags* modelStack) {
 					}
 					else if (newNum < oldNum) {
 						for (int32_t l = 0; l < kNumClustersLoadedAhead; l++) {
-							voice->kernel.unison_parts[newNum].sources[s].unassign(false);
+							voice->kernel.unison_parts[newNum].slots[s].unassign(false);
 						}
 					}
 				}

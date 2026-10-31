@@ -64,7 +64,7 @@ struct Rig {
 		functionsInit(); // the param scaling tables the patcher reads
 		for (int32_t u = 0; u < kMaxNumVoicesUnison; u++) {
 			for (int32_t s = 0; s < kNumSources; s++) {
-				voice.unison_parts[u].sources[s].bind(&samples[u][s], &dx, &input);
+				voice.unison_parts[u].slots[s].bind({.sample = &samples[u][s], .dx = &dx, .input = &input});
 			}
 		}
 	}

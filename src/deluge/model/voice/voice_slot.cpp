@@ -28,8 +28,8 @@
 #include "storage/wave_table/wave_table.h"
 #include "util/synth_noise.h"
 
+using deluge::synth::SourceSlot;
 using deluge::synth::VoiceConfig;
-using deluge::synth::VoiceUnisonPartSource;
 
 namespace params = deluge::modulation::params;
 using deluge::synth::NoteOnEvent;
@@ -47,7 +47,8 @@ VoiceClock engineClock() {
 VoiceSlot::VoiceSlot(Sound& sound) : sound{sound} {
 	for (int32_t u = 0; u < kMaxNumVoicesUnison; u++) {
 		for (int32_t s = 0; s < kNumSources; s++) {
-			kernel.unison_parts[u].sources[s].bind(&ports_[u][s].sample, &ports_[u][s].dx, &ports_[u][s].input);
+			kernel.unison_parts[u].slots[s].bind(
+			    {.sample = &ports_[u][s].sample, .dx = &ports_[u][s].dx, .input = &ports_[u][s].input});
 		}
 	}
 }
@@ -171,7 +172,7 @@ void VoiceSlot::set_as_unassigned(ModelStackWithSoundFlags* flags, bool deleting
 void VoiceSlot::unassign_stuff(bool deleting_song) {
 	for (int32_t s = 0; s < kNumSources; s++) {
 		for (int32_t u = 0; u < sound.snapshot().num_unison; u++) {
-			kernel.unison_parts[u].sources[s].unassign(deleting_song);
+			kernel.unison_parts[u].slots[s].unassign(deleting_song);
 		}
 	}
 }
@@ -202,7 +203,7 @@ bool VoiceSlot::sample_zone_changed(ModelStackWithSoundFlags& flags, int32_t s, 
 	bool anyStillActive = false;
 
 	for (int32_t u = 0; u < sound.snapshot().num_unison; u++) {
-		VoiceUnisonPartSource* voiceUnisonPartSource = &kernel.unison_parts[u].sources[s];
+		SourceSlot* voiceUnisonPartSource = &kernel.unison_parts[u].slots[s];
 
 		if (voiceUnisonPartSource->active) {
 			bool stillActive =

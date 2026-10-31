@@ -54,7 +54,7 @@ void FMEngine::render(Voice& voice, int32_t num_samples, int32_t overall_pitch_a
 
 		uint32_t phase_increments[kNumSources];
 		for (int32_t s = 0; s < kNumSources; s++) {
-			phase_increments[s] = voice.unison_parts[u].sources[s].phase_increment_stored_value;
+			phase_increments[s] = voice.unison_parts[u].slots[s].phase_increment_stored_value;
 		}
 
 		// If overall pitch adjusted...
@@ -168,9 +168,9 @@ noModulatorsActive:
 			for (int32_t s = 0; s < kNumSources; s++) {
 				if (source_amplitudes[s] != 0) {
 					render_sine_wave_with_feedback(
-					    fm_osc_buffer, num_samples, &voice.unison_parts[u].sources[s].osc_pos, source_amplitudes_now[s],
+					    fm_osc_buffer, num_samples, &voice.unison_parts[u].slots[s].osc_pos, source_amplitudes_now[s],
 					    phase_increments[s], voice.params.param_final_values[params::LOCAL_CARRIER_0_FEEDBACK + s],
-					    &voice.unison_parts[u].sources[s].carrier_feedback, true, source_amplitude_increments[s]);
+					    &voice.unison_parts[u].slots[s].carrier_feedback, true, source_amplitude_increments[s]);
 				}
 			}
 
@@ -182,10 +182,10 @@ noModulatorsActive:
 	for (int32_t s = 0; s < kNumSources; s++) {
 		if (source_amplitudes[s] != 0) {
 			render_fm_with_feedback_add(
-			    fm_osc_buffer, num_samples, modulator_scratch, &voice.unison_parts[u].sources[s].osc_pos,
+			    fm_osc_buffer, num_samples, modulator_scratch, &voice.unison_parts[u].slots[s].osc_pos,
 			    source_amplitudes_now[s], phase_increments[s],
 			    voice.params.param_final_values[params::LOCAL_CARRIER_0_FEEDBACK + s],
-			    &voice.unison_parts[u].sources[s].carrier_feedback, source_amplitude_increments[s]);
+			    &voice.unison_parts[u].slots[s].carrier_feedback, source_amplitude_increments[s]);
 		}
 	}
 

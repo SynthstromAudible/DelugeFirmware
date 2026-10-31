@@ -204,7 +204,7 @@ bool Voice::note_on(const deluge::synth::NoteSetup& setup, const SoundSnapshot& 
 			source_ever_active = false;
 		}
 		for (int32_t u = 0; u < snapshot.num_unison; u++) {
-			unison_parts[u].sources[s].active = source_ever_active;
+			unison_parts[u].slots[s].active = source_ever_active;
 		}
 	}
 
@@ -220,8 +220,8 @@ bool Voice::note_on(const deluge::synth::NoteSetup& setup, const SoundSnapshot& 
 
 			// Check that we already marked this unison-part-source as active. Among other things, this ensures that if
 			// the osc is set to SAMPLE, there actually is a sample loaded.
-			if (unison_parts[u].sources[s].active) {
-				bool success = unison_parts[u].sources[s].note_on(
+			if (unison_parts[u].slots[s].active) {
+				bool success = unison_parts[u].slots[s].note_on(
 				    setup.sources[s], event.samples_late, snapshot.osc_retrigger_phase[s], event.reset_envelopes,
 				    snapshot.synth_mode, note_code_after_arpeggiation, event.velocity, rating, *noise_);
 				if (!success) [[unlikely]] {
@@ -312,7 +312,7 @@ void Voice::randomize_osc_phases(const SoundSnapshot& snapshot, dsp::fixed::Cong
 	noise_ = &noise;
 	for (int32_t u = 0; u < snapshot.num_unison; u++) {
 		for (int32_t s = 0; s < kNumSources; s++) {
-			unison_parts[u].sources[s].osc_pos = next_noise();
+			unison_parts[u].slots[s].osc_pos = next_noise();
 			// TODO: we should do sample play pos, too
 		}
 		if (snapshot.synth_mode == SynthMode::FM) {
@@ -336,7 +336,7 @@ void Voice::calculate_phase_increments(const deluge::synth::NoteSetup& setup, co
 		        : std::nullopt;
 		if (!base.has_value()) { // Not sounding, or too high to render (above 22.05 kHz)
 			for (int32_t u = 0; u < snapshot.num_unison; u++) {
-				unison_parts[u].sources[s].active = false;
+				unison_parts[u].slots[s].active = false;
 			}
 			continue;
 		}
@@ -349,13 +349,13 @@ void Voice::calculate_phase_increments(const deluge::synth::NoteSetup& setup, co
 
 		// If only one unison
 		if (snapshot.num_unison == 1) {
-			unison_parts[0].sources[s].phase_increment_stored_value = phase_increment;
+			unison_parts[0].slots[s].phase_increment_stored_value = phase_increment;
 		}
 
 		// Or if multiple unison
 		else {
 			for (int32_t u = 0; u < snapshot.num_unison; u++) {
-				unison_parts[u].sources[s].phase_increment_stored_value =
+				unison_parts[u].slots[s].phase_increment_stored_value =
 				    snapshot.unison_detuners[u].detune(phase_increment);
 			}
 		}
@@ -440,15 +440,15 @@ void Voice::note_off(const deluge::synth::ReleaseInfo& release, bool allow_relea
 		for (int32_t s = 0; s < kNumSources; s++) {
 			if (release.osc_types[s] == OscType::SAMPLE) {
 				for (int32_t u = 0; u < release.num_unison; u++) {
-					if (unison_parts[u].sources[s].active
-					    && !unison_parts[u].sources[s].sample_source.release({.priority_rating = rating})) {
-						unison_parts[u].sources[s].unassign(false);
+					if (unison_parts[u].slots[s].active
+					    && !unison_parts[u].slots[s].sample().release({.priority_rating = rating})) {
+						unison_parts[u].slots[s].unassign(false);
 					}
 				}
 			}
 			else if (release.osc_types[s] == OscType::DX7) {
 				for (int u = 0; u < release.num_unison; u++) {
-					unison_parts[u].sources[s].dx7_source.release({});
+					unison_parts[u].slots[s].dx7().release({});
 				}
 			}
 		}
@@ -757,7 +757,7 @@ uint32_t Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge::m
 	// it (virtual-analog, wavetable or supersaw), else osc_pos.
 	if (doing_osc_sync) {
 		for (int32_t u = 0; u < cfg.num_unison; u++) {
-			osc_sync_pos[u] = unison_parts[u].sources[0].current_osc_phase();
+			osc_sync_pos[u] = unison_parts[u].slots[0].current_osc_phase();
 		}
 	}
 
@@ -1058,12 +1058,12 @@ void Voice::auto_release_if_due(const VoiceConfig& cfg, const VoiceBlock& block,
 		}
 
 		// Calculated for the last unison part, which has the highest pitch, so ends soonest
-		VoiceUnisonPartSource* voice_unison_part_source = &unison_parts[cfg.num_unison - 1].sources[s];
+		SourceSlot* voice_unison_part_source = &unison_parts[cfg.num_unison - 1].slots[s];
 		if (!voice_unison_part_source->active) {
 			continue;
 		}
 
-		const deluge::synth::SamplePlaybackPort& port = *voice_unison_part_source->sample_source.port();
+		const deluge::synth::SamplePlaybackPort& port = *voice_unison_part_source->sample().port();
 		int32_t bytes_left = port.bytes_left_to_end();
 		int32_t bytes_per_sample = port.bytes_per_frame();
 
@@ -1123,7 +1123,7 @@ bool Voice::are_all_unison_parts_inactive(const VoiceConfig& cfg) const {
 				continue;
 			}
 			for (int32_t u = 0; u < cfg.num_unison; u++) {
-				if (unison_parts[u].sources[s].active) {
+				if (unison_parts[u].slots[s].active) {
 					return false;
 				}
 			}
@@ -1173,7 +1173,7 @@ Voice::render_source_component(int32_t u, int32_t s, const ControlBlock& control
                                int32_t wave_index_increment, bool stereo_unison, int32_t amplitude_l,
                                int32_t amplitude_r, const VoiceConfig& cfg, const deluge::synth::VoiceBlock& block) {
 	using deluge::synth::SourceRenderResult;
-	VoiceUnisonPartSource* voice_unison_part_source = &unison_parts[u].sources[s];
+	SourceSlot* voice_unison_part_source = &unison_parts[u].slots[s];
 
 	// SAMPLE caching policy: a sample is not cached when a source that can change during the note modulates its pitch.
 	// The routing groups each destination's cables, so only the two pitch destinations' cables are scanned. Computed
@@ -1265,27 +1265,11 @@ Voice::render_source_component(int32_t u, int32_t s, const ControlBlock& control
 	        },
 	};
 
-	// sample → sample_source, DX7 → dx7_source, INPUT_* → input_source, else the persistent oscillator engine the
-	// note built: va_source, supersaw_source or wavetable_source.
-	synth::Source* component = nullptr;
-	if (cfg.osc_type[s] == OscType::SAMPLE) {
-		component = &unison_parts[u].sources[s].sample_source;
-	}
-	else if (cfg.osc_type[s] == OscType::DX7) {
-		component = &unison_parts[u].sources[s].dx7_source;
-	}
-	else if (cfg.osc_type[s] == OscType::INPUT_L || cfg.osc_type[s] == OscType::INPUT_R
-	         || cfg.osc_type[s] == OscType::INPUT_STEREO) {
-		component = &unison_parts[u].sources[s].input_source;
-	}
-	else if (unison_parts[u].sources[s].va_source.has_value()) {
-		component = &*unison_parts[u].sources[s].va_source;
-	}
-	else if (unison_parts[u].sources[s].supersaw_source.has_value()) {
-		component = &*unison_parts[u].sources[s].supersaw_source;
-	}
-	else {
-		component = &*unison_parts[u].sources[s].wavetable_source;
+	// A port-backed source by the sound's current type, else the oscillator the note built. A slot holding none (a
+	// mode change under a live voice) renders nothing this block.
+	synth::Source* component = unison_parts[u].slots[s].source_for(cfg.osc_type[s]);
+	if (component == nullptr) [[unlikely]] {
+		return synth::SourceRenderResult::SKIP;
 	}
 	return component->render(source_block);
 }
@@ -1301,7 +1285,7 @@ bool Voice::render_basic_source(const ControlBlock& control_block, const VoiceBl
 
 	for (int32_t u = 0; u < cfg.num_unison; u++) {
 
-		VoiceUnisonPartSource* voice_unison_part_source = &unison_parts[u].sources[s];
+		SourceSlot* voice_unison_part_source = &unison_parts[u].slots[s];
 
 		// Samples may become inactive
 		if (!voice_unison_part_source->active) {
