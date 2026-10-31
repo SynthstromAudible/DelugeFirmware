@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/views/clip_navigation_timeline_view.h"
 #include "gui/views/hold_pulse.h"
+#include "gui/views/session/track_pad_gesture.h"
 #include "hid/button.h"
 #include "model/song/song.h"
 #include "storage/flash_storage.h"
@@ -226,6 +227,8 @@ private:
 	int32_t sessionClipRowOffset() const { return gridTrackRowEnabled() ? 1 : 0; }
 
 	int32_t gridHeldTrackPad = -1;
+	TrackPadGesture gridTrackGesture;
+	bool gridTrackAuditioning = false;
 	HoldPulse heldPulse;
 
 	bool gridRenderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],

@@ -224,7 +224,7 @@ ActionResult SessionView::buttonAction(deluge::hid::Button b, bool on, bool inCa
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 		if (b == BACK) {
-			// Cancel the held gesture and temporary track selection, restoring
+			// Cancel the held gesture and temporary track selection, stopping audition and restoring
 			// song controls. Saved track locks remain unchanged, and the later pad release cannot mute.
 			gridEndTrackSelection();
 			// This press dismisses track selection; do not also run Session's normal Back action.
@@ -233,7 +233,7 @@ ActionResult SessionView::buttonAction(deluge::hid::Button b, bool on, bool inCa
 		if (b == SELECT_ENC) {
 			deluge::gui::track_link::openMenu();
 			if (deluge::gui::track_link::isMenuOpen()) {
-				// The menu retains the track's edit target. End the pad gesture now,
+				// The menu retains the track's edit target. End audition and the pad gesture now,
 				// so its later physical release has no effect on selection.
 				gridEndTrackPadGesture();
 				// Replace held-clip pulsing with the menu's track-pad indicator.
@@ -5047,6 +5047,19 @@ static const uint32_t pulseUIModes[] = {UI_MODE_CLIP_PRESSED_IN_SONG_VIEW, UI_MO
 
 bool SessionView::gridUpdateTrackPadGesture() {
 	if (gridHeldTrackPad >= 0 && deluge::gui::track_link::modeIsOn() && getRootUI() == this) {
+		if (!gridTrackAuditioning
+		    && gridTrackGesture.shouldAudition(AudioEngine::audioSampleTimer, FlashStorage::holdTime)) {
+			if (auto* output = deluge::gui::track_link::selectedOutput()) {
+				arrangerView.beginAudition(output);
+				gridTrackAuditioning = (playbackHandler.playbackState == 0u);
+			}
+		}
+		if (gridTrackAuditioning && (playbackHandler.playbackState != 0u)) {
+			if (auto* output = deluge::gui::track_link::selectedOutput()) {
+				arrangerView.endAudition(output, true);
+			}
+			gridTrackAuditioning = false;
+		}
 		uiTimerManager.setTimer(TimerName::SELECTED_CLIP_PULSE, kPulseRate);
 		return true;
 	}
@@ -5166,6 +5179,12 @@ int32_t SessionView::sessionClipRows() const {
 
 void SessionView::gridEndTrackPadGesture() {
 	deluge::gui::track_edit_pulse::resetHeldPulse();
+	if (gridTrackAuditioning) {
+		if (auto* output = deluge::gui::track_link::selectedOutput()) {
+			arrangerView.endAudition(output, true);
+		}
+	}
+	gridTrackAuditioning = false;
 	gridHeldTrackPad = -1;
 }
 
@@ -5205,6 +5224,7 @@ ActionResult SessionView::gridTrackPadAction(int32_t x, int32_t on) {
 	if (silent) {
 		deluge::gui::track_link::toggleLock(output);
 	}
+	gridTrackGesture.press(AudioEngine::audioSampleTimer, silent);
 	view.displayOutputName(output);
 	uiTimerManager.setTimer(TimerName::SELECTED_CLIP_PULSE, kPulseRate);
 	requestRendering(this);
