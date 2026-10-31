@@ -129,6 +129,15 @@ public:
 
 	bool speed_up_release(VoiceClock clock, uint32_t min_fast_release_increment = kSoftCullIncrement);
 
+	/// The voice's local params' final values, indexed by param, as its last matrix pass left them. Always inlined, so
+	/// a call whose result goes unused leaves nothing behind in app code (built with -fno-inline-functions).
+	[[nodiscard, gnu::always_inline]] std::span<const int32_t> param_final_values() const {
+		return params_.param_final_values;
+	}
+	/// Whether a source that can change during the note modulates source @p s's pitch, so its sample is not cached.
+	[[nodiscard]] bool pitch_mod_disallows_cache(const matrix::MatrixBlock& control_block, const VoiceConfig& cfg,
+	                                             int32_t s) const;
+
 private:
 	using Evaluator = matrix::Evaluator<matrix::MatrixFixed>;
 	/// The voice's patching pass over its param plane: the local params from every source.
@@ -238,9 +247,6 @@ private:
 		return {params_.param_final_values[deluge::modulation::params::LOCAL_MODULATOR_0_VOLUME],
 		        params_.param_final_values[deluge::modulation::params::LOCAL_MODULATOR_1_VOLUME]};
 	}
-	/// Whether a source that can change during the note modulates source @p s's pitch, so its sample is not cached.
-	[[nodiscard]] bool pitch_mod_disallows_cache(const matrix::MatrixBlock& control_block, const VoiceConfig& cfg,
-	                                             int32_t s) const;
 	void setup_porta(int32_t last_note_code);
 	/// Starts the release of a voice of play-once samples so that it ends with them.
 	void auto_release_if_due(const VoiceConfig& cfg, const VoiceBlock& block, int32_t overall_pitch_adjust);

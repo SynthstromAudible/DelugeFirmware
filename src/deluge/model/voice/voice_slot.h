@@ -104,4 +104,7 @@ private:
 
 	/// What differs between the sound's voices for this voice's render.
 	[[nodiscard]] deluge::synth::VoiceBlock block() const;
+	/// The voice's sources as this block left them, to the parameter dump (a host render's only).
+	void dump_sources(const deluge::synth::matrix::MatrixBlock& control_block,
+	                  const deluge::synth::VoiceConfig& cfg) const;
 };

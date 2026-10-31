@@ -182,6 +182,9 @@ add_compile_definitions(DELUGE_DETERMINISTIC_ALLOC)
 # which has no meaning without DMA and which the host allocator (8-byte aligned) can't honour.
 add_compile_definitions(DELUGE_HOST)
 
+# The audible window's parameter dump (src/deluge/processing/sound/param_dump.h): host renders only.
+add_compile_definitions(DELUGE_PARAM_DUMP)
+
 # Enable D_PRINTLN (gated on ENABLE_TEXT_OUTPUT; the firmware turns it on for debug builds). The host routes it to
 # stderr (deluge_log), so the app's debug log — storage activity, "FULL internal" memory pressure, MEM_GUARD /
 # reason_check reports — is visible when reproducing issues on the sim.
