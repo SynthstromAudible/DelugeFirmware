@@ -821,12 +821,6 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 	//  	return;
 	//  }
 
-	// Track edit mode with no usable track picked yet: say so rather than leaving the knob dead.
-	if (deluge::gui::track_link::modeIsOn() && !activeModControllableModelStack.modControllable) {
-		display->displayPopup("PICK A TRACK");
-		return;
-	}
-
 	if (activeModControllableModelStack.modControllable) {
 
 		bool noteTailsAllowedBefore;
@@ -1578,9 +1572,9 @@ void View::setModLedStates() {
 
 	RootUI* rootUI = getRootUI();
 
-	// Track edit mode only lives in song view.
+	// Clear the transient Session selection on view changes.
 	if (deluge::gui::track_link::modeIsOn() && rootUI != &sessionView) {
-		deluge::gui::track_link::exitMode();
+		sessionView.gridEndTrackSelection();
 	}
 	UIType uiType = UIType::NONE;
 	UIType uiContextType = UIType::NONE;
@@ -1606,8 +1600,8 @@ void View::setModLedStates() {
 		// enabled
 		affectEntire = (uiContextType == UIType::INSTRUMENT_CLIP) ? ((InstrumentClip*)clip)->affectEntire : true;
 	}
-	if (deluge::gui::track_link::modeIsOn()) {
-		// Track edit mode: the Affect-entire LED flashes so it is plain that the mode is on.
+	if (deluge::gui::track_link::editingSelectedTrack()) {
+		// Track edit mode: the Affect-entire LED flashes to indicate that the mode is on.
 		indicator_leds::blinkLed(IndicatorLED::AFFECT_ENTIRE);
 	}
 	else {

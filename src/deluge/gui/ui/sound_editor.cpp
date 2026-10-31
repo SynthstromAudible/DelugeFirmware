@@ -380,7 +380,7 @@ namespace {
 /// from song view on one clip of the picked track (see gui/views/session/track_link.h). Song view is still the root UI
 /// then, so rootUIIsClipMinderScreen() alone would send that menu to the song's parameters.
 bool editingAClip() {
-	return rootUIIsClipMinderScreen() || deluge::gui::track_link::menuClip() != nullptr;
+	return rootUIIsClipMinderScreen() || deluge::gui::track_link::isMenuOpen();
 }
 } // namespace
 
@@ -2316,20 +2316,21 @@ AudioFileHolder* SoundEditor::getCurrentAudioFileHolder() {
 
 ModelStackWithThreeMainThings* SoundEditor::getCurrentModelStack(void* memory) {
 	InstrumentClip* clip = getCurrentInstrumentClip();
+	// nullptr for audio outputs (audio clip view, or the Track Edit menu on an audio track).
 	Instrument* instrument = getCurrentInstrument();
 
 	if (!editingAClip()) {
 		return currentSong->setupModelStackWithSongAsTimelineCounter(memory);
 	}
-	else if (instrument->type == OutputType::KIT && clip->affectEntire) {
+	else if (instrument != nullptr && instrument->type == OutputType::KIT && clip->affectEntire) {
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(memory);
 
 		return modelStack->addOtherTwoThingsButNoNoteRow(currentModControllable, currentParamManager);
 	}
 	else {
 		NoteRow* noteRow = nullptr;
-		int32_t noteRowIndex;
-		if (instrument->type == OutputType::KIT) {
+		int32_t noteRowIndex = 0;
+		if (instrument != nullptr && instrument->type == OutputType::KIT) {
 			Drum* selectedDrum = ((Kit*)instrument)->selectedDrum;
 			if (selectedDrum) {
 				noteRow = clip->getNoteRowForDrum(selectedDrum, &noteRowIndex);
