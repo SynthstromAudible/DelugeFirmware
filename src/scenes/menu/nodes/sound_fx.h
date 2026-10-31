@@ -63,11 +63,10 @@
 /// @note **Five dynamic names, two dynamic option lists.** `mod_fx::Depth_Patched`, `Feedback` and
 ///       `Offset` take their `getName()` from `modfx::getParamName(type, ...)`
 ///       (`mod_fx/depth_patched.h:34-36`), and `reverb::RoomSize` / `Width` read "TIME" /
-///       "DIFFUSION" on the two newer models (`room_size.h:40-49`). A `Node::name` is one static id,
-///       so all five carry the base string and `tables_2_spec` exempts them by name, exactly as it
-///       does batch 1's `FormattedTitle` items; their column labels, which read the dynamic name, are
-///       `column_hooks.h`'s `value_text` label hooks. `mod_fx::Type`'s and `StutterDirection`'s option
-///       *lists* are genuinely dynamic and use `dynamic_enumeration`.
+///       "DIFFUSION" on the two newer models (`room_size.h:40-49`): `column_hooks.h`'s hooks answer the
+///       column label (`value_text`) and the name and title (`name_text`); `Node::name` keeps the base string,
+///       which `tables_2_spec` exempts by node. `mod_fx::Type`'s and `StutterDirection`'s option *lists* are
+///       genuinely dynamic and use `dynamic_enumeration`.
 ///
 /// @note `stutterMenu` (`menus.cpp:788`) and `reverbSidechainMenu` (`:841`) are `HorizontalMenu::Layout::FIXED`:
 ///       `with_fixed_columns`.
@@ -177,25 +176,27 @@ inline constexpr Node reverb_amount =
                          Hint::Bar, nullptr, sid(deluge::l10n::String::STRING_FOR_REVERB_AMOUNT))),
                      sid(deluge::l10n::String::STRING_FOR_AMOUNT_SHORT));
 inline constexpr Node reverb_room_size =
-    with_value_text(setting_item(sid(deluge::l10n::String::STRING_FOR_ROOM_SIZE), Kind::Int,
-                                 {.kind = deluge::scenes::bind::Target::Kind::MODEL,
-                                  .path = "reverb/roomSize",
-                                  .group = deluge::project::SettingGroupId::SONG},
-                                 Hint::Knob),
-                    reverb_room_size_text);
+    with_name_text(with_value_text(setting_item(sid(deluge::l10n::String::STRING_FOR_ROOM_SIZE), Kind::Int,
+                                                {.kind = deluge::scenes::bind::Target::Kind::MODEL,
+                                                 .path = "reverb/roomSize",
+                                                 .group = deluge::project::SettingGroupId::SONG},
+                                                Hint::Knob),
+                                   reverb_room_size_text),
+                   reverb_room_size_text);
 inline constexpr Node reverb_damping = setting_item(sid(deluge::l10n::String::STRING_FOR_DAMPING), Kind::Int,
                                                     {.kind = deluge::scenes::bind::Target::Kind::MODEL,
                                                      .path = "reverb/dampening",
                                                      .group = deluge::project::SettingGroupId::SONG},
                                                     Hint::Knob);
 inline constexpr Node reverb_width =
-    with_value_text(with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_WIDTH), Kind::Int,
-                                            {.kind = deluge::scenes::bind::Target::Kind::MODEL,
-                                             .path = "reverb/width",
-                                             .group = deluge::project::SettingGroupId::SONG},
-                                            Hint::Knob),
-                               sid(deluge::l10n::String::STRING_FOR_REVERB_WIDTH)),
-                    reverb_width_text);
+    with_name_text(with_value_text(with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_WIDTH), Kind::Int,
+                                                           {.kind = deluge::scenes::bind::Target::Kind::MODEL,
+                                                            .path = "reverb/width",
+                                                            .group = deluge::project::SettingGroupId::SONG},
+                                                           Hint::Knob),
+                                              sid(deluge::l10n::String::STRING_FOR_REVERB_WIDTH)),
+                                   reverb_width_text),
+                   reverb_width_text);
 inline constexpr Node reverb_model =
     with_column_name(setting_item(sid(deluge::l10n::String::STRING_FOR_MODEL), Kind::Enum,
                                   {.kind = deluge::scenes::bind::Target::Kind::MODEL,
@@ -289,30 +290,37 @@ inline constexpr Node mod_fx_type = without_notification(without_column_label(
                                        {.kind = deluge::scenes::bind::Target::Kind::EFFECT, .path = "modFXType"}),
                           sid(deluge::l10n::String::STRING_FOR_MODFX_TYPE)),
                4))); // `mod_fx/type.h:69-72`
-inline constexpr Node mod_fx_depth = with_value_text(
-    with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_DEPTH),
-                           {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::GLOBAL_MOD_FX_DEPTH},
-                           Hint::Bar, param_shows::kModFxDepth, sid(deluge::l10n::String::STRING_FOR_MODFX_DEPTH))),
+inline constexpr Node mod_fx_depth = with_name_text(
+    with_value_text(with_patch_chain(param(
+                        sid(deluge::l10n::String::STRING_FOR_DEPTH),
+                        {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::GLOBAL_MOD_FX_DEPTH},
+                        Hint::Bar, param_shows::kModFxDepth, sid(deluge::l10n::String::STRING_FOR_MODFX_DEPTH))),
+                    mod_fx_depth_text),
     mod_fx_depth_text);
 inline constexpr Node mod_fx_rate =
     with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_RATE),
                            {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::GLOBAL_MOD_FX_RATE},
                            Hint::Knob, param_shows::kModFxIsOn, sid(deluge::l10n::String::STRING_FOR_MODFX_RATE)));
-inline constexpr Node mod_fx_feedback = with_value_text(
-    param(sid(deluge::l10n::String::STRING_FOR_FEEDBACK),
-          {deluge::modulation::params::Kind::UNPATCHED_SOUND, deluge::modulation::params::UNPATCHED_MOD_FX_FEEDBACK},
-          Hint::Knob, param_shows::kModFxFeedback, sid(deluge::l10n::String::STRING_FOR_MODFX_FEEDBACK)),
-    mod_fx_feedback_text);
-inline constexpr Node mod_fx_offset = with_value_text(
-    param(sid(deluge::l10n::String::STRING_FOR_OFFSET),
-          {deluge::modulation::params::Kind::UNPATCHED_SOUND, deluge::modulation::params::UNPATCHED_MOD_FX_OFFSET},
-          Hint::Knob, param_shows::kModFxOffset, sid(deluge::l10n::String::STRING_FOR_MODFX_OFFSET)),
+inline constexpr Node mod_fx_feedback =
+    with_name_text(with_value_text(param(sid(deluge::l10n::String::STRING_FOR_FEEDBACK),
+                                         {deluge::modulation::params::Kind::UNPATCHED_SOUND,
+                                          deluge::modulation::params::UNPATCHED_MOD_FX_FEEDBACK},
+                                         Hint::Knob, param_shows::kModFxFeedback,
+                                         sid(deluge::l10n::String::STRING_FOR_MODFX_FEEDBACK)),
+                                   mod_fx_feedback_text),
+                   mod_fx_feedback_text);
+inline constexpr Node mod_fx_offset = with_name_text(
+    with_value_text(
+        param(sid(deluge::l10n::String::STRING_FOR_OFFSET),
+              {deluge::modulation::params::Kind::UNPATCHED_SOUND, deluge::modulation::params::UNPATCHED_MOD_FX_OFFSET},
+              Hint::Knob, param_shows::kModFxOffset, sid(deluge::l10n::String::STRING_FOR_MODFX_OFFSET)),
+        mod_fx_offset_text),
     mod_fx_offset_text);
 
 inline constexpr const Node* kModFxChildren[] = {&mod_fx_type, &mod_fx_depth, &mod_fx_rate, &mod_fx_feedback,
                                                  &mod_fx_offset};
-inline constexpr Node mod_fx =
-    submenu(sid(deluge::l10n::String::STRING_FOR_MOD_FX), kModFxChildren, Layout::Horizontal);
+inline constexpr Node mod_fx = with_page_title(
+    submenu(sid(deluge::l10n::String::STRING_FOR_MOD_FX), kModFxChildren, Layout::Horizontal), mod_fx_page_title);
 
 // --- Distortion --------------------------------------------------------------------------------
 

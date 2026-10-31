@@ -169,7 +169,7 @@ using AdjustFn = void (*)(const MenuContext&, int32_t offset);
 /// (`getNotificationValue`) -- so the hook is told which one it is filling. `Label` is the column's
 /// label, for the items whose `getColumnLabel` depends on the value or the context (the reverb's
 /// width, a sample's repeat mode, the mod FX knobs).
-enum class ValueTextUse : uint8_t { Column, Notification, Label };
+enum class ValueTextUse : uint8_t { Column, Notification, Label, Name, Title };
 
 /// @brief What a `ValueTextFn` wrote into its caller's buffer.
 struct ValueText {
@@ -209,6 +209,10 @@ using ValueTextFn = ValueText (*)(const MenuContext& ctx, int32_t value, ValueTe
 /// @param value The value to draw, in the node's own units.
 /// @return The icon or word to draw in place of the node's ordinary column, or nothing to draw that column.
 using ColumnArtFn = std::optional<deluge::ui::oled::ArtColumn> (*)(const MenuContext& ctx, int32_t value);
+
+/// @brief A horizontal page's title on its @p page'th page (0-based, the page's own count) -- legacy's `getTitle`
+///        overrides that read `paging.visiblePageNumber`. A fallback answer keeps the static title.
+using PageTitleFn = ValueText (*)(const MenuContext& ctx, uint8_t page, std::span<char> out);
 
 /// @brief Legacy's drawing for one value that is neither a meter, a word nor an icon -- `Binding::column_draw`.
 /// @param ctx   What is being edited.
@@ -363,6 +367,10 @@ struct Binding {
 
 	/// @brief Legacy's icon or word for this node's column (`ColumnArtFn`'s own doc). Null for every ordinary node.
 	ColumnArtFn column_art = nullptr;
+
+	/// @brief The node's name and title when legacy's `getName()`/`getTitle()` compute them (asked with
+	///        `ValueTextUse::Name`/`Title`; a fallback answer keeps the static string). Null for every other node.
+	ValueTextFn name_text = nullptr;
 
 	/// @brief Legacy's drawing for this node's column (`ColumnDrawFn`'s own doc). Null for every ordinary node.
 	ColumnDrawFn column_draw = nullptr;
@@ -833,6 +841,8 @@ struct Node {
 	/// context's `source_index` plus one, the output a CV or gate selector chose. See `node_text`
 	/// (`menu_scene.h`) for the substitution.
 	uint8_t title_arg = 0;
+	/// @brief The page's title by visible page (`PageTitleFn`'s own doc). Null: the static title on every page.
+	PageTitleFn page_title = nullptr;
 };
 
 /// @brief `Node::title_arg`'s value for "the context's `source_index` plus one".
@@ -913,6 +923,18 @@ constexpr Node without_notification(Node n) {
 /// @brief `n` with `allows_learn_mode` set.
 constexpr Node with_learn_mode(Node n) {
 	n.allows_learn_mode = true;
+	return n;
+}
+
+/// @brief `n` with its title on each page computed by @p fn (`Node::page_title`).
+constexpr Node with_page_title(Node n, PageTitleFn fn) {
+	n.page_title = fn;
+	return n;
+}
+
+/// @brief `n` with its name and title computed by @p fn (`Binding::name_text`).
+constexpr Node with_name_text(Node n, ValueTextFn fn) {
+	n.bind.name_text = fn;
 	return n;
 }
 

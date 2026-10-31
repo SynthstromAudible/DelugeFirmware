@@ -101,4 +101,14 @@ std::optional<ui::oled::DrawColumn> hpf_morph_draw(const MenuContext& ctx, int32
 bool hpf_morph_reversed(const MenuContext& ctx);
 /// @}
 
+/// @name Page titles (`Node::page_title`)
+/// @{
+/// `submenu::ActualSource::getTitle` (`submenu/actual_source.h:29-40`): OSC* SAMPLE past the first page of a sample
+/// oscillator.
+ValueText source0_page_title(const MenuContext& ctx, uint8_t page, std::span<char> out);
+ValueText source1_page_title(const MenuContext& ctx, uint8_t page, std::span<char> out);
+/// `submenu::ModFxHorizontalMenu::getTitle` (`submenu/mod_fx.h:29-43`): the effect's name past the first page.
+ValueText mod_fx_page_title(const MenuContext& ctx, uint8_t page, std::span<char> out);
+/// @}
+
 } // namespace deluge::scenes::menu::nodes

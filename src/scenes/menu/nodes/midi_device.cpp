@@ -367,4 +367,14 @@ deluge::ui::shell::Result MpeZoneChannelsItem::handle(const deluge::ui::shell::U
 	return {};
 }
 
+ValueText midi_device_title(const MenuContext& ctx, int32_t, ValueTextUse use, std::span<char> out) {
+	if (use != ValueTextUse::Title || ctx.midi_cable == nullptr) {
+		return kValueTextFallback;
+	}
+	const std::string_view name{ctx.midi_cable->getDisplayName()};
+	const size_t n = std::min(name.size(), out.size());
+	std::copy_n(name.begin(), n, out.begin());
+	return ValueText{.length = n};
+}
+
 } // namespace deluge::scenes::menu::nodes

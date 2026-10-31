@@ -80,9 +80,8 @@
 /// @note **Per-source relevance.** Legacy bakes `source_id_` into each item; `RelevantFn` has no
 ///       room for one, so `relevance.h` declares `osc0_*` / `osc1_*` pairs. See its own note.
 ///
-/// @note **`submenu::ActualSource::getTitle()` is not carried**: it swaps to
-///       `STRING_FOR_OSC_SAMPLE_MENU_TITLE` once the source is a sample and the page number is past
-///       the first (`submenu/actual_source.h:29-40`).
+/// @note `submenu::ActualSource::getTitle()` swaps to `STRING_FOR_OSC_SAMPLE_MENU_TITLE` once the source is a sample
+///       and the page is past the first (`submenu/actual_source.h:29-40`): `source<i>_page_title`.
 ///       `sample::Repeat` is a `FormattedTitle` given no argument (`sample/repeat.h:35`), so
 ///       `sample<i>_repeat` carries no `title_arg`; every other `FormattedTitle` here carries its
 ///       source number.
@@ -263,8 +262,8 @@ inline constexpr IntRange kTransposeRange{-9600, 9600, 1};
 	    &osc##i##_pulse_width, &source##i##_feedback,     &osc##i##_phase,          &sample##i##_reverse,              \
 	    &sample##i##_repeat,   &sample##i##_time_stretch, &sample##i##_pitch_speed, &sample##i##_interpolation,        \
 	    &sample##i##_start,    &sample##i##_end};                                                                      \
-	inline constexpr Node source##i =                                                                                  \
-	    submenu(sid(deluge::l10n::String::name_id), kSource##i##Children, Layout::Horizontal)
+	inline constexpr Node source##i = with_page_title(                                                                 \
+	    submenu(sid(deluge::l10n::String::name_id), kSource##i##Children, Layout::Horizontal), source##i##_page_title)
 
 /// @brief One FM modulator page's three shared leaves. Bodies in the `.cpp`.
 #define DELUGE_OSC_MODULATOR(i, modulator_path)                                                                        \

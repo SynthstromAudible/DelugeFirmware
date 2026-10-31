@@ -98,21 +98,6 @@
 ///
 /// ## What did not survive
 ///
-///   * **`midiDeviceMenu`'s runtime title.** `midi::Device::getTitle()` is
-///     `soundEditor.currentMIDICable->getDisplayName()` (`gui/menu_item/midi/device.h:8`), a
-///     device-supplied string with no l10n id; `Node::title` is one static `uint16_t` and
-///     `MenuScene::render_vertical` draws it directly, so the page carries "MIDI DEVICES" instead
-///     of the device's own name -- **the same string its parent row shows**, so on the device
-///     nothing on this screen says which cable is being edited.
-///
-///     This is not an isolate. It is the same root cause as `cv::Selection`'s / `gate::Selection`'s
-///     unnumbered "CV OUTPUT N" titles (`nodes/dynamic.h`'s "What is still owed"), and the fix is
-///     one framework hook rather than three local workarounds: a `CustomItem` can already draw any
-///     title it likes (`MpeDirectionItem` does exactly that), but a `Kind::Submenu` has no
-///     `CustomItem` at all. **Filed as an E3 carry-list item** in `src/scenes/README.md` -- "A
-///     `Node` cannot compute its own title" -- with the shape it wants; do not solve it here.
-///     (Legacy's `name` is `EMPTY_STRING`, which `validate_tree` reports as `MissingTitle`, so the
-///     port names it too -- the resolution `gate_off_time` already uses, `settings.h`.)
 ///   * **`zoneSelectorMenu`'s empty name.** `ZoneSelector` is default-constructed
 ///     (`zone_selector.cpp:23`), so both its name and title are `EMPTY_STRING` and legacy draws a
 ///     blank title bar over it. `MissingTitle` again, so the port names it `STRING_FOR_MPE` --
@@ -297,7 +282,10 @@ inline constexpr const Node* kMidiDeviceChildren[] = {
 };
 
 /// `midi::Device midiDeviceMenu` (`gui/ui/menus.cpp:1448-1458`). See the file note on its title.
-inline constexpr Node midi_device = submenu(sid(deluge::l10n::String::STRING_FOR_MIDI_DEVICES), kMidiDeviceChildren);
+/// `midi::Device::getTitle` (`midi/device.h:8`): the cable's own display name.
+ValueText midi_device_title(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
+inline constexpr Node midi_device =
+    with_name_text(submenu(sid(deluge::l10n::String::STRING_FOR_MIDI_DEVICES), kMidiDeviceChildren), midi_device_title);
 
 /// `Devices::selectButtonPress` (`gui/menu_item/midi/devices.cpp:154-156`) -- unconditional.
 /// `settings.h`'s `midi_devices` carries these.

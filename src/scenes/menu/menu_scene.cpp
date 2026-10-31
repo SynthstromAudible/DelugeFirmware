@@ -286,6 +286,16 @@ const Node* horizontal_page_listing(const Node& node, const Node& item) {
 
 } // namespace
 
+std::string_view display_text(const Node& node, ValueTextUse use, const MenuContext& ctx, NodeText& scratch) {
+	if (node.bind.name_text != nullptr) {
+		const ValueText vt = node.bind.name_text(ctx, 0, use, std::span<char>{scratch.chars, sizeof(scratch.chars)});
+		if (!vt.fallback) {
+			return {scratch.chars, std::min(vt.length, sizeof(scratch.chars))};
+		}
+	}
+	return node_text(use == ValueTextUse::Title ? node.title : node.name, node, ctx, scratch);
+}
+
 std::string_view column_label(const Node& node, const MenuContext& ctx, NodeText& scratch) {
 	if (node.column_name != 0) {
 		return node_text(node.column_name, node, ctx, scratch);
@@ -295,7 +305,7 @@ std::string_view column_label(const Node& node, const MenuContext& ctx, NodeText
 			return *shortened;
 		}
 	}
-	return node_text(node.name, node, ctx, scratch);
+	return display_text(node, ValueTextUse::Name, ctx, scratch);
 }
 
 std::string_view node_text(uint16_t string_id, const Node& node, const MenuContext& ctx, NodeText& scratch) {
@@ -882,7 +892,27 @@ std::string_view MenuScene::page_title(NodeText& scratch) const {
 	const int32_t focus = std::max<int32_t>(0, st_.columns[st_.depth].focused);
 	const Node* member = bindings::group_member_of(*node, ctx_, static_cast<size_t>(focus));
 	const Node& titled = member != nullptr ? *member : *node;
-	return node_text(titled.title, titled, ctx_, scratch);
+	if (titled.page_title != nullptr) {
+		// The member's own page: legacy's `paging.visiblePageNumber` counts the member menu's pages alone.
+		const Node* kids[kMaxMenuColumns];
+		deluge::ui::oled::Column cols[kMaxMenuColumns]{};
+		NodeText label_scratch[kMaxMenuColumns];
+		const size_t n = build_column_list(*node, std::span<const Node*>{kids, kMaxMenuColumns},
+		                                   std::span<deluge::ui::oled::Column>{cols, kMaxMenuColumns},
+		                                   std::span<NodeText>{label_scratch, kMaxMenuColumns});
+		const std::span<const deluge::ui::oled::Column> span{cols, n};
+		int32_t first = std::min<int32_t>(focus, static_cast<int32_t>(n) - 1);
+		while (first > 0 && bindings::group_member_of(*node, ctx_, static_cast<size_t>(first - 1)) == member) {
+			first--;
+		}
+		const auto page = static_cast<uint8_t>(deluge::ui::oled::paging_of(span, focus).page
+		                                       - deluge::ui::oled::paging_of(span, first).page);
+		const ValueText vt = titled.page_title(ctx_, page, std::span<char>{scratch.chars, sizeof(scratch.chars)});
+		if (!vt.fallback) {
+			return {scratch.chars, std::min(vt.length, sizeof(scratch.chars))};
+		}
+	}
+	return display_text(titled, ValueTextUse::Title, ctx_, scratch);
 }
 
 int32_t input_tick_magnitude(const MenuContext& ctx) {
@@ -1046,7 +1076,7 @@ void MenuScene::notify_column(const Node& column) {
 	const std::string_view text =
 	    column_notification(column, ctx_, bindings::read(column, ctx_), std::span<char>{value_buf, sizeof(value_buf)});
 	NodeText name_scratch;
-	const std::string_view name = node_text(column.name, column, ctx_, name_scratch);
+	const std::string_view name = display_text(column, ValueTextUse::Name, ctx_, name_scratch);
 	deluge::notify::notice_notification(name, text);
 }
 
@@ -1198,7 +1228,7 @@ void MenuScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) {
 		// arm; it stays only so a `Kind` a later plan adds still draws its title rather than
 		// nothing at all until that plan writes its own interpreter.
 		NodeText scratch;
-		deluge::ui::oled::title(f, node_text(node->title, *node, ctx_, scratch));
+		deluge::ui::oled::title(f, display_text(*node, ValueTextUse::Title, ctx_, scratch));
 		break;
 	}
 	}
@@ -1206,7 +1236,7 @@ void MenuScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) {
 
 void MenuScene::render_vertical(deluge::ui::oled::OledFrame& f, const Node& node) {
 	NodeText title_scratch;
-	deluge::ui::oled::title(f, node_text(node.title, node, ctx_, title_scratch));
+	deluge::ui::oled::title(f, display_text(node, ValueTextUse::Title, ctx_, title_scratch));
 
 	const Node* kids[kMaxMenuChildren];
 	const size_t n = visible_children(node, kids);
@@ -1214,7 +1244,7 @@ void MenuScene::render_vertical(deluge::ui::oled::OledFrame& f, const Node& node
 	deluge::ui::oled::ListRow rows[kMaxMenuChildren];
 	NodeText label_scratch[kMaxMenuChildren];
 	for (size_t i = 0; i < n; i++) {
-		rows[i].label = node_text(kids[i]->name, *kids[i], ctx_, label_scratch[i]);
+		rows[i].label = display_text(*kids[i], ValueTextUse::Name, ctx_, label_scratch[i]);
 		rows[i].icon = row_icon(*kids[i], ctx_);
 		rows[i].selectable = true;
 	}
@@ -1339,7 +1369,7 @@ void MenuScene::render_horizontal(deluge::ui::oled::OledFrame& f, const Node& no
 
 void MenuScene::render_leaf_int(deluge::ui::oled::OledFrame& f, const Node& node) {
 	NodeText scratch;
-	deluge::ui::oled::title(f, node_text(node.title, node, ctx_, scratch));
+	deluge::ui::oled::title(f, display_text(node, ValueTextUse::Title, ctx_, scratch));
 
 	// `f.bounds()`, NOT `menu_rect(f)`: `int_value` places its digits at a rect-relative
 	// `kValueY`, calibrated (per its own doc comment) for `rect == f.bounds()` -- exactly the
@@ -1371,7 +1401,7 @@ void MenuScene::render_leaf_int(deluge::ui::oled::OledFrame& f, const Node& node
 
 void MenuScene::render_leaf_range(deluge::ui::oled::OledFrame& f, const Node& node) {
 	NodeText scratch;
-	deluge::ui::oled::title(f, node_text(node.title, node, ctx_, scratch));
+	deluge::ui::oled::title(f, display_text(node, ValueTextUse::Title, ctx_, scratch));
 
 	const RangeSpec* spec = node.bind.range_spec;
 	if (spec == nullptr || spec->format == nullptr) {
@@ -1401,7 +1431,7 @@ void MenuScene::render_leaf_range(deluge::ui::oled::OledFrame& f, const Node& no
 
 void MenuScene::render_leaf_decimal(deluge::ui::oled::OledFrame& f, const Node& node) {
 	NodeText scratch;
-	deluge::ui::oled::title(f, node_text(node.title, node, ctx_, scratch));
+	deluge::ui::oled::title(f, display_text(node, ValueTextUse::Title, ctx_, scratch));
 
 	// `f.bounds()`, NOT `menu_rect(f)`: `decimal_value` draws at a canvas-absolute y and honours
 	// the rect horizontally only (`ui/oled/values.h:111`), and its goldens were recorded that way.
@@ -1423,7 +1453,7 @@ void MenuScene::render_leaf_decimal(deluge::ui::oled::OledFrame& f, const Node& 
 
 void MenuScene::render_leaf_enum(deluge::ui::oled::OledFrame& f, const Node& node) {
 	NodeText scratch;
-	deluge::ui::oled::title(f, node_text(node.title, node, ctx_, scratch));
+	deluge::ui::oled::title(f, display_text(node, ValueTextUse::Title, ctx_, scratch));
 
 	std::string_view names_buf[kMaxDynamicNames];
 	TextScratch names_scratch[kMaxDynamicNames];
@@ -1444,7 +1474,7 @@ void MenuScene::render_leaf_enum(deluge::ui::oled::OledFrame& f, const Node& nod
 
 void MenuScene::render_leaf_toggle(deluge::ui::oled::OledFrame& f, const Node& node) {
 	NodeText scratch;
-	deluge::ui::oled::title(f, node_text(node.title, node, ctx_, scratch));
+	deluge::ui::oled::title(f, display_text(node, ValueTextUse::Title, ctx_, scratch));
 
 	TextScratch off_scratch;
 	TextScratch on_scratch;
@@ -1464,7 +1494,7 @@ void MenuScene::render_leaf_toggle(deluge::ui::oled::OledFrame& f, const Node& n
 
 void MenuScene::render_leaf_sync_level(deluge::ui::oled::OledFrame& f, const Node& node) {
 	NodeText scratch;
-	deluge::ui::oled::title(f, node_text(node.title, node, ctx_, scratch));
+	deluge::ui::oled::title(f, display_text(node, ValueTextUse::Title, ctx_, scratch));
 
 	// Legacy is `SyncLevel::drawPixelsForOled` (`gui/menu_item/sync_level.cpp:30-38`). `SyncLevel`
 	// derives from `Enumeration`, not `Integer` (`sync_level.h:27`), so -- unlike `render_leaf_int`

@@ -184,10 +184,12 @@ inline constexpr Node global_lpf_freq =
 inline constexpr Node global_lpf_res =
     param(sid(String::STRING_FOR_RESONANCE), {mp::Kind::UNPATCHED_GLOBAL, mp::UNPATCHED_LPF_RES}, Hint::Bar,
           param_shows::kHasLpf, sid(String::STRING_FOR_LPF_RESONANCE));
-inline constexpr Node global_lpf_morph = with_value_text(
-    with_column_draw(param(sid(String::STRING_FOR_MORPH), {mp::Kind::UNPATCHED_GLOBAL, mp::UNPATCHED_LPF_MORPH},
-                           Hint::Bar, param_shows::kHasLpf, sid(String::STRING_FOR_LPF_MORPH)),
-                     lpf_morph_draw),
+inline constexpr Node global_lpf_morph = with_name_text(
+    with_value_text(
+        with_column_draw(param(sid(String::STRING_FOR_MORPH), {mp::Kind::UNPATCHED_GLOBAL, mp::UNPATCHED_LPF_MORPH},
+                               Hint::Bar, param_shows::kHasLpf, sid(String::STRING_FOR_LPF_MORPH)),
+                         lpf_morph_draw),
+        lpf_morph_text),
     lpf_morph_text);
 inline constexpr const Node* kGlobalLpfChildren[] = {&lpf_mode, &global_lpf_freq, &global_lpf_res, &global_lpf_morph};
 inline constexpr Node global_lpf = submenu(sid(String::STRING_FOR_LPF), kGlobalLpfChildren, Layout::Horizontal);
@@ -199,13 +201,15 @@ inline constexpr Node global_hpf_freq =
 inline constexpr Node global_hpf_res =
     param(sid(String::STRING_FOR_RESONANCE), {mp::Kind::UNPATCHED_GLOBAL, mp::UNPATCHED_HPF_RES}, Hint::Bar,
           param_shows::kHasHpf, sid(String::STRING_FOR_HPF_RESONANCE));
-inline constexpr Node global_hpf_morph = with_reverse_in_horizontal(
-    with_value_text(
-        with_column_draw(param(sid(String::STRING_FOR_MORPH), {mp::Kind::UNPATCHED_GLOBAL, mp::UNPATCHED_HPF_MORPH},
-                               Hint::Bar, param_shows::kHasHpf, sid(String::STRING_FOR_HPF_MORPH)),
-                         hpf_morph_draw),
-        hpf_morph_text),
-    hpf_morph_reversed);
+inline constexpr Node global_hpf_morph = with_name_text(
+    with_reverse_in_horizontal(
+        with_value_text(
+            with_column_draw(param(sid(String::STRING_FOR_MORPH), {mp::Kind::UNPATCHED_GLOBAL, mp::UNPATCHED_HPF_MORPH},
+                                   Hint::Bar, param_shows::kHasHpf, sid(String::STRING_FOR_HPF_MORPH)),
+                             hpf_morph_draw),
+            hpf_morph_text),
+        hpf_morph_reversed),
+    hpf_morph_text);
 inline constexpr const Node* kGlobalHpfChildren[] = {&hpf_mode, &global_hpf_freq, &global_hpf_res, &global_hpf_morph};
 inline constexpr Node global_hpf = submenu(sid(String::STRING_FOR_HPF), kGlobalHpfChildren, Layout::Horizontal);
 
@@ -237,16 +241,18 @@ inline constexpr const Node* kGlobalReverbChildren[] = {&global_reverb_amount, &
 inline constexpr Node global_reverb =
     submenu(sid(String::STRING_FOR_REVERB), kGlobalReverbChildren, Layout::Horizontal);
 
-inline constexpr Node global_mod_fx_depth =
+inline constexpr Node global_mod_fx_depth = with_name_text(
     with_value_text(param(sid(String::STRING_FOR_DEPTH), {mp::Kind::UNPATCHED_GLOBAL, mp::UNPATCHED_MOD_FX_DEPTH},
                           Hint::Bar, param_shows::kModFxDepth, sid(String::STRING_FOR_MOD_FX_DEPTH)),
-                    mod_fx_depth_text);
+                    mod_fx_depth_text),
+    mod_fx_depth_text);
 inline constexpr Node global_mod_fx_rate =
     param(sid(String::STRING_FOR_RATE), {mp::Kind::UNPATCHED_GLOBAL, mp::UNPATCHED_MOD_FX_RATE}, Hint::Knob,
           param_shows::kModFxIsOn, sid(String::STRING_FOR_MOD_FX_RATE));
 inline constexpr const Node* kGlobalModFxChildren[] = {&mod_fx_type, &global_mod_fx_depth, &global_mod_fx_rate,
                                                        &mod_fx_feedback, &mod_fx_offset};
-inline constexpr Node global_mod_fx = submenu(sid(String::STRING_FOR_MOD_FX), kGlobalModFxChildren, Layout::Horizontal);
+inline constexpr Node global_mod_fx = with_page_title(
+    submenu(sid(String::STRING_FOR_MOD_FX), kGlobalModFxChildren, Layout::Horizontal), mod_fx_page_title);
 
 inline constexpr const Node* kGlobalDistortionChildren[] = {&decimation, &bitcrush};
 inline constexpr Node global_distortion =

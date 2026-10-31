@@ -34,6 +34,7 @@
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
 #include "model/edits/setting_edit.h"
+#include "model/mod_controllable/mod_fx_names.h"
 #include "model/song/song.h"
 #include "modulation/params/param.h"
 #include "modulation/sync.h"
@@ -739,6 +740,47 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		expect(static_cast<int>(menu_scene().state().depth)).to_equal(1);
 		expect(r.shell.stack().depth()).to_equal(size_t(1));
 		expect(menu_scene().focused() == &session_plain_col).to_be_true();
+	});
+
+	it("a mod-FX knob's name and title follow the effect, its column label the short form", _ {
+		// `mod_fx::Depth_Patched::getName`/`getTitle` (`mod_fx/depth_patched.h:34-37`): `modfx::getParamName`.
+		select_language();
+		Rig r;
+		const MenuContext ctx = r.open(horiz_page);
+		menu::bindings::write(menu::nodes::mod_fx_type, ctx, 1); // flanger
+		menu::NodeText scratch;
+		expect(std::string(menu::display_text(menu::nodes::mod_fx_depth, menu::ValueTextUse::Name, ctx, scratch)))
+		    .to_equal(std::string(modfx::getParamName(deluge::effects::ModFXType::FLANGER, ModFXParam::DEPTH, false)));
+		expect(std::string(menu::display_text(menu::nodes::mod_fx_depth, menu::ValueTextUse::Title, ctx, scratch)))
+		    .to_equal(std::string(modfx::getParamName(deluge::effects::ModFXType::FLANGER, ModFXParam::DEPTH, false)));
+	});
+
+	it("the filter morph's name and title are the long morph name for its family", _ {
+		select_language();
+		Rig r;
+		const MenuContext ctx = r.open(horiz_page);
+		menu::NodeText scratch;
+		menu::bindings::write(menu::nodes::lpf_mode, ctx, 3); // SVF band
+		expect(std::string(menu::display_text(menu::nodes::lpf_morph, menu::ValueTextUse::Title, ctx, scratch)))
+		    .to_equal(std::string(deluge::l10n::get(String::STRING_FOR_MORPH)));
+		menu::bindings::write(menu::nodes::lpf_mode, ctx, 1); // 24 dB ladder
+		expect(std::string(menu::display_text(menu::nodes::lpf_morph, menu::ValueTextUse::Name, ctx, scratch)))
+		    .to_equal(std::string(deluge::l10n::get(String::STRING_FOR_DRIVE)));
+	});
+
+	it("the mod FX page is titled with the effect's name past its first page", _ {
+		// `submenu::ModFxHorizontalMenu::getTitle` (`submenu/mod_fx.h:29-43`).
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		const MenuContext ctx = r.open_real(menu::nodes::mod_fx);
+		menu::bindings::write(menu::nodes::mod_fx_type, ctx, 1); // flanger
+		r.shell.tick(0);
+		menu::NodeText scratch;
+		expect(std::string(menu_scene().page_title(scratch))).to_equal(std::string(deluge::l10n::get(String::STRING_FOR_MOD_FX)));
+		r.press(kCrossScreenX, kCrossScreenY, 300);
+		r.shell.tick(400);
+		expect(std::string(menu_scene().page_title(scratch))).to_equal(std::string(deluge::l10n::get(String::STRING_FOR_FLANGER)));
 	});
 
 	it("a group lists its members' columns, not the member pages themselves", _ {

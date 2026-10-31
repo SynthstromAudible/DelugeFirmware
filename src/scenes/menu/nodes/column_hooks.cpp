@@ -131,12 +131,13 @@ std::string_view formatted_name(const Node& node, const MenuContext& ctx, NodeTe
 }
 
 ValueText mod_fx_knob_text(const MenuContext& ctx, ModFXParam knob, ValueTextUse use, std::span<char> out) {
-	if (use != ValueTextUse::Label) {
+	// The column label is the short name; the name and title the long one (`mod_fx/depth_patched.h:34-37`).
+	if (use != ValueTextUse::Label && use != ValueTextUse::Name && use != ValueTextUse::Title) {
 		return kValueTextFallback;
 	}
 	const int32_t shown = bindings::read(mod_fx_type, ctx);
 	const auto type = static_cast<deluge::effects::ModFXType>(choice_of(mod_fx_type, ctx, shown));
-	return put(modfx::getParamName(type, knob, true), out);
+	return put(modfx::getParamName(type, knob, use == ValueTextUse::Label), out);
 }
 
 } // namespace
@@ -262,6 +263,10 @@ ValueText on_off_text(const MenuContext&, int32_t value, ValueTextUse use, std::
 }
 
 ValueText reverb_width_text(const MenuContext& ctx, int32_t, ValueTextUse use, std::span<char> out) {
+	if (use == ValueTextUse::Name || use == ValueTextUse::Title) {
+		// `reverb::Width::getName`/`getTitle` (`reverb/width.h:38-48`).
+		return plate_reverb(ctx) ? put_string(String::STRING_FOR_DIFFUSION, out) : kValueTextFallback;
+	}
 	if (use != ValueTextUse::Label) {
 		return kValueTextFallback;
 	}
@@ -269,7 +274,8 @@ ValueText reverb_width_text(const MenuContext& ctx, int32_t, ValueTextUse use, s
 }
 
 ValueText reverb_room_size_text(const MenuContext& ctx, int32_t, ValueTextUse use, std::span<char> out) {
-	if (use != ValueTextUse::Label || !plate_reverb(ctx)) {
+	// The column label, name and title alike (`reverb/room_size.h:39-49`).
+	if ((use != ValueTextUse::Label && use != ValueTextUse::Name && use != ValueTextUse::Title) || !plate_reverb(ctx)) {
 		return kValueTextFallback;
 	}
 	return put_string(String::STRING_FOR_TIME, out);
@@ -364,14 +370,15 @@ std::optional<ui::oled::DrawColumn> graph(const MenuContext& ctx, int32_t freq, 
 }
 
 ValueText morph_text(const MenuContext& ctx, ValueTextUse use, std::span<char> out, bool hpf) {
-	if (use != ValueTextUse::Label) {
+	// `FilterParam::getName`/`getTitle` are the long morph name, `getColumnLabel` the short (`filter/param.h:40-49`).
+	if (use != ValueTextUse::Label && use != ValueTextUse::Name && use != ValueTextUse::Title) {
 		return kValueTextFallback;
 	}
 	FilterMode mode = FilterMode::OFF;
 	const int32_t index = bindings::read(hpf ? hpf_mode : lpf_mode, ctx);
 	mode = hpf ? static_cast<FilterMode>(index + kFirstHPFMode)
 	           : (index < kNumLPFModes ? static_cast<FilterMode>(index) : FilterMode::OFF);
-	return put_string(model::filter::SpecificFilter(mode).getMorphName(true), out);
+	return put_string(model::filter::SpecificFilter(mode).getMorphName(use == ValueTextUse::Label), out);
 }
 
 std::optional<ui::oled::DrawColumn> morph_draw(const MenuContext& ctx, int32_t value, bool hpf) {
@@ -410,6 +417,46 @@ std::optional<ui::oled::DrawColumn> hpf_morph_draw(const MenuContext& ctx, int32
 }
 bool hpf_morph_reversed(const MenuContext& ctx) {
 	return filter_family(ctx, true) == model::filter::FilterFamily::SVF;
+}
+
+namespace {
+
+ValueText source_page_title(const MenuContext& ctx, uint8_t page, std::span<char> out, const Node& type_node,
+                            char number) {
+	if (page == 0) {
+		return kValueTextFallback;
+	}
+	const auto type = static_cast<OscType>(choice_of(type_node, ctx, bindings::read(type_node, ctx)));
+	if (type != OscType::SAMPLE) {
+		return kValueTextFallback;
+	}
+	const std::string_view title = deluge::l10n::getView(String::STRING_FOR_OSC_SAMPLE_MENU_TITLE);
+	const size_t n = std::min(title.size(), out.size());
+	for (size_t k = 0; k < n; k++) {
+		out[k] = title[k] == '*' ? number : title[k];
+	}
+	return ValueText{.length = n};
+}
+
+} // namespace
+
+ValueText source0_page_title(const MenuContext& ctx, uint8_t page, std::span<char> out) {
+	return source_page_title(ctx, page, out, osc0_type, '1');
+}
+ValueText source1_page_title(const MenuContext& ctx, uint8_t page, std::span<char> out) {
+	return source_page_title(ctx, page, out, osc1_type, '2');
+}
+ValueText mod_fx_page_title(const MenuContext& ctx, uint8_t page, std::span<char> out) {
+	// `modfx::getModNames()` (`model/global_effectable/global_effectable.cpp:984-997`), indexed by type.
+	static constexpr std::array kNames{String::STRING_FOR_DISABLED,      String::STRING_FOR_FLANGER,
+	                                   String::STRING_FOR_CHORUS,        String::STRING_FOR_PHASER,
+	                                   String::STRING_FOR_STEREO_CHORUS, String::STRING_FOR_WARBLE,
+	                                   String::STRING_FOR_DIMENSION,     String::STRING_FOR_GRAIN};
+	if (page == 0) {
+		return kValueTextFallback;
+	}
+	const auto type = static_cast<size_t>(choice_of(mod_fx_type, ctx, bindings::read(mod_fx_type, ctx)));
+	return type < kNames.size() ? put_string(kNames[type], out) : kValueTextFallback;
 }
 
 } // namespace deluge::scenes::menu::nodes

@@ -46,24 +46,6 @@
 ///
 /// ## What is still owed
 ///
-///   * ~~**The per-device page.**~~ **Paid, E3 task 8** (`nodes/midi_device.h`).
-///     `Devices::selectButtonPress` returns `&midiDeviceMenu` (`devices.cpp:154-156`), the
-///     five-child submenu at `gui/ui/menus.cpp:1444-1453` (MPE direction selector, default
-///     velocity, clock out, clock in, is-relative); all five are declared now, `midi_devices`
-///     carries the `select_chain` that reaches them (`settings.h`), and the MPE arm's two further
-///     chained pages come with it. What that page still owes is one thing only, and it is the same
-///     thing as the next bullet: `midi::Device::getTitle()` is the device's own display name
-///     (`gui/menu_item/midi/device.h:8`) and a `Node::title` is one static id.
-///   * **The formatted titles -- now filed as one framework item with the bullet above.** Both are
-///     "a node wants a title it computes at render time and `Node::title` is a static `uint16_t`",
-///     so they are one hook, not two workarounds: **"A `Node` cannot compute its own title"** on the
-///     E3 carry list (`src/scenes/README.md`), which names the shape
-///     (`CustomItem::title(const MenuContext&, const MenuState&)`, consulted by the `render_*` title
-///     draws) and notes it moves no JSON. The details of this half:
-///     `setCvNumberForTitle` / `gateModeMenu.format(value + 1)`
-///     (`cv/selection.h:43`, `gate/selection.h:50`) put the output number into the *destination*
-///     page's title; the port numbers those pages by `MenuContext::source_index` through
-///     `kTitleArgSourceIndex` (`settings.h`'s own note on `cv_submenu`).
 ///   * **`Devices::current_scroll_`.** Legacy keeps its own top-of-viewport index and its own
 ///     `computeScrollForSelected` (`devices.cpp:59-76`). `ui::oled::list` owns the window and the
 ///     scroll, so this builds every row and lets the widget pick the slice -- the same

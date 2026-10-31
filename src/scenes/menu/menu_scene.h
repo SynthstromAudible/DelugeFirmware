@@ -1118,6 +1118,16 @@ std::string_view node_text(uint16_t string_id, const Node& node, const MenuConte
 /// @return The label text.
 std::string_view column_label(const Node& node, const MenuContext& ctx, NodeText& scratch);
 
+/// @brief @p node's name or title as legacy's `getName()`/`getTitle()` answer: its `Binding::name_text`, else the
+/// static
+///        string (with any `title_arg`).
+/// @param node    The node.
+/// @param use     `ValueTextUse::Name` or `ValueTextUse::Title`.
+/// @param ctx     The menu context.
+/// @param scratch Storage the returned view may point into.
+/// @return The text.
+std::string_view display_text(const Node& node, ValueTextUse use, const MenuContext& ctx, NodeText& scratch);
+
 /// @brief The song's input tick magnitude, which legacy's sync-level text is spelled against
 ///        (`Song::getInputTickMagnitude`); 0 with no model.
 /// @param ctx The menu context.
