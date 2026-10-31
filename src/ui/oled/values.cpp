@@ -125,7 +125,8 @@ Response int_value(OledFrame& f, Rect rect, int32_t& value, Range range, ValueSt
 	// the topmost-pixel term, so kValueY is measured from the rect's top; with rect == f.bounds()
 	// that matches the legacy panel-relative offset and centring.
 	// `IntegerContinuous::drawPixelsForOled` (`integer.cpp:63-72`) draws its digits in the Big face on the 48-row panel
-	// and the huge one on the 64-row, then inverts the bar over what is drawn.
+	// and the huge one on the 64-row (cleanly: main's height there has no font, DIFFERENCES.md D46), then inverts the
+	// bar over what is drawn.
 	const bool tall = f.canvas.geometry().height == 64;
 	const gfx::oled::FontId font = !style.continuous ? f.style.value_font
 	                               : tall            ? gfx::oled::FontId::MetricBold20
@@ -147,22 +148,13 @@ Response int_value(OledFrame& f, Rect rect, int32_t& value, Range range, ValueSt
 
 	// Buffer is wide enough for the digits and the unit together; legacy's fixed-size buffer held
 	// only the digits, and appending the unit could run past it.
-	std::array<char, 12 + 4 + 1> buf{};
-	const std::string_view digits = int_to_string(value, 1, std::span{buf}.first(12 + 4)); // intToString(..., 1)
+	std::array<char, 12 + 4> buf{};
+	const std::string_view digits = int_to_string(value, 1, std::span{buf}); // intToString(..., 1)
 	size_t length = digits.size();
-	for (size_t i = 0; i < style.unit.size() && i < 4 && length < buf.size() - 1; i++) {
+	for (size_t i = 0; i < style.unit.size() && i < 4 && length < buf.size(); i++) {
 		buf[length++] = style.unit[i];
 	}
-	if (style.continuous && tall) {
-		// `drawInteger(13, 15, 20)`'s own canvas call: height 15 is no font, and the canvas draws the huge face's
-		// glyphs as fifteen rows.
-		buf[length] = '\0';
-		ClipScope scope{f.canvas, f.clip};
-		f.canvas.draw_string_centred(buf.data(), f.origin.y + rect.y + kContinuousValueY64, 13, 15);
-	}
-	else {
-		text(f, band, std::string_view{buf.data(), length}, TextStyle{.font = font, .align = Align::Centre});
-	}
+	text(f, band, std::string_view{buf.data(), length}, TextStyle{.font = font, .align = Align::Centre});
 	if (style.continuous) {
 		continuous_bar(f, value, range);
 	}

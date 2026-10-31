@@ -206,12 +206,13 @@ describe values_w("ui::oled::values", $ {
 		legacy_bar(pan.reference, -12, -32, 32);
 		expect(pan.pbm()).to_equal(pan.reference_pbm());
 
-		// The 64-row panel's branch (`integer.cpp:65-66`): `drawInteger(13, 15, 20)`, whose height 15 is no font of its own
-		// and draws in the huge face, with the bar inverted over the digits it overlaps.
+		// The 64-row panel's branch (`integer.cpp:65-66`) asks `drawInteger(13, 15, 20)` for a height with no font, which
+		// garbles the glyphs; the port draws the huge face cleanly at row 20 (DIFFERENCES.md D46, accepted), with the bar
+		// inverted over the digits it overlaps.
 		uitest::Rig64 tall;
 		int32_t t = 28;
 		int_value(tall.frame, tall.frame.bounds(), t, Range{.min = 0, .max = 50}, ValueStyle{.continuous = true});
-		tall.reference.draw_string_centred("28", 20, 13, 15);
+		tall.reference.draw_string_centred("28", 20, 18, 20);
 		legacy_bar(tall.reference, 28, 0, 50);
 		expect(tall.pbm()).to_equal(tall.reference_pbm());
 
