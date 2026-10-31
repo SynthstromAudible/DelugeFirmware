@@ -17,6 +17,7 @@
 
 #include "gui/views/session/track_link.h"
 #include "definitions_cxx.hpp"
+#include "gui/l10n/l10n.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
@@ -311,12 +312,12 @@ bool openMenu() {
 		sOutput = nullptr;
 	}
 	if (!sOutput) {
-		display->displayPopup("PICK A TRACK");
+		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_PICK_A_TRACK));
 		return true;
 	}
 	// MIDI and CV tracks have no sound parameters for the mode to carry.
 	if (sOutput->type != OutputType::SYNTH && sOutput->type != OutputType::KIT && sOutput->type != OutputType::AUDIO) {
-		display->displayPopup("NO MENU");
+		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_TRACK_NO_MENU));
 		return true;
 	}
 
@@ -331,7 +332,7 @@ bool openMenu() {
 		clip = pickClipForKnobs(nullptr);
 	}
 	if (!clip) {
-		display->displayPopup(sDrumRow ? "NO DRUM" : "NO CLIP");
+		display->displayPopup(sDrumRow ? "NO DRUM" : deluge::l10n::get(deluge::l10n::String::STRING_FOR_TRACK_NO_CLIP));
 		return true;
 	}
 
