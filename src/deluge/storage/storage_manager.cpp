@@ -366,7 +366,7 @@ Error StorageManager::loadInstrumentFromFile(Song* song, InstrumentClip* clip, O
 	// If that somehow didn't work...
 	if (error != Error::NONE || fileSuccess != FR_OK) {
 		D_PRINTLN("reading instrument file failed -  %s", name->get());
-		if (!fileSuccess) {
+		if (fileSuccess != FR_OK) {
 			error = Error::SD_CARD;
 		}
 		return error;
@@ -458,7 +458,7 @@ Error StorageManager::loadMidiDeviceDefinitionFile(MIDIInstrument* midiInstrumen
 	// If that somehow didn't work...
 	if (error != Error::NONE || fileSuccess != FR_OK) {
 		D_PRINTLN("reading midi device definition file failed -  %s", fileName->get());
-		if (!fileSuccess) {
+		if (fileSuccess != FR_OK) {
 			error = Error::SD_CARD;
 		}
 
@@ -517,7 +517,7 @@ Error StorageManager::loadPatternFile(FilePointer* filePointer, String* fileName
 
 	// If that somehow didn't work...
 	if (error != Error::NONE || fileSuccess != FR_OK) {
-		if (!fileSuccess) {
+		if (fileSuccess != FR_OK) {
 			error = Error::SD_CARD;
 		}
 
@@ -545,7 +545,7 @@ Error StorageManager::loadFavouriteFile(FilePointer* filePointer, String* fileNa
 
 	// If that somehow didn't work...
 	if (error != Error::NONE || fileSuccess != FR_OK) {
-		if (!fileSuccess) {
+		if (fileSuccess != FR_OK) {
 			error = Error::SD_CARD;
 		}
 
