@@ -124,6 +124,20 @@ deluge::project::DocParamManager* managerForAddress(deluge::project::Song& proj,
 	}
 	return nullptr;
 }
+// The DocParamManager for `address` if the project tree holds one; creates nothing.
+deluge::project::DocParamManager* existingManagerForAddress(deluge::project::Song& proj,
+                                                            const deluge::project::ParamAddress& address) {
+	switch (address.owner.kind) {
+	case deluge::project::OwnerId::Kind::CLIP:
+		return proj.clip_params.find(address.owner.id);
+	case deluge::project::OwnerId::Kind::INSTRUMENT:
+	case deluge::project::OwnerId::Kind::DRUM:
+		return proj.backed_params.find(address.owner, address.clip_id);
+	case deluge::project::OwnerId::Kind::SONG:
+		return nullptr;
+	}
+	return nullptr;
+}
 } // namespace
 
 deluge::project::DocAutoParam* relocateAndResolve(const ModelStackWithAutoParam& modelStack) {
@@ -139,61 +153,80 @@ deluge::project::DocAutoParam* relocateAndResolve(const ModelStackWithAutoParam&
 	deluge::project::Song& proj = modelStack.song->project;
 	Clip* clip = static_cast<Clip*>(tc);
 	NoteRow* noteRow = modelStack.getNoteRowAllowNull();
-	// The render resolves through the ids, the store maps and the engine set's binding this changes: one section
-	// spans them all, so it sees the owner wholly before or wholly after the move. The render itself never relocates
-	// (ModelStackWithAutoParam::doc()).
-	deluge::project::EditGuard guard{deluge::project::ModelEdit::PARAM_STORE};
 
 	// Ensure the owner chain this param belongs to has a durable id, minting one for a runtime owner never
 	// saved/loaded (clips always have one from construction). After this, addressFor can build a total ParamAddress.
+	// The render reads the id to address the owner, so only its write is in a section.
 	if (noteRow != nullptr) {
 		if (noteRow->drum != nullptr && noteRow->drum->type == DrumType::SOUND && !noteRow->drum->id().has_value()) {
-			noteRow->drum->setId(modelStack.song->generateNewDrumId());
+			const uint32_t id = modelStack.song->generateNewDrumId();
+			deluge::project::EditGuard guard{deluge::project::ModelEdit::PARAM_STORE};
+			noteRow->drum->setId(id);
 		}
 	}
 	else if (clip->type == ClipType::INSTRUMENT && clip->output != nullptr
 	         && (clip->output->type == OutputType::SYNTH || clip->output->type == OutputType::KIT)
 	         && !clip->output->id().has_value()) {
-		clip->output->setId(modelStack.song->generateNewOutputId());
+		const uint32_t id = modelStack.song->generateNewOutputId();
+		deluge::project::EditGuard guard{deluge::project::ModelEdit::PARAM_STORE};
+		clip->output->setId(id);
 	}
 
 	std::optional<deluge::project::ParamAddress> address = addressFor(modelStack);
 	if (!address.has_value()) {
 		return nullptr; // still unclassifiable (e.g. a non-Sound drum) — caller's fallback
 	}
-	deluge::project::DocParamManager* mgr = managerForAddress(proj, *address);
-	if (mgr == nullptr) {
-		return nullptr;
-	}
 
 	// Relocate the TOUCHED collection's engine store into its tree slot, as load does. Only
 	// this collection moves; the owner's other collections relocate on their own first touch (each is an independent
 	// slot / seed of the same (owner, clip) DocParamManager). Guarded by the slot being empty (a fresh owner just
 	// created by getOrCreate) so an already-relocated collection is never double-moved.
+	//
+	// Whatever allocates or copies is done first, outside any section: the CC lanes' copy, and an engine set's own
+	// store. The section holds only what the render resolves through: the store map's insert, then the move or
+	// assignment into the slot and the rebind, so it sees the owner wholly before or wholly after. The render itself
+	// never relocates (ModelStackWithAutoParam::doc()).
 	ParamCollection* pc = modelStack.paramCollection;
-	if (modelStack.kind == deluge::modulation::params::Kind::PATCH_CABLE) {
+	const bool isCable = modelStack.kind == deluge::modulation::params::Kind::PATCH_CABLE;
+	const bool isMidi = !isCable && address->space == deluge::project::ParamSpace::MIDI_CC;
+	auto* midi = isMidi ? static_cast<MIDIParamCollection*>(pc) : nullptr;
+	auto* set = (!isCable && !isMidi) ? static_cast<ParamSet*>(pc) : nullptr;
+	std::vector<deluge::project::DocMidiParam> midiLanes;
+	if (midi != nullptr && midi->domMidi() == nullptr) {
+		midiLanes = deluge::bridge::toDocMidiParams(*midi);
+	}
+	if (set != nullptr) {
+		deluge::project::DocParamManager* existing = existingManagerForAddress(proj, *address);
+		if (existing == nullptr || !deluge::bridge::storeFor(*existing, set->getParamKind())->has_value()) {
+			set->bindDomStore(); // ensure an own store exists to move (idempotent if already bound)
+		}
+	}
+
+	deluge::project::EditGuard guard{deluge::project::ModelEdit::PARAM_STORE};
+	deluge::project::DocParamManager* mgr = managerForAddress(proj, *address);
+	if (mgr == nullptr) {
+		return nullptr;
+	}
+	if (isCable) {
 		auto* pcs = static_cast<PatchCableSet*>(pc);
 		if (!pcs->depthsRelocated()) {
 			pcs->relocateDepthsInto(mgr->cable_depths);
 		}
 	}
-	else if (address->space == deluge::project::ParamSpace::MIDI_CC) {
-		auto* midi = static_cast<MIDIParamCollection*>(pc);
+	else if (midi != nullptr) {
 		if (midi->domMidi() == nullptr) {
-			mgr->midi_params = deluge::bridge::toDocMidiParams(*midi);
+			mgr->midi_params = std::move(midiLanes);
 			midi->bindDomMidiExternal(&mgr->midi_params);
 		}
 	}
 	else {
-		auto* set = static_cast<ParamSet*>(pc);
 		std::optional<deluge::project::DocParamSet>& slot = *deluge::bridge::storeFor(*mgr, set->getParamKind());
 		if (!slot.has_value()) {
-			set->bindDomStore();                // ensure an own store exists (idempotent if already inline)
 			slot = std::move(*set->domStore()); // move the engine set's own store into the tree slot
 			set->bindDomStoreExternal(&*slot);  // rebind the engine set at the tree copy
 		}
 	}
-	return modelStack.song->project.resolveParam(*address);
+	return proj.resolveParam(*address);
 }
 
 } // namespace deluge::edits

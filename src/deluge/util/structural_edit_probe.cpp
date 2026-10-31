@@ -19,10 +19,12 @@ std::atomic<uint32_t> loneIndexed_{0};
 void noteStructuralEdit([[maybe_unused]] StructuralContainer kind) {
 #if ALPHA_OR_BETA_VERSION
 	noted_[static_cast<size_t>(kind)].fetch_add(1, std::memory_order_relaxed);
+	// The render's own edits need no section: nothing that edits these preempts it. On the host it renders on a
+	// thread deluge_in_audio_context() does not see, so the render tier is told by onRenderTier().
 	if (deluge::memory::onRenderTier()) {
 		render_[static_cast<size_t>(kind)].fetch_add(1, std::memory_order_relaxed);
 	}
-	if (!deluge_in_audio_context() && deluge_audio_excluded_depth() == 0) {
+	else if (deluge_audio_excluded_depth() == 0) {
 		unguarded_[static_cast<size_t>(kind)].fetch_add(1, std::memory_order_relaxed);
 	}
 #endif

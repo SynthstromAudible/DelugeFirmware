@@ -304,8 +304,15 @@ deluge::project::DocAutoParam& PatchCableSet::laneFor(PatchSource from, ParamDes
 
 void PatchCableSet::eraseLane(PatchSource from, ParamDescriptor target) {
 	const deluge::plugin::ParamId id = deluge::bridge::cable_depth(from, target);
+	// The lane's nodes are moved out inside the section and freed after it.
+	deluge::project::DocAutoParam dropped;
 	EditGuard guard{ModelEdit::PARAM_STORE};
-	std::erase_if(depths(), [&](const deluge::project::DocCableDepth& lane) { return lane.depth == id; });
+	std::vector<deluge::project::DocCableDepth>& table = depths();
+	auto lane = std::ranges::find(table, id, &deluge::project::DocCableDepth::depth);
+	if (lane != table.end()) {
+		dropped = std::move(lane->amount);
+		table.erase(lane);
+	}
 }
 
 deluge::project::DocAutoParam* PatchCableSet::docForParam(int32_t c) {

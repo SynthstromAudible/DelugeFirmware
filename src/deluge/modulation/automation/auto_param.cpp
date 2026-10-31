@@ -17,6 +17,7 @@
 
 #include "modulation/automation/auto_param.h"
 #include "definitions_cxx.hpp"
+#include "deluge-project/edit_guard.h"
 #include "deluge-project/param_automation.h"
 #include "deluge-project/param_edit.h" // the DOM kernels the engine edit ops forward to
 #include "gui/l10n/l10n.h"
@@ -106,6 +107,12 @@ AutoParam& AutoParam::operator=(AutoParam&& other) noexcept {
 	return *this;
 }
 
+namespace {
+/// The lane the render reads for a param nothing holds yet: no nodes, so it plays as unautomated. Constant-initialised,
+/// so the render never runs a first-use guard to reach it.
+constinit deluge::project::DocAutoParam g_unheldLane{};
+} // namespace
+
 // The DOM node store is resolved from the owner, by paramId; no engine object holds node storage. Every saved owner
 // (song / audio clip / synth-kit clip-level / per-drum / expression / patch cables / MIDI CC) resolves via a stable
 // `ParamAddress` in the project tree (`Song::resolveParam`); `deluge::edits::addressFor` builds that address from this
@@ -127,9 +134,8 @@ deluge::project::DocAutoParam* ModelStackWithAutoParam::doc() const {
 		if (deluge::project::DocAutoParam* own = paramCollection->findDocParamForId(paramId)) {
 			return own;
 		}
-		static deluge::project::DocAutoParam unheld;
-		unheld.current_value = 0;
-		return &unheld;
+		g_unheldLane.current_value = 0;
+		return &g_unheldLane;
 	}
 	// The owner isn't tree-resident yet: a runtime-created instrument/drum made after load, with no id yet. Mint
 	// durable ids and relocate its store into the project tree so it id-resolves like a saved owner. After this, every
@@ -1417,7 +1423,9 @@ void AutoParam::trimToLength(uint32_t newLength, Action* action, ModelStackWithA
 		}
 	}
 
-	deluge::noteStructuralEdit(deluge::StructuralContainer::NODE_KERNEL);
+	// The trim, the snapshot swap and the node at 0 are one section: the render never sees the nodes stolen but not
+	// replaced, or a node at 0 not yet placed.
+	deluge::project::EditGuard guard{deluge::project::ModelEdit::NODE_KERNEL};
 
 	// To ensure that the effective value at pos 0 remains the same even after earlier nodes deleted, we might need to
 	// add a new, non-interpolating node there.
@@ -1621,6 +1629,8 @@ Error AutoParam::readFromFile(deluge::project::DocAutoParam& doc, Deserializer& 
 				if (pos == readAutomationUpToPos) {
 					ParamNode* firstNode = doc.nodes.tryGet(0);
 					if (!firstNode || firstNode->pos) {
+						// Placed inside the insert's section, as every node insert at an index is.
+						deluge::project::EditGuard guard{deluge::project::ModelEdit::NODE_KERNEL};
 						Error error = deluge::error_of(doc.nodes.insertAt(0));
 						if (error != Error::NONE) {
 							return error;
@@ -1709,110 +1719,115 @@ void AutoParam::paste(int32_t startPos, int32_t endPos, float scaleFactor, Model
 		}
 		return;
 	}
-	deluge::noteStructuralEdit(deluge::StructuralContainer::NODE_KERNEL);
+	{
+		// The region is cleared, edged and filled at indexes worked out along the way: one section, so the render never
+		// sees a node half placed.
+		deluge::project::EditGuard guard{deluge::project::ModelEdit::NODE_KERNEL};
 
-	// Save the current value at the start and end of the region w'ere pasting in to, before we start messing with it.
-	int32_t startValue = getValueAtPos(startPos, modelStack);
-	int32_t endValue = getValueAtPos(wrappedEndPos, modelStack);
+		// Save the current value at the start and end of the region w'ere pasting in to, before we start messing with
+		// it.
+		int32_t startValue = getValueAtPos(startPos, modelStack);
+		int32_t endValue = getValueAtPos(wrappedEndPos, modelStack);
 
-	// Clear out any nodes that already exiset in the region we're pasting in to
-	int32_t iDeleteBegin = nodesRef.firstAtOrAfter(startPos);
-	int32_t iDeleteEnd = nodesRef.firstAtOrAfter(endPos);
-	int32_t numToDelete = iDeleteEnd - iDeleteBegin;
-	if (numToDelete > 0) {
-		nodesRef.erase(nodesRef.begin() + iDeleteBegin, nodesRef.begin() + iDeleteBegin + numToDelete);
-	}
+		// Clear out any nodes that already exiset in the region we're pasting in to
+		int32_t iDeleteBegin = nodesRef.firstAtOrAfter(startPos);
+		int32_t iDeleteEnd = nodesRef.firstAtOrAfter(endPos);
+		int32_t numToDelete = iDeleteEnd - iDeleteBegin;
+		if (numToDelete > 0) {
+			nodesRef.erase(nodesRef.begin() + iDeleteBegin, nodesRef.begin() + iDeleteBegin + numToDelete);
+		}
 
-	// Make sure that automation data before the paste region starts and after it ends aligns with what we're about to
-	// put there
-	if (!overwrittingEntireRegion) {
-		// The copied parameter automation always has a node at t=0, if that doesn't match the existing content we need
-		// to insert a node right before it to preserve the automation before the paste.
-		if (startValue != copiedParamAutomation->nodes[0].value) {
-			int32_t ticksBeforeStart = 1;
-			int32_t resetPos = (ticksBeforeStart > startPos) ? (effectiveLength + startPos) - ticksBeforeStart
-			                                                 : (startPos - ticksBeforeStart);
-			int32_t resetI = nodesRef.firstAtOrAfter(resetPos);
-			ParamNode* resetNode = nodesRef.tryGet(resetI);
+		// Make sure that automation data before the paste region starts and after it ends aligns with what we're about
+		// to put there
+		if (!overwrittingEntireRegion) {
+			// The copied parameter automation always has a node at t=0, if that doesn't match the existing content we
+			// need to insert a node right before it to preserve the automation before the paste.
+			if (startValue != copiedParamAutomation->nodes[0].value) {
+				int32_t ticksBeforeStart = 1;
+				int32_t resetPos = (ticksBeforeStart > startPos) ? (effectiveLength + startPos) - ticksBeforeStart
+				                                                 : (startPos - ticksBeforeStart);
+				int32_t resetI = nodesRef.firstAtOrAfter(resetPos);
+				ParamNode* resetNode = nodesRef.tryGet(resetI);
 
-			if (resetNode == nullptr || resetNode->pos != resetPos) {
-				bool previousNodeInterpolated = resetNode != nullptr ? resetNode->interpolated : true;
-				auto error = deluge::error_of(nodesRef.insertAt(resetI));
-				if (error != Error::NONE) {
-					return;
+				if (resetNode == nullptr || resetNode->pos != resetPos) {
+					bool previousNodeInterpolated = resetNode != nullptr ? resetNode->interpolated : true;
+					auto error = deluge::error_of(nodesRef.insertAt(resetI));
+					if (error != Error::NONE) {
+						return;
+					}
+
+					resetNode = &nodesRef[resetI];
+					resetNode->pos = resetPos;
+					resetNode->interpolated = previousNodeInterpolated;
 				}
 
-				resetNode = &nodesRef[resetI];
-				resetNode->pos = resetPos;
-				resetNode->interpolated = previousNodeInterpolated;
+				resetNode->value = startValue;
 			}
 
-			resetNode->value = startValue;
-		}
-
-		// If the final node does not match the value at the end position, we need to insert a node.
-		ParamNode const& finalNode = copiedParamAutomation->nodes[copiedParamAutomation->numNodes - 1];
-		if (endValue != finalNode.value) {
-			int32_t resetPos = 0;
-			// The copied automation has a node that will overlap, need to insert 1-past-the-end
-			if (finalNode.pos == endPos - startPos) {
-				// wrappedEndPos+1 is always within the sequence length since a sequence length of 0 or 1 is probably
-				// super broken in other places.
-				resetPos = wrappedEndPos + 1;
-			}
-			else {
-				resetPos = wrappedEndPos;
-			}
-
-			int32_t resetI = nodesRef.firstAtOrAfter(resetPos);
-			ParamNode* resetNode = nodesRef.tryGet(resetI);
-
-			if (!resetNode || resetNode->pos != resetPos) {
-				auto error = deluge::error_of(nodesRef.insertAt(resetI));
-				if (error != Error::NONE) {
-					return;
+			// If the final node does not match the value at the end position, we need to insert a node.
+			ParamNode const& finalNode = copiedParamAutomation->nodes[copiedParamAutomation->numNodes - 1];
+			if (endValue != finalNode.value) {
+				int32_t resetPos = 0;
+				// The copied automation has a node that will overlap, need to insert 1-past-the-end
+				if (finalNode.pos == endPos - startPos) {
+					// wrappedEndPos+1 is always within the sequence length since a sequence length of 0 or 1 is
+					// probably super broken in other places.
+					resetPos = wrappedEndPos + 1;
+				}
+				else {
+					resetPos = wrappedEndPos;
 				}
 
-				resetNode = &nodesRef[resetI];
-				resetNode->pos = resetPos;
-				resetNode->interpolated = finalNode.interpolated;
+				int32_t resetI = nodesRef.firstAtOrAfter(resetPos);
+				ParamNode* resetNode = nodesRef.tryGet(resetI);
+
+				if (!resetNode || resetNode->pos != resetPos) {
+					auto error = deluge::error_of(nodesRef.insertAt(resetI));
+					if (error != Error::NONE) {
+						return;
+					}
+
+					resetNode = &nodesRef[resetI];
+					resetNode->pos = resetPos;
+					resetNode->interpolated = finalNode.interpolated;
+				}
+
+				resetNode->value = endValue;
+			}
+		}
+
+		// Ok now paste the stuff
+		int32_t minPos = 0;
+
+		int32_t maxPos = std::min(endPos, effectiveLength);
+
+		for (int32_t n = 0; n < copiedParamAutomation->numNodes; n++) {
+
+			ParamNode* nodeSource = &copiedParamAutomation->nodes[n];
+
+			int32_t newPos = startPos + (int32_t)roundf((float)nodeSource->pos * scaleFactor);
+
+			// Make sure that with dividing and rounding, we're not overlapping the previous node - or past the end of
+			// the screen / Clip
+			if (newPos < minPos || newPos >= maxPos) {
+				continue;
 			}
 
-			resetNode->value = endValue;
+			int32_t nodeDestI = nodesRef.insertSorted(newPos).value_or(-1);
+			ParamNode* nodeDest = nodesRef.tryGet(nodeDestI);
+			if (!nodeDest) {
+				return;
+			}
+
+			nodeDest->value = nodeSource->value;
+			nodeDest->interpolated = nodeSource->interpolated;
+
+			if (isPatchCable) {
+				nodeDest->value >>= 1;
+			}
+
+			minPos = newPos + 1;
 		}
-	}
-
-	// Ok now paste the stuff
-	int32_t minPos = 0;
-
-	int32_t maxPos = std::min(endPos, effectiveLength);
-
-	for (int32_t n = 0; n < copiedParamAutomation->numNodes; n++) {
-
-		ParamNode* nodeSource = &copiedParamAutomation->nodes[n];
-
-		int32_t newPos = startPos + (int32_t)roundf((float)nodeSource->pos * scaleFactor);
-
-		// Make sure that with dividing and rounding, we're not overlapping the previous node - or past the end of the
-		// screen / Clip
-		if (newPos < minPos || newPos >= maxPos) {
-			continue;
-		}
-
-		int32_t nodeDestI = nodesRef.insertSorted(newPos).value_or(-1);
-		ParamNode* nodeDest = nodesRef.tryGet(nodeDestI);
-		if (!nodeDest) {
-			return;
-		}
-
-		nodeDest->value = nodeSource->value;
-		nodeDest->interpolated = nodeSource->interpolated;
-
-		if (isPatchCable) {
-			nodeDest->value >>= 1;
-		}
-
-		minPos = newPos + 1;
 	}
 
 	// TODO: should currentValue instantly change if we're playing?
@@ -1960,7 +1975,8 @@ void AutoParam::stealNodes(ModelStackWithAutoParam const* modelStack, int32_t po
 	// Resolve the DOM node store via the ModelStack.
 	auto& nodesRef = modelStack->doc()->nodes;
 
-	deluge::noteStructuralEdit(deluge::StructuralContainer::NODE_KERNEL);
+	// The indexes found here are read from and erased at below: one section.
+	deluge::project::EditGuard guard{deluge::project::ModelEdit::NODE_KERNEL};
 	int32_t stopAt = pos + regionLength;
 	int32_t durationAfterWrap = (stopAt - loopLength);
 
@@ -2045,30 +2061,34 @@ void AutoParam::insertStolenNodes(ModelStackWithAutoParam const* modelStack, int
 		action->recordParamChangeIfNotAlreadySnapshotted(modelStack);
 	}
 
-	deluge::noteStructuralEdit(deluge::StructuralContainer::NODE_KERNEL);
-	// First, clear the area
-	stealNodes(modelStack, pos, regionLength, loopLength, action);
+	{
+		// The clear and each node's insert and copy are one section: a copied node holds its stolen pos until it is
+		// set.
+		deluge::project::EditGuard guard{deluge::project::ModelEdit::NODE_KERNEL};
+		// First, clear the area
+		stealNodes(modelStack, pos, regionLength, loopLength, action);
 
-	// This is really inefficient.
-	for (int32_t sourceI = 0; sourceI < stolenNodeRecord->num; sourceI++) {
-		ParamNode* stolenNode = &stolenNodeRecord->nodes[sourceI];
-		if (stolenNode->pos >= regionLength) {
-			break; // If our destination region is shorter than that of the stolen nodes
-		}
-		int32_t destPos = stolenNode->pos + pos;
-		if (destPos >= loopLength) {
-			destPos -= loopLength;
-		}
+		// This is really inefficient.
+		for (int32_t sourceI = 0; sourceI < stolenNodeRecord->num; sourceI++) {
+			ParamNode* stolenNode = &stolenNodeRecord->nodes[sourceI];
+			if (stolenNode->pos >= regionLength) {
+				break; // If our destination region is shorter than that of the stolen nodes
+			}
+			int32_t destPos = stolenNode->pos + pos;
+			if (destPos >= loopLength) {
+				destPos -= loopLength;
+			}
 
-		int32_t destI = nodesRef.insertSorted(destPos).value_or(-1);
-		if (destI == -1) {
-			break;
-		}
-		ParamNode* destNode = (ParamNode*)&nodesRef[destI];
+			int32_t destI = nodesRef.insertSorted(destPos).value_or(-1);
+			if (destI == -1) {
+				break;
+			}
+			ParamNode* destNode = (ParamNode*)&nodesRef[destI];
 
-		memcpy(destNode, stolenNode, sizeof(ParamNode));
-		//*destNode = *stolenNode;
-		destNode->pos = destPos;
+			memcpy(destNode, stolenNode, sizeof(ParamNode));
+			//*destNode = *stolenNode;
+			destNode->pos = destPos;
+		}
 	}
 
 	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, currentValue, true, wasAutomatedBefore,
