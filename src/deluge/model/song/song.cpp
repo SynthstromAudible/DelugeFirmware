@@ -2187,17 +2187,19 @@ loadOutput:
 			anyOutputsSoloingInArrangement = true;
 		}
 
-		if (thisOutput->clipInstances.getNumElements() == 0
-		    && getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)thisOutput, nullptr) == nullptr
-		    && thisOutput->type == OutputType::AUDIO) {
-			// This clip has no way to get a param manager, and no clips to help it out. Need to create a backup or
-			// things will go wrong later.
-			ParamManagerForTimeline paramManager{};
+		if (thisOutput->type == OutputType::AUDIO && thisOutput->clipInstances.getNumElements() == 0) {
+			// Backups are keyed by the ModControllableAudio subobject, which isn't at the start of an AudioOutput
+			auto* modControllable = static_cast<ModControllableAudio*>(thisOutput->toModControllable());
+			if (getBackedUpParamManagerPreferablyWithClip(modControllable, nullptr) == nullptr) {
+				// This clip has no way to get a param manager, and no clips to help it out. Need to create a backup or
+				// things will go wrong later.
+				ParamManagerForTimeline paramManager{};
 
-			paramManager.setupUnpatched();
-			GlobalEffectable::initParams(&paramManager);
+				paramManager.setupUnpatched();
+				GlobalEffectable::initParams(&paramManager);
 
-			this->backUpParamManager((ModControllableAudio*)thisOutput->toModControllable(), nullptr, &paramManager);
+				this->backUpParamManager(modControllable, nullptr, &paramManager);
+			}
 		}
 
 		for (int32_t i = 0; i < thisOutput->clipInstances.getNumElements(); i++) {
