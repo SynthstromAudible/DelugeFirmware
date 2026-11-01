@@ -65,36 +65,28 @@ void GlobalEffectable::cloneFrom(ModControllableAudio* other) {
 }
 
 ModFXParam GlobalEffectable::modFXParam() const {
-	return boundChain_ != nullptr
-	           ? static_cast<ModFXParam>(std::min<int32_t>(boundChain_->mod_fx_param, kNumModFXParams - 1))
-	           : modFXParam_;
+	return chainView().modFXParam();
 }
 
 FilterType GlobalEffectable::filterType() const {
-	return boundChain_ != nullptr
-	           ? static_cast<FilterType>(std::min<int32_t>(boundChain_->filter_type, kNumFilterTypes - 1))
-	           : filterType_;
+	return chainView().filterType();
 }
 
 void GlobalEffectable::bindChain(deluge::project::FxChain& chain) {
-	if (boundChain_ == &chain) {
+	if (chainView().bound() == &chain) {
 		return;
 	}
 	chain.effects = deluge::plugin::StateHandle::of<deluge::effects::DelugeEffects>(effects());
-	chain.mod_fx_param = static_cast<uint8_t>(util::to_underlying(modFXParam()));
-	chain.filter_type = static_cast<uint8_t>(util::to_underlying(filterType()));
-	boundChain_ = &chain;
+	chainView().bind(chain);
 	bindEffects(chain.effects.as<deluge::effects::DelugeEffects>());
 }
 
 void GlobalEffectable::unbindChain() {
-	if (boundChain_ == nullptr) {
+	if (chainView().bound() == nullptr) {
 		return;
 	}
-	modFXParam_ = modFXParam();
-	filterType_ = filterType();
+	chainView().unbind();
 	bindEffects(nullptr); // copies the record's effects in
-	boundChain_ = nullptr;
 }
 
 void GlobalEffectable::setView(ModFXParam param, FilterType type) {
@@ -103,14 +95,7 @@ void GlobalEffectable::setView(ModFXParam param, FilterType type) {
 }
 
 void GlobalEffectable::writeView(ModFXParam param, FilterType type) {
-	if (boundChain_ != nullptr) {
-		boundChain_->mod_fx_param = static_cast<uint8_t>(util::to_underlying(param));
-		boundChain_->filter_type = static_cast<uint8_t>(util::to_underlying(type));
-	}
-	else {
-		modFXParam_ = param;
-		filterType_ = type;
-	}
+	chainView().write(param, type);
 }
 
 std::optional<ModFXParam> GlobalEffectable::projectedModFXParam() const {

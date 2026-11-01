@@ -200,14 +200,20 @@ bool stillSaw(const MIDIKnob& knob, int32_t position) {
 /// @brief An owner of learned knobs none of whose params it can find.
 struct ParamlessOwner final : GlobalEffectable {
 	ParamlessOwner()
-	    : chain{deluge::model::kModFxRingAllocator, deluge::model::kGranularAllocator, deluge::model::delayArena()} {}
+	    : chain{deluge::model::kModFxRingAllocator, deluge::model::kGranularAllocator, deluge::model::delayArena()} {
+		bindBinding(binding);
+	}
 	[[nodiscard]] deluge::effects::ChainCore& core() override { return chain.core(); }
 	[[nodiscard]] const deluge::effects::ChainCore& core() const override { return chain.core(); }
 	[[nodiscard]] deluge::effects::Filter& filter() override { return chain.filter(); }
+	[[nodiscard]] deluge::model::ChainView& chainView() override { return view; }
+	[[nodiscard]] const deluge::model::ChainView& chainView() const override { return view; }
 	ModelStackWithAutoParam* getParamFromMIDIKnob(MIDIKnob& /*knob*/,
 	                                              ModelStackWithThreeMainThings* /*modelStack*/) override {
 		return nullptr;
 	}
+	deluge::model::EffectsBinding binding;
+	deluge::model::ChainView view;
 	deluge::effects::MasterChain chain;
 };
 

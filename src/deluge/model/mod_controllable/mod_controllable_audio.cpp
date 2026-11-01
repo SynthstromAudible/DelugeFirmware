@@ -43,6 +43,7 @@
 #include "model/edits/edit.h"
 #include "model/edits/param_address_for.h"
 #include "model/edits/set_param_value.h"
+#include "model/fx/channel_setup.h"
 #include "model/fx/song_stutter.h"
 #include "model/mod_controllable/delay_arena_app.h"
 #include "model/mod_controllable/delay_type.h"
@@ -81,14 +82,7 @@ ModControllableAudio::~ModControllableAudio() {
 }
 
 void ModControllableAudio::releaseChainMemory() {
-	deluge::effects::Delay& delay = core().delay();
-	deluge::effects::DelayChange change = delay.prepare(deluge::effects::DelayType::OFF);
-	{
-		AudioExcludedSection section; // the render takes from the arena
-		delay.commit(deluge::effects::DelayType::OFF, change);
-		deluge::noteStructuralEdit(deluge::StructuralContainer::DELAY_TAPE);
-	}
-	delay.finish(change);
+	deluge::model::releaseDelayMemory(core().delay());
 }
 
 void ModControllableAudio::cloneFrom(ModControllableAudio* other) {

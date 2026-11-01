@@ -37,6 +37,8 @@ enum class MIDIMatchType;
 class Kit final : public Instrument, public GlobalEffectableForClip {
 public:
 	Kit();
+	[[nodiscard]] deluge::model::TrackChannel& channel() override { return channel_; }
+	[[nodiscard]] const deluge::model::TrackChannel& channel() const override { return channel_; }
 
 	ArpeggiatorForKit arpeggiator;
 	ArpeggiatorSettings defaultArpSettings;
@@ -178,6 +180,8 @@ protected:
 	bool isKit() override { return true; }
 
 private:
+	/// The kit's channel strip: the chain its drums render into, its settings and view.
+	deluge::model::TrackChannel channel_;
 	Error readDrumFromFile(Deserializer& reader, Song* song, Clip* clip, DrumType drumType,
 	                       int32_t readAutomationUpToPos);
 	void writeDrumToFile(Serializer& writer, Drum* thisDrum, ParamManager* paramManagerForDrum, bool savingSong,

@@ -39,6 +39,8 @@ public:
 	AudioOutput();
 	~AudioOutput() override;
 	void cloneFrom(ModControllableAudio* other) override;
+	[[nodiscard]] deluge::model::TrackChannel& channel() override { return channel_; }
+	[[nodiscard]] const deluge::model::TrackChannel& channel() const override { return channel_; }
 
 	void renderOutput(ModelStack* modelStack, std::span<StereoSample> buffer, int32_t* reverbBuffer,
 	                  int32_t reverbAmountAdjust, int32_t sideChainHitPending, bool shouldLimitDelayFeedback,
@@ -184,4 +186,8 @@ protected:
 	void recordRecordingFrom();
 	/// Which output to record from. Only valid when inputChannel is AudioInputChannel::SPECIFIC_OUTPUT.
 	Output* outputRecordingFrom{nullptr};
+
+private:
+	/// The audio track's channel strip: the chain its clip renders into, its settings and view.
+	deluge::model::TrackChannel channel_;
 };

@@ -77,6 +77,7 @@ void noteDrumListEdit(const Song* song) {
 } // namespace
 
 Kit::Kit() : Instrument(OutputType::KIT), arpeggiator(), defaultArpSettings() {
+	bindBinding(channel_.binding());
 	defaultArpSettings.numOctaves = 1;
 	firstDrum = nullptr;
 	selectedDrum = nullptr;
@@ -92,8 +93,8 @@ Kit::~Kit() {
 	// Reset arpeggiator
 	arpeggiator.reset();
 
-	// A kit destroyed in a song drops its record (its rows' too) here, while its effects base is alive: ~Output runs
-	// after that base is destroyed, and a record's removal hands the owner back what the record held.
+	// A kit destroyed in a song drops its record (its rows' too) here, while its channel is alive: ~Output runs after
+	// the channel is destroyed, and a record's removal hands the owner back what the record held.
 	if (currentSong != nullptr && docOutput_ != nullptr) {
 		currentSong->removeDocOutput(this);
 		docOutput_ = nullptr;
@@ -809,7 +810,7 @@ void Kit::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, i
 		int32_t pitchAdjust = deluge::dsp::fixed::curve_exponential(
 		    kMaxSampleValue, unpatchedParams->getValue(params::UNPATCHED_PITCH_ADJUST) >> 3);
 
-		GlobalEffectableForClip::renderedLastTime = renderGlobalEffectableForClip(
+		channel_.rendered_last_time = renderGlobalEffectableForClip(
 		    modelStackWithTimelineCounter, output, nullptr, reverbBuffer, reverbAmountAdjust, sideChainHitPending,
 		    shouldLimitDelayFeedback, isClipActive, pitchAdjust, 134217728, 134217728);
 	}

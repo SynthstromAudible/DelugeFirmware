@@ -48,20 +48,6 @@
 
 namespace params = deluge::modulation::params;
 
-GlobalEffectableForClip::GlobalEffectableForClip()
-    : chain_{deluge::model::kModFxRingAllocator, deluge::model::kGranularAllocator, deluge::model::delayArena(),
-             deluge::synth::matrix::kParamNeutral[params::GLOBAL_VOLUME_POST_REVERB_SEND]} {
-	bindBinding(effectsBinding_);
-	// A new owner's filter mode and mod FX type are set once its chain exists.
-	setLpfMode(FilterMode::TRANSISTOR_24DB);
-	filter().reset();
-	assignModFXType(ModFXType::NONE);
-}
-
-GlobalEffectableForClip::~GlobalEffectableForClip() {
-	releaseChainMemory();
-}
-
 // Beware - unlike usual, modelStack might have a NULL timelineCounter.
 [[gnu::hot]] void GlobalEffectableForClip::renderOutput(ModelStackWithTimelineCounter* modelStack,
                                                         ParamManager* paramManagerForClip,
@@ -84,7 +70,7 @@ GlobalEffectableForClip::~GlobalEffectableForClip() {
 
 	// The delay starts or stops on whether the content rendered last block.
 	deluge::effects::Delay::State delayWorkingState =
-	    createDelayWorkingState(*paramManagerForClip, shouldLimitDelayFeedback, renderedLastTime);
+	    createDelayWorkingState(*paramManagerForClip, shouldLimitDelayFeedback, channel().rendered_last_time);
 	if (outputType == OutputType::AUDIO) {
 		delayWorkingState.analog_saturation = 5;
 	}
@@ -92,14 +78,14 @@ GlobalEffectableForClip::~GlobalEffectableForClip() {
 	const deluge::effects::TrackChainInputs in =
 	    deluge::model::trackChainInputs(*this, *paramManagerForClip, volumeAdjustment, reverbAmountAdjust,
 	                                    sideChainHitPending, delayWorkingState, outputType);
-	deluge::effects::TrackBlock levels = chain_.begin_block(in, output.size());
+	deluge::effects::TrackBlock levels = chain().begin_block(in, output.size());
 
 	alignas(CACHE_LINE_SIZE) StereoSample global_effectable_memory[SSI_TX_BUFFER_NUM_SAMPLES];
 	memset(global_effectable_memory, 0, sizeof(StereoSample) * output.size());
 	std::span<StereoSample> global_effectable_audio{global_effectable_memory, output.size()};
 
 	// Render actual Drums / AudioClip
-	renderedLastTime = renderGlobalEffectableForClip(
+	channel().rendered_last_time = renderGlobalEffectableForClip(
 	    modelStack, global_effectable_audio, nullptr, reverbBuffer, reverbAmountAdjustForDrums, sideChainHitPending,
 	    shouldLimitDelayFeedback, isClipActive, pitchAdjust, 134217728, 134217728);
 
@@ -112,7 +98,8 @@ GlobalEffectableForClip::~GlobalEffectableForClip() {
 			recorder->feedAudio(global_effectable_audio, true, recorder->recordingOwnClip ? 3 : 2);
 		}
 	};
-	if (chain_.process(global_effectable_audio, in, levels, renderedLastTime, {reverbBuffer, output.size()}, record)) {
+	if (chain().process(global_effectable_audio, in, levels, channel().rendered_last_time,
+	                    {reverbBuffer, output.size()}, record)) {
 		AudioEngine::timeThereWasLastSomeReverb = AudioEngine::audioSampleTimer;
 	}
 

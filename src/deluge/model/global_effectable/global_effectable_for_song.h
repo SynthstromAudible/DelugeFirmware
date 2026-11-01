@@ -29,6 +29,8 @@ public:
 	[[nodiscard]] deluge::effects::ChainCore& core() override { return chain_.core(); }
 	[[nodiscard]] const deluge::effects::ChainCore& core() const override { return chain_.core(); }
 	[[nodiscard]] deluge::effects::Filter& filter() override { return chain_.filter(); }
+	[[nodiscard]] deluge::model::ChainView& chainView() override { return view_; }
+	[[nodiscard]] const deluge::model::ChainView& chainView() const override { return view_; }
 
 	uint8_t* getModKnobMode() override { return &modKnobMode; }
 
@@ -37,6 +39,8 @@ public:
 private:
 	/// @brief The chain's effect settings and the render's copy of them.
 	deluge::model::EffectsBinding effectsBinding_;
+	/// @brief Which values the master's knobs edit.
+	deluge::model::ChainView view_;
 	/// @brief The song's master: its effects around the reverb.
 	deluge::effects::MasterChain chain_;
 
