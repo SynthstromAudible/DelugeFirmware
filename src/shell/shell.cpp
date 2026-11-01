@@ -600,12 +600,25 @@ void Shell::pump_input(uint32_t now_ms) {
 	for (Scene* scene : stack_.scenes()) {
 		(void)up_before_input_.push_back(scene);
 	}
+	pad_readers_.clear();
+	pads_arrived_ = false;
 	owned_ = {};
 	routed_ = {};
 	decider_ = nullptr;
 	deciders_differ_ = false;
 	UiEvent event{UiEvent::Kind::AllReleased};
 	while (lowering_.next(event)) {
+		// The pads go to whoever could read them when they arrived: a press that closes the scene over
+		// a keyboard is not typed into it as well, as legacy's `ContextMenu::padAction` consumes it.
+		if (event.kind == UiEvent::Kind::Pad && !pads_arrived_) {
+			const std::span<Scene* const> scenes = stack_.scenes();
+			for (size_t k = 0; k < scenes.size(); k++) {
+				if (!covered(k)) {
+					(void)pad_readers_.push_back(scenes[k]);
+				}
+			}
+			pads_arrived_ = true;
+		}
 		// Asked per event: an earlier event this tick may have pushed the scene that takes this one.
 		if (is_widget_owned_shape(event) && lowering_.last_in_snapshot()) {
 			Scene& top = stack_.input_top();
@@ -732,9 +745,28 @@ bool Shell::render_oled(OledSurface& s) {
 		// `mask` note). Keying this on the *topmost* scene instead would let a console line or the
 		// working animation, which route nothing, deafen the view they are drawn over.
 		const InputMask mask = scenes[k] == focus ? InputMask::all() : InputMask::none();
-		ui::oled::OledFrame frame = ui::oled::root_frame(s.canvas, *s.style, lowering_.ctx(), mask);
+		ui::oled::OledFrame frame = ui::oled::root_frame(s.canvas, *s.style, lowering_.ctx(), mask, covered(k));
 		scenes[k]->render_oled(s.role, frame);
 		append_rendered(scenes[k]);
+	}
+	return true;
+}
+
+bool Shell::covered(size_t k) {
+	// Only the scene that takes the input, and a scene beneath it every scene up to it passes pads
+	// to, read the pads and the levels; the passive layers above it take no input at all.
+	const std::span<Scene* const> scenes = stack_.scenes();
+	if (pads_arrived_ && std::ranges::find(pad_readers_, scenes[k]) == pad_readers_.end()) {
+		return true;
+	}
+	const Scene* const focus = &stack_.input_top();
+	for (size_t i = k; i < scenes.size(); i++) {
+		if (scenes[i] == focus) {
+			return false;
+		}
+		if (i + 1 < scenes.size() && !scenes[i + 1]->passes_pads_beneath()) {
+			return true;
+		}
 	}
 	return true;
 }
@@ -759,7 +791,8 @@ void Shell::render_grid(uint32_t now_ms) {
 	Scene* const focus = &stack_.input_top();
 	{
 		const InputMask mask = scenes[base] == focus ? InputMask::all() : InputMask::none();
-		ui::grid::GridFrame frame = ui::grid::root_grid_frame(grid, lowering_.ctx(), mask, &g.flashes, &g.gate);
+		ui::grid::GridFrame frame =
+		    ui::grid::root_grid_frame(grid, lowering_.ctx(), mask, &g.flashes, &g.gate, covered(base));
 		scenes[base]->render_grid(frame);
 		append_rendered(scenes[base]);
 	}
@@ -767,7 +800,8 @@ void Shell::render_grid(uint32_t now_ms) {
 	if (has_overlay) {
 		for (size_t k = base + 1; k < scenes.size(); k++) {
 			const InputMask mask = scenes[k] == focus ? InputMask::all() : InputMask::none();
-			ui::grid::GridFrame frame = ui::grid::root_grid_frame(grid, lowering_.ctx(), mask, &g.flashes, &g.gate);
+			ui::grid::GridFrame frame =
+			    ui::grid::root_grid_frame(grid, lowering_.ctx(), mask, &g.flashes, &g.gate, covered(k));
 			scenes[k]->render_grid(frame);
 			append_rendered(scenes[k]);
 		}

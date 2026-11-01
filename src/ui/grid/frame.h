@@ -105,6 +105,9 @@ struct PadFlashList {
 ///       `ctx.input.pads` through the reference it already holds -- a child region sees *the
 ///       same* event span as its parent, never a filtered copy, without the staleness.
 ///       `local_events()` does the filtering, per call, on demand.
+/// What a covered frame reports for `held_pads()`: nothing held.
+inline constexpr PadMask kNoPadsHeld{};
+
 struct GridFrame : FrameInput {
 	// `FrameInput` (ui/core/frame_context.h) supplies `ctx`, `mask`, every input accessor, the
 	// `claim_*()` methods and `gate()` -- one copy of the input-consumption contract for both
@@ -160,7 +163,7 @@ struct GridFrame : FrameInput {
 	/// Pad input, so never masked -- and absolute, because it is the level behind `pad()`'s
 	/// `held`, which does its own translation.
 	/// @return The live pad-held bitmask, in absolute grid coordinates.
-	const PadMask& held_pads() const { return ctx.input.held_pads; }
+	const PadMask& held_pads() const { return covered ? kNoPadsHeld : ctx.input.held_pads; }
 
 	/// @}
 	/// @name Pads
@@ -232,6 +235,9 @@ struct GridFrame : FrameInput {
 	///          body.
 	/// @return This tick's pad events inside the frame, in local coordinates.
 	std::span<const PadEvent> local_events() const;
+	/// @brief This tick's pad events, the whole surface's: none for a covered frame.
+	/// @return The events.
+	std::span<const PadEvent> pad_events() const { return covered ? std::span<const PadEvent>{} : ctx.input.pads; }
 
 	/// @brief The first press inside @p local (this frame's coordinates), in `ctx.input.pads`
 	///        order, with its coordinates translated to be local to *this* frame -- not to
@@ -300,8 +306,7 @@ struct GridFrame : FrameInput {
 	template <class F>
 	void region(gfx::grid::Rect local, InputMask granted, F&& body) {
 		const gfx::grid::Rect translated{rect.x + local.x, rect.y + local.y, local.w, local.h};
-		GridFrame child{{ctx, child_mask(granted)}, grid,    translated,
-		                clip.intersect(translated), flashes, surface_gate};
+		GridFrame child{child_input(granted), grid, translated, clip.intersect(translated), flashes, surface_gate};
 		std::forward<F>(body)(child);
 	}
 
@@ -342,19 +347,19 @@ struct GridFrame : FrameInput {
 /// over that root still lights every pad it would have -- but reads 0/false from every masked
 /// accessor and claims nothing.
 ///
-/// @note **Pads are unaffected either way.** `pad()`, `peek()`, `local_events()`,
+/// @note **Pads are unaffected by the mask.** `pad()`, `peek()`, `local_events()`,
 ///       `first_press_in()`, `interact()` and `held_pads()` are never masked, so a root built
-///       with `none()` still reports every press exactly as one built with `all()` would: a
-///       component that only ever paints and hit-tests pads -- never reads an encoder --
-///       behaves identically under either mask, which is what makes an inert *encoder* surface a
-///       live *pad* surface still make sense as one frame.
+///       with `none()` still reports every press exactly as one built with `all()` would. What
+///       hides them is @p covered, which is about the scene, not the region.
 /// @param grid the pad surface to draw and read input from
 /// @param ctx the tick's frame context
 /// @param mask input mask granted to the root frame; pads are unaffected regardless
 /// @param flashes where the frame and its regions record `flash()`es; null drops them
 /// @param surface_gate the grid surface's own repaint gate (`grid_gate()`); null for none
+/// @param covered true for a scene beneath the one that takes the input, which passes it no pads
+///        (`FrameInput::covered`): its pad reads, shift and held Select read empty
 /// @return The root `GridFrame` for this tick.
 GridFrame root_grid_frame(gfx::grid::PadGrid& grid, FrameContext& ctx, InputMask mask = InputMask::all(),
-                          PadFlashList* flashes = nullptr, RepaintGate* surface_gate = nullptr);
+                          PadFlashList* flashes = nullptr, RepaintGate* surface_gate = nullptr, bool covered = false);
 
 } // namespace deluge::ui::grid

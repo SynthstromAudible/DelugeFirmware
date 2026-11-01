@@ -2074,6 +2074,25 @@ describe browser_long_press("scenes::browser::BrowserScene holding Select", $ {
 		expect(browser_scene().cursor()).to_equal(before + 1);
 	});
 
+	it("types nothing into the browser beneath a context menu that passes no pads, which the press closes", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		context_menu_scene().open(sound_context(f));
+		expect(r.shell.stack().push(SceneId{context_menu::kContextMenuSceneKind,
+		                                    static_cast<uint16_t>(context_menu::DescriptorId::ResetMidiFollow)}))
+		    .to_be_true();
+		const int32_t before = browser_scene().cursor();
+		const std::string text{browser_scene().entered_text()};
+		r.type('C');
+		// `ContextMenu::padAction` closes on the press and deals with it, so the browser it uncovers does not type it.
+		expect(on_stack(r, context_menu::kContextMenuSceneKind) == nullptr).to_be_true();
+		expect(browser_scene().cursor()).to_equal(before);
+		expect(std::string{browser_scene().entered_text()}).to_equal(text);
+	});
+
 	it("refuses BACK, Select and pads on a folder menu while a sample load runs", _ {
 		spec::SongFixture f = spec::make_synth_song();
 		MenuContext ctx = sound_context(f);

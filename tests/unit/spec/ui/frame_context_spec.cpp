@@ -272,6 +272,33 @@ describe frame_context("ui::FrameContext", $ {
 		expect(r.grid.at(10, 2)).to_equal(RGB{1, 2, 3});   // and it painted, as always
 	});
 
+	it("a covered root frame reports no presses, held pads, shift or select-held, in every region", _ {
+		uitest::GridRig r;
+		PadEvent ev[] = {{10, 2, 88, true}};
+		r.input.pads = ev;
+		r.input.held_pads.set(11, 2, true);
+		r.input.shift = true;
+		r.input.select_held = true;
+		GridFrame covered = root_grid_frame(r.grid, r.ctx, InputMask::none(), nullptr, nullptr, /*covered=*/true);
+		expect(covered.shift()).to_be_false();
+		expect(covered.select_held()).to_be_false();
+		covered.region(GridRect{8, 0, 8, 8}, false, [&](GridFrame& f) {
+			const Response hit = f.pad(2, 2, RGB{1, 2, 3});
+			expect(hit.pressed).to_be_false();
+			expect(f.pad(3, 2, RGB{4, 5, 6}).held).to_be_false();
+			expect(f.local_events().size()).to_equal(size_t(0));
+			expect(f.first_press_in(GridRect{0, 0, 8, 8}).has_value()).to_be_false();
+			expect(f.held_pads().test(11, 2)).to_be_false();
+			expect(f.shift()).to_be_false();
+		});
+		expect(r.grid.at(10, 2)).to_equal(RGB{1, 2, 3}); // it still paints
+
+		uitest::Rig48 o;
+		o.input.shift = true;
+		OledFrame panel = deluge::ui::oled::root_frame(o.canvas, o.style, o.ctx, InputMask::none(), /*covered=*/true);
+		expect(panel.shift()).to_be_false();
+	});
+
 	it("reports the requested rect as bounds and the granted one as visible", _ {
 		uitest::GridRig r;
 		expect(r.frame.bounds()).to_equal(GridRect{0, 0, 18, 8});

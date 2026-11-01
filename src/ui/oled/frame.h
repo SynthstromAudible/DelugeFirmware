@@ -121,8 +121,8 @@ struct OledFrame : FrameInput {
 		const gfx::oled::Point child_origin{origin.x + local.x, origin.y + local.y};
 		const gfx::oled::Rect child_clip =
 		    clip.intersect(gfx::oled::Rect{child_origin.x, child_origin.y, local.w, local.h});
-		OledFrame child{{ctx, child_mask(granted)},        canvas, child_clip, child_origin,
-		                gfx::oled::Size{local.w, local.h}, style};
+		OledFrame child{
+		    child_input(granted), canvas, child_clip, child_origin, gfx::oled::Size{local.w, local.h}, style};
 		std::forward<F>(body)(child);
 	}
 
@@ -296,9 +296,11 @@ struct OledFrame : FrameInput {
 /// @param ctx    the frame's input context
 /// @param mask   the inputs this frame (and its descendants, absent a narrower `region()`) may
 ///               consume
+/// @param covered true for a scene beneath the one that takes the input, which passes it nothing
+///               (`FrameInput::covered`): shift and held Select read false
 /// @return The root `OledFrame` for this panel this tick.
 OledFrame root_frame(gfx::oled::Canvas& canvas, const Style& style, FrameContext& ctx,
-                     InputMask mask = InputMask::all());
+                     InputMask mask = InputMask::all(), bool covered = false);
 
 /// @brief @p f's panel as a frame, the rows above `Geometry::visible_top` included: for a port of a legacy routine
 ///        that draws there, as `RenameUI::renderOLED`'s window does from row 4 of the 48-row panel.

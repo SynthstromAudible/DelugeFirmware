@@ -7,7 +7,7 @@ namespace deluge::ui::grid {
 using gfx::grid::Rect;
 
 GridFrame root_grid_frame(gfx::grid::PadGrid& grid, FrameContext& ctx, InputMask mask, PadFlashList* flashes,
-                          RepaintGate* surface_gate) {
+                          RepaintGate* surface_gate, bool covered) {
 	// The whole surface, sidebar included: GridDimensions::cols() is main_cols + sidebar_cols and
 	// PadGrid addresses that as one range, so the root frame is one 18-wide coordinate space on a
 	// Deluge rather than a main area with a sidebar bolted on beside it.
@@ -15,7 +15,7 @@ GridFrame root_grid_frame(gfx::grid::PadGrid& grid, FrameContext& ctx, InputMask
 	const Rect all{0, 0, d.cols(), d.rows};
 	// Requested == visible at the root: nothing clips the whole surface. `mask` is the caller's
 	// lever; regions below it only ever narrow further.
-	return GridFrame{{ctx, mask}, grid, all, all, flashes, surface_gate};
+	return GridFrame{{ctx, mask, {}, covered}, grid, all, all, flashes, surface_gate};
 }
 
 Response GridFrame::pad(int32_t x, int32_t y, RGB colour) {
@@ -39,7 +39,7 @@ Response GridFrame::pad(int32_t x, int32_t y, RGB colour) {
 	grid.set(px, py, colour); // marks row py dirty, and no-ops if the grid is smaller than clip
 
 	Response r;
-	for (const PadEvent& e : ctx.input.pads) {
+	for (const PadEvent& e : pad_events()) {
 		if (e.x != px || e.y != py) {
 			continue;
 		}
@@ -92,7 +92,7 @@ std::span<const PadEvent> GridFrame::local_events() const {
 	// tick, and dropping the cache is what makes a reused buffer (same pointer, same size, new
 	// contents) always seen -- see the note on local_events() in frame.h.
 	local_count_ = 0;
-	for (const PadEvent& e : ctx.input.pads) {
+	for (const PadEvent& e : pad_events()) {
 		// Filtered by what is visible, translated by the *requested* corner: an event can only
 		// arrive on a pad this frame can see, and its local coordinates are the ones `pad()` uses.
 		if (!clip.contains(e.x, e.y)) {

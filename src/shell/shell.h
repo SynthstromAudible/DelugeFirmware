@@ -535,6 +535,12 @@ private:
 	/// @brief Draw the pad grid: the base scene, then the overlays, then the stack's greyout.
 	/// @param now_ms The tick's wall clock.
 	void render_grid(uint32_t now_ms);
+	/// @brief Does stacked scene \p k render as covered (`ui::FrameInput::covered`)?
+	/// @param k Index into `stack_.scenes()`.
+	/// @return False for the input-frontmost scene and for one beneath it that every scene up to it
+	///         passes pads to (`Scene::passes_pads_beneath`), each as the stack stood when this
+	///         tick's first pad event arrived, if one did; true otherwise.
+	bool covered(size_t k);
 	/// @brief Count where this tick's render claimed differently from what `pump_input` decided.
 	void audit_ownership();
 	/// @brief Compose and resolve this tick's LED declarations into the LED surface.
@@ -625,6 +631,9 @@ private:
 	InputClaims owned_{};
 	/// The widget-owned shapes `pump_input` withdrew and routed this tick.
 	InputClaims routed_{};
+	/// The scenes that could read pads when this tick's first pad event came off the queue, and whether one did.
+	FixedVector<Scene*, kStackDepth> pad_readers_;
+	bool pads_arrived_ = false;
 	/// The scene `pump_input` last asked `Scene::owns`, and whether a different one was asked earlier this tick.
 	Scene* decider_ = nullptr;
 	bool deciders_differ_ = false;

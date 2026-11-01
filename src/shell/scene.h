@@ -443,6 +443,15 @@ public:
 	/// @return False by default: the scene reads every input in `handle()`.
 	virtual bool owns(const UiEvent& event) const { return false; }
 
+	/// @brief Does this scene pass the pads, shift and held Select to the scene beneath it?
+	///
+	/// A scene beneath the one that takes the input renders covered (`ui::FrameInput::covered`):
+	/// its frames read no pads, shift or held Select. A cover that answers true lets the scene
+	/// beneath read them as if it took the input, as legacy's sample-browser context menu hands its
+	/// pad presses to the browser's keyboard.
+	/// @return False by default.
+	virtual bool passes_pads_beneath() const { return false; }
+
 	/// @brief Advance any time-based state.
 	/// @param dt_ms Milliseconds since this scene was last ticked.
 	virtual void tick(uint32_t dt_ms) {}

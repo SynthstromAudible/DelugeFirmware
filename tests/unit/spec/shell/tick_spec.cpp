@@ -99,7 +99,9 @@ public:
 		const deluge::gfx::grid::Rect b = frame.bounds();
 		for (int32_t y = 0; y < b.h; y++) {
 			for (int32_t x = 0; x < b.w; x++) {
-				(void)frame.pad(x, y, colour);
+				if (frame.pad(x, y, colour).pressed) {
+					pads_pressed++;
+				}
 			}
 		}
 	}
@@ -161,6 +163,8 @@ public:
 	RGB colour = kBaseColour;
 	int oled_renders = 0, grid_renders = 0, events = 0, ticks = 0, model_changed = 0;
 	int after_renders = 0, events_at_after_render = -1, events_at_render = -1, turns_seen = 0;
+	/// Presses `render_grid` saw through its frame.
+	int pads_pressed = 0;
 	/// Whether `owns()` claims the select-encoder turn for the render, as a menu's list does.
 	bool owns_turn = false;
 	/// One letter per event `handle()` saw, in order: `P` pad, `E` encoder, `B` anything else.
@@ -216,6 +220,7 @@ public:
 	}
 
 	bool is_grid_overlay() const override { return overlay; }
+	bool passes_pads_beneath() const override { return passes_pads; }
 	bool occludes_grid() const override { return occludes; }
 	bool oled_transparent(SurfaceRole) const override { return transparent; }
 	deluge::ui::grid::GreyoutMask greyout_mask() const override { return mask; }
@@ -224,6 +229,8 @@ public:
 	static constexpr int32_t kBoxX = 60, kBoxY = 20;
 
 	bool overlay = true, occludes = false, transparent = false;
+	/// What `passes_pads_beneath()` answers.
+	bool passes_pads = false;
 	/// Whether `render_grid` paints its one pad.
 	bool paints = true;
 	deluge::ui::grid::GreyoutMask mask{};
@@ -874,6 +881,30 @@ describe shell_tick("shell::Shell::tick", $ {
 		r.shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_PAD, 2, 2, 64}, 26);
 		r.shell.tick(30);
 		expect(r.base.order).to_equal(std::string("EP"));
+	});
+
+	it("a scene covered by an overlay that passes nothing reads no pads", _ {
+		deluge::notify::dirty().drain();
+		Rig r;
+		r.shell.init({kBase, 0});
+		expect(r.shell.stack().push({kOverlay, 0})).to_be_true();
+		r.shell.tick(0);
+		r.shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_PAD, 2, 2, 64}, 25);
+		r.shell.tick(30);
+		expect(r.base.grid_renders).to_be_greater_than(1);
+		expect(r.base.pads_pressed).to_equal(0);
+	});
+
+	it("a scene covered by an overlay that passes pads beneath reads them", _ {
+		deluge::notify::dirty().drain();
+		Rig r;
+		r.overlay.passes_pads = true;
+		r.shell.init({kBase, 0});
+		expect(r.shell.stack().push({kOverlay, 0})).to_be_true();
+		r.shell.tick(0);
+		r.shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_PAD, 2, 2, 64}, 25);
+		r.shell.tick(30);
+		expect(r.base.pads_pressed).to_equal(1);
 	});
 
 	it("a scene pushed by this tick's input starts its clock at this tick", _ {

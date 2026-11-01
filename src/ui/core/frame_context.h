@@ -272,6 +272,12 @@ struct FrameInput {
 	/// clean at every depth; nothing about a tick clears it early, because a frame does not outlive
 	/// its own tick's single pass over it. See `set_claim` for the idempotency this drives.
 	mutable InputClaims claimed_{};
+	/// @brief Is this frame's scene covered by the scene that takes the input, which passes it nothing?
+	///
+	/// Set by the shell on a root frame and inherited by every region below it. A covered frame
+	/// reads no pads (`GridFrame`'s pad reads), no shift and no held Select: those are never masked
+	/// inside a focused scene, but a scene beneath another one has no claim on them.
+	bool covered = false;
 
 	/// @brief Was this frame granted everything?
 	///
@@ -354,11 +360,11 @@ struct FrameInput {
 	/// @note Not masked: it modifies another gesture rather than being one, and focus arbitrates
 	///       the gesture.
 	/// @return True while shift is held.
-	bool shift() const { return ctx.input.shift; }
+	bool shift() const { return !covered && ctx.input.shift; }
 	/// @brief Is the Select button down?
 	/// @note Not masked, for the same reason as `shift`.
 	/// @return True while Select is held.
-	bool select_held() const { return ctx.input.select_held; }
+	bool select_held() const { return !covered && ctx.input.select_held; }
 	/// @}
 
 	/// @{
@@ -438,6 +444,10 @@ struct FrameInput {
 	/// @param granted Whether to grant everything this frame has, or nothing.
 	/// @return `mask` unchanged if \p granted, else `InputMask::none()` intersected with `mask`.
 	InputMask child_mask(bool granted) const { return mask & (granted ? InputMask::all() : InputMask::none()); }
+	/// @brief The input a child region asking for \p m has: `child_mask(m)`, and this frame's `covered`.
+	/// @param m The mask requested by the child.
+	/// @return The child's `FrameInput`.
+	FrameInput child_input(InputMask m) const { return FrameInput{ctx, child_mask(m), {}, covered}; }
 };
 
 } // namespace deluge::ui

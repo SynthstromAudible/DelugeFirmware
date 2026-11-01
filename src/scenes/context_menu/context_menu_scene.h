@@ -236,6 +236,9 @@ public:
 	/// @brief `ContextMenu::getGreyoutColsAndRows` (`context_menu.cpp`): `*cols = 0xFFFFFFFF`,
 	///        `*rows` left at the caller's zero (`gui/ui/ui.cpp:74-83`) -- every column, no rows.
 	deluge::ui::grid::GreyoutMask greyout_mask() const override { return {0xFFFFFFFFu, 0}; }
+	/// @brief True for a descriptor with a `pad` hook: the sample browser's menus hand a pad press to the browser's
+	///        keyboard beneath (`Kit::padAction`/`Synth::padAction` -> `SampleBrowser`), which reads it as it draws.
+	bool passes_pads_beneath() const override { return descriptor(id_).pad != nullptr; }
 
 	/// @brief Which descriptor the last `on_enter` selected.
 	DescriptorId descriptor_id() const { return id_; }

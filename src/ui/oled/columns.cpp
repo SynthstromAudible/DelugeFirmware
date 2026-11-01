@@ -172,7 +172,7 @@ void render_slot(OledFrame& f, Rect value_rect, const Column& col, bool focused)
 	// column in order to *draw* itself that way. The clock and `shift` are never masked, so every
 	// column keeps animating either way.
 	const InputMask granted = focused ? InputMask{.turn = false} : InputMask::none();
-	OledFrame slot{{f.ctx, f.child_mask(granted)}, f.canvas, clip, origin, Size{value_rect.w, value_rect.h}, f.style};
+	OledFrame slot{f.child_input(granted), f.canvas, clip, origin, Size{value_rect.w, value_rect.h}, f.style};
 	col.render(slot, focused, col.ctx);
 }
 
