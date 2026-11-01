@@ -4556,8 +4556,13 @@ ActionResult SessionView::gridHandleScroll(int32_t offsetX, int32_t offsetY) {
 	}
 
 	if (getCurrentUI() != &deluge::gui::context_menu::midiLearnMode) {
+		const bool endingInteraction = currentUIMode != UI_MODE_NONE || gridFirstPadActive();
 		gridResetPresses();
-		clipPressEnded();
+		// Ordinary scrolling only changes the pad viewport. Ending a nonexistent clip press
+		// would unnecessarily reset the knob context and redraw the unchanged OLED.
+		if (endingInteraction) {
+			clipPressEnded();
+		}
 	}
 
 	// Fix the range
@@ -4968,8 +4973,9 @@ void SessionView::gridPulseSelectedClip() {
 
 	// get the X, Y coordinates of the current clip
 	Cartesian pad = gridXYFromClip(*clip);
-	// don't render pulse if clip is scrolled out of view (coords = - 1)
-	if (pad.x < 0 && pad.y < 0) {
+	// Either coordinate can be negative when the clip is offscreen. Both must be valid
+	// before PadLEDs::set indexes the image, otherwise pulsing writes outside the pad buffer.
+	if (pad.x < 0 || pad.y < 0) {
 		return;
 	}
 
