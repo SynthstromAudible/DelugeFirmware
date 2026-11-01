@@ -1181,13 +1181,18 @@ Two shell-level corrections this plan made, both of which change how a scene ask
   `{oled = false, grid = true}`: its timer is the shortcut-pad blink cadence, a grid concern whose
   OLED content never depends on it. No test could see the regression, which is exactly why it was
   fixed rather than recorded.
-* **`Action::Kind::RepaintAll` never reached the grid at all.** `shell/scene.h` documented it as
-  "invalidate every surface", but `SurfaceRole` names OLED panels only and `Shell::tick`'s grid step
-  consulted the grid's own gate and nothing else — and that gate is armed by `render_grid`, which has
-  already happened by the time post-render input arrives. So a scene that changed what the *pads*
-  show in response to a post-render event had no way to say so: `MarkerScene`'s select turn moved the
-  marker on the OLED and left the pads up to a 200 ms blink phase behind. `Router::grid_repaint_requested()`
-  is the fix; `BrowserScene::handle` had the identical latency.
+* **`Action::Kind::RepaintAll` reaches the grid.** `SurfaceRole` names OLED panels only, and the
+  grid's own gate is armed by `render_grid`, so a scene that changes what the *pads* show from
+  `handle()` or `after_render()` says so through `RepaintAll` (`Router::grid_repaint_requested()`):
+  `MarkerScene`'s and `BrowserScene`'s select turns do.
+* **Input reaches `handle()` before the render**, except a widget-owned shape the scene `owns`
+  (`shell/README.md`, step 3), so a select turn applied in `handle()` is drawn the same tick.
+  `MenuScene` is the one scene that owns any: Back below the root, and whatever its focused page's
+  widgets read (`MenuScene::owned_input`, `CustomItem::owned_input`).
+* **Blinks share the shell's phase.** A button LED's blink is `LedState::shared(BlinkRate::Normal)` or
+  `Fast`, restarted with `LedFrame::restart` where main calls `blinkLed` mid-blink; a model fact a
+  scene raises (`MenuScene::read_value_again`'s `Dirty::Oled`) is drawn on the next tick, with no
+  zero-millisecond timer.
 
 ### The `Service` half of the same fold (E4 task 5)
 

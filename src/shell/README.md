@@ -86,17 +86,15 @@ latch, and each encoder's partial detent -- and turns raw board events into the 
 `UiEvent` vocabulary. A tick is a begin/feed/end machine: `begin_tick` clears the per-tick state
 (the routed FIFO is the one exception -- it is drained by `next()`, so an event that arrived while
 the shell was busy still gets delivered next tick, not dropped); `end_tick` stamps the tick's clock
-onto the `ui::InputSnapshot` every widget's frame reads. Six shapes -- five encoder turns
+onto the `ui::InputSnapshot` every widget's frame reads. Seven shapes -- five encoder turns
 (`Select`, `GoldUpper`, `GoldLower`, `Horizontal`, `Vertical`), the select encoder's own push, and
-`Button{Back}` -- are the toolkit's widget-owned inputs; they still update the lowering's
-bookkeeping and reach the snapshot every tick, but are held back from routing into `held_back()`
-rather than delivered during `pump_input`, because whether a widget wants them is only knowable
-once render has happened. `Router::route` delivers everything else immediately, in the legacy
-order top scene -> mod-knobs -> global controls -> MIDI learn -> dropped; `Router::route_post_render` delivers
-the held-back six the same way, once per tick, after render, skipping any input `ctx().claims`
-shows a widget already took. Neither step ever touches `SceneStack` directly -- both apply the
-`Result`'s `Action`s through the router, which is what keeps a scene's `handle()` from ever
-re-entering the stack it is itself being called through.
+`Button{Back}` -- are the toolkit's widget-owned inputs (`is_widget_owned_shape`). Every event comes
+out of one FIFO in arrival order; for a widget-owned one the shell asks the input-frontmost scene
+whether its widgets own it (`Scene::owns`): owned, it stays in the snapshot for the render and is not
+routed; not owned, it is `withdraw()`n from the snapshot and routed with everything else.
+`Router::route` delivers in the legacy order top scene -> mod-knobs -> global controls -> MIDI learn ->
+dropped, and never touches `SceneStack` directly -- it applies the `Result`'s `Action`s, which is what
+keeps a scene's `handle()` from ever re-entering the stack it is itself being called through.
 
 ## Scenes and the stack (`scene.h`, `scene_stack.h`)
 
@@ -204,17 +202,18 @@ defaults moved from `true` to `false`, so a designated initializer arms only the
 
 `tick(now_ms)` runs spec D §7's order exactly:
 
-1. `notify::dirty().drain()` → `on_model_changed` on every stacked scene, and the facts onto the
-   gates (`Oled` → the OLED surfaces; `GridMain`/`GridSidebar`/`ClipContent`/`NoteRows` → the grid;
-   anything else → both).
+1. `notify::dirty().drain(DirtyConsumer::Shell)` → `on_model_changed` on every stacked scene, and the
+   facts onto the gates (`Oled` → the OLED surfaces; `GridMain`/`GridSidebar`/`ClipContent`/`NoteRows`
+   → the grid; anything else → both). The dirty set keeps one copy per consumer, so the legacy UI's
+   drain never takes a fact the shell has not seen.
 2. `notices_.drain(notify::notices(), now)` → the popup/console/working scenes.
 3. `pump_input` — end the lowering's *input* phase (`end_tick(now_ms)`, which stamps the tick's
-   clock onto the snapshot every frame reads) and route the ordinary shapes; a `Popup` action the
-   router stored is resolved through `BoardProfile::text_or_digits` and handed to
-   `Notices::show_popup`. The window itself is closed at the bottom of `tick()`, not here. This
-   bridge runs *before* steps 7 and 8, so a `Popup` action produced by `after_render()` or by
-   post-render delivery is shown one tick later — `Router::popup_string_` is only cleared on
-   consumption, so it is late, never lost.
+   clock onto the snapshot every frame reads) and route every event in arrival order, leaving the
+   widget-owned shapes the input-frontmost scene `owns` for the render. **Nothing is delivered after
+   the render.** A `Popup` action the router stored is resolved through `BoardProfile::text_or_digits`
+   and handed to `Notices::show_popup`; one produced by `after_render()` is shown one tick later —
+   `Router::popup_string_` is only cleared on consumption, so it is late, never lost. A scene this
+   step pushes is ticked with no time at step 4, since it was not up for the tick's `dt`.
 4. `tick_stack` — scenes top-down, stopping below the first `occludes_grid()`, then the services.
    A stack that changed re-queries the greyout -- the topmost non-empty `greyout_mask()`
    (`SceneStack::topmost_greyout`, legacy's top-down `getUIGreyoutColsAndRows`) -- and invalidates
@@ -229,8 +228,10 @@ for a note-row change and the grid for an OLED one. A `Result` cannot request a 
 today: `Action::Repaint` names a `SurfaceRole` and there is no grid role, so the grid decision omits
 `repaint_requested`. Left as-is pending a ruling; the model side reaches the grid gate through
 `notify::Dirty` instead.
+   The shell then counts, in `ownership_audit()`, a widget that claimed a shape its scene said it
+   does not own and an owned shape no widget claimed; the scenes-spec runner fails a file whose
+   counts are not zero.
 7. `after_render()` on every scene rendered this tick, applied through the router.
-8. `deliver_post_render_input` — the held-back, widget-owned shapes, each gated on `ctx().claims`.
 8b. **Every stacked scene's `next_timer()`, armed as a repaint deadline on whichever of its own
    surfaces `Scene::timer_repaints()` names.** "Wake me later" and "repaint me later" are one thing,
    not two: a timer used to feed `next_wake()` only, so an animated scene *also* had to call
@@ -245,26 +246,28 @@ today: `Action::Repaint` names a `SurfaceRole` and there is no grid role, so the
    overrides `{.oled = false, .grid = true}` because its timer is the shortcut/source pad blink
    cadence alone, and arming the OLED gates from it too meant both panels blitting unconditionally,
    forever, whenever a patched-param leaf was focused (E3 task 10 fix round 1).
-9. `derive_leds`, then `flush` (Task 8).
+8d. `notify::dirty().drain(DirtyConsumer::Shell)` again: a fact raised in `handle()`, `tick()` or
+   `after_render()` reaches the scenes now, and its gates are armed at a deadline of now, so the next
+   tick happens and draws it. Between ticks a pending fact is a wake too: `next_wake(now)` answers
+   `now`, and the guest arms a tick from `drain_notifications` while it sleeps.
+9. `derive_leds`, then `flush` (Task 8). Every blink declared `LedState::shared(rate)` reads the
+   shell's one phase for that rate, as `indicator_leds::ledBlinkState[blinkingType]`: restarted where
+   a declarer calls `LedFrame::restart` (its `blinkLed`) and whenever an LED starts blinking on it.
 
 **Repaint requests are cleared between 6 and 7, not at the bottom of the tick.**
 `Action::Repaint`/`RepaintAll` set a flag on the `Router` and nothing else — no surface, no gate —
-so step 5 is their only reader. Steps 7 and 8 both `apply()` results of their own, and a clear
-placed after them set and wiped such a request inside one tick with nothing reading it in between:
-a menu scene that advanced its selection from a post-render-delivered detent and asked for a
-`Repaint{Main}` got no frame at all until some unrelated event fired a gate. What steps 7 and 8
-request instead lands on the named surfaces' own `RepaintGate`s at the bottom of the tick, at a
-zero-millisecond deadline, so `next_wake()` reports `now` and the next tick both happens and
-renders.
+so step 5 is their only reader, and a request from step 3 is drawn the same tick. Step 7 `apply()`s
+results of its own, and a clear placed after it would set and wipe such a request inside one tick
+with nothing reading it in between. What step 7 requests instead lands on the named surfaces' own
+`RepaintGate`s at the bottom of the tick, at a zero-millisecond deadline, so `next_wake()` reports
+`now` and the next tick both happens and renders.
 
 The widgets' gate is evaluated **once** per tick (`needs_frame` consumes the request) and the
 answer OR'd into every surface's decision.
 
-**The tick window.** `InputLowering::begin_tick` clears the held-back queue, the claims and
+**The tick window.** `InputLowering::begin_tick` clears the press edges, the claims and
 `had_input_this_tick`, but input arrives *between* ticks -- so the shell opens the window lazily on
-the first feed (or at `pump_input`) and closes it at the *bottom* of `tick()`. Nothing between
-`end_tick()` and the end of the tick calls `begin_tick()`, which is what lets step 8 still read
-`held_back()` and `claims` after the frame has been built.
+the first feed (or at `pump_input`) and closes it at the *bottom* of `tick()`.
 
 **Focus and routing.** Exactly one scene per tick owns the input: `SceneStack::input_top()`, the
 topmost scene that is not `Scene::input_transparent()`. It is the scene `Router` calls `handle()`
@@ -274,13 +277,20 @@ nothing. The three notice scenes are `input_transparent`, because legacy routes 
 a console line or the working animation; without the flag, a console message would deafen the view
 it is drawn over for as long as the line is up.
 
+**Covered scenes.** A scene beneath the input-frontmost one renders *covered*
+(`ui::FrameInput::covered`): its frames read no pads, held pads, shift or held Select, which no mask
+hides inside a focused scene. A cover passes them beneath with `Scene::passes_pads_beneath` --
+`ContextMenuScene` does for a descriptor with a `pad` hook, so the sample browser's folder menus type
+into the browser's keyboard. The pads a frame reads are the ones its scene could read when the tick's
+first pad event arrived, so a press that closes a context menu is not typed into the scene it
+uncovers.
+
 **A scene reads any one input in at most one render pass per tick.** Reading through a frame *is*
 claiming it (`ui/core/frame_context.h`, rule 2), and a scene drawn on two surfaces builds two
 independent `FrameInput`s in one tick — reading `f.turn()` in both `render_oled` and `render_grid`
 claims the same detent twice and trips `InputClaims::double_claim`. A scene whose two surfaces both
 react to one input reads it in the pass that owns it and draws the resulting state on the other; a
-scene that needs the raw event on both leaves it unclaimed and reacts in `handle()`, which the shell
-delivers *after* render for exactly that reason.
+scene that needs the raw event on both does not own it and reacts in `handle()`, before the render.
 
 **Composition.** `render_oled` walks down from the top while each scene is `oled_transparent(role)`
 and draws from there up -- the port of `OLED::sendMainImage`'s two-layer if-chain
