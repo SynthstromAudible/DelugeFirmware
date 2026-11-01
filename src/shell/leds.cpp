@@ -1,9 +1,51 @@
 #include "shell/leds.h"
 
+#include "ui/core/metrics.h"
+
+#include <utility>
+
 namespace deluge::ui::shell {
 
-bool led_is_on(const LedState& s, uint32_t now_ms) {
+namespace {
+
+/// @brief The phase a shared blink of \p rate reads, or a stopped one.
+ui::BlinkPhase phase_of(ui::BlinkRate rate, std::span<const ui::BlinkPhase> phases) {
+	const size_t i = std::to_underlying(rate);
+	return i < phases.size() ? phases[i] : ui::BlinkPhase{};
+}
+
+/// @brief `blinkLed`'s first stretch for \p rate: `kFastFlashTime` for a fast blink, else `kInitialFlashTime` started
+///        lit or `kFlashTime` started dark (`indicator_leds.cpp:85-95`).
+uint32_t first_stretch_ms(ui::BlinkRate rate, bool initially_on) {
+	if (rate == ui::BlinkRate::Fast) {
+		return ui::kFastFlashTime;
+	}
+	return initially_on ? ui::kInitialFlashTime : ui::kFlashTime;
+}
+
+/// @brief `ledBlinkTimeout`'s toggle period for \p rate (`indicator_leds.cpp:108`).
+uint32_t toggle_ms(ui::BlinkRate rate) {
+	return rate == ui::BlinkRate::Fast ? ui::kFastFlashTime : ui::kFlashTime;
+}
+
+} // namespace
+
+bool led_is_on(const LedState& s, uint32_t now_ms, std::span<const ui::BlinkPhase> phases) {
 	switch (s.kind) {
+	case LedState::Kind::Shared: {
+		const ui::BlinkPhase p = phase_of(s.rate, phases);
+		if (!p.running) {
+			return true;
+		}
+		const uint32_t elapsed = now_ms - p.origin_ms;
+		const uint32_t first = first_stretch_ms(s.rate, p.initially_on);
+		if (elapsed < first) {
+			return p.initially_on;
+		}
+		// The first toggle comes at the end of the first stretch, then one every period.
+		const bool away = (((elapsed - first) / toggle_ms(s.rate)) & 1u) == 0;
+		return away ? !p.initially_on : p.initially_on;
+	}
 	case LedState::Kind::On:
 		return true;
 	case LedState::Kind::Off:
@@ -41,7 +83,16 @@ bool led_is_on(const LedState& s, uint32_t now_ms) {
 	return false;
 }
 
-std::optional<uint32_t> led_next_change(const LedState& s, uint32_t now_ms) {
+std::optional<uint32_t> led_next_change(const LedState& s, uint32_t now_ms, std::span<const ui::BlinkPhase> phases) {
+	if (s.kind == LedState::Kind::Shared) {
+		const ui::BlinkPhase p = phase_of(s.rate, phases);
+		if (!p.running) {
+			return std::nullopt;
+		}
+		const uint32_t elapsed = now_ms - p.origin_ms;
+		const uint32_t first = first_stretch_ms(s.rate, p.initially_on);
+		return elapsed < first ? first - elapsed : toggle_ms(s.rate) - ((elapsed - first) % toggle_ms(s.rate));
+	}
 	if (s.kind != LedState::Kind::Blink) {
 		return std::nullopt; // `On` and `Off` never change on their own.
 	}

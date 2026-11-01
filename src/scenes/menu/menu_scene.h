@@ -1022,11 +1022,8 @@ private:
 	/// The voice usage page's counters and the time since their last sample; `voice_usage_at_` is where the last tick
 	/// found the focus, so arriving on the page or a counter begins its session.
 	VoiceUsageSampler voice_usage_;
-	/// The shared blink phase of BACK and LEARN (`indicator_leds`' `ledBlinkState[0]`): its start on the shell's
-	/// clock, whether one has been taken, whether the next render takes a new one, and the screen it was last checked
-	/// against (`beginScreen` restarts it for a LEARN-blinking item).
-	uint32_t blink_origin_ms_ = 0;
-	bool blink_origin_known_ = false;
+	/// Whether the next `leds()` restarts the shared normal blink, BACK's and LEARN's (`blinkLed`), and the screen the
+	/// render last checked that against (`beginScreen` restarts it for a LEARN-blinking item).
 	bool blink_restart_ = true;
 	const Node* blink_screen_ = nullptr;
 	/// The value the last render's session began on (`focused_value()`); a change is a new session.
@@ -1079,8 +1076,8 @@ private:
 	///        that allows learn; left on LEARN's release (`sound_editor.cpp:716-745`). Select's release does nothing in
 	///        it.
 	bool learn_mode_ = false;
-	/// When learn mode began, on the shell's clock: its fast blink's origin.
-	uint32_t learn_origin_ms_ = 0;
+	/// Whether the next `leds()` restarts the shared fast blink, as learn mode's `blinkLed(LEARN, 255, 1)` does.
+	bool learn_restart_ = false;
 
 	/// @brief `getCurrentMenuItem()->allowsLearnMode()`: on a page, its selected child's (`Submenu::allowsLearnMode`,
 	///        `submenu.cpp:233-238`), which a child page never allows.

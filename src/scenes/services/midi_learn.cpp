@@ -456,12 +456,10 @@ void MidiLearn::leds(deluge::ui::LedFrame& frame) {
 		return;
 	}
 
-	// `indicator_leds::blinkLed(IndicatorLED::LEARN, 255, 1)` (`view.cpp:495`): forever, at
-	// `blinkingType` 1's `kFastFlashTime` period (`hid/led/indicator_leds.cpp:81-83`). A real
-	// `Kind::Blink` because legacy drives this LED from its own blinker phase, NOT from
-	// `midiLearnFlashOn`.
-	(void)frame.set(led(ButtonId::Learn),
-	                deluge::ui::LedState{deluge::ui::LedState::Kind::Blink, static_cast<uint16_t>(kFlashMs), 0});
+	// `indicator_leds::blinkLed(IndicatorLED::LEARN, 255, 1)` (`view.cpp:477`): forever, on the fast
+	// blink every `blinkingType` 1 LED shares -- legacy drives this LED from that blinker phase, NOT
+	// from `midiLearnFlashOn`.
+	(void)frame.set(led(ButtonId::Learn), deluge::ui::LedState::shared(deluge::ui::BlinkRate::Fast));
 
 	// `View::midiLearnFlash`'s three writes (`view.cpp:821-832`). Each is declared only when its
 	// condition holds, so an unlearned, unheld button keeps whatever `GlobalControls` declared --

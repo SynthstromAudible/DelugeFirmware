@@ -272,6 +272,9 @@ private:
 	/// `recorder->status == CAPTURING_DATA` (`:162`). Kept here only so `stopping()` can be
 	/// observed and so the "Working" notice is raised exactly once.
 	bool stopping_ = false;
+	/// Whether the next `leds()` restarts both shared blinks: the recording began (`blinkLed(BACK)`,
+	/// `blinkLed(RECORD, 255, 1)`).
+	bool blink_restart_ = false;
 };
 
 /// @brief The application's one audio recorder.

@@ -932,9 +932,39 @@ OwnershipAudit& ownership_audit() {
 
 void Shell::derive_leds(uint32_t now_ms) {
 	LedSurface& leds = surfaces_.leds();
-	leds.frame.clear();
+	leds.frame.begin(now_ms);
 	LedCompose::compose(leds.frame, std::span<Service* const>{service_list_.begin(), service_list_.size()},
 	                    stack_.scenes());
+	// One phase per rate, as `indicator_leds::ledBlinkState[blinkingType]`: restarted where a declarer
+	// asks (its `blinkLed` call), and whenever an LED starts blinking on it, since every legacy blink
+	// begins with a `blinkLed`. A rate nothing declares stops, as legacy's timer does.
+	bool declared[2] = {};
+	bool started[2] = {};
+	std::array<int8_t, LedFrame::kMaxEntries> shared_now;
+	shared_now.fill(-1);
+	for (const auto& [id, state] : leds.frame.entries()) {
+		const size_t board_led = static_cast<size_t>(static_cast<uint8_t>(id));
+		if (state.kind != LedState::Kind::Shared || board_led >= LedFrame::kMaxEntries) {
+			continue;
+		}
+		const auto r = static_cast<int8_t>(std::to_underlying(state.rate));
+		shared_now[board_led] = r;
+		declared[r] = true;
+		started[r] = started[r] || shared_rate_[board_led] != r;
+	}
+	shared_rate_ = shared_now;
+	for (const ui::BlinkRate rate : {ui::BlinkRate::Normal, ui::BlinkRate::Fast}) {
+		const size_t r = std::to_underlying(rate);
+		if (const std::optional<bool> initially_on = leds.frame.restart_requested(rate)) {
+			blink_phases_[r] = ui::BlinkPhase{.origin_ms = now_ms, .initially_on = *initially_on, .running = true};
+		}
+		else if (started[r]) {
+			blink_phases_[r] = ui::BlinkPhase{.origin_ms = now_ms, .initially_on = true, .running = true};
+		}
+		else if (!declared[r]) {
+			blink_phases_[r].running = false;
+		}
+	}
 	leds.desired_on.fill(false);
 	leds.desired_declared.fill(false);
 	for (const auto& [id, state] : leds.frame.entries()) {
@@ -947,7 +977,7 @@ void Shell::derive_leds(uint32_t now_ms) {
 			continue;
 		}
 		leds.desired_declared[board_led] = true;
-		leds.desired_on[board_led] = led_is_on(state, now_ms);
+		leds.desired_on[board_led] = led_is_on(state, now_ms, blink_phases_);
 	}
 }
 
@@ -1189,7 +1219,7 @@ std::optional<uint32_t> Shell::compute_next_wake(uint32_t now_ms) {
 	// divide the LED's 110 ms period, so even an "armed" system rendered the blink at beat
 	// frequencies. The wake now lands on the LED's own boundaries.
 	for (const auto& [id, state] : surfaces_.leds().frame.entries()) {
-		if (const std::optional<uint32_t> in = led_next_change(state, now_ms); in.has_value()) {
+		if (const std::optional<uint32_t> in = led_next_change(state, now_ms, blink_phases_); in.has_value()) {
 			consider(now_ms + *in);
 		}
 	}

@@ -39,6 +39,9 @@ constexpr int32_t kGreyoutAmountFull = 6500000;
 /// Board LED indices the LED-derivation case declares against; `LedId` is an opaque enum the board
 /// profile gives meaning to, so a spec names its own.
 constexpr deluge::ui::LedId kPlayLed = static_cast<deluge::ui::LedId>(3);
+/// Two more, for the shared-blink cases.
+constexpr deluge::ui::LedId kRecordLed = static_cast<deluge::ui::LedId>(4);
+constexpr deluge::ui::LedId kSongLed = static_cast<deluge::ui::LedId>(5);
 
 /// @brief A BUTTON event at matrix (x, y), as `input_lowering_spec.cpp` builds them.
 DelugeInputEvent button_ev(uint8_t x, uint8_t y, bool on) {
@@ -107,6 +110,9 @@ public:
 	}
 	void leds(deluge::ui::LedFrame& frame) override {
 		(void)frame.set(kPlayLed, deluge::ui::LedState{deluge::ui::LedState::Kind::On, 0, 0});
+		if (shared_blink) {
+			(void)frame.set(kRecordLed, deluge::ui::LedState::shared(deluge::ui::BlinkRate::Normal));
+		}
 	}
 	Result handle(const UiEvent& event, const UiContext&) override {
 		events++;
@@ -177,6 +183,8 @@ public:
 	int pads_pressed = 0;
 	/// Whether the next `after_render()` / `tick()` raises `Dirty::Oled` (one-shot each).
 	bool raise_in_after_render = false, raise_in_tick = false;
+	/// Whether `leds()` declares `kRecordLed` on the shared normal blink.
+	bool shared_blink = false;
 	/// Whether `owns()` claims the select-encoder turn for the render, as a menu's list does.
 	bool owns_turn = false;
 	/// One letter per event `handle()` saw, in order: `P` pad, `E` encoder, `B` anything else.
@@ -220,7 +228,16 @@ public:
 		}
 	}
 	void leds(deluge::ui::LedFrame& frame) override {
-		(void)frame.set(kPlayLed, deluge::ui::LedState{deluge::ui::LedState::Kind::Blink, 200, 0});
+		if (declares_play) {
+			(void)frame.set(kPlayLed, deluge::ui::LedState{deluge::ui::LedState::Kind::Blink, 200, 0});
+		}
+		if (shared_blink) {
+			(void)frame.set(kSongLed, deluge::ui::LedState::shared(deluge::ui::BlinkRate::Normal));
+		}
+		if (restart_next) {
+			restart_next = false;
+			frame.restart(deluge::ui::BlinkRate::Normal);
+		}
 	}
 	Result handle(const UiEvent&, const UiContext&) override {
 		events++;
@@ -243,6 +260,9 @@ public:
 	bool overlay = true, occludes = false, transparent = false;
 	/// What `passes_pads_beneath()` answers.
 	bool passes_pads = false;
+	/// Whether `leds()` declares the play LED's 200 ms blink, `kSongLed` on the shared normal blink, and restarts the
+	/// shared normal phase (one-shot).
+	bool declares_play = true, shared_blink = false, restart_next = false;
 	/// Whether `render_grid` paints its one pad.
 	bool paints = true;
 	deluge::ui::grid::GreyoutMask mask{};
@@ -740,6 +760,37 @@ describe shell_tick("shell::Shell::tick", $ {
 		expect(r.fake.leds().desired_on[play]).to_be_false();
 		r.shell.tick(400);
 		expect(r.fake.leds().desired_on[play]).to_be_true();
+	});
+
+	it("two scenes' shared blinks of one rate blink together, and a restart by either restarts both", _ {
+		deluge::notify::dirty().drain();
+		Rig r;
+		r.base.shared_blink = true;
+		r.overlay.shared_blink = true;
+		r.overlay.declares_play = false;
+		r.shell.init({kBase, 0});
+		r.shell.tick(0); // the base's blink starts here: lit 250 ms
+		const size_t rec = static_cast<size_t>(static_cast<uint8_t>(kRecordLed));
+		const size_t song = static_cast<size_t>(static_cast<uint8_t>(kSongLed));
+		expect(r.fake.leds().desired_on[rec]).to_be_true();
+		r.shell.tick(260);
+		expect(r.fake.leds().desired_on[rec]).to_be_false();
+		// The overlay's blink starts with a `blinkLed`, which restarts the base's too: both lit.
+		expect(r.shell.stack().push({kOverlay, 0})).to_be_true();
+		r.shell.tick(270);
+		expect(r.fake.leds().desired_on[rec]).to_be_true();
+		expect(r.fake.leds().desired_on[song]).to_be_true();
+		r.shell.tick(530);
+		expect(r.fake.leds().desired_on[rec]).to_be_false();
+		expect(r.fake.leds().desired_on[song]).to_be_false();
+		// And an explicit restart while both blink.
+		r.overlay.restart_next = true;
+		r.shell.tick(540);
+		expect(r.fake.leds().desired_on[rec]).to_be_true();
+		expect(r.fake.leds().desired_on[song]).to_be_true();
+		r.shell.tick(800);
+		expect(r.fake.leds().desired_on[rec]).to_be_false();
+		expect(r.fake.leds().desired_on[song]).to_be_false();
 	});
 
 	it("a notice scene overlays the grid rather than replacing it", _ {

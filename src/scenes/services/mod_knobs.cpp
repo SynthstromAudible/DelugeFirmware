@@ -776,12 +776,9 @@ void ModKnobs::leds(deluge::ui::LedFrame& frame) {
 
 	constexpr deluge::ui::LedState kOff{deluge::ui::LedState::Kind::Off, 0, 0};
 	constexpr deluge::ui::LedState kOn{deluge::ui::LedState::Kind::On, 0, 0};
-	// `indicator_leds::blinkLed(led)`'s defaults: `numBlinks` 255 (i.e. forever) and
-	// `blinkingType` 0, whose period is `kFlashTime` (`definitions_cxx.hpp:159`) -- already carried
-	// by the toolkit as `deluge::ui::kFlashTime` (`ui/core/metrics.h:25`), which is the same
-	// constant `MenuScene::leds` blinks BACK and LEARN at.
-	constexpr deluge::ui::LedState kBlink{deluge::ui::LedState::Kind::Blink,
-	                                      static_cast<uint16_t>(deluge::ui::kFlashTime), 0};
+	// `indicator_leds::blinkLed(led)`'s defaults (`view.cpp:1689`): `numBlinks` 255 (i.e. forever) on
+	// the normal blink every `blinkingType` 0 LED shares, MenuScene's BACK and LEARN among them.
+	constexpr deluge::ui::LedState kBlink = deluge::ui::LedState::shared(deluge::ui::BlinkRate::Normal);
 
 	for (int32_t i = 0; i < kNumModButtons; i++) { // `:1662`
 		const bool on = (i == mod_knob_mode);      // `:1663`

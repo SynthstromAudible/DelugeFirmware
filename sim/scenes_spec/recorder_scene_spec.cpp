@@ -378,14 +378,14 @@ deluge::ui::LedState::Kind led_kind(const deluge::ui::LedFrame& f, ButtonId b) {
 	return deluge::ui::LedState::Kind::Off;
 }
 
-/// @brief The blink period @p b was declared with this frame, or 0.
-uint16_t led_period(const deluge::ui::LedFrame& f, ButtonId b) {
+/// @brief The shared blink rate @p b was declared on this frame, or `Normal` if it was not declared.
+deluge::ui::BlinkRate led_rate(const deluge::ui::LedFrame& f, ButtonId b) {
 	for (const auto& [id, state] : f.entries()) {
 		if (id == static_cast<deluge::ui::LedId>(b)) {
-			return state.period_ms;
+			return state.rate;
 		}
 	}
-	return 0;
+	return deluge::ui::BlinkRate::Normal;
 }
 
 // --- process-global guards -----------------------------------------------------------------
@@ -964,6 +964,20 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		expect(static_cast<int64_t>(recorder_scene().greyout_mask().rows)).to_equal(static_cast<int64_t>(0));
 	});
 
+	it("restarts both shared blinks as the recording begins", _ {
+		// `beginRecording`'s `blinkLed(BACK)` and `blinkLed(RECORD, 255, 1)` (`audio_recorder.cpp:114-115`).
+		Guards g;
+		Rig r;
+		r.open_over_menu();
+		deluge::ui::LedFrame f;
+		recorder_scene().leds(f);
+		expect(f.restart_requested(deluge::ui::BlinkRate::Normal).value_or(false)).to_be_true();
+		expect(f.restart_requested(deluge::ui::BlinkRate::Fast).value_or(false)).to_be_true();
+		deluge::ui::LedFrame again;
+		recorder_scene().leds(again);
+		expect(again.restart_requested(deluge::ui::BlinkRate::Normal).has_value()).to_be_false();
+	});
+
 	it("declares the LEDs opened() sets, RECORD blinking at the fast rate", _ {
 		// `AudioRecorder::opened`'s LED tail (`audio_recorder.cpp:100-106`). SYNTH/KIT are the
 		// interesting pair: `SoundEditor::setLedStates` turns BOTH off (`sound_editor.cpp:344-345`)
@@ -982,11 +996,11 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		deluge::ui::LedFrame f;
 		deluge::ui::shell::LedCompose::compose(f, {}, r.shell.stack().scenes());
 		expect(static_cast<int32_t>(led_kind(f, ButtonId::Record)))
-		    .to_equal(static_cast<int32_t>(deluge::ui::LedState::Kind::Blink));
-		expect(static_cast<int32_t>(led_period(f, ButtonId::Record))).to_equal(60); // kFastFlashTime
+		    .to_equal(static_cast<int32_t>(deluge::ui::LedState::Kind::Shared));
+		expect(led_rate(f, ButtonId::Record) == deluge::ui::BlinkRate::Fast).to_be_true(); // kFastFlashTime
 		expect(static_cast<int32_t>(led_kind(f, ButtonId::Back)))
-		    .to_equal(static_cast<int32_t>(deluge::ui::LedState::Kind::Blink));
-		expect(static_cast<int32_t>(led_period(f, ButtonId::Back))).to_equal(110); // kFlashTime
+		    .to_equal(static_cast<int32_t>(deluge::ui::LedState::Kind::Shared));
+		expect(led_rate(f, ButtonId::Back) == deluge::ui::BlinkRate::Normal).to_be_true(); // kFlashTime
 		// The fixture is a synth, so `editingKit()` is false: SYNTH on, KIT off.
 		expect(static_cast<int32_t>(led_kind(f, ButtonId::Synth)))
 		    .to_equal(static_cast<int32_t>(deluge::ui::LedState::Kind::On));

@@ -32,6 +32,20 @@ describe led_frame("ui::LedFrame", $ {
 		expect(f.indicator_or_null(IndicatorId::Upper) == nullptr).to_be_true();
 	});
 
+	it("carries the tick's clock and the restarts its declarers asked for, which clear() forgets", _ {
+		using deluge::ui::BlinkRate;
+		LedFrame f;
+		f.begin(1234);
+		expect(f.now_ms()).to_equal(uint32_t(1234));
+		expect(f.restart_requested(BlinkRate::Normal).has_value()).to_be_false();
+		f.restart(BlinkRate::Normal, false);
+		f.restart(BlinkRate::Fast);
+		expect(*f.restart_requested(BlinkRate::Normal)).to_be_false(); // initially dark
+		expect(*f.restart_requested(BlinkRate::Fast)).to_be_true();
+		f.begin(2000);
+		expect(f.restart_requested(BlinkRate::Normal).has_value()).to_be_false();
+	});
+
 	it("reports the dropped declaration when the frame is full", _ {
 		LedFrame f;
 		for (size_t i = 0; i < LedFrame::kMaxEntries; i++) {

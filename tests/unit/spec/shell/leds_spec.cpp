@@ -179,6 +179,31 @@ describe shell_leds("shell::LedCompose", $ {
 		expect(led_is_on(plain, 110)).to_be_false();
 	});
 
+	it("Normal lights 250 then toggles every 110; started dark it waits 110; Fast toggles every 60", _ {
+		using deluge::ui::BlinkPhase;
+		using deluge::ui::BlinkRate;
+		const LedState normal = LedState::shared(BlinkRate::Normal);
+		const LedState fast = LedState::shared(BlinkRate::Fast);
+		BlinkPhase lit[2] = {{.origin_ms = 1000, .initially_on = true, .running = true},
+		                     {.origin_ms = 1000, .initially_on = true, .running = true}};
+		expect(led_is_on(normal, 1000, lit)).to_be_true();
+		expect(led_is_on(normal, 1249, lit)).to_be_true();
+		expect(led_is_on(normal, 1250, lit)).to_be_false();
+		expect(led_is_on(normal, 1359, lit)).to_be_false();
+		expect(led_is_on(normal, 1360, lit)).to_be_true();
+		expect(*led_next_change(normal, 1000, lit)).to_equal(uint32_t(250));
+		expect(*led_next_change(normal, 1300, lit)).to_equal(uint32_t(60));
+		expect(led_is_on(fast, 1059, lit)).to_be_true();
+		expect(led_is_on(fast, 1060, lit)).to_be_false();
+		expect(led_is_on(fast, 1120, lit)).to_be_true();
+		expect(*led_next_change(fast, 1070, lit)).to_equal(uint32_t(50));
+
+		BlinkPhase dark[2] = {{.origin_ms = 1000, .initially_on = false, .running = true}, {}};
+		expect(led_is_on(normal, 1000, dark)).to_be_false();
+		expect(led_is_on(normal, 1110, dark)).to_be_true();
+		expect(led_is_on(normal, 1220, dark)).to_be_false();
+	});
+
 	it("writes only changes to the sink", _ {
 		LedSurface s;
 		const size_t play = static_cast<size_t>(static_cast<uint8_t>(kPlay));

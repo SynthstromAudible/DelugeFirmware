@@ -285,6 +285,7 @@ std::optional<LegacyLed> port_mod_led(const deluge::ui::LedFrame& frame, int32_t
 		case deluge::ui::LedState::Kind::On:
 			return LegacyLed{true, false};
 		case deluge::ui::LedState::Kind::Blink:
+		case deluge::ui::LedState::Kind::Shared:
 			// `blinkLed`'s default `initialState` is true (`indicator_leds.h:86`), and
 			// `shell/leds.h`'s `led_is_on` reads phase 0 of a blink as lit too, so a freshly
 			// declared blink is lit on both sides.

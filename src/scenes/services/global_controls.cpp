@@ -635,14 +635,11 @@ void GlobalControls::leds(deluge::ui::LedFrame& frame) {
 	// `View::setLedStates` (`:514-516`).
 	if (blinking_sync_scaling()) {
 		// `:504-506` `indicator_leds::blinkLed(IndicatorLED::SYNC_SCALING)` -- the defaults are
-		// `numBlinks` 255 (forever) and `blinkingType` 0, whose period is `kFlashTime`
-		// (`definitions_cxx.hpp:159`), carried by the toolkit as `deluge::ui::kFlashTime`.
+		// `numBlinks` 255 (forever) on the normal blink every `blinkingType` 0 LED shares.
 		//
 		// A sync-scaling clip must exist: legacy's `getCurrentClip() == getSyncScalingClip()` is also true when both
 		// are null, which the device never reaches (a clip minder always has a clip).
-		(void)frame.set(
-		    led(ButtonId::SyncScaling),
-		    deluge::ui::LedState{deluge::ui::LedState::Kind::Blink, static_cast<uint16_t>(deluge::ui::kFlashTime), 0});
+		(void)frame.set(led(ButtonId::SyncScaling), deluge::ui::LedState::shared(deluge::ui::BlinkRate::Normal));
 	}
 	else {
 		(void)frame.set(led(ButtonId::SyncScaling),
@@ -665,8 +662,7 @@ void GlobalControls::leds(deluge::ui::LedFrame& frame) {
 	const bool alerting =
 	    clip_view_alert_until_ms_.has_value() && static_cast<int32_t>(now_ms_ - *clip_view_alert_until_ms_) < 0;
 	if (alerting) {
-		(void)frame.set(led(ButtonId::Clip), deluge::ui::LedState{deluge::ui::LedState::Kind::Blink,
-		                                                          static_cast<uint16_t>(kClipArmFlashMs), 0});
+		(void)frame.set(led(ButtonId::Clip), deluge::ui::LedState::shared(deluge::ui::BlinkRate::Fast));
 	}
 }
 
@@ -716,20 +712,7 @@ std::optional<uint32_t> GlobalControls::next_timer() const {
 	};
 	consider_deadline(clip_arm_flash_deadline_ms_);
 	consider_deadline(clip_view_alert_until_ms_);
-
-	// A **blinking LED needs a wake of its own.** `Shell::compute_next_wake` considers gate
-	// deadlines, scene timers and service timers -- and nothing at all for
-	// `LedState::Kind::Blink`, whose phase `shell::led_is_on` derives from `now_ms`
-	// (`shell/leds.h`). So on a quiet system a declared blink simply freezes at whatever phase the
-	// last tick left it in unless somebody asks to be woken. This service declares two blinks (the
-	// SYNC_SCALING flash and the CLIP_VIEW alert), so it asks.
-	if (blinking_sync_scaling()) {
-		const uint32_t half = deluge::ui::kFlashTime;
-		consider(half - (now_ms_ % half));
-	}
-	if (clip_view_alert_until_ms_.has_value()) {
-		consider(kClipArmFlashMs - (now_ms_ % kClipArmFlashMs));
-	}
+	// The two blinks it declares need no wake of their own: a declared blink is one of the shell's.
 	return next;
 }
 

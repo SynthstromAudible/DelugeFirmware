@@ -466,7 +466,7 @@ bool ContextMenuScene::on_enter(const SceneId& id) {
 	scroll_ = deluge::ui::ScrollText{};
 	footer_scroll_ = deluge::ui::ScrollText{};
 	last_render_ms_ = 0;
-	blink_origin_ms_.reset();
+	blink_restart_ = true;
 	return true;
 }
 
@@ -480,9 +480,6 @@ void ContextMenuScene::on_exit() {
 void ContextMenuScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) {
 	(void)role;
 	last_render_ms_ = f.now_ms();
-	if (!blink_origin_ms_.has_value()) {
-		blink_origin_ms_ = last_render_ms_;
-	}
 
 	const Descriptor& d = descriptor(id_);
 
@@ -522,13 +519,14 @@ void ContextMenuScene::leds(deluge::ui::LedFrame& f) {
 	// literal 110: `indicator_leds::blinkLed` runs at exactly that constant
 	// (`hid/led/indicator_leds.cpp:108`, `definitions_cxx.hpp:159`), and `rename_scene.cpp:44`
 	// already imports it this way. (Fix round 1, Minor 3 -- this was a third hand-written copy.)
-	// `blinkLed`'s default blink: lit for `kInitialFlashTime` from the open, then `kFlashTime`
-	// (`indicator_leds.cpp:78-95`); before the first render has taken the open's time, the plain period.
+	// `blinkLed`'s default blink on the phase every normal blink shares, restarted at the open
+	// (`context_menu.cpp:54`).
+	if (blink_restart_) {
+		blink_restart_ = false;
+		f.restart(deluge::ui::BlinkRate::Normal);
+	}
 	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Back),
-	            blink_origin_ms_.has_value()
-	                ? deluge::ui::LedState{deluge::ui::LedState::Kind::Blink, static_cast<uint16_t>(kFlashTime), 0,
-	                                       *blink_origin_ms_, static_cast<uint16_t>(deluge::ui::kInitialFlashTime)}
-	                : deluge::ui::LedState{deluge::ui::LedState::Kind::Blink, static_cast<uint16_t>(kFlashTime), 0});
+	            deluge::ui::LedState::shared(deluge::ui::BlinkRate::Normal));
 }
 
 Result ContextMenuScene::handle(const UiEvent& event, const UiContext& ctx) {

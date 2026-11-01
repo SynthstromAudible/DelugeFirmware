@@ -1095,9 +1095,9 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		rig.gc.set_view_state(vs);
 		deluge::ui::LedFrame f4;
 		rig.gc.leds(f4);
-		expect(led_is(f4, ButtonId::SyncScaling, deluge::ui::LedState::Kind::Blink)).to_be_true();
-		expect(led_state(f4, ButtonId::SyncScaling).value_or(deluge::ui::LedState{}).period_ms
-		       == deluge::ui::kFlashTime)
+		expect(led_is(f4, ButtonId::SyncScaling, deluge::ui::LedState::Kind::Shared)).to_be_true();
+		expect(led_state(f4, ButtonId::SyncScaling).value_or(deluge::ui::LedState{}).rate
+		       == deluge::ui::BlinkRate::Normal)
 		    .to_be_true();
 		fixture.song->setInputTickScaleClip(nullptr);
 	});
@@ -1143,7 +1143,8 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		rig.gc.tick(27'000, 0);
 		deluge::ui::LedFrame f;
 		rig.gc.leds(f);
-		expect(led_is(f, ButtonId::Clip, deluge::ui::LedState::Kind::Blink)).to_be_true();
+		expect(led_is(f, ButtonId::Clip, deluge::ui::LedState::Kind::Shared)).to_be_true();
+		expect(led_state(f, ButtonId::Clip)->rate == deluge::ui::BlinkRate::Fast).to_be_true(); // `blinkingType` 1
 
 		rig.gc.tick(27'000 + GlobalControls::kAlertMs, GlobalControls::kAlertMs);
 		deluge::ui::LedFrame f2;
@@ -1190,11 +1191,10 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		expect(rig.gc.next_timer().has_value()).to_be_false();
 	});
 
-	it("time: changes a declared LED on a QUIET tick, and asks to be woken for it", _ {
-		// The blinking SYNC_SCALING LED (`view.cpp:521-523`). `shell::led_is_on` derives the
-		// phase from `now_ms` (`shell/leds.h`), and `Shell::compute_next_wake` has no
-		// blink-aware source of its own -- so the service must return a `next_timer()` or the
-		// blink freezes on an idle system. Both halves are asserted here.
+	it("time: blinks SYNC_SCALING on the shared normal phase, which the shell wakes for", _ {
+		// The blinking SYNC_SCALING LED (`view.cpp:504-506`, `blinkLed(SYNC_SCALING)`): declared on the phase every
+		// normal blink shares, whose toggles the shell wakes for (`shell::led_next_change`), so the service asks for
+		// no timer of its own.
 		static spec::SongFixture fixture = spec::make_synth_song();
 		currentSong = fixture.song;
 		GcRig rig;
@@ -1204,24 +1204,21 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		rig.gc.set_view_state(vs);
 		fixture.song->setInputTickScaleClip(fixture.song->getCurrentClip());
 
-		constexpr uint32_t kHalf = deluge::ui::kFlashTime;
 		rig.gc.tick(0, 0);
-		expect(rig.gc.next_timer().has_value()).to_be_true();
-		expect(*rig.gc.next_timer() == kHalf).to_be_true();
-
+		expect(rig.gc.next_timer().has_value()).to_be_false();
 		deluge::ui::LedFrame f;
 		rig.gc.leds(f);
-		expect(led_is(f, ButtonId::SyncScaling, deluge::ui::LedState::Kind::Blink)).to_be_true();
+		expect(led_is(f, ButtonId::SyncScaling, deluge::ui::LedState::Kind::Shared)).to_be_true();
 		const deluge::ui::LedState blink = led_state(f, ButtonId::SyncScaling).value_or(deluge::ui::LedState{});
-		// Two quiet ticks a half-period apart, no input in between, and the LED is lit
-		// differently in each.
-		const bool at_0 = deluge::ui::shell::led_is_on(blink, 0);
-		const bool at_half = deluge::ui::shell::led_is_on(blink, kHalf);
-		expect(at_0 != at_half).to_be_true();
+		expect(blink.rate == deluge::ui::BlinkRate::Normal).to_be_true();
+		const deluge::ui::BlinkPhase phases[2] = {{.origin_ms = 0, .initially_on = true, .running = true}, {}};
+		expect(deluge::ui::shell::led_next_change(blink, 0, phases).has_value()).to_be_true();
 
 		fixture.song->setInputTickScaleClip(nullptr);
 		rig.gc.tick(0, 0);
-		expect(rig.gc.next_timer().has_value()).to_be_false();
+		deluge::ui::LedFrame g;
+		rig.gc.leds(g);
+		expect(led_is(g, ButtonId::SyncScaling, deluge::ui::LedState::Kind::Shared)).to_be_false();
 	});
 });
 // clang-format on

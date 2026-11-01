@@ -366,6 +366,12 @@ inline std::string state_text(const Shell& shell, FakeSurfaceSet& fake, bool& ov
 		case deluge::ui::LedState::Kind::Blink:
 			deluge::harness::add_led_line(lines, led_name(id), true, state.period_ms);
 			break;
+		case deluge::ui::LedState::Kind::Shared:
+			// The shared phase's toggle period, so a snapshot names the rate.
+			deluge::harness::add_led_line(lines, led_name(id), true,
+			                              state.rate == deluge::ui::BlinkRate::Fast ? deluge::ui::kFastFlashTime
+			                                                                        : deluge::ui::kFlashTime);
+			break;
 		}
 	}
 	// `i` is an `IndicatorId` value, and that enum is `{Lower = 0, Upper = 1}` (see the ordering

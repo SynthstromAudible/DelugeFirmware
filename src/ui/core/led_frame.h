@@ -1,6 +1,7 @@
 #pragma once
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <span>
 #include <utility>
 
@@ -21,8 +22,23 @@ enum class LedId : uint8_t;
 /// Numbering these the other way round would make the pass-through silently swap the two knobs.
 enum class IndicatorId : uint8_t { Lower, Upper };
 /// Declared state of one LED: off, on, or blinking with a period and a deadline.
+/// @brief The two blink rates every blinking LED shares a phase with, as `indicator_leds::blinkLed`'s
+///        `blinkingType` 0 and 1.
+enum class BlinkRate : uint8_t { Normal, Fast };
+
+/// @brief Where one rate's shared blink last (re)started: `indicator_leds::blinkLed`'s
+///        `ledBlinkState[blinkingType]` and its timer.
+struct BlinkPhase {
+	/// The restart, on the shell's clock.
+	uint32_t origin_ms = 0;
+	/// Whether the blink starts lit (`blinkLed`'s `initialState`).
+	bool initially_on = true;
+	/// Whether any blink of this rate has started; one that never has reads lit.
+	bool running = false;
+};
+
 struct LedState {
-	enum class Kind : uint8_t { Off, On, Blink } kind;
+	enum class Kind : uint8_t { Off, On, Blink, Shared } kind;
 	uint16_t period_ms;
 	uint32_t until_ms;
 	/// A blink's start, on the shell's clock; read only when `first_ms` is set.
@@ -31,6 +47,14 @@ struct LedState {
 	/// `indicator_leds::blinkLed` runs one (`kInitialFlashTime`, then `kFlashTime`). Zero: the phase is the absolute
 	/// clock's.
 	uint16_t first_ms = 0;
+	/// For `Kind::Shared`: whose phase.
+	BlinkRate rate = BlinkRate::Normal;
+
+	/// @brief A blink on the shell's shared phase for @p rate: every LED declared this way at one rate
+	///        blinks together, and a restart by any declarer (`LedFrame::restart`) restarts them all.
+	/// @param rate Normal (`kInitialFlashTime` lit, then `kFlashTime`) or Fast (`kFastFlashTime`).
+	/// @return The declaration.
+	static constexpr LedState shared(BlinkRate rate) { return LedState{Kind::Shared, 0, 0, 0, 0, rate}; }
 };
 /// Per-segment LED levels of one knob's indicator column.
 struct KnobIndicator {
@@ -80,8 +104,26 @@ public:
 		return indicator_in_range(r) && has_indicator_[std::to_underlying(r)] ? &indicators_[std::to_underlying(r)]
 		                                                                      : nullptr;
 	}
+	/// @brief Start a frame for the tick at @p now_ms: empty, with no restarts asked for.
+	/// @param now_ms The tick's clock, which `now_ms()` reports to the declarers.
+	void begin(uint32_t now_ms) {
+		clear();
+		now_ms_ = now_ms;
+	}
+	/// @brief The tick's clock.
+	/// @return What `begin` was given.
+	uint32_t now_ms() const { return now_ms_; }
+	/// @brief Restart @p rate's shared phase now, as `indicator_leds::blinkLed` does wherever it is called.
+	/// @param rate         The phase to restart.
+	/// @param initially_on Whether the blink starts lit (`blinkLed`'s `initialState`).
+	void restart(BlinkRate rate, bool initially_on = true) { restarts_[std::to_underlying(rate)] = initially_on; }
+	/// @brief The restart asked for @p rate this frame, if any.
+	/// @param rate The phase.
+	/// @return Its `initially_on`, or nothing.
+	std::optional<bool> restart_requested(BlinkRate rate) const { return restarts_[std::to_underlying(rate)]; }
 	/// @brief Reset the frame to empty (no LED or indicator declarations).
 	void clear() {
+		restarts_[0] = restarts_[1] = std::nullopt;
 		count_ = 0;
 		has_indicator_[0] = has_indicator_[1] = false;
 	}
@@ -93,6 +135,8 @@ private:
 	size_t count_ = 0;
 	KnobIndicator indicators_[2]{};
 	bool has_indicator_[2]{};
+	uint32_t now_ms_ = 0;
+	std::optional<bool> restarts_[2];
 };
 
 } // namespace deluge::ui

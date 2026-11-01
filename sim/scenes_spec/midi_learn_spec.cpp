@@ -1125,14 +1125,16 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		rig.ml.leds(on_frame);
 		const std::optional<deluge::ui::LedState> on = led_state(on_frame, ButtonId::Learn);
 		expect(on.has_value()).to_be_true();
-		expect(on->kind == deluge::ui::LedState::Kind::Blink).to_be_true();
-		expect(on->period_ms == LearnService::kFlashMs).to_be_true();
+		expect(on->kind == deluge::ui::LedState::Kind::Shared).to_be_true();
+		expect(on->rate == deluge::ui::BlinkRate::Fast).to_be_true();
 		// A blink with no deadline: legacy's `numBlinks == 255` never folds back
 		// (`hid/led/indicator_leds.cpp:69-71`, `:117-126`).
 		expect(on->until_ms == 0).to_be_true();
-		// And it really does change on its own, which is what makes the declaration a blink rather
+		// And it really does change on its own at the fast period, which is what makes the declaration a blink rather
 		// than a name for one.
-		expect(deluge::ui::shell::led_is_on(*on, 0) != deluge::ui::shell::led_is_on(*on, LearnService::kFlashMs))
+		const deluge::ui::BlinkPhase phases[2] = {{}, {.origin_ms = 0, .initially_on = true, .running = true}};
+		expect(deluge::ui::shell::led_is_on(*on, 0, phases)
+		       != deluge::ui::shell::led_is_on(*on, LearnService::kFlashMs, phases))
 		    .to_be_true();
 	});
 

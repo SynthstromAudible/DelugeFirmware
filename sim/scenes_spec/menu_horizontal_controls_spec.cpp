@@ -938,29 +938,26 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		Rig r;
 		(void)r.open_real(menu::nodes::midi_commands);
 		r.shell.tick(0);
-		const auto led = [](ButtonId b) {
-			deluge::ui::LedFrame f;
-			menu_scene().leds(f);
-			for (const auto& [id, state] : f.entries()) {
-				if (id == static_cast<deluge::ui::LedId>(b)) {
-					return state;
-				}
-			}
-			return deluge::ui::LedState{deluge::ui::LedState::Kind::Off, 0, 0};
-		};
-		expect(static_cast<int>(led(ButtonId::Back).first_ms)).to_equal(250);
-		expect(static_cast<int>(led(ButtonId::Back).period_ms)).to_equal(110);
-		expect(static_cast<int>(led(ButtonId::Back).origin_ms)).to_equal(0);
+		const auto lit = [&r](ButtonId b) { return r.fake.leds().desired_on[static_cast<size_t>(b)]; };
+		// Lit 250 ms from the open, then dark for 110.
+		r.shell.tick(240);
+		expect(lit(ButtonId::Back)).to_be_true();
+		r.shell.tick(260);
+		expect(lit(ButtonId::Back)).to_be_false();
 
 		r.enter(1000);
 		r.shell.tick(1010); // the press descends after this tick's render, and asks for the next
 		r.shell.tick(1020);
 		expect(static_cast<int>(menu::node_id(*menu_scene().focused())))
 		    .to_equal(static_cast<int>(menu::node_id(menu::nodes::midi_command_play)));
-		const uint32_t back_origin = led(ButtonId::Back).origin_ms;
-		expect(static_cast<int>(back_origin)).to_equal(1020);
-		expect(led(ButtonId::Learn).origin_ms).to_equal(back_origin);
-		expect(static_cast<int>(led(ButtonId::Learn).first_ms)).to_equal(250);
+		// Restarted together at 1020: both lit until 1270, where the phase from the open had them lit as well, and
+		// both dark after it, where that phase had them lit still.
+		r.shell.tick(1260);
+		expect(lit(ButtonId::Back)).to_be_true();
+		expect(lit(ButtonId::Learn)).to_be_true();
+		r.shell.tick(1280);
+		expect(lit(ButtonId::Back)).to_be_false();
+		expect(lit(ButtonId::Learn)).to_be_false();
 	});
 
 	it("master's transpose column reads TRANSPOSE and a whole number below -9.99", _ {

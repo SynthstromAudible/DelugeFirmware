@@ -635,6 +635,14 @@ private:
 	/// x `kMaxGridCols` `RGB`s -- `PadGrid`'s own doc), since `Shell` already lives for the whole
 	/// tick loop and the render path should not pay for it on every call.
 	std::optional<gfx::grid::PadGrid> tween_scratch_;
+	/// The shared blink phases, indexed by `ui::BlinkRate`, and the rate each board LED blinked on at the last
+	/// `derive_leds` (-1 for none), so an LED that starts blinking restarts its rate.
+	ui::BlinkPhase blink_phases_[2]{};
+	std::array<int8_t, LedFrame::kMaxEntries> shared_rate_ = [] {
+		std::array<int8_t, LedFrame::kMaxEntries> a{};
+		a.fill(-1);
+		return a;
+	}();
 	/// The scenes stacked when `pump_input` began routing; one missing from it was pushed by this tick's input.
 	FixedVector<Scene*, kStackDepth> up_before_input_;
 	/// The scenes drawn this tick, in the order they were drawn; each gets one `after_render()`.

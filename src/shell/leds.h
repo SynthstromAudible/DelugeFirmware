@@ -25,12 +25,16 @@ namespace deluge::ui::shell {
 /// `until_ms`, after which the LED is simply on. That is the "blink N times, then an alert folds
 /// back to On" shape without any per-LED state for the shell to keep.
 ///
+/// A `Shared` blink reads the phase its rate last restarted at (\p phases): lit for its first
+/// stretch, then toggling, as `indicator_leds::blinkLed` and `ledBlinkTimeout` run one.
+///
 /// @param s      The declared state.
 /// @param now_ms The tick's wall clock.
+/// @param phases The shell's shared phases, indexed by `BlinkRate`; a rate without one reads lit.
 /// @return `true` for `On`; `false` for `Off`; for `Blink`, `true` once \p now_ms has reached a
 ///         non-zero `until_ms`, otherwise the even half of the `period_ms` phase. A `Blink` with a
 ///         zero `period_ms` has no phase to be in and reads as lit, rather than dividing by zero.
-bool led_is_on(const LedState& s, uint32_t now_ms);
+bool led_is_on(const LedState& s, uint32_t now_ms, std::span<const ui::BlinkPhase> phases = {});
 
 /// @brief When will `led_is_on(s, …)` next answer differently?
 ///
@@ -46,10 +50,12 @@ bool led_is_on(const LedState& s, uint32_t now_ms);
 ///
 /// @param s      The declared state.
 /// @param now_ms The tick's wall clock.
+/// @param phases As `led_is_on`'s.
 /// @return Milliseconds from now until the answer flips, or `std::nullopt` for a state that never
-///         changes on its own (`On`, `Off`, a zero-period blink, and a blink whose `until_ms` has
-///         already latched it solid).
-std::optional<uint32_t> led_next_change(const LedState& s, uint32_t now_ms);
+///         changes on its own (`On`, `Off`, a zero-period blink, a blink whose `until_ms` has
+///         already latched it solid, and a shared blink whose rate has not started).
+std::optional<uint32_t> led_next_change(const LedState& s, uint32_t now_ms,
+                                        std::span<const ui::BlinkPhase> phases = {});
 
 /// @brief Composes one tick's LED declarations from the services and the scene stack.
 ///

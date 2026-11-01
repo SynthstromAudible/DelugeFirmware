@@ -1039,17 +1039,23 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 			}
 			return deluge::ui::LedState{deluge::ui::LedState::Kind::Off, 0, 0};
 		};
+		const auto lit = [&r] { return r.fake.leds().desired_on[static_cast<size_t>(ButtonId::Learn)]; };
 		r.button(kLearnX, kLearnY, true, 10);
 		r.shell.tick(15);
-		expect(learn_led().kind == deluge::ui::LedState::Kind::Blink).to_be_true();
-		expect(static_cast<int>(learn_led().period_ms)).to_equal(60);
+		expect(learn_led().kind == deluge::ui::LedState::Kind::Shared).to_be_true();
+		expect(learn_led().rate == deluge::ui::BlinkRate::Fast).to_be_true();
 		// `ledBlinkState[1] = initialState` with the timer armed from the press (`indicator_leds.cpp:77-84`): lit
-		// for its first 60 ms from the press.
-		expect(static_cast<int>(learn_led().first_ms)).to_equal(60);
-		expect(learn_led().origin_ms >= 10 && learn_led().origin_ms <= 15).to_be_true(); // the press, as routed
-		r.button(kLearnX, kLearnY, false, 20);
-		r.shell.tick(25);
-		expect(static_cast<int>(learn_led().period_ms) == 60).to_be_false();
+		// for its first 60 ms from the press, as routed at 15, then toggling every 60.
+		expect(lit()).to_be_true();
+		r.shell.tick(70);
+		expect(lit()).to_be_true();
+		r.shell.tick(80);
+		expect(lit()).to_be_false();
+		r.shell.tick(140);
+		expect(lit()).to_be_true();
+		r.button(kLearnX, kLearnY, false, 150);
+		r.shell.tick(155);
+		expect(learn_led().rate == deluge::ui::BlinkRate::Fast).to_be_false();
 	});
 
 	it("LEARN enters no learn mode with Shift held, a pad held, or on an item that refuses learn", _ {
@@ -2421,7 +2427,7 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 		bool saw_back_blink = false;
 		for (const auto& [id, state] : frame.entries()) {
 			if (id == static_cast<deluge::ui::LedId>(ButtonId::Back)) {
-				saw_back_blink = state.kind == deluge::ui::LedState::Kind::Blink;
+				saw_back_blink = state.kind == deluge::ui::LedState::Kind::Shared;
 			}
 		}
 		expect(saw_back_blink).to_be_true();

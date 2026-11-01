@@ -24,6 +24,7 @@ constexpr int32_t kScrollStepForwardMs = 15; // legacy: 15 ms per pixel forwards
 constexpr int32_t kScrollStepBackMs = 5;     // 5 ms per pixel back
 constexpr int32_t kFlashTime = 110;          // blink half-period
 constexpr int32_t kInitialFlashTime = 250;   // a blink's first lit stretch (`blinkLed`)
+constexpr int32_t kFastFlashTime = 60;       // a fast blink's half-period (`blinkLed`'s `blinkingType` 1)
 constexpr int32_t kHorizontalSlotYOffset = 2;
 constexpr int32_t kMenuBaseY48 = 14; // list top for a 48-row panel (+ visible_top)
 constexpr int32_t kMenuBaseY64 = 15;

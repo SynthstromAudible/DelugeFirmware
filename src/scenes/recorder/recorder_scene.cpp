@@ -171,7 +171,9 @@ bool RecorderScene::on_enter(const SceneId& id) {
 	if (!name_drum()) {
 		return false;
 	}
-	return setup_recording();
+	// `beginRecording`'s `blinkLed(BACK)` and `blinkLed(RECORD, 255, 1)` (`audio_recorder.cpp:114-115`) on success.
+	blink_restart_ = setup_recording();
+	return blink_restart_;
 }
 
 void RecorderScene::on_exit() {
@@ -391,22 +393,22 @@ void RecorderScene::leds(deluge::ui::LedFrame& f) {
 	// one that shows.
 	constexpr deluge::ui::LedState kOff{deluge::ui::LedState::Kind::Off, 0, 0};
 	constexpr deluge::ui::LedState kOn{deluge::ui::LedState::Kind::On, 0, 0};
-	/// `blinkLed`'s two rates: type 0 is `kFlashTime` (110 ms) and type 1 `kFastFlashTime` (60 ms)
-	/// (`hid/led/indicator_leds.cpp:82-90`, `definitions_cxx.hpp:159-160`).
-	constexpr uint16_t kFlashMs = 110;
-	constexpr uint16_t kFastFlashMs = 60;
+	if (blink_restart_) {
+		blink_restart_ = false;
+		f.restart(deluge::ui::BlinkRate::Normal);
+		f.restart(deluge::ui::BlinkRate::Fast);
+	}
 	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Synth), ctx_.is_kit ? kOff : kOn);
 	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Kit), ctx_.is_kit ? kOn : kOff);
 	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::CrossScreen), kOff);
 	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Session), kOff);
 	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Scale), kOff);
 	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Back),
-	            deluge::ui::LedState{deluge::ui::LedState::Kind::Blink, kFlashMs, 0});
-	// `blinkLed(RECORD, 255, 1)` (`:106`) -- 255 blinks means "keep going", at blink-type 1's fast
-	// rate. `LedState::Blink` has a period and a deadline but no count, so the 255 has nothing to
-	// map to and is simply "blink until this scene stops declaring it", which is what 255 meant.
+	            deluge::ui::LedState::shared(deluge::ui::BlinkRate::Normal));
+	// `blinkLed(RECORD, 255, 1)` -- 255 blinks means "keep going", at blink-type 1's fast rate, which is "blink until
+	// this scene stops declaring it".
 	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Record),
-	            deluge::ui::LedState{deluge::ui::LedState::Kind::Blink, kFastFlashMs, 0});
+	            deluge::ui::LedState::shared(deluge::ui::BlinkRate::Fast));
 }
 
 RecorderScene& recorder_scene() {
