@@ -33,40 +33,19 @@ namespace deluge::scenes::context_menu {
 
 /// @brief Which context menu `SceneId::arg` names.
 ///
-/// **Six, not legacy's dozen.** These are every legacy context menu a node in the ported menu tree
-/// opens: the five `reset_settings::Reset` items (`gui/menu_item/reset_settings/reset.h:29-33`,
-/// `nodes::reset_flash` .. `nodes::reset_all`) and `audio_clip::AudioSourceSelector`
-/// (`nodes::audio_source_selector`). Every other legacy subclass is opened from a view or a browser
-/// this plan does not port -- `clearSong` from `view.cpp:291`, `clipSettings` / `newClipType` from
-/// `session_view.cpp`, `overwriteFile` / `saveSongOrInstrument` / `deleteFile` /
-/// `loadInstrumentPreset` from `gui/ui/save/` and `gui/ui/browser/`, `cancelStemExport` from the
-/// three view files -- so adding an entry for one now would be an untested, unreachable code path.
-/// `midiLearnMode` and `configureSongMacros` *are* opened from ported menu items, but through the
-/// action seam (`scenes/menu/action.h`) rather than from here: they are legacy `ContextMenu`
-/// subclasses this plan has not ported, and the wiring plan's dispatcher opens the legacy objects.
+/// Every legacy context menu the ported scenes open: the five `reset_settings::Reset` items
+/// (`gui/menu_item/reset_settings/reset.h:29-33`, `nodes::reset_flash` .. `nodes::reset_all`),
+/// `audio_clip::AudioSourceSelector` (`nodes::audio_source_selector`), and the sample browser's two
+/// long-press menus (`gui/context_menu/sample_browser/{kit,synth}.cpp`), which `BrowserScene` opens.
+/// The others are opened from views or browsers not ported yet -- `clearSong` from `view.cpp`,
+/// `clipSettings` / `newClipType` from `session_view.cpp`, `overwriteFile` / `saveSongOrInstrument` /
+/// `deleteFile` / `loadInstrumentPreset` from `gui/ui/save/` and `gui/ui/browser/`, `cancelStemExport`
+/// from the views -- and `midiLearnMode` and `configureSongMacros` go through the action seam
+/// (`scenes/menu/action.h`) to the legacy objects.
 ///
-/// @note **`audioInputSelector` was deliberately absent and is now the sixth entry (E2 task 11b).**
-///       Task 6 recorded the three hooks it would need before it could fit -- an `on_move`, an
-///       `initial_option` and a footer -- and those are exactly the three `Descriptor` grew; all
-///       three default to null, so the five reset descriptors are unchanged, literally as well as
-///       behaviourally (their aggregate initialisers still carry three fields).
-///
-///       Two corrections to that note, found by porting it:
-///
-///         * It also predicted a dynamic `options_now` hook, "since which inputs are available is a
-///           runtime question". **It is not.** `AudioInputSelector::getOptions()`
-///           (`audio_input_selector.cpp:77-85`) returns the same eight strings every time and the
-///           class has no `isCurrentOptionAvailable()` override at all. No hook was added, and
-///           `Descriptor::options`' note on how a dynamic list *would* be spelled still stands
-///           unused.
-///         * `padAction` and `getGreyoutColsAndRows` are not descriptor business and no hook is
-///           offered for them. `getGreyoutColsAndRows` calls
-///           `getRootUI()->getGreyedOutRowsNotRepresentingOutput(audioOutput)` (`:129-132`) and
-///           `padAction` reads `sessionView.getOutputFromPad` (`:199-220`); both are the session
-///           view's, which this plan does not port. The port greys as the base class does and a pad
-///           press closes the menu, which is `ContextMenu`'s own behaviour -- the *record-from-this-
-///           clip's-pad* gesture is the piece that is missing, and it is named here rather than
-///           half-built.
+/// @note `padAction` and `getGreyoutColsAndRows` are not descriptor business for `AudioSource`:
+///       `AudioInputSelector`'s read the session view (`audio_input_selector.cpp:129-132,199-220`),
+///       which is not ported, so the port greys as the base class does and a pad press closes the menu.
 enum class DescriptorId : uint16_t {
 	ResetFlash = 0,
 	ResetCommunityFeatures,
@@ -78,6 +57,11 @@ enum class DescriptorId : uint16_t {
 	/// (`gui/menu_item/audio_clip/audio_source_selector.h:27-32`) -- the sixth, added by E2 task 11b
 	/// together with the three `Descriptor` hooks the note below said it would need.
 	AudioSource,
+	/// `context_menu::sample_browser::kit`: SAMPLES, {LOAD ALL}. Main's second option, SLICE, opens the slicer,
+	/// which is not wired yet.
+	SampleBrowserKit,
+	/// `context_menu::sample_browser::synth`: LOAD FILES, {MULTISAMPLES, BASIC, SINGLE-CYCLE, WAVETABLE}.
+	SampleBrowserSynth,
 	Count,
 };
 
@@ -168,6 +152,16 @@ struct Descriptor {
 /// so a later descriptor can format one without this layer allocating. 48 is `notify::Notice`'s own
 /// text slot, the widest single line anything in this stack carries.
 inline constexpr size_t kFooterScratch = 48;
+
+/// @brief `sample_browser::Synth::isCurrentOptionAvailable` (`gui/context_menu/sample_browser/synth.cpp:61-93`):
+///        which of the synth menu's options the sound and the browser's item allow.
+///
+/// MULTISAMPLES and BASIC need a synth that is not in ring-mod; a folder offers MULTISAMPLES alone.
+/// @param ctx       The sound the browser loads into: its synth mode is read through `ctx.facts`.
+/// @param is_folder Whether the browser's selected item is a folder.
+/// @param out       Receives the available options' indexes into the descriptor's `options`, in order.
+/// @return How many were written.
+size_t sample_browser_synth_options(const menu::MenuContext& ctx, bool is_folder, std::span<uint8_t> out);
 
 /// @brief The table. Indexed by `DescriptorId`; `DescriptorId::Count` or past it returns entry 0.
 /// @param id Which context menu.

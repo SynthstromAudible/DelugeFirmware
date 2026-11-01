@@ -38,6 +38,7 @@
 #include "deluge-project/setting_group.h"
 #include "deluge.h"
 #include "gui/l10n/strings.h"
+#include "instruments/deluge/sound_state.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_follow.h"
 #include "model/settings/runtime_feature_settings.h"
@@ -289,6 +290,25 @@ bool accept_audio_source(const menu::MenuContext&, uint8_t) {
 	return false;
 }
 
+constexpr uint16_t kSampleBrowserKitOptions[] = {sid(String::STRING_FOR_LOAD_ALL)};
+
+constexpr uint16_t kSampleBrowserSynthOptions[] = {
+    sid(String::STRING_FOR_MULTISAMPLES),
+    sid(String::STRING_FOR_BASIC),
+    sid(String::STRING_FOR_SINGLE_CYCLE),
+    sid(String::STRING_FOR_WAVETABLE),
+};
+
+/// Main's `acceptCurrentOption` never closes these menus synchronously: the import or the claim it asks for closes
+/// them once it ends.
+bool accept_sample_browser_kit(const menu::MenuContext&, uint8_t) {
+	return true;
+}
+
+bool accept_sample_browser_synth(const menu::MenuContext&, uint8_t) {
+	return true;
+}
+
 constexpr std::array<Descriptor, static_cast<size_t>(DescriptorId::Count)> kDescriptors{{
     // All five resets share `ResetSettings`'s own heading and option list; only the action differs,
     // which is exactly what `ResetSettingsAction` selects in legacy. None of them uses the three
@@ -300,6 +320,8 @@ constexpr std::array<Descriptor, static_cast<size_t>(DescriptorId::Count)> kDesc
     {sid(String::STRING_FOR_ARE_YOU_SURE_QMARK), kConfirmOptions, accept_reset_all},
     {sid(String::STRING_FOR_AUDIO_SOURCE), kAudioSourceOptions, accept_audio_source, initial_audio_source,
      on_move_audio_source, footer_audio_source},
+    {sid(String::STRING_FOR_SAMPLES), kSampleBrowserKitOptions, accept_sample_browser_kit},
+    {sid(String::STRING_FOR_LOAD_FILES), kSampleBrowserSynthOptions, accept_sample_browser_synth},
 }};
 
 // Fix round 1, Minor 1. `render_oled` materialises `min(options.size(), kMaxOptions)` views while
@@ -320,6 +342,20 @@ static_assert(
     "silently truncate a list step() can still walk");
 
 } // namespace
+
+size_t sample_browser_synth_options(const menu::MenuContext& ctx, bool is_folder, std::span<uint8_t> out) {
+	const deluge::instrument::SoundState* state =
+	    ctx.facts != nullptr && ctx.addresses.slot ? ctx.facts->sound_state(*ctx.addresses.slot) : nullptr;
+	const bool ringmod = state != nullptr && state->synth_mode == SynthMode::RINGMOD;
+	const bool available[] = {!ringmod, !is_folder && !ringmod, !is_folder, !is_folder};
+	size_t n = 0;
+	for (uint8_t i = 0; i < std::size(available) && n < out.size(); i++) {
+		if (available[i]) {
+			out[n++] = i;
+		}
+	}
+	return n;
+}
 
 const Descriptor& descriptor(DescriptorId id) {
 	const size_t i = static_cast<size_t>(id);

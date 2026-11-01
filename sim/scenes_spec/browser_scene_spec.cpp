@@ -31,11 +31,13 @@
 
 #include "gui/ui/menu_view_of.h"
 #include "scenes/browser/browser_scene.h"
+#include "scenes/context_menu/context_menu_scene.h"
 #include "scenes/menu/context.h"
 #include "scenes/profile.h"
 #include "scenes/registry.h"
 
 #include "notify/notice_queue.h"
+#include "shell/notices.h"
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
 #include "ui/core/metrics.h"
@@ -50,6 +52,7 @@
 #include "hid/display/oled.h"
 #include "model/clip/audio_clip.h"
 #include "model/instrument/midi_instrument.h"
+#include "processing/sound/sound_instrument.h"
 #include "storage/file_catalogue.h"
 #include "storage/file_item.h"
 #include "util/name_compare.h"
@@ -82,6 +85,7 @@ using deluge::scenes::browser::browser_scene;
 using deluge::scenes::browser::BrowserId;
 using deluge::scenes::browser::BrowserScene;
 using deluge::scenes::browser::kBrowserSceneKind;
+using deluge::scenes::context_menu::context_menu_scene;
 using deluge::scenes::menu::MenuContext;
 using deluge::scenes::spec::QuietAudio;
 using deluge::scenes::spec::SdRoot;
@@ -681,6 +685,125 @@ struct DirectCtx {
 	explicit DirectCtx(uint32_t now_ms = 0) : ctx{held, pads, false, false, now_ms, deluge_profile()} {}
 };
 
+/// @brief The context the sample browser opens on for a sound: its first range, made if it has none.
+MenuContext sound_context(spec::SongFixture& f) {
+	MenuContext ctx = context_of(f);
+	(void)menu::ensure_first_range(ctx);
+	return ctx;
+}
+
+/// @brief Press Select on the next tick.
+/// @return When it went down.
+uint32_t press_select(Rig& r) {
+	const uint32_t at = r.clock + 10;
+	r.button(kSelectEncButtonX, kSelectEncButtonY, true, at);
+	r.tick(at);
+	return at;
+}
+
+/// @brief Release Select at @p at, on a tick of its own.
+void release_select(Rig& r, uint32_t at) {
+	r.button(kSelectEncButtonX, kSelectEncButtonY, false, at);
+	r.tick(at);
+}
+
+/// @brief Tick every 10 ms up to and including @p at.
+void run_until(Rig& r, uint32_t at) {
+	while (r.clock + 10 <= at) {
+		r.step();
+	}
+}
+
+/// @brief The scene of kind @p k on @p r's stack, or null.
+deluge::ui::shell::Scene* on_stack(Rig& r, SceneKind k) {
+	for (deluge::ui::shell::Scene* scene : r.shell.stack().scenes()) {
+		if (scene->kind() == k) {
+			return scene;
+		}
+	}
+	return nullptr;
+}
+
+/// @brief The popup's text, or empty with none showing.
+std::string popup_text(Rig& r) {
+	const auto* popup = static_cast<const deluge::ui::shell::PopupScene*>(on_stack(r, SceneKind::Popup));
+	return popup != nullptr ? std::string{popup->text()} : std::string{};
+}
+
+/// @brief Walk the selection until the selected item is (or is not) a folder.
+void select_folder(Rig& r, bool folder) {
+	for (int i = 0; i < 8 && browser_scene().current_is_folder() != folder; i++) {
+		r.turn(1, r.clock + 10);
+		r.settle();
+	}
+}
+
+/// @brief The host's facts, but for a sample load said to be running.
+class LoadingFacts final : public deluge::scenes::bind::RuntimeFacts {
+public:
+	explicit LoadingFacts(const deluge::scenes::bind::RuntimeFacts& real) : real_(real) {}
+	[[nodiscard]] bool sample_load_in_flight() const override { return true; }
+	[[nodiscard]] bool kit_takes_whole_folder(deluge::project::SlotAddress slot) const override {
+		return real_.kit_takes_whole_folder(slot);
+	}
+	[[nodiscard]] bool audio_inputs_present() const override { return real_.audio_inputs_present(); }
+	[[nodiscard]] uint8_t loaded_sources(deluge::project::SlotAddress slot) const override {
+		return real_.loaded_sources(slot);
+	}
+	[[nodiscard]] const deluge::instrument::SoundState* sound_state(deluge::project::SlotAddress slot) const override {
+		return real_.sound_state(slot);
+	}
+	[[nodiscard]] const deluge::effects::EffectStates*
+	chain_effects(deluge::project::ChainAddress chain) const override {
+		return real_.chain_effects(chain);
+	}
+	[[nodiscard]] int32_t played_bend_range(const deluge::project::SettingAddress& owner,
+	                                        int32_t which) const override {
+		return real_.played_bend_range(owner, which);
+	}
+	[[nodiscard]] bool allows_note_tails(deluge::project::SlotAddress slot) const override {
+		return real_.allows_note_tails(slot);
+	}
+	[[nodiscard]] uint8_t arp_preset(const deluge::project::SettingAddress& address) const override {
+		return real_.arp_preset(address);
+	}
+	[[nodiscard]] std::optional<int32_t> param_value(const deluge::project::ParamAddress& address) const override {
+		return real_.param_value(address);
+	}
+	[[nodiscard]] std::optional<int32_t> param_value_at(const deluge::project::ParamAddress& address,
+	                                                    uint32_t pos) const override {
+		return real_.param_value_at(address, pos);
+	}
+	[[nodiscard]] deluge::scenes::bind::CableList cables(const deluge::project::ParamAddress& owner) const override {
+		return real_.cables(owner);
+	}
+	[[nodiscard]] std::vector<deluge::scenes::bind::TrackFact> tracks() const override { return real_.tracks(); }
+	[[nodiscard]] std::optional<deluge::scenes::bind::AudioClipFact>
+	audio_clip(deluge::project::ClipAddress clip) const override {
+		return real_.audio_clip(clip);
+	}
+	[[nodiscard]] bool clip_playing(deluge::project::ClipAddress clip) const override {
+		return real_.clip_playing(clip);
+	}
+	[[nodiscard]] int32_t clip_live_pos(deluge::project::ClipAddress clip) const override {
+		return real_.clip_live_pos(clip);
+	}
+	[[nodiscard]] bool clip_arrangement_only(deluge::project::ClipAddress clip) const override {
+		return real_.clip_arrangement_only(clip);
+	}
+	[[nodiscard]] bool clip_recording_linearly(deluge::project::ClipAddress clip) const override {
+		return real_.clip_recording_linearly(clip);
+	}
+	[[nodiscard]] bool stutter_active() const override { return real_.stutter_active(); }
+	[[nodiscard]] std::pair<int64_t, int64_t> audio_clip_samples(deluge::project::ClipAddress clip, int32_t scroll,
+	                                                             int32_t zoom) const override {
+		return real_.audio_clip_samples(clip, scroll, zoom);
+	}
+
+private:
+	const deluge::scenes::bind::RuntimeFacts& real_;
+};
+
 } // namespace
 
 // clang-format off
@@ -1155,6 +1278,8 @@ describe browser_navigation("scenes::browser::BrowserScene navigation", $ {
 		// "Don't allow user to go into TEMP clips folder" (`sample_browser.cpp:345-350`): the popup
 		// is raised, the directory does not change, and no listing is dispatched.
 		DirectCtx d(r.clock);
+		(void)browser_scene().handle(UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::SelectEnc},
+		                             d.ctx);
 		const Result refused = browser_scene().handle(
 		    UiEvent{.kind = UiEvent::Kind::Button, .on = false, .button = ButtonId::SelectEnc}, d.ctx);
 		const ShellAction* popup = find_action(refused, ShellAction::Kind::Popup);
@@ -1692,7 +1817,151 @@ describe browser_goldens("scenes::browser::BrowserScene pixels", $ {
 		}
 	});
 });
+describe browser_long_press("scenes::browser::BrowserScene holding Select", $ {
+	it("enters on a release before 400 ms", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		(void)browser_scene().take_choice();
+		select_folder(r, false);
+		const uint32_t down = press_select(r);
+		run_until(r, down + 390);
+		release_select(r, down + 399);
+		expect(on_stack(r, context_menu::kContextMenuSceneKind) == nullptr).to_be_true();
+		expect(browser_scene().take_choice().has_value()).to_be_true();
+	});
+
+	it("opens the synth's LOAD FILES menu at 400 ms, after which the release does nothing", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		(void)browser_scene().take_choice();
+		select_folder(r, false);
+		const uint32_t down = press_select(r);
+		run_until(r, down + 400);
+		expect(on_stack(r, context_menu::kContextMenuSceneKind) != nullptr).to_be_true();
+		expect(static_cast<int>(context_menu_scene().descriptor_id()))
+		    .to_equal(static_cast<int>(context_menu::DescriptorId::SampleBrowserSynth));
+		expect(browser_scene().holding()).to_be_false();
+		release_select(r, down + 450);
+		expect(on_stack(r, context_menu::kContextMenuSceneKind) != nullptr).to_be_true();
+		expect(r.browser_on_stack()).to_be_true();
+		expect(browser_scene().take_choice().has_value()).to_be_false();
+	});
+
+	it("ignores a Select turn while held", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		const int32_t before = browser_scene().file_index();
+		const uint32_t down = press_select(r);
+		r.turn(1, down + 50);
+		r.tick(down + 50);
+		expect(browser_scene().file_index()).to_equal(before);
+		expect(browser_scene().holding()).to_be_true();
+	});
+
+	it("opens nothing while a sample load runs, and the release still enters", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		MenuContext ctx = sound_context(f);
+		const LoadingFacts loading{*ctx.facts};
+		ctx.facts = &loading;
+		Rig r;
+		r.open_and_land(ctx, BrowserId::Sample);
+		(void)browser_scene().take_choice();
+		select_folder(r, false);
+		const uint32_t down = press_select(r);
+		run_until(r, down + 600);
+		expect(on_stack(r, context_menu::kContextMenuSceneKind) == nullptr).to_be_true();
+		expect(browser_scene().holding()).to_be_true();
+		release_select(r, down + 610);
+		expect(browser_scene().take_choice().has_value()).to_be_true();
+	});
+
+	it("tells an audio clip it cannot take a whole folder", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::AudioSongFixture f = spec::make_audio_clip_song();
+		Rig r;
+		r.open_and_land(context_of(f), BrowserId::Sample);
+		const uint32_t down = press_select(r);
+		run_until(r, down + 410);
+		expect(on_stack(r, context_menu::kContextMenuSceneKind) == nullptr).to_be_true();
+		expect(popup_text(r)).to_equal(
+		    std::string{deluge::l10n::get(String::STRING_FOR_CANT_IMPORT_WHOLE_FOLDER_INTO_AUDIO_CLIP)});
+	});
+
+	it("tells a kit with more than one drum that only a brand-new kit takes a whole folder", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_kit_song();
+		(void)spec::add_drum<SoundDrum>(f);
+		(void)spec::add_drum<SoundDrum>(f);
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		const uint32_t down = press_select(r);
+		run_until(r, down + 410);
+		expect(on_stack(r, context_menu::kContextMenuSceneKind) == nullptr).to_be_true();
+		expect(popup_text(r)).to_equal(
+		    std::string{deluge::l10n::get(String::STRING_FOR_CAN_ONLY_IMPORT_WHOLE_FOLDER_INTO_BRAND_NEW_KIT)});
+	});
+
+	it("opens the SAMPLES menu on a kit's only drum, editing source 0", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_kit_song();
+		(void)spec::add_drum<SoundDrum>(f);
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		const uint32_t down = press_select(r);
+		run_until(r, down + 410);
+		expect(static_cast<int>(context_menu_scene().descriptor_id()))
+		    .to_equal(static_cast<int>(context_menu::DescriptorId::SampleBrowserKit));
+		expect(on_stack(r, context_menu::kContextMenuSceneKind) != nullptr).to_be_true();
+	});
+
+	it("tells a kit's only drum edited on source 1 that only a brand-new kit takes a whole folder", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_kit_song();
+		(void)spec::add_drum<SoundDrum>(f);
+		MenuContext ctx = context_of(f);
+		menu::select_source(ctx, 1);
+		(void)menu::ensure_first_range(ctx);
+		Rig r;
+		r.open_and_land(ctx, BrowserId::Sample);
+		const uint32_t down = press_select(r);
+		run_until(r, down + 410);
+		expect(on_stack(r, context_menu::kContextMenuSceneKind) == nullptr).to_be_true();
+		expect(popup_text(r)).to_equal(
+		    std::string{deluge::l10n::get(String::STRING_FOR_CAN_ONLY_IMPORT_WHOLE_FOLDER_INTO_BRAND_NEW_KIT)});
+	});
+
+	it("opens nothing for a ring-mod synth held on a folder, which has no option to offer", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		static_cast<SoundInstrument*>(f.instrument)->assignSynthMode(::SynthMode::RINGMOD);
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		select_folder(r, true);
+		const uint32_t down = press_select(r);
+		run_until(r, down + 410);
+		expect(on_stack(r, context_menu::kContextMenuSceneKind) == nullptr).to_be_true();
+		expect(popup_text(r)).to_equal(std::string{});
+		expect(browser_scene().holding()).to_be_false();
+	});
+});
     // clang-format on
 
     DELUGE_SPEC(browser_scene_spec, browser_descriptors, browser_composition, browser_open, browser_in_flight,
-                browser_navigation, browser_typing, browser_accept, browser_legacy_pixels, browser_goldens)
+                browser_navigation, browser_typing, browser_accept, browser_legacy_pixels, browser_goldens,
+                browser_long_press)

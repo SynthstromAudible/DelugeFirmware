@@ -33,6 +33,7 @@
 #include "deluge-project/song.h"
 #include "instruments/deluge/sound_state.h"
 #include "scenes/bind/runtime_facts.h"
+#include "scenes/context_menu/context_menu_scene.h"
 #include "storage/file_catalogue.h"
 #include "storage/file_item.h"
 #include "storage/flash_storage.h"
@@ -367,6 +368,8 @@ bool BrowserScene::on_enter(const SceneId& id) {
 		return false;
 	}
 	id_ = static_cast<BrowserId>(id.arg);
+	holding_ = false;
+	hold_deadline_ms_.reset();
 	if (!descriptor(id_).can(ctx_)) {
 		return false;
 	}
@@ -1100,6 +1103,21 @@ Result BrowserScene::after_render() {
 		return r;
 	}
 
+	// 5. The long press, answered once at its deadline. While a sample load runs the hold stays and nothing answers
+	//    it, so its release still enters (`SampleBrowser::timerCallback`'s gate, `sample_browser.cpp:306-309`).
+	if (hold_deadline_ms_.has_value() && static_cast<int32_t>(last_render_ms_ - *hold_deadline_ms_) >= 0) {
+		hold_deadline_ms_.reset();
+		if (ctx_.facts == nullptr || !ctx_.facts->sample_load_in_flight()) {
+			holding_ = false;
+			return long_press();
+		}
+	}
+
+	// 6. A key typed while Select is held is dropped: `QwertyUI::padAction` types only with no UI mode set.
+	if (holding_) {
+		return r;
+	}
+
 	bool changed = false;
 
 	if (grid_pass && resp.index >= 0) {
@@ -1130,7 +1148,6 @@ Result BrowserScene::after_render() {
 }
 
 Result BrowserScene::handle(const UiEvent& event, const UiContext& ctx) {
-	(void)ctx;
 
 	// **What keeps button and encoder input out while a listing runs** (pad events are gated by
 	// `after_render` instead -- see the class docstring), and legacy's own first line:
@@ -1164,24 +1181,26 @@ Result BrowserScene::handle(const UiEvent& event, const UiContext& ctx) {
 			break;
 		}
 		if (event.button == ButtonId::SelectEnc) {
-			// `Browser::mainButtonAction` (`browser.cpp:1250-1279`): the press arms a long-press
-			// timer and the **release** is what calls `enterKeyPress()`.
-			//
-			// @note The long-press arm itself is not ported. Legacy's press sets
-			//       `UI_MODE_HOLDING_BUTTON_POTENTIAL_LONG_PRESS` and `SampleBrowser::timerCallback`
-			//       (`sample_browser.cpp:283 timerCallback`) answers it by opening one of the
-			//       import-whole-folder context menus -- `context_menu::sample_browser::kit` or
-			//       `::synth` (`gui/context_menu/sample_browser/kit.h`,
-			//       `gui/context_menu/sample_browser/synth.h`). Those are two of the legacy
-			//       `ContextMenu` subclasses `ContextMenuScene`'s `DescriptorId` note lists as
-			//       deliberately absent, because nothing in the ported menu tree opens them; porting
-			//       them here would be building the descriptors that task decided not to build.
-			if (!event.on) {
-				return enter_key_press();
-			}
+			// `Browser::mainButtonAction` (`browser.cpp:1867-1889`): the press starts a hold and the release of that
+			// hold enters. The sample browser answers a hold that lasts `kLongPressMs` (`after_render`); a release
+			// after that answer, or one with no press before it, does nothing.
 			Result r;
 			r.handled = true;
-			return r;
+			if (event.on) {
+				if (!holding_) {
+					holding_ = true;
+					if (id_ == BrowserId::Sample) {
+						hold_deadline_ms_ = ctx.now_ms + kLongPressMs;
+					}
+				}
+				return r;
+			}
+			if (!holding_) {
+				return r;
+			}
+			holding_ = false;
+			hold_deadline_ms_.reset();
+			return enter_key_press();
 		}
 		break;
 
@@ -1195,6 +1214,12 @@ Result BrowserScene::handle(const UiEvent& event, const UiContext& ctx) {
 		break;
 
 	case UiEvent::Kind::Encoder:
+		if (event.encoder == deluge::ui::EncoderRole::Select && holding_) {
+			// `Browser::selectEncoderAction` turns only with no UI mode set, and a hold is one.
+			Result r;
+			r.handled = true;
+			return r;
+		}
 		if (event.encoder == deluge::ui::EncoderRole::Select) {
 			// `Browser::selectEncoderAction` (`browser.cpp:549`), applied here rather than parked for
 			// `after_render`. The turn is one of the shell's widget-owned shapes, so it is delivered
@@ -1248,6 +1273,45 @@ Result BrowserScene::handle(const UiEvent& event, const UiContext& ctx) {
 	return Result::unhandled();
 }
 
+bool BrowserScene::current_is_folder() const {
+	const FileItem* item = item_at(file_index_);
+	return item != nullptr && item->isFolder;
+}
+
+Result BrowserScene::long_press() {
+	Result r;
+	r.handled = true;
+	if (item_at(file_index_) == nullptr) {
+		return r;
+	}
+	const auto popup = [&r](String text) {
+		(void)r.actions.push_back(Action{
+		    .kind = Action::Kind::Popup, .surface = SurfaceRole::Main, .popup_string = static_cast<uint16_t>(text)});
+		return r;
+	};
+	const auto menu = [&r, this](context_menu::DescriptorId id) {
+		context_menu::context_menu_scene().open(ctx_);
+		(void)r.actions.push_back(Action{
+		    .kind = Action::Kind::Push, .id = SceneId{context_menu::kContextMenuSceneKind, static_cast<uint16_t>(id)}});
+		return r;
+	};
+	if (ctx_.is_audio_clip) {
+		return popup(String::STRING_FOR_CANT_IMPORT_WHOLE_FOLDER_INTO_AUDIO_CLIP);
+	}
+	if (ctx_.is_kit) {
+		// `SampleBrowser::canImportWholeKit` (`sample_browser.cpp:550-554`).
+		const bool fresh_kit = ctx_.source_index == 0 && ctx_.facts != nullptr && ctx_.addresses.slot
+		                       && ctx_.facts->kit_takes_whole_folder(*ctx_.addresses.slot);
+		return fresh_kit ? menu(context_menu::DescriptorId::SampleBrowserKit)
+		                 : popup(String::STRING_FOR_CAN_ONLY_IMPORT_WHOLE_FOLDER_INTO_BRAND_NEW_KIT);
+	}
+	std::array<uint8_t, context_menu::kMaxOptions> available{};
+	if (context_menu::sample_browser_synth_options(ctx_, current_is_folder(), available) == 0) {
+		return r;
+	}
+	return menu(context_menu::DescriptorId::SampleBrowserSynth);
+}
+
 std::optional<uint32_t> BrowserScene::next_timer() const {
 	std::optional<uint32_t> next;
 
@@ -1262,6 +1326,13 @@ std::optional<uint32_t> BrowserScene::next_timer() const {
 	// refused request retried. See `kListingPollMs`.
 	if (listing_.in_flight() || pending_.has_value()) {
 		next = next.has_value() ? std::min(*next, kListingPollMs) : kListingPollMs;
+	}
+
+	// The long press is answered by `after_render`, so its deadline must render.
+	if (hold_deadline_ms_.has_value()) {
+		const int32_t left = static_cast<int32_t>(*hold_deadline_ms_ - last_render_ms_);
+		const uint32_t in = left > 0 ? static_cast<uint32_t>(left) : 0;
+		next = next.has_value() ? std::min(*next, in) : in;
 	}
 	return next;
 }

@@ -42,8 +42,12 @@ static_assert(static_cast<uint16_t>(cm::DescriptorId::ResetMidiFollow) == 2);
 static_assert(static_cast<uint16_t>(cm::DescriptorId::ResetMidiDevices) == 3);
 static_assert(static_cast<uint16_t>(cm::DescriptorId::ResetAll) == 4);
 static_assert(static_cast<uint16_t>(cm::DescriptorId::AudioSource) == 5);
-static_assert(static_cast<uint16_t>(cm::DescriptorId::Count) == 6,
-              "every DescriptorId must have an item here, or a descriptor exists that no menu opens");
+// The sample browser's two folder menus are opened by `BrowserScene`'s long press, not by an item.
+static_assert(static_cast<uint16_t>(cm::DescriptorId::SampleBrowserKit) == 6);
+static_assert(static_cast<uint16_t>(cm::DescriptorId::SampleBrowserSynth) == 7);
+static_assert(static_cast<uint16_t>(cm::DescriptorId::Count) == 8,
+              "every DescriptorId must have an item here or a scene that opens it, or a descriptor exists that "
+              "nothing opens");
 } // namespace
 
 void ContextMenuItem::render(deluge::ui::oled::OledFrame& f, const MenuContext&, MenuState& state) const {

@@ -371,6 +371,10 @@ public:
 	std::string_view current_dir() const;
 	/// @brief Is a listing dispatched and not yet collected?
 	bool listing_in_flight() const { return listing_.in_flight(); }
+	/// @brief `UI_MODE_HOLDING_BUTTON_POTENTIAL_LONG_PRESS`: Select is down and its release will enter the item.
+	bool holding() const { return holding_; }
+	/// @brief Whether the selected item is a folder; false with nothing selected.
+	bool current_is_folder() const;
 	/// @}
 
 	/// @brief Collect the file the scene could not load itself, exactly once.
@@ -473,6 +477,10 @@ private:
 	/// @brief `Browser::mainButtonAction`'s release arm -> `enterKeyPress`.
 	/// @return What the shell should do.
 	deluge::ui::shell::Result enter_key_press();
+	/// @brief `SampleBrowser::timerCallback`'s long-press arm (`sample_browser.cpp:309-355`): a popup, or one of the
+	///        two folder menus, for the item Select is held on.
+	/// @return What the shell should do.
+	deluge::ui::shell::Result long_press();
 	/// @brief `Browser::backButtonAction` (`browser.cpp:1283`): ascend, or close at the top.
 	/// @return What the shell should do.
 	deluge::ui::shell::Result back();
@@ -534,6 +542,12 @@ private:
 	deluge::ui::grid::TextKeyboardState kb_{};
 	deluge::ui::grid::KeyboardLayoutKind layout_ = deluge::ui::grid::KeyboardLayoutKind::Qwerty;
 
+	/// `Browser::mainButtonAction`'s hold: Select is down, and the release enters. The sample browser answers a hold
+	/// of `kLongPressMs` once, at `hold_deadline_ms_`, which it then clears; a hold that answered with a menu or a
+	/// popup has also stopped holding, so its release does nothing.
+	bool holding_ = false;
+	std::optional<uint32_t> hold_deadline_ms_{};
+
 	/// The end-of-string cursor's blink -- the same idiom `RenameScene` uses.
 	deluge::ui::Blink cursor_blink_{};
 	uint32_t last_render_ms_ = 0;
@@ -550,6 +564,10 @@ private:
 	/// arrives here with `resp_` default-constructed.
 	bool grid_pass_ = false;
 };
+
+/// @brief How long Select is held before the sample browser answers it as a long press (`LONG_PRESS_DURATION`,
+///        `gui/ui/ui.h`).
+inline constexpr uint32_t kLongPressMs = 400;
 
 /// @brief The application's one file browser.
 ///

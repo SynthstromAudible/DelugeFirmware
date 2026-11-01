@@ -312,7 +312,26 @@ describe cm_descriptors("scenes::context_menu descriptor table", $ {
 		// task 11b, `audio_clip::AudioSourceSelector` -- and nothing else: every other legacy
 		// `ContextMenu` subclass is opened from a view or a browser this plan does not port. See the
 		// note on `DescriptorId`.
-		expect(static_cast<int>(DescriptorId::Count)).to_equal(6);
+		expect(static_cast<int>(DescriptorId::Count)).to_equal(8);
+	});
+
+	it("gives the sample browser's two folder menus main's headings and options", _ {
+		// `context_menu::sample_browser::Kit` and `::Synth` (`gui/context_menu/sample_browser/`). The kit's SLICE
+		// waits for the slicer, so LOAD ALL is its one option.
+		const Descriptor& kit = context_menu::descriptor(DescriptorId::SampleBrowserKit);
+		expect(static_cast<int>(kit.title)).to_equal(static_cast<int>(String::STRING_FOR_SAMPLES));
+		expect(kit.options.size()).to_equal(size_t(1));
+		expect(static_cast<int>(kit.options[0])).to_equal(static_cast<int>(String::STRING_FOR_LOAD_ALL));
+		const Descriptor& synth = context_menu::descriptor(DescriptorId::SampleBrowserSynth);
+		expect(static_cast<int>(synth.title)).to_equal(static_cast<int>(String::STRING_FOR_LOAD_FILES));
+		const uint16_t want[] = {static_cast<uint16_t>(String::STRING_FOR_MULTISAMPLES),
+		                         static_cast<uint16_t>(String::STRING_FOR_BASIC),
+		                         static_cast<uint16_t>(String::STRING_FOR_SINGLE_CYCLE),
+		                         static_cast<uint16_t>(String::STRING_FOR_WAVETABLE)};
+		expect(synth.options.size()).to_equal(std::size(want));
+		for (size_t i = 0; i < std::size(want) && i < synth.options.size(); i++) {
+			expect(static_cast<int>(synth.options[i])).to_equal(static_cast<int>(want[i]));
+		}
 	});
 
 	it("gives every one of them ResetSettings' own heading and single OK option", _ {
