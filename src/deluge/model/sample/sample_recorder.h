@@ -122,7 +122,16 @@ public:
 	bool pointerHeldElsewhere = false;
 	bool capturedTooMuch = false;
 	bool thresholdRecording = false;
+	// The standalone OLED recorder opts in to level updates after the threshold triggers.
+	bool monitorInputLevels = false;
 	uint32_t minThresholdMargin = 0;
+	// Smoothed log input levels. While waiting for the threshold this is updated by the audio routine, since it
+	// decides when to trigger. After that, read it through getInputLevels().
+	StereoFloatSample approxRMSLevel{0};
+	/// For monitorInputLevels: folds the peak levels collected by the audio routine since the last call into
+	/// approxRMSLevel, and returns it. Keeps the envelope maths out of the audio routine once the threshold has
+	/// triggered. Call from the UI, not the audio routine.
+	StereoFloatSample getInputLevels();
 
 	// Most of these are not captured in the case of BALANCED input for AudioClips
 	bool recordingClippedRecently;
@@ -162,4 +171,10 @@ private:
 	Error truncateFileDownToSize(uint32_t newFileSize);
 	Error writeOneCompletedCluster();
 	AbsValueFollower envelopeFollower{};
+	// For monitorInputLevels once the threshold has triggered: the loudest per-cycle mean absolute sample values from
+	// the audio routine, not yet folded into approxRMSLevel by getInputLevels(). The peak rather than an average, so
+	// short transients still show at full level when they're folded in less often than every audio routine.
+	float pendingPeakMeanL = 0;
+	float pendingPeakMeanR = 0;
+	uint32_t pendingLevelNumSamples = 0;
 };

@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/ui/ui.h"
 #include "hid/button.h"
+#include <array>
 
 extern "C" {
 #include "fatfs/ff.h"
@@ -48,6 +49,8 @@ public:
 	void endRecordingSoon(int32_t buttonLatency = 0);
 
 	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override;
+	bool isThresholdRecording();
+	void graphicsRoutine() override;
 
 	bool updatedRecordingStatus = false;
 
@@ -55,6 +58,20 @@ public:
 	UIType getUIType() override { return UIType::AUDIO_RECORDER; }
 
 private:
+	// Everything that can change the threshold meter's appearance while recording, so graphicsRoutine() only
+	// requests a redraw when the rendered image would actually change
+	struct ThresholdMeterState {
+		std::array<int32_t, 2> levelEndX{};
+		bool recording = false;
+		// record dot while recording, threshold line while waiting
+		bool blinkOn = false;
+		bool operator==(const ThresholdMeterState&) const = default;
+	};
+	ThresholdMeterState getThresholdMeterState();
+	ThresholdMeterState lastRenderedThresholdMeterState{};
+
+	// whether process() has a recorder state change to act on
+	bool recorderNeedsAttention();
 	void finishRecording();
 	bool setupRecordingToFile(AudioInputChannel newMode, int32_t newNumChannels, AudioRecordingFolder folderID,
 	                          bool writeLoopPoints = false, bool shouldNormalize = true);
