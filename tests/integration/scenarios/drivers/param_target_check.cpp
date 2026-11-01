@@ -291,8 +291,8 @@ void checkMidiFollow(Checker& check) {
 		}
 		const int expected = controlling(Table::FOLLOW_CC_TO_SOUND, param->kind, param->index);
 		std::optional<uint8_t> cc = follow.ccOf(OwnerPlugin::INSTRUMENT, target);
-		if (ccNumber(cc) != expected) {
-			check.fail("follow sound CC", cell.cell, ccNumber(cc), expected);
+		if (ccNumber(cc) != expected || ccNumber(cc) != cell.index) {
+			check.fail("follow sound CC", cell.cell, ccNumber(cc), cell.index);
 		}
 	}
 	for (const auto& cell : recorded(Table::FOLLOW_GLOBAL_TO_CC)) {
@@ -300,7 +300,10 @@ void checkMidiFollow(Checker& check) {
 		    deluge::bridge::targetOf(OwnerPlugin::GLOBAL_EFFECTABLE, params::Kind::UNPATCHED_GLOBAL, cell.cell);
 		const int expected = controlling(Table::FOLLOW_CC_TO_GLOBAL, params::Kind::UNPATCHED_GLOBAL, cell.cell);
 		std::optional<uint8_t> cc = target ? follow.ccOf(OwnerPlugin::GLOBAL_EFFECTABLE, *target) : std::nullopt;
-		if (ccNumber(cc) != expected) {
+		// the recorded map is kept but for the EQ, whose feedback went out on the filters' CCs
+		const bool eq = cell.cell == params::UNPATCHED_BASS || cell.cell == params::UNPATCHED_TREBLE
+		                || cell.cell == params::UNPATCHED_BASS_FREQ || cell.cell == params::UNPATCHED_TREBLE_FREQ;
+		if (ccNumber(cc) != expected || (!eq && ccNumber(cc) != cell.index) || (eq && cell.index == expected)) {
 			check.fail("follow global CC", cell.cell, ccNumber(cc), expected);
 		}
 	}

@@ -30,9 +30,6 @@ class GlobalEffectable : public ModControllableAudio {
 public:
 	GlobalEffectable();
 	void cloneFrom(ModControllableAudio* other) override;
-	[[nodiscard]] deluge::bridge::OwnerPlugin ownerPlugin() const final {
-		return deluge::bridge::OwnerPlugin::GLOBAL_EFFECTABLE;
-	}
 
 	static void initParams(ParamManager* paramManager);
 	/// @brief A global effectable's mod knob @p whichModEncoder (nonzero the upper) in mode @p modKnobMode, as its

@@ -5,7 +5,7 @@
  * Licensed under the GNU General Public License v3 or later; see LICENSE.
  */
 
-// A verbatim copy of the runtime's ParamDescriptor (modulation/params/param_descriptor.h), renamed, with the synth's
+// A verbatim copy of the descriptor class the runtime's cable set used for its words, renamed, with the synth's
 // PatchSource and a plain cast for util::to_underlying: the oracle synth::CableTarget's word operations are checked
 // against.
 #pragma once

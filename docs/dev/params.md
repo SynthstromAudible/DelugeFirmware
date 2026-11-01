@@ -18,8 +18,8 @@ The host names a param without its owner as a `project::ParamTarget{ParamSpace s
 the owner's plugin table, a sound's cable depth being the instrument's depth id (`instruments/deluge/cables.h`); a
 MIDI_CC id is the CC number, an EXPRESSION id the MPE dimension. Ids are per plugin (116 is portamento in the
 instrument's table and mod FX rate in the global effectable's), so a target is read only together with its owner's
-`bridge::OwnerPlugin`, which `ModControllableAudio::ownerPlugin()` gives (a `Sound` is the instrument, a
-`GlobalEffectable` the global effectable).
+`bridge::OwnerPlugin`, which the code reading it knows from its owner (a sound is the instrument; a global effectable,
+the song, a kit's affect-entire or an audio clip, is the global effectable).
 
 `bridge::runtimeParamOf(owner, target)` and `bridge::targetOf(owner, kind, index)` (`model/project_bridge/param_ids.h`)
 map a target to and from the runtime's collection kind and index, a cable's index being its packed word. They are the
@@ -40,7 +40,7 @@ A clip's and the song's automation selection (`lastSelectedParamKind`, `lastSele
 it is what the files record, a MIDI clip's keeping whatever kind was there with its CC.
 
 param_target_check round-trips every runtime param of both plugins and every cable word through the bridge, and holds
-each of these tables to its cells as recorded before it named params by target
+each of these tables to its recorded runtime cells
 (`tests/integration/scenarios/drivers/param_target_tables_reference.h`), and MIDIFollow.XML to the bytes it was written
 as.
 

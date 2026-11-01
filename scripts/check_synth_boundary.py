@@ -9,7 +9,7 @@ src/synth/ is the synth library: the per-voice sources and the modulation core (
 LFO, Patcher, ControlBlock, ParamPlane, the routing compile). It is a step below the application:
 it may use dsp-next/, sequence/ and definitions*, of util/ only the stateless fixedpoint.h,
 misc.h, param_functions.h, phase_increment_fine_tuner.h and the lookup tables, of modulation/ only the param and sync vocabulary (params/param.h,
-params/param_descriptor.h, sync.h), and of deluge-project/ only the enums definitions_cxx.hpp
+sync.h), and of deluge-project/ only the enums definitions_cxx.hpp
 brings (never named by a synth file itself). It must not reach the app layers — storage/,
 model/, processing/, gui/, playback/, hid/, io/, bench/, the legacy dsp/ library, or the HAL/BSP
 (RZA1/, bsp/, drivers/). memory/ is allowed only via the thin memory_allocator_interface.h seam.
@@ -80,7 +80,6 @@ UTIL_ALLOWED = {
 }
 MODULATION_ALLOWED = {
     "modulation/params/param.h",
-    "modulation/params/param_descriptor.h",
     "modulation/sync.h",
 }
 # definitions_cxx.hpp brings these as vocabulary; a synth file must not include deluge-project/ itself.

@@ -23,7 +23,6 @@
 #include "hid/button.h"
 #include "model/mod_controllable/filters/filter_config.h"
 #include "model/mod_controllable/mod_controllable.h"
-#include "model/project_bridge/owner_plugin.h"
 #include "model/snapshot/mod_controllable_snapshot.h"
 #include "modulation/knob.h"
 #include "modulation/params/param_set.h"
@@ -179,9 +178,6 @@ public:
 	/// @return The chain's core.
 	[[nodiscard]] virtual deluge::effects::ChainCore& core() = 0;
 	[[nodiscard]] virtual const deluge::effects::ChainCore& core() const = 0;
-
-	/// @brief Whose param table this owner's ENGINE param ids are in.
-	[[nodiscard]] virtual deluge::bridge::OwnerPlugin ownerPlugin() const = 0;
 
 	deluge::fast_vector<MIDIKnob> midi_knobs{};
 
