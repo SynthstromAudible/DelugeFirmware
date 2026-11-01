@@ -1,7 +1,7 @@
-<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 350.1 175.6">
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 350.1 133.6">
 <defs>
 <clipPath id="03-sequencing__05-note-characteristics--1-clip_1">
-<path transform="matrix(1,0,0,-1,-180.6,449.2)" d="M180.6 273.6H530.8V449.2H180.6Z" clip-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-180.6,449.2)" d="M180.6 315.6H530.8V449.2H180.6Z" clip-rule="evenodd"/>
 </clipPath>
 </defs>
 <g clip-path="url(#03-sequencing__05-note-characteristics--1-clip_1)">
@@ -16,8 +16,6 @@
 <text fill="currentColor" xml:space="preserve" transform="translate(193.2 70.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">and how this reflects the volume of the</tspan></text>
 <text fill="currentColor" xml:space="preserve" transform="translate(193.2 80.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">note. This captures organic and human</tspan></text>
 <text fill="currentColor" xml:space="preserve" transform="translate(193.2 90.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">like recordings.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(34.7 157.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Deluge pads are not velocity sensitive. The default velocity is 64 but this</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(24.9 167.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">default level can be changed in the settings options under the defaults menu.</tspan></text>
 <text fill="currentColor" xml:space="preserve" transform="translate(6.0 50.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Velocity is also a</tspan></text>
 <text fill="currentColor" xml:space="preserve" transform="translate(6.0 60.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">modulation source to apply</tspan></text>
 <text fill="currentColor" xml:space="preserve" transform="translate(6.0 70.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">to other parameters as well</tspan></text>

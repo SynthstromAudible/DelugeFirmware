@@ -1,36 +1,35 @@
-<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 362.0 141.2">
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 362.0 122.6">
 <defs>
 <clipPath id="12-midi__13-setting-up-midi-mpe--1-clip_1">
-<path transform="matrix(1,0,0,-1,-182,666.0)" d="M182 524.8H544.1V666.0H182Z" clip-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-182.0,666.0)" d="M182.0 543.4H544.1V666.0H182.0Z" clip-rule="evenodd"/>
 </clipPath>
 </defs>
 <g clip-path="url(#12-midi__13-setting-up-midi-mpe--1-clip_1)">
-<path transform="matrix(1,0,0,-1,-182,666.0)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M170.1 688.6V84.1"/>
-<path transform="matrix(1,0,0,-1,-182,666.0)" d="M188.0 648.2H297.6V660.1H188.0Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
-<path transform="matrix(1,0,0,-1,-182,666.0)" d="M297.6 648.2H363.0V660.1H297.6Z" fill="color-mix(in srgb, currentColor 20%, var(--gb-paper))" fill-rule="evenodd"/>
-<path transform="matrix(1,0,0,-1,-182,666.0)" d="M363.0 648.2H538.1V660.1H363.0Z" fill="color-mix(in srgb, currentColor 15%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-182.0,666.0)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M170.1 688.6V84.1"/>
+<path transform="matrix(1,0,0,-1,-182.0,666.0)" d="M188.0 648.2H297.6V660.1H188.0Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-182.0,666.0)" d="M297.6 648.2H363.0V660.1H297.6Z" fill="color-mix(in srgb, currentColor 20%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-182.0,666.0)" d="M363.0 648.2H538.1V660.1H363.0Z" fill="color-mix(in srgb, currentColor 15%, var(--gb-paper))" fill-rule="evenodd"/>
 <text fill="currentColor" xml:space="preserve" transform="translate(8.8 14.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Sub Menu</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(66.8 14.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Sub Menu</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(66.7 14.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Sub Menu</tspan></text>
 <text fill="currentColor" xml:space="preserve" transform="translate(118.4 14.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Sub Category</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(183.9 14.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Setting Options</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(183.8 14.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Setting Options</tspan></text>
 <text fill="currentColor" xml:space="preserve" transform="translate(8.8 70.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">MPE</tspan></text>
 <text fill="currentColor" xml:space="preserve" transform="translate(64.7 45.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">IN</tspan></text>
 <text fill="currentColor" xml:space="preserve" transform="translate(118.4 32.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">LOWER</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(183.9 28.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Member Channels OFF, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(183.9 36.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">11,12, 13, 14, 15 (Master Channel is Channel 1)</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(183.8 28.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Member Channels OFF, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(183.8 36.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">11,12, 13, 14, 15 (Master Channel is Channel 1)</tspan></text>
 <text fill="currentColor" xml:space="preserve" transform="translate(118.4 56.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">UPPER</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(183.9 52.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Member Channels OFF, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(183.9 60.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">11,12, 13, 14, 15 (Master Channel is Channel 16)</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(183.8 52.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Member Channels OFF, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(183.8 60.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">11,12, 13, 14, 15 (Master Channel is Channel 16)</tspan></text>
 <text fill="currentColor" xml:space="preserve" transform="translate(64.7 94.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">OUT</tspan></text>
 <text fill="currentColor" xml:space="preserve" transform="translate(118.4 81.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">LOWER</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(183.9 77.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Member Channels OFF, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(183.9 85.6)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">11,12, 13, 14, 15 (Master Channel is Channel 1)</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(183.8 77.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Member Channels OFF, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(183.8 85.6)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">11,12, 13, 14, 15 (Master Channel is Channel 1)</tspan></text>
 <text fill="currentColor" xml:space="preserve" transform="translate(118.4 106.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">UPPER</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(183.9 102.9)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Member Channels OFF, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(183.9 110.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">11,12, 13, 14, 15 (Master Channel is Channel 16)</tspan></text>
-<path transform="matrix(1,0,0,-1,-182,666.0)" stroke-width="1" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="var(--gb-paper)" d="M188.0 659.8V549.6M243.9 659.8V549.6M297.6 659.8V549.6M363.0 659.8V549.6M538.1 659.8V549.6"/>
-<path transform="matrix(1,0,0,-1,-182,666.0)" stroke-width=".5" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 61%, var(--gb-paper))" d="M188.0 660.1H538.1M188.5 648.2H537.6M298.1 624.6H537.6M363.5 599.5H537.6M363.5 574.4H537.6"/>
-<path transform="matrix(1,0,0,-1,-182,666.0)" stroke-width=".5" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 45%, var(--gb-paper))" d="M244.4 599.5H362.5M298.1 574.4H362.5M188.0 549.4H538.1"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(29.3 133.6)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">MPE Zone data is stored automatically as an MIDIDevices.xml file on the SD Card.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(183.8 102.9)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Member Channels OFF, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(183.8 110.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">11,12, 13, 14, 15 (Master Channel is Channel 16)</tspan></text>
+<path transform="matrix(1,0,0,-1,-182.0,666.0)" stroke-width="1" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="var(--gb-paper)" d="M188.0 659.8V549.6M243.9 659.8V549.6M297.6 659.8V549.6M363.0 659.8V549.6M538.1 659.8V549.6"/>
+<path transform="matrix(1,0,0,-1,-182.0,666.0)" stroke-width=".5" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 61%, var(--gb-paper))" d="M188.0 660.1H538.1M188.5 648.2H537.6M298.1 624.6H537.6M363.5 599.5H537.6M363.5 574.4H537.6"/>
+<path transform="matrix(1,0,0,-1,-182.0,666.0)" stroke-width=".5" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 45%, var(--gb-paper))" d="M244.4 599.5H362.5M298.1 574.4H362.5M188.0 549.4H538.1"/>
 </g>
 </svg>

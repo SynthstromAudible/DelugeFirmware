@@ -55,24 +55,30 @@ Parameter automation is the creation and playback of automated changes to sound 
 
 #### Example: Automating Pan with Controls
 
+Automation is recorded into the sequencer and can be played back. Adjusting the :key[Lower Gold] - for pan, control with the target - level / pan, parameter selected.
+
 <Figure
   id="fig-3.12-1"
   animate="playhead"
   src={fig_fig_3_12_1}
   alt={
-    "Pad grid: Automation is recorded into the sequencer and can be played back. Adjusting the (LOWER) - for pan, control with the target - level / pan,…"
+    "Pad grid: 32R 0 PAN 32L COPY Off 49 PASTE LPF CUTOFF 0 [LEARN / INPUT] + [PARAMETER CONTROL] to copy the automation of one parameter. [SHIFT] +…"
   }
   page={67}
 />
 
+Automation copy / paste operates across the time region length of the ‘view’. Automation can be copied to / from different parameters, different clips and song files. Zoom levels can be adjusted prior to copying and automation will be adjusted to meet the new zoom setting.
+
 #### Example: Automating Pan with Note Steps
+
+Automation is recorded into the sequencer by holding a :key[Pad] and adjusting the :key[Lower Gold] - For pan, control with the target - level / pan, parameter selected. A parameter change is set for the specific :key[Pad] step and is held until the next note to ensure transitions account for note release. Copy / paste considers the entire region automation, not just the single step.
 
 <Figure
   id="fig-3.12-2"
   animate="playhead"
   src={fig_fig_3_12_2}
   alt={
-    "Pad grid: Automation is recorded into the sequencer by holding a [PAD] and adjusting the (LOWER) - For pan, control with the target - level / pan,…"
+    "Pad grid: 32L 0 PAN 32R (SCROLL◄►) + [BACK / UNDO] to clear all notes and automation. 32L 0 PAN 32R"
   }
   page={68}
 />

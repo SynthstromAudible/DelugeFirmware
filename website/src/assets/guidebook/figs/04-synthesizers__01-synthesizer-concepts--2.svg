@@ -1,7 +1,7 @@
-<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 318.5 333.8"><defs><path id="04-synthesizers__01-synthesizer-concepts--2-s1" d="M0 0C4.1 36.2 11.2 28.5 13.4 0" stroke-width=".8" stroke-linecap="square" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor"/><path id="04-synthesizers__01-synthesizer-concepts--2-s2" d="M0 0C4.1 -36.2 11.2 -28.4 13.4 0" stroke-width=".8" stroke-linecap="square" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor"/></defs>
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 318.4 309.0"><defs><path id="04-synthesizers__01-synthesizer-concepts--2-s1" d="M0 0C4.1 36.2 11.2 28.5 13.4 0" stroke-width=".8" stroke-linecap="square" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor"/><path id="04-synthesizers__01-synthesizer-concepts--2-s2" d="M0 0C4.1 -36.2 11.2 -28.4 13.4 0" stroke-width=".8" stroke-linecap="square" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor"/></defs>
 <defs>
 <clipPath id="04-synthesizers__01-synthesizer-concepts--2-clip_1">
-<path transform="matrix(1,0,0,-1,-223.9,521.4)" d="M223.9 187.6H542.4V521.4H223.9Z" clip-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-223.9,521.4)" d="M223.9 212.3H542.3V521.4H223.9Z" clip-rule="evenodd"/>
 </clipPath>
 </defs>
 <g clip-path="url(#04-synthesizers__01-synthesizer-concepts--2-clip_1)">
@@ -45,7 +45,7 @@
 <path transform="matrix(1,0,0,-1,-223.9,521.4)" stroke-width=".4" stroke-linecap="square" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M371.4 440.1V405.9"/>
 <path transform="matrix(1,0,0,-1,-223.9,521.4)" d="M340.1 373.0H403.9V386.8H340.1Z" fill="var(--gb-paper)" fill-opacity="0"/>
 <path transform="matrix(1,0,0,-1,-223.9,521.4)" stroke-width=".5" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="currentColor" stroke-opacity="0" d="M340.1 373.0H403.9V386.8H340.1Z"/>
-<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 119.8 140.0)" font-size="7.6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Frequency Pitch</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 119.8 139.9)" font-size="7.6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Frequency Pitch</tspan></text>
 <path transform="matrix(1,0,0,-1,-223.9,521.4)" d="M270.0 500.9H313.6V510.4H270.0Z" fill="var(--gb-paper)" fill-opacity="0"/>
 <path transform="matrix(1,0,0,-1,-223.9,521.4)" stroke-width=".5" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="currentColor" stroke-opacity="0" d="M270.0 500.9H313.6V510.4H270.0Z"/>
 <text fill="currentColor" xml:space="preserve" transform="matrix(1.0 0 -0 .978027 46.1 16.4)" font-size="7.6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Modulator</tspan></text>
@@ -62,8 +62,6 @@
 <use href="#04-synthesizers__01-synthesizer-concepts--2-s2" transform="matrix(1 0 0 -1 132.9 53.6)"/>
 <path transform="matrix(1,0,0,-1,-223.9,521.4)" stroke-width=".8" stroke-linecap="square" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M397.0 467.8C401.1 504.0 408.3 496.3 410.5 467.8"/>
 <use href="#04-synthesizers__01-synthesizer-concepts--2-s2" transform="matrix(1 0 0 -1 186.6 53.6)"/>
-<text xml:space="preserve" transform="translate(10.7 318.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">By rapidly modulating the frequency of a wave, whole new repeating wave shapes</tspan></text>
-<text xml:space="preserve" transform="translate(126.8 326.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">are created.</tspan></text>
 <path transform="matrix(1,0,0,-1,-223.9,521.4)" stroke-width=".65" stroke-linecap="butt" stroke-dasharray="1.9,1.9,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 41%, var(--gb-paper))" d="M371.7 290.4V263.0"/>
 <path transform="matrix(1,0,0,-1,-223.9,521.4)" d="M262.4 365.2C273.7 365.2 282.9 356.0 282.9 344.7 282.9 333.3 273.7 324.1 262.4 324.1 251.0 324.1 241.8 333.3 241.8 344.7 241.8 356.0 251.0 365.2 262.4 365.2Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-223.9,521.4)" d="M262.4 365.2C273.7 365.2 282.9 356.0 282.9 344.7 282.9 333.3 273.7 324.1 262.4 324.1 251.0 324.1 241.8 333.3 241.8 344.7 241.8 356.0 251.0 365.2 262.4 365.2ZM262.4 364.2C273.2 364.2 281.9 355.5 281.9 344.7 281.9 333.9 273.2 325.1 262.4 325.1 251.6 325.1 242.8 333.9 242.8 344.7 242.8 355.5 251.6 364.2 262.4 364.2Z" fill="currentColor" fill-rule="evenodd"/>

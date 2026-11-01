@@ -1,7 +1,7 @@
-<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 370.4 472.7"><defs><path id="09-audio__12-waveform-view-detailed-audio-editing--1-s1" d="M0 0H33.2" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="currentColor"/></defs>
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 370.4 428"><defs><path id="09-audio__12-waveform-view-detailed-audio-editing--1-s1" d="M0 0H33.2" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="currentColor"/></defs>
 <defs>
 <clipPath id="09-audio__12-waveform-view-detailed-audio-editing--1-clip_1">
-<path transform="matrix(1,0,0,-1,-44.6,560.3)" d="M44.6 87.6H415V560.3H44.6Z" clip-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.6,560.3)" d="M44.6 132.3H415V560.3H44.6Z" clip-rule="evenodd"/>
 </clipPath>
 <clipPath id="09-audio__12-waveform-view-detailed-audio-editing--1-clip_2">
 <path transform="matrix(1,0,0,-1,-44.6,560.3)" d="M94.4 574.5H154.9V595.9H94.4Z" clip-rule="evenodd"/>
@@ -63,8 +63,6 @@
 <text fill="currentColor" xml:space="preserve" transform="translate(146.3 336.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Loop. The sample loops indefinitely until the “note” ends</tspan></text>
 <text fill="currentColor" xml:space="preserve" transform="translate(146.3 345.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Stretch. the sample is time-stretched to the length of the note.</tspan></text>
 <text fill="currentColor" xml:space="preserve" transform="translate(146.3 354.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Good for samples that contain pre-made beats.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(76.2 456.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">* Items exist in the sound editor menu as well as from the shortcut pads. Label shown</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(76.2 465.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">in capitals indicates what is name used within the sound editor SAMPLE Menu.</tspan></text>
 <g clip-path="url(#09-audio__12-waveform-view-detailed-audio-editing--1-clip_2)">
 </g>
 <path transform="matrix(1,0,0,-1,-44.6,560.3)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="currentColor" d="M103.1 239.3V213.8H137.4V239.3"/>
