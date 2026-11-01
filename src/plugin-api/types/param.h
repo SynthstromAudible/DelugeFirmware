@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include "plugin-api/types/param_mapping.h"
+
 #include <compare>
 #include <cstdint>
 #include <limits>
@@ -53,6 +55,9 @@ struct ParamInfo {
 	/// The stored word a new instance starts with.
 	int32_t default_value{0};
 	ParamRange range{};
+	/// How hosts turn the word into knob and menu positions.
+	MappingKind mapping{MappingKind::STANDARD};
+	ParamFlags flags;
 };
 
 /// @brief A dense run of ids a plugin stores together: @c count ids from @c first.
