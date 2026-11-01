@@ -16,9 +16,23 @@ DelugeInputEvent button_ev(uint8_t x, uint8_t y, bool on) {
 DelugeInputEvent pad_ev(uint8_t x, uint8_t y, uint8_t velocity) {
 	return DelugeInputEvent{DELUGE_EVENT_PAD, x, y, static_cast<int16_t>(velocity)};
 }
-/// The one held-back event, or a default-constructed one if there is not exactly one.
-UiEvent only_held_back(const InputLowering& in) {
-	return in.held_back().size() == 1 ? in.held_back()[0] : UiEvent{UiEvent::Kind::AllReleased};
+/// The one queued event, or a default-constructed one if there is not exactly one. Drains the queue.
+UiEvent only_queued(InputLowering& in) {
+	UiEvent e{UiEvent::Kind::AllReleased};
+	UiEvent extra{UiEvent::Kind::AllReleased};
+	if (!in.next(e) || in.next(extra)) {
+		return UiEvent{UiEvent::Kind::AllReleased};
+	}
+	return e;
+}
+/// How many events are queued. Drains the queue.
+size_t drain_count(InputLowering& in) {
+	size_t n = 0;
+	UiEvent e{UiEvent::Kind::AllReleased};
+	while (in.next(e)) {
+		n++;
+	}
+	return n;
 }
 } // namespace
 
@@ -40,29 +54,34 @@ describe shell_input_lowering("shell::InputLowering", $ {
 		expect(in.had_input_this_tick()).to_be_true();
 	});
 
-	it("holds widget-owned inputs back from next() and routes the rest", _ {
+	it("queues every input in arrival order and names the widget-owned shapes", _ {
 		InputLowering in(uitest::test_profile_input(), {});
 		in.begin_tick(10);
-		in.on_board_event(button_ev(8, 3, true), 10);     // Play -> next()
-		in.on_board_event(button_ev(7, 1, true), 10);     // Back -> held_back()
-		in.on_board_event(button_ev(4, 3, true), 10);     // SelectEnc -> held_back()
-		in.on_board_event(button_ev(4, 1, true), 10);     // TempoEnc -> next()
-		in.on_encoder_edges(3, 2, 10);                    // Select turn -> held_back()
-		in.on_encoder_edges(2, 2, 10);                    // Tempo turn -> next()
+		in.on_board_event(button_ev(8, 3, true), 10);     // Play
+		in.on_board_event(button_ev(7, 1, true), 10);     // Back (widget-owned)
+		in.on_board_event(button_ev(4, 3, true), 10);     // SelectEnc (widget-owned)
+		in.on_board_event(button_ev(4, 1, true), 10);     // TempoEnc
+		in.on_encoder_edges(3, 2, 10);                    // Select turn (widget-owned)
+		in.on_encoder_edges(2, 2, 10);                    // Tempo turn
 		in.end_tick(10);
-
-		expect(in.held_back().size()).to_equal(size_t(3));
-		expect(in.held_back()[0].button == ButtonId::Back).to_be_true();
-		expect(in.held_back()[1].kind == UiEvent::Kind::EncoderButton).to_be_true();
-		expect(in.held_back()[1].button == ButtonId::SelectEnc).to_be_true();
-		expect(in.held_back()[2].encoder == EncoderRole::Select).to_be_true();
 
 		UiEvent e;
 		expect(in.next(e)).to_be_true(); expect(e.button == ButtonId::Play).to_be_true();
+		expect(is_widget_owned_shape(e)).to_be_false();
+		expect(in.next(e)).to_be_true(); expect(e.button == ButtonId::Back).to_be_true();
+		expect(is_widget_owned_shape(e)).to_be_true();
+		expect(in.next(e)).to_be_true(); expect(e.kind == UiEvent::Kind::EncoderButton).to_be_true();
+		expect(e.button == ButtonId::SelectEnc).to_be_true();
+		expect(is_widget_owned_shape(e)).to_be_true();
 		expect(in.next(e)).to_be_true(); expect(e.button == ButtonId::TempoEnc).to_be_true();
+		expect(is_widget_owned_shape(e)).to_be_false();
+		expect(in.next(e)).to_be_true(); expect(e.encoder == EncoderRole::Select).to_be_true();
+		expect(is_widget_owned_shape(e)).to_be_true();
 		expect(in.next(e)).to_be_true(); expect(e.kind == UiEvent::Kind::Encoder).to_be_true();
 		expect(e.encoder == EncoderRole::Tempo).to_be_true();
+		expect(is_widget_owned_shape(e)).to_be_false();
 		expect(in.next(e)).to_be_false();
+		expect(in.held_back().empty()).to_be_true(); // only the shell holds events back
 	});
 
 	it("shift press+release under hold time becomes sticky when enabled", _ {
@@ -138,7 +157,7 @@ describe shell_input_lowering("shell::InputLowering", $ {
 		in.begin_tick(5);
 		in.on_encoder_edges(3, 2, 5);                     // select, encoders.cpp:28-34
 		in.end_tick(5);
-		UiEvent e = only_held_back(in);
+		UiEvent e = only_queued(in);
 		expect(e.kind == UiEvent::Kind::Encoder).to_be_true();
 		expect(e.encoder == EncoderRole::Select).to_be_true();
 		expect(e.delta).to_equal(int8_t(1));
@@ -148,7 +167,7 @@ describe shell_input_lowering("shell::InputLowering", $ {
 		in.begin_tick(6);
 		in.on_encoder_edges(4, 3, 6);                     // gold knob: raw edges through
 		in.end_tick(6);
-		e = only_held_back(in);
+		e = only_queued(in);
 		expect(e.encoder == EncoderRole::GoldUpper).to_be_true();
 		expect(e.delta).to_equal(int8_t(3));
 		expect(in.snapshot().edit[0]).to_equal(int8_t(3));
@@ -157,7 +176,7 @@ describe shell_input_lowering("shell::InputLowering", $ {
 		in.begin_tick(7);
 		in.on_encoder_edges(5, -2, 7);
 		in.end_tick(7);
-		e = only_held_back(in);
+		e = only_queued(in);
 		expect(e.encoder == EncoderRole::GoldLower).to_be_true();
 		expect(in.snapshot().edit[1]).to_equal(int8_t(-2));
 	});
@@ -168,12 +187,12 @@ describe shell_input_lowering("shell::InputLowering", $ {
 		in.on_encoder_edges(3, 3, 1);                     // 3 edges -> 1 detent, 1 carried
 		in.end_tick(1);
 		expect(in.snapshot().turn).to_equal(int8_t(1));
-		expect(in.held_back().size()).to_equal(size_t(1));
+		expect(drain_count(in)).to_equal(size_t(1));
 
 		in.begin_tick(2);
 		in.end_tick(2);
 		expect(in.snapshot().turn).to_equal(int8_t(0));
-		expect(in.held_back().empty()).to_be_true();
+		expect(drain_count(in)).to_equal(size_t(0));
 
 		in.begin_tick(3);
 		in.on_encoder_edges(3, 1, 3);                     // the carried edge completes a detent
@@ -408,7 +427,6 @@ describe shell_input_lowering("shell::InputLowering", $ {
 		in.begin_tick(1000);
 		in.on_encoder_edges(4, 1, 1000);
 		in.end_tick(1000);
-		expect(in.held_back().empty()).to_be_true();
 		expect(in.snapshot().edit[0]).to_equal(int8_t(0));
 		expect(in.had_input_this_tick()).to_be_true();    // legacy still sets `anything`
 		expect(in.next(e)).to_be_false();
@@ -417,14 +435,14 @@ describe shell_input_lowering("shell::InputLowering", $ {
 		in.begin_tick(1100);
 		in.on_encoder_edges(4, -1, 1100);
 		in.end_tick(1100);
-		expect(in.held_back().empty()).to_be_true();
+		expect(in.next(e)).to_be_false();
 		expect(in.snapshot().edit[0]).to_equal(int8_t(0));
 
 		// Carrying on that way is a real turn.
 		in.begin_tick(1200);
 		in.on_encoder_edges(4, -1, 1200);
 		in.end_tick(1200);
-		expect(in.held_back().size()).to_equal(size_t(1));
+		expect(drain_count(in)).to_equal(size_t(1));
 		expect(in.snapshot().edit[0]).to_equal(int8_t(-1));
 
 		// And so is the next one, in either direction, now that the record is cleared.
@@ -456,11 +474,26 @@ describe shell_input_lowering("shell::InputLowering", $ {
 		InputLowering in(uitest::test_profile_input(), {});
 		in.begin_tick(1);
 		for (int i = 0; i < InputLowering::kHeldBackCapacity + 2; i++) {
-			in.on_board_event(button_ev(7, 1, i % 2 == 0), 1);   // Back, pressed and released
+			in.hold_back(UiEvent{.kind = UiEvent::Kind::Button, .on = i % 2 == 0, .button = ButtonId::Back});
 		}
 		in.end_tick(1);
 		expect(in.held_back().size()).to_equal(size_t(InputLowering::kHeldBackCapacity));
 		expect(in.held_back_dropped()).to_equal(uint32_t(2));
+	});
+
+	it("carries no Select release edge once the press is used up, even after the release was fed", _ {
+		InputLowering in(uitest::test_profile_input(), {});
+		in.begin_tick(1);
+		in.on_board_event(button_ev(4, 3, true), 1);      // SelectEnc down
+		in.on_board_event(button_ev(4, 3, false), 1);     // and up, in the same tick
+		in.end_tick(1);
+		in.select_on_release(true);
+		expect(in.snapshot().select_pressed).to_be_true();
+
+		// Routing the press took the input away and back, which uses the press up.
+		in.mark_press_used_up(ButtonId::SelectEnc);
+		in.select_on_release(true);
+		expect(in.snapshot().select_pressed).to_be_false();
 	});
 
 	it("does not call a button that was never pressed a short press", _ {

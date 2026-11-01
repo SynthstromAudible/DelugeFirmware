@@ -596,9 +596,7 @@ Result SlicerScene::handle(const UiEvent& event, const UiContext& ctx) {
 
 	switch (event.encoder) {
 	case deluge::ui::EncoderRole::Select:
-		// Applied here rather than parked for `after_render`, for the reason `MarkerScene::handle`
-		// records: `Select` is delivered after every `after_render()` call, so parking it would
-		// cost a whole tick per detent.
+		// Applied here, before the tick's render, so the frame that follows already shows the move.
 		return select_encoder(event.delta);
 	case deluge::ui::EncoderRole::Horizontal:
 		// `Buttons::isShiftButtonPressed()` (`:209`); the shell has already lowered shift, latch

@@ -82,6 +82,7 @@ public:
 		if (role == SurfaceRole::Main) {
 			frame.hline(kMainLineY, 0, 40);
 			frame_ms = frame.now_ms();
+			events_at_render = events;
 			// Read (and therefore claim, per `FrameContext` rule 2) only when asked to, and only
 			// in this one pass: reading the same input in `render_grid` as well would claim it
 			// twice and trip `double_claim`.
@@ -108,6 +109,7 @@ public:
 	Result handle(const UiEvent& event, const UiContext&) override {
 		events++;
 		last_event_kind = event.kind;
+		order += event.kind == UiEvent::Kind::Pad ? 'P' : event.kind == UiEvent::Kind::Encoder ? 'E' : 'B';
 		if (emit_repaint_from_handle) {
 			emit_repaint_from_handle = false;
 			Result r;
@@ -136,6 +138,7 @@ public:
 		return r;
 	}
 	void tick(uint32_t) override { ticks++; }
+	bool widgets_own_input() const override { return widgets_own; }
 	void on_model_changed(const deluge::notify::DirtySet&) override { model_changed++; }
 	std::optional<uint32_t> next_timer() const override { return timer; }
 	Scene::RepaintSurfaces timer_repaints() const override { return timer_repaints_; }
@@ -148,7 +151,11 @@ public:
 	/// The colour `render_grid` paints every pad.
 	RGB colour = kBaseColour;
 	int oled_renders = 0, grid_renders = 0, events = 0, ticks = 0, model_changed = 0;
-	int after_renders = 0, events_at_after_render = -1, turns_seen = 0;
+	int after_renders = 0, events_at_after_render = -1, events_at_render = -1, turns_seen = 0;
+	/// What `widgets_own_input()` answers: a menu-like scene whose widgets read the held-back shapes.
+	bool widgets_own = false;
+	/// One letter per event `handle()` saw, in order: `P` pad, `E` encoder, `B` anything else.
+	std::string order;
 	uint32_t frame_ms = 0;
 	/// Whether `render_oled` reads (and claims) the select-encoder turn.
 	bool read_turn = false;
@@ -719,6 +726,7 @@ describe shell_tick("shell::Shell::tick", $ {
 	it("a passive overlay leaves the scene beneath focused and routed", _ {
 		deluge::notify::dirty().drain();
 		Rig r;
+		r.base.widgets_own = true;
 		r.base.read_turn = true;
 		r.shell.init({kBase, 0});
 		// The console strip: `oled_transparent` on every role, so the base is still drawn beneath
@@ -757,6 +765,7 @@ describe shell_tick("shell::Shell::tick", $ {
 	it("a held-back event claimed during render is not routed; an unclaimed one is", _ {
 		deluge::notify::dirty().drain();
 		Rig claimed;
+		claimed.base.widgets_own = true;
 		claimed.base.read_turn = true;
 		claimed.shell.init({kBase, 0});
 		claimed.shell.tick(0);
@@ -767,6 +776,7 @@ describe shell_tick("shell::Shell::tick", $ {
 
 		deluge::notify::dirty().drain();
 		Rig unclaimed;
+		unclaimed.base.widgets_own = true;
 		unclaimed.base.read_turn = false;
 		unclaimed.shell.init({kBase, 0});
 		unclaimed.shell.tick(0);
@@ -778,6 +788,35 @@ describe shell_tick("shell::Shell::tick", $ {
 		// once the frame that could have made it has been built and acted on.
 		expect(unclaimed.base.after_renders).to_equal(2);
 		expect(unclaimed.base.events_at_after_render).to_equal(0);
+	});
+
+	it("a held-back event for a scene whose widgets own no input is routed before the render", _ {
+		deluge::notify::dirty().drain();
+		Rig r;
+		r.base.emit_repaint_from_handle = true;
+		r.shell.init({kBase, 0});
+		r.shell.tick(0);
+		r.consume_pending();
+
+		r.shell.on_encoder_edges(3, 2, 25);
+		r.shell.tick(30);
+		expect(r.base.events).to_equal(1);
+		expect(r.base.events_at_render).to_equal(1); // handled before this tick's frame
+		expect(r.base.events_at_after_render).to_equal(1);
+		// The Repaint it asked for was drawn this tick, so nothing is left waiting.
+		expect(r.shell.next_wake().has_value() && *r.shell.next_wake() == 30).to_be_false();
+	});
+
+	it("events reach the scene in arrival order", _ {
+		deluge::notify::dirty().drain();
+		Rig r;
+		r.shell.init({kBase, 0});
+		r.shell.tick(0);
+
+		r.shell.on_encoder_edges(3, 2, 25);
+		r.shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_PAD, 2, 2, 64}, 26);
+		r.shell.tick(30);
+		expect(r.base.order).to_equal(std::string("EP"));
 	});
 
 	it("a Popup action becomes the popup scene, resolved through the profile's text", _ {
@@ -834,14 +873,15 @@ describe shell_tick("shell::Shell::tick", $ {
 	it("a Repaint from a post-render-delivered event is honoured on the next tick", _ {
 		deluge::notify::dirty().drain();
 		Rig r;
+		r.base.widgets_own = true;
 		r.base.read_turn = false; // leave the detent unclaimed, so it reaches handle() after render
 		r.base.emit_repaint_from_handle = true;
 		r.shell.init({kBase, 0});
 		r.shell.tick(0);
 		r.consume_pending();
 
-		// A select turn is one of the six widget-owned shapes: the shell holds it back and delivers
-		// it at step 8, after the frame is built. The scene advances its selection there and asks
+		// A select turn is a widget-owned shape; a widget-owning scene has it held back and delivered
+		// at step 8, after the frame is built. The scene advances its selection there and asks
 		// for Main -- the shape of a menu that does not move when the knob does.
 		r.shell.on_encoder_edges(3, 2, 25);
 		r.shell.tick(30);

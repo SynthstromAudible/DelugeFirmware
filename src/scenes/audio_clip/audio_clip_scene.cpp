@@ -291,8 +291,7 @@ Result AudioClipScene::handle(const UiEvent& event, const UiContext& ctx) {
 		case deluge::ui::EncoderRole::Select: {
 			// `AudioClipView::selectEncoderAction` (`audio_clip_view.cpp:744-756`) returns void:
 			// legacy's `Encoders` calls it on the current UI and there is no "not dealt with".
-			// Applied here rather than parked for `after_render`, for `MarkerScene::handle`'s
-			// reason: `Select` is delivered at `Shell::tick` step 8, after every `after_render`.
+			// Applied here, before the tick's render.
 			Result r;
 			r.handled = true;
 			if (select_encoder_action(event.delta, ctx.shift)) {

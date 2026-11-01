@@ -960,6 +960,9 @@ describe rename_from_menu("scenes::rename::RenameScene from the menu", $ {
 		// unconditionally. Restoring the user's place means restoring the editor they were in.
 		menu_scene().restore_state(saved);
 		expect(menu_scene().focused() == &nodes::drum_name_edit).to_be_true();
+		// `SceneStack::replace_root` flags the stack changed, which redraws every surface; a bare restore asks for
+		// that frame itself.
+		deluge::notify::dirty().raise(deluge::notify::Dirty::Oled);
 		r.tick(200);
 		expect(r.shell.stack().depth()).to_equal(size_t(2));
 		expect(&r.shell.stack().input_top() == &rename_scene()).to_be_true();

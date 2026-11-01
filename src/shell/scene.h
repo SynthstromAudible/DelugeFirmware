@@ -433,6 +433,14 @@ public:
 	/// @return Whether the event was handled, and what should happen next.
 	virtual Result handle(const UiEvent& event, const UiContext& ctx) = 0;
 
+	/// @brief Do this scene's widgets read the select, gold, scroll, select-push or back input?
+	///
+	/// While the input-frontmost scene answers true, the shell keeps those shapes for its render to
+	/// claim and delivers what nothing claimed after the render. Every other scene gets them before
+	/// the render, in arrival order with the rest of the tick's input.
+	/// @return False by default: the scene reads every input in `handle()`.
+	virtual bool widgets_own_input() const { return false; }
+
 	/// @brief Advance any time-based state.
 	/// @param dt_ms Milliseconds since this scene was last ticked.
 	virtual void tick(uint32_t dt_ms) {}

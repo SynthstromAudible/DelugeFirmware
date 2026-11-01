@@ -567,8 +567,7 @@ Result ContextMenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 	case UiEvent::Kind::Encoder:
 		if (event.encoder == deluge::ui::EncoderRole::Select) {
 			// `ContextMenu::selectEncoderAction` -> `renderUIsForOled()`. `option_window` is
-			// render-only (it claims nothing), so the turn arrives here rather than being consumed
-			// during the render pass the way `list` consumes it for `MenuScene`.
+			// render-only (it claims nothing), so the turn arrives here, before the tick's render.
 			const Selection before = sel_;
 			const Descriptor& d = descriptor(id_);
 			sel_ = step(sel_, event.delta, available_count_);

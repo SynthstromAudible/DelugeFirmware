@@ -559,6 +559,9 @@ public:
 	deluge::ui::shell::Result after_render() override;
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
 	                                 const deluge::ui::shell::UiContext& ctx) override;
+	/// @brief The list, value and column widgets read the select, gold and scroll input and Back.
+	/// @return True.
+	bool widgets_own_input() const override { return true; }
 	bool on_enter(const deluge::ui::shell::SceneId& id) override;
 	void on_resume() override;
 	/// @brief Select acts on its release, as `SoundEditor::buttonAction` does (`sound_editor.cpp:609-614`).

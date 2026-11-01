@@ -786,13 +786,16 @@ Result MarkerScene::horizontal_encoder(int32_t offset, bool zooming, bool shift)
 
 Result MarkerScene::handle(const UiEvent& event, const UiContext& ctx) {
 	Result r;
+	// Input reaches the scene before the tick's render, which is where the waveform is otherwise followed; a sample
+	// swapped under the range since the last frame must already bound what this event does.
+	if (const std::optional<services::WaveformInfo> info = menu::host_waveforms().info(where_)) {
+		follow_waveform(*info);
+	}
 
 	switch (event.kind) {
 	case UiEvent::Kind::Encoder:
 		if (event.encoder == deluge::ui::EncoderRole::Select) {
-			// Applied HERE and not parked for `after_render`: `Select` is delivered at
-			// `Shell::tick` step 8, strictly AFTER every `after_render()` call, so parking it
-			// would cost a whole tick per detent (E3 task 3's finding, in its own words).
+			// Applied here, before the tick's render, so the frame that follows already shows the move.
 			select_encoder(event.delta);
 			r.handled = true;
 			(void)r.actions.push_back(Action{.kind = Action::Kind::RepaintAll});

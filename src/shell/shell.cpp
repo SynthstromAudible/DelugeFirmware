@@ -345,7 +345,8 @@ void Shell::tick(uint32_t now_ms) {
 	apply_dirty(dirty);
 	// 2. Presentation requests -> the overlay scenes.
 	notices_.drain(notify::notices(), now_ms);
-	// 3. Lower, route and apply. The six widget-owned shapes stay in `lowering_.held_back()`.
+	// 3. Lower, route and apply, in arrival order. A widget-owned shape the input-frontmost scene's
+	// widgets may claim stays in `lowering_.held_back()` for step 8.
 	pump_input(now_ms);
 	// A `Action::Kind::Popup` applied anywhere above leaves its string id on the router; the
 	// router has no l10n and `Notices` takes text, so the shell is the one place both are in
@@ -600,6 +601,11 @@ void Shell::pump_input(uint32_t now_ms) {
 	lowering_.end_tick(now_ms);
 	UiEvent event{UiEvent::Kind::AllReleased};
 	while (lowering_.next(event)) {
+		// Asked per event: an earlier event this tick may have pushed the scene that takes this one.
+		if (is_widget_owned_shape(event) && stack_.input_top().widgets_own_input()) {
+			lowering_.hold_back(event);
+			continue;
+		}
 		router_.route(event, make_context(now_ms));
 	}
 	had_input_ = lowering_.had_input_this_tick();

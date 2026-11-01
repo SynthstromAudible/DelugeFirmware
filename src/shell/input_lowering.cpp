@@ -54,6 +54,12 @@ bool is_encoder_button(ButtonId b) {
 	}
 }
 
+bool is_widget_owned_shape(const UiEvent& e) {
+	return (e.kind == UiEvent::Kind::Encoder && is_held_back_encoder(e.encoder))
+	       || ((e.kind == UiEvent::Kind::Button || e.kind == UiEvent::Kind::EncoderButton)
+	           && is_held_back_button(e.button));
+}
+
 InputLowering::InputLowering(const BoardProfile& profile, LoweringConfig config) : profile_(profile), cfg_(config) {
 }
 
@@ -368,19 +374,16 @@ void InputLowering::clear_all_held(uint32_t now_ms) {
 // -- Queues -----------------------------------------------------------------------------------
 
 void InputLowering::emit(const UiEvent& e) {
-	const bool held_back = (e.kind == UiEvent::Kind::Encoder && is_held_back_encoder(e.encoder))
-	                       || ((e.kind == UiEvent::Kind::Button || e.kind == UiEvent::Kind::EncoderButton)
-	                           && is_held_back_button(e.button));
-	if (held_back) {
-		if (!held_back_.push_back(e)) {
-			// Read whole rather than popped, so the prefix -- the part with the press edges in it
-			// -- is what to keep. `kHeldBackCapacity` is sized past what a tick can produce, so
-			// this should never fire.
-			held_back_dropped_++;
-		}
-		return;
-	}
 	push_out(e);
+}
+
+void InputLowering::hold_back(const UiEvent& e) {
+	if (!held_back_.push_back(e)) {
+		// Read whole rather than popped, so the prefix -- the part with the press edges in it --
+		// is what to keep. `kHeldBackCapacity` is sized past what a tick can produce, so this
+		// should never fire.
+		held_back_dropped_++;
+	}
 }
 
 void InputLowering::push_out(const UiEvent& e) {

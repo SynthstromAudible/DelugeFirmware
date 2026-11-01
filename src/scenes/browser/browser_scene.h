@@ -527,8 +527,8 @@ private:
 	/// list a directory derived from whatever `currentDir` the *foreign* holder of the catalogue
 	/// claim left behind. And `pending_` is created in exactly the case the other two miss -- a
 	/// `Busy` refusal, where nothing is in flight and no result is owed. `after_render` already got
-	/// this right (its retry step returns before the keyboard arm); this is the post-render
-	/// `handle()` path, which did not.
+	/// this right (its retry step returns before the keyboard arm); this is the `handle()` path, which
+	/// did not.
 	/// @return True when nothing outside `after_render` may touch `FileCatalogue` or file a
 	///         listing.
 	bool seam_busy() const { return listing_.in_flight() || listing_.has_result() || pending_.has_value(); }

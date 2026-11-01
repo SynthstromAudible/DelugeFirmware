@@ -320,11 +320,8 @@ Result RecorderScene::handle(const UiEvent& event, const UiContext& ctx) {
 	Result r;
 
 	// `AudioRecorder::buttonAction` (`:255-280`): BACK, SELECT_ENC and RECORD all mean "stop", on
-	// press only, and everything else falls through to whatever is beneath.
-	//
-	// Applied HERE and not parked for `after_render`: `Back` and `SelectEnc` are two of the six
-	// shapes the shell delivers *after* every `after_render()` call (`Shell::tick` step 8), so
-	// parking one would cost a whole tick -- E3 task 3's finding, and task 4 repeats it.
+	// press only, and everything else falls through to whatever is beneath. Applied here, before the
+	// tick's render, so the frame that follows already shows the recorder stopped.
 	const bool is_button = event.kind == UiEvent::Kind::Button || event.kind == UiEvent::Kind::EncoderButton;
 	if (!is_button || !event.on) {
 		return Result::unhandled();

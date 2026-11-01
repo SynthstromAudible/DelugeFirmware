@@ -1917,7 +1917,7 @@ describe browser_long_press("scenes::browser::BrowserScene holding Select", $ {
 		expect(browser_scene().holding()).to_be_true();
 	});
 
-	it("answers the hold first when the release lands on the deadline's own tick", _ {
+	it("enters when the release lands on the deadline's own tick", _ {
 		CleanBrowser clean;
 		ScratchCard card;
 		spec::SongFixture f = spec::make_synth_song();
@@ -1927,10 +1927,11 @@ describe browser_long_press("scenes::browser::BrowserScene holding Select", $ {
 		select_folder(r, false);
 		const uint32_t down = press_select(r);
 		run_until(r, down + 390);
-		// The Select button is delivered after the tick's render, so the deadline is answered before it.
+		// The tick routes its input before the scene answers the deadline, so the release unsets the hold first,
+		// as main's release unsets its timer when the button task runs before the timer's.
 		release_select(r, down + 400);
-		expect(on_stack(r, context_menu::kContextMenuSceneKind) != nullptr).to_be_true();
-		expect(browser_scene().take_choice().has_value()).to_be_false();
+		expect(on_stack(r, context_menu::kContextMenuSceneKind) == nullptr).to_be_true();
+		expect(browser_scene().take_choice().has_value()).to_be_true();
 	});
 
 	it("closes a folder menu with the browser when Enter on the keyboard beneath loads the file", _ {
