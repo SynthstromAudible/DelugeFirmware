@@ -1856,6 +1856,10 @@ Error InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack
 	detachFromOutput(modelStack, true, (newInstrument->type == OutputType::KIT), false, keepNoteRowsWithMIDIInput,
 	                 giveMidiAssignmentsToNewInstrument,
 	                 false); // Keep channel expression on the Clip across output-type changes.
+	// The kept expression set resolves into the old instrument's tree entry, which goes with that instrument.
+	if (ExpressionParamSet* expression = paramManager.getExpressionParamSet()) {
+		expression->ownExternalStore();
+	}
 	if (rowMoves && oldInstrument->type == OutputType::KIT) {
 		deluge::bridge::recordMovedDrumCommands(*static_cast<Kit*>(oldInstrument), rowMoves->before(), {},
 		                                        *modelStack->song);
