@@ -21,6 +21,7 @@
 #include "dsp-next/fixed/delay/delay_processor.h"
 #include "dsp-next/fixed/delay/delay_tape.h"
 #include "effects/delay_arena.h"
+#include "effects/param_fragment.h"
 #include "effects/state.h"
 #include "effects/words.h"
 
@@ -81,6 +82,17 @@ struct DelayChange {
 /// audio-excluded section.
 class Delay {
 public:
+	/// @brief The rate param. Neutral: 2^24, the neutral rate.
+	static constexpr EffectParam kRate{.name = "delayRate",
+	                                   .curve = dsp::fixed::ParamCurve::EXPONENTIAL,
+	                                   .neutral = 16777216,
+	                                   .flags = plugin::ParamFlag::MIDDLE_DETENT};
+	/// @brief The feedback param. Neutral: 2^30 (Q31 feedback).
+	static constexpr EffectParam kFeedback{.name = "delayFeedback",
+	                                       .curve = dsp::fixed::ParamCurve::LINEAR,
+	                                       .neutral = 1073741824,
+	                                       .flags = plugin::ParamFlag::MIDDLE_DETENT};
+
 	/// @brief The block's working state: the rate and feedback its owner derived, and the owner's settings it plays
 	/// with.
 	struct State {

@@ -20,6 +20,7 @@
 #include "gui/menu_item/integer.h"
 #include "menu_item_with_cc_learning.h"
 #include "param.h"
+#include "plugin-api/types/param_mapping.h"
 
 class ModelStackWithAutoParam;
 
@@ -70,6 +71,8 @@ public:
 
 protected:
 	virtual int32_t getFinalValue();
+	/// How the param's word becomes the menu number: its plugin table row's mapping kind.
+	[[nodiscard]] plugin::MappingKind mapping() const;
 
 private:
 	std::optional<RenderingStyle> number_style_{std::nullopt};

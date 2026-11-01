@@ -17,6 +17,7 @@
 
 #include "synth/voice/voice.h"
 #include "definitions_cxx.hpp"
+#include "dsp-next/fixed/curves/param_curve.h"
 #include "dsp-next/fixed/interpolation/table_interpolation.h" // get_decay4
 #include "dsp-next/fixed/shaping/wavefolder.h"
 #include "dsp-next/fixed/vca/pan.h"
@@ -24,7 +25,6 @@
 #include "synth/matrix/evaluator.h"
 #include "synth/matrix/matrix_fixed.h"
 #include "util/lookuptables/lookuptables.h"
-#include "util/param_functions.h"
 
 #include "dsp-next/fixed/tables/decay_small.h"
 #include "util/misc.h"
@@ -537,7 +537,7 @@ int32_t Voice::pitch_adjust(const VoiceConfig& cfg, int32_t num_samples, int32_t
 	    (cfg.monophonic_expression_values[0] / 192) * cfg.bend_ranges[BEND_RANGE_MAIN]
 	    + (local_expression_source_values_before_smoothing_[0] / 192) * cfg.bend_ranges[BEND_RANGE_FINGER_LEVEL];
 
-	overall_pitch_adjust = getExp(overall_pitch_adjust, total_bend_amount >> 1);
+	overall_pitch_adjust = deluge::dsp::fixed::exp_curve(overall_pitch_adjust, total_bend_amount >> 1);
 
 	// Porta
 	if (porta_envelope_pos_ < 8388608) {
@@ -551,7 +551,8 @@ int32_t Voice::pitch_adjust(const VoiceConfig& cfg, int32_t num_samples, int32_t
 		overall_pitch_adjust = a << 8;
 
 		// Move envelope on. Using the "release rate" lookup table gives by far the best range of speed values
-		int32_t envelope_speed = lookupReleaseRate(cableToExpParamShortcut(cfg.portamento)) >> 13;
+		int32_t envelope_speed =
+		    deluge::dsp::fixed::release_rate(deluge::dsp::fixed::preset_combination(cfg.portamento)) >> 13;
 		porta_envelope_pos_ += envelope_speed * num_samples;
 	}
 	return overall_pitch_adjust;

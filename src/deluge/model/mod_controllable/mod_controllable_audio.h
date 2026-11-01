@@ -112,7 +112,11 @@ public:
 	                                 int32_t* valuesForOverride = nullptr);
 	static bool readParamTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
 	                                 int32_t readAutomationUpToPos);
-	static void initParams(ParamManager* paramManager);
+	/// @brief Sets the shared params (EQ, arpeggiator, stutter, mod FX, bitcrush, compressor) to their defaults.
+	/// @param paramManager The param manager to initialise.
+	/// @param defaults     Whose table's defaults: UNPATCHED_SOUND for a sound, UNPATCHED_GLOBAL for a global
+	/// effectable.
+	static void initParams(ParamManager* paramManager, deluge::modulation::params::Kind defaults);
 	virtual void wontBeRenderedForAWhile();
 	void beginStutter(ParamManagerForTimeline* paramManager);
 	void endStutter(ParamManagerForTimeline* paramManager);

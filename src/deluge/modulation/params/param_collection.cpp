@@ -23,6 +23,7 @@
 #include "model/model_stack.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param_manager.h"
+#include "plugin-api/types/param_mapping.h"
 
 ParamCollection::ParamCollection(int32_t newObjectSize, ParamCollectionSummary* summary) : objectSize(newObjectSize) {
 	for (int32_t i = 0; i < kMaxNumUnsignedIntegerstoRepAllParams; i++) { // Just do both even if we're only using one.
@@ -63,18 +64,11 @@ bool ParamCollection::mayParamInterpolate(int32_t paramId) {
 }
 
 int32_t ParamCollection::paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack) {
-	if (paramValue >= (int32_t)(0x80000000 - (1 << 24))) {
-		return 64;
-	}
-	return (paramValue + (1 << 24)) >> 25;
+	return deluge::plugin::to_knob(deluge::plugin::MappingKind::STANDARD, paramValue);
 }
 
 int32_t ParamCollection::knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack) {
-	int32_t paramValue = 2147483647;
-	if (knobPos < 64) {
-		paramValue = knobPos << 25;
-	}
-	return paramValue;
+	return deluge::plugin::from_knob(deluge::plugin::MappingKind::STANDARD, knobPos);
 }
 
 void ParamCollection::setPlayPos(uint32_t pos, ModelStackWithParamCollection* modelStack, bool reversed) {

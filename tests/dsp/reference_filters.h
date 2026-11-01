@@ -46,7 +46,6 @@
 #include "dsp-next/fixed/shaping/tanh.h"
 #include "dsp-next/fixed/shaping/tanh_table.h"
 #include "util/fixedpoint.h"
-#include "util/param_functions.h" // lshift_and_saturate, lshift_and_saturate_unknown
 #include "util/synth_noise.h"
 
 #include <algorithm>

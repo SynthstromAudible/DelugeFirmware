@@ -25,10 +25,22 @@
 
 namespace deluge::modulation {
 
+namespace {
+/// A sidechain's attack rate from a preset number (0..50).
+int32_t attackFromPreset(int8_t number) {
+	return attackRateTable[number] * 4;
+}
+
+/// A sidechain's release rate from a preset number (0..50).
+int32_t releaseFromPreset(int8_t number) {
+	return releaseRateTable[number] * 8;
+}
+} // namespace
+
 effects::SidechainState default_sidechain_state() {
 	effects::SidechainState settings{
-	    .attack = getParamFromUserValue(util::to_underlying(params::STATIC_SIDECHAIN_ATTACK), 7),
-	    .release = getParamFromUserValue(util::to_underlying(params::STATIC_SIDECHAIN_RELEASE), 28),
+	    .attack = attackFromPreset(7),
+	    .release = releaseFromPreset(28),
 	    .sync_type = SYNC_TYPE_EVEN,
 	};
 	// The default sync level follows the song being loaded, or else the current one: the default synth with no card,

@@ -19,8 +19,10 @@
 
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/fixed/filter/filter_set.h"
+#include "effects/param_fragment.h"
 #include "effects/state.h"
 
+#include <array>
 #include <cstdint>
 #include <span>
 
@@ -64,6 +66,33 @@ public:
 	/// @brief The cutoff param value below which the low-pass runs (Q31): from here up to fully open (INT32_MAX, 45
 	/// above) counts as open.
 	static constexpr int32_t kLowPassOpen = 2147483602;
+
+	/// @brief The filters' params' stored words (Q31 knob positions).
+	struct Words {
+		int32_t lpf_frequency;
+		int32_t lpf_resonance;
+		int32_t lpf_morph;
+		int32_t hpf_frequency;
+		int32_t hpf_resonance;
+		int32_t hpf_morph;
+	};
+
+	/// @brief The filters' params, in @ref Words order. Neutrals: the cutoffs Q31 of the filter's frequency scale, the
+	/// resonances and morphs Q29 (2^29 is 1).
+	static constexpr std::array<EffectParam, 6> kParams{{
+	    {.name = "lpfFrequency", .curve = dsp::fixed::ParamCurve::EXPONENTIAL, .neutral = 2000000},
+	    {.name = "lpfResonance", .curve = dsp::fixed::ParamCurve::LINEAR, .neutral = 268435450},
+	    {.name = "lpfMorph", .curve = dsp::fixed::ParamCurve::LINEAR, .neutral = 268435450},
+	    {.name = "hpfFrequency", .curve = dsp::fixed::ParamCurve::EXPONENTIAL, .neutral = 2672947},
+	    {.name = "hpfResonance", .curve = dsp::fixed::ParamCurve::LINEAR, .neutral = 268435450},
+	    {.name = "hpfMorph", .curve = dsp::fixed::ParamCurve::LINEAR, .neutral = 268435450},
+	}};
+
+	/// @brief The block's param values from the params' words.
+	/// @param words The stored words.
+	/// @param allow_oversampling Whether the drive ladder may oversample (false under CPU load).
+	/// @return The param values.
+	[[nodiscard]] static FilterParams params_from(const Words& words, bool allow_oversampling);
 
 	/// @brief Takes one block's settings.
 	/// @param state The owner's filter modes and route.

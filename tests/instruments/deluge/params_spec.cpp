@@ -100,7 +100,7 @@ constexpr std::array<Pinned, 82> kPinned{{
     {115, "spreadVelocity"},
     {116, "portamento"},
 }};
-constexpr std::array<uint32_t, 6> kBipolar{23, 25, 26, 27, 28, 29};
+constexpr std::array<uint32_t, 6> kCentred{23, 25, 26, 27, 28, 29};
 } // namespace
 
 // clang-format off
@@ -149,10 +149,10 @@ describe params("the Deluge instrument's param table", ${
 		}
 	});
 
-	it("marks pan and the pitches bipolar, and nothing else", _ {
+	it("marks pan and the pitches centred, and nothing else", _ {
 		for (const auto& row : kParams) {
-			bool bipolar = std::ranges::find(kBipolar, row.id.value) != kBipolar.end();
-			expect(row.bipolar).to_equal(bipolar);
+			bool centred = std::ranges::find(kCentred, row.id.value) != kCentred.end();
+			expect(row.flags.has(deluge::plugin::ParamFlag::CENTRED)).to_equal(centred);
 		}
 	});
 

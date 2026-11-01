@@ -242,10 +242,6 @@ void InstrumentClipView::sendAuditionNote(bool on, uint8_t yDisplay, uint8_t vel
 void AutoParam::setCurrentValueWithNoReversionOrRecording(ModelStackWithAutoParam const* modelStack, int32_t newValue) {
 }
 
-int32_t getParamFromUserValue(uint8_t p, int8_t userValue) {
-	return 0;
-}
-
 namespace PadLEDs {
 void setTickSquares(const uint8_t* squares, const uint8_t* colours) {
 }

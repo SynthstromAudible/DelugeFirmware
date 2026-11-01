@@ -6,9 +6,10 @@
  */
 
 #include "matrix_rules_model.h"
+#include "dsp-next/fixed/curves/param_curve.h"
 #include "synth/matrix/descriptors.h" // kParamNeutral, kParamRange
 #include "synth/modulation/cable_depth.h"
-#include "util/param_functions.h" // deluge::synth::matrix::kParamNeutral, deluge::synth::matrix::kParamRange, getFinalParameterValue*, lshift_and_saturate
+#include "util/param_functions.h" // getFinalParameterValueExpWithDumbEnvelopeHack
 #include <algorithm>
 #include <array>
 #include <etl/vector.h>
@@ -32,15 +33,15 @@ void RulesPatcher::recalculate_final_value_for_param_with_no_cables(int32_t p, c
 
 	if (p < config_.first_hybrid_param) {
 		if (p < config_.first_non_volume_param) {
-			final_value = getFinalParameterValueVolume(param_neutral_value, cable_combination);
+			final_value = deluge::dsp::fixed::curve_square(param_neutral_value, cable_combination);
 		}
 		else {
-			final_value = getFinalParameterValueLinear(param_neutral_value, cable_combination);
+			final_value = deluge::dsp::fixed::curve_linear(param_neutral_value, cable_combination);
 		}
 	}
 	else {
 		if (p < config_.first_exp_param) {
-			final_value = getFinalParameterValueHybrid(param_neutral_value, cable_combination); // Hybrid - add
+			final_value = deluge::dsp::fixed::curve_bipolar(param_neutral_value, cable_combination); // Hybrid - add
 		}
 		else {
 			final_value = getFinalParameterValueExpWithDumbEnvelopeHack(param_neutral_value, cable_combination, p);
@@ -71,7 +72,7 @@ void RulesPatcher::perform_patching(uint32_t sources_changed, const ReferenceBlo
 		}
 
 		int32_t cables_combination = combine_cables_linear_for_range_param(destination, control_block);
-		depth_results()[i] = getFinalParameterValueLinear(536870912, cables_combination);
+		depth_results()[i] = deluge::dsp::fixed::curve_linear(536870912, cables_combination);
 	}
 
 	// param_id, cable_combo
@@ -106,21 +107,21 @@ void RulesPatcher::perform_patching(uint32_t sources_changed, const ReferenceBlo
 	for (; iterator < cable_combos.end() && iterator->first < config_.first_non_volume_param; iterator++) {
 		auto [param, combo] = *iterator;
 		param_final_values_[param - config_.first_param] =
-		    getFinalParameterValueVolume(deluge::synth::matrix::kParamNeutral[param], combo);
+		    deluge::dsp::fixed::curve_square(deluge::synth::matrix::kParamNeutral[param], combo);
 	}
 
 	// Linear params
 	for (; iterator < cable_combos.end() && iterator->first < config_.first_hybrid_param; iterator++) {
 		auto [param, cable_combo] = *iterator;
 		param_final_values_[param - config_.first_param] =
-		    getFinalParameterValueLinear(deluge::synth::matrix::kParamNeutral[param], cable_combo);
+		    deluge::dsp::fixed::curve_linear(deluge::synth::matrix::kParamNeutral[param], cable_combo);
 	}
 
 	// Hybrid params
 	for (; iterator < cable_combos.end() && iterator->first < config_.first_exp_param; iterator++) {
 		auto [param, cable_combo] = *iterator;
 		param_final_values_[param - config_.first_param] =
-		    getFinalParameterValueHybrid(deluge::synth::matrix::kParamNeutral[param], cable_combo);
+		    deluge::dsp::fixed::curve_bipolar(deluge::synth::matrix::kParamNeutral[param], cable_combo);
 	}
 
 	// Exp params
@@ -288,7 +289,7 @@ void RulesPatcher::perform_initial_patching(const ReferenceBlock& control_block)
 		for (int32_t i = 0; destination->target.word < static_cast<uint32_t>(0xFFFFFF00); destination++, i++) {
 			int32_t cables_combination = combine_cables_linear_for_range_param(destination, control_block);
 
-			depth_results()[i] = getFinalParameterValueLinear(536870912, cables_combination);
+			depth_results()[i] = deluge::dsp::fixed::curve_linear(536870912, cables_combination);
 		}
 
 		// Now, regular Destinations going directly to a param
@@ -305,19 +306,19 @@ void RulesPatcher::perform_initial_patching(const ReferenceBlock& control_block)
 	// And now convert those "cable combinations" into "final values".
 	// Volume params
 	for (int32_t param = config_.first_param; param < config_.first_non_volume_param; param++) {
-		param_final_values_[param - config_.first_param] = getFinalParameterValueVolume(
+		param_final_values_[param - config_.first_param] = deluge::dsp::fixed::curve_square(
 		    deluge::synth::matrix::kParamNeutral[param], param_final_values_[param - config_.first_param]);
 	}
 
 	// Linear params
 	for (int32_t param = config_.first_non_volume_param; param < config_.first_hybrid_param; param++) {
-		param_final_values_[param - config_.first_param] = getFinalParameterValueLinear(
+		param_final_values_[param - config_.first_param] = deluge::dsp::fixed::curve_linear(
 		    deluge::synth::matrix::kParamNeutral[param], param_final_values_[param - config_.first_param]);
 	}
 
 	// Hybrid params
 	for (int32_t param = config_.first_hybrid_param; param < config_.first_exp_param; param++) {
-		param_final_values_[param - config_.first_param] = getFinalParameterValueHybrid(
+		param_final_values_[param - config_.first_param] = deluge::dsp::fixed::curve_bipolar(
 		    deluge::synth::matrix::kParamNeutral[param], param_final_values_[param - config_.first_param]);
 	}
 

@@ -22,6 +22,7 @@
 #include "modulation/params/param.h"
 #include "modulation/params/param_collection.h"
 #include <array>
+#include <initializer_list>
 #include <memory>
 
 namespace deluge::project {
@@ -123,6 +124,9 @@ public:
 	void stripAutomation() override;
 	void flattenReverseAutomation(int32_t reverseDirectionWithLength) override;
 	void copyOverridingFrom(ParamSet* otherParamSet);
+	/// Knob positions through the param's mapping kind in its plugin table; STANDARD for a param with none.
+	int32_t paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack) override;
+	int32_t knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack) override;
 	void trimToLength(uint32_t newLength, ModelStackWithParamCollection* modelStack, Action* action,
 	                  bool maySetupPatching) final;
 	void nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset, int32_t lengthBeforeLoop, Action* action,
@@ -155,6 +159,13 @@ private:
 	void checkWhetherParamHasInterpolationNow(ModelStackWithParamCollection const* modelStack, int32_t p);
 };
 
+/// @brief Sets each of @p paramIds in @p set to its default in @p kind's plugin table, in the order given.
+/// @param set      The set to write.
+/// @param kind     Whose table's defaults: UNPATCHED_SOUND or PATCHED for the instrument's, UNPATCHED_GLOBAL for the
+///                 global effectable's.
+/// @param paramIds Indices in @p set.
+void setParamsToDefaults(ParamSet& set, deluge::modulation::params::Kind kind, std::initializer_list<int32_t> paramIds);
+
 class UnpatchedParamSet final : public ParamSet {
 public:
 	UnpatchedParamSet(ParamCollectionSummary* summary);
@@ -165,8 +176,6 @@ public:
 	bool shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack) override;
 	bool doesParamIdAllowAutomation(ModelStackWithParamId const* modelStack) override;
 	bool shouldRecordUnautomatedParamChange(ModelStackWithParamId const* modelStack) override;
-	int32_t paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack) override;
-	int32_t knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack) override;
 	deluge::modulation::params::Kind getParamKind() override { return kind; }
 
 	deluge::modulation::params::Kind kind = deluge::modulation::params::Kind::NONE;
@@ -182,8 +191,6 @@ public:
 	Error clone(ParamCollection*& result, bool copyAutomation, int32_t reverseDirectionWithLength = 0) const override;
 	void notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
 	                                  bool automationChanged, bool automatedBefore, bool automatedNow) override;
-	int32_t paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack) override;
-	int32_t knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack) override;
 	bool shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack) override;
 	deluge::modulation::params::Kind getParamKind() override { return deluge::modulation::params::Kind::PATCHED; }
 

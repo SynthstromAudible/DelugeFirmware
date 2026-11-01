@@ -21,6 +21,7 @@
 #include "deluge-project/doc_output.h" // complete DocOutput type for the identity record
 #include "dsp-next/core/mono.h"
 #include "dsp-next/core/stereo_sample.h"
+#include "dsp-next/fixed/curves/param_curve.h"
 #include "dsp-next/fixed/mix/track_monitor.h"
 #include "dsp-next/fixed/tables/decay_small.h"
 #include "gui/views/view.h"
@@ -154,7 +155,7 @@ bool AudioOutput::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* m
 		if (activeAudioClip.voiceSample) {
 
 			int32_t attackNeutralValue = deluge::synth::matrix::kParamNeutral[params::LOCAL_ENV_0_ATTACK];
-			int32_t attack = getExp(attackNeutralValue, -(activeAudioClip.attack() / 4));
+			int32_t attack = deluge::dsp::fixed::exp_curve(attackNeutralValue, -(activeAudioClip.attack() / 4));
 
 renderEnvelope:
 			int32_t amplitudeLocal = (envelope.render(render.size(), attack, 8388608, 2147483647, 0,

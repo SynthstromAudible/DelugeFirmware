@@ -22,6 +22,7 @@
 #include "deluge-project/doc_drum.h"
 #include "deluge-project/doc_output.h"
 #include "deluge-project/song_codec.h"
+#include "dsp-next/fixed/curves/param_curve.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/browser/browser.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
@@ -71,6 +72,7 @@
 #include "model/voice/voice_sample.h"
 #include "modulation/midi/midi_param_collection.h"
 #include "modulation/patch/patch_cable_set.h"
+#include "modulation/sidechain/sidechain.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
@@ -234,7 +236,7 @@ Song::Song() {
 	project.reverb.lpf = (float)50 / 50;
 	project.reverb.width = 1;
 	project.reverb.pan = 0;
-	project.reverb.sidechain_volume = getParamFromUserValue(params::STATIC_SIDECHAIN_VOLUME, -1);
+	project.reverb.sidechain_volume = deluge::modulation::sidechain_volume_from_preset(-1);
 	project.reverb.sidechain_shape = -601295438;
 	project.reverb.sidechain_sync = SYNC_LEVEL_8TH;
 	model = deluge::effects::ReverbModel::MUTABLE;
@@ -2497,11 +2499,10 @@ deluge::effects::MasterChainInputs Song::renderAudio(std::span<StereoSample> out
                                                      int32_t sideChainHitPending) {
 
 	// int32_t volumePostFX = getParamNeutralValue(params::GLOBAL_VOLUME_POST_FX);
-	int32_t volumePostFX =
-	    getFinalParameterValueVolume(
-	        134217728,
-	        cableToLinearParamShortcut(paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_VOLUME)))
-	    >> 1;
+	int32_t volumePostFX = deluge::dsp::fixed::curve_square(
+	                           134217728, deluge::dsp::fixed::preset_combination(
+	                                          paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_VOLUME)))
+	                       >> 1;
 
 	// A "post-FX volume" calculation also happens in audioDriver.render(), which is a bit more relevant really
 	// because that's where filters are happening

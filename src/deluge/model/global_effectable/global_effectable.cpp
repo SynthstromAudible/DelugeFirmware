@@ -42,7 +42,6 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/render_scratch.h"
 #include "storage/storage_manager.h"
-#include "synth/matrix/descriptors.h" // kParamNeutral, kParamRange
 #include "util/etl_string.h"
 #include "util/firmware_version.h"
 #include "util/functions.h"
@@ -80,58 +79,22 @@ void GlobalEffectable::projectView(deluge::snapshot::ModControllableSnapshot& co
 }
 
 void GlobalEffectable::initParams(ParamManager* paramManager) {
-	ModControllableAudio::initParams(paramManager);
+	ModControllableAudio::initParams(paramManager, params::Kind::UNPATCHED_GLOBAL);
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 	unpatchedParams->kind = deluge::modulation::params::Kind::UNPATCHED_GLOBAL;
-
-	// Overwrite default arp Gate to 50 for Kit affect-entire arp
-	unpatchedParams->params[params::UNPATCHED_ARP_GATE].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_ARP_GATE), 2147483647);
-	unpatchedParams->params[params::UNPATCHED_ARP_RATE].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_ARP_RATE), 0);
-
-	unpatchedParams->params[params::UNPATCHED_MOD_FX_RATE].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_MOD_FX_RATE), -536870912);
-	unpatchedParams->params[params::UNPATCHED_MOD_FX_FEEDBACK].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_MOD_FX_FEEDBACK), kNegativeOneQ31);
-	unpatchedParams->params[params::UNPATCHED_MOD_FX_DEPTH].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_MOD_FX_DEPTH), 0);
-	unpatchedParams->params[params::UNPATCHED_DELAY_RATE].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_DELAY_RATE), 0);
-	unpatchedParams->params[params::UNPATCHED_PAN].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_PAN), 0);
-
-	unpatchedParams->params[params::UNPATCHED_DELAY_AMOUNT].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_DELAY_AMOUNT), kNegativeOneQ31);
-	unpatchedParams->params[params::UNPATCHED_REVERB_SEND_AMOUNT].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_REVERB_SEND_AMOUNT), kNegativeOneQ31);
-
-	unpatchedParams->params[params::UNPATCHED_VOLUME].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_VOLUME), 0); // half of the way up
-	unpatchedParams->params[params::UNPATCHED_SIDECHAIN_VOLUME].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_SIDECHAIN_VOLUME), kNegativeOneQ31);
-	unpatchedParams->params[params::UNPATCHED_PITCH_ADJUST].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_PITCH_ADJUST), 0);
-
-	unpatchedParams->params[params::UNPATCHED_LPF_RES].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_LPF_RES), kNegativeOneQ31);
-	unpatchedParams->params[params::UNPATCHED_LPF_FREQ].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_LPF_FREQ), kOneQ31);
-
-	unpatchedParams->params[params::UNPATCHED_HPF_RES].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_HPF_RES), kNegativeOneQ31);
-	unpatchedParams->params[params::UNPATCHED_HPF_FREQ].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_HPF_FREQ), kNegativeOneQ31);
-
-	unpatchedParams->params[params::UNPATCHED_LPF_MORPH].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_LPF_MORPH), kNegativeOneQ31);
-	unpatchedParams->params[params::UNPATCHED_HPF_MORPH].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_HPF_MORPH), kNegativeOneQ31);
+	setParamsToDefaults(*unpatchedParams, params::Kind::UNPATCHED_GLOBAL,
+	                    {params::UNPATCHED_ARP_RATE, params::UNPATCHED_MOD_FX_RATE, params::UNPATCHED_MOD_FX_DEPTH,
+	                     params::UNPATCHED_DELAY_RATE, params::UNPATCHED_PAN, params::UNPATCHED_DELAY_AMOUNT,
+	                     params::UNPATCHED_REVERB_SEND_AMOUNT, params::UNPATCHED_VOLUME,
+	                     params::UNPATCHED_SIDECHAIN_VOLUME, params::UNPATCHED_PITCH_ADJUST, params::UNPATCHED_LPF_RES,
+	                     params::UNPATCHED_LPF_FREQ, params::UNPATCHED_HPF_RES, params::UNPATCHED_HPF_FREQ,
+	                     params::UNPATCHED_LPF_MORPH, params::UNPATCHED_HPF_MORPH});
 }
 
 void GlobalEffectable::initParamsForAudioClip(ParamManagerForTimeline* paramManager) {
 	initParams(paramManager);
+	// An audio track starts quieter than the song and a kit's affect-entire, which keep the table's default
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 	unpatchedParams->params[params::UNPATCHED_VOLUME].setCurrentValueBasicForSetup(
 	    *unpatchedParams->docForParam(params::UNPATCHED_VOLUME), -536870912);
@@ -922,16 +885,14 @@ deluge::effects::Delay::State GlobalEffectable::createDelayWorkingState(ParamMan
 	deluge::effects::Delay::State delayWorkingState;
 	UnpatchedParamSet* unpatchedParams = paramManager.getUnpatchedParamSet();
 
-	delayWorkingState.delayFeedbackAmount = getFinalParameterValueLinear(
-	    deluge::synth::matrix::kParamNeutral[params::GLOBAL_DELAY_FEEDBACK],
-	    cableToLinearParamShortcut(unpatchedParams->getValue(params::UNPATCHED_DELAY_AMOUNT)));
+	delayWorkingState.delayFeedbackAmount = deluge::effects::final_value(
+	    deluge::effects::Delay::kFeedback, unpatchedParams->getValue(params::UNPATCHED_DELAY_AMOUNT));
 	if (shouldLimitDelayFeedback) {
 		delayWorkingState.delayFeedbackAmount =
 		    std::min(delayWorkingState.delayFeedbackAmount, (int32_t)(1 << 30) - (1 << 26));
 	}
-	delayWorkingState.userDelayRate =
-	    getFinalParameterValueExp(deluge::synth::matrix::kParamNeutral[params::GLOBAL_DELAY_RATE],
-	                              cableToExpParamShortcut(unpatchedParams->getValue(params::UNPATCHED_DELAY_RATE)));
+	delayWorkingState.userDelayRate = deluge::effects::final_value(
+	    deluge::effects::Delay::kRate, unpatchedParams->getValue(params::UNPATCHED_DELAY_RATE));
 	uint32_t timePerTickInverse = playbackHandler.getTimePerInternalTickInverse(true);
 	core().delay().setupWorkingState(delayWorkingState, modControllableSnapshot_.effects.delay, timePerTickInverse,
 	                                 soundComingIn);

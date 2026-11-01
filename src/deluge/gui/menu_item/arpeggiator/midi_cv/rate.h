@@ -20,16 +20,17 @@
 #include "gui/menu_item/value_scaling.h"
 #include "gui/ui/sound_editor.h"
 #include "model/song/song.h"
+#include "plugin-api/types/param_mapping.h"
 
 namespace deluge::gui::menu_item::arpeggiator::midi_cv {
 class Rate final : public ArpNonSoundInteger {
 public:
 	using ArpNonSoundInteger::ArpNonSoundInteger;
 	void readCurrentValue() override {
-		this->setValue(computeCurrentValueForStandardMenuItem(soundEditor.currentArpSettings->rate));
+		this->setValue(plugin::to_menu(plugin::MappingKind::STANDARD, soundEditor.currentArpSettings->rate));
 	}
 	void writeCurrentValue() override {
-		int32_t value = computeFinalValueForStandardMenuItem(this->getValue());
+		int32_t value = plugin::from_menu(plugin::MappingKind::STANDARD, this->getValue());
 		soundEditor.currentArpSettings->rate = value;
 	}
 };

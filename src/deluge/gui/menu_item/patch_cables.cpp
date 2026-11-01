@@ -6,6 +6,7 @@
 #include "modulation/patch/patch_cable_set.h"
 #include "patch_cable_strength/range.h"
 #include "patch_cable_strength/regular.h"
+#include "plugin-api/types/param_mapping.h"
 #include "processing/sound/sound.h"
 #include "source_selection/range.h"
 #include "source_selection/regular.h"
@@ -72,7 +73,7 @@ void PatchCables::renderOptions() {
 		}
 
 		int32_t param_value = cable->param.getCurrentValue();
-		int32_t level = ((int64_t)param_value * kMaxMenuPatchCableValue + (1 << 29)) >> 30;
+		int32_t level = plugin::to_menu(plugin::MappingKind::CABLE_DEPTH, param_value);
 
 		float floatLevel = (float)level / 100;
 		int floatoff = floatLevel < 0 ? 1 : 0;

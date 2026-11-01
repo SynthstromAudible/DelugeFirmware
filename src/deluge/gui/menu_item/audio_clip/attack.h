@@ -18,6 +18,7 @@
 #include "gui/menu_item/integer.h"
 #include "model/clip/audio_clip.h"
 #include "model/song/song.h"
+#include "plugin-api/types/param_mapping.h"
 
 namespace deluge::gui::menu_item::audio_clip {
 class Attack final : public Integer {
@@ -25,10 +26,10 @@ public:
 	using Integer::Integer;
 
 	void readCurrentValue() override {
-		this->setValue(computeCurrentValueForStandardMenuItem(getCurrentAudioClip()->attack()));
+		this->setValue(plugin::to_menu(plugin::MappingKind::STANDARD, getCurrentAudioClip()->attack()));
 	}
 	void writeCurrentValue() override {
-		getCurrentAudioClip()->setAttack(computeCurrentValueForStandardMenuItem(this->getValue()));
+		getCurrentAudioClip()->setAttack(plugin::to_menu(plugin::MappingKind::STANDARD, this->getValue()));
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
 };

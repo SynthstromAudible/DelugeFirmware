@@ -18,6 +18,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/integer.h"
 #include "gui/menu_item/patched_param.h"
+#include "plugin-api/types/param_mapping.h"
 
 namespace deluge::gui::menu_item::patched_param {
 class Integer : public PatchedParam, public menu_item::IntegerContinuous {
@@ -71,6 +72,8 @@ protected:
 	void readCurrentValue() override;
 	void writeCurrentValue() final;
 	virtual int32_t getFinalValue();
+	/// How the param's word becomes the menu number: its plugin table row's mapping kind.
+	[[nodiscard]] plugin::MappingKind mapping() const;
 
 private:
 	std::optional<RenderingStyle> number_style_{std::nullopt};

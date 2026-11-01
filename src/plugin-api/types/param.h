@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include "plugin-api/types/param_mapping.h"
+
 #include <compare>
 #include <cstdint>
 #include <limits>
@@ -48,11 +50,13 @@ struct ParamInfo {
 	/// The name files give the param where they name it (a cable's destination, a knob's target).
 	std::string_view file_name;
 	ParamScope scope{ParamScope::PER_SOUND};
-	/// Centred on zero (pan, pitch) rather than rising from its minimum.
-	bool bipolar{false};
 	/// The stored word a new instance starts with.
 	int32_t default_value{0};
 	ParamRange range{};
+	/// How hosts turn the word into knob and menu positions.
+	MappingKind mapping{MappingKind::STANDARD};
+	// The initializer lets a row leave the flags out
+	ParamFlags flags{}; // NOLINT(readability-redundant-member-init)
 };
 
 /// @brief A dense run of ids a plugin stores together: @c count ids from @c first.

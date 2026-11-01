@@ -16,8 +16,8 @@
  */
 
 #include "model/fx/song_stutter.h"
-#include "synth/matrix/descriptors.h" // kParamNeutral, kParamRange
 
+#include "gui/ui/ui.h"
 #include "libdeluge/system.h" // AudioExcludedSection
 #include "model/mod_controllable/mod_fx_allocator.h"
 #include "model/song/song.h"
@@ -27,7 +27,6 @@
 #include "playback/playback_handler.h"
 #include "util/fixedpoint.h"
 #include "util/functions.h"
-#include "util/param_functions.h"
 #include "util/structural_edit_probe.h"
 
 #include <algorithm>
@@ -90,10 +89,15 @@ StutterInput stutterInput(const ModControllableAudio& owner, ParamManager* param
 	                                                  playbackHandler.getTimePerInternalTickInverse()))};
 }
 
-void initStutterParams(ParamManager* paramManager) {
-	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-	unpatchedParams->params[params::UNPATCHED_STUTTER_RATE].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_STUTTER_RATE), 0);
+bool stutterRateIndicatesMiddle(const ModControllableAudio& owner) {
+	const bool quantized = owner.effects().stutter.use_song_stutter
+	                           ? currentSong->live.global_effectable.effects().stutter.quantized
+	                           : owner.effects().stutter.quantized;
+	return !quantized || isUIModeActive(UI_MODE_STUTTERING);
+}
+
+void initStutterParams(ParamManager* paramManager, params::Kind defaults) {
+	setParamsToDefaults(*paramManager->getUnpatchedParamSet(), defaults, {params::UNPATCHED_STUTTER_RATE});
 }
 
 int32_t stutterRate(ParamManager* paramManager, int32_t knobDiff, int32_t magnitude, uint32_t timePerTickInverse) {
@@ -106,8 +110,7 @@ int32_t stutterRate(ParamManager* paramManager, int32_t knobDiff, int32_t magnit
 	    std::clamp<int32_t>(unpatchedParams->paramValueToKnobPos(paramValue, nullptr) + knobDiff, -64, 64);
 	paramValue = unpatchedParams->knobPosToParamValue(knobPos, nullptr);
 
-	int32_t rate = getFinalParameterValueExp(deluge::synth::matrix::kParamNeutral[params::GLOBAL_DELAY_RATE],
-	                                         cableToExpParamShortcut(paramValue));
+	int32_t rate = deluge::effects::final_value(deluge::effects::Stutter::kRate, paramValue);
 
 	rate = multiply_32x32_rshift32(rate, timePerTickInverse);
 

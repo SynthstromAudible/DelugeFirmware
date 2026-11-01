@@ -29,6 +29,7 @@
 #include "model/project_bridge/patch_cable_words.h"
 #include "modulation/patch/patch_cable.h"
 #include "playback/mode/playback_mode.h"
+#include "plugin-api/types/param_mapping.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/mod_matrix_host.h"
 #include "processing/sound/sound.h"
@@ -402,8 +403,6 @@ deluge::synth::RoutedDestination* PatchCableSet::getDestinationForParam(int32_t 
 	}
 	return nullptr;
 }
-
-extern int32_t rangeFinalValues[];
 
 void PatchCableSet::setupPatching(Sound& sound, ParamManager& paramManager) {
 	const auto usable =
@@ -1113,15 +1112,11 @@ void PatchCableSet::nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset,
 }
 
 int32_t PatchCableSet::paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack) {
-	return (paramValue >> 23) - 64;
+	return deluge::plugin::to_knob(deluge::plugin::MappingKind::CABLE_DEPTH, paramValue);
 }
 
 int32_t PatchCableSet::knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack) {
-	int32_t paramValue = 1073741824;
-	if (knobPos < 64) {
-		paramValue = (knobPos + 64) << 23;
-	}
-	return paramValue;
+	return deluge::plugin::from_knob(deluge::plugin::MappingKind::CABLE_DEPTH, knobPos);
 }
 
 void PatchCableSet::notifyPingpongOccurred(ModelStackWithParamCollection* modelStack) {

@@ -20,7 +20,9 @@
 #include "dsp-next/core/mono.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/fixed/filter/shelf_pair.h"
+#include "effects/param_fragment.h"
 
+#include <array>
 #include <span>
 
 namespace deluge::effects {
@@ -31,6 +33,14 @@ using EqualizerParams = dsp::fixed::ShelfPair::Settings;
 /// @brief The EQ: bass and treble shelves; does nothing while both bands are flat.
 class Equalizer {
 public:
+	/// @brief The EQ's params, in EqualizerParams order: their words are used as stored.
+	static constexpr std::array<EffectParam, 4> kParams{{
+	    {.name = "bass", .flags = plugin::ParamFlag::MIDDLE_DETENT},
+	    {.name = "treble", .flags = plugin::ParamFlag::MIDDLE_DETENT},
+	    {.name = "bassFreq"},
+	    {.name = "trebleFreq"},
+	}};
+
 	/// @brief Applies the bass and treble shelves to @p block in place; does nothing while both bands are flat.
 	/// @param block The stereo block to process.
 	/// @param params The block's EQ settings.

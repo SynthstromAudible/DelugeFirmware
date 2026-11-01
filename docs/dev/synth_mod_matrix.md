@@ -9,6 +9,7 @@ describes the runtime as built; the design and its reasons are in the mod-matrix
 | File | What it holds |
 |---|---|
 | `src/synth/matrix/descriptors.h` | What each param and cable is: its scope (voice or sound), chain (multiply, add, depth), curve, depth shape and source conversion |
+| `src/deluge/dsp-next/fixed/curves/param_curve.h` | The curves (`ParamCurve`, which `CurveKind` names): square, linear, bipolar, exponential, the release table |
 | `src/synth/matrix/program.h` | The compiled program: one `ScopeView` of tables per scope |
 | `src/synth/matrix/compiler.{h,cpp}` | `compile_program` (the routing into a program, in one block sized to fit), `copy_program` (a clone) |
 | `src/synth/matrix/matrix_block.h` | `MatrixBlock`: what a pass reads besides its program (each param's preset, each cable's depth) |
@@ -69,8 +70,8 @@ positive).
   `lshift_and_saturate<3>(smmul(2^29, term + 2^29)) - 2^29`. With the term in [-2^30, 2^30] (a preset times a
   range of at most 2^30), `smmul(2^29, x)` is `x >> 3`, the 29-bit clamp never bites, and the shifts drop the low
   three bits; 2^29 is a multiple of 8, so subtracting it back leaves the term with those bits cleared.
-- The curves follow `getFinalParameterValueVolume`, `…Linear` and `…Hybrid` operation for operation; the square
-  curve's square is a wrapping 32-bit multiply in both.
+- The curves follow `curve_square`, `curve_linear` and `curve_bipolar` (`param_curve.h`) operation for operation; the
+  square curve's square is a wrapping 32-bit multiply in both.
 
 ## Speed
 

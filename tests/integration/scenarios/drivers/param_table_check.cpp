@@ -16,12 +16,20 @@
  */
 
 // param_table_check — the engines' param tables agree with the runtime: every row's file name is the runtime's
-// name for its runtime index, every runtime param has a row, and each row's scope, bipolarity and default are the
+// name for its runtime index, every runtime param has a row, and each row's scope, flags and default are the
 // runtime's (a default is what the engine's own init gives a fresh instance).
 // Exit: 0 agree; 3 a row disagrees (each printed).
 
+#include "effects/bitcrush.h"
+#include "effects/compressor.h"
+#include "effects/delay.h"
+#include "effects/equalizer.h"
+#include "effects/filter.h"
 #include "effects/global_effectable/naming.h"
 #include "effects/global_effectable/params.h"
+#include "effects/mod_fx.h"
+#include "effects/reverb.h"
+#include "effects/stutter.h"
 #include "instruments/deluge/cables.h"
 #include "instruments/deluge/naming.h"
 #include "instruments/deluge/params.h"
@@ -32,10 +40,14 @@
 #include "modulation/params/param_set.h"
 #include "processing/sound/sound.h"
 #include "scenarios/drivers/driver.h"
+#include "scenarios/drivers/param_defaults_reference.h"
+#include "scenarios/drivers/param_names_reference.h"
+#include "synth/matrix/descriptors.h"
 #include "util/functions.h"
 
 #include <cstdio>
 #include <span>
+#include <string>
 #include <string_view>
 
 namespace {
@@ -45,6 +57,125 @@ using deluge::plugin::ParamId;
 using deluge::plugin::ParamInfo;
 using deluge::plugin::ParamScope;
 using deluge::scenarios::driver::Io;
+
+/// Reference copies of the runtime's param predicates, kept verbatim as the oracle for the rows' flags, from
+/// modulation/params/param.cpp (isParamPan, isParamPitch, paramNeedsLPF) and param_set.cpp (the Unpatched and Patched
+/// sets' shouldParamIndicateMiddleValue, doesParamIdAllowAutomation, shouldRecordUnautomatedParamChange,
+/// shouldInterpolateWithFloat), with the set's kind as an argument: the oracle for each row's flags. The stutter rate's
+/// middle detent depends on the stutter's state and is left out.
+namespace reference_predicates {
+using namespace params;
+
+bool isParamPan(Kind kind, int32_t paramID) {
+	return (kind == Kind::PATCHED && paramID == LOCAL_PAN)
+	       || (kind == Kind::UNPATCHED_GLOBAL && paramID == UNPATCHED_PAN);
+}
+bool isParamPitch(Kind kind, int32_t paramID) {
+	if (kind == Kind::PATCHED) {
+		return (paramID == LOCAL_PITCH_ADJUST) || (paramID == LOCAL_OSC_A_PITCH_ADJUST)
+		       || (paramID == LOCAL_OSC_B_PITCH_ADJUST) || (paramID == LOCAL_MODULATOR_0_PITCH_ADJUST)
+		       || (paramID == LOCAL_MODULATOR_1_PITCH_ADJUST);
+	}
+	if (kind == Kind::UNPATCHED_GLOBAL) {
+		return static_cast<UnpatchedGlobal>(paramID) == UNPATCHED_PITCH_ADJUST;
+	}
+	return false;
+}
+bool paramNeedsLPF(ParamType p, bool fromAutomation) {
+	switch (p) {
+	case GLOBAL_VOLUME_POST_FX:
+	case GLOBAL_VOLUME_POST_REVERB_SEND:
+	case GLOBAL_REVERB_AMOUNT:
+	case LOCAL_VOLUME:
+	case LOCAL_PAN:
+	case LOCAL_LPF_FREQ:
+	case LOCAL_HPF_FREQ:
+	case LOCAL_OSC_A_VOLUME:
+	case LOCAL_OSC_B_VOLUME:
+	case LOCAL_OSC_A_WAVE_INDEX:
+	case LOCAL_OSC_B_WAVE_INDEX:
+		return !fromAutomation;
+	case LOCAL_MODULATOR_0_VOLUME:
+	case LOCAL_MODULATOR_1_VOLUME:
+	case LOCAL_MODULATOR_0_FEEDBACK:
+	case LOCAL_MODULATOR_1_FEEDBACK:
+	case LOCAL_CARRIER_0_FEEDBACK:
+	case LOCAL_CARRIER_1_FEEDBACK:
+	case GLOBAL_MOD_FX_DEPTH:
+	case GLOBAL_DELAY_FEEDBACK:
+		return true;
+	default:
+		return false;
+	}
+}
+bool unpatchedIndicatesMiddle(Kind kind, int32_t paramId) {
+	switch (paramId) {
+	case UNPATCHED_BASS:
+	case UNPATCHED_TREBLE:
+		return true;
+	}
+	if (kind == Kind::UNPATCHED_GLOBAL) {
+		switch (paramId) {
+		case UNPATCHED_DELAY_RATE:
+		case UNPATCHED_DELAY_AMOUNT:
+		case UNPATCHED_PAN:
+		case UNPATCHED_PITCH_ADJUST:
+			return true;
+		}
+	}
+	return false;
+}
+bool patchedIndicatesMiddle(int32_t paramId) {
+	switch (paramId) {
+	case LOCAL_PAN:
+	case LOCAL_PITCH_ADJUST:
+	case LOCAL_OSC_A_PITCH_ADJUST:
+	case LOCAL_OSC_B_PITCH_ADJUST:
+	case LOCAL_MODULATOR_0_PITCH_ADJUST:
+	case LOCAL_MODULATOR_1_PITCH_ADJUST:
+	case GLOBAL_DELAY_FEEDBACK:
+	case GLOBAL_DELAY_RATE:
+		return true;
+	default:
+		return false;
+	}
+}
+
+/// The flags the predicates above give the param at @p index of a @p kind collection.
+deluge::plugin::ParamFlags flagsOf(Kind kind, int32_t index) {
+	using deluge::plugin::ParamFlag;
+	deluge::plugin::ParamFlags flags;
+	auto add = [&](bool on, ParamFlag flag) {
+		if (on) {
+			flags = flags | flag;
+		}
+	};
+	const bool patched = kind == Kind::PATCHED;
+	add(isParamPan(kind, index) || isParamPitch(kind, index), ParamFlag::CENTRED);
+	add(patched ? patchedIndicatesMiddle(index) : unpatchedIndicatesMiddle(kind, index), ParamFlag::MIDDLE_DETENT);
+	add(!patched && index == UNPATCHED_STUTTER_RATE, ParamFlag::NOT_AUTOMATABLE);
+	add(!patched && index == UNPATCHED_TEMPO, ParamFlag::NO_UNDO);
+	add(kind == Kind::UNPATCHED_GLOBAL && index == UNPATCHED_TEMPO, ParamFlag::FLOAT_INTERPOLATION);
+	add(patched && paramNeedsLPF(index, true), ParamFlag::SMOOTHED);
+	add(patched && paramNeedsLPF(index, false) && !paramNeedsLPF(index, true), ParamFlag::SMOOTHED_USER_ONLY);
+	return flags;
+}
+/// The mapping the reference knob overrides (UnpatchedParamSet's compressor threshold, PatchedParamSet's phase widths)
+/// and pan menus (patched_param::Pan on LOCAL_PAN, unpatched_param::Pan on UNPATCHED_PAN) give the param.
+deluge::plugin::MappingKind mappingOf(Kind kind, int32_t index) {
+	using deluge::plugin::MappingKind;
+	if (kind == Kind::PATCHED) {
+		if (index == LOCAL_OSC_A_PHASE_WIDTH || index == LOCAL_OSC_B_PHASE_WIDTH) {
+			return MappingKind::UNIPOLAR;
+		}
+		return index == LOCAL_PAN ? MappingKind::PAN : MappingKind::STANDARD;
+	}
+	if (index == UNPATCHED_COMPRESSOR_THRESHOLD) {
+		return MappingKind::UNIPOLAR;
+	}
+	return kind == Kind::UNPATCHED_GLOBAL && index == UNPATCHED_PAN ? MappingKind::PAN : MappingKind::STANDARD;
+}
+} // namespace reference_predicates
 
 struct Checker {
 	Io io;
@@ -70,8 +201,22 @@ struct Checker {
 		if ((info.scope == ParamScope::PER_VOICE) != perVoice) {
 			fail(table, info, "its scope is not the runtime's");
 		}
-		if (info.bipolar != params::isParamBipolar(kind, index)) {
-			fail(table, info, "its bipolarity is not the runtime's");
+		if (info.flags != reference_predicates::flagsOf(kind, index)) {
+			std::fprintf(io.err, "%s %u: flags %#x, the runtime's predicates give %#x\n", table, info.id.value,
+			             info.flags.bits, reference_predicates::flagsOf(kind, index).bits);
+			fail(table, info, "its flags are not the runtime's");
+		}
+		if (info.mapping != reference_predicates::mappingOf(kind, index)) {
+			fail(table, info, "its mapping is not the runtime's knob and menu arithmetic");
+		}
+		const bool centred = info.flags.has(deluge::plugin::ParamFlag::CENTRED);
+		if (centred != params::isParamBipolar(kind, index)) {
+			fail(table, info, "the runtime's isParamBipolar disagrees with CENTRED");
+		}
+		if (kind == params::Kind::PATCHED
+		    && (params::paramNeedsLPF(index, true) != reference_predicates::paramNeedsLPF(index, true)
+		        || params::paramNeedsLPF(index, false) != reference_predicates::paramNeedsLPF(index, false))) {
+			fail(table, info, "the runtime's paramNeedsLPF disagrees with the smoothing flags");
 		}
 		if (deluge::bridge::paramIdOf(kind, index) != info.id) {
 			fail(table, info, "the boundary map gives the runtime index another id");
@@ -116,7 +261,123 @@ void checkCables(Checker& check) {
 	}
 }
 
-/// Each row's default against the value @p init gives a fresh manager's param.
+/// paramNameForFile and fileStringToParam against the recorded names: every kind,
+/// both file vocabularies, every runtime index; and every name, "range" and an unknown name read back.
+void checkNames(Checker& check) {
+	auto expected = [](int32_t kind, bool midiFollow, int32_t index) -> std::string_view {
+		for (const param_names_reference::Name& n : param_names_reference::kNames) {
+			if (n.kind == kind && n.midi_follow == midiFollow && n.index == index) {
+				return n.name;
+			}
+		}
+		return "none";
+	};
+	for (int32_t kind = 0; kind <= static_cast<int32_t>(params::Kind::EXPRESSION); ++kind) {
+		for (bool midiFollow : {false, true}) {
+			for (int32_t p = 0; p < params::kUnpatchedAndPatchedMaximum; ++p) {
+				std::string_view live = params::paramNameForFile(static_cast<params::Kind>(kind), p, midiFollow);
+				std::string_view want = expected(kind, midiFollow, p);
+				if (live != want) {
+					std::fprintf(check.io.err, "name kind %d mf %d index %d: %.*s, was %.*s\n", kind, midiFollow, p,
+					             static_cast<int>(live.size()), live.data(), static_cast<int>(want.size()),
+					             want.data());
+					++check.disagreements;
+				}
+			}
+		}
+	}
+	auto readBack = [&](int32_t kind, bool allowPatched, std::string_view name) {
+		std::string text{name};
+		params::ParamType got = params::fileStringToParam(static_cast<params::Kind>(kind), text.c_str(), allowPatched);
+		// The first index the oracle names so, from the first index this read may return
+		params::ParamType want =
+		    name == "range" ? util::to_underlying(params::PLACEHOLDER_RANGE) : util::to_underlying(params::GLOBAL_NONE);
+		for (int32_t p = allowPatched ? 0 : params::UNPATCHED_START; p < params::kUnpatchedAndPatchedMaximum; ++p) {
+			if (expected(kind, false, p) == name) {
+				want = p;
+				break;
+			}
+		}
+		if (got != want) {
+			std::fprintf(check.io.err, "read kind %d patched %d %.*s: %d, want %d\n", kind, allowPatched,
+			             static_cast<int>(name.size()), name.data(), got, want);
+			++check.disagreements;
+		}
+	};
+	for (int32_t kind = 0; kind <= static_cast<int32_t>(params::Kind::EXPRESSION); ++kind) {
+		for (bool allowPatched : {false, true}) {
+			for (const param_names_reference::Name& n : param_names_reference::kNames) {
+				readBack(kind, allowPatched, n.name);
+			}
+			readBack(kind, allowPatched, "range");
+			readBack(kind, allowPatched, "nonsense");
+		}
+	}
+}
+
+/// Each effect's params against the runtime: a curved param's neutral and curve are the instrument's for the same
+/// param (the patched one a sound's chain uses), and a host chain's row has the fragment's mapping and flags.
+void checkEffectFragments(Checker& check) {
+	using deluge::effects::EffectParam;
+	struct Curved {
+		const EffectParam& fragment;
+		params::ParamType patched;
+	};
+	namespace fx = deluge::effects;
+	const Curved curved[] = {
+	    {fx::Filter::kParams[0], params::LOCAL_LPF_FREQ},      {fx::Filter::kParams[1], params::LOCAL_LPF_RESONANCE},
+	    {fx::Filter::kParams[2], params::LOCAL_LPF_MORPH},     {fx::Filter::kParams[3], params::LOCAL_HPF_FREQ},
+	    {fx::Filter::kParams[4], params::LOCAL_HPF_RESONANCE}, {fx::Filter::kParams[5], params::LOCAL_HPF_MORPH},
+	    {fx::ModFx::kParams[0], params::GLOBAL_MOD_FX_RATE},   {fx::ModFx::kParams[1], params::GLOBAL_MOD_FX_DEPTH},
+	    {fx::Delay::kRate, params::GLOBAL_DELAY_RATE},         {fx::Delay::kFeedback, params::GLOBAL_DELAY_FEEDBACK},
+	    {fx::Stutter::kRate, params::GLOBAL_DELAY_RATE},       {fx::Reverb::kSend, params::GLOBAL_REVERB_AMOUNT},
+	};
+	for (const Curved& c : curved) {
+		const deluge::synth::matrix::ParamRules& rules = deluge::synth::matrix::kParamRules[c.patched];
+		if (c.fragment.neutral != deluge::synth::matrix::kParamNeutral[c.patched] || !c.fragment.curve.has_value()
+		    || *c.fragment.curve != rules.curve) {
+			std::fprintf(check.io.err, "effect param %.*s: neutral %d or curve differs from the instrument's\n",
+			             static_cast<int>(c.fragment.name.size()), c.fragment.name.data(), c.fragment.neutral);
+			++check.disagreements;
+		}
+	}
+	auto published = [&](const EffectParam& fragment) {
+		const ParamInfo* row = deluge::plugin::find_param(deluge::global_effectable::kParams, fragment.name);
+		if (row == nullptr || row->mapping != fragment.mapping || row->flags != fragment.flags) {
+			std::fprintf(check.io.err, "effect param %.*s: the global-effectable row differs from the effect's\n",
+			             static_cast<int>(fragment.name.size()), fragment.name.data());
+			++check.disagreements;
+		}
+	};
+	for (const EffectParam& p : fx::Filter::kParams) {
+		published(p);
+	}
+	for (const EffectParam& p : fx::ModFx::kParams) {
+		published(p);
+	}
+	for (const EffectParam& p : fx::Equalizer::kParams) {
+		published(p);
+	}
+	for (const EffectParam& p : fx::Bitcrush::kParams) {
+		published(p);
+	}
+	for (const EffectParam* p : {&fx::Compressor::kThreshold, &fx::Delay::kRate, &fx::Delay::kFeedback,
+	                             &fx::Stutter::kRate, &fx::Reverb::kSend}) {
+		published(*p);
+	}
+}
+
+/// The recorded default of param @p id of @p table.
+int32_t recordedDefault(param_defaults_reference::Table table, ParamId id) {
+	for (const param_defaults_reference::Default& d : param_defaults_reference::kDefaults) {
+		if (d.table == table && d.id == id.value) {
+			return d.value;
+		}
+	}
+	return 0;
+}
+
+/// Each row's default, and what the engine's init gives a fresh manager's param, against the recorded default.
 void checkDefaults(Checker& check) {
 	ParamManagerForTimeline sound;
 	sound.setupWithPatching();
@@ -127,9 +388,11 @@ void checkDefaults(Checker& check) {
 		                    ? static_cast<ParamSet*>(sound.getPatchedParamSet())
 		                    : static_cast<ParamSet*>(sound.getUnpatchedParamSet());
 		int32_t value = set->docForParam(slot.index)->current_value;
-		if (value != info.default_value) {
-			std::fprintf(check.io.err, "default instrument %u %.*s: table %d, runtime %d\n", info.id.value,
-			             static_cast<int>(info.file_name.size()), info.file_name.data(), info.default_value, value);
+		int32_t recorded = recordedDefault(param_defaults_reference::Table::INSTRUMENT, info.id);
+		if (value != recorded || info.default_value != recorded) {
+			std::fprintf(check.io.err, "default instrument %u %.*s: table %d, runtime %d, recorded %d\n", info.id.value,
+			             static_cast<int>(info.file_name.size()), info.file_name.data(), info.default_value, value,
+			             recorded);
 			++check.disagreements;
 		}
 	}
@@ -140,9 +403,11 @@ void checkDefaults(Checker& check) {
 		int32_t value = global.getUnpatchedParamSet()
 		                    ->docForParam(*deluge::global_effectable::runtime_index(info.id))
 		                    ->current_value;
-		if (value != info.default_value) {
-			std::fprintf(check.io.err, "default global-effectable %u %.*s: table %d, runtime %d\n", info.id.value,
-			             static_cast<int>(info.file_name.size()), info.file_name.data(), info.default_value, value);
+		int32_t recorded = recordedDefault(param_defaults_reference::Table::GLOBAL_EFFECTABLE, info.id);
+		if (value != recorded || info.default_value != recorded) {
+			std::fprintf(check.io.err, "default global-effectable %u %.*s: table %d, runtime %d, recorded %d\n",
+			             info.id.value, static_cast<int>(info.file_name.size()), info.file_name.data(),
+			             info.default_value, value, recorded);
 			++check.disagreements;
 		}
 	}
@@ -175,6 +440,8 @@ int param_table_check_main(int /*argc*/, char** /*argv*/, Io io) {
 	cover("global-effectable", deluge::global_effectable::kParams, params::Kind::UNPATCHED_GLOBAL,
 	      params::UNPATCHED_GLOBAL_MAX_NUM);
 	checkCables(check);
+	checkNames(check);
+	checkEffectFragments(check);
 	checkDefaults(check);
 	std::fprintf(io.out, "%d disagreement(s)\n", check.disagreements);
 	return check.disagreements == 0 ? 0 : 3;

@@ -21,7 +21,9 @@
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/fixed/shaping/bit_depth.h"
 #include "dsp-next/fixed/shaping/sample_rate_reducer.h"
+#include "effects/param_fragment.h"
 
+#include <array>
 #include <cstdint>
 #include <limits>
 #include <span>
@@ -44,6 +46,12 @@ struct BitcrushBlock {
 /// reducer, masking its grabs one bit less, while it is.
 class Bitcrush {
 public:
+	/// @brief The bitcrush's params, in BitcrushParams order: their words are used as stored.
+	static constexpr std::array<EffectParam, 2> kParams{{
+	    {.name = "bitcrushAmount"},
+	    {.name = "sampleRateReduction"},
+	}};
+
 	/// @brief Crushes @p block in place.
 	/// @param block  The audio to crush.
 	/// @param params The block's bitcrush and sample-rate-reduction values.

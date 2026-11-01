@@ -16,6 +16,7 @@
  */
 
 #include "processing/engines/audio_engine.h"
+#include "dsp-next/fixed/curves/param_curve.h"
 #include "dsp-next/fixed/vca/pan.h"
 #include "model/fx/chain_inputs.h"
 
@@ -42,6 +43,7 @@
 #include "hid/encoder_input.h"
 #include "hid/encoders.h"
 #include "hid/led/indicator_leds.h"
+#include "instruments/deluge/params.h"
 #include "io/debug/log.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_queue.h"
@@ -68,6 +70,7 @@
 #include "modulation/patch/patch_cable_set.h"
 #include "modulation/sidechain/sidechain.h"
 #include "playback/render_requests.h"
+#include "plugin-api/types/param_mapping.h"
 #include "processing/audio_output.h"
 #include "processing/engines/cv_engine.h"
 #include "processing/metronome/metronome.h"
@@ -1300,9 +1303,9 @@ int32_t metronomeVolumePostFx() {
 	if (currentSong == nullptr) {
 		return kOneQ31;
 	}
-	return getFinalParameterValueVolume(
-	           134217728, cableToLinearParamShortcut(currentSong->paramManager.getUnpatchedParamSet()->getValue(
-	                          deluge::modulation::params::UNPATCHED_VOLUME)))
+	return deluge::dsp::fixed::curve_square(134217728, deluge::dsp::fixed::preset_combination(
+	                                                       currentSong->paramManager.getUnpatchedParamSet()->getValue(
+	                                                           deluge::modulation::params::UNPATCHED_VOLUME)))
 	       >> 1;
 }
 
@@ -2026,9 +2029,11 @@ void registerSideChainHit(int32_t strength) {
 
 PreviewVolume PreviewVolume::neutral() {
 	return {
-	    .volumePostFX = getParamFromUserValue(params::GLOBAL_VOLUME_POST_FX, kDefaultSoundVolumeUserValue),
+	    .volumePostFX =
+	        deluge::plugin::find_param(deluge::instrument::kParams, deluge::instrument::param::kVolumePostFX)
+	            ->default_value,
 	    .localVolume = 0,
-	    .velocityCableDepth = getParamFromUserValue(params::PATCH_CABLE, kSampleDrumVelocityCableUserValue),
+	    .velocityCableDepth = cableDepthFromPreset(kSampleDrumVelocityCableUserValue),
 	    .velocityCablePolarity = PatchCable::getDefaultPolarity(PatchSource::VELOCITY),
 	};
 }

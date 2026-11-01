@@ -271,7 +271,7 @@ describe matrix_compiler_spec("the matrix compiler", ${
 	it("sets every param's chain, curve and hybrid flag as the params' enum regions did", _{
 		int32_t differing = 0;
 		for (int32_t p = 0; p < params::kNumParams; ++p) {
-			differing += (chain_of(p) != region_chain(p) || curve_of(p) != region_curve(p) || is_bipolar(p) != region_bipolar(p)) ? 1 : 0;
+			differing += (chain_of(p) != region_chain(p) || curve_of(p) != region_curve(p) || is_patching_bipolar(p) != region_bipolar(p)) ? 1 : 0;
 		}
 		expect(differing).to_equal(0);
 	});

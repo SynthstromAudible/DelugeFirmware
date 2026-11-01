@@ -21,7 +21,6 @@
 // sanitizer sees the same two's-complement result.
 
 #include "util/fixedpoint.h"
-#include "util/param_functions.h"
 
 #include <cstdint>
 

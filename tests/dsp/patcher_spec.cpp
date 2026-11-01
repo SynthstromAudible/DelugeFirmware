@@ -12,7 +12,7 @@
 #include "patch_cases.h"
 
 #include "synth/modulation/cable_depth.h"
-#include "util/param_functions.h"
+#include "util/fixedpoint.h"
 
 #include <array>
 #include <cppspec.hpp>
