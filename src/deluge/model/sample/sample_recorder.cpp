@@ -297,9 +297,25 @@ gotError:
 	return Error::NONE;
 }
 
+StereoFloatSample SampleRecorder::getInputLevels() {
+	// The audio routine only touches the pending levels between calls to this (it isn't run from an interrupt), so
+	// there's no need to guard against it updating them part-way through
+	if (pendingLevelNumSamples > 0) {
+		approxRMSLevel =
+		    envelopeFollower.calcApproxRMSFromMeans(pendingPeakMeanL, pendingPeakMeanR, pendingLevelNumSamples);
+		pendingPeakMeanL = 0;
+		pendingPeakMeanR = 0;
+		pendingLevelNumSamples = 0;
+	}
+	return approxRMSLevel;
+}
+
 void SampleRecorder::setRecordingThreshold(RecorderConfig config) {
 	// reset threshold recording RMS level for both channels
 	approxRMSLevel = {0.0f, 0.0f};
+	pendingPeakMeanL = 0;
+	pendingPeakMeanR = 0;
+	pendingLevelNumSamples = 0;
 
 	if (config.neverUseThreshold) {
 		D_PRINTLN("ignoring threshold");
@@ -1087,8 +1103,18 @@ doFinishCapturing:
 
 			if (measureLevels) [[unlikely]] {
 				const float numSamplesFloat = numSamplesThisCycle;
-				approxRMSLevel = envelopeFollower.calcApproxRMSFromMeans(
-				    levelSumL / numSamplesFloat, levelSumR / numSamplesFloat, numSamplesThisCycle);
+				const float meanL = levelSumL / numSamplesFloat;
+				const float meanR = levelSumR / numSamplesFloat;
+				if (thresholdRecording) {
+					// needed right away, to decide whether to trigger
+					approxRMSLevel = envelopeFollower.calcApproxRMSFromMeans(meanL, meanR, numSamplesThisCycle);
+				}
+				else {
+					// only needed for display, so leave the envelope maths to getInputLevels()
+					pendingPeakMeanL = std::max(pendingPeakMeanL, meanL);
+					pendingPeakMeanR = std::max(pendingPeakMeanR, meanR);
+					pendingLevelNumSamples += numSamplesThisCycle;
+				}
 			}
 
 			// if we're threshold recording and didn't detect audio in previous cycles
