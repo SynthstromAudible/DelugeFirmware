@@ -1,0 +1,79 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 372.5 428"><defs><path id="09-audio__12-waveform-view-detailed-audio-editing--1-s1" d="M0 0H33.2" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.000015,.000015" stroke-linejoin="round" fill="none" stroke="currentColor"/></defs>
+<defs>
+<clipPath id="09-audio__12-waveform-view-detailed-audio-editing--1-clip_1">
+<path transform="matrix(1,0,0,-1,-44.6,560.3)" d="M44.6 132.3H417.1V560.3H44.6Z" clip-rule="evenodd"/>
+</clipPath>
+<clipPath id="09-audio__12-waveform-view-detailed-audio-editing--1-clip_2">
+<path transform="matrix(1,0,0,-1,-44.6,560.3)" d="M94.4 574.5H154.9V595.9H94.4Z" clip-rule="evenodd"/>
+</clipPath>
+<clipPath id="09-audio__12-waveform-view-detailed-audio-editing--1-clip_3">
+<path transform="matrix(1,0,0,-1,-44.6,560.3)" d="M82.4 243.7H154.5V554.2H82.4Z" clip-rule="evenodd"/>
+</clipPath>
+<mask id="09-audio__12-waveform-view-detailed-audio-editing--1-mask_4">
+<g transform="matrix(.10926901,0,0,.109269,37.6,5.9)">
+<image id="09-audio__12-waveform-view-detailed-audio-editing--1-image_5" width="663" height="2845" xlink:href="/guidebook/img/09-audio__12-waveform-view-detailed-audio-editing--1-1.webp"/>
+</g>
+</mask>
+</defs>
+<g>
+<g clip-path="url(#09-audio__12-waveform-view-detailed-audio-editing--1-clip_1)">
+<path transform="matrix(1,0,0,-1,-44.6,560.3)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M424.8 688.6V84.1"/>
+<use href="#09-audio__12-waveform-view-detailed-audio-editing--1-s1" transform="matrix(1 0 0 -1 110.6 20.6)"/>
+<use href="#09-audio__12-waveform-view-detailed-audio-editing--1-s1" transform="matrix(1 0 0 -1 110.6 99.6)"/>
+<use href="#09-audio__12-waveform-view-detailed-audio-editing--1-s1" transform="matrix(1 0 0 -1 110.6 138)"/>
+<use href="#09-audio__12-waveform-view-detailed-audio-editing--1-s1" transform="matrix(1 0 0 -1 110.6 61.4)"/>
+<use href="#09-audio__12-waveform-view-detailed-audio-editing--1-s1" transform="matrix(1 0 0 -1 110.6 176.9)"/>
+<use href="#09-audio__12-waveform-view-detailed-audio-editing--1-s1" transform="matrix(1 0 0 -1 110.6 215.3)"/>
+<use href="#09-audio__12-waveform-view-detailed-audio-editing--1-s1" transform="matrix(1 0 0 -1 110.6 254.4)"/>
+<use href="#09-audio__12-waveform-view-detailed-audio-editing--1-s1" transform="matrix(1 0 0 -1 110.6 292.8)"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(53.4 393.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Sample 1 &amp; 2</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.0 402.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Representative of the synth engine and each</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(7.2 411.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">of their oscillator’s audio samples. Sample 1</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(18.1 420.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">is by default for general audio editing</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(140.7 420.4)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(146.3 19.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Waveform</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(146.3 28.6)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Opens waveform view for editing visually as well as by ear. Audio</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(146.3 37.6)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">sample is presented on the grid pads.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(146.3 99.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Browse</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(146.3 108.9)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">File browser utility to access and load audio samples.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(146.3 137.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Record</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(146.3 146.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Recorder to directly record in samples</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(272.6 146.1)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(146.3 59.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Interpolation *</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(146.3 68.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Sample interpolation method used for</tspan></text>
+<text fill="color-mix(in srgb, currentColor 73%, var(--gb-paper))" xml:space="preserve" transform="translate(273.1 68.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">time stretching.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(323.9 68.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Options</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(146.3 77.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">are ‘SINC’ (high quality 16-point windowed sinc) and ‘LINEAR’</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(146.3 86.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">(low quality linear interpolation).</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(146.3 173.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Pitch / Speed *</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(146.3 182.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Controls the relationship between pitch and speed for the sample.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(146.3 191.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">LINKED (changing pitch affects length) or INDEPENDENT</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(146.3 200.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">(changing pitch does not affect length).</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(146.3 215.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Speed *</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(146.3 224.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Manually time-stretches a sample to make it play faster or slower</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(146.3 233.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">without changing pitch. Not available if Loop is set to Stretch, in</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(146.3 242.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">which case speed is controlled by note length and tempo.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(146.3 255.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Reverse *</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(146.3 264.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Reverses the sample playback.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(146.3 291.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Mode REPEAT MODE*</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(146.3 300.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Once. The sample plays once, always the whole way through.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(146.3 309.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Good for drum samples.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(146.3 318.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Cut. The sample plays once, but may be cut short at the end of</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(146.3 327.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">the “note” causing the sound to stop.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(146.3 336.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Loop. The sample loops indefinitely until the “note” ends</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(146.3 345.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Stretch. the sample is time-stretched to the length of the note.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(146.3 354.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Good for samples that contain pre-made beats.</tspan></text>
+<g clip-path="url(#09-audio__12-waveform-view-detailed-audio-editing--1-clip_2)">
+</g>
+<path transform="matrix(1,0,0,-1,-44.6,560.3)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.000015,.000015" stroke-linejoin="round" fill="none" stroke="currentColor" d="M103.1 239.3V213.8H137.4V239.3"/>
+<path transform="matrix(1,0,0,-1,-44.6,560.3)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.000015,.000015" stroke-linejoin="round" fill="none" stroke="currentColor" d="M120.5 213.8V177.4"/>
+<g clip-path="url(#09-audio__12-waveform-view-detailed-audio-editing--1-clip_3)">
+<g mask="url(#09-audio__12-waveform-view-detailed-audio-editing--1-mask_4)">
+<g transform="matrix(.10926901,0,0,.109269,37.6,5.9)">
+<image class="gb-ink" id="09-audio__12-waveform-view-detailed-audio-editing--1-image_6" width="663" height="2845" xlink:href="/guidebook/img/09-audio__12-waveform-view-detailed-audio-editing--1-2.webp"/>
+</g>
+</g>
+</g>
+</g>
+</g>
+</svg>

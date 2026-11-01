@@ -1,0 +1,70 @@
+---
+title: "3.9 Clip Length & Position"
+description: "Default clip length is 1 bar."
+sidebar:
+  order: 8
+banner:
+  content: "From the Deluge Manual – Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+guidebook:
+  section: "3.9"
+  chapter: 3
+  pdfPages: [68, 69]
+  printedPages: [62, 63]
+  firmware: "C1.0.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import StepFocus from "../../../../components/guidebook/StepFocus.astro"
+import { Steps } from "@astrojs/starlight/components"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_3_9_1 from "../../../../assets/guidebook/figs/03-sequencing__09-clip-length-position--1.svg?raw"
+import fig_fig_3_9_2 from "../../../../assets/guidebook/figs/03-sequencing__09-clip-length-position--2.svg?raw"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+Default clip length is 1 bar. This however can be changed which will extend the sequence beyond the grid in focus. This can be navigated using the scroll and zoom features. Automatic extending of clips will take place if recorded to a blank clip (no notes or sounds).
+
+<StepFocus />
+
+### Adjusting clip length
+
+<Steps>
+
+1. Press :key[Shift + Turn Horizontal] control to adjust the clip length. Clockwise to increase length. Anti-clockwise to reduce clip length.
+   - The display will show the length in bars : beats : 16th notes.
+   - The column pads on the grid will also indicate the clip length by illuminating dim grey for columns outside of the length. The grid columns within the length will be unlit / off.
+   - Automatic scrolling will take place if the length is extended further beyond the right side columns. Automatic zooming will take place when clip length is reduced less than half of the grid. 16th note examples:
+
+</Steps>
+
+<Figure
+  id="fig-3.9-1"
+  animate="playhead"
+  src={fig_fig_3_9_1}
+  alt={
+    "Pad grid: 0:2:0 16th grid reduced to half the length. 0:3 0 16th grid reduced to 12 steps, 3/4 length. 0:2:2 16th grid at 10 steps, bar 1, beats 2…"
+  }
+  page={62}
+/>
+
+### Duplicating pattern contents - multiply clip length
+
+<Steps>
+
+1. Press :key[Shift + Horizontal] to duplicate the clip length once and associated pattern.
+   - Automatic zooming out will take place when clip length is increased. The grid resolution time division may automatically change for example from 16th to 8th notes.
+   - Multiplying again will therefore ‘double’ the 8th note view.
+   - Zoom can be restored and scrolling to view across the entire grid if required.
+   - Any iteration dependance settings may be automatically changed when duplicating / multiplying in order to retain the same sounds as the original clip.
+
+</Steps>
+
+<Figure
+  id="fig-3.9-2"
+  src={fig_fig_3_9_2}
+  alt={
+    "Diagram: [SHIFT] + press (SCROLL◄►) Grid sequence pattern is duplicated to extend the entire sequence length. Press (SCROLL▼▲) + turn (SCROLL◄►)…"
+  }
+  page={63}
+/>

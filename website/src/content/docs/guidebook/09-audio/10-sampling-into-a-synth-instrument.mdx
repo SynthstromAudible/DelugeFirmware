@@ -1,0 +1,99 @@
+---
+title: "9.10 Sampling into a Synth Instrument"
+description: "Audio can be sampled directly or loaded into a synth as an oscillator source waveform thus enabling creation of melodic instruments."
+sidebar:
+  order: 9
+banner:
+  content: "From the Deluge Manual – Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+guidebook:
+  section: "9.10"
+  chapter: 9
+  pdfPages: [218, 219, 220, 221, 222]
+  printedPages: [212, 213, 214, 215, 216]
+  firmware: "C1.0.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import StepFocus from "../../../../components/guidebook/StepFocus.astro"
+import { Steps } from "@astrojs/starlight/components"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+Audio can be sampled directly or loaded into a synth as an oscillator source waveform thus enabling creation of melodic instruments. The recorder is accessible from within the sound editor or using grid shortcuts.
+
+<StepFocus />
+
+### Loading an audio sample into a synth
+
+<Steps>
+
+1. :key[Shift + Synth] to create a new synth clip in :key[Clip] view. Default is square wave, single oscillator with no filters or effects.
+2. :key[Audition Pad + Load].
+3. The load options for note range will be offered:
+   - BOTTOM-TO-TOP. Audio will be mapped across all notes. This is the default setting and used where a single sample can authentically be mapped over a wide note range.
+4. Press :key[Select] to confirm selection.
+5. The file browser will open. The most recent recording will be offered or file options. Navigate to the selected audio file. :key[Turn Select] to navigate across folders and files and :key[BackUndo] to back up, press :key[Select] to drill down into menus.
+6. Select a single sample file to load.
+7. Press :key[Select] when audio sample is in-focus to load.
+8. The audio file replaces the synth oscillator waveform and will be mapped based on the range set. Pressing :key[Audition Pad] pads or keyboard will play automatically tuned to the correct notes.
+
+</Steps>
+
+### Loading multisamples into a synth
+
+<Steps>
+
+1. :key[Shift + Synth] to create a new synth clip in :key[Clip] view. Default is square wave, single oscillator with no filters or effects.
+2. :key[Audition Pad + Load].
+3. The load options for note range will be offered:
+   - BOTTOM-TO-TOP. Audio will be mapped across all notes. This is the default setting and used where a single sample can authentically be mapped over a wide note range.
+4. Press :key[Select] to confirm selection.
+5. The file browser will open. The most recent recording will be offered or file options. Navigate to the selected audio file. :key[Turn Select] to navigate across folders and files and :key[BackUndo] to back up, press :key[Select] to drill down into menu’s.
+6. Select the folder containing the multiple samples to load.
+7. Press & hold :key[Select] when the folder is in-focus until the context sub-menu appears.
+8. :key[Turn Select] to choose MULTISAMPLES in-focus. Then press :key[Select].
+9. The samples will be loaded and pitch automatically detected. They will be mapped across the note range, even filling in gaps if the sample set for the range isn't complete. Pressing :key[Audition Pad] pads will play matched to the correct notes.
+10. Range is displayed.
+
+</Steps>
+
+### Recording an audio sample into a synth
+
+<Steps>
+
+1. Input will be line-in or mic (external or Internal). The mic gain can be changed on the input switch.
+2. Press :key[Shift + Synth] from clip view to create a blank synth.
+3. Press :key[Select] to open synth settings.
+4. :key[Turn Select] and with oscillator 1 or 2 selected, press :key[Select].
+5. :key[Turn Select] to choose ‘RECORD AUDIO’ and press :key[Select].
+6. The recording options for note range will be offered:
+   - BOTTOM-TO-TOP. Audio will be mapped across all notes. This is the default setting and used where a single sample can authentically be mapped over a wide note range.
+7. Press :key[Select] to confirm selection and start recording. Record button illuminates flashing red and the display indicates ‘RECORDING’ to indicate that recording has started.
+8. Press :key[Record] to end recording. Recording ends and is normalised.
+9. The recording is assigned to the oscillator.
+10. Press :key[Audition Pad] pads to play back the sample range.
+
+</Steps>
+
+### Adjusting multisample note ranges
+
+<Steps>
+
+1. Select :key[Synth] in :key[Clip] View where a multi-sampled range of samples have been loaded to the synth.
+2. Press :key[Shift + Browse Pad] shortcut to open browser.
+3. The range will be displayed in the format “A2-D2”, meaning that the range covers the notes A2 to D2, inclusive of those notes. “BOT” and “TOP” are used to inform that the range applies all the way to the bottom or the top.
+4. :key[Turn Horizontal] to select the upper or lower note of the band. The selected note will flash.
+5. :key[Turn Select] to adjust the note upper / lower band in focus. Neighbouring boundaries will change as needed to accommodate the change.
+6. :key[Shift + Turn Select] clockwise to insert a new range above the currently selected one. :key[Shift + Turn Select] anti-clockwise to create a new range below the currently selected one. Band in-focus will indicate flashing.
+7. :key[Shift + Save] to delete the currently selected range.
+
+</Steps>
+
+#### About sample pitch detection
+
+The Deluge automatically detects the pitch of all samples loaded into “synth” instruments, using this information to set up multi-sample note-ranges and adjust transpose so that the correct pitches are played.
+
+The Deluge’s pitch detection algorithm gets good results on its own, but will then also compare its results to the sample files’ names. If it realises that its pitch detection has got the samples in the wrong order, it will re-evaluate the pitches. For this reason, it’s a good idea to have your samples named alphabetically from low notes to high notes. Numbers and note names are taken into account when looking at the order - e.g. the Deluge knows that “B#2” comes before “A3”, and that “Eb comes before “E”. Only the ordering of the files is important though - the Deluge does not read the actual note names - just looks at the files’ ordering and then uses its pitch detection for the rest.
+
+Some .wav and .aiff files contain tags explicitly stating what note the file contains a sample of. Where these tags are present, they will override the Deluge’s own pitch detection.

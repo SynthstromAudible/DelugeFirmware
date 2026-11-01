@@ -1,0 +1,68 @@
+---
+title: "6.3 Envelopes and Low Frequency Oscillators"
+description: "Envelopes are used to shape the sound typically over one cycle of the envelope."
+sidebar:
+  order: 2
+banner:
+  content: "From the Deluge Manual – Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+guidebook:
+  section: "6.3"
+  chapter: 6
+  pdfPages: [146, 147]
+  printedPages: [140, 141]
+  firmware: "C1.0.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_6_3_1 from "../../../../assets/guidebook/figs/06-modulation__03-envelopes-and-low-frequency-oscillators--1.svg?raw"
+import fig_fig_6_3_2 from "../../../../assets/guidebook/figs/06-modulation__03-envelopes-and-low-frequency-oscillators--2.svg?raw"
+import fig_fig_6_3_3 from "../../../../assets/guidebook/figs/06-modulation__03-envelopes-and-low-frequency-oscillators--3.svg?raw"
+import fig_fig_6_3_4 from "../../../../assets/guidebook/figs/06-modulation__03-envelopes-and-low-frequency-oscillators--4.svg?raw"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+Envelopes are used to shape the sound typically over one cycle of the envelope. ENV1 controls volume amplitude by default. In addition it can be patched to other parameters. ENV2 has freely assignable destinations. The envelopes are traditional ADSR (attack, decay, sustain, release) type.
+
+<Figure
+  id="fig-6.3-1"
+  src={fig_fig_6_3_1}
+  alt={
+    "Diagram: Note ON Note OFF Mod depth 25 ATTACK DECAY SUSTAIN RELEASE (time) (time) (level) (time) ENV1 ATTACK ENV1 SUSTAIN 30 25 ENV1 DECAY ENV1…"
+  }
+  page={140}
+/>
+
+When either of the 2 envelopes modulate a parameter other than volume level, it does so with a 'bipolar' behaviour. This means that when the sustain is set to 25 (default for ENV2), that stage of the envelope will match the current setting of the target parameter without modulation. Sustain settings below 25 will then modulate the parameter lower than its current setting, also determined by mod depth. Bipolar behaviour affects all stages of the envelope but is most important when considering sustain level settings, as the others are time based.
+
+The LFO is a continuous modulation function. Wave options are Sine, Saw, Square or Triangle. LFO1 has an additional SYNC parameter to set a sync time interval or switch off. LFO1 does not retrigger and covers all voices. LFO2 is retriggerable and exists for each voice separately.
+
+Triangle Sine
+
+<Figure
+  id="fig-6.3-2"
+  src={fig_fig_6_3_2}
+  alt={"Diagram: AMPLITUDE TIME TIME"}
+  page={141}
+/>
+
+Sawtooth Square
+
+<Figure
+  id="fig-6.3-3"
+  src={fig_fig_6_3_3}
+  alt={"Diagram: AMPLITUDE TIME TIME"}
+  page={141}
+/>
+
+Sample & Hold Random Walk
+
+<Figure
+  id="fig-6.3-4"
+  src={fig_fig_6_3_4}
+  alt={
+    "Diagram: AMPLITUDE AMPLITUDE TIME TIME Random unique value on each trigger. Start on zero and takes small incremental steps walking up / down from…"
+  }
+  page={141}
+/>

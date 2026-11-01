@@ -1,0 +1,84 @@
+---
+title: "4.1 Synthesizer Concepts"
+description: "Deluge features subtractive, FM and wavetable synthesis with many customisable options."
+sidebar:
+  order: 0
+banner:
+  content: "From the Deluge Manual – Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+guidebook:
+  section: "4.1"
+  chapter: 4
+  pdfPages: [90, 91, 92]
+  printedPages: [84, 85, 86]
+  firmware: "C1.0.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_4_1_1 from "../../../../assets/guidebook/figs/04-synthesizers__01-synthesizer-concepts--1.svg?raw"
+import fig_fig_4_1_2 from "../../../../assets/guidebook/figs/04-synthesizers__01-synthesizer-concepts--2.svg?raw"
+import fig_fig_4_1_3 from "../../../../assets/guidebook/figs/04-synthesizers__01-synthesizer-concepts--3.svg?raw"
+import fig_fig_4_1_4 from "../../../../assets/guidebook/figs/04-synthesizers__01-synthesizer-concepts--4.svg?raw"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+Deluge features subtractive, FM and wavetable synthesis with many customisable options. Some generic synthesis concepts are explained below.
+
+#### Subtractive Synthesis
+
+Subtractive synthesis operates on the principle of one or more oscillators which generate a tone with harmonic content dependant on the wave shape and type. Harmonic frequencies are then ‘carved out’ using filters to subtract various elements from the signal. This affects the timbre and sound. Additional sound shaping with envelopes, modulation and effects enables more complex sound design.
+
+<Figure
+  id="fig-4.1-1"
+  src={fig_fig_4_1_1}
+  alt={
+    "Diagram: ENVELOPE and / ENVELOPE and / or MODULATION or MODULATION INPUT OSCILLATOR FILTER AMP OUTPUT One or more oscillators The audio signal…"
+  }
+  page={84}
+/>
+
+The basic subtractive concepts are shown in the diagram with many synthesizers expanding these concepts with more complex layering, synchronisation and tuning of oscillators, complex waveforms and noise generators, filters, modulation, effects and more.
+
+FM Synthesis generates sounds which are often described as metallic or bell-like. The generic concepts of FM Synthesis are explained.
+
+#### FM Synthesis
+
+FM (frequency modulation) synthesis operates on the principle of an oscillator or “operator” generating an initial, basic wave known as the carrier. This then has its frequency rapidly modulated by an additional wave/oscillator known as the modulator. The exact configuration of, at times many carriers and modulators, is called an algorithm. Technically FM synthesis is just very fast vibrato - so fast that the modulation of frequency occurs at a rate which is itself in the “audio range”.
+
+<Figure
+  id="fig-4.1-2"
+  src={fig_fig_4_1_2}
+  alt={"Diagram: Modulator Feedback Frequency Pitch Feedback Carrier"}
+  page={85}
+/>
+
+By rapidly modulating the frequency of a wave, whole new repeating wave shapes are created.
+
+<Figure
+  id="fig-4.1-3"
+  src={fig_fig_4_1_3}
+  alt={"Diagram: figure from guidebook page 85"}
+  page={85}
+/>
+
+Amplitude modulation can be carried out by other modulation devices such as LFO’s. Amplitude modulation can be found in many types of synthesizer.
+
+The third synthesizer type in Deluge is wavetable synthesis.
+
+#### Wavetable Synthesis
+
+Wavetable synthesizers uses a collection of wave assembled into a package of wavetables. While subtractive synthesis uses a core wave-shape as its audio source, wavetable synthesizers use wavetables as the audio source. The key benefit bing the ability to navigate parts of the wavetable to generate different timbres and sounds. This is essentially the synth oscillator.
+
+Wavetables are navigated to specific wave parts which form the synth oscillator audio source.
+
+<Figure
+  id="fig-4.1-4"
+  src={fig_fig_4_1_4}
+  alt={
+    "Diagram: OSCILLATOR ENVELOPE and / ENVELOPE and / or MODULATION or MODULATION INPUT FILTER AMP OUTPUT levels can be set. Filters shape the sound by…"
+  }
+  page={86}
+/>
+
+The basic wavetable synthesis concepts are shown in the diagram. The core components are the wavetables as a source, typically generated from single cycles, and the ability to navigate the wavetable. Most other features and synth specific and often similar to subtractive synthesis.

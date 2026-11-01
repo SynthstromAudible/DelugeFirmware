@@ -1,0 +1,191 @@
+---
+title: "2.1 Factory Library"
+description: "The Deluge is supplied with a formatted SD card loaded with the factory library."
+sidebar:
+  order: 0
+banner:
+  content: "From the Deluge Manual – Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+guidebook:
+  section: "2.1"
+  chapter: 2
+  pdfPages: [18, 19, 20, 21]
+  printedPages: [12, 13, 14, 15]
+  firmware: "C1.0.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import Figure from "../../../../components/guidebook/Figure.astro"
+import { FileTree } from "@astrojs/starlight/components"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+The Deluge is supplied with a formatted SD card loaded with the factory library. Samples are streamed directly from the SD card when in use, making it an integral part of the device. Ensure the card is inserted in Deluge when in use.
+
+<Figure
+  id="fig-2.1-1"
+  img="/guidebook/img/02-basic-operation__01-factory-library--1.webp"
+  width={135}
+  alt={"Photo: figure from guidebook page 12"}
+  page={12}
+/>
+
+SD CARD Formatted to FAT32. Any size card can be used. Factory library is held on the SD Card.
+
+Insert the SD card with the power on or off and the card ‘pins’ facing up.
+
+#### File Structure
+
+Deluge’s SD card contains the presets for kits and synths in XML format which stores the parameter settings and for kits points to the specific samples used.
+
+<FileTree>
+
+- KITS/
+  - 000 TR-808.XML Kit presets
+  - …
+  - 042 Phil Elverum.XML
+- SONGS/ User songs. Folder initially empty
+- SYNTHS/
+  - 000 Rich Saw Bass.XML Synth presets
+  - …
+  - 170 Sitar.XML
+- SAMPLES/
+  - ARTISTS/ Supplied artist samples
+  - CLIPS/ User files. Temp folder\*
+  - DRUMS/ Supplied drum samples
+  - RECORD/ User files. Folder initially empty
+  - RESAMPLE/ User files. Folder initially empty
+
+</FileTree>
+
+\*TEMP Sub folder within CLIPS is managed by the system and is not accessible directly within Deluge.
+
+#### Synth Presets ver 2.1
+
+<details>
+<summary>Show table (88 rows)</summary>
+
+| #   | Name                      | Artist           | #   | Name                        | Artist          |
+| --- | ------------------------- | ---------------- | --- | --------------------------- | --------------- |
+| 0   | Rich Saw Bass             |                  | 44  | 8-Bit Lead                  |                 |
+| 1   | Sync Bass                 |                  | 45  | Square Sync                 |                 |
+| 2   | Basic Square Bass         |                  | 46  | Saw Sync                    |                 |
+| 3   | Synthwave Bass            | Marcel Bellve    | 47  | Basic Dirty Bass            |                 |
+| 4   | Dubby Bass                |                  | 48  | Thin Pulse Bass             |                 |
+| 5   | Sweet Mono Bass           | Marcel Bellve    | 49  | Basic FM                    |                 |
+| 6   | Vaporwave Bass            |                  | 50  | FM Basic Bass               |                 |
+| 7   | Detuned Saw Bass          |                  | 51  | FM Rich Bass                |                 |
+| 8   | FM Rich Distorted Bass    |                  | 52  | Soft Synth                  |                 |
+| 9   | Hoover Bass               |                  | 53  | Detuned FM Horns 3          |                 |
+| 10  | Gravel Basscamp           | NJM              | 54  | Ghostly Sines 6             |                 |
+| 11  | Dubstep Bass              | Guilherme Gomes  | 55  | FM Theremin 6               |                 |
+| 12  | Blunt Sync Bass           |                  | 56  | FM Bell Modulation 10       |                 |
+| 13  | Trap Bass 1               |                  | 57  | FM Lead                     |                 |
+| 14  | Trap Bass 2               | Steve Swisher    | 58  | FM Rising Attack            |                 |
+| 15  | Resonant Filter Bass      |                  | 59  | Distorted Guitar Lead       |                 |
+| 16  | Dark Saturated Bass       | Marcel Bellve    | 60  | Bass Guitar                 |                 |
+| 17  | Impact Saw Lead           |                  | 61  | Blown / Staccato / Panpipes | Marcel Bellve   |
+| 18  | Rich Saw Lead             |                  | 62  | Trumpet                     |                 |
+| 19  | Fizzy Strings             | Marcel Bellve    | 63  | Tuba                        |                 |
+| 20  | Soft Saw Lead             |                  | 64  | Reeds / Flute / Oboe        | Marcel Bellve   |
+| 21  | 80’s TV Lead              |                  | 65  | Cello                       |                 |
+| 22  | Rich Filter LFO Lead      |                  | 66  | Violin                      |                 |
+| 23  | Analog Mono Wow           | Marcel Bellve    | 67  | Marimba                     |                 |
+| 24  | Warble Bass Pluck         | Marcel Bellve    | 68  | FM Bells 1                  |                 |
+| 25  | Soft Synth Organ          |                  | 69  | FM Bells 2                  |                 |
+| 26  | PW Organ                  |                  | 70  | Glockenspiel                |                 |
+| 27  | PW Envelope               |                  | 71  | Rhodes                      |                 |
+| 28  | PWM                       |                  | 72  | Kyoto Phono                 | NJM             |
+| 29  | Chiptune Trill            | Stephen Scofield | 73  | Piano                       |                 |
+| 30  | Distant Porta             | Luke Rowell      | 74  | Electric Piano              |                 |
+| 31  | Nasal Choir               |                  | 75  | Electric Piano with Strings |                 |
+| 32  | Bandpass Choir            |                  | 76  | Organ                       |                 |
+| 33  | Rich Square               |                  | 77  | FM Perc / Organ             | Matt Bairstow   |
+| 34  | Square Choir              | Ron Cavagnaro    | 78  | House 1                     |                 |
+| 35  | Bell Lead & Bass          | Guilherme Gomes  | 79  | Phased Arper                | Jeremy Blake    |
+| 36  | Analog Ambient Square     | Marcel Bellve    | 80  | House 2                     |                 |
+| 37  | Echo Chord                | Jeremy Blake     | 81  | Xylophone Big Bass          | Guilherme Gomes |
+| 38  | Vapor Arp                 | Joey Esposito    | 82  | Short Sharp Delay           |                 |
+| 39  | Detuned Retriggering Saws |                  | 83  | Dark Chorus                 |                 |
+| 40  | Spacer Leader             | NJM              | 84  | FM Narrow Band              |                 |
+| 41  | Zithar - Vibed            | Marcel Bellve    | 85  | Deep Fizz                   | Jani Hakala     |
+| 42  | High Triangle             |                  | 86  | Techno Organ                | Pawel Czubak    |
+| 43  | Square Porta              |                  | 87  | Define Leader               | NJM             |
+
+Synth Presets ver 2.1 (cont)
+
+| #   | Name                       | Artist          | #   | Name                    | Artist            |
+| --- | -------------------------- | --------------- | --- | ----------------------- | ----------------- |
+| 88  | Yelp Chords                | Matt Bairstow   | 132 | Organ Strings           |                   |
+| 89  | Degraded Retro Lead        | Jeremy Blake    | 133 | 80s Strings             | Guilherme Gomes   |
+| 90  | FM Organ                   |                 | 134 | Melody Strings          | Ron Rapprich      |
+| 91  | FM Ricochet                |                 | 135 | Soothing Growth Pad     | Stephen Scofield  |
+| 92  | Degraded Tremolo           |                 | 136 | Synthwave Pad           | Marcel Bellve     |
+| 93  | FM Distorted Bells         |                 | 137 | Epic Saw Modulation Pad | Marcel Bellve     |
+| 94  | Ambient Occlusion Lead     | Jeremy Blake    | 138 | Brassy Pad              |                   |
+| 95  | Harsh FM Feedback          |                 | 139 | Detuned Saw Pad         |                   |
+| 96  | FM Guitar Power Chord      |                 | 140 | Slow Aural Swells       | Daniel Stern      |
+| 97  | Saturated Filter           |                 | 141 | Ringmod Pad             |                   |
+| 98  | Saturated Sync             |                 | 142 | Phaser                  |                   |
+| 99  | Overdrive Reese Sync       | Pawel Czubak    | 143 | Chillout Pad            | Ron Rapprich      |
+| 100 | Noise Lead                 | Matt Bairstow   | 144 | Sweep Chords            | Matt Bairstow     |
+| 101 | Atebit                     | Jani Hakala     | 145 | Eerie High Pad          |                   |
+| 102 | Harsh 5th                  |                 | 146 | Atmosphere Squares Pad  | Brad Antone       |
+| 103 | Sci-Fi Chaos               | NJM             | 147 | Resonant Filter Pad     | Brad Antone       |
+| 104 | Alien Vomit                |                 | 148 | Warm 5th Pad            |                   |
+| 105 | Attack Bass                | Pawel Czubak    | 149 | Cold 5th Pad            | Travis Hampton    |
+| 106 | Hang Drum                  | Marcel Bellve   | 150 | Vaporwave Pad           | Jeremy Blake      |
+| 107 | FM LPG Percussion          | Neil Baldwin    | 151 | Radiant FM Pad          |                   |
+| 108 | Robo Arp                   | Marcel Bellve   | 152 | Small Jet Pad           | NJM               |
+| 109 | Talking Arp                | Marcel Bellve   | 153 | FM Modulation Pad       | Ron Rapprich      |
+| 110 | Crystalline Ringmod        | Brad Antone     | 154 | Rich FM Pad 1           |                   |
+| 111 | Satellite Drum             | Franz Keller    | 155 | Rich FM Pad 2           |                   |
+| 112 | Hard Tech Beat             | Franz Keller    | 156 | Rich FM Pad 3           |                   |
+| 113 | Bio Lab                    | Franz Keller    | 157 | Rich FM Pad 4           |                   |
+| 114 | Sootheerio                 | Jani Hakala     | 158 | Tempo-Synced LFO        |                   |
+| 115 | Sounds Like After Take Off | Daniel Stern    | 159 | 80s Bass Rhythm         | Stephen Scofield  |
+| 116 | Evolving Frequencies       | Daniel Stern    | 160 | Synthwave Bass Arp      | Marcel Bellve     |
+| 117 | Belledy                    | Jani Hakala     | 161 | Synthwave Vibrato Arp   | Marcel Bellve     |
+| 118 | Small Bridge Pad           | NJM             | 162 | Busy Arp                | Marcel Bellve     |
+| 119 | Stars Of The Bin Pad       | Jeremy Blake    | 163 | Crisp Pop Arp           | Marcel Bellve     |
+| 120 | High Harsh Pad             | Marcel Bellve   | 164 | Study Arp               | NJM               |
+| 121 | Tiny Lights                | Michael Bath    | 165 | Acid Arp                |                   |
+| 122 | Majestic Synth Orchestra   | Franz Keller    | 166 | Harpsichord Cyborg      | Franz Keller      |
+| 123 | Space Dust                 |                 | 167 | FM Metallic Bass Arp    | Pawel Czubak      |
+| 124 | Filter Modulation Pad      |                 | 168 | Hang Drum               | Leonard Ludvigsen |
+| 125 | Evolving Pad               | Guilherme Gomes | 169 | Double Bass             | Leonard Ludvigsen |
+| 126 | Dark FM Pad                |                 | 170 | Sitar                   | Michael Bulaw     |
+| 127 | Alien Larvae               |                 |     |                         |                   |
+| 128 | Lunar Landing              | Brad Antone     |     |                         |                   |
+| 129 | Sci-fi Scenic              | Brad Antone     |     |                         |                   |
+| 130 | Dark Strings               | Guilherme Gomes |     |                         |                   |
+| 131 | Warm Strings               |                 |     |                         |                   |
+
+</details>
+
+Kit Presets ver 2.1
+
+| #   | Kit       | Artist Kit              | #   | Kit | Artist Kit                   |
+| --- | --------- | ----------------------- | --- | --- | ---------------------------- |
+| 0   | TR-808    |                         | 21  |     | &lt;&lt;hodeur&gt;&gt;       |
+| 1   | DDD-1     |                         | 22  |     | &lt;&lt;hodeur&gt;&gt;       |
+| 2   | SDS-5     |                         | 23  |     | &lt;&lt;hodeur&gt;&gt;       |
+| 3   | TR-909    |                         | 24  |     | James R Closs                |
+| 4   | R-50      |                         | 25  |     | James R Closs                |
+| 5   | R-100     |                         | 26  |     | amiga909                     |
+| 6   | LD        |                         | 27  |     | Reciprocal Sound             |
+| 7   | HR-16B    |                         | 28  |     | Danny Taurus                 |
+| 8   | SCDT      |                         | 29  |     | Danny Taurus                 |
+| 9   | RX-5      |                         | 30  |     | Chaz Bundick                 |
+| 10  | XV-5080   |                         | 31  |     | Reuben Winter                |
+| 11  | KR-55     |                         | 32  |     | Kody Nielson                 |
+| 12  | HR-II     |                         | 33  |     | Alfred Darlington            |
+| 13  | AT Rhythm |                         | 34  |     | Travis Egedy                 |
+| 14  | CR-78     |                         | 35  |     | Sjionel Timu                 |
+| 15  |           | Andrew Stirton (Frugal) | 36  |     | Stefanie Franciotti          |
+| 16  |           | Electronisounds         | 37  |     | Stephanie Engelbrecht        |
+| 17  |           | Electronisounds         | 38  |     | Jonathan Snipes (FX)         |
+| 18  |           | Electronisounds         | 39  |     | Campbell Kneale              |
+| 18  |           | Electronisounds         | 40  |     | John Atkinson                |
+| 19  |           | Fairburg                | 41  |     | Jonathan Snipes (Waterfalls) |
+| 20  |           | Leonard Ludvigsen       | 42  |     | Phil Elverum                 |

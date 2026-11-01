@@ -1,0 +1,81 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 360.7 168.6"><defs><path id="06-modulation__04-sidechain-compressor--1-s1" d="M0 0V-37.9" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)"/><path id="06-modulation__04-sidechain-compressor--1-s2" d="M0 0V-73.7" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)"/></defs>
+<defs>
+<clipPath id="06-modulation__04-sidechain-compressor--1-clip_1">
+<path transform="matrix(1,0,0,-1,-45.5,592.6)" d="M45.5 423.9H406.2V592.6H45.5Z" clip-rule="evenodd"/>
+</clipPath>
+</defs>
+<g clip-path="url(#06-modulation__04-sidechain-compressor--1-clip_1)">
+<path transform="matrix(1,0,0,-1,-45.5,592.6)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M424.7 688.6V84.1"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(27.3 62.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Threshold</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(166.4 160.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Audio Over Time</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(328.3 85.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Dynamic</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(331.9 93.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Range</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(258.5 33.6)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Gain</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(249.5 41.6)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Reduction</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(67.0 87.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Make Up</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(74.1 95.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Gain</tspan></text>
+<path transform="matrix(1,0,0,-1,-45.5,592.6)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M116.2 533.1H358.9"/>
+<path transform="matrix(1,0,0,-1,-45.5,592.6)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M151.2 506.7H352.2"/>
+<path transform="matrix(1,0,0,-1,-45.5,592.6)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M158.4 510.8V501.9"/>
+<path transform="matrix(1,0,0,-1,-45.5,592.6)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M162.5 512.3V501.3"/>
+<path transform="matrix(1,0,0,-1,-45.5,592.6)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M167.1 529.1V485.0"/>
+<path transform="matrix(1,0,0,-1,-45.5,592.6)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M171.2 544.4V468.3"/>
+<path transform="matrix(1,0,0,-1,-45.5,592.6)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M174.5 552.1V464.2"/>
+<path transform="matrix(1,0,0,-1,-45.5,592.6)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M178.6 552.1V458.1"/>
+<path transform="matrix(1,0,0,-1,-45.5,592.6)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M183.2 558.5V452.4"/>
+<path transform="matrix(1,0,0,-1,-45.5,592.6)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M187.3 552.1V458.8"/>
+<path transform="matrix(1,0,0,-1,-45.5,592.6)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M191.3 540.2V470.7"/>
+<path transform="matrix(1,0,0,-1,-45.5,592.6)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M195.5 536.0V475.0"/>
+<path transform="matrix(1,0,0,-1,-45.5,592.6)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M200.0 529.1V484.7"/>
+<path transform="matrix(1,0,0,-1,-45.5,592.6)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M204.1 526.3V487.2"/>
+<path transform="matrix(1,0,0,-1,-45.5,592.6)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M208.2 520.2V491.3"/>
+<path transform="matrix(1,0,0,-1,-45.5,592.6)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M212.3 518.5V493.0"/>
+<use href="#06-modulation__04-sidechain-compressor--1-s1" transform="matrix(1 0 0 -1 171.3 69.5)"/>
+<path transform="matrix(1,0,0,-1,-45.5,592.6)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M220.9 527.9V477.8"/>
+<path transform="matrix(1,0,0,-1,-45.5,592.6)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M225.0 534.8V467.2"/>
+<use href="#06-modulation__04-sidechain-compressor--1-s1" transform="matrix(1 0 0 -1 183.6 69.5)"/>
+<path transform="matrix(1,0,0,-1,-45.5,592.6)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M233.7 516.4V493.7"/>
+<path transform="matrix(1,0,0,-1,-45.5,592.6)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M237.8 511.0V503.2"/>
+<path transform="matrix(1,0,0,-1,-45.5,592.6)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M242.3 511.7V502.9"/>
+<use href="#06-modulation__04-sidechain-compressor--1-s1" transform="matrix(1 0 0 -1 200.9 69.5)"/>
+<path transform="matrix(1,0,0,-1,-45.5,592.6)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M250.5 531.2V473.3"/>
+<use href="#06-modulation__04-sidechain-compressor--1-s2" transform="matrix(1 0 0 -1 209.1 54.8)"/>
+<use href="#06-modulation__04-sidechain-compressor--1-s2" transform="matrix(1 0 0 -1 263.7 54.8)"/>
+<path transform="matrix(1,0,0,-1,-45.5,592.6)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M258.7 541.8V468.4"/>
+<path transform="matrix(1,0,0,-1,-45.5,592.6)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M313.3 542.8V460.6"/>
+<path transform="matrix(1,0,0,-1,-45.5,592.6)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M262.8 554.7V458.2"/>
+<path transform="matrix(1,0,0,-1,-45.5,592.6)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M317.4 541.8V458.2"/>
+<path transform="matrix(1,0,0,-1,-45.5,592.6)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M267.4 567.5V452.1"/>
+<path transform="matrix(1,0,0,-1,-45.5,592.6)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M322.0 533.1V464.1"/>
+<path transform="matrix(1,0,0,-1,-45.5,592.6)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M271.5 559.2V464.1"/>
+<use href="#06-modulation__04-sidechain-compressor--1-s2" transform="matrix(1 0 0 -1 280.6 54.8)"/>
+<path transform="matrix(1,0,0,-1,-45.5,592.6)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M275.5 545.3V464.1"/>
+<path transform="matrix(1,0,0,-1,-45.5,592.6)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M330.2 533.8V475.4"/>
+<path transform="matrix(1,0,0,-1,-45.5,592.6)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M279.6 523.1V482.1"/>
+<path transform="matrix(1,0,0,-1,-45.5,592.6)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M334.3 523.1V482.1"/>
+<path transform="matrix(1,0,0,-1,-45.5,592.6)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M284.2 516.9V493.9"/>
+<path transform="matrix(1,0,0,-1,-45.5,592.6)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M338.8 516.9V493.9"/>
+<path transform="matrix(1,0,0,-1,-45.5,592.6)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M288.3 512.3V501.0"/>
+<path transform="matrix(1,0,0,-1,-45.5,592.6)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M342.9 512.3V501.0"/>
+<path transform="matrix(1,0,0,-1,-45.5,592.6)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M292.4 510.0V502.6"/>
+<path transform="matrix(1,0,0,-1,-45.5,592.6)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M347.0 510.0V502.6"/>
+<path transform="matrix(1,0,0,-1,-45.5,592.6)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M296.5 510.3V502.6"/>
+<path transform="matrix(1,0,0,-1,-45.5,592.6)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M301.0 512.8V498.6"/>
+<path transform="matrix(1,0,0,-1,-45.5,592.6)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M305.1 488.5V523.1"/>
+<path transform="matrix(1,0,0,-1,-45.5,592.6)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M309.2 506.9V506.9"/>
+<path transform="matrix(1,0,0,-1,-45.5,592.6)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M313.3 506.8V506.7"/>
+<path transform="matrix(1,0,0,-1,-45.5,592.6)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M317.9 506.9V506.9"/>
+<path transform="matrix(1,0,0,-1,-45.5,592.6)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M322.0 506.8V506.7"/>
+<path transform="matrix(1,0,0,-1,-45.5,592.6)" stroke-width=".75" stroke-linecap="round" stroke-dasharray="2.2,2.2,.000015,.000015" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M253.8 569.0H371.0"/>
+<path transform="matrix(1,0,0,-1,-45.5,592.6)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M288.4 567.5V541.8"/>
+<path transform="matrix(1,0,0,-1,-45.5,592.6)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M148.1 490.1V515.9"/>
+<path transform="matrix(1,0,0,-1,-45.5,592.6)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M367.3 559.8V458.6"/>
+<path transform="matrix(1,0,0,-1,-45.5,592.6)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M288.4 534.5 291.5 541.8H285.3Z"/>
+<path transform="matrix(1,0,0,-1,-45.5,592.6)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M148.1 523.2 151.2 515.9H145.0Z"/>
+<path transform="matrix(1,0,0,-1,-45.5,592.6)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M367.3 451.3 370.4 458.6H364.2Z"/>
+<path transform="matrix(1,0,0,-1,-45.5,592.6)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M367.3 567.5 370.4 560.2H364.2Z"/>
+<path transform="matrix(1,0,0,-1,-45.5,592.6)" d="M51.4 561.2H188.1V586.7H51.4Z" fill="var(--gb-paper)"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(5.9 11.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Standard compression signal is</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(5.9 19.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">attenuated when crossing the threshold.</tspan></text>
+</g>
+</svg>

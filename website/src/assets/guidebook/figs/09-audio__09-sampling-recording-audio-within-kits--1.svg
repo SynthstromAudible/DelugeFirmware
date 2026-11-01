@@ -1,0 +1,184 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 321.3 265.3"><defs><path id="09-audio__09-sampling-recording-audio-within-kits--1-s1" d="M0 0C3.9 0 7 -3.1 7 -7 7 -10.8 3.9 -13.9 0 -13.9 -3.8 -13.9 -6.9 -10.8 -6.9 -7 -6.9 -3.1 -3.8 0 0 0Z" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)"/><path id="09-audio__09-sampling-recording-audio-within-kits--1-s2" d="M0 0C3.8 0 7 -3.1 7 -6.9 7 -10.8 3.8 -13.9 0 -13.9 -3.8 -13.9 -6.9 -10.8 -6.9 -6.9 -6.9 -3.1 -3.8 0 0 0Z" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)"/><path id="09-audio__09-sampling-recording-audio-within-kits--1-s3" d="M0 0C3.8 0 6.9 -3.1 6.9 -7 6.9 -10.8 3.8 -13.9 0 -13.9 -3.9 -13.9 -7 -10.8 -7 -7 -7 -3.1 -3.9 0 0 0Z" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)"/><path id="09-audio__09-sampling-recording-audio-within-kits--1-s4" d="M0 0V-73.7" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)"/><path id="09-audio__09-sampling-recording-audio-within-kits--1-s5" d="M0 0V-0.1" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)"/><path id="09-audio__09-sampling-recording-audio-within-kits--1-s6" d="M0 0V-8.8" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))"/><path id="09-audio__09-sampling-recording-audio-within-kits--1-s7" d="M0 0V-5.3" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))"/><path id="09-audio__09-sampling-recording-audio-within-kits--1-s8" d="M0 0V-17" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))"/><path id="09-audio__09-sampling-recording-audio-within-kits--1-s9" d="M0 0V-1.7" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))"/><path id="09-audio__09-sampling-recording-audio-within-kits--1-s10" d="M0 0V-205.6" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor"/><path id="09-audio__09-sampling-recording-audio-within-kits--1-s11" d="M0 0C0 1.5 -1.2 2.8 -2.7 2.8H-17C-18.6 2.8 -19.8 1.5 -19.8 0V-14.3C-19.8 -15.8 -18.6 -17.1 -17 -17.1H-2.7C-1.2 -17.1 0 -15.8 0 -14.3Z" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor"/></defs>
+<defs>
+<clipPath id="09-audio__09-sampling-recording-audio-within-kits--1-clip_1">
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" d="M203.1 102.7H524.4V368.0H203.1Z" clip-rule="evenodd"/>
+</clipPath>
+</defs>
+<g clip-path="url(#09-audio__09-sampling-recording-audio-within-kits--1-clip_1)">
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M170.1 688.6V84.1"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(269.5 237.8)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Kit rows</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(5.9 11.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Audition pads will be aligned, bottom up to each of the slices and when pressed will trigger the slice.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(22.7 257.8)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Lazy chop provides the ability to manually, real time slice the sample into individual slices</tspan></text>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" d="M228.2 337.9C232.1 337.9 235.2 334.8 235.2 330.9 235.2 327.1 232.1 324.0 228.2 324.0 224.4 324.0 221.3 327.1 221.3 330.9 221.3 334.8 224.4 337.9 228.2 337.9Z" fill="var(--gb-accent)" fill-rule="evenodd" data-pad="1,1" data-color="#d61d24"/>
+<use href="#09-audio__09-sampling-recording-audio-within-kits--1-s1" transform="matrix(1 0 0 -1 25.1 30.1)"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(21.6 41.0)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">1</tspan></text>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" d="M460.4 159.6C464.2 159.6 467.4 156.5 467.4 152.7 467.4 148.8 464.2 145.7 460.4 145.7 456.6 145.7 453.5 148.8 453.5 152.7 453.5 156.5 456.6 159.6 460.4 159.6Z" fill="var(--gb-accent)" fill-rule="evenodd" data-pad="9,8" data-color="#d61d24"/>
+<use href="#09-audio__09-sampling-recording-audio-within-kits--1-s2" transform="matrix(1 0 0 -1 257.3 208.4)"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(253.8 219.2)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">1</tspan></text>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" d="M252.5 337.9C256.4 337.9 259.5 334.8 259.5 330.9 259.5 327.1 256.4 324.0 252.5 324.0 248.7 324.0 245.6 327.1 245.6 330.9 245.6 334.8 248.7 337.9 252.5 337.9Z" fill="var(--gb-accent)" fill-rule="evenodd" data-pad="2,1" data-color="#d61d24"/>
+<use href="#09-audio__09-sampling-recording-audio-within-kits--1-s1" transform="matrix(1 0 0 -1 49.4 30.1)"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(46.5 41.0)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">2</tspan></text>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" d="M460.4 185.0C464.2 185.0 467.4 181.8 467.4 178.0 467.4 174.2 464.2 171.1 460.4 171.1 456.6 171.1 453.5 174.2 453.5 178.0 453.5 181.8 456.6 185.0 460.4 185.0Z" fill="var(--gb-accent)" fill-rule="evenodd" data-pad="9,7" data-color="#d61d24"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M460.4 185.0C464.2 185.0 467.4 181.8 467.4 178.0 467.4 174.2 464.2 171.1 460.4 171.1 456.6 171.1 453.5 174.2 453.5 178.0 453.5 181.8 456.6 185.0 460.4 185.0Z"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(254.4 193.9)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">2</tspan></text>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" d="M276.8 337.9C280.7 337.9 283.8 334.8 283.8 330.9 283.8 327.1 280.7 324.0 276.8 324.0 273.0 324.0 269.9 327.1 269.9 330.9 269.9 334.8 273.0 337.9 276.8 337.9Z" fill="var(--gb-accent)" fill-rule="evenodd" data-pad="3,1" data-color="#d61d24"/>
+<use href="#09-audio__09-sampling-recording-audio-within-kits--1-s1" transform="matrix(1 0 0 -1 73.7 30.1)"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(71.0 41.0)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">3</tspan></text>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" d="M460.4 210.3C464.2 210.3 467.4 207.2 467.4 203.4 467.4 199.5 464.2 196.4 460.4 196.4 456.6 196.4 453.5 199.5 453.5 203.4 453.5 207.2 456.6 210.3 460.4 210.3Z" fill="var(--gb-accent)" fill-rule="evenodd" data-pad="9,6" data-color="#d61d24"/>
+<use href="#09-audio__09-sampling-recording-audio-within-kits--1-s2" transform="matrix(1 0 0 -1 257.3 157.7)"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(254.5 168.5)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">3</tspan></text>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" d="M301.2 337.9C305.0 337.9 308.1 334.8 308.1 330.9 308.1 327.1 305.0 324.0 301.2 324.0 297.3 324.0 294.2 327.1 294.2 330.9 294.2 334.8 297.3 337.9 301.2 337.9Z" fill="var(--gb-accent)" fill-rule="evenodd" data-pad="4,1" data-color="#d61d24"/>
+<use href="#09-audio__09-sampling-recording-audio-within-kits--1-s3" transform="matrix(1 0 0 -1 98.1 30.1)"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(95.3 41.0)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">4</tspan></text>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" d="M460.4 235.7C464.2 235.7 467.4 232.6 467.4 228.7 467.4 224.9 464.2 221.8 460.4 221.8 456.6 221.8 453.5 224.9 453.5 228.7 453.5 232.6 456.6 235.7 460.4 235.7Z" fill="var(--gb-accent)" fill-rule="evenodd" data-pad="9,5" data-color="#d61d24"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M460.4 235.7C464.2 235.7 467.4 232.6 467.4 228.7 467.4 224.9 464.2 221.8 460.4 221.8 456.6 221.8 453.5 224.9 453.5 228.7 453.5 232.6 456.6 235.7 460.4 235.7Z"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(254.6 143.2)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">4</tspan></text>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" d="M325.5 337.9C329.3 337.9 332.4 334.8 332.4 330.9 332.4 327.1 329.3 324.0 325.5 324.0 321.6 324.0 318.5 327.1 318.5 330.9 318.5 334.8 321.6 337.9 325.5 337.9Z" fill="var(--gb-accent)" fill-rule="evenodd" data-pad="5,1" data-color="#d61d24"/>
+<use href="#09-audio__09-sampling-recording-audio-within-kits--1-s3" transform="matrix(1 0 0 -1 122.4 30.1)"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(119.6 41.0)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">5</tspan></text>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" d="M460.4 261.0C464.2 261.0 467.4 257.9 467.4 254.1 467.4 250.3 464.2 247.2 460.4 247.2 456.6 247.2 453.5 250.3 453.5 254.1 453.5 257.9 456.6 261.0 460.4 261.0Z" fill="var(--gb-accent)" fill-rule="evenodd" data-pad="9,4" data-color="#d61d24"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M460.4 261.0C464.2 261.0 467.4 257.9 467.4 254.1 467.4 250.3 464.2 247.2 460.4 247.2 456.6 247.2 453.5 250.3 453.5 254.1 453.5 257.9 456.6 261.0 460.4 261.0Z"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(254.5 117.8)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">5</tspan></text>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" d="M349.8 337.9C353.6 337.9 356.7 334.8 356.7 330.9 356.7 327.1 353.6 324.0 349.8 324.0 345.9 324.0 342.8 327.1 342.8 330.9 342.8 334.8 345.9 337.9 349.8 337.9Z" fill="var(--gb-accent)" fill-rule="evenodd" data-pad="6,1" data-color="#d61d24"/>
+<use href="#09-audio__09-sampling-recording-audio-within-kits--1-s3" transform="matrix(1 0 0 -1 146.7 30.1)"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(143.8 41.0)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">6</tspan></text>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" d="M460.4 286.4C464.2 286.4 467.4 283.3 467.4 279.5 467.4 275.6 464.2 272.5 460.4 272.5 456.6 272.5 453.5 275.6 453.5 279.5 453.5 283.3 456.6 286.4 460.4 286.4Z" fill="var(--gb-accent)" fill-rule="evenodd" data-pad="9,3" data-color="#d61d24"/>
+<use href="#09-audio__09-sampling-recording-audio-within-kits--1-s2" transform="matrix(1 0 0 -1 257.3 81.6)"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(254.5 92.4)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">6</tspan></text>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" d="M374.1 337.9C377.9 337.9 381.0 334.8 381.0 330.9 381.0 327.1 377.9 324.0 374.1 324.0 370.3 324.0 367.2 327.1 367.2 330.9 367.2 334.8 370.3 337.9 374.1 337.9Z" fill="var(--gb-accent)" fill-rule="evenodd" data-pad="7,1" data-color="#d61d24"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M374.1 337.9C377.9 337.9 381.0 334.8 381.0 330.9 381.0 327.1 377.9 324.0 374.1 324.0 370.3 324.0 367.2 327.1 367.2 330.9 367.2 334.8 370.3 337.9 374.1 337.9Z"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(168.2 41.0)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">7</tspan></text>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" d="M460.4 311.7C464.2 311.7 467.4 308.6 467.4 304.8 467.4 301.0 464.2 297.9 460.4 297.9 456.6 297.9 453.5 301.0 453.5 304.8 453.5 308.6 456.6 311.7 460.4 311.7Z" fill="var(--gb-accent)" fill-rule="evenodd" data-pad="9,2" data-color="#d61d24"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M460.4 311.7C464.2 311.7 467.4 308.6 467.4 304.8 467.4 301.0 464.2 297.9 460.4 297.9 456.6 297.9 453.5 301.0 453.5 304.8 453.5 308.6 456.6 311.7 460.4 311.7Z"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(254.5 67.1)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">7</tspan></text>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" d="M398.4 337.9C402.2 337.9 405.3 334.8 405.3 330.9 405.3 327.1 402.2 324.0 398.4 324.0 394.6 324.0 391.5 327.1 391.5 330.9 391.5 334.8 394.6 337.9 398.4 337.9Z" fill="var(--gb-accent)" fill-rule="evenodd" data-pad="8,1" data-color="#d61d24"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M398.4 337.9C402.2 337.9 405.3 334.8 405.3 330.9 405.3 327.1 402.2 324.0 398.4 324.0 394.6 324.0 391.5 327.1 391.5 330.9 391.5 334.8 394.6 337.9 398.4 337.9Z"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(192.5 41.0)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">8</tspan></text>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" d="M460.4 337.1C464.2 337.1 467.4 334.0 467.4 330.2 467.4 326.3 464.2 323.2 460.4 323.2 456.6 323.2 453.5 326.3 453.5 330.2 453.5 334.0 456.6 337.1 460.4 337.1Z" fill="var(--gb-accent)" fill-rule="evenodd" data-pad="9,1" data-color="#d61d24"/>
+<use href="#09-audio__09-sampling-recording-audio-within-kits--1-s2" transform="matrix(1 0 0 -1 257.3 30.9)"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(254.6 41.7)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">8</tspan></text>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M219.3 249.2V240.3"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M223.4 250.7V239.7"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M228.0 267.5V223.4"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M232.1 282.8V206.7"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M235.4 290.5V202.5"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M239.5 290.5V196.5"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M244.1 296.8V190.7"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M248.2 290.5V197.2"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M252.3 278.5V209.1"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M256.4 274.4V213.3"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M260.9 267.5V223.1"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M269.1 258.6V229.6"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M273.2 256.8V231.4"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M277.7 261.4V223.5"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M281.8 266.3V216.2"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M285.9 273.1V205.6"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M294.6 254.8V232.1"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M298.7 249.3V241.6"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M303.2 250.1V241.2"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M307.3 261.4V223.5"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M310.9 269.6V211.7"/>
+<use href="#09-audio__09-sampling-recording-audio-within-kits--1-s4" transform="matrix(1 0 0 -1 112.4 91.8)"/>
+<use href="#09-audio__09-sampling-recording-audio-within-kits--1-s4" transform="matrix(1 0 0 -1 167 91.8)"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M319.6 280.1V206.7"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M374.2 281.2V199.0"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M323.7 293.1V196.6"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M378.3 280.1V196.6"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M328.3 305.9V190.4"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M382.9 271.4V202.5"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M332.4 297.6V202.5"/>
+<use href="#09-audio__09-sampling-recording-audio-within-kits--1-s4" transform="matrix(1 0 0 -1 184.7 91.8)"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M336.4 283.6V202.5"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M391.3 272.2V213.7"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M340.5 261.4V220.5"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M395.2 261.4V220.5"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M345.1 255.3V232.3"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M399.7 255.3V232.3"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M349.2 250.7V239.4"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M403.8 250.7V239.4"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M353.3 248.3V241.0"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M407.9 248.3V241.0"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M357.4 248.7V241.0"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width="1" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M366.0 226.8V261.4"/>
+<use href="#09-audio__09-sampling-recording-audio-within-kits--1-s5" transform="matrix(1 0 0 -1 167 122.7)"/>
+<use href="#09-audio__09-sampling-recording-audio-within-kits--1-s5" transform="matrix(1 0 0 -1 171.1 122.8)"/>
+<use href="#09-audio__09-sampling-recording-audio-within-kits--1-s5" transform="matrix(1 0 0 -1 179.8 122.8)"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M501.5 152.6V150.6"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M503.5 153.0V150.5"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M505.8 156.9V146.7"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M507.5 160.4V142.8"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M509.4 162.2V141.8"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M511.4 162.2V140.4"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M501.6 189.4V164.8"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M503.7 187.9V166.3"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M505.7 185.1V169.0"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M507.7 184.2V170.0"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M509.9 182.6V172.3"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M511.9 181.9V172.9"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M501.8 207.1V198.1"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M503.8 205.7V199.0"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M505.8 205.3V199.4"/>
+<use href="#09-audio__09-sampling-recording-audio-within-kits--1-s6" transform="matrix(1 0 0 -1 305 161.6)"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M510.1 207.5V195.9"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M512.1 209.1V193.5"/>
+<use href="#09-audio__09-sampling-recording-audio-within-kits--1-s6" transform="matrix(1 0 0 -1 311 161.6)"/>
+<use href="#09-audio__09-sampling-recording-audio-within-kits--1-s7" transform="matrix(1 0 0 -1 300.8 137.3)"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M501.5 231.8V224.0"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M505.9 229.4V227.6"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M508.2 229.6V227.5"/>
+<use href="#09-audio__09-sampling-recording-audio-within-kits--1-s6" transform="matrix(1 0 0 -1 307.1 135.8)"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M512.2 234.1V220.7"/>
+<use href="#09-audio__09-sampling-recording-audio-within-kits--1-s8" transform="matrix(1 0 0 -1 311.1 132.4)"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M455.0 254.2V252.1"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M457.0 254.5V252.0"/>
+<use href="#09-audio__09-sampling-recording-audio-within-kits--1-s8" transform="matrix(1 0 0 -1 299 107.6)"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M503.8 312.2V295.1"/>
+<use href="#09-audio__09-sampling-recording-audio-within-kits--1-s8" transform="matrix(1 0 0 -1 301 106.7)"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M505.8 313.3V294.3"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M506.1 264.3V242.0"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M507.8 313.1V293.7"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M508.3 267.3V240.6"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M510.0 311.1V295.1"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M510.4 265.4V243.4"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M512.1 312.2V295.1"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M512.4 262.2V243.4"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M501.7 337.3V323.8"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M502.0 284.5V275.0"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M503.7 334.8V325.3"/>
+<use href="#09-audio__09-sampling-recording-audio-within-kits--1-s7" transform="matrix(1 0 0 -1 301.1 85)"/>
+<use href="#09-audio__09-sampling-recording-audio-within-kits--1-s7" transform="matrix(1 0 0 -1 302.8 34.6)"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M506.3 282.0V279.4"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M507.9 332.3V329.7"/>
+<use href="#09-audio__09-sampling-recording-audio-within-kits--1-s9" transform="matrix(1 0 0 -1 305.2 86.6)"/>
+<use href="#09-audio__09-sampling-recording-audio-within-kits--1-s9" transform="matrix(1 0 0 -1 306.8 36.2)"/>
+<use href="#09-audio__09-sampling-recording-audio-within-kits--1-s9" transform="matrix(1 0 0 -1 308.5 36.2)"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M510.3 281.5V279.7"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M512.5 282.1V278.8"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M501.8 300.7V308.7"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M503.8 305.0V305.0"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M505.8 305.0V304.9"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M508.0 305.0V305.0"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M510.0 305.0V304.9"/>
+<use href="#09-audio__09-sampling-recording-audio-within-kits--1-s10" transform="matrix(1 0 0 -1 14.1 26.6)"/>
+<use href="#09-audio__09-sampling-recording-audio-within-kits--1-s10" transform="matrix(1 0 0 -1 38.2 26.6)"/>
+<use href="#09-audio__09-sampling-recording-audio-within-kits--1-s10" transform="matrix(1 0 0 -1 62.3 26.6)"/>
+<use href="#09-audio__09-sampling-recording-audio-within-kits--1-s10" transform="matrix(1 0 0 -1 86.4 26.6)"/>
+<use href="#09-audio__09-sampling-recording-audio-within-kits--1-s10" transform="matrix(1 0 0 -1 110.5 26.6)"/>
+<use href="#09-audio__09-sampling-recording-audio-within-kits--1-s10" transform="matrix(1 0 0 -1 134.5 26.6)"/>
+<use href="#09-audio__09-sampling-recording-audio-within-kits--1-s10" transform="matrix(1 0 0 -1 158.6 26.6)"/>
+<use href="#09-audio__09-sampling-recording-audio-within-kits--1-s10" transform="matrix(1 0 0 -1 182.7 26.6)"/>
+<use href="#09-audio__09-sampling-recording-audio-within-kits--1-s10" transform="matrix(1 0 0 -1 206.8 26.6)"/>
+<use href="#09-audio__09-sampling-recording-audio-within-kits--1-s11" transform="matrix(1 0 0 -1 292.1 208.9)"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M495.2 184.6C495.2 186.2 494.0 187.4 492.5 187.4H478.2C476.6 187.4 475.4 186.2 475.4 184.6V170.3C475.4 168.8 476.6 167.6 478.2 167.6H492.5C494.0 167.6 495.2 168.8 495.2 170.3Z"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M495.2 210.1C495.2 211.7 494.0 212.9 492.5 212.9H478.2C476.6 212.9 475.4 211.7 475.4 210.1V195.8C475.4 194.3 476.6 193.1 478.2 193.1H492.5C494.0 193.1 495.2 194.3 495.2 195.8Z"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M495.2 235.6C495.2 237.2 494.0 238.4 492.5 238.4H478.2C476.6 238.4 475.4 237.2 475.4 235.6V221.4C475.4 219.8 476.6 218.6 478.2 218.6H492.5C494.0 218.6 495.2 219.8 495.2 221.4Z"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M495.2 261.2C495.2 262.7 494.0 263.9 492.5 263.9H478.2C476.6 263.9 475.4 262.7 475.4 261.2V246.9C475.4 245.3 476.6 244.1 478.2 244.1H492.5C494.0 244.1 495.2 245.3 495.2 246.9Z"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M495.2 286.7C495.2 288.2 494.0 289.4 492.5 289.4H478.2C476.6 289.4 475.4 288.2 475.4 286.7V272.4C475.4 270.8 476.6 269.6 478.2 269.6H492.5C494.0 269.6 495.2 270.8 495.2 272.4Z"/>
+<use href="#09-audio__09-sampling-recording-audio-within-kits--1-s11" transform="matrix(1 0 0 -1 292.1 55.8)"/>
+<use href="#09-audio__09-sampling-recording-audio-within-kits--1-s11" transform="matrix(1 0 0 -1 292.1 30.3)"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" d="M250.8 155.5H375.7V179.1H250.8Z" fill="var(--gb-paper)"/>
+<path transform="matrix(1,0,0,-1,-203.1,368.0)" stroke-width=".45" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 41%, var(--gb-paper))" d="M250.8 155.5H375.7V179.1H250.8Z"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(81.1 198.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Single Sample</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(61.3 208.9)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Sliced into the number selected</tspan></text>
+</g>
+</svg>

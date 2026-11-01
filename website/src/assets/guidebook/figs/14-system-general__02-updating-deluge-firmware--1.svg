@@ -1,0 +1,26 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 241.1 69.8">
+<defs>
+<clipPath id="14-system-general__02-updating-deluge-firmware--1-clip_1">
+<path transform="matrix(1,0,0,-1,-98.6,437.3)" d="M98.6 367.4H339.8V437.3H98.6Z" clip-rule="evenodd"/>
+</clipPath>
+</defs>
+<g clip-path="url(#14-system-general__02-updating-deluge-firmware--1-clip_1)">
+<path transform="matrix(1,0,0,-1,-98.6,437.3)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M424.8 688.4V83.9"/>
+<path transform="matrix(1,0,0,-1,-98.6,437.3)" d="M119.0 373.5H178.5V382.0H119.0Z" fill="var(--gb-paper)"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(24.3 60.3)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Firmware Option</tspan></text>
+<path transform="matrix(1,0,0,-1,-98.6,437.3)" d="M263.0 373.5H322.5V382.0H263.0Z" fill="var(--gb-paper)"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(166.9 60.3)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Firmware Version</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(147.7 14.4)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-weight="bold"><tspan y="0" x="0" textLength="61" lengthAdjust="spacingAndGlyphs">FIRMWARE VER.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(166.5 36.6)" font-size="20" font-family="Arial, Helvetica, sans-serif" font-weight="bold"><tspan y="0" x="0" textLength="56.7" lengthAdjust="spacingAndGlyphs">C1. 0. 0</tspan></text>
+<path transform="matrix(1,0,0,-1,-98.6,437.3)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M246.7 420.9H340.2"/>
+<path transform="matrix(1,0,0,-1,-98.6,437.3)" stroke-width=".8" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M241.5 391.9H345.4V431.4H241.5Z"/>
+<path transform="matrix(1,0,0,-1,-98.6,437.3)" d="M109.2 393.9H208.5V402.2H109.2Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-98.6,437.3)" stroke-width=".6" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M109.2 393.9H208.5V402.2H109.2Z"/>
+<text fill="currentColor" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 13.3 24.5)" font-size="5.6" font-family="monospace"><tspan y="0" x="0" textLength="49.4" lengthAdjust="spacingAndGlyphs">RECORDING</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 13.3 33.4)" font-size="5.6" font-family="monospace"><tspan y="0" x="0" textLength="99.4" lengthAdjust="spacingAndGlyphs">COMMUNITY FEATURES</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 13.3 41.9)" font-size="5.6" font-family="monospace"><tspan y="0" x="0" textLength="69.1" lengthAdjust="spacingAndGlyphs">FIRMWARE VER.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(10.1 14.4)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-weight="bold"><tspan y="0" x="0" textLength="39" lengthAdjust="spacingAndGlyphs">SETTINGS</tspan></text>
+<path transform="matrix(1,0,0,-1,-98.6,437.3)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M109.1 420.9H192.1"/>
+<path transform="matrix(1,0,0,-1,-98.6,437.3)" stroke-width=".8" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M104.5 391.9H212.0V431.4H104.5Z"/>
+</g>
+</svg>

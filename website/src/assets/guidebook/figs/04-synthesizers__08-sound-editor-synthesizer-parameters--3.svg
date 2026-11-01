@@ -1,0 +1,71 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 281.6 360.6">
+<defs>
+<clipPath id="04-synthesizers__08-sound-editor-synthesizer-parameters--3-clip_1">
+<path transform="matrix(1,0,0,-1,-95.4,620.6)" d="M95.4 260.0H377V620.6H95.4Z" clip-rule="evenodd"/>
+</clipPath>
+<clipPath id="04-synthesizers__08-sound-editor-synthesizer-parameters--3-clip_2">
+<path transform="matrix(1,0,0,-1,-95.4,620.6)" d="M131.3 268.0H225.7V340.6H131.3Z" clip-rule="evenodd"/>
+</clipPath>
+<mask id="04-synthesizers__08-sound-editor-synthesizer-parameters--3-mask_3">
+<g transform="matrix(.103134,0,0,.103134009,35.8,279.8)">
+<image id="04-synthesizers__08-sound-editor-synthesizer-parameters--3-image_4" width="909" height="707" xlink:href="/guidebook/img/04-synthesizers__08-sound-editor-synthesizer-parameters--3-1.webp"/>
+</g>
+</mask>
+<clipPath id="04-synthesizers__08-sound-editor-synthesizer-parameters--3-clip_6">
+<path transform="matrix(1,0,0,-1,-95.4,620.6)" d="M209.2 484.5H254.5V557.0H209.2Z" clip-rule="evenodd"/>
+</clipPath>
+<mask id="04-synthesizers__08-sound-editor-synthesizer-parameters--3-mask_7">
+<g transform="matrix(.109426,0,0,.109426,113.7,63.4)">
+<image id="04-synthesizers__08-sound-editor-synthesizer-parameters--3-image_8" width="417" height="666" xlink:href="/guidebook/img/04-synthesizers__08-sound-editor-synthesizer-parameters--3-2.webp"/>
+</g>
+</mask>
+<clipPath id="04-synthesizers__08-sound-editor-synthesizer-parameters--3-clip_10">
+<path transform="matrix(1,0,0,-1,-95.4,620.6)" d="M271.6 266.1H316.9V338.7H271.6Z" clip-rule="evenodd"/>
+</clipPath>
+<mask id="04-synthesizers__08-sound-editor-synthesizer-parameters--3-mask_11">
+<g transform="matrix(.109426,0,0,.109426,176.0,281.7)">
+<use xlink:href="#04-synthesizers__08-sound-editor-synthesizer-parameters--3-image_8" x="0" y="0" width="417" height="666"/>
+</g>
+</mask>
+</defs>
+<g>
+<g clip-path="url(#04-synthesizers__08-sound-editor-synthesizer-parameters--3-clip_1)">
+<path transform="matrix(1,0,0,-1,-95.4,620.6)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M424.7 688.6V84.1"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.0 157.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Turn the (SELECT) rotary to adjust a parameter setting. The display</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(72.0 167.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">will show the value as its adjusted.</tspan></text>
+<g clip-path="url(#04-synthesizers__08-sound-editor-synthesizer-parameters--3-clip_2)">
+<g mask="url(#04-synthesizers__08-sound-editor-synthesizer-parameters--3-mask_3)">
+<g transform="matrix(.103134,0,0,.103134009,35.8,279.8)">
+<image class="gb-ink" id="04-synthesizers__08-sound-editor-synthesizer-parameters--3-image_5" width="909" height="707" xlink:href="/guidebook/img/04-synthesizers__08-sound-editor-synthesizer-parameters--3-3.webp"/>
+</g>
+</g>
+</g>
+<g clip-path="url(#04-synthesizers__08-sound-editor-synthesizer-parameters--3-clip_6)">
+<g mask="url(#04-synthesizers__08-sound-editor-synthesizer-parameters--3-mask_7)">
+<g transform="matrix(.109426,0,0,.109426,113.7,63.4)">
+<image class="gb-ink" id="04-synthesizers__08-sound-editor-synthesizer-parameters--3-image_9" width="417" height="666" xlink:href="/guidebook/img/04-synthesizers__08-sound-editor-synthesizer-parameters--3-4.webp"/>
+</g>
+</g>
+</g>
+<g clip-path="url(#04-synthesizers__08-sound-editor-synthesizer-parameters--3-clip_10)">
+<g mask="url(#04-synthesizers__08-sound-editor-synthesizer-parameters--3-mask_11)">
+<g transform="matrix(.109426,0,0,.109426,176.0,281.7)">
+<use xlink:href="#04-synthesizers__08-sound-editor-synthesizer-parameters--3-image_9" x="0" y="0" width="417" height="666"/>
+</g>
+</g>
+</g>
+<path transform="matrix(1,0,0,-1,-95.4,620.6)" d="M189.1 581.1H272.2V587.8H189.1Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-95.4,620.6)" stroke-width=".6" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M189.1 581.1H272.2V587.8H189.1Z"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(93.1 14.4)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-weight="bold"><tspan y="0" x="0" textLength="46.6" lengthAdjust="spacingAndGlyphs">OSC1 LEVEL</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(129.2 29.2)" font-size="14" font-family="Arial, Helvetica, sans-serif" font-weight="bold"><tspan y="0" x="0" textLength="14.2" lengthAdjust="spacingAndGlyphs">50</tspan></text>
+<path transform="matrix(1,0,0,-1,-95.4,620.6)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M188.9 604.2H271.9"/>
+<path transform="matrix(1,0,0,-1,-95.4,620.6)" stroke-width=".8" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M184.3 575.2H276.6V614.7H184.3Z"/>
+<path transform="matrix(1,0,0,-1,-95.4,620.6)" d="M227.8 365.4H241.1V368.0H227.8Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-95.4,620.6)" stroke-width=".6" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M227.8 365.4H241.1V368.0H227.8Z"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(93.1 228.0)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-weight="bold"><tspan y="0" x="0" textLength="69.9" lengthAdjust="spacingAndGlyphs">OSC1 TRANSPOSE</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(109.5 251.5)" font-size="30" font-family="Arial, Helvetica, sans-serif" font-weight="bold"><tspan y="0" x="0" textLength="53.6" lengthAdjust="spacingAndGlyphs">2.80</tspan></text>
+<path transform="matrix(1,0,0,-1,-95.4,620.6)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M188.9 390.6H271.9"/>
+<path transform="matrix(1,0,0,-1,-95.4,620.6)" stroke-width=".8" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M184.3 361.6H276.6V401.1H184.3Z"/>
+</g>
+</g>
+</svg>

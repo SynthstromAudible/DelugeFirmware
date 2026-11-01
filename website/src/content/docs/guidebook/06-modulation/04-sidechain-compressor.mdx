@@ -1,0 +1,125 @@
+---
+title: "6.4 Sidechain Compressor"
+description: "What is a Compressor?"
+sidebar:
+  order: 3
+banner:
+  content: "From the Deluge Manual \u2013 Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+guidebook:
+  section: "6.4"
+  chapter: 6
+  pdfPages: [148, 149, 150, 151]
+  printedPages: [142, 143, 144, 145]
+  firmware: "C1.0.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_6_4_1 from "../../../../assets/guidebook/figs/06-modulation__04-sidechain-compressor--1.svg?raw"
+import fig_fig_6_4_2 from "../../../../assets/guidebook/figs/06-modulation__04-sidechain-compressor--2.svg?raw"
+import fig_fig_6_4_3 from "../../../../assets/guidebook/figs/06-modulation__04-sidechain-compressor--3.svg?raw"
+import fig_fig_6_4_4 from "../../../../assets/guidebook/figs/06-modulation__04-sidechain-compressor--4.svg?raw"
+
+import { Steps } from "@astrojs/starlight/components"
+import StepFocus from "../../../../components/guidebook/StepFocus.astro"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+What is a Compressor?
+
+A compressor is a device that reduces the peaks in an audio sound automatically as they exceed a specified threshold level. This reduces the dynamic range allowing the overall audio to then be increased using make up gain if desired. Deluge compressor is not a traditional audio compressor and focuses more on being a ducking envelope.
+
+<Figure
+  id="fig-6.4-1"
+  src={fig_fig_6_4_1}
+  alt={
+    "Diagram: Standard compression signal is attenuated when crossing the threshold. Gain Reduction Threshold Make Up Gain Audio Over Time"
+  }
+  page={142}
+/>
+
+What is a Sidechain Compressor?
+
+The principles of the sidechain compressor are identical to a standard compressor. The exception being that rather than the compressor trigger being a measure against its own input signal, an external source called a sidechain is the trigger of when to ‘duck’ i.e. reduce, the gain. Deluge, for example can use a kick drum to trigger a simultaneous gain reduction (duck) of a separate function.
+
+<Figure
+  id="fig-6.4-2"
+  src={fig_fig_6_4_2}
+  alt={
+    "Diagram: Compression triggered by an external source to reduce gain at trigger points and levels. Gain Reduction VOL DUCK Audio Over Time"
+  }
+  page={142}
+/>
+
+#### Sidechain Envelope
+
+The Deluge’s sidechain compressor effect mimics the behaviour of a sidechain compressor fed short impulses such as a kick drum. Its output, and resulting volume-ducking behaviour, is governed by AR (attack + release) envelope.
+
+<Figure
+  id="fig-6.4-3"
+  src={fig_fig_6_4_3}
+  alt={
+    "Diagram: ATTACK RELEASE Attack is the time to reach Release is the time to return full compression after back to normal after the triggering the…"
+  }
+  page={143}
+/>
+
+#### Deluge Sidechain Example
+
+Sidechain can be patched as a modulation source to various parameters. The amount of sidechain compression is set up through the modulation connection.
+
+<Figure
+  id="fig-6.4-4"
+  src={fig_fig_6_4_4}
+  alt={
+    "Diagram: Example: sidechain patched to low-pass filter cutoff A single global sidechain ‘bus’ feeds frequency. Volume levels are common…"
+  }
+  page={143}
+/>
+
+<StepFocus />
+
+### Setting up the sidechain
+
+<Steps>
+
+1. Press :key[Clip] to select clip view. This is indicated by the clip button illuminated blue.
+2. Select synth by pressing :key[Synth] if not already selected. The synth button illuminates red.
+3. Using the shortcut options to access the sidechain parameters directly e.g. press :key[Shift + Vol Duck Pad]. Alternatively use nested menus by pressing :key[Select] and then turning :key[Select] to navigate to the Sidechain menu. Options via the menu or directly from the :key[Shift] + Shortcuts are:
+   - VOLUME DUCKING : Amount which the sidechain affects the current sound. Can also be patched to other destinations.
+   - SYNC : Sets the time interval of the sync for the compressor attack and release or OFF.. Options are 2 bar, 1 bar, 2nd notes, 4th notes, 8th notes, 16th notes, 32nd, 64th notes and 128th notes.
+   - ATTACK : Sets attack transient time of the compressor kicking-in.
+   - RELEASE : Sets the release time of the compressor.
+   - SHAPE : Sets release phase of the compressor to make it more punchy or softer.
+   - SEND : Used with kit sounds only. Level at which the trigger affects all other sounds sidechain compressors.
+4. Use :key[BackUndo] to exit sub menu and back up a level and out of the sound editor.
+
+</Steps>
+
+### Selecting sidechain speed
+
+<Steps>
+
+1. Press :key[SidechainReverb] affect button. Button illuminates orange.
+2. Press :key[Upper Gold] to toggle between FAST synced to 32nd notes or SLOW, synced to 8th notes.
+
+</Steps>
+
+### Setting up the master compressor
+
+<Steps>
+
+1. Press :key[Song] to select song view. This is indicated by the song button illuminated blue.
+2. Press :key[AffectEntire]. This is indicated by the button illuminated orange.
+3. Press :key[SidechainReverb] affect button. Button illuminates orange.
+4. Default is the ‘One’ Mode compression, This is a single knob compressor which operates with auto makeup gain.
+5. To select between ‘One’ and ‘Full’ Mode and access individual parameters, Press :key[Upper Gold] knob to toggle between the two modes.
+6. In ‘Full’ Mode each parameter is accessible by pressing the :key[Lower Gold] control knob to cycle through the options. :key[Turn Lower Gold] parameter knob to adjust the selected option value:
+   - ATTACK: Envelope attack range 0ms to 63ms.
+   - RELEASE: Envelope release range 50ms to 363ms.
+   - HPF SHELF: High pass shelf filter range 0Hz to 102Hz.
+   - RATIO : Compressor ratio range 2:1 to 256:1.
+7. :key[Turn Upper Gold] knob to adjust the compressor THRESHOLD in either ‘One’ or ’Full’ mode. The upper LED array shows the compressor meter.
+
+</Steps>

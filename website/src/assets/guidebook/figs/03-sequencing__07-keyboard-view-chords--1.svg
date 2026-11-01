@@ -1,0 +1,110 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 431.7 342.8">
+<defs>
+<clipPath id="03-sequencing__07-keyboard-view-chords--1-clip_1">
+<path transform="matrix(1,0,0,-1,-75.8,581.8)" d="M75.8 239.0H507.5V581.8H75.8Z" clip-rule="evenodd"/>
+</clipPath>
+<clipPath id="03-sequencing__07-keyboard-view-chords--1-clip_2">
+<path transform="matrix(1,0,0,-1,-75.8,581.8)" d="M87.1 297.4H472.5V504.4H87.1Z" clip-rule="evenodd"/>
+</clipPath>
+<mask id="03-sequencing__07-keyboard-view-chords--1-mask_3">
+<g transform="matrix(.062272997,0,0,.062272997,35.8,91.2)">
+<image id="03-sequencing__07-keyboard-view-chords--1-image_4" width="5796" height="2882" xlink:href="/guidebook/img/03-sequencing__07-keyboard-view-chords--1-1.webp"/>
+</g>
+</mask>
+<clipPath id="03-sequencing__07-keyboard-view-chords--1-clip_6">
+<path transform="matrix(1,0,0,-1,-75.8,581.8)" d="M113.4 531.9H204.0V575.8H113.4Z" clip-rule="evenodd"/>
+</clipPath>
+<mask id="03-sequencing__07-keyboard-view-chords--1-mask_7">
+<g transform="matrix(.096,0,0,.09599999,37.4,5.9)">
+<image id="03-sequencing__07-keyboard-view-chords--1-image_8" width="948" height="460" xlink:href="/guidebook/img/03-sequencing__07-keyboard-view-chords--1-2.webp"/>
+</g>
+</mask>
+</defs>
+<g>
+<g clip-path="url(#03-sequencing__07-keyboard-view-chords--1-clip_1)">
+<g clip-path="url(#03-sequencing__07-keyboard-view-chords--1-clip_2)">
+<g mask="url(#03-sequencing__07-keyboard-view-chords--1-mask_3)">
+<g transform="matrix(.062272997,0,0,.062272997,35.8,91.2)">
+<image class="gb-ink" id="03-sequencing__07-keyboard-view-chords--1-image_5" width="5796" height="2882" xlink:href="/guidebook/img/03-sequencing__07-keyboard-view-chords--1-3.webp"/>
+</g>
+</g>
+</g>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(42.8 280.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Semitone Intervals : Chromatic 12 Note Octave</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="matrix(0 -1 1 0 27.7 265.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">5 Semitone (Perfect Fourth) Intervals</tspan></text>
+<path transform="matrix(1,0,0,-1,-75.8,581.8)" d="M133.7 373.5C133.7 374.5 132.9 375.4 131.8 375.4H120.4C119.4 375.4 118.5 374.5 118.5 373.5V362.0C118.5 361.0 119.4 360.1 120.4 360.1H131.8C132.9 360.1 133.7 361.0 133.7 362.0Z" fill="var(--gb-accent)" fill-rule="evenodd" data-pad="1,8" data-color="#d61d24"/>
+<path transform="matrix(1,0,0,-1,-75.8,581.8)" d="M133.7 373.5V362.0C133.7 361.0 132.9 360.1 131.8 360.1H120.4C119.4 360.1 118.5 361.0 118.5 362.0V373.5C118.5 374.5 119.4 375.4 120.4 375.4H131.8C132.9 375.4 133.7 374.5 133.7 373.5ZM133.4 373.5C133.4 374.3 132.7 375.1 131.8 375.1H120.4C119.6 375.1 118.8 374.3 118.8 373.5V362.0C118.8 361.2 119.6 360.4 120.4 360.4H131.8C132.7 360.4 133.4 361.2 133.4 362.0Z" fill="currentColor" fill-rule="evenodd"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(66.9 260.9)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">d.2</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(46.1 260.3)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">d2</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(45.3 238.3)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">G2</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(45.5 216.3)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">C3</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(45.8 194.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">F3</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(44.7 172.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">A.3</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(45.1 150.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">d.4</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(44.4 128.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">G.4</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(44.7 106.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">C.5</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(89.6 260.9)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">E2</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(111.9 260.9)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">F2</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(133.3 260.9)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">F.2</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(155.3 260.9)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">G2</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(176.5 260.9)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">G.2</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(199.9 260.9)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">A2</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(220.9 260.9)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">A.2</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(244.5 260.9)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">b2</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(287.2 260.9)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">C.3</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(311.0 260.9)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">d3</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(331.6 260.9)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">d.3</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(353.3 260.9)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">E.3</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(376.7 260.9)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">F3</tspan></text>
+<path transform="matrix(1,0,0,-1,-75.8,581.8)" d="M377.6 490.7H461.5V500.5H377.6Z" fill="var(--gb-paper)"/>
+<text fill="var(--gb-accent)" xml:space="preserve" transform="translate(304.7 89.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">16 x 8 Grid In Focus</tspan></text>
+<path transform="matrix(1,0,0,-1,-75.8,581.8)" stroke-width=".7" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 41%, var(--gb-paper))" d="M285.0 303.5H303.4"/>
+<path transform="matrix(1,0,0,-1,-75.8,581.8)" d="M311.9 303.5 303.4 299.2V307.7ZM310.3 303.5 304.1 306.6V300.4Z" fill="color-mix(in srgb, currentColor 41%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-75.8,581.8)" stroke-width=".7" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 41%, var(--gb-paper))" d="M101.4 446.0V464.3"/>
+<path transform="matrix(1,0,0,-1,-75.8,581.8)" d="M101.4 472.8 105.6 464.3H97.1ZM101.4 471.3 98.3 465.0H104.5Z" fill="color-mix(in srgb, currentColor 41%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-75.8,581.8)" d="M244.2 351.5C244.2 352.5 243.4 353.4 242.3 353.4H230.9C229.9 353.4 229.0 352.5 229.0 351.5V340.1C229.0 339.0 229.9 338.2 230.9 338.2H242.3C243.4 338.2 244.2 339.0 244.2 340.1Z" fill="var(--gb-accent)" fill-rule="evenodd" data-pad="4,9" data-color="#d61d24"/>
+<path transform="matrix(1,0,0,-1,-75.8,581.8)" d="M244.2 351.5V340.1C244.2 339.0 243.4 338.2 242.3 338.2H230.9C229.9 338.2 229.0 339.0 229.0 340.1V351.5C229.0 352.5 229.9 353.4 230.9 353.4H242.3C243.4 353.4 244.2 352.5 244.2 351.5ZM243.9 351.5C243.9 352.4 243.2 353.1 242.3 353.1H230.9C230.0 353.1 229.3 352.4 229.3 351.5V340.1C229.3 339.2 230.0 338.5 230.9 338.5H242.3C243.2 338.5 243.9 339.2 243.9 340.1Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-75.8,581.8)" d="M177.7 417.9C177.7 418.9 176.9 419.8 175.8 419.8H164.4C163.4 419.8 162.5 418.9 162.5 417.9V406.5C162.5 405.4 163.4 404.6 164.4 404.6H175.8C176.9 404.6 177.7 405.4 177.7 406.5Z" fill="var(--gb-accent)" fill-rule="evenodd" data-pad="2,6" data-color="#d61d24"/>
+<path transform="matrix(1,0,0,-1,-75.8,581.8)" d="M177.7 417.9V406.5C177.7 405.4 176.9 404.6 175.8 404.6H164.4C163.4 404.6 162.5 405.4 162.5 406.5V417.9C162.5 418.9 163.4 419.8 164.4 419.8H175.8C176.9 419.8 177.7 418.9 177.7 417.9ZM177.4 417.9C177.4 418.8 176.7 419.5 175.8 419.5H164.4C163.5 419.5 162.8 418.8 162.8 417.9V406.5C162.8 405.6 163.5 404.9 164.4 404.9H175.8C176.7 404.9 177.4 405.6 177.4 406.5Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-75.8,581.8)" d="M222.0 461.8C222.0 462.9 221.2 463.7 220.2 463.7H208.8C207.7 463.7 206.9 462.9 206.9 461.8V450.4C206.9 449.4 207.7 448.5 208.8 448.5H220.2C221.2 448.5 222.0 449.4 222.0 450.4Z" fill="var(--gb-accent)" fill-rule="evenodd" data-pad="3,4" data-color="#d61d24"/>
+<path transform="matrix(1,0,0,-1,-75.8,581.8)" d="M222.0 461.8V450.4C222.0 449.4 221.2 448.5 220.2 448.5H208.8C207.7 448.5 206.9 449.4 206.9 450.4V461.8C206.9 462.9 207.7 463.7 208.8 463.7H220.2C221.2 463.7 222.0 462.9 222.0 461.8ZM221.7 461.8C221.7 462.7 221.0 463.4 220.2 463.4H208.8C207.9 463.4 207.2 462.7 207.2 461.8V450.4C207.2 449.5 207.9 448.8 208.8 448.8H220.2C221.0 448.8 221.7 449.5 221.7 450.4Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-75.8,581.8)" d="M288.1 395.8C288.1 396.9 287.2 397.7 286.2 397.7H274.8C273.8 397.7 272.9 396.9 272.9 395.8V384.4C272.9 383.3 273.8 382.5 274.8 382.5H286.2C287.2 382.5 288.1 383.3 288.1 384.4Z" fill="var(--gb-accent)" fill-rule="evenodd" data-pad="5,7" data-color="#d61d24"/>
+<path transform="matrix(1,0,0,-1,-75.8,581.8)" d="M288.1 395.8V384.4C288.1 383.3 287.2 382.5 286.2 382.5H274.8C273.8 382.5 272.9 383.3 272.9 384.4V395.8C272.9 396.9 273.8 397.7 274.8 397.7H286.2C287.2 397.7 288.1 396.9 288.1 395.8ZM287.8 395.8C287.8 396.7 287.1 397.4 286.2 397.4H274.8C273.9 397.4 273.2 396.7 273.2 395.8V384.4C273.2 383.5 273.9 382.8 274.8 382.8H286.2C287.1 382.8 287.8 383.5 287.8 384.4Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-75.8,581.8)" d="M332.4 439.8C332.4 440.8 331.6 441.7 330.5 441.7H319.1C318.1 441.7 317.2 440.8 317.2 439.8V428.4C317.2 427.3 318.1 426.5 319.1 426.5H330.5C331.6 426.5 332.4 427.3 332.4 428.4Z" fill="var(--gb-accent)" fill-rule="evenodd" data-pad="6,5" data-color="#d61d24"/>
+<path transform="matrix(1,0,0,-1,-75.8,581.8)" d="M332.4 439.8V428.4C332.4 427.3 331.6 426.5 330.5 426.5H319.1C318.1 426.5 317.2 427.3 317.2 428.4V439.8C317.2 440.8 318.1 441.7 319.1 441.7H330.5C331.6 441.7 332.4 440.8 332.4 439.8ZM332.1 439.8C332.1 440.7 331.4 441.4 330.5 441.4H319.1C318.3 441.4 317.5 440.7 317.5 439.8V428.4C317.5 427.5 318.3 426.8 319.1 426.8H330.5C331.4 426.8 332.1 427.5 332.1 428.4Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-75.8,581.8)" d="M376.5 483.8C376.5 484.9 375.6 485.7 374.6 485.7H363.2C362.1 485.7 361.3 484.9 361.3 483.8V472.4C361.3 471.4 362.1 470.5 363.2 470.5H374.6C375.6 470.5 376.5 471.4 376.5 472.4Z" fill="var(--gb-accent)" fill-rule="evenodd" data-pad="8,3" data-color="#d61d24"/>
+<path transform="matrix(1,0,0,-1,-75.8,581.8)" d="M376.5 483.8V472.4C376.5 471.4 375.6 470.5 374.6 470.5H363.2C362.1 470.5 361.3 471.4 361.3 472.4V483.8C361.3 484.9 362.1 485.7 363.2 485.7H374.6C375.6 485.7 376.5 484.9 376.5 483.8ZM376.2 483.8C376.2 484.7 375.4 485.4 374.6 485.4H363.2C362.3 485.4 361.6 484.7 361.6 483.8V472.4C361.6 471.5 362.3 470.8 363.2 470.8H374.6C375.4 470.8 376.2 471.5 376.2 472.4Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-75.8,581.8)" d="M354.4 329.4C354.4 330.4 353.5 331.3 352.5 331.3H341.1C340.0 331.3 339.2 330.4 339.2 329.4V317.9C339.2 316.9 340.0 316.0 341.1 316.0H352.5C353.5 316.0 354.4 316.9 354.4 317.9Z" fill="var(--gb-accent)" fill-rule="evenodd" data-pad="7,10" data-color="#d61d24"/>
+<path transform="matrix(1,0,0,-1,-75.8,581.8)" d="M354.4 329.4V317.9C354.4 316.9 353.5 316.0 352.5 316.0H341.1C340.0 316.0 339.2 316.9 339.2 317.9V329.4C339.2 330.4 340.0 331.3 341.1 331.3H352.5C353.5 331.3 354.4 330.4 354.4 329.4ZM354.1 329.4C354.1 330.2 353.4 331.0 352.5 331.0H341.1C340.2 331.0 339.5 330.2 339.5 329.4V317.9C339.5 317.1 340.2 316.3 341.1 316.3H352.5C353.4 316.3 354.1 317.1 354.1 317.9Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-75.8,581.8)" d="M398.6 373.5C398.6 374.5 397.7 375.4 396.7 375.4H385.3C384.2 375.4 383.4 374.5 383.4 373.5V362.0C383.4 361.0 384.2 360.1 385.3 360.1H396.7C397.7 360.1 398.6 361.0 398.6 362.0Z" fill="var(--gb-accent)" fill-rule="evenodd" data-pad="9,8" data-color="#d61d24"/>
+<path transform="matrix(1,0,0,-1,-75.8,581.8)" d="M398.6 373.5V362.0C398.6 361.0 397.7 360.1 396.7 360.1H385.3C384.2 360.1 383.4 361.0 383.4 362.0V373.5C383.4 374.5 384.2 375.4 385.3 375.4H396.7C397.7 375.4 398.6 374.5 398.6 373.5ZM398.3 373.5C398.3 374.3 397.6 375.1 396.7 375.1H385.3C384.4 375.1 383.7 374.3 383.7 373.5V362.0C383.7 361.2 384.4 360.4 385.3 360.4H396.7C397.6 360.4 398.3 361.2 398.3 362.0Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-75.8,581.8)" d="M442.8 417.8C442.8 418.8 441.9 419.7 440.9 419.7H429.5C428.4 419.7 427.6 418.8 427.6 417.8V406.4C427.6 405.3 428.4 404.5 429.5 404.5H440.9C441.9 404.5 442.8 405.3 442.8 406.4Z" fill="var(--gb-accent)" fill-rule="evenodd" data-pad="10,6" data-color="#d61d24"/>
+<path transform="matrix(1,0,0,-1,-75.8,581.8)" d="M442.8 417.8V406.4C442.8 405.3 441.9 404.5 440.9 404.5H429.5C428.4 404.5 427.6 405.3 427.6 406.4V417.8C427.6 418.8 428.4 419.7 429.5 419.7H440.9C441.9 419.7 442.8 418.8 442.8 417.8ZM442.5 417.8C442.5 418.7 441.8 419.4 440.9 419.4H429.5C428.6 419.4 427.9 418.7 427.9 417.8V406.4C427.9 405.5 428.6 404.8 429.5 404.8H440.9C441.8 404.8 442.5 405.5 442.5 406.4Z" fill="currentColor" fill-rule="evenodd"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(156.4 238.6)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">C3</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(266.5 260.5)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">C3</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(310.6 216.1)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">C4</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(354.8 171.9)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">C5</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(89.8 172.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">C4</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(200.3 194.1)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">C4</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(134.2 127.9)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">C5</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(244.4 150.1)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">C5</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(288.5 105.8)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">C6</tspan></text>
+<g clip-path="url(#03-sequencing__07-keyboard-view-chords--1-clip_6)">
+<g mask="url(#03-sequencing__07-keyboard-view-chords--1-mask_7)">
+<g transform="matrix(.096,0,0,.09599999,37.4,5.9)">
+<image class="gb-ink" id="03-sequencing__07-keyboard-view-chords--1-image_9" width="948" height="460" xlink:href="/guidebook/img/03-sequencing__07-keyboard-view-chords--1-4.webp"/>
+</g>
+</g>
+</g>
+<path transform="matrix(1,0,0,-1,-75.8,581.8)" d="M127.2 549.4C131.3 549.4 134.6 546.1 134.6 542.1 134.6 538.0 131.3 534.7 127.2 534.7 123.2 534.7 119.9 538.0 119.9 542.1 119.9 546.1 123.2 549.4 127.2 549.4Z" fill="#5c96cf" fill-rule="evenodd" data-pad="1,2" data-color="#5c96cf"/>
+<path transform="matrix(1,0,0,-1,-75.8,581.8)" d="M127.2 549.4C131.3 549.4 134.6 546.1 134.6 542.1 134.6 538.0 131.3 534.7 127.2 534.7 123.2 534.7 119.9 538.0 119.9 542.1 119.9 546.1 123.2 549.4 127.2 549.4ZM127.2 549.0C123.4 549.0 120.3 545.9 120.3 542.1 120.3 538.2 123.4 535.1 127.2 535.1 131.1 535.1 134.2 538.2 134.2 542.1 134.2 545.9 131.1 549.0 127.2 549.0Z" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-75.8,581.8)" d="M167.8 575.4C171.8 575.4 175.1 572.1 175.1 568.0 175.1 564.0 171.8 560.7 167.8 560.7 163.7 560.7 160.4 564.0 160.4 568.0 160.4 572.1 163.7 575.4 167.8 575.4Z" fill="var(--gb-accent)" fill-rule="evenodd" data-pad="2,1" data-color="#d61d24"/>
+<path transform="matrix(1,0,0,-1,-75.8,581.8)" d="M167.8 575.4C171.8 575.4 175.1 572.1 175.1 568.0 175.1 564.0 171.8 560.7 167.8 560.7 163.7 560.7 160.4 564.0 160.4 568.0 160.4 572.1 163.7 575.4 167.8 575.4ZM167.8 575.0C163.9 575.0 160.8 571.9 160.8 568.0 160.8 564.2 163.9 561.1 167.8 561.1 171.6 561.1 174.7 564.2 174.7 568.0 174.7 571.9 171.6 575.0 167.8 575.0Z" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-75.8,581.8)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.000015,.000015" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M127.1 531.2V495.4"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(146.4 19.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">[KEYBOARD]</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(146.4 29.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">The keyboard view shows the grid laid</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(146.4 39.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">out based on the scale and root note.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(5.9 334.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Steps up the rows in five semitone (perfect fourth) intervals and the columns steps in one semitone steps.</tspan></text>
+<path transform="matrix(1,0,0,-1,-75.8,581.8)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.000015,.000015" stroke-linejoin="round" fill="none" stroke="currentColor" d="M101.6 312.1V261.4"/>
+</g>
+</g>
+</svg>

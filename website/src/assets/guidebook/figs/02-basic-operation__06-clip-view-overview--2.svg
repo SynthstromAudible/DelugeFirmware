@@ -1,0 +1,52 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 441.8 73.7">
+<defs>
+<clipPath id="02-basic-operation__06-clip-view-overview--2-clip_1">
+<path transform="matrix(1,0,0,-1,-71.8,184.5)" d="M71.8 110.8H513.6V184.5H71.8Z" clip-rule="evenodd"/>
+</clipPath>
+<clipPath id="02-basic-operation__06-clip-view-overview--2-clip_2">
+<path transform="matrix(1,0,0,-1,-71.8,184.5)" d="M297.9 145.9H362.3V176.0H297.9Z" clip-rule="evenodd"/>
+</clipPath>
+<mask id="02-basic-operation__06-clip-view-overview--2-mask_3">
+<g transform="matrix(.096,0,0,.096,226.5,8.3)">
+<image id="02-basic-operation__06-clip-view-overview--2-image_4" width="669" height="316" xlink:href="/guidebook/img/02-basic-operation__06-clip-view-overview--2-1.webp"/>
+</g>
+</mask>
+<clipPath id="02-basic-operation__06-clip-view-overview--2-clip_6">
+<path transform="matrix(1,0,0,-1,-71.8,184.5)" d="M76.0 116.9H144.1V179.8H76.0Z" clip-rule="evenodd"/>
+</clipPath>
+<mask id="02-basic-operation__06-clip-view-overview--2-mask_7">
+<g transform="matrix(.045648,0,0,.045648,6.0,5.9)">
+<image id="02-basic-operation__06-clip-view-overview--2-image_8" width="1400" height="1352" xlink:href="/guidebook/img/02-basic-operation__06-clip-view-overview--2-2.webp"/>
+</g>
+</mask>
+</defs>
+<g>
+<g clip-path="url(#02-basic-operation__06-clip-view-overview--2-clip_1)">
+<text fill="currentColor" xml:space="preserve" transform="translate(73.9 21.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Navigate the grid using the up /</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(73.9 31.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">down (SCROLL</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(136.9 31.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">▼▲</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(154.7 31.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">) and left /</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(73.9 41.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">right (SCROLL◄►) scrolling and</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(73.9 51.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">zooming rotaries.</tspan></text>
+<g clip-path="url(#02-basic-operation__06-clip-view-overview--2-clip_2)">
+<g mask="url(#02-basic-operation__06-clip-view-overview--2-mask_3)">
+<g transform="matrix(.096,0,0,.096,226.5,8.3)">
+<image class="gb-ink" id="02-basic-operation__06-clip-view-overview--2-image_5" width="669" height="316" xlink:href="/guidebook/img/02-basic-operation__06-clip-view-overview--2-3.webp"/>
+</g>
+</g>
+</g>
+<text fill="currentColor" xml:space="preserve" transform="translate(292.7 20.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">The undo / redo commands can be</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(292.7 30.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">used when editing notes.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(292.7 40.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">For example: press [BACK / UNDO]</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(292.7 50.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">to undo the last note placement and</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(292.7 60.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">[SHIFT]+[REDO] to restore it.</tspan></text>
+<g clip-path="url(#02-basic-operation__06-clip-view-overview--2-clip_6)">
+<g mask="url(#02-basic-operation__06-clip-view-overview--2-mask_7)">
+<g transform="matrix(.045648,0,0,.045648,6.0,5.9)">
+<image class="gb-ink" id="02-basic-operation__06-clip-view-overview--2-image_9" width="1400" height="1352" xlink:href="/guidebook/img/02-basic-operation__06-clip-view-overview--2-4.webp"/>
+</g>
+</g>
+</g>
+</g>
+</g>
+</svg>

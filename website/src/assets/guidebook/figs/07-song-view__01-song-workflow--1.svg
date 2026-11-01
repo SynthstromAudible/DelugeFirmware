@@ -1,0 +1,131 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 358 533"><defs><path id="07-song-view__01-song-workflow--1-s1" d="M0 0C0.3 0 0.5 -0.2 0.5 -0.4 0.5 -0.7 0.3 -0.9 0 -0.9 -0.2 -0.9 -0.4 -0.7 -0.4 -0.4 -0.4 -0.2 -0.2 0 0 0Z" fill="color-mix(in srgb, currentColor 62%, var(--gb-paper))" fill-rule="evenodd"/><path id="07-song-view__01-song-workflow--1-s2" d="M0 0H36.7" stroke-width=".55" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 62%, var(--gb-paper))"/><path id="07-song-view__01-song-workflow--1-s3" d="M0 0C0.3 0 0.5 -0.2 0.5 -0.4 0.5 -0.7 0.3 -0.9 0 -0.9 -0.2 -0.9 -0.4 -0.7 -0.4 -0.4 -0.4 -0.2 -0.2 0 0 0Z" stroke-width=".55" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor"/><path id="07-song-view__01-song-workflow--1-s4" d="M0 0C3.1 0 5.6 -2.6 5.6 -5.7 5.6 -8.8 3.1 -11.4 0 -11.4 -3.2 -11.4 -5.7 -8.8 -5.7 -5.7 -5.7 -2.6 -3.2 0 0 0Z" fill="var(--gb-accent)" fill-rule="evenodd"/><path id="07-song-view__01-song-workflow--1-s5" d="M0 0C3.1 0 5.6 -2.5 5.6 -5.7 5.6 -8.8 3.1 -11.3 0 -11.3 -3.2 -11.3 -5.7 -8.8 -5.7 -5.7 -5.7 -2.5 -3.2 0 0 0Z" fill="var(--gb-accent)" fill-rule="evenodd"/></defs>
+<defs>
+<clipPath id="07-song-view__01-song-workflow--1-clip_1">
+<path transform="matrix(1,0,0,-1,-58,637.8)" d="M58 104.8H416V637.8H58Z" clip-rule="evenodd"/>
+</clipPath>
+</defs>
+<g clip-path="url(#07-song-view__01-song-workflow--1-clip_1)">
+<path transform="matrix(1,0,0,-1,-58,637.8)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M424.8 688.4V83.9"/>
+<path transform="matrix(1,0,0,-1,-58,637.8)" stroke-width=".35" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 62%, var(--gb-paper))" d="M107.7 620.7H321.5"/>
+<path transform="matrix(1,0,0,-1,-58,637.8)" stroke-width=".65" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 62%, var(--gb-paper))" d="M196.6 510.3H237.6"/>
+<path transform="matrix(1,0,0,-1,-58,637.8)" d="M237.8 510.7C238.1 510.7 238.3 510.5 238.3 510.3 238.3 510.1 238.1 509.9 237.8 509.9 237.6 509.9 237.4 510.1 237.4 510.3 237.4 510.5 237.6 510.7 237.8 510.7Z" fill="color-mix(in srgb, currentColor 62%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-58,637.8)" stroke-width=".65" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M237.8 510.7C238.1 510.7 238.3 510.5 238.3 510.3 238.3 510.1 238.1 509.9 237.8 509.9 237.6 509.9 237.4 510.1 237.4 510.3 237.4 510.5 237.6 510.7 237.8 510.7Z"/>
+<path transform="matrix(1,0,0,-1,-58,637.8)" stroke-width=".65" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 62%, var(--gb-paper))" d="M196.6 475.3H237.6"/>
+<use href="#07-song-view__01-song-workflow--1-s1" transform="matrix(1 0 0 -1 179.8 162.1)"/>
+<path transform="matrix(1,0,0,-1,-58,637.8)" stroke-width=".65" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M237.8 475.7C238.1 475.7 238.3 475.5 238.3 475.3 238.3 475.0 238.1 474.8 237.8 474.8 237.6 474.8 237.4 475.0 237.4 475.3 237.4 475.5 237.6 475.7 237.8 475.7Z"/>
+<path transform="matrix(1,0,0,-1,-58,637.8)" stroke-width=".65" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 62%, var(--gb-paper))" d="M200.6 475.3H159.6"/>
+<path transform="matrix(1,0,0,-1,-58,637.8)" d="M159.4 475.7C159.1 475.7 158.9 475.5 158.9 475.3 158.9 475.0 159.1 474.8 159.4 474.8 159.6 474.8 159.8 475.0 159.8 475.3 159.8 475.5 159.6 475.7 159.4 475.7Z" fill="color-mix(in srgb, currentColor 62%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-58,637.8)" stroke-width=".65" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M159.4 475.7C159.1 475.7 158.9 475.5 158.9 475.3 158.9 475.0 159.1 474.8 159.4 474.8 159.6 474.8 159.8 475.0 159.8 475.3 159.8 475.5 159.6 475.7 159.4 475.7Z"/>
+<path transform="matrix(1,0,0,-1,-58,637.8)" stroke-width=".65" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 62%, var(--gb-paper))" d="M199.2 546.1H158.2"/>
+<path transform="matrix(1,0,0,-1,-58,637.8)" d="M158.0 546.6C157.8 546.6 157.6 546.4 157.6 546.1 157.6 545.9 157.8 545.7 158.0 545.7 158.3 545.7 158.4 545.9 158.4 546.1 158.4 546.4 158.3 546.6 158.0 546.6Z" fill="color-mix(in srgb, currentColor 62%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-58,637.8)" stroke-width=".65" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M158.0 546.6C157.8 546.6 157.6 546.4 157.6 546.1 157.6 545.9 157.8 545.7 158.0 545.7 158.3 545.7 158.4 545.9 158.4 546.1 158.4 546.4 158.3 546.6 158.0 546.6Z"/>
+<path transform="matrix(1,0,0,-1,-58,637.8)" stroke-width=".55" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 62%, var(--gb-paper))" d="M196.6 582.3H237.6"/>
+<path transform="matrix(1,0,0,-1,-58,637.8)" d="M237.8 582.7C238.1 582.7 238.3 582.5 238.3 582.3 238.3 582.1 238.1 581.9 237.8 581.9 237.6 581.9 237.4 582.1 237.4 582.3 237.4 582.5 237.6 582.7 237.8 582.7Z" fill="color-mix(in srgb, currentColor 62%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-58,637.8)" stroke-width=".55" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M237.8 582.7C238.1 582.7 238.3 582.5 238.3 582.3 238.3 582.1 238.1 581.9 237.8 581.9 237.6 581.9 237.4 582.1 237.4 582.3 237.4 582.5 237.6 582.7 237.8 582.7Z"/>
+<path transform="matrix(1,0,0,-1,-58,637.8)" stroke-width=".6" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 62%, var(--gb-paper))" d="M195.4 435.2H237.6"/>
+<path transform="matrix(1,0,0,-1,-58,637.8)" d="M237.8 435.7C238.1 435.7 238.3 435.5 238.3 435.2 238.3 434.9 238.1 434.7 237.8 434.7 237.5 434.7 237.3 434.9 237.3 435.2 237.3 435.5 237.5 435.7 237.8 435.7Z" fill="color-mix(in srgb, currentColor 62%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-58,637.8)" stroke-width=".6" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M237.8 435.7C238.1 435.7 238.3 435.5 238.3 435.2 238.3 434.9 238.1 434.7 237.8 434.7 237.5 434.7 237.3 434.9 237.3 435.2 237.3 435.5 237.5 435.7 237.8 435.7Z"/>
+<path transform="matrix(1,0,0,-1,-58,637.8)" stroke-width=".6" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 62%, var(--gb-paper))" d="M195.4 399.2H237.6"/>
+<path transform="matrix(1,0,0,-1,-58,637.8)" d="M237.8 399.7C238.1 399.7 238.3 399.5 238.3 399.2 238.3 398.9 238.1 398.7 237.8 398.7 237.5 398.7 237.3 398.9 237.3 399.2 237.3 399.5 237.5 399.7 237.8 399.7Z" fill="color-mix(in srgb, currentColor 62%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-58,637.8)" stroke-width=".6" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M237.8 399.7C238.1 399.7 238.3 399.5 238.3 399.2 238.3 398.9 238.1 398.7 237.8 398.7 237.5 398.7 237.3 398.9 237.3 399.2 237.3 399.5 237.5 399.7 237.8 399.7Z"/>
+<use href="#07-song-view__01-song-workflow--1-s2" transform="matrix(1 0 0 -1 143 277)"/>
+<use href="#07-song-view__01-song-workflow--1-s1" transform="matrix(1 0 0 -1 179.8 276.6)"/>
+<use href="#07-song-view__01-song-workflow--1-s3" transform="matrix(1 0 0 -1 179.8 276.6)"/>
+<use href="#07-song-view__01-song-workflow--1-s2" transform="matrix(1 0 0 -1 143 313)"/>
+<use href="#07-song-view__01-song-workflow--1-s1" transform="matrix(1 0 0 -1 179.8 312.6)"/>
+<use href="#07-song-view__01-song-workflow--1-s3" transform="matrix(1 0 0 -1 179.8 312.6)"/>
+<use href="#07-song-view__01-song-workflow--1-s2" transform="matrix(1 0 0 -1 143 351.4)"/>
+<use href="#07-song-view__01-song-workflow--1-s1" transform="matrix(1 0 0 -1 179.8 351)"/>
+<use href="#07-song-view__01-song-workflow--1-s3" transform="matrix(1 0 0 -1 179.8 351)"/>
+<path transform="matrix(1,0,0,-1,-58,637.8)" stroke-width=".6" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 62%, var(--gb-paper))" d="M194.7 249.9H237.1"/>
+<path transform="matrix(1,0,0,-1,-58,637.8)" d="M237.6 250.4C237.9 250.4 238.1 250.2 238.1 249.9 238.1 249.6 237.9 249.4 237.6 249.4 237.4 249.4 237.1 249.6 237.1 249.9 237.1 250.2 237.4 250.4 237.6 250.4Z" fill="color-mix(in srgb, currentColor 62%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-58,637.8)" stroke-width=".6" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M237.6 250.4C237.9 250.4 238.1 250.2 238.1 249.9 238.1 249.6 237.9 249.4 237.6 249.4 237.4 249.4 237.1 249.6 237.1 249.9 237.1 250.2 237.4 250.4 237.6 250.4Z"/>
+<path transform="matrix(1,0,0,-1,-58,637.8)" stroke-width=".55" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 62%, var(--gb-paper))" d="M194.7 212.9H237.1"/>
+<path transform="matrix(1,0,0,-1,-58,637.8)" d="M237.6 213.5C237.9 213.5 238.1 213.2 238.1 213.0 238.1 212.7 237.9 212.4 237.6 212.4 237.3 212.4 237.1 212.7 237.1 213.0 237.1 213.2 237.3 213.5 237.6 213.5Z" fill="color-mix(in srgb, currentColor 62%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-58,637.8)" stroke-width=".55" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M237.6 213.5C237.9 213.5 238.1 213.2 238.1 213.0 238.1 212.7 237.9 212.4 237.6 212.4 237.3 212.4 237.1 212.7 237.1 213.0 237.1 213.2 237.3 213.5 237.6 213.5Z"/>
+<path transform="matrix(1,0,0,-1,-58,637.8)" stroke-width=".55" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 62%, var(--gb-paper))" d="M194.7 172.1H237.1"/>
+<path transform="matrix(1,0,0,-1,-58,637.8)" d="M237.6 172.7C237.9 172.7 238.1 172.4 238.1 172.2 238.1 171.9 237.9 171.6 237.6 171.6 237.3 171.6 237.1 171.9 237.1 172.2 237.1 172.4 237.3 172.7 237.6 172.7Z" fill="color-mix(in srgb, currentColor 62%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-58,637.8)" stroke-width=".55" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M237.6 172.7C237.9 172.7 238.1 172.4 238.1 172.2 238.1 171.9 237.9 171.6 237.6 171.6 237.3 171.6 237.1 171.9 237.1 172.2 237.1 172.4 237.3 172.7 237.6 172.7Z"/>
+<path transform="matrix(1,0,0,-1,-58,637.8)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M199.8 613.1V132.1"/>
+<path transform="matrix(1,0,0,-1,-58,637.8)" d="M199.7 631.3C205.7 631.3 210.5 626.5 210.5 620.6 210.5 614.7 205.7 609.9 199.7 609.9 193.8 609.9 189.0 614.7 189.0 620.6 189.0 626.5 193.8 631.3 199.7 631.3Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-58,637.8)" stroke-width=".55" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 62%, var(--gb-paper))" d="M199.7 631.3C205.7 631.3 210.5 626.5 210.5 620.6 210.5 614.7 205.7 609.9 199.7 609.9 193.8 609.9 189.0 614.7 189.0 620.6 189.0 626.5 193.8 631.3 199.7 631.3Z"/>
+<path transform="matrix(1,0,0,-1,-58,637.8)" d="M199.7 132.1C205.7 132.1 210.5 127.3 210.5 121.4 210.5 115.5 205.7 110.7 199.7 110.7 193.8 110.7 189.0 115.5 189.0 121.4 189.0 127.3 193.8 132.1 199.7 132.1Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-58,637.8)" stroke-width=".55" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 62%, var(--gb-paper))" d="M199.7 132.1C205.7 132.1 210.5 127.3 210.5 121.4 210.5 115.5 205.7 110.7 199.7 110.7 193.8 110.7 189.0 115.5 189.0 121.4 189.0 127.3 193.8 132.1 199.7 132.1Z"/>
+<path transform="matrix(1,0,0,-1,-58,637.8)" d="M199.7 628.1C203.9 628.1 207.3 624.8 207.3 620.6 207.3 616.4 203.9 613.1 199.7 613.1 195.6 613.1 192.2 616.4 192.2 620.6 192.2 624.8 195.6 628.1 199.7 628.1Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(138.1 21.1)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">S</tspan></text>
+<path transform="matrix(1,0,0,-1,-58,637.8)" d="M199.7 128.9C203.9 128.9 207.3 125.6 207.3 121.4 207.3 117.2 203.9 113.9 199.7 113.9 195.6 113.9 192.2 117.2 192.2 121.4 192.2 125.6 195.6 128.9 199.7 128.9Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(138.1 520.3)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">E</tspan></text>
+<use href="#07-song-view__01-song-workflow--1-s4" transform="matrix(1 0 0 -1 141.8 49.9)"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(139.2 58.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">1</tspan></text>
+<use href="#07-song-view__01-song-workflow--1-s4" transform="matrix(1 0 0 -1 141.8 85.9)"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(139.2 94.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">2</tspan></text>
+<use href="#07-song-view__01-song-workflow--1-s4" transform="matrix(1 0 0 -1 141.8 121.9)"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(139.2 130.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">3</tspan></text>
+<path transform="matrix(1,0,0,-1,-58,637.8)" d="M199.8 480.8C202.9 480.8 205.4 478.3 205.4 475.2 205.4 472.0 202.9 469.5 199.8 469.5 196.6 469.5 194.1 472.0 194.1 475.2 194.1 478.3 196.6 480.8 199.8 480.8Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(139.2 165.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">4</tspan></text>
+<use href="#07-song-view__01-song-workflow--1-s4" transform="matrix(1 0 0 -1 141.8 197)"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(139.2 205.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">5</tspan></text>
+<use href="#07-song-view__01-song-workflow--1-s4" transform="matrix(1 0 0 -1 141.8 233)"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(139.2 241.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">6</tspan></text>
+<use href="#07-song-view__01-song-workflow--1-s4" transform="matrix(1 0 0 -1 141.8 271.4)"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(139.2 280.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">7</tspan></text>
+<use href="#07-song-view__01-song-workflow--1-s5" transform="matrix(1 0 0 -1 141.8 307.2)"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(139.2 316.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">8</tspan></text>
+<path transform="matrix(1,0,0,-1,-58,637.8)" d="M199.8 292.4C202.9 292.4 205.4 289.9 205.4 286.8 205.4 283.6 202.9 281.1 199.8 281.1 196.6 281.1 194.1 283.6 194.1 286.8 194.1 289.9 196.6 292.4 199.8 292.4Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(139.2 354.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">9</tspan></text>
+<use href="#07-song-view__01-song-workflow--1-s5" transform="matrix(1 0 0 -1 141.8 381.6)"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(136.7 390.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">10</tspan></text>
+<use href="#07-song-view__01-song-workflow--1-s5" transform="matrix(1 0 0 -1 141.8 419.3)"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(137.3 427.8)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">11</tspan></text>
+<use href="#07-song-view__01-song-workflow--1-s5" transform="matrix(1 0 0 -1 141.8 460.1)"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(137.0 468.6)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">12</tspan></text>
+<path transform="matrix(1,0,0,-1,-58,637.8)" d="M327.1 614.9H402.5V624.9H327.1Z" fill="var(--gb-paper)"/>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(269.1 20.1)" font-size="10" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">New song</tspan></text>
+<path transform="matrix(1,0,0,-1,-58,637.8)" d="M64.3 614.9H134.4V624.9H64.3Z" fill="var(--gb-paper)"/>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(6.3 20.1)" font-size="10" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Existing song</tspan></text>
+<path transform="matrix(1,0,0,-1,-58,637.8)" d="M242.6 573.3H410.2V589.7H242.6Z" fill="var(--gb-paper)"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(184.6 53.1)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">New song</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(184.6 60.6)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">[SHIFT] + [LOAD], [LOAD]</tspan></text>
+<path transform="matrix(1,0,0,-1,-58,637.8)" d="M242.3 502.0H398.0V518.8H242.3Z" fill="var(--gb-paper)"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(184.3 129.9)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">SONG view (Row is default, Grid Optional)</tspan></text>
+<path transform="matrix(1,0,0,-1,-58,637.8)" d="M242.3 467.0H398.0V483.8H242.3Z" fill="var(--gb-paper)"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(184.3 164.9)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">SONG Row view is default</tspan></text>
+<path transform="matrix(1,0,0,-1,-58,637.8)" d="M69.3 467.0H157.2V483.8H69.3Z" fill="var(--gb-paper)"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(11.3 164.9)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">SONG Grid view is optional</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(11.3 174.4)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Hold [SONG] + Turn (SELECT)</tspan></text>
+<path transform="matrix(1,0,0,-1,-58,637.8)" d="M80.0 537.8H153.7V554.6H80.0Z" fill="var(--gb-paper)"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(57.6 90.4)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Load SONG</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(33.4 97.9)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">[LOAD], turn (SELECT)</tspan></text>
+<path transform="matrix(1,0,0,-1,-58,637.8)" d="M242.3 426.5H398.0V442.9H242.3Z" fill="var(--gb-paper)"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(184.3 199.9)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Select the instrument clip per row</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(184.3 207.4)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Hold [</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(200.0 207.4)" font-size="6" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0">PAD</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(211.9 207.4)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">] or the row to edit or select a clip</tspan></text>
+<path transform="matrix(1,0,0,-1,-58,637.8)" d="M242.3 390.5H398.0V406.9H242.3Z" fill="var(--gb-paper)"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(184.3 235.9)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Editing clips</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(184.3 243.4)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Press [</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(203.0 243.4)" font-size="6" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0">PAD</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(214.9 243.4)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">] to select clip view</tspan></text>
+<path transform="matrix(1,0,0,-1,-58,637.8)" d="M242.3 352.4H398.0V368.7H242.3Z" fill="var(--gb-paper)"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(184.3 274.1)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Continue building a song</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(184.3 281.6)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Option to arrange</tspan></text>
+<path transform="matrix(1,0,0,-1,-58,637.8)" stroke-width=".7" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M194.7 361.3H156.6V435.3H184.2"/>
+<path transform="matrix(1,0,0,-1,-58,637.8)" stroke-width=".7" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M190.1 435.3 183.8 432.1V438.4Z"/>
+<path transform="matrix(1,0,0,-1,-58,637.8)" d="M242.3 204.4H398.0V218.6H242.3Z" fill="var(--gb-paper)"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(184.3 424.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Record from song view into arranger view</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(184.3 431.7)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Capture a full arrangement</tspan></text>
+<path transform="matrix(1,0,0,-1,-58,637.8)" d="M242.3 163.6H398.0V177.8H242.3Z" fill="var(--gb-paper)"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(184.3 465.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Save</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(184.3 472.5)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">[SAVE] to save the song.</tspan></text>
+<path transform="matrix(1,0,0,-1,-58,637.8)" d="M242.2 231.5H377.3V268.0H242.2Z" fill="var(--gb-paper)"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(184.2 381.6)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">‘Affect parameter’ controls</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(184.2 389.1)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">To tweak the common parameters in SONG view,</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(184.2 396.6)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Hold [</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(199.8 396.6)" font-size="6" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0">PAD</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(211.7 396.6)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">] for row and adjust</tspan></text>
+<path transform="matrix(1,0,0,-1,-58,637.8)" d="M242.3 321.2H398.0V327.9H242.3Z" fill="var(--gb-paper)"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(184.3 314.9)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Record audio into clips</tspan></text>
+<path transform="matrix(1,0,0,-1,-58,637.8)" d="M242.3 282.8H398.0V289.5H242.3Z" fill="var(--gb-paper)"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(184.3 353.3)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Build loops</tspan></text>
+</g>
+</svg>

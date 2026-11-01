@@ -1,0 +1,254 @@
+---
+title: "7.3 Working in Song Row View"
+description: "Song view provides controls to launch and stop clips and is also the main area to handle loop recording and playback, covered elsewhere in this guide."
+sidebar:
+  order: 2
+banner:
+  content: "From the Deluge Manual \u2013 Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+guidebook:
+  section: "7.3"
+  chapter: 7
+  pdfPages: [160, 161, 162, 163, 164, 165, 166, 167, 168]
+  printedPages: [154, 155, 156, 157, 158, 159, 160, 161, 162]
+  firmware: "C1.0.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_7_3_1 from "../../../../assets/guidebook/figs/07-song-view__03-working-in-song-row-view--1.svg?raw"
+import fig_fig_7_3_2 from "../../../../assets/guidebook/figs/07-song-view__03-working-in-song-row-view--2.svg?raw"
+import fig_fig_7_3_3 from "../../../../assets/guidebook/figs/07-song-view__03-working-in-song-row-view--3.svg?raw"
+import fig_fig_7_3_4 from "../../../../assets/guidebook/figs/07-song-view__03-working-in-song-row-view--4.svg?raw"
+
+import { Steps } from "@astrojs/starlight/components"
+import StepFocus from "../../../../components/guidebook/StepFocus.astro"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+Song view provides controls to launch and stop clips and is also the main area to handle loop recording and playback, covered elsewhere in this guide. The default presentation is ‘row’ view. This shows a clip per row. A clip for an instrument can be launched individually or within a section along with other different instruments.
+
+<Figure
+  id="fig-7.3-1"
+  animate="playhead"
+  src={fig_fig_7_3_1}
+  alt={
+    "Pad grid: Song view compresses all clips and takes an overall view of the song ‘project’. First time entering song view only one clip will be…"
+  }
+  page={154}
+/>
+
+Deluge will only play one instrument at one time in song view. So for example, if two clips use the same synth preset 1 or clone of 1, the clip rows can each be launched but each one will stop playback of the other, allowing only one instance of each instrument to play at one time.
+
+<StepFocus />
+
+### Playing a song
+
+<Steps>
+
+1. Press :key[Song] to switch to song view. The button illuminates blue. If this is a new song and the first this time the song mode is selected, the song may be empty or only show the first clip compressed to the first row.
+2. Press :key[Play]. Song will playback and the white song position cursor will travel left to right.
+3. Rows occupied by clips are lit and the audible :key[Launch Pad] pads will be green while the :key[Section Pad] pads are lit blue as default but the colour may be changed to reflect the actual section assigned.
+4. Press :key[Play] to stop and reset playback position to the song start.
+
+</Steps>
+
+### Creating a new clip from song view
+
+<Steps>
+
+1. Press :key[Song] to switch to song view. The button illuminates blue.
+2. Press a :key[Pad] of any empty, unlit row from the 16 x 8 main grid.
+3. Deluge creates a new clip and transfers the view from song to clip view with synth selected by default.
+4. Any edits, change to synth / kit, steps created etc in the clip will be reflected when switching back to :key[Song] view with the clip added as a compressed single row.
+5. Alternatively hold :key[Pad + Turn Select] to assign an instrument directly from within song view.
+
+</Steps>
+
+### Selecting an existing clip to edit from song view
+
+<Steps>
+
+1. Press :key[Song] to switch to song view. The button illuminates blue.
+2. Press a :key[Pad] of any occupied row from the 16 x 8 main grid. The occupied rows containing clips will be illuminated fully or in part.
+3. Deluge transfers the view from song to clip view ready to edit.
+4. Any edits, steps created etc in the clip will be reflected when switching back to :key[Song] view.
+
+</Steps>
+
+### Moving a clip row from within song row view
+
+<Steps>
+
+1. Press :key[Song] to switch to song view. This only applies to Song row view, and this process changes the pad colour if in grid view.
+2. Press & hold a :key[Pad] within the clip row to move + :key[Turn Vertical].
+3. The clip will be relocated into a different row relative to the other clips.
+4. Note that this process changes a clip pad colour in Song grid view.
+
+</Steps>
+
+### Changing a clip row colour
+
+<Steps>
+
+1. Press :key[Song] to switch to song view. If in Song grid view the blue edit mode will need to be active.
+2. Press & hold a :key[Pad] + hold :key[Shift + Turn Vertical].
+3. The clip row colour will be adjusted.
+
+</Steps>
+
+#### Fill Clips
+
+A clip can operate in default mode or be set as a fill clip. Instead of aligning a triggered clip start, a fill clip is designed to play at the end of a loop, coming to an end at the point of starting the next loop. A fill clip when triggered it will automatically be scheduled to start so that it finishes at the start of the next loop. If the fill clip is longer than the remaining time, it is triggered immediately at a point midway through. The loop length is set by the longest playing clip, or by the total length of a section times the repeat count set for that section. Note that a fill clip is still subject to the one clip per instrument behavior of the Deluge. Fill clips can steal an output from another fill, but they cannot steal from a non-fill. This can lead to some fills never starting since a default type clip has the needed instrument. This can be worked around by cloning the instrument to an independent copy.
+
+### Configuring a fill clip in song view
+
+<Steps>
+
+1. Press :key[Song]
+2. Hold :key[Launch Pad + Select] on an existing clip row.
+3. The fill clip pop-up menu will appear. The default clip mode is normally set but can be changed to a fill clip.
+4. :key[Turn Select] to highlight ‘FILL CLIP’.
+5. Press :key[Select] to select and confirm the option highlighted.
+6. The clip playback will operate to the fill clip launch behaviour. When triggered it will play by aligning its end point with the loop end / next loop start.
+
+</Steps>
+
+<Figure
+  id="fig-7.3-2"
+  src={fig_fig_7_3_2}
+  alt={"OLED screen: LAUNCH STYLE DEFAULT CLIP FILL CLIP Launch Behaviour"}
+  page={157}
+/>
+
+#### Launch Control of Single Clips in Song Row View
+
+More advanced options are available in song row view than just the start stop commands for individual clips. Clips are armed to ensure the timing of the clip start aligns with the overall song. The catch notes option in the community feature settings considers the behaviour of clip transitions to allow for ‘in progress’ note timing or instant switching.
+
+<Figure
+  id="fig-7.3-3"
+  src={fig_fig_7_3_3}
+  alt={
+    "Diagram: [LAUNCH] Mute / launch column pad enables the arming and triggering of clips (per row) in time while playing a song. Mute Audition / Launch…"
+  }
+  page={158}
+/>
+
+Press :key[Launch Pad] to play the clip row in song view.
+
+Launch status
+
+GREEN Clip is ‘launched’ : when seq is playing or stopped.
+
+RED Clip is ‘stopped’ : when seq is playing or stopped.
+
+GREEN FLASHING Clip is ‘armed’ ready to stop at its seq end: when playing.
+
+RED FLASHING Clip is ‘armed’ ready to play in time: when playing.
+
+ORANGE Clip is ‘set as a Fill Clip. Audition pad is cyan.
+
+Display shows countdown of loops to complete when a clip row is ‘armed’ and launching or stopping clips, default is 1. To increase the loops to play prior to launch / stop, :key[Turn Select] to change the loop countdown.
+
+Press :key[Select] to cancel loop countdown.
+
+Press :key[Shift + Launch Pad] to immediately play the clip row in song view.
+
+### Immediately launching / stopping a clip in song view
+
+<Steps>
+
+1. With the sequencer playing, Press :key[Shift + Launch Pad], where LAUNCH is the row of the clip to play.
+2. If the clip was not playing, it will immediately play in time with the sequence.
+3. If the clip was already playing it will immediately stop.
+
+</Steps>
+
+### Arming to launch / stop a clip in song view
+
+<Steps>
+
+1. With the sequencer playing, Press :key[Launch Pad], where LAUNCH is the row of the clip to play.
+2. If the clip was not playing, its launch pad will flash red until the clip is aligned to the sequence loop (indicated by the display countdown number). At sequence alignment point it will play and the pad will be illuminated solid green.
+3. If the clip was already playing its pad will flash green until the sequence reaches its end. The pad will then be illuminated solid red and the clip is then stopped. The display will show the countdown number for the sequence.
+
+</Steps>
+
+### Adjusting armed countdown on the fly
+
+<Steps>
+
+1. When a clip is armed to launch or to stop it will flash red or green respectively. During this time the display will show a countdown number that signifies a full or part loop to complete prior to launch / stop.
+2. While the number is displayed, :key[Turn Select] to adjust the number of the loop countdown - increasing or reducing the wait timer to trigger the launch / stop command.
+3. While the number is displayed, press :key[Select] to clear the countdown timer and clear arming of the clip.
+
+</Steps>
+
+### Soloing clips in song view
+
+<Steps>
+
+1. To solo a clip, press & hold :key[Horizontal + Launch Pad] of clip row to solo.
+2. If the sequence is playing the solo request will be ‘armed’ to solo on the next repeat cycle. Pad will flash when armed.
+3. The launch pad will illuminate blue when the clip row is played in solo.
+4. Other clips of course will be muted and these will be dimly lit.
+5. To remove the solo, press the :key[Launch Pad].
+6. To solo immediately without arming, press & hold :key[Shift + Horizontal + Launch Pad].
+
+</Steps>
+
+#### Song Row View Sections
+
+Song sections group together clips so that they can be controlled, launched, armed etc together making it easy to play arrangements and structure live sets. Sections can be structured into a chained sequence automatically playing each. Sections are colour coded for clarity and controlled by the :key[Section Pad] column in song view.
+
+<Figure
+  id="fig-7.3-4"
+  src={fig_fig_7_3_4}
+  alt={
+    "Diagram: [SECTION] Audition / section pad indicates the assignment of the clip to a section, identified by its colour Press [LAUNCH] pad to play the…"
+  }
+  page={161}
+/>
+
+#### REPEAT MODE
+
+Press & hold :key[Section Pad + Select] to change number of repeats:
+
+INFINITE (default), NUMBER, LAUNCH NON-EXCLUSIVELY
+
+Display shows countdown of section repeats when a repeat number is defined. To increase the sections to play prior to launch / stop, :key[Turn Select] to change the section countdown.
+
+Press :key[Select] to cancel section countdown.
+
+### Selecting a section for a clip
+
+<Steps>
+
+1. Press :key[Song] to switch to song view.
+2. Press :key[Shift + Section Pad] for the clip row of which to assign the section.
+3. The section colour will be changed. Toggle the selection until the section group desired is selected. This is defined by SECTION pad colour.
+
+</Steps>
+
+### Arming to launch / stop a section in song view
+
+<Steps>
+
+1. With the sequencer playing, Press a :key[Section Pad] of the section to launch. The section group of clip rows will all be the same colour.
+2. The LAUNCH pads will flash when a repeat countdown is armed and any count shown on the display. The launch pads show the clip play status of green when in play and red when stopped.
+3. The section will play when launched for the number of cycles set by number of repeats for the section.
+
+</Steps>
+
+### Setting repeat mode for a section in song view
+
+<Steps>
+
+1. Press & hold :key[Section Pad] of the section to change.
+2. The repeat status will flash on the display. While holding the section pad, :key[Turn Select].
+   - INFINITE. This will play the section infinitum or until a manual change is made.
+   - ‘1’ .... - number will set the amount of repeats that the section will play prior to moving to the next section. This will be displayed as a countdown and can be changed by turning :key[Select] or cancelled by pressing :key[Select].
+   - LAUNCH NON-EXCLUSIVELY. This enables the sharing launch status with other sections. Note that clips sharing a preset do not play simultaneously in song view.
+3. The section will play when launched as set by number of repeats for the section.
+
+</Steps>

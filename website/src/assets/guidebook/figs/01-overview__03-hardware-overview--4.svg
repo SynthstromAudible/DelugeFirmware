@@ -1,0 +1,98 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 475.4 143.9"><defs><path id="01-overview__03-hardware-overview--4-s1" d="M0 0H28.5V50.6H0Z" clip-rule="evenodd"/><path id="01-overview__03-hardware-overview--4-s2" d="M0 0H22V76.2H0Z" clip-rule="evenodd"/></defs>
+<defs>
+<clipPath id="01-overview__03-hardware-overview--4-clip_1">
+<path transform="matrix(1,0,0,-1,-53.6,248.3)" d="M53.6 104.4H529.1V248.3H53.6Z" clip-rule="evenodd"/>
+</clipPath>
+<clipPath id="01-overview__03-hardware-overview--4-clip_2">
+<use href="#01-overview__03-hardware-overview--4-s1" transform="matrix(1 0 0 -1 267.4 -257.9)"/>
+</clipPath>
+<clipPath id="01-overview__03-hardware-overview--4-clip_3">
+<use href="#01-overview__03-hardware-overview--4-s1" transform="matrix(1 0 0 -1 284.2 -257.9)"/>
+</clipPath>
+<clipPath id="01-overview__03-hardware-overview--4-clip_4">
+<path transform="matrix(1,0,0,-1,-53.6,248.3)" d="M355.5 506.2H384.1V556.8H355.5Z" clip-rule="evenodd"/>
+</clipPath>
+<clipPath id="01-overview__03-hardware-overview--4-clip_5">
+<use href="#01-overview__03-hardware-overview--4-s1" transform="matrix(1 0 0 -1 319 -257.9)"/>
+</clipPath>
+<clipPath id="01-overview__03-hardware-overview--4-clip_6">
+<use href="#01-overview__03-hardware-overview--4-s1" transform="matrix(1 0 0 -1 336.5 -257.9)"/>
+</clipPath>
+<clipPath id="01-overview__03-hardware-overview--4-clip_7">
+<use href="#01-overview__03-hardware-overview--4-s1" transform="matrix(1 0 0 -1 353.3 -257.9)"/>
+</clipPath>
+<clipPath id="01-overview__03-hardware-overview--4-clip_8">
+<use href="#01-overview__03-hardware-overview--4-s1" transform="matrix(1 0 0 -1 371.3 -257.9)"/>
+</clipPath>
+<clipPath id="01-overview__03-hardware-overview--4-clip_9">
+<path transform="matrix(1,0,0,-1,-53.6,248.3)" d="M160.3 413.0H188.8V463.7H160.3Z" clip-rule="evenodd"/>
+</clipPath>
+<clipPath id="01-overview__03-hardware-overview--4-clip_10">
+<use href="#01-overview__03-hardware-overview--4-s2" transform="matrix(1 0 0 -1 82.5 -242)"/>
+</clipPath>
+<clipPath id="01-overview__03-hardware-overview--4-clip_11">
+<use href="#01-overview__03-hardware-overview--4-s2" transform="matrix(1 0 0 -1 138.7 -242)"/>
+</clipPath>
+<clipPath id="01-overview__03-hardware-overview--4-clip_12">
+<use href="#01-overview__03-hardware-overview--4-s2" transform="matrix(1 0 0 -1 175.4 -242)"/>
+</clipPath>
+<mask id="01-overview__03-hardware-overview--4-mask_13">
+<g transform="matrix(.063696,0,0,.06369599,5.9,5.9)">
+<image id="01-overview__03-hardware-overview--4-image_14" width="7278" height="874" xlink:href="/guidebook/img/01-overview__03-hardware-overview--4-1.webp"/>
+</g>
+</mask>
+<clipPath id="01-overview__03-hardware-overview--4-clip_16">
+<path transform="matrix(1,0,0,-1,-53.6,248.3)" d="M333.5 162.9H374.6V217.6H333.5Z" clip-rule="evenodd"/>
+</clipPath>
+<mask id="01-overview__03-hardware-overview--4-mask_17">
+<g transform="matrix(.032629998,0,0,.03263,280.3,30.6)">
+<image id="01-overview__03-hardware-overview--4-image_18" width="1250" height="1659" xlink:href="/guidebook/img/01-overview__03-hardware-overview--4-2.webp"/>
+</g>
+</mask>
+</defs>
+<g>
+<g clip-path="url(#01-overview__03-hardware-overview--4-clip_1)">
+<text fill="currentColor" xml:space="preserve" transform="translate(274.0 109.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">SD Card Slot</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(240.3 118.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">SD card used for presets, streaming</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(226.3 127.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">samples, firmware updates and storage. Any</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(233.9 136.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">size, formatted to FAT32. Insert pins-up.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(168.2 79.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Internal Speaker</tspan></text>
+<path transform="matrix(1,0,0,-1,-53.6,248.3)" stroke-width=".9" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="currentColor" d="M354.0 164.7V149.6"/>
+<path transform="matrix(1,0,0,-1,-53.6,248.3)" stroke-width=".9" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="currentColor" d="M255.3 197.7V182.6"/>
+<g clip-path="url(#01-overview__03-hardware-overview--4-clip_2)">
+</g>
+<g clip-path="url(#01-overview__03-hardware-overview--4-clip_3)">
+</g>
+<g clip-path="url(#01-overview__03-hardware-overview--4-clip_4)">
+</g>
+<g clip-path="url(#01-overview__03-hardware-overview--4-clip_5)">
+</g>
+<g clip-path="url(#01-overview__03-hardware-overview--4-clip_6)">
+</g>
+<g clip-path="url(#01-overview__03-hardware-overview--4-clip_7)">
+</g>
+<g clip-path="url(#01-overview__03-hardware-overview--4-clip_8)">
+</g>
+<g clip-path="url(#01-overview__03-hardware-overview--4-clip_9)">
+</g>
+<g clip-path="url(#01-overview__03-hardware-overview--4-clip_10)">
+</g>
+<g clip-path="url(#01-overview__03-hardware-overview--4-clip_11)">
+</g>
+<g clip-path="url(#01-overview__03-hardware-overview--4-clip_12)">
+</g>
+<g mask="url(#01-overview__03-hardware-overview--4-mask_13)">
+<g transform="matrix(.063696,0,0,.06369599,5.9,5.9)">
+<image class="gb-ink" id="01-overview__03-hardware-overview--4-image_15" width="7278" height="874" xlink:href="/guidebook/img/01-overview__03-hardware-overview--4-3.webp"/>
+</g>
+</g>
+<g clip-path="url(#01-overview__03-hardware-overview--4-clip_16)">
+<g mask="url(#01-overview__03-hardware-overview--4-mask_17)">
+<g transform="matrix(.032629998,0,0,.03263,280.3,30.6)">
+<image class="gb-ink" id="01-overview__03-hardware-overview--4-image_19" width="1250" height="1659" xlink:href="/guidebook/img/01-overview__03-hardware-overview--4-4.webp"/>
+</g>
+</g>
+</g>
+</g>
+</g>
+</svg>

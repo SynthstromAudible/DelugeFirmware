@@ -1,0 +1,60 @@
+---
+title: "3.14 Euclidean Sequencing"
+description: "Euclidean sequencing is based on greek mathematical principles and specifically around the division of two numbers."
+sidebar:
+  order: 13
+banner:
+  content: "From the Deluge Manual – Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+guidebook:
+  section: "3.14"
+  chapter: 3
+  pdfPages: [86, 87]
+  printedPages: [80, 81]
+  firmware: "C1.0.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import StepFocus from "../../../../components/guidebook/StepFocus.astro"
+import { Steps } from "@astrojs/starlight/components"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_3_14_1 from "../../../../assets/guidebook/figs/03-sequencing__14-euclidean-sequencing--1.svg?raw"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+Euclidean sequencing is based on greek mathematical principles and specifically around the division of two numbers. This process is applied to generate the placement of steps in a musical sequence across a defined length. Euclidean sequencing is great for more generative sequencing which creates evolving melodies and especially rhythmic patterns. Deluge applies euclidean patterns per row and the three elements to setup are:
+
+    - Number of events. Sets how many steps will be applied in the row. Process is similar to note repeat.
+    - Length of the sequence row, similar to clip length.
+    - Position of notes. The shifting of notes in the pattern.
+
+<StepFocus />
+
+### Creating a euclidean pattern
+
+<Steps>
+
+1. Set to :key[Clip] view.
+2. Identify the note and hence the row on which to apply the sequence. Holding the :key[Audition Pad] button for the row will apply the sequence. Press :key[Shift + Audition Pad] in the steps below to apply the sequence silently.
+3. Press and hold :key[Audition Pad + Turn Horizontal] to set the row length.
+4. Press and hold :key[Audition Pad] + press and :key[Turn Vertical] to set the number of events and an assigned position on the selected row.
+5. Press and hold :key[Audition Pad] + press and :key[Turn Horizontal] to adjust the note placement by shifting / rotating through the grid.
+6. Repeat these steps for other notes / rows to build layered euclidean sequences and melodies.
+
+</Steps>
+
+#### Example: Euclidean Patterns
+
+Applying euclidean patterns is performed row by row and is an iterative process for each row in a pattern where a euclidean generates pattern is required. The creativity in euclidean sequencing comes from the layering of rows with different lengths and a variety of events to build complex patterns and melodies.
+
+<Figure
+  id="fig-3.14-1"
+  animate="playhead"
+  src={fig_fig_3_14_1}
+  alt={
+    "Pad grid: Hold [AUDITION] or for silent row selection, [SHIFT] + [AUDITION] + the respective scroll control to set euclidean patterns to the selected…"
+  }
+  page={81}
+/>
+
+Multiple euclidean sequenced rows with varying lengths adds interest and the perception of generative patterns. Try with kit rows to build interesting percussive beats.

@@ -1,0 +1,70 @@
+---
+/**
+ * Dev-only side-by-side view: a converted Guidebook page next to the PDF
+ * pages it came from. Only generates routes when running `astro dev` with
+ * GUIDEBOOK_PDF_DIR pointing at `pdftoppm -r 100 -png <pdf> <dir>/page` output.
+ */
+import { getCollection, render } from "astro:content"
+
+export async function getStaticPaths() {
+  if (!import.meta.env.DEV || !process.env.GUIDEBOOK_PDF_DIR) return []
+  const entries = await getCollection("docs", (e) =>
+    e.id.startsWith("guidebook/"),
+  )
+  return entries
+    .filter((entry) => entry.data.guidebook)
+    .map((entry) => ({
+      params: { section: entry.id.replace(/^guidebook\//, "") },
+      props: { entry },
+    }))
+}
+
+const { entry } = Astro.props
+const { Content } = await render(entry)
+const pages: number[] = entry.data.guidebook?.pdfPages ?? []
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Compare: {entry.data.title}</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: system-ui, sans-serif;
+      }
+      main {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1rem;
+        padding: 1rem;
+      }
+      .pdf img {
+        width: 100%;
+        border: 1px solid #ccc;
+        margin-bottom: 1rem;
+      }
+      .rendered {
+        max-width: 60ch;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <section class="rendered">
+        <h1>{entry.data.title}</h1>
+        <Content />
+      </section>
+      <section class="pdf">
+        {
+          pages.map((p) => (
+            <img
+              src={`/guidebook-compare/page/${p}.png`}
+              alt={`Guidebook PDF page ${p}`}
+            />
+          ))
+        }
+      </section>
+    </main>
+  </body>
+</html>

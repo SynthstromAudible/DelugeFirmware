@@ -1,0 +1,97 @@
+---
+title: "4.9 Oscillators"
+description: "Deluge provides several oscillator types, set within the OSC 1 & OSC 2, TYPE Setting."
+sidebar:
+  order: 8
+banner:
+  content: "From the Deluge Manual – Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+guidebook:
+  section: "4.9"
+  chapter: 4
+  pdfPages: [111, 112, 113]
+  printedPages: [105, 106, 107]
+  firmware: "C1.0.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import StepFocus from "../../../../components/guidebook/StepFocus.astro"
+import { Steps } from "@astrojs/starlight/components"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_4_9_1 from "../../../../assets/guidebook/figs/04-synthesizers__09-oscillators--1.svg?raw"
+import fig_fig_4_9_2 from "../../../../assets/guidebook/figs/04-synthesizers__09-oscillators--2.svg?raw"
+import fig_fig_4_9_3 from "../../../../assets/guidebook/figs/04-synthesizers__09-oscillators--3.svg?raw"
+import fig_fig_4_9_4 from "../../../../assets/guidebook/figs/04-synthesizers__09-oscillators--4.svg?raw"
+import fig_fig_4_9_5 from "../../../../assets/guidebook/figs/04-synthesizers__09-oscillators--5.svg?raw"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+Deluge provides several oscillator types, set within the OSC 1 & OSC 2, TYPE Setting.
+
+<Figure
+  id="fig-4.9-1"
+  src={fig_fig_4_9_1}
+  alt={"OLED screen: OSC1 TYPE SINE TRIANGLE SQUARE"}
+  page={105}
+/>
+
+#### Digital Waveforms
+
+<Figure
+  id="fig-4.9-2"
+  src={fig_fig_4_9_2}
+  alt={"Diagram: AMPLITUDE TIME TIME"}
+  page={105}
+/>
+
+Sawtooth Square
+
+<Figure
+  id="fig-4.9-3"
+  src={fig_fig_4_9_3}
+  alt={"Diagram: AMPLITUDE TIME TIME"}
+  page={105}
+/>
+
+#### Analog Waveforms
+
+Sawtooth ASquare
+
+<Figure
+  id="fig-4.9-4"
+  src={fig_fig_4_9_4}
+  alt={"Diagram: AMPLITUDE TIME TIME"}
+  page={105}
+/>
+
+#### Audio / Inputs as an Oscillator Waveform
+
+<Figure
+  id="fig-4.9-5"
+  src={fig_fig_4_9_5}
+  alt={
+    "OLED screen: TYPE INL In left/right, in right or in left, are automatically INR available when a physical line in is connected. INLR TYPE An audio…"
+  }
+  page={106}
+/>
+
+The ability to use a standard audio sample as an oscillator is also possible. While single cycles are also useful here, they are better applied in a wavetable synth.
+
+<StepFocus />
+
+### Using a sample as an oscillator waveform source
+
+<Steps>
+
+1. Press :key[Clip] to select clip view. This is indicated by the clip button illuminated blue.
+2. Select synth by pressing :key[Synth] if not already selected. The synth button illuminates red.
+3. Press :key[Shift + Type Pad] as quick access shortcut for OSC 1 or 2. Alternatively use the nested menu options by pressing :key[Select] and navigating to ‘TYPE’.
+4. Turning :key[Select] navigates the waveform options. Select SAMPLE.
+5. Use :key[BackUndo] to exit sub-menu and back up a level. A new set of parameters, made available by selecting the SAMPLE option are now accessible.
+6. Select a sample by navigating to ‘FILE BROWSER’ by turning :key[Select].
+7. Pressing :key[Select] while FILE BROWSER is in focus opens the option to browse and select a sample, ‘BOTTOM-TO-TOP’ will appear on the display to indicate the bottom-to-top note range.
+8. Press :key[Select] to enter the sample browser. By default the factory folders for ARTISTS, DRUMS, RECORD, RESAMPLE are available which can be selected by turning and then pressing :key[Select] when the folder is in-focus.
+9. Navigate samples and folders by turning :key[Select]. The sample will audition and an illustration of the sample will be mapped across the grid.
+10. Press :key[Select] to load the sample as the oscillator wave.
+
+</Steps>

@@ -1,0 +1,128 @@
+---
+title: "3.4 Recording Pattern Sequences"
+description: "The recording of note events can be performed manually using the step sequencer or live recording using the audition pads."
+sidebar:
+  order: 3
+banner:
+  content: "From the Deluge Manual – Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+guidebook:
+  section: "3.4"
+  chapter: 3
+  pdfPages: [46, 47, 48, 49, 50]
+  printedPages: [40, 41, 42, 43, 44]
+  firmware: "C1.0.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import StepFocus from "../../../../components/guidebook/StepFocus.astro"
+import { Steps } from "@astrojs/starlight/components"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+The recording of note events can be performed manually using the step sequencer or live recording using the audition pads.
+
+<StepFocus />
+
+### Step recording a basic synth / MIDI / CV pattern
+
+<Steps>
+
+1. Press :key[Clip] to select clip view. Clip button illuminated blue.
+2. Select SYNTH by pressing :key[Synth] if not already selected. The synth button illuminates red. Also applies to MIDI & CV.
+3. Select a preset for a synth or channel for MIDI & CV by turning the :key[Select] rotary. Auditioning the synth selections is available with the :key[Audition Pad] pads which plays the scale.
+4. Program a pattern on the grid by pressing one or more :key[Pad] buttons. The arrangement is made across columns for the time line from left to right. The note pitch is dependant on the row selected.
+5. To extend the note length hold the first :key[Pad] + press end :key[Pad] which will extend the note between the two pads. The first pad is lit with the additional pads of the note dimly lit. Repeat to deselect.
+6. The grid by default is in 1/16th Note intervals across 1 bar of the physical horizontal grid. The :key[Pad] buttons lit will trigger the synth when the sequence is playing. The actual grid environment can be bigger than just the physical 16 x 8 pads and therefore may be out of view.
+7. Press :key[Play] to play out the synth sequence and observe the white cursor bar scrolling left to right and cycling across the grid.
+8. Patterns can be edited during playback.
+   - Press an unlit :key[Pad] to select it and press a lit :key[Pad] to deselect it.
+   - Press :key[BackUndo] to undo a note step placement action and :key[Shift + BackUndo] to restore, redo the note step action
+   - Use the mute / launch column to mute (yellow) or unmute (green) a selected row’s notes from the pattern.
+   - Saving synth presets in clip view will only save the synth settings. Patterns are stored with songs not in synth presets.
+   - The lit audition / section pad indicates the root note by the lit button or buttons if a full octave is in view.
+   - The colours will change dependant upon the pitch by row
+
+</Steps>
+
+### Step recording a basic kit pattern
+
+<Steps>
+
+1. Press :key[Clip] to select clip view. This is indicated by the clip button illuminated blue.
+2. Selected kit by pressing :key[Kit] if not already selected. The kit button illuminates red.
+3. Select a preset by turning the :key[Select] rotary and auditioning the individual sound selections available with the :key[Audition Pad] Pads.
+4. Program a pattern on the grid by pressing one or more :key[Pad] buttons. The arrangement is made across columns for the time line from left to right. The individual sounds i.e. drum hits are dependant on the rows selected.
+5. The grid by default is in 1/16th intervals across 1 bar of the physical horizontal grid. The :key[Pad] buttons lit will trigger the kit sounds when the sequence is playing. The actual grid can be bigger than just the 16 x 8 pads and therefore may be out of view.
+6. Press :key[Play] to play out the kit sequence and observe the white cursor bar scrolling left to right and cycling across the grid.
+7. Patterns can be edited during playback.
+   - Press an unlit :key[Pad] to select it and press a lit :key[Pad] to deselect it from the pattern.
+   - Press :key[BackUndo] to undo a kit step placement action and :key[Shift + BackUndo] to restore, redo the kit step action.
+   - Use the mute / launch column to mute (yellow) or unmute (green) a selected row’s notes from the pattern.
+   - Saving kit presets in clip view will only save the kit settings. Patterns are not stored in kit presets, they are stored with songs.
+   - The lit audition / section pad indicates the selected row and hence the selected kit sound.
+   - Colours are assigned to the unique kit sound on each row.
+
+</Steps>
+
+### Live recording a basic pattern using audition pads
+
+<Steps>
+
+1. Press :key[Clip] to select clip view. This is indicated by the clip button illuminated blue.
+2. Selected SYNTH or KIT by pressing :key[Synth] or :key[Kit] if not already selected. The synth or kit button illuminates red.
+3. Press :key[Record] to put the sequencer into armed record mode ready for play. Record button is lit red.
+4. Press :key[Play] to start the sequencer playing. Play is lit green.
+   - Fixed length mode. If notes exist in the clip a white cursor will play. The notes are recorded for the length set, eg: 1 bar.
+   - Auto extend mode: If the clip is fully empty, no notes or sounds on the grid, the cursor will play red. Notes will be recorded as the sequencer records with an ‘unlimited’ length.
+5. Play the notes, chords, melody in real time using the eight :key[Audition Pad] pads. The pattern will be recorded as played including a predefined velocity, timing, length and note. Notes are displayed for each of the audition pads when played.
+6. Press :key[Play] to stop playing the sequencer. Press :key[Record] to deselect record mode.
+7. Overdubs can be created by repeating step 3 - 6.
+8. Patterns can be edited during playback.
+   - Default quantization for recording live is 32nd notes. Quantization sets how accurately the notes are placed onto the grid
+   - Press an unlit :key[Pad] to select it and press a lit :key[Pad] to deselect it.
+   - Press :key[BackUndo] to undo phases of the recording and :key[Shift + BackUndo] to restore, redo the recording.
+   - Use the mute / launch column to mute (yellow) or unmute (green) a selected row’s notes from the pattern.
+   - The lit audition / section pad indicates the root note by the lit button or buttons if a full octave is in view for synths. Lit pad for kits indicates a selected row.
+   - The colours will change dependant upon the pitch by row.
+
+</Steps>
+
+### Live recording a basic synth pattern using keyboard
+
+<Steps>
+
+1. Press :key[Clip] to select clip view. This is indicated by the clip button illuminated blue.
+2. Select SYNTH by pressing :key[Synth] if not already selected. The synth button illuminates red. Keyboard view is not available for kits.
+3. Press :key[Keyboard] to select keyboard view. Pads illuminate to represent keyboard scale to be played. Semitones horizontally and rows represent 4th intervals per row. This is similar to a guitar fret-board.
+4. Press :key[Record] to ‘arm’ the sequencer in record mode ready for a play request. Record button is lit red.
+5. Press :key[Play] to start the sequencer playing. Play is lit green and the red grid cursor steps through the sequence on the top row.
+   - Fixed length mode. If notes exist in the clip a white cursor will play. The notes are recorded for the length set, example 1 bar.
+   - Auto extend mode: If the clip is fully empty, no notes or sounds on the grid, the cursor will play red. Notes will be recorded as the sequencer records with an ‘unlimited’ length.
+6. Play the grid keyboard :key[Pad] lit notes, chords, melody in real time. The pattern will be recorded as played including predefined velocity, timing, length and note. Notes are displayed for each of the keyboard pads when played.
+7. Press :key[Play] to stop playing the sequencer. Press :key[Record] to deselect record mode.
+8. Overdubs can be created by repeating step 4 - 7
+9. Patterns can be edited during playback.
+   - Default quantization for recording live is 32nd notes. Quantization sets how accurately the notes are placed onto the grid
+   - Scale for the keyboard can be changed.
+   - Press :key[BackUndo] to undo phases of the recording and :key[Shift + BackUndo] to restore, redo the recording.
+   - The lit :key[Pad] indicates the root note by the brightest button.
+
+</Steps>
+
+### Setting a recording count-in
+
+<Steps>
+
+1. Press :key[Shift + Select] to access the settings menu.
+2. :key[Turn Select] to highlight RECORDING
+3. Press :key[Select]
+4. :key[Turn Select] to highlight COUNT-IN
+5. Press :key[Select] to set the count-in option.
+6. :key[Turn Select] to choose OFF or ON. This will set the count-in for recording on or off.
+7. Count in will operate when set ON;-
+   - With Deluge as leader, :key[Record] enabled, press :key[Play] to perform a count-in prior to recording.
+   - Metronome and display counts down 4-3-2-1 prior to recording.
+   - Count-in is disabled if recording is going to begin for just one audio clip from which it’s going to auto-detect the tempo.
+
+</Steps>

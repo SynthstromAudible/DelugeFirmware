@@ -1,0 +1,20 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 104.9 66.0">
+<defs>
+<clipPath id="04-synthesizers__13-single-cycle-waveforms--2-clip_1">
+<path transform="matrix(1,0,0,-1,-271.2,363.3)" d="M271.2 297.3H376.2V363.3H271.2Z" clip-rule="evenodd"/>
+</clipPath>
+</defs>
+<g clip-path="url(#04-synthesizers__13-single-cycle-waveforms--2-clip_1)">
+<path transform="matrix(1,0,0,-1,-271.2,363.3)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M424.7 688.6V84.1"/>
+<path transform="matrix(1,0,0,-1,-271.2,363.3)" stroke-width=".7" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="currentColor" d="M215.8 394.0V335.8"/>
+<path transform="matrix(1,0,0,-1,-271.2,363.3)" stroke-width=".7" stroke-linecap="square" stroke-linejoin="round" fill="none" stroke="currentColor" d="M190.3 304.9V269.3"/>
+<path transform="matrix(1,0,0,-1,-271.2,363.3)" d="M370.2 326.5C370.2 329.8 367.5 332.5 364.2 332.5H283.2C279.9 332.5 277.2 329.8 277.2 326.5V314.5C277.2 311.2 279.9 308.5 283.2 308.5H364.2C367.5 308.5 370.2 311.2 370.2 314.5Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-271.2,363.3)" d="M370.2 326.5C370.2 329.8 367.5 332.5 364.2 332.5H283.2C279.9 332.5 277.2 329.8 277.2 326.5V314.5C277.2 311.2 279.9 308.5 283.2 308.5H364.2C367.5 308.5 370.2 311.2 370.2 314.5ZM369.5 326.5V314.5C369.5 311.5 367.1 309.2 364.2 309.2H283.2C280.3 309.2 277.9 311.5 277.9 314.5V326.5C277.9 329.4 280.3 331.8 283.2 331.8H364.2C367.1 331.8 369.5 329.4 369.5 326.5Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-271.2,363.3)" d="M329.9 332.0 318.5 326.3V337.7Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-271.2,363.3)" d="M329.9 332.0 318.5 326.3V337.7ZM328.3 332.0 319.2 327.5C319.2 327.5 319.2 336.6 319.2 336.6Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-271.2,363.3)" d="M318.5 309.0 329.9 303.3V314.7Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-271.2,363.3)" d="M318.5 309.0 329.9 303.3V314.7ZM320.0 309.0 329.2 313.6C329.2 313.6 329.2 304.4 329.2 304.4Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-271.2,363.3)" d="M313.8 344.5H338.0V357.1H313.8Z" fill="var(--gb-paper)"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(42.6 17.6)" font-size="16" font-family="Arial, Helvetica, sans-serif" font-weight="bold" font-weight="bold"><tspan y="0" x="0">‘C’</tspan></text>
+</g>
+</svg>

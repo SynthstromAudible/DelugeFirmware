@@ -1,0 +1,38 @@
+---
+title: "10.5 Audio Loop Margins"
+description: "The Deluge introduces a very short crossfade, beginning just before the loop-point on audio clips."
+sidebar:
+  order: 4
+banner:
+  content: "From the Deluge Manual – Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+guidebook:
+  section: "10.5"
+  chapter: 10
+  pdfPages: [243]
+  printedPages: [237]
+  firmware: "C1.0.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_10_5_1 from "../../../../assets/guidebook/figs/10-looping__05-audio-loop-margins--1.svg?raw"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+The Deluge introduces a very short crossfade, beginning just before the loop-point on audio clips. This reduces any audio ‘click’, especially low frequency and / or mismatched audio loop point transitions. Time-stretched or pitch-shiftedaudio has the same algorithm applied to maximise sound quality. These margins can only be applied if the waveform extends slightly further back in time than the loop’s start-point and Ideally extends slightly further forward than its end-point too.
+
+Margins are enabled ON by default. Setting menu: RECORDING &gt; LOOP MARGINS. Option ON/OFF.
+
+<Figure
+  id="fig-10.5-1"
+  src={fig_fig_10_5_1}
+  alt={
+    "Diagram: Margin Algorithm uses buffered audio to reduce clicks and improve quality. Loop Point"
+  }
+  page={237}
+/>
+
+When margins are on, all audio clips recorded from external input sources (i.e. not MIX or OUTPUT), will have these extra short “margins” of audio recorded. The Deluge will even retrieve a few milliseconds of audio data from a buffer in order to have the waveform extend further back in time than the point at which the user pressed the button to begin the recording. This extra audio is simply written into the WAV file as part of the main waveform, along with tags indicating the intended actual start and end points - meaning that the file will be treated correctly if later loaded into another Deluge project. Other software / hardware may or may not know what to do with these tags; if you're intending to use your Deluge-recorded audio clips in other devices with maximum ease, you have the option of disabling the “margins” feature - but then of course the benefits described above would be lost.
+
+The click-avoiding crossfade described above isn’t applicable when an audio clip is played for the first time though, with no previous iteration to crossfade from - so a click may occur at its very start if the waveform doesn’t have a zero-crossing right at that point. To help with this, audio clips have an attack setting which controls a short fade-in - defaulting to slightly on when margins are in use for a given recording, or off otherwise.

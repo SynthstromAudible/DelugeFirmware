@@ -1,0 +1,23 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 106.5 57.3">
+<defs>
+<clipPath id="11-effects__03-distortion-effects--1-clip_1">
+<path transform="matrix(1,0,0,-1,-309.6,167.1)" d="M309.6 109.8H416.1V167.1H309.6Z" clip-rule="evenodd"/>
+</clipPath>
+<mask id="11-effects__03-distortion-effects--1-mask_2">
+<g transform="matrix(.085392,0,0,.085392,6.0,5.9)">
+<image id="11-effects__03-distortion-effects--1-image_3" width="1106" height="394" xlink:href="/guidebook/img/11-effects__03-distortion-effects--1-1.webp"/>
+</g>
+</mask>
+</defs>
+<g>
+<g clip-path="url(#11-effects__03-distortion-effects--1-clip_1)">
+<path transform="matrix(1,0,0,-1,-309.6,167.1)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M170.1 688.6V84.1"/>
+<g mask="url(#11-effects__03-distortion-effects--1-mask_2)">
+<g transform="matrix(.085392,0,0,.085392,6.0,5.9)">
+<image class="gb-ink" id="11-effects__03-distortion-effects--1-image_4" width="1106" height="394" xlink:href="/guidebook/img/11-effects__03-distortion-effects--1-2.webp"/>
+</g>
+</g>
+<text fill="currentColor" xml:space="preserve" transform="translate(34.2 49.6)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">WAVEFOLD</tspan></text>
+</g>
+</g>
+</svg>

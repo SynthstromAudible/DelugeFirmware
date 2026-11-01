@@ -1,0 +1,93 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 261.3 81.5"><defs><path id="12-midi__11-mpe-application-for-midi-input-in-deluge--1-s1" d="M0 0H17V69.5H0Z" fill="var(--gb-paper)" fill-rule="evenodd"/><path id="12-midi__11-mpe-application-for-midi-input-in-deluge--1-s2" d="M0 0H17V69.5H0Z" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor"/><path id="12-midi__11-mpe-application-for-midi-input-in-deluge--1-s3" d="M0 0H11.3V35.5H0Z" fill-rule="evenodd"/><path id="12-midi__11-mpe-application-for-midi-input-in-deluge--1-s4" d="M0 0H11.3V35.5H0Z" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor"/></defs>
+<defs>
+<clipPath id="12-midi__11-mpe-application-for-midi-input-in-deluge--1-clip_1">
+<path transform="matrix(1,0,0,-1,-236.1,407.0)" d="M236.1 325.5H497.4V407.0H236.1Z" clip-rule="evenodd"/>
+</clipPath>
+<clipPath id="12-midi__11-mpe-application-for-midi-input-in-deluge--1-clip_2">
+<path transform="matrix(1,0,0,-1,-236.1,407.0)" d="M240.9 331.7H274.2V364.2H240.9Z" clip-rule="evenodd"/>
+</clipPath>
+<mask id="12-midi__11-mpe-application-for-midi-input-in-deluge--1-mask_3">
+<g transform="matrix(.088922,0,0,.088922,5.9,44.0)">
+<image id="12-midi__11-mpe-application-for-midi-input-in-deluge--1-image_4" width="363" height="353" xlink:href="/guidebook/img/12-midi__11-mpe-application-for-midi-input-in-deluge--1-1.webp"/>
+</g>
+</mask>
+<clipPath id="12-midi__11-mpe-application-for-midi-input-in-deluge--1-clip_6">
+<path transform="matrix(1,0,0,-1,-236.1,407.0)" d="M428.1 328.5H494.4V364.2H428.1Z" clip-rule="evenodd"/>
+</clipPath>
+<mask id="12-midi__11-mpe-application-for-midi-input-in-deluge--1-mask_7">
+<g transform="matrix(.090438,0,0,.09043801,198.6,42.7)">
+<image id="12-midi__11-mpe-application-for-midi-input-in-deluge--1-image_8" width="626" height="360" xlink:href="/guidebook/img/12-midi__11-mpe-application-for-midi-input-in-deluge--1-2.webp"/>
+</g>
+</mask>
+</defs>
+<g>
+<g clip-path="url(#12-midi__11-mpe-application-for-midi-input-in-deluge--1-clip_1)">
+<path transform="matrix(1,0,0,-1,-236.1,407.0)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M170.1 688.6V84.1"/>
+<use href="#12-midi__11-mpe-application-for-midi-input-in-deluge--1-s1" transform="matrix(1 0 0 -1 57.8 75.4)"/>
+<use href="#12-midi__11-mpe-application-for-midi-input-in-deluge--1-s2" transform="matrix(1 0 0 -1 57.8 75.4)"/>
+<use href="#12-midi__11-mpe-application-for-midi-input-in-deluge--1-s1" transform="matrix(1 0 0 -1 74.8 75.4)"/>
+<use href="#12-midi__11-mpe-application-for-midi-input-in-deluge--1-s2" transform="matrix(1 0 0 -1 74.8 75.4)"/>
+<use href="#12-midi__11-mpe-application-for-midi-input-in-deluge--1-s1" transform="matrix(1 0 0 -1 91.8 75.4)"/>
+<use href="#12-midi__11-mpe-application-for-midi-input-in-deluge--1-s2" transform="matrix(1 0 0 -1 91.8 75.4)"/>
+<path transform="matrix(1,0,0,-1,-236.1,407.0)" d="M344.9 331.6H362.0V401.1H344.9Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-236.1,407.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M344.9 331.6H362.0V401.1H344.9Z"/>
+<use href="#12-midi__11-mpe-application-for-midi-input-in-deluge--1-s1" transform="matrix(1 0 0 -1 125.9 75.4)"/>
+<use href="#12-midi__11-mpe-application-for-midi-input-in-deluge--1-s2" transform="matrix(1 0 0 -1 125.9 75.4)"/>
+<use href="#12-midi__11-mpe-application-for-midi-input-in-deluge--1-s1" transform="matrix(1 0 0 -1 142.9 75.4)"/>
+<use href="#12-midi__11-mpe-application-for-midi-input-in-deluge--1-s2" transform="matrix(1 0 0 -1 142.9 75.4)"/>
+<use href="#12-midi__11-mpe-application-for-midi-input-in-deluge--1-s1" transform="matrix(1 0 0 -1 159.9 75.4)"/>
+<use href="#12-midi__11-mpe-application-for-midi-input-in-deluge--1-s2" transform="matrix(1 0 0 -1 159.9 75.4)"/>
+<use href="#12-midi__11-mpe-application-for-midi-input-in-deluge--1-s3" transform="matrix(1 0 0 -1 68.9 41.4)"/>
+<use href="#12-midi__11-mpe-application-for-midi-input-in-deluge--1-s4" transform="matrix(1 0 0 -1 68.9 41.4)"/>
+<use href="#12-midi__11-mpe-application-for-midi-input-in-deluge--1-s3" transform="matrix(1 0 0 -1 120 41.4)"/>
+<use href="#12-midi__11-mpe-application-for-midi-input-in-deluge--1-s4" transform="matrix(1 0 0 -1 120 41.4)"/>
+<use href="#12-midi__11-mpe-application-for-midi-input-in-deluge--1-s3" transform="matrix(1 0 0 -1 86.2 41.4)"/>
+<use href="#12-midi__11-mpe-application-for-midi-input-in-deluge--1-s4" transform="matrix(1 0 0 -1 86.2 41.4)"/>
+<use href="#12-midi__11-mpe-application-for-midi-input-in-deluge--1-s3" transform="matrix(1 0 0 -1 137.3 41.4)"/>
+<use href="#12-midi__11-mpe-application-for-midi-input-in-deluge--1-s4" transform="matrix(1 0 0 -1 137.3 41.4)"/>
+<path transform="matrix(1,0,0,-1,-236.1,407.0)" d="M390.4 365.6H401.8V401.1H390.4Z" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-236.1,407.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M390.4 365.6H401.8V401.1H390.4Z"/>
+<path transform="matrix(1,0,0,-1,-236.1,407.0)" d="M405.2 377.7 408.7 370.6H401.6Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-236.1,407.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-paper)" d="M405.2 377.7 408.7 370.6H401.6Z"/>
+<path transform="matrix(1,0,0,-1,-236.1,407.0)" d="M405.2 333.4 408.7 340.5H401.6Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-236.1,407.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-paper)" d="M405.2 333.4 408.7 340.5H401.6Z"/>
+<path transform="matrix(1,0,0,-1,-236.1,407.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M405.2 371.3V338.8"/>
+<path transform="matrix(1,0,0,-1,-236.1,407.0)" d="M405.1 358.8C407.1 358.8 408.8 357.2 408.8 355.1 408.8 353.1 407.1 351.5 405.1 351.5 403.1 351.5 401.4 353.1 401.4 355.1 401.4 357.2 403.1 358.8 405.1 358.8Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-236.1,407.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M405.1 358.8C407.1 358.8 408.8 357.2 408.8 355.1 408.8 353.1 407.1 351.5 405.1 351.5 403.1 351.5 401.4 353.1 401.4 355.1 401.4 357.2 403.1 358.8 405.1 358.8Z"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(166.7 54.4)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Y</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(166.7 54.4)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Y</tspan></text>
+<path transform="matrix(1,0,0,-1,-236.1,407.0)" d="M302.4 333.4 306.0 340.5H298.9Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-236.1,407.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-paper)" d="M302.4 333.4 306.0 340.5H298.9Z"/>
+<path transform="matrix(1,0,0,-1,-236.1,407.0)" stroke-width=".75" stroke-linecap="round" stroke-dasharray="2.2,2.2,.0001,.0001" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M302.4 370.2V338.8"/>
+<path transform="matrix(1,0,0,-1,-236.1,407.0)" d="M302.3 358.8C304.4 358.8 306.0 357.2 306.0 355.1 306.0 353.1 304.4 351.5 302.3 351.5 300.3 351.5 298.7 353.1 298.7 355.1 298.7 357.2 300.3 358.8 302.3 358.8Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-236.1,407.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M302.3 358.8C304.4 358.8 306.0 357.2 306.0 355.1 306.0 353.1 304.4 351.5 302.3 351.5 300.3 351.5 298.7 353.1 298.7 355.1 298.7 357.2 300.3 358.8 302.3 358.8Z"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(64.0 54.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">A</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(64.0 54.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">A</tspan></text>
+<path transform="matrix(1,0,0,-1,-236.1,407.0)" d="M340.9 346.3 348.0 349.9V342.8Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-236.1,407.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-paper)" d="M340.9 346.3 348.0 349.9V342.8Z"/>
+<path transform="matrix(1,0,0,-1,-236.1,407.0)" d="M366.0 346.3 358.9 349.9V342.8Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-236.1,407.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-paper)" d="M366.0 346.3 358.9 349.9V342.8Z"/>
+<path transform="matrix(1,0,0,-1,-236.1,407.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M344.5 346.3H362.0"/>
+<path transform="matrix(1,0,0,-1,-236.1,407.0)" d="M350.2 346.2C350.2 348.3 351.8 349.9 353.9 349.9 355.9 349.9 357.5 348.3 357.5 346.2 357.5 344.2 355.9 342.6 353.9 342.6 351.8 342.6 350.2 344.2 350.2 346.2Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-236.1,407.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M350.2 346.2C350.2 348.3 351.8 349.9 353.9 349.9 355.9 349.9 357.5 348.3 357.5 346.2 357.5 344.2 355.9 342.6 353.9 342.6 351.8 342.6 350.2 344.2 350.2 346.2Z"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(115.5 63.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">X</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(115.5 63.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">X</tspan></text>
+<g clip-path="url(#12-midi__11-mpe-application-for-midi-input-in-deluge--1-clip_2)">
+<g mask="url(#12-midi__11-mpe-application-for-midi-input-in-deluge--1-mask_3)">
+<g transform="matrix(.088922,0,0,.088922,5.9,44.0)">
+<image class="gb-ink" id="12-midi__11-mpe-application-for-midi-input-in-deluge--1-image_5" width="363" height="353" xlink:href="/guidebook/img/12-midi__11-mpe-application-for-midi-input-in-deluge--1-3.webp"/>
+</g>
+</g>
+</g>
+<path transform="matrix(1,0,0,-1,-236.1,407.0)" d="M242.0 339.6H248.1V368.2H242.0Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-236.1,407.0)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-paper)" d="M242.0 339.6H248.1V368.2H242.0Z"/>
+<g clip-path="url(#12-midi__11-mpe-application-for-midi-input-in-deluge--1-clip_6)">
+<g mask="url(#12-midi__11-mpe-application-for-midi-input-in-deluge--1-mask_7)">
+<g transform="matrix(.090438,0,0,.09043801,198.6,42.7)">
+<image class="gb-ink" id="12-midi__11-mpe-application-for-midi-input-in-deluge--1-image_9" width="626" height="360" xlink:href="/guidebook/img/12-midi__11-mpe-application-for-midi-input-in-deluge--1-4.webp"/>
+</g>
+</g>
+</g>
+</g>
+</g>
+</svg>

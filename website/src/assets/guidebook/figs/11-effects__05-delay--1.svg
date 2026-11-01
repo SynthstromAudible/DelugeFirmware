@@ -1,0 +1,36 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 315 143.2">
+<defs>
+<clipPath id="11-effects__05-delay--1-clip_1">
+<path transform="matrix(1,0,0,-1,-70.8,629.5)" d="M70.8 486.3H385.8V629.5H70.8Z" clip-rule="evenodd"/>
+</clipPath>
+</defs>
+<g clip-path="url(#11-effects__05-delay--1-clip_1)">
+<path transform="matrix(1,0,0,-1,-70.8,629.5)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M424.8 688.4V83.9"/>
+<path transform="matrix(1,0,0,-1,-70.8,629.5)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M181.6 610.7H164.0"/>
+<path transform="matrix(1,0,0,-1,-70.8,629.5)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M195.1 597.6V575.2"/>
+<path transform="matrix(1,0,0,-1,-70.8,629.5)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M263.6 540.7 268.9 563.4 274.1 540.7 279.3 563.4 284.6 540.7"/>
+<path transform="matrix(1,0,0,-1,-70.8,629.5)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M284.6 540.7 291.9 563.4"/>
+<path transform="matrix(1,0,0,-1,-70.8,629.5)" d="M255.7 554.5C256.5 554.5 257.2 553.8 257.2 553.0 257.2 552.2 256.5 551.6 255.7 551.6 254.9 551.6 254.3 552.2 254.3 553.0 254.3 553.8 254.9 554.5 255.7 554.5Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-70.8,629.5)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M255.7 554.5C256.5 554.5 257.2 553.8 257.2 553.0 257.2 552.2 256.5 551.6 255.7 551.6 254.9 551.6 254.3 552.2 254.3 553.0 254.3 553.8 254.9 554.5 255.7 554.5Z"/>
+<path transform="matrix(1,0,0,-1,-70.8,629.5)" d="M122.5 554.2C123.3 554.2 123.9 553.5 123.9 552.7 123.9 551.9 123.3 551.3 122.5 551.3 121.7 551.3 121.0 551.9 121.0 552.7 121.0 553.5 121.7 554.2 122.5 554.2Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-70.8,629.5)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M122.5 554.2C123.3 554.2 123.9 553.5 123.9 552.7 123.9 551.9 123.3 551.3 122.5 551.3 121.7 551.3 121.0 551.9 121.0 552.7 121.0 553.5 121.7 554.2 122.5 554.2Z"/>
+<path transform="matrix(1,0,0,-1,-70.8,629.5)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M255.7 552.4V503.9H122.5V552.7"/>
+<path transform="matrix(1,0,0,-1,-70.8,629.5)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M194.5 623.2C201.5 623.2 207.3 617.4 207.3 610.4 207.3 603.4 201.5 597.6 194.5 597.6 187.5 597.6 181.7 603.4 181.7 610.4 181.7 617.4 187.5 623.2 194.5 623.2Z"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(110.7 80.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">DELAY</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(116.0 21.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Rate</tspan></text>
+<path transform="matrix(1,0,0,-1,-70.8,629.5)" stroke-width=".4" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 41%, var(--gb-paper))" d="M135.7 597.6H164.0V623.5H135.7Z"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(70.7 21.6)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Sync</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(95.2 135.6)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Feedback Amount</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(223.4 76.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Ping-Pong (L/R) or</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(228.9 84.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Standard Delay</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(288.9 65.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">L/Mono</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(288.9 94.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">R</tspan></text>
+<path transform="matrix(1,0,0,-1,-70.8,629.5)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M76.7 552.7H143.0"/>
+<path transform="matrix(1,0,0,-1,-70.8,629.5)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M238.5 566.4H349.4"/>
+<path transform="matrix(1,0,0,-1,-70.8,629.5)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M238.5 537.6H349.4"/>
+<path transform="matrix(1,0,0,-1,-70.8,629.5)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M151.9 552.8 143.4 548.5V557.0Z"/>
+<path transform="matrix(1,0,0,-1,-70.8,629.5)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M358.4 566.4 349.9 562.2V570.7Z"/>
+<path transform="matrix(1,0,0,-1,-70.8,629.5)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M358.4 537.6 349.9 533.4V541.9Z"/>
+<path transform="matrix(1,0,0,-1,-70.8,629.5)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M153.4 529.4H238.5V574.7H153.4Z"/>
+</g>
+</svg>

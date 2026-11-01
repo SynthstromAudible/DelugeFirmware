@@ -1,0 +1,35 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 363 124">
+<defs>
+<clipPath id="12-midi__13-setting-up-midi-mpe--1-clip_1">
+<path transform="matrix(1,0,0,-1,-173,309.8)" d="M173 185.8H536V309.8H173Z" clip-rule="evenodd"/>
+</clipPath>
+</defs>
+<g clip-path="url(#12-midi__13-setting-up-midi-mpe--1-clip_1)">
+<path transform="matrix(1,0,0,-1,-173,309.8)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M170.1 688.6V84.1"/>
+<path transform="matrix(1,0,0,-1,-173,309.8)" d="M179.3 291.2H288.9V303.1H179.3Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-173,309.8)" d="M288.9 291.2H354.3V303.1H288.9Z" fill="color-mix(in srgb, currentColor 20%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-173,309.8)" d="M354.3 291.2H529.3V303.1H354.3Z" fill="color-mix(in srgb, currentColor 15%, var(--gb-paper))" fill-rule="evenodd"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(9.1 15.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Sub Menu</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(65.0 15.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Sub Menu</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(118.7 15.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Sub Category</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(184.1 15.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Setting Options</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(9.1 71.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">MPE</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(65.0 46.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">IN</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(118.7 33.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">LOWER</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(184.1 29.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Member Channels OFF, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(184.1 37.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">11,12, 13, 14, 15 (Master Channel is Channel 1)</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(118.7 57.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">UPPER</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(184.1 53.6)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Member Channels OFF, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(184.1 61.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">11,12, 13, 14, 15 (Master Channel is Channel 16)</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(65.0 95.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">OUT</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(118.7 82.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">LOWER</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(184.1 78.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Member Channels OFF, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(184.1 86.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">11,12, 13, 14, 15 (Master Channel is Channel 1)</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(118.7 107.6)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">UPPER</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(184.1 103.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Member Channels OFF, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10,</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(184.1 111.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">11,12, 13, 14, 15 (Master Channel is Channel 16)</tspan></text>
+<path transform="matrix(1,0,0,-1,-173,309.8)" stroke-width="1" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="var(--gb-paper)" d="M179.3 302.8V192.6M235.1 302.8V192.6M288.9 302.8V192.6M354.3 302.8V192.6M529.3 302.8V192.6"/>
+<path transform="matrix(1,0,0,-1,-173,309.8)" stroke-width=".5" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 61%, var(--gb-paper))" d="M179.3 303.1H529.3M179.8 291.2H528.8M289.4 267.5H528.8M354.8 242.5H528.8M354.8 217.4H528.8"/>
+<path transform="matrix(1,0,0,-1,-173,309.8)" stroke-width=".5" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 45%, var(--gb-paper))" d="M235.6 242.5H353.8M289.4 217.4H353.8M179.3 192.3H529.3"/>
+</g>
+</svg>

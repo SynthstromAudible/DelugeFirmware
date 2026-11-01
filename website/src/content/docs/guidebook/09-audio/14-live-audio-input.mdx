@@ -1,0 +1,50 @@
+---
+title: "9.14 Live Audio Input"
+description: "As well as using the audio inputs to capture and record audio, it may be utilised as a live sound source, and all other features of the Deluge’s sound…"
+sidebar:
+  order: 13
+banner:
+  content: "From the Deluge Manual – Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+guidebook:
+  section: "9.14"
+  chapter: 9
+  pdfPages: [229]
+  printedPages: [223]
+  firmware: "C1.0.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import StepFocus from "../../../../components/guidebook/StepFocus.astro"
+import { Steps } from "@astrojs/starlight/components"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+As well as using the audio inputs to capture and record audio, it may be utilised as a live sound source, and all other features of the Deluge’s sound engine may be applied to it. This applies to either of Deluge’s line input, external microphone input, or internal microphone.
+
+<StepFocus />
+
+### Using a live audio input source in clip view
+
+<Steps>
+
+1. :key[Clip] view - examples using an synth oscillator.
+2. :key[Shift + Synth] to create a blank new synth clip.
+3. Press :key[Shift + Type Pad] shortcut to access the waveform type for oscillator 1.
+4. :key[Turn Select] to choose the waveform or source. In this example ‘in’ - in, is selected to capture the internal microphone input.
+5. Press & hold an :key[Audition Pad] to enable the oscillator to trigger and hence, hear the sound.
+6. Speak into the mic. If other inputs are connected and set as the audio source these are applied the same way. The sound can be heard through the synth engine.
+7. Playing :key[Audition Pad] for middle ‘C’ - C3 will play the sound exactly as its input. Pitch will shift for the audio corresponding to any other note played.
+
+</Steps>
+
+### Monitoring audio thru in arranger
+
+<Steps>
+
+1. In [ARRANGER] view, button flashes blue.
+2. Press & hold :key[Audition Pad] for an empty track + press :key[Select] to convert to an audio track.
+3. Press :key[LearnInput] for the audio track + :key[Audition Pad + Turn Select] and choose and input with ‘.’ after it name. This signifies monitored input.
+4. Apply the same in SONG view but use a row :key[Pad] of the clip row instead of the :key[Audition Pad] in arranger view.
+
+</Steps>

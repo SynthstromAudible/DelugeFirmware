@@ -1,0 +1,56 @@
+---
+title: "1.1 How to Use This Manual"
+description: "This book is a formal reference to the Deluge, bringing together a comprehensive guide along with your own notes."
+sidebar:
+  order: 0
+banner:
+  content: "From the Deluge Manual – Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+guidebook:
+  section: "1.1"
+  chapter: 1
+  pdfPages: [8]
+  printedPages: [2]
+  firmware: "C1.0.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_1_1_1 from "../../../../assets/guidebook/figs/01-overview__01-how-to-use-this-manual--1.svg?raw"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+This book is a formal reference to the Deluge, bringing together a comprehensive guide along with your own notes. Some pages are intentionally left blank and may contain wide margins enabling you to make your own notes on the specific topics covered.
+
+The conventions used in this guide are:
+
+**(OUTPUT LEVEL)**
+Curved parentheses / brackets represent the context sensitive rotaries indicated on Deluge in black or gold colour. These controls adjust parameters based on the specific context. The upper control for the parameters is referred to as (UPPER) likewise for lower control. Commands such as rotate - TURN or press - PRESS will accompany the command within the instructions.
+
+**[LEVEL / PAN] or [*GRID*]**
+Square parentheses and standard text contain functions that are selectable by the circular buttons on the upper control area. Grid buttons are shown with _italic font_ within square parenthesis.
+
+<Figure
+  id="fig-1.1-1"
+  src={fig_fig_1_1_1}
+  alt={
+    "Diagram: the SONG and CLIP buttons labelled [SONG] and [CLIP], and the TREBLE grid pad labelled [TREBLE]"
+  }
+  page={2}
+/>
+
+**[SHIFT] + [*BROWSE*]**
+Functions which require multiple button selections simultaneously are shown with a + symbol between each button command. Some functions operate with a SHIFT button. These as labelled on the Deluge faceplate within a ‘box’ and are located under the primary function label or when representing a shortcut on the grid:
+
+|                  |                      |
+| ---------------- | -------------------- |
+| Deluge faceplate | **SHIFT** + BROWSE   |
+| Deluge manual    | [SHIFT] + [*BROWSE*] |
+
+Where multiple labels are attached to a control for the primary or the [SHIFT] + secondary function, only the command name / label relevant to the context of the instruction will be used, for example SAVE or DELETE.
+
+The Shift button LED and sticky behaviour is controlled in the Settings > Community Features. By default the shift lock / sticky mode is OFF and the button LED is OFF.
+
+:::note[On this website]
+Button presses in these guidebook pages are shown the same way as in the rest of the site, for example :key[Shift + Load].
+:::

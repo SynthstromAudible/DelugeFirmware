@@ -1,0 +1,38 @@
+---
+title: "4.4 Deluge Wavetable Synthesizer Overview"
+description: "Deluge has wavetable synthesizer capability which allows the oscillators TYPE to be set to WAVEtable and where a specific part of the wavetable can be…"
+sidebar:
+  order: 3
+banner:
+  content: "From the Deluge Manual – Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+guidebook:
+  section: "4.4"
+  chapter: 4
+  pdfPages: [95]
+  printedPages: [89]
+  firmware: "C1.0.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_4_4_1 from "../../../../assets/guidebook/figs/04-synthesizers__04-deluge-wavetable-synthesizer-overview--1.svg?raw"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+Deluge has wavetable synthesizer capability which allows the oscillators TYPE to be set to WAVEtable and where a specific part of the wavetable can be selected as the audio source.
+
+#### Deluge Wavetable Synthesis
+
+Deluge uses two oscillators plus same functionality also as the default subtractive synths and the audio chain. Wavetables in WAV or AIFF and MONO format can be assigned to one or both of the oscillators. Wave navigation per oscillator is also available in order to change the oscillator wave cycle used as the source. Modulating the wave position is a great way to add variation and movement to a sound.
+
+<Figure
+  id="fig-4.4-1"
+  src={fig_fig_4_4_1}
+  alt={
+    "Diagram: Wavetables Parameter (available by shortcut) adjusts wave position Multiple Modulation Multiple Modulation 1 x Option Options Options Env 2…"
+  }
+  page={89}
+/>
+
+Deluge supports Mono, WAV and AIF files with a cycle size to the ‘power of two’ starting at 8 upwards. The cycle size of 2048 is the most common. Wavetables can be downloaded freely online from various sources or can be user created directly. These can be stored, and subsequently selected from, the samples library on the SD Card. Many devices such as XFER’s Serum VST plug-in have readily available wavetables that are also compatible with the Deluge wavetable synthesizer. These along with any other specific wavetable files carry meta data tagged ‘clm’ along with the cycle size. Deluge can load any wave file as a wavetable but only the wavetable formatted files will follow the defined and recognised wavetable behaviour and sound.

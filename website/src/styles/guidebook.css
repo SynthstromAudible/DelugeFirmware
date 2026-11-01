@@ -1,0 +1,108 @@
+/* Colours used by Guidebook figure SVGs (see online-manual tools/guidebook/figsvg.py). */
+:root {
+  --gb-accent: #d61e24;
+  --gb-muted: #6b6a6b;
+  --gb-paper: var(--sl-color-black); /* page background */
+}
+
+:root[data-theme="dark"] {
+  --gb-accent: #ff5a5f;
+  --gb-muted: #a0a0a0;
+}
+
+.gb-figure {
+  margin: 1.5rem 0;
+}
+
+.gb-figure-art,
+.gb-figure img {
+  display: block;
+  margin-inline: auto;
+}
+
+.gb-figure-art svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.gb-figure img {
+  width: 100%;
+  height: auto;
+}
+
+.gb-figure-art {
+  color: var(--sl-color-white);
+}
+
+.gb-figure figcaption {
+  margin-top: 0.5rem;
+  text-align: center;
+  font-size: var(--sl-text-sm);
+  color: var(--sl-color-gray-3);
+}
+
+/* Greyscale line-art rasters (class added at build time) read dark-on-light;
+   invert them on the dark theme so they stay visible. */
+:root[data-theme="dark"] .gb-figure-art image.gb-ink {
+  filter: invert(1) hue-rotate(180deg);
+}
+
+.gb-figure-wide {
+  overflow-x: auto;
+}
+
+.gb-figure-wide .gb-figure-art {
+  margin-inline: 0;
+}
+
+/* Figure animations (src/scripts/guidebook-figures.ts). */
+/* Room under the art for the replay button, so it never covers the figure. */
+.gb-figure[data-animate] {
+  position: relative;
+  padding-bottom: 2.25rem;
+}
+
+.gb-figure[data-animate] .gb-figure-art {
+  position: relative;
+}
+
+/* Playhead: the current column of pads lit white, as on the Deluge. On the
+   light theme white pads need a dark edge and halo to read against the paper. */
+.gb-cell-on {
+  fill: #fff;
+  stroke: var(--gb-muted);
+  stroke-width: 0.6;
+  filter: drop-shadow(0 0 2px rgb(255 255 255 / 0.9));
+}
+
+:root[data-theme="light"] .gb-cell-on {
+  stroke: #222;
+  stroke-width: 1;
+  filter: drop-shadow(0 0 2.5px rgb(0 0 0 / 0.55));
+}
+
+.gb-replay {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 2rem;
+  height: 2rem;
+  border: 1px solid var(--sl-color-gray-5);
+  border-radius: 50%;
+  background: var(--sl-color-black);
+  color: var(--sl-color-gray-2);
+  font-size: 1.1rem;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.gb-replay:hover,
+.gb-replay:focus-visible {
+  color: var(--sl-color-white);
+  border-color: var(--sl-color-accent);
+}
+
+.gb-replay[hidden] {
+  display: none;
+}

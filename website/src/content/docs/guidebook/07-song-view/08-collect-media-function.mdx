@@ -1,0 +1,47 @@
+---
+title: "7.8 Collect Media Function"
+description: "To enable portability of songs across SD cards, backup and sharing for collaboration with other Deluge users, a tool exists to collect together all content…"
+sidebar:
+  order: 7
+banner:
+  content: "From the Deluge Manual – Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+guidebook:
+  section: "7.8"
+  chapter: 7
+  pdfPages: [183]
+  printedPages: [177]
+  firmware: "C1.0.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import StepFocus from "../../../../components/guidebook/StepFocus.astro"
+import { Steps } from "@astrojs/starlight/components"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+To enable portability of songs across SD cards, backup and sharing for collaboration with other Deluge users, a tool exists to collect together all content and sample files which a song file uses.
+
+<StepFocus />
+
+### Collecting media
+
+<Steps>
+
+1. Press :key[Save].
+2. The save window will open and the alphanumeric keyboard appears to enter a name for the song.
+3. Prior to entry of a number or name, press & hold :key[Save] again until collect menu options appears; COLLECT MEDIA or CREATE FOLDER.
+4. Choose option and press :key[Save] or press :key[Select].
+5. Song is saved;-
+   - A new folder is created with the same name as your song file.
+   - The folder will be located within the SONGS folder on your SD card.
+   - The folder will contain copies of all the song’s samples.
+   - SONG SAVED - will confirm saving. This may take a while depending on the size of file.
+
+</Steps>
+
+To transfer the song to another SD card or another user, both the song file (e.g. “SONG100.XML”) and the song folder (e.g. “SONG100”) need to be placed in the SONGS folder on the destination card. The song can now be loaded from that card with all its samples.
+
+When a song imported in such a way is re-saved, its samples are all copied into that card’s normal SAMPLES folder - into the same subfolder locations that they had originally been referenced from.
+
+When collecting media in this way, the Deluge automatically adds a string of random characters onto the ends of Deluge-recorded samples, so there won't be confusion / overwriting between Deluge users who all have a different e.g. "REC00001.wav" file present.

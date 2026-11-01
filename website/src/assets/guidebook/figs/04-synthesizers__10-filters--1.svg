@@ -1,0 +1,13 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 135.2 91.8">
+<defs>
+<clipPath id="04-synthesizers__10-filters--1-clip_1">
+<path transform="matrix(1,0,0,-1,-71.4,638.7)" d="M71.4 546.9H206.6V638.7H71.4Z" clip-rule="evenodd"/>
+</clipPath>
+</defs>
+<g clip-path="url(#04-synthesizers__10-filters--1-clip_1)">
+<path transform="matrix(1,0,0,-1,-71.4,638.7)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M424.7 688.6V84.1"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(45.2 84.3)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">FREQUENCY</tspan></text>
+<path transform="matrix(1,0,0,-1,-71.4,638.7)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 40%, var(--gb-paper))" d="M77.3 632.7V567.5H200.5"/>
+<path transform="matrix(1,0,0,-1,-71.4,638.7)" stroke-width=".85" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M77.3 567.5C77.3 567.5 114.5 602.8 124.8 611.9 134.4 620.4 152.3 619.9 152.3 619.9L186.2 619.9"/>
+</g>
+</svg>

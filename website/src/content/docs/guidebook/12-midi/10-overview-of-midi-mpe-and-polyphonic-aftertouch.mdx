@@ -1,0 +1,38 @@
+---
+title: "12.10 Overview of MIDI MPE and Polyphonic Aftertouch"
+description: "MIDI Polyphonic expression or MPE as its often called, is an enhanced part of the official MIDI standard and refers to the ability to control note in more…"
+sidebar:
+  order: 9
+banner:
+  content: "From the Deluge Manual – Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+guidebook:
+  section: "12.10"
+  chapter: 12
+  pdfPages: [294]
+  printedPages: [288]
+  firmware: "C1.0.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_12_10_1 from "../../../../assets/guidebook/figs/12-midi__10-overview-of-midi-mpe-and-polyphonic-aftertouch--1.svg?raw"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+MIDI Polyphonic expression or MPE as its often called, is an enhanced part of the official MIDI standard and refers to the ability to control note in more expressive manner than the standard MIDI messages. Until the introduction of MPE, polyphonic aftertouch was the only MIDI message considered to have independent expressive control. This is still supported even with MPE.
+
+In traditional MIDI a note message would be sent on the MIDI channel, along with any other note. In addition any controls such as pitch bend would also be applied on the same channel, meaning the pitch would affect all notes on the same channel.
+
+With MPE a series of channels are set up, known as zones, to communicate not only multiple notes but also MIDI information for each individual note. For example a pitch changes could be applied to only one note in a chord.
+
+The two zones that cluster the channels are defined in the official MIDI protocol as lower zone (most common default) and the upper zone. Each zone has a master channel which communicates all messages. The master channels are fixed as 1 for lower and at 16 for upper zones. Any subsequent member channels in the zone increment up or down from the master channel in consecutive order. Generally these can be set by a device MPE Configuration message, where the host device sends the MPE setup automatically at power on or start up. However not all devices adhere to this exact standard and manual configuration is usually possible for the devices.
+
+<Figure
+  id="fig-12.10-1"
+  src={fig_fig_12_10_1}
+  alt={
+    "Diagram: Standard MIDI MPE Compatible devices Control messages per channel Individual controls per note Instrument Instrument MIDI Channel MPE Zone…"
+  }
+  page={288}
+/>

@@ -1,0 +1,121 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 353.8 532.7"><defs><path id="04-synthesizers__05-synthesizer-creation-workflow--1-s1" d="M0 0C0.3 0 0.5 -0.2 0.5 -0.4 0.5 -0.6 0.3 -0.8 0 -0.8 -0.2 -0.8 -0.4 -0.6 -0.4 -0.4 -0.4 -0.2 -0.2 0 0 0Z" fill="color-mix(in srgb, currentColor 62%, var(--gb-paper))" fill-rule="evenodd"/><path id="04-synthesizers__05-synthesizer-creation-workflow--1-s2" d="M0 0C0.3 0 0.5 -0.2 0.5 -0.4 0.5 -0.6 0.3 -0.8 0 -0.8 -0.2 -0.8 -0.4 -0.6 -0.4 -0.4 -0.4 -0.2 -0.2 0 0 0Z" stroke-width=".55" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor"/><path id="04-synthesizers__05-synthesizer-creation-workflow--1-s3" d="M0 0C3.1 0 5.6 -2.6 5.6 -5.7 5.6 -8.8 3.1 -11.4 0 -11.4 -3.2 -11.4 -5.7 -8.8 -5.7 -5.7 -5.7 -2.6 -3.2 0 0 0Z" fill="var(--gb-accent)" fill-rule="evenodd"/><path id="04-synthesizers__05-synthesizer-creation-workflow--1-s4" d="M0 0C3.1 0 5.6 -2.5 5.6 -5.7 5.6 -8.8 3.1 -11.3 0 -11.3 -3.2 -11.3 -5.7 -8.8 -5.7 -5.7 -5.7 -2.5 -3.2 0 0 0Z" fill="var(--gb-accent)" fill-rule="evenodd"/><path id="04-synthesizers__05-synthesizer-creation-workflow--1-s5" d="M0 0H155.7V14.2H0Z" fill="var(--gb-paper)"/></defs>
+<defs>
+<clipPath id="04-synthesizers__05-synthesizer-creation-workflow--1-clip_1">
+<path transform="matrix(1,0,0,-1,-54.7,637.3)" d="M54.7 104.6H408.5V637.3H54.7Z" clip-rule="evenodd"/>
+</clipPath>
+</defs>
+<g clip-path="url(#04-synthesizers__05-synthesizer-creation-workflow--1-clip_1)">
+<path transform="matrix(1,0,0,-1,-54.7,637.3)" stroke-width=".35" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 62%, var(--gb-paper))" d="M107.7 620.7H321.5"/>
+<path transform="matrix(1,0,0,-1,-54.7,637.3)" stroke-width=".65" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 62%, var(--gb-paper))" d="M196.6 505.5H237.6"/>
+<use href="#04-synthesizers__05-synthesizer-creation-workflow--1-s1" transform="matrix(1 0 0 -1 183.1 131.4)"/>
+<path transform="matrix(1,0,0,-1,-54.7,637.3)" stroke-width=".65" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M237.8 505.9C238.1 505.9 238.3 505.7 238.3 505.5 238.3 505.3 238.1 505.1 237.8 505.1 237.6 505.1 237.4 505.3 237.4 505.5 237.4 505.7 237.6 505.9 237.8 505.9Z"/>
+<path transform="matrix(1,0,0,-1,-54.7,637.3)" stroke-width=".55" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 62%, var(--gb-paper))" d="M196.6 577.5H237.6"/>
+<use href="#04-synthesizers__05-synthesizer-creation-workflow--1-s1" transform="matrix(1 0 0 -1 183.1 59.4)"/>
+<use href="#04-synthesizers__05-synthesizer-creation-workflow--1-s2" transform="matrix(1 0 0 -1 183.1 59.4)"/>
+<path transform="matrix(1,0,0,-1,-54.7,637.3)" stroke-width=".6" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 62%, var(--gb-paper))" d="M199.9 469.5H159.3"/>
+<path transform="matrix(1,0,0,-1,-54.7,637.3)" d="M159.1 470.0C158.8 470.0 158.6 469.8 158.6 469.5 158.6 469.3 158.8 469.1 159.1 469.1 159.4 469.1 159.6 469.3 159.6 469.5 159.6 469.8 159.4 470.0 159.1 470.0Z" fill="color-mix(in srgb, currentColor 62%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-54.7,637.3)" stroke-width=".6" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M159.1 470.0C158.8 470.0 158.6 469.8 158.6 469.5 158.6 469.3 158.8 469.1 159.1 469.1 159.4 469.1 159.6 469.3 159.6 469.5 159.6 469.8 159.4 470.0 159.1 470.0Z"/>
+<path transform="matrix(1,0,0,-1,-54.7,637.3)" stroke-width=".6" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 62%, var(--gb-paper))" d="M199.9 541.5H159.3"/>
+<path transform="matrix(1,0,0,-1,-54.7,637.3)" d="M159.1 542.0C158.8 542.0 158.6 541.8 158.6 541.5 158.6 541.3 158.8 541.1 159.1 541.1 159.4 541.1 159.6 541.3 159.6 541.5 159.6 541.8 159.4 542.0 159.1 542.0Z" fill="color-mix(in srgb, currentColor 62%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-54.7,637.3)" stroke-width=".6" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M159.1 542.0C158.8 542.0 158.6 541.8 158.6 541.5 158.6 541.3 158.8 541.1 159.1 541.1 159.4 541.1 159.6 541.3 159.6 541.5 159.6 541.8 159.4 542.0 159.1 542.0Z"/>
+<path transform="matrix(1,0,0,-1,-54.7,637.3)" stroke-width=".6" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 62%, var(--gb-paper))" d="M195.4 433.5H237.6"/>
+<path transform="matrix(1,0,0,-1,-54.7,637.3)" d="M237.8 434.0C238.1 434.0 238.3 433.8 238.3 433.5 238.3 433.2 238.1 433.0 237.8 433.0 237.5 433.0 237.3 433.2 237.3 433.5 237.3 433.8 237.5 434.0 237.8 434.0Z" fill="color-mix(in srgb, currentColor 62%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-54.7,637.3)" stroke-width=".6" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M237.8 434.0C238.1 434.0 238.3 433.8 238.3 433.5 238.3 433.2 238.1 433.0 237.8 433.0 237.5 433.0 237.3 433.2 237.3 433.5 237.3 433.8 237.5 434.0 237.8 434.0Z"/>
+<path transform="matrix(1,0,0,-1,-54.7,637.3)" stroke-width=".55" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 62%, var(--gb-paper))" d="M201.0 395.1H237.7"/>
+<use href="#04-synthesizers__05-synthesizer-creation-workflow--1-s1" transform="matrix(1 0 0 -1 183.1 241.8)"/>
+<use href="#04-synthesizers__05-synthesizer-creation-workflow--1-s2" transform="matrix(1 0 0 -1 183.1 241.8)"/>
+<path transform="matrix(1,0,0,-1,-54.7,637.3)" stroke-width=".55" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 62%, var(--gb-paper))" d="M201.0 359.1H237.7"/>
+<use href="#04-synthesizers__05-synthesizer-creation-workflow--1-s1" transform="matrix(1 0 0 -1 183.1 277.8)"/>
+<use href="#04-synthesizers__05-synthesizer-creation-workflow--1-s2" transform="matrix(1 0 0 -1 183.1 277.8)"/>
+<path transform="matrix(1,0,0,-1,-54.7,637.3)" stroke-width=".6" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 62%, var(--gb-paper))" d="M194.7 281.1H237.1"/>
+<path transform="matrix(1,0,0,-1,-54.7,637.3)" d="M237.6 281.6C237.9 281.6 238.1 281.4 238.1 281.1 238.1 280.8 237.9 280.6 237.6 280.6 237.4 280.6 237.1 280.8 237.1 281.1 237.1 281.4 237.4 281.6 237.6 281.6Z" fill="color-mix(in srgb, currentColor 62%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-54.7,637.3)" stroke-width=".6" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M237.6 281.6C237.9 281.6 238.1 281.4 238.1 281.1 238.1 280.8 237.9 280.6 237.6 280.6 237.4 280.6 237.1 280.8 237.1 281.1 237.1 281.4 237.4 281.6 237.6 281.6Z"/>
+<path transform="matrix(1,0,0,-1,-54.7,637.3)" stroke-width=".55" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 62%, var(--gb-paper))" d="M194.7 244.1H237.1"/>
+<path transform="matrix(1,0,0,-1,-54.7,637.3)" d="M237.6 244.7C237.9 244.7 238.1 244.4 238.1 244.2 238.1 243.9 237.9 243.6 237.6 243.6 237.3 243.6 237.1 243.9 237.1 244.2 237.1 244.4 237.3 244.7 237.6 244.7Z" fill="color-mix(in srgb, currentColor 62%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-54.7,637.3)" stroke-width=".55" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M237.6 244.7C237.9 244.7 238.1 244.4 238.1 244.2 238.1 243.9 237.9 243.6 237.6 243.6 237.3 243.6 237.1 243.9 237.1 244.2 237.1 244.4 237.3 244.7 237.6 244.7Z"/>
+<path transform="matrix(1,0,0,-1,-54.7,637.3)" stroke-width=".55" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 62%, var(--gb-paper))" d="M194.7 203.3H237.1"/>
+<path transform="matrix(1,0,0,-1,-54.7,637.3)" d="M237.6 203.9C237.9 203.9 238.1 203.6 238.1 203.4 238.1 203.1 237.9 202.8 237.6 202.8 237.3 202.8 237.1 203.1 237.1 203.4 237.1 203.6 237.3 203.9 237.6 203.9Z" fill="color-mix(in srgb, currentColor 62%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-54.7,637.3)" stroke-width=".55" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M237.6 203.9C237.9 203.9 238.1 203.6 238.1 203.4 238.1 203.1 237.9 202.8 237.6 202.8 237.3 202.8 237.1 203.1 237.1 203.4 237.1 203.6 237.3 203.9 237.6 203.9Z"/>
+<path transform="matrix(1,0,0,-1,-54.7,637.3)" stroke-width=".55" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 62%, var(--gb-paper))" d="M199.7 167.3H157.4"/>
+<path transform="matrix(1,0,0,-1,-54.7,637.3)" d="M156.9 167.9C156.6 167.9 156.3 167.6 156.3 167.4 156.3 167.1 156.6 166.8 156.9 166.8 157.1 166.8 157.4 167.1 157.4 167.4 157.4 167.6 157.1 167.9 156.9 167.9Z" fill="color-mix(in srgb, currentColor 62%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-54.7,637.3)" stroke-width=".55" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M156.9 167.9C156.6 167.9 156.3 167.6 156.3 167.4 156.3 167.1 156.6 166.8 156.9 166.8 157.1 166.8 157.4 167.1 157.4 167.4 157.4 167.6 157.1 167.9 156.9 167.9Z"/>
+<path transform="matrix(1,0,0,-1,-54.7,637.3)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M199.8 613.1V132.1"/>
+<path transform="matrix(1,0,0,-1,-54.7,637.3)" d="M199.7 631.3C205.7 631.3 210.5 626.5 210.5 620.6 210.5 614.7 205.7 609.9 199.7 609.9 193.8 609.9 189.0 614.7 189.0 620.6 189.0 626.5 193.8 631.3 199.7 631.3Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-54.7,637.3)" stroke-width=".55" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 62%, var(--gb-paper))" d="M199.7 631.3C205.7 631.3 210.5 626.5 210.5 620.6 210.5 614.7 205.7 609.9 199.7 609.9 193.8 609.9 189.0 614.7 189.0 620.6 189.0 626.5 193.8 631.3 199.7 631.3Z"/>
+<path transform="matrix(1,0,0,-1,-54.7,637.3)" d="M199.7 132.1C205.7 132.1 210.5 127.3 210.5 121.4 210.5 115.5 205.7 110.7 199.7 110.7 193.8 110.7 189.0 115.5 189.0 121.4 189.0 127.3 193.8 132.1 199.7 132.1Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-54.7,637.3)" stroke-width=".55" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 62%, var(--gb-paper))" d="M199.7 132.1C205.7 132.1 210.5 127.3 210.5 121.4 210.5 115.5 205.7 110.7 199.7 110.7 193.8 110.7 189.0 115.5 189.0 121.4 189.0 127.3 193.8 132.1 199.7 132.1Z"/>
+<path transform="matrix(1,0,0,-1,-54.7,637.3)" d="M199.7 628.1C203.9 628.1 207.3 624.8 207.3 620.6 207.3 616.4 203.9 613.1 199.7 613.1 195.6 613.1 192.2 616.4 192.2 620.6 192.2 624.8 195.6 628.1 199.7 628.1Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(141.4 20.6)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">S</tspan></text>
+<path transform="matrix(1,0,0,-1,-54.7,637.3)" d="M199.7 128.9C203.9 128.9 207.3 125.6 207.3 121.4 207.3 117.2 203.9 113.9 199.7 113.9 195.6 113.9 192.2 117.2 192.2 121.4 192.2 125.6 195.6 128.9 199.7 128.9Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(141.4 519.8)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">E</tspan></text>
+<use href="#04-synthesizers__05-synthesizer-creation-workflow--1-s3" transform="matrix(1 0 0 -1 145.1 54.2)"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(142.5 63.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">1</tspan></text>
+<use href="#04-synthesizers__05-synthesizer-creation-workflow--1-s3" transform="matrix(1 0 0 -1 145.1 90.2)"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(142.5 99.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">2</tspan></text>
+<use href="#04-synthesizers__05-synthesizer-creation-workflow--1-s3" transform="matrix(1 0 0 -1 145.1 126.2)"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(142.5 135.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">3</tspan></text>
+<path transform="matrix(1,0,0,-1,-54.7,637.3)" d="M117.4 393.4C119.7 393.4 121.6 391.5 121.6 389.1 121.6 386.8 119.7 384.8 117.4 384.8 115.0 384.8 113.1 386.8 113.1 389.1 113.1 391.5 115.0 393.4 117.4 393.4Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(60.7 250.7)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">3</tspan></text>
+<use href="#04-synthesizers__05-synthesizer-creation-workflow--1-s3" transform="matrix(1 0 0 -1 145.1 162.2)"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(142.5 171.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">4</tspan></text>
+<use href="#04-synthesizers__05-synthesizer-creation-workflow--1-s3" transform="matrix(1 0 0 -1 145.1 198.2)"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(142.5 207.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">5</tspan></text>
+<use href="#04-synthesizers__05-synthesizer-creation-workflow--1-s3" transform="matrix(1 0 0 -1 145.1 236.6)"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(142.5 245.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">6</tspan></text>
+<use href="#04-synthesizers__05-synthesizer-creation-workflow--1-s4" transform="matrix(1 0 0 -1 145.1 272.4)"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(142.5 281.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">7</tspan></text>
+<path transform="matrix(1,0,0,-1,-54.7,637.3)" d="M199.8 323.6C202.9 323.6 205.4 321.1 205.4 318.0 205.4 314.8 202.9 312.3 199.8 312.3 196.6 312.3 194.1 314.8 194.1 318.0 194.1 321.1 196.6 323.6 199.8 323.6Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(142.5 322.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">8</tspan></text>
+<use href="#04-synthesizers__05-synthesizer-creation-workflow--1-s4" transform="matrix(1 0 0 -1 145.1 349.9)"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(142.5 358.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">9</tspan></text>
+<use href="#04-synthesizers__05-synthesizer-creation-workflow--1-s4" transform="matrix(1 0 0 -1 145.1 387.6)"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(140.3 396.1)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">10</tspan></text>
+<use href="#04-synthesizers__05-synthesizer-creation-workflow--1-s4" transform="matrix(1 0 0 -1 145.1 428.4)"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(140.6 436.9)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">11</tspan></text>
+<use href="#04-synthesizers__05-synthesizer-creation-workflow--1-s4" transform="matrix(1 0 0 -1 145.1 464.4)"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(140.3 472.9)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">12</tspan></text>
+<path transform="matrix(1,0,0,-1,-54.7,637.3)" d="M327.1 614.9H402.5V624.9H327.1Z" fill="var(--gb-paper)"/>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(272.4 19.6)" font-size="10" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Generic set-up</tspan></text>
+<path transform="matrix(1,0,0,-1,-54.7,637.3)" d="M64.3 614.9H134.4V624.9H64.3Z" fill="var(--gb-paper)"/>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(9.6 19.6)" font-size="10" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Synth specific</tspan></text>
+<path transform="matrix(1,0,0,-1,-54.7,637.3)" d="M242.6 568.5H367.6V584.3H242.6Z" fill="var(--gb-paper)"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(187.9 58.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Create a blank preset</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(187.9 65.5)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">[SHIFT] + [SYNTH]</tspan></text>
+<path transform="matrix(1,0,0,-1,-54.7,637.3)" d="M63.5 461.6H157.0V477.4H63.5Z" fill="var(--gb-paper)"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(14.4 164.9)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Adjust filters to shape sound</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(53.3 172.4)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Subtractive synths</tspan></text>
+<path transform="matrix(1,0,0,-1,-54.7,637.3)" d="M70.6 394.8H164.1V410.6H70.6Z" fill="var(--gb-paper)"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(19.5 231.0)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Iterative set up steps to adjust to</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(38.8 238.5)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">the desired sound</tspan></text>
+<path transform="matrix(1,0,0,-1,-54.7,637.3)" d="M68.0 521.9H157.4V549.0H68.0Z" fill="var(--gb-paper)"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(32.3 93.3)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Determine synth mode</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(17.7 100.8)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Set in sound editor: Subtractive,</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(33.6 108.3)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Wavetable, FM, Ring Mod</tspan></text>
+<path transform="matrix(1,0,0,-1,-54.7,637.3)" d="M242.3 497.2H398.0V513.0H242.3Z" fill="var(--gb-paper)"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(187.6 129.3)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Set-up and tune oscillators / carrier - modulator</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(187.6 136.8)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Set in sound editor</tspan></text>
+<path transform="matrix(1,0,0,-1,-54.7,637.3)" d="M242.3 424.9H398.0V441.2H242.3Z" fill="var(--gb-paper)"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(187.6 201.1)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Set-up envelopes</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(187.6 208.6)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Set in sound editor. ENV 1 to shape amplitude</tspan></text>
+<path transform="matrix(1,0,0,-1,-54.7,637.3)" d="M242.3 386.7H398.0V403.1H242.3Z" fill="var(--gb-paper)"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(187.6 239.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Set-up modulation</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(187.6 246.7)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Optional 2 x LFO’s and 2 x envelopes</tspan></text>
+<use href="#04-synthesizers__05-synthesizer-creation-workflow--1-s5" transform="matrix(1 0 0 -1 187.6 365.7)"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(187.6 356.5)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Finalise output</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(187.6 364.0)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Volume level and pan</tspan></text>
+<use href="#04-synthesizers__05-synthesizer-creation-workflow--1-s5" transform="matrix(1 0 0 -1 187.6 401.7)"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(187.6 392.5)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Save</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(187.6 400.0)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Save as a preset</tspan></text>
+<use href="#04-synthesizers__05-synthesizer-creation-workflow--1-s5" transform="matrix(1 0 0 -1 187.6 445.9)"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(187.6 436.7)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Play</tspan></text>
+<path transform="matrix(1,0,0,-1,-54.7,637.3)" d="M60.7 144.5H154.2V181.0H60.7Z" fill="var(--gb-paper)"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(18.3 468.1)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">‘Affect parameter’ controls</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(7.5 475.6)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">To tweak the common parameters.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(10.1 483.1)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Set-up custom controls if needed.</tspan></text>
+<path transform="matrix(1,0,0,-1,-54.7,637.3)" d="M242.3 355.5H398.0V362.3H242.3Z" fill="var(--gb-paper)"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(187.6 280.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Set-up effects</tspan></text>
+<path transform="matrix(1,0,0,-1,-54.7,637.3)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M424.8 688.4V83.9"/>
+<path transform="matrix(1,0,0,-1,-54.7,637.3)" stroke-width=".45" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M193.9 318.0H117.4V375.3"/>
+<path transform="matrix(1,0,0,-1,-54.7,637.3)" d="M117.4 380.6 120.2 374.9H114.5ZM117.4 379.6 119.5 375.4C119.5 375.4 115.3 375.4 115.3 375.4Z" fill="currentColor" fill-rule="evenodd"/>
+</g>
+</svg>

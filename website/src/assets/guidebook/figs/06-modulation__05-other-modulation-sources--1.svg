@@ -1,0 +1,22 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 176.5 86.8">
+<defs>
+<clipPath id="06-modulation__05-other-modulation-sources--1-clip_1">
+<path transform="matrix(1,0,0,-1,-135.7,527.4)" d="M135.7 440.5H312.3V527.4H135.7Z" clip-rule="evenodd"/>
+</clipPath>
+</defs>
+<g clip-path="url(#06-modulation__05-other-modulation-sources--1-clip_1)">
+<path transform="matrix(1,0,0,-1,-135.7,527.4)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M424.7 688.6V84.1"/>
+<path transform="matrix(1,0,0,-1,-135.7,527.4)" stroke-width=".45" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="currentColor" d="M141.7 469.4H183.6V479.5H141.7Z"/>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(11.4 55.4)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">RANDOM</tspan></text>
+<path transform="matrix(1,0,0,-1,-135.7,527.4)" stroke-width=".45" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="currentColor" d="M264.3 469.4H306.3V479.5H264.3Z"/>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(138.7 55.4)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">NOISE</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(83.5 20.4)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">50</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(28.4 71.4)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Example: Each key press generates a</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(21.2 79.4)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">higher or lower noise element to the sound</tspan></text>
+<path transform="matrix(1,0,0,-1,-135.7,527.4)" d="M181.8 511.9C181.8 517.1 177.5 521.4 172.2 521.4H153.1C147.8 521.4 143.6 517.1 143.6 511.9V492.8C143.6 487.5 147.8 483.2 153.1 483.2H172.2C177.5 483.2 181.8 487.5 181.8 492.8ZM181.1 511.9V492.8C181.1 487.9 177.1 483.9 172.2 483.9H153.1C148.2 483.9 144.3 487.9 144.3 492.8V511.9C144.3 516.8 148.2 520.7 153.1 520.7H172.2C177.1 520.7 181.1 516.8 181.1 511.9Z" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-135.7,527.4)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M162.7 502.3H278.6"/>
+<path transform="matrix(1,0,0,-1,-135.7,527.4)" d="M162.7 505.3C164.3 505.3 165.7 503.9 165.7 502.3 165.7 500.6 164.3 499.3 162.7 499.3 161.0 499.3 159.7 500.6 159.7 502.3 159.7 503.9 161.0 505.3 162.7 505.3Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-135.7,527.4)" d="M286.0 502.3 278.6 498.7V506.0ZM284.4 502.3 279.3 499.8C279.3 499.8 279.3 504.9 279.3 504.9Z" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-135.7,527.4)" d="M304.2 511.9C304.2 517.1 299.9 521.4 294.6 521.4H275.5C270.2 521.4 266.0 517.1 266.0 511.9V492.8C266.0 487.5 270.2 483.2 275.5 483.2H294.6C299.9 483.2 304.2 487.5 304.2 492.8ZM303.5 511.9V492.8C303.5 487.9 299.5 483.9 294.6 483.9H275.5C270.6 483.9 266.7 487.9 266.7 492.8V511.9C266.7 516.8 270.6 520.7 275.5 520.7H294.6C299.5 520.7 303.5 516.8 303.5 511.9Z" fill-rule="evenodd"/>
+</g>
+</svg>

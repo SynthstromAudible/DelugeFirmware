@@ -1,0 +1,66 @@
+---
+title: "4.13 Single-cycle Waveforms"
+description: "Deluge provides several oscillator types but also can take an audio input or audio wave file as its ‘oscillator’."
+sidebar:
+  order: 12
+banner:
+  content: "From the Deluge Manual – Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+guidebook:
+  section: "4.13"
+  chapter: 4
+  pdfPages: [120, 121]
+  printedPages: [114, 115]
+  firmware: "C1.0.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import StepFocus from "../../../../components/guidebook/StepFocus.astro"
+import { Steps } from "@astrojs/starlight/components"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_4_13_1 from "../../../../assets/guidebook/figs/04-synthesizers__13-single-cycle-waveforms--1.svg?raw"
+import fig_fig_4_13_2 from "../../../../assets/guidebook/figs/04-synthesizers__13-single-cycle-waveforms--2.svg?raw"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+Deluge provides several oscillator types but also can take an audio input or audio wave file as its ‘oscillator’. Single-cycle waveforms are best used in a wavetable synth which are then processed in Deluge to create unique and creative oscillator sound source. Single-cycles can be used as a sample but the wavetable synth carries better performance when processing single cycles. If samples are not compatible with the wavetable engine (i.e. stereo) it will load as a sample. The wavetable navigation parameter is not available for single cycles.
+
+<Figure
+  id="fig-4.13-1"
+  src={fig_fig_4_13_1}
+  alt={
+    "Diagram: Single-cycle Waveform Native (preferred) 44.1kHz 16/24bit. WAV or AIFF up to 32bit 96kHz. Wavetable (preferred) or Sample SYNTH ENGINE"
+  }
+  page={114}
+/>
+
+The synth engine will automatically set single-cycle waveforms to an oscillator pitch transpose to represent note ‘C’ and set the waveform to loop.
+
+<Figure id="fig-4.13-2" src={fig_fig_4_13_2} alt={"Diagram: ‘C’"} page={114} />
+
+Deluge can also be ‘forced’ to load waveforms above 20mS as single-cycle waveforms.
+
+<StepFocus />
+
+### Loading a single cycle wave as an oscillator
+
+<Steps>
+
+1. Ensure the SD card has short single-cycle waveforms. These should be 20ms or shorter. Longer ones can be forced to load.
+2. Press :key[Clip] to select clip view. This is indicated by the clip button illuminated blue.
+3. Select synth by pressing :key[Synth] if not already selected. The synth button illuminates red.
+4. Press the :key[Shift + Type Pad] as quick access to shortcut for OSC1. Alternatively use the nested menu options by pressing :key[Select] and navigating to ‘TYPE’.
+5. Press :key[Select] to Select TYPE and :key[Turn Select] to navigate to select ‘WAVE’.
+6. Use :key[BackUndo] to exit and back out.
+7. Pressing :key[Select] choose Oscillator 1 (or Oscillator 2) and press :key[Select] again.
+8. :key[Turn Select] to navigate to ‘FILE BROWSER’.
+9. Pressing :key[Select] while ‘FILE BROWSER’ is in-focus will open the option to browse and select a sample, ‘BOTTOM-TO-TOP’ will appear on the display to indicate the bottom-to-top note range for the sample.
+10. Press :key[Select] again to enter the sample browser.
+11. Navigate samples and folders by turning :key[Select] and select the folder containing the single-cycles. Highlight the wave to select in-focus. The sample will audition and an illustration of the sample will be mapped across the grid.
+12. To force loading a longer (&gt;20mS) sample as a single-cycle press & hold :key[Select] to bring the synth context menu options up:
+    - SINGLE : forces single-cycle load.
+    - MULTISAMPLE : all folder samples.
+    - BASIC : basic mode where no pitch analysis or single cycle setting.
+13. Press :key[Select] to load the sample as the oscillator wave.
+
+</Steps>

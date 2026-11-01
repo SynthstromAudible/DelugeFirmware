@@ -1,0 +1,45 @@
+---
+title: "8.6 Capturing an entire Song session into Arranger View"
+description: "Triggering of clips, sections and changing parameters can be performed in song view."
+sidebar:
+  order: 5
+banner:
+  content: "From the Deluge Manual – Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+guidebook:
+  section: "8.6"
+  chapter: 8
+  pdfPages: [199]
+  printedPages: [193]
+  firmware: "C1.0.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import StepFocus from "../../../../components/guidebook/StepFocus.astro"
+import { Steps } from "@astrojs/starlight/components"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+Triggering of clips, sections and changing parameters can be performed in song view. This in turn can be captured as clip instances within arranger view. This allows entire performances to be recorded either as a planned production or as an on-the-fly improvisation.
+
+<StepFocus />
+
+### Recording into arranger directly from song view
+
+<Steps>
+
+1. Select song view :key[Song], button is lit solid blue.
+2. Press :key[Record + Song] to activate recording\*. Both buttons will quickly flash indicating recording to arranger mode is active.
+3. During recording:
+   - Switching to clip or arranger view is deactivated.
+   - Clips cannot be deleted.
+   - Parameters in song view can be changed by holding a clip :key[Pad] and changing the :key[Upper Gold] & :key[Lower Gold] controls for the selected parameter. These are recorded but will automatically create a cloned clip version.
+   - Adjust external MIDI controllers to record associated parameter changes.
+   - Instant-launch a clip by :key[Shift + Launch Pad] will be placed in the arrangement as if it had been played from the start of that loop.
+   - Play clips of which its instance will be recorded into the arranger in relevant rows. The instances are directly linked to the original so changes later will reflect in the recorded instance. Clone clips later in the arranger to create unique versions.
+   - Play an external MIDI controllers live to record notes. These are recorded but will automatically create a cloned clip version.
+4. To end recording; press :key[Record] to end playback, or press :key[Play] or press :key[Song].
+
+</Steps>
+
+\* Arrangement recording will begin from wherever your current scroll-position is in arranger view. Default for new songs is 0. Anything which previously existed to the right of this start-point is immediately deleted to make way for the new recording. :key[BackUndo] & :key[BackUndo] are available functions and can restore whatever arrangement existed previously.

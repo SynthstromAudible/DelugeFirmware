@@ -1,0 +1,45 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 211 166.5"><defs><path id="02-basic-operation__02-power-up--1-s1" d="M0 0C1.6 0 2.9 -1.3 2.9 -2.8 2.9 -4.4 1.6 -5.7 0 -5.7 -1.5 -5.7 -2.8 -4.4 -2.8 -2.8 -2.8 -1.3 -1.5 0 0 0ZM0 -0.3C1.4 -0.3 2.6 -1.4 2.6 -2.8 2.6 -4.2 1.4 -5.4 0 -5.4 -1.4 -5.4 -2.5 -4.2 -2.5 -2.8 -2.5 -1.4 -1.4 -0.3 0 -0.3Z" fill="currentColor" fill-rule="evenodd"/></defs>
+<defs>
+<clipPath id="02-basic-operation__02-power-up--1-clip_1">
+<path transform="matrix(1,0,0,-1,-112,589.7)" d="M112 423.2H323V589.7H112Z" clip-rule="evenodd"/>
+</clipPath>
+<clipPath id="02-basic-operation__02-power-up--1-clip_2">
+<path transform="matrix(1,0,0,-1,-112,589.7)" d="M117.9 540.9H220.0V583.4H117.9Z" clip-rule="evenodd"/>
+</clipPath>
+<mask id="02-basic-operation__02-power-up--1-mask_3">
+<g transform="matrix(.17122,0,0,.17122002,5.9,6.0)">
+<image id="02-basic-operation__02-power-up--1-image_4" width="596" height="252" xlink:href="/guidebook/img/02-basic-operation__02-power-up--1-1.webp"/>
+</g>
+</mask>
+</defs>
+<g>
+<g clip-path="url(#02-basic-operation__02-power-up--1-clip_1)">
+<text fill="currentColor" xml:space="preserve" transform="translate(61.3 72.6)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Red: battery is low, when operating on</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(61.3 80.9)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">battery, and requires charging</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(61.3 96.6)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Yellow: unit is being charged and PSU /</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(61.3 104.9)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">powered USB is connected</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(61.3 120.9)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Green: unit is fully charged. Battery lasts</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(61.3 129.1)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">approx 6 hours from a full charge</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(61.3 142.2)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Off: when Deluge is switched on and is</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(61.3 150.5)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">charged and operating from the internal</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(61.3 158.7)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">battery source.</tspan></text>
+<g clip-path="url(#02-basic-operation__02-power-up--1-clip_2)">
+<g mask="url(#02-basic-operation__02-power-up--1-mask_3)">
+<g transform="matrix(.17122,0,0,.17122002,5.9,6.0)">
+<image class="gb-ink" id="02-basic-operation__02-power-up--1-image_5" width="596" height="252" xlink:href="/guidebook/img/02-basic-operation__02-power-up--1-2.webp"/>
+</g>
+</g>
+</g>
+<path transform="matrix(1,0,0,-1,-112,589.7)" d="M161.5 522.8C163.1 522.8 164.4 521.5 164.4 520.0 164.4 518.4 163.1 517.1 161.5 517.1 160.0 517.1 158.7 518.4 158.7 520.0 158.7 521.5 160.0 522.8 161.5 522.8Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
+<use href="#02-basic-operation__02-power-up--1-s1" transform="matrix(1 0 0 -1 49.5 66.9)"/>
+<path transform="matrix(1,0,0,-1,-112,589.7)" d="M161.5 498.8C163.1 498.8 164.4 497.5 164.4 496.0 164.4 494.4 163.1 493.1 161.5 493.1 160.0 493.1 158.7 494.4 158.7 496.0 158.7 497.5 160.0 498.8 161.5 498.8Z" fill="#faee13" fill-rule="evenodd"/>
+<use href="#02-basic-operation__02-power-up--1-s1" transform="matrix(1 0 0 -1 49.5 90.9)"/>
+<path transform="matrix(1,0,0,-1,-112,589.7)" d="M161.5 474.6C163.1 474.6 164.4 473.3 164.4 471.7 164.4 470.2 163.1 468.9 161.5 468.9 160.0 468.9 158.7 470.2 158.7 471.7 158.7 473.3 160.0 474.6 161.5 474.6Z" fill="#6fbe44" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-112,589.7)" d="M161.5 474.6C163.1 474.6 164.4 473.3 164.4 471.7 164.4 470.2 163.1 468.9 161.5 468.9 160.0 468.9 158.7 470.2 158.7 471.7 158.7 473.3 160.0 474.6 161.5 474.6ZM161.5 474.3C162.9 474.3 164.1 473.1 164.1 471.7 164.1 470.3 162.9 469.2 161.5 469.2 160.1 469.2 159.0 470.3 159.0 471.7 159.0 473.1 160.1 474.3 161.5 474.3Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-112,589.7)" d="M161.5 453.2C163.1 453.2 164.4 451.9 164.4 450.4 164.4 448.8 163.1 447.5 161.5 447.5 160.0 447.5 158.7 448.8 158.7 450.4 158.7 451.9 160.0 453.2 161.5 453.2Z" fill="color-mix(in srgb, currentColor 20%, var(--gb-paper))" fill-rule="evenodd"/>
+<use href="#02-basic-operation__02-power-up--1-s1" transform="matrix(1 0 0 -1 49.5 136.5)"/>
+<path transform="matrix(1,0,0,-1,-112,589.7)" stroke-width=".7" stroke-linecap="butt" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M161.5 555.5V526.4"/>
+<path transform="matrix(1,0,0,-1,-112,589.7)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M424.7 688.6V84.1"/>
+</g>
+</g>
+</svg>

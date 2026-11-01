@@ -1,0 +1,53 @@
+---
+title: "9.3 Loading Samples from SD Card into Audio Clips"
+description: "An audio clip must exist for a sample to be loaded into it from clip view."
+sidebar:
+  order: 2
+banner:
+  content: "From the Deluge Manual – Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+guidebook:
+  section: "9.3"
+  chapter: 9
+  pdfPages: [204]
+  printedPages: [198]
+  firmware: "C1.0.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import StepFocus from "../../../../components/guidebook/StepFocus.astro"
+import { Steps } from "@astrojs/starlight/components"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+An audio clip must exist for a sample to be loaded into it from clip view. If an audio clip does not exist, section 9.6 / 9.7 explain how to create one.
+
+<StepFocus />
+
+### Loading a sample into the clip using browse shortcut
+
+<Steps>
+
+1. Select audio clip view by pressing any audio clip row :key[Pad] in song view or pressing an audio clip, right part / tail :key[Pad] in arranger view.
+2. Within clip view, :key[Shift + Browse Pad] from the shortcut grid pads opens the file browser.
+3. Navigate to the desired folder on the SD card. The ‘ARTISTS’ folder is the default location. :key[Turn Select] to navigate, press :key[Select] to drill into the menu. :key[BackUndo] to back-up.
+4. Navigate to highlight the desired sample / audio in-focus. Samples will be auditioned and displayed on the grid in white when in-focus.
+5. Press :key[Select] to load the audio. This will show on the grid as coloured pads.
+6. Press :key[Play] to hear the audio sample looping.
+
+</Steps>
+
+### Loading a sample into the clip using sound editor
+
+<Steps>
+
+1. Select audio clip view by pressing any audio clip row :key[Pad] in song view or press an audio clips’, right part / tail :key[Pad] in arranger view.
+2. Within clip view, press :key[Select] from the shortcut grid pads opens the sound editor.
+3. Within the sound editor or file browser, :key[Turn Select] to navigate, press :key[Select] to drill into the menu. :key[BackUndo] to back up.
+4. Default position is SAMPLE. Press :key[Select] to access FILE BROWSER
+5. Navigate to the desired folder on the SD card.
+6. Press :key[Select] when the sample required is in-focus. Samples will be auditioned and displayed on the grid in white when in-focus.
+7. The sample selected will load show on the grid as coloured pads
+8. Press :key[Play] to hear the audio sample looping.
+
+</Steps>

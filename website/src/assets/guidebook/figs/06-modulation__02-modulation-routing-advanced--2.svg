@@ -1,0 +1,119 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 303.1 434"><defs><path id="06-modulation__02-modulation-routing-advanced--2-s1" d="M0 0C5.2 19.6 10.1 20.3 15.4 0.3 20.1 -17.8 25.2 -20.2 30.1 0" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)"/><path id="06-modulation__02-modulation-routing-advanced--2-s2" d="M0 0C0 0.9 -0.7 1.6 -1.6 1.6H-16.8C-17.7 1.6 -18.4 0.9 -18.4 0V-15.1C-18.4 -16 -17.7 -16.7 -16.8 -16.7H-1.6C-0.7 -16.7 0 -16 0 -15.1ZM-0.5 0V-15.1C-0.5 -15.7 -1 -16.2 -1.6 -16.2H-16.8C-17.4 -16.2 -17.9 -15.7 -17.9 -15.1V0C-17.9 0.6 -17.4 1.1 -16.8 1.1H-1.6C-1 1.1 -0.5 0.6 -0.5 0Z" fill-rule="evenodd"/></defs>
+<defs>
+<clipPath id="06-modulation__02-modulation-routing-advanced--2-clip_1">
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" d="M78.1 164.9H381.3V598.9H78.1Z" clip-rule="evenodd"/>
+</clipPath>
+<mask id="06-modulation__02-modulation-routing-advanced--2-mask_2">
+<g transform="matrix(.076759997,0,0,.07676,50.2,48.6)">
+<image id="06-modulation__02-modulation-routing-advanced--2-image_3" width="3024" height="1484" xlink:href="/guidebook/img/06-modulation__02-modulation-routing-advanced--2-1.webp"/>
+</g>
+</mask>
+<clipPath id="06-modulation__02-modulation-routing-advanced--2-clip_5">
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" d="M0 0H596V842H0Z"/>
+</clipPath>
+</defs>
+<g>
+<g clip-path="url(#06-modulation__02-modulation-routing-advanced--2-clip_1)">
+<text fill="currentColor" xml:space="preserve" transform="translate(214.3 305.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Modulator.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(171.1 313.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">LFO 2 modulates LFO1 depth which in</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(168.5 321.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">turn affects parameter frequency of LPF.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(178.0 341.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">ENV1 trigger modulates, the cutoff</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(180.3 349.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">frequency and resonance of LPF.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(9.1 12.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Destination Parameters</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.0 20.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">LFP frequency and resonance</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(93.9 329.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">LFO1</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(274.5 233.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">ENV1</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(93.9 399.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">LFO 2</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(38.2 236.9)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Cutoff Freq</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(37.9 223.6)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Resonance</tspan></text>
+<g mask="url(#06-modulation__02-modulation-routing-advanced--2-mask_2)">
+<g transform="matrix(.076759997,0,0,.07676,50.2,48.6)">
+<image class="gb-ink" id="06-modulation__02-modulation-routing-advanced--2-image_4" width="3024" height="1484" xlink:href="/guidebook/img/06-modulation__02-modulation-routing-advanced--2-2.webp"/>
+</g>
+</g>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 40%, var(--gb-paper))" d="M108.9 290.7V253.5"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" stroke-width=".55" stroke-linecap="round" stroke-dasharray="1.6,1.6,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 40%, var(--gb-paper))" d="M108.9 272.6H169.4"/>
+<use href="#06-modulation__02-modulation-routing-advanced--2-s1" transform="matrix(1 0 0 -1 30.9 326.5)"/>
+<use href="#06-modulation__02-modulation-routing-advanced--2-s1" transform="matrix(1 0 0 -1 61 326.5)"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 40%, var(--gb-paper))" d="M108.9 221.1V183.9"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" stroke-width=".55" stroke-linecap="round" stroke-dasharray="1.6,1.6,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 40%, var(--gb-paper))" d="M108.9 203.0H169.4"/>
+<use href="#06-modulation__02-modulation-routing-advanced--2-s1" transform="matrix(1 0 0 -1 30.9 396.1)"/>
+<use href="#06-modulation__02-modulation-routing-advanced--2-s1" transform="matrix(1 0 0 -1 61 396.1)"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" d="M309.4 484.7C311.6 484.7 313.4 482.9 313.4 480.7 313.4 478.4 311.6 476.6 309.4 476.6 307.1 476.6 305.3 478.4 305.3 480.7 305.3 482.9 307.1 484.7 309.4 484.7ZM309.4 484.3C311.4 484.3 313.0 482.7 313.0 480.7 313.0 478.6 311.4 477.0 309.4 477.0 307.3 477.0 305.7 478.6 305.7 480.7 305.7 482.7 307.3 484.3 309.4 484.3Z" fill="color-mix(in srgb, currentColor 20%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" d="M336.5 484.7C338.8 484.7 340.6 482.9 340.6 480.7 340.6 478.4 338.8 476.6 336.5 476.6 334.3 476.6 332.5 478.4 332.5 480.7 332.5 482.9 334.3 484.7 336.5 484.7ZM336.5 484.3C338.6 484.3 340.2 482.7 340.2 480.7 340.2 478.6 338.6 477.0 336.5 477.0 334.5 477.0 332.9 478.6 332.9 480.7 332.9 482.7 334.5 484.3 336.5 484.3Z" fill="#5c96cf" fill-opacity=".75" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" d="M309.4 487.4C313.1 487.4 316.1 484.3 316.1 480.6 316.1 476.9 313.1 473.9 309.4 473.9 305.7 473.9 302.7 476.9 302.7 480.6 302.7 484.3 305.7 487.4 309.4 487.4ZM309.4 487.0C312.9 487.0 315.8 484.1 315.8 480.6 315.8 477.1 312.9 474.3 309.4 474.3 305.9 474.3 303.0 477.1 303.0 480.6 303.0 484.1 305.9 487.0 309.4 487.0Z" fill="color-mix(in srgb, currentColor 20%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" d="M336.6 487.4C340.3 487.4 343.3 484.3 343.3 480.6 343.3 476.9 340.3 473.9 336.6 473.9 332.9 473.9 329.9 476.9 329.9 480.6 329.9 484.3 332.9 487.4 336.6 487.4ZM336.6 487.0C340.1 487.0 342.9 484.1 342.9 480.6 342.9 477.1 340.1 474.3 336.6 474.3 333.1 474.3 330.2 477.1 330.2 480.6 330.2 484.1 333.1 487.0 336.6 487.0Z" fill="#5c96cf" fill-opacity=".5244" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" stroke-width=".35" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M302.0 488.1 303.9 486.2"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" stroke-width=".35" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="#5c96cf" stroke-opacity=".5232" d="M329.2 488.1 331.1 486.2"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" stroke-width=".35" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M302.0 473.4 303.9 475.4"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" stroke-width=".35" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="#5c96cf" stroke-opacity=".5232" d="M329.2 473.4 331.1 475.4"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" stroke-width=".35" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M316.6 488.1 314.7 486.2"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" stroke-width=".35" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="#5c96cf" stroke-opacity=".5232" d="M343.8 488.1 341.9 486.2"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" stroke-width=".35" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M316.6 473.4 314.7 475.4"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" stroke-width=".35" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="#5c96cf" stroke-opacity=".5232" d="M343.8 473.4 341.9 475.4"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" stroke-width=".35" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M301.1 480.7H302.3"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" stroke-width=".35" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="#5c96cf" stroke-opacity=".5232" d="M328.2 480.7H329.5"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" stroke-width=".35" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="#5c96cf" stroke-opacity=".5232" d="M343.3 480.7H344.5"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" stroke-width=".35" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M316.4 480.7H317.7"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" stroke-width=".35" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M309.4 473.4V472.1"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" stroke-width=".35" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="#5c96cf" stroke-opacity=".5232" d="M336.5 473.4V472.1"/>
+<use href="#06-modulation__02-modulation-routing-advanced--2-s2" transform="matrix(1 0 0 -1 77.2 56.4)"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" d="M155.3 515.1C155.3 516.0 154.6 516.8 153.7 516.8H138.5C137.6 516.8 136.9 516.0 136.9 515.1V500.0C136.9 499.1 137.6 498.4 138.5 498.4H153.7C154.6 498.4 155.3 499.1 155.3 500.0ZM154.8 515.1V500.0C154.8 499.4 154.3 498.9 153.7 498.9H138.5C137.9 498.9 137.4 499.4 137.4 500.0V515.1C137.4 515.8 137.9 516.3 138.5 516.3H153.7C154.3 516.3 154.8 515.8 154.8 515.1Z" fill-rule="evenodd"/>
+<use href="#06-modulation__02-modulation-routing-advanced--2-s2" transform="matrix(1 0 0 -1 240.5 110.9)"/>
+<use href="#06-modulation__02-modulation-routing-advanced--2-s2" transform="matrix(1 0 0 -1 267.6 110.9)"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" d="M146.2 539.0C148.4 539.0 150.2 537.2 150.2 535.0 150.2 532.8 148.4 531.0 146.2 531.0 144.0 531.0 142.2 532.8 142.2 535.0 142.2 537.2 144.0 539.0 146.2 539.0ZM146.2 538.6C148.2 538.6 149.9 537.0 149.9 535.0 149.9 533 148.2 531.3 146.2 531.3 144.2 531.3 142.5 533 142.5 535.0 142.5 537.0 144.2 538.6 146.2 538.6Z" fill="color-mix(in srgb, currentColor 20%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" d="M309.3 486.0C312.3 486.0 314.7 483.6 314.7 480.6 314.7 477.7 312.3 475.3 309.3 475.3 306.4 475.3 304.0 477.7 304.0 480.6 304.0 483.6 306.4 486.0 309.3 486.0ZM309.3 485.6C312.1 485.6 314.4 483.4 314.4 480.6 314.4 477.9 312.1 475.6 309.3 475.6 306.6 475.6 304.3 477.9 304.3 480.6 304.3 483.4 306.6 485.6 309.3 485.6Z" fill="color-mix(in srgb, currentColor 20%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" d="M146.2 541.7C149.9 541.7 152.9 538.7 152.9 534.9 152.9 531.2 149.9 528.2 146.2 528.2 142.5 528.2 139.5 531.2 139.5 534.9 139.5 538.7 142.5 541.7 146.2 541.7ZM146.2 541.3C149.7 541.3 152.6 538.5 152.6 534.9 152.6 531.4 149.7 528.6 146.2 528.6 142.7 528.6 139.8 531.4 139.8 534.9 139.8 538.5 142.7 541.3 146.2 541.3Z" fill="color-mix(in srgb, currentColor 20%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" stroke-width=".35" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M138.8 542.4 140.7 540.5"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" stroke-width=".35" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M138.8 527.7 140.7 529.7"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" stroke-width=".35" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M153.4 542.4 151.5 540.5"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" stroke-width=".35" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M153.4 527.7 151.5 529.7"/>
+<g opacity=".7001">
+<g clip-path="url(#06-modulation__02-modulation-routing-advanced--2-clip_5)">
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" d="M145.8 511.5C148.1 511.5 149.9 509.7 149.9 507.5 149.9 505.2 148.1 503.4 145.8 503.4 143.6 503.4 141.8 505.2 141.8 507.5 141.8 509.7 143.6 511.5 145.8 511.5ZM145.8 511.1C147.9 511.1 149.5 509.5 149.5 507.5 149.5 505.4 147.9 503.8 145.8 503.8 143.8 503.8 142.2 505.4 142.2 507.5 142.2 509.5 143.8 511.1 145.8 511.1Z" fill="color-mix(in srgb, currentColor 21%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" d="M336.5 486.0C339.5 486.0 341.9 483.6 341.9 480.6 341.9 477.7 339.5 475.3 336.5 475.3 333.6 475.3 331.2 477.7 331.2 480.6 331.2 483.6 333.6 486.0 336.5 486.0ZM336.5 485.6C339.3 485.6 341.5 483.4 341.5 480.6 341.5 477.9 339.3 475.6 336.5 475.6 333.8 475.6 331.5 477.9 331.5 480.6 331.5 483.4 333.8 485.6 336.5 485.6Z" fill="#5c96cf" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" d="M145.9 514.2C149.6 514.2 152.7 511.2 152.7 507.5 152.7 503.8 149.6 500.8 145.9 500.8 142.2 500.8 139.2 503.8 139.2 507.5 139.2 511.2 142.2 514.2 145.9 514.2ZM145.9 513.9C149.4 513.9 152.3 511.0 152.3 507.5 152.3 504.0 149.4 501.1 145.9 501.1 142.4 501.1 139.6 504.0 139.6 507.5 139.6 511.0 142.4 513.9 145.9 513.9Z" fill="color-mix(in srgb, currentColor 21%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" stroke-width=".35" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 21%, var(--gb-paper))" d="M138.5 514.9 140.4 513.0"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" stroke-width=".35" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 21%, var(--gb-paper))" d="M138.5 500.3 140.4 502.2"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" stroke-width=".35" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 21%, var(--gb-paper))" d="M153.2 514.9 151.2 513.0"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" stroke-width=".35" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 21%, var(--gb-paper))" d="M153.2 500.3 151.2 502.2"/>
+</g>
+</g>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M309.4 482.6 309.4 485.6C309.4 491.3 318.4 493.0 321.4 498.0 323.8 502.0 325.6 510.8 324.5 518.8 322.1 535.1 326.1 542.9 323.1 547.7 315.9 558.9 294.4 548.1 281.8 550.4 269.5 552.6 262.2 554.8 242.2 551.8 226.9 549.5 227.4 553.0 207.3 553.3 201.2 553.4 188.8 549.5 171.3 552.5 164.1 553.8 151.0 555.8 150.9 549.3 150.8 545.3 150.5 546.5 150.6 539.6"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" d="M150.5 534.3 153.1 539.9H147.9Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" d="M150.5 534.3 153.1 539.9H147.9ZM150.5 536.0 149.0 539.2C149.0 539.2 152.0 539.2 152.0 539.2Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" d="M336.5 482.9C337.7 482.9 338.6 481.9 338.6 480.8 338.6 479.6 337.7 478.6 336.5 478.6 335.4 478.6 334.4 479.6 334.4 480.8 334.4 481.9 335.4 482.9 336.5 482.9Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" d="M309.4 482.9C310.6 482.9 311.5 481.9 311.5 480.7 311.5 479.5 310.6 478.6 309.4 478.6 308.2 478.6 307.3 479.5 307.3 480.7 307.3 481.9 308.2 482.9 309.4 482.9ZM309.4 482.2C310.2 482.2 310.8 481.5 310.8 480.7 310.8 479.9 310.2 479.3 309.4 479.3 308.6 479.3 308.0 479.9 308.0 480.7 308.0 481.5 308.6 482.2 309.4 482.2Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M309.5 507.7C309.5 507.7 307.6 512.4 315.1 522.6 317.6 525.8 322.4 549.2 311.0 554.9 299.2 560.7 282.9 555.3 270.6 557.6 258.5 559.8 251.4 562.0 231.8 559.0 216.8 556.7 217.3 560.2 197.6 560.5 191.6 560.6 179.4 556.7 162.3 559.7 155.3 561.0 142.4 563.0 142.3 556.5 142.2 552.5 142.0 553.7 142.1 546.8"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" d="M141.9 541.5 144.5 547.1H139.4Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" d="M141.9 541.5 144.5 547.1H139.4ZM141.9 543.2 140.5 546.4C140.5 546.4 143.4 546.4 143.4 546.4Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" d="M309.5 509.9C310.6 509.9 311.5 508.9 311.5 507.7 311.5 506.5 310.6 505.6 309.5 505.6 308.3 505.6 307.4 506.5 307.4 507.7 307.4 508.9 308.3 509.9 309.5 509.9Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M309.5 508.1C309.5 508.1 306.0 506.6 297.7 509.9 285.4 514.7 276.2 504.2 264.1 507.5 247.2 512.0 246.7 504.1 227.3 508.4 211.0 512.0 215.8 507.4 196.1 507.7 190.1 507.8 183.2 513.2 169.3 508.4 165.5 507.1 164.1 508.9 150.7 508.1"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" d="M145.2 508.1 150.7 505.6V510.7Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" d="M145.2 508.1 150.7 505.6V510.7ZM146.8 508.1 150.0 509.6C150.0 509.6 150.0 506.6 150.0 506.6Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 40%, var(--gb-paper))" d="M109.1 357.1V321.2H169.8"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" stroke-width=".85" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M169.8 321.2C169.8 321.2 138.7 349.9 135.8 351.5 133.3 353.0 134.4 350.7 128.3 350.3 125.0 350.0 124.2 350.1 124.2 350.1L109.1 350.1"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" stroke-width=".4" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M125.1 356.3H142.1"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" d="M146.8 356.3 142.3 354.1V358.6ZM145.9 356.3 142.7 354.7C142.7 354.7 142.7 357.9 142.7 357.9Z" fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" d="M120.7 356.3 125.2 354.1V358.6ZM121.6 356.3 124.8 357.9C124.8 357.9 124.8 354.7 124.8 354.7Z" fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 40%, var(--gb-paper))" d="M282.4 389.9V354.0H343.1"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M134.0 290.7V340.0"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M272.4 363.3H165.2"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M272.4 377.7H165.2"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M134.0 215.1V248.8"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" d="M133.9 346.8 137.2 340.3H130.6ZM133.9 345.2 136.0 341.0C136.0 341.0 131.8 341.0 131.8 341.0Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" d="M158.7 363.2 165.2 366.4V359.9ZM160.3 363.2 164.5 365.3C164.5 365.3 164.5 361.1 164.5 361.1Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" d="M158.7 377.6 165.2 380.8V374.3ZM160.3 377.6 164.5 379.7C164.5 379.7 164.5 375.5 164.5 375.5Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" d="M133.9 255.6 137.2 249.1H130.6ZM133.9 254.0 136.0 249.8C136.0 249.8 131.8 249.8 131.8 249.8Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" stroke-width=".55" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M336.7 480.8C332.5 481.3 332.7 480.1 331.5 480.8 324.1 486.3 320.0 476.8 314.3 480.7 313.5 481.2 313.5 480.5 311.4 480.8"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M424.8 688.6V84.1"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" stroke-width=".8" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M282.4 354.0 298.9 385.1 310.0 373.8H327.9L344.8 354.0"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" d="M104.5 285.6 106.8 281.1H102.3ZM104.5 284.7 106.1 281.5C106.1 281.5 102.9 281.5 102.9 281.5Z" fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" stroke-width=".4" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M104.5 263.9V280.9"/>
+<path transform="matrix(1,0,0,-1,-78.1,598.9)" d="M104.5 259.5 106.8 264.0H102.3ZM104.5 260.4 102.9 263.6C102.9 263.6 106.1 263.6 106.1 263.6Z" fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" fill-rule="evenodd"/>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(93.1 262.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Filter</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(47.6 426.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0">Rate</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="matrix(0 -1 1 0 20.2 335.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0">Depth</tspan></text>
+</g>
+</g>
+</svg>

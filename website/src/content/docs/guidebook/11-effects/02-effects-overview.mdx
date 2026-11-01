@@ -1,0 +1,69 @@
+---
+title: "11.2 Effects Overview"
+description: "Effects exist at both a sound level and also are available at a song level affecting all sounds collectively."
+sidebar:
+  order: 1
+banner:
+  content: "From the Deluge Manual – Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+guidebook:
+  section: "11.2"
+  chapter: 11
+  pdfPages: [249, 250]
+  printedPages: [243, 244]
+  firmware: "C1.0.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_11_2_1 from "../../../../assets/guidebook/figs/11-effects__02-effects-overview--1.svg?raw"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+Effects exist at both a sound level and also are available at a song level affecting all sounds collectively.
+
+    - Instrument effects are the effects that are specific to the sound design, for example the synthesizer engine filters.
+    - Modulation sources drive changes of other parameters, for example low frequency oscillators (LFO), envelopes and sidechain compressor.
+    - Modulation (Mod FX) and system effects: These are typically the effects used to change the overall sound or song within Deluge as insert or send effects. These include distortion, delay and reverb. This chapter concentrates on this group of effects which often are common to more than one function. So for example, reverb exists for kits, and for synthesizer engines.
+
+<Figure
+  id="fig-11.2-1"
+  src={fig_fig_11_2_1}
+  alt={
+    "Diagram: Sound Engine Sound Engine Sound Engine Synth Kit Synth Sound Level Effects. Sound Engine Sound Engine Sound Engine Typically set through…"
+  }
+  page={243}
+/>
+
+#### Effects and Parameters
+
+Parameters are available via the grid shortcuts or menu options.
+
+| Effect     | Quick Button Access   | Options & Description                                                                                                                                                                                                                                              |
+| ---------- | --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| MOD-FX     | TYPE                  | Type of effect or DISABLED. Type includes FLANGER, CHORUS, PHASER, STEREO CHORUS, GRAIN.                                                                                                                                                                           |
+|            | RATE                  | Speed/rate of effect                                                                                                                                                                                                                                               |
+|            | FEEDBACK              | Flanger, phaser & grain feedback                                                                                                                                                                                                                                   |
+|            | DEPTH                 | Depth of chorus, stereo chorus, phaser and grain                                                                                                                                                                                                                   |
+|            | OFFSET                | Chorus, stereo chorus, grain offset                                                                                                                                                                                                                                |
+| EQ         | BASS                  | Amount of bass at the frequency set                                                                                                                                                                                                                                |
+|            | TREBLE                | Amount of treble at the frequency set                                                                                                                                                                                                                              |
+|            | BASS<br />FREQUENCY   | Frequency setting for bass                                                                                                                                                                                                                                         |
+|            | TREBLE<br />FREQUENCY | Frequency setting for treble                                                                                                                                                                                                                                       |
+| DELAY      | AMOUNT                | Delay effect and combined feedback                                                                                                                                                                                                                                 |
+|            | RATE                  | Rate of delay                                                                                                                                                                                                                                                      |
+|            | PING-PONG             | Switches to ping-pong stereo delay (ON) & traditional delay (OFF)                                                                                                                                                                                                  |
+|            | TYPE                  | DIGITAL or ANALOG delay                                                                                                                                                                                                                                            |
+|            | SYNC                  | Time interval to sync the delay or OFF. Options 2 bar, 1 bar, 2nd, 4th, 8th, 16th, 32nd, 64th, 128th                                                                                                                                                               |
+| REVERB     | AMOUNT                | Amount of reverb applied                                                                                                                                                                                                                                           |
+|            | ROOM SIZE             | Room size applied to the whole song                                                                                                                                                                                                                                |
+|            | DAMPENING             | Dampening of the reverb effect                                                                                                                                                                                                                                     |
+|            | WIDTH                 | Stereo width setting                                                                                                                                                                                                                                               |
+|            | PAN                   | Enables panning to one side or the other.                                                                                                                                                                                                                          |
+|            | REVERB<br />SIDECHAIN | Sidechain compressor specific to the reverb but from the same side input as the other sidechain compressors. AUTO (default) setting means parameters come from sound with greatest reverb AMOUNT otherwise standard sub-menu options as per the general sidechain. |
+| SATURATION | SATURATION            | Distortion effect - amount                                                                                                                                                                                                                                         |
+| DECIMATION | DECIMATION            | Decimation distortion effect - amount                                                                                                                                                                                                                              |
+| BITCRUSH   | BITCRUSH              | Distortion bitcrusher - amount                                                                                                                                                                                                                                     |
+| WAVEFOLD   | Unlabelled            | Distortion wave folder. Shortcut to right of SATURATION pad.                                                                                                                                                                                                       |
+
+<span id="fig-11.2-2"></span>

@@ -1,0 +1,92 @@
+---
+title: "3.3 Tempo & Swing"
+description: "Tempo can be set manually or a tap tempo option is available."
+sidebar:
+  order: 2
+banner:
+  content: "From the Deluge Manual \u2013 Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+guidebook:
+  section: "3.3"
+  chapter: 3
+  pdfPages: [44, 45]
+  printedPages: [38, 39]
+  firmware: "C1.0.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_3_3_1 from "../../../../assets/guidebook/figs/03-sequencing__03-tempo-swing--1.svg?raw"
+
+import { Steps } from "@astrojs/starlight/components"
+import StepFocus from "../../../../components/guidebook/StepFocus.astro"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+Tempo can be set manually or a tap tempo option is available.
+
+<StepFocus />
+
+### Manually setting the tempo
+
+<Steps>
+
+1. :key[Turn Tempo] control to adjust the BPM in +/-1 BPM Increments.
+2. For higher BPM increments, press + :key[Turn Tempo] to adjust the BPM.
+3. The display will show tempo settings when adjustments are being made. Press :key[Tempo] to quickly check the current setting.
+4. This behaviour can be reversed in the community features menu in the system settings.
+
+</Steps>
+
+### Setting the tempo using tap tempo
+
+<Steps>
+
+1. Tap the :key[TapTempo] button two or more taps. The button will flash green while tapping.
+2. Tempo will adjust automatically and more accurately as more taps are captured.
+3. The display will show tempo settings when tapping.
+
+</Steps>
+
+### Switching the metronome on/off
+
+<Steps>
+
+1. Press :key[Shift + TapTempo] button. The button will illuminate green to signify that the metronome is turned on.
+2. The metronome will sound out when the sequence is in play and running. A higher pitch at each bar start and lower pitch on the beat.
+3. (OUTPUT LEVEL) will adjust the entire volume output and headphone output. This will also affect the metronome volume. The metronome volume level with respect to the main output audio level can be set in the global setting defaults.
+4. Press :key[Shift + TapTempo] button when metronome is on to turn it off. The button will be unlit to signify that the metronome is turned off.
+
+</Steps>
+
+### Adjusting swing
+
+<Steps>
+
+1. Press :key[Shift + Turn Tempo] button. A swing % value between 1-99 can be dialled in to adjust the swing and shift.
+
+</Steps>
+
+<Figure
+  id="fig-3.3-1"
+  src={fig_fig_3_3_1}
+  alt={
+    "Diagram: 16th Grid Intervals (8th note Swung) Example 1 Timing on grid 50 = Off Example 2 Swing 51 - 99 = notes late Example 3 Swing 1 - 49 = notes…"
+  }
+  page={39}
+/>
+
+Swing feature provides a rhythmic adjustment that brings a more natural and organic feel to songs and operates generically and not at an individual note level.
+
+### Adjusting the swing interval setting
+
+<Steps>
+
+1. Open the settings menu by pressing :key[Shift + Select].
+2. Turn the :key[Select] control to navigate the menu top level and select SWING INTERVAL
+3. Press :key[Select]
+4. :key[Turn Select] to choose between 2 bar, 1 bar, 2nd, 4th, 8th, 16th, 32nd, 64th, 128th note intervals. 16th is the default setting.
+5. Press :key[BackUndo] to back out of the menu when the parameter has been changed or at any time in the menu to back up.
+6. The swing interval setting is saved as part of a song. New songs revert to default while saved and reloaded songs will retain the swing interval setting.
+
+</Steps>

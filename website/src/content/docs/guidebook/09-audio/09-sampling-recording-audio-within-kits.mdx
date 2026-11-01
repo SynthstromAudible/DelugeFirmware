@@ -1,0 +1,141 @@
+---
+title: "9.9 Sampling & Recording Audio within Kits"
+description: "Kits are a great environment for sampling audio."
+sidebar:
+  order: 8
+banner:
+  content: "From the Deluge Manual \u2013 Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+guidebook:
+  section: "9.9"
+  chapter: 9
+  pdfPages: [213, 214, 215, 216, 217]
+  printedPages: [207, 208, 209, 210, 211]
+  firmware: "C1.0.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_9_9_1 from "../../../../assets/guidebook/figs/09-audio__09-sampling-recording-audio-within-kits--1.svg?raw"
+import fig_fig_9_9_2 from "../../../../assets/guidebook/figs/09-audio__09-sampling-recording-audio-within-kits--2.svg?raw"
+
+import { Steps } from "@astrojs/starlight/components"
+import StepFocus from "../../../../components/guidebook/StepFocus.astro"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+Kits are a great environment for sampling audio. Samples can be recorded and arranged into a kit. Kits can be combination of samples or synth sounds.
+
+<StepFocus />
+
+### Recording an audio sample in to a new kit
+
+<Steps>
+
+1. Input will be line-IN or mic (external or internal). The mic gain can be changed on the input switch.
+2. Press :key[Shift + Kit] from clip view to create a blank a kit clip.
+3. The browser will open to select a sample from the SD card or a previous last recent recording may by appear on the grid.
+4. Press :key[Record]. Button illuminates flashing red and the display indicates ‘RECORDING’ to indicate that recording has started.
+5. Press :key[Record] again to end recording. Recording ends and is normalised.
+6. The recording is assigned to a row of pads indicated by a green :key[Mute Pad].
+7. Press :key[Audition Pad] to play back the sample.
+
+</Steps>
+
+### Recording an audio sample into an existing kit
+
+<Steps>
+
+1. Input will be line-IN or mic (external or internal). The mic gain can be changed on the input switch.
+2. Press :key[Kit] from clip view and selected a kit to record into.
+3. Press & hold :key[Audition Pad] of blank or selected row + :key[Record].
+4. Recording will start. Button illuminates flashing red and the display indicates ‘RECORDING’ to indicate that recording in progress.
+5. Press :key[Record] again to end recording. Recording ends and is normalised.
+6. The recording is assigned to a row of pads indicated by a green :key[Mute Pad].
+7. Press :key[Audition Pad] to play back the sample.
+
+</Steps>
+
+### Setting sampling input monitoring
+
+<Steps>
+
+1. Press :key[Shift + Settings Pad] to open settings menu.
+2. :key[Turn Select] to highlight ‘RECORDING’ - recording option.
+3. Press :key[Select].
+4. :key[Turn Select] to highlight ‘SAMPLING MONITORING’
+5. Press :key[Select] to open monitoring options.
+6. :key[Turn Select] to highlight:
+   - ON: switches monitoring when recording samples on.
+   - OFF: switches monitoring when recording samples off.
+   - CONDITIONAL (Default): conditional monitoring. Recording from a microphone (internal or external) AND headphones connected, monitoring will occur. Recording using the LINE IN input, monitoring will always occur.
+
+</Steps>
+
+### Slicing audio across a new kit
+
+<Steps>
+
+1. Press :key[Shift + Kit] from clip view to create a new kit clip.
+2. The browser will open to select a sample from the SD card or a previous last recent recording may by appear on the grid.
+3. To use a previous recorded samples use :key[Select] to scroll through files and folders. To select another file or folder from within the browser, press :key[BackUndo] to back out of the recording files and navigate others. Selections may default to previously selected folder / file.
+4. Press & hold :key[Select] while the desired sample is in view / in-focus to open the sampling context sub menu.
+5. :key[Turn Select] to highlight ‘SLICE’
+6. Press :key[Select]. Number of slices is indicated at which to divide the sample. 16 is default. :key[Turn Select] to adjust, example, to 8. Note that pressing :key[Horizontal] within this menu will open the lazy slice manual slicing function.
+7. Press :key[Select] to slice the sample across the elected number of pads.
+
+</Steps>
+
+<Figure
+  id="fig-9.9-1"
+  src={fig_fig_9_9_1}
+  alt={
+    "Pad grid: Audition pads will be aligned, bottom up to each of the slices and when pressed will trigger the slice. 1 2 3 4 5 6 7 8 8 7 6 5 4 3 2…"
+  }
+  page={209}
+/>
+
+### Lazy chop manual slicing audio in a kit
+
+<Steps>
+
+1. Press :key[Shift + Kit] from clip view to create a new kit clip.
+2. The browser will open to select a sample from the SD card or a previous last recent recording may by appear on the grid.
+3. To use a previous recorded samples use :key[Select] to scroll through files and folders. To select another file or folder from within the browser, press :key[BackUndo] to back out of the recording files and navigate others. Selections may default to previously selected folder / file.
+4. Press & hold :key[Select] while the desired sample is in view / in-focus to open the sampling context sub menu.
+5. :key[Turn Select] to highlight ‘SLICE’ and press :key[Select] to open the slice menu options.
+6. Press :key[Horizontal] while displaying the ‘NUM SLICES’ option to open the lazy slice manual slicing function. The pads will revert to a lazy chop layout and one slice will be the default state.
+7. To chop / slice the sample:
+   - Press the bottom left green :key[Pad] to start the sample playback.
+   - The upper 4 rows are the white sample illustration while the lower 4 rows are the available trigger / slice blue pads.
+   - During playback, press any empty lower trigger / slice :key[Pad] on a column at the point of applying a sample slice. Slicing is performed manually in real time so the point each slice is selected will determine its position in the sample.
+   - Slice points will show as green in the upper sample grid. Bright green is the active slice start and dimmed pads are available, deselected slices. White pads illustrate the sample.
+   - When complete, the :key[Pad] selected to apply a slice will now playback that slice. Active slice pads are lit blue and inactive pads dimmed blue.
+   - Pressing a lower grid :key[Pad] i.e. lit blue, will trigger the selected slice. The slice selected will be brightly lit green.
+8. To edit, while still in the slicer:
+   - :key[Turn Select] counter clockwise to delete a slice.
+   - Alternately, Hold :key[Pad + Save] to delete a selected slice.
+   - :key[Turn Horizontal] to adjust the selected slice start point.
+   - :key[Turn Vertical] to transpose the selected slice. Range is across +/-24 semitones.
+9. Press :key[Select] to confirm and conclude slicing. The audition pads will now represent slices.
+
+</Steps>
+
+Sample is represented on the upper pads and plays left to right when the bottom left green pad is triggered ie start point.
+
+<Figure
+  id="fig-9.9-2"
+  src={fig_fig_9_9_2}
+  alt={
+    "Diagram: 1 2 3 4 5 6 5 6 1 2 3 4 Empty pads trigger a slice being captured during playback. Slices are populated in the 4x4 blocks of pads starting…"
+  }
+  page={211}
+/>
+
+Other slices can be captured across the duration of the sample.
+
+The currently active slice is lit bright green. Other available slices are identified by dimmed green pads. When exiting the slicer, the slices will be represented on the audition pads.
+
+Sample Waveform
+
+Slice Pads

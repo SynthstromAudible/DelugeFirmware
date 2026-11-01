@@ -1,0 +1,36 @@
+---
+title: "13.2 CV Hardware Configuration"
+description: "CV configuration requires the careful match up of both Deluge along with the external device for CV and gate."
+sidebar:
+  order: 2
+banner:
+  content: "From the Deluge Manual – Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+guidebook:
+  section: "13.2"
+  chapter: 13
+  pdfPages: [305]
+  printedPages: [299]
+  firmware: "C1.0.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_13_2_1 from "../../../../assets/guidebook/figs/13-cv__02-cv-hardware-configuration--1.svg?raw"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+CV configuration requires the careful match up of both Deluge along with the external device for CV and gate. It is important to check the manufacturers instructions when connecting other devices. The only sound editor function available for CV is the arpeggiator.
+
+#### Typical CV Set Up
+
+<Figure
+  id="fig-13.2-1"
+  src={fig_fig_13_2_1}
+  alt={
+    "Diagram: Modular Device Signal (tip) CV compatible device, example synth module connected with 3.5mm / 1/8th Deluge has CV Inch patch cables. and…"
+  }
+  page={299}
+/>
+
+External controller providing control to Deluge. MIDI can be converted to CV within Deluge by creating a CV clip and mapping MIDI in to it.

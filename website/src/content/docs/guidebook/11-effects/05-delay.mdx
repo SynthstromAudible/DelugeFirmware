@@ -1,0 +1,99 @@
+---
+title: "11.5 Delay"
+description: "Delay adopts the standard principle of taking an audio input signal and delaying it at the output."
+sidebar:
+  order: 4
+banner:
+  content: "From the Deluge Manual – Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+guidebook:
+  section: "11.5"
+  chapter: 11
+  pdfPages: [256, 257]
+  printedPages: [250, 251]
+  firmware: "C1.0.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import StepFocus from "../../../../components/guidebook/StepFocus.astro"
+import { Steps } from "@astrojs/starlight/components"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_11_5_1 from "../../../../assets/guidebook/figs/11-effects__05-delay--1.svg?raw"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+Delay adopts the standard principle of taking an audio input signal and delaying it at the output. By adding feedback the delay will echo and repeat.
+
+#### Delay Principles
+
+<Figure
+  id="fig-11.5-1"
+  src={fig_fig_11_5_1}
+  alt={
+    "Diagram: Sync Rate Ping-Pong (L/R) or DELAY Standard Delay Feedback Amount"
+  }
+  page={250}
+/>
+
+#### Delay Parameters
+
+Amount
+
+Sets the amount of feedback from the output back into the delay. Amount range 0 - 50.
+
+Rate
+
+Sets the rate at which to sync the delay. Range is 0-50.
+
+Stereo
+
+Sets the output mode to standard delay (off) or to a ping-pong style (on) where the delays are triggered across the stereo field. Ping-pong is disabled if only a single l/mono output is connected and operates only if headphones or stereo l/mono & r connections are connected.
+
+Analog
+
+Sets the style of the delay to give a classic analog style simulation or the digital style sound. Analog is higher in CPU usage and may lower voices.
+
+Sync
+
+The delay can be synchronised to a time interval with respect to the rate. Option to turn synchronisation off, having a free running delay time is available as OFF. Sync options are OFF, 2 bar, 1 bar, 2nd, 4th, 8th, 16th, 32nd, 64th, 128th.
+
+<StepFocus />
+
+### Setting delay at sound level
+
+<Steps>
+
+1. :key[Clip] view, ensure the clip is in-focus, example: a kit.
+2. Press :key[Shift] + DELAY pad, delay shortcuts are as below
+   - :key[Amount Pad]
+   - :key[Rate Pad]
+   - :key[Sync Pad]
+   - :key[Stereo Pad]
+3. For the selected parameter, :key[Turn Select] to adjust the value.
+
+</Steps>
+
+or
+
+<Steps>
+
+1. In :key[Clip] view access the effects within the menu. Press :key[Select].
+2. Navigate in the menu to the FX section and press :key[Select].
+3. Navigate in the menu to the ‘DELAY’ section and press :key[Select].
+4. Select either ‘AMOUNT’, ‘RATE’, ‘PINGPONG’, ‘ANALOG’, ‘TYPE’, ‘SYNC’. Press :key[Select] for the parameter to select.
+5. Adjust the value of the selected parameter by turning :key[Select].
+
+</Steps>
+
+### Setting delay at kit level or sound level
+
+<Steps>
+
+1. :key[Clip] view, ensure the clip is in-focus, example: a kit.
+2. Press :key[DelayTimeAmount] affect button. Button illuminates orange.
+3. :key[Turn Upper Gold] to change delay-time RATE value or :key[Turn Lower Gold] to change delay AMOUNT.
+4. To toggle PING-PONG or STANDARD, Press :key[Upper Gold]. This can be changed in the settings > community features to select SYNC TYPE.
+5. To toggle ANALOG or DIGITAL, Press :key[Lower Gold]. This can be changed in the settings > community features to select SYNC RATE.
+6. Press :key[AffectEntire] to affect the entire kit. Button lit orange. Changes will apply to the entire kit
+
+</Steps>

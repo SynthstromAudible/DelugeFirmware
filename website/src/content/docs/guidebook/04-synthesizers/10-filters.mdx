@@ -1,0 +1,64 @@
+---
+title: "4.10 Filters"
+description: "Deluge has a high-pass and low-pass filter."
+sidebar:
+  order: 9
+banner:
+  content: "From the Deluge Manual \u2013 Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+guidebook:
+  section: "4.10"
+  chapter: 4
+  pdfPages: [114]
+  printedPages: [108]
+  firmware: "C1.0.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_4_10_1 from "../../../../assets/guidebook/figs/04-synthesizers__10-filters--1.svg?raw"
+import fig_fig_4_10_2 from "../../../../assets/guidebook/figs/04-synthesizers__10-filters--2.svg?raw"
+import fig_fig_4_10_3 from "../../../../assets/guidebook/figs/04-synthesizers__10-filters--3.svg?raw"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+Deluge has a high-pass and low-pass filter. Each is configurable with the mode type and has a morph feature. Filter routing can also configurable.
+
+<Figure
+  id="fig-4.10-1"
+  src={fig_fig_4_10_1}
+  alt={"Diagram: FREQUENCY"}
+  page={108}
+/>
+
+HPF - HIGH-PASS FILTER ATTENUATION Allows higher frequencies to pass through the filter and cuts off lower frequencies.
+
+<Figure
+  id="fig-4.10-2"
+  src={fig_fig_4_10_2}
+  alt={
+    "Diagram: LPF - LOW-PASS FILTER 2 Pole 12dB/Octave Allows lower frequencies to pass through the filter and cuts off higher frequencies. Deluge…"
+  }
+  page={108}
+/>
+
+ATTENUATION
+
+<Figure
+  id="fig-4.10-3"
+  src={fig_fig_4_10_3}
+  alt={
+    "Diagram: Cut Off Frequency CUTOFF & RESONANCE Stop Transition Band Band Resonance The two parameters common to both the filters provide control over…"
+  }
+  page={108}
+/>
+
+ATTENUATION
+
+\`
+
+MODE: The LPF has 2 Ladder filters, SVF Notch and SVF Bandpass. The HPF contains a HP Ladder filter, SVF Notch and SVF Bandpass. The State Variable Filters have significantly less distortion than the ladder filters.
+
+MORPH: Adjusts smoothly from a setting of 0 at lowpass through bandpass/ notch to highpass at a maximum of 50. This is inverted in the HPF slot so that at 0 is highpass and at 50 it is lowpassed. Morph adds drive to the LP Ladder filters and FM to the HP Ladder. Morph is modulatable.
+
+FILTER ROUTE: Only accessible via the SOUND menu. Adjusts the filter order from HPF to LPF, LPF to HPF, or Filters operate in Parallel.

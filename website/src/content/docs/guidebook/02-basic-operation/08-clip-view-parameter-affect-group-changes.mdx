@@ -1,0 +1,80 @@
+---
+title: "2.8 Clip View: Parameter Affect Group Changes"
+description: "In clip view some quick access sound / synth parameters are immediately available and can be adjusted using the ‘parameter affect’ controls."
+sidebar:
+  order: 7
+banner:
+  content: "From the Deluge Manual \u2013 Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+guidebook:
+  section: "2.8"
+  chapter: 2
+  pdfPages: [33, 34, 35]
+  printedPages: [27, 28, 29]
+  firmware: "C1.0.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_2_8_1 from "../../../../assets/guidebook/figs/02-basic-operation__08-clip-view-parameter-affect-group-changes--1.svg?raw"
+
+import { Steps } from "@astrojs/starlight/components"
+import StepFocus from "../../../../components/guidebook/StepFocus.astro"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+In clip view some quick access sound / synth parameters are immediately available and can be adjusted using the ‘parameter affect’ controls. These are quickly accessible using the two gold rotary controls and associated buttons and enable changes of parameters on the currently selected sound, whether synth or kit. The gold upper and lower controls will display the value when edited.
+
+#### Parameter Affect Group : Clip View
+
+<Figure
+  id="fig-2.8-1"
+  src={fig_fig_2_8_1}
+  alt={
+    "Diagram: LED meters indicates the levels (UPPER) Control associated with the selected in Affects the selected parameter labelled above focus sound…"
+  }
+  page={27}
+/>
+
+:::note
+Custom 1, 2, and 3 are mapped based on the preset chosen. These custom controls can mapped to other settings. Labels therefore on the control buttons are defaults only. Parameters can be remapped to the 8 controls, mapped for external MIDI control or existing settings edited by using the sound editor.
+:::
+
+#### Parameter Affect Group Reference : Clip View
+
+| Button + Upper / Lower | Primary Parameter Function                                                              | Secondary & Other Parameter Functions Press :key[Upper Gold] :key[Lower Gold] Control                                                                                                                                                                     |
+| ---------------------- | --------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| B1 Upper               | Level<br />Sound Level adjustment                                                       |                                                                                                                                                                                                                                                           |
+| B1 Lower               | Pan<br />Panning of the sound                                                           |                                                                                                                                                                                                                                                           |
+| B2 Upper               | Cutoff / FM<br />Cutoff frequency of the selected filter. In FM Mode Modulator 1 amount | Selects which filter is affected by the control LPF is default, HPF or EQ for Bass/Treble amount                                                                                                                                                          |
+| B2 Lower               | Res / FM.<br />Filter Resonance<br />In FM Mode Modulator 2 amount                      | Selects the filter slope for the LPF between 12dB / Octave, 24dB/Octave or Analog modelled DRIVE Filter (24dB/Oct + Saturation).                                                                                                                          |
+| B3 Upper               | Attack<br />Env 1 Envelope Attack Time                                                  |                                                                                                                                                                                                                                                           |
+| B3 Lower               | Release<br />Env 1 Envelope Release Time                                                |                                                                                                                                                                                                                                                           |
+| B4 Upper               | Delay Time<br />Effect delay time                                                       | Selects Ping-Pong style delay On (PING-PONG) or Off (NORMAL)                                                                                                                                                                                              |
+| B4 Lower               | Amount: amount of delay applied to the sound.                                           | Selects ANALOG or DIGITAL delay simulation. Analog is high in CPU Usage and will lower the voice count if necessary.                                                                                                                                      |
+| B5 Upper               | Sidechain                                                                               | Selects the synchronisation for fast speed with 32nd notes or slow speed with 8th notes.                                                                                                                                                                  |
+| B5 Lower               | Reverb                                                                                  | Selects the song applicable reverb preset between SMALL, MEDIUM and LARGE                                                                                                                                                                                 |
+| B6 Upper               | Mod Rate<br />Modulation rate                                                           | Only used when in ‘Affect Entire’ mode for songs and kit clips where Mod rate and depth are controlling a modulation effect i.e. chorus, flanger or phaser. This selects the next in the list                                                             |
+| B6 Lower               | Depth<br />Modulation depth                                                             | Only used when in ‘Affect Entire’ mode for songs and kit clips where mod rate and depth are controlling a modulation effect i.e. chorus, flanger or phaser. This selects the control between depth, feedback and offset depending upon the active effect. |
+| B7 Upper               | Stutter:                                                                                | Enacts the stutter effect when pressed and stops when released. Length and speed are controlled by turning the control. Speed stutter loop up by pressing and turning the control.                                                                        |
+| B7 Lower               | Custom 1                                                                                | Configurable. Typical synth presets set to portamento and pitch for sample based sounds                                                                                                                                                                   |
+| B8 Upper               | Custom 2                                                                                | Configurable. Typical kit presets set to decimation When Osc1 is set as a wavetable synth, Custom 2 is set to control the wave position                                                                                                                   |
+| B8 Lower               | Custom 3                                                                                | Configurable. Typical kit presets set to bitcrush When Osc1 is set as a wavetable synth, Custom 3 is LFO2 modulation depth of wave position. When Osc2 is set as a wavetable synth, Custom 3 is set to control the wave position.                         |
+
+<StepFocus />
+
+### Adjusting a parameter in the affect group
+
+<Steps>
+
+1. Press :key[Clip] to select clip view This is indicated by the clip button illuminated blue.
+2. Selected SYNTH or KIT by pressing :key[Synth] or :key[Kit]. The selected button illuminates red.
+3. Audition the synth or kit sound manually with the :key[Audition Pad] Pads. This enables adjustments to be heard and for kits selects the target sound to edit.
+4. To adjust parameters for ALL kit sounds select :key[AffectEntire] which will be lit orange when selected. This is automatically selected to on for Synths as technically there is only one sound.
+5. Select the affect group parameter to change. For example envelope 1 ‘attack’ time. This is button 3 from left and the parameter is labelled above the button. The button will be lit orange.
+6. Adjusting the :key[Upper Gold] will adjust the attack time. The LED meter indicates the level / position of the parameter setting within its range and a 0-50 value adjusted will be displayed in a pop-up.
+7. The :key[Lower Gold] will affect the ‘release’ of envelope 1 as the button selections are for two default set parameters. A 0-50 value adjusted will be displayed in a pop-up.
+8. Continue to audition the sound as changes are made or play a sequence to hear adjustments during playback.
+9. The preset will automatically change to a new sub slot number when saving after a parameter is adjusted e.g. from 52 to 52A to enable saving without overwriting the original if required.
+
+</Steps>

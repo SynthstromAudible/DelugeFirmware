@@ -1,0 +1,80 @@
+---
+/**
+ * A rebuilt Guidebook figure: an inline SVG (so theme colours apply) or an
+ * image, shown at its natural size (1pt in the PDF = 4/3 px) and never wider
+ * than the column. Asset URLs under /guidebook/img/ get the site base.
+ */
+import "../../styles/guidebook.css"
+
+type Props = {
+  id: string
+  alt: string
+  /** Printed page in the guidebook (kept for reference, not displayed) */
+  page: number
+  caption?: string
+  /** Raw SVG markup (import with ?raw) */
+  src?: string
+  /** Image URL, e.g. /guidebook/img/<asset>.webp */
+  img?: string
+  /** Natural display width of an image in CSS px */
+  width?: number
+  /** Too wide to shrink legibly (e.g. a two-page spread): show at natural size, scroll sideways */
+  wide?: boolean
+  /** Light-touch animation, played once on first view (see guidebook-figures.ts) */
+  animate?: "draw" | "playhead"
+}
+
+const { id, alt, caption, src, img, width, wide, animate } = Astro.props
+const base = import.meta.env.BASE_URL.replace(/\/$/, "")
+const withBase = (s: string) =>
+  s.replaceAll('href="/guidebook/img/', `href="${base}/guidebook/img/`)
+
+const viewBoxWidth = src?.match(
+  /viewBox="[-\d.]+ [-\d.]+ ([\d.]+) [\d.]+"/,
+)?.[1]
+const natural =
+  width ??
+  (viewBoxWidth ? Math.round(Number(viewBoxWidth) * (4 / 3)) : undefined)
+const sizing = natural
+  ? wide
+    ? `width: ${natural}px`
+    : `max-width: min(100%, ${natural}px)`
+  : undefined
+---
+
+<figure
+  class:list={["gb-figure", { "gb-figure-wide": wide }]}
+  id={id}
+  data-animate={animate}
+>
+  {
+    src && (
+      <div
+        class="gb-figure-art"
+        role="img"
+        aria-label={alt}
+        style={sizing}
+        set:html={withBase(src)}
+      />
+    )
+  }
+  {img && <img src={`${base}${img}`} alt={alt} loading="lazy" style={sizing} />}
+  {
+    animate && src && (
+      <button
+        type="button"
+        class="gb-replay"
+        aria-label="Replay animation"
+        title="Replay animation"
+        hidden
+      >
+        ↻
+      </button>
+    )
+  }
+  {caption && <figcaption>{caption}</figcaption>}
+</figure>
+
+<script>
+  import "../../scripts/guidebook-figures"
+</script>

@@ -1,0 +1,20 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 269.2 51.3">
+<defs>
+<clipPath id="06-modulation__01-modulation-routing-basics--3-clip_1">
+<path transform="matrix(1,0,0,-1,-226.8,212.7)" d="M226.8 161.3H496V212.7H226.8Z" clip-rule="evenodd"/>
+</clipPath>
+</defs>
+<g clip-path="url(#06-modulation__01-modulation-routing-basics--3-clip_1)">
+<path transform="matrix(1,0,0,-1,-226.8,212.7)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M170.1 688.6V84.1"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(140.6 22.5)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Destination parameter name and value</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(140.6 30.5)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">are displayed along with the source</tspan></text>
+<path transform="matrix(1,0,0,-1,-226.8,212.7)" d="M313.4 176.2H321.7V178.5H313.4Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-226.8,212.7)" stroke-width=".6" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M313.4 176.2H321.7V178.5H313.4Z"/>
+<text fill="currentColor" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 10.0 16.5)" font-size="5.6" font-family="monospace"><tspan y="0" x="0" textLength="20" lengthAdjust="spacingAndGlyphs">LFO1</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 10.1 31.2)" font-size="5.6" font-family="monospace"><tspan y="0" x="0" textLength="71.2" lengthAdjust="spacingAndGlyphs">LPF FREQUENCY</tspan></text>
+<path transform="matrix(1,0,0,-1,-226.8,212.7)" stroke-width=".8" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M232.8 167.3H343.7V206.8H232.8Z"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(80.1 26.6)" font-size="15" font-family="Arial, Helvetica, sans-serif" font-weight="bold"><tspan y="0" x="0" textLength="33.3" lengthAdjust="spacingAndGlyphs">39.00</tspan></text>
+<path transform="matrix(1,0,0,-1,-226.8,212.7)" d="M241.5 188.2 245.1 191.9H237.9Z" fill="currentColor" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-226.8,212.7)" stroke-width="2.5" stroke-linecap="square" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M241.5 191.7V193.0"/>
+</g>
+</svg>

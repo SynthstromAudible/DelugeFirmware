@@ -1,0 +1,22 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 221.8 107.2">
+<defs>
+<clipPath id="12-midi__09-midi-out-within-kits-songs--1-clip_1">
+<path transform="matrix(1,0,0,-1,-248.9,466.6)" d="M248.9 359.3H470.7V466.6H248.9Z" clip-rule="evenodd"/>
+</clipPath>
+</defs>
+<g clip-path="url(#12-midi__09-midi-out-within-kits-songs--1-clip_1)">
+<path transform="matrix(1,0,0,-1,-248.9,466.6)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M170.1 688.6V84.1"/>
+<path transform="matrix(1,0,0,-1,-248.9,466.6)" stroke-width=".6" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M327.4 427.8H393.1V454.1H327.4Z"/>
+<text fill="currentColor" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 80.1 24.5)" font-size="5.6" font-family="monospace"><tspan y="0" x="0" textLength="18.4" lengthAdjust="spacingAndGlyphs">MIDI</tspan><tspan y="0" x="28.1" textLength="36.9" lengthAdjust="spacingAndGlyphs">CHANNEL</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 87.9 31.5)" font-size="5.6" font-family="monospace"><tspan y="0" x="0" textLength="7.2" lengthAdjust="spacingAndGlyphs">1,</tspan><tspan y="0" x="16.9" textLength="31.2" lengthAdjust="spacingAndGlyphs">NOTE 0</tspan></text>
+<path transform="matrix(1,0,0,-1,-248.9,466.6)" stroke-width=".8" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M314.1 421.2H406.4V460.7H314.1Z"/>
+<path transform="matrix(1,0,0,-1,-248.9,466.6)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M338.5 414.2V404.1H296.0V391.5"/>
+<path transform="matrix(1,0,0,-1,-248.9,466.6)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M381.0 414.2V404.1H423.5V391.5"/>
+<path transform="matrix(1,0,0,-1,-248.9,466.6)" d="M254.9 365.4H337.1V386.6H254.9Z" fill="var(--gb-paper)"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(19.6 86.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">MIDI Channel</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(10.7 93.6)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Example: 1, range 1-16</tspan></text>
+<path transform="matrix(1,0,0,-1,-248.9,466.6)" d="M382.4 365.4H464.6V386.6H382.4Z" fill="var(--gb-paper)"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(165.1 86.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Note</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(136.3 93.6)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Example: 0, range 0-127</tspan></text>
+</g>
+</svg>

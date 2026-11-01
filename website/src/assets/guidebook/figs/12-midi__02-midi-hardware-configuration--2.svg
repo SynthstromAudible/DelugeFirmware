@@ -1,0 +1,77 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 357 465">
+<defs>
+<clipPath id="12-midi__02-midi-hardware-configuration--2-clip_1">
+<path transform="matrix(1,0,0,-1,-194,567.8)" d="M194 102.8H551V567.8H194Z" clip-rule="evenodd"/>
+</clipPath>
+<mask id="12-midi__02-midi-hardware-configuration--2-mask_2">
+<g transform="matrix(.020981,0,0,.020981,113.5,-11.9)">
+<image id="12-midi__02-midi-hardware-configuration--2-image_3" width="5080" height="4160" xlink:href="/guidebook/img/12-midi__02-midi-hardware-configuration--2-1.webp"/>
+</g>
+</mask>
+<mask id="12-midi__02-midi-hardware-configuration--2-mask_5">
+<g transform="matrix(.043044,0,0,.043044,49.8,286.8)">
+<image id="12-midi__02-midi-hardware-configuration--2-image_6" width="5701" height="1801" xlink:href="/guidebook/img/12-midi__02-midi-hardware-configuration--2-2.webp"/>
+</g>
+</mask>
+<mask id="12-midi__02-midi-hardware-configuration--2-mask_8">
+<g transform="matrix(.024000003,0,0,.023999999,81.1,118.3)">
+<image id="12-midi__02-midi-hardware-configuration--2-image_9" width="7260" height="4940" xlink:href="/guidebook/img/12-midi__02-midi-hardware-configuration--2-3.webp"/>
+</g>
+</mask>
+<mask id="12-midi__02-midi-hardware-configuration--2-mask_11">
+<g transform="matrix(.014873001,0,0,.014873001,113.9,413.7)">
+<image id="12-midi__02-midi-hardware-configuration--2-image_12" width="7654" height="3002" xlink:href="/guidebook/img/12-midi__02-midi-hardware-configuration--2-4.webp"/>
+</g>
+</mask>
+</defs>
+<g>
+<g clip-path="url(#12-midi__02-midi-hardware-configuration--2-clip_1)">
+<path transform="matrix(1,0,0,-1,-194,567.8)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M170.1 688.6V84.1"/>
+<g mask="url(#12-midi__02-midi-hardware-configuration--2-mask_2)">
+<g transform="matrix(.020981,0,0,.020981,113.5,-11.9)">
+<image id="12-midi__02-midi-hardware-configuration--2-image_4" width="5080" height="4160" xlink:href="/guidebook/img/12-midi__02-midi-hardware-configuration--2-5.webp"/>
+</g>
+</g>
+<path transform="matrix(1,0,0,-1,-194,567.8)" stroke-width=".65" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M351.5 579.7V592.9H449.0V475.6H374.5V447.0"/>
+<path transform="matrix(1,0,0,-1,-194,567.8)" d="M329.0 552.3H358.3V568.1H329.0Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<g mask="url(#12-midi__02-midi-hardware-configuration--2-mask_5)">
+<g transform="matrix(.043044,0,0,.043044,49.8,286.8)">
+<image class="gb-ink" id="12-midi__02-midi-hardware-configuration--2-image_7" width="5701" height="1801" xlink:href="/guidebook/img/12-midi__02-midi-hardware-configuration--2-6.webp"/>
+</g>
+</g>
+<g mask="url(#12-midi__02-midi-hardware-configuration--2-mask_8)">
+<g transform="matrix(.024000003,0,0,.023999999,81.1,118.3)">
+<image class="gb-ink" id="12-midi__02-midi-hardware-configuration--2-image_10" width="7260" height="4940" xlink:href="/guidebook/img/12-midi__02-midi-hardware-configuration--2-7.webp"/>
+</g>
+</g>
+<path transform="matrix(1,0,0,-1,-194,567.8)" stroke-width=".65" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M392.0 281.7V309.3H227.6V475.6H363.7V447.4"/>
+<path transform="matrix(1,0,0,-1,-194,567.8)" d="M395.6 283.6H441.2V299.3H395.6Z" fill="var(--gb-paper)"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(208.1 278.8)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">MIDI CH 1</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(207.4 269.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">MIDI out</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(67.7 447.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">MIDI out</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(187.7 105.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">MIDI out</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(186.4 114.6)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">MIDI CH 10</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(133.9 105.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">MIDI in</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(131.8 114.6)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">MIDI CH 1</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(275.8 17.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Synth module</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(265.8 27.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">controllable via the</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(265.8 37.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Deluge sequencer.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(13.0 17.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">USB MIDI connected</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(16.1 26.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">devices compatible</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(18.4 35.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">with USB hosting.</tspan></text>
+<path transform="matrix(1,0,0,-1,-194,567.8)" stroke-width=".75" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="currentColor" d="M296.4 447.5V461.1H241.8V524.0"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(283.0 161.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">MIDI settings</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(260.4 169.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">[SHIFT] + press (SELECT)</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(268.2 177.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">setting menu provides</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(277.4 185.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">options for MIDI.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(66.0 386.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">External keyboard or controller to play chords / notes</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(90.2 396.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">pitch wheel / mod wheel / controls / pads</tspan></text>
+<g mask="url(#12-midi__02-midi-hardware-configuration--2-mask_11)">
+<g transform="matrix(.014873001,0,0,.014873001,113.9,413.7)">
+<image id="12-midi__02-midi-hardware-configuration--2-image_13" width="7654" height="3002" xlink:href="/guidebook/img/12-midi__02-midi-hardware-configuration--2-8.webp"/>
+</g>
+</g>
+<path transform="matrix(1,0,0,-1,-194,567.8)" stroke-width=".65" stroke-linecap="round" stroke-dasharray="1.9,1.9,.0001,.0001" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M227.6 309.2V133.0H306.2"/>
+</g>
+</g>
+</svg>

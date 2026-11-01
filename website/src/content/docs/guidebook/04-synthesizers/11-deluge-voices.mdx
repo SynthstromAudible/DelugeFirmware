@@ -1,0 +1,83 @@
+---
+title: "4.11 Deluge Voices"
+description: "A voice can be explained as a single signal path used by synthesizers, and is closely related to a synth’s polyphony."
+sidebar:
+  order: 10
+banner:
+  content: "From the Deluge Manual \u2013 Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+guidebook:
+  section: "4.11"
+  chapter: 4
+  pdfPages: [115, 116, 117]
+  printedPages: [109, 110, 111]
+  firmware: "C1.0.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_4_11_1 from "../../../../assets/guidebook/figs/04-synthesizers__11-deluge-voices--1.svg?raw"
+
+import { Steps } from "@astrojs/starlight/components"
+import StepFocus from "../../../../components/guidebook/StepFocus.astro"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+A voice can be explained as a single signal path used by synthesizers, and is closely related to a synth’s polyphony. Generally speaking the number of notes played simultaneously would count for the number of voices - although modes such as arpeggiation override how voices are assigned, and unison will sound multiple voices per note. Deluge’s maximum voice count relies on the CPU loading and processing power available, but around 64 is the limit for most basic synth sounds.
+
+<StepFocus />
+
+### Setting the synth polyphony
+
+<Steps>
+
+1. Press :key[Clip] to select clip view. This is indicated by the clip button illuminated blue.
+2. Select synth by pressing :key[Synth] if not already selected. The synth button illuminates red.
+3. Using the shortcut option press :key[Shift + Polyphony Pad]. Alternatively use nested menus by pressing :key[Select] and then turning :key[Select] to navigate to POLYPHONY sub-menu option within the VOICE menu. Options are:
+   - POLYPHONY : Can play multiple notes simultaneously such as when playing chords and complex arpeggios,
+   - MONOPHONIC : Set to play single notes, for example bass lines.
+   - AUTO : Primarily monophonic but allows chords to be played.
+   - LEGATO : Enables multiple notes to play as tied or connected. This is where notes can be played before a previous note is released.
+   - CHOKE : Sets up choke groups when using kits to stop playing one sound when another is played. For example hi-hats closed and open wouldn't be played simultaneously in real world scenarios.
+4. Select the priority when in polyphonic mode using :key[Shift + Priority Pad] or using nested menu option by pressing :key[Select] and then turning :key[Select] to navigate to PRIORITY sub-menu option within the VOICE menu.
+5. Set priority option for the current synth sound to LOW, MEDIUM or HIGH. Deluge will release voices with lower priority first when CPU loading necessitates.
+6. Use :key[BackUndo] or tap any grid pad once to exit sub-menu and back up a level or to back out of the sound editor.
+
+</Steps>
+
+#### Unison Mode
+
+Unison mode enables a number of voices to be triggered by one note. By detuning these voices, rich and thick chorus-like sounds can be created.
+
+<Figure
+  id="fig-4.11-1"
+  src={fig_fig_4_11_1}
+  alt={
+    "Diagram: Note on Single note triggers multiple voices instead of the single default voice allocation. NUM SPREAD Number of voices from the maximum…"
+  }
+  page={110}
+/>
+
+#### Deluge Unison
+
+The settings available in the voice menu of Deluge include number of voices and the detuning of these voices. In addition the unison can be spread across the stereo field \*. You can also use the two oscillators both detuned from each other in addition to unison mode.
+
+Multiple instances of polyphonic and unison clips are possible under powerful CPU control. As the CPU becomes more loaded voices will be reduced starting with notes in a ‘release’ state and the priority setting found within the voice : polyphony parameter set.
+
+\* Warning: Do not use stereo spread with RING MOD synth type when UNISON NUMBER and NOISE are both values greater than 1. Extremely loud noise is produced. (Known Bug)
+
+### Setting the synth unison
+
+<Steps>
+
+1. Press :key[Clip] to select clip view. This is indicated by the clip button illuminated blue.
+2. Select synth by pressing :key[Synth] if not already selected. The synth button illuminates red.
+3. Using the shortcut option press :key[Shift + Number Pad] in the UNISON section. Also Press :key[Shift + Select] when displaying the number will open the Stereo Spread option. Alternatively use nested menus by pressing :key[Select] and then turning :key[Select] to navigate to UNISON sub-menu option within the VOICE menu.
+4. Adjust the UNISON NUMBER parameter by turning :key[Select]. Unison number : Number of voices, up to a maximum of 8, played simultaneously when one note is played.
+5. Using the shortcut option press :key[Shift + Detune Pad] in the UNISON section. Alternatively use nested menus by pressing :key[Select] and then turning :key[Select] to navigate to UNISON DETUNE sub-menu option within the VOICE menu.
+6. Adjust UNISON DETUNE parameter by turning :key[Select]. A value between 0-50 that adjusts and detunes the voices from the original note giving a lush chorus style effect and thickens individual notes.
+7. Adjust UNISON STEREO SPREAD parameter by turning :key[Select]. A value between 0-50 adjusts the voice positioning in the stereo field. The Stereo spread option is available in the nested menu or by holding :key[Shift + Select] when in the ‘NUMBER’ shortcut.
+8. The audition pads can be used to listen in to the sound as it takes shape and also multiple notes can be played as chords on these pads.
+9. Use :key[BackUndo] or tap any grid pad once to exit sub-menu and back up a level or to back out of the sound editor.
+
+</Steps>

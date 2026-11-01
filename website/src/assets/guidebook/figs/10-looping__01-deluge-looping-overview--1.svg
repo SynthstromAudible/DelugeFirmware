@@ -1,0 +1,78 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 436.7 498.7">
+<defs>
+<clipPath id="10-looping__01-deluge-looping-overview--1-clip_1">
+<path transform="matrix(1,0,0,-1,-76.7,607.3)" d="M76.7 108.6H513.4V607.3H76.7Z" clip-rule="evenodd"/>
+</clipPath>
+<mask id="10-looping__01-deluge-looping-overview--1-mask_2">
+<g transform="matrix(.024000003,0,0,.023999999,127.8,155.5)">
+<image id="10-looping__01-deluge-looping-overview--1-image_3" width="7260" height="4940" xlink:href="/guidebook/img/10-looping__01-deluge-looping-overview--1-1.webp"/>
+</g>
+</mask>
+<mask id="10-looping__01-deluge-looping-overview--1-mask_6">
+<g transform="matrix(.050592,0,0,.050592007,287.7,319.4)">
+<image id="10-looping__01-deluge-looping-overview--1-image_7" width="2402" height="964" xlink:href="/guidebook/img/10-looping__01-deluge-looping-overview--1-2.webp"/>
+</g>
+</mask>
+<clipPath id="10-looping__01-deluge-looping-overview--1-clip_9">
+<path transform="matrix(1,0,0,-1,-76.7,607.3)" d="M388.9 514.7H496.6V564.6H388.9Z" clip-rule="evenodd"/>
+</clipPath>
+<mask id="10-looping__01-deluge-looping-overview--1-mask_10">
+<g transform="matrix(.011278,0,0,.011278,312.2,45.4)">
+<image id="10-looping__01-deluge-looping-overview--1-image_11" width="9548" height="3940" xlink:href="/guidebook/img/10-looping__01-deluge-looping-overview--1-3.webp"/>
+</g>
+</mask>
+</defs>
+<g>
+<g clip-path="url(#10-looping__01-deluge-looping-overview--1-clip_1)">
+<g mask="url(#10-looping__01-deluge-looping-overview--1-mask_2)">
+<g transform="matrix(.024000003,0,0,.023999999,127.8,155.5)">
+<image class="gb-ink" id="10-looping__01-deluge-looping-overview--1-image_4" width="7260" height="4940" xlink:href="/guidebook/img/10-looping__01-deluge-looping-overview--1-4.webp"/>
+</g>
+</g>
+<path transform="matrix(1,0,0,-1,-76.7,607.3)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M347.3 449.6V483.4H507.4V269.2H482.0"/>
+<g transform="matrix(.12,0,0,.120000008,10.1,322.5)">
+<image class="gb-ink" id="10-looping__01-deluge-looping-overview--1-image_5" width="1424" height="450" xlink:href="/guidebook/img/10-looping__01-deluge-looping-overview--1-5.webp"/>
+</g>
+<g mask="url(#10-looping__01-deluge-looping-overview--1-mask_6)">
+<g transform="matrix(.050592,0,0,.050592007,287.7,319.4)">
+<image class="gb-ink" id="10-looping__01-deluge-looping-overview--1-image_8" width="2402" height="964" xlink:href="/guidebook/img/10-looping__01-deluge-looping-overview--1-6.webp"/>
+</g>
+</g>
+<path transform="matrix(1,0,0,-1,-76.7,607.3)" stroke-width=".4" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M481.6 282.1C481.6 283.1 480.8 284.0 479.7 284.0H369.2C368.1 284.0 367.3 283.1 367.3 282.1V245.3C367.3 244.3 368.1 243.4 369.2 243.4H479.7C480.8 243.4 481.6 244.3 481.6 245.3Z"/>
+<g clip-path="url(#10-looping__01-deluge-looping-overview--1-clip_9)">
+<g mask="url(#10-looping__01-deluge-looping-overview--1-mask_10)">
+<g transform="matrix(.011278,0,0,.011278,312.2,45.4)">
+<image class="gb-ink" id="10-looping__01-deluge-looping-overview--1-image_12" width="9548" height="3940" xlink:href="/guidebook/img/10-looping__01-deluge-looping-overview--1-7.webp"/>
+</g>
+</g>
+</g>
+<path transform="matrix(1,0,0,-1,-76.7,607.3)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M441.3 558.8V601.3H293.0V470.5"/>
+<path transform="matrix(1,0,0,-1,-76.7,607.3)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M282.3 470.5V483.4H162.0V284.7"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(292.1 396.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">External Synth or Instrument</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(268.9 405.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">An external audio source can be sampled in and</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(267.7 414.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">used to loop along side other Deluge instruments</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(287.7 423.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">or other recorded or loaded samples.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(48.9 396.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">External MIDI Keyboard</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(22.7 405.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">With the MIDI input connected to an external</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(20.8 414.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">keyboard or drum pad will allow sampling and</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(50.6 423.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">looping of recorded MIDI in.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(42.4 455.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Recording Instrument Clips</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(43.4 464.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Recording can be made by using:-</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(65.8 473.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">1. Internal keyboard</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(71.8 482.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">2. Audition pads</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(56.2 491.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">3. External MIDI controller</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(304.4 455.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Recording Audio Clips</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(291.6 464.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Recording can be made by using:-</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(292.8 473.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">1. Line on and associated options</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(311.4 482.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">2. Internal microphone</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(310.1 491.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">3. External microphone</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(40.0 36.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">External MIDI Foot Controller</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(12.8 45.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">An external MIDI foot switch or controller is an ideal</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(7.6 54.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">accompaniment to operate the generic looper controls.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(2.1 63.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Some Deluge controls are set to accept global commands</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(5.3 72.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">from external sources including UNDO, REDO, LOOP &amp;</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(.95410159 81.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">LAYER as well as PLAY/STOP, RECORD, TAP, RESTART.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(198.3 148.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">MIDI IN</tspan></text>
+</g>
+</g>
+</svg>

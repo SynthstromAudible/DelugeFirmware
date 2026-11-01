@@ -1,0 +1,112 @@
+---
+title: "4.8 Sound Editor - Synthesizer Parameters"
+description: "The commonly accessible parameters for clips are available from the eight ‘affect parameter’ controls."
+sidebar:
+  order: 7
+banner:
+  content: "From the Deluge Manual – Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+guidebook:
+  section: "4.8"
+  chapter: 4
+  pdfPages: [106, 107, 108, 109, 110]
+  printedPages: [100, 101, 102, 103, 104]
+  firmware: "C1.0.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import StepFocus from "../../../../components/guidebook/StepFocus.astro"
+import { Steps } from "@astrojs/starlight/components"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_4_8_1 from "../../../../assets/guidebook/figs/04-synthesizers__08-sound-editor-synthesizer-parameters--1.svg?raw"
+import fig_fig_4_8_2 from "../../../../assets/guidebook/figs/04-synthesizers__08-sound-editor-synthesizer-parameters--2.svg?raw"
+import fig_fig_4_8_3 from "../../../../assets/guidebook/figs/04-synthesizers__08-sound-editor-synthesizer-parameters--3.svg?raw"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+The commonly accessible parameters for clips are available from the eight ‘affect parameter’ controls. A more detailed parameter set are available within Deluge. Accessing and editing the synth parameters of the currently selected synth clip can be performed using the sound editor nested menu option or via the quicker grid shortcuts option.
+
+#### Sound Editor: Nested Menus
+
+Nested menus provide access to the full parameter set available.
+
+<Figure
+  id="fig-4.8-1"
+  src={fig_fig_4_8_1}
+  alt={
+    "OLED screen: Menu or sub-menu heading Press (SELECT) and parameter displayed. opens up access to the sound editor nested menu and full parameter set.…"
+  }
+  page={100}
+/>
+
+<StepFocus />
+
+### Sound editor: editing parameters in nested menus
+
+<Steps>
+
+1. Press :key[Clip] to select clip view. This is indicated by the clip button illuminated blue.
+2. Select synth by pressing :key[Synth] if not already selected. The synth button illuminates red.
+3. Press the :key[Select] rotary control.
+4. The menu level options will appear, for example OSCILLATOR 1.
+5. The :key[BackUndo] button flashes red to indicate that the backup option is available. Pressing :key[BackUndo] will move a step back in the menu.
+6. Turning :key[Select] navigates other menu functions at the top level.
+7. With the selected option i.e. ‘OSCILLATOR 1’ in focus, press :key[Select]. This will step down a menu branch level within the selected parameter to access its sub functions. Number of levels in menu are dependant on the function.
+8. Turning :key[Select] navigates the sub-menu option if available or to a parameter. Press :key[Select] when the desired function is in-focus, i.e. ‘TYPE within the oscillator sub menu.
+9. When the editable options is selected, the respective grid shortcut button will flash white i.e. TYPE.
+10. :key[Turn Select] to change the parameter option or value in-focus. For oscillator, type this will be the available waveforms i.e. SAW, SINE etc.
+11. Use :key[BackUndo] to back out of the menu when the parameter has been changed.
+12. Continue to edit through the menu and set other parameters as desired.
+13. When preset parameters have all been changed to suit your requirements it is recommended to save the preset. Press :key[Save + Synth] to save the preset.
+
+</Steps>
+
+#### Sound Editor: Grid Shortcuts
+
+Grid shortcuts are the quicker of the sound editing access options. Using these, synth parameter’s can be accessed directly with a single set of key strokes.
+
+<Figure
+  id="fig-4.8-2"
+  src={fig_fig_4_8_2}
+  alt={
+    "Diagram: Press [SHIFT] + [PAD] or Press [AUDITION] + [PAD] where PAD is the specific function and parameter. Lines extend across pads where the…"
+  }
+  page={102}
+/>
+
+### Sound editor: editing parameters using shortcuts
+
+<Steps>
+
+1. Press :key[Clip] to select clip view. This is indicated by the clip button illuminated blue.
+2. Select synth by pressing :key[Synth] if not already selected. The synth button illuminates red.
+3. Press the :key[Shift + Pad] where PAD is the specific function and parameter. :key[Audition Pad + Pad] also can be used. For example OSC 1, 3rd column from left includes all OSC 1 parameters. The parameter i.e. LEVEL is labelled under the pad.
+4. The actual parameter setting or current will appear on the display, for example ‘50’ for LEVEL and the pad for its value, flashes white.
+5. If a parameter is not available, a message ‘FEATURE NOT (YET?) IMPLEMENTED’ is displayed on the display. For example FM parameters cant be accessed in subtractive mode.
+6. Turning :key[Select] adjusts the parameter setting or value.
+7. Use :key[BackUndo] to exit when the parameter has been changed. The :key[BackUndo] button flashes red to indicate that the backup option is available.
+8. Continue to edit through other settings and parameters as desired.
+9. When the parameters have all been changed to suit your requirements it is recommended to save the preset. Pressing :key[Save + Synth] and :key[Save] again to confirm saves the preset.
+
+</Steps>
+
+:::note
+If the display indicates ‘FEATURE NOT (YET?) IMPLEMENTED’ when selecting a parameter with the shortcut pads, then this means a function is not implemented in this firmware version and is reserved for potential future implementation. If ‘CANT’ is displayed then the parameter isn't available for editing in the current mode or configuration.
+:::
+
+#### Sound Editor: Parameter Editing
+
+Editing the actual parameters in the nested menu or when selected with the shortcuts can be done generally, and where required can be finely tuned.
+
+<Figure
+  id="fig-4.8-3"
+  src={fig_fig_4_8_3}
+  alt={
+    "Diagram: OSC1 LEVEL 50 Turn the (SELECT) rotary to adjust a parameter setting. The display will show the value as its adjusted. OSC1 TRANSPOSE 2.80"
+  }
+  page={104}
+/>
+
+Some functions, for example transpose, have decimal values which can be fine tuned, at an individual digit level. Where this is applicable the digit in focus will be underscored and can be changed by turning :key[Select].
+
+Use the :key[Horizontal] control to select the digit in-focus to edit.

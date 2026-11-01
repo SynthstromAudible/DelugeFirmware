@@ -1,0 +1,142 @@
+---
+title: "12.3 MIDI In"
+description: "The Deluge can be controlled by external MIDI keyboards, controllers or pads by mapping incoming MIDI to the desired notes, pads or parameters."
+sidebar:
+  order: 2
+banner:
+  content: "From the Deluge Manual \u2013 Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+guidebook:
+  section: "12.3"
+  chapter: 12
+  pdfPages: [278, 279, 280, 281, 282]
+  printedPages: [272, 273, 274, 275, 276]
+  firmware: "C1.0.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_12_3_1 from "../../../../assets/guidebook/figs/12-midi__03-midi-in--1.svg?raw"
+import fig_fig_12_3_2 from "../../../../assets/guidebook/figs/12-midi__03-midi-in--2.svg?raw"
+import fig_fig_12_3_4 from "../../../../assets/guidebook/figs/12-midi__03-midi-in--3.svg?raw"
+import fig_fig_12_3_5 from "../../../../assets/guidebook/figs/12-midi__03-midi-in--4.svg?raw"
+
+import { Steps } from "@astrojs/starlight/components"
+import StepFocus from "../../../../components/guidebook/StepFocus.astro"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+The Deluge can be controlled by external MIDI keyboards, controllers or pads by mapping incoming MIDI to the desired notes, pads or parameters. Velocity is recorded with MIDI inputs. Note that the isomorphic, in-key and norms pad views can show incoming notes and velocity by brightness if set up as such in the community settings options.
+
+<StepFocus />
+
+### Setting up an external keyboard or pads
+
+<Steps>
+
+1. Connect the keyboard MIDI-out to the MIDI-in connection of Deluge. Power both devices on.
+2. Press :key[Synth], :key[Kit] , :key[CV] or :key[MIDI] to select the instrument clip. Button selected illuminates red.
+3. Press & hold :key[LearnInput + Audition Pad] of a note / pad to map.
+4. While holding :key[LearnInput] & :key[Audition Pad], press a keyboard note on the external keyboard or the pad on the external controller.
+5. The audition pads will blink and turn pink or a brighter colour when a mapping input is set.
+6. The MIDI channel plus the external keyboard notes will now be mapped to the Deluge. Pitch bend and mod wheel (mapped to Y axis) on the external midi controller keyboard will also function.
+7. To unmap the keyboard press & hold :key[LearnInput + Audition Pad] any pad.
+
+</Steps>
+
+<Figure
+  id="fig-12.3-1"
+  src={fig_fig_12_3_1}
+  alt={
+    "Diagram: + + = Keyboard is mapped across the notes. For pads ensure the exact pad is assigned to the audition pad required. MIDI foot switches can…"
+  }
+  page={272}
+/>
+
+### Setting up an external controller
+
+<Steps>
+
+1. Connect the controller MIDI-out to the MIDI-in connection of Deluge. Power both devices on.
+2. Press :key[Synth], :key[Kit], :key[CV] or :key[MIDI] to select the instrument clip. Button selected illuminates red.
+3. Select the parameter to map to. Press :key[Shift + Pad], where pad is the parameter to map. Example LPF frequency.
+4. The pad will flash white indicating it is selected and the display reflects this parameter.
+5. Press & hold :key[LearnInput]. Parameters that can’t be mapped will display a notification.
+6. While holding :key[LearnInput], adjust the control on the external device to map to the selected parameter.
+7. Display will indicate mapping is complete by displaying ‘LEARNED’.
+8. MIDI channel plus the external control is now be mapped to the Deluge.
+9. The behaviour of the Deluge parameter from of the external controller will be dependant on the MIDI Takeover setting in the MIDI options.
+10. To unmap the keyboard press & hold :key[Shift + LearnInput] while the parameter is selected, indicated by its flashing pad. +
+
+</Steps>
+
+<Figure
+  id="fig-12.3-2"
+  src={fig_fig_12_3_2}
+  alt={"Diagram: + = +"}
+  page={273}
+/>
+
+#### MIDI Takeover Mode.
+
+MIDI takeover mode, selectable in the MIDI settings governs the way an external CC parameter control is applied to a Deluge parameter. The behaviour of the Deluge parameter can operate in one of 3 modes when the external control is adjusted. The externally connected MIDI controller will then operate the mapped Deluge parameter based on this mode.
+
+### Setting up MIDI takeover mode
+
+<Steps>
+
+1. Hold :key[Shift + Select].
+2. :key[Turn Select] and highlight the ‘MIDI’ option in the menu.
+3. Press :key[Select] to select the MIDI option.
+4. Within the MIDI Sub-menu, highlight ‘TAKEOVER’ by turning :key[Select].
+5. Press :key[Select] to select the ‘TAKEOVER’ option.
+6. :key[Turn Select] to choose one of the takeover sub-menu options:
+   - JUMP: This is the default mode for the Deluge. As soon as an externally connected MIDI encoder / fader position is changed, the Deluge's internal, mapped encoder position / parameter value jumps to the position of the MIDI encoder / fader.
+   - PICKUP: The Deluge will ignore changes to its internal encoder position / parameter value until the externally connected MIDI encoder / fader's position is equal to the Deluge encoder position. After which the MIDI encoder / fader adjustments will move the Deluge parameter in sync.
+   - SCALE: The Deluge will increase / decrease its internal encoder position / parameter value relative to the change of the connected MIDI encoder / fader position and the amount of "runway" remaining on the MIDI controller. Once the MIDI controller reaches its maximum or minimum position, the MIDI encoder / Fader will move in sync with the Deluge. The Deluge value will always decrease/ increase in the same direction as the MIDI controller.
+
+</Steps>
+
+Takeover Examples
+
+<Figure
+  id="fig-12.3-4"
+  src={fig_fig_12_3_4}
+  alt={
+    "Diagram: Deluge Parameter External CC Control Jump - Default At the point that the externally connected MIDI CC position is changed, 10 = 28 the…"
+  }
+  page={275}
+/>
+
+=
+
+<Figure
+  id="fig-12.3-5"
+  src={fig_fig_12_3_5}
+  alt={
+    "Diagram: Scale The Deluge will increase / decrease its internal encoder position / parameter value in 32 +/- the same direction and relative,…"
+  }
+  page={275}
+/>
+
++/-
+
+### Recording automation using an external controller
+
+<Steps>
+
+1. Set up an external MIDI controller, whether a keyboard or pad or rotary / slider controls and map the incoming MIDI to the parameters desired.
+2. Press :key[Record] to arm recording.
+3. Press :key[Play] to start recording.
+4. Any incoming MIDI that is relevant to the clip being recorded will be recorded in including automation of parameters and velocity. Example, changing a control mapped to frequency cutoff will record in as automation. Assignment of gold affect controls is irrelevant.
+5. Parameters containing automation will display their name with a full stop / period / dot next to them when assigning a parameter knob’s MIDI parameter. This indicates automation is present.
+6. Press :key[Play] to stop.
+7. To delete MIDI in recorded automation, re-start recording and press :key[Shift] and adjust the mapped external controller.
+8. Parameters containing automation will display their name with a dot next to them when assigning a parameter knob’s MIDI parameter - so it will be easy to see where automation exists.
+9. Assigning a new MIDI parameter to a parameter knob does not move the knob’s automation over to the new MIDI parameter. Automation can be manually copied and pasted using the normal manual process.
+
+</Steps>
+
+:::note
+Any recorded data for pitch bend and aftertouch (channel pressure) MIDI inputs is captured in MIDI, Synth or CV clips and is retained with the clip even when changing presents or clip types. Also note-off velocity, if delivered by an external controller will be recorded.
+:::

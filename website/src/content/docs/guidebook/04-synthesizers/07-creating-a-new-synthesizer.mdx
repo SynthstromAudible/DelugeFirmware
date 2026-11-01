@@ -1,0 +1,99 @@
+---
+title: "4.7 Creating a New Synthesizer"
+description: "Upon start up, the Deluge is loaded with a synth clip and default patch, however the option exists to to create a new synthesizer clip at anytime."
+sidebar:
+  order: 6
+banner:
+  content: "From the Deluge Manual – Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+guidebook:
+  section: "4.7"
+  chapter: 4
+  pdfPages: [103, 104, 105]
+  printedPages: [97, 98, 99]
+  firmware: "C1.0.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import StepFocus from "../../../../components/guidebook/StepFocus.astro"
+import { Steps } from "@astrojs/starlight/components"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_4_7_1 from "../../../../assets/guidebook/figs/04-synthesizers__07-creating-a-new-synthesizer--1.svg?raw"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+Upon start up, the Deluge is loaded with a synth clip and default patch, however the option exists to create a new synthesizer clip at anytime.
+
+<StepFocus />
+
+### Creating / loading a new synthesizer clip
+
+<Steps>
+
+1. Press :key[Clip] to select clip view. This is indicated by the clip button illuminated blue.
+2. Press :key[Shift + Synth] to create a synth clip.
+3. A new blank clip and subtractive square wave synth will be created and added at the end of the preset list. For example, If the last preset is 170, the new synth preset will be created as 171.
+
+</Steps>
+
+### Creating a new synthesizer row in a kit clip
+
+<Steps>
+
+1. Press :key[Clip] to select clip view. This is indicated by the clip button illuminated blue.
+2. When in the KIT view, kit button lit red, a blank square wave synth can be added to a row.
+3. Press :key[Audition Pad + Synth] to create a synth clip on the row selected by the AUDITION pad.
+
+</Steps>
+
+### Adjusting a synth clip colour
+
+<Steps>
+
+1. Press :key[Synth]. The button illuminates red.
+2. Press & hold :key[Shift + Turn Vertical].
+3. Colour will change as the :key[Vertical] is adjusted. Release control and buttons when the colour is selected.
+
+</Steps>
+
+### Selecting FM, ring mod or subtractive synthesizer
+
+<Steps>
+
+1. Press :key[Clip] to select clip view. This is indicated by the clip button illuminated blue.
+2. Select a synth by pressing :key[Synth] if not already selected. The synth button illuminates red. A new synth clip can also be created which defaults to a subtractive synth mode using :key[Shift + Synth].
+3. Press :key[Select] to enter the sound editor.
+4. :key[Turn Select] navigate to select SYNTH MODE
+5. Press :key[Select] to enter the MODE sub-menu and navigate by turning (SELECT] to select the synthesiser model to use:
+   - SUBTRACTIVE (default)
+   - RINGMOD (technically subtractive)
+   - FM
+   - Wavetable synths are not selectable directly in this mode, but are accessible by the subtractive option. Also set by assigning WAVE as the Type in an Oscillator
+6. Use :key[BackUndo] to exit after changing mode. The :key[BackUndo] button flashes red to indicate that the backup option is available.
+
+</Steps>
+
+### Creating a wavetable synthesizer
+
+<Steps>
+
+1. Press :key[Clip] to select clip view. This is indicated by the clip button illuminated blue.
+2. Create synth by pressing :key[Shift + Synth]. The synth button illuminates red.
+3. Press :key[Shift + Browse Pad] for SAMPLE 1. The button flashes white. Sample 1 will apply to Oscillator 1. Both Oscillators can be setup as a wavetable synth.
+4. The display indicates ‘NOTE RANGE: BOTTOM - TOP’ to suggest that an audio file loaded will be applied across the entire note range, bottom to top. Wavetables can be assigned to user selected note ranges, but these cannot be mixed together with samples and waveforms across multiple note ranges.
+5. Press :key[Select] to select the entire note range and open the browser.
+6. Navigate the SD card files to select the wavetable to load. Press :key[Select] to load the desired wavetable file.
+7. Ideally an audio file formatted to a wavetable standard should be used. Deluge will recognise wavetable formatted files and will therefore assign TYPE as Wavetable to the Oscillator 1 automatically.
+8. If a file is loaded that is not in a wavetable format it will still load and Deluge will make assumptions on the format, cycle size etc. As such this may not behave or sound like a typical wavetable but nevertheless still delivers interesting results.
+9. The main wavetable specific parameter to control and set up is the wave navigation and is called WAVETABLE accessed from within the oscillator menu, the wavetable shortcut pads or CUSTOM 2 for Osc 1 and CUSTOM 3 for Osc 2. This sets the wave position and interpolation for the cycle used by the oscillator. Modulating this parameter can give interesting results, especially for both oscillators.
+
+</Steps>
+
+<Figure
+  id="fig-4.7-1"
+  src={fig_fig_4_7_1}
+  alt={
+    "Diagram: Wavetable A file with a series of wave cycles. The ‘wavetable’ parameter navigates and selects the cycle used in the Oscillator Wavetable…"
+  }
+  page={99}
+/>

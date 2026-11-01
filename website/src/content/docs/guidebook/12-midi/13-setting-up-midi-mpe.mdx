@@ -1,0 +1,102 @@
+---
+title: "12.13 Setting Up MIDI MPE"
+description: "The MPE MIDI devices can be connected to Deluge with the USB or MIDI DIN connections for inputs or outputs."
+sidebar:
+  order: 11
+banner:
+  content: "From the Deluge Manual \u2013 Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+guidebook:
+  section: "12.13"
+  chapter: 12
+  pdfPages: [296, 297, 298]
+  printedPages: [290, 291, 292]
+  firmware: "C1.0.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_12_13_2 from "../../../../assets/guidebook/figs/12-midi__13-setting-up-midi-mpe--1.svg?raw"
+
+import { Steps } from "@astrojs/starlight/components"
+import StepFocus from "../../../../components/guidebook/StepFocus.astro"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+The MPE MIDI devices can be connected to Deluge with the USB or MIDI DIN connections for inputs or outputs. Any MPE MIDI Controller would need to be ‘learnt’ by Deluge. Some MPE devices send MCM messages to ensure configuration is aligned between the controller and destination. This can be set manually also in Deluge.
+
+<StepFocus />
+
+### Manual set up of an external MPE MIDI controller
+
+<Steps>
+
+1. Connect the MPE compatible MIDI controller to Deluge using the MIDI DIN input or ideally the USB connection.
+2. Select :key[Synth]
+3. Press :key[Shift + Select] to open the settings menu.
+4. :key[Turn Select] to navigate the menu and highlight MIDI, then press :key[Select].
+5. In the MIDI sub menu, :key[Turn Select] to highlight ‘DEVICES’. Press :key[Select] to select.
+6. The options will depend on the connected devices and may be represent the device by name or a generic name:
+   - DIN PORTS - MIDI DIN connected devices
+   - UPSTREAM USB PORT 1 or 2. Port 2 improves the usability of MPE-capable devices through USB by allowing MPE zones to be sent to port 2 and non-MPE to be sent to port 1 (or vice versa).
+   - COMPUTER - Deluge is a peripheral to a USB connected device.
+7. Highlight the device to configure and press :key[Select] to open the device sub menu.
+8. Highlight the ‘MPE’ option and press :key[Select].
+9. Select the ‘IN’ or ‘OUT’ option, typically for MIDI inputs select ‘IN’ and press :key[Select] to choose. Controlling external gear from Deluge would use ‘out’.
+10. The option is presented for the ‘LOWER ZONE’ or the ‘UPPER ZONE’. It is good practice to start with the lower zone set up. Press :key[Select] to choose.
+11. The number of member channels is presented. Channel 1 - Lower and Channel 16 - Upper are reserved as master channels. Set this to match the connected MPE controllers equivalent zones.
+12. Optionally a Velocity setting allows a default velocity for MIDI devices to compensate for variable the MPE controller sensitivity.
+
+</Steps>
+
+### Automatic set up of an external MPE MIDI controller
+
+<Steps>
+
+1. Connect the MPE compatible MIDI controller to Deluge using the MIDI DIN input or ideally the USB connection.
+2. Select :key[Synth]
+3. Press and hold :key[Learn] + hold :key[Audition Pad] + Play several notes (ideally 5 but more if possible) on the connected MPE controller. Keys will need to be simultaneous triggered. The actual number of notes pressed will aim to reflect the MPE channels in the zone set for the controller.
+4. The MPE Zones and channels should now be learnt to match the connected controller.
+
+</Steps>
+
+#### Settings Options for MPE MIDI Zones
+
+SETTINGS > MIDI > DEVICES ….. Select the connected MPE device.
+
+<Figure
+  id="fig-12.13-2"
+  src={fig_fig_12_13_2}
+  alt={
+    "Diagram: Sub Menu Sub Menu Sub Category Setting Options Member Channels OFF, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, LOWER 11,12, 13, 14, 15 (Master Channel…"
+  }
+  page={291}
+/>
+
+MPE Zone data is stored automatically as an MIDIDevices.xml file on the SD Card.
+
+### Moving MPE notes
+
+<Steps>
+
+1. To change a note position, Hold Note :key[Pad + Turn Horizontal].
+2. The note will be relocated and the attached MPE data will move to the new location with the note.
+
+</Steps>
+
+### Adjusting MPE notes values
+
+<Steps>
+
+1. Ensure the MPE MIDI controller is connected and set up correctly.
+2. Press and hold Note :key[Pad] for the note to adjust on Deluge.
+3. While holding the Deluge note, apply the expression change on the same note on the connected MPE MIDI controller. For example apply more aftertouch key pressure.
+4. Release the Deluge and MIDI controller notes. The new MPE expression value will be recorded into the note.
+
+</Steps>
+
+Notes on Kits and Firmware Variants
+
+In the official Synthstrom firmware an MPE controller is set up as an input devices, the MPE dimensions can be recorded into individual rows of a kit. The controller note / key will need to be learnt to the kit row. Kit rows with MIDI learned to a channel would be triggered by an MPE zone which uses that channel.
+
+In the community firmware they respect zones in the same way as synth and MIDI clips.

@@ -1,0 +1,43 @@
+---
+title: "12.11 MPE Application for MIDI Input in Deluge"
+description: "MIDI MPE is all about better control of expression which is applied through three dimensions which are typically recognised from how a note is played on a…"
+sidebar:
+  order: 10
+banner:
+  content: "From the Deluge Manual – Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+guidebook:
+  section: "12.11"
+  chapter: 12
+  pdfPages: [295]
+  printedPages: [289]
+  firmware: "C1.0.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_12_11_1 from "../../../../assets/guidebook/figs/12-midi__11-mpe-application-for-midi-input-in-deluge--1.svg?raw"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+MIDI MPE is all about better control of expression which is applied through three dimensions which are typically recognised from how a note is played on a MPE compatible MIDI controller.
+
+For the synthesizer engines.
+
+- Dimension ‘X’ is typically horizontal movement across a note key. This is by default patched to pitch bend in Deluge. In addition to the hard coded patching, the ‘X’ dimension can be patched elsewhere using the Deluge ‘X’ parameter. Setting the pitch bend range to zero will negate the hard coded patching if required.
+- Dimension ‘Y’ is typically vertical movement up and down a notes key. This may be patched within existing synths, for example to LPF cutoff frequency. The ‘Y’ dimension can be patched elsewhere using the Deluge ‘X’ parameter.
+- Aftertouch is the pressure applied to a notes key after it is initially pressed (illustrated as Dimension ‘A’). This may be patched within existing synths, for example to Master level. This is patched in Deluge using the ‘Aftertouch’ parameter and can be patched elsewhere.
+
+<Figure
+  id="fig-12.11-1"
+  src={fig_fig_12_11_1}
+  alt={"Diagram: A Y X"}
+  page={289}
+/>
+
+For kit rows.
+
+- MPE can be set for kits by learning the controller note to the kit row.
+- All three MPE dimensions are applicable per row including bend ranges per row.
+- Non-MPE MIDI input can also allow pitch bend and aftertouch to be recorded to the row.
+- Kits cannot output MPE MIDI and default, however aftertouch that has been recorded to the row will be output as polyphonic aftertouch for the rows note.

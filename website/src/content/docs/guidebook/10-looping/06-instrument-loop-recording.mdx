@@ -1,0 +1,76 @@
+---
+title: "10.6 Instrument Loop Recording"
+description: "Instrument clips can also be loop recorded."
+sidebar:
+  order: 5
+banner:
+  content: "From the Deluge Manual – Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+guidebook:
+  section: "10.6"
+  chapter: 10
+  pdfPages: [244, 245]
+  printedPages: [238, 239]
+  firmware: "C1.0.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import StepFocus from "../../../../components/guidebook/StepFocus.astro"
+import { Steps } from "@astrojs/starlight/components"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+Instrument clips can also be loop recorded. As with audio looping an external controller is advised to get the maximum benefits from looping. In this case an external keyboard controller or drum pad controller assists in a good looping workflow, although it is possible to use grid pads, internal keyboard view and audition pads. The process in loop recording follows a similar process as recording audio. It is highly recommended to use the metronome feature when recording a first loop.
+
+<StepFocus />
+
+### Recording a regular instrument first loop
+
+<Steps>
+
+1. :key[Song] to select song view. Button illuminates blue.
+2. The first instrument clip is created by pressing a row in song view.
+3. The clip can be set to :key[Synth] or :key[Kit].
+4. :key[Song] - control of looping is in song view.
+5. Set arming status of instrument clip.
+   - Hold :key[Record] to check current status of :key[Launch Pad] associated with the clip row to record into.
+   - Flashing red - clip is empty, armed and ready to record and will record with auto extend enabled.
+   - Solid dim green - clip is armed, and ready to record fixed length.
+   - Press :key[Record + Launch Pad] to toggle clip arming mode
+6. If not selected, Press :key[Record], button illuminates red.
+7. Press :key[Play] to start recording. First recording of the instrument will start.
+8. Play the notes / kit to record. Switching between :key[Song] view and :key[Clip] view to use internal pads, internal keyboard is possible.
+9. In :key[Song] view, press :key[Launch Pad] of clip or :key[Record] to stop recording.
+10. Clip will stop recording and the record button will turn off. Playback of the recorded clip will continue to loop and to allow future overdubs. Clips with the same instrument will be muted.
+
+</Steps>
+
+### Recording a regular instrument overdub loop
+
+<Steps>
+
+1. After recording the first loop and with PLAY and RECORD on / lit. Clips playing.
+2. Play the notes / kit to record. Switching between :key[Song] view and :key[Clip] view to use internal pads, internal keyboard is possible.
+3. In :key[Song] view, press :key[Record + Pad] of the clip row below the original to arm it for recording - row lit red. Recording will automatically start when the original clip loop restarts. Red recording cursor tracks position.
+4. Ensure the instrument is playing which will be recorded.
+5. In :key[Song] view press :key[Launch Pad] or :key[Record] to stop recording.
+6. :key[Record] will stop and playback will continue. Instrument overdubs will always mute the original as they share the same instrument.
+7. Overdubbing can continue manually, one clip at a time by repeating steps 3-5.
+
+</Steps>
+
+### Recording continuous instrument overdub loops
+
+<Steps>
+
+1. :key[Song] to select song view. Button illuminates blue.
+2. The first instrument loop is created as per previous steps.
+3. During playback, press :key[Record + Section Pad] of the clip row below the original to arm it for recording - row lit red.
+   - Recording will automatically start when the original clip loop restarts. Red recording cursor tracks position.
+   - Additional clip rows will automatically be created at a fixed length.
+   - More layers will be built until stopped.
+4. Ensure the instrument is playing which will be recorded.
+5. Press :key[Pad] of the grid row currently armed to record - the red row.
+6. Recording will end and playback will continue.
+
+</Steps>

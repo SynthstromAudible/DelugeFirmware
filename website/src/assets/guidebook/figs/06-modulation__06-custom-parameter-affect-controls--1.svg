@@ -1,0 +1,71 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 369.6 496.5">
+<defs>
+<clipPath id="06-modulation__06-custom-parameter-affect-controls--1-clip_1">
+<path transform="matrix(1,0,0,-1,-175.1,623.5)" d="M175.1 127.0H544.8V623.5H175.1Z" clip-rule="evenodd"/>
+</clipPath>
+<clipPath id="06-modulation__06-custom-parameter-affect-controls--1-clip_2">
+<path transform="matrix(1,0,0,-1,-175.1,623.5)" d="M187.2 425.7H396.5V619.9H187.2Z" clip-rule="evenodd"/>
+</clipPath>
+<mask id="06-modulation__06-custom-parameter-affect-controls--1-mask_3">
+<g transform="matrix(.096,0,0,.096,12.1,34.9)">
+<image id="06-modulation__06-custom-parameter-affect-controls--1-image_4" width="2180" height="1370" xlink:href="/guidebook/img/06-modulation__06-custom-parameter-affect-controls--1-1.webp"/>
+</g>
+</mask>
+<clipPath id="06-modulation__06-custom-parameter-affect-controls--1-clip_6">
+<path transform="matrix(1,0,0,-1,-175.1,623.5)" d="M414.8 121.7H532.3V257.7H414.8Z" clip-rule="evenodd"/>
+</clipPath>
+<mask id="06-modulation__06-custom-parameter-affect-controls--1-mask_7">
+<g transform="matrix(.12,0,0,.12,252.4,365.7)">
+<image id="06-modulation__06-custom-parameter-affect-controls--1-image_8" width="676" height="1040" xlink:href="/guidebook/img/06-modulation__06-custom-parameter-affect-controls--1-2.webp"/>
+</g>
+</mask>
+</defs>
+<g>
+<g clip-path="url(#06-modulation__06-custom-parameter-affect-controls--1-clip_1)">
+<path transform="matrix(1,0,0,-1,-175.1,623.5)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M170.1 688.6V84.1"/>
+<path transform="matrix(1,0,0,-1,-175.1,623.5)" d="M407.0 544.9H538.0V617.5H407.0Z" fill="var(--gb-paper)"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(273.8 16.7)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Custom 1</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(245.8 38.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Typically controls pitch for</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(252.3 48.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">sample based sounds.</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(238.6 70.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Portamento for synth sounds.</tspan></text>
+<path transform="matrix(1,0,0,-1,-175.1,623.5)" d="M406.7 464.0H537.6V531.1H406.7Z" fill="var(--gb-paper)"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(273.5 103.1)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Custom 2</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(239.7 125.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Typically controls decimation</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(245.5 135.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">for kits and sample-based</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(281.2 145.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">sounds.</tspan></text>
+<path transform="matrix(1,0,0,-1,-175.1,623.5)" d="M406.6 387.0H537.6V454.0H406.6Z" fill="var(--gb-paper)"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(273.4 180.1)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Custom 3</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(239.7 202.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Typically controls bitcrushing</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(245.5 212.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">for kits and sample-based</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(281.2 222.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">sounds.</tspan></text>
+<path transform="matrix(1,0,0,-1,-175.1,623.5)" d="M181.1 300.8H404.7V367.9H181.1Z" fill="var(--gb-paper)"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(54.8 266.3)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Other Parameter Controls</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(10.9 288.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">While the custom controls are specifically designed to</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(12.4 298.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">be assigned to user parameters, the other parameter</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(10.8 308.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">affect controls can also be assigned to additional user</tspan></text>
+<text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(72.5 318.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">parameters if required.</tspan></text>
+<path transform="matrix(1,0,0,-1,-175.1,623.5)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M292.7 511.9V377.7"/>
+<path transform="matrix(1,0,0,-1,-175.1,623.5)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 41%, var(--gb-paper))" d="M406.4 539.7 538.8 539.9"/>
+<path transform="matrix(1,0,0,-1,-175.1,623.5)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 41%, var(--gb-paper))" d="M406.4 460.5 538.8 460.7"/>
+<g clip-path="url(#06-modulation__06-custom-parameter-affect-controls--1-clip_2)">
+<g mask="url(#06-modulation__06-custom-parameter-affect-controls--1-mask_3)">
+<g transform="matrix(.096,0,0,.096,12.1,34.9)">
+<image class="gb-ink" id="06-modulation__06-custom-parameter-affect-controls--1-image_5" width="2180" height="1370" xlink:href="/guidebook/img/06-modulation__06-custom-parameter-affect-controls--1-3.webp"/>
+</g>
+</g>
+</g>
+<g clip-path="url(#06-modulation__06-custom-parameter-affect-controls--1-clip_6)">
+<g mask="url(#06-modulation__06-custom-parameter-affect-controls--1-mask_7)">
+<g transform="matrix(.12,0,0,.12,252.4,365.7)">
+<image class="gb-ink" id="06-modulation__06-custom-parameter-affect-controls--1-image_9" width="676" height="1040" xlink:href="/guidebook/img/06-modulation__06-custom-parameter-affect-controls--1-4.webp"/>
+</g>
+</g>
+</g>
+<path transform="matrix(1,0,0,-1,-175.1,623.5)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M291.4 296.9V145.4H427.0"/>
+<path transform="matrix(1,0,0,-1,-175.1,623.5)" d="M204.9 208.9H377.0V231.1H204.9Z" fill="var(--gb-paper)"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(40.7 404.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">[LEARN / INPUT] + Turn (CONTROL)</tspan></text>
+<path transform="matrix(1,0,0,-1,-175.1,623.5)" d="M443.0 154.6C448.1 154.6 452.2 150.5 452.2 145.4 452.2 140.4 448.1 136.2 443.0 136.2 437.9 136.2 433.8 140.4 433.8 145.4 433.8 150.5 437.9 154.6 443.0 154.6Z" fill="#5c96cf" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-175.1,623.5)" d="M443.0 154.6C448.1 154.6 452.2 150.5 452.2 145.4 452.2 140.4 448.1 136.2 443.0 136.2 437.9 136.2 433.8 140.4 433.8 145.4 433.8 150.5 437.9 154.6 443.0 154.6ZM443.0 153.9C447.7 153.9 451.5 150.1 451.5 145.4 451.5 140.7 447.7 136.9 443.0 136.9 438.3 136.9 434.5 140.7 434.5 145.4 434.5 150.1 438.3 153.9 443.0 153.9Z" fill-rule="evenodd"/>
+</g>
+</g>
+</svg>

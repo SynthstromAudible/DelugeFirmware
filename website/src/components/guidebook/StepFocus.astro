@@ -1,0 +1,65 @@
+---
+/**
+ * "You are here" for Guidebook procedures: click a step (or press Enter/Space
+ * on it) to mark it current; Up/Down move the current step. Each list is a
+ * single Tab stop (roving tabindex). One current step
+ * per <Steps> list. Placed once per page; it enhances every list on it.
+ */
+---
+
+<script>
+  function enhance(ol: HTMLOListElement) {
+    const items = [...ol.children] as HTMLLIElement[]
+    // Roving tabindex: the list is one Tab stop; Up/Down move within it.
+    const select = (li: HTMLLIElement) => {
+      for (const x of items) {
+        x.removeAttribute("aria-current")
+        x.tabIndex = -1
+      }
+      li.setAttribute("aria-current", "step")
+      li.tabIndex = 0
+    }
+    items.forEach((li, i) => {
+      li.tabIndex = i === 0 ? 0 : -1
+      li.addEventListener("click", (e) => {
+        if (!(e.target as Element).closest("a, button")) select(li)
+      })
+      li.addEventListener("keydown", (e) => {
+        if (e.target !== li) return
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault()
+          select(li)
+        } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+          const next = items[i + (e.key === "ArrowDown" ? 1 : -1)]
+          if (!next) return
+          e.preventDefault()
+          select(next)
+          next.focus()
+        }
+      })
+    })
+  }
+  document
+    .querySelectorAll<HTMLOListElement>(".sl-markdown-content ol.sl-steps")
+    .forEach(enhance)
+</script>
+
+<style is:global>
+  .sl-steps > li {
+    cursor: pointer;
+    border-radius: 0.25rem;
+  }
+  .sl-steps > li:focus-visible {
+    outline: 2px solid var(--sl-color-accent);
+    outline-offset: 2px;
+  }
+  .sl-steps > li[aria-current="step"] {
+    background: color-mix(in srgb, var(--sl-color-accent) 12%, transparent);
+    box-shadow: inset 3px 0 0 var(--sl-color-accent);
+  }
+  .sl-steps > li[aria-current="step"]::before {
+    background-color: var(--sl-color-accent);
+    color: var(--sl-color-black);
+    border-color: var(--sl-color-accent);
+  }
+</style>
