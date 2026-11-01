@@ -1154,7 +1154,7 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 					return msap->doc() == pm.getUnpatchedParamSet()->docForParam(0);
 				};
 				// Kit clip-level FX (no noteRow): expect an OwnerId::instrument(kit output) address.
-				char buf[MODEL_STACK_MAX_SIZE]{};
+				alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE]{};
 				ModelStackWithThreeMainThings* m3 = setupModelStackWithThreeMainThingsButNoNoteRow(
 				    buf, reloaded, static_cast<Kit*>(clip->output)->toModControllable(), clip, &clip->paramManager);
 				if (!consistent(clip->paramManager, m3->getUnpatchedAutoParamFromId(0))) {
@@ -1169,7 +1169,7 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 					    || !nr.paramManager.containsAnyMainParamCollections()) {
 						continue;
 					}
-					char dbuf[MODEL_STACK_MAX_SIZE]{};
+					alignas(ModelStackWithAutoParam) char dbuf[MODEL_STACK_MAX_SIZE]{};
 					ModelStackWithThreeMainThings* dm3 = setupModelStackWithThreeMainThingsIncludingNoteRow(
 					    dbuf, reloaded, clip, n, &nr, static_cast<SoundDrum*>(nr.drum)->toModControllable(),
 					    &nr.paramManager);

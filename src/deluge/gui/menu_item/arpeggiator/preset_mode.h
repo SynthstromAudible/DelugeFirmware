@@ -63,7 +63,7 @@ public:
 			// If was off, or is now becoming off...
 			if (soundEditor.currentArpSettings->mode == ArpMode::OFF || current_value == ArpPreset::OFF) {
 				if (getCurrentClip()->isActiveOnOutput() && !soundEditor.editingKitAffectEntire()) {
-					char modelStackMemory[MODEL_STACK_MAX_SIZE];
+					alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 					ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
 
 					if (soundEditor.editingKit()) {

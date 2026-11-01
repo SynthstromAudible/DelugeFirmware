@@ -466,7 +466,7 @@ void ArrangerView::clearArrangement() {
 
 	// if this setting is on, clearing of automation is restricted to automation view
 	if (!FlashStorage::automationClear) {
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithThreeMainThings* modelStack =
 		    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 		currentSong->paramManager.deleteAllAutomation(action, modelStack);
@@ -720,7 +720,7 @@ void ArrangerView::beginAudition(Output* output) {
 
 	if (!playbackHandler.playbackState && !Buttons::isShiftButtonPressed()) {
 
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
 		if (instrument->type == OutputType::KIT) {
@@ -764,7 +764,7 @@ void ArrangerView::endAudition(Output* output, bool evenIfPlaying) {
 
 	if (!playbackHandler.playbackState || evenIfPlaying) {
 
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
 		if (instrument->type == OutputType::KIT) {
@@ -809,7 +809,7 @@ Instrument* ArrangerView::createNewInstrument(bool* instrumentAlreadyInSong,
 		currentSong->removeInstrumentFromHibernationList(newInstrument);
 	}
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
 	newInstrument->setupWithoutActiveClip(modelStack);
@@ -1216,7 +1216,7 @@ void ArrangerView::outputActivated(Output* output) {
 
 void ArrangerView::outputDeactivated(Output* output) {
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
 	output->stopAnyAuditioning(modelStack);
@@ -1703,7 +1703,7 @@ void ArrangerView::createNewClipForClipInstance(Output* output, ClipInstance* cl
 	newClip->setSection(255);
 	newClip->activeIfNoSolo = false; // Always need to set arrangement-only Clips like this on create
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack =
 	    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, newClip);
 
@@ -2185,7 +2185,7 @@ itsInvalid:
 
 		// And if changing output...
 		if (newOutputToDragInto != pressedClipInstanceOutput && clip) {
-			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
 			((AudioClip*)clip)->changeOutput(modelStack->addTimelineCounter(clip), newOutputToDragInto);
@@ -2217,7 +2217,7 @@ uint32_t ArrangerView::doActualRender(int32_t xScroll, uint32_t xZoom, uint32_t 
                                       int32_t imageWidth) {
 	uint32_t whichRowsCouldntBeRendered = 0;
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
@@ -2812,7 +2812,7 @@ cant:
 			return;
 		}
 
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
 		newOutput->setupWithoutActiveClip(modelStack);
@@ -2963,7 +2963,7 @@ void ArrangerView::shiftAutomationHorizontally(int32_t offset, int32_t scroll_am
 	ParamCollectionSummary* unpatchedParamsSummary = currentSong->paramManager.getUnpatchedParamSetSummary();
 	UnpatchedParamSet* unpatchedParams = (UnpatchedParamSet*)unpatchedParamsSummary->paramCollection;
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithParamCollection* modelStackWithUnpatchedParams =
 	    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory)
 	        ->addParamCollection(unpatchedParams, unpatchedParamsSummary);

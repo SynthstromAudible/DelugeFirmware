@@ -301,7 +301,7 @@ ramError:
 
 	newClip->setupForRecordingAsAutoOverdub(this, modelStackOldClip->song, newOverdubNature);
 
-	char modelStackMemoryNewClip[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemoryNewClip[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStackNewClip =
 	    setupModelStackWithTimelineCounter(modelStackMemoryNewClip, modelStackOldClip->song, newClip);
 

@@ -113,6 +113,12 @@ repos:
         language: system
         pass_filenames: false
         files: ^(src/deluge/gui/|scripts/check_setting_menus\.py)
+      - id: model-stack-alignment
+        name: every model-stack buffer is aligned for a ModelStack
+        description: a plain char array is 1-aligned, and clang places one at any offset, where a ModelStack's ldrd/strd faults
+        entry: '^(?!.*alignas\().*\b(char|std::byte)\s+\w+\s*\[\s*MODEL_STACK_MAX_SIZE\s*\]'
+        language: pygrep
+        files: ^(src|tests)/.*\.(c|cpp|h|hpp)$
 # - repo: local
 
 #   hooks:

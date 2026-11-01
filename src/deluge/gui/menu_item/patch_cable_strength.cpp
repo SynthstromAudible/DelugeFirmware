@@ -233,7 +233,7 @@ ModelStackWithAutoParam* PatchCableStrength::getModelStack(void* memory, bool al
 }
 
 void PatchCableStrength::writeCurrentValue() {
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithAutoParam* modelStackWithParam = getModelStack(modelStackMemory, true);
 	if (!modelStackWithParam->autoParam) {
 		return;
@@ -379,7 +379,7 @@ void PatchCableStrength::setPatchCablePolarity(Polarity newPolarity) {
 	}
 
 	// The polarity change is a mod matrix edit, recorded so it undoes.
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
 	auto* patchCableSet = modelStack->paramManager->getPatchCableSet();
 	if (const int32_t index = patchCableSet->getPatchCableIndex(getS(), getDestinationDescriptor());

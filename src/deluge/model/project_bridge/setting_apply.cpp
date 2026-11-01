@@ -206,7 +206,7 @@ bool applyUnisonSetting(::Sound& sound, std::string_view rest, int32_t number, :
 		sound.setUnisonStereoSpread(number);
 		return true;
 	}
-	char memory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithSoundFlags* modelStack = modelStackFor(memory, sound, song);
 	if (modelStack == nullptr && sound.numActiveVoices() != 0) {
 		return false;
@@ -237,7 +237,7 @@ bool applyModulatorSetting(::Sound& sound, int32_t m, std::string_view rest, int
 		sound.setModulator1ToModulator0(number != 0);
 		return true;
 	}
-	char memory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithSoundFlags* modelStack = modelStackFor(memory, sound, song);
 	if (modelStack == nullptr && sound.numActiveVoices() != 0) {
 		return false;

@@ -456,7 +456,7 @@ bool LoadInstrumentPresetUI::beginAcquisition(const deluge::storage::PresetReque
 	case PresetConsumer::ViewChangeTypeMinder:
 	case PresetConsumer::SessionRowsChangeType:
 	case PresetConsumer::KeyboardChangeType: {
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack =
 		    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, request.clip);
 		return request.clip->beginChangeOutputType(modelStack, request.outputType, walk);
@@ -553,10 +553,15 @@ void LoadInstrumentPresetUI::runAcquisitionFollowUp(const deluge::storage::Prese
 		const ModControllable* defaultSynth = currentSong->blankPresetInstrument != nullptr
 		                                          ? currentSong->blankPresetInstrument->toModControllable()
 		                                          : nullptr;
-		if (currentSong->completeBlankPreset(acquired)
-		    && view.activeModControllableModelStack.modControllable == defaultSynth) {
+		if (!currentSong->completeBlankPreset(acquired)) {
+			break;
+		}
+		if (view.activeModControllableModelStack.modControllable == defaultSynth) {
 			view.setActiveModControllableTimelineCounter(acquired.instrument->getActiveClip());
 		}
+		// The screen drew the default synth's name before the preset arrived: show the preset's, as a song that
+		// starts on it does.
+		renderUIsForOled();
 		break;
 	}
 	case PresetConsumer::ArrangerNewInstrument:
@@ -763,7 +768,7 @@ void LoadInstrumentPresetUI::changeOutputType(OutputType newOutputType) {
 		// Or, in SessionView or a ClipMinder
 		else {
 
-			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithTimelineCounter* modelStack =
 			    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, instrumentClipToLoadFor);
 
@@ -977,7 +982,7 @@ void LoadInstrumentPresetUI::swapRevert(const deluge::gui::RevertTarget& target,
 
 		// If we're here, we know the Clip is not playing in the arranger (and doesn't even have an instance in there)
 
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack =
 		    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, target.clip);
 
@@ -1180,7 +1185,7 @@ Error LoadInstrumentPresetUI::swapInstrument(const deluge::gui::InstrumentLoadRe
 		currentSong->removeInstrumentFromHibernationList(newInstrument);
 	}
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack =
 	    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, instrumentClipToLoadFor);
 
@@ -1273,7 +1278,7 @@ Error LoadInstrumentPresetUI::swapKitRow(const deluge::gui::InstrumentLoadReques
 	// snapshot, so it can't pick up whatever the user has since scrolled onto.
 	newDrum->setName(request.target.name);
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack =
 	    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, instrumentClipToLoadFor);
 	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowIndex, noteRow);
@@ -1293,7 +1298,7 @@ Error LoadInstrumentPresetUI::swapKitRow(const deluge::gui::InstrumentLoadReques
 				if (thisNoteRow->drum != oldDrum) {
 					continue;
 				}
-				char otherModelStackMemory[MODEL_STACK_MAX_SIZE];
+				alignas(ModelStackWithAutoParam) char otherModelStackMemory[MODEL_STACK_MAX_SIZE];
 				ModelStackWithNoteRow* otherModelStackWithNoteRow =
 				    setupModelStackWithTimelineCounter(otherModelStackMemory, currentSong, clip)
 				        ->addNoteRow(clip->getNoteRowId(thisNoteRow, i), thisNoteRow);

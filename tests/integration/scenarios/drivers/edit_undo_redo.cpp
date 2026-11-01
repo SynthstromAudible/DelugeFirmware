@@ -210,7 +210,7 @@ bool noteAtPos(NoteRow* noteRow, int32_t pos) {
 // with its own length — robust against attemptNoteAdd's overlap rules (no guessing a free pos). Shared by the
 // melodic and kit targets.
 void driveNoteEdits(Song* song, InstrumentClip* clip, NoteRow* noteRow, int32_t rowIndex, const char* label) {
-	char mem[MODEL_STACK_MAX_SIZE]{};
+	alignas(ModelStackWithAutoParam) char mem[MODEL_STACK_MAX_SIZE]{};
 	int32_t noteRowId = clip->getNoteRowId(noteRow, rowIndex);
 	ModelStackWithNoteRow* ms = setupModelStackWithTimelineCounter(mem, song, clip)->addNoteRow(noteRowId, noteRow);
 	check(deluge::edits::noteRowAddressFor(*ms).has_value(), "note: noteRowAddressFor resolves");
@@ -261,7 +261,7 @@ void cableTarget(Song* song) {
 	if (clip == nullptr) {
 		return;
 	}
-	char mem[MODEL_STACK_MAX_SIZE]{};
+	alignas(ModelStackWithAutoParam) char mem[MODEL_STACK_MAX_SIZE]{};
 	ModelStackWithThreeMainThings* ms = setupModelStackWithThreeMainThingsButNoNoteRow(
 	    mem, song, clip->output->toModControllable(), clip, &clip->paramManager);
 	PatchCableSet& cables = *clip->paramManager.getPatchCableSet();
@@ -456,7 +456,7 @@ void lengthTarget(Song* song) {
 	std::fprintf(io.out, "# target noterow-length\n");
 	song->setCurrentClip(clip); // ConsequenceNoteRowLength::revert resolves the row via getCurrentClip()
 
-	char mem[MODEL_STACK_MAX_SIZE]{};
+	alignas(ModelStackWithAutoParam) char mem[MODEL_STACK_MAX_SIZE]{};
 	ModelStackWithNoteRow* ms =
 	    setupModelStackWithTimelineCounter(mem, song, clip)->addNoteRow(clip->getNoteRowId(noteRow, 0), noteRow);
 
@@ -517,7 +517,7 @@ void shiftTarget(Song* song) {
 	std::fprintf(io.out, "# target noterow-shift\n");
 	song->setCurrentClip(clip);
 
-	char mem[MODEL_STACK_MAX_SIZE]{};
+	alignas(ModelStackWithAutoParam) char mem[MODEL_STACK_MAX_SIZE]{};
 	ModelStackWithNoteRow* ms =
 	    setupModelStackWithTimelineCounter(mem, song, clip)->addNoteRow(clip->getNoteRowId(noteRow, rowIndex), noteRow);
 
@@ -569,7 +569,7 @@ void euclideanTarget(Song* song) {
 	std::fprintf(io.out, "# target noterow-euclidean\n");
 	song->setCurrentClip(clip); // undoJustOneConsequencePerNoteRow / note-array revert resolve via getCurrentClip()
 
-	char mem[MODEL_STACK_MAX_SIZE]{};
+	alignas(ModelStackWithAutoParam) char mem[MODEL_STACK_MAX_SIZE]{};
 	ModelStackWithNoteRow* ms =
 	    setupModelStackWithTimelineCounter(mem, song, clip)->addNoteRow(clip->getNoteRowId(noteRow, rowIndex), noteRow);
 
@@ -651,7 +651,7 @@ void repeatTarget(Song* song) {
 	std::fprintf(io.out, "# target noterow-repeat\n");
 	song->setCurrentClip(clip); // secret-undo / note-array revert resolve the clip via getCurrentClip()
 
-	char mem[MODEL_STACK_MAX_SIZE]{};
+	alignas(ModelStackWithAutoParam) char mem[MODEL_STACK_MAX_SIZE]{};
 	ModelStackWithNoteRow* ms =
 	    setupModelStackWithTimelineCounter(mem, song, clip)->addNoteRow(clip->getNoteRowId(noteRow, rowIndex), noteRow);
 
@@ -718,7 +718,7 @@ void nudgeTarget(Song* song) {
 	std::fprintf(io.out, "# target noterow-nudge\n");
 	song->setCurrentClip(clip); // note-array + automation reverts resolve the clip via getCurrentClip()
 
-	char mem[MODEL_STACK_MAX_SIZE]{};
+	alignas(ModelStackWithAutoParam) char mem[MODEL_STACK_MAX_SIZE]{};
 	ModelStackWithNoteRow* ms =
 	    setupModelStackWithTimelineCounter(mem, song, clip)->addNoteRow(clip->getNoteRowId(noteRow, rowIndex), noteRow);
 
@@ -777,7 +777,7 @@ void clipShiftTarget(Song* song) {
 	std::fprintf(io.out, "# target clip-shift\n");
 	song->setCurrentClip(clip); // ConsequenceClipHorizontalShift::revert resolves the clip via getCurrentClip()
 
-	char mem[MODEL_STACK_MAX_SIZE]{};
+	alignas(ModelStackWithAutoParam) char mem[MODEL_STACK_MAX_SIZE]{};
 	ModelStackWithTimelineCounter* ms = setupModelStackWithTimelineCounter(mem, song, clip);
 
 	std::vector<int32_t> before = notePositions(noteRow);
@@ -830,7 +830,7 @@ void clipClearTarget(Song* song) {
 	std::fprintf(io.out, "# target clip-clear\n");
 	song->setCurrentClip(clip); // clear's undo Consequences resolve the clip via getCurrentClip()
 
-	char mem[MODEL_STACK_MAX_SIZE]{};
+	alignas(ModelStackWithAutoParam) char mem[MODEL_STACK_MAX_SIZE]{};
 	ModelStackWithTimelineCounter* ms = setupModelStackWithTimelineCounter(mem, song, clip);
 
 	int32_t before = totalNotes(clip);
@@ -874,7 +874,7 @@ void clipMultiplyTarget(Song* song) {
 	std::fprintf(io.out, "# target clip-multiply\n");
 	song->setCurrentClip(clip); // multiply's undo Consequences resolve the clip via getCurrentClip()
 
-	char mem[MODEL_STACK_MAX_SIZE]{};
+	alignas(ModelStackWithAutoParam) char mem[MODEL_STACK_MAX_SIZE]{};
 	ModelStackWithTimelineCounter* ms = setupModelStackWithTimelineCounter(mem, song, clip);
 
 	int32_t lenBefore = clip->loopLength();
@@ -1215,7 +1215,7 @@ void pasteTarget(Song* song) {
 	std::fprintf(io.out, "# target paste\n");
 	song->setCurrentClip(clip);
 
-	char mem[MODEL_STACK_MAX_SIZE]{};
+	alignas(ModelStackWithAutoParam) char mem[MODEL_STACK_MAX_SIZE]{};
 	ModelStackWithNoteRow* ms =
 	    setupModelStackWithTimelineCounter(mem, song, clip)->addNoteRow(clip->getNoteRowId(noteRow, rowIndex), noteRow);
 
@@ -1277,7 +1277,7 @@ void kitAddTarget(Song* song) {
 	int32_t rowIndex = 0;
 	NoteRow* noteRow = &clip->noteRows[rowIndex];
 
-	char mem[MODEL_STACK_MAX_SIZE]{};
+	alignas(ModelStackWithAutoParam) char mem[MODEL_STACK_MAX_SIZE]{};
 	ModelStackWithNoteRow* ms =
 	    setupModelStackWithTimelineCounter(mem, song, clip)->addNoteRow(clip->getNoteRowId(noteRow, rowIndex), noteRow);
 
@@ -1323,7 +1323,7 @@ void kitRemoveTarget(Song* song) {
 	auto* kit = static_cast<Kit*>(clip->output);
 	int32_t before = drumCount(kit);
 
-	char mem[MODEL_STACK_MAX_SIZE]{};
+	alignas(ModelStackWithAutoParam) char mem[MODEL_STACK_MAX_SIZE]{};
 	ModelStackWithTimelineCounter* ms = setupModelStackWithTimelineCounter(mem, song, clip);
 	deluge::edits::Context ctx{*currentSong, currentSong->project};
 	deluge::edits::RemoveKitRow edit{deluge::edits::kitRowAddressFor(*kit, *drum), drum, ms};
@@ -1501,7 +1501,7 @@ int edit_undo_redo_main(int argc, char** argv, Io driverIo) {
 
 	// Target 1 — song-global UNPATCHED_VOLUME (OwnerId::song()). Always present.
 	{
-		char msMem[MODEL_STACK_MAX_SIZE]{};
+		alignas(ModelStackWithAutoParam) char msMem[MODEL_STACK_MAX_SIZE]{};
 		ModelStackWithThreeMainThings* ms3 = song->setupModelStackWithSongAsTimelineCounter(msMem);
 		ModelStackWithAutoParam* msap = ms3->getUnpatchedAutoParamFromId(params::UNPATCHED_VOLUME);
 		if (!msap || !msap->autoParam) {
@@ -1539,7 +1539,7 @@ int edit_undo_redo_main(int argc, char** argv, Io driverIo) {
 			// lane). Unlike the song-global invariant, the instrument target is best-effort per song.
 			int32_t chosenPid = -1;
 			for (int32_t pid = 0; pid < params::kMaxNumUnpatchedParams && chosenPid < 0; pid++) {
-				char pm[MODEL_STACK_MAX_SIZE]{};
+				alignas(ModelStackWithAutoParam) char pm[MODEL_STACK_MAX_SIZE]{};
 				ModelStackWithThreeMainThings* p3 = setupModelStackWithThreeMainThingsButNoNoteRow(
 				    pm, song, instClip->output->toModControllable(), instClip, &instClip->paramManager);
 				ModelStackWithAutoParam* pmsap = p3->getUnpatchedAutoParamFromId(pid);
@@ -1555,7 +1555,7 @@ int edit_undo_redo_main(int argc, char** argv, Io driverIo) {
 				std::fprintf(io.out, "# instrument-param-not-addressed\n");
 			}
 			else {
-				char instMem[MODEL_STACK_MAX_SIZE]{};
+				alignas(ModelStackWithAutoParam) char instMem[MODEL_STACK_MAX_SIZE]{};
 				ModelStackWithThreeMainThings* i3 = setupModelStackWithThreeMainThingsButNoNoteRow(
 				    instMem, song, instClip->output->toModControllable(), instClip, &instClip->paramManager);
 				scriptEditUndoRedo("instrument-clip", song, i3->getUnpatchedAutoParamFromId(chosenPid));

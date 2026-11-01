@@ -30,7 +30,7 @@ public:
 private:
 	// The target as ConsequenceParamChange captures its own: a copy of the stack's sound and param manager.
 	union {
-		char modelStackMemory_[MODEL_STACK_MAX_SIZE]{};
+		alignas(ModelStackWithAutoParam) char modelStackMemory_[MODEL_STACK_MAX_SIZE]{};
 		ModelStackWithThreeMainThings target_;
 	};
 	CableEdit edit_;

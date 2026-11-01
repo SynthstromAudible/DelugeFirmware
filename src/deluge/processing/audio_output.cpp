@@ -289,7 +289,7 @@ renderEnvelope:
 	         && inputChannel == AudioInputChannel::SPECIFIC_OUTPUT && (outputRecordingFrom != nullptr)
 	         && (outputRecordingFrom->getActiveClip() != nullptr)) {
 		rendered = true;
-		std::byte modelStackMemory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) std::byte modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStack* songModelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 		outputRecordingFrom->renderOutput(songModelStack, output, reverbBuffer, reverbAmountAdjust, sideChainHitPending,
 		                                  shouldLimitDelayFeedback, isClipActive);

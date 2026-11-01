@@ -86,7 +86,7 @@ public:
 						settingFor(*soundDrum, oscPath("cents"), serialization::Value::makeNumber(cents));
 					}
 
-					char modelStackMemoryForSoundDrum[MODEL_STACK_MAX_SIZE];
+					alignas(ModelStackWithAutoParam) char modelStackMemoryForSoundDrum[MODEL_STACK_MAX_SIZE];
 					ModelStackWithSoundFlags* modelStackForSoundDrum =
 					    getModelStackFromSoundDrum(modelStackMemoryForSoundDrum, soundDrum)->addSoundFlags();
 
@@ -115,7 +115,7 @@ public:
 				settingFor(*soundEditor.currentSound, oscPath("cents"), serialization::Value::makeNumber(cents));
 			}
 
-			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithSoundFlags* modelStack = soundEditor.getCurrentModelStack(modelStackMemory)->addSoundFlags();
 
 			soundEditor.currentSound->recalculateAllVoicePhaseIncrements(modelStack);

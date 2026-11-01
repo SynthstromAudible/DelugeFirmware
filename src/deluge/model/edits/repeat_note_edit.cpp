@@ -15,7 +15,7 @@ Error RepeatNoteEdit::apply(Context& /*ctx*/) {
 	    && lastAction->offset == -offset_) {
 		// undoJustOneConsequencePerNoteRow only reads ->song (the note-array reverts resolve the clip via
 		// song->getCurrentClip()), so a song-only stack suffices (ModelStackWithNoteRow doesn't inherit toWithSong()).
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStack* songStack = setupModelStackWithSong(modelStackMemory, engineStack_->song);
 		actionLogger.undoJustOneConsequencePerNoteRow(songStack);
 		return Error::NONE;

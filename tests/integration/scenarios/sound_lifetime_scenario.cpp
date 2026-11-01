@@ -187,7 +187,7 @@ InstrumentClip* attachClip(Instrument* instrument) {
 		fail("the clip could not take the instrument");
 		return nullptr;
 	}
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack =
 	    setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(clip);
 	if (instrument->type == OutputType::KIT) {
@@ -204,7 +204,7 @@ bool sound(Sound& s, ModControllable* mc, ArpeggiatorBase* arp, InstrumentClip* 
 	if (paramManager == nullptr) {
 		return fail("the sound has no ParamManager");
 	}
-	char memory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithThreeMainThings* ms =
 	    setupModelStackWithThreeMainThingsButNoNoteRow(memory, currentSong, mc, clip, paramManager);
 	s.Sound::noteOn(ms, arp, kNote, zeroMPEValues);
@@ -324,7 +324,7 @@ void deleteLeg() {
 		// that were never in a kit.
 		int32_t noteRowIndex = 0;
 		NoteRow* noteRow = g_clip->getNoteRowForDrum(g_drum, &noteRowIndex);
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack =
 		    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, g_clip);
 

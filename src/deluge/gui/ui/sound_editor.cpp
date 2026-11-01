@@ -1319,11 +1319,11 @@ void SoundEditor::selectEncoderAction(int8_t offset) {
 		bool hadNoteTails;
 		SynthMode oldMode;
 		OscType oldOscTypes[kNumSources];
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithSoundFlags* modelStack = getCurrentModelStack(modelStackMemory)->addSoundFlags();
 
 		if (currentSound) {
-			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithSoundFlags* modelStack = getCurrentModelStack(modelStackMemory)->addSoundFlags();
 
 			hadNoteTails = currentSound->allowNoteTails(modelStack);
@@ -1342,7 +1342,7 @@ void SoundEditor::selectEncoderAction(int8_t offset) {
 
 			// If envelope param preset values were changed, there's a chance that there could have been a
 			// change to whether notes have tails
-			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithSoundFlags* modelStack = getCurrentModelStack(modelStackMemory)->addSoundFlags();
 
 			bool needsRendering = hadNoteTails != currentSound->allowNoteTails(modelStack);
@@ -1906,7 +1906,7 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 
 	// getParamManager and ModControllable for Performance Session View (and Session View)
 	if (!rootUIIsClipMinderScreen()) {
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithThreeMainThings* modelStack =
 		    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 		if (modelStack) {
@@ -2086,7 +2086,7 @@ doMIDIOrCV:
 
 	allowsNoteTails = true;
 	if (newSound != nullptr) {
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithSoundFlags* modelStack = getCurrentModelStack(modelStackMemory)->addSoundFlags();
 		allowsNoteTails = newSound->allowNoteTails(modelStack, true);
 	}
@@ -2361,6 +2361,6 @@ void SoundEditor::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) 
 }
 
 /*
-char modelStackMemory[MODEL_STACK_MAX_SIZE];
+alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
 */

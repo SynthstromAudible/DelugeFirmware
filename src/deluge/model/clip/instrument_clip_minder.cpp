@@ -70,7 +70,7 @@ InstrumentClipMinder::InstrumentClipMinder() {
 }
 
 void InstrumentClipMinder::selectEncoderAction(int32_t offset) {
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
 	if (currentUIMode == UI_MODE_SELECTING_MIDI_CC) {
@@ -237,7 +237,7 @@ gotError:
 		((SoundInstrument*)newInstrument)->setupAsBlankSynth(&newParamManager, is_dx);
 	}
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
 
 	// If replacing whole Instrument
@@ -453,7 +453,7 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on) 
 	else if (b == BACK && currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
 		if (on) {
 			// Clear Clip
-			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithTimelineCounter* modelStack =
 			    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, getCurrentClip());
 
@@ -532,7 +532,7 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on) 
 }
 
 bool InstrumentClipMinder::changeOutputType(OutputType newOutputType, deluge::storage::PresetConsumer consumer) {
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
 	// setLedStates() is not run here: for Synth/Kit this bool means "dispatched", not "swapped", so it

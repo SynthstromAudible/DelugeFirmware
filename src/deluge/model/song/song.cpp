@@ -533,7 +533,7 @@ bool Song::ensureAtLeastOneSessionClip() {
 	blankPresetInstrument = newInstrument;
 	blankPresetClip = firstClip;
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(firstClip);
 
@@ -573,7 +573,7 @@ void Song::transposeAllScaleModeClips(int32_t offset, bool chromatic) {
 		semitones = 12 * octaves + newModeRoot;
 		rotateMusicalMode(offset);
 
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
 
 		MusicalKey newKey = project.scale.key;
@@ -622,7 +622,7 @@ void Song::transposeAllScaleModeClips(int32_t offset, bool chromatic) {
 
 void Song::transposeAllScaleModeClips(int32_t interval) {
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
 
 	for (InstrumentClip* instrumentClip : InstrumentClips::everywhere(this)) {
@@ -734,7 +734,7 @@ void Song::rotateMusicalMode(int8_t change) {
    supplying an array of deltas in semitones */
 void Song::replaceMusicalMode(const ScaleChange& changes, bool affectMIDITranspose) {
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
 
 	for (InstrumentClip* instrumentClip : InstrumentClips::everywhere(this)) {
@@ -920,7 +920,7 @@ void Song::setClipLength(Clip* clip, uint32_t newLength, Action* action, bool ma
 		                               oldLength); // Records just the simple fact that clip->length has changed
 	}
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack =
 	    setupModelStackWithSong(modelStackMemory, this)->addTimelineCounter(clip);
 
@@ -948,7 +948,7 @@ void Song::setClipLength(Clip* clip, uint32_t newLength, Action* action, bool ma
 
 void Song::doubleClipLength(InstrumentClip* clip, Action* action) {
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack =
 	    setupModelStackWithSong(modelStackMemory, this)->addTimelineCounter(clip);
 
@@ -1904,7 +1904,7 @@ loadOutput:
 		clip->gotInstanceYet = false;
 	}
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
 
 	int32_t count = 0;
@@ -2507,7 +2507,7 @@ deluge::effects::MasterChainInputs Song::renderAudio(std::span<StereoSample> out
 	// A "post-FX volume" calculation also happens in audioDriver.render(), which is a bit more relevant really
 	// because that's where filters are happening
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
 
 	AudioEngine::logAction("Start output render");
@@ -2696,7 +2696,7 @@ void Song::setupPatchingForAllParamManagersForDrum(SoundDrum* drum) {
 	// If currently swapping an Instrument, it can't be assumed that all arranger-only Clips for this Instrument are
 	// in its clipInstances, which otherwise is a nice time-saver
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
 
 	// We don't know the Kit / Instrument. That's unfortunate. We'll work it out if we can
@@ -2787,7 +2787,7 @@ void Song::setupPatchingForAllParamManagersForInstrument(SoundInstrument* sound)
 	// If currently swapping an Instrument, it can't be assumed that all arranger-only Clips for this Instrument are
 	// in its clipInstances, which otherwise is a nice time-saver
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithModControllable* modelStack = setupModelStackWithSong(modelStackMemory, this)
 	                                                ->addTimelineCounter(nullptr)
 	                                                ->addModControllableButNoNoteRow(sound);
@@ -2844,7 +2844,7 @@ void Song::grabVelocityToLevelFromMIDICableAndSetupPatchingForAllParamManagersFo
 	// If currently swapping an Instrument, it can't be assumed that all arranger-only Clips for this Instrument are
 	// in its clipInstances, which otherwise is a nice time-saver
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithModControllable* modelStack = setupModelStackWithSong(modelStackMemory, this)
 	                                                ->addTimelineCounter(nullptr)
 	                                                ->addModControllableButNoNoteRow(instrument);
@@ -2904,7 +2904,7 @@ void Song::grabVelocityToLevelFromMIDICableAndSetupPatchingForAllParamManagersFo
 	// If currently swapping an Instrument, it can't be assumed that all arranger-only Clips for this Instrument are
 	// in its clipInstances, which otherwise is a nice time-saver
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
 
 	// For each Clip in session and arranger for specific Output
@@ -2967,7 +2967,7 @@ void Song::grabVelocityToLevelFromMIDICableAndSetupPatchingForEverything(MIDICab
 	// If currently swapping an Instrument, it can't be assumed that all arranger-only Clips for this Instrument are
 	// in its clipInstances, which otherwise is a nice time-saver
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
 
 	for (Clip* clip : AllClips::everywhere(this)) {
@@ -3091,7 +3091,7 @@ bool Song::setScaleNotes(NoteSet newScaleNotes) {
 // What does this do exactly, again?
 void Song::ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(Sound* sound) {
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
 
 	for (InstrumentClip* instrumentClip : InstrumentClips::everywhere(this)) {
@@ -3117,7 +3117,7 @@ void Song::setTempoFromNumSamples(double newTempoSamples, bool shouldLogAction) 
 }
 
 void Song::setBPM(float tempoBPM, bool shouldLogAction) {
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 	    setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 	auto tempoParam = getModelStackWithParam(modelStackWithThreeMainThings, params::UnpatchedGlobal::UNPATCHED_TEMPO);
@@ -3150,7 +3150,7 @@ void Song::setBPM(float tempoBPM, bool shouldLogAction) {
 }
 
 void Song::clearTempoAutomation() {
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 	    setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 	auto tempoParam = getModelStackWithParam(modelStackWithThreeMainThings, params::UnpatchedGlobal::UNPATCHED_TEMPO);
@@ -3201,7 +3201,7 @@ void Song::deleteClipObject(Clip* clip, bool songBeingDestroyedToo, InstrumentRe
 			clip->output->deleteAnyInstancesOfClip(clip);
 		}
 
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack = setupModelStackWithTimelineCounter(modelStackMemory, this, clip);
 
 		clip->prepareForDestruction(modelStack, instrumentRemovalInstruction);
@@ -3394,7 +3394,7 @@ int32_t Song::removeOutputFromMainList(
 	bool wasSoloing = output->soloingInArrangementMode;
 	bool seenAnyOtherSoloing = false;
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
 
 	if (stopAnyAuditioningFirst) { // See comment above.
@@ -3493,7 +3493,7 @@ void Song::replaceInstrument(Instrument* oldOutput, Instrument* newOutput, bool 
 	// called below. If we changed it here, near-future calls to the audio routine could cause new voices to be
 	// sounded, with no later unassignment.
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
 
 	oldOutput->stopAnyAuditioning(modelStack);
@@ -3770,7 +3770,7 @@ void Song::removeInstrumentFromHibernationList(Instrument* instrument) {
 
 void Song::deleteOrHibernateOutputIfNoClips(Output* output) {
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
 
 	output->pickAnActiveClipIfPossible(modelStack, true, PgmChangeSend::ONCE, false);
@@ -3970,7 +3970,7 @@ bool Song::getAnyOutputsSoloingInArrangement() {
 
 void Song::setupPatchingForAllParamManagers() {
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
 
 	for (InstrumentClip* instrumentClip : InstrumentClips::everywhere(this)) {
@@ -4456,7 +4456,7 @@ MIDIInstrument* Song::grabHibernatingMIDIInstrument(int32_t channel, int32_t cha
 
 void Song::stopAllMIDIAndGateNotesPlaying() {
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
 
 	for (InstrumentClip* instrumentClip : InstrumentClips::everywhere(this)) {
@@ -4471,7 +4471,7 @@ void Song::stopAllMIDIAndGateNotesPlaying() {
 void Song::stopAllAuditioning() {
 	deluge::playback::noteInteractionOwnedWrite(deluge::playback::InteractionOwned::Auditioning);
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
 
 	for (Output* output = live.media.first_output; output; output = output->next) {
@@ -4587,10 +4587,10 @@ void Song::endInstancesOfActiveClips(int32_t pos, bool detachClipsToo) {
 
 void Song::resumeClipsClonedForArrangementRecording() {
 
-	char modelStackMemoryClone[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemoryClone[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStackClone = setupModelStackWithSong(modelStackMemoryClone, this);
 
-	char modelStackMemoryOriginal[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemoryOriginal[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStackOriginal = setupModelStackWithSong(modelStackMemoryOriginal, this);
 
 	// For each Clip in session
@@ -4611,7 +4611,7 @@ void Song::resumeClipsClonedForArrangementRecording() {
 
 void Song::clearArrangementBeyondPos(int32_t pos, Action* action) {
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithThreeMainThings* modelStack = setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 	paramManager.trimToLength(pos, modelStack, action, false);
 
@@ -4678,7 +4678,7 @@ void Song::deletingClipInstanceForClip(Output* output, Clip* clip, Action* actio
 			}
 			deleteClipObject(clip, false, InstrumentRemoval::NONE);
 			if (shouldPickNewActiveClip) {
-				char modelStackMemory[MODEL_STACK_MAX_SIZE];
+				alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 				ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
 
 				output->pickAnActiveClipIfPossible(modelStack, true);
@@ -4905,7 +4905,7 @@ Output* Song::applyNavigateThroughPresets(Instrument* oldInstrument, const delug
 
 void Song::instrumentSwapped(Instrument* newInstrument) {
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
 
 	// If we're playing, in this arrangement mode... (TODO: what if it just switched on while we were loading?)
@@ -5184,7 +5184,7 @@ Output* Song::getNextAudioOutput(int32_t offset, Output* oldOutput, Availability
 // Unassign all Voices first
 void Song::replaceOutputLowLevel(Output* newOutput, Output* oldOutput) {
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
 
 	oldOutput->stopAnyAuditioning(modelStack);
@@ -5494,7 +5494,7 @@ Clip* Song::createPendingNextOverdubBelowClip(Clip* clip, int32_t clipIndex, Ove
 	}
 	// Use the traditional cloning looper only for clips that don't support overdubbing in place.
 	if (clip->shouldCloneForOverdubs()) {
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
 
 		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
@@ -5619,7 +5619,7 @@ Clip* Song::replaceInstrumentClipWithAudioClip(Clip* oldClip, int32_t clipIndex)
 	// Give the new clip its stuff
 	newClip->cloneFrom(oldClip);
 	newClip->setColourOffset(random(72));
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
 	newClip->setOutput(modelStack->addTimelineCounter(newClip), newOutput);
 

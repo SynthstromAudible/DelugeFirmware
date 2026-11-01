@@ -392,6 +392,10 @@ Error Browser::finishPendingListing() {
 	}
 
 	case ListingAction::Open:
+		// The listing arrives ticks after the browser drew itself around an empty one.
+		renderUIsForOled();
+		return Error::NONE;
+
 	case ListingAction::Reload:
 		return Error::NONE;
 	}
@@ -766,7 +770,10 @@ void Browser::graphicsRoutine() {
 	if (auto target = std::exchange(pendingPrediction_, std::nullopt); target.has_value()) {
 		prediction_.target = std::move(*target);
 		prediction_.active = true;
-		(void)continuePrediction();
+		// A prediction that finds nothing has put the entered text back to the current file; nothing else redraws it.
+		if (!continuePrediction()) {
+			displayText();
+		}
 	}
 
 	if (listingInProgress_) {

@@ -90,8 +90,6 @@
 
 // --- Memory placement -------------------------------------------------------
 // The platform/linker provides these sections; a host build defines them as no-ops.
-// Paul: It seems this area is not executable, could not find a reason in the datasheet,
-// marked NOLOAD now
 #if defined(__APPLE__) || (defined(IN_UNIT_TESTS) && IN_UNIT_TESTS)
 // Mach-O rejects ELF-style ".name" section specifiers (it wants "__SEG,__sect", <=16 chars), and a
 // macOS build is always the host — which has no real SDRAM — so these placements are no-ops there.
@@ -107,8 +105,8 @@
 #define PLACE_SDRAM_BSS __attribute__((__section__(".sdram_bss")))
 #define PLACE_SDRAM_DATA __attribute__((__section__(".sdram_data")))
 #define PLACE_SDRAM_RODATA __attribute__((__section__(".sdram_rodata")))
+// Code the boot copies to SDRAM; runs only once the boot has synchronised the caches over it.
+#define PLACE_SDRAM_TEXT __attribute__((__section__(".sdram_text")))
 #endif
-// #define PLACE_SDRAM_TEXT __attribute__((__section__(".sdram_text"))) // Paul: I had
-// problems with execution from SDRAM, maybe timing?
 
 #endif /* DELUGE_BOARD_CONFIG_H */

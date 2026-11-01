@@ -516,7 +516,7 @@ Error Output::possiblyBeginArrangementRecording(Song* song, int32_t newPos) {
 		return Error::INSUFFICIENT_RAM;
 	}
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, song);
 
 	Clip* newClip = createNewClipForArrangementRecording(modelStack);
@@ -582,7 +582,7 @@ void Output::endAnyArrangementRecording(Song* song, int32_t actualEndPosInternal
 			// If resumed, don't touch (or dereference) the ClipInstance - that would corrupt the arrangement. Just stop
 			// the recording.
 			if (activeClip) {
-				char modelStackMemory[MODEL_STACK_MAX_SIZE];
+				alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 				ModelStackWithTimelineCounter* modelStack =
 				    setupModelStackWithTimelineCounter(modelStackMemory, song, activeClip);
 				activeClip->finishLinearRecording(modelStack);
@@ -595,7 +595,7 @@ void Output::endAnyArrangementRecording(Song* song, int32_t actualEndPosInternal
 
 		int32_t lengthSoFarInternalTicks = actualEndPosInternalTicks - clipInstance->pos;
 
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack =
 		    setupModelStackWithTimelineCounter(modelStackMemory, song, activeClip);
 		activeClip->finishLinearRecording(modelStack);

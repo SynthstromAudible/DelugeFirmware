@@ -152,7 +152,7 @@ void moveZoneEnd() {
 	std::vector<deluge::instrument::RangeState> ranges = deluge::bridge::rangesOf(sound.sources[0]);
 	ranges[0].end_pos = g_zoneMoveEnd;
 	deluge::gui::menu_item::rangesFor(sound, 0, std::move(ranges));
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithSoundFlags* modelStack = setupModelStackWithSong(modelStackMemory, currentSong)
 	                                           ->addTimelineCounter(clip)
 	                                           ->addModControllableButNoNoteRow(&sound)

@@ -54,7 +54,7 @@ public:
 					settingFor(*soundDrum, "transpose", serialization::Value::makeNumber(transpose));
 					settingFor(*soundDrum, "cents", serialization::Value::makeNumber(cents));
 
-					char modelStackMemoryForSoundDrum[MODEL_STACK_MAX_SIZE];
+					alignas(ModelStackWithAutoParam) char modelStackMemoryForSoundDrum[MODEL_STACK_MAX_SIZE];
 					ModelStackWithSoundFlags* modelStackForSoundDrum =
 					    getModelStackFromSoundDrum(modelStackMemoryForSoundDrum, soundDrum)->addSoundFlags();
 					soundDrum->recalculateAllVoicePhaseIncrements(modelStackForSoundDrum);
@@ -66,7 +66,7 @@ public:
 			settingFor(*soundEditor.currentSound, "transpose", serialization::Value::makeNumber(transpose));
 			settingFor(*soundEditor.currentSound, "cents", serialization::Value::makeNumber(cents));
 
-			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithSoundFlags* modelStack = soundEditor.getCurrentModelStack(modelStackMemory)->addSoundFlags();
 			soundEditor.currentSound->recalculateAllVoicePhaseIncrements(modelStack);
 		}

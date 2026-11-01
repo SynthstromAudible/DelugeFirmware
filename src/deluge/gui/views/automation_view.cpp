@@ -680,7 +680,7 @@ void AutomationView::performActualRender(RGB image[][kDisplayWidth + kSideBarWid
 	Output* output = clip->output;
 	OutputType outputType = output->type;
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = nullptr;
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings = nullptr;
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
@@ -1040,7 +1040,7 @@ indicators.*/
 
 void AutomationView::displayAutomation(bool padSelected, bool updateDisplay) {
 	if ((!padSelectionOn && !isUIModeActive(UI_MODE_NOTES_PRESSED)) || padSelected) {
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 
 		ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
@@ -1336,7 +1336,7 @@ void AutomationView::handleCrossScreenButtonAction(bool on) {
 						}
 						// If in we're in the note editor, we can check if the note row has multiple screens
 						else if (inNoteEditor()) {
-							char modelStackMemory[MODEL_STACK_MAX_SIZE];
+							alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 							ModelStackWithTimelineCounter* modelStack =
 							    currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 							ModelStackWithNoteRow* modelStackWithNoteRow =
@@ -1412,7 +1412,7 @@ bool AutomationView::handleHorizontalEncoderButtonAction(bool on, bool isAudioCl
 
 			// Shift pastes into the lane, which may need its cable; otherwise this copies from it.
 			const bool pasting = Buttons::isShiftButtonPressed();
-			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = nullptr;
 			ModelStackWithThreeMainThings* modelStackWithThreeMainThings = nullptr;
 			ModelStackWithAutoParam* modelStackWithParam = nullptr;
@@ -1497,14 +1497,14 @@ bool AutomationView::handleBackAndHorizontalEncoderButtonComboAction(Clip* clip,
 			if (onArrangerView) {
 				Action* action = actionLogger.getNewAction(ActionType::ARRANGEMENT_CLEAR, ActionAddition::NOT_ALLOWED);
 
-				char modelStackMemory[MODEL_STACK_MAX_SIZE];
+				alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 				ModelStackWithThreeMainThings* modelStack =
 				    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 				currentSong->paramManager.deleteAllAutomation(action, modelStack);
 			}
 			// clear all audio clip automation
 			else {
-				char modelStackMemory[MODEL_STACK_MAX_SIZE];
+				alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 				ModelStackWithTimelineCounter* modelStack =
 				    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
 
@@ -1523,7 +1523,7 @@ bool AutomationView::handleBackAndHorizontalEncoderButtonComboAction(Clip* clip,
 	else if (on && inAutomationEditor()) {
 		// delete automation of current parameter selected
 
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 
 		ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
@@ -1550,7 +1550,7 @@ bool AutomationView::handleBackAndHorizontalEncoderButtonComboAction(Clip* clip,
 		}
 	}
 	else if (on && inNoteEditor()) {
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack =
 		    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
 
@@ -1581,7 +1581,7 @@ void AutomationView::handleVerticalEncoderButtonAction(bool on) {
 				instrumentClipView.editNoteRepeat(0);
 			}
 			else if (isUIModeActiveExclusively(UI_MODE_AUDITIONING)) {
-				char modelStackMemory[MODEL_STACK_MAX_SIZE];
+				alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 				ModelStackWithTimelineCounter* modelStack =
 				    currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 				ModelStackWithNoteRow* modelStackWithNoteRow =
@@ -1649,7 +1649,7 @@ ActionResult AutomationView::padAction(int32_t x, int32_t y, int32_t velocity) {
 		}
 	}
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = nullptr;
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings = nullptr;
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
@@ -2044,7 +2044,7 @@ ActionResult AutomationView::auditionPadAction(InstrumentClip* clip, Output* out
 		actionLogger.closeAction(ActionType::NOTE_NUDGE);
 	}
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
 	bool clipIsActiveOnInstrument = InstrumentClipMinder::makeCurrentClipActiveOnInstrumentIfPossible(modelStack);
@@ -2162,7 +2162,7 @@ ActionResult AutomationView::horizontalEncoderAction(int32_t offset) {
 		rightPadSelectedX = kNoSelection;
 	}
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = nullptr;
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings = nullptr;
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
@@ -2281,7 +2281,7 @@ ActionResult AutomationView::verticalEncoderAction(int32_t offset) {
 	InstrumentClip* clip = getCurrentInstrumentClip();
 	OutputType outputType = clip->output->type;
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
 	// If encoder button pressed
@@ -2343,7 +2343,7 @@ void AutomationView::potentiallyVerticalScrollToSelectedDrum(InstrumentClip* cli
 		if (noteRow) {
 			int32_t lastAuditionedYDisplayScrolled = instrumentClipView.lastAuditionedYDisplay + clip->yScroll;
 			if (noteRowIndex != lastAuditionedYDisplayScrolled) {
-				char modelStackMemory[MODEL_STACK_MAX_SIZE];
+				alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 				ModelStackWithTimelineCounter* modelStack =
 				    currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
@@ -2373,7 +2373,7 @@ void AutomationView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 
 	// now we need to setup the model stack with param for the selected parameter in the selected context
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = nullptr;
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings = nullptr;
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
@@ -2455,7 +2455,7 @@ void AutomationView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 	Clip* clip = getCurrentClip();
 	OutputType outputType = clip->output->type;
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = nullptr;
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings = nullptr;
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
@@ -2583,7 +2583,7 @@ void AutomationView::selectEncoderAction(int8_t offset) {
 	// update name on display, the LED mod indicators, and refresh the grid
 	lastPadSelectedKnobPos = kNoSelection;
 	if (multiPadPressSelected && padSelectionOn) {
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = nullptr;
 		ModelStackWithThreeMainThings* modelStackWithThreeMainThings = nullptr;
 		ModelStackWithAutoParam* modelStackWithParam = nullptr;

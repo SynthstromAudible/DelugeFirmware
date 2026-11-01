@@ -756,7 +756,7 @@ void prepareLeg() {
 			// The rows a user would have: notes on three, one of them muted, and one row left empty. An affect-entire
 			// randomize walks unmuted rows that have notes, so only the first two are eligible.
 			auto* kitClip = static_cast<InstrumentClip*>(g_kitClip);
-			char modelStackMemory[MODEL_STACK_MAX_SIZE];
+			alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithTimelineCounter* modelStack =
 			    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, kitClip);
 			int32_t drumIndex = 0;

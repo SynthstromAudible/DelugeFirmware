@@ -497,18 +497,18 @@ void copyModelStack(void* newMemory, void const* oldMemory, int32_t size);
 
 /*
 
-char modelStackMemory[MODEL_STACK_MAX_SIZE];
+alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
 */
 
 /*
-    char modelStackMemory[MODEL_STACK_MAX_SIZE];
+    alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
     ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, song);
     ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
 
-    char modelStackMemory[MODEL_STACK_MAX_SIZE];
+    alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
     ModelStackWithTimelineCounter* modelStack = setupModelStackWithSong(modelStackMemory,
    currentSong)->addTimelineCounter(clip);
 

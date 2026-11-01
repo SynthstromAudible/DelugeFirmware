@@ -32,6 +32,11 @@ pub const RUST_SDRAM_BASE: usize = SDRAM_BASE + SDRAM_SIZE - RUST_SDRAM_RESERVE;
 /// Zeroes the SDRAM and frunk `.bss` regions and copies `.sdram_init` from its SRAM LMA to its
 /// SDRAM VMA.
 ///
+/// `.sdram_init` holds code (the GUI, and `PLACE_SDRAM_TEXT` functions) as well as data. The copy
+/// lands in the L1 D-cache, which instruction fetches do not see, so it is cleaned out to the L2
+/// (unified, and on the fetch path) and the I-cache and branch predictor are invalidated before
+/// anything can branch into it.
+///
 /// # Safety
 ///
 /// Call exactly once, after SDRAM is initialised and before any code reads SDRAM-resident globals.
@@ -52,6 +57,10 @@ pub unsafe fn init_sdram_memory() {
             - core::ptr::addr_of!(__sdram_init_start) as usize;
         if len > 0 {
             core::ptr::copy_nonoverlapping(src, dst, len);
+            rza1_hal::cache::dma_clean_range(dst as usize, dst as usize + len);
+            // BPIALL; l1_i_invalidate_all's DSB + ISB complete it.
+            core::arch::asm!("mcr p15, 0, {0}, c7, c5, 6", in(reg) 0u32, options(nomem, nostack));
+            rza1_hal::cache::l1_i_invalidate_all();
         }
     }
 }

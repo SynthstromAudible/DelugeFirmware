@@ -116,3 +116,20 @@ fn an_oled_frame_holds_pad_output_until_it_ends() {
     );
     assert!(control::deluge_control_pad_output_space() > 0);
 }
+
+#[test]
+fn pad_flashes_and_the_dimmer_interval_reach_the_pic() {
+    let _s = serial();
+    let before = control::flash_and_dimmer_sent_for_test();
+    control::deluge_control_flash_pad(5);
+    control::deluge_control_flash_pad_colour(6, 2);
+    control::deluge_control_set_dimmer_interval(3);
+    wait_until(
+        Duration::from_millis(500),
+        "two pad flashes and one dimmer interval sent to the PIC",
+        || {
+            let (flashes, dimmers) = control::flash_and_dimmer_sent_for_test();
+            flashes == before.0 + 2 && dimmers == before.1 + 1
+        },
+    );
+}

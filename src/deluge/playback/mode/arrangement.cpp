@@ -77,7 +77,7 @@ bool Arrangement::endPlayback() {
 	uint32_t timeRemainder;
 	int32_t actualPos = getLivePos(&timeRemainder);
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithThreeMainThings* modelStack = currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 
 	currentSong->paramManager.expectNoFurtherTicks(modelStack);
@@ -115,7 +115,7 @@ void Arrangement::doTickForward(int32_t posIncrement) {
 
 	lastProcessedPos += posIncrement;
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 
 	bool songParamManagerMightContainAutomation = currentSong->paramManager.mightContainAutomation();
@@ -359,7 +359,7 @@ void Arrangement::resetPlayPos(int32_t newPos, bool doingComplete, int32_t butto
 	arrangerView.actionOnDepress = false;
 
 	if (currentSong->paramManager.mightContainAutomation()) {
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithThreeMainThings* modelStack =
 		    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 
@@ -405,7 +405,7 @@ void Arrangement::resumeClipInstancePlayback(ClipInstance* clipInstance, bool do
 		// Must set this before calling setPos, otherwise, ParamManagers won't know to expectEvent()
 		thisClip->activeIfNoSolo = true;
 
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack =
 		    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, thisClip);
 
@@ -516,7 +516,7 @@ Error Arrangement::doUniqueCloneOnClipInstance(ClipInstance* clipInstance, int32
 	}
 	Clip* oldClip = clipInstance->clip;
 
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack =
 	    setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(oldClip);
 

@@ -18,6 +18,7 @@
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/selection.h"
 #include "gui/menu_item/setting_edit.h"
+#include "gui/menu_item/short_label.h"
 #include "gui/ui/sound_editor.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
@@ -62,7 +63,7 @@ public:
 		using enum l10n::String;
 		return {
 		    l10n::getView(STRING_FOR_CARRIERS),
-		    optType == OptType::SHORT ? l10n::getView(STRING_FOR_MODULATOR_1) : l10n::getView(STRING_FOR_MODULATOR_1),
+		    optType == OptType::SHORT ? shortLabel(STRING_FOR_MODULATOR_1) : l10n::getView(STRING_FOR_MODULATOR_1),
 		};
 	}
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {

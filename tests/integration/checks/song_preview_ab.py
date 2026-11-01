@@ -45,6 +45,9 @@ What the run checks (tests/integration/scenarios/song_preview_ab_scenario.cpp wr
   SP-PREVIEW-STALL
             a song preview whose prefix read is held far past the preview's 600-tick bound gives up with the card
             error, draws blank, and releases the scroll-in it owed.
+  SP-OPEN-SCROLL
+            the vertical scroll-in that opens the browser, with its timer firing before the first song's preview has
+            answered: it takes no row from the store until the preview fills it, and ends showing the whole preview.
   SP-DX     one DX7 bank picked in the DX browser, read through the prefix channel and parsed. The run requires the
             fixture's file, 32 patches and first patch name. SP-DX-WAIT prints the ticks it took.
   SP-DX-STALL
@@ -65,7 +68,7 @@ MIN_CASES = 6
 
 SYNTHETIC = re.compile(r"^SP-CASE (render|json|noprev|missing|corrupt|empty) ")
 SUMMARY = re.compile(
-    r"^(SP-SUMMARY|SP-DEFER|SP-WINDOW|SP-SWAP-SUMMARY|SP-PREVIEW-STALL) "
+    r"^(SP-SUMMARY|SP-DEFER|SP-WINDOW|SP-SWAP-SUMMARY|SP-PREVIEW-STALL|SP-OPEN-SCROLL) "
 )
 STAGES = re.compile(
     r"^(SP-LISTING|SP-NEWNAME|SP-PREDICT|SP-SLOT|SP-VARIATION|SP-BYPATH|SP-DX|SP-TIER|SP-RELOAD)"
@@ -75,6 +78,12 @@ STAGES = re.compile(
 def check(gate, run):
     if not run.has("SP-SUMMARY "):
         gate.fail("no SP-SUMMARY line; the scenario did not reach its summary")
+        return
+
+    if not run.has("SP-OPEN-SCROLL "):
+        gate.fail(
+            "no SP-OPEN-SCROLL line; the browser's opening scroll-in was not checked"
+        )
         return
 
     cases = len(run.starting("SP-CASE "))

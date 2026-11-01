@@ -134,6 +134,16 @@ public:
 	static void parkScrollIn(int32_t direction) { loadSongUI.pendingScrollDirection_ = direction; }
 	/// The scroll-in direction still owed, or 0 once a render has released it.
 	static int32_t parkedScrollIn() { return loadSongUI.pendingScrollDirection_; }
+
+	/// Set up the vertical scroll-in out of `PadLEDs::imageStore` that opening the browser starts, as
+	/// `onBrowserOpened` does once the listing has asked for the first song's preview.
+	static void beginOpenScrollIn() {
+		PadLEDs::vertical::setupScroll(1, false);
+		loadSongUI.scrollingIntoSlot = true;
+		currentUIMode = UI_MODE_VERTICAL_SCROLL;
+	}
+	/// One firing of the scroll's timer.
+	static void scrollTimer() { (void)loadSongUI.timerCallback(); }
 };
 
 /// Reaches Browser's listing internals. Declared a friend by `Browser`; defined here because this
@@ -263,7 +273,7 @@ public:
 		// Forcing it to NONE here reproduces the precondition a real gesture would already have,
 		// rather than either skipping the check or leaving this probe at the mercy of stage order.
 		currentUIMode = UI_MODE_NONE;
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack =
 		    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
 		view.navigateThroughPresetsForInstrumentClip(offset, modelStack, true);
@@ -271,7 +281,7 @@ public:
 	/// Drives View's REAL output-type gesture on `clip`. See navigateThroughPresetsForInstrumentClip()
 	/// above for why this goes through View rather than InstrumentClip::changeOutputType directly.
 	static bool changeOutputType(InstrumentClip* clip, OutputType newOutputType) {
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack =
 		    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
 		return view.changeOutputType(newOutputType, modelStack, true);
@@ -557,6 +567,7 @@ enum class Stage : uint8_t {
 	Swap,
 	Listing,
 	Acquire,
+	OpenScroll,
 	Dx,
 	PreviewStall,
 	ByPath,
@@ -3528,6 +3539,62 @@ void runPreviewStallTick() {
 	}
 }
 
+// ── Stage: the scroll-in that opens the browser ─────────────────────────────
+//
+// SP-OPEN-SCROLL. Opening the browser asks for the first song's preview and starts a vertical scroll-in out of
+// `PadLEDs::imageStore`; the scroll's timer fires before the preview's read has answered. The scroll must not take a
+// row from the store until the preview has filled it: once it finishes, the pads must hold the whole preview, the
+// first row brought in (the bottom one) included. After the acquire stage and before the DX stage, whose held reads
+// would leave the prefix channel busy.
+
+enum class OpenScrollStep : uint8_t { Start, Wait, Finished };
+OpenScrollStep g_openScrollStep = OpenScrollStep::Start;
+/// Whether the preview was still owed when the scroll's timer first fired: without it the stage proves nothing.
+bool g_openScrollPendingAtTimer = false;
+
+void runOpenScrollTick() {
+	switch (g_openScrollStep) {
+	case OpenScrollStep::Start:
+		startCase(kSongsDir, kCases[0].filename);
+		SongPreviewAbProbe::beginOpenScrollIn();
+		g_openScrollPendingAtTimer = SongPreviewAbProbe::pending();
+		SongPreviewAbProbe::scrollTimer();
+		g_openScrollStep = OpenScrollStep::Wait;
+		return;
+
+	case OpenScrollStep::Wait: {
+		if (!driveCase("open-scroll")) {
+			return;
+		}
+		// The rest of the scroll, in this one tick: the app's render pass may repaint the live image between ticks.
+		int32_t timers = 0;
+		while (currentUIMode == UI_MODE_VERTICAL_SCROLL && timers < 2 * kDisplayHeight) {
+			SongPreviewAbProbe::scrollTimer();
+			timers++;
+		}
+		const bool finished = currentUIMode == UI_MODE_NONE;
+		const bool whole = memcmp(&PadLEDs::image[0][0], &PadLEDs::imageStore[0][0], kImageBytes) == 0;
+		const bool rendered = imageCrc() == uniformImageCrc(kCases[0].pad);
+		printf("SP-OPEN-SCROLL pendingAtTimer=%d finished=%d whole=%d rendered=%d timers=%d\n",
+		       g_openScrollPendingAtTimer ? 1 : 0, finished ? 1 : 0, whole ? 1 : 0, rendered ? 1 : 0, timers);
+		if (!g_openScrollPendingAtTimer || !finished || !whole || !rendered) {
+			printf("SP-OPEN-SCROLL FAIL the browser's opening scroll-in did not bring in the whole preview: "
+			       "pendingAtTimer=%d finished=%d whole=%d rendered=%d, wanted all 1\n",
+			       g_openScrollPendingAtTimer ? 1 : 0, finished ? 1 : 0, whole ? 1 : 0, rendered ? 1 : 0);
+			g_failures++;
+		}
+		currentUIMode = UI_MODE_NONE;
+		g_caseStarted = false;
+		g_caseSettled = false;
+		g_openScrollStep = OpenScrollStep::Finished;
+		return;
+	}
+
+	case OpenScrollStep::Finished:
+		return;
+	}
+}
+
 void printSummary() {
 	printf("SP-SUMMARY cases=%zu corpus=%zu failures=%d\n", kCases.size(), g_corpusRan, g_failures);
 
@@ -3623,6 +3690,8 @@ void deluge_scenario_song_preview_ab_begin(void) {
 	g_dxTicks = 0;
 	g_dxGiveUpsBefore = 0;
 	g_previewStallStep = PreviewStallStep::Start;
+	g_openScrollStep = OpenScrollStep::Start;
+	g_openScrollPendingAtTimer = false;
 	g_acquireStep = AcquireStep::Fixture;
 	g_acqLoads = 0;
 	g_acqReferenceName.clear();
@@ -3676,6 +3745,12 @@ void deluge_scenario_song_preview_ab_dispatch_step(void) {
 	case Stage::Acquire:
 		runAcquireTick();
 		if (g_acquireStep == AcquireStep::Finished) {
+			g_stage = Stage::OpenScroll;
+		}
+		break;
+	case Stage::OpenScroll:
+		runOpenScrollTick();
+		if (g_openScrollStep == OpenScrollStep::Finished) {
 			g_stage = Stage::Dx;
 		}
 		break;

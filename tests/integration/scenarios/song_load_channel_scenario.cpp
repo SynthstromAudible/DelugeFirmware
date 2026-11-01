@@ -263,7 +263,9 @@ void runTick() {
 			break;
 		}
 		// The browser's scroll-in runs on the UI timer, which nothing fires in the harness; BACK is a browser gesture
-		// only once it has finished.
+		// only once it has finished. The scroll holds for the first song's preview, which the graphics routine asks
+		// for again until its bytes land, as each frame does on the device.
+		loadSongUI.graphicsRoutine();
 		for (int32_t t = 0; currentUIMode == UI_MODE_VERTICAL_SCROLL && t < kDisplayHeight * 4; t++) {
 			(void)loadSongUI.timerCallback();
 		}
