@@ -138,7 +138,7 @@ void resetSlicerEnv() {
 	new (&g_range.get()->sampleHolder.filePath) std::string();
 	new (&g_sample.get()->filePath) std::string("SAMPLES/SLICE.WAV");
 
-	g_kit.get()->firstDrum = reinterpret_cast<Drum*>(g_drum.get());
+	g_kit.get()->firstDrum = static_cast<Drum*>(g_drum.get());
 
 	// AUDIO, so graphicsRoutine()'s voice-position lookup short-circuits before it reaches the
 	// voice machinery. It is the deferral re-ask at the top of that function the specs are after.
@@ -333,7 +333,7 @@ DELUGE_STUB_FN(stub_uiModEncoderButtonAction, "_ZN2UI22modEncoderButtonActionEhb
 DELUGE_STUB_FN(stub_uiDisplayOrLanguageChanged, "_ZN2UI24displayOrLanguageChangedEv")
 DELUGE_STUB_FN(stub_uiClose, "_ZN2UI5closeEv")
 DELUGE_STUB_FN(stub_uiCtor, "_ZN2UIC2Ev")
-DELUGE_STUB_RET(stub_kitGetDrumFromIndex, "_ZN3Kit16getDrumFromIndexEi", Drum*, reinterpret_cast<Drum*>(g_drum.get()))
+DELUGE_STUB_RET(stub_kitGetDrumFromIndex, "_ZN3Kit16getDrumFromIndexEi", Drum*, static_cast<Drum*>(g_drum.get()))
 DELUGE_STUB_FN(stub_kitResetDrumTempValues, "_ZN3Kit19resetDrumTempValuesEv")
 DELUGE_STUB_FN(stub_kitAddDrum, "_ZN3Kit7addDrumEP4DrumP4Song")
 DELUGE_STUB_FN(stub_drumCtor, "_ZN4DrumC2EN6deluge7project8DrumTypeE")
