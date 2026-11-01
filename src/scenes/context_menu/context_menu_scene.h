@@ -267,6 +267,9 @@ private:
 	/// The clock the render pass last saw, so `next_timer()` can answer without one of its own --
 	/// the same idiom `RenameScene::last_render_ms_` uses.
 	uint32_t last_render_ms_ = 0;
+	/// Where BACK's blink started: `focusRegained`'s `blinkLed` restarts it as the menu opens, taken on the first
+	/// render after `on_enter`.
+	std::optional<uint32_t> blink_origin_ms_{};
 };
 
 /// @brief The application's one context menu.

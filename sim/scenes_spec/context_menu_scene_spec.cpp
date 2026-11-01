@@ -483,6 +483,31 @@ describe cm_open("scenes::context_menu::ContextMenuScene opening", $ {
 		}
 		expect(blinked).to_be_true();
 	});
+
+	it("starts the back LED's blink where the menu opens: lit 250 ms, then off", _ {
+		reset_globals();
+		spec::SongFixture f = spec::make_synth_song();
+		Rig r;
+		r.open(context_of(f), DescriptorId::ResetMidiFollow);
+		constexpr uint8_t kBackLed = 16;
+		const auto back_lit = [&r] {
+			bool lit = false;
+			for (const auto& [led, on] : r.fake.led_writes) {
+				if (led == kBackLed) {
+					lit = on;
+				}
+			}
+			return lit;
+		};
+		for (uint32_t t = 1000; t <= 1240; t += 10) {
+			r.tick(t);
+		}
+		expect(back_lit()).to_be_true();
+		for (uint32_t t = 1250; t <= 1300; t += 10) {
+			r.tick(t);
+		}
+		expect(back_lit()).to_be_false();
+	});
 });
 
 describe cm_input("scenes::context_menu::ContextMenuScene input", $ {
