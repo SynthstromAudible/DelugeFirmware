@@ -41,7 +41,7 @@ than just diffing it:
   regular/range) are named by no submenu literal anywhere, in the firmware or in this dump, and a
   `"select_chain"` entry is their only appearance. Nodes with no chain carry no key at all, as with
   `"available_when"`. The same node can appear under both keys (`unison_spread` and `voice_count`
-  are ordinary children *and* chain targets), carrying the same `"id"` in each -- deduplicate on
+  are ordinary children _and_ chain targets), carrying the same `"id"` in each -- deduplicate on
   `"id"` if you need a node set rather than a tree.
 - **`"ref": true` marks a chain target that is already on the current path -- a cycle stub.** The
   patch-cable pages form a genuine two-hop loop (the cable-strength page's select press opens the
