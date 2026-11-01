@@ -17,6 +17,8 @@ guidebook:
 
 import StepFocus from "../../../../components/guidebook/StepFocus.astro"
 import { Steps } from "@astrojs/starlight/components"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_12_2_2 from "../../../../assets/guidebook/figs/12-midi__02-midi-hardware-configuration--2.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -24,50 +26,68 @@ MIDI configuration requires the match up of both Deluge along with the external 
 
 #### Typical MIDI Set Up
 
-| MIDI IN MIDI CH 10 USB MIDI connected                                                                                                                                                |                                                              | Synth module                    |
-| ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------ | ------------------------------- |
-| devices compatible                                                                                                                                                                   | controllable via the                                         |                                 |
-| with USB hosting. MIDI in MIDI out MIDI CH 1 MIDI CH 10 MIDI out MIDI CH 1 External keyboard or controller to play chords / notes pitch wheel / mod wheel / controls / pads MIDI out | Deluge sequencer. :key[Shift + Select] setting menu provides | MIDI settings options for MIDI. |
+<Figure
+  id="fig-12.2-2"
+  src={fig_fig_12_2_2}
+  alt={
+    "Diagram: USB MIDI connected Synth module devices compatible controllable via the with USB hosting. Deluge sequencer. MIDI in MIDI out MIDI CH 1 MIDI…"
+  }
+  page={239}
+/>
 
 #### MIDI Settings
 
 :key[Shift + Select]
 
-| Function      | Sub Category                          | Setting Options PPQN - sync pulses. Pulses per quarter note. 24 default.                                                                                                                                                                                                                                                 |
-| ------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| TRIGGER CLOCK | INPUT OUTPUT CLOCK                    | AUTO start on/off. Whether the presence of a trigger clock signal should start or stop playback automatically. PPQN - sync pulses. Pulses per quarter note. 24 default. IN - MIDI beat clock input ON or OFF. OUT - MIDI beat clock output ON or OFF.                                                                    |
-| MIDI          | MIDI-THRU                             | TEMPO MAGNITUDE MATCHING - tempo matching ON or OFF. MIDI-THRU, ON or OFF. PLAY RESTART - restart playback if already playing.                                                                                                                                                                                           |
-| MIDI Settings | COMMANDS DIFFERENTIATE INPUTS DEVICES | RECORD TAP TEMPO UNDO REDO LOOP LAYERING LOOP - same as loop but with overdubs. Sets MIDI differentiation, ON or OFF. MIDI Device setting options are available depending on the connected USB and MIDI devices e.g. din, computer etc: MPE. Sets MPE Zone configuration. VELOCITY. Default sensitivity per MIDI device. |
+| Function                | Sub Category         | Setting Options                                                                                                                                                                                    |
+| ----------------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| TRIGGER CLOCK           | INPUT                | PPQN - sync pulses. Pulses per quarter note. 24 default.                                                                                                                                           |
+|                         |                      | AUTO start on/off. Whether the presence of a trigger clock signal should start or stop playback automatically.                                                                                     |
+|                         | OUTPUT               | PPQN - sync pulses. Pulses per quarter note. 24 default.                                                                                                                                           |
+| MIDI<br />MIDI Settings | CLOCK                | IN - MIDI beat clock input ON or OFF.                                                                                                                                                              |
+|                         |                      | OUT - MIDI beat clock output ON or OFF.                                                                                                                                                            |
+|                         |                      | TEMPO MAGNITUDE MATCHING - tempo matching ON or OFF.                                                                                                                                               |
+|                         | MIDI-THRU            | MIDI-THRU, ON or OFF.                                                                                                                                                                              |
+|                         | COMMANDS             | PLAY                                                                                                                                                                                               |
+|                         |                      | RESTART - restart playback if already playing.                                                                                                                                                     |
+|                         |                      | RECORD                                                                                                                                                                                             |
+|                         |                      | TAP TEMPO                                                                                                                                                                                          |
+|                         |                      | UNDO                                                                                                                                                                                               |
+|                         |                      | REDO                                                                                                                                                                                               |
+|                         |                      | LOOP                                                                                                                                                                                               |
+|                         |                      | LAYERING LOOP - same as loop but with overdubs.                                                                                                                                                    |
+|                         | DIFFERENTIATE INPUTS | Sets MIDI differentiation, ON or OFF.                                                                                                                                                              |
+|                         | DEVICES              | MIDI Device setting options are available depending on the connected USB and MIDI devices e.g. din, computer etc: MPE. Sets MPE Zone configuration. VELOCITY. Default sensitivity per MIDI device. |
 
 #### MIDI Implementation Chart
 
-| Message          | Type                         | Transmitted                            | Recognised                                               |
-| ---------------- | ---------------------------- | -------------------------------------- | -------------------------------------------------------- |
-|                  | Note on                      | Yes                                    | Yes                                                      |
-| Velocity         | Note off                     | No                                     | No                                                       |
-| Aftertouch /     | Polyphonic                   | No                                     | Yes                                                      |
-| Pressure         | Channel                      | Yes                                    | Yes                                                      |
-| Pitch bend       |                              | Yes                                    | Yes                                                      |
-| CC & general     |                              | Yes by user                            | Yes Numbers assigned Parameter must be ‘learned’ by user |
-|                  | CC 0                         | Yes                                    | No                                                       |
-| Bank select      | CC 32 (LSB)                  | Yes                                    | No                                                       |
-| PGM change       |                              | Yes                                    | No                                                       |
-|                  | All sound off                | No                                     | No                                                       |
-|                  | Reset all controller         | No                                     | No                                                       |
-| Channel mode     | Local control                | No                                     | No                                                       |
-|                  | All notes off                | No                                     | Yes                                                      |
-|                  | System exclusive             | No                                     | No                                                       |
-|                  | MIDI time code quarter frame | No                                     | No                                                       |
-| System common    | Song position pointer        | Yes                                    | Yes                                                      |
-|                  | Song select                  | No                                     | No                                                       |
-|                  | Tune request                 | No                                     | No                                                       |
-|                  | Clock                        | Yes\*                                  | Yes                                                      |
-|                  | Start                        | Yes\*                                  | Yes                                                      |
-|                  | Continue                     | Yes\*                                  | Yes                                                      |
-| System real time | Stop                         | Yes\*                                  | Yes                                                      |
-|                  | Active sensing               | No                                     | No                                                       |
-|                  | Reset                        | No                                     | No                                                       |
-|                  |                              | \*Only if MIDI Clock output is enabled |                                                          |
+| Message                    | Type                         | Transmitted                            | Recognised                                   |
+| -------------------------- | ---------------------------- | -------------------------------------- | -------------------------------------------- |
+| Velocity                   | Note on                      | Yes                                    | Yes                                          |
+|                            | Note off                     | No                                     | No                                           |
+| Aftertouch /<br />Pressure | Polyphonic                   | No                                     | Yes                                          |
+|                            | Channel                      | Yes                                    | Yes                                          |
+| Pitch bend                 |                              | Yes                                    | Yes                                          |
+| CC & general               |                              | Yes<br />Numbers assigned by user      | Yes<br />Parameter must be ‘learned’ by user |
+| Bank select                | CC 0                         | Yes                                    | No                                           |
+|                            | CC 32 (LSB)                  | Yes                                    | No                                           |
+| PGM change                 |                              | Yes                                    | No                                           |
+| Channel mode               | All sound off                | No                                     | No                                           |
+|                            | Reset all controller         | No                                     | No                                           |
+|                            | Local control                | No                                     | No                                           |
+|                            | All notes off                | No                                     | Yes                                          |
+| System common              | System exclusive             | No                                     | No                                           |
+|                            | MIDI time code quarter frame | No                                     | No                                           |
+|                            | Song position pointer        | Yes                                    | Yes                                          |
+|                            | Song select                  | No                                     | No                                           |
+|                            | Tune request                 | No                                     | No                                           |
+| System real time           | Clock                        | Yes\*                                  | Yes                                          |
+|                            | Start                        | Yes\*                                  | Yes                                          |
+|                            | Continue                     | Yes\*                                  | Yes                                          |
+|                            | Stop                         | Yes\*                                  | Yes                                          |
+|                            | Active sensing               | No                                     | No                                           |
+|                            | Reset                        | No                                     | No                                           |
+|                            |                              | \*Only if MIDI Clock output is enabled |                                              |
 
 <span id="fig-12.2-1"></span>
 

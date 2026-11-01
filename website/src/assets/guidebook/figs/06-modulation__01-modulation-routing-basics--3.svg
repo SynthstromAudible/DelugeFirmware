@@ -1,0 +1,57 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 379 356"><defs><path id="06-modulation__01-modulation-routing-basics--3-s1" d="M0 0H-45.3" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))"/><path id="06-modulation__01-modulation-routing-basics--3-s2" d="M0 0H-45.4" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))"/></defs>
+<defs>
+<clipPath id="06-modulation__01-modulation-routing-basics--3-clip_1">
+<path transform="matrix(1,0,0,-1,-43,549.8)" d="M43 193.8H422V549.8H43Z" clip-rule="evenodd"/>
+</clipPath>
+<mask id="06-modulation__01-modulation-routing-basics--3-mask_2">
+<g transform="matrix(.120000008,0,0,.120000008,143.0,1.6)">
+<image id="06-modulation__01-modulation-routing-basics--3-image_3" width="730" height="2856" xlink:href="/guidebook/img/06-modulation__01-modulation-routing-basics--3-1.webp"/>
+</g>
+</mask>
+</defs>
+<g>
+<g clip-path="url(#06-modulation__01-modulation-routing-basics--3-clip_1)">
+<path transform="matrix(1,0,0,-1,-43,549.8)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M424.7 688.6V84.1"/>
+<g mask="url(#06-modulation__01-modulation-routing-basics--3-mask_2)">
+<g transform="matrix(.120000008,0,0,.120000008,143.0,1.6)">
+<image class="gb-ink" id="06-modulation__01-modulation-routing-basics--3-image_4" width="730" height="2856" xlink:href="/guidebook/img/06-modulation__01-modulation-routing-basics--3-2.webp"/>
+</g>
+</g>
+<path transform="matrix(1,0,0,-1,-43,549.8)" d="M180.2 199.7H229.8V419.6H180.2Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(256.8 64.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">ENV 2 - envelope 2</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(256.8 21.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Y - vertical control*</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(256.8 107.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">LFO 2</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(256.6 144.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">SIDECHAIN</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(305.6 144.1)" font-size="11" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(256.6 152.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Compressor patchable to</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(256.6 160.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">anything.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(256.6 186.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">NOTE.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(256.6 194.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Keyboard tracking where sounds</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(256.6 202.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">reflect high / low of keyboard.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(256.6 229.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">RANDOM.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(256.6 237.6)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">A random number generator each</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(256.6 245.6)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">time a new voice sounds.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(256.6 273.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">VELOCITY.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(256.6 281.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Editable in clip view. Response to</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(256.6 289.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">how hard a note is played.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(256.6 316.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">AFTERTOUCH.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(256.6 324.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">External controller aftertouch</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(256.6 332.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">midi messages. Polyphonic</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(256.6 340.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">and channel wide.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(12.0 64.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">ENV 1 - envelope 1</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(12.0 19.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">X - horizontal control*</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(12.0 107.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">LFO 1</tspan></text>
+<path transform="matrix(1,0,0,-1,-43,549.8)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M207.7 488.8H167.7"/>
+<path transform="matrix(1,0,0,-1,-43,549.8)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M207.7 532.0H168.5"/>
+<use href="#06-modulation__01-modulation-routing-basics--3-s1" transform="matrix(1 0 0 -1 253.5 61)"/>
+<use href="#06-modulation__01-modulation-routing-basics--3-s1" transform="matrix(1 0 0 -1 253.5 17.8)"/>
+<path transform="matrix(1,0,0,-1,-43,549.8)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M207.7 445.6H102.0"/>
+<use href="#06-modulation__01-modulation-routing-basics--3-s1" transform="matrix(1 0 0 -1 253.5 104.2)"/>
+<use href="#06-modulation__01-modulation-routing-basics--3-s1" transform="matrix(1 0 0 -1 253.3 146)"/>
+<use href="#06-modulation__01-modulation-routing-basics--3-s2" transform="matrix(1 0 0 -1 253.1 189.1)"/>
+<use href="#06-modulation__01-modulation-routing-basics--3-s2" transform="matrix(1 0 0 -1 252.9 230.9)"/>
+<use href="#06-modulation__01-modulation-routing-basics--3-s1" transform="matrix(1 0 0 -1 252.6 274)"/>
+<use href="#06-modulation__01-modulation-routing-basics--3-s2" transform="matrix(1 0 0 -1 252.4 317)"/>
+</g>
+</g>
+</svg>
