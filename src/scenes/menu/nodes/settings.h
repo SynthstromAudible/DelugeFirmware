@@ -1192,6 +1192,9 @@ inline constexpr Node runtime_features =
 class FirmwareVersionItem final : public CustomItem {
 public:
 	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
+	deluge::ui::InputClaims owned_input(const MenuContext& /*ctx*/, const MenuState& /*state*/) const override {
+		return deluge::ui::InputClaims{.select = true};
+	}
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
 	                                 const deluge::ui::shell::UiContext& ui_ctx, const MenuContext& ctx,
 	                                 MenuState& state) const override;
@@ -1204,6 +1207,9 @@ inline const FirmwareVersionItem kFirmwareVersionItem{};
 class BatteryLevelItem final : public CustomItem {
 public:
 	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
+	deluge::ui::InputClaims owned_input(const MenuContext& /*ctx*/, const MenuState& /*state*/) const override {
+		return deluge::ui::InputClaims{.select = true};
+	}
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
 	                                 const deluge::ui::shell::UiContext& ui_ctx, const MenuContext& ctx,
 	                                 MenuState& state) const override;

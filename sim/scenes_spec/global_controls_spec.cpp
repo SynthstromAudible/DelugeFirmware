@@ -329,14 +329,6 @@ struct GcRig {
 			last = gc.handle(e, ctx());
 		}
 		lowering.end_tick(at_ms);
-		// `ButtonId::SelectEnc` and `ButtonId::Back` are **held back** by the lowering
-		// (`shell/input_lowering.cpp:32-34`, `:363-377`) and routed after render, so the shell can
-		// let a widget claim them first (`Router::route_post_render`). Nothing here builds a frame,
-		// so nothing claims them and every one is routed -- which is what the shell does with an
-		// empty `InputClaims` too.
-		for (const UiEvent& held : lowering.held_back()) {
-			last = gc.handle(held, ctx());
-		}
 		return last;
 	}
 };

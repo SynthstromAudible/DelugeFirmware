@@ -818,16 +818,6 @@ struct Input {
 			last = audio_clip_scene().handle(e, ctx());
 		}
 		lowering.end_tick(at_ms);
-		// **`Button{Back}` never comes out of `next()`.** It is one of the widget-owned inputs the
-		// lowering HOLDS BACK from routing so a widget can claim it while it is being drawn
-		// (`shell/input_lowering.h`'s "the held-back split"), and the shell delivers those after
-		// render, skipping whatever a widget claimed. This rig builds no frame, so nothing can have
-		// claimed anything and all of them are delivered. Without this the BACK examples below did
-		// not fail loudly -- `handle` was simply never called with a `Back` event, and the "not
-		// claimed" assertion passed for entirely the wrong reason.
-		for (const UiEvent& held : lowering.held_back()) {
-			last = audio_clip_scene().handle(held, ctx());
-		}
 		return last;
 	}
 

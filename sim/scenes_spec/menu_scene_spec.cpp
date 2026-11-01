@@ -881,6 +881,44 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		expect(menu_scene().focused() == &settings_root).to_be_true();
 	});
 
+	it("a Back that ascends to the root is delivered once, and the next Back closes the menu", _ {
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(settings_root);
+		r.shell.tick(0);
+		r.enter(10);
+		r.shell.tick(20);
+		expect(depth_of()).to_equal(1);
+
+		// Owned below the root: the render reads it and `after_render` ascends, and it reaches `handle()` nowhere.
+		r.button(kBackX, kBackY, true, 30);
+		r.shell.tick(40);
+		expect(depth_of()).to_equal(0);
+		expect(r.shell.stack().depth()).to_equal(size_t(1));
+
+		// At the root the menu owns no Back, so `handle()` closes the editor.
+		r.button(kBackX, kBackY, false, 50);
+		r.button(kBackX, kBackY, true, 60);
+		r.shell.tick(70);
+		expect(r.shell.stack().depth()).to_equal(size_t(0));
+	});
+
+	it("a Select turn and the press after it in one tick both reach the menu that took the input", _ {
+		// The press enters in `after_render`, after both were routed, so neither reaches the page it opens.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(settings_root);
+		r.shell.tick(0);
+		r.turn(1, 10);
+		r.enter(10);
+		r.shell.tick(20);
+		expect(depth_of()).to_equal(1);
+		expect(cursor_of(0)).to_equal(1);
+		expect(cursor_of(1)).to_equal(0);
+	});
+
 	it("select descends on release, not press", _ {
 		// `SoundEditor::buttonAction` acts on `!on` (`sound_editor.cpp:609-613`).
 		select_language();
@@ -1110,8 +1148,8 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		expect(static_cast<int>(res.actions[0].kind)).to_equal(static_cast<int>(deluge::ui::shell::Action::Kind::Remove));
 		expect(static_cast<int>(res.actions[0].pop_to)).to_equal(static_cast<int>(SceneKind::FirstApp));
 
-		// And through the shell: the root's back is never claimed, so it reaches `handle()`
-		// post-render and the stack empties.
+		// And through the shell: the menu owns no Back at the root, so it reaches `handle()` and the
+		// stack empties.
 		r.button(kBackX, kBackY, true, 10);
 		r.shell.tick(20);
 		expect(r.shell.stack().depth()).to_equal(size_t(0));

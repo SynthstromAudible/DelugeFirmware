@@ -517,8 +517,8 @@ ActionResult ShellHostUI::timerCallback() {
 	// `BrowserScene::take_choice()` (`scenes/browser/browser_scene.h:382`) is the menu outbox's twin:
 	// one slot, filled by `Descriptor::accept`'s `Defer` answer, announcing nothing. **After the
 	// tick**, because the choice is filed while `Shell::tick` routes the press
-	// (`scenes/browser/browser_scene.cpp:896-898`, reached from step 3's `pump_input`,
-	// `shell/shell.cpp:332`, or step 8's held-back delivery, `:412`). **Above the close check**, so
+	// (`scenes/browser/browser_scene.cpp:896-898`, reached from step 3's `pump_input` or step 7's
+	// `after_render`). **Above the close check**, so
 	// no path through this function can skip it. **Unconditional**, because asking is what takes it.
 	//
 	// **After `dispatchShellActions()`, and that order is written down rather than incidental.** Both

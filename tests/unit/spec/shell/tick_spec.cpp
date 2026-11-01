@@ -117,6 +117,13 @@ public:
 			(void)r.actions.push_back(Action{.kind = Action::Kind::Repaint, .surface = SurfaceRole::Main});
 			return r;
 		}
+		if (push_overlay_from_handle) {
+			push_overlay_from_handle = false;
+			Result r;
+			r.handled = true;
+			(void)r.actions.push_back(Action{.kind = Action::Kind::Push, .id = SceneId{kOverlay, 0}});
+			return r;
+		}
 		if (!emit_popup) {
 			return Result::unhandled();
 		}
@@ -138,7 +145,9 @@ public:
 		return r;
 	}
 	void tick(uint32_t) override { ticks++; }
-	bool widgets_own_input() const override { return widgets_own; }
+	bool owns(const UiEvent& event) const override {
+		return owns_turn && event.kind == UiEvent::Kind::Encoder && event.encoder == deluge::ui::EncoderRole::Select;
+	}
 	void on_model_changed(const deluge::notify::DirtySet&) override { model_changed++; }
 	std::optional<uint32_t> next_timer() const override { return timer; }
 	Scene::RepaintSurfaces timer_repaints() const override { return timer_repaints_; }
@@ -152,8 +161,8 @@ public:
 	RGB colour = kBaseColour;
 	int oled_renders = 0, grid_renders = 0, events = 0, ticks = 0, model_changed = 0;
 	int after_renders = 0, events_at_after_render = -1, events_at_render = -1, turns_seen = 0;
-	/// What `widgets_own_input()` answers: a menu-like scene whose widgets read the held-back shapes.
-	bool widgets_own = false;
+	/// Whether `owns()` claims the select-encoder turn for the render, as a menu's list does.
+	bool owns_turn = false;
 	/// One letter per event `handle()` saw, in order: `P` pad, `E` encoder, `B` anything else.
 	std::string order;
 	uint32_t frame_ms = 0;
@@ -161,10 +170,12 @@ public:
 	bool read_turn = false;
 	/// Whether the next `handle()` returns a `Popup` action.
 	bool emit_popup = false;
+	/// Whether the next `handle()` pushes the overlay scene (one-shot).
+	bool push_overlay_from_handle = false;
 	/// Whether the next `after_render()` returns `Repaint{Main}` (one-shot).
 	bool emit_repaint_from_after_render = false;
 	/// Whether the next `handle()` returns `Repaint{Main}` (one-shot), which is how a scene reacts
-	/// to a widget-owned event the shell holds back and delivers after render.
+	/// to input it reads in `handle()`.
 	bool emit_repaint_from_handle = false;
 	UiEvent::Kind last_event_kind = UiEvent::Kind::AllReleased;
 	std::optional<uint32_t> timer;
@@ -199,7 +210,10 @@ public:
 		events++;
 		return Result::unhandled();
 	}
-	void tick(uint32_t) override { ticks++; }
+	void tick(uint32_t dt_ms) override {
+		ticks++;
+		ticked_ms += dt_ms;
+	}
 
 	bool is_grid_overlay() const override { return overlay; }
 	bool occludes_grid() const override { return occludes; }
@@ -214,6 +228,8 @@ public:
 	bool paints = true;
 	deluge::ui::grid::GreyoutMask mask{};
 	int oled_renders = 0, grid_renders = 0, events = 0, ticks = 0;
+	/// The time every `tick()` has handed this scene, summed.
+	uint32_t ticked_ms = 0;
 
 private:
 	SceneKind kind_;
@@ -726,7 +742,7 @@ describe shell_tick("shell::Shell::tick", $ {
 	it("a passive overlay leaves the scene beneath focused and routed", _ {
 		deluge::notify::dirty().drain();
 		Rig r;
-		r.base.widgets_own = true;
+		r.base.owns_turn = true;
 		r.base.read_turn = true;
 		r.shell.init({kBase, 0});
 		// The console strip: `oled_transparent` on every role, so the base is still drawn beneath
@@ -762,35 +778,76 @@ describe shell_tick("shell::Shell::tick", $ {
 		expect(r.shell.lowering().ctx().tick_ms).to_equal(uint32_t(30));
 	});
 
-	it("a held-back event claimed during render is not routed; an unclaimed one is", _ {
+	it("an owned event is consumed by the render and not routed", _ {
 		deluge::notify::dirty().drain();
-		Rig claimed;
-		claimed.base.widgets_own = true;
-		claimed.base.read_turn = true;
-		claimed.shell.init({kBase, 0});
-		claimed.shell.tick(0);
-		claimed.shell.on_encoder_edges(3, 2, 25);
-		claimed.shell.tick(30);
-		expect(claimed.base.turns_seen).to_equal(1);
-		expect(claimed.base.events).to_equal(0); // the frame owned it
-
-		deluge::notify::dirty().drain();
-		Rig unclaimed;
-		unclaimed.base.widgets_own = true;
-		unclaimed.base.read_turn = false;
-		unclaimed.shell.init({kBase, 0});
-		unclaimed.shell.tick(0);
-		unclaimed.shell.on_encoder_edges(3, 2, 25);
-		unclaimed.shell.tick(30);
-		expect(unclaimed.base.events).to_equal(1);
-		expect(unclaimed.base.last_event_kind == UiEvent::Kind::Encoder).to_be_true();
-		// Delivered after render *and* after this tick's after_render(): the claim is only knowable
-		// once the frame that could have made it has been built and acted on.
-		expect(unclaimed.base.after_renders).to_equal(2);
-		expect(unclaimed.base.events_at_after_render).to_equal(0);
+		ownership_audit() = {};
+		Rig r;
+		r.base.owns_turn = true;
+		r.base.read_turn = true;
+		r.shell.init({kBase, 0});
+		r.shell.tick(0);
+		r.shell.on_encoder_edges(3, 2, 25);
+		r.shell.tick(30);
+		expect(r.base.turns_seen).to_equal(1);
+		expect(r.base.events).to_equal(0); // the frame owned it
+		expect(ownership_audit().undeclared_claims).to_equal(uint32_t(0));
+		expect(ownership_audit().unclaimed_owned).to_equal(uint32_t(0));
 	});
 
-	it("a held-back event for a scene whose widgets own no input is routed before the render", _ {
+	it("an unowned event is routed before the render, which cannot read it", _ {
+		deluge::notify::dirty().drain();
+		Rig r;
+		r.base.owns_turn = false;
+		r.base.read_turn = true;
+		r.shell.init({kBase, 0});
+		r.shell.tick(0);
+		r.shell.on_encoder_edges(3, 2, 25);
+		r.shell.tick(30);
+		expect(r.base.events).to_equal(1);
+		expect(r.base.events_at_render).to_equal(1);
+		expect(r.base.turns_seen).to_equal(0);
+	});
+
+	it("no event is delivered after the render", _ {
+		deluge::notify::dirty().drain();
+		Rig r;
+		r.base.owns_turn = true;
+		r.base.read_turn = false;
+		r.shell.init({kBase, 0});
+		r.shell.tick(0);
+		r.shell.on_board_event(button_ev(8, 3, true), 25); // Play
+		r.shell.on_encoder_edges(3, 2, 26);
+		r.shell.tick(30);
+		expect(r.base.events).to_equal(1); // Play only
+		expect(r.base.events_at_after_render).to_equal(r.base.events);
+	});
+
+	it("counts a widget claiming what its scene said it does not own, and an owned event nothing claimed", _ {
+		deluge::notify::dirty().drain();
+		ownership_audit() = {};
+		Rig denied;
+		denied.base.owns_turn = false;
+		denied.base.read_turn = true;
+		denied.shell.init({kBase, 0});
+		denied.shell.tick(0);
+		denied.shell.on_encoder_edges(3, 2, 25);
+		denied.shell.tick(30);
+		expect(ownership_audit().undeclared_claims).to_equal(uint32_t(1));
+
+		ownership_audit() = {};
+		deluge::notify::dirty().drain();
+		Rig unread;
+		unread.base.owns_turn = true;
+		unread.base.read_turn = false;
+		unread.shell.init({kBase, 0});
+		unread.shell.tick(0);
+		unread.shell.on_encoder_edges(3, 2, 25);
+		unread.shell.tick(30);
+		expect(ownership_audit().unclaimed_owned).to_equal(uint32_t(1));
+		ownership_audit() = {};
+	});
+
+	it("a widget-owned shape the scene does not own is routed before the render", _ {
 		deluge::notify::dirty().drain();
 		Rig r;
 		r.base.emit_repaint_from_handle = true;
@@ -817,6 +874,21 @@ describe shell_tick("shell::Shell::tick", $ {
 		r.shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_PAD, 2, 2, 64}, 26);
 		r.shell.tick(30);
 		expect(r.base.order).to_equal(std::string("EP"));
+	});
+
+	it("a scene pushed by this tick's input starts its clock at this tick", _ {
+		deluge::notify::dirty().drain();
+		Rig r;
+		r.shell.init({kBase, 0});
+		r.shell.tick(0);
+		r.base.push_overlay_from_handle = true;
+		r.shell.on_board_event(button_ev(8, 3, true), 25);
+		r.shell.tick(30);
+		expect(r.shell.stack().top().kind() == kOverlay).to_be_true();
+		expect(r.overlay.ticks).to_equal(1);
+		expect(r.overlay.ticked_ms).to_equal(uint32_t(0)); // it was not up for the 30 ms this tick covers
+		r.shell.tick(40);
+		expect(r.overlay.ticked_ms).to_equal(uint32_t(10));
 	});
 
 	it("a Popup action becomes the popup scene, resolved through the profile's text", _ {
@@ -870,32 +942,6 @@ describe shell_tick("shell::Shell::tick", $ {
 		expect(r.base.oled_renders).to_equal(renders_after_the_asking_tick + 1);
 	});
 
-	it("a Repaint from a post-render-delivered event is honoured on the next tick", _ {
-		deluge::notify::dirty().drain();
-		Rig r;
-		r.base.widgets_own = true;
-		r.base.read_turn = false; // leave the detent unclaimed, so it reaches handle() after render
-		r.base.emit_repaint_from_handle = true;
-		r.shell.init({kBase, 0});
-		r.shell.tick(0);
-		r.consume_pending();
-
-		// A select turn is a widget-owned shape; a widget-owning scene has it held back and delivered
-		// at step 8, after the frame is built. The scene advances its selection there and asks
-		// for Main -- the shape of a menu that does not move when the knob does.
-		r.shell.on_encoder_edges(3, 2, 25);
-		r.shell.tick(30);
-		expect(r.base.events).to_equal(1);
-		const int renders_after_the_asking_tick = r.base.oled_renders;
-		expect(*r.shell.next_wake()).to_equal(uint32_t(30));
-		r.consume_pending();
-
-		const size_t blits_before = r.fake.blits.size();
-		r.shell.tick(40);
-		expect(r.base.oled_renders).to_equal(renders_after_the_asking_tick + 1);
-		expect(r.fake.blits.size()).to_equal(blits_before + 1);
-	});
-
 	it("events deferred by the SD lock are routed once the lock is released", _ {
 		deluge::notify::dirty().drain();
 		Rig r;
@@ -903,11 +949,9 @@ describe shell_tick("shell::Shell::tick", $ {
 		r.shell.tick(0);
 
 		r.shell.set_sd_busy(true);
-		// Back, at matrix (7, 1). Deliberately a *widget-owned* shape: an ordinary button survives
-		// a lost window anyway, because `push_out` puts it on the routed FIFO, which `begin_tick`
-		// does not clear. Back goes to `held_back_`, which it does -- along with `had_input_this_tick`
-		// and the tick's detent sums -- so this is the shape that shows whether the replay landed
-		// in an open window.
+		// Back, at matrix (7, 1). The replay has to land in an open window: `begin_tick` clears the
+		// press edges and `had_input_this_tick`, so a replay into a closed one would be drawn by
+		// nothing.
 		r.shell.on_board_event(button_ev(7, 1, true), 20);
 		r.shell.tick(30);
 		expect(r.base.events).to_equal(0); // the lock held it

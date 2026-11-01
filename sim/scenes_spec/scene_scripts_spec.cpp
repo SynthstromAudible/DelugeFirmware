@@ -716,7 +716,7 @@ describe scene_scripts("scenes E4 level-2 acceptance scripts", $ {
 		// port of `Integer::selectEncoderAction` -- the defect note-family task 1 fixed. `int_value`
 		// now claims only the select turn (`ui/oled/values.cpp`'s `select_delta`), so the two
 		// `GoldUpper` turns below are unclaimed by `MenuScene` and reach `services::ModKnobs`
-		// through the same held-back path `View::modEncoderAction` names.
+		// through the routing chain `View::modEncoderAction` names.
 		//
 		// **Why a popup, where `menu_int.txt` still says none is pushed there.** `ModKnobs`'s port
 		// of "let's see if we're editing the same param in the menu, if so, don't show pop-up"
@@ -785,9 +785,9 @@ describe scene_scripts("scenes E4 level-2 acceptance scripts", $ {
 		// `mod_knobs -> top scene` to `top scene -> mod_knobs` (shell spec §15.4), and the ruling
 		// asked for a recorded frame behind it. Swapping the two steps back inside
 		// `Router::run_chain` and re-running leaves all three goldens byte-identical and every
-		// assertion here green -- because the claim check that decides this gesture runs in
-		// `Router::route_post_render`, BEFORE `run_chain` is entered, and a claimed event never
-		// reaches the chain in either order.
+		// assertion here green -- because the ownership check that decides this gesture runs in
+		// `Shell::pump_input`, BEFORE `run_chain` is entered, and an owned event never reaches the
+		// chain in either order.
 		//
 		// The order is observable only where a scene and `mod_knobs` could both claim the same
 		// event from `handle()`, and **no real scene in the tree claims a gold turn there**:

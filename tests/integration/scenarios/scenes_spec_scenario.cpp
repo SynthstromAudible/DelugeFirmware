@@ -22,6 +22,7 @@
 #include "gui/ui/ui.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "processing/engines/audio_engine.h"
+#include "shell/shell.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -69,6 +70,7 @@ void deluge_scenario_scenes_spec_on_app_init(void) {
 	char* argv[] = {program, verbose, nullptr};
 	// Every typed write the file's examples make is checked against the decode of its slot with the change in it.
 	deluge::bridge::typedWriteAudit() = {.enabled = true};
+	deluge::ui::shell::ownership_audit() = {};
 	try {
 		g_exit = entry->run(2, argv);
 	} catch (const std::exception& e) {
@@ -87,6 +89,14 @@ void deluge_scenario_scenes_spec_on_app_init(void) {
 		g_exit = 1;
 	}
 	deluge::bridge::typedWriteAudit() = {}; // off for whatever the process runs next
+	// Every shell the file built answered `Scene::owns` the way its renders then claimed.
+	const deluge::ui::shell::OwnershipAudit ownership = deluge::ui::shell::ownership_audit();
+	std::printf("INPUT-OWNERSHIP-AUDIT %s undeclared_claims=%u unclaimed_owned=%u\n", id,
+	            static_cast<unsigned>(ownership.undeclared_claims), static_cast<unsigned>(ownership.unclaimed_owned));
+	if ((ownership.undeclared_claims != 0 || ownership.unclaimed_owned != 0) && g_exit == 0) {
+		g_exit = 1;
+	}
+	deluge::ui::shell::ownership_audit() = {};
 	std::printf("SCENES-SPEC %s exit=%d\n", id, g_exit);
 	std::fflush(stdout);
 }

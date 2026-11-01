@@ -605,8 +605,7 @@ describe cm_input("scenes::context_menu::ContextMenuScene input", $ {
 		Rig r;
 		r.open(context_of(f), DescriptorId::ResetMidiFollow);
 		r.tick(0);
-		// `option_window` is render-only, so the turn falls through to `handle()` post-render
-		// rather than being consumed during the render pass the way `list` consumes it for
+		// `option_window` is render-only, so the turn goes to `handle()` rather than being consumed during the render pass the way `list` consumes it for
 		// `MenuScene`. With one option the cursor cannot move -- but the turn must still be
 		// swallowed, or it would reach the view underneath and scroll it.
 		r.turn(+1, 100);

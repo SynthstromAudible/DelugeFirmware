@@ -38,32 +38,29 @@ struct LoweringConfig {
 /// (`hid/buttons.cpp`), `MatrixDriver::padStates` (`hid/matrix/matrix_driver.cpp:65-84`) and the
 /// encoder accumulators (`hid/encoders.cpp`): which buttons and pads are down, when each press
 /// began, whether a press has been consumed, the sticky-shift latch, and each encoder's partial
-/// detent. From that it produces two things per tick -- the `UiEvent` queue (`next()`) and the
-/// toolkit's `ui::InputSnapshot` (`snapshot()`) -- and keeps the events the shell holds back for
-/// after render (`held_back()`).
+/// detent. From that it produces two things per tick: the `UiEvent` queue (`next()`) and the
+/// toolkit's `ui::InputSnapshot` (`snapshot()`).
 ///
 /// # The tick
 ///
-/// `begin_tick(now_ms)` -> feed events -> `end_tick()` -> drain `next()` (holding back what a
-/// widget may claim) -> render -> deliver what nothing claimed from `held_back()`. `begin_tick` clears the per-tick
-/// state (detent sums, the pad event buffer, the press edges, the held-back queue) and calls
-/// `ui::FrameContext::begin_tick` so claims never survive a tick; `end_tick` assembles the snapshot the frames read.
-/// The routed queue is deliberately *not* cleared by `begin_tick`: it is a FIFO drained by `next()`, so an event that
-/// arrived while the shell was busy is still delivered on a later tick.
+/// `begin_tick(now_ms)` -> feed events -> `end_tick()` -> drain `next()` -> render. `begin_tick`
+/// clears the per-tick state (detent sums, the pad event buffer, the press edges) and calls
+/// `ui::FrameContext::begin_tick` so claims never survive a tick; `end_tick` assembles the snapshot
+/// the frames read. The queue is deliberately *not* cleared by `begin_tick`: it is a FIFO drained
+/// by `next()`, so an event that arrived while the shell was busy is still delivered on a later
+/// tick.
 ///
 /// # Widget-owned shapes
 ///
 /// Five encoder turns (`Select`, `GoldUpper`, `GoldLower`, `Horizontal`, `Vertical`), the select
 /// encoder's own push (`EncoderButton{SelectEnc}`) and `Button{Back}` are the inputs the toolkit's
-/// widgets can own (`is_widget_owned_shape`): a widget claims them while it is being drawn, so
-/// routing them to a scene whose widgets read them before the frame has been built would consume
-/// them twice. They come out of `next()` in arrival order with everything else; the shell keeps
-/// the ones such a scene may claim with `hold_back()` and delivers, after render, only those
-/// `ctx().claims` shows nothing owned.
-///
-/// Their bookkeeping runs exactly as every other event's does, and they reach the snapshot every
-/// tick, so `f.turn()`, `f.select_pressed()` and `f.back_pressed()` read them the same way
-/// regardless.
+/// widgets can own (`is_widget_owned_shape`): a widget claims them while it is being drawn. They
+/// come out of `next()` in arrival order with everything else, and they reach the snapshot like
+/// every other input, so `f.turn()`, `f.select_pressed()` and `f.back_pressed()` read them. The
+/// shell asks the scene that takes the input whether its widgets own each one (`Scene::owns`):
+/// what they own stays in the snapshot for the render and is not routed; what they do not is
+/// `withdraw()`n from the snapshot and routed, so no event is consumed twice and none waits for
+/// the render to be delivered.
 ///
 /// # The gold-knob wiggle debounce
 ///
@@ -115,11 +112,6 @@ public:
 	/// `held_pads()` and `next()`, so only a widget reading the tick's edges loses it. Every pad on
 	/// the Deluge's grid would have to change state in a single tick to reach that.
 	static constexpr uint8_t kPadEventCapacity = 32;
-	/// @brief How many widget-owned events one tick can hold back.
-	///
-	/// Ten is one more than a tick can actually produce: five held-back encoder roles turning once
-	/// each, plus press and release of both `SelectEnc` and `Back`.
-	static constexpr uint8_t kHeldBackCapacity = 10;
 
 	/// @brief Build a lowering for one board.
 	/// @param profile The board's tables. Copied in -- a `BoardProfile` is a handful of spans over
@@ -159,7 +151,7 @@ public:
 	/// @brief Open a tick: clear the per-tick state and the frame context's claims.
 	///
 	/// \p now_ms is provisional. The shell opens the window on the first *feed* since the previous
-	/// tick (input arrives between ticks, and this call is what clears the held-back queue and
+	/// tick (input arrives between ticks, and this call is what clears the press edges and
 	/// `had_input_this_tick`), so the clock passed here is the clock that feed arrived at, not the
 	/// clock of the tick the frames will be built on. `end_tick` is what stamps the final one.
 	/// @param now_ms The clock the window is being opened at.
@@ -184,24 +176,18 @@ public:
 	/// @param out Filled in with the event when one is available.
 	/// @return False when the queue is empty (\p out is untouched).
 	bool next(UiEvent& out);
-	/// @brief Keep \p e for delivery after this tick's render.
+	/// @brief Was the event `next()` last returned fed before `end_tick()` assembled the snapshot?
 	///
-	/// The shell calls this for a widget-owned shape the input-frontmost scene's widgets may claim.
-	/// @param e The event, already taken from `next()`.
-	void hold_back(const UiEvent& e);
-	/// @brief This tick's held-back events, in arrival order.
+	/// An event fed while the tick routes (application code feeding from inside a handler) is not
+	/// in this tick's snapshot, so no widget can read it this tick.
+	/// @return True when the last event is part of the snapshot.
+	bool last_in_snapshot() const { return last_in_snapshot_; }
+	/// @brief Take \p e back out of the snapshot the frames read, because it is being routed.
 	///
-	/// The shell delivers these after render, skipping the ones `ctx().claims` shows a widget
-	/// owned. Cleared by the next `begin_tick()`.
-	/// @return The held-back queue.
-	const FixedVector<UiEvent, kHeldBackCapacity>& held_back() const { return held_back_; }
-	/// @brief How many widget-owned events have been dropped for want of room.
-	///
-	/// Unlike the FIFOs, this queue drops the *newest*: it is read whole rather than popped,
-	/// and an over-full tick means more widget-owned events arrived than a tick can hold, so the
-	/// prefix is the part with the press edges in it. Should stay at zero (`kHeldBackCapacity` is
-	/// sized past what a tick can produce); non-zero means that reasoning is wrong.
-	uint32_t held_back_dropped() const { return held_back_dropped_; }
+	/// An encoder turn subtracts its delta from the snapshot's sum for that encoder; a Select or
+	/// Back edge clears that edge. Anything else is left alone.
+	/// @param e An event `next()` returned while `last_in_snapshot()` was true.
+	void withdraw(const UiEvent& e);
 	/// @}
 
 	/// @name Input state
@@ -315,7 +301,7 @@ public:
 	/// There is exactly one per tick rather than one per surface, because a claim is shell-wide:
 	/// there is one turn detent, one pair of gold knobs, one select encoder and one back button
 	/// per tick however many surfaces exist, so a claim made deep inside one surface's frame tree
-	/// has to land where the post-render delivery reads it back.
+	/// has to land where the shell's ownership audit reads it back.
 	ui::FrameContext& ctx() { return ctx_; }
 	/// @brief The gate a widget arms through `f.gate()`.
 	///
@@ -488,8 +474,9 @@ private:
 	uint8_t queue_head_ = 0;
 	uint8_t queue_count_ = 0;
 	uint32_t queue_dropped_ = 0;
-	FixedVector<UiEvent, kHeldBackCapacity> held_back_;
-	uint32_t held_back_dropped_ = 0;
+	/// Events still queued that were fed before `end_tick()` took the snapshot.
+	uint8_t in_snapshot_ = 0;
+	bool last_in_snapshot_ = false;
 	DeferredEvent deferred_[kDeferredCapacity]{};
 	uint8_t deferred_head_ = 0;
 	uint8_t deferred_count_ = 0;
@@ -529,5 +516,20 @@ bool is_encoder_button(ButtonId b);
 /// @param e The event.
 /// @return True for a widget-owned shape.
 bool is_widget_owned_shape(const UiEvent& e);
+
+/// @brief Does \p claims hold the bit for \p e's shape?
+///
+/// `Encoder{Select}` -> `turn`, `Encoder{GoldUpper}` -> `edit0`, `Encoder{GoldLower}` -> `edit1`,
+/// `Encoder{Horizontal}` -> `horizontal`, `Encoder{Vertical}` -> `vertical`,
+/// `EncoderButton{SelectEnc}` -> `select`, `Button{Back}` -> `back`.
+/// @param claims The claim set.
+/// @param e      The event.
+/// @return False for a shape no widget can own.
+bool claim_covers(const ui::InputClaims& claims, const UiEvent& e);
+
+/// @brief Set the bit `claim_covers` reads for \p e's shape; nothing for a shape no widget can own.
+/// @param claims The claim set to add to.
+/// @param e      The event.
+void add_claim(ui::InputClaims& claims, const UiEvent& e);
 
 } // namespace deluge::ui::shell

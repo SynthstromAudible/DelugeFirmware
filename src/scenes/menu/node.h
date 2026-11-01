@@ -23,6 +23,7 @@
 #include "modulation/params/param.h"
 #include "scenes/bind/target.h"
 #include "synth/modulation/cable.h"  // CustomItem::learn_descriptor -- returned by value
+#include "ui/core/frame_context.h"   // CustomItem::owned_input
 #include "ui/oled/column_drawings.h" // DrawColumn
 #include "ui/oled/columns.h"         // ArtColumn
 #include "ui/oled/meters.h"
@@ -447,11 +448,18 @@ using SelectChainFn = const Node* (*)(const MenuContext&, const MenuState&);
 /// @brief The escape hatch (spec E §4: at most 10 across the whole tree) for a bespoke item that
 ///        doesn't fit any `Kind`: the multi-range editor, patch cables, the file selector, and the
 ///        handful of others spec E §4 names.
+/// @brief What a list or option widget claims while drawn focused: the select turn and press.
+inline constexpr deluge::ui::InputClaims kListInput{.turn = true, .select = true};
+
 struct CustomItem {
 	virtual ~CustomItem() = default;
 	virtual void render(deluge::ui::oled::OledFrame&, const MenuContext&, MenuState&) const = 0;
 	virtual deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent&, const deluge::ui::shell::UiContext&,
 	                                         const MenuContext&, MenuState&) const = 0;
+	/// @brief The widget-owned inputs `render` claims while this item is focused, which `MenuScene::owns` answers
+	///        with before the render runs. Must match the claims `render` makes; the shell audits the two.
+	/// @return None by default: `handle` sees every input.
+	virtual deluge::ui::InputClaims owned_input(const MenuContext&, const MenuState&) const { return {}; }
 
 	/// @par The focus hooks: three names, two questions
 	///

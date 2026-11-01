@@ -12,7 +12,7 @@ namespace {
 ///
 /// Everything except the tempo encoder, which no widget reads and which the shell therefore
 /// routes like any other event.
-bool is_held_back_encoder(EncoderRole role) {
+bool is_widget_encoder(EncoderRole role) {
 	switch (role) {
 	case EncoderRole::Select:
 	case EncoderRole::GoldUpper:
@@ -29,7 +29,7 @@ bool is_held_back_encoder(EncoderRole role) {
 ///
 /// The select encoder's push (`f.select_pressed()`) and back (`f.back_pressed()`); every other
 /// button, the other five encoder pushes included, is routed.
-bool is_held_back_button(ButtonId b) {
+bool is_widget_button(ButtonId b) {
 	return b == ButtonId::SelectEnc || b == ButtonId::Back;
 }
 
@@ -55,9 +55,51 @@ bool is_encoder_button(ButtonId b) {
 }
 
 bool is_widget_owned_shape(const UiEvent& e) {
-	return (e.kind == UiEvent::Kind::Encoder && is_held_back_encoder(e.encoder))
+	return (e.kind == UiEvent::Kind::Encoder && is_widget_encoder(e.encoder))
 	       || ((e.kind == UiEvent::Kind::Button || e.kind == UiEvent::Kind::EncoderButton)
-	           && is_held_back_button(e.button));
+	           && is_widget_button(e.button));
+}
+
+namespace {
+
+/// @brief The claim flag \p e's shape maps to, or null for a shape no widget can own.
+bool ui::InputClaims::* claim_bit(const UiEvent& e) {
+	switch (e.kind) {
+	case UiEvent::Kind::Encoder:
+		switch (e.encoder) {
+		case EncoderRole::Select:
+			return &ui::InputClaims::turn;
+		case EncoderRole::GoldUpper:
+			return &ui::InputClaims::edit0;
+		case EncoderRole::GoldLower:
+			return &ui::InputClaims::edit1;
+		case EncoderRole::Horizontal:
+			return &ui::InputClaims::horizontal;
+		case EncoderRole::Vertical:
+			return &ui::InputClaims::vertical;
+		default:
+			return nullptr;
+		}
+	case UiEvent::Kind::EncoderButton:
+		return e.button == ButtonId::SelectEnc ? &ui::InputClaims::select : nullptr;
+	case UiEvent::Kind::Button:
+		return e.button == ButtonId::Back ? &ui::InputClaims::back : nullptr;
+	default:
+		return nullptr;
+	}
+}
+
+} // namespace
+
+bool claim_covers(const ui::InputClaims& claims, const UiEvent& e) {
+	bool ui::InputClaims::* const bit = claim_bit(e);
+	return bit != nullptr && claims.*bit;
+}
+
+void add_claim(ui::InputClaims& claims, const UiEvent& e) {
+	if (bool ui::InputClaims::* const bit = claim_bit(e)) {
+		claims.*bit = true;
+	}
 }
 
 InputLowering::InputLowering(const BoardProfile& profile, LoweringConfig config) : profile_(profile), cfg_(config) {
@@ -75,7 +117,6 @@ void InputLowering::begin_tick(uint32_t now_ms) {
 		d = 0;
 	}
 	pad_events_.clear();
-	held_back_.clear();
 	ctx_.begin_tick(now_ms);
 }
 
@@ -95,6 +136,7 @@ void InputLowering::end_tick(uint32_t now_ms) {
 	snap_.pads = std::span<const ui::PadEvent>(pad_events_.begin(), pad_events_.size());
 	snap_.held_pads = held_pads_;
 	snap_.now_ms = now_ms_;
+	in_snapshot_ = queue_count_;
 }
 
 // -- Feeding ----------------------------------------------------------------------------------
@@ -377,12 +419,45 @@ void InputLowering::emit(const UiEvent& e) {
 	push_out(e);
 }
 
-void InputLowering::hold_back(const UiEvent& e) {
-	if (!held_back_.push_back(e)) {
-		// Read whole rather than popped, so the prefix -- the part with the press edges in it --
-		// is what to keep. `kHeldBackCapacity` is sized past what a tick can produce, so this
-		// should never fire.
-		held_back_dropped_++;
+void InputLowering::withdraw(const UiEvent& e) {
+	switch (e.kind) {
+	case UiEvent::Kind::Encoder:
+		switch (e.encoder) {
+		case EncoderRole::Select:
+			snap_.turn = saturating_add(snap_.turn, -e.delta);
+			break;
+		case EncoderRole::GoldUpper:
+			snap_.edit[0] = saturating_add(snap_.edit[0], -e.delta);
+			break;
+		case EncoderRole::GoldLower:
+			snap_.edit[1] = saturating_add(snap_.edit[1], -e.delta);
+			break;
+		case EncoderRole::Horizontal:
+			snap_.horizontal = saturating_add(snap_.horizontal, -e.delta);
+			break;
+		case EncoderRole::Vertical:
+			snap_.vertical = saturating_add(snap_.vertical, -e.delta);
+			break;
+		default:
+			break;
+		}
+		break;
+	case UiEvent::Kind::EncoderButton:
+		// The edges themselves, not just the snapshot: `select_on_release` picks one of them again
+		// after the queue is drained.
+		if (e.button == ButtonId::SelectEnc) {
+			(e.on ? select_edge_ : select_release_edge_) = false;
+			snap_.select_pressed = false;
+		}
+		break;
+	case UiEvent::Kind::Button:
+		if (e.button == ButtonId::Back && e.on) {
+			back_edge_ = false;
+			snap_.back_pressed = false;
+		}
+		break;
+	default:
+		break;
 	}
 }
 
@@ -405,6 +480,10 @@ bool InputLowering::next(UiEvent& out) {
 	out = queue_[queue_head_];
 	queue_head_ = static_cast<uint8_t>((queue_head_ + 1) % kQueueCapacity);
 	queue_count_--;
+	last_in_snapshot_ = in_snapshot_ > 0;
+	if (in_snapshot_ > 0) {
+		in_snapshot_--;
+	}
 	return true;
 }
 

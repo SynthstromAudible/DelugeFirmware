@@ -90,7 +90,7 @@ const char* scene_kind_name(SceneKind k);
 /// # The tick window
 ///
 /// `InputLowering` is a begin/feed/end machine (`input_lowering.h`, "The tick"), and
-/// `begin_tick()` is what clears the held-back queue, the tick's claims and `had_input_this_tick`.
+/// `begin_tick()` is what clears the tick's claims, press edges and `had_input_this_tick`.
 /// Input, however, arrives *between* ticks -- the board polls and calls `on_board_event` long
 /// before `tick()` runs -- so the shell cannot open the window at the top of `tick()` without
 /// throwing away exactly the events that tick is meant to act on. The window is therefore opened
@@ -98,14 +98,20 @@ const char* scene_kind_name(SceneKind k);
 /// `tick()`:
 ///
 ///     on_board_event ... -> [begin_tick] feeds ... | tick: pump_input -> end_tick -> route
-///       -> render -> after_render -> deliver held-back (claims still live) -> leds -> flush
-///       -> window closed; the next feed re-opens it, which is what clears held_back()/claims.
+///       -> render -> after_render -> leds -> flush -> window closed; the next feed re-opens it.
 ///
-/// That ordering is what lets `deliver_post_render_input` read `held_back()` and `ctx().claims`
-/// after the frame has been built: nothing between `end_tick()` and the end of the tick calls
-/// `begin_tick()`, so neither has been cleared yet. The window's *clock*, however, is the tick's,
-/// not the opening feed's: `InputLowering::end_tick(now_ms)` re-stamps the snapshot, so
-/// `f.now_ms()` is always the clock the frame is being built on.
+/// The window's *clock* is the tick's, not the opening feed's: `InputLowering::end_tick(now_ms)`
+/// re-stamps the snapshot, so `f.now_ms()` is always the clock the frame is being built on.
+///
+/// # One input phase
+///
+/// **Every input is routed or left for the render before the render, in arrival order; nothing is
+/// delivered after it.** For each widget-owned shape (`is_widget_owned_shape`) the shell asks the
+/// input-frontmost scene, at the moment the event comes off the queue, whether its widgets own it
+/// (`Scene::owns`). Owned: it stays in the snapshot and the render's widgets consume it. Not
+/// owned: it is `withdraw()`n from the snapshot, so no widget can read it, and routed like
+/// everything else. A widget claiming what its scene said it does not own, or an owned event no
+/// widget claimed, is counted in `ownership_audit()`.
 ///
 /// # Repaint requests
 ///
@@ -113,12 +119,12 @@ const char* scene_kind_name(SceneKind k);
 /// read this tick takes effect on the next one.** `Action::Repaint`/`RepaintAll` set a flag on the
 /// `Router` and nothing else -- the router holds no surface and arms no gate -- so the flag's only
 /// reader is `tick()`'s OLED loop (step 5). `router_.clear_repaint_requests()` therefore runs
-/// immediately *after* the render decisions, not at the bottom of the tick: steps 7
-/// (`after_render()`) and 8 (post-render delivery) both `apply()` results of their own, and a
-/// clear placed after them would set and wipe such a request within one tick with no reader in
-/// between -- losing it outright rather than delaying it. What those two steps request instead
-/// lands on the named surfaces' own `RepaintGate`s at the bottom of the tick, at a zero-millisecond
-/// deadline, so `next_wake()` reports `now` and the next tick both happens and renders.
+/// immediately *after* the render decisions, not at the bottom of the tick: step 7
+/// (`after_render()`) `apply()`s results of its own, and a clear placed after it would set and
+/// wipe such a request within one tick with no reader in between -- losing it outright rather than
+/// delaying it. What that step requests instead lands on the named surfaces' own `RepaintGate`s at
+/// the bottom of the tick, at a zero-millisecond deadline, so `next_wake()` reports `now` and the
+/// next tick both happens and renders.
 ///
 /// # What a scene may read, and where
 ///
@@ -127,9 +133,8 @@ const char* scene_kind_name(SceneKind k);
 /// two independent `FrameInput`s in the same tick -- so reading `f.turn()` in both `render_oled`
 /// and `render_grid` claims the same detent twice and trips `InputClaims::double_claim`. A scene
 /// that wants one input to affect both surfaces reads it in the pass that owns it and lets the
-/// other surface draw the state that produced; a scene that needs the raw event on both leaves it
-/// unclaimed and reacts in `handle()`, which the shell delivers *after* render for exactly that
-/// reason.
+/// other surface draw the state that produced; a scene that needs the raw event on both does not
+/// own it (`Scene::owns`) and reacts in `handle()`, which runs before the render.
 ///
 /// Only the **input-frontmost** scene (`SceneStack::input_top()`, the topmost that is not
 /// `Scene::input_transparent()`) is drawn with `InputMask::all()`; every other layer in a pass
@@ -530,9 +535,8 @@ private:
 	/// @brief Draw the pad grid: the base scene, then the overlays, then the stack's greyout.
 	/// @param now_ms The tick's wall clock.
 	void render_grid(uint32_t now_ms);
-	/// @brief Offer this tick's held-back, widget-owned events to the routing chain.
-	/// @param now_ms The tick's wall clock.
-	void deliver_post_render_input(uint32_t now_ms);
+	/// @brief Count where this tick's render claimed differently from what `pump_input` decided.
+	void audit_ownership();
 	/// @brief Compose and resolve this tick's LED declarations into the LED surface.
 	/// @param now_ms The tick's wall clock.
 	void derive_leds(uint32_t now_ms);
@@ -613,8 +617,17 @@ private:
 	/// x `kMaxGridCols` `RGB`s -- `PadGrid`'s own doc), since `Shell` already lives for the whole
 	/// tick loop and the render path should not pay for it on every call.
 	std::optional<gfx::grid::PadGrid> tween_scratch_;
+	/// The scenes stacked when `pump_input` began routing; one missing from it was pushed by this tick's input.
+	FixedVector<Scene*, kStackDepth> up_before_input_;
 	/// The scenes drawn this tick, in the order they were drawn; each gets one `after_render()`.
 	FixedVector<Scene*, kStackDepth> rendered_this_tick_;
+	/// The widget-owned shapes `pump_input` left in the snapshot this tick.
+	InputClaims owned_{};
+	/// The widget-owned shapes `pump_input` withdrew and routed this tick.
+	InputClaims routed_{};
+	/// The scene `pump_input` last asked `Scene::owns`, and whether a different one was asked earlier this tick.
+	Scene* decider_ = nullptr;
+	bool deciders_differ_ = false;
 	std::optional<uint32_t> next_wake_;
 	uint32_t last_ms_ = 0;
 	/// Whether the lowering accepted anything this tick -- `RepaintGate::needs_frame`'s
@@ -630,5 +643,22 @@ private:
 	/// has outgrown the shadow arrays.
 	uint32_t leds_dropped_ = 0;
 };
+
+/// @brief How often a render's claims disagreed with what the shell asked its scene before it.
+///
+/// Process-wide rather than per `Shell`, so a test run can check every shell it built. Both counts
+/// should stay at zero; non-zero means a `Scene::owns` answer has drifted from what its widgets
+/// read.
+struct OwnershipAudit {
+	/// A widget claimed a shape its scene said it did not own: the event went to `handle()`, and
+	/// the widget read nothing.
+	uint32_t undeclared_claims = 0;
+	/// A scene owned a shape that no widget claimed: the event went nowhere.
+	uint32_t unclaimed_owned = 0;
+};
+
+/// @brief The process-wide ownership audit.
+/// @return The counts, writable so a test can reset them.
+OwnershipAudit& ownership_audit();
 
 } // namespace deluge::ui::shell

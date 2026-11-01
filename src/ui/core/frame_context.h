@@ -172,12 +172,11 @@ struct InputMask {
 ///    accessor only returned a value -- claiming was a second, separate call a widget had to
 ///    remember to make -- so a widget (or a hand-written scene) that read `f.back_pressed()` to
 ///    decide something, without ever calling `claim_back()`, left the input looking unclaimed. The
-///    shell gates its post-render delivery to `Scene::handle()` on exactly that claim bit, so the
-///    input would then reach the scene a second time: a genuine double-consumption with
-///    `double_claim` false and every "claims stay clean" test passing, because nothing pairs a read
-///    with a claim to catch it. Folding the claim into the read itself, as this rule now does,
-///    closes that gap -- there is no longer a way to read an input through a frame without also
-///    claiming it.
+///    shell audits each tick's claims against what the scene said its widgets own
+///    (`shell::ownership_audit`), so a read that claimed nothing would hide exactly the drift that
+///    audit exists to catch. Folding the claim into the read itself, as this rule now does, closes
+///    that gap -- there is no longer a way to read an input through a frame without also claiming
+///    it.
 ///
 /// 3. **A frame sees exactly the inputs its parent granted it.** Focus is an `InputMask`, not a
 ///    flag: `region(rect, m)` gives the child `mask & m`, so it only ever narrows and a child can

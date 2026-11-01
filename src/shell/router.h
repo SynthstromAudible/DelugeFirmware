@@ -114,24 +114,6 @@ public:
 	///         bool (F1 task 10).
 	bool route(const UiEvent& event, const UiContext& ctx);
 
-	/// @brief Route one of the six widget-owned event shapes after render, unless a widget already
-	///        claimed it this tick.
-	///
-	/// Shares `route()`'s exact chain and `apply()` call, and differs only in being skipped
-	/// outright -- not even reaching the top scene -- when \p claims shows the bit this event maps
-	/// to is set: `Encoder{Select}` -> `turn`, `Encoder{GoldUpper}` -> `edit0`,
-	/// `Encoder{GoldLower}` -> `edit1`, `Encoder{Horizontal}` -> `horizontal`,
-	/// `Encoder{Vertical}` -> `vertical`, `EncoderButton{SelectEnc}` -> `select`,
-	/// `Button{Back}` -> `back`. A claimed event is neither routed nor counted by
-	/// `dropped_events()`: a widget consumed it, which is not the same thing as nothing did.
-	/// @param event  The event to route.
-	/// @param ctx    The world around it.
-	/// @param claims This tick's widget claims, read once to decide whether to route at all.
-	/// @return True if some step of the chain reported `handled`. A claimed event returns false
-	///         without routing -- "a widget consumed it" is not "the chain handled it", and it is
-	///         not a drop either.
-	bool route_post_render(const UiEvent& event, const UiContext& ctx, const InputClaims& claims);
-
 	/// @brief Apply every action in \p result, in order.
 	///
 	/// `Push`/`Replace`/`ReplaceRoot`/`Pop` reach `SceneStack`; `Popup` stores its string and type
@@ -155,13 +137,9 @@ public:
 	/// (`shell/profile.h:60`) -- there is no role a `Repaint` action could give the grid, so
 	/// `RepaintAll` is the one action that reaches it and this is the one way to ask.
 	///
-	/// **Added by E3 task 11**, whose `marker.txt` script recorded the hole: `Action::Kind::
-	/// RepaintAll` is documented as "invalidate every surface for the next tick" (`shell/scene.h`),
-	/// but `Shell::tick`'s grid step consulted only the grid's own gate, so a scene that changed
-	/// what the *pads* show in response to post-render input -- `MarkerScene::handle`'s select turn,
-	/// `BrowserScene::handle`'s -- redrew the OLED immediately and left the grid showing the
-	/// previous frame until something else happened to repaint it. In the marker editor's case that
-	/// was the blink timer, up to one 200 ms phase later.
+	/// A scene that changes what the *pads* show from `handle()` -- `MarkerScene::handle`'s select
+	/// turn, `BrowserScene::handle`'s -- says so through `RepaintAll`; the grid's own gate is armed
+	/// only by `render_grid`.
 	/// @return True if a `RepaintAll` has been applied since the last clear.
 	bool grid_repaint_requested() const { return grid_repaint_; }
 	/// @brief Clear every surface's repaint flag, the grid's included.
@@ -192,7 +170,7 @@ public:
 
 private:
 	/// @brief The shared chain body: top scene -> `mod_knobs` -> `global_controls` -> `midi_learn`
-	///        -> drop, `apply()`d at every step. Used by both `route()` and `route_post_render()`
+	///        -> drop, `apply()`d at every step. Used by `route()`
 	///        (the latter only once the claim gate has let the event through).
 	/// @return True if a step reported `handled`; false once `dropped_` has been incremented.
 	bool run_chain(const UiEvent& event, const UiContext& ctx);

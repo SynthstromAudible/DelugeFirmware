@@ -152,6 +152,9 @@ private:
 class SpecificOutputItem final : public CustomItem {
 public:
 	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
+	deluge::ui::InputClaims owned_input(const MenuContext& /*ctx*/, const MenuState& /*state*/) const override {
+		return kListInput;
+	}
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
 	                                 const deluge::ui::shell::UiContext& ui_ctx, const MenuContext& ctx,
 	                                 MenuState& state) const override;

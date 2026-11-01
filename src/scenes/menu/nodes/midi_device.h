@@ -180,6 +180,9 @@ public:
 	bool is_value() const override { return true; }
 	void on_focus(const MenuContext& ctx, MenuState& state) const override;
 	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
+	deluge::ui::InputClaims owned_input(const MenuContext& /*ctx*/, const MenuState& /*state*/) const override {
+		return kListInput;
+	}
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
 	                                 const deluge::ui::shell::UiContext& ui_ctx, const MenuContext& ctx,
 	                                 MenuState& state) const override;
@@ -193,6 +196,9 @@ public:
 	bool is_value() const override { return true; }
 	void on_focus(const MenuContext& ctx, MenuState& state) const override;
 	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
+	deluge::ui::InputClaims owned_input(const MenuContext& /*ctx*/, const MenuState& /*state*/) const override {
+		return kListInput;
+	}
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
 	                                 const deluge::ui::shell::UiContext& ui_ctx, const MenuContext& ctx,
 	                                 MenuState& state) const override;
@@ -213,6 +219,9 @@ public:
 	bool is_value() const override { return true; }
 	void on_focus(const MenuContext& ctx, MenuState& state) const override;
 	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
+	deluge::ui::InputClaims owned_input(const MenuContext& /*ctx*/, const MenuState& /*state*/) const override {
+		return kListInput;
+	}
 	void commit(const MenuContext& ctx, MenuState& state) const override;
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
 	                                 const deluge::ui::shell::UiContext& ui_ctx, const MenuContext& ctx,

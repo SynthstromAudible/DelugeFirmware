@@ -426,20 +426,22 @@ public:
 	/// `Result::unhandled()` explicitly, so "swallows everything" is never the accident of a
 	/// missing override.
 	///
-	/// @note This does not see an input a widget in this scene's frame claimed while rendering --
-	///       the shell delivers only what nothing owned.
+	/// @note This does not see an input this scene said its widgets own (`owns`).
 	/// @param event The event.
 	/// @param ctx   The world around it.
 	/// @return Whether the event was handled, and what should happen next.
 	virtual Result handle(const UiEvent& event, const UiContext& ctx) = 0;
 
-	/// @brief Do this scene's widgets read the select, gold, scroll, select-push or back input?
+	/// @brief Will this scene's next render have a widget claim \p event?
 	///
-	/// While the input-frontmost scene answers true, the shell keeps those shapes for its render to
-	/// claim and delivers what nothing claimed after the render. Every other scene gets them before
-	/// the render, in arrival order with the rest of the tick's input.
+	/// Asked, for a widget-owned shape (a select, gold, scroll or select-push turn or edge, or
+	/// Back), while this scene takes the input and before the tick's render. True leaves the event
+	/// for the render's widgets and routes it nowhere; false routes it to `handle()` at once and
+	/// hides it from every frame. The answer must match what the render then claims: the shell
+	/// counts any disagreement in `ownership_audit()`.
+	/// @param event The event, in this tick's snapshot.
 	/// @return False by default: the scene reads every input in `handle()`.
-	virtual bool widgets_own_input() const { return false; }
+	virtual bool owns(const UiEvent& event) const { return false; }
 
 	/// @brief Advance any time-based state.
 	/// @param dt_ms Milliseconds since this scene was last ticked.
@@ -509,7 +511,7 @@ public:
 	///
 	/// The shell reads it in two places, and they must agree:
 	/// - **Routing.** `SceneStack::input_top()` -- the topmost scene that is *not*
-	///   input-transparent -- is the scene `Router::route`/`route_post_render` call `handle()` on,
+	///   input-transparent -- is the scene `Router::route` calls `handle()` on,
 	///   rather than `top()`.
 	/// - **Focus.** That same scene is the one whose render frames are built with
 	///   `InputMask::all()`; every other layer in the pass, above or below, gets

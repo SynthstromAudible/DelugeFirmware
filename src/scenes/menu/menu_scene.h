@@ -559,9 +559,11 @@ public:
 	deluge::ui::shell::Result after_render() override;
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
 	                                 const deluge::ui::shell::UiContext& ctx) override;
-	/// @brief The list, value and column widgets read the select, gold and scroll input and Back.
-	/// @return True.
-	bool widgets_own_input() const override { return true; }
+	/// @brief Will the next render claim \p event? Back at any depth but the root, and whatever the focused
+	///        page's widgets read (`owned_input`).
+	/// @param event A widget-owned shape.
+	/// @return True when the render will consume it.
+	bool owns(const deluge::ui::shell::UiEvent& event) const override;
 	bool on_enter(const deluge::ui::shell::SceneId& id) override;
 	void on_resume() override;
 	/// @brief Select acts on its release, as `SoundEditor::buttonAction` does (`sound_editor.cpp:609-614`).
@@ -866,6 +868,10 @@ private:
 	///        `dynamic_children` first.
 	/// @return How many were written.
 	size_t visible_children(const Node& node, std::span<const Node*> out) const;
+	/// @brief The inputs `render_oled` claims for the page focused now: the claim sites of `render_oled` and the
+	///        `render_*` functions it dispatches to, answered before they run.
+	/// @return The claim set.
+	deluge::ui::InputClaims owned_input() const;
 	/// @brief The focused node's `CustomItem`, or `nullptr` when it is not a `Kind::Custom` leaf.
 	const CustomItem* focused_custom() const;
 	/// @brief @p node's @p index'th visible child, or `nullptr`.

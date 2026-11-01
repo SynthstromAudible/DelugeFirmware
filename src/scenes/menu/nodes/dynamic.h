@@ -98,6 +98,9 @@ public:
 	bool is_value() const override { return true; }
 	void on_focus(const MenuContext& ctx, MenuState& state) const override;
 	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
+	deluge::ui::InputClaims owned_input(const MenuContext& /*ctx*/, const MenuState& /*state*/) const override {
+		return kListInput;
+	}
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
 	                                 const deluge::ui::shell::UiContext& ui_ctx, const MenuContext& ctx,
 	                                 MenuState& state) const override;
@@ -112,6 +115,9 @@ public:
 	/// @brief The one selector here whose backward arm does real work -- see the `.cpp`.
 	void on_focus_backward(const MenuContext& ctx, MenuState& state) const override;
 	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
+	deluge::ui::InputClaims owned_input(const MenuContext& /*ctx*/, const MenuState& /*state*/) const override {
+		return kListInput;
+	}
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
 	                                 const deluge::ui::shell::UiContext& ui_ctx, const MenuContext& ctx,
 	                                 MenuState& state) const override;
@@ -124,6 +130,9 @@ public:
 	bool is_value() const override { return true; }
 	void on_focus(const MenuContext& ctx, MenuState& state) const override;
 	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
+	deluge::ui::InputClaims owned_input(const MenuContext& /*ctx*/, const MenuState& /*state*/) const override {
+		return kListInput;
+	}
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
 	                                 const deluge::ui::shell::UiContext& ui_ctx, const MenuContext& ctx,
 	                                 MenuState& state) const override;

@@ -1136,10 +1136,9 @@ arms and `on_model_changed`. Four things about it are worth knowing without read
 
 Two spec-side facts that will bite the next author of this file:
 
-* **`Button{Back}` never comes out of `InputLowering::next()`.** It is one of the widget-owned
-  inputs held back from routing (`shell/input_lowering.h`'s "held-back split"), delivered after
-  render from `held_back()`. A rig that drains only `next()` never calls `handle` with a `Back`
-  event at all — and a "this is not claimed" assertion then passes for entirely the wrong reason.
+* **A rig that drains `InputLowering::next()` by hand routes every event, `Back` included.** The
+  shell would leave a widget-owned shape for the render when the scene `owns` it; `AudioClipScene`
+  owns none, so a rig that routes everything is what the shell does for it.
 * **`Buttons::buttonAction` cannot be called from a spec process**, because its first act after
   recording the press is `getCurrentUI()->buttonAction(...)` (`hid/buttons.cpp:134`) and
   `getCurrentUI()` is null with no UI open. Legacy's held-button state is set through bare `extern`s

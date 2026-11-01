@@ -120,10 +120,8 @@ public:
 			}
 			turns_ += event.delta;
 			r.handled = true;
-			// A turn is widget-owned, so the shell holds it back and delivers it *after* render
-			// (`Shell::deliver_post_render_input`) -- this tick's frame was built before `turns_`
-			// moved. Asking for the surface is how a scene reacts to a held-back event; the shell
-			// honours it on the next tick.
+			// This scene owns no widget input, so the turn arrives here before the tick's render;
+			// asking for the surface makes that render draw the moved count.
 			(void)r.actions.push_back(Action{.kind = Action::Kind::Repaint, .surface = SurfaceRole::Main});
 			return r;
 		default:

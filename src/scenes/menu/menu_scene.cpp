@@ -48,6 +48,7 @@
 #include "model/song/song.h" // Song::getInputTickMagnitude() -- Kind::SyncLevel's value text
 #include "modulation/sync.h" // syncValueToString -- Kind::SyncLevel's value text
 #include "notify/notice_queue.h"
+#include "shell/input_lowering.h" // claim_covers -- MenuScene::owns
 #include "shell/leds.h"
 #include "ui/core/metrics.h" // kSyncValueY -- Kind::SyncLevel's value band baseline
 #include "ui/oled/columns.h"
@@ -1297,11 +1298,9 @@ void MenuScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) {
 	st_.column_press = false;
 	st_.select_shift = f.shift();
 
-	// **The depth test precedes the read** (task-5 ruling 3). At depth 0 `back_pressed()` is never
-	// called at all, so the input stays unclaimed and `Router::route_post_render` delivers
-	// `Button{Back}` to `handle()`, which pops the scene -- legacy's back at the root closing the
-	// editor (`sound_editor.cpp:456` -> `:433` `goUpOneLevel()` -> `:678` `exitCompletely()`).
-	// Reading first and deciding afterwards is impossible: the read IS the claim.
+	// **The depth test precedes the read.** At depth 0 `owns` leaves Back to `handle()`, which pops the scene --
+	// legacy's back at the root closing the editor (`sound_editor.cpp:456` -> `:433` `goUpOneLevel()` -> `:678`
+	// `exitCompletely()`) -- so the render must not read it there: the read IS the claim.
 	if (st_.depth > 0) {
 		st_.back_claimed = f.back_pressed();
 	}
@@ -2418,6 +2417,68 @@ Result MenuScene::after_render() {
 	return r;
 }
 
+bool MenuScene::owns(const UiEvent& event) const {
+	return deluge::ui::shell::claim_covers(owned_input(), event);
+}
+
+deluge::ui::InputClaims MenuScene::owned_input() const {
+	deluge::ui::InputClaims c{};
+	c.back = st_.depth > 0; // `render_oled` reads Back only below the root
+	const Node* node = focused();
+	if (node == nullptr) {
+		return c;
+	}
+	switch (node->kind) {
+	case Kind::Submenu:
+		if (is_horizontal(*node)) {
+			// `render_horizontal` reads the turn on every page; the press goes to `columns` on a relevant submenu
+			// column and to the value column's own read otherwise, which leaves an irrelevant submenu column's.
+			c.turn = true;
+			const Node* kids[kMaxMenuColumns];
+			const size_t n = visible_children(*node, std::span<const Node*>{kids, kMaxMenuColumns});
+			if (n > 0) {
+				const Node& kid = *kids[clamp_to(st_.columns[st_.depth].focused, 0, static_cast<int32_t>(n) - 1)];
+				c.select = kid.kind != Kind::Submenu || bindings::relevant(kid, ctx_);
+			}
+		}
+		else {
+			c.turn = c.select = true; // `list`
+		}
+		break;
+	case Kind::Decimal:
+		// A `DecimalWithoutScrolling` draws as an integer screen; `decimal_value` moves its cursor with the scroll.
+		c.horizontal = node->bind.leaf_text == nullptr;
+		c.turn = c.select = true;
+		break;
+	case Kind::Range:
+		// `render_leaf_range` draws only the title for a range without a spec.
+		if (node->bind.range_spec != nullptr && node->bind.range_spec->format != nullptr) {
+			c.turn = c.select = c.horizontal = true;
+		}
+		break;
+	case Kind::Int:
+	case Kind::Enum:
+	case Kind::Toggle:
+	case Kind::SyncLevel:
+		c.turn = c.select = true;
+		break;
+	case Kind::Custom:
+		if (node->custom != nullptr) {
+			const deluge::ui::InputClaims item = node->custom->owned_input(ctx_, st_);
+			c.turn = item.turn;
+			c.edit0 = item.edit0;
+			c.edit1 = item.edit1;
+			c.horizontal = item.horizontal;
+			c.vertical = item.vertical;
+			c.select = item.select;
+		}
+		break;
+	default:
+		break;
+	}
+	return c;
+}
+
 Result MenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 	// Legacy's `UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR` as a level rather than a mode
 	// (`gui/menu_item/unpatched_param.cpp:52`). The AFFECT-ENTIRE button is an ordinary button, so
@@ -2629,9 +2690,8 @@ Result MenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 		return Result::unhandled();
 	}
 
-	// (b) Back at the root. `render_oled` deliberately never claimed it at depth 0, so the shell
-	// delivers it post-render and this closes the editor -- `sound_editor.cpp:456`'s BACK case ->
-	// `:471` `goUpOneLevel()` -> `:716` `exitCompletely()`.
+	// (b) Back at the root. `owns` leaves it to this arm at depth 0, which closes the editor --
+	// `sound_editor.cpp:456`'s BACK case -> `:471` `goUpOneLevel()` -> `:716` `exitCompletely()`.
 	//
 	// `Remove{.pop_to = SceneKind::FirstApp}`, NOT `Pop` with any `pop_to`: `SceneStack::pop(kind)`
 	// pops the topmost scene of that kind *and everything above it* (`scene_stack.cpp:63-95`), so

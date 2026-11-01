@@ -318,7 +318,7 @@ bool Shell::route_lowered_turn(EncoderRole role, int8_t offset, uint32_t now_ms)
 void Shell::set_sd_busy(bool busy) {
 	// Releasing the lock replays the whole deferred queue through the ordinary lowering path
 	// (`InputLowering::set_sd_busy`), which writes the tick-scoped state -- the detent sums, the pad
-	// events, the held-back queue and `had_input_this_tick`. Those are exactly what `begin_tick`
+	// events, the press edges and `had_input_this_tick`. Those are exactly what `begin_tick`
 	// clears, so a replay into a *closed* window would be thrown away by the next `pump_input`
 	// before anything could route it: every deferred edge lost, which is the one thing the deferral
 	// queue exists to prevent. Opening the window first makes the replay a feed like any other.
@@ -346,7 +346,7 @@ void Shell::tick(uint32_t now_ms) {
 	// 2. Presentation requests -> the overlay scenes.
 	notices_.drain(notify::notices(), now_ms);
 	// 3. Lower, route and apply, in arrival order. A widget-owned shape the input-frontmost scene's
-	// widgets may claim stays in `lowering_.held_back()` for step 8.
+	// widgets own stays in the snapshot for step 5's render instead.
 	pump_input(now_ms);
 	// A `Action::Kind::Popup` applied anywhere above leaves its string id on the router; the
 	// router has no l10n and `Notices` takes text, so the shell is the one place both are in
@@ -400,10 +400,8 @@ void Shell::tick(uint32_t now_ms) {
 	GridSurface& g = surfaces_.grid();
 	// `router_.grid_repaint_requested()` is the grid's half of `Action::Kind::RepaintAll`, and it
 	// belongs here for the same reason `repaint_requested(s.role)` belongs one step up: a scene that
-	// changed what the pads show in response to *post-render* input has no other way to say so. Its
-	// own gate is not one -- `render_grid` is what arms that, and the whole problem is that the
-	// render already happened this tick. E3 task 11's `marker.txt` is where the hole showed: a
-	// select turn moved the marker on the OLED and left the pads a whole blink phase behind.
+	// changed what the pads show from `handle()` or `after_render()` has no other way to say so.
+	// Its own gate is not one -- `render_grid` is what arms that.
 	if (g.gate.needs_frame(now_ms, had_input_, false) || widgets_want_frame || router_.grid_repaint_requested()) {
 		render_grid(now_ms);
 		g.dirty = true;
@@ -414,6 +412,7 @@ void Shell::tick(uint32_t now_ms) {
 	// produces must survive to be acted on -- clearing after them set and wiped it inside one tick
 	// with no reader in between. See the "Repaint requests" invariant on `Shell` (`shell.h`).
 	router_.clear_repaint_requests();
+	audit_ownership();
 	// 7. Navigation derived from what this tick's render observed.
 	//
 	// Applied as we go rather than collected first: spec D §7 step 7 says every rendered scene gets
@@ -423,15 +422,13 @@ void Shell::tick(uint32_t now_ms) {
 	for (Scene* scene : rendered_this_tick_) {
 		router_.apply(scene->after_render());
 	}
-	// 8. The held-back events, now that the claims they are gated on are knowable.
-	deliver_post_render_input(now_ms);
-	// A repaint requested by step 7 or step 8 is for the *next* tick -- this tick's frames are
-	// already built. Arming the surface's own gate at a zero-millisecond deadline is what makes
-	// that next tick happen at all: `compute_next_wake` reads gate deadlines, so `next_wake()`
-	// reports `now_ms` and a scheduler that would otherwise sleep until the next input wakes
-	// immediately instead. (A bare `request_repaint()` would fire the gate but arm no deadline, so
-	// the frame would wait for an unrelated wake.) The router's own flags are deliberately left
-	// standing too: the next tick's step-5 loop reads them before clearing them above.
+	// A repaint requested by step 7 is for the *next* tick -- this tick's frames are already
+	// built. Arming the surface's own gate at a zero-millisecond deadline is what makes that next
+	// tick happen at all: `compute_next_wake` reads gate deadlines, so `next_wake()` reports
+	// `now_ms` and a scheduler that would otherwise sleep until the next input wakes immediately
+	// instead. (A bare `request_repaint()` would fire the gate but arm no deadline, so the frame
+	// would wait for an unrelated wake.) The router's own flags are deliberately left standing too:
+	// the next tick's step-5 loop reads them before clearing them above.
 	for (OledSurface& s : surfaces_.oled()) {
 		if (router_.repaint_requested(s.role)) {
 			s.gate.request_repaint_after(0, now_ms);
@@ -550,8 +547,8 @@ void Shell::tick(uint32_t now_ms) {
 	flush(now_ms); // Task 8
 	next_wake_ = compute_next_wake(now_ms);
 	last_ms_ = now_ms;
-	// The lowering's tick window closes here and not before: `deliver_post_render_input` above
-	// reads `held_back()` and `ctx().claims`, both of which the *next* `begin_tick()` clears.
+	// The lowering's tick window closes here and not before: the render's claims and the press
+	// edges belong to this tick until the *next* `begin_tick()` clears them.
 	tick_open_ = false;
 }
 
@@ -599,12 +596,27 @@ void Shell::pump_input(uint32_t now_ms) {
 	// per-tick reset runs and `end_tick` assembles a snapshot for this tick's frames to read.
 	ensure_tick_window(now_ms);
 	lowering_.end_tick(now_ms);
+	up_before_input_.clear();
+	for (Scene* scene : stack_.scenes()) {
+		(void)up_before_input_.push_back(scene);
+	}
+	owned_ = {};
+	routed_ = {};
+	decider_ = nullptr;
+	deciders_differ_ = false;
 	UiEvent event{UiEvent::Kind::AllReleased};
 	while (lowering_.next(event)) {
 		// Asked per event: an earlier event this tick may have pushed the scene that takes this one.
-		if (is_widget_owned_shape(event) && stack_.input_top().widgets_own_input()) {
-			lowering_.hold_back(event);
-			continue;
+		if (is_widget_owned_shape(event) && lowering_.last_in_snapshot()) {
+			Scene& top = stack_.input_top();
+			deciders_differ_ = deciders_differ_ || (decider_ != nullptr && decider_ != &top);
+			decider_ = &top;
+			if (top.owns(event)) {
+				add_claim(owned_, event);
+				continue;
+			}
+			lowering_.withdraw(event);
+			add_claim(routed_, event);
 		}
 		router_.route(event, make_context(now_ms));
 	}
@@ -613,8 +625,11 @@ void Shell::pump_input(uint32_t now_ms) {
 
 void Shell::tick_stack(uint32_t now_ms, uint32_t dt_ms) {
 	const std::span<Scene* const> scenes = stack_.scenes();
+	// A scene this tick's input pushed was not up for the time `dt_ms` covers, so its clock starts
+	// here, as a legacy UI's timer starts when it opens.
 	for (size_t k = scenes.size(); k-- > 0;) {
-		scenes[k]->tick(dt_ms);
+		const bool pushed_by_input = std::ranges::find(up_before_input_, scenes[k]) == up_before_input_.end();
+		scenes[k]->tick(pushed_by_input ? 0 : dt_ms);
 		// A scene that covers the grid completely is the only thing anyone can see, so nothing
 		// beneath it needs its clock advanced -- legacy's `PadLEDs::renderingLock` era kept every
 		// UI running underneath and paid for it in wasted work.
@@ -839,22 +854,35 @@ void Shell::render_grid(uint32_t now_ms) {
 	}
 }
 
-void Shell::deliver_post_render_input(uint32_t now_ms) {
-	const UiContext ctx = make_context(now_ms);
-	// `Router::route_post_render` is what applies the claim map (`Encoder{Select}` -> `turn`,
-	// ... `Button{Back}` -> `back`, documented on that method): it drops a claimed event outright
-	// rather than routing it, so the gate lives in one place instead of being restated here.
-	// Size snapshotted first: routing can reach arbitrary application code, and a feed from
-	// anything it calls would append to the same vector mid-iteration. Such an event belongs to the
-	// *next* tick's window -- it was never in this tick's snapshot and no widget could have claimed
-	// it -- so it is deliberately left for the next `begin_tick` rather than routed here.
-	const size_t n = lowering_.held_back().size();
-	for (size_t i = 0; i < n; i++) {
-		router_.route_post_render(lowering_.held_back()[i], ctx, lowering_.ctx().claims);
+void Shell::audit_ownership() {
+	// Judged only where one scene answered every question this tick and still takes the input: a
+	// scene that took the input after another declined an event claims an edge that is no longer in
+	// the snapshot, which reads nothing. And only if it drew: one covered on every surface this tick
+	// had nothing to read its input with, the same outcome as any other covered input.
+	Scene* const taker = &stack_.input_top();
+	if (decider_ != taker || deciders_differ_
+	    || std::ranges::find(rendered_this_tick_, taker) == rendered_this_tick_.end()) {
+		return;
 	}
-	// Not cleared here: `InputLowering::begin_tick` owns that, and the window this shell opened is
-	// closed at the bottom of `tick()` so the next feed re-opens (and therefore clears) it. See
-	// the tick-window note on the class.
+	const InputClaims& claimed = lowering_.ctx().claims;
+	const auto count = [&](bool InputClaims::* bit) {
+		if ((routed_.*bit) && (claimed.*bit)) {
+			ownership_audit().undeclared_claims++;
+		}
+		if ((owned_.*bit) && !(claimed.*bit)) {
+			ownership_audit().unclaimed_owned++;
+		}
+	};
+	for (bool InputClaims::* bit :
+	     {&InputClaims::turn, &InputClaims::edit0, &InputClaims::edit1, &InputClaims::horizontal,
+	      &InputClaims::vertical, &InputClaims::select, &InputClaims::back}) {
+		count(bit);
+	}
+}
+
+OwnershipAudit& ownership_audit() {
+	static OwnershipAudit audit;
+	return audit;
 }
 
 void Shell::derive_leds(uint32_t now_ms) {

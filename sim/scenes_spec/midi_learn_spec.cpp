@@ -441,12 +441,6 @@ struct LearnRig {
 		while (lowering.next(e)) {
 			router.route(e, ctx());
 		}
-		// `ButtonId::Back`/`SelectEnc` are held back for post-render routing
-		// (`shell/input_lowering.cpp:32-34`); none of this spec's buttons is one, but draining is
-		// what the shell does and a rig that skipped it would diverge silently later.
-		for (const UiEvent& held : lowering.held_back()) {
-			router.route_post_render(held, ctx(), lowering.ctx().claims);
-		}
 		lowering.end_tick(at_ms);
 	}
 };

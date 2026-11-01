@@ -3,6 +3,8 @@
 
 #include "cppspec.hpp"
 
+#include <utility>
+
 #include "../support/spec_main.h"
 using namespace deluge::ui::shell;
 using deluge::ui::EncoderRole;
@@ -81,7 +83,6 @@ describe shell_input_lowering("shell::InputLowering", $ {
 		expect(e.encoder == EncoderRole::Tempo).to_be_true();
 		expect(is_widget_owned_shape(e)).to_be_false();
 		expect(in.next(e)).to_be_false();
-		expect(in.held_back().empty()).to_be_true(); // only the shell holds events back
 	});
 
 	it("shift press+release under hold time becomes sticky when enabled", _ {
@@ -470,15 +471,77 @@ describe shell_input_lowering("shell::InputLowering", $ {
 		expect(in.snapshot().turn).to_equal(int8_t(1));
 	});
 
-	it("counts held-back events it had no room for", _ {
+	it("maps each widget-owned shape onto the claim that owns it", _ {
+		const auto turn = [](EncoderRole role) {
+			UiEvent e{UiEvent::Kind::Encoder};
+			e.encoder = role;
+			e.delta = 1;
+			return e;
+		};
+		UiEvent select_press{UiEvent::Kind::EncoderButton};
+		select_press.button = ButtonId::SelectEnc;
+		select_press.on = true;
+		UiEvent back{UiEvent::Kind::Button};
+		back.button = ButtonId::Back;
+		back.on = true;
+		const std::pair<UiEvent, bool deluge::ui::InputClaims::*> cases[] = {
+		    {turn(EncoderRole::Select), &deluge::ui::InputClaims::turn},
+		    {turn(EncoderRole::GoldUpper), &deluge::ui::InputClaims::edit0},
+		    {turn(EncoderRole::GoldLower), &deluge::ui::InputClaims::edit1},
+		    {turn(EncoderRole::Horizontal), &deluge::ui::InputClaims::horizontal},
+		    {turn(EncoderRole::Vertical), &deluge::ui::InputClaims::vertical},
+		    {select_press, &deluge::ui::InputClaims::select},
+		    {back, &deluge::ui::InputClaims::back},
+		};
+		for (const auto& [event, bit] : cases) {
+			deluge::ui::InputClaims c{};
+			expect(claim_covers(c, event)).to_be_false();
+			add_claim(c, event);
+			expect(c.*bit).to_be_true();
+			expect(claim_covers(c, event)).to_be_true();
+		}
+		deluge::ui::InputClaims all{};
+		add_claim(all, turn(EncoderRole::Tempo));
+		expect(claim_covers(all, turn(EncoderRole::Tempo))).to_be_false();
+	});
+
+	it("withdraws a routed event from the snapshot the frames read", _ {
 		InputLowering in(uitest::test_profile_input(), {});
 		in.begin_tick(1);
-		for (int i = 0; i < InputLowering::kHeldBackCapacity + 2; i++) {
-			in.hold_back(UiEvent{.kind = UiEvent::Kind::Button, .on = i % 2 == 0, .button = ButtonId::Back});
-		}
+		in.on_encoder_edges(3, 4, 1);                     // four edges: two Select detents
+		in.on_board_event(button_ev(7, 1, true), 1);      // Back
+		in.on_board_event(button_ev(4, 3, true), 1);      // SelectEnc press
 		in.end_tick(1);
-		expect(in.held_back().size()).to_equal(size_t(InputLowering::kHeldBackCapacity));
-		expect(in.held_back_dropped()).to_equal(uint32_t(2));
+		expect(in.snapshot().turn).to_equal(int8_t(2));
+		UiEvent e;
+		while (in.next(e)) {
+			if (e.kind == UiEvent::Kind::Encoder) {
+				in.withdraw(e);
+			}
+			if (e.button == ButtonId::Back) {
+				in.withdraw(e);
+			}
+			if (e.button == ButtonId::SelectEnc) {
+				in.withdraw(e);
+			}
+		}
+		in.select_on_release(false);
+		expect(in.snapshot().turn).to_equal(int8_t(0));
+		expect(in.snapshot().back_pressed).to_be_false();
+		expect(in.snapshot().select_pressed).to_be_false();
+	});
+
+	it("reports an event fed after the snapshot was taken as outside it", _ {
+		InputLowering in(uitest::test_profile_input(), {});
+		in.begin_tick(1);
+		in.on_board_event(button_ev(7, 1, true), 1);
+		in.end_tick(1);
+		in.on_board_event(button_ev(8, 3, true), 2);      // fed while the tick routes
+		UiEvent e;
+		expect(in.next(e)).to_be_true();
+		expect(in.last_in_snapshot()).to_be_true();
+		expect(in.next(e)).to_be_true();
+		expect(in.last_in_snapshot()).to_be_false();
 	});
 
 	it("carries no Select release edge once the press is used up, even after the release was fed", _ {

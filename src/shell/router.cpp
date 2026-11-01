@@ -41,39 +41,6 @@ bool is_mod_or_gold(const UiEvent& e) {
 	}
 }
 
-/// @brief Does \p claims show a widget already claimed \p e this tick?
-///
-/// The map `route_post_render` is gated by: `Encoder{Select}` -> `turn`, `Encoder{GoldUpper}` ->
-/// `edit0`, `Encoder{GoldLower}` -> `edit1`, `Encoder{Horizontal}` -> `horizontal`,
-/// `Encoder{Vertical}` -> `vertical`, `EncoderButton{SelectEnc}` -> `select`, `Button{Back}` ->
-/// `back`. Anything else reports unclaimed rather than guessing a bit for it -- `route_post_render`
-/// is only ever called, from `pump_input`, with one of these six shapes.
-bool already_claimed(const UiEvent& e, const InputClaims& claims) {
-	switch (e.kind) {
-	case UiEvent::Kind::Encoder:
-		switch (e.encoder) {
-		case EncoderRole::Select:
-			return claims.turn;
-		case EncoderRole::GoldUpper:
-			return claims.edit0;
-		case EncoderRole::GoldLower:
-			return claims.edit1;
-		case EncoderRole::Horizontal:
-			return claims.horizontal;
-		case EncoderRole::Vertical:
-			return claims.vertical;
-		default:
-			return false;
-		}
-	case UiEvent::Kind::EncoderButton:
-		return e.button == ButtonId::SelectEnc && claims.select;
-	case UiEvent::Kind::Button:
-		return e.button == ButtonId::Back && claims.back;
-	default:
-		return false;
-	}
-}
-
 } // namespace
 
 bool Router::run_chain(const UiEvent& event, const UiContext& ctx) {
@@ -137,13 +104,6 @@ bool Router::run_chain(const UiEvent& event, const UiContext& ctx) {
 }
 
 bool Router::route(const UiEvent& event, const UiContext& ctx) {
-	return run_chain(event, ctx);
-}
-
-bool Router::route_post_render(const UiEvent& event, const UiContext& ctx, const InputClaims& claims) {
-	if (already_claimed(event, claims)) {
-		return false;
-	}
 	return run_chain(event, ctx);
 }
 

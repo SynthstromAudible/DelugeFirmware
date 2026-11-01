@@ -143,7 +143,7 @@
 /// @par Why a seeded install swallows the turn: a service reaching into the lowering behind the router
 ///
 /// The prediction this file used to carry was that the split was decided by the page -- a turn the
-/// page's widget CLAIMS is dropped by `Router::route_post_render` before `Router::run_chain`, so
+/// page's widget CLAIMS is never routed to `Router::run_chain` (`Scene::owns`), so
 /// installing the services would change nothing; an unclaimed turn would fall through and make
 /// `ModKnobs` push a `ParamPopupScene`. **Neither half held.** No `ParamPopupScene` appears anywhere
 /// (not one added or removed `scene` line, in either the seeded or the unseeded recording), and the

@@ -570,26 +570,6 @@ describe shell_router("shell::Router", $ {
 		expect(r.scene_a.last_shift).to_be_true();
 	});
 
-	it("route_post_render skips an event a widget already claimed, and routes what nothing claimed", _ {
-		Rig r;
-		UiEvent turn_event{};
-		turn_event.kind = UiEvent::Kind::Encoder;
-		turn_event.encoder = EncoderRole::Select;
-		turn_event.delta = 1;
-		UiContext ctx = make_ctx(r.lowering);
-
-		InputClaims claimed{};
-		claimed.turn = true;
-		r.router.route_post_render(turn_event, ctx, claimed);
-		expect(r.scene_a.calls).to_equal(0);
-		expect(r.router.dropped_events()).to_equal(uint32_t(0));   // claimed, not dropped
-
-		InputClaims unclaimed{};
-		r.router.route_post_render(turn_event, ctx, unclaimed);
-		expect(r.scene_a.calls).to_equal(1);
-		expect(r.router.dropped_events()).to_equal(uint32_t(1));   // ran the chain; nothing handled it
-	});
-
 	it("dropped_events counts an event nothing along the chain handled", _ {
 		Rig r;
 		expect(r.router.dropped_events()).to_equal(uint32_t(0));
