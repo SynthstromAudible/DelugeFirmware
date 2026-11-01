@@ -231,9 +231,12 @@ void checkMIDICCShortcuts(Checker& check) {
 		}
 	};
 	expect("MIDI CC shortcut, default mappings");
-	// A patched param the sound map leaves unmapped (the master level, at 6,0) has no CC.
+	// A patched param the sound map leaves unmapped (the master level, at 6,0) has no CC; nor does portamento (7,0),
+	// whose unpatched index is the global map's mod FX rate.
 	follow.soundParamToCC[params::GLOBAL_VOLUME_POST_FX] = MIDI_CC_NONE;
 	expect("MIDI CC shortcut, patched param unmapped");
+	follow.soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_PORTAMENTO] = MIDI_CC_NONE;
+	expect("MIDI CC shortcut, portamento unmapped");
 }
 
 int param_target_check_main(int /*argc*/, char** /*argv*/, Io io) {

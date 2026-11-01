@@ -242,9 +242,6 @@ uint32_t automationMIDICCShortcut(const MidiFollow& follow, int32_t x, int32_t y
 	}
 	else if (cell && cell->kind == params::Kind::UNPATCHED_SOUND) {
 		ccNumber = follow.soundParamToCC[cell->index + params::UNPATCHED_START];
-		if (ccNumber == MIDI_CC_NONE) {
-			ccNumber = follow.globalParamToCC[cell->index];
-		}
 	}
 	return ccNumber != MIDI_CC_NONE ? ccNumber : kNoParamID;
 }
