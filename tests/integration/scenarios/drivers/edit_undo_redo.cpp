@@ -1650,6 +1650,70 @@ void exactAddressTarget(Song* song) {
 	}
 }
 
+// A param write's undo record outlives its owner's deletion and restore: an arrangement-only synth clip's lane is
+// turned, its clip instance (and with it the clip) deleted; undoing both brings the clip back by its id and the lane
+// back to its value; redoing both deletes it again.
+void undoAcrossClipDeleteTarget(Song* song) {
+	for (Output* output = song->live.media.first_output; output != nullptr; output = output->next) {
+		if (output->type != OutputType::SYNTH) {
+			continue;
+		}
+		for (int32_t i = 0; i < std::ssize(output->clipInstances); i++) {
+			ClipInstance* inst = &output->clipInstances[i];
+			if (inst->clip == nullptr || !inst->clip->isArrangementOnlyClip()) {
+				continue;
+			}
+			auto* clip = static_cast<InstrumentClip*>(inst->clip);
+			const uint32_t clipId = clip->id();
+			alignas(ModelStackWithAutoParam) char m[MODEL_STACK_MAX_SIZE];
+			ModelStackWithAutoParam* lane =
+			    setupModelStackWithThreeMainThingsIncludingNoteRow(m, song, clip, 0, nullptr,
+			                                                       output->toModControllable(), &clip->paramManager)
+			        ->getUnpatchedAutoParamFromId(params::UNPATCHED_PORTAMENTO);
+			const std::optional<deluge::project::ParamAddress> address =
+			    lane != nullptr ? deluge::edits::addressFor(*lane) : std::nullopt;
+			if (!address) {
+				continue;
+			}
+			std::fprintf(io.out, "# target undo-across-clip-delete\n");
+			auto valueNow = [&]() -> std::optional<int32_t> {
+				alignas(ModelStackWithAutoParam) char e[MODEL_STACK_MAX_SIZE];
+				ModelStackWithAutoParam* found = deluge::bridge::paramStackExact(*song, *address, e);
+				return found != nullptr ? std::optional{found->autoParam->getCurrentValue()} : std::nullopt;
+			};
+			const int32_t before = lane->autoParam->getCurrentValue();
+			actionLogger.firstAction[BEFORE] = nullptr;
+			actionLogger.firstAction[AFTER] = nullptr;
+			deluge::edits::Context ctx{*currentSong, currentSong->project};
+			deluge::edits::SetParamValue turn{*address, before + 12345678};
+			check(deluge::edits::apply(ctx, turn) == Error::NONE, "undo-across-delete: the turn applies");
+			if (actionLogger.firstAction[BEFORE] != nullptr) {
+				actionLogger.firstAction[BEFORE]->openForAdditions = false;
+			}
+			Action* action = actionLogger.getNewAction(ActionType::CLIP_INSTANCE_EDIT, ActionAddition::NOT_ALLOWED);
+			check(action != nullptr, "undo-across-delete: the delete opens an Action");
+			if (action == nullptr) {
+				return;
+			}
+			// The arranger's delete of a clip instance (ArrangerView::deleteClipInstance).
+			action->recordClipInstanceExistenceChange(output, inst, ExistenceChangeType::DELETE);
+			output->clipInstances.erase(output->clipInstances.begin() + i);
+			song->deletingClipInstanceForClip(output, clip, action, true);
+			action->openForAdditions = false;
+			check(song->clipForId(clipId) == nullptr, "undo-across-delete: the clip is gone");
+			actionLogger.revert(BEFORE, false, false);
+			actionLogger.revert(BEFORE, false, false);
+			check(song->clipForId(clipId) != nullptr, "undo-across-delete: undo brings the clip back by its id");
+			check(valueNow() == before, "undo-across-delete: undo brings the lane back");
+			actionLogger.revert(AFTER, false, false);
+			actionLogger.revert(AFTER, false, false);
+			check(song->clipForId(clipId) == nullptr, "undo-across-delete: redo deletes the clip again");
+			return;
+		}
+	}
+	std::fprintf(io.out, "# no-arrangement-only-synth-clip\n");
+}
+
 // The owners no corpus song holds lanes for: a MIDI or gate drum's row and a CV clip, each given an expression set
 // here, then swept as exactAddressTarget sweeps the rest.
 void newShapesTarget(Song* song) {
@@ -1833,6 +1897,7 @@ int edit_undo_redo_main(int argc, char** argv, Io driverIo) {
 	colourTarget(song);
 	sectionTarget(song);
 	cableTarget(song);
+	undoAcrossClipDeleteTarget(song);
 	newShapesTarget(song);
 
 	std::free(xml);

@@ -1469,7 +1469,8 @@ addNewNodeAt0IfNecessary:
 		else {
 
 			// If action already has a backed up snapshot for this param, can still just do a basic trim
-			if (action->containsConsequenceParamChange(modelStack->paramCollection, modelStack->paramId)) {
+			const std::optional<deluge::project::ParamAddress> address = deluge::edits::addressFor(*modelStack);
+			if (!address || action->containsConsequenceParamChange(*address)) {
 				goto basicTrim;
 
 				// Or, if we need to snapshot, work with that

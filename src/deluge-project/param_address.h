@@ -79,6 +79,8 @@ struct ParamAddress {
 
 	/// @brief The param this address names, without its owner.
 	[[nodiscard]] constexpr ParamTarget target() const { return {space, id}; }
+
+	[[nodiscard]] constexpr bool operator==(const ParamAddress&) const = default;
 };
 
 } // namespace deluge::project

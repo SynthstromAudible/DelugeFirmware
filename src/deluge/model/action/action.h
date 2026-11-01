@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include "deluge-project/param_address.h"
+
 #include "definitions_cxx.hpp"
 #include "model/note/note_vector.h"
 #include "model/scale/note_set.h"
@@ -52,8 +54,12 @@ public:
 	Action(ActionType newActionType);
 	void addConsequence(Consequence* consequence);
 	Error revert(TimeType time, ModelStack* modelStack);
-	bool containsConsequenceParamChange(ParamCollection* paramCollection, int32_t paramId);
+	/// @brief Whether this Action already holds an undo record of the lane at @p address.
+	bool containsConsequenceParamChange(const deluge::project::ParamAddress& address);
+	/// @brief Record the lane @p modelStack names (by its address) unless this Action already holds a record of it;
+	/// a lane with no address (a stack with no song) is not recorded.
 	void recordParamChangeIfNotAlreadySnapshotted(ModelStackWithAutoParam const* modelStack, bool stealData = false);
+	/// @brief Record the lane @p modelStack names, by its address, whether or not this Action holds a record of it.
 	void recordParamChangeDefinitely(ModelStackWithAutoParam const* modelStack, bool stealData);
 	Error recordNoteArrayChangeIfNotAlreadySnapshotted(InstrumentClip* clip, int32_t noteRowId, NoteVector* noteVector,
 	                                                   bool stealData, bool moveToFrontIfAlreadySnapshotted = false);
@@ -108,7 +114,6 @@ public:
 	// We store these kinds of consequences separately because we need to be able to search through them fast, when
 	// there may be a large number of other kinds of consequences. Also, these don't need re-ordering each time we
 	// revert
-	ConsequenceParamChange* firstParamConsequence{};
 
 	ActionClipState* clipStates;
 
@@ -119,4 +124,6 @@ public:
 	int8_t offset; // Recorded for the purpose of knowing when we can do those "partial undos"
 
 private:
+	void recordParamChange(const deluge::project::ParamAddress& address, ModelStackWithAutoParam const* modelStack,
+	                       bool stealData);
 };
