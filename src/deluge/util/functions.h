@@ -27,8 +27,7 @@
 #include "util/etl_string.h"
 #include "util/fixedpoint.h"
 #include "util/lookuptables/lookuptables.h"
-#include "util/name_compare.h"    // IWYU pragma: export - strcmpspecial and friends used to live here
-#include "util/param_functions.h" // IWYU pragma: export — param scaling/patching math (split out for the synth core)
+#include "util/name_compare.h" // IWYU pragma: export - strcmpspecial and friends used to live here
 #include "util/synth_noise.h"
 #include <bit>
 #include <cstdint>
@@ -134,8 +133,6 @@ char const* getFileNameFromEndOfPath(char const* filePathChars);
 
 int32_t getParamFromUserValue(uint8_t p, int8_t userValue);
 int32_t getLookupIndexFromValue(int32_t value, const int32_t* table, int32_t maxIndex);
-
-int32_t cableToLinearParamShortcut(int32_t sourceValue);
 
 class Sound;
 namespace deluge::dsp {

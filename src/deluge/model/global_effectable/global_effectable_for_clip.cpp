@@ -19,6 +19,7 @@
 #include "definitions.h"
 #include "definitions_cxx.hpp"
 #include "dsp-next/core/stereo_sample.h"
+#include "dsp-next/fixed/curves/param_curve.h"
 #include "gui/l10n/l10n.h"
 #include "gui/views/view.h"
 #include "model/action/action.h"
@@ -71,13 +72,13 @@ GlobalEffectableForClip::~GlobalEffectableForClip() {
 	// Process FX and stuff. For kits, stutter happens before reverb send
 	// The >>1 is to make up for the fact that we've got the preset default to effect a multiplication of 2 already (the
 	// maximum multiplication would be 4)
-	int32_t a = cableToLinearParamShortcut(unpatchedParams->getValue(params::UNPATCHED_VOLUME));
-	int32_t volumeAdjustment = getFinalParameterValueVolume(134217728, a) >> 1;
+	int32_t a = deluge::dsp::fixed::preset_combination(unpatchedParams->getValue(params::UNPATCHED_VOLUME));
+	int32_t volumeAdjustment = deluge::dsp::fixed::curve_square(134217728, a) >> 1;
 
 	int32_t reverbAmountAdjustForDrums = multiply_32x32_rshift32_rounded(reverbAmountAdjust, volumeAdjustment) << 5;
 
-	int32_t pitchAdjust =
-	    getFinalParameterValueExp(kMaxSampleValue, unpatchedParams->getValue(params::UNPATCHED_PITCH_ADJUST) >> 3);
+	int32_t pitchAdjust = deluge::dsp::fixed::curve_exponential(
+	    kMaxSampleValue, unpatchedParams->getValue(params::UNPATCHED_PITCH_ADJUST) >> 3);
 
 	// The delay starts or stops on whether the content rendered last block.
 	deluge::effects::Delay::State delayWorkingState =

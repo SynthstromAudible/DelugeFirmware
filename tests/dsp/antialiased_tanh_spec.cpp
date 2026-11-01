@@ -35,7 +35,7 @@
 #include "dsp-next/fixed/shaping/tanh.h"
 #include "dsp-next/fixed/shaping/tanh_kernel.h"
 #include "reference_filters.h"
-#include "util/param_functions.h"
+#include "util/fixedpoint.h"
 
 #include <array>
 #include <cppspec.hpp>

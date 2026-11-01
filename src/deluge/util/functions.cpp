@@ -42,16 +42,6 @@ const uint8_t modButtonY[8] = {0, 1, 2, 3, 0, 1, 2, 3};
 const uint8_t modLedX[8] = {1, 1, 1, 1, 2, 2, 2, 2};
 const uint8_t modLedY[8] = {0, 1, 2, 3, 0, 1, 2, 3};
 
-// The getFinalParameterValue* family, getExp and lookupReleaseRate are in util/param_functions.cpp (gui-free), so the
-// synth core links them without pulling gui; each param's neutral value and range are synth/matrix/descriptors.h's.
-// Declarations remain visible via util/param_functions.h (re-exported by util/functions.h).
-
-// getFinalParameterValue* moved to util/param_functions.cpp.
-
-int32_t cableToLinearParamShortcut(int32_t sourceValue) {
-	return sourceValue >> 2;
-}
-
 char const* sourceToString(PatchSource source) {
 	switch (source) {
 	case PatchSource::LFO_GLOBAL_1:
@@ -221,8 +211,6 @@ char const* sourceToStringShort(PatchSource source) {
 		return "----";
 	}
 }
-
-// getExp moved to util/param_functions.cpp.
 
 bool memIsNumericChars(char const* mem, int32_t size) {
 	for (int32_t i = 0; i < size; i++) {
@@ -731,8 +719,6 @@ bool isAiffFilename(char const* filename) {
 	auto* dotPos = strrchr(filename, '.');
 	return (dotPos != NULL && (!strcasecmp(dotPos, ".AIF") || !strcasecmp(dotPos, ".AIFF")));
 }
-
-// lookupReleaseRate moved to util/param_functions.cpp.
 
 // Gets param *preset* value. Should be labelled better
 int32_t getParamFromUserValue(uint8_t p, int8_t userValue) {

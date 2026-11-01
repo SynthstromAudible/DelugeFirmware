@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "deluge-project/doc_output.h" // complete DocOutput type for seedDocOutputIdentity + setters
 #include "dsp-next/core/stereo_sample.h"
+#include "dsp-next/fixed/curves/param_curve.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
 #include "modulation/arpeggiator.h"
@@ -56,9 +57,10 @@ void NonAudioInstrument::renderOutput(ModelStack* modelStack, std::span<StereoSa
 
 		if (activeInstrumentClip->arpSettings.mode != ArpMode::OFF) {
 			uint32_t gateThreshold = (uint32_t)activeInstrumentClip->arpSettings.gate + 2147483648;
-			uint32_t phaseIncrement = activeInstrumentClip->arpSettings.getPhaseIncrement(getFinalParameterValueExp(
-			    deluge::synth::matrix::kParamNeutral[deluge::modulation::params::GLOBAL_ARP_RATE],
-			    cableToExpParamShortcut(activeInstrumentClip->arpSettings.rate)));
+			uint32_t phaseIncrement =
+			    activeInstrumentClip->arpSettings.getPhaseIncrement(deluge::dsp::fixed::curve_exponential(
+			        deluge::synth::matrix::kParamNeutral[deluge::modulation::params::GLOBAL_ARP_RATE],
+			        deluge::dsp::fixed::preset_combination(activeInstrumentClip->arpSettings.rate)));
 
 			ArpReturnInstruction instruction;
 

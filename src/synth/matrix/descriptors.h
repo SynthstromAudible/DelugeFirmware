@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp" // kMaxSampleValue
+#include "dsp-next/fixed/curves/param_curve.h"
 #include "modulation/params/param.h"
 #include "synth/modulation/cable.h"
 
@@ -39,14 +40,7 @@ enum class ChainKind : uint8_t {
 };
 
 /// The curve that turns a destination's combination into its final value.
-enum class CurveKind : uint8_t {
-	SQUARE,               ///< neutral · (1 + c)²: the square law, up to 4 × neutral
-	LINEAR,               ///< neutral · (1 + c), up to 2 × neutral
-	BIPOLAR,              ///< a position around neutral, its combination doubled (pan, phase widths, wave indexes)
-	EXPONENTIAL,          ///< neutral · 2^(c · 32 + 2): frequencies, pitches, rates
-	EXPONENTIAL_INVERTED, ///< the exponential of −c: envelope attacks
-	RELEASE_TABLE,        ///< the release-rate table: envelope decays and releases
-};
+using CurveKind = dsp::fixed::ParamCurve;
 
 /// How a cable's depth is shaped before it scales the source.
 enum class DepthMode : uint8_t {

@@ -17,23 +17,12 @@
 
 #pragma once
 
-#include "util/fixedpoint.h" // signed_saturate, multiply_32x32_rshift32
 #include <cstdint>
 
-// The parameter scaling/patching math, split out of the grab-bag util/functions.h so the synth core
-// (the mod matrix) can reach it without dragging in functions.h's gui/colour include. functions.h re-exports
-// this header, so its existing users are unaffected. The definitions live in param_functions.cpp.
-
-int32_t getExp(int32_t presetValue, int32_t adjustment);
-int32_t lookupReleaseRate(int32_t input);
-
-/// @brief A cable's source value scaled as an exponential param's patching adds it in.
-[[nodiscard]] inline int32_t cableToExpParamShortcut(int32_t sourceValue) {
-	return sourceValue >> 2;
-}
-
-int32_t getFinalParameterValueVolume(int32_t paramNeutralValue, int32_t patchedValue);
-int32_t getFinalParameterValueLinear(int32_t paramNeutralValue, int32_t patchedValue);
-int32_t getFinalParameterValueHybrid(int32_t paramNeutralValue, int32_t patchedValue);
-int32_t getFinalParameterValueExp(int32_t paramNeutralValue, int32_t patchedValue);
+/// @brief An exponential-family param's final value: the release-rate table for envelope decays and releases, the
+/// inverted exponential for envelope attacks, the exponential for the rest.
+/// @param paramNeutralValue The param's neutral value.
+/// @param patchedValue The combination, Q29.
+/// @param p The patched param.
+/// @return The final value.
 int32_t getFinalParameterValueExpWithDumbEnvelopeHack(int32_t paramNeutralValue, int32_t patchedValue, int32_t p);

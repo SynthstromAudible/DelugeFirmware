@@ -16,6 +16,7 @@
  */
 
 #include "model/fx/song_stutter.h"
+#include "dsp-next/fixed/curves/param_curve.h"
 #include "synth/matrix/descriptors.h" // kParamNeutral, kParamRange
 
 #include "libdeluge/system.h" // AudioExcludedSection
@@ -27,7 +28,6 @@
 #include "playback/playback_handler.h"
 #include "util/fixedpoint.h"
 #include "util/functions.h"
-#include "util/param_functions.h"
 #include "util/structural_edit_probe.h"
 
 #include <algorithm>
@@ -106,8 +106,9 @@ int32_t stutterRate(ParamManager* paramManager, int32_t knobDiff, int32_t magnit
 	    std::clamp<int32_t>(unpatchedParams->paramValueToKnobPos(paramValue, nullptr) + knobDiff, -64, 64);
 	paramValue = unpatchedParams->knobPosToParamValue(knobPos, nullptr);
 
-	int32_t rate = getFinalParameterValueExp(deluge::synth::matrix::kParamNeutral[params::GLOBAL_DELAY_RATE],
-	                                         cableToExpParamShortcut(paramValue));
+	int32_t rate =
+	    deluge::dsp::fixed::curve_exponential(deluge::synth::matrix::kParamNeutral[params::GLOBAL_DELAY_RATE],
+	                                          deluge::dsp::fixed::preset_combination(paramValue));
 
 	rate = multiply_32x32_rshift32(rate, timePerTickInverse);
 

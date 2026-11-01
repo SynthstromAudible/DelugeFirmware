@@ -18,9 +18,10 @@
 #pragma once
 
 #include "dsp-next/core/q31_ops.h" // multiply_32x32_rshift32(_rounded), add_saturate, lshift_and_saturate
+#include "dsp-next/fixed/curves/param_curve.h"
 #include "synth/matrix/descriptors.h"
 #include "synth/modulation/cable_depth.h" // apply_range
-#include "util/param_functions.h"         // kParamRange, getFinalParameterValue*
+#include "util/param_functions.h"         // getFinalParameterValueExpWithDumbEnvelopeHack
 
 #include <argon.hpp>
 #include <cstdint>
@@ -99,7 +100,7 @@ struct MatrixFixed {
 
 	/// A depth destination's result from its chain's combination.
 	[[gnu::always_inline]] static int32_t depth_result(int32_t combination) {
-		return getFinalParameterValueLinear(kOne, combination);
+		return deluge::dsp::fixed::curve_linear(kOne, combination);
 	}
 
 	/// Param @p p's final value from its chain's combination.
@@ -107,11 +108,11 @@ struct MatrixFixed {
 		const int32_t neutral = kParamNeutral[p];
 		switch (kind) {
 		case CurveKind::SQUARE:
-			return getFinalParameterValueVolume(neutral, combination);
+			return deluge::dsp::fixed::curve_square(neutral, combination);
 		case CurveKind::LINEAR:
-			return getFinalParameterValueLinear(neutral, combination);
+			return deluge::dsp::fixed::curve_linear(neutral, combination);
 		case CurveKind::BIPOLAR:
-			return getFinalParameterValueHybrid(neutral, combination);
+			return deluge::dsp::fixed::curve_bipolar(neutral, combination);
 		case CurveKind::EXPONENTIAL:
 		case CurveKind::EXPONENTIAL_INVERTED:
 		case CurveKind::RELEASE_TABLE:

@@ -40,7 +40,6 @@
 #include "dsp-next/fixed/shaping/antialiased_tanh.h"
 #include "reference_filters.h"
 #include "util/fixedpoint.h"
-#include "util/param_functions.h" // lshift_and_saturate_unknown
 
 #include <algorithm>
 #include <array>

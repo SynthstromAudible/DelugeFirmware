@@ -16,6 +16,7 @@
  */
 
 #include "processing/engines/audio_engine.h"
+#include "dsp-next/fixed/curves/param_curve.h"
 #include "dsp-next/fixed/vca/pan.h"
 #include "model/fx/chain_inputs.h"
 
@@ -1300,9 +1301,9 @@ int32_t metronomeVolumePostFx() {
 	if (currentSong == nullptr) {
 		return kOneQ31;
 	}
-	return getFinalParameterValueVolume(
-	           134217728, cableToLinearParamShortcut(currentSong->paramManager.getUnpatchedParamSet()->getValue(
-	                          deluge::modulation::params::UNPATCHED_VOLUME)))
+	return deluge::dsp::fixed::curve_square(134217728, deluge::dsp::fixed::preset_combination(
+	                                                       currentSong->paramManager.getUnpatchedParamSet()->getValue(
+	                                                           deluge::modulation::params::UNPATCHED_VOLUME)))
 	       >> 1;
 }
 

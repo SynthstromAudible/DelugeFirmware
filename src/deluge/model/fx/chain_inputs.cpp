@@ -16,6 +16,7 @@
  */
 
 #include "model/fx/chain_inputs.h"
+#include "dsp-next/fixed/curves/param_curve.h"
 #include "dsp-next/fixed/vca/pan.h"
 #include "synth/matrix/descriptors.h" // kParamNeutral, kParamRange
 #include "util/synth_noise.h"
@@ -31,7 +32,6 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/render_scratch.h"
 #include "util/functions.h"
-#include "util/param_functions.h"
 
 #include <limits>
 
@@ -45,20 +45,22 @@ effects::FilterParams chainFilterParams(UnpatchedParamSet& unpatched) {
 	const int32_t hpfFrequencyParam = unpatched.getValue(params::UNPATCHED_HPF_FREQ);
 	const int32_t hpfMorphParam = unpatched.getValue(params::UNPATCHED_HPF_MORPH);
 	return {
-	    .lpf_frequency = getFinalParameterValueExp(deluge::synth::matrix::kParamNeutral[params::LOCAL_LPF_FREQ],
-	                                               cableToExpParamShortcut(lpfFrequencyParam)),
-	    .lpf_resonance =
-	        getFinalParameterValueLinear(deluge::synth::matrix::kParamNeutral[params::LOCAL_LPF_RESONANCE],
-	                                     cableToLinearParamShortcut(unpatched.getValue(params::UNPATCHED_LPF_RES))),
-	    .lpf_morph = getFinalParameterValueLinear(deluge::synth::matrix::kParamNeutral[params::LOCAL_LPF_MORPH],
-	                                              cableToExpParamShortcut(lpfMorphParam)),
-	    .hpf_frequency = getFinalParameterValueExp(deluge::synth::matrix::kParamNeutral[params::LOCAL_HPF_FREQ],
-	                                               cableToExpParamShortcut(hpfFrequencyParam)),
-	    .hpf_resonance =
-	        getFinalParameterValueLinear(deluge::synth::matrix::kParamNeutral[params::LOCAL_HPF_RESONANCE],
-	                                     cableToLinearParamShortcut(unpatched.getValue(params::UNPATCHED_HPF_RES))),
-	    .hpf_morph = getFinalParameterValueLinear(deluge::synth::matrix::kParamNeutral[params::LOCAL_HPF_MORPH],
-	                                              cableToExpParamShortcut(hpfMorphParam)),
+	    .lpf_frequency =
+	        deluge::dsp::fixed::curve_exponential(deluge::synth::matrix::kParamNeutral[params::LOCAL_LPF_FREQ],
+	                                              deluge::dsp::fixed::preset_combination(lpfFrequencyParam)),
+	    .lpf_resonance = deluge::dsp::fixed::curve_linear(
+	        deluge::synth::matrix::kParamNeutral[params::LOCAL_LPF_RESONANCE],
+	        deluge::dsp::fixed::preset_combination(unpatched.getValue(params::UNPATCHED_LPF_RES))),
+	    .lpf_morph = deluge::dsp::fixed::curve_linear(deluge::synth::matrix::kParamNeutral[params::LOCAL_LPF_MORPH],
+	                                                  deluge::dsp::fixed::preset_combination(lpfMorphParam)),
+	    .hpf_frequency =
+	        deluge::dsp::fixed::curve_exponential(deluge::synth::matrix::kParamNeutral[params::LOCAL_HPF_FREQ],
+	                                              deluge::dsp::fixed::preset_combination(hpfFrequencyParam)),
+	    .hpf_resonance = deluge::dsp::fixed::curve_linear(
+	        deluge::synth::matrix::kParamNeutral[params::LOCAL_HPF_RESONANCE],
+	        deluge::dsp::fixed::preset_combination(unpatched.getValue(params::UNPATCHED_HPF_RES))),
+	    .hpf_morph = deluge::dsp::fixed::curve_linear(deluge::synth::matrix::kParamNeutral[params::LOCAL_HPF_MORPH],
+	                                                  deluge::dsp::fixed::preset_combination(hpfMorphParam)),
 	    .lpf_frequency_param = lpfFrequencyParam,
 	    .lpf_morph_param = lpfMorphParam,
 	    .hpf_frequency_param = hpfFrequencyParam,
@@ -73,12 +75,12 @@ effects::FxInputs hostFxInputs(GlobalEffectable& owner, ParamManager& paramManag
 	return {
 	    .settings = &owner.modControllableSnapshot().effects,
 	    .mod_fx_type = owner.getActiveModFXType(&paramManager),
-	    .mod_fx_rate =
-	        getFinalParameterValueExp(deluge::synth::matrix::kParamNeutral[params::GLOBAL_MOD_FX_RATE],
-	                                  cableToExpParamShortcut(unpatched->getValue(params::UNPATCHED_MOD_FX_RATE))),
-	    .mod_fx_depth = getFinalParameterValueVolume(
+	    .mod_fx_rate = deluge::dsp::fixed::curve_exponential(
+	        deluge::synth::matrix::kParamNeutral[params::GLOBAL_MOD_FX_RATE],
+	        deluge::dsp::fixed::preset_combination(unpatched->getValue(params::UNPATCHED_MOD_FX_RATE))),
+	    .mod_fx_depth = deluge::dsp::fixed::curve_square(
 	        deluge::synth::matrix::kParamNeutral[params::GLOBAL_MOD_FX_DEPTH],
-	        cableToLinearParamShortcut(unpatched->getValue(params::UNPATCHED_MOD_FX_DEPTH))),
+	        deluge::dsp::fixed::preset_combination(unpatched->getValue(params::UNPATCHED_MOD_FX_DEPTH))),
 	    .mod_fx_offset = unpatched->getValue(params::UNPATCHED_MOD_FX_OFFSET),
 	    .mod_fx_feedback = unpatched->getValue(params::UNPATCHED_MOD_FX_FEEDBACK),
 	    .eq = {.bass = unpatched->getValue(params::UNPATCHED_BASS),
@@ -104,8 +106,9 @@ effects::ClipChainInputs clipChainInputs(GlobalEffectableForClip& owner, ParamMa
 	volumePostFX += (outputType == OutputType::AUDIO) ? multiply_32x32_rshift32_rounded(volumeAdjustment, 471633397)
 	                                                  : (volumeAdjustment >> 2);
 
-	const int32_t reverbSendAmount = getFinalParameterValueVolume(
-	    reverbAmountAdjust, cableToLinearParamShortcut(unpatched->getValue(params::UNPATCHED_REVERB_SEND_AMOUNT)));
+	const int32_t reverbSendAmount = deluge::dsp::fixed::curve_square(
+	    reverbAmountAdjust,
+	    deluge::dsp::fixed::preset_combination(unpatched->getValue(params::UNPATCHED_REVERB_SEND_AMOUNT)));
 	const StutterInput stutter = stutterInput(owner, &paramManager);
 
 	return {
@@ -133,10 +136,10 @@ effects::MasterChainInputs masterChainInputs(Song& song, int32_t volumePostFX) {
 	GlobalEffectableForSong& master = song.live.global_effectable;
 	ParamManager& paramManager = song.paramManager;
 	const effects::Delay::State delay = master.createDelayWorkingState(paramManager);
-	const int32_t reverbSendAmount =
-	    getFinalParameterValueVolume(deluge::synth::matrix::kParamNeutral[params::GLOBAL_REVERB_AMOUNT],
-	                                 cableToLinearParamShortcut(paramManager.getUnpatchedParamSet()->getValue(
-	                                     params::UNPATCHED_REVERB_SEND_AMOUNT)));
+	const int32_t reverbSendAmount = deluge::dsp::fixed::curve_square(
+	    deluge::synth::matrix::kParamNeutral[params::GLOBAL_REVERB_AMOUNT],
+	    deluge::dsp::fixed::preset_combination(
+	        paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_REVERB_SEND_AMOUNT)));
 	return {
 	    .fx = hostFxInputs(master, paramManager, delay, reverbSendAmount >> 3),
 	    .volume_post_fx = volumePostFX,
@@ -172,8 +175,8 @@ effects::MasterPostInputs masterPostInputs(Song& song) {
 	    .do_pan = doPanning,
 	    .pan_l = amplitudeL,
 	    .pan_r = amplitudeR,
-	    .song_volume = getFinalParameterValueVolume(
-	                       134217728, cableToLinearParamShortcut(unpatched->getValue(params::UNPATCHED_VOLUME)))
+	    .song_volume = deluge::dsp::fixed::curve_square(134217728, deluge::dsp::fixed::preset_combination(
+	                                                                   unpatched->getValue(params::UNPATCHED_VOLUME)))
 	                   >> 1,
 	    .stutter = stutter.stutter,
 	    .stutter_rate = stutter.rate,
