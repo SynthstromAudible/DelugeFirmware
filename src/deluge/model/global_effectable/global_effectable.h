@@ -30,6 +30,9 @@ class GlobalEffectable : public ModControllableAudio {
 public:
 	GlobalEffectable();
 	void cloneFrom(ModControllableAudio* other) override;
+	[[nodiscard]] deluge::bridge::OwnerPlugin ownerPlugin() const final {
+		return deluge::bridge::OwnerPlugin::GLOBAL_EFFECTABLE;
+	}
 
 	static void initParams(ParamManager* paramManager);
 	static void initParamsForAudioClip(ParamManagerForTimeline* paramManager);

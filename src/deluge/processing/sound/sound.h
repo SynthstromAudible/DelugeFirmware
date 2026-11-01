@@ -110,6 +110,9 @@ public:
 	[[nodiscard]] deluge::effects::SoundChain& chain() { return chain_; }
 	[[nodiscard]] deluge::effects::ChainCore& core() final { return chain_.core(); }
 	[[nodiscard]] const deluge::effects::ChainCore& core() const final { return chain_.core(); }
+	[[nodiscard]] deluge::bridge::OwnerPlugin ownerPlugin() const final {
+		return deluge::bridge::OwnerPlugin::INSTRUMENT;
+	}
 
 	/// @brief How many Sounds have been destroyed while they still had live voices, since boot.
 	/// @note A destruction that finds live voices does not survive itself: once this body returns, the voices_
