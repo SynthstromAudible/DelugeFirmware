@@ -149,8 +149,8 @@ void runRoutine();
 
 void init();
 /// The volume context for a sample preview: the params the preview drum should adopt so that it sounds like the
-/// instrument or kit-row the sample will be loaded into (issue #1591). Values are already fully resolved - any kit
-/// output volume has been folded in by the caller.
+/// instrument or kit-row the sample will be loaded into (issue #1591). Values are already fully resolved - the song and
+/// kit output stages have been folded in by the caller.
 struct PreviewVolume {
 	int32_t volumePostFX;           ///< params::GLOBAL_VOLUME_POST_FX
 	int32_t localVolume;            ///< params::LOCAL_VOLUME
