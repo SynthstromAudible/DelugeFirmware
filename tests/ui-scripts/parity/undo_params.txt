@@ -1,0 +1,86 @@
+# Undo and redo of param edits on the boot synth clip: a gold knob turn, a sound-menu value, an automation-editor pad,
+# a MIDI follow CC (follow on channel A, set up as midi_follow.txt does). BACK undoes outside a menu; SHIFT+BACK redoes.
+press MOD0
+turn UPPER 3
+snapshot knob_turned
+press BACK
+snapshot knob_undone
+down SHIFT
+press BACK
+up SHIFT
+snapshot knob_redone
+press SELECT_ENC
+turn SELECT 2
+press SELECT_ENC
+snapshot menu_item
+turn SELECT 3
+snapshot menu_edited
+press BACK
+press BACK
+press BACK
+snapshot menu_left
+press BACK
+snapshot menu_undone
+down SHIFT
+press BACK
+up SHIFT
+snapshot menu_redone
+press CLIP_VIEW
+snapshot automation_overview
+pad 0 0
+snapshot automation_lane
+pad 3 4
+snapshot automation_pad
+pad 6 6
+snapshot automation_pad2
+press BACK
+snapshot automation_undone
+down SHIFT
+press BACK
+up SHIFT
+snapshot automation_redone
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+press CLIP_VIEW
+wait 1
+press SESSION_VIEW
+wait 1
+down SHIFT
+press SELECT_ENC
+up SHIFT
+turn SELECT 4
+press SELECT_ENC
+turn SELECT 1
+press SELECT_ENC
+turn SELECT 3
+press SELECT_ENC
+turn SELECT -3
+press SELECT_ENC
+press SELECT_ENC
+turn SELECT 1
+snapshot channel_a
+press BACK
+press BACK
+turn SELECT 2
+press SELECT_ENC
+press SELECT_ENC
+turn SELECT 1
+snapshot feedback_a
+press BACK
+press BACK
+press BACK
+press BACK
+press BACK
+snapshot settings_closed
+press CLIP_VIEW
+press CLIP_VIEW
+wait 1
+cc 1 74 100
+snapshot follow_cc
+press BACK
+snapshot follow_undone
+down SHIFT
+press BACK
+up SHIFT
+snapshot follow_redone
