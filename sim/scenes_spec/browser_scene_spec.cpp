@@ -1959,6 +1959,63 @@ describe browser_long_press("scenes::browser::BrowserScene holding Select", $ {
 		expect(popup_text(r)).to_equal(std::string{});
 		expect(browser_scene().holding()).to_be_false();
 	});
+	it("offers a ring-mod synth on a file only SINGLE-CYCLE and WAVETABLE, opening on the first", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		static_cast<SoundInstrument*>(f.instrument)->assignSynthMode(::SynthMode::RINGMOD);
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		select_folder(r, false);
+		const uint32_t down = press_select(r);
+		run_until(r, down + 410);
+		expect(on_stack(r, context_menu::kContextMenuSceneKind) != nullptr).to_be_true();
+		expect(context_menu_scene().available().size()).to_equal(size_t(2));
+		expect(static_cast<int>(context_menu_scene().selected_option())).to_equal(2);
+		release_select(r, down + 420);
+		r.turn(1, r.clock + 10);
+		r.settle();
+		expect(static_cast<int>(context_menu_scene().selected_option())).to_equal(3);
+	});
+
+	it("types a pad pressed on the synth menu into the browser beneath, and the menu stays", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		select_folder(r, false);
+		const uint32_t down = press_select(r);
+		run_until(r, down + 410);
+		release_select(r, down + 420);
+		// The cursor sits before the predicted name, so typing its next letter steps over it.
+		const int32_t before = browser_scene().cursor();
+		const std::string name{browser_scene().entered_text()};
+		r.type(name.empty() ? 'C' : name[static_cast<size_t>(before)]);
+		expect(on_stack(r, context_menu::kContextMenuSceneKind) != nullptr).to_be_true();
+		expect(browser_scene().cursor()).to_equal(before + 1);
+	});
+
+	it("refuses BACK, Select and pads on a folder menu while a sample load runs", _ {
+		spec::SongFixture f = spec::make_synth_song();
+		MenuContext ctx = sound_context(f);
+		const LoadingFacts loading{*ctx.facts};
+		ctx.facts = &loading;
+		auto& menu = context_menu_scene();
+		menu.open(ctx);
+		expect(menu.on_enter(SceneId{context_menu::kContextMenuSceneKind,
+		                             static_cast<uint16_t>(context_menu::DescriptorId::SampleBrowserSynth)}))
+		    .to_be_true();
+		DirectCtx d(0);
+		for (const UiEvent& e : {UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::Back},
+		                         UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::SelectEnc},
+		                         UiEvent{.kind = UiEvent::Kind::Pad, .x = 3, .y = 3, .velocity = 64, .on = true}}) {
+			const Result refused = menu.handle(e, d.ctx);
+			expect(refused.handled).to_be_true();
+			expect(refused.actions.empty()).to_be_true();
+		}
+		menu.on_exit();
+	});
 });
     // clang-format on
 

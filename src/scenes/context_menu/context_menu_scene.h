@@ -23,6 +23,7 @@
 #include "ui/core/state.h"
 #include "ui/grid/effects.h"
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -80,17 +81,8 @@ struct Descriptor {
 
 	/// @brief l10n string ids for the options, in legacy's `getOptions()` order.
 	///
-	/// @note A descriptor with *dynamic availability* -- legacy's `isCurrentOptionAvailable()`,
-	///       which `renderOLED` uses to skip rows and `selectEncoderAction` to turn past them --
-	///       is expressed by handing the scene an already-compacted list, not by a per-option
-	///       predicate: legacy's two loops are exactly "operate on the list with the unavailable
-	///       entries removed", and `ui::oled::option_window` therefore takes no predicate either.
-	///       That means a future dynamic descriptor grows a `size_t (*options_now)(const
-	///       MenuContext&, std::span<uint16_t> out)` hook beside this field rather than a
-	///       predicate. **None of the five below needs one**: every legacy `isCurrentOptionAvailable`
-	///       override lives on a file-browser menu (`SaveSongOrInstrument`, `sample_browser::Kit`,
-	///       `sample_browser::Synth`), and `ResetSettings` has neither an override nor more than
-	///       one option.
+	/// @note Dynamic availability (`isCurrentOptionAvailable()`) is `options_now`: the scene works on the list
+	///       with the unavailable entries removed, which is what legacy's render and turn loops amount to.
 	std::span<const uint16_t> options;
 
 	/// @brief `ContextMenu::acceptCurrentOption()`. **False closes the menu**, which is legacy's
@@ -143,6 +135,20 @@ struct Descriptor {
 	///                ignored by a hook returning a static or model-owned string.
 	/// @return The footer text, or an empty view for none.
 	std::string_view (*footer)(const menu::MenuContext&, std::span<char> scratch) = nullptr;
+
+	/// @brief `isCurrentOptionAvailable()`, or null for a menu whose every option always is.
+	///
+	/// Asked again before every render, turn and accept, since what it reads -- the sample browser's
+	/// item -- can change under the open menu.
+	/// @param out Receives the available options' indexes into `options`, in order.
+	/// @return How many were written; zero refuses to open.
+	size_t (*options_now)(const menu::MenuContext&, std::span<uint8_t> out) = nullptr;
+
+	/// @brief `padAction`, or null for the base class's: a press closes the menu.
+	deluge::ui::shell::Result (*pad)(const deluge::ui::shell::UiEvent&, const deluge::ui::shell::UiContext&) = nullptr;
+
+	/// @brief While true, BACK, Select and pads are refused: the menu has started work that closes it once it ends.
+	bool (*busy)(const menu::MenuContext&) = nullptr;
 };
 
 /// @brief The scratch a `Descriptor::footer` hook is handed.
@@ -233,18 +239,26 @@ public:
 
 	/// @brief Which descriptor the last `on_enter` selected.
 	DescriptorId descriptor_id() const { return id_; }
-	/// @brief The cursor and scroll window (`currentOption` / `scrollPos`).
+	/// @brief The cursor and scroll window (`currentOption` / `scrollPos`), over the available options.
 	Selection selection() const { return sel_; }
+	/// @brief The available options, as indexes into the descriptor's `options`, in order.
+	std::span<const uint8_t> available() const { return {available_.data(), available_count_}; }
+	/// @brief `currentOption`: the selected option's index into the descriptor's `options`.
+	uint8_t selected_option() const { return sel_.option < available_count_ ? available_[sel_.option] : 0; }
 
 private:
 	/// @brief `ContextMenu::close()`, as an `Action`.
 	static deluge::ui::shell::Result close();
+	/// @brief Re-read the available options, keeping the cursor on the list.
+	void refresh_available();
 	/// @brief `buttonAction`'s `probablyAcceptCurrentOption` arm.
 	deluge::ui::shell::Result accept_current_option();
 
 	menu::MenuContext ctx_{};
 	DescriptorId id_ = DescriptorId::ResetAll;
 	Selection sel_{};
+	std::array<uint8_t, kMaxOptions> available_{};
+	uint8_t available_count_ = 0;
 
 	/// Side-scroller state for the focused row (`OLED::setupSideScroller`).
 	deluge::ui::ScrollText scroll_{};

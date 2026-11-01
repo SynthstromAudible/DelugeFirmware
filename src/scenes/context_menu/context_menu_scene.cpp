@@ -23,6 +23,7 @@
 #include "scenes/bind/runtime_facts.h"
 #include "scenes/bind/target.h"
 #include "scenes/bind/write_sink.h"
+#include "scenes/browser/browser_scene.h"
 #include "scenes/profile.h"
 
 #include "ui/core/led_frame.h"
@@ -309,6 +310,24 @@ bool accept_sample_browser_synth(const menu::MenuContext&, uint8_t) {
 	return true;
 }
 
+size_t sample_browser_synth_options_now(const menu::MenuContext& ctx, std::span<uint8_t> out) {
+	return sample_browser_synth_options(ctx, browser::browser_scene().current_is_folder(), out);
+}
+
+/// `Kit::padAction` and `Synth::padAction` hand the pad to the browser beneath. Its keyboard reads the press itself
+/// as it draws under this menu, so the menu keeps the pad from closing it and does nothing more.
+Result sample_browser_pad(const UiEvent&, const UiContext&) {
+	Result r;
+	r.handled = true;
+	return r;
+}
+
+/// The browser's gate (`SampleBrowser::buttonAction`, `sample_browser.cpp:465-468`): a claim or a folder import the
+/// menu started is still running.
+bool sample_load_busy(const menu::MenuContext& ctx) {
+	return ctx.facts != nullptr && ctx.facts->sample_load_in_flight();
+}
+
 constexpr std::array<Descriptor, static_cast<size_t>(DescriptorId::Count)> kDescriptors{{
     // All five resets share `ResetSettings`'s own heading and option list; only the action differs,
     // which is exactly what `ResetSettingsAction` selects in legacy. None of them uses the three
@@ -320,8 +339,10 @@ constexpr std::array<Descriptor, static_cast<size_t>(DescriptorId::Count)> kDesc
     {sid(String::STRING_FOR_ARE_YOU_SURE_QMARK), kConfirmOptions, accept_reset_all},
     {sid(String::STRING_FOR_AUDIO_SOURCE), kAudioSourceOptions, accept_audio_source, initial_audio_source,
      on_move_audio_source, footer_audio_source},
-    {sid(String::STRING_FOR_SAMPLES), kSampleBrowserKitOptions, accept_sample_browser_kit},
-    {sid(String::STRING_FOR_LOAD_FILES), kSampleBrowserSynthOptions, accept_sample_browser_synth},
+    {sid(String::STRING_FOR_SAMPLES), kSampleBrowserKitOptions, accept_sample_browser_kit, nullptr, nullptr, nullptr,
+     nullptr, sample_browser_pad, sample_load_busy},
+    {sid(String::STRING_FOR_LOAD_FILES), kSampleBrowserSynthOptions, accept_sample_browser_synth, nullptr, nullptr,
+     nullptr, sample_browser_synth_options_now, sample_browser_pad, sample_load_busy},
 }};
 
 // Fix round 1, Minor 1. `render_oled` materialises `min(options.size(), kMaxOptions)` views while
@@ -410,12 +431,13 @@ bool ContextMenuScene::on_enter(const SceneId& id) {
 	// (`AudioInputSelector::setupAndCheckAvailability`, `audio_input_selector.cpp:123-125`, sets
 	// `currentOption` *and* `scrollPos` from the current channel).
 	const Descriptor& d = descriptor(id_);
-	if (d.options.empty()) {
+	sel_ = Selection{};
+	refresh_available();
+	if (available_count_ == 0) {
 		return false;
 	}
-	sel_ = Selection{};
 	if (d.initial_option != nullptr) {
-		const auto count = static_cast<uint8_t>(d.options.size());
+		const uint8_t count = available_count_;
 		const uint8_t wanted = d.initial_option(ctx_);
 		// Clamped, not trusted: a hook that answers past the end would put the cursor on a row
 		// `option_window` never draws and `accept` would then act on it.
@@ -448,9 +470,10 @@ void ContextMenuScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame
 	TextScratch heading_scratch;
 	std::array<TextScratch, kMaxOptions> option_scratch{};
 	std::array<std::string_view, kMaxOptions> options{};
-	const size_t n = std::min(d.options.size(), kMaxOptions);
+	refresh_available();
+	const size_t n = available_count_;
 	for (size_t i = 0; i < n; i++) {
-		options[i] = deluge_profile().text_or_digits(d.options[i], option_scratch[i]);
+		options[i] = deluge_profile().text_or_digits(d.options[available_[i]], option_scratch[i]);
 	}
 
 	// `AudioInputSelector::renderOLED` calls the base and then draws one more line
@@ -479,7 +502,15 @@ void ContextMenuScene::leds(deluge::ui::LedFrame& f) {
 }
 
 Result ContextMenuScene::handle(const UiEvent& event, const UiContext& ctx) {
-	(void)ctx;
+	const Descriptor& desc = descriptor(id_);
+	const bool button_or_pad = event.kind == UiEvent::Kind::Button || event.kind == UiEvent::Kind::EncoderButton
+	                           || event.kind == UiEvent::Kind::Pad;
+	if (button_or_pad && desc.busy != nullptr && desc.busy(ctx_)) {
+		Result r;
+		r.handled = true;
+		return r;
+	}
+	refresh_available();
 	switch (event.kind) {
 	case UiEvent::Kind::Button:
 	case UiEvent::Kind::EncoderButton:
@@ -510,7 +541,7 @@ Result ContextMenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 			// during the render pass the way `list` consumes it for `MenuScene`.
 			const Selection before = sel_;
 			const Descriptor& d = descriptor(id_);
-			sel_ = step(sel_, event.delta, static_cast<uint8_t>(d.options.size()));
+			sel_ = step(sel_, event.delta, available_count_);
 			if (d.on_move != nullptr) {
 				// **Unconditionally, even when `step` refused to move.**
 				// `AudioInputSelector::selectEncoderAction` (`audio_input_selector.cpp:134-196`) calls
@@ -530,6 +561,9 @@ Result ContextMenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 		break;
 
 	case UiEvent::Kind::Pad:
+		if (desc.pad != nullptr) {
+			return desc.pad(event, ctx);
+		}
 		// `ContextMenu::padAction`: a press closes, and every pad event is `DEALT_WITH` -- so a
 		// release is swallowed rather than falling through to the view underneath.
 		if (event.on) {
@@ -556,13 +590,33 @@ Result ContextMenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 Result ContextMenuScene::accept_current_option() {
 	Result r;
 	r.handled = true;
-	if (descriptor(id_).accept(ctx_, sel_.option)) {
+	if (available_count_ == 0) {
+		return r;
+	}
+	if (descriptor(id_).accept(ctx_, available_[sel_.option])) {
 		// "If returns false, will cause UI to exit" -- so a true keeps the menu open. No shipped
 		// descriptor does, but the convention is legacy's and is what a multi-step menu would use.
 		(void)r.actions.push_back(Action{.kind = Action::Kind::RepaintAll});
 		return r;
 	}
 	return close();
+}
+
+void ContextMenuScene::refresh_available() {
+	const Descriptor& d = descriptor(id_);
+	if (d.options_now != nullptr) {
+		available_count_ = static_cast<uint8_t>(std::min(d.options_now(ctx_, available_), d.options.size()));
+	}
+	else {
+		available_count_ = static_cast<uint8_t>(std::min(d.options.size(), kMaxOptions));
+		for (uint8_t i = 0; i < available_count_; i++) {
+			available_[i] = i;
+		}
+	}
+	if (available_count_ != 0 && sel_.option >= available_count_) {
+		sel_.option = static_cast<uint8_t>(available_count_ - 1);
+	}
+	sel_.scroll = std::min(sel_.scroll, sel_.option);
 }
 
 Result ContextMenuScene::close() {

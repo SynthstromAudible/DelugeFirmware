@@ -332,6 +332,10 @@ describe cm_descriptors("scenes::context_menu descriptor table", $ {
 		for (size_t i = 0; i < std::size(want) && i < synth.options.size(); i++) {
 			expect(static_cast<int>(synth.options[i])).to_equal(static_cast<int>(want[i]));
 		}
+		// Both hand pads to the browser beneath and refuse input while the load they started runs; only the synth's
+		// options depend on what the browser holds.
+		expect(kit.pad != nullptr && kit.busy != nullptr && kit.options_now == nullptr).to_be_true();
+		expect(synth.pad != nullptr && synth.busy != nullptr && synth.options_now != nullptr).to_be_true();
 	});
 
 	it("gives every one of them ResetSettings' own heading and single OK option", _ {
@@ -351,6 +355,7 @@ describe cm_descriptors("scenes::context_menu descriptor table", $ {
 			expect(d.initial_option == nullptr).to_be_true();
 			expect(d.on_move == nullptr).to_be_true();
 			expect(d.footer == nullptr).to_be_true();
+			expect(d.options_now == nullptr && d.pad == nullptr && d.busy == nullptr).to_be_true();
 		}
 	});
 
