@@ -235,15 +235,9 @@ uint32_t automationMIDICCShortcut(const MidiFollow& follow, int32_t x, int32_t y
 	if (x == 15 && y == 7) {
 		return CC_NUMBER_Y_AXIS;
 	}
-	uint8_t ccNumber = MIDI_CC_NONE;
-	std::optional<RuntimeParam> cell = cellParam(OwnerPlugin::INSTRUMENT, params::kSoundParamShortcuts[x][y]);
-	if (cell && cell->kind == params::Kind::PATCHED) {
-		ccNumber = follow.soundParamToCC[cell->index];
-	}
-	else if (cell && cell->kind == params::Kind::UNPATCHED_SOUND) {
-		ccNumber = follow.soundParamToCC[cell->index + params::UNPATCHED_START];
-	}
-	return ccNumber != MIDI_CC_NONE ? ccNumber : kNoParamID;
+	const std::optional<ParamTarget>& cell = params::kSoundParamShortcuts[x][y];
+	std::optional<uint8_t> ccNumber = cell ? follow.ccOf(OwnerPlugin::INSTRUMENT, *cell) : std::nullopt;
+	return ccNumber ? *ccNumber : kNoParamID;
 }
 
 // called everytime you open up the automation view

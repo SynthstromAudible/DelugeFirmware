@@ -22,17 +22,21 @@
 
 #include "definitions_cxx.hpp"
 #include "gui/views/automation_view.h"
+#include "gui/views/performance_view.h"
 #include "io/midi/midi_follow.h"
 #include "model/project_bridge/param_ids.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_targets.h"
 #include "modulation/patch/patch_cable.h"
 #include "scenarios/drivers/driver.h"
+#include "scenarios/drivers/midi_follow_xml_reference.h"
 #include "scenarios/drivers/param_target_tables_reference.h"
+#include "storage/storage_manager.h"
 
 #include <cstdio>
 #include <optional>
 #include <span>
+#include <string>
 #include <vector>
 
 namespace {
@@ -239,11 +243,108 @@ void checkMIDICCShortcuts(Checker& check) {
 	expect("MIDI CC shortcut, portamento unmapped");
 }
 
+/// A CC, or -1 for none.
+int ccNumber(std::optional<uint8_t> cc) {
+	return cc ? static_cast<int>(*cc) : -1;
+}
+
+/// The MIDIFollow.XML @p follow writes.
+std::string followFile(MidiFollow& follow) {
+	XMLSerializer writer;
+	writer.setMemoryBased();
+	writer.write(StorageManager::kXmlDocumentHead);
+	follow.serialiseDefaults(writer);
+	return {writer.getBufferPtr(), static_cast<size_t>(writer.bytesWritten())};
+}
+
+/// MIDI follow's maps against their recorded cells; the CC that follows each param against the recorded inverse maps;
+/// and its file, as the defaults write it and as a read of it writes it back.
+void checkMidiFollow(Checker& check) {
+	MidiFollow follow;
+	std::vector<param_target_tables_reference::Cell> sound = recorded(Table::FOLLOW_CC_TO_SOUND);
+	std::vector<param_target_tables_reference::Cell> global = recorded(Table::FOLLOW_CC_TO_GLOBAL);
+	for (int32_t cc = 0; cc <= kMaxMIDIValue; ++cc) {
+		checkCell(check, "follow sound map", OwnerPlugin::INSTRUMENT, follow.ccToSoundTarget[cc], sound[cc]);
+		checkCell(check, "follow global map", OwnerPlugin::GLOBAL_EFFECTABLE, follow.ccToGlobalTarget[cc], global[cc]);
+	}
+	for (const auto& cell : recorded(Table::FOLLOW_SOUND_TO_CC)) {
+		// the cell is the param's flat id, which is its instrument id; the gap between the patched and unpatched
+		// params names no param
+		const ParamTarget target = deluge::project::engine_target(static_cast<uint32_t>(cell.cell));
+		if (!deluge::bridge::runtimeParamOf(OwnerPlugin::INSTRUMENT, target)) {
+			continue;
+		}
+		std::optional<uint8_t> cc = follow.ccOf(OwnerPlugin::INSTRUMENT, target);
+		if (ccNumber(cc) != cell.index) {
+			check.fail("follow sound CC", cell.cell, ccNumber(cc), cell.index);
+		}
+	}
+	for (const auto& cell : recorded(Table::FOLLOW_GLOBAL_TO_CC)) {
+		std::optional<ParamTarget> target =
+		    deluge::bridge::targetOf(OwnerPlugin::GLOBAL_EFFECTABLE, params::Kind::UNPATCHED_GLOBAL, cell.cell);
+		std::optional<uint8_t> cc = target ? follow.ccOf(OwnerPlugin::GLOBAL_EFFECTABLE, *target) : std::nullopt;
+		if (ccNumber(cc) != cell.index) {
+			check.fail("follow global CC", cell.cell, ccNumber(cc), cell.index);
+		}
+	}
+	// no CC follows a cable, an expression or a CC
+	if (follow.ccOf(OwnerPlugin::INSTRUMENT, deluge::modulation::params::kSoundParamShortcuts[6][2].value())
+	    || follow.ccOf(OwnerPlugin::INSTRUMENT, *deluge::modulation::params::expressionShortcut(14, 7))) {
+		check.fail("follow CC of a cable or an expression", 0, 0, 0);
+	}
+
+	const std::string written = followFile(follow);
+	if (written != midi_follow_xml_reference::kDefaults) {
+		check.fail("follow file", static_cast<int>(written.size()),
+		           static_cast<int>(midi_follow_xml_reference::kDefaults.size()), 0);
+		std::fprintf(check.io.err, "%s\n", written.c_str());
+	}
+	MidiFollow reread;
+	reread.ccToSoundTarget.fill(std::nullopt);
+	reread.ccToGlobalTarget.fill(std::nullopt);
+	reread.soundParamToCC.fill(MIDI_CC_NONE);
+	reread.globalParamToCC.fill(MIDI_CC_NONE);
+	std::string bytes = written;
+	MidiFollow::parseDefaultsBytes(&reread, bytes.data(), static_cast<uint32_t>(bytes.size()));
+	const std::string rewritten = followFile(reread);
+	if (rewritten != written) {
+		check.fail("follow file read back", static_cast<int>(rewritten.size()), static_cast<int>(written.size()), 0);
+		std::fprintf(check.io.err, "%s\n", rewritten.c_str());
+	}
+}
+
+/// The performance view's tables, against their recorded cells.
+void checkPerformanceTables(Checker& check) {
+	auto target = [](const std::optional<deluge::plugin::ParamId>& param) -> std::optional<ParamTarget> {
+		return param ? std::optional{deluge::project::engine_target(param->value)} : std::nullopt;
+	};
+	auto list = [&](const char* name, std::span<const ParamsForPerformance> rows, Table table) {
+		std::vector<param_target_tables_reference::Cell> cells = recorded(table);
+		if (cells.size() != rows.size()) {
+			check.fail(name, static_cast<int>(cells.size()), static_cast<int>(rows.size()), 0);
+			return;
+		}
+		for (size_t i = 0; i < rows.size(); ++i) {
+			checkCell(check, name, OwnerPlugin::GLOBAL_EFFECTABLE, target(rows[i].param), cells[i]);
+		}
+	};
+	list("performance params", performanceSongParams(), Table::PERFORMANCE_SONG);
+	list("performance default layout", performanceDefaultLayout(), Table::PERFORMANCE_LAYOUT);
+	for (int32_t x = 0; x < kDisplayWidth; ++x) {
+		for (int32_t y = 0; y < kDisplayHeight; ++y) {
+			checkCell(check, "performance shortcut", OwnerPlugin::GLOBAL_EFFECTABLE, target(performanceShortcut(x, y)),
+			          recordedCell(Table::PERFORMANCE_SHORTCUTS, x * kDisplayHeight + y));
+		}
+	}
+}
+
 int param_target_check_main(int /*argc*/, char** /*argv*/, Io io) {
 	Checker check{io};
 	checkRoundTrip(check);
 	checkShortcutsAndOrders(check);
 	checkMIDICCShortcuts(check);
+	checkMidiFollow(check);
+	checkPerformanceTables(check);
 	std::fprintf(io.out, "%d disagreement(s)\n", check.disagreements);
 	return check.disagreements == 0 ? 0 : 3;
 }
