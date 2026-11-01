@@ -23,11 +23,15 @@
 #include "definitions_cxx.hpp"
 #include "model/project_bridge/param_ids.h"
 #include "modulation/params/param.h"
+#include "modulation/params/param_targets.h"
 #include "modulation/patch/patch_cable.h"
 #include "scenarios/drivers/driver.h"
+#include "scenarios/drivers/param_target_tables_reference.h"
 
 #include <cstdio>
 #include <optional>
+#include <span>
+#include <vector>
 
 namespace {
 
@@ -102,9 +106,95 @@ void checkRoundTrip(Checker& check) {
 	}
 }
 
+using Table = param_target_tables_reference::Table;
+
+/// The recorded cells of @p table, in the order recorded.
+std::vector<param_target_tables_reference::Cell> recorded(Table table) {
+	std::vector<param_target_tables_reference::Cell> cells;
+	for (const auto& cell : param_target_tables_reference::kCells) {
+		if (cell.table == table) {
+			cells.push_back(cell);
+		}
+	}
+	return cells;
+}
+
+/// The recorded cell @p number of @p table.
+param_target_tables_reference::Cell recordedCell(Table table, int32_t number) {
+	for (const auto& cell : param_target_tables_reference::kCells) {
+		if (cell.table == table && cell.cell == number) {
+			return cell;
+		}
+	}
+	return {table, number, params::Kind::NONE, -1};
+}
+
+/// @p target, for an owner of @p owner's plugin, names the runtime param the recorded @p cell holds (an empty cell no
+/// param).
+void checkCell(Checker& check, const char* table, OwnerPlugin owner, std::optional<ParamTarget> target,
+               const param_target_tables_reference::Cell& cell) {
+	if (cell.kind == params::Kind::NONE) {
+		if (target) {
+			check.fail(table, cell.cell, static_cast<int>(target->space), static_cast<int>(target->id.value));
+		}
+		return;
+	}
+	std::optional<RuntimeParam> runtime = target ? deluge::bridge::runtimeParamOf(owner, *target) : std::nullopt;
+	if (!runtime || runtime->kind != cell.kind || runtime->index != cell.index) {
+		check.fail(table, cell.cell, static_cast<int>(cell.kind), cell.index);
+	}
+}
+
+/// The grid shortcuts and the automation orders, against their recorded cells.
+void checkShortcutsAndOrders(Checker& check) {
+	for (int32_t x = 0; x < kDisplayWidth; ++x) {
+		for (int32_t y = 0; y < kDisplayHeight; ++y) {
+			const int32_t n = x * kDisplayHeight + y;
+			// The sound grid merges the patched, unpatched and cable shortcuts, which never share a cell.
+			param_target_tables_reference::Cell sound{Table::GRID_PATCHED, n, params::Kind::NONE, -1};
+			int filled = 0;
+			for (Table t : {Table::GRID_PATCHED, Table::GRID_UNPATCHED_SOUND, Table::GRID_CABLE}) {
+				param_target_tables_reference::Cell c = recordedCell(t, n);
+				if (c.kind != params::Kind::NONE) {
+					sound = c;
+					++filled;
+				}
+			}
+			if (filled > 1) {
+				check.fail("sound grid cell shared", n, filled, 0);
+			}
+			const auto& grids = deluge::modulation::params::kSoundParamShortcuts;
+			checkCell(check, "sound grid", OwnerPlugin::INSTRUMENT, grids[x][y], sound);
+			checkCell(check, "sound grid second layer", OwnerPlugin::INSTRUMENT,
+			          deluge::modulation::params::kSoundParamShortcutsSecondLayer[x][y],
+			          recordedCell(Table::GRID_PATCHED_SECOND, n));
+			checkCell(check, "global grid", OwnerPlugin::GLOBAL_EFFECTABLE,
+			          deluge::modulation::params::kGlobalParamShortcuts[x][y],
+			          recordedCell(Table::GRID_UNPATCHED_GLOBAL, n));
+			checkCell(check, "expression shortcut", OwnerPlugin::INSTRUMENT,
+			          deluge::modulation::params::expressionShortcut(x, y), recordedCell(Table::GRID_EXPRESSION, n));
+		}
+	}
+	auto order = [&](const char* name, OwnerPlugin owner, std::span<const ParamTarget> targets, Table table) {
+		std::vector<param_target_tables_reference::Cell> cells = recorded(table);
+		if (cells.size() != targets.size()) {
+			check.fail(name, static_cast<int>(cells.size()), static_cast<int>(targets.size()), 0);
+			return;
+		}
+		for (size_t i = 0; i < cells.size(); ++i) {
+			checkCell(check, name, owner, targets[i], cells[i]);
+		}
+	};
+	order("sound automation order", OwnerPlugin::INSTRUMENT, deluge::modulation::params::kSoundParamsForAutomation,
+	      Table::AUTOMATION_SOUND);
+	order("global automation order", OwnerPlugin::GLOBAL_EFFECTABLE,
+	      deluge::modulation::params::kGlobalParamsForAutomation, Table::AUTOMATION_GLOBAL);
+}
+
 int param_target_check_main(int /*argc*/, char** /*argv*/, Io io) {
 	Checker check{io};
 	checkRoundTrip(check);
+	checkShortcutsAndOrders(check);
 	std::fprintf(io.out, "%d disagreement(s)\n", check.disagreements);
 	return check.disagreements == 0 ? 0 : 3;
 }

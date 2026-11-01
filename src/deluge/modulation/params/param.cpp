@@ -91,43 +91,6 @@ bool isParamQuantizedStutter(Kind kind, int32_t paramID, ModControllableAudio* m
 	               : modControllableAudio->effects().stutter.quantized);
 }
 
-bool isVibratoPatchCableShortcut(int32_t xDisplay, int32_t yDisplay) {
-	if (xDisplay == 6 && yDisplay == 2) {
-		return true;
-	}
-	return false;
-}
-
-bool isSidechainPatchCableShortcut(int32_t xDisplay, int32_t yDisplay) {
-	if (xDisplay == 10 && yDisplay == 2) {
-		return true;
-	}
-	return false;
-}
-
-bool isPatchCableShortcut(int32_t xDisplay, int32_t yDisplay) {
-	// vibrato shortcut
-	if (isVibratoPatchCableShortcut(xDisplay, yDisplay)) {
-		return true;
-	}
-	// sidechain volume ducking shortcut
-	else if (isSidechainPatchCableShortcut(xDisplay, yDisplay)) {
-		return true;
-	}
-	return false;
-}
-
-void getPatchCableFromShortcut(int32_t xDisplay, int32_t yDisplay, ParamDescriptor* paramDescriptor) {
-	// vibrato shortcut
-	if (isVibratoPatchCableShortcut(xDisplay, yDisplay)) {
-		paramDescriptor->setToHaveParamAndSource(LOCAL_PITCH_ADJUST, PatchSource::LFO_GLOBAL_1);
-	}
-	// sidechain volume ducking shortcut
-	else if (isSidechainPatchCableShortcut(xDisplay, yDisplay)) {
-		paramDescriptor->setToHaveParamAndSource(GLOBAL_VOLUME_POST_REVERB_SEND, PatchSource::SIDECHAIN);
-	}
-}
-
 char const* getPatchedParamShortName(ParamType type) {
 	// clang-format off
 	static char const* const NAMES[GLOBAL_NONE] = {
@@ -464,19 +427,6 @@ constexpr ParamType fileStringToParamConst(Kind kind, char const* name, bool all
 ParamType fileStringToParam(Kind kind, char const* name, bool allowPatched) {
 	return fileStringToParamConst(kind, name, allowPatched);
 }
-uint32_t expressionParamFromShortcut(int x, int y) {
-	if (x == 14 && y == 7) {
-		return X_PITCH_BEND;
-	}
-	else if (x == 15 && y == 0) {
-		return Z_PRESSURE;
-	}
-	else if (x == 15 && y == 7) {
-		return Y_SLIDE_TIMBRE;
-	}
-	return kNoParamID;
-}
-
 constexpr bool validateParams() {
 	bool m = true;
 	Kind kind = Kind::UNPATCHED_SOUND;
