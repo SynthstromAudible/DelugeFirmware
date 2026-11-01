@@ -1850,10 +1850,9 @@ void MenuScene::leds(deluge::ui::LedFrame& f) {
 
 	// `blinkLed`'s default blink: lit for `kInitialFlashTime` from where the shared phase last restarted, then
 	// `kFlashTime` (`indicator_leds.cpp:78-95`); before the first render has taken a start, the plain period.
-	constexpr uint16_t kInitialBlinkMs = 250;
 	const deluge::ui::LedState shared_blink =
 	    blink_origin_known_ ? deluge::ui::LedState{deluge::ui::LedState::Kind::Blink, kBackBlinkMs, 0, blink_origin_ms_,
-	                                               kInitialBlinkMs}
+	                                               static_cast<uint16_t>(deluge::ui::kInitialFlashTime)}
 	                        : deluge::ui::LedState{deluge::ui::LedState::Kind::Blink, kBackBlinkMs, 0};
 	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Back), shared_blink);
 	// `SoundEditor::beginScreen`'s tail (`sound_editor.cpp:949-954`): every screen change asks the

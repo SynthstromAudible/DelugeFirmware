@@ -1171,6 +1171,7 @@ describe browser_choice_long_press(
 			        KitRig r;
 			        r.open_browser();
 			        long_press(r.shell, r.clock);
+			        const int32_t item = browser::browser_scene().file_index();
 			        pick(r.shell, r.clock, 0);
 			        deluge::gui::ui::dispatchShellChoices();
 			        expect(ImportSpy::last.completion != nullptr).to_be_true();
@@ -1183,6 +1184,9 @@ describe browser_choice_long_press(
 			        }
 			        expect(scene_on_stack(r.shell, context_menu::kContextMenuSceneKind)).to_be_false();
 			        expect(scene_on_stack(r.shell, browser::kBrowserSceneKind)).to_equal(!success);
+			        if (!success) {
+				        expect(browser::browser_scene().file_index()).to_equal(item); // on the same item
+			        }
 		        }
 	        });
     });

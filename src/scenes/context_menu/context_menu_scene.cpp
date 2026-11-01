@@ -473,8 +473,7 @@ bool ContextMenuScene::on_enter(const SceneId& id) {
 void ContextMenuScene::on_exit() {
 	// Same fail-closed reasoning as `RenameScene::on_exit`: `open()` is the only writer of `ctx_`
 	// and this scene is a singleton that outlives every visit, so a re-entry that forgot its
-	// `open()` must not hand the accept hook the previous song's pointers. None of the five
-	// shipped hooks reads the context, but the next descriptor to land will.
+	// `open()` must not hand the accept hooks the previous song's pointers: the sample browser's menus read it.
 	ctx_ = menu::MenuContext{};
 }
 
@@ -525,11 +524,10 @@ void ContextMenuScene::leds(deluge::ui::LedFrame& f) {
 	// already imports it this way. (Fix round 1, Minor 3 -- this was a third hand-written copy.)
 	// `blinkLed`'s default blink: lit for `kInitialFlashTime` from the open, then `kFlashTime`
 	// (`indicator_leds.cpp:78-95`); before the first render has taken the open's time, the plain period.
-	constexpr uint16_t kInitialBlinkMs = 250;
 	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Back),
 	            blink_origin_ms_.has_value()
 	                ? deluge::ui::LedState{deluge::ui::LedState::Kind::Blink, static_cast<uint16_t>(kFlashTime), 0,
-	                                       *blink_origin_ms_, kInitialBlinkMs}
+	                                       *blink_origin_ms_, static_cast<uint16_t>(deluge::ui::kInitialFlashTime)}
 	                : deluge::ui::LedState{deluge::ui::LedState::Kind::Blink, static_cast<uint16_t>(kFlashTime), 0});
 }
 
@@ -626,8 +624,8 @@ Result ContextMenuScene::accept_current_option() {
 		return r;
 	}
 	if (descriptor(id_).accept(ctx_, available_[sel_.option])) {
-		// "If returns false, will cause UI to exit" -- so a true keeps the menu open. No shipped
-		// descriptor does, but the convention is legacy's and is what a multi-step menu would use.
+		// "If returns false, will cause UI to exit" -- so a true keeps the menu open: the sample browser's menus,
+		// whose load closes them once it ends.
 		(void)r.actions.push_back(Action{.kind = Action::Kind::RepaintAll});
 		return r;
 	}

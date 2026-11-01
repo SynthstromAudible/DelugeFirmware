@@ -407,9 +407,9 @@ public:
 	/// **The consumer is `deluge::gui::ui::dispatchShellChoices`** (`gui/ui/shell_choice_dispatch.h`,
 	/// plan F3), which drains this slot once per guest tick from `ShellHostUI::timerCallback` and
 	/// performs the sample claim (`SampleClaim`) against the parked path. Like `take_action()`'s,
-	/// the slot is **one deep and overwrites silently**; unlike it, that is unreachable today,
-	/// because the `Defer` arm's next statement closes the scene (`browser_scene.cpp:897-898`), so
-	/// a second choice would need the browser reopened and a file chosen inside one tick.
+	/// the slot is **one deep and overwrites silently**. A second choice inside one guest tick would
+	/// need two presses in that tick: the `Defer` arm closes the scene as it parks, and a folder
+	/// menu's accept parks while the load it starts refuses further presses (`Descriptor::busy`).
 	/// @return The choice, or `std::nullopt` when none is waiting.
 	std::optional<BrowserChoice> take_choice();
 
@@ -532,6 +532,11 @@ private:
 	/// @return True when nothing outside `after_render` may touch `FileCatalogue` or file a
 	///         listing.
 	bool seam_busy() const { return listing_.in_flight() || listing_.has_result() || pending_.has_value(); }
+	/// @brief The sample browser's gate (`SampleBrowser::buttonAction` and `padAction`): an explicit sample load or a
+	///        folder import is running, and every button and key is refused until it ends.
+	bool load_running() const {
+		return id_ == BrowserId::Sample && ctx_.facts != nullptr && ctx_.facts->sample_load_in_flight();
+	}
 
 	menu::MenuContext ctx_{};
 	BrowserId id_ = BrowserId::Sample;
@@ -581,6 +586,8 @@ private:
 	std::optional<uint32_t> hold_deadline_ms_{};
 	/// A folder menu's load has ended: true closes the menu and this browser, false the menu only.
 	std::optional<bool> long_press_done_{};
+	/// This browser parked a load for a folder menu and has not heard how it ended: only that load's end is acted on.
+	bool awaiting_load_ = false;
 
 	/// The end-of-string cursor's blink -- the same idiom `RenameScene` uses.
 	deluge::ui::Blink cursor_blink_{};

@@ -371,6 +371,7 @@ bool BrowserScene::on_enter(const SceneId& id) {
 	holding_ = false;
 	hold_deadline_ms_.reset();
 	long_press_done_.reset();
+	awaiting_load_ = false;
 	if (!descriptor(id_).can(ctx_)) {
 		return false;
 	}
@@ -932,8 +933,10 @@ Result BrowserScene::close() {
 	// one on every listing -- can legitimately be pushed above it between the tick that decided to
 	// close and the router applying it, and `Pop` would take that down too (`shell/scene.h`'s note
 	// on `Action::Kind::Pop`).
+	// A folder menu over this browser goes with it: in `main` the closing browser takes the UIs above it.
 	Result r;
 	r.handled = true;
+	(void)r.actions.push_back(Action{.kind = Action::Kind::Remove, .pop_to = context_menu::kContextMenuSceneKind});
 	(void)r.actions.push_back(Action{.kind = Action::Kind::Remove, .pop_to = kBrowserSceneKind});
 	return r;
 }
@@ -1127,8 +1130,9 @@ Result BrowserScene::after_render() {
 		}
 	}
 
-	// 6. A key typed while Select is held is dropped: `QwertyUI::padAction` types only with no UI mode set.
-	if (holding_) {
+	// 6. A key typed while Select is held is dropped: `QwertyUI::padAction` types only with no UI mode set. So is one
+	//    typed while a sample load runs (`SampleBrowser::padAction`'s gate).
+	if (holding_ || load_running()) {
 		return r;
 	}
 
@@ -1179,6 +1183,13 @@ Result BrowserScene::handle(const UiEvent& event, const UiContext& ctx) {
 	// `InputLowering::set_sd_busy`, which has no `Action` at all); and it buys this scene nothing
 	// the line below does not already buy, because every event routes here first.
 	if (seam_busy()) {
+		Result r;
+		r.handled = true;
+		return r;
+	}
+
+	if ((event.kind == UiEvent::Kind::Button || event.kind == UiEvent::Kind::EncoderButton) && load_running()) {
+		// A refused release leaves the hold standing, as `main`'s UI mode does: the next release enters.
 		Result r;
 		r.handled = true;
 		return r;
@@ -1300,9 +1311,14 @@ void BrowserScene::park_operation(BrowserChoice::Op op, BrowserChoice::ClaimArgs
 	                     .is_folder = item->isFolder};
 	choice.path = choice.dir.empty() ? choice.filename : choice.dir + "/" + choice.filename;
 	choice_ = std::move(choice);
+	awaiting_load_ = op != BrowserChoice::Op::Enter;
 }
 
 void BrowserScene::long_press_done(bool success) {
+	if (!awaiting_load_) {
+		return;
+	}
+	awaiting_load_ = false;
 	long_press_done_ = success;
 }
 

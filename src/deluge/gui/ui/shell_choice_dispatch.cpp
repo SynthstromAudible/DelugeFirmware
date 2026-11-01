@@ -168,6 +168,9 @@ void claimSampleFile(std::string_view path, const SampleClaimTarget& target, con
 ///        own folder, or the folder it is in, starting from it. The ported browser closes itself, so the import does
 ///        not.
 void importFolder(const BrowserChoice& choice, deluge::gui::FolderImportKind kind) {
+	if (deluge::gui::sampleClaim.explicitInFlight() || deluge::gui::folderImport.inFlight()) {
+		return; // the gate refuses the presses that would ask; nothing that does is left to answer
+	}
 	// An auto-load claim would bind into the sound the import is replacing.
 	deluge::gui::sampleClaim.cancelAutoLoad();
 	soundEditor.adoptResolvedContext(resolvedFor(deluge::scenes::menu_scene().menu_context()));

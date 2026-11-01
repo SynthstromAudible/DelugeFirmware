@@ -55,8 +55,8 @@ enum class DescriptorId : uint16_t {
 	ResetAll,
 	/// `context_menu::audioInputSelector` (`gui/context_menu/audio_input_selector.{h,cpp}`), opened
 	/// by `audio_clip::AudioSourceSelector::selectButtonPress`
-	/// (`gui/menu_item/audio_clip/audio_source_selector.h:27-32`) -- the sixth, added by E2 task 11b
-	/// together with the three `Descriptor` hooks the note below said it would need.
+	/// (`gui/menu_item/audio_clip/audio_source_selector.h:27-32`); it uses `initial_option`, `on_move` and
+	/// `footer`.
 	AudioSource,
 	/// `context_menu::sample_browser::kit`: SAMPLES, {LOAD ALL}. Main's second option, SLICE, opens the slicer,
 	/// which is not wired yet.
@@ -89,10 +89,10 @@ struct Descriptor {
 	///        own convention ("If returns false, will cause UI to exit", `context_menu.h:38`) and
 	///        is what every `ResetSettings` action returns after doing its work.
 	///
-	/// @note Both parameters are ignored by all five hooks below -- the five factory resets are
-	///       global calls and each menu has a single option. They are here because they are what
-	///       `acceptCurrentOption()` reads off `this` (`soundEditor`'s resolved context, and
-	///       `currentOption`), and every remaining legacy subclass needs both: `ClipSettingsMenu`
+	/// @note The factory resets ignore both parameters (global calls, one option each); the sample
+	///       browser's synth menu switches on the option. They are what `acceptCurrentOption()`
+	///       reads off `this` (`soundEditor`'s resolved context, and `currentOption`), and every
+	///       remaining legacy subclass needs both: `ClipSettingsMenu`
 	///       and `NewClipType` switch on the option, and all of them address a model object the
 	///       `MenuContext` carries.
 	bool (*accept)(const menu::MenuContext&, uint8_t option);

@@ -1867,7 +1867,7 @@ describe browser_long_press("scenes::browser::BrowserScene holding Select", $ {
 		expect(browser_scene().holding()).to_be_true();
 	});
 
-	it("opens nothing while a sample load runs, and the release still enters", _ {
+	it("opens nothing while a sample load runs, and refuses the release", _ {
 		CleanBrowser clean;
 		ScratchCard card;
 		spec::SongFixture f = spec::make_synth_song();
@@ -1881,9 +1881,86 @@ describe browser_long_press("scenes::browser::BrowserScene holding Select", $ {
 		const uint32_t down = press_select(r);
 		run_until(r, down + 600);
 		expect(on_stack(r, context_menu::kContextMenuSceneKind) == nullptr).to_be_true();
-		expect(browser_scene().holding()).to_be_true();
+		expect(browser_scene().holding()).to_be_false(); // the press was refused too
 		release_select(r, down + 610);
+		// `SampleBrowser::buttonAction`'s gate refuses every button while the load runs, the release included.
+		expect(browser_scene().take_choice().has_value()).to_be_false();
+		expect(r.browser_on_stack()).to_be_true();
+	});
+
+	it("refuses a key typed while a sample load runs", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		MenuContext ctx = sound_context(f);
+		const LoadingFacts loading{*ctx.facts};
+		ctx.facts = &loading;
+		Rig r;
+		r.open_and_land(ctx, BrowserId::Sample);
+		const int32_t before = browser_scene().cursor();
+		const std::string name{browser_scene().entered_text()};
+		r.type(name.empty() ? 'C' : name[static_cast<size_t>(before)]);
+		expect(browser_scene().cursor()).to_equal(before);
+	});
+
+	it("ignores a key typed while Select is held", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		const int32_t before = browser_scene().cursor();
+		const std::string name{browser_scene().entered_text()};
+		(void)press_select(r);
+		r.type(name.empty() ? 'C' : name[static_cast<size_t>(before)]);
+		expect(browser_scene().cursor()).to_equal(before);
+		expect(browser_scene().holding()).to_be_true();
+	});
+
+	it("answers the hold first when the release lands on the deadline's own tick", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		(void)browser_scene().take_choice();
+		select_folder(r, false);
+		const uint32_t down = press_select(r);
+		run_until(r, down + 390);
+		// The Select button is delivered after the tick's render, so the deadline is answered before it.
+		release_select(r, down + 400);
+		expect(on_stack(r, context_menu::kContextMenuSceneKind) != nullptr).to_be_true();
+		expect(browser_scene().take_choice().has_value()).to_be_false();
+	});
+
+	it("closes a folder menu with the browser when Enter on the keyboard beneath loads the file", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		(void)browser_scene().take_choice();
+		select_folder(r, false);
+		const uint32_t down = press_select(r);
+		run_until(r, down + 410);
+		release_select(r, down + 420);
+		expect(on_stack(r, context_menu::kContextMenuSceneKind) != nullptr).to_be_true();
+		r.enter();
 		expect(browser_scene().take_choice().has_value()).to_be_true();
+		expect(r.browser_on_stack()).to_be_false();
+		expect(on_stack(r, context_menu::kContextMenuSceneKind) == nullptr).to_be_true();
+	});
+
+	it("ignores a load's end it did not start", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		browser_scene().long_press_done(true);
+		r.step();
+		r.step();
+		expect(r.browser_on_stack()).to_be_true();
 	});
 
 	it("tells an audio clip it cannot take a whole folder", _ {
