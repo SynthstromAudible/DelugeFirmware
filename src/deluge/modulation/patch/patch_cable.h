@@ -18,7 +18,7 @@
 #pragma once
 
 #include "modulation/automation/auto_param.h"
-#include "modulation/params/param_descriptor.h"
+#include "synth/modulation/cable.h"
 #include "util/fixedpoint.h"
 #include <cstdint>
 
@@ -43,7 +43,7 @@ public:
 	static Polarity getDefaultPolarity(PatchSource source);
 	PatchSource from{PatchSource::NONE};
 	Polarity polarity{Polarity::BIPOLAR};
-	ParamDescriptor destinationParamDescriptor;
+	deluge::synth::CableTarget destination{0}; ///< an unused cable slot holds word 0
 	/// The depth's interpolation cursor, within [-2^30, 2^30]; the depth's value and automation are the host's lane,
 	/// PatchCableSet::docForParam.
 	AutoParam param;

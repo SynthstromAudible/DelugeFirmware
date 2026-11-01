@@ -17,7 +17,6 @@
 
 #include "patch_cable_strength.h"
 #include "definitions_cxx.hpp"
-#include "gui/menu_item/cable_descriptor.h"
 #include "gui/menu_item/menu_item.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/sound_editor.h"
@@ -34,7 +33,6 @@
 #include "model/edits/set_param_value.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
-#include "modulation/params/param_descriptor.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "plugin-api/types/param_mapping.h"
 #include "processing/engines/audio_engine.h"
@@ -42,6 +40,7 @@
 #include "processing/sound/sound.h"
 #include "source_selection.h"
 #include "source_selection/range.h"
+#include "synth/modulation/cable.h"
 #include "util/functions.h"
 
 using hid::display::OLED;
@@ -59,8 +58,7 @@ void PatchCableStrength::beginSession(MenuItem* navigatedBackwardFrom) {
 	}
 
 	auto* patch_cable_set = soundEditor.currentParamManager->getPatchCableSet();
-	const uint32_t patch_cable_index =
-	    patch_cable_set->getPatchCableIndex(getS(), cableDescriptor(getDestinationDescriptor()));
+	const uint32_t patch_cable_index = patch_cable_set->getPatchCableIndex(getS(), getDestinationDescriptor());
 
 	if (patch_cable_index == kNoSelection) {
 		patch_cable_exists_ = false;
@@ -199,7 +197,7 @@ void PatchCableStrength::renderOLED() {
 
 void PatchCableStrength::readCurrentValue() {
 	PatchCableSet* patchCableSet = soundEditor.currentParamManager->getPatchCableSet();
-	uint32_t c = patchCableSet->getPatchCableIndex(getS(), cableDescriptor(getDestinationDescriptor()));
+	uint32_t c = patchCableSet->getPatchCableIndex(getS(), getDestinationDescriptor());
 	if (c == 255) {
 		this->setValue(0);
 		patch_cable_exists_ = false;
@@ -384,7 +382,7 @@ void PatchCableStrength::setPatchCablePolarity(Polarity newPolarity) {
 	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
 	auto* patchCableSet = modelStack->paramManager->getPatchCableSet();
-	if (const int32_t index = patchCableSet->getPatchCableIndex(getS(), cableDescriptor(getDestinationDescriptor()));
+	if (const int32_t index = patchCableSet->getPatchCableIndex(getS(), getDestinationDescriptor());
 	    index != kNoSelection) {
 		ModMatrixHost matrix{*static_cast<Sound*>(modelStack->modControllable), *modelStack->paramManager};
 		if (std::optional<CableEdit> edit =

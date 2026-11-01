@@ -587,8 +587,8 @@ PatchCable* targetVelocityToVolumeCable(ParamManagerForTimeline* paramManager) {
 	PatchCableSet* cables = paramManager->getPatchCableSet();
 	for (int32_t c = 0; c < cables->numPatchCables; c++) {
 		PatchCable& cable = cables->patchCables[c];
-		if (cable.from == PatchSource::VELOCITY && cable.destinationParamDescriptor.isJustAParam()
-		    && cable.destinationParamDescriptor.getJustTheParam() == params::LOCAL_VOLUME) {
+		if (cable.from == PatchSource::VELOCITY && cable.destination.is_param()
+		    && cable.destination.param_index() == params::LOCAL_VOLUME) {
 			return &cable;
 		}
 	}

@@ -21,9 +21,9 @@
 #include "model/project_bridge/param_ids.h"
 #include "model/project_bridge/param_serialization.h"
 #include "modulation/automation/auto_param.h"
-#include "modulation/params/param_descriptor.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "storage/value_tree_deserializer.h"
+#include "synth/modulation/cable.h"
 
 namespace deluge::bridge {
 
@@ -49,10 +49,9 @@ void loadCables(PatchCableSet& set, const deluge::serialization::Value& patchCab
 	    });
 	set.truncateCables(0);
 	for (const deluge::instrument::CableState& state : cables) {
-		const ParamDescriptor target =
-		    ParamDescriptor(static_cast<int32_t>(cableWordOf(state.depth()))).getDestination();
+		const deluge::synth::CableTarget target = deluge::synth::CableTarget{cableWordOf(state.depth())}.modulated();
 		PatchCable* added =
-		    set.appendCable({state.source, {target.data}, static_cast<deluge::synth::CablePolarity>(state.polarity)});
+		    set.appendCable({state.source, {target.word}, static_cast<deluge::synth::CablePolarity>(state.polarity)});
 		if (added == nullptr) {
 			break; // out of memory, or at kMaxNumPatchCables: keep the cables read so far
 		}

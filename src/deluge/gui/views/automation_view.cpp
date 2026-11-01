@@ -343,9 +343,9 @@ void AutomationView::focusRegained() {
 					// make sure it's not jiberish
 					if (set) {
 						PatchSource s;
-						ParamDescriptor destinationParamDescriptor;
-						set->dissectParamId(clip->lastSelectedParamID, &destinationParamDescriptor, &s);
-						if (set->getPatchCableIndex(s, destinationParamDescriptor) != kNoSelection) {
+						deluge::synth::CableTarget destination;
+						set->dissectParamId(clip->lastSelectedParamID, &destination, &s);
+						if (set->getPatchCableIndex(s, destination) != kNoSelection) {
 							patchCableExists = true;
 						}
 					}
@@ -2596,25 +2596,25 @@ bool AutomationView::selectPatchCable(int32_t offset, Clip* clip) {
 bool AutomationView::selectPatchCableAtIndex(Clip* clip, PatchCableSet* set, int32_t patchCableIndex,
                                              bool& foundCurrentPatchCable) {
 	PatchCable* cable = &set->patchCables[patchCableIndex];
-	ParamDescriptor desc = cable->destinationParamDescriptor;
+	deluge::synth::CableTarget desc = cable->destination;
 	// need to add patch cable source to the descriptor so that we can get the paramId from it
-	desc.addSource(cable->from);
+	desc = desc.add_source(cable->from);
 
 	// if we've previously selected a patch cable, we want to start scrolling from that patch cable
 	// note: the reason why we can't save the patchCableIndex to make finding the previous patch
 	// cable selected easier is because the patch cable array gets re-indexed as patch cables get
 	// added or removed or values change. Thus you need to search for the previous patch cable to get
 	// the updated index and then you can find the adjacent patch cable in the list.
-	if (desc.data == clip->lastSelectedParamID) {
+	if (desc.word == clip->lastSelectedParamID) {
 		foundCurrentPatchCable = true;
 	}
 	// if we found the patch cable we previously selected and we found another one
 	// or we hadn't selected a patch cable previously and found a patch cable
 	// select the one we found
 	else if ((foundCurrentPatchCable || (clip->lastSelectedParamKind != params::Kind::PATCH_CABLE))
-	         && (desc.data != clip->lastSelectedParamID)) {
+	         && (desc.word != clip->lastSelectedParamID)) {
 		clip->lastSelectedPatchSource = cable->from;
-		clip->lastSelectedParamID = desc.data;
+		clip->lastSelectedParamID = desc.word;
 		clip->lastSelectedParamKind = params::Kind::PATCH_CABLE;
 		return true;
 	}

@@ -881,11 +881,10 @@ void View::modEncoderAction_existentParam(int32_t whichModEncoder, int32_t offse
 		PatchSource source1 = PatchSource::NONE;
 		PatchSource source2 = PatchSource::NONE;
 		if (kind == params::Kind::PATCH_CABLE) {
-			ParamDescriptor paramDescriptor;
-			paramDescriptor.data = modelStackWithParam->paramId;
-			source1 = paramDescriptor.getBottomLevelSource();
-			if (!paramDescriptor.hasJustOneSource()) {
-				source2 = paramDescriptor.getTopLevelSource();
+			const deluge::synth::CableTarget paramDescriptor{static_cast<uint32_t>(modelStackWithParam->paramId)};
+			source1 = paramDescriptor.bottom_source();
+			if (!paramDescriptor.has_just_one_source()) {
+				source2 = paramDescriptor.top_source();
 			}
 		}
 		displayModEncoderValuePopup(kind, modelStackWithParam->paramId, newKnobPos, source1, source2);
@@ -1017,11 +1016,10 @@ void View::getParameterNameFromModEncoder(int32_t whichModEncoder, char* paramet
 		if (kind == params::Kind::PATCH_CABLE) {
 			PatchSource source1 = PatchSource::NONE;
 			PatchSource source2 = PatchSource::NONE;
-			ParamDescriptor paramDescriptor;
-			paramDescriptor.data = modelStackWithParam->paramId;
-			source1 = paramDescriptor.getBottomLevelSource();
-			if (!paramDescriptor.hasJustOneSource()) {
-				source2 = paramDescriptor.getTopLevelSource();
+			const deluge::synth::CableTarget paramDescriptor{static_cast<uint32_t>(modelStackWithParam->paramId)};
+			source1 = paramDescriptor.bottom_source();
+			if (!paramDescriptor.has_just_one_source()) {
+				source2 = paramDescriptor.top_source();
 			}
 
 			etl::string<30> paramDisplayName;

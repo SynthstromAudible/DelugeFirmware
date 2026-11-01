@@ -53,7 +53,7 @@ struct Rng {
 
 struct TopologyCable {
 	PatchSource from;
-	ParamDescriptor target;
+	deluge::synth::CableTarget target;
 	Polarity polarity;
 };
 
@@ -81,30 +81,31 @@ Topology randomTopology(uint32_t seed) {
 		}
 	}
 	const auto n = static_cast<size_t>(rng.below(kMaxNumPatchCables + 1));
-	auto exists = [&](PatchSource from, ParamDescriptor target) {
+	auto exists = [&](PatchSource from, deluge::synth::CableTarget target) {
 		return std::ranges::any_of(t.cables,
 		                           [&](const TopologyCable& c) { return c.from == from && c.target == target; });
 	};
 	for (int32_t attempts = 0; t.cables.size() < n && attempts < 1000; attempts++) {
 		const PatchSource from = randomSource(rng);
-		ParamDescriptor target;
+		deluge::synth::CableTarget target;
 		const uint32_t kind = rng.below(20);
 		if (kind < 13 || t.cables.empty()) {
-			target.setToHaveParamOnly(static_cast<int32_t>(rng.below(params::kNumParams)));
+			target = deluge::synth::CableTarget::param(static_cast<int32_t>(rng.below(params::kNumParams)));
 		}
 		else if (kind < 18) {
 			const TopologyCable& other = t.cables[rng.below(t.cables.size())];
-			if (other.target.isNull() || !other.target.isJustAParam()
-			    || other.target.getJustTheParam() == params::PLACEHOLDER_RANGE) {
+			if (other.target.is_null() || !other.target.is_param()
+			    || other.target.param_index() == params::PLACEHOLDER_RANGE) {
 				continue;
 			}
-			target.setToHaveParamAndSource(other.target.getJustTheParam(), other.from);
+			target = deluge::synth::CableTarget::depth_of(other.target.param_index(), other.from);
 		}
 		else if (kind < 19) {
-			target.setToHaveParamAndSource(static_cast<int32_t>(randomRangeParam(rng)), randomSource(rng));
+			target =
+			    deluge::synth::CableTarget::depth_of(static_cast<int32_t>(randomRangeParam(rng)), randomSource(rng));
 		}
 		else {
-			target.setToNull();
+			target = deluge::synth::CableTarget{};
 		}
 		if (exists(from, target)) {
 			continue;
@@ -115,15 +116,15 @@ Topology randomTopology(uint32_t seed) {
 }
 
 /// patchCableIsUsable's rule, with the table standing in for Sound::maySourcePatchToParam.
-bool usableIn(const Topology& t, PatchSource from, ParamDescriptor target) {
-	if (target.isNull() || target.isSetToParamWithNoSource(params::PLACEHOLDER_RANGE)) {
+bool usableIn(const Topology& t, PatchSource from, deluge::synth::CableTarget target) {
+	if (target.is_null() || (target == deluge::synth::CableTarget::param(params::PLACEHOLDER_RANGE))) {
 		return false;
 	}
-	PatchSource s = target.getTopLevelSource();
+	PatchSource s = target.top_source();
 	if (s == PatchSource::NOT_AVAILABLE) {
 		s = from;
 	}
-	return t.usable[std::to_underlying(s)][target.getJustTheParam()];
+	return t.usable[std::to_underlying(s)][target.param_index()];
 }
 
 uint32_t fold(uint32_t h, uint32_t v) {
@@ -144,7 +145,7 @@ uint32_t foldSet(uint32_t h, const PatchCableSet& set) {
 	h = fold(h, set.numUsablePatchCables);
 	for (int32_t c = 0; c < set.numPatchCables; c++) {
 		h = fold(h, std::to_underlying(set.patchCables[c].from));
-		h = fold(h, set.patchCables[c].destinationParamDescriptor.data);
+		h = fold(h, set.patchCables[c].destination.word);
 		h = fold(h, std::to_underlying(set.patchCables[c].polarity));
 	}
 	for (int32_t c = 0; c < set.numUsablePatchCables; c++) {
@@ -168,7 +169,7 @@ void route(PatchCableSet& set, ParamCollectionSummary& summary, const Topology& 
 	std::bitset<kMaxNumPatchCables> usable;
 	for (const TopologyCable& c : t.cables) {
 		usable[set.numPatchCables] = usableIn(t, c.from, c.target);
-		set.appendCable({c.from, {c.target.data}, static_cast<deluge::synth::CablePolarity>(c.polarity)});
+		set.appendCable({c.from, {c.target.word}, static_cast<deluge::synth::CablePolarity>(c.polarity)});
 	}
 	set.setupPatching(summary, usable);
 }
@@ -176,7 +177,7 @@ void route(PatchCableSet& set, ParamCollectionSummary& summary, const Topology& 
 deluge::instrument::CableRecords recordsOf(const Topology& t) {
 	deluge::instrument::CableRecords r;
 	for (const TopologyCable& c : t.cables) {
-		r.append({c.from, {c.target.data}, static_cast<deluge::synth::CablePolarity>(c.polarity)});
+		r.append({c.from, {c.target.word}, static_cast<deluge::synth::CablePolarity>(c.polarity)});
 	}
 	return r;
 }
@@ -209,7 +210,7 @@ bool agrees(const Topology& t, const PatchCableSet& set, int32_t seed) {
 	}
 	for (int32_t c = 0; c < set.numPatchCables; c++) {
 		const PatchCable& cable = set.patchCables[c];
-		if (records[c].source != cable.from || records[c].target.word != cable.destinationParamDescriptor.data
+		if (records[c].source != cable.from || records[c].target.word != cable.destination.word
 		    || std::to_underlying(records[c].polarity) != std::to_underlying(cable.polarity)) {
 			return fail("order");
 		}

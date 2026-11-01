@@ -18,7 +18,6 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "modulation/params/param_descriptor.h"
 #include "plugin-api/types/param_kind.h"
 #include "util/misc.h"
 #include <algorithm>

@@ -17,8 +17,8 @@
 #include "range.h"
 #include "gui/menu_item/patch_cable_strength/range.h"
 #include "gui/ui/sound_editor.h"
-#include "modulation/params/param_descriptor.h"
 #include "regular.h"
+#include "synth/modulation/cable.h"
 
 namespace deluge::gui::menu_item::source_selection {
 Range rangeMenu{};

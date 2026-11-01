@@ -40,8 +40,7 @@ MenuItem* PatchedParam::selectButtonPress() {
 }
 
 uint8_t PatchedParam::shouldDrawDotOnName() {
-	ParamDescriptor paramDescriptor{};
-	paramDescriptor.setToHaveParamOnly(this->getP());
+	deluge::synth::CableTarget paramDescriptor = deluge::synth::CableTarget::param(this->getP());
 	return soundEditor.currentParamManager->getPatchCableSet()->isAnySourcePatchedToParamVolumeInspecific(
 	           paramDescriptor)
 	           ? 3
@@ -65,8 +64,7 @@ uint32_t PatchedParam::getParamIndex() {
 }
 
 uint8_t PatchedParam::shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) {
-	ParamDescriptor paramDescriptor{};
-	paramDescriptor.setToHaveParamOnly(this->getP());
+	deluge::synth::CableTarget paramDescriptor = deluge::synth::CableTarget::param(this->getP());
 	return soundEditor.currentParamManager->getPatchCableSet()->isSourcePatchedToDestinationDescriptorVolumeInspecific(
 	           s, paramDescriptor)
 	           ? 3

@@ -26,8 +26,8 @@
 #include "model/project_bridge/owner_plugin.h"
 #include "model/snapshot/mod_controllable_snapshot.h"
 #include "modulation/knob.h"
-#include "modulation/params/param_descriptor.h"
 #include "modulation/params/param_set.h"
+#include "synth/modulation/cable.h"
 #include "synth/modulation/lfo.h"
 #include "util/functions.h"
 

@@ -850,9 +850,7 @@ int param_projection_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		PatchCableSet* pcs2 = pm2.getPatchCableSet();
 		check(pcs2->numPatchCables == 1, "pm2 patch cable count");
 		check(pcs2->patchCables[0].from == PatchSource::ENVELOPE_0, "pm2 cable source");
-		check(pcs2->patchCables[0].destinationParamDescriptor.data
-		          == pcs->patchCables[0].destinationParamDescriptor.data,
-		      "pm2 cable destination");
+		check(pcs2->patchCables[0].destination.word == pcs->patchCables[0].destination.word, "pm2 cable destination");
 		check(pcs2->patchCables[0].polarity == Polarity::BIPOLAR, "pm2 cable polarity");
 		check(pcs2->patchCables[0].param.currentValue == pcs->patchCables[0].param.currentValue,
 		      "pm2 cable amount value");

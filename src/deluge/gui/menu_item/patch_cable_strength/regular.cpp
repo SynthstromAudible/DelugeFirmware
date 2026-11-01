@@ -16,7 +16,6 @@
  */
 #include "regular.h"
 #include "definitions_cxx.hpp"
-#include "gui/menu_item/cable_descriptor.h"
 #include "gui/menu_item/patch_cable_strength/range.h"
 #include "gui/menu_item/source_selection/range.h"
 #include "gui/menu_item/source_selection/regular.h"
@@ -72,8 +71,7 @@ uint8_t Regular::shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colou
 	PatchCableSet* patchCableSet = soundEditor.currentParamManager->getPatchCableSet();
 
 	// Or, if it's the source controlling the range of the source we're editing for...
-	if (patchCableSet->getPatchCableIndex(s, cableDescriptor(deluge::modulation::knobWord(getLearningThing())))
-	    != 255) {
+	if (patchCableSet->getPatchCableIndex(s, deluge::modulation::knobWord(getLearningThing())) != 255) {
 		*colour = 0b110;
 		return 3;
 	}

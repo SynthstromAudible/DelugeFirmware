@@ -20,8 +20,6 @@
 #include "synth/modulation/cable.h"
 #include "value.h"
 
-class ParamDescriptor;
-
 namespace deluge::gui::menu_item {
 class SourceSelection : public Value<int32_t> {
 public:

@@ -91,11 +91,11 @@ int cable_decode_main(int argc, char** argv, Io io) {
 		deluge::bridge::loadCables(set, *node, kAllAutomation);
 		for (int32_t i = 0; i < set.numPatchCables; ++i) {
 			const PatchCable& cable = set.patchCables[i];
-			ParamDescriptor withSource = cable.destinationParamDescriptor;
-			withSource.addSource(cable.from);
+			deluge::synth::CableTarget withSource = cable.destination;
+			withSource = withSource.add_source(cable.from);
 			const deluge::project::DocAutoParam& amount = *set.docForParam(i);
 			std::fprintf(io.out, "%s %08x %d %d %d\n", path.c_str(),
-			             deluge::bridge::cableDepthIdOf(withSource.data).value, static_cast<int>(cable.polarity),
+			             deluge::bridge::cableDepthIdOf(withSource.word).value, static_cast<int>(cable.polarity),
 			             amount.current_value, static_cast<int>(amount.nodes.size()));
 		}
 	}

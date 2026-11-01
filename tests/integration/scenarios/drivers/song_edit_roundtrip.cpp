@@ -518,8 +518,8 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 		auto cablesBound = [](ParamManagerForTimeline& pm) {
 			PatchCableSet* pcs = pm.getPatchCableSet();
 			for (int32_t c = 0; c < pcs->numPatchCables; c++) {
-				const deluge::plugin::ParamId id = deluge::bridge::cable_depth(
-				    pcs->patchCables[c].from, pcs->patchCables[c].destinationParamDescriptor);
+				const deluge::plugin::ParamId id =
+				    deluge::bridge::cable_depth(pcs->patchCables[c].from, pcs->patchCables[c].destination);
 				bool found = false;
 				for (const deluge::project::DocCableDepth& lane : pcs->depthStore()) {
 					found = found || (lane.depth == id && &lane.amount == pcs->docForParam(c));
@@ -1205,8 +1205,7 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 				treeResident++;
 			}
 			for (int32_t c = 0; c < pcs->numPatchCables; c++) {
-				int32_t packedId =
-				    PatchCableSet::getParamId(pcs->patchCables[c].destinationParamDescriptor, pcs->patchCables[c].from);
+				int32_t packedId = PatchCableSet::getParamId(pcs->patchCables[c].destination, pcs->patchCables[c].from);
 				deluge::project::ParamAddress addr =
 				    deluge::bridge::addressOf(owner, deluge::modulation::params::Kind::PATCH_CABLE, packedId, clipId);
 				if (reloaded->project.resolveParam(addr) != pcs->docForParam(c)) {

@@ -79,17 +79,17 @@ MatrixBlock control_block(MatrixRig& r, bool all_presets) {
 void build(MatrixRig& r) {
 	std::bitset<kMaxNumPatchCables> usable;
 	for (const mm::WorkloadCable& w : mm::kCables) {
-		ParamDescriptor target;
+		deluge::synth::CableTarget target;
 		if (w.range_of >= 0) {
-			target.setToHaveParamAndSource(w.param, static_cast<PatchSource>(mm::kCables[w.range_of].source));
+			target =
+			    deluge::synth::CableTarget::depth_of(w.param, static_cast<PatchSource>(mm::kCables[w.range_of].source));
 		}
 		else {
-			target.setToHaveParamOnly(w.param);
+			target = deluge::synth::CableTarget::param(w.param);
 		}
 		usable[r.cables.numPatchCables] = true;
 		r.cables.appendCable(
-		    {static_cast<PatchSource>(w.source),
-		     {target.data},
+		    {static_cast<PatchSource>(w.source), target,
 		     w.unipolar ? deluge::synth::CablePolarity::UNIPOLAR : deluge::synth::CablePolarity::BIPOLAR});
 	}
 	r.cables.setupPatching(r.cables_summary, usable);
@@ -97,12 +97,13 @@ void build(MatrixRig& r) {
 		FREEZE_WITH_ERROR("MMB1"); // the workload's cables must all route
 	}
 	for (const mm::WorkloadCable& w : mm::kCables) {
-		ParamDescriptor target;
+		deluge::synth::CableTarget target;
 		if (w.range_of >= 0) {
-			target.setToHaveParamAndSource(w.param, static_cast<PatchSource>(mm::kCables[w.range_of].source));
+			target =
+			    deluge::synth::CableTarget::depth_of(w.param, static_cast<PatchSource>(mm::kCables[w.range_of].source));
 		}
 		else {
-			target.setToHaveParamOnly(w.param);
+			target = deluge::synth::CableTarget::param(w.param);
 		}
 		const uint8_t c = r.cables.getPatchCableIndex(static_cast<PatchSource>(w.source), target);
 		r.cables.patchCables[c].param.setCurrentValueBasicForSetup(*r.cables.docForParam(c), w.amount);

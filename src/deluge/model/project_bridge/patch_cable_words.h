@@ -22,8 +22,8 @@
 
 #include "deluge-project/param_automation.h"
 #include "model/project_bridge/param_ids.h"
-#include "modulation/params/param_descriptor.h"
 #include "modulation/patch/patch_cable.h"
+#include "synth/modulation/cable.h"
 #include "util/misc.h"
 
 namespace deluge::bridge {
@@ -33,9 +33,9 @@ namespace deluge::bridge {
 /// @param from        The cable's source.
 /// @param destination The cable's destination descriptor.
 /// @return The packed cable word.
-[[nodiscard]] inline uint32_t cable_word(PatchSource from, ParamDescriptor destination) noexcept {
-	destination.addSource(from);
-	return destination.data;
+[[nodiscard]] inline uint32_t cable_word(PatchSource from, deluge::synth::CableTarget destination) noexcept {
+	destination = destination.add_source(from);
+	return destination.word;
 }
 
 /// @brief The depth id of the cable from @p from to @p destination.
@@ -43,7 +43,7 @@ namespace deluge::bridge {
 /// @param from        The cable's source.
 /// @param destination The cable's destination descriptor.
 /// @return The cable's depth id.
-[[nodiscard]] inline deluge::plugin::ParamId cable_depth(PatchSource from, ParamDescriptor destination) {
+[[nodiscard]] inline deluge::plugin::ParamId cable_depth(PatchSource from, deluge::synth::CableTarget destination) {
 	return cableDepthIdOf(cable_word(from, destination));
 }
 

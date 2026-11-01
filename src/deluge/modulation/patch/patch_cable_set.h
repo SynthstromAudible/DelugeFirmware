@@ -102,10 +102,10 @@ public:
 	void retarget(uint8_t c, deluge::synth::CableTarget target);
 	/// @brief Set cable @p c's polarity.
 	void setPolarity(uint8_t c, Polarity polarity);
-	bool doesDestinationDescriptorHaveAnyCables(ParamDescriptor destinationParamDescriptor);
-	/// @brief The index of the cable from @p from to @p destinationParamDescriptor, usable or not.
+	bool doesDestinationDescriptorHaveAnyCables(deluge::synth::CableTarget destination);
+	/// @brief The index of the cable from @p from to @p destination, usable or not.
 	/// @return The index, or 255 when there is none.
-	uint8_t getPatchCableIndex(PatchSource from, ParamDescriptor destinationParamDescriptor);
+	uint8_t getPatchCableIndex(PatchSource from, deluge::synth::CableTarget destination);
 	/// @brief Delete cable @p c and its automation, then re-place the rest.
 	void deletePatchCable(Sound& sound, ParamManager& paramManager, uint8_t c);
 	void removeAllPatchingToParam(ModelStackWithParamCollection* modelStack, uint8_t p);
@@ -142,7 +142,7 @@ public:
 	/// @brief The depth of the cable @p modelStack names. With @p allowCreation (the caller writes it) a missing cable
 	/// is added through the mod matrix and recorded; otherwise a missing cable gives a null autoParam.
 	ModelStackWithAutoParam* getAutoParamFromId(ModelStackWithParamId* modelStack, bool allowCreation = false) override;
-	static int32_t getParamId(ParamDescriptor destinationParamDescriptor, PatchSource s);
+	static int32_t getParamId(deluge::synth::CableTarget destination, PatchSource s);
 
 	AutoParam* getParam(int32_t paramId);
 
@@ -152,9 +152,8 @@ public:
 
 	int32_t paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack) override;
 	int32_t knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack) override;
-	bool isSourcePatchedToDestinationDescriptorVolumeInspecific(PatchSource s,
-	                                                            ParamDescriptor destinationParamDescriptor);
-	bool isAnySourcePatchedToParamVolumeInspecific(ParamDescriptor destinationParamDescriptor);
+	bool isSourcePatchedToDestinationDescriptorVolumeInspecific(PatchSource s, deluge::synth::CableTarget destination);
+	bool isAnySourcePatchedToParamVolumeInspecific(deluge::synth::CableTarget destination);
 	void grabVelocityToLevelFromMIDIInput(LearnedMIDI* midiInput);
 	void grabVelocityToLevelFromMIDICable(MIDICable& cable);
 	PatchCable* getPatchCableFromVelocityToLevel();
@@ -201,7 +200,7 @@ public:
 
 	bool shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack) override { return true; };
 
-	static void dissectParamId(uint32_t paramId, ParamDescriptor* destinationParamDescriptor, PatchSource* s);
+	static void dissectParamId(uint32_t paramId, deluge::synth::CableTarget* destination, PatchSource* s);
 
 private:
 	/// @brief Append a cable, growing the storage to fit it.
@@ -218,8 +217,8 @@ private:
 		return externalDepths_ != nullptr ? *externalDepths_ : ownDepths_;
 	}
 	/// @brief The lane of the depth of the cable from @p from to @p target, created empty if there is none.
-	deluge::project::DocAutoParam& laneFor(PatchSource from, ParamDescriptor target);
-	void eraseLane(PatchSource from, ParamDescriptor target);
+	deluge::project::DocAutoParam& laneFor(PatchSource from, deluge::synth::CableTarget target);
+	void eraseLane(PatchSource from, deluge::synth::CableTarget target);
 
 	/// Move the cables into storage for exactly @p count of them, default-initialising any new ones and destroying
 	/// any dropped. @return false, with nothing changed, if the storage couldn't be allocated.
@@ -235,8 +234,7 @@ private:
 
 /// @brief The record of a runtime cable's topology.
 [[nodiscard]] inline deluge::synth::CableRecord recordOf(const PatchCable& cable) {
-	return {
-	    cable.from, {cable.destinationParamDescriptor.data}, static_cast<deluge::synth::CablePolarity>(cable.polarity)};
+	return {cable.from, cable.destination, static_cast<deluge::synth::CablePolarity>(cable.polarity)};
 }
 static_assert(std::to_underlying(Polarity::UNIPOLAR) == std::to_underlying(deluge::synth::CablePolarity::UNIPOLAR));
 static_assert(std::to_underlying(Polarity::BIPOLAR) == std::to_underlying(deluge::synth::CablePolarity::BIPOLAR));

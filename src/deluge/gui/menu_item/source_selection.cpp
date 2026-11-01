@@ -18,7 +18,6 @@
 #include "source_selection.h"
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
-#include "gui/menu_item/cable_descriptor.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
 #include "modulation/params/param_manager.h"
@@ -52,7 +51,7 @@ static_assert(kNumPatchSources == (sizeof(sourceMenuContents) / sizeof(PatchSour
 
 uint8_t SourceSelection::shouldDrawDotOnValue() {
 	return soundEditor.currentParamManager->getPatchCableSet()->isSourcePatchedToDestinationDescriptorVolumeInspecific(
-	           s, cableDescriptor(getDestinationDescriptor()))
+	           s, getDestinationDescriptor())
 	           ? 3
 	           : 255;
 }
@@ -124,8 +123,7 @@ void SourceSelection::beginSession(MenuItem* navigatedBackwardFrom) {
 
 			// Patched already?
 			if (soundEditor.currentParamManager->getPatchCableSet()
-			        ->isSourcePatchedToDestinationDescriptorVolumeInspecific(
-			            s, cableDescriptor(getDestinationDescriptor()))) {
+			        ->isSourcePatchedToDestinationDescriptorVolumeInspecific(s, getDestinationDescriptor())) {
 				break;
 			}
 
@@ -223,7 +221,7 @@ uint8_t SourceSelection::getIndexOfPatchedParamToBlink() {
 
 uint8_t SourceSelection::shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) {
 	return soundEditor.currentParamManager->getPatchCableSet()->isSourcePatchedToDestinationDescriptorVolumeInspecific(
-	           s, cableDescriptor(getDestinationDescriptor()))
+	           s, getDestinationDescriptor())
 	           ? 3
 	           : 255;
 }

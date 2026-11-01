@@ -178,11 +178,10 @@ void PatchCableSet::truncateCables(uint8_t count) {
 	// over the removed one, so for a moment both slots hold it).
 	for (int32_t c = count; c < numPatchCables; c++) {
 		const auto same = [&](const PatchCable& kept) {
-			return kept.from == patchCables[c].from
-			       && kept.destinationParamDescriptor == patchCables[c].destinationParamDescriptor;
+			return kept.from == patchCables[c].from && kept.destination == patchCables[c].destination;
 		};
 		if (std::none_of(patchCables, patchCables + count, same)) {
-			eraseLane(patchCables[c].from, patchCables[c].destinationParamDescriptor);
+			eraseLane(patchCables[c].from, patchCables[c].destination);
 		}
 	}
 	(void)resizeCables(count); // a shrink never fails
@@ -196,11 +195,11 @@ PatchCable* PatchCableSet::appendCable(const deluge::synth::CableRecord& record)
 	}
 	records_.append(record);
 	cable->from = record.source;
-	cable->destinationParamDescriptor = ParamDescriptor(static_cast<int32_t>(record.target.word));
+	cable->destination = record.target;
 	cable->polarity = static_cast<Polarity>(record.polarity);
 	cable->param.currentValue = 0;
 	// Every cable has its lane from the start, so a lookup never grows the table under a lane already handed out.
-	laneFor(record.source, cable->destinationParamDescriptor) = {};
+	laneFor(record.source, cable->destination) = {};
 	return cable;
 }
 
@@ -256,10 +255,10 @@ bool PatchCableSet::replaceRecords(Sound& sound, ParamManager& paramManager,
 
 void PatchCableSet::retarget(uint8_t c, deluge::synth::CableTarget target) {
 	const deluge::project::DocAutoParam lane = *docForParam(c);
-	eraseLane(patchCables[c].from, patchCables[c].destinationParamDescriptor);
+	eraseLane(patchCables[c].from, patchCables[c].destination);
 	records_.set_target(c, target);
-	patchCables[c].destinationParamDescriptor = ParamDescriptor(static_cast<int32_t>(target.word));
-	laneFor(patchCables[c].from, patchCables[c].destinationParamDescriptor) = lane;
+	patchCables[c].destination = target;
+	laneFor(patchCables[c].from, patchCables[c].destination) = lane;
 }
 
 void PatchCableSet::setPolarity(uint8_t c, Polarity polarity) {
@@ -289,7 +288,7 @@ void PatchCableSet::permuteCables(std::span<const uint8_t> order) {
 	}
 }
 
-deluge::project::DocAutoParam& PatchCableSet::laneFor(PatchSource from, ParamDescriptor target) {
+deluge::project::DocAutoParam& PatchCableSet::laneFor(PatchSource from, deluge::synth::CableTarget target) {
 	const deluge::plugin::ParamId id = deluge::bridge::cable_depth(from, target);
 	std::vector<deluge::project::DocCableDepth>& table = depths();
 	for (deluge::project::DocCableDepth& lane : table) {
@@ -303,7 +302,7 @@ deluge::project::DocAutoParam& PatchCableSet::laneFor(PatchSource from, ParamDes
 	return table.back().amount;
 }
 
-void PatchCableSet::eraseLane(PatchSource from, ParamDescriptor target) {
+void PatchCableSet::eraseLane(PatchSource from, deluge::synth::CableTarget target) {
 	const deluge::plugin::ParamId id = deluge::bridge::cable_depth(from, target);
 	// The lane's nodes are moved out inside the section and freed after it.
 	deluge::project::DocAutoParam dropped;
@@ -317,7 +316,7 @@ void PatchCableSet::eraseLane(PatchSource from, ParamDescriptor target) {
 }
 
 deluge::project::DocAutoParam* PatchCableSet::docForParam(int32_t c) {
-	return &laneFor(patchCables[c].from, patchCables[c].destinationParamDescriptor);
+	return &laneFor(patchCables[c].from, patchCables[c].destination);
 }
 
 void PatchCableSet::relocateDepthsInto(std::vector<deluge::project::DocCableDepth>& slot) {
@@ -333,7 +332,7 @@ void PatchCableSet::relocateDepthsInto(std::vector<deluge::project::DocCableDept
 
 deluge::project::DocAutoParam* PatchCableSet::docParamForId(int32_t paramId) {
 	PatchSource s;
-	ParamDescriptor desc;
+	deluge::synth::CableTarget desc;
 	dissectParamId(paramId, &desc, &s);
 	uint8_t c = getPatchCableIndex(s, desc);
 	return (c == 255) ? nullptr : docForParam(c);
@@ -341,7 +340,7 @@ deluge::project::DocAutoParam* PatchCableSet::docParamForId(int32_t paramId) {
 
 deluge::project::DocAutoParam* PatchCableSet::findDocParamForId(int32_t paramId) {
 	PatchSource s;
-	ParamDescriptor desc;
+	deluge::synth::CableTarget desc;
 	dissectParamId(paramId, &desc, &s);
 	if (getPatchCableIndex(s, desc) == 255) {
 		return nullptr;
@@ -492,9 +491,9 @@ void PatchCableSet::setupPatching(ParamCollectionSummary& summary, std::bitset<k
 }
 
 // Searches unusable ones too
-bool PatchCableSet::doesDestinationDescriptorHaveAnyCables(ParamDescriptor destinationParamDescriptor) {
+bool PatchCableSet::doesDestinationDescriptorHaveAnyCables(deluge::synth::CableTarget destination) {
 	for (int32_t c = 0; c < numPatchCables; c++) {
-		if (patchCables[c].destinationParamDescriptor == destinationParamDescriptor) {
+		if (patchCables[c].destination == destination) {
 			return true;
 		}
 	}
@@ -502,54 +501,54 @@ bool PatchCableSet::doesDestinationDescriptorHaveAnyCables(ParamDescriptor desti
 }
 
 bool PatchCableSet::isSourcePatchedToDestinationDescriptorVolumeInspecific(PatchSource s,
-                                                                           ParamDescriptor destinationParamDescriptor) {
-	if (destinationParamDescriptor.getJustTheParam() == params::GLOBAL_VOLUME_POST_FX) {
+                                                                           deluge::synth::CableTarget destination) {
+	if (destination.param_index() == params::GLOBAL_VOLUME_POST_FX) {
 
-		if (getPatchCableIndex(s, destinationParamDescriptor) != 255) {
+		if (getPatchCableIndex(s, destination) != 255) {
 			return true;
 		}
 
-		destinationParamDescriptor.changeParam(params::GLOBAL_VOLUME_POST_REVERB_SEND);
+		destination = destination.with_param(params::GLOBAL_VOLUME_POST_REVERB_SEND);
 
-		if (getPatchCableIndex(s, destinationParamDescriptor) != 255) {
+		if (getPatchCableIndex(s, destination) != 255) {
 			return true;
 		}
 
-		destinationParamDescriptor.changeParam(params::LOCAL_VOLUME);
+		destination = destination.with_param(params::LOCAL_VOLUME);
 
-		return (getPatchCableIndex(s, destinationParamDescriptor) != 255);
+		return (getPatchCableIndex(s, destination) != 255);
 	}
 	else {
-		return (getPatchCableIndex(s, destinationParamDescriptor) != 255);
+		return (getPatchCableIndex(s, destination) != 255);
 	}
 }
 
-bool PatchCableSet::isAnySourcePatchedToParamVolumeInspecific(ParamDescriptor destinationParamDescriptor) {
+bool PatchCableSet::isAnySourcePatchedToParamVolumeInspecific(deluge::synth::CableTarget destination) {
 
-	if (destinationParamDescriptor.getJustTheParam() == params::GLOBAL_VOLUME_POST_FX) {
+	if (destination.param_index() == params::GLOBAL_VOLUME_POST_FX) {
 
-		if (doesDestinationDescriptorHaveAnyCables(destinationParamDescriptor)) {
+		if (doesDestinationDescriptorHaveAnyCables(destination)) {
 			return true;
 		}
 
-		destinationParamDescriptor.changeParam(params::GLOBAL_VOLUME_POST_REVERB_SEND);
+		destination = destination.with_param(params::GLOBAL_VOLUME_POST_REVERB_SEND);
 
-		if (doesDestinationDescriptorHaveAnyCables(destinationParamDescriptor)) {
+		if (doesDestinationDescriptorHaveAnyCables(destination)) {
 			return true;
 		}
 
-		destinationParamDescriptor.changeParam(params::LOCAL_VOLUME);
+		destination = destination.with_param(params::LOCAL_VOLUME);
 
-		return (doesDestinationDescriptorHaveAnyCables(destinationParamDescriptor));
+		return (doesDestinationDescriptorHaveAnyCables(destination));
 	}
 	else {
-		return (doesDestinationDescriptorHaveAnyCables(destinationParamDescriptor));
+		return (doesDestinationDescriptorHaveAnyCables(destination));
 	}
 }
 
-uint8_t PatchCableSet::getPatchCableIndex(PatchSource from, ParamDescriptor destinationParamDescriptor) {
+uint8_t PatchCableSet::getPatchCableIndex(PatchSource from, deluge::synth::CableTarget destination) {
 	for (int32_t c = 0; c < numPatchCables; c++) {
-		if (patchCables[c].from == from && patchCables[c].destinationParamDescriptor == destinationParamDescriptor) {
+		if (patchCables[c].from == from && patchCables[c].destination == destination) {
 			return c;
 		}
 	}
@@ -561,15 +560,15 @@ void PatchCableSet::deletePatchCable(Sound& sound, ParamManager& paramManager, u
 		return;
 	}
 	// Its automation goes with it, and there is nothing to record: the cable is gone.
-	eraseLane(patchCables[c].from, patchCables[c].destinationParamDescriptor);
+	eraseLane(patchCables[c].from, patchCables[c].destination);
 	records_.set_target(c, {});
-	patchCables[c].destinationParamDescriptor.setToNull();
+	patchCables[c].destination = deluge::synth::CableTarget{};
 	setupPatching(sound, paramManager);
 
 	// The cable with no target is now in the unusable end of the list, where the render doesn't reach: move the last
 	// cable into its place.
 	for (int32_t i = numUsablePatchCables; i < numPatchCables - 1; i++) {
-		if (patchCables[i].destinationParamDescriptor.isNull()) {
+		if (patchCables[i].destination.is_null()) {
 			patchCables[i].~PatchCable();
 			memcpy(static_cast<void*>(&patchCables[i]), &patchCables[numPatchCables - 1], sizeof(PatchCable));
 			records_.erase_by_moving_last(i);
@@ -582,7 +581,7 @@ void PatchCableSet::deletePatchCable(Sound& sound, ParamManager& paramManager, u
 void PatchCableSet::removeAllPatchingToParam(ModelStackWithParamCollection* modelStack, uint8_t p) {
 	for (int32_t c = 0; c < numPatchCables; c++) {
 		// The cables to the depths of p's cables go too.
-		if (patchCables[c].destinationParamDescriptor.getJustTheParam() == p) {
+		if (patchCables[c].destination.param_index() == p) {
 			deletePatchCable(*static_cast<Sound*>(modelStack->modControllable), *modelStack->paramManager, c);
 		}
 	}
@@ -605,7 +604,7 @@ void PatchCableSet::tickSamples(int32_t numSamples, ModelStackWithParamCollectio
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreInterpolating)
 
 	AutoParam* param = &patchCables[c].param;
-	int32_t paramId = getParamId(patchCables[c].destinationParamDescriptor, patchCables[c].from);
+	int32_t paramId = getParamId(patchCables[c].destination, patchCables[c].from);
 
 	ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(paramId, param);
 
@@ -623,7 +622,7 @@ void PatchCableSet::setPlayPos(uint32_t pos, ModelStackWithParamCollection* mode
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreAutomated)
 
 	AutoParam* param = &patchCables[c].param;
-	int32_t paramId = getParamId(patchCables[c].destinationParamDescriptor, patchCables[c].from);
+	int32_t paramId = getParamId(patchCables[c].destination, patchCables[c].from);
 	ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(paramId, param);
 
 	int32_t oldValue = param->getCurrentValue();
@@ -651,7 +650,7 @@ void PatchCableSet::grabValuesFromPos(uint32_t pos, ModelStackWithParamCollectio
 
 	AutoParam* param = &patchCables[c].param;
 	int32_t oldValue = param->getCurrentValue();
-	int32_t paramId = getParamId(patchCables[c].destinationParamDescriptor, patchCables[c].from);
+	int32_t paramId = getParamId(patchCables[c].destination, patchCables[c].from);
 	ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(paramId, param);
 	bool shouldNotify = param->grabValueFromPos(pos, modelStackWithAutoParam);
 	if (shouldNotify) {
@@ -680,7 +679,7 @@ void PatchCableSet::appendParamCollection(ModelStackWithParamCollection* modelSt
 	    otherModelStack->summary->whichParamsAreAutomated) // Iterate through the *other* ParamManager's stuff
 
 	PatchSource s = otherPatchCableSet->patchCables[c].from;
-	int32_t i = getPatchCableIndex(s, otherPatchCableSet->patchCables[c].destinationParamDescriptor);
+	int32_t i = getPatchCableIndex(s, otherPatchCableSet->patchCables[c].destination);
 
 	if (i != 255) {
 		patchCables[i].param.appendParam(*docForParam(i), *otherPatchCableSet->docForParam(c), oldLength,
@@ -699,7 +698,7 @@ void PatchCableSet::trimToLength(uint32_t newLength, ModelStackWithParamCollecti
 
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreAutomated)
 
-	int32_t paramId = getParamId(patchCables[c].destinationParamDescriptor, patchCables[c].from);
+	int32_t paramId = getParamId(patchCables[c].destination, patchCables[c].from);
 	AutoParam* param = &patchCables[c].param;
 
 	ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(paramId, param);
@@ -735,14 +734,14 @@ void PatchCableSet::shiftHorizontally(ModelStackWithParamCollection* modelStack,
 // Might return a ModelStack with NULL autoParam - check for that!
 ModelStackWithAutoParam* PatchCableSet::getAutoParamFromId(ModelStackWithParamId* modelStack, bool allowCreation) {
 	PatchSource s;
-	ParamDescriptor paramDescriptor;
+	deluge::synth::CableTarget paramDescriptor;
 	dissectParamId(modelStack->paramId, &paramDescriptor, &s);
 	uint8_t index = getPatchCableIndex(s, paramDescriptor);
 	if (index == 255 && allowCreation) {
 		// A write to a missing cable's depth adds the cable first, through the mod matrix, recorded in the open Action
 		// so one undo takes back the write and the cable together.
 		ModMatrixHost matrix{*static_cast<Sound*>(modelStack->modControllable), *modelStack->paramManager};
-		if (std::optional<CableEdit> added = matrix.ensureCable(s, deluge::synth::CableTarget{paramDescriptor.data})) {
+		if (std::optional<CableEdit> added = matrix.ensureCable(s, deluge::synth::CableTarget{paramDescriptor.word})) {
 			deluge::edits::recordCableEdit(modelStack, std::move(*added));
 			index = getPatchCableIndex(s, paramDescriptor);
 		}
@@ -763,7 +762,7 @@ void PatchCableSet::processCurrentPos(ModelStackWithParamCollection* modelStack,
 		ticksTilNextEvent = 2147483647;
 
 		FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreAutomated)
-		int32_t paramId = getParamId(patchCables[c].destinationParamDescriptor, patchCables[c].from);
+		int32_t paramId = getParamId(patchCables[c].destination, patchCables[c].from);
 		AutoParam* param = &patchCables[c].param;
 		ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(paramId, param);
 
@@ -829,7 +828,7 @@ PatchCableSet::PatchCableSet(PatchCableSet const& other)
 		// cables start empty, with no lane.
 		for (int32_t c = 0; c < numUsablePatchCables; c++) {
 			const deluge::plugin::ParamId id =
-			    deluge::bridge::cable_depth(patchCables[c].from, patchCables[c].destinationParamDescriptor);
+			    deluge::bridge::cable_depth(patchCables[c].from, patchCables[c].destination);
 			for (const deluge::project::DocCableDepth& lane : other.depthStore()) {
 				if (lane.depth == id) {
 					ownDepths_.push_back(lane);
@@ -939,15 +938,14 @@ void PatchCableSet::writePatchCablesToFile(Serializer& writer, bool writeAutomat
 	for (int32_t c = 0; c < numPatchCables;
 	     c++) { // I have a feeling this should actually only do up to "numUsablePatchCables"... otherwise we end up
 		        // with like FM-related cables written to file for a subtractive preset... etc.
-		if (!patchCables[c].destinationParamDescriptor.isJustAParam()) {
+		if (!patchCables[c].destination.is_param()) {
 			continue; // If it's a depth-controlling cable, we'll deal with that separately, below.
 		}
 
 		writer.writeOpeningTagBeginning("patchCable", true);
 		writer.writeAttribute("source", sourceToString(patchCables[c].from));
-		writer.writeAttribute("destination",
-		                      params::paramNameForFile(params::Kind::UNPATCHED_SOUND,
-		                                               patchCables[c].destinationParamDescriptor.getJustTheParam()));
+		writer.writeAttribute("destination", params::paramNameForFile(params::Kind::UNPATCHED_SOUND,
+		                                                              patchCables[c].destination.param_index()));
 		writer.writeAttribute("polarity", polarityToString(patchCables[c].polarity).data());
 		writer.insertCommaIfNeeded();
 		writer.write("\n");
@@ -958,11 +956,11 @@ void PatchCableSet::writePatchCablesToFile(Serializer& writer, bool writeAutomat
 		writer.write("\"");
 
 		// See if another cable(s) controls the range/depth of this cable
-		ParamDescriptor paramDescriptor = patchCables[c].destinationParamDescriptor;
-		paramDescriptor.addSource(patchCables[c].from);
+		deluge::synth::CableTarget paramDescriptor = patchCables[c].destination;
+		paramDescriptor = paramDescriptor.add_source(patchCables[c].from);
 		bool anyDepthControllingCablesFound = false;
 		for (int32_t d = 0; d < numPatchCables; d++) {
-			if (patchCables[d].destinationParamDescriptor == paramDescriptor) {
+			if (patchCables[d].destination == paramDescriptor) {
 				if (!anyDepthControllingCablesFound) {
 					anyDepthControllingCablesFound = true;
 					writer.writeOpeningTagEnd();
@@ -994,17 +992,16 @@ void PatchCableSet::writePatchCablesToFile(Serializer& writer, bool writeAutomat
 	writer.writeArrayEnding("patchCables");
 }
 
-int32_t PatchCableSet::getParamId(ParamDescriptor destinationParamDescriptor, PatchSource s) {
-	destinationParamDescriptor.addSource(s);
-	return destinationParamDescriptor.data;
+int32_t PatchCableSet::getParamId(deluge::synth::CableTarget destination, PatchSource s) {
+	destination = destination.add_source(s);
+	return destination.word;
 }
 
-void PatchCableSet::dissectParamId(uint32_t paramId, ParamDescriptor* destinationParamDescriptor, PatchSource* s) {
-	ParamDescriptor paramDescriptor;
-	paramDescriptor.data = paramId;
+void PatchCableSet::dissectParamId(uint32_t paramId, deluge::synth::CableTarget* destination, PatchSource* s) {
+	const deluge::synth::CableTarget paramDescriptor{static_cast<uint32_t>(paramId)};
 
-	*destinationParamDescriptor = paramDescriptor.getDestination();
-	*s = paramDescriptor.getBottomLevelSource();
+	*destination = paramDescriptor.modulated();
+	*s = paramDescriptor.bottom_source();
 }
 
 // Watch the heck out! This might delete the PatchCable, and AutoParam, in question.
@@ -1019,14 +1016,13 @@ void PatchCableSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* 
 		bool currentValueChanged = (oldValue != currentValue);
 
 		PatchSource s;
-		ParamDescriptor destinationParamDescriptor;
-		dissectParamId(modelStack->paramId, &destinationParamDescriptor, &s);
+		deluge::synth::CableTarget destination;
+		dissectParamId(modelStack->paramId, &destination, &s);
 
 		if (currentValueChanged) {
 			int32_t p =
-			    destinationParamDescriptor
-			        .getJustTheParam(); // Yes also do it if we've altered the "range" of a cable to p.... Although,
-			                            // would the call below actually cause all of that to get recalculated?
+			    destination.param_index(); // Yes also do it if we've altered the "range" of a cable to p.... Although,
+			                               // would the call below actually cause all of that to get recalculated?
 			((Sound*)modelStack->modControllable)
 			    ->recalculatePatchingToParam(p, (ParamManagerForTimeline*)modelStack->paramManager);
 		}
@@ -1034,9 +1030,9 @@ void PatchCableSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* 
 
 	if (automatedBefore != automatedNow) {
 		PatchSource s;
-		ParamDescriptor destinationParamDescriptor;
-		dissectParamId(modelStack->paramId, &destinationParamDescriptor, &s);
-		int32_t c = getPatchCableIndex(s, destinationParamDescriptor);
+		deluge::synth::CableTarget destination;
+		dissectParamId(modelStack->paramId, &destination, &s);
+		int32_t c = getPatchCableIndex(s, destination);
 
 		if (automatedNow) {
 			flagCable(modelStack->summary->whichParamsAreAutomated, c);
@@ -1052,10 +1048,10 @@ void PatchCableSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* 
 
 void PatchCableSet::remotelySwapParamState(AutoParamState* state, ModelStackWithParamId* modelStack) {
 	PatchSource s;
-	ParamDescriptor destinationParamDescriptor;
-	dissectParamId(modelStack->paramId, &destinationParamDescriptor, &s);
+	deluge::synth::CableTarget destination;
+	dissectParamId(modelStack->paramId, &destination, &s);
 
-	int32_t c = getPatchCableIndex(s, destinationParamDescriptor);
+	int32_t c = getPatchCableIndex(s, destination);
 	if (c == 255) {
 		return;
 	}
@@ -1069,7 +1065,7 @@ void PatchCableSet::remotelySwapParamState(AutoParamState* state, ModelStackWith
 void PatchCableSet::deleteAllAutomation(Action* action, ModelStackWithParamCollection* modelStack) {
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreAutomated)
 
-	int32_t paramId = getParamId(patchCables[c].destinationParamDescriptor, patchCables[c].from);
+	int32_t paramId = getParamId(patchCables[c].destination, patchCables[c].from);
 	AutoParam* autoParam = &patchCables[c].param;
 	ModelStackWithAutoParam* modelStackWithParam = modelStack->addAutoParam(paramId, autoParam);
 	autoParam->deleteAutomation(action, modelStackWithParam, false);
@@ -1087,7 +1083,7 @@ void PatchCableSet::nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset,
 
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreAutomated)
 
-	int32_t paramId = getParamId(patchCables[c].destinationParamDescriptor, patchCables[c].from);
+	int32_t paramId = getParamId(patchCables[c].destination, patchCables[c].from);
 	AutoParam* param = &patchCables[c].param;
 	ModelStackWithAutoParam* modelStackWithParam = modelStack->addAutoParam(paramId, param);
 
@@ -1150,8 +1146,7 @@ void PatchCableSet::grabVelocityToLevelFromMIDICable(MIDICable& cable) {
 }
 
 PatchCable* PatchCableSet::getPatchCableFromVelocityToLevel() {
-	ParamDescriptor paramDescriptor;
-	paramDescriptor.setToHaveParamOnly(params::LOCAL_VOLUME);
+	deluge::synth::CableTarget paramDescriptor = deluge::synth::CableTarget::param(params::LOCAL_VOLUME);
 
 	// A new cable is placed by the setupPatching() the MIDI learn's callers run after it.
 	int32_t i = getPatchCableIndex(PatchSource::VELOCITY, paramDescriptor);
