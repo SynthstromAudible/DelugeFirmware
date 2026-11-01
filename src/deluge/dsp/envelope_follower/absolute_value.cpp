@@ -38,7 +38,6 @@ StereoFloatSample AbsValueFollower::calcApproxRMS(std::span<StereoSample> buffer
 	// exceeds 2^31 / buffer.size(), which for live input is an ordinary signal level
 	int64_t l = 0;
 	int64_t r = 0;
-	StereoFloatSample logMean;
 
 	for (StereoSample sample : buffer) {
 		l += std::abs(static_cast<int64_t>(sample.l));
@@ -46,8 +45,14 @@ StereoFloatSample AbsValueFollower::calcApproxRMS(std::span<StereoSample> buffer
 	}
 
 	float ns = buffer.size();
-	meanL = l / ns;
-	meanR = r / ns;
+	return calcApproxRMSFromMeans(l / ns, r / ns, buffer.size());
+}
+
+StereoFloatSample AbsValueFollower::calcApproxRMSFromMeans(float newMeanL, float newMeanR, size_t numSamples) {
+	StereoFloatSample logMean;
+	float ns = numSamples;
+	meanL = newMeanL;
+	meanR = newMeanR;
 	// warning this is not good math but it's pretty close and way cheaper than doing it properly
 	// good math would use a long FIR, this is a one pole IIR instead
 	// the more samples we have, the more weight we put on the current mean to avoid response slowing down
