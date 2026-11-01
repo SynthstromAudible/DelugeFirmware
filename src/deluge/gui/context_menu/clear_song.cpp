@@ -88,10 +88,10 @@ bool ClearSong::acceptCurrentOption() {
 
 	void* songMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(Song));
 	if (songMemory == nullptr) {
-		// The old Song may already be gone (deleteOldSongBeforeLoadingNew), so there's nothing to fall back to - fail
-		// loudly like setupBlankSong() rather than placement-new a Song into a null pointer
+		// The old Song may already be gone (deleteOldSongBeforeLoadingNew) and the UIs are nullified, so unlike most
+		// freezes there's nothing to resume into. Hang after the freeze screen, as ensureAtLeastOneSessionClip() does
 		FREEZE_WITH_ERROR("E458");
-		return false;
+		while (1) {}
 	}
 	preLoadedSong = new (songMemory) Song();
 	preLoadedSong->paramManager.setupUnpatched(); // TODO: error checking
