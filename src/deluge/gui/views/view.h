@@ -127,6 +127,11 @@ public:
 
 	uint32_t timeSaveButtonPressed;
 
+	/// Row-view status pad whose toggle is deferred to release, so holding it + select opens clip settings
+	/// without muting/unmuting. Cleared when something else consumes the press.
+	Clip* statusPadPendingToggleClip = nullptr;
+	uint32_t statusPadPressTime = 0;
+
 	int32_t modNoteRowId;
 	uint32_t modPos;
 	// 0 if not currently editing a region / step / holding a note. If you're gonna refer to this, you absolutely have

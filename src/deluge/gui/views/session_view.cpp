@@ -519,6 +519,7 @@ moveAfterClipInstance:
 				}
 			}
 			else if (currentUIMode == UI_MODE_HOLDING_STATUS_PAD) {
+				view.statusPadPendingToggleClip = nullptr; // Press was used to open clip settings, so don't toggle
 				context_menu::clip_settings::clipSettings.setupAndCheckAvailability();
 				openUI(&context_menu::clip_settings::clipSettings);
 			}
