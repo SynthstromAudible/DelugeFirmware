@@ -623,10 +623,14 @@ the accept hook and — since task 11b — three more hooks the audio-source sel
 (`context_menu_scene.h`). `DescriptorId` indexes it, and `SceneId::arg` carries the id, so opening
 a context menu is `Action::Kind::Push` with an argument and nothing more.
 
-Six descriptors ship: the five `reset_settings::Reset` actions (`gui/menu_item/reset_settings/reset.h:25`)
-and `audio_clip::AudioSourceSelector`. `AudioSourceSelector` was deliberately left out of task 6 and
-added in 11b once `Descriptor` grew the hooks it needs — the header records why rather than
-pretending the shape always fitted.
+Eight descriptors ship: the five `reset_settings::Reset` actions (`gui/menu_item/reset_settings/reset.h:25`),
+`audio_clip::AudioSourceSelector`, and the sample browser's two long-press menus,
+`sample_browser::Kit` (SAMPLES) and `sample_browser::Synth` (LOAD FILES), which `BrowserScene` opens.
+Those two use the last three hooks: `options_now` (legacy's `isCurrentOptionAvailable`, re-asked
+before every render, turn and accept — the scene works on the compacted list and hands `accept` the
+original index), `pad` (the browser's keyboard beneath reads the press itself, so the hook only
+keeps the menu open) and `busy` (BACK, Select and pads refused while the load they started runs).
+The kit's SLICE is withheld until the slicer is wired (tracker D52).
 
 Two things about the pixels are worth knowing before you add a descriptor:
 
@@ -668,6 +672,24 @@ Two things a new descriptor author should know before writing one:
   the wiring layer performs it**, so the member is current under the toggle and what blocks the read
   is only that it lives on a `gui/` object. Closing it means the value arriving through
   `MenuContext` or a `Services` hook. Named at the site.
+
+### The long press
+
+Holding Select in the sample browser for `kLongPressMs` (400 ms, `LONG_PRESS_DURATION`) does what
+`SampleBrowser::timerCallback` does: a popup for an audio clip or for a kit that cannot take a whole
+folder, the SAMPLES menu for a kit's only drum on row 0 (`RuntimeFacts::kit_takes_whole_folder`,
+source 0), or LOAD FILES for a synth when any option is available. The hold is answered once, in
+`after_render` at the deadline `next_timer` asks for. While a sample load runs
+(`RuntimeFacts::sample_load_in_flight`) the browser refuses every button and key, as
+`SampleBrowser`'s gate does, and a hold that began before it is not answered. A release enters only
+from the hold, and turns and keys are ignored while it lasts. Closing the browser takes a folder menu
+above it too.
+
+A folder menu's accept parks a `BrowserChoice::Op` (`Claim`, `ImportKit`, `ImportMultisamples`) and
+keeps the menu up; `dispatchShellChoices` performs it (`claimSampleFile` with the menu's detection
+arguments, or `FolderImport` with `exitBrowser = false`). The completions call
+`BrowserScene::long_press_done`, and the browser files the closes on its next render through its own
+shell: a failure removes the menu, a success the menu and the browser.
 
 ### The async listing seam (`browser/listing.h`, E3 task 2), and `FileCatalogue::claim`
 
