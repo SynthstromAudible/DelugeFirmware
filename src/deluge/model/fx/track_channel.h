@@ -17,11 +17,47 @@
 
 #pragma once
 
+#include "definitions_cxx.hpp"
+#include "dsp-next/core/stereo_sample.h"
 #include "effects/track_chain.h"
+#include "foundation/function_ref.h"
 #include "model/fx/chain_view.h"
 #include "model/fx/effects_binding.h"
+#include <cstdint>
+#include <span>
+
+class ModControllableAudio;
+class ModelStackWithTimelineCounter;
+class ParamManager;
+class SampleRecorder;
 
 namespace deluge::model {
+
+/// @brief What a track hands its channel for one block, beside its params and output.
+struct ChannelBlock {
+	int32_t* reverb_buffer;           ///< The song's reverb send buffer.
+	int32_t reverb_amount_adjust;     ///< The song's reverb send scaling for this output, Q31.
+	int32_t side_chain_hit_pending;   ///< The sidechain hit pending this block, Q31; 0 for none.
+	bool should_limit_delay_feedback; ///< Whether the delay's feedback is capped below self-oscillation.
+	bool is_clip_active;              ///< Whether the track's active clip plays (its automation ticks).
+	OutputType output_type;           ///< KIT or AUDIO: the volume headroom factor and the delay's saturation.
+	SampleRecorder* recorder;         ///< The recorder taking the track's audio, or null.
+	ModControllableAudio* owner;      ///< The track: the param tick's model stack and the song's stutter know it.
+};
+
+/// @brief What a channel hands the track's content for one block.
+struct ContentBlock {
+	std::span<dsp::StereoSample> buffer; ///< The channel's buffer, zeroed: the content renders into it.
+	int32_t* reverb_buffer;              ///< The song's reverb send buffer.
+	int32_t reverb_amount_adjust;        ///< The reverb send scaling, already scaled by the channel's volume, Q31.
+	int32_t side_chain_hit_pending;      ///< The sidechain hit pending this block, Q31; 0 for none.
+	bool should_limit_delay_feedback;    ///< Whether a delay's feedback is capped below self-oscillation.
+	bool is_clip_active;                 ///< Whether the track's active clip plays.
+	int32_t pitch_adjust;                ///< The channel's pitch adjust, as its param gives it.
+};
+
+/// @brief A track's content render: returns whether anything rendered.
+using Content = function_ref<bool(const ContentBlock&)>;
 
 /// @brief A kit's or audio track's channel strip: its insert chain, the chain's settings and the render's copy of them,
 /// and which values its knobs edit.
@@ -47,6 +83,16 @@ public:
 	/// @return Which values the chain's knobs edit.
 	[[nodiscard]] ChainView& view() { return view_; }
 	[[nodiscard]] const ChainView& view() const { return view_; }
+
+	/// @brief Renders one block: the chain around @p content, added into @p output, then the clip's param automation
+	/// ticks. Unlike usual, @p modelStack's timeline counter may be null.
+	/// @param modelStack The track's model stack.
+	/// @param paramManager The active clip's params (or the track's, with no clip).
+	/// @param output The song's mix, which the channel adds into.
+	/// @param block The block's inputs from the track.
+	/// @param content The track's content render (drums, an audio clip).
+	void render(ModelStackWithTimelineCounter* modelStack, ParamManager& paramManager,
+	            std::span<dsp::StereoSample> output, const ChannelBlock& block, Content content);
 
 	/// Whether the track's content rendered last block: the delay starts or stops on it.
 	bool rendered_last_time = false;

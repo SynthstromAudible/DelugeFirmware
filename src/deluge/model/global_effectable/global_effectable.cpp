@@ -865,44 +865,6 @@ void GlobalEffectable::readEffectsFromElement(const deluge::serialization::Value
 	setEffects(next); // projects the view with the effects
 }
 
-ModFXType GlobalEffectable::getActiveModFXType(ParamManager* paramManager) {
-	ModFXType modFXTypeNow = modControllableSnapshot().effects.mod_fx.type;
-
-	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-
-	if ((modControllableSnapshot().mod_fx_param == ModFXParam::DEPTH
-	     && unpatchedParams->getValue(params::UNPATCHED_MOD_FX_DEPTH) == -2147483648)
-	    || (modControllableSnapshot().mod_fx_param == ModFXParam::FEEDBACK
-	        && unpatchedParams->getValue(params::UNPATCHED_MOD_FX_FEEDBACK) == -2147483648)
-	    || (modControllableSnapshot().mod_fx_param == ModFXParam::OFFSET
-	        && unpatchedParams->getValue(params::UNPATCHED_MOD_FX_OFFSET) == -2147483648)) {
-		modFXTypeNow = ModFXType::NONE;
-	}
-	return modFXTypeNow;
-}
-
-deluge::effects::Delay::State GlobalEffectable::createDelayWorkingState(ParamManager& paramManager,
-                                                                        bool shouldLimitDelayFeedback,
-                                                                        bool soundComingIn) {
-
-	deluge::effects::Delay::State delayWorkingState;
-	UnpatchedParamSet* unpatchedParams = paramManager.getUnpatchedParamSet();
-
-	delayWorkingState.delayFeedbackAmount = deluge::effects::final_value(
-	    deluge::effects::Delay::kFeedback, unpatchedParams->getValue(params::UNPATCHED_DELAY_AMOUNT));
-	if (shouldLimitDelayFeedback) {
-		delayWorkingState.delayFeedbackAmount =
-		    std::min(delayWorkingState.delayFeedbackAmount, (int32_t)(1 << 30) - (1 << 26));
-	}
-	delayWorkingState.userDelayRate = deluge::effects::final_value(
-	    deluge::effects::Delay::kRate, unpatchedParams->getValue(params::UNPATCHED_DELAY_RATE));
-	uint32_t timePerTickInverse = playbackHandler.getTimePerInternalTickInverse(true);
-	core().delay().setupWorkingState(delayWorkingState, modControllableSnapshot().effects.delay, timePerTickInverse,
-	                                 soundComingIn);
-
-	return delayWorkingState;
-}
-
 namespace modfx {
 // note this is dumb but it needs to match the enum order currently
 deluge::vector<std::string_view> getModNames() {

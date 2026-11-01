@@ -432,8 +432,11 @@ struct MasterFxRender {
 MasterFxRender renderMasterFx(GlobalEffectable& master, ParamManager& params) {
 	static q31_t send[kRenderBlockFrames]{};
 	MasterFxRender made;
-	const deluge::effects::Delay::State delayState = master.createDelayWorkingState(params);
-	const deluge::effects::FxInputs fx = deluge::model::hostFxInputs(master, params, delayState, 0);
+	const deluge::snapshot::ModControllableSnapshot& snapshot = master.modControllableSnapshot();
+	const deluge::effects::Delay::State delayState =
+	    deluge::model::delayWorkingState(params, master.core().delay(), snapshot.effects.delay, false, true);
+	const deluge::effects::FxInputs fx =
+	    deluge::model::hostFxInputs(snapshot, deluge::model::activeModFXType(snapshot, params), params, delayState, 0);
 	for (int32_t b = 0; b < kModFxBlocks; b++) {
 		StereoSample block[kRenderBlockFrames]{};
 		for (uint32_t i = 0; i < kRenderBlockFrames; i++) {

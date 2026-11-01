@@ -21,16 +21,18 @@
 #include "effects/filter.h"
 #include "effects/master_chain.h"
 #include "effects/track_chain.h"
+#include "model/snapshot/mod_controllable_snapshot.h"
 
 #include <cstdint>
 
-class GlobalEffectable;
-class GlobalEffectableForClip;
+class ModControllableAudio;
 class ParamManager;
 class Song;
 class UnpatchedParamSet;
 
 namespace deluge::model {
+
+class TrackChannel;
 
 /// @brief A host chain's filter params for one block: each filter's final values from its unpatched params, the
 /// params' own values, and whether the CPU allows the drive ladder to oversample.
@@ -45,11 +47,36 @@ namespace deluge::model {
 /// @param delay The block's delay working state, set up on the owner's chain's delay.
 /// @param grainSend The granular's reverb send, Q31.
 /// @return The block's mod FX, EQ and delay inputs.
-[[nodiscard]] effects::FxInputs hostFxInputs(GlobalEffectable& owner, ParamManager& paramManager,
-                                             const effects::Delay::State& delay, int32_t grainSend);
+[[nodiscard]] effects::FxInputs hostFxInputs(const snapshot::ModControllableSnapshot& snapshot, ModFXType activeType,
+                                             ParamManager& paramManager, const effects::Delay::State& delay,
+                                             int32_t grainSend);
+
+/// @brief The mod FX type a host chain runs this block: NONE while its selected mod FX knob is at its minimum (the soft
+/// off), else its setting.
+/// @param snapshot The chain's render copy of its settings and view.
+/// @param paramManager The owner's param manager.
+/// @return The mod FX type in effect.
+[[nodiscard]] ModFXType activeModFXType(const snapshot::ModControllableSnapshot& snapshot, ParamManager& paramManager);
+
+/// @brief A host chain's delay working state for one block, from its unpatched params, set up on @p delay.
+/// @param paramManager The owner's param manager.
+/// @param delay The chain's delay.
+/// @param settings The delay's settings, from the chain's render copy.
+/// @param shouldLimitDelayFeedback Whether the feedback is capped below self-oscillation.
+/// @param soundComingIn Whether the content rendered last block: the delay starts or stops on it.
+/// @return The block's delay working state.
+[[nodiscard]] effects::Delay::State delayWorkingState(ParamManager& paramManager, effects::Delay& delay,
+                                                      const effects::DelayState& settings,
+                                                      bool shouldLimitDelayFeedback, bool soundComingIn);
+
+/// @brief A track chain's sidechain volume param as a patch cable's depth.
+/// @param paramManager The owner's param manager.
+/// @return The depth, Q29.
+[[nodiscard]] int32_t sidechainDepth(ParamManager& paramManager);
 
 /// @brief A kit's or an audio track's chain inputs for one block, from its unpatched params.
-/// @param owner The kit or audio track.
+/// @param channel The kit's or audio track's channel.
+/// @param stutterOwner The kit or audio track, which the song's stutter knows it by.
 /// @param paramManager The owner's param manager.
 /// @param volumeAdjustment The output's volume param's final, halved (Q31), as the drums are rendered at.
 /// @param reverbAmountAdjust The song's reverb send scaling for this output, Q31.
@@ -57,9 +84,10 @@ namespace deluge::model {
 /// @param delay The block's delay working state, set up on the owner's chain's delay.
 /// @param outputType KIT or AUDIO; selects the volume headroom factor applied after the filters.
 /// @return The block's track-chain inputs.
-[[nodiscard]] effects::TrackChainInputs trackChainInputs(GlobalEffectableForClip& owner, ParamManager& paramManager,
-                                                         int32_t volumeAdjustment, int32_t reverbAmountAdjust,
-                                                         int32_t sideChainHitPending,
+[[nodiscard]] effects::TrackChainInputs trackChainInputs(TrackChannel& channel,
+                                                         const ModControllableAudio& stutterOwner,
+                                                         ParamManager& paramManager, int32_t volumeAdjustment,
+                                                         int32_t reverbAmountAdjust, int32_t sideChainHitPending,
                                                          const effects::Delay::State& delay, OutputType outputType);
 
 /// @brief The song master's half before the reverb, from the song's params once its outputs have rendered; sets up the

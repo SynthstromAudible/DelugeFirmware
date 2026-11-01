@@ -569,7 +569,7 @@ void Kit::drumRemoved(Drum* drum) {
 	}
 
 	// The Drum is usually about to be deallocated, so it must not stay in the render list, or
-	// renderGlobalEffectableForClip() would use it after it's freed. Remove it in all builds.
+	// renderContent() would use it after it's freed. Remove it in all builds.
 	if (drum->type == DrumType::SOUND && renderingDrums.contains(static_cast<SoundDrum*>(drum))) {
 		if constexpr (ALPHA_OR_BETA_VERSION) {
 			FREEZE_WITH_ERROR("E321");
@@ -652,11 +652,10 @@ void Kit::cutAllSound() {
 }
 
 // Beware - unlike usual, modelStack, a ModelStackWithThreeMainThings*,  might have a NULL timelineCounter
-bool Kit::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStack,
-                                        std::span<StereoSample> globalEffectableBuffer, int32_t* bufferToTransferTo,
-                                        int32_t* reverbBuffer, int32_t reverbAmountAdjust, int32_t sideChainHitPending,
-                                        bool shouldLimitDelayFeedback, bool isClipActive, int32_t pitchAdjust,
-                                        int32_t amplitudeAtStart, int32_t amplitudeAtEnd) {
+bool Kit::renderContent(ModelStackWithTimelineCounter* modelStack, std::span<StereoSample> globalEffectableBuffer,
+                        int32_t* bufferToTransferTo, int32_t* reverbBuffer, int32_t reverbAmountAdjust,
+                        int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive,
+                        int32_t pitchAdjust, int32_t amplitudeAtStart, int32_t amplitudeAtEnd) {
 	bool rendered = false;
 	// Render Drums. The walk copes with a drum that stops rendering (leaves the list) as it renders, and with one whose
 	// render removes the next (see RenderingDrums::walk).
@@ -810,15 +809,27 @@ void Kit::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, i
 		int32_t pitchAdjust = deluge::dsp::fixed::curve_exponential(
 		    kMaxSampleValue, unpatchedParams->getValue(params::UNPATCHED_PITCH_ADJUST) >> 3);
 
-		channel_.rendered_last_time = renderGlobalEffectableForClip(
-		    modelStackWithTimelineCounter, output, nullptr, reverbBuffer, reverbAmountAdjust, sideChainHitPending,
-		    shouldLimitDelayFeedback, isClipActive, pitchAdjust, 134217728, 134217728);
+		channel_.rendered_last_time = renderContent(modelStackWithTimelineCounter, output, nullptr, reverbBuffer,
+		                                            reverbAmountAdjust, sideChainHitPending, shouldLimitDelayFeedback,
+		                                            isClipActive, pitchAdjust, 134217728, 134217728);
 	}
 	// render kit row with kit affect entire FX
 	else {
-		GlobalEffectableForClip::renderOutput(modelStackWithTimelineCounter, paramManager, output, reverbBuffer,
-		                                      reverbAmountAdjust, sideChainHitPending, shouldLimitDelayFeedback,
-		                                      isClipActive, OutputType::KIT, recorder);
+		channel_.render(modelStackWithTimelineCounter, *paramManager, output,
+		                {.reverb_buffer = reverbBuffer,
+		                 .reverb_amount_adjust = reverbAmountAdjust,
+		                 .side_chain_hit_pending = sideChainHitPending,
+		                 .should_limit_delay_feedback = shouldLimitDelayFeedback,
+		                 .is_clip_active = isClipActive,
+		                 .output_type = OutputType::KIT,
+		                 .recorder = recorder,
+		                 .owner = this},
+		                [&](const deluge::model::ContentBlock& c) {
+			                return renderContent(modelStackWithTimelineCounter, c.buffer, nullptr, c.reverb_buffer,
+			                                     c.reverb_amount_adjust, c.side_chain_hit_pending,
+			                                     c.should_limit_delay_feedback, c.is_clip_active, c.pitch_adjust,
+			                                     134217728, 134217728);
+		                });
 	}
 
 	// For Midi and Gate rows, we need to call the render method of the arpeggiator post-output

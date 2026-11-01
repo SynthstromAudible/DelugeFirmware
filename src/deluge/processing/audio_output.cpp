@@ -178,9 +178,21 @@ void AudioOutput::renderOutput(ModelStack* modelStack, std::span<StereoSample> o
 
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(activeClip);
 
-	GlobalEffectableForClip::renderOutput(modelStackWithTimelineCounter, paramManager, output, reverbBuffer,
-	                                      reverbAmountAdjust, sideChainHitPending, shouldLimitDelayFeedback,
-	                                      isClipActive, OutputType::AUDIO, recorder);
+	channel_.render(modelStackWithTimelineCounter, *paramManager, output,
+	                {.reverb_buffer = reverbBuffer,
+	                 .reverb_amount_adjust = reverbAmountAdjust,
+	                 .side_chain_hit_pending = sideChainHitPending,
+	                 .should_limit_delay_feedback = shouldLimitDelayFeedback,
+	                 .is_clip_active = isClipActive,
+	                 .output_type = OutputType::AUDIO,
+	                 .recorder = recorder,
+	                 .owner = this},
+	                [&](const deluge::model::ContentBlock& c) {
+		                return renderContent(modelStackWithTimelineCounter, c.buffer, nullptr, c.reverb_buffer,
+		                                     c.reverb_amount_adjust, c.side_chain_hit_pending,
+		                                     c.should_limit_delay_feedback, c.is_clip_active, c.pitch_adjust, 134217728,
+		                                     134217728);
+	                });
 }
 
 void AudioOutput::resetEnvelope() {
@@ -214,12 +226,10 @@ bool AudioOutput::modeAllowsMonitoring() const {
 }
 
 // Beware - unlike usual, modelStack, a ModelStackWithThreeMainThings*,  might have a NULL timelineCounter
-bool AudioOutput::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStack,
-                                                std::span<StereoSample> render, int32_t* bufferToTransferTo,
-                                                int32_t* reverbBuffer, int32_t reverbAmountAdjust,
-                                                int32_t sideChainHitPending, bool shouldLimitDelayFeedback,
-                                                bool isClipActive, int32_t pitchAdjust, int32_t amplitudeAtStart,
-                                                int32_t amplitudeAtEnd) {
+bool AudioOutput::renderContent(ModelStackWithTimelineCounter* modelStack, std::span<StereoSample> render,
+                                int32_t* bufferToTransferTo, int32_t* reverbBuffer, int32_t reverbAmountAdjust,
+                                int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive,
+                                int32_t pitchAdjust, int32_t amplitudeAtStart, int32_t amplitudeAtEnd) {
 	bool rendered = false;
 	// audio outputs can have an activeClip while being muted
 	if (isClipActive) {

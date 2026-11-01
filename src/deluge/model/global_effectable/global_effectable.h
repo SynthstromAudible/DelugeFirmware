@@ -83,9 +83,6 @@ public:
 	                                       int32_t readAutomationUpToPos);
 	static bool readParamTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
 	                                 int32_t readAutomationUpToPos);
-	deluge::effects::Delay::State createDelayWorkingState(ParamManager& paramManager,
-	                                                      bool shouldLimitDelayFeedback = false,
-	                                                      bool soundComingIn = true);
 	int32_t getKnobPosForNonExistentParam(int32_t whichModEncoder, ModelStackWithAutoParam* modelStack,
 	                                      const deluge::project::CompView& comp = {}) override;
 	ActionResult modEncoderActionForNonExistentParam(int32_t offset, int32_t whichModEncoder,
@@ -120,10 +117,6 @@ public:
 
 	ModFXType getModFXType() override;
 	[[nodiscard]] std::optional<ModFXParam> projectedModFXParam() const override;
-	/// @brief The mod FX type in effect.
-	/// @param paramManager The owner's param manager.
-	/// @return The mod FX type: NONE while the selected mod FX knob is at its minimum (the soft off).
-	ModFXType getActiveModFXType(ParamManager* paramManager);
 
 protected:
 	virtual int32_t getParameterFromKnob(int32_t whichModEncoder, const deluge::project::CompView& comp);

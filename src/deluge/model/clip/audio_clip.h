@@ -126,7 +126,7 @@ public:
 	/// @brief Attack, DOM-owned (`docAudioClip_->attack`).
 	///
 	/// A cold field, read only at note-on/per-render-block envelope setup (AudioOutput::resetEnvelope +
-	/// renderGlobalEffectableForClip) and save, so the accessor reads the record directly rather than keeping a
+	/// renderContent) and save, so the accessor reads the record directly rather than keeping a
 	/// derived cache.
 	/// @return The attack value held in the record.
 	int32_t attack() const;

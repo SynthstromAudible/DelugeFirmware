@@ -46,11 +46,12 @@ public:
 	                  int32_t reverbAmountAdjust, int32_t sideChainHitPending, bool shouldLimitDelayFeedback,
 	                  bool isClipActive) override;
 
-	bool renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStack,
-	                                   std::span<StereoSample> globalEffectableBuffer, int32_t* bufferToTransferTo,
-	                                   int32_t* reverbBuffer, int32_t reverbAmountAdjust, int32_t sideChainHitPending,
-	                                   bool shouldLimitDelayFeedback, bool isClipActive, int32_t pitchAdjust,
-	                                   int32_t amplitudeAtStart, int32_t amplitudeAtEnd) override;
+	/// @brief Renders the track's content (a kit's drums, an audio track's clip) into its channel's buffer.
+	/// @return Whether anything rendered.
+	bool renderContent(ModelStackWithTimelineCounter* modelStack, std::span<StereoSample> globalEffectableBuffer,
+	                   int32_t* bufferToTransferTo, int32_t* reverbBuffer, int32_t reverbAmountAdjust,
+	                   int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive,
+	                   int32_t pitchAdjust, int32_t amplitudeAtStart, int32_t amplitudeAtEnd);
 
 	void resetEnvelope();
 	bool matchesPreset(OutputType otherType, int32_t channel, int32_t channelSuffix, char const* otherName,
@@ -178,7 +179,7 @@ public:
 protected:
 	Clip* createNewClipForArrangementRecording(ModelStack* modelStack) override;
 	bool wantsToBeginArrangementRecording() override;
-	bool willRenderAsOneChannelOnlyWhichWillNeedCopying() override;
+	bool willRenderAsOneChannelOnlyWhichWillNeedCopying();
 
 	/// returns true for loopers and samplers without a file
 	bool modeAllowsMonitoring() const;

@@ -48,80 +48,8 @@
 
 namespace params = deluge::modulation::params;
 
-// Beware - unlike usual, modelStack might have a NULL timelineCounter.
-[[gnu::hot]] void GlobalEffectableForClip::renderOutput(ModelStackWithTimelineCounter* modelStack,
-                                                        ParamManager* paramManagerForClip,
-                                                        std::span<StereoSample> output, int32_t* reverbBuffer,
-                                                        int32_t reverbAmountAdjust, int32_t sideChainHitPending,
-                                                        bool shouldLimitDelayFeedback, bool isClipActive,
-                                                        OutputType outputType, SampleRecorder* recorder) {
-	UnpatchedParamSet* unpatchedParams = paramManagerForClip->getUnpatchedParamSet();
-
-	// Process FX and stuff. For kits, stutter happens before reverb send
-	// The >>1 is to make up for the fact that we've got the preset default to effect a multiplication of 2 already (the
-	// maximum multiplication would be 4)
-	int32_t a = deluge::dsp::fixed::preset_combination(unpatchedParams->getValue(params::UNPATCHED_VOLUME));
-	int32_t volumeAdjustment = deluge::dsp::fixed::curve_square(134217728, a) >> 1;
-
-	int32_t reverbAmountAdjustForDrums = multiply_32x32_rshift32_rounded(reverbAmountAdjust, volumeAdjustment) << 5;
-
-	int32_t pitchAdjust = deluge::dsp::fixed::curve_exponential(
-	    kMaxSampleValue, unpatchedParams->getValue(params::UNPATCHED_PITCH_ADJUST) >> 3);
-
-	// The delay starts or stops on whether the content rendered last block.
-	deluge::effects::Delay::State delayWorkingState =
-	    createDelayWorkingState(*paramManagerForClip, shouldLimitDelayFeedback, channel().rendered_last_time);
-	if (outputType == OutputType::AUDIO) {
-		delayWorkingState.analog_saturation = 5;
-	}
-
-	const deluge::effects::TrackChainInputs in =
-	    deluge::model::trackChainInputs(*this, *paramManagerForClip, volumeAdjustment, reverbAmountAdjust,
-	                                    sideChainHitPending, delayWorkingState, outputType);
-	deluge::effects::TrackBlock levels = chain().begin_block(in, output.size());
-
-	alignas(CACHE_LINE_SIZE) StereoSample global_effectable_memory[SSI_TX_BUFFER_NUM_SAMPLES];
-	memset(global_effectable_memory, 0, sizeof(StereoSample) * output.size());
-	std::span<StereoSample> global_effectable_audio{global_effectable_memory, output.size()};
-
-	// Render actual Drums / AudioClip
-	channel().rendered_last_time = renderGlobalEffectableForClip(
-	    modelStack, global_effectable_audio, nullptr, reverbBuffer, reverbAmountAdjustForDrums, sideChainHitPending,
-	    shouldLimitDelayFeedback, isClipActive, pitchAdjust, 134217728, 134217728);
-
-	checkStack("delay");
-	// The recorder takes the block after the stutter, before pan, volume and compression, so its level is the clip's.
-	auto record = [&](std::span<const StereoSample> /*block*/) {
-		if (recorder != nullptr && recorder->status < RecorderStatus::FINISHED_CAPTURING_BUT_STILL_WRITING) {
-			// Self-overdubs compensate for sample playback's 1/8 scaling. Standalone sampling retains its existing
-			// gain.
-			recorder->feedAudio(global_effectable_audio, true, recorder->recordingOwnClip ? 3 : 2);
-		}
-	};
-	if (chain().process(global_effectable_audio, in, levels, channel().rendered_last_time,
-	                    {reverbBuffer, output.size()}, record)) {
-		AudioEngine::timeThereWasLastSomeReverb = AudioEngine::audioSampleTimer;
-	}
-
-	// Add the global effectable data to the output
-	std::ranges::transform(global_effectable_audio, output, output.begin(), std::plus{});
-
-	if (playbackHandler.isEitherClockActive() && (playbackHandler.ticksLeftInCountIn == 0) && isClipActive) {
-		auto& interpolating_params = paramManagerForClip->getUnpatchedParamSetSummary()->whichParamsAreInterpolating;
-		const bool result = (params::kMaxNumUnpatchedParams > 32)
-		                        ? (interpolating_params[0] != 0u || interpolating_params[1] != 0u)
-		                        : (interpolating_params[0] != 0u);
-		if (result) {
-			ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-			    modelStack->addOtherTwoThingsButNoNoteRow(this, paramManagerForClip);
-			paramManagerForClip->toForTimeline()->tickSamples(output.size(), modelStackWithThreeMainThings);
-		}
-	}
-}
-
 int32_t GlobalEffectableForClip::getSidechainVolumeAmountAsPatchCableDepth(ParamManager* paramManager) {
-	int32_t sidechainVolumeParam = paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_SIDECHAIN_VOLUME);
-	return (sidechainVolumeParam >> 2) + 536870912;
+	return deluge::model::sidechainDepth(*paramManager);
 }
 
 std::optional<deluge::plugin::ParamId> GlobalEffectableForClip::clipKnobParam(int32_t modKnobMode,
