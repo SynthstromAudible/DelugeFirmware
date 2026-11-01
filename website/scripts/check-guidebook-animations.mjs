@@ -261,7 +261,7 @@ const checks = {
 
   async independentReplay(browser) {
     const ctx = await browser.newContext()
-    const path = "03-sequencing/12-parameter-automation"
+    const path = "03-sequencing/12-parameter-automation-basics"
     const { page } = await open(ctx, path, "fig-3.12-1")
     await page.locator(sel("fig-3.12-2")).scrollIntoViewIfNeeded()
     const both = await waitFor(

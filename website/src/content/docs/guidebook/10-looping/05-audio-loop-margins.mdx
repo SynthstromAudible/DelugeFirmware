@@ -4,13 +4,13 @@ description: "The Deluge introduces a very short crossfade, beginning just befor
 sidebar:
   order: 4
 banner:
-  content: "From the official Guidebook for OS 4.1. Community firmware may differ."
+  content: "From the Deluge Manual – Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
 guidebook:
   section: "10.5"
   chapter: 10
-  pdfPages: [215]
-  printedPages: [209]
-  firmware: "4.1.0"
+  pdfPages: [243]
+  printedPages: [237]
+  firmware: "C1.0.0"
   communityEquivalent: null
   mergeStatus: "unreviewed"
 ---
@@ -30,7 +30,7 @@ Margins are enabled ON by default. Setting menu: RECORDING &gt; LOOP MARGINS. Op
   alt={
     "Diagram: Margin Algorithm uses buffered audio to reduce clicks and improve quality. Loop Point"
   }
-  page={209}
+  page={237}
 />
 
 When margins are on, all audio clips recorded from external input sources (i.e. not MIX or OUTPUT), will have these extra short “margins” of audio recorded. The Deluge will even retrieve a few milliseconds of audio data from a buffer in order to have the waveform extend further back in time than the point at which the user pressed the button to begin the recording. This extra audio is simply written into the WAV file as part of the main waveform, along with tags indicating the intended actual start and end points - meaning that the file will be treated correctly if later loaded into another Deluge project. Other software / hardware may or may not know what to do with these tags; if you're intending to use your Deluge-recorded audio clips in other devices with maximum ease, you have the option of disabling the “margins” feature - but then of course the benefits described above would be lost.

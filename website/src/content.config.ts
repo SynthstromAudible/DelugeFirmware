@@ -17,7 +17,7 @@ export const collections = {
             chapter: z.number().int(),
             pdfPages: z.array(z.number().int()),
             printedPages: z.array(z.number().int()),
-            firmware: z.literal("4.1.0"),
+            firmware: z.enum(["4.1.0", "C1.0.0"]),
             communityEquivalent: z.string().nullable().default(null),
             mergeStatus: z
               .enum([
