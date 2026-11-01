@@ -21,7 +21,9 @@
 extern "C" {
 #endif
 
-void cvSent();
+#include <stdint.h>
+
+void cvSent(uint8_t channel);
 
 #ifdef __cplusplus
 }

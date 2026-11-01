@@ -75,7 +75,7 @@ public:
 	int32_t calculateVoltage(int32_t note, uint8_t channel);
 	void physicallySwitchGate(int32_t channel);
 	// release any gates which were held while CV is pending now that it's done
-	void cvOutUpdated(const InterruptsDisabled&);
+	void cvOutUpdated(uint8_t channel, const InterruptsDisabled&);
 
 	void analogOutTick();
 	void playbackBegun();
@@ -123,8 +123,8 @@ private:
 		// setOutputState is inverted - sending true turns the gate off
 		return gateChannels[channel].on == (gateChannels[channel].mode == GateType::S_TRIG);
 	}
-	/// signifies there's a gate that can't go until the cv is output
-	bool cvOutPending{false};
+	/// physical CV channels with a voltage update still pending
+	uint8_t cv_out_pending_{0};
 	/// bitmask of gate channels which have changed but haven't been taken for output yet
 	uint8_t pendingGates{0};
 	/// subset of pendingGates which should go asap (run signal), respecting minGateOffTime
