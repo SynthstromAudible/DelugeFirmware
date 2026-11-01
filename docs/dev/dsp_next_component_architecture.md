@@ -563,8 +563,8 @@ by `effects::Stutter` (`effects/stutter.{h,cpp}`). The kernel knows
 the tape it is pointed at, the rate and whether it records or plays; the
 component knows the allocator; the song's stutter (`deluge::model::SongStutter`,
 `model/fx/song_stutter.{h,cpp}`, in `Song::live`) knows which owner is
-stuttering; the owner (`ModControllableAudio`) keeps the UI mode and the
-quantized snap of the stutter-rate param; `deluge::model::stutterInput` hands
+stuttering, by the chain core that plays the tape; the owner's knob code keeps
+the UI mode and the quantized snap of the stutter-rate param; `deluge::model::stutterInput` hands
 the owner's chain the stutter and its rate each block (see "Effect chains").
 
 - **Four modes, one loop each.** Record or play, over a native or a resampled
@@ -1481,7 +1481,13 @@ block's inputs from its params and makes one call.
   synth's own FX section, which the mod matrix modulates.
   - `trackChainInputs`, `masterChainInputs` and `masterPostInputs`
     (`model/fx/chain_inputs`) read unpatched params and automation. Those
-    chains are the host's inserts and master bus.
+    chains are the host's inserts and master.
+  - The host's chains have their own owners. A kit or an audio track holds a
+    `TrackChannel` (`model/fx/track_channel`), which owns its `TrackChain`, the
+    chain's settings and render copy (`EffectsBinding`) and its knobs' view
+    (`ChainView`), and renders the chain around the content the track hands it.
+    The song holds a `MasterChannel` (`model/fx/master_channel`), which the
+    engine renders around the reverb.
   - The master's two halves read their inputs at the points the render always
     has: the half before, in `Song::renderAudio` before its param tick; the half
     after, after the reverb.
