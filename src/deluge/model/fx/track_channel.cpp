@@ -21,7 +21,7 @@
 #include "model/fx/chain_inputs.h"
 #include "model/fx/channel_setup.h"
 #include "model/mod_controllable/delay_arena_app.h"
-#include "model/mod_controllable/mod_controllable_audio.h"
+#include "model/mod_controllable/mod_controllable.h"
 #include "model/mod_controllable/mod_fx_allocator.h"
 #include "model/model_stack.h"
 #include "model/sample/sample_recorder.h"
@@ -73,7 +73,7 @@ TrackChannel::~TrackChannel() {
 	}
 
 	const effects::TrackChainInputs in =
-	    trackChainInputs(*this, *block.owner, paramManager, volumeAdjustment, block.reverb_amount_adjust,
+	    trackChainInputs(*this, paramManager, volumeAdjustment, block.reverb_amount_adjust,
 	                     block.side_chain_hit_pending, delay, block.output_type);
 	effects::TrackBlock levels = chain_.begin_block(in, output.size());
 
@@ -116,7 +116,7 @@ TrackChannel::~TrackChannel() {
 		                        : (interpolating_params[0] != 0u);
 		if (result) {
 			ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-			    modelStack->addOtherTwoThingsButNoNoteRow(block.owner, &paramManager);
+			    modelStack->addOtherTwoThingsButNoNoteRow(block.tick_owner, &paramManager);
 			paramManager.toForTimeline()->tickSamples(output.size(), modelStackWithThreeMainThings);
 		}
 	}

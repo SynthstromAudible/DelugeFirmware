@@ -26,7 +26,7 @@
 #include <cstdint>
 #include <span>
 
-class ModControllableAudio;
+class ModControllable;
 class ModelStackWithTimelineCounter;
 class ParamManager;
 class SampleRecorder;
@@ -42,7 +42,7 @@ struct ChannelBlock {
 	bool is_clip_active;              ///< Whether the track's active clip plays (its automation ticks).
 	OutputType output_type;           ///< KIT or AUDIO: the volume headroom factor and the delay's saturation.
 	SampleRecorder* recorder;         ///< The recorder taking the track's audio, or null.
-	ModControllableAudio* owner;      ///< The track: the param tick's model stack and the song's stutter know it.
+	ModControllable* tick_owner;      ///< The track, which the param tick's model stack names.
 };
 
 /// @brief What a channel hands the track's content for one block.

@@ -609,7 +609,8 @@ bool UnpatchedParamSet::shouldInterpolateWithFloat(ModelStackWithParamId const* 
 bool UnpatchedParamSet::shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack) {
 	if (modelStack->paramId == params::UNPATCHED_STUTTER_RATE) {
 		return deluge::model::stutterRateIndicatesMiddle(
-		    *static_cast<ModControllableAudio*>(modelStack->modControllable), isUIModeActive(UI_MODE_STUTTERING));
+		    static_cast<ModControllableAudio*>(modelStack->modControllable)->effects().stutter,
+		    isUIModeActive(UI_MODE_STUTTERING));
 	}
 	return params::hasParamFlag(getParamKind(), modelStack->paramId, deluge::plugin::ParamFlag::MIDDLE_DETENT);
 }

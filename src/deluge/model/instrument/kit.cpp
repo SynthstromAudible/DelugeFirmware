@@ -121,6 +121,7 @@ Kit::~Kit() {
 		toDelete->~Drum();
 		delugeDealloc(toDealloc);
 	}
+	endStutterIfStuttering();
 }
 
 Drum* Kit::getNextDrum(Drum* fromDrum) {
@@ -823,7 +824,7 @@ void Kit::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, i
 		                 .is_clip_active = isClipActive,
 		                 .output_type = OutputType::KIT,
 		                 .recorder = recorder,
-		                 .owner = this},
+		                 .tick_owner = this},
 		                [&](const deluge::model::ContentBlock& c) {
 			                return renderContent(modelStackWithTimelineCounter, c.buffer, nullptr, c.reverb_buffer,
 			                                     c.reverb_amount_adjust, c.side_chain_hit_pending,

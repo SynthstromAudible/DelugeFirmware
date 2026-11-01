@@ -284,20 +284,23 @@ void applyReserves(std::span<const std::pair<ModControllableAudio*, std::size_t>
 
 } // namespace
 
-std::size_t delayReserveFrames(Song& song, ModControllableAudio& owner) {
-	const deluge::effects::DelayState& settings = owner.effects().delay;
+std::size_t delayReserveFrames(Song& song, const deluge::effects::ChainCore& core,
+                               const deluge::effects::DelayState& settings, bool sound) {
 	if (settings.type == deluge::effects::DelayType::OFF) {
 		return 0;
 	}
 	const uint32_t inverse = tickInverseFor(song);
-	const bool sound = owner.asSound() != nullptr;
 	std::size_t frames = 0;
 	forEachDelayParamManager(song, [&](ModControllableAudio& candidate, ParamManager& paramManager) {
-		if (&candidate == &owner) {
+		if (&candidate.core() == &core) {
 			frames = std::max(frames, reserveIn(paramManager, sound, settings, inverse));
 		}
 	});
 	return frames;
+}
+
+std::size_t delayReserveFrames(Song& song, ModControllableAudio& owner) {
+	return delayReserveFrames(song, owner.core(), owner.effects().delay, owner.asSound() != nullptr);
 }
 
 void refreshDelayReserve(Song& song, ModControllableAudio& owner) {

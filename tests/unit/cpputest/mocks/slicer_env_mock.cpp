@@ -321,8 +321,10 @@ DELUGE_STUB_RET(stub_waveformRendererRenderFullScreen,
                 bool, false)
 DELUGE_STUB_FN(stub_instrumentClipViewRecalculateColours, "_ZN18InstrumentClipView18recalculateColoursEv")
 DELUGE_STUB_FN(stub_modControllableAudioDtor, "_ZN20ModControllableAudioD2Ev")
-// ~Sound gives its delay's tapes back and destroys its chain, whose mod FX and granular free their blocks.
+// ~Sound gives its delay's tapes back, ends the song's stutter if its chain plays it, and destroys its chain, whose mod
+// FX and granular free their blocks.
 DELUGE_STUB_FN(stub_modControllableAudioReleaseChainMemory, "_ZN20ModControllableAudio18releaseChainMemoryEv")
+DELUGE_STUB_FN(stub_modControllableAudioEndStutterIfStuttering, "_ZN20ModControllableAudio22endStutterIfStutteringEv")
 DELUGE_STUB_FN(stub_modFxDtor, "_ZN6deluge7effects5ModFxD1Ev")
 DELUGE_STUB_FN(stub_granularDtor, "_ZN6deluge7effects8GranularD1Ev")
 DELUGE_STUB_FN(stub_sampleHolderForVoiceClaimClusterReasons, "_ZN20SampleHolderForVoice19claimClusterReasonsEbi")

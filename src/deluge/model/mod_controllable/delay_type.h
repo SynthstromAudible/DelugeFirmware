@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include "effects/chain_core.h"
+#include "effects/state.h"
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -68,6 +70,16 @@ void onDelayParamModified(const ModelStackWithAutoParam& modelStack, int32_t old
 /// @param owner The delay's owner.
 /// @return The tape length in frames; 0 when its type is OFF.
 [[nodiscard]] std::size_t delayReserveFrames(Song& song, ModControllableAudio& owner);
+
+/// @brief The tape, in frames, a delay with @p settings needs on the chain whose core is @p core: its owner's rate
+/// param in each of its param managers in @p song (the largest tape), synced to @p settings at the playback's tempo.
+/// @param song     The song the chain's owner belongs to.
+/// @param core     The chain's core, which names its owner.
+/// @param settings The delay's settings.
+/// @param sound    Whether the owner is a sound (its rate param is patched).
+/// @return The tape length in frames; 0 when the type is OFF.
+[[nodiscard]] std::size_t delayReserveFrames(Song& song, const deluge::effects::ChainCore& core,
+                                             const deluge::effects::DelayState& settings, bool sound);
 
 /// @brief [task] Sets @p owner's reserve in the delay arena from its settings, then maintains the arena.
 /// @param song  The song the owner belongs to.

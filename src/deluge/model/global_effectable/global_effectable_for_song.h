@@ -26,6 +26,7 @@ public:
 	/// @brief The song's knobs and menus over @p channel, the song's master channel, which outlives this.
 	/// @param channel The master channel.
 	explicit GlobalEffectableForSong(deluge::model::MasterChannel& channel);
+	~GlobalEffectableForSong() override;
 
 	[[nodiscard]] deluge::effects::MasterChain& chain() { return channel_.chain(); }
 	[[nodiscard]] deluge::effects::ChainCore& core() override { return channel_.core(); }

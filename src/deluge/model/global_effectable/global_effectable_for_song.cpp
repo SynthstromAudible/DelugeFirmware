@@ -21,3 +21,7 @@ GlobalEffectableForSong::GlobalEffectableForSong(deluge::model::MasterChannel& c
 	bindBinding(channel_.binding());
 	modKnobMode = 1;
 }
+
+GlobalEffectableForSong::~GlobalEffectableForSong() {
+	endStutterIfStuttering();
+}

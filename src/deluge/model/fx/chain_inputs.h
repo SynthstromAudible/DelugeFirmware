@@ -25,7 +25,6 @@
 
 #include <cstdint>
 
-class ModControllableAudio;
 class ParamManager;
 class Song;
 class UnpatchedParamSet;
@@ -76,7 +75,6 @@ class TrackChannel;
 
 /// @brief A kit's or an audio track's chain inputs for one block, from its unpatched params.
 /// @param channel The kit's or audio track's channel.
-/// @param stutterOwner The kit or audio track, which the song's stutter knows it by.
 /// @param paramManager The owner's param manager.
 /// @param volumeAdjustment The output's volume param's final, halved (Q31), as the drums are rendered at.
 /// @param reverbAmountAdjust The song's reverb send scaling for this output, Q31.
@@ -84,10 +82,9 @@ class TrackChannel;
 /// @param delay The block's delay working state, set up on the owner's chain's delay.
 /// @param outputType KIT or AUDIO; selects the volume headroom factor applied after the filters.
 /// @return The block's track-chain inputs.
-[[nodiscard]] effects::TrackChainInputs trackChainInputs(TrackChannel& channel,
-                                                         const ModControllableAudio& stutterOwner,
-                                                         ParamManager& paramManager, int32_t volumeAdjustment,
-                                                         int32_t reverbAmountAdjust, int32_t sideChainHitPending,
+[[nodiscard]] effects::TrackChainInputs trackChainInputs(TrackChannel& channel, ParamManager& paramManager,
+                                                         int32_t volumeAdjustment, int32_t reverbAmountAdjust,
+                                                         int32_t sideChainHitPending,
                                                          const effects::Delay::State& delay, OutputType outputType);
 
 /// @brief The song master's half before the reverb, from the song's params once its outputs have rendered; sets up the

@@ -254,7 +254,7 @@ void runStutters(uint64_t block) {
 	bool stuttering = false;
 	for (StutterSpan& span : g_stutterAt) {
 		ModControllableAudio* owner = stutterOwner(span.owner, params, clip);
-		const bool now = owner != nullptr && currentSong->live.stutter.isStuttering(*owner);
+		const bool now = owner != nullptr && currentSong->live.stutter.isStuttering(owner->core());
 		if (now && g_stutterRateAsked && !g_stutterRateDone && block >= g_stutterRateAt) {
 			turnStutterRate(*owner, clip, *params, g_stutterRateValue);
 			g_stutterRateDone = true;

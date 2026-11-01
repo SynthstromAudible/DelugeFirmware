@@ -251,6 +251,9 @@ private:
 	deluge::model::EffectsBinding* binding_{nullptr};
 
 protected:
+	/// @brief Ends the song's stutter if this owner's chain plays it, so no later chain at its address plays the tape.
+	/// Each owner calls it at the end of its destructor's body, while its chain still exists.
+	void endStutterIfStuttering();
 	/// @brief Makes @p binding the one this owner's settings and render copy live in. Each owner calls it first in its
 	/// constructor, before anything reads its effects.
 	/// @param binding The owner's binding, which outlives every use through this owner.

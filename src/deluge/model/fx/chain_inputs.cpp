@@ -25,7 +25,6 @@
 #include "model/fx/master_channel.h"
 #include "model/fx/song_stutter.h"
 #include "model/fx/track_channel.h"
-#include "model/global_effectable/global_effectable_for_song.h"
 #include "model/song/song.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
@@ -122,8 +121,7 @@ effects::FxInputs hostFxInputs(const snapshot::ModControllableSnapshot& snapshot
 	};
 }
 
-effects::TrackChainInputs trackChainInputs(TrackChannel& channel, const ModControllableAudio& stutterOwner,
-                                           ParamManager& paramManager, int32_t volumeAdjustment,
+effects::TrackChainInputs trackChainInputs(TrackChannel& channel, ParamManager& paramManager, int32_t volumeAdjustment,
                                            int32_t reverbAmountAdjust, int32_t sideChainHitPending,
                                            const effects::Delay::State& delay, OutputType outputType) {
 	UnpatchedParamSet* unpatched = paramManager.getUnpatchedParamSet();
@@ -136,7 +134,7 @@ effects::TrackChainInputs trackChainInputs(TrackChannel& channel, const ModContr
 
 	const int32_t reverbSendAmount = effects::final_value(
 	    effects::Reverb::kSend, unpatched->getValue(params::UNPATCHED_REVERB_SEND_AMOUNT), reverbAmountAdjust);
-	const StutterInput stutter = stutterInput(stutterOwner, &paramManager);
+	const StutterInput stutter = stutterInput(channel.core(), &paramManager);
 	const snapshot::ModControllableSnapshot& snapshot = channel.binding().snapshot();
 
 	return {
@@ -178,9 +176,8 @@ effects::MasterChainInputs masterChainInputs(Song& song, int32_t volumePostFX) {
 }
 
 effects::MasterPostInputs masterPostInputs(Song& song) {
-	GlobalEffectableForSong& master = song.live.global_effectable;
 	UnpatchedParamSet* unpatched = song.paramManager.getUnpatchedParamSet();
-	const StutterInput stutter = stutterInput(master, &song.paramManager);
+	const StutterInput stutter = stutterInput(song.live.master_channel.core(), &song.paramManager);
 
 	// The pan applies after the reverb, in stereo only.
 	const int32_t pan = unpatched->getValue(params::UNPATCHED_PAN) >> 1;

@@ -1550,7 +1550,7 @@ void Sound::reassessRenderSkippingStatus(ModelStackWithSoundFlags* modelStack, b
 	// pending - otherwise it'd stay pending forever (issue #2262)
 	bool skippingStatusNow =
 	    (voices_.empty() && (core().delay().repeatsUntilAbandon() == 0u)
-	     && (currentSong == nullptr || !currentSong->live.stutter.isStuttering(*this))
+	     && (currentSong == nullptr || !currentSong->live.stutter.isStuttering(core()))
 	     && ((arpSettings == nullptr) || !getArp()->hasAnyInputNotesActive() || arpSettings->mode == ArpMode::OFF)
 	     && !getArp()->hasPendingNotes(arpSettings));
 

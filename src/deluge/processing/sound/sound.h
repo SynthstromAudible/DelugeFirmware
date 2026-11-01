@@ -107,6 +107,7 @@ public:
 		}
 		AudioEngine::sounds.remove(this);
 		releaseChainMemory();
+		endStutterIfStuttering();
 	}
 
 	/// @brief The sound's effects after its voices.

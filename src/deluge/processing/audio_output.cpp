@@ -76,6 +76,7 @@ AudioOutput::~AudioOutput() {
 		currentSong->removeDocOutput(this);
 		docOutput_ = nullptr;
 	}
+	endStutterIfStuttering();
 }
 
 void AudioOutput::setMode(AudioOutputMode newMode) {
@@ -186,7 +187,7 @@ void AudioOutput::renderOutput(ModelStack* modelStack, std::span<StereoSample> o
 	                 .is_clip_active = isClipActive,
 	                 .output_type = OutputType::AUDIO,
 	                 .recorder = recorder,
-	                 .owner = this},
+	                 .tick_owner = this},
 	                [&](const deluge::model::ContentBlock& c) {
 		                return renderContent(modelStackWithTimelineCounter, c.buffer, nullptr, c.reverb_buffer,
 		                                     c.reverb_amount_adjust, c.side_chain_hit_pending,

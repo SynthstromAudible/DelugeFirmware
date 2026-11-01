@@ -72,9 +72,10 @@ namespace params = deluge::modulation::params;
 
 ModControllableAudio::ModControllableAudio() = default;
 
-ModControllableAudio::~ModControllableAudio() {
-	// An owner deleted while it stutters ends the stutter, so no later owner at its address plays the tape.
-	if (currentSong != nullptr && currentSong->live.stutter.isStuttering(*this)) {
+ModControllableAudio::~ModControllableAudio() = default;
+
+void ModControllableAudio::endStutterIfStuttering() {
+	if (currentSong != nullptr && currentSong->live.stutter.isStuttering(core())) {
 		currentSong->live.stutter.end();
 		currentSong->live.stutter.clearSnap();
 		exitUIMode(UI_MODE_STUTTERING);
@@ -138,9 +139,10 @@ void ModControllableAudio::bindEffects(deluge::effects::EffectStates* record) {
 
 void ModControllableAudio::projectModControllableSnapshot() {
 	const deluge::effects::DelayType delayType = effects().delay.type;
-	const std::size_t delayReserve = (delayType != deluge::effects::DelayType::OFF && currentSong != nullptr)
-	                                     ? deluge::model::delayReserveFrames(*currentSong, *this)
-	                                     : 0;
+	const std::size_t delayReserve =
+	    (delayType != deluge::effects::DelayType::OFF && currentSong != nullptr)
+	        ? deluge::model::delayReserveFrames(*currentSong, core(), effects().delay, asSound() != nullptr)
+	        : 0;
 	binding_->project(core(), delayReserve, projectedModFXParam());
 }
 
@@ -831,7 +833,7 @@ void ModControllableAudio::beginStutter(ParamManagerForTimeline* paramManager) {
 	const auto rate = static_cast<uint32_t>(
 	    deluge::model::stutterRate(paramManager, stutter.lastQuantizedKnobDiff, currentSong->getInputTickMagnitude(),
 	                               playbackHandler.getTimePerInternalTickInverse()));
-	if (stutter.begin(*this, settings, rate) != Error::NONE) {
+	if (stutter.begin(core(), settings, rate) != Error::NONE) {
 		// No stutter: the snap memory goes back to how it was.
 		if (settings.quantized) {
 			stutter.lastQuantizedKnobDiff = knobDiffBefore;
