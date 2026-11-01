@@ -74,12 +74,13 @@ static bool scalarOk(ParamSet* s) {
 	return true;
 }
 
-// Totality sweep: drive doc() over EVERY live automatable owner (clip-level synth/kit/audio unpatched +
-// synth patched, and each SoundDrum row's unpatched+patched). doc() lazily relocates any not-yet-tree-resident
-// owner (relocateAndResolve), so after the sweep deluge::edits::docFallbackHits must still be 0 — no owner reached
-// the engine fallback. This makes the fallback-is-dead claim an exhaustive, corpus-wide host assertion (every
-// song via the runner), covering the runtime-created owners the clone phases produce as well as every loaded one.
-// Returns the number of (owner, collection) pairs swept, so a vacuous run is visible.
+// Totality sweep: drive doc() over EVERY live automatable owner (clip-level synth/kit/audio unpatched + synth
+// patched, each SoundDrum row's unpatched+patched, and the expression lanes of every instrument clip and drum row).
+// doc() lazily relocates any not-yet-tree-resident owner (relocateAndResolve), so after the sweep
+// deluge::edits::docFallbackHits must still be 0 — no owner reached the engine fallback. This makes the
+// fallback-is-dead claim an exhaustive, corpus-wide host assertion (every song via the runner), covering the
+// runtime-created owners the clone phases produce as well as every loaded one. Returns the number of (owner,
+// collection) pairs swept, so a vacuous run is visible.
 static int32_t sweepDoc(Song* song) {
 	int32_t swept = 0;
 	auto touch = [&](ModelStackWithAutoParam* msap) {
@@ -88,10 +89,17 @@ static int32_t sweepDoc(Song* song) {
 			swept++;
 		}
 	};
+	auto touchExpression = [&](ModelStackWithThreeMainThings* m3) {
+		ParamCollectionSummary* summary = m3->paramManager->getExpressionParamSetSummary();
+		if (summary != nullptr && summary->paramCollection != nullptr) {
+			touch(summary->paramCollection->getAutoParamFromId(
+			    m3->addParamCollectionAndId(summary->paramCollection, summary, 0), false));
+		}
+	};
 	for (ClipArray* arr : {&song->live.clips.session_clips, &song->live.clips.arrangement_only_clips}) {
 		for (int32_t i = 0; i < std::ssize(*arr); i++) {
 			Clip* clip = (*arr)[i];
-			if (clip->output == nullptr || !clip->paramManager.containsAnyMainParamCollections()) {
+			if (clip->output == nullptr) {
 				continue;
 			}
 			ModControllable* mc = clip->output->toModControllable();
@@ -100,7 +108,16 @@ static int32_t sweepDoc(Song* song) {
 			}
 			alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE]{};
 			ModelStackWithThreeMainThings* m3 =
-			    setupModelStackWithThreeMainThingsButNoNoteRow(buf, song, mc, clip, &clip->paramManager);
+			    clip->type == ClipType::INSTRUMENT
+			        ? setupModelStackWithThreeMainThingsIncludingNoteRow(buf, song, clip, 0, nullptr, mc,
+			                                                             &clip->paramManager)
+			        : setupModelStackWithThreeMainThingsButNoNoteRow(buf, song, mc, clip, &clip->paramManager);
+			if (clip->type == ClipType::INSTRUMENT) {
+				touchExpression(m3); // a synth's, a kit's, a MIDI or CV clip's
+			}
+			if (!clip->paramManager.containsAnyMainParamCollections() || clip->output->type == OutputType::MIDI_OUT) {
+				continue;
+			}
 			touch(m3->getUnpatchedAutoParamFromId(0));
 			if (clip->output->type == OutputType::SYNTH) {
 				touch(m3->getPatchedAutoParamFromId(0));
@@ -109,14 +126,16 @@ static int32_t sweepDoc(Song* song) {
 				InstrumentClip* ic = static_cast<InstrumentClip*>(clip);
 				for (int32_t n = 0; n < std::ssize(ic->noteRows); n++) {
 					NoteRow& nr = ic->noteRows[n];
-					if (nr.drum == nullptr || nr.drum->type != DrumType::SOUND
-					    || !nr.paramManager.containsAnyMainParamCollections()) {
+					if (nr.drum == nullptr || nr.drum->toModControllable() == nullptr) {
 						continue;
 					}
 					alignas(ModelStackWithAutoParam) char dbuf[MODEL_STACK_MAX_SIZE]{};
 					ModelStackWithThreeMainThings* dm3 = setupModelStackWithThreeMainThingsIncludingNoteRow(
-					    dbuf, song, clip, n, &nr, static_cast<SoundDrum*>(nr.drum)->toModControllable(),
-					    &nr.paramManager);
+					    dbuf, song, clip, n, &nr, nr.drum->toModControllable(), &nr.paramManager);
+					touchExpression(dm3); // every drum type's row
+					if (nr.drum->type != DrumType::SOUND || !nr.paramManager.containsAnyMainParamCollections()) {
+						continue;
+					}
 					touch(dm3->getUnpatchedAutoParamFromId(0));
 					touch(dm3->getPatchedAutoParamFromId(0));
 				}

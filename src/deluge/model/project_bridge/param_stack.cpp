@@ -88,6 +88,7 @@ enum class Holder : uint8_t {
 	SOUND,      ///< a synth or a sound drum: patched and unpatched params, cables, expression
 	EFFECTABLE, ///< a kit's own effects, an audio clip or the song: global unpatched params
 	MIDI_CLIP,  ///< a MIDI clip: its CC lanes and its expression
+	NOTE_CLIP,  ///< a CV clip, or a MIDI or gate drum's row: its expression only
 };
 
 struct OwnerStack {
@@ -120,6 +121,13 @@ OwnerStack ownerStackAt(::Song& song, const project::ParamAddress& address, void
 			                                                           &instrumentClip->paramManager),
 			        Holder::MIDI_CLIP};
 		}
+		if (clip->type == ClipType::INSTRUMENT && clip->output->type == OutputType::CV) {
+			auto* instrumentClip = static_cast<::InstrumentClip*>(clip);
+			return {setupModelStackWithThreeMainThingsIncludingNoteRow(memory, &song, clip, 0, nullptr,
+			                                                           clip->output->toModControllable(),
+			                                                           &instrumentClip->paramManager),
+			        Holder::NOTE_CLIP};
+		}
 		return {};
 	}
 	if (!address.clip_id) {
@@ -150,7 +158,7 @@ OwnerStack ownerStackAt(::Song& song, const project::ParamAddress& address, void
 	}
 	if (address.owner.kind == Kind::DRUM && output->type == OutputType::KIT) {
 		::Drum* drum = song.drumForId(address.owner.id);
-		if (drum == nullptr || drum->type != DrumType::SOUND) {
+		if (drum == nullptr || drum->toModControllable() == nullptr) {
 			return {};
 		}
 		int32_t noteRowIndex = 0;
@@ -159,16 +167,16 @@ OwnerStack ownerStackAt(::Song& song, const project::ParamAddress& address, void
 			return {};
 		}
 		return {setupModelStackWithThreeMainThingsIncludingNoteRow(memory, &song, clip, noteRowIndex, noteRow,
-		                                                           static_cast<::SoundDrum*>(drum),
-		                                                           &noteRow->paramManager),
-		        Holder::SOUND};
+		                                                           drum->toModControllable(), &noteRow->paramManager),
+		        drum->type == DrumType::SOUND ? Holder::SOUND : Holder::NOTE_CLIP};
 	}
 	return {};
 }
 
-/// @p address's param in @p owner's stack, made where @p create allows: a cable (with its source's default polarity), a
-/// MIDI CC lane, an expression lane and the set that holds it.
-ModelStackWithAutoParam* paramInOwner(const OwnerStack& owner, const project::ParamAddress& address, bool create) {
+/// @p address's param in @p owner's stack, made where @p create allows: a MIDI CC lane, an expression lane and the set
+/// that holds it, and, where @p make_cable allows too, a cable (with its source's default polarity).
+ModelStackWithAutoParam* paramInOwner(const OwnerStack& owner, const project::ParamAddress& address, bool create,
+                                      bool make_cable) {
 	if (owner.stack == nullptr) {
 		return nullptr;
 	}
@@ -176,7 +184,7 @@ ModelStackWithAutoParam* paramInOwner(const OwnerStack& owner, const project::Pa
 	case project::ParamSpace::ENGINE:
 		if (owner.holder == Holder::SOUND) {
 			return instrument::is_cable_depth(address.id)
-			           ? cableIn(owner.stack, address.id, create)
+			           ? cableIn(owner.stack, address.id, create && make_cable)
 			           : paramIn(owner.stack, address.id, {params::Kind::PATCHED, params::Kind::UNPATCHED_SOUND});
 		}
 		return owner.holder == Holder::EFFECTABLE ? paramIn(owner.stack, address.id, {params::Kind::UNPATCHED_GLOBAL})
@@ -187,7 +195,7 @@ ModelStackWithAutoParam* paramInOwner(const OwnerStack& owner, const project::Pa
 		                               static_cast<int32_t>(address.id.value), create)
 		           : nullptr;
 	case project::ParamSpace::EXPRESSION:
-		if (owner.holder != Holder::MIDI_CLIP && owner.holder != Holder::SOUND) {
+		if (owner.holder != Holder::MIDI_CLIP && owner.holder != Holder::SOUND && owner.holder != Holder::NOTE_CLIP) {
 			return nullptr;
 		}
 		if (create) {
@@ -301,20 +309,29 @@ project::ParamAddress followingTake(::Song& song, project::ParamAddress owner, v
 } // namespace
 
 ModelStackWithAutoParam* paramStackAt(::Song& song, const project::ParamAddress& address, void* memory) {
-	return paramInOwner(ownerStackAt(song, address, memory), address, false);
+	return paramInOwner(ownerStackAt(song, address, memory), address, false, false);
 }
 
 ModelStackWithAutoParam* paramStackForWrite(::Song& song, project::ParamAddress& address, void* memory) {
 	if (::Clip* clip = clipOf(song, address)) {
 		address = inClip(address, *takeOf(song, *clip, true, memory));
 	}
-	return paramInOwner(ownerOrBackedStack(song, address, memory), address, true);
+	return paramInOwner(ownerOrBackedStack(song, address, memory), address, true, true);
+}
+
+ModelStackWithAutoParam* paramStackExact(::Song& song, const project::ParamAddress& address, void* memory) {
+	return paramInOwner(ownerOrBackedStack(song, address, memory), address, true, false);
+}
+
+ModelStackWithThreeMainThings* soundStackExact(::Song& song, const project::ParamAddress& owner, void* memory) {
+	const OwnerStack found = ownerOrBackedStack(song, owner, memory);
+	return found.holder == Holder::SOUND ? found.stack : nullptr;
 }
 
 bool stutterAt(::Song& song, const project::ParamAddress& owner, bool begin) {
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	const OwnerStack found = ownerOrBackedStack(song, followingTake(song, owner, memory), memory);
-	if (found.stack == nullptr || found.holder == Holder::NONE || found.holder == Holder::MIDI_CLIP) {
+	if (found.stack == nullptr || (found.holder != Holder::SOUND && found.holder != Holder::EFFECTABLE)) {
 		return false;
 	}
 	auto* audio = static_cast<ModControllableAudio*>(found.stack->modControllable);
@@ -355,7 +372,7 @@ bool midiCcSelectAt(::Song& song, const project::ParamAddress& owner, int32_t kn
 
 ModelStackWithAutoParam* paramStackFollowingTake(::Song& song, const project::ParamAddress& address, void* memory) {
 	const project::ParamAddress followed = followingTake(song, address, memory);
-	return paramInOwner(ownerOrBackedStack(song, followed, memory), followed, false);
+	return paramInOwner(ownerOrBackedStack(song, followed, memory), followed, false, false);
 }
 
 std::optional<int32_t> paramValueAt(::Song& song, const project::ParamAddress& address, uint32_t pos) {

@@ -5,6 +5,7 @@
 #include <optional>
 
 class ModelStackWithAutoParam;
+class ModelStackWithThreeMainThings;
 
 namespace deluge::project {
 struct DocAutoParam;
@@ -12,13 +13,21 @@ struct DocAutoParam;
 
 namespace deluge::edits {
 
+/// @brief The owner a resolved engine ModelStack names, as an address with no param: the song; a clip (audio, MIDI or
+/// CV); an instrument (synth, kit) or a drum (any type) with the clip whose params they are; with no timeline counter,
+/// the output or sound drum whose own (backed-up) params the stack holds, with no clip.
+///
+/// @param modelStack A stack naming an owner and its param manager.
+/// @return The owner's address; nullopt where the stack has no song or an owner has no id.
+std::optional<deluge::project::ParamAddress> ownerAddressFor(const ModelStackWithThreeMainThings& modelStack);
+
 /// @brief The stable id-address of the param lane a resolved engine ModelStack names.
 ///
 /// The owner classification ModelStackWithAutoParam::doc() uses to resolve a lane.
 ///
 /// @param modelStack A resolved stack naming the param.
-/// @return The lane's address; nullopt for the one unaddressable case, an owner with no id. Callers fall back to
-///         engine resolution, exactly as doc() does.
+/// @return The lane's address (ownerAddressFor's owner with the stack's param); nullopt where ownerAddressFor has
+///         none.
 std::optional<deluge::project::ParamAddress> addressFor(const ModelStackWithAutoParam& modelStack);
 
 /// @brief Resolve the param lane for a RUNTIME-created owner, addressing it first if needed.

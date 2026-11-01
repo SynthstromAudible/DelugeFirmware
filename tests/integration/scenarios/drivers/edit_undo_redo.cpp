@@ -62,6 +62,7 @@
 #include "model/note/note.h"
 #include "model/note/note_row.h"
 #include "model/output.h"
+#include "model/project_bridge/param_stack.h"
 #include "model/project_bridge/song_serialization.h"
 #include "model/sample/sample.h"
 #include "model/song/song.h"
@@ -81,7 +82,9 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <map>
 #include <optional>
+#include <string>
 #include <string_view>
 #include <vector>
 
@@ -1510,6 +1513,202 @@ void sectionTarget(Song* song) {
 
 } // namespace
 
+// Every lane a stack names has an address, and the exact lookup of that address names the same AutoParam: over the
+// song's own params, every clip's (synth, kit, kit rows of every drum type, audio, MIDI with its CC lanes, CV), their
+// expression lanes, cables, and arranger rows' backed-up params.
+int exactChecked = 0;
+std::map<std::string, int> exactByShape;
+bool exactTouchDoc = false; // newShapesTarget: also resolve each lane's nodes, as the engine does
+void checkExact(Song* song, ModelStackWithAutoParam* s, const char* what) {
+	if (s == nullptr || s->autoParam == nullptr) {
+		return;
+	}
+	const std::optional<deluge::project::ParamAddress> address = deluge::edits::addressFor(*s);
+	if (!address) {
+		std::fprintf(io.out, "# exact: no address for %s kind=%d id=%d\n", what, static_cast<int>(s->kind),
+		             static_cast<int>(s->paramId));
+	}
+	check(address.has_value(), "exact: the lane has an address");
+	if (!address) {
+		return;
+	}
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithAutoParam* found = deluge::bridge::paramStackExact(*song, *address, memory);
+	if (found == nullptr || found->autoParam != s->autoParam) {
+		std::fprintf(io.out, "# exact: %s kind=%d id=%d resolves %s\n", what, static_cast<int>(s->kind),
+		             static_cast<int>(s->paramId), found == nullptr ? "nothing" : "another lane");
+	}
+	check(found != nullptr && found->autoParam == s->autoParam, "exact: the address names the stack's lane");
+	if (exactTouchDoc) {
+		(void)s->doc(); // relocates an owner not yet in the tree; the engine fallback counts in docFallbackHits
+	}
+	exactChecked++;
+	exactByShape[what]++;
+}
+
+void sweepCollections(Song* song, ModelStackWithThreeMainThings* owner, const char* what) {
+	ParamManager* pm = owner->paramManager;
+	if (pm == nullptr) {
+		return;
+	}
+	for (ParamCollectionSummary* summary = pm->summaries; summary->paramCollection != nullptr; summary++) {
+		std::vector<int32_t> ids{0, 1, 2};
+		if (summary->paramCollection->getParamKind() == params::Kind::PATCH_CABLE) {
+			ids.clear();
+			auto* cables = static_cast<PatchCableSet*>(summary->paramCollection);
+			for (int32_t c = 0; c < cables->numPatchCables; c++) {
+				ids.push_back(
+				    PatchCableSet::getParamId(cables->patchCables[c].destination, cables->patchCables[c].from));
+			}
+		}
+		for (int32_t id : ids) {
+			alignas(ModelStackWithAutoParam) char m[MODEL_STACK_MAX_SIZE];
+			copyModelStack(m, owner, sizeof(ModelStackWithThreeMainThings));
+			auto* o = reinterpret_cast<ModelStackWithThreeMainThings*>(m);
+			ModelStackWithAutoParam* s = summary->paramCollection->getAutoParamFromId(
+			    o->addParamCollectionAndId(summary->paramCollection, summary, id), false);
+			checkExact(song, s, what);
+		}
+	}
+}
+
+void exactAddressTarget(Song* song) {
+	exactChecked = 0;
+	exactByShape.clear();
+	{
+		alignas(ModelStackWithAutoParam) char m[MODEL_STACK_MAX_SIZE];
+		sweepCollections(song, song->setupModelStackWithSongAsTimelineCounter(m), "song");
+	}
+	for (ClipArray* clips : {&song->live.clips.session_clips, &song->live.clips.arrangement_only_clips}) {
+		for (int32_t c = 0; c < std::ssize(*clips); c++) {
+			Clip* clip = (*clips)[c];
+			if (clip->output == nullptr || clip->output->toModControllable() == nullptr) {
+				continue;
+			}
+			alignas(ModelStackWithAutoParam) char m[MODEL_STACK_MAX_SIZE];
+			if (clip->type == ClipType::AUDIO) {
+				sweepCollections(song,
+				                 setupModelStackWithThreeMainThingsButNoNoteRow(
+				                     m, song, clip->output->toModControllable(), clip, &clip->paramManager),
+				                 "audio clip");
+				continue;
+			}
+			auto* ic = static_cast<InstrumentClip*>(clip);
+			const char* shape = clip->output->type == OutputType::CV         ? "cv clip"
+			                    : clip->output->type == OutputType::MIDI_OUT ? "midi clip"
+			                                                                 : "instrument clip";
+			sweepCollections(song,
+			                 setupModelStackWithThreeMainThingsIncludingNoteRow(
+			                     m, song, clip, 0, nullptr, clip->output->toModControllable(), &clip->paramManager),
+			                 shape);
+			if (clip->output->type != OutputType::KIT) {
+				continue;
+			}
+			for (int32_t i = 0; i < std::ssize(ic->noteRows); i++) {
+				NoteRow& row = ic->noteRows[i];
+				if (row.drum == nullptr || row.drum->toModControllable() == nullptr) {
+					continue;
+				}
+				alignas(ModelStackWithAutoParam) char rm[MODEL_STACK_MAX_SIZE];
+				sweepCollections(song,
+				                 setupModelStackWithThreeMainThingsIncludingNoteRow(
+				                     rm, song, clip, i, &row, row.drum->toModControllable(), &row.paramManager),
+				                 row.drum->type == DrumType::SOUND ? "sound row" : "non-sound row");
+			}
+		}
+	}
+	for (Output* output = song->live.media.first_output; output != nullptr; output = output->next) {
+		if (output->toModControllable() == nullptr) {
+			continue;
+		}
+		if (ParamManager* backed = song->live.param_backup.getForExactClip(*output, nullptr)) {
+			alignas(ModelStackWithAutoParam) char m[MODEL_STACK_MAX_SIZE];
+			sweepCollections(
+			    song,
+			    setupModelStackWithThreeMainThingsButNoNoteRow(m, song, output->toModControllable(), nullptr, backed),
+			    "backed output");
+		}
+		if (output->type != OutputType::KIT) {
+			continue;
+		}
+		for (Drum* drum = static_cast<Kit*>(output)->firstDrum; drum != nullptr; drum = drum->next) {
+			if (drum->type != DrumType::SOUND) {
+				continue;
+			}
+			if (ParamManager* backed = song->live.param_backup.getForExactClip(*drum, nullptr)) {
+				alignas(ModelStackWithAutoParam) char m[MODEL_STACK_MAX_SIZE];
+				sweepCollections(
+				    song,
+				    setupModelStackWithThreeMainThingsButNoNoteRow(m, song, drum->toModControllable(), nullptr, backed),
+				    "backed drum");
+			}
+		}
+	}
+	std::fprintf(io.out, "# exact-checked %d\n", exactChecked);
+	for (const auto& [shape, n] : exactByShape) {
+		std::fprintf(io.out, "# exact-shape %s %d\n", shape.c_str(), n);
+	}
+}
+
+// The owners no corpus song holds lanes for: a MIDI or gate drum's row and a CV clip, each given an expression set
+// here, then swept as exactAddressTarget sweeps the rest.
+void newShapesTarget(Song* song) {
+	exactByShape.clear();
+	exactTouchDoc = true;
+#if ALPHA_OR_BETA_VERSION
+	const uint32_t fallbackBefore = deluge::edits::docFallbackHits;
+#endif
+	for (int32_t c = 0; c < std::ssize(song->live.clips.session_clips); c++) {
+		Clip* clip = song->live.clips.session_clips[c];
+		if (clip->type != ClipType::INSTRUMENT || clip->output == nullptr || clip->output->type != OutputType::KIT) {
+			continue;
+		}
+		auto* ic = static_cast<InstrumentClip*>(clip);
+		for (int32_t i = 0; i < std::ssize(ic->noteRows); i++) {
+			NoteRow& row = ic->noteRows[i];
+			if (row.drum == nullptr || row.drum->type == DrumType::SOUND
+			    || !row.paramManager.ensureExpressionParamSetExists(true)) {
+				continue;
+			}
+			alignas(ModelStackWithAutoParam) char m[MODEL_STACK_MAX_SIZE];
+			sweepCollections(song,
+			                 setupModelStackWithThreeMainThingsIncludingNoteRow(
+			                     m, song, clip, i, &row, row.drum->toModControllable(), &row.paramManager),
+			                 "non-sound row");
+		}
+	}
+	for (Output* output = song->live.media.first_output; output != nullptr; output = output->next) {
+		if (output->type != OutputType::SYNTH || output->getActiveClip() == nullptr) {
+			continue;
+		}
+		auto* cv = static_cast<Instrument*>(output);
+		Instrument* made = song->changeOutputType(cv, OutputType::CV);
+		if (made == nullptr) {
+			std::fprintf(io.out, "# no-cv-instrument\n");
+			break;
+		}
+		for (int32_t c = 0; c < std::ssize(song->live.clips.session_clips); c++) {
+			Clip* clip = song->live.clips.session_clips[c];
+			if (clip->output != made || !clip->paramManager.ensureExpressionParamSetExists()) {
+				continue;
+			}
+			alignas(ModelStackWithAutoParam) char m[MODEL_STACK_MAX_SIZE];
+			sweepCollections(song,
+			                 setupModelStackWithThreeMainThingsIncludingNoteRow(
+			                     m, song, clip, 0, nullptr, made->toModControllable(), &clip->paramManager),
+			                 "cv clip");
+		}
+		break;
+	}
+	for (const auto& [shape, n] : exactByShape) {
+		std::fprintf(io.out, "# new-shape %s %d\n", shape.c_str(), n);
+	}
+#if ALPHA_OR_BETA_VERSION
+	check(deluge::edits::docFallbackHits == fallbackBefore, "new shapes: every lane resolves through the project tree");
+#endif
+	exactTouchDoc = false;
+}
+
 int edit_undo_redo_main(int argc, char** argv, Io driverIo) {
 	io = driverIo;
 	if (argc < 2) {
@@ -1544,6 +1743,7 @@ int edit_undo_redo_main(int argc, char** argv, Io driverIo) {
 	std::fprintf(io.out, "# edit_undo_redo: %s\n", argv[1]);
 
 	universalIdsTarget(song); // first, on the pristine loaded song (before any target mutates clip/drum membership)
+	exactAddressTarget(song);
 
 	// Target 1 — song-global UNPATCHED_VOLUME (OwnerId::song()). Always present.
 	{
@@ -1633,6 +1833,7 @@ int edit_undo_redo_main(int argc, char** argv, Io driverIo) {
 	colourTarget(song);
 	sectionTarget(song);
 	cableTarget(song);
+	newShapesTarget(song);
 
 	std::free(xml);
 	return failures ? 3 : 0;

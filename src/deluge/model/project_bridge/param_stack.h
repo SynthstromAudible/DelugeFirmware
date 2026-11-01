@@ -74,6 +74,27 @@ namespace deluge::bridge {
 [[nodiscard]] ::ModelStackWithAutoParam* paramStackFollowingTake(::Song& song, const project::ParamAddress& address,
                                                                  void* memory);
 
+/// @brief The engine stack naming exactly what @p address names: the clip by id, never following the take the
+/// arrangement records it into; an INSTRUMENT or DRUM owner with no clip id, its backed-up params. A MIDI CC or
+/// expression lane is made where missing; a cable is not. An undo record's revert and an Edit built from a stack's own
+/// address resolve this way, so they reach the lane the stack named.
+///
+/// @param song    The song holding the owner.
+/// @param address The param's address.
+/// @param memory  MODEL_STACK_MAX_SIZE bytes, aligned as ModelStackWithAutoParam, which the stack lives in.
+/// @return The stack, or null where @p song holds no such owner or param.
+[[nodiscard]] ::ModelStackWithAutoParam* paramStackExact(::Song& song, const project::ParamAddress& address,
+                                                         void* memory);
+
+/// @brief The engine stack of the sound @p owner names exactly (a synth or a sound drum, in its clip by id, or its
+/// backed-up params with no clip id), with no param; the id is not read.
+/// @param song   The song holding the sound.
+/// @param owner  The sound, as an address with no param.
+/// @param memory MODEL_STACK_MAX_SIZE bytes, aligned as ModelStackWithAutoParam, which the stack lives in.
+/// @return The stack, or null where the owner does not resolve or is not a sound.
+[[nodiscard]] ::ModelStackWithThreeMainThings* soundStackExact(::Song& song, const project::ParamAddress& owner,
+                                                               void* memory);
+
 /// @brief @p address's value at @p pos in its clip (the take's while the arrangement records it), as automation reads
 /// it; its current value at 0xFFFFFFFF.
 /// @return The value, or none where @p song holds no such param.
