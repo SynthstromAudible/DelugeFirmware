@@ -5732,6 +5732,8 @@ doDisplayError:
 	// the editor configured for kit-global FX while Affect Entire was enabled.
 	soundEditor.setupKitGlobalFXMenu = false;
 	if (!soundEditor.setup(getCurrentInstrumentClip(), &menu_item::file0SelectorMenu, 0)) {
+		// The new drum stays in the kit as an ordinary empty drum, but say why the browser didn't open
+		display->displayError(Error::UNSPECIFIED);
 		return;
 	}
 
