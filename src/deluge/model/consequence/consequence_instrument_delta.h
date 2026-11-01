@@ -16,22 +16,20 @@
  */
 #pragma once
 
+#include "deluge-project/param_address.h"
 #include "model/consequence/consequence.h"
-#include "model/model_stack.h"
 #include "processing/sound/mod_matrix_host.h"
 
-/// @brief The undo record of one cable topology edit on one clip: reverting applies the edit through the clip's mod
-/// matrix in either direction.
+/// @brief The undo record of one cable topology edit on one sound: reverting applies the edit through the sound's mod
+/// matrix, the sound found by its address exactly.
 class ConsequenceInstrumentDelta final : public Consequence {
 public:
-	ConsequenceInstrumentDelta(ModelStackWithThreeMainThings const* modelStack, CableEdit edit);
+	/// @param owner The sound, as an address with no param (edits::ownerAddressFor).
+	/// @param edit  The edit.
+	ConsequenceInstrumentDelta(deluge::project::ParamAddress owner, CableEdit edit);
 	Error revert(TimeType time, ModelStack* modelStack) override;
 
 private:
-	// The target as ConsequenceParamChange captures its own: a copy of the stack's sound and param manager.
-	union {
-		alignas(ModelStackWithAutoParam) char modelStackMemory_[MODEL_STACK_MAX_SIZE]{};
-		ModelStackWithThreeMainThings target_;
-	};
+	deluge::project::ParamAddress owner_;
 	CableEdit edit_;
 };

@@ -16,6 +16,7 @@
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
 #include "model/consequence/consequence.h"
+#include "model/consequence/consequence_instrument_delta.h"
 #include "model/consequence/consequence_param_change.h"
 #include "model/edits/delete_param_automation.h"
 #include "model/edits/param_address_for.h"
@@ -286,6 +287,8 @@ void testParamEditsByAddressUndo(deluge::edits::Context& ctx) {
 
 // The undo record of a param holds its address, not a copy of the engine stack.
 static_assert(sizeof(ConsequenceParamChange) < sizeof(Consequence) + sizeof(AutoParamState) + MODEL_STACK_MAX_SIZE);
+// Nor does a cable topology edit's.
+static_assert(sizeof(ConsequenceInstrumentDelta) < sizeof(Consequence) + sizeof(CableEdit) + MODEL_STACK_MAX_SIZE);
 
 // The param Edits are built from an address alone.
 static_assert(!std::is_constructible_v<deluge::edits::SetParamValue, std::optional<deluge::project::ParamAddress>,
