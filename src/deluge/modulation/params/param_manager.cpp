@@ -60,7 +60,8 @@ Error ParamManager::setupMIDI() {
 		return Error::INSUFFICIENT_RAM;
 	}
 
-	summaries[1] = summaries[0]; // Potentially shuffle the expression params over.
+	destructAndForgetMainParamCollections(); // Don't leak a previous setup. Leaves any expression params in slot 0
+	summaries[1] = summaries[0];             // Shuffle the expression params over.
 	summaries[0].paramCollection = new (memory) MIDIParamCollection(&summaries[0]);
 	summaries[2] = {0};
 	expressionParamSetOffset = 1;
@@ -73,8 +74,10 @@ Error ParamManager::setupUnpatched() {
 		return Error::INSUFFICIENT_RAM;
 	}
 
+	destructAndForgetMainParamCollections(); // Don't leak a previous setup. Leaves any expression params in slot 0
+	summaries[1] = summaries[0];             // Shuffle the expression params over, rather than overwriting them
 	summaries[0].paramCollection = new (memoryUnpatched) UnpatchedParamSet(&summaries[0]);
-	summaries[1] = {0};
+	summaries[2] = {0};
 	expressionParamSetOffset = 1;
 	return Error::NONE;
 }
@@ -98,10 +101,12 @@ ramError2:
 		goto ramError2;
 	}
 
+	destructAndForgetMainParamCollections(); // Don't leak a previous setup. Leaves any expression params in slot 0
+	summaries[3] = summaries[0];             // Shuffle the expression params over, rather than overwriting them
 	summaries[0].paramCollection = new (memoryUnpatched) UnpatchedParamSet(&summaries[0]);
 	summaries[1].paramCollection = new (memoryPatched) PatchedParamSet(&summaries[1]);
 	summaries[2].paramCollection = new (memoryPatchCables) PatchCableSet(&summaries[2]);
-	summaries[3] = {0};
+	summaries[4] = {0};
 	expressionParamSetOffset = 3;
 	return Error::NONE;
 }
