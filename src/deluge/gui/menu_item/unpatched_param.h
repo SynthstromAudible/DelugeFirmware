@@ -39,7 +39,7 @@ public:
 	bool usesAffectEntire() override { return true; }
 	void readCurrentValue() override;
 	void writeCurrentValue() override;
-	ParamDescriptor getLearningThing() final;
+	deluge::modulation::KnobTarget getLearningThing() final;
 	[[nodiscard]] int32_t getMaxValue() const override { return Param::getMaxValue(); }
 	[[nodiscard]] int32_t getMinValue() const override { return Param::getMinValue(); }
 	MenuItem* selectButtonPress() final { return Param::selectButtonPress(); }

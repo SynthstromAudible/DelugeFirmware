@@ -24,9 +24,9 @@ class Regular : public PatchCableStrength {
 public:
 	using PatchCableStrength::PatchCableStrength;
 
-	ParamDescriptor getDestinationDescriptor() final;
+	deluge::synth::CableTarget getDestinationDescriptor() final;
 	PatchSource getS() final;
-	ParamDescriptor getLearningThing() final;
+	deluge::modulation::KnobTarget getLearningThing() final;
 	MenuPermission checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
 	                                             MultiRange** currentRange) override;
 	uint8_t shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) override;

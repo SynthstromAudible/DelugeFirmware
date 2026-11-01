@@ -28,6 +28,7 @@
 #include "model/global_effectable/global_effectable_for_clip.h"
 #include "model/project_bridge/param_ids.h"
 #include "model/song/song.h"
+#include "modulation/knob_target.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_targets.h"
 #include "modulation/patch/patch_cable.h"
@@ -404,6 +405,35 @@ void checkKnobs(Checker& check) {
 	}
 }
 
+/// A knob's or a learning menu's target and its descriptor word are each other's inverse over every word they form:
+/// a sound's or a global effectable's param by its flat id, a cable from one source, a range cable, and none.
+void checkKnobWords(Checker& check) {
+	using deluge::modulation::knobTargetOf;
+	using deluge::modulation::knobWord;
+	using deluge::synth::CableTarget;
+	auto trip = [&](CableTarget word) {
+		if (knobWord(knobTargetOf(word)).word != word.word) {
+			check.fail("knob word", static_cast<int>(word.word), 0, 0);
+		}
+	};
+	trip(CableTarget{});
+	for (uint32_t p = 0; p < params::UNPATCHED_START + params::UNPATCHED_SOUND_MAX_NUM; ++p) {
+		trip(CableTarget::param(static_cast<uint8_t>(p)));
+		if (knobTargetOf(CableTarget::param(static_cast<uint8_t>(p))) != deluge::modulation::knobParam(p)) {
+			check.fail("knob param", static_cast<int>(p), 0, 0);
+		}
+	}
+	for (uint32_t p = 0; p < params::kNumParams; ++p) {
+		for (uint32_t s = 0; s < static_cast<uint32_t>(kNumPatchSources); ++s) {
+			trip(CableTarget::depth_of(static_cast<uint8_t>(p), static_cast<PatchSource>(s)));
+			for (uint32_t s2 = 0; s2 < static_cast<uint32_t>(kNumPatchSources); ++s2) {
+				trip(CableTarget::depth_of_depth(static_cast<uint8_t>(p), static_cast<PatchSource>(s),
+				                                 static_cast<PatchSource>(s2)));
+			}
+		}
+	}
+}
+
 int param_target_check_main(int /*argc*/, char** /*argv*/, Io io) {
 	Checker check{io};
 	checkRoundTrip(check);
@@ -412,6 +442,7 @@ int param_target_check_main(int /*argc*/, char** /*argv*/, Io io) {
 	checkMidiFollow(check);
 	checkPerformanceTables(check);
 	checkKnobs(check);
+	checkKnobWords(check);
 	std::fprintf(io.out, "%d disagreement(s)\n", check.disagreements);
 	return check.disagreements == 0 ? 0 : 3;
 }

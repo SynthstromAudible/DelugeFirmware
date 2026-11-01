@@ -23,7 +23,7 @@ class Regular final : public SourceSelection {
 public:
 	using SourceSelection::SourceSelection;
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
-	ParamDescriptor getDestinationDescriptor() override;
+	deluge::synth::CableTarget getDestinationDescriptor() override;
 	MenuItem* selectButtonPress() override;
 	MenuItem* patchingSourceShortcutPress(PatchSource newS, bool previous_press_still_active) override;
 	std::string_view getTitle() const override { return l10n::getView(l10n::String::STRING_FOR_MODULATE_WITH); };

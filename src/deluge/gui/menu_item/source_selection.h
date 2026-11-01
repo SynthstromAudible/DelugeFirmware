@@ -17,6 +17,7 @@
 
 #pragma once
 #include "definitions_cxx.hpp"
+#include "synth/modulation/cable.h"
 #include "value.h"
 
 class ParamDescriptor;
@@ -27,7 +28,8 @@ public:
 	using Value::Value;
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
 	void selectEncoderAction(int32_t offset) final;
-	virtual ParamDescriptor getDestinationDescriptor() = 0;
+	/// @brief Where a cable from the selected source goes.
+	virtual deluge::synth::CableTarget getDestinationDescriptor() = 0;
 	uint8_t getIndexOfPatchedParamToBlink() final;
 	uint8_t shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) final;
 	void readValueAgain() final;

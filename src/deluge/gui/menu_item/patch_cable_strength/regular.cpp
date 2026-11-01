@@ -16,6 +16,7 @@
  */
 #include "regular.h"
 #include "definitions_cxx.hpp"
+#include "gui/menu_item/cable_descriptor.h"
 #include "gui/menu_item/patch_cable_strength/range.h"
 #include "gui/menu_item/source_selection/range.h"
 #include "gui/menu_item/source_selection/regular.h"
@@ -27,16 +28,13 @@
 namespace deluge::gui::menu_item::patch_cable_strength {
 Regular regularMenu{};
 
-ParamDescriptor Regular::getLearningThing() {
-	ParamDescriptor paramDescriptor;
-	paramDescriptor.setToHaveParamAndSource(soundEditor.patchingParamSelected, source_selection::regularMenu.s);
-	return paramDescriptor;
+deluge::modulation::KnobTarget Regular::getLearningThing() {
+	return deluge::modulation::knobTargetOf(
+	    synth::CableTarget::depth_of(soundEditor.patchingParamSelected, source_selection::regularMenu.s));
 }
 
-ParamDescriptor Regular::getDestinationDescriptor() {
-	ParamDescriptor paramDescriptor;
-	paramDescriptor.setToHaveParamOnly(soundEditor.patchingParamSelected);
-	return paramDescriptor;
+synth::CableTarget Regular::getDestinationDescriptor() {
+	return synth::CableTarget::param(soundEditor.patchingParamSelected);
 }
 
 PatchSource Regular::getS() {
@@ -74,7 +72,8 @@ uint8_t Regular::shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colou
 	PatchCableSet* patchCableSet = soundEditor.currentParamManager->getPatchCableSet();
 
 	// Or, if it's the source controlling the range of the source we're editing for...
-	if (patchCableSet->getPatchCableIndex(s, getLearningThing()) != 255) {
+	if (patchCableSet->getPatchCableIndex(s, cableDescriptor(deluge::modulation::knobWord(getLearningThing())))
+	    != 255) {
 		*colour = 0b110;
 		return 3;
 	}

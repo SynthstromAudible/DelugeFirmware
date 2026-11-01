@@ -23,10 +23,8 @@
 namespace deluge::gui::menu_item::source_selection {
 Range rangeMenu{};
 
-ParamDescriptor Range::getDestinationDescriptor() {
-	ParamDescriptor descriptor{};
-	descriptor.setToHaveParamAndSource(soundEditor.patchingParamSelected, regularMenu.s);
-	return descriptor;
+synth::CableTarget Range::getDestinationDescriptor() {
+	return synth::CableTarget::depth_of(soundEditor.patchingParamSelected, regularMenu.s);
 }
 
 MenuItem* Range::selectButtonPress() {

@@ -39,7 +39,8 @@ public:
 	virtual int32_t getDefaultEditPos() { return 2; }
 	MenuPermission checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
 	                                             MultiRange** currentRange) override;
-	virtual ParamDescriptor getDestinationDescriptor() = 0;
+	/// @brief Where the cable this menu edits goes.
+	virtual deluge::synth::CableTarget getDestinationDescriptor() = 0;
 	virtual PatchSource getS() = 0;
 	uint8_t getIndexOfPatchedParamToBlink() final;
 	MenuItem* selectButtonPress() final;

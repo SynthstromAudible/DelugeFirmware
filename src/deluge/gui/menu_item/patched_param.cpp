@@ -48,10 +48,8 @@ uint8_t PatchedParam::shouldDrawDotOnName() {
 	           : 255;
 }
 
-ParamDescriptor PatchedParam::getLearningThing() {
-	ParamDescriptor paramDescriptor;
-	paramDescriptor.setToHaveParamOnly(this->getP());
-	return paramDescriptor;
+deluge::modulation::KnobTarget PatchedParam::getLearningThing() {
+	return deluge::modulation::knobParam(this->getP());
 }
 
 ParamSet* PatchedParam::getParamSet() {

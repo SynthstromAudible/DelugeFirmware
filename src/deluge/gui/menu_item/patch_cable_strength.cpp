@@ -17,6 +17,7 @@
 
 #include "patch_cable_strength.h"
 #include "definitions_cxx.hpp"
+#include "gui/menu_item/cable_descriptor.h"
 #include "gui/menu_item/menu_item.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/sound_editor.h"
@@ -58,7 +59,8 @@ void PatchCableStrength::beginSession(MenuItem* navigatedBackwardFrom) {
 	}
 
 	auto* patch_cable_set = soundEditor.currentParamManager->getPatchCableSet();
-	const uint32_t patch_cable_index = patch_cable_set->getPatchCableIndex(getS(), getDestinationDescriptor());
+	const uint32_t patch_cable_index =
+	    patch_cable_set->getPatchCableIndex(getS(), cableDescriptor(getDestinationDescriptor()));
 
 	if (patch_cable_index == kNoSelection) {
 		patch_cable_exists_ = false;
@@ -84,9 +86,9 @@ void PatchCableStrength::renderOLED() {
 
 	// Draw patch sources and destination
 	{
-		const ParamDescriptor destinationDescriptor = getDestinationDescriptor();
+		const synth::CableTarget destinationDescriptor = getDestinationDescriptor();
 		const PatchSource source = getS();
-		const bool isJustAParam = destinationDescriptor.isJustAParam();
+		const bool isJustAParam = destinationDescriptor.is_param();
 
 		constexpr int32_t leftPadding = 2;
 		const int32_t ySpacing = isJustAParam ? kTextSpacingY : 8;
@@ -106,8 +108,8 @@ void PatchCableStrength::renderOLED() {
 			y += ySpacing - 1;
 
 			// Draw the second source name
-			image.drawString(sourceToStringShort(destinationDescriptor.getTopLevelSource()),
-			                 leftPadding + kTextSpacingX * 2, y - 3, kTextSpacingX, kTextSizeYUpdated);
+			image.drawString(sourceToStringShort(destinationDescriptor.top_source()), leftPadding + kTextSpacingX * 2,
+			                 y - 3, kTextSpacingX, kTextSizeYUpdated);
 			y += ySpacing;
 
 			// Draw arrow line to the destination
@@ -123,7 +125,7 @@ void PatchCableStrength::renderOLED() {
 		}
 
 		// Draw the destination name
-		image.drawString(modulation::params::getPatchedParamShortName(destinationDescriptor.getJustTheParam(),
+		image.drawString(modulation::params::getPatchedParamShortName(destinationDescriptor.param_index(),
 		                                                              soundEditor.currentModControllable),
 		                 leftPadding, y, kTextSpacingX, kTextSizeYUpdated);
 	}
@@ -197,7 +199,7 @@ void PatchCableStrength::renderOLED() {
 
 void PatchCableStrength::readCurrentValue() {
 	PatchCableSet* patchCableSet = soundEditor.currentParamManager->getPatchCableSet();
-	uint32_t c = patchCableSet->getPatchCableIndex(getS(), getDestinationDescriptor());
+	uint32_t c = patchCableSet->getPatchCableIndex(getS(), cableDescriptor(getDestinationDescriptor()));
 	if (c == 255) {
 		this->setValue(0);
 		patch_cable_exists_ = false;
@@ -220,7 +222,8 @@ ModelStackWithAutoParam* PatchCableStrength::getModelStack(void* memory, bool al
 
 	ModelStackWithParamCollection* modelStackWithParamCollection =
 	    modelStack->addParamCollectionSummary(paramSetSummary);
-	ModelStackWithParamId* ModelStackWithParamId = modelStackWithParamCollection->addParamId(getLearningThing().data);
+	ModelStackWithParamId* ModelStackWithParamId =
+	    modelStackWithParamCollection->addParamId(deluge::modulation::knobWord(getLearningThing()).word);
 	ModelStackWithAutoParam* modelStackMaybeWithAutoParam =
 	    paramSetSummary->paramCollection->getAutoParamFromId(ModelStackWithParamId, allowCreation);
 
@@ -255,23 +258,22 @@ void PatchCableStrength::writeCurrentValue() {
 MenuPermission PatchCableStrength::checkPermissionToBeginSession(ModControllableAudio* modControllable,
                                                                  int32_t whichThing, MultiRange** currentRange) {
 
-	ParamDescriptor destinationDescriptor = getDestinationDescriptor();
+	synth::CableTarget destinationDescriptor = getDestinationDescriptor();
 	PatchSource s = getS();
 
 	// If patching to another cable's range...
-	if (!destinationDescriptor.isJustAParam()) {
+	if (!destinationDescriptor.is_param()) {
 		// Global source - can control any range
 		if (s < kFirstLocalSource) {
 			return MenuPermission::YES;
 		}
 
 		// Local source - range must be for cable going to local param
-		return (destinationDescriptor.getJustTheParam() < deluge::modulation::params::FIRST_GLOBAL)
-		           ? MenuPermission::YES
-		           : MenuPermission::NO;
+		return (destinationDescriptor.param_index() < deluge::modulation::params::FIRST_GLOBAL) ? MenuPermission::YES
+		                                                                                        : MenuPermission::NO;
 	}
 
-	int32_t p = destinationDescriptor.getJustTheParam();
+	int32_t p = destinationDescriptor.param_index();
 
 	Sound* sound = static_cast<Sound*>(modControllable);
 
@@ -297,7 +299,7 @@ deluge::modulation::params::Kind PatchCableStrength::getParamKind() {
 }
 
 uint32_t PatchCableStrength::getParamIndex() {
-	return getLearningThing().data;
+	return deluge::modulation::knobWord(getLearningThing()).word;
 }
 
 PatchSource PatchCableStrength::getPatchSource() {
@@ -382,7 +384,7 @@ void PatchCableStrength::setPatchCablePolarity(Polarity newPolarity) {
 	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
 	auto* patchCableSet = modelStack->paramManager->getPatchCableSet();
-	if (const int32_t index = patchCableSet->getPatchCableIndex(getS(), getDestinationDescriptor());
+	if (const int32_t index = patchCableSet->getPatchCableIndex(getS(), cableDescriptor(getDestinationDescriptor()));
 	    index != kNoSelection) {
 		ModMatrixHost matrix{*static_cast<Sound*>(modelStack->modControllable), *modelStack->paramManager};
 		if (std::optional<CableEdit> edit =

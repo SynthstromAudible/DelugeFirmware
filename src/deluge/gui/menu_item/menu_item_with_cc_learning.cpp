@@ -24,7 +24,7 @@
 
 void MenuItemWithCCLearning::unlearnAction() {
 
-	const deluge::modulation::KnobTarget target = deluge::modulation::knobTargetOf({getLearningThing().data});
+	const deluge::modulation::KnobTarget target = getLearningThing();
 
 	// If it was a reasonable-ish request...
 	if (target) {
@@ -43,7 +43,7 @@ void MenuItemWithCCLearning::unlearnAction() {
 }
 
 void MenuItemWithCCLearning::learnKnob(MIDICable* cable, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) {
-	const deluge::modulation::KnobTarget target = deluge::modulation::knobTargetOf({getLearningThing().data});
+	const deluge::modulation::KnobTarget target = getLearningThing();
 
 	if (!soundEditor.currentModControllable) {
 		return;

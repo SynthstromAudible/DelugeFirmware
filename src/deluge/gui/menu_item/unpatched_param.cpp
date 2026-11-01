@@ -104,10 +104,8 @@ int32_t UnpatchedParam::getFinalValue() {
 	return plugin::from_menu(mapping(), this->getValue());
 }
 
-ParamDescriptor UnpatchedParam::getLearningThing() {
-	ParamDescriptor paramDescriptor;
-	paramDescriptor.setToHaveParamOnly(getP() + deluge::modulation::params::UNPATCHED_START);
-	return paramDescriptor;
+deluge::modulation::KnobTarget UnpatchedParam::getLearningThing() {
+	return deluge::modulation::knobParam(getP() + deluge::modulation::params::UNPATCHED_START);
 }
 
 ParamSet* UnpatchedParam::getParamSet() {

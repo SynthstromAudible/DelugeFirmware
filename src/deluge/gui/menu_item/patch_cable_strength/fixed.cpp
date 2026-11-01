@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #include "fixed.h"
+#include "gui/menu_item/cable_descriptor.h"
 #include "gui/menu_item/patch_cable_strength/range.h"
 #include "gui/menu_item/source_selection/range.h"
 #include "gui/menu_item/source_selection/regular.h"
@@ -36,7 +37,7 @@ uint8_t Fixed::shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour)
 	PatchCableSet& patchCableSet = *soundEditor.currentParamManager->getPatchCableSet();
 
 	// If it's the source controlling the range of the source we're editing for...
-	if (patchCableSet.getPatchCableIndex(s, getLearningThing()) != 255) {
+	if (patchCableSet.getPatchCableIndex(s, cableDescriptor(deluge::modulation::knobWord(getLearningThing()))) != 255) {
 		return 3;
 	}
 	return 255;

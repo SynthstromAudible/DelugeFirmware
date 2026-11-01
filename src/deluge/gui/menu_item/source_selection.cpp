@@ -18,6 +18,7 @@
 #include "source_selection.h"
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
+#include "gui/menu_item/cable_descriptor.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
 #include "modulation/params/param_manager.h"
@@ -51,7 +52,7 @@ static_assert(kNumPatchSources == (sizeof(sourceMenuContents) / sizeof(PatchSour
 
 uint8_t SourceSelection::shouldDrawDotOnValue() {
 	return soundEditor.currentParamManager->getPatchCableSet()->isSourcePatchedToDestinationDescriptorVolumeInspecific(
-	           s, getDestinationDescriptor())
+	           s, cableDescriptor(getDestinationDescriptor()))
 	           ? 3
 	           : 255;
 }
@@ -123,7 +124,8 @@ void SourceSelection::beginSession(MenuItem* navigatedBackwardFrom) {
 
 			// Patched already?
 			if (soundEditor.currentParamManager->getPatchCableSet()
-			        ->isSourcePatchedToDestinationDescriptorVolumeInspecific(s, getDestinationDescriptor())) {
+			        ->isSourcePatchedToDestinationDescriptorVolumeInspecific(
+			            s, cableDescriptor(getDestinationDescriptor()))) {
 				break;
 			}
 
@@ -176,10 +178,10 @@ void SourceSelection::selectEncoderAction(int32_t offset) {
 }
 
 bool SourceSelection::sourceIsAllowed(PatchSource source) {
-	ParamDescriptor destinationDescriptor = getDestinationDescriptor();
+	synth::CableTarget destinationDescriptor = getDestinationDescriptor();
 
 	// If patching to another cable's range...
-	if (!destinationDescriptor.isJustAParam()) {
+	if (!destinationDescriptor.is_param()) {
 		// Global source - can control any range
 		if (source < kFirstLocalSource) {
 			return true;
@@ -187,11 +189,11 @@ bool SourceSelection::sourceIsAllowed(PatchSource source) {
 
 		// Local source - range must be for cable going to local param
 		else {
-			return destinationDescriptor.getJustTheParam() < deluge::modulation::params::FIRST_GLOBAL;
+			return destinationDescriptor.param_index() < deluge::modulation::params::FIRST_GLOBAL;
 		}
 	}
 
-	int32_t p = destinationDescriptor.getJustTheParam();
+	int32_t p = destinationDescriptor.param_index();
 
 	// Check that this source is allowed to be patched to the selected param
 	if (p == deluge::modulation::params::GLOBAL_VOLUME_POST_FX) {
@@ -221,7 +223,7 @@ uint8_t SourceSelection::getIndexOfPatchedParamToBlink() {
 
 uint8_t SourceSelection::shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) {
 	return soundEditor.currentParamManager->getPatchCableSet()->isSourcePatchedToDestinationDescriptorVolumeInspecific(
-	           s, getDestinationDescriptor())
+	           s, cableDescriptor(getDestinationDescriptor()))
 	           ? 3
 	           : 255;
 }
