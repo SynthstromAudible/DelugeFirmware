@@ -22,6 +22,7 @@
 #include "util/synth_noise.h"
 
 #include "effects/reverb.h"
+#include "model/fx/master_channel.h"
 #include "model/fx/song_stutter.h"
 #include "model/fx/track_channel.h"
 #include "model/global_effectable/global_effectable_for_song.h"
@@ -160,16 +161,16 @@ effects::TrackChainInputs trackChainInputs(TrackChannel& channel, const ModContr
 }
 
 effects::MasterChainInputs masterChainInputs(Song& song, int32_t volumePostFX) {
-	GlobalEffectableForSong& master = song.live.global_effectable;
+	MasterChannel& master = song.live.master_channel;
 	ParamManager& paramManager = song.paramManager;
-	const effects::Delay::State delay = delayWorkingState(paramManager, master.core().delay(),
-	                                                      master.modControllableSnapshot().effects.delay, false, true);
+	const snapshot::ModControllableSnapshot& snapshot = master.binding().snapshot();
+	const effects::Delay::State delay =
+	    delayWorkingState(paramManager, master.core().delay(), snapshot.effects.delay, false, true);
 	const int32_t reverbSendAmount = effects::final_value(
 	    effects::Reverb::kSend, paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_REVERB_SEND_AMOUNT));
 	return {
-	    .fx = hostFxInputs(master.modControllableSnapshot(),
-	                       activeModFXType(master.modControllableSnapshot(), paramManager), paramManager, delay,
-	                       reverbSendAmount >> 3),
+	    .fx =
+	        hostFxInputs(snapshot, activeModFXType(snapshot, paramManager), paramManager, delay, reverbSendAmount >> 3),
 	    .volume_post_fx = volumePostFX,
 	    .post_reverb_volume = deluge::synth::matrix::kParamNeutral[params::GLOBAL_VOLUME_POST_REVERB_SEND],
 	    .reverb_send = reverbSendAmount >> 1,

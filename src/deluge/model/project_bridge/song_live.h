@@ -19,10 +19,13 @@ struct SongLive {
 	/// Clip whose loop length scales external input ticks (the sync master).
 	Clip* sync_scaling_clip{nullptr};
 	/// The stutter playing on one of the song's owners, if any, and its tape. Declared before the owners here, so it
-	/// outlives the master chain, whose destruction asks whether it is the one stuttering.
+	/// outlives the master channel, whose destruction asks whether it is the one stuttering.
 	deluge::model::SongStutter stutter;
-	/// The song-global effect chain (master filters, FX, stutter, compressor).
-	GlobalEffectableForSong global_effectable;
+	/// The song's master channel: its chain around the reverb (master filters, FX, stutter, compressor), its settings
+	/// and view.
+	deluge::model::MasterChannel master_channel;
+	/// The song's knobs and menus over the master channel.
+	GlobalEffectableForSong global_effectable{master_channel};
 	/// Snapshot of the global unpatched param values, captured while a param is held in automation mode so the live
 	/// (overridden) value can be restored afterwards.
 	std::array<int32_t, deluge::modulation::params::kMaxNumUnpatchedParams> unautomated_param_values{};

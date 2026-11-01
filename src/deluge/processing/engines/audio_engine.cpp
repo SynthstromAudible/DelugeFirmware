@@ -1047,8 +1047,8 @@ void renderMaster(std::span<StereoSample> renderingBuffer, const deluge::effects
 		post = inputs.has_value();
 		return inputs;
 	};
-	currentSong->live.global_effectable.chain().render(renderingBuffer, master,
-	                                                   {reverbMemory.data(), renderingBuffer.size()}, tracked);
+	currentSong->live.master_channel.chain().render(renderingBuffer, master,
+	                                                {reverbMemory.data(), renderingBuffer.size()}, tracked);
 	if (post) {
 		masterVolumeAdjustmentL = kOneQ31;
 		masterVolumeAdjustmentR = kOneQ31;

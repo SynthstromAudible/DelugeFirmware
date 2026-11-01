@@ -18,31 +18,29 @@
 #pragma once
 
 #include "effects/master_chain.h"
+#include "model/fx/master_channel.h"
 #include "model/global_effectable/global_effectable.h"
 
 class GlobalEffectableForSong final : public GlobalEffectable {
 public:
-	GlobalEffectableForSong();
-	~GlobalEffectableForSong() override;
+	/// @brief The song's knobs and menus over @p channel, the song's master channel, which outlives this.
+	/// @param channel The master channel.
+	explicit GlobalEffectableForSong(deluge::model::MasterChannel& channel);
 
-	[[nodiscard]] deluge::effects::MasterChain& chain() { return chain_; }
-	[[nodiscard]] deluge::effects::ChainCore& core() override { return chain_.core(); }
-	[[nodiscard]] const deluge::effects::ChainCore& core() const override { return chain_.core(); }
-	[[nodiscard]] deluge::effects::Filter& filter() override { return chain_.filter(); }
-	[[nodiscard]] deluge::model::ChainView& chainView() override { return view_; }
-	[[nodiscard]] const deluge::model::ChainView& chainView() const override { return view_; }
+	[[nodiscard]] deluge::effects::MasterChain& chain() { return channel_.chain(); }
+	[[nodiscard]] deluge::effects::ChainCore& core() override { return channel_.core(); }
+	[[nodiscard]] const deluge::effects::ChainCore& core() const override { return channel_.core(); }
+	[[nodiscard]] deluge::effects::Filter& filter() override { return channel_.filter(); }
+	[[nodiscard]] deluge::model::ChainView& chainView() override { return channel_.view(); }
+	[[nodiscard]] const deluge::model::ChainView& chainView() const override { return channel_.view(); }
 
 	uint8_t* getModKnobMode() override { return &modKnobMode; }
 
 	uint8_t modKnobMode;
 
 private:
-	/// @brief The chain's effect settings and the render's copy of them.
-	deluge::model::EffectsBinding effectsBinding_;
-	/// @brief Which values the master's knobs edit.
-	deluge::model::ChainView view_;
-	/// @brief The song's master: its effects around the reverb.
-	deluge::effects::MasterChain chain_;
+	/// @brief The song's master channel: its chain around the reverb, its settings and view.
+	deluge::model::MasterChannel& channel_;
 
 protected:
 	bool isSong() override { return true; }
