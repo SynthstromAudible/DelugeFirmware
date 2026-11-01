@@ -207,9 +207,15 @@ Error ParamManager::cloneParamCollectionsFrom(ParamManager const* other, bool co
 				delugeDealloc(newSummary->paramCollection);
 			}
 
-			// Mark that there's nothing here
-			summaries[0] = mpeParamsOrNullHere;
-			summaries[1] = {0};
+			if (this == other) {
+				// beenCloned() runs on a shallow copy of a NoteRow, so none of these pointers - expression included -
+				// belong to us yet. Keeping any of them would free the original's collections when we're destructed.
+				for (auto& summary : summaries) {
+					summary = {0};
+				}
+				expressionParamSetOffset = 0;
+			}
+			// Otherwise leave our existing collections untouched, rather than forgetting (and leaking) them
 			return Error::INSUFFICIENT_RAM;
 		}
 
@@ -246,6 +252,12 @@ Error ParamManager::cloneParamCollectionsFrom(ParamManager const* other, bool co
 		}
 	}
 
+	// Any main collections we already owned are about to be overwritten - free them (keeping our expression params,
+	// which were captured above). When cloning from self, the pointers aren't ours to free.
+	if (this != other) {
+		destructAndForgetMainParamCollections();
+	}
+
 	// And finally, copy the pointers and flags from newSummaries to our permanent summaries array.
 	newSummary = newSummaries;
 	ParamCollectionSummary* destSummaries = summaries;
@@ -256,6 +268,10 @@ Error ParamManager::cloneParamCollectionsFrom(ParamManager const* other, bool co
 		}
 		destSummaries++;
 		newSummary++;
+	}
+	// Clear anything left past the terminator from a previous, longer layout
+	for (destSummaries++; destSummaries != &summaries[PARAM_COLLECTIONS_STORAGE_NUM]; destSummaries++) {
+		*destSummaries = {0};
 	}
 
 	expressionParamSetOffset = other->expressionParamSetOffset;
@@ -295,8 +311,10 @@ void ParamManager::destructAndForgetParamCollections() {
 
 void ParamManager::destructAndForgetMainParamCollections() {
 	for (int32_t i = 0; i < expressionParamSetOffset; i++) {
-		summaries[i].paramCollection->~ParamCollection();
-		delugeDealloc(summaries[i].paramCollection);
+		if (summaries[i].paramCollection) {
+			summaries[i].paramCollection->~ParamCollection();
+			delugeDealloc(summaries[i].paramCollection);
+		}
 	}
 	forgetParamCollections(); // Shuffles any expression params down to the start
 }
