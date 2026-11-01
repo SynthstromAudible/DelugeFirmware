@@ -35,6 +35,8 @@ public:
 	uint8_t modKnobMode;
 
 private:
+	/// @brief The chain's effect settings and the render's copy of them.
+	deluge::model::EffectsBinding effectsBinding_;
 	/// @brief The song's master: its effects around the reverb.
 	deluge::effects::MasterChain chain_;
 

@@ -113,8 +113,8 @@ void GlobalEffectable::writeView(ModFXParam param, FilterType type) {
 	}
 }
 
-void GlobalEffectable::projectView(deluge::snapshot::ModControllableSnapshot& copy) {
-	copy.mod_fx_param = modFXParam();
+std::optional<ModFXParam> GlobalEffectable::projectedModFXParam() const {
+	return modFXParam();
 }
 
 void GlobalEffectable::initParams(ParamManager* paramManager) {
@@ -228,11 +228,11 @@ void GlobalEffectable::displayModFXSettings(bool on) {
 }
 
 char const* GlobalEffectable::getModFXTypeDisplayName() {
-	return modfx::modFXToString(modControllableSnapshot_.effects.mod_fx.type);
+	return modfx::modFXToString(modControllableSnapshot().effects.mod_fx.type);
 }
 
 char const* GlobalEffectable::getModFXParamDisplayName() {
-	return modfx::getParamName(modControllableSnapshot_.effects.mod_fx.type, modFXParam());
+	return modfx::getParamName(modControllableSnapshot().effects.mod_fx.type, modFXParam());
 }
 
 // Returns whether Instrument changed
@@ -261,7 +261,7 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 		if (whichModEncoder == 1) {
 			if (on) {
 				const auto next = static_cast<ModFXType>(
-				    (util::to_underlying(modControllableSnapshot_.effects.mod_fx.type) + 1) % kNumModFXTypes);
+				    (util::to_underlying(modControllableSnapshot().effects.mod_fx.type) + 1) % kNumModFXTypes);
 				deluge::edits::changeEffect(
 				    *this, "modFXType",
 				    deluge::serialization::Value::makeScalar(std::string(deluge::effects::to_string(next))));
@@ -732,11 +732,11 @@ ModelStackWithAutoParam* GlobalEffectable::getParamFromModEncoder(int32_t whichM
 }
 
 ModFXType GlobalEffectable::getModFXType() {
-	return modControllableSnapshot_.effects.mod_fx.type;
+	return modControllableSnapshot().effects.mod_fx.type;
 }
 
 void GlobalEffectable::ensureModFXParamIsValid() {
-	const ModFXType type = modControllableSnapshot_.effects.mod_fx.type;
+	const ModFXType type = modControllableSnapshot().effects.mod_fx.type;
 	const auto valid = [type](ModFXParam param) {
 		switch (param) {
 		case ModFXParam::DEPTH:
@@ -881,15 +881,15 @@ void GlobalEffectable::readEffectsFromElement(const deluge::serialization::Value
 }
 
 ModFXType GlobalEffectable::getActiveModFXType(ParamManager* paramManager) {
-	ModFXType modFXTypeNow = modControllableSnapshot_.effects.mod_fx.type;
+	ModFXType modFXTypeNow = modControllableSnapshot().effects.mod_fx.type;
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
-	if ((modControllableSnapshot_.mod_fx_param == ModFXParam::DEPTH
+	if ((modControllableSnapshot().mod_fx_param == ModFXParam::DEPTH
 	     && unpatchedParams->getValue(params::UNPATCHED_MOD_FX_DEPTH) == -2147483648)
-	    || (modControllableSnapshot_.mod_fx_param == ModFXParam::FEEDBACK
+	    || (modControllableSnapshot().mod_fx_param == ModFXParam::FEEDBACK
 	        && unpatchedParams->getValue(params::UNPATCHED_MOD_FX_FEEDBACK) == -2147483648)
-	    || (modControllableSnapshot_.mod_fx_param == ModFXParam::OFFSET
+	    || (modControllableSnapshot().mod_fx_param == ModFXParam::OFFSET
 	        && unpatchedParams->getValue(params::UNPATCHED_MOD_FX_OFFSET) == -2147483648)) {
 		modFXTypeNow = ModFXType::NONE;
 	}
@@ -912,7 +912,7 @@ deluge::effects::Delay::State GlobalEffectable::createDelayWorkingState(ParamMan
 	delayWorkingState.userDelayRate = deluge::effects::final_value(
 	    deluge::effects::Delay::kRate, unpatchedParams->getValue(params::UNPATCHED_DELAY_RATE));
 	uint32_t timePerTickInverse = playbackHandler.getTimePerInternalTickInverse(true);
-	core().delay().setupWorkingState(delayWorkingState, modControllableSnapshot_.effects.delay, timePerTickInverse,
+	core().delay().setupWorkingState(delayWorkingState, modControllableSnapshot().effects.delay, timePerTickInverse,
 	                                 soundComingIn);
 
 	return delayWorkingState;

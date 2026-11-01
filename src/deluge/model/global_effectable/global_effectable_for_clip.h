@@ -53,6 +53,8 @@ public:
 	                            GlobalEffectableForClip** globalEffectableWithMostReverb,
 	                            int32_t* highestReverbAmountFound);
 
+	/// @brief The chain's effect settings and the render's copy of them.
+	deluge::model::EffectsBinding effectsBinding_;
 	/// @brief The bus's effects: its saturation after its drums or audio clip render, then its filters and the rest.
 	deluge::effects::ClipChain chain_;
 

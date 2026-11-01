@@ -69,24 +69,7 @@
 
 namespace params = deluge::modulation::params;
 
-ModControllableAudio::ModControllableAudio() {
-	SyncLevel syncLevel;
-	Song* song = preLoadedSong;
-	if (!song) {
-		song = currentSong;
-	}
-	if (song) {
-		syncLevel = (SyncLevel)(8
-		                        - (song->project.transport.inside_world_tick_magnitude
-		                           + song->project.transport.inside_world_tick_magnitude_offset_from_bpm));
-	}
-	else {
-		syncLevel = (SyncLevel)(8 - FlashStorage::defaultMagnitude);
-	}
-	ownEffects_.delay.sync_level = syncLevel;
-	ownEffects_.sidechain = deluge::modulation::default_sidechain_state();
-	modControllableSnapshot_.effects = ownEffects_; // nothing renders this owner yet
-}
+ModControllableAudio::ModControllableAudio() = default;
 
 ModControllableAudio::~ModControllableAudio() {
 	// An owner deleted while it stutters ends the stutter, so no later owner at its address plays the tape.
@@ -150,49 +133,21 @@ void ModControllableAudio::writeAttributesToFile(Serializer& writer, const delug
 }
 
 void ModControllableAudio::setEffects(const deluge::effects::EffectStates& next) {
-	if (boundEffects_ != nullptr) {
-		*boundEffects_ = next;
-	}
-	else {
-		ownEffects_ = next;
-	}
+	binding_->store(next);
 	projectModControllableSnapshot();
 }
 
 void ModControllableAudio::bindEffects(deluge::effects::EffectStates* record) {
-	if (record != nullptr) {
-		*record = effects();
-	}
-	else if (boundEffects_ != nullptr) {
-		ownEffects_ = *boundEffects_;
-	}
-	boundEffects_ = record;
+	binding_->bind(record);
 	projectModControllableSnapshot();
 }
 
 void ModControllableAudio::projectModControllableSnapshot() {
-	const ModFXType type = effects().mod_fx.type;
-	deluge::effects::RingChange ring = core().mod_fx().prepare(type);
-	deluge::effects::GranularBlockChange grain = core().granular().prepare(type);
 	const deluge::effects::DelayType delayType = effects().delay.type;
 	const std::size_t delayReserve = (delayType != deluge::effects::DelayType::OFF && currentSong != nullptr)
 	                                     ? deluge::model::delayReserveFrames(*currentSong, *this)
 	                                     : 0;
-	deluge::effects::DelayChange delayChange = core().delay().prepare(delayType);
-	{
-		AudioExcludedSection section; // the render reads the copy, the ring, the grain's blocks and the delay's arena
-		modControllableSnapshot_.effects = effects();
-		projectView(modControllableSnapshot_);
-		core().mod_fx().commit(modControllableSnapshot_.effects.mod_fx.type, ring);
-		deluge::noteStructuralEdit(deluge::StructuralContainer::MOD_FX_RING);
-		core().granular().commit(modControllableSnapshot_.effects.mod_fx.type, grain);
-		deluge::noteStructuralEdit(deluge::StructuralContainer::GRAIN_BLOCK);
-		core().delay().commit(delayType, delayChange, delayReserve);
-		deluge::noteStructuralEdit(deluge::StructuralContainer::DELAY_TAPE);
-	}
-	core().delay().finish(delayChange);
-	core().granular().finish(grain);
-	core().mod_fx().finish(ring);
+	binding_->project(core(), delayReserve, projectedModFXParam());
 }
 
 namespace {
@@ -1108,10 +1063,10 @@ void ModControllableAudio::wontBeRenderedForAWhile() {
 }
 
 void ModControllableAudio::clearModFXMemory() {
-	if (modControllableSnapshot_.effects.mod_fx.type == ModFXType::GRAIN) {
+	if (modControllableSnapshot().effects.mod_fx.type == ModFXType::GRAIN) {
 		core().granular().clear();
 	}
-	else if (modControllableSnapshot_.effects.mod_fx.type != ModFXType::NONE) {
+	else if (modControllableSnapshot().effects.mod_fx.type != ModFXType::NONE) {
 		core().mod_fx().clearMemory();
 	}
 }

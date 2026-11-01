@@ -21,6 +21,7 @@
 
 GlobalEffectableForSong::GlobalEffectableForSong()
     : chain_{deluge::model::kModFxRingAllocator, deluge::model::kGranularAllocator, deluge::model::delayArena()} {
+	bindBinding(effectsBinding_);
 	// A new owner's filter mode and mod FX type are set once its chain exists.
 	setLpfMode(FilterMode::TRANSISTOR_24DB);
 	filter().reset();

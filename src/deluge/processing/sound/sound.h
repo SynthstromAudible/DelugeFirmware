@@ -494,6 +494,8 @@ private:
 	                                                      ModelStackWithThreeMainThings* modelStack,
 	                                                      bool allowCreation);
 
+	/// @brief The sound's effect settings and the render's copy of them.
+	deluge::model::EffectsBinding effectsBinding_;
 	/// @brief The sound's effects after its voices; outlives voices_, whose teardown reads its delay.
 	deluge::effects::SoundChain chain_;
 

@@ -114,7 +114,7 @@ public:
 	[[nodiscard]] FilterType filterType() const;
 
 	ModFXType getModFXType() override;
-	void projectView(deluge::snapshot::ModControllableSnapshot& copy) override;
+	[[nodiscard]] std::optional<ModFXParam> projectedModFXParam() const override;
 	/// @brief The mod FX type in effect.
 	/// @param paramManager The owner's param manager.
 	/// @return The mod FX type: NONE while the selected mod FX knob is at its minimum (the soft off).
