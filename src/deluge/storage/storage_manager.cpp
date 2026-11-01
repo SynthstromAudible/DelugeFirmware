@@ -353,23 +353,26 @@ Error StorageManager::loadInstrumentFromFile(Song* song, InstrumentClip* clip, O
 	// If that somehow didn't work...
 	if (error != Error::NONE || fileSuccess != FR_OK) {
 		D_PRINTLN("reading instrument file failed -  %s", name->get());
-		if (!fileSuccess) {
+		if (fileSuccess != FR_OK) {
 			error = Error::SD_CARD;
 		}
 
 deleteInstrumentAndGetOut:
 		D_PRINTLN("abandoning load -  %s", name->get());
 		newInstrument->deleteBackedUpParamManagers(song);
-		void* toDealloc = static_cast<void*>(newInstrument);
+		// Instrument isn't the first base of SoundInstrument, so the allocation starts before newInstrument
+		void* toDealloc = dynamic_cast<void*>(newInstrument);
 		newInstrument->~Instrument();
 		delugeDealloc(toDealloc);
 
 		return error;
 	}
 
-	// Check that a ParamManager was actually loaded for the Instrument, cos if not, that'd spell havoc
-	if (!song->getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)newInstrument->toModControllable(),
-	                                                     nullptr)) {
+	// Check that a ParamManager was actually loaded for the Instrument, cos if not, that'd spell havoc. MIDI
+	// instruments create their ParamManager later and are not ModControllableAudio objects.
+	if (outputType != OutputType::MIDI_OUT
+	    && !song->getBackedUpParamManagerPreferablyWithClip(
+	        static_cast<ModControllableAudio*>(newInstrument->toModControllable()), nullptr)) {
 
 		// Prior to V2.0 (or was it only in V1.0 on the 40-pad?) Kits didn't have anything that would have caused the
 		// paramManager to be created when we read the Kit just now. So, just make one.
@@ -383,9 +386,6 @@ deleteInstrumentAndGetOut:
 			GlobalEffectableForClip::initParams(&paramManager);
 			((Kit*)newInstrument)->compensateInstrumentVolumeForResonance(&paramManager, song); // Necessary?
 			song->backUpParamManager(((Kit*)newInstrument), clip, &paramManager, true);
-		}
-		else if (outputType == OutputType::MIDI_OUT) {
-			// midi instruments make the param manager later
 		}
 		else {
 paramManagersMissing:
@@ -456,7 +456,7 @@ Error StorageManager::loadMidiDeviceDefinitionFile(MIDIInstrument* midiInstrumen
 	// If that somehow didn't work...
 	if (error != Error::NONE || fileSuccess != FR_OK) {
 		D_PRINTLN("reading midi device definition file failed -  %s", fileName->get());
-		if (!fileSuccess) {
+		if (fileSuccess != FR_OK) {
 			error = Error::SD_CARD;
 		}
 
@@ -515,7 +515,7 @@ Error StorageManager::loadPatternFile(FilePointer* filePointer, String* fileName
 
 	// If that somehow didn't work...
 	if (error != Error::NONE || fileSuccess != FR_OK) {
-		if (!fileSuccess) {
+		if (fileSuccess != FR_OK) {
 			error = Error::SD_CARD;
 		}
 
@@ -543,7 +543,7 @@ Error StorageManager::loadFavouriteFile(FilePointer* filePointer, String* fileNa
 
 	// If that somehow didn't work...
 	if (error != Error::NONE || fileSuccess != FR_OK) {
-		if (!fileSuccess) {
+		if (fileSuccess != FR_OK) {
 			error = Error::SD_CARD;
 		}
 
@@ -569,27 +569,24 @@ Error StorageManager::loadSynthToDrum(Song* song, InstrumentClip* clip, bool may
 
 	Error error = openInstrumentFile(outputType, filePointer);
 	if (error != Error::NONE) {
-		return error;
+		goto deleteDrumAndGetOut;
 	}
 
 	AudioEngine::logAction("loadInstrumentFromFile");
 
 	error = newDrum->readFromFile(smDeserializer, song, clip, 0);
 
-	bool fileSuccess = activeDeserializer->closeWriter() == FR_OK;
-
 	// If that somehow didn't work...
-	if (error != Error::NONE || !fileSuccess) {
-
-		void* toDealloc = static_cast<void*>(newDrum);
+	if (activeDeserializer->closeWriter() != FR_OK && error == Error::NONE) {
+		error = Error::SD_CARD;
+	}
+	if (error != Error::NONE) {
+		// readFromFile() may already have backed up a ParamManager keyed by this drum
+		song->deleteBackedUpParamManagersForModControllable(newDrum);
+deleteDrumAndGetOut:
 		newDrum->~SoundDrum();
-		GeneralMemoryAllocator::get().dealloc(toDealloc);
+		delugeDealloc(newDrum);
 		return error;
-
-		if (!fileSuccess) {
-			error = Error::SD_CARD;
-			return error;
-		}
 	}
 	// The caller owns whatever drum this replaces - it may still be referenced by NoteRows in several Clips, so it's up
 	// to the caller to move those over before deleting it

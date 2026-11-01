@@ -384,9 +384,19 @@ bool Song::ensureAtLeastOneSessionClip() {
 	}
 
 	void* memory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(InstrumentClip));
+	if (!memory) {
+		// Same as the Instrument allocation below - a Song must have a Clip, and there's no recovering this early
+		display->displayError(Error::INSUFFICIENT_RAM);
+		while (1) {}
+	}
 	InstrumentClip* firstClip = new (memory) InstrumentClip(this);
 
-	sessionClips.insertClipAtIndex(firstClip, 0);
+	if (sessionClips.insertClipAtIndex(firstClip, 0) != Error::NONE) {
+		firstClip->~InstrumentClip();
+		delugeDealloc(memory);
+		display->displayError(Error::INSUFFICIENT_RAM);
+		while (1) {}
+	}
 
 	firstClip->loopLength = kDefaultClipLength << insideWorldTickMagnitude;
 
@@ -2022,7 +2032,9 @@ loadOutput:
 						if (error != Error::NONE) {
 							goto gotError;
 						}
-						((Instrument*)newOutput)->mightExistOnCard = true;
+						if (newOutput->type != OutputType::AUDIO) {
+							static_cast<Instrument*>(newOutput)->mightExistOnCard = true;
+						}
 						*lastPointer = newOutput;
 						lastPointer = &newOutput->next;
 						reader.match('}');
@@ -2187,17 +2199,19 @@ loadOutput:
 			anyOutputsSoloingInArrangement = true;
 		}
 
-		if (thisOutput->clipInstances.getNumElements() == 0
-		    && getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)thisOutput, nullptr) == nullptr
-		    && thisOutput->type == OutputType::AUDIO) {
-			// This clip has no way to get a param manager, and no clips to help it out. Need to create a backup or
-			// things will go wrong later.
-			ParamManagerForTimeline paramManager{};
+		if (thisOutput->type == OutputType::AUDIO && thisOutput->clipInstances.getNumElements() == 0) {
+			// Backups are keyed by the ModControllableAudio subobject, which isn't at the start of an AudioOutput
+			auto* modControllable = static_cast<ModControllableAudio*>(thisOutput->toModControllable());
+			if (getBackedUpParamManagerPreferablyWithClip(modControllable, nullptr) == nullptr) {
+				// This clip has no way to get a param manager, and no clips to help it out. Need to create a backup or
+				// things will go wrong later.
+				ParamManagerForTimeline paramManager{};
 
-			paramManager.setupUnpatched();
-			GlobalEffectable::initParams(&paramManager);
+				paramManager.setupUnpatched();
+				GlobalEffectable::initParams(&paramManager);
 
-			this->backUpParamManager((ModControllableAudio*)thisOutput->toModControllable(), nullptr, &paramManager);
+				this->backUpParamManager(modControllable, nullptr, &paramManager);
+			}
 		}
 
 		for (int32_t i = 0; i < thisOutput->clipInstances.getNumElements(); i++) {
