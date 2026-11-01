@@ -316,12 +316,6 @@ void MidiFollow::initDefaultMappings() {
 	mapGlobal(87, gp::kTreble);
 	mapGlobal(91, gp::kReverbAmount);
 	mapGlobal(93, gp::kModFXDepth);
-
-	// The EQ's feedback goes out on the filters' CCs, not on the CCs that control the EQ.
-	globalParamToCC[params::UNPATCHED_BASS_FREQ] = 74;
-	globalParamToCC[params::UNPATCHED_TREBLE_FREQ] = 81;
-	globalParamToCC[params::UNPATCHED_BASS] = 71;
-	globalParamToCC[params::UNPATCHED_TREBLE] = 82;
 }
 
 /// checks to see if there is an active clip for the current context

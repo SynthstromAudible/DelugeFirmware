@@ -267,24 +267,36 @@ void checkMidiFollow(Checker& check) {
 		checkCell(check, "follow sound map", OwnerPlugin::INSTRUMENT, follow.ccToSoundTarget[cc], sound[cc]);
 		checkCell(check, "follow global map", OwnerPlugin::GLOBAL_EFFECTABLE, follow.ccToGlobalTarget[cc], global[cc]);
 	}
+	// Feedback for a param goes out on the CC that controls it: the CC whose recorded map entry names it.
+	auto controlling = [](Table table, params::Kind kind, int32_t index) {
+		for (const auto& cell : recorded(table)) {
+			if (cell.kind == kind && cell.index == index) {
+				return static_cast<int>(cell.cell);
+			}
+		}
+		return -1;
+	};
 	for (const auto& cell : recorded(Table::FOLLOW_SOUND_TO_CC)) {
 		// the cell is the param's flat id, which is its instrument id; the gap between the patched and unpatched
 		// params names no param
 		const ParamTarget target = deluge::project::engine_target(static_cast<uint32_t>(cell.cell));
-		if (!deluge::bridge::runtimeParamOf(OwnerPlugin::INSTRUMENT, target)) {
+		std::optional<RuntimeParam> param = deluge::bridge::runtimeParamOf(OwnerPlugin::INSTRUMENT, target);
+		if (!param) {
 			continue;
 		}
+		const int expected = controlling(Table::FOLLOW_CC_TO_SOUND, param->kind, param->index);
 		std::optional<uint8_t> cc = follow.ccOf(OwnerPlugin::INSTRUMENT, target);
-		if (ccNumber(cc) != cell.index) {
-			check.fail("follow sound CC", cell.cell, ccNumber(cc), cell.index);
+		if (ccNumber(cc) != expected) {
+			check.fail("follow sound CC", cell.cell, ccNumber(cc), expected);
 		}
 	}
 	for (const auto& cell : recorded(Table::FOLLOW_GLOBAL_TO_CC)) {
 		std::optional<ParamTarget> target =
 		    deluge::bridge::targetOf(OwnerPlugin::GLOBAL_EFFECTABLE, params::Kind::UNPATCHED_GLOBAL, cell.cell);
+		const int expected = controlling(Table::FOLLOW_CC_TO_GLOBAL, params::Kind::UNPATCHED_GLOBAL, cell.cell);
 		std::optional<uint8_t> cc = target ? follow.ccOf(OwnerPlugin::GLOBAL_EFFECTABLE, *target) : std::nullopt;
-		if (ccNumber(cc) != cell.index) {
-			check.fail("follow global CC", cell.cell, ccNumber(cc), cell.index);
+		if (ccNumber(cc) != expected) {
+			check.fail("follow global CC", cell.cell, ccNumber(cc), expected);
 		}
 	}
 	// no CC follows a cable, an expression or a CC
