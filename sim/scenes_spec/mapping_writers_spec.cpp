@@ -203,6 +203,7 @@ struct ParamlessOwner final : GlobalEffectable {
 	    : chain{deluge::model::kModFxRingAllocator, deluge::model::kGranularAllocator, deluge::model::delayArena()} {
 		bindBinding(binding);
 	}
+	~ParamlessOwner() override { endStutterIfStuttering(); }
 	[[nodiscard]] deluge::effects::ChainCore& core() override { return chain.core(); }
 	[[nodiscard]] const deluge::effects::ChainCore& core() const override { return chain.core(); }
 	[[nodiscard]] deluge::effects::Filter& filter() override { return chain.filter(); }

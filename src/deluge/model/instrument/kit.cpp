@@ -653,7 +653,7 @@ void Kit::cutAllSound() {
 }
 
 // Beware - unlike usual, modelStack, a ModelStackWithThreeMainThings*,  might have a NULL timelineCounter
-bool Kit::renderContent(ModelStackWithTimelineCounter* modelStack, std::span<StereoSample> globalEffectableBuffer,
+bool Kit::renderContent(ModelStackWithTimelineCounter* modelStack, std::span<StereoSample> buffer,
                         int32_t* bufferToTransferTo, int32_t* reverbBuffer, int32_t reverbAmountAdjust,
                         int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive,
                         int32_t pitchAdjust, int32_t amplitudeAtStart, int32_t amplitudeAtEnd) {
@@ -699,8 +699,8 @@ bool Kit::renderContent(ModelStackWithTimelineCounter* modelStack, std::span<Ste
 		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 		    modelStack->addNoteRow(noteRowIndex, thisNoteRow)->addOtherTwoThings(soundDrum, drumParamManager);
 
-		soundDrum->render(modelStackWithThreeMainThings, globalEffectableBuffer, reverbBuffer, sideChainHitPending,
-		                  reverbAmountAdjust, shouldLimitDelayFeedback, pitchAdjust,
+		soundDrum->render(modelStackWithThreeMainThings, buffer, reverbBuffer, sideChainHitPending, reverbAmountAdjust,
+		                  shouldLimitDelayFeedback, pitchAdjust,
 		                  nullptr); // According to our volume, we tell Drums to send less reverb
 		rendered = true;
 	});
@@ -734,7 +734,7 @@ yesTickParamManager:
 					ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 					    modelStack->addNoteRow(i, thisNoteRow)
 					        ->addOtherTwoThings((SoundDrum*)thisNoteRow->drum, &thisNoteRow->paramManager);
-					thisNoteRow->paramManager.tickSamples(globalEffectableBuffer.size(), modelStackWithThreeMainThings);
+					thisNoteRow->paramManager.tickSamples(buffer.size(), modelStackWithThreeMainThings);
 					continue;
 				}
 

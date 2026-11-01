@@ -19,15 +19,12 @@
 #include "definitions.h"
 #include "definitions_cxx.hpp"
 #include "dsp-next/core/stereo_sample.h"
-#include "dsp-next/fixed/curves/param_curve.h"
 #include "effects/global_effectable/params.h"
 #include "gui/l10n/l10n.h"
 #include "gui/views/view.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
 #include "model/edits/change_effect.h"
-#include "processing/engines/audio_engine.h"
-#include "synth/matrix/descriptors.h" // kParamNeutral, kParamRange
 #include "util/functions.h"
 #include "util/notify.h"
 #include <limits>
@@ -35,12 +32,8 @@
 // #include <algorithm>
 #include "hid/buttons.h"
 #include "memory/general_memory_allocator.h"
-#include "memory/stack_guard.h"
 #include "model/clip/clip.h"
-#include "model/fx/chain_inputs.h"
 #include "model/instrument/kit.h"
-#include "model/mod_controllable/delay_arena_app.h"
-#include "model/mod_controllable/mod_fx_allocator.h"
 #include "model/song/reverb_presets.h"
 #include "model/song/song.h"
 #include "modulation/params/param_set.h"
@@ -128,6 +121,3 @@ bool GlobalEffectableForClip::modEncoderButtonAction(uint8_t whichModEncoder, bo
 
 	return GlobalEffectable::modEncoderButtonAction(whichModEncoder, on, modelStack, comp);
 }
-
-// We pass activeClip into this because although each child of GlobalEffectableForClip inherits Output, one of them does
-// so via Instrument, so we can't make GlobalEffectableForClip inherit directly from Output, so no access to activeClip

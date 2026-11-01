@@ -32,10 +32,12 @@ class function_ref;
 template <class R, class... Args>
 class function_ref<R(Args...)> {
 public:
-	/// @brief Refers to @p f, which must outlive this reference.
+	/// @brief Refers to @p f, which must outlive this reference. @p f is a callable object (a lambda, a functor); a
+	/// plain function's name is not one: pass a lambda that calls it.
 	/// @param f The callable.
 	template <class F>
-	requires(!std::is_same_v<std::remove_cvref_t<F>, function_ref> && std::is_invocable_r_v<R, F&, Args...>)
+	requires(!std::is_same_v<std::remove_cvref_t<F>, function_ref> && !std::is_function_v<std::remove_reference_t<F>>
+	         && std::is_invocable_r_v<R, F&, Args...>)
 	function_ref(F&& f) noexcept // NOLINT(google-explicit-constructor): converts like std::function_ref
 	    : object_{const_cast<void*>(static_cast<const void*>(std::addressof(f)))},
 	      call_{[](void* object, Args... args) -> R {

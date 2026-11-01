@@ -21,7 +21,6 @@
 #include "model/fx/chain_inputs.h"
 #include "model/fx/channel_setup.h"
 #include "model/mod_controllable/delay_arena_app.h"
-#include "model/mod_controllable/mod_controllable.h"
 #include "model/mod_controllable/mod_fx_allocator.h"
 #include "model/model_stack.h"
 #include "model/sample/sample_recorder.h"

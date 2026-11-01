@@ -258,8 +258,8 @@ protected:
 	/// constructor, before anything reads its effects.
 	/// @param binding The owner's binding, which outlives every use through this owner.
 	void bindBinding(deluge::model::EffectsBinding& binding) { binding_ = &binding; }
-	/// @brief Gives the delay's tapes back to the arena and leaves its margin, as a change to OFF does. Each owner
-	/// calls it first in its destructor, while its chain still exists.
+	/// @brief Gives the delay's tapes back to the arena and leaves its margin, as a change to OFF does. A sound calls
+	/// it in its destructor, while its chain still exists; a host chain's channel does the same for itself.
 	void releaseChainMemory();
 	void switchDelayPingPong();
 	/// @brief One press of the delay's feedback knob: digital, analog, off, digital, by one Edit.

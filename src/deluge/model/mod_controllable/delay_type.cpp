@@ -124,6 +124,12 @@ void forEachDelayParamManager(Song& song, const std::function<void(ModControllab
 		}
 	}
 	visit(song.live.global_effectable, song.paramManager);
+	// An output with an effects chain (a synth, a kit or an audio track) as that owner; null for MIDI and CV.
+	const auto audioOwnerOf = [](Output* output) -> ModControllableAudio* {
+		const bool hasChain =
+		    output->type == OutputType::SYNTH || output->type == OutputType::KIT || output->type == OutputType::AUDIO;
+		return hasChain ? static_cast<ModControllableAudio*>(output->toModControllable()) : nullptr;
+	};
 	// A backup's owner by its address, or (not yet adopted) itself.
 	const auto engineOf = [&](deluge::project::OwnerId owner) -> ModControllableAudio* {
 		if (owner.kind == deluge::project::OwnerId::Kind::DRUM) {
@@ -131,7 +137,7 @@ void forEachDelayParamManager(Song& song, const std::function<void(ModControllab
 			return drum != nullptr && drum->type == DrumType::SOUND ? static_cast<SoundDrum*>(drum) : nullptr;
 		}
 		Output* output = deluge::bridge::outputWithId(song, owner.id); // hibernating instruments too
-		return output != nullptr ? static_cast<ModControllableAudio*>(output->toModControllable()) : nullptr;
+		return output != nullptr ? audioOwnerOf(output) : nullptr;
 	};
 	for (auto& [key, paramManager] : song.live.param_backup.map) {
 		if (ModControllableAudio* owner = engineOf(key.owner)) {
@@ -140,7 +146,9 @@ void forEachDelayParamManager(Song& song, const std::function<void(ModControllab
 	}
 	for (deluge::bridge::ParamBackup::Pending& entry : song.live.param_backup.pending) {
 		if (Output* output = entry.owner.output()) {
-			visit(*static_cast<ModControllableAudio*>(output->toModControllable()), entry.params);
+			if (ModControllableAudio* owner = audioOwnerOf(output)) {
+				visit(*owner, entry.params);
+			}
 		}
 		else if (Drum* drum = entry.owner.drum(); drum->type == DrumType::SOUND) {
 			visit(*static_cast<SoundDrum*>(drum), entry.params);

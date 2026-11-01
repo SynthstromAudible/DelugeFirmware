@@ -83,7 +83,6 @@
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
 #include "sync/sd_access.h"
-#include "synth/modulation/cable_depth.h"
 #include "synth/modulation/envelope.h"
 #include "synth/sources/input/live/live_input_buffer.h"
 #include "util/boot.h"

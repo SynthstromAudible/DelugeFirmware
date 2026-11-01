@@ -46,13 +46,6 @@ public:
 	                  int32_t reverbAmountAdjust, int32_t sideChainHitPending, bool shouldLimitDelayFeedback,
 	                  bool isClipActive) override;
 
-	/// @brief Renders the track's content (a kit's drums, an audio track's clip) into its channel's buffer.
-	/// @return Whether anything rendered.
-	bool renderContent(ModelStackWithTimelineCounter* modelStack, std::span<StereoSample> globalEffectableBuffer,
-	                   int32_t* bufferToTransferTo, int32_t* reverbBuffer, int32_t reverbAmountAdjust,
-	                   int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive,
-	                   int32_t pitchAdjust, int32_t amplitudeAtStart, int32_t amplitudeAtEnd);
-
 	void resetEnvelope();
 	bool matchesPreset(OutputType otherType, int32_t channel, int32_t channelSuffix, char const* otherName,
 	                   char const* dirPath) override {
@@ -184,6 +177,24 @@ protected:
 	Output* outputRecordingFrom{nullptr};
 
 private:
+	/// @brief Renders the audio track's active clip (its sample, or its input while monitoring) into its channel's
+	/// buffer.
+	/// @param modelStack The track's model stack; its timeline counter may be null.
+	/// @param render The channel's buffer, zeroed; the clip renders into it.
+	/// @param bufferToTransferTo Where to render instead of @p render, or null; the channel passes null.
+	/// @param reverbBuffer The song's reverb send buffer.
+	/// @param reverbAmountAdjust The reverb send scaling, scaled by the track's volume, Q31.
+	/// @param sideChainHitPending The sidechain hit pending this block, Q31; 0 for none.
+	/// @param shouldLimitDelayFeedback Whether a delay's feedback is capped below self-oscillation.
+	/// @param isClipActive Whether the track's active clip plays.
+	/// @param pitchAdjust The track's pitch adjust.
+	/// @param amplitudeAtStart The clip's amplitude scale at the block's start, Q27 (134217728 is unity).
+	/// @param amplitudeAtEnd The clip's amplitude scale at the block's end, Q27 (134217728 is unity).
+	/// @return Whether the clip rendered.
+	bool renderContent(ModelStackWithTimelineCounter* modelStack, std::span<StereoSample> render,
+	                   int32_t* bufferToTransferTo, int32_t* reverbBuffer, int32_t reverbAmountAdjust,
+	                   int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive,
+	                   int32_t pitchAdjust, int32_t amplitudeAtStart, int32_t amplitudeAtEnd);
 	/// The audio track's channel strip: the chain its clip renders into, its settings and view.
 	deluge::model::TrackChannel channel_;
 };

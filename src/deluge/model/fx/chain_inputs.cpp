@@ -121,9 +121,10 @@ effects::FxInputs hostFxInputs(const snapshot::ModControllableSnapshot& snapshot
 	};
 }
 
-effects::TrackChainInputs trackChainInputs(TrackChannel& channel, ParamManager& paramManager, int32_t volumeAdjustment,
-                                           int32_t reverbAmountAdjust, int32_t sideChainHitPending,
-                                           const effects::Delay::State& delay, OutputType outputType) {
+effects::TrackChainInputs trackChainInputs(const TrackChannel& channel, ParamManager& paramManager,
+                                           int32_t volumeAdjustment, int32_t reverbAmountAdjust,
+                                           int32_t sideChainHitPending, const effects::Delay::State& delay,
+                                           OutputType outputType) {
 	UnpatchedParamSet* unpatched = paramManager.getUnpatchedParamSet();
 
 	// Make it a bit bigger so that default filter resonance doesn't reduce volume overall. Kits add a quarter of the

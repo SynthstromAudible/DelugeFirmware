@@ -1,5 +1,6 @@
 #pragma once
 
+#include "model/fx/master_channel.h"
 #include "model/fx/song_stutter.h"
 #include "model/global_effectable/global_effectable_for_song.h"
 #include "model/project_bridge/clips.h"
@@ -19,7 +20,8 @@ struct SongLive {
 	/// Clip whose loop length scales external input ticks (the sync master).
 	Clip* sync_scaling_clip{nullptr};
 	/// The stutter playing on one of the song's owners, if any, and its tape. Declared before the owners here, so it
-	/// outlives the master channel, whose destruction asks whether it is the one stuttering.
+	/// outlives the master's knobs (global_effectable), whose destruction asks whether the master is the one
+	/// stuttering.
 	deluge::model::SongStutter stutter;
 	/// The song's master channel: its chain around the reverb (master filters, FX, stutter, compressor), its settings
 	/// and view.

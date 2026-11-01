@@ -18,20 +18,14 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "dsp-next/core/stereo_sample.h"
-#include "effects/track_chain.h"
 #include "model/fx/track_channel.h"
 #include "model/global_effectable/global_effectable.h"
-#include "model/sample/sample_recorder.h"
 #include "util/functions.h"
 
 class ParamManagerForTimeline;
-class TimelineCounter;
 class Output;
 class Clip;
-class ModelStack;
 class ModelStackWithThreeMainThings;
-class ModelStackWithTimelineCounter;
 
 class GlobalEffectableForClip : public GlobalEffectable {
 public:

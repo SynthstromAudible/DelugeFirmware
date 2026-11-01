@@ -41,7 +41,8 @@ class TrackChannel;
 
 /// @brief The mod FX, EQ and delay inputs a host chain reads from its unpatched params: the type in effect (NONE in its
 /// soft off), the rate and depth finals and the knobs.
-/// @param owner The host chain's owner, which supplies its effect settings and active mod FX type.
+/// @param snapshot The chain's render copy of its settings and view.
+/// @param activeType The mod FX type in effect this block (see activeModFXType).
 /// @param paramManager The owner's param manager.
 /// @param delay The block's delay working state, set up on the owner's chain's delay.
 /// @param grainSend The granular's reverb send, Q31.
@@ -82,7 +83,7 @@ class TrackChannel;
 /// @param delay The block's delay working state, set up on the owner's chain's delay.
 /// @param outputType KIT or AUDIO; selects the volume headroom factor applied after the filters.
 /// @return The block's track-chain inputs.
-[[nodiscard]] effects::TrackChainInputs trackChainInputs(TrackChannel& channel, ParamManager& paramManager,
+[[nodiscard]] effects::TrackChainInputs trackChainInputs(const TrackChannel& channel, ParamManager& paramManager,
                                                          int32_t volumeAdjustment, int32_t reverbAmountAdjust,
                                                          int32_t sideChainHitPending,
                                                          const effects::Delay::State& delay, OutputType outputType);
