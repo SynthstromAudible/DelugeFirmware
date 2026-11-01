@@ -13,6 +13,16 @@ import { remarkDelugeKey } from "./src/markdown-directives/remark-deluge-key/rem
 import { remarkDelugeScreen } from "./src/markdown-directives/remark-deluge-screen/remark-deluge-screen.ts"
 import remarkDirective from "remark-directive"
 import starlightSidebarTopics from "starlight-sidebar-topics"
+import { readFileSync } from "node:fs"
+import { remarkCrossLinks } from "./src/markdown-directives/remark-cross-links/remark-cross-links.ts"
+import { allTerms } from "./src/markdown-directives/remark-cross-links/terms.ts"
+
+const readJson = (/** @type {string} */ path) =>
+  JSON.parse(readFileSync(new URL(path, import.meta.url), "utf8"))
+const crossLinkTerms = allTerms(
+  readJson("./src/data/guidebook-terms.json"),
+  readJson("./src/data/generated/menu-hierarchies.json"),
+)
 
 const siteBasePath = process.env.SITE_BASE_PATH || ""
 const isCI = process.env.CI === "true"
@@ -57,6 +67,9 @@ const config = defineConfig({
           exclude: [
             "/",
             "/DelugeFirmware/", // TODO: This is a basePath issue, fix!
+            // Menu item anchors live in FirmwareMenuSection's HTML, which this validator can't see;
+            // scripts/check-cross-links.mjs checks them against the built pages instead.
+            "/reference/menu_hierarchies#menu-*",
           ],
         }),
         starlightSidebarTopics([
@@ -268,6 +281,7 @@ const config = defineConfig({
       remarkDirective,
       remarkDelugeKey,
       remarkDelugeScreen,
+      [remarkCrossLinks, { terms: crossLinkTerms }],
       [
         RemarkLinkRewrite,
         {
