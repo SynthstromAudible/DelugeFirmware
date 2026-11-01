@@ -23,6 +23,7 @@
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/performance_view.h"
+#include "gui/views/session/track_link.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
@@ -373,6 +374,15 @@ void SoundEditor::setShortcutsVersion(int32_t newVersion) {
 }
 
 PLACE_SDRAM_BSS SoundEditor soundEditor{};
+
+namespace {
+/// True when the menu is editing a clip rather than the song: in a clip view, or in Track Edit's menu, which is opened
+/// from song view on one clip of the picked track (see gui/views/session/track_link.h). Song view is still the root UI
+/// then, so rootUIIsClipMinderScreen() alone would send that menu to the song's parameters.
+bool editingAClip() {
+	return rootUIIsClipMinderScreen() || deluge::gui::track_link::isMenuOpen();
+}
+} // namespace
 
 SoundEditor::SoundEditor() {
 	currentParamShortcutX = kNoSelection;
@@ -1103,7 +1113,7 @@ void SoundEditor::updatePadLightsFor(MenuItem* currentItem) {
 		currentParamShortcutX = kNoSelection;
 
 		// Global song parameters (this check seems very sketchy...)
-		if (!rootUIIsClipMinderScreen()) {
+		if (!editingAClip()) {
 			setupShortcutsBlinkFromTable(currentItem, paramShortcutsForSongView);
 		}
 		// For Kit Instrument Clip with Affect Entire Enabled
@@ -1418,7 +1428,7 @@ void SoundEditor::markInstrumentAsEdited() {
 std::tuple<MenuItem*, bool> SoundEditor::get_basic_shortcut_action(int32_t x, int32_t y, bool doKitAffectEntire) {
 	MenuItem* item = nullptr;
 	bool do_sound_checks = false;
-	if (!rootUIIsClipMinderScreen()) {
+	if (!editingAClip()) {
 		if (x <= (kDisplayWidth - 2)) {
 			item = paramShortcutsForSongView[x][y];
 		}
@@ -1950,7 +1960,7 @@ bool SoundEditor::setup(Clip* clip, const MenuItem* item, int32_t sourceIndex) {
 	UI* currentUI = getCurrentUI();
 
 	// getParamManager and ModControllable for Performance Session View (and Session View)
-	if (!rootUIIsClipMinderScreen()) {
+	if (!editingAClip()) {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithThreeMainThings* modelStack =
 		    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
@@ -2308,7 +2318,7 @@ ModelStackWithThreeMainThings* SoundEditor::getCurrentModelStack(void* memory) {
 	InstrumentClip* clip = getCurrentInstrumentClip();
 	Instrument* instrument = getCurrentInstrument();
 
-	if (!rootUIIsClipMinderScreen()) {
+	if (!editingAClip()) {
 		return currentSong->setupModelStackWithSongAsTimelineCounter(memory);
 	}
 	else if (instrument->type == OutputType::KIT && clip->affectEntire) {
@@ -2318,7 +2328,7 @@ ModelStackWithThreeMainThings* SoundEditor::getCurrentModelStack(void* memory) {
 	}
 	else {
 		NoteRow* noteRow = nullptr;
-		int32_t noteRowIndex;
+		int32_t noteRowIndex = 0;
 		if (instrument->type == OutputType::KIT) {
 			Drum* selectedDrum = ((Kit*)instrument)->selectedDrum;
 			if (selectedDrum) {
@@ -2384,7 +2394,7 @@ std::optional<std::span<HorizontalMenu* const>> SoundEditor::getCurrentHorizonta
 	if (!display->haveOLED() || runtimeFeatureSettings.get(HorizontalMenus) == Off) {
 		return std::nullopt;
 	}
-	if (!rootUIIsClipMinderScreen()) {
+	if (!editingAClip()) {
 		return horizontalMenusChainForSong;
 	}
 	if (editingKitAffectEntire()) {

@@ -25,6 +25,10 @@
 #include "util/d_string.h"
 #include <cstdint>
 
+namespace deluge::model {
+struct ParameterEdit;
+}
+
 class InstrumentClip;
 class Song;
 class Clip;
@@ -94,6 +98,16 @@ public:
 	Output* next;
 	const OutputType type;
 	bool mutedInArrangementMode;
+	// Temporary editing scope (e.g. a held Session track pad); never serialized.
+	void setTrackEditActive(bool active) { trackEditActive = active; }
+	bool isTrackLocked() const;
+	bool trackEditsAreLinked() const;
+	// Resolve the source clip and route its edit to its output. Returns that output
+	// when linking was applicable, so callers can update UI feedback separately.
+	static Output* propagateParameterEdit(ModelStackWithAutoParam const& source,
+	                                      deluge::model::ParameterEdit const& edit);
+	void setTrackLocked(bool locked) { trackLocked = locked; }
+	void transferTrackStateTo(Output& replacement);
 	bool mutedInArrangementModeBeforeStemExport; // Used by stem export to restore previous state
 	bool exportStem;                             // Used by stem export to flag if this output should be exported
 	bool soloingInArrangementMode;
@@ -227,6 +241,14 @@ public:
 	virtual void clearRecordingFrom() {}
 	/// Which output this one records from, or nullptr. Only audio outputs ever record from another output.
 	virtual Output* getOutputRecordingFrom() { return nullptr; }
+
+private:
+	bool applyTrackParameterEdit(Clip& origin, ModelStackWithAutoParam const& source,
+	                             deluge::model::ParameterEdit const& edit);
+	bool trackLocked{false}; // Saved with the song.
+	bool trackEditActive{false};
+	// Linked writes re-enter AutoParam; suppress nested fan-out before resolving another source.
+	static bool propagatingParameterEdit;
 
 protected:
 	virtual Clip* createNewClipForArrangementRecording(ModelStack* modelStack) = 0;

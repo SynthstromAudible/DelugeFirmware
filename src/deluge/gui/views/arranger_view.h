@@ -39,6 +39,7 @@ public:
 	ArrangerView();
 	bool opened() override;
 	void focusRegained() override;
+	bool isTrackPadHeld(Output const* output) const;
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
 	ActionResult handleEditPadAction(int32_t x, int32_t y, int32_t velocity);
 	ActionResult handleStatusPadAction(int32_t y, int32_t velocity, UI* ui);
@@ -128,12 +129,14 @@ public:
 
 	void requestRendering(UI* ui, uint32_t whichMainRows = 0xFFFFFFFF, uint32_t whichSideRows = 0xFFFFFFFF);
 
+	void beginAudition(Output* output);
+	void endAudition(Output* output, bool evenIfPlaying = false);
+
 private:
 	void changeOutputType(OutputType newOutputType);
 	void moveClipToSession();
 	void auditionPadAction(bool on, int32_t y, UI* ui);
-	void beginAudition(Output* output);
-	void endAudition(Output* output, bool evenIfPlaying = false);
+
 	ModelStackWithNoteRow* getNoteRowForAudition(ModelStack* modelStack, Kit* kit);
 	Drum* getDrumForAudition(Kit* kit);
 	void drawAuditionSquare(int32_t yDisplay, RGB thisImage[]);
@@ -148,6 +151,7 @@ private:
 	void rememberInteractionWithClipInstance(int32_t yDisplay, ClipInstance* clipInstance);
 	void deleteOutput();
 	void auditionEnded();
+	bool silentTrackAudition = false;
 	void goToSongView();
 	void changeOutputToAudio();
 	bool renderRowForOutput(ModelStack* modelStack, Output* output, int32_t xScroll, uint32_t xZoom, RGB* image,

@@ -32,7 +32,9 @@
 #include "gui/views/audio_clip_view.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
+#include "gui/views/session/track_link.h"
 #include "gui/views/session_view.h"
+#include "gui/views/track_edit_pulse.h"
 #include "gui/views/view.h"
 #include "gui/waveform/waveform_renderer.h"
 #include "hid/buttons.h"
@@ -596,6 +598,12 @@ bool ArrangerView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth +
 		return true;
 	}
 
+	for (int32_t y = 0; y < kDisplayHeight; ++y) {
+		if ((whichRows & (1u << y)) != 0u) {
+			deluge::gui::track_edit_pulse::clearPulseRow(image[y], y, true);
+		}
+	}
+
 	if (view.potentiallyRenderVUMeter(image)) {
 		return true;
 	}
@@ -687,6 +695,10 @@ drawNormally:
 		if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION && yDisplay == yPressedEffective) {
 			thisColour = colours::red;
 		}
+		else if (auto* output = outputsOnScreen[yDisplay]; (output != nullptr) && output->isTrackLocked()) {
+			thisColour = deluge::gui::track_edit_pulse::renderPulse(RGB::fromHue(output->colour), *output, thisImage,
+			                                                        kDisplayWidth + 1, yDisplay);
+		}
 		else {
 			thisColour = colours::black;
 		}
@@ -734,6 +746,9 @@ Drum* ArrangerView::getDrumForAudition(Kit* kit) {
 }
 
 void ArrangerView::beginAudition(Output* output) {
+	if (silentTrackAudition && getRootUI() == this) {
+		return;
+	}
 
 	if (output->type == OutputType::AUDIO) {
 		return;
@@ -778,6 +793,9 @@ void ArrangerView::beginAudition(Output* output) {
 }
 
 void ArrangerView::endAudition(Output* output, bool evenIfPlaying) {
+	if (silentTrackAudition && getRootUI() == this) {
+		return;
+	}
 
 	if (output->type == OutputType::AUDIO) {
 		return;
@@ -917,11 +935,18 @@ doNewPress:
 				outputsOnScreen[yPressedEffective] = output;
 			}
 
+			deluge::gui::track_edit_pulse::resetHeldPulse();
 			currentUIMode = UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION;
 
 			view.displayOutputName(output);
 
-			beginAudition(output);
+			silentTrackAudition = deluge::gui::track_link::enabled() && Buttons::isShiftButtonPressed();
+			if (silentTrackAudition) {
+				deluge::gui::track_link::toggleLock(output);
+			}
+			else {
+				beginAudition(output);
+			}
 
 			if (output->getActiveClip()) {
 				view.setActiveModControllableTimelineCounter(output->getActiveClip());
@@ -931,7 +956,8 @@ doNewPress:
 				                                                    output->getParamManager(currentSong));
 			}
 
-			uiNeedsRendering(ui, 0, 1 << yPressedEffective);
+			uiNeedsRendering(ui, deluge::gui::track_link::enabled() ? (1u << yPressedEffective) : 0,
+			                 1u << yPressedEffective);
 		}
 	}
 
@@ -944,6 +970,8 @@ doNewPress:
 }
 
 void ArrangerView::auditionEnded() {
+	deluge::gui::track_edit_pulse::resetHeldPulse();
+	silentTrackAudition = false;
 	setNoSubMode();
 	setLedStates();
 
@@ -1758,7 +1786,8 @@ void ArrangerView::exitSubModeWithoutAction(UI* ui) {
 		if (output) {
 			endAudition(output);
 			auditionEnded();
-			uiNeedsRendering(ui, 0, 1 << yPressedEffective);
+			uiNeedsRendering(ui, deluge::gui::track_link::enabled() ? (1u << yPressedEffective) : 0,
+			                 1u << yPressedEffective);
 		}
 	}
 
@@ -2243,6 +2272,7 @@ bool ArrangerView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth 
 bool ArrangerView::renderRow(ModelStack* modelStack, int32_t yDisplay, int32_t xScroll, uint32_t xZoom,
                              RGB* imageThisRow, uint8_t thisOccupancyMask[], int32_t renderWidth) {
 
+	deluge::gui::track_edit_pulse::clearPulseRow(imageThisRow, yDisplay);
 	Output* output = outputsOnScreen[yDisplay];
 
 	if (!output) {
@@ -2307,6 +2337,15 @@ bool ArrangerView::renderRow(ModelStack* modelStack, int32_t yDisplay, int32_t x
 			for (auto* it = &imageThisRow[newStartSquare];
 			     it != &imageThisRow[newStartSquare] + (newEndSquare - newStartSquare); it++) {
 				*it = colours::black;
+			}
+		}
+	}
+
+	if (deluge::gui::track_link::enabled() && isTrackPadHeld(output)) {
+		for (int32_t x = 0; x < renderWidth; ++x) {
+			if (imageThisRow[x] != colours::black) {
+				imageThisRow[x] = deluge::gui::track_edit_pulse::renderPulse(imageThisRow[x], *output, imageThisRow, x,
+				                                                             yDisplay, true);
 			}
 		}
 	}
@@ -3427,4 +3466,9 @@ void ArrangerView::requestRendering(UI* ui, uint32_t whichMainRows, uint32_t whi
 	else if (ui == &arrangerView) {
 		uiNeedsRendering(ui, whichMainRows, whichSideRows);
 	}
+}
+
+bool ArrangerView::isTrackPadHeld(Output const* output) const {
+	return currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION && yPressedEffective >= 0
+	       && yPressedEffective < kDisplayHeight && outputsOnScreen[yPressedEffective] == output;
 }
