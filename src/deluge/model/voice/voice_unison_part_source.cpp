@@ -70,14 +70,18 @@ bool VoiceUnisonPartSource::noteOn(Voice* voice, Source* source, VoiceSamplePlay
 		// oscPos = 0;
 	}
 	else if (synthMode != SynthMode::FM && source->oscType == OscType::DX7) [[unlikely]] {
+		DxPatch* patch = source->ensureDxPatch();
+		if (patch == nullptr) {
+			return false;
+		}
 		if (dxVoice == nullptr) { // We might actually already have one, and just be restarting this voice
+			// ensureDxPatch() succeeding means the engine exists
 			dxVoice = getDxEngine()->solicitDxVoice();
 			if (dxVoice == nullptr) {
 				return false;
 			}
 		}
 
-		DxPatch* patch = source->ensureDxPatch();
 		dxVoice->init(*patch, voice->noteCodeAfterArpeggiation, velocity);
 	}
 	else {

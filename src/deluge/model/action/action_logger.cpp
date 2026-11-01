@@ -894,23 +894,26 @@ bool ActionLogger::undoJustOneConsequencePerNoteRow(ModelStack* modelStack) {
 	Consequence* firstConsequence = firstAction[BEFORE]->firstConsequence;
 	if (firstConsequence) { // Should always be true
 
-		// Work out if multiple Consequences per NoteRow (see big comment above)
-		int32_t firstNoteRowId = ((ConsequenceNoteArrayChange*)firstConsequence)->noteRowId;
+		// Work out if multiple Consequences per NoteRow (see big comment above). Only NoteArrayChanges carry a
+		// noteRowId - if the most recent Consequence is something else, there's no "mini action" boundary to find.
+		Consequence* nextForSameNoteRow = nullptr;
+		if (firstConsequence->type == Consequence::NOTE_ARRAY_CHANGE) {
+			int32_t firstNoteRowId = static_cast<ConsequenceNoteArrayChange*>(firstConsequence)->noteRowId;
 
-		Consequence* thisConsequence = firstConsequence->next;
-		while (thisConsequence) {
-			if (thisConsequence->type == Consequence::NOTE_ARRAY_CHANGE
-			    && ((ConsequenceNoteArrayChange*)thisConsequence)->noteRowId == firstNoteRowId) {
-				goto gotMultipleConsequencesPerNoteRow;
+			for (Consequence* thisConsequence = firstConsequence->next; thisConsequence;
+			     thisConsequence = thisConsequence->next) {
+				if (thisConsequence->type == Consequence::NOTE_ARRAY_CHANGE
+				    && static_cast<ConsequenceNoteArrayChange*>(thisConsequence)->noteRowId == firstNoteRowId) {
+					nextForSameNoteRow = thisConsequence;
+					break;
+				}
 			}
-
-			thisConsequence = thisConsequence->next;
 		}
 
-		// If multiple Consequences per NoteRow, just revert most recent one per NoteRow
-		if (false) {
-gotMultipleConsequencesPerNoteRow:
-			do {
+		// If multiple Consequences per NoteRow, just revert most recent one per NoteRow - everything before the next
+		// Consequence for the same NoteRow
+		if (nextForSameNoteRow) {
+			while (firstConsequence != nextForSameNoteRow) {
 				firstConsequence->revert(BEFORE,
 				                         modelStack); // Unlike reverting a whole Action, this doesn't update anything
 				                                      // visually or call any expectEvent() functions
@@ -920,8 +923,7 @@ gotMultipleConsequencesPerNoteRow:
 				firstConsequence->~Consequence();
 				delugeDealloc(firstConsequence);
 				firstConsequence = firstAction[BEFORE]->firstConsequence;
-			} while (thisConsequence->type != Consequence::NOTE_ARRAY_CHANGE
-			         || ((ConsequenceNoteArrayChange*)firstConsequence)->noteRowId != firstNoteRowId);
+			}
 
 			D_PRINTLN("did secret undo, just one Consequence");
 		}
