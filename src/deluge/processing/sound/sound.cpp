@@ -3397,16 +3397,25 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 		}
 		else if (!strcmp(tagName, "dx7patch")) {
 			DxPatch* patch = source->ensureDxPatch();
+			if (patch == nullptr) {
+				return Error::INSUFFICIENT_RAM;
+			}
 			int len = reader.readTagOrAttributeValueHexBytes(patch->params, 156);
 			reader.exitTag("dx7patch");
 		}
 		else if (!strcmp(tagName, "dx7randomdetune")) {
 			DxPatch* patch = source->ensureDxPatch();
+			if (patch == nullptr) {
+				return Error::INSUFFICIENT_RAM;
+			}
 			patch->random_detune = reader.readTagOrAttributeValueInt();
 			reader.exitTag("dx7randomdetune");
 		}
 		else if (!strcmp(tagName, "dx7enginemode")) {
 			DxPatch* patch = source->ensureDxPatch();
+			if (patch == nullptr) {
+				return Error::INSUFFICIENT_RAM;
+			}
 			patch->setEngineMode(reader.readTagOrAttributeValueInt());
 			reader.exitTag("dx7enginemode");
 		}

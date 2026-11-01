@@ -86,7 +86,13 @@ bool ClearSong::acceptCurrentOption() {
 		AudioEngine::songSwapAboutToHappen();
 	}
 
-	void* songMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(Song)); // TODO: error checking
+	void* songMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(Song));
+	if (songMemory == nullptr) {
+		// The old Song may already be gone (deleteOldSongBeforeLoadingNew) and the UIs are nullified, so unlike most
+		// freezes there's nothing to resume into. Hang after the freeze screen, as ensureAtLeastOneSessionClip() does
+		FREEZE_WITH_ERROR("E458");
+		while (1) {}
+	}
 	preLoadedSong = new (songMemory) Song();
 	preLoadedSong->paramManager.setupUnpatched(); // TODO: error checking
 	GlobalEffectable::initParams(&preLoadedSong->paramManager);

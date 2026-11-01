@@ -35,6 +35,11 @@ static void init_engine(void) {
 	// get ourselves an aligned pointer to use placement new with
 	// todo: this should be a part of the allocator but not sure what the api should look like, easy bugfix for now
 	void* engineMem = allocMaxSpeed(sizeof(DxEngine) + alignof(DxEngine) - 1);
+	if (engineMem == nullptr) {
+		// The freeze screen lets the user resume, so leave dxEngine null for getDxEngine()'s callers to handle
+		FREEZE_WITH_ERROR("E456");
+		return;
+	}
 	engineMem = (void*)((((intptr_t)engineMem) + alignof(DxEngine) - 1) & -alignof(DxEngine));
 	dxEngine = new (engineMem) DxEngine();
 
@@ -58,6 +63,11 @@ void DxEngine::dxVoiceUnassigned(gsl::owner<DxVoice*> dxVoice) {
 
 DxPatch* DxEngine::newPatch(void) {
 	void* memory = allocLowSpeed(sizeof(DxPatch));
+	if (memory == nullptr) {
+		// The freeze screen lets the user resume, so ensureDxPatch()'s callers have to handle nullptr
+		FREEZE_WITH_ERROR("E457");
+		return nullptr;
+	}
 	return new (memory) DxPatch;
 }
 

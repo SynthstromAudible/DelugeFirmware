@@ -36,7 +36,7 @@ void DxEngineSelect::beginSession(MenuItem* navigatedBackwardFrom) {
 
 void DxEngineSelect::readValueAgain() {
 	patch = soundEditor.currentSource->ensureDxPatch();
-	currentValue = patch->engineMode;
+	currentValue = (patch != nullptr) ? patch->engineMode : 0;
 	drawValue();
 }
 
@@ -74,6 +74,9 @@ void DxEngineSelect::selectEncoderAction(int32_t offset) {
 		}
 	}
 
+	if (patch == nullptr) {
+		return;
+	}
 	patch->setEngineMode(newValue);
 	currentValue = newValue;
 	drawValue();
