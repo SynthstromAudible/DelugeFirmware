@@ -117,67 +117,22 @@ void ModControllableAudio::cloneFrom(ModControllableAudio* other) {
 	midi_knobs = other->midi_knobs; // Could fail if no RAM... not too big a concern
 }
 
-void ModControllableAudio::initParams(ParamManager* paramManager) {
-
-	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-
-	unpatchedParams->params[params::UNPATCHED_BASS].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_BASS), 0);
-	unpatchedParams->params[params::UNPATCHED_TREBLE].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_TREBLE), 0);
-	unpatchedParams->params[params::UNPATCHED_BASS_FREQ].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_BASS_FREQ), 0);
-	unpatchedParams->params[params::UNPATCHED_TREBLE_FREQ].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_TREBLE_FREQ), 0);
-
-	unpatchedParams->params[params::UNPATCHED_ARP_GATE].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_ARP_GATE), 0);
-	unpatchedParams->params[params::UNPATCHED_NOTE_PROBABILITY].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_NOTE_PROBABILITY), 2147483647);
-	unpatchedParams->params[params::UNPATCHED_ARP_BASS_PROBABILITY].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_ARP_BASS_PROBABILITY), -2147483648);
-	unpatchedParams->params[params::UNPATCHED_ARP_SWAP_PROBABILITY].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_ARP_SWAP_PROBABILITY), -2147483648);
-	unpatchedParams->params[params::UNPATCHED_ARP_GLIDE_PROBABILITY].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_ARP_GLIDE_PROBABILITY), -2147483648);
-	unpatchedParams->params[params::UNPATCHED_REVERSE_PROBABILITY].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_REVERSE_PROBABILITY), -2147483648);
-	unpatchedParams->params[params::UNPATCHED_ARP_CHORD_PROBABILITY].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_ARP_CHORD_PROBABILITY), -2147483648);
-	unpatchedParams->params[params::UNPATCHED_ARP_RATCHET_PROBABILITY].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_ARP_RATCHET_PROBABILITY), -2147483648);
-	unpatchedParams->params[params::UNPATCHED_ARP_RATCHET_AMOUNT].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_ARP_RATCHET_AMOUNT), -2147483648);
-	unpatchedParams->params[params::UNPATCHED_ARP_SEQUENCE_LENGTH].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_ARP_SEQUENCE_LENGTH), -2147483648);
-	unpatchedParams->params[params::UNPATCHED_ARP_CHORD_POLYPHONY].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_ARP_CHORD_POLYPHONY), -2147483648);
-	unpatchedParams->params[params::UNPATCHED_ARP_RHYTHM].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_ARP_RHYTHM), -2147483648);
-	unpatchedParams->params[params::UNPATCHED_SPREAD_VELOCITY].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_SPREAD_VELOCITY), -2147483648);
-	unpatchedParams->params[params::UNPATCHED_ARP_SPREAD_GATE].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_ARP_SPREAD_GATE), -2147483648);
-	unpatchedParams->params[params::UNPATCHED_ARP_SPREAD_OCTAVE].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_ARP_SPREAD_OCTAVE), -2147483648);
-
-	deluge::model::initStutterParams(paramManager);
-
-	unpatchedParams->params[params::UNPATCHED_MOD_FX_OFFSET].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_MOD_FX_OFFSET), 0);
-	unpatchedParams->params[params::UNPATCHED_MOD_FX_FEEDBACK].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_MOD_FX_FEEDBACK), 0);
-
-	unpatchedParams->params[params::UNPATCHED_SAMPLE_RATE_REDUCTION].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_SAMPLE_RATE_REDUCTION), -2147483648);
-
-	unpatchedParams->params[params::UNPATCHED_BITCRUSHING].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_BITCRUSHING), -2147483648);
-
-	unpatchedParams->params[params::UNPATCHED_SIDECHAIN_SHAPE].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_SIDECHAIN_SHAPE), -601295438);
-	unpatchedParams->params[params::UNPATCHED_COMPRESSOR_THRESHOLD].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_COMPRESSOR_THRESHOLD), 0);
+void ModControllableAudio::initParams(ParamManager* paramManager, params::Kind defaults) {
+	UnpatchedParamSet& unpatchedParams = *paramManager->getUnpatchedParamSet();
+	setParamsToDefaults(
+	    unpatchedParams, defaults,
+	    {params::UNPATCHED_BASS, params::UNPATCHED_TREBLE, params::UNPATCHED_BASS_FREQ, params::UNPATCHED_TREBLE_FREQ,
+	     params::UNPATCHED_ARP_GATE, params::UNPATCHED_NOTE_PROBABILITY, params::UNPATCHED_ARP_BASS_PROBABILITY,
+	     params::UNPATCHED_ARP_SWAP_PROBABILITY, params::UNPATCHED_ARP_GLIDE_PROBABILITY,
+	     params::UNPATCHED_REVERSE_PROBABILITY, params::UNPATCHED_ARP_CHORD_PROBABILITY,
+	     params::UNPATCHED_ARP_RATCHET_PROBABILITY, params::UNPATCHED_ARP_RATCHET_AMOUNT,
+	     params::UNPATCHED_ARP_SEQUENCE_LENGTH, params::UNPATCHED_ARP_CHORD_POLYPHONY, params::UNPATCHED_ARP_RHYTHM,
+	     params::UNPATCHED_SPREAD_VELOCITY, params::UNPATCHED_ARP_SPREAD_GATE, params::UNPATCHED_ARP_SPREAD_OCTAVE});
+	deluge::model::initStutterParams(paramManager, defaults);
+	setParamsToDefaults(unpatchedParams, defaults,
+	                    {params::UNPATCHED_MOD_FX_OFFSET, params::UNPATCHED_MOD_FX_FEEDBACK,
+	                     params::UNPATCHED_SAMPLE_RATE_REDUCTION, params::UNPATCHED_BITCRUSHING,
+	                     params::UNPATCHED_SIDECHAIN_SHAPE, params::UNPATCHED_COMPRESSOR_THRESHOLD});
 }
 
 void ModControllableAudio::writeAttributesToFile(Serializer& writer) {

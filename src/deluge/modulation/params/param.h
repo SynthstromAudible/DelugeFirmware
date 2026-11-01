@@ -39,6 +39,10 @@
 
 class ModControllableAudio;
 
+namespace deluge::plugin {
+struct ParamInfo;
+}
+
 namespace deluge::modulation::params {
 /// @brief Which parameter collection a parameter id belongs to (the host-engine contract's term).
 using Kind = deluge::plugin::ParamKind;
@@ -227,6 +231,13 @@ constexpr ParamType kMaxNumUnpatchedParams =
 constexpr ParamType kUnpatchedAndPatchedMaximum = kMaxNumUnpatchedParams + UNPATCHED_START;
 
 static_assert(kMaxNumUnpatchedParams < STATIC_START, "Error: Too many UNPATCHED parameters, (collision with STATIC)");
+
+/// @brief The plugin table row of the runtime's param @p paramId in a @p kind collection: the Deluge instrument's for a
+/// sound's patched and unpatched params, the global effectable's for a global effectable's.
+/// @param kind    The runtime collection kind.
+/// @param paramId The param's index in its collection.
+/// @return The row, or nullptr for a collection with no plugin table (MIDI, expression, patch cables).
+[[nodiscard]] const plugin::ParamInfo* paramInfoFor(Kind kind, int32_t paramId);
 
 bool isParamBipolar(Kind kind, int32_t paramID);
 bool isParamPan(Kind kind, int32_t paramID);

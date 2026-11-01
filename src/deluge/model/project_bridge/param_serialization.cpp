@@ -205,7 +205,7 @@ void serializeGlobalEffectableParamTags(const DocParamSet& unpatched, Serializer
 }
 
 namespace {
-// The ExpressionParamSet (MPE) dimensions, by index, matching expressionParamNames[] in param_set.cpp.
+// The ExpressionParamSet (MPE) dimensions, by index.
 constexpr DocParamAttr kExpressionParams[] = {
     {"pitchBend", ParamId{0}},
     {"yExpression", ParamId{1}},

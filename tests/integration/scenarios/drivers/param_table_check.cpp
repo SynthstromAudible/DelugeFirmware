@@ -32,10 +32,13 @@
 #include "modulation/params/param_set.h"
 #include "processing/sound/sound.h"
 #include "scenarios/drivers/driver.h"
+#include "scenarios/drivers/param_defaults_reference.h"
+#include "scenarios/drivers/param_names_reference.h"
 #include "util/functions.h"
 
 #include <cstdio>
 #include <span>
+#include <string>
 #include <string_view>
 
 namespace {
@@ -116,7 +119,71 @@ void checkCables(Checker& check) {
 	}
 }
 
-/// Each row's default against the value @p init gives a fresh manager's param.
+/// paramNameForFile and fileStringToParam against the names they gave before the tables named the params: every kind,
+/// both file vocabularies, every runtime index; and every name, "range" and an unknown name read back.
+void checkNames(Checker& check) {
+	auto expected = [](int32_t kind, bool midiFollow, int32_t index) -> std::string_view {
+		for (const param_names_reference::Name& n : param_names_reference::kNames) {
+			if (n.kind == kind && n.midi_follow == midiFollow && n.index == index) {
+				return n.name;
+			}
+		}
+		return "none";
+	};
+	for (int32_t kind = 0; kind <= static_cast<int32_t>(params::Kind::EXPRESSION); ++kind) {
+		for (bool midiFollow : {false, true}) {
+			for (int32_t p = 0; p < params::kUnpatchedAndPatchedMaximum; ++p) {
+				std::string_view live = params::paramNameForFile(static_cast<params::Kind>(kind), p, midiFollow);
+				std::string_view want = expected(kind, midiFollow, p);
+				if (live != want) {
+					std::fprintf(check.io.err, "name kind %d mf %d index %d: %.*s, was %.*s\n", kind, midiFollow, p,
+					             static_cast<int>(live.size()), live.data(), static_cast<int>(want.size()),
+					             want.data());
+					++check.disagreements;
+				}
+			}
+		}
+	}
+	auto readBack = [&](int32_t kind, bool allowPatched, std::string_view name) {
+		std::string text{name};
+		params::ParamType got = params::fileStringToParam(static_cast<params::Kind>(kind), text.c_str(), allowPatched);
+		// The first index the oracle names so, from the first index this read may return
+		params::ParamType want =
+		    name == "range" ? util::to_underlying(params::PLACEHOLDER_RANGE) : util::to_underlying(params::GLOBAL_NONE);
+		for (int32_t p = allowPatched ? 0 : params::UNPATCHED_START; p < params::kUnpatchedAndPatchedMaximum; ++p) {
+			if (expected(kind, false, p) == name) {
+				want = p;
+				break;
+			}
+		}
+		if (got != want) {
+			std::fprintf(check.io.err, "read kind %d patched %d %.*s: %d, want %d\n", kind, allowPatched,
+			             static_cast<int>(name.size()), name.data(), got, want);
+			++check.disagreements;
+		}
+	};
+	for (int32_t kind = 0; kind <= static_cast<int32_t>(params::Kind::EXPRESSION); ++kind) {
+		for (bool allowPatched : {false, true}) {
+			for (const param_names_reference::Name& n : param_names_reference::kNames) {
+				readBack(kind, allowPatched, n.name);
+			}
+			readBack(kind, allowPatched, "range");
+			readBack(kind, allowPatched, "nonsense");
+		}
+	}
+}
+
+/// The default the engines' init gave param @p id of @p table before it read the tables.
+int32_t recordedDefault(param_defaults_reference::Table table, ParamId id) {
+	for (const param_defaults_reference::Default& d : param_defaults_reference::kDefaults) {
+		if (d.table == table && d.id == id.value) {
+			return d.value;
+		}
+	}
+	return 0;
+}
+
+/// Each row's default, and what the engine's init gives a fresh manager's param, against the recorded default.
 void checkDefaults(Checker& check) {
 	ParamManagerForTimeline sound;
 	sound.setupWithPatching();
@@ -127,9 +194,11 @@ void checkDefaults(Checker& check) {
 		                    ? static_cast<ParamSet*>(sound.getPatchedParamSet())
 		                    : static_cast<ParamSet*>(sound.getUnpatchedParamSet());
 		int32_t value = set->docForParam(slot.index)->current_value;
-		if (value != info.default_value) {
-			std::fprintf(check.io.err, "default instrument %u %.*s: table %d, runtime %d\n", info.id.value,
-			             static_cast<int>(info.file_name.size()), info.file_name.data(), info.default_value, value);
+		int32_t recorded = recordedDefault(param_defaults_reference::Table::INSTRUMENT, info.id);
+		if (value != recorded || info.default_value != recorded) {
+			std::fprintf(check.io.err, "default instrument %u %.*s: table %d, runtime %d, recorded %d\n", info.id.value,
+			             static_cast<int>(info.file_name.size()), info.file_name.data(), info.default_value, value,
+			             recorded);
 			++check.disagreements;
 		}
 	}
@@ -140,9 +209,11 @@ void checkDefaults(Checker& check) {
 		int32_t value = global.getUnpatchedParamSet()
 		                    ->docForParam(*deluge::global_effectable::runtime_index(info.id))
 		                    ->current_value;
-		if (value != info.default_value) {
-			std::fprintf(check.io.err, "default global-effectable %u %.*s: table %d, runtime %d\n", info.id.value,
-			             static_cast<int>(info.file_name.size()), info.file_name.data(), info.default_value, value);
+		int32_t recorded = recordedDefault(param_defaults_reference::Table::GLOBAL_EFFECTABLE, info.id);
+		if (value != recorded || info.default_value != recorded) {
+			std::fprintf(check.io.err, "default global-effectable %u %.*s: table %d, runtime %d, recorded %d\n",
+			             info.id.value, static_cast<int>(info.file_name.size()), info.file_name.data(),
+			             info.default_value, value, recorded);
 			++check.disagreements;
 		}
 	}
@@ -175,6 +246,7 @@ int param_table_check_main(int /*argc*/, char** /*argv*/, Io io) {
 	cover("global-effectable", deluge::global_effectable::kParams, params::Kind::UNPATCHED_GLOBAL,
 	      params::UNPATCHED_GLOBAL_MAX_NUM);
 	checkCables(check);
+	checkNames(check);
 	checkDefaults(check);
 	std::fprintf(io.out, "%d disagreement(s)\n", check.disagreements);
 	return check.disagreements == 0 ? 0 : 3;

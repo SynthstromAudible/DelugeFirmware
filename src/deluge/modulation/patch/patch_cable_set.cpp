@@ -403,8 +403,6 @@ deluge::synth::RoutedDestination* PatchCableSet::getDestinationForParam(int32_t 
 	return nullptr;
 }
 
-extern int32_t rangeFinalValues[];
-
 void PatchCableSet::setupPatching(Sound& sound, ParamManager& paramManager) {
 	const auto usable =
 	    deluge::synth::usability_of(records_.records(), [&](PatchSource s, deluge::synth::CableTarget target) {

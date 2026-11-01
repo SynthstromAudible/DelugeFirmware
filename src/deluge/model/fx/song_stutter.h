@@ -21,6 +21,7 @@
 #include "dsp-next/core/stereo_sample.h"
 #include "effects/state.h"
 #include "effects/stutter.h"
+#include "modulation/params/param.h"
 
 #include <cstdint>
 #include <span>
@@ -99,9 +100,10 @@ struct StutterInput {
 /// @return The stutter and its rate; a null stutter when @p owner is not stuttering.
 [[nodiscard]] StutterInput stutterInput(const ModControllableAudio& owner, ParamManager* paramManager);
 
-/// @brief Sets @p paramManager's stutter-rate param to its neutral value, as a new owner's params start.
+/// @brief Sets @p paramManager's stutter-rate param to its default, as a new owner's params start.
 /// @param paramManager The param manager to initialise.
-void initStutterParams(ParamManager* paramManager);
+/// @param defaults     Whose table's default: UNPATCHED_SOUND for a sound, UNPATCHED_GLOBAL for a global effectable.
+void initStutterParams(ParamManager* paramManager, deluge::modulation::params::Kind defaults);
 
 /// @brief The stutter's rate, 8.24 on the delay's rate scale: the stutter-rate param in @p paramManager, moved by
 /// @p knobDiff knob positions (a quantized stutter's note length), synced to the tempo by @p timePerTickInverse at

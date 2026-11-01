@@ -35,6 +35,7 @@
 #include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/patch/patch_cable_set.h"
+#include "plugin-api/types/param.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "storage/flash_storage.h"
@@ -44,6 +45,12 @@
 #include <new>
 
 namespace params = deluge::modulation::params;
+
+void setParamsToDefaults(ParamSet& set, params::Kind kind, std::initializer_list<int32_t> paramIds) {
+	for (int32_t p : paramIds) {
+		set.params[p].setCurrentValueBasicForSetup(*set.docForParam(p), params::paramInfoFor(kind, p)->default_value);
+	}
+}
 
 ParamSet::ParamSet(int32_t newObjectSize, ParamCollectionSummary* summary)
     : ParamCollection(newObjectSize, summary), numParams_(0), params(nullptr), topUintToRepParams(1) {
@@ -798,8 +805,6 @@ int32_t ExpressionParamSet::paramValueToKnobPos(int32_t paramValue, ModelStackWi
 	int32_t knobPos = (paramValue >> 24) - 64;
 	return knobPos;
 }
-
-char const* expressionParamNames[] = {"pitchBend", "yExpression", "pressure"};
 
 bool ExpressionParamSet::writeToFile(Serializer& writer, bool mustWriteOpeningTagEndFirst) {
 	// Serialize from the value DOM (deluge::project).

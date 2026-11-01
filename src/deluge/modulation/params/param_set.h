@@ -22,6 +22,7 @@
 #include "modulation/params/param.h"
 #include "modulation/params/param_collection.h"
 #include <array>
+#include <initializer_list>
 #include <memory>
 
 namespace deluge::project {
@@ -154,6 +155,13 @@ private:
 	void backUpParamToAction(int32_t p, Action* action, ModelStackWithParamCollection* modelStack);
 	void checkWhetherParamHasInterpolationNow(ModelStackWithParamCollection const* modelStack, int32_t p);
 };
+
+/// @brief Sets each of @p paramIds in @p set to its default in @p kind's plugin table, in the order given.
+/// @param set      The set to write.
+/// @param kind     Whose table's defaults: UNPATCHED_SOUND or PATCHED for the instrument's, UNPATCHED_GLOBAL for the
+///                 global effectable's.
+/// @param paramIds Indices in @p set.
+void setParamsToDefaults(ParamSet& set, deluge::modulation::params::Kind kind, std::initializer_list<int32_t> paramIds);
 
 class UnpatchedParamSet final : public ParamSet {
 public:
