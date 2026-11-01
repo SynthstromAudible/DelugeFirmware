@@ -18,6 +18,7 @@
 #pragma once
 
 #include "dsp-next/fixed/dynamics/rms_feedback_compressor.h"
+#include "effects/param_fragment.h"
 #include "effects/state.h"
 
 namespace deluge::effects {
@@ -42,6 +43,9 @@ namespace deluge::effects {
 /// song master's is its knob, which configure takes.
 class Compressor {
 public:
+	/// @brief The threshold param: its word, used as stored, is non-negative.
+	static constexpr EffectParam kThreshold{.name = "compressorThreshold", .mapping = plugin::MappingKind::UNIPOLAR};
+
 	/// @brief Takes @p state's knobs (cheap when unchanged: the dsp-next compressor recomputes only on a change).
 	/// @param state The compressor state to take the knobs from.
 	void configure(const CompressorState& state);

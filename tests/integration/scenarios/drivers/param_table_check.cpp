@@ -20,8 +20,16 @@
 // runtime's (a default is what the engine's own init gives a fresh instance).
 // Exit: 0 agree; 3 a row disagrees (each printed).
 
+#include "effects/bitcrush.h"
+#include "effects/compressor.h"
+#include "effects/delay.h"
+#include "effects/equalizer.h"
+#include "effects/filter.h"
 #include "effects/global_effectable/naming.h"
 #include "effects/global_effectable/params.h"
+#include "effects/mod_fx.h"
+#include "effects/reverb.h"
+#include "effects/stutter.h"
 #include "instruments/deluge/cables.h"
 #include "instruments/deluge/naming.h"
 #include "instruments/deluge/params.h"
@@ -34,6 +42,7 @@
 #include "scenarios/drivers/driver.h"
 #include "scenarios/drivers/param_defaults_reference.h"
 #include "scenarios/drivers/param_names_reference.h"
+#include "synth/matrix/descriptors.h"
 #include "util/functions.h"
 
 #include <cstdio>
@@ -306,6 +315,58 @@ void checkNames(Checker& check) {
 	}
 }
 
+/// Each effect's params against the runtime: a curved param's neutral and curve are the instrument's for the same
+/// param (the patched one a sound's chain uses), and a host chain's row has the fragment's mapping and flags.
+void checkEffectFragments(Checker& check) {
+	using deluge::effects::EffectParam;
+	struct Curved {
+		const EffectParam& fragment;
+		params::ParamType patched;
+	};
+	namespace fx = deluge::effects;
+	const Curved curved[] = {
+	    {fx::Filter::kParams[0], params::LOCAL_LPF_FREQ},      {fx::Filter::kParams[1], params::LOCAL_LPF_RESONANCE},
+	    {fx::Filter::kParams[2], params::LOCAL_LPF_MORPH},     {fx::Filter::kParams[3], params::LOCAL_HPF_FREQ},
+	    {fx::Filter::kParams[4], params::LOCAL_HPF_RESONANCE}, {fx::Filter::kParams[5], params::LOCAL_HPF_MORPH},
+	    {fx::ModFx::kParams[0], params::GLOBAL_MOD_FX_RATE},   {fx::ModFx::kParams[1], params::GLOBAL_MOD_FX_DEPTH},
+	    {fx::Delay::kRate, params::GLOBAL_DELAY_RATE},         {fx::Delay::kFeedback, params::GLOBAL_DELAY_FEEDBACK},
+	    {fx::Stutter::kRate, params::GLOBAL_DELAY_RATE},       {fx::Reverb::kSend, params::GLOBAL_REVERB_AMOUNT},
+	};
+	for (const Curved& c : curved) {
+		const deluge::synth::matrix::ParamRules& rules = deluge::synth::matrix::kParamRules[c.patched];
+		if (c.fragment.neutral != deluge::synth::matrix::kParamNeutral[c.patched] || !c.fragment.curve.has_value()
+		    || *c.fragment.curve != rules.curve) {
+			std::fprintf(check.io.err, "effect param %.*s: neutral %d or curve differs from the instrument's\n",
+			             static_cast<int>(c.fragment.name.size()), c.fragment.name.data(), c.fragment.neutral);
+			++check.disagreements;
+		}
+	}
+	auto published = [&](const EffectParam& fragment) {
+		const ParamInfo* row = deluge::plugin::find_param(deluge::global_effectable::kParams, fragment.name);
+		if (row == nullptr || row->mapping != fragment.mapping || row->flags != fragment.flags) {
+			std::fprintf(check.io.err, "effect param %.*s: the global-effectable row differs from the effect's\n",
+			             static_cast<int>(fragment.name.size()), fragment.name.data());
+			++check.disagreements;
+		}
+	};
+	for (const EffectParam& p : fx::Filter::kParams) {
+		published(p);
+	}
+	for (const EffectParam& p : fx::ModFx::kParams) {
+		published(p);
+	}
+	for (const EffectParam& p : fx::Equalizer::kParams) {
+		published(p);
+	}
+	for (const EffectParam& p : fx::Bitcrush::kParams) {
+		published(p);
+	}
+	for (const EffectParam* p : {&fx::Compressor::kThreshold, &fx::Delay::kRate, &fx::Delay::kFeedback,
+	                             &fx::Stutter::kRate, &fx::Reverb::kSend}) {
+		published(*p);
+	}
+}
+
 /// The default the engines' init gave param @p id of @p table before it read the tables.
 int32_t recordedDefault(param_defaults_reference::Table table, ParamId id) {
 	for (const param_defaults_reference::Default& d : param_defaults_reference::kDefaults) {
@@ -380,6 +441,7 @@ int param_table_check_main(int /*argc*/, char** /*argv*/, Io io) {
 	      params::UNPATCHED_GLOBAL_MAX_NUM);
 	checkCables(check);
 	checkNames(check);
+	checkEffectFragments(check);
 	checkDefaults(check);
 	std::fprintf(io.out, "%d disagreement(s)\n", check.disagreements);
 	return check.disagreements == 0 ? 0 : 3;

@@ -25,6 +25,22 @@
 
 namespace deluge::effects {
 
+FilterParams Filter::params_from(const Words& words, bool allow_oversampling) {
+	return {
+	    .lpf_frequency = final_value(kParams[0], words.lpf_frequency),
+	    .lpf_resonance = final_value(kParams[1], words.lpf_resonance),
+	    .lpf_morph = final_value(kParams[2], words.lpf_morph),
+	    .hpf_frequency = final_value(kParams[3], words.hpf_frequency),
+	    .hpf_resonance = final_value(kParams[4], words.hpf_resonance),
+	    .hpf_morph = final_value(kParams[5], words.hpf_morph),
+	    .lpf_frequency_param = words.lpf_frequency,
+	    .lpf_morph_param = words.lpf_morph,
+	    .hpf_frequency_param = words.hpf_frequency,
+	    .hpf_morph_param = words.hpf_morph,
+	    .allow_oversampling = allow_oversampling,
+	};
+}
+
 int32_t Filter::configure(const FilterState& state, const FilterParams& params, int32_t post_fx_volume) {
 	constexpr int32_t kMinimum = std::numeric_limits<int32_t>::min();
 	const bool low_on = state.lpf_mode == FilterMode::TRANSISTOR_24DB_DRIVE || params.lpf_frequency_param < kLowPassOpen

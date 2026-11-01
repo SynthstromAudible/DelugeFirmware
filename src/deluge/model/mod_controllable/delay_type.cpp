@@ -16,8 +16,6 @@
  */
 
 #include "model/mod_controllable/delay_type.h"
-#include "dsp-next/fixed/curves/param_curve.h"
-#include "synth/matrix/descriptors.h" // kParamNeutral, kParamRange
 
 #include "libdeluge/system.h"
 #include "model/clip/audio_clip.h"
@@ -245,8 +243,7 @@ std::size_t reserveIn(ParamManager& paramManager, bool sound, const deluge::effe
 	// The render's rate with no cable or modulation on it.
 	const int32_t value = sound ? paramManager.getPatchedParamSet()->getValue(params::GLOBAL_DELAY_RATE)
 	                            : paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_DELAY_RATE);
-	const int32_t userRate = deluge::dsp::fixed::curve_exponential(
-	    deluge::synth::matrix::kParamNeutral[params::GLOBAL_DELAY_RATE], deluge::dsp::fixed::preset_combination(value));
+	const int32_t userRate = deluge::effects::final_value(deluge::effects::Delay::kRate, value);
 	const int32_t rate = deluge::effects::synced_delay_rate(userRate, settings, timePerInternalTickInverse);
 	return deluge::effects::tape_shape(static_cast<uint32_t>(rate), true).frames;
 }

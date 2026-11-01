@@ -21,8 +21,10 @@
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/fixed/mod_fx/mod_fx_kernel.h"
 #include "dsp-next/fixed/noise/cong.h"
+#include "effects/param_fragment.h"
 #include "effects/words.h"
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -97,6 +99,42 @@ struct ModFxInputs {
 /// is held changes nothing.
 class ModFx {
 public:
+	/// @brief The mod FX's params' stored words (Q31 knob positions).
+	struct Words {
+		int32_t rate;
+		int32_t depth;
+		int32_t offset;
+		int32_t feedback;
+	};
+
+	/// @brief The block's param values.
+	struct Params {
+		int32_t rate;     ///< UQ0.32 per frame
+		int32_t depth;    ///< Q31
+		int32_t offset;   ///< Q31 signed, as stored
+		int32_t feedback; ///< Q31 signed, as stored
+	};
+
+	/// @brief The mod FX's params, in @ref Words order. Neutrals: the rate UQ0.32 per frame, the depth Q31.
+	static constexpr std::array<EffectParam, 4> kParams{{
+	    {.name = "modFXRate", .curve = dsp::fixed::ParamCurve::EXPONENTIAL, .neutral = 121739},
+	    {.name = "modFXDepth", .curve = dsp::fixed::ParamCurve::SQUARE, .neutral = 526133494},
+	    {.name = "modFXOffset"},
+	    {.name = "modFXFeedback"},
+	}};
+
+	/// @brief The block's param values from the params' words.
+	/// @param words The stored words.
+	/// @return The param values.
+	[[nodiscard]] static Params params_from(const Words& words) {
+		return {
+		    .rate = final_value(kParams[0], words.rate),
+		    .depth = final_value(kParams[1], words.depth),
+		    .offset = final_value(kParams[2], words.offset),
+		    .feedback = final_value(kParams[3], words.feedback),
+		};
+	}
+
 	using Kernel = dsp::fixed::ModFx<>;
 
 	/// @brief Takes the allocator the ring comes from and goes back to.

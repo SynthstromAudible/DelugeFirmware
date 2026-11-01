@@ -23,6 +23,7 @@
 #include "dsp-next/fixed/stutter/stutter_kernel.h"
 #include "effects/delay.h"  // TapeShape
 #include "effects/mod_fx.h" // RingAllocator
+#include "effects/param_fragment.h"
 #include "effects/state.h"
 
 #include <cstdint>
@@ -48,6 +49,12 @@ struct StutterChange {
 /// swaps it inside the section, and @ref finish frees what was taken back. The render never allocates or frees.
 class Stutter {
 public:
+	/// @brief The rate param, on the delay's rate scale (neutral 2^24). A knob change never writes automation.
+	static constexpr EffectParam kRate{.name = "stutterRate",
+	                                   .curve = dsp::fixed::ParamCurve::EXPONENTIAL,
+	                                   .neutral = 16777216,
+	                                   .flags = plugin::ParamFlag::NOT_AUTOMATABLE};
+
 	using Kernel = dsp::fixed::Stutter;
 
 	/// @brief Takes the allocator the tapes come from and go back to.

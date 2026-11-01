@@ -19,7 +19,6 @@
 #include "definitions_cxx.hpp"
 #include "deluge-project/param_automation.h"
 #include "dsp-next/core/stereo_sample.h"
-#include "dsp-next/fixed/curves/param_curve.h"
 #include "effects/codec.h"
 #include "effects/words.h"
 #include "gui/l10n/l10n.h"
@@ -43,7 +42,6 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/render_scratch.h"
 #include "storage/storage_manager.h"
-#include "synth/matrix/descriptors.h" // kParamNeutral, kParamRange
 #include "util/etl_string.h"
 #include "util/firmware_version.h"
 #include "util/functions.h"
@@ -887,16 +885,14 @@ deluge::effects::Delay::State GlobalEffectable::createDelayWorkingState(ParamMan
 	deluge::effects::Delay::State delayWorkingState;
 	UnpatchedParamSet* unpatchedParams = paramManager.getUnpatchedParamSet();
 
-	delayWorkingState.delayFeedbackAmount = deluge::dsp::fixed::curve_linear(
-	    deluge::synth::matrix::kParamNeutral[params::GLOBAL_DELAY_FEEDBACK],
-	    deluge::dsp::fixed::preset_combination(unpatchedParams->getValue(params::UNPATCHED_DELAY_AMOUNT)));
+	delayWorkingState.delayFeedbackAmount = deluge::effects::final_value(
+	    deluge::effects::Delay::kFeedback, unpatchedParams->getValue(params::UNPATCHED_DELAY_AMOUNT));
 	if (shouldLimitDelayFeedback) {
 		delayWorkingState.delayFeedbackAmount =
 		    std::min(delayWorkingState.delayFeedbackAmount, (int32_t)(1 << 30) - (1 << 26));
 	}
-	delayWorkingState.userDelayRate = deluge::dsp::fixed::curve_exponential(
-	    deluge::synth::matrix::kParamNeutral[params::GLOBAL_DELAY_RATE],
-	    deluge::dsp::fixed::preset_combination(unpatchedParams->getValue(params::UNPATCHED_DELAY_RATE)));
+	delayWorkingState.userDelayRate = deluge::effects::final_value(
+	    deluge::effects::Delay::kRate, unpatchedParams->getValue(params::UNPATCHED_DELAY_RATE));
 	uint32_t timePerTickInverse = playbackHandler.getTimePerInternalTickInverse(true);
 	core().delay().setupWorkingState(delayWorkingState, modControllableSnapshot_.effects.delay, timePerTickInverse,
 	                                 soundComingIn);
