@@ -206,6 +206,18 @@ constexpr int32_t kCableDepthOne = 1 << 30;
 	}
 }
 
+/// @brief The number a host shows for a knob: the menu's 0..50 scale, or −25..25 for a centred param, rounded half away
+/// from zero.
+/// @param flags The param's flags (CENTRED moves the scale).
+/// @param knob  The knob position offset to 0..128 (a cable's reaches past both ends).
+/// @return The number shown.
+[[nodiscard]] constexpr int32_t knob_display_number(ParamFlags flags, int32_t knob) {
+	using namespace mapping_detail;
+	constexpr int32_t kKnobSpan = kKnobMax * 2;
+	const int32_t scaled = (knob * kMenuMax) - (flags.has(ParamFlag::CENTRED) ? kPanMenuMax * kKnobSpan : 0);
+	return scaled >= 0 ? (scaled + (kKnobSpan / 2)) / kKnobSpan : -((-scaled + (kKnobSpan / 2)) / kKnobSpan);
+}
+
 /// @brief The word a preset's 0..50 number gives a STANDARD param. Unlike from_menu it doesn't snap the ends: 50 is
 /// 2147483602, not INT32_MAX, and new sounds' defaults depend on that.
 /// @param number The preset number.

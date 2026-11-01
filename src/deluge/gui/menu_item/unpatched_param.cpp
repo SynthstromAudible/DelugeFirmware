@@ -33,14 +33,21 @@
 #include "modulation/params/param.h"
 #include "modulation/params/param_set.h"
 #include "playback/playback_handler.h"
+#include "plugin-api/types/param.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
 
 namespace deluge::gui::menu_item {
 
+plugin::MappingKind UnpatchedParam::mapping() const {
+	const plugin::ParamInfo* info = modulation::params::paramInfoFor(
+	    soundEditor.currentParamManager->getUnpatchedParamSet()->getParamKind(), getP());
+	return info != nullptr ? info->mapping : plugin::MappingKind::STANDARD;
+}
+
 void UnpatchedParam::readCurrentValue() {
-	this->setValue(computeCurrentValueForStandardMenuItem(
-	    soundEditor.currentParamManager->getUnpatchedParamSet()->getValue(getP())));
+	this->setValue(
+	    plugin::to_menu(mapping(), soundEditor.currentParamManager->getUnpatchedParamSet()->getValue(getP())));
 }
 
 ModelStackWithAutoParam* UnpatchedParam::getModelStack(void* memory) {
@@ -94,7 +101,7 @@ void UnpatchedParam::writeCurrentValue() {
 }
 
 int32_t UnpatchedParam::getFinalValue() {
-	return computeFinalValueForStandardMenuItem(this->getValue());
+	return plugin::from_menu(mapping(), this->getValue());
 }
 
 ParamDescriptor UnpatchedParam::getLearningThing() {

@@ -40,6 +40,7 @@
 #include "model/voice/voice_slot.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
+#include "plugin-api/types/param_mapping.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
@@ -505,13 +506,13 @@ void Slicer::soundAudition(const PreviewTarget& target) {
 		    modelStack->addParamCollectionAndId(summary->paramCollection, summary, params::LOCAL_ENV_0_RELEASE);
 		ModelStackWithAutoParam* modelStackWithAutoParam =
 		    modelStackWithParamId->paramCollection->getAutoParamFromId(modelStackWithParamId);
-		modelStackWithAutoParam->autoParam->setCurrentValueWithNoReversionOrRecording(
-		    modelStackWithAutoParam, getParamFromUserValue(params::LOCAL_ENV_0_RELEASE, 1));
+		modelStackWithAutoParam->autoParam->setCurrentValueWithNoReversionOrRecording(modelStackWithAutoParam,
+		                                                                              deluge::plugin::preset_word(1));
 		modelStackWithParamId =
 		    modelStack->addParamCollectionAndId(summary->paramCollection, summary, params::LOCAL_ENV_0_ATTACK);
 		modelStackWithAutoParam = modelStackWithParamId->paramCollection->getAutoParamFromId(modelStackWithParamId);
-		modelStackWithAutoParam->autoParam->setCurrentValueWithNoReversionOrRecording(
-		    modelStackWithAutoParam, getParamFromUserValue(params::LOCAL_ENV_0_ATTACK, 1));
+		modelStackWithAutoParam->autoParam->setCurrentValueWithNoReversionOrRecording(modelStackWithAutoParam,
+		                                                                              deluge::plugin::preset_word(1));
 	}
 	instrumentClipView.sendAuditionNote(target.on, 0, 64, 0);
 }
@@ -755,7 +756,7 @@ Error Slicer::doSlice(int32_t sliceCount) {
 			ModelStackWithAutoParam* modelStackWithAutoParam =
 			    modelStackWithParamId->paramCollection->getAutoParamFromId(modelStackWithParamId);
 			modelStackWithAutoParam->autoParam->setCurrentValueWithNoReversionOrRecording(
-			    modelStackWithAutoParam, getParamFromUserValue(params::LOCAL_ENV_0_RELEASE, 1));
+			    modelStackWithAutoParam, deluge::plugin::preset_word(1));
 		}
 
 		// Do the rest of the Drums
@@ -805,11 +806,11 @@ Error Slicer::doSlice(int32_t sliceCount) {
 			if (doEnvelopes) {
 				paramManager.getPatchedParamSet()->params[params::LOCAL_ENV_0_ATTACK].setCurrentValueBasicForSetup(
 				    *paramManager.getPatchedParamSet()->docForParam(params::LOCAL_ENV_0_ATTACK),
-				    getParamFromUserValue(params::LOCAL_ENV_0_ATTACK, 1));
+				    deluge::plugin::preset_word(1));
 				if (i != sliceCount - 1) {
 					paramManager.getPatchedParamSet()->params[params::LOCAL_ENV_0_RELEASE].setCurrentValueBasicForSetup(
 					    *paramManager.getPatchedParamSet()->docForParam(params::LOCAL_ENV_0_RELEASE),
-					    getParamFromUserValue(params::LOCAL_ENV_0_RELEASE, 1));
+					    deluge::plugin::preset_word(1));
 				}
 			}
 

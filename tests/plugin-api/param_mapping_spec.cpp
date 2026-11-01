@@ -71,6 +71,32 @@ describe param_mapping("the param mapping kinds", ${
 		}
 		expect(bad).to_equal(0);
 	});
+	it("reads back every menu number it writes", _{
+		int32_t bad = 0;
+		for (MappingKind kind : {MappingKind::STANDARD, MappingKind::UNIPOLAR, MappingKind::PAN, MappingKind::CABLE_DEPTH}) {
+			for (int32_t m = menu_min(kind); m <= menu_max(kind); ++m) {
+				bad += to_menu(kind, from_menu(kind, m)) != m;
+			}
+		}
+		expect(bad).to_equal(0);
+		expect(from_menu(MappingKind::STANDARD, 0)).to_equal(INT32_MIN);
+		expect(from_menu(MappingKind::STANDARD, 25)).to_equal(-23);
+		expect(from_menu(MappingKind::STANDARD, 50)).to_equal(INT32_MAX);
+		expect(from_menu(MappingKind::UNIPOLAR, 0)).to_equal(0);
+		expect(from_menu(MappingKind::UNIPOLAR, 25)).to_equal(1073741812);
+		expect(from_menu(MappingKind::UNIPOLAR, 50)).to_equal(INT32_MAX);
+		expect(from_menu(MappingKind::PAN, -25)).to_equal(INT32_MIN);
+		expect(from_menu(MappingKind::PAN, 0)).to_equal(0);
+		expect(from_menu(MappingKind::PAN, 25)).to_equal(INT32_MAX);
+	});
+	it("shows a knob position as the popup does", _{
+		int32_t bad = 0;
+		for (int32_t k = -300; k <= 300; ++k) {
+			bad += knob_display_number(ParamFlags{}, k) != ref::knob_pos_for_display(false, k);
+			bad += knob_display_number(ParamFlag::CENTRED, k) != ref::knob_pos_for_display(true, k);
+		}
+		expect(bad).to_equal(0);
+	});
 	it("turns a preset number into a word without the menu's end snap", _{
 		int32_t bad = 0;
 		for (int32_t u = -128; u <= 127; ++u) {

@@ -87,6 +87,13 @@ constexpr int32_t kDefaultSoundVolumeUserValue = 40;
 /// The depth of the VELOCITY -> LOCAL_VOLUME patch cable that Sound::setupAsSample() installs, as a user value.
 constexpr int32_t kSampleDrumVelocityCableUserValue = 50;
 
+/// @brief A cable depth from a preset number: 50 is a depth of 1 (Q30: 2^30 is 1), less the truncation of its step.
+/// @param number The preset number, −50..50.
+/// @return The cable's depth word.
+[[nodiscard]] constexpr int32_t cableDepthFromPreset(int32_t number) {
+	return number * 21474836;
+}
+
 class Sound : public ModControllableAudio, public virtual Voiced {
 public:
 	using ActiveVoice = AudioEngine::VoicePool::pointer_type;

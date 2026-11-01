@@ -63,6 +63,7 @@
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/playback_handler.h"
+#include "plugin-api/types/param_mapping.h"
 #include "processing/dx7/dx_engine.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/render_scratch.h"
@@ -267,15 +268,13 @@ void Sound::setupAsSample(ParamManagerForTimeline* paramManager) {
 	patchedParams->params[params::LOCAL_OSC_B_VOLUME].setCurrentValueBasicForSetup(
 	    *patchedParams->docForParam(params::LOCAL_OSC_B_VOLUME), -2147483648);
 	patchedParams->params[params::LOCAL_ENV_0_ATTACK].setCurrentValueBasicForSetup(
-	    *patchedParams->docForParam(params::LOCAL_ENV_0_ATTACK), getParamFromUserValue(params::LOCAL_ENV_0_ATTACK, 0));
+	    *patchedParams->docForParam(params::LOCAL_ENV_0_ATTACK), deluge::plugin::preset_word(0));
 	patchedParams->params[params::LOCAL_ENV_0_DECAY].setCurrentValueBasicForSetup(
-	    *patchedParams->docForParam(params::LOCAL_ENV_0_DECAY), getParamFromUserValue(params::LOCAL_ENV_0_DECAY, 20));
+	    *patchedParams->docForParam(params::LOCAL_ENV_0_DECAY), deluge::plugin::preset_word(20));
 	patchedParams->params[params::LOCAL_ENV_0_SUSTAIN].setCurrentValueBasicForSetup(
-	    *patchedParams->docForParam(params::LOCAL_ENV_0_SUSTAIN),
-	    getParamFromUserValue(params::LOCAL_ENV_0_SUSTAIN, 50));
+	    *patchedParams->docForParam(params::LOCAL_ENV_0_SUSTAIN), deluge::plugin::preset_word(50));
 	patchedParams->params[params::LOCAL_ENV_0_RELEASE].setCurrentValueBasicForSetup(
-	    *patchedParams->docForParam(params::LOCAL_ENV_0_RELEASE),
-	    getParamFromUserValue(params::LOCAL_ENV_0_RELEASE, 0));
+	    *patchedParams->docForParam(params::LOCAL_ENV_0_RELEASE), deluge::plugin::preset_word(0));
 
 	patchedParams->params[params::LOCAL_LPF_RESONANCE].setCurrentValueBasicForSetup(
 	    *patchedParams->docForParam(params::LOCAL_LPF_RESONANCE), -2147483648);
@@ -287,7 +286,7 @@ void Sound::setupAsSample(ParamManagerForTimeline* paramManager) {
 	PatchCableSet* patchCableSet = paramManager->getPatchCableSet();
 	patchCableSet->truncateCables(0);
 	patchCableSet->appendDefaultCable(PatchSource::VELOCITY, params::LOCAL_VOLUME,
-	                                  getParamFromUserValue(params::PATCH_CABLE, kSampleDrumVelocityCableUserValue));
+	                                  cableDepthFromPreset(kSampleDrumVelocityCableUserValue));
 
 	setupDefaultExpressionPatching(paramManager);
 
@@ -354,18 +353,15 @@ void Sound::setupAsDefaultSynth(ParamManager* paramManager) {
 void Sound::setupDefaultExpressionPatching(ParamManager* paramManager) {
 	PatchCableSet* patchCableSet = paramManager->getPatchCableSet();
 
-	if (patchCableSet->appendDefaultCable(PatchSource::AFTERTOUCH, params::LOCAL_VOLUME,
-	                                      getParamFromUserValue(params::PATCH_CABLE, 33))
+	if (patchCableSet->appendDefaultCable(PatchSource::AFTERTOUCH, params::LOCAL_VOLUME, cableDepthFromPreset(33))
 	    == nullptr) {
 		return;
 	}
 	if (getSynthMode() == SynthMode::FM) {
-		patchCableSet->appendDefaultCable(PatchSource::Y, params::LOCAL_MODULATOR_0_VOLUME,
-		                                  getParamFromUserValue(params::PATCH_CABLE, 15));
+		patchCableSet->appendDefaultCable(PatchSource::Y, params::LOCAL_MODULATOR_0_VOLUME, cableDepthFromPreset(15));
 	}
 	else {
-		patchCableSet->appendDefaultCable(PatchSource::Y, params::LOCAL_LPF_FREQ,
-		                                  getParamFromUserValue(params::PATCH_CABLE, 20));
+		patchCableSet->appendDefaultCable(PatchSource::Y, params::LOCAL_LPF_FREQ, cableDepthFromPreset(20));
 	}
 }
 
@@ -381,7 +377,7 @@ void Sound::setupAsBlankSynth(ParamManager* paramManager, bool is_dx) {
 	patchedParams->params[params::LOCAL_ENV_0_ATTACK].setCurrentValueBasicForSetup(
 	    *patchedParams->docForParam(params::LOCAL_ENV_0_ATTACK), -2147483648);
 	patchedParams->params[params::LOCAL_ENV_0_DECAY].setCurrentValueBasicForSetup(
-	    *patchedParams->docForParam(params::LOCAL_ENV_0_DECAY), getParamFromUserValue(params::LOCAL_ENV_0_DECAY, 20));
+	    *patchedParams->docForParam(params::LOCAL_ENV_0_DECAY), deluge::plugin::preset_word(20));
 	patchedParams->params[params::LOCAL_ENV_0_SUSTAIN].setCurrentValueBasicForSetup(
 	    *patchedParams->docForParam(params::LOCAL_ENV_0_SUSTAIN), 2147483647);
 	if (is_dx) {
@@ -398,8 +394,7 @@ void Sound::setupAsBlankSynth(ParamManager* paramManager, bool is_dx) {
 
 		PatchCableSet* patchCableSet = paramManager->getPatchCableSet();
 		patchCableSet->truncateCables(0);
-		patchCableSet->appendDefaultCable(PatchSource::VELOCITY, params::LOCAL_VOLUME,
-		                                  getParamFromUserValue(params::PATCH_CABLE, 50));
+		patchCableSet->appendDefaultCable(PatchSource::VELOCITY, params::LOCAL_VOLUME, cableDepthFromPreset(50));
 	}
 
 	setupDefaultExpressionPatching(paramManager);

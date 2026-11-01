@@ -28,4 +28,11 @@ namespace deluge::modulation {
 /// @return The default sidechain settings.
 [[nodiscard]] effects::SidechainState default_sidechain_state();
 
+/// @brief A sidechain's volume from a preset number: 50 is 2^30, less the truncation of its step.
+/// @param number The preset number, −50..50.
+/// @return The volume word.
+[[nodiscard]] constexpr int32_t sidechain_volume_from_preset(int32_t number) {
+	return number * 21474836;
+}
+
 } // namespace deluge::modulation

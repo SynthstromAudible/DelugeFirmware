@@ -83,7 +83,7 @@
 #include "modulation/params/param_set.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
-#include "plugin-api/types/param_mapping.h"
+#include "plugin-api/types/param.h"
 #include "processing/audio_output.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
@@ -1302,24 +1302,8 @@ int32_t View::calculateKnobPosForDisplay(params::Kind kind, int32_t paramID, int
 	if (kind == params::Kind::MIDI) {
 		return knobPos;
 	}
-
-	float knobPosFloat = static_cast<float>(knobPos);
-	float knobPosOffsetFloat = static_cast<float>(kKnobPosOffset);
-	float maxKnobPosFloat = static_cast<float>(kMaxKnobPos);
-	float maxMenuValueFloat = static_cast<float>(kMaxMenuValue);
-	float maxMenuRelativeValueFloat = static_cast<float>(kMaxMenuRelativeValue);
-	float valueForDisplayFloat;
-
-	// calculate parameter value for display by converting 0 - 128 range to same range as menu (0 - 50)
-	valueForDisplayFloat = (knobPosFloat / maxKnobPosFloat) * maxMenuValueFloat;
-
-	// a centred param (pan, pitch) further adjusts the range from 0 - 50 to -25 to +25
-	if (deluge::modulation::params::hasParamFlag(kind, paramID, deluge::plugin::ParamFlag::CENTRED)) {
-		valueForDisplayFloat = valueForDisplayFloat - maxMenuRelativeValueFloat;
-	}
-
-returnValue:
-	return static_cast<int32_t>(std::round(valueForDisplayFloat));
+	const deluge::plugin::ParamInfo* info = params::paramInfoFor(kind, paramID);
+	return deluge::plugin::knob_display_number(info != nullptr ? info->flags : deluge::plugin::ParamFlags{}, knobPos);
 }
 
 void View::instrumentBeenEdited() {

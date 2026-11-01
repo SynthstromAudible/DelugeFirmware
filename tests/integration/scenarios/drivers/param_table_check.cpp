@@ -151,6 +151,21 @@ deluge::plugin::ParamFlags flagsOf(Kind kind, int32_t index) {
 	add(patched && paramNeedsLPF(index, false) && !paramNeedsLPF(index, true), ParamFlag::SMOOTHED_USER_ONLY);
 	return flags;
 }
+/// The mapping today's knob overrides (UnpatchedParamSet's compressor threshold, PatchedParamSet's phase widths) and
+/// pan menus (patched_param::Pan on LOCAL_PAN, unpatched_param::Pan on UNPATCHED_PAN) give the param.
+deluge::plugin::MappingKind mappingOf(Kind kind, int32_t index) {
+	using deluge::plugin::MappingKind;
+	if (kind == Kind::PATCHED) {
+		if (index == LOCAL_OSC_A_PHASE_WIDTH || index == LOCAL_OSC_B_PHASE_WIDTH) {
+			return MappingKind::UNIPOLAR;
+		}
+		return index == LOCAL_PAN ? MappingKind::PAN : MappingKind::STANDARD;
+	}
+	if (index == UNPATCHED_COMPRESSOR_THRESHOLD) {
+		return MappingKind::UNIPOLAR;
+	}
+	return kind == Kind::UNPATCHED_GLOBAL && index == UNPATCHED_PAN ? MappingKind::PAN : MappingKind::STANDARD;
+}
 } // namespace old_predicates
 
 struct Checker {
@@ -181,6 +196,9 @@ struct Checker {
 			std::fprintf(io.err, "%s %u: flags %#x, the runtime's predicates give %#x\n", table, info.id.value,
 			             info.flags.bits, old_predicates::flagsOf(kind, index).bits);
 			fail(table, info, "its flags are not the runtime's");
+		}
+		if (info.mapping != old_predicates::mappingOf(kind, index)) {
+			fail(table, info, "its mapping is not the runtime's knob and menu arithmetic");
 		}
 		const bool centred = info.flags.has(deluge::plugin::ParamFlag::CENTRED);
 		if (centred != params::isParamBipolar(kind, index)) {

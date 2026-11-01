@@ -72,6 +72,7 @@
 #include "model/voice/voice_sample.h"
 #include "modulation/midi/midi_param_collection.h"
 #include "modulation/patch/patch_cable_set.h"
+#include "modulation/sidechain/sidechain.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
@@ -235,7 +236,7 @@ Song::Song() {
 	project.reverb.lpf = (float)50 / 50;
 	project.reverb.width = 1;
 	project.reverb.pan = 0;
-	project.reverb.sidechain_volume = getParamFromUserValue(params::STATIC_SIDECHAIN_VOLUME, -1);
+	project.reverb.sidechain_volume = deluge::modulation::sidechain_volume_from_preset(-1);
 	project.reverb.sidechain_shape = -601295438;
 	project.reverb.sidechain_sync = SYNC_LEVEL_8TH;
 	model = deluge::effects::ReverbModel::MUTABLE;

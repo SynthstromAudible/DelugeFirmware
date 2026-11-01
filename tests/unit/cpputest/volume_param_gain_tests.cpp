@@ -9,7 +9,7 @@ namespace {
 constexpr int32_t kMinParam = std::numeric_limits<int32_t>::min();
 constexpr int32_t kMaxParam = std::numeric_limits<int32_t>::max();
 
-// The default Sound volume, getParamFromUserValue(GLOBAL_VOLUME_POST_FX, 40).
+// The default Sound volume, plugin::preset_word(40).
 constexpr int32_t kDefaultVolumeParam = 0x50000000;
 
 // Mirror of dsp-next/fixed/curves/param_curve.h curve_square() with paramNeutralValue == 2^27, the neutral value

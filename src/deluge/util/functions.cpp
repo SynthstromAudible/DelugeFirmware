@@ -720,40 +720,6 @@ bool isAiffFilename(char const* filename) {
 	return (dotPos != NULL && (!strcasecmp(dotPos, ".AIF") || !strcasecmp(dotPos, ".AIFF")));
 }
 
-// Gets param *preset* value. Should be labelled better
-int32_t getParamFromUserValue(uint8_t p, int8_t userValue) {
-	int32_t positive;
-
-	switch (p) {
-	case params::STATIC_SIDECHAIN_ATTACK:
-		return attackRateTable[userValue] * 4;
-
-	case params::STATIC_SIDECHAIN_RELEASE:
-		return releaseRateTable[userValue] * 8;
-
-	case params::LOCAL_OSC_A_PHASE_WIDTH:
-	case params::LOCAL_OSC_B_PHASE_WIDTH:
-		return (uint32_t)userValue * (85899345 >> 1);
-
-	case params::PATCH_CABLE:
-	case params::STATIC_SIDECHAIN_VOLUME:
-		return userValue * 21474836;
-
-	case params::UNPATCHED_START + params::UNPATCHED_BASS:
-	case params::UNPATCHED_START + params::UNPATCHED_TREBLE:
-		if (userValue == -50) {
-			return -2147483648;
-		}
-		if (userValue == 0) {
-			return 0;
-		}
-		return userValue * 42949672;
-
-	default:
-		return (uint32_t)userValue * 85899345 - 2147483648;
-	}
-}
-
 int32_t getLookupIndexFromValue(int32_t value, const int32_t* table, int32_t maxIndex) {
 	int32_t i;
 	uint32_t bestDistance = 0xFFFFFFFF;

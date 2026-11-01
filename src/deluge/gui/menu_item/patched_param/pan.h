@@ -26,7 +26,5 @@ protected:
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuRelativeValue; }
 	[[nodiscard]] int32_t getMinValue() const override { return kMinMenuRelativeValue; }
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return PAN; }
-	int32_t getFinalValue() override;
-	void readCurrentValue() override;
 };
 } // namespace deluge::gui::menu_item::patched_param

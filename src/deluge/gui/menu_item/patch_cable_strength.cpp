@@ -35,6 +35,7 @@
 #include "model/song/song.h"
 #include "modulation/params/param_descriptor.h"
 #include "modulation/patch/patch_cable_set.h"
+#include "plugin-api/types/param_mapping.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/mod_matrix_host.h"
 #include "processing/sound/sound.h"
@@ -204,9 +205,7 @@ void PatchCableStrength::readCurrentValue() {
 	else {
 		PatchCable& patchCable = patchCableSet->patchCables[c];
 		const int32_t paramValue = patchCable.param.getCurrentValue();
-		// the internal values are stored in the range -(2^30) to 2^30.
-		// rescale them to the range -5000 to 5000 and round to nearest.
-		this->setValue(((int64_t)paramValue * kMaxMenuPatchCableValue + (1 << 29)) >> 30);
+		this->setValue(plugin::to_menu(plugin::MappingKind::CABLE_DEPTH, paramValue));
 	}
 }
 
@@ -240,9 +239,7 @@ void PatchCableStrength::writeCurrentValue() {
 		return;
 	}
 
-	// rescale from 5000 to 2^30. The magic constant is ((2^30)/5000), shifted 32 bits for precision ((1<<(30+32))/5000)
-	int64_t magicConstant = (922337203685477 * 5000) / kMaxMenuPatchCableValue;
-	int32_t finalValue = (magicConstant * this->getValue()) >> 32;
+	int32_t finalValue = plugin::from_menu(plugin::MappingKind::CABLE_DEPTH, this->getValue());
 	deluge::edits::Context editCtx{*currentSong, currentSong->project};
 	deluge::edits::SetParamValue edit{deluge::edits::addressFor(*modelStackWithParam), finalValue, 0, 0,
 	                                  modelStackWithParam};

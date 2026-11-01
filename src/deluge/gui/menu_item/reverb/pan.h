@@ -20,6 +20,7 @@
 
 #include "gui/menu_item/integer.h"
 #include "model/song/song.h"
+#include "plugin-api/types/param_mapping.h"
 #include "processing/engines/audio_engine.h"
 #include "util/cfunctions.h"
 
@@ -30,12 +31,14 @@ public:
 
 	// project.reverb is authoritative; AudioEngine::reverbPan is the projected DSP cache kept in sync.
 	void writeCurrentValue() override {
-		int32_t value = computeFinalValueForPan(this->getValue());
+		int32_t value = plugin::from_menu(plugin::MappingKind::PAN, this->getValue());
 		currentSong->project.reverb.pan = value;
 		AudioEngine::reverbPan = value;
 	}
 
-	void readCurrentValue() override { this->setValue(computeCurrentValueForPan(currentSong->project.reverb.pan)); }
+	void readCurrentValue() override {
+		this->setValue(plugin::to_menu(plugin::MappingKind::PAN, currentSong->project.reverb.pan));
+	}
 
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuRelativeValue; }
 	[[nodiscard]] int32_t getMinValue() const override { return kMinMenuRelativeValue; }

@@ -55,7 +55,8 @@ struct ParamInfo {
 	ParamRange range{};
 	/// How hosts turn the word into knob and menu positions.
 	MappingKind mapping{MappingKind::STANDARD};
-	ParamFlags flags;
+	// The initializer lets a row leave the flags out
+	ParamFlags flags{}; // NOLINT(readability-redundant-member-init)
 };
 
 /// @brief A dense run of ids a plugin stores together: @c count ids from @c first.

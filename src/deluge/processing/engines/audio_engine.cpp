@@ -69,6 +69,7 @@
 #include "modulation/patch/patch_cable_set.h"
 #include "modulation/sidechain/sidechain.h"
 #include "playback/render_requests.h"
+#include "plugin-api/types/param_mapping.h"
 #include "processing/audio_output.h"
 #include "processing/engines/cv_engine.h"
 #include "processing/metronome/metronome.h"
@@ -2027,9 +2028,9 @@ void registerSideChainHit(int32_t strength) {
 
 PreviewVolume PreviewVolume::neutral() {
 	return {
-	    .volumePostFX = getParamFromUserValue(params::GLOBAL_VOLUME_POST_FX, kDefaultSoundVolumeUserValue),
+	    .volumePostFX = deluge::plugin::preset_word(kDefaultSoundVolumeUserValue),
 	    .localVolume = 0,
-	    .velocityCableDepth = getParamFromUserValue(params::PATCH_CABLE, kSampleDrumVelocityCableUserValue),
+	    .velocityCableDepth = cableDepthFromPreset(kSampleDrumVelocityCableUserValue),
 	    .velocityCablePolarity = PatchCable::getDefaultPolarity(PatchSource::VELOCITY),
 	};
 }

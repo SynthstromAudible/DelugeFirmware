@@ -47,6 +47,22 @@
 
 namespace params = deluge::modulation::params;
 
+namespace {
+deluge::plugin::MappingKind knobMapping(ParamSet& set, ModelStackWithAutoParam const* modelStack) {
+	const deluge::plugin::ParamInfo* info =
+	    modelStack != nullptr ? params::paramInfoFor(set.getParamKind(), modelStack->paramId) : nullptr;
+	return info != nullptr ? info->mapping : deluge::plugin::MappingKind::STANDARD;
+}
+} // namespace
+
+int32_t ParamSet::paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack) {
+	return deluge::plugin::to_knob(knobMapping(*this, modelStack), paramValue);
+}
+
+int32_t ParamSet::knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack) {
+	return deluge::plugin::from_knob(knobMapping(*this, modelStack), knobPos);
+}
+
 void setParamsToDefaults(ParamSet& set, params::Kind kind, std::initializer_list<int32_t> paramIds) {
 	for (int32_t p : paramIds) {
 		set.params[p].setCurrentValueBasicForSetup(*set.docForParam(p), params::paramInfoFor(kind, p)->default_value);
@@ -585,28 +601,6 @@ bool UnpatchedParamSet::shouldParamIndicateMiddleValue(ModelStackWithParamId con
 	}
 	return params::hasParamFlag(getParamKind(), modelStack->paramId, deluge::plugin::ParamFlag::MIDDLE_DETENT);
 }
-int32_t UnpatchedParamSet::paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack) {
-	if (modelStack && (modelStack->paramId == params::UNPATCHED_COMPRESSOR_THRESHOLD)) {
-		return (paramValue >> 24) - 64;
-	}
-	else {
-		return ParamSet::paramValueToKnobPos(paramValue, modelStack);
-	}
-}
-
-int32_t UnpatchedParamSet::knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack) {
-	if (modelStack && (modelStack->paramId == params::UNPATCHED_COMPRESSOR_THRESHOLD)) {
-		int32_t paramValue = 2147483647;
-		if (knobPos < 64) {
-			paramValue = (knobPos + 64) << 24;
-		}
-		return paramValue;
-	}
-	else {
-		return ParamSet::knobPosToParamValue(knobPos, modelStack);
-	}
-}
-
 bool UnpatchedParamSet::doesParamIdAllowAutomation(ModelStackWithParamId const* modelStack) {
 	return !params::hasParamFlag(getParamKind(), modelStack->paramId, deluge::plugin::ParamFlag::NOT_AUTOMATABLE);
 }
@@ -678,32 +672,6 @@ void PatchedParamSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const
 	}
 }
 
-int32_t PatchedParamSet::paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack) {
-	if (modelStack
-	    && (modelStack->paramId == params::LOCAL_OSC_A_PHASE_WIDTH
-	        || modelStack->paramId == params::LOCAL_OSC_B_PHASE_WIDTH)) {
-		return (paramValue >> 24) - 64;
-	}
-	else {
-		return ParamSet::paramValueToKnobPos(paramValue, modelStack);
-	}
-}
-
-int32_t PatchedParamSet::knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack) {
-	if (modelStack
-	    && (modelStack->paramId == params::LOCAL_OSC_A_PHASE_WIDTH
-	        || modelStack->paramId == params::LOCAL_OSC_B_PHASE_WIDTH)) {
-		int32_t paramValue = 2147483647;
-		if (knobPos < 64) {
-			paramValue = (knobPos + 64) << 24;
-		}
-		return paramValue;
-	}
-	else {
-		return ParamSet::knobPosToParamValue(knobPos, modelStack);
-	}
-}
-
 bool PatchedParamSet::shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack) {
 	return params::hasParamFlag(params::Kind::PATCHED, modelStack->paramId, deluge::plugin::ParamFlag::MIDDLE_DETENT);
 }
@@ -753,10 +721,7 @@ int32_t ExpressionParamSet::knobPosToParamValue(int32_t knobPos, ModelStackWithA
 		return ParamSet::knobPosToParamValue(knobPos, modelStack);
 	}
 
-	if (knobPos == 64) {
-		return 2147483647;
-	}
-	return (knobPos + 64) << 24;
+	return deluge::plugin::from_knob(deluge::plugin::MappingKind::UNIPOLAR, knobPos);
 }
 
 /// mono expression only - used just for knobs in midi clips currently. If mpe expression ever gets modified to call
@@ -767,8 +732,7 @@ int32_t ExpressionParamSet::paramValueToKnobPos(int32_t paramValue, ModelStackWi
 		return ParamSet::paramValueToKnobPos(paramValue, modelStack);
 	}
 
-	int32_t knobPos = (paramValue >> 24) - 64;
-	return knobPos;
+	return deluge::plugin::to_knob(deluge::plugin::MappingKind::UNIPOLAR, paramValue);
 }
 
 bool ExpressionParamSet::writeToFile(Serializer& writer, bool mustWriteOpeningTagEndFirst) {
