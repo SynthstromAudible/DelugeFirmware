@@ -1809,6 +1809,51 @@ void newShapesTarget(Song* song) {
 	check(deluge::edits::docFallbackHits == fallbackBefore, "new shapes: every lane resolves through the project tree");
 #endif
 	exactTouchDoc = false;
+
+	// A melodic note row's lanes are held by its own expression set, not the project tree.
+	// A synth clip's note rows (per-note MPE): swept, and one lane written and undone through its Edit.
+	for (int32_t c = 0; c < std::ssize(song->live.clips.session_clips); c++) {
+		Clip* clip = song->live.clips.session_clips[c];
+		if (clip->type != ClipType::INSTRUMENT || clip->output == nullptr || clip->output->type != OutputType::SYNTH) {
+			continue;
+		}
+		auto* ic = static_cast<InstrumentClip*>(clip);
+		for (int32_t i = 0; i < std::ssize(ic->noteRows); i++) {
+			NoteRow& row = ic->noteRows[i];
+			if (!row.paramManager.ensureExpressionParamSetExists()) {
+				continue;
+			}
+			alignas(ModelStackWithAutoParam) char m[MODEL_STACK_MAX_SIZE];
+			ModelStackWithThreeMainThings* owner = setupModelStackWithThreeMainThingsIncludingNoteRow(
+			    m, song, clip, ic->getNoteRowId(&row, i), &row, clip->output->toModControllable(), &row.paramManager);
+			sweepCollections(song, owner, "melodic row");
+			if (exactByShape["melodic row written"] > 0) {
+				continue;
+			}
+			ParamCollectionSummary* summary = owner->paramManager->getExpressionParamSetSummary();
+			ModelStackWithAutoParam* lane = summary->paramCollection->getAutoParamFromId(
+			    owner->addParamCollectionAndId(summary->paramCollection, summary, 1), false);
+			const std::optional<deluge::project::ParamAddress> address = deluge::edits::addressFor(*lane);
+			check(address.has_value(), "melodic row: the lane has an address");
+			if (!address) {
+				continue;
+			}
+			const int32_t before = lane->autoParam->getCurrentValue();
+			actionLogger.firstAction[BEFORE] = nullptr;
+			actionLogger.firstAction[AFTER] = nullptr;
+			deluge::edits::Context ctx{*currentSong, currentSong->project};
+			deluge::edits::SetParamValue edit{*address, before + 7654321, 0, 0,
+			                                  deluge::edits::SetParamValue::Resolve::EXACT};
+			check(deluge::edits::apply(ctx, edit) == Error::NONE, "melodic row: the write applies");
+			check(lane->autoParam->getCurrentValue() == before + 7654321, "melodic row: the lane takes the value");
+			actionLogger.revert(BEFORE, false, false);
+			check(lane->autoParam->getCurrentValue() == before, "melodic row: undo gives the value back");
+			exactByShape["melodic row written"]++;
+		}
+		break;
+	}
+	std::fprintf(io.out, "# melodic-rows %d written %d\n", exactByShape["melodic row"],
+	             exactByShape["melodic row written"]);
 }
 
 int edit_undo_redo_main(int argc, char** argv, Io driverIo) {

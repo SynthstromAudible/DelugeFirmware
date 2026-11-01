@@ -3,6 +3,7 @@
 #include "definitions_cxx.hpp" // ALPHA_OR_BETA_VERSION
 #include "deluge-project/edit_guard.h"
 #include "foundation/panic.h" // FREEZE_WITH_ERROR
+#include "memory/heaps.h"     // onRenderTier
 #include "model/clip/clip.h"
 #include "model/drum/drum.h"
 #include "model/instrument/kit.h"
@@ -57,15 +58,17 @@ std::optional<deluge::project::ParamAddress> ownerAddressFor(const ModelStackWit
 	}
 	TimelineCounter* tc = modelStack.getTimelineCounterAllowNull();
 	if (tc == nullptr) {
-		return backedOwnerOf(*modelStack.song, modelStack.modControllable);
+		// The render plays no backed-up params, and must not walk the output lists the interaction tier edits.
+		return deluge::memory::onRenderTier() ? std::nullopt
+		                                      : backedOwnerOf(*modelStack.song, modelStack.modControllable);
 	}
 	if (tc == static_cast<TimelineCounter*>(modelStack.song)) {
 		return deluge::project::ParamAddress{.owner = deluge::project::OwnerId::song()};
 	}
-	// Song and Clip are the only TimelineCounters, so a non-song tc is a Clip. A set noteRow is a per-drum param
-	// (OwnerId::drum, keyed by the drum, any drum type); else a synth or kit clip's own params are its instrument's
-	// (OwnerId::instrument(output)); else an audio, MIDI or CV clip owns its params (OwnerId::clip). noteRow is a
-	// reliable drum signal: the builders always set it explicitly (addNoteRow(0, nullptr) for no row), never stale.
+	// Song and Clip are the only TimelineCounters, so a non-song tc is a Clip. A set noteRow is a kit row's drum
+	// (OwnerId::drum, any drum type) or a melodic clip's note row (OwnerId::note_row); else a synth or kit clip's own
+	// params are its instrument's (OwnerId::instrument(output)); else an audio, MIDI or CV clip owns its params
+	// (OwnerId::clip). The builders always set noteRow explicitly (addNoteRow(0, nullptr) for no row), never stale.
 	// Each dimension (clip, output, drum) is addressed by its durable id; a missing id leaves no address.
 	Clip* clip = static_cast<Clip*>(tc);
 	const std::optional<uint32_t> clipId = clip->id();
@@ -74,7 +77,9 @@ std::optional<deluge::project::ParamAddress> ownerAddressFor(const ModelStackWit
 	}
 	if (NoteRow* noteRow = modelStack.getNoteRowAllowNull()) {
 		if (noteRow->drum == nullptr) {
-			return std::nullopt;
+			// A melodic clip's note row: its MPE lanes, named by the clip and the row's note.
+			return deluge::project::ParamAddress{.owner =
+			                                         deluge::project::OwnerId::note_row(*clipId, modelStack.noteRowId)};
 		}
 		const std::optional<uint32_t> drumId = noteRow->drum->id();
 		return drumId ? std::optional{deluge::project::ParamAddress{.owner = deluge::project::OwnerId::drum(*drumId),
@@ -129,6 +134,7 @@ deluge::project::DocParamManager* managerForAddress(deluge::project::Song& proj,
 	case deluge::project::OwnerId::Kind::DRUM:
 		return &proj.backed_params.getOrCreate(address.owner, address.clip_id);
 	case deluge::project::OwnerId::Kind::SONG:
+	case deluge::project::OwnerId::Kind::NOTE_ROW:
 		return nullptr;
 	}
 	return nullptr;
@@ -143,6 +149,7 @@ deluge::project::DocParamManager* existingManagerForAddress(deluge::project::Son
 	case deluge::project::OwnerId::Kind::DRUM:
 		return proj.backed_params.find(address.owner, address.clip_id);
 	case deluge::project::OwnerId::Kind::SONG:
+	case deluge::project::OwnerId::Kind::NOTE_ROW:
 		return nullptr;
 	}
 	return nullptr;
@@ -182,8 +189,8 @@ deluge::project::DocAutoParam* relocateAndResolve(const ModelStackWithAutoParam&
 	}
 
 	std::optional<deluge::project::ParamAddress> address = addressFor(modelStack);
-	if (!address.has_value()) {
-		return nullptr; // still unclassifiable (e.g. a non-Sound drum) — caller's fallback
+	if (!address.has_value() || address->owner.kind == deluge::project::OwnerId::Kind::NOTE_ROW) {
+		return nullptr; // no tree slot: a melodic note row's lanes stay in its own expression set
 	}
 
 	// Relocate the TOUCHED collection's engine store into its tree slot, as load does. Only

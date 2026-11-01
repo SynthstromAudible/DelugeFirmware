@@ -88,7 +88,7 @@ enum class Holder : uint8_t {
 	SOUND,      ///< a synth or a sound drum: patched and unpatched params, cables, expression
 	EFFECTABLE, ///< a kit's own effects, an audio clip or the song: global unpatched params
 	MIDI_CLIP,  ///< a MIDI clip: its CC lanes and its expression
-	NOTE_CLIP,  ///< a CV clip, or a MIDI or gate drum's row: its expression only
+	NOTE_CLIP,  ///< a CV clip, a MIDI or gate drum's row, a melodic note row: its expression only
 };
 
 struct OwnerStack {
@@ -129,6 +129,23 @@ OwnerStack ownerStackAt(::Song& song, const project::ParamAddress& address, void
 			        Holder::NOTE_CLIP};
 		}
 		return {};
+	}
+	if (address.owner.kind == Kind::NOTE_ROW) {
+		::Clip* clip = song.clipForId(address.owner.id);
+		if (clip == nullptr || clip->type != ClipType::INSTRUMENT || clip->output == nullptr
+		    || clip->output->type == OutputType::KIT) {
+			return {};
+		}
+		auto* instrumentClip = static_cast<::InstrumentClip*>(clip);
+		int32_t noteRowIndex = 0;
+		::NoteRow* noteRow = instrumentClip->getNoteRowForYNote(address.owner.row, &noteRowIndex);
+		if (noteRow == nullptr) {
+			return {};
+		}
+		return {setupModelStackWithThreeMainThingsIncludingNoteRow(memory, &song, clip, address.owner.row, noteRow,
+		                                                           clip->output->toModControllable(),
+		                                                           &noteRow->paramManager),
+		        Holder::NOTE_CLIP};
 	}
 	if (!address.clip_id) {
 		return {};
@@ -227,9 +244,9 @@ ModelStackWithAutoParam* paramInOwner(const OwnerStack& owner, const project::Pa
 	return static_cast<::Clip*>(stack->getTimelineCounter());
 }
 
-/// @p address with its clip moved to @p clip: an INSTRUMENT or DRUM owner's clip id, or a CLIP owner's own id.
+/// @p address with its clip moved to @p clip: an INSTRUMENT or DRUM owner's clip id, or a CLIP or NOTE_ROW owner's own.
 project::ParamAddress inClip(project::ParamAddress address, const ::Clip& clip) {
-	if (address.owner.kind == project::OwnerId::Kind::CLIP) {
+	if (address.owner.kind == project::OwnerId::Kind::CLIP || address.owner.kind == project::OwnerId::Kind::NOTE_ROW) {
 		address.owner.id = clip.id();
 	}
 	else {
@@ -260,6 +277,14 @@ OwnerStack backedOwnerStack(::Song& song, const project::ParamAddress& address, 
 	if (output == nullptr) {
 		return {};
 	}
+	if (output->type == OutputType::MIDI_OUT || output->type == OutputType::CV) {
+		// A MIDI or CV track's own params are its active clip's.
+		ParamManager* own = output->getParamManager(&song);
+		return own != nullptr ? OwnerStack{setupModelStackWithThreeMainThingsButNoNoteRow(
+		                                       memory, &song, output->toModControllable(), nullptr, own),
+		                                   output->type == OutputType::MIDI_OUT ? Holder::MIDI_CLIP : Holder::NOTE_CLIP}
+		                      : OwnerStack{};
+	}
 	ParamManager* params = song.live.param_backup.getPreferablyWithClip(*output, nullptr);
 	if (params == nullptr) {
 		return {};
@@ -282,9 +307,9 @@ OwnerStack backedOwnerStack(::Song& song, const project::ParamAddress& address, 
 	}
 }
 
-/// The clip @p address names, by its INSTRUMENT/DRUM clip id or its CLIP owner's id; null for none.
+/// The clip @p address names, by its INSTRUMENT/DRUM clip id or its CLIP or NOTE_ROW owner's id; null for none.
 ::Clip* clipOf(::Song& song, const project::ParamAddress& address) {
-	if (address.owner.kind == project::OwnerId::Kind::CLIP) {
+	if (address.owner.kind == project::OwnerId::Kind::CLIP || address.owner.kind == project::OwnerId::Kind::NOTE_ROW) {
 		return song.clipForId(address.owner.id);
 	}
 	return address.clip_id ? song.clipForId(*address.clip_id) : nullptr;
