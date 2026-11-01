@@ -52,6 +52,20 @@ struct OwnerId {
 /// spaces (an MPE expression dimension, a MIDI CC number). A patch cable's depth is an engine param.
 enum class ParamSpace : uint8_t { ENGINE, EXPRESSION, MIDI_CC };
 
+/// @brief A param without its owner: which space, which param in it. In ENGINE space the id is in the owner's plugin
+/// table (a patch cable's depth is the instrument's depth id); a MIDI_CC id is the CC number, an EXPRESSION id the MPE
+/// dimension. Ids are per plugin, so a target names a param only together with its owner's plugin.
+struct ParamTarget {
+	ParamSpace space{ParamSpace::ENGINE};
+	deluge::plugin::ParamId id{};
+	[[nodiscard]] constexpr bool operator==(const ParamTarget&) const = default;
+};
+
+/// @brief The ENGINE-space target of the owner plugin's param @p id.
+[[nodiscard]] constexpr ParamTarget engine_target(uint32_t id) {
+	return {ParamSpace::ENGINE, deluge::plugin::ParamId{id}};
+}
+
 /// @brief Names one automation lane: which owner, which space, which param in it. `Song::resolveParam` maps this to the
 /// live `DocAutoParam` in the persistent tree. An engine param's id is its engine's (the owner's slot names the
 /// engine).
@@ -62,6 +76,9 @@ struct ParamAddress {
 	// For INSTRUMENT/DRUM owners, which clip's override this lane belongs to (nullopt = the owner's shared
 	// default). Unused for SONG/CLIP owners.
 	std::optional<uint32_t> clip_id{};
+
+	/// @brief The param this address names, without its owner.
+	[[nodiscard]] constexpr ParamTarget target() const { return {space, id}; }
 };
 
 } // namespace deluge::project

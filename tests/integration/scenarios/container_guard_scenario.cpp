@@ -1090,10 +1090,10 @@ void editLeg() {
 			break;
 		}
 		g_step = "cableDepth";
-		turnParamIn(three, g_clip->paramManager.getPatchCableSetSummary(),
-		            PatchCableSet::getParamId(cables->patchCables[*first].destinationParamDescriptor,
-		                                      cables->patchCables[*first].from),
-		            0x10000000);
+		turnParamIn(
+		    three, g_clip->paramManager.getPatchCableSetSummary(),
+		    PatchCableSet::getParamId(cables->patchCables[*first].destination, cables->patchCables[*first].from),
+		    0x10000000);
 		const deluge::project::DocParamManager* store = currentSong->project.backed_params.find(
 		    deluge::project::OwnerId::instrument(synth->id().value_or(0)), g_clip->id());
 		const bool resident = store != nullptr && cables->depthsRelocated();

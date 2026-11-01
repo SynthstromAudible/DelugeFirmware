@@ -37,7 +37,7 @@ public:
 	ActionResult buttonAction(deluge::hid::Button b, bool on) { return Param::buttonAction(b, on); }
 	void horizontalEncoderAction(int32_t offset) { return Param::horizontalEncoderAction(offset); }
 
-	ParamDescriptor getLearningThing() override;
+	deluge::modulation::KnobTarget getLearningThing() override;
 	virtual deluge::modulation::params::Kind getParamKind();
 	virtual uint32_t getParamIndex();
 	virtual uint8_t shouldDrawDotOnName();

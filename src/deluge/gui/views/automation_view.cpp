@@ -78,6 +78,7 @@
 #include "model/model_stack.h"
 #include "model/note/copied_note_row.h"
 #include "model/note/note.h"
+#include "model/project_bridge/param_ids.h"
 #include "model/sample/sample.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
@@ -86,6 +87,7 @@
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_node.h"
 #include "modulation/params/param_set.h"
+#include "modulation/params/param_targets.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/mode/playback_mode.h"
 #include "playback/playback_handler.h"
@@ -105,11 +107,11 @@
 #include <string.h>
 
 namespace params = deluge::modulation::params;
+using deluge::bridge::OwnerPlugin;
+using deluge::bridge::RuntimeParam;
 using deluge::modulation::params::kNoParamID;
 using deluge::modulation::params::ParamType;
-using deluge::modulation::params::patchedParamShortcuts;
-using deluge::modulation::params::unpatchedGlobalParamShortcuts;
-using deluge::modulation::params::unpatchedNonGlobalParamShortcuts;
+using deluge::project::ParamTarget;
 
 using namespace deluge::gui;
 
@@ -126,184 +128,35 @@ const uint32_t mutePadActionUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITION
 
 const uint32_t verticalScrollUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITIONING, UI_MODE_RECORD_COUNT_IN, 0};
 
-constexpr int32_t kNumNonGlobalParamsForAutomation = 83;
-constexpr int32_t kNumGlobalParamsForAutomation = 39;
+constexpr int32_t kNumNonGlobalParamsForAutomation = params::kSoundParamsForAutomation.size();
+constexpr int32_t kNumGlobalParamsForAutomation = params::kGlobalParamsForAutomation.size();
 
-// synth and kit rows FX - sorted in the order that Parameters are scrolled through on the display
-const std::array<std::pair<params::Kind, ParamType>, kNumNonGlobalParamsForAutomation> nonGlobalParamsForAutomation{{
-    // Master Volume, Pitch, Pan
-    {params::Kind::PATCHED, params::GLOBAL_VOLUME_POST_FX},
-    {params::Kind::PATCHED, params::LOCAL_PITCH_ADJUST},
-    {params::Kind::PATCHED, params::LOCAL_PAN},
-    // LPF Cutoff, Resonance, Morph
-    {params::Kind::PATCHED, params::LOCAL_LPF_FREQ},
-    {params::Kind::PATCHED, params::LOCAL_LPF_RESONANCE},
-    {params::Kind::PATCHED, params::LOCAL_LPF_MORPH},
-    // HPF Cutoff, Resonance, Morph
-    {params::Kind::PATCHED, params::LOCAL_HPF_FREQ},
-    {params::Kind::PATCHED, params::LOCAL_HPF_RESONANCE},
-    {params::Kind::PATCHED, params::LOCAL_HPF_MORPH},
-    // Bass, Bass Freq
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_BASS},
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_BASS_FREQ},
-    // Treble, Treble Freq
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_TREBLE},
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_TREBLE_FREQ},
-    // Reverb Amount
-    {params::Kind::PATCHED, params::GLOBAL_REVERB_AMOUNT},
-    // Delay Rate, Amount
-    {params::Kind::PATCHED, params::GLOBAL_DELAY_RATE},
-    {params::Kind::PATCHED, params::GLOBAL_DELAY_FEEDBACK},
-    // Sidechain Shape
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_SIDECHAIN_SHAPE},
-    // Decimation, Bitcrush, Wavefolder
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_SAMPLE_RATE_REDUCTION},
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_BITCRUSHING},
-    {params::Kind::PATCHED, params::LOCAL_FOLD},
-    // OSC 1 Volume, Pitch, Pulse Width, Carrier Feedback, Wave Index
-    {params::Kind::PATCHED, params::LOCAL_OSC_A_VOLUME},
-    {params::Kind::PATCHED, params::LOCAL_OSC_A_PITCH_ADJUST},
-    {params::Kind::PATCHED, params::LOCAL_OSC_A_PHASE_WIDTH},
-    {params::Kind::PATCHED, params::LOCAL_CARRIER_0_FEEDBACK},
-    {params::Kind::PATCHED, params::LOCAL_OSC_A_WAVE_INDEX},
-    // OSC 2 Volume, Pitch, Pulse Width, Carrier Feedback, Wave Index
-    {params::Kind::PATCHED, params::LOCAL_OSC_B_VOLUME},
-    {params::Kind::PATCHED, params::LOCAL_OSC_B_PITCH_ADJUST},
-    {params::Kind::PATCHED, params::LOCAL_OSC_B_PHASE_WIDTH},
-    {params::Kind::PATCHED, params::LOCAL_CARRIER_1_FEEDBACK},
-    {params::Kind::PATCHED, params::LOCAL_OSC_B_WAVE_INDEX},
-    // FM Mod 1 Volume, Pitch, Feedback
-    {params::Kind::PATCHED, params::LOCAL_MODULATOR_0_VOLUME},
-    {params::Kind::PATCHED, params::LOCAL_MODULATOR_0_PITCH_ADJUST},
-    {params::Kind::PATCHED, params::LOCAL_MODULATOR_0_FEEDBACK},
-    // FM Mod 2 Volume, Pitch, Feedback
-    {params::Kind::PATCHED, params::LOCAL_MODULATOR_1_VOLUME},
-    {params::Kind::PATCHED, params::LOCAL_MODULATOR_1_PITCH_ADJUST},
-    {params::Kind::PATCHED, params::LOCAL_MODULATOR_1_FEEDBACK},
-    // Env 1 ADSR
-    {params::Kind::PATCHED, params::LOCAL_ENV_0_ATTACK},
-    {params::Kind::PATCHED, params::LOCAL_ENV_0_DECAY},
-    {params::Kind::PATCHED, params::LOCAL_ENV_0_SUSTAIN},
-    {params::Kind::PATCHED, params::LOCAL_ENV_0_RELEASE},
-    // Env 2 ADSR
-    {params::Kind::PATCHED, params::LOCAL_ENV_1_ATTACK},
-    {params::Kind::PATCHED, params::LOCAL_ENV_1_DECAY},
-    {params::Kind::PATCHED, params::LOCAL_ENV_1_SUSTAIN},
-    {params::Kind::PATCHED, params::LOCAL_ENV_1_RELEASE},
-    // Env 3 ADSR
-    {params::Kind::PATCHED, params::LOCAL_ENV_2_ATTACK},
-    {params::Kind::PATCHED, params::LOCAL_ENV_2_DECAY},
-    {params::Kind::PATCHED, params::LOCAL_ENV_2_SUSTAIN},
-    {params::Kind::PATCHED, params::LOCAL_ENV_2_RELEASE},
-    // Env 4 ADSR
-    {params::Kind::PATCHED, params::LOCAL_ENV_3_ATTACK},
-    {params::Kind::PATCHED, params::LOCAL_ENV_3_DECAY},
-    {params::Kind::PATCHED, params::LOCAL_ENV_3_SUSTAIN},
-    {params::Kind::PATCHED, params::LOCAL_ENV_3_RELEASE},
-    // LFO 1
-    {params::Kind::PATCHED, params::GLOBAL_LFO_FREQ_1},
-    // LFO 2
-    {params::Kind::PATCHED, params::LOCAL_LFO_LOCAL_FREQ_1},
-    // LFO 3
-    {params::Kind::PATCHED, params::GLOBAL_LFO_FREQ_2},
-    // LFO 4
-    {params::Kind::PATCHED, params::LOCAL_LFO_LOCAL_FREQ_2},
-    // Mod FX Offset, Feedback, Depth, Rate
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_MOD_FX_OFFSET},
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_MOD_FX_FEEDBACK},
-    {params::Kind::PATCHED, params::GLOBAL_MOD_FX_DEPTH},
-    {params::Kind::PATCHED, params::GLOBAL_MOD_FX_RATE},
-    // Arp Rate, Gate, Rhythm, Chord Polyphony, Sequence Length, Ratchet Amount, Note Prob, Bass Prob, Chord Prob,
-    // Ratchet Prob, Spread Gate, Spread Octave, Spread Velocity
-    {params::Kind::PATCHED, params::GLOBAL_ARP_RATE},
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_GATE},
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_SPREAD_GATE},
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_SPREAD_OCTAVE},
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_SPREAD_VELOCITY},
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_RATCHET_AMOUNT},
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_RATCHET_PROBABILITY},
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_CHORD_POLYPHONY},
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_CHORD_PROBABILITY},
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_NOTE_PROBABILITY},
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_BASS_PROBABILITY},
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_SWAP_PROBABILITY},
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_GLIDE_PROBABILITY},
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_REVERSE_PROBABILITY},
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_RHYTHM},
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_ARP_SEQUENCE_LENGTH},
-    // Noise
-    {params::Kind::PATCHED, params::LOCAL_NOISE_VOLUME},
-    // Portamento
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_PORTAMENTO},
-    // Stutter Rate
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_STUTTER_RATE},
-    // Compressor Threshold
-    {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_COMPRESSOR_THRESHOLD},
-    // Mono Expression: X - Pitch Bend
-    {params::Kind::EXPRESSION, Expression::X_PITCH_BEND},
-    // Mono Expression: Y - Mod Wheel
-    {params::Kind::EXPRESSION, Expression::Y_SLIDE_TIMBRE},
-    // Mono Expression: Z - Channel Pressure
-    {params::Kind::EXPRESSION, Expression::Z_PRESSURE},
-}};
+namespace {
 
-// global FX - sorted in the order that Parameters are scrolled through on the display
-// used with kit affect entire, audio clips, and arranger
-const std::array<std::pair<params::Kind, ParamType>, kNumGlobalParamsForAutomation> globalParamsForAutomation{{
-    // Master Volume, Pitch, Pan
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_VOLUME},
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_PITCH_ADJUST},
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_PAN},
-    // LPF Cutoff, Resonance
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_LPF_FREQ},
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_LPF_RES},
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_LPF_MORPH},
-    // HPF Cutoff, Resonance
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_HPF_FREQ},
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_HPF_RES},
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_HPF_MORPH},
-    // Bass, Bass Freq
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_BASS},
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_BASS_FREQ},
-    // Treble, Treble Freq
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_TREBLE},
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_TREBLE_FREQ},
-    // Reverb Amount
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_REVERB_SEND_AMOUNT},
-    // Delay Rate, Amount
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_DELAY_RATE},
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_DELAY_AMOUNT},
-    // Sidechain Send, Shape
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_SIDECHAIN_VOLUME},
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_SIDECHAIN_SHAPE},
-    // Decimation, Bitcrush
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_SAMPLE_RATE_REDUCTION},
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_BITCRUSHING},
-    // Mod FX Offset, Feedback, Depth, Rate
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_MOD_FX_OFFSET},
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_MOD_FX_FEEDBACK},
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_MOD_FX_DEPTH},
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_MOD_FX_RATE},
-    // Stutter Rate
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_STUTTER_RATE},
-    // Compressor Threshold
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_COMPRESSOR_THRESHOLD},
-    // Arp Rate, Gate, Rhythm, Chord Polyphony, Sequence Length, Ratchet Amount, Note Prob, Bass Prob, Chord Prob,
-    // Ratchet Prob, Spread Gate, Spread Octave, Spread Velocity
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_ARP_RATE},
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_ARP_GATE},
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_ARP_SPREAD_GATE},
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_SPREAD_VELOCITY},
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_ARP_RATCHET_AMOUNT},
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_ARP_RATCHET_PROBABILITY},
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_NOTE_PROBABILITY},
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_ARP_BASS_PROBABILITY},
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_ARP_SWAP_PROBABILITY},
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_ARP_GLIDE_PROBABILITY},
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_REVERSE_PROBABILITY},
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_ARP_RHYTHM},
-    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_ARP_SEQUENCE_LENGTH},
-}};
+/// Portamento, which a kit row's automation leaves out.
+constexpr ParamTarget kPortamento = deluge::project::engine_target(deluge::instrument::param::kPortamento.value);
+
+/// The runtime param a sound's target names.
+RuntimeParam soundParam(ParamTarget target) {
+	return *deluge::bridge::runtimeParamOf(OwnerPlugin::INSTRUMENT, target);
+}
+
+/// The runtime param a global effectable's target names.
+RuntimeParam globalParam(ParamTarget target) {
+	return *deluge::bridge::runtimeParamOf(OwnerPlugin::GLOBAL_EFFECTABLE, target);
+}
+
+/// The index of a pad-grid cell's param of @p kind, or kNoParamID when the cell has none of that kind.
+int32_t cellIndex(const std::optional<RuntimeParam>& cell, params::Kind kind) {
+	return cell && cell->kind == kind ? cell->index : static_cast<int32_t>(kNoParamID);
+}
+
+/// The runtime param of a pad-grid cell, if the cell has one.
+std::optional<RuntimeParam> cellParam(OwnerPlugin owner, const std::optional<ParamTarget>& cell) {
+	return cell ? deluge::bridge::runtimeParamOf(owner, *cell) : std::nullopt;
+}
+
+} // namespace
 
 // shortcuts for toggling interpolation and pad selection mode
 constexpr uint8_t kInterpolationShortcutX = 0;
@@ -367,35 +220,24 @@ AutomationView::AutomationView() {
 void AutomationView::initMIDICCShortcutsForAutomation() {
 	for (int x = 0; x < kDisplayWidth; x++) {
 		for (int y = 0; y < kDisplayHeight; y++) {
-			uint8_t ccNumber = MIDI_CC_NONE;
-			uint32_t paramId = patchedParamShortcuts[x][y];
-			if (paramId != kNoParamID) {
-				ccNumber = midiFollow.soundParamToCC[paramId];
-				if (ccNumber == MIDI_CC_NONE) {
-					ccNumber = midiFollow.globalParamToCC[paramId];
-				}
-			}
-			if (ccNumber == MIDI_CC_NONE) {
-				paramId = unpatchedNonGlobalParamShortcuts[x][y];
-				if (paramId != kNoParamID) {
-					ccNumber = midiFollow.soundParamToCC[paramId + params::UNPATCHED_START];
-					if (ccNumber == MIDI_CC_NONE) {
-						ccNumber = midiFollow.globalParamToCC[paramId];
-					}
-				}
-			}
-			if (ccNumber != MIDI_CC_NONE) {
-				midiCCShortcutsForAutomation[x][y] = ccNumber;
-			}
-			else {
-				midiCCShortcutsForAutomation[x][y] = kNoParamID;
-			}
+			midiCCShortcutsForAutomation[x][y] = automationMIDICCShortcut(midiFollow, x, y);
 		}
 	}
+}
 
-	midiCCShortcutsForAutomation[14][7] = CC_NUMBER_PITCH_BEND;
-	midiCCShortcutsForAutomation[15][0] = CC_NUMBER_AFTERTOUCH;
-	midiCCShortcutsForAutomation[15][7] = CC_NUMBER_Y_AXIS;
+uint32_t automationMIDICCShortcut(const MidiFollow& follow, int32_t x, int32_t y) {
+	if (x == 14 && y == 7) {
+		return CC_NUMBER_PITCH_BEND;
+	}
+	if (x == 15 && y == 0) {
+		return CC_NUMBER_AFTERTOUCH;
+	}
+	if (x == 15 && y == 7) {
+		return CC_NUMBER_Y_AXIS;
+	}
+	const std::optional<ParamTarget>& cell = params::kSoundParamShortcuts[x][y];
+	std::optional<uint8_t> ccNumber = cell ? follow.ccOf(OwnerPlugin::INSTRUMENT, *cell) : std::nullopt;
+	return ccNumber ? *ccNumber : kNoParamID;
 }
 
 // called everytime you open up the automation view
@@ -501,9 +343,9 @@ void AutomationView::focusRegained() {
 					// make sure it's not jiberish
 					if (set) {
 						PatchSource s;
-						ParamDescriptor destinationParamDescriptor;
-						set->dissectParamId(clip->lastSelectedParamID, &destinationParamDescriptor, &s);
-						if (set->getPatchCableIndex(s, destinationParamDescriptor) != kNoSelection) {
+						deluge::synth::CableTarget destination;
+						set->dissectParamId(clip->lastSelectedParamID, &destination, &s);
+						if (set->getPatchCableIndex(s, destination) != kNoSelection) {
 							patchCableExists = true;
 						}
 					}
@@ -781,45 +623,24 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
 			ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
 			if (!onArrangerView && (outputType == OutputType::SYNTH || singleSoundDrum)) {
-				if (patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-					modelStackWithParam =
-					    getModelStackWithParamForClip(modelStackWithTimelineCounter, clip, false,
-					                                  patchedParamShortcuts[xDisplay][yDisplay], params::Kind::PATCHED);
-				}
-
-				else if (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
+				if (const std::optional<ParamTarget>& cell = params::kSoundParamShortcuts[xDisplay][yDisplay]) {
 					// don't make portamento available for automation in kit rows
-					if ((outputType == OutputType::KIT)
-					    && (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] == params::UNPATCHED_PORTAMENTO)) {
+					if ((outputType == OutputType::KIT) && (*cell == kPortamento)) {
 						pixel = colours::black; // erase pad
 						continue;
 					}
-
-					modelStackWithParam = getModelStackWithParamForClip(
-					    modelStackWithTimelineCounter, clip, false,
-					    unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay], params::Kind::UNPATCHED_SOUND);
-				}
-
-				else if (params::isPatchCableShortcut(xDisplay, yDisplay)) {
-					ParamDescriptor paramDescriptor;
-					params::getPatchCableFromShortcut(xDisplay, yDisplay, &paramDescriptor);
-
-					modelStackWithParam = getModelStackWithParamForClip(
-					    modelStackWithTimelineCounter, clip, false, paramDescriptor.data, params::Kind::PATCH_CABLE);
+					modelStackWithParam = laneFor(modelStackWithTimelineCounter, clip, OwnerPlugin::INSTRUMENT, *cell);
 				}
 				// expression params, so sounds or midi/cv, or a single drum
-				else if (params::expressionParamFromShortcut(xDisplay, yDisplay) != kNoParamID) {
-					uint32_t paramID = params::expressionParamFromShortcut(xDisplay, yDisplay);
-					if (paramID != kNoParamID) {
-						modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip, false,
-						                                                    paramID, params::Kind::EXPRESSION);
-					}
+				else if (std::optional<ParamTarget> expression = params::expressionShortcut(xDisplay, yDisplay)) {
+					modelStackWithParam =
+					    laneFor(modelStackWithTimelineCounter, clip, OwnerPlugin::INSTRUMENT, *expression);
 				}
 			}
 
 			else if ((onArrangerView || (outputType == OutputType::AUDIO) || affectEntireKit)) {
-				int32_t paramID = unpatchedGlobalParamShortcuts[xDisplay][yDisplay];
-				if (paramID != kNoParamID) {
+				if (const std::optional<ParamTarget>& cell = params::kGlobalParamShortcuts[xDisplay][yDisplay]) {
+					const int32_t paramID = globalParam(*cell).index;
 					if (onArrangerView) {
 						// don't make pitch adjust or sidechain available for automation in arranger
 						if ((paramID == params::UNPATCHED_PITCH_ADJUST)
@@ -843,7 +664,7 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
 							continue;
 						}
 						modelStackWithParam =
-						    getModelStackWithParamForClip(modelStackWithTimelineCounter, clip, false, paramID);
+						    laneFor(modelStackWithTimelineCounter, clip, OwnerPlugin::GLOBAL_EFFECTABLE, *cell);
 					}
 				}
 			}
@@ -855,10 +676,9 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
 				}
 			}
 			else if (outputType == OutputType::CV) {
-				uint32_t paramID = params::expressionParamFromShortcut(xDisplay, yDisplay);
-				if (paramID != kNoParamID) {
-					modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip, false,
-					                                                    paramID, params::Kind::EXPRESSION);
+				if (std::optional<ParamTarget> expression = params::expressionShortcut(xDisplay, yDisplay)) {
+					modelStackWithParam =
+					    laneFor(modelStackWithTimelineCounter, clip, OwnerPlugin::INSTRUMENT, *expression);
 				}
 			}
 
@@ -1842,31 +1662,22 @@ void AutomationView::handleParameterSelection(Clip* clip, Output* output, Output
 	    && (outputType == OutputType::SYNTH
 	        || (outputType == OutputType::KIT && !getAffectEntire() && ((Kit*)output)->selectedDrum
 	            && ((Kit*)output)->selectedDrum->type == DrumType::SOUND))
-	    && ((patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID)
-	        || (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID)
-	        || params::isPatchCableShortcut(xDisplay, yDisplay))) {
+	    && params::kSoundParamShortcuts[xDisplay][yDisplay]) {
+		const ParamTarget cell = *params::kSoundParamShortcuts[xDisplay][yDisplay];
 		// don't allow automation of portamento in kit's
-		if ((outputType == OutputType::KIT)
-		    && (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] == params::UNPATCHED_PORTAMENTO)) {
+		if ((outputType == OutputType::KIT) && (cell == kPortamento)) {
 			return; // no parameter selected, don't re-render grid;
 		}
 
 		// if you are in a synth or a kit instrumentClip and the shortcut is valid, set current selected
 		// ParamID
-		if (patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-			clip->lastSelectedParamKind = params::Kind::PATCHED;
-			clip->lastSelectedParamID = patchedParamShortcuts[xDisplay][yDisplay];
-		}
-		else if (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID) {
-			clip->lastSelectedParamKind = params::Kind::UNPATCHED_SOUND;
-			clip->lastSelectedParamID = unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay];
-		}
-		else if (params::isPatchCableShortcut(xDisplay, yDisplay)) {
-			ParamDescriptor paramDescriptor;
-			params::getPatchCableFromShortcut(xDisplay, yDisplay, &paramDescriptor);
-			clip->lastSelectedParamKind = params::Kind::PATCH_CABLE;
-			clip->lastSelectedParamID = paramDescriptor.data;
-			clip->lastSelectedPatchSource = paramDescriptor.getBottomLevelSource();
+		const RuntimeParam selected = soundParam(cell);
+		clip->lastSelectedParamKind = selected.kind;
+		clip->lastSelectedParamID = selected.index;
+		if (selected.kind == params::Kind::PATCH_CABLE) {
+			// a cable shortcut has one source, nearest the param in the cable word
+			clip->lastSelectedPatchSource =
+			    static_cast<PatchSource>((static_cast<uint32_t>(selected.index) >> 8) & 0xFF);
 		}
 
 		if (clip->lastSelectedParamKind != params::Kind::PATCH_CABLE) {
@@ -1877,10 +1688,11 @@ void AutomationView::handleParameterSelection(Clip* clip, Output* output, Output
 	// if you are in arranger, an audio clip, or a kit clip with affect entire enabled
 	else if ((onArrangerView || (outputType == OutputType::AUDIO)
 	          || (outputType == OutputType::KIT && getAffectEntire()))
-	         && (unpatchedGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID)) {
+	         && params::kGlobalParamShortcuts[xDisplay][yDisplay]) {
 
-		params::Kind paramKind = params::Kind::UNPATCHED_GLOBAL;
-		int32_t paramID = unpatchedGlobalParamShortcuts[xDisplay][yDisplay];
+		const RuntimeParam selected = globalParam(*params::kGlobalParamShortcuts[xDisplay][yDisplay]);
+		params::Kind paramKind = selected.kind;
+		int32_t paramID = selected.index;
 
 		// don't allow automation of pitch adjust, or sidechain in arranger
 		if (onArrangerView
@@ -1918,9 +1730,10 @@ void AutomationView::handleParameterSelection(Clip* clip, Output* output, Output
 	          // selected a single sound drum
 	          || ((outputType == OutputType::KIT && !getAffectEntire() && ((Kit*)output)->selectedDrum
 	               && ((Kit*)output)->selectedDrum->type == DrumType::SOUND)))
-	         && params::expressionParamFromShortcut(xDisplay, yDisplay) != kNoParamID) {
-		clip->lastSelectedParamID = params::expressionParamFromShortcut(xDisplay, yDisplay);
-		clip->lastSelectedParamKind = params::Kind::EXPRESSION;
+	         && params::expressionShortcut(xDisplay, yDisplay)) {
+		const RuntimeParam selected = soundParam(*params::expressionShortcut(xDisplay, yDisplay));
+		clip->lastSelectedParamID = selected.index;
+		clip->lastSelectedParamKind = selected.kind;
 	}
 
 	else {
@@ -2617,7 +2430,7 @@ void AutomationView::selectGlobalParam(int32_t offset, Clip* clip) {
 	if (onArrangerView) {
 		auto idx = getNextSelectedParamArrayPosition(offset, currentSong->lastSelectedParamArrayPosition,
 		                                             kNumGlobalParamsForAutomation);
-		auto [kind, id] = globalParamsForAutomation[idx];
+		auto [kind, id] = globalParam(params::kGlobalParamsForAutomation[idx]);
 		{
 			while ((id == params::UNPATCHED_PITCH_ADJUST || id == params::UNPATCHED_SIDECHAIN_SHAPE
 			        || id == params::UNPATCHED_SIDECHAIN_VOLUME || id == params::UNPATCHED_COMPRESSOR_THRESHOLD
@@ -2632,7 +2445,7 @@ void AutomationView::selectGlobalParam(int32_t offset, Clip* clip) {
 				}
 				idx = getNextSelectedParamArrayPosition(offset, currentSong->lastSelectedParamArrayPosition,
 				                                        kNumGlobalParamsForAutomation);
-				id = globalParamsForAutomation[idx].second;
+				id = globalParam(params::kGlobalParamsForAutomation[idx]).index;
 			}
 		}
 		currentSong->lastSelectedParamID = id;
@@ -2642,7 +2455,7 @@ void AutomationView::selectGlobalParam(int32_t offset, Clip* clip) {
 	else if (clip->output->type == OutputType::AUDIO) {
 		auto idx = getNextSelectedParamArrayPosition(offset, clip->lastSelectedParamArrayPosition,
 		                                             kNumGlobalParamsForAutomation);
-		auto [kind, id] = globalParamsForAutomation[idx];
+		auto [kind, id] = globalParam(params::kGlobalParamsForAutomation[idx]);
 		{
 			while ((id >= params::UNPATCHED_FIRST_ARP_PARAM && id <= params::UNPATCHED_LAST_ARP_PARAM)
 			       || id == params::UNPATCHED_ARP_RATE) {
@@ -2655,7 +2468,7 @@ void AutomationView::selectGlobalParam(int32_t offset, Clip* clip) {
 				}
 				idx = getNextSelectedParamArrayPosition(offset, clip->lastSelectedParamArrayPosition,
 				                                        kNumGlobalParamsForAutomation);
-				id = globalParamsForAutomation[idx].second;
+				id = globalParam(params::kGlobalParamsForAutomation[idx]).index;
 			}
 		}
 		clip->lastSelectedParamID = id;
@@ -2665,7 +2478,7 @@ void AutomationView::selectGlobalParam(int32_t offset, Clip* clip) {
 	else {
 		auto idx = getNextSelectedParamArrayPosition(offset, clip->lastSelectedParamArrayPosition,
 		                                             kNumGlobalParamsForAutomation);
-		auto [kind, id] = globalParamsForAutomation[idx];
+		auto [kind, id] = globalParam(params::kGlobalParamsForAutomation[idx]);
 		clip->lastSelectedParamID = id;
 		clip->lastSelectedParamKind = kind;
 		clip->lastSelectedParamArrayPosition = idx;
@@ -2701,7 +2514,7 @@ void AutomationView::selectNonGlobalParam(int32_t offset, Clip* clip) {
 		auto idx = getNextSelectedParamArrayPosition(offset, clip->lastSelectedParamArrayPosition,
 		                                             kNumNonGlobalParamsForAutomation);
 		{
-			auto [kind, id] = nonGlobalParamsForAutomation[idx];
+			auto [kind, id] = soundParam(params::kSoundParamsForAutomation[idx]);
 			if ((clip->output->type == OutputType::KIT) && (kind == params::Kind::UNPATCHED_SOUND)
 			    && (id == params::UNPATCHED_PORTAMENTO)) {
 				if (offset < 0) {
@@ -2726,7 +2539,7 @@ void AutomationView::selectNonGlobalParam(int32_t offset, Clip* clip) {
 
 		// if we didn't find a patch cable, then we'll resume with scrolling the non-patch cable list
 		if (!foundPatchCable) {
-			auto [kind, id] = nonGlobalParamsForAutomation[idx];
+			auto [kind, id] = soundParam(params::kSoundParamsForAutomation[idx]);
 			clip->lastSelectedParamID = id;
 			clip->lastSelectedParamKind = kind;
 			clip->lastSelectedParamArrayPosition = idx;
@@ -2783,25 +2596,25 @@ bool AutomationView::selectPatchCable(int32_t offset, Clip* clip) {
 bool AutomationView::selectPatchCableAtIndex(Clip* clip, PatchCableSet* set, int32_t patchCableIndex,
                                              bool& foundCurrentPatchCable) {
 	PatchCable* cable = &set->patchCables[patchCableIndex];
-	ParamDescriptor desc = cable->destinationParamDescriptor;
+	deluge::synth::CableTarget desc = cable->destination;
 	// need to add patch cable source to the descriptor so that we can get the paramId from it
-	desc.addSource(cable->from);
+	desc = desc.add_source(cable->from);
 
 	// if we've previously selected a patch cable, we want to start scrolling from that patch cable
 	// note: the reason why we can't save the patchCableIndex to make finding the previous patch
 	// cable selected easier is because the patch cable array gets re-indexed as patch cables get
 	// added or removed or values change. Thus you need to search for the previous patch cable to get
 	// the updated index and then you can find the adjacent patch cable in the list.
-	if (desc.data == clip->lastSelectedParamID) {
+	if (desc.word == clip->lastSelectedParamID) {
 		foundCurrentPatchCable = true;
 	}
 	// if we found the patch cable we previously selected and we found another one
 	// or we hadn't selected a patch cable previously and found a patch cable
 	// select the one we found
 	else if ((foundCurrentPatchCable || (clip->lastSelectedParamKind != params::Kind::PATCH_CABLE))
-	         && (desc.data != clip->lastSelectedParamID)) {
+	         && (desc.word != clip->lastSelectedParamID)) {
 		clip->lastSelectedPatchSource = cable->from;
-		clip->lastSelectedParamID = desc.data;
+		clip->lastSelectedParamID = desc.word;
 		clip->lastSelectedParamKind = params::Kind::PATCH_CABLE;
 		return true;
 	}
@@ -2846,7 +2659,9 @@ void AutomationView::getLastSelectedParamShortcut(Clip* clip) {
 	for (int32_t x = 0; x < kDisplayWidth; x++) {
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
 			if (onArrangerView) {
-				if (unpatchedGlobalParamShortcuts[x][y] == currentSong->lastSelectedParamID) {
+				std::optional<RuntimeParam> cell =
+				    cellParam(OwnerPlugin::GLOBAL_EFFECTABLE, params::kGlobalParamShortcuts[x][y]);
+				if (cellIndex(cell, params::Kind::UNPATCHED_GLOBAL) == currentSong->lastSelectedParamID) {
 					currentSong->lastSelectedParamShortcutX = x;
 					currentSong->lastSelectedParamShortcutY = y;
 					paramShortcutFound = true;
@@ -2862,14 +2677,19 @@ void AutomationView::getLastSelectedParamShortcut(Clip* clip) {
 				}
 			}
 			else {
-				if ((clip->lastSelectedParamKind == params::Kind::PATCHED
-				     && patchedParamShortcuts[x][y] == clip->lastSelectedParamID)
-				    || (clip->lastSelectedParamKind == params::Kind::UNPATCHED_SOUND
-				        && unpatchedNonGlobalParamShortcuts[x][y] == clip->lastSelectedParamID)
-				    || (clip->lastSelectedParamKind == params::Kind::UNPATCHED_GLOBAL
-				        && unpatchedGlobalParamShortcuts[x][y] == clip->lastSelectedParamID)
-				    || (clip->lastSelectedParamKind == params::Kind::EXPRESSION
-				        && params::expressionParamFromShortcut(x, y) == clip->lastSelectedParamID)) {
+				// a cable selection has no shortcut of its own here, even the cables the grid holds
+				const params::Kind kind = clip->lastSelectedParamKind;
+				const int32_t id = clip->lastSelectedParamID;
+				std::optional<RuntimeParam> sound =
+				    cellParam(OwnerPlugin::INSTRUMENT, params::kSoundParamShortcuts[x][y]);
+				std::optional<RuntimeParam> global =
+				    cellParam(OwnerPlugin::GLOBAL_EFFECTABLE, params::kGlobalParamShortcuts[x][y]);
+				std::optional<RuntimeParam> expression =
+				    cellParam(OwnerPlugin::INSTRUMENT, params::expressionShortcut(x, y));
+				if ((kind == params::Kind::PATCHED && cellIndex(sound, kind) == id)
+				    || (kind == params::Kind::UNPATCHED_SOUND && cellIndex(sound, kind) == id)
+				    || (kind == params::Kind::UNPATCHED_GLOBAL && cellIndex(global, kind) == id)
+				    || (kind == params::Kind::EXPRESSION && cellIndex(expression, kind) == id)) {
 					clip->lastSelectedParamShortcutX = x;
 					clip->lastSelectedParamShortcutY = y;
 					paramShortcutFound = true;
@@ -2916,7 +2736,7 @@ void AutomationView::getLastSelectedParamArrayPosition(Clip* clip) {
 void AutomationView::getLastSelectedNonGlobalParamArrayPosition(Clip* clip) {
 	for (auto idx = 0; idx < kNumNonGlobalParamsForAutomation; idx++) {
 
-		auto [kind, id] = nonGlobalParamsForAutomation[idx];
+		auto [kind, id] = soundParam(params::kSoundParamsForAutomation[idx]);
 
 		if ((id == clip->lastSelectedParamID) && (kind == clip->lastSelectedParamKind)) {
 			clip->lastSelectedParamArrayPosition = idx;
@@ -2928,7 +2748,7 @@ void AutomationView::getLastSelectedNonGlobalParamArrayPosition(Clip* clip) {
 void AutomationView::getLastSelectedGlobalParamArrayPosition(Clip* clip) {
 	for (auto idx = 0; idx < kNumGlobalParamsForAutomation; idx++) {
 
-		auto [kind, id] = globalParamsForAutomation[idx];
+		auto [kind, id] = globalParam(params::kGlobalParamsForAutomation[idx]);
 
 		if (onArrangerView) {
 			if ((id == currentSong->lastSelectedParamID) && (kind == currentSong->lastSelectedParamKind)) {
@@ -3035,6 +2855,15 @@ ModelStackWithAutoParam* AutomationView::getModelStackWithParamForClip(ModelStac
 	                                                           inSoundMenu, forEdit);
 
 	return modelStackWithParam;
+}
+
+ModelStackWithAutoParam* AutomationView::laneFor(ModelStackWithTimelineCounter* modelStack, Clip* clip,
+                                                 OwnerPlugin owner, ParamTarget target) {
+	std::optional<RuntimeParam> param = deluge::bridge::runtimeParamOf(owner, target);
+	if (!param) {
+		return nullptr;
+	}
+	return getModelStackWithParamForClip(modelStack, clip, false, param->index, param->kind);
 }
 
 // this function obtains a parameters value and converts it to a knobPos

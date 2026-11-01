@@ -2211,6 +2211,23 @@ group = "model"
 runtime = "~1s"
 
 [[harness]]
+name = "param-target-check"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "unit"
+status = "gate"
+gates = "the host names params by target: every runtime param of the instrument and of the global effectable maps to a target and back through the bridge, ids resolve only in their owner's plugin, and every table that names params by target gives cell by cell the runtime param its recorded characterisation holds"
+scenario = "param_target_check"
+markers = ["DRV-EXIT"]
+result = "DRV-EXIT code=0"
+builds = ["golden-vt-render"]
+requires = []
+tier = "pr"
+group = "model"
+runtime = "~1s"
+
+[[harness]]
 name = "param-clone"
 path = "."
 level = "integration"

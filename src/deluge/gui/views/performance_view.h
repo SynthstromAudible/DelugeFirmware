@@ -17,12 +17,16 @@
 
 #pragma once
 
+#include "plugin-api/types/param.h"
+
 #include "definitions_cxx.hpp"
 #include "gui/views/clip_navigation_timeline_view.h"
 #include "hid/button.h"
 #include "modulation/params/param.h"
 #include "storage/byte_channel.h"
 #include "storage/storage_manager.h"
+#include <optional>
+#include <span>
 
 class Editor;
 class InstrumentClip;
@@ -35,8 +39,7 @@ struct PadPress {
 	bool isActive = false;
 	int32_t xDisplay = kNoSelection;
 	int32_t yDisplay = kNoSelection;
-	deluge::modulation::params::Kind paramKind = deluge::modulation::params::Kind::NONE;
-	int32_t paramID = deluge::modulation::params::kNoParamID;
+	std::optional<deluge::plugin::ParamId> param{}; ///< a global effectable's param
 };
 
 struct FXColumnPress {
@@ -48,13 +51,18 @@ struct FXColumnPress {
 };
 
 struct ParamsForPerformance {
-	deluge::modulation::params::Kind paramKind = deluge::modulation::params::Kind::NONE;
-	int32_t paramID = deluge::modulation::params::kNoParamID;
+	std::optional<deluge::plugin::ParamId> param{}; ///< a global effectable's param
 	int32_t xDisplay = kNoSelection;
 	int32_t yDisplay = kNoSelection;
 	RGB rowColour = deluge::gui::colours::black;
 	RGB rowTailColour = deluge::gui::colours::black;
 };
+
+/// @brief The params the performance view can put on an FX column, its default layout, and its param shortcut at pad
+/// (@p x, @p y), all a global effectable's.
+std::span<const ParamsForPerformance> performanceSongParams();
+std::span<const ParamsForPerformance> performanceDefaultLayout();
+std::optional<deluge::plugin::ParamId> performanceShortcut(int32_t x, int32_t y);
 
 class PerformanceView final : public ClipNavigationTimelineView {
 	/// @brief The settings-channel gate's view into the defaults-read state; see `settings_channel_scenario.cpp`.

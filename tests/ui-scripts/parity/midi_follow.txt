@@ -1,0 +1,2172 @@
+# MIDI follow: channel A = channel 1, feedback on channel A, display param on (settings, from song view).
+# Then every CC 0..122 at two values into the synth clip, a kit row, a kit with affect-entire and the song, and the
+# mod knobs' feedback on each. Snapshots carry the popups and the DIN MIDI the image sent back.
+press SESSION_VIEW
+wait 1
+down SHIFT
+press SELECT_ENC
+up SHIFT
+turn SELECT 4
+press SELECT_ENC
+turn SELECT 1
+press SELECT_ENC
+turn SELECT 3
+press SELECT_ENC
+turn SELECT -3
+press SELECT_ENC
+press SELECT_ENC
+turn SELECT 1
+snapshot channel_a
+press BACK
+press BACK
+turn SELECT 2
+press SELECT_ENC
+press SELECT_ENC
+turn SELECT 1
+snapshot feedback_a
+press BACK
+press BACK
+press BACK
+press BACK
+press BACK
+snapshot settings_closed
+press CLIP_VIEW
+wait 1
+cc 1 0 100
+snapshot synth_cc0_100
+cc 1 0 20
+snapshot synth_cc0_20
+cc 1 1 100
+snapshot synth_cc1_100
+cc 1 1 20
+snapshot synth_cc1_20
+cc 1 2 100
+snapshot synth_cc2_100
+cc 1 2 20
+snapshot synth_cc2_20
+cc 1 3 100
+snapshot synth_cc3_100
+cc 1 3 20
+snapshot synth_cc3_20
+cc 1 4 100
+snapshot synth_cc4_100
+cc 1 4 20
+snapshot synth_cc4_20
+cc 1 5 100
+snapshot synth_cc5_100
+cc 1 5 20
+snapshot synth_cc5_20
+cc 1 6 100
+snapshot synth_cc6_100
+cc 1 6 20
+snapshot synth_cc6_20
+cc 1 7 100
+snapshot synth_cc7_100
+cc 1 7 20
+snapshot synth_cc7_20
+cc 1 8 100
+snapshot synth_cc8_100
+cc 1 8 20
+snapshot synth_cc8_20
+cc 1 9 100
+snapshot synth_cc9_100
+cc 1 9 20
+snapshot synth_cc9_20
+cc 1 10 100
+snapshot synth_cc10_100
+cc 1 10 20
+snapshot synth_cc10_20
+cc 1 11 100
+snapshot synth_cc11_100
+cc 1 11 20
+snapshot synth_cc11_20
+cc 1 12 100
+snapshot synth_cc12_100
+cc 1 12 20
+snapshot synth_cc12_20
+cc 1 13 100
+snapshot synth_cc13_100
+cc 1 13 20
+snapshot synth_cc13_20
+cc 1 14 100
+snapshot synth_cc14_100
+cc 1 14 20
+snapshot synth_cc14_20
+cc 1 15 100
+snapshot synth_cc15_100
+cc 1 15 20
+snapshot synth_cc15_20
+cc 1 16 100
+snapshot synth_cc16_100
+cc 1 16 20
+snapshot synth_cc16_20
+cc 1 17 100
+snapshot synth_cc17_100
+cc 1 17 20
+snapshot synth_cc17_20
+cc 1 18 100
+snapshot synth_cc18_100
+cc 1 18 20
+snapshot synth_cc18_20
+cc 1 19 100
+snapshot synth_cc19_100
+cc 1 19 20
+snapshot synth_cc19_20
+cc 1 20 100
+snapshot synth_cc20_100
+cc 1 20 20
+snapshot synth_cc20_20
+cc 1 21 100
+snapshot synth_cc21_100
+cc 1 21 20
+snapshot synth_cc21_20
+cc 1 22 100
+snapshot synth_cc22_100
+cc 1 22 20
+snapshot synth_cc22_20
+cc 1 23 100
+snapshot synth_cc23_100
+cc 1 23 20
+snapshot synth_cc23_20
+cc 1 24 100
+snapshot synth_cc24_100
+cc 1 24 20
+snapshot synth_cc24_20
+cc 1 25 100
+snapshot synth_cc25_100
+cc 1 25 20
+snapshot synth_cc25_20
+cc 1 26 100
+snapshot synth_cc26_100
+cc 1 26 20
+snapshot synth_cc26_20
+cc 1 27 100
+snapshot synth_cc27_100
+cc 1 27 20
+snapshot synth_cc27_20
+cc 1 28 100
+snapshot synth_cc28_100
+cc 1 28 20
+snapshot synth_cc28_20
+cc 1 29 100
+snapshot synth_cc29_100
+cc 1 29 20
+snapshot synth_cc29_20
+cc 1 30 100
+snapshot synth_cc30_100
+cc 1 30 20
+snapshot synth_cc30_20
+cc 1 31 100
+snapshot synth_cc31_100
+cc 1 31 20
+snapshot synth_cc31_20
+cc 1 32 100
+snapshot synth_cc32_100
+cc 1 32 20
+snapshot synth_cc32_20
+cc 1 33 100
+snapshot synth_cc33_100
+cc 1 33 20
+snapshot synth_cc33_20
+cc 1 34 100
+snapshot synth_cc34_100
+cc 1 34 20
+snapshot synth_cc34_20
+cc 1 35 100
+snapshot synth_cc35_100
+cc 1 35 20
+snapshot synth_cc35_20
+cc 1 36 100
+snapshot synth_cc36_100
+cc 1 36 20
+snapshot synth_cc36_20
+cc 1 37 100
+snapshot synth_cc37_100
+cc 1 37 20
+snapshot synth_cc37_20
+cc 1 38 100
+snapshot synth_cc38_100
+cc 1 38 20
+snapshot synth_cc38_20
+cc 1 39 100
+snapshot synth_cc39_100
+cc 1 39 20
+snapshot synth_cc39_20
+cc 1 40 100
+snapshot synth_cc40_100
+cc 1 40 20
+snapshot synth_cc40_20
+cc 1 41 100
+snapshot synth_cc41_100
+cc 1 41 20
+snapshot synth_cc41_20
+cc 1 42 100
+snapshot synth_cc42_100
+cc 1 42 20
+snapshot synth_cc42_20
+cc 1 43 100
+snapshot synth_cc43_100
+cc 1 43 20
+snapshot synth_cc43_20
+cc 1 44 100
+snapshot synth_cc44_100
+cc 1 44 20
+snapshot synth_cc44_20
+cc 1 45 100
+snapshot synth_cc45_100
+cc 1 45 20
+snapshot synth_cc45_20
+cc 1 46 100
+snapshot synth_cc46_100
+cc 1 46 20
+snapshot synth_cc46_20
+cc 1 47 100
+snapshot synth_cc47_100
+cc 1 47 20
+snapshot synth_cc47_20
+cc 1 48 100
+snapshot synth_cc48_100
+cc 1 48 20
+snapshot synth_cc48_20
+cc 1 49 100
+snapshot synth_cc49_100
+cc 1 49 20
+snapshot synth_cc49_20
+cc 1 50 100
+snapshot synth_cc50_100
+cc 1 50 20
+snapshot synth_cc50_20
+cc 1 51 100
+snapshot synth_cc51_100
+cc 1 51 20
+snapshot synth_cc51_20
+cc 1 52 100
+snapshot synth_cc52_100
+cc 1 52 20
+snapshot synth_cc52_20
+cc 1 53 100
+snapshot synth_cc53_100
+cc 1 53 20
+snapshot synth_cc53_20
+cc 1 54 100
+snapshot synth_cc54_100
+cc 1 54 20
+snapshot synth_cc54_20
+cc 1 55 100
+snapshot synth_cc55_100
+cc 1 55 20
+snapshot synth_cc55_20
+cc 1 56 100
+snapshot synth_cc56_100
+cc 1 56 20
+snapshot synth_cc56_20
+cc 1 57 100
+snapshot synth_cc57_100
+cc 1 57 20
+snapshot synth_cc57_20
+cc 1 58 100
+snapshot synth_cc58_100
+cc 1 58 20
+snapshot synth_cc58_20
+cc 1 59 100
+snapshot synth_cc59_100
+cc 1 59 20
+snapshot synth_cc59_20
+cc 1 60 100
+snapshot synth_cc60_100
+cc 1 60 20
+snapshot synth_cc60_20
+cc 1 61 100
+snapshot synth_cc61_100
+cc 1 61 20
+snapshot synth_cc61_20
+cc 1 62 100
+snapshot synth_cc62_100
+cc 1 62 20
+snapshot synth_cc62_20
+cc 1 63 100
+snapshot synth_cc63_100
+cc 1 63 20
+snapshot synth_cc63_20
+cc 1 64 100
+snapshot synth_cc64_100
+cc 1 64 20
+snapshot synth_cc64_20
+cc 1 65 100
+snapshot synth_cc65_100
+cc 1 65 20
+snapshot synth_cc65_20
+cc 1 66 100
+snapshot synth_cc66_100
+cc 1 66 20
+snapshot synth_cc66_20
+cc 1 67 100
+snapshot synth_cc67_100
+cc 1 67 20
+snapshot synth_cc67_20
+cc 1 68 100
+snapshot synth_cc68_100
+cc 1 68 20
+snapshot synth_cc68_20
+cc 1 69 100
+snapshot synth_cc69_100
+cc 1 69 20
+snapshot synth_cc69_20
+cc 1 70 100
+snapshot synth_cc70_100
+cc 1 70 20
+snapshot synth_cc70_20
+cc 1 71 100
+snapshot synth_cc71_100
+cc 1 71 20
+snapshot synth_cc71_20
+cc 1 72 100
+snapshot synth_cc72_100
+cc 1 72 20
+snapshot synth_cc72_20
+cc 1 73 100
+snapshot synth_cc73_100
+cc 1 73 20
+snapshot synth_cc73_20
+cc 1 74 100
+snapshot synth_cc74_100
+cc 1 74 20
+snapshot synth_cc74_20
+cc 1 75 100
+snapshot synth_cc75_100
+cc 1 75 20
+snapshot synth_cc75_20
+cc 1 76 100
+snapshot synth_cc76_100
+cc 1 76 20
+snapshot synth_cc76_20
+cc 1 77 100
+snapshot synth_cc77_100
+cc 1 77 20
+snapshot synth_cc77_20
+cc 1 78 100
+snapshot synth_cc78_100
+cc 1 78 20
+snapshot synth_cc78_20
+cc 1 79 100
+snapshot synth_cc79_100
+cc 1 79 20
+snapshot synth_cc79_20
+cc 1 80 100
+snapshot synth_cc80_100
+cc 1 80 20
+snapshot synth_cc80_20
+cc 1 81 100
+snapshot synth_cc81_100
+cc 1 81 20
+snapshot synth_cc81_20
+cc 1 82 100
+snapshot synth_cc82_100
+cc 1 82 20
+snapshot synth_cc82_20
+cc 1 83 100
+snapshot synth_cc83_100
+cc 1 83 20
+snapshot synth_cc83_20
+cc 1 84 100
+snapshot synth_cc84_100
+cc 1 84 20
+snapshot synth_cc84_20
+cc 1 85 100
+snapshot synth_cc85_100
+cc 1 85 20
+snapshot synth_cc85_20
+cc 1 86 100
+snapshot synth_cc86_100
+cc 1 86 20
+snapshot synth_cc86_20
+cc 1 87 100
+snapshot synth_cc87_100
+cc 1 87 20
+snapshot synth_cc87_20
+cc 1 88 100
+snapshot synth_cc88_100
+cc 1 88 20
+snapshot synth_cc88_20
+cc 1 89 100
+snapshot synth_cc89_100
+cc 1 89 20
+snapshot synth_cc89_20
+cc 1 90 100
+snapshot synth_cc90_100
+cc 1 90 20
+snapshot synth_cc90_20
+cc 1 91 100
+snapshot synth_cc91_100
+cc 1 91 20
+snapshot synth_cc91_20
+cc 1 92 100
+snapshot synth_cc92_100
+cc 1 92 20
+snapshot synth_cc92_20
+cc 1 93 100
+snapshot synth_cc93_100
+cc 1 93 20
+snapshot synth_cc93_20
+cc 1 94 100
+snapshot synth_cc94_100
+cc 1 94 20
+snapshot synth_cc94_20
+cc 1 95 100
+snapshot synth_cc95_100
+cc 1 95 20
+snapshot synth_cc95_20
+cc 1 96 100
+snapshot synth_cc96_100
+cc 1 96 20
+snapshot synth_cc96_20
+cc 1 97 100
+snapshot synth_cc97_100
+cc 1 97 20
+snapshot synth_cc97_20
+cc 1 98 100
+snapshot synth_cc98_100
+cc 1 98 20
+snapshot synth_cc98_20
+cc 1 99 100
+snapshot synth_cc99_100
+cc 1 99 20
+snapshot synth_cc99_20
+cc 1 100 100
+snapshot synth_cc100_100
+cc 1 100 20
+snapshot synth_cc100_20
+cc 1 101 100
+snapshot synth_cc101_100
+cc 1 101 20
+snapshot synth_cc101_20
+cc 1 102 100
+snapshot synth_cc102_100
+cc 1 102 20
+snapshot synth_cc102_20
+cc 1 103 100
+snapshot synth_cc103_100
+cc 1 103 20
+snapshot synth_cc103_20
+cc 1 104 100
+snapshot synth_cc104_100
+cc 1 104 20
+snapshot synth_cc104_20
+cc 1 105 100
+snapshot synth_cc105_100
+cc 1 105 20
+snapshot synth_cc105_20
+cc 1 106 100
+snapshot synth_cc106_100
+cc 1 106 20
+snapshot synth_cc106_20
+cc 1 107 100
+snapshot synth_cc107_100
+cc 1 107 20
+snapshot synth_cc107_20
+cc 1 108 100
+snapshot synth_cc108_100
+cc 1 108 20
+snapshot synth_cc108_20
+cc 1 109 100
+snapshot synth_cc109_100
+cc 1 109 20
+snapshot synth_cc109_20
+cc 1 110 100
+snapshot synth_cc110_100
+cc 1 110 20
+snapshot synth_cc110_20
+cc 1 111 100
+snapshot synth_cc111_100
+cc 1 111 20
+snapshot synth_cc111_20
+cc 1 112 100
+snapshot synth_cc112_100
+cc 1 112 20
+snapshot synth_cc112_20
+cc 1 113 100
+snapshot synth_cc113_100
+cc 1 113 20
+snapshot synth_cc113_20
+cc 1 114 100
+snapshot synth_cc114_100
+cc 1 114 20
+snapshot synth_cc114_20
+cc 1 115 100
+snapshot synth_cc115_100
+cc 1 115 20
+snapshot synth_cc115_20
+cc 1 116 100
+snapshot synth_cc116_100
+cc 1 116 20
+snapshot synth_cc116_20
+cc 1 117 100
+snapshot synth_cc117_100
+cc 1 117 20
+snapshot synth_cc117_20
+cc 1 118 100
+snapshot synth_cc118_100
+cc 1 118 20
+snapshot synth_cc118_20
+cc 1 119 100
+snapshot synth_cc119_100
+cc 1 119 20
+snapshot synth_cc119_20
+cc 1 120 100
+snapshot synth_cc120_100
+cc 1 120 20
+snapshot synth_cc120_20
+cc 1 121 100
+snapshot synth_cc121_100
+cc 1 121 20
+snapshot synth_cc121_20
+cc 1 122 100
+snapshot synth_cc122_100
+cc 1 122 20
+snapshot synth_cc122_20
+press MOD0
+turn UPPER 1
+snapshot synth_mod0_upper
+turn LOWER 1
+snapshot synth_mod0_lower
+press MOD1
+turn UPPER 1
+snapshot synth_mod1_upper
+turn LOWER 1
+snapshot synth_mod1_lower
+press MOD2
+turn UPPER 1
+snapshot synth_mod2_upper
+turn LOWER 1
+snapshot synth_mod2_lower
+press MOD3
+turn UPPER 1
+snapshot synth_mod3_upper
+turn LOWER 1
+snapshot synth_mod3_lower
+press MOD4
+turn UPPER 1
+snapshot synth_mod4_upper
+turn LOWER 1
+snapshot synth_mod4_lower
+press MOD5
+turn UPPER 1
+snapshot synth_mod5_upper
+turn LOWER 1
+snapshot synth_mod5_lower
+press MOD6
+turn UPPER 1
+snapshot synth_mod6_upper
+turn LOWER 1
+snapshot synth_mod6_lower
+press MOD7
+turn UPPER 1
+snapshot synth_mod7_upper
+turn LOWER 1
+snapshot synth_mod7_lower
+press KIT
+wait 2
+turn SELECT 1
+wait 4
+# the selected drum's audition pad shows its row's random colour
+random_colour 17 0
+pad 17 0
+cc 1 0 100
+snapshot row_cc0_100
+cc 1 0 20
+snapshot row_cc0_20
+cc 1 1 100
+snapshot row_cc1_100
+cc 1 1 20
+snapshot row_cc1_20
+cc 1 2 100
+snapshot row_cc2_100
+cc 1 2 20
+snapshot row_cc2_20
+cc 1 3 100
+snapshot row_cc3_100
+cc 1 3 20
+snapshot row_cc3_20
+cc 1 4 100
+snapshot row_cc4_100
+cc 1 4 20
+snapshot row_cc4_20
+cc 1 5 100
+snapshot row_cc5_100
+cc 1 5 20
+snapshot row_cc5_20
+cc 1 6 100
+snapshot row_cc6_100
+cc 1 6 20
+snapshot row_cc6_20
+cc 1 7 100
+snapshot row_cc7_100
+cc 1 7 20
+snapshot row_cc7_20
+cc 1 8 100
+snapshot row_cc8_100
+cc 1 8 20
+snapshot row_cc8_20
+cc 1 9 100
+snapshot row_cc9_100
+cc 1 9 20
+snapshot row_cc9_20
+cc 1 10 100
+snapshot row_cc10_100
+cc 1 10 20
+snapshot row_cc10_20
+cc 1 11 100
+snapshot row_cc11_100
+cc 1 11 20
+snapshot row_cc11_20
+cc 1 12 100
+snapshot row_cc12_100
+cc 1 12 20
+snapshot row_cc12_20
+cc 1 13 100
+snapshot row_cc13_100
+cc 1 13 20
+snapshot row_cc13_20
+cc 1 14 100
+snapshot row_cc14_100
+cc 1 14 20
+snapshot row_cc14_20
+cc 1 15 100
+snapshot row_cc15_100
+cc 1 15 20
+snapshot row_cc15_20
+cc 1 16 100
+snapshot row_cc16_100
+cc 1 16 20
+snapshot row_cc16_20
+cc 1 17 100
+snapshot row_cc17_100
+cc 1 17 20
+snapshot row_cc17_20
+cc 1 18 100
+snapshot row_cc18_100
+cc 1 18 20
+snapshot row_cc18_20
+cc 1 19 100
+snapshot row_cc19_100
+cc 1 19 20
+snapshot row_cc19_20
+cc 1 20 100
+snapshot row_cc20_100
+cc 1 20 20
+snapshot row_cc20_20
+cc 1 21 100
+snapshot row_cc21_100
+cc 1 21 20
+snapshot row_cc21_20
+cc 1 22 100
+snapshot row_cc22_100
+cc 1 22 20
+snapshot row_cc22_20
+cc 1 23 100
+snapshot row_cc23_100
+cc 1 23 20
+snapshot row_cc23_20
+cc 1 24 100
+snapshot row_cc24_100
+cc 1 24 20
+snapshot row_cc24_20
+cc 1 25 100
+snapshot row_cc25_100
+cc 1 25 20
+snapshot row_cc25_20
+cc 1 26 100
+snapshot row_cc26_100
+cc 1 26 20
+snapshot row_cc26_20
+cc 1 27 100
+snapshot row_cc27_100
+cc 1 27 20
+snapshot row_cc27_20
+cc 1 28 100
+snapshot row_cc28_100
+cc 1 28 20
+snapshot row_cc28_20
+cc 1 29 100
+snapshot row_cc29_100
+cc 1 29 20
+snapshot row_cc29_20
+cc 1 30 100
+snapshot row_cc30_100
+cc 1 30 20
+snapshot row_cc30_20
+cc 1 31 100
+snapshot row_cc31_100
+cc 1 31 20
+snapshot row_cc31_20
+cc 1 32 100
+snapshot row_cc32_100
+cc 1 32 20
+snapshot row_cc32_20
+cc 1 33 100
+snapshot row_cc33_100
+cc 1 33 20
+snapshot row_cc33_20
+cc 1 34 100
+snapshot row_cc34_100
+cc 1 34 20
+snapshot row_cc34_20
+cc 1 35 100
+snapshot row_cc35_100
+cc 1 35 20
+snapshot row_cc35_20
+cc 1 36 100
+snapshot row_cc36_100
+cc 1 36 20
+snapshot row_cc36_20
+cc 1 37 100
+snapshot row_cc37_100
+cc 1 37 20
+snapshot row_cc37_20
+cc 1 38 100
+snapshot row_cc38_100
+cc 1 38 20
+snapshot row_cc38_20
+cc 1 39 100
+snapshot row_cc39_100
+cc 1 39 20
+snapshot row_cc39_20
+cc 1 40 100
+snapshot row_cc40_100
+cc 1 40 20
+snapshot row_cc40_20
+cc 1 41 100
+snapshot row_cc41_100
+cc 1 41 20
+snapshot row_cc41_20
+cc 1 42 100
+snapshot row_cc42_100
+cc 1 42 20
+snapshot row_cc42_20
+cc 1 43 100
+snapshot row_cc43_100
+cc 1 43 20
+snapshot row_cc43_20
+cc 1 44 100
+snapshot row_cc44_100
+cc 1 44 20
+snapshot row_cc44_20
+cc 1 45 100
+snapshot row_cc45_100
+cc 1 45 20
+snapshot row_cc45_20
+cc 1 46 100
+snapshot row_cc46_100
+cc 1 46 20
+snapshot row_cc46_20
+cc 1 47 100
+snapshot row_cc47_100
+cc 1 47 20
+snapshot row_cc47_20
+cc 1 48 100
+snapshot row_cc48_100
+cc 1 48 20
+snapshot row_cc48_20
+cc 1 49 100
+snapshot row_cc49_100
+cc 1 49 20
+snapshot row_cc49_20
+cc 1 50 100
+snapshot row_cc50_100
+cc 1 50 20
+snapshot row_cc50_20
+cc 1 51 100
+snapshot row_cc51_100
+cc 1 51 20
+snapshot row_cc51_20
+cc 1 52 100
+snapshot row_cc52_100
+cc 1 52 20
+snapshot row_cc52_20
+cc 1 53 100
+snapshot row_cc53_100
+cc 1 53 20
+snapshot row_cc53_20
+cc 1 54 100
+snapshot row_cc54_100
+cc 1 54 20
+snapshot row_cc54_20
+cc 1 55 100
+snapshot row_cc55_100
+cc 1 55 20
+snapshot row_cc55_20
+cc 1 56 100
+snapshot row_cc56_100
+cc 1 56 20
+snapshot row_cc56_20
+cc 1 57 100
+snapshot row_cc57_100
+cc 1 57 20
+snapshot row_cc57_20
+cc 1 58 100
+snapshot row_cc58_100
+cc 1 58 20
+snapshot row_cc58_20
+cc 1 59 100
+snapshot row_cc59_100
+cc 1 59 20
+snapshot row_cc59_20
+cc 1 60 100
+snapshot row_cc60_100
+cc 1 60 20
+snapshot row_cc60_20
+cc 1 61 100
+snapshot row_cc61_100
+cc 1 61 20
+snapshot row_cc61_20
+cc 1 62 100
+snapshot row_cc62_100
+cc 1 62 20
+snapshot row_cc62_20
+cc 1 63 100
+snapshot row_cc63_100
+cc 1 63 20
+snapshot row_cc63_20
+cc 1 64 100
+snapshot row_cc64_100
+cc 1 64 20
+snapshot row_cc64_20
+cc 1 65 100
+snapshot row_cc65_100
+cc 1 65 20
+snapshot row_cc65_20
+cc 1 66 100
+snapshot row_cc66_100
+cc 1 66 20
+snapshot row_cc66_20
+cc 1 67 100
+snapshot row_cc67_100
+cc 1 67 20
+snapshot row_cc67_20
+cc 1 68 100
+snapshot row_cc68_100
+cc 1 68 20
+snapshot row_cc68_20
+cc 1 69 100
+snapshot row_cc69_100
+cc 1 69 20
+snapshot row_cc69_20
+cc 1 70 100
+snapshot row_cc70_100
+cc 1 70 20
+snapshot row_cc70_20
+cc 1 71 100
+snapshot row_cc71_100
+cc 1 71 20
+snapshot row_cc71_20
+cc 1 72 100
+snapshot row_cc72_100
+cc 1 72 20
+snapshot row_cc72_20
+cc 1 73 100
+snapshot row_cc73_100
+cc 1 73 20
+snapshot row_cc73_20
+cc 1 74 100
+snapshot row_cc74_100
+cc 1 74 20
+snapshot row_cc74_20
+cc 1 75 100
+snapshot row_cc75_100
+cc 1 75 20
+snapshot row_cc75_20
+cc 1 76 100
+snapshot row_cc76_100
+cc 1 76 20
+snapshot row_cc76_20
+cc 1 77 100
+snapshot row_cc77_100
+cc 1 77 20
+snapshot row_cc77_20
+cc 1 78 100
+snapshot row_cc78_100
+cc 1 78 20
+snapshot row_cc78_20
+cc 1 79 100
+snapshot row_cc79_100
+cc 1 79 20
+snapshot row_cc79_20
+cc 1 80 100
+snapshot row_cc80_100
+cc 1 80 20
+snapshot row_cc80_20
+cc 1 81 100
+snapshot row_cc81_100
+cc 1 81 20
+snapshot row_cc81_20
+cc 1 82 100
+snapshot row_cc82_100
+cc 1 82 20
+snapshot row_cc82_20
+cc 1 83 100
+snapshot row_cc83_100
+cc 1 83 20
+snapshot row_cc83_20
+cc 1 84 100
+snapshot row_cc84_100
+cc 1 84 20
+snapshot row_cc84_20
+cc 1 85 100
+snapshot row_cc85_100
+cc 1 85 20
+snapshot row_cc85_20
+cc 1 86 100
+snapshot row_cc86_100
+cc 1 86 20
+snapshot row_cc86_20
+cc 1 87 100
+snapshot row_cc87_100
+cc 1 87 20
+snapshot row_cc87_20
+cc 1 88 100
+snapshot row_cc88_100
+cc 1 88 20
+snapshot row_cc88_20
+cc 1 89 100
+snapshot row_cc89_100
+cc 1 89 20
+snapshot row_cc89_20
+cc 1 90 100
+snapshot row_cc90_100
+cc 1 90 20
+snapshot row_cc90_20
+cc 1 91 100
+snapshot row_cc91_100
+cc 1 91 20
+snapshot row_cc91_20
+cc 1 92 100
+snapshot row_cc92_100
+cc 1 92 20
+snapshot row_cc92_20
+cc 1 93 100
+snapshot row_cc93_100
+cc 1 93 20
+snapshot row_cc93_20
+cc 1 94 100
+snapshot row_cc94_100
+cc 1 94 20
+snapshot row_cc94_20
+cc 1 95 100
+snapshot row_cc95_100
+cc 1 95 20
+snapshot row_cc95_20
+cc 1 96 100
+snapshot row_cc96_100
+cc 1 96 20
+snapshot row_cc96_20
+cc 1 97 100
+snapshot row_cc97_100
+cc 1 97 20
+snapshot row_cc97_20
+cc 1 98 100
+snapshot row_cc98_100
+cc 1 98 20
+snapshot row_cc98_20
+cc 1 99 100
+snapshot row_cc99_100
+cc 1 99 20
+snapshot row_cc99_20
+cc 1 100 100
+snapshot row_cc100_100
+cc 1 100 20
+snapshot row_cc100_20
+cc 1 101 100
+snapshot row_cc101_100
+cc 1 101 20
+snapshot row_cc101_20
+cc 1 102 100
+snapshot row_cc102_100
+cc 1 102 20
+snapshot row_cc102_20
+cc 1 103 100
+snapshot row_cc103_100
+cc 1 103 20
+snapshot row_cc103_20
+cc 1 104 100
+snapshot row_cc104_100
+cc 1 104 20
+snapshot row_cc104_20
+cc 1 105 100
+snapshot row_cc105_100
+cc 1 105 20
+snapshot row_cc105_20
+cc 1 106 100
+snapshot row_cc106_100
+cc 1 106 20
+snapshot row_cc106_20
+cc 1 107 100
+snapshot row_cc107_100
+cc 1 107 20
+snapshot row_cc107_20
+cc 1 108 100
+snapshot row_cc108_100
+cc 1 108 20
+snapshot row_cc108_20
+cc 1 109 100
+snapshot row_cc109_100
+cc 1 109 20
+snapshot row_cc109_20
+cc 1 110 100
+snapshot row_cc110_100
+cc 1 110 20
+snapshot row_cc110_20
+cc 1 111 100
+snapshot row_cc111_100
+cc 1 111 20
+snapshot row_cc111_20
+cc 1 112 100
+snapshot row_cc112_100
+cc 1 112 20
+snapshot row_cc112_20
+cc 1 113 100
+snapshot row_cc113_100
+cc 1 113 20
+snapshot row_cc113_20
+cc 1 114 100
+snapshot row_cc114_100
+cc 1 114 20
+snapshot row_cc114_20
+cc 1 115 100
+snapshot row_cc115_100
+cc 1 115 20
+snapshot row_cc115_20
+cc 1 116 100
+snapshot row_cc116_100
+cc 1 116 20
+snapshot row_cc116_20
+cc 1 117 100
+snapshot row_cc117_100
+cc 1 117 20
+snapshot row_cc117_20
+cc 1 118 100
+snapshot row_cc118_100
+cc 1 118 20
+snapshot row_cc118_20
+cc 1 119 100
+snapshot row_cc119_100
+cc 1 119 20
+snapshot row_cc119_20
+cc 1 120 100
+snapshot row_cc120_100
+cc 1 120 20
+snapshot row_cc120_20
+cc 1 121 100
+snapshot row_cc121_100
+cc 1 121 20
+snapshot row_cc121_20
+cc 1 122 100
+snapshot row_cc122_100
+cc 1 122 20
+snapshot row_cc122_20
+press MOD0
+turn UPPER 1
+snapshot row_mod0_upper
+turn LOWER 1
+snapshot row_mod0_lower
+press MOD1
+turn UPPER 1
+snapshot row_mod1_upper
+turn LOWER 1
+snapshot row_mod1_lower
+press MOD2
+turn UPPER 1
+snapshot row_mod2_upper
+turn LOWER 1
+snapshot row_mod2_lower
+press MOD3
+turn UPPER 1
+snapshot row_mod3_upper
+turn LOWER 1
+snapshot row_mod3_lower
+press MOD4
+turn UPPER 1
+snapshot row_mod4_upper
+turn LOWER 1
+snapshot row_mod4_lower
+press MOD5
+turn UPPER 1
+snapshot row_mod5_upper
+turn LOWER 1
+snapshot row_mod5_lower
+press MOD6
+turn UPPER 1
+snapshot row_mod6_upper
+turn LOWER 1
+snapshot row_mod6_lower
+press MOD7
+turn UPPER 1
+snapshot row_mod7_upper
+turn LOWER 1
+snapshot row_mod7_lower
+press AFFECT_ENTIRE
+cc 1 0 100
+snapshot entire_cc0_100
+cc 1 0 20
+snapshot entire_cc0_20
+cc 1 1 100
+snapshot entire_cc1_100
+cc 1 1 20
+snapshot entire_cc1_20
+cc 1 2 100
+snapshot entire_cc2_100
+cc 1 2 20
+snapshot entire_cc2_20
+cc 1 3 100
+snapshot entire_cc3_100
+cc 1 3 20
+snapshot entire_cc3_20
+cc 1 4 100
+snapshot entire_cc4_100
+cc 1 4 20
+snapshot entire_cc4_20
+cc 1 5 100
+snapshot entire_cc5_100
+cc 1 5 20
+snapshot entire_cc5_20
+cc 1 6 100
+snapshot entire_cc6_100
+cc 1 6 20
+snapshot entire_cc6_20
+cc 1 7 100
+snapshot entire_cc7_100
+cc 1 7 20
+snapshot entire_cc7_20
+cc 1 8 100
+snapshot entire_cc8_100
+cc 1 8 20
+snapshot entire_cc8_20
+cc 1 9 100
+snapshot entire_cc9_100
+cc 1 9 20
+snapshot entire_cc9_20
+cc 1 10 100
+snapshot entire_cc10_100
+cc 1 10 20
+snapshot entire_cc10_20
+cc 1 11 100
+snapshot entire_cc11_100
+cc 1 11 20
+snapshot entire_cc11_20
+cc 1 12 100
+snapshot entire_cc12_100
+cc 1 12 20
+snapshot entire_cc12_20
+cc 1 13 100
+snapshot entire_cc13_100
+cc 1 13 20
+snapshot entire_cc13_20
+cc 1 14 100
+snapshot entire_cc14_100
+cc 1 14 20
+snapshot entire_cc14_20
+cc 1 15 100
+snapshot entire_cc15_100
+cc 1 15 20
+snapshot entire_cc15_20
+cc 1 16 100
+snapshot entire_cc16_100
+cc 1 16 20
+snapshot entire_cc16_20
+cc 1 17 100
+snapshot entire_cc17_100
+cc 1 17 20
+snapshot entire_cc17_20
+cc 1 18 100
+snapshot entire_cc18_100
+cc 1 18 20
+snapshot entire_cc18_20
+cc 1 19 100
+snapshot entire_cc19_100
+cc 1 19 20
+snapshot entire_cc19_20
+cc 1 20 100
+snapshot entire_cc20_100
+cc 1 20 20
+snapshot entire_cc20_20
+cc 1 21 100
+snapshot entire_cc21_100
+cc 1 21 20
+snapshot entire_cc21_20
+cc 1 22 100
+snapshot entire_cc22_100
+cc 1 22 20
+snapshot entire_cc22_20
+cc 1 23 100
+snapshot entire_cc23_100
+cc 1 23 20
+snapshot entire_cc23_20
+cc 1 24 100
+snapshot entire_cc24_100
+cc 1 24 20
+snapshot entire_cc24_20
+cc 1 25 100
+snapshot entire_cc25_100
+cc 1 25 20
+snapshot entire_cc25_20
+cc 1 26 100
+snapshot entire_cc26_100
+cc 1 26 20
+snapshot entire_cc26_20
+cc 1 27 100
+snapshot entire_cc27_100
+cc 1 27 20
+snapshot entire_cc27_20
+cc 1 28 100
+snapshot entire_cc28_100
+cc 1 28 20
+snapshot entire_cc28_20
+cc 1 29 100
+snapshot entire_cc29_100
+cc 1 29 20
+snapshot entire_cc29_20
+cc 1 30 100
+snapshot entire_cc30_100
+cc 1 30 20
+snapshot entire_cc30_20
+cc 1 31 100
+snapshot entire_cc31_100
+cc 1 31 20
+snapshot entire_cc31_20
+cc 1 32 100
+snapshot entire_cc32_100
+cc 1 32 20
+snapshot entire_cc32_20
+cc 1 33 100
+snapshot entire_cc33_100
+cc 1 33 20
+snapshot entire_cc33_20
+cc 1 34 100
+snapshot entire_cc34_100
+cc 1 34 20
+snapshot entire_cc34_20
+cc 1 35 100
+snapshot entire_cc35_100
+cc 1 35 20
+snapshot entire_cc35_20
+cc 1 36 100
+snapshot entire_cc36_100
+cc 1 36 20
+snapshot entire_cc36_20
+cc 1 37 100
+snapshot entire_cc37_100
+cc 1 37 20
+snapshot entire_cc37_20
+cc 1 38 100
+snapshot entire_cc38_100
+cc 1 38 20
+snapshot entire_cc38_20
+cc 1 39 100
+snapshot entire_cc39_100
+cc 1 39 20
+snapshot entire_cc39_20
+cc 1 40 100
+snapshot entire_cc40_100
+cc 1 40 20
+snapshot entire_cc40_20
+cc 1 41 100
+snapshot entire_cc41_100
+cc 1 41 20
+snapshot entire_cc41_20
+cc 1 42 100
+snapshot entire_cc42_100
+cc 1 42 20
+snapshot entire_cc42_20
+cc 1 43 100
+snapshot entire_cc43_100
+cc 1 43 20
+snapshot entire_cc43_20
+cc 1 44 100
+snapshot entire_cc44_100
+cc 1 44 20
+snapshot entire_cc44_20
+cc 1 45 100
+snapshot entire_cc45_100
+cc 1 45 20
+snapshot entire_cc45_20
+cc 1 46 100
+snapshot entire_cc46_100
+cc 1 46 20
+snapshot entire_cc46_20
+cc 1 47 100
+snapshot entire_cc47_100
+cc 1 47 20
+snapshot entire_cc47_20
+cc 1 48 100
+snapshot entire_cc48_100
+cc 1 48 20
+snapshot entire_cc48_20
+cc 1 49 100
+snapshot entire_cc49_100
+cc 1 49 20
+snapshot entire_cc49_20
+cc 1 50 100
+snapshot entire_cc50_100
+cc 1 50 20
+snapshot entire_cc50_20
+cc 1 51 100
+snapshot entire_cc51_100
+cc 1 51 20
+snapshot entire_cc51_20
+cc 1 52 100
+snapshot entire_cc52_100
+cc 1 52 20
+snapshot entire_cc52_20
+cc 1 53 100
+snapshot entire_cc53_100
+cc 1 53 20
+snapshot entire_cc53_20
+cc 1 54 100
+snapshot entire_cc54_100
+cc 1 54 20
+snapshot entire_cc54_20
+cc 1 55 100
+snapshot entire_cc55_100
+cc 1 55 20
+snapshot entire_cc55_20
+cc 1 56 100
+snapshot entire_cc56_100
+cc 1 56 20
+snapshot entire_cc56_20
+cc 1 57 100
+snapshot entire_cc57_100
+cc 1 57 20
+snapshot entire_cc57_20
+cc 1 58 100
+snapshot entire_cc58_100
+cc 1 58 20
+snapshot entire_cc58_20
+cc 1 59 100
+snapshot entire_cc59_100
+cc 1 59 20
+snapshot entire_cc59_20
+cc 1 60 100
+snapshot entire_cc60_100
+cc 1 60 20
+snapshot entire_cc60_20
+cc 1 61 100
+snapshot entire_cc61_100
+cc 1 61 20
+snapshot entire_cc61_20
+cc 1 62 100
+snapshot entire_cc62_100
+cc 1 62 20
+snapshot entire_cc62_20
+cc 1 63 100
+snapshot entire_cc63_100
+cc 1 63 20
+snapshot entire_cc63_20
+cc 1 64 100
+snapshot entire_cc64_100
+cc 1 64 20
+snapshot entire_cc64_20
+cc 1 65 100
+snapshot entire_cc65_100
+cc 1 65 20
+snapshot entire_cc65_20
+cc 1 66 100
+snapshot entire_cc66_100
+cc 1 66 20
+snapshot entire_cc66_20
+cc 1 67 100
+snapshot entire_cc67_100
+cc 1 67 20
+snapshot entire_cc67_20
+cc 1 68 100
+snapshot entire_cc68_100
+cc 1 68 20
+snapshot entire_cc68_20
+cc 1 69 100
+snapshot entire_cc69_100
+cc 1 69 20
+snapshot entire_cc69_20
+cc 1 70 100
+snapshot entire_cc70_100
+cc 1 70 20
+snapshot entire_cc70_20
+cc 1 71 100
+snapshot entire_cc71_100
+cc 1 71 20
+snapshot entire_cc71_20
+cc 1 72 100
+snapshot entire_cc72_100
+cc 1 72 20
+snapshot entire_cc72_20
+cc 1 73 100
+snapshot entire_cc73_100
+cc 1 73 20
+snapshot entire_cc73_20
+cc 1 74 100
+snapshot entire_cc74_100
+cc 1 74 20
+snapshot entire_cc74_20
+cc 1 75 100
+snapshot entire_cc75_100
+cc 1 75 20
+snapshot entire_cc75_20
+cc 1 76 100
+snapshot entire_cc76_100
+cc 1 76 20
+snapshot entire_cc76_20
+cc 1 77 100
+snapshot entire_cc77_100
+cc 1 77 20
+snapshot entire_cc77_20
+cc 1 78 100
+snapshot entire_cc78_100
+cc 1 78 20
+snapshot entire_cc78_20
+cc 1 79 100
+snapshot entire_cc79_100
+cc 1 79 20
+snapshot entire_cc79_20
+cc 1 80 100
+snapshot entire_cc80_100
+cc 1 80 20
+snapshot entire_cc80_20
+cc 1 81 100
+snapshot entire_cc81_100
+cc 1 81 20
+snapshot entire_cc81_20
+cc 1 82 100
+snapshot entire_cc82_100
+cc 1 82 20
+snapshot entire_cc82_20
+cc 1 83 100
+snapshot entire_cc83_100
+cc 1 83 20
+snapshot entire_cc83_20
+cc 1 84 100
+snapshot entire_cc84_100
+cc 1 84 20
+snapshot entire_cc84_20
+cc 1 85 100
+snapshot entire_cc85_100
+cc 1 85 20
+snapshot entire_cc85_20
+cc 1 86 100
+snapshot entire_cc86_100
+cc 1 86 20
+snapshot entire_cc86_20
+cc 1 87 100
+snapshot entire_cc87_100
+cc 1 87 20
+snapshot entire_cc87_20
+cc 1 88 100
+snapshot entire_cc88_100
+cc 1 88 20
+snapshot entire_cc88_20
+cc 1 89 100
+snapshot entire_cc89_100
+cc 1 89 20
+snapshot entire_cc89_20
+cc 1 90 100
+snapshot entire_cc90_100
+cc 1 90 20
+snapshot entire_cc90_20
+cc 1 91 100
+snapshot entire_cc91_100
+cc 1 91 20
+snapshot entire_cc91_20
+cc 1 92 100
+snapshot entire_cc92_100
+cc 1 92 20
+snapshot entire_cc92_20
+cc 1 93 100
+snapshot entire_cc93_100
+cc 1 93 20
+snapshot entire_cc93_20
+cc 1 94 100
+snapshot entire_cc94_100
+cc 1 94 20
+snapshot entire_cc94_20
+cc 1 95 100
+snapshot entire_cc95_100
+cc 1 95 20
+snapshot entire_cc95_20
+cc 1 96 100
+snapshot entire_cc96_100
+cc 1 96 20
+snapshot entire_cc96_20
+cc 1 97 100
+snapshot entire_cc97_100
+cc 1 97 20
+snapshot entire_cc97_20
+cc 1 98 100
+snapshot entire_cc98_100
+cc 1 98 20
+snapshot entire_cc98_20
+cc 1 99 100
+snapshot entire_cc99_100
+cc 1 99 20
+snapshot entire_cc99_20
+cc 1 100 100
+snapshot entire_cc100_100
+cc 1 100 20
+snapshot entire_cc100_20
+cc 1 101 100
+snapshot entire_cc101_100
+cc 1 101 20
+snapshot entire_cc101_20
+cc 1 102 100
+snapshot entire_cc102_100
+cc 1 102 20
+snapshot entire_cc102_20
+cc 1 103 100
+snapshot entire_cc103_100
+cc 1 103 20
+snapshot entire_cc103_20
+cc 1 104 100
+snapshot entire_cc104_100
+cc 1 104 20
+snapshot entire_cc104_20
+cc 1 105 100
+snapshot entire_cc105_100
+cc 1 105 20
+snapshot entire_cc105_20
+cc 1 106 100
+snapshot entire_cc106_100
+cc 1 106 20
+snapshot entire_cc106_20
+cc 1 107 100
+snapshot entire_cc107_100
+cc 1 107 20
+snapshot entire_cc107_20
+cc 1 108 100
+snapshot entire_cc108_100
+cc 1 108 20
+snapshot entire_cc108_20
+cc 1 109 100
+snapshot entire_cc109_100
+cc 1 109 20
+snapshot entire_cc109_20
+cc 1 110 100
+snapshot entire_cc110_100
+cc 1 110 20
+snapshot entire_cc110_20
+cc 1 111 100
+snapshot entire_cc111_100
+cc 1 111 20
+snapshot entire_cc111_20
+cc 1 112 100
+snapshot entire_cc112_100
+cc 1 112 20
+snapshot entire_cc112_20
+cc 1 113 100
+snapshot entire_cc113_100
+cc 1 113 20
+snapshot entire_cc113_20
+cc 1 114 100
+snapshot entire_cc114_100
+cc 1 114 20
+snapshot entire_cc114_20
+cc 1 115 100
+snapshot entire_cc115_100
+cc 1 115 20
+snapshot entire_cc115_20
+cc 1 116 100
+snapshot entire_cc116_100
+cc 1 116 20
+snapshot entire_cc116_20
+cc 1 117 100
+snapshot entire_cc117_100
+cc 1 117 20
+snapshot entire_cc117_20
+cc 1 118 100
+snapshot entire_cc118_100
+cc 1 118 20
+snapshot entire_cc118_20
+cc 1 119 100
+snapshot entire_cc119_100
+cc 1 119 20
+snapshot entire_cc119_20
+cc 1 120 100
+snapshot entire_cc120_100
+cc 1 120 20
+snapshot entire_cc120_20
+cc 1 121 100
+snapshot entire_cc121_100
+cc 1 121 20
+snapshot entire_cc121_20
+cc 1 122 100
+snapshot entire_cc122_100
+cc 1 122 20
+snapshot entire_cc122_20
+press MOD0
+turn UPPER 1
+snapshot entire_mod0_upper
+turn LOWER 1
+snapshot entire_mod0_lower
+press MOD1
+turn UPPER 1
+snapshot entire_mod1_upper
+turn LOWER 1
+snapshot entire_mod1_lower
+press MOD2
+turn UPPER 1
+snapshot entire_mod2_upper
+turn LOWER 1
+snapshot entire_mod2_lower
+press MOD3
+turn UPPER 1
+snapshot entire_mod3_upper
+turn LOWER 1
+snapshot entire_mod3_lower
+press MOD4
+turn UPPER 1
+snapshot entire_mod4_upper
+turn LOWER 1
+snapshot entire_mod4_lower
+press MOD5
+turn UPPER 1
+snapshot entire_mod5_upper
+turn LOWER 1
+snapshot entire_mod5_lower
+press MOD6
+turn UPPER 1
+snapshot entire_mod6_upper
+turn LOWER 1
+snapshot entire_mod6_lower
+press MOD7
+turn UPPER 1
+snapshot entire_mod7_upper
+turn LOWER 1
+snapshot entire_mod7_lower
+press SESSION_VIEW
+wait 1
+cc 1 0 100
+snapshot song_cc0_100
+cc 1 0 20
+snapshot song_cc0_20
+cc 1 1 100
+snapshot song_cc1_100
+cc 1 1 20
+snapshot song_cc1_20
+cc 1 2 100
+snapshot song_cc2_100
+cc 1 2 20
+snapshot song_cc2_20
+cc 1 3 100
+snapshot song_cc3_100
+cc 1 3 20
+snapshot song_cc3_20
+cc 1 4 100
+snapshot song_cc4_100
+cc 1 4 20
+snapshot song_cc4_20
+cc 1 5 100
+snapshot song_cc5_100
+cc 1 5 20
+snapshot song_cc5_20
+cc 1 6 100
+snapshot song_cc6_100
+cc 1 6 20
+snapshot song_cc6_20
+cc 1 7 100
+snapshot song_cc7_100
+cc 1 7 20
+snapshot song_cc7_20
+cc 1 8 100
+snapshot song_cc8_100
+cc 1 8 20
+snapshot song_cc8_20
+cc 1 9 100
+snapshot song_cc9_100
+cc 1 9 20
+snapshot song_cc9_20
+cc 1 10 100
+snapshot song_cc10_100
+cc 1 10 20
+snapshot song_cc10_20
+cc 1 11 100
+snapshot song_cc11_100
+cc 1 11 20
+snapshot song_cc11_20
+cc 1 12 100
+snapshot song_cc12_100
+cc 1 12 20
+snapshot song_cc12_20
+cc 1 13 100
+snapshot song_cc13_100
+cc 1 13 20
+snapshot song_cc13_20
+cc 1 14 100
+snapshot song_cc14_100
+cc 1 14 20
+snapshot song_cc14_20
+cc 1 15 100
+snapshot song_cc15_100
+cc 1 15 20
+snapshot song_cc15_20
+cc 1 16 100
+snapshot song_cc16_100
+cc 1 16 20
+snapshot song_cc16_20
+cc 1 17 100
+snapshot song_cc17_100
+cc 1 17 20
+snapshot song_cc17_20
+cc 1 18 100
+snapshot song_cc18_100
+cc 1 18 20
+snapshot song_cc18_20
+cc 1 19 100
+snapshot song_cc19_100
+cc 1 19 20
+snapshot song_cc19_20
+cc 1 20 100
+snapshot song_cc20_100
+cc 1 20 20
+snapshot song_cc20_20
+cc 1 21 100
+snapshot song_cc21_100
+cc 1 21 20
+snapshot song_cc21_20
+cc 1 22 100
+snapshot song_cc22_100
+cc 1 22 20
+snapshot song_cc22_20
+cc 1 23 100
+snapshot song_cc23_100
+cc 1 23 20
+snapshot song_cc23_20
+cc 1 24 100
+snapshot song_cc24_100
+cc 1 24 20
+snapshot song_cc24_20
+cc 1 25 100
+snapshot song_cc25_100
+cc 1 25 20
+snapshot song_cc25_20
+cc 1 26 100
+snapshot song_cc26_100
+cc 1 26 20
+snapshot song_cc26_20
+cc 1 27 100
+snapshot song_cc27_100
+cc 1 27 20
+snapshot song_cc27_20
+cc 1 28 100
+snapshot song_cc28_100
+cc 1 28 20
+snapshot song_cc28_20
+cc 1 29 100
+snapshot song_cc29_100
+cc 1 29 20
+snapshot song_cc29_20
+cc 1 30 100
+snapshot song_cc30_100
+cc 1 30 20
+snapshot song_cc30_20
+cc 1 31 100
+snapshot song_cc31_100
+cc 1 31 20
+snapshot song_cc31_20
+cc 1 32 100
+snapshot song_cc32_100
+cc 1 32 20
+snapshot song_cc32_20
+cc 1 33 100
+snapshot song_cc33_100
+cc 1 33 20
+snapshot song_cc33_20
+cc 1 34 100
+snapshot song_cc34_100
+cc 1 34 20
+snapshot song_cc34_20
+cc 1 35 100
+snapshot song_cc35_100
+cc 1 35 20
+snapshot song_cc35_20
+cc 1 36 100
+snapshot song_cc36_100
+cc 1 36 20
+snapshot song_cc36_20
+cc 1 37 100
+snapshot song_cc37_100
+cc 1 37 20
+snapshot song_cc37_20
+cc 1 38 100
+snapshot song_cc38_100
+cc 1 38 20
+snapshot song_cc38_20
+cc 1 39 100
+snapshot song_cc39_100
+cc 1 39 20
+snapshot song_cc39_20
+cc 1 40 100
+snapshot song_cc40_100
+cc 1 40 20
+snapshot song_cc40_20
+cc 1 41 100
+snapshot song_cc41_100
+cc 1 41 20
+snapshot song_cc41_20
+cc 1 42 100
+snapshot song_cc42_100
+cc 1 42 20
+snapshot song_cc42_20
+cc 1 43 100
+snapshot song_cc43_100
+cc 1 43 20
+snapshot song_cc43_20
+cc 1 44 100
+snapshot song_cc44_100
+cc 1 44 20
+snapshot song_cc44_20
+cc 1 45 100
+snapshot song_cc45_100
+cc 1 45 20
+snapshot song_cc45_20
+cc 1 46 100
+snapshot song_cc46_100
+cc 1 46 20
+snapshot song_cc46_20
+cc 1 47 100
+snapshot song_cc47_100
+cc 1 47 20
+snapshot song_cc47_20
+cc 1 48 100
+snapshot song_cc48_100
+cc 1 48 20
+snapshot song_cc48_20
+cc 1 49 100
+snapshot song_cc49_100
+cc 1 49 20
+snapshot song_cc49_20
+cc 1 50 100
+snapshot song_cc50_100
+cc 1 50 20
+snapshot song_cc50_20
+cc 1 51 100
+snapshot song_cc51_100
+cc 1 51 20
+snapshot song_cc51_20
+cc 1 52 100
+snapshot song_cc52_100
+cc 1 52 20
+snapshot song_cc52_20
+cc 1 53 100
+snapshot song_cc53_100
+cc 1 53 20
+snapshot song_cc53_20
+cc 1 54 100
+snapshot song_cc54_100
+cc 1 54 20
+snapshot song_cc54_20
+cc 1 55 100
+snapshot song_cc55_100
+cc 1 55 20
+snapshot song_cc55_20
+cc 1 56 100
+snapshot song_cc56_100
+cc 1 56 20
+snapshot song_cc56_20
+cc 1 57 100
+snapshot song_cc57_100
+cc 1 57 20
+snapshot song_cc57_20
+cc 1 58 100
+snapshot song_cc58_100
+cc 1 58 20
+snapshot song_cc58_20
+cc 1 59 100
+snapshot song_cc59_100
+cc 1 59 20
+snapshot song_cc59_20
+cc 1 60 100
+snapshot song_cc60_100
+cc 1 60 20
+snapshot song_cc60_20
+cc 1 61 100
+snapshot song_cc61_100
+cc 1 61 20
+snapshot song_cc61_20
+cc 1 62 100
+snapshot song_cc62_100
+cc 1 62 20
+snapshot song_cc62_20
+cc 1 63 100
+snapshot song_cc63_100
+cc 1 63 20
+snapshot song_cc63_20
+cc 1 64 100
+snapshot song_cc64_100
+cc 1 64 20
+snapshot song_cc64_20
+cc 1 65 100
+snapshot song_cc65_100
+cc 1 65 20
+snapshot song_cc65_20
+cc 1 66 100
+snapshot song_cc66_100
+cc 1 66 20
+snapshot song_cc66_20
+cc 1 67 100
+snapshot song_cc67_100
+cc 1 67 20
+snapshot song_cc67_20
+cc 1 68 100
+snapshot song_cc68_100
+cc 1 68 20
+snapshot song_cc68_20
+cc 1 69 100
+snapshot song_cc69_100
+cc 1 69 20
+snapshot song_cc69_20
+cc 1 70 100
+snapshot song_cc70_100
+cc 1 70 20
+snapshot song_cc70_20
+cc 1 71 100
+snapshot song_cc71_100
+cc 1 71 20
+snapshot song_cc71_20
+cc 1 72 100
+snapshot song_cc72_100
+cc 1 72 20
+snapshot song_cc72_20
+cc 1 73 100
+snapshot song_cc73_100
+cc 1 73 20
+snapshot song_cc73_20
+cc 1 74 100
+snapshot song_cc74_100
+cc 1 74 20
+snapshot song_cc74_20
+cc 1 75 100
+snapshot song_cc75_100
+cc 1 75 20
+snapshot song_cc75_20
+cc 1 76 100
+snapshot song_cc76_100
+cc 1 76 20
+snapshot song_cc76_20
+cc 1 77 100
+snapshot song_cc77_100
+cc 1 77 20
+snapshot song_cc77_20
+cc 1 78 100
+snapshot song_cc78_100
+cc 1 78 20
+snapshot song_cc78_20
+cc 1 79 100
+snapshot song_cc79_100
+cc 1 79 20
+snapshot song_cc79_20
+cc 1 80 100
+snapshot song_cc80_100
+cc 1 80 20
+snapshot song_cc80_20
+cc 1 81 100
+snapshot song_cc81_100
+cc 1 81 20
+snapshot song_cc81_20
+cc 1 82 100
+snapshot song_cc82_100
+cc 1 82 20
+snapshot song_cc82_20
+cc 1 83 100
+snapshot song_cc83_100
+cc 1 83 20
+snapshot song_cc83_20
+cc 1 84 100
+snapshot song_cc84_100
+cc 1 84 20
+snapshot song_cc84_20
+cc 1 85 100
+snapshot song_cc85_100
+cc 1 85 20
+snapshot song_cc85_20
+cc 1 86 100
+snapshot song_cc86_100
+cc 1 86 20
+snapshot song_cc86_20
+cc 1 87 100
+snapshot song_cc87_100
+cc 1 87 20
+snapshot song_cc87_20
+cc 1 88 100
+snapshot song_cc88_100
+cc 1 88 20
+snapshot song_cc88_20
+cc 1 89 100
+snapshot song_cc89_100
+cc 1 89 20
+snapshot song_cc89_20
+cc 1 90 100
+snapshot song_cc90_100
+cc 1 90 20
+snapshot song_cc90_20
+cc 1 91 100
+snapshot song_cc91_100
+cc 1 91 20
+snapshot song_cc91_20
+cc 1 92 100
+snapshot song_cc92_100
+cc 1 92 20
+snapshot song_cc92_20
+cc 1 93 100
+snapshot song_cc93_100
+cc 1 93 20
+snapshot song_cc93_20
+cc 1 94 100
+snapshot song_cc94_100
+cc 1 94 20
+snapshot song_cc94_20
+cc 1 95 100
+snapshot song_cc95_100
+cc 1 95 20
+snapshot song_cc95_20
+cc 1 96 100
+snapshot song_cc96_100
+cc 1 96 20
+snapshot song_cc96_20
+cc 1 97 100
+snapshot song_cc97_100
+cc 1 97 20
+snapshot song_cc97_20
+cc 1 98 100
+snapshot song_cc98_100
+cc 1 98 20
+snapshot song_cc98_20
+cc 1 99 100
+snapshot song_cc99_100
+cc 1 99 20
+snapshot song_cc99_20
+cc 1 100 100
+snapshot song_cc100_100
+cc 1 100 20
+snapshot song_cc100_20
+cc 1 101 100
+snapshot song_cc101_100
+cc 1 101 20
+snapshot song_cc101_20
+cc 1 102 100
+snapshot song_cc102_100
+cc 1 102 20
+snapshot song_cc102_20
+cc 1 103 100
+snapshot song_cc103_100
+cc 1 103 20
+snapshot song_cc103_20
+cc 1 104 100
+snapshot song_cc104_100
+cc 1 104 20
+snapshot song_cc104_20
+cc 1 105 100
+snapshot song_cc105_100
+cc 1 105 20
+snapshot song_cc105_20
+cc 1 106 100
+snapshot song_cc106_100
+cc 1 106 20
+snapshot song_cc106_20
+cc 1 107 100
+snapshot song_cc107_100
+cc 1 107 20
+snapshot song_cc107_20
+cc 1 108 100
+snapshot song_cc108_100
+cc 1 108 20
+snapshot song_cc108_20
+cc 1 109 100
+snapshot song_cc109_100
+cc 1 109 20
+snapshot song_cc109_20
+cc 1 110 100
+snapshot song_cc110_100
+cc 1 110 20
+snapshot song_cc110_20
+cc 1 111 100
+snapshot song_cc111_100
+cc 1 111 20
+snapshot song_cc111_20
+cc 1 112 100
+snapshot song_cc112_100
+cc 1 112 20
+snapshot song_cc112_20
+cc 1 113 100
+snapshot song_cc113_100
+cc 1 113 20
+snapshot song_cc113_20
+cc 1 114 100
+snapshot song_cc114_100
+cc 1 114 20
+snapshot song_cc114_20
+cc 1 115 100
+snapshot song_cc115_100
+cc 1 115 20
+snapshot song_cc115_20
+cc 1 116 100
+snapshot song_cc116_100
+cc 1 116 20
+snapshot song_cc116_20
+cc 1 117 100
+snapshot song_cc117_100
+cc 1 117 20
+snapshot song_cc117_20
+cc 1 118 100
+snapshot song_cc118_100
+cc 1 118 20
+snapshot song_cc118_20
+cc 1 119 100
+snapshot song_cc119_100
+cc 1 119 20
+snapshot song_cc119_20
+cc 1 120 100
+snapshot song_cc120_100
+cc 1 120 20
+snapshot song_cc120_20
+cc 1 121 100
+snapshot song_cc121_100
+cc 1 121 20
+snapshot song_cc121_20
+cc 1 122 100
+snapshot song_cc122_100
+cc 1 122 20
+snapshot song_cc122_20
+press MOD0
+turn UPPER 1
+snapshot song_mod0_upper
+turn LOWER 1
+snapshot song_mod0_lower
+press MOD1
+turn UPPER 1
+snapshot song_mod1_upper
+turn LOWER 1
+snapshot song_mod1_lower
+press MOD2
+turn UPPER 1
+snapshot song_mod2_upper
+turn LOWER 1
+snapshot song_mod2_lower
+press MOD3
+turn UPPER 1
+snapshot song_mod3_upper
+turn LOWER 1
+snapshot song_mod3_lower
+press MOD4
+turn UPPER 1
+snapshot song_mod4_upper
+turn LOWER 1
+snapshot song_mod4_lower
+press MOD5
+turn UPPER 1
+snapshot song_mod5_upper
+turn LOWER 1
+snapshot song_mod5_lower
+press MOD6
+turn UPPER 1
+snapshot song_mod6_upper
+turn LOWER 1
+snapshot song_mod6_lower
+press MOD7
+turn UPPER 1
+snapshot song_mod7_upper
+turn LOWER 1
+snapshot song_mod7_lower

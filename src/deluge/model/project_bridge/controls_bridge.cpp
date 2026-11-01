@@ -41,11 +41,12 @@ using deluge::project::ControllerMapping;
 using deluge::project::MidiInputControl;
 using deluge::project::ModKnobControl;
 
-deluge::plugin::ParamId knobTargetOf(ParamDescriptor descriptor, params::Kind unpatchedKind) {
-	if (!descriptor.isJustAParam()) {
-		return cableDepthIdOf(descriptor.data);
+deluge::plugin::ParamId controlTargetOf(const deluge::modulation::KnobTarget& knob, params::Kind unpatchedKind) {
+	const deluge::synth::CableTarget word = deluge::modulation::knobWord(knob);
+	if (!word.is_param()) {
+		return cableDepthIdOf(word.word);
 	}
-	const int32_t p = descriptor.getJustTheParam();
+	const int32_t p = word.param_index();
 	if (p >= params::UNPATCHED_START) {
 		return paramIdOf(unpatchedKind, p - params::UNPATCHED_START);
 	}
@@ -56,8 +57,8 @@ namespace {
 
 void appendLearned(::ModControllableAudio& owner, params::Kind unpatchedKind, std::vector<ControllerMapping>& into) {
 	for (MIDIKnob& knob : owner.midi_knobs) {
-		into.push_back({MidiInputControl{command_of(knob.midiInput), knob.relative},
-		                knobTargetOf(knob.paramDescriptor, unpatchedKind)});
+		into.push_back(
+		    {MidiInputControl{command_of(knob.midiInput), knob.relative}, controlTargetOf(knob.target, unpatchedKind)});
 	}
 }
 
@@ -67,8 +68,8 @@ std::vector<ControllerMapping> controlsOf(::Sound& sound) {
 	std::vector<ControllerMapping> controls;
 	for (uint8_t button = 0; button < kNumModButtons; ++button) {
 		for (uint8_t knob = 0; knob < kNumPhysicalModKnobs; ++knob) {
-			controls.push_back({ModKnobControl{button, knob}, knobTargetOf(sound.modKnobs[button][knob].paramDescriptor,
-			                                                               params::Kind::UNPATCHED_SOUND)});
+			controls.push_back({ModKnobControl{button, knob},
+			                    controlTargetOf(sound.modKnobs[button][knob].target, params::Kind::UNPATCHED_SOUND)});
 		}
 	}
 	appendLearned(sound, params::Kind::UNPATCHED_SOUND, controls);
@@ -113,21 +114,17 @@ void refreshControls(::Song& song) {
 	song.project.controls = learnedControlsOf(song.live.global_effectable);
 }
 
-ParamDescriptor descriptorOf(deluge::plugin::ParamId target, params::Kind unpatchedKind) {
-	ParamDescriptor descriptor;
+deluge::modulation::KnobTarget knobOfControl(deluge::plugin::ParamId target, params::Kind unpatchedKind) {
 	if ((target.value & deluge::instrument::kCableDepthFlag) != 0) { // a cable's depth
-		descriptor.data = cableWordOf(target);
+		return deluge::modulation::knobTargetOf({cableWordOf(target)});
 	}
-	else if (const std::optional<int32_t> patched = runtimeIndexOf(params::Kind::PATCHED, target)) {
-		descriptor.setToHaveParamOnly(*patched);
+	if (const std::optional<int32_t> patched = runtimeIndexOf(params::Kind::PATCHED, target)) {
+		return deluge::modulation::knobParam(static_cast<uint32_t>(*patched));
 	}
-	else if (const std::optional<int32_t> unpatched = runtimeIndexOf(unpatchedKind, target)) {
-		descriptor.setToHaveParamOnly(params::UNPATCHED_START + *unpatched);
+	if (const std::optional<int32_t> unpatched = runtimeIndexOf(unpatchedKind, target)) {
+		return deluge::modulation::knobParam(static_cast<uint32_t>(params::UNPATCHED_START + *unpatched));
 	}
-	else {
-		descriptor.setToNull();
-	}
-	return descriptor;
+	return std::nullopt;
 }
 
 std::optional<deluge::project::ControlsAddress> controlsAddressOf(::Sound& sound) {
@@ -241,18 +238,17 @@ void applyControls(::ModControllableAudio& owner, bool isSound, const std::vecto
 	for (const ControllerMapping& mapping : controls) {
 		if (const auto* knob = std::get_if<ModKnobControl>(&mapping.control)) {
 			if (isSound && knob->button < kNumModButtons && knob->knob < kNumPhysicalModKnobs) {
-				static_cast<::Sound&>(owner).modKnobs[knob->button][knob->knob].paramDescriptor =
-				    descriptorOf(mapping.target, unpatchedKind);
+				static_cast<::Sound&>(owner).modKnobs[knob->button][knob->knob].target =
+				    knobOfControl(mapping.target, unpatchedKind);
 			}
 			continue;
 		}
 		const auto& input = std::get<MidiInputControl>(mapping.control);
-		const ParamDescriptor target = descriptorOf(mapping.target, unpatchedKind);
+		const deluge::modulation::KnobTarget target = knobOfControl(mapping.target, unpatchedKind);
 		// A knob the list leaves as it is stays whole: its device (which a name lookup could not tell from another of
 		// the same name) and its takeover state with it.
 		const auto kept = std::ranges::find_if(owner.midi_knobs, [&](const MIDIKnob& old) {
-			return command_of(old.midiInput) == input.input && old.relative == input.relative
-			       && old.paramDescriptor == target;
+			return command_of(old.midiInput) == input.input && old.relative == input.relative && old.target == target;
 		});
 		if (kept != owner.midi_knobs.end()) {
 			learned.push_back(*kept);
@@ -261,7 +257,7 @@ void applyControls(::ModControllableAudio& owner, bool isSound, const std::vecto
 		MIDIKnob made;
 		made.midiInput = learned_of(input.input);
 		made.relative = input.relative;
-		made.paramDescriptor = target;
+		made.target = target;
 		learned.push_back(made);
 	}
 	owner.midi_knobs = std::move(learned);

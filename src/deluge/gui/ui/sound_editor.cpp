@@ -46,8 +46,10 @@
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
+#include "model/project_bridge/param_ids.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
+#include "modulation/params/param_targets.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
@@ -980,16 +982,20 @@ ActionResult SoundEditor::exitCompletely() {
 
 bool SoundEditor::findPatchedParam(int32_t paramLookingFor, int32_t* xout, int32_t* yout, bool* isSecondLayerParamOut) {
 	bool found = false;
+	const deluge::bridge::RuntimeParam lookingFor{deluge::modulation::params::Kind::PATCHED, paramLookingFor};
+	auto holds = [&](const std::optional<deluge::project::ParamTarget>& cell) {
+		return cell && deluge::bridge::runtimeParamOf(deluge::bridge::OwnerPlugin::INSTRUMENT, *cell) == lookingFor;
+	};
 	for (int32_t x = 0; x < kDisplayWidth; x++) {
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
-			if (deluge::modulation::params::patchedParamShortcuts[x][y] == paramLookingFor) {
+			if (holds(deluge::modulation::params::kSoundParamShortcuts[x][y])) {
 				*isSecondLayerParamOut = false;
 				*xout = x;
 				*yout = y;
 
 				return true;
 			}
-			if (deluge::modulation::params::patchedParamShortcutsSecondLayer[x][y] == paramLookingFor) {
+			if (holds(deluge::modulation::params::kSoundParamShortcutsSecondLayer[x][y])) {
 				*isSecondLayerParamOut = true;
 				*xout = x;
 				*yout = y;

@@ -32,7 +32,7 @@ public:
 	    : PatchedParam(newP), IntegerContinuous(newName, title), number_style_{style} {}
 	bool usesAffectEntire() override { return true; }
 
-	ParamDescriptor getLearningThing() final { return PatchedParam::getLearningThing(); }
+	deluge::modulation::KnobTarget getLearningThing() final { return PatchedParam::getLearningThing(); }
 	[[nodiscard]] int32_t getMaxValue() const override { return PatchedParam::getMaxValue(); }
 	[[nodiscard]] int32_t getMinValue() const override { return PatchedParam::getMinValue(); }
 	uint8_t shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) final {

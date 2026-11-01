@@ -763,17 +763,17 @@ void testKnobTargets(deluge::edits::Context& /*ctx*/) {
 	namespace params = deluge::modulation::params;
 	for (int32_t button = 0; button < kNumModButtons; button++) {
 		for (int32_t knob = 0; knob < kNumPhysicalModKnobs; knob++) {
-			const ParamDescriptor d = sound.modKnobs[button][knob].paramDescriptor;
-			check(deluge::bridge::descriptorOf(deluge::bridge::knobTargetOf(d, params::Kind::UNPATCHED_SOUND),
-			                                   params::Kind::UNPATCHED_SOUND)
+			const deluge::modulation::KnobTarget d = sound.modKnobs[button][knob].target;
+			check(deluge::bridge::knobOfControl(deluge::bridge::controlTargetOf(d, params::Kind::UNPATCHED_SOUND),
+			                                    params::Kind::UNPATCHED_SOUND)
 			          == d,
 			      "knobs: a default knob's target leads back to its descriptor");
 		}
 	}
-	ParamDescriptor cable;
-	cable.setToHaveParamAndSource(params::LOCAL_LPF_FREQ, PatchSource::LFO_LOCAL_1);
-	check(deluge::bridge::descriptorOf(deluge::bridge::knobTargetOf(cable, params::Kind::UNPATCHED_SOUND),
-	                                   params::Kind::UNPATCHED_SOUND)
+	const deluge::modulation::KnobTarget cable = deluge::modulation::knobTargetOf(
+	    deluge::synth::CableTarget::depth_of(params::LOCAL_LPF_FREQ, PatchSource::LFO_LOCAL_1));
+	check(deluge::bridge::knobOfControl(deluge::bridge::controlTargetOf(cable, params::Kind::UNPATCHED_SOUND),
+	                                    params::Kind::UNPATCHED_SOUND)
 	          == cable,
 	      "knobs: a cable depth's target leads back to its descriptor");
 }
@@ -796,23 +796,22 @@ void testSetControls(deluge::edits::Context& ctx) {
 		return;
 	}
 
-	ParamDescriptor resonance;
-	resonance.setToHaveParamOnly(params::LOCAL_LPF_RESONANCE);
+	const deluge::modulation::KnobTarget resonance = deluge::modulation::knobParam(params::LOCAL_LPF_RESONANCE);
 	std::vector<ControllerMapping> controls = *record;
 	for (ControllerMapping& mapping : controls) {
 		if (const auto* knob = std::get_if<deluge::project::ModKnobControl>(&mapping.control);
 		    knob != nullptr && knob->button == 2 && knob->knob == 1) {
-			mapping.target = deluge::bridge::knobTargetOf(resonance, params::Kind::UNPATCHED_SOUND);
+			mapping.target = deluge::bridge::controlTargetOf(resonance, params::Kind::UNPATCHED_SOUND);
 		}
 	}
 	deluge::project::MidiCommand cc;
 	cc.channel_or_zone = 0;
 	cc.note_or_cc = 74;
 	controls.push_back({deluge::project::MidiInputControl{cc, false},
-	                    deluge::bridge::knobTargetOf(resonance, params::Kind::UNPATCHED_SOUND)});
+	                    deluge::bridge::controlTargetOf(resonance, params::Kind::UNPATCHED_SOUND)});
 	deluge::edits::SetControls edit{address, controls};
 	check(deluge::edits::apply(ctx, edit) == Error::NONE, "controls: a mapping list is applied");
-	check(sound.modKnobs[2][1].paramDescriptor == resonance, "controls: the runtime's mod knob follows");
+	check(sound.modKnobs[2][1].target == resonance, "controls: the runtime's mod knob follows");
 	check(sound.midi_knobs.size() == 1, "controls: the learned knob is made");
 	check(*ctx.model.resolveControls(address) == controls, "controls: the record holds the list");
 
@@ -820,9 +819,8 @@ void testSetControls(deluge::edits::Context& ctx) {
 		sound.midi_knobs[0].previousPositionSaved = true;
 		sound.midi_knobs[0].previousPosition = 77;
 	}
-	ParamDescriptor cutoff;
-	cutoff.setToHaveParamOnly(params::LOCAL_LPF_FREQ);
-	controls[2 * 2 + 1].target = deluge::bridge::knobTargetOf(cutoff, params::Kind::UNPATCHED_SOUND);
+	const deluge::modulation::KnobTarget cutoff = deluge::modulation::knobParam(params::LOCAL_LPF_FREQ);
+	controls[2 * 2 + 1].target = deluge::bridge::controlTargetOf(cutoff, params::Kind::UNPATCHED_SOUND);
 	deluge::edits::SetControls other{address, controls};
 	check(deluge::edits::apply(ctx, other) == Error::NONE, "controls: another knob's edit is applied");
 	check(sound.midi_knobs.size() == 1 && sound.midi_knobs[0].previousPositionSaved
@@ -856,8 +854,7 @@ void testKnobGesturesRecord(deluge::edits::Context& ctx) {
 		return;
 	}
 
-	ParamDescriptor drive;
-	drive.setToHaveParamOnly(params::LOCAL_LPF_RESONANCE);
+	const deluge::modulation::KnobTarget drive = deluge::modulation::knobParam(params::LOCAL_LPF_RESONANCE);
 	check(sound.learnKnob(nullptr, drive, 1, 3, 16, &ctx.song), "knob gestures: a mod knob is learned");
 	deluge::gui::menu_item::recordControlsOf(sound);
 	check(deluge::harness::soundIncoherence(sound, ctx.song).empty(), "knob gestures: a learn is recorded");
@@ -891,10 +888,9 @@ void testPresetChangeHandsOverKnobs(deluge::edits::Context& ctx) {
 	deluge::project::MidiCommand cc;
 	cc.channel_or_zone = 0;
 	cc.note_or_cc = 71;
-	ParamDescriptor resonance;
-	resonance.setToHaveParamOnly(params::LOCAL_LPF_RESONANCE);
+	const deluge::modulation::KnobTarget resonance = deluge::modulation::knobParam(params::LOCAL_LPF_RESONANCE);
 	controls.push_back({deluge::project::MidiInputControl{cc, false},
-	                    deluge::bridge::knobTargetOf(resonance, params::Kind::UNPATCHED_SOUND)});
+	                    deluge::bridge::controlTargetOf(resonance, params::Kind::UNPATCHED_SOUND)});
 	deluge::edits::SetControls learn{*oldAddress, controls};
 	check(deluge::edits::apply(ctx, learn) == Error::NONE, "handover: the old synth learns a knob");
 
@@ -932,11 +928,11 @@ void testClonedAudioTrackRecordsKnobs(deluge::edits::Context& ctx) {
 	deluge::project::MidiCommand cc;
 	cc.channel_or_zone = 0;
 	cc.note_or_cc = 72;
-	ParamDescriptor volume;
-	volume.setToHaveParamOnly(params::UNPATCHED_START + params::UNPATCHED_VOLUME);
+	const deluge::modulation::KnobTarget volume =
+	    deluge::modulation::knobParam(params::UNPATCHED_START + params::UNPATCHED_VOLUME);
 	deluge::edits::SetControls learn{*address,
 	                                 {{deluge::project::MidiInputControl{cc, false},
-	                                   deluge::bridge::knobTargetOf(volume, params::Kind::UNPATCHED_GLOBAL)}}};
+	                                   deluge::bridge::controlTargetOf(volume, params::Kind::UNPATCHED_GLOBAL)}}};
 	check(deluge::edits::apply(ctx, learn) == Error::NONE, "clone: the source track learns a knob");
 	clone->cloneFrom(source);
 	check(deluge::harness::expectSongCoherent(ctx.song, "clone-before") != 0,

@@ -1978,8 +1978,8 @@ void updateReverbParams() {
 		if (soundWithMostReverb) {
 			modControllable = soundWithMostReverb;
 
-			ParamDescriptor paramDescriptor;
-			paramDescriptor.setToHaveParamOnly(params::GLOBAL_VOLUME_POST_REVERB_SEND);
+			deluge::synth::CableTarget paramDescriptor =
+			    deluge::synth::CableTarget::param(params::GLOBAL_VOLUME_POST_REVERB_SEND);
 
 			PatchCableSet* patchCableSet = paramManagerWithMostReverb->getPatchCableSet();
 

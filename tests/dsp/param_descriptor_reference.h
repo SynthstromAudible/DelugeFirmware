@@ -1,54 +1,48 @@
 /*
- * Copyright © 2021-2023 Synthstrom Audible Limited
+ * Copyright © 2026 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
- *
- * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
- * terms of the GNU General Public License as published by the Free Software Foundation,
- * either version 3 of the License, or (at your option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
- * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- * See the GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License along with this program.
- * If not, see <https://www.gnu.org/licenses/>.
+ * Licensed under the GNU General Public License v3 or later; see LICENSE.
  */
 
+// A verbatim copy of the descriptor class the runtime's cable set used for its words, renamed, with the synth's
+// PatchSource and a plain cast for util::to_underlying: the oracle synth::CableTarget's word operations are checked
+// against.
 #pragma once
 
-#include "definitions_cxx.hpp"
-#include "util/misc.h"
+#include "synth/modulation/patch_source.h"
+
 #include <cstdint>
 
-/// Wrapper class around an int32, representing a parameter. The least significant 8 bits represent the actual
-/// parameter. The next 8 bits represent a PatchSource modulating that parameter, the 8 bits after that represent the
-/// source modulating that modulation, and so on.
-class ParamDescriptor {
-public:
-	ParamDescriptor() = default;
-	ParamDescriptor(const ParamDescriptor&) = default;
-	ParamDescriptor(ParamDescriptor&&) = default;
-	ParamDescriptor& operator=(const ParamDescriptor&) = default;
-	ParamDescriptor& operator=(ParamDescriptor&&) = default;
+namespace param_descriptor_reference {
 
-	/// Construct a ParamDescriptor directly from its value.
-	explicit ParamDescriptor(int32_t data_) : data(data_) {}
+using PatchSource = deluge::synth::PatchSource;
+
+class ParamDescriptorReference {
+public:
+	ParamDescriptorReference() = default;
+	ParamDescriptorReference(const ParamDescriptorReference&) = default;
+	ParamDescriptorReference(ParamDescriptorReference&&) = default;
+	ParamDescriptorReference& operator=(const ParamDescriptorReference&) = default;
+	ParamDescriptorReference& operator=(ParamDescriptorReference&&) = default;
+
+	/// Construct a ParamDescriptorReference directly from its value.
+	explicit ParamDescriptorReference(int32_t data_) : data(data_) {}
 
 	constexpr void setToHaveParamOnly(int32_t p) { data = p | 0xFFFFFF00; }
 
 	constexpr void setToHaveParamAndSource(int32_t p, PatchSource s) {
-		data = p | (util::to_underlying(s) << 8) | 0xFFFF0000;
+		data = p | (static_cast<uint8_t>(s) << 8) | 0xFFFF0000;
 	}
 
 	constexpr void setToHaveParamAndTwoSources(int32_t p, PatchSource s, PatchSource sLowestLevel) {
-		data = p | (util::to_underlying(s) << 8) | (util::to_underlying(sLowestLevel) << 16) | 0xFF000000;
+		data = p | (static_cast<uint8_t>(s) << 8) | (static_cast<uint8_t>(sLowestLevel) << 16) | 0xFF000000;
 	}
 
 	[[nodiscard]] constexpr bool isSetToParamWithNoSource(int32_t p) const { return (data == (p | 0xFFFFFF00)); }
 
 	[[nodiscard]] constexpr inline bool isSetToParamAndSource(int32_t p, PatchSource s) const {
-		return (data == (p | (util::to_underlying(s) << 8) | 0xFFFF0000));
+		return (data == (p | (static_cast<uint8_t>(s) << 8) | 0xFFFF0000));
 	}
 
 	[[nodiscard]] constexpr bool isJustAParam() const { return (data & 0x0000FF00) == 0x0000FF00; }
@@ -66,7 +60,7 @@ public:
 	}
 
 	constexpr void addSource(PatchSource newSource) {
-		uint8_t newSourceUnderlying = util::to_underlying(newSource);
+		uint8_t newSourceUnderlying = static_cast<uint8_t>(newSource);
 		if ((data & 0x0000FF00) == 0x0000FF00) {
 			data = (data & 0xFFFF00FF) | (newSourceUnderlying << 8);
 		}
@@ -78,15 +72,15 @@ public:
 		}
 	}
 
-	[[nodiscard]] constexpr ParamDescriptor getDestination() const {
-		ParamDescriptor newParamDescriptor{};
+	[[nodiscard]] constexpr ParamDescriptorReference getDestination() const {
+		ParamDescriptorReference newParamDescriptorReference{};
 		if ((data & 0x00FF0000) == 0x00FF0000) {
-			newParamDescriptor.data = data | 0x0000FF00;
+			newParamDescriptorReference.data = data | 0x0000FF00;
 		}
 		else {
-			newParamDescriptor.data = data | 0x00FF0000;
+			newParamDescriptorReference.data = data | 0x00FF0000;
 		}
-		return newParamDescriptor;
+		return newParamDescriptorReference;
 	}
 
 	[[nodiscard]] constexpr bool hasJustOneSource() const {
@@ -110,9 +104,11 @@ public:
 	uint32_t data{0};
 };
 
-constexpr bool operator==(const ParamDescriptor& lhs, const ParamDescriptor& rhs) {
+constexpr bool operator==(const ParamDescriptorReference& lhs, const ParamDescriptorReference& rhs) {
 	return (lhs.data == rhs.data);
 }
-constexpr bool operator!=(const ParamDescriptor& lhs, const ParamDescriptor& rhs) {
+constexpr bool operator!=(const ParamDescriptorReference& lhs, const ParamDescriptorReference& rhs) {
 	return !(lhs == rhs);
 }
+
+} // namespace param_descriptor_reference

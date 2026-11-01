@@ -20,15 +20,13 @@
 #include "gui/menu_item/patch_cable_strength/regular.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
-#include "modulation/params/param_descriptor.h"
+#include "synth/modulation/cable.h"
 
 namespace deluge::gui::menu_item::source_selection {
 Regular regularMenu{};
 
-ParamDescriptor Regular::getDestinationDescriptor() {
-	ParamDescriptor descriptor{};
-	descriptor.setToHaveParamOnly(soundEditor.patchingParamSelected);
-	return descriptor;
+synth::CableTarget Regular::getDestinationDescriptor() {
+	return synth::CableTarget::param(soundEditor.patchingParamSelected);
 }
 
 MenuItem* Regular::selectButtonPress() {

@@ -19,6 +19,7 @@
 
 #include "deluge-project/param_address.h"
 #include "deluge-project/param_automation.h"
+#include "model/project_bridge/owner_plugin.h"
 #include "modulation/params/param.h"
 #include "plugin-api/types/param.h"
 
@@ -26,6 +27,34 @@
 #include <optional>
 
 namespace deluge::bridge {
+
+/// @brief A runtime param: its collection kind and its index there (a cable's packed word for PATCH_CABLE).
+struct RuntimeParam {
+	deluge::modulation::params::Kind kind;
+	int32_t index;
+	[[nodiscard]] constexpr bool operator==(const RuntimeParam&) const = default;
+};
+
+/// @brief The runtime param that @p target names for an owner of @p owner's plugin.
+///
+/// @param owner  The owner's plugin.
+/// @param target The param.
+/// @return The runtime collection kind and index, or nullopt when the owner's plugin has no such param.
+[[nodiscard]] std::optional<RuntimeParam> runtimeParamOf(OwnerPlugin owner, deluge::project::ParamTarget target);
+
+/// @brief The target of the runtime's param at @p index of a @p kind collection, owned by an owner of @p owner's
+/// plugin; the inverse of runtimeParamOf. An unpatched set its owner's init has not named yet (kind NONE) is numbered
+/// as the owner's unpatched params.
+///
+/// @param owner The owner's plugin.
+/// @param kind  The runtime collection kind.
+/// @param index The param's runtime index (the packed cable word for a patch cable).
+/// @return The target, or nullopt when the owner's plugin has no such param.
+[[nodiscard]] std::optional<deluge::project::ParamTarget>
+targetOf(OwnerPlugin owner, deluge::modulation::params::Kind kind, int32_t index);
+
+// UI-facing code names params through targetOf / runtimeParamOf; the functions below are the bridge's numbering,
+// used by the edit path and addressOf.
 
 /// @brief The id the runtime's param at @p index of a @p kind collection has.
 ///

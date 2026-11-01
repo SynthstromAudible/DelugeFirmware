@@ -25,8 +25,8 @@
 #include "model/mod_controllable/mod_controllable.h"
 #include "model/snapshot/mod_controllable_snapshot.h"
 #include "modulation/knob.h"
-#include "modulation/params/param_descriptor.h"
 #include "modulation/params/param_set.h"
+#include "synth/modulation/cable.h"
 #include "synth/modulation/lfo.h"
 #include "util/functions.h"
 
@@ -168,9 +168,9 @@ public:
 	/// Learna knob to a particular parameter.
 	///
 	/// @param cable The source MIDI cable, or null if learning a mod knob
-	virtual bool learnKnob(MIDICable* cable, ParamDescriptor paramDescriptor, uint8_t whichKnob, uint8_t modKnobMode,
-	                       uint8_t midiChannel, Song* song);
-	bool unlearnKnobs(ParamDescriptor paramDescriptor, Song* song);
+	virtual bool learnKnob(MIDICable* cable, deluge::modulation::KnobTarget target, uint8_t whichKnob,
+	                       uint8_t modKnobMode, uint8_t midiChannel, Song* song);
+	bool unlearnKnobs(deluge::modulation::KnobTarget target, Song* song);
 	virtual void ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(Song* song) {} // Song may be NULL
 	ModelStackWithAutoParam* getParamFromMIDIKnob(MIDIKnob& knob, ModelStackWithThreeMainThings* modelStack) override;
 

@@ -73,7 +73,7 @@ bool paramLifted(ParamSet& set, int32_t id, const ParamBefore& before) {
 bool cableReachesFeedback(PatchCableSet& cables, const ParamBefore& before) {
 	for (int32_t c = 0; c < cables.numPatchCables; c++) {
 		const PatchCable& cable = cables.patchCables[c];
-		if (cable.destinationParamDescriptor.getJustTheParam() != params::GLOBAL_DELAY_FEEDBACK) {
+		if (cable.destination.param_index() != params::GLOBAL_DELAY_FEEDBACK) {
 			continue;
 		}
 		if (&cable.param == before.param && before.value == 0) {
@@ -194,10 +194,10 @@ void onDelayParamModified(const ModelStackWithAutoParam& modelStack, int32_t old
 		reaches = modelStack.paramId == params::UNPATCHED_DELAY_AMOUNT;
 		break;
 	case params::Kind::PATCH_CABLE: {
-		ParamDescriptor destination;
+		deluge::synth::CableTarget destination;
 		PatchSource source{};
 		PatchCableSet::dissectParamId(modelStack.paramId, &destination, &source);
-		reaches = destination.getJustTheParam() == params::GLOBAL_DELAY_FEEDBACK;
+		reaches = destination.param_index() == params::GLOBAL_DELAY_FEEDBACK;
 		break;
 	}
 	default:

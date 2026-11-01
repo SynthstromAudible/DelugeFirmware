@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/fixed/curves/param_curve.h"
+#include "effects/global_effectable/params.h"
 #include "gui/l10n/l10n.h"
 #include "gui/views/view.h"
 #include "model/action/action.h"
@@ -135,17 +136,21 @@ int32_t GlobalEffectableForClip::getSidechainVolumeAmountAsPatchCableDepth(Param
 	return (sidechainVolumeParam >> 2) + 536870912;
 }
 
+std::optional<deluge::plugin::ParamId> GlobalEffectableForClip::clipKnobParam(int32_t modKnobMode,
+                                                                              int32_t whichModEncoder) {
+	if (modKnobMode == 4 && whichModEncoder != 0) {
+		return deluge::global_effectable::param::kSidechainCompressorVolume;
+	}
+	if (modKnobMode == 6 && whichModEncoder == 0) {
+		return deluge::global_effectable::param::kPitchAdjust;
+	}
+	return std::nullopt;
+}
+
 int32_t GlobalEffectableForClip::getParameterFromKnob(int32_t whichModEncoder) {
-
-	int32_t modKnobMode = *getModKnobMode();
-
-	if (modKnobMode == 4 && whichModEncoder) {
-		return params::UNPATCHED_SIDECHAIN_VOLUME;
+	if (std::optional<deluge::plugin::ParamId> param = clipKnobParam(*getModKnobMode(), whichModEncoder)) {
+		return *deluge::global_effectable::runtime_index(*param);
 	}
-	else if (modKnobMode == 6 && !whichModEncoder) {
-		return params::UNPATCHED_PITCH_ADJUST;
-	}
-
 	return GlobalEffectable::getParameterFromKnob(whichModEncoder);
 }
 

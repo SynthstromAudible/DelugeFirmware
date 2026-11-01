@@ -24,14 +24,14 @@
 
 void MenuItemWithCCLearning::unlearnAction() {
 
-	ParamDescriptor paramDescriptor = getLearningThing();
+	const deluge::modulation::KnobTarget target = getLearningThing();
 
 	// If it was a reasonable-ish request...
-	if (!paramDescriptor.isNull()) {
+	if (target) {
 		if (!soundEditor.currentModControllable) {
 			return;
 		}
-		bool success = soundEditor.currentModControllable->unlearnKnobs(paramDescriptor, currentSong);
+		bool success = soundEditor.currentModControllable->unlearnKnobs(target, currentSong);
 
 		if (success) {
 			deluge::gui::menu_item::recordControlsOf(*soundEditor.currentModControllable);
@@ -43,14 +43,14 @@ void MenuItemWithCCLearning::unlearnAction() {
 }
 
 void MenuItemWithCCLearning::learnKnob(MIDICable* cable, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) {
-	ParamDescriptor paramDescriptor = getLearningThing();
+	const deluge::modulation::KnobTarget target = getLearningThing();
 
 	if (!soundEditor.currentModControllable) {
 		return;
 	}
 
-	bool success = soundEditor.currentModControllable->learnKnob(cable, paramDescriptor, whichKnob, modKnobMode,
-	                                                             midiChannel, currentSong);
+	bool success =
+	    soundEditor.currentModControllable->learnKnob(cable, target, whichKnob, modKnobMode, midiChannel, currentSong);
 
 	if (success) {
 		deluge::gui::menu_item::recordControlsOf(*soundEditor.currentModControllable);

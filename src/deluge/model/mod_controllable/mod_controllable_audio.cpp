@@ -302,14 +302,16 @@ void ModControllableAudio::writeMidiKnobsToFile(Serializer& writer) {
 			    MIDI_MESSAGE_CC); // Writes channel and CC, but not device - we do that below.
 			writer.writeAttribute("relative", knob.relative);
 			writer.writeAttribute(
-			    "controlsParam", params::paramNameForFile(unpatchedParamKind_, knob.paramDescriptor.getJustTheParam()));
-			if (!knob.paramDescriptor.isJustAParam()) { // TODO: this only applies to Sounds
+			    "controlsParam",
+			    params::paramNameForFile(unpatchedParamKind_, deluge::modulation::knobWord(knob.target).param_index()));
+			if (!deluge::modulation::knobWord(knob.target).is_param()) { // TODO: this only applies to Sounds
 				writer.writeAttribute("patchAmountFromSource",
-				                      sourceToString(knob.paramDescriptor.getTopLevelSource()));
+				                      sourceToString(deluge::modulation::knobWord(knob.target).top_source()));
 
-				if (knob.paramDescriptor.hasSecondSource()) {
-					writer.writeAttribute("patchAmountFromSecondSource",
-					                      sourceToString(knob.paramDescriptor.getSecondSourceFromTop()));
+				if (deluge::modulation::knobWord(knob.target).has_second_source()) {
+					writer.writeAttribute(
+					    "patchAmountFromSecondSource",
+					    sourceToString(deluge::modulation::knobWord(knob.target).second_source_from_top()));
 				}
 			}
 
@@ -437,13 +439,15 @@ Error ModControllableAudio::readTagFromFile(Deserializer& reader, char const* ta
 						new_knob.relative = relative;
 
 						if (s == PatchSource::NOT_AVAILABLE) {
-							new_knob.paramDescriptor.setToHaveParamOnly(p);
+							new_knob.target = deluge::modulation::knobParam(p);
 						}
 						else if (s2 == PatchSource::NOT_AVAILABLE) {
-							new_knob.paramDescriptor.setToHaveParamAndSource(p, s);
+							new_knob.target =
+							    deluge::modulation::knobTargetOf(deluge::synth::CableTarget::depth_of(p, s));
 						}
 						else {
-							new_knob.paramDescriptor.setToHaveParamAndTwoSources(p, s, s2);
+							new_knob.target =
+							    deluge::modulation::knobTargetOf(deluge::synth::CableTarget::depth_of_depth(p, s, s2));
 						}
 					} catch (deluge::exception e) {
 						if (e == deluge::exception::BAD_ALLOC) {
@@ -477,7 +481,7 @@ ModelStackWithAutoParam* ModControllableAudio::getParamFromMIDIKnob(MIDIKnob& kn
 	ParamCollectionSummary* summary = modelStack->paramManager->getUnpatchedParamSetSummary();
 	ParamCollection* paramCollection = summary->paramCollection;
 
-	int32_t param_id = knob.paramDescriptor.getJustTheParam() - params::UNPATCHED_START;
+	int32_t param_id = deluge::modulation::knobWord(knob.target).param_index() - params::UNPATCHED_START;
 
 	ModelStackWithParamId* modelStackWithParamId =
 	    modelStack->addParamCollectionAndId(paramCollection, summary, param_id);
@@ -1061,7 +1065,7 @@ bool ModControllableAudio::setModFXType(ModFXType newType) {
 // whichKnob is either which physical mod knob, or which MIDI CC code.
 // For mod knobs, supply midiChannel as 255
 // Returns false if fail due to insufficient RAM.
-bool ModControllableAudio::learnKnob(MIDICable* cable, ParamDescriptor paramDescriptor, uint8_t whichKnob,
+bool ModControllableAudio::learnKnob(MIDICable* cable, deluge::modulation::KnobTarget target, uint8_t whichKnob,
                                      uint8_t modKnobMode, uint8_t midiChannel, Song* song) {
 	// If a mod knob
 	if (midiChannel >= 16) {
@@ -1070,7 +1074,7 @@ bool ModControllableAudio::learnKnob(MIDICable* cable, ParamDescriptor paramDesc
 
 	// Was there a MIDI knob already set to control this thing?
 	auto result = std::ranges::find_if(midi_knobs, [&](const MIDIKnob& knob) -> bool {
-		return knob.midiInput.equalsNoteOrCC(cable, midiChannel, whichKnob) && paramDescriptor == knob.paramDescriptor;
+		return knob.midiInput.equalsNoteOrCC(cable, midiChannel, whichKnob) && target == knob.target;
 	});
 
 	try {
@@ -1080,7 +1084,7 @@ bool ModControllableAudio::learnKnob(MIDICable* cable, ParamDescriptor paramDesc
 		knob.midiInput.noteOrCC = whichKnob;
 		knob.midiInput.channelOrZone = midiChannel;
 		knob.midiInput.cable = cable;
-		knob.paramDescriptor = paramDescriptor;
+		knob.target = target;
 		knob.relative = (whichKnob != 128); // Guess that it's relative, unless this is a pitch-bend "knob"
 		return true;
 
@@ -1090,11 +1094,11 @@ bool ModControllableAudio::learnKnob(MIDICable* cable, ParamDescriptor paramDesc
 }
 
 // Returns whether anything was found to unlearn
-bool ModControllableAudio::unlearnKnobs(ParamDescriptor paramDescriptor, Song* song) {
+bool ModControllableAudio::unlearnKnobs(deluge::modulation::KnobTarget target, Song* song) {
 	// I've deactivated the unlearning of mod knobs, mainly because, if you want to unlearn a MIDI knob, you might not
 	// want to also deactivate a mod knob to the same param at the same time
 	size_t erased = std::erase_if(midi_knobs, [&](const MIDIKnob& knob) -> bool {
-		return knob.paramDescriptor == paramDescriptor; //<
+		return knob.target == target; //<
 	});
 
 	if (erased > 0) {

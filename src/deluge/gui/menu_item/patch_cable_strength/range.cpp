@@ -22,17 +22,13 @@
 namespace deluge::gui::menu_item::patch_cable_strength {
 Range rangeMenu{};
 
-ParamDescriptor Range::getLearningThing() {
-	ParamDescriptor paramDescriptor;
-	paramDescriptor.setToHaveParamAndTwoSources(soundEditor.patchingParamSelected, source_selection::regularMenu.s,
-	                                            source_selection::rangeMenu.s);
-	return paramDescriptor;
+deluge::modulation::KnobTarget Range::getLearningThing() {
+	return deluge::modulation::knobTargetOf(synth::CableTarget::depth_of_depth(
+	    soundEditor.patchingParamSelected, source_selection::regularMenu.s, source_selection::rangeMenu.s));
 }
 
-ParamDescriptor Range::getDestinationDescriptor() {
-	ParamDescriptor paramDescriptor;
-	paramDescriptor.setToHaveParamAndSource(soundEditor.patchingParamSelected, source_selection::regularMenu.s);
-	return paramDescriptor;
+synth::CableTarget Range::getDestinationDescriptor() {
+	return synth::CableTarget::depth_of(soundEditor.patchingParamSelected, source_selection::regularMenu.s);
 }
 
 PatchSource Range::getS() {

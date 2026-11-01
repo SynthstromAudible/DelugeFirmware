@@ -196,8 +196,7 @@ void fromDocParamManager(const DocParamManager& doc, ParamManager& paramManager)
 	    c != nullptr && c->getParamKind() == Kind::PATCH_CABLE) {
 		PatchCableSet* pcs = static_cast<PatchCableSet*>(c);
 		for (int32_t i = 0; i < pcs->numPatchCables; i++) {
-			const deluge::plugin::ParamId id =
-			    cable_depth(pcs->patchCables[i].from, pcs->patchCables[i].destinationParamDescriptor);
+			const deluge::plugin::ParamId id = cable_depth(pcs->patchCables[i].from, pcs->patchCables[i].destination);
 			for (const DocCableDepth& lane : doc.cable_depths) {
 				if (lane.depth == id) {
 					fromDocAutoParam(lane.amount, pcs->patchCables[i].param.currentValue, pcs->docForParam(i)->nodes);

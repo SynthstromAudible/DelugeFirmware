@@ -48,7 +48,7 @@ void recordCableEdit(ModelStackWithThreeMainThings const* modelStack, CableEdit 
 
 ModelStackWithAutoParam* cableDepthForEdit(ModelStackWithThreeMainThings* modelStack, PatchSource source,
                                            deluge::synth::CableTarget target) {
-	const int32_t paramId = PatchCableSet::getParamId(ParamDescriptor(static_cast<int32_t>(target.word)), source);
+	const int32_t paramId = PatchCableSet::getParamId(target, source);
 	ModelStackWithAutoParam* depth = modelStack->getPatchCableAutoParamFromId(paramId, true);
 	return depth != nullptr && depth->autoParam != nullptr ? depth : nullptr;
 }
@@ -59,10 +59,10 @@ void settleCableDepth(ModelStackWithAutoParam const* modelStack) {
 		return;
 	}
 	PatchSource source;
-	ParamDescriptor target;
+	deluge::synth::CableTarget target;
 	PatchCableSet::dissectParamId(modelStack->paramId, &target, &source);
 	const auto& cables = *static_cast<PatchCableSet*>(modelStack->paramCollection);
-	const std::optional<size_t> index = cables.records().find(source, deluge::synth::CableTarget{target.data});
+	const std::optional<size_t> index = cables.records().find(source, target);
 	if (!index) {
 		return;
 	}

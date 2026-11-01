@@ -27,6 +27,7 @@
 #include <algorithm>
 #include <array>
 #include <optional>
+#include <span>
 
 namespace deluge::bridge {
 
@@ -126,6 +127,72 @@ std::optional<int32_t> runtimeIndexOf(params::Kind kind, deluge::plugin::ParamId
 	default:
 		return static_cast<int32_t>(id.value);
 	}
+}
+
+std::optional<RuntimeParam> runtimeParamOf(OwnerPlugin owner, deluge::project::ParamTarget target) {
+	switch (target.space) {
+	case deluge::project::ParamSpace::MIDI_CC:
+		return RuntimeParam{params::Kind::MIDI, static_cast<int32_t>(target.id.value)};
+	case deluge::project::ParamSpace::EXPRESSION:
+		return RuntimeParam{params::Kind::EXPRESSION, static_cast<int32_t>(target.id.value)};
+	case deluge::project::ParamSpace::ENGINE:
+		break;
+	}
+	if (owner == OwnerPlugin::GLOBAL_EFFECTABLE) {
+		std::optional<uint8_t> index = global_effectable::runtime_index(target.id);
+		if (!index) {
+			return std::nullopt;
+		}
+		return RuntimeParam{params::Kind::UNPATCHED_GLOBAL, *index};
+	}
+	if (instrument::is_cable_depth(target.id)) {
+		return RuntimeParam{params::Kind::PATCH_CABLE, static_cast<int32_t>(cableWordOf(target.id))};
+	}
+	std::optional<instrument::RuntimeSlot> slot = instrument::runtime_slot(target.id);
+	if (!slot) {
+		return std::nullopt;
+	}
+	return RuntimeParam{slot->set == instrument::RuntimeSet::PATCHED ? params::Kind::PATCHED
+	                                                                 : params::Kind::UNPATCHED_SOUND,
+	                    slot->index};
+}
+
+std::optional<deluge::project::ParamTarget> targetOf(OwnerPlugin owner, params::Kind kind, int32_t index) {
+	switch (kind) {
+	case params::Kind::MIDI:
+		return deluge::project::ParamTarget{deluge::project::ParamSpace::MIDI_CC,
+		                                    deluge::plugin::ParamId{static_cast<uint32_t>(index)}};
+	case params::Kind::EXPRESSION:
+		return deluge::project::ParamTarget{deluge::project::ParamSpace::EXPRESSION,
+		                                    deluge::plugin::ParamId{static_cast<uint32_t>(index)}};
+	case params::Kind::PATCHED:
+	case params::Kind::PATCH_CABLE:
+	case params::Kind::UNPATCHED_SOUND:
+		if (owner != OwnerPlugin::INSTRUMENT) {
+			return std::nullopt;
+		}
+		break;
+	case params::Kind::UNPATCHED_GLOBAL:
+		if (owner != OwnerPlugin::GLOBAL_EFFECTABLE) {
+			return std::nullopt;
+		}
+		break;
+	case params::Kind::NONE: // an unpatched set its owner's init has not named yet
+		kind = owner == OwnerPlugin::INSTRUMENT ? params::Kind::UNPATCHED_SOUND : params::Kind::UNPATCHED_GLOBAL;
+		break;
+	default:
+		return std::nullopt;
+	}
+	const deluge::plugin::ParamId id = paramIdOf(kind, index);
+	if (kind != params::Kind::PATCH_CABLE) {
+		std::span<const deluge::plugin::ParamInfo> table =
+		    owner == OwnerPlugin::INSTRUMENT ? std::span<const deluge::plugin::ParamInfo>{instrument::kParams}
+		                                     : std::span<const deluge::plugin::ParamInfo>{global_effectable::kParams};
+		if (deluge::plugin::find_param(table, id) == nullptr) {
+			return std::nullopt;
+		}
+	}
+	return deluge::project::engine_target(id.value);
 }
 
 deluge::plugin::ParamId firstParamId(params::Kind kind) {

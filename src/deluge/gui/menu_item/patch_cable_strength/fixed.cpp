@@ -36,7 +36,7 @@ uint8_t Fixed::shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour)
 	PatchCableSet& patchCableSet = *soundEditor.currentParamManager->getPatchCableSet();
 
 	// If it's the source controlling the range of the source we're editing for...
-	if (patchCableSet.getPatchCableIndex(s, getLearningThing()) != 255) {
+	if (patchCableSet.getPatchCableIndex(s, deluge::modulation::knobWord(getLearningThing())) != 255) {
 		return 3;
 	}
 	return 255;

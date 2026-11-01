@@ -48,11 +48,11 @@ void PatchCables::renderOptions() {
 		PatchCable* cable = &set->patchCables[i];
 		PatchSource src = cable->from;
 		PatchSource src2 = PatchSource::NOT_AVAILABLE;
-		ParamDescriptor desc = cable->destinationParamDescriptor;
-		if (!desc.isJustAParam()) {
-			src2 = desc.getTopLevelSource();
+		deluge::synth::CableTarget desc = cable->destination;
+		if (!desc.is_param()) {
+			src2 = desc.top_source();
 		}
-		int dest = desc.getJustTheParam();
+		int dest = desc.param_index();
 
 		const int item_max_len = 30;
 		PLACE_SDRAM_BSS static char bufs[kMaxNumPatchCables][item_max_len];
@@ -65,7 +65,7 @@ void PatchCables::renderOptions() {
 		memcpy(buf, src_name, 4);
 		buf[4] = ' ';
 		int off = 0;
-		if (!desc.isJustAParam()) {
+		if (!desc.is_param()) {
 			const char* src2_name = sourceToStringShort(src2);
 			memcpy(buf + 5, src2_name, 4);
 			buf[9] = ' ';
@@ -125,8 +125,8 @@ ActionResult PatchCables::timerCallback() {
 void PatchCables::blinkShortcuts() {
 	PatchCableSet* set = soundEditor.currentParamManager->getPatchCableSet();
 	PatchCable* cable = &set->patchCables[currentValue];
-	ParamDescriptor desc = cable->destinationParamDescriptor;
-	int dest = desc.getJustTheParam();
+	deluge::synth::CableTarget desc = cable->destination;
+	int dest = desc.param_index();
 
 	if (dest == deluge::modulation::params::GLOBAL_VOLUME_POST_REVERB_SEND
 	    || dest == deluge::modulation::params::LOCAL_VOLUME) {
@@ -141,8 +141,8 @@ void PatchCables::blinkShortcuts() {
 
 	PatchSource src = cable->from;
 	PatchSource src2 = PatchSource::NOT_AVAILABLE;
-	if (!desc.isJustAParam()) {
-		src2 = desc.getTopLevelSource();
+	if (!desc.is_param()) {
+		src2 = desc.top_source();
 	}
 	blinkSrc = src;
 	blinkSrc2 = src2;
@@ -173,17 +173,17 @@ MenuItem* PatchCables::selectButtonPress() {
 	}
 	PatchCable* cable = &set->patchCables[val];
 	savedVal = val;
-	ParamDescriptor desc = cable->destinationParamDescriptor;
-	int dest = desc.getJustTheParam();
+	deluge::synth::CableTarget desc = cable->destination;
+	int dest = desc.param_index();
 	soundEditor.patchingParamSelected = dest;
 
 	options.clear();
-	if (cable->destinationParamDescriptor.isJustAParam()) {
+	if (cable->destination.is_param()) {
 		source_selection::regularMenu.s = cable->from;
 		return &patch_cable_strength::regularMenu;
 	}
 	else {
-		PatchSource src2 = desc.getTopLevelSource();
+		PatchSource src2 = desc.top_source();
 		source_selection::regularMenu.s = src2;
 		source_selection::rangeMenu.s = cable->from;
 		return &patch_cable_strength::rangeMenu;

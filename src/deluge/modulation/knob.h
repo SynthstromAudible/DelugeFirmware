@@ -18,7 +18,7 @@
 #pragma once
 
 #include "io/midi/learned_midi.h"
-#include "modulation/params/param_descriptor.h"
+#include "modulation/knob_target.h"
 #include <cstdint>
 
 class Knob {
@@ -28,7 +28,7 @@ public:
 	virtual bool isRelative() = 0;
 	virtual bool is14Bit() = 0;
 	virtual bool topValueIs127() = 0;
-	ParamDescriptor paramDescriptor;
+	deluge::modulation::KnobTarget target;
 };
 
 class MIDIKnob : public Knob {

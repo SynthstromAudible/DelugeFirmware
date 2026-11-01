@@ -339,8 +339,8 @@ void serializeSoundParams(const DocParamSet& patched, const DocParamSet& unpatch
 }
 
 namespace {
-ParamDescriptor destinationOf(const deluge::synth::CableRecord& cable) {
-	return ParamDescriptor(static_cast<int32_t>(cable.target.word));
+deluge::synth::CableTarget destinationOf(const deluge::synth::CableRecord& cable) {
+	return cable.target;
 }
 
 /// The lane of @p cable's depth; an empty one when the table has none.

@@ -20,6 +20,7 @@
 #include "deluge-project/param_automation.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "effects/codec.h"
+#include "effects/global_effectable/params.h"
 #include "effects/words.h"
 #include "gui/l10n/l10n.h"
 #include "gui/views/performance_view.h"
@@ -602,87 +603,61 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 }
 
 // Always check this doesn't return NULL!
+namespace {
+
+/// A mod knob's param in a global effectable: one param, or one for each filter type or mod FX param selected.
+struct KnobCell {
+	enum class By : uint8_t { NOTHING, FILTER, MOD_FX };
+	By by{By::NOTHING};
+	std::array<std::optional<deluge::plugin::ParamId>, 3> params{}; // by filter type, or by ModFXParam's order
+	bool hiddenWhileEditingComp{false};
+};
+
+/// The global effectable's default mod knob layout, [mode][knob], knob 1 the upper.
+constexpr std::array<std::array<KnobCell, kNumPhysicalModKnobs>, kNumModButtons> kKnobLayout = [] {
+	namespace gp = deluge::global_effectable::param;
+	using By = KnobCell::By;
+	return std::array<std::array<KnobCell, kNumPhysicalModKnobs>, kNumModButtons>{{
+	    {{{By::NOTHING, {gp::kPan}}, {By::NOTHING, {gp::kVolume}}}},
+	    {{{By::FILTER, {gp::kLpfResonance, gp::kHpfResonance, gp::kBass}},
+	      {By::FILTER, {gp::kLpfFrequency, gp::kHpfFrequency, gp::kTreble}}}},
+	    {{{}, {}}},
+	    {{{By::NOTHING, {gp::kDelayFeedback}}, {By::NOTHING, {gp::kDelayRate}}}},
+	    {{{By::NOTHING, {gp::kReverbAmount}, true}, {}}},
+	    {{{By::MOD_FX, {gp::kModFXDepth, gp::kModFXFeedback, gp::kModFXOffset}}, {By::NOTHING, {gp::kModFXRate}}}},
+	    {{{}, {By::NOTHING, {gp::kStutterRate}}}},
+	    {{{By::NOTHING, {gp::kBitcrushAmount}}, {By::NOTHING, {gp::kSampleRateReduction}}}},
+	}};
+}();
+
+} // namespace
+
+std::optional<deluge::plugin::ParamId> GlobalEffectable::knobParam(int32_t modKnobMode, int32_t whichModEncoder,
+                                                                   FilterType filter, ModFXParam modFX,
+                                                                   bool editingCompressor) {
+	if (modKnobMode < 0 || modKnobMode >= kNumModButtons) {
+		return std::nullopt;
+	}
+	const KnobCell& cell = kKnobLayout[modKnobMode][whichModEncoder != 0 ? 1 : 0];
+	if (cell.hiddenWhileEditingComp && editingCompressor) {
+		return std::nullopt;
+	}
+	switch (cell.by) {
+	case KnobCell::By::FILTER:
+		// an EQ, or any other filter type, takes the last
+		return cell.params[filter == FilterType::LPF ? 0 : filter == FilterType::HPF ? 1 : 2];
+	case KnobCell::By::MOD_FX:
+		return cell.params[util::to_underlying(modFX)];
+	case KnobCell::By::NOTHING:
+		break;
+	}
+	return cell.params[0];
+}
+
 int32_t GlobalEffectable::getParameterFromKnob(int32_t whichModEncoder) {
-
-	int32_t modKnobMode = *getModKnobMode();
-
-	if (modKnobMode == 0) {
-		if (whichModEncoder != 0) {
-			return params::UNPATCHED_VOLUME;
-		}
-		else {
-			return params::UNPATCHED_PAN;
-		}
-	}
-	else if (modKnobMode == 1) {
-		switch (filterType()) {
-		case FilterType::LPF:
-			if (whichModEncoder != 0) {
-				return params::UNPATCHED_LPF_FREQ;
-			}
-			else {
-				return params::UNPATCHED_LPF_RES;
-			}
-		case FilterType::HPF:
-			if (whichModEncoder != 0) {
-				return params::UNPATCHED_HPF_FREQ;
-			}
-			else {
-				return params::UNPATCHED_HPF_RES;
-			}
-		default: // case FilterType::EQ:
-			if (whichModEncoder != 0) {
-				return params::UNPATCHED_TREBLE;
-			}
-			else {
-				return params::UNPATCHED_BASS;
-			}
-		}
-	}
-	else if (modKnobMode == 3) {
-		if (whichModEncoder != 0) {
-			return params::UNPATCHED_DELAY_RATE;
-		}
-		else {
-			return params::UNPATCHED_DELAY_AMOUNT;
-		}
-	}
-
-	else if (modKnobMode == 4) {
-		if (whichModEncoder == 0 && !editingComp) {
-			return params::UNPATCHED_REVERB_SEND_AMOUNT;
-		}
-	}
-	else if (modKnobMode == 5) {
-		if (whichModEncoder != 0) {
-			return params::UNPATCHED_MOD_FX_RATE;
-		}
-		else {
-			if (modFXParam() == ModFXParam::DEPTH) {
-				return params::UNPATCHED_MOD_FX_DEPTH;
-			}
-			else if (modFXParam() == ModFXParam::OFFSET) {
-				return params::UNPATCHED_MOD_FX_OFFSET;
-			}
-			else {
-				return params::UNPATCHED_MOD_FX_FEEDBACK;
-			}
-		}
-	}
-	else if (modKnobMode == 6) {
-		if (whichModEncoder != 0) {
-			return params::UNPATCHED_STUTTER_RATE;
-		}
-	}
-	else if (modKnobMode == 7) {
-		if (whichModEncoder != 0) {
-			return params::UNPATCHED_SAMPLE_RATE_REDUCTION;
-		}
-		else {
-			return params::UNPATCHED_BITCRUSHING;
-		}
-	}
-	return 255;
+	std::optional<deluge::plugin::ParamId> param =
+	    knobParam(*getModKnobMode(), whichModEncoder, filterType(), modFXParam(), editingComp);
+	return param ? *deluge::global_effectable::runtime_index(*param) : 255;
 }
 
 ModelStackWithAutoParam* GlobalEffectable::getParamFromModEncoder(int32_t whichModEncoder,

@@ -73,6 +73,7 @@
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/project_bridge/midi_command.h"
+#include "model/project_bridge/param_ids.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "model/timeline_counter.h"
@@ -880,11 +881,10 @@ void View::modEncoderAction_existentParam(int32_t whichModEncoder, int32_t offse
 		PatchSource source1 = PatchSource::NONE;
 		PatchSource source2 = PatchSource::NONE;
 		if (kind == params::Kind::PATCH_CABLE) {
-			ParamDescriptor paramDescriptor;
-			paramDescriptor.data = modelStackWithParam->paramId;
-			source1 = paramDescriptor.getBottomLevelSource();
-			if (!paramDescriptor.hasJustOneSource()) {
-				source2 = paramDescriptor.getTopLevelSource();
+			const deluge::synth::CableTarget paramDescriptor{static_cast<uint32_t>(modelStackWithParam->paramId)};
+			source1 = paramDescriptor.bottom_source();
+			if (!paramDescriptor.has_just_one_source()) {
+				source2 = paramDescriptor.top_source();
 			}
 		}
 		displayModEncoderValuePopup(kind, modelStackWithParam->paramId, newKnobPos, source1, source2);
@@ -1016,11 +1016,10 @@ void View::getParameterNameFromModEncoder(int32_t whichModEncoder, char* paramet
 		if (kind == params::Kind::PATCH_CABLE) {
 			PatchSource source1 = PatchSource::NONE;
 			PatchSource source2 = PatchSource::NONE;
-			ParamDescriptor paramDescriptor;
-			paramDescriptor.data = modelStackWithParam->paramId;
-			source1 = paramDescriptor.getBottomLevelSource();
-			if (!paramDescriptor.hasJustOneSource()) {
-				source2 = paramDescriptor.getTopLevelSource();
+			const deluge::synth::CableTarget paramDescriptor{static_cast<uint32_t>(modelStackWithParam->paramId)};
+			source1 = paramDescriptor.bottom_source();
+			if (!paramDescriptor.has_just_one_source()) {
+				source2 = paramDescriptor.top_source();
 			}
 
 			etl::string<30> paramDisplayName;
@@ -1713,10 +1712,17 @@ void View::sendMidiFollowFeedback(ModelStackWithAutoParam* modelStackWithParam, 
 		// check if we're dealing with a clip context param (don't send feedback for song params)
 		if (isClipContext()) {
 			if (modelStackWithParam && modelStackWithParam->autoParam) {
+				// in a global effectable's context only its own params are followed, elsewhere a sound's
 				params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
-				int32_t ccNumber = midiFollow.getCCFromParam(kind, modelStackWithParam->paramId);
-				if (ccNumber != MIDI_CC_NONE) {
-					midiFollow.sendCCForMidiFollowFeedback(ccNumber, knobPos);
+				const deluge::bridge::OwnerPlugin owner = midiFollow.isGlobalEffectableContext()
+				                                              ? deluge::bridge::OwnerPlugin::GLOBAL_EFFECTABLE
+				                                              : deluge::bridge::OwnerPlugin::INSTRUMENT;
+				std::optional<deluge::project::ParamTarget> target =
+				    kind == params::Kind::NONE ? std::nullopt
+				                               : deluge::bridge::targetOf(owner, kind, modelStackWithParam->paramId);
+				std::optional<uint8_t> ccNumber = target ? midiFollow.ccOf(owner, *target) : std::nullopt;
+				if (ccNumber) {
+					midiFollow.sendCCForMidiFollowFeedback(*ccNumber, knobPos);
 				}
 			}
 			else {

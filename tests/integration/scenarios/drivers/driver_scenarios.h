@@ -42,6 +42,7 @@
 /// | param_record_diff    | live automation recording, printed for a baseline diff                     |
 /// | param_snapshot_bench | ParamSnapshot::applyPatch against a full rebuild, timed                    |
 /// | param_table_check    | the engines' param tables against the runtime's numbering and names        |
+/// | param_target_check   | params named by target: the bridge's round trip, the target tables' cells  |
 /// | preset_roundtrip     | preset load -> save -> reload -> save fixed point                          |
 /// | serializer_check     | ValueSerializer against the JSON writer's parsed text, over a song's outputs |
 /// | song_edit_roundtrip  | a DOM-first song-param edit persisting through save and reload             |
@@ -76,6 +77,7 @@ DELUGE_DRIVER_SCENARIO_DECLARE(param_projection)
 DELUGE_DRIVER_SCENARIO_DECLARE(param_record_diff)
 DELUGE_DRIVER_SCENARIO_DECLARE(param_snapshot_bench)
 DELUGE_DRIVER_SCENARIO_DECLARE(param_table_check)
+DELUGE_DRIVER_SCENARIO_DECLARE(param_target_check)
 DELUGE_DRIVER_SCENARIO_DECLARE(patch_routing)
 DELUGE_DRIVER_SCENARIO_DECLARE(preset_roundtrip)
 DELUGE_DRIVER_SCENARIO_DECLARE(serializer_check)

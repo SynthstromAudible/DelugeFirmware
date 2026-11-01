@@ -18,13 +18,14 @@
 #pragma once
 
 #include "io/midi/midi_device.h"
-#include "modulation/params/param_descriptor.h"
+#include "modulation/knob_target.h"
 
 class MenuItemWithCCLearning {
 public:
 	MenuItemWithCCLearning() = default;
 
-	virtual ParamDescriptor getLearningThing() = 0;
+	/// @brief What a knob learned here controls: this menu's param, or its cable's depth.
+	virtual deluge::modulation::KnobTarget getLearningThing() = 0;
 	void unlearnAction();
 	[[nodiscard]] bool allowsLearnMode() const { return true; }
 	void learnKnob(MIDICable* cable, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel);

@@ -176,10 +176,10 @@ void SourceSelection::selectEncoderAction(int32_t offset) {
 }
 
 bool SourceSelection::sourceIsAllowed(PatchSource source) {
-	ParamDescriptor destinationDescriptor = getDestinationDescriptor();
+	synth::CableTarget destinationDescriptor = getDestinationDescriptor();
 
 	// If patching to another cable's range...
-	if (!destinationDescriptor.isJustAParam()) {
+	if (!destinationDescriptor.is_param()) {
 		// Global source - can control any range
 		if (source < kFirstLocalSource) {
 			return true;
@@ -187,11 +187,11 @@ bool SourceSelection::sourceIsAllowed(PatchSource source) {
 
 		// Local source - range must be for cable going to local param
 		else {
-			return destinationDescriptor.getJustTheParam() < deluge::modulation::params::FIRST_GLOBAL;
+			return destinationDescriptor.param_index() < deluge::modulation::params::FIRST_GLOBAL;
 		}
 	}
 
-	int32_t p = destinationDescriptor.getJustTheParam();
+	int32_t p = destinationDescriptor.param_index();
 
 	// Check that this source is allowed to be patched to the selected param
 	if (p == deluge::modulation::params::GLOBAL_VOLUME_POST_FX) {
