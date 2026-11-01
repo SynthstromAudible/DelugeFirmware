@@ -460,13 +460,8 @@ int32_t SoundInstrument::doTickForwardForArp(ModelStack* modelStack, int32_t cur
 	return ticksTilNextArpEvent;
 }
 
-void SoundInstrument::getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb,
-                                             GlobalEffectableForClip** globalEffectableWithMostReverb,
-                                             int32_t* highestReverbAmountFound) {
-	if (activeClip) {
-		Sound::getThingWithMostReverb(soundWithMostReverb, paramManagerWithMostReverb, globalEffectableWithMostReverb,
-		                              highestReverbAmountFound, &activeClip->paramManager);
-	}
+deluge::model::ReverbCandidate SoundInstrument::reverbCandidate(deluge::model::ReverbCandidate best) {
+	return activeClip ? Sound::reverbCandidate(best, activeClip->paramManager) : best;
 }
 
 ArpeggiatorBase* SoundInstrument::getArp() {

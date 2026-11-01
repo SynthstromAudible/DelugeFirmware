@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "libdeluge/system.h"
+#include "model/fx/reverb_candidate.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/sample/sample_recorder.h"
 #include "model/voiced.h"
@@ -398,9 +399,13 @@ public:
 	                                                bool allowCreation,
 	                                                const deluge::project::CompView& comp = {}) final;
 	void reassessRenderSkippingStatus(ModelStackWithSoundFlags* modelStack, bool shouldJustCutModFX = false);
-	void getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb,
-	                            GlobalEffectableForClip** globalEffectableWithMostReverb,
-	                            int32_t* highestReverbAmountFound, ParamManagerForTimeline* paramManager);
+	/// @brief The reverb's auto duck's search past this sound: its send, when @p paramManager holds one unautomated and
+	/// it beats @p best; then how it ducks the return.
+	/// @param best The best so far.
+	/// @param paramManager The params the sound plays: its clip's or, for a drum, its note row's.
+	/// @return The new best.
+	[[nodiscard]] deluge::model::ReverbCandidate reverbCandidate(deluge::model::ReverbCandidate best,
+	                                                             ParamManagerForTimeline& paramManager);
 	virtual bool readTagFromFile(Deserializer& reader, char const* tagName) = 0;
 	void detachSourcesFromAudioFiles();
 

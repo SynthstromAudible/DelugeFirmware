@@ -23,12 +23,14 @@
 #include "foundation/function_ref.h"
 #include "model/fx/chain_view.h"
 #include "model/fx/effects_binding.h"
+#include "model/fx/reverb_candidate.h"
 #include <cstdint>
 #include <span>
 
 class ModControllable;
 class ModelStackWithTimelineCounter;
 class ParamManager;
+class ParamManagerForTimeline;
 class SampleRecorder;
 
 namespace deluge::model {
@@ -93,6 +95,13 @@ public:
 	/// @param content The track's content render (drums, an audio clip).
 	void render(ModelStackWithTimelineCounter* modelStack, ParamManager& paramManager,
 	            std::span<dsp::StereoSample> output, const ChannelBlock& block, Content content);
+
+	/// @brief The reverb's auto duck's search past this channel: its send, when its active clip's params hold one
+	/// unautomated and it beats @p best; then how it ducks the return.
+	/// @param best The best so far.
+	/// @param paramManager The active clip's params.
+	/// @return The new best.
+	[[nodiscard]] ReverbCandidate reverbCandidate(ReverbCandidate best, ParamManagerForTimeline& paramManager) const;
 
 	/// Whether the track's content rendered last block: the delay starts or stops on it.
 	bool rendered_last_time = false;

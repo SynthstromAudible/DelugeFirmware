@@ -63,9 +63,6 @@ public:
 	uint8_t* getModKnobMode() override { return &modKnobMode; }
 
 	void cutAllSound() override;
-	void getThingWithMostReverb(Sound** soundWithMostReverb, ParamManagerForTimeline** paramManagerWithMostReverb,
-	                            Kit** kitWithMostReverb, int32_t* highestReverbAmountFound);
-
 	Error readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos) override;
 	bool writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song) override;
 	void deleteBackedUpParamManagers(Song* song) override;
@@ -73,9 +70,7 @@ public:
 	                   PgmChangeSend maySendMIDIPGMs = PgmChangeSend::ONCE) override;
 	bool isSkippingRendering() override;
 	Output* toOutput() override { return this; }
-	void getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb,
-	                            GlobalEffectableForClip** globalEffectableWithMostReverb,
-	                            int32_t* highestReverbAmountFound) override;
+	[[nodiscard]] deluge::model::ReverbCandidate reverbCandidate(deluge::model::ReverbCandidate best) override;
 
 	// A TimelineCounter is required
 	void offerReceivedCCToLearnedParams(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value,

@@ -48,10 +48,6 @@
 
 namespace params = deluge::modulation::params;
 
-int32_t GlobalEffectableForClip::getSidechainVolumeAmountAsPatchCableDepth(ParamManager* paramManager) {
-	return deluge::model::sidechainDepth(*paramManager);
-}
-
 std::optional<deluge::plugin::ParamId> GlobalEffectableForClip::clipKnobParam(int32_t modKnobMode,
                                                                               int32_t whichModEncoder) {
 	if (modKnobMode == 4 && whichModEncoder != 0) {
@@ -135,29 +131,3 @@ bool GlobalEffectableForClip::modEncoderButtonAction(uint8_t whichModEncoder, bo
 
 // We pass activeClip into this because although each child of GlobalEffectableForClip inherits Output, one of them does
 // so via Instrument, so we can't make GlobalEffectableForClip inherit directly from Output, so no access to activeClip
-void GlobalEffectableForClip::getThingWithMostReverb(Clip* activeClip, Sound** soundWithMostReverb,
-                                                     ParamManager** paramManagerWithMostReverb,
-                                                     GlobalEffectableForClip** globalEffectableWithMostReverb,
-                                                     int32_t* highestReverbAmountFound) {
-
-	if (activeClip) {
-
-		ParamManagerForTimeline* activeParamManager = &activeClip->paramManager;
-
-		UnpatchedParamSet* unpatchedParams = activeParamManager->getUnpatchedParamSet();
-
-		if (!unpatchedParams->params[params::UNPATCHED_REVERB_SEND_AMOUNT].isAutomated(
-		        *unpatchedParams->docForParam(params::UNPATCHED_REVERB_SEND_AMOUNT))
-		    && unpatchedParams->params[params::UNPATCHED_REVERB_SEND_AMOUNT].containsSomething(
-		        *unpatchedParams->docForParam(params::UNPATCHED_REVERB_SEND_AMOUNT), -2147483648)) {
-
-			int32_t reverbHere = unpatchedParams->getValue(params::UNPATCHED_REVERB_SEND_AMOUNT);
-			if (*highestReverbAmountFound < reverbHere) {
-				*highestReverbAmountFound = reverbHere;
-				*soundWithMostReverb = nullptr;
-				*paramManagerWithMostReverb = activeParamManager;
-				*globalEffectableWithMostReverb = this;
-			}
-		}
-	}
-}

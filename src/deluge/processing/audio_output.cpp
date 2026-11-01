@@ -393,9 +393,8 @@ void AudioOutput::cutAllSound() {
 	}
 }
 
-void AudioOutput::getThingWithMostReverb(Sound** soundWithMostReverb,
-                                         ParamManagerForTimeline** paramManagerWithMostReverb, Kit** kitWithMostReverb,
-                                         int32_t* highestReverbAmountFound) {
+deluge::model::ReverbCandidate AudioOutput::reverbCandidate(deluge::model::ReverbCandidate best) {
+	return activeClip ? channel_.reverbCandidate(best, activeClip->paramManager) : best;
 }
 
 // Unlike for Instruments, AudioOutputs will only be written as part of a Song, so clipForSavingOutputOnly will always
@@ -547,13 +546,6 @@ bool AudioOutput::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmCh
 
 bool AudioOutput::isSkippingRendering() {
 	return mode == AudioOutputMode::player && (!activeClip || !((AudioClip*)activeClip)->voiceSample);
-}
-
-void AudioOutput::getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb,
-                                         GlobalEffectableForClip** globalEffectableWithMostReverb,
-                                         int32_t* highestReverbAmountFound) {
-	GlobalEffectableForClip::getThingWithMostReverb(activeClip, soundWithMostReverb, paramManagerWithMostReverb,
-	                                                globalEffectableWithMostReverb, highestReverbAmountFound);
 }
 
 ModelStackWithAutoParam* AudioOutput::getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,

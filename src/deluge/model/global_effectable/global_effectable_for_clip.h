@@ -47,16 +47,11 @@ public:
 	[[nodiscard]] deluge::model::ChainView& chainView() final { return channel().view(); }
 	[[nodiscard]] const deluge::model::ChainView& chainView() const final { return channel().view(); }
 
-	int32_t getSidechainVolumeAmountAsPatchCableDepth(ParamManager* paramManager);
 	void modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager,
 	                     const deluge::project::CompView& comp = {}) final;
 	bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack,
 	                            deluge::project::CompView* comp = nullptr) final;
 	virtual Output* toOutput() = 0;
-	void getThingWithMostReverb(Clip* activeClip, Sound** soundWithMostReverb,
-	                            ParamManager** paramManagerWithMostReverb,
-	                            GlobalEffectableForClip** globalEffectableWithMostReverb,
-	                            int32_t* highestReverbAmountFound);
 
 	/// @brief The two mod knobs a clip's global effectable lays out differently from the song's: the sidechain volume
 	/// (mode 4, upper) and the pitch adjust (mode 6, lower); nullopt for the others.

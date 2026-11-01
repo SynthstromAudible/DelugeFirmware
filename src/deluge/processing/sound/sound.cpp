@@ -1619,25 +1619,37 @@ yupStartSkipping:
 	}
 }
 
-void Sound::getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb,
-                                   GlobalEffectableForClip** globalEffectableWithMostReverb,
-                                   int32_t* highestReverbAmountFound, ParamManagerForTimeline* paramManager) {
-
-	PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
-	if (!patchedParams->params[params::GLOBAL_REVERB_AMOUNT].isAutomated(
+deluge::model::ReverbCandidate Sound::reverbCandidate(deluge::model::ReverbCandidate best,
+                                                      ParamManagerForTimeline& paramManager) {
+	PatchedParamSet* patchedParams = paramManager.getPatchedParamSet();
+	if (patchedParams->params[params::GLOBAL_REVERB_AMOUNT].isAutomated(
 	        *patchedParams->docForParam(params::GLOBAL_REVERB_AMOUNT))
-	    && patchedParams->params[params::GLOBAL_REVERB_AMOUNT].containsSomething(
+	    || !patchedParams->params[params::GLOBAL_REVERB_AMOUNT].containsSomething(
 	        *patchedParams->docForParam(params::GLOBAL_REVERB_AMOUNT), -2147483648)) {
-
-		// We deliberately don't use the LPF'ed param here
-		int32_t reverbHere = patchedParams->getValue(params::GLOBAL_REVERB_AMOUNT);
-		if (*highestReverbAmountFound < reverbHere) {
-			*highestReverbAmountFound = reverbHere;
-			*soundWithMostReverb = this;
-			*paramManagerWithMostReverb = paramManager;
-			*globalEffectableWithMostReverb = nullptr;
-		}
+		return best;
 	}
+	// We deliberately don't use the LPF'ed param here
+	const int32_t reverbHere = patchedParams->getValue(params::GLOBAL_REVERB_AMOUNT);
+	if (!deluge::model::beats(reverbHere, best)) {
+		return best;
+	}
+
+	// The duck's depth is the sidechain's cable to the post-reverb volume, if there is one.
+	PatchCableSet* patchCableSet = paramManager.getPatchCableSet();
+	const int32_t whichCable = patchCableSet->getPatchCableIndex(
+	    PatchSource::SIDECHAIN, deluge::synth::CableTarget::param(params::GLOBAL_VOLUME_POST_REVERB_SEND));
+	const int32_t depth =
+	    (whichCable != 255)
+	        ? deluge::synth::modified_depth(patchCableSet->patchCables[whichCable].param.getCurrentValue(),
+	                                        PatchSource::SIDECHAIN, params::GLOBAL_VOLUME_POST_REVERB_SEND)
+	        : 0;
+	return {
+	    .amount = reverbHere,
+	    .found = true,
+	    .duck_depth = depth,
+	    .duck_shape = paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_SIDECHAIN_SHAPE),
+	    .rates = modControllableSnapshot().effects.sidechain,
+	};
 }
 
 // fromAutomation means whether the changes was caused by automation playing back - as opposed to the user turning the

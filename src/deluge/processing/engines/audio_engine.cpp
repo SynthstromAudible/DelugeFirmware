@@ -2013,8 +2013,6 @@ void dumpAudioLog() {
 }
 
 void updateReverbParams() {
-	deluge::effects::ReturnDuck duck{};
-
 	// If reverb sidechain on "auto" settings...
 	if (reverbSidechainVolume < 0) {
 
@@ -2023,64 +2021,23 @@ void updateReverbParams() {
 			return;
 		}
 
-		Sound* soundWithMostReverb = nullptr;
-		ParamManager* paramManagerWithMostReverb = nullptr;
-		GlobalEffectableForClip* globalEffectableWithMostReverb = nullptr;
-
-		// Set the initial "highest amount found" to that of the song itself, which can't be affected by sidechain.
-		// If nothing found with more reverb, then we don't want the reverb affected by sidechain
-		int32_t highestReverbAmountFound =
-		    currentSong->paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_REVERB_SEND_AMOUNT);
-
+		// The song's own send starts the search: the sidechain can't duck it, so if nothing sends more, the reverb
+		// isn't ducked.
+		deluge::model::ReverbCandidate best{
+		    .amount = currentSong->paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_REVERB_SEND_AMOUNT)};
 		for (Output* thisOutput = currentSong->live.media.first_output; thisOutput; thisOutput = thisOutput->next) {
-			thisOutput->getThingWithMostReverb(&soundWithMostReverb, &paramManagerWithMostReverb,
-			                                   &globalEffectableWithMostReverb, &highestReverbAmountFound);
+			best = thisOutput->reverbCandidate(best);
 		}
 
-		ModControllableAudio* modControllable;
-
-		if (soundWithMostReverb) {
-			modControllable = soundWithMostReverb;
-
-			deluge::synth::CableTarget paramDescriptor =
-			    deluge::synth::CableTarget::param(params::GLOBAL_VOLUME_POST_REVERB_SEND);
-
-			PatchCableSet* patchCableSet = paramManagerWithMostReverb->getPatchCableSet();
-
-			int32_t whichCable = patchCableSet->getPatchCableIndex(PatchSource::SIDECHAIN, paramDescriptor);
-			if (whichCable != 255) {
-				duck.depth =
-				    deluge::synth::modified_depth(patchCableSet->patchCables[whichCable].param.getCurrentValue(),
-				                                  PatchSource::SIDECHAIN, params::GLOBAL_VOLUME_POST_REVERB_SEND);
-			}
-			else {
-				duck.depth = 0;
-			}
-			goto sidechainFound;
+		deluge::effects::ReturnDuck duck{};
+		if (best.found) {
+			duck = {.depth = best.duck_depth, .shape = best.duck_shape};
+			reverbSidechainSettings.attack = best.rates.attack;
+			reverbSidechainSettings.release = best.rates.release;
+			reverbSidechainSettings.sync_level = best.rates.sync_level;
 		}
-		else if (globalEffectableWithMostReverb) {
-			modControllable = globalEffectableWithMostReverb;
-
-			duck.depth =
-			    globalEffectableWithMostReverb->getSidechainVolumeAmountAsPatchCableDepth(paramManagerWithMostReverb);
-
-sidechainFound:
-			duck.shape =
-			    paramManagerWithMostReverb->getUnpatchedParamSet()->getValue(params::UNPATCHED_SIDECHAIN_SHAPE);
-			const deluge::effects::SidechainState& from =
-			    modControllable->modControllableSnapshot().effects.sidechain; // the render's copy
-			reverbSidechainSettings.attack = from.attack;
-			reverbSidechainSettings.release = from.release;
-			reverbSidechainSettings.sync_level = from.sync_level;
-			reverb.set_return_duck(duck);
-			return;
-		}
-
-		// Or if no thing has more reverb than the Song itself...
-		else {
-			reverb.set_return_duck(duck);
-			return;
-		}
+		reverb.set_return_duck(duck);
+		return;
 	}
 
 	// Otherwise, use manually set params for reverb sidechain

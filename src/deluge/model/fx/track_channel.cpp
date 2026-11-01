@@ -122,4 +122,25 @@ TrackChannel::~TrackChannel() {
 	}
 }
 
+ReverbCandidate TrackChannel::reverbCandidate(ReverbCandidate best, ParamManagerForTimeline& paramManager) const {
+	UnpatchedParamSet* unpatchedParams = paramManager.getUnpatchedParamSet();
+	if (unpatchedParams->params[params::UNPATCHED_REVERB_SEND_AMOUNT].isAutomated(
+	        *unpatchedParams->docForParam(params::UNPATCHED_REVERB_SEND_AMOUNT))
+	    || !unpatchedParams->params[params::UNPATCHED_REVERB_SEND_AMOUNT].containsSomething(
+	        *unpatchedParams->docForParam(params::UNPATCHED_REVERB_SEND_AMOUNT), -2147483648)) {
+		return best;
+	}
+	const int32_t reverbHere = unpatchedParams->getValue(params::UNPATCHED_REVERB_SEND_AMOUNT);
+	if (!beats(reverbHere, best)) {
+		return best;
+	}
+	return {
+	    .amount = reverbHere,
+	    .found = true,
+	    .duck_depth = sidechainDepth(paramManager),
+	    .duck_shape = unpatchedParams->getValue(params::UNPATCHED_SIDECHAIN_SHAPE),
+	    .rates = binding_.snapshot().effects.sidechain,
+	};
+}
+
 } // namespace deluge::model

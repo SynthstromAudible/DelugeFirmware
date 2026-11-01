@@ -129,9 +129,7 @@ public:
 	GateDrum* getGateDrumForChannel(int32_t gateChannel);
 	void resetDrumTempValues();
 	void setupWithoutActiveClip(ModelStack* modelStack) override;
-	void getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb,
-	                            GlobalEffectableForClip** globalEffectableWithMostReverb,
-	                            int32_t* highestReverbAmountFound) override;
+	[[nodiscard]] deluge::model::ReverbCandidate reverbCandidate(deluge::model::ReverbCandidate best) override;
 	uint8_t* getModKnobMode() override { return &modKnobMode; }
 	Output* toOutput() override { return this; }
 

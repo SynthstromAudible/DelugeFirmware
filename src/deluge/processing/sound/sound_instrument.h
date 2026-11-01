@@ -80,9 +80,7 @@ public:
 	void beenEdited(bool shouldMoveToEmptySlot = true) override;
 	int32_t doTickForwardForArp(ModelStack* modelStack, int32_t currentPos) override;
 	void setupWithoutActiveClip(ModelStack* modelStack) override;
-	void getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb,
-	                            GlobalEffectableForClip** globalEffectableWithMostReverb,
-	                            int32_t* highestReverbAmountFound) override;
+	[[nodiscard]] deluge::model::ReverbCandidate reverbCandidate(deluge::model::ReverbCandidate best) override;
 	uint8_t* getModKnobMode() override { return &modKnobMode; }
 	ArpeggiatorBase* getArp() override;
 	char const* getXMLTag() override { return "sound"; }

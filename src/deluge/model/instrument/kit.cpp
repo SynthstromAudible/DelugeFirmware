@@ -1519,26 +1519,21 @@ void Kit::resetDrumTempValues() {
 	}
 }
 
-void Kit::getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb,
-                                 GlobalEffectableForClip** globalEffectableWithMostReverb,
-                                 int32_t* highestReverbAmountFound) {
-
-	GlobalEffectableForClip::getThingWithMostReverb(activeClip, soundWithMostReverb, paramManagerWithMostReverb,
-	                                                globalEffectableWithMostReverb, highestReverbAmountFound);
-
-	if (activeClip) {
-
-		for (int32_t i = 0; i < std::ssize(((InstrumentClip*)activeClip)->noteRows); i++) {
-			NoteRow* thisNoteRow = &((InstrumentClip*)activeClip)->noteRows[i];
-			if (!thisNoteRow->drum || thisNoteRow->drum->type != DrumType::SOUND) {
-				continue;
-			}
-			((SoundDrum*)thisNoteRow->drum)
-			    ->getThingWithMostReverb(soundWithMostReverb, paramManagerWithMostReverb,
-			                             globalEffectableWithMostReverb, highestReverbAmountFound,
-			                             &thisNoteRow->paramManager);
-		}
+deluge::model::ReverbCandidate Kit::reverbCandidate(deluge::model::ReverbCandidate best) {
+	if (!activeClip) {
+		return best;
 	}
+	// The kit's own send first, then its drums', in note-row order.
+	best = channel_.reverbCandidate(best, activeClip->paramManager);
+	auto* clip = static_cast<InstrumentClip*>(activeClip);
+	for (int32_t i = 0; i < std::ssize(clip->noteRows); i++) {
+		NoteRow* thisNoteRow = &clip->noteRows[i];
+		if (!thisNoteRow->drum || thisNoteRow->drum->type != DrumType::SOUND) {
+			continue;
+		}
+		best = static_cast<SoundDrum*>(thisNoteRow->drum)->reverbCandidate(best, thisNoteRow->paramManager);
+	}
+	return best;
 }
 
 void Kit::receivedNoteForDrum(ModelStackWithTimelineCounter* modelStack, MIDICable& cable, bool on, int32_t channel,
