@@ -502,7 +502,10 @@ void ContextMenuScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame
 	const std::string_view footer =
 	    d.footer != nullptr ? d.footer(ctx_, std::span{footer_scratch}) : std::string_view{};
 
-	deluge::ui::oled::option_window(f, deluge_profile().text_or_digits(d.title, heading_scratch),
+	// Drawn on the whole panel: legacy's window starts at row 4 of the 48-row panel, above the root frame's
+	// `visible_top`.
+	deluge::ui::oled::OledFrame pf = deluge::ui::oled::panel_frame(f);
+	deluge::ui::oled::option_window(pf, deluge_profile().text_or_digits(d.title, heading_scratch),
 	                                std::span<const std::string_view>{options.data(), n}, sel_.option, sel_.scroll,
 	                                scroll_, /*allow_motion=*/true, footer, &footer_scroll_);
 }
