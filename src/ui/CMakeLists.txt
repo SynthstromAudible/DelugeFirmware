@@ -2,6 +2,7 @@
 # Include only ui/**, gfx/** and the standard library; oled and grid never include each other.
 add_library(deluge_ui_core STATIC
   core/repaint_gate.cpp
+  core/blink.cpp
   core/led_frame.cpp
   core/knob_indicator.cpp
   core/text_wrap.cpp

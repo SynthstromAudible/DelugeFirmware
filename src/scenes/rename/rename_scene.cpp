@@ -24,6 +24,7 @@
 #include "scenes/bind/write_sink.h"
 #include "scenes/profile.h"
 
+#include "ui/core/blink.h"
 #include "ui/core/metrics.h"
 #include "ui/oled/popup.h"
 #include "ui/oled/text.h"
@@ -167,16 +168,6 @@ Rect panel_of(const deluge::ui::oled::OledFrame& f) {
 	return Rect{-f.origin.x, -f.origin.y, g.width, g.height};
 }
 
-/// @brief Is the blinking cursor lit at @p now? `values.cpp`'s `blink_lit`, which is
-///        `OLED::performBlink`'s square wave.
-bool blink_lit(const deluge::ui::Blink& b, uint32_t now) {
-	return ((static_cast<uint32_t>(now - b.until_ms) / b.period_ms) & 1u) != 0;
-}
-
-uint32_t blink_next_flip_in(const deluge::ui::Blink& b, uint32_t now) {
-	return b.period_ms - ((now - b.until_ms) % b.period_ms);
-}
-
 // `RenameUI::renderOLED` (`rename_ui.cpp:63-87`), as named constants.
 constexpr int32_t kWindowW = 120;
 constexpr int32_t kWindowH = 40;
@@ -236,7 +227,7 @@ bool RenameScene::on_enter(const SceneId& id) {
 	// Unarm the blink: the first render arms it against that tick's clock, so the cursor is lit on
 	// the frame the editor opens -- `setupBlink(..., shouldBlinkImmediately = true)`
 	// (`qwerty_ui.cpp:153`, `hid/display/oled.cpp:844-846`).
-	cursor_blink_ = deluge::ui::Blink{.period_ms = 0, .until_ms = 0};
+	cursor_blink_ = deluge::ui::Blink{};
 	repeat_armed_ = false;
 	repeat_at_ms_ = 0;
 	return true;
@@ -267,11 +258,11 @@ void RenameScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) 
 
 	// `setupBlink(..., true)` inverts on the spot and then flips every `kFlashTime`; one
 	// half-period of back-dating is how `values.cpp` spells "lit immediately".
-	if (cursor_blink_.period_ms != kFlashTime) {
+	if (!cursor_blink_.armed()) {
 		cursor_blink_.period_ms = static_cast<uint16_t>(kFlashTime);
-		cursor_blink_.until_ms = now - static_cast<uint32_t>(kFlashTime);
+		cursor_blink_.restart_lit(now);
 	}
-	edit_.cursor_lit = blink_lit(cursor_blink_, now);
+	edit_.cursor_lit = deluge::ui::blink_lit(cursor_blink_, now);
 	// Arm the panel's own gate at the cursor's *next flip*, which is what `next_timer()` cannot
 	// name: it answers one interval for the scene, this names the edge. `text_edit` cannot arm it
 	// itself either, because it takes no clock and owns no state (`ui/oled/text_edit.h`:
@@ -280,7 +271,7 @@ void RenameScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) 
 	// computed correctly and never drawn; `Shell::tick`'s step 8b now covers that half. Only while
 	// the bar exists at all: mid-string `cursor_lit` gates nothing.
 	if (edit_.cursor == static_cast<int16_t>(len_)) {
-		f.gate().request_repaint_after(blink_next_flip_in(cursor_blink_, now), now);
+		f.gate().request_repaint_after(deluge::ui::blink_next_flip_in(cursor_blink_, now), now);
 	}
 
 	// Drawn on the whole panel: legacy's window starts at row 4 of the 48-row panel, above the root frame's
@@ -595,8 +586,8 @@ std::optional<uint32_t> RenameScene::next_timer() const {
 	// The cursor bar moves without input, but only while the cursor sits at the end of the string
 	// (`text_edit`: `cursor_lit` gates that arm and nothing else). Mid-string there is nothing to
 	// flash, so nothing to wake for.
-	if (cursor_blink_.period_ms != 0 && edit_.cursor == static_cast<int16_t>(len_)) {
-		next = blink_next_flip_in(cursor_blink_, last_render_ms_);
+	if (cursor_blink_.armed() && edit_.cursor == static_cast<int16_t>(len_)) {
+		next = deluge::ui::blink_next_flip_in(cursor_blink_, last_render_ms_);
 	}
 
 	// The held-backspace repeat is legacy's `TimerName::UI_SPECIFIC`, and it is the reason this

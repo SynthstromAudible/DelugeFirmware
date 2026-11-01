@@ -45,6 +45,24 @@ struct Blink {
 	///
 	/// @note A widget that arms a Blink also owns its period_ms, so one Blink serves one blinker.
 	uint32_t until_ms = 0;
+	/// Whether a `restart_*` has run since the blink was reset to `Blink{}`.
+	bool started = false;
+
+	/// @brief Has a cursor-style blinker armed this blink yet? A reset blink has not.
+	/// @return `started`.
+	bool armed() const { return started; }
+	/// @brief Restart the phase lit at @p now_ms, for one `period_ms`.
+	/// @param now_ms The clock now.
+	void restart_lit(uint32_t now_ms) {
+		started = true;
+		until_ms = now_ms - period_ms;
+	}
+	/// @brief Restart the phase dark at @p now_ms, for one `period_ms`.
+	/// @param now_ms The clock now.
+	void restart_dark(uint32_t now_ms) {
+		started = true;
+		until_ms = now_ms;
+	}
 };
 /// State for a press-and-hold gesture on one pad.
 struct Hold {

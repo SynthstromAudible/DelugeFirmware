@@ -1,5 +1,7 @@
 #include "ui/oled/values.h"
 
+#include "ui/core/blink.h"
+
 #include "ui/core/metrics.h"
 #include "ui/oled/detail/int_to_string.h"
 #include "ui/oled/list.h"
@@ -86,19 +88,6 @@ int32_t pow10(int32_t exponent) {
 		v *= 10;
 	}
 	return static_cast<int32_t>(std::min<int64_t>(v, INT32_MAX));
-}
-
-/// Is the blinking cursor lit at \p now? The cursor inverts every `period_ms`, starting dark for
-/// the first half-period after `until_ms` (the arming instant) and lit on every odd interval
-/// after that. See the blink phase note on `decimal_value` in values.h.
-bool blink_lit(const Blink& blink, uint32_t now) {
-	const uint32_t elapsed = now - blink.until_ms;
-	return ((elapsed / blink.period_ms) & 1u) != 0;
-}
-
-/// Milliseconds until the blink flips, i.e. what the next frame has to be scheduled for.
-uint32_t blink_next_flip_in(const Blink& blink, uint32_t now) {
-	return blink.period_ms - ((now - blink.until_ms) % blink.period_ms);
 }
 
 } // namespace
@@ -212,18 +201,16 @@ Response decimal_value(OledFrame& f, Rect rect, int32_t& value, Range range, uin
 		}
 	}
 
-	// A value change restarts the blink phase dark; a horizontal tick restarts it lit
-	// immediately. period_ms doubles as "armed": a Blink still holding its default period has
-	// never been through here.
-	if (blink.period_ms != kFlashTime) {
+	// A value change restarts the blink phase dark; a horizontal tick restarts it lit immediately.
+	if (!blink.armed()) {
 		blink.period_ms = kFlashTime;
-		blink.until_ms = now;
+		blink.restart_dark(now);
 	}
 	if (horizontal_ticked) {
-		blink.until_ms = now - blink.period_ms; // one half-period in: lit immediately
+		blink.restart_lit(now);
 	}
 	else if (resp.changed) {
-		blink.until_ms = now;
+		blink.restart_dark(now);
 	}
 	f.gate().request_repaint_after(blink_next_flip_in(blink, now), now);
 

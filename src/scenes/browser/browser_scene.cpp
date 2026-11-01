@@ -21,6 +21,7 @@
 #include "scenes/browser/browser_scene.h"
 
 #include "notify/notice_queue.h"
+#include "ui/core/blink.h"
 #include "ui/core/metrics.h"
 #include "ui/oled/misc.h"
 #include "ui/oled/text.h"
@@ -106,16 +107,6 @@ bool case_prefix_equal(std::string_view a, std::string_view b, size_t n) {
 ///        already does for the same reason.
 bool caseless_equals(std::string_view a, std::string_view b) {
 	return a.size() == b.size() && case_prefix_equal(a, b, a.size());
-}
-
-/// @brief Is the blinking cursor lit at @p now? `values.cpp`'s `blink_lit`, which is
-///        `OLED::performBlink`'s square wave.
-bool blink_lit(const deluge::ui::Blink& b, uint32_t now) {
-	return ((static_cast<uint32_t>(now - b.until_ms) / b.period_ms) & 1u) != 0;
-}
-
-uint32_t blink_next_flip_in(const deluge::ui::Blink& b, uint32_t now) {
-	return b.period_ms - ((now - b.until_ms) % b.period_ms);
 }
 
 /// @brief What `Browser::renderOLED` draws of a row's name.
@@ -389,7 +380,7 @@ bool BrowserScene::on_enter(const SceneId& id) {
 	// `keyboardChars[util::to_underlying(FlashStorage::keyboardLayout)]` (`qwerty_ui.cpp:268`).
 	// `KeyboardLayoutKind`'s values match legacy's enum exactly, so this is a cast (`keyboard.h`).
 	layout_ = static_cast<deluge::ui::grid::KeyboardLayoutKind>(static_cast<uint8_t>(FlashStorage::keyboardLayout));
-	cursor_blink_ = deluge::ui::Blink{.period_ms = 0, .until_ms = 0};
+	cursor_blink_ = deluge::ui::Blink{};
 
 	request_open();
 	return true;
@@ -951,16 +942,16 @@ void BrowserScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f)
 
 	// `setupBlink(..., true)` inverts on the spot and then flips every `kFlashTime`; one half-period
 	// of back-dating is how `values.cpp` spells "lit immediately".
-	if (cursor_blink_.period_ms != kFlashTime) {
+	if (!cursor_blink_.armed()) {
 		cursor_blink_.period_ms = static_cast<uint16_t>(kFlashTime);
-		cursor_blink_.until_ms = now - static_cast<uint32_t>(kFlashTime);
+		cursor_blink_.restart_lit(now);
 	}
-	edit_.cursor_lit = blink_lit(cursor_blink_, now);
+	edit_.cursor_lit = deluge::ui::blink_lit(cursor_blink_, now);
 	if (edit_.cursor == static_cast<int16_t>(entered_len_)) {
 		// `text_edit` takes no clock and owns no state, so the panel's own repaint gate has to be
 		// armed here or the bar would be computed correctly and never repainted -- exactly
 		// `RenameScene::render_oled`'s reason.
-		f.gate().request_repaint_after(blink_next_flip_in(cursor_blink_, now), now);
+		f.gate().request_repaint_after(deluge::ui::blink_next_flip_in(cursor_blink_, now), now);
 	}
 	// ...and this is the arm that keeps the *listing* alive: see `kListingPollMs`. Without it a
 	// quiet tick never redraws, `after_render` never runs, and the landed result is never collected.
@@ -1361,8 +1352,8 @@ std::optional<uint32_t> BrowserScene::next_timer() const {
 
 	// The cursor bar moves without input, but only while the cursor sits at the end of the string
 	// (`text_edit`: `cursor_lit` gates that arm and nothing else).
-	if (cursor_blink_.period_ms != 0 && edit_.cursor == static_cast<int16_t>(entered_len_)) {
-		next = blink_next_flip_in(cursor_blink_, last_render_ms_);
+	if (cursor_blink_.armed() && edit_.cursor == static_cast<int16_t>(entered_len_)) {
+		next = deluge::ui::blink_next_flip_in(cursor_blink_, last_render_ms_);
 	}
 
 	// The listing poll, and the reason this scene must be woken with no input at all: nothing else

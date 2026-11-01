@@ -98,13 +98,11 @@ Response int_value(OledFrame& f, gfx::oled::Rect rect, int32_t& value, Range ran
 /// fixed width and the period exactly half that. The digit count is `places + 1`, zero-padded,
 /// with a leading `-` for negatives.
 ///
-/// @note **Blink phase convention.** `blink.period_ms` doubles as "has this `Blink` been armed for
-///       a decimal cursor yet" -- a `Blink` still holding its default period has never been
-///       through here, and is armed on first use. `blink.until_ms` holds the phase *anchor*: the
-///       timestamp the current blink cycle was last restarted at. The cursor is lit while
-///       `((now - until_ms) / period_ms)` is odd, so it starts *dark* for one period after the
-///       value changes or the widget first renders, and restarts lit on any horizontal tick (even
-///       one that moves nothing because it hit a bound). One `Blink` per cursor -- sharing one
+/// @note **Blink phase convention.** A reset `Blink` (`Blink{}`) is armed on first use
+///       (`Blink::armed`), at `kFlashTime`. The cursor follows `ui::blink_lit`: it starts *dark*
+///       for one period after the value changes or the widget first renders
+///       (`Blink::restart_dark`), and restarts lit on any horizontal tick (`Blink::restart_lit`),
+///       even one that moves nothing because it hit a bound. One `Blink` per cursor -- sharing one
 ///       with a widget that wants a different period would re-anchor it every frame.
 ///
 /// `f.horizontal()` moves @p edit_pos, one place per non-zero tick: a positive tick moves the
