@@ -698,6 +698,23 @@ RULES = [
         "2026-10-18-scenes-bind-to-model-design.md",
     ),
     (
+        # The effect channels and the song-wide effect couplings know an owner by its chain core or its channel, never
+        # by the legacy knob classes, which hold only knob, display and file code until they are deleted.
+        "fx-no-legacy-owners",
+        "src/deluge/model/fx/**",
+        "symbol",
+        r"\b(ModControllableAudio|GlobalEffectable(ForClip|ForSong)?)\b",
+        "2026-11-01-chain-ownership-design.md",
+    ),
+    (
+        # The engine's master render and reverb auto duck, as above.
+        "engine-no-legacy-owners",
+        "src/deluge/processing/engines/audio_engine.cpp",
+        "symbol",
+        r"\b(ModControllableAudio|GlobalEffectable(ForClip|ForSong)?)\b",
+        "2026-11-01-chain-ownership-design.md",
+    ),
+    (
         # A scene holds no engine object: a menu's context and the gold knobs' focus hold addresses into the model,
         # and their reads come from the records and the runtime facts.
         "scenes-no-engine-pointers",
