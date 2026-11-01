@@ -116,11 +116,11 @@ struct Workload {
 	fx::ModFXType mod_fx; ///< The owner's type.
 	bool knob_off;        ///< A host chain's soft off: the type in effect is NONE while the setting is not.
 	bool stereo;
-	bool silent;       ///< Silence comes in (a clip chain's content did not render; a sound has no voices).
+	bool silent;       ///< Silence comes in (a track chain's content did not render; a sound has no voices).
 	bool delay;        ///< A digital delay with its feedback up.
 	int32_t threshold; ///< The compressor threshold param: 0 resets it.
 	bool stutter;      ///< The owner is the one stuttering, from the first block.
-	bool sidechain;    ///< A clip chain's sidechain is on, hit every seventh block.
+	bool sidechain;    ///< A track chain's sidechain is on, hit every seventh block.
 	bool post;         ///< The master's post-reverb half renders (false: a stem export without song FX).
 };
 

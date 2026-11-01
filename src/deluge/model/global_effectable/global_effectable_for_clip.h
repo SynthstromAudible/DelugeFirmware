@@ -19,7 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "dsp-next/core/stereo_sample.h"
-#include "effects/clip_chain.h"
+#include "effects/track_chain.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/sample/sample_recorder.h"
 #include "util/functions.h"
@@ -37,7 +37,7 @@ public:
 	GlobalEffectableForClip();
 	~GlobalEffectableForClip() override;
 
-	[[nodiscard]] deluge::effects::ClipChain& chain() { return chain_; }
+	[[nodiscard]] deluge::effects::TrackChain& chain() { return chain_; }
 	[[nodiscard]] deluge::effects::ChainCore& core() final { return chain_.core(); }
 	[[nodiscard]] const deluge::effects::ChainCore& core() const final { return chain_.core(); }
 	[[nodiscard]] deluge::effects::Filter& filter() final { return chain_.filter(); }
@@ -56,7 +56,7 @@ public:
 	/// @brief The chain's effect settings and the render's copy of them.
 	deluge::model::EffectsBinding effectsBinding_;
 	/// @brief The bus's effects: its saturation after its drums or audio clip render, then its filters and the rest.
-	deluge::effects::ClipChain chain_;
+	deluge::effects::TrackChain chain_;
 
 	/// @brief The two mod knobs a clip's global effectable lays out differently from the song's: the sidechain volume
 	/// (mode 4, upper) and the pitch adjust (mode 6, lower); nullopt for the others.

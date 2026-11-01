@@ -89,10 +89,10 @@ GlobalEffectableForClip::~GlobalEffectableForClip() {
 		delayWorkingState.analog_saturation = 5;
 	}
 
-	const deluge::effects::ClipChainInputs in =
-	    deluge::model::clipChainInputs(*this, *paramManagerForClip, volumeAdjustment, reverbAmountAdjust,
-	                                   sideChainHitPending, delayWorkingState, outputType);
-	deluge::effects::ClipBlock levels = chain_.begin_block(in, output.size());
+	const deluge::effects::TrackChainInputs in =
+	    deluge::model::trackChainInputs(*this, *paramManagerForClip, volumeAdjustment, reverbAmountAdjust,
+	                                    sideChainHitPending, delayWorkingState, outputType);
+	deluge::effects::TrackBlock levels = chain_.begin_block(in, output.size());
 
 	alignas(CACHE_LINE_SIZE) StereoSample global_effectable_memory[SSI_TX_BUFFER_NUM_SAMPLES];
 	memset(global_effectable_memory, 0, sizeof(StereoSample) * output.size());

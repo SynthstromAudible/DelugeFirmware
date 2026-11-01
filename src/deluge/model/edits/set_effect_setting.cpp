@@ -36,8 +36,8 @@ Error SetEffectSetting::apply(Context& ctx) {
 	}
 	if (deluge::bridge::typedWriteAudit().enabled) {
 		deluge::bridge::auditEffectWrite(
-		    owner->effects(), chain->reverb_return ? deluge::effects::Home::MASTER : deluge::effects::Home::CLIP, path_,
-		    value_, ctx.song.getInputTickMagnitude(), next);
+		    owner->effects(), chain->reverb_return ? deluge::effects::Home::MASTER : deluge::effects::Home::TRACK,
+		    path_, value_, ctx.song.getInputTickMagnitude(), next);
 	}
 	owner->setEffects(next);
 	if (deluge::effects::shapes_reverb_sidechain(path_)) {

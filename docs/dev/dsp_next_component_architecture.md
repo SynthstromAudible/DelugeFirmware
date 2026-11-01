@@ -666,7 +666,7 @@ engine's monitoring decision to a copy of the function it replaced.
 - **`duck_gain<DuckScale>` (`fixed/dynamics/duck_gain.h`).** A sidechain's duck as a squared level, once per block,
   so a function rather than a kernel form. One law at two output scales, both named: `CLIP` (2^27 unducked, a clip
   chain's post-reverb volume) and `REVERB_RETURN` (2^29 unducked, the reverb's return). `effects::Sidechain::level`
-  is the one place a duck becomes a level; `ClipChain` and `effects::Reverb` (which owns its return's `Sidechain`
+  is the one place a duck becomes a level; `TrackChain` and `effects::Reverb` (which owns its return's `Sidechain`
   and a `ReturnDuck`, the depth and shape `AudioEngine::updateReverbParams` chooses) both call it.
 - **`SendAndVolume` (`fixed/vca/send_and_volume.h`).** A stereo processor with a `prepare` (the gains at this block's
   volumes, the ramp's step from the last block's post-reverb volume, pan folded in) and the two running gains as its
@@ -1445,7 +1445,7 @@ block's inputs from its params and makes one call.
   voices: bitcrush, mod FX or grain, EQ, delay, stutter, send and volume,
   compressor. The per-voice filter and saturation stay in `Sound`. The sidechain
   is a patch source, and the sound renders it before its voices.
-- **`ClipChain`** (`clip_chain.{h,cpp}`) is a kit's or an audio track's chain,
+- **`TrackChain`** (`track_chain.{h,cpp}`) is a kit's or an audio track's chain,
   in two steps around the content render:
   - `begin_block` configures the filters (which compensate the post-FX volume),
     ducks the post-reverb volume by the sidechain and configures the
@@ -1467,7 +1467,7 @@ block's inputs from its params and makes one call.
   The master's saturation and sidechain are saved with the song and not
   rendered.
 - **Inputs are values.** Each inputs struct (`FxInputs`, `SoundChainInputs`,
-  `ClipChainInputs`, `MasterChainInputs`, `MasterPostInputs`) carries:
+  `TrackChainInputs`, `MasterChainInputs`, `MasterPostInputs`) carries:
   - param finals and knobs;
   - the owner's render copy of its settings (`const EffectStates*`);
   - the delay's working state, which the owner set up on the chain's delay;
@@ -1479,7 +1479,7 @@ block's inputs from its params and makes one call.
   (`processing/sound/sound_chain_inputs`) reads a sound's patcher finals, so it
   travels with `Sound` when the synth becomes a plugin. Its `SoundChain` is the
   synth's own FX section, which the mod matrix modulates.
-  - `clipChainInputs`, `masterChainInputs` and `masterPostInputs`
+  - `trackChainInputs`, `masterChainInputs` and `masterPostInputs`
     (`model/fx/chain_inputs`) read unpatched params and automation. Those
     chains are the host's inserts and master bus.
   - The master's two halves read their inputs at the points the render always
@@ -1488,9 +1488,9 @@ block's inputs from its params and makes one call.
   - The reverb send is an argument to every chain (`ReverbSend`), so a plugin's
     send can become an output port.
 - **Order.** Each runtime's `order()` names the effects it renders, in order.
-  `chain_runtime_spec` checks the clip chain's and the master's against
+  `chain_runtime_spec` checks the track chain's and the master's against
   `chain.h`'s `chain_effects`, the master's reverb return against
-  `reverb_return`, and the sound's against the clip chain's order without
+  `reverb_return`, and the sound's against the track chain's order without
   saturation, filter and sidechain.
 - **Evidence.** `bench/reference_chains.h` writes each home's sequence out over
   the components.
@@ -1807,7 +1807,7 @@ it drops some:
   feedback chain controls as the delay list;
 - `compressor`: `RmsFeedbackCompressor` as its owners call it, fully wet and
   blended at half, through `render` (the song master) and `render_volume_neutral`
-  (a sound, a clip chain), in place over a loud stereo block, past the threshold
+  (a sound, a track chain), in place over a loud stereo block, past the threshold
   so it reduces the gain. One compressor serves every case, fresh at each setup.
   These cases build with the library's flags
   (`src/deluge/bench/compressor_cases.cpp`), and the list ends with the same two

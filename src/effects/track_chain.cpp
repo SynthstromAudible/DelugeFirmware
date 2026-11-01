@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include "effects/clip_chain.h"
+#include "effects/track_chain.h"
 
 #include <array>
 
@@ -26,14 +26,14 @@ constexpr std::array<std::string_view, 8> kOrder{"saturation", "filter", "bitcru
                                                  "eq",         "delay",  "stutter",  "compressor"};
 } // namespace
 
-ClipChain::ClipChain(RingAllocator mod_fx_allocator, RingAllocator granular_allocator, DelayArena& arena,
-                     int32_t post_reverb_volume_neutral)
+TrackChain::TrackChain(RingAllocator mod_fx_allocator, RingAllocator granular_allocator, DelayArena& arena,
+                       int32_t post_reverb_volume_neutral)
     : core_{mod_fx_allocator, granular_allocator, EnterGrain::KEEP, arena, post_reverb_volume_neutral} {
 }
 
-ClipBlock ClipChain::begin_block(const ClipChainInputs& in, std::size_t frames) {
+TrackBlock TrackChain::begin_block(const TrackChainInputs& in, std::size_t frames) {
 	const EffectStates& settings = *in.fx.settings;
-	ClipBlock levels{
+	TrackBlock levels{
 	    .volume_post_fx = filter_.configure(settings.filter, in.filter, in.volume_post_fx),
 	    .post_reverb_volume = in.post_reverb_volume_neutral,
 	};
@@ -50,12 +50,12 @@ ClipBlock ClipChain::begin_block(const ClipChainInputs& in, std::size_t frames) 
 	}
 
 	core_.compressor().configure(settings.compressor);
-	core_.compressor().dsp().set_threshold(in.compressor_threshold); // a clip chain's threshold is its param
+	core_.compressor().dsp().set_threshold(in.compressor_threshold); // a track chain's threshold is its param
 	return levels;
 }
 
-void ClipChain::pre_tap(std::span<dsp::StereoSample> block, const ClipChainInputs& in, ClipBlock& levels, bool rendered,
-                        ReverbSend send) {
+void TrackChain::pre_tap(std::span<dsp::StereoSample> block, const TrackChainInputs& in, TrackBlock& levels,
+                         bool rendered, ReverbSend send) {
 	const EffectStates& settings = *in.fx.settings;
 	saturation_.process(block,
 	                    {.clipping_amount = settings.saturation.clipping_amount, .variant = SaturationVariant::CHAIN});
@@ -70,8 +70,8 @@ void ClipChain::pre_tap(std::span<dsp::StereoSample> block, const ClipChainInput
 	}
 }
 
-bool ClipChain::post_tap(std::span<dsp::StereoSample> block, const ClipChainInputs& in, const ClipBlock& levels,
-                         ReverbSend send) {
+bool TrackChain::post_tap(std::span<dsp::StereoSample> block, const TrackChainInputs& in, const TrackBlock& levels,
+                          ReverbSend send) {
 	const bool sent = core_.send_and_volume().process(block, send.first(block.size()),
 	                                                  {.post_fx_volume = levels.volume_post_fx,
 	                                                   .post_reverb_volume = levels.post_reverb_volume,
@@ -88,7 +88,7 @@ bool ClipChain::post_tap(std::span<dsp::StereoSample> block, const ClipChainInpu
 	return sent;
 }
 
-std::span<const std::string_view> ClipChain::order() {
+std::span<const std::string_view> TrackChain::order() {
 	return kOrder;
 }
 

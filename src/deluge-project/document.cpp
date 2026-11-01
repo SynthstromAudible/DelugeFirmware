@@ -227,7 +227,7 @@ std::expected<SongDocument, LoadError> decode_song(const Value& root, const Code
 			decode_mappings(*output.node, TrackOwner{entry.id, output.name == "kit"}, document.mappings);
 		}
 		if (has_chain(output.name) && plugins.chains.decode != nullptr) {
-			record.effects = plugins.chains.decode(*output.node, ChainHome::CLIP, magnitude);
+			record.effects = plugins.chains.decode(*output.node, ChainHome::TRACK, magnitude);
 		}
 		if (const Value* sources = output.node->find("soundSources")) {
 			for (const NamedChild& drum : children(*sources)) {

@@ -43,7 +43,7 @@ using deluge::project::FxSlot;
 namespace {
 
 deluge::effects::Home homeOf(ChainHome home) {
-	return home == ChainHome::MASTER ? deluge::effects::Home::MASTER : deluge::effects::Home::CLIP;
+	return home == ChainHome::MASTER ? deluge::effects::Home::MASTER : deluge::effects::Home::TRACK;
 }
 
 // The model holds the view as indexes of the effects' view words, which name the app's enums in order.
@@ -81,7 +81,7 @@ void encodeChain(const FxChain& chain, deluge::serialization::Value& element, in
 		return;
 	}
 	const deluge::effects::Home home =
-	    chain.reverb_return ? deluge::effects::Home::MASTER : deluge::effects::Home::CLIP;
+	    chain.reverb_return ? deluge::effects::Home::MASTER : deluge::effects::Home::TRACK;
 	deluge::effects::write_chain(
 	    deluge::effects::encode_chain(*states, home, {.input_tick_magnitude = tick_magnitude}),
 	    deluge::effects::view_value({.mod_fx_param = chain.mod_fx_param, .filter_type = chain.filter_type}), element);
@@ -176,7 +176,7 @@ void recordOutputChain(::Output& output, ::Song& song) {
 	if (!record->effects) {
 		record->effects.emplace();
 	}
-	adoptChainState(*owner, *record->effects, ChainHome::CLIP);
+	adoptChainState(*owner, *record->effects, ChainHome::TRACK);
 }
 
 void auditEffectWrite(const deluge::effects::EffectStates& before, deluge::effects::Home home, std::string_view path,

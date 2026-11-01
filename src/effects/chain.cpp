@@ -43,8 +43,8 @@ constexpr std::array<EffectKeys, 9> kEffectEntries{{
     {.effect = "sidechain", .keys = {"sidechain"}},
 }};
 
-constexpr std::array<std::string_view, 9> kClipChain{"saturation", "filter",  "bitcrush",   "mod_fx",   "eq",
-                                                     "delay",      "stutter", "compressor", "sidechain"};
+constexpr std::array<std::string_view, 9> kTrackChain{"saturation", "filter",  "bitcrush",   "mod_fx",   "eq",
+                                                      "delay",      "stutter", "compressor", "sidechain"};
 /// The master processes mod FX, EQ and delay before the reverb returns join, the rest after; it saves a saturation and
 /// a sidechain entry it does not process, which take the last two slots.
 constexpr std::array<std::string_view, 9> kMasterChain{"mod_fx",  "eq",         "delay",      "filter",   "bitcrush",
@@ -72,8 +72,8 @@ std::optional<std::string_view> effect_of_key(std::string_view key) {
 } // namespace
 
 std::span<const std::string_view> chain_effects(Home home) {
-	return home == Home::CLIP ? std::span<const std::string_view>{kClipChain}
-	                          : std::span<const std::string_view>{kMasterChain};
+	return home == Home::TRACK ? std::span<const std::string_view>{kTrackChain}
+	                           : std::span<const std::string_view>{kMasterChain};
 }
 
 std::optional<uint32_t> reverb_return(Home home) {

@@ -18,9 +18,9 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "effects/clip_chain.h"
 #include "effects/filter.h"
 #include "effects/master_chain.h"
+#include "effects/track_chain.h"
 
 #include <cstdint>
 
@@ -56,11 +56,11 @@ namespace deluge::model {
 /// @param sideChainHitPending The sidechain hit pending this block, Q31; 0 for none.
 /// @param delay The block's delay working state, set up on the owner's chain's delay.
 /// @param outputType KIT or AUDIO; selects the volume headroom factor applied after the filters.
-/// @return The block's clip-chain inputs.
-[[nodiscard]] effects::ClipChainInputs clipChainInputs(GlobalEffectableForClip& owner, ParamManager& paramManager,
-                                                       int32_t volumeAdjustment, int32_t reverbAmountAdjust,
-                                                       int32_t sideChainHitPending, const effects::Delay::State& delay,
-                                                       OutputType outputType);
+/// @return The block's track-chain inputs.
+[[nodiscard]] effects::TrackChainInputs trackChainInputs(GlobalEffectableForClip& owner, ParamManager& paramManager,
+                                                         int32_t volumeAdjustment, int32_t reverbAmountAdjust,
+                                                         int32_t sideChainHitPending,
+                                                         const effects::Delay::State& delay, OutputType outputType);
 
 /// @brief The song master's half before the reverb, from the song's params once its outputs have rendered; sets up the
 /// block's delay working state on the master's delay.

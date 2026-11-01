@@ -14,12 +14,12 @@ namespace serialization = deluge::serialization;
 
 // clang-format off
 describe effect_chain("each home's chain of effect slots", ${
-	it("lays a clip chain out in its processing order", _ {
-		const auto ids = chain_effects(Home::CLIP);
+	it("lays a track chain out in its processing order", _ {
+		const auto ids = chain_effects(Home::TRACK);
 		expect(std::vector<std::string_view>(ids.begin(), ids.end()))
 		    .to_equal(std::vector<std::string_view>{"saturation", "filter", "bitcrush", "mod_fx", "eq", "delay",
 		                                           "stutter", "compressor", "sidechain"});
-		expect(reverb_return(Home::CLIP)).not_().to_have_value();
+		expect(reverb_return(Home::TRACK)).not_().to_have_value();
 	});
 	it("splits the master at the reverb returns", _ {
 		const auto ids = chain_effects(Home::MASTER);
@@ -30,7 +30,7 @@ describe effect_chain("each home's chain of effect slots", ${
 	});
 	it("gives each effect the entries it owns, and the slots together the owner's whole encoding", _ {
 		const EffectStates s = busy();
-		const auto slots = encode_chain(s, Home::CLIP, kAtOne);
+		const auto slots = encode_chain(s, Home::TRACK, kAtOne);
 		expect(slots[1].entries.find("lpfMode") != nullptr).to_be_true();
 		expect(slots[5].entries.find("delay") != nullptr).to_be_true();
 		auto element = serialization::Value::makeMap();
@@ -40,7 +40,7 @@ describe effect_chain("each home's chain of effect slots", ${
 	it("reads each slot back onto its effect alone", _ {
 		const EffectStates s = busy();
 		EffectStates read;
-		for (const SlotEntries& slot : encode_chain(s, Home::CLIP, kAtOne)) {
+		for (const SlotEntries& slot : encode_chain(s, Home::TRACK, kAtOne)) {
 			decode_slot(slot.effect, slot.entries, read, kAtOne);
 		}
 		expect(read).to_equal(s);

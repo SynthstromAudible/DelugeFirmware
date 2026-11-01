@@ -604,10 +604,10 @@ in cycles, worst size.
 
 ## Chains
 
-Each home's effect chain runtime (`effects::SoundChain`, `ClipChain`, `MasterChain`) against the same sequence written
+Each home's effect chain runtime (`effects::SoundChain`, `TrackChain`, `MasterChain`) against the same sequence written
 out over the same components (`bench/reference_chains.h`), in one image (`DELUGE_DSP_BENCH_CASES=fx_chains`), on
 2026-10-13. Settings: chorus, a ringing digital delay (feedback `0x30000000`, unsynced), EQ off flat, bitcrush and
-sample-rate reduction on, compressor on (threshold `0x40000000`); a clip chain's saturation and both filters and the
+sample-rate reduction on, compressor on (threshold `0x40000000`); a track chain's saturation and both filters and the
 master's filters on; the owner's delay working state set up in each block. The figures are cycles per channel-sample,
 the minimum of four runs; the last column is the spread (max - min), runtime / reference, worst size.
 
@@ -618,7 +618,7 @@ the minimum of four runs; the last column is the spread (max - min), runtime / r
 | `fx_chain_clip` | 443.33 → 442.97 (-0.1%) | 405.86 → 405.57 (-0.1%) | 386.81 → 386.62 (-0.0%) | 0.46 / 0.39 |
 | `fx_chain_master` | 398.95 → 398.60 (-0.1%) | 364.20 → 363.77 (-0.1%) | 346.14 → 346.28 (+0.0%) | 0.59 / 0.42 |
 
-- **The call layer costs nothing measurable.** The clip chain's tap and the master's between are template parameters,
+- **The call layer costs nothing measurable.** The track chain's tap and the master's between are template parameters,
   inlined; the runtimes make the same component calls as the sequence.
 - **The sound chain is +0.7% at n=32** (about 115 cycles a block), beyond its spread: it copies its 100-byte
   `FxInputs` each block to put the setting's mod FX type in. At n=128 it is level.
@@ -646,7 +646,7 @@ interleaved; the last column is the after spread (max - min), worst size.
 - **The send belongs in the gains' loop.** With the reverb send as its own pass ahead of the gains (a loop over the
   block, then `Mono<SendAndVolume>`), the chains ran 2.4-5.6% slower than before: every frame was read twice. With
   the send in the kernel's loop, as a cursor its SEND modes advance (`Granular`'s shape), the chains are level at
-  n=32 (the clip chain's +0.4% is inside its spread) and 1-4% faster from n=64.
+  n=32 (the track chain's +0.4% is inside its spread) and 1-4% faster from n=64.
 - **The reverb return is level.** The duck's move into `effects::Reverb` changes nothing the reverb renders per frame.
 
 ## Reverb

@@ -31,7 +31,7 @@
 namespace deluge::effects {
 
 /// @brief Where a chain runs: a kit's or an audio track's output, or the song's master.
-enum class Home : uint8_t { CLIP, MASTER };
+enum class Home : uint8_t { TRACK, MASTER };
 
 /// @brief One slot of a chain: its effect's id and the owner element's entries that effect owns, as a file holds them.
 struct SlotEntries {
@@ -44,9 +44,9 @@ struct SlotEntries {
 /// @return The effect ids in order.
 [[nodiscard]] std::span<const std::string_view> chain_effects(Home home);
 
-/// @brief The index of the master's first slot after the reverb returns; nothing for a clip chain.
+/// @brief The index of the master's first slot after the reverb returns; nothing for a track chain.
 /// @param home Where the chain runs.
-/// @return The slot index, or nullopt for a clip chain.
+/// @return The slot index, or nullopt for a track chain.
 [[nodiscard]] std::optional<uint32_t> reverb_return(Home home);
 
 /// @brief Which effect owns the setting at @p path (a kEffectSettings path), or nothing.

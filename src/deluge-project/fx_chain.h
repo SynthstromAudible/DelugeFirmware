@@ -53,7 +53,7 @@ struct ChainAddress {
 };
 
 /// @brief Where a chain runs, as the model names it.
-enum class ChainHome : uint8_t { CLIP, MASTER };
+enum class ChainHome : uint8_t { TRACK, MASTER };
 
 /// @brief How the model reads and writes an owner element's chain without understanding effects: the host supplies it.
 struct ChainCodec {

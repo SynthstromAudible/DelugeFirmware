@@ -39,7 +39,7 @@ namespace deluge::effects {
 
 /// @brief An owner's compressor: its CompressorState's knobs on the dsp-next compressor.
 ///
-/// A sound's and a clip chain's threshold is a param, which the owner sets on dsp() after configure every block; the
+/// A sound's and a track chain's threshold is a param, which the owner sets on dsp() after configure every block; the
 /// song master's is its knob, which configure takes.
 class Compressor {
 public:

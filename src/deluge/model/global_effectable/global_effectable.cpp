@@ -490,7 +490,7 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 }
 
 q31_t GlobalEffectable::displayedCompressorThreshold() {
-	// The master's threshold is its setting; a clip chain's render follows its threshold param, which the knob shows.
+	// The master's threshold is its setting; a track chain's render follows its threshold param, which the knob shows.
 	return isSong() ? effects().compressor.threshold : core().compressor().dsp().threshold();
 }
 
@@ -705,7 +705,7 @@ std::optional<deluge::plugin::ParamId> GlobalEffectable::knobParam(int32_t modKn
 }
 
 int32_t GlobalEffectable::getParameterFromKnob(int32_t whichModEncoder, const deluge::project::CompView& comp) {
-	// The compressor view is the song's alone: a clip's chain keeps its reverb send.
+	// The compressor view is the song's alone: a track's chain keeps its reverb send.
 	std::optional<deluge::plugin::ParamId> param =
 	    knobParam(*getModKnobMode(), whichModEncoder, filterType(), modFXParam(), comp.editing && isSong());
 	return param ? *deluge::global_effectable::runtime_index(*param) : 255;
@@ -775,7 +775,7 @@ void GlobalEffectable::writeTagsToFile(Serializer& writer, ParamManager* paramMa
 		writer.writeClosingTag("defaultParams");
 	}
 
-	// A clip chain's render follows its threshold param; the file holds the setting, as the record does.
+	// A track chain's render follows its threshold param; the file holds the setting, as the record does.
 	ModControllableAudio::writeTagsToFile(writer, effects(), knobsSong, knobsOwner);
 }
 

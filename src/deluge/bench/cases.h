@@ -1313,7 +1313,7 @@ inline constexpr q31 kCompressorFinalVolume = 134'217'728;
 /// @brief One compressor case's configuration.
 struct CompressorCaseConfig {
 	q31 blend;    ///< The blend knob, Q31: kOneQ31 fully wet.
-	bool neutral; ///< `render_volume_neutral`, as a sound and a clip chain call it; else `render`, as the song master
+	bool neutral; ///< `render_volume_neutral`, as a sound and a track chain call it; else `render`, as the song master
 	              ///< does.
 };
 
@@ -1347,7 +1347,7 @@ struct CompressorRig {
 [[nodiscard]] const CompressorRig& compressor_rig();
 
 /// @brief The compressor's block as its owners render it today: `RmsFeedbackCompressor::render` (the song master) or
-/// `render_volume_neutral` (a sound, a clip chain), in place over the lanes output, fully wet or blended.
+/// `render_volume_neutral` (a sound, a track chain), in place over the lanes output, fully wet or blended.
 /// @details Setup replaces the compressor with a fresh one at compressor_knobs(), and copies the lanes input's first n
 /// frames (fill_compressor_input()) into the lanes output. Each block compresses that block in place, over the block
 /// before's output.
@@ -1676,7 +1676,7 @@ struct FxChainConfig {
 };
 
 /// @brief One block of a home's effect chain at typical settings, in place over the lanes output: the chorus, a
-/// ringing digital delay, the EQ moved off flat, the bitcrush on, and the compressor on (a clip chain's filter and
+/// ringing digital delay, the EQ moved off flat, the bitcrush on, and the compressor on (a track chain's filter and
 /// saturation too, and the master's filter); the owner's delay working state set up each block, as its owner does.
 /// @details The runtime and the reference cases render the same components the same way, so their difference is the
 /// cost of the runtime's call layer.
