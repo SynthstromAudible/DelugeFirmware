@@ -4,7 +4,7 @@ description: "Deluge has a number of features that bring even more creativity to
 sidebar:
   order: 10
 banner:
-  content: "From the Deluge Manual – Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+  content: "From the Deluge Manual \u2013 Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
 guidebook:
   section: "3.11"
   chapter: 3
@@ -15,11 +15,9 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import StepFocus from "../../../../components/guidebook/StepFocus.astro"
 import { Steps } from "@astrojs/starlight/components"
-import Figure from "../../../../components/guidebook/Figure.astro"
-import fig_fig_3_11_1 from "../../../../assets/guidebook/figs/03-sequencing__11-note-creativity-probability-iteration-dependance--1.svg?raw"
-import fig_fig_3_11_2 from "../../../../assets/guidebook/figs/03-sequencing__11-note-creativity-probability-iteration-dependance--2.svg?raw"
+import StepFocus from "../../../../components/guidebook/StepFocus.astro"
+import FigurePending from "../../../../components/guidebook/FigurePending.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -36,18 +34,20 @@ Deluge has a number of features that bring even more creativity to sequencing. N
 1. Press & hold one or more :key[Pad + Turn Select] anticlockwise. The pad’s selected should represent the sequence notes of where to add probability.
 2. Adjust the :key[Select] percentage between 5-100% where the % is the ‘chance’ of the note being played.
 3. To reset to default set the % to 100% where the note will be played each iteration.
+4. To assign a probability for an entire pad row, Hold :key[Audition Pad] for row to edit + :key[Turn Select] anticlockwise.
 
 </Steps>
 
-<Figure
-  id="fig-3.11-1"
-  animate="playhead"
-  src={fig_fig_3_11_1}
-  alt={
-    "Pad grid: + SELECT Notes set below 100% Notes set to 100% will will play randomly based play each iteration. on the probability %. If multiple notes…"
-  }
-  page={66}
-/>
+<FigurePending id="fig-3.11-1" page={66}>
+  Hold the audition button instead of individual pads to set for the entire row.
+  · + · SELECT · Notes set below 100% will play randomly based on the
+  probability %. · Notes set to 100% will play each iteration. · If multiple
+  notes on the same step / column position total 100%, Deluge will play only one
+  of the notes with a probability % on that column. · If multiple notes are set
+  at the same %, example 65%, Deluge offers an additional option indicated by
+  LATCHING, 65 & 65. The LATCHING option means the note will only trigger if the
+  previous equivalent note triggers.
+</FigurePending>
 
 #### Iteration Dependance
 
@@ -61,12 +61,58 @@ Deluge has a number of features that bring even more creativity to sequencing. N
 
 </Steps>
 
-<Figure
-  id="fig-3.11-2"
-  animate="playhead"
-  src={fig_fig_3_11_2}
-  alt={
-    "Pad grid: + SELECT Notes set to the iteration ratio. s * s 1 of 2 - Play on 1st of 2 bar cycles 2 of 2 would only play on 2nd cycle. * s s 2 of 3 -…"
-  }
-  page={67}
-/>
+<FigurePending id="fig-3.11-2" page={67}>
+  + · SELECT · Notes set to the iteration ratio. · s · \* · s · 2 of 2 would
+  only play on 2nd cycle. \* · s · s · 2 of 3 - Play on 2nd of 3 bar cycles. · s
+  · s · 2 of 4 - Play on 2nd of 4 bar cycles.
+</FigurePending>
+
+#### Fill
+
+Fill is a specific probability / iteration function which allows punch in/out performance variations of notes into musical passages ideally during live performances. Fill is triggered manually or with the global MIDI commands. Either of these options must be configured in the settings.
+
+### Configuring the manual fill option
+
+<Steps>
+
+1. Hold :key[Shift + Select] to open the global menu settings.
+2. :key[Turn Select] to navigate to the ‘COMMUNITY FEATURES’. Press :key[Select] to open the sub-menu.
+3. :key[Turn Select] to navigate to the ‘SYNC SCALING ACTION’. Press :key[Select] to open the sub-menu.
+4. :key[Turn Select] to navigate to the ‘SYNC SCALING’ or ‘FILL MODE’. Press :key[Select] to select the desired option:
+   - SYNC SCALING: Will configure the SYNC-SCALING button to operate in the default state i.e. control sync scaling.
+   - FILL MODE: Will configure the SYNC-SCALING button to operate the manual FILL function.
+
+</Steps>
+
+### Configuring the MIDI fill option
+
+<Steps>
+
+1. Connect a foot switch or MIDI controller to the MIDI in connection of Deluge while Deluge is powered off then power up the Deluge.
+2. Press :key[Shift + Select] to open the settings menu.
+3. Navigate to MIDI settings, :key[Turn Select] and navigate to ‘COMMANDS’. Press :key[Select] to open the global MIDI commands.
+4. Choose the ‘FILL’ option to map to the external switch / MIDI device.
+5. With the option in-focus press :key[Select] and the :key[LearnInput] button will blink indicating it is available for mapping. ‘COMMAND UNASSIGNED’ is displayed if no MIDI note or channel is assigned.
+6. Press & hold :key[LearnInput] + press the external MIDI switch.
+7. The display will indicate ‘SET’ to show the setup is now mapped.
+8. To unmap, :key[Turn Select] when the function setting is in-focus.
+
+</Steps>
+
+### Using the fill option
+
+<Steps>
+
+1. Ensure the configuration settings are set accordingly. For example the [SYNC-SCALING] button set to fill mode. This function can also be configured as a MIDI command.
+2. Set the probability for selected notes to fill. Hold :key[Pad + Turn Select] fully counter clockwise to choose ‘FILL’ for the held pad note.
+3. Repeat for several notes. Only notes assigned to the ‘FILL’ mode will be played when the [SYNC-SCALING] button is held during playback.
+4. Play the pattern.
+5. Press & Hold [SYNC-SCALING] to activate the ‘FILL’ defined notes, these will be shown lit blue on the grid pads while the button is held.
+6. Release [SYNC-SCALING] to deactivate the ‘FILL’ defined notes. These will not be played in the normal pattern cycle.
+
+</Steps>
+
+<FigurePending id="fig-3.11-3" page={69}>
+  Notes set to FILL will only play when the fill command is triggered. Lit blue
+  when fill is active · Existing notes will play as normal
+</FigurePending>

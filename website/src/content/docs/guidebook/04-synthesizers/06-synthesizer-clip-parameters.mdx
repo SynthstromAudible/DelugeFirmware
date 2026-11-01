@@ -4,7 +4,7 @@ description: "Deluge has the some synth parameters in the affect group."
 sidebar:
   order: 5
 banner:
-  content: "From the Deluge Manual – Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+  content: "From the Deluge Manual \u2013 Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
 guidebook:
   section: "4.6"
   chapter: 4
@@ -15,142 +15,171 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+
 <div data-pagefind-filter="source:guidebook" hidden />
 
 Deluge has the some synth parameters in the affect group. However the full list of parameters is accessible from the sound editor or in part from shortcut options on the grid.
 
-| Function                                                                      | Sub Category Parameter | Shortcut Button Access    | Options & Description                                                                                                                                                                                                                                                                                                           |
-| ----------------------------------------------------------------------------- | ---------------------- | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| OSCILLATOR 1<br />CARRIER 1 (FM)                                              | TYPE\*                 | TYPE\*                    | Waveform Options. Digital: Sine, Saw, Square, Triangle. Analog Modelled: Analog Saw, Analog Square. Audio: Wavetable, Sample, IN (Expandable to INL, INR, INLR)                                                                                                                                                                 |
-|                                                                               | LEVEL                  | LEVEL                     | Oscillator 1, or Carrier 1 for FM level                                                                                                                                                                                                                                                                                         |
-|                                                                               | RECORD AUDIO           | RECORD                    | Access to sound recorder to sample audio to use as oscillator 1. Not available in FM synth.                                                                                                                                                                                                                                     |
-|                                                                               | TRANSPOSE              | TRANSPOSE                 | Semitones + cents for adjustment                                                                                                                                                                                                                                                                                                |
-|                                                                               | PULSE WIDTH            | PW                        | Oscillator 1 pulse width. No PW available in FM Mode                                                                                                                                                                                                                                                                            |
-|                                                                               | FEEDBACK               | FEEDBACK                  | FM synth option only                                                                                                                                                                                                                                                                                                            |
-|                                                                               | RETRIGGER PHASE        | RETRIG PHASE              | Phase in degrees that the oscillator will be reset on note-on. Also can be switched off.                                                                                                                                                                                                                                        |
-| OSCILLATOR 1<br />CARRIER 1 (FM)<br />Only when TYPE\* is Sample or Wavetable | WAVETABLE              | WAVETABLE                 | Wavetable Only. Navigation setting to select the cycle position in the wavetable file as the oscillator sound source. Shortcut button only once a wavetable type is set.                                                                                                                                                        |
-|                                                                               | FILE BROWSER           | BROWSE                    | Only available when TYPE is Sample or Wavetable: Access to file browser to select audio or wavetable file as oscillator 1                                                                                                                                                                                                       |
-|                                                                               | START-POINT            | WAVEFORM then ‘green’ pad | Only when TYPE is Sample: Start time of sample in seconds with millisecond adjustments                                                                                                                                                                                                                                          |
-|                                                                               | END-POINT              | WAVEFORM then ‘red’ pad   | Only when TYPE is Sample: End time of sample                                                                                                                                                                                                                                                                                    |
-|                                                                               | SPEED                  | SPEED                     | Only when TYPE is Sample: Manually time stretches sample to play faster or slower without changing pitch. Not available if MODE is set to STRETCH in which case speed is controlled by note length and tempo                                                                                                                    |
-|                                                                               | REVERSE                | REVERSE                   | Only when TYPE is Sample and a sample is loaded, reverses the sample                                                                                                                                                                                                                                                            |
-|                                                                               | REPEAT MODE            | MODE                      | Only when TYPE is Sample and a sample is loaded: Options are; ONCE - Sample plays once all the way through, CUT - Sample aims to play all the way through but will cut at the triggering note end, LOOP - Sample loops continuously until the trigger note ends, STRETCH - Sample is time stretched to the trigger note length. |
-|                                                                               | PITCH / SPEED          | PITCH/SPEED               | Only when TYPE is Sample and a sample is loaded: Pitch / Speed controls the relationship between pitch and speed. LINKED - pitch change affects length, INDEPENDENT - pitch changes do not affect length                                                                                                                        |
-|                                                                               | INTERPOLATION          | INTERPOLATION             | Only when TYPE is Sample and a sample is loaded: Sample interpolation method used for pitch adjustment. Options are; SINC - high quality 16- point windowed sinc, LINEAR - Low quality linear interpolation                                                                                                                     |
+<FigurePending id="fig-4.6-1" page={91}>
+  Sub Category Parameter · Shortcut Button Access · Function · Options &
+  Description Waveform Options. Digital: Sine, Saw, Square, Triangle. Analog
+  Modelled: Analog Saw, Analog Square. Audio: Wavetable, Sample, IN (Expandable
+  to INL, INR, INLR) · TYPE\* · TYPE\* · LEVEL · LEVEL · Oscillator 1, or
+  Carrier 1 for FM level · Access to sound recorder to sample audio to use as
+  oscillator 1. Not available in FM synth. · OSCILLATOR RECORD AUDIO 1 · RECORD
+  · TRANSPOSE · TRANSPOSE · Semitones + cents for adjustment · CARRIER 1 (FM) ·
+  PULSE WIDTH · PW · Oscillator 1 pulse width. No PW available in FM Mode ·
+  FEEDBACK · FEEDBACK · FM synth option only · Phase in degrees that the
+  oscillator will be reset on note-on. Also can be switched off. Wavetable Only.
+  Navigation setting to select the cycle position in the wavetable file as the
+  oscillator sound source. Shortcut button only once a wavetable type is set. ·
+  RETRIGGER PHASE · RETRIG PHASE · WAVETABLE · WAVETABLE · Only available when
+  TYPE is Sample or Wavetable: Access to file browser to select audio or
+  wavetable file as oscillator 1 · FILE BROWSER · BROWSE · WAVEFORM then ‘green’
+  pad · Only when TYPE is Sample: Start time of sample in seconds with
+  millisecond adjustments · START-POINT · WAVEFORM then ‘red’ pad · END-POINT ·
+  Only when TYPE is Sample: End time of sample · OSCILLATOR 1 · Only when TYPE
+  is Sample: Manually time stretches sample to play faster or slower without
+  changing pitch. Not available if MODE is set to STRETCH in which case speed is
+  controlled by note length and tempo · SPEED · SPEED · CARRIER 1 (FM) · REVERSE
+  · REVERSE · Only when TYPE is Sample and a sample is loaded, reverses the
+  sample · Only when TYPE is Sample and a sample is loaded: Options are; ONCE -
+  Sample plays once all the way through, CUT - Sample aims to play all the way
+  through but will cut at the triggering note end, LOOP - Sample loops
+  continuously until the trigger note ends, STRETCH - Sample is time stretched
+  to the trigger note length. · Only when TYPE\* is Sample or Wavetable · REPEAT
+  MODE · MODE · Only when TYPE is Sample and a sample is loaded: Pitch / Speed
+  controls the relationship between pitch and speed. LINKED - pitch change
+  affects length, INDEPENDENT - pitch changes do not affect length · PITCH /
+  SPEED · PITCH/SPEED · Only when TYPE is Sample and a sample is loaded: Sample
+  interpolation method used for pitch adjustment. Options are; SINC - high
+  quality 16- point windowed sinc, LINEAR - Low quality linear interpolation ·
+  INTERPOLATION · INTERPOLATION
+</FigurePending>
 
-<span id="fig-4.6-1"></span>
+<FigurePending id="fig-4.6-2" page={92}>
+  Sub Category Parameter · Shortcut Button Access · Function · Options &
+  Description Waveform Options. Digital: Sine, Saw, Square, Triangle. Analog
+  Modelled: Analog Saw, Analog Square. Audio: Wavetable, Sample, IN (Expandable
+  to INL, INR, INLR) Oscillator 2, or carrier 2 (Car 2) for FM level. · TYPE\* ·
+  TYPE\* · LEVEL · LEVEL · Access to sound recorder to sample audio to use as
+  oscillator 2. Not available in FM mode. · RECORD AUDIO · RECORD · OSCILLATOR 2
+  · TRANSPOSE · TRANSPOSE · Semitones + cents for adjustment · CARRIER 2 (FM) ·
+  PULSE WIDTH · PW · Oscillator 2. No PW available in FM Mode · FEEDBACK ·
+  FEEDBACK · FM Synth option only · Switches on the synchronisation for
+  oscillator 2 which resets to trigger phase whenever oscillator 1 does. Phase
+  in degrees that the oscillator will be reset on note-on. Also can be switched
+  off. Wavetable Only. Navigation setting to select the cycle position in the
+  wavetable file as the oscillator sound source. Shortcut button available only
+  when a wavetable type is set. · SYNC · OSC SYNC · RETRIGGER PHASE RETRIG PHASE
+  · WAVETABLE · WAVETABLE · Only when TYPE is Sample: Access to file browser to
+  select audio file as oscillator 2 · FILE BROWSER · BROWSE · Only when TYPE is
+  Sample: Start time of sample in seconds with millisecond adjustments ·
+  START-POINT · END-POINT · Only when TYPE is Sample: End time of sample ·
+  OSCILLATOR 2 · Only when TYPE is Sample: Manually time stretches sample to
+  play faster or slower without changing pitch. Not available if MODE is set to
+  STRETCH in which case speed is controlled by note length and tempo · SPEED ·
+  SPEED · CARRIER 2 (FM) · REVERSE · REVERSE · Only when TYPE is Sample and a
+  sample is loaded, reverses the sample · Only when TYPE is Sample and a sample
+  is loaded: Options are; ONCE - Sample plays once all the way through, CUT -
+  Sample aims to play all the way through but will cut at the triggering note
+  end, LOOP - Sample loops continuously until the trigger note ends, STRETCH -
+  Sample is time stretched to the trigger note length. Only when TYPE is Sample
+  and a sample is loaded: Pitch / Speed controls the relationship between pitch
+  and speed. LINKED - pitch change affects length, INDEPENDENT - pitch changes
+  do not affect length · Only when TYPE is Sample or REPEAT MODE · MODE ·
+  Wavetable · PITCH / SPEED · PITCH/SPEED · Only when TYPE is Sample and a
+  sample is loaded: Sample interpolation method used for pitch adjustment.
+  Options are; SINC - high quality 16- point windowed sinc, LINEAR - Low quality
+  linear interpolation · INTERPOLATION · INTERPOLATION · TRANSPOSE · TRANSPOSE ·
+  Semitones + cents for adjustment · FM MODULATOR1 · Amount which the modulator
+  1 modulates the frequency of both Carrier 1 and Carrier 2. · AMOUNT · LEVEL ·
+  FEEDBACK · FEEDBACK · Sets the amount of feedback from / to the FM modulator 1
+  · FM Only · Phase in degrees that the oscillator will be reset on note-on.
+  Also can be switched off. · RETRIGGER PHASE RETRIG PHASE
+</FigurePending>
 
-| Function                                                                                                                                                                                 | Sub Category Parameter | Shortcut Button Access | Options & Description                                                                                                                                                                                                                                                                                                           |
-| ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| OSCILLATOR 2 CARRIER 2 (FM)                                                                                                                                                              | TYPE\*                 | TYPE\*                 | Waveform Options. Digital: Sine, Saw, Square, Triangle. Analog Modelled: Analog Saw, Analog Square. Audio: Wavetable, Sample, IN (Expandable to INL, INR, INLR)                                                                                                                                                                 |
-|                                                                                                                                                                                          | LEVEL                  | LEVEL                  | Oscillator 2, or carrier 2 (Car 2) for FM level.                                                                                                                                                                                                                                                                                |
-|                                                                                                                                                                                          | RECORD AUDIO           | RECORD                 | Access to sound recorder to sample audio to use as oscillator 2. Not available in FM mode.                                                                                                                                                                                                                                      |
-|                                                                                                                                                                                          | TRANSPOSE              | TRANSPOSE              | Semitones + cents for adjustment                                                                                                                                                                                                                                                                                                |
-|                                                                                                                                                                                          | PULSE WIDTH            | PW                     | Oscillator 2. No PW available in FM Mode                                                                                                                                                                                                                                                                                        |
-|                                                                                                                                                                                          | FEEDBACK               | FEEDBACK               | FM Synth option only                                                                                                                                                                                                                                                                                                            |
-|                                                                                                                                                                                          | SYNC                   | OSC SYNC               | Switches on the synchronisation for oscillator 2 which resets to trigger phase whenever oscillator 1 does.                                                                                                                                                                                                                      |
-|                                                                                                                                                                                          | RETRIGGER PHASE        | RETRIG PHASE           | Phase in degrees that the oscillator will be reset on note-on. Also can be switched off.                                                                                                                                                                                                                                        |
-| WAVETABLE FILE BROWSER START-POINT END-POINT OSCILLATOR 2<br />SPEED CARRIER 2<br />REVERSE (FM)<br />Only when TYPE is Sample or REPEAT MODE Wavetable<br />PITCH / SPEED INTERPOLATION |                        | WAVETABLE              | Wavetable Only. Navigation setting to select the cycle position in the wavetable file as the oscillator sound source. Shortcut button available only when a wavetable type is set.                                                                                                                                              |
-|                                                                                                                                                                                          | FILE BROWSER           | BROWSE                 | Only when TYPE is Sample: Access to file browser to select audio file as oscillator 2                                                                                                                                                                                                                                           |
-|                                                                                                                                                                                          | START-POINT            |                        | Only when TYPE is Sample: Start time of sample in seconds with millisecond adjustments                                                                                                                                                                                                                                          |
-|                                                                                                                                                                                          | END-POINT              |                        | Only when TYPE is Sample: End time of sample                                                                                                                                                                                                                                                                                    |
-|                                                                                                                                                                                          | SPEED                  | SPEED                  | Only when TYPE is Sample: Manually time stretches sample to play faster or slower without changing pitch. Not available if MODE is set to STRETCH in which case speed is controlled by note length and tempo                                                                                                                    |
-|                                                                                                                                                                                          | REVERSE                | REVERSE                | Only when TYPE is Sample and a sample is loaded, reverses the sample                                                                                                                                                                                                                                                            |
-|                                                                                                                                                                                          | REPEAT MODE            | MODE                   | Only when TYPE is Sample and a sample is loaded: Options are; ONCE - Sample plays once all the way through, CUT - Sample aims to play all the way through but will cut at the triggering note end, LOOP - Sample loops continuously until the trigger note ends, STRETCH - Sample is time stretched to the trigger note length. |
-|                                                                                                                                                                                          | PITCH / SPEED          | PITCH/SPEED            | Only when TYPE is Sample and a sample is loaded: Pitch / Speed controls the relationship between pitch and speed. LINKED - pitch change affects length, INDEPENDENT - pitch changes do not affect length                                                                                                                        |
-|                                                                                                                                                                                          | INTERPOLATION          | INTERPOLATION          | Only when TYPE is Sample and a sample is loaded: Sample interpolation method used for pitch adjustment. Options are; SINC - high quality 16- point windowed sinc, LINEAR - Low quality linear interpolation                                                                                                                     |
-| FM<br />MODULATOR1 FM Only                                                                                                                                                               | TRANSPOSE              | TRANSPOSE              | Semitones + cents for adjustment                                                                                                                                                                                                                                                                                                |
-|                                                                                                                                                                                          | AMOUNT                 | LEVEL                  | Amount which the modulator 1 modulates the frequency of both Carrier 1 and Carrier 2.                                                                                                                                                                                                                                           |
-|                                                                                                                                                                                          | FEEDBACK               | FEEDBACK               | Sets the amount of feedback from / to the FM modulator 1                                                                                                                                                                                                                                                                        |
-|                                                                                                                                                                                          | RETRIGGER PHASE        | RETRIG PHASE           | Phase in degrees that the oscillator will be reset on note-on. Also can be switched off.                                                                                                                                                                                                                                        |
+| Function    | Sub Category Parameter TRANSPOSE | Shortcut Button Access TRANSPOSE | Options & Description Semitones + cents for adjustment                                                                                                                                                                                                                                                                                 |
+| ----------- | -------------------------------- | -------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| FM          | AMOUNT                           | LEVEL                            | Amount which the modulator 1 modulates the frequency of both Carrier 1 and Carrier 2.                                                                                                                                                                                                                                                  |
+| MODULATOR   |                                  |                                  |                                                                                                                                                                                                                                                                                                                                        |
+| 2           | FEEDBACK                         | FEEDBACK                         | Sets the amount of feedback from / to the FM modulator 2                                                                                                                                                                                                                                                                               |
+| FM Only     | RETRIGGER PHASE                  | RETRIG PHASE                     | Phase in degrees that the oscillator will be reset on note-on. Also can be switched off. Destination carrier for MOD 2 modulator 2, CARR - Both carriers, MOD1 -                                                                                                                                                                       |
+| NOISE LEVEL | DESTINATION                      | DESTINATION NOISE                | modulator 1 Noise amount in subtractive synths (including sample and wavetable)                                                                                                                                                                                                                                                        |
+| MASTER      |                                  | TRANSPOSE                        | Overall master transposition of synth in semitones                                                                                                                                                                                                                                                                                     |
+| TRANSPOSE   |                                  |                                  |                                                                                                                                                                                                                                                                                                                                        |
+| VIBRATO     | VIBRATO FREQUENCY                | VIBRATO FREQUENCY                | Depth of modulation between LFO1 and pitch on the leader Cutoff frequency for subtractive synths (including sample and wavetable)                                                                                                                                                                                                      |
+| LPF         | RESONANCE MODE MORPH             | RESONANCE DB/OCT Y under DB/OCT  | Resonance for subtractive synths (including sample and wavetable) Switches LPF type between 12dB per Octave Ladder, 24dB per octave Ladder, and Drive filter (24dB per octave with saturation), State Variable Filter Bandpass and State Variable Filter Notch Adjusts smoothly from 0 lowpass -&gt; bandpass/notch -&gt; highpass 50. |
+| HPF         | FREQUENCY RESONANCE MODE         | FREQUENCY RESONANCE DB/OCT       | Cutoff frequency for subtractive synths (including sample and wavetable) Resonance for subtractive synths (including sample and wavetable) Switches HPF type between HP Ladder, State Variable Filter Bandpass and State Variable Filter Notch                                                                                         |
+| FILTER      | MORPH                            | U under DB/OCT                   | Adjusts smoothly from 0 highpass -&gt; bandpass/notch -&gt; lowpass 50. HPF to LPF, LPF to HPF, or PARALLEL                                                                                                                                                                                                                            |
+| ROUTE       |                                  |                                  |                                                                                                                                                                                                                                                                                                                                        |
+| SYNTH MODE  |                                  | SYNTH MODE                       | Mode of synthesizer: Subtractive, RingMod or FM.                                                                                                                                                                                                                                                                                       |
 
-<span id="fig-4.6-2"></span>
+<FigurePending id="fig-4.6-3" page={94}>
+  Function · Sub Category Parameter ATTACK · Shortcut Button Access ATTACK ·
+  Options & Description Attack time for ADSR envelope 1. Default to volume
+  amplitude plus an additional optional patch destination Decay time for ADSR
+  envelope 1. Default to volume amplitude plus an additional optional patch
+  destination Sustain Level for ADSR envelope 1. Default to volume amplitude
+  plus an additional optional patch destination Release time for ADSR envelope
+  1. Default to volume amplitude plus an additional optional patch destination
+  Attack time for ADSR envelope 2. Optional patch destinations · DECAY · DECAY ·
+  ENVELOPE 1 · SUSTAIN · SUSTAIN · RELEASE · RELEASE · ATTACK · ATTACK · DECAY ·
+  DECAY · Decay time for ADSR envelope 2. Optional patch destinations · ENVELOPE
+  2 · SUSTAIN · SUSTAIN · Sustain Level for ADSR envelope 2. Optional patch
+  destinations · RELEASE · RELEASE · Release time for ADSR envelope 2. Optional
+  patch destinations Waveform options: SINE, SAW, SQUARE, TRIANGLE, S&H, RANDOM
+  WALK. · SHAPE · SHAPE · LFO 1 · RATE · RATE · Speed of LFO · All Voices. Does
+  not re-trigger. · Time interval to sync the LFO or OFF. Options 2 bar, 1 bar,
+  2nd, 4th, 8th, 16th, 32nd, 64th, 128th. Also 2/3 Dotted DTTED and 3/2 Triplet
+  TPLTS options are available for selection. Waveform options: SINE, SAW,
+  SQUARE, TRIANGLE, S&H, RANDOM WALK. · SYNC · SYNC · LFO 2 · SHAPE · SHAPE ·
+  Each Voice. Re-triggers at note on · RATE · RATE · Speed of LFO · POLYPHONIC,
+  MONOPHONIC, AUTO - monophonic with chord functionality, LEGATO connected /
+  tied, Choke group settings for kits only. · POLYPHONY · POLYPHONY · NUMBER ·
+  Number of voices to play together in unison. · UNISON · DETUNE · Sets how
+  detuned the voices will be from each other in unison · STEREO SPREAD · Spreads
+  the unison range across the stereo field. · PORTAMENTO · PORTA · Sets amount
+  of note portamento (pitch slide) · VOICE · MODE · Option to set the arp to
+  Off, Up, Down, Both or Random · Time interval to sync the arp or OFF. Options
+  2 bar, 1 bar, 2nd, 4th, 8th, 16th, 32nd, 64th, 128th. Also 2/3 Dotted DTTED
+  and 3/2 Triplet TPLTS options are available for selection. · SYNC · NUMBER OF
+  OCTAVES · ARPEGGIATOR · Number of octave range of arpeggiator.1-8 · GATE ·
+  Amount in % of the available time division which each arp note fills · RATE ·
+  Rate / speed of arpeggiator · Enables prioritisation of sound so voices remain
+  or are turned off at high CPU loading. LOW, MEDIUM, HIGH options. · PRIORITY ·
+  PRIORITY
+</FigurePending>
 
-| Function                         | Sub Category Parameter | Shortcut Button Access | Options & Description                                                                                         |
-| -------------------------------- | ---------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------- |
-| FM<br />MODULATOR 2<br />FM Only | TRANSPOSE              | TRANSPOSE              | Semitones + cents for adjustment                                                                              |
-|                                  | AMOUNT                 | LEVEL                  | Amount which the modulator 1 modulates the frequency of both Carrier 1 and Carrier 2.                         |
-|                                  | FEEDBACK               | FEEDBACK               | Sets the amount of feedback from / to the FM modulator 2                                                      |
-|                                  | RETRIGGER PHASE        | RETRIG PHASE           | Phase in degrees that the oscillator will be reset on note-on. Also can be switched off.                      |
-|                                  | DESTINATION            | DESTINATION            | Destination carrier for MOD 2 modulator 2, CARR - Both carriers, MOD1 - modulator 1                           |
-| NOISE LEVEL                      |                        | NOISE                  | Noise amount in subtractive synths (including sample and wavetable)                                           |
-| MASTER TRANSPOSE                 |                        | TRANSPOSE              | Overall master transposition of synth in semitones                                                            |
-| VIBRATO                          | VIBRATO                | VIBRATO                | Depth of modulation between LFO1 and pitch on the leader                                                      |
-| LPF                              | FREQUENCY              | FREQUENCY              | Cutoff frequency for subtractive synths (including sample and wavetable)                                      |
-|                                  | RESONANCE              | RESONANCE              | Resonance for subtractive synths (including sample and wavetable)                                             |
-|                                  | MODE                   | DB/OCT                 | Switches LPF type between 12dB per Octave, 24dB per octave and DRIVe filter (24dB per octave with saturation) |
-| HPF                              | FREQUENCY              | FREQUENCY              | Cutoff frequency for subtractive synths (including sample and wavetable)                                      |
-|                                  | RESONANCE              | RESONANCE              | Resonance for subtractive synths (including sample and wavetable)                                             |
-| SYNTH MODE                       |                        | SYNTH MODE             | Mode of synthesizer: Subtractive, RingMod or FM.                                                              |
-| ENVELOPE 1                       | ATTACK                 | ATTACK                 | Attack time for ADSR envelope 1. Default to volume amplitude plus an additional optional patch destination    |
-|                                  | DECAY                  | DECAY                  | Decay time for ADSR envelope 1. Default to volume amplitude plus an additional optional patch destination     |
-|                                  | SUSTAIN                | SUSTAIN                | Sustain Level for ADSR envelope 1. Default to volume amplitude plus an additional optional patch destination  |
-|                                  | RELEASE                | RELEASE                | Release time for ADSR envelope 1. Default to volume amplitude plus an additional optional patch destination   |
-| ENVELOPE 2                       | ATTACK                 | ATTACK                 | Attack time for ADSR envelope 2. Optional patch destinations                                                  |
-|                                  | DECAY                  | DECAY                  | Decay time for ADSR envelope 2. Optional patch destinations                                                   |
-|                                  | SUSTAIN                | SUSTAIN                | Sustain Level for ADSR envelope 2. Optional patch destinations                                                |
-|                                  | RELEASE                | RELEASE                | Release time for ADSR envelope 2. Optional patch destinations                                                 |
+<FigurePending id="fig-4.6-4" page={95}>
+  Function · Sub Category Parameter · Shortcut Button Access · Options &
+  Description · TYPE · Type of effect or OFF. Type includes FLANGER, CHORUS,
+  PHASER. · RATE · Speed of modulation effect · MOD-FX · FEEDBACK · Flanger &
+  phaser feedback · DEPTH · Depth of chorus and phaser · OFFSET · Chorus offset
+  · ADJUST (BASS) · Amount of bass at the frequency set · ADJUST (TREBLE) ·
+  Amount of treble at the frequency set · EQ · FREQUENCY (BAFR no label) ·
+  Frequency setting for bass · FREQUENCY (TRFR no label) · Frequency setting for
+  treble · AMOUNT · Delay effect and combined feedback · RATE · Rate of delay ·
+  FX · Switches between PING-PONG stereo delay (ON) and traditional delay (OFF)
+  · PINGPONG · DELAY · TYPE · DIGITAL or ANALOG delay · Time interval to sync
+  the Delay or OFF. Options 2 bar, 1 bar, 2nd, 4th, 8th, 16th, 32nd, 64th,
+  128th. Also 2/3 Dotted DTTED and 3/2 Triplet TPLTS options are available for
+  selection. Amount of reverb applied · SYNC · AMOUNT · ROOM SIZE · Room size
+  applied to the whole song · DAMPENING · Dampening of the reverb effect ·
+  REVERB · WIDTH · Stereo width setting · PAN · Enables panning to one side or
+  the other. · REVERB SIDECHAIN Sidechain compressor specific to the reverb
+  output · SATURATION · SATURATION · Distortion effect · DECIMATION · DECIMATION
+  · Decimation distortion effect · BITCRUSH · BITCRUSH · Distortion bitcrusher
+</FigurePending>
 
-<span id="fig-4.6-3"></span>
-
-| Function                                      | Sub Category Parameter | Shortcut Button Access | Options & Description                                                                                                            |
-| --------------------------------------------- | ---------------------- | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| LFO 1<br />All Voices. Does not re-trigger.   | SHAPE                  | SHAPE                  | Waveform options: SINE, SAW, SQUARE, TRIANGLE.                                                                                   |
-|                                               | RATE                   | RATE                   | Speed of LFO                                                                                                                     |
-|                                               | SYNC                   | SYNC                   | Time interval to sync the LFO or OFF. Options 2 bar, 1 bar, 2nd, 4th, 8th, 16th, 32nd, 64th, 128th                               |
-| LFO 2<br />Each Voice. Re-triggers at note on | SHAPE                  | SHAPE                  | Waveform Options: SINE, SAW, SQUARE, TRIANGLE.                                                                                   |
-|                                               | RATE                   | RATE                   | Speed of LFO                                                                                                                     |
-| VOICE                                         | POLYPHONY              | POLYPHONY              | POLYPHONIC, MONOPHONIC, AUTO - monophonic with chord functionality, LEGATO connected / tied, Choke group settings for kits only. |
-|                                               | UNISON                 | NUMBER                 | Number of voices to play together in unison                                                                                      |
-|                                               |                        | DETUNE                 | Sets how detuned the voices will be from each other in unison                                                                    |
-|                                               | PORTAMENTO             | PORTA                  | Sets amount of note portamento (pitch slide)                                                                                     |
-|                                               | ARPEGGIATOR            | MODE                   | Option to set the arp to Off, Up, Down, Both or Random                                                                           |
-|                                               |                        | SYNC                   | Time interval to sync the arp or OFF. Options 2 bar, 1 bar, 2nd, 4th, 8th, 16th, 32nd, 64th, 128th                               |
-|                                               |                        | NUMBER OF OCTAVES      | Number of octave range of arpeggiator.1-8                                                                                        |
-|                                               |                        | GATE                   | Amount in % of the available time division which each arp note fills                                                             |
-|                                               |                        | RATE                   | Rate / speed of arpeggiator                                                                                                      |
-|                                               | PRIORITY               | PRIORITY               | Enables prioritisation of sound so voices remain or are turned off at high CPU loading. LOW, MEDIUM, HIGH options.               |
-
-<span id="fig-4.6-4"></span>
-
-| Function | Sub Category Parameter | Shortcut Button Access    | Options & Description                                                                                |
-| -------- | ---------------------- | ------------------------- | ---------------------------------------------------------------------------------------------------- |
-| FX       | MOD-FX                 | TYPE                      | Type of effect or OFF. Type includes FLANGER, CHORUS, PHASER.                                        |
-|          |                        | RATE                      | Speed of modulation effect                                                                           |
-|          |                        | FEEDBACK                  | Flanger & phaser feedback                                                                            |
-|          |                        | DEPTH                     | Depth of chorus and phaser                                                                           |
-|          |                        | OFFSET                    | Chorus offset                                                                                        |
-|          | EQ                     | ADJUST (BASS)             | Amount of bass at the frequency set                                                                  |
-|          |                        | ADJUST (TREBLE)           | Amount of treble at the frequency set                                                                |
-|          |                        | FREQUENCY (BAFR no label) | Frequency setting for bass                                                                           |
-|          |                        | FREQUENCY (TRFR no label) | Frequency setting for treble                                                                         |
-|          |                        | AMOUNT                    | Delay effect and combined feedback                                                                   |
-|          |                        | RATE                      | Rate of delay                                                                                        |
-|          |                        | PINGPONG                  | Switches between PING-PONG stereo delay (ON) and traditional delay (OFF)                             |
-|          |                        | TYPE                      | DIGITAL or ANALOG delay                                                                              |
-|          |                        | SYNC                      | Time interval to sync the Delay or OFF. Options 2 bar, 1 bar, 2nd, 4th, 8th, 16th, 32nd, 64th, 128th |
-|          | REVERB                 | AMOUNT                    | Amount of reverb applied                                                                             |
-|          |                        | ROOM SIZE                 | Room size applied to the whole song                                                                  |
-|          |                        | DAMPENING                 | Dampening of the reverb effect                                                                       |
-|          |                        | WIDTH                     | Stereo width setting                                                                                 |
-|          |                        | PAN                       | Enables panning to one side or the other.                                                            |
-|          |                        | REVERB SIDECHAIN          | Sidechain compressor specific to the reverb output                                                   |
-|          | SATURATION             | SATURATION                | Distortion effect                                                                                    |
-|          | DECIMATION             | DECIMATION                | Decimation distortion effect                                                                         |
-|          | BITCRUSH               | BITCRUSH                  | Distortion bitcrusher                                                                                |
-
-<span id="fig-4.6-5"></span>
-
-| Function                | Sub Category Parameter | Quick Button Access             | Options & Description                                                                                                          |
-| ----------------------- | ---------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| SIDECHAIN COMPRESSOR    | VOLUME DUCKING         | VOL DUCK                        | Amount the sidechain compressor affects the sound volume creating ducking. Also configurable to patch / connect as modulation. |
-|                         | SYNC                   | SYNC                            | Time interval to sync the sidechain compressor or OFF. Options 2 bar, 1 bar, 2nd, 4th, 8th, 16th, 32nd, 64th, 128th            |
-|                         | ATTACK                 | ATTACK                          | Attack - ramp up time of the compressor                                                                                        |
-|                         | RELEASE                | RELEASE                         | Release - ramp down time of the compressor release                                                                             |
-|                         | SHAPE                  | SHAPE                           | Adjust the shape of the compressor to add more punch or reduce the transient effect for a more gentle subtle sound             |
-|                         | SEND                   | SEND                            | Kit sounds only. Level this current sound triggers all of the other sidechain compressors in other sounds.                     |
-| BEND RANGE              | NORMAL                 |                                 | Normal pitch bend range in semitones for the Synth or CV clip. Typically this is the pitch bend wheel of a controller.         |
-|                         | POLY / FINGER / MPE    |                                 | MPE pitch bend range in semitones for the Synth or CV clip. Typically this using two finger MPE expression. Default 48.        |
-| LEVEL                   |                        | LEVEL (Master)                  | Level of the clip                                                                                                              |
-| PAN<br />Output Balance |                        | PAN                             | Left / right balance of the sound. 32L - 0 - 32R                                                                               |
-| DIRECTION Direction     |                        | DIRECTION (may not be labelled) | Playback direction of sequencer. FORWARD, REVERSE or PINGPONG.                                                                 |
+| Function       | Sub Category Parameter VOLUME DUCKING | Quick Button Access VOL DUCK | Options & Description Amount the sidechain compressor affects the sound volume creating ducking. Also configurable to patch / connect as modulation.                                                                                                                                                                                                      |
+| -------------- | ------------------------------------- | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| SIDECHAIN      | SYNC ATTACK                           | SYNC ATTACK                  | Time interval to sync the sidechain compressor or OFF. Options 2 bar, 1 bar, 2nd, 4th, 8th, 16th, 32nd, 64th, 128th Attack - ramp up time of the compressor                                                                                                                                                                                               |
+| COMPRESSOR     | RELEASE SHAPE                         | RELEASE SHAPE                | Release - ramp down time of the compressor release Adjust the shape of the compressor to add more punch or reduce the transient effect for a more gentle subtle sound                                                                                                                                                                                     |
+| BEND RANGE     | SEND NORMAL POLY / FINGER / MPE       | SEND                         | Kit sounds only. Level this current sound triggers all of the other sidechain compressors in other sounds. Normal pitch bend range in semitones for the Synth or CV clip. Typically this is the pitch bend wheel of a controller. MPE pitch bend range in semitones for the Synth or CV clip. Typically this using two finger MPE expression. Default 48. |
+| LEVEL          |                                       | LEVEL (Master)               | Level of the clip                                                                                                                                                                                                                                                                                                                                         |
+| PAN            |                                       | PAN                          | Left / right balance of the sound. 32L - 0 - 32R                                                                                                                                                                                                                                                                                                          |
+| Output Balance |                                       |                              |                                                                                                                                                                                                                                                                                                                                                           |
+| DIRECTION      |                                       | DIRECTION (may not be        | Playback direction of sequencer. FORWARD, REVERSE or PINGPONG.                                                                                                                                                                                                                                                                                            |
+| Direction      |                                       | labelled)                    |                                                                                                                                                                                                                                                                                                                                                           |

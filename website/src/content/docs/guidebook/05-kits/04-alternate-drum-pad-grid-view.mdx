@@ -1,0 +1,51 @@
+---
+title: "5.4 Alternate Drum Pad Grid View"
+description: "While a kit can contain drum and synth sounds it is normally recognised that kits are typically associated with drum kits."
+sidebar:
+  order: 3
+banner:
+  content: "From the Deluge Manual \u2013 Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+guidebook:
+  section: "5.4"
+  chapter: 5
+  pdfPages: [134, 135]
+  printedPages: [128, 129]
+  firmware: "C1.0.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import { Steps } from "@astrojs/starlight/components"
+import StepFocus from "../../../../components/guidebook/StepFocus.astro"
+import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+While a kit can contain drum and synth sounds it is normally recognised that kits are typically associated with drum kits. An alternate view presents the grid layout as MPC style drum pad zones using KEYBOARD when in KIT mode.
+
+<FigurePending id="fig-5.4-1" page={128}>
+  Notes to trigger the kit’s sounds can be played on drum pads, laid out as a
+  series of 4 x 4 pads, each cluster controlling the sound and each pad
+  controlling the velocity. · This is available by pressing [KEYBOARD] when in
+  Kit View · Sound 8 · Sound 5 · Sound · Sound · Sound 8 · Sound 5 · Sound 4 ·
+  Sound 1 · Sound · Sound · Sound 4 · Sound 1 · The kit sounds are mapped across
+  the pad zones with velocity per individual pad. The drum pad zones are
+  represented by the colour. · Audition pad · The Drum pad size can be adjusted
+  from the default 4x4 range. · Velocity High · Default · Velocity Low
+</FigurePending>
+
+<StepFocus />
+
+### Selecting grid pad view
+
+<Steps>
+
+1. Press :key[Clip] to select clip view. Clip button illuminates blue.
+2. Press :key[Kit], the button will be lit red.
+3. Press :key[Keyboard], the button will be lit blue,
+4. The grid will be presented in a colour coded drum pad style with 8 zones, each configured with 4 x 4 pads.
+5. To scroll the kit pad zones one at a time, :key[Turn Horizontal].
+6. To jump vertically the kit pad zones, :key[Turn Vertical].
+7. Tap a pad zone to play one of the 8 sounds. The 16 levels of velocity run from lowest velocity is bottom left pad and increases to the right and up the grid to the highest level top left. Each pad zone plays a kit sound, each pad within the zone represents the sound velocity level.
+
+</Steps>

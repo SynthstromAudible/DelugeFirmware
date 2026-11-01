@@ -4,7 +4,7 @@ description: "Deluge has a distortion effect with three variants which all intro
 sidebar:
   order: 2
 banner:
-  content: "From the Deluge Manual – Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+  content: "From the Deluge Manual \u2013 Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
 guidebook:
   section: "11.3"
   chapter: 11
@@ -15,8 +15,9 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import StepFocus from "../../../../components/guidebook/StepFocus.astro"
 import { Steps } from "@astrojs/starlight/components"
+import StepFocus from "../../../../components/guidebook/StepFocus.astro"
+import FigurePending from "../../../../components/guidebook/FigurePending.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -40,6 +41,18 @@ Reduces the bit-depth of the audio, introducing sharp corners to the waveform. H
 
 AMOUNT: 0-50.
 
+#### Wavefold
+
+Pre-filter wave folding distortion. The depth can be patched and automated. The effect is removed from the signal path when set to 0 and has no effect. Use with sine and triangle waves as the effect is minimal on square waves.
+
+Note that wavefold is accessible via an unlabelled shortcut pad located between SATURATION and LPF FREQ pads.
+
+<FigurePending id="fig-11.3-1" page={245}>
+  WAVEFOLD
+</FigurePending>
+
+AMOUNT: 0-50.
+
 <StepFocus />
 
 ### Setting sound level distortion effect amount
@@ -47,7 +60,7 @@ AMOUNT: 0-50.
 <Steps>
 
 1. :key[Clip] view, ensure the clip is in-focus.
-2. Press :key[Shift + Decimation Pad], This is also applicable with :key[Bitcrush Pad] or :key[Saturation Pad] effects.
+2. Press :key[Shift + Decimation Pad], This is also applicable with :key[Bitcrush Pad] or :key[Saturation Pad] or ‘WAVEFOLD’ effects. Wavefold is accessed as an unlabelled shortcut located on the pad to the right of the ‘SATURATION’ Pad
 3. :key[Turn Select] to adjust the amount of distortion. Be careful with volume levels when adding distortion.
 
 </Steps>
@@ -59,7 +72,7 @@ or
 1. :key[Clip] view, ensure the clip is in-focus.
 2. Access the effects within the menu. Press :key[Select].
 3. Navigate in the menu to the FX section and press :key[Select].
-4. Select either ‘SATURATION’, ‘DECIMATION’, or ‘BITCRUSH’ and press :key[Select].
+4. Select either ‘SATURATION’, ‘DECIMATION’, ‘BITCRUSH’ or ‘WAVEFOLD’ and press :key[Select].
 5. Adjust the amount, :key[Turn Select] to change the parameter for the selected effect.
 
 </Steps>

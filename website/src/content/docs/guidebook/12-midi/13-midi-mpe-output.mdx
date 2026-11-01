@@ -4,7 +4,7 @@ description: "Connecting MIDI with USB or MIDI DIN Output connections allows Del
 sidebar:
   order: 12
 banner:
-  content: "From the Deluge Manual – Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+  content: "From the Deluge Manual \u2013 Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
 guidebook:
   section: "12.13"
   chapter: 12
@@ -22,3 +22,7 @@ Connecting MIDI with USB or MIDI DIN Output connections allows Deluge to control
 MIDI Clips that have recorded MPE MIDI from an external controller retain the expression values and therefore can play these back to the external MPE synth from the Deluge MIDI out.
 
 Remember that MPE devices should be configured to match using the ‘Upper’ and ‘Lower’ Zones. Deluge sends MCM messages when changing the output zone or when powering up to a MPE compatible connected device. Standard MIDI channels will not be used when in this configuration.
+
+#### Handling of MPE expression
+
+Handling of MPE expression when collapsed to a single MIDI channel operates slightly differently in the community firmware as opposed to the original Synthstrom firmware. Previously Y axis would still be sent as CC74 on single MIDI channels. This changes it to send CC1 instead, allowing for controllable behaviour on more non-MPE synths.

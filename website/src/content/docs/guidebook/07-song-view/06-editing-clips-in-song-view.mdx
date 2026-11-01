@@ -4,7 +4,7 @@ description: "Song view also provides the functionality to edit certain features
 sidebar:
   order: 5
 banner:
-  content: "From the Deluge Manual – Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+  content: "From the Deluge Manual \u2013 Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
 guidebook:
   section: "7.6"
   chapter: 7
@@ -15,10 +15,9 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import StepFocus from "../../../../components/guidebook/StepFocus.astro"
 import { Steps } from "@astrojs/starlight/components"
-import Figure from "../../../../components/guidebook/Figure.astro"
-import fig_fig_7_6_1 from "../../../../assets/guidebook/figs/07-song-view__06-editing-clips-in-song-view--1.svg?raw"
+import StepFocus from "../../../../components/guidebook/StepFocus.astro"
+import FigurePending from "../../../../components/guidebook/FigurePending.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -30,22 +29,24 @@ Song view also provides the functionality to edit certain features of clips from
 
 <Steps>
 
-1. Press :key[Song] to switch to song view.
-2. Press & hold a :key[Pad] within the clip row to check.
-3. While still holding, the instrument button will flash indicating the type selected and the display will show the instrument preset. For example synth, preset 001 SYNC BASS
+1. Press :key[Song] to switch to song view. If in Song grid view the blue edit mode will need to be active.
+2. Press & hold a :key[Pad] within the clip to check.
+3. While still holding, the instrument button will flash indicating the type selected and the display will show the instrument preset. For example synth, preset SYNT001
 4. Affect parameters for the clip also become available and in-focus.
 5. Holding a clip in an empty clip row will show the instrument type and preset that it will create when tapping the clip row.
 
 </Steps>
 
-<Figure id="fig-7.6-1" src={fig_fig_7_6_1} alt={"Diagram: [PAD]"} page={170} />
+<FigurePending id="fig-7.6-1" page={170}>
+  [PAD] Press & hold pad for clip to show the instrument and preset for the clip
+</FigurePending>
 
 ### Changing the clips instrument from song view
 
 <Steps>
 
-1. Press :key[Song] to switch to song view.
-2. Press & hold a :key[Pad] within the clip row to change.
+1. Press :key[Song] to switch to song view. If in Song grid view the blue edit mode will need to be active.
+2. Press & hold a :key[Pad] within the clip to change.
 3. While still holding, select the instrument type, example :key[Synth], :key[Kit].
 4. While still holding, select the instrument preset by turning :key[Select].
 5. Holding a clip in an empty clip row will also allow changes to be made.
@@ -56,10 +57,10 @@ Song view also provides the functionality to edit certain features of clips from
 
 <Steps>
 
-1. Press :key[Song] to switch to song view.
-2. Press & hold a :key[Pad] within the clip row. This can be either an existing or blank row. The instrument button will flash indicating the type selected and display will show the preset or MIDI/CV Channel.
+1. Press :key[Song] to switch to song view. If in Song grid view the blue edit mode will need to be active.
+2. Press & hold a :key[Pad] within the clip row. This can be either an existing or blank pad. The instrument button will flash indicating the type selected and display will show the preset or MIDI/CV Channel.
 3. While still holding the pad, press :key[Select].
-4. The track will be converted to an audio clip and the display will show the name, example: ‘AUDIO1’. If notes exist and indicator is displayed and the clip wont be converted.
+4. The track will be converted to an audio clip and the display will show the name, example: ‘AUDIO1’. If note steps exist and indicator is displayed and the clip wont be converted.
 5. Selecting the audio clip will allow audio to be loaded, recorded, edited.
 
 </Steps>
@@ -68,19 +69,9 @@ Song view also provides the functionality to edit certain features of clips from
 
 <Steps>
 
-1. Press :key[Song] to switch to song view.
-2. Press & hold a :key[Pad] of the clip row to delete + press :key[Save].
-3. The clip will be deleted and the row above moved down. Undo / redo functions are not available.
-
-</Steps>
-
-### Moving a clip row from within song view
-
-<Steps>
-
-1. Press :key[Song] to switch to song view.
-2. Press & hold a :key[Pad] within the clip row to move + :key[Turn Vertical].
-3. The clip will be relocated into a different row relative to the other clips.
+1. Press :key[Song] to switch to song view. If in Song grid view the blue edit mode will need to be active.
+2. Press & hold a :key[Pad] of the clip to delete + press :key[Save].
+3. The clip will be deleted. In song row view, the row above is moved down. Undo / redo functions are not available.
 
 </Steps>
 
@@ -94,9 +85,9 @@ Song view also provides the functionality to edit certain features of clips from
 
 </Steps>
 
-### Unlinking cloned clips when using same preset
+### Unlinking cloned clips when using the same preset
 
-Clips with the same preset cannot be used multiple times within multiple instruments in the same song. If a preset is already in use, the preset can be unlinked from its “original” creating an independent version. Example, to reuse preset 10, a new unlinked version, can be created as 10A. This allows multiple clips with the same preset.
+Clips with the same preset cannot be used multiple times within multiple instruments in the same song. If a preset is already in use, the preset can be unlinked from its “original” to create an independent version. Example, to reuse preset 10, a new unlinked version, can be created as 10A.
 
 <Steps>
 
@@ -114,8 +105,8 @@ Clips with the same preset cannot be used multiple times within multiple instrum
 <Steps>
 
 1. Press :key[Song] to switch to song view.
-2. Press & hold a :key[Pad] within the clip row of which to change the parameters.
+2. Press & hold a :key[Pad] within the clip row of which to edit the parameters.
 3. While still holding, the affect parameter functions will be accessible.
-4. The 8 parameter buttons can be changes and the associated :key[Upper Gold] and :key[Lower Gold] controls adjusted while ever the :key[Pad] is held in song view.
+4. The 8 parameter buttons can be changed and the associated :key[Upper Gold] and :key[Lower Gold] controls adjusted while ever the :key[Pad] is held.
 
 </Steps>

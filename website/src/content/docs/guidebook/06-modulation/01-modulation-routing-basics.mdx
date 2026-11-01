@@ -4,7 +4,7 @@ description: "Parameters within Deluge can be connected / patched to modulation 
 sidebar:
   order: 0
 banner:
-  content: "From the Deluge Manual – Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+  content: "From the Deluge Manual \u2013 Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
 guidebook:
   section: "6.1"
   chapter: 6
@@ -15,12 +15,9 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import StepFocus from "../../../../components/guidebook/StepFocus.astro"
 import { Steps } from "@astrojs/starlight/components"
-import Figure from "../../../../components/guidebook/Figure.astro"
-import fig_fig_6_1_1 from "../../../../assets/guidebook/figs/06-modulation__01-modulation-routing-basics--1.svg?raw"
-import fig_fig_6_1_2 from "../../../../assets/guidebook/figs/06-modulation__01-modulation-routing-basics--2.svg?raw"
-import fig_fig_6_1_3 from "../../../../assets/guidebook/figs/06-modulation__01-modulation-routing-basics--3.svg?raw"
+import StepFocus from "../../../../components/guidebook/StepFocus.astro"
+import FigurePending from "../../../../components/guidebook/FigurePending.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -30,18 +27,28 @@ Parameters within Deluge can be connected / patched to modulation sources. Multi
 
 There are several modulation sources which are available through the nested menu sound editor. They are also directly accessible from the grid.
 
-<Figure
-  id="fig-6.1-3"
-  src={fig_fig_6_1_3}
-  alt={
-    "Diagram: X - horizontal control* Y - vertical control* ENV 1 - envelope 1 ENV 2 - envelope 2 LFO 1 LFO 2 SIDECHAIN. Compressor patchable to…"
-  }
-  page={132}
-/>
+| X - horizontal control\*                   | Y - vertical control\*                                                                                                                               |
+| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ENV 1 - envelope 1                         | ENV 2 - envelope 2                                                                                                                                   |
+| LFO 1                                      | LFO 2 SIDECHAIN.                                                                                                                                     |
+| When a parameter is selected which is      | Compressor patchable to anything.                                                                                                                    |
+| already patched to a source, the specific  | NOTE. Keyboard tracking where sounds                                                                                                                 |
+| source grid buttons will flash slowly. The | reflect high / low of keyboard.                                                                                                                      |
+| selected parameter pad will flash quickly. |                                                                                                                                                      |
+| :key[Shift + Modulation Pad]               | RANDOM. A random number generator each                                                                                                               |
+| while the source is selected and flashing  | time a new voice sounds.                                                                                                                             |
+| will select the DEPTH parameter to enable  |                                                                                                                                                      |
+| editing of the modulation strength between | VELOCITY.                                                                                                                                            |
+| modulator and destination parameter.       | Editable in clip view. Response to how hard a note is played. AFTERTOUCH. External controller aftertouch midi messages. Polyphonic and channel wide. |
 
-When a parameter is selected which is already patched to a source, the specific source grid buttons will flash slowly. The selected parameter pad will flash quickly.
+#### Modulation Amount
 
-:key[Shift + Modulation Pad] while the source is selected and flashing will select the DEPTH parameter to enable editing of the modulation strength between modulator and destination parameter.
+The modulation amount resolution is adjustable to 2 decimal points. The default presentation is units and decimals but can be changed in the community features settings. Turning the Horizontal :key[Horizontal] knob will select the digit to change and then :key[Turn Select] to adjust the amount.
+
+<FigurePending id="fig-6.1-1" page={132}>
+  LFO1 · 39 · LFO1 · LPF FREQUENCY · LPF FREQUENCY · Mod. Depth Decimals OFF ·
+  Mod. Depth Decimals ON Default · 39.00
+</FigurePending>
 
 <StepFocus />
 
@@ -54,19 +61,18 @@ When a parameter is selected which is already patched to a source, the specific 
 3. Press the :key[Shift + Pad] where PAD is the destination parameter to be modulated. Example is LPF : frequency.
 4. Press the :key[Shift + Pad] where PAD is the modulation source from the right side grid columns. Example is LFO 1.
 5. The two elements are now connected. The source pad flashes white, quickly. The destination flashes white slowly. Multiple sources and destinations can be patched and connected.
-6. The display will show the strength of the connection which is the amount of modulation between the two functions. :key[Turn Select] to adjust. Depth can be positive and negative values. Non-zero value means a modulation connection exists.
+6. The display will show the strength of the connection which is the amount of modulation between the two functions. :key[Turn Horizontal] to select the digit to change and then :key[Turn Select] to adjust. Depth can be set to positive or negative values. Non-zero value means a modulation connection exists.
 7. Pressing :key[BackUndo] will confirm and exit the option and back up.
 
 </Steps>
 
-<Figure
-  id="fig-6.1-1"
-  src={fig_fig_6_1_1}
-  alt={
-    "OLED screen: LFO1 39 LPF FREQ. FREQUENCY] Cutoff Freq LFO Modulator. Flashes quickly when connected to a destination and the source parameter is…"
-  }
-  page={133}
-/>
+<FigurePending id="fig-6.1-2" page={133}>
+  Destination Parameter Flashes quickly when connected to a modulation source
+  and the destination parameter is selected / in-focus. [SHIFT] + [FREQUENCY] ·
+  LFO1 · 39.00 · LPF FREQUENCY · Cutoff Freq · LFO · Modulator. Flashes quickly
+  when connected to a destination and the source parameter is selected /
+  in-focus [SHIFT] + [LFO 1].
+</FigurePending>
 
 #### Modulation Source Nested Menu
 
@@ -79,12 +85,13 @@ The option to use nested menus for modulation patching is also available. The gr
 1. Press :key[Clip] to select clip view. This is indicated by the clip button illuminated blue.
 2. Select synth by pressing :key[Synth] if not already selected. The synth button illuminates red.
 3. Press the :key[Select] to enter the sound editor menus.
-4. :key[Turn Select] to select the destination parameter. Example is LPF.
-5. Press the :key[Select] to drill down into the menu. Example is LPF : frequency. The pad will flash quickly.
-6. When the value is in-focus, press :key[Select] to drill down further into the menu structure and access the modulation options for the parameter in-focus.
-7. Modulation options will be available. :key[Turn Select] to scroll and navigate the options. When the selected option, example LFO 1 is in-focus press :key[Select].
-8. The display will show the strength of the connection which is the amount of modulation between the two functions. :key[Turn Select] to adjust.
-9. A value other than ‘0’ will create a modulation connection and the display parameter. The modulation pad will flash quickly and the parameter destination will flash slowly. Depth can be positive and negative values.
+4. If desired, :key[Turn Select] to highlight and press to select the MOD MATRIX option. This provides a collective view of all modulation connections. Press (Back) to backup and exit this menu function.
+5. :key[Turn Select] to select the destination parameter. Example is LPF.
+6. Press the :key[Select] to drill down into the menu. Example is LPF : frequency. The pad will flash quickly.
+7. When the value is in-focus, press :key[Select] to drill down further into the menu structure and access the modulation options for the parameter in-focus.
+8. Modulation options will be available. :key[Turn Select] to scroll and navigate the options. When the selected option, example LFO 1 is in-focus press :key[Select].
+9. The display will show the strength of the connection which is the amount of modulation between the two functions. :key[Turn Horizontal] to select the digit to change and then :key[Turn Select] to adjust. Depth can be set to positive or negative values. Non-zero value means a modulation connection exists.
+10. A value other than ‘0’ will create a modulation connection and the display parameter. The modulation pad will flash quickly and the parameter destination will flash slowly. Depth can be positive and negative values.
 
 </Steps>
 
@@ -114,41 +121,69 @@ Then
 
 <Steps>
 
-1. The display will show the strength of the connection which is the amount of modulation between the two functions. :key[Turn Select] to adjust and set to ‘0’.
+1. The display will show the strength of the connection which is the amount of modulation between the two functions. :key[Turn Select] to adjust and set to ‘0’. If required, :key[Turn Horizontal] to select the digit to edit.
 2. Pressing :key[BackUndo] will confirm and exit the option and back up.
 
 </Steps>
 
-<Figure
-  id="fig-6.1-2"
-  src={fig_fig_6_1_2}
-  alt={
-    "OLED screen: LFO1 39 Destination parameter name and value LPF FREQ. are displayed along with the source"
-  }
-  page={135}
-/>
+<FigurePending id="fig-6.1-3" page={135}>
+  LFO1 · 39.00 · Destination parameter name and value are displayed along with
+  the source · LPF FREQUENCY
+</FigurePending>
 
-#### Modulation sources and parameters
+MODULATION SOURCES
 
-Sidechain and LFO 1 are global to the sound; LFO 2 to Y are per voice. A dash (—) means no modulation is allowed.
+Mod Matrix List The connection list is found in the Global to Per Voice Sound menu. Press :key[Select] Sound when in Synth mode. Scroll and press to select the ‘MOD MATRIX’ Option Sidechain LFO 1 LFO 2 ENV 1 ENV 2 Velocity Note Random After X Y Touch
 
-| Scope           | Parameter                                    | Sidechain | LFO 1 | LFO 2 | ENV 1        | ENV 2 | Velocity | Note | Random | Aftertouch | X            | Y   |
-| --------------- | -------------------------------------------- | --------- | ----- | ----- | ------------ | ----- | -------- | ---- | ------ | ---------- | ------------ | --- |
-| Global to Sound | Delay Amount / Rate                          | ✔         | ✔     | —     | —            | —     | —        | —    | —      | —          | —            | —   |
-|                 | Mod FX Depth / Rate                          | ✔         | ✔     | —     | —            | —     | —        | —    | —      | —          | —            | —   |
-|                 | Arpeggiator Rate                             | ✔         | ✔     | —     | —            | —     | —        | —    | —      | —          | —            | —   |
-|                 | Reverb Amount                                | ✔         | ✔     | —     | —            | —     | —        | —    | —      | —          | —            | —   |
-|                 | LFO 1 Rate                                   | ✔         | ✔     | —     | —            | —     | —        | —    | —      | —          | —            | —   |
-| Both            | Overall Volume                               | ✔         | ✔     | ✔     | Hard Connect | —     | ✔        | ✔    | ✔      | ✔          | ✔            | ✔   |
-| Per Voice       | LFO 2 Rate                                   | ✔         | ✔     | ✔     | ✔            | ✔     | ✔        | ✔    | ✔      | ✔          | ✔            | ✔   |
-|                 | Oscillator Volume                            | ✔         | ✔     | ✔     | ✔            | ✔     | ✔        | ✔    | ✔      | ✔          | ✔            | ✔   |
-|                 | Noise Volume                                 | ✔         | ✔     | ✔     | ✔            | ✔     | ✔        | ✔    | ✔      | ✔          | ✔            | ✔   |
-|                 | Pitch / Transpose: Overall                   | ✔         | ✔     | ✔     | ✔            | ✔     | ✔        | ✔    | ✔      | ✔          | Hard Connect | ✔   |
-|                 | Pitch / Transpose: Oscillator / FM Modulator | ✔         | ✔     | ✔     | ✔            | ✔     | ✔        | ✔    | ✔      | ✔          | ✔            | ✔   |
-|                 | FM Modulator Level                           | ✔         | ✔     | ✔     | ✔            | ✔     | ✔        | ✔    | ✔      | ✔          | ✔            | ✔   |
-|                 | FM Feedback                                  | ✔         | ✔     | ✔     | ✔            | ✔     | ✔        | ✔    | ✔      | ✔          | ✔            | ✔   |
-|                 | Pulse Width                                  | ✔         | ✔     | ✔     | ✔            | ✔     | ✔        | ✔    | ✔      | ✔          | ✔            | ✔   |
-|                 | LPF / HPF Frequency / Resonance              | ✔         | ✔     | ✔     | ✔            | ✔     | ✔        | ✔    | ✔      | ✔          | ✔            | ✔   |
-|                 | ENV 1/2 ADSR                                 | ✔         | ✔     | ✔     | ✔            | ✔     | ✔        | ✔    | ✔      | ✔          | ✔            | ✔   |
-|                 | Pan                                          | ✔         | ✔     | ✔     | ✔            | ✔     | ✔        | ✔    | ✔      | ✔          | ✔            | ✔   |
-|                 | Wavetable Position                           | ✔         | ✔     | ✔     | ✔            | ✔     | ✔        | ✔    | ✔      | ✔          | ✔            | ✔   |
+Delay Amount / Rate ✔ ✔
+
+Mod FX Depth / Rate ✔ ✔
+
+Arpeggiator Rate ✔ ✔ Global to Sound Reverb Amount ✔ ✔ No Modulation is Allowed
+
+LFO 1 Rate ✔ ✔
+
+Both Overall Volume ✔ ✔ ✔ Hard ✔ ✔ ✔ ✔ ✔ ✔ Connect
+
+PARAMETERS LFO 2 Rate ✔ ✔ ✔ ✔ ✔ ✔ ✔ ✔ ✔ ✔ ✔
+
+| Oscillator Volume            | ✔   | ✔   | ✔   | ✔   | ✔   | ✔   | ✔   | ✔   | ✔   | ✔       | ✔   |
+| ---------------------------- | --- | --- | --- | --- | --- | --- | --- | --- | --- | ------- | --- |
+| Noise Volume                 | ✔   | ✔   | ✔   | ✔   | ✔   | ✔   | ✔   | ✔   | ✔   | ✔       | ✔   |
+| Pitch / Transpose:           | ✔   | ✔   | ✔   | ✔   | ✔   | ✔   | ✔   | ✔   | ✔   | Hard    | ✔   |
+| Overall                      |     |     |     |     |     |     |     |     |     | Connect |     |
+| Pitch / Transpose:           | ✔   | ✔   | ✔   | ✔   | ✔   | ✔   | ✔   | ✔   | ✔   | ✔       | ✔   |
+| Oscillator / FM Modulator    |     |     |     |     |     |     |     |     |     |         |     |
+| Per Voice FM Modulator Level | ✔   | ✔   | ✔   | ✔   | ✔   | ✔   | ✔   | ✔   | ✔   | ✔       | ✔   |
+
+FM Feedback ✔ ✔ ✔ ✔ ✔ ✔ ✔ ✔ ✔ ✔ ✔
+
+Pulse Width ✔ ✔ ✔ ✔ ✔ ✔ ✔ ✔ ✔ ✔ ✔
+
+LPF / HPF Frequency ✔ ✔ ✔ ✔ ✔ ✔ ✔ ✔ ✔ ✔ ✔ / Resonance
+
+ENV 1/2 ADSR ✔ ✔ ✔ ✔ ✔ ✔ ✔ ✔ ✔ ✔ ✔
+
+Pan ✔ ✔ ✔ ✔ ✔ ✔ ✔ ✔ ✔ ✔ ✔
+
+Wavetable Position ✔ ✔ ✔ ✔ ✔ ✔ ✔ ✔ ✔ ✔ ✔
+
+### Viewing the active modulation list
+
+<Steps>
+
+1. Press :key[Clip] to select clip view. The clip button illuminates blue.
+2. Select synth by pressing :key[Synth] if not already selected. The synth button illuminates red.
+3. Press :key[Select] to drill down into the nested sound menu.
+4. :key[Turn Select] to scroll and navigate the options. When the MOD MATRIX option is highlighted, press :key[Select].
+5. The active modulation list is presented which shows the Source, Amount and Destination.
+6. Press :key[Select] when highlighting any modulation configuration in the list to open the modulation connection editor.
+
+</Steps>
+
+<FigurePending id="fig-6.1-4" page={137}>
+  MOD MATRIX VELO 50.0 LEVEL PRES 33.0 LEVEL ENV2 50.0 LPF FREQ · Modulation
+  Matrix List available in the sound menu in Clip View - Synth Mode. Press
+  (SOUND) when highlighting a modulation to edit. · Mod Source : Amount Value :
+  Mod Destination
+</FigurePending>

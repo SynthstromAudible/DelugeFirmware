@@ -4,7 +4,7 @@ description: "Loop recording carries a specific workflow and a foot controller w
 sidebar:
   order: 3
 banner:
-  content: "From the Deluge Manual – Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+  content: "From the Deluge Manual \u2013 Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
 guidebook:
   section: "10.4"
   chapter: 10
@@ -15,23 +15,30 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import StepFocus from "../../../../components/guidebook/StepFocus.astro"
 import { Steps } from "@astrojs/starlight/components"
-import Figure from "../../../../components/guidebook/Figure.astro"
-import fig_fig_10_4_1 from "../../../../assets/guidebook/figs/10-looping__04-using-a-foot-controller--1.svg?raw"
+import StepFocus from "../../../../components/guidebook/StepFocus.astro"
+import FigurePending from "../../../../components/guidebook/FigurePending.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
 Loop recording carries a specific workflow and a foot controller when recording and playing loops especially live is a useful accessory. Guitarists for example can control the loop recording while concentrating hands-on with their guitar. Global MIDI commands provide an easy interface between Deluge and a MIDI foot switch.
 
-<Figure
-  id="fig-10.4-1"
-  src={fig_fig_10_4_1}
-  alt={
-    "Diagram: MIDI Out to Deluge MIDI In 1 2 3 4 LOOP LAYER PLAY UNDO Command Menu Deluge Manual Control Description Option PLAY [PLAY] Play / stop…"
-  }
-  page={234}
-/>
+<FigurePending id="fig-10.4-1" page={234}>
+  MIDI Out to Deluge MIDI In · 1 LOOP · 2 LAYER · 3 PLAY · 4 UNDO · Command
+  Option PLAY · Menu · Deluge Manual Control · Description · [PLAY] · Play /
+  stop playback. · RESTART · Press (SCROLL◄►) + [PLAY] Restart playback, if
+  already playing. · RECORD · [RECORD] · Record · Tap tempo to capture a tempo
+  based on taps. Reset the last state, undo the prior action. Restore the last
+  state, redo the prior action. Triggers a process the same as performing
+  regular looping and overdubs. Triggers a process the same as performing
+  continuous looping and overdubs. Activates via MIDI a note fill. The fill will
+  need to be set on selected notes in the probability / iteration menu. · TAP
+  TEMPO [TAP TEMPO] · Global MIDI Commands [SHIFT] + (SELECT) · UNDO · [BACK /
+  UNDO] · REDO · [SHIFT] + [REDO] · MIDI &gt; CMD · LOOP · Triggers a process ·
+  LAYERING LOOP · Triggers a process · FILL · Triggers the Fill option on/off ·
+  This is one example of a looper pedal set up. Many options exist. Note data
+  must be sent for commands to work with other MIDI controllers.
+</FigurePending>
 
 <StepFocus />
 

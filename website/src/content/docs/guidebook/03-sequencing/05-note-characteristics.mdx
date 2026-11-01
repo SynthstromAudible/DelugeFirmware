@@ -4,7 +4,7 @@ description: "Several basic characteristics of notes can be changed in settings.
 sidebar:
   order: 4
 banner:
-  content: "From the Deluge Manual – Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+  content: "From the Deluge Manual \u2013 Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
 guidebook:
   section: "3.5"
   chapter: 3
@@ -15,12 +15,9 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import StepFocus from "../../../../components/guidebook/StepFocus.astro"
 import { Steps } from "@astrojs/starlight/components"
-import Figure from "../../../../components/guidebook/Figure.astro"
-import fig_fig_3_5_1 from "../../../../assets/guidebook/figs/03-sequencing__05-note-characteristics--1.svg?raw"
-import fig_fig_3_5_2 from "../../../../assets/guidebook/figs/03-sequencing__05-note-characteristics--2.svg?raw"
-import fig_fig_3_5_3 from "../../../../assets/guidebook/figs/03-sequencing__05-note-characteristics--3.svg?raw"
+import StepFocus from "../../../../components/guidebook/StepFocus.astro"
+import FigurePending from "../../../../components/guidebook/FigurePending.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -39,16 +36,14 @@ Several basic characteristics of notes can be changed in settings. These include
 
 </Steps>
 
-<Figure
-  id="fig-3.5-1"
-  src={fig_fig_3_5_1}
-  alt={
-    "Diagram: 1 Lighter touch Velocity is also a Velocity modulation source to apply to other parameters as well as volume parameter. like recordings.…"
-  }
-  page={45}
-/>
-
-Deluge pads are not velocity sensitive. The default velocity is 64 but this default level can be changed in the settings options under the defaults menu.
+<FigurePending id="fig-3.5-1" page={45}>
+  1 Lighter touch · Velocity is also a modulation source to apply to other
+  parameters as well as volume parameter. · Velocity Relates to how hard a key
+  is pressed and how this reflects the volume of the note. This captures organic
+  and human like recordings. · Heavier touch 127 · Deluge pads are not velocity
+  sensitive. The default velocity is 64 but this default level can be changed in
+  the settings options under the defaults menu.
+</FigurePending>
 
 ### Setting a note to repeat
 
@@ -77,12 +72,24 @@ Quantization sets the accuracy and resolution of how close to the grid intervals
 
 </Steps>
 
+### Quantizing / humanizing instrument clip rows
+
+This is a destructive process and the option is set ON by default in the Settings &gt; Community Features.
+
+<Steps>
+
+1. Select :key[Clip] view, button lit blue.
+2. Hold the :key[Audition Pad + Turn Tempo] clockwise to quantize the selected row or counter clockwise to humanize the selected row.
+3. Hold any :key[Audition Pad] Pad + Press & :key[Turn Tempo] clockwise to quantize the all rows or counter clockwise to humanize all rows.
+
+</Steps>
+
 ### Clearing clip notes
 
 <Steps>
 
 1. Press :key[Horizontal + BackUndo].
-2. Display shows ‘CLIP CLEARED’. Notes and their associated automation will be cleared from the clip, including notes outside of the grid view.
+2. Display shows ‘CLIP CLEARED’. Notes and their associated automation will be cleared from the clip, including notes out of view.
 
 </Steps>
 
@@ -101,14 +108,11 @@ Quantization sets the accuracy and resolution of how close to the grid intervals
 
 </Steps>
 
-<Figure
-  id="fig-3.5-2"
-  src={fig_fig_3_5_2}
-  alt={
-    "Diagram: [TRIPLETS VIEW] Switches the grid to triplets view, laying out the grid with 3 of 4 columns in the time division. The three notes have the…"
-  }
-  page={47}
-/>
+<FigurePending id="fig-3.5-2" page={47}>
+  [TRIPLETS VIEW] Switches the grid to triplets view, laying out the grid with 3
+  of 4 columns in the time division. The three notes have the same time period
+  as the original 4.
+</FigurePending>
 
 ### Editing notes’ length
 
@@ -118,15 +122,10 @@ Quantization sets the accuracy and resolution of how close to the grid intervals
 
 </Steps>
 
-<Figure
-  id="fig-3.5-3"
-  animate="playhead"
-  src={fig_fig_3_5_3}
-  alt={
-    "Pad grid: Note Note Extension Dimly lit showing length of note Grid edge"
-  }
-  page={48}
-/>
+<FigurePending id="fig-3.5-3" page={48}>
+  Note Brightly lit showing start of note · Note Extension Dimly lit showing
+  length of note · Grid edge
+</FigurePending>
 
 <Steps>
 

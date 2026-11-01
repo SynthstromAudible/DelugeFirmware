@@ -4,7 +4,7 @@ description: "Audio samples and clips can be displayed and edited on the grid in
 sidebar:
   order: 11
 banner:
-  content: "From the Deluge Manual – Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+  content: "From the Deluge Manual \u2013 Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
 guidebook:
   section: "9.12"
   chapter: 9
@@ -17,9 +17,7 @@ guidebook:
 
 import { Steps } from "@astrojs/starlight/components"
 import StepFocus from "../../../../components/guidebook/StepFocus.astro"
-import Figure from "../../../../components/guidebook/Figure.astro"
-import fig_fig_9_12_1 from "../../../../assets/guidebook/figs/09-audio__12-waveform-view-detailed-audio-editing--1.svg?raw"
-import fig_fig_9_12_2 from "../../../../assets/guidebook/figs/09-audio__12-waveform-view-detailed-audio-editing--2.svg?raw"
+import FigurePending from "../../../../components/guidebook/FigurePending.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -27,30 +25,56 @@ Audio samples and clips can be displayed and edited on the grid in clip view as 
 
 -
 
-<Figure
-  id="fig-9.12-1"
-  src={fig_fig_9_12_1}
-  alt={
-    "Diagram: Waveform Opens waveform view for editing visually as well as by ear. Audio sample is presented on the grid pads. Interpolation * Sample…"
-  }
-  page={218}
-/>
-
-\* Items exist in the sound editor menu as well as from the shortcut pads. Label shown in capitals indicates what is name used within the sound editor SAMPLE Menu.
+<FigurePending id="fig-9.12-1" page={218}>
+  Waveform Opens waveform view for editing visually as well as by ear. Audio
+  sample is presented on the grid pads. · Interpolation \* Sample interpolation
+  method used for time stretching. Options are ‘SINC’ (high quality 16-point
+  windowed sinc) and ‘LINEAR’ (low quality linear interpolation). Browse File
+  browser utility to access and load audio samples. · Record Recorder to
+  directly record in samples. · Pitch / Speed \* Controls the relationship
+  between pitch and speed for the sample. LINKED (changing pitch affects length)
+  or INDEPENDENT (changing pitch does not affect length). Speed \* Manually
+  time-stretches a sample to make it play faster or slower without changing
+  pitch. Not available if Loop is set to Stretch, in which case speed is
+  controlled by note length and tempo. Reverse \* Reverses the sample playback.
+  · Mode REPEAT MODE\* Once. The sample plays once, always the whole way
+  through. Good for drum samples. Cut. The sample plays once, but may be cut
+  short at the end of the “note” causing the sound to stop. Loop. The sample
+  loops indefinitely until the “note” ends Stretch. the sample is time-stretched
+  to the length of the note. Good for samples that contain pre-made beats. ·
+  Sample 1 & 2 Representative of the synth engine and each of their oscillator’s
+  audio samples. Sample 1 is by default for general audio editing. · \* Items
+  exist in the sound editor menu as well as from the shortcut pads. Label shown
+  in capitals indicates what is name used within the sound editor SAMPLE Menu.
+</FigurePending>
 
 #### Waveform Editor
 
 Samples and audio clips can be displayed on the grid as a graphical waveform with editing options. The audio length, unlike the quick waveform editor, does not represent the timing of the sample with reference to the grid. Press :key[Shift + Waveform Pad]. :key[Turn Horizontal] to scroll waveform and press & :key[Turn Horizontal] to zoom.
 
-<Figure
-  id="fig-9.12-2"
-  animate="playhead"
-  src={fig_fig_9_12_2}
-  alt={
-    "Pad grid: Loop start point * Loop end point * Audio sample loop start point with blue Audio sample loop end point with magenta column, when set /…"
-  }
-  page={219}
-/>
+<FigurePending id="fig-9.12-2" page={219}>
+  Loop start point \* Audio sample loop start point with blue column, when set /
+  unset by holding green start [PAD] + loop start position [PAD]. Lock loop
+  points Hold loop start [PAD] + tap loop end [PAD] to link / unlink relative
+  adjustment positions. · Loop end point \* Audio sample loop end point with
+  magenta column, when set / unset by holding red end [PAD] + loop end position
+  [PAD]. · Time-stretch between start and end points Length is always fixed to
+  the song tempo. Use ‘grab tempo’ to match length and avoid time stretch. START
+  POINT 156.34 MSEC (6895 SMP) Display will show position for the selected start
+  or end point. · Start Point Start position of audio sample. Green column
+  flashes, when selected by pressing its [PAD]. · End point End position of
+  audio sample. Red column flashes, when selected by pressing [PAD]. · Once
+  selected (flashing) any of the position marker columns can then be adjusted
+  further by pressing another [PAD] column within the sample or by turning the
+  (SELECT) control. To delete a loop marker repeat the process for selection. ·
+  \* The relative loop positions can be locked together for ease of adjustment.
+  Hold [SHIFT] + turn (SCROLL◄►) to double or half the loop length. Loop markers
+  are available for samples but not available for audio clips.
+</FigurePending>
+
+:::note
+Waveform view Grid pads will display the audio on white pads as opposed to coloured pads in quick audio clip edit view.
+:::
 
 <StepFocus />
 

@@ -4,7 +4,7 @@ description: "A kit consists of a number of sounds typically based on samples, a
 sidebar:
   order: 2
 banner:
-  content: "From the Deluge Manual – Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+  content: "From the Deluge Manual \u2013 Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
 guidebook:
   section: "5.3"
   chapter: 5
@@ -15,11 +15,9 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import StepFocus from "../../../../components/guidebook/StepFocus.astro"
 import { Steps } from "@astrojs/starlight/components"
-import Figure from "../../../../components/guidebook/Figure.astro"
-import fig_fig_5_3_1 from "../../../../assets/guidebook/figs/05-kits__03-kit-presets-samples--1.svg?raw"
-import fig_fig_5_3_2 from "../../../../assets/guidebook/figs/05-kits__03-kit-presets-samples--2.svg?raw"
+import StepFocus from "../../../../components/guidebook/StepFocus.astro"
+import FigurePending from "../../../../components/guidebook/FigurePending.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -63,7 +61,7 @@ A synth, MIDI or CV row can be added in the kit view by pressing :key[Audition P
 <Steps>
 
 1. Press :key[Clip] to select clip view. Clip button illuminates blue.
-2. Ensure a kit or blank kit is loaded.
+2. Ensure a kit or blank kit is loaded and :key[Kit] is selected.
 3. Press :key[Audition Pad + Kit], where the AUDITION is a pad.
 4. The file browser opens in the SAMPLES folder in order to choose a sample, example: 808 CONGA HIGH from the DRUM library (CONH folder)
 5. :key[Turn Select] to navigate other samples if required.
@@ -75,16 +73,28 @@ A synth, MIDI or CV row can be added in the kit view by pressing :key[Audition P
 
 </Steps>
 
-<Figure
-  id="fig-5.3-1"
-  src={fig_fig_5_3_1}
-  alt={
-    "Diagram: To open the file browser for [KIT] the specifically selected row via the audition pad. [AUDITION] + or LOAD option brings parameters back…"
-  }
-  page={123}
-/>
+<FigurePending id="fig-5.3-1" page={123}>
+  To open the file browser for the specifically selected row via the audition
+  pad. LOAD option brings parameters back to defaults when replacing an existing
+  row sound. · [KIT] or [LOAD] · [AUDITION] + · The pad shortcut for the file
+  browser [SHIFT] + [BROWSE] can also be used to replace a sample when the row
+  is selected by its [AUDITION] Pad. When [BROWSE] option is used to replace an
+  existing sound its parameters will be retained.
+</FigurePending>
 
-The pad shortcut for the file browser :key[Shift + Browse Pad] can also be used to replace a sample when the row is selected by its :key[Audition Pad]. When :key[Browse Pad] option is used to replace an existing sound its parameters will be retained.
+### Drum randomizer - adding random samples to a kit
+
+<Steps>
+
+1. Press :key[Clip] to select clip view. Clip button illuminates blue.
+2. Ensure a kit is loaded and :key[Kit] selected.
+3. Press [AUDITION] + [RANDOM], where the AUDITION is a pad representing the kit sound to randomize and Random is the designated grid pad button. Multiple rows can be selected together to randomise several kit sounds at the same time.
+4. A random sample will be loaded into the selected drum kit row. The sample will be chosen from the current folder i.e. same folder as the existing sample.
+5. This feature is limited to 25 files and can be turned off in the Settings &gt; Community Features to help manage performance. +
+
+</Steps>
+
+<FigurePending id="fig-5.3-2" page={124}></FigurePending>
 
 ### Creating a new kit clip + multiple (folder) samples
 
@@ -102,21 +112,36 @@ The pad shortcut for the file browser :key[Shift + Browse Pad] can also be used 
 
 etc
 
-<Figure id="fig-5.3-2" src={fig_fig_5_3_2} alt={"Diagram: Folder"} page={126} />
+<FigurePending id="fig-5.3-3" page={126}></FigurePending>
+
+Sample 6
+
+<FigurePending id="fig-5.3-4" page={126}>
+  Folder · Sample 4
+</FigurePending>
+
+Sample 5
+
+Sample 3
+
+Sample 2
+
+Sample 1
 
 :::note
 It is recommended to organise your samples in a folder that can be recognised in groups from the file browser and will load batches to in a reasonable size, for example 8 samples per folder.
 :::
 
-### Adding a synth-based sound to a kit
+### Adding a synth-based preset to a kit row
 
 <Steps>
 
 1. Select :key[Clip] View and select a :key[Kit].
 2. Press & hold :key[Audition Pad] for the row which will convert to a synth + press :key[Synth].
-3. Press :key[Audition Pad] to play the kit row.
-4. Set-up the synth parameters, such as oscillator wave, LPF etc as if creating a new synth sound or use the parameter controls. Also set the pitch.
-5. Notes programmed into the row will trigger the synth. This method is ideal to play back longer audio pads.
+3. :key[Turn Select] to highlight a synth preset to add to the row.
+4. Press :key[Audition Pad] to audition and play the kit row.
+5. Press :key[Load] to select and load the preset to the kit row. To cancel, Press :key[BackUndo] to exit and backup if loading is not required.
+6. Notes programmed into the row will trigger the synth. This method is ideal to play back longer audio pads.
 
 </Steps>
 
@@ -129,14 +154,8 @@ It is recommended to organise your samples in a folder that can be recognised in
 3. Press :key[Audition Pad] to select the row sound. The pad will illuminate.
 4. Press :key[Shift + Name Pad].
 5. The alphanumeric keyboard appears and RENAME ITEM shows in the display. This enables typing in of a new name.
-6. Press RETURN ‘delay amount’ :key[Pad] when typing of a new name is complete.
+6. Press RETURN ‘delay amount’ :key[Pad] when typing a name is complete.
 
 </Steps>
 
-<Figure
-  id="fig-5.3-3"
-  img="/guidebook/img/05-kits__03-kit-presets-samples--3.webp"
-  width={189}
-  alt={"Photo: figure from guidebook page 126"}
-  page={126}
-/>
+<FigurePending id="fig-5.3-5" page={127}></FigurePending>

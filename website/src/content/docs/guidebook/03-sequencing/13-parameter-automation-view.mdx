@@ -1,0 +1,171 @@
+---
+title: "3.13 Parameter Automation View"
+description: "A dedicated and complimentary parameter automation view is available within clip mode."
+sidebar:
+  order: 12
+banner:
+  content: "From the Deluge Manual \u2013 Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+guidebook:
+  section: "3.13"
+  chapter: 3
+  pdfPages: [80, 81, 82, 83, 84, 85]
+  printedPages: [74, 75, 76, 77, 78, 79]
+  firmware: "C1.0.0"
+  communityEquivalent: null
+  mergeStatus: "unreviewed"
+---
+
+import { Steps } from "@astrojs/starlight/components"
+import StepFocus from "../../../../components/guidebook/StepFocus.astro"
+import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+
+<div data-pagefind-filter="source:guidebook" hidden />
+
+A dedicated and complimentary parameter automation view is available within clip mode. Consider this as a pattern automation layer per parameter overlaid over the Instrument Clip View for Synths, Kits and Midi instrument clip types.
+
+The audition sidebar button for the instrument clip types is available in the automation Instrument clip view so that you can previews sounds while viewing/editing parameter automations. The behaviour of these buttons is configurable in the settings &gt; community features.
+
+<StepFocus />
+
+### Selecting parameter automation view
+
+<Steps>
+
+1. Press :key[Clip] button to cycle through the normal or automation views.
+2. The :key[Clip] button will flash blue when automation view is selected. The display will also state ‘AUTOMATION OVERVIEW’.
+
+</Steps>
+
+#### Parameter Automation Options
+
+Synths, Kits with affect entire DISABLED plus MIDI.
+
+| Function   | Parameters (55 Total)                                      |
+| ---------- | ---------------------------------------------------------- |
+| Master     | Level, Pitch, Pan                                          |
+| LPF        | Frequency, Resonance, Morph                                |
+| HPF        | Frequency, Resonance, Morph                                |
+| EQ         | Bass, Bass Frequency, Treble, Treble Frequency             |
+| Reverb     | Amount                                                     |
+| Delay      | Rate, Amount                                               |
+| Sidechain  | Level, Shape                                               |
+| Distortion | Decimation, Bitcrush, Wavefold                             |
+| Osc 1      | Level, Pitch, Phase Width, Carrier Feedback, Wave Position |
+| Osc 2      | Level, Pitch, Phase Width, Carrier Feedback, Wave Position |
+| FM Mod 1   | Level, Pitch, Feedback                                     |
+| FM Mod 2   | Level, Pitch, Feedback                                     |
+| Env 1      | Attack, Decay, Sustain, Release                            |
+| Env 2      | Attack, Decay, Sustain, Release                            |
+| LFO 1      | Rate                                                       |
+| LFO 2      | Rate                                                       |
+| Mod FX     | Offset, Feedback, Depth, Rate                              |
+| Arp        | Rate, Gate                                                 |
+| Noise      | Level                                                      |
+| Portamento | Portamento                                                 |
+
+#### Parameter Automation Options
+
+Kits with affect entire ENABLED.
+
+| Function   | Parameters (24 Total)                          |
+| ---------- | ---------------------------------------------- |
+| Master     | Level, Pitch, Pan                              |
+| LPF        | Frequency, Resonance                           |
+| HPF        | Frequency, Resonance                           |
+| EQ         | Bass, Bass Frequency, Treble, Treble Frequency |
+| Reverb     | Amount                                         |
+| Delay      | Rate, Amount                                   |
+| Sidechain  | Level, Shape                                   |
+| Distortion | Decimation, Bitcrush                           |
+| Mod FX     | Offset, Feedback, Depth, Rate                  |
+| Arp        | Gate                                           |
+| Portamento | Portamento                                     |
+
+When moving from Automation Instrument Clip View to Song/Arranger View, the Deluge will remember the state on a per Instrument Clip basis. This means that transitioning back to an Instrument Clip will re-load the Automation Instrument Clip View if previously in that view. This information is saved with the song.
+
+You can load up the Keyboard Screen while in the Automation Instrument Clip View so you can quickly switch between editing a Parameter and playing notes on the Keyboard.
+
+Automation settings are saved per Instrument per Clip with the Song
+
+Automations that are recorded using the Gold :key[Upper Gold] and :key[Lower Gold] Mod Encoders and are always recorded with Interpolation.
+
+Automation can be recorded live.
+
+MPE automations are not covered/edited by this Automation Instrument Clip View. If MPE must be edited/nudged/shifted, it must be done in the current Instrument Clip View.
+
+### Selecting a parameter to edit in automation view
+
+<Steps>
+
+1. Select Automation View. Press :key[Clip] button until it flashes blue.
+2. Select a parameter to edit. Only the parameters available to automate are accessible.
+   - :key[Turn Select] to cycle through the parameters to select.
+   - Alternatively, Hold :key[Shift + Pad] to select the parameter to edit from the available automation parameters.
+   - The default ‘AUTOMATON OVERVIEW’ may be on show and the pads lit white which contain the available parameters to automate. Bright white contains automated parameters while dimmed will not be automated. Tap the :key[Pad] for the selected parameter to edit. This mode is may change when selecting and editing instruments and parameters as the previous view is restored when navigating from / to automation.
+3. Once the parameter is selected and shown on the display, its automation can be edited. The current state i.e. ‘NOT AUTOMATED’ vs ‘AUTOMATED’ is displayed along with the parameter name and value.
+   - :key[Turn Upper Gold] or :key[Lower Gold] knob to adjust the parameter equally across the step range. General parameters operating over a 0-50 displayed range which in reality represents the 0-128 of the parameter value. Pads illuminate to show the value per step.
+   - To use Pads for automation creating and editing.
+   - Press :key[Upper Gold] or :key[Lower Gold] to toggle the ‘Pad Selection’ mode On or Off. Set to Off to edit automation by pressing pads.
+   - Press / Slide across the :key[Pad] grid buttons. The profile of the pads selected represents the shape of automation curve applied to the parameter across the pattern. Pads illuminate to show the value per step in the pad columns.
+   - To enter a long multi-step automation slope across a column range, Hold :key[Pad] as the start point while pressing another :key[Pad]. An automation shape is applied with values interpolated between the selected start ‘L’ and end ‘R’ :key[Pad]’s
+   - To adjust an individual pad column value from the current value, hold the upper :key[Pad + Turn Upper Gold] or :key[Lower Gold].
+
+</Steps>
+
+Automation View
+
+<FigurePending id="fig-3.13-1" page={77}>
+  [CLIP] Tap the clip button until it flashes to enter automation view. · Turn
+  (SELECT) to change the parameter or press a white pad in the main AUTOMATION
+  OVERVIEW. · Turn (UPPER) or (LOWER) to change all Pads or only a held Pad. ·
+  16 x 8 Automation Grid In Focus · A · 26-31 · 65-80 · Value Displayed Range ·
+  Parameter Actual Value · 19-25 · 49-64 · 14-18 · 33-48 · 7-13 · 17-32 · Y ·
+  0-6 · 0-16 · Automation Direction = Play Direction, Start to End · Press
+  (UPPER) or (LOWER) to turn pad selection editing On /Off. Off to edit
+  automation pads. · Press pads to assign a value to a step column. i.e ‘A’ ·
+  Hold [PAD]’s ‘X’ Start and Press ‘Y’ End to select a multi-step automation
+  curve. Press (SELECT) to interpolate between steps ON for a smooth step change
+  or OFF to create stepped changes between column steps. · 45-50 · 113-128 X ·
+  38-44 · 97-112 · 32-38 · 81-96
+</FigurePending>
+
+Automation View Editing Quick Reference
+
+| Context    | Action                              | Command                                                                                                                                            |
+| ---------- | ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Automation | Enter Automation View               | :key[Clip] Until its flashes blue                                                                                                                  |
+| Automation | Select Parameter to Edit            | :key[Turn Select]                                                                                                                                  |
+| Automation | Select Parameter to Edit            | Press :key[Pad]. White pads illuminate when selectable in automation overview mode                                                                 |
+| Automation | Select Parameter to Edit            | Hold :key[Shift + Pad] of an editable parameter.                                                                                                   |
+| Automation | Edit Parameter Value                | :key[Turn Upper Gold] or :key[Lower Gold]                                                                                                          |
+| Automation | Pad Selection Mode On/Off           | Press :key[Upper Gold] or :key[Lower Gold]. Off to edit with pads.                                                                                 |
+| Automation | Edit Value in Pad Selection Mode    | Press a :key[Pad] to set the column value based on row selected                                                                                    |
+| Automation | Edit Range in Pad Selection Mode    | Hold Start L :key[Pad] + End R :key[Pad] to set an automation curve.                                                                               |
+| Automation | Edit Range Start L / End R Values   | Hold existing Start L :key[Pad] + End R :key[Pad] and :key[Turn Upper Gold] to adjust :key[Lower Gold] for Start L and :key[Upper Gold] for End R. |
+| Automation | Set interpolation of L-R Range      | Press :key[Select] before entering range to select a smooth or jump transition between automation steps.                                           |
+| Automation | Edit a Value in Pad Selection Mode  | Hold upper :key[Pad] in a column + :key[Turn Upper Gold] or :key[Lower Gold]                                                                       |
+| Automation | Shift automation curve horizontally | Press & hold :key[Vertical + Turn Horizontal]                                                                                                      |
+| Automation | Adjust automation clip length       | Hold :key[Shift + Turn Horizontal]. Max is note clip length                                                                                        |
+| Automation | Adjust note clip row length         | Hold :key[Audition Pad + Turn Horizontal]. Does not display the range edited when in automation view.                                              |
+| Automation | Double automation clip length       | Hold :key[Shift + Horizontal].                                                                                                                     |
+| Automation | Quick access settings menu          | Hold [SHIFT] + Press (SCREEN).                                                                                                                     |
+| Automation | Copy the automation                 | Hold :key[LearnInput + Upper Gold] or :key[Lower Gold]. Copies from the currently selected parameter.                                              |
+| Automation | Paste the automation                | Hold :key[LearnInput + Shift + Upper Gold] or :key[Lower Gold]. Pastes to a new currently selected parameter.                                      |
+| Automation | Zoom grid resolution                | Hold + Press :key[Horizontal].                                                                                                                     |
+| Automation | Delete / Reset Automation           | Hold :key[Shift + Upper Gold] or :key[Lower Gold] to reset automation to the last value set on the grid or played in the pattern.                  |
+
+Additional Automation View Notes
+
+- Settings to delineate behaviour from the associated Note patterns is provided in the Settings &gt; Community Features.
+- Interpolation is can be set on and off for manually edited automation. Recorded automation is always recorded with interpolation on.
+- The Automation Editor will not allow you to:
+  - Access the regular settings menu
+  - Access the sound editor
+  - Access the sample browser
+  - Use regular grid shortcuts (except for shift + param)
+  - Edit MPE parameter values
+  - Edit existing synth note row values (e.g. change a pad from F to F#)
+  - Edit existing note row sounds in a kit (e.g. change the sample)
+  - Add new rows in a kit
+  - Re-arrange rows in a kit
+  - Change root note in a synth/midi/cv clip

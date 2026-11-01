@@ -4,7 +4,7 @@ description: "Audio clips are displayed on the grid in clip view as a graphical 
 sidebar:
   order: 7
 banner:
-  content: "From the Deluge Manual – Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+  content: "From the Deluge Manual \u2013 Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
 guidebook:
   section: "9.8"
   chapter: 9
@@ -15,16 +15,23 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import StepFocus from "../../../../components/guidebook/StepFocus.astro"
 import { Steps } from "@astrojs/starlight/components"
-import Figure from "../../../../components/guidebook/Figure.astro"
-import fig_fig_9_8_1 from "../../../../assets/guidebook/figs/09-audio__08-quick-editing-audio-in-clip-view--1.svg?raw"
+import StepFocus from "../../../../components/guidebook/StepFocus.astro"
+import FigurePending from "../../../../components/guidebook/FigurePending.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
 Audio clips are displayed on the grid in clip view as a graphical waveforms. A number of basic editing options are available.
 
 <StepFocus />
+
+### Shift the waveform in view
+
+<Steps>
+
+1. With the waveform in view to shift the waveform horizontally Press & Hold :key[Vertical + Turn Horizontal]
+
+</Steps>
 
 ### Quick editing of audio length - time stretch
 
@@ -34,8 +41,7 @@ Audio clips are displayed on the grid in clip view as a graphical waveforms. A n
 2. Press :key[Shift + Turn Horizontal] Clockwise to ‘stretch’ the audio length longer.
 3. Press :key[Shift + Turn Horizontal] anti-clockwise to ‘shrink’ the audio length shorter.
 4. :key[Turn Horizontal] to navigate across the sample width.
-5. The audio will be time stretched.
-6. Press :key[Play] to hear the clip loop.
+5. The audio will be time stretched and press :key[Play] to hear the clip loop.
 
 </Steps>
 
@@ -59,12 +65,18 @@ Audio clips are displayed on the grid in clip view as a graphical waveforms. A n
 
 Audio clips are created in song or arrangement view. Once audio is recorded or loaded in they can be displayed on the grid as a graphical waveform with quick editing options available. Pressing a :key[Pad] for the clip row or ‘tail’ in song and arranger view respectively selects the audio clip in clip view. The waveform length on display matches the timing and synchronisation to the grid. Example, an audio waveform may fill one page as it is 1 bar in length. More precise options for editing are available in the waveform editor although this does not sync to grid timing.
 
-<Figure
-  id="fig-9.8-1"
-  animate="playhead"
-  src={fig_fig_9_8_1}
-  alt={
-    "Pad grid: Time-stretch Use [SHIFT] + (SCROLL◄►) to adjust the clip length by time stretching or shrinking. + Audio waveform Loop edit Indicated…"
-  }
-  page={206}
-/>
+<FigurePending id="fig-9.8-1" page={206}>
+  Time-stretch Use [SHIFT] + (SCROLL◄►) to adjust the clip length by time
+  stretching or shrinking. · + · Audio waveform Indicated graphically across the
+  grid. This may take up multiple screen pages. · Loop edit The red column
+  cursor, selected by pressing the last column, enables editing of loop point.
+  Press the new location to move it. · Waveform length The waveform length
+  maintains synchronisation The waveform is laid out at the correct length with
+  the grid timings as shown by the grid pads. based on the note divisions.
+  Elements will be For example sync to 16th intervals. · End of waveform · Audio
+  clip view · shown by dull lit pads that are not covered.
+</FigurePending>
+
+:::note
+Grid pads will display the audio on coloured pads as opposed to white pads in waveform view.
+:::

@@ -1,10 +1,10 @@
 ---
 title: "11.7 Modulation Effects"
-description: "The Modulation Effects - MOD FX, includes 3 types."
+description: "The Modulation Effects - MOD FX, includes 5 types."
 sidebar:
   order: 6
 banner:
-  content: "From the Deluge Manual – Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
+  content: "From the Deluge Manual \u2013 Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
 guidebook:
   section: "11.7"
   chapter: 11
@@ -15,18 +15,18 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import StepFocus from "../../../../components/guidebook/StepFocus.astro"
 import { Steps } from "@astrojs/starlight/components"
+import StepFocus from "../../../../components/guidebook/StepFocus.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
-The Modulation Effects - MOD FX, includes 3 types. A chorus, flanger and a phaser. The Mod-FX can also be switched off. Chorus operates similar to a delay which ‘layers’ one or multiple signals with the delay modulated to give a thicker more lush sound. Flangers are similar to chorus with the resonance creating the unique flanging effect. A phaser sits in between the chorus and flanger in sound characteristics where typically a modulated filter delivers its characteristic sound.
+The Modulation Effects - MOD FX, includes 5 types. A chorus, flanger, phaser, stereo chorus, grain. The Mod-FX can also be disabled. Chorus operates similar to a delay which ‘layers’ one or multiple signals with the delay modulated to give a thicker more lush sound. Flangers are similar to chorus with the resonance creating the unique flanging effect. A phaser sits in between the chorus and flanger in sound characteristics where typically a modulated filter delivers its characteristic sound. The stereo chorus provides an audio widening effect. Grain applies granular synthesis but is resource intensive on the Deluge performance and is therefore advised to be used sparingly i.e. one instance per song, resample and turn off.
 
 #### Mod-FX Parameters
 
 TYPE
 
-Sets the modulation effect type between ‘OFF’, ‘FLANGER’, ‘CHORUS’ or ‘PHASER’. This setting will also designate which of the other parameters are accessible.
+Sets the modulation effect type between ‘DISABLED’, ‘FLANGER’, ‘CHORUS’, ‘PHASER’, “STEREO CHORUS’, ‘GRAIN’. This setting will also designate which of the other parameters are accessible and their purpose.
 
 RATE
 
@@ -34,15 +34,15 @@ Rate of modulation: 0-50.
 
 FEEDBACK
 
-Flanger and phaser only. Amount of output fed back to the input: 0-50
+Flanger, phaser and grain. Amount of output fed back to the input: 0-50
 
 DEPTH
 
-Chorus and phaser only. Amount of pitch modulation.
+Chorus, stereo chorus, phaser and grain only. Amount of pitch modulation.
 
 OFFSET
 
-Chorus only. Time offset between signal and delay.
+Chorus, stereo chorus and grain only. Time offset between signal and the actual delay.
 
 <StepFocus />
 
@@ -51,12 +51,12 @@ Chorus only. Time offset between signal and delay.
 <Steps>
 
 1. :key[Clip] view, ensure the clip is in-focus, example: a kit.
-2. Press :key[Shift] + MOD-FX pad, Mod-FX shortcuts are as below
+2. Press :key[Shift] + MOD-FX pad, Mod-FX shortcuts are as below. The availability of options is dependant on the selected type.
    - :key[Type Pad]
    - :key[Rate Pad]
-   - :key[Offset Pad] chorus only
-   - :key[Feedback Pad] - flanger & phaser only
-   - :key[Depth Pad] - chorus & phaser only
+   - :key[Offset Pad] chorus, stereo chorus and grain only
+   - :key[Feedback Pad] - flanger, phaser and grain only
+   - :key[Depth Pad] - chorus, stereo chorus, phaser and grain only
 3. For the selected parameter, :key[Turn Select] to adjust the value.
 
 </Steps>
@@ -65,14 +65,22 @@ or
 
 <Steps>
 
-1. Ensure focus is clip view for a synth or kit.
-2. Access the effects within the menu’s. Press :key[Select].
-3. Navigate in the menu to the FX section and press :key[Select].
-4. Navigate in the menu to the ‘MOD-FX’ section and press :key[Select].
-5. Select either ‘TYPE’, ‘RATE’, ‘DEPTH’, ‘OFFSET’, 'FEEDBACK'. Press :key[Select] for the parameter to select.
-6. Adjust the value of the selected parameter by turning :key[Select]
+1. Access the effects within the menu’s. Press :key[Select].
+2. Navigate in the menu to the FX section and press :key[Select].
+3. Navigate in the menu to the ‘MOD-FX’ section and press :key[Select].
+4. Select either ‘TYPE’, ‘RATE’, ‘DEPTH’, ‘OFFSET’, 'FEEDBACK'. Press :key[Select] for the parameter to select.
+5. Adjust the value of the selected parameter by turning :key[Select]
 
 </Steps>
+
+#### Grain Mod FX
+
+Note that the grain option is highly resource dependant and as such is turned off by default in the SETTINGS &gt; COMMUNITY FEATURES. With respect to the grain effect the parameters represented are:
+
+- Rate. Adjusts the grain rate from 0.5Hz to 180Hz
+- Depth. Controls grain volume dry/wet mix
+- Feedback. Selects the grain type preset: Value 0-10 Unison and +1 Octave (Reversed); 11-20 Unison and -1 Octave; 21-30 Unison and +1 Octave (Default); 31-40 5th an d+1 Octave; 41-50 Unison and +/-1 Octave (Tempo Sync).
+- Offset. Adjusts the grain size 10ms to 800ms
 
 ### Setting a kit mod-FX with affect parameters
 
