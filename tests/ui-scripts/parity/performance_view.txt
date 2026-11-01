@@ -1,0 +1,117 @@
+# Performance view (song view, a short KEYBOARD press; a held one only peeks): every FX column at three values, a held pad with the select encoder
+# turned, and the param editor (select-encoder press).
+press SESSION_VIEW
+wait 1
+press KEYBOARD 20
+snapshot opened
+pad 0 0
+snapshot col_0_0
+pad 0 4
+snapshot col_0_4
+pad 0 7
+snapshot col_0_7
+pad 1 0
+snapshot col_1_0
+pad 1 4
+snapshot col_1_4
+pad 1 7
+snapshot col_1_7
+pad 2 0
+snapshot col_2_0
+pad 2 4
+snapshot col_2_4
+pad 2 7
+snapshot col_2_7
+pad 3 0
+snapshot col_3_0
+pad 3 4
+snapshot col_3_4
+pad 3 7
+snapshot col_3_7
+pad 4 0
+snapshot col_4_0
+pad 4 4
+snapshot col_4_4
+pad 4 7
+snapshot col_4_7
+pad 5 0
+snapshot col_5_0
+pad 5 4
+snapshot col_5_4
+pad 5 7
+snapshot col_5_7
+pad 6 0
+snapshot col_6_0
+pad 6 4
+snapshot col_6_4
+pad 6 7
+snapshot col_6_7
+pad 7 0
+snapshot col_7_0
+pad 7 4
+snapshot col_7_4
+pad 7 7
+snapshot col_7_7
+pad 8 0
+snapshot col_8_0
+pad 8 4
+snapshot col_8_4
+pad 8 7
+snapshot col_8_7
+pad 9 0
+snapshot col_9_0
+pad 9 4
+snapshot col_9_4
+pad 9 7
+snapshot col_9_7
+pad 10 0
+snapshot col_10_0
+pad 10 4
+snapshot col_10_4
+pad 10 7
+snapshot col_10_7
+pad 11 0
+snapshot col_11_0
+pad 11 4
+snapshot col_11_4
+pad 11 7
+snapshot col_11_7
+pad 12 0
+snapshot col_12_0
+pad 12 4
+snapshot col_12_4
+pad 12 7
+snapshot col_12_7
+pad 13 0
+snapshot col_13_0
+pad 13 4
+snapshot col_13_4
+pad 13 7
+snapshot col_13_7
+pad 14 0
+snapshot col_14_0
+pad 14 4
+snapshot col_14_4
+pad 14 7
+snapshot col_14_7
+pad 15 0
+snapshot col_15_0
+pad 15 4
+snapshot col_15_4
+pad 15 7
+snapshot col_15_7
+paddown 3 5
+turn SELECT 2
+snapshot held_turn
+padup 3 5
+snapshot held_released
+press SELECT_ENC
+snapshot editor
+turn SELECT 1
+snapshot editor_1
+pad 5 2
+snapshot editor_pad
+press BACK
+snapshot editor_back
+press KEYBOARD 20
+snapshot closed

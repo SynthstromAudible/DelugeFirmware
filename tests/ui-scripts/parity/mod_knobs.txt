@@ -1,0 +1,332 @@
+# Each mod button's two gold knobs: popups, knob LEDs and the MIDI-follow feedback they send.
+# On the boot synth clip, on a kit row, on a kit with affect-entire, and on the song.
+press MOD0
+snapshot synth_mod0
+turn UPPER 1
+snapshot synth_mod0_upper_up
+turn UPPER -2
+snapshot synth_mod0_upper_down
+turn LOWER 1
+snapshot synth_mod0_lower_up
+turn LOWER -2
+snapshot synth_mod0_lower_down
+press MOD1
+snapshot synth_mod1
+turn UPPER 1
+snapshot synth_mod1_upper_up
+turn UPPER -2
+snapshot synth_mod1_upper_down
+turn LOWER 1
+snapshot synth_mod1_lower_up
+turn LOWER -2
+snapshot synth_mod1_lower_down
+press MOD2
+snapshot synth_mod2
+turn UPPER 1
+snapshot synth_mod2_upper_up
+turn UPPER -2
+snapshot synth_mod2_upper_down
+turn LOWER 1
+snapshot synth_mod2_lower_up
+turn LOWER -2
+snapshot synth_mod2_lower_down
+press MOD3
+snapshot synth_mod3
+turn UPPER 1
+snapshot synth_mod3_upper_up
+turn UPPER -2
+snapshot synth_mod3_upper_down
+turn LOWER 1
+snapshot synth_mod3_lower_up
+turn LOWER -2
+snapshot synth_mod3_lower_down
+press MOD4
+snapshot synth_mod4
+turn UPPER 1
+snapshot synth_mod4_upper_up
+turn UPPER -2
+snapshot synth_mod4_upper_down
+turn LOWER 1
+snapshot synth_mod4_lower_up
+turn LOWER -2
+snapshot synth_mod4_lower_down
+press MOD5
+snapshot synth_mod5
+turn UPPER 1
+snapshot synth_mod5_upper_up
+turn UPPER -2
+snapshot synth_mod5_upper_down
+turn LOWER 1
+snapshot synth_mod5_lower_up
+turn LOWER -2
+snapshot synth_mod5_lower_down
+press MOD6
+snapshot synth_mod6
+turn UPPER 1
+snapshot synth_mod6_upper_up
+turn UPPER -2
+snapshot synth_mod6_upper_down
+turn LOWER 1
+snapshot synth_mod6_lower_up
+turn LOWER -2
+snapshot synth_mod6_lower_down
+press MOD7
+snapshot synth_mod7
+turn UPPER 1
+snapshot synth_mod7_upper_up
+turn UPPER -2
+snapshot synth_mod7_upper_down
+turn LOWER 1
+snapshot synth_mod7_lower_up
+turn LOWER -2
+snapshot synth_mod7_lower_down
+press KIT
+wait 2
+turn SELECT 1
+wait 4
+# the selected drum's audition pad shows its row's random colour
+random_colour 17 0
+pad 17 0
+press MOD0
+snapshot row_mod0
+turn UPPER 1
+snapshot row_mod0_upper_up
+turn UPPER -2
+snapshot row_mod0_upper_down
+turn LOWER 1
+snapshot row_mod0_lower_up
+turn LOWER -2
+snapshot row_mod0_lower_down
+press MOD1
+snapshot row_mod1
+turn UPPER 1
+snapshot row_mod1_upper_up
+turn UPPER -2
+snapshot row_mod1_upper_down
+turn LOWER 1
+snapshot row_mod1_lower_up
+turn LOWER -2
+snapshot row_mod1_lower_down
+press MOD2
+snapshot row_mod2
+turn UPPER 1
+snapshot row_mod2_upper_up
+turn UPPER -2
+snapshot row_mod2_upper_down
+turn LOWER 1
+snapshot row_mod2_lower_up
+turn LOWER -2
+snapshot row_mod2_lower_down
+press MOD3
+snapshot row_mod3
+turn UPPER 1
+snapshot row_mod3_upper_up
+turn UPPER -2
+snapshot row_mod3_upper_down
+turn LOWER 1
+snapshot row_mod3_lower_up
+turn LOWER -2
+snapshot row_mod3_lower_down
+press MOD4
+snapshot row_mod4
+turn UPPER 1
+snapshot row_mod4_upper_up
+turn UPPER -2
+snapshot row_mod4_upper_down
+turn LOWER 1
+snapshot row_mod4_lower_up
+turn LOWER -2
+snapshot row_mod4_lower_down
+press MOD5
+snapshot row_mod5
+turn UPPER 1
+snapshot row_mod5_upper_up
+turn UPPER -2
+snapshot row_mod5_upper_down
+turn LOWER 1
+snapshot row_mod5_lower_up
+turn LOWER -2
+snapshot row_mod5_lower_down
+press MOD6
+snapshot row_mod6
+turn UPPER 1
+snapshot row_mod6_upper_up
+turn UPPER -2
+snapshot row_mod6_upper_down
+turn LOWER 1
+snapshot row_mod6_lower_up
+turn LOWER -2
+snapshot row_mod6_lower_down
+press MOD7
+snapshot row_mod7
+turn UPPER 1
+snapshot row_mod7_upper_up
+turn UPPER -2
+snapshot row_mod7_upper_down
+turn LOWER 1
+snapshot row_mod7_lower_up
+turn LOWER -2
+snapshot row_mod7_lower_down
+press AFFECT_ENTIRE
+press MOD0
+snapshot entire_mod0
+turn UPPER 1
+snapshot entire_mod0_upper_up
+turn UPPER -2
+snapshot entire_mod0_upper_down
+turn LOWER 1
+snapshot entire_mod0_lower_up
+turn LOWER -2
+snapshot entire_mod0_lower_down
+press MOD1
+snapshot entire_mod1
+turn UPPER 1
+snapshot entire_mod1_upper_up
+turn UPPER -2
+snapshot entire_mod1_upper_down
+turn LOWER 1
+snapshot entire_mod1_lower_up
+turn LOWER -2
+snapshot entire_mod1_lower_down
+press MOD2
+snapshot entire_mod2
+turn UPPER 1
+snapshot entire_mod2_upper_up
+turn UPPER -2
+snapshot entire_mod2_upper_down
+turn LOWER 1
+snapshot entire_mod2_lower_up
+turn LOWER -2
+snapshot entire_mod2_lower_down
+press MOD3
+snapshot entire_mod3
+turn UPPER 1
+snapshot entire_mod3_upper_up
+turn UPPER -2
+snapshot entire_mod3_upper_down
+turn LOWER 1
+snapshot entire_mod3_lower_up
+turn LOWER -2
+snapshot entire_mod3_lower_down
+press MOD4
+snapshot entire_mod4
+turn UPPER 1
+snapshot entire_mod4_upper_up
+turn UPPER -2
+snapshot entire_mod4_upper_down
+turn LOWER 1
+snapshot entire_mod4_lower_up
+turn LOWER -2
+snapshot entire_mod4_lower_down
+press MOD5
+snapshot entire_mod5
+turn UPPER 1
+snapshot entire_mod5_upper_up
+turn UPPER -2
+snapshot entire_mod5_upper_down
+turn LOWER 1
+snapshot entire_mod5_lower_up
+turn LOWER -2
+snapshot entire_mod5_lower_down
+press MOD6
+snapshot entire_mod6
+turn UPPER 1
+snapshot entire_mod6_upper_up
+turn UPPER -2
+snapshot entire_mod6_upper_down
+turn LOWER 1
+snapshot entire_mod6_lower_up
+turn LOWER -2
+snapshot entire_mod6_lower_down
+press MOD7
+snapshot entire_mod7
+turn UPPER 1
+snapshot entire_mod7_upper_up
+turn UPPER -2
+snapshot entire_mod7_upper_down
+turn LOWER 1
+snapshot entire_mod7_lower_up
+turn LOWER -2
+snapshot entire_mod7_lower_down
+press SESSION_VIEW
+wait 1
+press MOD0
+snapshot song_mod0
+turn UPPER 1
+snapshot song_mod0_upper_up
+turn UPPER -2
+snapshot song_mod0_upper_down
+turn LOWER 1
+snapshot song_mod0_lower_up
+turn LOWER -2
+snapshot song_mod0_lower_down
+press MOD1
+snapshot song_mod1
+turn UPPER 1
+snapshot song_mod1_upper_up
+turn UPPER -2
+snapshot song_mod1_upper_down
+turn LOWER 1
+snapshot song_mod1_lower_up
+turn LOWER -2
+snapshot song_mod1_lower_down
+press MOD2
+snapshot song_mod2
+turn UPPER 1
+snapshot song_mod2_upper_up
+turn UPPER -2
+snapshot song_mod2_upper_down
+turn LOWER 1
+snapshot song_mod2_lower_up
+turn LOWER -2
+snapshot song_mod2_lower_down
+press MOD3
+snapshot song_mod3
+turn UPPER 1
+snapshot song_mod3_upper_up
+turn UPPER -2
+snapshot song_mod3_upper_down
+turn LOWER 1
+snapshot song_mod3_lower_up
+turn LOWER -2
+snapshot song_mod3_lower_down
+press MOD4
+snapshot song_mod4
+turn UPPER 1
+snapshot song_mod4_upper_up
+turn UPPER -2
+snapshot song_mod4_upper_down
+turn LOWER 1
+snapshot song_mod4_lower_up
+turn LOWER -2
+snapshot song_mod4_lower_down
+press MOD5
+snapshot song_mod5
+turn UPPER 1
+snapshot song_mod5_upper_up
+turn UPPER -2
+snapshot song_mod5_upper_down
+turn LOWER 1
+snapshot song_mod5_lower_up
+turn LOWER -2
+snapshot song_mod5_lower_down
+press MOD6
+snapshot song_mod6
+turn UPPER 1
+snapshot song_mod6_upper_up
+turn UPPER -2
+snapshot song_mod6_upper_down
+turn LOWER 1
+snapshot song_mod6_lower_up
+turn LOWER -2
+snapshot song_mod6_lower_down
+press MOD7
+snapshot song_mod7
+turn UPPER 1
+snapshot song_mod7_upper_up
+turn UPPER -2
+snapshot song_mod7_upper_down
+turn LOWER 1
+snapshot song_mod7_lower_up
+turn LOWER -2
+snapshot song_mod7_lower_down

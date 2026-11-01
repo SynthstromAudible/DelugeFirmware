@@ -1,0 +1,2307 @@
+# Automation view on a kit row and on a kit with affect-entire, and on the song (global params).
+# Boot is a synth clip; KIT makes it a kit and the select encoder loads kit 001; the song's from the arranger.
+press KIT
+wait 2
+turn SELECT 1
+wait 4
+snapshot kit_loaded
+# the selected drum's audition pad shows its row's random colour
+random_colour 17 0
+pad 17 0
+press CLIP_VIEW
+snapshot row_overview
+pad 0 0
+snapshot row_0_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 0 1
+snapshot row_0_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 0 2
+snapshot row_0_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 0 3
+snapshot row_0_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 0 4
+snapshot row_0_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 0 5
+snapshot row_0_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 0 6
+snapshot row_0_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 0 7
+snapshot row_0_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 1 0
+snapshot row_1_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 1 1
+snapshot row_1_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 1 2
+snapshot row_1_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 1 3
+snapshot row_1_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 1 4
+snapshot row_1_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 1 5
+snapshot row_1_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 1 6
+snapshot row_1_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 1 7
+snapshot row_1_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 2 0
+snapshot row_2_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 2 1
+snapshot row_2_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 2 2
+snapshot row_2_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 2 3
+snapshot row_2_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 2 4
+snapshot row_2_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 2 5
+snapshot row_2_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 2 6
+snapshot row_2_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 2 7
+snapshot row_2_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 3 0
+snapshot row_3_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 3 1
+snapshot row_3_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 3 2
+snapshot row_3_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 3 3
+snapshot row_3_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 3 4
+snapshot row_3_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 3 5
+snapshot row_3_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 3 6
+snapshot row_3_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 3 7
+snapshot row_3_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 4 0
+snapshot row_4_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 4 1
+snapshot row_4_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 4 2
+snapshot row_4_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 4 3
+snapshot row_4_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 4 4
+snapshot row_4_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 4 5
+snapshot row_4_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 4 6
+snapshot row_4_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 4 7
+snapshot row_4_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 5 0
+snapshot row_5_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 5 1
+snapshot row_5_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 5 2
+snapshot row_5_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 5 3
+snapshot row_5_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 5 4
+snapshot row_5_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 5 5
+snapshot row_5_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 5 6
+snapshot row_5_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 5 7
+snapshot row_5_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 6 0
+snapshot row_6_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 6 1
+snapshot row_6_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 6 2
+snapshot row_6_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 6 3
+snapshot row_6_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 6 4
+snapshot row_6_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 6 5
+snapshot row_6_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 6 6
+snapshot row_6_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 6 7
+snapshot row_6_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 7 0
+snapshot row_7_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 7 1
+snapshot row_7_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 7 2
+snapshot row_7_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 7 3
+snapshot row_7_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 7 4
+snapshot row_7_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 7 5
+snapshot row_7_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 7 6
+snapshot row_7_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 7 7
+snapshot row_7_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 8 0
+snapshot row_8_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 8 1
+snapshot row_8_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 8 2
+snapshot row_8_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 8 3
+snapshot row_8_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 8 4
+snapshot row_8_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 8 5
+snapshot row_8_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 8 6
+snapshot row_8_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 8 7
+snapshot row_8_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 9 0
+snapshot row_9_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 9 1
+snapshot row_9_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 9 2
+snapshot row_9_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 9 3
+snapshot row_9_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 9 4
+snapshot row_9_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 9 5
+snapshot row_9_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 9 6
+snapshot row_9_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 9 7
+snapshot row_9_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 10 0
+snapshot row_10_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 10 1
+snapshot row_10_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 10 2
+snapshot row_10_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 10 3
+snapshot row_10_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 10 4
+snapshot row_10_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 10 5
+snapshot row_10_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 10 6
+snapshot row_10_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 10 7
+snapshot row_10_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 11 0
+snapshot row_11_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 11 1
+snapshot row_11_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 11 2
+snapshot row_11_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 11 3
+snapshot row_11_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 11 4
+snapshot row_11_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 11 5
+snapshot row_11_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 11 6
+snapshot row_11_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 11 7
+snapshot row_11_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 12 0
+snapshot row_12_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 12 1
+snapshot row_12_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 12 2
+snapshot row_12_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 12 3
+snapshot row_12_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 12 4
+snapshot row_12_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 12 5
+snapshot row_12_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 12 6
+snapshot row_12_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 12 7
+snapshot row_12_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 13 0
+snapshot row_13_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 13 1
+snapshot row_13_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 13 2
+snapshot row_13_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 13 3
+snapshot row_13_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 13 4
+snapshot row_13_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 13 5
+snapshot row_13_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 13 6
+snapshot row_13_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 13 7
+snapshot row_13_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 14 0
+snapshot row_14_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 14 1
+snapshot row_14_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 14 2
+snapshot row_14_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 14 3
+snapshot row_14_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 14 4
+snapshot row_14_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 14 5
+snapshot row_14_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 14 6
+snapshot row_14_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 14 7
+snapshot row_14_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 15 0
+snapshot row_15_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 15 1
+snapshot row_15_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 15 2
+snapshot row_15_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 15 3
+snapshot row_15_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 15 4
+snapshot row_15_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 15 5
+snapshot row_15_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 15 6
+snapshot row_15_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 15 7
+snapshot row_15_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 8 7
+turn SELECT 1
+snapshot row_walk_up_0
+turn SELECT 1
+snapshot row_walk_up_1
+turn SELECT 1
+snapshot row_walk_up_2
+turn SELECT 1
+snapshot row_walk_up_3
+turn SELECT 1
+snapshot row_walk_up_4
+turn SELECT 1
+snapshot row_walk_up_5
+turn SELECT 1
+snapshot row_walk_up_6
+turn SELECT 1
+snapshot row_walk_up_7
+turn SELECT 1
+snapshot row_walk_up_8
+turn SELECT 1
+snapshot row_walk_up_9
+turn SELECT 1
+snapshot row_walk_up_10
+turn SELECT 1
+snapshot row_walk_up_11
+turn SELECT 1
+snapshot row_walk_up_12
+turn SELECT 1
+snapshot row_walk_up_13
+turn SELECT 1
+snapshot row_walk_up_14
+turn SELECT 1
+snapshot row_walk_up_15
+turn SELECT 1
+snapshot row_walk_up_16
+turn SELECT 1
+snapshot row_walk_up_17
+turn SELECT 1
+snapshot row_walk_up_18
+turn SELECT 1
+snapshot row_walk_up_19
+turn SELECT 1
+snapshot row_walk_up_20
+turn SELECT 1
+snapshot row_walk_up_21
+turn SELECT 1
+snapshot row_walk_up_22
+turn SELECT 1
+snapshot row_walk_up_23
+turn SELECT 1
+snapshot row_walk_up_24
+turn SELECT 1
+snapshot row_walk_up_25
+turn SELECT 1
+snapshot row_walk_up_26
+turn SELECT 1
+snapshot row_walk_up_27
+turn SELECT 1
+snapshot row_walk_up_28
+turn SELECT 1
+snapshot row_walk_up_29
+turn SELECT 1
+snapshot row_walk_up_30
+turn SELECT 1
+snapshot row_walk_up_31
+turn SELECT 1
+snapshot row_walk_up_32
+turn SELECT 1
+snapshot row_walk_up_33
+turn SELECT 1
+snapshot row_walk_up_34
+turn SELECT 1
+snapshot row_walk_up_35
+turn SELECT 1
+snapshot row_walk_up_36
+turn SELECT 1
+snapshot row_walk_up_37
+turn SELECT 1
+snapshot row_walk_up_38
+turn SELECT 1
+snapshot row_walk_up_39
+turn SELECT 1
+snapshot row_walk_up_40
+turn SELECT 1
+snapshot row_walk_up_41
+turn SELECT 1
+snapshot row_walk_up_42
+turn SELECT 1
+snapshot row_walk_up_43
+turn SELECT 1
+snapshot row_walk_up_44
+turn SELECT 1
+snapshot row_walk_up_45
+turn SELECT 1
+snapshot row_walk_up_46
+turn SELECT 1
+snapshot row_walk_up_47
+turn SELECT 1
+snapshot row_walk_up_48
+turn SELECT 1
+snapshot row_walk_up_49
+turn SELECT 1
+snapshot row_walk_up_50
+turn SELECT 1
+snapshot row_walk_up_51
+turn SELECT 1
+snapshot row_walk_up_52
+turn SELECT 1
+snapshot row_walk_up_53
+turn SELECT 1
+snapshot row_walk_up_54
+turn SELECT 1
+snapshot row_walk_up_55
+turn SELECT 1
+snapshot row_walk_up_56
+turn SELECT 1
+snapshot row_walk_up_57
+turn SELECT 1
+snapshot row_walk_up_58
+turn SELECT 1
+snapshot row_walk_up_59
+turn SELECT 1
+snapshot row_walk_up_60
+turn SELECT 1
+snapshot row_walk_up_61
+turn SELECT 1
+snapshot row_walk_up_62
+turn SELECT 1
+snapshot row_walk_up_63
+turn SELECT 1
+snapshot row_walk_up_64
+turn SELECT 1
+snapshot row_walk_up_65
+turn SELECT 1
+snapshot row_walk_up_66
+turn SELECT 1
+snapshot row_walk_up_67
+turn SELECT 1
+snapshot row_walk_up_68
+turn SELECT 1
+snapshot row_walk_up_69
+turn SELECT 1
+snapshot row_walk_up_70
+turn SELECT 1
+snapshot row_walk_up_71
+turn SELECT 1
+snapshot row_walk_up_72
+turn SELECT 1
+snapshot row_walk_up_73
+turn SELECT 1
+snapshot row_walk_up_74
+turn SELECT 1
+snapshot row_walk_up_75
+turn SELECT 1
+snapshot row_walk_up_76
+turn SELECT 1
+snapshot row_walk_up_77
+turn SELECT 1
+snapshot row_walk_up_78
+turn SELECT 1
+snapshot row_walk_up_79
+turn SELECT 1
+snapshot row_walk_up_80
+turn SELECT 1
+snapshot row_walk_up_81
+turn SELECT 1
+snapshot row_walk_up_82
+turn SELECT 1
+snapshot row_walk_up_83
+turn SELECT 1
+snapshot row_walk_up_84
+turn SELECT 1
+snapshot row_walk_up_85
+turn SELECT 1
+snapshot row_walk_up_86
+turn SELECT 1
+snapshot row_walk_up_87
+turn SELECT 1
+snapshot row_walk_up_88
+turn SELECT 1
+snapshot row_walk_up_89
+press CLIP_VIEW
+press AFFECT_ENTIRE
+press CLIP_VIEW
+snapshot entire_overview
+pad 0 0
+snapshot entire_0_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 0 1
+snapshot entire_0_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 0 2
+snapshot entire_0_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 0 3
+snapshot entire_0_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 0 4
+snapshot entire_0_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 0 5
+snapshot entire_0_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 0 6
+snapshot entire_0_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 0 7
+snapshot entire_0_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 1 0
+snapshot entire_1_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 1 1
+snapshot entire_1_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 1 2
+snapshot entire_1_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 1 3
+snapshot entire_1_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 1 4
+snapshot entire_1_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 1 5
+snapshot entire_1_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 1 6
+snapshot entire_1_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 1 7
+snapshot entire_1_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 2 0
+snapshot entire_2_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 2 1
+snapshot entire_2_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 2 2
+snapshot entire_2_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 2 3
+snapshot entire_2_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 2 4
+snapshot entire_2_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 2 5
+snapshot entire_2_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 2 6
+snapshot entire_2_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 2 7
+snapshot entire_2_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 3 0
+snapshot entire_3_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 3 1
+snapshot entire_3_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 3 2
+snapshot entire_3_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 3 3
+snapshot entire_3_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 3 4
+snapshot entire_3_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 3 5
+snapshot entire_3_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 3 6
+snapshot entire_3_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 3 7
+snapshot entire_3_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 4 0
+snapshot entire_4_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 4 1
+snapshot entire_4_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 4 2
+snapshot entire_4_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 4 3
+snapshot entire_4_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 4 4
+snapshot entire_4_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 4 5
+snapshot entire_4_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 4 6
+snapshot entire_4_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 4 7
+snapshot entire_4_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 5 0
+snapshot entire_5_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 5 1
+snapshot entire_5_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 5 2
+snapshot entire_5_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 5 3
+snapshot entire_5_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 5 4
+snapshot entire_5_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 5 5
+snapshot entire_5_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 5 6
+snapshot entire_5_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 5 7
+snapshot entire_5_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 6 0
+snapshot entire_6_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 6 1
+snapshot entire_6_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 6 2
+snapshot entire_6_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 6 3
+snapshot entire_6_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 6 4
+snapshot entire_6_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 6 5
+snapshot entire_6_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 6 6
+snapshot entire_6_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 6 7
+snapshot entire_6_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 7 0
+snapshot entire_7_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 7 1
+snapshot entire_7_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 7 2
+snapshot entire_7_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 7 3
+snapshot entire_7_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 7 4
+snapshot entire_7_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 7 5
+snapshot entire_7_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 7 6
+snapshot entire_7_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 7 7
+snapshot entire_7_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 8 0
+snapshot entire_8_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 8 1
+snapshot entire_8_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 8 2
+snapshot entire_8_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 8 3
+snapshot entire_8_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 8 4
+snapshot entire_8_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 8 5
+snapshot entire_8_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 8 6
+snapshot entire_8_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 8 7
+snapshot entire_8_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 9 0
+snapshot entire_9_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 9 1
+snapshot entire_9_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 9 2
+snapshot entire_9_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 9 3
+snapshot entire_9_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 9 4
+snapshot entire_9_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 9 5
+snapshot entire_9_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 9 6
+snapshot entire_9_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 9 7
+snapshot entire_9_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 10 0
+snapshot entire_10_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 10 1
+snapshot entire_10_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 10 2
+snapshot entire_10_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 10 3
+snapshot entire_10_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 10 4
+snapshot entire_10_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 10 5
+snapshot entire_10_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 10 6
+snapshot entire_10_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 10 7
+snapshot entire_10_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 11 0
+snapshot entire_11_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 11 1
+snapshot entire_11_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 11 2
+snapshot entire_11_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 11 3
+snapshot entire_11_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 11 4
+snapshot entire_11_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 11 5
+snapshot entire_11_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 11 6
+snapshot entire_11_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 11 7
+snapshot entire_11_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 12 0
+snapshot entire_12_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 12 1
+snapshot entire_12_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 12 2
+snapshot entire_12_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 12 3
+snapshot entire_12_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 12 4
+snapshot entire_12_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 12 5
+snapshot entire_12_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 12 6
+snapshot entire_12_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 12 7
+snapshot entire_12_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 13 0
+snapshot entire_13_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 13 1
+snapshot entire_13_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 13 2
+snapshot entire_13_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 13 3
+snapshot entire_13_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 13 4
+snapshot entire_13_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 13 5
+snapshot entire_13_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 13 6
+snapshot entire_13_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 13 7
+snapshot entire_13_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 14 0
+snapshot entire_14_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 14 1
+snapshot entire_14_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 14 2
+snapshot entire_14_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 14 3
+snapshot entire_14_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 14 4
+snapshot entire_14_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 14 5
+snapshot entire_14_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 14 6
+snapshot entire_14_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 14 7
+snapshot entire_14_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 15 0
+snapshot entire_15_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 15 1
+snapshot entire_15_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 15 2
+snapshot entire_15_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 15 3
+snapshot entire_15_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 15 4
+snapshot entire_15_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 15 5
+snapshot entire_15_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 15 6
+snapshot entire_15_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 15 7
+snapshot entire_15_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 8 7
+turn SELECT 1
+snapshot entire_walk_up_0
+turn SELECT 1
+snapshot entire_walk_up_1
+turn SELECT 1
+snapshot entire_walk_up_2
+turn SELECT 1
+snapshot entire_walk_up_3
+turn SELECT 1
+snapshot entire_walk_up_4
+turn SELECT 1
+snapshot entire_walk_up_5
+turn SELECT 1
+snapshot entire_walk_up_6
+turn SELECT 1
+snapshot entire_walk_up_7
+turn SELECT 1
+snapshot entire_walk_up_8
+turn SELECT 1
+snapshot entire_walk_up_9
+turn SELECT 1
+snapshot entire_walk_up_10
+turn SELECT 1
+snapshot entire_walk_up_11
+turn SELECT 1
+snapshot entire_walk_up_12
+turn SELECT 1
+snapshot entire_walk_up_13
+turn SELECT 1
+snapshot entire_walk_up_14
+turn SELECT 1
+snapshot entire_walk_up_15
+turn SELECT 1
+snapshot entire_walk_up_16
+turn SELECT 1
+snapshot entire_walk_up_17
+turn SELECT 1
+snapshot entire_walk_up_18
+turn SELECT 1
+snapshot entire_walk_up_19
+turn SELECT 1
+snapshot entire_walk_up_20
+turn SELECT 1
+snapshot entire_walk_up_21
+turn SELECT 1
+snapshot entire_walk_up_22
+turn SELECT 1
+snapshot entire_walk_up_23
+turn SELECT 1
+snapshot entire_walk_up_24
+turn SELECT 1
+snapshot entire_walk_up_25
+turn SELECT 1
+snapshot entire_walk_up_26
+turn SELECT 1
+snapshot entire_walk_up_27
+turn SELECT 1
+snapshot entire_walk_up_28
+turn SELECT 1
+snapshot entire_walk_up_29
+turn SELECT 1
+snapshot entire_walk_up_30
+turn SELECT 1
+snapshot entire_walk_up_31
+turn SELECT 1
+snapshot entire_walk_up_32
+turn SELECT 1
+snapshot entire_walk_up_33
+turn SELECT 1
+snapshot entire_walk_up_34
+turn SELECT 1
+snapshot entire_walk_up_35
+turn SELECT 1
+snapshot entire_walk_up_36
+turn SELECT 1
+snapshot entire_walk_up_37
+turn SELECT 1
+snapshot entire_walk_up_38
+turn SELECT 1
+snapshot entire_walk_up_39
+turn SELECT 1
+snapshot entire_walk_up_40
+turn SELECT 1
+snapshot entire_walk_up_41
+turn SELECT 1
+snapshot entire_walk_up_42
+turn SELECT 1
+snapshot entire_walk_up_43
+turn SELECT 1
+snapshot entire_walk_up_44
+press CLIP_VIEW
+press SESSION_VIEW
+wait 1
+# the arranger: its automation view is the song's
+press SESSION_VIEW
+wait 1
+press CLIP_VIEW
+snapshot song_overview
+pad 0 0
+snapshot song_0_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 0 1
+snapshot song_0_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 0 2
+snapshot song_0_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 0 3
+snapshot song_0_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 0 4
+snapshot song_0_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 0 5
+snapshot song_0_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 0 6
+snapshot song_0_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 0 7
+snapshot song_0_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 1 0
+snapshot song_1_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 1 1
+snapshot song_1_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 1 2
+snapshot song_1_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 1 3
+snapshot song_1_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 1 4
+snapshot song_1_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 1 5
+snapshot song_1_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 1 6
+snapshot song_1_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 1 7
+snapshot song_1_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 2 0
+snapshot song_2_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 2 1
+snapshot song_2_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 2 2
+snapshot song_2_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 2 3
+snapshot song_2_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 2 4
+snapshot song_2_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 2 5
+snapshot song_2_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 2 6
+snapshot song_2_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 2 7
+snapshot song_2_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 3 0
+snapshot song_3_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 3 1
+snapshot song_3_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 3 2
+snapshot song_3_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 3 3
+snapshot song_3_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 3 4
+snapshot song_3_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 3 5
+snapshot song_3_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 3 6
+snapshot song_3_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 3 7
+snapshot song_3_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 4 0
+snapshot song_4_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 4 1
+snapshot song_4_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 4 2
+snapshot song_4_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 4 3
+snapshot song_4_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 4 4
+snapshot song_4_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 4 5
+snapshot song_4_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 4 6
+snapshot song_4_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 4 7
+snapshot song_4_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 5 0
+snapshot song_5_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 5 1
+snapshot song_5_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 5 2
+snapshot song_5_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 5 3
+snapshot song_5_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 5 4
+snapshot song_5_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 5 5
+snapshot song_5_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 5 6
+snapshot song_5_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 5 7
+snapshot song_5_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 6 0
+snapshot song_6_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 6 1
+snapshot song_6_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 6 2
+snapshot song_6_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 6 3
+snapshot song_6_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 6 4
+snapshot song_6_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 6 5
+snapshot song_6_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 6 6
+snapshot song_6_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 6 7
+snapshot song_6_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 7 0
+snapshot song_7_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 7 1
+snapshot song_7_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 7 2
+snapshot song_7_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 7 3
+snapshot song_7_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 7 4
+snapshot song_7_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 7 5
+snapshot song_7_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 7 6
+snapshot song_7_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 7 7
+snapshot song_7_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 8 0
+snapshot song_8_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 8 1
+snapshot song_8_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 8 2
+snapshot song_8_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 8 3
+snapshot song_8_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 8 4
+snapshot song_8_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 8 5
+snapshot song_8_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 8 6
+snapshot song_8_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 8 7
+snapshot song_8_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 9 0
+snapshot song_9_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 9 1
+snapshot song_9_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 9 2
+snapshot song_9_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 9 3
+snapshot song_9_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 9 4
+snapshot song_9_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 9 5
+snapshot song_9_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 9 6
+snapshot song_9_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 9 7
+snapshot song_9_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 10 0
+snapshot song_10_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 10 1
+snapshot song_10_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 10 2
+snapshot song_10_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 10 3
+snapshot song_10_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 10 4
+snapshot song_10_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 10 5
+snapshot song_10_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 10 6
+snapshot song_10_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 10 7
+snapshot song_10_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 11 0
+snapshot song_11_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 11 1
+snapshot song_11_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 11 2
+snapshot song_11_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 11 3
+snapshot song_11_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 11 4
+snapshot song_11_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 11 5
+snapshot song_11_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 11 6
+snapshot song_11_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 11 7
+snapshot song_11_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 12 0
+snapshot song_12_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 12 1
+snapshot song_12_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 12 2
+snapshot song_12_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 12 3
+snapshot song_12_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 12 4
+snapshot song_12_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 12 5
+snapshot song_12_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 12 6
+snapshot song_12_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 12 7
+snapshot song_12_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 13 0
+snapshot song_13_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 13 1
+snapshot song_13_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 13 2
+snapshot song_13_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 13 3
+snapshot song_13_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 13 4
+snapshot song_13_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 13 5
+snapshot song_13_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 13 6
+snapshot song_13_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 13 7
+snapshot song_13_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 14 0
+snapshot song_14_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 14 1
+snapshot song_14_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 14 2
+snapshot song_14_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 14 3
+snapshot song_14_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 14 4
+snapshot song_14_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 14 5
+snapshot song_14_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 14 6
+snapshot song_14_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 14 7
+snapshot song_14_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 15 0
+snapshot song_15_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 15 1
+snapshot song_15_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 15 2
+snapshot song_15_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 15 3
+snapshot song_15_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 15 4
+snapshot song_15_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 15 5
+snapshot song_15_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 15 6
+snapshot song_15_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 15 7
+snapshot song_15_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 8 7
+turn SELECT 1
+snapshot song_walk_up_0
+turn SELECT 1
+snapshot song_walk_up_1
+turn SELECT 1
+snapshot song_walk_up_2
+turn SELECT 1
+snapshot song_walk_up_3
+turn SELECT 1
+snapshot song_walk_up_4
+turn SELECT 1
+snapshot song_walk_up_5
+turn SELECT 1
+snapshot song_walk_up_6
+turn SELECT 1
+snapshot song_walk_up_7
+turn SELECT 1
+snapshot song_walk_up_8
+turn SELECT 1
+snapshot song_walk_up_9
+turn SELECT 1
+snapshot song_walk_up_10
+turn SELECT 1
+snapshot song_walk_up_11
+turn SELECT 1
+snapshot song_walk_up_12
+turn SELECT 1
+snapshot song_walk_up_13
+turn SELECT 1
+snapshot song_walk_up_14
+turn SELECT 1
+snapshot song_walk_up_15
+turn SELECT 1
+snapshot song_walk_up_16
+turn SELECT 1
+snapshot song_walk_up_17
+turn SELECT 1
+snapshot song_walk_up_18
+turn SELECT 1
+snapshot song_walk_up_19
+turn SELECT 1
+snapshot song_walk_up_20
+turn SELECT 1
+snapshot song_walk_up_21
+turn SELECT 1
+snapshot song_walk_up_22
+turn SELECT 1
+snapshot song_walk_up_23
+turn SELECT 1
+snapshot song_walk_up_24
+turn SELECT 1
+snapshot song_walk_up_25
+turn SELECT 1
+snapshot song_walk_up_26
+turn SELECT 1
+snapshot song_walk_up_27
+turn SELECT 1
+snapshot song_walk_up_28
+turn SELECT 1
+snapshot song_walk_up_29
+turn SELECT 1
+snapshot song_walk_up_30
+turn SELECT 1
+snapshot song_walk_up_31
+turn SELECT 1
+snapshot song_walk_up_32
+turn SELECT 1
+snapshot song_walk_up_33
+turn SELECT 1
+snapshot song_walk_up_34
+turn SELECT 1
+snapshot song_walk_up_35
+turn SELECT 1
+snapshot song_walk_up_36
+turn SELECT 1
+snapshot song_walk_up_37
+turn SELECT 1
+snapshot song_walk_up_38
+turn SELECT 1
+snapshot song_walk_up_39
+turn SELECT 1
+snapshot song_walk_up_40
+turn SELECT 1
+snapshot song_walk_up_41
+turn SELECT 1
+snapshot song_walk_up_42
+turn SELECT 1
+snapshot song_walk_up_43
+turn SELECT 1
+snapshot song_walk_up_44

@@ -1,0 +1,915 @@
+# Automation view on a synth clip (boot: synth clip, preset 000 RICH SAW BASS).
+# Every overview cell (patched, unpatched-sound, patch-cable and expression shortcuts), then the select-encoder walk
+# through the whole order and into the patch cables, then the selection kept across leaving the view.
+press CLIP_VIEW
+snapshot overview
+pad 0 0
+snapshot cell_0_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 0 1
+snapshot cell_0_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 0 2
+snapshot cell_0_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 0 3
+snapshot cell_0_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 0 4
+snapshot cell_0_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 0 5
+snapshot cell_0_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 0 6
+snapshot cell_0_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 0 7
+snapshot cell_0_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 1 0
+snapshot cell_1_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 1 1
+snapshot cell_1_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 1 2
+snapshot cell_1_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 1 3
+snapshot cell_1_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 1 4
+snapshot cell_1_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 1 5
+snapshot cell_1_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 1 6
+snapshot cell_1_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 1 7
+snapshot cell_1_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 2 0
+snapshot cell_2_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 2 1
+snapshot cell_2_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 2 2
+snapshot cell_2_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 2 3
+snapshot cell_2_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 2 4
+snapshot cell_2_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 2 5
+snapshot cell_2_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 2 6
+snapshot cell_2_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 2 7
+snapshot cell_2_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 3 0
+snapshot cell_3_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 3 1
+snapshot cell_3_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 3 2
+snapshot cell_3_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 3 3
+snapshot cell_3_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 3 4
+snapshot cell_3_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 3 5
+snapshot cell_3_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 3 6
+snapshot cell_3_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 3 7
+snapshot cell_3_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 4 0
+snapshot cell_4_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 4 1
+snapshot cell_4_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 4 2
+snapshot cell_4_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 4 3
+snapshot cell_4_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 4 4
+snapshot cell_4_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 4 5
+snapshot cell_4_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 4 6
+snapshot cell_4_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 4 7
+snapshot cell_4_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 5 0
+snapshot cell_5_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 5 1
+snapshot cell_5_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 5 2
+snapshot cell_5_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 5 3
+snapshot cell_5_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 5 4
+snapshot cell_5_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 5 5
+snapshot cell_5_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 5 6
+snapshot cell_5_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 5 7
+snapshot cell_5_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 6 0
+snapshot cell_6_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 6 1
+snapshot cell_6_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 6 2
+snapshot cell_6_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 6 3
+snapshot cell_6_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 6 4
+snapshot cell_6_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 6 5
+snapshot cell_6_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 6 6
+snapshot cell_6_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 6 7
+snapshot cell_6_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 7 0
+snapshot cell_7_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 7 1
+snapshot cell_7_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 7 2
+snapshot cell_7_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 7 3
+snapshot cell_7_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 7 4
+snapshot cell_7_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 7 5
+snapshot cell_7_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 7 6
+snapshot cell_7_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 7 7
+snapshot cell_7_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 8 0
+snapshot cell_8_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 8 1
+snapshot cell_8_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 8 2
+snapshot cell_8_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 8 3
+snapshot cell_8_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 8 4
+snapshot cell_8_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 8 5
+snapshot cell_8_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 8 6
+snapshot cell_8_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 8 7
+snapshot cell_8_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 9 0
+snapshot cell_9_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 9 1
+snapshot cell_9_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 9 2
+snapshot cell_9_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 9 3
+snapshot cell_9_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 9 4
+snapshot cell_9_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 9 5
+snapshot cell_9_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 9 6
+snapshot cell_9_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 9 7
+snapshot cell_9_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 10 0
+snapshot cell_10_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 10 1
+snapshot cell_10_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 10 2
+snapshot cell_10_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 10 3
+snapshot cell_10_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 10 4
+snapshot cell_10_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 10 5
+snapshot cell_10_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 10 6
+snapshot cell_10_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 10 7
+snapshot cell_10_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 11 0
+snapshot cell_11_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 11 1
+snapshot cell_11_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 11 2
+snapshot cell_11_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 11 3
+snapshot cell_11_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 11 4
+snapshot cell_11_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 11 5
+snapshot cell_11_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 11 6
+snapshot cell_11_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 11 7
+snapshot cell_11_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 12 0
+snapshot cell_12_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 12 1
+snapshot cell_12_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 12 2
+snapshot cell_12_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 12 3
+snapshot cell_12_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 12 4
+snapshot cell_12_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 12 5
+snapshot cell_12_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 12 6
+snapshot cell_12_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 12 7
+snapshot cell_12_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 13 0
+snapshot cell_13_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 13 1
+snapshot cell_13_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 13 2
+snapshot cell_13_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 13 3
+snapshot cell_13_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 13 4
+snapshot cell_13_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 13 5
+snapshot cell_13_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 13 6
+snapshot cell_13_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 13 7
+snapshot cell_13_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 14 0
+snapshot cell_14_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 14 1
+snapshot cell_14_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 14 2
+snapshot cell_14_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 14 3
+snapshot cell_14_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 14 4
+snapshot cell_14_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 14 5
+snapshot cell_14_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 14 6
+snapshot cell_14_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 14 7
+snapshot cell_14_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 15 0
+snapshot cell_15_0
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 15 1
+snapshot cell_15_1
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 15 2
+snapshot cell_15_2
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 15 3
+snapshot cell_15_3
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 15 4
+snapshot cell_15_4
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 15 5
+snapshot cell_15_5
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 15 6
+snapshot cell_15_6
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 15 7
+snapshot cell_15_7
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 8 7
+snapshot walk_start
+turn SELECT 1
+snapshot walk_up_0
+turn SELECT 1
+snapshot walk_up_1
+turn SELECT 1
+snapshot walk_up_2
+turn SELECT 1
+snapshot walk_up_3
+turn SELECT 1
+snapshot walk_up_4
+turn SELECT 1
+snapshot walk_up_5
+turn SELECT 1
+snapshot walk_up_6
+turn SELECT 1
+snapshot walk_up_7
+turn SELECT 1
+snapshot walk_up_8
+turn SELECT 1
+snapshot walk_up_9
+turn SELECT 1
+snapshot walk_up_10
+turn SELECT 1
+snapshot walk_up_11
+turn SELECT 1
+snapshot walk_up_12
+turn SELECT 1
+snapshot walk_up_13
+turn SELECT 1
+snapshot walk_up_14
+turn SELECT 1
+snapshot walk_up_15
+turn SELECT 1
+snapshot walk_up_16
+turn SELECT 1
+snapshot walk_up_17
+turn SELECT 1
+snapshot walk_up_18
+turn SELECT 1
+snapshot walk_up_19
+turn SELECT 1
+snapshot walk_up_20
+turn SELECT 1
+snapshot walk_up_21
+turn SELECT 1
+snapshot walk_up_22
+turn SELECT 1
+snapshot walk_up_23
+turn SELECT 1
+snapshot walk_up_24
+turn SELECT 1
+snapshot walk_up_25
+turn SELECT 1
+snapshot walk_up_26
+turn SELECT 1
+snapshot walk_up_27
+turn SELECT 1
+snapshot walk_up_28
+turn SELECT 1
+snapshot walk_up_29
+turn SELECT 1
+snapshot walk_up_30
+turn SELECT 1
+snapshot walk_up_31
+turn SELECT 1
+snapshot walk_up_32
+turn SELECT 1
+snapshot walk_up_33
+turn SELECT 1
+snapshot walk_up_34
+turn SELECT 1
+snapshot walk_up_35
+turn SELECT 1
+snapshot walk_up_36
+turn SELECT 1
+snapshot walk_up_37
+turn SELECT 1
+snapshot walk_up_38
+turn SELECT 1
+snapshot walk_up_39
+turn SELECT 1
+snapshot walk_up_40
+turn SELECT 1
+snapshot walk_up_41
+turn SELECT 1
+snapshot walk_up_42
+turn SELECT 1
+snapshot walk_up_43
+turn SELECT 1
+snapshot walk_up_44
+turn SELECT 1
+snapshot walk_up_45
+turn SELECT 1
+snapshot walk_up_46
+turn SELECT 1
+snapshot walk_up_47
+turn SELECT 1
+snapshot walk_up_48
+turn SELECT 1
+snapshot walk_up_49
+turn SELECT 1
+snapshot walk_up_50
+turn SELECT 1
+snapshot walk_up_51
+turn SELECT 1
+snapshot walk_up_52
+turn SELECT 1
+snapshot walk_up_53
+turn SELECT 1
+snapshot walk_up_54
+turn SELECT 1
+snapshot walk_up_55
+turn SELECT 1
+snapshot walk_up_56
+turn SELECT 1
+snapshot walk_up_57
+turn SELECT 1
+snapshot walk_up_58
+turn SELECT 1
+snapshot walk_up_59
+turn SELECT 1
+snapshot walk_up_60
+turn SELECT 1
+snapshot walk_up_61
+turn SELECT 1
+snapshot walk_up_62
+turn SELECT 1
+snapshot walk_up_63
+turn SELECT 1
+snapshot walk_up_64
+turn SELECT 1
+snapshot walk_up_65
+turn SELECT 1
+snapshot walk_up_66
+turn SELECT 1
+snapshot walk_up_67
+turn SELECT 1
+snapshot walk_up_68
+turn SELECT 1
+snapshot walk_up_69
+turn SELECT 1
+snapshot walk_up_70
+turn SELECT 1
+snapshot walk_up_71
+turn SELECT 1
+snapshot walk_up_72
+turn SELECT 1
+snapshot walk_up_73
+turn SELECT 1
+snapshot walk_up_74
+turn SELECT 1
+snapshot walk_up_75
+turn SELECT 1
+snapshot walk_up_76
+turn SELECT 1
+snapshot walk_up_77
+turn SELECT 1
+snapshot walk_up_78
+turn SELECT 1
+snapshot walk_up_79
+turn SELECT 1
+snapshot walk_up_80
+turn SELECT 1
+snapshot walk_up_81
+turn SELECT 1
+snapshot walk_up_82
+turn SELECT 1
+snapshot walk_up_83
+turn SELECT 1
+snapshot walk_up_84
+turn SELECT 1
+snapshot walk_up_85
+turn SELECT 1
+snapshot walk_up_86
+turn SELECT 1
+snapshot walk_up_87
+turn SELECT 1
+snapshot walk_up_88
+turn SELECT 1
+snapshot walk_up_89
+turn SELECT 1
+snapshot walk_up_90
+turn SELECT 1
+snapshot walk_up_91
+turn SELECT 1
+snapshot walk_up_92
+turn SELECT 1
+snapshot walk_up_93
+turn SELECT 1
+snapshot walk_up_94
+turn SELECT 1
+snapshot walk_up_95
+turn SELECT 1
+snapshot walk_up_96
+turn SELECT 1
+snapshot walk_up_97
+turn SELECT 1
+snapshot walk_up_98
+turn SELECT 1
+snapshot walk_up_99
+turn SELECT -1
+snapshot walk_down_0
+turn SELECT -1
+snapshot walk_down_1
+turn SELECT -1
+snapshot walk_down_2
+turn SELECT -1
+snapshot walk_down_3
+turn SELECT -1
+snapshot walk_down_4
+turn SELECT -1
+snapshot walk_down_5
+turn SELECT -1
+snapshot walk_down_6
+turn SELECT -1
+snapshot walk_down_7
+turn SELECT -1
+snapshot walk_down_8
+turn SELECT -1
+snapshot walk_down_9
+turn SELECT -1
+snapshot walk_down_10
+turn SELECT -1
+snapshot walk_down_11
+press CLIP_VIEW
+snapshot left
+press CLIP_VIEW
+snapshot returned
+# A cable (ENV4 -> OSC1 level) and a range cable on it (ENV3 -> its depth), from the menus, then the automation
+# view's walk back from the first param (master level, 6,0) into the cables, whose names list their sources.
+press CLIP_VIEW
+down SHIFT
+pad 2 0
+up SHIFT
+press SELECT_ENC
+turn SELECT 3
+press SELECT_ENC
+turn SELECT 5
+press SELECT_ENC
+turn SELECT 2
+press SELECT_ENC
+turn SELECT 3
+snapshot range_cable_made
+press BACK
+press BACK
+press BACK
+press BACK
+press BACK
+press CLIP_VIEW
+down SHIFT
+press CLIP_VIEW
+up SHIFT
+pad 6 0
+snapshot cables_start
+turn SELECT -1
+snapshot cables_0
+turn SELECT -1
+snapshot cables_1
+turn SELECT -1
+snapshot cables_2
+turn SELECT -1
+snapshot cables_3
+turn SELECT -1
+snapshot cables_4
+turn SELECT 1
+snapshot cables_back_0
+turn SELECT 1
+snapshot cables_back_1
