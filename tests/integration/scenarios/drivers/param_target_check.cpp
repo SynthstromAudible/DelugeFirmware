@@ -24,10 +24,14 @@
 #include "gui/views/automation_view.h"
 #include "gui/views/performance_view.h"
 #include "io/midi/midi_follow.h"
+#include "memory/general_memory_allocator.h"
+#include "model/global_effectable/global_effectable_for_clip.h"
 #include "model/project_bridge/param_ids.h"
+#include "model/song/song.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_targets.h"
 #include "modulation/patch/patch_cable.h"
+#include "processing/sound/sound_instrument.h"
 #include "scenarios/drivers/driver.h"
 #include "scenarios/drivers/midi_follow_xml_reference.h"
 #include "scenarios/drivers/param_target_tables_reference.h"
@@ -350,6 +354,56 @@ void checkPerformanceTables(Checker& check) {
 	}
 }
 
+/// A sound's default mod knobs (fresh, and as a sample sets them up) and a global effectable's knob layouts over every
+/// selector, against their recorded cells.
+void checkKnobs(Checker& check) {
+	void* memory = GeneralMemoryAllocator::get().alloc(sizeof(Song));
+	Song* song = new (memory) Song();
+	song->paramManager.setupUnpatched();
+	GlobalEffectable::initParams(&song->paramManager);
+	Song* previous = currentSong;
+	currentSong = song;
+	ParamManagerForTimeline synthParams;
+	auto* synth = static_cast<SoundInstrument*>(StorageManager::createNewInstrument(OutputType::SYNTH, &synthParams));
+	auto sound = [&](const char* name, Table table) {
+		for (int32_t m = 0; m < kNumModButtons; ++m) {
+			for (int32_t k = 0; k < kNumPhysicalModKnobs; ++k) {
+				const int32_t n = m * kNumPhysicalModKnobs + k;
+				checkCell(check, name, OwnerPlugin::INSTRUMENT, synth->modKnobs[m][k].target, recordedCell(table, n));
+			}
+		}
+	};
+	sound("sound knobs", Table::SOUND_KNOBS);
+	synth->setupAsSample(&synthParams);
+	sound("sound knobs, sample", Table::SOUND_KNOBS_SAMPLE);
+	currentSong = previous;
+
+	constexpr std::array kFilters{FilterType::LPF, FilterType::HPF, FilterType::EQ};
+	constexpr std::array kModFX{ModFXParam::DEPTH, ModFXParam::OFFSET, ModFXParam::FEEDBACK}; // as recorded
+	for (bool clip : {false, true}) {
+		for (int32_t m = 0; m < kNumModButtons; ++m) {
+			for (int32_t k = 0; k < kNumPhysicalModKnobs; ++k) {
+				for (int32_t f = 0; f < 3; ++f) {
+					for (int32_t x = 0; x < 3; ++x) {
+						for (int32_t comp = 0; comp < 2; ++comp) {
+							std::optional<deluge::plugin::ParamId> param =
+							    clip ? GlobalEffectableForClip::clipKnobParam(m, k) : std::nullopt;
+							if (!param) {
+								param = GlobalEffectable::knobParam(m, k, kFilters[f], kModFX[x], comp != 0);
+							}
+							const int32_t n = (((m * kNumPhysicalModKnobs + k) * 3 + f) * 3 + x) * 2 + comp;
+							checkCell(
+							    check, clip ? "clip knob layout" : "global knob layout", OwnerPlugin::GLOBAL_EFFECTABLE,
+							    param ? std::optional{deluge::project::engine_target(param->value)} : std::nullopt,
+							    recordedCell(clip ? Table::GE_CLIP_KNOBS : Table::GE_KNOBS, n));
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
 int param_target_check_main(int /*argc*/, char** /*argv*/, Io io) {
 	Checker check{io};
 	checkRoundTrip(check);
@@ -357,6 +411,7 @@ int param_target_check_main(int /*argc*/, char** /*argv*/, Io io) {
 	checkMIDICCShortcuts(check);
 	checkMidiFollow(check);
 	checkPerformanceTables(check);
+	checkKnobs(check);
 	std::fprintf(io.out, "%d disagreement(s)\n", check.disagreements);
 	return check.disagreements == 0 ? 0 : 3;
 }

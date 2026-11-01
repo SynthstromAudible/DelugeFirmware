@@ -170,32 +170,33 @@ Sound::Sound()
 	setLpfMode(FilterMode::TRANSISTOR_24DB); // Good for samples, I think
 
 	// LFO
-	modKnobs[0][1].paramDescriptor.setToHaveParamOnly(params::GLOBAL_VOLUME_POST_FX);
-	modKnobs[0][0].paramDescriptor.setToHaveParamOnly(params::LOCAL_PAN);
+	modKnobs[0][1].target = deluge::modulation::knobParam(params::GLOBAL_VOLUME_POST_FX);
+	modKnobs[0][0].target = deluge::modulation::knobParam(params::LOCAL_PAN);
 
-	modKnobs[1][1].paramDescriptor.setToHaveParamOnly(params::LOCAL_LPF_FREQ);
-	modKnobs[1][0].paramDescriptor.setToHaveParamOnly(params::LOCAL_LPF_RESONANCE);
+	modKnobs[1][1].target = deluge::modulation::knobParam(params::LOCAL_LPF_FREQ);
+	modKnobs[1][0].target = deluge::modulation::knobParam(params::LOCAL_LPF_RESONANCE);
 
-	modKnobs[2][1].paramDescriptor.setToHaveParamOnly(params::LOCAL_ENV_0_ATTACK);
-	modKnobs[2][0].paramDescriptor.setToHaveParamOnly(params::LOCAL_ENV_0_RELEASE);
+	modKnobs[2][1].target = deluge::modulation::knobParam(params::LOCAL_ENV_0_ATTACK);
+	modKnobs[2][0].target = deluge::modulation::knobParam(params::LOCAL_ENV_0_RELEASE);
 
-	modKnobs[3][1].paramDescriptor.setToHaveParamOnly(params::GLOBAL_DELAY_RATE);
-	modKnobs[3][0].paramDescriptor.setToHaveParamOnly(params::GLOBAL_DELAY_FEEDBACK);
+	modKnobs[3][1].target = deluge::modulation::knobParam(params::GLOBAL_DELAY_RATE);
+	modKnobs[3][0].target = deluge::modulation::knobParam(params::GLOBAL_DELAY_FEEDBACK);
 
-	modKnobs[4][0].paramDescriptor.setToHaveParamOnly(params::GLOBAL_REVERB_AMOUNT);
+	modKnobs[4][0].target = deluge::modulation::knobParam(params::GLOBAL_REVERB_AMOUNT);
 
-	modKnobs[5][1].paramDescriptor.setToHaveParamOnly(params::GLOBAL_LFO_FREQ_1);
+	modKnobs[5][1].target = deluge::modulation::knobParam(params::GLOBAL_LFO_FREQ_1);
 
-	modKnobs[4][1].paramDescriptor.setToHaveParamAndSource(params::GLOBAL_VOLUME_POST_REVERB_SEND,
-	                                                       PatchSource::SIDECHAIN);
-	modKnobs[5][0].paramDescriptor.setToHaveParamAndSource(params::LOCAL_PITCH_ADJUST, PatchSource::LFO_GLOBAL_1);
+	modKnobs[4][1].target = deluge::modulation::knobTargetOf(
+	    deluge::synth::CableTarget::depth_of(params::GLOBAL_VOLUME_POST_REVERB_SEND, PatchSource::SIDECHAIN));
+	modKnobs[5][0].target = deluge::modulation::knobTargetOf(
+	    deluge::synth::CableTarget::depth_of(params::LOCAL_PITCH_ADJUST, PatchSource::LFO_GLOBAL_1));
 
-	modKnobs[6][1].paramDescriptor.setToHaveParamOnly(params::UNPATCHED_START + params::UNPATCHED_STUTTER_RATE);
-	modKnobs[6][0].paramDescriptor.setToHaveParamOnly(params::UNPATCHED_START + params::UNPATCHED_PORTAMENTO);
+	modKnobs[6][1].target = deluge::modulation::knobParam(params::UNPATCHED_START + params::UNPATCHED_STUTTER_RATE);
+	modKnobs[6][0].target = deluge::modulation::knobParam(params::UNPATCHED_START + params::UNPATCHED_PORTAMENTO);
 
-	modKnobs[7][1].paramDescriptor.setToHaveParamOnly(params::UNPATCHED_START
-	                                                  + params::UNPATCHED_SAMPLE_RATE_REDUCTION);
-	modKnobs[7][0].paramDescriptor.setToHaveParamOnly(params::UNPATCHED_START + params::UNPATCHED_BITCRUSHING);
+	modKnobs[7][1].target =
+	    deluge::modulation::knobParam(params::UNPATCHED_START + params::UNPATCHED_SAMPLE_RATE_REDUCTION);
+	modKnobs[7][0].target = deluge::modulation::knobParam(params::UNPATCHED_START + params::UNPATCHED_BITCRUSHING);
 	expressionSourcesChangedAtSynthLevel.reset();
 
 	paramLPF.p = PARAM_LPF_OFF;
@@ -281,7 +282,7 @@ void Sound::setupAsSample(ParamManagerForTimeline* paramManager) {
 	patchedParams->params[params::LOCAL_LPF_FREQ].setCurrentValueBasicForSetup(
 	    *patchedParams->docForParam(params::LOCAL_LPF_FREQ), 2147483647);
 
-	modKnobs[6][0].paramDescriptor.setToHaveParamOnly(params::LOCAL_PITCH_ADJUST);
+	modKnobs[6][0].target = deluge::modulation::knobParam(params::LOCAL_PITCH_ADJUST);
 
 	PatchCableSet* patchCableSet = paramManager->getPatchCableSet();
 	patchCableSet->truncateCables(0);
@@ -554,13 +555,15 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 						ModKnob& new_knob = modKnobs[k][w];
 
 						if (s == PatchSource::NOT_AVAILABLE) {
-							new_knob.paramDescriptor.setToHaveParamOnly(p);
+							new_knob.target = deluge::modulation::knobParam(p);
 						}
 						else if (s2 == PatchSource::NOT_AVAILABLE) {
-							new_knob.paramDescriptor.setToHaveParamAndSource(p, s);
+							new_knob.target =
+							    deluge::modulation::knobTargetOf(deluge::synth::CableTarget::depth_of(p, s));
 						}
 						else {
-							new_knob.paramDescriptor.setToHaveParamAndTwoSources(p, s, s2);
+							new_knob.target =
+							    deluge::modulation::knobTargetOf(deluge::synth::CableTarget::depth_of_depth(p, s, s2));
 						}
 
 						ensureKnobReferencesCorrectVolume(new_knob);
@@ -613,18 +616,20 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 
 // Exists for the purpose of potentially correcting an incorrect file as it's loaded
 void Sound::ensureKnobReferencesCorrectVolume(Knob& knob) {
-	int32_t p = knob.paramDescriptor.getJustTheParam();
+	int32_t p = deluge::modulation::knobWord(knob.target).param_index();
 
 	if (p == params::GLOBAL_VOLUME_POST_REVERB_SEND || p == params::GLOBAL_VOLUME_POST_FX
 	    || p == params::LOCAL_VOLUME) {
-		if (knob.paramDescriptor.isJustAParam()) {
-			knob.paramDescriptor.setToHaveParamOnly(params::GLOBAL_VOLUME_POST_FX);
+		if (deluge::modulation::knobWord(knob.target).is_param()) {
+			knob.target = deluge::modulation::knobParam(params::GLOBAL_VOLUME_POST_FX);
 		}
-		else if (knob.paramDescriptor.getTopLevelSource() == PatchSource::SIDECHAIN) {
-			knob.paramDescriptor.changeParam(params::GLOBAL_VOLUME_POST_REVERB_SEND);
+		else if (deluge::modulation::knobWord(knob.target).top_source() == PatchSource::SIDECHAIN) {
+			knob.target = deluge::modulation::knobTargetOf(
+			    deluge::modulation::knobWord(knob.target).with_param(params::GLOBAL_VOLUME_POST_REVERB_SEND));
 		}
 		else {
-			knob.paramDescriptor.changeParam(params::LOCAL_VOLUME);
+			knob.target = deluge::modulation::knobTargetOf(
+			    deluge::modulation::knobWord(knob.target).with_param(params::LOCAL_VOLUME));
 		}
 	}
 }
@@ -2300,16 +2305,16 @@ void Sound::resyncGlobalLFOs(bool reset_state) {
 // whichKnob is either which physical mod knob, or which MIDI CC code.
 // For mod knobs, supply midiChannel as 255
 // Returns false if fail due to insufficient RAM.
-bool Sound::learnKnob(MIDICable* cable, ParamDescriptor paramDescriptor, uint8_t whichKnob, uint8_t modKnobMode,
+bool Sound::learnKnob(MIDICable* cable, deluge::modulation::KnobTarget target, uint8_t whichKnob, uint8_t modKnobMode,
                       uint8_t midiChannel, Song* song) {
 
 	// If a mod knob
 	if (midiChannel >= 16) {
 
 		// If that knob was patched to something else...
-		bool overwroteExistingKnob = (modKnobs[modKnobMode][whichKnob].paramDescriptor != paramDescriptor);
+		bool overwroteExistingKnob = (modKnobs[modKnobMode][whichKnob].target != target);
 
-		modKnobs[modKnobMode][whichKnob].paramDescriptor = paramDescriptor;
+		modKnobs[modKnobMode][whichKnob].target = target;
 
 		if (overwroteExistingKnob) {
 			ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(song);
@@ -2320,7 +2325,7 @@ bool Sound::learnKnob(MIDICable* cable, ParamDescriptor paramDescriptor, uint8_t
 
 	// If a MIDI knob
 	else {
-		return ModControllableAudio::learnKnob(cable, paramDescriptor, whichKnob, modKnobMode, midiChannel, song);
+		return ModControllableAudio::learnKnob(cable, target, whichKnob, modKnobMode, midiChannel, song);
 	}
 }
 
@@ -2385,14 +2390,14 @@ void Sound::ensureParamPresetValueWithoutKnobIsZero(ModelStackWithAutoParam* mod
 
 	for (int32_t k = 0; k < kNumModButtons; k++) {
 		for (int32_t w = 0; w < kNumPhysicalModKnobs; w++) {
-			if (modKnobs[k][w].paramDescriptor.isSetToParamWithNoSource(modelStack->paramId)) {
+			if ((modKnobs[k][w].target == deluge::modulation::knobParam(modelStack->paramId))) {
 				return;
 			}
 		}
 	}
 
 	bool any_assigned = std::ranges::any_of(midi_knobs, [&](const MIDIKnob& knob) {
-		return knob.paramDescriptor.isSetToParamWithNoSource(modelStack->paramId);
+		return (knob.target == deluge::modulation::knobParam(modelStack->paramId));
 	});
 
 	// No knobs were assigned to this param, so make it 0
@@ -2412,14 +2417,14 @@ void Sound::ensureParamPresetValueWithoutKnobIsZeroWithMinimalDetails(ParamManag
 
 	for (int32_t k = 0; k < kNumModButtons; k++) {
 		for (int32_t w = 0; w < kNumPhysicalModKnobs; w++) {
-			if (modKnobs[k][w].paramDescriptor.isSetToParamWithNoSource(p)) {
+			if ((modKnobs[k][w].target == deluge::modulation::knobParam(p))) {
 				return;
 			}
 		}
 	}
 
 	bool any_assigned = std::ranges::any_of(midi_knobs, [&](const MIDIKnob& knob) {
-		return knob.paramDescriptor.isSetToParamWithNoSource(p); //<
+		return (knob.target == deluge::modulation::knobParam(p)); //<
 	});
 
 	// No knobs were assigned to this param, so make it 0 (in the store — the persisted source — and the cursor).
@@ -2546,16 +2551,17 @@ void Sound::setSynthMode(SynthMode value, Song* song) {
 	// Change mod knob functions over. Switching *to* FM...
 	if (synthMode == SynthMode::FM && oldSynthMode != SynthMode::FM) {
 		for (int32_t f = 0; f < kNumModButtons; f++) {
-			if (modKnobs[f][0].paramDescriptor.isJustAParam() && modKnobs[f][1].paramDescriptor.isJustAParam()) {
-				int32_t p0 = modKnobs[f][0].paramDescriptor.getJustTheParam();
-				int32_t p1 = modKnobs[f][1].paramDescriptor.getJustTheParam();
+			if (deluge::modulation::knobWord(modKnobs[f][0].target).is_param()
+			    && deluge::modulation::knobWord(modKnobs[f][1].target).is_param()) {
+				int32_t p0 = deluge::modulation::knobWord(modKnobs[f][0].target).param_index();
+				int32_t p1 = deluge::modulation::knobWord(modKnobs[f][1].target).param_index();
 
 				if ((p0 == params::LOCAL_LPF_RESONANCE || p0 == params::LOCAL_HPF_RESONANCE
 				     || p0 == params::UNPATCHED_START + params::UNPATCHED_BASS)
 				    && (p1 == params::LOCAL_LPF_FREQ || p1 == params::LOCAL_HPF_FREQ
 				        || p1 == params::UNPATCHED_START + params::UNPATCHED_TREBLE)) {
-					modKnobs[f][0].paramDescriptor.setToHaveParamOnly(params::LOCAL_MODULATOR_1_VOLUME);
-					modKnobs[f][1].paramDescriptor.setToHaveParamOnly(params::LOCAL_MODULATOR_0_VOLUME);
+					modKnobs[f][0].target = deluge::modulation::knobParam(params::LOCAL_MODULATOR_1_VOLUME);
+					modKnobs[f][1].target = deluge::modulation::knobParam(params::LOCAL_MODULATOR_0_VOLUME);
 				}
 			}
 		}
@@ -2567,10 +2573,10 @@ void Sound::setSynthMode(SynthMode value, Song* song) {
 	// ... and switching *from* FM...
 	if (synthMode != SynthMode::FM && oldSynthMode == SynthMode::FM) {
 		for (int32_t f = 0; f < kNumModButtons; f++) {
-			if (modKnobs[f][0].paramDescriptor.isSetToParamWithNoSource(params::LOCAL_MODULATOR_1_VOLUME)
-			    && modKnobs[f][1].paramDescriptor.isSetToParamWithNoSource(params::LOCAL_MODULATOR_0_VOLUME)) {
-				modKnobs[f][0].paramDescriptor.setToHaveParamOnly(params::LOCAL_LPF_RESONANCE);
-				modKnobs[f][1].paramDescriptor.setToHaveParamOnly(params::LOCAL_LPF_FREQ);
+			if ((modKnobs[f][0].target == deluge::modulation::knobParam(params::LOCAL_MODULATOR_1_VOLUME))
+			    && (modKnobs[f][1].target == deluge::modulation::knobParam(params::LOCAL_MODULATOR_0_VOLUME))) {
+				modKnobs[f][0].target = deluge::modulation::knobParam(params::LOCAL_LPF_RESONANCE);
+				modKnobs[f][1].target = deluge::modulation::knobParam(params::LOCAL_LPF_FREQ);
 			}
 		}
 		// switch the filters back on if needed
@@ -3215,16 +3221,16 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 	writer.writeArrayStart("modKnobs");
 	for (int32_t k = 0; k < kNumModButtons; k++) {
 		for (int32_t w = 0; w < kNumPhysicalModKnobs; w++) {
-			ParamDescriptor pd;
-			pd.data = modKnobs[k][w].paramDescriptor.data; // the controller mappings' runtime copy
+			// the controller mappings' runtime copy, as the file's descriptor words name it
+			const deluge::synth::CableTarget word = deluge::modulation::knobWord(modKnobs[k][w].target);
 			writer.writeOpeningTagBeginning("modKnob", true);
 			writer.writeAttribute("controlsParam",
-			                      params::paramNameForFile(params::Kind::UNPATCHED_SOUND, pd.getJustTheParam()), false);
-			if (!pd.isJustAParam()) {
-				writer.writeAttribute("patchAmountFromSource", sourceToString(pd.getTopLevelSource()), false);
+			                      params::paramNameForFile(params::Kind::UNPATCHED_SOUND, word.param_index()), false);
+			if (!word.is_param()) {
+				writer.writeAttribute("patchAmountFromSource", sourceToString(word.top_source()), false);
 
-				if (pd.hasSecondSource()) {
-					writer.writeAttribute("patchAmountFromSecondSource", sourceToString(pd.getSecondSourceFromTop()));
+				if (word.has_second_source()) {
+					writer.writeAttribute("patchAmountFromSecondSource", sourceToString(word.second_source_from_top()));
 				}
 			}
 			writer.closeTag(true);
@@ -3345,26 +3351,27 @@ void Sound::modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTime
 
 	// else --> display param name
 
-	if (ourModKnobTop->paramDescriptor.isSetToParamWithNoSource(params::LOCAL_LPF_FREQ)
-	    && ourModKnobBottom->paramDescriptor.isSetToParamWithNoSource(params::LOCAL_LPF_RESONANCE)) {
+	if ((ourModKnobTop->target == deluge::modulation::knobParam(params::LOCAL_LPF_FREQ))
+	    && (ourModKnobBottom->target == deluge::modulation::knobParam(params::LOCAL_LPF_RESONANCE))) {
 		displayFilterSettings(on, FilterType::LPF);
 	}
-	else if (ourModKnobTop->paramDescriptor.isSetToParamWithNoSource(params::LOCAL_HPF_FREQ)
-	         && ourModKnobBottom->paramDescriptor.isSetToParamWithNoSource(params::LOCAL_HPF_RESONANCE)) {
+	else if ((ourModKnobTop->target == deluge::modulation::knobParam(params::LOCAL_HPF_FREQ))
+	         && (ourModKnobBottom->target == deluge::modulation::knobParam(params::LOCAL_HPF_RESONANCE))) {
 		displayFilterSettings(on, FilterType::HPF);
 	}
-	else if (ourModKnobTop->paramDescriptor.isSetToParamWithNoSource(params::UNPATCHED_START + params::UNPATCHED_TREBLE)
-	         && ourModKnobBottom->paramDescriptor.isSetToParamWithNoSource(params::UNPATCHED_START
-	                                                                       + params::UNPATCHED_BASS)) {
+	else if ((ourModKnobTop->target
+	          == deluge::modulation::knobParam(params::UNPATCHED_START + params::UNPATCHED_TREBLE))
+	         && (ourModKnobBottom->target
+	             == deluge::modulation::knobParam(params::UNPATCHED_START + params::UNPATCHED_BASS))) {
 		displayFilterSettings(on, FilterType::EQ);
 	}
-	else if (ourModKnobTop->paramDescriptor.isSetToParamWithNoSource(params::GLOBAL_DELAY_RATE)
-	         && ourModKnobBottom->paramDescriptor.isSetToParamWithNoSource(params::GLOBAL_DELAY_FEEDBACK)) {
+	else if ((ourModKnobTop->target == deluge::modulation::knobParam(params::GLOBAL_DELAY_RATE))
+	         && (ourModKnobBottom->target == deluge::modulation::knobParam(params::GLOBAL_DELAY_FEEDBACK))) {
 		displayDelaySettings(on);
 	}
-	else if ((ourModKnobTop->paramDescriptor.hasJustOneSource()
-	          && ourModKnobTop->paramDescriptor.getTopLevelSource() == PatchSource::SIDECHAIN)
-	         && ourModKnobBottom->paramDescriptor.isSetToParamWithNoSource(params::GLOBAL_REVERB_AMOUNT)) {
+	else if ((deluge::modulation::knobWord(ourModKnobTop->target).has_just_one_source()
+	          && deluge::modulation::knobWord(ourModKnobTop->target).top_source() == PatchSource::SIDECHAIN)
+	         && (ourModKnobBottom->target == deluge::modulation::knobParam(params::GLOBAL_REVERB_AMOUNT))) {
 		displaySidechainAndReverbSettings(on);
 	}
 	else {
@@ -3395,8 +3402,8 @@ ModelStackWithAutoParam* Sound::getParamFromModEncoderDeeper(int32_t whichModEnc
 	int32_t modKnobMode = *getModKnobMode();
 	ModKnob* knob = &modKnobs[modKnobMode][whichModEncoder];
 
-	if (knob->paramDescriptor.isJustAParam()) {
-		int32_t p = knob->paramDescriptor.getJustTheParam();
+	if (deluge::modulation::knobWord(knob->target).is_param()) {
+		int32_t p = deluge::modulation::knobWord(knob->target).param_index();
 
 		// Unpatched param
 		if (p >= params::UNPATCHED_START) {
@@ -3413,7 +3420,7 @@ ModelStackWithAutoParam* Sound::getParamFromModEncoderDeeper(int32_t whichModEnc
 
 	// Patch cable
 	else {
-		paramId = knob->paramDescriptor.data;
+		paramId = deluge::modulation::knobWord(knob->target).word;
 		summary = paramManager->getPatchCableSetSummary();
 	}
 
@@ -3433,8 +3440,8 @@ bool Sound::modEncoderButtonActionImpl(uint8_t whichModEncoder, bool on, ModelSt
 
 	ModKnob* ourModKnob = &modKnobs[modKnobMode][whichModEncoder];
 
-	if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(params::UNPATCHED_START
-	                                                         + params::UNPATCHED_STUTTER_RATE)) {
+	if ((ourModKnob->target
+	     == deluge::modulation::knobParam(params::UNPATCHED_START + params::UNPATCHED_STUTTER_RATE))) {
 		if (on) {
 			beginStutter((ParamManagerForTimeline*)modelStack->paramManager);
 		}
@@ -3447,7 +3454,7 @@ bool Sound::modEncoderButtonActionImpl(uint8_t whichModEncoder, bool on, ModelSt
 	}
 
 	// Switch delay pingpong
-	else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(params::GLOBAL_DELAY_RATE)) {
+	else if ((ourModKnob->target == deluge::modulation::knobParam(params::GLOBAL_DELAY_RATE))) {
 		if (on) {
 			if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AltGoldenKnobDelayParams)
 			    == RuntimeFeatureStateToggle::On) {
@@ -3482,7 +3489,7 @@ bool Sound::modEncoderButtonActionImpl(uint8_t whichModEncoder, bool on, ModelSt
 	}
 
 	// Switch delay analog sim
-	else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(params::GLOBAL_DELAY_FEEDBACK)) {
+	else if ((ourModKnob->target == deluge::modulation::knobParam(params::GLOBAL_DELAY_FEEDBACK))) {
 		if (on) {
 			if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AltGoldenKnobDelayParams)
 			    == RuntimeFeatureStateToggle::On) {
@@ -3519,7 +3526,7 @@ bool Sound::modEncoderButtonActionImpl(uint8_t whichModEncoder, bool on, ModelSt
 	}
 
 	// Switch LPF mode
-	else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(params::LOCAL_LPF_RESONANCE)) {
+	else if ((ourModKnob->target == deluge::modulation::knobParam(params::LOCAL_LPF_RESONANCE))) {
 		if (on) {
 			switchLPFMode();
 			FilterType currentFilterType = FilterType::LPF;
@@ -3539,7 +3546,7 @@ bool Sound::modEncoderButtonActionImpl(uint8_t whichModEncoder, bool on, ModelSt
 		}
 	}
 	// Switch HPF mode
-	else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(params::LOCAL_HPF_RESONANCE)) {
+	else if ((ourModKnob->target == deluge::modulation::knobParam(params::LOCAL_HPF_RESONANCE))) {
 		if (on) {
 			switchHPFMode();
 			FilterType currentFilterType = FilterType::HPF;
@@ -3559,7 +3566,7 @@ bool Sound::modEncoderButtonActionImpl(uint8_t whichModEncoder, bool on, ModelSt
 		}
 	}
 	// Cycle through reverb presets
-	else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(params::GLOBAL_REVERB_AMOUNT)) {
+	else if ((ourModKnob->target == deluge::modulation::knobParam(params::GLOBAL_REVERB_AMOUNT))) {
 		if (on) {
 			view.cycleThroughReverbPresets();
 
@@ -3576,8 +3583,8 @@ bool Sound::modEncoderButtonActionImpl(uint8_t whichModEncoder, bool on, ModelSt
 	}
 
 	// Switch sidechain sync level
-	else if (ourModKnob->paramDescriptor.hasJustOneSource()
-	         && ourModKnob->paramDescriptor.getTopLevelSource() == PatchSource::SIDECHAIN) {
+	else if (deluge::modulation::knobWord(ourModKnob->target).has_just_one_source()
+	         && deluge::modulation::knobWord(ourModKnob->target).top_source() == PatchSource::SIDECHAIN) {
 		if (on) {
 			int32_t insideWorldTickMagnitude;
 			if (currentSong) { // Bit of a hack just referring to currentSong in here...
@@ -3611,14 +3618,14 @@ bool Sound::modEncoderButtonActionImpl(uint8_t whichModEncoder, bool on, ModelSt
 	}
 
 	// Switching between LPF, HPF and EQ
-	else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(params::LOCAL_LPF_FREQ)) {
+	else if ((ourModKnob->target == deluge::modulation::knobParam(params::LOCAL_LPF_FREQ))) {
 		if (on && getSynthMode() != SynthMode::FM) {
-			ourModKnob->paramDescriptor.setToHaveParamOnly(params::LOCAL_HPF_FREQ);
+			ourModKnob->target = deluge::modulation::knobParam(params::LOCAL_HPF_FREQ);
 			// Switch resonance too
-			if (modKnobs[modKnobMode][1 - whichModEncoder].paramDescriptor.isSetToParamWithNoSource(
-			        params::LOCAL_LPF_RESONANCE)) {
-				modKnobs[modKnobMode][1 - whichModEncoder].paramDescriptor.setToHaveParamOnly(
-				    params::LOCAL_HPF_RESONANCE);
+			if ((modKnobs[modKnobMode][1 - whichModEncoder].target
+			     == deluge::modulation::knobParam(params::LOCAL_LPF_RESONANCE))) {
+				modKnobs[modKnobMode][1 - whichModEncoder].target =
+				    deluge::modulation::knobParam(params::LOCAL_HPF_RESONANCE);
 			}
 			FilterType currentFilterType = FilterType::HPF;
 
@@ -3634,14 +3641,14 @@ bool Sound::modEncoderButtonActionImpl(uint8_t whichModEncoder, bool on, ModelSt
 		return false;
 	}
 
-	else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(params::LOCAL_HPF_FREQ)) {
+	else if ((ourModKnob->target == deluge::modulation::knobParam(params::LOCAL_HPF_FREQ))) {
 		if (on && getSynthMode() != SynthMode::FM) {
-			ourModKnob->paramDescriptor.setToHaveParamOnly(params::UNPATCHED_START + params::UNPATCHED_TREBLE);
+			ourModKnob->target = deluge::modulation::knobParam(params::UNPATCHED_START + params::UNPATCHED_TREBLE);
 			// Switch resonance too
-			if (modKnobs[modKnobMode][1 - whichModEncoder].paramDescriptor.isSetToParamWithNoSource(
-			        params::LOCAL_HPF_RESONANCE)) {
-				modKnobs[modKnobMode][1 - whichModEncoder].paramDescriptor.setToHaveParamOnly(params::UNPATCHED_START
-				                                                                              + params::UNPATCHED_BASS);
+			if ((modKnobs[modKnobMode][1 - whichModEncoder].target
+			     == deluge::modulation::knobParam(params::LOCAL_HPF_RESONANCE))) {
+				modKnobs[modKnobMode][1 - whichModEncoder].target =
+				    deluge::modulation::knobParam(params::UNPATCHED_START + params::UNPATCHED_BASS);
 			}
 			FilterType currentFilterType = FilterType::EQ;
 
@@ -3657,14 +3664,15 @@ bool Sound::modEncoderButtonActionImpl(uint8_t whichModEncoder, bool on, ModelSt
 		return false;
 	}
 
-	else if (ourModKnob->paramDescriptor.isSetToParamWithNoSource(params::UNPATCHED_START + params::UNPATCHED_TREBLE)) {
+	else if ((ourModKnob->target
+	          == deluge::modulation::knobParam(params::UNPATCHED_START + params::UNPATCHED_TREBLE))) {
 		if (on && getSynthMode() != SynthMode::FM) {
-			ourModKnob->paramDescriptor.setToHaveParamOnly(params::LOCAL_LPF_FREQ);
+			ourModKnob->target = deluge::modulation::knobParam(params::LOCAL_LPF_FREQ);
 			// Switch resonance too
-			if (modKnobs[modKnobMode][1 - whichModEncoder].paramDescriptor.isSetToParamWithNoSource(
-			        params::UNPATCHED_START + params::UNPATCHED_BASS)) {
-				modKnobs[modKnobMode][1 - whichModEncoder].paramDescriptor.setToHaveParamOnly(
-				    params::LOCAL_LPF_RESONANCE);
+			if ((modKnobs[modKnobMode][1 - whichModEncoder].target
+			     == deluge::modulation::knobParam(params::UNPATCHED_START + params::UNPATCHED_BASS))) {
+				modKnobs[modKnobMode][1 - whichModEncoder].target =
+				    deluge::modulation::knobParam(params::LOCAL_LPF_RESONANCE);
 			}
 			FilterType currentFilterType = FilterType::LPF;
 
@@ -3825,9 +3833,9 @@ ModelStackWithAutoParam* Sound::getParamFromMIDIKnob(MIDIKnob& knob, ModelStackW
 	ParamCollectionSummary* summary;
 	int32_t paramId;
 
-	if (knob.paramDescriptor.isJustAParam()) {
+	if (deluge::modulation::knobWord(knob.target).is_param()) {
 
-		int32_t p = knob.paramDescriptor.getJustTheParam();
+		int32_t p = deluge::modulation::knobWord(knob.target).param_index();
 
 		// Unpatched parameter
 		if (p >= params::UNPATCHED_START) {
@@ -3844,7 +3852,7 @@ ModelStackWithAutoParam* Sound::getParamFromMIDIKnob(MIDIKnob& knob, ModelStackW
 	// Patch cable strength
 	else {
 		summary = modelStack->paramManager->getPatchCableSetSummary();
-		paramId = knob.paramDescriptor.data;
+		paramId = deluge::modulation::knobWord(knob.target).word;
 	}
 
 	ModelStackWithParamId* modelStackWithParamId =

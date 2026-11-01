@@ -35,6 +35,12 @@ public:
 	}
 
 	static void initParams(ParamManager* paramManager);
+	/// @brief A global effectable's mod knob @p whichModEncoder (nonzero the upper) in mode @p modKnobMode, as its
+	/// default layout has it: a filter knob follows the filter type, a mod FX knob the mod FX param; the reverb knob is
+	/// hidden while the compressor is edited.
+	[[nodiscard]] static std::optional<deluge::plugin::ParamId> knobParam(int32_t modKnobMode, int32_t whichModEncoder,
+	                                                                      FilterType filter, ModFXParam modFX,
+	                                                                      bool editingCompressor);
 	static void initParamsForAudioClip(ParamManagerForTimeline* paramManager);
 	void modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager) override;
 	bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack) override;
