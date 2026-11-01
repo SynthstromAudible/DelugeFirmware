@@ -1,0 +1,70 @@
+/*
+ * Copyright © 2026 Synthstrom Audible Limited
+ *
+ * This file is part of The Synthstrom Audible Deluge Firmware.
+ *
+ * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program.
+ * If not, see <https://www.gnu.org/licenses/>.
+ */
+#pragma once
+
+#include "definitions_cxx.hpp"                 // OscType
+#include "synth/sources/input/input_channel.h" // synth::InputChannel
+#include "synth/sources/source.h"              // synth::Source, SourceBlock, SourceRenderResult
+#include <cstdint>
+
+namespace deluge::synth {
+
+class AudioInputPort;
+class LivePitchShifter;
+
+/// @brief The live-input source (INPUT_L / INPUT_R / INPUT_STEREO) for one voice-source — a @ref synth::Source.
+///
+/// Reads the host's live-input ring (through the injected @ref AudioInputPort — the ring + frame
+/// clock + plug-state + the shared per-channel @ref LiveInputBuffer pool) and sums it into the voice's oscBuffer,
+/// pitch-shifting through a lazily-created @ref LivePitchShifter when the played note is off the input's natural
+/// rate. The port keeps the source free of `AudioEngine`. It owns the pooled pitch-shifter; ownership is
+/// **explicit** (freed in @ref unassign, never in a destructor) — the per-source objects are pooled and reused.
+class InputSource : public Source {
+	AudioInputPort* in_;
+	LivePitchShifter* live_pitch_shifter_ = nullptr;
+	/// Which input channel this source plays — latched once at note-on (see @ref note_on), so the per-block
+	/// render context need not carry it.
+	InputChannel channel_ = InputChannel::LEFT;
+
+public:
+	explicit InputSource(AudioInputPort* in) : in_(in) {}
+	/// Reads through @p in, which must outlive this source.
+	void bind_port(AudioInputPort* in) { in_ = in; }
+
+	/// Latches the input channel for the note about to start, from the source's type.
+	bool note_on(const SourceNote& note) override;
+
+	/// Renders this live-input source's contribution into @c block.osc_buffer (always ACTIVE: live input never
+	/// ends by itself). The channel routing and pitch shift are @ref render_input below.
+	SourceRenderResult render(const SourceBlock& block) override;
+
+	/// Frees the pooled pitch-shifter (no-op if none held).
+	void unassign(bool deleting_song) override;
+
+private:
+	/// Render one block, *summing* the live input into @p oscBuffer. Channel routing follows the latched
+	/// @ref channel_ (L / R / stereo, with the internal-mic + condense rules); @p phaseIncrement != unity engages
+	/// the pitch-shifter. @p interpolationBufferSize is precomputed by Voice (only used on the pitch-shift arm).
+	/// When @p stereoUnison is set, oscBuffer is an interleaved stereo buffer and this unison part's mono input
+	/// is panned across it with @p amplitudeL / @p amplitudeR (the stereo-unison-spread fix).
+	void render_input(int32_t* osc_buffer, int32_t num_samples, uint32_t phase_increment, int32_t source_amplitude,
+	                  int32_t amplitude_increment, bool stereo_buffer, bool stereo_unison, int32_t amplitude_l,
+	                  int32_t amplitude_r, int32_t interpolation_buffer_size, dsp::fixed::Cong& noise,
+	                  int32_t* mono_scratch);
+};
+
+} // namespace deluge::synth

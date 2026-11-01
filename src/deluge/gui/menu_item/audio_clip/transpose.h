@@ -49,11 +49,9 @@ public:
 		MenuItemWithCCLearning::learnKnob(cable, whichKnob, modKnobMode, midiChannel);
 	};
 
-	ParamDescriptor getLearningThing() override {
-		ParamDescriptor paramDescriptor;
-		paramDescriptor.setToHaveParamOnly(deluge::modulation::params::UNPATCHED_START
-		                                   + deluge::modulation::params::UNPATCHED_PITCH_ADJUST);
-		return paramDescriptor;
+	deluge::modulation::KnobTarget getLearningThing() override {
+		return deluge::modulation::knobParam(deluge::modulation::params::UNPATCHED_START
+		                                     + deluge::modulation::params::UNPATCHED_PITCH_ADJUST);
 	}
 };
 } // namespace deluge::gui::menu_item::audio_clip

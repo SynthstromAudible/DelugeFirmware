@@ -1,6 +1,6 @@
 #include "scenes/bind/knob_math.h"
 
-#include "engines/deluge/cables.h"
+#include "instruments/deluge/cables.h"
 
 #include <algorithm>
 #include <limits>
@@ -22,11 +22,11 @@ bool cable(const project::ParamAddress& address) {
 
 /// A word that is never negative (0..INT32_MAX) onto -64..64: a half-precision param or an expression dimension past
 /// bend.
-bool half_word(const project::ParamAddress& address, const engine::ParamInfo* info) {
+bool half_word(const project::ParamAddress& address, const plugin::ParamInfo* info) {
 	if (address.space == project::ParamSpace::EXPRESSION) {
 		return address.id.value != kPitchBend;
 	}
-	return info != nullptr && info->display == engine::ParamDisplay::HALF_PRECISION;
+	return info != nullptr && info->mapping == plugin::MappingKind::UNIPOLAR;
 }
 
 } // namespace
@@ -38,7 +38,7 @@ KnobKind knob_kind(const project::ParamAddress& address) {
 	return address.space == project::ParamSpace::MIDI_CC ? KnobKind::MIDI_CC : KnobKind::PARAM;
 }
 
-int32_t knob_pos_of(const project::ParamAddress& address, const engine::ParamInfo* info, int32_t value) {
+int32_t knob_pos_of(const project::ParamAddress& address, const plugin::ParamInfo* info, int32_t value) {
 	if (cable(address)) {
 		return (value >> 23) - 64;
 	}
@@ -51,7 +51,7 @@ int32_t knob_pos_of(const project::ParamAddress& address, const engine::ParamInf
 	return (value + (1 << 24)) >> 25;
 }
 
-int32_t value_of_knob(const project::ParamAddress& address, const engine::ParamInfo* info, int32_t knob_pos) {
+int32_t value_of_knob(const project::ParamAddress& address, const plugin::ParamInfo* info, int32_t knob_pos) {
 	if (cable(address)) {
 		return knob_pos < kMaxKnobPos ? (knob_pos + 64) << 23 : 1 << 30;
 	}
@@ -61,7 +61,7 @@ int32_t value_of_knob(const project::ParamAddress& address, const engine::ParamI
 	return knob_pos < kMaxKnobPos ? knob_pos << 25 : kTop;
 }
 
-bool indicates_middle(const project::ParamAddress& address, const engine::ParamInfo* info, bool stutter_quantized,
+bool indicates_middle(const project::ParamAddress& address, const plugin::ParamInfo* info, bool stutter_quantized,
                       bool stuttering) {
 	if (cable(address)) {
 		return true;
@@ -72,17 +72,17 @@ bool indicates_middle(const project::ParamAddress& address, const engine::ParamI
 	if (info->file_name == "stutterRate") {
 		return !stutter_quantized || stuttering;
 	}
-	return info->indicates_middle;
+	return info->flags.has(plugin::ParamFlag::MIDDLE_DETENT);
 }
 
-bool bipolar(const project::ParamAddress& address, const engine::ParamInfo* info) {
+bool bipolar(const project::ParamAddress& address, const plugin::ParamInfo* info) {
 	if (cable(address)) {
 		return true;
 	}
 	if (address.space == project::ParamSpace::EXPRESSION) {
 		return address.id.value == kPitchBend;
 	}
-	return info != nullptr && info->bipolar;
+	return info != nullptr && info->flags.has(plugin::ParamFlag::CENTRED);
 }
 
 int32_t turn(KnobKind kind, int32_t knob_pos, int32_t offset) {

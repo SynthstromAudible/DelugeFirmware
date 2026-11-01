@@ -19,9 +19,9 @@
 
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/mode.h"
+#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/types.h"
 #include "dsp-next/core/wrapping.h"
-#include "util/fixedpoint.h"
 
 #include <cstdint>
 #include <type_traits>
@@ -69,7 +69,7 @@ struct OnePole {
 
 	/// @brief What the owner sets.
 	struct Settings {
-		q31 moveability = 0;        ///< tan(f)/(1+tan(f)), Q31: 0 holds the memory still, toward ONE_Q31 it follows x.
+		q31 moveability = 0;        ///< tan(f)/(1+tan(f)), Q31: 0 holds the memory still, toward kOneQ31 it follows x.
 		Mode mode = Mode::LOW_PASS; ///< What a step returns.
 	};
 

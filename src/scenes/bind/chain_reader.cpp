@@ -1,6 +1,6 @@
 #include "scenes/bind/chain_reader.h"
 
-#include "engines/effects/settings.h"
+#include "effects/settings.h"
 
 namespace deluge::scenes::bind {
 
@@ -14,7 +14,7 @@ std::optional<int32_t> ChainReader::read(std::string_view path) const {
 	return effects_ != nullptr ? effects::held_effect_setting(*effects_, path) : std::nullopt;
 }
 
-engine::SettingReader ChainReader::reader() const {
+plugin::SettingReader ChainReader::reader() const {
 	return {.read = [](const void* self,
 	                   std::string_view path) { return static_cast<const ChainReader*>(self)->read(path); },
 	        .self = this};

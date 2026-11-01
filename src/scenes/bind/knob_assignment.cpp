@@ -1,8 +1,8 @@
 #include "scenes/bind/knob_assignment.h"
 
-#include "engines/deluge/cables.h"
-#include "engines/deluge/params.h"
-#include "engines/global_effectable/params.h"
+#include "effects/global_effectable/params.h"
+#include "instruments/deluge/cables.h"
+#include "instruments/deluge/params.h"
 
 #include <algorithm>
 
@@ -52,10 +52,10 @@ KnobAssignment sound_knob(const project::Song& song, const SoundFocus& focus, ui
 	}
 	const ParamAddress address{
 	    .owner = owner, .space = ParamSpace::ENGINE, .id = it->target, .clip_id = clip_id(focus.clip)};
-	const engine::ParamKind kind = instrument::is_cable_depth(it->target) ? engine::ParamKind::PATCH_CABLE
+	const plugin::ParamKind kind = instrument::is_cable_depth(it->target) ? plugin::ParamKind::PATCH_CABLE
 	                               : it->target.value < instrument::kUnpatchedFirstId
-	                                   ? engine::ParamKind::PATCHED
-	                                   : engine::ParamKind::UNPATCHED_SOUND;
+	                                   ? plugin::ParamKind::PATCHED
+	                                   : plugin::ParamKind::UNPATCHED_SOUND;
 	return {.target = address, .kind = kind};
 }
 
@@ -63,10 +63,10 @@ KnobAssignment sound_knob(const project::Song& song, const SoundFocus& focus, ui
 /// its compressor view. A clip's chain trades the song's compressor knobs for the sidechain volume and pitch.
 KnobAssignment chain_knob(const KnobFocus& focus, OwnerId owner, std::optional<uint32_t> clip,
                           const project::FxChain* chain, bool is_song, uint8_t mode, int32_t knob) {
-	const auto param = [&](engine::ParamId id) {
+	const auto param = [&](plugin::ParamId id) {
 		return KnobAssignment{.target =
 		                          ParamAddress{.owner = owner, .space = ParamSpace::ENGINE, .id = id, .clip_id = clip},
-		                      .kind = engine::ParamKind::UNPATCHED_GLOBAL};
+		                      .kind = plugin::ParamKind::UNPATCHED_GLOBAL};
 	};
 	const auto filter = chain != nullptr ? static_cast<FilterView>(chain->filter_type) : FilterView::LPF;
 	const auto fx = chain != nullptr ? static_cast<ModFxView>(chain->mod_fx_param) : ModFxView::FEEDBACK;
@@ -126,22 +126,22 @@ KnobAssignment midi_knob(const project::Song& song, const MidiFocus& focus, uint
 		return {};
 	}
 	const project::ModKnobCc& cc = output->mod_knob_ccs[at];
-	const auto in = [&](ParamSpace space, uint32_t id, engine::ParamKind kind) {
+	const auto in = [&](ParamSpace space, uint32_t id, plugin::ParamKind kind) {
 		return KnobAssignment{.target =
 		                          ParamAddress{.owner = OwnerId::clip(focus.clip->clip_id), .space = space, .id = {id}},
 		                      .kind = kind};
 	};
 	switch (cc.kind) {
 	case project::ModKnobCc::Kind::BEND:
-		return in(ParamSpace::EXPRESSION, 0, engine::ParamKind::EXPRESSION);
+		return in(ParamSpace::EXPRESSION, 0, plugin::ParamKind::EXPRESSION);
 	case project::ModKnobCc::Kind::AFTERTOUCH:
-		return in(ParamSpace::EXPRESSION, 2, engine::ParamKind::EXPRESSION);
+		return in(ParamSpace::EXPRESSION, 2, plugin::ParamKind::EXPRESSION);
 	case project::ModKnobCc::Kind::NUMBER:
 		if (cc.number == project::ModKnobCc::kYAxisNumber) {
-			return in(ParamSpace::EXPRESSION, 1, engine::ParamKind::EXPRESSION);
+			return in(ParamSpace::EXPRESSION, 1, plugin::ParamKind::EXPRESSION);
 		}
 		return cc.number < project::ModKnobCc::kYAxisNumber
-		           ? in(ParamSpace::MIDI_CC, cc.number, engine::ParamKind::MIDI)
+		           ? in(ParamSpace::MIDI_CC, cc.number, plugin::ParamKind::MIDI)
 		           : KnobAssignment{};
 	case project::ModKnobCc::Kind::NONE:
 		break;

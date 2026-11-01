@@ -61,7 +61,7 @@ std::array<int32_t, 4> renderOnce(uint32_t offset) {
 
 // clang-format off
 describe pulse_oscillator("deluge::dsp::fixed PulseOscillator", ${
-	context("renderBlock", _ {
+	context("render_block", _ {
 		it("fills the buffer with the same samples render() produces", _ {
 			PulseOscillator a{Table{kTable, kMag}, 0u, kInc, 0x60000000u};
 			std::array<int32_t, 4> expected{};
@@ -69,7 +69,7 @@ describe pulse_oscillator("deluge::dsp::fixed PulseOscillator", ${
 
 			PulseOscillator b{Table{kTable, kMag}, 0u, kInc, 0x60000000u};
 			std::array<int32_t, 4> buf{};
-			b.renderBlock(deluge::dsp::fixed::Buffer{buf});
+			b.render_block(deluge::dsp::fixed::Buffer{buf});
 
 			expect(buf).to_equal(expected);
 		});

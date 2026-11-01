@@ -17,6 +17,10 @@
 
 #pragma once
 
+#include "synth/modulation/cable.h"
+
+#include <span>
+
 #include "deluge-project/param_automation.h"
 
 #include <cstdint>
@@ -31,7 +35,7 @@ class Deserializer;
 namespace deluge::bridge {
 
 using deluge::project::DocAutoParam;
-using deluge::project::DocCable;
+using deluge::project::DocCableDepth;
 using deluge::project::DocMidiParam;
 using deluge::project::DocParamSet;
 
@@ -65,7 +69,7 @@ void writeDocAutoParam(const DocAutoParam& doc, Serializer& out, bool writeAutom
 /// @param onlyIfContainsSomething Skip the attribute unless the param is automated or non-neutral.
 /// @param valuesForOverride      When non-null, indexed by the param's position in @p doc: that entry is the override
 ///                               value (see writeDocAutoParam).
-void writeDocParamAsAttribute(const DocParamSet& doc, char const* name, deluge::engine::ParamId id, Serializer& out,
+void writeDocParamAsAttribute(const DocParamSet& doc, char const* name, deluge::plugin::ParamId id, Serializer& out,
                               bool writeAutomation, bool onlyIfContainsSomething = false,
                               const int32_t* valuesForOverride = nullptr);
 
@@ -75,7 +79,7 @@ void writeDocParamAsAttribute(const DocParamSet& doc, char const* name, deluge::
 /// Owner blocks are expressed as compact arrays of these driving the generic helpers.
 struct DocParamAttr {
 	const char* name;
-	deluge::engine::ParamId id;
+	deluge::plugin::ParamId id;
 };
 
 /// @brief Write a nested group of params (e.g. `<equalizer>` / `<lpf>`) from a collection: the group's opening tag,
@@ -160,19 +164,23 @@ bool serializeExpressionParams(const DocParamSet& expression, Serializer& out, b
 ///
 /// @param patched          The patched collection.
 /// @param unpatched        The unpatched collection.
-/// @param cables           The sound's patch cables.
+/// @param cables           The sound's cables, in the order the save walks them.
+/// @param cableDepths      The lanes of the cables' depths.
 /// @param out              The serializer to write to.
 /// @param writeAutomation  Whether to write the automation nodes.
-void serializeSoundParams(const DocParamSet& patched, const DocParamSet& unpatched, const std::vector<DocCable>& cables,
-                          Serializer& out, bool writeAutomation);
+void serializeSoundParams(const DocParamSet& patched, const DocParamSet& unpatched,
+                          std::span<const deluge::synth::CableRecord> cables,
+                          const std::vector<DocCableDepth>& cableDepths, Serializer& out, bool writeAutomation);
 
 /// @brief Write the `<patchCables>` block from the document's patch cables, byte-identical to
 /// `PatchCableSet::writePatchCablesToFile` (including the depth-controlling / range-cable nesting).
 ///
-/// @param cables          The patch cables.
+/// @param cables          The cables, in the order the save walks them.
+/// @param cableDepths     The lanes of the cables' depths.
 /// @param out             The serializer to write to.
 /// @param writeAutomation Whether to write the automation nodes.
-void serializePatchCables(const std::vector<DocCable>& cables, Serializer& out, bool writeAutomation);
+void serializePatchCables(std::span<const deluge::synth::CableRecord> cables,
+                          const std::vector<DocCableDepth>& cableDepths, Serializer& out, bool writeAutomation);
 
 /// @brief Write the `<midiParams>` block from the document's MIDI-CC params (what
 /// `MIDIParamCollection::writeToFile` writes).

@@ -36,10 +36,11 @@
 #include "model/model_stack.h"
 #include "model/sample/sample.h"
 #include "model/song/song.h"
-#include "model/voice/voice.h"
 #include "model/voice/voice_sample.h"
+#include "model/voice/voice_slot.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
+#include "plugin-api/types/param_mapping.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
@@ -191,11 +192,13 @@ void Slicer::graphicsRoutine() {
 		                         });
 
 		if (!valid_voices_view.empty()) {
-			const Sound::ActiveVoice& voice = *std::ranges::max_element(valid_voices_view, {}, &Voice::orderSounded);
+			const Sound::ActiveVoice& voice =
+			    *std::ranges::max_element(valid_voices_view, {}, &VoiceSlot::order_sounded);
 
-			VoiceUnisonPartSource* part = &voice->unisonParts[drum->snapshot().numUnison >> 1].sources[0];
+			const int32_t u = drum->snapshot().num_unison >> 1;
+			deluge::synth::SourceSlot* part = &voice->kernel.unison_parts[u].slots[0];
 			if (part != nullptr && part->active) {
-				voiceSample = part->sampleVoiceAdapter.voiceSample();
+				voiceSample = voice->ports(u, 0).sample.voiceSample();
 				guide = &voice->guides[soundEditor.currentSourceIndex];
 			}
 		}
@@ -503,13 +506,13 @@ void Slicer::soundAudition(const PreviewTarget& target) {
 		    modelStack->addParamCollectionAndId(summary->paramCollection, summary, params::LOCAL_ENV_0_RELEASE);
 		ModelStackWithAutoParam* modelStackWithAutoParam =
 		    modelStackWithParamId->paramCollection->getAutoParamFromId(modelStackWithParamId);
-		modelStackWithAutoParam->autoParam->setCurrentValueWithNoReversionOrRecording(
-		    modelStackWithAutoParam, getParamFromUserValue(params::LOCAL_ENV_0_RELEASE, 1));
+		modelStackWithAutoParam->autoParam->setCurrentValueWithNoReversionOrRecording(modelStackWithAutoParam,
+		                                                                              deluge::plugin::preset_word(1));
 		modelStackWithParamId =
 		    modelStack->addParamCollectionAndId(summary->paramCollection, summary, params::LOCAL_ENV_0_ATTACK);
 		modelStackWithAutoParam = modelStackWithParamId->paramCollection->getAutoParamFromId(modelStackWithParamId);
-		modelStackWithAutoParam->autoParam->setCurrentValueWithNoReversionOrRecording(
-		    modelStackWithAutoParam, getParamFromUserValue(params::LOCAL_ENV_0_ATTACK, 1));
+		modelStackWithAutoParam->autoParam->setCurrentValueWithNoReversionOrRecording(modelStackWithAutoParam,
+		                                                                              deluge::plugin::preset_word(1));
 	}
 	instrumentClipView.sendAuditionNote(target.on, 0, 64, 0);
 }
@@ -584,12 +587,12 @@ ActionResult Slicer::padAction(int32_t x, int32_t y, int32_t on) {
 
 				if (!valid_voices_view.empty()) {
 					const Sound::ActiveVoice& assigned_voice =
-					    *std::ranges::max_element(valid_voices_view, {}, &Voice::orderSounded);
+					    *std::ranges::max_element(valid_voices_view, {}, &VoiceSlot::order_sounded);
 
-					VoiceUnisonPartSource* part =
-					    &assigned_voice->unisonParts[drum->snapshot().numUnison >> 1].sources[0];
+					const int32_t u = drum->snapshot().num_unison >> 1;
+					deluge::synth::SourceSlot* part = &assigned_voice->kernel.unison_parts[u].slots[0];
 					if (part != nullptr && part->active) {
-						voiceSample = part->sampleVoiceAdapter.voiceSample();
+						voiceSample = assigned_voice->ports(u, 0).sample.voiceSample();
 						guide = &assigned_voice->guides[soundEditor.currentSourceIndex];
 					}
 				}
@@ -753,7 +756,7 @@ Error Slicer::doSlice(int32_t sliceCount) {
 			ModelStackWithAutoParam* modelStackWithAutoParam =
 			    modelStackWithParamId->paramCollection->getAutoParamFromId(modelStackWithParamId);
 			modelStackWithAutoParam->autoParam->setCurrentValueWithNoReversionOrRecording(
-			    modelStackWithAutoParam, getParamFromUserValue(params::LOCAL_ENV_0_RELEASE, 1));
+			    modelStackWithAutoParam, deluge::plugin::preset_word(1));
 		}
 
 		// Do the rest of the Drums
@@ -805,11 +808,11 @@ Error Slicer::doSlice(int32_t sliceCount) {
 			if (doEnvelopes) {
 				paramManager.getPatchedParamSet()->params[params::LOCAL_ENV_0_ATTACK].setCurrentValueBasicForSetup(
 				    *paramManager.getPatchedParamSet()->docForParam(params::LOCAL_ENV_0_ATTACK),
-				    getParamFromUserValue(params::LOCAL_ENV_0_ATTACK, 1));
+				    deluge::plugin::preset_word(1));
 				if (i != sliceCount - 1) {
 					paramManager.getPatchedParamSet()->params[params::LOCAL_ENV_0_RELEASE].setCurrentValueBasicForSetup(
 					    *paramManager.getPatchedParamSet()->docForParam(params::LOCAL_ENV_0_RELEASE),
-					    getParamFromUserValue(params::LOCAL_ENV_0_RELEASE, 1));
+					    deluge::plugin::preset_word(1));
 				}
 			}
 

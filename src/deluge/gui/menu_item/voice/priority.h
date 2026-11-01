@@ -39,7 +39,7 @@ inline VoicePriority getCurrentVoicePriority() {
 	if (AudioClip* audioClip = getCurrentAudioClip(); audioClip != nullptr) {
 		return audioClip->voicePriority(); // DOM-owned accessor
 	}
-	return soundEditor.currentSound->snapshot().voicePriority; // read from the sound's snapshot
+	return soundEditor.currentSound->snapshot().voice_priority; // read from the sound's snapshot
 }
 /// @brief Write the voice priority of the current audio clip, or else of the current sound.
 /// @param value The priority to set on the current owner.

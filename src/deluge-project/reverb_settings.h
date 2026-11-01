@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "engine-api/types/sync.h"
+#include "plugin-api/types/sync.h"
 #include <cstdint>
 
 namespace deluge::project {
@@ -39,7 +39,7 @@ struct ReverbSettings {
 	int32_t sidechain_shape{0};
 	int32_t sidechain_attack{0};
 	int32_t sidechain_release{0};
-	engine::SyncLevel sidechain_sync{};
+	plugin::SyncLevel sidechain_sync{};
 	ReverbModel model{ReverbModel::FREEVERB};
 
 	bool operator==(const ReverbSettings&) const = default;

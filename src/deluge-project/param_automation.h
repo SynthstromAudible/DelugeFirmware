@@ -18,7 +18,7 @@
 #pragma once
 
 #include "deluge-project/param_node.h"
-#include "engine-api/types/param.h"
+#include "plugin-api/types/param.h"
 #include <array>
 #include <cstddef>
 #include <cstdint>
@@ -84,24 +84,24 @@ inline void fromDocAutoParam(const DocAutoParam& doc, int32_t& current_value, Pa
 /// @brief Value-typed document form of one param collection: lanes for a dense run of ids, `params[i]` holding the
 /// param with id `first + i`.
 struct DocParamSet {
-	deluge::engine::ParamId first{};
+	deluge::plugin::ParamId first{};
 	std::vector<DocAutoParam> params;
 
 	/// @brief The lane for @p id, or nullptr when this set does not hold it.
 	/// @param id The param id.
 	/// @return The lane, or nullptr.
-	[[nodiscard]] DocAutoParam* find(deluge::engine::ParamId id) {
+	[[nodiscard]] DocAutoParam* find(deluge::plugin::ParamId id) {
 		auto i = indexOf(id);
 		return i ? &params[*i] : nullptr;
 	}
-	[[nodiscard]] const DocAutoParam* find(deluge::engine::ParamId id) const {
+	[[nodiscard]] const DocAutoParam* find(deluge::plugin::ParamId id) const {
 		auto i = indexOf(id);
 		return i ? &params[*i] : nullptr;
 	}
 	/// @brief Where @p id's lane is in `params`, or nullopt when this set does not hold it.
 	/// @param id The param id.
 	/// @return The index, or nullopt.
-	[[nodiscard]] std::optional<size_t> indexOf(deluge::engine::ParamId id) const {
+	[[nodiscard]] std::optional<size_t> indexOf(deluge::plugin::ParamId id) const {
 		if (id.value < first.value || id.value - first.value >= params.size()) {
 			return std::nullopt;
 		}
@@ -109,12 +109,10 @@ struct DocParamSet {
 	}
 };
 
-/// @brief Value-typed document form of one patch cable: the engine's routing, named by the id of the cable's depth (the
-/// engine derives it from the cable's source and destination), with its polarity (the engine's word, stored raw) and
-/// the depth's value and automation. Depths are stored in the patch-cable range [-2^30, 2^30).
-struct DocCable {
-	deluge::engine::ParamId depth{};
-	uint8_t polarity{};
+/// @brief One cable depth's lane, named by the depth's id (the instrument derives it from the cable's source and
+/// target). Depths are stored in [-2^30, 2^30).
+struct DocCableDepth {
+	deluge::plugin::ParamId depth{};
 	DocAutoParam amount;
 };
 
@@ -130,19 +128,19 @@ struct DocMidiParam {
 inline constexpr std::size_t kEngineParamBlocks = 2;
 
 /// @brief Value-typed document form of a `ParamManager`'s collections. An engine's params are held in the runs of ids
-/// its table declares, each present only when the live owner holds it, and the engine's cables, each with its depth;
+/// its table declares, each present only when the live owner holds it, and the lanes of its cables' depths;
 /// `expression` (MPE) and `midi_params` (a MIDI_OUT clip's CC automation) are the host's own spaces.
 struct DocParamManager {
 	std::array<std::optional<DocParamSet>, kEngineParamBlocks> engine_params;
 	std::optional<DocParamSet> expression;
-	std::vector<DocCable> cables;
+	std::vector<DocCableDepth> cable_depths;
 	std::vector<DocMidiParam> midi_params;
 
 	/// @brief The lane of the engine param @p id (a param in a block, or a cable's depth), or nullptr when none holds
 	/// it.
 	/// @param id The engine param id.
 	/// @return The lane, or nullptr.
-	[[nodiscard]] DocAutoParam* findEngineParam(deluge::engine::ParamId id) {
+	[[nodiscard]] DocAutoParam* findEngineParam(deluge::plugin::ParamId id) {
 		for (std::optional<DocParamSet>& block : engine_params) {
 			if (block) {
 				if (DocAutoParam* lane = block->find(id)) {
@@ -150,9 +148,9 @@ struct DocParamManager {
 				}
 			}
 		}
-		for (DocCable& cable : cables) {
-			if (cable.depth == id) {
-				return &cable.amount;
+		for (DocCableDepth& lane : cable_depths) {
+			if (lane.depth == id) {
+				return &lane.amount;
 			}
 		}
 		return nullptr;

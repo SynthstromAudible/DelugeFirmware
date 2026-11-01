@@ -296,7 +296,7 @@ MenuContext context_for(Song& song, const services::MenuView& view, int8_t sourc
 	if (ctx.resolved && !ctx.is_song_view && view.clip && view.track) {
 		ctx.addresses.clip = view.clip;
 		ctx.addresses.track = view.track;
-		using Instrument = deluge::engine::SettingContext::Instrument;
+		using Instrument = deluge::plugin::SettingContext::Instrument;
 		switch (view.kind) {
 		case TrackKind::SYNTH:
 			ctx.addresses.instrument = Instrument::SYNTH;

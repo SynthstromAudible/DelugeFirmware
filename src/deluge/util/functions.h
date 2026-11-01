@@ -19,19 +19,16 @@
 
 #include "const_functions.h"
 #include "definitions_cxx.hpp"
-#include "dsp-next/fixed/shaping/tanh.h"
 #include "libdeluge/file_io.h"
 #include "util/audio_format_helpers.h" // byte/format helpers (charsToIntegerConstant, swapEndianness*, …) re-exported
 #include "util/c_string.h"
 #include "util/cfunctions.h" // IWYU pragma: export - minimal set of functions which need c linkage
 #include "util/db_shift.h"
 #include "util/etl_string.h"
-#include "util/fast_pythag.h"
 #include "util/fixedpoint.h"
 #include "util/lookuptables/lookuptables.h"
-#include "util/name_compare.h"    // IWYU pragma: export - strcmpspecial and friends used to live here
-#include "util/param_functions.h" // IWYU pragma: export — param scaling/patching math (split out for the synth core)
-#include "util/waves.h"
+#include "util/name_compare.h" // IWYU pragma: export - strcmpspecial and friends used to live here
+#include "util/synth_noise.h"
 #include <bit>
 #include <cstdint>
 #include <cstring>
@@ -46,16 +43,8 @@ extern const uint8_t modButtonY[];
 
 extern uint8_t subModeToReturnTo;
 
-void functionsInit();
-
 char const* getThingName(OutputType outputType);
 char const* getOutputTypeName(OutputType outputType, int32_t channel);
-
-// signed_saturate_operand_unknown / lshiftAndSaturate / lshiftAndSaturateUnknown now live in
-// util/param_functions.h (included above), split out so the synth core needn't pull this heavy header.
-
-// charsToIntegerConstant / swapEndianness* / memToUIntOrError / ConvertFromIeeeExtended now live in
-// util/audio_format_helpers.h (included above), so the parser can depend on them without this heavy header.
 
 /**
  * replace single asterix with a single digit
@@ -142,12 +131,7 @@ bool isAiffFilename(char const* filename);
 
 char const* getFileNameFromEndOfPath(char const* filePathChars);
 
-int32_t getParamFromUserValue(uint8_t p, int8_t userValue);
 int32_t getLookupIndexFromValue(int32_t value, const int32_t* table, int32_t maxIndex);
-int32_t instantTan(int32_t input);
-
-int32_t cableToLinearParamShortcut(int32_t sourceValue);
-int32_t cableToExpParamShortcut(int32_t sourceValue);
 
 class Sound;
 namespace deluge::dsp {
@@ -161,27 +145,12 @@ char const* sourceToString(PatchSource source);
 PatchSource stringToSource(char const* string);
 char const* sourceToStringShort(PatchSource source);
 
-int32_t quickLog(uint32_t input);
-
-template <unsigned saturationAmount>
-[[gnu::always_inline]] inline int32_t getTanH(int32_t input) {
-	return deluge::dsp::fixed::tanh<saturationAmount>(input);
-}
-
-[[gnu::always_inline]] inline int32_t getTanHUnknown(int32_t input, uint32_t saturationAmount) {
-	return deluge::dsp::fixed::tanh(input, saturationAmount);
-}
-
-#define znew (z = 36969 * (z & 65535) + (z >> 16))
-#define wnew (w = 18000 * (w & 65535) + (w >> 16))
-#define MWC (int32_t)((znew << 16) + wnew)
-
 [[gnu::always_inline]] inline uint8_t getRandom255() {
-	return CONG >> 24;
+	return deluge::synth_noise.next() >> 24;
 }
 
 [[gnu::always_inline]] inline int32_t getNoise() {
-	return CONG;
+	return static_cast<int32_t>(deluge::synth_noise.next());
 }
 
 /// generates a triangle distribution from -1q31 to 1q31 centered on 0 (Irwin-Hall)
@@ -195,11 +164,6 @@ inline q31_t sampleTriangleDistribution() {
 void seedRandom();
 
 int32_t random(int32_t upperLimit);
-bool shouldDoPanning(int32_t panAmount, int32_t* amplitudeL, int32_t* amplitudeR);
-
-uint32_t getOscInitialPhaseForZero(OscType waveType);
-int32_t doLanczos(int32_t* data, int32_t pos, uint32_t posWithinPos, int32_t memoryNumElements);
-int32_t doLanczosCircular(int32_t* data, int32_t pos, uint32_t posWithinPos, int32_t memoryNumElements);
 
 [[gnu::always_inline]] inline int32_t increaseMagnitude(int32_t number, int32_t magnitude) {
 	if (magnitude >= 0) {
@@ -207,8 +171,6 @@ int32_t doLanczosCircular(int32_t* data, int32_t pos, uint32_t posWithinPos, int
 	}
 	return number >> (-magnitude);
 }
-
-// increaseMagnitudeAndSaturate moved to util/param_functions.h (re-exported via the include above).
 
 int32_t howMuchMoreMagnitude(uint32_t to, uint32_t from);
 void noteCodeToString(int32_t noteCode, char* buffer, int32_t* getLengthWithoutDot = nullptr,
@@ -227,8 +189,6 @@ int32_t divide_round_negative(int32_t dividend, int32_t divisor);
 [[gnu::always_inline]] inline bool isPowerOfTwo(uint32_t input) {
 	return (input == 1 << getMagnitude(input));
 }
-
-int32_t getWhichKernel(int32_t phaseIncrement);
 
 int32_t memcasecmp(char const* first, char const* second, int32_t size);
 int32_t getHowManyCharsAreTheSame(char const* a, char const* b);
@@ -255,10 +215,5 @@ extern char miscStringBuffer[];
 
 constexpr size_t kShortStringBufferSize = 64;
 extern char shortStringBuffer[];
-
-struct StereoFloatSample {
-	float l;
-	float r;
-};
 
 float sigmoidLikeCurve(const float x, const float xMax, const float softening);

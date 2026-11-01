@@ -253,7 +253,7 @@ ModelStackWithAutoParam* ModelStackWithThreeMainThings::getPatchedAutoParamFromI
 	return modelStackWithParam;
 }
 
-ModelStackWithAutoParam* ModelStackWithThreeMainThings::getPatchCableAutoParamFromId(int32_t newParamId) {
+ModelStackWithAutoParam* ModelStackWithThreeMainThings::getPatchCableAutoParamFromId(int32_t newParamId, bool forEdit) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 	if (paramManager && paramManager->containsAnyParamCollectionsIncludingExpression()) {
 		ParamCollectionSummary* summary = paramManager->getPatchCableSetSummary();
@@ -261,7 +261,7 @@ ModelStackWithAutoParam* ModelStackWithThreeMainThings::getPatchCableAutoParamFr
 		ModelStackWithParamId* modelStackWithParamId =
 		    addParamCollectionAndId(summary->paramCollection, summary, newParamId);
 
-		modelStackWithParam = summary->paramCollection->getAutoParamFromId(modelStackWithParamId, true);
+		modelStackWithParam = summary->paramCollection->getAutoParamFromId(modelStackWithParamId, forEdit);
 	}
 	return modelStackWithParam;
 }

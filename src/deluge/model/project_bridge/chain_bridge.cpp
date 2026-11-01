@@ -19,16 +19,16 @@
 
 #include "model/mod_controllable/delay_type.h"
 
-#include "engine-api/types/sync.h"
-#include "engines/effects/chain.h"
-#include "engines/effects/codec.h"
-#include "engines/effects/engine.h"
-#include "engines/effects/settings.h"
+#include "effects/chain.h"
+#include "effects/codec.h"
+#include "effects/plugin.h"
+#include "effects/settings.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/instrument/kit.h"
 #include "model/output.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/song/song.h"
+#include "plugin-api/types/sync.h"
 #include "processing/audio_output.h"
 #include "serialization/tree.h"
 #include "util/functions.h"
@@ -55,7 +55,7 @@ static_assert(util::to_underlying(FilterType::LPF) == 0 && util::to_underlying(F
 /// A chain of @p home whose effects are @p states and whose knobs edit @p view.
 FxChain chainFrom(deluge::effects::EffectStates states, ChainHome home, deluge::effects::ChainView view) {
 	FxChain chain{.reverb_return = deluge::effects::reverb_return(homeOf(home)),
-	              .effects = deluge::engine::StateHandle::of<deluge::effects::DelugeEffects>(std::move(states)),
+	              .effects = deluge::plugin::StateHandle::of<deluge::effects::DelugeEffects>(std::move(states)),
 	              .mod_fx_param = view.mod_fx_param,
 	              .filter_type = view.filter_type};
 	for (std::string_view effect : deluge::effects::chain_effects(homeOf(home))) {
@@ -187,11 +187,11 @@ void auditEffectWrite(const deluge::effects::EffectStates& before, deluge::effec
 	if (!audit.enabled || !effect) {
 		return;
 	}
-	const deluge::engine::CodecContext context{.input_tick_magnitude = tick_magnitude};
+	const deluge::plugin::CodecContext context{.input_tick_magnitude = tick_magnitude};
 	deluge::serialization::Value leaf = value;
 	if (path.ends_with("/syncLevel")) {
 		const int32_t level = deluge::serialization::int_of(&value).value_or(0);
-		leaf = deluge::serialization::Value::makeNumber(deluge::engine::sync_level_to_file(level, tick_magnitude));
+		leaf = deluge::serialization::Value::makeNumber(deluge::plugin::sync_level_to_file(level, tick_magnitude));
 	}
 	deluge::effects::EffectStates treeWay = before;
 	for (deluge::effects::SlotEntries& slot : deluge::effects::encode_chain(before, home, context)) {

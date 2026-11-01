@@ -1,12 +1,11 @@
 #include "gui/ui/shell_bind_host.h"
 
 #include "deluge-project/setting_group.h"
-#include "engine-api/types/setting.h"
-#include "engines/deluge/settings.h"
-#include "engines/deluge/words.h"
-#include "engines/effects/engine.h"
-#include "engines/effects/settings.h"
+#include "effects/plugin.h"
+#include "effects/settings.h"
 #include "gui/views/view.h"
+#include "instruments/deluge/settings.h"
+#include "instruments/deluge/words.h"
 #include "io/debug/log.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
@@ -56,6 +55,7 @@
 #include "modulation/patch/patch_cable.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/playback_handler.h"
+#include "plugin-api/types/setting.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
@@ -82,10 +82,10 @@ using deluge::scenes::bind::Addresses;
 using deluge::scenes::bind::WriteRequest;
 
 /// The file form of stored value @p stored of @p row: a CHOICE row's word, any other row's number.
-std::optional<deluge::serialization::Value> value_of(const deluge::engine::SettingInfo& row, int32_t stored) {
-	if (row.kind == deluge::engine::SettingKind::CHOICE) {
+std::optional<deluge::serialization::Value> value_of(const deluge::plugin::SettingInfo& row, int32_t stored) {
+	if (row.kind == deluge::plugin::SettingKind::CHOICE) {
 		std::array<char, 1> unused{};
-		const std::optional<std::string_view> word = deluge::engine::stored_text(row, stored, unused);
+		const std::optional<std::string_view> word = deluge::plugin::stored_text(row, stored, unused);
 		return word ? std::optional{deluge::serialization::Value::makeScalar(std::string(*word))} : std::nullopt;
 	}
 	return deluge::serialization::Value::makeNumber(stored);
@@ -93,7 +93,7 @@ std::optional<deluge::serialization::Value> value_of(const deluge::engine::Setti
 
 /// Whether writing stored value @p stored of @p row through @p target ends a kit row's notes: a sample played once
 /// (`sample/repeat.h:61-64`, `:73-75`), whose notes the kit's arpeggiator would otherwise hold.
-bool silences_kit_arp(const deluge::scenes::bind::Target& target, const deluge::engine::SettingInfo& row,
+bool silences_kit_arp(const deluge::scenes::bind::Target& target, const deluge::plugin::SettingInfo& row,
                       int32_t stored) {
 	if (target.kind != deluge::scenes::bind::Target::Kind::SOUND || !row.path.ends_with("/loopMode")) {
 		return false;
@@ -662,25 +662,25 @@ void ShellEditSink::apply(const WriteRequest& request) {
 		          request.target.path.data());
 		return;
 	}
-	const std::span<const deluge::engine::SettingInfo> table = model ? deluge::project::table_of(model->group)
+	const std::span<const deluge::plugin::SettingInfo> table = model ? deluge::project::table_of(model->group)
 	                                                           : kind == Kind::EFFECT ? deluge::effects::kEffectSettings
 	                                                                                  : deluge::instrument::kSettings;
 	const std::string_view path = model && kind == Kind::SOUND ? request.target.audio_clip_path : request.target.path;
-	const deluge::engine::SettingInfo* row = deluge::engine::find_setting(table, path);
-	const auto stored = row != nullptr ? deluge::engine::from_menu(*row, request.menu_value) : std::nullopt;
+	const deluge::plugin::SettingInfo* row = deluge::plugin::find_setting(table, path);
+	const auto stored = row != nullptr ? deluge::plugin::from_menu(*row, request.menu_value) : std::nullopt;
 	if (!stored) {
 		refusals_++;
 		D_PRINTLN("menu write refused: %.*s menu %d", static_cast<int>(request.target.path.size()),
 		          request.target.path.data(), static_cast<int>(request.menu_value));
 		return;
 	}
-	const std::string_view partner = deluge::engine::mapping_of(*row).partner_path();
-	const deluge::engine::SettingInfo* partner_row =
-	    partner.empty() ? nullptr : deluge::engine::find_setting(table, partner);
+	const std::string_view partner = deluge::plugin::mapping_of(*row).partner_path();
+	const deluge::plugin::SettingInfo* partner_row =
+	    partner.empty() ? nullptr : deluge::plugin::find_setting(table, partner);
 
 	// Commits @p row's value, then its partner's, each as the Edit @p edit_for makes for a path and a file value.
 	const auto commit_both = [&](deluge::edits::Context& ctx, const auto& edit_for) {
-		const auto commit = [&](const deluge::engine::SettingInfo& on, int32_t value) {
+		const auto commit = [&](const deluge::plugin::SettingInfo& on, int32_t value) {
 			const std::optional<deluge::serialization::Value> file = value_of(on, value);
 			if (!file) {
 				refusals_++;
@@ -1016,7 +1016,7 @@ deluge::scenes::bind::CableList ShellRuntimeFacts::cables(const deluge::project:
 	}
 	for (int32_t i = 0; i < set->numPatchCables && list.count < list.items.size(); ++i) {
 		const PatchCable& cable = set->patchCables[i];
-		list.items[list.count++] = {.depth = deluge::bridge::cable_depth(cable.from, cable.destinationParamDescriptor),
+		list.items[list.count++] = {.depth = deluge::bridge::cable_depth(cable.from, cable.destination),
 		                            .polarity = static_cast<deluge::instrument::Polarity>(cable.polarity)};
 	}
 	return list;

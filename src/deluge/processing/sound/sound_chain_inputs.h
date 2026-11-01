@@ -17,14 +17,14 @@
 
 #pragma once
 
-#include "engines/effects/sound_chain.h"
+#include "effects/sound_chain.h"
 
 #include <cstdint>
 
 class ParamManager;
 class Sound;
 
-/// @brief A sound's post-voice chain inputs for one block: its patcher's finals and its unpatched params as
+/// @brief A sound's post-voice chain inputs for one block: its matrix's finals and its unpatched params as
 /// Sound::render resolves them, its render copy of its settings, and the song's stutter while the sound is the one
 /// stuttering.
 /// @param sound The sound whose chain inputs are gathered.

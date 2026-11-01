@@ -18,10 +18,11 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "dsp/stereo_sample.h"
-#include "engines/effects/clip_chain.h"
+#include "dsp-next/core/stereo_sample.h"
+#include "effects/clip_chain.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/sample/sample_recorder.h"
+#include "util/functions.h"
 
 class ParamManagerForTimeline;
 class TimelineCounter;
@@ -54,6 +55,11 @@ public:
 
 	/// @brief The bus's effects: its saturation after its drums or audio clip render, then its filters and the rest.
 	deluge::effects::ClipChain chain_;
+
+	/// @brief The two mod knobs a clip's global effectable lays out differently from the song's: the sidechain volume
+	/// (mode 4, upper) and the pitch adjust (mode 6, lower); nullopt for the others.
+	[[nodiscard]] static std::optional<deluge::plugin::ParamId> clipKnobParam(int32_t modKnobMode,
+	                                                                          int32_t whichModEncoder);
 
 protected:
 	int32_t getParameterFromKnob(int32_t whichModEncoder, const deluge::project::CompView& comp) final;

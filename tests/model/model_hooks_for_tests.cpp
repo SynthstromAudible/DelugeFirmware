@@ -47,9 +47,24 @@ extern "C" void deluge_model_edit_exit(bool entered) noexcept {
 	}
 }
 
-extern "C" void deluge_model_note_structural_edit() noexcept {
+extern "C" void deluge_model_note_structural_edit(uint8_t kind) noexcept {
 	counts.edits++;
 	if (counts.depth == 0) {
 		counts.unguarded_edits++;
+	}
+	switch (static_cast<deluge::project::ModelEdit>(kind)) {
+	case deluge::project::ModelEdit::NODES:
+	case deluge::project::ModelEdit::NODES_AT_INDEX:
+		// The op's own guard is one level; a compound edit around it is a second.
+		if (counts.depth < 2) {
+			counts.lone_node_edits++;
+		}
+		break;
+	case deluge::project::ModelEdit::PARAM_STORE:
+		counts.store_edits++;
+		break;
+	case deluge::project::ModelEdit::NODE_KERNEL:
+		counts.kernels++;
+		break;
 	}
 }

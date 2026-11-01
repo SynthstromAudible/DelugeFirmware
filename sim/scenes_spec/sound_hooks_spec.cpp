@@ -209,10 +209,10 @@ describe sound_hooks("the sound menu's hook-built items, by address", ${
 		menu::bindings::write(nodes::sample0_interpolation, ctx, 0);                  // LINEAR
 		const deluge::instrument::SoundState* a = state_at(sampled_slot);
 		const deluge::instrument::SoundState* b = state_at(synth_slot);
-		expect(a != nullptr && a->sources[0].interpolation_mode == deluge::engine::InterpolationMode::LINEAR)
+		expect(a != nullptr && a->sources[0].interpolation_mode == deluge::plugin::InterpolationMode::LINEAR)
 		    .to_be_true();
 		// A synth source takes no interpolation: legacy's per-drum setting write refuses it too.
-		expect(b != nullptr && b->sources[0].interpolation_mode == deluge::engine::InterpolationMode::SMOOTH)
+		expect(b != nullptr && b->sources[0].interpolation_mode == deluge::plugin::InterpolationMode::SMOOTH)
 		    .to_be_true();
 	});
 

@@ -17,11 +17,10 @@
 
 #include "model/project_bridge/controls_bridge.h"
 
-#include "engines/deluge/engine.h"
-
-#include "engines/deluge/cables.h"
-#include "engines/deluge/naming.h"
-#include "engines/global_effectable/naming.h"
+#include "effects/global_effectable/naming.h"
+#include "instruments/deluge/cables.h"
+#include "instruments/deluge/naming.h"
+#include "instruments/deluge/plugin.h"
 #include "model/drum/drum.h"
 #include "model/instrument/kit.h"
 #include "model/output.h"
@@ -41,11 +40,12 @@ namespace params = deluge::modulation::params;
 using deluge::project::ControllerMapping;
 using deluge::project::ModKnobControl;
 
-deluge::engine::ParamId knobTargetOf(ParamDescriptor descriptor, params::Kind unpatchedKind) {
-	if (!descriptor.isJustAParam()) {
-		return cableDepthIdOf(descriptor.data);
+deluge::plugin::ParamId controlTargetOf(const deluge::modulation::KnobTarget& knob, params::Kind unpatchedKind) {
+	const deluge::synth::CableTarget word = deluge::modulation::knobWord(knob);
+	if (!word.is_param()) {
+		return cableDepthIdOf(word.word);
 	}
-	const int32_t p = descriptor.getJustTheParam();
+	const int32_t p = word.param_index();
 	if (p >= params::UNPATCHED_START) {
 		return paramIdOf(unpatchedKind, p - params::UNPATCHED_START);
 	}
@@ -56,8 +56,8 @@ std::vector<ControllerMapping> controlsOf(::Sound& sound) {
 	std::vector<ControllerMapping> controls;
 	for (uint8_t button = 0; button < kNumModButtons; ++button) {
 		for (uint8_t knob = 0; knob < kNumPhysicalModKnobs; ++knob) {
-			controls.push_back({ModKnobControl{button, knob}, knobTargetOf(sound.modKnobs[button][knob].paramDescriptor,
-			                                                               params::Kind::UNPATCHED_SOUND)});
+			controls.push_back({ModKnobControl{button, knob},
+			                    controlTargetOf(sound.modKnobs[button][knob].target, params::Kind::UNPATCHED_SOUND)});
 		}
 	}
 	return controls;
@@ -97,21 +97,17 @@ void refreshControls(::Song& song) {
 	}
 }
 
-ParamDescriptor descriptorOf(deluge::engine::ParamId target, params::Kind unpatchedKind) {
-	ParamDescriptor descriptor;
+deluge::modulation::KnobTarget knobOfControl(deluge::plugin::ParamId target, params::Kind unpatchedKind) {
 	if ((target.value & deluge::instrument::kCableDepthFlag) != 0) { // a cable's depth
-		descriptor.data = cableWordOf(target);
+		return deluge::modulation::knobTargetOf({cableWordOf(target)});
 	}
-	else if (const std::optional<int32_t> patched = runtimeIndexOf(params::Kind::PATCHED, target)) {
-		descriptor.setToHaveParamOnly(*patched);
+	if (const std::optional<int32_t> patched = runtimeIndexOf(params::Kind::PATCHED, target)) {
+		return deluge::modulation::knobParam(static_cast<uint32_t>(*patched));
 	}
-	else if (const std::optional<int32_t> unpatched = runtimeIndexOf(unpatchedKind, target)) {
-		descriptor.setToHaveParamOnly(params::UNPATCHED_START + *unpatched);
+	if (const std::optional<int32_t> unpatched = runtimeIndexOf(unpatchedKind, target)) {
+		return deluge::modulation::knobParam(static_cast<uint32_t>(params::UNPATCHED_START + *unpatched));
 	}
-	else {
-		descriptor.setToNull();
-	}
-	return descriptor;
+	return std::nullopt;
 }
 
 std::optional<deluge::project::ControlsAddress> controlsAddressOf(::Sound& sound) {
@@ -240,8 +236,8 @@ void applyControls(::ModControllableAudio& owner, bool isSound, const std::vecto
 	for (const ControllerMapping& mapping : controls) {
 		const ModKnobControl& knob = mapping.control;
 		if (knob.button < kNumModButtons && knob.knob < kNumPhysicalModKnobs) {
-			static_cast<::Sound&>(owner).modKnobs[knob.button][knob.knob].paramDescriptor =
-			    descriptorOf(mapping.target, params::Kind::UNPATCHED_SOUND);
+			static_cast<::Sound&>(owner).modKnobs[knob.button][knob.knob].target =
+			    knobOfControl(mapping.target, params::Kind::UNPATCHED_SOUND);
 		}
 	}
 }
@@ -263,13 +259,13 @@ void recordOutputControls(::Output& output, ::Song& song) {
 namespace {
 
 /// A sound element's instrument, read onto a new synth's state as a load reads it.
-deluge::engine::StateHandle decodeInstrument(const deluge::serialization::Value& element, int32_t tick_magnitude) {
+deluge::plugin::StateHandle decodeInstrument(const deluge::serialization::Value& element, int32_t tick_magnitude) {
 	deluge::instrument::SoundState state = deluge::instrument::new_synth_state();
 	(void)deluge::instrument::decode(element, state, {.input_tick_magnitude = tick_magnitude});
-	return deluge::engine::StateHandle::of<deluge::instrument::DelugeInstrument>(std::move(state));
+	return deluge::plugin::StateHandle::of<deluge::instrument::DelugeInstrument>(std::move(state));
 }
 
-void encodeInstrument(const deluge::engine::StateHandle& state, deluge::serialization::Value& element,
+void encodeInstrument(const deluge::plugin::StateHandle& state, deluge::serialization::Value& element,
                       int32_t tick_magnitude) {
 	for (const auto& [key, value] : state.encode({.input_tick_magnitude = tick_magnitude}).entries()) {
 		element.set(key, value);
@@ -278,8 +274,8 @@ void encodeInstrument(const deluge::engine::StateHandle& state, deluge::serializ
 
 } // namespace
 
-deluge::project::CodecEngines codecEngines() {
-	static const std::array<deluge::engine::ParamNaming, 2> namings{deluge::instrument::kNaming,
+deluge::project::CodecPlugins codecPlugins() {
+	static const std::array<deluge::plugin::ParamNaming, 2> namings{deluge::instrument::kNaming,
 	                                                                deluge::global_effectable::kNaming};
 	return {.namings = namings,
 	        .chains = chainCodec(),

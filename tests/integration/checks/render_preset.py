@@ -9,6 +9,9 @@ captured from the audio tier. This module stages each case, runs them in paralle
                 record a hash like any other (a preset that failed to load is the scenario's RP-LOADED failure);
     RP-PCM      the output against its record in tests/integration/golden/presets.json: sha256, frames, peak and
                 RMS level, the record render-song keeps.
+    RP-ZONE     a case in ZONE_END moved its sample zone's end mid-note (RENDER_ZONE_END, as the sample marker editor
+                moves it).
+    RP-SETTING  a case in SETTING changed a setting mid-render (RENDER_SETTING, as its menu changes it).
 And once per run:
     RP-LEARN    a preset's own MIDI learn reaches it: the blank boot song must keep the input a preset was saved with
                 when it replaces its default synth. It is the one path the corpus cases do not play through.
@@ -23,6 +26,8 @@ RENDER_PRESET_CORPUS=<dir> renders the cases of another copy of the corpus (e.g.
 records.
 RENDER_PRESET_KEEP=<dir> keeps each case's output there, as `<case>.pcm` (interleaved little-endian i32, the case's
 length exactly), for tests/integration/golden/compare_renders.py.
+RENDER_PARAM_DUMP_DIR=<dir> dumps each case's matrix passes and voice sources there, as `<case>.params`
+(src/deluge/processing/sound/param_dump.h; read by tools/audible_window/dump.py).
 RENDER_RANDOM_SEED seeds the synth's random stream at each case's first note instead of its boot seed, to measure how
 much a case depends on its random draws (audio/host.rs).
 RENDER_PRESET_UPDATE=1 records the cases run instead of comparing them; a changed hash is a finding to explain in the
@@ -48,6 +53,13 @@ INPUT = {"input_mono", "input_stereo", "input_pitchshift"}
 # Cases under this directory render with headphones plugged in, so the app renders in stereo; every other case renders
 # in mono, as through the device's speaker.
 STEREO_DIR = "stereo/"
+# Cases whose osc 1 zone end moves mid-note, as the sample marker editor moves it: "<captured block> <new end frame>".
+ZONE_END = {"voice/zone_end_loop": "60 2048", "voice/zone_end_once": "50 1024"}
+# Cases that change a setting mid-render, as its menu does: "<captured block> <settings path> <value>".
+SETTING = {
+    "voice/type_change_mono_saw_square": "150 osc1/type square",
+    "voice/type_change_mono_saw_supersaw": "150 osc1/type supersaw",
+}
 # The loudest sample of silence: 16 in 16-bit terms, the C-host harness's threshold. The render's dither floor sits
 # far below it.
 SILENCE_PEAK = 16 << 16
@@ -130,10 +142,18 @@ def _stage(corpus: Path, name: str, where: Path) -> dict[str, str]:
         "RENDER_SECONDS": str(SECONDS.get(name, DEFAULT_SECONDS)),
         "RENDER_PCM_OUT": str(where / "out.pcm"),
     }
+    if dump_dir := os.environ.get("RENDER_PARAM_DUMP_DIR"):
+        dump = Path(dump_dir) / f"{name}.params"
+        dump.parent.mkdir(parents=True, exist_ok=True)
+        env["RENDER_PARAM_DUMP"] = str(dump)
     if name in INPUT:
         env["RENDER_INPUT"] = "1"
     if name.startswith(STEREO_DIR):
         env["RENDER_STEREO"] = "1"
+    if name in ZONE_END:
+        env["RENDER_ZONE_END"] = ZONE_END[name]
+    if name in SETTING:
+        env["RENDER_SETTING"] = SETTING[name]
     return env
 
 
@@ -216,6 +236,14 @@ def run(gate):
             gate.fail(
                 f"RP-CAPTURE {name}: captured {frames} frames, fewer than {wanted}"
             )
+            failed += 1
+            continue
+        if name in ZONE_END and result.last("RP-ZONE ") is None:
+            gate.fail(f"RP-ZONE {name}: the zone end never moved")
+            failed += 1
+            continue
+        if name in SETTING and result.last("RP-SETTING ") is None:
+            gate.fail(f"RP-SETTING {name}: the setting never changed")
             failed += 1
             continue
         # Whole blocks are captured; the record covers exactly the case's length.

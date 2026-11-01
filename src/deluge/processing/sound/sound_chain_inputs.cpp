@@ -16,6 +16,7 @@
  */
 
 #include "processing/sound/sound_chain_inputs.h"
+#include "util/synth_noise.h"
 
 #include "model/fx/song_stutter.h"
 #include "modulation/params/param.h"
@@ -29,7 +30,7 @@ namespace params = deluge::modulation::params;
 deluge::effects::SoundChainInputs soundChainInputs(Sound& sound, ParamManager& paramManager,
                                                    const deluge::effects::Delay::State& delay, bool anyVoices,
                                                    int32_t reverbSendAmount) {
-	const auto& finals = sound.params.paramFinalValues;
+	const auto& finals = sound.params.param_final_values;
 	UnpatchedParamSet* unpatched = paramManager.getUnpatchedParamSet();
 	const deluge::model::StutterInput stutter = deluge::model::stutterInput(sound, &paramManager);
 	return {
@@ -48,6 +49,7 @@ deluge::effects::SoundChainInputs soundChainInputs(Sound& sound, ParamManager& p
 	            .delay = delay,
 	            .stereo = AudioEngine::renderInStereo,
 	            .grain_send = reverbSendAmount >> 1,
+	            .noise = &deluge::synth_noise,
 	        },
 	    .bitcrush = {.bitcrush = unpatched->getValue(params::UNPATCHED_BITCRUSHING),
 	                 .sample_rate_reduction = unpatched->getValue(params::UNPATCHED_SAMPLE_RATE_REDUCTION)},

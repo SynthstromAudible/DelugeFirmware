@@ -37,7 +37,7 @@ constexpr uint8_t kModButtons = 8;
 
 } // namespace
 
-std::vector<ControllerMapping> decode_controls(const Value& element, const deluge::engine::ParamNaming& naming) {
+std::vector<ControllerMapping> decode_controls(const Value& element, const deluge::plugin::ParamNaming& naming) {
 	std::vector<ControllerMapping> controls;
 	if (!element.isMap()) {
 		return controls;
@@ -51,7 +51,7 @@ std::vector<ControllerMapping> decode_controls(const Value& element, const delug
 			if (button >= kModButtons || !knob->isMap()) {
 				continue;
 			}
-			std::optional<deluge::engine::ParamId> target = naming.id_of(ref_in(*knob));
+			std::optional<deluge::plugin::ParamId> target = naming.id_of(ref_in(*knob));
 			if (!target) {
 				continue;
 			}
@@ -64,7 +64,7 @@ std::vector<ControllerMapping> decode_controls(const Value& element, const delug
 	return controls;
 }
 
-void encode_controls(const std::vector<ControllerMapping>& controls, const deluge::engine::ParamNaming& naming,
+void encode_controls(const std::vector<ControllerMapping>& controls, const deluge::plugin::ParamNaming& naming,
                      Value& element) {
 	Value modKnobs = Value::makeArray();
 	for (const ControllerMapping& mapping : controls) {

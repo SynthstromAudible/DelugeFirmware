@@ -16,10 +16,10 @@
  */
 
 #include "dsp-next/fixed/wavetable/band_builder.h"
+#include "dsp-next/core/q31_ops.h"
+#include "dsp-next/fixed/fft/magnitude.h"
 #include "dsp-next/fixed/fft/real_dft.h"
 #include "dsp-next/fixed/wavetable/wave_table_data.h"
-#include "util/fast_pythag.h"
-#include "util/fixedpoint.h"
 
 #include <algorithm>
 #include <cassert>
@@ -92,11 +92,11 @@ void BandBuilder::render_band(BandTarget band, int32_t cycle_index, const fft::R
 		// A real cycle of this length has no imaginary part at its Nyquist bin: fold the bin's magnitude into its real
 		// part, keeping the real part's sign.
 		fft::Complex& nyquist = spectrum_[size >> 1];
-		int32_t magnitude = fastPythag(nyquist.r, nyquist.i);
+		int32_t nyquist_magnitude = fft::magnitude(nyquist);
 		if (nyquist.r < 0) {
-			magnitude = -magnitude;
+			nyquist_magnitude = -nyquist_magnitude;
 		}
-		nyquist = {magnitude, 0};
+		nyquist = {nyquist_magnitude, 0};
 	}
 
 	inverse.inverse(spectrum_.first((size >> 1) + 1), cycle_.first(size));

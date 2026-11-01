@@ -16,20 +16,18 @@
  */
 #pragma once
 
-#include "synth/source/dx_voice_port.h" // synth::DxVoicePort
+#include "dsp-next/fixed/noise/cong.h"
+#include "synth/sources/dx7/dx_voice_port.h" // synth::DxVoicePort
 #include <cstdint>
 #include <gsl/gsl>
 #include <span>
 
 class DxPatch;
 
-namespace deluge::dsp::fixed {
-struct CongNoise;
-namespace dx7 {
-template <class Noise>
+namespace deluge::dsp::fixed::dx7 {
+template <noise_stream Noise>
 class Voice;
-} // namespace dx7
-} // namespace deluge::dsp::fixed
+} // namespace deluge::dsp::fixed::dx7
 
 namespace deluge::dsp {
 
@@ -42,13 +40,13 @@ namespace deluge::dsp {
 /// **explicit** (freed only in @ref unassign, never in a destructor) — the per-source objects are pooled and
 /// reused in place, so an owning dtor would risk a double-free.
 class DxVoiceAdapter final : public synth::DxVoicePort {
-	gsl::owner<fixed::dx7::Voice<fixed::CongNoise>*> voice_ = nullptr;
+	gsl::owner<fixed::dx7::Voice<fixed::Cong>*> voice_ = nullptr;
 	DxPatch* patch_ = nullptr;
 	int midinote_ = 60;  ///< The note, for a key-up between blocks.
 	int velocity_ = 100; ///< The note-on velocity.
 
 public:
-	bool noteOn(void* patch, int midinote, int velocity) override;
+	bool note_on(void* patch, int midinote, int velocity) override;
 	void keyup() override;
 	void unassign() override;
 	std::span<const int32_t> render(int32_t numSamples, uint32_t phaseIncrement, int32_t ampModParam, bool patchChanged,

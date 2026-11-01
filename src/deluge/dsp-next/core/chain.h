@@ -38,7 +38,7 @@ namespace detail {
 
 /// @brief Whether every one of @p Ts is an empty class: true for none.
 template <typename... Ts>
-inline constexpr bool all_empty = (std::is_empty_v<Ts> && ...);
+inline constexpr bool all_empty_v = (std::is_empty_v<Ts> && ...);
 
 /// @brief The members of a non-empty @ref Parts: @p T's value, then @p Tail, each `[[no_unique_address]]` exactly
 /// when it is empty.
@@ -91,7 +91,7 @@ struct Parts {};
 
 /// @brief One value per part: @p T first, then the rest.
 template <typename T, typename... Ts>
-struct Parts<T, Ts...> : detail::PartsNode<T, Parts<Ts...>, std::is_empty_v<T>, detail::all_empty<Ts...>> {};
+struct Parts<T, Ts...> : detail::PartsNode<T, Parts<Ts...>, std::is_empty_v<T>, detail::all_empty_v<Ts...>> {};
 
 /// @brief Part @p I of @p parts.
 template <std::size_t I, typename T, typename... Ts>
@@ -121,19 +121,19 @@ namespace detail {
 
 /// @brief Whether every part after the first is a processor kernel.
 template <typename... Ks>
-inline constexpr bool chain_later_parts_process = false;
+inline constexpr bool chain_later_parts_process_v = false;
 
 /// @brief Whether every part after the first is a processor kernel.
 template <typename K0, typename... Rest>
-inline constexpr bool chain_later_parts_process<K0, Rest...> = (processor_kernel<Rest> && ...);
+inline constexpr bool chain_later_parts_process_v<K0, Rest...> = (processor_kernel<Rest> && ...);
 
 /// @brief Whether every part has the first part's value type and step type.
 template <typename... Ks>
-inline constexpr bool chain_shares_types = false;
+inline constexpr bool chain_shares_types_v = false;
 
 /// @brief Whether every part has the first part's value type and step type.
 template <typename K0, typename... Rest>
-inline constexpr bool chain_shares_types<K0, Rest...> =
+inline constexpr bool chain_shares_types_v<K0, Rest...> =
     ((std::same_as<typename Rest::value_type, typename K0::value_type>
       && std::same_as<typename Rest::step_type, typename K0::step_type>)
      && ...);
@@ -333,11 +333,13 @@ template <std::size_t I, typename Mode, typename... Ts>
 ///   returns;
 /// - parts whose value or step types differ, so a chain never converts between domains;
 /// - a part declaring kPartialStepAdvancesByCount: a chain steps whole vectors, so such a part's partial last vector
-///   would advance by a whole vector in a chain but by the active lanes when run alone.
+///   would advance by a whole vector in a chain but by the active lanes when run alone;
+/// - a part with a Context: the chain would have to pass one on to it, and no chained kernel needs one.
 template <typename... Ks>
-concept chainable = sizeof...(Ks) >= 2 && (kernel<Ks> && ...) && (!control_kernel<Ks> && ...)
-                    && (!staged_kernel<Ks> && ...) && detail::chain_later_parts_process<Ks...>
-                    && detail::chain_shares_types<Ks...> && (!partial_step_advances_by_count<Ks> && ...);
+concept chainable =
+    sizeof...(Ks) >= 2 && (kernel<Ks> && ...) && (!control_kernel<Ks> && ...) && (!staged_kernel<Ks> && ...)
+    && detail::chain_later_parts_process_v<Ks...> && detail::chain_shares_types_v<Ks...>
+    && (!partial_step_advances_by_count_v<Ks> && ...) && (!has_context<Ks> && ...);
 
 namespace detail {
 
@@ -358,15 +360,15 @@ struct ChainPrepare<true, Coefficients, Ks...> {
 	/// @param n The block's length in samples (frames for a stereo kernel); may be 0.
 	[[nodiscard]] [[gnu::always_inline]] static Block prepare(const Coefficients& c, Parts<typename Ks::State...>& s,
 	                                                          std::size_t n) {
-		return prepareParts(c, s, n, std::index_sequence_for<Ks...>{});
+		return prepare_parts(c, s, n, std::index_sequence_for<Ks...>{});
 	}
 
 private:
 	/// @brief @ref prepare, with the parts' indices.
 	template <std::size_t... I>
-	[[nodiscard]] [[gnu::always_inline]] static Block prepareParts(const Coefficients& c,
-	                                                               Parts<typename Ks::State...>& s, std::size_t n,
-	                                                               std::index_sequence<I...> /*parts*/) {
+	[[nodiscard]] [[gnu::always_inline]] static Block prepare_parts(const Coefficients& c,
+	                                                                Parts<typename Ks::State...>& s, std::size_t n,
+	                                                                std::index_sequence<I...> /*parts*/) {
 		Block block;
 		// A comma fold runs its operands left to right: part 0 prepares first.
 		((get<I>(block) = kernel_ops::prepare_block<Ks>(get<I>(c), get<I>(s), n)), ...);
@@ -384,14 +386,14 @@ template <typename... Ks>
 struct ChainReset<true, Ks...> {
 	/// @brief Every part to its reset State, part 0 first.
 	[[gnu::always_inline]] static void reset(Parts<typename Ks::State...>& s) {
-		resetParts(s, std::index_sequence_for<Ks...>{});
+		reset_parts(s, std::index_sequence_for<Ks...>{});
 	}
 
 private:
 	/// @brief @ref reset, with the parts' indices.
 	template <std::size_t... I>
-	[[gnu::always_inline]] static void resetParts(Parts<typename Ks::State...>& s,
-	                                              std::index_sequence<I...> /*parts*/) {
+	[[gnu::always_inline]] static void reset_parts(Parts<typename Ks::State...>& s,
+	                                               std::index_sequence<I...> /*parts*/) {
 		(reset_state<Ks>(get<I>(s)), ...);
 	}
 };
@@ -512,7 +514,7 @@ public:
 	/// @brief Each part's coefficients for its own settings; for a moded chain, the mode assembled from the moded
 	/// parts' own coefficients.
 	[[nodiscard]] [[gnu::always_inline]] static Coefficients coefficients(const Settings& settings) {
-		return coefficientsOf(settings, std::index_sequence_for<Ks...>{});
+		return coefficients_of(settings, std::index_sequence_for<Ks...>{});
 	}
 
 	/// @brief Part @p I to its reset State, every other part untouched: part @p I's reset quirk, or `State{}`.
@@ -530,7 +532,7 @@ public:
 	[[nodiscard]] [[gnu::always_inline]] static step_type step(const Coefficients& c, const StepBlock& b, State& s)
 	requires generator_kernel<First>
 	{
-		return stepAll<M>(c, b, s);
+		return step_all<M>(c, b, s);
 	}
 
 	/// @brief Process one step at mode @p M: part 0 takes @p x, each later part what the part before it returned.
@@ -541,7 +543,7 @@ public:
 	                                                           step_type x)
 	requires processor_kernel<First>
 	{
-		return stepAll<M>(c, b, s, x);
+		return step_all<M>(c, b, s, x);
 	}
 
 	/// @brief Mix one step at mode @p M: part 0 mixes @p a and @p b2, each later part processes.
@@ -552,58 +554,58 @@ public:
 	                                                           step_type a, step_type b2)
 	requires mixer_kernel<First>
 	{
-		return stepAll<M>(c, b, s, a, b2);
+		return step_all<M>(c, b, s, a, b2);
 	}
 
 private:
 	/// @brief @ref coefficients, with the parts' indices.
 	template <std::size_t... I>
-	[[nodiscard]] [[gnu::always_inline]] static Coefficients coefficientsOf(const Settings& settings,
-	                                                                        std::index_sequence<I...> /*parts*/) {
+	[[nodiscard]] [[gnu::always_inline]] static Coefficients coefficients_of(const Settings& settings,
+	                                                                         std::index_sequence<I...> /*parts*/) {
 		Coefficients c;
 		((get<I>(c) = Ks::coefficients(get<I>(settings))), ...);
 		if constexpr (kModed) {
-			c.mode = modeOf(c, std::make_index_sequence<kModedCount>{});
+			c.mode = mode_of(c, std::make_index_sequence<kModedCount>{});
 		}
 		return c;
 	}
 
 	/// @brief The chain's mode: each moded part's mode from its own coefficients, moded part 0 first.
 	template <std::size_t... J>
-	[[nodiscard]] [[gnu::always_inline]] static StepMode modeOf(const Coefficients& c,
-	                                                            std::index_sequence<J...> /*moded*/) {
+	[[nodiscard]] [[gnu::always_inline]] static StepMode mode_of(const Coefficients& c,
+	                                                             std::index_sequence<J...> /*moded*/) {
 		return StepMode{get<kModedParts[J]>(c).mode...};
 	}
 
 	/// @brief One step of every part at mode @p M, with every part's Block: the chain's own, or EmptyBlocks when it
 	/// prepares none.
 	template <StepMode M, typename... X>
-	[[nodiscard]] [[gnu::always_inline]] static step_type stepAll(const Coefficients& c, const StepBlock& b, State& s,
-	                                                              X... x) {
+	[[nodiscard]] [[gnu::always_inline]] static step_type step_all(const Coefficients& c, const StepBlock& b, State& s,
+	                                                               X... x) {
 		if constexpr (kPrepares) {
-			return stepParts<M>(c, b, s, std::make_index_sequence<sizeof...(Ks) - 1>{}, x...);
+			return step_parts<M>(c, b, s, std::make_index_sequence<sizeof...(Ks) - 1>{}, x...);
 		}
 		else {
 			const Blocks none{};
-			return stepParts<M>(c, none, s, std::make_index_sequence<sizeof...(Ks) - 1>{}, x...);
+			return step_parts<M>(c, none, s, std::make_index_sequence<sizeof...(Ks) - 1>{}, x...);
 		}
 	}
 
 	/// @brief Part 0's step on @p x, then part I + 1's on the value before it, for each I in order.
 	template <StepMode M, std::size_t... I, typename... X>
-	[[nodiscard]] [[gnu::always_inline]] static step_type stepParts(const Coefficients& c, const Blocks& b, State& s,
-	                                                                std::index_sequence<I...> /*later*/, X... x) {
-		step_type y = stepPart<M, 0>(c, b, s, x...);
+	[[nodiscard]] [[gnu::always_inline]] static step_type step_parts(const Coefficients& c, const Blocks& b, State& s,
+	                                                                 std::index_sequence<I...> /*later*/, X... x) {
+		step_type y = step_part<M, 0>(c, b, s, x...);
 		// A comma fold runs its operands left to right: each part steps on the output of the one before it.
-		((y = stepPart<M, I + 1>(c, b, s, y)), ...);
+		((y = step_part<M, I + 1>(c, b, s, y)), ...);
 		return y;
 	}
 
 	/// @brief Part @p P's step on @p x, with its own Coefficients, Block and State, on the part's loop state (@ref
 	/// loop_state_t): at its member of @p M when it is moded, else unmoded.
 	template <StepMode M, std::size_t P, typename... X>
-	[[nodiscard]] [[gnu::always_inline]] static step_type stepPart(const Coefficients& c, const Blocks& b, State& s,
-	                                                               X... x) {
+	[[nodiscard]] [[gnu::always_inline]] static step_type step_part(const Coefficients& c, const Blocks& b, State& s,
+	                                                                X... x) {
 		if constexpr (detail::has_modes<part_t<P>>) {
 			return kernel_ops::step_at<part_t<P>, get<kModedIndex[P]>(M)>(
 			    get<P>(c), get<P>(b), kernel_ops::loop_state<part_t<P>>(get<P>(s)), x...);
@@ -679,9 +681,9 @@ struct Pinned : detail::PinnedPrepare<detail::declares_prepare<K>, K>,
 	using State = typename K::State;               ///< K's state.
 
 	/// @brief Whether K's partial last vector advances by the active lanes.
-	static constexpr bool kPartialStepAdvancesByCount = partial_step_advances_by_count<K>;
+	static constexpr bool kPartialStepAdvancesByCount = partial_step_advances_by_count_v<K>;
 	/// @brief Whether the wrappers step K's loop state in place: K's choice.
-	static constexpr bool kStateInPlace = detail::state_in_place<K>;
+	static constexpr bool kStateInPlace = detail::state_in_place_v<K>;
 
 	/// @brief K's coefficients for @p settings, with @p M as their mode whatever the settings say.
 	[[nodiscard]] [[gnu::always_inline]] static Coefficients coefficients(const Settings& settings) {

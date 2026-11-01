@@ -22,12 +22,13 @@
 #include "deluge-project/drum_type.h"
 #include "deluge-project/launch_style.h"
 #include "deluge-project/sequence_direction.h"
-#include "engine-api/types/interpolation_mode.h"
-#include "engine-api/types/voice_priority.h"
-#include "engines/deluge/words.h"
-#include "engines/effects/words.h"
+#include "effects/words.h"
 #include "gfx/oled/font.h"
+#include "instruments/deluge/words.h"
+#include "plugin-api/types/interpolation_mode.h"
+#include "plugin-api/types/voice_priority.h"
 #include "sequence/iterance.h"
+#include "synth/modulation/patch_source.h"
 #include "util/misc.h"
 
 #include <cstddef>
@@ -287,32 +288,11 @@ constexpr int32_t kMaxNumPatchCables = (kNumUnsignedIntegersToRepPatchCables * 3
 // The envelope stage enum now lives inside the Envelope class (Envelope::Stage), as it is owned by
 // that component; see modulation/envelope.h.
 
-using deluge::engine::VoicePriority;
+using deluge::plugin::VoicePriority;
 
 constexpr size_t kNumVoicePriorities = util::to_underlying(VoicePriority::HIGH) + 1;
 
-enum class PatchSource : uint8_t {
-	LFO_GLOBAL_1,
-	LFO_GLOBAL_2,
-	SIDECHAIN,
-	ENVELOPE_0,
-	ENVELOPE_1,
-	ENVELOPE_2,
-	ENVELOPE_3,
-	LFO_LOCAL_1,
-	LFO_LOCAL_2,
-	X,
-	Y,
-	AFTERTOUCH,
-	VELOCITY,
-	NOTE,
-	RANDOM,
-	NONE,
-
-	// Used for shortcuts
-	SOON = 254,
-	NOT_AVAILABLE = 255,
-};
+using deluge::synth::PatchSource;
 constexpr PatchSource kLastPatchSource = PatchSource::NONE;
 constexpr int32_t kNumPatchSources = static_cast<int32_t>(kLastPatchSource);
 
@@ -766,7 +746,7 @@ enum class MarkerType {
 };
 constexpr int32_t kNumMarkerTypes = util::to_underlying(MarkerType::END) + 1;
 
-using deluge::engine::InterpolationMode;
+using deluge::plugin::InterpolationMode;
 constexpr int32_t kNumInterpolationModes = 2;
 
 constexpr int32_t kCacheByteDepth = 3;

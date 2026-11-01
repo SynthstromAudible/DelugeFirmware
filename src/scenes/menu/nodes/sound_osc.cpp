@@ -32,8 +32,8 @@
 #include "ui/oled/text.h"
 
 #include "definitions_cxx.hpp"
-#include "engines/deluge/sound_state.h"
-#include "engines/deluge/words.h"
+#include "instruments/deluge/sound_state.h"
+#include "instruments/deluge/words.h"
 #include "scenes/bind/runtime_facts.h"
 #include "scenes/bind/write_sink.h"
 

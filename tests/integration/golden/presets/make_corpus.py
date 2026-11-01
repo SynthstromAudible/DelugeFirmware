@@ -103,6 +103,7 @@ def case(
     modulators=None,  # (mod1_attrs, mod2_attrs) — FM-mode cases only
     delay=None,
     extra=(),  # further child elements of <sound>, each a line of XML
+    osc1_zone=None,  # a sample oscillator's <zone> attributes
     json=False,  # write the case as the firmware's JSON, through the upgrader
 ):
     def merged(base, over):
@@ -113,7 +114,12 @@ def case(
 
     lines = ['<?xml version="1.0" encoding="UTF-8"?>']
     lines.append(f"<sound {attrs(merged(BASE_SOUND_ATTRS, sound))}>")
-    lines.append(f"\t<osc1 {attrs(merged(BASE_OSC1, osc1))} />")
+    if osc1_zone is None:
+        lines.append(f"\t<osc1 {attrs(merged(BASE_OSC1, osc1))} />")
+    else:
+        lines.append(f"\t<osc1 {attrs(merged(BASE_OSC1, osc1))}>")
+        lines.append(f"\t\t<zone {attrs(osc1_zone)} />")
+        lines.append("\t</osc1>")
     lines.append(f"\t<osc2 {attrs(merged(BASE_OSC2, osc2))} />")
     lines.append(f"\t<lfo1 {attrs(merged(BASE_LFO1, lfo1))} />")
     lines.append('\t<lfo2 type="triangle" />')
@@ -132,10 +138,26 @@ def case(
     lines.append(f"\t\t<envelope1 {attrs(merged(BASE_ENV1, env1))} />")
     lines.append(f"\t\t<envelope2 {attrs(merged(BASE_ENV2, env2))} />")
     lines.append("\t\t<patchCables>")
-    for source, destination, amount in cables if cables is not None else BASE_CABLES:
+    # A cable is (source, destination, amount), or with a fourth item: the cables controlling its depth, each
+    # (source, amount, polarity).
+    for cable in cables if cables is not None else BASE_CABLES:
+        source, destination, amount = cable[:3]
+        depth = cable[3] if len(cable) > 3 else []
+        if not depth:
+            lines.append(
+                f'\t\t\t<patchCable source="{source}" destination="{destination}" amount="{amount}" />'
+            )
+            continue
         lines.append(
-            f'\t\t\t<patchCable source="{source}" destination="{destination}" amount="{amount}" />'
+            f'\t\t\t<patchCable source="{source}" destination="{destination}" amount="{amount}">'
         )
+        lines.append("\t\t\t\t<depthControlledBy>")
+        for d_source, d_amount, d_polarity in depth:
+            lines.append(
+                f'\t\t\t\t\t<patchCable source="{d_source}" amount="{d_amount}" polarity="{d_polarity}" />'
+            )
+        lines.append("\t\t\t\t</depthControlledBy>")
+        lines.append("\t\t\t</patchCable>")
     lines.append("\t\t</patchCables>")
     lines.append(
         '\t\t<equalizer bass="0x00000000" treble="0x00000000" bassFrequency="0x00000000" trebleFrequency="0x00000000" />'
@@ -144,6 +166,7 @@ def case(
     lines.append("</sound>")
     text = "\n".join(lines) + "\n"
     if not json:
+        (CORPUS / name).parent.mkdir(exist_ok=True)
         (CORPUS / f"{name}.xml").write_text(text)
         return
     # The firmware saves presets as JSON. The upgrader (tools/deluge-upgrade) writes a document exactly as the firmware
@@ -218,7 +241,7 @@ case(
 )
 
 # --- DX7 ----------------------------------------------------------------------
-# The init voice (src/engines/deluge/dx7_init_voice.h); ops are stored op 6 first, 21 bytes each.
+# The init voice (src/instruments/deluge/dx7_init_voice.h); ops are stored op 6 first, 21 bytes each.
 DX7_INIT = [
     99,
     99,
@@ -322,7 +345,11 @@ GLOBAL_FIELDS = {
 def dx7_header_init_voice():
     """The 156 bytes of kDx7InitVoice, parsed from its header so DX7_INIT cannot drift from it."""
     header = (
-        CORPUS.resolve().parents[3] / "src" / "engines" / "deluge" / "dx7_init_voice.h"
+        CORPUS.resolve().parents[3]
+        / "src"
+        / "instruments"
+        / "deluge"
+        / "dx7_init_voice.h"
     ).read_text()
     body = re.search(r"kDx7InitVoice\{([^}]*)\}", header).group(1)
     return [int(b) for b in re.findall(r"\d+", body)]
@@ -348,7 +375,7 @@ def dx7_patch(ops=None, **globals_):
 
 
 def dx7_case(name, engine, patch):
-    # The XML reader's key is lowercase (src/engines/deluge/codec.cpp, "dx7enginemode"); a camelCase spelling would
+    # The XML reader's key is lowercase (src/instruments/deluge/codec.cpp, "dx7enginemode"); a camelCase spelling would
     # be ignored and render every case at engine 0 (auto). case()'s XML branch writes the file without creating the
     # directory.
     (CORPUS / "dx7").mkdir(exist_ok=True)
@@ -461,6 +488,15 @@ case(
     params={"lfo1Rate": "0x30000000"},
     cables=BASE_CABLES + [("lfo1", "pitch", "0x08000000")],
 )
+# The LFO's random waves: each draws from the synth's shared noise stream.
+for wave in ("sah", "rwalk", "warbler"):
+    case(
+        f"lfo_{wave}",
+        lfo1={"type": wave},
+        params={"lfo1Rate": "0x30000000"},
+        cables=BASE_CABLES
+        + [("lfo1", "pitch", "0x10000000"), ("lfo1", "lpfFrequency", "0x20000000")],
+    )
 case("velocity_dynamics", cables=[("velocity", "volume", "0x50000000")])
 
 # --- filter modes, routes and transitions (JSON, as the firmware saves) -------
@@ -586,6 +622,8 @@ stereo_case(
 # shift starts, still 0) and above (shifted back up by the amount less 2).
 for amount in (1, 2, 5):
     stereo_case(f"clipping_{amount}", sound={"clippingAmount": str(amount)})
+# The wavefolder on a stereo voice: the fold runs on the interleaved stereo buffer.
+stereo_case("wavefold", osc1={"type": "sine"}, params={"waveFold": "0x40000000"})
 
 # --- dynamics and delay (JSON, as the firmware saves) ---------------------------
 # Each sidechain case sends hits of its own (sideChainSend) and ducks itself through the sidechain → post-reverb volume
@@ -652,5 +690,175 @@ case("poly_chord")
 case("pitch_bend")
 case("mono_legato", sound={"polyphonic": "legato"})
 case("porta", params={"portamento": "0x30000000"})
+
+# --- the voice's own paths (voice/, paired with .notes scripts) ----------------
+# Each reaches a branch of the voice's note-on, note change, note-off or render that no other case does. The sample
+# cases play sample/_tone.wav (4,096 frames, root C4) and the wavetable one wavetable/static.wav, through symlinks.
+SAMPLE_OSC = {
+    "type": "sample",
+    "reversed": "0",
+    "timeStretchEnable": "0",
+    "timeStretchAmount": "0",
+    "fileName": "SAMPLES/WT.WAV",
+}
+WHOLE_TONE = {"startSamplePos": "0", "endSamplePos": "4096"}
+
+# Portamento on a legato sound: the second, overlapping note changes the held voice's note and glides to it.
+case(
+    "voice/porta_legato",
+    sound={"polyphonic": "legato"},
+    params={"portamento": "0x30000000"},
+)
+# A source transposed so far up that a second note would sound above the Nyquist limit: that note's source is made
+# inactive while the first note sounds.
+case("voice/high_note_inactive", osc1={"transpose": "48"})
+# A mono sound's second note re-triggers its one voice without resetting it: a free-running oscillator keeps its phase.
+case(
+    "voice/freerun_mono_wavetable",
+    sound={"polyphonic": "mono"},
+    osc1={"type": "wavetable", "fileName": "SAMPLES/WT.WAV"},
+)
+case(
+    "voice/freerun_mono_supersaw",
+    sound={"polyphonic": "mono"},
+    osc1={"type": "supersaw"},
+)
+# A play-once sample shorter than the held note, with a release longer than the sample: the voice releases itself on
+# its first render.
+case(
+    "voice/once_auto_release",
+    osc1={**SAMPLE_OSC, "loopMode": "1"},
+    osc1_zone=WHOLE_TONE,
+    env1={"release": "0xE0000000"},
+)
+# The same played a fifth up on two unison voices, with a release short enough to start partway through the sample:
+# the release's length is scaled by the read rate of the higher unison voice.
+case(
+    "voice/once_auto_release_pitched",
+    osc1={**SAMPLE_OSC, "loopMode": "1"},
+    osc1_zone=WHOLE_TONE,
+    unison={"num": "2", "detune": "8"},
+    env1={"release": "0x84000000"},
+)
+# A play-once sample with loop points: it loops until the note-off, then plays on past the loop end.
+case(
+    "voice/loop_points_release",
+    osc1={**SAMPLE_OSC, "loopMode": "1"},
+    osc1_zone={**WHOLE_TONE, "startLoopPos": "1024", "endLoopPos": "3072"},
+    env1={"release": "0xC0000000"},
+)
+# A looping sample played a fifth up, which is cached on its first render unless a source that can change during the
+# note is patched to its pitch. Aftertouch held from before the note, and a slow square LFO, each hold the pitch steady
+# for blocks on end, where a cached render would differ. Velocity cannot change during a note, so that sample is
+# cached.
+LOOPING_SAMPLE = {"osc1": {**SAMPLE_OSC, "loopMode": "2"}, "osc1_zone": WHOLE_TONE}
+case(
+    "voice/cache_lfo_pitch",
+    **LOOPING_SAMPLE,
+    lfo1={"type": "square"},
+    params={"lfo1Rate": "0xC0000000"},
+    cables=BASE_CABLES + [("lfo1", "pitch", "0x08000000")],
+)
+case(
+    "voice/cache_aftertouch_pitch",
+    **LOOPING_SAMPLE,
+    cables=BASE_CABLES + [("aftertouch", "pitch", "0x08000000")],
+)
+# A sample's zone end moved mid-note (RENDER_ZONE_END, in render_preset.py): a looping sample loops at the new end; a
+# play-once sample already past it stops, while osc 2 keeps the voice sounding.
+case("voice/zone_end_loop", **LOOPING_SAMPLE)
+case(
+    "voice/zone_end_once",
+    osc1={**SAMPLE_OSC, "loopMode": "1"},
+    osc1_zone=WHOLE_TONE,
+    params={"oscBVolume": "0x40000000"},
+)
+case(
+    "voice/cache_velocity_pitch",
+    **LOOPING_SAMPLE,
+    cables=BASE_CABLES + [("velocity", "pitch", "0x08000000")],
+)
+
+# --- the sources and engines' own paths (voice/ and stereo/) -------------------
+# A mono sound whose osc 1 turns from saw to square between its two overlapping notes (RENDER_SETTING, in
+# render_preset.py): the menu keeps the voice for that change, and the re-triggered voice keeps the saw it built.
+case(
+    "voice/type_change_mono_saw_square",
+    sound={"polyphonic": "mono"},
+)
+# The same voice turned to supersaw instead: a new class of source, so the re-triggered voice builds a supersaw.
+case("voice/type_change_mono_saw_supersaw", sound={"polyphonic": "mono"})
+# Ring-mod with osc 2 hard-synced to osc 1, and the same spread across stereo unison voices.
+RINGMOD_SYNC = {
+    "sound": {"mode": "ringmod"},
+    "osc1": {"type": "sine"},
+    "osc2": {"type": "saw", "transpose": "7", "oscillatorSync": "1"},
+}
+case("voice/ringmod_sync", **RINGMOD_SYNC)
+stereo_case("ringmod_sync_unison", **RINGMOD_SYNC)
+# A DX7 patch in osc 2, beside a silent osc 1.
+case(
+    "voice/dx7_osc_b",
+    osc2={
+        "type": "dx7",
+        "dx7patch": dx7_patch(ALL_SOUNDING, algorithm=4, feedback=5),
+        "dx7enginemode": "2",
+    },
+    params={"oscAVolume": "0x80000000", "oscBVolume": "0x40000000"},
+)
+# Noise with no filter on (no filter-gain fold), and across stereo unison voices (rendered once into both channels).
+NOISE = {"oscAVolume": "0x80000000", "noiseVolume": "0x40000000"}
+case("voice/noise_unfiltered", sound={"lpfMode": "Off", "hpfMode": "Off"}, params=NOISE)
+stereo_case("noise_unison", params=NOISE)
+# A supersaw retriggered at each note: its side saws start from fixed offsets of the centre one.
+case("voice/supersaw_retrigger", osc1={"type": "supersaw", "retrigPhase": "0"})
+# Osc sync with osc 1 silent: the master is skipped but its phase still advances, and osc 2 syncs to it.
+case(
+    "voice/sync_silent_master",
+    osc2={"type": "saw", "transpose": "7", "oscillatorSync": "1"},
+    params={"oscAVolume": "0x80000000", "oscBVolume": "0x40000000"},
+)
+# FM on a mono sound re-triggered by an overlapping note: free-running modulators carry on, a retriggered one restarts.
+case(
+    "voice/fm_mono_retrigger",
+    sound={"mode": "fm", "polyphonic": "mono"},
+    osc1={"type": "sine"},
+    osc2={"type": "sine"},
+    modulators=({"transpose": "12"}, {"retrigPhase": "0"}),
+    params={
+        "modulator1Amount": "0x30000000",
+        "modulator2Amount": "0x20000000",
+        "modulator1Feedback": "0x10000000",
+    },
+)
+
+# --- the patcher's paths the matrix runtime must keep (voice/) ------------------
+# Velocity to the master pitch: its depth is squared and scaled so velocity's steps are semitones.
+case("voice/velocity_pitch", cables=BASE_CABLES + [("velocity", "pitch", "0x20000000")])
+# An LFO on pitch whose depth velocity controls, played by two overlapping notes of different velocities: each voice's
+# depth cable and the range it gives the LFO's cable.
+case(
+    "voice/depth_velocity_poly",
+    lfo1={"type": "sine"},
+    params={"lfo1Rate": "0x10000000"},
+    cables=BASE_CABLES
+    + [("lfo1", "pitch", "0x10000000", [("velocity", "0x3FFFFFE8", "bipolar")])],
+)
+# Five full-depth cables on the low-pass cutoff saturate its add chain, so its exp curve asks for 33 octaves: the
+# cutoff saturates at the top of the filter's range rather than wrapping below it.
+case(
+    "voice/exp_saturate",
+    lfo1={"type": "square"},
+    params={"lfo1Rate": "0x20000000", "lpfFrequency": "0x60000000"},
+    cables=BASE_CABLES
+    + [
+        ("envelope1", "lpfFrequency", "0x3FFFFFE8"),
+        ("velocity", "lpfFrequency", "0x3FFFFFE8"),
+        ("note", "lpfFrequency", "0x3FFFFFE8"),
+        ("lfo1", "lpfFrequency", "0x3FFFFFE8"),
+        ("random", "lpfFrequency", "0x3FFFFFE8"),
+    ],
+)
+
 
 print(f"wrote {len(list(CORPUS.glob('*.xml')))} presets to {CORPUS}")

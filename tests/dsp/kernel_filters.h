@@ -36,9 +36,10 @@
 #include "dsp-next/fixed/filter/high_pass_ladder.h"
 #include "dsp-next/fixed/filter/low_pass_ladder.h"
 #include "dsp-next/fixed/filter/svf.h"
-#include "dsp-next/fixed/noise/cong_noise.h"
+#include "dsp-next/fixed/noise/cong.h"
 #include "filter_workloads.h"
 #include "reference_filters.h"
+#include "util/synth_noise.h"
 
 #include <algorithm>
 #include <cstdlib>
@@ -62,10 +63,10 @@ void blend(FadeWrapper<kStereo>& fade, std::span<q31> block, std::span<q31> scra
 	const std::span<q31> dry = scratch.first(block.size());
 	if constexpr (kStereo) {
 		const auto frames = deluge::dsp::as_frames(block);
-		fade.renderBlock(deluge::dsp::as_frames(dry), frames, frames);
+		fade.render_block(deluge::dsp::as_frames(dry), frames, frames);
 	}
 	else {
-		fade.renderBlock(dry, block, block);
+		fade.render_block(dry, block, block);
 	}
 }
 
@@ -95,7 +96,7 @@ inline void digest_svf(const deluge::dsp::fixed::Svf::State& left, const deluge:
 }
 
 /// @brief The low-pass ladder kernel the app runs.
-using AppLowPassLadder = deluge::dsp::fixed::LowPassLadder<deluge::dsp::fixed::CongNoise>;
+using AppLowPassLadder = deluge::dsp::fixed::LowPassLadder<>;
 
 /// @brief What the reference low-pass ladder's digest folds beyond the kernel's state and coefficients: the mode last
 /// configured, and two values its configure writes only in some modes, the third feedback (left from the last 24dB
@@ -197,14 +198,14 @@ public:
 		return Svf::gain(filter_.coefficients());
 	}
 
-	void renderMono(std::span<q31> block, std::span<q31> scratch) {
+	void render_mono(std::span<q31> block, std::span<q31> scratch) {
 		if constexpr (kStereo) {
 			std::abort();
 		}
 		render(block, scratch);
 	}
 
-	void renderStereo(std::span<q31> interleaved, std::span<q31> scratch) {
+	void render_stereo(std::span<q31> interleaved, std::span<q31> scratch) {
 		if constexpr (!kStereo) {
 			std::abort();
 		}
@@ -248,10 +249,10 @@ private:
 		}
 		if constexpr (kStereo) {
 			const auto frames = deluge::dsp::as_frames(block);
-			filter_.renderBlock(frames, frames);
+			filter_.render_block(frames, frames);
 		}
 		else {
-			filter_.renderBlock(block, block);
+			filter_.render_block(block, block);
 		}
 		if (fading) {
 			blend<kStereo>(fade_, block, scratch);
@@ -262,7 +263,7 @@ private:
 	FadeWrapper<kStereo> fade_{};
 };
 
-/// @brief `Stereo<LowPassLadder<CongNoise>>` or `Mono<…>` with its fade, as
+/// @brief `Stereo<LowPassLadder<>>` or `Mono<…>` with its fade, drawing on the synth's noise stream, as
 /// @ref filters_reference::ReferenceLowPassLadder.
 /// @details The reference keeps two values its configure writes only in some modes: the third feedback (left over from
 /// the last 24dB or drive block while in 12dB) and the oversampling flag (left over from the last drive block). Its
@@ -270,7 +271,7 @@ private:
 /// modes that set them.
 template <bool kStereo>
 class KernelLowPassLadder {
-	using Ladder = deluge::dsp::fixed::LowPassLadder<deluge::dsp::fixed::CongNoise>;
+	using Ladder = deluge::dsp::fixed::LowPassLadder<>;
 	using FadeIn = deluge::dsp::fixed::FadeIn;
 	using Filter = std::conditional_t<kStereo, deluge::dsp::Stereo<Ladder>, deluge::dsp::Mono<Ladder>>;
 	using LowPassLadderMode = deluge::dsp::fixed::LowPassLadderMode;
@@ -283,14 +284,14 @@ public:
 		return Ladder::gain(c);
 	}
 
-	void renderMono(std::span<q31> block, std::span<q31> scratch) {
+	void render_mono(std::span<q31> block, std::span<q31> scratch) {
 		if constexpr (kStereo) {
 			std::abort();
 		}
 		render(block, scratch);
 	}
 
-	void renderStereo(std::span<q31> interleaved, std::span<q31> scratch) {
+	void render_stereo(std::span<q31> interleaved, std::span<q31> scratch) {
 		if constexpr (!kStereo) {
 			std::abort();
 		}
@@ -335,10 +336,10 @@ private:
 		}
 		if constexpr (kStereo) {
 			const auto frames = deluge::dsp::as_frames(block);
-			filter_.renderBlock(frames, frames);
+			filter_.render_block(frames, frames, deluge::synth_noise);
 		}
 		else {
-			filter_.renderBlock(block, block);
+			filter_.render_block(block, block, deluge::synth_noise);
 		}
 		if (fading) {
 			blend<kStereo>(fade_, block, scratch);
@@ -364,14 +365,14 @@ public:
 		return Ladder::gain(filter_.coefficients());
 	}
 
-	void renderMono(std::span<q31> block, std::span<q31> scratch) {
+	void render_mono(std::span<q31> block, std::span<q31> scratch) {
 		if constexpr (kStereo) {
 			std::abort();
 		}
 		render(block, scratch);
 	}
 
-	void renderStereo(std::span<q31> interleaved, std::span<q31> scratch) {
+	void render_stereo(std::span<q31> interleaved, std::span<q31> scratch) {
 		if constexpr (!kStereo) {
 			std::abort();
 		}
@@ -416,10 +417,10 @@ private:
 		}
 		if constexpr (kStereo) {
 			const auto frames = deluge::dsp::as_frames(block);
-			filter_.renderBlock(frames, frames);
+			filter_.render_block(frames, frames);
 		}
 		else {
-			filter_.renderBlock(block, block);
+			filter_.render_block(block, block);
 		}
 		if (fading) {
 			blend<kStereo>(fade_, block, scratch);

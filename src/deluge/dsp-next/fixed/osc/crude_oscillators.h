@@ -20,7 +20,7 @@
 #include "dsp-next/core/phasor.h"
 #include "dsp-next/core/types.h"
 #include "dsp-next/fixed/bandlimited/waves.h"  // square, triangle_half_scale
-#include "dsp-next/fixed/osc/sine_table.h"     // sine_table
+#include "dsp-next/fixed/osc/sine_table.h"     // kSineTable
 #include "dsp-next/fixed/sync/synced_phasor.h" // SyncedPhasor
 #include <cstdint>
 #include <type_traits>
@@ -48,7 +48,7 @@ namespace deluge::dsp::fixed {
 
 /// @brief Crude sawtooth: the phase ramp itself is the wave.
 template <typename Phase>
-class [[gnu::hot]] CrudeSaw {
+class CrudeSaw {
 	Phase phasor_;
 
 public:
@@ -60,12 +60,12 @@ public:
 	/// Forward a per-block pitch change to the phase source (a Phasor takes one increment; a SyncedPhasor takes
 	/// the audible + resetter increments), keeping the accumulated phase.
 	template <typename... Increments>
-	void setIncrement(Increments... increments) {
-		phasor_.setIncrement(increments...);
+	void set_increment(Increments... increments) {
+		phasor_.set_increment(increments...);
 	}
 
 	/// @brief Fill @p output with the next `output.size()` samples, one phase step each.
-	void renderBlock(Buffer output) {
+	void render_block(Buffer output) {
 		for (q31& sample : output) {
 			sample = static_cast<int32_t>(phasor_.advance());
 		}
@@ -81,7 +81,7 @@ static_assert(!std::is_polymorphic_v<CrudeSaw<SyncedPhasor>>, "a crude saw fills
 /// @brief Crude square: a hard switch at the pulse-width threshold (the width also makes it a
 /// (non-band-limited) pulse wave). @p pulse_width is the threshold phase passed to square().
 template <typename Phase>
-class [[gnu::hot]] CrudeSquare {
+class CrudeSquare {
 	Phase phasor_;
 	uint32_t pulse_width_;
 
@@ -94,12 +94,12 @@ public:
 	/// Forward a per-block pitch change to the phase source (a Phasor takes one increment; a SyncedPhasor takes
 	/// the audible + resetter increments), keeping the accumulated phase.
 	template <typename... Increments>
-	void setIncrement(Increments... increments) {
-		phasor_.setIncrement(increments...);
+	void set_increment(Increments... increments) {
+		phasor_.set_increment(increments...);
 	}
 
 	/// @brief Fill @p output with the next `output.size()` samples, one phase step each.
-	void renderBlock(Buffer output) {
+	void render_block(Buffer output) {
 		for (q31& sample : output) {
 			sample = square(phasor_.advance(), pulse_width_);
 		}
@@ -114,7 +114,7 @@ static_assert(!std::is_polymorphic_v<CrudeSquare<SyncedPhasor>>, "a crude square
 
 /// @brief Crude triangle.
 template <typename Phase>
-class [[gnu::hot]] CrudeTriangle {
+class CrudeTriangle {
 	Phase phasor_;
 
 public:
@@ -126,12 +126,12 @@ public:
 	/// Forward a per-block pitch change to the phase source (a Phasor takes one increment; a SyncedPhasor takes
 	/// the audible + resetter increments), keeping the accumulated phase.
 	template <typename... Increments>
-	void setIncrement(Increments... increments) {
-		phasor_.setIncrement(increments...);
+	void set_increment(Increments... increments) {
+		phasor_.set_increment(increments...);
 	}
 
 	/// @brief Fill @p output with the next `output.size()` samples, one phase step each.
-	void renderBlock(Buffer output) {
+	void render_block(Buffer output) {
 		for (q31& sample : output) {
 			sample = triangle_half_scale(phasor_.advance());
 		}
@@ -144,10 +144,10 @@ static_assert(!std::is_polymorphic_v<CrudeTriangle<Phasor>>, "a crude triangle f
 static_assert(block_generator<CrudeTriangle<SyncedPhasor>>, "a crude triangle fills a block");
 static_assert(!std::is_polymorphic_v<CrudeTriangle<SyncedPhasor>>, "a crude triangle fills a block without a vptr");
 
-/// @brief Crude sine: the @ref sine_table LUT evaluated at the running phase. The cheap, non-band-limited
+/// @brief Crude sine: the @ref kSineTable LUT evaluated at the running phase. The cheap, non-band-limited
 /// sine — full-scale, the same value the LFO/envelope read, but here as a free-running owned-phasor oscillator.
 template <typename Phase>
-class [[gnu::hot]] CrudeSine {
+class CrudeSine {
 	Phase phasor_;
 
 public:
@@ -159,14 +159,14 @@ public:
 	/// Forward a per-block pitch change to the phase source (a Phasor takes one increment; a SyncedPhasor takes
 	/// the audible + resetter increments), keeping the accumulated phase.
 	template <typename... Increments>
-	void setIncrement(Increments... increments) {
-		phasor_.setIncrement(increments...);
+	void set_increment(Increments... increments) {
+		phasor_.set_increment(increments...);
 	}
 
 	/// @brief Fill @p output with the next `output.size()` samples, one phase step each.
-	void renderBlock(Buffer output) {
+	void render_block(Buffer output) {
 		for (q31& sample : output) {
-			sample = sine_table.value(phasor_.advance());
+			sample = kSineTable.value(phasor_.advance());
 		}
 	}
 };

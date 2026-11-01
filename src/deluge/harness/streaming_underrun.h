@@ -54,7 +54,7 @@ void noteUnderrunWait();
 /// @brief Count one UNASSIGN-class underrun miss.
 ///
 /// A voice found the Cluster it needs isn't loaded on a path that returns `false` all the way
-/// up to `Voice::render`'s `goto instantUnassign` — a dropped voice, not just a deferral. Two
+/// up to the voice's render, which unassigns that unison part — a dropped voice, not just a deferral. Two
 /// call sites converge here, both the same severity:
 ///   - `VoiceSample::stopReadingFromCache`: the repitch-cache-stop path (only reached by
 ///     voices actively using the timestretch/repitch `SampleCache`).

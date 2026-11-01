@@ -43,11 +43,11 @@ DelayRig rig{};
 /// @brief A tape for a delay at @p rate over the start of @p storage, sized as the app sizes it (effects::tape_shape):
 /// the ideal size for the rate, kWriteLag samples more for the write's run-off.
 [[nodiscard]] DelayTape tape_for_rate(std::span<StereoSample> storage, int32_t rate) {
-	const auto [size, clamped] = DelayTape::idealSizeForRate(static_cast<uint32_t>(rate));
+	const auto [size, clamped] = DelayTape::ideal_size_for_rate(static_cast<uint32_t>(rate));
 	const std::size_t samples = static_cast<std::size_t>(size) + static_cast<std::size_t>(DelayTape::kWriteLag);
 	DelayTape tape{storage.first(samples), static_cast<std::size_t>(size), static_cast<uint32_t>(rate)};
 	if (clamped) {
-		tape.makeNativeRatePrecise();
+		tape.make_native_rate_precise();
 	}
 	return tape;
 }
@@ -82,7 +82,7 @@ void DelayWholeCase::setup(std::size_t n) {
 		// primary's native rate made precise relative to it.
 		std::ranges::fill(rig.secondary_storage, StereoSample{.l = 0, .r = 0});
 		rig.secondary = tape_for_rate(rig.secondary_storage, kDelayResHiRate);
-		rig.primary.makeNativeRatePreciseRelativeTo(rig.secondary);
+		rig.primary.make_native_rate_precise_relative_to(rig.secondary);
 		rig.growing = &rig.secondary;
 	}
 

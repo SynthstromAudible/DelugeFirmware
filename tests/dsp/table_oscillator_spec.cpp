@@ -62,7 +62,7 @@ describe table_oscillator("deluge::dsp::fixed TableOscillator", ${
 		});
 	});
 
-	context("renderBlock", _ {
+	context("render_block", _ {
 		it("fills the buffer with the same samples render() produces", _ {
 			std::array<int16_t, 8> table{0, 1000, 2000, 3000, 4000, 5000, 6000, 7000};
 
@@ -71,7 +71,7 @@ describe table_oscillator("deluge::dsp::fixed TableOscillator", ${
 
 			TableOscillator b{Table{table, kMag}, 0u, kInc};
 			std::array<int32_t, 4> buf{};
-			b.renderBlock(deluge::dsp::fixed::Buffer{buf});
+			b.render_block(deluge::dsp::fixed::Buffer{buf});
 
 			expect(buf[0]).to_equal(vgetq_lane_s32(expected, 0));
 			expect(buf[1]).to_equal(vgetq_lane_s32(expected, 1));

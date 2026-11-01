@@ -16,9 +16,10 @@
  */
 
 #include "model/project_bridge/param_serialization.h"
+#include "instruments/deluge/cable_codec.h"
 
-#include "engines/deluge/params.h"
-#include "engines/global_effectable/params.h"
+#include "effects/global_effectable/params.h"
+#include "instruments/deluge/params.h"
 #include "model/project_bridge/param_ids.h"
 #include "model/project_bridge/patch_cable_words.h"
 #include "modulation/automation/auto_param.h"
@@ -33,7 +34,7 @@
 
 namespace deluge::bridge {
 
-using deluge::engine::ParamId;
+using deluge::plugin::ParamId;
 namespace ip = deluge::instrument::param;
 namespace gp = deluge::global_effectable::param;
 
@@ -204,7 +205,7 @@ void serializeGlobalEffectableParamTags(const DocParamSet& unpatched, Serializer
 }
 
 namespace {
-// The ExpressionParamSet (MPE) dimensions, by index, matching expressionParamNames[] in param_set.cpp.
+// The ExpressionParamSet (MPE) dimensions, by index.
 constexpr DocParamAttr kExpressionParams[] = {
     {"pitchBend", ParamId{0}},
     {"yExpression", ParamId{1}},
@@ -263,8 +264,9 @@ constexpr DocParamAttr kEnvelope4[] = {
 };
 } // namespace
 
-void serializeSoundParams(const DocParamSet& patched, const DocParamSet& unpatched, const std::vector<DocCable>& cables,
-                          Serializer& out, bool writeAutomation) {
+void serializeSoundParams(const DocParamSet& patched, const DocParamSet& unpatched,
+                          std::span<const deluge::synth::CableRecord> cables,
+                          const std::vector<DocCableDepth>& cableDepths, Serializer& out, bool writeAutomation) {
 	// Byte-for-byte reproduction of Sound::writeParamsToFile. Two unpatched flat attrs lead, then the
 	// patched flat attrs; the pitchAdjust family is onlyIfContainsSomething; the shared ModControllableAudio
 	// attrs sit before the community attrs (lpfMorph/hpfMorph/waveFold).
@@ -331,63 +333,77 @@ void serializeSoundParams(const DocParamSet& patched, const DocParamSet& unpatch
 	writeDocParamGroup(out, "envelope3", kEnvelope3, patched, writeAutomation);
 	writeDocParamGroup(out, "envelope4", kEnvelope4, patched, writeAutomation);
 
-	serializePatchCables(cables, out, writeAutomation);
+	serializePatchCables(cables, cableDepths, out, writeAutomation);
 
 	serializeModControllableParamTags(unpatched, out, writeAutomation);
 }
 
-void serializePatchCables(const std::vector<DocCable>& cables, Serializer& out, bool writeAutomation) {
-	// Byte-for-byte reproduction of PatchCableSet::writePatchCablesToFile. The early-out matches the
-	// engine's `if (!numPatchCables) return;`.
+namespace {
+deluge::synth::CableTarget destinationOf(const deluge::synth::CableRecord& cable) {
+	return cable.target;
+}
+
+/// The lane of @p cable's depth; an empty one when the table has none.
+const DocAutoParam& laneOf(const std::vector<DocCableDepth>& lanes, const deluge::synth::CableRecord& cable) {
+	static const DocAutoParam kEmpty{};
+	const deluge::plugin::ParamId id = cable_depth(cable.source, destinationOf(cable));
+	for (const DocCableDepth& lane : lanes) {
+		if (lane.depth == id) {
+			return lane.amount;
+		}
+	}
+	return kEmpty;
+}
+} // namespace
+
+void serializePatchCables(std::span<const deluge::synth::CableRecord> cables,
+                          const std::vector<DocCableDepth>& cableDepths, Serializer& out, bool writeAutomation) {
+	// The instrument decides which cables the file holds and how they nest (encode_cables); this renders its encoding,
+	// byte-for-byte as PatchCableSet::writePatchCablesToFile does. The early-out matches the engine's
+	// `if (!numPatchCables) return;`.
 	if (cables.empty()) {
 		return;
 	}
+	std::vector<deluge::instrument::CableState> states;
+	states.reserve(cables.size());
+	for (const deluge::synth::CableRecord& cable : cables) {
+		states.push_back({.source = cable.source,
+		                  .destination = cableDepthIdOf(cable.target.word),
+		                  .polarity = static_cast<deluge::instrument::Polarity>(cable.polarity)});
+	}
 	out.writeArrayStart("patchCables");
-	for (const DocCable& cable : cables) {
-		// Depth-controlling (range) cables aren't written at top level; they're nested below the cable
-		// whose depth they control.
-		if (!destination_of(cable).isJustAParam()) {
-			continue;
-		}
+	for (const deluge::instrument::EncodedCable& cable : deluge::instrument::encode_cables(states)) {
 		out.writeOpeningTagBeginning("patchCable", true);
-		out.writeAttribute("source", sourceToString(source_of(cable)));
-		out.writeAttribute("destination", params::paramNameForFile(params::Kind::UNPATCHED_SOUND,
-		                                                           destination_of(cable).getJustTheParam()));
-		out.writeAttribute("polarity", polarityToString(polarity_of(cable)).data());
+		out.writeAttribute("source", sourceToString(cable.route.source));
+		out.writeAttribute("destination",
+		                   params::paramNameForFile(params::Kind::UNPATCHED_SOUND,
+		                                            static_cast<int32_t>(cable.route.destination.value)));
+		out.writeAttribute("polarity", polarityToString(static_cast<Polarity>(cable.polarity)).data());
 		out.insertCommaIfNeeded();
 		out.write("\n");
 		out.printIndents();
 		out.writeTagNameAndSeperator("amount");
 		out.write("\"");
-		writeDocAutoParam(cable.amount, out, writeAutomation);
+		writeDocAutoParam(laneOf(cableDepths, cables[cable.record]), out, writeAutomation);
 		out.write("\"");
 
-		// Find the cable(s) whose destination is this cable's param-with-this-source — they control its
-		// depth. Each writes its own polarity.
-		ParamDescriptor controllerDescriptor = destination_of(cable);
-		controllerDescriptor.addSource(source_of(cable));
-		bool anyDepthControllingCablesFound = false;
-		for (const DocCable& d : cables) {
-			if (destination_of(d) == controllerDescriptor) {
-				if (!anyDepthControllingCablesFound) {
-					anyDepthControllingCablesFound = true;
-					out.writeOpeningTagEnd();
-					out.writeArrayStart("depthControlledBy");
-				}
+		// The cables controlling this one's depth, each with its own polarity.
+		if (!cable.depth_controllers.empty()) {
+			out.writeOpeningTagEnd();
+			out.writeArrayStart("depthControlledBy");
+			for (const deluge::instrument::EncodedCable::Controller& d : cable.depth_controllers) {
 				out.writeOpeningTagBeginning("patchCable", true);
-				out.writeAttribute("source", sourceToString(source_of(d)));
-				out.writeAttribute("polarity", polarityToString(polarity_of(d)).data());
+				out.writeAttribute("source", sourceToString(d.source));
+				out.writeAttribute("polarity", polarityToString(static_cast<Polarity>(d.polarity)).data());
 				out.insertCommaIfNeeded();
 				out.write("\n");
 				out.printIndents();
 				out.writeTagNameAndSeperator("amount");
 				out.write("\"");
-				writeDocAutoParam(d.amount, out, writeAutomation);
+				writeDocAutoParam(laneOf(cableDepths, cables[d.record]), out, writeAutomation);
 				out.write("\"");
 				out.closeTag(true);
 			}
-		}
-		if (anyDepthControllingCablesFound) {
 			out.writeArrayEnding("depthControlledBy");
 			out.writeClosingTag("patchCable", true, true);
 		}

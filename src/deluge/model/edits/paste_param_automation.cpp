@@ -2,6 +2,7 @@
 
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
+#include "model/edits/edit_cable.h"
 #include "model/model_stack.h"
 #include "model/project_bridge/param_stack.h"
 #include "modulation/automation/auto_param.h"
@@ -30,6 +31,7 @@ Error PasteParamAutomation::apply(Context& ctx) {
 		action->recordParamChangeIfNotAlreadySnapshotted(stack, /*stealData=*/false);
 	}
 	stack->autoParam->paste(startPos_, endPos_, scaleFactor_, stack, copied_, isPatchCable);
+	settleCableDepth(stack);
 	return Error::NONE;
 }
 

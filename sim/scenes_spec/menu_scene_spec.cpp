@@ -965,7 +965,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		Rig r;
 		const MenuContext ctx = r.open(nodes::lpf_freq);
 		r.shell.tick(0);
-		const std::optional<deluge::project::ParamTarget> target = menu_scene().learn_target();
+		const std::optional<deluge::project::OwnerParamTarget> target = menu_scene().learn_target();
 		expect(target.has_value()).to_be_true();
 		if (!target) {
 			return;

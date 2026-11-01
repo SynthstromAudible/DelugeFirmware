@@ -16,9 +16,9 @@
  */
 
 #include "model/sample/sample_holder.h"
-#include "engines/deluge/sound_state.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "hid/display/display.h"
+#include "instruments/deluge/sound_state.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_reader_bridge.h"
 #include "model/song/song.h"

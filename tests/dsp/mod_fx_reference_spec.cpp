@@ -59,7 +59,7 @@ constexpr std::size_t kMaxDraws = 1 << 16;
 /// @return How many times the two warblers of @p workload cross their period boundaries: one draw for each, counted
 /// from the phases alone. The first LFO runs at the rate; the second at 0.97 of it.
 [[nodiscard]] std::size_t expected_warble_draws(const mw::ModFxWorkload& workload) {
-	constexpr q31_t width = 0.97 * ONE_Q31;
+	constexpr q31_t width = 0.97 * kOneQ31;
 	std::size_t frames = 0;
 	for (const mw::ModFxBlock& block : workload.blocks) {
 		frames += block.n;
@@ -80,7 +80,7 @@ constexpr std::size_t kMaxDraws = 1 << 16;
 /// @return How many times the generator was stepped from the workload's seed to where @p workload left it.
 [[nodiscard]] std::size_t draws_of(const mw::ModFxWorkload& workload) {
 	std::ignore = render(workload);
-	const uint32_t end = jcong;
+	const uint32_t end = deluge::synth_noise.state();
 	uint32_t state = workload.cong_seed;
 	std::size_t draws = 0;
 	while (state != end && draws < kMaxDraws) {
@@ -166,7 +166,7 @@ describe reference_mod_fx("the mod FX reference", ${
 		constexpr uint32_t kInc = 0x00a00000;
 		int32_t held = 0;
 		const auto warbled = [&held](bool change_wave) {
-			jcong = mw::kCongSeed;
+			deluge::synth_noise.seed(mw::kCongSeed);
 			deluge::dsp::test::ReferenceLfo lfo;
 			lfo.tick(1, 0xFFFF0000U); // so that the first warbler render crosses its period boundary and draws a target
 			int32_t value = 0;

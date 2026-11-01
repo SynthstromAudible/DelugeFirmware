@@ -162,7 +162,7 @@ void MappingIndex::rebuild(MappingSnapshot snapshot) {
 	for (const Mapping& mapping : snapshot.entries) {
 		std::visit(
 		    [&]<typename T>(const T& target) {
-			    if constexpr (std::is_same_v<T, project::ParamTarget>) {
+			    if constexpr (std::is_same_v<T, project::OwnerParamTarget>) {
 				    const uint32_t ordinal = nextOrdinal(target.owner);
 				    if (mapping.source.contains_something() && awake.hasOwner(target.owner)) {
 					    knobs_.push_back({mapping.source.channel_or_zone, target.owner, entryOf(mapping, ordinal)});

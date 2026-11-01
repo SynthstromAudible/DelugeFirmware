@@ -18,11 +18,11 @@
 #pragma once
 
 #include "deluge-project/setting_group.h"
-#include "engine-api/types/engine_id.h"
-#include "engine-api/types/param.h"
-#include "engine-api/types/setting.h"
-#include "engines/effects/words.h"
+#include "effects/words.h"
 #include "gui/l10n/strings.h"
+#include "plugin-api/types/param.h"
+#include "plugin-api/types/plugin_id.h"
+#include "plugin-api/types/setting.h"
 
 #include <cstdint>
 #include <optional>
@@ -59,9 +59,9 @@ public:
 	/// engine.
 	static constexpr uint8_t kCount = project::kSettingGroupCount + 3;
 
-	constexpr NamesOwner(engine::EngineId owner)
-	    : index_{owner == engine::kDelugeInstrument   ? kDelugeInstrumentIndex
-	             : owner == engine::kGlobalEffectable ? kGlobalEffectableIndex
+	constexpr NamesOwner(plugin::PluginId owner)
+	    : index_{owner == plugin::kDelugeInstrument   ? kDelugeInstrumentIndex
+	             : owner == plugin::kGlobalEffectable ? kGlobalEffectableIndex
 	                                                  : kOtherEngineIndex} {}
 	constexpr NamesOwner(project::SettingGroupId owner) : index_{std::to_underlying(owner)} {}
 
@@ -103,7 +103,7 @@ private:
 /// @param context Who the setting is shown for.
 /// @return The names, or nullptr where no menu shows the row.
 [[nodiscard]] const SettingNames* setting_names(NamesOwner owner, std::string_view path,
-                                                const engine::SettingContext& context);
+                                                const plugin::SettingContext& context);
 
 /// @brief The display name of param @p id of @p engine.
 ///
@@ -112,6 +112,6 @@ private:
 /// @param state   The filter modes, where the name depends on them.
 /// @return The string naming the param; String::STRING_FOR_NONE for an id the engine's table has no param at, or an
 ///         engine with no param names.
-[[nodiscard]] String param_name(engine::EngineId engine, engine::ParamId id, const ParamNameContext& state = {});
+[[nodiscard]] String param_name(plugin::PluginId engine, plugin::ParamId id, const ParamNameContext& state = {});
 
 } // namespace deluge::l10n

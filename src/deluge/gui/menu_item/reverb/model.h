@@ -1,6 +1,6 @@
 #pragma once
 
-#include "engines/effects/words.h"
+#include "effects/words.h"
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/selection.h"
 #include "processing/engines/audio_engine.h"

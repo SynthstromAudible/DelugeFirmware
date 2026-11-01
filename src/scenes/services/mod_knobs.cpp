@@ -32,10 +32,10 @@
 
 #include "shell/input_lowering.h"
 
-#include "engines/deluge/cables.h"
-#include "engines/deluge/params.h"
-#include "engines/global_effectable/params.h"
+#include "effects/global_effectable/params.h"
 #include "gui/l10n/strings.h"
+#include "instruments/deluge/cables.h"
+#include "instruments/deluge/params.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
 #include "model/project_bridge/param_ids.h"
@@ -69,12 +69,12 @@ EncoderRole role_of(int32_t which_encoder) {
 
 /// @brief The descriptor of the param @p assignment names, from its owner's engine table; null for a cable, a MIDI
 ///        CC or an expression dimension.
-const deluge::engine::ParamInfo* info_of(const ParamAddress& address, Kind kind) {
+const deluge::plugin::ParamInfo* info_of(const ParamAddress& address, Kind kind) {
 	if (address.space != ParamSpace::ENGINE || deluge::instrument::is_cable_depth(address.id)) {
 		return nullptr;
 	}
-	return kind == Kind::UNPATCHED_GLOBAL ? deluge::engine::find_param(deluge::global_effectable::kParams, address.id)
-	                                      : deluge::engine::find_param(deluge::instrument::kParams, address.id);
+	return kind == Kind::UNPATCHED_GLOBAL ? deluge::plugin::find_param(deluge::global_effectable::kParams, address.id)
+	                                      : deluge::plugin::find_param(deluge::instrument::kParams, address.id);
 }
 
 /// @brief The param @p address names as the engine's collections number it, for the popup, the menu's same-param
@@ -323,7 +323,7 @@ Result ModKnobs::turn_knob(int32_t which_encoder, int32_t offset, uint32_t now_m
 
 	// `modEncoderAction_existentParam` (`:853-948`). A knob on a param its owner does not hold yet reads 0: the write
 	// makes it.
-	const deluge::engine::ParamInfo* info = info_of(*address, assignment.kind);
+	const deluge::plugin::ParamInfo* info = info_of(*address, assignment.kind);
 	const bool at_region = focus_->region.pos != 0xFFFFFFFF;
 	const std::optional<int32_t> value = facts.param_value_at(*address, focus_->region.pos);
 	ModTurn turn;
@@ -391,11 +391,10 @@ bool ModKnobs::show_popup(const ModTurn& turn, uint32_t now_ms) {
 	PatchSource source1 = PatchSource::NONE;
 	PatchSource source2 = PatchSource::NONE;
 	if (turn.kind == Kind::PATCH_CABLE) {
-		ParamDescriptor descriptor;
-		descriptor.data = turn.param_id;
-		source1 = descriptor.getBottomLevelSource();
-		if (!descriptor.hasJustOneSource()) {
-			source2 = descriptor.getTopLevelSource();
+		const deluge::synth::CableTarget descriptor{static_cast<uint32_t>(turn.param_id)};
+		source1 = descriptor.bottom_source();
+		if (!descriptor.has_just_one_source()) {
+			source2 = descriptor.top_source();
 		}
 	}
 
@@ -723,7 +722,7 @@ ModIndicatorInfo ModKnobs::indicator_info(int32_t which_encoder) const {
 		out.patch_cable_default = true;
 		return out;
 	}
-	const deluge::engine::ParamInfo* info = info_of(*address, assignment.kind);
+	const deluge::plugin::ParamInfo* info = info_of(*address, assignment.kind);
 	out.has_auto_param = true;
 	out.kind = assignment.kind;
 	out.param_id = legacy_id(*address, assignment.kind);
@@ -812,9 +811,14 @@ void ModKnobs::send_midi_follow_feedback(Kind kind, int32_t param_id, int32_t kn
 		return;
 	}
 	if (have_param) {
-		const int32_t cc_number = midiFollow.getCCFromParam(kind, param_id);
-		if (cc_number != MIDI_CC_NONE) {
-			midiFollow.sendCCForMidiFollowFeedback(cc_number, knob_pos);
+		// In a global effectable's context only its own params are followed, elsewhere a sound's.
+		const deluge::bridge::OwnerPlugin owner = midiFollow.isGlobalEffectableContext()
+		                                              ? deluge::bridge::OwnerPlugin::GLOBAL_EFFECTABLE
+		                                              : deluge::bridge::OwnerPlugin::INSTRUMENT;
+		const std::optional<deluge::project::ParamTarget> target =
+		    kind == Kind::NONE ? std::nullopt : deluge::bridge::targetOf(owner, kind, param_id);
+		if (const std::optional<uint8_t> cc_number = target ? midiFollow.ccOf(owner, *target) : std::nullopt) {
+			midiFollow.sendCCForMidiFollowFeedback(*cc_number, knob_pos);
 		}
 	}
 	else {

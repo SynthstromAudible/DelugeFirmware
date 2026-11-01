@@ -35,7 +35,7 @@ namespace params = deluge::modulation::params;
 
 namespace {
 
-const deluge::engine::ParamId kLpf = deluge::bridge::paramIdOf(params::Kind::PATCHED, params::LOCAL_LPF_FREQ);
+const deluge::plugin::ParamId kLpf = deluge::bridge::paramIdOf(params::Kind::PATCHED, params::LOCAL_LPF_FREQ);
 
 /// The value @p drum's LPF frequency plays in @p clip, or nullopt where it has no row there.
 std::optional<int32_t> lpf_of(Song& song, Clip& clip, Drum& drum) {

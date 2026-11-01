@@ -23,7 +23,7 @@
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 
-#include "engines/effects/compressor.h" // the dsp-next display functions
+#include "effects/compressor.h" // the dsp-next display functions
 #include "foundation/string_format.h"
 
 #include <algorithm>

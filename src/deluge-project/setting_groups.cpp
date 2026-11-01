@@ -6,10 +6,10 @@
 #include "deluge-project/fraction.h"
 #include "deluge-project/sequence_direction.h"
 #include "deluge-project/song.h"
-#include "engine-api/types/arp.h"
-#include "engine-api/types/rate_tables.h"
-#include "engine-api/types/sync.h"
-#include "engine-api/types/voice_priority.h"
+#include "plugin-api/types/arp.h"
+#include "plugin-api/types/rate_tables.h"
+#include "plugin-api/types/sync.h"
+#include "plugin-api/types/voice_priority.h"
 #include "serialization/tree.h"
 
 #include <algorithm>
@@ -28,10 +28,10 @@ namespace {
 /// The device image places this namespace's data in SDRAM (linker/sdram_sections.x matches its name).
 inline namespace menu_tables {
 
-using engine::SettingInfo;
-using engine::SettingKind;
-using engine::SettingUnits;
-using engine::UserScale;
+using plugin::SettingInfo;
+using plugin::SettingKind;
+using plugin::SettingUnits;
+using plugin::UserScale;
 using serialization::Value;
 
 /// A fraction setting a menu shows as 0..50 (`kMaxMenuValue`), stored as the file's Q31.
@@ -39,7 +39,7 @@ constexpr UserScale kFiftyths{.user_min = 0, .user_max = 50, .stored_min = 0, .s
 
 constexpr SettingInfo integer(std::string_view path, int32_t min, int32_t max, int32_t default_value = 0,
                               UserScale user = {}, SettingUnits units = SettingUnits::NONE,
-                              const engine::SettingDescriptorExtras* extras = nullptr) {
+                              const plugin::SettingDescriptorExtras* extras = nullptr) {
 	return SettingInfo{.path = path,
 	                   .kind = SettingKind::INTEGER,
 	                   .min = min,
@@ -51,36 +51,36 @@ constexpr SettingInfo integer(std::string_view path, int32_t min, int32_t max, i
 }
 
 /// A fiftieths menu over a fraction the record holds as a float: it rounds the float, and stores through the scale.
-constexpr engine::SettingDescriptorExtras kFloatFractionExtras{
-    .mapping = {.kind = engine::DisplayMappingKind::FLOAT_FRACTION}};
+constexpr plugin::SettingDescriptorExtras kFloatFractionExtras{
+    .mapping = {.kind = plugin::DisplayMappingKind::FLOAT_FRACTION}};
 /// A param-style menu over a signed Q31, 0..50.
-constexpr engine::SettingDescriptorExtras kStandardExtras{.mapping = {.kind = engine::DisplayMappingKind::STANDARD}};
+constexpr plugin::SettingDescriptorExtras kStandardExtras{.mapping = {.kind = plugin::DisplayMappingKind::STANDARD}};
 constexpr SettingInfo boolean(std::string_view path, int32_t default_value = 0,
-                              const engine::SettingDescriptorExtras* extras = nullptr) {
+                              const plugin::SettingDescriptorExtras* extras = nullptr) {
 	return SettingInfo{.path = path, .kind = SettingKind::BOOL, .default_value = default_value, .extras = extras};
 }
-constexpr SettingInfo text(std::string_view path, const engine::SettingDescriptorExtras* extras = nullptr) {
+constexpr SettingInfo text(std::string_view path, const plugin::SettingDescriptorExtras* extras = nullptr) {
 	return SettingInfo{.path = path, .kind = SettingKind::TEXT, .extras = extras};
 }
 
-using Instrument = engine::SettingContext::Instrument;
+using Instrument = plugin::SettingContext::Instrument;
 /// A MIDI track: what has programs, a Y-axis CC, MPE collapsing and a device definition.
 constexpr std::array<int32_t, 1> kMidiInstrument{std::to_underlying(Instrument::MIDI)};
-constexpr std::array kOnMidi{engine::instrument_is(kMidiInstrument)};
-constexpr engine::SettingDescriptorExtras kOnMidiExtras{.applies_when = kOnMidi};
+constexpr std::array kOnMidi{plugin::instrument_is(kMidiInstrument)};
+constexpr plugin::SettingDescriptorExtras kOnMidiExtras{.applies_when = kOnMidi};
 /// A synth, MIDI or CV track: its clip bends and plays in a direction as a whole (a kit's rows have their own bend
 /// and direction, and an audio clip neither).
 constexpr std::array<int32_t, 3> kMelodicTracks{
     std::to_underlying(Instrument::SYNTH), std::to_underlying(Instrument::MIDI), std::to_underlying(Instrument::CV)};
-constexpr std::array kOnMelodicTrack{engine::instrument_is(kMelodicTracks)};
-constexpr engine::SettingDescriptorExtras kOnMelodicTrackExtras{.applies_when = kOnMelodicTrack};
+constexpr std::array kOnMelodicTrack{plugin::instrument_is(kMelodicTracks)};
+constexpr plugin::SettingDescriptorExtras kOnMelodicTrackExtras{.applies_when = kOnMelodicTrack};
 /// A clip that plays in a direction as a whole: a melodic track's, and a kit's, whose row shortcut sets the kit clip's
 /// direction while affect-entire is on (an audio clip has none).
 constexpr std::array<int32_t, 4> kDirectedClips{
     std::to_underlying(Instrument::SYNTH), std::to_underlying(Instrument::MIDI), std::to_underlying(Instrument::CV),
     std::to_underlying(Instrument::KIT)};
-constexpr std::array kOnDirectedClip{engine::instrument_is(kDirectedClips)};
-constexpr engine::SettingDescriptorExtras kOnDirectedClipExtras{.applies_when = kOnDirectedClip};
+constexpr std::array kOnDirectedClip{plugin::instrument_is(kDirectedClips)};
+constexpr plugin::SettingDescriptorExtras kOnDirectedClipExtras{.applies_when = kOnDirectedClip};
 
 Value number(int64_t n) {
 	return Value::makeNumber(n);
@@ -112,25 +112,25 @@ constexpr std::string_view kDisabledPrefix = "scales/disabled/";
 /// The reverb models with filters of their own: mutable and digital.
 constexpr std::array<int32_t, 2> kFilteredReverbModels{std::to_underlying(ReverbModel::MUTABLE),
                                                        std::to_underlying(ReverbModel::DIGITAL)};
-constexpr std::array kReverbHasFilters{engine::setting_is("reverb/model", kFilteredReverbModels)};
-constexpr engine::SettingDescriptorExtras kReverbFilterExtras{
-    .mapping = {.kind = engine::DisplayMappingKind::FLOAT_FRACTION}, .applies_when = kReverbHasFilters};
+constexpr std::array kReverbHasFilters{plugin::setting_is("reverb/model", kFilteredReverbModels)};
+constexpr plugin::SettingDescriptorExtras kReverbFilterExtras{
+    .mapping = {.kind = plugin::DisplayMappingKind::FLOAT_FRACTION}, .applies_when = kReverbHasFilters};
 /// The reverb sidechain's menus show while it ducks at a set volume: a negative volume is automatic (the menu's -1
 /// stores -21474836, a song's default another negative). Its attack and release menus are a step of the sidechain's
 /// rate table, the stored rate the entry shifted.
 constexpr std::array<int32_t, 1> kSetVolume{0};
-constexpr std::array kReverbDucksAtSetVolume{engine::setting_at_least("reverb/compressor/volume", kSetVolume)};
-constexpr engine::SettingDescriptorExtras kReverbSidechainAttackExtras{
-    .mapping = {.kind = engine::DisplayMappingKind::TABLE, .table_shift = 2, .table = engine::kSidechainAttackRates},
+constexpr std::array kReverbDucksAtSetVolume{plugin::setting_at_least("reverb/compressor/volume", kSetVolume)};
+constexpr plugin::SettingDescriptorExtras kReverbSidechainAttackExtras{
+    .mapping = {.kind = plugin::DisplayMappingKind::TABLE, .table_shift = 2, .table = plugin::kSidechainAttackRates},
     .applies_when = kReverbDucksAtSetVolume};
-constexpr engine::SettingDescriptorExtras kReverbSidechainReleaseExtras{
-    .mapping = {.kind = engine::DisplayMappingKind::TABLE, .table_shift = 3, .table = engine::kSidechainReleaseRates},
+constexpr plugin::SettingDescriptorExtras kReverbSidechainReleaseExtras{
+    .mapping = {.kind = plugin::DisplayMappingKind::TABLE, .table_shift = 3, .table = plugin::kSidechainReleaseRates},
     .applies_when = kReverbDucksAtSetVolume};
-constexpr engine::SettingDescriptorExtras kReverbSidechainShapeExtras{
-    .mapping = {.kind = engine::DisplayMappingKind::STANDARD}, .applies_when = kReverbDucksAtSetVolume};
-constexpr engine::SettingDescriptorExtras kReverbSidechainSyncExtras{.applies_when = kReverbDucksAtSetVolume};
+constexpr plugin::SettingDescriptorExtras kReverbSidechainShapeExtras{
+    .mapping = {.kind = plugin::DisplayMappingKind::STANDARD}, .applies_when = kReverbDucksAtSetVolume};
+constexpr plugin::SettingDescriptorExtras kReverbSidechainSyncExtras{.applies_when = kReverbDucksAtSetVolume};
 /// The reverb's pan menu, −25..25.
-constexpr engine::SettingDescriptorExtras kPanExtras{.mapping = {.kind = engine::DisplayMappingKind::PAN}};
+constexpr plugin::SettingDescriptorExtras kPanExtras{.mapping = {.kind = plugin::DisplayMappingKind::PAN}};
 
 /// The song table: the fixed rows, then one `scales/disabled/<i>` row per preset scale. The scale paths are built
 /// once, so the table's views stay valid for the program's life.
@@ -171,9 +171,9 @@ std::span<const SettingInfo> song_table() {
 		    integer("reverb/compressor/volume", INT32_MIN, INT32_MAX),
 		    integer("reverb/compressor/shape", INT32_MIN, INT32_MAX, -601295438, {}, SettingUnits::NONE,
 		            &kReverbSidechainShapeExtras),
-		    integer("reverb/compressor/syncLevel", 0, engine::kMaxSyncLevel, 0, {}, SettingUnits::SYNC_LEVEL,
+		    integer("reverb/compressor/syncLevel", 0, plugin::kMaxSyncLevel, 0, {}, SettingUnits::SYNC_LEVEL,
 		            &kReverbSidechainSyncExtras),
-		    integer("swingInterval", 0, engine::kMaxSyncLevel, 0, {}, SettingUnits::SYNC_LEVEL),
+		    integer("swingInterval", 0, plugin::kMaxSyncLevel, 0, {}, SettingUnits::SYNC_LEVEL),
 		    // A clip's durable id; -1 = none.
 		    integer("syncScalingClip", -1, INT32_MAX, -1),
 		};
@@ -190,7 +190,7 @@ std::optional<size_t> disabled_scale_of(std::string_view path) {
 	if (!path.starts_with(kDisabledPrefix)) {
 		return std::nullopt;
 	}
-	const std::optional<int64_t> index = engine::whole_number(path.substr(kDisabledPrefix.size()));
+	const std::optional<int64_t> index = plugin::whole_number(path.substr(kDisabledPrefix.size()));
 	if (!index || *index < 0 || *index >= music::NUM_PRESET_SCALES) {
 		return std::nullopt;
 	}
@@ -233,10 +233,10 @@ std::optional<Value> read_song(const Song& song, std::string_view path) {
 		return number(r.sidechain_shape);
 	}
 	if (path == "reverb/compressor/syncLevel") {
-		return number(engine::index_of(r.sidechain_sync));
+		return number(plugin::index_of(r.sidechain_sync));
 	}
 	if (path == "swingInterval") {
-		return number(engine::index_of(song.groove.swing_interval));
+		return number(plugin::index_of(song.groove.swing_interval));
 	}
 	if (path == "syncScalingClip") {
 		return number(song.transport.sync_scaling_clip_id ? int64_t{*song.transport.sync_scaling_clip_id} : -1);
@@ -287,10 +287,10 @@ void write_song(Song& song, std::string_view path, int32_t v) {
 		r.sidechain_shape = v;
 	}
 	else if (path == "reverb/compressor/syncLevel") {
-		r.sidechain_sync = engine::sync_level_from_index(v);
+		r.sidechain_sync = plugin::sync_level_from_index(v);
 	}
 	else if (path == "swingInterval") {
-		song.groove.swing_interval = engine::sync_level_from_index(v);
+		song.groove.swing_interval = plugin::sync_level_from_index(v);
 	}
 	else if (const std::optional<size_t> scale = disabled_scale_of(path)) {
 		song.scale.disabled_preset_scales.set(*scale, v != 0);
@@ -313,11 +313,11 @@ constexpr std::array<uint8_t, 4> kCv2SourceModes{0, 2, 3, 4};
 /// The CV instrument's channel word for both channels: the second channel is free for a source only then.
 constexpr std::array<int32_t, 1> kBothCvChannels{2};
 constexpr std::array<int32_t, 1> kCvInstrument{std::to_underlying(Instrument::CV)};
-constexpr std::array kCv2SourceConditions{engine::instrument_is(kCvInstrument),
-                                          engine::setting_is("channel", kBothCvChannels)};
+constexpr std::array kCv2SourceConditions{plugin::instrument_is(kCvInstrument),
+                                          plugin::setting_is("channel", kBothCvChannels)};
 /// A mode the menu does not list (pitch) shows as the first step, off.
-constexpr engine::SettingDescriptorExtras kCv2SourceExtras{
-    .mapping = {.kind = engine::DisplayMappingKind::CHOICE_ORDER, .order = kCv2SourceModes},
+constexpr plugin::SettingDescriptorExtras kCv2SourceExtras{
+    .mapping = {.kind = plugin::DisplayMappingKind::CHOICE_ORDER, .order = kCv2SourceModes},
     .applies_when = kCv2SourceConditions};
 
 constexpr SettingInfo kInstrumentDeviceTable[] = {
@@ -329,10 +329,10 @@ constexpr SettingInfo kInstrumentDeviceTable[] = {
     boolean("collapseMpe", 1, &kOnMidiExtras),
     integer("cv2Source", 0, 4, 0, {}, SettingUnits::NONE, &kCv2SourceExtras),
 };
-static_assert(engine::conditions_are_valid(kInstrumentDeviceTable));
-static_assert(engine::mappings_are_valid(kInstrumentDeviceTable));
-static_assert(engine::conditions_are_valid(kTrackTable));
-static_assert(engine::mappings_are_valid(kTrackTable));
+static_assert(plugin::conditions_are_valid(kInstrumentDeviceTable));
+static_assert(plugin::mappings_are_valid(kInstrumentDeviceTable));
+static_assert(plugin::conditions_are_valid(kTrackTable));
+static_assert(plugin::mappings_are_valid(kTrackTable));
 
 constexpr std::string_view kCcLabelPrefix = "ccLabels/";
 /// The CC numbers a MIDI instrument can label: 0..119.
@@ -364,7 +364,7 @@ std::optional<uint8_t> cc_label_of(std::string_view path) {
 	if (!path.starts_with(kCcLabelPrefix)) {
 		return std::nullopt;
 	}
-	const std::optional<int64_t> cc = engine::whole_number(path.substr(kCcLabelPrefix.size()));
+	const std::optional<int64_t> cc = plugin::whole_number(path.substr(kCcLabelPrefix.size()));
 	return cc && *cc >= 0 && *cc < kNumCcLabels ? std::optional<uint8_t>{static_cast<uint8_t>(*cc)} : std::nullopt;
 }
 
@@ -462,18 +462,18 @@ constexpr int32_t kDefaultBendRangeMpe = 48;
 
 /// A sound kit row's bend: the MIDI and gate rows' menus have none.
 constexpr std::array<int32_t, 1> kSoundDrum{std::to_underlying(Instrument::SOUND_DRUM)};
-constexpr std::array kOnSoundDrum{engine::instrument_is(kSoundDrum)};
-constexpr engine::SettingDescriptorExtras kOnSoundDrumExtras{.applies_when = kOnSoundDrum};
+constexpr std::array kOnSoundDrum{plugin::instrument_is(kSoundDrum)};
+constexpr plugin::SettingDescriptorExtras kOnSoundDrumExtras{.applies_when = kOnSoundDrum};
 
 constexpr SettingInfo kNoteRowTable[] = {
     SettingInfo{.path = "sequenceDirection", .kind = SettingKind::CHOICE, .choices = kDirectionChoices},
     // A kit row's finger bend; a melodic row has none of its own.
     integer("bendRange", 0, kMaxBendRange, kDefaultBendRangeMpe, {}, SettingUnits::SEMITONES, &kOnSoundDrumExtras),
 };
-static_assert(engine::conditions_are_valid(kNoteRowTable));
-static_assert(engine::mappings_are_valid(kNoteRowTable));
-static_assert(engine::conditions_are_valid(kLaneTable));
-static_assert(engine::mappings_are_valid(kLaneTable));
+static_assert(plugin::conditions_are_valid(kNoteRowTable));
+static_assert(plugin::mappings_are_valid(kNoteRowTable));
+static_assert(plugin::conditions_are_valid(kLaneTable));
+static_assert(plugin::mappings_are_valid(kLaneTable));
 
 /// The note row @p address names in @p song (a Song or a const Song), or nullptr.
 template <class SongT>
@@ -498,8 +498,8 @@ auto* resolve_note_row(SongT& song, const NoteRowAddress& address) {
 
 /// The track an input records from shows only while the input records a specific track.
 constexpr std::array<int32_t, 1> kSpecificTrackChannel{kInputChannelSpecificTrack};
-constexpr std::array kRecordsATrack{engine::setting_is("inputChannel", kSpecificTrackChannel)};
-constexpr engine::SettingDescriptorExtras kRecordingFromExtras{.applies_when = kRecordsATrack};
+constexpr std::array kRecordsATrack{plugin::setting_is("inputChannel", kSpecificTrackChannel)};
+constexpr plugin::SettingDescriptorExtras kRecordingFromExtras{.applies_when = kRecordsATrack};
 
 constexpr SettingInfo kAudioInputTable[] = {
     SettingInfo{.path = "mode", .kind = SettingKind::CHOICE, .choices = kAudioModeWords},
@@ -507,8 +507,8 @@ constexpr SettingInfo kAudioInputTable[] = {
     // Another track's durable id; -1 = none.
     integer("outputRecordingFrom", -1, INT32_MAX, -1, {}, SettingUnits::NONE, &kRecordingFromExtras),
 };
-static_assert(engine::conditions_are_valid(kAudioInputTable));
-static_assert(engine::mappings_are_valid(kAudioInputTable));
+static_assert(plugin::conditions_are_valid(kAudioInputTable));
+static_assert(plugin::mappings_are_valid(kAudioInputTable));
 
 std::optional<Value> read_audio_input(const DocOutput& o, std::string_view path) {
 	if (path == "mode") {
@@ -543,8 +543,8 @@ constexpr SettingInfo kClipTable[] = {
                 .choices = kClipDirectionChoices,
                 .extras = &kOnDirectedClipExtras},
 };
-static_assert(engine::conditions_are_valid(kClipTable));
-static_assert(engine::mappings_are_valid(kClipTable));
+static_assert(plugin::conditions_are_valid(kClipTable));
+static_assert(plugin::mappings_are_valid(kClipTable));
 
 /// MIDI program numbers 0..127; 128 is none (no message sent).
 constexpr int32_t kNoMidiProgram = 128;
@@ -557,18 +557,18 @@ constexpr SettingInfo kClipValuesTable[] = {
     integer("bendRangeMPE", 0, kMaxBendRange, kDefaultBendRangeMpe, {}, SettingUnits::SEMITONES,
             &kOnMelodicTrackExtras),
 };
-static_assert(engine::conditions_are_valid(kClipValuesTable));
-static_assert(engine::mappings_are_valid(kClipValuesTable));
+static_assert(plugin::conditions_are_valid(kClipValuesTable));
+static_assert(plugin::mappings_are_valid(kClipValuesTable));
 
 // ---------------------------------------------------------------------------------------------
 // AUDIO_CLIP (on DocAudioClip)
 
 /// The transpose menu: one value in cents over the semitones and the cents row.
-constexpr engine::SettingDescriptorExtras kTransposeExtras{
-    .mapping = {.kind = engine::DisplayMappingKind::TRANSPOSE_CENTS, .partner = "cents"}};
+constexpr plugin::SettingDescriptorExtras kTransposeExtras{
+    .mapping = {.kind = plugin::DisplayMappingKind::TRANSPOSE_CENTS, .partner = "cents"}};
 /// The interpolation menu lists linear first: menu 0 stores 1.
-constexpr engine::SettingDescriptorExtras kInterpolationExtras{
-    .mapping = {.kind = engine::DisplayMappingKind::INVERTED_BOOL}};
+constexpr plugin::SettingDescriptorExtras kInterpolationExtras{
+    .mapping = {.kind = plugin::DisplayMappingKind::INVERTED_BOOL}};
 
 constexpr SettingInfo kAudioClipTable[] = {
     // A row's range is int32: a marker past 2^31 frames (an 8-bit file over 2 GB) is refused, though the record holds
@@ -588,12 +588,12 @@ constexpr SettingInfo kAudioClipTable[] = {
     integer("attack", INT32_MIN, INT32_MAX, INT32_MIN, {}, SettingUnits::NONE, &kStandardExtras),
     SettingInfo{.path = "priority",
                 .kind = SettingKind::CHOICE,
-                .choices = engine::kVoicePriorityWords,
-                .default_value = std::to_underlying(engine::VoicePriority::MEDIUM)},
+                .choices = plugin::kVoicePriorityWords,
+                .default_value = std::to_underlying(plugin::VoicePriority::MEDIUM)},
     boolean("overdubsShouldCloneAudioTrack", 1),
 };
-static_assert(engine::conditions_are_valid(kAudioClipTable));
-static_assert(engine::mappings_are_valid(kAudioClipTable));
+static_assert(plugin::conditions_are_valid(kAudioClipTable));
+static_assert(plugin::mappings_are_valid(kAudioClipTable));
 
 std::optional<Value> read_audio_clip(const DocAudioClip& c, std::string_view path) {
 	if (path == "startSamplePos") {
@@ -609,7 +609,7 @@ std::optional<Value> read_audio_clip(const DocAudioClip& c, std::string_view pat
 		return number(c.cents);
 	}
 	if (path == "linearInterpolation") {
-		return number(c.interpolation_mode == engine::InterpolationMode::LINEAR ? 1 : 0);
+		return number(c.interpolation_mode == plugin::InterpolationMode::LINEAR ? 1 : 0);
 	}
 	if (path == "pitchSpeedIndependent") {
 		return number(c.pitch_and_speed_independent ? 1 : 0);
@@ -643,7 +643,7 @@ void write_audio_clip(DocAudioClip& c, std::string_view path, int32_t v) {
 		c.cents = static_cast<int8_t>(v);
 	}
 	else if (path == "linearInterpolation") {
-		c.interpolation_mode = v != 0 ? engine::InterpolationMode::LINEAR : engine::InterpolationMode::SMOOTH;
+		c.interpolation_mode = v != 0 ? plugin::InterpolationMode::LINEAR : plugin::InterpolationMode::SMOOTH;
 	}
 	else if (path == "pitchSpeedIndependent") {
 		c.pitch_and_speed_independent = v != 0;
@@ -655,7 +655,7 @@ void write_audio_clip(DocAudioClip& c, std::string_view path, int32_t v) {
 		c.attack = v;
 	}
 	else if (path == "priority") {
-		c.voice_priority = static_cast<engine::VoicePriority>(v);
+		c.voice_priority = static_cast<plugin::VoicePriority>(v);
 	}
 	else if (path == "overdubsShouldCloneAudioTrack") {
 		c.overdubs_should_clone = v != 0;
@@ -688,9 +688,9 @@ Value word(std::span<const std::string_view> words, size_t index) {
 
 std::optional<Value> read_arp(const ArpRecord& record, std::string_view path) {
 	if (path == "arpeggiator/preset") {
-		return word(engine::kArpPresetWords, preset_of(record));
+		return word(plugin::kArpPresetWords, preset_of(record));
 	}
-	if (const engine::SettingInfo* host = engine::find_setting(engine::kArpHostRows, path)) {
+	if (const plugin::SettingInfo* host = plugin::find_setting(plugin::kArpHostRows, path)) {
 		return number(host_value(record, path).value_or(host->default_value));
 	}
 	if (const bool* flag = arp_flag_at(record, path)) {
@@ -700,7 +700,7 @@ std::optional<Value> read_arp(const ArpRecord& record, std::string_view path) {
 	if (field == nullptr) {
 		return std::nullopt;
 	}
-	const SettingInfo* row = engine::find_setting(engine::kArpSettingRows, path);
+	const SettingInfo* row = plugin::find_setting(plugin::kArpSettingRows, path);
 	if (row->kind == SettingKind::CHOICE && path != "arpeggiator/syncType") {
 		return word(row->choices, *field);
 	}
@@ -708,12 +708,12 @@ std::optional<Value> read_arp(const ArpRecord& record, std::string_view path) {
 }
 
 void write_arp(ArpRecord& record, std::string_view path, const Value& value) {
-	const SettingInfo* row = engine::find_setting(engine::kArpSettingRows, path);
+	const SettingInfo* row = plugin::find_setting(plugin::kArpSettingRows, path);
 	const auto index = [&] {
 		return static_cast<uint8_t>(std::ranges::find(row->choices, value.str()) - row->choices.begin());
 	};
 	if (path == "arpeggiator/preset") {
-		const std::optional<engine::ArpPresetFields> fields = engine::arp_preset_fields(index());
+		const std::optional<plugin::ArpPresetFields> fields = plugin::arp_preset_fields(index());
 		record.mode = fields->mode;
 		record.octave_mode = fields->octave_mode.value_or(record.octave_mode);
 		record.note_mode = fields->note_mode.value_or(record.note_mode);
@@ -784,7 +784,7 @@ std::span<const SettingInfo> table_of(SettingGroupId group) {
 		return kAudioInputTable;
 	case SettingGroupId::CLIP_ARP:
 	case SettingGroupId::LANE_ARP:
-		return engine::kArpRows;
+		return plugin::kArpRows;
 	}
 	return {};
 }
@@ -794,7 +794,7 @@ std::optional<Value> read_setting(Song& song, const SettingAddress& address, std
 }
 
 std::optional<Value> read_setting(const Song& song, const SettingAddress& address, std::string_view path) {
-	if (engine::find_setting(table_of(address.group), path) == nullptr) {
+	if (plugin::find_setting(table_of(address.group), path) == nullptr) {
 		return std::nullopt;
 	}
 	switch (address.group) {
@@ -840,7 +840,7 @@ std::optional<Value> read_setting(const Song& song, const SettingAddress& addres
 			return std::nullopt;
 		}
 		if (address.group == SettingGroupId::CLIP_VALUES) {
-			return number(resolve(record->values, path, engine::find_setting(kClipValuesTable, path)->default_value));
+			return number(resolve(record->values, path, plugin::find_setting(kClipValuesTable, path)->default_value));
 		}
 		if (path == "name") {
 			return Value::makeScalar(record->name);
@@ -858,7 +858,7 @@ std::optional<Value> read_setting(const Song& song, const SettingAddress& addres
 
 bool write_setting(Song& song, const SettingAddress& address, std::string_view path, const Value& value) {
 	const std::string* text_value = serialization::text_of(&value);
-	if (text_value == nullptr || !engine::check_setting_text(table_of(address.group), path, *text_value)) {
+	if (text_value == nullptr || !plugin::check_setting_text(table_of(address.group), path, *text_value)) {
 		return false;
 	}
 	const int32_t v = integer_of(value).value_or(0);
@@ -991,7 +991,7 @@ auto* arp_host_owner(SongT& song, const SettingAddress& address, std::string_vie
 bool leavable(const SettingAddress& address, std::string_view path) {
 	return address.group == SettingGroupId::CLIP_VALUES
 	       || (address.group == SettingGroupId::NOTE_ROW && path == "bendRange")
-	       || (is_arp_group(address.group) && engine::find_setting(engine::kArpHostRows, path) != nullptr);
+	       || (is_arp_group(address.group) && plugin::find_setting(plugin::kArpHostRows, path) != nullptr);
 }
 
 } // namespace

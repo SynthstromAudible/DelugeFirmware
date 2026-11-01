@@ -4,7 +4,7 @@
 ///        holds what the engine plays.
 
 #include "deluge-project/mapping_table.h"
-#include "engines/effects/master_chain.h"
+#include "effects/master_chain.h"
 #include "io/midi/cable_types/usb_hosted.h"
 #include "io/midi/learned_midi.h"
 #include "io/midi/mapping_index.h"
@@ -49,7 +49,7 @@ using deluge::project::Mapping;
 using deluge::project::MappingTarget;
 using deluge::project::MidiDeviceRef;
 using Command = deluge::project::MidiCommand;
-using deluge::project::ParamTarget;
+using deluge::project::OwnerParamTarget;
 using deluge::project::TrackInputTarget;
 
 namespace {
@@ -83,17 +83,13 @@ bool fieldMatches(::Song& song, const MappingTarget& target, const ::LearnedMIDI
 }
 
 /// @brief A patched param of a sound, as the table names it.
-deluge::engine::ParamId patched(int32_t p) {
-	ParamDescriptor descriptor;
-	descriptor.setToHaveParamOnly(p);
-	return deluge::bridge::knobTargetOf(descriptor, params::Kind::UNPATCHED_SOUND);
+deluge::plugin::ParamId patched(int32_t p) {
+	return deluge::bridge::controlTargetOf(deluge::modulation::knobParam(p), params::Kind::UNPATCHED_SOUND);
 }
 
 /// @brief An unpatched param of @p kind, as the table names it.
-deluge::engine::ParamId unpatched(params::Kind kind, int32_t p) {
-	ParamDescriptor descriptor;
-	descriptor.setToHaveParamOnly(params::UNPATCHED_START + p);
-	return deluge::bridge::knobTargetOf(descriptor, kind);
+deluge::plugin::ParamId unpatched(params::Kind kind, int32_t p) {
+	return deluge::bridge::controlTargetOf(deluge::modulation::knobParam(params::UNPATCHED_START + p), kind);
 }
 
 /// @brief A synth built the way a preset load builds one, its params backed up with the song, not yet in it.
@@ -229,7 +225,7 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		spec::SongFixture f = spec::make_synth_song();
 		activate(f);
 		const uint32_t oldId = *f.instrument->id();
-		const ParamTarget knob{{ControlsAddress::Kind::OUTPUT, oldId}, patched(params::LOCAL_VOLUME)};
+		const OwnerParamTarget knob{{ControlsAddress::Kind::OUTPUT, oldId}, patched(params::LOCAL_VOLUME)};
 		deluge::edits::learnMappingFor(knobCc(1, 74), knob);
 		deluge::edits::learnMappingFor(note(2, 60), TrackInputTarget{oldId});
 
@@ -252,13 +248,12 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		spec::SongFixture f = spec::make_synth_song();
 		activate(f);
 		SoundInstrument* preset = makeLooseSynth(*f.song);
-		ParamDescriptor volume;
-		volume.setToHaveParamOnly(params::LOCAL_VOLUME);
+		const deluge::modulation::KnobTarget volume = deluge::modulation::knobParam(params::LOCAL_VOLUME);
 		MIDIKnob& read = preset->midi_knobs.emplace_back(); // as the preset's file read it
 		read.midiInput.channelOrZone = 3;
 		read.midiInput.noteOrCC = 21;
 		read.relative = true;
-		read.paramDescriptor = volume;
+		read.target = volume;
 		f.song->replaceInstrument(f.instrument, preset);
 		const auto knobs = f.song->project.mappings.params_of({ControlsAddress::Kind::OUTPUT, *preset->id()});
 		expect(static_cast<int>(knobs.size())).to_equal(1);
@@ -270,13 +265,12 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		SoundInstrument* synth = makeLooseSynth(*f.song);
 		synth->midiInput.channelOrZone = 5; // as its preset's file read them
 		synth->midiInput.noteOrCC = 255;
-		ParamDescriptor pan;
-		pan.setToHaveParamOnly(params::LOCAL_PAN);
+		const deluge::modulation::KnobTarget pan = deluge::modulation::knobParam(params::LOCAL_PAN);
 		MIDIKnob& read = synth->midi_knobs.emplace_back();
 		read.midiInput.channelOrZone = 4;
 		read.midiInput.noteOrCC = 10;
 		read.relative = true;
-		read.paramDescriptor = pan;
+		read.target = pan;
 		f.song->addOutput(synth);
 		const uint32_t id = *synth->id();
 		expect(fieldMatches(*f.song, TrackInputTarget{id}, synth->midiInput)).to_be_true();
@@ -300,7 +294,7 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 
 	it("copies an audio track's knobs to its clone, device included", _ {
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
-		const ParamTarget knob{{ControlsAddress::Kind::OUTPUT, *f.output->id()},
+		const OwnerParamTarget knob{{ControlsAddress::Kind::OUTPUT, *f.output->id()},
 		                       unpatched(params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_VOLUME)};
 		deluge::edits::learnMappingFor(fromAbsentDevice(knobCc(0, 7)), knob);
 		AudioOutput* clone = f.song->createNewAudioOutput();
@@ -357,7 +351,7 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		SoundInstrument* synth = makeLooseSynth(*f.song);
 		f.song->addOutput(synth);
 		const uint32_t id = *synth->id();
-		deluge::edits::learnMappingFor(knobCc(0, 70), ParamTarget{{ControlsAddress::Kind::OUTPUT, id},
+		deluge::edits::learnMappingFor(knobCc(0, 70), OwnerParamTarget{{ControlsAddress::Kind::OUTPUT, id},
 		                                                            patched(params::LOCAL_VOLUME)});
 		deluge::edits::learnMappingFor(note(0, 60), TrackInputTarget{id});
 		f.song->deleteOutputThatIsInMainList(synth);
@@ -459,7 +453,7 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		spec::SongFixture f = spec::make_synth_song();
 		activate(f);
 		SpecCable& cable = renamedController();
-		const ParamTarget knob{{ControlsAddress::Kind::OUTPUT, *f.instrument->id()}, patched(params::LOCAL_PAN)};
+		const OwnerParamTarget knob{{ControlsAddress::Kind::OUTPUT, *f.instrument->id()}, patched(params::LOCAL_PAN)};
 		Command source = knobCc(2, 9);
 		source.device = MidiDeviceRef{
 		    .port = MidiDeviceRef::Port::HOSTED, .name = "MW", .vendor_id = 0x0001, .product_id = 0x0002};
@@ -478,9 +472,8 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 	it("learns and unlearns a menu's MIDI knob through the table", _ {
 		spec::SongFixture f = spec::make_synth_song();
 		auto& sound = *static_cast<SoundInstrument*>(f.instrument);
-		const ParamTarget knob{{ControlsAddress::Kind::OUTPUT, *f.instrument->id()}, patched(params::LOCAL_VOLUME)};
-		ParamDescriptor volume;
-		volume.setToHaveParamOnly(params::LOCAL_VOLUME);
+		const OwnerParamTarget knob{{ControlsAddress::Kind::OUTPUT, *f.instrument->id()}, patched(params::LOCAL_VOLUME)};
+		const deluge::modulation::KnobTarget volume = deluge::modulation::knobParam(params::LOCAL_VOLUME);
 		expect(deluge::edits::learnKnobFor(sound, volume, &MIDIDeviceManager::dinMIDIPorts, 74, 1)).to_be_true();
 		Command source = knobCc(1, 74);
 		source.device = MidiDeviceRef{.port = MidiDeviceRef::Port::DIN};
@@ -502,10 +495,8 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		spec::SongFixture f = spec::make_synth_song();
 		auto& sound = *static_cast<SoundInstrument*>(f.instrument);
 		const ControlsAddress owner{ControlsAddress::Kind::OUTPUT, *f.instrument->id()};
-		ParamDescriptor volume;
-		volume.setToHaveParamOnly(params::LOCAL_VOLUME);
-		ParamDescriptor pan;
-		pan.setToHaveParamOnly(params::LOCAL_PAN);
+		const deluge::modulation::KnobTarget volume = deluge::modulation::knobParam(params::LOCAL_VOLUME);
+		const deluge::modulation::KnobTarget pan = deluge::modulation::knobParam(params::LOCAL_PAN);
 		const bool learned = deluge::edits::learnKnobFor(sound, volume, &MIDIDeviceManager::dinMIDIPorts, 74, 1)
 		                     && deluge::edits::learnKnobFor(sound, pan, &MIDIDeviceManager::dinMIDIPorts, 75, 1)
 		                     && deluge::edits::learnKnobFor(sound, volume, &MIDIDeviceManager::upstreamUSBMIDICable1,
@@ -517,7 +508,7 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		fromUsb.device = MidiDeviceRef{.port = MidiDeviceRef::Port::UPSTREAM_USB_1};
 		expect(static_cast<int>(knobs.size())).to_equal(2);
 		expect(knobs.size() == 2 && knobs[0].source == fromUsb
-		       && std::get<ParamTarget>(knobs[0].target).param == patched(params::LOCAL_VOLUME))
+		       && std::get<OwnerParamTarget>(knobs[0].target).param == patched(params::LOCAL_VOLUME))
 		    .to_be_true();
 		expect(static_cast<int>(sound.midi_knobs.size())).to_equal(2);
 		expect(sound.midi_knobs.size() == 2
@@ -530,9 +521,8 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		MIDIDeviceManager::differentiatingInputsByDevice = true;
 		spec::SongFixture f = spec::make_synth_song();
 		auto& sound = *static_cast<SoundInstrument*>(f.instrument);
-		const ParamTarget knob{{ControlsAddress::Kind::OUTPUT, *f.instrument->id()}, patched(params::LOCAL_VOLUME)};
-		ParamDescriptor volume;
-		volume.setToHaveParamOnly(params::LOCAL_VOLUME);
+		const OwnerParamTarget knob{{ControlsAddress::Kind::OUTPUT, *f.instrument->id()}, patched(params::LOCAL_VOLUME)};
+		const deluge::modulation::KnobTarget volume = deluge::modulation::knobParam(params::LOCAL_VOLUME);
 		deluge::edits::learnMappingFor(knobCc(1, 74), knob);
 		const bool learned = deluge::edits::learnKnobFor(sound, volume, &MIDIDeviceManager::dinMIDIPorts, 74, 1);
 		MIDIDeviceManager::differentiatingInputsByDevice = differentiating;
@@ -552,8 +542,7 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		MIDIDeviceManager::differentiatingInputsByDevice = true;
 		spec::SongFixture f = spec::make_synth_song();
 		auto& sound = *static_cast<SoundInstrument*>(f.instrument);
-		ParamDescriptor volume;
-		volume.setToHaveParamOnly(params::LOCAL_VOLUME);
+		const deluge::modulation::KnobTarget volume = deluge::modulation::knobParam(params::LOCAL_VOLUME);
 		const bool learned = deluge::edits::learnKnobFor(sound, volume, &MIDIDeviceManager::dinMIDIPorts, 74, 1)
 		                     && deluge::edits::learnKnobFor(sound, volume, &MIDIDeviceManager::upstreamUSBMIDICable1,
 		                                                    74, 1);
@@ -570,8 +559,7 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		MIDIDeviceManager::differentiatingInputsByDevice = false;
 		spec::SongFixture f = spec::make_synth_song();
 		auto& sound = *static_cast<SoundInstrument*>(f.instrument);
-		ParamDescriptor volume;
-		volume.setToHaveParamOnly(params::LOCAL_VOLUME);
+		const deluge::modulation::KnobTarget volume = deluge::modulation::knobParam(params::LOCAL_VOLUME);
 		bool learned = deluge::edits::learnKnobFor(sound, volume, &MIDIDeviceManager::dinMIDIPorts, 74, 1);
 		if (learned && sound.midi_knobs.size() == 1) {
 			sawPosition(sound.midi_knobs[0], 12345);
@@ -590,9 +578,8 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 	it("keeps a menu knob's takeover state when it is learned again after it showed itself absolute", _ {
 		spec::SongFixture f = spec::make_synth_song();
 		auto& sound = *static_cast<SoundInstrument*>(f.instrument);
-		const ParamTarget knob{{ControlsAddress::Kind::OUTPUT, *f.instrument->id()}, patched(params::LOCAL_VOLUME)};
-		ParamDescriptor volume;
-		volume.setToHaveParamOnly(params::LOCAL_VOLUME);
+		const OwnerParamTarget knob{{ControlsAddress::Kind::OUTPUT, *f.instrument->id()}, patched(params::LOCAL_VOLUME)};
+		const deluge::modulation::KnobTarget volume = deluge::modulation::knobParam(params::LOCAL_VOLUME);
 		expect(deluge::edits::learnKnobFor(sound, volume, &MIDIDeviceManager::dinMIDIPorts, 74, 1)).to_be_true();
 		expect(static_cast<int>(sound.midi_knobs.size())).to_equal(1);
 		if (sound.midi_knobs.size() != 1) {
@@ -615,9 +602,8 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		spec::SongFixture f = spec::make_synth_song();
 		auto& sound = *static_cast<SoundInstrument*>(f.instrument);
 		const ControlsAddress owner{ControlsAddress::Kind::OUTPUT, *f.instrument->id()};
-		const ParamTarget knob{owner, patched(params::LOCAL_VOLUME)};
-		ParamDescriptor volume;
-		volume.setToHaveParamOnly(params::LOCAL_VOLUME);
+		const OwnerParamTarget knob{owner, patched(params::LOCAL_VOLUME)};
+		const deluge::modulation::KnobTarget volume = deluge::modulation::knobParam(params::LOCAL_VOLUME);
 		Command fromDin = knobCc(1, 74);
 		fromDin.device = MidiDeviceRef{.port = MidiDeviceRef::Port::DIN};
 		deluge::edits::learnMappingFor(knobCc(1, 74), knob);
@@ -636,7 +622,7 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		spec::SongFixture f = spec::make_synth_song();
 		SpecCable& cable = renamedController();
 		auto& sound = *static_cast<SoundInstrument*>(f.instrument);
-		const ParamTarget knob{{ControlsAddress::Kind::OUTPUT, *f.instrument->id()}, patched(params::LOCAL_PAN)};
+		const OwnerParamTarget knob{{ControlsAddress::Kind::OUTPUT, *f.instrument->id()}, patched(params::LOCAL_PAN)};
 		Command source = knobCc(2, 11);
 		source.device = MidiDeviceRef{
 		    .port = MidiDeviceRef::Port::HOSTED, .name = "mw", .vendor_id = 0x9999, .product_id = 0x8888};
@@ -692,8 +678,8 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 	it("tells a knob that plays an index hit's CC and param from one that does not", _ {
 		spec::SongFixture f = spec::make_synth_song();
 		const ControlsAddress owner{ControlsAddress::Kind::OUTPUT, *f.instrument->id()};
-		const ParamTarget volume{owner, patched(params::LOCAL_VOLUME)};
-		const ParamTarget pan{owner, patched(params::LOCAL_PAN)};
+		const OwnerParamTarget volume{owner, patched(params::LOCAL_VOLUME)};
+		const OwnerParamTarget pan{owner, patched(params::LOCAL_PAN)};
 		deluge::edits::learnMappingFor(knobCc(1, 74), volume);
 		auto& sound = *static_cast<SoundInstrument*>(f.instrument);
 		expect(static_cast<int>(sound.midi_knobs.size())).to_equal(1);
@@ -705,7 +691,7 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		expect(deluge::bridge::knobPlays(sound.midi_knobs[0], pan, 74)).to_be_false();
 		expect(deluge::bridge::knobPlays(sound.midi_knobs[0], ClipMuteTarget{f.clip->id()}, 74)).to_be_false();
 
-		const ParamTarget songVolume{{ControlsAddress::Kind::SONG, 0},
+		const OwnerParamTarget songVolume{{ControlsAddress::Kind::SONG, 0},
 		                             unpatched(params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_VOLUME)};
 		deluge::edits::learnMappingFor(knobCc(0, 7), songVolume);
 		const auto& songKnobs = f.song->live.global_effectable.midi_knobs;
@@ -715,13 +701,13 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 	it("accepts a sound row's knob and a kit's global knob as an index hit's, and only for their CC", _ {
 		spec::SongFixture f = spec::make_kit_song();
 		SoundDrum* drum = spec::add_drum<SoundDrum>(f);
-		const ParamTarget rowParam{{ControlsAddress::Kind::DRUM, *drum->id()},
+		const OwnerParamTarget rowParam{{ControlsAddress::Kind::DRUM, *drum->id()},
 		                           unpatched(params::Kind::UNPATCHED_SOUND, params::UNPATCHED_PORTAMENTO)};
 		deluge::edits::learnMappingFor(knobCc(1, 20), rowParam);
 		expect(drum->midi_knobs.size() == 1 && deluge::bridge::knobPlays(drum->midi_knobs[0], rowParam, 20))
 		    .to_be_true();
 		auto* kit = static_cast<Kit*>(f.instrument);
-		const ParamTarget kitParam{{ControlsAddress::Kind::OUTPUT, *kit->id()},
+		const OwnerParamTarget kitParam{{ControlsAddress::Kind::OUTPUT, *kit->id()},
 		                           unpatched(params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_LPF_FREQ)};
 		deluge::edits::learnMappingFor(knobCc(2, 21), kitParam);
 		expect(kit->midi_knobs.size() == 1 && deluge::bridge::knobPlays(kit->midi_knobs[0], kitParam, 21))
@@ -745,7 +731,7 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 
 	it("clears a knob's relative flag in the table when a CC between 16 and 111 shows it is absolute", _ {
 		spec::SongFixture f = spec::make_synth_song();
-		const ParamTarget knob{{ControlsAddress::Kind::SONG, 0},
+		const OwnerParamTarget knob{{ControlsAddress::Kind::SONG, 0},
 		                       unpatched(params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_VOLUME)};
 		Command source = knobCc(0, 7);
 		source.device = MidiDeviceRef{.port = MidiDeviceRef::Port::DIN};
@@ -783,7 +769,7 @@ describe mapping_writers("the mapping table through the runtime's structural ste
 		auto* owner = spec::detail::place<ParamlessOwner>();
 		MIDIKnob knob;
 		knob.midiInput.noteOrCC = 128;
-		knob.paramDescriptor.setToHaveParamOnly(params::UNPATCHED_START + params::UNPATCHED_VOLUME);
+		knob.target = deluge::modulation::knobParam(params::UNPATCHED_START + params::UNPATCHED_VOLUME);
 		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* stack = setupModelStackWithTimelineCounter(memory, f.song, nullptr);
 		expect(owner->handleLearnedPitchBend(knob, 0, 64, stack, -1)).to_be_false();

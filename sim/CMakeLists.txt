@@ -197,6 +197,9 @@ add_compile_definitions(DELUGE_DETERMINISTIC_ALLOC)
 # which has no meaning without DMA and which the host allocator (8-byte aligned) can't honour.
 add_compile_definitions(DELUGE_HOST)
 
+# The audible window's parameter dump (src/deluge/processing/sound/param_dump.h): host renders only.
+add_compile_definitions(DELUGE_PARAM_DUMP)
+
 # Enable D_PRINTLN (gated on ENABLE_TEXT_OUTPUT; the firmware turns it on for debug builds). The host routes it to
 # stderr (deluge_log), so the app's debug log — storage activity, "FULL internal" memory pressure, MEM_GUARD /
 # reason_check reports — is visible when reproducing issues on the sim.
@@ -223,12 +226,12 @@ endif()
 # The portable libraries (each subdir is platform-agnostic). Out-of-tree, so give
 # each an explicit binary dir.
 add_subdirectory(${REPO_ROOT}/lib            ${CMAKE_BINARY_DIR}/_lib)        # argon, etl
-add_subdirectory(${REPO_ROOT}/src/engine-api/types ${CMAKE_BINARY_DIR}/engine-types) # deluge_engine_types
+add_subdirectory(${REPO_ROOT}/src/plugin-api/types ${CMAKE_BINARY_DIR}/plugin-types) # deluge_plugin_types
 add_subdirectory(${REPO_ROOT}/src/foundation ${CMAKE_BINARY_DIR}/foundation) # deluge_foundation
 add_subdirectory(${REPO_ROOT}/src/serialization ${CMAKE_BINARY_DIR}/serialization) # deluge_serialization
-add_subdirectory(${REPO_ROOT}/src/engine-api ${CMAKE_BINARY_DIR}/engine-api) # deluge_engine_api
-add_subdirectory(${REPO_ROOT}/src/engines/effects ${CMAKE_BINARY_DIR}/engines-effects) # deluge_effects
-add_subdirectory(${REPO_ROOT}/src/engines/deluge ${CMAKE_BINARY_DIR}/engines-deluge) # deluge_instrument
+add_subdirectory(${REPO_ROOT}/src/plugin-api ${CMAKE_BINARY_DIR}/plugin-api) # deluge_plugin_api
+add_subdirectory(${REPO_ROOT}/src/effects ${CMAKE_BINARY_DIR}/effects) # deluge_effects
+add_subdirectory(${REPO_ROOT}/src/instruments/deluge ${CMAKE_BINARY_DIR}/instruments-deluge) # deluge_instrument
 add_subdirectory(${REPO_ROOT}/src/music-theory ${CMAKE_BINARY_DIR}/music-theory) # deluge_music_theory
 add_subdirectory(${REPO_ROOT}/src/deluge-project ${CMAKE_BINARY_DIR}/deluge-project) # deluge_project (model)
 add_subdirectory(${REPO_ROOT}/src/midi       ${CMAKE_BINARY_DIR}/midi)       # deluge_midi
@@ -238,6 +241,7 @@ add_subdirectory(${REPO_ROOT}/src/notify     ${CMAKE_BINARY_DIR}/notify)     # d
 add_subdirectory(${REPO_ROOT}/src/shell      ${CMAKE_BINARY_DIR}/shell)      # deluge_ui_shell
 add_subdirectory(${REPO_ROOT}/src/lib        ${CMAKE_BINARY_DIR}/printf)     # eyalroz_printf
 add_subdirectory(${REPO_ROOT}/src/OSLikeStuff ${CMAKE_BINARY_DIR}/scheduler) # deluge_scheduler
+add_subdirectory(${REPO_ROOT}/src/synth      ${CMAKE_BINARY_DIR}/synth)      # deluge_synth
 add_subdirectory(${REPO_ROOT}/src/deluge     ${CMAKE_BINARY_DIR}/app)        # deluge_app + deluge_dsp + generators
 add_subdirectory(${REPO_ROOT}/tests/harness/level3 ${CMAKE_BINARY_DIR}/level3) # deluge_ui_level3: the UI script runner
 add_subdirectory(${REPO_ROOT}/tests/integration/scenarios ${CMAKE_BINARY_DIR}/scenarios) # deluge_scenarios: host only

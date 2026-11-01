@@ -22,6 +22,7 @@
 #include "deluge-project/doc_drum.h"
 #include "deluge-project/doc_output.h"
 #include "deluge-project/song_codec.h"
+#include "dsp-next/fixed/curves/param_curve.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/browser/browser.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
@@ -76,6 +77,7 @@
 #include "model/voice/voice_sample.h"
 #include "modulation/midi/midi_param_collection.h"
 #include "modulation/patch/patch_cable_set.h"
+#include "modulation/sidechain/sidechain.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
 #include "playback/playback_handler.h"
@@ -241,13 +243,13 @@ Song::Song() {
 	project.reverb.lpf = (float)50 / 50;
 	project.reverb.width = 1;
 	project.reverb.pan = 0;
-	project.reverb.sidechain_volume = getParamFromUserValue(params::STATIC_SIDECHAIN_VOLUME, -1);
+	project.reverb.sidechain_volume = deluge::modulation::sidechain_volume_from_preset(-1);
 	project.reverb.sidechain_shape = -601295438;
 	project.reverb.sidechain_sync = SYNC_LEVEL_8TH;
 	project.reverb.model = deluge::project::ReverbModel::MUTABLE;
 
 	// setup base compressor gain to match 1.0
-	live.global_effectable.core().compressor().dsp().setBaseGain(0.85f);
+	live.global_effectable.core().compressor().dsp().set_base_gain(0.85f);
 
 	// initialize automation arranger view variables
 	lastSelectedParamID = params::kNoParamID;
@@ -2080,12 +2082,10 @@ loadOutput:
 						if (PatchedParamSet* patched = thisClip->paramManager.getPatchedParamSet()) {
 							relocateParamStoreToTree(patched, mgr);
 						}
-						// Relocate the synth's patch-cable amount-automation into the tree's identity-keyed cable
-						// store (keyed (from, dest), not index: cables reorder at runtime). Seed from the loaded
-						// inline stores, then bind so save and edits share the persistent store.
+						// Relocate the synth's cable depth lanes into the tree's table, keyed by depth id, so save and
+						// edits share it.
 						if (PatchCableSet* pcs = thisClip->paramManager.getPatchCableSet()) {
-							mgr.cables = deluge::bridge::toDocCables(*pcs);
-							pcs->bindDomCablesExternal(&mgr.cables);
+							pcs->relocateDepthsInto(mgr.cable_depths);
 						}
 					}
 					// Relocate this manager's expression (MPE) automation into the tree at the same (instrument, clip)
@@ -2122,10 +2122,9 @@ loadOutput:
 							if (ExpressionParamSet* de = nr.paramManager.getExpressionParamSet()) {
 								relocateParamStoreToTree(de, dmgr);
 							}
-							// Per-drum patch-cable amount-automation: same (drum, clip) key, identity-keyed.
+							// Per-drum cable depth lanes: the same (drum, clip) key.
 							if (PatchCableSet* dpcs = nr.paramManager.getPatchCableSet()) {
-								dmgr.cables = deluge::bridge::toDocCables(*dpcs);
-								dpcs->bindDomCablesExternal(&dmgr.cables);
+								dpcs->relocateDepthsInto(dmgr.cable_depths);
 							}
 						}
 					}
@@ -2602,11 +2601,10 @@ deluge::effects::MasterChainInputs Song::renderAudio(std::span<StereoSample> out
                                                      int32_t sideChainHitPending) {
 
 	// int32_t volumePostFX = getParamNeutralValue(params::GLOBAL_VOLUME_POST_FX);
-	int32_t volumePostFX =
-	    getFinalParameterValueVolume(
-	        134217728,
-	        cableToLinearParamShortcut(paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_VOLUME)))
-	    >> 1;
+	int32_t volumePostFX = deluge::dsp::fixed::curve_square(
+	                           134217728, deluge::dsp::fixed::preset_combination(
+	                                          paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_VOLUME)))
+	                       >> 1;
 
 	// A "post-FX volume" calculation also happens in audioDriver.render(), which is a bit more relevant really
 	// because that's where filters are happening
@@ -2861,7 +2859,8 @@ traverseClips:
 				    modelStackWithNoteRow->addOtherTwoThings(drum, &noteRow->paramManager));
 
 				((PatchCableSet*)modelStackWithParamCollection->paramCollection)
-				    ->setupPatching(modelStackWithParamCollection);
+				    ->setupPatching(*static_cast<Sound*>(modelStackWithParamCollection->modControllable),
+				                    *modelStackWithParamCollection->paramManager);
 			}
 		}
 	}
@@ -2924,7 +2923,9 @@ traverseClips:
 		ModelStackWithParamCollection* modelStackWithParamCollection =
 		    clip->paramManager.getPatchCableSet(modelStackWithThreeMainThings);
 
-		((PatchCableSet*)modelStackWithParamCollection->paramCollection)->setupPatching(modelStackWithParamCollection);
+		((PatchCableSet*)modelStackWithParamCollection->paramCollection)
+		    ->setupPatching(*static_cast<Sound*>(modelStackWithParamCollection->modControllable),
+		                    *modelStackWithParamCollection->paramManager);
 	}
 	if (!doingArrangementClips) {
 		doingArrangementClips = true;
@@ -2982,7 +2983,8 @@ traverseClips:
 		PatchCableSet* patchCableSet = (PatchCableSet*)modelStackWithParamCollection->paramCollection;
 
 		patchCableSet->grabVelocityToLevelFromMIDICable(cable);
-		patchCableSet->setupPatching(modelStackWithParamCollection);
+		patchCableSet->setupPatching(*static_cast<Sound*>(modelStackWithParamCollection->modControllable),
+		                             *modelStackWithParamCollection->paramManager);
 	}
 	if (!doingArrangementClips) {
 		doingArrangementClips = true;
@@ -3049,7 +3051,8 @@ traverseClips:
 		PatchCableSet* patchCableSet = (PatchCableSet*)modelStackWithParamCollection->paramCollection;
 
 		patchCableSet->grabVelocityToLevelFromMIDICable(cable);
-		patchCableSet->setupPatching(modelStackWithParamCollection);
+		patchCableSet->setupPatching(*static_cast<Sound*>(modelStackWithParamCollection->modControllable),
+		                             *modelStackWithParamCollection->paramManager);
 	}
 	if (!doingArrangementClips) {
 		doingArrangementClips = true;
@@ -3088,7 +3091,8 @@ void Song::grabVelocityToLevelFromMIDICableAndSetupPatchingForEverything(MIDICab
 				PatchCableSet* patchCableSet = (PatchCableSet*)modelStackWithParamCollection->paramCollection;
 				patchCableSet->grabVelocityToLevelFromMIDICable(cable);
 
-				patchCableSet->setupPatching(modelStackWithParamCollection);
+				patchCableSet->setupPatching(*static_cast<Sound*>(modelStackWithParamCollection->modControllable),
+				                             *modelStackWithParamCollection->paramManager);
 			}
 		}
 
@@ -3116,7 +3120,8 @@ void Song::grabVelocityToLevelFromMIDICableAndSetupPatchingForEverything(MIDICab
 					PatchCableSet* patchCableSet = (PatchCableSet*)modelStackWithParamCollection->paramCollection;
 
 					patchCableSet->grabVelocityToLevelFromMIDICable(cable);
-					patchCableSet->setupPatching(modelStackWithParamCollection);
+					patchCableSet->setupPatching(*static_cast<Sound*>(modelStackWithParamCollection->modControllable),
+					                             *modelStackWithParamCollection->paramManager);
 				}
 			}
 		}
@@ -5817,7 +5822,7 @@ void Song::changeSwingInterval(int32_t newValue) {
 
 	if (playbackHandler.isInternalClockActive()) {
 
-		int32_t leftShift = 10 - deluge::engine::index_of(project.groove.swing_interval);
+		int32_t leftShift = 10 - deluge::plugin::index_of(project.groove.swing_interval);
 		leftShift = std::max(leftShift, 0_i32);
 		uint32_t doubleSwingInterval = 3 << (leftShift);
 

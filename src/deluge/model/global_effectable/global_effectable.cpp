@@ -18,10 +18,11 @@
 #include "model/global_effectable/global_effectable.h"
 #include "definitions_cxx.hpp"
 #include "deluge-project/param_automation.h"
-#include "dsp/stereo_sample.h"
-#include "engines/effects/codec.h"
-#include "engines/effects/engine.h"
-#include "engines/effects/words.h"
+#include "dsp-next/core/stereo_sample.h"
+#include "effects/codec.h"
+#include "effects/global_effectable/params.h"
+#include "effects/plugin.h"
+#include "effects/words.h"
 #include "gui/l10n/l10n.h"
 #include "gui/views/performance_view.h"
 #include "gui/views/view.h"
@@ -46,6 +47,7 @@
 #include "storage/storage_manager.h"
 #include "util/etl_string.h"
 #include "util/firmware_version.h"
+#include "util/functions.h"
 #include "util/notify.h"
 
 using namespace deluge;
@@ -78,7 +80,7 @@ void GlobalEffectable::bindChain(deluge::project::FxChain& chain) {
 	if (boundChain_ == &chain) {
 		return;
 	}
-	chain.effects = deluge::engine::StateHandle::of<deluge::effects::DelugeEffects>(effects());
+	chain.effects = deluge::plugin::StateHandle::of<deluge::effects::DelugeEffects>(effects());
 	chain.mod_fx_param = static_cast<uint8_t>(util::to_underlying(modFXParam()));
 	chain.filter_type = static_cast<uint8_t>(util::to_underlying(filterType()));
 	boundChain_ = &chain;
@@ -116,58 +118,22 @@ void GlobalEffectable::projectView(deluge::snapshot::ModControllableSnapshot& co
 }
 
 void GlobalEffectable::initParams(ParamManager* paramManager) {
-	ModControllableAudio::initParams(paramManager);
+	ModControllableAudio::initParams(paramManager, params::Kind::UNPATCHED_GLOBAL);
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 	unpatchedParams->kind = deluge::modulation::params::Kind::UNPATCHED_GLOBAL;
-
-	// Overwrite default arp Gate to 50 for Kit affect-entire arp
-	unpatchedParams->params[params::UNPATCHED_ARP_GATE].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_ARP_GATE), 2147483647);
-	unpatchedParams->params[params::UNPATCHED_ARP_RATE].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_ARP_RATE), 0);
-
-	unpatchedParams->params[params::UNPATCHED_MOD_FX_RATE].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_MOD_FX_RATE), -536870912);
-	unpatchedParams->params[params::UNPATCHED_MOD_FX_FEEDBACK].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_MOD_FX_FEEDBACK), NEGATIVE_ONE_Q31);
-	unpatchedParams->params[params::UNPATCHED_MOD_FX_DEPTH].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_MOD_FX_DEPTH), 0);
-	unpatchedParams->params[params::UNPATCHED_DELAY_RATE].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_DELAY_RATE), 0);
-	unpatchedParams->params[params::UNPATCHED_PAN].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_PAN), 0);
-
-	unpatchedParams->params[params::UNPATCHED_DELAY_AMOUNT].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_DELAY_AMOUNT), NEGATIVE_ONE_Q31);
-	unpatchedParams->params[params::UNPATCHED_REVERB_SEND_AMOUNT].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_REVERB_SEND_AMOUNT), NEGATIVE_ONE_Q31);
-
-	unpatchedParams->params[params::UNPATCHED_VOLUME].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_VOLUME), 0); // half of the way up
-	unpatchedParams->params[params::UNPATCHED_SIDECHAIN_VOLUME].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_SIDECHAIN_VOLUME), NEGATIVE_ONE_Q31);
-	unpatchedParams->params[params::UNPATCHED_PITCH_ADJUST].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_PITCH_ADJUST), 0);
-
-	unpatchedParams->params[params::UNPATCHED_LPF_RES].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_LPF_RES), NEGATIVE_ONE_Q31);
-	unpatchedParams->params[params::UNPATCHED_LPF_FREQ].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_LPF_FREQ), ONE_Q31);
-
-	unpatchedParams->params[params::UNPATCHED_HPF_RES].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_HPF_RES), NEGATIVE_ONE_Q31);
-	unpatchedParams->params[params::UNPATCHED_HPF_FREQ].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_HPF_FREQ), NEGATIVE_ONE_Q31);
-
-	unpatchedParams->params[params::UNPATCHED_LPF_MORPH].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_LPF_MORPH), NEGATIVE_ONE_Q31);
-	unpatchedParams->params[params::UNPATCHED_HPF_MORPH].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_HPF_MORPH), NEGATIVE_ONE_Q31);
+	setParamsToDefaults(*unpatchedParams, params::Kind::UNPATCHED_GLOBAL,
+	                    {params::UNPATCHED_ARP_RATE, params::UNPATCHED_MOD_FX_RATE, params::UNPATCHED_MOD_FX_DEPTH,
+	                     params::UNPATCHED_DELAY_RATE, params::UNPATCHED_PAN, params::UNPATCHED_DELAY_AMOUNT,
+	                     params::UNPATCHED_REVERB_SEND_AMOUNT, params::UNPATCHED_VOLUME,
+	                     params::UNPATCHED_SIDECHAIN_VOLUME, params::UNPATCHED_PITCH_ADJUST, params::UNPATCHED_LPF_RES,
+	                     params::UNPATCHED_LPF_FREQ, params::UNPATCHED_HPF_RES, params::UNPATCHED_HPF_FREQ,
+	                     params::UNPATCHED_LPF_MORPH, params::UNPATCHED_HPF_MORPH});
 }
 
 void GlobalEffectable::initParamsForAudioClip(ParamManagerForTimeline* paramManager) {
 	initParams(paramManager);
+	// An audio track starts quieter than the song and a kit's affect-entire, which keep the table's default
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 	unpatchedParams->params[params::UNPATCHED_VOLUME].setCurrentValueBasicForSetup(
 	    *unpatchedParams->docForParam(params::UNPATCHED_VOLUME), -536870912);
@@ -589,8 +555,9 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 			current = std::clamp(current, -64, 64);
 			ledLevel = (64 + current);
 			displayLevel = ((ledLevel)*kMaxMenuValue) / 128;
-			deluge::edits::changeEffect(*this, "audioCompressor/thresh",
-			                            deluge::serialization::Value::makeNumber(lshiftAndSaturate<24>(current + 64)));
+			deluge::edits::changeEffect(
+			    *this, "audioCompressor/thresh",
+			    deluge::serialization::Value::makeNumber(lshift_and_saturate<24>(current + 64)));
 			indicator_leds::setKnobIndicatorLevel(1, ledLevel);
 			unit = "";
 		}
@@ -606,7 +573,7 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 				ledLevel = (64 + current);
 				deluge::edits::changeEffect(
 				    *this, "audioCompressor/ratio",
-				    deluge::serialization::Value::makeNumber(lshiftAndSaturate<24>(current + 64)));
+				    deluge::serialization::Value::makeNumber(lshift_and_saturate<24>(current + 64)));
 				displayLevel = static_cast<int32_t>(deluge::dsp::fixed::compressor_ratio(effects().compressor.ratio));
 				unit = " : 1";
 				break;
@@ -620,7 +587,7 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 
 				deluge::edits::changeEffect(
 				    *this, "audioCompressor/attack",
-				    deluge::serialization::Value::makeNumber(lshiftAndSaturate<24>(current + 64)));
+				    deluge::serialization::Value::makeNumber(lshift_and_saturate<24>(current + 64)));
 				displayLevel =
 				    static_cast<int32_t>(deluge::dsp::fixed::compressor_attack_ms(effects().compressor.attack));
 				unit = " MS";
@@ -635,7 +602,7 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 
 				deluge::edits::changeEffect(
 				    *this, "audioCompressor/release",
-				    deluge::serialization::Value::makeNumber(lshiftAndSaturate<24>(current + 64)));
+				    deluge::serialization::Value::makeNumber(lshift_and_saturate<24>(current + 64)));
 				displayLevel =
 				    static_cast<int32_t>(deluge::dsp::fixed::compressor_release_ms(effects().compressor.release));
 				unit = " MS";
@@ -650,7 +617,7 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 
 				deluge::edits::changeEffect(
 				    *this, "audioCompressor/compHPF",
-				    deluge::serialization::Value::makeNumber(lshiftAndSaturate<24>(current + 64)));
+				    deluge::serialization::Value::makeNumber(lshift_and_saturate<24>(current + 64)));
 				displayLevel = static_cast<int32_t>(
 				    deluge::dsp::fixed::compressor_sidechain_hz(effects().compressor.sidechain_hpf));
 				unit = " HZ";
@@ -662,7 +629,7 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 				current += offset;
 				current = std::clamp(current, -64, 64);
 				ledLevel = (64 + current);
-				q31_t level = current == 64 ? ONE_Q31 : lshiftAndSaturate<24>(current + 64);
+				q31_t level = current == 64 ? kOneQ31 : lshift_and_saturate<24>(current + 64);
 				deluge::edits::changeEffect(*this, "audioCompressor/compBlend",
 				                            deluge::serialization::Value::makeNumber(level));
 				displayLevel = deluge::dsp::fixed::compressor_blend_percent(level);
@@ -686,88 +653,62 @@ ActionResult GlobalEffectable::modEncoderActionForNonExistentParam(int32_t offse
 }
 
 // Always check this doesn't return NULL!
+namespace {
+
+/// A mod knob's param in a global effectable: one param, or one for each filter type or mod FX param selected.
+struct KnobCell {
+	enum class By : uint8_t { NOTHING, FILTER, MOD_FX };
+	By by{By::NOTHING};
+	std::array<std::optional<deluge::plugin::ParamId>, 3> params{}; // by filter type, or by ModFXParam's order
+	bool hiddenWhileEditingComp{false};
+};
+
+/// The global effectable's default mod knob layout, [mode][knob], knob 1 the upper.
+constexpr std::array<std::array<KnobCell, kNumPhysicalModKnobs>, kNumModButtons> kKnobLayout = [] {
+	namespace gp = deluge::global_effectable::param;
+	using By = KnobCell::By;
+	return std::array<std::array<KnobCell, kNumPhysicalModKnobs>, kNumModButtons>{{
+	    {{{By::NOTHING, {gp::kPan}}, {By::NOTHING, {gp::kVolume}}}},
+	    {{{By::FILTER, {gp::kLpfResonance, gp::kHpfResonance, gp::kBass}},
+	      {By::FILTER, {gp::kLpfFrequency, gp::kHpfFrequency, gp::kTreble}}}},
+	    {{{}, {}}},
+	    {{{By::NOTHING, {gp::kDelayFeedback}}, {By::NOTHING, {gp::kDelayRate}}}},
+	    {{{By::NOTHING, {gp::kReverbAmount}, true}, {}}},
+	    {{{By::MOD_FX, {gp::kModFXDepth, gp::kModFXFeedback, gp::kModFXOffset}}, {By::NOTHING, {gp::kModFXRate}}}},
+	    {{{}, {By::NOTHING, {gp::kStutterRate}}}},
+	    {{{By::NOTHING, {gp::kBitcrushAmount}}, {By::NOTHING, {gp::kSampleRateReduction}}}},
+	}};
+}();
+
+} // namespace
+
+std::optional<deluge::plugin::ParamId> GlobalEffectable::knobParam(int32_t modKnobMode, int32_t whichModEncoder,
+                                                                   FilterType filter, ModFXParam modFX,
+                                                                   bool editingCompressor) {
+	if (modKnobMode < 0 || modKnobMode >= kNumModButtons) {
+		return std::nullopt;
+	}
+	const KnobCell& cell = kKnobLayout[modKnobMode][whichModEncoder != 0 ? 1 : 0];
+	if (cell.hiddenWhileEditingComp && editingCompressor) {
+		return std::nullopt;
+	}
+	switch (cell.by) {
+	case KnobCell::By::FILTER:
+		// an EQ, or any other filter type, takes the last
+		return cell.params[filter == FilterType::LPF ? 0 : filter == FilterType::HPF ? 1 : 2];
+	case KnobCell::By::MOD_FX:
+		return cell.params[util::to_underlying(modFX)];
+	case KnobCell::By::NOTHING:
+		break;
+	}
+	return cell.params[0];
+}
+
 int32_t GlobalEffectable::getParameterFromKnob(int32_t whichModEncoder, const deluge::project::CompView& comp) {
-
-	int32_t modKnobMode = *getModKnobMode();
-
-	if (modKnobMode == 0) {
-		if (whichModEncoder != 0) {
-			return params::UNPATCHED_VOLUME;
-		}
-		else {
-			return params::UNPATCHED_PAN;
-		}
-	}
-	else if (modKnobMode == 1) {
-		switch (filterType()) {
-		case FilterType::LPF:
-			if (whichModEncoder != 0) {
-				return params::UNPATCHED_LPF_FREQ;
-			}
-			else {
-				return params::UNPATCHED_LPF_RES;
-			}
-		case FilterType::HPF:
-			if (whichModEncoder != 0) {
-				return params::UNPATCHED_HPF_FREQ;
-			}
-			else {
-				return params::UNPATCHED_HPF_RES;
-			}
-		default: // case FilterType::EQ:
-			if (whichModEncoder != 0) {
-				return params::UNPATCHED_TREBLE;
-			}
-			else {
-				return params::UNPATCHED_BASS;
-			}
-		}
-	}
-	else if (modKnobMode == 3) {
-		if (whichModEncoder != 0) {
-			return params::UNPATCHED_DELAY_RATE;
-		}
-		else {
-			return params::UNPATCHED_DELAY_AMOUNT;
-		}
-	}
-
-	else if (modKnobMode == 4) {
-		// The compressor view is the song's alone: a clip's chain keeps its reverb send.
-		if (whichModEncoder == 0 && !(comp.editing && isSong())) {
-			return params::UNPATCHED_REVERB_SEND_AMOUNT;
-		}
-	}
-	else if (modKnobMode == 5) {
-		if (whichModEncoder != 0) {
-			return params::UNPATCHED_MOD_FX_RATE;
-		}
-		else {
-			if (modFXParam() == ModFXParam::DEPTH) {
-				return params::UNPATCHED_MOD_FX_DEPTH;
-			}
-			else if (modFXParam() == ModFXParam::OFFSET) {
-				return params::UNPATCHED_MOD_FX_OFFSET;
-			}
-			else {
-				return params::UNPATCHED_MOD_FX_FEEDBACK;
-			}
-		}
-	}
-	else if (modKnobMode == 6) {
-		if (whichModEncoder != 0) {
-			return params::UNPATCHED_STUTTER_RATE;
-		}
-	}
-	else if (modKnobMode == 7) {
-		if (whichModEncoder != 0) {
-			return params::UNPATCHED_SAMPLE_RATE_REDUCTION;
-		}
-		else {
-			return params::UNPATCHED_BITCRUSHING;
-		}
-	}
-	return 255;
+	// The compressor view is the song's alone: a clip's chain keeps its reverb send.
+	std::optional<deluge::plugin::ParamId> param =
+	    knobParam(*getModKnobMode(), whichModEncoder, filterType(), modFXParam(), comp.editing && isSong());
+	return param ? *deluge::global_effectable::runtime_index(*param) : 255;
 }
 
 ModelStackWithAutoParam* GlobalEffectable::getParamFromModEncoder(int32_t whichModEncoder,
@@ -962,16 +903,14 @@ deluge::effects::Delay::State GlobalEffectable::createDelayWorkingState(ParamMan
 	deluge::effects::Delay::State delayWorkingState;
 	UnpatchedParamSet* unpatchedParams = paramManager.getUnpatchedParamSet();
 
-	delayWorkingState.delayFeedbackAmount = getFinalParameterValueLinear(
-	    paramNeutralValues[params::GLOBAL_DELAY_FEEDBACK],
-	    cableToLinearParamShortcut(unpatchedParams->getValue(params::UNPATCHED_DELAY_AMOUNT)));
+	delayWorkingState.delayFeedbackAmount = deluge::effects::final_value(
+	    deluge::effects::Delay::kFeedback, unpatchedParams->getValue(params::UNPATCHED_DELAY_AMOUNT));
 	if (shouldLimitDelayFeedback) {
 		delayWorkingState.delayFeedbackAmount =
 		    std::min(delayWorkingState.delayFeedbackAmount, (int32_t)(1 << 30) - (1 << 26));
 	}
-	delayWorkingState.userDelayRate =
-	    getFinalParameterValueExp(paramNeutralValues[params::GLOBAL_DELAY_RATE],
-	                              cableToExpParamShortcut(unpatchedParams->getValue(params::UNPATCHED_DELAY_RATE)));
+	delayWorkingState.userDelayRate = deluge::effects::final_value(
+	    deluge::effects::Delay::kRate, unpatchedParams->getValue(params::UNPATCHED_DELAY_RATE));
 	uint32_t timePerTickInverse = playbackHandler.getTimePerInternalTickInverse(true);
 	core().delay().setupWorkingState(delayWorkingState, modControllableSnapshot_.effects.delay, timePerTickInverse,
 	                                 soundComingIn);

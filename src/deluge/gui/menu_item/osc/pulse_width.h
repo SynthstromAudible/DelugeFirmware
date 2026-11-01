@@ -29,13 +29,6 @@ public:
 
 	[[nodiscard]] std::string_view getTitle() const override { return FormattedTitle::title(); }
 
-	int32_t getFinalValue() override { return computeFinalValueForHalfPrecisionMenuItem(this->getValue()); }
-
-	void readCurrentValue() override {
-		this->setValue(computeCurrentValueForHalfPrecisionMenuItem(
-		    soundEditor.currentParamManager->getPatchedParamSet()->getValue(getP())));
-	}
-
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
 		const auto sound = static_cast<Sound*>(modControllable);
 		if (sound->getSynthMode() == SynthMode::FM) {

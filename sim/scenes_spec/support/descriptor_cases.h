@@ -6,11 +6,11 @@
 ///
 /// @warning Include this BEFORE `<cppspec.hpp>` (see `card_access.h`); it does so itself, in that order.
 
-#include "engine-api/types/arp.h"
-#include "engine-api/types/setting.h"
-#include "engines/deluge/settings.h"
-#include "engines/effects/settings.h"
+#include "effects/settings.h"
 #include "gui/ui/menu_view_of.h"
+#include "instruments/deluge/settings.h"
+#include "plugin-api/types/arp.h"
+#include "plugin-api/types/setting.h"
 
 #include "deluge-project/setting_group.h"
 #include "gui/l10n/l10n.h"
@@ -438,12 +438,12 @@ extern legacy::HorizontalMenu noteRowEditorRootMenu;
 /// The cases and rigs, in a named namespace (and inline) so every spec that includes this header shares one copy.
 namespace descriptor_cases {
 
-using deluge::engine::from_menu;
-using deluge::engine::menu_range;
-using deluge::engine::SettingContext;
-using deluge::engine::SettingInfo;
-using deluge::engine::SettingKind;
-using deluge::engine::to_menu;
+using deluge::plugin::from_menu;
+using deluge::plugin::menu_range;
+using deluge::plugin::SettingContext;
+using deluge::plugin::SettingInfo;
+using deluge::plugin::SettingKind;
+using deluge::plugin::to_menu;
 using deluge::scenes::menu::MenuContext;
 using deluge::serialization::Value;
 using Owner = SettingContext::Owner;
@@ -860,7 +860,7 @@ inline SettingContext context_of(Where where, Family family) {
 		break;
 	}
 	shown.audio_inputs_present = AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn;
-	if (!deluge::engine::context_is_coherent(shown)) {
+	if (!deluge::plugin::context_is_coherent(shown)) {
 		throw std::logic_error("a setting context whose owner and instrument do not pair");
 	}
 	return shown;
@@ -873,9 +873,9 @@ inline std::span<const SettingInfo> table_of(Family family) {
 	case Family::EFFECT:
 		return deluge::effects::kEffectSettings;
 	case Family::ARP:
-		return deluge::engine::kArpSettingRows;
+		return deluge::plugin::kArpSettingRows;
 	case Family::ARP_HOST:
-		return deluge::engine::kArpHostRows;
+		return deluge::plugin::kArpHostRows;
 	case Family::AUDIO_CLIP:
 		return deluge::project::table_of(deluge::project::SettingGroupId::AUDIO_CLIP);
 	case Family::SONG:
@@ -913,7 +913,7 @@ inline std::optional<int32_t> stored_form(const SettingInfo& row, const Value& v
 		}
 		return std::nullopt;
 	}
-	const std::optional<int64_t> n = deluge::engine::whole_number(text);
+	const std::optional<int64_t> n = deluge::plugin::whole_number(text);
 	return n ? std::optional<int32_t>{static_cast<int32_t>(*n)} : std::nullopt;
 }
 
@@ -1107,15 +1107,15 @@ inline constexpr bool kNoLegacyWrite = false;
 inline constexpr int32_t kDuckingVolumeStep = 21474836;
 
 inline const SettingInfo& row_of(const Case& c) {
-	const SettingInfo* row = deluge::engine::find_setting(table_of(c.family), c.path);
+	const SettingInfo* row = deluge::plugin::find_setting(table_of(c.family), c.path);
 	static const SettingInfo kMissing{.path = "<missing>"};
 	return row != nullptr ? *row : kMissing;
 }
 
 /// @p row's partner row, or nullptr for a one-row kind.
 inline const SettingInfo* partner_of(const Case& c, const SettingInfo& row) {
-	const std::string_view partner = deluge::engine::mapping_of(row).partner_path();
-	return partner.empty() ? nullptr : deluge::engine::find_setting(table_of(c.family), partner);
+	const std::string_view partner = deluge::plugin::mapping_of(row).partner_path();
+	return partner.empty() ? nullptr : deluge::plugin::find_setting(table_of(c.family), partner);
 }
 
 inline std::string show(const Case& c, std::string_view what, int64_t at, int64_t value) {
@@ -1145,7 +1145,7 @@ inline void check_numeric(auto& self, const Case& c) {
 
 	const SettingInfo* partner = partner_of(c, row);
 	if (partner == nullptr) {
-		const auto [least, greatest] = deluge::engine::stored_bounds(row);
+		const auto [least, greatest] = deluge::plugin::stored_bounds(row);
 		std::vector<int32_t> probes{least, greatest, row.default_value};
 		probes.insert(probes.end(), c.stored.begin(), c.stored.end());
 		for (int32_t stored : probes) {
@@ -1200,7 +1200,7 @@ inline void check_numeric(auto& self, const Case& c) {
 
 /// The table a @p family row's conditions read: an arp's host rows read its setting rows too.
 inline std::span<const SettingInfo> condition_table_of(Family family) {
-	return family == Family::ARP || family == Family::ARP_HOST ? deluge::engine::kArpRows : table_of(family);
+	return family == Family::ARP || family == Family::ARP_HOST ? deluge::plugin::kArpRows : table_of(family);
 }
 
 /// The owner @p ctx edits, read by path as a firmware reader reads it: the value the owner holds whether or not the
@@ -1212,10 +1212,10 @@ struct SpecReader {
 	Family family{Family::INSTRUMENT};
 	mutable std::vector<std::string> unknown{};
 
-	[[nodiscard]] deluge::engine::SettingReader reader() const {
+	[[nodiscard]] deluge::plugin::SettingReader reader() const {
 		return {.read = [](const void* self, std::string_view path) -> std::optional<int32_t> {
 			        const auto& owner = *static_cast<const SpecReader*>(self);
-			        const SettingInfo* row = deluge::engine::find_setting(condition_table_of(owner.family), path);
+			        const SettingInfo* row = deluge::plugin::find_setting(condition_table_of(owner.family), path);
 			        if (row == nullptr) {
 				        owner.unknown.emplace_back(path);
 				        return std::nullopt;
@@ -1244,16 +1244,16 @@ struct SpecReader {
 /// helpers. Throws where a condition read a path the owner does not hold, or a position does not round-trip.
 inline std::vector<int32_t> applicable(const SettingInfo& row, const SettingContext& shown, const MenuContext& ctx,
                                        Where where) {
-	if (!deluge::engine::context_is_coherent(shown)) {
+	if (!deluge::plugin::context_is_coherent(shown)) {
 		throw std::logic_error(std::string{row.path} + ": a setting context whose owner and instrument do not pair");
 	}
 	const SpecReader owner{ctx, where};
-	const deluge::engine::SettingReader reader = owner.reader();
+	const deluge::plugin::SettingReader reader = owner.reader();
 	std::vector<int32_t> out;
-	const int32_t count = deluge::engine::applicable_choice_count(row, shown, reader);
+	const int32_t count = deluge::plugin::applicable_choice_count(row, shown, reader);
 	for (int32_t position = 0; position < count; ++position) {
-		const std::optional<int32_t> stored = deluge::engine::choice_at_position(row, shown, reader, position);
-		if (!stored || deluge::engine::choice_position(row, shown, reader, *stored) != position) {
+		const std::optional<int32_t> stored = deluge::plugin::choice_at_position(row, shown, reader, position);
+		if (!stored || deluge::plugin::choice_position(row, shown, reader, *stored) != position) {
 			throw std::runtime_error(std::string{row.path} + ": choice position " + std::to_string(position)
 			                         + " does not round-trip");
 		}
@@ -1285,17 +1285,17 @@ inline std::string list_of(const std::vector<int32_t>& choices) {
 using deluge::l10n::NamesOwner;
 using deluge::l10n::SettingNames;
 using deluge::project::SettingGroupId;
-namespace engine = deluge::engine;
+namespace plugin = deluge::plugin;
 
 /// @brief The owners whose table a family's rows are in.
 inline std::vector<NamesOwner> owners_of(Family family) {
 	switch (family) {
 	case Family::INSTRUMENT:
-		return {engine::kDelugeInstrument};
+		return {plugin::kDelugeInstrument};
 	case Family::EFFECT:
-		return {engine::kDelugeInstrument, engine::kGlobalEffectable};
+		return {plugin::kDelugeInstrument, plugin::kGlobalEffectable};
 	case Family::ARP:
-		return {engine::kDelugeInstrument, SettingGroupId::CLIP_ARP, SettingGroupId::LANE_ARP};
+		return {plugin::kDelugeInstrument, SettingGroupId::CLIP_ARP, SettingGroupId::LANE_ARP};
 	case Family::ARP_HOST:
 		return {SettingGroupId::CLIP_ARP, SettingGroupId::LANE_ARP};
 	case Family::AUDIO_CLIP:
@@ -1392,7 +1392,7 @@ inline void check_scaled(auto& self, const Case& c) {
 inline void check(auto& self, const Case& c) {
 	const SettingInfo& row = row_of(c);
 	if (row.kind == SettingKind::CHOICE
-	    && deluge::engine::mapping_of(row).kind == deluge::engine::DisplayMappingKind::LINEAR) {
+	    && deluge::plugin::mapping_of(row).kind == deluge::plugin::DisplayMappingKind::LINEAR) {
 		check_choices(self, c);
 	}
 	else {
@@ -1765,9 +1765,9 @@ inline const std::vector<Case>& model_cases() {
 // The named skips: rows with a menu but no single legacy item to compare, and why.
 
 /// The owners of the skipped rows: a skip names the tables it is a row of.
-inline constexpr NamesOwner kInstrumentOwner[] = {engine::kDelugeInstrument};
-inline constexpr NamesOwner kEffectOwners[] = {engine::kDelugeInstrument, engine::kGlobalEffectable};
-inline constexpr NamesOwner kArpOwners[] = {engine::kDelugeInstrument, SettingGroupId::CLIP_ARP,
+inline constexpr NamesOwner kInstrumentOwner[] = {plugin::kDelugeInstrument};
+inline constexpr NamesOwner kEffectOwners[] = {plugin::kDelugeInstrument, plugin::kGlobalEffectable};
+inline constexpr NamesOwner kArpOwners[] = {plugin::kDelugeInstrument, SettingGroupId::CLIP_ARP,
                                             SettingGroupId::LANE_ARP};
 inline constexpr NamesOwner kHostArpOwners[] = {SettingGroupId::CLIP_ARP, SettingGroupId::LANE_ARP};
 inline constexpr NamesOwner kSongOwner[] = {SettingGroupId::SONG};
@@ -1850,7 +1850,7 @@ struct Exception {
 };
 
 inline const SettingInfo& table_row(Family family, std::string_view path) {
-	const SettingInfo* row = deluge::engine::find_setting(table_of(family), path);
+	const SettingInfo* row = deluge::plugin::find_setting(table_of(family), path);
 	static const SettingInfo kMissing{.path = "<missing>"};
 	return row != nullptr ? *row : kMissing;
 }
@@ -1866,7 +1866,7 @@ inline bool note_for_drum_differs() {
 	const int32_t shown = legacy_read(&outputMidiNoteForDrumMenu);
 	sound.outputMidiNoteForDrum = before;
 	const int32_t unset = int32_t{MIDI_NOTE_NONE};
-	return unset > deluge::engine::stored_bounds(row).second && shown == to_menu(row, unset);
+	return unset > deluge::plugin::stored_bounds(row).second && shown == to_menu(row, unset);
 }
 
 /// With no input plugged in the item lists one input, so a stored right or stereo input reads past its list. The
@@ -1941,15 +1941,15 @@ inline bool reverb_volume_differs() {
 /// The rows a legacy item shows but this spec reads only around a named difference. Each is checked to still differ
 /// (`descriptor_legacy_spec.cpp`), so a row that comes to agree leaves the list.
 inline const Exception kExceptions[] = {
-    {engine::kDelugeInstrument, "midiOutput/noteForDrum",
+    {plugin::kDelugeInstrument, "midiOutput/noteForDrum",
      "unset (stored 255, outside the row) shows kUnsetDrumNoteShownAs (60) through CLAMP_HIGH; no menu value stores "
      "it",
      &note_for_drum_differs},
-    {engine::kDelugeInstrument, "osc1/type",
+    {plugin::kDelugeInstrument, "osc1/type",
      "with no input plugged in, the one input entry is INPUT_L under the name \"INPUT\"; a stored INPUT_R or "
      "INPUT_STEREO then reads past the list",
      &first_oscillator_type_differs},
-    {engine::kDelugeInstrument, "osc2/type", "as osc1/type", &second_oscillator_type_differs},
+    {plugin::kDelugeInstrument, "osc2/type", "as osc1/type", &second_oscillator_type_differs},
     {SettingGroupId::SONG, "reverb/compressor/shape",
      "the read is STANDARD; legacy's write omits the top step's special case (menu 50 stores 2147483602, not "
      "2147483647)",

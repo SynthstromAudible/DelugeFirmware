@@ -31,13 +31,13 @@
 
 #include "definitions_cxx.hpp"
 #include "deluge-project/song.h"
-#include "engine-api/types/sync.h"
-#include "engines/deluge/sound_state.h"
-#include "engines/effects/state.h"
-#include "engines/effects/words.h"
+#include "effects/state.h"
+#include "effects/words.h"
 #include "gfx/oled/icons.h"
+#include "instruments/deluge/sound_state.h"
 #include "model/song/song.h"
 #include "modulation/sync.h"
+#include "plugin-api/types/sync.h"
 #include "processing/engines/audio_engine.h"
 #include "scenes/bind/runtime_facts.h"
 #include "scenes/bind/write_sink.h"
@@ -131,7 +131,7 @@ void set_reverb_sidechain_sync(const MenuContext& ctx, int32_t value) {
 	// The sync type is the engine's alone; the level is the song's record.
 	AudioEngine::reverbSidechainSettings.sync_type = syncValueToSyncType(value);
 	bindings::write_song(ctx, "reverb/compressor/syncLevel",
-	                     static_cast<int32_t>(deluge::engine::index_of(syncValueToSyncLevel(value))));
+	                     static_cast<int32_t>(deluge::plugin::index_of(syncValueToSyncLevel(value))));
 }
 
 // ---------------------------------------------------------------------------------------------

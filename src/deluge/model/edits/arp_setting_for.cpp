@@ -88,7 +88,7 @@ void arpSettingFor(::ArpeggiatorSettings& arp, std::string_view path, serializat
 }
 
 serialization::Value arpChoice(std::string_view path, int32_t index) {
-	const engine::SettingInfo* row = engine::find_setting(engine::kArpSettingRows, path);
+	const plugin::SettingInfo* row = plugin::find_setting(plugin::kArpSettingRows, path);
 	const auto choice =
 	    index >= 0 && static_cast<size_t>(index) < row->choices.size() ? row->choices[index] : row->choices.front();
 	return serialization::Value::makeScalar(std::string{choice});

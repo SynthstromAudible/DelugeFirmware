@@ -16,7 +16,7 @@
  */
 
 #include "processing/dx7/dx_patch.h"
-#include "engines/deluge/dx7_init_voice.h"
+#include "instruments/deluge/dx7_init_voice.h"
 #include "processing/dx7/dx_engine.h"
 #include <algorithm>
 #include <cstddef>

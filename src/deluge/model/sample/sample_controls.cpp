@@ -18,6 +18,7 @@
 #include "model/sample/sample_controls.h"
 #include "definitions_cxx.hpp"
 #include "processing/engines/audio_engine.h"
+#include "synth/sources/interpolation_buffer_size.h"
 
 SampleControls::SampleControls() {
 	interpolationMode = InterpolationMode::SMOOTH;
@@ -31,26 +32,7 @@ int32_t SampleControls::getInterpolationBufferSize(int32_t phaseIncrement) {
 }
 
 int32_t SampleControls::getInterpolationBufferSize(InterpolationMode interpolationMode, int32_t phaseIncrement) {
-	if (interpolationMode == InterpolationMode::LINEAR) {
-useLinearInterpolation:
-		return 2;
-	}
-	else {
-
-		// If CPU dire...
-		if (AudioEngine::cpuDireness) {
-			int32_t octave =
-			    getMagnitudeOld(phaseIncrement); // Unstretched, and the first octave going up from that, would be '25'
-			if (octave >= 26
-			                  - (AudioEngine::cpuDireness
-			                     >> 2)) { // So, under max direness (14), everything from octave 23 up will be linearly
-				                          // interpolated. That's from 2 octaves down, upward
-				goto useLinearInterpolation;
-			}
-		}
-
-		return kInterpolationMaxNumSamples;
-	}
+	return deluge::synth::interpolation_buffer_size(interpolationMode, phaseIncrement, AudioEngine::cpuDireness);
 }
 
 bool SampleControls::isCurrentlyReversed() const {

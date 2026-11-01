@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "engines/effects/mod_fx.h"
+#include "effects/mod_fx.h"
 #include "memory/general_memory_allocator.h"
 #include "memory/heaps.h"
 #include "memory/memory_allocator_interface.h"

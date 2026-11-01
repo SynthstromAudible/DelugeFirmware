@@ -19,11 +19,11 @@
 
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/mode.h"
+#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/core/types.h"
 #include "dsp-next/fixed/filter/one_pole.h"
 #include "dsp-next/fixed/shaping/antialiased_tanh.h"
-#include "util/fixedpoint.h"
 
 #include <cmath>
 #include <cstddef>
@@ -41,7 +41,7 @@ struct CompressorKnobs {
 	q31 threshold{0};     ///< the threshold as a fraction of the volume's level in nepers: 0 is 1, 2^31 is 0.2
 	q31 ratio{64 << 24};  ///< 0 is 2:1, 2^31 is 256:1
 	q31 sidechain_hpf{0}; ///< the level detector's high-pass, about 0 to 100 Hz
-	q31 blend{ONE_Q31};   ///< the wet level, ONE_Q31 fully wet
+	q31 blend{kOneQ31};   ///< the wet level, kOneQ31 fully wet
 	bool operator==(const CompressorKnobs&) const = default;
 };
 
@@ -67,7 +67,7 @@ struct CompressorKnobs {
 [[nodiscard]] float ratio_fraction(q31 ratio);
 
 /// @brief The RMS feedback compressor as a processor kernel of stereo frames: the gain for each block follows the RMS
-/// level, in log space, of the block before it. Rendered in place as `Mono<Compressor>::renderBlock(block, block)`.
+/// level, in log space, of the block before it. Rendered in place as `Mono<Compressor>::render_block(block, block)`.
 /// @details Levels and gains in the envelopes are in nepers (natural-log units).
 ///
 /// Not composable into a Chain or Lanes, or rendered through `Mono::render(x)`, unless the owner calls @ref
@@ -131,7 +131,7 @@ struct Compressor {
 		q31 detector_moveability; ///< The detector's high-pass moveability, Q31.
 		q31 dry;                  ///< The dry level in the blend, Q31.
 		q31 wet;                  ///< The wet level in the blend, Q31.
-		Mode mode;                ///< WET when wet == ONE_Q31.
+		Mode mode;                ///< WET when wet == kOneQ31.
 	};
 
 	/// @brief The block's inputs, which the owner sets before each block with @ref set_levels.
@@ -277,7 +277,7 @@ struct Compressor {
 	/// @param threshold The knob position, Q31 of its travel.
 	/// @return The fraction: 1 at 0, 0.2 at 2^31.
 	[[nodiscard]] static float threshold_fraction(q31 threshold) {
-		return 1 - 0.8f * (static_cast<float>(threshold) / ONE_Q31f);
+		return 1 - 0.8f * (static_cast<float>(threshold) / kOneQ31f);
 	}
 
 	/// @brief Event: the block's levels, and the threshold @p l's knob gives as a fraction of the volume's level.

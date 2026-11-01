@@ -18,12 +18,13 @@
 #include "scenarios/recorder_readback_probe.h"
 
 #include "definitions_cxx.hpp"
-#include "dsp/stereo_sample.h"
+#include "dsp-next/core/stereo_sample.h"
 #include "libdeluge/sample_source.h"
 #include "libdeluge/streaming_fill.h" // deluge_streaming_request_drain
 #include "model/sample/sample.h"
 #include "model/sample/sample_recorder.h"
 #include "storage/cluster/cluster.h"
+#include "util/functions.h"
 
 #include <cstdio>
 #include <cstring>

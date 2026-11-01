@@ -17,8 +17,8 @@
 
 #include "gui/l10n/setting_names.h"
 
-#include "engines/deluge/params.h"
-#include "engines/global_effectable/params.h"
+#include "effects/global_effectable/params.h"
+#include "instruments/deluge/params.h"
 
 #include <algorithm>
 #include <array>
@@ -32,7 +32,7 @@ namespace {
 inline namespace menu_tables {
 
 using enum String;
-using engine::ParamId;
+using plugin::ParamId;
 using project::SettingGroupId;
 
 /// @name The choice lists a row's options are named by, shared where rows list the same options.
@@ -472,47 +472,47 @@ constexpr std::array<Entry, 118> kEntries{{
     Entry{SettingGroupId::AUDIO_INPUT, "inputChannel", &kInputChannelNames},
     Entry{SettingGroupId::AUDIO_INPUT, "mode", &kInputChannelNames},
     Entry{SettingGroupId::AUDIO_INPUT, "outputRecordingFrom", &kOutputRecordingFromNames},
-    Entry{engine::kDelugeInstrument, "lfo1/syncLevel", &kLfo1SyncLevelNames},
-    Entry{engine::kDelugeInstrument, "lfo1/type", &kLfo1TypeNames},
-    Entry{engine::kDelugeInstrument, "lfo2/syncLevel", &kLfo1SyncLevelNames},
-    Entry{engine::kDelugeInstrument, "lfo2/type", &kLfo1TypeNames},
-    Entry{engine::kDelugeInstrument, "lfo3/syncLevel", &kLfo1SyncLevelNames},
-    Entry{engine::kDelugeInstrument, "lfo3/type", &kLfo1TypeNames},
-    Entry{engine::kDelugeInstrument, "lfo4/syncLevel", &kLfo1SyncLevelNames},
-    Entry{engine::kDelugeInstrument, "lfo4/type", &kLfo1TypeNames},
-    Entry{engine::kDelugeInstrument, "maxVoices", &kMaxVoicesNames},
-    Entry{engine::kDelugeInstrument, "midiOutput/channel", &kMidiOutputChannelNames},
-    Entry{engine::kDelugeInstrument, "midiOutput/noteForDrum", &kMidiOutputNoteForDrumNames},
-    Entry{engine::kDelugeInstrument, "mode", &kModeNames},
-    Entry{engine::kDelugeInstrument, "modulator1/retrigPhase", &kModulator1RetrigPhaseNames},
-    Entry{engine::kDelugeInstrument, "modulator1/transpose", &kModulator1TransposeNames},
-    Entry{engine::kDelugeInstrument, "modulator2/retrigPhase", &kModulator1RetrigPhaseNames},
-    Entry{engine::kDelugeInstrument, "modulator2/toModulator1", &kModulator2ToModulator1Names},
-    Entry{engine::kDelugeInstrument, "modulator2/transpose", &kModulator1TransposeNames},
-    Entry{engine::kDelugeInstrument, "osc1/linearInterpolation", &kOsc1LinearInterpolationNames},
-    Entry{engine::kDelugeInstrument, "osc1/loopMode", &kOsc1LoopModeNames},
-    Entry{engine::kDelugeInstrument, "osc1/retrigPhase", &kOsc1RetrigPhaseNames},
-    Entry{engine::kDelugeInstrument, "osc1/reversed", &kOsc1ReversedNames},
-    Entry{engine::kDelugeInstrument, "osc1/timeStretchAmount", &kOsc1TimeStretchAmountNames},
-    Entry{engine::kDelugeInstrument, "osc1/timeStretchEnable", &kOsc1TimeStretchEnableNames},
-    Entry{engine::kDelugeInstrument, "osc1/transpose", &kOsc1TransposeNames},
-    Entry{engine::kDelugeInstrument, "osc1/type", &kOsc1TypeNames},
-    Entry{engine::kDelugeInstrument, "osc2/linearInterpolation", &kOsc1LinearInterpolationNames},
-    Entry{engine::kDelugeInstrument, "osc2/loopMode", &kOsc1LoopModeNames},
-    Entry{engine::kDelugeInstrument, "osc2/oscillatorSync", &kOsc2OscillatorSyncNames},
-    Entry{engine::kDelugeInstrument, "osc2/retrigPhase", &kOsc1RetrigPhaseNames},
-    Entry{engine::kDelugeInstrument, "osc2/reversed", &kOsc1ReversedNames},
-    Entry{engine::kDelugeInstrument, "osc2/timeStretchAmount", &kOsc1TimeStretchAmountNames},
-    Entry{engine::kDelugeInstrument, "osc2/timeStretchEnable", &kOsc1TimeStretchEnableNames},
-    Entry{engine::kDelugeInstrument, "osc2/transpose", &kOsc1TransposeNames},
-    Entry{engine::kDelugeInstrument, "osc2/type", &kOsc1TypeNames},
-    Entry{engine::kDelugeInstrument, "polyphonic", &kPolyphonicNames},
-    Entry{engine::kDelugeInstrument, "sideChainSend", &kSideChainSendNames},
-    Entry{engine::kDelugeInstrument, "transpose", &kTransposeNames},
-    Entry{engine::kDelugeInstrument, "unison/detune", &kUnisonDetuneNames},
-    Entry{engine::kDelugeInstrument, "unison/num", &kUnisonNumNames},
-    Entry{engine::kDelugeInstrument, "unison/spread", &kUnisonSpreadNames},
-    Entry{engine::kDelugeInstrument, "voicePriority", &kPriorityNames},
+    Entry{plugin::kDelugeInstrument, "lfo1/syncLevel", &kLfo1SyncLevelNames},
+    Entry{plugin::kDelugeInstrument, "lfo1/type", &kLfo1TypeNames},
+    Entry{plugin::kDelugeInstrument, "lfo2/syncLevel", &kLfo1SyncLevelNames},
+    Entry{plugin::kDelugeInstrument, "lfo2/type", &kLfo1TypeNames},
+    Entry{plugin::kDelugeInstrument, "lfo3/syncLevel", &kLfo1SyncLevelNames},
+    Entry{plugin::kDelugeInstrument, "lfo3/type", &kLfo1TypeNames},
+    Entry{plugin::kDelugeInstrument, "lfo4/syncLevel", &kLfo1SyncLevelNames},
+    Entry{plugin::kDelugeInstrument, "lfo4/type", &kLfo1TypeNames},
+    Entry{plugin::kDelugeInstrument, "maxVoices", &kMaxVoicesNames},
+    Entry{plugin::kDelugeInstrument, "midiOutput/channel", &kMidiOutputChannelNames},
+    Entry{plugin::kDelugeInstrument, "midiOutput/noteForDrum", &kMidiOutputNoteForDrumNames},
+    Entry{plugin::kDelugeInstrument, "mode", &kModeNames},
+    Entry{plugin::kDelugeInstrument, "modulator1/retrigPhase", &kModulator1RetrigPhaseNames},
+    Entry{plugin::kDelugeInstrument, "modulator1/transpose", &kModulator1TransposeNames},
+    Entry{plugin::kDelugeInstrument, "modulator2/retrigPhase", &kModulator1RetrigPhaseNames},
+    Entry{plugin::kDelugeInstrument, "modulator2/toModulator1", &kModulator2ToModulator1Names},
+    Entry{plugin::kDelugeInstrument, "modulator2/transpose", &kModulator1TransposeNames},
+    Entry{plugin::kDelugeInstrument, "osc1/linearInterpolation", &kOsc1LinearInterpolationNames},
+    Entry{plugin::kDelugeInstrument, "osc1/loopMode", &kOsc1LoopModeNames},
+    Entry{plugin::kDelugeInstrument, "osc1/retrigPhase", &kOsc1RetrigPhaseNames},
+    Entry{plugin::kDelugeInstrument, "osc1/reversed", &kOsc1ReversedNames},
+    Entry{plugin::kDelugeInstrument, "osc1/timeStretchAmount", &kOsc1TimeStretchAmountNames},
+    Entry{plugin::kDelugeInstrument, "osc1/timeStretchEnable", &kOsc1TimeStretchEnableNames},
+    Entry{plugin::kDelugeInstrument, "osc1/transpose", &kOsc1TransposeNames},
+    Entry{plugin::kDelugeInstrument, "osc1/type", &kOsc1TypeNames},
+    Entry{plugin::kDelugeInstrument, "osc2/linearInterpolation", &kOsc1LinearInterpolationNames},
+    Entry{plugin::kDelugeInstrument, "osc2/loopMode", &kOsc1LoopModeNames},
+    Entry{plugin::kDelugeInstrument, "osc2/oscillatorSync", &kOsc2OscillatorSyncNames},
+    Entry{plugin::kDelugeInstrument, "osc2/retrigPhase", &kOsc1RetrigPhaseNames},
+    Entry{plugin::kDelugeInstrument, "osc2/reversed", &kOsc1ReversedNames},
+    Entry{plugin::kDelugeInstrument, "osc2/timeStretchAmount", &kOsc1TimeStretchAmountNames},
+    Entry{plugin::kDelugeInstrument, "osc2/timeStretchEnable", &kOsc1TimeStretchEnableNames},
+    Entry{plugin::kDelugeInstrument, "osc2/transpose", &kOsc1TransposeNames},
+    Entry{plugin::kDelugeInstrument, "osc2/type", &kOsc1TypeNames},
+    Entry{plugin::kDelugeInstrument, "polyphonic", &kPolyphonicNames},
+    Entry{plugin::kDelugeInstrument, "sideChainSend", &kSideChainSendNames},
+    Entry{plugin::kDelugeInstrument, "transpose", &kTransposeNames},
+    Entry{plugin::kDelugeInstrument, "unison/detune", &kUnisonDetuneNames},
+    Entry{plugin::kDelugeInstrument, "unison/num", &kUnisonNumNames},
+    Entry{plugin::kDelugeInstrument, "unison/spread", &kUnisonSpreadNames},
+    Entry{plugin::kDelugeInstrument, "voicePriority", &kPriorityNames},
     Entry{Shared::ARP_SETTINGS, "arpeggiator/arpMode", &kArpeggiatorArpModeNames},
     Entry{Shared::ARP_SETTINGS, "arpeggiator/chordType", &kArpeggiatorChordTypeNames},
     Entry{Shared::ARP_SETTINGS, "arpeggiator/kitArp", &kArpeggiatorKitArpNames},
@@ -567,8 +567,8 @@ static_assert(std::ranges::adjacent_find(kEntries,
 
 /// The rows whose names differ while no audio input is plugged in, sorted as kEntries is.
 constexpr std::array<Entry, 2> kUnpluggedEntries{{
-    Entry{engine::kDelugeInstrument, "osc1/type", &kOsc1TypeUnpluggedNames},
-    Entry{engine::kDelugeInstrument, "osc2/type", &kOsc1TypeUnpluggedNames},
+    Entry{plugin::kDelugeInstrument, "osc1/type", &kOsc1TypeUnpluggedNames},
+    Entry{plugin::kDelugeInstrument, "osc2/type", &kOsc1TypeUnpluggedNames},
 }};
 static_assert(std::ranges::adjacent_find(kUnpluggedEntries,
                                          [](const Entry& a, const Entry& b) {
@@ -742,10 +742,10 @@ constexpr std::span<const Shared> shared_of(uint8_t owner) {
 	    || owner == NamesOwner{SettingGroupId::LANE_ARP}.index()) {
 		return kArp;
 	}
-	if (owner == NamesOwner{engine::kDelugeInstrument}.index()) {
+	if (owner == NamesOwner{plugin::kDelugeInstrument}.index()) {
 		return kInstrument;
 	}
-	if (owner == NamesOwner{engine::kGlobalEffectable}.index()) {
+	if (owner == NamesOwner{plugin::kGlobalEffectable}.index()) {
 		return kEffects;
 	}
 	return {};
@@ -774,7 +774,7 @@ const SettingNames* setting_names(NamesOwner owner, std::string_view path) {
 	return nullptr;
 }
 
-const SettingNames* setting_names(NamesOwner owner, std::string_view path, const engine::SettingContext& context) {
+const SettingNames* setting_names(NamesOwner owner, std::string_view path, const plugin::SettingContext& context) {
 	if (!context.audio_inputs_present) {
 		if (const SettingNames* names = find_entry(owner.index(), path, kUnpluggedEntries)) {
 			return names;
@@ -783,9 +783,9 @@ const SettingNames* setting_names(NamesOwner owner, std::string_view path, const
 	return setting_names(owner, path);
 }
 
-String param_name(engine::EngineId engine, ParamId id, const ParamNameContext& state) {
+String param_name(plugin::PluginId engine, ParamId id, const ParamNameContext& state) {
 	// The ladder filters repurpose morph, so legacy names it for what it does there; the SVF modes really morph.
-	if (engine == engine::kDelugeInstrument) {
+	if (engine == plugin::kDelugeInstrument) {
 		if (id == instrument::param::kLpfMorph && state.lpf_mode <= effects::FilterMode::TRANSISTOR_24DB_DRIVE) {
 			return STRING_FOR_LPF_DRIVE;
 		}
@@ -794,7 +794,7 @@ String param_name(engine::EngineId engine, ParamId id, const ParamNameContext& s
 		}
 		return name_in(kInstrumentParamNames, id);
 	}
-	if (engine == engine::kGlobalEffectable) {
+	if (engine == plugin::kGlobalEffectable) {
 		if (id == global_effectable::param::kLpfMorph && state.lpf_mode <= effects::FilterMode::TRANSISTOR_24DB_DRIVE) {
 			return STRING_FOR_LPF_DRIVE;
 		}

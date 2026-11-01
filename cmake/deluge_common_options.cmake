@@ -24,8 +24,8 @@ set(DELUGE_CXX_STANDARD 26)
 list(APPEND DELUGE_COMMON_COMPILE_OPTIONS
     $<$<AND:$<BOOL:${MAINTAINER_MODE}>,$<CXX_COMPILER_ID:GNU>>:-fanalyzer> # static analysis
 
-    # Warnings
-    -Warray-bounds=1
+    # Warnings (the GCC-only ones guarded: clang rejects them, and the libraries build with -Werror)
+    $<$<OR:$<COMPILE_LANG_AND_ID:C,GNU>,$<COMPILE_LANG_AND_ID:CXX,GNU>>:-Warray-bounds=1>
     -Wnull-dereference
     -Wparentheses
     -Wsequence-point
@@ -45,6 +45,5 @@ list(APPEND DELUGE_COMMON_COMPILE_OPTIONS
     # Stack usage
     # tracked for diagnostic usage. We have a 32k stack so it's not that important
     # primarily concerned with unbounded stack use
-    $<$<CONFIG:DEBUG>:-Wstack-usage=2000>
-    $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-Wstack-usage=2000>
+    $<$<OR:$<COMPILE_LANG_AND_ID:C,GNU>,$<COMPILE_LANG_AND_ID:CXX,GNU>>:-Wstack-usage=2000>
 )

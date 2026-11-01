@@ -492,16 +492,18 @@ bool SampleClaim::stepDecideWavetable() {
 	// if oscillator wasn't already a wavetable, update custom knob assignments, otherwise leave as is
 	if (oldOscType_ != OscType::WAVETABLE) {
 		if (soundEditor.currentSourceIndex == 0) { // Osc 1
-			soundEditor.currentSound->modKnobs[7][1].paramDescriptor.setToHaveParamOnly(params::LOCAL_OSC_A_WAVE_INDEX);
+			soundEditor.currentSound->modKnobs[7][1].target =
+			    deluge::modulation::knobParam(params::LOCAL_OSC_A_WAVE_INDEX);
 
-			if (!soundEditor.currentSound->modKnobs[7][0].paramDescriptor.isSetToParamWithNoSource(
-			        params::LOCAL_OSC_B_WAVE_INDEX)) {
-				soundEditor.currentSound->modKnobs[7][0].paramDescriptor.setToHaveParamAndSource(
-				    params::LOCAL_OSC_A_WAVE_INDEX, PatchSource::LFO_LOCAL_1);
+			if (!(soundEditor.currentSound->modKnobs[7][0].target
+			      == deluge::modulation::knobParam(params::LOCAL_OSC_B_WAVE_INDEX))) {
+				soundEditor.currentSound->modKnobs[7][0].target = deluge::modulation::knobTargetOf(
+				    deluge::synth::CableTarget::depth_of(params::LOCAL_OSC_A_WAVE_INDEX, PatchSource::LFO_LOCAL_1));
 			}
 		}
 		else { // Osc 2
-			soundEditor.currentSound->modKnobs[7][0].paramDescriptor.setToHaveParamOnly(params::LOCAL_OSC_B_WAVE_INDEX);
+			soundEditor.currentSound->modKnobs[7][0].target =
+			    deluge::modulation::knobParam(params::LOCAL_OSC_B_WAVE_INDEX);
 		}
 		(void)deluge::edits::modKnobModeFor(
 		    deluge::project::TrackAddress{currentSong->outputIdFor(*getCurrentOutput())}, 7);
@@ -622,14 +624,14 @@ void SampleClaim::removeWaveTableKnobs() {
 	// Anyway, by now we know we've loaded as a Sample, not a Wavetable. So remove WaveTable gold knob assignments.
 	bool anyChange = false;
 	int32_t p = params::LOCAL_OSC_A_WAVE_INDEX + soundEditor.currentSourceIndex;
-	if (soundEditor.currentSound->modKnobs[7][0].paramDescriptor.getJustTheParam() == p) {
-		soundEditor.currentSound->modKnobs[7][0].paramDescriptor.setToHaveParamOnly(params::UNPATCHED_BITCRUSHING
-		                                                                            + params::UNPATCHED_START);
+	if (deluge::modulation::knobWord(soundEditor.currentSound->modKnobs[7][0].target).param_index() == p) {
+		soundEditor.currentSound->modKnobs[7][0].target =
+		    deluge::modulation::knobParam(params::UNPATCHED_BITCRUSHING + params::UNPATCHED_START);
 		anyChange = true;
 	}
-	if (soundEditor.currentSound->modKnobs[7][1].paramDescriptor.getJustTheParam() == p) {
-		soundEditor.currentSound->modKnobs[7][1].paramDescriptor.setToHaveParamOnly(
-		    params::UNPATCHED_SAMPLE_RATE_REDUCTION + params::UNPATCHED_START);
+	if (deluge::modulation::knobWord(soundEditor.currentSound->modKnobs[7][1].target).param_index() == p) {
+		soundEditor.currentSound->modKnobs[7][1].target =
+		    deluge::modulation::knobParam(params::UNPATCHED_SAMPLE_RATE_REDUCTION + params::UNPATCHED_START);
 		anyChange = true;
 	}
 

@@ -30,13 +30,13 @@ TEST(SyncTests, syncValueToSyncType) {
 TEST(SyncTests, syncValueToSyncLevel) {
 	// Zero is off
 	for (int32_t i = 0; i <= MAX_SYNC_LEVEL; i++) {
-		CHECK_EQUAL(i, deluge::engine::index_of(syncValueToSyncLevel(i)));
+		CHECK_EQUAL(i, deluge::plugin::index_of(syncValueToSyncLevel(i)));
 	}
 	// Zero as level doesn't exist for triplets and dotted
 	for (int32_t i = 0; i < MAX_SYNC_LEVEL; i++) {
-		CHECK_EQUAL(i + 1, deluge::engine::index_of(syncValueToSyncLevel(i + std::to_underlying(SYNC_TYPE_TRIPLET))));
+		CHECK_EQUAL(i + 1, deluge::plugin::index_of(syncValueToSyncLevel(i + std::to_underlying(SYNC_TYPE_TRIPLET))));
 	}
 	for (int32_t i = 0; i < MAX_SYNC_LEVEL; i++) {
-		CHECK_EQUAL(i + 1, deluge::engine::index_of(syncValueToSyncLevel(i + std::to_underlying(SYNC_TYPE_DOTTED))));
+		CHECK_EQUAL(i + 1, deluge::plugin::index_of(syncValueToSyncLevel(i + std::to_underlying(SYNC_TYPE_DOTTED))));
 	}
 }

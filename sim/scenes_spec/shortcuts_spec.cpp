@@ -23,7 +23,7 @@
 ///       (`scripts/check_layer_rules.py`'s `scenes-includes-outside`). Same rule the `tables_*`
 ///       specs run under.
 
-#include "engines/effects/reverb.h"
+#include "effects/reverb.h"
 #include "gui/ui/menu_view_of.h"
 #include "processing/engines/audio_engine.h"
 #include "scenes/menu/context.h"

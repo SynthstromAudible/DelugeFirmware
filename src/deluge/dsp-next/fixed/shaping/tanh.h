@@ -17,10 +17,10 @@
 
 #pragma once
 
+#include "dsp-next/core/q31_ops.h" // lshift_and_saturate, lshift_and_saturate_unknown
 #include "dsp-next/core/types.h"
 #include "dsp-next/fixed/interpolation/table_interpolation.h"
 #include "dsp-next/fixed/shaping/tanh_small_table.h"
-#include "util/param_functions.h" // lshiftAndSaturate, lshiftAndSaturateUnknown
 
 #include <cstdint>
 
@@ -36,7 +36,7 @@ namespace detail {
 /// instantiates it.
 [[nodiscard]] [[gnu::always_inline]] inline q31 tanh_lookup(uint32_t position, uint32_t drive) {
 	constexpr const int16_t* kBase = kTanhSmallTable.data();
-	return linear_table_interpolator.interpolateSigned(position, 32, kBase, 8) >> (drive + 2);
+	return kLinearTableInterpolator.interpolate_signed(position, 32, kBase, 8) >> (drive + 2);
 }
 } // namespace detail
 
@@ -47,8 +47,9 @@ namespace detail {
 /// at 32 - drive bits for drives 1 to 20 and at 12 bits for drives past 20; see the compile-time overload for those.
 [[nodiscard]] [[gnu::always_inline]] inline q31 tanh(q31 sample, uint32_t drive) {
 	const uint32_t position =
-	    drive != 0u ? static_cast<uint32_t>(lshiftAndSaturateUnknown(sample, static_cast<uint8_t>(drive))) + kTanhCentre
-	                : static_cast<uint32_t>(sample) + kTanhCentre;
+	    drive != 0u
+	        ? static_cast<uint32_t>(lshift_and_saturate_unknown(sample, static_cast<uint8_t>(drive))) + kTanhCentre
+	        : static_cast<uint32_t>(sample) + kTanhCentre;
 	return detail::tanh_lookup(position, drive);
 }
 
@@ -60,7 +61,7 @@ requires(Drive <= 29)
 [[nodiscard]] [[gnu::always_inline]] inline q31 tanh(q31 sample) {
 	uint32_t position{};
 	if constexpr (Drive != 0u) {
-		position = static_cast<uint32_t>(lshiftAndSaturate<Drive>(sample)) + kTanhCentre;
+		position = static_cast<uint32_t>(lshift_and_saturate<Drive>(sample)) + kTanhCentre;
 	}
 	else {
 		position = static_cast<uint32_t>(sample) + kTanhCentre;

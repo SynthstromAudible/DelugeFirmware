@@ -10,9 +10,9 @@
 #include "scenes/menu/context.h"
 
 #include "deluge-project/param_address.h"
-#include "engines/deluge/params.h"
 #include "gui/ui/ui.h"
 #include "gui/views/session_view.h"
+#include "instruments/deluge/params.h"
 #include "model/edits/change_effect.h"
 #include "model/edits/setting_edit.h"
 #include "model/instrument/kit.h"
@@ -75,7 +75,7 @@ Cost time_writes(const MenuContext& ctx, std::string_view path, int32_t a, int32
 }
 
 /// Times @p kWrites writes of @p param through the app's sink, alternating two stored words.
-Cost time_param_writes(const MenuContext& ctx, deluge::engine::ParamId param, int32_t a, int32_t b) {
+Cost time_param_writes(const MenuContext& ctx, deluge::plugin::ParamId param, int32_t a, int32_t b) {
 	bind::WriteSink& sink = menu::host_write_sink();
 	deluge::bridge::TypedWriteAudit& audit = deluge::bridge::typedWriteAudit();
 	const bool audited = audit.enabled;
@@ -169,7 +169,7 @@ describe menu_write_cost("a menu write's cost through the app's sink", ${
 	});
 
 	it("measures a param detent on a synth and on a full kit under affect-entire", _ {
-		const deluge::engine::ParamId lpf = deluge::instrument::param::kLpfFrequency;
+		const deluge::plugin::ParamId lpf = deluge::instrument::param::kLpfFrequency;
 		changeRootUI(&sessionView); // each write logs its undo step, as on the device
 		{
 			spec::SongFixture f = spec::make_synth_song();
@@ -204,8 +204,7 @@ describe menu_write_cost("a menu write's cost through the app's sink", ${
 		f.song->setCurrentClip(f.clip);
 		const MenuContext ctx = menu::context_for(*f.song, deluge::gui::menuViewOf(f.clip), 0, false, false, false, false);
 		changeRootUI(&sessionView); // each write logs its undo step, as on the device
-		ParamDescriptor pitch;
-		pitch.setToHaveParamOnly(deluge::modulation::params::LOCAL_PITCH_ADJUST);
+		deluge::synth::CableTarget pitch = deluge::synth::CableTarget::param(deluge::modulation::params::LOCAL_PITCH_ADJUST);
 		const Target cable{.kind = Target::Kind::CABLE,
 		                   .param = deluge::bridge::cable_depth(PatchSource::LFO_GLOBAL_1, pitch)};
 		report("synth", 0, "cable", time_requests([&](int32_t i) {

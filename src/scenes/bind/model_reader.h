@@ -5,7 +5,7 @@
 
 #include "deluge-project/setting_group.h"
 #include "deluge-project/song.h"
-#include "engine-api/types/setting.h"
+#include "plugin-api/types/setting.h"
 #include "scenes/bind/runtime_facts.h"
 
 #include <cstdint>
@@ -32,7 +32,7 @@ public:
 	/// @return The value, or nullopt for a path the table does not hold or an owner that does not resolve.
 	[[nodiscard]] std::optional<int32_t> read(std::string_view path) const;
 	/// @brief This reader as the engine's SettingReader; valid while this object lives.
-	[[nodiscard]] engine::SettingReader reader() const;
+	[[nodiscard]] plugin::SettingReader reader() const;
 
 private:
 	const project::Song* model_;

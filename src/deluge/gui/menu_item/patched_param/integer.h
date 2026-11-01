@@ -18,6 +18,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/integer.h"
 #include "gui/menu_item/patched_param.h"
+#include "plugin-api/types/param_mapping.h"
 
 namespace deluge::gui::menu_item::patched_param {
 class Integer : public PatchedParam, public menu_item::IntegerContinuous {
@@ -31,7 +32,7 @@ public:
 	    : PatchedParam(newP), IntegerContinuous(newName, title), number_style_{style} {}
 	bool usesAffectEntire() override { return true; }
 
-	ParamDescriptor getLearningThing() final { return PatchedParam::getLearningThing(); }
+	deluge::modulation::KnobTarget getLearningThing() final { return PatchedParam::getLearningThing(); }
 	[[nodiscard]] int32_t getMaxValue() const override { return PatchedParam::getMaxValue(); }
 	[[nodiscard]] int32_t getMinValue() const override { return PatchedParam::getMinValue(); }
 	uint8_t shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) final {
@@ -71,6 +72,8 @@ protected:
 	void readCurrentValue() override;
 	void writeCurrentValue() final;
 	virtual int32_t getFinalValue();
+	/// How the param's word becomes the menu number: its plugin table row's mapping kind.
+	[[nodiscard]] plugin::MappingKind mapping() const;
 
 private:
 	std::optional<RenderingStyle> number_style_{std::nullopt};

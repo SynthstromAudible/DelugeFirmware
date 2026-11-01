@@ -21,10 +21,10 @@
 #include "model/song/song.h"
 
 #include "deluge-project/instrument_slot.h"
-#include "engines/deluge/codec.h"
-#include "engines/deluge/engine.h"
-#include "engines/effects/codec.h"
-#include "engines/effects/engine.h"
+#include "effects/codec.h"
+#include "effects/plugin.h"
+#include "instruments/deluge/codec.h"
+#include "instruments/deluge/plugin.h"
 #include "model/drum/drum.h"
 #include "model/instrument/instrument.h"
 #include "model/instrument/kit.h"
@@ -124,7 +124,7 @@ std::string soundIncoherence(::Sound& sound, ::Song& song, CoherenceChecks check
 			return "runtime at " + d;
 		}
 		if (const deluge::effects::EffectStates played = sound.seededState().effects; !(played == record.effects)) {
-			const deluge::engine::CodecContext context{.input_tick_magnitude = 1};
+			const deluge::plugin::CodecContext context{.input_tick_magnitude = 1};
 			return "runtime at effects "
 			       + deluge::serialization::first_difference(deluge::effects::encode(played, context),
 			                                                 deluge::effects::encode(record.effects, context));
@@ -145,7 +145,7 @@ std::string soundIncoherence(::Sound& sound, ::Song& song, CoherenceChecks check
 		}
 	}
 	if (checks.decode) {
-		const deluge::engine::CodecContext context{.input_tick_magnitude = slot->tick_magnitude};
+		const deluge::plugin::CodecContext context{.input_tick_magnitude = slot->tick_magnitude};
 		const auto decoded =
 		    deluge::instrument::decode_onto(deluge::instrument::encode(record, context), record, context);
 		if (!decoded) {
@@ -158,7 +158,7 @@ std::string soundIncoherence(::Sound& sound, ::Song& song, CoherenceChecks check
 		}
 	}
 	if (checks.snapshot) {
-		const deluge::snapshot::SoundSnapshot before = sound.snapshot();
+		const deluge::synth::SoundSnapshot before = sound.snapshot();
 		sound.projectSnapshot();
 		if (!(sound.snapshot() == before)) {
 			return "snapshot";
@@ -177,9 +177,9 @@ std::string chainDifference(const ::GlobalEffectable& owner, const deluge::proje
 	if (owner.boundChain() != &record || held != &owner.effects()) {
 		return "the owner does not play its record";
 	}
-	const deluge::engine::CodecContext context{.input_tick_magnitude = tick_magnitude};
+	const deluge::plugin::CodecContext context{.input_tick_magnitude = tick_magnitude};
 	const deluge::serialization::Value encoded = record.effects.encode(context);
-	deluge::engine::StateHandle decoded = deluge::engine::StateHandle::of<deluge::effects::DelugeEffects>({});
+	deluge::plugin::StateHandle decoded = deluge::plugin::StateHandle::of<deluge::effects::DelugeEffects>({});
 	if (!decoded.decode(encoded, context)) {
 		return "decode refused";
 	}

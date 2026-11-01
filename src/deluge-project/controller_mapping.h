@@ -19,8 +19,8 @@
 
 #include "deluge-project/fx_chain.h"
 #include "deluge-project/instrument_slot.h"
-#include "engine-api/types/param.h"
-#include "engine-api/types/param_naming.h"
+#include "plugin-api/types/param.h"
+#include "plugin-api/types/param_naming.h"
 
 #include <cstdint>
 #include <span>
@@ -35,11 +35,11 @@ struct ModKnobControl {
 	[[nodiscard]] constexpr bool operator==(const ModKnobControl&) const = default;
 };
 
-/// @brief A mod knob and the param of its owner's engine it moves. A MIDI-learned knob is a binding of the song's
+/// @brief A mod knob and the param of its owner's plugin it moves. A MIDI-learned knob is a binding of the song's
 /// MappingTable.
 struct ControllerMapping {
 	ModKnobControl control;
-	deluge::engine::ParamId target{};
+	deluge::plugin::ParamId target{};
 	[[nodiscard]] bool operator==(const ControllerMapping&) const = default;
 };
 
@@ -52,9 +52,9 @@ struct ControlsAddress {
 	bool operator==(const ControlsAddress&) const = default;
 };
 
-/// @brief The engines whose params the codecs may meet, with how each names them.
-struct CodecEngines {
-	std::span<const deluge::engine::ParamNaming> namings;
+/// @brief The plugins whose params the codecs may meet, with how each names them.
+struct CodecPlugins {
+	std::span<const deluge::plugin::ParamNaming> namings;
 	/// How a host owner's effects are read and written; unset, the model keeps no chains.
 	ChainCodec chains;
 	/// How a sound's instrument is read and written; unset, the model keeps no instruments.

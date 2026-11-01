@@ -178,7 +178,7 @@ public:
 
 	/// `PatchCableStrength::getLearningThing()` -- `MenuItemWithCCLearning`'s answer, which is a
 	/// function of the navigation state rather than of this item (see `CustomItem::learn_descriptor`).
-	ParamDescriptor learn_descriptor(const MenuContext& ctx, const MenuState& state) const override;
+	deluge::synth::CableTarget learn_descriptor(const MenuContext& ctx, const MenuState& state) const override;
 
 	constexpr Which which() const { return which_; }
 
@@ -284,8 +284,8 @@ inline constexpr std::span<const Node* const> kPatchCablesChain{kPatchCablesChai
 /// @brief The request that sets the cable @p learn names (its bottom-level source to its destination) on the sound
 ///        @p ctx edits to @p menu_value, the strength page's own value; a cable it makes takes @p polarity.
 /// @return The request, or nullopt where @p ctx edits no sound.
-std::optional<deluge::scenes::bind::WriteRequest> cable_request(const MenuContext& ctx, ParamDescriptor learn,
-                                                                int32_t menu_value, Polarity polarity);
+std::optional<deluge::scenes::bind::WriteRequest>
+cable_request(const MenuContext& ctx, deluge::synth::CableTarget learn, int32_t menu_value, Polarity polarity);
 
 /// @brief @p n with the chain every `PatchedParam`-derived legacy item has.
 ///

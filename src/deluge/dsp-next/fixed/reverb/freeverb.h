@@ -23,11 +23,11 @@
 
 #include "dsp-next/core/chain.h"
 #include "dsp-next/core/kernel.h"
+#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/core/types.h"
 #include "dsp-next/core/wrapping.h"
 #include "dsp-next/fixed/filter/shift_tracker.h"
-#include "util/fixedpoint.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -137,7 +137,7 @@ struct Freeverb {
 		constexpr auto kMax = std::numeric_limits<int32_t>::max();
 		const float roomsize = (s.room_size * kScaleRoom) + kOffsetRoom;
 		const float damp = s.damping * kScaleDamp;
-		const auto damp1 = static_cast<q31>(damp * kMax);
+		const auto damp1 = static_cast<q31>(damp * static_cast<float>(kMax)); // kMax rounds up to 2^31 as a float
 		// Each channel's share of the other: half the width's shortfall over the channel's own share, which runs from a
 		// half (width 0) to all of it (width 1).
 		const float cross = (1.f - s.width) / 2;

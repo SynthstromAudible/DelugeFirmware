@@ -52,9 +52,11 @@ public:
 	} // Returns whether Instrument was changed
 	virtual void modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager,
 	                             const deluge::project::CompView& comp = {}) {};
-	virtual ModelStackWithAutoParam* getParamFromModEncoder(
-	    int32_t whichModEncoder, ModelStackWithThreeMainThings* modelStack, bool allowCreation = true,
-	    const deluge::project::CompView& comp = {}); // Check that autoParam isn't NULL, after calling this.
+	/// Check that autoParam isn't NULL, after calling this. allowCreation: the caller writes it.
+	virtual ModelStackWithAutoParam* getParamFromModEncoder(int32_t whichModEncoder,
+	                                                        ModelStackWithThreeMainThings* modelStack,
+	                                                        bool allowCreation,
+	                                                        const deluge::project::CompView& comp = {});
 
 	/// Check that autoParam isn't NULL, after calling this
 	virtual ModelStackWithAutoParam* getParamFromMIDIKnob(MIDIKnob& knob, ModelStackWithThreeMainThings* modelStack);

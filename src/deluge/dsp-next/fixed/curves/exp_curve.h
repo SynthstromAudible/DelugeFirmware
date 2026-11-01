@@ -17,12 +17,13 @@
 
 #pragma once
 
+#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/fixed/interpolation/table_interpolation.h"
-#include "util/fixedpoint.h"
-#include "util/param_functions.h" // increaseMagnitudeAndSaturate
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
+#include <limits>
 
 namespace deluge::dsp::fixed {
 
@@ -48,13 +49,25 @@ alignas(16) inline constexpr std::array<uint16_t, 257> kExpTable = {
 65535, };
 // clang-format on
 
+/// @brief The most octaves @ref increase_magnitude_and_saturate scales by: past 20 its saturation narrows no further,
+/// so a larger shift wraps.
+inline constexpr int32_t kExpSaturatingOctaves = 20;
+
 /// @brief The exponential curve every param is shaped by: @p preset scaled by 2^(adjustment / 2^26 + 2), saturating.
-/// The low 26 bits of @p adjustment are the fraction of an octave, looked up in @ref kExpTable.
+/// The low 26 bits of @p adjustment are the fraction of an octave, looked up in @ref kExpTable. Up to 20 octaves the
+/// saturation is @ref increase_magnitude_and_saturate's (to the multiples of 2^octaves); past that, which an add chain
+/// saturated by several cables reaches (up to 33), the scaled value saturates to the whole q31 range.
 [[nodiscard]] inline int32_t exp_curve(int32_t preset, int32_t adjustment) {
 	const int32_t octaves = (adjustment >> 26) + 2;
 	const int32_t within_octave = multiply_32x32_rshift32(
-	    preset, linear_table_interpolator.interpolate(adjustment & 67108863, 26, kExpTable.data()));
-	return increaseMagnitudeAndSaturate(within_octave, octaves);
+	    preset, kLinearTableInterpolator.interpolate(adjustment & 67108863, 26, kExpTable.data()));
+	if (octaves <= kExpSaturatingOctaves) {
+		return increase_magnitude_and_saturate(within_octave, octaves);
+	}
+	// 2^31 times 2^32 still fits in 64 bits; a nonzero value saturates long before
+	const int64_t scaled = static_cast<int64_t>(within_octave) << std::min(octaves, 32);
+	return static_cast<int32_t>(
+	    std::clamp<int64_t>(scaled, std::numeric_limits<int32_t>::min(), std::numeric_limits<int32_t>::max()));
 }
 
 } // namespace deluge::dsp::fixed

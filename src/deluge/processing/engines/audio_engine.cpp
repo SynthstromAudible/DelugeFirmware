@@ -16,17 +16,21 @@
  */
 
 #include "processing/engines/audio_engine.h"
+#include "dsp-next/fixed/curves/param_curve.h"
+#include "dsp-next/fixed/vca/pan.h"
 #include "model/fx/chain_inputs.h"
 #include "util/notify.h"
 
 #include "chrono"
 #include "definitions.h"
 #include "definitions_cxx.hpp"
-#include "deluge_resource.h"                      // deluge_resource_stats (loader instrumentation)
+#include "deluge_resource.h" // deluge_resource_stats (loader instrumentation)
+#include "dsp-next/core/wrapping.h"
 #include "dsp-next/fixed/dynamics/hit_strength.h" // combine_hit_strengths
+#include "dsp-next/fixed/mix/output_fold.h"
 #include "dsp/timestretch/time_stretcher.h"
-#include "engines/effects/reverb.h"
-#include "engines/effects/sidechain.h"
+#include "effects/reverb.h"
+#include "effects/sidechain.h"
 #include "extern.h"
 #include "gui/context_menu/sample_browser/kit.h"
 #include "gui/context_menu/sample_browser/synth.h"
@@ -39,6 +43,7 @@
 #include "hid/display/display.h"
 #include "hid/encoder_input.h"
 #include "hid/encoders.h"
+#include "instruments/deluge/params.h"
 #include "io/debug/log.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_queue.h"
@@ -60,11 +65,12 @@
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/sample/sample_recorder.h"
 #include "model/song/song.h"
-#include "model/voice/voice.h"
 #include "model/voice/voice_sample.h"
+#include "model/voice/voice_slot.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "modulation/sidechain/sidechain.h"
 #include "playback/render_requests.h"
+#include "plugin-api/types/param_mapping.h"
 #include "processing/audio_output.h"
 #include "processing/engines/cv_engine.h"
 #include "processing/metronome/metronome.h"
@@ -77,8 +83,9 @@
 #include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
 #include "sync/sd_access.h"
-#include "synth/envelope.h"
-#include "synth/source/live/live_input_buffer.h"
+#include "synth/modulation/cable_depth.h"
+#include "synth/modulation/envelope.h"
+#include "synth/sources/input/live/live_input_buffer.h"
 #include "util/boot.h"
 #include "util/functions.h"
 #include "util/misc.h"
@@ -391,14 +398,10 @@ constexpr int32_t direnessThreshold = numSamplesLimit - 30;
 constexpr int MIN_VOICES = 7;
 
 deluge::effects::Reverb reverb{};
-PLACE_INTERNAL_FRUNK deluge::effects::Sidechain reverbSidechain{};
 deluge::effects::SidechainState reverbSidechainSettings = deluge::modulation::default_sidechain_state();
 int32_t reverbSidechainVolume;
 int32_t reverbSidechainShape;
 int32_t reverbPan = 0;
-
-int32_t reverbSidechainVolumeInEffect; // Active right now - possibly overridden by the sound with the most reverb
-int32_t reverbSidechainShapeInEffect;
 
 bool mustUpdateReverbParamsBeforeNextRender = false;
 
@@ -408,8 +411,8 @@ uint32_t timeLastSideChainHit = 2147483648;
 int32_t sizeLastSideChainHit;
 
 Metronome metronome{};
-StereoFloatSample approxRMSLevel{0};
-AbsValueFollower envelopeFollower{};
+deluge::dsp::fp::StereoLevel approxRMSLevel{};
+deluge::dsp::fp::LevelDetector envelopeFollower{};
 int32_t timeLastPopup{0};
 
 SoundDrum* sampleForPreview;
@@ -467,12 +470,8 @@ static void advanceInputRingPos(size_t numSamples) {
 	}
 }
 
-bool inputMonitoringWarmedUp = false;
+deluge::audio::InputMonitor inputMonitor{};
 bool usbInputMonitoredByTrack = false;
-// ~500ms after power-on for the codec ADC to settle before we start monitoring its input (see inputMonitoringWarmedUp),
-// then ~50ms to fade it in so monitoring doesn't switch on with a click.
-constexpr uint32_t kInputMonitoringWarmupSamples = kSampleRate / 2;
-constexpr uint32_t kInputMonitoringFadeInSamples = kSampleRate / 20;
 volatile int voices_started_this_render = 0;
 bool headphonesPluggedIn;
 bool micPluggedIn;
@@ -495,9 +494,6 @@ StereoSample* renderingBufferOutputEnd = renderingMemory.begin();
 int32_t masterVolumeAdjustmentL;
 int32_t masterVolumeAdjustmentR;
 
-bool doMonitoring;
-MonitoringAction monitoringAction;
-
 deluge::AudioOwnedList<Sound, deluge::fast_vector<Sound*>> sounds;
 std::atomic<bool> renderDrivenByTier{false};
 
@@ -516,9 +512,11 @@ void init() {
 	        ->addOtherTwoThingsButNoNoteRow(sampleForPreview, paramManagerForSamplePreview)
 	        ->addParamCollectionSummary(paramManagerForSamplePreview->getPatchCableSetSummary());
 
-	((PatchCableSet*)modelStackWithParamCollection->paramCollection)->setupPatching(modelStackWithParamCollection);
-	sampleForPreview->patcher.performInitialPatching(
-	    sampleForPreview->patchControlBlock(*paramManagerForSamplePreview));
+	((PatchCableSet*)modelStackWithParamCollection->paramCollection)
+	    ->setupPatching(*static_cast<Sound*>(modelStackWithParamCollection->modControllable),
+	                    *modelStackWithParamCollection->paramManager);
+	sampleForPreview->performInitialPatching(
+	    sampleForPreview->matrixBlock(*paramManagerForSamplePreview, Sound::PresetGather::ALL));
 
 	sampleForPreview->setSideChainSendLevel(2147483647); // DOM-owned (an unbound preview sets the cache only)
 
@@ -584,7 +582,7 @@ void killOneVoice(size_t num_samples) {
 		                              | std::views::filter(&Sound::hasActiveVoices)
 		                              | std::views::transform(&Sound::getLowestPriorityVoice);
 		auto it = std::ranges::max_element(lowest_priority_voices, [](const auto& a, const auto& b) {
-			return a->getPriorityRating() < b->getPriorityRating();
+			return a->priority_rating() < b->priority_rating();
 		});
 		// are there any active voices to kill?
 		if (it == lowest_priority_voices.end()) {
@@ -598,7 +596,7 @@ void killOneVoice(size_t num_samples) {
 
 		const Sound::ActiveVoice& voice = *it;
 
-		bool still_rendering = voice->doImmediateRelease();
+		bool still_rendering = voice->do_immediate_release();
 		if (!still_rendering) {
 			voice->sound.freeActiveVoice(voice);
 		}
@@ -622,10 +620,10 @@ void terminateOneVoice(size_t numSamples) {
 		// seeding `best` unfiltered let an already-fast-releasing front voice absorb every cull in the window.
 		const Sound::ActiveVoice* best = nullptr;
 		for (const auto& voice : all_voices) {
-			if (voice->isCullFading()) {
+			if (voice->kernel.is_cull_fading()) {
 				continue;
 			}
-			if (best == nullptr || (*best)->getPriorityRating() < voice->getPriorityRating()) {
+			if (best == nullptr || (*best)->priority_rating() < voice->priority_rating()) {
 				best = &voice;
 			}
 		}
@@ -635,7 +633,7 @@ void terminateOneVoice(size_t numSamples) {
 		}
 
 		const Sound::ActiveVoice& voice = *best;
-		bool still_rendering = voice->doFastRelease(2 * SOFT_CULL_INCREMENT);
+		bool still_rendering = voice->do_fast_release(2 * kSoftCullIncrement);
 		if (!still_rendering) {
 			voice->sound.freeActiveVoice(voice);
 		}
@@ -659,10 +657,10 @@ void forceReleaseOneVoice(size_t num_samples) {
 		// musical-release tails keep stacking up.
 		const Sound::ActiveVoice* best = nullptr;
 		for (const auto& voice : all_voices) {
-			if (voice->isCullFading()) {
+			if (voice->kernel.is_cull_fading()) {
 				continue;
 			}
-			if (best == nullptr || (*best)->getPriorityRating() < voice->getPriorityRating()) {
+			if (best == nullptr || (*best)->priority_rating() < voice->priority_rating()) {
 				best = &voice;
 			}
 		}
@@ -673,7 +671,7 @@ void forceReleaseOneVoice(size_t num_samples) {
 
 		const Sound::ActiveVoice& voice = *best;
 
-		auto stage = voice->envelopes[0].stage();
+		auto stage = voice->kernel.envelope(0).stage();
 		if (stage < Envelope::Stage::FAST_RELEASE) {
 			D_PRINTLN("force released 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", num_samples,
 			          getNumVoices(), getNumAudio());
@@ -683,7 +681,7 @@ void forceReleaseOneVoice(size_t num_samples) {
 			          num_samples, getNumVoices(), getNumAudio());
 		}
 
-		bool still_rendering = voice->speedUpRelease();
+		bool still_rendering = voice->speed_up_release();
 		if (!still_rendering) {
 			voice->sound.freeActiveVoice(voice);
 		}
@@ -1052,8 +1050,8 @@ void renderMaster(std::span<StereoSample> renderingBuffer, const deluge::effects
 	currentSong->live.global_effectable.chain().render(renderingBuffer, master,
 	                                                   {reverbMemory.data(), renderingBuffer.size()}, tracked);
 	if (post) {
-		masterVolumeAdjustmentL = ONE_Q31;
-		masterVolumeAdjustmentR = ONE_Q31;
+		masterVolumeAdjustmentL = kOneQ31;
+		masterVolumeAdjustmentR = kOneQ31;
 	}
 }
 void renderSamplePreview(size_t numSamples);
@@ -1077,7 +1075,7 @@ static uint32_t outputStage(DelugeStereoSample* out, uint32_t produced, uint32_t
 extern "C" void deluge_app_render_skipped(void) noexcept {
 	try {
 		// The render's own work, excluded like a rendered block (see deluge_app_render()).
-		AudioExcludedSection renderBlock;
+		AudioExcludedSection render_block;
 #if defined(DELUGE_HOST)
 		View::RenderBlockStackWatch stackWatch;
 		deluge::playback::RenderBlockInteractionWatch interactionWatch;
@@ -1094,7 +1092,7 @@ static void renderAppBlock(const DelugeStereoSample* in, DelugeStereoSample* out
 	// nothing preempts, so it never masks. On host the render is a thread like any other, and this is what gives it
 	// the device's guarantee: an interaction-tier structural edit to a container the render walks (each runs in its
 	// own section) and a render block never overlap.
-	AudioExcludedSection renderBlock;
+	AudioExcludedSection render_block;
 #if defined(DELUGE_HOST)
 	// For the harness: whether this block changed the gold knobs' render-visible words, or other state only the
 	// interaction tier may write.
@@ -1201,10 +1199,7 @@ static void renderAppBlock(const DelugeStereoSample* in, DelugeStereoSample* out
 
 		// Once the codec has had time to settle after power-on and monitoring has faded in, allow full input
 		// monitoring. Latches true and stays true, so audioSampleTimer wrapping around can't mute monitoring again.
-		if (!inputMonitoringWarmedUp
-		    && audioSampleTimer >= kInputMonitoringWarmupSamples + kInputMonitoringFadeInSamples) {
-			inputMonitoringWarmedUp = true;
-		}
+		inputMonitor.advance_time(audioSampleTimer);
 	}
 
 #if DO_AUDIO_LOG
@@ -1282,22 +1277,6 @@ extern "C" bool deluge_app_audio_tick() noexcept {
 	}
 }
 
-q31_t getInputMonitoringGain(uint32_t offset) {
-	if (inputMonitoringWarmedUp) {
-		return std::numeric_limits<q31_t>::max();
-	}
-	uint32_t time = audioSampleTimer + offset;
-	if (time <= kInputMonitoringWarmupSamples) {
-		return 0;
-	}
-	uint32_t elapsed = time - kInputMonitoringWarmupSamples;
-	if (elapsed >= kInputMonitoringFadeInSamples) {
-		return std::numeric_limits<q31_t>::max();
-	}
-	return static_cast<q31_t>((static_cast<uint64_t>(elapsed) * std::numeric_limits<q31_t>::max())
-	                          / kInputMonitoringFadeInSamples);
-}
-
 int32_t* getInputBufferStart(AudioInputChannel channel) {
 	return (channel == AudioInputChannel::USB) ? usb_audio::getInputRingStart() : inputRingStart();
 }
@@ -1311,6 +1290,22 @@ int32_t* getInputReadPos(AudioInputChannel channel) {
 	return (channel == AudioInputChannel::USB) ? usb_audio::getInputRingStart() + (codecPos - inputRingStart())
 	                                           : codecPos;
 }
+
+namespace {
+
+/// The song's post-FX volume as the metronome takes it: the song volume param's final value, halved; kOneQ31 with no
+/// song.
+int32_t metronomeVolumePostFx() {
+	if (currentSong == nullptr) {
+		return kOneQ31;
+	}
+	return deluge::dsp::fixed::curve_square(134217728, deluge::dsp::fixed::preset_combination(
+	                                                       currentSong->paramManager.getUnpatchedParamSet()->getValue(
+	                                                           deluge::modulation::params::UNPATCHED_VOLUME)))
+	       >> 1;
+}
+
+} // namespace
 
 void renderAudio(size_t numSamples) {
 	std::span renderingBuffer{renderingMemory.data(), numSamples};
@@ -1344,9 +1339,9 @@ void renderAudio(size_t numSamples) {
 		masterVolumeAdjustmentR = kMasterVolumeWithoutSong;
 	}
 
-	metronome.render(renderingBuffer);
+	metronome.render(renderingBuffer, metronomeVolumePostFx());
 
-	approxRMSLevel = envelopeFollower.calcApproxRMS(renderingBuffer);
+	approxRMSLevel = envelopeFollower.measure(renderingBuffer);
 
 	setMonitoringMode();
 
@@ -1403,10 +1398,9 @@ void renderAudioForStemExport(size_t numSamples) {
 		}
 	}
 
-	approxRMSLevel = envelopeFollower.calcApproxRMS(renderingBuffer);
+	approxRMSLevel = envelopeFollower.measure(renderingBuffer);
 
-	doMonitoring = false;
-	monitoringAction = MonitoringAction::NONE;
+	inputMonitor.decide({});
 
 	renderingBufferOutputPos = renderingMemory.begin();
 	renderingBufferOutputEnd = renderingMemory.begin() + numSamples;
@@ -1522,16 +1516,11 @@ void renderReverb(size_t numSamples) {
 		mustUpdateReverbParamsBeforeNextRender = false;
 	}
 
-	// Render the reverb sidechain
-	int32_t sidechainOutput = 0;
-	if (reverbSidechainVolumeInEffect != 0) {
-		if (sideChainHitPending != 0) {
-			reverbSidechain.registerHit(sideChainHitPending);
-		}
-
-		sidechainOutput = reverbSidechain.render(numSamples, reverbSidechainShapeInEffect, reverbSidechainSettings,
-		                                         playbackHandler.getTimePerInternalTickInverse());
-	}
+	// The return's duck advances whether or not the reverb renders this block. The tick inverse is read only while it
+	// ducks: between songs there is no tempo to read.
+	const uint32_t tickInverse = reverb.return_ducks() ? playbackHandler.getTimePerInternalTickInverse() : 0;
+	const int32_t reverbOutputVolume =
+	    reverb.return_level(numSamples, sideChainHitPending, reverbSidechainSettings, tickInverse);
 
 	int32_t reverbAmplitudeL;
 	int32_t reverbAmplitudeR;
@@ -1542,13 +1531,14 @@ void renderReverb(size_t numSamples) {
 	reverbOn |= (std::max(approxRMSLevel.l, approxRMSLevel.r) > 9);
 
 	if (reverbOn) {
-		// Patch that to reverb volume
-		int32_t positivePatchedValue =
-		    multiply_32x32_rshift32(sidechainOutput, reverbSidechainVolumeInEffect) + 0x20000000;
-		int32_t reverbOutputVolume = (positivePatchedValue >> 15) * (positivePatchedValue >> 14);
-
 		// Reverb panning
-		bool thisDoPanning = (renderInStereo && shouldDoPanning(reverbPan, &reverbAmplitudeL, &reverbAmplitudeR));
+		bool thisDoPanning = false;
+		if (renderInStereo) {
+			const deluge::dsp::fixed::PanAmplitudes amplitudes = deluge::dsp::fixed::pan_amplitudes(reverbPan);
+			reverbAmplitudeL = amplitudes.left;
+			reverbAmplitudeR = amplitudes.right;
+			thisDoPanning = reverbPan != 0;
+		}
 
 		if (thisDoPanning) {
 			reverbAmplitudeL = multiply_32x32_rshift32(reverbAmplitudeL, reverbOutputVolume) << 2;
@@ -1577,7 +1567,7 @@ void renderSamplePreview(size_t numSamples) { // Previewing sample
 		sampleForPreview->render(modelStack, renderingBuffer, reverbBuffer.data(), sideChainHitPending);
 	}
 }
-void setMonitoringMode() { // Monitoring setup
+void setMonitoringMode() {
 	// **The read half of the foreground-recording seam, and the fence below is the other end of
 	// `setForegroundRecording`'s** (`audio_engine.h`, and the writer a few lines down). This
 	// function runs from `renderAudio` on the priority-0 audio task, which the Rust scheduler routes
@@ -1590,11 +1580,9 @@ void setMonitoringMode() { // Monitoring setup
 	//   read:    src = recordingSource; [acquire]; rec = recorder;
 	//
 	// so a reader that saw the channel naming a live capture has already been able to see the
-	// pointer that was published before it, and a reader that sees the cleared channel never
-	// dereferences the pointer at all. Fencing only the writer -- which is what shipped first --
-	// left the invariant enforced in one direction: the compiler was still free to reload
-	// `audioRecorder.recorder` after the `doMonitoring &&` branch below had already tested it, which
-	// is precisely the dereference the "double-check" exists to prevent.
+	// pointer that was published before it, and only a reader that saw such a channel dereferences
+	// the pointer: one that sees the cleared channel may still load the old pointer, which is why the
+	// line-input queries below are asked only for a capturing channel.
 	//
 	// `std::atomic_signal_fence`, not `atomic_thread_fence`, and no `dmb`, for the writer's reason:
 	// the two contexts are a handler and a thread on the SAME core, so what can reorder these
@@ -1602,45 +1590,20 @@ void setMonitoringMode() { // Monitoring setup
 	const AudioInputChannel recordingSource = audioRecorder.recordingSource;
 	std::atomic_signal_fence(std::memory_order_acquire);
 	SampleRecorder* const recorder = audioRecorder.recorder;
-
-	doMonitoring = false;
-	if (recordingSource == AudioInputChannel::USB) {
-		// No risk of feedback from the internal mic here, so "conditional" means on. Unless it's already being sent
-		// straight to the outputs - then we'd hear it twice
-		doMonitoring = (inputMonitoringMode != InputMonitoringMode::OFF && !usb_audio::directMonitoring);
-		monitoringAction = MonitoringAction::NONE;
-		return;
-	}
-	if (recordingSource == AudioInputChannel::STEREO || recordingSource == AudioInputChannel::LEFT) {
-		if (inputMonitoringMode == InputMonitoringMode::SMART) {
-			doMonitoring = (lineInPluggedIn || headphonesPluggedIn);
-		}
-		else {
-			doMonitoring = (inputMonitoringMode == InputMonitoringMode::ON);
-		}
-	}
-
-	monitoringAction = MonitoringAction::NONE;
-	if (doMonitoring && recorder != nullptr) { // Double-check, now over the local
-		if (lineInPluggedIn) {                 // Line input
-			if (recorder->inputLooksDifferential()) {
-				monitoringAction = MonitoringAction::SUBTRACT_RIGHT_CHANNEL;
-			}
-			else if (recorder->inputHasNoRightChannel()) {
-				monitoringAction = MonitoringAction::REMOVE_RIGHT_CHANNEL;
-			}
-		}
-
-		else if (micPluggedIn) { // External mic
-			if (recorder->inputHasNoRightChannel()) {
-				monitoringAction = MonitoringAction::REMOVE_RIGHT_CHANNEL;
-			}
-		}
-
-		else { // Internal mic
-			monitoringAction = MonitoringAction::REMOVE_RIGHT_CHANNEL;
-		}
-	}
+	const bool capturing =
+	    recorder != nullptr
+	    && (recordingSource == AudioInputChannel::STEREO || recordingSource == AudioInputChannel::LEFT);
+	inputMonitor.decide({
+	    .source = recordingSource,
+	    .mode = inputMonitoringMode,
+	    .usb_direct_monitoring = usb_audio::directMonitoring,
+	    .line_in = lineInPluggedIn,
+	    .headphones = headphonesPluggedIn,
+	    .mic = micPluggedIn,
+	    .recorder = recorder != nullptr,
+	    .looks_differential = capturing && recorder->inputLooksDifferential(),
+	    .no_right_channel = capturing && recorder->inputHasNoRightChannel(),
+	});
 }
 
 // The foreground-recording seam. See the doc comment on these two in audio_engine.h: they exist so
@@ -1839,8 +1802,8 @@ int32_t getNumSamplesLeftToOutputFromPreviousRender() {
 }
 
 // Independent white-noise PRNG for the master output dither — deliberately separate from the synth-wide
-// getNoise()/jcong stream (see the dither call site below). Same LCG recurrence as CONG, so the dither's
-// statistics are unchanged; only its state is private, so dithering can't perturb synth randomness.
+// getNoise()/synth_noise stream (see the dither call site below). Same LCG recurrence as the synth's Cong, so the
+// dither's statistics are unchanged; only its state is private, so dithering can't perturb synth randomness.
 [[gnu::always_inline]] inline int32_t outputDither() {
 	static uint32_t state = 380116160;
 	state = 69069 * state + 1234567;
@@ -1886,15 +1849,17 @@ static uint32_t outputStage(DelugeStereoSample* out, uint32_t produced, uint32_t
 	int32_t const* const lineInEnd = inputRingEnd();
 
 	bool outputRealAudio = (!stemExport.processStarted || (stemExport.processStarted && !stemExport.renderOffline));
+	bool const monitorInput = inputMonitor.on();
+	deluge::dsp::fixed::OutputFold const monitorFold = inputMonitor.fold();
 
 	while (renderingBufferOutputPosNow != renderingBufferOutputEnd && numSamplesOutputted < maxSamples) {
 
 		// Here we're going to do something equivalent to a multiply_32x32_rshift32(), but add dithering.
 		// Because dithering is good, and also because the annoying codec chip freaks out if it sees the same 0s for
-		// too long. The dither draws from its OWN PRNG stream (outputDither), NOT the synth-wide getNoise()/jcong:
-		// the output stage runs once per output sample — including a load-/timing-dependent number of keep-alive
-		// samples — so sharing the stream let that count perturb every synth random draw, making the offline render
-		// depend on heap layout (and coupling musical randomness to output-sample count). See
+		// too long. The dither draws from its OWN PRNG stream (outputDither), NOT the synth-wide
+		// getNoise()/synth_noise: the output stage runs once per output sample — including a load-/timing-dependent
+		// number of keep-alive samples — so sharing the stream let that count perturb every synth random draw, making
+		// the offline render depend on heap layout (and coupling musical randomness to output-sample count). See
 		// docs/dev/overread_hunt.md.
 		int64_t lAdjustedBig =
 		    (int64_t)renderingBufferOutputPosNow->l * (int64_t)masterVolumeAdjustmentL + (int64_t)outputDither();
@@ -1904,25 +1869,11 @@ static uint32_t outputStage(DelugeStereoSample* out, uint32_t produced, uint32_t
 		int32_t lAdjusted = lAdjustedBig >> 32;
 		int32_t rAdjusted = rAdjustedBig >> 32;
 
-		if (doMonitoring) {
-
-			if (monitoringAction == MonitoringAction::SUBTRACT_RIGHT_CHANNEL) {
-				int32_t value = (inputReadPos[0] >> (AUDIO_OUTPUT_GAIN_DOUBLINGS + 1))
-				                - (inputReadPos[1] >> (AUDIO_OUTPUT_GAIN_DOUBLINGS));
-				lAdjusted += value;
-				rAdjusted += value;
-			}
-
-			else {
-				lAdjusted += inputReadPos[0] >> (AUDIO_OUTPUT_GAIN_DOUBLINGS);
-
-				if (monitoringAction == MonitoringAction::NONE) {
-					rAdjusted += inputReadPos[1] >> (AUDIO_OUTPUT_GAIN_DOUBLINGS);
-				}
-				else { // Remove right channel
-					rAdjusted += inputReadPos[0] >> (AUDIO_OUTPUT_GAIN_DOUBLINGS);
-				}
-			}
+		if (monitorInput) {
+			const StereoSample monitored = deluge::dsp::fixed::output_monitor_fold(
+			    monitorFold, {.l = inputReadPos[0], .r = inputReadPos[1]}, AUDIO_OUTPUT_GAIN_DOUBLINGS);
+			lAdjusted = deluge::dsp::wrapping_add(lAdjusted, monitored.l);
+			rAdjusted = deluge::dsp::wrapping_add(rAdjusted, monitored.r);
 
 			inputReadPos += NUM_MONO_INPUT_CHANNELS;
 			if (inputReadPos >= inputBufferEnd) {
@@ -1940,8 +1891,8 @@ static uint32_t outputStage(DelugeStereoSample* out, uint32_t produced, uint32_t
 				}
 			}
 			else {
-				toUSB[numSamplesOutputted].l = lshiftAndSaturate<AUDIO_OUTPUT_GAIN_DOUBLINGS>(lAdjusted);
-				toUSB[numSamplesOutputted].r = lshiftAndSaturate<AUDIO_OUTPUT_GAIN_DOUBLINGS>(rAdjusted);
+				toUSB[numSamplesOutputted].l = lshift_and_saturate<AUDIO_OUTPUT_GAIN_DOUBLINGS>(lAdjusted);
+				toUSB[numSamplesOutputted].r = lshift_and_saturate<AUDIO_OUTPUT_GAIN_DOUBLINGS>(rAdjusted);
 			}
 		}
 
@@ -1954,8 +1905,8 @@ static uint32_t outputStage(DelugeStereoSample* out, uint32_t produced, uint32_t
 			}
 		}
 
-		outputBufferForResampling[numSamplesOutputted].l = lshiftAndSaturate<AUDIO_OUTPUT_GAIN_DOUBLINGS>(lAdjusted);
-		outputBufferForResampling[numSamplesOutputted].r = lshiftAndSaturate<AUDIO_OUTPUT_GAIN_DOUBLINGS>(rAdjusted);
+		outputBufferForResampling[numSamplesOutputted].l = lshift_and_saturate<AUDIO_OUTPUT_GAIN_DOUBLINGS>(lAdjusted);
+		outputBufferForResampling[numSamplesOutputted].r = lshift_and_saturate<AUDIO_OUTPUT_GAIN_DOUBLINGS>(rAdjusted);
 		if (outputRealAudio) {
 			out[produced + numSamplesOutputted].l = outputBufferForResampling[numSamplesOutputted].l;
 			out[produced + numSamplesOutputted].r = outputBufferForResampling[numSamplesOutputted].r;
@@ -2062,6 +2013,7 @@ void dumpAudioLog() {
 }
 
 void updateReverbParams() {
+	deluge::effects::ReturnDuck duck{};
 
 	// If reverb sidechain on "auto" settings...
 	if (reverbSidechainVolume < 0) {
@@ -2090,48 +2042,49 @@ void updateReverbParams() {
 		if (soundWithMostReverb) {
 			modControllable = soundWithMostReverb;
 
-			ParamDescriptor paramDescriptor;
-			paramDescriptor.setToHaveParamOnly(params::GLOBAL_VOLUME_POST_REVERB_SEND);
+			deluge::synth::CableTarget paramDescriptor =
+			    deluge::synth::CableTarget::param(params::GLOBAL_VOLUME_POST_REVERB_SEND);
 
 			PatchCableSet* patchCableSet = paramManagerWithMostReverb->getPatchCableSet();
 
 			int32_t whichCable = patchCableSet->getPatchCableIndex(PatchSource::SIDECHAIN, paramDescriptor);
 			if (whichCable != 255) {
-				reverbSidechainVolumeInEffect =
-				    patchCableSet->getModifiedPatchCableAmount(whichCable, params::GLOBAL_VOLUME_POST_REVERB_SEND);
+				duck.depth =
+				    deluge::synth::modified_depth(patchCableSet->patchCables[whichCable].param.getCurrentValue(),
+				                                  PatchSource::SIDECHAIN, params::GLOBAL_VOLUME_POST_REVERB_SEND);
 			}
 			else {
-				reverbSidechainVolumeInEffect = 0;
+				duck.depth = 0;
 			}
 			goto sidechainFound;
 		}
 		else if (globalEffectableWithMostReverb) {
 			modControllable = globalEffectableWithMostReverb;
 
-			reverbSidechainVolumeInEffect =
+			duck.depth =
 			    globalEffectableWithMostReverb->getSidechainVolumeAmountAsPatchCableDepth(paramManagerWithMostReverb);
 
 sidechainFound:
-			reverbSidechainShapeInEffect =
+			duck.shape =
 			    paramManagerWithMostReverb->getUnpatchedParamSet()->getValue(params::UNPATCHED_SIDECHAIN_SHAPE);
 			const deluge::effects::SidechainState& from =
 			    modControllable->modControllableSnapshot().effects.sidechain; // the render's copy
 			reverbSidechainSettings.attack = from.attack;
 			reverbSidechainSettings.release = from.release;
 			reverbSidechainSettings.sync_level = from.sync_level;
+			reverb.set_return_duck(duck);
 			return;
 		}
 
 		// Or if no thing has more reverb than the Song itself...
 		else {
-			reverbSidechainVolumeInEffect = 0;
+			reverb.set_return_duck(duck);
 			return;
 		}
 	}
 
 	// Otherwise, use manually set params for reverb sidechain
-	reverbSidechainVolumeInEffect = reverbSidechainVolume;
-	reverbSidechainShapeInEffect = reverbSidechainShape;
+	reverb.set_return_duck({.depth = reverbSidechainVolume, .shape = reverbSidechainShape});
 }
 
 void registerSideChainHit(int32_t strength) {
@@ -2140,9 +2093,11 @@ void registerSideChainHit(int32_t strength) {
 
 PreviewVolume PreviewVolume::neutral() {
 	return {
-	    .volumePostFX = getParamFromUserValue(params::GLOBAL_VOLUME_POST_FX, kDefaultSoundVolumeUserValue),
+	    .volumePostFX =
+	        deluge::plugin::find_param(deluge::instrument::kParams, deluge::instrument::param::kVolumePostFX)
+	            ->default_value,
 	    .localVolume = 0,
-	    .velocityCableDepth = getParamFromUserValue(params::PATCH_CABLE, kSampleDrumVelocityCableUserValue),
+	    .velocityCableDepth = cableDepthFromPreset(kSampleDrumVelocityCableUserValue),
 	    .velocityCablePolarity = PatchCable::getDefaultPolarity(PatchSource::VELOCITY),
 	};
 }
@@ -2157,9 +2112,8 @@ void soundPreview(PreviewVolume const& volume) {
 	// setupAsSample() gives the preview drum one patch cable, VELOCITY -> LOCAL_VOLUME, unless it ran out of memory.
 	PatchCableSet* previewCables = paramManagerForSamplePreview->getPatchCableSet();
 	if (previewCables->numPatchCables != 0) {
-		PatchCable& velocityCable = previewCables->patchCables[0];
-		velocityCable.param.setCurrentValueBasicForSetup(volume.velocityCableDepth);
-		velocityCable.polarity = volume.velocityCablePolarity;
+		previewCables->patchCables[0].param.setCurrentValueBasicForSetup(volume.velocityCableDepth);
+		previewCables->setPolarity(0, volume.velocityCablePolarity);
 	}
 
 	// GLOBAL_VOLUME_POST_FX is a Sound-level param with no patch cables on the preview drum, so its final value
@@ -2419,7 +2373,7 @@ void slowRoutine() {
 	// Discard any LiveInputBuffers which aren't in use
 	for (int32_t i = 0; i < 3; i++) {
 		if (liveInputBuffers[i]) {
-			if (liveInputBuffers[i]->upToTime != audioSampleTimer) {
+			if (liveInputBuffers[i]->up_to_time != audioSampleTimer) {
 				liveInputBuffers[i]->~LiveInputBuffer();
 				delugeDealloc(liveInputBuffers[i]);
 				liveInputBuffers[i] = nullptr;

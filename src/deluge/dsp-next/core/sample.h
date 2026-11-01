@@ -16,7 +16,7 @@
  */
 #pragma once
 
-#include "util/fixedpoint.h" // q31_t, ONE_Q31, ONE_Q31f (standard-headers-only, L0-clean)
+#include "dsp-next/core/q31_ops.h" // q31_t, kOneQ31, kOneQ31f (standard-headers-only, L0-clean)
 #include <concepts>
 
 // Numeric vocabulary for dsp-next. The library is numeric-agnostic at the
@@ -24,7 +24,7 @@
 // realised in the q31 (fixed/) and f32 (float/) backends.
 namespace deluge::dsp {
 
-// q31 fixed-point sample: int32 where ONE_Q31 (2^31 - 1) represents +1.0.
+// q31 fixed-point sample: int32 where kOneQ31 (2^31 - 1) represents +1.0.
 //
 // Deliberately an *alias* of the firmware-wide q31_t, not a strong wrapper type.
 // During the strangler migration every app boundary speaks q31_t; an opaque
@@ -39,6 +39,6 @@ using f32 = float;
 
 // The scalar types a dsp-next primitive may be instantiated over.
 template <typename T>
-concept SampleType = std::same_as<T, q31> || std::same_as<T, f32>;
+concept sample_type = std::same_as<T, q31> || std::same_as<T, f32>;
 
 } // namespace deluge::dsp

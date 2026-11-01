@@ -91,7 +91,7 @@ using deluge::hid::display::OLED;
 
 #include "processing/engines/cv_engine.h"
 
-#include "engines/effects/reverb.h"
+#include "effects/reverb.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/kit.h"

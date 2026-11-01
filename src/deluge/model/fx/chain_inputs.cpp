@@ -16,7 +16,12 @@
  */
 
 #include "model/fx/chain_inputs.h"
+#include "dsp-next/fixed/curves/param_curve.h"
+#include "dsp-next/fixed/vca/pan.h"
+#include "synth/matrix/descriptors.h" // kParamNeutral
+#include "util/synth_noise.h"
 
+#include "effects/reverb.h"
 #include "model/fx/song_stutter.h"
 #include "model/global_effectable/global_effectable_for_clip.h"
 #include "model/global_effectable/global_effectable_for_song.h"
@@ -28,7 +33,6 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/render_scratch.h"
 #include "util/functions.h"
-#include "util/param_functions.h"
 
 #include <limits>
 
@@ -37,47 +41,34 @@ namespace params = deluge::modulation::params;
 namespace deluge::model {
 
 effects::FilterParams chainFilterParams(UnpatchedParamSet& unpatched) {
-	const int32_t lpfFrequencyParam = unpatched.getValue(params::UNPATCHED_LPF_FREQ);
-	const int32_t lpfMorphParam = unpatched.getValue(params::UNPATCHED_LPF_MORPH);
-	const int32_t hpfFrequencyParam = unpatched.getValue(params::UNPATCHED_HPF_FREQ);
-	const int32_t hpfMorphParam = unpatched.getValue(params::UNPATCHED_HPF_MORPH);
-	return {
-	    .lpf_frequency = getFinalParameterValueExp(paramNeutralValues[params::LOCAL_LPF_FREQ],
-	                                               cableToExpParamShortcut(lpfFrequencyParam)),
-	    .lpf_resonance =
-	        getFinalParameterValueLinear(paramNeutralValues[params::LOCAL_LPF_RESONANCE],
-	                                     cableToLinearParamShortcut(unpatched.getValue(params::UNPATCHED_LPF_RES))),
-	    .lpf_morph = getFinalParameterValueLinear(paramNeutralValues[params::LOCAL_LPF_MORPH],
-	                                              cableToExpParamShortcut(lpfMorphParam)),
-	    .hpf_frequency = getFinalParameterValueExp(paramNeutralValues[params::LOCAL_HPF_FREQ],
-	                                               cableToExpParamShortcut(hpfFrequencyParam)),
-	    .hpf_resonance =
-	        getFinalParameterValueLinear(paramNeutralValues[params::LOCAL_HPF_RESONANCE],
-	                                     cableToLinearParamShortcut(unpatched.getValue(params::UNPATCHED_HPF_RES))),
-	    .hpf_morph = getFinalParameterValueLinear(paramNeutralValues[params::LOCAL_HPF_MORPH],
-	                                              cableToExpParamShortcut(hpfMorphParam)),
-	    .lpf_frequency_param = lpfFrequencyParam,
-	    .lpf_morph_param = lpfMorphParam,
-	    .hpf_frequency_param = hpfFrequencyParam,
-	    .hpf_morph_param = hpfMorphParam,
-	    .allow_oversampling = AudioEngine::cpuDireness < 14,
-	};
+	return effects::Filter::params_from(
+	    {
+	        .lpf_frequency = unpatched.getValue(params::UNPATCHED_LPF_FREQ),
+	        .lpf_resonance = unpatched.getValue(params::UNPATCHED_LPF_RES),
+	        .lpf_morph = unpatched.getValue(params::UNPATCHED_LPF_MORPH),
+	        .hpf_frequency = unpatched.getValue(params::UNPATCHED_HPF_FREQ),
+	        .hpf_resonance = unpatched.getValue(params::UNPATCHED_HPF_RES),
+	        .hpf_morph = unpatched.getValue(params::UNPATCHED_HPF_MORPH),
+	    },
+	    AudioEngine::cpuDireness < 14);
 }
 
 effects::FxInputs hostFxInputs(GlobalEffectable& owner, ParamManager& paramManager, const effects::Delay::State& delay,
                                int32_t grainSend) {
 	UnpatchedParamSet* unpatched = paramManager.getUnpatchedParamSet();
+	const effects::ModFx::Params modFx = effects::ModFx::params_from({
+	    .rate = unpatched->getValue(params::UNPATCHED_MOD_FX_RATE),
+	    .depth = unpatched->getValue(params::UNPATCHED_MOD_FX_DEPTH),
+	    .offset = unpatched->getValue(params::UNPATCHED_MOD_FX_OFFSET),
+	    .feedback = unpatched->getValue(params::UNPATCHED_MOD_FX_FEEDBACK),
+	});
 	return {
 	    .settings = &owner.modControllableSnapshot().effects,
 	    .mod_fx_type = owner.getActiveModFXType(&paramManager),
-	    .mod_fx_rate =
-	        getFinalParameterValueExp(paramNeutralValues[params::GLOBAL_MOD_FX_RATE],
-	                                  cableToExpParamShortcut(unpatched->getValue(params::UNPATCHED_MOD_FX_RATE))),
-	    .mod_fx_depth = getFinalParameterValueVolume(
-	        paramNeutralValues[params::GLOBAL_MOD_FX_DEPTH],
-	        cableToLinearParamShortcut(unpatched->getValue(params::UNPATCHED_MOD_FX_DEPTH))),
-	    .mod_fx_offset = unpatched->getValue(params::UNPATCHED_MOD_FX_OFFSET),
-	    .mod_fx_feedback = unpatched->getValue(params::UNPATCHED_MOD_FX_FEEDBACK),
+	    .mod_fx_rate = modFx.rate,
+	    .mod_fx_depth = modFx.depth,
+	    .mod_fx_offset = modFx.offset,
+	    .mod_fx_feedback = modFx.feedback,
 	    .eq = {.bass = unpatched->getValue(params::UNPATCHED_BASS),
 	           .treble = unpatched->getValue(params::UNPATCHED_TREBLE),
 	           .bass_frequency = unpatched->getValue(params::UNPATCHED_BASS_FREQ),
@@ -85,6 +76,7 @@ effects::FxInputs hostFxInputs(GlobalEffectable& owner, ParamManager& paramManag
 	    .delay = delay,
 	    .stereo = AudioEngine::renderInStereo,
 	    .grain_send = grainSend,
+	    .noise = &synth_noise,
 	};
 }
 
@@ -100,8 +92,8 @@ effects::ClipChainInputs clipChainInputs(GlobalEffectableForClip& owner, ParamMa
 	volumePostFX += (outputType == OutputType::AUDIO) ? multiply_32x32_rshift32_rounded(volumeAdjustment, 471633397)
 	                                                  : (volumeAdjustment >> 2);
 
-	const int32_t reverbSendAmount = getFinalParameterValueVolume(
-	    reverbAmountAdjust, cableToLinearParamShortcut(unpatched->getValue(params::UNPATCHED_REVERB_SEND_AMOUNT)));
+	const int32_t reverbSendAmount = effects::final_value(
+	    effects::Reverb::kSend, unpatched->getValue(params::UNPATCHED_REVERB_SEND_AMOUNT), reverbAmountAdjust);
 	const StutterInput stutter = stutterInput(owner, &paramManager);
 
 	return {
@@ -118,7 +110,7 @@ effects::ClipChainInputs clipChainInputs(GlobalEffectableForClip& owner, ParamMa
 	    .sidechain_shape = unpatched->getValue(params::UNPATCHED_SIDECHAIN_SHAPE),
 	    .sidechain_depth = owner.getSidechainVolumeAmountAsPatchCableDepth(&paramManager),
 	    .tick_inverse = playbackHandler.getTimePerInternalTickInverse(),
-	    .post_reverb_volume_neutral = paramNeutralValues[params::GLOBAL_VOLUME_POST_REVERB_SEND],
+	    .post_reverb_volume_neutral = deluge::synth::matrix::kParamNeutral[params::GLOBAL_VOLUME_POST_REVERB_SEND],
 	    .compressor_threshold = unpatched->getValue(params::UNPATCHED_COMPRESSOR_THRESHOLD),
 	    .stutter = stutter.stutter,
 	    .stutter_rate = stutter.rate,
@@ -129,14 +121,12 @@ effects::MasterChainInputs masterChainInputs(Song& song, int32_t volumePostFX) {
 	GlobalEffectableForSong& master = song.live.global_effectable;
 	ParamManager& paramManager = song.paramManager;
 	const effects::Delay::State delay = master.createDelayWorkingState(paramManager);
-	const int32_t reverbSendAmount =
-	    getFinalParameterValueVolume(paramNeutralValues[params::GLOBAL_REVERB_AMOUNT],
-	                                 cableToLinearParamShortcut(paramManager.getUnpatchedParamSet()->getValue(
-	                                     params::UNPATCHED_REVERB_SEND_AMOUNT)));
+	const int32_t reverbSendAmount = effects::final_value(
+	    effects::Reverb::kSend, paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_REVERB_SEND_AMOUNT));
 	return {
 	    .fx = hostFxInputs(master, paramManager, delay, reverbSendAmount >> 3),
 	    .volume_post_fx = volumePostFX,
-	    .post_reverb_volume = paramNeutralValues[params::GLOBAL_VOLUME_POST_REVERB_SEND],
+	    .post_reverb_volume = deluge::synth::matrix::kParamNeutral[params::GLOBAL_VOLUME_POST_REVERB_SEND],
 	    .reverb_send = reverbSendAmount >> 1,
 	};
 }
@@ -150,11 +140,17 @@ effects::MasterPostInputs masterPostInputs(Song& song) {
 	const int32_t pan = unpatched->getValue(params::UNPATCHED_PAN) >> 1;
 	int32_t amplitudeL = 0;
 	int32_t amplitudeR = 0;
-	const bool doPanning = pan != 0 && AudioEngine::renderInStereo && shouldDoPanning(pan, &amplitudeL, &amplitudeR);
+	const bool doPanning = pan != 0 && AudioEngine::renderInStereo;
+	if (doPanning) {
+		const deluge::dsp::fixed::PanAmplitudes amplitudes = deluge::dsp::fixed::pan_amplitudes(pan);
+		amplitudeL = amplitudes.left;
+		amplitudeR = amplitudes.right;
+	}
 
 	return {
 	    .filter = chainFilterParams(*unpatched),
 	    .filter_scratch = render::filter_scratch(),
+	    .noise = &synth_noise,
 	    .bitcrush = {.bitcrush = unpatched->getValue(params::UNPATCHED_BITCRUSHING),
 	                 .sample_rate_reduction = unpatched->getValue(params::UNPATCHED_SAMPLE_RATE_REDUCTION)},
 	    // 134217728 made a bit bigger, so the filters' default resonance doesn't reduce the volume overall.
@@ -162,8 +158,8 @@ effects::MasterPostInputs masterPostInputs(Song& song) {
 	    .do_pan = doPanning,
 	    .pan_l = amplitudeL,
 	    .pan_r = amplitudeR,
-	    .song_volume = getFinalParameterValueVolume(
-	                       134217728, cableToLinearParamShortcut(unpatched->getValue(params::UNPATCHED_VOLUME)))
+	    .song_volume = deluge::dsp::fixed::curve_square(134217728, deluge::dsp::fixed::preset_combination(
+	                                                                   unpatched->getValue(params::UNPATCHED_VOLUME)))
 	                   >> 1,
 	    .stutter = stutter.stutter,
 	    .stutter_rate = stutter.rate,

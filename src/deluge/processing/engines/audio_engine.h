@@ -18,11 +18,12 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "dsp/envelope_follower/absolute_value.h"
-#include "engines/effects/state.h"
+#include "dsp-next/float/dynamics/level_detector.h"
+#include "effects/state.h"
 #include "memory/fast_allocator.h"
 #include "memory/object_pool.h"
 #include "model/output.h"
+#include "processing/engines/input_monitor.h"
 #include "runtime/app_loop.h"
 #include "util/audio_owned_list.h"
 #include "util/containers.h"
@@ -44,7 +45,7 @@ namespace deluge::synth {
 class LiveInputBuffer;
 }
 class SampleRecorder;
-class Voice;
+class VoiceSlot;
 class VoiceSample;
 class TimeStretcher;
 #include <string>
@@ -55,7 +56,6 @@ struct CriticalSectionGuard;
 class ModelStackWithSoundFlags;
 class SoundDrum;
 class Clip;
-class AbsValueFollower;
 
 namespace deluge::effects {
 class Sidechain;
@@ -146,7 +146,7 @@ struct ReverbSettings;
 namespace AudioEngine {
 #define logAction(string) logAudioAction(string, __FILE__, __LINE__)
 
-using VoicePool = deluge::memory::ObjectPool<Voice, deluge::memory::fast_allocator>;
+using VoicePool = deluge::memory::ObjectPool<VoiceSlot, deluge::memory::fast_allocator>;
 using VoiceSamplePool = deluge::memory::ObjectPool<VoiceSample, deluge::memory::fast_allocator>;
 using TimeStretcherPool = deluge::memory::ObjectPool<TimeStretcher, deluge::memory::fast_allocator>;
 uint32_t routine();
@@ -164,7 +164,8 @@ struct PreviewVolume {
 	int32_t velocityCableDepth;     ///< depth of the VELOCITY -> LOCAL_VOLUME patch cable
 	Polarity velocityCablePolarity; ///< polarity of the VELOCITY -> LOCAL_VOLUME patch cable
 
-	/// The defaults the preview drum is built with, from Sound::initParams() and Sound::setupAsSample().
+	/// The defaults the preview drum is built with: the instrument table's (Sound::initParams()) and
+	/// Sound::setupAsSample()'s.
 	static PreviewVolume neutral();
 };
 
@@ -251,10 +252,9 @@ extern bool micPluggedIn;
 extern bool lineInPluggedIn;
 extern bool renderInStereo;
 extern uint32_t audioSampleTimer;
-// Latches true once enough samples have elapsed since power-on for the codec ADC to settle and input monitoring to
-// fade in. Until then, input monitoring (Looper/Sampler) is suppressed and then faded in, so the codec's power-on
-// transient isn't passed through to the output. See getInputMonitoringGain().
-extern bool inputMonitoringWarmedUp;
+/// The output stage's monitoring decision, and the warm-up that keeps the codec's power-on transient out of an audio
+/// track's monitoring (Looper/Sampler) until it has settled and faded in.
+extern deluge::audio::InputMonitor inputMonitor;
 // Set during a render if any audio track is monitoring the USB input. USB direct monitoring stands aside for that
 // window, or the host's audio would be heard twice. Cleared at the start of each render
 extern bool usbInputMonitoredByTrack;
@@ -288,7 +288,6 @@ extern InputMonitoringMode inputMonitoringMode;
 extern bool audioRoutineLocked;
 extern bool routineBeenCalled;
 extern uint8_t numHopsEndedThisRoutineCall;
-extern deluge::effects::Sidechain reverbSidechain;
 /// The reverb sidechain's settings: the song's (project.reverb), or, on auto, those of the owner with the most
 /// reverb. Its sync type is set only from the menu.
 extern deluge::effects::SidechainState reverbSidechainSettings;
@@ -312,8 +311,8 @@ extern SampleRecorder* firstRecorder;
 extern Metronome metronome;
 extern uint32_t timeLastSideChainHit;
 extern int32_t sizeLastSideChainHit;
-extern StereoFloatSample approxRMSLevel;
-extern AbsValueFollower envelopeFollower;
+extern deluge::dsp::fp::StereoLevel approxRMSLevel;
+extern deluge::dsp::fp::LevelDetector envelopeFollower;
 /// Set once the BSP's audio tier drives the render (at the end of deluge_app_init). From then on
 /// runRoutine() leaves rendering to the tier, which preempts its caller.
 extern std::atomic<bool> renderDrivenByTier;
@@ -323,9 +322,6 @@ void cancelScheduledGates(uint8_t gateMask, const CriticalSectionGuard&);
 /// Called from the MIDI/gate output timer's interrupt. Sends any MIDI/gate output which is due and arms the timer for
 /// the rest
 void midiGateOutputTimerFired();
-/// Gain to apply to monitored codec input, `offset` samples into the buffer currently being rendered. 0 until the
-/// codec has settled after power-on, then ramps up to full scale.
-q31_t getInputMonitoringGain(uint32_t offset);
 
 /// @name The foreground recording
 ///
@@ -398,14 +394,12 @@ AudioInputChannel foregroundRecordingSource();
 bool sdRoutineBusy();
 /// @}
 
-/// @brief Re-derive `doMonitoring` and `monitoringAction` from the foreground recording.
+/// @brief Re-derive `inputMonitor`'s decision from the foreground recording.
 ///
 /// Called from `routine()` on every render window, so a UI that arms a recording never has to call
 /// it; declared here (it was a file-local forward declaration) so a spec can pin the *behaviour*
 /// the seam above exists to preserve rather than only the two values it writes.
 void setMonitoringMode();
-/// @brief Is live input being monitored through to the output? Set by `setMonitoringMode()`.
-extern bool doMonitoring;
 
 /// Each live input source has a ring buffer laid out like the input ring - same length, same stereo interleaving -
 /// and kept in step with it, so the same offset into any of them is the same moment. These find the one for a source:

@@ -137,8 +137,8 @@
 #include <cstdlib>
 #include <string>
 
-#include "engine-api/types/setting.h"
-#include "engines/deluge/settings.h"
+#include "instruments/deluge/settings.h"
+#include "plugin-api/types/setting.h"
 #include <string_view>
 #include <vector>
 
@@ -153,7 +153,7 @@ bool target_is_conditional(const deluge::scenes::bind::Target& target) {
 	if (!target.valid()) {
 		return false;
 	}
-	const deluge::engine::SettingInfo* row = deluge::engine::find_setting(deluge::instrument::kSettings, target.path);
+	const deluge::plugin::SettingInfo* row = deluge::plugin::find_setting(deluge::instrument::kSettings, target.path);
 	return row != nullptr && row->extras != nullptr
 	       && (!row->extras->applies_when.empty() || !row->extras->applies_any.empty());
 }

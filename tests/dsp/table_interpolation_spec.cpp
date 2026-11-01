@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-// The decay-curve lookups, getDecay4 and getDecay8, read across a stage of 2^23 positions. Exact values at the
+// The decay-curve lookups, get_decay4 and get_decay8, read across a stage of 2^23 positions. Exact values at the
 // stage's start, inside its last interval, and at its very end, 2^23, where the input indexes the table's last entry
 // with a zero blend: that read must stay inside the 257-entry table (under ASan, a read of the entry past it fails).
 // The bilinear interpolator is pinned on a small table whose entries all differ, against a reference that reads it
@@ -28,9 +28,9 @@
 #include <vector>
 
 namespace {
-using deluge::dsp::fixed::bilinear_table_interpolator;
-using deluge::dsp::fixed::getDecay4;
-using deluge::dsp::fixed::getDecay8;
+using deluge::dsp::fixed::get_decay4;
+using deluge::dsp::fixed::get_decay8;
+using deluge::dsp::fixed::kBilinearTableInterpolator;
 
 /// 2^2 + 1 rows of 2^3 + 1 entries, every entry distinct and of both signs: a row stride off by one reads another
 /// value.
@@ -71,19 +71,19 @@ constexpr uint32_t kLastIntervalMiddle = kWholeStage - (uint32_t{1} << 14);
 // clang-format off
 describe decay_lookup("the decay-curve lookups", ${
 	it("read the first entry, at Q15, at the stage's start", _ {
-		expect(getDecay4(0, kStageBits)).to_equal(65535 * 32768);
-		expect(getDecay8(0, kStageBits)).to_equal(65535 * 32768);
+		expect(get_decay4(0, kStageBits)).to_equal(65535 * 32768);
+		expect(get_decay8(0, kStageBits)).to_equal(65535 * 32768);
 	});
 
 	it("blend the last two entries inside the last interval", _ {
-		// decayTableSmall4 ends 48, 0 and decayTableSmall8 ends 6, 0: half of each at Q15.
-		expect(getDecay4(kLastIntervalMiddle, kStageBits)).to_equal(48 * 16384);
-		expect(getDecay8(kLastIntervalMiddle, kStageBits)).to_equal(6 * 16384);
+		// tables::kDecaySmall4 ends 48, 0 and tables::kDecaySmall8 ends 6, 0: half of each at Q15.
+		expect(get_decay4(kLastIntervalMiddle, kStageBits)).to_equal(48 * 16384);
+		expect(get_decay8(kLastIntervalMiddle, kStageBits)).to_equal(6 * 16384);
 	});
 
 	it("read the last entry alone, inside the table, at the whole stage", _ {
-		expect(getDecay4(kWholeStage, kStageBits)).to_equal(0);
-		expect(getDecay8(kWholeStage, kStageBits)).to_equal(0);
+		expect(get_decay4(kWholeStage, kStageBits)).to_equal(0);
+		expect(get_decay8(kWholeStage, kStageBits)).to_equal(0);
 	});
 });
 // clang-format on
@@ -91,9 +91,9 @@ describe decay_lookup("the decay-curve lookups", ${
 // clang-format off
 describe bilinear_lookup("the bilinear table interpolator", ${
 	it("reads the grid's entries at Q16 on the grid", _ {
-		expect(bilinear_table_interpolator.interpolateSigned<kGrid>(0, 0, kAxisBits, kAxisBits))
+		expect(kBilinearTableInterpolator.interpolate_signed<kGrid>(0, 0, kAxisBits, kAxisBits))
 		    .to_equal(-9000 * 65536 / 2);
-		expect(bilinear_table_interpolator.interpolateSigned<kGrid>(3u << 13, 2u << 14, kAxisBits, kAxisBits))
+		expect(kBilinearTableInterpolator.interpolate_signed<kGrid>(3u << 13, 2u << 14, kAxisBits, kAxisBits))
 		    .to_equal(-2700 * 65536 / 2);
 	});
 	it("blends as the reference reads the grid, across every interval of both axes", _ {
@@ -101,7 +101,7 @@ describe bilinear_lookup("the bilinear table interpolator", ${
 		std::vector<int32_t> reference;
 		for (uint32_t y = 0; y < (1u << 16); y += 0x0F01u) {
 			for (uint32_t x = 0; x < (1u << 16); x += 0x0301u) {
-				got.push_back(bilinear_table_interpolator.interpolateSigned<kGrid>(x, y, kAxisBits, kAxisBits));
+				got.push_back(kBilinearTableInterpolator.interpolate_signed<kGrid>(x, y, kAxisBits, kAxisBits));
 				reference.push_back(reference_grid(x, y));
 			}
 		}
@@ -109,7 +109,7 @@ describe bilinear_lookup("the bilinear table interpolator", ${
 		expect(got).to_equal(reference);
 	});
 	it("blends the last row and column intervals toward the upper neighbours", _ {
-		expect(bilinear_table_interpolator.interpolateSigned<kGrid>(0xFFFFu, 0xFFFFu, kAxisBits, kAxisBits))
+		expect(kBilinearTableInterpolator.interpolate_signed<kGrid>(0xFFFFu, 0xFFFFu, kAxisBits, kAxisBits))
 		    .to_equal(reference_grid(0xFFFFu, 0xFFFFu));
 	});
 });

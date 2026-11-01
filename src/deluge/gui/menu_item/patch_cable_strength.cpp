@@ -28,16 +28,19 @@
 #include "hid/led/indicator_leds.h"
 #include "horizontal_menu.h"
 #include "model/edits/edit.h"
+#include "model/edits/edit_cable.h"
 #include "model/edits/param_address_for.h"
 #include "model/edits/set_param_value.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
-#include "modulation/params/param_descriptor.h"
 #include "modulation/patch/patch_cable_set.h"
+#include "plugin-api/types/param_mapping.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/sound/mod_matrix_host.h"
 #include "processing/sound/sound.h"
 #include "source_selection.h"
 #include "source_selection/range.h"
+#include "synth/modulation/cable.h"
 #include "util/functions.h"
 
 using hid::display::OLED;
@@ -81,9 +84,9 @@ void PatchCableStrength::renderOLED() {
 
 	// Draw patch sources and destination
 	{
-		const ParamDescriptor destinationDescriptor = getDestinationDescriptor();
+		const synth::CableTarget destinationDescriptor = getDestinationDescriptor();
 		const PatchSource source = getS();
-		const bool isJustAParam = destinationDescriptor.isJustAParam();
+		const bool isJustAParam = destinationDescriptor.is_param();
 
 		constexpr int32_t leftPadding = 2;
 		const int32_t ySpacing = isJustAParam ? kTextSpacingY : 8;
@@ -103,8 +106,8 @@ void PatchCableStrength::renderOLED() {
 			y += ySpacing - 1;
 
 			// Draw the second source name
-			image.drawString(sourceToStringShort(destinationDescriptor.getTopLevelSource()),
-			                 leftPadding + kTextSpacingX * 2, y - 3, kTextSpacingX, kTextSizeYUpdated);
+			image.drawString(sourceToStringShort(destinationDescriptor.top_source()), leftPadding + kTextSpacingX * 2,
+			                 y - 3, kTextSpacingX, kTextSizeYUpdated);
 			y += ySpacing;
 
 			// Draw arrow line to the destination
@@ -120,7 +123,7 @@ void PatchCableStrength::renderOLED() {
 		}
 
 		// Draw the destination name
-		image.drawString(modulation::params::getPatchedParamShortName(destinationDescriptor.getJustTheParam(),
+		image.drawString(modulation::params::getPatchedParamShortName(destinationDescriptor.param_index(),
 		                                                              soundEditor.currentModControllable),
 		                 leftPadding, y, kTextSpacingX, kTextSizeYUpdated);
 	}
@@ -202,14 +205,12 @@ void PatchCableStrength::readCurrentValue() {
 	else {
 		PatchCable& patchCable = patchCableSet->patchCables[c];
 		const int32_t paramValue = patchCable.param.getCurrentValue();
-		// the internal values are stored in the range -(2^30) to 2^30.
-		// rescale them to the range -5000 to 5000 and round to nearest.
-		this->setValue(((int64_t)paramValue * kMaxMenuPatchCableValue + (1 << 29)) >> 30);
+		this->setValue(plugin::to_menu(plugin::MappingKind::CABLE_DEPTH, paramValue));
 	}
 }
 
 ModelStackWithAutoParam* PatchCableStrength::getModelStackWithParam(void* memory) {
-	return getModelStack(memory);
+	return getModelStack(memory, false);
 }
 
 // Might return a ModelStack with NULL autoParam - check for that!
@@ -219,7 +220,8 @@ ModelStackWithAutoParam* PatchCableStrength::getModelStack(void* memory, bool al
 
 	ModelStackWithParamCollection* modelStackWithParamCollection =
 	    modelStack->addParamCollectionSummary(paramSetSummary);
-	ModelStackWithParamId* ModelStackWithParamId = modelStackWithParamCollection->addParamId(getLearningThing().data);
+	ModelStackWithParamId* ModelStackWithParamId =
+	    modelStackWithParamCollection->addParamId(deluge::modulation::knobWord(getLearningThing()).word);
 	ModelStackWithAutoParam* modelStackMaybeWithAutoParam =
 	    paramSetSummary->paramCollection->getAutoParamFromId(ModelStackWithParamId, allowCreation);
 
@@ -238,9 +240,7 @@ void PatchCableStrength::writeCurrentValue() {
 		return;
 	}
 
-	// rescale from 5000 to 2^30. The magic constant is ((2^30)/5000), shifted 32 bits for precision ((1<<(30+32))/5000)
-	int64_t magicConstant = (922337203685477 * 5000) / kMaxMenuPatchCableValue;
-	int32_t finalValue = (magicConstant * this->getValue()) >> 32;
+	int32_t finalValue = plugin::from_menu(plugin::MappingKind::CABLE_DEPTH, this->getValue());
 	deluge::edits::Context editCtx{*currentSong, currentSong->project};
 	deluge::edits::SetParamValue edit{deluge::edits::addressFor(*modelStackWithParam), finalValue, 0, 0,
 	                                  modelStackWithParam};
@@ -256,23 +256,22 @@ void PatchCableStrength::writeCurrentValue() {
 MenuPermission PatchCableStrength::checkPermissionToBeginSession(ModControllableAudio* modControllable,
                                                                  int32_t whichThing, MultiRange** currentRange) {
 
-	ParamDescriptor destinationDescriptor = getDestinationDescriptor();
+	synth::CableTarget destinationDescriptor = getDestinationDescriptor();
 	PatchSource s = getS();
 
 	// If patching to another cable's range...
-	if (!destinationDescriptor.isJustAParam()) {
+	if (!destinationDescriptor.is_param()) {
 		// Global source - can control any range
 		if (s < kFirstLocalSource) {
 			return MenuPermission::YES;
 		}
 
 		// Local source - range must be for cable going to local param
-		return (destinationDescriptor.getJustTheParam() < deluge::modulation::params::FIRST_GLOBAL)
-		           ? MenuPermission::YES
-		           : MenuPermission::NO;
+		return (destinationDescriptor.param_index() < deluge::modulation::params::FIRST_GLOBAL) ? MenuPermission::YES
+		                                                                                        : MenuPermission::NO;
 	}
 
-	int32_t p = destinationDescriptor.getJustTheParam();
+	int32_t p = destinationDescriptor.param_index();
 
 	Sound* sound = static_cast<Sound*>(modControllable);
 
@@ -298,7 +297,7 @@ deluge::modulation::params::Kind PatchCableStrength::getParamKind() {
 }
 
 uint32_t PatchCableStrength::getParamIndex() {
-	return getLearningThing().data;
+	return deluge::modulation::knobWord(getLearningThing()).word;
 }
 
 PatchSource PatchCableStrength::getPatchSource() {
@@ -379,10 +378,17 @@ void PatchCableStrength::setPatchCablePolarity(Polarity newPolarity) {
 		return;
 	}
 
-	auto* patchCableSet = soundEditor.currentParamManager->getPatchCableSet();
+	// The polarity change is a mod matrix edit, recorded so it undoes.
+	alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
+	auto* patchCableSet = modelStack->paramManager->getPatchCableSet();
 	if (const int32_t index = patchCableSet->getPatchCableIndex(getS(), getDestinationDescriptor());
 	    index != kNoSelection) {
-		patchCableSet->setPolarity(index, newPolarity);
+		ModMatrixHost matrix{*static_cast<Sound*>(modelStack->modControllable), *modelStack->paramManager};
+		if (std::optional<CableEdit> edit =
+		        matrix.setPolarity(index, static_cast<deluge::synth::CablePolarity>(newPolarity))) {
+			deluge::edits::recordCableEdit(modelStack, std::move(*edit));
+		}
 	}
 }
 

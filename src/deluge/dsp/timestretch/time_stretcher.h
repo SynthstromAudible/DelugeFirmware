@@ -28,9 +28,7 @@
 #define BUFFER_FILLING_NEITHER 3
 
 class VoiceSample;
-class Voice;
 class VoiceSamplePlaybackGuide;
-class VoiceUnisonPartSource;
 struct ComputedChunk; ///< Computed/cached chunk — perc-cache + sample-cache scratch (see storage/cluster/cluster.h).
 class Sample;
 class SampleCache;

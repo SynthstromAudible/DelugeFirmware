@@ -96,8 +96,7 @@ ModelStackWithAutoParam* legacy_cable(Song& song, Clip* clip, ModControllable* o
 	ModelStackWithThreeMainThings* stack =
 	    setupModelStackWithThreeMainThingsIncludingNoteRow(memory, &song, clip, note_row_index, row, owner, manager);
 	ParamCollectionSummary* summary = manager->getPatchCableSetSummary();
-	ParamDescriptor descriptor;
-	descriptor.setToHaveParamOnly(destination);
+	deluge::synth::CableTarget descriptor = deluge::synth::CableTarget::param(destination);
 	ModelStackWithParamId* with_id =
 	    stack->addParamCollectionSummary(summary)->addParamId(PatchCableSet::getParamId(descriptor, source));
 	return summary->paramCollection->getAutoParamFromId(with_id, create);
@@ -105,8 +104,7 @@ ModelStackWithAutoParam* legacy_cable(Song& song, Clip* clip, ModControllable* o
 
 /// The address of @p owner's cable from @p source to @p destination in @p clip.
 ParamAddress cable_address(OwnerId owner, PatchSource source, int32_t destination, uint32_t clip) {
-	ParamDescriptor descriptor;
-	descriptor.setToHaveParamOnly(destination);
+	deluge::synth::CableTarget descriptor = deluge::synth::CableTarget::param(destination);
 	return {.owner = owner,
 	        .space = ParamSpace::ENGINE,
 	        .id = deluge::bridge::cable_depth(source, descriptor),
@@ -279,9 +277,8 @@ describe param_by_address("a param set by its address", ${
 		ModelStackWithAutoParam* made = deluge::bridge::cableStackAt(*f.song, address, asked, memory);
 		expect(made != nullptr && made->autoParam != nullptr).to_be_true();
 		PatchCableSet* set = f.clip->paramManager.getPatchCableSet();
-		ParamDescriptor descriptor;
-		descriptor.setToHaveParamOnly(params::LOCAL_LPF_RESONANCE);
-		const uint8_t index = set->getPatchCableIndex(source, descriptor, nullptr, false);
+		deluge::synth::CableTarget descriptor = deluge::synth::CableTarget::param(params::LOCAL_LPF_RESONANCE);
+		const uint8_t index = set->getPatchCableIndex(source, descriptor);
 		expect(index != 255).to_be_true();
 		expect(set->patchCables[index].polarity == asked).to_be_true();
 		AutoParam* first = made->autoParam;

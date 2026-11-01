@@ -13,9 +13,9 @@
 #include "support/descriptor_cases.h"
 #include "support/menu_engine.h"
 
-#include "engines/deluge/params.h"
-#include "engines/global_effectable/params.h"
+#include "effects/global_effectable/params.h"
 #include "gui/l10n/setting_names.h"
+#include "instruments/deluge/params.h"
 #include "model/project_bridge/param_ids.h"
 
 namespace {
@@ -26,7 +26,7 @@ using deluge::l10n::setting_names;
 using deluge::l10n::SettingNames;
 using deluge::project::SettingGroupId;
 namespace params = deluge::modulation::params;
-namespace engine = deluge::engine;
+namespace plugin = deluge::plugin;
 
 /// @brief A table and its owner, as a row of it is looked up.
 struct OwnedTable {
@@ -38,10 +38,10 @@ struct OwnedTable {
 std::vector<OwnedTable> owned_tables() {
 	using deluge::project::table_of;
 	return {
-	    {engine::kDelugeInstrument, "instrument", deluge::instrument::kSettings},
-	    {engine::kDelugeInstrument, "instrument effects", deluge::effects::kEffectSettings},
-	    {engine::kGlobalEffectable, "global effectable effects", deluge::effects::kEffectSettings},
-	    {engine::kDelugeInstrument, "instrument arp", deluge::engine::kArpSettingRows},
+	    {plugin::kDelugeInstrument, "instrument", deluge::instrument::kSettings},
+	    {plugin::kDelugeInstrument, "instrument effects", deluge::effects::kEffectSettings},
+	    {plugin::kGlobalEffectable, "global effectable effects", deluge::effects::kEffectSettings},
+	    {plugin::kDelugeInstrument, "instrument arp", deluge::plugin::kArpSettingRows},
 	    {SettingGroupId::SONG, "SONG", table_of(SettingGroupId::SONG)},
 	    {SettingGroupId::TRACK, "TRACK", table_of(SettingGroupId::TRACK)},
 	    {SettingGroupId::INSTRUMENT_DEVICE, "INSTRUMENT_DEVICE", table_of(SettingGroupId::INSTRUMENT_DEVICE)},
@@ -203,20 +203,20 @@ struct Legacy {
 	params::Kind kind;
 	int32_t index;
 };
-Legacy legacy_of(deluge::engine::ParamId id, engine::EngineId which) {
+Legacy legacy_of(deluge::plugin::ParamId id, plugin::PluginId which) {
 	params::Kind kind = params::Kind::UNPATCHED_GLOBAL;
-	if (which == engine::kDelugeInstrument) {
+	if (which == plugin::kDelugeInstrument) {
 		kind = id.value < deluge::instrument::kUnpatchedFirstId ? params::Kind::PATCHED : params::Kind::UNPATCHED_SOUND;
 	}
 	return {kind, deluge::bridge::runtimeIndexOf(kind, id).value_or(-1)};
 }
 
-std::string param_text(engine::EngineId which, deluge::engine::ParamId id, const ParamNameContext& state) {
+std::string param_text(plugin::PluginId which, deluge::plugin::ParamId id, const ParamNameContext& state) {
 	return deluge::l10n::get(deluge::l10n::param_name(which, id, state));
 }
 
-void check_params(auto& self, std::span<const deluge::engine::ParamInfo> table, engine::EngineId which) {
-	for (const deluge::engine::ParamInfo& row : table) {
+void check_params(auto& self, std::span<const deluge::plugin::ParamInfo> table, plugin::PluginId which) {
+	for (const deluge::plugin::ParamInfo& row : table) {
 		const Legacy legacy = legacy_of(row.id, which);
 		expect(legacy.index >= 0).to_be_true();
 		// Legacy's plain name is the SVF one: the default filter modes are ladders, which rename the morph params.
@@ -231,14 +231,14 @@ void check_params(auto& self, std::span<const deluge::engine::ParamInfo> table, 
 void check_morphs(auto& self) {
 	const MenuContext& ctx = enter(Where::SYNTH);
 	struct Morph {
-		deluge::engine::ParamId id;
-		engine::EngineId engine;
+		deluge::plugin::ParamId id;
+		plugin::PluginId engine;
 	};
 	const Morph morphs[] = {
-	    {deluge::instrument::param::kLpfMorph, engine::kDelugeInstrument},
-	    {deluge::instrument::param::kHpfMorph, engine::kDelugeInstrument},
-	    {deluge::global_effectable::param::kLpfMorph, engine::kGlobalEffectable},
-	    {deluge::global_effectable::param::kHpfMorph, engine::kGlobalEffectable},
+	    {deluge::instrument::param::kLpfMorph, plugin::kDelugeInstrument},
+	    {deluge::instrument::param::kHpfMorph, plugin::kDelugeInstrument},
+	    {deluge::global_effectable::param::kLpfMorph, plugin::kGlobalEffectable},
+	    {deluge::global_effectable::param::kHpfMorph, plugin::kGlobalEffectable},
 	};
 	using deluge::effects::FilterMode;
 	const FilterMode lpf_modes[] = {
@@ -304,12 +304,12 @@ describe setting_names_spec_body("The host's name table", $ {
 			const SettingNames* names = setting_names(owner, path);
 			return names != nullptr ? text(names->name) : std::string{"<none>"};
 		};
-		expect(text_of(engine::kDelugeInstrument, "transpose")).to_equal(std::string{"Master transpose"});
+		expect(text_of(plugin::kDelugeInstrument, "transpose")).to_equal(std::string{"Master transpose"});
 		expect(text_of(SettingGroupId::AUDIO_CLIP, "transpose")).to_equal(std::string{"Transpose"});
 		expect(text_of(SettingGroupId::NOTE_ROW, "bendRange")).to_equal(std::string{"Bend range"});
 		expect(text_of(SettingGroupId::CLIP_VALUES, "bendRange")).to_equal(std::string{"Normal"});
 		expect(text_of(SettingGroupId::AUDIO_INPUT, "mode")).to_equal(std::string{"Audio source"});
-		expect(text_of(engine::kDelugeInstrument, "mode")).to_equal(std::string{"Synth Mode"});
+		expect(text_of(plugin::kDelugeInstrument, "mode")).to_equal(std::string{"Synth Mode"});
 		expect(setting_names(SettingGroupId::TRACK, "mode") == nullptr).to_be_true();
 	});
 	it("gives a CHOICE row with a legacy list one name per choice", _ {
@@ -356,34 +356,34 @@ describe setting_names_spec_body("The host's name table", $ {
 		run_names(self, group_cases());
 	});
 	it("names every instrument param as getParamDisplayName does", _ {
-		check_params(self, deluge::instrument::kParams, engine::kDelugeInstrument);
+		check_params(self, deluge::instrument::kParams, plugin::kDelugeInstrument);
 	});
 	it("names every global effectable param as getParamDisplayName does", _ {
-		check_params(self, deluge::global_effectable::kParams, engine::kGlobalEffectable);
+		check_params(self, deluge::global_effectable::kParams, plugin::kGlobalEffectable);
 	});
 	it("names the morph params as legacy does under each pair of filter modes", _ {
 		check_morphs(self);
 	});
 	it("names no id outside an engine's table", _ {
-		using deluge::engine::ParamId;
+		using deluge::plugin::ParamId;
 		const auto none = deluge::l10n::String::STRING_FOR_NONE;
 		const ParamNameContext state{};
-		expect(deluge::l10n::param_name(engine::kGlobalEffectable, ParamId{0}, state) == none).to_be_true();
-		expect(deluge::l10n::param_name(engine::kGlobalEffectable, ParamId{89}, state) == none).to_be_true();
-		expect(deluge::l10n::param_name(engine::kGlobalEffectable, ParamId{133}, state) == none).to_be_true();
+		expect(deluge::l10n::param_name(plugin::kGlobalEffectable, ParamId{0}, state) == none).to_be_true();
+		expect(deluge::l10n::param_name(plugin::kGlobalEffectable, ParamId{89}, state) == none).to_be_true();
+		expect(deluge::l10n::param_name(plugin::kGlobalEffectable, ParamId{133}, state) == none).to_be_true();
 		for (uint32_t id = 117; id <= 132; ++id) {
-			expect(deluge::l10n::param_name(engine::kDelugeInstrument, ParamId{id}, state) == none).to_be_true();
+			expect(deluge::l10n::param_name(plugin::kDelugeInstrument, ParamId{id}, state) == none).to_be_true();
 		}
 		for (uint32_t id = 55; id < 90; ++id) {
-			expect(deluge::l10n::param_name(engine::kDelugeInstrument, ParamId{id}, state) == none).to_be_true();
+			expect(deluge::l10n::param_name(plugin::kDelugeInstrument, ParamId{id}, state) == none).to_be_true();
 		}
-		expect(deluge::l10n::param_name(engine::kDelugeInstrument, ParamId{116}, state)
+		expect(deluge::l10n::param_name(plugin::kDelugeInstrument, ParamId{116}, state)
 		       == deluge::l10n::String::STRING_FOR_PORTAMENTO)
 		    .to_be_true();
-		expect(deluge::l10n::param_name(engine::kGlobalEffectable, ParamId{116}, state)
+		expect(deluge::l10n::param_name(plugin::kGlobalEffectable, ParamId{116}, state)
 		       == deluge::l10n::String::STRING_FOR_MOD_FX_RATE)
 		    .to_be_true();
-		expect(deluge::l10n::param_name(engine::EngineId{"other.engine"}, ParamId{90}, state) == none).to_be_true();
+		expect(deluge::l10n::param_name(plugin::PluginId{"other.engine"}, ParamId{90}, state) == none).to_be_true();
 	});
 });
 // clang-format on

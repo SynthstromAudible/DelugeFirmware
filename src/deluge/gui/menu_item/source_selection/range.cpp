@@ -17,16 +17,14 @@
 #include "range.h"
 #include "gui/menu_item/patch_cable_strength/range.h"
 #include "gui/ui/sound_editor.h"
-#include "modulation/params/param_descriptor.h"
 #include "regular.h"
+#include "synth/modulation/cable.h"
 
 namespace deluge::gui::menu_item::source_selection {
 Range rangeMenu{};
 
-ParamDescriptor Range::getDestinationDescriptor() {
-	ParamDescriptor descriptor{};
-	descriptor.setToHaveParamAndSource(soundEditor.patchingParamSelected, regularMenu.s);
-	return descriptor;
+synth::CableTarget Range::getDestinationDescriptor() {
+	return synth::CableTarget::depth_of(soundEditor.patchingParamSelected, regularMenu.s);
 }
 
 MenuItem* Range::selectButtonPress() {

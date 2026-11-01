@@ -7,6 +7,9 @@ binary (and its wrapper, for a cross-built one) and the song corpus (driver.defa
 else DELUGE_BACKUP's SONGS, else ~/Deluge Backup/SONGS), prints what it printed, and fails when it does. A runner that
 finds nothing to check (exit 77) fails too: the registry entry requires the corpus, so finding none is a broken setup,
 not a skip.
+
+The runner runs in a process of its own: `dbt test -j N` runs gates on threads of one process, and a runner that
+printed to this process's stdout, or redirected it, would mix with or swallow the other gates' output.
 """
 
 import importlib
@@ -41,25 +44,29 @@ def run(gate):
         sys.path.insert(0, str(golden))
     driver = importlib.import_module("driver")
 
-    argv = ["--binary", str(gate.binary)]
+    argv = [
+        sys.executable,
+        f"{golden}/{RUNNERS[gate.entry.scenario]}.py",
+        "--binary",
+        str(gate.binary),
+    ]
     if wrapper := gate.env.get("GOLDEN_VT_RENDER_WRAPPER", ""):
         argv += ["--wrapper", wrapper]
     if corpus := driver.default_corpus():
         argv += ["--corpus", corpus]
 
-    # A process of its own: the runner prints to stdout, and gates run on several threads at once.
-    ran = subprocess.run(
-        [sys.executable, str(golden / f"{RUNNERS[gate.entry.scenario]}.py"), *argv],
+    result = subprocess.run(
+        argv,
+        cwd=gate.root,
         env=gate.env,
         capture_output=True,
         text=True,
+        errors="replace",
         check=False,
     )
-    for line in ran.stdout.splitlines():
+    for line in (result.stdout + result.stderr).splitlines():
         gate.say(line)
-    for line in ran.stderr.splitlines():
-        gate.say(line)
-    code = ran.returncode
+    code = result.returncode
     if code == 77:
         gate.fail(
             f"{gate.entry.scenario}: no corpus songs to check (set DELUGE_SONG_CORPUS)"

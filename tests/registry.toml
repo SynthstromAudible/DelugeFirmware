@@ -266,6 +266,22 @@ group = "unit"
 runtime = "~1m first build, ~5s after"
 
 [[harness]]
+name = "param-mapping-sweep"
+path = "."
+level = "component"
+runner = "script"
+kind = "differential"
+status = "gate"
+gates = "every one of the 2^32 stored words converts to the same knob position and menu number through each plugin-api mapping kind as through the reference arithmetic kept verbatim in tests/plugin-api/param_mapping_reference.h, under UBSan; the unit-tier param_mapping spec covers the knob and menu positions exhaustively and a spread of words, this covers every word"
+build = []
+run = ["tests/plugin-api/param_mapping_sweep.sh"]
+markers = ["PM-SWEEP"]
+requires = ["clang"]
+tier = "nightly"
+group = "unit"
+runtime = "~40s"
+
+[[harness]]
 name = "dsp-diff"
 path = "tests/component/dsp-diff"
 level = "component"
@@ -512,7 +528,7 @@ level = "integration"
 runner = "scenario"
 kind = "property"
 status = "gate"
-gates = "Every deletion path must end a Sound's voices before any part of it is destroyed. A Sound destroyed with live voices crashes itself, with no render involved: after ~Sound's body, its own voices_ member destructor recycles each voice, and ~Voice -> Voice::setAsUnassigned -> Sound::voiceUnassigned -> reassessRenderSkippingStatus calls getArpSettings(), pure virtual in Sound by then. The probe holds a note on a blank synth and on a kit's synth drum, renders a few blocks, then deletes it through each real path -- SL-SYNTH (a synth in the song, Song::deleteOutputThatIsInMainList), SL-UNEDITED (an un-edited synth in no list, Song::deleteOrAddToHibernationListOutput), SL-KIT (a kit in the song, deleteOutputThatIsInMainList) and SL-DELETEDRUM (InstrumentClipView::deleteDrum's steps: the note row's note stopped and the drum taken out of drumsWithRenderingActive, Kit::removeDrum, the note row's reassignment, then AudioEngine::retire; the only drum-delete site that can reach a sounding drum, since the preset-replace site kills the voices first and the folder-import, slicer and instrument-load sites only drop drums that never sounded) -- and requires Sound::soundsDestroyedWithLiveVoices() to be 0 for every path. Every deletion retires: the render ends the voices and deregisters the Sounds at the top of its next block and the memory is freed by the first reclaim after that once two blocks have begun, so each count is read after settle blocks, a leg whose objects are still waiting then fails, and SL-RECLAIM requires nothing retired to be left waiting at the end. SL-OPPORTUNISTIC requires a retire to free an older, already let-go object on its own (pending=1, with no reclaim-task tick in the step); SL-BURST retires 80 blank drums (past the 64-slot ring, into the overflow, drained 16 per block) and requires violations=0 (no drum destroyed while still in the Sound registry) and pending=0. The run also fails when a leg's fixture could not be built or never sounded, a line is missing, or a deletion (or its deferred destruction) ends the process -- a firmware freeze (E321 from Kit::removeDrum on a drum still in drumsWithRenderingActive) or a std::terminate -- in which case the leg still prints its count with aborted=1 and the step it died in."
+gates = "Every deletion path must end a Sound's voices before any part of it is destroyed. A Sound destroyed with live voices crashes itself, with no render involved: after ~Sound's body, its own voices_ member destructor recycles each voice, and ~VoiceSlot -> VoiceSlot::set_as_unassigned -> Sound::voiceUnassigned -> reassessRenderSkippingStatus calls getArpSettings(), pure virtual in Sound by then. The probe holds a note on a blank synth and on a kit's synth drum, renders a few blocks, then deletes it through each real path -- SL-SYNTH (a synth in the song, Song::deleteOutputThatIsInMainList), SL-UNEDITED (an un-edited synth in no list, Song::deleteOrAddToHibernationListOutput), SL-KIT (a kit in the song, deleteOutputThatIsInMainList) and SL-DELETEDRUM (InstrumentClipView::deleteDrum's steps: the note row's note stopped and the drum taken out of drumsWithRenderingActive, Kit::removeDrum, the note row's reassignment, then AudioEngine::retire; the only drum-delete site that can reach a sounding drum, since the preset-replace site kills the voices first and the folder-import, slicer and instrument-load sites only drop drums that never sounded) -- and requires Sound::soundsDestroyedWithLiveVoices() to be 0 for every path. Every deletion retires: the render ends the voices and deregisters the Sounds at the top of its next block and the memory is freed by the first reclaim after that once two blocks have begun, so each count is read after settle blocks, a leg whose objects are still waiting then fails, and SL-RECLAIM requires nothing retired to be left waiting at the end. SL-OPPORTUNISTIC requires a retire to free an older, already let-go object on its own (pending=1, with no reclaim-task tick in the step); SL-BURST retires 80 blank drums (past the 64-slot ring, into the overflow, drained 16 per block) and requires violations=0 (no drum destroyed while still in the Sound registry) and pending=0. The run also fails when a leg's fixture could not be built or never sounded, a line is missing, or a deletion (or its deferred destruction) ends the process -- a firmware freeze (E321 from Kit::removeDrum on a drum still in drumsWithRenderingActive) or a std::terminate -- in which case the leg still prints its count with aborted=1 and the step it died in."
 scenario = "sound_lifetime"
 markers = ["SL-SYNTH", "SL-UNEDITED", "SL-KIT", "SL-DELETEDRUM", "SL-OPPORTUNISTIC", "SL-BURST", "SL-RECLAIM", "SL-RESULT"]
 result = "SL-RESULT failures=0"
@@ -546,7 +562,7 @@ level = "integration"
 runner = "scenario"
 kind = "property"
 status = "gate"
-gates = "Which structural edits to the containers the audio render walks are made while the render could preempt them. On the device the render preempts thread mode at any instruction, so an insert, erase, reorder, relink or reallocation of a clip's note rows, a row's notes, an automation node list, a patch cable set's cables, the song's clip arrays, an output's clip instances, the song's output list or a kit's drum list must run inside an AudioExcludedSection (libdeluge/system.h). Each such container reports every structural edit to a probe (src/deluge/util/structural_edit_probe.h) that counts those made outside a section. With playback on the internal clock, each leg makes one edit through the model's own entry point and reports CG-<LEG> unguarded=<n> kinds=<kind=n,...>: NOTEADD, NOTEDEL, ROWADD, ROWDEL, CLIPNEW, CLIPDEL, CLIPDUP, ARRANGE, AUTOMATE, PATCHCABLE, DRUM, REPLACE, UNDO, BIGROW (a row inserted below 128 others, with CG-MASK its host wall time), ROWDRAG (the clip view's note-row drag), CLIPMOVE (the session view's clip drag), OUTPUTMOVE (the arranger's output drag) and QUANTIZE (a row's notes rotated in place). What the probe can see: edits made through the containers' mutators and the song and kit list splices that report to it. An edit that bypasses them -- a raw element swap, a reorder through operator[], a splice in some other file -- is invisible to it; the reorders that would (the three drags and quantize's rotation) go through reporting, sectioned mutators, and a grep of std::swap/rotate/sort and ->next/firstOutput/firstDrum writes found no other. All legs are required to read unguarded=0; the others are reported. The run fails on a missing leg line, a fixture that could not be built or a clock that never ran, or an edit that ends the process. Every golden run also prints GUARD-UNGUARDED total=<n> at exit when any unguarded edit was made."
+gates = "Which structural edits to the containers the audio render walks are made while the render could preempt them. On the device the render preempts thread mode at any instruction, so an insert, erase, reorder, relink or reallocation of a clip's note rows, a row's notes, an automation node list, a patch cable set's cables, the song's clip arrays, an output's clip instances, the song's output list or a kit's drum list must run inside an AudioExcludedSection (libdeluge/system.h). Each such container reports every structural edit to a probe (src/deluge/util/structural_edit_probe.h) that counts those made outside a section. With playback on the internal clock, each leg makes one edit through the model's own entry point and reports CG-<LEG> unguarded=<n> kinds=<kind=n,...>: NOTEADD, NOTEDEL, ROWADD, ROWDEL, CLIPNEW, CLIPDEL, CLIPDUP, ARRANGE, AUTOMATE, PATCHCABLE, DRUM, REPLACE, UNDO, BIGROW (a row inserted below 128 others, with CG-MASK its host wall time), ROWDRAG (the clip view's note-row drag), CLIPMOVE (the session view's clip drag), OUTPUTMOVE (the arranger's output drag) and QUANTIZE (a row's notes rotated in place), plus the automation stores: RECORDKNOB (a knob recorded into automation, each param_edit kernel and the live-record block one section, kind nodekernel), RELOCATE (an owner's own store the render reaches first: it must read it in place and move nothing into the song's param stores, renderStoreEdits=0), CCLEARN, CABLEADD and DRUMDEL (the clip and backed-param maps and the CC and cable-depth lanes, kind paramstore), and PASTE, TRIM and STEAL (the engine's automation paste, trim and note-drag steal, each one compound edit); for the automation legs CG-NODES leg=<LEG> lone=0 is also required: no automation node insert or erase at an index outside a compound edit. What the probe can see: edits made through the containers' mutators and the song and kit list splices that report to it. An edit that bypasses them -- a raw element swap, a reorder through operator[], a splice in some other file -- is invisible to it; the reorders that would (the three drags and quantize's rotation) go through reporting, sectioned mutators, and a grep of std::swap/rotate/sort and ->next/firstOutput/firstDrum writes found no other. All legs are required to read unguarded=0; the others are reported. The run fails on a missing leg line, a fixture that could not be built or a clock that never ran, or an edit that ends the process. Every golden run also prints GUARD-UNGUARDED total=<n> at exit when any unguarded edit was made."
 scenario = "container_guard"
 result = "CG-RESULT failures=0"
 check = "tests/integration/checks/container_guard.py"
@@ -1514,6 +1530,101 @@ group = "render"
 runtime = "~20s"
 
 [[harness]]
+name = "render-bitcrush"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "the bitcrush paths the FX songs leave out render as recorded: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_BITCRUSH) whose kit crushes its bit depth alone at preset 6, its mask and a post-FX volume shifted down by 2, whose audio track's sample-rate reduction is stepped off at the second bar and on again at the third, so it restarts from a zeroed grab, and whose master crushes both at preset 7, a volume shift of 3; beside RS_STREAM's two synths, compared with its record in tests/integration/golden/songs.json; its dry twin with every bitcrush and sample-rate reduction off must render differently (RS-FX), so the settings reach the render"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { RENDER_GENERATED = "RS_BITCRUSH" }
+tier = "pr"
+group = "render"
+runtime = "~20s"
+
+[[harness]]
+name = "render-eq-bands"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "the EQ's single bands render as recorded: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_EQ_BANDS) whose kit boosts its bass alone and whose audio track cuts its treble alone, the treble stepped flat at the second bar and back at the third, so the band switches off and on while its memory holds; beside RS_STREAM's two synths, compared with its record in tests/integration/golden/songs.json; its dry twin with both EQs flat must render differently (RS-FX), so the bands reach the render"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { RENDER_GENERATED = "RS_EQ_BANDS" }
+tier = "pr"
+group = "render"
+runtime = "~20s"
+
+[[harness]]
+name = "render-reverb-duck-override"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "the reverb's duck taken from a synth with the most reverb renders as recorded: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_REVERB_DUCK_OVERRIDE) whose reverb sidechain is on auto, so the reverb ducks through the sidechain cable to post-reverb volume of a synth with more reverb than the song and its audio track, kit hits ducking it in every bar; beside RS_STREAM's two synths, compared with its record in tests/integration/golden/songs.json; its twin with the reverb's sidechain set by hand to nothing must render differently (RS-FX), so the override reaches the render"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { RENDER_GENERATED = "RS_REVERB_DUCK_OVERRIDE" }
+tier = "pr"
+group = "render"
+runtime = "~20s"
+
+[[harness]]
+name = "render-reverb-duck-override-track"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "the reverb's duck taken from an audio track with the most reverb renders as recorded: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_REVERB_DUCK_OVERRIDE_TRACK) whose reverb sidechain is on auto, so the reverb ducks through the sidechain volume, shape and rates of an audio track with more reverb than the song, kit hits ducking it in every bar; beside RS_STREAM's two synths, compared with its record in tests/integration/golden/songs.json; its twin with the reverb's sidechain set by hand to nothing must render differently (RS-FX), so the override reaches the render"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { RENDER_GENERATED = "RS_REVERB_DUCK_OVERRIDE_TRACK" }
+tier = "pr"
+group = "render"
+runtime = "~20s"
+
+[[harness]]
+name = "render-metronome"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "the metronome's click renders as recorded: a generated song (tests/integration/golden/songs/make_render_song.py --song RS_METRONOME, RS_STREAM under its own name) whose metronome is switched on at block 200 (RENDER_METRONOME, as its button does through PlaybackHandler::toggleMetronomeStatus), so each beat and bar adds its square click at the metronome's volume scaled by the song's; compared with its record in tests/integration/golden/songs.json; the scenario's RS-METRONOME summary must show the switch applied and the metronome on; the same song rendered without the switch must render differently (RS-SWITCH), so the click reaches the render"
+scenario = "render_song"
+markers = ["RS-LOADED", "RS-RENDER", "RS-VOICES", "RS-TIER-SYNC-AUDIO", "RS-STREAM", "RS-UNDERRUN", "RS-METRONOME", "RS-CAPTURE"]
+result = "RS-RESULT failures=0"
+check = "tests/integration/checks/render_song.py"
+builds = ["golden-vt-render"]
+requires = []
+env = { RENDER_GENERATED = "RS_METRONOME", RENDER_METRONOME = "200" }
+tier = "pr"
+group = "render"
+runtime = "~20s"
+
+[[harness]]
 name = "render-audio-track-comp-onset"
 path = "."
 level = "integration"
@@ -1900,7 +2011,7 @@ level = "integration"
 runner = "scenario"
 kind = "differential"
 status = "gate"
-gates = "every synth golden master must render as recorded: each of the 370 presets (tests/integration/golden/presets: synthesized cases for each oscillator, filter, envelope and modulation path, the factory and community preset packs, sample and wavetable playback, and live input) is loaded by the blank boot song, played by a DIN note script and rendered in real time on the audio tier, and its output is compared with its record in tests/integration/golden/presets.json (RP-PCM). A case fails if its preset did not replace the default synth (RP-LOADED), if the app did not read every scripted event (RP-MIDI), if CPU direness rose and the render took reduced-quality paths (RP-RENDER), if the render made a synchronous card call (RP-TIER-SYNC-AUDIO), or if it rendered silence (RP-SILENT). RENDER_PRESET_FILTER runs a subset; RENDER_PRESET_UPDATE=1 records instead of comparing."
+gates = "every synth golden master must render as recorded: each of the 403 presets (tests/integration/golden/presets: synthesized cases for each oscillator, filter, envelope and modulation path, the voice's own note-change, release, sample-cache and zone-change paths, the factory and community preset packs, sample and wavetable playback, and live input) is loaded by the blank boot song, played by a DIN note script and rendered in real time on the audio tier, and its output is compared with its record in tests/integration/golden/presets.json (RP-PCM). A case fails if its preset did not replace the default synth (RP-LOADED), if the app did not read every scripted event (RP-MIDI), if CPU direness rose and the render took reduced-quality paths (RP-RENDER), if the render made a synchronous card call (RP-TIER-SYNC-AUDIO), if it rendered silence (RP-SILENT), or if a case whose sample zone is to move mid-note never moved it (RP-ZONE). RENDER_PRESET_FILTER runs a subset; RENDER_PRESET_UPDATE=1 records instead of comparing."
 scenario = "render_preset"
 markers = ["RP-LOADED", "RP-MIDI", "RP-RENDER", "RP-TIER-SYNC-AUDIO", "RP-CAPTURE"]
 result = "RP-RESULT failures=0"
@@ -1910,6 +2021,22 @@ requires = []
 tier = "pr"
 group = "render"
 runtime = "~20s"
+
+[[harness]]
+name = "param-dump"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "regression"
+status = "gate"
+gates = "the audible window's parameter dump: a render dumped through RENDER_PARAM_DUMP is byte-identical to a plain one (PD-SAME), the dump reads back (PD-PARSE), and it holds the sound's pass and each note's voice passes and source states (PD-PASSES) in time order (PD-ORDER)"
+scenario = "render_preset"
+check = "tests/integration/checks/param_dump.py"
+builds = ["golden-vt-render"]
+requires = []
+tier = "nightly"
+group = "render"
+runtime = "~5s"
 
 [[harness]]
 name = "golden-synth-arm"
@@ -2144,6 +2271,23 @@ group = "model"
 runtime = "~1s"
 
 [[harness]]
+name = "param-target-check"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "unit"
+status = "gate"
+gates = "the host names params by target: every runtime param of the instrument and of the global effectable maps to a target and back through the bridge, ids resolve only in their owner's plugin, and every table that names params by target gives cell by cell the runtime param its recorded characterisation holds"
+scenario = "param_target_check"
+markers = ["DRV-EXIT"]
+result = "DRV-EXIT code=0"
+builds = ["golden-vt-render"]
+requires = []
+tier = "pr"
+group = "model"
+runtime = "~1s"
+
+[[harness]]
 name = "param-clone"
 path = "."
 level = "integration"
@@ -2159,6 +2303,23 @@ requires = []
 tier = "pr"
 group = "model"
 runtime = "~1s"
+
+[[harness]]
+name = "patch-routing"
+path = "."
+level = "integration"
+runner = "scenario"
+kind = "property"
+status = "gate"
+gates = "a patch-cable set's routing and save order must not change: 20,000 seeded random topologies (cables to params and to other cables' depths, orphaned depth cables, unknown-placeholder and empty targets) under seeded random usability tables are routed and folded into one pinned digest of the cable order a save walks, the usable count, each usable cable's range link, both globalities' destinations and sourcesPatchedToAnything; from the library's compile_routing on, every case is also compiled by it and must agree field by field (patch_routing.cpp, self-checking)"
+scenario = "patch_routing"
+markers = ["DRV-EXIT"]
+result = "DRV-EXIT code=0"
+builds = ["golden-vt-render"]
+requires = []
+tier = "pr"
+group = "model"
+runtime = "~2s"
 
 [[harness]]
 name = "document-version"
@@ -2710,6 +2871,32 @@ run = ["python3", "-m", "unittest", "test_emu_parity_session", "test_device_pari
 tier = "pr"
 group = "tooling"
 runtime = "~1s"
+
+[[harness]]
+name = "audible-window-tooling"
+path = "tools/audible_window"
+level = "unit"
+runner = "script"
+kind = "unit"
+status = "gate"
+gates = "the audible window's analyser and song set: identical render sets compare as identical; a changed final value is reported with its LSB delta, first time and block count; records sharing a time are matched in order; a threshold crossing is a flip; a voice that starts late is a lifetime change, not a run of parameter changes; a shifted render aligns before its null test; dumps pack losslessly; the song set is Glitchy_2 then the songs with the most cables, kit rows and automated params"
+run = ["python3", "-m", "unittest", "discover", "-p", "test_*.py"]
+tier = "pr"
+group = "tooling"
+runtime = "~1s"
+
+[[harness]]
+name = "audible-window-identity"
+path = "tools/audible_window"
+level = "integration"
+runner = "script"
+kind = "regression"
+status = "gate"
+gates = "the audible window's reference snapshot (.superpowers/estate/audible-window/reference/, or AUDIBLE_WINDOW_REFERENCE) compared with itself reports nothing moved: every render identical in audio and dumps"
+run = ["python3", "audible_window.py", "identity"]
+tier = "manual"
+group = "tooling"
+runtime = "~1min"
 
 [[harness]]
 name = "bench-tooling"

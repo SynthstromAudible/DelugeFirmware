@@ -24,7 +24,7 @@
 /// @brief The component concepts: generator, processor, mixer, control generator, converter.
 ///
 /// These describe the *static* interface a component exposes — a per-sample/vector
-/// `render(...)` (the inlined hot path) and a block `renderBlock(...)`. Runtime
+/// `render(...)` (the inlined hot path) and a block `render_block(...)`. Runtime
 /// selection is done through the separate virtual block interfaces (BlockGenerator /
 /// BlockProcessor / BlockMixer), which a component reaches only through AsBlock.
 namespace deluge::dsp {
@@ -32,7 +32,7 @@ namespace deluge::dsp {
 /// @brief Fills a block of samples it generates itself (e.g. an oscillator).
 template <typename G>
 concept block_generator = requires(G g, Buffer<typename G::value_type> out) {
-	{ g.renderBlock(out) } -> std::same_as<void>;
+	{ g.render_block(out) } -> std::same_as<void>;
 };
 
 /// @brief Generates one sample (or vector of samples) per call.
@@ -48,7 +48,7 @@ concept generator = block_generator<G> && sample_generator<G>;
 /// @brief Transforms an input block into an output block (e.g. a filter, the VCA).
 template <typename P>
 concept block_processor = requires(P p, Signal<typename P::value_type> in, Buffer<typename P::value_type> out) {
-	{ p.renderBlock(in, out) } -> std::same_as<void>;
+	{ p.render_block(in, out) } -> std::same_as<void>;
 };
 
 /// @brief Transforms one sample (or vector) per call.
@@ -65,7 +65,7 @@ concept processor = block_processor<P> && sample_processor<P>;
 template <typename M>
 concept block_mixer = requires(M m, Signal<typename M::value_type> a, Signal<typename M::value_type> b,
                                Buffer<typename M::value_type> out) {
-	{ m.renderBlock(a, b, out) } -> std::same_as<void>;
+	{ m.render_block(a, b, out) } -> std::same_as<void>;
 };
 
 /// @brief Combines two samples (or vectors) per call.

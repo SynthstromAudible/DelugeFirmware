@@ -1,6 +1,6 @@
 #include "model/edits/set_source_ranges.h"
 
-#include "engines/deluge/codec.h"
+#include "instruments/deluge/codec.h"
 #include "model/project_bridge/setting_apply.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/project_bridge/source_bridge.h"
@@ -20,7 +20,7 @@ Error SetSourceRanges::apply(Context& ctx) {
 	}
 	deluge::instrument::SoundState changed = *sound->boundState();
 	changed.sources[source_].ranges = ranges_;
-	const deluge::engine::CodecContext context{.input_tick_magnitude = slot->tick_magnitude};
+	const deluge::plugin::CodecContext context{.input_tick_magnitude = slot->tick_magnitude};
 	const std::array<std::string_view, 1> keys{source_ == 0 ? "osc1" : "osc2"};
 	const auto change = deluge::instrument::change_to(*sound->boundState(), changed, keys, context);
 	if (const std::optional<deluge::serialization::Value> whole = deluge::bridge::typedWriteAuditBase(*sound, *slot)) {

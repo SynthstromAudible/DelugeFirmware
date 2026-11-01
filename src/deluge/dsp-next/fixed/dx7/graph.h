@@ -89,13 +89,13 @@ struct Buses {
 
 /// @brief A DX7 voice's six operators, walked through its algorithm once per block.
 /// @details A component, not a kernel: it holds the six operators' states and the voice's feedback history, and runs
-/// each operator through its kernel per block. Its verbs are @ref renderBlock, @ref restart, @ref view and
+/// each operator through its kernel per block. Its verbs are @ref render_block, @ref restart, @ref view and
 /// @ref gain_out. It keeps no settings between blocks: each block's levels and pitches arrive with the block, so a
 /// voice holds only its six phases and gains and the history. @ref view is read-only inspection, as `FilterSet`'s is;
 /// a graph can also start from a held View, the state another owner kept (the reference specs start each block's graph
 /// from the verbatim engine's state and read it back through @ref view).
 ///
-/// **The DX7 engine's rules**, each applied where @ref renderBlock walks the ops:
+/// **The DX7 engine's rules**, each applied where @ref render_block walks the ops:
 /// - *The gate.* An operator inaudible at both ends of the block (@ref Operator::audible) is skipped: its phase and
 ///   gain move on, it writes nothing, and a bus it would have set is marked empty.
 /// - *Adding to an empty bus sets it.* An operator that adds into a bus nothing has written this block sets it.
@@ -136,7 +136,7 @@ public:
 	/// @param out The block, 1 to kMaxBlock samples. In a build given the device's NEON kernel, kMaxBlock samples must
 	/// be writable from its start, 16-byte aligned: the kernel pads the block and writes past it.
 	/// @param buses The intermediate buses, lent by the owner.
-	void renderBlock(const Settings& settings, Buffer out, Buses& buses);
+	void render_block(const Settings& settings, Buffer out, Buses& buses);
 
 	/// @brief Restarts every op: gain 0 and the given phases (zeros for oscillator key sync, drawn otherwise). The
 	/// feedback history carries over.
@@ -164,7 +164,7 @@ private:
 	/// build given the device's NEON kernel, through it), any other through the scalar operator. With no input
 	/// @p modulation is not read; with SET, neither is @p target's content. @p gains are the block's, taken for the
 	/// gate; the kernel ramps by them. Defined in graph.cpp, the one place the kernel's build switch is read, and
-	/// inlined into renderBlock there, where each call's routing is known.
+	/// inlined into render_block there, where each call's routing is known.
 	[[gnu::always_inline]] inline void render_op(const Operator::Settings& settings, const Gains& gains, std::size_t op,
 	                                             Signal modulation, Buffer target);
 
@@ -180,7 +180,7 @@ private:
 		}
 		Mono<MkIFeedbackStack<N>> stack{stack_settings};
 		stack.template on<&MkIFeedbackStack<N>::resume>(held, feedback_);
-		stack.renderBlock(target);
+		stack.render_block(target);
 		for (std::size_t k = 0; k < N; ++k) {
 			ops_[op + k] = stack.state().op[k];
 		}

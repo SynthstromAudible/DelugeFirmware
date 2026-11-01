@@ -1,8 +1,8 @@
-#include "controls_test_engines.h"
-#include "engines/deluge/engine.h"
-#include "engines/deluge/params.h"
-#include "engines/effects/engine.h"
+#include "controls_test_plugins.h"
+#include "effects/plugin.h"
 #include "equality/equality.h"
+#include "instruments/deluge/params.h"
+#include "instruments/deluge/plugin.h"
 #include "serialization/parse_xml.h"
 #include "serialization/write_json.h"
 
@@ -85,15 +85,15 @@ describe equality_sabotage("the model-equality gate", ${
 
 	it("finds an XML song and its JSON save the same song", _ {
 		const std::string json = deluge::serialization::write_json(
-		    encode_song(*decode_song(*deluge::serialization::parseXml(fixture()), deluge::project::test::test_engines()), "c1.0.0", deluge::project::test::test_engines()));
+		    encode_song(*decode_song(*deluge::serialization::parseXml(fixture()), deluge::project::test::test_plugins()), "c1.0.0", deluge::project::test::test_plugins()));
 		auto result = compare_songs(fixture(), false, json, true);
 		expect(result).to_have_value();
 	});
 
 	it("names the record when two saves are different songs", _ {
-		auto changed = decode_song(*deluge::serialization::parseXml(fixture()), deluge::project::test::test_engines());
+		auto changed = decode_song(*deluge::serialization::parseXml(fixture()), deluge::project::test::test_plugins());
 		changed->groove.swing_amount += 1;
-		const std::string json = deluge::serialization::write_json(encode_song(*changed, "c1.0.0", deluge::project::test::test_engines()));
+		const std::string json = deluge::serialization::write_json(encode_song(*changed, "c1.0.0", deluge::project::test::test_plugins()));
 		auto result = compare_songs(fixture(), false, json, true);
 		expect(result).to_have_error();
 		expect(result.error_or("")).to_partially_match("groove");

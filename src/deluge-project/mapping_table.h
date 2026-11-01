@@ -20,7 +20,7 @@
 #include "deluge-project/controller_mapping.h"
 #include "deluge-project/midi_command.h"
 #include "deluge-project/model_memory.h"
-#include "engine-api/types/param.h"
+#include "plugin-api/types/param.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -31,10 +31,10 @@
 namespace deluge::project {
 
 /// @brief A param of an owner's controls: the knob turns that param.
-struct ParamTarget {
+struct OwnerParamTarget {
 	ControlsAddress owner;
-	engine::ParamId param{};
-	bool operator==(const ParamTarget&) const = default;
+	plugin::ParamId param{};
+	bool operator==(const OwnerParamTarget&) const = default;
 };
 /// @brief A clip's mute toggle, by the clip's id.
 struct ClipMuteTarget {
@@ -63,14 +63,14 @@ struct LaneInputTarget {
 };
 
 /// @brief What a learned MIDI command controls.
-using MappingTarget =
-    std::variant<ParamTarget, ClipMuteTarget, DrumMuteTarget, SectionLaunchTarget, TrackInputTarget, LaneInputTarget>;
+using MappingTarget = std::variant<OwnerParamTarget, ClipMuteTarget, DrumMuteTarget, SectionLaunchTarget,
+                                   TrackInputTarget, LaneInputTarget>;
 
 /// @brief One learned binding: a source command and what it controls.
 struct Mapping {
 	MidiCommand source;
 	MappingTarget target;
-	bool relative{false}; ///< ParamTarget only: the knob sends relative changes
+	bool relative{false}; ///< OwnerParamTarget only: the knob sends relative changes
 	bool operator==(const Mapping&) const = default;
 };
 
@@ -84,8 +84,8 @@ struct Mapping {
 /// holding the same bindings.
 class MappingTable {
 public:
-	/// @brief Learn @p mapping. A ParamTarget replaces the entry whose source and target are both equal to its own,
-	/// devices compared exactly, else is appended; its relative flag is set unless the source is a pitch bend
+	/// @brief Learn @p mapping. A OwnerParamTarget replaces the entry whose source and target are both equal to its
+	/// own, devices compared exactly, else is appended; its relative flag is set unless the source is a pitch bend
 	/// (note_or_cc 128). Any other kind replaces that target's entry whatever its source, else is appended.
 	///
 	/// A menu's knob learn matches the knob it replaces by how MIDI is heard, which a device reference alone cannot
@@ -93,7 +93,7 @@ public:
 	/// @param mapping The binding to learn.
 	/// @return The entry that now holds it.
 	Mapping& learn(Mapping mapping);
-	/// @brief Learn @p mapping, a ParamTarget, in place of the entry for the same target whose source is
+	/// @brief Learn @p mapping, a OwnerParamTarget, in place of the entry for the same target whose source is
 	/// @p old_source, keeping that entry's place in the table; learn() it when there is no such entry. Its relative
 	/// flag is set as learn() sets it. When another knob of the target now has the same source, the two become one, at
 	/// the earlier of their places.
@@ -101,11 +101,11 @@ public:
 	/// @param mapping    The binding to learn.
 	/// @return The entry that now holds it.
 	Mapping& relearn(const MidiCommand& old_source, Mapping mapping);
-	/// @brief Remove every entry for @p target (for a ParamTarget: every knob on that param of that owner).
+	/// @brief Remove every entry for @p target (for a OwnerParamTarget: every knob on that param of that owner).
 	/// @param target What to unlearn.
 	/// @return How many entries were removed.
 	size_t unlearn(const MappingTarget& target);
-	/// @brief The entry @p target has: for a ParamTarget, the first such knob; for any other kind, its only one.
+	/// @brief The entry @p target has: for a OwnerParamTarget, the first such knob; for any other kind, its only one.
 	/// @param target What to look up.
 	/// @return The entry, or nullptr.
 	[[nodiscard]] const Mapping* find(const MappingTarget& target) const;
@@ -126,11 +126,11 @@ public:
 	/// the end when it has none. Each is taken as given (its relative flag included); every other entry stays where it
 	/// is.
 	/// @param owner Whose knobs these are.
-	/// @param knobs The owner's knobs; each must be a ParamTarget of @p owner.
+	/// @param knobs The owner's knobs; each must be a OwnerParamTarget of @p owner.
 	void set_params(ControlsAddress owner, std::span<const Mapping> knobs);
 	/// @brief @p owner's knobs, in table order.
 	/// @param owner Whose knobs.
-	/// @return Copies of its ParamTarget entries.
+	/// @return Copies of its OwnerParamTarget entries.
 	[[nodiscard]] std::vector<Mapping> params_of(ControlsAddress owner) const;
 	/// @brief Drop every entry that targets clip @p clip_id.
 	void forget_clip(uint32_t clip_id);

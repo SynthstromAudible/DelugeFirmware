@@ -19,13 +19,42 @@
 
 #include "deluge-project/param_address.h"
 #include "deluge-project/param_automation.h"
-#include "engine-api/types/param.h"
+#include "model/project_bridge/owner_plugin.h"
 #include "modulation/params/param.h"
+#include "plugin-api/types/param.h"
 
 #include <cstdint>
 #include <optional>
 
 namespace deluge::bridge {
+
+/// @brief A runtime param: its collection kind and its index there (a cable's packed word for PATCH_CABLE).
+struct RuntimeParam {
+	deluge::modulation::params::Kind kind;
+	int32_t index;
+	[[nodiscard]] constexpr bool operator==(const RuntimeParam&) const = default;
+};
+
+/// @brief The runtime param that @p target names for an owner of @p owner's plugin.
+///
+/// @param owner  The owner's plugin.
+/// @param target The param.
+/// @return The runtime collection kind and index, or nullopt when the owner's plugin has no such param.
+[[nodiscard]] std::optional<RuntimeParam> runtimeParamOf(OwnerPlugin owner, deluge::project::ParamTarget target);
+
+/// @brief The target of the runtime's param at @p index of a @p kind collection, owned by an owner of @p owner's
+/// plugin; the inverse of runtimeParamOf. An unpatched set its owner's init has not named yet (kind NONE) is numbered
+/// as the owner's unpatched params.
+///
+/// @param owner The owner's plugin.
+/// @param kind  The runtime collection kind.
+/// @param index The param's runtime index (the packed cable word for a patch cable).
+/// @return The target, or nullopt when the owner's plugin has no such param.
+[[nodiscard]] std::optional<deluge::project::ParamTarget>
+targetOf(OwnerPlugin owner, deluge::modulation::params::Kind kind, int32_t index);
+
+// UI-facing code names params through targetOf / runtimeParamOf; the functions below are the bridge's numbering,
+// used by the edit path and addressOf.
 
 /// @brief The id the runtime's param at @p index of a @p kind collection has.
 ///
@@ -37,7 +66,7 @@ namespace deluge::bridge {
 /// @param kind  The runtime collection kind.
 /// @param index The param's runtime index within the collection (the packed cable word for a patch cable).
 /// @return The param's id.
-[[nodiscard]] deluge::engine::ParamId paramIdOf(deluge::modulation::params::Kind kind, int32_t index);
+[[nodiscard]] deluge::plugin::ParamId paramIdOf(deluge::modulation::params::Kind kind, int32_t index);
 
 /// @brief Where a @p kind collection keeps the param @p id: its runtime index, through the same engine map as
 /// paramIdOf; for a host space's param, the id itself.
@@ -45,26 +74,26 @@ namespace deluge::bridge {
 /// @param kind The runtime collection kind.
 /// @param id   The param's id.
 /// @return The runtime index, or nullopt when the collection's engine has no such param.
-[[nodiscard]] std::optional<int32_t> runtimeIndexOf(deluge::modulation::params::Kind kind, deluge::engine::ParamId id);
+[[nodiscard]] std::optional<int32_t> runtimeIndexOf(deluge::modulation::params::Kind kind, deluge::plugin::ParamId id);
 
 /// @brief The id of a @p kind collection's first param: the id its store's first lane has.
 ///
 /// @param kind The runtime collection kind.
 /// @return The first param's id.
-[[nodiscard]] deluge::engine::ParamId firstParamId(deluge::modulation::params::Kind kind);
+[[nodiscard]] deluge::plugin::ParamId firstParamId(deluge::modulation::params::Kind kind);
 
 /// @brief The depth id of the runtime's packed cable word @p word: a cable's destination descriptor with its source
 /// added (the param in bits 0-7, the sources from the param outward in bits 8-15, 16-23 and 24-31, 0xFF when absent).
 ///
 /// @param word The runtime's packed cable word.
 /// @return The cable's depth id.
-[[nodiscard]] deluge::engine::ParamId cableDepthIdOf(uint32_t word);
+[[nodiscard]] deluge::plugin::ParamId cableDepthIdOf(uint32_t word);
 
 /// @brief The runtime's packed cable word of the depth id @p depth; the inverse of cableDepthIdOf.
 ///
 /// @param depth A cable's depth id.
 /// @return The packed cable word.
-[[nodiscard]] uint32_t cableWordOf(deluge::engine::ParamId depth);
+[[nodiscard]] uint32_t cableWordOf(deluge::plugin::ParamId depth);
 
 /// @brief The address space a @p kind collection's ids are in: an engine's table for a sound's or a global
 /// effectable's params and a patch cable's depth, else the host's own (expression, MIDI CC).

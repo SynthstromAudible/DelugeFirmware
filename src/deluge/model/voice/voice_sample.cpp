@@ -17,6 +17,7 @@
 
 #include "model/voice/voice_sample.h"
 #include "definitions_cxx.hpp"
+#include "dsp-next/fixed/interpolation/windowed_sinc_kernel.h"
 #include "dsp/timestretch/time_stretcher.h"
 #include "harness/streaming_underrun.h"
 #include "io/debug/log.h"
@@ -25,7 +26,7 @@
 #include "memory/stack_guard.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_cache.h"
-#include "model/voice/voice.h"
+#include "model/voice/voice_sample_playback_guide.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/source.h"
@@ -58,7 +59,7 @@ void VoiceSample::noteOn(SamplePlaybackGuide* guide, uint32_t samplesLate, int32
 }
 
 // Returns false if error
-bool VoiceSample::noteOffWhenLoopEndPointExists(Voice* voice, VoiceSamplePlaybackGuide* guide) {
+bool VoiceSample::noteOffWhenLoopEndPointExists(VoiceSamplePlaybackGuide* guide, int32_t priorityRating) {
 
 	if (cache) {
 		cacheLoopEndPointBytes = 2147483647;
@@ -69,8 +70,7 @@ bool VoiceSample::noteOffWhenLoopEndPointExists(Voice* voice, VoiceSamplePlaybac
 			return true;
 		}
 		else {
-			return reassessReassessmentLocation(guide, (Sample*)guide->audioFileHolder->audioFile,
-			                                    voice->getPriorityRating());
+			return reassessReassessmentLocation(guide, (Sample*)guide->audioFileHolder->audioFile, priorityRating);
 			// That's only going to make reassessmentLocation later, so no need to check we haven't shot past it I
 			// think...
 		}
@@ -690,7 +690,7 @@ timeStretchingConsidered:
 		amplitude <<= 1;
 		amplitudeIncrement <<= 1;
 
-		whichKernel = getWhichKernel(phaseIncrement);
+		whichKernel = deluge::dsp::fixed::WindowedSincKernel::variant_for(phaseIncrement);
 	}
 
 	// If time-stretching or reading a time-stretched cache
@@ -1385,7 +1385,7 @@ readTimestretched:
 
 				timeStretcher->crossfadeProgress += timeStretcher->crossfadeIncrement * numSamplesThisTimestretchedRead;
 
-				int32_t newerHopAmplitudeAfter = lshiftAndSaturate<7>(timeStretcher->crossfadeProgress);
+				int32_t newerHopAmplitudeAfter = lshift_and_saturate<7>(timeStretcher->crossfadeProgress);
 
 				int32_t newerHopAmplitudeIncrement =
 				    (int32_t)(newerHopAmplitudeAfter - newerHopAmplitudeNow) / (int32_t)numSamplesThisTimestretchedRead;

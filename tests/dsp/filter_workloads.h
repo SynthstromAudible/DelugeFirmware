@@ -25,11 +25,11 @@
 /// zeroing), the gain and the set's settings. A target reads only the settings it has: a lone low-pass ladder reads
 /// `low` and `low_slot.ladder`, a lone high-pass ladder `high`, a lone SVF `low` and `low_slot.svf`.
 ///
-/// The ladders draw from the synth-wide generator (`CONG`). Every run starts it at @ref kCongSeed, the app's boot
-/// value, and keeps its own copy between blocks, so two runs played side by side each see the stream they would see
-/// alone; around each block the caller's `jcong` is put back. Each block's draws are counted and their values
-/// digested, so a filter that draws one value more or less in a block, or moves a draw into another block, parts on
-/// the noise pin. A filter that draws the right values for the wrong samples (R before L, say) parts on the output
+/// The ladders draw from the synth's noise stream (`deluge::synth_noise`). Every run starts it at @ref kCongSeed, the
+/// app's boot value, and keeps its own copy between blocks, so two runs played side by side each see the stream they
+/// would see alone; around each block the caller's `synth_noise` is put back. Each block's draws are counted and their
+/// values digested, so a filter that draws one value more or less in a block, or moves a draw into another block, parts
+/// on the noise pin. A filter that draws the right values for the wrong samples (R before L, say) parts on the output
 /// and state pins, not on the noise pin.
 ///
 /// A run is generic over a family of implementations (@ref ReferenceFamily, or the firmware's in a spec), each
@@ -42,7 +42,7 @@
 #include "dsp-next/fixed/filter/filter_modes.h"
 #include "dsp-next/fixed/noise/congruential_step.h"
 #include "reference_filters.h"
-#include "util/waves.h" // jcong
+#include "util/synth_noise.h"
 
 #include <algorithm>
 #include <array>
@@ -72,10 +72,10 @@ using filters_reference::Digest;
 /// @brief The synth-wide generator's state at boot (util/waves.cpp), where every run starts it.
 inline constexpr uint32_t kCongSeed = 380116160;
 
-/// @brief Restores the synth-wide generator to @ref kCongSeed: for a spec that drives a kernel's noise through `jcong`
-/// directly rather than through a @ref FilterRun.
+/// @brief Restores the synth-wide generator to @ref kCongSeed: for a spec that drives a kernel's noise through
+/// `synth_noise` directly rather than through a @ref FilterRun.
 inline void reset_cong() {
-	jcong = kCongSeed;
+	deluge::synth_noise.seed(kCongSeed);
 }
 
 /// @brief The longest block a workload renders, in frames.
@@ -732,8 +732,8 @@ public:
 		out = filter_input(workload_, b);
 		const std::span<q31> fade{fade_scratch_.data(), out.size()};
 		const std::span<q31> parallel{parallel_scratch_};
-		const uint32_t outer_cong = jcong;
-		jcong = cong_;
+		const uint32_t outer_cong = deluge::synth_noise.state();
+		deluge::synth_noise.seed(cong_);
 		BlockResult result{};
 		switch (workload_.target) {
 		case Target::LOW_PASS_LADDER:
@@ -776,16 +776,17 @@ public:
 			}
 			result.gain = set_.configure(s.gain, s.low, s.low_slot, s.high, s.high_slot, s.route);
 			if (workload_.stereo) {
-				set_.renderStereo(out, Family::filter_scratch(fade, parallel));
+				set_.render_stereo(out, Family::filter_scratch(fade, parallel));
 			}
 			else {
-				set_.renderMono(out, Family::filter_scratch(fade, parallel));
+				set_.render_mono(out, Family::filter_scratch(fade, parallel));
 			}
 			break;
 		}
-		result.draws = draws_between(cong_, jcong, (4 * static_cast<uint32_t>(out.size())) + 4, noise);
-		cong_ = jcong;
-		jcong = outer_cong;
+		result.draws =
+		    draws_between(cong_, deluge::synth_noise.state(), (4 * static_cast<uint32_t>(out.size())) + 4, noise);
+		cong_ = deluge::synth_noise.state();
+		deluge::synth_noise.seed(outer_cong);
 		result.cong = cong_;
 		return result;
 	}
@@ -837,10 +838,10 @@ private:
 	template <typename Filter>
 	void render(Filter& filter, std::span<q31> block, std::span<q31> fade) {
 		if (workload_.stereo) {
-			filter.renderStereo(block, fade);
+			filter.render_stereo(block, fade);
 		}
 		else {
-			filter.renderMono(block, fade);
+			filter.render_mono(block, fade);
 		}
 	}
 

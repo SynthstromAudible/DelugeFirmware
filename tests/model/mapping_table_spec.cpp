@@ -18,11 +18,11 @@
 #include "deluge-project/mapping_codec.h"
 #include "deluge-project/mapping_table.h"
 #include "deluge-project/song.h"
-#include "engines/deluge/cables.h"
-#include "engines/deluge/naming.h"
-#include "engines/deluge/params.h"
-#include "engines/global_effectable/naming.h"
-#include "engines/global_effectable/params.h"
+#include "effects/global_effectable/naming.h"
+#include "effects/global_effectable/params.h"
+#include "instruments/deluge/cables.h"
+#include "instruments/deluge/naming.h"
+#include "instruments/deluge/params.h"
 #include "serialization/parse_json.h"
 
 #include <cppspec.hpp>
@@ -35,10 +35,10 @@ namespace {
 MidiCommand cc(uint8_t channel, uint8_t number) {
 	return MidiCommand{.channel_or_zone = channel, .note_or_cc = number};
 }
-ParamTarget out_param(uint32_t output, uint32_t param) {
-	return ParamTarget{{ControlsAddress::Kind::OUTPUT, output}, deluge::engine::ParamId{param}};
+OwnerParamTarget out_param(uint32_t output, uint32_t param) {
+	return OwnerParamTarget{{ControlsAddress::Kind::OUTPUT, output}, deluge::plugin::ParamId{param}};
 }
-Mapping knob(MidiCommand source, ParamTarget target) {
+Mapping knob(MidiCommand source, OwnerParamTarget target) {
 	return Mapping{.source = source, .target = target};
 }
 deluge::serialization::Value json(std::string_view text) {
@@ -50,7 +50,7 @@ struct Trip {
 	bool same{false};
 	Mapping first;
 };
-Trip round_trip(std::string_view text, MappingOwner owner, const deluge::engine::ParamNaming* naming = nullptr) {
+Trip round_trip(std::string_view text, MappingOwner owner, const deluge::plugin::ParamNaming* naming = nullptr) {
 	const deluge::serialization::Value element = json(text);
 	MappingTable table;
 	decode_mappings(element, owner, table, naming);
@@ -260,7 +260,7 @@ describe mapping_table("the song's mapping table", ${
 		table.learn(Mapping{.source = cc(0, 1), .target = ClipMuteTarget{1}});
 		table.learn(Mapping{.source = cc(0, 2), .target = DrumMuteTarget{1}});
 		table.learn(Mapping{.source = cc(0, 3), .target = LaneInputTarget{1}});
-		table.learn(knob(cc(0, 4), ParamTarget{{ControlsAddress::Kind::DRUM, 1}, deluge::engine::ParamId{1}}));
+		table.learn(knob(cc(0, 4), OwnerParamTarget{{ControlsAddress::Kind::DRUM, 1}, deluge::plugin::ParamId{1}}));
 		table.learn(knob(cc(0, 5), out_param(1, 1)));
 		table.learn(Mapping{.source = cc(0, 6), .target = TrackInputTarget{1}});
 		table.learn(Mapping{.source = cc(0, 7), .target = SectionLaunchTarget{1}});
@@ -303,7 +303,7 @@ describe mapping_table("the song's mapping table", ${
 		expect(table.params_of({ControlsAddress::Kind::OUTPUT, 1}).empty()).to_be_true();
 		expect(table.entries().size()).to_equal(size_t{2});
 		const std::array<Mapping, 1> drum{
-		    Mapping{cc(0, 5), ParamTarget{{ControlsAddress::Kind::DRUM, 5}, deluge::engine::ParamId{1}}}};
+		    Mapping{cc(0, 5), OwnerParamTarget{{ControlsAddress::Kind::DRUM, 5}, deluge::plugin::ParamId{1}}}};
 		table.set_params({ControlsAddress::Kind::DRUM, 5}, drum);
 		expect(table.entries().size()).to_equal(size_t{3});
 		expect(table.entries()[2]).to_equal(drum[0]);
@@ -320,7 +320,7 @@ describe mapping_table("the song's mapping table", ${
 		expect(static_cast<int>(m.source.channel_or_zone)).to_equal(16);
 		expect(static_cast<int>(m.source.note_or_cc)).to_equal(74);
 		expect(m.relative).to_be_true();
-		expect(m.target).to_equal(MappingTarget{ParamTarget{
+		expect(m.target).to_equal(MappingTarget{OwnerParamTarget{
 		    {ControlsAddress::Kind::DRUM, 3},
 		    *deluge::instrument::cable_depth_id(deluge::instrument::PatchSource::LFO_GLOBAL_1,
 		                                        deluge::instrument::param::kPitch)}});
@@ -336,7 +336,7 @@ describe mapping_table("the song's mapping table", ${
 		expect(m.source.device->port).to_equal(MidiDeviceRef::Port::DIN);
 		expect(m.relative).to_be_false();
 		expect(m.target).to_equal(MappingTarget{
-		    ParamTarget{{ControlsAddress::Kind::OUTPUT, 5}, deluge::global_effectable::param::kLpfFrequency}});
+		    OwnerParamTarget{{ControlsAddress::Kind::OUTPUT, 5}, deluge::global_effectable::param::kLpfFrequency}});
 	});
 
 	it("reads and writes the song's knob", _ {
@@ -346,7 +346,7 @@ describe mapping_table("the song's mapping table", ${
 		expect(trip.count).to_equal(size_t{1});
 		expect(trip.same).to_be_true();
 		const Mapping& m = trip.first;
-		expect(std::get<ParamTarget>(m.target).owner.kind).to_equal(ControlsAddress::Kind::SONG);
+		expect(std::get<OwnerParamTarget>(m.target).owner.kind).to_equal(ControlsAddress::Kind::SONG);
 	});
 
 	it("reads and writes a clip's mute command", _ {

@@ -32,6 +32,7 @@
 #include "model/edits/clear_clip.h"
 #include "model/edits/clip_address_for.h"
 #include "model/edits/edit.h"
+#include "model/edits/edit_cable.h"
 #include "model/edits/edit_clip_instance.h"
 #include "model/edits/kit_row_address_for.h"
 #include "model/edits/multiply_clip.h"
@@ -68,6 +69,7 @@
 #include "modulation/params/param.h"
 #include "modulation/params/param_node.h"
 #include "modulation/params/param_set.h"
+#include "modulation/patch/patch_cable_set.h"
 #include "playback/playback_handler.h"
 #include "processing/sound/sound_drum.h"
 #include "scenarios/drivers/tree_load.h"
@@ -243,6 +245,139 @@ void driveNoteEdits(Song* song, InstrumentClip* clip, NoteRow* noteRow, int32_t 
 	actionLogger.revert(AFTER, false, false);
 	check(noteAtPos(noteRow, pos0), "note-add: redo restores the note");
 	(void)label;
+}
+
+// Each cable topology op through EditCable -> undo -> redo on a real synth clip: undo restores the records (order
+// included) and the depth lanes, and redo re-applies them. Then create-on-edit: a depth written to a missing cable adds
+// it in the same Action, so one undo takes back both.
+void cableTarget(Song* song) {
+	InstrumentClip* clip = nullptr;
+	for (int32_t c = 0; c < std::ssize(song->live.clips.session_clips) && clip == nullptr; c++) {
+		Clip* candidate = song->live.clips.session_clips[c];
+		if (candidate->type == ClipType::INSTRUMENT && candidate->output != nullptr
+		    && candidate->output->type == OutputType::SYNTH) {
+			clip = static_cast<InstrumentClip*>(candidate);
+		}
+	}
+	if (clip == nullptr) {
+		return;
+	}
+	alignas(ModelStackWithAutoParam) char mem[MODEL_STACK_MAX_SIZE]{};
+	ModelStackWithThreeMainThings* ms = setupModelStackWithThreeMainThingsButNoNoteRow(
+	    mem, song, clip->output->toModControllable(), clip, &clip->paramManager);
+	PatchCableSet& cables = *clip->paramManager.getPatchCableSet();
+	deluge::edits::Context ctx{*currentSong, currentSong->project};
+	auto freshAction = [] {
+		actionLogger.firstAction[BEFORE] = nullptr;
+		actionLogger.firstAction[AFTER] = nullptr;
+	};
+	const deluge::synth::CableTarget cutoff = deluge::synth::CableTarget::param(params::LOCAL_LPF_FREQ);
+	if (cables.records().find(PatchSource::RANDOM, cutoff).has_value()) {
+		return; // the script needs RANDOM -> cutoff absent to start
+	}
+
+	// ADD
+	freshAction();
+	const deluge::instrument::CableRecords before = cables.records();
+	deluge::edits::EditCable add =
+	    deluge::edits::EditCable::add(ms, {PatchSource::RANDOM, cutoff, deluge::synth::CablePolarity::BIPOLAR});
+	check(deluge::edits::apply(ctx, add) == Error::NONE, "cable add: applies");
+	const deluge::instrument::CableRecords after = cables.records();
+	check(after.size() == before.size() + 1, "cable add: one more record");
+	actionLogger.revert(BEFORE, false, false);
+	check(cables.records() == before, "cable add: undo restores the records");
+	actionLogger.revert(AFTER, false, false);
+	check(cables.records() == after, "cable add: redo re-adds in the same order");
+
+	// SET_POLARITY
+	freshAction();
+	const size_t added = *cables.records().find(PatchSource::RANDOM, cutoff);
+	deluge::edits::EditCable polarity =
+	    deluge::edits::EditCable::setPolarity(ms, added, deluge::synth::CablePolarity::UNIPOLAR);
+	check(deluge::edits::apply(ctx, polarity) == Error::NONE, "cable polarity: applies");
+	actionLogger.revert(BEFORE, false, false);
+	check(cables.records()[*cables.records().find(PatchSource::RANDOM, cutoff)].polarity
+	          == deluge::synth::CablePolarity::BIPOLAR,
+	      "cable polarity: undo");
+	actionLogger.revert(AFTER, false, false);
+	check(cables.records()[*cables.records().find(PatchSource::RANDOM, cutoff)].polarity
+	          == deluge::synth::CablePolarity::UNIPOLAR,
+	      "cable polarity: redo");
+
+	// REROUTE, with a depth on the cable: the depth moves with it, both ways.
+	freshAction();
+	const deluge::synth::CableTarget resonance = deluge::synth::CableTarget::param(params::LOCAL_LPF_RESONANCE);
+	size_t at = *cables.records().find(PatchSource::RANDOM, cutoff);
+	cables.patchCables[at].param.setCurrentValueBasicForSetup(*cables.docForParam(static_cast<int32_t>(at)), 98765);
+	if (!cables.records().find(PatchSource::RANDOM, resonance).has_value()) {
+		deluge::edits::EditCable reroute = deluge::edits::EditCable::reroute(ms, at, resonance);
+		check(deluge::edits::apply(ctx, reroute) == Error::NONE, "cable reroute: applies");
+		const size_t moved = *cables.records().find(PatchSource::RANDOM, resonance);
+		check(cables.docForParam(static_cast<int32_t>(moved))->current_value == 98765, "cable reroute: depth moves");
+		actionLogger.revert(BEFORE, false, false);
+		at = *cables.records().find(PatchSource::RANDOM, cutoff);
+		check(cables.docForParam(static_cast<int32_t>(at))->current_value == 98765,
+		      "cable reroute: undo moves it back");
+		actionLogger.revert(AFTER, false, false);
+		check(cables.records().find(PatchSource::RANDOM, resonance).has_value(), "cable reroute: redo");
+		actionLogger.revert(BEFORE, false, false);
+	}
+
+	// REMOVE, with a depth on the cable
+	freshAction();
+	at = *cables.records().find(PatchSource::RANDOM, cutoff);
+	cables.patchCables[at].param.setCurrentValueBasicForSetup(*cables.docForParam(static_cast<int32_t>(at)), 123456);
+	const deluge::instrument::CableRecords withCable = cables.records();
+	deluge::edits::EditCable remove = deluge::edits::EditCable::remove(ms, at);
+	check(deluge::edits::apply(ctx, remove) == Error::NONE, "cable remove: applies");
+	check(!cables.records().find(PatchSource::RANDOM, cutoff).has_value(), "cable remove: removes");
+	actionLogger.revert(BEFORE, false, false);
+	check(cables.records() == withCable, "cable remove: undo restores the records in order");
+	const size_t restored = *cables.records().find(PatchSource::RANDOM, cutoff);
+	check(cables.docForParam(static_cast<int32_t>(restored))->current_value == 123456,
+	      "cable remove: undo restores the depth");
+	actionLogger.revert(AFTER, false, false);
+	check(!cables.records().find(PatchSource::RANDOM, cutoff).has_value(), "cable remove: redo removes");
+
+	// Create-on-edit: a depth written to a missing cable adds it; one undo takes back both.
+	freshAction();
+	const deluge::instrument::CableRecords bare = cables.records();
+	ModelStackWithAutoParam* depth = deluge::edits::cableDepthForEdit(ms, PatchSource::RANDOM, cutoff);
+	check(depth != nullptr, "create-on-edit: the write finds its cable");
+	if (depth == nullptr) {
+		return;
+	}
+	deluge::edits::SetParamValue write{deluge::edits::addressFor(*depth), 1 << 28, 0, 0, depth};
+	deluge::edits::apply(ctx, write);
+	check(cables.records().size() == bare.size() + 1, "create-on-edit: one more record");
+	actionLogger.revert(BEFORE, false, false);
+	check(cables.records() == bare, "create-on-edit: one undo removes the cable");
+	actionLogger.revert(AFTER, false, false);
+	const std::optional<size_t> created = cables.records().find(PatchSource::RANDOM, cutoff);
+	check(created.has_value() && cables.patchCables[*created].param.getCurrentValue() == (1 << 28),
+	      "create-on-edit: redo restores the depth");
+
+	// Delete-at-zero: depth 0, no automation, active clip; one undo restores the cable and its depth.
+	freshAction();
+	const deluge::instrument::CableRecords live = cables.records();
+	ModelStackWithAutoParam* zero = deluge::edits::cableDepthForEdit(ms, PatchSource::RANDOM, cutoff);
+	if (zero == nullptr || zero->autoParam->isAutomated(*zero->doc())) {
+		return;
+	}
+	deluge::edits::SetParamValue clear{deluge::edits::addressFor(*zero), 0, 0, 0, zero};
+	deluge::edits::apply(ctx, clear);
+	if (clip->isActiveOnOutput()) {
+		check(!cables.records().find(PatchSource::RANDOM, cutoff).has_value(), "delete-at-zero: removes the cable");
+		actionLogger.revert(BEFORE, false, false);
+		check(cables.records() == live, "delete-at-zero: one undo restores the cable in order");
+		const std::optional<size_t> back = cables.records().find(PatchSource::RANDOM, cutoff);
+		check(back.has_value() && cables.patchCables[*back].param.getCurrentValue() == (1 << 28),
+		      "delete-at-zero: undo restores the depth");
+	}
+	else {
+		check(cables.records().find(PatchSource::RANDOM, cutoff).has_value(),
+		      "delete-at-zero: keeps it on an inactive clip");
+	}
 }
 
 // True if this clip is note-addressable (has a durable clip id).
@@ -1497,6 +1632,7 @@ int edit_undo_redo_main(int argc, char** argv, Io driverIo) {
 	launchStyleTarget(song);
 	colourTarget(song);
 	sectionTarget(song);
+	cableTarget(song);
 
 	std::free(xml);
 	return failures ? 3 : 0;

@@ -191,17 +191,18 @@ fn emit_staleness_hash(app_objs_dir: &Path, hash: &str, prev: Option<&str>, stam
 /// call each other. The host tree's layout differs from the device tree's: the DSP libraries sit
 /// under `app/`.
 fn link_closure(build_dir: &Path, archive: &Path) {
-    const DEPS: [(&str, &str); 22] = [
+    const DEPS: [(&str, &str); 23] = [
         ("printf", "libeyalroz_printf.a"),
         ("app/dsp", "libdeluge_dsp.a"),
         ("app/dsp-next", "libdeluge-dsp-fixed.a"),
         ("app/dsp-next", "libdeluge-dsp-float.a"),
+        ("synth", "libdeluge_synth.a"),
         ("foundation", "libdeluge_foundation.a"),
         ("serialization", "libdeluge_serialization.a"),
         ("music-theory", "libdeluge_music_theory.a"),
         ("deluge-project", "libdeluge_project.a"),
-        ("engines-deluge", "libdeluge_instrument.a"),
-        ("engines-effects", "libdeluge_effects.a"),
+        ("instruments-deluge", "libdeluge_instrument.a"),
+        ("effects", "libdeluge_effects.a"),
         ("midi", "libdeluge_midi.a"),
         ("gfx", "libdeluge_gfx_oled.a"),
         ("gfx", "libdeluge_gfx_grid.a"),

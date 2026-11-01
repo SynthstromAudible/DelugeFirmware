@@ -35,10 +35,10 @@
 #include <vector>
 
 #include "deluge-project/instrument_slot.h"
-#include "engines/deluge/engine.h"
-#include "engines/deluge/settings.h"
-#include "engines/effects/engine.h"
+#include "effects/plugin.h"
 #include "gui/menu_item/setting_edit.h"
+#include "instruments/deluge/plugin.h"
+#include "instruments/deluge/settings.h"
 #include "io/midi/cable_types/usb_hosted.h"
 #include "model/drum/drum.h"
 #include "model/edits/change_effect.h"
@@ -564,7 +564,7 @@ void testSetEngineSetting(deluge::edits::Context& ctx) {
 
 	deluge::edits::SetEngineSetting edit{*slot, "voicePriority", Value::makeNumber(2)};
 	check(deluge::edits::apply(ctx, edit) == Error::NONE, "setting: a mapped path is applied");
-	check(sound.snapshot().voicePriority == VoicePriority::HIGH, "setting: the sound takes the value");
+	check(sound.snapshot().voice_priority == VoicePriority::HIGH, "setting: the sound takes the value");
 	const Value slotNow = *deluge::harness::encodedSlot(ctx.song, *slot);
 	const std::string* held = deluge::serialization::text_of(slotNow.find("voicePriority"));
 	check(held != nullptr && *held == "2", "setting: the slot holds the value");
@@ -578,7 +578,7 @@ void testSetEngineSetting(deluge::edits::Context& ctx) {
 	check(deluge::edits::apply(ctx, outOfRange) != Error::NONE, "setting: a value out of range is refused");
 	check(deluge::serialization::first_difference((*deluge::harness::encodedSlot(ctx.song, *slot)), before).empty(),
 	      "setting: a refused Edit leaves the slot");
-	check(sound.snapshot().voicePriority == VoicePriority::HIGH, "setting: a refused Edit leaves the sound");
+	check(sound.snapshot().voice_priority == VoicePriority::HIGH, "setting: a refused Edit leaves the sound");
 
 	// An LFO's sync level is the level itself, whatever the song's tick magnitude: every level the sync menu offers
 	// is taken and lands as chosen.
@@ -591,7 +591,7 @@ void testSetEngineSetting(deluge::edits::Context& ctx) {
 		for (int32_t level = 0; level <= 9; level++) {
 			deluge::edits::SetEngineSetting sync{*slot, "lfo1/syncLevel", Value::makeNumber(level)};
 			const bool taken = deluge::edits::apply(ctx, sync) == Error::NONE;
-			const bool landed = static_cast<int32_t>(sound.snapshot().lfoConfig[0].syncLevel) == level;
+			const bool landed = static_cast<int32_t>(sound.snapshot().lfo_config[0].sync_level) == level;
 			if (!taken || !landed) {
 				std::fprintf(io.err, "setting: lfo1/syncLevel=%d at magnitude %d %s\n", level, magnitude,
 				             taken ? "landed elsewhere" : "refused");
@@ -913,17 +913,17 @@ void testKnobTargets(deluge::edits::Context& /*ctx*/) {
 	namespace params = deluge::modulation::params;
 	for (int32_t button = 0; button < kNumModButtons; button++) {
 		for (int32_t knob = 0; knob < kNumPhysicalModKnobs; knob++) {
-			const ParamDescriptor d = sound.modKnobs[button][knob].paramDescriptor;
-			check(deluge::bridge::descriptorOf(deluge::bridge::knobTargetOf(d, params::Kind::UNPATCHED_SOUND),
-			                                   params::Kind::UNPATCHED_SOUND)
+			const deluge::modulation::KnobTarget d = sound.modKnobs[button][knob].target;
+			check(deluge::bridge::knobOfControl(deluge::bridge::controlTargetOf(d, params::Kind::UNPATCHED_SOUND),
+			                                    params::Kind::UNPATCHED_SOUND)
 			          == d,
 			      "knobs: a default knob's target leads back to its descriptor");
 		}
 	}
-	ParamDescriptor cable;
-	cable.setToHaveParamAndSource(params::LOCAL_LPF_FREQ, PatchSource::LFO_LOCAL_1);
-	check(deluge::bridge::descriptorOf(deluge::bridge::knobTargetOf(cable, params::Kind::UNPATCHED_SOUND),
-	                                   params::Kind::UNPATCHED_SOUND)
+	const deluge::modulation::KnobTarget cable = deluge::modulation::knobTargetOf(
+	    deluge::synth::CableTarget::depth_of(params::LOCAL_LPF_FREQ, PatchSource::LFO_LOCAL_1));
+	check(deluge::bridge::knobOfControl(deluge::bridge::controlTargetOf(cable, params::Kind::UNPATCHED_SOUND),
+	                                    params::Kind::UNPATCHED_SOUND)
 	          == cable,
 	      "knobs: a cable depth's target leads back to its descriptor");
 }
@@ -947,37 +947,35 @@ void testSetControls(deluge::edits::Context& ctx) {
 		return;
 	}
 
-	ParamDescriptor resonance;
-	resonance.setToHaveParamOnly(params::LOCAL_LPF_RESONANCE);
+	const deluge::modulation::KnobTarget resonance = deluge::modulation::knobParam(params::LOCAL_LPF_RESONANCE);
 	std::vector<ControllerMapping> controls = *record;
 	for (ControllerMapping& mapping : controls) {
 		if (mapping.control.button == 2 && mapping.control.knob == 1) {
-			mapping.target = deluge::bridge::knobTargetOf(resonance, params::Kind::UNPATCHED_SOUND);
+			mapping.target = deluge::bridge::controlTargetOf(resonance, params::Kind::UNPATCHED_SOUND);
 		}
 	}
-	deluge::edits::LearnMapping learnKnob{
-	    deluge::project::Mapping{.source = {.channel_or_zone = 0, .note_or_cc = 74},
-	                             .target = deluge::project::ParamTarget{
-	                                 address, deluge::bridge::knobTargetOf(resonance, params::Kind::UNPATCHED_SOUND)}}};
+	deluge::edits::LearnMapping learnKnob{deluge::project::Mapping{
+	    .source = {.channel_or_zone = 0, .note_or_cc = 74},
+	    .target = deluge::project::OwnerParamTarget{
+	        address, deluge::bridge::controlTargetOf(resonance, params::Kind::UNPATCHED_SOUND)}}};
 	check(deluge::edits::apply(ctx, learnKnob) == Error::NONE, "controls: a MIDI knob is learned into the table");
 	deluge::edits::SetControls edit{address, controls};
 	check(deluge::edits::apply(ctx, edit) == Error::NONE, "controls: a mapping list is applied");
-	check(sound.modKnobs[2][1].paramDescriptor == resonance, "controls: the runtime's mod knob follows");
+	check(sound.modKnobs[2][1].target == resonance, "controls: the runtime's mod knob follows");
 	check(sound.midi_knobs.size() == 1, "controls: the learned knob stays");
 	check(*ctx.model.resolveControls(address) == controls, "controls: the record holds the list");
 	const std::vector<deluge::project::Mapping> knobs = ctx.model.mappings.params_of(address);
 	check(knobs.size() == 1 && knobs[0].source.note_or_cc == 74 && knobs[0].relative
-	          && std::get<deluge::project::ParamTarget>(knobs[0].target).param
-	                 == deluge::bridge::knobTargetOf(resonance, params::Kind::UNPATCHED_SOUND),
+	          && std::get<deluge::project::OwnerParamTarget>(knobs[0].target).param
+	                 == deluge::bridge::controlTargetOf(resonance, params::Kind::UNPATCHED_SOUND),
 	      "controls: the table holds the learned knob");
 
 	if (sound.midi_knobs.size() == 1) {
 		sound.midi_knobs[0].previousPositionSaved = true;
 		sound.midi_knobs[0].previousPosition = 77;
 	}
-	ParamDescriptor cutoff;
-	cutoff.setToHaveParamOnly(params::LOCAL_LPF_FREQ);
-	controls[2 * 2 + 1].target = deluge::bridge::knobTargetOf(cutoff, params::Kind::UNPATCHED_SOUND);
+	const deluge::modulation::KnobTarget cutoff = deluge::modulation::knobParam(params::LOCAL_LPF_FREQ);
+	controls[2 * 2 + 1].target = deluge::bridge::controlTargetOf(cutoff, params::Kind::UNPATCHED_SOUND);
 	deluge::edits::SetControls other{address, controls};
 	check(deluge::edits::apply(ctx, other) == Error::NONE, "controls: another knob's edit is applied");
 	check(sound.midi_knobs.size() == 1 && sound.midi_knobs[0].previousPositionSaved
@@ -1014,8 +1012,7 @@ void testKnobGesturesRecord(deluge::edits::Context& ctx) {
 		return;
 	}
 
-	ParamDescriptor drive;
-	drive.setToHaveParamOnly(params::LOCAL_LPF_RESONANCE);
+	const deluge::modulation::KnobTarget drive = deluge::modulation::knobParam(params::LOCAL_LPF_RESONANCE);
 	check(sound.learnKnob(nullptr, drive, 1, 3, 16, &ctx.song), "knob gestures: a mod knob is learned");
 	deluge::gui::menu_item::recordControlsOf(sound);
 	check(deluge::harness::soundIncoherence(sound, ctx.song).empty(), "knob gestures: a learn is recorded");
@@ -1044,12 +1041,11 @@ void testPresetChangeHandsOverKnobs(deluge::edits::Context& ctx) {
 		check(false, "handover: the old synth has controls");
 		return;
 	}
-	ParamDescriptor resonance;
-	resonance.setToHaveParamOnly(params::LOCAL_LPF_RESONANCE);
+	const deluge::modulation::KnobTarget resonance = deluge::modulation::knobParam(params::LOCAL_LPF_RESONANCE);
 	deluge::edits::LearnMapping learn{deluge::project::Mapping{
 	    .source = {.channel_or_zone = 0, .note_or_cc = 71},
-	    .target = deluge::project::ParamTarget{
-	        *oldAddress, deluge::bridge::knobTargetOf(resonance, params::Kind::UNPATCHED_SOUND)}}};
+	    .target = deluge::project::OwnerParamTarget{
+	        *oldAddress, deluge::bridge::controlTargetOf(resonance, params::Kind::UNPATCHED_SOUND)}}};
 	check(deluge::edits::apply(ctx, learn) == Error::NONE && ctx.model.mappings.params_of(*oldAddress).size() == 1
 	          && oldSound.midi_knobs.size() == 1,
 	      "handover: the old synth learns a knob");
@@ -1088,12 +1084,12 @@ void testClonedAudioTrackRecordsKnobs(deluge::edits::Context& ctx) {
 	if (!address) {
 		return;
 	}
-	ParamDescriptor volume;
-	volume.setToHaveParamOnly(params::UNPATCHED_START + params::UNPATCHED_VOLUME);
-	deluge::edits::LearnMapping learn{
-	    deluge::project::Mapping{.source = {.channel_or_zone = 0, .note_or_cc = 72},
-	                             .target = deluge::project::ParamTarget{
-	                                 *address, deluge::bridge::knobTargetOf(volume, params::Kind::UNPATCHED_GLOBAL)}}};
+	const deluge::modulation::KnobTarget volume =
+	    deluge::modulation::knobParam(params::UNPATCHED_START + params::UNPATCHED_VOLUME);
+	deluge::edits::LearnMapping learn{deluge::project::Mapping{
+	    .source = {.channel_or_zone = 0, .note_or_cc = 72},
+	    .target = deluge::project::OwnerParamTarget{
+	        *address, deluge::bridge::controlTargetOf(volume, params::Kind::UNPATCHED_GLOBAL)}}};
 	check(deluge::edits::apply(ctx, learn) == Error::NONE && ctx.model.mappings.params_of(*address).size() == 1
 	          && source->midi_knobs.size() == 1,
 	      "clone: the source track learns a knob");
@@ -1378,17 +1374,17 @@ void testReshapingWrites(deluge::edits::Context& ctx) {
 	}
 	// Each of a row's values in its stored form, as a menu writes them.
 	const auto values = [](std::string_view path) {
-		const deluge::engine::SettingInfo& row = *deluge::engine::find_setting(deluge::instrument::kSettings, path);
+		const deluge::plugin::SettingInfo& row = *deluge::plugin::find_setting(deluge::instrument::kSettings, path);
 		std::vector<Value> found;
-		const auto [least, greatest] = deluge::engine::menu_range(row);
+		const auto [least, greatest] = deluge::plugin::menu_range(row);
 		for (int32_t menu = least; menu <= greatest; menu++) {
-			const auto stored = deluge::engine::from_menu(row, menu);
+			const auto stored = deluge::plugin::from_menu(row, menu);
 			if (!stored) {
 				continue;
 			}
 			std::array<char, 16> scratch{};
-			const auto word = row.kind == deluge::engine::SettingKind::CHOICE
-			                      ? deluge::engine::stored_text(row, stored->first, scratch)
+			const auto word = row.kind == deluge::plugin::SettingKind::CHOICE
+			                      ? deluge::plugin::stored_text(row, stored->first, scratch)
 			                      : std::nullopt;
 			found.push_back(word ? Value::makeScalar(std::string(*word)) : Value::makeNumber(stored->first));
 		}
@@ -1434,7 +1430,7 @@ void testSaveLeavesRecordsCoherent(deluge::edits::Context& ctx) {
 	}
 	ctx.song.addOutput(synth);
 	Sound& sound = *static_cast<SoundInstrument*>(synth);
-	sound.core().compressor().dsp().setThreshold(sound.effects().compressor.threshold + (123 << 16));
+	sound.core().compressor().dsp().set_threshold(sound.effects().compressor.threshold + (123 << 16));
 	const deluge::instrument::SoundState before = *sound.boundState();
 	ValueSerializer writer(ValueSerializer::Writes::ITEMS);
 	{

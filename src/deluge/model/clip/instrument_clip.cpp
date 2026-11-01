@@ -18,6 +18,7 @@
 #include "model/clip/instrument_clip.h"
 #include "definitions_cxx.hpp"
 #include "deluge-project/doc_note_row.h"
+#include "deluge-project/edit_guard.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/browser/browser.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
@@ -4689,6 +4690,8 @@ doNormal: // Wrap it back to the start.
 		if (effectiveLength == distanceToNextNote) {
 			param->deleteAutomation(nullptr, modelStackWithAutoParam, false);
 
+			// The node is placed inside the insert's section: the render never sees it at pos 0 with no value.
+			deluge::project::EditGuard guard{deluge::project::ModelEdit::NODE_KERNEL};
 			Error error = deluge::error_of(mpeParams->docForParam(m)->nodes.insertAt(0));
 			if (error == Error::NONE) {
 				ParamNode* firstNode = &mpeParams->docForParam(m)->nodes[0];

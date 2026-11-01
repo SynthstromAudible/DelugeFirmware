@@ -1,13 +1,13 @@
 #pragma once
-// Duplicated from util/lookuptables + util/waves.h so gfx stays a leaf; the audio copy is the original.
+// Duplicated from dsp-next/fixed/tables/sine_small.h so gfx stays a leaf; the audio copy is the original.
 #include <cstdint>
 
 namespace deluge::gfx::grid {
 
-/// @brief 257-entry quarter-turn sine table (Q15), mirroring the audio DSP's `sineWaveSmall`.
+/// @brief 257-entry quarter-turn sine table (Q15), mirroring dsp-next's `tables::kSineSmall`.
 ///
 /// @note Duplicated here, rather than shared, so that `src/gfx/**` never depends on
-///       `src/deluge/util/**`. The DSP copy remains the single source of truth for DSP call sites
+///       `src/deluge/**`. The DSP copy remains the single source of truth for DSP call sites
 ///       (sine_osc.h, lfo.h, voice.cpp, etc.); keep the two in step.
 extern const int16_t kSineWaveSmall[257];
 

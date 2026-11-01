@@ -8,7 +8,6 @@
 /// per path, k counting the values applied across the song's owners.
 
 #include "deluge-project/setting_group.h"
-#include "engine-api/types/setting.h"
 #include "extern.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/clip.h"
@@ -26,6 +25,7 @@
 #include "model/project_bridge/song_serialization.h"
 #include "model/song/clip_iterators.h"
 #include "model/song/song.h"
+#include "plugin-api/types/setting.h"
 #include "processing/audio_output.h"
 #include "processing/engines/audio_engine.h"
 #include "scenarios/drivers/driver.h"
@@ -46,8 +46,8 @@
 
 namespace {
 
-using deluge::engine::SettingInfo;
-using deluge::engine::SettingKind;
+using deluge::plugin::SettingInfo;
+using deluge::plugin::SettingKind;
 using deluge::project::SettingAddress;
 using deluge::project::SettingGroupId;
 using deluge::serialization::Value;
@@ -142,7 +142,7 @@ std::vector<Value> valuesOf(Song& song, const SettingAddress& address, const Set
 		std::vector<int64_t> numbers{row.min, row.max, row.default_value};
 		if (!row.user.identity()) {
 			for (int32_t user : {row.user.user_min, row.user.user_max}) {
-				if (const auto stored = deluge::engine::to_stored(row, user)) {
+				if (const auto stored = deluge::plugin::to_stored(row, user)) {
 					numbers.push_back(*stored);
 				}
 			}
@@ -293,17 +293,18 @@ int32_t saveLegs(Song& song, deluge::scenarios::driver::Io io) {
 
 /// @brief The table's name for patched param @p p of a sound, or (when @p unpatchedKind is given) unpatched param @p p
 ///        of that kind.
-deluge::engine::ParamId knobParam(int32_t p, std::optional<params::Kind> unpatchedKind = std::nullopt) {
-	ParamDescriptor descriptor;
-	descriptor.setToHaveParamOnly(unpatchedKind ? params::UNPATCHED_START + p : p);
-	return deluge::bridge::knobTargetOf(descriptor, unpatchedKind.value_or(params::Kind::UNPATCHED_SOUND));
+deluge::plugin::ParamId knobParam(int32_t p, std::optional<params::Kind> unpatchedKind = std::nullopt) {
+	deluge::synth::CableTarget descriptor =
+	    deluge::synth::CableTarget::param(unpatchedKind ? params::UNPATCHED_START + p : p);
+	return deluge::bridge::controlTargetOf(deluge::modulation::knobTargetOf(descriptor),
+	                                       unpatchedKind.value_or(params::Kind::UNPATCHED_SOUND));
 }
 
 /// @brief @p mapping as a failure shows it: its target's kind (the MappingTarget alternative), its source's channel or
 ///        zone, note or CC and device, and its relative flag.
 std::string describeMapping(const deluge::project::Mapping& mapping) {
 	std::string text = "target#" + std::to_string(mapping.target.index()) + " ";
-	if (const auto* knob = std::get_if<deluge::project::ParamTarget>(&mapping.target)) {
+	if (const auto* knob = std::get_if<deluge::project::OwnerParamTarget>(&mapping.target)) {
 		text += "param " + std::to_string(knob->param.value) + " ";
 	}
 	text += std::to_string(mapping.source.channel_or_zone) + "/" + std::to_string(mapping.source.note_or_cc);
@@ -367,12 +368,12 @@ int32_t mappingsLeg(Song& song, deluge::scenarios::driver::Io io) {
 	                          .target = deluge::project::LaneInputTarget{rowId}};
 	std::vector<Mapping> learned{
 	    {.source = {.channel_or_zone = 17, .note_or_cc = 74},
-	     .target =
-	         deluge::project::ParamTarget{{ControlsAddress::Kind::OUTPUT, *synth->id()}, knobParam(params::LOCAL_PAN)}},
+	     .target = deluge::project::OwnerParamTarget{{ControlsAddress::Kind::OUTPUT, *synth->id()},
+	                                                 knobParam(params::LOCAL_PAN)}},
 	    {.source = {.channel_or_zone = 4, .note_or_cc = 21},
-	     .target =
-	         deluge::project::ParamTarget{{ControlsAddress::Kind::SONG, 0},
-	                                      knobParam(params::UNPATCHED_DELAY_AMOUNT, params::Kind::UNPATCHED_GLOBAL)}},
+	     .target = deluge::project::OwnerParamTarget{{ControlsAddress::Kind::SONG, 0},
+	                                                 knobParam(params::UNPATCHED_DELAY_AMOUNT,
+	                                                           params::Kind::UNPATCHED_GLOBAL)}},
 	    {.source = {.channel_or_zone = 3,
 	                .note_or_cc = 36,
 	                .device = MidiDeviceRef{.port = MidiDeviceRef::Port::UPSTREAM_USB_2}},
@@ -383,7 +384,7 @@ int32_t mappingsLeg(Song& song, deluge::scenarios::driver::Io io) {
 	};
 	if (audio != nullptr) {
 		learned.push_back({.source = {.channel_or_zone = 5, .note_or_cc = 22},
-		                   .target = deluge::project::ParamTarget{
+		                   .target = deluge::project::OwnerParamTarget{
 		                       {ControlsAddress::Kind::OUTPUT, *audio->id()},
 		                       knobParam(params::UNPATCHED_LPF_FREQ, params::Kind::UNPATCHED_GLOBAL)}});
 	}
@@ -414,7 +415,7 @@ int32_t mappingsLeg(Song& song, deluge::scenarios::driver::Io io) {
 			}
 			if (what.empty() && std::ranges::find(back, mapping) == back.end()) {
 				std::string held;
-				if (const auto* knob = std::get_if<deluge::project::ParamTarget>(&mapping.target)) {
+				if (const auto* knob = std::get_if<deluge::project::OwnerParamTarget>(&mapping.target)) {
 					for (const Mapping& entry : reloaded->project.mappings.params_of(knob->owner)) {
 						held += (held.empty() ? "" : ", ") + describeMapping(entry);
 					}

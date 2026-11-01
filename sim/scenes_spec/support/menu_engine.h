@@ -91,15 +91,15 @@ inline MenuEngine menu_engine(const deluge::scenes::menu::MenuContext& ctx) {
 
 /// @brief Whether the port's learn target @p port is legacy's learning thing @p legacy, on @p ctx's owner: the same
 ///        param by its engine id, or neither.
-inline bool learns_as(const std::optional<deluge::project::ParamTarget>& port, ParamDescriptor legacy,
-                      const deluge::scenes::menu::MenuContext& ctx) {
-	if (legacy.isNull()) {
+inline bool learns_as(const std::optional<deluge::project::OwnerParamTarget>& port,
+                      const deluge::modulation::KnobTarget& legacy, const deluge::scenes::menu::MenuContext& ctx) {
+	if (!legacy) {
 		return !port.has_value();
 	}
 	const auto unpatched = ctx.addresses.slot ? deluge::modulation::params::Kind::UNPATCHED_SOUND
 	                                          : deluge::modulation::params::Kind::UNPATCHED_GLOBAL;
 	return port && port->owner == deluge::scenes::menu::bindings::controls_owner(ctx)
-	       && port->param == deluge::bridge::knobTargetOf(legacy, unpatched);
+	       && port->param == deluge::bridge::controlTargetOf(legacy, unpatched);
 }
 
 /// @brief Can the sound @p ctx edits hold note tails: `Sound::allowNoteTails` over the stack `SoundEditor::setup`

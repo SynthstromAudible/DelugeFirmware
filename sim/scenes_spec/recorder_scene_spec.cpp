@@ -1028,27 +1028,27 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 
 	it("keeps input monitoring alive for the whole recording", _ {
 		// The consequence the state assertion above exists for, asserted as BEHAVIOUR:
-		// `AudioEngine::setMonitoringMode` (`audio_engine.cpp:1024-1055`) enables `doMonitoring`
+		// `AudioEngine::setMonitoringMode` (`audio_engine.cpp:1024-1055`) turns `inputMonitor` on
 		// only for `STEREO`/`LEFT` and double-checks the recorder pointer. A port that armed a
 		// recorder without publishing it records correctly and leaves the user hearing nothing.
 		Guards g;
 		MonitoringOn monitoring;
 
 		AudioEngine::setMonitoringMode();
-		expect(AudioEngine::doMonitoring).to_be_false(); // nothing armed yet
+		expect(AudioEngine::inputMonitor.on()).to_be_false(); // nothing armed yet
 
 		Rig r;
 		r.open();
 		r.tick(0);
 		AudioEngine::setMonitoringMode();
-		expect(AudioEngine::doMonitoring).to_be_true();
+		expect(AudioEngine::inputMonitor.on()).to_be_true();
 
 		SampleRecorder* rec = recorder_scene().recorder();
 		rec->status = RecorderStatus::COMPLETE;
 		rec->hadCardError = true;
 		r.tick(10);
 		AudioEngine::setMonitoringMode();
-		expect(AudioEngine::doMonitoring).to_be_false(); // ...and off again once it is over
+		expect(AudioEngine::inputMonitor.on()).to_be_false(); // ...and off again once it is over
 	});
 
 	it("refuses to open while any foreground recording is already live", _ {

@@ -90,6 +90,7 @@
 #include "modulation/params/param_set.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
+#include "plugin-api/types/param.h"
 #include "processing/audio_output.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
@@ -866,11 +867,10 @@ void View::modEncoderAction_existentParam(int32_t whichModEncoder, int32_t offse
 		PatchSource source1 = PatchSource::NONE;
 		PatchSource source2 = PatchSource::NONE;
 		if (kind == params::Kind::PATCH_CABLE) {
-			ParamDescriptor paramDescriptor;
-			paramDescriptor.data = modelStackWithParam->paramId;
-			source1 = paramDescriptor.getBottomLevelSource();
-			if (!paramDescriptor.hasJustOneSource()) {
-				source2 = paramDescriptor.getTopLevelSource();
+			const deluge::synth::CableTarget paramDescriptor{static_cast<uint32_t>(modelStackWithParam->paramId)};
+			source1 = paramDescriptor.bottom_source();
+			if (!paramDescriptor.has_just_one_source()) {
+				source2 = paramDescriptor.top_source();
 			}
 		}
 		displayModEncoderValuePopup(kind, modelStackWithParam->paramId, newKnobPos, source1, source2);
@@ -981,11 +981,10 @@ void View::getParameterNameFromModEncoder(int32_t whichModEncoder, char* paramet
 		if (kind == params::Kind::PATCH_CABLE) {
 			PatchSource source1 = PatchSource::NONE;
 			PatchSource source2 = PatchSource::NONE;
-			ParamDescriptor paramDescriptor;
-			paramDescriptor.data = modelStackWithParam->paramId;
-			source1 = paramDescriptor.getBottomLevelSource();
-			if (!paramDescriptor.hasJustOneSource()) {
-				source2 = paramDescriptor.getTopLevelSource();
+			const deluge::synth::CableTarget paramDescriptor{static_cast<uint32_t>(modelStackWithParam->paramId)};
+			source1 = paramDescriptor.bottom_source();
+			if (!paramDescriptor.has_just_one_source()) {
+				source2 = paramDescriptor.top_source();
 			}
 
 			etl::string<30> paramDisplayName;
@@ -1299,25 +1298,8 @@ int32_t View::calculateKnobPosForDisplay(params::Kind kind, int32_t paramID, int
 	if (kind == params::Kind::MIDI) {
 		return knobPos;
 	}
-
-	float knobPosFloat = static_cast<float>(knobPos);
-	float knobPosOffsetFloat = static_cast<float>(kKnobPosOffset);
-	float maxKnobPosFloat = static_cast<float>(kMaxKnobPos);
-	float maxMenuValueFloat = static_cast<float>(kMaxMenuValue);
-	float maxMenuRelativeValueFloat = static_cast<float>(kMaxMenuRelativeValue);
-	float valueForDisplayFloat;
-
-	// calculate parameter value for display by converting 0 - 128 range to same range as menu (0 - 50)
-	valueForDisplayFloat = (knobPosFloat / maxKnobPosFloat) * maxMenuValueFloat;
-
-	// check if parameter is pan or pitch, in which case, further adjust range from 0 - 50 to -25 to +25
-	if (deluge::modulation::params::isParamPan(kind, paramID)
-	    || deluge::modulation::params::isParamPitch(kind, paramID)) {
-		valueForDisplayFloat = valueForDisplayFloat - maxMenuRelativeValueFloat;
-	}
-
-returnValue:
-	return static_cast<int32_t>(std::round(valueForDisplayFloat));
+	const deluge::plugin::ParamInfo* info = params::paramInfoFor(kind, paramID);
+	return deluge::plugin::knob_display_number(info != nullptr ? info->flags : deluge::plugin::ParamFlags{}, knobPos);
 }
 
 void View::instrumentBeenEdited() {
@@ -1736,10 +1718,17 @@ void View::sendMidiFollowFeedback(ModelStackWithAutoParam* modelStackWithParam, 
 		// check if we're dealing with a clip context param (don't send feedback for song params)
 		if (knobsOnClipContext()) {
 			if (modelStackWithParam && modelStackWithParam->autoParam) {
+				// in a global effectable's context only its own params are followed, elsewhere a sound's
 				params::Kind kind = modelStackWithParam->paramCollection->getParamKind();
-				int32_t ccNumber = midiFollow.getCCFromParam(kind, modelStackWithParam->paramId);
-				if (ccNumber != MIDI_CC_NONE) {
-					midiFollow.sendCCForMidiFollowFeedback(ccNumber, knobPos);
+				const deluge::bridge::OwnerPlugin owner = midiFollow.isGlobalEffectableContext()
+				                                              ? deluge::bridge::OwnerPlugin::GLOBAL_EFFECTABLE
+				                                              : deluge::bridge::OwnerPlugin::INSTRUMENT;
+				std::optional<deluge::project::ParamTarget> target =
+				    kind == params::Kind::NONE ? std::nullopt
+				                               : deluge::bridge::targetOf(owner, kind, modelStackWithParam->paramId);
+				std::optional<uint8_t> ccNumber = target ? midiFollow.ccOf(owner, *target) : std::nullopt;
+				if (ccNumber) {
+					midiFollow.sendCCForMidiFollowFeedback(*ccNumber, knobPos);
 				}
 			}
 			else {

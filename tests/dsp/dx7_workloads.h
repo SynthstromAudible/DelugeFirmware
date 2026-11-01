@@ -27,6 +27,7 @@
 #include "dsp-next/core/mono.h"
 #include "dsp-next/fixed/dx7/modern_vector_operator.h"
 #include "dsp-next/fixed/dx7/tables.h"
+#include "dsp-next/fixed/noise/cong.h"
 #include "dsp-next/fixed/noise/noise.h"
 #include "reference_dx7.h"
 
@@ -131,6 +132,13 @@ struct SeededStatic {
 	}
 	static std::size_t draws() { return count; }
 };
+
+/// @brief The same draws as a noise stream the dsp-next voice is passed: each `next()` is SeededStatic's next draw, so
+/// the reference and the voice share one sequence and its count.
+struct SeededStream {
+	[[nodiscard]] uint32_t next() { return static_cast<uint32_t>(SeededStatic::render()); }
+};
+static_assert(deluge::dsp::fixed::noise_stream<SeededStream>);
 
 using Patch = std::array<uint8_t, 156>;
 
@@ -533,7 +541,7 @@ struct VectorCore {
 		                                                 .tables = &vector_tables()}};
 		op.on<&dx7::ModernVectorOperator::resume>(dx7::OperatorState{.phase = param.phase, .gain_out = gain1});
 		const auto len = static_cast<std::size_t>(n);
-		op.renderBlock({modulation, len}, {out, len}, {out, len});
+		op.render_block({modulation, len}, {out, len}, {out, len});
 	}
 };
 

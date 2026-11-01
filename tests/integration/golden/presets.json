@@ -1973,11 +1973,29 @@
   "rms_db": -24.41,
   "sha256": "12a82f6816e89fe064ecf1e498d5212bb323c3589fb83e6527fd869863e16089"
  },
+ "lfo_rwalk": {
+  "frames": 88200,
+  "peak": 345681920,
+  "rms_db": -23.35,
+  "sha256": "864d3809ab6379e38051d5581f476f792aa44083d84baca046b9d7e865944f71"
+ },
+ "lfo_sah": {
+  "frames": 88200,
+  "peak": 346244352,
+  "rms_db": -23.38,
+  "sha256": "663ea6c83779a3b8ee6dc7d636bb9ee10443de1dd5abb0ab8ce60cf83dc49629"
+ },
  "lfo_vibrato": {
   "frames": 88200,
   "peak": 173388032,
   "rms_db": -26.78,
   "sha256": "0240c103a910f6cabb746665abff0fa13d07dc38cc55be907e38f0f0874b7bcc"
+ },
+ "lfo_warbler": {
+  "frames": 88200,
+  "peak": 345676032,
+  "rms_db": -23.34,
+  "sha256": "64bee8f9f942743d98c66e9380b32ab590e04196fc8633f0b85de7fc0b7093e3"
  },
  "lpf_24db_env2": {
   "frames": 88200,
@@ -2201,6 +2219,24 @@
   "rms_db": -23.19,
   "sha256": "0a4605edc948f1814cc40275961c00fa0ce68d50fffe31ba96d5ff9e24e0f045"
  },
+ "stereo/noise_unison": {
+  "frames": 88200,
+  "peak": 173385984,
+  "rms_db": -30.01,
+  "sha256": "f333eb6cad2e525f682b6b30d94be02a3312c943bed0204113ac4ee6652ba3ee"
+ },
+ "stereo/ringmod_sync_unison": {
+  "frames": 88200,
+  "peak": 173388032,
+  "rms_db": -28.13,
+  "sha256": "e3f96d2517d7675546fa7bb7c6ac72ebf0405b9657df9bdc03c7dba4a4d78cfd"
+ },
+ "stereo/wavefold": {
+  "frames": 88200,
+  "peak": 173314304,
+  "rms_db": -27.83,
+  "sha256": "6375f5aa1e5382c6ccdd916470e1926c5999b6e2a7f12c9212315555be5e9b33"
+ },
  "svf_band": {
   "frames": 88200,
   "peak": 381075200,
@@ -2260,6 +2296,144 @@
   "peak": 284025088,
   "rms_db": -24.62,
   "sha256": "cae420cc1b3954fda13ae83af35e87d1cd214db993fcd78555dd56a35fbe46be"
+ },
+ "voice/cache_aftertouch_pitch": {
+  "frames": 88200,
+  "peak": 245172224,
+  "rms_db": -25.07,
+  "sha256": "ef48560f09d3f4c0a472e5d1f6df09a851fdae741d2ac75459fd276057cabb6a"
+ },
+ "voice/cache_lfo_pitch": {
+  "frames": 88200,
+  "peak": 245172224,
+  "rms_db": -25.05,
+  "sha256": "575d69f5dd168b2b0c671cb02c370020c46060387fd88da7ad50cde2f8922ef6"
+ },
+ "voice/cache_velocity_pitch": {
+  "frames": 88200,
+  "peak": 245172224,
+  "rms_db": -25.08,
+  "sha256": "94b9b58a5806e4e20322db064d552733e415138ffd0499b3ef7d141874b35ade"
+ },
+ "voice/depth_velocity_poly": {
+  "frames": 88200,
+  "peak": 284037376,
+  "rms_db": -21.96,
+  "sha256": "500c5e4e6b40229f4041eea2039cb442dddb9bf9758e9c27b63a9544ca432978"
+ },
+ "voice/dx7_osc_b": {
+  "frames": 88200,
+  "peak": 173361920,
+  "rms_db": -38.79,
+  "sha256": "a1506b2cd68d4dc3383f0422bf74daa7744e938c237f3e18cdcf4a7c4b009880"
+ },
+ "voice/exp_saturate": {
+  "frames": 88200,
+  "peak": 471535104,
+  "rms_db": -19.96,
+  "sha256": "d3ebcacea4776a2fd2c32b6b855d7de4318fbe7148e31b891e8b450d71b80b62"
+ },
+ "voice/fm_mono_retrigger": {
+  "frames": 88200,
+  "peak": 567709440,
+  "rms_db": -16.17,
+  "sha256": "0ef9a759c6288031e507db1901e1e089472e33e5bd7eaf499fc0c150126329ad"
+ },
+ "voice/freerun_mono_supersaw": {
+  "frames": 88200,
+  "peak": 173380864,
+  "rms_db": -27.08,
+  "sha256": "a01670ffe1463d9b98fac33d32817cfdc0f8fbbc1fc42fa3fd1eeb930f9ff221"
+ },
+ "voice/freerun_mono_wavetable": {
+  "frames": 88200,
+  "peak": 173354752,
+  "rms_db": -26.61,
+  "sha256": "6fa424078fb3f9b2a3fcfb9053d26cd8b3f4ed46137d3bcbc62f8cfb8a144d15"
+ },
+ "voice/high_note_inactive": {
+  "frames": 88200,
+  "peak": 171719424,
+  "rms_db": -27.69,
+  "sha256": "92cea622eedd3188b0bda3981e9a0f4625224fa9156b17d15c449765c2b1f709"
+ },
+ "voice/loop_points_release": {
+  "frames": 88200,
+  "peak": 245151488,
+  "rms_db": -27.45,
+  "sha256": "1e740f6992a1c4d39bf57977a659a0b59fa8816ac34bbc9b857fa7f34983fff0"
+ },
+ "voice/noise_unfiltered": {
+  "frames": 88200,
+  "peak": 173381632,
+  "rms_db": -30.76,
+  "sha256": "871763c38122cf3785763e19faa47d56a942792c6978c986bc4cabf64fdb629c"
+ },
+ "voice/once_auto_release": {
+  "frames": 88200,
+  "peak": 232155136,
+  "rms_db": -43.39,
+  "sha256": "d3ef12e224827323652e9b2516512abbb6df2f9e5ab228896312bf2a2d77f380"
+ },
+ "voice/once_auto_release_pitched": {
+  "frames": 88200,
+  "peak": 245151488,
+  "rms_db": -40.12,
+  "sha256": "1b386b5d195d7b222933469879b7c323fdde98447518117816c5c60666cc3a52"
+ },
+ "voice/porta_legato": {
+  "frames": 88200,
+  "peak": 173388032,
+  "rms_db": -26.11,
+  "sha256": "3a981db7468d3146b90ad1d218769cbb9c75f239b6d46c122dd654c963173e64"
+ },
+ "voice/ringmod_sync": {
+  "frames": 88200,
+  "peak": 173382912,
+  "rms_db": -28.0,
+  "sha256": "4cc75d0dbf6aee1861e755f690482942574e5d3aa9646acc3e3e74af0c961065"
+ },
+ "voice/supersaw_retrigger": {
+  "frames": 88200,
+  "peak": 173383936,
+  "rms_db": -27.51,
+  "sha256": "f1024654e27c5bbd5e407b64d34b3c00d4f4fc373f0fc613555b1534587b2589"
+ },
+ "voice/sync_silent_master": {
+  "frames": 88200,
+  "peak": 166102784,
+  "rms_db": -28.67,
+  "sha256": "80ef626e481c7608ccd0e42add849e24da10b66087e861f0cb5b9d0140ab44ac"
+ },
+ "voice/type_change_mono_saw_square": {
+  "frames": 88200,
+  "peak": 173388032,
+  "rms_db": -26.12,
+  "sha256": "60a4570f6955203eeb38e3da17581d7b03fff1d44f6f2857070a98319abada9c"
+ },
+ "voice/type_change_mono_saw_supersaw": {
+  "frames": 88200,
+  "peak": 173388032,
+  "rms_db": -26.41,
+  "sha256": "794bbc62adbc11e0c46ba6d06c04550acd09fde43eaf8360301b340d814d8749"
+ },
+ "voice/velocity_pitch": {
+  "frames": 88200,
+  "peak": 279591936,
+  "rms_db": -24.92,
+  "sha256": "89283db8fa5b332cfa7b942ad39e89f4d4e3834278a27c0a38f00fa3d80ca8ed"
+ },
+ "voice/zone_end_loop": {
+  "frames": 88200,
+  "peak": 245151488,
+  "rms_db": -25.06,
+  "sha256": "e64c129653a35fa7745e0506f3a6cfc0699c051583daa6a9e0910d029448a96a"
+ },
+ "voice/zone_end_once": {
+  "frames": 88200,
+  "peak": 245151488,
+  "rms_db": -24.91,
+  "sha256": "03cc0cc14742c0b155c739870d23af267ed9e26f255d02d5f7502cbf46dc4a12"
  },
  "wavefold_sine": {
   "frames": 88200,

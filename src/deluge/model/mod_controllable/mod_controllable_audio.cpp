@@ -19,15 +19,15 @@
 #include "definitions_cxx.hpp"
 #include "deluge-project/param_automation.h"
 #include "deluge/model/settings/runtime_feature_settings.h"
-#include "dsp/stereo_sample.h"
-#include "engines/deluge/sound_state.h"
-#include "engines/effects/codec.h"
+#include "dsp-next/core/stereo_sample.h"
+#include "effects/codec.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/ui.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
+#include "instruments/deluge/sound_state.h"
 #include "io/debug/log.h"
 #include "io/midi/mapping_index.h"
 #include "io/midi/midi_device.h"
@@ -62,6 +62,7 @@
 #include "processing/sound/sound.h"
 #include "storage/storage_manager.h"
 #include "util/etl_string.h"
+#include "util/functions.h"
 #include "util/structural_edit_probe.h"
 #include <algorithm>
 #include <span>
@@ -119,71 +120,25 @@ void ModControllableAudio::cloneFrom(ModControllableAudio* other) {
 	next.delay = from.delay;
 	next.stutter = from.stutter;
 	setEffects(next);
-	core().equalizer().copy_coefficients_from(other->core().equalizer());
 	midi_knobs = other->midi_knobs; // Could fail if no RAM... not too big a concern
 }
 
-void ModControllableAudio::initParams(ParamManager* paramManager) {
-
-	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-
-	unpatchedParams->params[params::UNPATCHED_BASS].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_BASS), 0);
-	unpatchedParams->params[params::UNPATCHED_TREBLE].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_TREBLE), 0);
-	unpatchedParams->params[params::UNPATCHED_BASS_FREQ].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_BASS_FREQ), 0);
-	unpatchedParams->params[params::UNPATCHED_TREBLE_FREQ].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_TREBLE_FREQ), 0);
-
-	unpatchedParams->params[params::UNPATCHED_ARP_GATE].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_ARP_GATE), 0);
-	unpatchedParams->params[params::UNPATCHED_NOTE_PROBABILITY].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_NOTE_PROBABILITY), 2147483647);
-	unpatchedParams->params[params::UNPATCHED_ARP_BASS_PROBABILITY].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_ARP_BASS_PROBABILITY), -2147483648);
-	unpatchedParams->params[params::UNPATCHED_ARP_SWAP_PROBABILITY].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_ARP_SWAP_PROBABILITY), -2147483648);
-	unpatchedParams->params[params::UNPATCHED_ARP_GLIDE_PROBABILITY].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_ARP_GLIDE_PROBABILITY), -2147483648);
-	unpatchedParams->params[params::UNPATCHED_REVERSE_PROBABILITY].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_REVERSE_PROBABILITY), -2147483648);
-	unpatchedParams->params[params::UNPATCHED_ARP_CHORD_PROBABILITY].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_ARP_CHORD_PROBABILITY), -2147483648);
-	unpatchedParams->params[params::UNPATCHED_ARP_RATCHET_PROBABILITY].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_ARP_RATCHET_PROBABILITY), -2147483648);
-	unpatchedParams->params[params::UNPATCHED_ARP_RATCHET_AMOUNT].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_ARP_RATCHET_AMOUNT), -2147483648);
-	unpatchedParams->params[params::UNPATCHED_ARP_SEQUENCE_LENGTH].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_ARP_SEQUENCE_LENGTH), -2147483648);
-	unpatchedParams->params[params::UNPATCHED_ARP_CHORD_POLYPHONY].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_ARP_CHORD_POLYPHONY), -2147483648);
-	unpatchedParams->params[params::UNPATCHED_ARP_RHYTHM].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_ARP_RHYTHM), -2147483648);
-	unpatchedParams->params[params::UNPATCHED_SPREAD_VELOCITY].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_SPREAD_VELOCITY), -2147483648);
-	unpatchedParams->params[params::UNPATCHED_ARP_SPREAD_GATE].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_ARP_SPREAD_GATE), -2147483648);
-	unpatchedParams->params[params::UNPATCHED_ARP_SPREAD_OCTAVE].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_ARP_SPREAD_OCTAVE), -2147483648);
-
-	deluge::model::initStutterParams(paramManager);
-
-	unpatchedParams->params[params::UNPATCHED_MOD_FX_OFFSET].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_MOD_FX_OFFSET), 0);
-	unpatchedParams->params[params::UNPATCHED_MOD_FX_FEEDBACK].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_MOD_FX_FEEDBACK), 0);
-
-	unpatchedParams->params[params::UNPATCHED_SAMPLE_RATE_REDUCTION].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_SAMPLE_RATE_REDUCTION), -2147483648);
-
-	unpatchedParams->params[params::UNPATCHED_BITCRUSHING].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_BITCRUSHING), -2147483648);
-
-	unpatchedParams->params[params::UNPATCHED_SIDECHAIN_SHAPE].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_SIDECHAIN_SHAPE), -601295438);
-	unpatchedParams->params[params::UNPATCHED_COMPRESSOR_THRESHOLD].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_COMPRESSOR_THRESHOLD), 0);
+void ModControllableAudio::initParams(ParamManager* paramManager, params::Kind defaults) {
+	UnpatchedParamSet& unpatchedParams = *paramManager->getUnpatchedParamSet();
+	setParamsToDefaults(
+	    unpatchedParams, defaults,
+	    {params::UNPATCHED_BASS, params::UNPATCHED_TREBLE, params::UNPATCHED_BASS_FREQ, params::UNPATCHED_TREBLE_FREQ,
+	     params::UNPATCHED_ARP_GATE, params::UNPATCHED_NOTE_PROBABILITY, params::UNPATCHED_ARP_BASS_PROBABILITY,
+	     params::UNPATCHED_ARP_SWAP_PROBABILITY, params::UNPATCHED_ARP_GLIDE_PROBABILITY,
+	     params::UNPATCHED_REVERSE_PROBABILITY, params::UNPATCHED_ARP_CHORD_PROBABILITY,
+	     params::UNPATCHED_ARP_RATCHET_PROBABILITY, params::UNPATCHED_ARP_RATCHET_AMOUNT,
+	     params::UNPATCHED_ARP_SEQUENCE_LENGTH, params::UNPATCHED_ARP_CHORD_POLYPHONY, params::UNPATCHED_ARP_RHYTHM,
+	     params::UNPATCHED_SPREAD_VELOCITY, params::UNPATCHED_ARP_SPREAD_GATE, params::UNPATCHED_ARP_SPREAD_OCTAVE});
+	deluge::model::initStutterParams(paramManager, defaults);
+	setParamsToDefaults(unpatchedParams, defaults,
+	                    {params::UNPATCHED_MOD_FX_OFFSET, params::UNPATCHED_MOD_FX_FEEDBACK,
+	                     params::UNPATCHED_SAMPLE_RATE_REDUCTION, params::UNPATCHED_BITCRUSHING,
+	                     params::UNPATCHED_SIDECHAIN_SHAPE, params::UNPATCHED_COMPRESSOR_THRESHOLD});
 }
 
 void ModControllableAudio::writeAttributesToFile(Serializer& writer) {
@@ -335,7 +290,7 @@ void ModControllableAudio::writeTagsToFile(Serializer& writer, const deluge::eff
 	writer.writeValue(pieces.tags);
 }
 
-deluge::engine::CodecContext ModControllableAudio::effectsCodecContext() {
+deluge::plugin::CodecContext ModControllableAudio::effectsCodecContext() {
 	return {.input_tick_magnitude = currentSong->getInputTickMagnitude()};
 }
 
@@ -351,16 +306,16 @@ namespace {
 /// @param hasDevice     Whether the knob names a device.
 /// @param writeDevice   Writes the device element; called only when @p hasDevice.
 template <typename WriteDevice>
-void writeMidiKnob(Serializer& writer, LearnedMIDI attributes, bool relative, ParamDescriptor descriptor,
+void writeMidiKnob(Serializer& writer, LearnedMIDI attributes, bool relative, deluge::synth::CableTarget descriptor,
                    params::Kind unpatchedKind, bool hasDevice, WriteDevice writeDevice) {
 	writer.writeOpeningTagBeginning("midiKnob", true);
 	attributes.writeAttributesToFile(writer, MIDI_MESSAGE_CC);
 	writer.writeAttribute("relative", relative);
-	writer.writeAttribute("controlsParam", params::paramNameForFile(unpatchedKind, descriptor.getJustTheParam()));
-	if (!descriptor.isJustAParam()) { // only a sound's knob can turn a patch cable's depth
-		writer.writeAttribute("patchAmountFromSource", sourceToString(descriptor.getTopLevelSource()));
-		if (descriptor.hasSecondSource()) {
-			writer.writeAttribute("patchAmountFromSecondSource", sourceToString(descriptor.getSecondSourceFromTop()));
+	writer.writeAttribute("controlsParam", params::paramNameForFile(unpatchedKind, descriptor.param_index()));
+	if (!descriptor.is_param()) { // only a sound's knob can turn a patch cable's depth
+		writer.writeAttribute("patchAmountFromSource", sourceToString(descriptor.top_source()));
+		if (descriptor.has_second_source()) {
+			writer.writeAttribute("patchAmountFromSecondSource", sourceToString(descriptor.second_source_from_top()));
 		}
 	}
 	// The device is an element of its own, so it closes the knob's attributes.
@@ -388,8 +343,8 @@ void ModControllableAudio::writeMidiKnobsToFile(Serializer& writer, Song* song,
 		for (const deluge::project::Mapping& knob : *saved) {
 			const LearnedMIDI attributes = deluge::bridge::learned_of(
 			    {.channel_or_zone = knob.source.channel_or_zone, .note_or_cc = knob.source.note_or_cc});
-			const ParamDescriptor descriptor = deluge::bridge::descriptorOf(
-			    std::get<deluge::project::ParamTarget>(knob.target).param, unpatchedParamKind_);
+			const deluge::synth::CableTarget descriptor = deluge::modulation::knobWord(deluge::bridge::knobOfControl(
+			    std::get<deluge::project::OwnerParamTarget>(knob.target).param, unpatchedParamKind_));
 			writeMidiKnob(writer, attributes, knob.relative, descriptor, unpatchedParamKind_,
 			              knob.source.device.has_value(),
 			              [&] { deluge::bridge::write_reference(writer, "device", *knob.source.device); });
@@ -402,8 +357,9 @@ void ModControllableAudio::writeMidiKnobsToFile(Serializer& writer, Song* song,
 	}
 	writer.writeArrayStart("midiKnobs");
 	for (MIDIKnob& knob : midi_knobs) {
-		writeMidiKnob(writer, knob.midiInput, knob.relative, knob.paramDescriptor, unpatchedParamKind_,
-		              knob.midiInput.cable != nullptr, [&] { knob.midiInput.cable->writeReferenceToFile(writer); });
+		writeMidiKnob(writer, knob.midiInput, knob.relative, deluge::modulation::knobWord(knob.target),
+		              unpatchedParamKind_, knob.midiInput.cable != nullptr,
+		              [&] { knob.midiInput.cable->writeReferenceToFile(writer); });
 	}
 	writer.writeArrayEnding("midiKnobs");
 }
@@ -518,13 +474,15 @@ Error ModControllableAudio::readTagFromFile(Deserializer& reader, char const* ta
 						new_knob.relative = relative;
 
 						if (s == PatchSource::NOT_AVAILABLE) {
-							new_knob.paramDescriptor.setToHaveParamOnly(p);
+							new_knob.target = deluge::modulation::knobParam(p);
 						}
 						else if (s2 == PatchSource::NOT_AVAILABLE) {
-							new_knob.paramDescriptor.setToHaveParamAndSource(p, s);
+							new_knob.target =
+							    deluge::modulation::knobTargetOf(deluge::synth::CableTarget::depth_of(p, s));
 						}
 						else {
-							new_knob.paramDescriptor.setToHaveParamAndTwoSources(p, s, s2);
+							new_knob.target =
+							    deluge::modulation::knobTargetOf(deluge::synth::CableTarget::depth_of_depth(p, s, s2));
 						}
 					} catch (deluge::exception e) {
 						if (e == deluge::exception::BAD_ALLOC) {
@@ -558,7 +516,7 @@ ModelStackWithAutoParam* ModControllableAudio::getParamFromMIDIKnob(MIDIKnob& kn
 	ParamCollectionSummary* summary = modelStack->paramManager->getUnpatchedParamSetSummary();
 	ParamCollection* paramCollection = summary->paramCollection;
 
-	int32_t param_id = knob.paramDescriptor.getJustTheParam() - params::UNPATCHED_START;
+	int32_t param_id = deluge::modulation::knobWord(knob.target).param_index() - params::UNPATCHED_START;
 
 	ModelStackWithParamId* modelStackWithParamId =
 	    modelStack->addParamCollectionAndId(paramCollection, summary, param_id);
@@ -1012,8 +970,8 @@ void ModControllableAudio::switchDelaySyncLevel() {
 	// Note: SYNC_LEVEL_NONE (value 0) can't be selected
 	deluge::edits::changeEffect(
 	    *this, "delay/syncLevel",
-	    deluge::serialization::Value::makeNumber(deluge::engine::index_of(effects().delay.sync_level)
-	                                                 % deluge::engine::index_of(SYNC_LEVEL_256TH)
+	    deluge::serialization::Value::makeNumber(deluge::plugin::index_of(effects().delay.sync_level)
+	                                                 % deluge::plugin::index_of(SYNC_LEVEL_256TH)
 	                                             + 1)); // cycle from 1 to 9 (omit 0)
 }
 
@@ -1021,11 +979,11 @@ void ModControllableAudio::getDelaySyncLevelDisplayName(char* displayName) {
 	// Note: SYNC_LEVEL_NONE (value 0) can't be selected
 	deluge::edits::changeEffect(*this, "delay/syncLevel",
 	                            deluge::serialization::Value::makeNumber(
-	                                deluge::engine::index_of(effects().delay.sync_level)
-	                                % deluge::engine::index_of(SYNC_LEVEL_256TH))); // cycle from 1 to 9 (omit 0)
+	                                deluge::plugin::index_of(effects().delay.sync_level)
+	                                % deluge::plugin::index_of(SYNC_LEVEL_256TH))); // cycle from 1 to 9 (omit 0)
 	etl::string<kShortStringBufferSize> buffer;
-	currentSong->getNoteLengthName(buffer, (uint32_t)3 << (deluge::engine::index_of(SYNC_LEVEL_256TH)
-	                                                       - deluge::engine::index_of(effects().delay.sync_level)));
+	currentSong->getNoteLengthName(buffer, (uint32_t)3 << (deluge::plugin::index_of(SYNC_LEVEL_256TH)
+	                                                       - deluge::plugin::index_of(effects().delay.sync_level)));
 	strncpy(displayName, buffer.data(), 29);
 }
 
@@ -1160,7 +1118,7 @@ bool ModControllableAudio::setModFXType(ModFXType newType) {
 // whichKnob is either which physical mod knob, or which MIDI CC code.
 // For mod knobs, supply midiChannel as 255
 // Returns false if fail due to insufficient RAM.
-bool ModControllableAudio::learnKnob(MIDICable* cable, ParamDescriptor paramDescriptor, uint8_t whichKnob,
+bool ModControllableAudio::learnKnob(MIDICable* cable, deluge::modulation::KnobTarget target, uint8_t whichKnob,
                                      uint8_t modKnobMode, uint8_t midiChannel, Song* song) {
 	// If a mod knob
 	if (midiChannel >= 16) {
@@ -1169,7 +1127,7 @@ bool ModControllableAudio::learnKnob(MIDICable* cable, ParamDescriptor paramDesc
 
 	// Was there a MIDI knob already set to control this thing?
 	auto result = std::ranges::find_if(midi_knobs, [&](const MIDIKnob& knob) -> bool {
-		return knob.midiInput.equalsNoteOrCC(cable, midiChannel, whichKnob) && paramDescriptor == knob.paramDescriptor;
+		return knob.midiInput.equalsNoteOrCC(cable, midiChannel, whichKnob) && target == knob.target;
 	});
 
 	try {
@@ -1179,7 +1137,7 @@ bool ModControllableAudio::learnKnob(MIDICable* cable, ParamDescriptor paramDesc
 		knob.midiInput.noteOrCC = whichKnob;
 		knob.midiInput.channelOrZone = midiChannel;
 		knob.midiInput.cable = cable;
-		knob.paramDescriptor = paramDescriptor;
+		knob.target = target;
 		knob.relative = (whichKnob != 128); // Guess that it's relative, unless this is a pitch-bend "knob"
 		return true;
 
@@ -1189,11 +1147,11 @@ bool ModControllableAudio::learnKnob(MIDICable* cable, ParamDescriptor paramDesc
 }
 
 // Returns whether anything was found to unlearn
-bool ModControllableAudio::unlearnKnobs(ParamDescriptor paramDescriptor, Song* song) {
+bool ModControllableAudio::unlearnKnobs(deluge::modulation::KnobTarget target, Song* song) {
 	// I've deactivated the unlearning of mod knobs, mainly because, if you want to unlearn a MIDI knob, you might not
 	// want to also deactivate a mod knob to the same param at the same time
 	size_t erased = std::erase_if(midi_knobs, [&](const MIDIKnob& knob) -> bool {
-		return knob.paramDescriptor == paramDescriptor; //<
+		return knob.target == target; //<
 	});
 
 	if (erased > 0) {

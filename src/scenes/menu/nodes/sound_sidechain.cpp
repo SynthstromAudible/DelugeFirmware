@@ -22,9 +22,9 @@
 #include "scenes/menu/nodes/sound_sidechain.h"
 
 #include "definitions_cxx.hpp"
-#include "engine-api/types/rate_tables.h"
-#include "engine-api/types/sync.h"
 #include "modulation/sync.h"
+#include "plugin-api/types/rate_tables.h"
+#include "plugin-api/types/sync.h"
 
 #include <algorithm>
 
@@ -59,21 +59,21 @@ int32_t lookup_index(int32_t value, const int32_t* table, int32_t max_index) {
 
 int32_t sidechain_attack_to_menu(int32_t attack) {
 	// `sidechain::Attack::readCurrentValue` (`sidechain/attack.h`).
-	return lookup_index(attack >> 2, deluge::engine::kSidechainAttackRates, 50);
+	return lookup_index(attack >> 2, deluge::plugin::kSidechainAttackRates, 50);
 }
 int32_t sidechain_attack_from_menu(int32_t menu_value) {
-	return deluge::engine::kSidechainAttackRates[std::clamp<int32_t>(menu_value, 0, 50)] << 2; // `attack.h`'s write
+	return deluge::plugin::kSidechainAttackRates[std::clamp<int32_t>(menu_value, 0, 50)] << 2; // `attack.h`'s write
 }
 
 int32_t sidechain_release_to_menu(int32_t release) {
 	// `sidechain::Release::readCurrentValue` (`sidechain/release.h`).
-	return lookup_index(release >> 3, deluge::engine::kSidechainReleaseRates, 50);
+	return lookup_index(release >> 3, deluge::plugin::kSidechainReleaseRates, 50);
 }
 int32_t sidechain_release_from_menu(int32_t menu_value) {
-	return deluge::engine::kSidechainReleaseRates[std::clamp<int32_t>(menu_value, 0, 50)] << 3; // `release.h`'s write
+	return deluge::plugin::kSidechainReleaseRates[std::clamp<int32_t>(menu_value, 0, 50)] << 3; // `release.h`'s write
 }
 
-int32_t sidechain_sync_to_menu(deluge::engine::SyncType type, deluge::engine::SyncLevel level) {
+int32_t sidechain_sync_to_menu(deluge::plugin::SyncType type, deluge::plugin::SyncLevel level) {
 	// `sidechain::Sync::readCurrentValue` (`sidechain/sync.h`) via
 	// `SyncLevel::syncTypeAndLevelToMenuOption` (`gui/menu_item/sync_level.cpp`).
 	return static_cast<int32_t>(type) + (static_cast<int32_t>(level) - (type != SYNC_TYPE_EVEN ? 1 : 0));

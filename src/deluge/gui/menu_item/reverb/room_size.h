@@ -16,7 +16,7 @@
  */
 #pragma once
 
-#include "engines/effects/reverb.h"
+#include "effects/reverb.h"
 #include "gui/menu_item/integer.h"
 #include "model/edits/setting_edit.h"
 #include "model/song/song.h"

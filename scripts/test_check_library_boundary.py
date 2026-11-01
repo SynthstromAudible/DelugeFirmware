@@ -12,11 +12,11 @@ from pathlib import Path
 
 from check_library_boundary import LIBRARIES, Library, violations
 
-ENGINE_TYPES = LIBRARIES["engine-types"]
+ENGINE_TYPES = LIBRARIES["plugin-types"]
 WITH_DEPENDENCY = Library(
     root=Path("unused"),
     own_prefix="b/",
-    may_include=("engine-api/types/", "foundation/panic.h"),
+    may_include=("plugin-api/types/", "foundation/panic.h"),
 )
 
 
@@ -31,12 +31,12 @@ class LibraryBoundaryTest(unittest.TestCase):
             return violations(library, root)
 
     def test_accepts_standard_headers_and_its_own(self):
-        text = '#pragma once\n#include <cstdint>\n#include <optional>\n#include "engine-api/types/sync.h"\n'
+        text = '#pragma once\n#include <cstdint>\n#include <optional>\n#include "plugin-api/types/sync.h"\n'
         self.assertEqual(self.check(text), [])
 
     def test_accepts_spacing_variants_of_valid_includes(self):
         self.assertEqual(
-            self.check('#  include  <cstdint>\n  #include "engine-api/types/sync.h"\n'),
+            self.check('#  include  <cstdint>\n  #include "plugin-api/types/sync.h"\n'),
             [],
         )
 
@@ -53,7 +53,7 @@ class LibraryBoundaryTest(unittest.TestCase):
         self.assertEqual(
             len(
                 self.check(
-                    '#include "engine-api/types/../../deluge/model/song/song.h"\n'
+                    '#include "plugin-api/types/../../deluge/model/song/song.h"\n'
                 )
             ),
             1,
@@ -75,12 +75,13 @@ class LibraryBoundaryTest(unittest.TestCase):
                     1,
                 )
 
-    def test_the_effects_library_may_use_the_l0_dsp_library_and_fixed_point(self):
+    def test_the_effects_library_may_use_the_l0_dsp_library(self):
         effects = LIBRARIES["effects"]
-        accepted = (
-            '#include "dsp-next/core/stereo_sample.h"\n#include "util/fixedpoint.h"\n'
-        )
+        accepted = '#include "dsp-next/core/stereo_sample.h"\n#include "dsp-next/core/q31_ops.h"\n'
         self.assertEqual(self.check(accepted, library=effects), [])
+        self.assertEqual(
+            len(self.check('#include "util/fixedpoint.h"\n', library=effects)), 1
+        )
         self.assertEqual(
             len(self.check('#include "util/functions.h"\n', library=effects)), 1
         )
@@ -89,7 +90,7 @@ class LibraryBoundaryTest(unittest.TestCase):
         )
 
     def test_accepts_a_declared_dependency_by_prefix_or_exact_path(self):
-        text = '#include "engine-api/types/sync.h"\n#include "foundation/panic.h"\n#include "b/x.h"\n'
+        text = '#include "plugin-api/types/sync.h"\n#include "foundation/panic.h"\n#include "b/x.h"\n'
         self.assertEqual(self.check(text, library=WITH_DEPENDENCY), [])
 
     def test_rejects_an_undeclared_neighbour_of_a_declared_dependency(self):
@@ -103,7 +104,7 @@ class LibraryBoundaryTest(unittest.TestCase):
         )
         self.assertEqual(
             len(
-                self.check('#include "engine-api/other/x.h"\n', library=WITH_DEPENDENCY)
+                self.check('#include "plugin-api/other/x.h"\n', library=WITH_DEPENDENCY)
             ),
             1,
         )
@@ -112,26 +113,26 @@ class LibraryBoundaryTest(unittest.TestCase):
         self.assertEqual(
             len(
                 self.check(
-                    '#include "engine-api/types/../../deluge/x.h"\n',
+                    '#include "plugin-api/types/../../deluge/x.h"\n',
                     library=WITH_DEPENDENCY,
                 )
             ),
             1,
         )
 
-    def test_the_engine_api_may_use_the_document_tree_but_not_the_model(self):
-        engine_api = LIBRARIES["engine-api"]
+    def test_the_plugin_api_may_use_the_document_tree_but_not_the_model(self):
+        plugin_api = LIBRARIES["plugin-api"]
         self.assertEqual(
-            self.check('#include "serialization/value.h"\n', library=engine_api), []
+            self.check('#include "serialization/value.h"\n', library=plugin_api), []
         )
         self.assertEqual(
-            len(self.check('#include "deluge-project/song.h"\n', library=engine_api)), 1
+            len(self.check('#include "deluge-project/song.h"\n', library=plugin_api)), 1
         )
 
-    def test_the_instrument_may_use_the_engine_api_but_not_the_app(self):
+    def test_the_instrument_may_use_the_plugin_api_but_not_the_app(self):
         instrument = LIBRARIES["instrument"]
         self.assertEqual(
-            self.check('#include "engine-api/engine.h"\n', library=instrument), []
+            self.check('#include "plugin-api/plugin.h"\n', library=instrument), []
         )
         self.assertEqual(
             len(
@@ -140,16 +141,17 @@ class LibraryBoundaryTest(unittest.TestCase):
             1,
         )
 
-    def test_the_global_effectable_table_may_use_only_the_engine_types(self):
+    def test_the_global_effectable_table_may_use_only_the_plugin_types(self):
         table = LIBRARIES["global-effectable"]
         self.assertEqual(
-            self.check('#include "engine-api/types/param.h"\n', library=table), []
+            self.check('#include "plugin-api/types/param.h"\n', library=table), []
         )
         self.assertEqual(
-            len(self.check('#include "engine-api/engine.h"\n', library=table)), 1
+            len(self.check('#include "plugin-api/plugin.h"\n', library=table)), 1
         )
         self.assertEqual(
-            len(self.check('#include "engines/deluge/params.h"\n', library=table)), 1
+            len(self.check('#include "instruments/deluge/params.h"\n', library=table)),
+            1,
         )
 
 

@@ -150,7 +150,7 @@ std::string what_differs(const deluge::project::DocClip& e, const deluge::projec
 /// Whether @p a and @p b hold the same chain: its order, its view, and its effects as they encode (a decode starts
 /// from the default effects, a song's owner from its own seed, which no file holds).
 bool sameChain(const deluge::project::FxChain& a, const deluge::project::FxChain& b) {
-	const deluge::engine::CodecContext context{.input_tick_magnitude = 1};
+	const deluge::plugin::CodecContext context{.input_tick_magnitude = 1};
 	return a.slots == b.slots && a.reverb_return == b.reverb_return && a.mod_fx_param == b.mod_fx_param
 	       && a.filter_type == b.filter_type && a.effects.encode(context) == b.effects.encode(context);
 }
@@ -206,7 +206,7 @@ std::string describe(const deluge::project::Mapping& mapping) {
 	std::string what = std::visit(
 	    [](const auto& target) -> std::string {
 		    using T = std::decay_t<decltype(target)>;
-		    if constexpr (std::is_same_v<T, ParamTarget>) {
+		    if constexpr (std::is_same_v<T, OwnerParamTarget>) {
 			    static constexpr const char* kKinds[] = {"output", "drum", "song"};
 			    return std::string("knob of ") + kKinds[static_cast<int>(target.owner.kind)] + " "
 			           + std::to_string(target.owner.id) + " on param " + std::to_string(target.param.value);
@@ -324,7 +324,7 @@ int compare_slots(const char* label, const deluge::project::Song& project, const
 		const bool present = record != nullptr && record->instrument.has_value() == decoded.instrument.has_value();
 		const bool same = present
 		                  && (!decoded.instrument
-		                      || (record->instrument->engine == decoded.instrument->engine
+		                      || (record->instrument->plugin == decoded.instrument->plugin
 		                          && record->instrument->tick_magnitude == decoded.instrument->tick_magnitude
 		                          && encoded(*record->instrument) == encoded(*decoded.instrument)));
 		if (same) {
@@ -398,7 +398,7 @@ int model_decode_diff_main(int argc, char** argv, Io driverIo) {
 	    parseDocument(std::string_view(orig, static_cast<size_t>(fileLen)), deluge::storage::formatOfPath(argv[1]));
 	std::optional<SongDocument> original;
 	if (originalTree) {
-		if (auto decodedOriginal = deluge::project::decode_song(*originalTree, deluge::bridge::codecEngines())) {
+		if (auto decodedOriginal = deluge::project::decode_song(*originalTree, deluge::bridge::codecPlugins())) {
 			original = std::move(*decodedOriginal);
 		}
 	}
@@ -427,7 +427,7 @@ int model_decode_diff_main(int argc, char** argv, Io driverIo) {
 		std::fprintf(io.err, "LOADFAIL gen1 -> Error %d\n", static_cast<int>(e));
 		return 3;
 	}
-	auto decoded = deluge::project::decode_song(*tree, deluge::bridge::codecEngines());
+	auto decoded = deluge::project::decode_song(*tree, deluge::bridge::codecPlugins());
 	if (!decoded) {
 		return differs("the saved song does not decode");
 	}

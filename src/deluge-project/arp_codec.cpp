@@ -1,6 +1,6 @@
 #include "deluge-project/arp_codec.h"
 
-#include "engine-api/types/sync.h"
+#include "plugin-api/types/sync.h"
 #include "serialization/tree.h"
 
 #include <algorithm>
@@ -67,16 +67,16 @@ Value encode_settings(const ArpRecord& record, std::optional<int32_t> tick_magni
 	Value map = Value::makeMap();
 	const auto number = [](int64_t n) { return Value::makeNumber(n); };
 	const int32_t sync =
-	    tick_magnitude ? engine::sync_level_to_file(record.sync_level, *tick_magnitude) : int32_t{record.sync_level};
-	map.set("mode", word(engine::kArpModeWords, record.mode));
+	    tick_magnitude ? plugin::sync_level_to_file(record.sync_level, *tick_magnitude) : int32_t{record.sync_level};
+	map.set("mode", word(plugin::kArpModeWords, record.mode));
 	map.set("syncLevel", number(sync));
 	map.set("numOctaves", number(record.num_octaves));
 	map.set("syncType", number(record.sync_type));
-	map.set("arpMode", word(engine::kArpModeWords, record.mode));
+	map.set("arpMode", word(plugin::kArpModeWords, record.mode));
 	map.set("chordType", number(record.chord_type));
-	map.set("noteMode", word(engine::kArpNoteModeWords, record.note_mode));
-	map.set("octaveMode", word(engine::kArpOctaveModeWords, record.octave_mode));
-	map.set("mpeVelocity", word(engine::kArpMpeVelocityWords, record.mpe_velocity));
+	map.set("noteMode", word(plugin::kArpNoteModeWords, record.note_mode));
+	map.set("octaveMode", word(plugin::kArpOctaveModeWords, record.octave_mode));
+	map.set("mpeVelocity", word(plugin::kArpMpeVelocityWords, record.mpe_velocity));
 	map.set("stepRepeat", number(record.step_repeat));
 	map.set("randomizerLock", number(record.randomizer_lock ? 1 : 0));
 	map.set("kitArp", number(record.kit_arp ? 1 : 0));
@@ -98,7 +98,7 @@ void decode(const Value& arpElement, ArpRecord& record, std::optional<int32_t> t
 		return;
 	}
 	const auto integer = [&](std::string_view attribute) { return serialization::int_of(arpElement.find(attribute)); };
-	if (const auto mode = word_index(arpElement, "arpMode", engine::kArpModeWords)) {
+	if (const auto mode = word_index(arpElement, "arpMode", plugin::kArpModeWords)) {
 		record.mode = *mode;
 	}
 	else if (const std::string* old = serialization::text_of(arpElement.find("mode"))) {
@@ -106,18 +106,18 @@ void decode(const Value& arpElement, ArpRecord& record, std::optional<int32_t> t
 		constexpr std::array<std::string_view, 5> kOldModes{"off", "up", "down", "both", "random"};
 		const auto at = std::ranges::find(kOldModes, *old);
 		const uint8_t preset = static_cast<uint8_t>(at == kOldModes.end() ? 0 : at - kOldModes.begin());
-		const engine::ArpPresetFields fields = *engine::arp_preset_fields(preset);
+		const plugin::ArpPresetFields fields = *plugin::arp_preset_fields(preset);
 		record.mode = fields.mode;
 		record.octave_mode = fields.octave_mode.value_or(record.octave_mode);
 		record.note_mode = fields.note_mode.value_or(record.note_mode);
 	}
-	if (const auto octave = word_index(arpElement, "octaveMode", engine::kArpOctaveModeWords)) {
+	if (const auto octave = word_index(arpElement, "octaveMode", plugin::kArpOctaveModeWords)) {
 		record.octave_mode = *octave;
 	}
-	if (const auto note = word_index(arpElement, "noteMode", engine::kArpNoteModeWords)) {
+	if (const auto note = word_index(arpElement, "noteMode", plugin::kArpNoteModeWords)) {
 		record.note_mode = *note;
 	}
-	if (const auto mpe = word_index(arpElement, "mpeVelocity", engine::kArpMpeVelocityWords)) {
+	if (const auto mpe = word_index(arpElement, "mpeVelocity", plugin::kArpMpeVelocityWords)) {
 		record.mpe_velocity = *mpe;
 	}
 	if (const auto v = integer("numOctaves")) {
@@ -126,12 +126,12 @@ void decode(const Value& arpElement, ArpRecord& record, std::optional<int32_t> t
 	if (const auto v = integer("stepRepeat")) {
 		record.step_repeat = static_cast<uint8_t>(*v);
 	}
-	if (const auto v = integer("chordType"); v && *v >= 0 && *v < engine::kArpChordTypes) {
+	if (const auto v = integer("chordType"); v && *v >= 0 && *v < plugin::kArpChordTypes) {
 		record.chord_type = static_cast<uint8_t>(*v);
 	}
 	if (const auto v = integer("syncLevel")) {
 		record.sync_level =
-		    static_cast<uint8_t>(tick_magnitude ? engine::sync_level_from_file(*v, *tick_magnitude) : *v);
+		    static_cast<uint8_t>(tick_magnitude ? plugin::sync_level_from_file(*v, *tick_magnitude) : *v);
 	}
 	if (const auto v = integer("syncType")) {
 		record.sync_type = static_cast<uint8_t>(*v);

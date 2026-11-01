@@ -20,13 +20,14 @@
 #include "definitions_cxx.hpp"
 #include "modulation/patch/patch_cable.h"
 
-#include "engines/deluge/cables.h"
-#include "engines/deluge/params.h"
-#include "engines/global_effectable/params.h"
+#include "effects/global_effectable/params.h"
+#include "instruments/deluge/cables.h"
+#include "instruments/deluge/params.h"
 
 #include <algorithm>
 #include <array>
 #include <optional>
+#include <span>
 
 namespace deluge::bridge {
 
@@ -51,26 +52,11 @@ static_assert(instrument::kParamBlocks.size() <= deluge::project::kEngineParamBl
 // An unpatched set not yet named (kind NONE) is numbered and stored the same whichever kind it becomes.
 static_assert(instrument::kUnpatchedFirstId == global_effectable::kFirstId);
 
-// The instrument numbers its cable sources as the runtime does.
-static_assert(static_cast<int>(instrument::PatchSource::LFO_GLOBAL_1) == static_cast<int>(::PatchSource::LFO_GLOBAL_1));
-static_assert(static_cast<int>(instrument::PatchSource::LFO_GLOBAL_2) == static_cast<int>(::PatchSource::LFO_GLOBAL_2));
-static_assert(static_cast<int>(instrument::PatchSource::SIDECHAIN) == static_cast<int>(::PatchSource::SIDECHAIN));
-static_assert(static_cast<int>(instrument::PatchSource::ENVELOPE_0) == static_cast<int>(::PatchSource::ENVELOPE_0));
-static_assert(static_cast<int>(instrument::PatchSource::ENVELOPE_3) == static_cast<int>(::PatchSource::ENVELOPE_3));
-static_assert(static_cast<int>(instrument::PatchSource::LFO_LOCAL_1) == static_cast<int>(::PatchSource::LFO_LOCAL_1));
-static_assert(static_cast<int>(instrument::PatchSource::LFO_LOCAL_2) == static_cast<int>(::PatchSource::LFO_LOCAL_2));
-static_assert(static_cast<int>(instrument::PatchSource::X) == static_cast<int>(::PatchSource::X));
-static_assert(static_cast<int>(instrument::PatchSource::Y) == static_cast<int>(::PatchSource::Y));
-static_assert(static_cast<int>(instrument::PatchSource::AFTERTOUCH) == static_cast<int>(::PatchSource::AFTERTOUCH));
-static_assert(static_cast<int>(instrument::PatchSource::VELOCITY) == static_cast<int>(::PatchSource::VELOCITY));
-static_assert(static_cast<int>(instrument::PatchSource::NOTE) == static_cast<int>(::PatchSource::NOTE));
-static_assert(static_cast<int>(instrument::PatchSource::RANDOM) == static_cast<int>(::PatchSource::RANDOM));
-static_assert(static_cast<int>(instrument::PatchSource::NONE) == static_cast<int>(::PatchSource::NONE));
 static_assert(static_cast<int>(instrument::Polarity::UNIPOLAR) == static_cast<int>(::Polarity::UNIPOLAR));
 static_assert(static_cast<int>(instrument::Polarity::BIPOLAR) == static_cast<int>(::Polarity::BIPOLAR));
 
-deluge::engine::ParamId cableDepthIdOf(uint32_t word) {
-	deluge::engine::ParamId id{word & 0xFFu};
+deluge::plugin::ParamId cableDepthIdOf(uint32_t word) {
+	deluge::plugin::ParamId id{word & 0xFFu};
 	for (uint32_t shift = 8; shift <= 24; shift += 8) {
 		const uint32_t source = (word >> shift) & 0xFFu;
 		if (source == 0xFFu) {
@@ -81,10 +67,10 @@ deluge::engine::ParamId cableDepthIdOf(uint32_t word) {
 	return id;
 }
 
-uint32_t cableWordOf(deluge::engine::ParamId depth) {
+uint32_t cableWordOf(deluge::plugin::ParamId depth) {
 	std::array<uint32_t, 3> sources{0xFFu, 0xFFu, 0xFFu};
 	size_t n = 0;
-	deluge::engine::ParamId at = depth;
+	deluge::plugin::ParamId at = depth;
 	while (std::optional<instrument::CableRoute> route = instrument::cable_route(at)) {
 		sources[n++] = static_cast<uint32_t>(route->source);
 		at = route->destination;
@@ -94,7 +80,7 @@ uint32_t cableWordOf(deluge::engine::ParamId depth) {
 	return (at.value & 0xFFu) | sources[0] << 8 | sources[1] << 16 | sources[2] << 24;
 }
 
-deluge::engine::ParamId paramIdOf(params::Kind kind, int32_t index) {
+deluge::plugin::ParamId paramIdOf(params::Kind kind, int32_t index) {
 	const auto at = static_cast<uint8_t>(index);
 	switch (kind) {
 	case params::Kind::PATCHED:
@@ -109,11 +95,11 @@ deluge::engine::ParamId paramIdOf(params::Kind kind, int32_t index) {
 	case params::Kind::PATCH_CABLE: // the index is the runtime's packed cable word
 		return cableDepthIdOf(static_cast<uint32_t>(index));
 	default:
-		return deluge::engine::ParamId{static_cast<uint32_t>(index)};
+		return deluge::plugin::ParamId{static_cast<uint32_t>(index)};
 	}
 }
 
-std::optional<int32_t> runtimeIndexOf(params::Kind kind, deluge::engine::ParamId id) {
+std::optional<int32_t> runtimeIndexOf(params::Kind kind, deluge::plugin::ParamId id) {
 	switch (kind) {
 	case params::Kind::PATCHED:
 	case params::Kind::UNPATCHED_SOUND: {
@@ -143,7 +129,73 @@ std::optional<int32_t> runtimeIndexOf(params::Kind kind, deluge::engine::ParamId
 	}
 }
 
-deluge::engine::ParamId firstParamId(params::Kind kind) {
+std::optional<RuntimeParam> runtimeParamOf(OwnerPlugin owner, deluge::project::ParamTarget target) {
+	switch (target.space) {
+	case deluge::project::ParamSpace::MIDI_CC:
+		return RuntimeParam{params::Kind::MIDI, static_cast<int32_t>(target.id.value)};
+	case deluge::project::ParamSpace::EXPRESSION:
+		return RuntimeParam{params::Kind::EXPRESSION, static_cast<int32_t>(target.id.value)};
+	case deluge::project::ParamSpace::ENGINE:
+		break;
+	}
+	if (owner == OwnerPlugin::GLOBAL_EFFECTABLE) {
+		std::optional<uint8_t> index = global_effectable::runtime_index(target.id);
+		if (!index) {
+			return std::nullopt;
+		}
+		return RuntimeParam{params::Kind::UNPATCHED_GLOBAL, *index};
+	}
+	if (instrument::is_cable_depth(target.id)) {
+		return RuntimeParam{params::Kind::PATCH_CABLE, static_cast<int32_t>(cableWordOf(target.id))};
+	}
+	std::optional<instrument::RuntimeSlot> slot = instrument::runtime_slot(target.id);
+	if (!slot) {
+		return std::nullopt;
+	}
+	return RuntimeParam{slot->set == instrument::RuntimeSet::PATCHED ? params::Kind::PATCHED
+	                                                                 : params::Kind::UNPATCHED_SOUND,
+	                    slot->index};
+}
+
+std::optional<deluge::project::ParamTarget> targetOf(OwnerPlugin owner, params::Kind kind, int32_t index) {
+	switch (kind) {
+	case params::Kind::MIDI:
+		return deluge::project::ParamTarget{deluge::project::ParamSpace::MIDI_CC,
+		                                    deluge::plugin::ParamId{static_cast<uint32_t>(index)}};
+	case params::Kind::EXPRESSION:
+		return deluge::project::ParamTarget{deluge::project::ParamSpace::EXPRESSION,
+		                                    deluge::plugin::ParamId{static_cast<uint32_t>(index)}};
+	case params::Kind::PATCHED:
+	case params::Kind::PATCH_CABLE:
+	case params::Kind::UNPATCHED_SOUND:
+		if (owner != OwnerPlugin::INSTRUMENT) {
+			return std::nullopt;
+		}
+		break;
+	case params::Kind::UNPATCHED_GLOBAL:
+		if (owner != OwnerPlugin::GLOBAL_EFFECTABLE) {
+			return std::nullopt;
+		}
+		break;
+	case params::Kind::NONE: // an unpatched set its owner's init has not named yet
+		kind = owner == OwnerPlugin::INSTRUMENT ? params::Kind::UNPATCHED_SOUND : params::Kind::UNPATCHED_GLOBAL;
+		break;
+	default:
+		return std::nullopt;
+	}
+	const deluge::plugin::ParamId id = paramIdOf(kind, index);
+	if (kind != params::Kind::PATCH_CABLE) {
+		std::span<const deluge::plugin::ParamInfo> table =
+		    owner == OwnerPlugin::INSTRUMENT ? std::span<const deluge::plugin::ParamInfo>{instrument::kParams}
+		                                     : std::span<const deluge::plugin::ParamInfo>{global_effectable::kParams};
+		if (deluge::plugin::find_param(table, id) == nullptr) {
+			return std::nullopt;
+		}
+	}
+	return deluge::project::engine_target(id.value);
+}
+
+deluge::plugin::ParamId firstParamId(params::Kind kind) {
 	return paramIdOf(kind, 0);
 }
 

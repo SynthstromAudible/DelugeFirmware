@@ -600,15 +600,16 @@ RULES = [
         # also flag every standard-library include, and this row has no way to tell `<cstdint>`
         # from `<stdint.h>`. The authoritative list of root-level headers `src/scenes` may include
         # is the comment at the top of src/scenes/CMakeLists.txt, enforced by review.
-        # `engines/`, `engine-api/`, `serialization/` and `sequence/` hold the model's own words and
-        # values: an effect's or a sound's setting is written as a `serialization::Value` in the
-        # word `engines/*/words.h` spells, through `model/edits/setting_edit.h`, and a note's
-        # iterance is `sequence/iterance.h`. None of them reaches a UI. `deluge-project/` is the model's records,
-        # which a menu node's binding reads and addresses (scenes/bind).
+        # `effects/`, `instruments/`, `plugin-api/`, `serialization/` and `sequence/` hold the model's own
+        # words and values: an effect's or a sound's setting is written as a `serialization::Value` in the
+        # word `effects/words.h` or `instruments/deluge/words.h` spells, through `model/edits/setting_edit.h`,
+        # and a note's iterance is `sequence/iterance.h`. `synth/modulation/` is the patch cables' vocabulary
+        # (a cable's target, which a cable menu learns). None of them reaches a UI. `deluge-project/` is the
+        # model's records, which a menu node's binding reads and addresses (scenes/bind).
         "scenes-includes-outside",
         "src/scenes/**",
         "include",
-        r"^(?!scenes/|shell/|ui/|gfx/|notify/|libdeluge/|io/|model/|modulation/|playback/|processing/|storage/|gui/l10n/|engines/|engine-api/|serialization/|sequence/|deluge-project/|foundation/|definitions_cxx\.hpp)(?:.*/)",
+        r"^(?!scenes/|shell/|ui/|gfx/|notify/|libdeluge/|io/|model/|modulation/|playback/|processing/|storage/|gui/l10n/|effects/|instruments/|synth/modulation/|plugin-api/|serialization/|sequence/|deluge-project/|foundation/|definitions_cxx\.hpp)(?:.*/)",
         "2026-08-26-ui-scenes-menus-design.md",
     ),
     (

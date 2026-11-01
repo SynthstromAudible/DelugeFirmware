@@ -152,9 +152,9 @@ change.
   (`tests/dsp/`, dual-arch CppSpec via CTest) lands with S2.
 - **S1 — `core/` vocabulary. ✅ done (2026-06-13).** Lean header-only
   foundation: `core/sample.h` (`q31`/`f32` aliases reusing the firmware-wide
-  `q31_t`, + the `SampleType` concept) and `core/convert.h` (`toF32`/`toQ31`
+  `q31_t`, + the `SampleType` concept) and `core/convert.h` (`to_f32`/`to_q31`
   edge conversion, with compile-time saturation self-tests — caught and avoided
-  the `ONE_Q31f`→2^31 float-rounding overflow at |x|==1). No caller switch, so
+  the `kOneQ31f`→2^31 float-rounding overflow at |x|==1). No caller switch, so
   goldens are untouched; firmware text unchanged. LUTs, block helpers, and
   primitive concepts deliberately deferred (see migration item 1).
 - **S2 — sine kernel. ✅ done (2026-06-13).** Migrated the sine table evaluator
@@ -221,7 +221,7 @@ change.
 |---|---|---|
 | `oscillators/oscillator.*` | `render_wave.h`, `audio_engine.h` (`cpuDireness`×5), `wave_table.h` | `fixed/` osc + wavetable view |
 | `oscillators/basic_waves.cpp`, `processing/render_wave.h` + `vector_rendering_function.h` | dsp code under `processing/` | rewritten into `fixed/` over spans |
-| `delay/delay.*` | `modulation/sync.h` (sync level and type), `engines/effects/state.h` (`DelayState`), `io/debug/log.h`, `memory/stack_guard.h` | the synced rate resolved by the owner; logging and the stack check dropped |
+| `delay/delay.*` | `modulation/sync.h` (sync level and type), `effects/state.h` (`DelayState`), `io/debug/log.h`, `memory/stack_guard.h` | the synced rate resolved by the owner; logging and the stack check dropped |
 | `delay_buffer.cpp`, `dx/engine.cpp` | `memory/general_memory_allocator.h` | the `memory_allocator_interface.h` seam |
 | `util/functions.h`, `util/lookuptables/` | export `gui/colour`, `gui/l10n`, `model/iterance` | wave LUTs move into `dsp-next` |
 | `granular/`, `timestretch/` | sample path | **deferred to Phase 3**, not migrated |

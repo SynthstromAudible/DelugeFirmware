@@ -25,9 +25,10 @@
 #include "dsp-next/core/mono.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/fixed/granular/granular_kernel.h"
-#include "dsp-next/fixed/noise/cong_noise.h"
+#include "dsp-next/fixed/noise/cong.h"
 #include "granular_workloads.h"
 #include "reference_granular.h"
+#include "util/synth_noise.h"
 
 #include <cppspec.hpp>
 #include <cstddef>
@@ -40,8 +41,7 @@
 
 using deluge::dsp::Mono;
 using deluge::dsp::StereoSample;
-using deluge::dsp::fixed::CongNoise;
-using Granular = deluge::dsp::fixed::Granular<CongNoise>;
+using Granular = deluge::dsp::fixed::Granular<>;
 
 static_assert(deluge::dsp::processor_kernel<Granular>);
 static_assert(Granular::kRingFrames == deluge::dsp::test::kModFXGrainBufferSize);
@@ -68,8 +68,8 @@ void push_grain(std::vector<uint32_t>& words, int32_t length, int32_t start, int
 	}
 }
 
-/// @brief `Mono<Granular<CongNoise>>` as its owner drives it, holding the ring it hands the kernel, with the
-/// reference's calls so that `granular_workloads::play` drives it.
+/// @brief `Mono<Granular<>>` as its owner drives it, drawing on the synth's noise stream, holding the ring it hands the
+/// kernel, with the reference's calls so that `granular_workloads::play` drives it.
 class TestGranular {
 public:
 	/// @brief The reference's clearGrainFXBuffer: the grains stopped, the write index back to the ring's start.
@@ -92,7 +92,7 @@ public:
 			mono_.configure({.rate = rate, .mix = mix, .density = density, .randomness = randomness});
 			*volume = Granular::post_fx_volume(*volume);
 			mono_.on<&Granular::set_send>(send.data(), reverb_amount);
-			mono_.renderBlock(frames, frames);
+			mono_.render_block(frames, frames, deluge::synth_noise);
 			if (mono_.state().wraps_to_shutdown < 0) {
 				mono_.on<&Granular::restart>();
 			}

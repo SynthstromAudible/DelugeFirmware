@@ -4,8 +4,8 @@
 
 #include "model/edits/set_param_value.h"
 
-#include "engines/deluge/cables.h"
-#include "engines/deluge/params.h"
+#include "instruments/deluge/cables.h"
+#include "instruments/deluge/params.h"
 #include "model/clip/instrument_clip.h"
 #include "model/edits/edit.h"
 #include "model/fx/song_stutter.h"
@@ -60,7 +60,7 @@ describe knob_writes("a gold knob's write by address", ${
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 		Song* const before = currentSong;
 		currentSong = f.song;
-		const std::optional<deluge::engine::ParamId> depth = deluge::instrument::cable_depth_id(
+		const std::optional<deluge::plugin::ParamId> depth = deluge::instrument::cable_depth_id(
 		    deluge::instrument::PatchSource::LFO_GLOBAL_2, deluge::instrument::param::kLpfFrequency);
 		expect(depth.has_value()).to_be_true();
 		if (depth) {
@@ -69,11 +69,11 @@ describe knob_writes("a gold knob's write by address", ${
 			expect(value_at(*f.song, cable).has_value()).to_be_false();
 			expect(turn(*f.song, cable, 1 << 28)).to_be_true();
 			expect(value_at(*f.song, cable) == std::optional<int32_t>{1 << 28}).to_be_true();
-			ParamDescriptor destination;
+			deluge::synth::CableTarget destination;
 			PatchSource source{};
 			PatchCableSet::dissectParamId(deluge::bridge::cableWordOf(*depth), &destination, &source);
 			PatchCableSet* set = f.clip->paramManager.getPatchCableSetAllowJibberish();
-			const uint8_t index = set != nullptr ? set->getPatchCableIndex(source, destination, nullptr, false) : 255;
+			const uint8_t index = set != nullptr ? set->getPatchCableIndex(source, destination) : 255;
 			expect(index != 255).to_be_true();
 			if (index != 255) {
 				expect(set->patchCables[index].polarity == PatchCable::getDefaultPolarity(source)).to_be_true();
@@ -103,7 +103,7 @@ describe knob_writes("a gold knob's write by address", ${
 		f.song->live.param_backup.backUp(*row, nullptr, &params, true);
 		f.song->addOutput(row);
 		expect(row->id().has_value()).to_be_true();
-		const deluge::engine::ParamId lpf = deluge::instrument::param::kLpfFrequency;
+		const deluge::plugin::ParamId lpf = deluge::instrument::param::kLpfFrequency;
 		const ParamAddress address{.owner = OwnerId::instrument(*row->id()), .space = ParamSpace::ENGINE, .id = lpf};
 		expect(turn(*f.song, address, 1 << 27)).to_be_true();
 		ParamManager* backed = f.song->live.param_backup.getPreferablyWithClip(*row, nullptr);
@@ -129,7 +129,7 @@ describe knob_writes("a gold knob's write by address", ${
 		expect(synth->setActiveClip(setupModelStackWithSong(memory, f.song)->addTimelineCounter(take), PgmChangeSend::NEVER))
 		    .to_be_true();
 		f.clip->activeIfNoSolo = true;
-		const deluge::engine::ParamId lpf = deluge::instrument::param::kLpfFrequency;
+		const deluge::plugin::ParamId lpf = deluge::instrument::param::kLpfFrequency;
 		const auto on = [&](const Clip& clip) {
 			return ParamAddress{.owner = OwnerId::instrument(*synth->id()), .space = ParamSpace::ENGINE, .id = lpf,
 			                    .clip_id = clip.id()};
@@ -184,11 +184,11 @@ describe knob_writes("a gold knob's write by address", ${
 		expect(synth->setActiveClip(setupModelStackWithSong(memory, f.song)->addTimelineCounter(take), PgmChangeSend::NEVER))
 		    .to_be_true();
 		f.clip->activeIfNoSolo = true;
-		const auto on = [&](const Clip& clip, deluge::engine::ParamId id) {
+		const auto on = [&](const Clip& clip, deluge::plugin::ParamId id) {
 			return ParamAddress{.owner = OwnerId::instrument(*synth->id()), .space = ParamSpace::ENGINE, .id = id,
 			                    .clip_id = clip.id()};
 		};
-		const deluge::engine::ParamId lpf = deluge::instrument::param::kLpfFrequency;
+		const deluge::plugin::ParamId lpf = deluge::instrument::param::kLpfFrequency;
 		// Each clip holds its own automation of the filter, and its own stutter rate.
 		const auto region = [&](const ParamAddress& address, int32_t value) {
 			deluge::edits::Context ctx{*f.song, f.song->project};

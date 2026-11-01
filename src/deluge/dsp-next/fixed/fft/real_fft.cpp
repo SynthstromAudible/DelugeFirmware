@@ -73,14 +73,14 @@ void RealFft::forward(std::span<const int32_t> in, std::span<Complex> out) const
 		std::array<Complex, 11> padded{};
 		std::copy_n(in.data(), 16, detail::words(padded.data()));
 		std::array<Complex, 32> wide;
-		detail::radix8x4<detail::Direction::Forward>(wide.data(), padded.data(), 1);
+		detail::radix8x4<detail::Direction::FORWARD>(wide.data(), padded.data(), 1);
 		detail::split_forward(out.data(), wide.data(), twiddles_.super.data(), ncfft);
 		return;
 	}
 
 	Complex* transformed = scratch_.data();
 	Complex* buffer = scratch_.data() + ncfft;
-	detail::mixed_radix<detail::Direction::Forward>(transformed, samples, twiddles_.factors, twiddles_.stage.data(),
+	detail::mixed_radix<detail::Direction::FORWARD>(transformed, samples, twiddles_.factors, twiddles_.stage.data(),
 	                                                buffer);
 	detail::split_forward(out.data(), transformed, twiddles_.super.data(), ncfft);
 }
@@ -107,7 +107,7 @@ void RealFft::inverse(std::span<const Complex> in, std::span<int32_t> out) const
 		detail::fft16_inverse(samples, split, twiddles_.stage.data());
 		break;
 	default:
-		detail::mixed_radix<detail::Direction::Inverse>(samples, split, twiddles_.factors, twiddles_.stage.data(),
+		detail::mixed_radix<detail::Direction::INVERSE>(samples, split, twiddles_.factors, twiddles_.stage.data(),
 		                                                buffer);
 		break;
 	}

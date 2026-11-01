@@ -1,17 +1,17 @@
 // One instrument setting written across a kit's sound drums as one Edit: each drum the fan-out rule picks takes the
 // value, record and runtime alike, and its slot still decodes to its typed state.
 
-#include "engine-api/types/setting.h"
-#include "engines/deluge/codec.h"
-#include "engines/deluge/engine.h"
-#include "engines/deluge/settings.h"
-#include "engines/deluge/sound_state.h"
+#include "instruments/deluge/codec.h"
+#include "instruments/deluge/plugin.h"
+#include "instruments/deluge/settings.h"
+#include "instruments/deluge/sound_state.h"
 #include "model/edits/edit.h"
 #include "model/edits/set_kit_setting.h"
 #include "model/edits/setting_edit.h"
 #include "model/instrument/kit.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/song/song.h"
+#include "plugin-api/types/setting.h"
 #include "processing/sound/sound_drum.h"
 #include "scenes/menu/nodes/fan_out_rules.h"
 

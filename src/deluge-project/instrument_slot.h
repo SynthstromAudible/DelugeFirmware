@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "engine-api/state_handle.h"
+#include "plugin-api/state_handle.h"
 #include "serialization/value.h"
 
 #include <cstdint>
@@ -25,11 +25,11 @@
 
 namespace deluge::project {
 
-/// @brief The instrument a synth track or a sound kit row plays: which engine, and its state, which the model holds
+/// @brief The instrument a synth track or a sound kit row plays: which plugin, and its state, which the model holds
 /// without knowing its type. The sound playing it binds to that state.
 struct InstrumentSlot {
-	std::string engine;        ///< the engine's id, e.g. "deluge.instrument"
-	engine::StateHandle state; ///< the engine's state
+	std::string plugin;        ///< the plugin's id, e.g. "deluge.instrument"
+	plugin::StateHandle state; ///< the plugin's state
 	/// The song's input tick magnitude when the slot was filled: the context an edit reads and writes its sync levels
 	/// in.
 	int32_t tick_magnitude{1};
@@ -39,10 +39,10 @@ struct InstrumentSlot {
 /// @brief How the model reads and writes a sound element's instrument without understanding it: the host supplies it.
 struct InstrumentCodec {
 	/// The instrument a sound element holds, its sync levels relative to @p tick_magnitude.
-	engine::StateHandle (*decode)(const serialization::Value& element, int32_t tick_magnitude) = nullptr;
+	plugin::StateHandle (*decode)(const serialization::Value& element, int32_t tick_magnitude) = nullptr;
 	/// Writes @p state's entries into @p element, in the order a sound element holds them, its sync levels relative to
 	/// @p tick_magnitude.
-	void (*encode)(const engine::StateHandle& state, serialization::Value& element, int32_t tick_magnitude) = nullptr;
+	void (*encode)(const plugin::StateHandle& state, serialization::Value& element, int32_t tick_magnitude) = nullptr;
 };
 
 /// @brief Which slot a setting names: a synth track's, by its output's id, or a sound kit row's, by its drum's id.

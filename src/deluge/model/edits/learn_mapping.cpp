@@ -54,7 +54,8 @@ void applyToCurrentSong(Edit& edit) {
 }
 
 /// The current song's param target for @p param of @p owner, when @p owner holds controls of the current song.
-std::optional<deluge::project::ParamTarget> knobTargetIn(::ModControllableAudio& owner, ParamDescriptor param) {
+std::optional<deluge::project::OwnerParamTarget> knobTargetIn(::ModControllableAudio& owner,
+                                                              const deluge::modulation::KnobTarget& param) {
 	if (currentSong == nullptr) {
 		return std::nullopt;
 	}
@@ -65,9 +66,9 @@ std::optional<deluge::project::ParamTarget> knobTargetIn(::ModControllableAudio&
 		return std::nullopt;
 	}
 	namespace params = deluge::modulation::params;
-	return deluge::project::ParamTarget{
-	    *address,
-	    deluge::bridge::knobTargetOf(param, isSound ? params::Kind::UNPATCHED_SOUND : params::Kind::UNPATCHED_GLOBAL)};
+	return deluge::project::OwnerParamTarget{
+	    *address, deluge::bridge::controlTargetOf(param, isSound ? params::Kind::UNPATCHED_SOUND
+	                                                             : params::Kind::UNPATCHED_GLOBAL)};
 }
 
 /// The kit whose row @p drum is.
@@ -194,8 +195,8 @@ void inputLearned(Context& ctx, const project::MappingTarget& target, const std:
 } // namespace
 
 void velocityCableFor(Context& ctx, project::OwnerId owner, ::Clip& clip, const ::MIDICable& cable) {
-	ParamDescriptor volume;
-	volume.setToHaveParamOnly(deluge::modulation::params::LOCAL_VOLUME);
+	const deluge::synth::CableTarget volume =
+	    deluge::synth::CableTarget::param(deluge::modulation::params::LOCAL_VOLUME);
 	SetPatchCable write{{.owner = owner,
 	                     .space = project::ParamSpace::ENGINE,
 	                     .id = deluge::bridge::cable_depth(PatchSource::VELOCITY, volume),
@@ -209,7 +210,7 @@ void velocityCableFor(Context& ctx, project::OwnerId owner, ::Clip& clip, const 
 Error LearnMapping::apply(Context& ctx) {
 	deluge::bridge::applyPendingMappingOps(ctx.song); // a write the render made first lands first
 	deluge::project::MappingTable before = ctx.model.mappings;
-	const auto* param = std::get_if<deluge::project::ParamTarget>(&mapping_.target);
+	const auto* param = std::get_if<deluge::project::OwnerParamTarget>(&mapping_.target);
 	const bool replacing = replaces_ && param != nullptr
 	                       && std::ranges::any_of(before.entries(), [&](const deluge::project::Mapping& entry) {
 		                          return entry.target == mapping_.target && entry.source == *replaces_;
@@ -272,9 +273,9 @@ void unlearnMappingFor(deluge::project::MappingTarget target) {
 	applyToCurrentSong(edit);
 }
 
-bool learnKnobFor(::ModControllableAudio& owner, ParamDescriptor param, ::MIDICable* cable, uint8_t noteOrCC,
-                  uint8_t channel) {
-	const std::optional<deluge::project::ParamTarget> target = knobTargetIn(owner, param);
+bool learnKnobFor(::ModControllableAudio& owner, const deluge::modulation::KnobTarget& param, ::MIDICable* cable,
+                  uint8_t noteOrCC, uint8_t channel) {
+	const std::optional<deluge::project::OwnerParamTarget> target = knobTargetIn(owner, param);
 	if (!target) {
 		return owner.learnKnob(cable, param, noteOrCC, 0, channel, currentSong);
 	}
@@ -297,8 +298,8 @@ bool learnKnobFor(::ModControllableAudio& owner, ParamDescriptor param, ::MIDICa
 	return deluge::edits::apply(ctx, edit) == Error::NONE;
 }
 
-bool unlearnKnobsFor(::ModControllableAudio& owner, ParamDescriptor param) {
-	const std::optional<deluge::project::ParamTarget> target = knobTargetIn(owner, param);
+bool unlearnKnobsFor(::ModControllableAudio& owner, const deluge::modulation::KnobTarget& param) {
+	const std::optional<deluge::project::OwnerParamTarget> target = knobTargetIn(owner, param);
 	if (!target) {
 		return owner.unlearnKnobs(param, currentSong);
 	}

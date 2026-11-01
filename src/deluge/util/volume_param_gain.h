@@ -3,8 +3,8 @@
 #include <cstdint>
 #include <limits>
 
-/// A volume param's final linear gain is a square law of the "pos" value the patcher builds in
-/// Patcher::cableToLinearParamWithoutRangeAdjustment():
+/// A volume param's final linear gain is a square law of the "pos" value the matrix's multiply chain builds from the
+/// preset (MatrixFixed::preset_term and multiply_step):
 ///
 ///     pos(param) = (param >> 2) + kVolumeParamUnityPos
 ///     finalGain  = paramNeutralValue * (pos / kVolumeParamUnityPos)^2

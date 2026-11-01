@@ -1,6 +1,6 @@
 #include "model/edits/set_chain_view.h"
 
-#include "engines/effects/chain.h"
+#include "effects/chain.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/project_bridge/chain_bridge.h"
 #include "model/song/song.h"

@@ -5,7 +5,7 @@
 ///
 /// A group is one family of settings that live together on one owner's record: the song's own settings, a track's
 /// identity, its instrument device's fields, a lane's identity, a note row's, an audio clip's descriptor. Each has a
-/// table of `engine::SettingInfo` rows (the same form an engine's settings take), and the record read and write here.
+/// table of `plugin::SettingInfo` rows (the same form an engine's settings take), and the record read and write here.
 /// Values are in their file form: the text `check_setting` checks. Writing checks the value against the row and
 /// changes nothing when the owner, the path or the value is refused; the engine side follows through the bridge's
 /// projection (`model/project_bridge/setting_projection.h`).
@@ -14,7 +14,7 @@
 #include "deluge-project/clip_address.h"
 #include "deluge-project/kit_row_address.h"
 #include "deluge-project/note_address.h"
-#include "engine-api/types/setting.h"
+#include "plugin-api/types/setting.h"
 #include "serialization/value.h"
 
 #include <cstdint>
@@ -30,8 +30,8 @@ class Song;
 
 /// @brief Which family of settings an address names.
 ///
-/// Each says which engine::SettingContext a host passes when it asks whether a row's menu shows, under the host
-/// contract in engine::SettingContext: the Owner (the menu's scope) and the Instrument (what plays the notes, the
+/// Each says which plugin::SettingContext a host passes when it asks whether a row's menu shows, under the host
+/// contract in plugin::SettingContext: the Owner (the menu's scope) and the Instrument (what plays the notes, the
 /// track's or a kit lane's drum).
 enum class SettingGroupId : uint8_t {
 	SONG,              ///< the song's own: reverb and its model, swing interval, disabled scales. SONG, NONE
@@ -122,7 +122,7 @@ struct SettingAddress {
 /// @brief The rows of @p group.
 /// @param group The group.
 /// @return Its table; every path a read or write of the group takes.
-[[nodiscard]] std::span<const engine::SettingInfo> table_of(SettingGroupId group);
+[[nodiscard]] std::span<const plugin::SettingInfo> table_of(SettingGroupId group);
 
 /// @brief @p address's value at @p path, in its file form.
 /// @param song    The song whose records hold it.

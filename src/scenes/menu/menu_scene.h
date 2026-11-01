@@ -637,7 +637,7 @@ public:
 	/// `readValueAgain` is -- reload the storage, with nothing pressed on this row (legacy's
 	/// `beginScreen`/`focusRegained` shape). A no-op when nothing is focused.
 	void read_value_again();
-	/// @brief The `ParamDescriptor` MIDI/CC learn (E3) binds to the focused node.
+	/// @brief The `deluge::synth::CableTarget` MIDI/CC learn (E3) binds to the focused node.
 	///
 	/// @note **Param learn, not global-command learn.** This is `PatchedParam`/`UnpatchedParam`'s
 	///       `getLearningThing()` (`bindings.h`'s `learn_target`): "which automatable parameter
@@ -645,7 +645,7 @@ public:
 	///       entirely -- `midi::Command`'s, which binds a whole MIDI *message* to a
 	///       `GlobalMIDICommand` transport action and never touches a param. The twelve
 	///       `midi_command_*` nodes have no `bind.param`, so this returns none for every one of them.
-	std::optional<deluge::project::ParamTarget> learn_target() const;
+	std::optional<deluge::project::OwnerParamTarget> learn_target() const;
 
 	/// @name MIDI-learn entry points -- the port of `SoundEditor`'s own three delivery members.
 	///

@@ -17,7 +17,8 @@
 
 #include "model/instrument/kit.h"
 #include "definitions_cxx.hpp"
-#include "dsp/stereo_sample.h"
+#include "dsp-next/core/stereo_sample.h"
+#include "dsp-next/fixed/curves/param_curve.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/views/instrument_clip_view.h"
@@ -52,7 +53,8 @@
 #include "storage/storage_manager.h"
 #include "storage/value.h"
 #include "storage/value_tree_deserializer.h"
-#include "util/functions.h" // stringToInt (id-first drum peek)
+#include "synth/matrix/descriptors.h" // kParamNeutral, kParamRange
+#include "util/functions.h"           // stringToInt (id-first drum peek)
 #include "util/notify.h"
 #include "util/structural_edit_probe.h"
 #include <cstring>
@@ -804,8 +806,8 @@ void Kit::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, i
 	    && !stemExport.includeKitFX) [[unlikely]] {
 		UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
-		int32_t pitchAdjust =
-		    getFinalParameterValueExp(kMaxSampleValue, unpatchedParams->getValue(params::UNPATCHED_PITCH_ADJUST) >> 3);
+		int32_t pitchAdjust = deluge::dsp::fixed::curve_exponential(
+		    kMaxSampleValue, unpatchedParams->getValue(params::UNPATCHED_PITCH_ADJUST) >> 3);
 
 		GlobalEffectableForClip::renderedLastTime = renderGlobalEffectableForClip(
 		    modelStackWithTimelineCounter, output, nullptr, reverbBuffer, reverbAmountAdjust, sideChainHitPending,
@@ -837,9 +839,9 @@ void Kit::setupAndRenderArpPreOutput(ModelStackWithTimelineCounter* modelStackWi
 
 	if (arpSettings->mode != ArpMode::OFF) {
 		uint32_t gateThreshold = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_GATE) + 2147483648;
-		uint32_t phaseIncrement = arpSettings->getPhaseIncrement(
-		    getFinalParameterValueExp(paramNeutralValues[deluge::modulation::params::GLOBAL_ARP_RATE],
-		                              cableToExpParamShortcut(unpatchedParams->getValue(params::UNPATCHED_ARP_RATE))));
+		uint32_t phaseIncrement = arpSettings->getPhaseIncrement(deluge::dsp::fixed::curve_exponential(
+		    deluge::synth::matrix::kParamNeutral[deluge::modulation::params::GLOBAL_ARP_RATE],
+		    deluge::dsp::fixed::preset_combination(unpatchedParams->getValue(params::UNPATCHED_ARP_RATE))));
 
 		ArpReturnInstruction kitInstruction;
 		arpeggiator.render(arpSettings, &kitInstruction, output.size(), gateThreshold, phaseIncrement);
@@ -929,9 +931,9 @@ void Kit::renderNonAudioArpPostOutput(std::span<StereoSample> output) {
 
 		if (nonAudioDrum->arpSettings.mode != ArpMode::OFF) {
 			uint32_t gateThreshold = (uint32_t)nonAudioDrum->arpSettings.gate + 2147483648;
-			uint32_t phaseIncrement = nonAudioDrum->arpSettings.getPhaseIncrement(
-			    getFinalParameterValueExp(paramNeutralValues[deluge::modulation::params::GLOBAL_ARP_RATE],
-			                              cableToExpParamShortcut(nonAudioDrum->arpSettings.rate)));
+			uint32_t phaseIncrement = nonAudioDrum->arpSettings.getPhaseIncrement(deluge::dsp::fixed::curve_exponential(
+			    deluge::synth::matrix::kParamNeutral[deluge::modulation::params::GLOBAL_ARP_RATE],
+			    deluge::dsp::fixed::preset_combination(nonAudioDrum->arpSettings.rate)));
 
 			ArpReturnInstruction instruction;
 			nonAudioDrum->arpeggiator.render(&nonAudioDrum->arpSettings, &instruction, output.size(), gateThreshold,
@@ -1095,8 +1097,8 @@ void Kit::setupWithoutActiveClip(ModelStack* modelStack) {
 				FREEZE_WITH_ERROR("E174");
 			}
 
-			soundDrum->patcher.performInitialPatching(
-			    soundDrum->patchControlBlock(*(ParamManagerForTimeline*)paramManager));
+			soundDrum->performInitialPatching(
+			    soundDrum->matrixBlock(*(ParamManagerForTimeline*)paramManager, Sound::PresetGather::ALL));
 		}
 	}
 
@@ -1131,7 +1133,8 @@ void Kit::setupPatching(ModelStackWithTimelineCounter* modelStack) {
 				    modelStackWithThreeMainThings->addParamCollectionSummary(
 				        thisNoteRow->paramManager.getPatchCableSetSummary());
 				((PatchCableSet*)modelStackWithParamCollection->paramCollection)
-				    ->setupPatching(modelStackWithParamCollection);
+				    ->setupPatching(*static_cast<Sound*>(modelStackWithParamCollection->modControllable),
+				                    *modelStackWithParamCollection->paramManager);
 			}
 		}
 	}
@@ -1162,7 +1165,8 @@ void Kit::setupPatching(ModelStackWithTimelineCounter* modelStack) {
 				    modelStackWithThreeMainThings->addParamCollectionSummary(paramManager->getPatchCableSetSummary());
 
 				((PatchCableSet*)modelStackWithParamCollection->paramCollection)
-				    ->setupPatching(modelStackWithParamCollection);
+				    ->setupPatching(*static_cast<Sound*>(modelStackWithParamCollection->modControllable),
+				                    *modelStackWithParamCollection->paramManager);
 			}
 		}
 	}
@@ -1196,8 +1200,8 @@ bool Kit::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend
 
 						SoundDrum* soundDrum = (SoundDrum*)thisNoteRow->drum;
 
-						soundDrum->patcher.performInitialPatching(
-						    soundDrum->patchControlBlock(thisNoteRow->paramManager));
+						soundDrum->performInitialPatching(
+						    soundDrum->matrixBlock(thisNoteRow->paramManager, Sound::PresetGather::ALL));
 					}
 				}
 			}
@@ -2129,19 +2133,20 @@ gotParamManager:
 /// for a kit we have two types of automation: with Affect Entire and without Affect Entire
 ModelStackWithAutoParam* Kit::getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
                                                      int32_t paramID, params::Kind paramKind, bool affectEntire,
-                                                     bool useMenuStack) {
+                                                     bool useMenuStack, bool forEdit) {
 	if (affectEntire) {
-		return getModelStackWithParamForKit(modelStack, clip, paramID, paramKind, useMenuStack);
+		return getModelStackWithParamForKit(modelStack, clip, paramID, paramKind, useMenuStack, forEdit);
 	}
 	else {
-		return getModelStackWithParamForKitRow(modelStack, clip, paramID, paramKind, useMenuStack);
+		return getModelStackWithParamForKitRow(modelStack, clip, paramID, paramKind, useMenuStack, forEdit);
 	}
 }
 
 /// for a kit we have two types of automation: with Affect Entire and without Affect Entire
 /// for a kit with affect entire on, we are automating information at the kit level
 ModelStackWithAutoParam* Kit::getModelStackWithParamForKit(ModelStackWithTimelineCounter* modelStack, Clip* clip,
-                                                           int32_t paramID, params::Kind paramKind, bool useMenuStack) {
+                                                           int32_t paramID, params::Kind paramKind, bool useMenuStack,
+                                                           bool forEdit) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings = nullptr;
@@ -2166,7 +2171,7 @@ ModelStackWithAutoParam* Kit::getModelStackWithParamForKit(ModelStackWithTimelin
 /// for a kit with affect entire off, we are automating information at the noterow level
 ModelStackWithAutoParam* Kit::getModelStackWithParamForKitRow(ModelStackWithTimelineCounter* modelStack, Clip* clip,
                                                               int32_t paramID, params::Kind paramKind,
-                                                              bool useMenuStack) {
+                                                              bool useMenuStack, bool forEdit) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
 	if (selectedDrum && selectedDrum->type == DrumType::SOUND) { // no automation for MIDI or CV kit drum types
@@ -2194,7 +2199,7 @@ ModelStackWithAutoParam* Kit::getModelStackWithParamForKitRow(ModelStackWithTime
 				}
 
 				else if (paramKind == deluge::modulation::params::Kind::PATCH_CABLE) {
-					modelStackWithParam = modelStackWithThreeMainThings->getPatchCableAutoParamFromId(paramID);
+					modelStackWithParam = modelStackWithThreeMainThings->getPatchCableAutoParamFromId(paramID, forEdit);
 				}
 				else if (paramKind == params::Kind::EXPRESSION) {
 					modelStackWithParam = modelStackWithThreeMainThings->getExpressionAutoParamFromID(paramID);

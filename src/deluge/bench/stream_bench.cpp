@@ -16,6 +16,7 @@
  */
 
 #include "bench/stream_bench.h"
+#include "bench/render_profile.h"
 
 #include "definitions_cxx.hpp"
 #include "deluge_resource.h"
@@ -40,6 +41,11 @@
 #include <string_view>
 
 namespace deluge::bench {
+
+namespace render_profile {
+Totals g_totals{};
+} // namespace render_profile
+
 namespace {
 
 using runtime::appLoop;
@@ -78,6 +84,7 @@ struct Bench {
 	Micros phase_start = 0;
 	const char* phase = "";
 	bool load_done = false;
+	render_profile::Totals render{}; ///< The phase's cycles in voice renders, voice patching and sound patching.
 	bool load_ok = false;
 	int32_t failures = 0;
 	// The phase being reported, captured when it ended, and the next line of it to print.
@@ -128,6 +135,8 @@ void beginPhase(const char* phase) {
 	appLoop.resetStats();
 	g.underrun_wait_base = underrunWaits();
 	g.underrun_unassign_base = underrunUnassigns();
+	render_profile::enable();
+	render_profile::g_totals = {};
 }
 
 /// Ends the measured phase: captures its counters, then reports them a line per tick and goes on to @p next.
@@ -140,6 +149,7 @@ void endPhase(Stage next) {
 	}
 	g.underrun_wait = underrunWaits() - g.underrun_wait_base;
 	g.underrun_unassign = underrunUnassigns() - g.underrun_unassign_base;
+	g.render = render_profile::g_totals;
 	g.line = 0;
 	g.after_report = next;
 	enter(Stage::Report);
@@ -282,6 +292,15 @@ bool printReportLine() {
 		return true;
 	case 18:
 		printJobs();
+		return true;
+	case 19:
+		D_PRINTLN("STREAM-BENCH-RENDER phase=%s voice_render_kcyc=%lu sound_patch_kcyc=%lu "
+		          "voice_note_on_kcyc=%lu voice_blocks=%lu sound_blocks=%lu note_ons=%lu",
+		          g.phase, static_cast<unsigned long>(g.render.voice_render / 1000),
+		          static_cast<unsigned long>(g.render.sound_patch / 1000),
+		          static_cast<unsigned long>(g.render.voice_note_on / 1000),
+		          static_cast<unsigned long>(g.render.voice_blocks), static_cast<unsigned long>(g.render.sound_blocks),
+		          static_cast<unsigned long>(g.render.note_ons));
 		return true;
 	default:
 		return false;

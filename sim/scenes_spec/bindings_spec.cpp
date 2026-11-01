@@ -1,23 +1,15 @@
 /// @file
 /// @brief Spec for `menu::bindings`: read/write/range/names/learn against a REAL model.
-///
-/// The scaling assertions deliberately call the legacy `computeFinalValueForStandardMenuItem` /
-/// `computeCurrentValueForStandardMenuItem` / `...ForPan` directly (the spec may
-/// include `gui/menu_item/`, the library may not), so the param displays' transcription
-/// (`scenes/bind/param_display.cpp`) is checked against the original arithmetic rather than against a
-/// second copy of itself.
 
 #include "gui/ui/menu_view_of.h"
 #include "scenes/menu/bindings.h"
 #include "support/menu_engine.h"
 
-#include "scenes/bind/param_display.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/sound_filters.h"
 
 #include "gui/l10n/l10n.h"
-#include "gui/menu_item/value_scaling.h" // the SPEC may include gui/menu_item/, the library may not
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/kit.h"
 #include "model/note/note_row.h"
@@ -98,39 +90,6 @@ describe menu_bindings_value("scenes::menu::bindings read/write", $ {
 		bindings::write(toggle_node, ctx, 1);
 		expect(g_toggle_state).to_be_true();
 		expect(bindings::read(toggle_node, ctx)).to_equal(1);
-	});
-});
-
-describe menu_bindings_scaling("a param's display, against legacy's value scaling", $ {
-	// Each display at both ends and a mid value, against the legacy function: the ends are the only place the
-	// arithmetic is not a formula (`value_scaling.cpp:22-33`, `:35-46`, `:48-58` special-case min and max).
-	using deluge::engine::ParamDisplay;
-	using deluge::scenes::bind::menu_of;
-	using deluge::scenes::bind::stored_of;
-
-	it("matches the legacy standard pair at 0, 25 and 50", _ {
-		for (int32_t v : {0, 25, 50}) {
-			expect(stored_of(ParamDisplay::STANDARD, v)).to_equal(computeFinalValueForStandardMenuItem(v));
-			expect(menu_of(ParamDisplay::STANDARD, stored_of(ParamDisplay::STANDARD, v)))
-			    .to_equal(computeCurrentValueForStandardMenuItem(computeFinalValueForStandardMenuItem(v)));
-		}
-	});
-
-	it("matches the legacy pan pair at -25, 0 and 25", _ {
-		for (int32_t v : {-25, 0, 25}) {
-			expect(stored_of(ParamDisplay::PAN, v)).to_equal(computeFinalValueForPan(v));
-			expect(menu_of(ParamDisplay::PAN, stored_of(ParamDisplay::PAN, v)))
-			    .to_equal(computeCurrentValueForPan(computeFinalValueForPan(v)));
-		}
-	});
-
-	it("matches the legacy half-precision pair at 0, 25 and 50, never storing a negative word", _ {
-		for (int32_t v : {0, 25, 50}) {
-			expect(stored_of(ParamDisplay::HALF_PRECISION, v)).to_equal(computeFinalValueForHalfPrecisionMenuItem(v));
-			expect(menu_of(ParamDisplay::HALF_PRECISION, stored_of(ParamDisplay::HALF_PRECISION, v)))
-			    .to_equal(computeCurrentValueForHalfPrecisionMenuItem(computeFinalValueForHalfPrecisionMenuItem(v)));
-		}
-		expect(stored_of(ParamDisplay::HALF_PRECISION, 0)).to_equal(0);
 	});
 });
 
@@ -270,12 +229,10 @@ describe menu_bindings_range_names("scenes::menu::bindings range/names/learn", $
 		auto f = spec::make_synth_song();
 		const MenuContext ctx = synth_context(f);
 
-		ParamDescriptor patched;
-		patched.setToHaveParamOnly(params::LOCAL_LPF_FREQ); // patched_param.cpp:51-55
+		const deluge::modulation::KnobTarget patched = deluge::modulation::knobParam(params::LOCAL_LPF_FREQ); // patched_param.cpp:51-55
 		expect(deluge::scenes::spec::learns_as(bindings::learn_target(lpf_freq_node, ctx), patched, ctx)).to_be_true();
 
-		ParamDescriptor unpatched;
-		unpatched.setToHaveParamOnly(params::UNPATCHED_BASS + params::UNPATCHED_START); // unpatched_param.cpp:88-92
+		const deluge::modulation::KnobTarget unpatched = deluge::modulation::knobParam(params::UNPATCHED_BASS + params::UNPATCHED_START); // unpatched_param.cpp:88-92
 		expect(deluge::scenes::spec::learns_as(bindings::learn_target(bass_node, ctx), unpatched, ctx)).to_be_true();
 
 		expect(bindings::learn_target(toggle_node, ctx).has_value()).to_be_false();
@@ -283,4 +240,4 @@ describe menu_bindings_range_names("scenes::menu::bindings range/names/learn", $
 });
 // clang-format on
 
-DELUGE_SPEC(bindings_spec, menu_bindings_value, menu_bindings_scaling, menu_bindings_notify, menu_bindings_range_names)
+DELUGE_SPEC(bindings_spec, menu_bindings_value, menu_bindings_notify, menu_bindings_range_names)

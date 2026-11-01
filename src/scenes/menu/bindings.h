@@ -11,16 +11,13 @@
 /// @note **`model/model_stack.h` and `modulation/automation/auto_param.h` are reached by
 ///       `bindings.cpp` only** -- it and `context.cpp` are the two files the
 ///       `scenes-model-stack-outside-context` ratchet (`scripts/check_layer_rules.py`) excludes.
-///       This header pulls in neither: it needs no model type but `ParamDescriptor`, which is a
-///       leaf wrapper around an `int32_t`.
+///       This header pulls in neither.
 ///
 /// @note **No `gui/menu_item/`.** The value scaling the `get`/`set` items reuse (`standard_to_menu` and friends)
-///       is the param displays' (`scenes/bind/param_display.cpp`), which transcribes legacy's
-///       `gui/menu_item/value_scaling.cpp`; `sim/scenes_spec/bindings_spec.cpp` compares it with the legacy functions.
+///       is the plugin API's menu mapping (`plugin-api/types/param_mapping.h`), which legacy's menu items use too.
 
 #include "deluge-project/controller_mapping.h"
 #include "deluge-project/mapping_table.h"
-#include "modulation/params/param_descriptor.h"
 #include "scenes/menu/node.h"
 #include "shell/profile.h" // ui::shell::TextScratch
 
@@ -154,7 +151,7 @@ size_t names(const Node& node, const MenuContext& ctx, std::span<std::string_vie
 /// @param node The item to learn.
 /// @param ctx  What is being edited.
 /// @return The target, or none for a node with no learnable param or a context that edits no owner.
-std::optional<deluge::project::ParamTarget> learn_target(const Node& node, const MenuContext& ctx);
+std::optional<deluge::project::OwnerParamTarget> learn_target(const Node& node, const MenuContext& ctx);
 
 /// @brief The controls a learn on @p ctx's owner lands on: its sound's, or its chain's owner's.
 std::optional<deluge::project::ControlsAddress> controls_owner(const MenuContext& ctx);
@@ -188,14 +185,13 @@ bool writes_whole_kit(const MenuContext& ctx);
 /// ones.
 /// @{
 
-/// @brief `computeCurrentValueForStandardMenuItem` (`gui/menu_item/value_scaling.cpp:6-8`):
-///        INT32 range -> 0..50.
+/// @brief A STANDARD param's menu value (`plugin::to_menu`): INT32 range -> 0..50.
 int32_t standard_to_menu(int32_t stored);
-/// @brief `computeFinalValueForStandardMenuItem` (`value_scaling.cpp:22-33`): 0..50 -> INT32 range.
+/// @brief A STANDARD param's word (`plugin::from_menu`): 0..50 -> INT32 range.
 int32_t menu_to_standard(int32_t menu_value);
-/// @brief `computeCurrentValueForPan` (`value_scaling.cpp:14-16`): INT32 range -> -25..25.
+/// @brief A PAN param's menu value (`plugin::to_menu`): INT32 range -> -25..25.
 int32_t pan_to_menu(int32_t stored);
-/// @brief `computeFinalValueForPan` (`value_scaling.cpp:48-58`): -25..25 -> INT32 range.
+/// @brief A PAN param's word (`plugin::from_menu`): -25..25 -> INT32 range.
 int32_t menu_to_pan(int32_t menu_value);
 /// @brief `computeCurrentValueForUnsignedMenuItem` (`value_scaling.cpp:18-20`): 0..UINT32_MAX ->
 ///        0..50.

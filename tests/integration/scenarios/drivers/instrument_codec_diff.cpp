@@ -28,7 +28,7 @@
 //
 // Exit: 0 agree; 1 load failure; 2 usage/IO; 3 a sound differs (its name and the first differing path are printed).
 
-#include "engines/deluge/codec.h"
+#include "instruments/deluge/codec.h"
 #include "memory/general_memory_allocator.h"
 #include "model/drum/drum.h"
 #include "model/global_effectable/global_effectable.h"
@@ -286,7 +286,7 @@ int roundtrip(std::vector<SoundEntry>& sounds, int32_t magnitude) {
 	    static_cast<Sound*>(static_cast<SoundInstrument*>(freshSynth))->seededState();
 	const deluge::instrument::SoundState newDrum =
 	    static_cast<Sound*>(static_cast<SoundDrum*>(freshDrum))->seededState();
-	const deluge::engine::CodecContext context{.input_tick_magnitude = magnitude};
+	const deluge::plugin::CodecContext context{.input_tick_magnitude = magnitude};
 	for (SoundEntry& entry : sounds) {
 		deluge::instrument::SoundState state = entry.drum ? newDrum : newSynth;
 		if (auto result = deluge::instrument::decode(entry.element, state, context); !result) {

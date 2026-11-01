@@ -18,13 +18,17 @@
 #include "model/global_effectable/global_effectable_for_clip.h"
 #include "definitions.h"
 #include "definitions_cxx.hpp"
-#include "dsp/stereo_sample.h"
+#include "dsp-next/core/stereo_sample.h"
+#include "dsp-next/fixed/curves/param_curve.h"
+#include "effects/global_effectable/params.h"
 #include "gui/l10n/l10n.h"
 #include "gui/views/view.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
 #include "model/edits/change_effect.h"
 #include "processing/engines/audio_engine.h"
+#include "synth/matrix/descriptors.h" // kParamNeutral, kParamRange
+#include "util/functions.h"
 #include "util/notify.h"
 #include <limits>
 #include <string.h>
@@ -46,7 +50,7 @@ namespace params = deluge::modulation::params;
 
 GlobalEffectableForClip::GlobalEffectableForClip()
     : chain_{deluge::model::kModFxRingAllocator, deluge::model::kGranularAllocator, deluge::model::delayArena(),
-             paramNeutralValues[params::GLOBAL_VOLUME_POST_REVERB_SEND]} {
+             deluge::synth::matrix::kParamNeutral[params::GLOBAL_VOLUME_POST_REVERB_SEND]} {
 	// A new owner's filter mode and mod FX type are set once its chain exists.
 	setLpfMode(FilterMode::TRANSISTOR_24DB);
 	filter().reset();
@@ -69,13 +73,13 @@ GlobalEffectableForClip::~GlobalEffectableForClip() {
 	// Process FX and stuff. For kits, stutter happens before reverb send
 	// The >>1 is to make up for the fact that we've got the preset default to effect a multiplication of 2 already (the
 	// maximum multiplication would be 4)
-	int32_t a = cableToLinearParamShortcut(unpatchedParams->getValue(params::UNPATCHED_VOLUME));
-	int32_t volumeAdjustment = getFinalParameterValueVolume(134217728, a) >> 1;
+	int32_t a = deluge::dsp::fixed::preset_combination(unpatchedParams->getValue(params::UNPATCHED_VOLUME));
+	int32_t volumeAdjustment = deluge::dsp::fixed::curve_square(134217728, a) >> 1;
 
 	int32_t reverbAmountAdjustForDrums = multiply_32x32_rshift32_rounded(reverbAmountAdjust, volumeAdjustment) << 5;
 
-	int32_t pitchAdjust =
-	    getFinalParameterValueExp(kMaxSampleValue, unpatchedParams->getValue(params::UNPATCHED_PITCH_ADJUST) >> 3);
+	int32_t pitchAdjust = deluge::dsp::fixed::curve_exponential(
+	    kMaxSampleValue, unpatchedParams->getValue(params::UNPATCHED_PITCH_ADJUST) >> 3);
 
 	// The delay starts or stops on whether the content rendered last block.
 	deluge::effects::Delay::State delayWorkingState =
@@ -132,17 +136,21 @@ int32_t GlobalEffectableForClip::getSidechainVolumeAmountAsPatchCableDepth(Param
 	return (sidechainVolumeParam >> 2) + 536870912;
 }
 
+std::optional<deluge::plugin::ParamId> GlobalEffectableForClip::clipKnobParam(int32_t modKnobMode,
+                                                                              int32_t whichModEncoder) {
+	if (modKnobMode == 4 && whichModEncoder != 0) {
+		return deluge::global_effectable::param::kSidechainCompressorVolume;
+	}
+	if (modKnobMode == 6 && whichModEncoder == 0) {
+		return deluge::global_effectable::param::kPitchAdjust;
+	}
+	return std::nullopt;
+}
+
 int32_t GlobalEffectableForClip::getParameterFromKnob(int32_t whichModEncoder, const deluge::project::CompView& comp) {
-
-	int32_t modKnobMode = *getModKnobMode();
-
-	if (modKnobMode == 4 && whichModEncoder) {
-		return params::UNPATCHED_SIDECHAIN_VOLUME;
+	if (std::optional<deluge::plugin::ParamId> param = clipKnobParam(*getModKnobMode(), whichModEncoder)) {
+		return *deluge::global_effectable::runtime_index(*param);
 	}
-	else if (modKnobMode == 6 && !whichModEncoder) {
-		return params::UNPATCHED_PITCH_ADJUST;
-	}
-
 	return GlobalEffectable::getParameterFromKnob(whichModEncoder, comp);
 }
 

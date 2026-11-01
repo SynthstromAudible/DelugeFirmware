@@ -28,7 +28,7 @@
 #include "filter_workloads.h"
 #include "kernel_filters.h"
 #include "reference_filters.h"
-#include "util/waves.h" // jcong
+#include "util/synth_noise.h"
 
 #include <algorithm>
 #include <bit>
@@ -75,9 +75,11 @@ public:
 		return out;
 	}
 
-	void renderMono(std::span<q31> block, fixed::FilterScratch scratch) { set_.renderMono(block, scratch); }
-	void renderStereo(std::span<q31> interleaved, fixed::FilterScratch scratch) {
-		set_.renderStereo(interleaved, scratch);
+	void render_mono(std::span<q31> block, fixed::FilterScratch scratch) {
+		set_.render_mono(block, scratch, deluge::synth_noise);
+	}
+	void render_stereo(std::span<q31> interleaved, fixed::FilterScratch scratch) {
+		set_.render_stereo(interleaved, scratch, deluge::synth_noise);
 	}
 
 	void reset() {
@@ -180,21 +182,21 @@ using filter_workloads::ReferenceFamily;
 template <typename Scratch, typename Set>
 q31 play_block(Set& set, uint32_t& cong, const filter_workloads::FilterStep& s, bool mono, std::vector<q31>& block,
                std::span<q31> fade, std::span<q31> parallel) {
-	const uint32_t outer = jcong;
-	jcong = cong;
+	const uint32_t outer = deluge::synth_noise.state();
+	deluge::synth_noise.seed(cong);
 	if (s.event == filter_workloads::Event::RESET) {
 		set.reset();
 	}
 	const q31 gain = set.configure(s.gain, s.low, s.low_slot, s.high, s.high_slot, s.route);
 	const Scratch scratch{.fade = fade.first(block.size()), .parallel = parallel};
 	if (mono) {
-		set.renderMono(block, scratch);
+		set.render_mono(block, scratch);
 	}
 	else {
-		set.renderStereo(block, scratch);
+		set.render_stereo(block, scratch);
 	}
-	cong = jcong;
-	jcong = outer;
+	cong = deluge::synth_noise.state();
+	deluge::synth_noise.seed(outer);
 	return gain;
 }
 

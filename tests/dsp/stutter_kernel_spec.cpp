@@ -44,11 +44,11 @@ using deluge::dsp::test::ReferenceStutter;
 class KernelStutter {
 public:
 	void begin(uint32_t rate, const deluge::effects::StutterState& settings, StereoSample fill = {.l = 0, .r = 0}) {
-		const auto [size, clamped] = DelayTape::idealSizeForRate(rate);
+		const auto [size, clamped] = DelayTape::ideal_size_for_rate(rate);
 		storage_.assign(static_cast<std::size_t>(size) + static_cast<std::size_t>(DelayTape::kWriteLag), fill);
 		tape_ = DelayTape{std::span<StereoSample>{storage_}, static_cast<std::size_t>(size), rate};
 		if (clamped) {
-			tape_.makeNativeRatePrecise();
+			tape_.make_native_rate_precise();
 		}
 		mono_.reset();
 		mono_.on<&Stutter::start>(static_cast<int32_t>(tape_.size()), settings.reversed, settings.ping_pong);
@@ -56,7 +56,7 @@ public:
 
 	void process(std::span<StereoSample> audio, uint32_t rate) {
 		mono_.configure({.rate = rate, .tape = &tape_, .playing = mono_.state().playing});
-		mono_.renderBlock(audio, audio);
+		mono_.render_block(audio, audio);
 		if (!mono_.state().playing && mono_.state().frames_left < 0) {
 			mono_.on<&Stutter::finish_block>(tape_);
 		}

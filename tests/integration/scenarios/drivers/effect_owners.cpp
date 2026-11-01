@@ -5,8 +5,8 @@
 // Exit: 0 = all checks pass, 1 = a failure.
 
 #include "definitions_cxx.hpp"
-#include "engines/effects/chain.h"
-#include "engines/effects/state.h"
+#include "effects/chain.h"
+#include "effects/state.h"
 #include "memory/general_memory_allocator.h"
 #include "model/edits/change_effect.h"
 #include "model/global_effectable/global_effectable.h"
@@ -152,7 +152,7 @@ int effect_owners_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	if (kit != nullptr) {
 		// The render takes a clip chain's threshold from its param each block: the chain holds the owner's state,
 		// which that does not move.
-		static_cast<Kit*>(kit)->core().compressor().dsp().setThreshold(0x12345678);
+		static_cast<Kit*>(kit)->core().compressor().dsp().set_threshold(0x12345678);
 		const std::string afterRender = deluge::harness::chainIncoherence(*song);
 		if (!afterRender.empty()) {
 			std::fprintf(io.err, "FAIL: a kit after a render moved its threshold: %s\n", afterRender.c_str());

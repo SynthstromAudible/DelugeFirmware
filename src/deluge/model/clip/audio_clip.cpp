@@ -562,7 +562,7 @@ void AudioClip::resumePlayback(ModelStackWithTimelineCounter* modelStack, bool m
 		// TODO: probably not super necessary now we've got time-stretching taking care of sorta doing a crossfade,
 		// above. We'd only actually need to do any such fade manually if we weren't time-stretching before, and we're
 		// also not going to be after (though it'd be hard to predict whether we're going to be after)
-		((AudioOutput*)output)->envelope.unconditionalRelease(Envelope::Stage::FAST_RELEASE);
+		((AudioOutput*)output)->envelope.unconditional_release(Envelope::Stage::FAST_RELEASE);
 	}
 
 	// Otherwise, get a new VoiceSample
@@ -815,8 +815,8 @@ justDontTimeStretch:
 
 				if (timeTilLoop < 1024) {
 					static_cast<AudioOutput*>(this->output)
-					    ->envelope.unconditionalRelease(Envelope::Stage::FAST_RELEASE,
-					                                    8192); // Let's make it extra fast?
+					    ->envelope.unconditional_release(Envelope::Stage::FAST_RELEASE,
+					                                     8192); // Let's make it extra fast?
 				}
 			}
 		}
@@ -907,7 +907,7 @@ void AudioClip::expectNoFurtherTicks(Song* song, bool actuallySoundChange) {
 			}
 			else {
 				// Or normal case - do a fade when we weren't going to before. And no late start is or was happening.
-				((AudioOutput*)output)->envelope.unconditionalRelease(Envelope::Stage::FAST_RELEASE);
+				((AudioOutput*)output)->envelope.unconditional_release(Envelope::Stage::FAST_RELEASE);
 			}
 		}
 	}
@@ -1142,7 +1142,7 @@ VoicePriority AudioClip::voicePriority() const {
 	}
 	return docAudioClip_->voice_priority;
 }
-// Voice::getPriorityRating() puts the VoicePriority in the top two bits, with at least one active Voice counted below
+// Voice::priority_rating() puts the VoicePriority in the top two bits, with at least one active Voice counted below
 // them, so leaving the rest zero loads our Clusters ahead of every Voice of the same VoicePriority, but behind Voices
 // of a higher one.
 int32_t AudioClip::getClusterPriority() const {

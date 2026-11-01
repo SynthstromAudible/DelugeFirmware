@@ -20,7 +20,7 @@ set(component_framework_spec_DEPS)
 # The mode-dispatch spec needs no sources: ModeList and with_mode are header-only.
 set(mode_spec_DEPS)
 # The kernel-concept spec needs no sources: the concepts are header-only, and its reference kernels use only
-# util/fixedpoint.h's inline arithmetic.
+# dsp-next/core/q31_ops.h's inline arithmetic.
 set(kernel_spec_DEPS)
 # The frame and lane-pack specs need no sources: Frame and LanePack are header-only, and the kernels the lane-pack spec
 # writes generically are header-only too.
@@ -34,10 +34,10 @@ set(mono_spec_DEPS)
 set(control_spec_DEPS)
 # The Chain spec needs no sources: Chain, Pinned and the kernels it chains are header-only.
 set(chain_spec_DEPS)
-# The noise spec shares jcong, which waves.cpp defines.
-set(noise_spec_DEPS ${_repo_root}/src/deluge/util/waves.cpp)
-# The stereo spec draws from the shared noise stream, which waves.cpp defines.
-set(stereo_spec_DEPS ${_repo_root}/src/deluge/util/waves.cpp)
+# The noise spec draws the app's one stream, which synth_noise.cpp defines.
+set(noise_spec_DEPS ${_repo_root}/src/deluge/util/synth_noise.cpp)
+# The stereo spec draws from the shared noise stream, which synth_noise.cpp defines.
+set(stereo_spec_DEPS ${_repo_root}/src/deluge/util/synth_noise.cpp)
 # The stateful-oscillator spec drives the band-limited saw + square bands (BandLimitedTableOscillator / pulse).
 set(stateful_oscillator_spec_DEPS
   ${_repo_root}/src/deluge/dsp-next/fixed/bandlimited/saw.cpp
@@ -49,26 +49,54 @@ set(crude_oscillators_spec_DEPS ${_repo_root}/src/deluge/util/lookuptables/looku
 # The L1 VirtualAnalogSource composes every band-limited wave table + the sine band (sineWaveSmall).
 set(supersaw_spec_DEPS
   ${_repo_root}/src/deluge/dsp-next/fixed/osc/supersaw.cpp
-  ${_repo_root}/src/deluge/synth/source/supersaw_source.cpp)
+  ${_repo_root}/src/synth/sources/supersaw/supersaw_source.cpp)
 set(virtual_analog_source_spec_DEPS
-  ${_repo_root}/src/deluge/synth/source/virtual_analog_source.cpp
-  ${_repo_root}/src/deluge/synth/source/va_shapes.cpp
+  ${_repo_root}/src/synth/sources/va/virtual_analog_source.cpp
+  ${_repo_root}/src/synth/sources/va/va_shapes.cpp
   ${_repo_root}/src/deluge/dsp-next/fixed/bandlimited/saw.cpp
   ${_repo_root}/src/deluge/dsp-next/fixed/bandlimited/square.cpp
   ${_repo_root}/src/deluge/dsp-next/fixed/bandlimited/triangle.cpp
   ${_repo_root}/src/deluge/dsp-next/fixed/bandlimited/analog_saw.cpp
   ${_repo_root}/src/deluge/dsp-next/fixed/bandlimited/analog_square.cpp
   ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
-# The LFO (a leaf component now): the jcong RNG state (waves.cpp) + the sine/triangle LUTs.
+# The LFO (a leaf component now): the synth's noise stream (synth_noise.cpp) + the sine/triangle LUTs.
 set(lfo_spec_DEPS
-  ${_repo_root}/src/deluge/synth/lfo.cpp
-  ${_repo_root}/src/deluge/util/waves.cpp
+  ${_repo_root}/src/synth/modulation/lfo.cpp
+  ${_repo_root}/src/deluge/util/synth_noise.cpp
   ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
 # The Envelope (a leaf component now): its curve helpers (dsp-next table_interpolation) + the decay/release tables.
 set(envelope_spec_DEPS
-  ${_repo_root}/src/deluge/synth/envelope.cpp
+  ${_repo_root}/src/synth/modulation/envelope.cpp
   ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/table_interpolation.cpp
   ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
+# The routing spec compiles the library's cable routing.
+set(patch_routing_spec_DEPS ${_repo_root}/src/synth/modulation/patch_routing.cpp)
+# synth::Voice played on the host: the synth library's sources, the dsp-next they render with, and the param math,
+# lookup tables and noise stream it reads. Nothing of the app.
+file(GLOB_RECURSE _synth_srcs CONFIGURE_DEPENDS ${_repo_root}/src/synth/*.cpp)
+file(GLOB_RECURSE _dsp_fixed_srcs CONFIGURE_DEPENDS ${_repo_root}/src/deluge/dsp-next/fixed/*.cpp)
+set(synth_voice_spec_DEPS
+  ${_synth_srcs}
+  ${_dsp_fixed_srcs}
+  ${_repo_root}/src/deluge/util/param_functions.cpp
+  ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp
+  ${_repo_root}/src/deluge/util/synth_noise.cpp
+  ${_repo_root}/src/deluge/util/phase_increment_fine_tuner.cpp
+  ${_repo_root}/src/effects/saturation.cpp
+  ${_repo_root}/tests/support/mocks/mock_panic.cpp)
+# Today's patching and its frozen reference, on random cases: the same closure as the voice spec.
+set(patcher_spec_DEPS ${synth_voice_spec_DEPS} ${CMAKE_CURRENT_LIST_DIR}/reference_patcher.cpp)
+# The matrix compiler against today's routing, on the patcher's random cases.
+set(matrix_compiler_spec_DEPS ${synth_voice_spec_DEPS} ${CMAKE_CURRENT_LIST_DIR}/reference_patcher.cpp)
+# The matrix evaluator against the frozen reference patcher, on random cases.
+set(matrix_evaluator_spec_DEPS ${synth_voice_spec_DEPS} ${CMAKE_CURRENT_LIST_DIR}/reference_patcher.cpp)
+# The core's four-lane forms against its scalar functions: the param tables, as the voice spec has them.
+set(matrix_exactness_spec_DEPS ${synth_voice_spec_DEPS})
+# The matrix evaluator against the rules model: the reference walker the model is built on, and the model.
+set(matrix_rules_spec_DEPS ${synth_voice_spec_DEPS} ${CMAKE_CURRENT_LIST_DIR}/reference_patcher.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/matrix_rules_model.cpp)
+# The engines played on the host, through the voice and on their own: the same closure as the voice spec.
+set(synth_engine_spec_DEPS ${synth_voice_spec_DEPS})
 # The shared windowed-sinc kernel table + its select()/variant() variant picks.
 set(windowed_sinc_kernel_spec_DEPS ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/windowed_sinc_kernel.cpp)
 # The chunker caches each chunk's sinc kernel via windowed_sinc_kernel.select().
@@ -78,12 +106,12 @@ set(wavetable_cycle_chunker_spec_DEPS ${_repo_root}/src/deluge/dsp-next/fixed/in
 set(shift_tracker_spec_DEPS)
 # The dry/wet blend needs no sources: the kernel is header-only, and its noise inputs come from SeededNoise.
 set(dry_wet_spec_DEPS)
-# The filters are header-only kernels: their specs build the noise stream the low-pass ladder draws (the jcong
-# generator in waves.cpp) and the table lookups the ladders' coefficients and the verbatim references read.
+# The filters are header-only kernels: their specs build the noise stream the low-pass ladder draws (the synth_noise
+# generator in synth_noise.cpp) and the table lookups the ladders' coefficients and the verbatim references read.
 set(_filter_DEPS
   ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/table_interpolation.cpp
   ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp
-  ${_repo_root}/src/deluge/util/waves.cpp)
+  ${_repo_root}/src/deluge/util/synth_noise.cpp)
 set(low_pass_ladder_spec_DEPS ${_filter_DEPS})
 set(high_pass_ladder_spec_DEPS ${_filter_DEPS})
 set(svf_spec_DEPS ${_filter_DEPS})
@@ -107,15 +135,15 @@ set(compressor_reference_spec_DEPS
 set(compressor_kernel_spec_DEPS ${compressor_reference_spec_DEPS})
 
 # The mod FX reference (reference_mod_fx.h, mod_fx_workloads.h, header-only) reads the sine table and draws the
-# warbler's noise from jcong.
+# warbler's noise from synth_noise.
 set(mod_fx_reference_spec_DEPS
-  ${_repo_root}/src/deluge/util/waves.cpp
+  ${_repo_root}/src/deluge/util/synth_noise.cpp
   ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
 set(mod_fx_kernel_spec_DEPS ${mod_fx_reference_spec_DEPS})
 
-# The granular reference (reference_granular.h, granular_workloads.h, header-only) draws its grains from jcong; its
+# The granular reference (reference_granular.h, granular_workloads.h, header-only) draws its grains from synth_noise; its
 # quick_log, pan and wet low-pass are header-only.
-set(granular_reference_spec_DEPS ${_repo_root}/src/deluge/util/waves.cpp)
+set(granular_reference_spec_DEPS ${_repo_root}/src/deluge/util/synth_noise.cpp)
 # The Granular kernel against the reference over the same workloads: the same sources, the kernel being header-only.
 set(granular_kernel_spec_DEPS ${granular_reference_spec_DEPS})
 
@@ -161,7 +189,7 @@ set(reference_stutter_spec_DEPS ${delay_processor_spec_DEPS})
 # The Stutter kernel against the reference over the same workloads: the same sources, the kernel being header-only.
 set(stutter_kernel_spec_DEPS ${reference_stutter_spec_DEPS})
 # The DX7 reference (reference_dx7.h, dx7_workloads.h, dx7_workload_records.h, header-only) draws its noise from
-# SeededNoise and takes the init voice from engines/deluge.
+# SeededNoise and takes the init voice from instruments/deluge.
 set(dx7_reference_spec_DEPS)
 # The DX7 components: the tables' generator, the envelope's advance and the graph are out of line; the rest is in
 # headers.
@@ -214,15 +242,39 @@ set(real_fft_spec_DEFS DELUGE_REPO_ROOT="${_repo_root}")
 set(real_fft_shipping_spec_DEPS ${real_fft_spec_DEPS})
 set(real_fft_shipping_spec_DEFS DELUGE_REPO_ROOT="${_repo_root}")
 set(real_fft_shipping_spec_OPTIONS -O2 -funsafe-math-optimizations)
-# The band builder: the transform, the DFT (which reads sineWaveSmall) and fastPythag.
+# The level detector.
+set(level_detector_spec_DEPS ${_repo_root}/src/deluge/dsp-next/float/dynamics/level_detector.cpp)
+# The FFT bin magnitude.
+set(fft_magnitude_spec_DEPS ${_repo_root}/src/deluge/dsp-next/fixed/fft/magnitude.cpp)
+# The band builder: the transform, the DFT and the bin magnitude.
 set(band_builder_spec_DEPS
   ${real_fft_spec_DEPS}
   ${_repo_root}/src/deluge/dsp-next/fixed/fft/real_dft.cpp
   ${_repo_root}/src/deluge/dsp-next/fixed/wavetable/band_builder.cpp
-  ${_repo_root}/src/deluge/util/fast_pythag.cpp
-  ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
+  ${_repo_root}/src/deluge/dsp-next/fixed/fft/magnitude.cpp)
 set(band_builder_spec_DEFS DELUGE_REPO_ROOT="${_repo_root}")
 set(band_builder_spec_INCLUDES ${_repo_root}/include)
+
+# duck_gain is header-only.
+set(duck_gain_spec_DEPS)
+
+# The send-and-volume kernel through the chains' adapter.
+set(send_and_volume_kernel_spec_DEPS ${_repo_root}/src/effects/send_and_volume.cpp)
+
+# The EQ's shelf pair is header-only.
+set(shelf_pair_spec_DEPS)
+
+# The bitcrush's kernels through the chains' adapter.
+set(bitcrush_kernels_spec_DEPS ${_repo_root}/src/effects/bitcrush.cpp)
+
+# The click is header-only; the spec computes the menu volume as the metronome does.
+set(click_spec_DEPS ${_repo_root}/src/deluge/processing/metronome/metronome.cpp)
+
+# The input folds are header-only.
+set(input_monitor_spec_DEPS)
+
+# The param curves and the matrix's neutral table are header-only.
+set(param_curve_spec_DEPS)
 
 # CONFIGURE_DEPENDS: a spec file added to an already-configured tree is built (and run) on the next build.
 file(GLOB _specs CONFIGURE_DEPENDS ${CMAKE_CURRENT_LIST_DIR}/*_spec.cpp)
@@ -259,18 +311,19 @@ endforeach()
 # undefined symbols, no gui/model/processing/storage objects) proves libdeluge-synth is self-contained. This
 # is the link-time companion to scripts/check_synth_boundary.py's transitive include check. The dep set is the
 # `nm -u` closure of the synth objects: param-math (param_functions), the numeric LUTs, interpolation, the
-# jcong RNG (waves), and the one PatchCableSet runtime method (patch_cable_set_amount).
+# noise stream (synth_noise), the routing compile (patch_routing) and the matrix (compiler, evaluator).
 if(NOT DSP_SPEC_ARM)
   add_executable(synth_link_test
     ${CMAKE_CURRENT_LIST_DIR}/synth_link_main.cpp
-    ${_repo_root}/src/deluge/synth/patcher.cpp
-    ${_repo_root}/src/deluge/synth/envelope.cpp
-    ${_repo_root}/src/deluge/synth/lfo.cpp
+    ${_repo_root}/src/synth/matrix/compiler.cpp
+    ${_repo_root}/src/synth/matrix/evaluator.cpp
+    ${_repo_root}/src/synth/modulation/envelope.cpp
+    ${_repo_root}/src/synth/modulation/lfo.cpp
     ${_repo_root}/src/deluge/util/param_functions.cpp
     ${_repo_root}/src/deluge/dsp-next/fixed/interpolation/table_interpolation.cpp
-    ${_repo_root}/src/deluge/util/waves.cpp
+    ${_repo_root}/src/deluge/util/synth_noise.cpp
     ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp
-    ${_repo_root}/src/deluge/modulation/patch/patch_cable_set_amount.cpp
+    ${_repo_root}/src/synth/modulation/patch_routing.cpp
   )
   target_link_libraries(synth_link_test PRIVATE etl::etl)
   deluge_test_neon(synth_link_test)

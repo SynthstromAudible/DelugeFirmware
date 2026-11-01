@@ -11,8 +11,8 @@
 #include "deluge-project/note_address.h"
 #include "deluge-project/param_address.h"
 #include "deluge-project/setting_group.h"
-#include "engine-api/types/param.h"
-#include "engine-api/types/setting.h"
+#include "plugin-api/types/param.h"
+#include "plugin-api/types/setting.h"
 
 #include <cstdint>
 #include <optional>
@@ -60,7 +60,7 @@ struct Target {
 	/// Which sound drums such a write reaches: those where every condition holds, read in each drum's own context, as
 	/// legacy's affect-entire loop tests each drum. Empty for every sound drum: a drum whose Edit then refuses the
 	/// value is left as it was.
-	std::span<const engine::SettingCondition> fan_out_when{};
+	std::span<const plugin::SettingCondition> fan_out_when{};
 	/// MODEL only: whose records the row is of. CLIP_ARP resolves to the lane's LANE_ARP where Addresses::lane is set,
 	/// as a kit row's menu edits its lane's arp and every other menu its clip's.
 	project::SettingGroupId group{project::SettingGroupId::SONG};
@@ -71,16 +71,16 @@ struct Target {
 	ShownOn shown_on{ShownOn::ANY};
 	/// PARAM only: the param, in the owner's engine's table (a sound's the Deluge instrument's, a chain's the global
 	/// effectable's).
-	engine::ParamId param{};
+	plugin::ParamId param{};
 	/// PARAM only: the table @ref param is in. On the other kind of owner the target names that table's param of the
 	/// same name, and nothing where it has none.
 	ParamTable param_table{ParamTable::SOUND};
 	/// Where the node shows beyond its row's own conditions (a PARAM target has none of its own): conditions over the
 	/// owner's setting rows (a sound's synth mode, an oscillator's type, a filter's mode, the mod FX type), all of
 	/// which hold.
-	std::span<const engine::SettingCondition> applies_when{};
+	std::span<const plugin::SettingCondition> applies_when{};
 	/// Beyond applies_when: alternatives, every condition of one of which holds; none for no alternatives.
-	std::span<const std::span<const engine::SettingCondition>> applies_any{};
+	std::span<const std::span<const plugin::SettingCondition>> applies_any{};
 	/// PARAM only: a target the param shows only where it applies, for a condition another owner holds (the arp's
 	/// mode, on the clip's or lane's arp record).
 	const Target* shown_with{nullptr};
@@ -112,7 +112,7 @@ struct Addresses {
 	std::optional<project::LaneAddress> lane;        ///< the kit lane edited: its arp
 	std::optional<project::NoteRowAddress> note_row; ///< the note row edited: a kit row's bend range
 	/// What plays the track or clip, which the model does not hold: the host's root knows it.
-	engine::SettingContext::Instrument instrument{engine::SettingContext::Instrument::NONE};
+	plugin::SettingContext::Instrument instrument{plugin::SettingContext::Instrument::NONE};
 	bool operator==(const Addresses&) const = default;
 };
 

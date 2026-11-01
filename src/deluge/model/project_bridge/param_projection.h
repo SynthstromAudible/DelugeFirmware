@@ -30,7 +30,7 @@ class MIDIParamCollection;
 namespace deluge::bridge {
 
 using deluge::project::DocAutoParam;
-using deluge::project::DocCable;
+using deluge::project::DocCableDepth;
 using deluge::project::DocMidiParam;
 using deluge::project::DocParamManager;
 using deluge::project::DocParamSet;
@@ -74,16 +74,6 @@ DocParamManager toDocParamManagerFromStore(ParamManager& paramManager);
 /// @param doc          The document form.
 /// @param paramManager The live manager to fill.
 void fromDocParamManager(const DocParamManager& doc, ParamManager& paramManager);
-
-/// @brief Project a live PatchCableSet's cables into their document form, the identity-keyed persistent cable store
-/// the engine set binds to.
-///
-/// Each cable's saved fields are copied as they are (the ParamDescriptor encodes the destination and any range-cable
-/// nesting); nodes come from the cable's current store.
-///
-/// @param patchCableSet The live cable set.
-/// @return The cables' document form.
-std::vector<DocCable> toDocCables(PatchCableSet& patchCableSet);
 
 /// @brief Project a live MIDIParamCollection's CC params into their document form, the identity-keyed (by cc)
 /// persistent store the engine collection binds to.

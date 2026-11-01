@@ -1,12 +1,12 @@
 #include "scenes/bind/dispatch.h"
 
-#include "engine-api/types/engine_id.h"
-#include "engine-api/types/setting.h"
-#include "engines/deluge/params.h"
-#include "engines/deluge/settings.h"
-#include "engines/effects/settings.h"
-#include "engines/global_effectable/params.h"
+#include "effects/global_effectable/params.h"
+#include "effects/settings.h"
 #include "gui/l10n/setting_names.h"
+#include "instruments/deluge/params.h"
+#include "instruments/deluge/settings.h"
+#include "plugin-api/types/plugin_id.h"
+#include "plugin-api/types/setting.h"
 #include "scenes/bind/chain_reader.h"
 #include "scenes/bind/model_reader.h"
 #include "scenes/bind/param_display.h"
@@ -38,7 +38,7 @@ public:
 		return std::visit([path](const auto& reader) { return reader.read(path); }, reader_);
 	}
 	/// Valid while this object lives.
-	[[nodiscard]] engine::SettingReader reader() const {
+	[[nodiscard]] plugin::SettingReader reader() const {
 		return std::visit([](const auto& reader) { return reader.reader(); }, reader_);
 	}
 
@@ -48,9 +48,9 @@ private:
 
 /// A target resolved against the song: its row, its reader, its context and whose name table names it.
 struct Resolved {
-	const engine::SettingInfo* row;
+	const plugin::SettingInfo* row;
 	Reader reader;
-	engine::SettingContext context;
+	plugin::SettingContext context;
 	l10n::NamesOwner names_owner;
 };
 
@@ -62,7 +62,7 @@ std::optional<Resolved> resolve_model(const Target& target, const project::Song&
 		return std::nullopt;
 	}
 	const std::string_view path = target.kind == Target::Kind::MODEL ? target.path : target.audio_clip_path;
-	const engine::SettingInfo* row = engine::find_setting(project::table_of(address->group), path);
+	const plugin::SettingInfo* row = plugin::find_setting(project::table_of(address->group), path);
 	if (row == nullptr) {
 		return std::nullopt;
 	}
@@ -88,8 +88,8 @@ std::optional<Resolved> resolve(const Target& target, const project::Song& model
 	}
 	// A sound's effects are rows of its own table, read and named as its other settings are; a host chain's are named
 	// by the host chains' table.
-	const engine::SettingInfo* row =
-	    engine::find_setting(effect ? effects::kEffectSettings : instrument::kSettings, target.path);
+	const plugin::SettingInfo* row =
+	    plugin::find_setting(effect ? effects::kEffectSettings : instrument::kSettings, target.path);
 	if (row == nullptr) {
 		return std::nullopt;
 	}
@@ -98,14 +98,14 @@ std::optional<Resolved> resolve(const Target& target, const project::Song& model
 		if (!reader.resolved()) {
 			return std::nullopt;
 		}
-		return Resolved{row, reader, setting_context(model, *where.slot, facts), engine::kDelugeInstrument};
+		return Resolved{row, reader, setting_context(model, *where.slot, facts), plugin::kDelugeInstrument};
 	}
 	if (effect && where.chain) {
 		Reader reader{ChainReader{model, *where.chain, facts}};
 		if (!reader.resolved()) {
 			return std::nullopt;
 		}
-		return Resolved{row, reader, setting_context(*where.chain, where.chain_owner), engine::kGlobalEffectable};
+		return Resolved{row, reader, setting_context(*where.chain, where.chain_owner), plugin::kGlobalEffectable};
 	}
 	return std::nullopt;
 }
@@ -114,27 +114,27 @@ std::optional<Resolved> resolve(const Target& target, const project::Song& model
 /// conditions.
 struct ResolvedParam {
 	project::ParamAddress address;
-	const engine::ParamInfo* info;
+	const plugin::ParamInfo* info;
 	Reader reader;
-	engine::SettingContext context;
+	plugin::SettingContext context;
 };
 
 /// The param table of @p table.
-std::span<const engine::ParamInfo> params_of(ParamTable table) {
-	return table == ParamTable::SOUND ? std::span<const engine::ParamInfo>{instrument::kParams}
-	                                  : std::span<const engine::ParamInfo>{global_effectable::kParams};
+std::span<const plugin::ParamInfo> params_of(ParamTable table) {
+	return table == ParamTable::SOUND ? std::span<const plugin::ParamInfo>{instrument::kParams}
+	                                  : std::span<const plugin::ParamInfo>{global_effectable::kParams};
 }
 
 /// The id @p target's param has on the owner @p where names: its own on an owner of its table's kind, else the id
 /// of the param of the same name in the owner's table, or nothing where that table has none.
-std::optional<engine::ParamId> param_id_on(const Target& target, const Addresses& where) {
+std::optional<plugin::ParamId> param_id_on(const Target& target, const Addresses& where) {
 	const ParamTable owner = where.slot ? ParamTable::SOUND : ParamTable::CHAIN;
 	if (owner == target.param_table) {
 		return target.param;
 	}
-	const engine::ParamInfo* named = engine::find_param(params_of(target.param_table), target.param);
-	const engine::ParamInfo* there =
-	    named != nullptr ? engine::find_param(params_of(owner), named->file_name) : nullptr;
+	const plugin::ParamInfo* named = plugin::find_param(params_of(target.param_table), target.param);
+	const plugin::ParamInfo* there =
+	    named != nullptr ? plugin::find_param(params_of(owner), named->file_name) : nullptr;
 	return there != nullptr ? std::optional{there->id} : std::nullopt;
 }
 
@@ -149,14 +149,14 @@ std::optional<ResolvedParam> resolve_param(const Target& target, const project::
 		return std::nullopt;
 	}
 	if (where.slot) {
-		const engine::ParamInfo* info = engine::find_param(instrument::kParams, address->id);
+		const plugin::ParamInfo* info = plugin::find_param(instrument::kParams, address->id);
 		Reader reader{SlotReader{model, *where.slot, facts}};
 		if (info == nullptr || !reader.resolved()) {
 			return std::nullopt;
 		}
 		return ResolvedParam{*address, info, reader, setting_context(model, *where.slot, facts)};
 	}
-	const engine::ParamInfo* info = engine::find_param(global_effectable::kParams, address->id);
+	const plugin::ParamInfo* info = plugin::find_param(global_effectable::kParams, address->id);
 	Reader reader{ChainReader{model, *where.chain, facts}};
 	if (info == nullptr || !reader.resolved()) {
 		return std::nullopt;
@@ -165,9 +165,9 @@ std::optional<ResolvedParam> resolve_param(const Target& target, const project::
 }
 
 /// Whether @p target's own conditions, beyond its row's, hold in @p context over @p reader.
-bool target_conditions_hold(const Target& target, const engine::SettingContext& context, engine::SettingReader reader) {
-	const auto holds = [&](std::span<const engine::SettingCondition> conditions) {
-		return engine::conditions_hold(conditions, context, reader);
+bool target_conditions_hold(const Target& target, const plugin::SettingContext& context, plugin::SettingReader reader) {
+	const auto holds = [&](std::span<const plugin::SettingCondition> conditions) {
+		return plugin::conditions_hold(conditions, context, reader);
 	};
 	return holds(target.applies_when) && (target.applies_any.empty() || std::ranges::any_of(target.applies_any, holds));
 }
@@ -195,19 +195,19 @@ struct Entries {
 };
 
 Entries entries_of(const Resolved& resolved, int32_t stored) {
-	const engine::SettingInfo& row = *resolved.row;
-	const engine::SettingReader reader = resolved.reader.reader();
-	const int32_t stored_menu = engine::to_menu(row, stored);
-	const auto [least, greatest] = engine::menu_range(row);
+	const plugin::SettingInfo& row = *resolved.row;
+	const plugin::SettingReader reader = resolved.reader.reader();
+	const int32_t stored_menu = plugin::to_menu(row, stored);
+	const auto [least, greatest] = plugin::menu_range(row);
 	Entries entries;
 	bool placed = false;
 	for (int32_t menu = least; menu <= greatest && entries.count < kMaxEntries; ++menu) {
-		const auto choice = engine::from_menu(row, menu);
+		const auto choice = plugin::from_menu(row, menu);
 		if (!choice) {
 			continue;
 		}
 		const bool applies =
-		    engine::setting_choice_applies(row, resolved.context, reader, static_cast<size_t>(choice->first));
+		    plugin::setting_choice_applies(row, resolved.context, reader, static_cast<size_t>(choice->first));
 		if (menu == stored_menu) {
 			entries.current = entries.count;
 			placed = true;
@@ -228,7 +228,7 @@ Entries entries_of(const Resolved& resolved, int32_t stored) {
 }
 
 std::optional<int32_t> partner_stored(const Resolved& resolved) {
-	const std::string_view partner = engine::mapping_of(*resolved.row).partner_path();
+	const std::string_view partner = plugin::mapping_of(*resolved.row).partner_path();
 	return partner.empty() ? std::optional<int32_t>{0} : resolved.reader.read(partner);
 }
 
@@ -238,7 +238,7 @@ std::optional<project::SettingAddress> setting_address(const Target& target, con
 	using project::SettingGroupId;
 	if (target.kind == Target::Kind::SOUND) {
 		if (where.slot || target.audio_clip_path.empty() || !where.clip
-		    || where.instrument != engine::SettingContext::Instrument::AUDIO) {
+		    || where.instrument != plugin::SettingContext::Instrument::AUDIO) {
 			return std::nullopt;
 		}
 		return project::SettingAddress{SettingGroupId::AUDIO_CLIP, *where.clip};
@@ -279,7 +279,7 @@ std::optional<project::ParamAddress> param_address(const Target& target, const A
 	if (target.kind != Target::Kind::PARAM && !(target.kind == Target::Kind::CABLE && where.slot)) {
 		return std::nullopt;
 	}
-	const std::optional<engine::ParamId> id = param_id_on(target, where);
+	const std::optional<plugin::ParamId> id = param_id_on(target, where);
 	if (!id) {
 		return std::nullopt;
 	}
@@ -328,23 +328,23 @@ std::optional<View> view(const Target& target, const project::Song& model, const
 		// engine runs), the value a new owner starts with. Where it shows is the owner's rows' either way.
 		const int32_t playing = facts.param_value(resolved->address).value_or(resolved->info->default_value);
 		View shown{.applies = param_applies(target, *resolved, model, where, facts),
-		           .value = menu_of(resolved->info->display, playing)};
-		std::tie(shown.least, shown.greatest) = menu_range(resolved->info->display);
+		           .value = menu_of(resolved->info->mapping, playing)};
+		std::tie(shown.least, shown.greatest) = menu_range(resolved->info->mapping);
 		return shown;
 	}
 	const std::optional<Resolved> resolved = resolve(target, model, where, facts);
 	if (!resolved) {
 		return std::nullopt;
 	}
-	const engine::SettingInfo& row = *resolved->row;
+	const plugin::SettingInfo& row = *resolved->row;
 	const std::optional<int32_t> stored = resolved->reader.read(row.path);
 	const std::optional<int32_t> partner = partner_stored(*resolved);
 	if (!stored || !partner) {
 		return std::nullopt;
 	}
-	View shown{.applies = engine::setting_applies(row, resolved->context, resolved->reader.reader())
+	View shown{.applies = plugin::setting_applies(row, resolved->context, resolved->reader.reader())
 	                      && target_conditions_hold(target, resolved->context, resolved->reader.reader())};
-	if (row.kind == engine::SettingKind::CHOICE) {
+	if (row.kind == plugin::SettingKind::CHOICE) {
 		const Entries entries = entries_of(*resolved, *stored);
 		shown.value = static_cast<int32_t>(entries.current);
 		shown.greatest = static_cast<int32_t>(entries.count) - 1;
@@ -353,8 +353,8 @@ std::optional<View> view(const Target& target, const project::Song& model, const
 		}
 		return shown;
 	}
-	shown.value = engine::to_menu(row, *stored, *partner);
-	std::tie(shown.least, shown.greatest) = engine::menu_range(row);
+	shown.value = plugin::to_menu(row, *stored, *partner);
+	std::tie(shown.least, shown.greatest) = plugin::menu_range(row);
 	return shown;
 }
 
@@ -378,9 +378,9 @@ size_t choice_names(const Target& target, const project::Song& model, const Addr
 	if (names == nullptr) {
 		return 0;
 	}
-	if (resolved->row->kind != engine::SettingKind::CHOICE) {
+	if (resolved->row->kind != plugin::SettingKind::CHOICE) {
 		// A BOOL or INTEGER row a menu lists: the table names each menu value of its range, in order.
-		const auto [least, greatest] = engine::menu_range(*resolved->row);
+		const auto [least, greatest] = plugin::menu_range(*resolved->row);
 		size_t written = 0;
 		for (int32_t menu = least; menu <= greatest && written < out.size(); ++menu) {
 			const auto index = static_cast<size_t>(menu - least);
@@ -398,7 +398,7 @@ size_t choice_names(const Target& target, const project::Song& model, const Addr
 	const Entries entries = entries_of(*resolved, *stored);
 	size_t written = 0;
 	for (size_t entry = 0; entry < entries.count && written < out.size(); ++entry) {
-		const auto choice = engine::from_menu(*resolved->row, entries.menu[entry]);
+		const auto choice = plugin::from_menu(*resolved->row, entries.menu[entry]);
 		const auto index = choice ? static_cast<size_t>(choice->first) : static_cast<size_t>(*stored);
 		out[written++] = {.name = index < names->choices.size() ? names->choices[index] : l10n::String::EMPTY_STRING,
 		                  .short_name = short_choice(*names, index),
@@ -414,21 +414,21 @@ std::optional<WriteRequest> request_for(const Target& target, const project::Son
 		if (!resolved) {
 			return std::nullopt;
 		}
-		const auto [least, greatest] = menu_range(resolved->info->display);
+		const auto [least, greatest] = menu_range(resolved->info->mapping);
 		if (menu < least || menu > greatest) {
 			return std::nullopt;
 		}
 		return WriteRequest{.target = target,
 		                    .where = where,
 		                    .menu_value = menu,
-		                    .param_value = stored_of(resolved->info->display, menu)};
+		                    .param_value = stored_of(resolved->info->mapping, menu)};
 	}
 	const std::optional<Resolved> resolved = resolve(target, model, where, facts);
 	if (!resolved) {
 		return std::nullopt;
 	}
-	const engine::SettingInfo& row = *resolved->row;
-	if (row.kind == engine::SettingKind::CHOICE) {
+	const plugin::SettingInfo& row = *resolved->row;
+	if (row.kind == plugin::SettingKind::CHOICE) {
 		const std::optional<int32_t> stored = resolved->reader.read(row.path);
 		if (!stored) {
 			return std::nullopt;
@@ -439,7 +439,7 @@ std::optional<WriteRequest> request_for(const Target& target, const project::Son
 		}
 		return WriteRequest{.target = target, .where = where, .menu_value = entries.menu[static_cast<size_t>(menu)]};
 	}
-	const auto [least, greatest] = engine::menu_range(row);
+	const auto [least, greatest] = plugin::menu_range(row);
 	if (menu < least || menu > greatest) {
 		return std::nullopt;
 	}

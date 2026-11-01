@@ -100,10 +100,10 @@ shared blocks padded off 1 KB multiples:
 
 - A single-channel `Mono` run measures a recursive kernel's scalar recursion with its dependency chain; it says
   nothing about the gain from interleaving channels. [Lanes](#lanes) measures that.
-- Neither tanh kernel makes a call per sample. `BilinearTableInterpolator::interpolateSigned<Table>` takes its table
+- Neither tanh kernel makes a call per sample. `BilinearTableInterpolator::interpolate_signed<Table>` takes its table
   (a built-in `int16_t[R][W]`) at compile time, so the base, the row stride and both log2 sizes are constants: the
   stride folds into the `ldrsh` offsets and every read stays inside one row. `AntialiasedTanh` clamps the input to
-  bounds its coefficients precompute, two compares in place of `lshiftAndSaturateUnknown`'s jump table. `tanh_lookup`
+  bounds its coefficients precompute, two compares in place of `lshift_and_saturate_unknown`'s jump table. `tanh_lookup`
   reads `kTanhSmallTable` through a `constexpr` base pointer.
 - What remains is one dependency chain per sample: `AntialiasedTanh` is 40 instructions in about 42 cycles (load,
   clamp, shift, index, four `ldrsh`, `mul`/`mla`, two `smmul`, shift, store), `Tanh<3>` 15 in about 16. Removing
@@ -324,7 +324,7 @@ n = 128. A State of hundreds of bytes is stepped in place.
 ## Filters
 
 Each filter as a voice runs it, and the filter set, as kernels (`Stereo<LowPassLadder<CongNoise>>`,
-`Stereo<HighPassLadder>`, `Stereo<Svf>`, mono blocks through `renderLane<0>(…)`) against the hand-written classes
+`Stereo<HighPassLadder>`, `Stereo<Svf>`, mono blocks through `render_lane<0>(…)`) against the hand-written classes
 (before). Cycles per channel-sample, `FilterSet::configure` plus the render per block, in place, with the filter
 library's flags (`DELUGE_DSP_BENCH_CASES=filters`), all measured on 2026-10-10; the kernel figures are the mean of two
 runs. The unchanged `delay_feedback_chain_*` controls move by at most 1.9% between the two images (0.0% for the analog
@@ -362,7 +362,7 @@ chain, 0.08–0.34 cps on the digital one), and the two runs agree within 0.09%,
   slots the old loop left empty (issue-empty cycles per sample at n = 128: 44.05 before, 35.04 after). Count cycles,
   not instructions.
 - **One lane of a `Stereo` costs a mono block nothing.** Every mono case is as fast as or faster than the dedicated
-  mono loops of the hand-written classes; `renderLane<0>(…)` compiles to the same kind of loop on lane 0's State.
+  mono loops of the hand-written classes; `render_lane<0>(…)` compiles to the same kind of loop on lane 0's State.
 - **The stereo SVF is unchanged within the noise**, band sitting at +0.7–0.9% in both runs with 3.7 fewer
   instructions per sample and the same empty issue cycles; unexplained, inside the bound, so not traced.
 
@@ -399,7 +399,7 @@ Cycles per channel-sample, stereo: the 24 dB ladder and the high-pass ladder, ea
 `Mono<Compressor>` as `RmsFeedbackCompressor` renders it (after) against the hand-written class it replaced (before):
 a saturation loop, a copy of the block for the blend, a blend loop and a level loop. Cycles per channel-sample (cycles
 per frame ÷ 2), in place over a loud stereo block past the threshold, fully wet (`wet`) or blended at half (`blend`),
-through `render` (the master's channel gains) or `renderVolumeNeutral`, with the library's flags
+through `render` (the master's channel gains) or `render_volume_neutral`, with the library's flags
 (`DELUGE_DSP_BENCH_CASES=compressor`), measured on 2026-10-11 with `set_levels` inlined into the owner's render and the
 kernel declaring `kLoopState`. The after figures are the mean of two runs, which agree within 0.12 cycles per
 channel-sample (0.15%) on every compressor case and 0.21 (0.13%) on the controls. The unchanged
@@ -594,7 +594,7 @@ in cycles, worst size.
   head's move and a copy (840 instructions a block of 128 frames against 1,394 before), and a resampled play no longer
   branches on the tape's form each frame. Native recording drops the same per-frame form test and the strengths'
   dispatch.
-- **Resampled recording is level.** Its cost is the tape's triangle write (`DelayTape::writeSlowedDown`), which both
+- **Resampled recording is level.** Its cost is the tape's triangle write (`DelayTape::write_slowed_down`), which both
   run unchanged: 4% fewer instructions, a little more data-cache stall, and +0.5% at n=128 to +3.3% at n=32, a
   per-block cost of about 400 cycles in the component's configure and finish check against a 23,000-cycle block.
 - **The first baseline measured nothing.** The bench runs before the app's start-up fills the params' neutral values,
@@ -622,6 +622,32 @@ the minimum of four runs; the last column is the spread (max - min), runtime / r
   inlined; the runtimes make the same component calls as the sequence.
 - **The sound chain is +0.7% at n=32** (about 115 cycles a block), beyond its spread: it copies its 100-byte
   `FxInputs` each block to put the setting's mod FX type in. At n=128 it is level.
+
+## Effects components
+
+The chains with the bitcrush, EQ and send-and-volume as dsp-next kernels (`BitDepth` and `SampleRateReducer`,
+`ShelfPair`, `SendAndVolume` with the reverb send in its loop) and the reverb return's duck in `effects::Reverb`
+(after, image 2f5780ba0) against the chains before them (before, image f6815eac9), on 2026-10-29: `fx_chains` at the
+settings above, and `reverb` (after image 53b55f477; the reverb path is the same in both). Cycles per channel-sample,
+the minimum of the runs of each image (five before and three after for `fx_chains`, three and two for `reverb`), run
+interleaved; the last column is the after spread (max - min), worst size.
+
+| case | n=32 before → after (delta) | n=64 before → after (delta) | n=128 before → after (delta) | after spread |
+|---|---:|---:|---:|---:|
+| `control calibration_loop` | 32.10 → 32.07 (-0.1%) | 32.03 → 32.03 (+0.0%) | 32.02 → 32.01 (-0.0%) | 0.04 |
+| `control delay_feedback_chain_digital` | 19.95 → 19.92 (-0.2%) | 14.21 → 14.21 (+0.0%) | 11.35 → 11.35 (+0.0%) | 0.02 |
+| `fx_chain_sound` | 239.35 → 237.67 (-0.7%) | 214.16 → 208.44 (-2.7%) | 201.32 → 193.81 (-3.7%) | 0.80 |
+| `fx_chain_clip` | 434.20 → 435.90 (+0.4%) | 395.61 → 391.41 (-1.1%) | 376.07 → 369.32 (-1.8%) | 3.04 |
+| `fx_chain_master` | 388.96 → 387.42 (-0.4%) | 353.82 → 348.99 (-1.4%) | 335.75 → 328.56 (-2.1%) | 1.82 |
+| `reverb_freeverb` | 253.59 → 253.50 (-0.0%) | 250.76 → 250.60 (-0.1%) | 249.83 → 249.61 (-0.1%) | 0.18 |
+| `reverb_mutable` | 176.12 → 176.07 (-0.0%) | 175.03 → 174.99 (-0.0%) | 174.51 → 174.49 (-0.0%) | 0.07 |
+| `reverb_digital` | 214.69 → 214.68 (-0.0%) | 213.87 → 213.80 (-0.0%) | 213.73 → 213.59 (-0.1%) | 0.28 |
+
+- **The send belongs in the gains' loop.** With the reverb send as its own pass ahead of the gains (a loop over the
+  block, then `Mono<SendAndVolume>`), the chains ran 2.4-5.6% slower than before: every frame was read twice. With
+  the send in the kernel's loop, as a cursor its SEND modes advance (`Granular`'s shape), the chains are level at
+  n=32 (the clip chain's +0.4% is inside its spread) and 1-4% faster from n=64.
+- **The reverb return is level.** The duck's move into `effects::Reverb` changes nothing the reverb renders per frame.
 
 ## Reverb
 
@@ -717,7 +743,7 @@ step bit-exact with it (`dx7::ModernVectorOperator`). Cycles per sample, one run
   filter kernels do not answer it: they run on the integer core and the VFP, with no NEON in their loops. Measure it
   with the first NEON kernel of that weight.
 - The `wavetable` bench case costs about 336 cycles per sample. Look at it when the oscillators move to the kernel form.
-- `Mono::renderBlock` calls `std::span::size()` and `data()` per block, and both are out of line at the shipping flags.
+- `Mono::render_block` calls `std::span::size()` and `data()` per block, and both are out of line at the shipping flags.
 - The DX7 MkI ops take their gains twice per block, in the gate and in `Mono<Operator>`'s `prepare` (108-196 cycles
   per block over the old engine), and the six operators are walked one `Mono` at a time; fusing them into one step is
   a further bench question.

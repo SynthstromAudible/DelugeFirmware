@@ -17,7 +17,7 @@
 
 /// @file
 /// @brief The delay's recorded workloads: deterministic runs of blocks over real tapes, driven by a line-for-line
-/// mirror of the lifecycle `Delay::process` keeps around its processor (src/engines/effects/delay.cpp), and what the
+/// mirror of the lifecycle `Delay::process` keeps around its processor (src/effects/delay.cpp), and what the
 /// delay's two orders render from each: the staged order and the frame order `DelayProcessor` renders.
 ///
 /// A workload gives, per block, the frame count, the rate (as a uint32_t, the way the tape takes it) and the block's
@@ -424,7 +424,7 @@ struct Mode {
 
 /// @return @p tape's storage as bytes, in place; empty when it has none.
 [[nodiscard]] inline std::span<const std::byte> tape_storage(const DelayTape& tape) {
-	if (!tape.isActive()) {
+	if (!tape.is_active()) {
 		return {};
 	}
 	return std::as_bytes(std::span<const StereoSample>{tape.begin(), tape.end()});
@@ -489,7 +489,7 @@ struct Buffer {
 	/// @brief Sizes the storage for @p rate, as effects::tape_shape does, filled by @p fill(i) for sample i.
 	/// @return Whether a buffer was made: not when the ideal size is @p fail_if_this_size.
 	bool init(uint32_t rate, uint32_t fail_if_this_size, const std::function<StereoSample(size_t)>& fill) {
-		const auto [size, clamped] = DelayTape::idealSizeForRate(rate);
+		const auto [size, clamped] = DelayTape::ideal_size_for_rate(rate);
 		if (static_cast<uint32_t>(size) == fail_if_this_size) {
 			return false;
 		}
@@ -500,7 +500,7 @@ struct Buffer {
 		}
 		tape = DelayTape{std::span{storage}, static_cast<size_t>(size), rate};
 		if (clamped) {
-			tape.makeNativeRatePrecise();
+			tape.make_native_rate_precise();
 		}
 		return true;
 	}
@@ -511,7 +511,7 @@ struct Buffer {
 	}
 };
 
-/// @brief A workload played through @p Processor (anything with DelayProcessor's `process` and `resetHighPass`),
+/// @brief A workload played through @p Processor (anything with DelayProcessor's `process` and `reset_high_pass`),
 /// with the lifecycle Delay::process keeps around it, mirrored line for line: the rate's settling, a secondary tape
 /// grown when the rate leaves the primary's range, and the swap once it is full. Not mirrored: the abandon count, and
 /// `Delay::informWhetherActive`'s rebuild of a secondary nothing has been written to (see the file's documentation).
@@ -527,12 +527,12 @@ public:
 			if (secondary_.allocate(workload_.tapes.rate, 0, fill_)) {
 				size_left_ = static_cast<int32_t>(secondary_.tape.size());
 			}
-			processor_.resetHighPass();
+			processor_.reset_high_pass();
 		}
 		else {
 			std::ignore =
 			    primary_.init(workload_.tapes.rate, 0, [](size_t i) { return tape_noise(static_cast<uint32_t>(i)); });
-			processor_.resetHighPass();
+			processor_.reset_high_pass();
 		}
 	}
 
@@ -542,7 +542,7 @@ public:
 		const BlockStep s = workload_.step(b);
 		const std::span<StereoSample> buffer = out.first(s.frames);
 		for (StereoSample& sample : buffer) {
-			const bool impulse = !s.input && std::cmp_equal(s.impulse, &sample - buffer.data());
+			const bool impulse = !s.input && s.impulse == &sample - buffer.data();
 			sample = s.input ? input(k_) : impulse ? kImpulse : StereoSample{.l = 0, .r = 0};
 			++k_;
 		}
@@ -558,21 +558,21 @@ public:
 		else {
 			count_ += buffer.size();
 		}
-		if (!secondary.isActive()) {
-			if (primary.resampling() || static_cast<uint32_t>(rate) != primary.nativeRate()) {
+		if (!secondary.is_active()) {
+			if (primary.resampling() || static_cast<uint32_t>(rate) != primary.native_rate()) {
 				if (count_ >= (44100 >> 3)) {
 					initializeSecondary(rate, true);
 				}
-				else if (static_cast<uint32_t>(rate) >= (primary.nativeRate() << 1)) {
+				else if (static_cast<uint32_t>(rate) >= (primary.native_rate() << 1)) {
 					initializeSecondary(rate, false);
 				}
-				else if (static_cast<uint32_t>(rate) < primary.nativeRate() >> 1) {
+				else if (static_cast<uint32_t>(rate) < primary.native_rate() >> 1) {
 					initializeSecondary(rate >> 1, false);
 				}
 			}
 		}
 
-		growing_ = secondary.isActive() ? &secondary : nullptr;
+		growing_ = secondary.is_active() ? &secondary : nullptr;
 		const DelayBlockResult result = processor_.process(buffer, &primary, growing_, s.settings);
 		if (growing_ != nullptr) {
 			size_left_ -= result.secondary_written;
@@ -611,11 +611,11 @@ private:
 			return;
 		}
 		if (relative) {
-			primary_.tape.makeNativeRatePreciseRelativeTo(secondary_.tape);
+			primary_.tape.make_native_rate_precise_relative_to(secondary_.tape);
 		}
 		else {
-			primary_.tape.makeNativeRatePrecise();
-			secondary_.tape.makeNativeRatePrecise();
+			primary_.tape.make_native_rate_precise();
+			secondary_.tape.make_native_rate_precise();
 		}
 		size_left_ = static_cast<int32_t>(secondary_.tape.size()) + 5;
 	}
@@ -643,7 +643,7 @@ private:
 /// @return @p tape's read head: its index in the storage, its long position and its last short position; all -1 when
 /// the tape is inactive.
 [[nodiscard]] inline std::vector<int64_t> head_of(const DelayTape& tape) {
-	if (!tape.isActive()) {
+	if (!tape.is_active()) {
 		return {-1, -1, -1};
 	}
 	const DelayTape::Head head = tape.head();
@@ -724,7 +724,7 @@ inline std::ostream& operator<<(std::ostream& out, const WorkloadRecord& r) {
 
 /// @brief Folds @p tape's size and read head into @p digest (zeros when inactive).
 inline void add_head(Digest& digest, const DelayTape& tape) {
-	if (!tape.isActive()) {
+	if (!tape.is_active()) {
 		digest.add(uint32_t{0});
 		return;
 	}
@@ -733,7 +733,7 @@ inline void add_head(Digest& digest, const DelayTape& tape) {
 	digest.add(static_cast<uint32_t>(head.pos - tape.begin()));
 	digest.add(head.long_pos);
 	digest.add(static_cast<uint32_t>(head.last_short_pos));
-	digest.add(tape.nativeRate());
+	digest.add(tape.native_rate());
 	digest.add(static_cast<uint32_t>(tape.resampling()));
 }
 
@@ -757,7 +757,7 @@ template <typename Processor>
 	out.lifecycle = lifecycle.value;
 	Digest tapes;
 	for (const DelayTape* tape : {&run.primary(), &run.secondary()}) {
-		if (tape->isActive()) {
+		if (tape->is_active()) {
 			tapes.add(std::span<const StereoSample>{tape->begin(), tape->end()});
 		}
 		else {

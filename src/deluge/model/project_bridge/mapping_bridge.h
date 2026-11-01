@@ -233,7 +233,7 @@ Error projectMapping(::Song& song, const deluge::project::MappingTarget& target)
 /// @param replaced The source of the knob the relearn replaced.
 /// @param source   The source it learned.
 /// @return As projectMapping().
-Error projectRelearnedKnob(::Song& song, const deluge::project::ParamTarget& target,
+Error projectRelearnedKnob(::Song& song, const deluge::project::OwnerParamTarget& target,
                            const deluge::project::MidiCommand& replaced, const deluge::project::MidiCommand& source);
 
 /// @brief Whether @p knob plays what an index hit says the knob at its place does: @p noteOrCC, on @p target's param.

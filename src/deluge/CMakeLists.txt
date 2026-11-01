@@ -43,6 +43,7 @@ if(DELUGE_DSP_BENCH AND NOT DELUGE_HOST)
     ${CMAKE_CURRENT_LIST_DIR}/bench/reverb_cases.cpp
     ${CMAKE_CURRENT_LIST_DIR}/bench/dx7_cases.cpp
     ${CMAKE_CURRENT_LIST_DIR}/bench/fft_cases.cpp
+    ${CMAKE_CURRENT_LIST_DIR}/bench/mod_matrix_cases.cpp
     ${CMAKE_CURRENT_LIST_DIR}/bench/chain_cases.cpp
     ${CMAKE_CURRENT_LIST_DIR}/bench/pmu_a9.cpp
   )
@@ -109,14 +110,15 @@ target_link_libraries(deluge_app PUBLIC
     eyalroz_printf
     deluge_dsp
     deluge_dsp_next # the clean L0 library primitives migrate into (synth untangling Phase 1)
+    deluge_synth # the synth library: sources and the modulation core
     deluge_scheduler # task_scheduler/clock_type.h on its path
     argon
     etl::etl
     deluge_foundation
     deluge_midi
     deluge_project   # the project model (deluge::project::Song)
-    deluge_engine_types # the host–engine contract's data-only types
-    deluge_engine_api # the host–engine contract's interface
+    deluge_plugin_types # the host–plugin contract's data-only types
+    deluge_plugin_api # the host–plugin contract's interface
     deluge_instrument # the Deluge instrument's state, words and codec
     deluge_effects # the effects' words, state and codec
     deluge_global_effectable # the provisional shared-effect param table
@@ -167,9 +169,11 @@ if(_dsp_bench_on)
         target_compile_definitions(deluge_app PRIVATE DELUGE_DSP_BENCH_FFT_FORWARD=1)
     elseif(DELUGE_DSP_BENCH_CASES STREQUAL "fft_inverse")
         target_compile_definitions(deluge_app PRIVATE DELUGE_DSP_BENCH_FFT_INVERSE=1)
+    elseif(DELUGE_DSP_BENCH_CASES STREQUAL "mod_matrix")
+        target_compile_definitions(deluge_app PRIVATE DELUGE_DSP_BENCH_MOD_MATRIX=1)
     elseif(NOT DELUGE_DSP_BENCH_CASES STREQUAL "kernels")
         message(FATAL_ERROR "DELUGE_DSP_BENCH_CASES is kernels, lanes, chain, delay, filters, compressor, mod_fx, granular, stutter, \
-reverb, dx7, fx_chains, fft_forward or fft_inverse, \
+reverb, dx7, fx_chains, fft_forward, fft_inverse or mod_matrix, \
 not '${DELUGE_DSP_BENCH_CASES}'")
     endif()
     message(STATUS "DSP bench case list: ${DELUGE_DSP_BENCH_CASES}")

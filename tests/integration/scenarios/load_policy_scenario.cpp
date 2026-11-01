@@ -19,11 +19,11 @@
 
 #include "../../dsp/wavetable_band_crc.h"
 #include "../../dsp/wavetable_band_records.h"
-#include "dsp/fft/fft_config_manager.h"
 #include "memory/general_memory_allocator.h" // GeneralMemoryAllocator::resourceManager()
 #include "memory/heaps.h"                    // failNextAllocationOfSize, allocationFailurePending
 #include "model/sample/pitch_scan.h"
 #include "model/sample/sample.h"
+#include "processing/fft/fft_config_manager.h"
 #include "scenarios/load_invariants.h"
 #include "scenarios/pitch_pin_records.h"
 #include "storage/audio/audio_file_holder.h"

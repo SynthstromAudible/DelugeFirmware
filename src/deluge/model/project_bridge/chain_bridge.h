@@ -18,8 +18,8 @@
 #pragma once
 
 #include "deluge-project/fx_chain.h"
-#include "engines/effects/chain.h"
-#include "engines/effects/state.h"
+#include "effects/chain.h"
+#include "effects/state.h"
 
 #include <cstdint>
 #include <optional>

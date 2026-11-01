@@ -579,8 +579,6 @@ static void deluge_boot(const DelugeBoard* board) {
 
 	deluge_control_flush();
 
-	functionsInit();
-
 	currentPlaybackMode = &session;
 
 	// One-time board bring-up: GPIO directions + initial state, and (on the

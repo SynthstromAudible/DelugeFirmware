@@ -1,7 +1,6 @@
 #include "model/edits/set_kit_lane_setting.h"
 
 #include "deluge-project/setting_group.h"
-#include "engine-api/types/setting.h"
 #include "model/drum/drum.h"
 #include "model/edits/set_setting.h"
 #include "model/instrument/kit.h"
@@ -9,6 +8,7 @@
 #include "model/project_bridge/setting_projection.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/song/song.h"
+#include "plugin-api/types/setting.h"
 #include "processing/sound/sound_drum.h"
 
 namespace deluge::edits {
@@ -16,9 +16,9 @@ namespace deluge::edits {
 namespace {
 
 /// The context a lane's arp row is shown in: a KIT_LANE played by @p drum.
-engine::SettingContext laneContext(const ::Drum& drum) {
-	using Instrument = engine::SettingContext::Instrument;
-	return {.owner = engine::SettingContext::Owner::KIT_LANE,
+plugin::SettingContext laneContext(const ::Drum& drum) {
+	using Instrument = plugin::SettingContext::Instrument;
+	return {.owner = plugin::SettingContext::Owner::KIT_LANE,
 	        .instrument = drum.type == DrumType::MIDI   ? Instrument::MIDI_DRUM
 	                      : drum.type == DrumType::GATE ? Instrument::GATE_DRUM
 	                                                    : Instrument::SOUND_DRUM};
@@ -30,11 +30,11 @@ struct LaneReader {
 	project::SettingAddress address;
 
 	[[nodiscard]] std::optional<int32_t> read(std::string_view path) const {
-		const engine::SettingInfo* row = engine::find_setting(project::table_of(address.group), path);
+		const plugin::SettingInfo* row = plugin::find_setting(project::table_of(address.group), path);
 		const auto value = row != nullptr ? project::read_setting(*model, address, path) : std::nullopt;
-		return value ? engine::stored_value(*row, value->str()) : std::nullopt;
+		return value ? plugin::stored_value(*row, value->str()) : std::nullopt;
 	}
-	[[nodiscard]] engine::SettingReader reader() const {
+	[[nodiscard]] plugin::SettingReader reader() const {
 		return {.read = [](const void* self,
 		                   std::string_view path) { return static_cast<const LaneReader*>(self)->read(path); },
 		        .self = this};
@@ -57,7 +57,7 @@ bool allowsNoteTails(::Drum& drum) {
 Error SetKitLaneSetting::apply(Context& ctx) {
 	drums_written_ = 0;
 	::Kit* kit = deluge::bridge::kitAt(ctx.song, kit_id_);
-	const engine::SettingInfo* row = engine::find_setting(project::table_of(project::SettingGroupId::LANE_ARP), path_);
+	const plugin::SettingInfo* row = plugin::find_setting(project::table_of(project::SettingGroupId::LANE_ARP), path_);
 	if (kit == nullptr || row == nullptr) {
 		return Error::UNSPECIFIED;
 	}
@@ -68,7 +68,7 @@ Error SetKitLaneSetting::apply(Context& ctx) {
 		const project::SettingAddress address{project::SettingGroupId::LANE_ARP,
 		                                      project::LaneAddress{kit_id_, *drum->id()}};
 		const LaneReader reader{&ctx.model, address};
-		if (!engine::setting_applies(*row, laneContext(*drum), reader.reader())
+		if (!plugin::setting_applies(*row, laneContext(*drum), reader.reader())
 		    || (needs_note_tails_ && !allowsNoteTails(*drum))) {
 			continue;
 		}

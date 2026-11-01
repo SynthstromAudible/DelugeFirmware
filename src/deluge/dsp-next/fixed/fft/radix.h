@@ -63,7 +63,7 @@
 /// from the same operands in the same order the recorded transforms were made with, so they match bit for bit.
 namespace deluge::dsp::fixed::fft::detail {
 
-enum class Direction : uint8_t { Forward, Inverse };
+enum class Direction : uint8_t { FORWARD, INVERSE };
 
 using V = Argon<int32_t>;
 
@@ -327,7 +327,7 @@ template <Direction D>
 		V s3_i;
 		V s7_r;
 		V s7_i;
-		if constexpr (D == Direction::Forward) {
+		if constexpr (D == Direction::FORWARD) {
 			s5_r = sin5_i;
 			s5_i = sin5_r.Negate();
 			s3_r = sin3_r.Add(sin3_i);
@@ -372,7 +372,7 @@ template <Direction D>
 		Pair out3;
 		Pair out6;
 		Pair out7;
-		if constexpr (D == Direction::Forward) {
+		if constexpr (D == Direction::FORWARD) {
 			out2 = {s10_r.Add(s14_i), s10_i.Subtract(s14_r)};
 			out3 = {s11_r.Add(s15_i), s11_i.Subtract(s15_r)};
 			out6 = {s10_r.Subtract(s14_i), s10_i.Add(s14_r)};
@@ -422,9 +422,9 @@ template <Direction D>
 		const V s3_i = in1.i.Subtract(in3.i);
 		const Pair out2{s0_r.Subtract(s2_r), s0_i.Subtract(s2_i)};
 		const Pair out0{s0_r.Add(s2_r), s0_i.Add(s2_i)};
-		const Pair out1 = D == Direction::Forward ? Pair{s1_r.Add(s3_i), s1_i.Subtract(s3_r)}
+		const Pair out1 = D == Direction::FORWARD ? Pair{s1_r.Add(s3_i), s1_i.Subtract(s3_r)}
 		                                          : Pair{s1_r.Subtract(s3_i), s1_i.Add(s3_r)};
-		const Pair out3 = D == Direction::Forward ? Pair{s1_r.Subtract(s3_i), s1_i.Add(s3_r)}
+		const Pair out3 = D == Direction::FORWARD ? Pair{s1_r.Subtract(s3_i), s1_i.Add(s3_r)}
 		                                          : Pair{s1_r.Add(s3_i), s1_i.Subtract(s3_r)};
 		const std::array<Pair, 4> grouped = transpose(out0, out1, out2, out3);
 		store2(dst, grouped[0]);
@@ -470,7 +470,7 @@ template <Direction D>
 		const V tmp3 = in2.r.MultiplyFixedQMax(tw1.i);
 		const V tmp4 = in3.i.MultiplyFixedQMax(tw2.i);
 		const V tmp5 = in3.r.MultiplyFixedQMax(tw2.i);
-		if constexpr (D == Direction::Forward) { // rotate by the twiddle
+		if constexpr (D == Direction::FORWARD) { // rotate by the twiddle
 			s1_r = s1_r.Subtract(tmp0);
 			s1_i = s1_i.Add(tmp1);
 			s2_r = s2_r.Subtract(tmp2);
@@ -496,9 +496,9 @@ template <Direction D>
 		const V s7_i = s1_i.Subtract(s3_i);
 		const Pair out2{s4_r.Subtract(s6_r), s4_i.Subtract(s6_i)};
 		const Pair out0{s4_r.Add(s6_r), s4_i.Add(s6_i)};
-		const Pair out1 = D == Direction::Forward ? Pair{s5_r.Add(s7_i), s5_i.Subtract(s7_r)}
+		const Pair out1 = D == Direction::FORWARD ? Pair{s5_r.Add(s7_i), s5_i.Subtract(s7_r)}
 		                                          : Pair{s5_r.Subtract(s7_i), s5_i.Add(s7_r)};
-		const Pair out3 = D == Direction::Forward ? Pair{s5_r.Subtract(s7_i), s5_i.Add(s7_r)}
+		const Pair out3 = D == Direction::FORWARD ? Pair{s5_r.Subtract(s7_i), s5_i.Add(s7_r)}
 		                                          : Pair{s5_r.Add(s7_i), s5_i.Subtract(s7_r)};
 		store2(dst, out0);
 		store2(dst + dst_step, out1);

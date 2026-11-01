@@ -3,13 +3,13 @@
 #include "scenes/bind/knob_assignment.h"
 #include "scenes/services/source_names.h"
 
-#include "engines/deluge/cables.h"
-#include "engines/deluge/params.h"
-#include "engines/effects/chain.h"
-#include "engines/effects/compressor.h"
-#include "engines/global_effectable/params.h"
+#include "effects/chain.h"
+#include "effects/compressor.h"
+#include "effects/global_effectable/params.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
+#include "instruments/deluge/cables.h"
+#include "instruments/deluge/params.h"
 #include "model/mod_controllable/filters/filter_config.h"
 #include "model/mod_controllable/mod_fx_names.h"
 #include "model/song/reverb_presets.h"
@@ -109,11 +109,11 @@ const char* delay_type_name(effects::DelayType type) {
 	return text(String::STRING_FOR_DIGITAL_DELAY);
 }
 
-const char* sync_type_name(engine::SyncType type) {
+const char* sync_type_name(plugin::SyncType type) {
 	switch (type) {
-	case engine::SyncType::TRIPLET:
+	case plugin::SyncType::TRIPLET:
 		return "Triplet";
-	case engine::SyncType::DOTTED:
+	case plugin::SyncType::DOTTED:
 		return "Dotted";
 	default:
 		return "Even";
@@ -126,18 +126,18 @@ const char* ping_pong_name(bool ping_pong) {
 
 /// The delay's sync level as a note length. Naming it writes nothing (legacy's getter wrapped 256th to off).
 std::string delay_sync_level_name(const project::Song& song, const effects::EffectStates& fx) {
-	const int32_t level = engine::index_of(fx.delay.sync_level);
-	return note_length_name(uint32_t{3} << (engine::kMaxSyncLevel - level), tick_magnitude(song));
+	const int32_t level = plugin::index_of(fx.delay.sync_level);
+	return note_length_name(uint32_t{3} << (plugin::kMaxSyncLevel - level), tick_magnitude(song));
 }
 
 /// The sidechain's sync level the push toggles to, between the song's slow and fast levels.
 int32_t next_sidechain_level(const project::Song& song, const effects::EffectStates& fx) {
 	const int32_t magnitude = tick_magnitude(song);
-	return engine::index_of(fx.sidechain.sync_level) == 7 - magnitude ? 9 - magnitude : 7 - magnitude;
+	return plugin::index_of(fx.sidechain.sync_level) == 7 - magnitude ? 9 - magnitude : 7 - magnitude;
 }
 
 const char* sidechain_name(const project::Song& song, const effects::EffectStates& fx) {
-	return text(engine::index_of(fx.sidechain.sync_level) == 7 - tick_magnitude(song) ? String::STRING_FOR_SLOW
+	return text(plugin::index_of(fx.sidechain.sync_level) == 7 - tick_magnitude(song) ? String::STRING_FOR_SLOW
 	                                                                                  : String::STRING_FOR_FAST);
 }
 
@@ -196,7 +196,7 @@ const std::vector<ControllerMapping>* controls_of(const project::Song& song, con
 	return output != nullptr ? &output->controls : nullptr;
 }
 
-std::optional<engine::ParamId> control_target(const std::vector<ControllerMapping>& controls, uint8_t mode,
+std::optional<plugin::ParamId> control_target(const std::vector<ControllerMapping>& controls, uint8_t mode,
                                               int32_t knob) {
 	const ModKnobControl control{.button = mode, .knob = static_cast<uint8_t>(knob)};
 	const auto it = std::ranges::find_if(controls, [&](const ControllerMapping& m) { return m.control == control; });
@@ -204,7 +204,7 @@ std::optional<engine::ParamId> control_target(const std::vector<ControllerMappin
 }
 
 /// Whether @p id is a cable from the sidechain alone.
-bool sidechain_cable(engine::ParamId id) {
+bool sidechain_cable(plugin::ParamId id) {
 	if (!instrument::is_cable_depth(id) || instrument::detail::depth_level(id.value) != 1) {
 		return false;
 	}
@@ -215,7 +215,7 @@ bool sidechain_cable(engine::ParamId id) {
 /// Knob @p knob of @p mode's mapping moved from @p from to @p to, with its partner moved from @p partner_from to
 /// @p partner_to.
 std::vector<ControllerMapping> cycled(std::vector<ControllerMapping> controls, uint8_t mode, int32_t knob,
-                                      engine::ParamId to, engine::ParamId partner_from, engine::ParamId partner_to) {
+                                      plugin::ParamId to, plugin::ParamId partner_from, plugin::ParamId partner_to) {
 	const ModKnobControl ours{.button = mode, .knob = static_cast<uint8_t>(knob)};
 	const ModKnobControl partner{.button = mode, .knob = static_cast<uint8_t>(1 - knob)};
 	for (ControllerMapping& mapping : controls) {
@@ -244,9 +244,9 @@ void push_delay(KnobPush& out, const project::Song& song, effects::EffectStates 
                 const PushInputs& inputs) {
 	std::string notice;
 	if (rate && inputs.alt_delay) {
-		fx.delay.sync_type = fx.delay.sync_type == engine::SyncType::TRIPLET  ? engine::SyncType::DOTTED
-		                     : fx.delay.sync_type == engine::SyncType::DOTTED ? engine::SyncType::EVEN
-		                                                                      : engine::SyncType::TRIPLET;
+		fx.delay.sync_type = fx.delay.sync_type == plugin::SyncType::TRIPLET  ? plugin::SyncType::DOTTED
+		                     : fx.delay.sync_type == plugin::SyncType::DOTTED ? plugin::SyncType::EVEN
+		                                                                      : plugin::SyncType::TRIPLET;
 		out.effects.push_back(
 		    {"delay/syncType", serialization::Value::makeNumber(std::to_underlying(fx.delay.sync_type))});
 		notice = sync_type_name(fx.delay.sync_type);
@@ -258,8 +258,8 @@ void push_delay(KnobPush& out, const project::Song& song, effects::EffectStates 
 	}
 	else if (inputs.alt_delay) {
 		// SYNC_LEVEL_NONE is skipped: the cycle runs 1 to 9.
-		const int32_t level = engine::index_of(fx.delay.sync_level) % engine::kMaxSyncLevel + 1;
-		fx.delay.sync_level = engine::sync_level_from_index(level);
+		const int32_t level = plugin::index_of(fx.delay.sync_level) % plugin::kMaxSyncLevel + 1;
+		fx.delay.sync_level = plugin::sync_level_from_index(level);
 		out.effects.push_back({"delay/syncLevel", serialization::Value::makeNumber(level)});
 		notice = delay_sync_level_name(song, fx);
 	}
@@ -310,13 +310,13 @@ KnobPush push_sound(const project::Song& song, const bind::KnobFocus& focus, con
 	KnobPush out;
 	const std::vector<ControllerMapping>* controls = controls_of(song, sound);
 	const uint8_t mode = bind::knob_mode(song, focus);
-	const std::optional<engine::ParamId> target =
+	const std::optional<plugin::ParamId> target =
 	    controls != nullptr ? control_target(*controls, mode, knob) : std::nullopt;
 	if (!target) {
 		return out;
 	}
 	const effects::EffectStates& fx = inputs.effects;
-	const engine::ParamId p = *target;
+	const plugin::ParamId p = *target;
 	if (p == ip::kStutterRate) {
 		out.stutter = on;
 		return out;
@@ -338,7 +338,7 @@ KnobPush push_sound(const project::Song& song, const bind::KnobFocus& focus, con
 	else if (sidechain_cable(p)) {
 		effects::EffectStates after = fx;
 		const int32_t level = next_sidechain_level(song, fx);
-		after.sidechain.sync_level = engine::sync_level_from_index(level);
+		after.sidechain.sync_level = plugin::sync_level_from_index(level);
 		out.effects.push_back({"sidechain/syncLevel", serialization::Value::makeNumber(level)});
 		say(out, inputs, sidechain_reverb_popup(song, after), sidechain_name(song, after));
 		out.edited = true;
@@ -373,7 +373,7 @@ KnobPush push_chain(const project::Song& song, const bind::KnobFocus& focus, int
 		if (knob == 1) {
 			effects::EffectStates after = fx;
 			const int32_t level = next_sidechain_level(song, fx);
-			after.sidechain.sync_level = engine::sync_level_from_index(level);
+			after.sidechain.sync_level = plugin::sync_level_from_index(level);
 			out.effects.push_back({"sidechain/syncLevel", serialization::Value::makeNumber(level)});
 			say(out, inputs, sidechain_reverb_popup(song, after), sidechain_name(song, after));
 		}
@@ -495,7 +495,7 @@ std::string knob_name(const project::Song& song, const bind::KnobFocus& focus, i
 	if (address == nullptr) {
 		return {};
 	}
-	const engine::ParamId id = address->id;
+	const plugin::ParamId id = address->id;
 	if (instrument::is_cable_depth(id)) {
 		const int level = instrument::detail::depth_level(id.value);
 		const auto first = static_cast<PatchSource>(instrument::detail::source_field(id.value, 0) - 1);
@@ -503,7 +503,7 @@ std::string knob_name(const project::Song& song, const bind::KnobFocus& focus, i
 		                        ? static_cast<PatchSource>(instrument::detail::source_field(id.value, level - 1) - 1)
 		                        : PatchSource::NONE;
 		const std::optional<instrument::RuntimeSlot> destination =
-		    instrument::runtime_slot(engine::ParamId{id.value & 0xFFu});
+		    instrument::runtime_slot(plugin::ParamId{id.value & 0xFFu});
 		std::string out = second == PatchSource::NONE ? std::string{text(source_display_string(first))}
 		                                              : std::string{source_short_name(first)};
 		out += " -> ";
@@ -515,7 +515,7 @@ std::string knob_name(const project::Song& song, const bind::KnobFocus& focus, i
 		                                        fx.filter.lpf_mode, fx.filter.hpf_mode);
 		return out;
 	}
-	if (assignment.kind == engine::ParamKind::UNPATCHED_GLOBAL) {
+	if (assignment.kind == plugin::ParamKind::UNPATCHED_GLOBAL) {
 		const std::optional<uint8_t> index = global_effectable::runtime_index(id);
 		return index ? params::getParamDisplayName(params::Kind::UNPATCHED_GLOBAL, *index, fx.filter.lpf_mode,
 		                                           fx.filter.hpf_mode)
@@ -579,11 +579,11 @@ std::string mod_button_popup(const project::Song& song, const bind::KnobFocus& f
 	if (const auto* sound = std::get_if<bind::SoundFocus>(&focus.owner)) {
 		const std::vector<ControllerMapping>* controls = controls_of(song, *sound);
 		const uint8_t mode = bind::knob_mode(song, focus);
-		const std::optional<engine::ParamId> top =
+		const std::optional<plugin::ParamId> top =
 		    controls != nullptr ? control_target(*controls, mode, 1) : std::nullopt;
-		const std::optional<engine::ParamId> bottom =
+		const std::optional<plugin::ParamId> bottom =
 		    controls != nullptr ? control_target(*controls, mode, 0) : std::nullopt;
-		const auto pair = [&](engine::ParamId upper, engine::ParamId lower) { return top == upper && bottom == lower; };
+		const auto pair = [&](plugin::ParamId upper, plugin::ParamId lower) { return top == upper && bottom == lower; };
 		if (pair(ip::kLpfFrequency, ip::kLpfResonance)) {
 			return filter_popup(FilterType::LPF, fx);
 		}

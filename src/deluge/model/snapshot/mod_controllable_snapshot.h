@@ -18,7 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "engines/effects/state.h"
+#include "effects/state.h"
 
 namespace deluge::snapshot {
 

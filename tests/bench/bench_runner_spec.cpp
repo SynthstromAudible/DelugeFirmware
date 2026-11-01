@@ -17,7 +17,7 @@
 #include "dsp-next/fixed/shaping/antialiased_tanh.h"
 #include "dsp-next/fixed/shaping/tanh.h"
 #include "util/fixedpoint.h"
-#include "util/waves.h" // jcong
+#include "util/synth_noise.h"
 
 #include <algorithm>
 #include <array>
@@ -437,6 +437,12 @@ const std::vector<std::string_view> kFftInverseCaseNames{
     "fft_inv_256",      "fft_inv_512", "fft_inv_1024", "fft_inv_2048", "fft_inv_4096", "fft_inv_8192",
 };
 
+/// The mod-matrix list's names, in order.
+const std::vector<std::string_view> kModMatrixCaseNames{
+    "calibration_loop",   "matrix_q31_typical",          "matrix_q31_all",
+    "matrix_q31_initial", "delay_feedback_chain_analog", "delay_feedback_chain_digital",
+};
+
 /// The effect chain list's names, in order.
 const std::vector<std::string_view> kFxChainCaseNames{
     "calibration_loop",
@@ -620,7 +626,7 @@ FilterReference filter_reference(const FilterCaseConfig& config, std::size_t n, 
 	out.last_block.assign(lanes_input().begin(), lanes_input().begin() + static_cast<std::ptrdiff_t>(samples));
 	std::vector<q31> fade(samples);
 	std::vector<q31> parallel(samples);
-	jcong = kFilterNoiseSeed;
+	deluge::synth_noise.seed(kFilterNoiseSeed);
 	dsp::fixed::FilterSet set;
 	for (std::size_t b = 0; b < blocks; ++b) {
 		if (config.fading) {
@@ -630,13 +636,13 @@ FilterReference filter_reference(const FilterCaseConfig& config, std::size_t n, 
 		out.gain =
 		    set.configure(kFilterGain, config.low_config, config.low, config.high_config, config.high, config.route);
 		if (stereo) {
-			set.renderStereo(out.last_block, {.fade = fade, .parallel = parallel});
+			set.render_stereo(out.last_block, {.fade = fade, .parallel = parallel}, deluge::synth_noise);
 		}
 		else {
-			set.renderMono(out.last_block, {.fade = fade, .parallel = parallel});
+			set.render_mono(out.last_block, {.fade = fade, .parallel = parallel}, deluge::synth_noise);
 		}
 	}
-	out.noise = jcong;
+	out.noise = deluge::synth_noise.state();
 	return out;
 }
 
@@ -648,7 +654,7 @@ struct CompressorReference {
 
 /// @p config's run of @p blocks blocks of @p n frames, from the compressor cases' documented start: a compressor at
 /// the cases' knobs, the block the lanes input's first frames as fill_compressor_input() fills them, each block
-/// compressed in place through `render` or `renderVolumeNeutral`.
+/// compressed in place through `render` or `render_volume_neutral`.
 CompressorReference compressor_reference(const CompressorCaseConfig& config, std::size_t n, std::size_t blocks) {
 	fill_compressor_input();
 	std::vector<StereoSample> work(n);
@@ -659,7 +665,7 @@ CompressorReference compressor_reference(const CompressorCaseConfig& config, std
 	out.compressor.configure(compressor_knobs(config));
 	for (std::size_t b = 0; b < blocks; ++b) {
 		if (config.neutral) {
-			out.compressor.renderVolumeNeutral(work, kCompressorFinalVolume);
+			out.compressor.render_volume_neutral(work, kCompressorFinalVolume);
 		}
 		else {
 			out.compressor.render(work, kCompressorVolume, kCompressorVolume, kCompressorFinalVolume >> 3);
@@ -719,10 +725,10 @@ DelayWholeReference delay_whole_reference(const DelayWholeConfig& config, std::s
 	DelayTape primary{out.primary, DelayTape::kNeutralSize, static_cast<uint32_t>(kDelayNeutralRate)};
 	DelayTape secondary;
 	if (config.growing) {
-		const auto size = static_cast<std::size_t>(DelayTape::idealSizeForRate(kDelayResHiRate).first);
+		const auto size = static_cast<std::size_t>(DelayTape::ideal_size_for_rate(kDelayResHiRate).first);
 		out.secondary.assign(size + kLag, StereoSample{.l = 0, .r = 0});
 		secondary = DelayTape{out.secondary, size, static_cast<uint32_t>(kDelayResHiRate)};
-		primary.makeNativeRatePreciseRelativeTo(secondary);
+		primary.make_native_rate_precise_relative_to(secondary);
 	}
 
 	dsp::fixed::DelayProcessor processor;
@@ -1022,7 +1028,8 @@ describe bench_runner("The DSP benchmark runner", ${
 		                                     std::pair{CaseList::DX7, kDx7CaseNames},
 		                                     std::pair{CaseList::FX_CHAINS, kFxChainCaseNames},
 		                                     std::pair{CaseList::FFT_FORWARD, kFftForwardCaseNames},
-		                                     std::pair{CaseList::FFT_INVERSE, kFftInverseCaseNames}}) {
+		                                     std::pair{CaseList::FFT_INVERSE, kFftInverseCaseNames},
+		                                     std::pair{CaseList::MOD_MATRIX, kModMatrixCaseNames}}) {
 				std::vector<std::string_view> names;
 				for (const Case& c : cases(list)) {
 					names.push_back(c.name);
@@ -1066,6 +1073,9 @@ describe bench_runner("The DSP benchmark runner", ${
 			for (const Case& c : cases(CaseList::REVERB)) {
 				expect(c.lanes).to_equal(c.name == "calibration_loop" ? std::size_t{1} : std::size_t{2});
 			}
+			for (const Case& c : cases(CaseList::MOD_MATRIX)) {
+				expect(c.lanes).to_equal(std::size_t{1} + (c.name.starts_with("delay_feedback_chain") ? 1 : 0));
+			}
 			for (const Case& c : cases(CaseList::DX7)) {
 				expect(c.lanes).to_equal(std::size_t{1} + (c.name.starts_with("delay_feedback_chain") ? 1 : 0));
 			}
@@ -1096,7 +1106,8 @@ describe bench_runner("The DSP benchmark runner", ${
 		                                     std::pair{CaseList::DX7, kDx7CaseNames},
 		                                     std::pair{CaseList::FX_CHAINS, kFxChainCaseNames},
 		                                     std::pair{CaseList::FFT_FORWARD, kFftForwardCaseNames},
-		                                     std::pair{CaseList::FFT_INVERSE, kFftInverseCaseNames}}) {
+		                                     std::pair{CaseList::FFT_INVERSE, kFftInverseCaseNames},
+		                                     std::pair{CaseList::MOD_MATRIX, kModMatrixCaseNames}}) {
 				lines.clear();
 				counters.reset();
 				const RunConfig config{.block_sizes = kBlockSizes};
@@ -1341,7 +1352,7 @@ describe bench_runner("The DSP benchmark runner", ${
 					// The fade's arithmetic, at a wet level of a half.
 					const q31 wet = multiply_32x32_rshift32(input_b()[i], 1 << 30);
 					const q31 expected =
-					    multiply_accumulate_32x32_rshift32_rounded(wet, input_a()[i], ONE_Q31 - (1 << 30)) << 1;
+					    multiply_accumulate_32x32_rshift32_rounded(wet, input_a()[i], kOneQ31 - (1 << 30)) << 1;
 					expect(output()[i]).to_equal(expected);
 				}
 			}
@@ -1559,7 +1570,7 @@ describe bench_runner("The DSP benchmark runner", ${
 					expect(delay_feedback_words(rig.processor)).to_equal(expected.feedback);
 					expect(std::ranges::count(expected.feedback, 0))
 					    .to_be_less_than(static_cast<std::ptrdiff_t>(expected.feedback.size()));
-					expect(rig.primary.isNative()).to_equal(config.tape == DelayTapeForm::NATIVE);
+					expect(rig.primary.is_native()).to_equal(config.tape == DelayTapeForm::NATIVE);
 					expect(rig.result.wrapped).to_equal(expected.result.wrapped);
 					expect(rig.result.secondary_written).to_equal(expected.result.secondary_written);
 					expect(rig.primary_storage.size()).to_equal(kDelayStorageSize);
@@ -1572,14 +1583,14 @@ describe bench_runner("The DSP benchmark runner", ${
 						    .to_equal(expected.secondary_head.pos - expected.secondary.data());
 						expect(rig.secondary.head().long_pos).to_equal(expected.secondary_head.long_pos);
 						expect(rig.secondary.head().last_short_pos).to_equal(expected.secondary_head.last_short_pos);
-						expect(rig.secondary.isNative()).to_be_true();
+						expect(rig.secondary.is_native()).to_be_true();
 						// The secondary is written at its native rate, one step per block sample, and never wraps.
 						expect(rig.result.secondary_written).to_equal(static_cast<int32_t>(n));
 						expect(blocks * n).to_be_less_than(rig.secondary.size());
 					}
 					else {
 						expect(rig.growing).to_be_null();
-						expect(rig.secondary.isActive()).to_be_false();
+						expect(rig.secondary.is_active()).to_be_false();
 						expect(rig.result.secondary_written).to_equal(int32_t{0});
 					}
 					// No run reaches the end of the primary, so the read head never wraps.
@@ -1619,10 +1630,10 @@ describe bench_runner("The DSP benchmark runner", ${
 					    .to_equal(expected.last_block);
 					expect(std::ranges::count(expected.last_block, 0)).to_be_less_than(std::ptrdiff_t{2});
 					expect(filter_rig().gain).to_equal(expected.gain);
-					expect(jcong).to_equal(expected.noise);
-					expect(jcong).to_equal(noise_after(kFilterNoiseSeed, blocks * samples * draws));
-					expect(filter_rig().set.isLowPassOn()).to_equal(config.low.kind != dsp::fixed::LowPassSlot::Kind::OFF);
-					expect(filter_rig().set.isHighPassOn())
+					expect(deluge::synth_noise.state()).to_equal(expected.noise);
+					expect(deluge::synth_noise.state()).to_equal(noise_after(kFilterNoiseSeed, blocks * samples * draws));
+					expect(filter_rig().set.is_low_pass_on()).to_equal(config.low.kind != dsp::fixed::LowPassSlot::Kind::OFF);
+					expect(filter_rig().set.is_high_pass_on())
 					    .to_equal(config.high.kind != dsp::fixed::HighPassSlot::Kind::OFF);
 					// Only the fading case's fade is under way after its block; every other case runs none.
 					expect(dsp::fixed::FadeIn::active(filter_rig().set.view().low_fade)).to_equal(config.fading);
@@ -1648,14 +1659,14 @@ describe bench_runner("The DSP benchmark runner", ${
 					expect(stereo_output(n)).to_equal(expected.last_block);
 					expect(std::ranges::count(expected.last_block, 0)).to_be_less_than(std::ptrdiff_t{2});
 					const dsp::fixed::RmsFeedbackCompressor& compressor = compressor_rig().compressor;
-					expect(compressor.gainReduction()).to_equal(expected.compressor.gainReduction());
+					expect(compressor.gain_reduction()).to_equal(expected.compressor.gain_reduction());
 					expect(compressor.view().log_rms).to_equal(expected.compressor.view().log_rms);
 					expect(compressor.view().mean).to_equal(expected.compressor.view().mean);
 					expect(compressor.view().current_volume_l).to_equal(expected.compressor.view().current_volume_l);
 					expect(compressor.view().current_volume_r).to_equal(expected.compressor.view().current_volume_r);
 					expect(compressor.view().wet).to_equal(config.blend);
 					// The timed state: compressing, and the level's sum never wrapped (a wrapped sum's mean is negative).
-					expect(compressor.gainReduction()).to_be_greater_than(uint8_t{0});
+					expect(compressor.gain_reduction()).to_be_greater_than(uint8_t{0});
 					expect(compressor.view().mean).to_be_greater_than(0.0f);
 				}
 			}

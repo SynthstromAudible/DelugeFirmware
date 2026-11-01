@@ -19,20 +19,21 @@
 
 #include "definitions_cxx.hpp"
 #include "deluge-project/controller_mapping.h"
-#include "dsp/stereo_sample.h"
-#include "engines/effects/delay.h"
+#include "dsp-next/core/stereo_sample.h"
+#include "effects/delay.h"
 #include "hid/button.h"
 #include "model/mod_controllable/filters/filter_config.h"
 #include "model/mod_controllable/mod_controllable.h"
 #include "model/snapshot/mod_controllable_snapshot.h"
 #include "modulation/knob.h"
-#include "modulation/params/param_descriptor.h"
 #include "modulation/params/param_set.h"
-#include "synth/lfo.h"
+#include "synth/modulation/cable.h"
+#include "synth/modulation/lfo.h"
+#include "util/functions.h"
 
-#include "engine-api/engine.h"
-#include "engines/effects/chain_core.h"
-#include "engines/effects/state.h"
+#include "effects/chain_core.h"
+#include "effects/state.h"
+#include "plugin-api/plugin.h"
 
 class Clip;
 class GlobalEffectable;
@@ -77,7 +78,7 @@ public:
 	/// @brief The codec context a file's effect entries are written in: the current song's tick magnitude, even when
 	/// the song being saved is another (the learned knobs take the saved song; this does not).
 	/// @return The codec context.
-	[[nodiscard]] static deluge::engine::CodecContext effectsCodecContext();
+	[[nodiscard]] static deluge::plugin::CodecContext effectsCodecContext();
 	/// @brief The compressor threshold a sound's file saves: the one the render last applied, its param's.
 	/// @return The threshold (Q31).
 	[[nodiscard]] q31_t savedCompressorThreshold() const { return core().compressor().dsp().threshold(); }
@@ -120,7 +121,11 @@ public:
 	                                 int32_t* valuesForOverride = nullptr);
 	static bool readParamTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
 	                                 int32_t readAutomationUpToPos);
-	static void initParams(ParamManager* paramManager);
+	/// @brief Sets the shared params (EQ, arpeggiator, stutter, mod FX, bitcrush, compressor) to their defaults.
+	/// @param paramManager The param manager to initialise.
+	/// @param defaults     Whose table's defaults: UNPATCHED_SOUND for a sound, UNPATCHED_GLOBAL for a global
+	/// effectable.
+	static void initParams(ParamManager* paramManager, deluge::modulation::params::Kind defaults);
 	virtual void wontBeRenderedForAWhile();
 	void beginStutter(ParamManagerForTimeline* paramManager);
 	void endStutter(ParamManagerForTimeline* paramManager);
@@ -155,7 +160,7 @@ public:
 	void setStutterReversed(bool value);
 	void setStutterPingPong(bool value);
 	void setUseSongStutter(bool value);
-	// The reverb's sidechain (AudioEngine::reverbSidechain) is the engine's own, not an owner's.
+	// The reverb's sidechain (AudioEngine::reverb.sidechain()) is the engine's own, not an owner's.
 	void setSidechainAttack(int32_t value);
 	void setSidechainRelease(int32_t value);
 	void setSidechainSyncType(SyncType value);
@@ -230,9 +235,9 @@ public:
 	/// Learna knob to a particular parameter.
 	///
 	/// @param cable The source MIDI cable, or null if learning a mod knob
-	virtual bool learnKnob(MIDICable* cable, ParamDescriptor paramDescriptor, uint8_t whichKnob, uint8_t modKnobMode,
-	                       uint8_t midiChannel, Song* song);
-	bool unlearnKnobs(ParamDescriptor paramDescriptor, Song* song);
+	virtual bool learnKnob(MIDICable* cable, deluge::modulation::KnobTarget target, uint8_t whichKnob,
+	                       uint8_t modKnobMode, uint8_t midiChannel, Song* song);
+	bool unlearnKnobs(deluge::modulation::KnobTarget target, Song* song);
 	virtual void ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(Song* song) {} // Song may be NULL
 	ModelStackWithAutoParam* getParamFromMIDIKnob(MIDIKnob& knob, ModelStackWithThreeMainThings* modelStack) override;
 

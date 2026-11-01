@@ -8,8 +8,8 @@ using namespace deluge::project;
 describe slot_address("a sound's slot named by its owner", ${
 	it("resolves a synth track's slot by its output id and a kit row's by its drum id", _ {
 		Song song;
-		song.output_structure.getOrCreate(4).instrument.emplace().engine = "deluge.instrument";
-		song.drum_structure.getOrCreate(9).instrument.emplace().engine = "deluge.instrument";
+		song.output_structure.getOrCreate(4).instrument.emplace().plugin = "deluge.instrument";
+		song.drum_structure.getOrCreate(9).instrument.emplace().plugin = "deluge.instrument";
 		expect(song.resolveSlot({SlotAddress::Kind::OUTPUT, 4})).to_equal(&*song.output_structure.find(4)->instrument);
 		expect(song.resolveSlot({SlotAddress::Kind::DRUM, 9})).to_equal(&*song.drum_structure.find(9)->instrument);
 	});

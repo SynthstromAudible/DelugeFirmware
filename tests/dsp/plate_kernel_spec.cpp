@@ -56,7 +56,7 @@ struct PlateRunner {
 	}
 	void render(std::span<int32_t> send, std::span<StereoSample> out, int32_t l, int32_t r) {
 		mono.on<&Plate::set_send>(send.data(), l, r);
-		mono.renderBlock(out, out);
+		mono.render_block(out, out);
 	}
 	void digest_state(rw::Digest& d) const { rw::digest_plate(d, deluge::dsp::test::plate_view(mono.state(), memory)); }
 };

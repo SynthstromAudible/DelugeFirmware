@@ -26,7 +26,7 @@
 #include "scenes/menu/context.h"
 
 #include "definitions_cxx.hpp"
-#include "engines/deluge/words.h"
+#include "instruments/deluge/words.h"
 #include "serialization/value.h"
 
 namespace deluge::scenes::menu::nodes {

@@ -107,7 +107,7 @@ struct Ramp {
 /// Custom verbs, as the transcribed classes have: must satisfy no concept.
 struct CustomVerbs {
 	using value_type = q31;
-	void renderMono(std::span<q31>) {}
+	void render_mono(std::span<q31>) {}
 };
 
 static_assert(processor<ScalarDouble>);
@@ -148,8 +148,8 @@ describe component_framework("the component mixins, AsBlock and control_generato
 		for (std::size_t n : {1u, 2u, 3u, 4u, 5u, 6u, 7u, 8u, 10u, 13u}) {
 			auto in = ramp(n);
 			std::vector<q31> scalar(n, -1), simd(n, -1);
-			ScalarDouble{}.renderBlock(in, scalar);
-			SimdDouble{}.renderBlock(in, simd);
+			ScalarDouble{}.render_block(in, scalar);
+			SimdDouble{}.render_block(in, simd);
 			expect(simd).to_equal(scalar);
 			expect(scalar.back()).to_equal(static_cast<q31>(in.back() * 2));
 		}
@@ -158,12 +158,12 @@ describe component_framework("the component mixins, AsBlock and control_generato
 		for (std::size_t n : {4u, 6u, 7u}) {
 			auto in = ramp(n);
 			std::vector<q31> out(n);
-			SimdDouble{}.renderBlock(in, out);
+			SimdDouble{}.render_block(in, out);
 			auto inplace = ramp(n);
-			SimdDouble{}.renderBlock(inplace, inplace);
+			SimdDouble{}.render_block(inplace, inplace);
 			expect(inplace).to_equal(out);
 			auto scalar_inplace = ramp(n);
-			ScalarDouble{}.renderBlock(scalar_inplace, scalar_inplace);
+			ScalarDouble{}.render_block(scalar_inplace, scalar_inplace);
 			expect(scalar_inplace).to_equal(out);
 		}
 	});
@@ -174,8 +174,8 @@ describe component_framework("the component mixins, AsBlock and control_generato
 				in[i] = {.l = static_cast<q31>(i + 1), .r = -static_cast<q31>(i + 1)};
 			}
 			std::vector<StereoSample> scalar(frames), simd(frames);
-			ScalarStereoDouble{}.renderBlock(in, scalar);
-			SimdStereoDouble{}.renderBlock(in, simd);
+			ScalarStereoDouble{}.render_block(in, scalar);
+			SimdStereoDouble{}.render_block(in, simd);
 			for (std::size_t i = 0; i < frames; i++) {
 				expect(simd[i].l).to_equal(scalar[i].l);
 				expect(simd[i].r).to_equal(scalar[i].r);
@@ -188,14 +188,14 @@ describe component_framework("the component mixins, AsBlock and control_generato
 			auto a = ramp(n);
 			auto b = ramp(n);
 			std::vector<q31> scalar(n), simd(n);
-			ScalarAdd{}.renderBlock(a, b, scalar);
-			SimdAdd{}.renderBlock(a, b, simd);
+			ScalarAdd{}.render_block(a, b, scalar);
+			SimdAdd{}.render_block(a, b, simd);
 			expect(simd).to_equal(scalar);
 		}
 	});
 	it("generates each sample once, in order", _ {
 		std::vector<q31> out(5);
-		ScalarCount{}.renderBlock(out);
+		ScalarCount{}.render_block(out);
 		expect(out).to_equal(std::vector<q31>{1, 2, 3, 4, 5});
 	});
 	it("mixes in place into either input as out of place, on both paths", _ {
@@ -203,18 +203,18 @@ describe component_framework("the component mixins, AsBlock and control_generato
 			auto a = ramp(n);
 			auto b = ramp(n);
 			std::vector<q31> out(n);
-			SimdAdd{}.renderBlock(a, b, out);
+			SimdAdd{}.render_block(a, b, out);
 			auto simd_a = ramp(n);
-			SimdAdd{}.renderBlock(simd_a, b, simd_a);
+			SimdAdd{}.render_block(simd_a, b, simd_a);
 			expect(simd_a).to_equal(out);
 			auto simd_b = ramp(n);
-			SimdAdd{}.renderBlock(a, simd_b, simd_b);
+			SimdAdd{}.render_block(a, simd_b, simd_b);
 			expect(simd_b).to_equal(out);
 			auto scalar_a = ramp(n);
-			ScalarAdd{}.renderBlock(scalar_a, b, scalar_a);
+			ScalarAdd{}.render_block(scalar_a, b, scalar_a);
 			expect(scalar_a).to_equal(out);
 			auto scalar_b = ramp(n);
-			ScalarAdd{}.renderBlock(a, scalar_b, scalar_b);
+			ScalarAdd{}.render_block(a, scalar_b, scalar_b);
 			expect(scalar_b).to_equal(out);
 		}
 	});
@@ -222,11 +222,11 @@ describe component_framework("the component mixins, AsBlock and control_generato
 		for (std::size_t frames : {2u, 3u, 4u, 5u, 6u}) {
 			auto in = stereo_ramp(frames);
 			std::vector<StereoSample> out(frames);
-			ScalarStereoDouble{}.renderBlock(in, out);
+			ScalarStereoDouble{}.render_block(in, out);
 			auto simd = stereo_ramp(frames);
-			SimdStereoDouble{}.renderBlock(simd, simd);
+			SimdStereoDouble{}.render_block(simd, simd);
 			auto scalar = stereo_ramp(frames);
-			ScalarStereoDouble{}.renderBlock(scalar, scalar);
+			ScalarStereoDouble{}.render_block(scalar, scalar);
 			for (std::size_t i = 0; i < frames; i++) {
 				expect(simd[i].l).to_equal(out[i].l);
 				expect(simd[i].r).to_equal(out[i].r);
@@ -239,9 +239,9 @@ describe component_framework("the component mixins, AsBlock and control_generato
 		constexpr std::size_t lanes = Argon<q31>::lanes;
 		for (std::size_t n : {1u, 2u, 3u, 4u, 5u, 6u, 7u, 8u, 10u, 13u}) {
 			std::vector<q31> scalar(n, -1), simd(n, -1);
-			ScalarCount{}.renderBlock(scalar);
+			ScalarCount{}.render_block(scalar);
 			SimdCount generator;
-			generator.renderBlock(simd);
+			generator.render_block(simd);
 			expect(simd).to_equal(scalar);
 			expect(generator.calls).to_equal((n + lanes - 1) / lanes);
 		}
@@ -249,12 +249,12 @@ describe component_framework("the component mixins, AsBlock and control_generato
 	it("generates and mixes stereo on the interleaved SIMD path as on the scalar one, tails included", _ {
 		for (std::size_t frames : {1u, 2u, 3u, 4u, 5u, 6u, 9u, 10u}) {
 			std::vector<StereoSample> scalar(frames), simd(frames);
-			ScalarStereoCount{}.renderBlock(scalar);
-			SimdStereoCount{}.renderBlock(simd);
+			ScalarStereoCount{}.render_block(scalar);
+			SimdStereoCount{}.render_block(simd);
 			auto a = stereo_ramp(frames);
 			std::vector<StereoSample> scalar_mix(frames), simd_mix(frames);
-			ScalarStereoAdd{}.renderBlock(a, a, scalar_mix);
-			SimdStereoAdd{}.renderBlock(a, a, simd_mix);
+			ScalarStereoAdd{}.render_block(a, a, scalar_mix);
+			SimdStereoAdd{}.render_block(a, a, simd_mix);
 			for (std::size_t i = 0; i < frames; i++) {
 				expect(simd[i].l).to_equal(scalar[i].l);
 				expect(simd[i].r).to_equal(scalar[i].r);
@@ -269,10 +269,10 @@ describe component_framework("the component mixins, AsBlock and control_generato
 		for (std::size_t frames : {1u, 2u, 3u, 4u, 5u, 6u, 9u}) {
 			auto in = stereo_ramp(frames);
 			std::vector<StereoSample> scalar(frames), simd(frames);
-			ScalarLeftDouble{}.renderBlock(in, scalar);
-			SimdLeftDouble{}.renderBlock(in, simd);
+			ScalarLeftDouble{}.render_block(in, scalar);
+			SimdLeftDouble{}.render_block(in, simd);
 			auto inplace = stereo_ramp(frames);
-			SimdLeftDouble{}.renderBlock(inplace, inplace);
+			SimdLeftDouble{}.render_block(inplace, inplace);
 			for (std::size_t i = 0; i < frames; i++) {
 				const auto expected_l = 2 * static_cast<q31>(i + 1);
 				const auto expected_r = -static_cast<q31>(i + 1);
@@ -290,11 +290,11 @@ describe component_framework("the component mixins, AsBlock and control_generato
 			auto a = stereo_ramp(frames);
 			auto b = stereo_ramp(frames);
 			std::vector<StereoSample> out(frames);
-			ScalarStereoAdd{}.renderBlock(a, b, out);
+			ScalarStereoAdd{}.render_block(a, b, out);
 			auto simd_a = stereo_ramp(frames);
-			SimdStereoAdd{}.renderBlock(simd_a, b, simd_a);
+			SimdStereoAdd{}.render_block(simd_a, b, simd_a);
 			auto scalar_a = stereo_ramp(frames);
-			ScalarStereoAdd{}.renderBlock(scalar_a, b, scalar_a);
+			ScalarStereoAdd{}.render_block(scalar_a, b, scalar_a);
 			for (std::size_t i = 0; i < frames; i++) {
 				expect(simd_a[i].l).to_equal(out[i].l);
 				expect(simd_a[i].r).to_equal(out[i].r);
@@ -306,10 +306,10 @@ describe component_framework("the component mixins, AsBlock and control_generato
 	it("forwards through AsBlock unchanged", _ {
 		auto in = ramp(7);
 		std::vector<q31> direct(7), through(7);
-		SimdDouble{}.renderBlock(in, direct);
+		SimdDouble{}.render_block(in, direct);
 		AsBlock<SimdDouble> wrapped{SimdDouble{}};
 		BlockProcessor<q31>& selected = wrapped;
-		selected.renderBlock(in, through);
+		selected.render_block(in, through);
 		expect(through).to_equal(direct);
 	});
 	it("advances a control signal by the samples asked", _ {

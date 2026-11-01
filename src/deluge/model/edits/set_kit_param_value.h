@@ -1,7 +1,7 @@
 #pragma once
 
-#include "engine-api/types/param.h"
 #include "model/edits/edit.h"
+#include "plugin-api/types/param.h"
 
 #include <cstdint>
 
@@ -20,7 +20,7 @@ public:
 	/// @param clip_id    The clip whose rows' params are written.
 	/// @param id         The param, in the Deluge instrument's table.
 	/// @param value      The new value.
-	SetKitParamValue(uint32_t kit_output, uint32_t clip_id, engine::ParamId id, int32_t value)
+	SetKitParamValue(uint32_t kit_output, uint32_t clip_id, plugin::ParamId id, int32_t value)
 	    : kit_output_(kit_output), clip_id_(clip_id), id_(id), value_(value) {}
 
 	/// @copydoc Edit::apply
@@ -33,7 +33,7 @@ public:
 private:
 	uint32_t kit_output_;
 	uint32_t clip_id_;
-	engine::ParamId id_;
+	plugin::ParamId id_;
 	int32_t value_;
 	uint32_t drums_written_{0};
 };

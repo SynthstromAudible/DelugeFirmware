@@ -126,7 +126,7 @@ phase boundaries.
    > `{target, rate, curve, exit}` segments (trivially gives DAHDSR / looping /
    > custom curves). It does *not* fit today's envelope under the bit-exact
    > constraint — the stages have idiosyncratic, non-uniform math (attack
-   > `getDecay4` curve, decay layered over a smoothed sustain, the sustain
+   > `get_decay4` curve, decay layered over a smoothed sustain, the sustain
    > note-off handling, a release lookup table, a *sine*-shaped fast-release), so
    > a uniform segment model would be a pile of special cases and can't be
    > bit-exact. Revisit it with the float/curve-unification work, where
@@ -167,7 +167,9 @@ phase boundaries.
    or `model/` types (verified: includes are `modulation/` + `util/functions.h` only).
    ~12 call sites build the block (the proto-adapter), e.g.
    `patcher.performPatching(sourcesChanged, sound.patchControlBlock(*paramManager))`.
-   `getSmoothedPatchedParamValue` stays (it has non-patcher callers). Lazy
+   `getSmoothedPatchedParamValue` stays (it has non-patcher callers). (Current form, since mod-matrix M1: the block
+   holds copies — the clip's `synth::PatchRouting`, the preset values a `PresetGather` asks for and each routed cable's
+   depth — and the Patcher's per-cable arithmetic is `synth/modulation/cable_depth.h`.) Lazy
    `presetValue` keeps the per-voice hot path identical (the eager preset-value span is
    deferred to step 5). Bit-exact: x86 golden 333/333, ARM oracle 10/10 patching-stress
    cases. A `patcher_spec` is deferred — `PatchedParamSet`/`PatchCableSet` are still
@@ -186,10 +188,10 @@ phase boundaries.
    out of the POD. Pure structural move, bit-exact: x86 golden 333/333, ARM oracle
    10/10 broad spread; both host-sims build clean. (The eager preset-value span stays
    deferred — the lazy `ControlBlock::presetValue` is unchanged.)
-6. **Relocate to `src/deluge/synth/` + boundary lint — DONE (relocation + lint;
+6. **Relocate to `src/synth/` + boundary lint — DONE (relocation + lint;
    namespace deferred).** `git mv`'d the five components — `envelope.{h,cpp}`,
    `lfo.{h,cpp}`, `param_plane.h`, `patcher.{h,cpp}`, `control_block.h` — out of
-   `modulation/` into a new `src/deluge/synth/` (flat). Added
+   `modulation/` into a new `src/synth/` (flat). Added
    `scripts/check_synth_boundary.py` (mirrors `check_dsp_boundary.py` but ALLOWS
    `modulation/` + `util/` + `dsp-next/`; forbids the app layers model/processing/
    storage/gui/playback/hid/io, the legacy dsp/, and the HAL/BSP) + a shrink-only
@@ -233,7 +235,7 @@ reach ZERO `gui/`/`model/`/`processing/`/`storage/` headers.**
 
 - **gui/colour — CUT (`0c5b26bc`).** Extracted `util/param_functions.h` (the param-math
   cluster) out of the grab-bag `util/functions.h` (which pulls `gui/colour` for one
-  inline); `synth/patcher.cpp` includes the lean header.
+  inline); `synth/modulation/patcher.cpp` includes the lean header.
 - **storage — CUT (`ec536716`).** `auto_param.h` + `param_set.h` carried
   `storage/storage_manager.h` only for `Serializer`/`Deserializer` param types →
   forward-declared + moved the include to their `.cpp`s.
@@ -263,11 +265,12 @@ of the synth objects showed their only out-of-core link-deps were defs in gui-la
 into gui-free TUs (all bit-exact, x86 golden 333/333 + ARM oracle):
 - param-math defs (`getFinalParameterValue*`, `getExp`, `lookupReleaseRate`, `paramRanges`/`paramNeutralValues`,
   `getParamRange`/`getParamNeutralValue`, `functionsInit`) → new `util/param_functions.cpp` (the deferred
-  "A-full"); `increaseMagnitudeAndSaturate` → `param_functions.h`; `functions.h` re-exports.
+  "A-full"; the curves now live in `dsp-next/fixed/curves/param_curve.h`, and only the envelope case stays there); `increase_magnitude_and_saturate` → `param_functions.h`; `functions.h` re-exports.
 - the 3 l10n/iterance preset-table defs → new `util/lookuptables/preset_tables.cpp` (numeric `lookuptables.cpp`
   is now gui-free).
 - `PatchCableSet::getModifiedPatchCableAmount` (the patcher's one PatchCableSet runtime dep — self-contained:
-  cable value/source + math) → new `modulation/patch/patch_cable_set_amount.cpp`.
+  cable value/source + math) → new `modulation/patch/patch_cable_set_amount.cpp`; since mod-matrix M1 it is
+  `synth::modified_depth` (`synth/modulation/cable_depth.h`) and the TU is gone.
 
 Proven + guarded by **`synth_link_test`** (a CTest target): it links `synth/*.cpp` + ONLY those gui-free dep
 TUs + a stub main, with nothing from the app — a successful link (no undefined symbols, no
@@ -284,14 +287,14 @@ verbatim relocation — each arrived as a proper OO component in dsp-next's idio
 LUTs themselves stayed in `util/lookuptables`, which dsp-next is permitted to read — no risky table moves). Three
 bisectable commits, each x86 golden 333/333 + ARM/qemu oracle, both arches' dsp specs + `synth_link_test` green:
 - **Interpolation → `dsp-next/fixed/interpolation/table_interpolation.{h,cpp}`:** `LinearTableInterpolator`
-  (`interpolate`/`inverse`/`interpolateSigned`) + shared `inline constexpr linear_table_interpolator`, mirroring
+  (`interpolate`/`inverse`/`interpolate_signed`) + shared `inline constexpr kLinearTableInterpolator`, mirroring
   `WindowedSincKernel`; `getDecay4/8` alongside. The 7 unsigned-interp consumers repointed; `util/interpolation.*`
   deleted.
 - **LFO square/triangle → the dsp-next wave kernels** (`deluge::dsp::fixed::square` / `triangle_full`, the latter
   added beside the half-scale `triangle`). `util/waves.h`'s now-dead `getSquare`/`getTriangle*` dropped.
-- **Scalar sine → `dsp-next/fixed/osc/sine_table.h`** (`SineTable` evaluator + `sine_table` instance) and
+- **Scalar sine → `dsp-next/fixed/osc/sine_table.h`** (`SineTable` evaluator + `kSineTable` instance) and
   **`CrudeSine`** completing the crude-osc family. The LFO/envelope/sync-seam/GUI eval-at-a-phase consumers call
-  `sine_table.value()`; `getSine` dropped from `util/waves.h` (`interpolateTableSigned` stays — sample/timestretch/
+  `kSineTable.value()`; `getSine` dropped from `util/waves.h` (`interpolateTableSigned` stays — sample/timestretch/
   filter still use it). The vector FM `sine` stays distinct; unifying the two sines is the deferred audible pass.
 
 ---

@@ -9,9 +9,8 @@ enum class Polarity : uint8_t;
 
 namespace deluge::edits {
 
-/// @brief Set an existing patch cable's polarity, in the engine and the record.
-///
-/// Not an undo step: legacy's polarity switch logs nothing, so an undo after a flip leaves the cable flipped.
+/// @brief Set an existing patch cable's polarity: a mod matrix edit on its clip's cable records, recorded into the open
+/// Action so it undoes, as the menu's polarity switch does.
 class SetCablePolarity final : public Edit {
 public:
 	/// @param cable    The cable's depth address on a synth or a sound drum (with its clip).

@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "util/fixedpoint.h" // clz
+#include "dsp-next/core/q31_ops.h" // clz
 
 #include <cstdint>
 

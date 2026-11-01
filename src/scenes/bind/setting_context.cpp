@@ -4,10 +4,10 @@
 
 namespace deluge::scenes::bind {
 
-engine::SettingContext setting_context(const project::Song& /*model*/, project::SlotAddress slot,
+plugin::SettingContext setting_context(const project::Song& /*model*/, project::SlotAddress slot,
                                        const RuntimeFacts& facts) {
-	using Owner = engine::SettingContext::Owner;
-	using Instrument = engine::SettingContext::Instrument;
+	using Owner = plugin::SettingContext::Owner;
+	using Instrument = plugin::SettingContext::Instrument;
 	const bool lane = slot.kind == project::SlotAddress::Kind::DRUM;
 	return {.owner = lane ? Owner::KIT_LANE : Owner::TRACK,
 	        .instrument = lane ? Instrument::SOUND_DRUM : Instrument::SYNTH,
@@ -15,9 +15,9 @@ engine::SettingContext setting_context(const project::Song& /*model*/, project::
 	        .loaded_sources = facts.loaded_sources(slot)};
 }
 
-engine::SettingContext setting_context(project::ChainAddress /*chain*/, ChainOwner owner) {
-	using Owner = engine::SettingContext::Owner;
-	using Instrument = engine::SettingContext::Instrument;
+plugin::SettingContext setting_context(project::ChainAddress /*chain*/, ChainOwner owner) {
+	using Owner = plugin::SettingContext::Owner;
+	using Instrument = plugin::SettingContext::Instrument;
 	switch (owner) {
 	case ChainOwner::KIT:
 		return {.owner = Owner::KIT, .instrument = Instrument::KIT};
@@ -29,13 +29,13 @@ engine::SettingContext setting_context(project::ChainAddress /*chain*/, ChainOwn
 	return {.owner = Owner::SONG, .instrument = Instrument::NONE};
 }
 
-engine::SettingContext setting_context(const project::Song& model, const project::SettingAddress& address,
-                                       engine::SettingContext::Instrument instrument, const RuntimeFacts& facts) {
-	using Owner = engine::SettingContext::Owner;
-	using Instrument = engine::SettingContext::Instrument;
+plugin::SettingContext setting_context(const project::Song& model, const project::SettingAddress& address,
+                                       plugin::SettingContext::Instrument instrument, const RuntimeFacts& facts) {
+	using Owner = plugin::SettingContext::Owner;
+	using Instrument = plugin::SettingContext::Instrument;
 	using project::SettingGroupId;
 	// A kit lane is played by its drum, which its record names.
-	const auto lane_of = [&](uint32_t drum_id) -> engine::SettingContext {
+	const auto lane_of = [&](uint32_t drum_id) -> plugin::SettingContext {
 		const project::DocDrum* drum = model.drum_structure.find(drum_id);
 		const project::DrumType type = drum != nullptr ? drum->drum_type : project::DrumType::SOUND;
 		return {.owner = Owner::KIT_LANE,
@@ -43,7 +43,7 @@ engine::SettingContext setting_context(const project::Song& model, const project
 		                      : type == project::DrumType::GATE ? Instrument::GATE_DRUM
 		                                                        : Instrument::SOUND_DRUM};
 	};
-	engine::SettingContext context{.owner = Owner::CLIP, .instrument = instrument};
+	plugin::SettingContext context{.owner = Owner::CLIP, .instrument = instrument};
 	switch (address.group) {
 	case SettingGroupId::SONG:
 		context = {.owner = Owner::SONG, .instrument = Instrument::NONE};

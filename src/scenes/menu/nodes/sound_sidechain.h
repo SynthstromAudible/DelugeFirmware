@@ -41,7 +41,7 @@
 #include "scenes/menu/nodes/sound_osc.h"    // kPending
 #include "scenes/menu/relevance.h"
 
-#include "engine-api/types/sync.h"
+#include "plugin-api/types/sync.h"
 
 #include <cstdint>
 #include <span>
@@ -61,7 +61,7 @@ int32_t sidechain_attack_to_menu(int32_t attack);
 int32_t sidechain_attack_from_menu(int32_t menu_value);
 int32_t sidechain_release_to_menu(int32_t release);
 int32_t sidechain_release_from_menu(int32_t menu_value);
-int32_t sidechain_sync_to_menu(deluge::engine::SyncType type, deluge::engine::SyncLevel level);
+int32_t sidechain_sync_to_menu(deluge::plugin::SyncType type, deluge::plugin::SyncLevel level);
 /// @}
 
 /// @brief `SyncLevel::size()` for both sidechains -- `sidechain::Sync::size()` (`sidechain/sync.h:33`).

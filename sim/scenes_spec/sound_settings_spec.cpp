@@ -10,10 +10,10 @@
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/nodes.h"
 
-#include "engine-api/types/setting.h"
-#include "engines/deluge/settings.h"
+#include "instruments/deluge/settings.h"
 #include "model/edits/setting_edit.h"
 #include "model/instrument/kit.h"
+#include "plugin-api/types/setting.h"
 #include "processing/sound/sound_drum.h"
 
 #include "support/menu_engine.h"
@@ -85,7 +85,7 @@ std::string disagreements(const Node& node, MenuContext ctx) {
 	if (range.min != shown->least || range.max != shown->greatest) {
 		found += path + " range ";
 	}
-	const deluge::engine::SettingInfo& row = *deluge::engine::find_setting(deluge::instrument::kSettings, path);
+	const deluge::plugin::SettingInfo& row = *deluge::plugin::find_setting(deluge::instrument::kSettings, path);
 	const std::array<int32_t, 3> probes{shown->least, shown->greatest,
 	                                    shown->least + (shown->greatest - shown->least) / 2};
 	bind::RecordingSink recorded;
@@ -97,7 +97,7 @@ std::string disagreements(const Node& node, MenuContext ctx) {
 		}
 		recorded.requests.clear();
 		bindings::write(node, recording, v);
-		if (recorded.requests.size() != 1 || !deluge::engine::from_menu(row, recorded.requests[0].menu_value)) {
+		if (recorded.requests.size() != 1 || !deluge::plugin::from_menu(row, recorded.requests[0].menu_value)) {
 			found += path + " request(" + std::to_string(v) + ") ";
 		}
 	}
@@ -123,15 +123,15 @@ describe sound_settings_targets("the sound's instrument settings on targets", ${
 		std::vector<std::string> invalid;
 		for (const Node* node : target_nodes(std::nullopt)) {
 			for (const auto& condition : node->bind.target.fan_out_when) {
-				if (!deluge::engine::condition_is_valid(deluge::instrument::kSettings, condition)) {
+				if (!deluge::plugin::condition_is_valid(deluge::instrument::kSettings, condition)) {
 					invalid.emplace_back(node->bind.target.path);
 				}
 			}
 		}
 		expect(invalid).to_equal(std::vector<std::string>{});
 		constexpr std::array<int32_t, 1> poly{1};
-		expect(deluge::engine::condition_is_valid(deluge::instrument::kSettings,
-		                                          deluge::engine::setting_is("polyphonc", poly)))
+		expect(deluge::plugin::condition_is_valid(deluge::instrument::kSettings,
+		                                          deluge::plugin::setting_is("polyphonc", poly)))
 		    .to_be_false();
 	});
 

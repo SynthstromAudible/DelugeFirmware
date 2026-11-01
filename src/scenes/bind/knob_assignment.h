@@ -2,7 +2,7 @@
 
 #include "deluge-project/param_address.h"
 #include "deluge-project/song.h"
-#include "engine-api/types/param_kind.h"
+#include "plugin-api/types/param_kind.h"
 #include "scenes/bind/knob_focus.h"
 
 #include <cstdint>
@@ -22,7 +22,7 @@ struct CompArm {
 struct KnobAssignment {
 	std::variant<std::monostate, project::ParamAddress, CompArm> target;
 	/// The param's kind, as the popup and the knob's range read it.
-	engine::ParamKind kind{engine::ParamKind::NONE};
+	plugin::ParamKind kind{plugin::ParamKind::NONE};
 };
 
 /// @brief What knob @p knob (0 the lower, 1 the upper) of @p focus moves, from the song's records: the mode, a sound's

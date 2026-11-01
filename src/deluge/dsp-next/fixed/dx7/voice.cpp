@@ -38,6 +38,6 @@
 
 namespace deluge::dsp::fixed::dx7 {
 
-template class Voice<CongNoise>;
+template class Voice<>;
 
 } // namespace deluge::dsp::fixed::dx7

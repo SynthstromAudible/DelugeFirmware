@@ -1,6 +1,6 @@
 #include "codec_support.h"
 #include "deluge-project/structure_codec.h"
-#include "instrument_test_engines.h"
+#include "instrument_test_plugins.h"
 #include "serialization/parse_xml.h"
 
 #include <cppspec.hpp>
@@ -47,9 +47,9 @@ describe structure_codec("the structure records", ${
 
 	it("round-trips an audio clip, its sample positions as the int32 the file holds", _ {
 		DocAudioClip a{.file_path = "SAMPLES/A \"b\".WAV", .start_pos = 10, .end_pos = 0x90000000u, .transpose = -3,
-		               .cents = 7, .interpolation_mode = deluge::engine::InterpolationMode::LINEAR,
+		               .cents = 7, .interpolation_mode = deluge::plugin::InterpolationMode::LINEAR,
 		               .pitch_and_speed_independent = false, .reversed = true, .attack = 5,
-		               .voice_priority = deluge::engine::VoicePriority::HIGH, .overdubs_should_clone = false};
+		               .voice_priority = deluge::plugin::VoicePriority::HIGH, .overdubs_should_clone = false};
 		DocAudioClip back;
 		(void)decode(encode(a), back);
 		expect(back.end_pos).to_equal(uint64_t{0xFFFFFFFF90000000}); // sign-extended, as the reader does
@@ -118,7 +118,7 @@ describe structure_codec("the structure records", ${
 	it("hands a synth track's element to its instrument, which writes back its settings and not the model's keys", _ {
 		auto doc = deluge::serialization::parseXml(R"(<sound id="3" presetName="Bass" colour="5" polyphonic="poly")"
 		                                           R"( mode="fm"><osc1 type="sine"/><unison num="1"/></sound>)");
-		const deluge::engine::StateHandle state = test::test_instrument_codec().decode(*doc->find("sound"), 2);
+		const deluge::plugin::StateHandle state = test::test_instrument_codec().decode(*doc->find("sound"), 2);
 		expect(state.as<deluge::instrument::DelugeInstrument>()->synth_mode == deluge::instrument::SynthMode::FM)
 		    .to_be_true();
 		deluge::serialization::Value written = deluge::serialization::Value::makeMap();
@@ -133,7 +133,7 @@ describe structure_codec("the structure records", ${
 		auto doc = deluge::serialization::parseXml(
 		    R"(<sound id="9" name="KICK" mode="subtractive"><osc1 type="sample"/><arpeggiator arpMode="arp"/>)"
 		    R"(<midiMuteCommand channel="2" note="40"/><midiInput channel="3" note="36"/></sound>)");
-		const deluge::engine::StateHandle state = test::test_instrument_codec().decode(*doc->find("sound"), 3);
+		const deluge::plugin::StateHandle state = test::test_instrument_codec().decode(*doc->find("sound"), 3);
 		deluge::serialization::Value written = deluge::serialization::Value::makeMap();
 		test::test_instrument_codec().encode(state, written, 3);
 		expect(written.find("osc1")).not_().to_be_null();

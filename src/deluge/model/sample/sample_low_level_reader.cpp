@@ -17,17 +17,17 @@
 
 #include "model/sample/sample_low_level_reader.h"
 #include "definitions_cxx.hpp"
+#include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/fixed/interpolation/interpolator.h"
-#include "dsp/stereo_sample.h"
 #include "dsp/timestretch/time_stretcher.h"
 #include "harness/streaming_underrun.h"
 #include "hid/display/display.h"
 #include "io/debug/log.h"
 #include "libdeluge/sample_source.h"
 #include "model/sample/sample.h"
-#include "model/voice/voice.h"
 #include "model/voice/voice_sample_playback_guide.h"
 #include "storage/cluster/cluster.h"
+#include "util/functions.h"
 
 SampleLowLevelReader::~SampleLowLevelReader() {
 	unassignAllReasons(false);
@@ -469,10 +469,10 @@ bool SampleLowLevelReader::moveOnToNextCluster(SamplePlaybackGuide* guide, Sampl
 		// sustained-streaming underrun path, complementing `VoiceSample::stopReadingFromCache`'s
 		// sibling site (which only fires for repitch-cache playback): most voices never use that
 		// cache, so without this site the harness's counters stayed at zero even under genuinely
-		// SD-latency-starved sustained streaming. The caller (`VoiceSample::render` ->
-		// `Voice::render`) treats this `false` return as an instant voice unassign (`goto
-		// instantUnassign`), the same severity as the cache-stop site, just reached from the far
-		// more common code path. Fires on the port's NotReady.
+		// SD-latency-starved sustained streaming. The caller (`VoiceSample::render` -> the voice's
+		// render) treats this `false` return as unassigning that unison part at once, the same
+		// severity as the cache-stop site, just reached from the far more common code path. Fires on the port's
+		// NotReady.
 		deluge::harness::noteUnderrunUnassign();
 #endif
 		return false;
@@ -980,16 +980,16 @@ doZeroes:
 
 void SampleLowLevelReader::bufferIndividualSampleForInterpolation(int32_t numChannels, int32_t byteDepth,
                                                                   char* __restrict__ playPosNow) {
-	interpolator_.pushL(*(int16_t*)(playPosNow + 2));
+	interpolator_.push_l(*(int16_t*)(playPosNow + 2));
 	if (numChannels == 2) {
-		interpolator_.pushR(*(int16_t*)(playPosNow + 2 + byteDepth));
+		interpolator_.push_r(*(int16_t*)(playPosNow + 2 + byteDepth));
 	}
 }
 
 void SampleLowLevelReader::bufferZeroForInterpolation(int32_t numChannels) {
-	interpolator_.pushL(0);
+	interpolator_.push_l(0);
 	if (numChannels == 2) {
-		interpolator_.pushR(0);
+		interpolator_.push_r(0);
 	}
 	currentPlayPos++;
 }
@@ -1053,8 +1053,8 @@ void SampleLowLevelReader::jumpForwardLinear(int32_t numChannels, int32_t byteDe
 	}
 }
 
-constexpr static size_t numBitsInTableSize = 8;
-constexpr static size_t rshiftAmount = ((24 + kInterpolationMaxNumSamplesMagnitude) - 16 - numBitsInTableSize + 1);
+constexpr static size_t kNumBitsInTableSize = 8;
+constexpr static size_t kRshiftAmount = ((24 + kInterpolationMaxNumSamplesMagnitude) - 16 - kNumBitsInTableSize + 1);
 
 // This stuff is in its own function here rather than in Voice because for some reason it's faster
 void SampleLowLevelReader::readSamplesResampled(int32_t** __restrict__ oscBufferPos, int32_t numSamplesTotal,
@@ -1106,7 +1106,7 @@ void SampleLowLevelReader::readSamplesResampled(int32_t** __restrict__ oscBuffer
 
 					int16_t sourceL = *(int16_t*)currentPlayPosNow;
 
-					interpolator_.jumpForward(numSamplesToJumpForward);
+					interpolator_.jump_forward(numSamplesToJumpForward);
 					numSamplesToJumpForward--;
 
 					if (numChannels == 2) {
@@ -1198,7 +1198,7 @@ skipFirstSmooth:
 			}
 
 skipFirstLinear:
-			auto sampleRead = interpolator_.interpolateLinear(numChannels, oscPos);
+			auto sampleRead = interpolator_.interpolate_linear(numChannels, oscPos);
 
 			int32_t existingValueL = *oscBufferPosNow;
 

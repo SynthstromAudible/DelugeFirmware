@@ -26,9 +26,8 @@ namespace deluge::dsp::fixed {
 /// oscillators. Pure functions of phase, owning no phase/frequency (the generator owns those).
 ///
 /// These are the canonical analytic waves for the whole synth: the crude (non-band-limited)
-/// oscillators wrap them, and the control-rate @ref LFO evaluates them per block. They live here,
-/// snake_case, so the oscillator library is self-contained rather than reaching up into the app's
-/// @c util/waves.h. Two triangle scales exist deliberately — the canonical full-scale @ref triangle (like
+/// oscillators wrap them, and the control-rate @ref LFO evaluates them per block. Two triangle scales exist
+/// deliberately — the canonical full-scale @ref triangle (like
 /// @ref square) and the half-scale @ref triangle_half_scale the crude-triangle VCA needs.
 
 /// @brief Square wave: full-scale, switching at the pulse-width threshold.

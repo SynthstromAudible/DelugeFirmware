@@ -1,6 +1,6 @@
-#include "engines/deluge/cables.h"
-#include "engines/deluge/params.h"
-#include "engines/global_effectable/params.h"
+#include "effects/global_effectable/params.h"
+#include "instruments/deluge/cables.h"
+#include "instruments/deluge/params.h"
 #include "scenes/bind/dispatch.h"
 #include "scenes/bind/param_display.h"
 #include "scenes/bind/target.h"
@@ -11,7 +11,7 @@
 #include <limits>
 
 using namespace deluge::scenes::bind;
-using deluge::engine::ParamDisplay;
+using deluge::plugin::MappingKind;
 using deluge::project::OwnerId;
 using deluge::project::ParamAddress;
 using namespace deluge::scenes::bind::test;
@@ -22,9 +22,9 @@ constexpr int32_t kMin = std::numeric_limits<int32_t>::min();
 constexpr int32_t kMax = std::numeric_limits<int32_t>::max();
 
 constexpr std::array<int32_t, 1> kFm{1}; // SynthMode::FM, as the "mode" row stores it
-constexpr std::array kOnFm{deluge::engine::setting_is("mode", kFm)};
+constexpr std::array kOnFm{deluge::plugin::setting_is("mode", kFm)};
 constexpr std::array<int32_t, 1> kLpfOff{5}; // "Off" in the "lpfMode" row
-constexpr std::array kLpfOn{deluge::engine::setting_is_not("lpfMode", kLpfOff)};
+constexpr std::array kLpfOn{deluge::plugin::setting_is_not("lpfMode", kLpfOff)};
 
 constexpr Target kSoundLpf{.kind = Target::Kind::PARAM, .param = deluge::instrument::param::kLpfFrequency};
 constexpr Target kChainLpf{.kind = Target::Kind::PARAM,
@@ -55,26 +55,26 @@ const Addresses kOnSong{.chain = kMasterChain, .chain_owner = ChainOwner::SONG};
 // clang-format off
 describe bind_param("a param target", ${
 	it("converts each display's stored words and menu values as legacy's value scaling does", _ {
-		expect(menu_of(ParamDisplay::STANDARD, kMin)).to_equal(0);
-		expect(menu_of(ParamDisplay::STANDARD, 0)).to_equal(25);
-		expect(menu_of(ParamDisplay::STANDARD, kMax)).to_equal(50);
-		expect(stored_of(ParamDisplay::STANDARD, 0)).to_equal(kMin);
-		expect(stored_of(ParamDisplay::STANDARD, 25)).to_equal(-23);
-		expect(stored_of(ParamDisplay::STANDARD, 50)).to_equal(kMax);
-		expect(menu_of(ParamDisplay::HALF_PRECISION, 0)).to_equal(0);
-		expect(menu_of(ParamDisplay::HALF_PRECISION, kMax)).to_equal(50);
-		expect(stored_of(ParamDisplay::HALF_PRECISION, 0)).to_equal(0);
-		expect(stored_of(ParamDisplay::HALF_PRECISION, 25)).to_equal(1073741812);
-		expect(stored_of(ParamDisplay::HALF_PRECISION, 50)).to_equal(kMax);
-		expect(menu_of(ParamDisplay::PAN, kMin)).to_equal(-25);
-		expect(menu_of(ParamDisplay::PAN, 0)).to_equal(0);
-		expect(menu_of(ParamDisplay::PAN, kMax)).to_equal(25);
-		expect(stored_of(ParamDisplay::PAN, -25)).to_equal(kMin);
-		expect(stored_of(ParamDisplay::PAN, 10)).to_equal(858993440);
-		expect(stored_of(ParamDisplay::PAN, 25)).to_equal(kMax);
-		expect(menu_range(ParamDisplay::STANDARD)).to_equal(std::pair{0, 50});
-		expect(menu_range(ParamDisplay::HALF_PRECISION)).to_equal(std::pair{0, 50});
-		expect(menu_range(ParamDisplay::PAN)).to_equal(std::pair{-25, 25});
+		expect(menu_of(MappingKind::STANDARD, kMin)).to_equal(0);
+		expect(menu_of(MappingKind::STANDARD, 0)).to_equal(25);
+		expect(menu_of(MappingKind::STANDARD, kMax)).to_equal(50);
+		expect(stored_of(MappingKind::STANDARD, 0)).to_equal(kMin);
+		expect(stored_of(MappingKind::STANDARD, 25)).to_equal(-23);
+		expect(stored_of(MappingKind::STANDARD, 50)).to_equal(kMax);
+		expect(menu_of(MappingKind::UNIPOLAR, 0)).to_equal(0);
+		expect(menu_of(MappingKind::UNIPOLAR, kMax)).to_equal(50);
+		expect(stored_of(MappingKind::UNIPOLAR, 0)).to_equal(0);
+		expect(stored_of(MappingKind::UNIPOLAR, 25)).to_equal(1073741812);
+		expect(stored_of(MappingKind::UNIPOLAR, 50)).to_equal(kMax);
+		expect(menu_of(MappingKind::PAN, kMin)).to_equal(-25);
+		expect(menu_of(MappingKind::PAN, 0)).to_equal(0);
+		expect(menu_of(MappingKind::PAN, kMax)).to_equal(25);
+		expect(stored_of(MappingKind::PAN, -25)).to_equal(kMin);
+		expect(stored_of(MappingKind::PAN, 10)).to_equal(858993440);
+		expect(stored_of(MappingKind::PAN, 25)).to_equal(kMax);
+		expect(menu_range(MappingKind::STANDARD)).to_equal(std::pair{0, 50});
+		expect(menu_range(MappingKind::UNIPOLAR)).to_equal(std::pair{0, 50});
+		expect(menu_range(MappingKind::PAN)).to_equal(std::pair{-25, 25});
 	});
 
 	it("addresses the param on the owner each root names", _ {
@@ -113,7 +113,7 @@ describe bind_param("a param target", ${
 	});
 
 	it("addresses a cable on a sound's slot and nowhere on a chain", _ {
-		constexpr deluge::engine::ParamId depth{deluge::instrument::kCableDepthFlag | 24u | (1u << 8)};
+		constexpr deluge::plugin::ParamId depth{deluge::instrument::kCableDepthFlag | 24u | (1u << 8)};
 		const Target cable{.kind = Target::Kind::CABLE, .param = depth};
 		const auto on_synth = param_address(cable, kOnSynth);
 		expect(on_synth.has_value() && on_synth->id == depth
@@ -138,8 +138,8 @@ describe bind_param("a param target", ${
 		expect(lpf.has_value() && lpf->value == 0).to_be_true();
 		// A param the runtime does not hold shows the value a new owner starts with.
 		const auto unheld = view(kSoundLpf, f.song, kOnSynth, f.facts);
-		const auto* lpf_row = deluge::engine::find_param(deluge::instrument::kParams, kSoundLpf.param);
-		expect(unheld.has_value() && unheld->value == menu_of(lpf_row->display, lpf_row->default_value)).to_be_true();
+		const auto* lpf_row = deluge::plugin::find_param(deluge::instrument::kParams, kSoundLpf.param);
+		expect(unheld.has_value() && unheld->value == menu_of(lpf_row->mapping, lpf_row->default_value)).to_be_true();
 	});
 
 	it("applies where its conditions hold over the owner's rows, and where its partner shows", _ {

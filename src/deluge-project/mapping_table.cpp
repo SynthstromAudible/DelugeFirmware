@@ -26,7 +26,7 @@ namespace {
 constexpr uint8_t kPitchBend = 128;
 
 bool is_output_param(const MappingTarget& target, uint32_t output_id) {
-	const auto* param = std::get_if<ParamTarget>(&target);
+	const auto* param = std::get_if<OwnerParamTarget>(&target);
 	return param != nullptr && param->owner.kind == ControlsAddress::Kind::OUTPUT && param->owner.id == output_id;
 }
 
@@ -36,7 +36,7 @@ bool belongs_to_output(const MappingTarget& target, uint32_t output_id) {
 }
 
 bool belongs_to_drum(const MappingTarget& target, uint32_t drum_id) {
-	if (const auto* param = std::get_if<ParamTarget>(&target)) {
+	if (const auto* param = std::get_if<OwnerParamTarget>(&target)) {
 		return param->owner.kind == ControlsAddress::Kind::DRUM && param->owner.id == drum_id;
 	}
 	if (const auto* mute = std::get_if<DrumMuteTarget>(&target)) {
@@ -49,14 +49,14 @@ bool belongs_to_drum(const MappingTarget& target, uint32_t drum_id) {
 }
 
 bool is_param_of(const MappingTarget& target, ControlsAddress owner) {
-	const auto* param = std::get_if<ParamTarget>(&target);
+	const auto* param = std::get_if<OwnerParamTarget>(&target);
 	return param != nullptr && param->owner == owner;
 }
 
 } // namespace
 
 Mapping& MappingTable::learn(Mapping mapping) {
-	const bool is_param = std::holds_alternative<ParamTarget>(mapping.target);
+	const bool is_param = std::holds_alternative<OwnerParamTarget>(mapping.target);
 	if (is_param) {
 		mapping.relative = mapping.source.note_or_cc != kPitchBend;
 	}
@@ -73,7 +73,7 @@ Mapping& MappingTable::learn(Mapping mapping) {
 Mapping& MappingTable::relearn(const MidiCommand& old_source, Mapping mapping) {
 	auto old = std::ranges::find_if(
 	    entries_, [&](const Mapping& entry) { return entry.target == mapping.target && entry.source == old_source; });
-	if (old == entries_.end() || !std::holds_alternative<ParamTarget>(mapping.target)) {
+	if (old == entries_.end() || !std::holds_alternative<OwnerParamTarget>(mapping.target)) {
 		return learn(std::move(mapping));
 	}
 	mapping.relative = mapping.source.note_or_cc != kPitchBend;
@@ -110,7 +110,7 @@ void MappingTable::retarget_output(uint32_t from, uint32_t to) {
 	forget_output(to);
 	for (Mapping& entry : entries_) {
 		if (is_output_param(entry.target, from)) {
-			std::get<ParamTarget>(entry.target).owner.id = to;
+			std::get<OwnerParamTarget>(entry.target).owner.id = to;
 		}
 		else if (auto* input = std::get_if<TrackInputTarget>(&entry.target);
 		         input != nullptr && input->output_id == from) {
@@ -128,7 +128,7 @@ void MappingTable::copy_params(uint32_t from, uint32_t to) {
 	for (size_t i = 0; i < count; i++) {
 		if (is_output_param(entries_[i].target, from)) {
 			Mapping copy = entries_[i];
-			std::get<ParamTarget>(copy.target).owner.id = to;
+			std::get<OwnerParamTarget>(copy.target).owner.id = to;
 			entries_.push_back(std::move(copy));
 		}
 	}
@@ -167,7 +167,7 @@ std::vector<Mapping> MappingTable::params_of(ControlsAddress owner) const {
 }
 
 void MappingTable::set_relative(size_t index, bool relative) {
-	if (index < entries_.size() && std::holds_alternative<ParamTarget>(entries_[index].target)) {
+	if (index < entries_.size() && std::holds_alternative<OwnerParamTarget>(entries_[index].target)) {
 		entries_[index].relative = relative;
 	}
 }

@@ -97,7 +97,7 @@ public:
 
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
 	                                                int32_t paramID, deluge::modulation::params::Kind paramKind,
-	                                                bool affectEntire, bool useMenuStack) override;
+	                                                bool affectEntire, bool useMenuStack, bool forEdit) override;
 
 private:
 	void possiblyRefreshAutomationEditorGrid(int32_t ccNumber);

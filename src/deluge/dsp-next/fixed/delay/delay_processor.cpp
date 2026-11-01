@@ -22,7 +22,7 @@ namespace deluge::dsp::fixed {
 namespace {
 
 /// @brief The block's result, read from the kernel's State and cleared there for the next block.
-DelayBlockResult takeResult(Delay::State& s) {
+DelayBlockResult take_result(Delay::State& s) {
 	const DelayBlockResult result{.wrapped = s.wrapped, .secondary_written = s.secondary_written};
 	s.wrapped = false;
 	s.secondary_written = 0;
@@ -41,11 +41,11 @@ DelayBlockResult DelayProcessor::process(std::span<StereoSample> block, DelayTap
 	                  .render_in_stereo = settings.render_in_stereo,
 	                  .primary = primary,
 	                  .secondary = secondary});
-	delay_.renderBlock(block, block);
-	return delay_.on<&takeResult>();
+	delay_.render_block(block, block);
+	return delay_.on<&take_result>();
 }
 
-void DelayProcessor::resetHighPass() {
+void DelayProcessor::reset_high_pass() {
 	delay_.on<&Delay::reset_high_pass>();
 }
 

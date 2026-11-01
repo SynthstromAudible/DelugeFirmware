@@ -9,11 +9,11 @@
 #include "scenes/menu/bind_host.h"
 
 #include "deluge-project/param_address.h"
-#include "engines/deluge/params.h"
-#include "engines/global_effectable/params.h"
+#include "effects/global_effectable/params.h"
 #include "gui/ui/ui.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
+#include "instruments/deluge/params.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_follow.h"
 #include "model/action/action.h"
@@ -24,6 +24,7 @@
 #include "model/edits/set_param_value.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
+#include "model/project_bridge/param_ids.h"
 #include "model/project_bridge/param_stack.h"
 #include "model/project_bridge/patch_cable_words.h"
 #include "model/song/song.h"
@@ -101,8 +102,12 @@ std::optional<uint32_t> feedback_stamp(spec::SongFixture& synth, const std::func
 	currentSong = synth.song;
 	view.setActiveModControllableTimelineCounter(synth.clip, false);
 	currentSong = saved_song;
-	const int32_t cc = midiFollow.getCCFromParam(deluge::modulation::params::Kind::PATCHED,
-	                                             deluge::modulation::params::LOCAL_LPF_FREQ);
+	const std::optional<deluge::project::ParamTarget> target =
+	    deluge::bridge::targetOf(deluge::bridge::OwnerPlugin::INSTRUMENT, deluge::modulation::params::Kind::PATCHED,
+	                             deluge::modulation::params::LOCAL_LPF_FREQ);
+	const std::optional<uint8_t> follows =
+	    target ? midiFollow.ccOf(deluge::bridge::OwnerPlugin::INSTRUMENT, *target) : std::nullopt;
+	const int32_t cc = follows ? *follows : MIDI_CC_NONE;
 	const uint32_t timer = AudioEngine::audioSampleTimer;
 	AudioEngine::audioSampleTimer = 987654;
 	if (cc != MIDI_CC_NONE) {
@@ -119,17 +124,15 @@ std::optional<uint32_t> feedback_stamp(spec::SongFixture& synth, const std::func
 
 /// @p synth's cable from @p source to @p destination as a CABLE target.
 Target cable_target(PatchSource source, int32_t destination) {
-	ParamDescriptor descriptor;
-	descriptor.setToHaveParamOnly(destination);
+	deluge::synth::CableTarget descriptor = deluge::synth::CableTarget::param(destination);
 	return {.kind = Target::Kind::CABLE, .param = deluge::bridge::cable_depth(source, descriptor)};
 }
 
 /// The engine's cable from @p source to @p destination on @p synth, or null.
 PatchCable* engine_cable(const spec::SongFixture& synth, PatchSource source, int32_t destination) {
 	PatchCableSet& set = *synth.clip->paramManager.getPatchCableSet();
-	ParamDescriptor descriptor;
-	descriptor.setToHaveParamOnly(destination);
-	const uint8_t index = set.getPatchCableIndex(source, descriptor, nullptr, false);
+	deluge::synth::CableTarget descriptor = deluge::synth::CableTarget::param(destination);
+	const uint8_t index = set.getPatchCableIndex(source, descriptor);
 	return index == 255 ? nullptr : &set.patchCables[index];
 }
 
@@ -287,13 +290,12 @@ describe param_sink("a param menu's writes and reads through the app", ${
 		                                     .param_value = 0x01000000});
 		const bind::RuntimeFacts& facts = menu::host_runtime_facts();
 		const auto first = facts.cables(synth_lpf(a));
-		std::vector<deluge::engine::ParamId> held;
+		std::vector<deluge::plugin::ParamId> held;
 		for (const bind::CableFact& cable : first) {
 			held.push_back(cable.depth);
 		}
 		currentSong = b.song;
-		ParamDescriptor other;
-		other.setToHaveParamOnly(deluge::modulation::params::LOCAL_HPF_RESONANCE);
+		deluge::synth::CableTarget other = deluge::synth::CableTarget::param(deluge::modulation::params::LOCAL_HPF_RESONANCE);
 		(void)menu::host_write_sink().write({.target = cable_target(PatchSource::RANDOM,
 		                                                            deluge::modulation::params::LOCAL_HPF_RESONANCE),
 		                                     .where = on_synth(b),

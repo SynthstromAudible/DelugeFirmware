@@ -1,6 +1,6 @@
-#include "engine-api/types/setting.h"
-#include "engines/deluge/codec.h"
-#include "engines/deluge/settings.h"
+#include "instruments/deluge/codec.h"
+#include "instruments/deluge/settings.h"
+#include "plugin-api/types/setting.h"
 #include "scenes/bind/setting_context.h"
 #include "scenes/bind/slot_reader.h"
 #include "support/model_fixture.h"
@@ -9,8 +9,8 @@
 #include <string>
 
 using namespace deluge::scenes::bind;
-using deluge::engine::SettingContext;
-using deluge::engine::SettingKind;
+using deluge::plugin::SettingContext;
+using deluge::plugin::SettingKind;
 using deluge::scenes::bind::test::kDrum;
 using deluge::scenes::bind::test::kSynth;
 using deluge::scenes::bind::test::ModelFixture;
@@ -22,7 +22,7 @@ std::string reads_unlike_state(const ModelFixture& fixture, deluge::project::Slo
 	const SlotReader reader{fixture.song, slot, fixture.facts};
 	const deluge::instrument::SoundState& state = fixture.facts.states.at(slot.id);
 	std::string unlike;
-	for (const deluge::engine::SettingInfo& row : deluge::instrument::kSettings) {
+	for (const deluge::plugin::SettingInfo& row : deluge::instrument::kSettings) {
 		if (row.kind == SettingKind::STRUCTURED || row.kind == SettingKind::TEXT) {
 			continue;
 		}
@@ -50,7 +50,7 @@ describe bind_reader("a sound's settings read through its slot's address", ${
 		deluge::instrument::SoundState state = fixture.facts.states.at(kSynth.id);
 		state.polyphonic = deluge::instrument::PolyphonyMode::MONO;
 		state.num_unison = 4;
-		state.lfo_sync_level[0] = deluge::engine::SyncLevel{5};
+		state.lfo_sync_level[0] = deluge::plugin::SyncLevel{5};
 		state.synth_mode = deluge::instrument::SynthMode::FM;
 		state.sources[0].osc_type = deluge::instrument::OscType::SAW;
 		fixture.set_state(kSynth, state);
@@ -64,7 +64,7 @@ describe bind_reader("a sound's settings read through its slot's address", ${
 		for (const deluge::project::SlotAddress slot : {kSynth, kDrum}) {
 			const SlotReader reader{fixture.song, slot, fixture.facts};
 			std::string missing;
-			for (const deluge::engine::SettingInfo& row : deluge::instrument::kSettings) {
+			for (const deluge::plugin::SettingInfo& row : deluge::instrument::kSettings) {
 				if (row.kind != SettingKind::STRUCTURED && row.kind != SettingKind::TEXT && !reader.read(row.path)) {
 					missing += std::string(row.path) + " ";
 				}
@@ -100,7 +100,7 @@ describe bind_reader("a sound's settings read through its slot's address", ${
 		expect(lane.owner == SettingContext::Owner::KIT_LANE).to_be_true();
 		expect(lane.instrument == SettingContext::Instrument::SOUND_DRUM).to_be_true();
 		expect(static_cast<int32_t>(lane.loaded_sources)).to_equal(0b10);
-		expect(deluge::engine::context_is_coherent(synth) && deluge::engine::context_is_coherent(lane)).to_be_true();
+		expect(deluge::plugin::context_is_coherent(synth) && deluge::plugin::context_is_coherent(lane)).to_be_true();
 		expect(fixture.facts.asked.size()).to_equal(2u);
 	});
 });

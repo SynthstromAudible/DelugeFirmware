@@ -1,6 +1,6 @@
 #include "model/edits/set_kit_setting.h"
 
-#include "engines/deluge/settings.h"
+#include "instruments/deluge/settings.h"
 #include "model/drum/drum.h"
 #include "model/edits/set_engine_setting.h"
 #include "model/instrument/kit.h"
@@ -16,7 +16,7 @@ namespace {
 
 /// Whether @p rule holds for @p sound, read in its context as a kit row: the host contract's KIT_LANE playing a
 /// SOUND_DRUM, its own sources and the plugged inputs.
-bool ruleHolds(std::span<const deluge::engine::SettingCondition> rule, ::Sound& sound) {
+bool ruleHolds(std::span<const deluge::plugin::SettingCondition> rule, ::Sound& sound) {
 	if (rule.empty()) {
 		return true;
 	}
@@ -26,19 +26,19 @@ bool ruleHolds(std::span<const deluge::engine::SettingCondition> rule, ::Sound& 
 			loaded |= static_cast<uint8_t>(1u << s);
 		}
 	}
-	const deluge::engine::SettingContext context{.owner = deluge::engine::SettingContext::Owner::KIT_LANE,
-	                                             .instrument = deluge::engine::SettingContext::Instrument::SOUND_DRUM,
+	const deluge::plugin::SettingContext context{.owner = deluge::plugin::SettingContext::Owner::KIT_LANE,
+	                                             .instrument = deluge::plugin::SettingContext::Instrument::SOUND_DRUM,
 	                                             .audio_inputs_present =
 	                                                 AudioEngine::micPluggedIn || AudioEngine::lineInPluggedIn,
 	                                             .loaded_sources = loaded};
-	const deluge::engine::SettingReader reader{.read =
+	const deluge::plugin::SettingReader reader{.read =
 	                                               [](const void* self, std::string_view path) {
 		                                               return deluge::instrument::held_setting(
 		                                                   *static_cast<const deluge::instrument::SoundState*>(self),
 		                                                   path);
 	                                               },
 	                                           .self = sound.boundState()};
-	return deluge::engine::conditions_hold(rule, context, reader);
+	return deluge::plugin::conditions_hold(rule, context, reader);
 }
 
 } // namespace

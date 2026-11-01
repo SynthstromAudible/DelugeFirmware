@@ -41,4 +41,7 @@ inline constexpr std::size_t kSpareRenderingRows = 4;
 /// SSI_TX_BUFFER_NUM_SAMPLES frames each for the fades and for the parallel route's copy.
 [[nodiscard]] dsp::fixed::FilterScratch filter_scratch();
 
+/// @brief The hard-sync scratch the voice's sources and the ring-mod engine share: one block of int32s plus 4.
+[[nodiscard]] std::span<int32_t> osc_sync_scratch();
+
 } // namespace deluge::render

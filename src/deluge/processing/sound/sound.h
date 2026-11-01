@@ -21,7 +21,6 @@
 #include "libdeluge/system.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/sample/sample_recorder.h"
-#include "model/snapshot/sound_snapshot.h"
 #include "model/voiced.h"
 #include "modulation/arpeggiator.h"
 #include "modulation/knob.h"
@@ -31,10 +30,14 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/source.h"
 #include "serialization/value.h"
-#include "synth/lfo.h"
-#include "synth/param_plane.h"
-#include "synth/patcher.h"
+#include "synth/matrix/evaluator.h"
+#include "synth/matrix/matrix_block.h"
+#include "synth/modulation/lfo.h"
+#include "synth/modulation/param_plane.h"
+#include "synth/modulation/patch_routing.h" // GLOBALITY_*
+#include "synth/voice/sound_snapshot.h"
 #include "util/misc.h"
+#include <atomic>
 #include <bitset>
 #include <memory>
 
@@ -47,7 +50,7 @@ namespace deluge::project {
 struct ArpRecord;
 }
 
-class Voice;
+class VoiceSlot;
 class Kit;
 class ParamManagerForTimeline;
 class TimelineCounter;
@@ -57,8 +60,8 @@ class ModelStackWithThreeMainThings;
 class ModelStackWithSoundFlags;
 class ModelStackWithModControllable;
 
-#include "engines/deluge/sound_state.h"
-#include "engines/effects/sound_chain.h"
+#include "effects/sound_chain.h"
+#include "instruments/deluge/sound_state.h"
 #include <optional>
 #include <utility>
 
@@ -83,10 +86,15 @@ struct ParamLPF {
  * Drum - one of the many items in a Kit, normally associated with a row of notes.
  */
 
-/// The default volume every Sound gets from Sound::initParams(), as a user value (0-50).
-constexpr int32_t kDefaultSoundVolumeUserValue = 40;
 /// The depth of the VELOCITY -> LOCAL_VOLUME patch cable that Sound::setupAsSample() installs, as a user value.
 constexpr int32_t kSampleDrumVelocityCableUserValue = 50;
+
+/// @brief A cable depth from a preset number: 50 is a depth of 1 (Q30: 2^30 is 1), less the truncation of its step.
+/// @param number The preset number, −50..50.
+/// @return The cable's depth word.
+[[nodiscard]] constexpr int32_t cableDepthFromPreset(int32_t number) {
+	return number * 21474836;
+}
 
 class Sound : public ModControllableAudio, public virtual Voiced {
 public:
@@ -109,7 +117,7 @@ public:
 
 	/// @brief How many Sounds have been destroyed while they still had live voices, since boot.
 	/// @note A destruction that finds live voices does not survive itself: once this body returns, the voices_
-	///       member's destructor recycles each voice, and ~Voice unassigns it back into this Sound, whose
+	///       member's destructor recycles each voice, and ~VoiceSlot unassigns it back into this Sound, whose
 	///       reassessRenderSkippingStatus() then calls the pure virtual getArpSettings(). The count is taken first.
 	/// @return The running count of such destructions since boot.
 	static int32_t soundsDestroyedWithLiveVoices();
@@ -160,14 +168,19 @@ public:
 	/// at bind / doneReadingFromFile / after edits; the render reads it (getTranspose() etc.).
 	///
 	/// Always present: unbound sounds (no state_) write it directly, so the render never needs a null fallback.
-	deluge::snapshot::SoundSnapshot snapshot_{};
+	deluge::synth::SoundSnapshot snapshot_{};
 	/// @brief Re-derive snapshot_ from state_ (no-op when unbound).
 	void projectSnapshot();
 	/// @brief The derived read-view of the hot render fields.
 	/// @return The snapshot.
-	[[nodiscard]] const deluge::snapshot::SoundSnapshot& snapshot() const { return snapshot_; }
+	[[nodiscard]] const deluge::synth::SoundSnapshot& snapshot() const { return snapshot_; }
 
-	Patcher patcher;
+	/// @brief The sound's own patching pass over its param plane: the global params from the global sources.
+	[[nodiscard]] deluge::synth::matrix::ScopePass matrixPass() {
+		return {.scope = GLOBALITY_GLOBAL, .sources = params.source_values, .final_values = params.param_final_values};
+	}
+	/// @brief A note's first patching of the sound's own params, from every source.
+	void performInitialPatching(const deluge::synth::matrix::MatrixBlock& block);
 
 	ParamLPF paramLPF{};
 
@@ -177,7 +190,10 @@ public:
 	// subtract that from your p value before indexing it; params.sourceValues holds only the global sources.
 	GlobalParams params;
 
-	uint32_t sourcesChanged{}; // Applies from first source up to FIRST_UNCHANGEABLE_SOURCE
+	/// The sources whose values changed since the sound's render last read them, one bit each up to
+	/// FIRST_UNCHANGEABLE_SOURCE. The render and param edits mark bits; the render clears only the bits its sound
+	/// pass read, so a bit marked while it renders is read by the next block rather than lost.
+	std::atomic<uint32_t> sourcesChanged{};
 
 	LFO globalLFO1;
 	LFO globalLFO3;
@@ -210,7 +226,7 @@ public:
 	/// @brief Set the voice priority.
 	///
 	/// Voice priority is owned by the record (`state_->voice_priority`; seeded at bind, written here, read at save). It
-	/// is read per render block in Voice::getPriorityRating(), so render reads a hot derived cache instead.
+	/// is read per render block in the voices' priority ratings, so render reads a hot derived cache instead.
 	/// @param value New priority.
 	void setVoicePriority(VoicePriority value);
 
@@ -286,7 +302,7 @@ public:
 
 	int8_t getKnobPos(uint8_t p, ParamManagerForTimeline* paramManager, uint32_t timePos, TimelineCounter* counter);
 	int32_t getKnobPosBig(int32_t p, ParamManagerForTimeline* paramManager, uint32_t timePos, TimelineCounter* counter);
-	bool learnKnob(MIDICable* cable, ParamDescriptor paramDescriptor, uint8_t whichKnob, uint8_t modKnobMode,
+	bool learnKnob(MIDICable* cable, deluge::modulation::KnobTarget target, uint8_t whichKnob, uint8_t modKnobMode,
 	               uint8_t midiChannel, Song* song) final;
 
 	bool hasFilters();
@@ -330,7 +346,7 @@ public:
 	int16_t getMaxOscTranspose(InstrumentClip* clip);
 	int16_t getMinOscTranspose();
 	void setSynthMode(SynthMode value, Song* song);
-	[[nodiscard]] SynthMode getSynthMode() const { return snapshot_.synthMode; }
+	[[nodiscard]] SynthMode getSynthMode() const { return snapshot_.synth_mode; }
 	// Store the synth mode (bound: record, then reproject; unbound: the snapshot) without setSynthMode()'s gesture side
 	// effects (voice kill, mod-knob and filter swaps) — for the load path.
 	void assignSynthMode(SynthMode value);
@@ -367,7 +383,7 @@ public:
 	bool hasCutModeSamples(ParamManagerForTimeline* paramManager);
 	bool allowsVeryLateNoteStart(InstrumentClip* clip, ParamManagerForTimeline* paramManager);
 	void fastReleaseAllVoices(ModelStackWithSoundFlags* modelStack);
-	void recalculatePatchingToParam(uint8_t p, ParamManagerForTimeline* paramManager);
+	void recalculatePatchingToParam(uint8_t p, ParamManager* paramManager);
 	void doneReadingFromFile();
 	/// @brief Re-read the record from the runtime, every field a bound sound's record holds, as binding seeds it; then
 	/// reproject the snapshot. Does nothing when unbound.
@@ -378,7 +394,7 @@ public:
 	virtual void setupPatchingForAllParamManagers(Song* song) {}
 	// void channelAftertouchReceivedFromInputMIDIChannel(int32_t newValue);
 	ModelStackWithAutoParam* getParamFromModEncoder(int32_t whichModEncoder, ModelStackWithThreeMainThings* modelStack,
-	                                                bool allowCreation = true,
+	                                                bool allowCreation,
 	                                                const deluge::project::CompView& comp = {}) final;
 	void reassessRenderSkippingStatus(ModelStackWithSoundFlags* modelStack, bool shouldJustCutModFX = false);
 	void getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb,
@@ -395,11 +411,15 @@ public:
 		return paramManager.getPatchedParamSet()->getValue(p);
 	}
 
-	// Snapshot the per-block inputs the Patcher reads from ParamManager-world into a ControlBlock, so the
-	// patcher needs no Sound&/ParamManager&. presetValue() on the result mirrors getSmoothedPatchedParamValue.
-	ControlBlock patchControlBlock(ParamManager& paramManager) const {
-		return {paramManager.getPatchedParamSet(), paramManager.getPatchCableSet(), paramLPF.p, paramLPF.currentValue};
-	}
+	/// @brief Which preset values a MatrixBlock gathers: the routed destinations' (the per-block patching reads only
+	/// those) or every param's (the initial patching and a recalculation of a param with no cables).
+	enum class PresetGather : uint8_t { ROUTED, ALL };
+
+	/// @brief Gather what the matrix reads beside its program into a MatrixBlock, as copies: the program, the preset
+	/// values
+	/// @p gather asks for (the smoothed one for the param being smoothed, as getSmoothedPatchedParamValue gives) and
+	/// each routed cable's depth.
+	deluge::synth::matrix::MatrixBlock matrixBlock(ParamManager& paramManager, PresetGather gather) const;
 
 	void notifyValueChangeViaLPF(int32_t p, bool shouldDoParamLPF, ModelStackWithThreeMainThings const* modelStack,
 	                             int32_t oldValue, int32_t newValue, bool fromAutomation);
@@ -472,7 +492,7 @@ private:
 	void pushSwitchActionOnEncoderForParam(int32_t p, bool on, ModelStackWithThreeMainThings* modelStack);
 	ModelStackWithAutoParam* getParamFromModEncoderDeeper(int32_t whichModEncoder,
 	                                                      ModelStackWithThreeMainThings* modelStack,
-	                                                      bool allowCreation = true);
+	                                                      bool allowCreation);
 
 	/// @brief The sound's effects after its voices; outlives voices_, whose teardown reads its delay.
 	deluge::effects::SoundChain chain_;

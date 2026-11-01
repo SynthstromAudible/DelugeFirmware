@@ -2,6 +2,7 @@
 // stuttering while held and ending on release or on leaving the view, and the gold knob's popup suppressed for the
 // param the view already shows.
 
+#include "effects/global_effectable/params.h"
 #include "gui/ui/ui.h"
 #include "gui/views/performance_view.h"
 #include "gui/views/view.h"
@@ -121,8 +122,7 @@ describe performance_view_knobs("the performance view's FX columns, on the song"
 	it("takes over the gold knob's popup for the param it shows, and only that one", _ {
 		PerformanceRig rig;
 		performanceView.lastPadPress.isActive = true;
-		performanceView.lastPadPress.paramKind = params::Kind::UNPATCHED_GLOBAL;
-		performanceView.lastPadPress.paramID = params::UNPATCHED_LPF_FREQ;
+		performanceView.lastPadPress.param = deluge::global_effectable::param::kLpfFrequency;
 		expect(performanceView.possiblyRefreshPerformanceViewDisplay(params::Kind::UNPATCHED_GLOBAL,
 		                                                             params::UNPATCHED_LPF_FREQ, 10))
 		    .to_be_true();

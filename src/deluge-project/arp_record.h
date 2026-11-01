@@ -7,7 +7,7 @@
 /// is the engine's, saved beside these fields. The host values are held only where they are settings (a MIDI or CV
 /// clip, a MIDI or gate kit row); on a sound they are params, and the record leaves them absent.
 
-#include "engine-api/types/arp.h"
+#include "plugin-api/types/arp.h"
 
 #include <array>
 #include <cstddef>
@@ -21,7 +21,7 @@ namespace deluge::project {
 struct ArpRecord {
 	/// @name Settings every arp has
 	/// @{
-	uint8_t mode{engine::kArpModeOff}; ///< `arpMode`, an index of kArpModeWords
+	uint8_t mode{plugin::kArpModeOff}; ///< `arpMode`, an index of kArpModeWords
 	uint8_t octave_mode{0};            ///< `octaveMode`, an index of kArpOctaveModeWords
 	uint8_t note_mode{0};              ///< `noteMode`, an index of kArpNoteModeWords
 	uint8_t mpe_velocity{0};           ///< `mpeVelocity`, an index of kArpMpeVelocityWords
@@ -39,20 +39,20 @@ struct ArpRecord {
 	/// host_value and set_host_value.
 	/// @{
 	uint16_t host_held{0};                                          ///< bit i: the record holds host value i
-	std::array<int32_t, engine::kArpHostRows.size()> host_values{}; ///< 0 where not held
+	std::array<int32_t, plugin::kArpHostRows.size()> host_values{}; ///< 0 where not held
 	/// @}
 
 	bool operator==(const ArpRecord&) const = default;
 };
 
-static_assert(engine::kArpHostRows.size() <= 16, "ArpRecord::host_held has a bit per host value");
+static_assert(plugin::kArpHostRows.size() <= 16, "ArpRecord::host_held has a bit per host value");
 
 /// @brief The index of host value @p path among kArpHostRows.
 /// @param path A path of kArpHostRows.
 /// @return Its index, or nullopt for a path that is not a host row.
 [[nodiscard]] constexpr std::optional<size_t> host_index(std::string_view path) {
-	for (size_t i = 0; i < engine::kArpHostRows.size(); ++i) {
-		if (engine::kArpHostRows[i].path == path) {
+	for (size_t i = 0; i < plugin::kArpHostRows.size(); ++i) {
+		if (plugin::kArpHostRows[i].path == path) {
 			return i;
 		}
 	}
@@ -140,7 +140,7 @@ template <typename Record>
 /// @param record The arp's record.
 /// @return The preset's value, an index of kArpPresetWords.
 [[nodiscard]] constexpr uint8_t preset_of(const ArpRecord& record) {
-	return engine::arp_preset_of(record.mode, record.octave_mode, record.note_mode);
+	return plugin::arp_preset_of(record.mode, record.octave_mode, record.note_mode);
 }
 
 } // namespace deluge::project

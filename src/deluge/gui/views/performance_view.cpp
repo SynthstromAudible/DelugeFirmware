@@ -17,6 +17,7 @@
 
 #include "gui/views/performance_view.h"
 #include "definitions_cxx.hpp"
+#include "effects/global_effectable/params.h"
 #include "gui/colour/colour.h"
 #include "gui/colour/palette.h"
 #include "gui/context_menu/clip_settings/launch_style.h"
@@ -144,103 +145,110 @@ using namespace deluge::modulation::params;
 // Performance View constants
 constexpr int32_t kNumParamsForPerformance = 20;
 
-// list of parameters available for assignment to FX columns in performance view
-constexpr std::array<ParamsForPerformance, kNumParamsForPerformance> songParamsForPerformance = {{
-    {Kind::UNPATCHED_GLOBAL, UNPATCHED_LPF_FREQ, 8, 7, colours::red, colours::red.forTail()},
-    {Kind::UNPATCHED_GLOBAL, UNPATCHED_LPF_RES, 8, 6, colours::red, colours::red.forTail()},
-    {Kind::UNPATCHED_GLOBAL, UNPATCHED_LPF_MORPH, 8, 4, colours::red, colours::red.forTail()},
-    {Kind::UNPATCHED_GLOBAL, UNPATCHED_HPF_FREQ, 9, 7, colours::pastel::orange, colours::pastel::orangeTail},
-    {Kind::UNPATCHED_GLOBAL, UNPATCHED_HPF_RES, 9, 6, colours::pastel::orange, colours::pastel::orangeTail},
-    {Kind::UNPATCHED_GLOBAL, UNPATCHED_HPF_MORPH, 9, 4, colours::pastel::orange, colours::pastel::orangeTail},
+namespace {
 
-    {Kind::UNPATCHED_GLOBAL, UNPATCHED_BASS, 10, 6, colours::pastel::yellow, colours::pastel::yellow.forTail()},
-    {Kind::UNPATCHED_GLOBAL, UNPATCHED_TREBLE, 11, 6, colours::pastel::yellow, colours::pastel::yellow.forTail()},
-    {Kind::UNPATCHED_GLOBAL, UNPATCHED_BASS_FREQ, 10, 7, colours::pastel::yellow, colours::pastel::yellow.forTail()},
-    {Kind::UNPATCHED_GLOBAL, UNPATCHED_TREBLE_FREQ, 11, 7, colours::pastel::yellow, colours::pastel::yellow.forTail()},
-    {Kind::UNPATCHED_GLOBAL, UNPATCHED_REVERB_SEND_AMOUNT, 13, 3, colours::pastel::green,
-     colours::pastel::green.forTail()},
-    {Kind::UNPATCHED_GLOBAL, UNPATCHED_DELAY_AMOUNT, 14, 3, colours::pastel::blue, colours::pastel::blue.forTail()},
-    {Kind::UNPATCHED_GLOBAL, UNPATCHED_DELAY_RATE, 14, 0, colours::pastel::blue, colours::pastel::blue.forTail()},
-    {Kind::UNPATCHED_GLOBAL, UNPATCHED_MOD_FX_RATE, 12, 7, colours::pastel::pink, colours::pastel::pinkTail},
-    {Kind::UNPATCHED_GLOBAL, UNPATCHED_MOD_FX_DEPTH, 12, 6, colours::pastel::pink, colours::pastel::pinkTail},
-    {Kind::UNPATCHED_GLOBAL, UNPATCHED_MOD_FX_FEEDBACK, 12, 5, colours::pastel::pink, colours::pastel::pinkTail},
-    {Kind::UNPATCHED_GLOBAL, UNPATCHED_MOD_FX_OFFSET, 12, 4, colours::pastel::pink, colours::pastel::pinkTail},
-    {Kind::UNPATCHED_GLOBAL, UNPATCHED_SAMPLE_RATE_REDUCTION, 6, 5, colours::magenta, colours::magenta.forTail()},
-    {Kind::UNPATCHED_GLOBAL, UNPATCHED_BITCRUSHING, 6, 6, colours::magenta, colours::magenta.forTail()},
-    {Kind::UNPATCHED_GLOBAL, UNPATCHED_STUTTER_RATE, 5, 7, colours::blue, colours::blue.forTail()},
+/// The runtime kind of a performance param: a global effectable's unpatched params, or none.
+params::Kind kindOf(const std::optional<deluge::plugin::ParamId>& param) {
+	return param ? params::Kind::UNPATCHED_GLOBAL : params::Kind::NONE;
+}
+
+/// The runtime index of a performance param in a global effectable's unpatched set, or kNoParamID.
+int32_t indexOf(const std::optional<deluge::plugin::ParamId>& param) {
+	return param ? static_cast<int32_t>(*deluge::global_effectable::runtime_index(*param))
+	             : static_cast<int32_t>(kNoParamID);
+}
+
+/// The performance param a runtime (kind, index) names, if it is a global effectable's.
+std::optional<deluge::plugin::ParamId> paramOf(params::Kind kind, int32_t index) {
+	std::optional<deluge::project::ParamTarget> target =
+	    deluge::bridge::targetOf(deluge::bridge::OwnerPlugin::GLOBAL_EFFECTABLE, kind, index);
+	return target ? std::optional{target->id} : std::nullopt;
+}
+
+} // namespace
+
+// list of parameters available for assignment to FX columns in performance view
+namespace gp = deluge::global_effectable::param;
+constexpr std::array<ParamsForPerformance, kNumParamsForPerformance> songParamsForPerformance = {{
+    {gp::kLpfFrequency, 8, 7, colours::red, colours::red.forTail()},
+    {gp::kLpfResonance, 8, 6, colours::red, colours::red.forTail()},
+    {gp::kLpfMorph, 8, 4, colours::red, colours::red.forTail()},
+    {gp::kHpfFrequency, 9, 7, colours::pastel::orange, colours::pastel::orangeTail},
+    {gp::kHpfResonance, 9, 6, colours::pastel::orange, colours::pastel::orangeTail},
+    {gp::kHpfMorph, 9, 4, colours::pastel::orange, colours::pastel::orangeTail},
+
+    {gp::kBass, 10, 6, colours::pastel::yellow, colours::pastel::yellow.forTail()},
+    {gp::kTreble, 11, 6, colours::pastel::yellow, colours::pastel::yellow.forTail()},
+    {gp::kBassFreq, 10, 7, colours::pastel::yellow, colours::pastel::yellow.forTail()},
+    {gp::kTrebleFreq, 11, 7, colours::pastel::yellow, colours::pastel::yellow.forTail()},
+    {gp::kReverbAmount, 13, 3, colours::pastel::green, colours::pastel::green.forTail()},
+    {gp::kDelayFeedback, 14, 3, colours::pastel::blue, colours::pastel::blue.forTail()},
+    {gp::kDelayRate, 14, 0, colours::pastel::blue, colours::pastel::blue.forTail()},
+    {gp::kModFXRate, 12, 7, colours::pastel::pink, colours::pastel::pinkTail},
+    {gp::kModFXDepth, 12, 6, colours::pastel::pink, colours::pastel::pinkTail},
+    {gp::kModFXFeedback, 12, 5, colours::pastel::pink, colours::pastel::pinkTail},
+    {gp::kModFXOffset, 12, 4, colours::pastel::pink, colours::pastel::pinkTail},
+    {gp::kSampleRateReduction, 6, 5, colours::magenta, colours::magenta.forTail()},
+    {gp::kBitcrushAmount, 6, 6, colours::magenta, colours::magenta.forTail()},
+    {gp::kStutterRate, 5, 7, colours::blue, colours::blue.forTail()},
 }};
 
 constexpr std::array<ParamsForPerformance, kDisplayWidth> defaultLayoutForPerformance = {{
-    {Kind::UNPATCHED_GLOBAL, UNPATCHED_LPF_FREQ, 8, 7, colours::red, colours::red.forTail()},
-    {Kind::UNPATCHED_GLOBAL, UNPATCHED_LPF_RES, 8, 6, colours::red, colours::red.forTail()},
-    {Kind::UNPATCHED_GLOBAL, UNPATCHED_HPF_FREQ, 9, 7, colours::pastel::orange, colours::pastel::orangeTail},
-    {Kind::UNPATCHED_GLOBAL, UNPATCHED_HPF_RES, 9, 6, colours::pastel::orange, colours::pastel::orangeTail},
-    {Kind::UNPATCHED_GLOBAL, UNPATCHED_BASS, 10, 6, colours::pastel::yellow, colours::pastel::yellow.forTail()},
-    {Kind::UNPATCHED_GLOBAL, UNPATCHED_TREBLE, 11, 6, colours::pastel::yellow, colours::pastel::yellow.forTail()},
-    {Kind::UNPATCHED_GLOBAL, UNPATCHED_REVERB_SEND_AMOUNT, 13, 3, colours::pastel::green,
-     colours::pastel::green.forTail()},
-    {Kind::UNPATCHED_GLOBAL, UNPATCHED_DELAY_AMOUNT, 14, 3, colours::pastel::blue, colours::pastel::blue.forTail()},
-    {Kind::UNPATCHED_GLOBAL, UNPATCHED_DELAY_RATE, 14, 0, colours::pastel::blue, colours::pastel::blue.forTail()},
-    {Kind::UNPATCHED_GLOBAL, UNPATCHED_MOD_FX_RATE, 12, 7, colours::pastel::pink, colours::pastel::pinkTail},
-    {Kind::UNPATCHED_GLOBAL, UNPATCHED_MOD_FX_DEPTH, 12, 6, colours::pastel::pink, colours::pastel::pinkTail},
-    {Kind::UNPATCHED_GLOBAL, UNPATCHED_MOD_FX_FEEDBACK, 12, 5, colours::pastel::pink, colours::pastel::pinkTail},
-    {Kind::UNPATCHED_GLOBAL, UNPATCHED_MOD_FX_OFFSET, 12, 4, colours::pastel::pink, colours::pastel::pinkTail},
-    {Kind::UNPATCHED_GLOBAL, UNPATCHED_SAMPLE_RATE_REDUCTION, 6, 5, colours::magenta, colours::magenta.forTail()},
-    {Kind::UNPATCHED_GLOBAL, UNPATCHED_BITCRUSHING, 6, 6, colours::magenta, colours::magenta.forTail()},
-    {Kind::UNPATCHED_GLOBAL, UNPATCHED_STUTTER_RATE, 5, 7, colours::blue, colours::blue.forTail()},
+    {gp::kLpfFrequency, 8, 7, colours::red, colours::red.forTail()},
+    {gp::kLpfResonance, 8, 6, colours::red, colours::red.forTail()},
+    {gp::kHpfFrequency, 9, 7, colours::pastel::orange, colours::pastel::orangeTail},
+    {gp::kHpfResonance, 9, 6, colours::pastel::orange, colours::pastel::orangeTail},
+    {gp::kBass, 10, 6, colours::pastel::yellow, colours::pastel::yellow.forTail()},
+    {gp::kTreble, 11, 6, colours::pastel::yellow, colours::pastel::yellow.forTail()},
+    {gp::kReverbAmount, 13, 3, colours::pastel::green, colours::pastel::green.forTail()},
+    {gp::kDelayFeedback, 14, 3, colours::pastel::blue, colours::pastel::blue.forTail()},
+    {gp::kDelayRate, 14, 0, colours::pastel::blue, colours::pastel::blue.forTail()},
+    {gp::kModFXRate, 12, 7, colours::pastel::pink, colours::pastel::pinkTail},
+    {gp::kModFXDepth, 12, 6, colours::pastel::pink, colours::pastel::pinkTail},
+    {gp::kModFXFeedback, 12, 5, colours::pastel::pink, colours::pastel::pinkTail},
+    {gp::kModFXOffset, 12, 4, colours::pastel::pink, colours::pastel::pinkTail},
+    {gp::kSampleRateReduction, 6, 5, colours::magenta, colours::magenta.forTail()},
+    {gp::kBitcrushAmount, 6, 6, colours::magenta, colours::magenta.forTail()},
+    {gp::kStutterRate, 5, 7, colours::blue, colours::blue.forTail()},
 }};
 
-// mapping shortcuts to paramKind
-constexpr Kind paramKindShortcutsForPerformanceView[kDisplayWidth][kDisplayHeight] = {
-    {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE},
-    {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE},
-    {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE},
-    {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE},
-    {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE},
-    {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::UNPATCHED_GLOBAL},
-    {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::UNPATCHED_GLOBAL, Kind::UNPATCHED_GLOBAL,
-     Kind::NONE},
-    {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE},
-    {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::UNPATCHED_GLOBAL, Kind::NONE, Kind::UNPATCHED_GLOBAL,
-     Kind::UNPATCHED_GLOBAL},
-    {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::UNPATCHED_GLOBAL, Kind::NONE, Kind::UNPATCHED_GLOBAL,
-     Kind::UNPATCHED_GLOBAL},
-    {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::UNPATCHED_GLOBAL,
-     Kind::UNPATCHED_GLOBAL},
-    {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::UNPATCHED_GLOBAL,
-     Kind::UNPATCHED_GLOBAL},
-    {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::UNPATCHED_GLOBAL, Kind::UNPATCHED_GLOBAL,
-     Kind::UNPATCHED_GLOBAL, Kind::UNPATCHED_GLOBAL},
-    {Kind::NONE, Kind::NONE, Kind::NONE, Kind::UNPATCHED_GLOBAL, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE},
-    {Kind::UNPATCHED_GLOBAL, Kind::NONE, Kind::NONE, Kind::UNPATCHED_GLOBAL, Kind::NONE, Kind::NONE, Kind::NONE,
-     Kind::NONE},
-    {Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE, Kind::NONE},
-};
+// the param shortcut at each pad, a global effectable's
+// clang-format off
+constexpr std::array<std::array<std::optional<deluge::plugin::ParamId>, kDisplayHeight>, kDisplayWidth>
+    kPerformanceShortcuts = [] {
+	namespace gp = deluge::global_effectable::param;
+	return std::array<std::array<std::optional<deluge::plugin::ParamId>, kDisplayHeight>, kDisplayWidth>{{
+    {{std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt}},
+    {{std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt}},
+    {{std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt}},
+    {{std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt}},
+    {{std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt}},
+    {{std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, gp::kStutterRate}},
+    {{std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, gp::kSampleRateReduction, gp::kBitcrushAmount, std::nullopt}},
+    {{std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt}},
+    {{std::nullopt, std::nullopt, std::nullopt, std::nullopt, gp::kLpfMorph, std::nullopt, gp::kLpfResonance, gp::kLpfFrequency}},
+    {{std::nullopt, std::nullopt, std::nullopt, std::nullopt, gp::kHpfMorph, std::nullopt, gp::kHpfResonance, gp::kHpfFrequency}},
+    {{std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, gp::kBass, gp::kBassFreq}},
+    {{std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, gp::kTreble, gp::kTrebleFreq}},
+    {{std::nullopt, std::nullopt, std::nullopt, std::nullopt, gp::kModFXOffset, gp::kModFXFeedback, gp::kModFXDepth, gp::kModFXRate}},
+    {{std::nullopt, std::nullopt, std::nullopt, gp::kReverbAmount, std::nullopt, std::nullopt, std::nullopt, std::nullopt}},
+    {{gp::kDelayRate, std::nullopt, std::nullopt, gp::kDelayFeedback, std::nullopt, std::nullopt, std::nullopt, std::nullopt}},
+    {{std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt, std::nullopt}},
+	}};
+}();
+// clang-format on
 
-// mapping shortcuts to paramID
-constexpr uint32_t paramIDShortcutsForPerformanceView[kDisplayWidth][kDisplayHeight] = {
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, UNPATCHED_STUTTER_RATE},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, UNPATCHED_SAMPLE_RATE_REDUCTION, UNPATCHED_BITCRUSHING,
-     kNoParamID},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, UNPATCHED_LPF_MORPH, kNoParamID, UNPATCHED_LPF_RES,
-     UNPATCHED_LPF_FREQ},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, UNPATCHED_HPF_MORPH, kNoParamID, UNPATCHED_HPF_RES,
-     UNPATCHED_HPF_FREQ},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, UNPATCHED_BASS, UNPATCHED_BASS_FREQ},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, UNPATCHED_TREBLE, UNPATCHED_TREBLE_FREQ},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, UNPATCHED_MOD_FX_OFFSET, UNPATCHED_MOD_FX_FEEDBACK,
-     UNPATCHED_MOD_FX_DEPTH, UNPATCHED_MOD_FX_RATE},
-    {kNoParamID, kNoParamID, kNoParamID, UNPATCHED_REVERB_SEND_AMOUNT, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
-    {UNPATCHED_DELAY_RATE, kNoParamID, kNoParamID, UNPATCHED_DELAY_AMOUNT, kNoParamID, kNoParamID, kNoParamID,
-     kNoParamID},
-    {kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID, kNoParamID},
-};
+std::span<const ParamsForPerformance> performanceSongParams() {
+	return songParamsForPerformance;
+}
+
+std::span<const ParamsForPerformance> performanceDefaultLayout() {
+	return defaultLayoutForPerformance;
+}
+
+std::optional<deluge::plugin::ParamId> performanceShortcut(int32_t x, int32_t y) {
+	return kPerformanceShortcuts[x][y];
+}
 
 // lookup tables for the values that are set when you press the pads in each row of the grid
 const int32_t nonDelayPadPressValues[kDisplayHeight] = {0, 18, 37, 55, 73, 91, 110, 128};
@@ -295,8 +303,7 @@ void PerformanceView::initPadPress(PadPress& padPress) {
 	padPress.isActive = false;
 	padPress.xDisplay = kNoSelection;
 	padPress.yDisplay = kNoSelection;
-	padPress.paramKind = params::Kind::NONE;
-	padPress.paramID = kNoParamID;
+	padPress.param = std::nullopt;
 }
 
 void PerformanceView::initFXPress(FXColumnPress& columnPress) {
@@ -308,8 +315,7 @@ void PerformanceView::initFXPress(FXColumnPress& columnPress) {
 }
 
 void PerformanceView::initLayout(ParamsForPerformance& layout) {
-	layout.paramKind = params::Kind::NONE;
-	layout.paramID = kNoParamID;
+	layout.param = std::nullopt;
 	layout.xDisplay = kNoSelection;
 	layout.yDisplay = kNoSelection;
 	layout.rowColour[0] = 0;
@@ -446,7 +452,7 @@ void PerformanceView::renderRow(RGB* image, int32_t yDisplay) {
 		RGB& pixel = image[xDisplay];
 
 		// if an FX column has not been assigned a param, erase pad
-		if (layoutForPerformance[xDisplay].paramID == kNoParamID) {
+		if (indexOf(layoutForPerformance[xDisplay].param) == kNoParamID) {
 			pixel = colours::black;
 		}
 		else {
@@ -473,8 +479,8 @@ void PerformanceView::renderRow(RGB* image, int32_t yDisplay) {
 			// if you're in param editing mode, highlight shortcuts for performance view params
 			// if param has been assigned to an FX column, highlight it white, otherwise highlight it grey
 			if (isPadShortcut(xDisplay, yDisplay)) {
-				if (isParamAssignedToFXColumn(paramKindShortcutsForPerformanceView[xDisplay][yDisplay],
-				                              paramIDShortcutsForPerformanceView[xDisplay][yDisplay])) {
+				if (isParamAssignedToFXColumn(kindOf(kPerformanceShortcuts[xDisplay][yDisplay]),
+				                              indexOf(kPerformanceShortcuts[xDisplay][yDisplay]))) {
 					pixel = {
 					    .r = 130,
 					    .g = 120,
@@ -488,8 +494,7 @@ void PerformanceView::renderRow(RGB* image, int32_t yDisplay) {
 			// if you're in param editing mode and pressing a shortcut pad, highlight the columns
 			// that the param is assigned to the colour of that FX column
 			if (firstPadPress.isActive) {
-				if ((layoutForPerformance[xDisplay].paramKind == firstPadPress.paramKind)
-				    && (layoutForPerformance[xDisplay].paramID == firstPadPress.paramID)) {
+				if ((layoutForPerformance[xDisplay].param == firstPadPress.param)) {
 					pixel = layoutForPerformance[xDisplay].rowColour;
 				}
 			}
@@ -500,8 +505,8 @@ void PerformanceView::renderRow(RGB* image, int32_t yDisplay) {
 /// check if a param has been assinged to any of the FX columns
 bool PerformanceView::isParamAssignedToFXColumn(params::Kind paramKind, int32_t paramID) {
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
-		if ((layoutForPerformance[xDisplay].paramKind == paramKind)
-		    && (layoutForPerformance[xDisplay].paramID == paramID)) {
+		if ((kindOf(layoutForPerformance[xDisplay].param) == paramKind)
+		    && (indexOf(layoutForPerformance[xDisplay].param) == paramID)) {
 			return true;
 		}
 	}
@@ -685,7 +690,7 @@ bool PerformanceView::possiblyRefreshPerformanceViewDisplay(params::Kind kind, i
 	// check if you're not in editing mode
 	// and a param hold press is currently active
 	if (!defaultEditingMode && lastPadPress.isActive) {
-		if ((kind == lastPadPress.paramKind) && (id == lastPadPress.paramID)) {
+		if ((kind == kindOf(lastPadPress.param)) && (id == indexOf(lastPadPress.param))) {
 			int32_t valueForDisplay = view.calculateKnobPosForDisplay(kind, id, newKnobPos + kKnobPosOffset);
 			renderFXDisplay(kind, id, valueForDisplay);
 			return true;
@@ -1048,7 +1053,7 @@ ActionResult PerformanceView::padAction(int32_t xDisplay, int32_t yDisplay, int3
 		// if not in param editor (so, regular performance view or value editor)
 		if (!editingParam) {
 			bool ignorePadAction = defaultEditingMode && lastPadPress.isActive && (lastPadPress.xDisplay != xDisplay);
-			if (ignorePadAction || (layoutForPerformance[xDisplay].paramID == kNoParamID)) {
+			if (ignorePadAction || (indexOf(layoutForPerformance[xDisplay].param) == kNoParamID)) {
 				return ActionResult::DEALT_WITH;
 			}
 			normalPadAction(modelStack, xDisplay, yDisplay, on);
@@ -1109,8 +1114,8 @@ ActionResult PerformanceView::padAction(int32_t xDisplay, int32_t yDisplay, int3
 void PerformanceView::normalPadAction(ModelStackWithThreeMainThings* modelStack, int32_t xDisplay, int32_t yDisplay,
                                       int32_t on) {
 	// obtain Kind, ParamID corresponding to the column pressed on performance grid
-	Kind lastSelectedParamKind = layoutForPerformance[xDisplay].paramKind; // kind;
-	int32_t lastSelectedParamID = layoutForPerformance[xDisplay].paramID;
+	Kind lastSelectedParamKind = kindOf(layoutForPerformance[xDisplay].param); // kind;
+	int32_t lastSelectedParamID = indexOf(layoutForPerformance[xDisplay].param);
 
 	// pressing a pad
 	if (on) {
@@ -1121,8 +1126,8 @@ void PerformanceView::normalPadAction(ModelStackWithThreeMainThings* modelStack,
 			// also transfer the previous value for that held pad to this new pad column press
 			for (int32_t i = 0; i < kDisplayWidth; i++) {
 				if (i != xDisplay) {
-					if ((layoutForPerformance[i].paramKind == lastSelectedParamKind)
-					    && (layoutForPerformance[i].paramID == lastSelectedParamID)) {
+					if ((kindOf(layoutForPerformance[i].param) == lastSelectedParamKind)
+					    && (indexOf(layoutForPerformance[i].param) == lastSelectedParamID)) {
 						// check if you're holding a pad for the same param in another column
 						// check if you're not holding a pad, but a pad is in held state for the same param in another
 						// column
@@ -1205,8 +1210,7 @@ void PerformanceView::padPressAction(ModelStackWithThreeMainThings* modelStack, 
 		lastPadPress.isActive = true;
 		lastPadPress.xDisplay = xDisplay;
 		lastPadPress.yDisplay = yDisplay;
-		lastPadPress.paramKind = paramKind;
-		lastPadPress.paramID = paramID;
+		lastPadPress.param = paramOf(paramKind, paramID);
 	}
 }
 
@@ -1246,18 +1250,16 @@ void PerformanceView::paramEditorPadAction(ModelStackWithThreeMainThings* modelS
 		if (!firstPadPress.isActive) {
 			if (isPadShortcut(xDisplay, yDisplay)) {
 				firstPadPress.isActive = true;
-				firstPadPress.paramKind = paramKindShortcutsForPerformanceView[xDisplay][yDisplay];
-				firstPadPress.paramID = paramIDShortcutsForPerformanceView[xDisplay][yDisplay];
+				firstPadPress.param = kPerformanceShortcuts[xDisplay][yDisplay];
 				firstPadPress.xDisplay = xDisplay;
 				firstPadPress.yDisplay = yDisplay;
-				renderFXDisplay(firstPadPress.paramKind, firstPadPress.paramID, false);
+				renderFXDisplay(kindOf(firstPadPress.param), indexOf(firstPadPress.param), false);
 			}
 		}
 		// if you are holding a param shortcut pad and are now pressing a pad in an FX column
 		else {
 			// if the FX column you are pressing is currently assigned to a different param or no param
-			if ((layoutForPerformance[xDisplay].paramKind != firstPadPress.paramKind)
-			    || (layoutForPerformance[xDisplay].paramID != firstPadPress.paramID)
+			if ((layoutForPerformance[xDisplay].param != firstPadPress.param)
 			    || (layoutForPerformance[xDisplay].xDisplay != firstPadPress.xDisplay)
 			    || (layoutForPerformance[xDisplay].yDisplay != firstPadPress.yDisplay)) {
 
@@ -1265,15 +1267,13 @@ void PerformanceView::paramEditorPadAction(ModelStackWithThreeMainThings* modelS
 				resetFXColumn(modelStack, xDisplay);
 
 				// assign new param to the FX column
-				layoutForPerformance[xDisplay].paramKind = firstPadPress.paramKind;
-				layoutForPerformance[xDisplay].paramID = firstPadPress.paramID;
+				layoutForPerformance[xDisplay].param = firstPadPress.param;
 				layoutForPerformance[xDisplay].xDisplay = firstPadPress.xDisplay;
 				layoutForPerformance[xDisplay].yDisplay = firstPadPress.yDisplay;
 
 				// assign new colour to the FX column based on the new param assigned
 				for (int32_t i = 0; i < kNumParamsForPerformance; i++) {
-					if ((songParamsForPerformance[i].paramKind == firstPadPress.paramKind)
-					    && (songParamsForPerformance[i].paramID == firstPadPress.paramID)) {
+					if ((songParamsForPerformance[i].param == firstPadPress.param)) {
 						layoutForPerformance[xDisplay].rowColour = songParamsForPerformance[i].rowColour;
 						layoutForPerformance[xDisplay].rowTailColour = songParamsForPerformance[i].rowTailColour;
 						break;
@@ -1302,8 +1302,7 @@ void PerformanceView::paramEditorPadAction(ModelStackWithThreeMainThings* modelS
 
 /// check if pad press corresponds to a shortcut pad on the grid
 bool PerformanceView::isPadShortcut(int32_t xDisplay, int32_t yDisplay) {
-	if ((paramKindShortcutsForPerformanceView[xDisplay][yDisplay] != params::Kind::NONE)
-	    && (paramIDShortcutsForPerformanceView[xDisplay][yDisplay] != kNoParamID)) {
+	if (kPerformanceShortcuts[xDisplay][yDisplay]) {
 		return true;
 	}
 	return false;
@@ -1377,8 +1376,8 @@ void PerformanceView::resetPerformanceView(ModelStackWithThreeMainThings* modelS
 		}
 		else if (fxPress[xDisplay].padPressHeld) {
 			// obtain params::Kind and ParamID corresponding to the column in focus (xDisplay)
-			params::Kind lastSelectedParamKind = layoutForPerformance[xDisplay].paramKind; // kind;
-			int32_t lastSelectedParamID = layoutForPerformance[xDisplay].paramID;
+			params::Kind lastSelectedParamKind = kindOf(layoutForPerformance[xDisplay].param); // kind;
+			int32_t lastSelectedParamID = indexOf(layoutForPerformance[xDisplay].param);
 
 			if (lastSelectedParamID != kNoParamID) {
 				padReleaseAction(modelStack, lastSelectedParamKind, lastSelectedParamID, xDisplay, false);
@@ -1395,8 +1394,8 @@ void PerformanceView::resetPerformanceView(ModelStackWithThreeMainThings* modelS
 void PerformanceView::resetFXColumn(ModelStackWithThreeMainThings* modelStack, int32_t xDisplay) {
 	if (fxPress[xDisplay].padPressHeld) {
 		// obtain Kind and ParamID corresponding to the column in focus (xDisplay)
-		params::Kind lastSelectedParamKind = layoutForPerformance[xDisplay].paramKind; // kind;
-		int32_t lastSelectedParamID = layoutForPerformance[xDisplay].paramID;
+		params::Kind lastSelectedParamKind = kindOf(layoutForPerformance[xDisplay].param); // kind;
+		int32_t lastSelectedParamID = indexOf(layoutForPerformance[xDisplay].param);
 
 		if (lastSelectedParamID != kNoParamID) {
 			padReleaseAction(modelStack, lastSelectedParamKind, lastSelectedParamID, xDisplay, false);
@@ -1530,8 +1529,8 @@ void PerformanceView::getParameterValue(ModelStackWithThreeMainThings* modelStac
 int32_t PerformanceView::getKnobPosForSinglePadPress(int32_t xDisplay, int32_t yDisplay) {
 	int32_t newKnobPos = 0;
 
-	params::Kind paramKind = defaultLayoutForPerformance[xDisplay].paramKind;
-	int32_t paramID = defaultLayoutForPerformance[xDisplay].paramID;
+	params::Kind paramKind = kindOf(defaultLayoutForPerformance[xDisplay].param);
+	int32_t paramID = indexOf(defaultLayoutForPerformance[xDisplay].param);
 
 	bool isDelayAmount = ((paramKind == params::Kind::UNPATCHED_GLOBAL) && (paramID == UNPATCHED_DELAY_AMOUNT));
 
@@ -1555,13 +1554,14 @@ void PerformanceView::selectEncoderAction(int8_t offset) {
 		ModelStackWithThreeMainThings* modelStack =
 		    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 
-		getParameterValue(modelStack, lastPadPress.paramKind, lastPadPress.paramID, lastPadPress.xDisplay, false);
+		getParameterValue(modelStack, kindOf(lastPadPress.param), indexOf(lastPadPress.param), lastPadPress.xDisplay,
+		                  false);
 
 		defaultFXValues[lastPadPress.xDisplay][lastPadPress.yDisplay] =
 		    calculateKnobPosForSelectEncoderTurn(fxPress[lastPadPress.xDisplay].currentKnobPosition, offset);
 
-		if (setParameterValue(modelStack, lastPadPress.paramKind, lastPadPress.paramID, lastPadPress.xDisplay,
-		                      defaultFXValues[lastPadPress.xDisplay][lastPadPress.yDisplay])) {
+		if (setParameterValue(modelStack, kindOf(lastPadPress.param), indexOf(lastPadPress.param),
+		                      lastPadPress.xDisplay, defaultFXValues[lastPadPress.xDisplay][lastPadPress.yDisplay])) {
 			updateLayoutChangeStatus();
 		}
 		return;
@@ -1636,7 +1636,8 @@ void PerformanceView::modEncoderAction(int32_t whichModEncoder, int32_t offset) 
 				ModelStackWithThreeMainThings* modelStack =
 				    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 
-				getParameterValue(modelStack, lastPadPress.paramKind, lastPadPress.paramID, lastPadPress.xDisplay);
+				getParameterValue(modelStack, kindOf(lastPadPress.param), indexOf(lastPadPress.param),
+				                  lastPadPress.xDisplay);
 			}
 			else if (onFXDisplay) {
 				renderViewDisplay();
@@ -1663,7 +1664,7 @@ void PerformanceView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 		}
 	}
 	if (isUIModeActive(UI_MODE_STUTTERING) && lastPadPress.isActive
-	    && params::isParamStutter(lastPadPress.paramKind, lastPadPress.paramID)) {
+	    && params::isParamStutter(kindOf(lastPadPress.param), indexOf(lastPadPress.param))) {
 		return;
 	}
 	else {
@@ -1681,11 +1682,13 @@ void PerformanceView::updateLayoutChangeStatus() {
 	anyChangesToSave = false;
 
 	for (int32_t xDisplay = 0; xDisplay < kDisplayWidth; xDisplay++) {
-		if (backupXMLDefaultLayoutForPerformance[xDisplay].paramKind != layoutForPerformance[xDisplay].paramKind) {
+		if (kindOf(backupXMLDefaultLayoutForPerformance[xDisplay].param)
+		    != kindOf(layoutForPerformance[xDisplay].param)) {
 			anyChangesToSave = true;
 			break;
 		}
-		else if (backupXMLDefaultLayoutForPerformance[xDisplay].paramID != layoutForPerformance[xDisplay].paramID) {
+		else if (indexOf(backupXMLDefaultLayoutForPerformance[xDisplay].param)
+		         != indexOf(layoutForPerformance[xDisplay].param)) {
 			anyChangesToSave = true;
 			break;
 		}
@@ -1806,9 +1809,10 @@ void PerformanceView::writeDefaultFXValuesToFile(Serializer& writer) {
 void PerformanceView::writeDefaultFXParamToFile(Serializer& writer, int32_t xDisplay) {
 	char const* paramName;
 
-	auto kind = layoutForPerformance[xDisplay].paramKind;
+	auto kind = kindOf(layoutForPerformance[xDisplay].param);
 	if (kind == params::Kind::UNPATCHED_GLOBAL) {
-		paramName = params::paramNameForFile(kind, params::UNPATCHED_START + layoutForPerformance[xDisplay].paramID);
+		paramName =
+		    params::paramNameForFile(kind, params::UNPATCHED_START + indexOf(layoutForPerformance[xDisplay].param));
 	}
 	else {
 		paramName = PERFORM_DEFAULTS_NO_PARAM;
@@ -2026,8 +2030,8 @@ void PerformanceView::loadDefaultLayout() {
 		memcpy(&backupXMLDefaultLayoutForPerformance[xDisplay], &defaultLayoutForPerformance[xDisplay],
 		       sizeof(ParamsForPerformance));
 		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
-			if (isSongQuantizedStutter(layoutForPerformance[xDisplay].paramKind,
-			                           layoutForPerformance[xDisplay].paramID)) {
+			if (isSongQuantizedStutter(kindOf(layoutForPerformance[xDisplay].param),
+			                           indexOf(layoutForPerformance[xDisplay].param))) {
 				defaultFXValues[xDisplay][yDisplay] = quantizedStutterPressValues[yDisplay];
 				backupXMLDefaultFXValues[xDisplay][yDisplay] = defaultFXValues[xDisplay][yDisplay];
 			}
@@ -2085,8 +2089,8 @@ void PerformanceView::readDefaultFXParamFromFile(Deserializer& reader, int32_t x
 	char const* tagName = reader.readTagOrAttributeValue();
 
 	for (int32_t i = 0; i < kNumParamsForPerformance; i++) {
-		paramName = params::paramNameForFile(songParamsForPerformance[i].paramKind,
-		                                     params::UNPATCHED_START + songParamsForPerformance[i].paramID);
+		paramName = params::paramNameForFile(kindOf(songParamsForPerformance[i].param),
+		                                     params::UNPATCHED_START + indexOf(songParamsForPerformance[i].param));
 		if (!strcmp(tagName, paramName)) {
 			memcpy(&layoutForPerformance[xDisplay], &songParamsForPerformance[i], sizeof(ParamsForPerformance));
 
@@ -2114,8 +2118,8 @@ void PerformanceView::readDefaultFXRowNumberValuesFromFile(Deserializer& reader,
 					defaultFXValues[xDisplay][yDisplay] = kKnobPosOffset;
 				}
 
-				if (isSongQuantizedStutter(layoutForPerformance[xDisplay].paramKind,
-				                           layoutForPerformance[xDisplay].paramID)) {
+				if (isSongQuantizedStutter(kindOf(layoutForPerformance[xDisplay].param),
+				                           indexOf(layoutForPerformance[xDisplay].param))) {
 					defaultFXValues[xDisplay][yDisplay] = quantizedStutterPressValues[yDisplay];
 				}
 
@@ -2136,8 +2140,8 @@ void PerformanceView::readDefaultFXHoldStatusFromFile(Deserializer& reader, int3
 		if (!strcmp(tagName, PERFORM_DEFAULTS_HOLD_STATUS_TAG)) {
 			char const* holdStatus = reader.readTagOrAttributeValue();
 			if (!strcmp(holdStatus, PERFORM_DEFAULTS_ON)) {
-				if (!params::isParamStutter(layoutForPerformance[xDisplay].paramKind,
-				                            layoutForPerformance[xDisplay].paramID)) {
+				if (!params::isParamStutter(kindOf(layoutForPerformance[xDisplay].param),
+				                            indexOf(layoutForPerformance[xDisplay].param))) {
 					fxPress[xDisplay].padPressHeld = true;
 					fxPress[xDisplay].timeLastPadPress = AudioEngine::audioSampleTimer;
 
@@ -2180,10 +2184,10 @@ void PerformanceView::initializeHeldFX(int32_t xDisplay) {
 			ModelStackWithThreeMainThings* modelStack =
 			    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
 
-			if ((layoutForPerformance[xDisplay].paramKind != params::Kind::NONE)
-			    && (layoutForPerformance[xDisplay].paramID != kNoParamID)) {
-				setParameterValue(modelStack, layoutForPerformance[xDisplay].paramKind,
-				                  layoutForPerformance[xDisplay].paramID, xDisplay,
+			if ((kindOf(layoutForPerformance[xDisplay].param) != params::Kind::NONE)
+			    && (indexOf(layoutForPerformance[xDisplay].param) != kNoParamID)) {
+				setParameterValue(modelStack, kindOf(layoutForPerformance[xDisplay].param),
+				                  indexOf(layoutForPerformance[xDisplay].param), xDisplay,
 				                  defaultFXValues[xDisplay][fxPress[xDisplay].yDisplay], false);
 			}
 		}

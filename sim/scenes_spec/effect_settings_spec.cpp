@@ -10,12 +10,12 @@
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/nodes.h"
 
-#include "engine-api/types/setting.h"
-#include "engines/effects/settings.h"
+#include "effects/settings.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/instrument/kit.h"
 #include "model/project_bridge/chain_bridge.h"
 #include "model/song/song.h"
+#include "plugin-api/types/setting.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 
@@ -107,17 +107,17 @@ std::string disagreements(const Node& node, const MenuContext& ctx) {
 	if (!shown->applies || shown->stale) {
 		return found;
 	}
-	const deluge::engine::SettingInfo& row = *deluge::engine::find_setting(deluge::effects::kEffectSettings, path);
+	const deluge::plugin::SettingInfo& row = *deluge::plugin::find_setting(deluge::effects::kEffectSettings, path);
 	const std::array<int32_t, 3> probes{shown->least, shown->greatest,
 	                                    shown->least + (shown->greatest - shown->least) / 2};
 	for (const int32_t v : probes) {
 		const auto request = bind::request_for(node.bind.target, *ctx.model, ctx.addresses, *ctx.facts, v);
-		const auto stored = request ? deluge::engine::from_menu(row, request->menu_value) : std::nullopt;
+		const auto stored = request ? deluge::plugin::from_menu(row, request->menu_value) : std::nullopt;
 		// What the menu then shows: the position written, or for a number what the stored value reads as (a
 		// compressor knob's top step stores what reads as the step below, as legacy's shows on re-entry).
-		const int32_t shows = row.kind == deluge::engine::SettingKind::CHOICE || !stored
+		const int32_t shows = row.kind == deluge::plugin::SettingKind::CHOICE || !stored
 		                          ? v
-		                          : deluge::engine::to_menu(row, stored->first, stored->second);
+		                          : deluge::plugin::to_menu(row, stored->first, stored->second);
 		menu::bindings::write(node, ctx, v);
 		if (menu::bindings::read(node, ctx) != shows) {
 			found +=

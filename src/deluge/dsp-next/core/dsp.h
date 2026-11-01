@@ -38,7 +38,7 @@
 // Layering: sample.h is the scalar vocabulary (q31/f32 + SampleType + conversions);
 // types.h builds the block/aggregate vocabulary on it (Sample/Buffer/Signal/StereoSample
 // + the fixed::/fp:: backend aliases); concepts.h + generator/processor/mixer are the
-// component framework (static render() hot path, virtual renderBlock at block granularity).
+// component framework (static render() hot path, virtual render_block at block granularity).
 
 #include "dsp-next/core/concepts.h"
 #include "dsp-next/core/convert.h"

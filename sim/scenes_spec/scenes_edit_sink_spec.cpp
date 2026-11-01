@@ -15,13 +15,13 @@
 #include "scenes/menu/nodes/sound_osc.h"
 #include "scenes/menu/nodes/sound_voice.h"
 
-#include "engines/deluge/codec.h"
-#include "engines/deluge/engine.h"
-#include "engines/deluge/params.h"
-#include "engines/deluge/settings.h"
-#include "engines/deluge/sound_state.h"
-#include "engines/effects/settings.h"
+#include "effects/settings.h"
 #include "gui/ui/shell_bind_host.h"
+#include "instruments/deluge/codec.h"
+#include "instruments/deluge/params.h"
+#include "instruments/deluge/plugin.h"
+#include "instruments/deluge/settings.h"
+#include "instruments/deluge/sound_state.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/gate_drum.h"
 #include "model/drum/midi_drum.h"
@@ -96,7 +96,7 @@ MenuContext whole_kit(spec::SongFixture& f) {
 
 /// The descriptor menu value of choice @p stored of instrument row @p path.
 int32_t menu_of(std::string_view path, int32_t stored) {
-	return deluge::engine::to_menu(*deluge::engine::find_setting(deluge::instrument::kSettings, path), stored);
+	return deluge::plugin::to_menu(*deluge::plugin::find_setting(deluge::instrument::kSettings, path), stored);
 }
 
 /// Writes @p node's target = descriptor menu value @p menu through the app's sink at @p ctx.
@@ -201,11 +201,11 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 		static_cast<Kit*>(f.instrument)->selectedDrum = both;
 		const MenuContext ctx = whole_kit(f);
 		const auto before = lpf_off->effects().filter.route;
-		const auto& row = *deluge::engine::find_setting(deluge::effects::kEffectSettings, "filterRoute");
+		const auto& row = *deluge::plugin::find_setting(deluge::effects::kEffectSettings, "filterRoute");
 		const bind::Target route{.kind = bind::Target::Kind::EFFECT, .path = "filterRoute",
 		                         .fan_out_when = menu::fan_out::kBothFilters};
 		menu::host_write_sink().write({.target = route, .where = ctx.addresses,
-		                               .menu_value = deluge::engine::to_menu(row, 2)}); // parallel
+		                               .menu_value = deluge::plugin::to_menu(row, 2)}); // parallel
 		expect(both->effects().filter.route == deluge::effects::FilterRoute::PARALLEL).to_be_true();
 		expect(lpf_off->effects().filter.route == before).to_be_true();
 	});
@@ -265,10 +265,10 @@ describe scenes_edit_sink_writes("a target node's write through the app's sink",
 		ctx.addresses.affect_entire = bindings::writes_whole_kit(ctx);
 		expect(ctx.addresses.affect_entire).to_be_false();
 		const auto row_before = drum->effects().filter.lpf_mode;
-		const auto& row = *deluge::engine::find_setting(deluge::effects::kEffectSettings, "lpfMode");
+		const auto& row = *deluge::plugin::find_setting(deluge::effects::kEffectSettings, "lpfMode");
 		menu::host_write_sink().write({.target = {.kind = bind::Target::Kind::EFFECT, .path = "lpfMode"},
 		                               .where = ctx.addresses,
-		                               .menu_value = deluge::engine::to_menu(row, 4)}); // SVF_Notch
+		                               .menu_value = deluge::plugin::to_menu(row, 4)}); // SVF_Notch
 		const auto chain = deluge::project::ChainAddress{.id = kit->id().value_or(0)};
 		expect(deluge::bridge::chainOwnerAt(chain, *f.song)->effects().filter.lpf_mode
 		       == deluge::effects::FilterMode::SVF_NOTCH).to_be_true();

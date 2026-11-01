@@ -3,7 +3,7 @@
 /// @details The compressor ships from deluge_dsp_fixed, which builds in ARM mode with -finline-functions and no LTO,
 /// where the app builds in Thumb mode with -fno-inline-functions. This file takes the library's flags
 /// (src/deluge/CMakeLists.txt), as filter_cases.cpp does. Each block is one call into the shipped
-/// `RmsFeedbackCompressor::render` or `renderVolumeNeutral`, made as the compressor's owners make it.
+/// `RmsFeedbackCompressor::render` or `render_volume_neutral`, made as the compressor's owners make it.
 
 #include "bench/cases.h"
 
@@ -34,7 +34,7 @@ void CompressorCase::setup(std::size_t n) {
 
 void CompressorCase::block(std::size_t /*n*/) {
 	if (config_.neutral) {
-		rig.compressor.renderVolumeNeutral(rig.work, kCompressorFinalVolume);
+		rig.compressor.render_volume_neutral(rig.work, kCompressorFinalVolume);
 	}
 	else {
 		rig.compressor.render(rig.work, kCompressorVolume, kCompressorVolume, kCompressorFinalVolume >> 3);

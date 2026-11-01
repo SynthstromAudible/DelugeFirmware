@@ -25,14 +25,14 @@
 
 void MenuItemWithCCLearning::unlearnAction() {
 
-	ParamDescriptor paramDescriptor = getLearningThing();
+	const deluge::modulation::KnobTarget target = getLearningThing();
 
 	// If it was a reasonable-ish request...
-	if (!paramDescriptor.isNull()) {
+	if (target) {
 		if (!soundEditor.currentModControllable) {
 			return;
 		}
-		bool success = deluge::edits::unlearnKnobsFor(*soundEditor.currentModControllable, paramDescriptor);
+		bool success = deluge::edits::unlearnKnobsFor(*soundEditor.currentModControllable, target);
 
 		if (success) {
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_UNLEARNED));
@@ -43,7 +43,7 @@ void MenuItemWithCCLearning::unlearnAction() {
 }
 
 void MenuItemWithCCLearning::learnKnob(MIDICable* cable, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) {
-	ParamDescriptor paramDescriptor = getLearningThing();
+	const deluge::modulation::KnobTarget target = getLearningThing();
 
 	if (!soundEditor.currentModControllable) {
 		return;
@@ -51,15 +51,15 @@ void MenuItemWithCCLearning::learnKnob(MIDICable* cable, int32_t whichKnob, int3
 
 	bool success = false;
 	if (midiChannel >= 16) { // a mod knob: the owner's controls
-		success = soundEditor.currentModControllable->learnKnob(cable, paramDescriptor, whichKnob, modKnobMode,
-		                                                        midiChannel, currentSong);
+		success = soundEditor.currentModControllable->learnKnob(cable, target, whichKnob, modKnobMode, midiChannel,
+		                                                        currentSong);
 		if (success) {
 			deluge::gui::menu_item::recordControlsOf(*soundEditor.currentModControllable);
 		}
 	}
 	else { // a MIDI knob: the song's mapping table
-		success = deluge::edits::learnKnobFor(*soundEditor.currentModControllable, paramDescriptor, cable, whichKnob,
-		                                      midiChannel);
+		success =
+		    deluge::edits::learnKnobFor(*soundEditor.currentModControllable, target, cable, whichKnob, midiChannel);
 	}
 
 	if (success) {

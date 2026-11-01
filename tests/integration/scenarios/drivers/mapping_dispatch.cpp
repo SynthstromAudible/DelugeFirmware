@@ -282,10 +282,11 @@ Song* loadSong(std::string_view text, FILE* err) {
 
 /// The table's name for patched param @p p of a sound, or (when @p unpatchedKind is given) unpatched param @p p of that
 /// kind.
-deluge::engine::ParamId knobParam(int32_t p, std::optional<params::Kind> unpatchedKind = std::nullopt) {
-	ParamDescriptor descriptor;
-	descriptor.setToHaveParamOnly(unpatchedKind ? params::UNPATCHED_START + p : p);
-	return deluge::bridge::knobTargetOf(descriptor, unpatchedKind.value_or(params::Kind::UNPATCHED_SOUND));
+deluge::plugin::ParamId knobParam(int32_t p, std::optional<params::Kind> unpatchedKind = std::nullopt) {
+	deluge::synth::CableTarget descriptor =
+	    deluge::synth::CableTarget::param(unpatchedKind ? params::UNPATCHED_START + p : p);
+	return deluge::bridge::controlTargetOf(deluge::modulation::knobTargetOf(descriptor),
+	                                       unpatchedKind.value_or(params::Kind::UNPATCHED_SOUND));
 }
 
 /// One match: what it reaches, and its position (a section's number, a clip's session index, a knob's place in its
@@ -300,7 +301,7 @@ std::string describe(const Hit& hit) {
 	char buf[64];
 	std::visit(
 	    [&]<typename T>(const T& t) {
-		    if constexpr (std::is_same_v<T, deluge::project::ParamTarget>) {
+		    if constexpr (std::is_same_v<T, deluge::project::OwnerParamTarget>) {
 			    std::snprintf(buf, sizeof buf, "knob(%d:%u)#%u", static_cast<int>(t.owner.kind), t.owner.id,
 			                  hit.ordinal);
 		    }
@@ -493,11 +494,11 @@ MappingTable randomTable(std::mt19937& rng, const Fixture& f) {
 		switch (rng() % 6) {
 		case 0: {
 			const size_t o = rng() % f.owners.size();
-			const deluge::engine::ParamId param =
+			const deluge::plugin::ParamId param =
 			    f.ownerIsSound[o] ? (rng() % 2 ? knobParam(params::LOCAL_PAN) : knobParam(params::LOCAL_LPF_FREQ))
 			                      : knobParam(rng() % 2 ? params::UNPATCHED_DELAY_AMOUNT : params::UNPATCHED_LPF_FREQ,
 			                                  params::Kind::UNPATCHED_GLOBAL);
-			mapping.target = deluge::project::ParamTarget{f.owners[o], param};
+			mapping.target = deluge::project::OwnerParamTarget{f.owners[o], param};
 			break;
 		}
 		case 1:
@@ -539,7 +540,7 @@ void install(const Fixture& f, MappingTable table) {
 		(void)deluge::bridge::projectMapping(song, deluge::project::TrackInputTarget{id});
 	}
 	for (const ControlsAddress& owner : f.owners) {
-		(void)deluge::bridge::projectMapping(song, deluge::project::ParamTarget{owner, {}});
+		(void)deluge::bridge::projectMapping(song, deluge::project::OwnerParamTarget{owner, {}});
 	}
 	deluge::midi::rebuildMappingIndex(song);
 }
@@ -737,7 +738,7 @@ std::string anyDeviceLeg(Stage& s) {
 	const Mapping clip{.source = {.channel_or_zone = 8, .note_or_cc = 64},
 	                   .target = deluge::project::ClipMuteTarget{s.song.live.clips.session_clips[0]->id()}};
 	const Mapping knob{.source = {.channel_or_zone = 9, .note_or_cc = 10},
-	                   .target = deluge::project::ParamTarget{
+	                   .target = deluge::project::OwnerParamTarget{
 	                       kitKnobs, knobParam(params::UNPATCHED_LPF_FREQ, params::Kind::UNPATCHED_GLOBAL)}};
 	for (const Mapping& mapping : {section, clip, knob}) {
 		if (!learn(s.song, mapping)) {
@@ -787,7 +788,7 @@ std::string hibernationLeg(Stage& s) {
 	    .source = {.channel_or_zone = 10, .note_or_cc = 65, .device = MidiDeviceRef{.port = MidiDeviceRef::Port::DIN}},
 	    .target = deluge::project::LaneInputTarget{*static_cast<Kit*>(kit)->firstDrum->id()}};
 	const Mapping knob{.source = {.channel_or_zone = 11, .note_or_cc = 20},
-	                   .target = deluge::project::ParamTarget{
+	                   .target = deluge::project::OwnerParamTarget{
 	                       knobs, knobParam(params::UNPATCHED_DELAY_AMOUNT, params::Kind::UNPATCHED_GLOBAL)}};
 	if (!learn(s.song, rowInput) || !learn(s.song, knob)) {
 		return "a learn was refused";
@@ -924,7 +925,7 @@ std::string cloneLeg(Stage& s) {
 	           Mapping{.source = {.channel_or_zone = 14,
 	                              .note_or_cc = 31,
 	                              .device = MidiDeviceRef{.port = MidiDeviceRef::Port::DIN}},
-	                   .target = deluge::project::ParamTarget{
+	                   .target = deluge::project::OwnerParamTarget{
 	                       fromKnobs, knobParam(params::UNPATCHED_LPF_FREQ, params::Kind::UNPATCHED_GLOBAL)}})) {
 		return "a learn was refused";
 	}
@@ -932,7 +933,7 @@ std::string cloneLeg(Stage& s) {
 	// projects it.
 	s.song.project.mappings.learn(
 	    Mapping{.source = {.channel_or_zone = 14, .note_or_cc = 30, .device = unknown},
-	            .target = deluge::project::ParamTarget{
+	            .target = deluge::project::OwnerParamTarget{
 	                fromKnobs, knobParam(params::UNPATCHED_DELAY_AMOUNT, params::Kind::UNPATCHED_GLOBAL)}});
 	std::string what;
 	refresh(what);
@@ -961,7 +962,7 @@ std::string cloneLeg(Stage& s) {
 	}
 	if (what.empty()
 	    && !hitOn(knobHits(fromKnobs, *s.cables[0], 14, 31),
-	              deluge::project::ParamTarget{
+	              deluge::project::OwnerParamTarget{
 	                  fromKnobs, knobParam(params::UNPATCHED_LPF_FREQ, params::Kind::UNPATCHED_GLOBAL)})) {
 		what = "the source's knob stopped matching";
 	}
@@ -992,7 +993,7 @@ std::string cloneLeg(Stage& s) {
 	}
 	if (what.empty()
 	    && !hitOn(knobHits(toKnobs, *s.cables[0], 14, 31),
-	              deluge::project::ParamTarget{
+	              deluge::project::OwnerParamTarget{
 	                  toKnobs, knobParam(params::UNPATCHED_LPF_FREQ, params::Kind::UNPATCHED_GLOBAL)})) {
 		what = "the index does not offer the clone's knob";
 	}
@@ -1064,7 +1065,7 @@ std::string renderWritesLeg(Stage& s) {
 	if (what.empty()
 	    && (from == nullptr
 	        || !learn(s.song, Mapping{.source = {.channel_or_zone = 15, .note_or_cc = 71},
-	                                  .target = deluge::project::ParamTarget{
+	                                  .target = deluge::project::OwnerParamTarget{
 	                                      {ControlsAddress::Kind::OUTPUT, *from->id()},
 	                                      knobParam(params::UNPATCHED_LPF_FREQ, params::Kind::UNPATCHED_GLOBAL)}}))) {
 		what = "no audio track learned a knob";
@@ -1146,8 +1147,8 @@ std::string appLoopCloneLeg(Stage& s) {
 		return "no audio track to clone";
 	}
 	const ControlsAddress fromKnobs{ControlsAddress::Kind::OUTPUT, *from->id()};
-	const deluge::project::ParamTarget knob{fromKnobs,
-	                                        knobParam(params::UNPATCHED_LPF_FREQ, params::Kind::UNPATCHED_GLOBAL)};
+	const deluge::project::OwnerParamTarget knob{fromKnobs,
+	                                             knobParam(params::UNPATCHED_LPF_FREQ, params::Kind::UNPATCHED_GLOBAL)};
 	if (!learn(s.song, Mapping{.source = {.channel_or_zone = 13, .note_or_cc = 40}, .target = knob})) {
 		return "a learn was refused";
 	}
@@ -1166,7 +1167,7 @@ std::string appLoopCloneLeg(Stage& s) {
 	}
 	refresh(what);
 	if (what.empty()
-	    && !hitOn(knobHits(toKnobs, *s.cables[0], 13, 40), deluge::project::ParamTarget{toKnobs, knob.param})) {
+	    && !hitOn(knobHits(toKnobs, *s.cables[0], 13, 40), deluge::project::OwnerParamTarget{toKnobs, knob.param})) {
 		what = "the index does not offer the clone's knob";
 	}
 	return what;
@@ -1394,8 +1395,8 @@ std::string knobLeg(Stage& s) {
 	// A knob before it, on another CC, so the moved knob is not the owner's first.
 	for (const auto& [cc, param] : {std::pair{21, params::LOCAL_PAN}, std::pair{20, params::LOCAL_LPF_FREQ}}) {
 		if (!learn(s.song, {.source = {.channel_or_zone = 0, .note_or_cc = static_cast<uint8_t>(cc)},
-		                    .target = deluge::project::ParamTarget{{ControlsAddress::Kind::OUTPUT, *s.synth.id()},
-		                                                           knobParam(param)}})) {
+		                    .target = deluge::project::OwnerParamTarget{{ControlsAddress::Kind::OUTPUT, *s.synth.id()},
+		                                                                knobParam(param)}})) {
 			midiEngine.midiTakeover = takeover;
 			return "a learn was refused";
 		}
@@ -1479,8 +1480,8 @@ std::string drumKnobLeg(Stage& s) {
 		return "the kit's first row is not a sound row of the kit clip";
 	}
 	return ccMovesParam(s,
-	                    deluge::project::ParamTarget{{ControlsAddress::Kind::DRUM, *s.kit.firstDrum->id()},
-	                                                 knobParam(params::LOCAL_LPF_FREQ)},
+	                    deluge::project::OwnerParamTarget{{ControlsAddress::Kind::DRUM, *s.kit.firstDrum->id()},
+	                                                      knobParam(params::LOCAL_LPF_FREQ)},
 	                    30, [&] { return row->paramManager.getPatchedParamSet()->getValue(params::LOCAL_LPF_FREQ); });
 }
 
@@ -1492,8 +1493,8 @@ std::string kitKnobLeg(Stage& s) {
 	}
 	return ccMovesParam(
 	    s,
-	    deluge::project::ParamTarget{{ControlsAddress::Kind::OUTPUT, *s.kit.id()},
-	                                 knobParam(params::UNPATCHED_LPF_FREQ, params::Kind::UNPATCHED_GLOBAL)},
+	    deluge::project::OwnerParamTarget{{ControlsAddress::Kind::OUTPUT, *s.kit.id()},
+	                                      knobParam(params::UNPATCHED_LPF_FREQ, params::Kind::UNPATCHED_GLOBAL)},
 	    31, [&] { return c->kit->paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_LPF_FREQ); });
 }
 
@@ -1501,8 +1502,8 @@ std::string kitKnobLeg(Stage& s) {
 std::string songKnobLeg(Stage& s) {
 	return ccMovesParam(
 	    s,
-	    deluge::project::ParamTarget{{ControlsAddress::Kind::SONG, 0},
-	                                 knobParam(params::UNPATCHED_LPF_FREQ, params::Kind::UNPATCHED_GLOBAL)},
+	    deluge::project::OwnerParamTarget{{ControlsAddress::Kind::SONG, 0},
+	                                      knobParam(params::UNPATCHED_LPF_FREQ, params::Kind::UNPATCHED_GLOBAL)},
 	    32, [&] { return s.song.paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_LPF_FREQ); });
 }
 
@@ -1514,7 +1515,7 @@ std::string pitchBendKnobLeg(Stage& s) {
 	}
 	const ControlsAddress owner{ControlsAddress::Kind::OUTPUT, *s.synth.id()};
 	if (!learn(s.song, {.source = {.channel_or_zone = 0, .note_or_cc = 128},
-	                    .target = deluge::project::ParamTarget{owner, knobParam(params::LOCAL_PAN)}})) {
+	                    .target = deluge::project::OwnerParamTarget{owner, knobParam(params::LOCAL_PAN)}})) {
 		return "a learn was refused";
 	}
 	Clip* active = s.synth.getActiveClip();
@@ -1857,7 +1858,7 @@ int mapping_dispatch_main(int /*argc*/, char** /*argv*/, deluge::scenarios::driv
 		for (const Hit& hit : hits) {
 			constexpr std::array<const char*, 6> kKinds{"knob", "clip", "rowmute", "section", "track", "rowinput"};
 			seen[kKinds[hit.target.index()]]++;
-			const auto* knob = std::get_if<deluge::project::ParamTarget>(&hit.target);
+			const auto* knob = std::get_if<deluge::project::OwnerParamTarget>(&hit.target);
 			const Mapping entry = knob != nullptr ? song.project.mappings.params_of(knob->owner)[hit.ordinal]
 			                                      : *song.project.mappings.find(hit.target);
 			if (zoned && std::holds_alternative<deluge::project::LaneInputTarget>(hit.target)) {

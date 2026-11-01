@@ -36,11 +36,11 @@ namespace deluge::dsp::fixed {
 /// crossover, crossfading each restart seam with a half-sine — so the audible oscillator is
 /// slaved to the master's frequency (the classic "sync" timbre). `Osc` is any block generator
 /// that owns a seekable @ref deluge::dsp::Phasor — it must expose `seek(uint32_t)` and
-/// `renderBlock(Buffer)` — e.g. @ref TableOscillator.
+/// `render_block(Buffer)` — e.g. @ref TableOscillator.
 ///
 /// The node owns the wrapped oscillator (by value, called directly), the resetter, and the audible
 /// phase; it is itself a plain @ref block_generator with no vptr, reaching runtime selection through
-/// @ref AsBlock like any other generator. renderBlock() is written out rather than synthesised from a
+/// @ref AsBlock like any other generator. render_block() is written out rather than synthesised from a
 /// per-lane render(), because sync windows are irregular and inherently block-level. It composes a shared
 /// @ref SyncWindower (which owns the window split + seam crossfade) and, for each window it yields,
 /// just restarts the wrapped oscillator at the window's phase (it carries no position-indexed
@@ -51,7 +51,7 @@ namespace deluge::dsp::fixed {
 /// @ref SyncWindower, is transcribed verbatim → bit-identical; the only change is each window is
 /// filled to its precise length instead of overshooting into a padded scratch buffer).
 template <typename Osc>
-class [[gnu::hot]] SyncedOscillator {
+class SyncedOscillator {
 	Osc oscillator_;
 	Resetter resetter_;
 	uint32_t phase_; ///< audible oscillator phase; reset to the seam fade position at each crossover
@@ -71,21 +71,21 @@ public:
 
 	/// Set the per-block pitch: the audible increment and the master (resetter) increment, forwarding the audible
 	/// increment to the wrapped oscillator (which re-selects its band if it is band-limited). Keeps both phases.
-	void setIncrement(uint32_t phase_increment, uint32_t resetter_increment) {
+	void set_increment(uint32_t phase_increment, uint32_t resetter_increment) {
 		phase_increment_ = phase_increment;
 		resetter_.phase_increment = resetter_increment;
-		oscillator_.setIncrement(phase_increment);
+		oscillator_.set_increment(phase_increment);
 	}
 
 	/// @brief Fill @p output with the synced wave, one wrapped-oscillator block per sync window.
-	void renderBlock(Buffer output) {
+	void render_block(Buffer output) {
 		// Each sync window is just the wrapped oscillator restarted at the window's phase; the
 		// shared windower owns the split + seam crossfade. The wrapped oscillator carries no
 		// position-indexed state, so the window offset is ignored.
 		SyncWindower windower{output, resetter_, phase_, phase_increment_, retrigger_phase_};
 		while (std::optional<SyncWindower::Window> window = windower.next()) {
 			oscillator_.seek(window->phasor.phase());
-			oscillator_.renderBlock(window->output);
+			oscillator_.render_block(window->output);
 		}
 		phase_ = windower.phase();
 	}

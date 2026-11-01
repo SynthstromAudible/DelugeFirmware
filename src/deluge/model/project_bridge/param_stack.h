@@ -106,8 +106,8 @@ bool grabRegionAt(::Song& song, const project::ParamAddress& owner, uint32_t pos
 bool midiCcSelectAt(::Song& song, const project::ParamAddress& owner, int32_t knob, bool on);
 
 /// @brief The engine stack naming the cable at @p address (a synth's or a sound drum's depth), made with @p polarity
-/// where the sound does not hold it yet. The record takes the new cable, polarity and all, when the sound's cable set
-/// is bound to it (it is, once relocated; the Edit that writes the cable relocates it).
+/// where the sound does not hold it yet: the cable's record takes it, and the polarity change is recorded into the open
+/// Action as a mod matrix edit.
 /// @param song     The song holding the sound.
 /// @param address  The cable's depth address.
 /// @param polarity The polarity a new cable takes; an existing cable keeps its own.

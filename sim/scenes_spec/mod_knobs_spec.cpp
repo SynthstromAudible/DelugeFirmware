@@ -46,7 +46,6 @@
 #include "shell/router.h"
 #include "shell/scene_stack.h"
 
-#include "engines/deluge/params.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
 #include "gui/ui/ui.h"
@@ -54,6 +53,7 @@
 #include "gui/views/view.h"
 #include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
+#include "instruments/deluge/params.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
@@ -1035,8 +1035,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		display = &stub;
 		spec::SongFixture synth = spec::make_synth_song();
 		(void)deluge::edits::modKnobModeForSlot(static_cast<SoundInstrument*>(synth.instrument)->getModKnobMode(), 5); // lower knob: LFO1 -> pitch
-		ParamDescriptor pitch;
-		pitch.setToHaveParamOnly(deluge::modulation::params::LOCAL_PITCH_ADJUST);
+		deluge::synth::CableTarget pitch = deluge::synth::CableTarget::param(deluge::modulation::params::LOCAL_PITCH_ADJUST);
 		const deluge::project::ParamAddress vibrato{
 		    .owner = deluge::project::OwnerId::instrument(*synth.instrument->id()),
 		    .space = deluge::project::ParamSpace::ENGINE,
@@ -1067,7 +1066,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		                                  {.kind = deluge::project::ModKnobCc::Kind::NUMBER, .number = 74});
 		const deluge::project::ParamAddress cc74{.owner = deluge::project::OwnerId::clip(midi.clip->id()),
 		                                         .space = deluge::project::ParamSpace::MIDI_CC,
-		                                         .id = deluge::engine::ParamId{74}};
+		                                         .id = deluge::plugin::ParamId{74}};
 		const std::optional<int32_t> cc_before = value_at(*midi.song, cc74);
 		{
 			KnobRig rig;
@@ -1782,8 +1781,8 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		// The knob cycles to the high-pass frequency, and its partner to the high-pass resonance.
 		const deluge::project::ModKnobControl upper{.button = 1, .knob = 1};
 		const deluge::project::ModKnobControl lower{.button = 1, .knob = 0};
-		std::optional<deluge::engine::ParamId> upper_target;
-		std::optional<deluge::engine::ParamId> lower_target;
+		std::optional<deluge::plugin::ParamId> upper_target;
+		std::optional<deluge::plugin::ParamId> lower_target;
 		for (const deluge::project::ControllerMapping& mapping : record->controls) {
 			if (mapping.control == upper) {
 				upper_target = mapping.target;

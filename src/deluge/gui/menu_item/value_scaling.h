@@ -71,30 +71,6 @@
 /// needing specialized code to handle existing saves -- or at least have
 /// unit tests for the conversion code if it is needed.
 
-/** Scales INT32_MIN-INT32_MAX range to 0-50 for display.
- */
-int32_t computeCurrentValueForStandardMenuItem(int32_t value);
-
-/** Scales 0-50 range to INT32_MIN-INT32_MAX for storage and use.
- */
-int32_t computeFinalValueForStandardMenuItem(int32_t value);
-
-/** Scales 0-INT32_MAX range to 0-50 for display.
- */
-int32_t computeCurrentValueForHalfPrecisionMenuItem(int32_t value);
-
-/** Scales 0-50 range to 0-INT32_MAX for storage and use.
- */
-int32_t computeFinalValueForHalfPrecisionMenuItem(int32_t value);
-
-/** Scales INT32_MIN-INT32_MAX range to -25-25 for display.
- */
-int32_t computeCurrentValueForPan(int32_t value);
-
-/** Scales -25 to 25 range to INT32_MIN-INT32_MAX for storage and use.
- */
-int32_t computeFinalValueForPan(int32_t value);
-
 /** Scales UINT32 range to 0-50 for display.
  *
  * Note UNSIGNED input!

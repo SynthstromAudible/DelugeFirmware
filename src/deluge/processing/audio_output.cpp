@@ -20,7 +20,11 @@
 #include "definitions_cxx.hpp"
 #include "deluge-project/audio_input.h"
 #include "deluge-project/doc_output.h" // complete DocOutput type for the identity record
-#include "dsp/stereo_sample.h"
+#include "dsp-next/core/mono.h"
+#include "dsp-next/core/stereo_sample.h"
+#include "dsp-next/fixed/curves/param_curve.h"
+#include "dsp-next/fixed/mix/track_monitor.h"
+#include "dsp-next/fixed/tables/decay_small.h"
 #include "gui/views/view.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/audio_clip.h"
@@ -34,10 +38,16 @@
 #include "storage/audio/audio_file.h"
 #include "storage/storage_manager.h"
 #include "storage/value_tree_deserializer.h"
+#include "synth/matrix/descriptors.h" // kParamNeutral, kParamRange
+#include "util/functions.h"
 #include "util/lookuptables/lookuptables.h"
 #include <algorithm>
+#include <array>
+#include <cstddef>
+#include <cstring>
 #include <new>
 #include <ranges>
+#include <span>
 
 namespace params = deluge::modulation::params;
 EnumStringMap<AudioOutputMode, kNumAudioOutputModes> aoModeStringMap({{
@@ -177,7 +187,7 @@ void AudioOutput::resetEnvelope() {
 		AudioClip* activeAudioClip = (AudioClip*)activeClip;
 
 		bool directlyToDecay = (activeAudioClip->attack() == -2147483648);
-		envelope.noteOn(directlyToDecay, 2147483647);
+		envelope.note_on(directlyToDecay, 2147483647);
 	}
 	amplitudeLastTime = 0;
 	overrideAmplitudeEnvelopeReleaseRate = 0;
@@ -215,12 +225,14 @@ bool AudioOutput::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* m
 		auto& activeAudioClip = static_cast<AudioClip&>(*activeClip);
 		if (activeAudioClip.voiceSample) {
 
-			int32_t attackNeutralValue = paramNeutralValues[params::LOCAL_ENV_0_ATTACK];
-			int32_t attack = getExp(attackNeutralValue, -(activeAudioClip.attack() / 4));
+			int32_t attackNeutralValue = deluge::synth::matrix::kParamNeutral[params::LOCAL_ENV_0_ATTACK];
+			int32_t attack = deluge::dsp::fixed::exp_curve(attackNeutralValue, -(activeAudioClip.attack() / 4));
 
 renderEnvelope:
-			int32_t amplitudeLocal =
-			    (envelope.render(render.size(), attack, 8388608, 2147483647, 0, decayTableSmall4) >> 1) + 1073741824;
+			int32_t amplitudeLocal = (envelope.render(render.size(), attack, 8388608, 2147483647, 0,
+			                                          deluge::dsp::fixed::tables::kDecaySmall4.data())
+			                          >> 1)
+			                         + 1073741824;
 
 			if (envelope.stage() >= Envelope::Stage::OFF) {
 				if (activeAudioClip.doingLateStart) {
@@ -260,13 +272,13 @@ renderEnvelope:
 					// If can write directly into Song buffer...
 					if (bufferToTransferTo != nullptr) {
 						std::ranges::transform(render_mono, reinterpret_cast<StereoSample*>(bufferToTransferTo),
-						                       StereoSample::fromMono);
+						                       StereoSample::from_mono);
 					}
 
 					// Or, if duplicating within same rendering buffer (cos there's FX to be applied)
 					else {
 						std::ranges::transform(render_mono.rbegin(), render_mono.rend(), render.rbegin(),
-						                       StereoSample::fromMono);
+						                       StereoSample::from_mono);
 					}
 				}
 			}
@@ -280,7 +292,7 @@ renderEnvelope:
 	// add in the monitored audio if in sampler or looper mode. Suppress until the codec ADC has settled after
 	// power-on, then fade it in (issue #4517) - otherwise its power-on transient gets passed straight through to the
 	// output.
-	q31_t const monitoring_gain_end = AudioEngine::getInputMonitoringGain(render.size());
+	q31_t const monitoring_gain_end = AudioEngine::inputMonitor.gain(AudioEngine::audioSampleTimer + render.size());
 	if (monitoring_gain_end != 0 && modeAllowsMonitoring() && modelStack->song->isOutputActiveInArrangement(this)
 	    && inputChannel != AudioInputChannel::SPECIFIC_OUTPUT) {
 		rendered = true;
@@ -298,52 +310,49 @@ renderEnvelope:
 
 		int32_t amplitude_start = amplitudeAtStart;
 		int32_t amplitude_end = amplitudeAtEnd;
-		if (!AudioEngine::inputMonitoringWarmedUp) {
-			amplitude_start = multiply_32x32_rshift32(amplitude_start, AudioEngine::getInputMonitoringGain(0)) << 1;
+		if (!AudioEngine::inputMonitor.warmed_up()) {
+			amplitude_start =
+			    multiply_32x32_rshift32(amplitude_start, AudioEngine::inputMonitor.gain(AudioEngine::audioSampleTimer))
+			    << 1;
 			amplitude_end = multiply_32x32_rshift32(amplitude_end, monitoring_gain_end) << 1;
 		}
 
-		auto amplitude_increment = static_cast<int32_t>((static_cast<double>(amplitude_end - amplitude_start) //
-		                                                 / static_cast<double>(render.size())));
-		int32_t amplitude = amplitude_start;
-
-		for (StereoSample& output_sample : output) {
-			amplitude += amplitude_increment;
-
-			StereoSample input = {
-			    .l = multiply_32x32_rshift32(input_ptr[0], amplitude) << 2,
-			    .r = multiply_32x32_rshift32(input_ptr[1], amplitude) << 2,
-			};
-
-			switch (input_channel) {
-			case AudioInputChannel::LEFT:
-				output_sample += StereoSample::fromMono(input.l);
-				break;
-
-			case AudioInputChannel::RIGHT:
-				output_sample += StereoSample::fromMono(input.r);
-				break;
-
-			case AudioInputChannel::BALANCED:
-				output_sample += StereoSample::fromMono((input.l / 2) - (input.r / 2));
-				break;
-
-			case AudioInputChannel::NONE: // Means combine channels
-				output_sample += StereoSample::fromMono((input.l / 2) + (input.r / 2));
-				break;
-
-			default: // STEREO
-				output_sample += input;
-				break;
-				// Remember, there is no case for echoing out the "output" channel - that function doesn't exist, cos
-				// you're obviously already hearing the output channel
-			}
-
-			input_ptr += NUM_MONO_INPUT_CHANNELS;
-			if (input_ptr >= input_end) {
-				input_ptr -= SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS;
-			}
+		using deluge::dsp::fixed::TrackMonitor;
+		TrackMonitor::Mode mode = TrackMonitor::Mode::STEREO;
+		switch (input_channel) {
+		case AudioInputChannel::LEFT:
+			mode = TrackMonitor::Mode::LEFT;
+			break;
+		case AudioInputChannel::RIGHT:
+			mode = TrackMonitor::Mode::RIGHT;
+			break;
+		case AudioInputChannel::BALANCED:
+			mode = TrackMonitor::Mode::BALANCED;
+			break;
+		case AudioInputChannel::NONE: // Means combine channels
+			mode = TrackMonitor::Mode::COMBINE;
+			break;
+		default: // STEREO. There is no case for echoing the "output" channel: you are already hearing it
+			break;
 		}
+
+		// The block's input frames, copied out of the ring in the two segments a wrap leaves. A render is at most
+		// SSI_TX_BUFFER_NUM_SAMPLES frames, and the ring far longer, so it wraps at most once.
+		static_assert(NUM_MONO_INPUT_CHANNELS == 2, "the input ring holds stereo frames");
+		const int32_t* const ring_start = input_end - (SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS);
+		std::array<StereoSample, SSI_TX_BUFFER_NUM_SAMPLES> input_frames;
+		const std::span<StereoSample> input = std::span{input_frames}.first(output.size());
+		const std::size_t before_wrap =
+		    std::min<std::size_t>(input.size(), (input_end - input_ptr) / NUM_MONO_INPUT_CHANNELS);
+		std::memcpy(input.data(), input_ptr, before_wrap * sizeof(StereoSample));
+		std::memcpy(input.data() + before_wrap, ring_start, (input.size() - before_wrap) * sizeof(StereoSample));
+
+		deluge::dsp::Mono<TrackMonitor> monitor{{
+		    .amplitude_start = amplitude_start,
+		    .amplitude_end = amplitude_end,
+		    .mode = mode,
+		}};
+		monitor.render_block(output, input, output);
 	}
 	// Only render the record-source if it has an active clip: Output::renderOutput is documented to be called only
 	// when there's an activeClip, but this branch bypasses the inValidState guard in Song::renderAudio.
@@ -537,7 +546,7 @@ void AudioOutput::getThingWithMostReverb(Sound** soundWithMostReverb, ParamManag
 
 ModelStackWithAutoParam* AudioOutput::getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
                                                              int32_t paramID, params::Kind paramKind, bool affectEntire,
-                                                             bool useMenuStack) {
+                                                             bool useMenuStack, bool forEdit) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings =

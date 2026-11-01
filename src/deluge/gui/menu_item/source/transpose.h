@@ -25,11 +25,7 @@ public:
 	Transpose(l10n::String newName, l10n::String title, int32_t newP, uint8_t sourceId)
 	    : menu_item::Transpose(newName, title, newP), source_id_(sourceId) {}
 
-	ParamDescriptor getLearningThing() final {
-		ParamDescriptor paramDescriptor{};
-		paramDescriptor.setToHaveParamOnly(getP());
-		return paramDescriptor;
-	}
+	deluge::modulation::KnobTarget getLearningThing() final { return deluge::modulation::knobParam(getP()); }
 
 protected:
 	uint8_t source_id_;

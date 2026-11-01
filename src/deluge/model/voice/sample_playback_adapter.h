@@ -16,21 +16,20 @@
  */
 #pragma once
 
-#include "definitions_cxx.hpp"                 // LoopType / MarkerType
-#include "synth/source/sample_playback_port.h" // synth::SamplePlaybackPort
+#include "definitions_cxx.hpp"                         // LoopType / MarkerType
+#include "synth/sources/sample/sample_playback_port.h" // synth::SamplePlaybackPort
 #include <cstdint>
 
 class Sample;
 class Source;
-class Voice;
 class VoiceSample;
 class VoiceSamplePlaybackGuide;
 
 /// @brief The firmware adapter behind @ref deluge::synth::SamplePlaybackPort: one pooled @ref VoiceSample reader
 /// for one voice-source. Holds the source's `VoiceSample` + the per-note `::Source`/guide cached at note-on,
 /// soliciting/releasing from the `AudioEngine` voice-sample pool and answering the library `SampleSource`'s render
-/// queries/ops from that state. This is the app-coupled half the library-resident `SampleSource` no longer
-/// carries (storage, the SD cluster cache, time-stretch, the pool, `playbackHandler` all stay here).
+/// queries/ops from that state: the app-coupled half of sample playback (storage, the SD cluster cache,
+/// time-stretch, the pool, `playbackHandler`), behind the library `SampleSource`.
 ///
 /// It also owns the note **lifecycle** (solicit/release, note-off-at-loop-end, zone change, the GUI play-cursor
 /// read-out, the unison-count-change clone) — app-typed methods called directly by the App, deliberately off the
@@ -40,54 +39,55 @@ class SamplePlaybackAdapter final : public deluge::synth::SamplePlaybackPort {
 public:
 	// --- App-side note lifecycle (called directly by the App, not via the port) ------------------------------
 
-	/// Note-on for the SAMPLE source: cache the per-note @p source + @p guide (stable for the note), then solicit
-	/// (or restart in place) the pooled VoiceSample and set up its clusters for initial play. Returns false only on
-	/// a hard failure that should silence the whole Voice; true otherwise (incl. the unplayable / samples-late
-	/// early-outs). Mirrors the legacy SampleSource::noteOn exactly.
-	bool noteOn(::Source* source, VoiceSamplePlaybackGuide* guide, uint32_t samplesLate, int32_t priorityRating);
+	/// The note's source and playback guide, which the port's note-on and render read: set before each note-on.
+	void bind(::Source* source, VoiceSamplePlaybackGuide* guide) {
+		source_ = source;
+		guide_ = guide;
+	}
 
 	/// Free the pooled VoiceSample back to AudioEngine (no-op if none held); clear the cached source/guide.
-	void unassign(bool deletingSong);
-
-	/// Note-off when the sample has a loop-end point. Returns false if the source should be unassigned now.
-	bool noteOffAtLoopEnd(Voice* voice, VoiceSamplePlaybackGuide* guide);
+	void unassign(bool deletingSong) override;
 
 	/// React to a sample zone/marker change. Returns false if this source is now out of bounds and should be
 	/// unassigned.
 	bool zoneChanged(VoiceSamplePlaybackGuide* guide, Sample* sample, bool reversed, MarkerType markerType,
 	                 LoopType loopingType, int32_t priorityRating);
 
-	/// Low-level play position in bytes (for the auto-release length calculation).
-	int32_t getPlayByteLowLevel(Sample* sample, VoiceSamplePlaybackGuide* guide);
-
 	/// The wrapped low-level reader, or nullptr if none is held (GUI play-cursor read-out + the clone below).
 	[[nodiscard]] VoiceSample* voiceSample() const { return voiceSample_; }
 
-	/// Unison-count increase: solicit a fresh VoiceSample for this (new) part and clone @p from's low-level reader
-	/// state into it. Returns false if none could be solicited.
+	/// Unison-count increase: solicit a fresh VoiceSample for this (new) part, clone @p from's low-level reader state
+	/// into it, and play @p from's source through its guide. Returns false if none could be solicited.
 	bool cloneVoiceSampleFrom(const SamplePlaybackAdapter& from);
 
 	// --- deluge::synth::SamplePlaybackPort (primitive queries/ops the library SampleSource drives) ------------
-	[[nodiscard]] int32_t numChannels() const override;
-	[[nodiscard]] int32_t sampleRate() const override;
-	[[nodiscard]] int32_t neutralPhaseIncrement() const override;
-	[[nodiscard]] int32_t sampleLengthAtSystemSampleRate() const override;
-	[[nodiscard]] bool isStretchRepeatMode() const override;
-	[[nodiscard]] bool pitchAndSpeedIndependent() const override;
-	[[nodiscard]] int32_t timeStretchAmount() const override;
-	[[nodiscard]] uint32_t sequenceSyncLengthTicks() const override;
-	[[nodiscard]] LoopType loopingType() const override;
-	[[nodiscard]] LoopPoints loopPoints() const override;
-	[[nodiscard]] uint64_t timePerInternalTickBig() const override;
-	[[nodiscard]] int64_t syncedNumSamplesIn() const override;
-	[[nodiscard]] int32_t numSamplesLaggingBehindSync() const override;
-	[[nodiscard]] uint32_t adjustPitchToCorrectDriftFromSync(uint32_t phaseIncrement) const override;
-	[[nodiscard]] int32_t interpolationBufferSize(uint32_t phaseIncrement) const override;
-	[[nodiscard]] uint32_t pendingSamplesLate() const override;
-	[[nodiscard]] bool doneFirstRenderYet() const override;
-	LateStartOutcome attemptLateStart(int64_t rawSamplesLate, int32_t numSamples) override;
-	bool possiblySetUpCache(int32_t phaseIncrement, int32_t timeStretchRatio, int32_t priorityRating,
-	                        LoopType loopingType) override;
+	[[nodiscard]] int32_t num_channels() const override;
+	[[nodiscard]] int32_t sample_rate() const override;
+	[[nodiscard]] int32_t neutral_phase_increment() const override;
+	[[nodiscard]] int32_t sample_length_at_system_sample_rate() const override;
+	[[nodiscard]] bool is_stretch_repeat_mode() const override;
+	[[nodiscard]] bool pitch_and_speed_independent() const override;
+	[[nodiscard]] int32_t time_stretch_amount() const override;
+	[[nodiscard]] uint32_t sequence_sync_length_ticks() const override;
+	[[nodiscard]] LoopType looping_type() const override;
+	[[nodiscard]] LoopPoints loop_points() const override;
+	[[nodiscard]] uint64_t time_per_internal_tick_big() const override;
+	[[nodiscard]] int64_t synced_num_samples_in() const override;
+	[[nodiscard]] int32_t num_samples_lagging_behind_sync() const override;
+	[[nodiscard]] uint32_t adjust_pitch_to_correct_drift_from_sync(uint32_t phaseIncrement) const override;
+	[[nodiscard]] int32_t interpolation_buffer_size(uint32_t phaseIncrement) const override;
+	[[nodiscard]] uint32_t pending_samples_late() const override;
+	[[nodiscard]] bool done_first_render_yet() const override;
+	/// Solicits (or restarts in place) the pooled VoiceSample and sets up its clusters for initial play. Returns false
+	/// only on a hard failure that should silence the whole Voice; true otherwise (including an unplayable sample and
+	/// a late start).
+	bool note_on(uint32_t samples_late, int32_t priority_rating) override;
+	bool note_off_at_loop_end(int32_t priority_rating) override;
+	[[nodiscard]] int32_t bytes_left_to_end() const override;
+	[[nodiscard]] int32_t bytes_per_frame() const override;
+	LateStartOutcome attempt_late_start(int64_t rawSamplesLate, int32_t numSamples) override;
+	bool possibly_set_up_cache(int32_t phaseIncrement, int32_t timeStretchRatio, int32_t priorityRating,
+	                           LoopType loopingType) override;
 	bool render(int32_t* buffer, int32_t numSamples, LoopType loopingType, int32_t phaseIncrement,
 	            int32_t timeStretchRatio, int32_t sourceAmplitude, int32_t amplitudeIncrement,
 	            int32_t interpolationBufferSize, int32_t priorityRating) override;

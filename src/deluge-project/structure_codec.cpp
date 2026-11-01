@@ -19,12 +19,12 @@
 
 #include "deluge-project/arp_codec.h"
 #include "deluge-project/audio_input.h"
-#include "engine-api/types/setting.h"
+#include "plugin-api/types/setting.h"
 
 #include "deluge-project/arrangement.h"
 #include "deluge-project/launch_style.h"
 #include "deluge-project/sequence_direction.h"
-#include "engine-api/types/engine_id.h"
+#include "plugin-api/types/plugin_id.h"
 #include "serialization/tree.h"
 
 #include <algorithm>
@@ -221,7 +221,7 @@ Value encode(const DocAudioClip& clip) {
 	map.set("startSamplePos", Value::makeNumber(static_cast<int32_t>(clip.start_pos)));
 	map.set("endSamplePos", Value::makeNumber(static_cast<int32_t>(clip.end_pos)));
 	map.set("pitchSpeedIndependent", Value::makeNumber(clip.pitch_and_speed_independent ? 1 : 0));
-	if (clip.interpolation_mode == engine::InterpolationMode::LINEAR) {
+	if (clip.interpolation_mode == plugin::InterpolationMode::LINEAR) {
 		map.set("linearInterpolation", Value::makeNumber(1));
 	}
 	if (clip.reversed) {
@@ -259,13 +259,13 @@ std::expected<void, LoadError> decode(const Value& clipElement, DocAudioClip& cl
 		clip.pitch_and_speed_independent = *v != 0;
 	}
 	if (auto v = int_of(clipElement.find("linearInterpolation")); v && *v != 0) {
-		clip.interpolation_mode = engine::InterpolationMode::LINEAR;
+		clip.interpolation_mode = plugin::InterpolationMode::LINEAR;
 	}
 	if (auto v = int_of(clipElement.find("attack"))) {
 		clip.attack = *v;
 	}
 	if (auto v = int_of(clipElement.find("priority"))) {
-		clip.voice_priority = static_cast<engine::VoicePriority>(*v);
+		clip.voice_priority = static_cast<plugin::VoicePriority>(*v);
 	}
 	if (auto v = int_of(clipElement.find("reversed"))) {
 		clip.reversed = *v != 0;
@@ -449,7 +449,7 @@ std::expected<void, LoadError> decode_identity(const Value& outputElement, std::
 			}
 			if (const Value* labels = device->find("ccLabels"); labels != nullptr && labels->isMap()) {
 				for (const auto& [cc, label] : labels->entries()) {
-					const std::optional<int64_t> number = engine::whole_number(cc);
+					const std::optional<int64_t> number = plugin::whole_number(cc);
 					const std::string* name = text_of(&label);
 					if (number && *number >= 0 && *number < kNumCcLabels && name != nullptr && !name->empty()) {
 						output.cc_labels[static_cast<uint8_t>(*number)] = *name;

@@ -525,9 +525,8 @@ describe midi_device_per_cable("scenes::menu E3 task 8: the per-cable binding fa
 
 		const int32_t want = cable.defaultVelocityToLevel;
 		expect(want != 0).to_be_true();
-		ParamDescriptor volume;
-		volume.setToHaveParamOnly(deluge::modulation::params::LOCAL_VOLUME);
-		const deluge::engine::ParamId depth = deluge::bridge::cable_depth(PatchSource::VELOCITY, volume);
+		deluge::synth::CableTarget volume = deluge::synth::CableTarget::param(deluge::modulation::params::LOCAL_VOLUME);
+		const deluge::plugin::ParamId depth = deluge::bridge::cable_depth(PatchSource::VELOCITY, volume);
 		const auto recorded = [&](deluge::project::OwnerId owner, const Clip& clip) -> std::optional<int32_t> {
 			const deluge::project::DocAutoParam* param = f.song->project.resolveParam(
 			    {.owner = owner, .space = deluge::project::ParamSpace::ENGINE, .id = depth, .clip_id = clip.id()});

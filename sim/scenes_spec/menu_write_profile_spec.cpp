@@ -9,14 +9,14 @@
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 
-#include "engine-api/types/setting.h"
-#include "engines/deluge/codec.h"
-#include "engines/deluge/settings.h"
+#include "instruments/deluge/codec.h"
+#include "instruments/deluge/settings.h"
 #include "model/edits/set_engine_setting.h"
 #include "model/instrument/kit.h"
 #include "model/project_bridge/setting_apply.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/song/song.h"
+#include "plugin-api/types/setting.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
 
@@ -80,10 +80,10 @@ private:
 };
 
 /// The file form of stored value @p stored of @p row, as the sink makes it.
-std::optional<Value> value_of(const deluge::engine::SettingInfo& row, int32_t stored) {
-	if (row.kind == deluge::engine::SettingKind::CHOICE) {
+std::optional<Value> value_of(const deluge::plugin::SettingInfo& row, int32_t stored) {
+	if (row.kind == deluge::plugin::SettingKind::CHOICE) {
 		std::array<char, 1> unused{};
-		const auto word = deluge::engine::stored_text(row, stored, unused);
+		const auto word = deluge::plugin::stored_text(row, stored, unused);
 		return word ? std::optional{Value::makeScalar(std::string(*word))} : std::nullopt;
 	}
 	return Value::makeNumber(stored);
@@ -117,11 +117,11 @@ void commit_phased(Phases& phases, Song& song, deluge::project::SlotAddress addr
 
 /// One kit-wide write of menu value @p menu at @p path, phase by phase, as the sink runs it over @p kit's drums.
 void write_phased(Phases& phases, Song& song, Kit& kit, std::string_view path, int32_t menu) {
-	const auto& row = *deluge::engine::find_setting(deluge::instrument::kSettings, path);
-	const auto stored = deluge::engine::from_menu(row, menu);
-	const std::string_view partner = deluge::engine::mapping_of(row).partner_path();
+	const auto& row = *deluge::plugin::find_setting(deluge::instrument::kSettings, path);
+	const auto stored = deluge::plugin::from_menu(row, menu);
+	const std::string_view partner = deluge::plugin::mapping_of(row).partner_path();
 	const auto* partner_row =
-	    partner.empty() ? nullptr : deluge::engine::find_setting(deluge::instrument::kSettings, partner);
+	    partner.empty() ? nullptr : deluge::plugin::find_setting(deluge::instrument::kSettings, partner);
 	const Target target{.kind = Target::Kind::SOUND, .path = path};
 	for (Drum* drum = kit.firstDrum; drum != nullptr; drum = drum->next) {
 		if (drum->type != DrumType::SOUND) {

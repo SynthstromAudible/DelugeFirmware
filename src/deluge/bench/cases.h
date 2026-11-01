@@ -870,7 +870,7 @@ using DelayFeedbackPassesAnalogCase = DelayFeedbackPassesCase<true>;
 using DelayFeedbackPassesDigitalCase = DelayFeedbackPassesCase<false>;
 
 /// @brief The delay's feedback as one pass of `Stereo<DelayFeedbackChain>`.
-/// @details In place (Placement::IN_PLACE) it is the delay's own render, `renderBlock(work, work)`: the loop the delay
+/// @details In place (Placement::IN_PLACE) it is the delay's own render, `render_block(work, work)`: the loop the delay
 /// ships, whose one frame pointer is stepped after the frame's store. Out of place it renders the lanes input into the
 /// lanes output, a loop with an input pointer and an output pointer; `delay_feedback_chain_digital_out_of_place` times
 /// that form against the in-place one.
@@ -1114,8 +1114,8 @@ private:
 inline constexpr DelayWholeConfig kDelayWholeGrowing{
     .tape = DelayTapeForm::RES_HI, .cross = false, .analog = false, .growing = true};
 
-/// @brief The filter cases' seed for the synth-wide noise generator (util/waves.h's jcong), which the low-pass ladder
-/// draws from: the app's boot value.
+/// @brief The filter cases' seed for the synth-wide noise generator (`deluge::synth_noise`, util/synth_noise.h), which
+/// the low-pass ladder draws from: the app's boot value.
 inline constexpr uint32_t kFilterNoiseSeed = 380'116'160;
 /// @brief The gain going into every filter case's set, Q31: a quarter.
 inline constexpr q31 kFilterGain = 536'870'912;
@@ -1257,7 +1257,7 @@ struct FilterRig {
 /// @return The rig the filter cases render with.
 [[nodiscard]] const FilterRig& filter_rig();
 
-/// @brief A filter set's block as a voice renders it, `FilterSet::configure` then `renderMono` or `renderStereo`, in
+/// @brief A filter set's block as a voice renders it, `FilterSet::configure` then `render_mono` or `render_stereo`, in
 /// place over the lanes output, for a configuration the case holds as data.
 /// @details Setup resets the set, as a new voice's, and seeds the synth-wide noise at kFilterNoiseSeed; the block is
 /// the lanes input's first n samples (2n interleaved in stereo, as fill_filter_input() fills it) copied into the lanes
@@ -1271,7 +1271,7 @@ struct FilterRig {
 /// and the wrapping sum. A fading configuration (FilterCaseConfig::fading) is the exception: each block first
 /// configures the low-pass off, then on, which resets the ladder's sections and restarts its fade, so every block
 /// runs the fade pass from its start (the level's arithmetic costs the same at every level).
-/// @tparam Stereo Interleaved L/R frames, `renderStereo`; else mono, `renderMono`.
+/// @tparam Stereo Interleaved L/R frames, `render_stereo`; else mono, `render_mono`.
 template <bool Stereo>
 class FilterCase {
 public:
@@ -1307,23 +1307,23 @@ inline constexpr q31 kCompressorHalfBlend = 1 << 30;
 /// (167,763,968), halved as the master halves it.
 inline constexpr q31 kCompressorVolume = 83'881'984;
 /// @brief The final volume, 3.29: GLOBAL_VOLUME_POST_FX's neutral value, as a sound passes it to
-/// `renderVolumeNeutral`. The `render` cases pass it shifted down by 3, as `renderVolumeNeutral` does.
+/// `render_volume_neutral`. The `render` cases pass it shifted down by 3, as `render_volume_neutral` does.
 inline constexpr q31 kCompressorFinalVolume = 134'217'728;
 
 /// @brief One compressor case's configuration.
 struct CompressorCaseConfig {
-	q31 blend;    ///< The blend knob, Q31: ONE_Q31 fully wet.
-	bool neutral; ///< `renderVolumeNeutral`, as a sound and a clip chain call it; else `render`, as the song master
+	q31 blend;    ///< The blend knob, Q31: kOneQ31 fully wet.
+	bool neutral; ///< `render_volume_neutral`, as a sound and a clip chain call it; else `render`, as the song master
 	              ///< does.
 };
 
 /// @brief `compressor_wet_render`: fully wet, through `render`.
-inline constexpr CompressorCaseConfig kCompressorWetRender{.blend = ONE_Q31, .neutral = false};
-/// @brief `compressor_wet_neutral`: fully wet, through `renderVolumeNeutral`.
-inline constexpr CompressorCaseConfig kCompressorWetNeutral{.blend = ONE_Q31, .neutral = true};
+inline constexpr CompressorCaseConfig kCompressorWetRender{.blend = kOneQ31, .neutral = false};
+/// @brief `compressor_wet_neutral`: fully wet, through `render_volume_neutral`.
+inline constexpr CompressorCaseConfig kCompressorWetNeutral{.blend = kOneQ31, .neutral = true};
 /// @brief `compressor_blend_render`: half blended, through `render`.
 inline constexpr CompressorCaseConfig kCompressorBlendRender{.blend = kCompressorHalfBlend, .neutral = false};
-/// @brief `compressor_blend_neutral`: half blended, through `renderVolumeNeutral`.
+/// @brief `compressor_blend_neutral`: half blended, through `render_volume_neutral`.
 inline constexpr CompressorCaseConfig kCompressorBlendNeutral{.blend = kCompressorHalfBlend, .neutral = true};
 
 /// @param config The case's configuration.
@@ -1347,7 +1347,7 @@ struct CompressorRig {
 [[nodiscard]] const CompressorRig& compressor_rig();
 
 /// @brief The compressor's block as its owners render it today: `RmsFeedbackCompressor::render` (the song master) or
-/// `renderVolumeNeutral` (a sound, a clip chain), in place over the lanes output, fully wet or blended.
+/// `render_volume_neutral` (a sound, a clip chain), in place over the lanes output, fully wet or blended.
 /// @details Setup replaces the compressor with a fresh one at compressor_knobs(), and copies the lanes input's first n
 /// frames (fill_compressor_input()) into the lanes output. Each block compresses that block in place, over the block
 /// before's output.
@@ -1700,6 +1700,28 @@ private:
 	FxChainConfig config_;
 };
 
+/// @brief Which patching a matrix case times.
+enum class ModMatrixKind : uint8_t {
+	TYPICAL, ///< a block's patching with a held note's moving sources: envelopes 1 and 2, the LFOs, the sidechain.
+	ALL,     ///< a block's patching with every source changed.
+	INITIAL, ///< the initial patching, as eight note-ons would.
+};
+
+/// @brief One block of the q31 matrix's patching for the mod-matrix workload (bench/mod_matrix_workload.h): the
+/// instrument's pass, then eight voices' passes, each voice taking the instrument's sources first, as Voice::render
+/// does.
+/// @details The PatchCableSet is built by hand (no ModelStack) and its setupPatching compiles the program. The figure
+/// to compare is cycles per block (cycles / k): the block size does not change the work.
+class MatrixCase {
+public:
+	constexpr explicit MatrixCase(ModMatrixKind kind) : kind_{kind} {}
+	void setup(std::size_t n);
+	void block(std::size_t n);
+
+private:
+	ModMatrixKind kind_;
+};
+
 /// @brief Every case, by name.
 struct CaseSet {
 	CalibrationLoop calibration_loop;                             ///< `calibration_loop`
@@ -1827,6 +1849,9 @@ struct CaseSet {
 	Dx7Case dx7_modern_alg32{kDx7ModernAlg32};                                    ///< `dx7_modern_alg32`
 	Dx7Case dx7_mki_alg1_fb{kDx7MkIAlg1Fb};                                       ///< `dx7_mki_alg1_fb`
 	Dx7Case dx7_mki_alg4_fb3{kDx7MkIAlg4Fb3};                                     ///< `dx7_mki_alg4_fb3`
+	MatrixCase matrix_q31_typical{ModMatrixKind::TYPICAL};                        ///< `matrix_q31_typical`
+	MatrixCase matrix_q31_all{ModMatrixKind::ALL};                                ///< `matrix_q31_all`
+	MatrixCase matrix_q31_initial{ModMatrixKind::INITIAL};                        ///< `matrix_q31_initial`
 	FftCase fft_fwd_16{{.inverse = false, .magnitude = 4}};                       ///< `fft_fwd_16`
 	FftCase fft_fwd_32{{.inverse = false, .magnitude = 5}};                       ///< `fft_fwd_32`
 	FftCase fft_fwd_64{{.inverse = false, .magnitude = 6}};                       ///< `fft_fwd_64`
@@ -1873,8 +1898,8 @@ enum class CaseList : uint8_t {
 	/// The calibration loop, each filter mono and stereo, the filter set on each route, then the feedback chain's two
 	/// cases from the chain list, as in the delay list.
 	FILTERS,
-	/// The calibration loop, the compressor fully wet and blended through `render` and `renderVolumeNeutral`, then the
-	/// feedback chain's two cases from the chain list, as in the delay list.
+	/// The calibration loop, the compressor fully wet and blended through `render` and `render_volume_neutral`, then
+	/// the feedback chain's two cases from the chain list, as in the delay list.
 	COMPRESSOR,
 	/// The calibration loop, each mod FX type as its owners render it through `effects::ModFx`, in stereo and in mono
 	/// (the phaser once), then the feedback chain's two cases from the chain list, as in the delay list.
@@ -1899,6 +1924,9 @@ enum class CaseList : uint8_t {
 	FFT_FORWARD,
 	/// The calibration loop, then the int32 real FFT inverse at every size the firmware transforms, 8 to 8192 points.
 	FFT_INVERSE,
+	/// The calibration loop, the q31 matrix on the mod-matrix workload (a held note, every source changed,
+	/// note-ons), then the feedback chain's two cases from the chain list.
+	MOD_MATRIX,
 };
 
 /// @brief The case list a bench image runs: DELUGE_DSP_BENCH_CASES, as src/deluge/CMakeLists.txt defines it.
@@ -1928,6 +1956,8 @@ inline constexpr CaseList kBenchCaseList = CaseList::FX_CHAINS;
 inline constexpr CaseList kBenchCaseList = CaseList::FFT_FORWARD;
 #elif defined(DELUGE_DSP_BENCH_FFT_INVERSE)
 inline constexpr CaseList kBenchCaseList = CaseList::FFT_INVERSE;
+#elif defined(DELUGE_DSP_BENCH_MOD_MATRIX)
+inline constexpr CaseList kBenchCaseList = CaseList::MOD_MATRIX;
 #else
 inline constexpr CaseList kBenchCaseList = CaseList::KERNELS;
 #endif

@@ -31,7 +31,7 @@
 
 #include "deluge-project/setting_group.h"
 #include "deluge-project/song.h"
-#include "engines/deluge/sound_state.h"
+#include "instruments/deluge/sound_state.h"
 #include "scenes/bind/runtime_facts.h"
 #include "storage/file_catalogue.h"
 #include "storage/file_item.h"
@@ -242,7 +242,7 @@ constexpr std::string_view kMidiDeviceDir = "MIDI_DEVICES/DEFINITION";
 
 /// @brief The MIDI track's remembered device definition file, as its record holds it, or nullopt off a MIDI track.
 std::optional<std::string> midi_device_file(const menu::MenuContext& ctx) {
-	if (ctx.addresses.instrument != deluge::engine::SettingContext::Instrument::MIDI || !ctx.addresses.track
+	if (ctx.addresses.instrument != deluge::plugin::SettingContext::Instrument::MIDI || !ctx.addresses.track
 	    || ctx.model == nullptr) {
 		return std::nullopt;
 	}

@@ -20,13 +20,13 @@
 #include "dsp-next/core/chain.h"
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/mode.h"
+#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/core/types.h"
 #include "dsp-next/fixed/delay/analog_impulse_response.h"
 #include "dsp-next/fixed/delay/delay_tape.h"
 #include "dsp-next/fixed/delay/feedback_shaper.h"
 #include "dsp-next/fixed/filter/shift_tracker.h"
-#include "util/fixedpoint.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -42,7 +42,7 @@ using DelayFeedbackChain = Chain<FeedbackShaper, Pinned<ShiftTracker<11>, ShiftT
 
 /// @brief The delay over tapes it is handed, as a processor kernel of stereo frames: each frame reads the primary tape,
 /// runs the feedback, mixes and writes both tapes before the next frame is read. Rendered in place as
-/// `Mono<Delay>::renderBlock(block, block)`.
+/// `Mono<Delay>::render_block(block, block)`.
 /// @details
 /// **Per frame** (`step`), in order:
 /// 1. **Read.** With `reading`, the primary is read at its read head, which clears each sample it leaves and notes a
@@ -56,7 +56,7 @@ using DelayFeedbackChain = Chain<FeedbackShaper, Pinned<ShiftTracker<11>, ShiftT
 ///    it: natively the sample behind where the read began, resampled the triangle the read's own strengths give.
 ///    Following the read is the same as walking the head again from where it stood, without the second walk. With
 ///    `growing`, the secondary is written too, clearing ahead of its own head and counting its steps: natively inline,
-///    one step a frame; resampling, through @ref writeSecondaryResampled, an out-of-line call made only while a
+///    one step a frame; resampling, through @ref write_secondary_resampled, an out-of-line call made only while a
 ///    resampled secondary grows (about one delay period, up to about 345 blocks at the longest), so the eight loops
 ///    do not each carry its advance and triangle write.
 /// 5. **Return** the dry frame plus the feedback.
@@ -79,8 +79,8 @@ using DelayFeedbackChain = Chain<FeedbackShaper, Pinned<ShiftTracker<11>, ShiftT
 ///
 /// **Hot path.** The tape, the response and the chain are stepped through their inline members, and the block's
 /// storage bounds are taken once per block (@ref Block). Under the DSP library's flags, where the kernel is
-/// instantiated, the steady-state loops make no call; the one cold call, @ref writeSecondaryResampled, is taken
-/// only while a resampled secondary grows. The tape's out-of-line `setupForRender` runs once per block in
+/// instantiated, the steady-state loops make no call; the one cold call, @ref write_secondary_resampled, is taken
+/// only while a resampled secondary grows. The tape's out-of-line `setup_for_render` runs once per block in
 /// @ref prepare.
 struct Delay {
 	using value_type = StereoSample; ///< A frame, Q31 per channel.
@@ -181,7 +181,7 @@ struct Delay {
 	/// @brief The coefficients for @p s.
 	/// @details The chain's coefficients and mode come from FeedbackChain::coefficients, and the shaper from the
 	/// chain's mode, so the two agree. The mix crosses when `ping_pong && render_in_stereo`. The tape form is the
-	/// primary's after this block's setup, by the rule the setup itself takes (DelayTape::resamplesAt). The
+	/// primary's after this block's setup, by the rule the setup itself takes (DelayTape::resamples_at). The
 	/// secondary's form is decided per block in @ref prepare, after its own setup.
 	/// @param s One block's settings and tapes.
 	/// @return The coefficients the block's steps read.
@@ -190,18 +190,18 @@ struct Delay {
 		    .feedback = FeedbackChain::coefficients(FeedbackChain::Settings{
 		        FeedbackShaper::Settings{
 		            .feedback = s.feedback, .analog = s.analog, .drive = static_cast<uint32_t>(s.analog_saturation)},
-		        ShiftTracker<11>::Settings{},
+		        {ShiftTracker<11>::Settings{}},
 		    }),
 		    .primary = s.primary,
 		    .secondary = s.secondary,
 		    .rate = s.rate,
-		    .reading = s.primary != nullptr && s.primary->isActive(),
-		    .growing = s.secondary != nullptr && s.secondary->isActive(),
+		    .reading = s.primary != nullptr && s.primary->is_active(),
+		    .growing = s.secondary != nullptr && s.secondary->is_active(),
 		    .mode = {},
 		};
 		c.mode.shaper = get<0>(c.feedback.mode) == FeedbackShaper::Mode::ANALOG ? Shaper::ANALOG : Shaper::DIGITAL;
 		c.mode.mix = s.ping_pong && s.render_in_stereo ? Mix::CROSS : Mix::STRAIGHT;
-		const bool resampled = c.reading && s.primary->resamplesAt(s.rate);
+		const bool resampled = c.reading && s.primary->resamples_at(s.rate);
 		c.mode.tape = resampled ? Tape::RESAMPLED : Tape::NATIVE;
 		return c;
 	}
@@ -216,15 +216,15 @@ struct Delay {
 		// The tape takes the rate's int32_t image.
 		const auto rate = static_cast<int32_t>(c.rate);
 		if (c.primary != nullptr) {
-			c.primary->setupForRender(rate);
+			c.primary->setup_for_render(rate);
 		}
 		Block block{};
 		if (c.reading) {
 			block.primary_begin = c.primary->begin();
-			block.primary_ring = static_cast<std::ptrdiff_t>(c.primary->sizeIncludingExtra());
+			block.primary_ring = static_cast<std::ptrdiff_t>(c.primary->size_including_extra());
 		}
 		if (c.growing) {
-			c.secondary->setupForRender(rate);
+			c.secondary->setup_for_render(rate);
 			block.secondary_resampled = c.secondary->resampling();
 			if (!block.secondary_resampled) {
 				s.secondary_written += static_cast<int32_t>(n);
@@ -256,12 +256,12 @@ struct Delay {
 					index += b.primary_ring;
 				}
 				native_write = b.primary_begin + index;
-				wrapped = primary.clearAndMoveOn();
+				wrapped = primary.clear_and_move_on();
 				delayed = primary.current();
 			}
 			else {
 				strength2 =
-				    primary.advance([&] [[gnu::always_inline]] { wrapped = primary.clearAndMoveOn() || wrapped; });
+				    primary.advance([&] [[gnu::always_inline]] { wrapped = primary.clear_and_move_on() || wrapped; });
 				strength1 = 65536 - strength2;
 				StereoSample* next = &primary.current() + 1;
 				if (next == primary.end()) {
@@ -311,18 +311,18 @@ struct Delay {
 				*native_write = to_tape;
 			}
 			else {
-				c.primary->writeResampled(to_tape, strength1, strength2);
+				c.primary->write_resampled(to_tape, strength1, strength2);
 			}
 		}
 		if (c.growing) {
 			// The secondary's wraps replace the primary's: it is the tape that will play on.
 			DelayTape& secondary = *c.secondary;
 			if (!b.secondary_resampled) {
-				wrapped = secondary.clearAndMoveOn();
-				secondary.writeNative(to_tape);
+				wrapped = secondary.clear_and_move_on();
+				secondary.write_native(to_tape);
 			}
 			else {
-				const SecondaryWrite written = writeSecondaryResampled(secondary, to_tape);
+				const SecondaryWrite written = write_secondary_resampled(secondary, to_tape);
 				wrapped = written.wrapped;
 				s.secondary_written += written.steps;
 			}
@@ -366,20 +366,20 @@ struct Delay {
 	/// @param secondary The growing secondary tape.
 	/// @param sample The frame to write, Q31 per channel.
 	/// @return Whether the read head wrapped, and its steps.
-	[[gnu::noinline, gnu::cold]] static SecondaryWrite writeSecondaryResampled(DelayTape& secondary,
-	                                                                           StereoSample sample) {
+	[[gnu::noinline, gnu::cold]] static SecondaryWrite write_secondary_resampled(DelayTape& secondary,
+	                                                                             StereoSample sample) {
 		SecondaryWrite written{.wrapped = false, .steps = 0};
 		const int32_t strength2 = secondary.advance([&] [[gnu::always_inline]] {
-			written.wrapped = secondary.clearAndMoveOn() || written.wrapped;
+			written.wrapped = secondary.clear_and_move_on() || written.wrapped;
 			++written.steps;
 		});
-		secondary.writeResampled(sample, 65536 - strength2, strength2);
+		secondary.write_resampled(sample, 65536 - strength2, strength2);
 		return written;
 	}
 };
 
 static_assert(processor_kernel<Delay>);
-static_assert(dsp::detail::state_in_place<Delay>);
+static_assert(dsp::detail::state_in_place_v<Delay>);
 static_assert(!std::is_polymorphic_v<Delay>);
 
 } // namespace deluge::dsp::fixed

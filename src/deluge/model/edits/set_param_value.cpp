@@ -1,4 +1,5 @@
 #include "model/edits/set_param_value.h"
+#include "model/edits/edit_cable.h"
 
 #include "deluge-project/param_automation.h" // DocAutoParam::nodes
 #include "deluge-project/song.h"             // Song::resolveParam
@@ -56,10 +57,10 @@ bool copiedByReverbSidechain(const ModelStackWithAutoParam& stack) {
 	const params::Kind kind = stack.kind;
 	if (kind == params::Kind::PATCH_CABLE) {
 		PatchSource source{};
-		ParamDescriptor destination{};
+		deluge::synth::CableTarget destination{};
 		PatchCableSet::dissectParamId(stack.paramId, &destination, &source);
 		return source == PatchSource::SIDECHAIN
-		       && destination.isSetToParamWithNoSource(params::GLOBAL_VOLUME_POST_REVERB_SEND);
+		       && destination == deluge::synth::CableTarget::param(params::GLOBAL_VOLUME_POST_REVERB_SEND);
 	}
 	const bool unpatched = kind == params::Kind::UNPATCHED_SOUND || kind == params::Kind::UNPATCHED_GLOBAL;
 	return (unpatched && stack.paramId == params::UNPATCHED_SIDECHAIN_SHAPE)
@@ -151,6 +152,7 @@ Error SetParamValue::write(Context& ctx) {
 		const int32_t oldValue = engineStack_->autoParam->getCurrentValue();
 		deluge::snapshot::ParamSnapshot::applyPatch(ctx.model, *address_, newValue_, 0, 0, std::nullopt);
 		engineStack_->autoParam->projectScalarFromStore(engineStack_, oldValue, isPlaying);
+		settleCableDepth(engineStack_);
 		return Error::NONE;
 	}
 
@@ -177,12 +179,14 @@ Error SetParamValue::write(Context& ctx) {
 		if (result.has_value()) {
 			engineStack_->autoParam->projectRegionFromStore(engineStack_, oldValue, automatedBefore, *result);
 		}
+		settleCableDepth(engineStack_);
 		return Error::NONE;
 	}
 
 	// Unaddressable / unresolvable lanes: delegate to the engine's own setter.
 	engineStack_->autoParam->setValuePossiblyForRegion(newValue_, engineStack_, pos_, length_,
 	                                                   mayDeleteNodesInLinearRun_);
+	settleCableDepth(engineStack_);
 	return Error::NONE;
 }
 

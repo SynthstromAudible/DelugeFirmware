@@ -8,8 +8,8 @@
 // Exit: 0 every check holds; 1 the file does not load; 2 usage/IO; 3 a check fails.
 
 #include "deluge-project/fx_chain.h"
-#include "engines/effects/engine.h"
-#include "engines/effects/settings.h"
+#include "effects/plugin.h"
+#include "effects/settings.h"
 #include "memory/general_memory_allocator.h"
 #include "memory/heaps.h"
 #include "model/edits/edit.h"
@@ -116,8 +116,8 @@ Error setEffect(Song& song, const HostOwner& owner, std::string_view path, const
 
 /// The legal values of @p row worth setting, given the owner's @p current value: an integer row's ends and the current
 /// value, a choice row's every name, a bool's both.
-std::vector<Value> legalValues(const deluge::engine::SettingInfo& row, const std::optional<Value>& current) {
-	using Kind = deluge::engine::SettingKind;
+std::vector<Value> legalValues(const deluge::plugin::SettingInfo& row, const std::optional<Value>& current) {
+	using Kind = deluge::plugin::SettingKind;
 	std::vector<Value> values;
 	switch (row.kind) {
 	case Kind::INTEGER:
@@ -150,7 +150,7 @@ void settingLegs(Song& song, const HostOwner& owner) {
 		fail(owner, "-", Value::makeScalar("-"), "no owner at its address");
 		return;
 	}
-	for (const deluge::engine::SettingInfo& row : deluge::effects::kEffectSettings) {
+	for (const deluge::plugin::SettingInfo& row : deluge::effects::kEffectSettings) {
 		const std::optional<Value> original = deluge::effects::effect_setting_value(runtime->effects(), row.path);
 		for (const Value& value : legalValues(row, original)) {
 			if (const Error error = setEffect(song, owner, row.path, value); error != Error::NONE) {
@@ -258,7 +258,7 @@ int roundTripLeg(Song& song, const std::vector<HostOwner>& owners) {
 		GlobalEffectable* runtime = deluge::bridge::chainOwnerAt(owner.address, song);
 		if (owner.address.kind == ChainAddress::Kind::OUTPUT && runtime != nullptr) {
 			const int32_t setting = runtime->effects().compressor.threshold;
-			runtime->core().compressor().dsp().setThreshold(setting == 0x40000000 ? 0x20000000 : 0x40000000);
+			runtime->core().compressor().dsp().set_threshold(setting == 0x40000000 ? 0x20000000 : 0x40000000);
 			thresholds.emplace_back(owner, setting);
 		}
 	}

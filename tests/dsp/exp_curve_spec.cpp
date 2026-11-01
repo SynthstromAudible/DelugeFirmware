@@ -21,6 +21,7 @@
 
 #include <cppspec.hpp>
 #include <cstdint>
+#include <limits>
 
 using deluge::dsp::fixed::exp_curve;
 
@@ -38,6 +39,28 @@ describe exp_curve_spec("exp_curve", ${
 		expect(exp_curve(4194304, 12345678)).to_equal(4764748);
 		expect(exp_curve(4194304, -98765432)).to_equal(1512278);
 		expect(exp_curve(120000000, 50331648)).to_equal(201815184);
+	});
+	it("saturates rather than wraps when the adjustment asks for more than 20 octaves", _ {
+		// A cutoff's add chain saturated by several full-depth cables: 33 octaves
+		expect(exp_curve(4194304, std::numeric_limits<int32_t>::max())).to_equal(std::numeric_limits<int32_t>::max());
+		// Up to 20 octaves the saturated ceiling, 2^31 - 2^octaves, steps down an octave at a time; nothing else falls
+		constexpr int32_t kLowestCeiling = std::numeric_limits<int32_t>::max() - (1 << 20) + 1;
+		int32_t previous = 0;
+		int32_t falls = 0;
+		int32_t negatives = 0;
+		for (int64_t adjustment = 0; adjustment <= std::numeric_limits<int32_t>::max(); adjustment += 1 << 22) {
+			const int32_t value = exp_curve(4194304, static_cast<int32_t>(adjustment));
+			negatives += value < 0 ? 1 : 0;
+			falls += (value < previous && value < kLowestCeiling) ? 1 : 0;
+			previous = value;
+		}
+		expect(negatives).to_equal(0);
+		expect(falls).to_equal(0);
+	});
+	it("scales exactly past 20 octaves while the result fits", _ {
+		// 24 octaves (adjustment 22 << 26, no fraction) of a preset small enough to fit: 2 << 24
+		expect(exp_curve(2, 22 << 26)).to_equal(0);
+		expect(exp_curve(8, 22 << 26)).to_equal(1 << 25);
 	});
 });
 

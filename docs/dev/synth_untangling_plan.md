@@ -37,7 +37,7 @@ smeared across three god files:
 | Component | Location | LOC | Responsibilities (all of them, simultaneously) |
 |---|---|---|---|
 | `Sound` | `processing/sound/sound.cpp` | ~5,000 | Preset state, XML serialization, UI mod-button/knob handling, arpeggiator hooks, global LFOs, voice lifecycle, FX chain, render orchestration |
-| `Voice` | `model/voice/voice.cpp` | ~2,500 | Envelopes, local LFOs, MPE expression smoothing, patcher invocation, porta/pitch math, per-voice filters, unison, source dispatch, FM feedback paths, sample auto-release |
+| `Voice` | `synth/voice/voice.cpp` | ~2,500 | Envelopes, local LFOs, MPE expression smoothing, patcher invocation, porta/pitch math, per-voice filters, unison, source dispatch, FM feedback paths, sample auto-release |
 | `VoiceSample` + unison parts | `model/voice/` | ~2,100 | Sample streaming, time-stretch, cluster/cache interaction, interpolation |
 
 `Sound` inherits from `ModControllableAudio` *and* `Voiced`. It is
@@ -186,6 +186,28 @@ per-note-id polyphonic parameter modulation.
 └───────────────────────────────────────────────────────────────────┘
 ```
 
+### Where the layers live
+
+"Engine" means only an L1 per-voice timbre generator inside the Deluge instrument (subtractive, FM, ring-mod, DX7,
+sample, input, a Plaits-style foreign engine). What the host loads on a track, a kit row or a chain is a **plugin**,
+an instrument or an effect; the Deluge instrument is the first instrument plugin. Every library below the app is built
+with the library flags (`cmake/deluge_library.cmake`: unity, `-marm`, `-finline-functions`, no LTO); only the app keeps
+Thumb and `-fno-inline-functions`.
+
+| Layer | Directory | Target |
+|---|---|---|
+| L0 DSP primitives | `src/deluge/dsp-next/` | `deluge_dsp_fixed`, `deluge_dsp_float` |
+| L1 sources, modulation core (envelopes, LFOs, Patcher) | `src/synth/sources/`, `src/synth/modulation/` | `deluge_synth` |
+| L1 engines and their API | `src/synth/engines/` (created by the voice lift) | `deluge_synth` |
+| L2 voice kernel | `src/synth/voice/` (created by the voice lift) | `deluge_synth` |
+| L3 the Deluge instrument plugin: state, codec, params, mod matrix | `src/instruments/deluge/` | `deluge_instrument` |
+| Effects, for the instrument's sound chain and the host's chains | `src/effects/` | `deluge_effects` |
+| The host↔plugin contract (CLAP-shaped; see TODO.md's CLAP alignment arc) | `src/plugin-api/` | `deluge_plugin_api` |
+
+The end state puts every library directly under `src/`, the app among them: `src/dsp/` (today `src/deluge/dsp-next/`,
+once the legacy `src/deluge/dsp/` is retired), `src/app/` (today `src/deluge/`) and `src/foundation/` for the leaf
+utilities the libraries share. No library has the app on its include path. The steps are in TODO.md (layout arc 2).
+
 ### Layer contracts
 
 **L0 — DSP primitives.** Pure functions and POD-state value types:
@@ -237,7 +259,7 @@ each tier is built from the one below and is independently testable:
 |---|---|---|---|
 | **Phasor** | phase accumulation (UQ0.32) | L0 | `deluge::dsp::Phasor` |
 | **Osc** | one waveform = phasor + shape; pure DSP, owns phase | L0 | the `va_shapes` variant *inside* `VirtualAnalogEngine` |
-| **Source** | one voice source (osc / wavetable / sample / live-input / FM-op) + its per-source amplitude · sync-as-phase · pulse-width; reports a lifecycle outcome (`ACTIVE`/`UNASSIGN`/`SKIP`) | L1 | `synth::SourceEngine::renderBlock` **+** the `SourceRenderResult` dispatch (`renderSourceComponent`) — **to be folded into one `synth::Source`** |
+| **Source** | one voice source (osc / wavetable / sample / live-input / FM-op) + its per-source amplitude · sync-as-phase · pulse-width; reports a lifecycle outcome (`ACTIVE`/`UNASSIGN`/`SKIP`) | L1 | `synth::SourceEngine::render_block` **+** the `SourceRenderResult` dispatch (`renderSourceComponent`) — **to be folded into one `synth::Source`** |
 | **Engine** | *coordinates* multiple Sources: hard-sync master/slave, ring-mod pairing, the 4-op FM matrix | L1 | the cross-source orchestration still inside `Voice::render` + `RingModEngine` (no first-class engine objects yet) |
 | **Voice** | the per-voice chain *wrapping* one Engine: VCA + filter + envelopes + LFOs + unison + MPE smoothing | L2 | the rest of `Voice::render` → the `synth::Voice` lift |
 | **Instrument** | the whole synth: + mod-FX chain, arpeggiator, preset/serialization (the Vital/Serum/Massive/Pigments altitude) | L3 | `Sound` + `ModControllableAudio` |
@@ -389,8 +411,8 @@ Define `SourceEngine` (init-with-allocator / render-block). Re-home the
 `SampleSource` port wrapping the existing `voice_sample` path in place.
 
 *Status:* the **extraction** is done — every `OscType` render body now lives in
-an engine (VA, wavetable, DX7, input, sample), and `renderBasicSource` is pure
-dispatch. The remaining **unification** — a uniform engine interface across the
+an engine (VA, wavetable, DX7, input, sample), and the per-source loop is the dual-source engines'
+(`DualSourceEngine::render_source`, dispatching through `SourceSlot::source_for`). The remaining **unification** — a uniform engine interface across the
 foreign engines, `SAMPLE`/`INPUT_*` leaving the enum, and the registry
 replacing the `switch` — is the substrate for the **Engine API (L1)** plug-in
 boundary (see *Extensibility model* above). A closed `switch` is adequate until

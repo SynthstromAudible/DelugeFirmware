@@ -17,8 +17,9 @@
 
 #include "model/sample/sample.h"
 #include "definitions_cxx.hpp"
+#include "dsp-next/fixed/fft/magnitude.h"
 #include "dsp-next/fixed/fft/real_fft.h"
-#include "dsp/fft/fft_config_manager.h"
+#include "dsp-next/fixed/shaping/tanh.h"
 #include "dsp/timestretch/time_stretcher.h"
 #include "io/debug/log.h"
 #include "libdeluge/sample_reader.h"
@@ -29,6 +30,7 @@
 #include "model/sample/sample_reader_bridge.h"
 #include "model/sample/sample_recorder.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/fft/fft_config_manager.h"
 #include "storage/audio/audio_file_manager.h" // audioFileManager (overviewScanAllDone)
 #include "storage/cluster/cluster.h"
 #include "storage/multi_range/multisample_range.h"
@@ -774,7 +776,7 @@ doLoading:
 				// renderer) traps with SIGFPE instead, so guard explicitly to keep host/hardware parity.
 				int32_t percussiveness = (angle != 0) ? (((uint64_t)difference * 262144 / angle) >> 1) : 0;
 
-				percussiveness = getTanH<23>(percussiveness);
+				percussiveness = deluge::dsp::fixed::tanh<23>(percussiveness);
 
 				percCacheNow[startPosSamples >> kPercBufferReductionMagnitude] = percussiveness;
 			}
@@ -1455,7 +1457,7 @@ Sample::PitchVerdict Sample::analysePitchWindow(int32_t* buffer, int32_t lengthD
 			AudioEngine::routineWithClusterLoading();
 		}
 
-		int32_t thisValue = fastPythag(fftOutput[i].r, fftOutput[i].i);
+		int32_t thisValue = deluge::dsp::fixed::fft::magnitude(fftOutput[i]);
 		if (thisValue > biggestValue) {
 			biggestValue = thisValue;
 		}
@@ -1632,7 +1634,7 @@ int32_t Sample::getMaxPeakFromZero() {
 	int32_t halfValue = std::abs(getFoundValueCentrePoint() >> 1) + (maxValueFound >> 2) - (minValueFound >> 2);
 
 	// Does the <<1 and saturates it - this was necessary, it was overflowing sometimes - I think when the audio clipped
-	return lshiftAndSaturate<1>(halfValue);
+	return lshift_and_saturate<1>(halfValue);
 }
 
 int32_t Sample::getFoundValueCentrePoint() {

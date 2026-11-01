@@ -733,7 +733,7 @@ void MenuScene::read_value_again() {
 	}
 }
 
-std::optional<deluge::project::ParamTarget> MenuScene::learn_target() const {
+std::optional<deluge::project::OwnerParamTarget> MenuScene::learn_target() const {
 	const Node* node = focused();
 	if (node == nullptr) {
 		return std::nullopt;
@@ -744,12 +744,13 @@ std::optional<deluge::project::ParamTarget> MenuScene::learn_target() const {
 	// to the `ParamRef` answer, which is what all 53 `PatchedParam` nodes and every `UnpatchedParam`
 	// node use.
 	if (node->kind == Kind::Custom && node->custom != nullptr) {
-		const ParamDescriptor from_item = node->custom->learn_descriptor(ctx_, st_);
+		const deluge::synth::CableTarget from_item = node->custom->learn_descriptor(ctx_, st_);
 		const std::optional<deluge::project::ControlsAddress> owner = bindings::controls_owner(ctx_);
-		if (!from_item.isNull() && owner) {
-			return deluge::project::ParamTarget{
+		if (!from_item.is_null() && owner) {
+			return deluge::project::OwnerParamTarget{
 			    .owner = *owner,
-			    .param = deluge::bridge::knobTargetOf(from_item, deluge::modulation::params::Kind::UNPATCHED_SOUND)};
+			    .param = deluge::bridge::controlTargetOf(deluge::modulation::knobTargetOf(from_item),
+			                                             deluge::modulation::params::Kind::UNPATCHED_SOUND)};
 		}
 	}
 	return bindings::learn_target(*node, ctx_);
@@ -773,7 +774,8 @@ bool MenuScene::allows_learn_mode() const {
 	if (node->allows_learn_mode || bindings::learn_target(*node, ctx_).has_value()) {
 		return true;
 	}
-	return node->kind == Kind::Custom && node->custom != nullptr && !node->custom->learn_descriptor(ctx_, st_).isNull();
+	return node->kind == Kind::Custom && node->custom != nullptr
+	       && !node->custom->learn_descriptor(ctx_, st_).is_null();
 }
 
 const CustomItem* MenuScene::focused_custom() const {
@@ -806,7 +808,7 @@ void MenuScene::unlearn() {
 	}
 	// `MenuItemWithCCLearning::unlearnAction` (`menu_item_with_cc_learning.cpp:25-41`): a param's learned knob goes,
 	// with a popup when there was one.
-	const std::optional<deluge::project::ParamTarget> target = learn_target();
+	const std::optional<deluge::project::OwnerParamTarget> target = learn_target();
 	if (target && ctx_.model != nullptr && ctx_.sink != nullptr && ctx_.model->mappings.find(*target) != nullptr
 	    && ctx_.sink->learn(*target, std::nullopt, std::nullopt)) {
 		deluge::notify::notice_string(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_UNLEARNED));

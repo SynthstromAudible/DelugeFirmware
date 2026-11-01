@@ -16,6 +16,7 @@ from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parents[3] / "scripts" / "tasks"))
 
 from render_song import (
+    _check_metronome,
     _check_mod_fx_hooks,
     _check_reverb_switch,
     dry_twin,
@@ -194,6 +195,33 @@ def _reverb_lines(*switches: tuple[int, str, int]) -> list[str]:
         *markers,
         f"RS-REVERB-SWITCH applied={count} asked={count} models={models}",
     ]
+
+
+METRONOME = {"RENDER_METRONOME": "200"}
+
+
+def _metronome_failures(env: dict[str, str], *lines: str) -> list[str]:
+    gate = _Gate(env)
+    _check_metronome(gate, Run(0, "\n".join(lines), ""))
+    return gate.failures
+
+
+class MetronomeTest(unittest.TestCase):
+    def test_the_metronome_switched_on_passes(self):
+        lines = ["RS-METRONOME block=200 on=1", "RS-METRONOME applied=1 on=1"]
+        self.assertEqual(_metronome_failures(METRONOME, *lines), [])
+
+    def test_no_summary_fails(self):
+        failures = _metronome_failures(METRONOME, "RS-METRONOME block=200 on=1")
+        self.assertEqual(len(failures), 1)
+        self.assertTrue(failures[0].startswith("RS-METRONOME —"))
+
+    def test_the_metronome_left_off_fails(self):
+        lines = ["RS-METRONOME block=200 on=0", "RS-METRONOME applied=1 on=0"]
+        self.assertEqual(len(_metronome_failures(METRONOME, *lines)), 1)
+
+    def test_a_gate_without_the_switch_checks_nothing(self):
+        self.assertEqual(_metronome_failures({}, ""), [])
 
 
 KNOB_FIRST = {"RENDER_REVERB_SWITCH": "600:room=0.3,800:model=2"}

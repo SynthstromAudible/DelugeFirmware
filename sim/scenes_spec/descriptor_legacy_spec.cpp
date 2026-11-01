@@ -2,20 +2,20 @@
 /// @brief Every setting row a menu shows, against the legacy menu item that shows it.
 ///
 /// For each row with one legacy item, driven through `soundEditor.current*` as the sound editor drives it:
-///   * the descriptor's menu range (`engine::menu_range`) is the item's `getMinValue`/`getMaxValue`, or its options'
+///   * the descriptor's menu range (`plugin::menu_range`) is the item's `getMinValue`/`getMaxValue`, or its options'
 ///     count;
-///   * `engine::to_menu` at the stored edges (and the values a family makes interesting) is the item's
+///   * `plugin::to_menu` at the stored edges (and the values a family makes interesting) is the item's
 ///     `readCurrentValue` after the stored value is set through the row's Edit;
-///   * `engine::from_menu` at the menu edges is what the item's `writeCurrentValue` stores.
+///   * `plugin::from_menu` at the menu edges is what the item's `writeCurrentValue` stores.
 ///
-/// A CHOICE row's menu lists the choices that apply in its context (`engine::setting_choice_applies`), in order, and
+/// A CHOICE row's menu lists the choices that apply in its context (`plugin::setting_choice_applies`), in order, and
 /// its menu value is a choice's position in that list. Each context-dependent list is driven in each of its contexts:
 /// a track and a kit lane, ring mod, DX7's eligibility and the audio inputs.
 ///
 /// A row with no single legacy item (a partner row, a row several items show together, a row only a gesture
 /// changes) is a named skip, with its reason.
 ///
-/// Whether a row's menu shows (`engine::setting_applies`) is legacy's: over a set of fixtures (each synth mode,
+/// Whether a row's menu shows (`plugin::setting_applies`) is legacy's: over a set of fixtures (each synth mode,
 /// polyphony and oscillator type, a kit's sound, MIDI and gate rows and the whole kit, MIDI and CV tracks, an audio
 /// clip and the song), a row applies exactly where one of its items is shown, an item being shown when it and every
 /// submenu over it in the root `SoundEditor::setup` opens there is relevant (`isRelevant`).
@@ -208,7 +208,7 @@ void unload_files(const MenuContext& ctx) {
 SettingContext descriptor_context(const Fixture& fixture, const MenuContext& ctx, Family family) {
 	SettingContext shown = context_of(fixture.where, family);
 	if (spec::menu_engine(ctx).sound != nullptr) {
-		for (int32_t i = 0; i < static_cast<int32_t>(deluge::engine::kMaxSoundSources); ++i) {
+		for (int32_t i = 0; i < static_cast<int32_t>(deluge::plugin::kMaxSoundSources); ++i) {
 			if (spec::menu_engine(ctx).sound->sources[i].hasAtLeastOneAudioFileLoaded()) {
 				shown.loaded_sources |= static_cast<uint8_t>(1 << i);
 			}
@@ -442,7 +442,7 @@ std::vector<const ::MenuItem*> items_for(Family family, std::string_view path) {
 /// Whether @p path is the partner of another row of @p family's table.
 bool is_partner(Family family, std::string_view path) {
 	return std::ranges::any_of(table_of(family), [&](const SettingInfo& row) {
-		return deluge::engine::mapping_of(row).partner_path() == path;
+		return deluge::plugin::mapping_of(row).partner_path() == path;
 	});
 }
 
@@ -458,7 +458,7 @@ describe descriptor_legacy_voice("The voice rows' descriptors against legacy's i
 		run(self, voice_cases());
 	});
 	it("offers choke on a kit lane alone", _ {
-		const SettingInfo& row = *deluge::engine::find_setting(deluge::instrument::kSettings, "polyphonic");
+		const SettingInfo& row = *deluge::plugin::find_setting(deluge::instrument::kSettings, "polyphonic");
 		expect(applicable(row, Where::SYNTH, Family::INSTRUMENT).size()).to_equal(4u);
 		expect(applicable(row, Where::KIT_LANE, Family::INSTRUMENT).size()).to_equal(5u);
 	});
@@ -476,10 +476,10 @@ describe descriptor_legacy_oscillators("The oscillator rows' descriptors against
 		AudioEngine::micPluggedIn = false;
 	});
 	it("drops the sample and inputs under ring mod, and DX7 off the second oscillator", _ {
-		const SettingInfo& row = *deluge::engine::find_setting(deluge::instrument::kSettings, "osc1/type");
+		const SettingInfo& row = *deluge::plugin::find_setting(deluge::instrument::kSettings, "osc1/type");
 		expect(list_of(applicable(row, Where::SYNTH_RINGMOD, Family::INSTRUMENT))).to_equal(std::string{"0,1,2,3,4,5,6,7,"});
 		expect(list_of(applicable(row, Where::SYNTH, Family::INSTRUMENT))).to_equal(std::string{"0,1,2,3,4,5,6,7,8,9,10,"});
-		const SettingInfo& second = *deluge::engine::find_setting(deluge::instrument::kSettings, "osc2/type");
+		const SettingInfo& second = *deluge::plugin::find_setting(deluge::instrument::kSettings, "osc2/type");
 		expect(list_of(applicable(second, Where::SYNTH, Family::INSTRUMENT))).to_equal(std::string{"0,1,2,3,4,5,6,7,8,10,"});
 		expect(list_of(applicable(row, Where::KIT_LANE, Family::INSTRUMENT))).to_equal(std::string{"0,1,2,3,4,5,6,7,8,9,10,"});
 		const MenuContext& ctx = enter(Where::SYNTH);
@@ -516,7 +516,7 @@ describe descriptor_legacy_arp("The arp rows' descriptors against legacy's items
 		run(self, arp_host_cases());
 	});
 	it("offers the as-played and pattern note modes off a kit lane alone", _ {
-		const SettingInfo& row = *deluge::engine::find_setting(deluge::engine::kArpSettingRows, "arpeggiator/noteMode");
+		const SettingInfo& row = *deluge::plugin::find_setting(deluge::plugin::kArpSettingRows, "arpeggiator/noteMode");
 		expect(applicable(row, Where::SYNTH, Family::ARP).size()).to_equal(9u);
 		expect(applicable(row, Where::KIT_LANE, Family::ARP).size()).to_equal(7u);
 	});
@@ -557,7 +557,7 @@ describe descriptor_legacy_applicability("Where each row's menu shows, against l
 					if (items.empty()) {
 						// A row no item shows says nothing of where it shows, but for a partner, which follows its row.
 						// A sound's effect rows are compared as the EFFECT family's.
-						const SettingInfo* effect_row = deluge::engine::find_setting(deluge::effects::kEffectSettings, row.path);
+						const SettingInfo* effect_row = deluge::plugin::find_setting(deluge::effects::kEffectSettings, row.path);
 						const bool effect = family == Family::INSTRUMENT && effect_row != nullptr && effect_row->extras == row.extras;
 						const bool silent = effect || row.extras == nullptr
 						                    || (row.extras->applies_when.empty() && row.extras->applies_any.empty()
@@ -567,7 +567,7 @@ describe descriptor_legacy_applicability("Where each row's menu shows, against l
 						continue;
 					}
 					const bool legacy = std::ranges::any_of(items, [&](const ::MenuItem* item) { return shown.contains(item); });
-					const bool applies = deluge::engine::setting_applies(row, descriptor_ctx, owner.reader());
+					const bool applies = deluge::plugin::setting_applies(row, descriptor_ctx, owner.reader());
 					if (const AppliesException* known = applies_exception(family, fixture.name, row.path)) {
 						// A named difference: legacy's verdict is the one named and the row's is the opposite.
 						reached.insert(known);
@@ -597,13 +597,13 @@ describe descriptor_legacy_applicability("Where each row's menu shows, against l
 				const SettingContext descriptor_ctx = descriptor_context(fixture, ctx, family);
 				const SpecReader owner{ctx, fixture.where, family};
 				for (const SettingInfo& row : table_of(family)) {
-					const std::string_view partner_path = deluge::engine::mapping_of(row).partner_path();
-					const SettingInfo* partner = partner_path.empty() ? nullptr : deluge::engine::find_setting(table_of(family), partner_path);
+					const std::string_view partner_path = deluge::plugin::mapping_of(row).partner_path();
+					const SettingInfo* partner = partner_path.empty() ? nullptr : deluge::plugin::find_setting(table_of(family), partner_path);
 					if (partner == nullptr) {
 						continue;
 					}
-					const bool applies = deluge::engine::setting_applies(row, descriptor_ctx, owner.reader());
-					expect(verdict(fixture.name, partner->path, deluge::engine::setting_applies(*partner, descriptor_ctx, owner.reader())))
+					const bool applies = deluge::plugin::setting_applies(row, descriptor_ctx, owner.reader());
+					expect(verdict(fixture.name, partner->path, deluge::plugin::setting_applies(*partner, descriptor_ctx, owner.reader())))
 					    .to_equal(verdict(fixture.name, partner->path, applies));
 				}
 			}
@@ -611,7 +611,7 @@ describe descriptor_legacy_applicability("Where each row's menu shows, against l
 		}
 	});
 	it("offers DX7 to the whole kit's sounds, as `osc::Type::mayUseDx` does", _ {
-		const SettingInfo& row = *deluge::engine::find_setting(deluge::instrument::kSettings, "osc1/type");
+		const SettingInfo& row = *deluge::plugin::find_setting(deluge::instrument::kSettings, "osc1/type");
 		const MenuContext& ctx = enter(Where::SYNTH);
 		const SettingContext whole_kit{.owner = Owner::KIT, .instrument = SettingContext::Instrument::KIT};
 		expect(list_of(applicable(row, whole_kit, ctx, Where::SYNTH))).to_equal(std::string{"0,1,2,3,4,5,6,7,8,9,10,"});
@@ -629,16 +629,16 @@ describe descriptor_legacy_validity("Every table's conditions", $ {
 			if (table.empty()) {
 				continue;
 			}
-			expect("group " + std::to_string(id) + (deluge::engine::conditions_are_valid(table) ? " valid" : " invalid"))
+			expect("group " + std::to_string(id) + (deluge::plugin::conditions_are_valid(table) ? " valid" : " invalid"))
 			    .to_equal("group " + std::to_string(id) + " valid");
 			// The run-time tables (the song's, the instrument device's) are out of reach of a static_assert.
 			expect("group " + std::to_string(id)
-			       + (deluge::engine::mappings_are_valid(table) ? " mappings valid" : " mappings invalid"))
+			       + (deluge::plugin::mappings_are_valid(table) ? " mappings valid" : " mappings invalid"))
 			    .to_equal("group " + std::to_string(id) + " mappings valid");
 		}
-		expect(deluge::engine::conditions_are_valid(deluge::engine::kArpRows)).to_be_true();
-		expect(deluge::engine::conditions_are_valid(deluge::instrument::kSettings)).to_be_true();
-		expect(deluge::engine::conditions_are_valid(deluge::effects::kEffectSettings)).to_be_true();
+		expect(deluge::plugin::conditions_are_valid(deluge::plugin::kArpRows)).to_be_true();
+		expect(deluge::plugin::conditions_are_valid(deluge::instrument::kSettings)).to_be_true();
+		expect(deluge::plugin::conditions_are_valid(deluge::effects::kEffectSettings)).to_be_true();
 	});
 });
 
@@ -654,10 +654,10 @@ describe descriptor_legacy_coverage("Every engine and model row with a menu", $ 
 			std::span<const SettingInfo> rows;
 		};
 		const OwnedRows tables[] = {
-		    {deluge::engine::kDelugeInstrument, deluge::instrument::kSettings},
-		    {deluge::engine::kDelugeInstrument, deluge::effects::kEffectSettings},
-		    {deluge::engine::kDelugeInstrument, deluge::engine::kArpSettingRows},
-		    {SettingGroupId::CLIP_ARP, deluge::engine::kArpHostRows},
+		    {deluge::plugin::kDelugeInstrument, deluge::instrument::kSettings},
+		    {deluge::plugin::kDelugeInstrument, deluge::effects::kEffectSettings},
+		    {deluge::plugin::kDelugeInstrument, deluge::plugin::kArpSettingRows},
+		    {SettingGroupId::CLIP_ARP, deluge::plugin::kArpHostRows},
 		    {SettingGroupId::SONG, deluge::project::table_of(SettingGroupId::SONG)},
 		    {SettingGroupId::AUDIO_CLIP, deluge::project::table_of(SettingGroupId::AUDIO_CLIP)},
 		    {SettingGroupId::CLIP_VALUES, deluge::project::table_of(SettingGroupId::CLIP_VALUES)},

@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "engine-api/types/sync.h"
+#include "plugin-api/types/sync.h"
 
 #include <cstdint>
 
@@ -28,7 +28,7 @@ struct Groove {
 	int8_t swing_amount{0}; ///< -49..49; 0 = no swing
 	/// The sync level the swing is applied at (set from defaults by the controller). Between parsing and the end of a
 	/// song load it holds the file value, which the song converts once the tick magnitude is known.
-	engine::SyncLevel swing_interval{engine::SyncLevel::NONE};
+	plugin::SyncLevel swing_interval{plugin::SyncLevel::NONE};
 
 	/// Whether any swing is applied.
 	[[nodiscard]] bool hasSwing() const { return swing_amount != 0; }

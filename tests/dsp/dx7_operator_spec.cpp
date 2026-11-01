@@ -119,7 +119,7 @@ describe dx7_operator_spec("dx7::Operator", ${
 							                           kHistory);
 							const auto len = static_cast<std::size_t>(n);
 							const int32_t* modulation = input == Input::BUS ? inputs.modulation : out;
-							unit.renderBlock({modulation, len}, {out, len}, {out, len});
+							unit.render_block({modulation, len}, {out, len}, {out, len});
 
 							expect(std::ranges::equal(std::span{out, len}, std::span{reference.out, len})).to_be_true();
 							expect(unit.state().op.gain_out).to_equal(reference.gains.gain2);

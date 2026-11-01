@@ -1,12 +1,13 @@
 #include "model/edits/set_engine_setting.h"
 
-#include "engines/deluge/codec.h"
-#include "engines/deluge/settings.h"
-#include "engines/deluge/words.h"
-#include "engines/effects/settings.h"
+#include "effects/settings.h"
+#include "instruments/deluge/codec.h"
+#include "instruments/deluge/settings.h"
+#include "instruments/deluge/words.h"
 #include "model/project_bridge/setting_apply.h"
 #include "model/project_bridge/slot_bridge.h"
 #include "model/song/song.h"
+#include "plugin-api/types/sync.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 
@@ -17,9 +18,9 @@ namespace {
 /// The change the setting at @p path becoming @p value made before the typed writers: through the slot's encoding of
 /// the setting's entry (with_setting), or where its menu reshapes more, of each entry that moved (change_to). The typed
 /// write's audit compares against it.
-std::expected<deluge::instrument::SlotChange, deluge::engine::StateError>
+std::expected<deluge::instrument::SlotChange, deluge::plugin::StateError>
 encodedChange(const ::Sound& sound, const deluge::instrument::SoundState& before, std::string_view path,
-              const deluge::serialization::Value& value, const deluge::engine::CodecContext& context) {
+              const deluge::serialization::Value& value, const deluge::plugin::CodecContext& context) {
 	if (std::optional<deluge::instrument::SoundState> reshaped = deluge::bridge::stateWithSetting(sound, path, value)) {
 		return deluge::instrument::change_to(
 		    before, *reshaped, deluge::instrument::differing_entries(before, *reshaped, context), context);
@@ -29,7 +30,7 @@ encodedChange(const ::Sound& sound, const deluge::instrument::SoundState& before
 
 } // namespace
 
-std::expected<deluge::instrument::SlotChange, deluge::engine::StateError>
+std::expected<deluge::instrument::SlotChange, deluge::plugin::StateError>
 settingChange(const ::Sound& sound, const deluge::project::InstrumentSlot& /*slot*/, std::string_view path,
               const deluge::serialization::Value& value) {
 	const deluge::instrument::SoundState& before = *sound.boundState();

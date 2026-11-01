@@ -19,7 +19,7 @@
 
 #include "deluge-project/controller_mapping.h"
 #include "deluge-project/mapping_table.h"
-#include "engine-api/types/param_naming.h"
+#include "plugin-api/types/param_naming.h"
 #include "serialization/value.h"
 
 #include <cstdint>
@@ -61,7 +61,7 @@ using MappingOwner = std::variant<ControlsAddress, ClipOwner, DrumOwner, TrackOw
 /// @param table   The table to fill.
 /// @param naming  How the owner's engine names its params.
 void decode_mappings(const serialization::Value& element, MappingOwner owner, MappingTable& table,
-                     const deluge::engine::ParamNaming* naming = nullptr);
+                     const deluge::plugin::ParamNaming* naming = nullptr);
 
 /// @brief Write @p owner's bindings in @p table into @p element as decode_mappings reads them.
 /// @param table   The table holding them.
@@ -69,7 +69,7 @@ void decode_mappings(const serialization::Value& element, MappingOwner owner, Ma
 /// @param element The owner's element.
 /// @param naming  How the owner's engine names its params; with none, no knob is written.
 void encode_mappings(const MappingTable& table, MappingOwner owner, serialization::Value& element,
-                     const deluge::engine::ParamNaming* naming = nullptr);
+                     const deluge::plugin::ParamNaming* naming = nullptr);
 
 /// @brief Read section @p section's launch command from its `section` element (`midiCommandChannel`,
 /// `midiCommandNote`, `midiCommandDevice`) into @p table: a program change or a note out of range is nothing learned.

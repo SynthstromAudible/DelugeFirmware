@@ -19,7 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "deluge-project/fx_chain.h"
-#include "engines/effects/filter.h"
+#include "effects/filter.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "modulation/arpeggiator.h"
 #include "serialization/value.h"
@@ -32,13 +32,19 @@ public:
 	void cloneFrom(ModControllableAudio* other) override;
 
 	static void initParams(ParamManager* paramManager);
+	/// @brief A global effectable's mod knob @p whichModEncoder (nonzero the upper) in mode @p modKnobMode, as its
+	/// default layout has it: a filter knob follows the filter type, a mod FX knob the mod FX param; the reverb knob is
+	/// hidden while the compressor is edited.
+	[[nodiscard]] static std::optional<deluge::plugin::ParamId> knobParam(int32_t modKnobMode, int32_t whichModEncoder,
+	                                                                      FilterType filter, ModFXParam modFX,
+	                                                                      bool editingCompressor);
 	static void initParamsForAudioClip(ParamManagerForTimeline* paramManager);
 	void modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager,
 	                     const deluge::project::CompView& comp = {}) override;
 	bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack,
 	                            deluge::project::CompView* comp = nullptr) override;
 	ModelStackWithAutoParam* getParamFromModEncoder(int32_t whichModEncoder, ModelStackWithThreeMainThings* modelStack,
-	                                                bool allowCreation = true,
+	                                                bool allowCreation,
 	                                                const deluge::project::CompView& comp = {}) override;
 
 	void writeAttributesToFile(Serializer& writer, bool writeToFile);

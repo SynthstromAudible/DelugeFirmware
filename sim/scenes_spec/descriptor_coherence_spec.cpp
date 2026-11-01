@@ -4,11 +4,11 @@
 /// Each setting row a menu shows has one legacy item (`support/descriptor_cases.h`), and the scenes node that replaces
 /// that item is the one `tables_3_spec.cpp`'s lockstep walk pairs with it. This spec walks the same pairing and, for
 /// each node, compares what the node shows with what its row gives:
-///   * its range (`bindings::range`) is `engine::menu_range`, or for a CHOICE row the count of applicable choices;
+///   * its range (`bindings::range`) is `plugin::menu_range`, or for a CHOICE row the count of applicable choices;
 ///   * its names (`bindings::names`) are the host name table's choices, in menu order, and its name and title are the
 ///     table's;
-///   * its reads (`bindings::read`) at the row's stored probes are `engine::to_menu`, and its writes
-///     (`bindings::write`) at the menu probes store what `engine::from_menu` says.
+///   * its reads (`bindings::read`) at the row's stored probes are `plugin::to_menu`, and its writes
+///     (`bindings::write`) at the menu probes store what `plugin::from_menu` says.
 ///
 /// A node that disagrees on one of those is one of the named exceptions below, keyed by its row's family and path and
 /// each with its reason; the spec fails when an exception no longer disagrees, so a fixed node leaves the list. A node
@@ -20,9 +20,9 @@
 
 #include "support/descriptor_cases.h"
 
-#include "engines/deluge/params.h"
-#include "engines/global_effectable/params.h"
+#include "effects/global_effectable/params.h"
 #include "gui/ui/menus.h"
+#include "instruments/deluge/params.h"
 #include "model/project_bridge/param_ids.h"
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/node.h"
@@ -269,7 +269,7 @@ Findings compare(const Case& c, const Node& node, const NodeException* exception
 	const SettingInfo& row = row_of(c);
 	const SettingContext shown = context_of(c.where, c.family);
 	const bool listed_choice = row.kind == SettingKind::CHOICE
-	                           && deluge::engine::mapping_of(row).kind == deluge::engine::DisplayMappingKind::LINEAR;
+	                           && deluge::plugin::mapping_of(row).kind == deluge::plugin::DisplayMappingKind::LINEAR;
 	const std::vector<int32_t> choices = listed_choice ? applicable(row, shown, ctx, c.where) : std::vector<int32_t>{};
 
 	// The range. A named-only group's row is a plain field the menu lists or toggles by its own encoding, so its
@@ -351,7 +351,7 @@ Findings compare(const Case& c, const Node& node, const NodeException* exception
 		}
 	}
 	else if (partner == nullptr) {
-		const auto [least, greatest] = deluge::engine::stored_bounds(row);
+		const auto [least, greatest] = deluge::plugin::stored_bounds(row);
 		std::vector<int32_t> probes{least, greatest, row.default_value};
 		probes.insert(probes.end(), c.stored.begin(), c.stored.end());
 		for (const int32_t stored : probes) {
@@ -827,8 +827,8 @@ describe descriptor_coherence_body("The scenes' menu tables against the setting 
 		// range before it writes, as legacy's does, so no menu write reaches past it; one that did is refused and
 		// leaves the stored sync as it was.
 		run_all(self);
-		const SettingInfo& row = *deluge::engine::find_setting(deluge::effects::kEffectSettings, "sidechain/syncLevel");
-		const SettingInfo& type = *deluge::engine::find_setting(deluge::effects::kEffectSettings, "sidechain/syncType");
+		const SettingInfo& row = *deluge::plugin::find_setting(deluge::effects::kEffectSettings, "sidechain/syncLevel");
+		const SettingInfo& type = *deluge::plugin::find_setting(deluge::effects::kEffectSettings, "sidechain/syncType");
 		const Node& node = *pairing().at(&sidechainSyncMenu).front();
 		const MenuContext& ctx = enter(Where::SYNTH);
 		expect(bindings::range(node, ctx).max).to_equal(menu_range(row).second);
@@ -866,12 +866,12 @@ describe descriptor_coherence_body("The scenes' menu tables against the setting 
 			if (!ref.valid() || node->bind.get != nullptr || node->bind.set != nullptr) {
 				continue;
 			}
-			const deluge::engine::ParamId id = deluge::bridge::paramIdOf(ref.kind, ref.index);
+			const deluge::plugin::ParamId id = deluge::bridge::paramIdOf(ref.kind, ref.index);
 			const bool global = ref.kind == deluge::modulation::params::Kind::UNPATCHED_GLOBAL;
-			const std::span<const deluge::engine::ParamInfo> table =
-			    global ? std::span<const deluge::engine::ParamInfo>{deluge::global_effectable::kParams}
-			           : std::span<const deluge::engine::ParamInfo>{deluge::instrument::kParams};
-			const deluge::engine::ParamInfo* row = deluge::engine::find_param(table, id);
+			const std::span<const deluge::plugin::ParamInfo> table =
+			    global ? std::span<const deluge::plugin::ParamInfo>{deluge::global_effectable::kParams}
+			           : std::span<const deluge::plugin::ParamInfo>{deluge::instrument::kParams};
+			const deluge::plugin::ParamInfo* row = deluge::plugin::find_param(table, id);
 			expect(row != nullptr).to_be_true();
 			if (row == nullptr) {
 				continue;
@@ -879,7 +879,7 @@ describe descriptor_coherence_body("The scenes' menu tables against the setting 
 			const deluge::l10n::ParamNameContext state{.lpf_mode = deluge::effects::FilterMode::SVF_NOTCH,
 			                                           .hpf_mode = deluge::effects::FilterMode::SVF_BAND};
 			const std::string table_name =
-			    deluge::l10n::get(deluge::l10n::param_name(global ? engine::kGlobalEffectable : engine::kDelugeInstrument,
+			    deluge::l10n::get(deluge::l10n::param_name(global ? plugin::kGlobalEffectable : plugin::kDelugeInstrument,
 			                                               id, state));
 			if (folded(node_text(node->title)) == folded(table_name)) {
 				++same;

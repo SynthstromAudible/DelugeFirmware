@@ -1,5 +1,8 @@
 # Synth Untangling — State-Decoupling Audit & the Concrete End-Target Object Model
 
+> **The model today** is `synth_l1_engine_architecture.md` (engines and source slots in the synth library) and
+> `synth_voice_lift.md` (the voice kernel); this audit records the June state it was written against.
+
 > Status: **audit + target architecture** (2026-06-19). A fresh ground-truth pass over the *actual code* (not just
 > the phase docs), prompted by the question "architect a **concrete** end-target object model, CLAP-shaped for both
 > the engine slot and the whole instrument." The headline finding: the remaining work is overwhelmingly
@@ -13,10 +16,10 @@
 
 | Tier | Target home | Reality today | Verdict |
 |---|---|---|---|
-| **L0 primitives** | `dsp-next/` | osc / wavetable / interpolation / sync / vca / timestretch kernels / filters migrated; `core/fixed/float` split real. **`dsp/timestretch/time_stretcher`, `dsp/util`, `dsp/oscillators/oscillator` not yet migrated.** | Clean; three subsystems outstanding |
-| **L1 Source** | `synth/source/` | **Done.** Five sources are polymorphic `synth::Source` (VA, wavetable, sample, input, DX7); ports exist (`sample_playback_port.h`, `audio_input_port.h`, `dx_voice_port.h`). | The strong part of the tree |
-| **L1 Engine** | `synth/` | Subtractive/RingMod/FM exist as objects but live in `model/voice/`, **own behaviour but no state**, and reach state through `Voice&` / per-block args. Cross-source orchestration (RINGMOD/FM per-unison loop) is still in `voice.cpp:1199–1282`. DX7 still a Source, not an Engine. No registry; dispatch is `SynthMode`+`OscType` switches. | **Stateless coordinators** |
-| **L2 Voice** | `synth/` | Decoupled where it counts (no `Sound&` in render sig/body, no `friend`s, scratch injected) but still holds `Sound& sound`, lives in `model/voice/`. Lift (L-viii) **paused** until `dsp/timestretch/time_stretcher`, `dsp/util` and `dsp/oscillators/oscillator` reach dsp-next. | Logically separable, physically stuck |
+| **L0 primitives** | `dsp-next/` | osc / wavetable / interpolation / sync / vca / timestretch kernels / filters migrated; `core/fixed/float` split real. **`dsp/util` (the fold) and `dsp/oscillators/oscillator` (a scratch array + `OscType` mapper) not yet migrated.** `dsp/timestretch/time_stretcher` stays App-side behind the sample-playback port. | Clean; two small leftovers |
+| **L1 Source** | `synth/sources/` | **Done.** Five sources are polymorphic `synth::Source` (VA, wavetable, sample, input, DX7); ports exist (`sample_playback_port.h`, `audio_input_port.h`, `dx_voice_port.h`). | The strong part of the tree |
+| **L1 Engine** | `synth/` | Subtractive/RingMod/FM exist as objects beside the kernel in `synth/voice/`, **own behaviour but no state**, and reach state through `Voice&` / per-block args. Each engine owns its per-unison loop; `Voice::render` dispatches with a 3-way `SynthMode` switch (`voice.cpp:1184–1205`). DX7 still a Source, not an Engine. No registry; dispatch is `SynthMode`+`OscType` switches. | **Stateless coordinators** |
+| **L2 Voice** | `synth/voice/` | **Done.** `synth::Voice` plays from its `VoiceConfig`, a per-voice `VoiceBlock`, note-time setups and injected ports, behind the synth boundary; the app's `VoiceSlot` holds it (`synth_voice_lift.md`). A host spec plays it. | Separate, in the library |
 | **L3 Instrument** | `synth/` (CLAP-shaped) | **Does not exist.** `Sound` (~5,000 LOC) is `ModControllableAudio` + `Voiced` at once: preset, DSP processor, UI controller, file format, voice pool, arp, FX. | God-object intact |
 
 The bottom two layers are genuinely good; the Engine tier is a façade; the Instrument tier is unstarted.
@@ -39,7 +42,7 @@ Deluge maps onto these almost perfectly:
 
 ### 2.2 `VoiceConfig` is the smoking gun
 
-`model/voice/voice_config.h` is a ~40-field snapshot copied per-block. It exists **only because there is no
+`synth/voice/voice_config.h` is a ~40-field snapshot copied per-block. It exists **only because there is no
 library-resident preset object** the kernel can hold a reference to — so every config field gets hand-marshalled.
 It also conflates three lifetimes in one bag: true preset config (changes on edit), sound-level transport state
 (per block, e.g. `lfo*SyncedPhaseIncrement`, `engineRenderingInStereo`), and derived predicates
@@ -102,7 +105,7 @@ deluge::synth::
 
   ── DSP (CLAP "audio") ──
     Phasor, Oscillator         L0 dsp-next (exist)
-    Source : interface         L1 per-source renderer (exist, in synth/source/)
+    Source : interface         L1 per-source renderer (exist, in synth/sources/)
       VirtualAnalogSource, WavetableSource, SampleSource, InputSource, DX7Source
     Engine : interface         L1 coordinator / SWAP UNIT (lean native C++, NOT CLAP); one unison-part's worth
       SubtractiveEngine    = N Sources + A→B hard-sync + mix
@@ -126,8 +129,8 @@ deluge::synth::
 
 ## 4. The dependency-ordered path (what unblocks what)
 
-1. **Fill the Engine tier (front-half of Phase 4) — NEXT.** Pull the RINGMOD/FM per-unison orchestration out of
-   `voice.cpp:1199–1282` into the `*Engine` objects so they *own their composition*; give engines ownership of their
+1. **Fill the Engine tier (front-half of Phase 4) — NEXT.** The RINGMOD/FM per-unison loops are inside the
+   `*Engine` objects (done). Left: give engines ownership of their
    Sources + FM grid (the `VoiceUnisonPart` restructure); move them to `synth/`; add the `EngineRegistry`; promote
    DX7 Source→Engine. Gated on nothing major. The L1 doc notes this is "nearly the same cut" as the voice kernel — do
    it before more voice-lift slices. **Detailed plan: §5.**
@@ -136,12 +139,13 @@ deluge::synth::
    it; nothing below is.
 3. **Typed source-owned params** (`synth_source_ownership.md` Stage A bridge). Required for a *real* foreign L1 engine
    API (foreign code can't see `LOCAL_*`). Naturally co-lands with engines owning their Sources (step 1).
-4. **Voice lift (L-viii)** — mechanical, once `dsp/timestretch/time_stretcher`, `dsp/util` and `dsp/oscillators/oscillator` reach dsp-next.
+4. **Voice lift (L-viii)** — mechanical, once the voice's remaining App reaches are cut (listed in `synth_voice_lift.md`).
 5. **VoicePool + L3 `process()`** — voice allocation moves inside the Instrument; app keeps culling *policy* via
    hooks; CLAP C-ABI lands; Deluge-synth-as-plugin proves it.
 
-Non-obvious takeaway: **steps 1 and 2 are higher-leverage than continuing the voice lift.** The lift is paused on a
-DSP-migration chore; the Engine-tier fill and the `Patch` extraction are what actually stand between us and a
+Non-obvious takeaway: **steps 1 and 2 are higher-leverage than continuing the voice lift.** The lift's remaining
+blockers are App reaches in `Voice`'s own methods; the Engine-tier fill and the `Patch` extraction are what
+actually stand between us and a
 CLAP-shaped L3, and `Patch` is the keystone (all three CLAP channels pivot on it; `VoiceConfig`'s existence proves it
 is missing).
 
@@ -154,30 +158,19 @@ RINGMOD/FM per-unison loop — it calls `engine.render(block)` per unison part. 
 
 ### The asymmetry to exploit
 
-The three engines are *not* in the same shape today:
-
-- **`SubtractiveEngine` already owns its per-unison loop** — `voice.cpp:1184` is a single `subtractiveEngine.render(*this, …)`
-  call; the per-source + osc-sync loop lives *inside* the engine (it delegates each source back to
-  `Voice::renderBasicSource`).
-- **`RingModEngine` and `FMEngine` do not** — `voice.cpp:1199–1282` is a loop *in Voice* that does shared
-  pitch-adjust setup (`1208–1237`) then dispatches **per unison part** to `ringModEngine.render(...)` (`1270`) or
-  `fmEngine.render(*this, u, …)` (`1277`).
-- The engines reach state through `Voice&` (FM: `modulatorPhase[]`; Subtractive: `renderBasicSource`) or take it by
-  arg (RingMod: `Source` structs built at `1244–1268`).
-
-So step 1 begins by **removing that asymmetry**: give RingMod and FM their own internal unison loops, exactly like
-Subtractive. The dispatch (`voice.cpp:1181–1285`) then collapses to a clean 3-way switch of whole-voice
-`engine.render(...)` calls.
+All three engines own their per-unison loop: the dispatch is a 3-way switch of whole-voice `engine.render(...)`
+calls (`voice.cpp:1184–1205`). The engines still reach state through `Voice&` (FM: `params`, `unisonParts`;
+Subtractive: `render_basic_source`, `guides`, `envelopes`, `filterSet`).
 
 ### The three boundaries (where each piece lands)
 
-- **Stays in Voice — per-voice pre-roll, passed in (`voice.cpp:1010–1179`):** source amplitudes/increments,
+- **Stays in Voice — per-voice pre-roll, passed in (`voice.cpp:1010–1183`):** source amplitudes/increments,
   `modulatorsActive`, osc-sync master capture, noise fill. SynthMode-conditional setup the engines *consume*;
   leaving it in Voice and passing it in keeps each slice bit-exact (exactly how Subtractive works today). Migrates
   *into* the engines later, in the state-ownership slice (2).
-- **Moves into the engine — the per-unison source loop (`voice.cpp:1199–1285`):** the shared pitch-adjust setup +
-  the ring-mod combine / FM topology.
-- **Stays in Voice — the L2 wrapper, post-engine (`voice.cpp:1287+`):** fold / filter / VCA / saturation / output.
+- **In the engine — the per-unison source loop (done):** the shared pitch-adjust setup + the ring-mod combine /
+  FM topology.
+- **Stays in Voice — the L2 wrapper, post-engine (`voice.cpp:1207+`):** fold / filter / VCA / saturation / output.
   The voice chain *wrapping* the engine — correctly a Voice concern, not engine.
 
 ### Slice sequence (each bit-exact)

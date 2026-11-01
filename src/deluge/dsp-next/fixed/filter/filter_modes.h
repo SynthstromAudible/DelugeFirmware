@@ -17,10 +17,9 @@
 
 #pragma once
 
+#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/types.h"
 #include "dsp-next/fixed/curves/instant_tan.h"
-#include "util/fixedpoint.h"
-#include "util/param_functions.h" // lshiftAndSaturate
 
 #include <cstdint>
 
@@ -96,7 +95,7 @@ struct CurvedFrequency {
 	constexpr int32_t kOneQ27 = 134217728;
 	/// One at Q58: divided by a Q27 value, it gives the reciprocal at Q31.
 	constexpr double kOneQ58 = 288230376151711744.0;
-	const q31 tanned = instant_tan(lshiftAndSaturate<5>(frequency));
+	const q31 tanned = instant_tan(lshift_and_saturate<5>(frequency));
 	const auto divide_by_one_plus_tanned = static_cast<q31>(kOneQ58 / static_cast<double>(kOneQ27 + (tanned >> 1)));
 	return {
 	    .tanned = tanned,

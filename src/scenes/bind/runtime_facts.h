@@ -8,9 +8,9 @@
 #include "deluge-project/instrument_slot.h"
 #include "deluge-project/param_address.h"
 #include "deluge-project/setting_group.h"
-#include "engines/deluge/cables.h"
-#include "engines/deluge/sound_state.h"
-#include "engines/effects/state.h"
+#include "effects/state.h"
+#include "instruments/deluge/cables.h"
+#include "instruments/deluge/sound_state.h"
 
 #include <array>
 #include <cstddef>
@@ -24,7 +24,7 @@ namespace deluge::scenes::bind {
 
 /// @brief One of a sound's patch cables, as the engine holds it.
 struct CableFact {
-	engine::ParamId depth;           ///< the cable's depth id, which names its source and its destination
+	plugin::ParamId depth;           ///< the cable's depth id, which names its source and its destination
 	instrument::Polarity polarity{}; ///< its polarity
 };
 
@@ -99,7 +99,7 @@ public:
 	/// (envelope sustain, noise) decide it, which no setting holds.
 	[[nodiscard]] virtual bool allows_note_tails(project::SlotAddress slot) const = 0;
 	/// @brief The arp preset the engine holds for the arp @p address names (a CLIP_ARP or LANE_ARP owner), as an index
-	/// of engine::kArpPresetWords: a record derives its preset from its fields, so Custom is the engine's alone.
+	/// of plugin::kArpPresetWords: a record derives its preset from its fields, so Custom is the engine's alone.
 	[[nodiscard]] virtual uint8_t arp_preset(const project::SettingAddress& address) const = 0;
 	/// @brief The value the param at @p address plays now: the engine's cursor, which automation moves at the
 	/// playhead, a latch or override holds, and stutter-type effects and recording change, where the record holds the

@@ -34,7 +34,7 @@ struct BlockGenerator {
 	using value_type = T; ///< The sample type of the block.
 	virtual ~BlockGenerator() = default;
 	/// @brief Fill @p output with the next `output.size()` samples.
-	virtual void renderBlock(Buffer<T> output) = 0;
+	virtual void render_block(Buffer<T> output) = 0;
 };
 
 namespace detail {
@@ -59,7 +59,7 @@ concept scalar_generator_render = requires(D d) {
 
 } // namespace detail
 
-/// @brief CRTP mixin: builds a generator's `renderBlock` from its `render()`.
+/// @brief CRTP mixin: builds a generator's `render_block` from its `render()`.
 /// @tparam Derived the component, which defines `render()`.
 /// @tparam T the sample type of the block (`q31`, `f32` or @ref StereoSample).
 /// @details Non-virtual: the mixin adds no vptr and no state. The path is chosen from the signature of
@@ -83,7 +83,7 @@ struct Generator {
 	using value_type = T; ///< The sample type of the block.
 
 	/// @brief Fill @p output with the next `output.size()` samples, every one of them.
-	void renderBlock(Buffer<T> output) {
+	void render_block(Buffer<T> output) {
 		auto& self = static_cast<Derived&>(*this);
 		const std::size_t n = output.size();
 		if constexpr (detail::simd_generator_render<Derived, T>) {

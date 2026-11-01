@@ -4,7 +4,7 @@
 
 #include "bench/cases.h"
 
-#include "engines/effects/reverb.h"
+#include "effects/reverb.h"
 #include "processing/engines/audio_engine.h"
 
 #include <algorithm>

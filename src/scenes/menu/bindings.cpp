@@ -430,29 +430,29 @@ std::optional<deluge::project::ControlsAddress> controls_owner(const MenuContext
 	return std::nullopt;
 }
 
-std::optional<deluge::project::ParamTarget> learn_target(const Node& node, const MenuContext& ctx) {
+std::optional<deluge::project::OwnerParamTarget> learn_target(const Node& node, const MenuContext& ctx) {
 	// `PatchedParam`/`UnpatchedParam::getLearningThing`: the node's param, by its engine id.
 	const std::optional<deluge::project::ControlsAddress> owner = controls_owner(ctx);
 	if (!node.bind.param.valid() || !owner) {
 		return std::nullopt;
 	}
-	return deluge::project::ParamTarget{.owner = *owner, .param = param_id_of(node.bind.param)};
+	return deluge::project::OwnerParamTarget{.owner = *owner, .param = param_id_of(node.bind.param)};
 }
 
 // ---------------------------------------------------------------------------------------------
 // The value scaling `get`/`set` items reuse (`bindings.h`'s note)
 
 int32_t standard_to_menu(int32_t stored) {
-	return deluge::scenes::bind::menu_of(deluge::engine::ParamDisplay::STANDARD, stored);
+	return deluge::scenes::bind::menu_of(deluge::plugin::MappingKind::STANDARD, stored);
 }
 int32_t menu_to_standard(int32_t menu_value) {
-	return deluge::scenes::bind::stored_of(deluge::engine::ParamDisplay::STANDARD, menu_value);
+	return deluge::scenes::bind::stored_of(deluge::plugin::MappingKind::STANDARD, menu_value);
 }
 int32_t pan_to_menu(int32_t stored) {
-	return deluge::scenes::bind::menu_of(deluge::engine::ParamDisplay::PAN, stored);
+	return deluge::scenes::bind::menu_of(deluge::plugin::MappingKind::PAN, stored);
 }
 int32_t menu_to_pan(int32_t menu_value) {
-	return deluge::scenes::bind::stored_of(deluge::engine::ParamDisplay::PAN, menu_value);
+	return deluge::scenes::bind::stored_of(deluge::plugin::MappingKind::PAN, menu_value);
 }
 int32_t unsigned_to_menu(uint32_t stored) {
 	// `computeCurrentValueForUnsignedMenuItem` (`value_scaling.cpp:18-20`).

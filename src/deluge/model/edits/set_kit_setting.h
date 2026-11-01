@@ -1,7 +1,7 @@
 #pragma once
 
-#include "engine-api/types/setting.h"
 #include "model/edits/edit.h"
+#include "plugin-api/types/setting.h"
 #include "serialization/value.h"
 
 #include <cstdint>
@@ -27,7 +27,7 @@ public:
 	/// @param fan_out_when The drums written: those where every condition holds; empty for every sound drum. Viewed,
 	///                     not copied: it outlives the Edit (a node table's rule).
 	SetKitSetting(uint32_t kit_output, std::string path, deluge::serialization::Value value,
-	              std::span<const deluge::engine::SettingCondition> fan_out_when)
+	              std::span<const deluge::plugin::SettingCondition> fan_out_when)
 	    : kit_output_(kit_output), path_(std::move(path)), value_(std::move(value)), fan_out_when_(fan_out_when) {}
 
 	/// @copydoc Edit::apply
@@ -42,7 +42,7 @@ private:
 	uint32_t kit_output_;
 	std::string path_;
 	deluge::serialization::Value value_;
-	std::span<const deluge::engine::SettingCondition> fan_out_when_;
+	std::span<const deluge::plugin::SettingCondition> fan_out_when_;
 	uint32_t drums_written_{0};
 };
 

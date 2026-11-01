@@ -30,9 +30,10 @@ So it is **inaudible for real (band-limited) audio**, but a full-spectrum probe 
   and leaves the mono read byte-identical; it is upstream of the 2-tap.
 
 ### Where to start a fix
-1. The voice's post-filter output write to `soundBuffer` in `model/voice/voice.cpp` (~L1660–1700: the
-   `filterSet.renderLong(...)` call followed by the `outputSample` / `overallOscAmplitude` write, and the
-   stereo/pan path). Suspect a step that blends adjacent frames or maps one `oscBuffer` sample to two
+1. The voice's post-filter output write to `soundBuffer` in `model/voice/voice.cpp` (~L1207–1364: the
+   `filterSet.renderStereo(...)` / `filterSet.renderMono(...)` call followed by the `outputSample` /
+   `overallOscAmplitude` write, and the stereo/pan path). Suspect a step that blends adjacent frames or maps one
+   `oscBuffer` sample to two
    `soundBuffer` frames.
 2. Establish **general vs source-specific**: is every voice/oscillator half-sample-averaged, or only certain
    paths? (Impulses can only be injected via INPUT; confirm other sources by reading the output-write code.)

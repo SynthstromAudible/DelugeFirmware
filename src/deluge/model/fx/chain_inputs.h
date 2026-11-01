@@ -18,9 +18,9 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "engines/effects/clip_chain.h"
-#include "engines/effects/filter.h"
-#include "engines/effects/master_chain.h"
+#include "effects/clip_chain.h"
+#include "effects/filter.h"
+#include "effects/master_chain.h"
 
 #include <cstdint>
 

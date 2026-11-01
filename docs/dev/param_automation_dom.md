@@ -146,7 +146,7 @@ resonance/morph`, `hpf.*`) and has special blocks (patch cables, MPE). So the co
 ## Risks / open questions (resolve as phases hit them)
 
 - **Patch-cable value scaling.** `ParamNode::value` is stored in `[-2^30, 2^30-1]` for patch cables vs
-  full range otherwise (`param_node.h`); `lshiftAndSaturate<1>()` / right-shift-by-1 convert between
+  full range otherwise (`param_node.h`); `lshift_and_saturate<1>()` / right-shift-by-1 convert between
   them. The DOM must preserve the *stored* representation faithfully (projection, not reinterpretation).
 - **Late-2016 file back-compat** in `AutoParam::readFromFile` (decimal vs `0x` paths, overwriting cloned
   ParamManagers) — the DTO read path must keep both.

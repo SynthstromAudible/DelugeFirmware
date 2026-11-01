@@ -26,13 +26,8 @@
 
 // --- App-side note lifecycle --------------------------------------------------------------------------------
 
-bool SamplePlaybackAdapter::noteOn(::Source* source, VoiceSamplePlaybackGuide* guide, uint32_t samplesLate,
-                                   int32_t priorityRating) {
-
-	// Cache the per-note source config + guide (stable for the note); the render queries read these.
-	source_ = source;
-	guide_ = guide;
-
+bool SamplePlaybackAdapter::note_on(uint32_t samplesLate, int32_t priorityRating) {
+	VoiceSamplePlaybackGuide* guide = guide_;
 	if ((guide->audioFileHolder == nullptr) || (guide->audioFileHolder->audioFile == nullptr)
 	    || ((Sample*)guide->audioFileHolder->audioFile)->unplayable) {
 		return true; // We didn't succeed, but don't want to stop the whole Voice from sounding necessarily
@@ -60,8 +55,8 @@ bool SamplePlaybackAdapter::noteOn(::Source* source, VoiceSamplePlaybackGuide* g
 		return true;
 	case RegionOutcome::Loading:
 		// The chunk is reserved and its fill is in flight; it is not loaded YET. Admit the voice and let the
-		// late-start machinery start it as soon as the data lands: a non-zero pendingSamplesLate makes voice.cpp's
-		// tryToStartMidNote fire on the next render, which calls attemptLateSampleStart -> SUCCESS starts the note,
+		// late-start machinery start it as soon as the data lands: a non-zero pendingSamplesLate makes SampleSource's
+		// late start fire on the next render, which calls attempt_late_start -> SUCCESS starts the note,
 		// WAIT retries, FAILURE unassigns. 1 sample is inaudible, and each WAIT advances the position in real time,
 		// so the note sounds from where it would have been.
 		//
@@ -99,11 +94,17 @@ bool SamplePlaybackAdapter::cloneVoiceSampleFrom(const SamplePlaybackAdapter& fr
 	static_cast<SampleLowLevelReader&>(newVoiceSample) = SampleLowLevelReader(oldVoiceSample);
 	newVoiceSample.pendingSamplesLate = oldVoiceSample.pendingSamplesLate;
 	newVoiceSample.doneFirstRenderYet = true;
+	// The new part plays the same note: the render queries read its source and guide
+	source_ = from.source_;
+	guide_ = from.guide_;
 	return true;
 }
 
-bool SamplePlaybackAdapter::noteOffAtLoopEnd(Voice* voice, VoiceSamplePlaybackGuide* guide) {
-	return voiceSample_->noteOffWhenLoopEndPointExists(voice, guide);
+bool SamplePlaybackAdapter::note_off_at_loop_end(int32_t priorityRating) {
+	if (guide_->loopEndPlaybackAtByte == 0) {
+		return true; // no loop end: playback ends where it would have anyway
+	}
+	return voiceSample_->noteOffWhenLoopEndPointExists(guide_, priorityRating);
 }
 
 bool SamplePlaybackAdapter::zoneChanged(VoiceSamplePlaybackGuide* guide, Sample* sample, bool reversed,
@@ -111,85 +112,94 @@ bool SamplePlaybackAdapter::zoneChanged(VoiceSamplePlaybackGuide* guide, Sample*
 	return voiceSample_->sampleZoneChanged(guide, sample, reversed, markerType, loopingType, priorityRating);
 }
 
-int32_t SamplePlaybackAdapter::getPlayByteLowLevel(Sample* sample, VoiceSamplePlaybackGuide* guide) {
-	return voiceSample_->getPlayByteLowLevel(sample, guide);
+int32_t SamplePlaybackAdapter::bytes_left_to_end() const {
+	auto* sample = static_cast<Sample*>(guide_->audioFileHolder->audioFile);
+	const int32_t play_byte = voiceSample_->getPlayByteLowLevel(sample, guide_);
+	// The end may be behind the play position (reversed), so the distance is taken unsigned and turned by the direction
+	return static_cast<int32_t>(static_cast<uint32_t>(guide_->endPlaybackAtByte) - static_cast<uint32_t>(play_byte))
+	       * guide_->playDirection;
+}
+
+int32_t SamplePlaybackAdapter::bytes_per_frame() const {
+	const auto* sample = static_cast<const Sample*>(guide_->audioFileHolder->audioFile);
+	return sample->byteDepth * sample->numChannels;
 }
 
 // --- deluge::synth::SamplePlaybackPort -----------------------------------------------------------------------
 
-int32_t SamplePlaybackAdapter::numChannels() const {
+int32_t SamplePlaybackAdapter::num_channels() const {
 	return (((Sample*)guide_->audioFileHolder->audioFile)->numChannels == 2) ? 2 : 1;
 }
 
-int32_t SamplePlaybackAdapter::sampleRate() const {
+int32_t SamplePlaybackAdapter::sample_rate() const {
 	return ((Sample*)guide_->audioFileHolder->audioFile)->sampleRate;
 }
 
-int32_t SamplePlaybackAdapter::neutralPhaseIncrement() const {
+int32_t SamplePlaybackAdapter::neutral_phase_increment() const {
 	return ((SampleHolder*)guide_->audioFileHolder)->neutralPhaseIncrement;
 }
 
-int32_t SamplePlaybackAdapter::sampleLengthAtSystemSampleRate() const {
+int32_t SamplePlaybackAdapter::sample_length_at_system_sample_rate() const {
 	return ((SampleHolder*)guide_->audioFileHolder)->getLengthInSamplesAtSystemSampleRate(true);
 }
 
-bool SamplePlaybackAdapter::isStretchRepeatMode() const {
+bool SamplePlaybackAdapter::is_stretch_repeat_mode() const {
 	return source_->repeatMode == SampleRepeatMode::STRETCH;
 }
 
-bool SamplePlaybackAdapter::pitchAndSpeedIndependent() const {
+bool SamplePlaybackAdapter::pitch_and_speed_independent() const {
 	return source_->sampleControls.pitchAndSpeedAreIndependent;
 }
 
-int32_t SamplePlaybackAdapter::timeStretchAmount() const {
+int32_t SamplePlaybackAdapter::time_stretch_amount() const {
 	return source_->timeStretchAmount;
 }
 
-uint32_t SamplePlaybackAdapter::sequenceSyncLengthTicks() const {
+uint32_t SamplePlaybackAdapter::sequence_sync_length_ticks() const {
 	return guide_->sequenceSyncLengthTicks;
 }
 
-LoopType SamplePlaybackAdapter::loopingType() const {
+LoopType SamplePlaybackAdapter::looping_type() const {
 	return guide_->getLoopingType(*source_);
 }
 
-SamplePlaybackAdapter::LoopPoints SamplePlaybackAdapter::loopPoints() const {
+SamplePlaybackAdapter::LoopPoints SamplePlaybackAdapter::loop_points() const {
 	auto* holder = (SampleHolderForVoice*)guide_->audioFileHolder;
 	int32_t start = holder->loopStartPos ? holder->loopStartPos : holder->startPos;
 	int32_t end = holder->loopEndPos ? holder->loopEndPos : holder->endPos;
 	return {.start = start, .end = end};
 }
 
-uint64_t SamplePlaybackAdapter::timePerInternalTickBig() const {
+uint64_t SamplePlaybackAdapter::time_per_internal_tick_big() const {
 	return playbackHandler.getTimePerInternalTickBig();
 }
 
-int64_t SamplePlaybackAdapter::syncedNumSamplesIn() const {
+int64_t SamplePlaybackAdapter::synced_num_samples_in() const {
 	return guide_->getSyncedNumSamplesIn();
 }
 
-int32_t SamplePlaybackAdapter::numSamplesLaggingBehindSync() const {
+int32_t SamplePlaybackAdapter::num_samples_lagging_behind_sync() const {
 	return guide_->getNumSamplesLaggingBehindSync(voiceSample_);
 }
 
-uint32_t SamplePlaybackAdapter::adjustPitchToCorrectDriftFromSync(uint32_t phaseIncrement) const {
+uint32_t SamplePlaybackAdapter::adjust_pitch_to_correct_drift_from_sync(uint32_t phaseIncrement) const {
 	return guide_->adjustPitchToCorrectDriftFromSync(voiceSample_, phaseIncrement);
 }
 
-int32_t SamplePlaybackAdapter::interpolationBufferSize(uint32_t phaseIncrement) const {
+int32_t SamplePlaybackAdapter::interpolation_buffer_size(uint32_t phaseIncrement) const {
 	return source_->sampleControls.getInterpolationBufferSize(phaseIncrement);
 }
 
-uint32_t SamplePlaybackAdapter::pendingSamplesLate() const {
+uint32_t SamplePlaybackAdapter::pending_samples_late() const {
 	return voiceSample_->pendingSamplesLate;
 }
 
-bool SamplePlaybackAdapter::doneFirstRenderYet() const {
+bool SamplePlaybackAdapter::done_first_render_yet() const {
 	return voiceSample_->doneFirstRenderYet;
 }
 
-SamplePlaybackAdapter::LateStartOutcome SamplePlaybackAdapter::attemptLateStart(int64_t rawSamplesLate,
-                                                                                int32_t numSamples) {
+SamplePlaybackAdapter::LateStartOutcome SamplePlaybackAdapter::attempt_late_start(int64_t rawSamplesLate,
+                                                                                  int32_t numSamples) {
 	Sample* sample = (Sample*)guide_->audioFileHolder->audioFile;
 	switch (voiceSample_->attemptLateSampleStart(guide_, sample, rawSamplesLate, numSamples)) {
 	case LateStartAttemptStatus::SUCCESS:
@@ -201,8 +211,8 @@ SamplePlaybackAdapter::LateStartOutcome SamplePlaybackAdapter::attemptLateStart(
 	}
 }
 
-bool SamplePlaybackAdapter::possiblySetUpCache(int32_t phaseIncrement, int32_t timeStretchRatio, int32_t priorityRating,
-                                               LoopType loopingType) {
+bool SamplePlaybackAdapter::possibly_set_up_cache(int32_t phaseIncrement, int32_t timeStretchRatio,
+                                                  int32_t priorityRating, LoopType loopingType) {
 	return voiceSample_->possiblySetUpCache(&source_->sampleControls, guide_, phaseIncrement, timeStretchRatio,
 	                                        priorityRating, loopingType);
 }

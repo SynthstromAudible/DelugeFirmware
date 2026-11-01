@@ -10,7 +10,6 @@
 #include "scenes/menu/context.h"
 
 #include "deluge-project/setting_group.h"
-#include "engine-api/types/setting.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/midi_drum.h"
 #include "model/edits/edit.h"
@@ -21,6 +20,7 @@
 #include "model/model_stack.h"
 #include "model/song/song.h"
 #include "modulation/params/param_set.h"
+#include "plugin-api/types/setting.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
 #include "storage/flash_storage.h"
@@ -34,7 +34,7 @@
 #include <string>
 
 using namespace deluge::scenes;
-using deluge::engine::SettingContext;
+using deluge::plugin::SettingContext;
 using deluge::project::SettingAddress;
 using deluge::project::SettingGroupId;
 using deluge::scenes::bind::Target;
@@ -60,11 +60,11 @@ std::string recorded(Song& song, const SettingAddress& address, std::string_view
 
 /// The text the row stores for menu value @p menu.
 std::string stored_text(SettingGroupId group, std::string_view path, int32_t menu) {
-	const auto& row = *deluge::engine::find_setting(deluge::project::table_of(group), path);
-	const auto stored = deluge::engine::from_menu(row, menu);
+	const auto& row = *deluge::plugin::find_setting(deluge::project::table_of(group), path);
+	const auto stored = deluge::plugin::from_menu(row, menu);
 	std::array<char, 16> scratch{};
-	if (row.kind == deluge::engine::SettingKind::CHOICE) {
-		return std::string{deluge::engine::stored_text(row, stored->first, scratch).value_or("?")};
+	if (row.kind == deluge::plugin::SettingKind::CHOICE) {
+		return std::string{deluge::plugin::stored_text(row, stored->first, scratch).value_or("?")};
 	}
 	return std::to_string(stored->first);
 }

@@ -1,9 +1,16 @@
 ---
-# dsp-next uses snake_case for free functions — matching util/fixedpoint.h's
-# multiply_32x32_* convention and the STL — rather than the camelBack used for
-# class methods elsewhere in the tree. Class methods keep camelBack via the
-# inherited ClassMethodCase.
+# Stricter clang-tidy for dsp-next (the L0 component library).
+#
+# Idiomatic C++23, so it holds itself to a higher bar than the legacy tree. It inherits the repo-root .clang-tidy
+# (naming: lower_case functions, methods, variables and members; kCamelCase constants; snake_case traits and
+# concepts) and adds the checks the root leaves off for the legacy code:
+#
+#   * modernize-avoid-c-arrays            — std::array/std::span.
+#   * cppcoreguidelines-special-member-functions — rule of 0/5 for the value types.
+#   * cppcoreguidelines-avoid-non-const-global-variables — no mutable globals in the library.
 InheritParentConfig: true
-CheckOptions:
-  - { key: readability-identifier-naming.FunctionCase, value: lower_case }
+Checks: >
+  modernize-avoid-c-arrays,
+  cppcoreguidelines-special-member-functions,
+  cppcoreguidelines-avoid-non-const-global-variables,
 ---

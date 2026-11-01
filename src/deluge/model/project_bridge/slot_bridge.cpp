@@ -21,14 +21,14 @@
 #include "model/project_bridge/source_bridge.h"
 
 #include "deluge-project/structure_codec.h"
-#include "engine-api/types/engine_id.h"
-#include "engines/deluge/codec.h"
-#include "engines/deluge/engine.h"
-#include "engines/deluge/settings.h"
+#include "instruments/deluge/codec.h"
+#include "instruments/deluge/plugin.h"
+#include "instruments/deluge/settings.h"
 #include "model/drum/drum.h"
 #include "model/instrument/kit.h"
 #include "model/output.h"
 #include "model/song/song.h"
+#include "plugin-api/types/plugin_id.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
@@ -54,8 +54,8 @@ void adoptSoundState(::Sound& sound, std::optional<deluge::project::InstrumentSl
 		sound.bindState();
 	}
 	slot = deluge::project::InstrumentSlot{
-	    .engine = std::string(deluge::engine::kDelugeInstrument.name),
-	    .state = deluge::engine::StateHandle::of<deluge::instrument::DelugeInstrument>({}),
+	    .plugin = std::string(deluge::plugin::kDelugeInstrument.name),
+	    .state = deluge::plugin::StateHandle::of<deluge::instrument::DelugeInstrument>({}),
 	    .tick_magnitude = song.getInputTickMagnitude()};
 	sound.bindState(*slot->state.as<deluge::instrument::DelugeInstrument>());
 }
@@ -163,9 +163,9 @@ deluge::serialization::Value withLeaf(const deluge::serialization::Value& tree, 
 Error applyDifference(::Sound& sound, const deluge::instrument::SoundState& old,
                       const deluge::instrument::SoundState& next, std::span<const std::string_view> changed,
                       ::Song& song) {
-	for (const deluge::engine::SettingInfo& row : deluge::instrument::kSettings) {
+	for (const deluge::plugin::SettingInfo& row : deluge::instrument::kSettings) {
 		const std::string_view entry = row.path.substr(0, row.path.find('/'));
-		if (row.kind == deluge::engine::SettingKind::STRUCTURED || std::ranges::find(changed, entry) == changed.end()) {
+		if (row.kind == deluge::plugin::SettingKind::STRUCTURED || std::ranges::find(changed, entry) == changed.end()) {
 			continue; // an entry the change did not touch holds what the sound holds
 		}
 		const std::optional<deluge::serialization::Value> before = deluge::instrument::setting_value(old, row.path);
@@ -223,7 +223,7 @@ std::optional<deluge::serialization::Value> typedWriteAuditBase(const ::Sound& s
 
 void auditTypedWrite(const ::Sound& sound, const deluge::project::InstrumentSlot& slot,
                      const deluge::serialization::Value& whole, const deluge::serialization::Value& element,
-                     const std::expected<deluge::instrument::SlotChange, deluge::engine::StateError>& got,
+                     const std::expected<deluge::instrument::SlotChange, deluge::plugin::StateError>& got,
                      std::string_view what) {
 	TypedWriteAudit& audit = typedWriteAudit();
 	const auto want = deluge::instrument::decode_change(element, whole, *sound.boundState(),
@@ -244,8 +244,8 @@ void auditTypedWrite(const ::Sound& sound, const deluge::project::InstrumentSlot
 
 void auditSettingWrite(const deluge::instrument::SoundState& before, std::string_view path,
                        const deluge::serialization::Value& value,
-                       const std::expected<deluge::instrument::SlotChange, deluge::engine::StateError>& want,
-                       const std::expected<deluge::instrument::SlotChange, deluge::engine::StateError>& got) {
+                       const std::expected<deluge::instrument::SlotChange, deluge::plugin::StateError>& want,
+                       const std::expected<deluge::instrument::SlotChange, deluge::plugin::StateError>& got) {
 	TypedWriteAudit& audit = typedWriteAudit();
 	if (!audit.enabled) {
 		return;

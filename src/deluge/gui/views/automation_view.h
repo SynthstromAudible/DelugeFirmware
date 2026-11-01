@@ -18,11 +18,13 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "deluge-project/param_address.h"
 #include "gui/views/clip_view.h"
 #include "hid/button.h"
 #include "model/clip/instrument_clip_minder.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/note/note_row.h"
+#include "model/project_bridge/owner_plugin.h"
 #include "modulation/automation/copied_param_automation.h"
 
 class Action;
@@ -136,11 +138,16 @@ public:
 	bool interpolationBefore;
 	bool interpolationAfter;
 
-	// public to midi follow and editor layouts can access it
+	// public to midi follow and editor layouts can access it. @p forEdit states that the caller writes the param: a
+	// cable depth's missing cable is then created; a read gets a null autoParam instead.
 	ModelStackWithAutoParam*
-	getModelStackWithParamForClip(ModelStackWithTimelineCounter* modelStack, Clip* clip,
+	getModelStackWithParamForClip(ModelStackWithTimelineCounter* modelStack, Clip* clip, bool forEdit,
 	                              int32_t paramID = deluge::modulation::params::kNoParamID,
 	                              deluge::modulation::params::Kind paramKind = deluge::modulation::params::Kind::NONE);
+	/// @brief The lane (read, not for edit) of @p target for the clip's owner, of @p owner's plugin: the one place the
+	/// view turns a target into a model stack, until the model stack is retired.
+	ModelStackWithAutoParam* laneFor(ModelStackWithTimelineCounter* modelStack, Clip* clip,
+	                                 deluge::bridge::OwnerPlugin owner, deluge::project::ParamTarget target);
 
 	// public so instrument clip view can access it
 	void initParameterSelection(bool updateDisplay = true);
@@ -258,3 +265,9 @@ private:
 };
 
 extern AutomationView automationView;
+
+class MidiFollow;
+
+/// @brief The MIDI CC a MIDI clip's automation overview shows at pad (@p x, @p y): the CC @p follow maps to the
+/// sound shortcut there, or the expression shortcut's pseudo-CC; kNoParamID when there is none.
+uint32_t automationMIDICCShortcut(const MidiFollow& follow, int32_t x, int32_t y);

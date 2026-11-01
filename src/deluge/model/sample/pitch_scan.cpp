@@ -16,6 +16,7 @@
  */
 
 #include "model/sample/pitch_scan.h"
+#include "dsp-next/fixed/interpolation/table_interpolation.h"
 
 #include "definitions_cxx.hpp"
 #include "libdeluge/clock.h" // deluge_clock_now
@@ -24,7 +25,6 @@
 #include "processing/engines/audio_engine.h"
 #include "util/fixedpoint.h"
 #include "util/lookuptables/lookuptables.h" // hanningWindow
-#include "util/waves.h"                     // interpolateTableSigned
 #include <algorithm>
 #include <cstddef>
 #include <cstring>
@@ -169,8 +169,8 @@ PitchScan::ReadOutcome PitchScan::stepRead() {
 		}
 
 		// Do hanning window
-		const int32_t hanningValue =
-		    interpolateTableSigned(writeIndex_, kPitchDetectWindowSizeMagnitude, hanningWindow, 8);
+		const int32_t hanningValue = deluge::dsp::fixed::kLinearTableInterpolator.interpolate_signed(
+		    writeIndex_, kPitchDetectWindowSizeMagnitude, hanningWindow, 8);
 		buffer_[writeIndex_] = multiply_32x32_rshift32_rounded(thisValue_, hanningValue) >> 12;
 		writeIndex_++;
 		thisValue_ = 0;

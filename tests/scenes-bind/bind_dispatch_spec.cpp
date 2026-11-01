@@ -1,7 +1,7 @@
-#include "engine-api/types/engine_id.h"
-#include "engine-api/types/setting.h"
-#include "engines/deluge/settings.h"
 #include "gui/l10n/setting_names.h"
+#include "instruments/deluge/settings.h"
+#include "plugin-api/types/plugin_id.h"
+#include "plugin-api/types/setting.h"
 #include "scenes/bind/dispatch.h"
 #include "scenes/bind/setting_context.h"
 #include "scenes/bind/slot_reader.h"
@@ -19,8 +19,8 @@ using deluge::scenes::bind::test::kSynth;
 using deluge::scenes::bind::test::ModelFixture;
 
 namespace {
-const deluge::engine::SettingInfo& row_at(std::string_view path) {
-	return *deluge::engine::find_setting(deluge::instrument::kSettings, path);
+const deluge::plugin::SettingInfo& row_at(std::string_view path) {
+	return *deluge::plugin::find_setting(deluge::instrument::kSettings, path);
 }
 
 Target sound(std::string_view path) {
@@ -53,13 +53,13 @@ describe bind_dispatch("a sound target's value, range, choices, names and applic
 		const SlotReader reader{fixture.song, kSynth, fixture.facts};
 		const auto shown_for = setting_context(fixture.song, kSynth, fixture.facts);
 		const auto& row = row_at("osc2/type");
-		expect(shown->greatest + 1).to_equal(deluge::engine::applicable_choice_count(row, shown_for, reader.reader()));
+		expect(shown->greatest + 1).to_equal(deluge::plugin::applicable_choice_count(row, shown_for, reader.reader()));
 		expect(shown->stale.has_value()).to_be_false();
 		// With no input plugged in, the one input entry is named as legacy names it ("Input"), by the context.
-		const auto* names = deluge::l10n::setting_names(deluge::engine::kDelugeInstrument, "osc2/type", shown_for);
+		const auto* names = deluge::l10n::setting_names(deluge::plugin::kDelugeInstrument, "osc2/type", shown_for);
 		std::vector<int64_t> want;
 		for (size_t choice = 0; choice < row.choices.size(); ++choice) {
-			if (deluge::engine::setting_choice_applies(row, shown_for, reader.reader(), choice)) {
+			if (deluge::plugin::setting_choice_applies(row, shown_for, reader.reader(), choice)) {
 				want.push_back(static_cast<int64_t>(names->choices[choice]));
 			}
 		}
@@ -68,7 +68,7 @@ describe bind_dispatch("a sound target's value, range, choices, names and applic
 
 	it("lists a two-way setting a menu shows as a list (the FM modulator's destination) by the name table's names", _ {
 		const ModelFixture fixture;
-		const auto* table = deluge::l10n::setting_names(deluge::engine::kDelugeInstrument, "modulator2/toModulator1");
+		const auto* table = deluge::l10n::setting_names(deluge::plugin::kDelugeInstrument, "modulator2/toModulator1");
 		std::vector<int64_t> want;
 		for (const String name : table->choices) {
 			want.push_back(static_cast<int64_t>(name));
@@ -86,14 +86,14 @@ describe bind_dispatch("a sound target's value, range, choices, names and applic
 		expect(shown->stale.has_value()).to_be_true();
 		expect(shown->value).to_equal(*shown->stale);
 		const auto names = names_of(fixture, "osc1/type", kDrum);
-		const auto* table = deluge::l10n::setting_names(deluge::engine::kDelugeInstrument, "osc1/type");
+		const auto* table = deluge::l10n::setting_names(deluge::plugin::kDelugeInstrument, "osc1/type");
 		const auto input_r = -static_cast<int64_t>(table->choices[static_cast<size_t>(OscType::INPUT_R)]);
 		expect(names[static_cast<size_t>(*shown->stale)]).to_equal(input_r);
 		expect(request_for(sound("osc1/type"), fixture.song, at(kDrum), fixture.facts, *shown->stale).has_value())
 		    .to_be_false();
 		const auto next = request_for(sound("osc1/type"), fixture.song, at(kDrum), fixture.facts, *shown->stale - 1);
 		expect(next.has_value()).to_be_true();
-		const auto stored = deluge::engine::from_menu(row_at("osc1/type"), next->menu_value);
+		const auto stored = deluge::plugin::from_menu(row_at("osc1/type"), next->menu_value);
 		expect(stored.has_value() && stored->first != static_cast<int32_t>(OscType::INPUT_R)).to_be_true();
 	});
 
@@ -104,7 +104,7 @@ describe bind_dispatch("a sound target's value, range, choices, names and applic
 		state.max_voice_count = 20;
 		fixture.set_state(kSynth, state);
 		const auto shown = view(sound("maxVoices"), fixture.song, at(kSynth), fixture.facts);
-		expect(shown->value).to_equal(deluge::engine::to_menu(row_at("maxVoices"), 20));
+		expect(shown->value).to_equal(deluge::plugin::to_menu(row_at("maxVoices"), 20));
 	});
 
 	it("reads a combined menu through its partner row", _ {
@@ -112,13 +112,13 @@ describe bind_dispatch("a sound target's value, range, choices, names and applic
 		auto state = fixture.facts.states.at(kSynth.id);
 		state.transpose = -3;
 		state.cents = 25;
-		state.lfo_sync_level[0] = deluge::engine::SyncLevel{4};
-		state.lfo_sync_type[0] = deluge::engine::SyncType::TRIPLET;
+		state.lfo_sync_level[0] = deluge::plugin::SyncLevel{4};
+		state.lfo_sync_type[0] = deluge::plugin::SyncType::TRIPLET;
 		fixture.set_state(kSynth, state);
 		const SlotReader reader{fixture.song, kSynth, fixture.facts};
 		expect(view(sound("transpose"), fixture.song, at(kSynth), fixture.facts)->value).to_equal(-275);
 		expect(view(sound("lfo1/syncLevel"), fixture.song, at(kSynth), fixture.facts)->value)
-		    .to_equal(deluge::engine::to_menu(row_at("lfo1/syncLevel"), 4, *reader.read("lfo1/syncType")));
+		    .to_equal(deluge::plugin::to_menu(row_at("lfo1/syncLevel"), 4, *reader.read("lfo1/syncType")));
 	});
 
 	it("says a row does not apply where its conditions fail", _ {
@@ -136,8 +136,8 @@ describe bind_dispatch("a sound target's value, range, choices, names and applic
 	it("resolves every row the table holds, a row whose mapping clamps (no partner) included", _ {
 		const ModelFixture fixture;
 		std::string unresolved;
-		for (const deluge::engine::SettingInfo& row : deluge::instrument::kSettings) {
-			if (row.kind == deluge::engine::SettingKind::STRUCTURED || row.kind == deluge::engine::SettingKind::TEXT) {
+		for (const deluge::plugin::SettingInfo& row : deluge::instrument::kSettings) {
+			if (row.kind == deluge::plugin::SettingKind::STRUCTURED || row.kind == deluge::plugin::SettingKind::TEXT) {
 				continue;
 			}
 			if (!view(sound(row.path), fixture.song, at(kSynth), fixture.facts)) {

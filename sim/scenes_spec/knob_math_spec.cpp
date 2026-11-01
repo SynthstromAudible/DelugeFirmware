@@ -4,9 +4,9 @@
 
 #include "scenes/bind/knob_math.h"
 
-#include "engines/deluge/cables.h"
-#include "engines/deluge/params.h"
-#include "engines/global_effectable/params.h"
+#include "effects/global_effectable/params.h"
+#include "instruments/deluge/cables.h"
+#include "instruments/deluge/params.h"
 
 #include "model/clip/instrument_clip.h"
 #include "model/edits/edit.h"
@@ -36,7 +36,7 @@
 
 namespace {
 
-using deluge::engine::ParamInfo;
+using deluge::plugin::ParamInfo;
 using deluge::project::OwnerId;
 using deluge::project::ParamAddress;
 using deluge::project::ParamSpace;
@@ -93,7 +93,7 @@ describe knob_math("the gold knob's position, from the param's descriptor", ${
 			}
 		}
 		// A cable: LFO 1 to pitch, made first.
-		const std::optional<deluge::engine::ParamId> depth = deluge::instrument::cable_depth_id(
+		const std::optional<deluge::plugin::ParamId> depth = deluge::instrument::cable_depth_id(
 		    deluge::instrument::PatchSource::LFO_GLOBAL_1, deluge::instrument::param::kPitch);
 		expect(depth.has_value()).to_be_true();
 		if (depth) {
@@ -160,7 +160,7 @@ describe knob_math("the gold knob's position, from the param's descriptor", ${
 
 	it("indicates the middle of a stutter rate unless it is quantized, or while stuttering", _ {
 		const ParamInfo* rate =
-		    deluge::engine::find_param(deluge::global_effectable::kParams, deluge::global_effectable::param::kStutterRate);
+		    deluge::plugin::find_param(deluge::global_effectable::kParams, deluge::global_effectable::param::kStutterRate);
 		const ParamAddress address{.owner = OwnerId::song(), .space = ParamSpace::ENGINE, .id = rate->id};
 		expect(bind::indicates_middle(address, rate, false, false)).to_be_true();
 		expect(bind::indicates_middle(address, rate, true, false)).to_be_false();

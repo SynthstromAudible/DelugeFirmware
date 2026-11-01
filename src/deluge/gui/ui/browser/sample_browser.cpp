@@ -587,8 +587,8 @@ PatchCable* targetVelocityToVolumeCable(ParamManagerForTimeline* paramManager) {
 	PatchCableSet* cables = paramManager->getPatchCableSet();
 	for (int32_t c = 0; c < cables->numPatchCables; c++) {
 		PatchCable& cable = cables->patchCables[c];
-		if (cable.from == PatchSource::VELOCITY && cable.destinationParamDescriptor.isJustAParam()
-		    && cable.destinationParamDescriptor.getJustTheParam() == params::LOCAL_VOLUME) {
+		if (cable.from == PatchSource::VELOCITY && cable.destination.is_param()
+		    && cable.destination.param_index() == params::LOCAL_VOLUME) {
 			return &cable;
 		}
 	}
@@ -734,7 +734,7 @@ void SampleBrowser::startPreviewLoad(PreviewTarget target) {
 	// which makes it declare an overload and force-cull a voice -- the very preview voice the fill was
 	// warming. That is how a preview truncates.
 	//
-	// Enqueueing never blocks. The note-on then sees LOADING and defers (VoiceUnisonPartSource), so the
+	// Enqueueing never blocks. The note-on then sees LOADING and defers (SourceSlot), so the
 	// preview starts a few ms late instead of either stalling audio or dropping the voice.
 	previewLoad_.request(
 	    deluge::storage::SampleDemand{

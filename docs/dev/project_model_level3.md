@@ -99,7 +99,7 @@ polymorphic types (below).
      and the RZ/A1L (R7S721031) SoC has **no TRNG / crypto / entropy peripheral** (confirmed: the
      TRM's only "random" mentions are a CD-ROM decoder's "random logic" and audio/video "random
      pattern dither mode"). All randomness is a software MWC/LCG PRNG whose *only* seed is one timer
-     read (`seedRandom()` = `jcong = deluge_clock_now()`). So UUIDv4's 122 collision-resistant bits
+     read (`seedRandom()` = `deluge::synth_noise.seed(deluge_clock_now())`). So UUIDv4's 122 collision-resistant bits
      would come from a weakly-seeded deterministic PRNG — fragile, and it is the *shared audio PRNG*,
      so drawing from it perturbs render determinism and the golden.
    - *Determinism.* Random UUIDs make serialization non-deterministic and non-reproducible across

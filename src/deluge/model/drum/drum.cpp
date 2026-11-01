@@ -145,7 +145,7 @@ void Drum::getCombinedExpressionInputs(int16_t* combined) {
 	for (int32_t i = 0; i < kNumExpressionDimensions; i++) {
 		int32_t combinedValue =
 		    (int32_t)lastExpressionInputsReceived[0][i] + (int32_t)lastExpressionInputsReceived[1][i];
-		combined[i] = lshiftAndSaturate<8>(combinedValue);
+		combined[i] = lshift_and_saturate<8>(combinedValue);
 	}
 }
 
@@ -159,7 +159,7 @@ void Drum::expressionEventPossiblyToRecord(ModelStackWithTimelineCounter* modelS
 	lastExpressionInputsReceived[level][expressionDimension] = newValue >> 8; // Store value
 	int32_t combinedValue =
 	    (int32_t)newValue + ((int32_t)lastExpressionInputsReceived[!level][expressionDimension] << 8);
-	combinedValue = lshiftAndSaturate<16>(combinedValue);
+	combinedValue = lshift_and_saturate<16>(combinedValue);
 
 	expressionValueChangesMustBeDoneSmoothly = true;
 

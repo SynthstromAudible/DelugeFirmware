@@ -5,12 +5,14 @@
 # Licensed under the GNU General Public License v3 or later; see LICENSE.
 """Boundary guardrail for the deluge synth core (synth untangling, Phase 2).
 
-src/deluge/synth/ holds the decoupled per-voice modulation core — Envelope, LFO,
-Patcher, ControlBlock, ParamPlane. It is a step below the application: it may use
-util/, dsp-next/, sequence/, definitions*, and its sibling modulation/ headers,
-but it must not reach up into the app layers — storage/, model/, processing/,
-gui/, playback/, hid/, io/, the legacy dsp/ library, or the HAL/BSP (RZA1/, bsp/,
-drivers/). memory/ is allowed only via the thin memory_allocator_interface.h seam.
+src/synth/ is the synth library: the per-voice sources and the modulation core (Envelope,
+LFO, Patcher, ControlBlock, ParamPlane, the routing compile). It is a step below the application:
+it may use dsp-next/, sequence/ and definitions*, of util/ only the stateless fixedpoint.h,
+misc.h, param_functions.h, phase_increment_fine_tuner.h and the lookup tables, of modulation/ only the param and sync vocabulary (params/param.h,
+sync.h), and of deluge-project/ only the enums definitions_cxx.hpp
+brings (never named by a synth file itself). It must not reach the app layers — storage/,
+model/, processing/, gui/, playback/, hid/, io/, bench/, the legacy dsp/ library, or the HAL/BSP
+(RZA1/, bsp/, drivers/). memory/ is allowed only via the thin memory_allocator_interface.h seam.
 
 This is a TRANSITIVE check: it follows the `#include "..."` graph from every
 synth/ file (resolving against the same roots the build uses — src/deluge and
@@ -33,7 +35,7 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-SYNTH_ROOT = REPO_ROOT / "src" / "deluge" / "synth"
+SYNTH_ROOT = REPO_ROOT / "src" / "synth"
 ALLOWLIST_PATH = REPO_ROOT / "scripts" / "synth_boundary_allowlist.txt"
 
 # The include roots the build hands the compiler (-I), longest first so a file under
@@ -51,6 +53,7 @@ FORBIDDEN_INCLUDE_PREFIXES = (
     "hid/",
     "io/",
     "dsp/",  # the legacy DSP library
+    "bench/",  # the app's benchmarks
     "RZA1/",
     "bsp/",
     "drivers/",
@@ -66,9 +69,38 @@ SOURCE_SUFFIXES = {".c", ".cpp", ".cc", ".h", ".hpp", ".hh", ".s", ".S"}
 _INCLUDE_RE = re.compile(r'^\s*#\s*include\s*"([^"]+)"')
 
 
+# util/ and modulation/ headers the synth may reach: header-only and stateless (util/), and the param and sync
+# vocabulary (modulation/). Everything else under them is the app's.
+UTIL_ALLOWED = {
+    "util/fixedpoint.h",
+    "util/lookuptables/lookuptables.h",
+    "util/misc.h",
+    "util/param_functions.h",
+    "util/phase_increment_fine_tuner.h",
+}
+MODULATION_ALLOWED = {
+    "modulation/params/param.h",
+    "modulation/sync.h",
+}
+# definitions_cxx.hpp brings these as vocabulary; a synth file must not include deluge-project/ itself.
+DEFINITIONS_VOCABULARY = {
+    "deluge-project/arrangement.h",
+    "deluge-project/drum_type.h",
+    "deluge-project/launch_style.h",
+    "deluge-project/midi_command.h",
+    "deluge-project/sequence_direction.h",
+}
+
+
 def _is_forbidden(logical: str) -> bool:
     if logical.startswith(MEMORY_PREFIX):
         return logical not in MEMORY_ALLOWED
+    if logical.startswith("util/"):
+        return logical not in UTIL_ALLOWED
+    if logical.startswith("modulation/"):
+        return logical not in MODULATION_ALLOWED
+    if logical.startswith("deluge-project/"):
+        return logical not in DEFINITIONS_VOCABULARY
     return any(logical.startswith(p) for p in FORBIDDEN_INCLUDE_PREFIXES)
 
 
@@ -134,6 +166,10 @@ def current_offenders() -> dict[str, dict[str, list[str]]]:
         if path.suffix not in SOURCE_SUFFIXES or not path.is_file():
             continue
         reaches = _reaches(path)
+        # The vocabulary definitions_cxx.hpp brings is allowed only through it: a synth file names none itself.
+        for inc in _quoted_includes(path):
+            if inc.startswith("deluge-project/"):
+                reaches.setdefault(inc, [inc])
         if reaches:
             offenders[str(path.relative_to(REPO_ROOT))] = reaches
     return offenders
@@ -192,7 +228,7 @@ def main() -> int:
                     file=sys.stderr,
                 )
         print(
-            "\nsrc/deluge/synth/ must not reach the app layers (storage/model/processing/\n"
+            "\nsrc/synth/ must not reach the app layers (storage/model/processing/\n"
             "gui/playback/hid/io), the legacy dsp/ library, or the HAL/BSP — directly OR\n"
             "transitively. Confine the offending include (forward-declare + move it to a\n"
             ".cpp, or split the header), or — only as a last resort — add the synth file to\n"
@@ -222,14 +258,14 @@ def _write_allowlist(paths: list[str]) -> None:
     lines = [
         "# Synth-boundary allowlist (synth untangling, Phase 2).",
         "#",
-        "# Files under src/deluge/synth/ that still TRANSITIVELY reach a forbidden app/HAL",
+        "# Files under src/synth/ that still TRANSITIVELY reach a forbidden app/HAL",
         "# header. This list may only SHRINK — adding an entry should be rejected in review;",
         "# removing one is the unit of progress. Regenerate for comparison with:",
         "#   scripts/check_synth_boundary.py --list",
         "#",
         "# See docs/dev/synth_phase2_data_plane.md and scripts/check_synth_boundary.py.",
         "#",
-        "# The list is EMPTY: src/deluge/synth reaches only util/, dsp-next/, modulation/,",
+        "# The list is EMPTY: src/synth reaches only util/, dsp-next/, modulation/,",
         "# sequence/, definitions*, and standard/etl headers — no app layer, directly or",
         "# transitively.",
     ]

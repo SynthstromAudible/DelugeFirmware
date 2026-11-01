@@ -225,7 +225,6 @@
 #include "model/project_bridge/slot_bridge.h"
 #include "model/sample/sample.h"
 #include "model/song/song.h"
-#include "modulation/params/param_descriptor.h"
 #include "modulation/patch/patch_cable.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "processing/sound/sound.h"
@@ -234,6 +233,7 @@
 #include "storage/cluster/cluster.h"
 #include "storage/flash_storage.h"
 #include "storage/multi_range/multisample_range.h"
+#include "synth/modulation/cable.h"
 
 #include "support/menu_engine.h"
 #include "support/no_notification_sink.h"
@@ -573,9 +573,9 @@ struct SavedCables {
 
 /// Writes @p menu_value to the cable @p learn names through the app's sink, as the strength page writes it; a new
 /// cable takes its source's default polarity.
-bool seed_cable(const menu::MenuContext& ctx, ParamDescriptor learn, int32_t menu_value) {
-	const std::optional<deluge::scenes::bind::WriteRequest> request = menu::nodes::cable_request(
-	    ctx, learn, menu_value, PatchCable::getDefaultPolarity(learn.getBottomLevelSource()));
+bool seed_cable(const menu::MenuContext& ctx, deluge::synth::CableTarget learn, int32_t menu_value) {
+	const std::optional<deluge::scenes::bind::WriteRequest> request =
+	    menu::nodes::cable_request(ctx, learn, menu_value, PatchCable::getDefaultPolarity(learn.bottom_source()));
 	return request.has_value() && ctx.sink->write(*request);
 }
 
@@ -1188,13 +1188,11 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		// `tables_2_spec`'s own mod-matrix goldens install.
 		Song* const previous_song = currentSong;
 		currentSong = song.song;
-		ParamDescriptor plain;
-		plain.setToHaveParamAndSource(deluge::modulation::params::LOCAL_LPF_FREQ, PatchSource::ENVELOPE_1);
+		deluge::synth::CableTarget plain = deluge::synth::CableTarget::depth_of(deluge::modulation::params::LOCAL_LPF_FREQ, PatchSource::ENVELOPE_1);
 		expect(seed_cable(ctx, plain, 1234)).to_be_true();
 		PatchCableSet* const set = spec::menu_engine(ctx).params->getPatchCableSetAllowJibberish();
 		expect(set != nullptr).to_be_true();
-		ParamDescriptor destination;
-		destination.setToHaveParamOnly(deluge::modulation::params::LOCAL_LPF_FREQ);
+		deluge::synth::CableTarget destination = deluge::synth::CableTarget::param(deluge::modulation::params::LOCAL_LPF_FREQ);
 		const uint8_t added = set->getPatchCableIndex(PatchSource::ENVELOPE_1, destination);
 		expect(added != kNoSelection).to_be_true();
 		expect(added != uint8_t{0}).to_be_true(); // not the row the cursor opens on

@@ -31,7 +31,7 @@ namespace deluge::dsp::fixed {
 ///
 /// The band depends only on the phase increment (pitch), which is fixed for the block, so the
 /// band is selected once at construction and the rest is exactly a @ref TableOscillator over it.
-/// This pulls the per-wave band selection (the old `getTableNumber` + table-array indexing /
+/// This pulls the per-wave band selection (the old `get_table_number` + table-array indexing /
 /// triangle ladder) into the kernel's self-selecting BandlimitedTable; the oscillator just pairs
 /// it with the increment. Owns a seekable phase (via TableOscillator) so it composes with
 /// @ref SyncedOscillator for hard sync.
@@ -39,7 +39,7 @@ namespace deluge::dsp::fixed {
 /// Band selection and render rate are usually the same increment, but pulse-width waves render at
 /// a rewritten (faster) increment while their band-limiting must still target the perceived pitch;
 /// the four-argument constructor decouples the two (see @p selection_increment).
-class [[gnu::hot]] BandLimitedTableOscillator : public Generator<BandLimitedTableOscillator, q31> {
+class BandLimitedTableOscillator : public Generator<BandLimitedTableOscillator, q31> {
 	const BandlimitedTable* bands_; ///< the wave's band set, retained so the band can be re-selected per block
 	TableOscillator oscillator_;
 
@@ -53,7 +53,7 @@ public:
 	/// TODO(behavior-changing, deferred): for non-square pulse-width waves this preserves a legacy
 	/// quirk — the band is chosen from the pre-PW note (`selection_increment`) while the wave renders
 	/// at the faster post-PW `increment`, so it is mildly *under*-band-limited and can alias a touch.
-	/// This matches the original `getTableNumber(phaseIncrementForCalculations)` behavior (which
+	/// This matches the original `get_table_number(phaseIncrementForCalculations)` behavior (which
 	/// carried the same TODO) and is bit-exact; selecting on `increment` instead is arguably more
 	/// correct but audibly changes every PW patch, so it must wait for a deliberate re-baseline.
 	BandLimitedTableOscillator(const BandlimitedTable& bands, uint32_t phase, uint32_t increment,
@@ -67,15 +67,15 @@ public:
 
 	/// Set the per-block pitch, **re-selecting the band** for the new increment (bit-identical to constructing a
 	/// fresh oscillator at that increment). Keeps the accumulated phase.
-	void setIncrement(uint32_t increment) {
-		oscillator_.setIncrement(increment);
+	void set_increment(uint32_t increment) {
+		oscillator_.set_increment(increment);
 		oscillator_.setTable(bands_->select(increment));
 	}
 
 	/// As above but with a separate band-selection pitch (pulse-width waves render faster than the note they
 	/// band-limit for; see the four-argument constructor).
-	void setIncrement(uint32_t increment, uint32_t selection_increment) {
-		oscillator_.setIncrement(increment);
+	void set_increment(uint32_t increment, uint32_t selection_increment) {
+		oscillator_.set_increment(increment);
 		oscillator_.setTable(bands_->select(selection_increment));
 	}
 

@@ -19,8 +19,8 @@
 
 #include "definitions_cxx.hpp" // Error
 #include "deluge-project/instrument_slot.h"
-#include "engines/deluge/codec.h"
-#include "engines/deluge/sound_state.h"
+#include "instruments/deluge/codec.h"
+#include "instruments/deluge/sound_state.h"
 
 #include <expected>
 #include <optional>
@@ -134,7 +134,7 @@ typedWriteAuditBase(const ::Sound& sound, const deluge::project::InstrumentSlot&
 /// @param what    What was written, for the failure message.
 void auditTypedWrite(const ::Sound& sound, const deluge::project::InstrumentSlot& slot,
                      const deluge::serialization::Value& whole, const deluge::serialization::Value& element,
-                     const std::expected<deluge::instrument::SlotChange, deluge::engine::StateError>& got,
+                     const std::expected<deluge::instrument::SlotChange, deluge::plugin::StateError>& got,
                      std::string_view what);
 
 /// @brief Compare a setting's typed write, @p got, with the old way's, @p want (with_setting, or where the setting's
@@ -149,8 +149,8 @@ void auditTypedWrite(const ::Sound& sound, const deluge::project::InstrumentSlot
 /// @param got    The typed write's change.
 void auditSettingWrite(const deluge::instrument::SoundState& before, std::string_view path,
                        const deluge::serialization::Value& value,
-                       const std::expected<deluge::instrument::SlotChange, deluge::engine::StateError>& want,
-                       const std::expected<deluge::instrument::SlotChange, deluge::engine::StateError>& got);
+                       const std::expected<deluge::instrument::SlotChange, deluge::plugin::StateError>& want,
+                       const std::expected<deluge::instrument::SlotChange, deluge::plugin::StateError>& got);
 
 /// @brief @p sound's record re-read from the runtime and its controls record set from its knobs, when it is bound in
 /// @p song.

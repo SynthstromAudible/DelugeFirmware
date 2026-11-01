@@ -3,7 +3,7 @@
 // `instrument::cable_allowed` over the sound's typed state agrees with `Sound::maySourcePatchToParam` refusing the
 // cable or not.
 
-#include "engines/deluge/cable_acceptance.h"
+#include "instruments/deluge/cable_acceptance.h"
 #include "scenes/menu/bind_host.h"
 
 #include "deluge-project/instrument_slot.h"
@@ -47,7 +47,7 @@ int32_t disagreements(Sound& sound, ParamManager& manager, deluge::project::Slot
 			    != PatchCableAcceptance::DISALLOWED;
 			const bool port =
 			    deluge::instrument::cable_allowed(static_cast<deluge::instrument::PatchSource>(s),
-			                                      deluge::engine::ParamId{static_cast<uint32_t>(p)}, *state, is_drum);
+			                                      deluge::plugin::ParamId{static_cast<uint32_t>(p)}, *state, is_drum);
 			if (legacy != port) {
 				if (found++ == 0) {
 					char line[96];

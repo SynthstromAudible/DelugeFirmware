@@ -35,7 +35,7 @@ project::ArpRecord arpRecordOf(const ArpeggiatorSettings& settings, bool hostVal
 	    .num_octaves = settings.numOctaves,
 	    .step_repeat = settings.numStepRepeats,
 	    .chord_type = settings.chordTypeIndex,
-	    .sync_level = static_cast<uint8_t>(engine::index_of(settings.syncLevel)),
+	    .sync_level = static_cast<uint8_t>(plugin::index_of(settings.syncLevel)),
 	    .sync_type = static_cast<uint8_t>(std::to_underlying(settings.syncType)),
 	    .randomizer_lock = settings.randomizerLock,
 	    .kit_arp = settings.includeInKitArp,
@@ -72,7 +72,7 @@ void seedArpRecord(std::optional<project::ArpRecord>& record, const ArpeggiatorS
 	}
 	if (hostValues) {
 		const project::ArpRecord engine = arpRecordOf(settings, true);
-		for (const engine::SettingInfo& row : engine::kArpHostRows) {
+		for (const plugin::SettingInfo& row : plugin::kArpHostRows) {
 			if (!project::host_value(*record, row.path)) {
 				project::set_host_value(*record, row.path, project::host_value(engine, row.path));
 			}
@@ -85,7 +85,7 @@ void writeArpAttributes(Serializer& writer, const ArpeggiatorSettings& settings,
 	project::ArpRecord written = record != nullptr ? *record : arpRecordOf(settings, hostValues);
 	if (hostValues) {
 		const project::ArpRecord engine = arpRecordOf(settings, true);
-		for (const engine::SettingInfo& row : engine::kArpHostRows) {
+		for (const plugin::SettingInfo& row : plugin::kArpHostRows) {
 			if (!project::host_value(written, row.path)) {
 				project::set_host_value(written, row.path, project::host_value(engine, row.path));
 			}

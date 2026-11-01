@@ -8,7 +8,7 @@
 #include "deluge-project/fx_chain.h"
 #include "deluge-project/instrument_slot.h"
 #include "deluge-project/song.h"
-#include "engines/effects/state.h"
+#include "effects/state.h"
 #include "scenes/bind/knob_assignment.h"
 #include "scenes/bind/knob_focus.h"
 #include "scenes/bind/write_sink.h"

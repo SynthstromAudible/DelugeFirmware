@@ -117,19 +117,19 @@ void encode_note(const MappingTable& table, const MappingTarget& target, std::st
 }
 
 void decode_knobs(const Value& element, ControlsAddress owner, MappingTable& table,
-                  const deluge::engine::ParamNaming* naming) {
+                  const deluge::plugin::ParamNaming* naming) {
 	std::vector<Mapping> knobs;
 	if (const Value* midiKnobs = element.find("midiKnobs"); midiKnobs != nullptr && naming != nullptr) {
 		for (const Value* knob : serialization::elements_named(*midiKnobs, "midiKnob")) {
 			if (!knob->isMap()) {
 				continue;
 			}
-			const std::optional<deluge::engine::ParamId> param = naming->id_of(ref_in(*knob));
+			const std::optional<deluge::plugin::ParamId> param = naming->id_of(ref_in(*knob));
 			if (!param) {
 				continue;
 			}
 			Mapping& learned = knobs.emplace_back();
-			learned.target = ParamTarget{owner, *param};
+			learned.target = OwnerParamTarget{owner, *param};
 			learned.source.channel_or_zone = with_zone(byte_of(knob->find("channel")), knob->find("mpeZone"));
 			learned.source.note_or_cc = byte_of(knob->find("ccNumber"));
 			learned.relative = serialization::int_of(knob->find("relative")).value_or(0) != 0;
@@ -142,7 +142,7 @@ void decode_knobs(const Value& element, ControlsAddress owner, MappingTable& tab
 }
 
 void encode_knobs(const MappingTable& table, ControlsAddress owner, Value& element,
-                  const deluge::engine::ParamNaming* naming) {
+                  const deluge::plugin::ParamNaming* naming) {
 	if (naming == nullptr) {
 		return;
 	}
@@ -158,7 +158,7 @@ void encode_knobs(const MappingTable& table, ControlsAddress owner, Value& eleme
 		}
 		knob.set("ccNumber", Value::makeNumber(entry.source.note_or_cc));
 		knob.set("relative", Value::makeNumber(entry.relative ? 1 : 0));
-		set_ref(knob, naming->ref_of(std::get<ParamTarget>(entry.target).param));
+		set_ref(knob, naming->ref_of(std::get<OwnerParamTarget>(entry.target).param));
 		if (entry.source.device) {
 			knob.set("device", encode_device(*entry.source.device));
 		}
@@ -205,7 +205,7 @@ void encode_track_input(const MappingTable& table, uint32_t output_id, Value& el
 } // namespace
 
 void decode_mappings(const Value& element, MappingOwner owner, MappingTable& table,
-                     const deluge::engine::ParamNaming* naming) {
+                     const deluge::plugin::ParamNaming* naming) {
 	if (!element.isMap()) {
 		return;
 	}
@@ -230,7 +230,7 @@ void decode_mappings(const Value& element, MappingOwner owner, MappingTable& tab
 }
 
 void encode_mappings(const MappingTable& table, MappingOwner owner, Value& element,
-                     const deluge::engine::ParamNaming* naming) {
+                     const deluge::plugin::ParamNaming* naming) {
 	if (const auto* controls = std::get_if<ControlsAddress>(&owner)) {
 		encode_knobs(table, *controls, element, naming);
 	}

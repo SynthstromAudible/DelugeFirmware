@@ -150,8 +150,10 @@ void generate_stage_twiddles(Twiddles& twiddles) {
 			for (int32_t k = 1; k < radix; k++) {
 				const float phase = -2 * kPi * fstride * k * j / ncfft;
 				Complex& entry = out[(mstride * (k - 1)) + j];
-				entry.r = static_cast<int32_t>(std::floor(0.5f + kF2I32Max * std::cos(static_cast<double>(phase))));
-				entry.i = static_cast<int32_t>(std::floor(0.5f + kF2I32Max * std::sin(static_cast<double>(phase))));
+				entry.r = static_cast<int32_t>(
+				    std::floor(0.5 + static_cast<double>(kF2I32Max) * std::cos(static_cast<double>(phase))));
+				entry.i = static_cast<int32_t>(
+				    std::floor(0.5 + static_cast<double>(kF2I32Max) * std::sin(static_cast<double>(phase))));
 			}
 		}
 		out += mstride * (radix - 1);
@@ -163,8 +165,10 @@ void generate_super_twiddles(Twiddles& twiddles) {
 	Complex* out = twiddles.super.data();
 	for (int32_t j = 0; j < ncfft / 2; j++) {
 		const float phase = -kPi * (static_cast<float>(j + 1) / ncfft + 0.5f);
-		out->r = static_cast<int32_t>(std::floor(0.5f + kF2I32Max * std::cos(static_cast<double>(phase))));
-		out->i = static_cast<int32_t>(std::floor(0.5f + kF2I32Max * std::sin(static_cast<double>(phase))));
+		out->r = static_cast<int32_t>(
+		    std::floor(0.5 + static_cast<double>(kF2I32Max) * std::cos(static_cast<double>(phase))));
+		out->i = static_cast<int32_t>(
+		    std::floor(0.5 + static_cast<double>(kF2I32Max) * std::sin(static_cast<double>(phase))));
 		out++;
 	}
 }

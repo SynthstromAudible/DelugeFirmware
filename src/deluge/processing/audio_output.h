@@ -20,7 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "model/global_effectable/global_effectable_for_clip.h"
 #include "model/output.h"
-#include "synth/envelope.h"
+#include "synth/modulation/envelope.h"
 #include "util/container/enum_to_string_map.hpp"
 #include "util/notify.h"
 
@@ -166,7 +166,7 @@ public:
 
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
 	                                                int32_t paramID, deluge::modulation::params::Kind paramKind,
-	                                                bool affectEntire, bool useMenuStack) override;
+	                                                bool affectEntire, bool useMenuStack, bool forEdit) override;
 	/// @brief The mode @p offset steps from this one, wrapping.
 	[[nodiscard]] AudioOutputMode scrolledMode(int offset) const {
 		auto modeInt = (util::to_underlying(mode) + offset) % kNumAudioOutputModes;

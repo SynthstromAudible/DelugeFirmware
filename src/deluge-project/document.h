@@ -96,15 +96,15 @@ struct SongDocument {
 /// file from before ids) get the next id after the largest of their kind in the document, in document order; a
 /// session macro naming its clip or output by position names the one at that position (a session clip, an output in
 /// the order of `instruments`), or nothing if there is none.
-/// Controls and learned knobs are named through @p engines: a sound's and a sound kit row's by the Deluge instrument, a
-/// kit's, an audio track's and the song's by the provisional global-effectable table; with no naming for an engine,
+/// Controls and learned knobs are named through @p plugins: a sound's and a sound kit row's by the Deluge instrument, a
+/// kit's, an audio track's and the song's by the provisional global-effectable table; with no naming for a plugin,
 /// its owners have no controls and no learned knobs.
 [[nodiscard]] std::expected<SongDocument, LoadError> decode_song(const serialization::Value& root,
-                                                                 const CodecEngines& engines);
+                                                                 const CodecPlugins& plugins);
 
 /// @brief The document `{"song": {…}}` holding @p song's model parts in the JSON shape, recorded as written by
 /// @p firmware_version (which tells a reader how the sync values are stored).
 [[nodiscard]] serialization::Value encode_song(const SongDocument& song, std::string_view firmware_version,
-                                               const CodecEngines& engines);
+                                               const CodecPlugins& plugins);
 
 } // namespace deluge::project

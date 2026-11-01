@@ -35,11 +35,11 @@
 #include "ui/oled/values.h"
 
 #include "definitions_cxx.hpp"
-#include "engines/deluge/cable_acceptance.h"
+#include "instruments/deluge/cable_acceptance.h"
 #include "model/project_bridge/patch_cable_words.h"
 #include "modulation/params/param.h"
-#include "modulation/params/param_descriptor.h"
 #include "modulation/patch/patch_cable.h"
+#include "synth/modulation/cable.h"
 
 #include <algorithm>
 #include <array>
@@ -113,7 +113,7 @@ void append_cable_value(char* out, size_t& len, size_t cap, int32_t value) {
 /// @brief The address of the cable from @p from to @p destination on the sound @p ctx edits, or nullopt where it edits
 ///        none.
 std::optional<deluge::project::ParamAddress> cable_address(const MenuContext& ctx, PatchSource from,
-                                                           ParamDescriptor destination) {
+                                                           deluge::synth::CableTarget destination) {
 	const deluge::scenes::bind::Target cable{.kind = deluge::scenes::bind::Target::Kind::CABLE,
 	                                         .param = deluge::bridge::cable_depth(from, destination)};
 	return deluge::scenes::bind::param_address(cable, ctx.addresses);
@@ -141,10 +141,10 @@ deluge::scenes::bind::CableList cables_of(const MenuContext& ctx) {
 ///        param, with the source of the cable whose depth it modulates when it modulates one).
 struct CableEnds {
 	PatchSource from{PatchSource::NOT_AVAILABLE};
-	ParamDescriptor destination{};
+	deluge::synth::CableTarget destination{};
 };
 
-CableEnds ends_of(deluge::engine::ParamId depth) {
+CableEnds ends_of(deluge::plugin::ParamId depth) {
 	using deluge::instrument::cable_route;
 	const auto route = cable_route(depth);
 	if (!route) {
@@ -152,19 +152,19 @@ CableEnds ends_of(deluge::engine::ParamId depth) {
 	}
 	CableEnds ends{.from = static_cast<PatchSource>(route->source)};
 	if (const auto inner = cable_route(route->destination)) {
-		ends.destination.setToHaveParamAndSource(static_cast<int32_t>(inner->destination.value),
-		                                         static_cast<PatchSource>(inner->source));
+		ends.destination = deluge::synth::CableTarget::depth_of(static_cast<uint8_t>(inner->destination.value),
+		                                                        static_cast<PatchSource>(inner->source));
 	}
 	else {
-		ends.destination.setToHaveParamOnly(static_cast<int32_t>(route->destination.value));
+		ends.destination = deluge::synth::CableTarget::param(static_cast<int32_t>(route->destination.value));
 	}
 	return ends;
 }
 
 /// @brief The engine's cable from @p from to @p destination on the sound @p ctx edits, or nullopt.
 std::optional<deluge::scenes::bind::CableFact> find_cable(const MenuContext& ctx, PatchSource from,
-                                                          ParamDescriptor destination) {
-	const deluge::engine::ParamId depth = deluge::bridge::cable_depth(from, destination);
+                                                          deluge::synth::CableTarget destination) {
+	const deluge::plugin::ParamId depth = deluge::bridge::cable_depth(from, destination);
 	for (const deluge::scenes::bind::CableFact& cable : cables_of(ctx)) {
 		if (cable.depth == depth) {
 			return cable;
@@ -174,7 +174,7 @@ std::optional<deluge::scenes::bind::CableFact> find_cable(const MenuContext& ctx
 }
 
 /// @brief The value the cable plays now, as the engine stores it; nullopt where the sound has no such cable.
-std::optional<int32_t> cable_value(const MenuContext& ctx, PatchSource from, ParamDescriptor destination) {
+std::optional<int32_t> cable_value(const MenuContext& ctx, PatchSource from, deluge::synth::CableTarget destination) {
 	const std::optional<deluge::project::ParamAddress> address = cable_address(ctx, from, destination);
 	return address && ctx.facts != nullptr ? ctx.facts->param_value(*address) : std::nullopt;
 }
@@ -227,36 +227,36 @@ constexpr std::array<PatchSource, kNumPatchSources> kSourceMenuContents{
 /// `patch_cable_strength/regular.cpp:36-40`); `Range` addresses that param *plus* the regular
 /// source, i.e. the cable whose depth is being modulated (`source_selection/range.cpp:26-30`,
 /// `patch_cable_strength/range.cpp:32-36`).
-ParamDescriptor destination_for(const MenuState& state, bool range) {
-	ParamDescriptor desc{};
+deluge::synth::CableTarget destination_for(const MenuState& state, bool range) {
+	deluge::synth::CableTarget desc{};
 	if (range) {
-		desc.setToHaveParamAndSource(state.patching_param, state.patch_source);
+		desc = deluge::synth::CableTarget::depth_of(state.patching_param, state.patch_source);
 	}
 	else {
-		desc.setToHaveParamOnly(state.patching_param);
+		desc = deluge::synth::CableTarget::param(state.patching_param);
 	}
 	return desc;
 }
 
 /// @brief `SourceSelection::sourceIsAllowed` (`source_selection.cpp:178-216`).
-bool source_is_allowed(const MenuContext& ctx, PatchSource source, ParamDescriptor destination) {
+bool source_is_allowed(const MenuContext& ctx, PatchSource source, deluge::synth::CableTarget destination) {
 	// `:181-192` -- patching to another cable's range: a global source can control any range, a
 	// local one only a cable that goes to a local param.
-	if (!destination.isJustAParam()) {
+	if (!destination.is_param()) {
 		if (source < kFirstLocalSource) {
 			return true;
 		}
-		return destination.getJustTheParam() < params::FIRST_GLOBAL;
+		return destination.param_index() < params::FIRST_GLOBAL;
 	}
 	const deluge::instrument::SoundState* state = sound_state_of(ctx);
 	if (state == nullptr) {
 		return false;
 	}
 	const bool is_drum = ctx.addresses.slot->kind == deluge::project::SlotAddress::Kind::DRUM;
-	const int32_t p = destination.getJustTheParam();
+	const int32_t p = destination.param_index();
 	const auto allowed = [&](int32_t target) {
 		return deluge::instrument::cable_allowed(static_cast<deluge::instrument::PatchSource>(source),
-		                                         deluge::engine::ParamId{static_cast<uint32_t>(target)}, *state,
+		                                         deluge::plugin::ParamId{static_cast<uint32_t>(target)}, *state,
 		                                         is_drum);
 	};
 	// `:196-215` -- the volume triple is one destination as far as the user is concerned, so any of
@@ -270,17 +270,17 @@ bool source_is_allowed(const MenuContext& ctx, PatchSource source, ParamDescript
 
 /// @brief `PatchCableSet::isSourcePatchedToDestinationDescriptorVolumeInspecific` -- legacy's
 ///        `shouldDrawDotOnValue` (`source_selection.cpp:52-57`).
-bool source_is_patched(const MenuContext& ctx, PatchSource source, ParamDescriptor destination) {
+bool source_is_patched(const MenuContext& ctx, PatchSource source, deluge::synth::CableTarget destination) {
 	if (find_cable(ctx, source, destination).has_value()) {
 		return true;
 	}
-	if (destination.getJustTheParam() != params::GLOBAL_VOLUME_POST_FX) {
+	if (destination.param_index() != params::GLOBAL_VOLUME_POST_FX) {
 		return false;
 	}
 	// The three volume params are one destination to the user.
 	for (const int32_t p :
 	     {static_cast<int32_t>(params::GLOBAL_VOLUME_POST_REVERB_SEND), static_cast<int32_t>(params::LOCAL_VOLUME)}) {
-		destination.changeParam(p);
+		destination = destination.with_param(p);
 		if (find_cable(ctx, source, destination).has_value()) {
 			return true;
 		}
@@ -356,13 +356,13 @@ void PatchCablesItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& 
 			break;
 		}
 		const CableEnds ends = ends_of(cable.depth);
-		const ParamDescriptor desc = ends.destination;
+		const deluge::synth::CableTarget desc = ends.destination;
 		size_t len = 0;
 		char* buf = bufs[n];
 		append(buf, len, kRowChars, source_short_name(ends.from)); // `:60-62`
 		append(buf, len, kRowChars, " ");
-		if (!desc.isJustAParam()) { // `:67-72` -- a cable modulating another cable's depth
-			append(buf, len, kRowChars, source_short_name(desc.getTopLevelSource()));
+		if (!desc.is_param()) { // `:67-72` -- a cable modulating another cable's depth
+			append(buf, len, kRowChars, source_short_name(desc.top_source()));
 			append(buf, len, kRowChars, " ");
 		}
 		append_cable_value(buf, len, kRowChars,
@@ -370,7 +370,7 @@ void PatchCablesItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& 
 		append(buf, len, kRowChars, " ");
 		// `:84` -- the destination's short name, which is a `modulation/params/` table rather than a
 		// `util/` one, so it is called rather than transcribed.
-		append(buf, len, kRowChars, destination_short_name(ctx, desc.getJustTheParam()));
+		append(buf, len, kRowChars, destination_short_name(ctx, desc.param_index()));
 		rows[n].label = std::string_view{buf, len};
 		rows[n].selectable = true;
 		n++;
@@ -403,7 +403,7 @@ namespace {
 
 /// @brief The sources this picker may offer, in `kSourceMenuContents` order.
 /// @return How many were written to @p out.
-size_t allowed_sources(const MenuContext& ctx, ParamDescriptor destination, std::span<PatchSource> out) {
+size_t allowed_sources(const MenuContext& ctx, deluge::synth::CableTarget destination, std::span<PatchSource> out) {
 	size_t n = 0;
 	for (const PatchSource s : kSourceMenuContents) {
 		if (n >= out.size()) {
@@ -434,7 +434,7 @@ void SourceSelectionItem::on_focus(const MenuContext& ctx, MenuState& state) con
 		}
 	}
 
-	const ParamDescriptor destination = destination_for(state, which_ == Which::Range);
+	const deluge::synth::CableTarget destination = destination_for(state, which_ == Which::Range);
 	PatchSource sources[kNumPatchSources];
 	const size_t n = allowed_sources(ctx, destination, sources);
 
@@ -461,7 +461,7 @@ void SourceSelectionItem::on_focus(const MenuContext& ctx, MenuState& state) con
 void SourceSelectionItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const {
 	draw_title_for(f, state);
 
-	const ParamDescriptor destination = destination_for(state, which_ == Which::Range);
+	const deluge::synth::CableTarget destination = destination_for(state, which_ == Which::Range);
 	PatchSource sources[kNumPatchSources];
 	const size_t n = allowed_sources(ctx, destination, sources);
 
@@ -513,7 +513,7 @@ PatchSource strength_source(const MenuState& state, PatchCableStrengthItem::Whic
 }
 
 /// @brief `PatchCableStrength::getDestinationDescriptor()`.
-ParamDescriptor strength_destination(const MenuState& state, PatchCableStrengthItem::Which which) {
+deluge::synth::CableTarget strength_destination(const MenuState& state, PatchCableStrengthItem::Which which) {
 	return destination_for(state, which == PatchCableStrengthItem::Which::Range);
 }
 
@@ -526,17 +526,15 @@ int32_t strength_read(const MenuContext& ctx, const MenuState& state, PatchCable
 
 } // namespace
 
-ParamDescriptor PatchCableStrengthItem::learn_descriptor(const MenuContext& /*ctx*/, const MenuState& state) const {
-	ParamDescriptor desc{};
+deluge::synth::CableTarget PatchCableStrengthItem::learn_descriptor(const MenuContext& /*ctx*/,
+                                                                    const MenuState& state) const {
 	if (which_ == Which::Range) {
 		// `Range::getLearningThing` (`patch_cable_strength/range.cpp:25-30`).
-		desc.setToHaveParamAndTwoSources(state.patching_param, state.patch_source, state.patch_range_source);
+		return deluge::synth::CableTarget::depth_of_depth(state.patching_param, state.patch_source,
+		                                                  state.patch_range_source);
 	}
-	else {
-		// `Regular::getLearningThing` (`patch_cable_strength/regular.cpp:30-34`); `Fixed` inherits it.
-		desc.setToHaveParamAndSource(state.patching_param, state.patch_source);
-	}
-	return desc;
+	// `Regular::getLearningThing` (`patch_cable_strength/regular.cpp:30-34`); `Fixed` inherits it.
+	return deluge::synth::CableTarget::depth_of(state.patching_param, state.patch_source);
 }
 
 void PatchCableStrengthItem::on_focus(const MenuContext& ctx, MenuState& state) const {
@@ -555,13 +553,13 @@ void PatchCableStrengthItem::on_focus(const MenuContext& ctx, MenuState& state) 
 		const int32_t cursor = state.list[state.depth - 1].cursor;
 		if (cursor >= 0 && static_cast<size_t>(cursor) < cables.size()) {
 			const CableEnds cable = ends_of(cables[cursor].depth);
-			const ParamDescriptor desc = cable.destination;
-			state.patching_param = static_cast<uint8_t>(desc.getJustTheParam());
-			if (desc.isJustAParam()) {
+			const deluge::synth::CableTarget desc = cable.destination;
+			state.patching_param = static_cast<uint8_t>(desc.param_index());
+			if (desc.is_param()) {
 				state.patch_source = cable.from; // `:180-183`
 			}
 			else {
-				state.patch_source = desc.getTopLevelSource(); // `:184-189`
+				state.patch_source = desc.top_source(); // `:184-189`
 				state.patch_range_source = cable.from;
 			}
 		}
@@ -579,8 +577,7 @@ void PatchCableStrengthItem::on_focus(const MenuContext& ctx, MenuState& state) 
 		// three volume params are one destination to the user, so a source that cannot reach POST_FX
 		// is retried against POST_REVERB_SEND and then LOCAL_VOLUME before the page gives up.
 		const auto disallowed = [&](int32_t p) {
-			ParamDescriptor only;
-			only.setToHaveParamOnly(p);
+			deluge::synth::CableTarget only = deluge::synth::CableTarget::param(p);
 			return !source_is_allowed(ctx, state.patch_source, only);
 		};
 		if (disallowed(params::GLOBAL_VOLUME_POST_FX)) {
@@ -671,7 +668,7 @@ constexpr std::array<int32_t, 1> kNoPolarityWidth{{53}};
 
 void PatchCableStrengthItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const {
 	const PatchSource source = strength_source(state, which_);
-	const ParamDescriptor destination = strength_destination(state, which_);
+	const deluge::synth::CableTarget destination = strength_destination(state, which_);
 	const deluge::gfx::oled::Rect bounds = f.bounds();
 
 	// `PatchCableStrength::renderOLED`'s first block (`patch_cable_strength.cpp:79-123`), through
@@ -684,10 +681,10 @@ void PatchCableStrengthItem::render(deluge::ui::oled::OledFrame& f, const MenuCo
 	std::array<std::string_view, deluge::ui::oled::kMaxRoutingStages> stages{};
 	size_t n = 0;
 	stages[n++] = source_short_name(source);
-	if (!destination.isJustAParam()) {
-		stages[n++] = source_short_name(destination.getTopLevelSource());
+	if (!destination.is_param()) {
+		stages[n++] = source_short_name(destination.top_source());
 	}
-	stages[n++] = destination_short_name(ctx, destination.getJustTheParam());
+	stages[n++] = destination_short_name(ctx, destination.param_index());
 	deluge::ui::oled::routing_chain(f, deluge::gfx::oled::Rect{0, 0, kRoutingDiagramWidth, bounds.h},
 	                                std::span<const std::string_view>{stages.data(), n});
 
@@ -755,7 +752,7 @@ void PatchCableStrengthItem::set_polarity(const MenuContext& ctx, MenuState& sta
 	// `commit` makes a new cable with it.
 	state.patch_polarity = polarity;
 	const PatchSource source = strength_source(state, which_);
-	const ParamDescriptor destination = strength_destination(state, which_);
+	const deluge::synth::CableTarget destination = strength_destination(state, which_);
 	if (ctx.sink != nullptr && find_cable(ctx, source, destination).has_value()) {
 		const std::optional<deluge::project::ParamAddress> address = cable_address(ctx, source, destination);
 		if (address) {
@@ -770,8 +767,8 @@ void PatchCableStrengthItem::set_polarity(const MenuContext& ctx, MenuState& sta
 
 std::optional<deluge::project::ParamAddress> PatchCableStrengthItem::automation_address(const MenuContext& ctx,
                                                                                         const MenuState& state) const {
-	const ParamDescriptor learn = learn_descriptor(ctx, state);
-	return cable_address(ctx, learn.getBottomLevelSource(), learn.getDestination());
+	const deluge::synth::CableTarget learn = learn_descriptor(ctx, state);
+	return cable_address(ctx, learn.bottom_source(), learn.modulated());
 }
 
 void PatchCableStrengthItem::commit(const MenuContext& ctx, MenuState& state) const {
@@ -825,14 +822,14 @@ const Node* patch_cables_chain(const MenuContext& ctx, const MenuState& state) {
 	if (cursor < 0 || static_cast<size_t>(cursor) >= cables.size()) {
 		return nullptr; // `:168-172` -- no items, so the press ascends
 	}
-	return ends_of(cables[cursor].depth).destination.isJustAParam() ? &patch_cable_strength_regular
-	                                                                : &patch_cable_strength_range;
+	return ends_of(cables[cursor].depth).destination.is_param() ? &patch_cable_strength_regular
+	                                                            : &patch_cable_strength_range;
 }
 
-std::optional<deluge::scenes::bind::WriteRequest> cable_request(const MenuContext& ctx, ParamDescriptor learn,
-                                                                int32_t menu_value, Polarity polarity) {
+std::optional<deluge::scenes::bind::WriteRequest>
+cable_request(const MenuContext& ctx, deluge::synth::CableTarget learn, int32_t menu_value, Polarity polarity) {
 	const std::optional<deluge::project::ParamAddress> address =
-	    cable_address(ctx, learn.getBottomLevelSource(), learn.getDestination());
+	    cable_address(ctx, learn.bottom_source(), learn.modulated());
 	if (!address) {
 		return std::nullopt;
 	}

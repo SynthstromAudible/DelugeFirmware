@@ -23,12 +23,12 @@
 
 #pragma once
 
-#include "engines/effects/chain_core.h"
-#include "engines/effects/clip_chain.h"
-#include "engines/effects/filter.h"
-#include "engines/effects/master_chain.h"
-#include "engines/effects/saturation.h"
-#include "engines/effects/sound_chain.h"
+#include "effects/chain_core.h"
+#include "effects/clip_chain.h"
+#include "effects/filter.h"
+#include "effects/master_chain.h"
+#include "effects/saturation.h"
+#include "effects/sound_chain.h"
 #include "util/fixedpoint.h"
 
 #include <optional>
@@ -62,7 +62,7 @@ inline void process_fx(fx::ChainCore& c, std::span<StereoSample> buffer, fx::Mod
 		    .send_amount = multiply_32x32_rshift32(*postFXVolume, verbAmount) << 5,
 		    .sound = anySoundComingIn,
 		};
-		c.granular().render(buffer, grain, *postFXVolume, {reverbBuffer.data(), buffer.size()});
+		c.granular().render(buffer, grain, *postFXVolume, {reverbBuffer.data(), buffer.size()}, *in.noise);
 	}
 	else {
 		const fx::ModFxInputs mod{
@@ -74,7 +74,7 @@ inline void process_fx(fx::ChainCore& c, std::span<StereoSample> buffer, fx::Mod
 		    .stereo = in.stereo,
 		    .sound = anySoundComingIn,
 		};
-		c.mod_fx().render(buffer, mod, *postFXVolume);
+		c.mod_fx().render(buffer, mod, *postFXVolume, *in.noise);
 	}
 	c.equalizer().process(buffer, in.eq);
 	c.delay().process(buffer, in.delay, in.stereo);
@@ -118,7 +118,7 @@ inline bool sound(fx::ChainCore& c, const fx::SoundChainInputs& in, std::span<St
 
 	c.send_and_volume().prime(postReverbVolume);
 
-	c.bitcrush().process(sound_stereo, in.bitcrush, postFXVolume);
+	postFXVolume >>= c.bitcrush().process(sound_stereo, in.bitcrush).volume_shift;
 	process_fx(c, sound_stereo, settings.mod_fx.type, in.fx, &postFXVolume, in.sound, in.fx.grain_send, reverbBuffer);
 	if (in.stutter != nullptr) {
 		in.stutter->render(sound_stereo, in.stutter_rate);
@@ -129,9 +129,9 @@ inline bool sound(fx::ChainCore& c, const fx::SoundChainInputs& in, std::span<St
 
 	q31_t compThreshold = in.compressor_threshold;
 	c.compressor().configure(settings.compressor);
-	c.compressor().dsp().setThreshold(compThreshold);
+	c.compressor().dsp().set_threshold(compThreshold);
 	if (compThreshold > 0) {
-		c.compressor().dsp().renderVolumeNeutral(sound_stereo, postFXVolume);
+		c.compressor().dsp().render_volume_neutral(sound_stereo, postFXVolume);
 	}
 	else {
 		c.compressor().dsp().reset();
@@ -179,14 +179,14 @@ bool clip(fx::ChainCore& c, fx::Filter& filter_, fx::Saturation& saturation_, co
 
 	c.compressor().configure(settings.compressor);
 	const q31_t compThreshold = in.compressor_threshold;
-	c.compressor().dsp().setThreshold(compThreshold);
+	c.compressor().dsp().set_threshold(compThreshold);
 
 	saturation_.process(global_effectable_audio, {.clipping_amount = settings.saturation.clipping_amount,
 	                                              .variant = fx::SaturationVariant::CHAIN});
 
 	if (renderedLastTime) {
-		filter_.process(global_effectable_audio, in.filter_scratch);
-		c.bitcrush().process(global_effectable_audio, in.bitcrush, volumePostFX);
+		filter_.process(global_effectable_audio, in.filter_scratch, *in.fx.noise);
+		volumePostFX >>= c.bitcrush().process(global_effectable_audio, in.bitcrush).volume_shift;
 	}
 
 	// The soft off of a GRAIN the setting holds, then the mod FX, EQ and delay.
@@ -204,7 +204,7 @@ bool clip(fx::ChainCore& c, fx::Filter& filter_, fx::Saturation& saturation_, co
 	                                                 postReverbVolume, reverbSendAmount, pan, true, in.fx.stereo);
 
 	if (compThreshold > 0) {
-		c.compressor().dsp().renderVolumeNeutral(global_effectable_audio, volumePostFX);
+		c.compressor().dsp().render_volume_neutral(global_effectable_audio, volumePostFX);
 	}
 	else {
 		c.compressor().dsp().reset();
@@ -246,8 +246,8 @@ bool master(fx::ChainCore& c, fx::Filter& filter_, const fx::MasterChainInputs& 
 	int32_t masterVolumeAdjustmentL = post->master_volume;
 	int32_t masterVolumeAdjustmentR = post->master_volume;
 	masterVolumeAdjustmentL = filter_.configure(settings.filter, post->filter, masterVolumeAdjustmentL);
-	filter_.process(renderingBuffer, post->filter_scratch);
-	c.bitcrush().process(renderingBuffer, post->bitcrush, masterVolumeAdjustmentL);
+	filter_.process(renderingBuffer, post->filter_scratch, *post->noise);
+	masterVolumeAdjustmentL >>= c.bitcrush().process(renderingBuffer, post->bitcrush).volume_shift;
 
 	masterVolumeAdjustmentR = masterVolumeAdjustmentL;
 

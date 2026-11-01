@@ -28,7 +28,7 @@ file(GLOB_RECURSE deluge_SOURCES
         # Shared string helper used across several unit tests
         ../../../src/deluge/util/c_string.cpp
         ../../../src/deluge/util/lookuptables.cpp
-        ../../../src/deluge/util/waves.cpp
+        ../../../src/deluge/util/synth_noise.cpp
         # For value scaling
         ../../../src/deluge/gui/menu_item/value_scaling.cpp
         # For scale tests
@@ -61,7 +61,6 @@ file(GLOB_RECURSE deluge_SOURCES
         ../../../src/deluge/model/sample/waveform_peak_math.cpp
         ../../../src/deluge/io/midi/midi_queue.cpp
         # For FFT magnitude tests
-        ../../../src/deluge/util/fast_pythag.cpp
         # For the song-preview decode differential: the REAL deserializer stack, not a stand-in.
         # storage/file_reader.cpp exists so this is possible at all -- storage_manager.cpp, where the
         # reader used to live, reaches the whole instrument model to build what it loads.
@@ -134,7 +133,6 @@ add_executable(UnitTests
         dx_cartridge_window_tests.cpp
         trigger_clock_input_tests.cpp
         c_path_tests.cpp
-        fast_pythag_tests.cpp
         tick_interpolation_tests.cpp
 )
 # WORKING_DIRECTORY: song_preview_window_tests.cpp reads a checked-in fixture by a path relative to
@@ -157,7 +155,7 @@ target_include_directories(UnitTests PRIVATE
 )
 
 # argon's NEON backend: slicer_preview_tests.cpp drives the REAL gui/ui/slicer.cpp rather than a restatement of it,
-# and that file reaches <argon.hpp> transitively (model/song/song.h -> engines/effects/master_chain.h).
+# and that file reaches <argon.hpp> transitively (model/song/song.h -> effects/master_chain.h).
 deluge_test_neon(UnitTests)
 
 # libstdc++'s parallel STL backend is oneTBB, whose headers pull in the full <immintrin.h> and

@@ -18,8 +18,6 @@
 #include "util/functions.h"
 #include "definitions_cxx.hpp"
 #include "dsp-next/fixed/curves/instant_tan.h"
-#include "dsp-next/fixed/curves/quick_log.h"
-#include "dsp-next/fixed/vca/pan.h"
 #include "gui/colour/colour.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
@@ -43,21 +41,6 @@ const uint8_t modButtonX[8] = {1, 1, 1, 1, 2, 2, 2, 2};
 const uint8_t modButtonY[8] = {0, 1, 2, 3, 0, 1, 2, 3};
 const uint8_t modLedX[8] = {1, 1, 1, 1, 2, 2, 2, 2};
 const uint8_t modLedY[8] = {0, 1, 2, 3, 0, 1, 2, 3};
-
-// paramRanges/paramNeutralValues, getParamRange/getParamNeutralValue, functionsInit, the getFinalParameterValue*
-// family, getExp and lookupReleaseRate moved verbatim to util/param_functions.cpp (gui-free), so the synth core
-// links them without pulling gui. Declarations remain visible via util/param_functions.h (re-exported by
-// util/functions.h).
-
-// getFinalParameterValue* moved to util/param_functions.cpp.
-
-int32_t cableToLinearParamShortcut(int32_t sourceValue) {
-	return sourceValue >> 2;
-}
-
-int32_t cableToExpParamShortcut(int32_t sourceValue) {
-	return sourceValue >> 2;
-}
 
 char const* sourceToString(PatchSource source) {
 	switch (source) {
@@ -227,12 +210,6 @@ char const* sourceToStringShort(PatchSource source) {
 	default:
 		return "----";
 	}
-}
-
-// getExp moved to util/param_functions.cpp.
-
-int32_t quickLog(uint32_t input) {
-	return deluge::dsp::fixed::quick_log(input);
 }
 
 bool memIsNumericChars(char const* mem, int32_t size) {
@@ -743,42 +720,6 @@ bool isAiffFilename(char const* filename) {
 	return (dotPos != NULL && (!strcasecmp(dotPos, ".AIF") || !strcasecmp(dotPos, ".AIFF")));
 }
 
-// lookupReleaseRate moved to util/param_functions.cpp.
-
-// Gets param *preset* value. Should be labelled better
-int32_t getParamFromUserValue(uint8_t p, int8_t userValue) {
-	int32_t positive;
-
-	switch (p) {
-	case params::STATIC_SIDECHAIN_ATTACK:
-		return attackRateTable[userValue] * 4;
-
-	case params::STATIC_SIDECHAIN_RELEASE:
-		return releaseRateTable[userValue] * 8;
-
-	case params::LOCAL_OSC_A_PHASE_WIDTH:
-	case params::LOCAL_OSC_B_PHASE_WIDTH:
-		return (uint32_t)userValue * (85899345 >> 1);
-
-	case params::PATCH_CABLE:
-	case params::STATIC_SIDECHAIN_VOLUME:
-		return userValue * 21474836;
-
-	case params::UNPATCHED_START + params::UNPATCHED_BASS:
-	case params::UNPATCHED_START + params::UNPATCHED_TREBLE:
-		if (userValue == -50) {
-			return -2147483648;
-		}
-		if (userValue == 0) {
-			return 0;
-		}
-		return userValue * 42949672;
-
-	default:
-		return (uint32_t)userValue * 85899345 - 2147483648;
-	}
-}
-
 int32_t getLookupIndexFromValue(int32_t value, const int32_t* table, int32_t maxIndex) {
 	int32_t i;
 	uint32_t bestDistance = 0xFFFFFFFF;
@@ -796,105 +737,8 @@ int32_t getLookupIndexFromValue(int32_t value, const int32_t* table, int32_t max
 	return closestIndex;
 }
 
-int32_t instantTan(int32_t input) {
-	return deluge::dsp::fixed::instant_tan(input);
-}
-
-uint32_t z = 362436069, w = 521288629;
-
 int32_t random(int32_t upperLimit) {
-	return (uint16_t)(CONG >> 16) % (upperLimit + 1);
-}
-
-bool shouldDoPanning(int32_t panAmount, int32_t* amplitudeL, int32_t* amplitudeR) {
-	const deluge::dsp::fixed::PanAmplitudes amplitudes = deluge::dsp::fixed::pan_amplitudes(panAmount);
-	*amplitudeL = amplitudes.left;
-	*amplitudeR = amplitudes.right;
-	return panAmount != 0;
-}
-
-uint32_t getOscInitialPhaseForZero(OscType waveType) {
-	switch (waveType) {
-	case OscType::TRIANGLE:
-		return 1073741824;
-
-	default:
-		return 0;
-	}
-}
-
-const int16_t lanczosKernel[257] = {
-    32767, 32753, 32711, 32641, 32544, 32419, 32266, 32087, 31880, 31647, 31388, 31103, 30793, 30458, 30099, 29717,
-    29311, 28884, 28434, 27964, 27474, 26964, 26435, 25889, 25326, 24748, 24154, 23546, 22925, 22291, 21647, 20992,
-    20328, 19656, 18977, 18291, 17600, 16905, 16207, 15507, 14806, 14105, 13404, 12706, 12010, 11318, 10631, 9950,
-    9275,  8607,  7948,  7298,  6658,  6028,  5410,  4804,  4211,  3631,  3066,  2515,  1980,  1460,  956,   470,
-    0,     -452,  -886,  -1303, -1700, -2080, -2440, -2782, -3104, -3407, -3691, -3956, -4202, -4429, -4637, -4826,
-    -4997, -5149, -5283, -5399, -5498, -5579, -5644, -5691, -5723, -5739, -5740, -5726, -5698, -5656, -5601, -5533,
-    -5453, -5361, -5259, -5146, -5023, -4891, -4751, -4602, -4446, -4284, -4115, -3941, -3761, -3578, -3391, -3200,
-    -3007, -2812, -2616, -2419, -2222, -2024, -1828, -1632, -1439, -1247, -1058, -872,  -689,  -510,  -336,  -165,
-    0,     160,   315,   465,   608,   746,   877,   1002,  1120,  1232,  1336,  1434,  1525,  1609,  1686,  1756,
-    1819,  1875,  1925,  1967,  2003,  2032,  2055,  2071,  2081,  2086,  2084,  2077,  2064,  2046,  2023,  1995,
-    1963,  1926,  1886,  1841,  1793,  1742,  1687,  1630,  1570,  1508,  1444,  1379,  1311,  1243,  1173,  1103,
-    1032,  961,   890,   820,   749,   679,   610,   542,   475,   410,   346,   283,   222,   164,   107,   52,
-    0,     -50,   -98,   -143,  -186,  -226,  -263,  -298,  -330,  -360,  -387,  -411,  -433,  -452,  -468,  -482,
-    -494,  -503,  -510,  -515,  -517,  -518,  -516,  -513,  -508,  -501,  -492,  -483,  -471,  -459,  -445,  -430,
-    -415,  -398,  -381,  -364,  -346,  -327,  -309,  -290,  -271,  -252,  -234,  -215,  -197,  -180,  -163,  -146,
-    -130,  -115,  -101,  -87,   -74,   -63,   -52,   -42,   -33,   -25,   -19,   -13,   -8,    -5,    -2,    -1,
-    0,
-};
-
-#define LANCZOS_A 4
-
-int32_t doLanczos(int32_t* data, int32_t pos, uint32_t posWithinPos, int32_t memoryNumElements) {
-
-	int32_t strengthL[LANCZOS_A];
-	int32_t strengthR[LANCZOS_A];
-
-	for (int32_t i = 0; i < LANCZOS_A; i++) {
-		strengthL[i] = interpolateTableSigned(kMaxSampleValue * i + posWithinPos, 26, lanczosKernel, 8);
-		strengthR[i] = interpolateTableSigned(kMaxSampleValue * (i + 1) - posWithinPos, 26, lanczosKernel, 8);
-	}
-
-	int32_t howManyLeft = std::min((int32_t)LANCZOS_A, (int32_t)(pos + 1));
-	int32_t howManyRight = std::min((int32_t)LANCZOS_A, (int32_t)(memoryNumElements - pos));
-
-	int32_t value = 0;
-	for (int32_t i = 0; i < howManyLeft; i++) {
-		value += multiply_32x32_rshift32_rounded(strengthL[i], data[pos - i]);
-	}
-	for (int32_t i = 0; i < howManyRight; i++) {
-		value += multiply_32x32_rshift32_rounded(strengthR[i], data[pos + 1 + i]);
-	}
-
-	// In a "perfect" world we'd <<1 after this, but no real need since loudness is going to get normalized anyway, and
-	// actually we'd probably get some overflows if we did...
-
-	return value;
-}
-
-int32_t doLanczosCircular(int32_t* data, int32_t pos, uint32_t posWithinPos, int32_t memoryNumElements) {
-
-	int32_t strengthL[LANCZOS_A];
-	int32_t strengthR[LANCZOS_A];
-
-	for (int32_t i = 0; i < LANCZOS_A; i++) {
-		strengthL[i] = interpolateTableSigned(kMaxSampleValue * i + posWithinPos, 26, lanczosKernel, 8);
-		strengthR[i] = interpolateTableSigned(kMaxSampleValue * (i + 1) - posWithinPos, 26, lanczosKernel, 8);
-	}
-
-	int32_t value = 0;
-	for (int32_t i = 0; i < LANCZOS_A; i++) {
-		value += multiply_32x32_rshift32_rounded(strengthL[i],
-		                                         data[(pos - i + memoryNumElements) & (memoryNumElements - 1)]);
-	}
-	for (int32_t i = 0; i < LANCZOS_A; i++) {
-		value += multiply_32x32_rshift32_rounded(strengthR[i], data[(pos + 1 + i) & (memoryNumElements - 1)]);
-	}
-
-	// In a "perfect" world we'd <<1 after this, but no real need since loudness is going to get normalized anyway, and
-	// actually we'd probably get some overflows if we did...
-
-	return value;
+	return (uint16_t)(deluge::synth_noise.next() >> 16) % (upperLimit + 1);
 }
 
 void replace_char(char* out_str, const char* in_str, char find, char replace) {
@@ -1004,7 +848,7 @@ void concatenateLines(const char* lines[], size_t numLines, char* resultString) 
 }
 
 void seedRandom() {
-	jcong = deluge_clock_now();
+	deluge::synth_noise.seed(deluge_clock_now());
 }
 
 // ConvertFromIeeeExtended moved to util/audio_format_helpers.cpp (dep-free).
@@ -1016,28 +860,6 @@ int32_t divide_round_negative(int32_t dividend, int32_t divisor) {
 	}
 	else {
 		return -((uint32_t)(-dividend - 1) / (uint32_t)divisor) - 1;
-	}
-}
-
-int32_t getWhichKernel(int32_t phaseIncrement) {
-	if (phaseIncrement < 17268826) {
-		return 0; // That allows us to go half a semitone up
-	}
-	else {
-		int32_t whichKernel = 1;
-		while (phaseIncrement >= 32599202) { // 11.5 semitones up
-			phaseIncrement >>= 1;
-			whichKernel += 2;
-			if (whichKernel == 5) {
-				break;
-			}
-		}
-
-		if (phaseIncrement >= 23051117) { // 5.5 semitones up
-			whichKernel++;
-		}
-
-		return whichKernel;
 	}
 }
 

@@ -1,8 +1,8 @@
 #include "support/model_fixture.h"
 
 #include "deluge-project/doc_note_row.h"
-#include "engines/deluge/codec.h"
-#include "engines/deluge/engine.h"
+#include "instruments/deluge/codec.h"
+#include "instruments/deluge/plugin.h"
 #include "serialization/value.h"
 
 #include <utility>
@@ -68,8 +68,8 @@ ModelFixture::ModelFixture() {
 
 void ModelFixture::set_state(project::SlotAddress slot, const instrument::SoundState& state) {
 	facts.states[slot.id] = state;
-	project::InstrumentSlot made{.engine = "deluge.instrument",
-	                             .state = engine::StateHandle::of<instrument::DelugeInstrument>(state),
+	project::InstrumentSlot made{.plugin = "deluge.instrument",
+	                             .state = plugin::StateHandle::of<instrument::DelugeInstrument>(state),
 	                             .tick_magnitude = 1};
 	if (slot.kind == project::SlotAddress::Kind::OUTPUT) {
 		song.output_structure.getOrCreate(slot.id).instrument = std::move(made);

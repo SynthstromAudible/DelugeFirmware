@@ -16,53 +16,20 @@
  */
 
 #include "processing/metronome/metronome.h"
-#include "dsp/stereo_sample.h"
-#include "model/song/song.h"
-#include "modulation/params/param_set.h"
-#include "processing/engines/audio_engine.h"
-#include "storage/flash_storage.h"
+
 #include "util/fixedpoint.h"
 
-Metronome::Metronome() {
-	sounding = false;
-	setVolume(25);
-}
+#include <cmath>
 
-void Metronome::trigger(uint32_t newPhaseIncrement) {
-	sounding = true;
-	phase = 0;
-	phaseIncrement = newPhaseIncrement;
-	timeSinceTrigger = 0;
-}
-
-void Metronome::render(std::span<StereoSample> buffer) {
-	if (!sounding) {
+void Metronome::render(std::span<deluge::dsp::StereoSample> buffer, int32_t volume_post_fx) {
+	if (!sounding()) {
 		return;
 	}
-	int32_t volumePostFX;
-	if (currentSong) {
-		volumePostFX =
-		    getFinalParameterValueVolume(
-		        134217728, cableToLinearParamShortcut(currentSong->paramManager.getUnpatchedParamSet()->getValue(
-		                       deluge::modulation::params::UNPATCHED_VOLUME)))
-		    >> 1;
-	}
-	else {
-		volumePostFX = ONE_Q31;
-	}
+	click_.configure({.level = multiply_32x32_rshift32(static_cast<int32_t>(volume_), volume_post_fx)});
+	click_.render_block(buffer, buffer);
+}
 
-	q31_t high = multiply_32x32_rshift32(metronomeVolume, volumePostFX);
-
-	for (StereoSample& sample : buffer) {
-		q31_t value = (phase <= ONE_Q31) ? high : -high;
-		phase += phaseIncrement;
-
-		sample.l += value;
-		sample.r += value;
-	}
-
-	timeSinceTrigger += buffer.size();
-	if (timeSinceTrigger > 1000) {
-		sounding = false;
-	}
+void Metronome::setVolume(int32_t linear_param) {
+	// Unqualified: the overload <cmath> leaves in scope, whose rounding the menu's volumes are recorded at.
+	volume_ = (exp(float(linear_param) / 200.0f) - 1.0) * float(1 << 27);
 }

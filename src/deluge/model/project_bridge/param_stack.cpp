@@ -17,9 +17,10 @@
 
 #include "model/project_bridge/param_stack.h"
 
-#include "engines/deluge/cables.h"
+#include "instruments/deluge/cables.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
+#include "model/edits/edit_cable.h"
 #include "model/instrument/kit.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/model_stack.h"
@@ -33,6 +34,7 @@
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/playback_handler.h"
 #include "processing/audio_output.h"
+#include "processing/sound/mod_matrix_host.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 
@@ -45,7 +47,7 @@ namespace params = deluge::modulation::params;
 namespace {
 
 /// @p stack's param @p id in the first of @p kinds whose collection holds it, or null.
-ModelStackWithAutoParam* paramIn(ModelStackWithThreeMainThings* stack, engine::ParamId id,
+ModelStackWithAutoParam* paramIn(ModelStackWithThreeMainThings* stack, plugin::ParamId id,
                                  std::initializer_list<params::Kind> kinds) {
 	for (const params::Kind kind : kinds) {
 		const std::optional<int32_t> index = runtimeIndexOf(kind, id);
@@ -72,7 +74,7 @@ ModelStackWithAutoParam* paramInCollection(ModelStackWithThreeMainThings* stack,
 
 /// The cable of @p stack's sound at depth @p depth, made where @p create allows, or null. A sound with no cable set
 /// has none.
-ModelStackWithAutoParam* cableIn(ModelStackWithThreeMainThings* stack, engine::ParamId depth, bool create) {
+ModelStackWithAutoParam* cableIn(ModelStackWithThreeMainThings* stack, plugin::ParamId depth, bool create) {
 	if (stack->paramManager->getPatchCableSetAllowJibberish() == nullptr) {
 		return nullptr;
 	}
@@ -406,13 +408,17 @@ ModelStackWithAutoParam* cableStackAt(::Song& song, const project::ParamAddress&
 	}
 	PatchCableSet* set = owner.stack->paramManager->getPatchCableSet();
 	PatchSource source{};
-	ParamDescriptor destination{};
+	deluge::synth::CableTarget destination{};
 	PatchCableSet::dissectParamId(made->paramId, &destination, &source);
-	const uint8_t index = set->getPatchCableIndex(source, destination, nullptr, false);
+	const uint8_t index = set->getPatchCableIndex(source, destination);
 	if (index == 255) {
 		return nullptr;
 	}
-	set->setPolarity(index, polarity);
+	ModMatrixHost matrix{*static_cast<Sound*>(made->modControllable), *made->paramManager};
+	if (std::optional<CableEdit> edit =
+	        matrix.setPolarity(index, static_cast<deluge::synth::CablePolarity>(polarity))) {
+		deluge::edits::recordCableEdit(made, std::move(*edit));
+	}
 	return made;
 }
 

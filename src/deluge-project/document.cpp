@@ -44,14 +44,14 @@ bool has_chain(std::string_view element) {
 	return element == "kit" || element == "audioTrack";
 }
 
-/// The naming of the engine whose params the controls of a @p element (`sound`, `kit`, `audioTrack`, `song`) point
-/// at, or nullptr when that element has no controls or @p engines has no naming for its engine.
-const deluge::engine::ParamNaming* naming_of(std::string_view element, const CodecEngines& engines) {
+/// The naming of the plugin whose params the controls of a @p element (`sound`, `kit`, `audioTrack`, `song`) point
+/// at, or nullptr when that element has no controls or @p plugins has no naming for its plugin.
+const deluge::plugin::ParamNaming* naming_of(std::string_view element, const CodecPlugins& plugins) {
 	if (element == "sound") {
-		return deluge::engine::naming_for(engines.namings, deluge::engine::kDelugeInstrument);
+		return deluge::plugin::naming_for(plugins.namings, deluge::plugin::kDelugeInstrument);
 	}
 	if (element == "kit" || element == "audioTrack" || element == "song") {
-		return deluge::engine::naming_for(engines.namings, deluge::engine::kGlobalEffectable);
+		return deluge::plugin::naming_for(plugins.namings, deluge::plugin::kGlobalEffectable);
 	}
 	return nullptr;
 }
@@ -136,7 +136,7 @@ const SongDocument::ClipEntry* SongDocument::clip_entry(uint32_t id) const {
 	return it != clip_order.end() ? &*it : nullptr;
 }
 
-std::expected<SongDocument, LoadError> decode_song(const Value& root, const CodecEngines& engines) {
+std::expected<SongDocument, LoadError> decode_song(const Value& root, const CodecPlugins& plugins) {
 	if (!root.isMap()) {
 		return std::unexpected(LoadError::NOT_A_MAP);
 	}
@@ -158,11 +158,11 @@ std::expected<SongDocument, LoadError> decode_song(const Value& root, const Code
 	LegacyMacroTargets legacy;
 	(void)decode(*song, document.arrangement, document.mappings, &legacy);
 	decode_mappings(*song, ControlsAddress{ControlsAddress::Kind::SONG, 0}, document.mappings,
-	                naming_of("song", engines));
+	                naming_of("song", plugins));
 	const int32_t magnitude =
 	    document.transport.inside_world_tick_magnitude + document.transport.inside_world_tick_magnitude_offset_from_bpm;
-	if (engines.chains.decode != nullptr) {
-		document.master_effects = engines.chains.decode(*song, ChainHome::MASTER, magnitude);
+	if (plugins.chains.decode != nullptr) {
+		document.master_effects = plugins.chains.decode(*song, ChainHome::MASTER, magnitude);
 	}
 
 	const auto sessionClips = clip_list(*song, {"sessionClips", "tracks"});
@@ -208,9 +208,9 @@ std::expected<SongDocument, LoadError> decode_song(const Value& root, const Code
 			recordingFrom.emplace_back(entry.id, *index);
 		}
 		if (output.name == "sound") {
-			if (engines.instruments.decode != nullptr) {
-				record.instrument = InstrumentSlot{.engine = std::string(deluge::engine::kDelugeInstrument.name),
-				                                   .state = engines.instruments.decode(*output.node, magnitude),
+			if (plugins.instruments.decode != nullptr) {
+				record.instrument = InstrumentSlot{.plugin = std::string(deluge::plugin::kDelugeInstrument.name),
+				                                   .state = plugins.instruments.decode(*output.node, magnitude),
 				                                   .tick_magnitude = magnitude};
 			}
 			if (const Value* arp = output.node->find("arpeggiator")) {
@@ -218,7 +218,7 @@ std::expected<SongDocument, LoadError> decode_song(const Value& root, const Code
 				decode(*arp, record.arp.emplace(), std::optional<int32_t>{magnitude});
 			}
 		}
-		if (const deluge::engine::ParamNaming* naming = naming_of(output.name, engines)) {
+		if (const deluge::plugin::ParamNaming* naming = naming_of(output.name, plugins)) {
 			record.controls = decode_controls(*output.node, *naming);
 			decode_mappings(*output.node, ControlsAddress{ControlsAddress::Kind::OUTPUT, entry.id}, document.mappings,
 			                naming);
@@ -226,8 +226,8 @@ std::expected<SongDocument, LoadError> decode_song(const Value& root, const Code
 		if (has_input(output.name)) {
 			decode_mappings(*output.node, TrackOwner{entry.id, output.name == "kit"}, document.mappings);
 		}
-		if (has_chain(output.name) && engines.chains.decode != nullptr) {
-			record.effects = engines.chains.decode(*output.node, ChainHome::CLIP, magnitude);
+		if (has_chain(output.name) && plugins.chains.decode != nullptr) {
+			record.effects = plugins.chains.decode(*output.node, ChainHome::CLIP, magnitude);
 		}
 		if (const Value* sources = output.node->find("soundSources")) {
 			for (const NamedChild& drum : children(*sources)) {
@@ -243,13 +243,13 @@ std::expected<SongDocument, LoadError> decode_song(const Value& root, const Code
 					       drumRecord.drum_type == DrumType::SOUND ? std::optional<int32_t>{magnitude} : std::nullopt);
 				}
 				if (drumRecord.drum_type == DrumType::SOUND) {
-					if (engines.instruments.decode != nullptr) {
+					if (plugins.instruments.decode != nullptr) {
 						drumRecord.instrument =
-						    InstrumentSlot{.engine = std::string(deluge::engine::kDelugeInstrument.name),
-						                   .state = engines.instruments.decode(*drum.node, magnitude),
+						    InstrumentSlot{.plugin = std::string(deluge::plugin::kDelugeInstrument.name),
+						                   .state = plugins.instruments.decode(*drum.node, magnitude),
 						                   .tick_magnitude = magnitude};
 					}
-					if (const deluge::engine::ParamNaming* naming = naming_of("sound", engines)) {
+					if (const deluge::plugin::ParamNaming* naming = naming_of("sound", plugins)) {
 						drumRecord.controls = decode_controls(*drum.node, *naming);
 						decode_mappings(*drum.node, ControlsAddress{ControlsAddress::Kind::DRUM, id}, document.mappings,
 						                naming);
@@ -337,7 +337,7 @@ std::expected<SongDocument, LoadError> decode_song(const Value& root, const Code
 	return document;
 }
 
-Value encode_song(const SongDocument& song, std::string_view firmware_version, const CodecEngines& engines) {
+Value encode_song(const SongDocument& song, std::string_view firmware_version, const CodecPlugins& plugins) {
 	auto map = Value::makeMap();
 	map.set("firmwareVersion", Value::makeScalar(std::string(firmware_version)));
 	const int32_t magnitude =
@@ -348,9 +348,9 @@ Value encode_song(const SongDocument& song, std::string_view firmware_version, c
 	map.set("activeModFunction", Value::makeNumber(song.mod_knob_mode));
 	map.set("reverb", encode(song.reverb, magnitude));
 	map.set("sections", encode_sections(song.arrangement, song.mappings));
-	encode_mappings(song.mappings, ControlsAddress{ControlsAddress::Kind::SONG, 0}, map, naming_of("song", engines));
-	if (engines.chains.encode != nullptr) {
-		engines.chains.encode(song.master_effects, map, magnitude);
+	encode_mappings(song.mappings, ControlsAddress{ControlsAddress::Kind::SONG, 0}, map, naming_of("song", plugins));
+	if (plugins.chains.encode != nullptr) {
+		plugins.chains.encode(song.master_effects, map, magnitude);
 	}
 	if (Value macros = encode_macros(song.arrangement); !macros.items().empty()) {
 		map.set("sessionMacros", std::move(macros));
@@ -371,18 +371,18 @@ Value encode_song(const SongDocument& song, std::string_view firmware_version, c
 			}
 			element.set("outputRecordingIndex", Value::makeNumber(index));
 		}
-		if (const deluge::engine::ParamNaming* naming = naming_of(entry.element, engines)) {
+		if (const deluge::plugin::ParamNaming* naming = naming_of(entry.element, plugins)) {
 			encode_controls(output.controls, *naming, element);
 			encode_mappings(song.mappings, ControlsAddress{ControlsAddress::Kind::OUTPUT, entry.id}, element, naming);
 		}
 		if (has_input(entry.element)) {
 			encode_mappings(song.mappings, TrackOwner{entry.id, entry.element == "kit"}, element);
 		}
-		if (output.effects && engines.chains.encode != nullptr) {
-			engines.chains.encode(*output.effects, element, magnitude);
+		if (output.effects && plugins.chains.encode != nullptr) {
+			plugins.chains.encode(*output.effects, element, magnitude);
 		}
-		if (output.instrument && engines.instruments.encode != nullptr) {
-			engines.instruments.encode(output.instrument->state, element, magnitude);
+		if (output.instrument && plugins.instruments.encode != nullptr) {
+			plugins.instruments.encode(output.instrument->state, element, magnitude);
 		}
 		if (output.arp) {
 			// A sound's element holds the arp's sync level relative to the song's tick magnitude.
@@ -396,7 +396,7 @@ Value encode_song(const SongDocument& song, std::string_view firmware_version, c
 				const DocDrum& drumRecord = song.drums.at(drum.id);
 				append_entries(drumElement, encode_identity(drumRecord));
 				if (drumRecord.drum_type == DrumType::SOUND) {
-					if (const deluge::engine::ParamNaming* naming = naming_of("sound", engines)) {
+					if (const deluge::plugin::ParamNaming* naming = naming_of("sound", plugins)) {
 						encode_controls(drumRecord.controls, *naming, drumElement);
 						encode_mappings(song.mappings, ControlsAddress{ControlsAddress::Kind::DRUM, drum.id},
 						                drumElement, naming);
@@ -406,8 +406,8 @@ Value encode_song(const SongDocument& song, std::string_view firmware_version, c
 				if (drumRecord.arp && drumRecord.drum_type != DrumType::SOUND) {
 					drumElement.set("arpeggiator", encode(*drumRecord.arp, std::nullopt));
 				}
-				if (drumRecord.instrument && engines.instruments.encode != nullptr) {
-					engines.instruments.encode(drumRecord.instrument->state, drumElement, magnitude);
+				if (drumRecord.instrument && plugins.instruments.encode != nullptr) {
+					plugins.instruments.encode(drumRecord.instrument->state, drumElement, magnitude);
 				}
 				if (drumRecord.arp && drumRecord.drum_type == DrumType::SOUND) {
 					// A sound's element holds the arp's sync level relative to the song's tick magnitude.

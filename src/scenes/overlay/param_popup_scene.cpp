@@ -9,10 +9,11 @@
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
 #include "modulation/arpeggiator_rhythms.h"
+#include "modulation/params/param.h"
 #include "notify/notice_queue.h"
+#include "plugin-api/types/param.h"
 
 #include <algorithm>
-#include <cmath>
 #include <cstdio>
 #include <cstring>
 
@@ -76,12 +77,8 @@ int32_t calculate_knob_pos_for_display(Kind kind, int32_t param_id, int32_t knob
 	if (kind == Kind::MIDI) {
 		return knob_pos;
 	}
-	float v = (static_cast<float>(knob_pos) / static_cast<float>(kMaxKnobPos)) * static_cast<float>(kMaxMenuValue);
-	if (deluge::modulation::params::isParamPan(kind, param_id)
-	    || deluge::modulation::params::isParamPitch(kind, param_id)) {
-		v -= static_cast<float>(kMaxMenuRelativeValue);
-	}
-	return static_cast<int32_t>(std::round(v));
+	const deluge::plugin::ParamInfo* info = deluge::modulation::params::paramInfoFor(kind, param_id);
+	return deluge::plugin::knob_display_number(info != nullptr ? info->flags : deluge::plugin::ParamFlags{}, knob_pos);
 }
 
 /// @brief The parameter-name half of `displayModEncoderValuePopup` (`view.cpp:1127-1172`).

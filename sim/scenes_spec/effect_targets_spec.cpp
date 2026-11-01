@@ -9,14 +9,14 @@
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 
-#include "engine-api/types/setting.h"
-#include "engines/effects/engine.h"
-#include "engines/effects/settings.h"
+#include "effects/plugin.h"
+#include "effects/settings.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/instrument/kit.h"
 #include "model/output.h"
 #include "model/project_bridge/chain_bridge.h"
 #include "model/song/song.h"
+#include "plugin-api/types/setting.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
 
@@ -45,8 +45,8 @@ Target effect(std::string_view path) {
 
 /// The descriptor menu value of @p word at CHOICE row @p path.
 int32_t menu_of(std::string_view path, std::string_view word) {
-	const auto& row = *deluge::engine::find_setting(deluge::effects::kEffectSettings, path);
-	return deluge::engine::to_menu(row, deluge::engine::stored_value(row, word).value_or(0));
+	const auto& row = *deluge::plugin::find_setting(deluge::effects::kEffectSettings, path);
+	return deluge::plugin::to_menu(row, deluge::plugin::stored_value(row, word).value_or(0));
 }
 
 /// Writes @p path = @p menu through the app's sink at @p ctx's addresses.

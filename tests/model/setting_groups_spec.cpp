@@ -10,8 +10,8 @@
 #include <vector>
 
 using namespace deluge::project;
-using deluge::engine::SettingInfo;
-using deluge::engine::SettingKind;
+using deluge::plugin::SettingInfo;
+using deluge::plugin::SettingKind;
 using deluge::serialization::Value;
 
 namespace {
@@ -33,9 +33,9 @@ std::vector<std::string> legal_values(const SettingInfo& row) {
 		if (!row.user.identity()) {
 			// What a menu writes: its user range's ends and middle, through the row's mapping.
 			const int32_t mid = row.user.user_min + (row.user.user_max - row.user.user_min) / 2;
-			return {std::to_string(*deluge::engine::to_stored(row, row.user.user_min)),
-			        std::to_string(*deluge::engine::to_stored(row, row.user.user_max)),
-			        std::to_string(*deluge::engine::to_stored(row, mid))};
+			return {std::to_string(*deluge::plugin::to_stored(row, row.user.user_min)),
+			        std::to_string(*deluge::plugin::to_stored(row, row.user.user_max)),
+			        std::to_string(*deluge::plugin::to_stored(row, mid))};
 		}
 		return {std::to_string(row.min), std::to_string(row.max),
 		        std::to_string(row.min + (int64_t{row.max} - row.min) / 2)};
@@ -120,11 +120,11 @@ describe setting_groups_owners("the owner setting groups", $ {
 	});
 
 	it("gives a kit clip a sequence direction, as its row shortcut edits it, and an audio clip none", _ {
-		using deluge::engine::SettingContext;
-		const SettingInfo* row = deluge::engine::find_setting(table_of(SettingGroupId::CLIP), "sequenceDirection");
+		using deluge::plugin::SettingContext;
+		const SettingInfo* row = deluge::plugin::find_setting(table_of(SettingGroupId::CLIP), "sequenceDirection");
 		expect(row != nullptr).to_be_true();
 		const auto on = [&](SettingContext::Instrument instrument) {
-			return deluge::engine::setting_applies(*row, {.owner = SettingContext::Owner::CLIP, .instrument = instrument},
+			return deluge::plugin::setting_applies(*row, {.owner = SettingContext::Owner::CLIP, .instrument = instrument},
 			                                       {});
 		};
 		expect(on(SettingContext::Instrument::KIT)).to_be_true();
@@ -302,7 +302,7 @@ describe setting_groups_owners("the owner setting groups", $ {
 	});
 
 	it("offers an audio clip's priority as the sound's voice priority menu does: the numbers a file writes", _ {
-		const SettingInfo* row = deluge::engine::find_setting(table_of(SettingGroupId::AUDIO_CLIP), "priority");
+		const SettingInfo* row = deluge::plugin::find_setting(table_of(SettingGroupId::AUDIO_CLIP), "priority");
 		expect(row->kind == SettingKind::CHOICE).to_be_true();
 		std::vector<std::string> words;
 		for (std::string_view choice : row->choices) {

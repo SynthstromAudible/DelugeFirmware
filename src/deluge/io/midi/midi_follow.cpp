@@ -17,6 +17,7 @@
 
 #include "io/midi/midi_follow.h"
 #include "definitions_cxx.hpp"
+#include "effects/global_effectable/params.h"
 #include "gui/l10n/l10n.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
@@ -24,6 +25,7 @@
 #include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
+#include "instruments/deluge/params.h"
 #include "io/file.hpp"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
@@ -39,6 +41,7 @@
 #include "model/instrument/kit.h"
 #include "model/instrument/melodic_instrument.h"
 #include "model/note/note_row.h"
+#include "model/project_bridge/param_ids.h"
 #include "model/song/song.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_set.h"
@@ -57,6 +60,9 @@
 
 using namespace deluge;
 using namespace gui;
+using deluge::bridge::OwnerPlugin;
+using deluge::bridge::RuntimeParam;
+using deluge::project::ParamTarget;
 
 #define SETTINGS_FOLDER "SETTINGS"
 #define MIDI_FOLLOW_XML "SETTINGS/MIDIFollow.XML"
@@ -76,7 +82,20 @@ using namespace gui;
 #define MIDI_DEFAULTS_SETTINGS_DISPLAYPARAM_POPUP_TAG "popup"
 #define MIDI_DEFAULTS_CC_TAG "cc_mappings"
 
-constexpr int32_t PARAM_ID_NONE = 255;
+namespace {
+
+/// The runtime param a sound's target names, if any.
+std::optional<RuntimeParam> soundParamOf(const std::optional<ParamTarget>& target) {
+	return target ? deluge::bridge::runtimeParamOf(OwnerPlugin::INSTRUMENT, *target) : std::nullopt;
+}
+
+/// The runtime param a global effectable's target names, if any.
+std::optional<RuntimeParam> globalParamOf(const std::optional<ParamTarget>& target) {
+	return target ? deluge::bridge::runtimeParamOf(OwnerPlugin::GLOBAL_EFFECTABLE, *target) : std::nullopt;
+}
+
+} // namespace
+
 constexpr int32_t MIDI_CC_MUTE = 89;
 constexpr int32_t MIDI_CC_SOLO = 90;
 
@@ -159,238 +178,144 @@ void MidiFollow::initState() {
 }
 
 void MidiFollow::clearMappings() {
-	ccToSoundParam.fill(PARAM_ID_NONE);
-	ccToGlobalParam.fill(PARAM_ID_NONE);
+	ccToSoundTarget.fill(std::nullopt);
+	ccToGlobalTarget.fill(std::nullopt);
 
 	soundParamToCC.fill(MIDI_CC_NONE);
 	globalParamToCC.fill(MIDI_CC_NONE);
 }
 
+void MidiFollow::mapSound(int32_t cc, ParamTarget target) {
+	soundParamToCC[target.id.value] = cc;
+	ccToSoundTarget[cc] = target;
+}
+
+void MidiFollow::mapGlobal(int32_t cc, ParamTarget target) {
+	globalParamToCC[*deluge::global_effectable::runtime_index(target.id)] = cc;
+	ccToGlobalTarget[cc] = target;
+}
+
 void MidiFollow::initDefaultMappings() {
+	namespace ip = deluge::instrument::param;
+	namespace gp = deluge::global_effectable::param;
+	auto mapSound = [this](int32_t cc, deluge::plugin::ParamId id) {
+		this->mapSound(cc, deluge::project::engine_target(id.value));
+	};
+	auto mapGlobal = [this](int32_t cc, deluge::plugin::ParamId id) {
+		this->mapGlobal(cc, deluge::project::engine_target(id.value));
+	};
+
 	clearMappings();
 
-	// SOUND PARAMS
-	// NOTE: when adding an UNPATCHED param, make sure you add params::UNPATCHED_START to it for the indexes
+	// A sound's params
+	mapSound(3, ip::kPitch);
+	mapSound(5, ip::kPortamento);
+	mapSound(7, ip::kVolumePostFX);
+	mapSound(10, ip::kPan);
+	mapSound(12, ip::kOscAPitch);
+	mapSound(13, ip::kOscBPitch);
+	mapSound(14, ip::kModulator1Pitch);
+	mapSound(15, ip::kModulator2Pitch);
+	mapSound(16, ip::kModFXRate);
+	mapSound(17, ip::kModFXFeedback);
+	mapSound(18, ip::kModFXOffset);
+	mapSound(19, ip::kWaveFold);
+	mapSound(20, ip::kStutterRate);
+	mapSound(21, ip::kOscAVolume);
+	mapSound(23, ip::kOscAPhaseWidth);
+	mapSound(24, ip::kCarrier1Feedback);
+	mapSound(25, ip::kOscAWavetablePosition);
+	mapSound(26, ip::kOscBVolume);
+	mapSound(27, ip::kCompressorThreshold);
+	mapSound(28, ip::kOscBPhaseWidth);
+	mapSound(29, ip::kCarrier2Feedback);
+	mapSound(30, ip::kOscBWavetablePosition);
+	mapSound(36, ip::kReverseProbability);
+	mapSound(37, ip::kSpreadVelocity);
+	mapSound(39, ip::kSpreadOctave);
+	mapSound(40, ip::kSpreadGate);
+	mapSound(41, ip::kNoiseVolume);
+	mapSound(42, ip::kRhythm);
+	mapSound(43, ip::kSequenceLength);
+	mapSound(44, ip::kChordPolyphony);
+	mapSound(45, ip::kRatchetAmount);
+	mapSound(46, ip::kNoteProbability);
+	mapSound(47, ip::kBassProbability);
+	mapSound(48, ip::kChordProbability);
+	mapSound(49, ip::kRatchetProbability);
+	mapSound(50, ip::kArpGate);
+	mapSound(51, ip::kArpRate);
+	mapSound(52, ip::kDelayFeedback);
+	mapSound(53, ip::kDelayRate);
+	mapSound(54, ip::kModulator1Volume);
+	mapSound(55, ip::kModulator1Feedback);
+	mapSound(56, ip::kModulator2Volume);
+	mapSound(57, ip::kModulator2Feedback);
+	mapSound(58, ip::kLfo1Rate);
+	mapSound(59, ip::kLfo2Rate);
+	mapSound(60, ip::kCompressorShape);
+	mapSound(62, ip::kBitcrushAmount);
+	mapSound(63, ip::kSampleRateReduction);
+	mapSound(70, ip::kLpfMorph);
+	mapSound(71, ip::kLpfResonance);
+	mapSound(72, ip::kEnv1Release);
+	mapSound(73, ip::kEnv1Attack);
+	mapSound(74, ip::kLpfFrequency);
+	mapSound(75, ip::kEnv1Decay);
+	mapSound(76, ip::kEnv1Sustain);
+	mapSound(77, ip::kEnv2Attack);
+	mapSound(78, ip::kEnv2Decay);
+	mapSound(79, ip::kEnv2Sustain);
+	mapSound(80, ip::kEnv2Release);
+	mapSound(81, ip::kHpfFrequency);
+	mapSound(82, ip::kHpfResonance);
+	mapSound(83, ip::kHpfMorph);
+	mapSound(84, ip::kBassFreq);
+	mapSound(85, ip::kTrebleFreq);
+	mapSound(86, ip::kBass);
+	mapSound(87, ip::kTreble);
+	mapSound(91, ip::kReverbAmount);
+	mapSound(93, ip::kModFXDepth);
+	mapSound(102, ip::kEnv3Attack);
+	mapSound(103, ip::kEnv3Decay);
+	mapSound(104, ip::kEnv3Sustain);
+	mapSound(105, ip::kEnv3Release);
+	mapSound(106, ip::kEnv4Attack);
+	mapSound(107, ip::kEnv4Decay);
+	mapSound(108, ip::kEnv4Sustain);
+	mapSound(109, ip::kEnv4Release);
+	mapSound(110, ip::kLfo3Rate);
+	mapSound(111, ip::kLfo4Rate);
+	mapSound(112, ip::kSwapProbability);
+	mapSound(113, ip::kGlideProbability);
 
-	ccToSoundParam[3] = params::LOCAL_PITCH_ADJUST;
-	soundParamToCC[params::LOCAL_PITCH_ADJUST] = 3;
-	ccToSoundParam[5] = params::UNPATCHED_START + params::UNPATCHED_PORTAMENTO;
-	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_PORTAMENTO] = 5;
-	ccToSoundParam[7] = params::GLOBAL_VOLUME_POST_FX;
-	soundParamToCC[params::GLOBAL_VOLUME_POST_FX] = 7;
-	ccToSoundParam[10] = params::LOCAL_PAN;
-	soundParamToCC[params::LOCAL_PAN] = 10;
-	ccToSoundParam[12] = params::LOCAL_OSC_A_PITCH_ADJUST;
-	soundParamToCC[params::LOCAL_OSC_A_PITCH_ADJUST] = 12;
-	ccToSoundParam[13] = params::LOCAL_OSC_B_PITCH_ADJUST;
-	soundParamToCC[params::LOCAL_OSC_B_PITCH_ADJUST] = 13;
-	ccToSoundParam[14] = params::LOCAL_MODULATOR_0_PITCH_ADJUST;
-	soundParamToCC[params::LOCAL_MODULATOR_0_PITCH_ADJUST] = 14;
-	ccToSoundParam[15] = params::LOCAL_MODULATOR_1_PITCH_ADJUST;
-	soundParamToCC[params::LOCAL_MODULATOR_1_PITCH_ADJUST] = 15;
-	ccToSoundParam[16] = params::GLOBAL_MOD_FX_RATE;
-	soundParamToCC[params::GLOBAL_MOD_FX_RATE] = 16;
-	ccToSoundParam[17] = params::UNPATCHED_START + params::UNPATCHED_MOD_FX_FEEDBACK;
-	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_MOD_FX_FEEDBACK] = 17;
-	ccToSoundParam[18] = params::UNPATCHED_START + params::UNPATCHED_MOD_FX_OFFSET;
-	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_MOD_FX_OFFSET] = 18;
-	ccToSoundParam[19] = params::LOCAL_FOLD;
-	soundParamToCC[params::LOCAL_FOLD] = 19;
-	ccToSoundParam[20] = params::UNPATCHED_START + params::UNPATCHED_STUTTER_RATE;
-	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_STUTTER_RATE] = 20;
-	ccToSoundParam[21] = params::LOCAL_OSC_A_VOLUME;
-	soundParamToCC[params::LOCAL_OSC_A_VOLUME] = 21;
-	ccToSoundParam[23] = params::LOCAL_OSC_A_PHASE_WIDTH;
-	soundParamToCC[params::LOCAL_OSC_A_PHASE_WIDTH] = 23;
-	ccToSoundParam[24] = params::LOCAL_CARRIER_0_FEEDBACK;
-	soundParamToCC[params::LOCAL_CARRIER_0_FEEDBACK] = 24;
-	ccToSoundParam[25] = params::LOCAL_OSC_A_WAVE_INDEX;
-	soundParamToCC[params::LOCAL_OSC_A_WAVE_INDEX] = 25;
-	ccToSoundParam[26] = params::LOCAL_OSC_B_VOLUME;
-	soundParamToCC[params::LOCAL_OSC_B_VOLUME] = 26;
-	ccToSoundParam[27] = params::UNPATCHED_START + params::UNPATCHED_COMPRESSOR_THRESHOLD;
-	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_COMPRESSOR_THRESHOLD] = 27;
-	ccToSoundParam[28] = params::LOCAL_OSC_B_PHASE_WIDTH;
-	soundParamToCC[params::LOCAL_OSC_B_PHASE_WIDTH] = 28;
-	ccToSoundParam[29] = params::LOCAL_CARRIER_1_FEEDBACK;
-	soundParamToCC[params::LOCAL_CARRIER_1_FEEDBACK] = 29;
-	ccToSoundParam[30] = params::LOCAL_OSC_B_WAVE_INDEX;
-	soundParamToCC[params::LOCAL_OSC_B_WAVE_INDEX] = 30;
-	ccToSoundParam[36] = params::UNPATCHED_START + params::UNPATCHED_REVERSE_PROBABILITY;
-	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_REVERSE_PROBABILITY] = 36;
-	ccToSoundParam[37] = params::UNPATCHED_START + params::UNPATCHED_SPREAD_VELOCITY;
-	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_SPREAD_VELOCITY] = 37;
-	ccToSoundParam[39] = params::UNPATCHED_START + params::UNPATCHED_ARP_SPREAD_OCTAVE;
-	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_ARP_SPREAD_OCTAVE] = 39;
-	ccToSoundParam[40] = params::UNPATCHED_START + params::UNPATCHED_ARP_SPREAD_GATE;
-	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_ARP_SPREAD_GATE] = 40;
-	ccToSoundParam[41] = params::LOCAL_NOISE_VOLUME;
-	soundParamToCC[params::LOCAL_NOISE_VOLUME] = 41;
-	ccToSoundParam[42] = params::UNPATCHED_START + params::UNPATCHED_ARP_RHYTHM;
-	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_ARP_RHYTHM] = 42;
-	ccToSoundParam[43] = params::UNPATCHED_START + params::UNPATCHED_ARP_SEQUENCE_LENGTH;
-	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_ARP_SEQUENCE_LENGTH] = 43;
-	ccToSoundParam[44] = params::UNPATCHED_START + params::UNPATCHED_ARP_CHORD_POLYPHONY;
-	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_ARP_CHORD_POLYPHONY] = 44;
-	ccToSoundParam[45] = params::UNPATCHED_START + params::UNPATCHED_ARP_RATCHET_AMOUNT;
-	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_ARP_RATCHET_AMOUNT] = 45;
-	ccToSoundParam[46] = params::UNPATCHED_START + params::UNPATCHED_NOTE_PROBABILITY;
-	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_NOTE_PROBABILITY] = 46;
-	ccToSoundParam[47] = params::UNPATCHED_START + params::UNPATCHED_ARP_BASS_PROBABILITY;
-	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_ARP_BASS_PROBABILITY] = 47;
-	ccToSoundParam[48] = params::UNPATCHED_START + params::UNPATCHED_ARP_CHORD_PROBABILITY;
-	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_ARP_CHORD_PROBABILITY] = 48;
-	ccToSoundParam[49] = params::UNPATCHED_START + params::UNPATCHED_ARP_RATCHET_PROBABILITY;
-	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_ARP_RATCHET_PROBABILITY] = 49;
-	ccToSoundParam[50] = params::UNPATCHED_START + params::UNPATCHED_ARP_GATE;
-	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_ARP_GATE] = 50;
-	ccToSoundParam[51] = params::GLOBAL_ARP_RATE;
-	soundParamToCC[params::GLOBAL_ARP_RATE] = 51;
-	ccToSoundParam[52] = params::GLOBAL_DELAY_FEEDBACK;
-	soundParamToCC[params::GLOBAL_DELAY_FEEDBACK] = 52;
-	ccToSoundParam[53] = params::GLOBAL_DELAY_RATE;
-	soundParamToCC[params::GLOBAL_DELAY_RATE] = 53;
-	ccToSoundParam[54] = params::LOCAL_MODULATOR_0_VOLUME;
-	soundParamToCC[params::LOCAL_MODULATOR_0_VOLUME] = 54;
-	ccToSoundParam[55] = params::LOCAL_MODULATOR_0_FEEDBACK;
-	soundParamToCC[params::LOCAL_MODULATOR_0_FEEDBACK] = 55;
-	ccToSoundParam[56] = params::LOCAL_MODULATOR_1_VOLUME;
-	soundParamToCC[params::LOCAL_MODULATOR_1_VOLUME] = 56;
-	ccToSoundParam[57] = params::LOCAL_MODULATOR_1_FEEDBACK;
-	soundParamToCC[params::LOCAL_MODULATOR_1_FEEDBACK] = 57;
-	ccToSoundParam[58] = params::GLOBAL_LFO_FREQ_1;
-	soundParamToCC[params::GLOBAL_LFO_FREQ_1] = 58;
-	ccToSoundParam[59] = params::LOCAL_LFO_LOCAL_FREQ_1;
-	soundParamToCC[params::LOCAL_LFO_LOCAL_FREQ_1] = 59;
-	ccToSoundParam[60] = params::UNPATCHED_START + params::UNPATCHED_SIDECHAIN_SHAPE;
-	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_SIDECHAIN_SHAPE] = 60;
-	// TODO: replace this with the patch cable from sidechain to volume, once midi follow supports patch cables
-	// ccToSoundParam[61] = params::GLOBAL_VOLUME_POST_REVERB_SEND;
-	// soundParamToCC[params::GLOBAL_VOLUME_POST_REVERB_SEND] = 61;
-	ccToSoundParam[62] = params::UNPATCHED_START + params::UNPATCHED_BITCRUSHING;
-	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_BITCRUSHING] = 62;
-	ccToSoundParam[63] = params::UNPATCHED_START + params::UNPATCHED_SAMPLE_RATE_REDUCTION;
-	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_SAMPLE_RATE_REDUCTION] = 63;
-	ccToSoundParam[70] = params::LOCAL_LPF_MORPH;
-	soundParamToCC[params::LOCAL_LPF_MORPH] = 70;
-	ccToSoundParam[71] = params::LOCAL_LPF_RESONANCE;
-	soundParamToCC[params::LOCAL_LPF_RESONANCE] = 71;
-	ccToSoundParam[72] = params::LOCAL_ENV_0_RELEASE;
-	soundParamToCC[params::LOCAL_ENV_0_RELEASE] = 72;
-	ccToSoundParam[73] = params::LOCAL_ENV_0_ATTACK;
-	soundParamToCC[params::LOCAL_ENV_0_ATTACK] = 73;
-	ccToSoundParam[74] = params::LOCAL_LPF_FREQ;
-	soundParamToCC[params::LOCAL_LPF_FREQ] = 74;
-	ccToSoundParam[75] = params::LOCAL_ENV_0_DECAY;
-	soundParamToCC[params::LOCAL_ENV_0_DECAY] = 75;
-	ccToSoundParam[76] = params::LOCAL_ENV_0_SUSTAIN;
-	soundParamToCC[params::LOCAL_ENV_0_SUSTAIN] = 76;
-	ccToSoundParam[77] = params::LOCAL_ENV_1_ATTACK;
-	soundParamToCC[params::LOCAL_ENV_1_ATTACK] = 77;
-	ccToSoundParam[78] = params::LOCAL_ENV_1_DECAY;
-	soundParamToCC[params::LOCAL_ENV_1_DECAY] = 78;
-	ccToSoundParam[79] = params::LOCAL_ENV_1_SUSTAIN;
-	soundParamToCC[params::LOCAL_ENV_1_SUSTAIN] = 79;
-	ccToSoundParam[80] = params::LOCAL_ENV_1_RELEASE;
-	soundParamToCC[params::LOCAL_ENV_1_RELEASE] = 80;
-	ccToSoundParam[81] = params::LOCAL_HPF_FREQ;
-	soundParamToCC[params::LOCAL_HPF_FREQ] = 81;
-	ccToSoundParam[82] = params::LOCAL_HPF_RESONANCE;
-	soundParamToCC[params::LOCAL_HPF_RESONANCE] = 82;
-	ccToSoundParam[83] = params::LOCAL_HPF_MORPH;
-	soundParamToCC[params::LOCAL_HPF_MORPH] = 83;
-	ccToSoundParam[84] = params::UNPATCHED_START + params::UNPATCHED_BASS_FREQ;
-	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_BASS_FREQ] = 84;
-	ccToSoundParam[85] = params::UNPATCHED_START + params::UNPATCHED_TREBLE_FREQ;
-	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_TREBLE_FREQ] = 85;
-	ccToSoundParam[86] = params::UNPATCHED_START + params::UNPATCHED_BASS;
-	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_BASS] = 86;
-	ccToSoundParam[87] = params::UNPATCHED_START + params::UNPATCHED_TREBLE;
-	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_TREBLE] = 87;
-	ccToSoundParam[91] = params::GLOBAL_REVERB_AMOUNT;
-	soundParamToCC[params::GLOBAL_REVERB_AMOUNT] = 91;
-	ccToSoundParam[93] = params::GLOBAL_MOD_FX_DEPTH;
-	soundParamToCC[params::GLOBAL_MOD_FX_DEPTH] = 93;
-	ccToSoundParam[102] = params::LOCAL_ENV_2_ATTACK;
-	soundParamToCC[params::LOCAL_ENV_2_ATTACK] = 102;
-	ccToSoundParam[103] = params::LOCAL_ENV_2_DECAY;
-	soundParamToCC[params::LOCAL_ENV_2_DECAY] = 103;
-	ccToSoundParam[104] = params::LOCAL_ENV_2_SUSTAIN;
-	soundParamToCC[params::LOCAL_ENV_2_SUSTAIN] = 104;
-	ccToSoundParam[105] = params::LOCAL_ENV_2_RELEASE;
-	soundParamToCC[params::LOCAL_ENV_2_RELEASE] = 105;
-	ccToSoundParam[106] = params::LOCAL_ENV_3_ATTACK;
-	soundParamToCC[params::LOCAL_ENV_3_ATTACK] = 106;
-	ccToSoundParam[107] = params::LOCAL_ENV_3_DECAY;
-	soundParamToCC[params::LOCAL_ENV_3_DECAY] = 107;
-	ccToSoundParam[108] = params::LOCAL_ENV_3_SUSTAIN;
-	soundParamToCC[params::LOCAL_ENV_3_SUSTAIN] = 108;
-	ccToSoundParam[109] = params::LOCAL_ENV_3_RELEASE;
-	soundParamToCC[params::LOCAL_ENV_3_RELEASE] = 109;
-	ccToSoundParam[110] = params::GLOBAL_LFO_FREQ_2;
-	soundParamToCC[params::GLOBAL_LFO_FREQ_2] = 110;
-	ccToSoundParam[111] = params::LOCAL_LFO_LOCAL_FREQ_2;
-	soundParamToCC[params::LOCAL_LFO_LOCAL_FREQ_2] = 111;
-	ccToSoundParam[112] = params::UNPATCHED_START + params::UNPATCHED_ARP_SWAP_PROBABILITY;
-	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_ARP_SWAP_PROBABILITY] = 112;
-	ccToSoundParam[113] = params::UNPATCHED_START + params::UNPATCHED_ARP_GLIDE_PROBABILITY;
-	soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_ARP_GLIDE_PROBABILITY] = 113;
-
-	// GLOBAL PARAMS
-	// NOTE: Here you add the global param, assigning the same CC as its relative sound param
-
-	ccToGlobalParam[3] = params::UNPATCHED_PITCH_ADJUST;
-	globalParamToCC[params::UNPATCHED_PITCH_ADJUST] = 3;
-	ccToGlobalParam[7] = params::UNPATCHED_VOLUME;
-	globalParamToCC[params::UNPATCHED_VOLUME] = 7;
-	ccToGlobalParam[10] = params::UNPATCHED_PAN;
-	globalParamToCC[params::UNPATCHED_PAN] = 10;
-	ccToGlobalParam[16] = params::UNPATCHED_MOD_FX_RATE;
-	globalParamToCC[params::UNPATCHED_MOD_FX_RATE] = 16;
-	ccToGlobalParam[17] = params::UNPATCHED_MOD_FX_FEEDBACK;
-	globalParamToCC[params::UNPATCHED_MOD_FX_FEEDBACK] = 17;
-	ccToGlobalParam[18] = params::UNPATCHED_MOD_FX_OFFSET;
-	globalParamToCC[params::UNPATCHED_MOD_FX_OFFSET] = 18;
-	ccToGlobalParam[20] = params::UNPATCHED_STUTTER_RATE;
-	globalParamToCC[params::UNPATCHED_STUTTER_RATE] = 20;
-	ccToGlobalParam[51] = params::UNPATCHED_ARP_RATE;
-	globalParamToCC[params::UNPATCHED_ARP_RATE] = 51;
-	ccToGlobalParam[52] = params::UNPATCHED_DELAY_AMOUNT;
-	globalParamToCC[params::UNPATCHED_DELAY_AMOUNT] = 52;
-	ccToGlobalParam[53] = params::UNPATCHED_DELAY_RATE;
-	globalParamToCC[params::UNPATCHED_DELAY_RATE] = 53;
-	ccToGlobalParam[60] = params::UNPATCHED_SIDECHAIN_SHAPE;
-	globalParamToCC[params::UNPATCHED_SIDECHAIN_SHAPE] = 60;
-	ccToGlobalParam[61] = params::UNPATCHED_SIDECHAIN_VOLUME;
-	globalParamToCC[params::UNPATCHED_SIDECHAIN_VOLUME] = 61;
-	ccToGlobalParam[62] = params::UNPATCHED_BITCRUSHING;
-	globalParamToCC[params::UNPATCHED_BITCRUSHING] = 62;
-	ccToGlobalParam[63] = params::UNPATCHED_SAMPLE_RATE_REDUCTION;
-	globalParamToCC[params::UNPATCHED_SAMPLE_RATE_REDUCTION] = 63;
-	ccToGlobalParam[70] = params::UNPATCHED_LPF_MORPH;
-	globalParamToCC[params::UNPATCHED_LPF_MORPH] = 70;
-	ccToGlobalParam[71] = params::UNPATCHED_LPF_RES;
-	globalParamToCC[params::UNPATCHED_LPF_RES] = 71;
-	ccToGlobalParam[74] = params::UNPATCHED_LPF_FREQ;
-	globalParamToCC[params::UNPATCHED_LPF_FREQ] = 74;
-	ccToGlobalParam[81] = params::UNPATCHED_HPF_FREQ;
-	globalParamToCC[params::UNPATCHED_HPF_FREQ] = 81;
-	ccToGlobalParam[82] = params::UNPATCHED_HPF_RES;
-	globalParamToCC[params::UNPATCHED_HPF_RES] = 82;
-	ccToGlobalParam[83] = params::UNPATCHED_HPF_MORPH;
-	globalParamToCC[params::UNPATCHED_HPF_MORPH] = 83;
-	ccToGlobalParam[84] = params::UNPATCHED_BASS_FREQ;
-	globalParamToCC[params::UNPATCHED_BASS_FREQ] = 74;
-	ccToGlobalParam[85] = params::UNPATCHED_TREBLE_FREQ;
-	globalParamToCC[params::UNPATCHED_TREBLE_FREQ] = 81;
-	ccToGlobalParam[86] = params::UNPATCHED_BASS;
-	globalParamToCC[params::UNPATCHED_BASS] = 71;
-	ccToGlobalParam[87] = params::UNPATCHED_TREBLE;
-	globalParamToCC[params::UNPATCHED_TREBLE] = 82;
-	ccToGlobalParam[91] = params::UNPATCHED_REVERB_SEND_AMOUNT;
-	globalParamToCC[params::UNPATCHED_REVERB_SEND_AMOUNT] = 91;
-	ccToGlobalParam[93] = params::UNPATCHED_MOD_FX_DEPTH;
-	globalParamToCC[params::UNPATCHED_MOD_FX_DEPTH] = 93;
+	// A global effectable's params, on the CCs of their sound counterparts
+	mapGlobal(3, gp::kPitchAdjust);
+	mapGlobal(7, gp::kVolume);
+	mapGlobal(10, gp::kPan);
+	mapGlobal(16, gp::kModFXRate);
+	mapGlobal(17, gp::kModFXFeedback);
+	mapGlobal(18, gp::kModFXOffset);
+	mapGlobal(20, gp::kStutterRate);
+	mapGlobal(51, gp::kArpRate);
+	mapGlobal(52, gp::kDelayFeedback);
+	mapGlobal(53, gp::kDelayRate);
+	mapGlobal(60, gp::kCompressorShape);
+	mapGlobal(61, gp::kSidechainCompressorVolume);
+	mapGlobal(62, gp::kBitcrushAmount);
+	mapGlobal(63, gp::kSampleRateReduction);
+	mapGlobal(70, gp::kLpfMorph);
+	mapGlobal(71, gp::kLpfResonance);
+	mapGlobal(74, gp::kLpfFrequency);
+	mapGlobal(81, gp::kHpfFrequency);
+	mapGlobal(82, gp::kHpfResonance);
+	mapGlobal(83, gp::kHpfMorph);
+	mapGlobal(84, gp::kBassFreq);
+	mapGlobal(85, gp::kTrebleFreq);
+	mapGlobal(86, gp::kBass);
+	mapGlobal(87, gp::kTreble);
+	mapGlobal(91, gp::kReverbAmount);
+	mapGlobal(93, gp::kModFXDepth);
 }
 
 /// checks to see if there is an active clip for the current context
@@ -513,19 +438,18 @@ Output* MidiFollow::getTrackFromIndex(uint32_t track_index, uint32_t maxTrack) {
 /// obtain the modelStackWithParam for that context and return it so it can be used by midi follow
 ModelStackWithAutoParam*
 MidiFollow::getModelStackWithParam(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Clip* clip,
-                                   int32_t soundParamId, int32_t globalParamId, bool displayError) {
+                                   Target sound, Target global, bool displayError) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 
 	// non-null clip means you're dealing with the clip context
 	if (clip) {
 		if (modelStackWithTimelineCounter) {
-			modelStackWithParam =
-			    getModelStackWithParamForClip(modelStackWithTimelineCounter, clip, soundParamId, globalParamId);
+			modelStackWithParam = getModelStackWithParamForClip(modelStackWithTimelineCounter, clip, sound, global);
 		}
 	}
 
 	if (displayError && (!modelStackWithParam || !modelStackWithParam->autoParam)) {
-		displayParamControlError(soundParamId, globalParamId);
+		displayParamControlError(sound, global);
 	}
 
 	return modelStackWithParam;
@@ -533,22 +457,19 @@ MidiFollow::getModelStackWithParam(ModelStackWithTimelineCounter* modelStackWith
 
 ModelStackWithAutoParam*
 MidiFollow::getModelStackWithParamForClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Clip* clip,
-                                          int32_t soundParamId, int32_t globalParamId) {
+                                          Target sound, Target global) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
 	OutputType outputType = clip->output->type;
 
 	switch (outputType) {
 	case OutputType::SYNTH:
-		modelStackWithParam =
-		    getModelStackWithParamForSynthClip(modelStackWithTimelineCounter, clip, soundParamId, globalParamId);
+		modelStackWithParam = getModelStackWithParamForSynthClip(modelStackWithTimelineCounter, clip, sound);
 		break;
 	case OutputType::KIT:
-		modelStackWithParam =
-		    getModelStackWithParamForKitClip(modelStackWithTimelineCounter, clip, soundParamId, globalParamId);
+		modelStackWithParam = getModelStackWithParamForKitClip(modelStackWithTimelineCounter, clip, sound, global);
 		break;
 	case OutputType::AUDIO:
-		modelStackWithParam =
-		    getModelStackWithParamForAudioClip(modelStackWithTimelineCounter, clip, soundParamId, globalParamId);
+		modelStackWithParam = getModelStackWithParamForAudioClip(modelStackWithTimelineCounter, clip, global);
 		break;
 	// explicit fallthrough cases
 	case OutputType::CV:
@@ -559,25 +480,15 @@ MidiFollow::getModelStackWithParamForClip(ModelStackWithTimelineCounter* modelSt
 	return modelStackWithParam;
 }
 
+// MIDI follow's params are a sound's or a kit's own, never a cable's depth, so its lookups never create a cable.
 ModelStackWithAutoParam*
 MidiFollow::getModelStackWithParamForSynthClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Clip* clip,
-                                               int32_t soundParamId, int32_t globalParamId) {
+                                               Target sound) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
-	params::Kind paramKind = params::Kind::NONE;
-	int32_t paramID = PARAM_ID_NONE;
-
-	if (soundParamId != PARAM_ID_NONE && soundParamId < params::UNPATCHED_START) {
-		paramKind = params::Kind::PATCHED;
-		paramID = soundParamId;
-	}
-	else if (soundParamId != PARAM_ID_NONE && soundParamId >= params::UNPATCHED_START) {
-		paramKind = params::Kind::UNPATCHED_SOUND;
-		paramID = soundParamId - params::UNPATCHED_START;
-	}
-	if ((paramKind != params::Kind::NONE) && (paramID != PARAM_ID_NONE)) {
+	if (std::optional<RuntimeParam> param = soundParamOf(sound)) {
 		// Note: useMenuContext parameter will always be false for MidiFollow
-		modelStackWithParam =
-		    clip->output->getModelStackWithParam(modelStackWithTimelineCounter, clip, paramID, paramKind, true, false);
+		modelStackWithParam = clip->output->getModelStackWithParam(modelStackWithTimelineCounter, clip, param->index,
+		                                                           param->kind, true, false, false);
 	}
 
 	return modelStackWithParam;
@@ -585,36 +496,20 @@ MidiFollow::getModelStackWithParamForSynthClip(ModelStackWithTimelineCounter* mo
 
 ModelStackWithAutoParam*
 MidiFollow::getModelStackWithParamForKitClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Clip* clip,
-                                             int32_t soundParamId, int32_t globalParamId) {
+                                             Target sound, Target global) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
-	params::Kind paramKind = params::Kind::NONE;
-	int32_t paramID = PARAM_ID_NONE;
 	InstrumentClip* instrumentClip = (InstrumentClip*)clip;
 
-	if (!instrumentClip->affectEntire) {
-		if (soundParamId != PARAM_ID_NONE && soundParamId < params::UNPATCHED_START) {
-			paramKind = params::Kind::PATCHED;
-			paramID = soundParamId;
-		}
-		else if (soundParamId != PARAM_ID_NONE && soundParamId >= params::UNPATCHED_START) {
-			// don't allow control of Portamento in Kit's
-			if (soundParamId - params::UNPATCHED_START != params::UNPATCHED_PORTAMENTO) {
-				paramKind = params::Kind::UNPATCHED_SOUND;
-				paramID = soundParamId - params::UNPATCHED_START;
-			}
-		}
-	}
-	else {
-		if (globalParamId != PARAM_ID_NONE) {
-			paramKind = params::Kind::UNPATCHED_GLOBAL;
-			paramID = globalParamId;
-		}
+	std::optional<RuntimeParam> param = instrumentClip->affectEntire ? globalParamOf(global) : soundParamOf(sound);
+	// don't allow control of Portamento in Kit's
+	if (param && param->kind == params::Kind::UNPATCHED_SOUND && param->index == params::UNPATCHED_PORTAMENTO) {
+		param = std::nullopt;
 	}
 
-	if ((paramKind != params::Kind::NONE) && (paramID != PARAM_ID_NONE)) {
+	if (param) {
 		// Note: useMenuContext parameter will always be false for MidiFollow
-		modelStackWithParam = clip->output->getModelStackWithParam(modelStackWithTimelineCounter, clip, paramID,
-		                                                           paramKind, instrumentClip->affectEntire, false);
+		modelStackWithParam = clip->output->getModelStackWithParam(
+		    modelStackWithTimelineCounter, clip, param->index, param->kind, instrumentClip->affectEntire, false, false);
 	}
 
 	return modelStackWithParam;
@@ -622,38 +517,24 @@ MidiFollow::getModelStackWithParamForKitClip(ModelStackWithTimelineCounter* mode
 
 ModelStackWithAutoParam*
 MidiFollow::getModelStackWithParamForAudioClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Clip* clip,
-                                               int32_t soundParamId, int32_t globalParamId) {
+                                               Target global) {
 	ModelStackWithAutoParam* modelStackWithParam = nullptr;
-	params::Kind paramKind = params::Kind::UNPATCHED_GLOBAL;
-	int32_t paramID = globalParamId;
 
-	if (paramID != PARAM_ID_NONE) {
+	if (std::optional<RuntimeParam> param = globalParamOf(global)) {
 		// Note: useMenuContext parameter will always be false for MidiFollow
-		modelStackWithParam =
-		    clip->output->getModelStackWithParam(modelStackWithTimelineCounter, clip, paramID, paramKind, true, false);
+		modelStackWithParam = clip->output->getModelStackWithParam(modelStackWithTimelineCounter, clip, param->index,
+		                                                           param->kind, true, false, false);
 	}
 
 	return modelStackWithParam;
 }
 
-void MidiFollow::displayParamControlError(int32_t soundParamId, int32_t globalParamId) {
-	params::Kind paramKind = params::Kind::NONE;
-	int32_t paramID = PARAM_ID_NONE;
+void MidiFollow::displayParamControlError(Target sound, Target global) {
+	std::optional<RuntimeParam> param = sound ? soundParamOf(sound) : globalParamOf(global);
 
-	if (soundParamId != PARAM_ID_NONE && soundParamId < params::UNPATCHED_START) {
-		paramKind = params::Kind::PATCHED;
-		paramID = soundParamId;
-	}
-	else if (soundParamId != PARAM_ID_NONE && soundParamId >= params::UNPATCHED_START) {
-		paramKind = params::Kind::UNPATCHED_SOUND;
-		paramID = soundParamId - params::UNPATCHED_START;
-	}
-	else if (globalParamId != PARAM_ID_NONE) {
-		paramKind = params::Kind::UNPATCHED_GLOBAL;
-		paramID = globalParamId;
-	}
-
-	if (paramID != PARAM_ID_NONE) {
+	if (param) {
+		params::Kind paramKind = param->kind;
+		int32_t paramID = param->index;
 		etl::string<40> popupMsg;
 
 		const char* name = deluge::modulation::params::getParamDisplayName(paramKind, paramID);
@@ -665,27 +546,24 @@ void MidiFollow::displayParamControlError(int32_t soundParamId, int32_t globalPa
 	}
 }
 
-/// a parameter can be learned to one cc at a time
-/// for a given parameter, find and return the cc that has been learned (if any)
-/// for the current midi follow controllable context
-/// if no cc is found, then MIDI_CC_NONE (255) is returned
-int32_t MidiFollow::getCCFromParam(params::Kind paramKind, int32_t paramID) {
-	// audio clip or kit with affect entire enabled
-	if (isGlobalEffectableContext()) {
-		if (paramKind == params::Kind::UNPATCHED_GLOBAL) {
-			return globalParamToCC[paramID];
+std::optional<uint8_t> MidiFollow::ccOf(OwnerPlugin owner, ParamTarget target) const {
+	if (target.space != deluge::project::ParamSpace::ENGINE) {
+		return std::nullopt;
+	}
+	uint8_t cc = MIDI_CC_NONE;
+	if (owner == OwnerPlugin::INSTRUMENT) {
+		// a cable's depth id is past the sound's params: no CC follows a cable
+		if (target.id.value < soundParamToCC.size()) {
+			cc = soundParamToCC[target.id.value];
 		}
 	}
-	// synth clip or kit row
-	else {
-		if (paramKind == params::Kind::PATCHED) {
-			return soundParamToCC[paramID];
-		}
-		else if (paramKind == params::Kind::UNPATCHED_SOUND) {
-			return soundParamToCC[params::UNPATCHED_START + paramID];
-		}
+	else if (std::optional<uint8_t> index = deluge::global_effectable::runtime_index(target.id)) {
+		cc = globalParamToCC[*index];
 	}
-	return MIDI_CC_NONE;
+	if (cc == MIDI_CC_NONE) {
+		return std::nullopt;
+	}
+	return cc;
 }
 
 /// Check if midi follow is controlling the global effectable context
@@ -1082,15 +960,15 @@ void MidiFollow::handleReceivedCC(MIDICable& cable, ModelStackWithTimelineCounte
 	}
 
 	// directly access the parameter from the CC number
-	uint8_t soundParamId = ccToSoundParam[ccNumber];
-	uint8_t globalParamId = ccToGlobalParam[ccNumber];
-	if (soundParamId == PARAM_ID_NONE && globalParamId == PARAM_ID_NONE) {
+	const Target sound = ccToSoundTarget[ccNumber];
+	const Target global = ccToGlobalTarget[ccNumber];
+	if (!sound && !global) {
 		// Abort
 		return;
 	}
 
-	ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(
-	    &modelStackWithTimelineCounter, clip, soundParamId, globalParamId, midiEngine.midiFollowDisplayParam);
+	ModelStackWithAutoParam* modelStackWithParam =
+	    getModelStackWithParam(&modelStackWithTimelineCounter, clip, sound, global, midiEngine.midiFollowDisplayParam);
 	// check if model stack is valid
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
 		int32_t currentValue;
@@ -1336,11 +1214,9 @@ void MidiFollow::sendCCWithoutModelStackForMidiFollowFeedback(bool isAutomation)
 
 		// loop through all params to see if any parameters have been learned
 		for (int32_t ccNumber = 0; ccNumber <= kMaxMIDIValue; ccNumber++) {
-			uint8_t soundParamId = ccToSoundParam[ccNumber];
-			uint8_t globalParamId = ccToGlobalParam[ccNumber];
 			// obtain the model stack for the parameter that has been learned
-			ModelStackWithAutoParam* modelStackWithParam =
-			    getModelStackWithParam(modelStackWithTimelineCounter, clip, soundParamId, globalParamId, false);
+			ModelStackWithAutoParam* modelStackWithParam = getModelStackWithParam(
+			    modelStackWithTimelineCounter, clip, ccToSoundTarget[ccNumber], ccToGlobalTarget[ccNumber], false);
 			// check that model stack is valid
 			if (modelStackWithParam && modelStackWithParam->autoParam) {
 				if (!isAutomation
@@ -1703,18 +1579,19 @@ void MidiFollow::serialiseDefaults(Serializer& writer) {
 /// convert paramID to a paramName to write to XML
 void MidiFollow::writeDefaultMappingsToFile(Serializer& writer) {
 	for (int32_t ccNumber = 0; ccNumber <= kMaxMIDIValue; ccNumber++) {
-		uint8_t soundParamId = ccToSoundParam[ccNumber];
-		uint8_t globalParamId = ccToGlobalParam[ccNumber];
+		const std::optional<RuntimeParam> sound = soundParamOf(ccToSoundTarget[ccNumber]);
+		const std::optional<RuntimeParam> global = globalParamOf(ccToGlobalTarget[ccNumber]);
 
 		bool writeTag = false;
 		char const* paramNameSound = nullptr;
 		char const* paramNameGlobal;
-		if (soundParamId != PARAM_ID_NONE && soundParamId < params::UNPATCHED_START) {
-			paramNameSound = params::paramNameForFile(params::Kind::PATCHED, soundParamId, true);
+		if (sound && sound->kind == params::Kind::PATCHED) {
+			paramNameSound = params::paramNameForFile(params::Kind::PATCHED, sound->index, true);
 			writeTag = true;
 		}
-		else if (soundParamId != PARAM_ID_NONE && soundParamId >= params::UNPATCHED_START) {
-			paramNameSound = params::paramNameForFile(params::Kind::UNPATCHED_SOUND, soundParamId, true);
+		else if (sound) {
+			paramNameSound =
+			    params::paramNameForFile(params::Kind::UNPATCHED_SOUND, params::UNPATCHED_START + sound->index, true);
 			writeTag = true;
 		}
 		if (writeTag) {
@@ -1723,9 +1600,9 @@ void MidiFollow::writeDefaultMappingsToFile(Serializer& writer) {
 			writer.writeTag(paramNameSound, buffer);
 		}
 		else {
-			if (globalParamId != PARAM_ID_NONE) {
+			if (global) {
 				paramNameGlobal = params::paramNameForFile(params::Kind::UNPATCHED_GLOBAL,
-				                                           params::UNPATCHED_START + globalParamId, true);
+				                                           params::UNPATCHED_START + global->index, true);
 				// Reaching here means no sound param claimed this CC (paramNameSound is still null), so the global
 				// mapping should be written. Only compare names when a sound name actually exists, to avoid passing a
 				// null pointer to strcmp.
@@ -2029,8 +1906,7 @@ void MidiFollow::readDefaultMappingsFromFile(Deserializer& reader) {
 		// Loop through patched sound params
 		for (uint8_t paramId = 0; paramId < params::GLOBAL_NONE; paramId++) {
 			if (!strcmp(tag_name, params::paramNameForFile(params::Kind::PATCHED, paramId, true))) {
-				soundParamToCC[paramId] = value;
-				ccToSoundParam[value] = paramId;
+				mapSound(value, *deluge::bridge::targetOf(OwnerPlugin::INSTRUMENT, params::Kind::PATCHED, paramId));
 				foundParam = true;
 				break;
 			}
@@ -2040,8 +1916,8 @@ void MidiFollow::readDefaultMappingsFromFile(Deserializer& reader) {
 			for (uint8_t paramId = 0; paramId < params::UNPATCHED_SOUND_MAX_NUM; paramId++) {
 				if (!strcmp(tag_name, params::paramNameForFile(params::Kind::UNPATCHED_SOUND,
 				                                               params::UNPATCHED_START + paramId, true))) {
-					soundParamToCC[params::UNPATCHED_START + paramId] = value;
-					ccToSoundParam[value] = params::UNPATCHED_START + paramId;
+					mapSound(value, *deluge::bridge::targetOf(OwnerPlugin::INSTRUMENT, params::Kind::UNPATCHED_SOUND,
+					                                          paramId));
 					foundParam = true;
 					break;
 				}
@@ -2051,8 +1927,8 @@ void MidiFollow::readDefaultMappingsFromFile(Deserializer& reader) {
 		for (uint8_t paramId = 0; paramId < params::UNPATCHED_GLOBAL_MAX_NUM; paramId++) {
 			if (!strcmp(tag_name, params::paramNameForFile(params::Kind::UNPATCHED_GLOBAL,
 			                                               params::UNPATCHED_START + paramId, true))) {
-				globalParamToCC[paramId] = value;
-				ccToGlobalParam[value] = paramId;
+				mapGlobal(value, *deluge::bridge::targetOf(OwnerPlugin::GLOBAL_EFFECTABLE,
+				                                           params::Kind::UNPATCHED_GLOBAL, paramId));
 				break;
 			}
 		}

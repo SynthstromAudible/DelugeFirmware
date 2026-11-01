@@ -51,6 +51,20 @@ extern "C" void deluge_model_edit_exit(bool entered) noexcept {
 	deluge_audio_exclude_exit(entered);
 }
 
-extern "C" void deluge_model_note_structural_edit() noexcept {
+extern "C" void deluge_model_note_structural_edit(uint8_t kind) noexcept {
+	using deluge::project::ModelEdit;
+	switch (static_cast<ModelEdit>(kind)) {
+	case ModelEdit::PARAM_STORE:
+		deluge::noteStructuralEdit(deluge::StructuralContainer::PARAM_STORE);
+		return;
+	case ModelEdit::NODE_KERNEL:
+		deluge::noteStructuralEdit(deluge::StructuralContainer::NODE_KERNEL);
+		return;
+	case ModelEdit::NODES_AT_INDEX:
+		deluge::noteIndexedNodeEdit();
+		break;
+	case ModelEdit::NODES:
+		break;
+	}
 	deluge::noteStructuralEdit(deluge::StructuralContainer::ORDERED_POS_VECTOR);
 }

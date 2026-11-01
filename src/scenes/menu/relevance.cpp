@@ -38,7 +38,7 @@
 #include "deluge-project/audio_input.h"
 #include "deluge-project/setting_group.h"
 #include "deluge-project/song.h"
-#include "engines/deluge/sound_state.h"
+#include "instruments/deluge/sound_state.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "scenes/bind/runtime_facts.h"
 #include "scenes/menu/bind_host.h"
@@ -167,7 +167,7 @@ bool stutter_quantize_allowed(const MenuContext& ctx) {
 }
 
 bool bend_submenu(const MenuContext& ctx) {
-	using Instrument = deluge::engine::SettingContext::Instrument;
+	using Instrument = deluge::plugin::SettingContext::Instrument;
 	const Instrument type = ctx.addresses.instrument;
 	return type == Instrument::SYNTH || type == Instrument::CV || type == Instrument::MIDI;
 }
@@ -175,7 +175,7 @@ bool bend_submenu(const MenuContext& ctx) {
 // --- Batch 3 (Task 8) -------------------------------------------------------------------------
 
 bool is_midi_out(const MenuContext& ctx) {
-	return ctx.addresses.instrument == deluge::engine::SettingContext::Instrument::MIDI;
+	return ctx.addresses.instrument == deluge::plugin::SettingContext::Instrument::MIDI;
 }
 
 bool audio_source_is_specific(const MenuContext& ctx) {

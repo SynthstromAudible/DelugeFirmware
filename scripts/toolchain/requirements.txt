@@ -4,3 +4,4 @@ pyserial==3.5
 python-rtmidi==1.5.8
 ansi==0.3.7
 pre-commit==4.7.0
+numpy==2.5.4

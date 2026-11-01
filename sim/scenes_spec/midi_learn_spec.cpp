@@ -100,7 +100,6 @@
 #include "model/project_bridge/midi_command.h"
 #include "model/project_bridge/patch_cable_words.h"
 #include "model/song/song.h"
-#include "modulation/params/param_descriptor.h"
 #include "modulation/params/param_set.h"
 #include "playback/playback_handler.h"
 #include "processing/sound/sound_drum.h"
@@ -108,6 +107,7 @@
 #include "scenes/menu/bind_host.h"
 #include "scenes/menu/context.h"
 #include "storage/flash_storage.h"
+#include "synth/modulation/cable.h"
 
 #include "support/card_access.h" // before <cppspec.hpp> -- see its @warning
 #include "support/song_fixture.h"
@@ -524,8 +524,7 @@ void give_active_clip(spec::SongFixture& fixture) {
 
 /// @brief The velocity-to-level cable of @p owner in clip @p clip, as its record holds it, or nullopt.
 std::optional<int32_t> recorded_velocity_cable(::Song& song, deluge::project::OwnerId owner, uint32_t clip) {
-	ParamDescriptor volume;
-	volume.setToHaveParamOnly(deluge::modulation::params::LOCAL_VOLUME);
+	deluge::synth::CableTarget volume = deluge::synth::CableTarget::param(deluge::modulation::params::LOCAL_VOLUME);
 	const deluge::project::ParamAddress cable{.owner = owner,
 	                                          .space = deluge::project::ParamSpace::ENGINE,
 	                                          .id = deluge::bridge::cable_depth(PatchSource::VELOCITY, volume),
@@ -1989,7 +1988,7 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		(void)row->paramManager.getOrCreateExpressionParamSet(true); // a played bend made it, as a note would
 		const deluge::project::ParamAddress bend{.owner = deluge::project::OwnerId::drum(*drum->id()),
 		                                         .space = deluge::project::ParamSpace::EXPRESSION,
-		                                         .id = deluge::engine::ParamId{0},
+		                                         .id = deluge::plugin::ParamId{0},
 		                                         .clip_id = fixture.clip->id()};
 		expect(deluge::scenes::menu::host_write_sink().write_param(bend, 0x10000000, 0, 24)).to_be_true();
 		const deluge::scenes::menu::MenuContext ctx =
@@ -2026,7 +2025,7 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 		const uint32_t id = *fixture.instrument->id();
 		const deluge::project::ParamAddress bend{.owner = deluge::project::OwnerId::instrument(id),
 		                                         .space = deluge::project::ParamSpace::EXPRESSION,
-		                                         .id = deluge::engine::ParamId{0},
+		                                         .id = deluge::plugin::ParamId{0},
 		                                         .clip_id = fixture.clip->id()};
 		(void)fixture.clip->paramManager.getOrCreateExpressionParamSet(); // a played bend made it, as a note would
 		expect(deluge::scenes::menu::host_write_sink().write_param(bend, 0x10000000, 0, 24)).to_be_true();

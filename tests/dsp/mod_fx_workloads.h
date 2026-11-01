@@ -26,7 +26,7 @@
 
 #include "definitions_cxx.hpp"
 #include "dsp-next/core/stereo_sample.h"
-#include "util/waves.h" // jcong
+#include "util/synth_noise.h"
 
 #include <array>
 #include <climits>
@@ -235,7 +235,7 @@ struct ModFxTrace {
 /// @tparam Fx A mod FX with the reference's calls.
 template <typename Fx>
 [[nodiscard]] ModFxTrace play(const ModFxWorkload& workload, Fx& fx) {
-	jcong = workload.cong_seed;
+	deluge::synth_noise.seed(workload.cong_seed);
 	ModFxTrace trace;
 	for (std::size_t b = 0; b < workload.blocks.size(); ++b) {
 		const ModFxBlock& block = workload.blocks[b];

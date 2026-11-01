@@ -186,7 +186,7 @@ void AmplitudeCase::setup(std::size_t n) {
 }
 
 void AmplitudeCase::block(std::size_t /*n*/) {
-	vca_.renderBlock(spans_.a, spans_.b, spans_.out);
+	vca_.render_block(spans_.a, spans_.b, spans_.out);
 }
 
 void CrudeAmplitudeCase::setup(std::size_t n) {
@@ -196,7 +196,7 @@ void CrudeAmplitudeCase::setup(std::size_t n) {
 }
 
 void CrudeAmplitudeCase::block(std::size_t /*n*/) {
-	vca_.renderBlock(spans_.a, spans_.b, spans_.out);
+	vca_.render_block(spans_.a, spans_.b, spans_.out);
 }
 
 dsp::fixed::PulseOscillator PulseCase::make() {
@@ -212,7 +212,7 @@ void PulseCase::setup(std::size_t n) {
 }
 
 void PulseCase::block(std::size_t /*n*/) {
-	pulse_.renderBlock(spans_.out);
+	pulse_.render_block(spans_.out);
 }
 
 dsp::fixed::BandLimitedTableOscillator BandLimitedTableCase::make() {
@@ -225,7 +225,7 @@ void BandLimitedTableCase::setup(std::size_t n) {
 }
 
 void BandLimitedTableCase::block(std::size_t /*n*/) {
-	oscillator_.renderBlock(spans_.out);
+	oscillator_.render_block(spans_.out);
 }
 
 void CrudeSawCase::setup(std::size_t n) {
@@ -234,7 +234,7 @@ void CrudeSawCase::setup(std::size_t n) {
 }
 
 void CrudeSawCase::block(std::size_t /*n*/) {
-	saw_.renderBlock(spans_.out);
+	saw_.render_block(spans_.out);
 }
 
 void CrudeSquareCase::setup(std::size_t n) {
@@ -243,7 +243,7 @@ void CrudeSquareCase::setup(std::size_t n) {
 }
 
 void CrudeSquareCase::block(std::size_t /*n*/) {
-	square_.renderBlock(spans_.out);
+	square_.render_block(spans_.out);
 }
 
 void CrudeTriangleCase::setup(std::size_t n) {
@@ -252,7 +252,7 @@ void CrudeTriangleCase::setup(std::size_t n) {
 }
 
 void CrudeTriangleCase::block(std::size_t /*n*/) {
-	triangle_.renderBlock(spans_.out);
+	triangle_.render_block(spans_.out);
 }
 
 void SyncedPulseCase::setup(std::size_t n) {
@@ -271,7 +271,7 @@ void SyncedPulseCase::block(std::size_t n) {
 	                                        kIncrement, kPhaseOffset};
 	dsp::fixed::SyncedOscillator synced{pulse, phase, kIncrement,
 	                                    dsp::fixed::Resetter{master_.phase(), master_.increment()}, 0};
-	synced.renderBlock(spans_.out);
+	synced.render_block(spans_.out);
 	audible_phase_ = synced.phase() << 1;
 	master_.seek(master_.phase() + (master_.increment() * static_cast<uint32_t>(n)));
 }
@@ -304,7 +304,7 @@ void WavetableCase::setup(std::size_t n) {
 }
 
 void WavetableCase::block(std::size_t /*n*/) {
-	oscillator_.renderBlock(spans_.out);
+	oscillator_.render_block(spans_.out);
 }
 
 void MonoGainCase::setup(std::size_t n) {
@@ -314,7 +314,7 @@ void MonoGainCase::setup(std::size_t n) {
 }
 
 void MonoGainCase::block(std::size_t /*n*/) {
-	mono_.renderBlock(spans_.a, spans_.out);
+	mono_.render_block(spans_.a, spans_.out);
 }
 
 void MonoVecGainCase::setup(std::size_t n) {
@@ -324,7 +324,7 @@ void MonoVecGainCase::setup(std::size_t n) {
 }
 
 void MonoVecGainCase::block(std::size_t /*n*/) {
-	mono_.renderBlock(spans_.a, spans_.out);
+	mono_.render_block(spans_.a, spans_.out);
 }
 
 void StereoGainCase::setup(std::size_t n) {
@@ -339,7 +339,7 @@ void StereoGainCase::setup(std::size_t n) {
 }
 
 void StereoGainCase::block(std::size_t /*n*/) {
-	stereo_.renderBlock(in_, out_);
+	stereo_.render_block(in_, out_);
 }
 
 void DuckEnvelopeCase::setup(std::size_t /*n*/) {
@@ -362,7 +362,7 @@ void ShiftTrackerCase::setup(std::size_t n) {
 }
 
 void ShiftTrackerCase::block(std::size_t /*n*/) {
-	mono_.renderBlock(spans_.a, spans_.out);
+	mono_.render_block(spans_.a, spans_.out);
 }
 
 template <OnePole::Mode M>
@@ -375,7 +375,7 @@ void OnePoleCase<M>::setup(std::size_t n) {
 
 template <OnePole::Mode M>
 void OnePoleCase<M>::block(std::size_t /*n*/) {
-	mono_.renderBlock(spans_.a, spans_.out);
+	mono_.render_block(spans_.a, spans_.out);
 }
 
 template class OnePoleCase<OnePole::Mode::LOW_PASS>;
@@ -389,7 +389,7 @@ void AntialiasedTanhCase::setup(std::size_t n) {
 }
 
 void AntialiasedTanhCase::block(std::size_t /*n*/) {
-	mono_.renderBlock(spans_.a, spans_.out);
+	mono_.render_block(spans_.a, spans_.out);
 }
 
 void Tanh3Case::setup(std::size_t n) {
@@ -398,7 +398,7 @@ void Tanh3Case::setup(std::size_t n) {
 }
 
 void Tanh3Case::block(std::size_t /*n*/) {
-	mono_.renderBlock(spans_.a, spans_.out);
+	mono_.render_block(spans_.a, spans_.out);
 }
 
 void DryWetBlendCase::setup(std::size_t n) {
@@ -408,7 +408,7 @@ void DryWetBlendCase::setup(std::size_t n) {
 }
 
 void DryWetBlendCase::block(std::size_t /*n*/) {
-	mono_.renderBlock(spans_.a, spans_.b, spans_.out);
+	mono_.render_block(spans_.a, spans_.b, spans_.out);
 }
 
 template <std::size_t N>
@@ -421,7 +421,7 @@ void LanesOnePoleCase<N>::setup(std::size_t n) {
 
 template <std::size_t N>
 void LanesOnePoleCase<N>::block(std::size_t /*n*/) {
-	lanes_.renderBlock(spans_.in, spans_.out);
+	lanes_.render_block(spans_.in, spans_.out);
 }
 
 template class LanesOnePoleCase<2>;
@@ -437,7 +437,7 @@ void LanesShiftTrackerCase<N>::setup(std::size_t n) {
 
 template <std::size_t N>
 void LanesShiftTrackerCase<N>::block(std::size_t /*n*/) {
-	lanes_.renderBlock(spans_.in, spans_.out);
+	lanes_.render_block(spans_.in, spans_.out);
 }
 
 template class LanesShiftTrackerCase<4>;
@@ -451,7 +451,7 @@ void StereoAntialiasedTanhCase::setup(std::size_t n) {
 }
 
 void StereoAntialiasedTanhCase::block(std::size_t /*n*/) {
-	stereo_.renderBlock(spans_.in, spans_.out);
+	stereo_.render_block(spans_.in, spans_.out);
 }
 
 void fill_delay_input() {
@@ -497,9 +497,9 @@ void Chain3PassesCase::setup(std::size_t n) {
 }
 
 void Chain3PassesCase::block(std::size_t /*n*/) {
-	tanh_.renderBlock(spans_.a, spans_.out);
-	low_pass_.renderBlock(written_, spans_.out);
-	high_pass_.renderBlock(written_, spans_.out);
+	tanh_.render_block(spans_.a, spans_.out);
+	low_pass_.render_block(written_, spans_.out);
+	high_pass_.render_block(written_, spans_.out);
 }
 
 void Chain3FusedCase::setup(std::size_t n) {
@@ -512,7 +512,7 @@ void Chain3FusedCase::setup(std::size_t n) {
 }
 
 void Chain3FusedCase::block(std::size_t /*n*/) {
-	chain_.renderBlock(spans_.a, spans_.out);
+	chain_.render_block(spans_.a, spans_.out);
 }
 
 CaseSet& case_set() {
@@ -794,10 +794,26 @@ std::span<const Case> fft_inverse_list(CaseSet& s) {
 	return fft_inverse;
 }
 
+/// @brief The mod-matrix list.
+std::span<const Case> mod_matrix_list(CaseSet& s) {
+	static const std::array mod_matrix{
+	    make_case("calibration_loop", s.calibration_loop),
+	    make_case("matrix_q31_typical", s.matrix_q31_typical),
+	    make_case("matrix_q31_all", s.matrix_q31_all),
+	    make_case("matrix_q31_initial", s.matrix_q31_initial),
+	    make_case("delay_feedback_chain_analog", s.delay_feedback_chain_analog),
+	    make_case("delay_feedback_chain_digital", s.delay_feedback_chain_digital),
+	};
+	return mod_matrix;
+}
+
 /// @brief The cases of @p L.
 template <CaseList L>
 std::span<const Case> list_cases(CaseSet& s) {
-	if constexpr (L == CaseList::FFT_FORWARD) {
+	if constexpr (L == CaseList::MOD_MATRIX) {
+		return mod_matrix_list(s);
+	}
+	else if constexpr (L == CaseList::FFT_FORWARD) {
 		return fft_forward_list(s);
 	}
 	else if constexpr (L == CaseList::FFT_INVERSE) {
@@ -875,6 +891,8 @@ std::span<const Case> cases(CaseList list) {
 		return list_cases<CaseList::FX_CHAINS>(s);
 	case CaseList::FFT_FORWARD:
 		return list_cases<CaseList::FFT_FORWARD>(s);
+	case CaseList::MOD_MATRIX:
+		return list_cases<CaseList::MOD_MATRIX>(s);
 	case CaseList::FFT_INVERSE:
 		return list_cases<CaseList::FFT_INVERSE>(s);
 	case CaseList::KERNELS:

@@ -20,6 +20,7 @@
 #include "gui/views/view.h"
 #include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
+#include "instruments/deluge/cables.h"
 #include "memory/memory_allocator_interface.h"
 #include "model/action/action_logger.h"
 #include "model/clip/clip.h"
@@ -28,6 +29,7 @@
 #include "model/edits/paste_param_automation.h"
 #include "model/edits/set_param_value.h"
 #include "model/instrument/midi_instrument.h"
+#include "model/project_bridge/param_ids.h"
 #include "model/project_bridge/param_stack.h"
 #include "model/song/song.h"
 #include "modulation/patch/patch_cable_set.h"
@@ -285,7 +287,7 @@ void AutomationEditorLayoutModControllable::renderAutomationEditorDisplay(
 	}
 	else {
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-		modelStackWithParam = getModelStackWithParamForClip(modelStack, clip);
+		modelStackWithParam = getModelStackWithParamForClip(modelStack, clip, false);
 	}
 
 	char const* isAutomated = l10n::get(l10n::String::STRING_FOR_AUTOMATION_OFF);
@@ -342,11 +344,20 @@ void AutomationEditorLayoutModControllable::getAutomationParameterName(Clip* cli
 			lastSelectedPatchSource = clip->lastSelectedPatchSource;
 		}
 		if (lastSelectedParamKind == params::Kind::PATCH_CABLE) {
+			// a range cable (onto another cable's depth) also names the source of the innermost cable, the one
+			// onto the param
 			PatchSource source2 = PatchSource::NONE;
-			ParamDescriptor paramDescriptor;
-			paramDescriptor.data = lastSelectedParamID;
-			if (!paramDescriptor.hasJustOneSource()) {
-				source2 = paramDescriptor.getTopLevelSource();
+			std::optional<deluge::project::ParamTarget> cable = deluge::bridge::targetOf(
+			    deluge::bridge::OwnerPlugin::INSTRUMENT, params::Kind::PATCH_CABLE, lastSelectedParamID);
+			if (cable) {
+				std::optional<deluge::instrument::CableRoute> route = deluge::instrument::cable_route(cable->id);
+				if (route && deluge::instrument::is_cable_depth(route->destination)) {
+					while (std::optional<deluge::instrument::CableRoute> inner =
+					           deluge::instrument::cable_route(route->destination)) {
+						route = inner;
+					}
+					source2 = route->source;
+				}
 			}
 
 			parameterName.append(sourceToStringShort(lastSelectedPatchSource));

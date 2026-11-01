@@ -28,7 +28,7 @@ ModelReader::ModelReader(const project::Song& model, project::SettingAddress add
 }
 
 std::optional<int32_t> ModelReader::read(std::string_view path) const {
-	const engine::SettingInfo* row = engine::find_setting(project::table_of(address_.group), path);
+	const plugin::SettingInfo* row = plugin::find_setting(project::table_of(address_.group), path);
 	if (row == nullptr || !resolved_) {
 		return std::nullopt;
 	}
@@ -49,13 +49,13 @@ std::optional<int32_t> ModelReader::read(std::string_view path) const {
 	if (!value) {
 		return std::nullopt;
 	}
-	const std::optional<int32_t> stored = engine::stored_value(*row, value->str());
+	const std::optional<int32_t> stored = plugin::stored_value(*row, value->str());
 	// A choice a file gave a word the row has no name for (a MIDI track's Y axis on a CC other than 1 or 74) shows as
 	// the row's default, as legacy's menus do, so it can be chosen again.
-	return stored || row->kind != engine::SettingKind::CHOICE ? stored : std::optional<int32_t>{row->default_value};
+	return stored || row->kind != plugin::SettingKind::CHOICE ? stored : std::optional<int32_t>{row->default_value};
 }
 
-engine::SettingReader ModelReader::reader() const {
+plugin::SettingReader ModelReader::reader() const {
 	return {.read = [](const void* self,
 	                   std::string_view path) { return static_cast<const ModelReader*>(self)->read(path); },
 	        .self = this};

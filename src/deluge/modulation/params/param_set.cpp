@@ -23,6 +23,7 @@
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
+#include "model/fx/song_stutter.h"
 #include "model/instrument/instrument.h"
 #include "model/instrument/melodic_instrument.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
@@ -35,6 +36,7 @@
 #include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/patch/patch_cable_set.h"
+#include "plugin-api/types/param.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "storage/flash_storage.h"
@@ -44,6 +46,28 @@
 #include <new>
 
 namespace params = deluge::modulation::params;
+
+namespace {
+deluge::plugin::MappingKind knobMapping(ParamSet& set, ModelStackWithAutoParam const* modelStack) {
+	const deluge::plugin::ParamInfo* info =
+	    modelStack != nullptr ? params::paramInfoFor(set.getParamKind(), modelStack->paramId) : nullptr;
+	return info != nullptr ? info->mapping : deluge::plugin::MappingKind::STANDARD;
+}
+} // namespace
+
+int32_t ParamSet::paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack) {
+	return deluge::plugin::to_knob(knobMapping(*this, modelStack), paramValue);
+}
+
+int32_t ParamSet::knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack) {
+	return deluge::plugin::from_knob(knobMapping(*this, modelStack), knobPos);
+}
+
+void setParamsToDefaults(ParamSet& set, params::Kind kind, std::initializer_list<int32_t> paramIds) {
+	for (int32_t p : paramIds) {
+		set.params[p].setCurrentValueBasicForSetup(*set.docForParam(p), params::paramInfoFor(kind, p)->default_value);
+	}
+}
 
 ParamSet::ParamSet(int32_t newObjectSize, ParamCollectionSummary* summary)
     : ParamCollection(newObjectSize, summary), numParams_(0), params(nullptr), topUintToRepParams(1) {
@@ -104,6 +128,13 @@ deluge::project::DocAutoParam* ParamSet::docForParam(int32_t p) {
 		domStoreRef_ = domStore_.get();
 	}
 	return &domStoreRef_->params[p];
+}
+
+deluge::project::DocAutoParam* ParamSet::findDocParamForId(int32_t paramId) {
+	if (domStoreRef_ == nullptr || paramId < 0 || static_cast<size_t>(paramId) >= domStoreRef_->params.size()) {
+		return nullptr;
+	}
+	return &domStoreRef_->params[paramId];
 }
 
 void ParamSet::stripAutomation() {
@@ -560,64 +591,19 @@ Error ExpressionParamSet::clone(ParamCollection*& result, bool copyAutomation,
 }
 
 bool UnpatchedParamSet::shouldInterpolateWithFloat(ModelStackWithParamId const* modelStack) {
-	// Global
-	if (modelStack->paramCollection->getParamKind() == deluge::modulation::params::Kind::UNPATCHED_GLOBAL) {
-		switch (modelStack->paramId) {
-		case params::UNPATCHED_TEMPO:
-			return true;
-		}
-	}
-	return false;
+	return params::hasParamFlag(getParamKind(), modelStack->paramId, deluge::plugin::ParamFlag::FLOAT_INTERPOLATION);
 }
 
 bool UnpatchedParamSet::shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack) {
-	// Shared
-	switch (modelStack->paramId) {
-	case params::UNPATCHED_STUTTER_RATE:
-		return !(((ModControllableAudio*)modelStack->modControllable)->effects().stutter.use_song_stutter
-		             ? currentSong->live.global_effectable.effects().stutter.quantized
-		             : ((ModControllableAudio*)modelStack->modControllable)->effects().stutter.quantized)
-		       || isUIModeActive(UI_MODE_STUTTERING);
-	case params::UNPATCHED_BASS:
-	case params::UNPATCHED_TREBLE:
-		return true;
+	if (modelStack->paramId == params::UNPATCHED_STUTTER_RATE) {
+		return deluge::model::stutterRateIndicatesMiddle(
+		    *static_cast<ModControllableAudio*>(modelStack->modControllable), isUIModeActive(UI_MODE_STUTTERING));
 	}
-	// Global
-	if (modelStack->paramCollection->getParamKind() == deluge::modulation::params::Kind::UNPATCHED_GLOBAL) {
-		switch (modelStack->paramId) {
-		case params::UNPATCHED_DELAY_RATE:
-		case params::UNPATCHED_DELAY_AMOUNT:
-		case params::UNPATCHED_PAN:
-		case params::UNPATCHED_PITCH_ADJUST:
-			return true;
-		}
-	}
-	return false;
-}
-int32_t UnpatchedParamSet::paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack) {
-	if (modelStack && (modelStack->paramId == params::UNPATCHED_COMPRESSOR_THRESHOLD)) {
-		return (paramValue >> 24) - 64;
-	}
-	else {
-		return ParamSet::paramValueToKnobPos(paramValue, modelStack);
-	}
-}
-
-int32_t UnpatchedParamSet::knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack) {
-	if (modelStack && (modelStack->paramId == params::UNPATCHED_COMPRESSOR_THRESHOLD)) {
-		int32_t paramValue = 2147483647;
-		if (knobPos < 64) {
-			paramValue = (knobPos + 64) << 24;
-		}
-		return paramValue;
-	}
-	else {
-		return ParamSet::knobPosToParamValue(knobPos, modelStack);
-	}
+	return params::hasParamFlag(getParamKind(), modelStack->paramId, deluge::plugin::ParamFlag::MIDDLE_DETENT);
 }
 
 bool UnpatchedParamSet::shouldRecordUnautomatedParamChange(ModelStackWithParamId const* modelStack) {
-	return (modelStack->paramId != params::UNPATCHED_TEMPO);
+	return !params::hasParamFlag(getParamKind(), modelStack->paramId, deluge::plugin::ParamFlag::NO_UNDO);
 }
 
 // PatchedParamSet --------------------------------------------------------------------------------------------
@@ -675,52 +661,16 @@ void PatchedParamSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const
 
 			((PatchCableSet*)modelStackWithParamCollection->paramCollection)
 			    ->setupPatching(
-			        modelStackWithParamCollection); // Only need to setupPatching on this one ParamManager because this
-			                                        // is the only one for which the param preset value has just changed
+			        *static_cast<Sound*>(modelStackWithParamCollection->modControllable),
+			        *modelStackWithParamCollection
+			             ->paramManager); // Only need to setupPatching on this one ParamManager because this
+			                              // is the only one for which the param preset value has just changed
 		}
-	}
-}
-
-int32_t PatchedParamSet::paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack) {
-	if (modelStack
-	    && (modelStack->paramId == params::LOCAL_OSC_A_PHASE_WIDTH
-	        || modelStack->paramId == params::LOCAL_OSC_B_PHASE_WIDTH)) {
-		return (paramValue >> 24) - 64;
-	}
-	else {
-		return ParamSet::paramValueToKnobPos(paramValue, modelStack);
-	}
-}
-
-int32_t PatchedParamSet::knobPosToParamValue(int32_t knobPos, ModelStackWithAutoParam* modelStack) {
-	if (modelStack
-	    && (modelStack->paramId == params::LOCAL_OSC_A_PHASE_WIDTH
-	        || modelStack->paramId == params::LOCAL_OSC_B_PHASE_WIDTH)) {
-		int32_t paramValue = 2147483647;
-		if (knobPos < 64) {
-			paramValue = (knobPos + 64) << 24;
-		}
-		return paramValue;
-	}
-	else {
-		return ParamSet::knobPosToParamValue(knobPos, modelStack);
 	}
 }
 
 bool PatchedParamSet::shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack) {
-	switch (modelStack->paramId) {
-	case params::LOCAL_PAN:
-	case params::LOCAL_PITCH_ADJUST:
-	case params::LOCAL_OSC_A_PITCH_ADJUST:
-	case params::LOCAL_OSC_B_PITCH_ADJUST:
-	case params::LOCAL_MODULATOR_0_PITCH_ADJUST:
-	case params::LOCAL_MODULATOR_1_PITCH_ADJUST:
-	case params::GLOBAL_DELAY_FEEDBACK:
-	case params::GLOBAL_DELAY_RATE:
-		return true;
-	default:
-		return false;
-	}
+	return params::hasParamFlag(params::Kind::PATCHED, modelStack->paramId, deluge::plugin::ParamFlag::MIDDLE_DETENT);
 }
 
 // ExpressionParamSet --------------------------------------------------------------------------------------------
@@ -768,10 +718,7 @@ int32_t ExpressionParamSet::knobPosToParamValue(int32_t knobPos, ModelStackWithA
 		return ParamSet::knobPosToParamValue(knobPos, modelStack);
 	}
 
-	if (knobPos == 64) {
-		return 2147483647;
-	}
-	return (knobPos + 64) << 24;
+	return deluge::plugin::from_knob(deluge::plugin::MappingKind::UNIPOLAR, knobPos);
 }
 
 /// mono expression only - used just for knobs in midi clips currently. If mpe expression ever gets modified to call
@@ -782,11 +729,8 @@ int32_t ExpressionParamSet::paramValueToKnobPos(int32_t paramValue, ModelStackWi
 		return ParamSet::paramValueToKnobPos(paramValue, modelStack);
 	}
 
-	int32_t knobPos = (paramValue >> 24) - 64;
-	return knobPos;
+	return deluge::plugin::to_knob(deluge::plugin::MappingKind::UNIPOLAR, paramValue);
 }
-
-char const* expressionParamNames[] = {"pitchBend", "yExpression", "pressure"};
 
 bool ExpressionParamSet::writeToFile(Serializer& writer, bool mustWriteOpeningTagEndFirst) {
 	// Serialize from the value DOM (deluge::project).

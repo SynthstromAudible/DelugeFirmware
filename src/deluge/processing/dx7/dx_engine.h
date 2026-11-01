@@ -21,12 +21,12 @@
 #include "dsp-next/fixed/dx7/graph.h"
 #include "dsp-next/fixed/dx7/tables.h"
 #include "dsp-next/fixed/dx7/voice.h"
-#include "dsp-next/fixed/noise/cong_noise.h"
+#include "dsp-next/fixed/noise/cong.h"
 #include "processing/dx7/dx_patch.h"
 #include <gsl/gsl>
 
 /// @brief The voice the pool holds: a DX7 voice drawing from the synth's shared noise stream.
-using DxPoolVoice = deluge::dsp::fixed::dx7::Voice<deluge::dsp::fixed::CongNoise>;
+using DxPoolVoice = deluge::dsp::fixed::dx7::Voice<>;
 
 class DxEngine {
 public:

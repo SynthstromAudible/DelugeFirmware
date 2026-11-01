@@ -3,10 +3,10 @@
 #
 # This file is part of The Synthstrom Audible Deluge Firmware.
 # Licensed under the GNU General Public License v3 or later; see LICENSE.
-"""The model names no engine's state: no file under src/deluge-project may name a sound record, one of the Deluge
-instrument's words, one of the runtime's param collections or its cable words. A song holds an engine slot, which the
-model stores without understanding, and addresses params (cable depths included) by their engine's id; the words belong
-to the engine (src/engines/deluge) and the runtime.
+"""The model names no plugin's state: no file under src/deluge-project may name a sound record, one of the Deluge
+instrument's words, one of the runtime's param collections or its cable words. A song holds a plugin slot, which the
+model stores without understanding, and addresses params (cable depths included) by their plugin's id; the words belong
+to the plugin (src/instruments/deluge) and the runtime.
 
 Usage:
     scripts/check_model_words.py               # check src/deluge-project, exit 1 on a match
@@ -22,8 +22,8 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 
-#: The engine's words the model must not name.
-ENGINE_WORDS = (
+#: The plugin's words the model must not name.
+PLUGIN_WORDS = (
     "DocSound",
     "DocSource",
     "DocModControllable",
@@ -34,7 +34,7 @@ ENGINE_WORDS = (
     "LFOType",
     "PolyphonyMode",
     "SampleRepeatMode",
-    # The runtime's param collections: the model addresses params by their engine's id.
+    # The runtime's param collections: the model addresses params by their plugin's id.
     "ParamKind",
     "PATCHED",
     "UNPATCHED_SOUND",
@@ -60,12 +60,12 @@ ENGINE_WORDS = (
     "FilterRoute",
     "ModFXType",
 )
-PATTERN = re.compile(r"\b(" + "|".join(ENGINE_WORDS) + r")\b")
+PATTERN = re.compile(r"\b(" + "|".join(PLUGIN_WORDS) + r")\b")
 SUFFIXES = {".h", ".hpp", ".cpp", ".c", ".cc", ".inc"}
 
 
 def matches(root: Path) -> list[str]:
-    """Every `path:line: word` under root naming one of ENGINE_WORDS."""
+    """Every `path:line: word` under root naming one of PLUGIN_WORDS."""
     found = []
     for path in sorted(root.rglob("*")):
         if path.suffix not in SUFFIXES or not path.is_file():
@@ -84,9 +84,9 @@ def main(argv=None) -> int:
     for line in found:
         print(line)
     if found:
-        print(f"FAIL: the model names an engine's state ({len(found)} place(s))")
+        print(f"FAIL: the model names a plugin's state ({len(found)} place(s))")
         return 1
-    print("OK: the model names no engine's state")
+    print("OK: the model names no plugin's state")
     return 0
 
 

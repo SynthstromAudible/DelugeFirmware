@@ -21,6 +21,7 @@
 #include "gui/menu_item/integer.h"
 #include "model/edits/setting_edit.h"
 #include "model/song/song.h"
+#include "plugin-api/types/param_mapping.h"
 #include "processing/engines/audio_engine.h"
 #include "util/cfunctions.h"
 
@@ -31,11 +32,13 @@ public:
 
 	// The song's reverb record is the truth; SetSetting projects it onto AudioEngine::reverbPan.
 	void writeCurrentValue() override {
-		deluge::edits::songSettingFor(
-		    "reverb/pan", deluge::serialization::Value::makeNumber(computeFinalValueForPan(this->getValue())));
+		deluge::edits::songSettingFor("reverb/pan", deluge::serialization::Value::makeNumber(deluge::plugin::from_menu(
+		                                                deluge::plugin::MappingKind::PAN, this->getValue())));
 	}
 
-	void readCurrentValue() override { this->setValue(computeCurrentValueForPan(currentSong->project.reverb.pan)); }
+	void readCurrentValue() override {
+		this->setValue(plugin::to_menu(plugin::MappingKind::PAN, currentSong->project.reverb.pan));
+	}
 
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuRelativeValue; }
 	[[nodiscard]] int32_t getMinValue() const override { return kMinMenuRelativeValue; }

@@ -41,7 +41,7 @@
 /// @warning **No wall clock.** `Service::tick(now_ms, dt_ms)` is the only place a clock arrives; the `set_*` entry
 ///          points backdate against the last `now_ms` the service was ticked with (`pretend_knobs_untouched()`).
 
-#include "engines/effects/state.h"
+#include "effects/state.h"
 #include "scenes/bind/knob_focus.h"
 #include "scenes/overlay/param_popup_scene.h"
 #include "scenes/services/mod_target.h"

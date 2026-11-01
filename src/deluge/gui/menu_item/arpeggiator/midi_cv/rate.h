@@ -21,18 +21,19 @@
 #include "gui/ui/sound_editor.h"
 #include "model/edits/arp_setting_for.h"
 #include "model/song/song.h"
+#include "plugin-api/types/param_mapping.h"
 
 namespace deluge::gui::menu_item::arpeggiator::midi_cv {
 class Rate final : public ArpNonSoundInteger {
 public:
 	using ArpNonSoundInteger::ArpNonSoundInteger;
 	void readCurrentValue() override {
-		this->setValue(computeCurrentValueForStandardMenuItem(soundEditor.currentArpSettings->rate));
+		this->setValue(plugin::to_menu(plugin::MappingKind::STANDARD, soundEditor.currentArpSettings->rate));
 	}
 	void writeCurrentValue() override {
-		deluge::edits::arpSettingFor(
-		    *soundEditor.currentArpSettings, "arpeggiator/rate",
-		    deluge::serialization::Value::makeNumber(computeFinalValueForStandardMenuItem(this->getValue())));
+		deluge::edits::arpSettingFor(*soundEditor.currentArpSettings, "arpeggiator/rate",
+		                             deluge::serialization::Value::makeNumber(deluge::plugin::from_menu(
+		                                 deluge::plugin::MappingKind::STANDARD, this->getValue())));
 	}
 };
 } // namespace deluge::gui::menu_item::arpeggiator::midi_cv

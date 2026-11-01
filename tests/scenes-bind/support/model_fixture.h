@@ -8,8 +8,8 @@
 #include "deluge-project/instrument_slot.h"
 #include "deluge-project/setting_group.h"
 #include "deluge-project/song.h"
-#include "engines/deluge/sound_state.h"
-#include "engines/effects/state.h"
+#include "effects/state.h"
+#include "instruments/deluge/sound_state.h"
 #include "scenes/bind/runtime_facts.h"
 
 #include <cstdint>

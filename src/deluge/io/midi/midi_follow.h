@@ -18,13 +18,16 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "deluge-project/param_address.h"
 #include "model/global_effectable/global_effectable.h"
+#include "model/project_bridge/owner_plugin.h"
 #include "modulation/params/param.h"
 #include "storage/byte_channel.h"
 #include "storage/storage_manager.h"
 #include "util/containers.h"
 #include <array>
 #include <cstdint>
+#include <optional>
 
 class AudioClip;
 class InstrumentClip;
@@ -65,8 +68,12 @@ public:
 	/// @brief `deluge::storage::bytes::AbsentFn`: no MIDIFollow.XML, so write one.
 	static void writeDefaultsAbsent(void* ctx);
 
+	/// @brief The lane, in the context of @p clip, of the param a CC follows: @p sound for a sound (a synth, a kit
+	/// row),
+	/// @p global for a global effectable (a kit's affect-entire, an audio clip).
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-	                                                Clip* clip, int32_t soundParamId, int32_t globalParamId,
+	                                                Clip* clip, std::optional<deluge::project::ParamTarget> sound,
+	                                                std::optional<deluge::project::ParamTarget> global,
 	                                                bool displayError = true);
 	void noteMessageReceived(MIDICable& cable, bool on, int32_t channel, int32_t note, int32_t velocity,
 	                         bool* doingMidiThru, bool shouldRecordNotesNowNow, ModelStack* modelStack);
@@ -88,11 +95,16 @@ public:
 	void removeClip(Clip* clip);
 
 	// midi CC mappings
-	int32_t getCCFromParam(deluge::modulation::params::Kind paramKind, int32_t paramID);
+	/// @brief The CC that follows @p target for an owner of @p owner's plugin, or nullopt.
+	[[nodiscard]] std::optional<uint8_t> ccOf(deluge::bridge::OwnerPlugin owner,
+	                                          deluge::project::ParamTarget target) const;
 	bool isGlobalEffectableContext();
 
-	std::array<uint8_t, kMaxMIDIValue + 1> ccToSoundParam{};
-	std::array<uint8_t, kMaxMIDIValue + 1> ccToGlobalParam{};
+	/// The param each CC follows in a sound (the instrument's ids) and in a global effectable (its table's ids).
+	std::array<std::optional<deluge::project::ParamTarget>, kMaxMIDIValue + 1> ccToSoundTarget{};
+	std::array<std::optional<deluge::project::ParamTarget>, kMaxMIDIValue + 1> ccToGlobalTarget{};
+	/// The CC that follows each param, as the defaults or the file last assigned it (MIDI_CC_NONE for none): a sound's
+	/// indexed by the instrument's id, a global effectable's by its runtime index.
 	std::array<uint8_t, params::UNPATCHED_START + params::UNPATCHED_SOUND_MAX_NUM> soundParamToCC{};
 	std::array<uint8_t, params::UNPATCHED_GLOBAL_MAX_NUM> globalParamToCC{};
 
@@ -115,6 +127,10 @@ private:
 	void initState();
 	void clearMappings();
 	void initDefaultMappings();
+	/// Make @p cc follow the sound param @p target, both ways.
+	void mapSound(int32_t cc, deluge::project::ParamTarget target);
+	/// Make @p cc follow the global-effectable param @p target, both ways.
+	void mapGlobal(int32_t cc, deluge::project::ParamTarget target);
 
 	// note recieved
 	Output* noteMessageReceivedForSelectedOrActiveClip(MIDICable& cable, bool on, int32_t channel, int32_t note,
@@ -151,20 +167,19 @@ private:
 	Output* getTrackFromIndex(uint32_t trackIndex, uint32_t maxTrack);
 
 	// get model stack with auto param for midi follow cc-param control
-	ModelStackWithAutoParam* getModelStackWithParamForSong(ModelStackWithThreeMainThings* modelStackWithThreeMainThings,
-	                                                       int32_t soundParamId, int32_t globalParamId);
+	using Target = std::optional<deluge::project::ParamTarget>;
 	ModelStackWithAutoParam* getModelStackWithParamForClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
-	                                                       Clip* clip, int32_t soundParamId, int32_t globalParamId);
+	                                                       Clip* clip, Target sound, Target global);
 	ModelStackWithAutoParam*
 	getModelStackWithParamForSynthClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Clip* clip,
-	                                   int32_t soundParamId, int32_t globalParamId);
+	                                   Target sound);
 	ModelStackWithAutoParam*
 	getModelStackWithParamForKitClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Clip* clip,
-	                                 int32_t soundParamId, int32_t globalParamId);
+	                                 Target sound, Target global);
 	ModelStackWithAutoParam*
 	getModelStackWithParamForAudioClip(ModelStackWithTimelineCounter* modelStackWithTimelineCounter, Clip* clip,
-	                                   int32_t soundParamId, int32_t globalParamId);
-	void displayParamControlError(int32_t soundParamId, int32_t globalParamId);
+	                                   Target global);
+	void displayParamControlError(Target sound, Target global);
 
 	MIDIMatchType checkMidiFollowMatch(MIDICable& cable, uint8_t channel);
 	MIDIMatchType checkMidiFollowMatchForSpecificTrack(MIDICable& cable, uint8_t channel, int32_t specific_track_index);

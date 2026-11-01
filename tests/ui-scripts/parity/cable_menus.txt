@@ -1,0 +1,120 @@
+# Patch-cable menus: MODULATE WITH (source selection), the cable strength menu, MODULATE DEPTH (range source
+# selection) and the range strength menu, from OSC1 level on the boot synth clip, every source in each list.
+down SHIFT
+pad 2 0
+up SHIFT
+press SELECT_ENC
+snapshot sources_0
+turn SELECT 1
+snapshot sources_1
+turn SELECT 1
+snapshot sources_2
+turn SELECT 1
+snapshot sources_3
+turn SELECT 1
+snapshot sources_4
+turn SELECT 1
+snapshot sources_5
+turn SELECT 1
+snapshot sources_6
+turn SELECT 1
+snapshot sources_7
+turn SELECT 1
+snapshot sources_8
+turn SELECT 1
+snapshot sources_9
+turn SELECT 1
+snapshot sources_10
+turn SELECT 1
+snapshot sources_11
+turn SELECT 1
+snapshot sources_12
+turn SELECT 1
+snapshot sources_13
+turn SELECT 1
+snapshot sources_14
+turn SELECT 1
+snapshot sources_15
+turn SELECT 1
+snapshot sources_16
+turn SELECT 1
+snapshot sources_17
+turn SELECT 1
+snapshot sources_18
+turn SELECT 1
+snapshot sources_19
+turn SELECT -16
+snapshot sources_back
+press SELECT_ENC
+snapshot strength
+turn SELECT 1
+snapshot strength_0
+turn SELECT 1
+snapshot strength_1
+turn SELECT 1
+snapshot strength_2
+turn SELECT 1
+snapshot strength_3
+turn SELECT 1
+snapshot strength_4
+turn SELECT 1
+snapshot strength_5
+press SELECT_ENC
+snapshot depth_sources_0
+turn SELECT 1
+snapshot depth_sources_1
+turn SELECT 1
+snapshot depth_sources_2
+turn SELECT 1
+snapshot depth_sources_3
+turn SELECT 1
+snapshot depth_sources_4
+turn SELECT 1
+snapshot depth_sources_5
+turn SELECT 1
+snapshot depth_sources_6
+turn SELECT 1
+snapshot depth_sources_7
+turn SELECT 1
+snapshot depth_sources_8
+turn SELECT 1
+snapshot depth_sources_9
+turn SELECT 1
+snapshot depth_sources_10
+turn SELECT 1
+snapshot depth_sources_11
+turn SELECT 1
+snapshot depth_sources_12
+turn SELECT 1
+snapshot depth_sources_13
+turn SELECT 1
+snapshot depth_sources_14
+turn SELECT 1
+snapshot depth_sources_15
+turn SELECT 1
+snapshot depth_sources_16
+turn SELECT 1
+snapshot depth_sources_17
+turn SELECT 1
+snapshot depth_sources_18
+turn SELECT 1
+snapshot depth_sources_19
+turn SELECT -17
+press SELECT_ENC
+snapshot range
+turn SELECT 1
+snapshot range_0
+turn SELECT 1
+snapshot range_1
+turn SELECT 1
+snapshot range_2
+turn SELECT 1
+snapshot range_3
+press BACK
+snapshot back_1
+press BACK
+snapshot back_2
+press BACK
+snapshot back_3
+press BACK
+snapshot back_4

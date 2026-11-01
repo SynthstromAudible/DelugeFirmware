@@ -22,9 +22,9 @@ namespace deluge::gui::menu_item::patch_cable_strength {
 class Range final : public PatchCableStrength {
 public:
 	using PatchCableStrength::PatchCableStrength;
-	ParamDescriptor getDestinationDescriptor() override;
+	deluge::synth::CableTarget getDestinationDescriptor() override;
 	PatchSource getS() override;
-	ParamDescriptor getLearningThing() override;
+	deluge::modulation::KnobTarget getLearningThing() override;
 	uint8_t shouldBlinkPatchingSourceShortcut(PatchSource s, uint8_t* colour) override;
 	MenuItem* patchingSourceShortcutPress(PatchSource s, bool previousPressStillActive) override;
 	[[nodiscard]] PatchingSourceShortcutTarget

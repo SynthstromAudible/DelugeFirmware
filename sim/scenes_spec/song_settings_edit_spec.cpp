@@ -5,7 +5,7 @@
 #include "deluge-project/setting_group.h"
 #include "deluge-project/song_codec.h"
 #include "deluge-project/structure_codec.h"
-#include "engines/effects/reverb.h"
+#include "effects/reverb.h"
 #include "extern.h"
 #include "gui/menu_item/arpeggiator/mode.h"
 #include "gui/ui/menu_view_of.h"
@@ -253,7 +253,7 @@ describe song_settings_edit("SetSetting", $ {
 				continue; // a range needs a sample: marker_scene_spec moves the markers
 			}
 			// Away from the default, so a write the engine never sees shows.
-			const int32_t v = row.kind == deluge::engine::SettingKind::BOOL ? 1 - row.default_value
+			const int32_t v = row.kind == deluge::plugin::SettingKind::BOOL ? 1 - row.default_value
 			                  : row.default_value == row.max                  ? row.min
 			                                                                  : row.max;
 			deluge::edits::audioClipSettingFor(*f.clip, row.path, Value::makeNumber(v));

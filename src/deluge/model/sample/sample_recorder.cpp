@@ -1948,7 +1948,7 @@ doFinishCapturing:
 			else {
 				for (auto [rxL, rxR] : input.first(numSamplesThisCycle)) {
 					if (applyGain) {
-						rxL = lshiftAndSaturateUnknown(rxL, gainToApply);
+						rxL = lshift_and_saturate_unknown(rxL, gainToApply);
 					}
 
 					// Copy the last 24 bits (lower 3 bytes) to writePosNow
@@ -1973,7 +1973,7 @@ doFinishCapturing:
 					// recording stereo
 					if (recordingNumChannels == 2) {
 						if (applyGain) {
-							rxR = lshiftAndSaturateUnknown(rxR, gainToApply);
+							rxR = lshift_and_saturate_unknown(rxR, gainToApply);
 						}
 
 						// Copy the last 24 bits (lower 3 bytes) to writePosNow
@@ -2016,7 +2016,7 @@ doFinishCapturing:
 			// check if there's any audio in this cycle
 			if (thresholdRecording) [[unlikely]] {
 				size_t samples_to_copy = minThresholdMargin;
-				StereoFloatSample approxRMSLevel = envelopeFollower.calcApproxRMS(input);
+				const deluge::dsp::fp::StereoLevel approxRMSLevel = envelopeFollower.measure(input);
 				if (std::max(approxRMSLevel.l, approxRMSLevel.r) > startValueThreshold) {
 					thresholdRecording = false;
 					samples_to_copy += numSamplesThisCycle;

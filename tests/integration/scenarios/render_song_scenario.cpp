@@ -18,8 +18,8 @@
 #include "scenarios/render_song_scenario.h"
 
 #include "definitions_cxx.hpp"
-#include "engines/effects/reverb.h"
-#include "engines/effects/words.h"
+#include "effects/reverb.h"
+#include "effects/words.h"
 #include "gui/ui/browser/browser.h"
 #include "gui/ui/load/load_song_ui.h"
 #include "gui/ui/ui.h"
@@ -47,6 +47,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -448,6 +449,26 @@ void switchReverb(uint64_t block, const ReverbSwitch& switched) {
 	       static_cast<double>(switched.value), model);
 }
 
+/// RENDER_METRONOME: `<block>`; unset by default. At that block, counted from playback's start, the metronome is
+/// toggled as its button does (PlaybackHandler::toggleMetronomeStatus), which, from a song that starts with it off,
+/// switches it on.
+std::optional<uint64_t> g_metronomeAt;
+bool g_metronomeDone = false;
+
+void readMetronome() {
+	g_metronomeAt.reset();
+	g_metronomeDone = false;
+	const char* at = std::getenv("RENDER_METRONOME");
+	if (at == nullptr || *at == '\0') {
+		return;
+	}
+	char* end = nullptr;
+	const uint64_t block = std::strtoull(at, &end, 10);
+	if (end != nullptr && *end == '\0') {
+		g_metronomeAt = block;
+	}
+}
+
 /// RENDER_MODFX_CLEAR: `<block>[:<owner>],...`, ascending; empty by default. At each block, counted from playback's
 /// start, the mod FX memory of every audio track (or of the owner named, see forEachModFxOwner) is cleared by
 /// ModControllableAudio::clearModFXMemory, which a sound's cut tail calls: for a comb type the mod FX component's
@@ -674,6 +695,12 @@ void stepPlaying() {
 		switchReverb(g_blocksRendered, g_reverbSwitchAt[g_reverbSwitchesDone]);
 		g_reverbSwitchesDone++;
 	}
+	if (g_metronomeAt && !g_metronomeDone && g_blocksRendered >= *g_metronomeAt) {
+		playbackHandler.toggleMetronomeStatus();
+		g_metronomeDone = true;
+		printf("RS-METRONOME block=%llu on=%d\n", static_cast<unsigned long long>(g_blocksRendered),
+		       playbackHandler.metronomeOn ? 1 : 0);
+	}
 	const bool burst = g_model.burstBlocks != 0 && g_blocksRendered >= g_model.burstStart
 	                   && g_blocksRendered < g_model.burstStart + g_model.burstBlocks;
 	if (burst != g_inBurst) {
@@ -770,6 +797,12 @@ void report() {
 			fail("RS-REVERB-SWITCH", "a reverb switch asked for was not applied");
 		}
 	}
+	if (g_metronomeAt) {
+		printf("RS-METRONOME applied=%d on=%d\n", g_metronomeDone ? 1 : 0, playbackHandler.metronomeOn ? 1 : 0);
+		if (!g_metronomeDone || !playbackHandler.metronomeOn) {
+			fail("RS-METRONOME", "the metronome was not switched on");
+		}
+	}
 	printf("RS-DELAY-OFF silenced=%u\n", deluge::effects::delay_off_silenced_blocks());
 	printf("RS-DELAY-ARENA shortfalls=%u regions=%zu jobs=%u\n", deluge::model::delayArena().shortfalls(),
 	       deluge::model::delayArena().regions(), deluge::model::delayArenaMaintenanceRuns());
@@ -820,6 +853,7 @@ void deluge_scenario_render_song_begin(void) {
 	g_modFxSwitchedRing = 0;
 	g_modFxSwitchedNoRing = 0;
 	g_modFxSwitchedGrain = 0;
+	readMetronome();
 	readReverbSwitches();
 	g_reverbSwitchesDone = 0;
 	g_reverbSwitched = 0;

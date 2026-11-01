@@ -26,7 +26,7 @@
 
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/fixed/delay/delay_tape.h"
-#include "engines/effects/state.h"
+#include "effects/state.h"
 
 #include <array>
 #include <climits>

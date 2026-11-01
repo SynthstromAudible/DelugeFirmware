@@ -29,7 +29,7 @@ class WaveTable;
 class SampleHolder;
 class DxPatch;
 
-#include "engines/deluge/sound_state.h"
+#include "instruments/deluge/sound_state.h"
 
 class Source {
 public:

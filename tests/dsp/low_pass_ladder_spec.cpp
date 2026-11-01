@@ -17,7 +17,7 @@
 
 // LowPassLadder: the transistor-ladder low-pass as a processor kernel, `Mono` and `Stereo`, with its noise a policy.
 // Against the reference (reference_filters.h) over every ladder workload (filter_workloads.h): each block's
-// output, the gain, the CONG draws (count and end state per block) and the whole state, at block lengths cycling 1–9,
+// output, the gain, the noise draws (count and end state per block) and the whole state, at block lengths cycling 1–9,
 // 24, 64 and 128, and what it renders must equal the record. Every mode change between the four modes carries the
 // state, and a seeded stream shows the draws are left before right in every frame.
 
@@ -27,14 +27,14 @@
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/mono.h"
 #include "dsp-next/core/stereo.h"
-#include "dsp-next/fixed/noise/cong_noise.h"
+#include "dsp-next/fixed/noise/cong.h"
 #include "dsp-next/fixed/noise/congruential_step.h"
 #include "dsp-next/fixed/noise/noise.h"
 #include "filter_workload_records.h"
 #include "filter_workloads.h"
 #include "kernel_filters.h"
 #include "reference_filters.h"
-#include "util/waves.h" // jcong, CONG
+#include "util/synth_noise.h"
 
 #include <algorithm>
 #include <array>
@@ -78,13 +78,14 @@ using deluge::dsp::Stereo;
 using deluge::dsp::StereoSample;
 using filter_workloads::WorkloadId;
 using filters_reference::ReferenceLowPassLadder;
-using Ladder = LowPassLadder<CongNoise>;
+using Ladder = LowPassLadder<>;
 
 static_assert(deluge::dsp::processor_kernel<Ladder>);
 static_assert(deluge::dsp::moded_kernel<Ladder>);
 static_assert(!std::is_polymorphic_v<Ladder>);
-static_assert(deluge::dsp::processor<Mono<Ladder>>);
-static_assert(deluge::dsp::processor<Stereo<Ladder>>);
+// The ladder draws noise, so its wrappers render only with a stream passed in: neither is a stream-free processor.
+static_assert(deluge::dsp::has_context<Ladder>);
+static_assert(!deluge::dsp::processor<Mono<Ladder>> && !deluge::dsp::processor<Stereo<Ladder>>);
 
 /// Every ladder workload: each mode steady, drive oversampling and not, the mode walk, the oversampling toggle and the
 /// fade, mono and stereo.
@@ -130,11 +131,11 @@ const std::array<Setting, 4> kSettings{{
 /// The cutoffs the coefficient checks sweep: dark to bright, with the drive ladder's oversampling range (a log cutoff
 /// past 51 on quick_log's scale, two units per octave from 2^24 at 52) stepped through every entry of its threshold
 /// and limit tables from 52 to 56 and the interior of every segment between them (21e6 at 52.6, 30e6 at 53.6, 40e6
-/// and 50e6 at 54.4 and 55.0, 55e6 at 55.4), then up to ONE_Q31.
+/// and 50e6 at 54.4 and 55.0, 55e6 at 55.4), then up to kOneQ31.
 constexpr std::array<q31, 15> kSweepFrequencies{
     q31{1 << 20},   q31{1 << 22},  q31{1 << 24},   q31{21000000}, q31{30000000},
     q31{1 << 25},   q31{40000000}, q31{50000000},  q31{55000000}, q31{1 << 26},
-    q31{100000000}, q31{1 << 27},  q31{200000000}, q31{1 << 28},  q31{ONE_Q31},
+    q31{100000000}, q31{1 << 27},  q31{200000000}, q31{1 << 28},  q31{kOneQ31},
 };
 
 /// @return The resonances (Q29) just either side of where the reference's drive ladder starts oversampling at
@@ -205,18 +206,8 @@ uint32_t draws_between(uint32_t from, uint32_t to, uint32_t limit) {
 }
 
 ChannelWords words(const Ladder::State& s) {
-	return words<CongNoise>(s);
+	return words<deluge::dsp::fixed::Cong>(s);
 }
-
-/// The stream the seeded policy draws from.
-SeededNoise seeded_stream{filter_workloads::kCongSeed};
-
-/// A noise policy drawing from @ref seeded_stream.
-struct SeededPolicy {
-	[[gnu::always_inline]] static q31 render() { return seeded_stream.render(); }
-};
-
-using SeededLadder = LowPassLadder<SeededPolicy>;
 
 /// The kernel's settings for @p setting at the test gain.
 Ladder::Settings settings_for(const Setting& setting) {
@@ -236,12 +227,12 @@ std::vector<StereoSample> input_frames() {
 
 // clang-format off
 describe low_pass_ladder("LowPassLadder", ${
-	it("renders every ladder workload as the reference does, mono and stereo: each block's output, gain and CONG "
+	it("renders every ladder workload as the reference does, mono and stereo: each block's output, gain and noise "
 	   "draws, and the whole state", _ {
 		expect(partings(kLadderWorkloads)).to_equal(std::vector<std::string>{});
 	});
 
-	it("renders every ladder workload as recorded, the CONG draws per block included", _ {
+	it("renders every ladder workload as recorded, the noise draws per block included", _ {
 		for (const WorkloadId id : kLadderWorkloads) {
 			const filter_workloads::FilterWorkload& workload = filter_workloads::filter_workload(id);
 			expect(kernel_filters::record(workload)).to_equal(filter_workloads::kRecorded.at(static_cast<size_t>(id)));
@@ -296,7 +287,7 @@ describe low_pass_ladder("LowPassLadder", ${
 		expect(thresholds).to_be_greater_than(6u);
 	});
 
-	it("draws one CONG value per channel per sample, two when the drive ladder oversamples, and renders as the "
+	it("draws one noise value per channel per sample, two when the drive ladder oversamples, and renders as the "
 	   "reference does", _ {
 		// The drive settings at the rate and oversampled, as the reference chooses them.
 		ReferenceLowPassLadder at_rate;
@@ -323,28 +314,28 @@ describe low_pass_ladder("LowPassLadder", ${
 				std::vector<q31> expected = kInput;
 				filter_workloads::reset_cong();
 				if (stereo) {
-					reference.renderStereo(expected, scratch);
+					reference.render_stereo(expected, scratch);
 				}
 				else {
-					reference.renderMono(expected, scratch);
+					reference.render_mono(expected, scratch);
 				}
-				const uint32_t reference_end = jcong;
+				const uint32_t reference_end = deluge::synth_noise.state();
 
 				std::vector<q31> out = kInput;
 				filter_workloads::reset_cong();
 				if (stereo) {
 					Stereo<Ladder> ladder{settings_for(setting)};
 					const auto frames = deluge::dsp::as_frames(out);
-					ladder.renderBlock(frames, frames);
+					ladder.render_block(frames, frames, deluge::synth_noise);
 				}
 				else {
 					Mono<Ladder> ladder{settings_for(setting)};
-					ladder.renderBlock(out, out);
+					ladder.render_block(out, out, deluge::synth_noise);
 				}
 				const uint32_t limit = 4 * static_cast<uint32_t>(kInput.size());
-				expect(draws_between(filter_workloads::kCongSeed, jcong, limit))
+				expect(draws_between(filter_workloads::kCongSeed, deluge::synth_noise.state(), limit))
 				    .to_equal(per_sample * static_cast<uint32_t>(kInput.size()));
-				expect(jcong).to_equal(reference_end);
+				expect(deluge::synth_noise.state()).to_equal(reference_end);
 				expect(out).to_equal(expected);
 			}
 		}
@@ -382,25 +373,25 @@ describe low_pass_ladder("LowPassLadder", ${
 					std::vector<q31> want = *input;
 					filter_workloads::reset_cong();
 					if (stereo) {
-						reference.renderStereo(want, scratch);
+						reference.render_stereo(want, scratch);
 					}
 					else {
-						reference.renderMono(want, scratch);
+						reference.render_mono(want, scratch);
 					}
-					const uint32_t reference_end = jcong;
+					const uint32_t reference_end = deluge::synth_noise.state();
 
 					std::vector<q31> out = *input;
 					filter_workloads::reset_cong();
 					if (stereo) {
 						Stereo<Ladder> ladder{settings};
 						const auto frames = deluge::dsp::as_frames(out);
-						ladder.renderBlock(frames, frames);
+						ladder.render_block(frames, frames, deluge::synth_noise);
 					}
 					else {
 						Mono<Ladder> ladder{settings};
-						ladder.renderBlock(out, out);
+						ladder.render_block(out, out, deluge::synth_noise);
 					}
-					expect(jcong).to_equal(reference_end);
+					expect(deluge::synth_noise.state()).to_equal(reference_end);
 					expect(out).to_equal(want);
 				}
 			}
@@ -414,36 +405,34 @@ describe low_pass_ladder("LowPassLadder", ${
 	it("draws for the left channel before the right in every frame, in every mode (a seeded stream)", _ {
 		const std::vector<StereoSample> input = input_frames();
 		for (const Setting& setting : kSettings) {
-			const SeededLadder::Settings settings{.gain = kGain, .config = setting.config, .mode = setting.mode};
+			const Ladder::Settings settings{.gain = kGain, .config = setting.config, .mode = setting.mode};
 			const uint32_t per_sample =
-			    SeededLadder::ladder_of(SeededLadder::coefficients(settings).mode) == SeededLadder::Ladder::DRIVE_OVERSAMPLED
-			        ? 2
-			        : 1;
+			    Ladder::ladder_of(Ladder::coefficients(settings).mode) == Ladder::Ladder::DRIVE_OVERSAMPLED ? 2 : 1;
 
-			seeded_stream = SeededNoise{filter_workloads::kCongSeed};
-			Stereo<SeededLadder> stereo{settings};
+			deluge::dsp::fixed::Cong stereo_stream{filter_workloads::kCongSeed};
+			Stereo<Ladder> stereo{settings};
 			std::vector<StereoSample> out(input.size());
-			stereo.renderBlock(input, out);
-			const uint32_t stereo_end = seeded_stream.state();
+			stereo.render_block(input, out, stereo_stream);
+			const uint32_t stereo_end = stereo_stream.state();
 
 			// The same draws, made by two mono ladders stepped a frame at a time: the left channel's, then the right's.
-			seeded_stream = SeededNoise{filter_workloads::kCongSeed};
-			Mono<SeededLadder> left{settings};
-			Mono<SeededLadder> right{settings};
+			deluge::dsp::fixed::Cong mono_stream{filter_workloads::kCongSeed};
+			Mono<Ladder> left{settings};
+			Mono<Ladder> right{settings};
 			std::vector<StereoSample> expected(input.size());
 			for (std::size_t i = 0; i < input.size(); ++i) {
-				expected[i].l = left.render(input[i].l);
-				expected[i].r = right.render(input[i].r);
+				expected[i].l = left.render(input[i].l, mono_stream);
+				expected[i].r = right.render(input[i].r, mono_stream);
 			}
-			expect(stereo_end).to_equal(seeded_stream.state());
+			expect(stereo_end).to_equal(mono_stream.state());
 			expect(draws_between(filter_workloads::kCongSeed, stereo_end, 4 * static_cast<uint32_t>(kInput.size())))
 			    .to_equal(per_sample * static_cast<uint32_t>(kInput.size()));
 			for (std::size_t i = 0; i < input.size(); ++i) {
 				expect(out[i].l).to_equal(expected[i].l);
 				expect(out[i].r).to_equal(expected[i].r);
 			}
-			expect(words<SeededPolicy>(stereo.left())).to_equal(words<SeededPolicy>(left.state()));
-			expect(words<SeededPolicy>(stereo.right())).to_equal(words<SeededPolicy>(right.state()));
+			expect(words(stereo.left())).to_equal(words(left.state()));
+			expect(words(stereo.right())).to_equal(words(right.state()));
 		}
 	});
 
@@ -459,10 +448,10 @@ describe low_pass_ladder("LowPassLadder", ${
 				uint32_t kernel_cong = filter_workloads::kCongSeed;
 				for (const Setting& setting : {from, to, from}) {
 					std::vector<q31> expected = kInput;
-					jcong = reference_cong;
+					deluge::synth_noise.seed(reference_cong);
 					std::ignore = reference.configure(kGain, setting.config, setting.mode);
-					reference.renderStereo(expected, scratch);
-					reference_cong = jcong;
+					reference.render_stereo(expected, scratch);
+					reference_cong = deluge::synth_noise.state();
 
 					const Ladder::State left = ladder.left();
 					const Ladder::State right = ladder.right();
@@ -471,10 +460,10 @@ describe low_pass_ladder("LowPassLadder", ${
 					expect(words(ladder.right())).to_equal(words(right));
 
 					std::vector<q31> out = kInput;
-					jcong = kernel_cong;
+					deluge::synth_noise.seed(kernel_cong);
 					const auto frames = deluge::dsp::as_frames(out);
-					ladder.renderBlock(frames, frames);
-					kernel_cong = jcong;
+					ladder.render_block(frames, frames, deluge::synth_noise);
+					kernel_cong = deluge::synth_noise.state();
 
 					expect(out).to_equal(expected);
 					expect(kernel_cong).to_equal(reference_cong);
@@ -493,13 +482,13 @@ describe low_pass_ladder("LowPassLadder", ${
 		std::ignore = reference.configure(kGain, kMid, LowPassLadderMode::TRANSISTOR_24DB);
 		std::vector<q31> expected = kInput;
 		filter_workloads::reset_cong();
-		reference.renderMono(expected, scratch);
+		reference.render_mono(expected, scratch);
 		reference.reset(false);
 
 		Mono<Ladder> ladder{Ladder::Settings{.gain = kGain, .config = kMid, .mode = LowPassLadderMode::TRANSISTOR_24DB}};
 		std::vector<q31> out = kInput;
 		filter_workloads::reset_cong();
-		ladder.renderBlock(out, out);
+		ladder.render_block(out, out, deluge::synth_noise);
 		ladder.reset();
 
 		expect(ladder.state().noise.y).not_().to_equal(0);

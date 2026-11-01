@@ -17,23 +17,23 @@
 #pragma once
 
 #include "dsp-next/fixed/interpolation/table_interpolation.h"
-#include "util/lookuptables/lookuptables.h" // sineWaveSmall (stays app-side; dsp-next may read util/)
+#include "dsp-next/fixed/tables/sine_small.h"
 #include <cstdint>
 
 namespace deluge::dsp::fixed {
 
 /// @file
-/// @brief The control-rate sine evaluator: a sine value sampled from the `sineWaveSmall` LUT at an arbitrary
+/// @brief The control-rate sine evaluator: a sine value sampled from the `tables::kSineSmall` LUT at an arbitrary
 /// phase. Used wherever the synth needs "sine at this phase" rather than a free-running oscillator — the LFO's
 /// sine waveform, the envelope's sine-shaped fast-release, the oscillator-sync seam crossfade, and GUI easing.
 ///
 /// This is **not** the vector @ref sine (dsp-next/fixed/osc/sine.h): that one is the SIMD FM-synthesis sine over
 /// a different (interleaved-diff) table. They are deliberately two evaluators with different call shapes; the
-/// `SineTable` / `sine_table` naming keeps them unambiguous. Reconciling the two is a behaviour-changing job left
+/// `SineTable` / `kSineTable` naming keeps them unambiguous. Reconciling the two is a behaviour-changing job left
 /// to the re-baselined audible pass.
 
-/// @brief A sine wave read from the shared `sineWaveSmall` LUT with linear interpolation. Stateless, mirroring
-/// @ref windowed_sinc_kernel / @ref linear_table_interpolator: one shared instance, owns no phase.
+/// @brief A sine wave read from the shared `tables::kSineSmall` LUT with linear interpolation. Stateless, mirroring
+/// @ref kWindowedSincKernel / @ref kLinearTableInterpolator: one shared instance, owns no phase.
 class SineTable {
 public:
 	/// @brief Sine of @p phase.
@@ -42,11 +42,12 @@ public:
 	/// @param phase_fractional_bits Bit-width of @p phase.
 	/// @return The sine sample as q31 (the LUT is full-scale signed, blended at Q16 then summed to q31).
 	[[nodiscard, gnu::always_inline]] int32_t value(uint32_t phase, uint8_t phase_fractional_bits = 32) const {
-		return linear_table_interpolator.interpolateSigned(phase, phase_fractional_bits, sineWaveSmall, 8);
+		return kLinearTableInterpolator.interpolate_signed(phase, phase_fractional_bits,
+		                                                   deluge::dsp::fixed::tables::kSineSmall.data(), 8);
 	}
 };
 
-/// The shared stateless instance (matches @ref linear_table_interpolator).
-inline constexpr SineTable sine_table{};
+/// The shared stateless instance (matches @ref kLinearTableInterpolator).
+inline constexpr SineTable kSineTable{};
 
 } // namespace deluge::dsp::fixed

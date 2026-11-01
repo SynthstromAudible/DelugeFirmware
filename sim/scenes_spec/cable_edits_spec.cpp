@@ -39,10 +39,8 @@ namespace params = deluge::modulation::params;
 
 namespace {
 
-ParamDescriptor just(int32_t param) {
-	ParamDescriptor descriptor;
-	descriptor.setToHaveParamOnly(param);
-	return descriptor;
+deluge::synth::CableTarget just(int32_t param) {
+	return deluge::synth::CableTarget::param(static_cast<uint8_t>(param));
 }
 
 /// The address of @p f's synth's cable from @p source to @p destination.
@@ -60,23 +58,32 @@ PatchCableSet& cables_of(const spec::SongFixture& f) {
 /// The engine's cable from @p source to @p destination on @p f's synth, or null.
 PatchCable* engine_cable(const spec::SongFixture& f, PatchSource source, int32_t destination) {
 	PatchCableSet& set = cables_of(f);
-	const uint8_t index = set.getPatchCableIndex(source, just(destination), nullptr, false);
+	const uint8_t index = set.getPatchCableIndex(source, just(destination));
 	return index == 255 ? nullptr : &set.patchCables[index];
 }
 
-/// The record's cable at @p address, or null.
-const deluge::project::DocCable* recorded(const spec::SongFixture& f, const ParamAddress& address) {
-	const deluge::project::DocParamManager* manager =
-	    f.song->project.backed_params.find(address.owner, address.clip_id);
-	if (manager == nullptr) {
-		return nullptr;
+/// What the clip's cable records hold for the cable from @p source to @p destination: its polarity, and its depth's
+/// lane value.
+struct Recorded {
+	Polarity polarity;
+	int32_t amount;
+};
+
+/// The records' cable from @p source to @p destination on @p f's synth, or nullopt.
+std::optional<Recorded> recorded(const spec::SongFixture& f, PatchSource source, int32_t destination) {
+	PatchCableSet& set = cables_of(f);
+	const std::optional<size_t> index = set.records().find(source, just(destination));
+	if (!index) {
+		return std::nullopt;
 	}
-	for (const deluge::project::DocCable& entry : manager->cables) {
-		if (entry.depth == address.id) {
-			return &entry;
+	const deluge::plugin::ParamId depth = deluge::bridge::cable_depth(source, just(destination));
+	int32_t amount = 0;
+	for (const deluge::project::DocCableDepth& entry : set.depthStore()) {
+		if (entry.depth == depth) {
+			amount = entry.amount.current_value;
 		}
 	}
-	return nullptr;
+	return Recorded{static_cast<Polarity>(set.records()[*index].polarity), amount};
 }
 
 Error apply(const spec::SongFixture& f, deluge::edits::Edit& edit) {
@@ -101,10 +108,8 @@ describe cable_edits("a patch cable set by its address", ${
 		expect(apply(f, edit)).to_equal(Error::NONE);
 		PatchCable* made = engine_cable(f, source, params::LOCAL_LPF_RESONANCE);
 		expect(made != nullptr && made->polarity == asked && made->param.getCurrentValue() == 0x12345678).to_be_true();
-		const deluge::project::DocCable* entry = recorded(f, address);
-		expect(entry != nullptr && deluge::bridge::polarity_of(*entry) == asked
-		       && entry->amount.current_value == 0x12345678)
-		    .to_be_true();
+		const std::optional<Recorded> entry = recorded(f, source, params::LOCAL_LPF_RESONANCE);
+		expect(entry && entry->polarity == asked && entry->amount == 0x12345678).to_be_true();
 	});
 
 	it("sets an existing cable's strength without touching its polarity", _ {
@@ -154,7 +159,7 @@ describe cable_edits("a patch cable set by its address", ${
 		nullifyUIs();
 	});
 
-	it("flips an existing cable's polarity in the engine and the record, and logs no undo step", _ {
+	it("flips an existing cable's polarity in the engine and the record, as an undo step", _ {
 		spec::SongFixture f = spec::make_synth_song();
 		const ParamAddress address = cable(f, PatchSource::LFO_GLOBAL_1, params::LOCAL_PITCH_ADJUST);
 		deluge::edits::SetPatchCable made{address, 0x01000000, Polarity::BIPOLAR};
@@ -163,11 +168,11 @@ describe cable_edits("a patch cable set by its address", ${
 		actionLogger.deleteAllLogs();
 		deluge::edits::SetCablePolarity flip{address, Polarity::UNIPOLAR};
 		expect(apply(f, flip)).to_equal(Error::NONE);
-		expect(actionLogger.firstAction[BEFORE] == nullptr).to_be_true();
+		expect(actionLogger.firstAction[BEFORE] != nullptr).to_be_true();
 		expect(engine_cable(f, PatchSource::LFO_GLOBAL_1, params::LOCAL_PITCH_ADJUST)->polarity == Polarity::UNIPOLAR)
 		    .to_be_true();
-		const deluge::project::DocCable* entry = recorded(f, address);
-		expect(entry != nullptr && deluge::bridge::polarity_of(*entry) == Polarity::UNIPOLAR).to_be_true();
+		const std::optional<Recorded> entry = recorded(f, PatchSource::LFO_GLOBAL_1, params::LOCAL_PITCH_ADJUST);
+		expect(entry && entry->polarity == Polarity::UNIPOLAR).to_be_true();
 		nullifyUIs();
 	});
 
@@ -186,8 +191,8 @@ describe cable_edits("a patch cable set by its address", ${
 		    other_than(engine_cable(f, PatchSource::LFO_GLOBAL_1, params::LOCAL_PITCH_ADJUST)->polarity);
 		deluge::edits::SetCablePolarity flip{address, flipped};
 		expect(apply(f, flip)).to_equal(Error::NONE);
-		const deluge::project::DocCable* entry = recorded(f, address);
-		expect(entry != nullptr && deluge::bridge::polarity_of(*entry) == flipped).to_be_true();
+		const std::optional<Recorded> entry = recorded(f, PatchSource::LFO_GLOBAL_1, params::LOCAL_PITCH_ADJUST);
+		expect(entry && entry->polarity == flipped).to_be_true();
 	});
 
 	it("refuses a polarity change on a cable that does not exist", _ {

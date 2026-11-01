@@ -1,6 +1,6 @@
 #include "deluge-project/setting_group.h"
-#include "engine-api/types/setting.h"
 #include "gui/l10n/setting_names.h"
+#include "plugin-api/types/setting.h"
 #include "scenes/bind/dispatch.h"
 #include "scenes/bind/setting_context.h"
 #include "support/model_fixture.h"
@@ -11,7 +11,7 @@
 #include <vector>
 
 using namespace deluge::scenes::bind;
-using deluge::engine::SettingContext;
+using deluge::plugin::SettingContext;
 using deluge::project::SettingAddress;
 using deluge::project::SettingGroupId;
 using deluge::serialization::Value;
@@ -27,10 +27,10 @@ Target model(SettingGroupId group, std::string_view path) {
 
 /// The menu value the record at @p address holds for @p path, as the row converts it.
 int32_t record_menu(const ModelFixture& fixture, const SettingAddress& address, std::string_view path) {
-	const deluge::engine::SettingInfo& row =
-	    *deluge::engine::find_setting(deluge::project::table_of(address.group), path);
+	const deluge::plugin::SettingInfo& row =
+	    *deluge::plugin::find_setting(deluge::project::table_of(address.group), path);
 	const auto text = deluge::project::read_setting(fixture.song, address, path);
-	return deluge::engine::to_menu(row, deluge::engine::stored_value(row, text->str()).value_or(-999));
+	return deluge::plugin::to_menu(row, deluge::plugin::stored_value(row, text->str()).value_or(-999));
 }
 
 /// Whether @p target's row shows at @p where.
@@ -158,7 +158,7 @@ describe bind_model("a model target", ${
 		    {{SettingGroupId::NOTE_ROW, kSoundRow}, Instrument::KIT},
 		};
 		for (const auto& [address, instrument] : owners) {
-			expect(deluge::engine::context_is_coherent(setting_context(f.song, address, instrument, f.facts)))
+			expect(deluge::plugin::context_is_coherent(setting_context(f.song, address, instrument, f.facts)))
 			    .to_be_true();
 		}
 		expect(setting_context(f.song, {SettingGroupId::LANE_ARP, kGateLane}, Instrument::KIT, f.facts).instrument)

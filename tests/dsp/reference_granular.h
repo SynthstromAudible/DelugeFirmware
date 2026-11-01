@@ -23,12 +23,13 @@
 /// @ref deluge::dsp::test::ReferenceGranular differs from it only where the test has no firmware around it:
 ///  - the ring is an owned array with a `held` flag, where the firmware holds a heap block; every acquisition of the
 ///    ring zeroes it, as the host allocator does, so a slot read before it is written since the acquisition reads 0;
-///  - the noise draws (`CONG`, `random`, `getRandom255`, `sampleTriangleDistribution`) go through a Noise policy that
-///    defaults to the global `jcong`;
+///  - the noise draws (`deluge::synth_noise.next()`, `random`, `getRandom255`, `sampleTriangleDistribution`) go through
+///  a Noise policy that
+///    defaults to the global `synth_noise`;
 ///  - the reverb feed (`AudioEngine::feedReverbBackdoorForGrain`) adds into a span argument, wrapping;
 ///  - every add that can wrap is a wrapping one, so the spec's signed-overflow sanitizer sees the same two's-complement
 ///    result the target computes;
-///  - `shouldDoPanning` and `quickLog` are the dsp-next functions they delegate to;
+///  - the pan law and the quick log are dsp-next's own (`pan_amplitudes`, `quick_log`);
 ///  - the unused tempo argument and `grainLastTickCountIsZero` are dropped;
 ///  - counters and read accessors the spec asserts through, which the output does not depend on.
 
@@ -42,7 +43,7 @@
 #include "dsp-next/fixed/vca/pan.h"
 #include "granular_ring.h"
 #include "util/fixedpoint.h"
-#include "util/waves.h" // CONG, jcong
+#include "util/synth_noise.h"
 
 #include <algorithm>
 #include <array>
@@ -53,10 +54,11 @@
 
 namespace deluge::dsp::test {
 
-/// @brief The synth-wide noise generator: the stream `CONG` steps, which the app's granular draws from.
+/// @brief The synth-wide noise generator: the stream `deluge::synth_noise.next()` steps, which the app's granular draws
+/// from.
 struct GlobalNoise {
 	/// @return The next word of the global stream.
-	[[nodiscard]] static uint32_t next() { return CONG; }
+	[[nodiscard]] static uint32_t next() { return deluge::synth_noise.next(); }
 };
 
 /// @brief The app's granular processor, copied line for line: what the kernel must match.
@@ -265,8 +267,8 @@ private:
 		if (!grainInitialized && bufferWriteIndex >= 65536) {
 			grainInitialized = true;
 		}
-		*postFXVolume = multiply_32x32_rshift32(*postFXVolume, ONE_OVER_SQRT2_Q31) << 1; // Divide by sqrt(2)
-		                                                                                 // Shift
+		*postFXVolume = multiply_32x32_rshift32(*postFXVolume, kOneOverSqrt2Q31) << 1; // Divide by sqrt(2)
+		                                                                               // Shift
 		_grainShift = 44 * 300; // this is where we should tempo sync ( it's kSampleRate / 1000 * 300 for a 300ms base
 		                        // delay amount);
 		// grain size depends on both density and rate, check if either has changed
@@ -290,7 +292,7 @@ private:
 			_grainSize = 1760 + q31_mult(_grainRate << 3, density);
 		}
 		// this is only 2 cycles so there's no point in checking
-		_pitchRandomness = toPositive(pitchRandomness);
+		_pitchRandomness = to_positive(pitchRandomness);
 		// Volume
 		if (_mixKnobPos != grainMix) {
 			_mixKnobPos = grainMix;

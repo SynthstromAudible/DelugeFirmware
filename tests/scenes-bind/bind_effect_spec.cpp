@@ -1,7 +1,7 @@
-#include "engine-api/types/engine_id.h"
-#include "engine-api/types/setting.h"
-#include "engines/effects/settings.h"
+#include "effects/settings.h"
 #include "gui/l10n/setting_names.h"
+#include "plugin-api/types/plugin_id.h"
+#include "plugin-api/types/setting.h"
 #include "scenes/bind/chain_reader.h"
 #include "scenes/bind/dispatch.h"
 #include "scenes/bind/setting_context.h"
@@ -43,8 +43,8 @@ std::vector<int64_t> names_at(const ModelFixture& fixture, std::string_view path
 }
 
 /// The names @p owner's table gives @p path in @p context, every choice applying.
-std::vector<int64_t> table_names(deluge::engine::EngineId owner, std::string_view path,
-                                 deluge::engine::SettingContext shown_for) {
+std::vector<int64_t> table_names(deluge::plugin::PluginId owner, std::string_view path,
+                                 deluge::plugin::SettingContext shown_for) {
 	const auto* names = deluge::l10n::setting_names(owner, path, shown_for);
 	std::vector<int64_t> ids;
 	if (names != nullptr) {
@@ -63,10 +63,10 @@ std::vector<std::string> held_mismatches(const deluge::effects::EffectStates& st
 		const auto held = deluge::effects::held_effect_setting(states, row.path);
 		std::optional<int32_t> want;
 		if (value) {
-			if (row.kind == deluge::engine::SettingKind::CHOICE) {
-				want = deluge::engine::stored_value(row, value->str());
+			if (row.kind == deluge::plugin::SettingKind::CHOICE) {
+				want = deluge::plugin::stored_value(row, value->str());
 			}
-			else if (const auto n = deluge::engine::whole_number(value->str())) {
+			else if (const auto n = deluge::plugin::whole_number(value->str())) {
 				want = static_cast<int32_t>(*n);
 			}
 		}
@@ -98,8 +98,8 @@ describe bind_effect("an effect target on a sound or a chain", ${
 		fixture.set_state(kSynth, state);
 		const auto shown = view(effect("lpfMode"), fixture.song, {.slot = kSynth}, fixture.facts);
 		expect(shown.has_value()).to_be_true();
-		const auto& row = *deluge::engine::find_setting(deluge::effects::kEffectSettings, "lpfMode");
-		expect(shown->value).to_equal(static_cast<int32_t>(deluge::engine::stored_value(row, "SVF_Notch").value_or(-1)));
+		const auto& row = *deluge::plugin::find_setting(deluge::effects::kEffectSettings, "lpfMode");
+		expect(shown->value).to_equal(static_cast<int32_t>(deluge::plugin::stored_value(row, "SVF_Notch").value_or(-1)));
 	});
 
 	it("reads each chain's own effects", _ {
@@ -123,16 +123,16 @@ describe bind_effect("an effect target on a sound or a chain", ${
 	});
 
 	it("gives each kind of chain its owner's context", _ {
-		using Owner = deluge::engine::SettingContext::Owner;
-		using Instrument = deluge::engine::SettingContext::Instrument;
+		using Owner = deluge::plugin::SettingContext::Owner;
+		using Instrument = deluge::plugin::SettingContext::Instrument;
 		const auto kit = setting_context(kKitChain, ChainOwner::KIT);
 		const auto audio = setting_context(kAudioChain, ChainOwner::AUDIO_TRACK);
 		const auto master = setting_context(kMasterChain, ChainOwner::SONG);
 		expect(kit.owner == Owner::KIT && kit.instrument == Instrument::KIT).to_be_true();
 		expect(audio.owner == Owner::TRACK && audio.instrument == Instrument::AUDIO).to_be_true();
 		expect(master.owner == Owner::SONG && master.instrument == Instrument::NONE).to_be_true();
-		expect(deluge::engine::context_is_coherent(kit) && deluge::engine::context_is_coherent(audio)
-		       && deluge::engine::context_is_coherent(master)).to_be_true();
+		expect(deluge::plugin::context_is_coherent(kit) && deluge::plugin::context_is_coherent(audio)
+		       && deluge::plugin::context_is_coherent(master)).to_be_true();
 	});
 
 	it("does not apply saturation on a kit's chain, nor the sidechain on the master's", _ {
@@ -153,11 +153,11 @@ describe bind_effect("an effect target on a sound or a chain", ${
 	it("names a chain's choices from the host chains' table and a sound's from the instrument's", _ {
 		const ModelFixture fixture;
 		const auto chain = names_at(fixture, "lpfMode", on_chain(kKitChain, ChainOwner::KIT));
-		expect(chain).to_equal(table_names(deluge::engine::kGlobalEffectable, "lpfMode",
+		expect(chain).to_equal(table_names(deluge::plugin::kGlobalEffectable, "lpfMode",
 		                                   setting_context(kKitChain, ChainOwner::KIT)));
 		expect(chain.empty()).to_be_false();
 		const auto sound = names_at(fixture, "lpfMode", {.slot = kDrum});
-		expect(sound).to_equal(table_names(deluge::engine::kDelugeInstrument, "lpfMode",
+		expect(sound).to_equal(table_names(deluge::plugin::kDelugeInstrument, "lpfMode",
 		                                   setting_context(fixture.song, kDrum, fixture.facts)));
 	});
 

@@ -352,12 +352,12 @@ struct ModedRingInPlace : ModedRingCore {
 	static constexpr bool kStateInPlace = true;
 };
 
-static_assert(detail::state_in_place<RingInPlace>);
-static_assert(detail::state_in_place<ModedRingInPlace>);
-static_assert(!detail::state_in_place<RingCore>);
-static_assert(!detail::state_in_place<RingFalse>);
-static_assert(!detail::state_in_place<RingWrongType>);
-static_assert(!detail::state_in_place<Gain>);
+static_assert(detail::state_in_place_v<RingInPlace>);
+static_assert(detail::state_in_place_v<ModedRingInPlace>);
+static_assert(!detail::state_in_place_v<RingCore>);
+static_assert(!detail::state_in_place_v<RingFalse>);
+static_assert(!detail::state_in_place_v<RingWrongType>);
+static_assert(!detail::state_in_place_v<Gain>);
 static_assert(processor<Mono<RingInPlace>> && processor<Mono<ModedRingInPlace>>);
 static_assert(processor<Mono<loop_state_test::SplitLoop>> && processor<Mono<loop_state_test::SplitLoopInPlace>>);
 
@@ -801,11 +801,11 @@ RingRun<K> run_ring(std::size_t n, bool in_place, Alt alt) {
 	auto block = [&] {
 		std::vector<q31> buf = src;
 		if (in_place) {
-			mono.renderBlock(buf, buf);
+			mono.render_block(buf, buf);
 		}
 		else {
 			std::vector<q31> dst(n);
-			mono.renderBlock(buf, dst);
+			mono.render_block(buf, dst);
 			buf = dst;
 		}
 		run.out.insert(run.out.end(), buf.begin(), buf.end());
@@ -841,11 +841,11 @@ SplitRun run_split(std::size_t n, bool in_place) {
 		mono.template on<&K::set_level>(static_cast<q31>((block * 1000) + 7));
 		std::vector<q31> buf = loop_state_test::input(n, block);
 		if (in_place) {
-			mono.renderBlock(buf, buf);
+			mono.render_block(buf, buf);
 		}
 		else {
 			std::vector<q31> dst(n);
-			mono.renderBlock(buf, dst);
+			mono.render_block(buf, dst);
 			buf = dst;
 		}
 		run.out.insert(run.out.end(), buf.begin(), buf.end());
@@ -875,11 +875,11 @@ std::pair<std::vector<q31>, std::vector<std::uint32_t>> run_vec_split(std::size_
 			}
 		}
 		if (in_place) {
-			mono.renderBlock(buf, buf);
+			mono.render_block(buf, buf);
 		}
 		else {
 			std::vector<V> dst(n);
-			mono.renderBlock(buf, dst);
+			mono.render_block(buf, dst);
 			buf = dst;
 		}
 		for (const V& v : buf) {
@@ -933,7 +933,7 @@ describe mono("Mono", ${
 			const Gain::Settings settings{.gain = 0x30000000};
 			Mono<Gain> gain{settings};
 			std::vector<q31> got(n);
-			gain.renderBlock(a, got);
+			gain.render_block(a, got);
 			Gain::State gain_state{};
 			for (std::size_t i = 0; i < n; ++i) {
 				expect(got[i]).to_equal(Gain::step(Gain::coefficients(settings), {}, gain_state, a[i]));
@@ -942,21 +942,21 @@ describe mono("Mono", ${
 			Mono<Counter> counter;
 			Counter::State counter_state{};
 			for (int block = 0; block < 2; ++block) {
-				counter.renderBlock(got);
+				counter.render_block(got);
 				for (std::size_t i = 0; i < n; ++i) {
 					expect(got[i]).to_equal(Counter::step({}, {}, counter_state));
 				}
 			}
 
 			Mono<Add> add;
-			add.renderBlock(a, b, got);
+			add.render_block(a, b, got);
 			Add::State add_state{};
 			for (std::size_t i = 0; i < n; ++i) {
 				expect(got[i]).to_equal(Add::step({}, {}, add_state, a[i], b[i]));
 			}
 
 			Mono<VecSubtract> subtract;
-			subtract.renderBlock(a, b, got);
+			subtract.render_block(a, b, got);
 			for (std::size_t i = 0; i < n; ++i) {
 				expect(got[i]).to_equal(a[i] - b[i]);
 			}
@@ -964,14 +964,14 @@ describe mono("Mono", ${
 			const std::vector<StereoSample> frames = stereo_input(n);
 			std::vector<StereoSample> stereo_got(n);
 			Mono<StereoSwap> swap;
-			swap.renderBlock(frames, stereo_got);
+			swap.render_block(frames, stereo_got);
 			for (std::size_t i = 0; i < n; ++i) {
 				expect(stereo_got[i].l).to_equal(frames[i].r);
 				expect(stereo_got[i].r).to_equal(frames[i].l + static_cast<q31>(i));
 			}
 
 			Mono<StereoVecSwap> vec_swap;
-			vec_swap.renderBlock(frames, stereo_got);
+			vec_swap.render_block(frames, stereo_got);
 			for (std::size_t i = 0; i < n; ++i) {
 				expect(stereo_got[i].l).to_equal(frames[i].r);
 				expect(stereo_got[i].r).to_equal(frames[i].l + 1);
@@ -1062,17 +1062,17 @@ describe mono("Mono", ${
 	it("runs prepare once per block", _ {
 		std::vector<q31> block(13);
 		Mono<CountingPrepare> scalar;
-		scalar.renderBlock(block, block);
+		scalar.render_block(block, block);
 		expect(scalar.state().prepares).to_equal(1);
-		scalar.renderBlock(block, block);
-		scalar.renderBlock(block, block);
+		scalar.render_block(block, block);
+		scalar.render_block(block, block);
 		expect(scalar.state().prepares).to_equal(3);
 
 		Mono<VecCountingPrepare> vector;
-		vector.renderBlock(block, block);
+		vector.render_block(block, block);
 		expect(vector.state().prepares).to_equal(1);
-		vector.renderBlock(block, block);
-		vector.renderBlock(block, block);
+		vector.render_block(block, block);
+		vector.render_block(block, block);
 		expect(vector.state().prepares).to_equal(3);
 	});
 
@@ -1082,9 +1082,9 @@ describe mono("Mono", ${
 		Mono<ModeSwitch> mono{{.mode = ModeSwitch::Mode::HALF}};
 		std::vector<q31> got_first(first.size());
 		std::vector<q31> got_second(second.size());
-		mono.renderBlock(first, got_first);
+		mono.render_block(first, got_first);
 		mono.configure({.mode = ModeSwitch::Mode::DOUBLE});
-		mono.renderBlock(second, got_second);
+		mono.render_block(second, got_second);
 
 		q31 acc = 0;
 		for (std::size_t i = 0; i < first.size(); ++i) {
@@ -1106,7 +1106,7 @@ describe mono("Mono", ${
 			const std::vector<q31> zeros(n);
 
 			Mono<VecRampWhole> whole;
-			whole.renderBlock(got);
+			whole.render_block(got);
 			for (std::size_t i = 0; i < n; ++i) {
 				expect(got[i]).to_equal(static_cast<q31>(i));
 			}
@@ -1115,21 +1115,21 @@ describe mono("Mono", ${
 			expect(lanes_of(whole.state().value)[3]).to_equal(whole_end);
 
 			Mono<VecRampCount> count;
-			count.renderBlock(got);
+			count.render_block(got);
 			for (std::size_t i = 0; i < n; ++i) {
 				expect(got[i]).to_equal(static_cast<q31>(i));
 			}
 			expect(ramp_value(count)).to_equal(static_cast<q31>(n));
 			expect(lanes_of(count.state().value)[3]).to_equal(static_cast<q31>(n));
-			count.renderBlock(got);
+			count.render_block(got);
 			for (std::size_t i = 0; i < n; ++i) {
 				expect(got[i]).to_equal(static_cast<q31>(n + i));
 			}
 			expect(ramp_value(count)).to_equal(static_cast<q31>(2 * n));
 
 			Mono<VecOffsetCount> offset;
-			offset.renderBlock(zeros, got);
-			offset.renderBlock(zeros, got);
+			offset.render_block(zeros, got);
+			offset.render_block(zeros, got);
 			for (std::size_t i = 0; i < n; ++i) {
 				expect(got[i]).to_equal(static_cast<q31>(n + i));
 			}
@@ -1137,8 +1137,8 @@ describe mono("Mono", ${
 
 			Mono<StereoVecRampCount> stereo;
 			std::vector<StereoSample> frames(n);
-			stereo.renderBlock(frames);
-			stereo.renderBlock(frames);
+			stereo.render_block(frames);
+			stereo.render_block(frames);
 			for (std::size_t i = 0; i < n; ++i) {
 				expect(frames[i].l).to_equal(static_cast<q31>(n + i));
 				expect(frames[i].r).to_equal(-static_cast<q31>(n + i));
@@ -1153,9 +1153,9 @@ describe mono("Mono", ${
 
 			std::vector<q31> out(n);
 			std::vector<q31> in_place = a;
-			Mono<Gain>{{.gain = 0x30000000}}.renderBlock(a, out);
+			Mono<Gain>{{.gain = 0x30000000}}.render_block(a, out);
 			Mono<Gain> gain{{.gain = 0x30000000}};
-			gain.renderBlock(in_place, in_place);
+			gain.render_block(in_place, in_place);
 			for (std::size_t i = 0; i < n; ++i) {
 				expect(in_place[i]).to_equal(out[i]);
 			}
@@ -1163,8 +1163,8 @@ describe mono("Mono", ${
 			in_place = a;
 			Mono<VecOffsetCount> offset_out;
 			Mono<VecOffsetCount> offset_in;
-			offset_out.renderBlock(a, out);
-			offset_in.renderBlock(in_place, in_place);
+			offset_out.render_block(a, out);
+			offset_in.render_block(in_place, in_place);
 			for (std::size_t i = 0; i < n; ++i) {
 				expect(in_place[i]).to_equal(out[i]);
 			}
@@ -1174,8 +1174,8 @@ describe mono("Mono", ${
 			std::vector<StereoSample> stereo_in = frames;
 			Mono<StereoSwap> swap_out;
 			Mono<StereoSwap> swap_in;
-			swap_out.renderBlock(frames, stereo_out);
-			swap_in.renderBlock(stereo_in, stereo_in);
+			swap_out.render_block(frames, stereo_out);
+			swap_in.render_block(stereo_in, stereo_in);
 			for (std::size_t i = 0; i < n; ++i) {
 				expect(stereo_in[i].l).to_equal(stereo_out[i].l);
 				expect(stereo_in[i].r).to_equal(stereo_out[i].r);
@@ -1183,8 +1183,8 @@ describe mono("Mono", ${
 
 			stereo_in = frames;
 			Mono<StereoVecSwap> vec_swap;
-			vec_swap.renderBlock(frames, stereo_out);
-			vec_swap.renderBlock(stereo_in, stereo_in);
+			vec_swap.render_block(frames, stereo_out);
+			vec_swap.render_block(stereo_in, stereo_in);
 			for (std::size_t i = 0; i < n; ++i) {
 				expect(stereo_in[i].l).to_equal(stereo_out[i].l);
 				expect(stereo_in[i].r).to_equal(stereo_out[i].r);
@@ -1202,7 +1202,7 @@ describe mono("Mono", ${
 				mono.configure({.mode = mode});
 				const std::vector<q31> in = input(n, 0x00013579 * (block + 1));
 				std::vector<q31> got(n);
-				mono.renderBlock(in, got);
+				mono.render_block(in, got);
 
 				const VecModeSwitch::Coefficients c = VecModeSwitch::coefficients({.mode = mode});
 				const VecModeSwitch::Block b = VecModeSwitch::prepare(c, s, n);
@@ -1229,8 +1229,8 @@ describe mono("Mono", ${
 			const std::vector<q31> in = input(n, 0x00024680);
 			std::vector<q31> got(n);
 			std::vector<q31> want(n);
-			chained.renderBlock(in, got);
-			plain.renderBlock(in, want);
+			chained.render_block(in, got);
+			plain.render_block(in, want);
 			expect(got == want).to_be_true();
 			expect(chained.state().groups).to_equal(static_cast<int>(n / (2 * lanes)));
 			expect(lanes_of(chained.state().value)).to_equal(lanes_of(plain.state().value));
@@ -1247,8 +1247,8 @@ describe mono("Mono", ${
 				const std::vector<q31> a = input(n, 0x00013579);
 				std::vector<q31> got = input(n, 0x0002468a); // the output is the second input: in place
 				std::vector<q31> want = got;
-				chained.renderBlock(a, got, got);
-				plain.renderBlock(a, want, want);
+				chained.render_block(a, got, got);
+				plain.render_block(a, want, want);
 				expect(got == want).to_be_true();
 				expect(chained.state().groups).to_equal(static_cast<int>(n / (3 * lanes)));
 				expect(lanes_of(chained.state().value)).to_equal(lanes_of(plain.state().value));
@@ -1266,7 +1266,7 @@ describe mono("Mono", ${
 			}
 			std::vector<StereoSample> got(n);
 			Mono<StereoVecMix> mix;
-			mix.renderBlock(a, b, got);
+			mix.render_block(a, b, got);
 			StereoVecMix::State s{};
 			for (std::size_t offset = 0; offset < n; offset += lanes) {
 				const StereoVector want = StereoVecMix::step({}, {}, s, frames_at(a, offset), frames_at(b, offset));
@@ -1300,11 +1300,11 @@ describe mono("Mono", ${
 		const std::vector<q31> in{1, 2, 3};
 		std::vector<q31> out(in.size());
 		Mono<ConstProcess> offset{{.offset = 10}};
-		offset.renderBlock(in, out);
+		offset.render_block(in, out);
 		expect(out).to_equal(std::vector<q31>{11, 12, 13});
 
 		Mono<ModedConstProcess> moded{{.mode = ModedConstProcess::Mode::NEGATE}};
-		moded.renderBlock(in, out);
+		moded.render_block(in, out);
 		expect(out).to_equal(std::vector<q31>{-1, -2, -3});
 	});
 
@@ -1312,18 +1312,18 @@ describe mono("Mono", ${
 		const std::vector<q31> in{1, 2, 3, 4, 5};
 		std::vector<q31> out(in.size());
 		Mono<Staged> staged;
-		staged.renderBlock(in, out);
+		staged.render_block(in, out);
 		for (std::size_t i = 0; i < in.size(); ++i) {
 			expect(out[i]).to_equal(in[in.size() - 1 - i]);
 		}
 
 		Mono<ModedStaged> moded{{.mode = ModedStaged::Mode::NEGATE}};
-		moded.renderBlock(in, out);
+		moded.render_block(in, out);
 		for (std::size_t i = 0; i < in.size(); ++i) {
 			expect(out[i]).to_equal(-in[i]);
 		}
 		moded.configure({.mode = ModedStaged::Mode::COPY});
-		moded.renderBlock(in, out);
+		moded.render_block(in, out);
 		for (std::size_t i = 0; i < in.size(); ++i) {
 			expect(out[i]).to_equal(in[i]);
 		}
@@ -1337,21 +1337,21 @@ describe mono("Mono", ${
 			std::vector<q31> in_place(n);
 
 			Mono<Add> add;
-			add.renderBlock(a, b, out);
+			add.render_block(a, b, out);
 			in_place = a;
-			add.renderBlock(in_place, b, in_place);
+			add.render_block(in_place, b, in_place);
 			expect(in_place).to_equal(out);
 			in_place = b;
-			add.renderBlock(a, in_place, in_place);
+			add.render_block(a, in_place, in_place);
 			expect(in_place).to_equal(out);
 
 			Mono<VecSubtract> subtract;
-			subtract.renderBlock(a, b, out);
+			subtract.render_block(a, b, out);
 			in_place = a;
-			subtract.renderBlock(in_place, b, in_place);
+			subtract.render_block(in_place, b, in_place);
 			expect(in_place).to_equal(out);
 			in_place = b;
-			subtract.renderBlock(a, in_place, in_place);
+			subtract.render_block(a, in_place, in_place);
 			expect(in_place).to_equal(out);
 
 			const std::vector<StereoSample> fa = stereo_input(n);
@@ -1362,14 +1362,14 @@ describe mono("Mono", ${
 			std::vector<StereoSample> frames_out(n);
 			std::vector<StereoSample> frames_in_place(n);
 			Mono<StereoVecMix> mix;
-			mix.renderBlock(fa, fb, frames_out);
+			mix.render_block(fa, fb, frames_out);
 			for (const bool alias_a : {true, false}) {
 				frames_in_place = alias_a ? fa : fb;
 				if (alias_a) {
-					mix.renderBlock(frames_in_place, fb, frames_in_place);
+					mix.render_block(frames_in_place, fb, frames_in_place);
 				}
 				else {
-					mix.renderBlock(fa, frames_in_place, frames_in_place);
+					mix.render_block(fa, frames_in_place, frames_in_place);
 				}
 				for (std::size_t i = 0; i < n; ++i) {
 					expect(frames_in_place[i].l).to_equal(frames_out[i].l);
@@ -1387,7 +1387,7 @@ describe mono("Mono", ${
 			for (int block = 0; block < 2; ++block) {
 				const std::vector<q31> in = input(n, 0x00024680 * (block + 1));
 				std::vector<q31> got(n);
-				mono.renderBlock(in, got);
+				mono.render_block(in, got);
 				for (std::size_t offset = 0; offset < n; offset += lanes) {
 					const std::array<q31, 4> want = lanes_of(VecOffsetWhole::step({}, {}, s, vector_at(in, offset)));
 					for (std::size_t i = 0; i < lanes && offset + i < n; ++i) {
@@ -1411,7 +1411,7 @@ describe mono("Mono", ${
 				mono.configure({.first = {.mode = mode}});
 				const std::vector<q31> in = input(n, 0x00135791 * (block + 1));
 				std::vector<q31> got(n);
-				mono.renderBlock(in, got);
+				mono.render_block(in, got);
 
 				const Tracker::Coefficients c1 = Tracker::coefficients({.mode = mode});
 				const BiasedPole::Block b2 = BiasedPole::prepare({}, second, n);
@@ -1433,16 +1433,16 @@ describe mono("Mono", ${
 			std::vector<q31> out(n);
 			std::vector<q31> in_place = a;
 			Mono<Staged> staged;
-			staged.renderBlock(a, out);
-			staged.renderBlock(in_place, in_place);
+			staged.render_block(a, out);
+			staged.render_block(in_place, in_place);
 			for (std::size_t i = 0; i < n; ++i) {
 				expect(in_place[i]).to_equal(out[i]);
 			}
 
 			in_place = a;
 			Mono<ModedStaged> moded{{.mode = ModedStaged::Mode::NEGATE}};
-			moded.renderBlock(a, out);
-			moded.renderBlock(in_place, in_place);
+			moded.render_block(a, out);
+			moded.render_block(in_place, in_place);
 			for (std::size_t i = 0; i < n; ++i) {
 				expect(in_place[i]).to_equal(out[i]);
 			}

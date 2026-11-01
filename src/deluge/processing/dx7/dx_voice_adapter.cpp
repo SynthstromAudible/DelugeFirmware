@@ -19,6 +19,7 @@
 #include "dsp-next/fixed/dx7/algorithms.h"
 #include "processing/dx7/dx_engine.h"
 #include "processing/dx7/dx_patch.h"
+#include "util/synth_noise.h"
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
@@ -28,7 +29,7 @@ namespace deluge::dsp {
 
 namespace {
 
-using PoolVoice = fixed::dx7::Voice<fixed::CongNoise>;
+using PoolVoice = fixed::dx7::Voice<fixed::Cong>;
 
 /// @brief The voice's settings: @p patch's bytes as its voices read them (DxPatch::voiceParams, clamped to the engine's
 /// ranges), the note and the engine's tables.
@@ -43,7 +44,7 @@ PoolVoice::Settings settings_of(const DxPatch& patch, int midinote, int velocity
 
 } // namespace
 
-bool DxVoiceAdapter::noteOn(void* patch, int midinote, int velocity) {
+bool DxVoiceAdapter::note_on(void* patch, int midinote, int velocity) {
 	if (voice_ == nullptr) { // We might actually already have one, and just be restarting this voice
 		voice_ = getDxEngine()->solicitDxVoice();
 		if (voice_ == nullptr) {
@@ -55,7 +56,7 @@ bool DxVoiceAdapter::noteOn(void* patch, int midinote, int velocity) {
 	velocity_ = velocity;
 	patch_->refreshVoiceParams();
 	const PoolVoice::Settings s = settings_of(*patch_, midinote_, velocity_);
-	voice_->start(s);
+	voice_->start(s, deluge::synth_noise);
 	if (PoolVoice::key_sync_lfo(s)) {
 		patch_->lfo.on<&fixed::dx7::Lfo::key_sync>();
 	}
@@ -78,7 +79,7 @@ void DxVoiceAdapter::keyup() {
 
 std::span<const int32_t> DxVoiceAdapter::render(int32_t numSamples, uint32_t phaseIncrement, int32_t ampModParam,
                                                 bool patchChanged, int midinote) {
-	// kMaxBlock samples, 16-byte aligned at least: the device's NEON kernel writes past the block (Graph::renderBlock)
+	// kMaxBlock samples, 16-byte aligned at least: the device's NEON kernel writes past the block (Graph::render_block)
 	static int32_t uniBuf[fixed::dx7::kMaxBlock] __attribute__((aligned(CACHE_LINE_SIZE)));
 	static_assert(CACHE_LINE_SIZE % 16 == 0);
 	memset(uniBuf, 0, sizeof uniBuf);
@@ -100,7 +101,7 @@ std::span<const int32_t> DxVoiceAdapter::render(int32_t numSamples, uint32_t pha
 		voice_->retune(s);
 	}
 	const auto n = static_cast<std::size_t>(numSamples);
-	if (!voice_->renderBlock(s, {uniBuf, n}, in, getDxEngine()->buses())) {
+	if (!voice_->render_block(s, {uniBuf, n}, in, getDxEngine()->buses())) {
 		return {}; // voice has ended
 	}
 	return std::span<const int32_t>{uniBuf, n};

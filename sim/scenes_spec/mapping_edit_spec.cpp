@@ -40,7 +40,7 @@ using deluge::project::MappingTable;
 using deluge::project::MappingTarget;
 using deluge::project::MidiDeviceRef;
 using Command = deluge::project::MidiCommand;
-using deluge::project::ParamTarget;
+using deluge::project::OwnerParamTarget;
 using deluge::project::SectionLaunchTarget;
 using deluge::project::TrackInputTarget;
 
@@ -63,17 +63,13 @@ Command held(::Song& song, const MappingTarget& target) {
 }
 
 /// @brief A patched param of a sound, as the table names it.
-deluge::engine::ParamId patched(int32_t p) {
-	ParamDescriptor descriptor;
-	descriptor.setToHaveParamOnly(p);
-	return deluge::bridge::knobTargetOf(descriptor, params::Kind::UNPATCHED_SOUND);
+deluge::plugin::ParamId patched(int32_t p) {
+	return deluge::bridge::controlTargetOf(deluge::modulation::knobParam(p), params::Kind::UNPATCHED_SOUND);
 }
 
 /// @brief An unpatched param of @p kind (UNPATCHED_SOUND or UNPATCHED_GLOBAL), as the table names it.
-deluge::engine::ParamId unpatched(params::Kind kind, int32_t p) {
-	ParamDescriptor descriptor;
-	descriptor.setToHaveParamOnly(params::UNPATCHED_START + p);
-	return deluge::bridge::knobTargetOf(descriptor, kind);
+deluge::plugin::ParamId unpatched(params::Kind kind, int32_t p) {
+	return deluge::bridge::controlTargetOf(deluge::modulation::knobParam(params::UNPATCHED_START + p), kind);
 }
 
 /// @brief @p command, told apart by the device on @p port.
@@ -95,23 +91,23 @@ describe mapping_edit("LearnMapping", $ {
 	it("learns a synth's knob into the table and its knob list", _ {
 		spec::SongFixture f = spec::make_synth_song();
 		const ControlsAddress owner{ControlsAddress::Kind::OUTPUT, *f.instrument->id()};
-		const ParamTarget target{owner, patched(params::LOCAL_VOLUME)};
+		const OwnerParamTarget target{owner, patched(params::LOCAL_VOLUME)};
 		deluge::edits::learnMappingFor(cc(2, 74), target);
 		expect(held(*f.song, target) == cc(2, 74)).to_be_true();
 		auto& sound = *static_cast<SoundInstrument*>(f.instrument);
 		expect(static_cast<int>(sound.midi_knobs.size())).to_equal(1);
 		expect(sound.midi_knobs[0].midiInput.equalsNoteOrCC(nullptr, 2 + IS_A_CC, 74)).to_be_true();
-		expect(sound.midi_knobs[0].paramDescriptor.isSetToParamWithNoSource(params::LOCAL_VOLUME)).to_be_true();
+		expect(sound.midi_knobs[0].target == deluge::modulation::knobParam(params::LOCAL_VOLUME)).to_be_true();
 	});
 
 	it("keeps an unchanged knob whole, with its takeover state", _ {
 		spec::SongFixture f = spec::make_synth_song();
 		const ControlsAddress owner{ControlsAddress::Kind::OUTPUT, *f.instrument->id()};
-		deluge::edits::learnMappingFor(cc(0, 10), ParamTarget{owner, patched(params::LOCAL_VOLUME)});
+		deluge::edits::learnMappingFor(cc(0, 10), OwnerParamTarget{owner, patched(params::LOCAL_VOLUME)});
 		auto& sound = *static_cast<SoundInstrument*>(f.instrument);
 		sound.midi_knobs[0].previousPositionSaved = true;
 		sound.midi_knobs[0].previousPosition = 1234;
-		deluge::edits::learnMappingFor(cc(0, 11), ParamTarget{owner, patched(params::LOCAL_PAN)});
+		deluge::edits::learnMappingFor(cc(0, 11), OwnerParamTarget{owner, patched(params::LOCAL_PAN)});
 		expect(static_cast<int>(sound.midi_knobs.size())).to_equal(2);
 		expect(sound.midi_knobs[0].previousPositionSaved).to_be_true();
 		expect(static_cast<int>(sound.midi_knobs[0].previousPosition)).to_equal(1234);
@@ -169,9 +165,9 @@ describe mapping_edit("LearnMapping", $ {
 		spec::SongFixture f = spec::make_synth_song();
 		const ControlsAddress owner{ControlsAddress::Kind::OUTPUT, *f.instrument->id()};
 		deluge::edits::learnMappingFor(from(cc(0, 10), MidiDeviceRef::Port::DIN),
-		                               ParamTarget{owner, patched(params::LOCAL_VOLUME)});
+		                               OwnerParamTarget{owner, patched(params::LOCAL_VOLUME)});
 		deluge::edits::learnMappingFor(from(cc(0, 11), MidiDeviceRef::Port::UPSTREAM_USB_1),
-		                               ParamTarget{owner, patched(params::LOCAL_PAN)});
+		                               OwnerParamTarget{owner, patched(params::LOCAL_PAN)});
 		auto& sound = *static_cast<SoundInstrument*>(f.instrument);
 		expect(static_cast<int>(sound.midi_knobs.size())).to_equal(2);
 		expect(sound.midi_knobs[0].midiInput.cable == &MIDIDeviceManager::dinMIDIPorts).to_be_true();
@@ -180,7 +176,7 @@ describe mapping_edit("LearnMapping", $ {
 		sound.midi_knobs[0].previousPosition = 111;
 		sound.midi_knobs[1].previousPositionSaved = true;
 		sound.midi_knobs[1].previousPosition = 222;
-		deluge::edits::learnMappingFor(cc(0, 12), ParamTarget{owner, patched(params::LOCAL_OSC_A_VOLUME)});
+		deluge::edits::learnMappingFor(cc(0, 12), OwnerParamTarget{owner, patched(params::LOCAL_OSC_A_VOLUME)});
 		expect(static_cast<int>(sound.midi_knobs.size())).to_equal(3);
 		expect(sound.midi_knobs[0].midiInput.cable == &MIDIDeviceManager::dinMIDIPorts).to_be_true();
 		expect(sound.midi_knobs[0].previousPositionSaved).to_be_true();
@@ -223,11 +219,11 @@ describe mapping_edit("LearnMapping", $ {
 		spec::SongFixture f = spec::make_kit_song();
 		SoundDrum* drum = spec::add_drum<SoundDrum>(f);
 		const ControlsAddress owner{ControlsAddress::Kind::DRUM, *drum->id()};
-		const ParamTarget target{owner, unpatched(params::Kind::UNPATCHED_SOUND, params::UNPATCHED_PORTAMENTO)};
+		const OwnerParamTarget target{owner, unpatched(params::Kind::UNPATCHED_SOUND, params::UNPATCHED_PORTAMENTO)};
 		deluge::edits::learnMappingFor(cc(1, 20), target);
 		expect(held(*f.song, target) == cc(1, 20)).to_be_true();
 		expect(static_cast<int>(drum->midi_knobs.size())).to_equal(1);
-		expect(drum->midi_knobs[0].paramDescriptor.isSetToParamWithNoSource(params::UNPATCHED_START
+		expect(drum->midi_knobs[0].target == deluge::modulation::knobParam(params::UNPATCHED_START
 		                                                                    + params::UNPATCHED_PORTAMENTO))
 		    .to_be_true();
 		expect(static_cast<int>(static_cast<Kit*>(f.instrument)->midi_knobs.size())).to_equal(0);
@@ -238,20 +234,20 @@ describe mapping_edit("LearnMapping", $ {
 		const ControlsAddress owner{ControlsAddress::Kind::SONG, 0};
 		// Some indices are shared by a sound's and a global's param (their ids coincide); the LPF frequency is a
 		// global's alone, so a sound's reading of its id finds no param.
-		const ParamTarget target{owner, unpatched(params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_LPF_FREQ)};
+		const OwnerParamTarget target{owner, unpatched(params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_LPF_FREQ)};
 		expect(deluge::bridge::runtimeIndexOf(params::Kind::UNPATCHED_SOUND, target.param).has_value()).to_be_false();
 		deluge::edits::learnMappingFor(cc(2, 7), target);
 		expect(held(*f.song, target) == cc(2, 7)).to_be_true();
 		auto& global = f.song->live.global_effectable;
 		expect(static_cast<int>(global.midi_knobs.size())).to_equal(1);
 		expect(global.midi_knobs[0].midiInput.equalsNoteOrCC(nullptr, 2 + IS_A_CC, 7)).to_be_true();
-		expect(global.midi_knobs[0].paramDescriptor.isSetToParamWithNoSource(params::UNPATCHED_START
+		expect(global.midi_knobs[0].target == deluge::modulation::knobParam(params::UNPATCHED_START
 		                                                                     + params::UNPATCHED_LPF_FREQ))
 		    .to_be_true();
 		// Read back from the engine's knob, the entry names the global param.
 		const auto knobs = deluge::bridge::knobsOf(owner, global, false);
 		expect(static_cast<int>(knobs.size())).to_equal(1);
-		expect(std::get<ParamTarget>(knobs[0].target).param == target.param).to_be_true();
+		expect(std::get<OwnerParamTarget>(knobs[0].target).param == target.param).to_be_true();
 	});
 
 	it("refuses a target whose owner the song does not hold and leaves the table as it was", _ {
@@ -260,8 +256,8 @@ describe mapping_edit("LearnMapping", $ {
 		deluge::edits::learnMappingFor(note(1, 50), DrumMuteTarget{*drum->id()});
 		const MappingTable before = f.song->project.mappings;
 		const MappingTarget orphans[] = {
-		    ParamTarget{{ControlsAddress::Kind::OUTPUT, 9999}, patched(params::LOCAL_VOLUME)},
-		    ParamTarget{{ControlsAddress::Kind::DRUM, 9999}, patched(params::LOCAL_VOLUME)},
+		    OwnerParamTarget{{ControlsAddress::Kind::OUTPUT, 9999}, patched(params::LOCAL_VOLUME)},
+		    OwnerParamTarget{{ControlsAddress::Kind::DRUM, 9999}, patched(params::LOCAL_VOLUME)},
 		    ClipMuteTarget{9999},
 		    DrumMuteTarget{9999},
 		    LaneInputTarget{9999},
@@ -306,7 +302,7 @@ describe mapping_unlearn("UnlearnMapping", $ {
 	it("unlearns every knob of a param and empties the knob list", _ {
 		spec::SongFixture f = spec::make_synth_song();
 		const ControlsAddress owner{ControlsAddress::Kind::OUTPUT, *f.instrument->id()};
-		const ParamTarget target{owner, patched(params::LOCAL_VOLUME)};
+		const OwnerParamTarget target{owner, patched(params::LOCAL_VOLUME)};
 		deluge::edits::learnMappingFor(cc(0, 10), target);
 		deluge::edits::learnMappingFor(cc(0, 12), target);
 		auto& sound = *static_cast<SoundInstrument*>(f.instrument);

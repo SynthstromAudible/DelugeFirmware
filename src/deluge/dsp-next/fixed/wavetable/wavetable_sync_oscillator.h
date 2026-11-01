@@ -36,7 +36,7 @@ namespace deluge::dsp::fixed {
 /// per-crossover callback accumulation — so the redone crossover sample reuses the same blend and
 /// the result is bit-exact. A plain @ref block_generator with no vptr: sync windows and chunks are
 /// block-level, so there is no per-sample `render()`.
-class [[gnu::hot]] WavetableSyncOscillator {
+class WavetableSyncOscillator {
 public:
 	using value_type = q31; ///< q31 wave samples.
 
@@ -49,7 +49,7 @@ public:
 	[[nodiscard]] uint32_t phase() const { return phasor_.phase(); }
 
 	/// @brief Fill @p output with the next `output.size()` samples, chunk by cycle chunk.
-	void renderBlock(Buffer output) {
+	void render_block(Buffer output) {
 		uint32_t phase = phasor_.phase();
 		uint32_t phase_increment = phasor_.increment();
 		uint32_t resetter_phase = resetter_.phase;

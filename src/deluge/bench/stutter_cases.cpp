@@ -7,7 +7,7 @@
 #include "bench/cases.h"
 
 #include "definitions_cxx.hpp"
-#include "engines/effects/stutter.h"
+#include "effects/stutter.h"
 #include "model/fx/song_stutter.h"
 #include "model/mod_controllable/mod_fx_allocator.h"
 #include "modulation/params/param.h"
@@ -57,8 +57,6 @@ void render_block() {
 
 void StutterCase::setup(std::size_t n) {
 	if (!rig.ready) {
-		// The bench runs before the app's start-up fills the params' neutral values, which the rate is built on.
-		functionsInit();
 		rig.ready = rig.params.setupUnpatched() == Error::NONE;
 	}
 	effects::StutterChange ended{};

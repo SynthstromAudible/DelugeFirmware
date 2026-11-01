@@ -60,7 +60,7 @@ public:
 	[[gnu::always_inline]] constexpr void seek(uint32_t phase) { phase_ = phase; }
 	/// @brief Set the per-sample phase step, keeping the phase.
 	/// @param increment The new per-sample step, 0.32 unsigned.
-	[[gnu::always_inline]] constexpr void setIncrement(uint32_t increment) { increment_ = increment; }
+	[[gnu::always_inline]] constexpr void set_increment(uint32_t increment) { increment_ = increment; }
 };
 
 } // namespace deluge::dsp

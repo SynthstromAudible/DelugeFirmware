@@ -22,7 +22,7 @@
 #include "dsp-next/core/phasor.h"
 #include "dsp-next/fixed/bandlimited/waves.h" // square, triangle_half_scale
 #include "dsp-next/fixed/osc/crude_oscillators.h"
-#include "dsp-next/fixed/osc/sine_table.h" // sine_table
+#include "dsp-next/fixed/osc/sine_table.h" // kSineTable
 #include "dsp-next/fixed/vca/crude_amplitude.h"
 #include "util/fixedpoint.h" // multiply_accumulate_32x32_rshift32_rounded
 #include <array>
@@ -36,7 +36,7 @@ using deluge::dsp::fixed::CrudeSaw;
 using deluge::dsp::fixed::CrudeSine;
 using deluge::dsp::fixed::CrudeSquare;
 using deluge::dsp::fixed::CrudeTriangle;
-using deluge::dsp::fixed::sine_table;
+using deluge::dsp::fixed::kSineTable;
 using Buffer = deluge::dsp::fixed::Buffer;
 using Signal = deluge::dsp::fixed::Signal;
 } // namespace
@@ -47,7 +47,7 @@ describe crude_oscillators("deluge::dsp::fixed crude oscillators", ${
 		it("emits the phase ramp itself", _ {
 			CrudeSaw osc{Phasor{0u, 0x10000000u}};
 			std::array<int32_t, 4> out{};
-			osc.renderBlock(Buffer{out});
+			osc.render_block(Buffer{out});
 			// Pre-increment: sample i is phase + (i+1) * increment.
 			expect(out[0]).to_equal(static_cast<int32_t>(0x10000000));
 			expect(out[1]).to_equal(static_cast<int32_t>(0x20000000));
@@ -60,7 +60,7 @@ describe crude_oscillators("deluge::dsp::fixed crude oscillators", ${
 		it("switches at the pulse-width threshold", _ {
 			CrudeSquare osc{Phasor{0u, 0x20000000u}, 0x80000000u}; // 50% duty
 			std::array<int32_t, 4> out{};
-			osc.renderBlock(Buffer{out});
+			osc.render_block(Buffer{out});
 			// phases 0x20/0x40/0x60M are below the threshold (high), 0x80M is at/above it (low).
 			expect(out[0]).to_equal(deluge::dsp::fixed::square(0x20000000u, 0x80000000u));
 			expect(out[2]).to_equal(deluge::dsp::fixed::square(0x60000000u, 0x80000000u));
@@ -73,7 +73,7 @@ describe crude_oscillators("deluge::dsp::fixed crude oscillators", ${
 		it("matches the triangle kernel at each phase", _ {
 			CrudeTriangle osc{Phasor{0u, 0x30000000u}};
 			std::array<int32_t, 4> out{};
-			osc.renderBlock(Buffer{out});
+			osc.render_block(Buffer{out});
 			expect(out[0]).to_equal(deluge::dsp::fixed::triangle_half_scale(0x30000000u));
 			expect(out[1]).to_equal(deluge::dsp::fixed::triangle_half_scale(0x60000000u));
 			expect(out[2]).to_equal(deluge::dsp::fixed::triangle_half_scale(0x90000000u));
@@ -85,11 +85,11 @@ describe crude_oscillators("deluge::dsp::fixed crude oscillators", ${
 		it("matches the sine LUT at each phase", _ {
 			CrudeSine osc{Phasor{0u, 0x30000000u}};
 			std::array<int32_t, 4> out{};
-			osc.renderBlock(Buffer{out});
-			expect(out[0]).to_equal(sine_table.value(0x30000000u));
-			expect(out[1]).to_equal(sine_table.value(0x60000000u));
-			expect(out[2]).to_equal(sine_table.value(0x90000000u));
-			expect(out[3]).to_equal(sine_table.value(0xC0000000u));
+			osc.render_block(Buffer{out});
+			expect(out[0]).to_equal(kSineTable.value(0x30000000u));
+			expect(out[1]).to_equal(kSineTable.value(0x60000000u));
+			expect(out[2]).to_equal(kSineTable.value(0x90000000u));
+			expect(out[3]).to_equal(kSineTable.value(0xC0000000u));
 		});
 	});
 
@@ -101,7 +101,7 @@ describe crude_oscillators("deluge::dsp::fixed crude oscillators", ${
 			constexpr int32_t kAmp = 0x20000000;
 			constexpr int32_t kInc = 0x00100000;
 			CrudeAmplitude vca{kAmp, kInc};
-			vca.renderBlock(Signal{raw}, Signal{mix}, Buffer{out});
+			vca.render_block(Signal{raw}, Signal{mix}, Buffer{out});
 			for (int i = 0; i < 4; ++i) {
 				// Pre-increment: sample i uses amplitude kAmp + (i+1) * kInc.
 				int32_t expected = multiply_accumulate_32x32_rshift32_rounded(mix[i], raw[i], kAmp + (i + 1) * kInc);

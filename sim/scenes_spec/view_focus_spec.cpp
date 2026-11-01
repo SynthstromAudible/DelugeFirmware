@@ -11,10 +11,10 @@
 #include "gui/views/view.h"
 
 #include "deluge-project/knob_focus.h"
-#include "engines/deluge/params.h"
-#include "engines/global_effectable/params.h"
+#include "effects/global_effectable/params.h"
 #include "gui/l10n/l10n.h"
 #include "hid/display/display.h"
+#include "instruments/deluge/params.h"
 #include "io/midi/midi_device_manager.h"
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
@@ -73,8 +73,7 @@ spec::SongFixture add_synth_clip(const spec::SongFixture& f) {
 /// @brief Learn CC 74 on channel 1 of DIN to @p f's synth's volume, and send it @p value on @p f's clip.
 void learnAndSendVolume(const spec::SongFixture& f, uint8_t value) {
 	auto& sound = *static_cast<SoundInstrument*>(f.instrument);
-	ParamDescriptor volume;
-	volume.setToHaveParamOnly(params::LOCAL_VOLUME);
+	const deluge::modulation::KnobTarget volume = deluge::modulation::knobParam(params::LOCAL_VOLUME);
 	if (sound.midi_knobs.empty()) {
 		(void)deluge::edits::learnKnobFor(sound, volume, &MIDIDeviceManager::dinMIDIPorts, 74, 1);
 	}
@@ -663,8 +662,7 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 		SoundDrum* drum = spec::add_drum<SoundDrum>(f);
 		static_cast<Kit*>(f.instrument)->selectedDrum = drum;
 		f.clip->affectEntire = false;
-		ParamDescriptor volume;
-		volume.setToHaveParamOnly(params::LOCAL_VOLUME);
+		const deluge::modulation::KnobTarget volume = deluge::modulation::knobParam(params::LOCAL_VOLUME);
 		(void)deluge::edits::learnKnobFor(*drum, volume, &MIDIDeviceManager::dinMIDIPorts, 75, 1);
 		view.setActiveModControllableTimelineCounter(f.clip, false);
 		view.setModRegion(96, 48, static_cast<int32_t>(*drum->id()));
@@ -690,7 +688,7 @@ describe view_focus("legacy View's gold-knob focus, as addresses", ${
 		const auto cc_automated = [&](int32_t cc) {
 			const deluge::project::DocAutoParam* param = f.song->project.resolveParam(
 			    {.owner = project::OwnerId::clip(f.clip->id()), .space = project::ParamSpace::MIDI_CC,
-			     .id = deluge::engine::ParamId{static_cast<uint32_t>(cc)}});
+			     .id = deluge::plugin::ParamId{static_cast<uint32_t>(cc)}});
 			return param != nullptr && !param->nodes.empty();
 		};
 		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];

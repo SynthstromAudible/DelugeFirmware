@@ -84,10 +84,10 @@ protected:
 
 	// model stack
 	inline ModelStackWithAutoParam*
-	getModelStackWithParamForClip(ModelStackWithTimelineCounter* modelStack, Clip* clip,
+	getModelStackWithParamForClip(ModelStackWithTimelineCounter* modelStack, Clip* clip, bool forEdit,
 	                              int32_t paramID = deluge::modulation::params::kNoParamID,
 	                              deluge::modulation::params::Kind paramKind = deluge::modulation::params::Kind::NONE) {
-		return automationView.getModelStackWithParamForClip(modelStack, clip, paramID, paramKind);
+		return automationView.getModelStackWithParamForClip(modelStack, clip, forEdit, paramID, paramKind);
 	}
 };
 

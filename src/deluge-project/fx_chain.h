@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "engine-api/state_handle.h"
+#include "plugin-api/state_handle.h"
 #include "serialization/value.h"
 
 #include <cstdint>
@@ -38,7 +38,7 @@ struct FxSlot {
 struct FxChain {
 	std::vector<FxSlot> slots;
 	std::optional<uint32_t> reverb_return; ///< the master's first slot after the reverb returns
-	engine::StateHandle effects;           ///< the effects' state, held for their engine
+	plugin::StateHandle effects;           ///< the effects' state, held for their plugin
 	uint8_t mod_fx_param{1};               ///< which mod-FX value the knob edits: depth, feedback, offset
 	uint8_t filter_type{0};                ///< which filter the knob edits: low-pass, high-pass, EQ
 	bool operator==(const FxChain&) const = default;

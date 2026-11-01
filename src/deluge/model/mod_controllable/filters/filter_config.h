@@ -18,7 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "engines/effects/words.h"
+#include "effects/words.h"
 #include "util/misc.h"
 #include <cstddef>
 

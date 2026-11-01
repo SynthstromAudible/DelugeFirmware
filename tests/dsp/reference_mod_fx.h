@@ -24,7 +24,8 @@
 ///  - the two unpatched param reads (offset, feedback) are arguments, and `AudioEngine::renderInStereo` is the
 ///    `stereo` argument;
 ///  - the ring is an owned array with a `held` flag, where the firmware holds a heap pointer;
-///  - the LFO is a copy of the sine, triangle and warbler waves of `synth/lfo.h` with the variant's re-seat rule;
+///  - the LFO is a copy of the sine, triangle and warbler waves of `synth/modulation/lfo.h` with the variant's re-seat
+///  rule;
 ///  - every add or subtract that can wrap is a wrapping one, so the spec's signed-overflow sanitizer sees the same
 ///    two's-complement result the target computes.
 
@@ -34,9 +35,9 @@
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/core/wrapping.h"
 #include "dsp-next/fixed/bandlimited/waves.h" // triangle
-#include "dsp-next/fixed/osc/sine_table.h"    // sine_table
+#include "dsp-next/fixed/osc/sine_table.h"    // kSineTable
 #include "util/fixedpoint.h"
-#include "util/waves.h" // the jcong/CONG RNG the warbler draws
+#include "util/synth_noise.h"
 
 #include <array>
 #include <cstddef>
@@ -47,12 +48,13 @@
 
 namespace deluge::dsp::test {
 
-/// @brief The LFO waves mod FX uses, copied from `lfo_wave` (synth/lfo.h) with its phase and block conventions.
+/// @brief The LFO waves mod FX uses, copied from `lfo_wave` (synth/modulation/lfo.h) with its phase and block
+/// conventions.
 namespace ref_lfo_wave {
 
 struct Sine {
 	int32_t render(uint32_t& phase, uint32_t phase_increment, int32_t num_samples) {
-		int32_t value = deluge::dsp::fixed::sine_table.value(phase);
+		int32_t value = deluge::dsp::fixed::kSineTable.value(phase);
 		phase += phase_increment * num_samples;
 		return value;
 	}
@@ -73,7 +75,7 @@ struct Warbler {
 	int32_t render(uint32_t& phase, uint32_t phase_increment, int32_t num_samples) {
 		phase_increment *= 2; // the warbler sweeps at twice the configured rate
 		if (phase + phase_increment * num_samples < phase) {
-			target_ = CONG;
+			target_ = deluge::synth_noise.next();
 			speed_ = 0;
 		}
 		int32_t distance_to_target = wrapping_sub(target_, held_value_);
@@ -87,7 +89,7 @@ struct Warbler {
 
 } // namespace ref_lfo_wave
 
-/// @brief `LFO` (synth/lfo.h) reduced to the waves mod FX renders.
+/// @brief `LFO` (synth/modulation/lfo.h) reduced to the waves mod FX renders.
 class ReferenceLfo {
 public:
 	/// @return The variant index of @p type: the same order as `LFO`'s, restricted to the waves mod FX uses.
@@ -332,7 +334,7 @@ private:
 		int32_t lfo1 = modFXLFO.render(1, modFXLFOWaveType, modFXRate);
 		int32_t lfo2 = 0;
 		// anymore and they get audibly out of sync, this just sounds wobblier
-		constexpr q31_t width = 0.97 * ONE_Q31;
+		constexpr q31_t width = 0.97 * kOneQ31;
 		if constexpr (modFXType == ModFXType::WARBLE) {
 			// this needs a second lfo because it's a random process - we can't flip it to make a second sample but
 			// these will always be different anyway

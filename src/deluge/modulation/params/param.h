@@ -18,9 +18,8 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "engine-api/types/param_kind.h"
-#include "engines/effects/words.h"
-#include "modulation/params/param_descriptor.h"
+#include "effects/words.h"
+#include "plugin-api/types/param_kind.h"
 #include "util/misc.h"
 #include <algorithm>
 #include <cstdint>
@@ -40,9 +39,14 @@
 
 class ModControllableAudio;
 
+namespace deluge::plugin {
+struct ParamInfo;
+enum class ParamFlag : uint16_t;
+} // namespace deluge::plugin
+
 namespace deluge::modulation::params {
 /// @brief Which parameter collection a parameter id belongs to (the host-engine contract's term).
-using Kind = deluge::engine::ParamKind;
+using Kind = deluge::plugin::ParamKind;
 
 /// Integer type used for all Param enumerations.
 ///
@@ -52,7 +56,7 @@ using ParamType = uint8_t;
 
 /// "Local" patched params, which apply to individual voices within the sound
 enum Local : ParamType {
-	// Local linear params begin
+	// Each param's chain, curve, neutral value and range are synth/matrix/descriptors.h's table, not its position here
 	LOCAL_OSC_A_VOLUME,
 	LOCAL_OSC_B_VOLUME,
 	LOCAL_VOLUME,
@@ -61,9 +65,7 @@ enum Local : ParamType {
 	LOCAL_MODULATOR_1_VOLUME,
 	LOCAL_FOLD,
 
-	// Local non-volume params begin
-	FIRST_LOCAL_NON_VOLUME,
-	LOCAL_MODULATOR_0_FEEDBACK = FIRST_LOCAL_NON_VOLUME,
+	LOCAL_MODULATOR_0_FEEDBACK,
 	LOCAL_MODULATOR_1_FEEDBACK,
 	LOCAL_CARRIER_0_FEEDBACK,
 	LOCAL_CARRIER_1_FEEDBACK,
@@ -76,17 +78,13 @@ enum Local : ParamType {
 	LOCAL_LPF_MORPH,
 	LOCAL_HPF_MORPH,
 
-	// Local hybrid params begin
-	FIRST_LOCAL__HYBRID,
-	LOCAL_OSC_A_PHASE_WIDTH = FIRST_LOCAL__HYBRID,
+	LOCAL_OSC_A_PHASE_WIDTH,
 	LOCAL_OSC_B_PHASE_WIDTH,
 	LOCAL_OSC_A_WAVE_INDEX,
 	LOCAL_OSC_B_WAVE_INDEX,
 	LOCAL_PAN,
 
-	// Local exp params begin
-	FIRST_LOCAL_EXP,
-	LOCAL_LPF_FREQ = FIRST_LOCAL_EXP,
+	LOCAL_LPF_FREQ,
 	LOCAL_PITCH_ADJUST,
 	LOCAL_OSC_A_PITCH_ADJUST,
 	LOCAL_OSC_B_PITCH_ADJUST,
@@ -116,25 +114,13 @@ enum Local : ParamType {
 /// ANY TIME YOU UPDATE THIS LIST, please also update getParamDisplayName and paramNameForFile!
 enum Global : ParamType {
 	FIRST_GLOBAL = LOCAL_LAST,
-	// Global (linear) params begin
 	GLOBAL_VOLUME_POST_FX = FIRST_GLOBAL,
 	GLOBAL_VOLUME_POST_REVERB_SEND,
 	GLOBAL_REVERB_AMOUNT,
 	GLOBAL_MOD_FX_DEPTH,
 
-	// Global non-volume params begin
-	FIRST_GLOBAL_NON_VOLUME,
-	GLOBAL_DELAY_FEEDBACK = FIRST_GLOBAL_NON_VOLUME,
-
-	// Global hybrid params begin
-
-	// There are no global hybrid params, so FIRST_GLOBAL_EXP is set to the same value. If you add a GLOBAL_HYBRID
-	// param, make sure you undo that!
-	FIRST_GLOBAL_HYBRID,
-
-	// Global exp params begin
-	FIRST_GLOBAL_EXP = FIRST_GLOBAL_HYBRID,
-	GLOBAL_DELAY_RATE = FIRST_GLOBAL_EXP,
+	GLOBAL_DELAY_FEEDBACK,
+	GLOBAL_DELAY_RATE,
 	GLOBAL_MOD_FX_RATE,
 	GLOBAL_LFO_FREQ_1,
 	GLOBAL_LFO_FREQ_2,
@@ -247,18 +233,22 @@ constexpr ParamType kUnpatchedAndPatchedMaximum = kMaxNumUnpatchedParams + UNPAT
 
 static_assert(kMaxNumUnpatchedParams < STATIC_START, "Error: Too many UNPATCHED parameters, (collision with STATIC)");
 
+/// @brief The plugin table row of the runtime's param @p paramId in a @p kind collection: the Deluge instrument's for a
+/// sound's patched and unpatched params, the global effectable's for a global effectable's.
+/// @param kind    The runtime collection kind.
+/// @param paramId The param's index in its collection.
+/// @return The row, or nullptr for a collection with no plugin table (MIDI, expression, patch cables).
+[[nodiscard]] const plugin::ParamInfo* paramInfoFor(Kind kind, int32_t paramId);
+
+/// @brief Whether the plugin table row of the param @p paramId in a @p kind collection has @p flag; false for a
+/// collection with no plugin table.
+[[nodiscard]] bool hasParamFlag(Kind kind, int32_t paramId, plugin::ParamFlag flag);
+
 bool isParamBipolar(Kind kind, int32_t paramID);
-bool isParamPan(Kind kind, int32_t paramID);
-bool isParamPitch(Kind kind, int32_t paramID);
 bool isParamPitchBend(Kind kind, int32_t paramID);
 bool isParamArpRhythm(Kind kind, int32_t paramID);
 bool isParamStutter(Kind kind, int32_t paramID);
 bool isParamQuantizedStutter(Kind kind, int32_t paramID, ModControllableAudio* modControllableAudio);
-
-bool isVibratoPatchCableShortcut(int32_t xDisplay, int32_t yDisplay);
-bool isSidechainPatchCableShortcut(int32_t xDisplay, int32_t yDisplay);
-bool isPatchCableShortcut(int32_t xDisplay, int32_t yDisplay);
-void getPatchCableFromShortcut(int32_t xDisplay, int32_t yDisplay, ParamDescriptor* paramDescriptor);
 
 char const* getPatchedParamDisplayName(int32_t p);
 /// Get the short version of a param name, for use in the OLED mod matrix display (maximum 10 characters)
@@ -293,92 +283,4 @@ ParamType fileStringToParam(Kind kind, char const* name, bool allowPatched);
 /// Magic number which represents an invalid or missing param type
 constexpr uint32_t kNoParamID = 0xFFFFFFFF;
 
-/// Grid sized array (patched param version) to assign automatable parameters to the grid
-/// used in automation view and in midi follow
-// clang-format off
-const uint32_t patchedParamShortcuts[kDisplayWidth][kDisplayHeight] = {
-    {kNoParamID              , kNoParamID                    , kNoParamID                    , kNoParamID             , kNoParamID     , kNoParamID                , kNoParamID            , kNoParamID},
-    {kNoParamID              , kNoParamID                    , kNoParamID                    , kNoParamID             , kNoParamID     , kNoParamID                , kNoParamID            , kNoParamID},
-    {LOCAL_OSC_A_VOLUME      , LOCAL_OSC_A_PITCH_ADJUST      , kNoParamID                    , LOCAL_OSC_A_PHASE_WIDTH, kNoParamID     , LOCAL_CARRIER_0_FEEDBACK  , LOCAL_OSC_A_WAVE_INDEX, LOCAL_NOISE_VOLUME},
-    {LOCAL_OSC_B_VOLUME      , LOCAL_OSC_B_PITCH_ADJUST      , kNoParamID                    , LOCAL_OSC_B_PHASE_WIDTH, kNoParamID     , LOCAL_CARRIER_1_FEEDBACK  , LOCAL_OSC_B_WAVE_INDEX, kNoParamID},
-    {LOCAL_MODULATOR_0_VOLUME, LOCAL_MODULATOR_0_PITCH_ADJUST, kNoParamID                    , kNoParamID             , kNoParamID     , LOCAL_MODULATOR_0_FEEDBACK, kNoParamID            , kNoParamID},
-    {LOCAL_MODULATOR_1_VOLUME, LOCAL_MODULATOR_1_PITCH_ADJUST, kNoParamID                    , kNoParamID             , kNoParamID     , LOCAL_MODULATOR_1_FEEDBACK, kNoParamID            , kNoParamID},
-    {GLOBAL_VOLUME_POST_FX   , LOCAL_PITCH_ADJUST            , kNoParamID                    , LOCAL_PAN              , kNoParamID     , kNoParamID                , kNoParamID            , kNoParamID},
-    {kNoParamID              , kNoParamID                    , kNoParamID                    , kNoParamID             , kNoParamID     , kNoParamID                , kNoParamID            , LOCAL_FOLD},
-    {LOCAL_ENV_0_RELEASE     , LOCAL_ENV_0_SUSTAIN           , LOCAL_ENV_0_DECAY             , LOCAL_ENV_0_ATTACK     , LOCAL_LPF_MORPH, kNoParamID                , LOCAL_LPF_RESONANCE   , LOCAL_LPF_FREQ},
-    {LOCAL_ENV_1_RELEASE     , LOCAL_ENV_1_SUSTAIN           , LOCAL_ENV_1_DECAY             , LOCAL_ENV_1_ATTACK     , LOCAL_HPF_MORPH, kNoParamID                , LOCAL_HPF_RESONANCE   , LOCAL_HPF_FREQ},
-    {kNoParamID              , kNoParamID                    , kNoParamID					 , kNoParamID             , kNoParamID     , kNoParamID                , kNoParamID            , kNoParamID},
-    {GLOBAL_ARP_RATE         , kNoParamID                    , kNoParamID                    , kNoParamID             , kNoParamID     , kNoParamID                , kNoParamID            , kNoParamID},
-    {GLOBAL_LFO_FREQ_1         , kNoParamID                    , kNoParamID                    , kNoParamID             , kNoParamID     , kNoParamID                , GLOBAL_MOD_FX_DEPTH   , GLOBAL_MOD_FX_RATE},
-    {LOCAL_LFO_LOCAL_FREQ_1    , kNoParamID                    , kNoParamID                    , GLOBAL_REVERB_AMOUNT   , kNoParamID     , kNoParamID                , kNoParamID            , kNoParamID},
-    {GLOBAL_DELAY_RATE       , kNoParamID                    , kNoParamID                    , GLOBAL_DELAY_FEEDBACK  , kNoParamID     , kNoParamID                , kNoParamID            , kNoParamID},
-    {kNoParamID              , kNoParamID                    , kNoParamID                    , kNoParamID             , kNoParamID     , kNoParamID                , kNoParamID            , kNoParamID}
-};
-
-const uint32_t patchedParamShortcutsSecondLayer[kDisplayWidth][kDisplayHeight] = {
-    {kNoParamID              , kNoParamID                    , kNoParamID                    , kNoParamID             , kNoParamID     , kNoParamID                , kNoParamID            , kNoParamID},
-    {kNoParamID              , kNoParamID                    , kNoParamID                    , kNoParamID             , kNoParamID     , kNoParamID                , kNoParamID            , kNoParamID},
-    {kNoParamID      		 , kNoParamID      				 , kNoParamID                    , kNoParamID			  , kNoParamID     , kNoParamID  			   , kNoParamID				, kNoParamID},
-    {kNoParamID      		 , kNoParamID      				 , kNoParamID                    , kNoParamID			  , kNoParamID     , kNoParamID  			   , kNoParamID				, kNoParamID},
-    {kNoParamID				 , kNoParamID					 , kNoParamID                    , kNoParamID             , kNoParamID     , kNoParamID				   , kNoParamID            , kNoParamID},
-    {kNoParamID				 , kNoParamID					 , kNoParamID                    , kNoParamID             , kNoParamID     , kNoParamID				   , kNoParamID            , kNoParamID},
-    {kNoParamID   			 , kNoParamID            		 , kNoParamID                    , kNoParamID             , kNoParamID     , kNoParamID                , kNoParamID            , kNoParamID},
-    {kNoParamID              , kNoParamID                    , kNoParamID                    , kNoParamID             , kNoParamID     , kNoParamID                , kNoParamID            , kNoParamID},
-    {LOCAL_ENV_2_RELEASE     , LOCAL_ENV_2_SUSTAIN           , LOCAL_ENV_2_DECAY             , LOCAL_ENV_2_ATTACK     , kNoParamID	   , kNoParamID                , kNoParamID   			, kNoParamID},
-    {LOCAL_ENV_3_RELEASE     , LOCAL_ENV_3_SUSTAIN           , LOCAL_ENV_3_DECAY             , LOCAL_ENV_3_ATTACK     , kNoParamID	   , kNoParamID                , kNoParamID   			, kNoParamID},
-    {kNoParamID              , kNoParamID                    , kNoParamID					 , kNoParamID             , kNoParamID     , kNoParamID                , kNoParamID            , kNoParamID},
-    {kNoParamID         	 , kNoParamID                    , kNoParamID                    , kNoParamID             , kNoParamID     , kNoParamID                , kNoParamID            , kNoParamID},
-    {GLOBAL_LFO_FREQ_2       , kNoParamID                    , kNoParamID                    , kNoParamID             , kNoParamID   	, kNoParamID                  , kNoParamID   , kNoParamID},
-    {LOCAL_LFO_LOCAL_FREQ_2  , kNoParamID                    , kNoParamID                    , kNoParamID    		  , kNoParamID   	, kNoParamID                  , kNoParamID            , kNoParamID},
-    {kNoParamID       		 , kNoParamID                    , kNoParamID                    , kNoParamID  			  , kNoParamID     , kNoParamID                , kNoParamID            , kNoParamID},
-    {kNoParamID              , kNoParamID                    , kNoParamID                    , kNoParamID             , kNoParamID     , kNoParamID                , kNoParamID            , kNoParamID}
-};
-// clang-format on
-
-/// Grid sized array (unpatched, non-global) to assign automatable parameters to the grid
-/// used in automation view and in midi follow
-// clang-format off
-const uint32_t unpatchedNonGlobalParamShortcuts[kDisplayWidth][kDisplayHeight] = {
-    {kNoParamID          , kNoParamID, kNoParamID        , kNoParamID, kNoParamID                , kNoParamID                     , kNoParamID           , kNoParamID},
-    {kNoParamID          , kNoParamID, kNoParamID        , kNoParamID, kNoParamID                , kNoParamID                     , kNoParamID           , kNoParamID},
-    {kNoParamID          , kNoParamID, kNoParamID        , kNoParamID, kNoParamID                , kNoParamID                     , kNoParamID           , kNoParamID},
-    {kNoParamID          , kNoParamID, kNoParamID        , kNoParamID, kNoParamID                , kNoParamID                     , kNoParamID           , kNoParamID},
-    {kNoParamID          , kNoParamID, kNoParamID        , kNoParamID, kNoParamID                , kNoParamID                     , kNoParamID           , kNoParamID},
-    {kNoParamID          , kNoParamID, kNoParamID        , kNoParamID, kNoParamID                , kNoParamID                     , kNoParamID           , UNPATCHED_STUTTER_RATE},
-    {kNoParamID          , kNoParamID, kNoParamID        , kNoParamID, kNoParamID                , UNPATCHED_SAMPLE_RATE_REDUCTION, UNPATCHED_BITCRUSHING, kNoParamID},
-    {UNPATCHED_PORTAMENTO, kNoParamID, kNoParamID        , kNoParamID, kNoParamID                , UNPATCHED_COMPRESSOR_THRESHOLD , kNoParamID           , kNoParamID},
-    {kNoParamID          , kNoParamID, kNoParamID        , kNoParamID, kNoParamID                , kNoParamID                     , kNoParamID           , kNoParamID},
-    {kNoParamID          , kNoParamID, kNoParamID        , kNoParamID, kNoParamID                , kNoParamID                     , kNoParamID           , kNoParamID},
-    {kNoParamID          , kNoParamID, kNoParamID        , kNoParamID, UNPATCHED_SIDECHAIN_SHAPE , kNoParamID                     , UNPATCHED_BASS       , UNPATCHED_BASS_FREQ},
-    {kNoParamID          , kNoParamID, UNPATCHED_ARP_GATE, kNoParamID, kNoParamID                , kNoParamID                     , UNPATCHED_TREBLE     , UNPATCHED_TREBLE_FREQ},
-    {kNoParamID          , kNoParamID, kNoParamID        , kNoParamID, UNPATCHED_MOD_FX_OFFSET   , UNPATCHED_MOD_FX_FEEDBACK      , kNoParamID           , kNoParamID},
-    {kNoParamID          , kNoParamID, kNoParamID        , kNoParamID, kNoParamID                , kNoParamID                     , kNoParamID           , kNoParamID},
-    {kNoParamID          , kNoParamID, kNoParamID        , kNoParamID, kNoParamID                , kNoParamID                     , kNoParamID           , kNoParamID},
-    {kNoParamID          , UNPATCHED_SPREAD_VELOCITY, kNoParamID        , kNoParamID, kNoParamID                , kNoParamID                     , kNoParamID           , kNoParamID}
-};
-// clang-format on
-
-/// Grid sized array (unpatched, global) to assign automatable parameters to the grid
-/// used in automation view and in midi follow
-// clang-format off
-const uint32_t unpatchedGlobalParamShortcuts[kDisplayWidth][kDisplayHeight] = {
-    {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , kNoParamID				   , kNoParamID			   		 	, kNoParamID            , kNoParamID},
-    {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , kNoParamID				   , kNoParamID			   		 	, kNoParamID            , kNoParamID},
-    {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , kNoParamID				   , kNoParamID			   		 	, kNoParamID            , kNoParamID},
-    {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , kNoParamID				   , kNoParamID			   		 	, kNoParamID            , kNoParamID},
-    {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , kNoParamID				   , kNoParamID			   		 	, kNoParamID            , kNoParamID},
-    {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , kNoParamID				   , kNoParamID			   		 	, kNoParamID            , UNPATCHED_STUTTER_RATE},
-    {UNPATCHED_VOLUME    , UNPATCHED_PITCH_ADJUST, kNoParamID                , UNPATCHED_PAN               , kNoParamID				   , UNPATCHED_SAMPLE_RATE_REDUCTION, UNPATCHED_BITCRUSHING , kNoParamID},
-    {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , kNoParamID				   , UNPATCHED_COMPRESSOR_THRESHOLD	, kNoParamID            , kNoParamID},
-    {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , UNPATCHED_LPF_MORPH	   , kNoParamID						, UNPATCHED_LPF_RES     , UNPATCHED_LPF_FREQ},
-    {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , UNPATCHED_HPF_MORPH	   , kNoParamID						, UNPATCHED_HPF_RES     , UNPATCHED_HPF_FREQ},
-    {kNoParamID          , kNoParamID            , UNPATCHED_SIDECHAIN_VOLUME, kNoParamID                  , UNPATCHED_SIDECHAIN_SHAPE , kNoParamID			   			, UNPATCHED_BASS        , UNPATCHED_BASS_FREQ},
-    {UNPATCHED_ARP_RATE  , kNoParamID            , UNPATCHED_ARP_GATE        , kNoParamID                  , kNoParamID				   , kNoParamID			   		 	, UNPATCHED_TREBLE      , UNPATCHED_TREBLE_FREQ},
-    {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , UNPATCHED_MOD_FX_OFFSET   , UNPATCHED_MOD_FX_FEEDBACK		, UNPATCHED_MOD_FX_DEPTH, UNPATCHED_MOD_FX_RATE},
-    {kNoParamID          , kNoParamID            , kNoParamID                , UNPATCHED_REVERB_SEND_AMOUNT, kNoParamID				   , kNoParamID			   		 	, kNoParamID            , kNoParamID},
-    {UNPATCHED_DELAY_RATE, kNoParamID            , kNoParamID                , UNPATCHED_DELAY_AMOUNT      , kNoParamID				   , kNoParamID			  		 	, kNoParamID            , kNoParamID},
-    {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , kNoParamID				   , kNoParamID			   		 	, kNoParamID            , kNoParamID}};
-// clang-format on
-
-uint32_t expressionParamFromShortcut(int x, int y);
 } // namespace deluge::modulation::params

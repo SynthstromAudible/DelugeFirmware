@@ -59,9 +59,9 @@ const char* groupName(SettingGroupId group) {
 /// host values are paths only where they are settings (@p arpHost): elsewhere they are params.
 std::vector<std::string_view> pathsFor(SettingGroupId group, const ::Output* output, bool arpHost = false) {
 	std::vector<std::string_view> paths;
-	for (const deluge::engine::SettingInfo& row : deluge::project::table_of(group)) {
+	for (const deluge::plugin::SettingInfo& row : deluge::project::table_of(group)) {
 		if ((group == SettingGroupId::CLIP_ARP || group == SettingGroupId::LANE_ARP) && !arpHost
-		    && deluge::engine::find_setting(deluge::engine::kArpHostRows, row.path) != nullptr) {
+		    && deluge::plugin::find_setting(deluge::plugin::kArpHostRows, row.path) != nullptr) {
 			continue;
 		}
 		if (group == SettingGroupId::INSTRUMENT_DEVICE) {
@@ -235,12 +235,12 @@ std::string describe(const deluge::project::MidiCommand& source) {
 }
 
 /// One knob as a report shows it.
-std::string describe(deluge::engine::ParamId param, const ::LearnedMIDI& learned, bool relative) {
+std::string describe(deluge::plugin::ParamId param, const ::LearnedMIDI& learned, bool relative) {
 	return std::to_string(param.value) + "=" + describe(learned) + (relative ? "~" : "");
 }
 
 /// One table knob as a report shows it.
-std::string describe(deluge::engine::ParamId param, const deluge::project::MidiCommand& source, bool relative) {
+std::string describe(deluge::plugin::ParamId param, const deluge::project::MidiCommand& source, bool relative) {
 	return std::to_string(param.value) + "=" + describe(source) + (relative ? "~" : "");
 }
 
@@ -257,8 +257,8 @@ std::string knobsIncoherence(::Song& song, ControlsAddress address) {
 	bool same = table.size() == owner->midi_knobs.size();
 	for (size_t i = 0; same && i < table.size(); i++) {
 		const MIDIKnob& knob = owner->midi_knobs[i];
-		same = std::get<deluge::project::ParamTarget>(table[i].target).param
-		           == deluge::bridge::knobTargetOf(knob.paramDescriptor, unpatchedKind)
+		same = std::get<deluge::project::OwnerParamTarget>(table[i].target).param
+		           == deluge::bridge::controlTargetOf(knob.target, unpatchedKind)
 		       && table[i].relative == knob.relative && playsTheSame(table[i].source, knob.midiInput);
 	}
 	if (same) {
@@ -267,13 +267,12 @@ std::string knobsIncoherence(::Song& song, ControlsAddress address) {
 	std::string a;
 	for (const Mapping& entry : table) {
 		a += (a.empty() ? "" : " ")
-		     + describe(std::get<deluge::project::ParamTarget>(entry.target).param, entry.source, entry.relative);
+		     + describe(std::get<deluge::project::OwnerParamTarget>(entry.target).param, entry.source, entry.relative);
 	}
 	std::string b;
 	for (const MIDIKnob& knob : owner->midi_knobs) {
 		b += (b.empty() ? "" : " ")
-		     + describe(deluge::bridge::knobTargetOf(knob.paramDescriptor, unpatchedKind), knob.midiInput,
-		                knob.relative);
+		     + describe(deluge::bridge::controlTargetOf(knob.target, unpatchedKind), knob.midiInput, knob.relative);
 	}
 	const char* kind = address.kind == ControlsAddress::Kind::SONG   ? "SONG_KNOBS"
 	                   : address.kind == ControlsAddress::Kind::DRUM ? "DRUM_KNOBS"

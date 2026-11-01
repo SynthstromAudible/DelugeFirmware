@@ -1,0 +1,4 @@
+# Channel aftertouch held from before the note: G4 starts with aftertouch already non-zero.
+4000 D0 40
+4608 90 43 64
+52000 80 43 40

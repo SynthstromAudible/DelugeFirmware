@@ -38,7 +38,7 @@ using deluge::project::LaneInputTarget;
 using deluge::project::Mapping;
 using deluge::project::MidiDeviceRef;
 using Command = deluge::project::MidiCommand;
-using deluge::project::ParamTarget;
+using deluge::project::OwnerParamTarget;
 using deluge::project::TrackInputTarget;
 using deluge::serialization::Value;
 
@@ -50,10 +50,8 @@ Command command(uint8_t channel, uint8_t noteOrCC) {
 }
 
 /// @brief A patched param of a sound, as the table names it.
-deluge::engine::ParamId patched(int32_t p) {
-	ParamDescriptor descriptor;
-	descriptor.setToHaveParamOnly(p);
-	return deluge::bridge::knobTargetOf(descriptor, params::Kind::UNPATCHED_SOUND);
+deluge::plugin::ParamId patched(int32_t p) {
+	return deluge::bridge::controlTargetOf(deluge::modulation::knobParam(p), params::Kind::UNPATCHED_SOUND);
 }
 
 /// @brief The element one write produced: the one item of the list it was written into, unboxed.
@@ -125,7 +123,7 @@ describe mapping_save("a song's save of its MIDI bindings", $ {
 		spec::SongFixture f = spec::make_synth_song();
 		const ControlsAddress owner{ControlsAddress::Kind::OUTPUT, *f.instrument->id()};
 		f.song->project.mappings.learn(
-		    Mapping{.source = command(2, 74), .target = ParamTarget{owner, patched(params::LOCAL_VOLUME)}});
+		    Mapping{.source = command(2, 74), .target = OwnerParamTarget{owner, patched(params::LOCAL_VOLUME)}});
 		static_cast<SoundInstrument*>(f.instrument)->midi_knobs.clear();
 		std::optional<Value> saved = savedOutput(*f.instrument, *f.song);
 		expect(saved.has_value()).to_be_true();
@@ -142,14 +140,14 @@ describe mapping_save("a song's save of its MIDI bindings", $ {
 		auto& sound = *static_cast<SoundInstrument*>(f.instrument);
 		const ControlsAddress owner{ControlsAddress::Kind::OUTPUT, *f.instrument->id()};
 		f.song->project.mappings.learn(
-		    Mapping{.source = command(0, 11), .target = ParamTarget{owner, patched(params::LOCAL_PAN)}});
+		    Mapping{.source = command(0, 11), .target = OwnerParamTarget{owner, patched(params::LOCAL_PAN)}});
 		f.song->project.mappings.learn(
-		    Mapping{.source = command(0, 10), .target = ParamTarget{owner, patched(params::LOCAL_VOLUME)}});
+		    Mapping{.source = command(0, 10), .target = OwnerParamTarget{owner, patched(params::LOCAL_VOLUME)}});
 		sound.midi_knobs.clear();
 		MIDIKnob& stray = sound.midi_knobs.emplace_back();
 		stray.midiInput.channelOrZone = 5;
 		stray.midiInput.noteOrCC = 99;
-		stray.paramDescriptor.setToHaveParamOnly(params::LOCAL_PITCH_ADJUST);
+		stray.target = deluge::modulation::knobParam(params::LOCAL_PITCH_ADJUST);
 		std::optional<Value> saved = savedOutput(*f.instrument, *f.song);
 		expect(saved.has_value()).to_be_true();
 		expect(text(knobAt(*saved, 0), "ccNumber")).to_equal(std::string{"11"});
@@ -214,7 +212,7 @@ describe mapping_save("a song's save of its MIDI bindings", $ {
 		expect(currentSong == current.song).to_be_true();
 		const ControlsAddress owner{ControlsAddress::Kind::OUTPUT, *f.instrument->id()};
 		f.song->project.mappings.learn(
-		    Mapping{.source = command(2, 74), .target = ParamTarget{owner, patched(params::LOCAL_VOLUME)}});
+		    Mapping{.source = command(2, 74), .target = OwnerParamTarget{owner, patched(params::LOCAL_VOLUME)}});
 		static_cast<SoundInstrument*>(f.instrument)->midi_knobs.clear();
 		std::optional<Value> saved = savedOutput(*f.instrument, *f.song);
 		expect(saved.has_value()).to_be_true();
@@ -244,13 +242,13 @@ describe mapping_save("a song's save of its MIDI bindings", $ {
 		const ControlsAddress owner{ControlsAddress::Kind::OUTPUT, *other.instrument->id()};
 		// The saving song's table names the same id, with other bindings: none of them is the engine's to write.
 		saving.song->project.mappings.learn(
-		    Mapping{.source = command(0, 11), .target = ParamTarget{owner, patched(params::LOCAL_PAN)}});
+		    Mapping{.source = command(0, 11), .target = OwnerParamTarget{owner, patched(params::LOCAL_PAN)}});
 		saving.song->project.mappings.learn(Mapping{.source = command(3, 36), .target = TrackInputTarget{owner.id}});
 		sound.midi_knobs.clear();
 		MIDIKnob& engineKnob = sound.midi_knobs.emplace_back();
 		engineKnob.midiInput.channelOrZone = 5;
 		engineKnob.midiInput.noteOrCC = 99;
-		engineKnob.paramDescriptor.setToHaveParamOnly(params::LOCAL_PITCH_ADJUST);
+		engineKnob.target = deluge::modulation::knobParam(params::LOCAL_PITCH_ADJUST);
 		other.instrument->midiInput.channelOrZone = 6;
 		std::optional<Value> saved = savedOutput(*other.instrument, *saving.song);
 		expect(saved.has_value()).to_be_true();

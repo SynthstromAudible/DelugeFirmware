@@ -21,7 +21,7 @@ namespace deluge::gui::menu_item::source_selection {
 class Range final : public SourceSelection {
 public:
 	using SourceSelection::SourceSelection;
-	ParamDescriptor getDestinationDescriptor() override;
+	deluge::synth::CableTarget getDestinationDescriptor() override;
 	MenuItem* selectButtonPress() override;
 	MenuItem* patchingSourceShortcutPress(PatchSource newS, bool previousPressStillActive) override;
 	[[nodiscard]] PatchingSourceShortcutTarget

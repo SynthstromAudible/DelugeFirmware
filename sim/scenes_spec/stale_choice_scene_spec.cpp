@@ -15,7 +15,7 @@
 
 #include "spec/shell/support/fake_surfaces.h"
 
-#include "engines/deluge/sound_state.h"
+#include "instruments/deluge/sound_state.h"
 #include "model/edits/setting_edit.h"
 #include "model/instrument/kit.h"
 #include "processing/sound/sound_drum.h"

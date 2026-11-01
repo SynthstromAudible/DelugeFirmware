@@ -56,6 +56,14 @@ public:
 	/// @return The param's node store; nullptr by default.
 	virtual deluge::project::DocAutoParam* docParamForId(int32_t paramId) { return nullptr; }
 
+	/// @brief The node store docParamForId() would return, if the collection already holds one: it creates nothing.
+	///
+	/// The render's lookup (ModelStackWithAutoParam::doc()): a store the render grew could move under another tier
+	/// reading it.
+	/// @param paramId The param id within this collection.
+	/// @return The param's node store, or nullptr when it has none yet.
+	virtual deluge::project::DocAutoParam* findDocParamForId(int32_t paramId) { return nullptr; }
+
 	/// @brief Whether this collection resolves params against an external (project-tree) DOM store rather than its
 	///        own engine-inline storage.
 	///

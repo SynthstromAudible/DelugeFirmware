@@ -17,12 +17,12 @@
 ///       *declare* those types here (as references, or as a return type never invoked from this
 ///       header), which never requires a complete type, so this header stays free of the shell's
 ///       and the oled toolkit's own dependency closures.
-#include "engines/deluge/params.h"
-#include "engines/global_effectable/params.h"
+#include "effects/global_effectable/params.h"
 #include "gfx/oled/icons.h" // CustomItem::row_icon's default answer -- one `extern const Icon`
+#include "instruments/deluge/params.h"
 #include "modulation/params/param.h"
-#include "modulation/params/param_descriptor.h" // CustomItem::learn_descriptor -- returned by value
 #include "scenes/bind/target.h"
+#include "synth/modulation/cable.h"  // CustomItem::learn_descriptor -- returned by value
 #include "ui/oled/column_drawings.h" // DrawColumn
 #include "ui/oled/columns.h"         // ArtColumn
 #include "ui/oled/meters.h"
@@ -708,16 +708,8 @@ struct CustomItem {
 	/// the item alone.
 	///
 	/// A null descriptor (the default) means "this item has nothing to learn", which is what
-	/// `MenuScene::learn_target` falls back from to `bindings::learn_target`. Spelled with
-	/// `setToNull()` rather than `{}` on purpose: a default-constructed `ParamDescriptor` has
-	/// `data == 0` and `isNull()` is false for it (`modulation/params/param_descriptor.h:106-110`),
-	/// so `{}` would read as "param 0 from source 0" -- the same spelling `bindings::learn_target`
-	/// uses for the same reason.
-	virtual ParamDescriptor learn_descriptor(const MenuContext&, const MenuState&) const {
-		ParamDescriptor descriptor;
-		descriptor.setToNull();
-		return descriptor;
-	}
+	/// `MenuScene::learn_target` falls back from to `bindings::learn_target`.
+	virtual deluge::synth::CableTarget learn_descriptor(const MenuContext&, const MenuState&) const { return {}; }
 	/// @}
 
 	/// @name Automation
@@ -1097,7 +1089,7 @@ constexpr Node with_permitted(Node n, PermittedFn fn) {
 
 /// @brief The id @p p's param has in its owner's engine's table: a sound's (patched or unpatched) in the Deluge
 ///        instrument's, a global effectable's in its own.
-constexpr deluge::engine::ParamId param_id_of(ParamRef p) {
+constexpr deluge::plugin::ParamId param_id_of(ParamRef p) {
 	using deluge::modulation::params::Kind;
 	switch (p.kind) {
 	case Kind::PATCHED:
@@ -1121,8 +1113,8 @@ constexpr deluge::scenes::bind::ParamTable param_table_of(ParamRef p) {
 ///        alternatives of which one must hold, and a target it shows only where that applies (a condition another
 ///        owner holds).
 struct ParamShows {
-	std::span<const deluge::engine::SettingCondition> when{};
-	std::span<const std::span<const deluge::engine::SettingCondition>> any{};
+	std::span<const deluge::plugin::SettingCondition> when{};
+	std::span<const std::span<const deluge::plugin::SettingCondition>> any{};
 	const deluge::scenes::bind::Target* with{nullptr};
 };
 

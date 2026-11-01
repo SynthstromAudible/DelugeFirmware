@@ -416,6 +416,7 @@ def cmd_run(
             for future in concurrent.futures.as_completed(futures):
                 h = futures[future]
                 ok, text = future.result()
+                sys.stdout.flush()
                 print(text, end="", file=OUT, flush=True)
                 outcomes[h.name] = Outcome(h.name, "PASS" if ok else "FAIL")
     for h in alone:
@@ -463,6 +464,7 @@ def _write_junit(path: Path, outcome: Outcome) -> None:
 
 
 def _summarise(outcomes: list[Outcome], strict: bool, out) -> int:
+    sys.stdout.flush()
     if len(outcomes) > 1:
         width = max(len(o.name) for o in outcomes)
         print("\n== summary", file=out)

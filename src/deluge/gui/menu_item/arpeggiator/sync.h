@@ -38,7 +38,7 @@ public:
 		const deluge::serialization::Value type =
 		    deluge::serialization::Value::makeNumber(std::to_underlying(syncValueToSyncType(current_value)));
 		const deluge::serialization::Value level =
-		    deluge::serialization::Value::makeNumber(deluge::engine::index_of(syncValueToSyncLevel(current_value)));
+		    deluge::serialization::Value::makeNumber(deluge::plugin::index_of(syncValueToSyncLevel(current_value)));
 
 		// If affect-entire button held, do whole kit
 		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {

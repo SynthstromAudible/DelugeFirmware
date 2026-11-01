@@ -137,8 +137,8 @@ private:
 	// field pointer escapes.
 	[[nodiscard]] uint32_t getCurrentPhase() const {
 		Sound* sound = soundEditor.currentSound;
-		return for_modulator_ ? sound->snapshot().modulatorRetriggerPhase[source_id_]
-		                      : sound->snapshot().oscRetriggerPhase[source_id_];
+		return for_modulator_ ? sound->snapshot().modulator_retrigger_phase[source_id_]
+		                      : sound->snapshot().osc_retrigger_phase[source_id_];
 	}
 	void setCurrentPhase(uint32_t value) const {
 		Sound* sound = soundEditor.currentSound;

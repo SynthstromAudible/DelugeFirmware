@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "engine-api/types/rate_tables.h"
+#include "plugin-api/types/rate_tables.h"
 
 #include <array>
 #include <cstdint>
@@ -37,26 +37,15 @@
 // declaration to carry no alignment-specifier, so these externs need no annotation and cannot
 // drift out of agreement with the definitions.
 extern const uint16_t centAdjustTableSmall[];
-extern const uint16_t decayTableSmall4[];
-extern const uint16_t decayTableSmall8[];
 extern const int16_t hanningWindow[];
-
-extern const int16_t sineWaveSmall[];
-
-// The band-limited oscillator wave LUTs (triangle AA, saw, square, analog saw/square) moved
-// into their dsp-next kernels (dsp-next/fixed/{saw,square,triangle,analog_saw,analog_square}.cpp),
-// which own them internally. sineWaveSmall stays here (read by the dsp-next sine_table evaluator + the
-// wavetable engine).
 
 // Begins at E (4 semitones above C). So that this octave contains the largest values (phase increments) possible
 // without going over 22.05kHz (2147483648), even when shifted up a semitone (via osc-cents and unison combined)
 extern const int32_t noteFrequencyTable[12];
 extern const int32_t noteIntervalTable[12];
-extern const int32_t timeStretchAdjustTable[193];
-// The sidechain's rate tables are engine data (engine-api/types/rate_tables.h).
-inline constexpr const auto& attackRateTable = deluge::engine::kSidechainAttackRates;
-inline constexpr const auto& releaseRateTable = deluge::engine::kSidechainReleaseRates;
-extern const int32_t releaseRateTable64[65];
+// The sidechain's rate tables are plugin data (plugin-api/types/rate_tables.h).
+inline constexpr const auto& attackRateTable = deluge::plugin::kSidechainAttackRates;
+inline constexpr const auto& releaseRateTable = deluge::plugin::kSidechainReleaseRates;
 
 extern const uint8_t noteCodeToNoteLetter[];
 extern const uint8_t noteCodeToNoteLetterFlats[];

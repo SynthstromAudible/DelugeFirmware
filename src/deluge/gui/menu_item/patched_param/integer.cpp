@@ -30,12 +30,16 @@
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_set.h"
+#include "plugin-api/types/param.h"
 #include "processing/sound/sound_drum.h"
 
 namespace deluge::gui::menu_item::patched_param {
+plugin::MappingKind Integer::mapping() const {
+	return modulation::params::paramInfoFor(modulation::params::Kind::PATCHED, getP())->mapping;
+}
+
 void Integer::readCurrentValue() {
-	this->setValue(computeCurrentValueForStandardMenuItem(
-	    soundEditor.currentParamManager->getPatchedParamSet()->getValue(getP())));
+	this->setValue(plugin::to_menu(mapping(), soundEditor.currentParamManager->getPatchedParamSet()->getValue(getP())));
 }
 
 void Integer::writeCurrentValue() {
@@ -88,7 +92,7 @@ void Integer::writeCurrentValue() {
 }
 
 int32_t Integer::getFinalValue() {
-	return computeFinalValueForStandardMenuItem(this->getValue());
+	return plugin::from_menu(mapping(), this->getValue());
 }
 
 } // namespace deluge::gui::menu_item::patched_param

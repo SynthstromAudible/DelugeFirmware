@@ -39,7 +39,6 @@
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "util/functions.h"
-#include "util/param_functions.h"
 #include "util/structural_edit_probe.h"
 
 #include <algorithm>
@@ -76,7 +75,7 @@ bool paramLifted(ParamSet& set, int32_t id, const ParamBefore& before) {
 bool cableReachesFeedback(PatchCableSet& cables, const ParamBefore& before) {
 	for (int32_t c = 0; c < cables.numPatchCables; c++) {
 		const PatchCable& cable = cables.patchCables[c];
-		if (cable.destinationParamDescriptor.getJustTheParam() != params::GLOBAL_DELAY_FEEDBACK) {
+		if (cable.destination.param_index() != params::GLOBAL_DELAY_FEEDBACK) {
 			continue;
 		}
 		if (&cable.param == before.param && before.value == 0) {
@@ -217,10 +216,10 @@ void onDelayParamModified(const ModelStackWithAutoParam& modelStack, int32_t old
 		reaches = modelStack.paramId == params::UNPATCHED_DELAY_AMOUNT;
 		break;
 	case params::Kind::PATCH_CABLE: {
-		ParamDescriptor destination;
+		deluge::synth::CableTarget destination;
 		PatchSource source{};
 		PatchCableSet::dissectParamId(modelStack.paramId, &destination, &source);
-		reaches = destination.getJustTheParam() == params::GLOBAL_DELAY_FEEDBACK;
+		reaches = destination.param_index() == params::GLOBAL_DELAY_FEEDBACK;
 		break;
 	}
 	default:
@@ -266,8 +265,7 @@ std::size_t reserveIn(ParamManager& paramManager, bool sound, const deluge::effe
 	// The render's rate with no cable or modulation on it.
 	const int32_t value = sound ? paramManager.getPatchedParamSet()->getValue(params::GLOBAL_DELAY_RATE)
 	                            : paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_DELAY_RATE);
-	const int32_t userRate =
-	    getFinalParameterValueExp(paramNeutralValues[params::GLOBAL_DELAY_RATE], cableToExpParamShortcut(value));
+	const int32_t userRate = deluge::effects::final_value(deluge::effects::Delay::kRate, value);
 	const int32_t rate = deluge::effects::synced_delay_rate(userRate, settings, timePerInternalTickInverse);
 	return deluge::effects::tape_shape(static_cast<uint32_t>(rate), true).frames;
 }

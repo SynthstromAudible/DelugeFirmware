@@ -1,0 +1,5 @@
+# Overlapping notes on a mono sound; osc 1 turns to square at block 150 (frame 19200), between them.
+4608 90 3C 64
+30000 90 43 64
+35000 80 3C 40
+60000 80 43 40

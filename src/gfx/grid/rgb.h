@@ -9,12 +9,12 @@
 // NB: these live in a *named* nested namespace, not an anonymous one, and every use below is
 // qualified. `gui/colour/colour.h` (the façade `RGB`/palette live behind) is included from
 // `util/functions.h` itself, which is included practically everywhere -- so an anonymous-namespace
-// copy of a name that also exists at global scope (`rshift_round`, `ONE_Q15`) would be visible
+// copy of a name that also exists at global scope (`rshift_round`, `kOneQ15`) would be visible
 // unqualified in the same translation unit as the original, and every unqualified call site in
 // `util/functions.h` (etc.) would become an ambiguous overload/reference. Qualifying every call
 // here sidesteps that regardless of what else shares the name elsewhere.
 namespace deluge::gfx::grid::detail {
-// from util/fixedpoint.h (q31_t is just int32_t; ONE_Q15 is the fixed-point value for 1.0 at Q15).
+// from dsp-next/core/q31_ops.h (q31_t is just int32_t; kOneQ15 is the fixed-point value for 1.0 at Q15).
 constexpr int32_t kOneQ15{65536};
 
 // from util/const_functions.h

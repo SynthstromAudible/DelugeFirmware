@@ -184,7 +184,7 @@ inline void applySettingEdit(const deluge::project::SettingAddress& address, std
 inline bool settingRefused(deluge::project::SettingGroupId group, std::string_view path,
                            const deluge::serialization::Value& value) {
 	const std::string* text = deluge::serialization::text_of(&value);
-	if (text != nullptr && deluge::engine::check_setting_text(deluge::project::table_of(group), path, *text)) {
+	if (text != nullptr && deluge::plugin::check_setting_text(deluge::project::table_of(group), path, *text)) {
 		return false;
 	}
 	D_PRINTLN("setting refused: %.*s = %s", static_cast<int>(path.size()), path.data(), value.str().c_str());
@@ -203,14 +203,14 @@ inline void songSettingFor(std::string_view path, deluge::serialization::Value v
 }
 
 /// @brief A change of @p song's own setting at @p path, in the song menu's units: the row's user scale
-///        (`engine::to_stored`) gives the value the record holds. Logs a refusal.
+///        (`plugin::to_stored`) gives the value the record holds. Logs a refusal.
 /// @param song The song.
 /// @param path The setting's path in the song group.
 /// @param user The menu's value.
 inline void songSettingFromMenuIn(::Song& song, std::string_view path, int32_t user) {
-	for (const deluge::engine::SettingInfo& row : deluge::project::table_of(deluge::project::SettingGroupId::SONG)) {
+	for (const deluge::plugin::SettingInfo& row : deluge::project::table_of(deluge::project::SettingGroupId::SONG)) {
 		if (row.path == path) {
-			if (const std::optional<int32_t> stored = deluge::engine::to_stored(row, user)) {
+			if (const std::optional<int32_t> stored = deluge::plugin::to_stored(row, user)) {
 				const deluge::serialization::Value value = deluge::serialization::Value::makeNumber(*stored);
 				deluge::edits::Context ctx{song, song.project};
 				deluge::edits::SetSetting edit{

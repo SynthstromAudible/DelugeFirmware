@@ -3,9 +3,7 @@
 #include "deluge-project/audio_input.h"
 #include "deluge-project/fraction.h"
 #include "deluge-project/sequence_direction.h"
-#include "engine-api/types/arp.h"
-#include "engine-api/types/sync.h"
-#include "engines/effects/reverb.h"
+#include "effects/reverb.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
@@ -26,6 +24,8 @@
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
 #include "playback/playback_handler.h"
+#include "plugin-api/types/arp.h"
+#include "plugin-api/types/sync.h"
 #include "processing/audio_output.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_instrument.h"
@@ -177,7 +177,7 @@ std::optional<Value> engineReverbValue(std::string_view path) {
 		return number(AudioEngine::reverbSidechainShape);
 	}
 	if (path == "reverb/compressor/syncLevel") {
-		return number(deluge::engine::index_of(AudioEngine::reverbSidechainSettings.sync_level));
+		return number(deluge::plugin::index_of(AudioEngine::reverbSidechainSettings.sync_level));
 	}
 	return std::nullopt;
 }
@@ -249,7 +249,7 @@ Error applyTrackSetting(::Output& output, std::string_view path, const Value& va
 		return Error::NONE;
 	}
 	if (path.starts_with("ccLabels/")) {
-		const std::optional<int64_t> cc = engine::whole_number(path.substr(std::string_view{"ccLabels/"}.size()));
+		const std::optional<int64_t> cc = plugin::whole_number(path.substr(std::string_view{"ccLabels/"}.size()));
 		if (!cc) {
 			return Error::UNSPECIFIED;
 		}
@@ -507,8 +507,8 @@ uint32_t* hostField(::ArpeggiatorSettings& arp, std::string_view path) {
 
 /// @brief The index of @p value among the choices of arp row @p path, or nullopt.
 std::optional<int32_t> arpChoice(std::string_view path, const Value& value) {
-	const engine::SettingInfo* row = engine::find_setting(engine::kArpSettingRows, path);
-	if (row == nullptr || row->kind != engine::SettingKind::CHOICE) {
+	const plugin::SettingInfo* row = plugin::find_setting(plugin::kArpSettingRows, path);
+	if (row == nullptr || row->kind != plugin::SettingKind::CHOICE) {
 		return std::nullopt;
 	}
 	const auto at = std::ranges::find(row->choices, value.str());
@@ -853,7 +853,7 @@ std::optional<Value> engineTrackValue(::Output& output, std::string_view path) {
 		return Value::makeNumber(midi.hideUnlabeledCC ? 1 : 0);
 	}
 	if (path.starts_with("ccLabels/")) {
-		const std::optional<int64_t> cc = engine::whole_number(path.substr(std::string_view{"ccLabels/"}.size()));
+		const std::optional<int64_t> cc = plugin::whole_number(path.substr(std::string_view{"ccLabels/"}.size()));
 		return cc ? std::optional<Value>{Value::makeScalar(std::string{midi.getNameFromCC(static_cast<int32_t>(*cc))})}
 		          : std::nullopt;
 	}
@@ -911,7 +911,7 @@ std::optional<Value> engineSettingValue(::Song& song, const project::SettingAddr
 			owner.drum = findDrum(song, lane.kit_id, lane.drum_id);
 			arp = owner.drum != nullptr ? &owner.drum->arpSettings : nullptr;
 		}
-		const bool host = engine::find_setting(engine::kArpHostRows, path) != nullptr;
+		const bool host = plugin::find_setting(plugin::kArpHostRows, path) != nullptr;
 		if (arp == nullptr || (host && !arpHostValuesAreSettings(owner))) {
 			return std::nullopt; // no engine arp, or a host value that is a param here
 		}
@@ -1002,7 +1002,7 @@ std::optional<Value> engineSettingValue(::Song& song, const project::SettingAddr
 	}
 	if (address.group == SettingGroupId::SONG) {
 		if (path == "swingInterval") {
-			return Value::makeNumber(deluge::engine::index_of(song.project.groove.swing_interval));
+			return Value::makeNumber(deluge::plugin::index_of(song.project.groove.swing_interval));
 		}
 		if (path == "syncScalingClip") {
 			::Clip* clip = song.getSyncScalingClip();

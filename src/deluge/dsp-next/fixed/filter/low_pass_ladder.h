@@ -19,6 +19,7 @@
 
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/mode.h"
+#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/types.h"
 #include "dsp-next/core/wrapping.h"
 #include "dsp-next/fixed/curves/quick_log.h"
@@ -26,9 +27,8 @@
 #include "dsp-next/fixed/filter/one_pole.h"
 #include "dsp-next/fixed/filter/shift_tracker.h"
 #include "dsp-next/fixed/interpolation/table_interpolation.h"
+#include "dsp-next/fixed/noise/cong.h"
 #include "dsp-next/fixed/shaping/tanh.h"
-#include "util/fixedpoint.h"
-#include "util/param_functions.h" // lshiftAndSaturate
 
 #include <algorithm>
 #include <array>
@@ -87,19 +87,20 @@ inline constexpr std::array<int16_t, 65> kResonanceLimits = {
 /// too: on the Cortex-A9, splitting the saturating form from the plain one measured 5–13% slower, as the ladder's
 /// multiply chains lost the test that filled their latency and spilled more.
 ///
-/// **Noise.** Each step draws one value from @p Noise (`Noise::render()`), two when oversampled. Under `Stereo` the
-/// left channel steps first in every frame, so with a shared stream (@ref CongNoise) the left channel draws first.
+/// **Noise.** Each step draws one value from the block's noise stream (its Context), two when oversampled. Under
+/// `Stereo` both channels share the one stream, left first in every frame, as the wrapper steps them.
 ///
 /// **Reset.** The kernel's reset silences the sections and keeps the noise follower: a reset ladder picks up the
 /// same wobble it had.
 ///
 /// **Wrapping.** Every sum and difference wraps modulo 2^32, as the target's `add` and `sub` do: at full scale the
 /// input less its feedback, and the sections' sums (@ref OnePole), leave q31.
-/// @tparam Noise A policy with `static q31 render()`, each call the next draw.
-template <class Noise>
+/// @tparam Noise The noise stream the block draws from: a @ref noise_stream, each `next()` the next draw.
+template <noise_stream Noise = Cong>
 struct LowPassLadder {
 	using value_type = q31; ///< A sample, Q31.
 	using step_type = q31;  ///< A sample, Q31: one step per sample.
+	using Context = Noise;  ///< The noise stream the block draws from: one draw per step, two when oversampled.
 
 	/// @brief Which ladder runs.
 	enum class Ladder : uint8_t {
@@ -191,14 +192,14 @@ struct LowPassLadder {
 	/// held below 39056384, and its resonance is limited. Its gain is 0.8 of the gain going in.
 	[[nodiscard]] [[gnu::always_inline]] static Coefficients coefficients(const Settings& s) {
 		Coefficients c{};
-		c.morph = lshiftAndSaturate<2>(s.config.morph);
+		c.morph = lshift_and_saturate<2>(s.config.morph);
 		q31 frequency = s.config.frequency;
 		bool oversample = false;
 		Ladder ladder = Ladder::T12;
 
 		if (s.mode == LowPassLadderMode::TRANSISTOR_24DB_DRIVE) {
-			const int32_t resonance = ONE_Q31 - (s.config.resonance << 2);
-			c.processed_resonance = ONE_Q31 - resonance;
+			const int32_t resonance = kOneQ31 - (s.config.resonance << 2);
+			c.processed_resonance = kOneQ31 - resonance;
 
 			int32_t log_frequency = quick_log(static_cast<uint32_t>(frequency));
 			log_frequency = std::min(log_frequency, int32_t{63} << 24);
@@ -206,7 +207,7 @@ struct LowPassLadder {
 			if (s.config.allow_oversampling && (log_frequency >> 24) > 51) {
 				constexpr const int16_t* kThresholds =
 				    low_pass_ladder_detail::kResonanceThresholdsForOversampling.data();
-				const int32_t threshold = linear_table_interpolator.interpolateSigned(
+				const int32_t threshold = kLinearTableInterpolator.interpolate_signed(
 				    static_cast<uint32_t>(log_frequency), 30, kThresholds, 6);
 				oversample = c.processed_resonance > threshold;
 			}
@@ -218,17 +219,17 @@ struct LowPassLadder {
 				frequency = std::min(int32_t{39056384}, frequency);
 				constexpr const int16_t* kLimits = low_pass_ladder_detail::kResonanceLimits.data();
 				const int32_t limit =
-				    linear_table_interpolator.interpolateSigned(static_cast<uint32_t>(log_frequency), 30, kLimits, 6);
+				    kLinearTableInterpolator.interpolate_signed(static_cast<uint32_t>(log_frequency), 30, kLimits, 6);
 				c.processed_resonance = std::min(c.processed_resonance, limit);
 			}
 			ladder = oversample ? Ladder::DRIVE_OVERSAMPLED : Ladder::DRIVE;
 		}
 		else {
-			constexpr int32_t kHowMuchToKeep = ONE_Q31 - 33;
+			constexpr int32_t kHowMuchToKeep = kOneQ31 - 33;
 			constexpr int32_t kResonanceUpperLimit = 510000000; // above this it feeds back lots
-			int32_t resonance = ONE_Q31 - (std::min(s.config.resonance, kResonanceUpperLimit) << 2);
+			int32_t resonance = kOneQ31 - (std::min(s.config.resonance, kResonanceUpperLimit) << 2);
 			resonance = multiply_32x32_rshift32_rounded(resonance, resonance) << 1;
-			c.processed_resonance = ONE_Q31 - resonance;
+			c.processed_resonance = kOneQ31 - resonance;
 			c.processed_resonance = multiply_32x32_rshift32_rounded(c.processed_resonance, kHowMuchToKeep) << 1;
 			ladder = s.mode == LowPassLadderMode::TRANSISTOR_12DB ? Ladder::T12 : Ladder::T24;
 		}
@@ -309,25 +310,26 @@ struct LowPassLadder {
 	/// @param c The block's coefficients.
 	/// @param s The channel's follower and sections, updated.
 	/// @param x The input, Q31.
+	/// @param noise The block's noise stream, drawn once (twice when oversampled).
 	/// @return The ladder's output, Q31.
 	template <Mode M>
 	[[nodiscard]] [[gnu::always_inline]] static q31 step(const Coefficients& c, const EmptyBlock& /*b*/, State& s,
-	                                                     q31 x) {
+	                                                     q31 x, Noise& noise) {
 		constexpr Ladder kLadder = ladder_of(M);
 		constexpr Input kInput = input_of(M);
 		if constexpr (kLadder == Ladder::T12) {
-			return half_ladder<kInput>(c, s, x);
+			return half_ladder<kInput>(c, s, x, noise);
 		}
 		else if constexpr (kLadder == Ladder::T24) {
-			return full_ladder<kInput>(c, s, x);
+			return full_ladder<kInput>(c, s, x, noise);
 		}
 		else {
 			if constexpr (kLadder == Ladder::DRIVE_OVERSAMPLED) {
 				// The input held for both halves of the sample works better than interpolating it; the first output
 				// is dropped (the ladder itself filters what that crude downsampling would alias).
-				std::ignore = drive_ladder<kInput>(c, s, x);
+				std::ignore = drive_ladder<kInput>(c, s, x, noise);
 			}
-			return tanh<kOutputDrive>(drive_ladder<kInput>(c, s, x));
+			return tanh<kOutputDrive>(drive_ladder<kInput>(c, s, x, noise));
 		}
 	}
 
@@ -350,9 +352,9 @@ private:
 	static constexpr uint32_t kOutputDrive = 4;
 
 	/// @brief This sample's moveability, Q31: the block's nudged by the channel's follower after one noise draw.
-	[[nodiscard]] [[gnu::always_inline]] static q31 noisy_moveability(const Coefficients& c, State& s) {
-		const q31 follower = Follower::template step<Follower::Mode::TRACK>(Follower::Coefficients{}, EmptyBlock{},
-		                                                                    s.noise, Noise::render() >> 2);
+	[[nodiscard]] [[gnu::always_inline]] static q31 noisy_moveability(const Coefficients& c, State& s, Noise& noise) {
+		const q31 follower = Follower::template step<Follower::Mode::TRACK>(
+		    Follower::Coefficients{}, EmptyBlock{}, s.noise, static_cast<q31>(noise.next()) >> 2);
 		return wrapping_add(c.moveability, multiply_32x32_rshift32(c.moveability, follower));
 	}
 
@@ -398,8 +400,9 @@ private:
 
 	/// @brief One sample (Q31) through the half ladder, its input formed as @p I.
 	template <Input I>
-	[[nodiscard]] [[gnu::always_inline]] static q31 half_ladder(const Coefficients& c, State& s, q31 input) {
-		const q31 m = noisy_moveability(c, s);
+	[[nodiscard]] [[gnu::always_inline]] static q31 half_ladder(const Coefficients& c, State& s, q31 input,
+	                                                            Noise& noise) {
+		const q31 m = noisy_moveability(c, s, noise);
 		q31 x = 0;
 		if constexpr (I == Input::UNRESONANT) {
 			x = unresonant_input(input);
@@ -417,8 +420,9 @@ private:
 
 	/// @brief One sample (Q31) through the full ladder, its input formed as @p I.
 	template <Input I>
-	[[nodiscard]] [[gnu::always_inline]] static q31 full_ladder(const Coefficients& c, State& s, q31 input) {
-		const q31 m = noisy_moveability(c, s);
+	[[nodiscard]] [[gnu::always_inline]] static q31 full_ladder(const Coefficients& c, State& s, q31 input,
+	                                                            Noise& noise) {
+		const q31 m = noisy_moveability(c, s, noise);
 		const q31 x = I == Input::UNRESONANT ? unresonant_input(input) : scale_input(c, input, full_feedback(c, s));
 		return four_sections(s, m, x) << 1;
 	}
@@ -426,8 +430,9 @@ private:
 	/// @brief One step (Q31) of the drive ladder, its feedback saturated (the input is not, as that is where it would
 	/// alias most); the output is not yet saturated. The input is formed as @p I.
 	template <Input I>
-	[[nodiscard]] [[gnu::always_inline]] static q31 drive_ladder(const Coefficients& c, State& s, q31 input) {
-		const q31 m = noisy_moveability(c, s);
+	[[nodiscard]] [[gnu::always_inline]] static q31 drive_ladder(const Coefficients& c, State& s, q31 input,
+	                                                             Noise& noise) {
+		const q31 m = noisy_moveability(c, s, noise);
 		const q31 x = I == Input::UNRESONANT ? unresonant_input(input)
 		                                     : scale_input(c, input, tanh<kFeedbackDrive>(full_feedback(c, s)));
 		return four_sections(s, m, x) << 1;

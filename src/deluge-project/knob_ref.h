@@ -21,7 +21,7 @@
 /// @brief The reading and writing of a knob element's param that the controls and mapping codecs share, so a mod knob
 /// and a learned MIDI knob name their param under the same keys. Internal to deluge-project.
 
-#include "engine-api/types/param_naming.h"
+#include "plugin-api/types/param_naming.h"
 #include "serialization/tree.h"
 #include "serialization/value.h"
 
@@ -41,7 +41,7 @@ inline std::string_view text(const serialization::Value* node) {
 /// @brief The param a knob element names: `controlsParam`, `patchAmountFromSource`, `patchAmountFromSecondSource`.
 /// @param knob The knob element.
 /// @return The param's reference.
-inline deluge::engine::ParamRef ref_in(const serialization::Value& knob) {
+inline deluge::plugin::ParamRef ref_in(const serialization::Value& knob) {
 	return {text(knob.find("controlsParam")), text(knob.find("patchAmountFromSource")),
 	        text(knob.find("patchAmountFromSecondSource"))};
 }
@@ -49,7 +49,7 @@ inline deluge::engine::ParamRef ref_in(const serialization::Value& knob) {
 /// @brief Write @p ref into @p knob under the keys ref_in reads; the sources only when the param has them.
 /// @param knob The knob element.
 /// @param ref  The param's reference.
-inline void set_ref(serialization::Value& knob, const deluge::engine::ParamRef& ref) {
+inline void set_ref(serialization::Value& knob, const deluge::plugin::ParamRef& ref) {
 	knob.set("controlsParam", serialization::Value::makeScalar(std::string(ref.param)));
 	if (!ref.source.empty()) {
 		knob.set("patchAmountFromSource", serialization::Value::makeScalar(std::string(ref.source)));

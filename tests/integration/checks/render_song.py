@@ -37,9 +37,11 @@ adds what depends on the song, and why each check is here:
                       and end asked for made, and scenario ticks in which an owner stuttered. A begin the owner refused
                       would leave the song rendering unstuttered for some of its span and still compare with a record
                       made the same way.
-    RS-SWITCH         a gate that switches delays, mod FX types or the reverb, clears mod FX memory, changes the tempo
-                      or stutters, mid-render (RENDER_DELAY_SWITCH, RENDER_MODFX_SWITCH, RENDER_MODFX_CLEAR,
-                      RENDER_REVERB_SWITCH, RENDER_TEMPO, RENDER_STUTTER) only: the same song rendered
+    RS-METRONOME      a gate that switches the metronome on (RENDER_METRONOME) only: the switch applied, leaving it on.
+    RS-SWITCH         a gate that switches delays, mod FX types, the reverb or the metronome, clears mod FX memory,
+                      changes the tempo or stutters, mid-render (RENDER_DELAY_SWITCH, RENDER_MODFX_SWITCH,
+                      RENDER_MODFX_CLEAR, RENDER_REVERB_SWITCH, RENDER_TEMPO, RENDER_STUTTER, RENDER_METRONOME) only:
+                      the same song rendered
                       unswitched must render differently, or the switches never reached the render.
     RS-PCM            the rendered output, against its record in tests/integration/golden/songs.json: the same
                       record the synth golden masters keep (sha256, frames, peak, rms_db).
@@ -83,6 +85,7 @@ SWITCHES = (
     "RENDER_REVERB_SWITCH",
     "RENDER_TEMPO",
     "RENDER_STUTTER",
+    "RENDER_METRONOME",
 )
 
 
@@ -327,6 +330,15 @@ def _check_stutter(gate, result) -> None:
         )
 
 
+def _check_metronome(gate, result) -> None:
+    """The metronome switch the gate asked for applied, leaving the metronome on (see RS-METRONOME)."""
+    if not gate.env.get("RENDER_METRONOME"):
+        return
+    line = result.last("RS-METRONOME applied=")
+    if int_field(line, "applied") != 1 or int_field(line, "on") != 1:
+        gate.fail(f"RS-METRONOME — the metronome was not switched on ({line})")
+
+
 def _check_song_automation(gate, result) -> None:
     """A gate whose song automates the master's params (RENDER_SONG_AUTOMATED=1) loaded that automation to play (see
     RS-SONGPARAMS)."""
@@ -405,6 +417,7 @@ def run(gate):
     _check_song_automation(gate, result)
     _check_delay_arena(gate, result)
     _check_stutter(gate, result)
+    _check_metronome(gate, result)
 
     voices = int_field(result.last("RS-VOICES "), "audio")
     if voices is None or voices <= 0:

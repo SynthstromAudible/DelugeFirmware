@@ -7,9 +7,9 @@
 ///
 /// @note The SPEC may include `scenes/menu/`; the library may not (`scripts/check_layer_rules.py`).
 
-#include "engine-api/types/param.h"
-#include "engines/deluge/params.h"
-#include "engines/global_effectable/params.h"
+#include "effects/global_effectable/params.h"
+#include "instruments/deluge/params.h"
+#include "plugin-api/types/param.h"
 
 #include "model/project_bridge/param_ids.h"
 #include "modulation/params/param.h"
@@ -29,9 +29,9 @@
 
 using namespace deluge::scenes::menu;
 namespace params = deluge::modulation::params;
-using deluge::engine::ParamDisplay;
-using deluge::engine::ParamId;
-using deluge::engine::ParamInfo;
+using deluge::plugin::MappingKind;
+using deluge::plugin::ParamId;
+using deluge::plugin::ParamInfo;
 
 namespace {
 
@@ -51,34 +51,37 @@ Scaling effective_scaling(const Node& node) {
 	if (node.bind.scaling != Scaling::Standard) {
 		return node.bind.scaling;
 	}
-	if (node.hint == Hint::Pan || params::isParamPan(node.bind.param.kind, node.bind.param.index)) {
+	const ParamInfo* info = params::paramInfoFor(node.bind.param.kind, node.bind.param.index);
+	if (node.hint == Hint::Pan || (info != nullptr && info->mapping == MappingKind::PAN)) {
 		return Scaling::Pan;
 	}
 	return Scaling::Standard;
 }
 
-std::string_view display_name(ParamDisplay display) {
+std::string_view display_name(MappingKind display) {
 	switch (display) {
-	case ParamDisplay::STANDARD:
+	case MappingKind::STANDARD:
 		return "STANDARD";
-	case ParamDisplay::HALF_PRECISION:
-		return "HALF_PRECISION";
-	case ParamDisplay::PAN:
+	case MappingKind::UNIPOLAR:
+		return "UNIPOLAR";
+	case MappingKind::PAN:
 		return "PAN";
+	case MappingKind::CABLE_DEPTH:
+		return "CABLE_DEPTH";
 	}
 	return "<unknown>";
 }
 
-ParamDisplay display_of(Scaling s) {
+MappingKind display_of(Scaling s) {
 	switch (s) {
 	case Scaling::HalfPrecision:
-		return ParamDisplay::HALF_PRECISION;
+		return MappingKind::UNIPOLAR;
 	case Scaling::Pan:
-		return ParamDisplay::PAN;
+		return MappingKind::PAN;
 	case Scaling::Standard:
 		break;
 	}
-	return ParamDisplay::STANDARD;
+	return MappingKind::STANDARD;
 }
 
 /// @brief The table row of the param @p ref names, or nullptr where no engine table has one.
@@ -88,9 +91,9 @@ const ParamInfo* row_of(ParamRef ref) {
 	case params::Kind::PATCHED:
 	case params::Kind::NONE:
 	case params::Kind::UNPATCHED_SOUND:
-		return deluge::engine::find_param(deluge::instrument::kParams, id);
+		return deluge::plugin::find_param(deluge::instrument::kParams, id);
 	case params::Kind::UNPATCHED_GLOBAL:
-		return deluge::engine::find_param(deluge::global_effectable::kParams, id);
+		return deluge::plugin::find_param(deluge::global_effectable::kParams, id);
 	default:
 		return nullptr;
 	}
@@ -124,7 +127,7 @@ std::vector<const Node*> param_nodes() {
 std::vector<std::string> non_standard(std::span<const ParamInfo> table) {
 	std::vector<std::string> out;
 	for (const ParamInfo& row : table) {
-		if (row.display != ParamDisplay::STANDARD) {
+		if (row.mapping != MappingKind::STANDARD) {
 			out.emplace_back(row.file_name);
 		}
 	}
@@ -154,7 +157,7 @@ describe param_display_spec_body("The param tables' display against the menu nod
 				expect(named(ref)).to_be_true("param " + std::to_string(ref.index) + " has no row and is not named");
 				continue;
 			}
-			expect(display_name(row->display))
+			expect(display_name(row->mapping))
 			    .to_equal(display_name(display_of(effective_scaling(*node))), std::string{row->file_name});
 		}
 	});

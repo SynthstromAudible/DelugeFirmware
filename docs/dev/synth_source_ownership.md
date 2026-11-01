@@ -24,7 +24,7 @@ retrofitted onto the lift over the legacy layout.
 - **Config** lives on `Source` (`processing/source.h`: oscType, sampleControls, repeatMode, transpose, dxPatch,
   ranges) and `Sound` (lfoConfig, modulator routing, …) — preset state.
 - **Modulated per-block values**: the **Patcher** reads a `ControlBlock` (patched preset values + cables) and writes
-  a **flat** `paramFinalValues[]` (`ParamPlane`/`VoiceParams`, `synth/param_plane.h`), indexed by the global
+  a **flat** `paramFinalValues[]` (`ParamPlane`/`VoiceParams`, `synth/modulation/param_plane.h`), indexed by the global
   `LOCAL_*` enum. Components read their slice by **A/B offset**: `paramFinalValues[LOCAL_OSC_A_PHASE_WIDTH + s]`,
   `LOCAL_CARRIER_0_FEEDBACK + s`, etc.
 - The flat plane is consumed by **distinct concerns** that a typed model would separate:

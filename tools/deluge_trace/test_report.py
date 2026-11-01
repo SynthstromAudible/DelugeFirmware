@@ -36,7 +36,7 @@ class Fixture(unittest.TestCase):
 
 class ParseDecode(Fixture):
     def test_reads_ranges_with_their_cycles(self):
-        ranges = [i for i in self.dec.items if i is not None]
+        ranges = [i for i in self.dec.items if isinstance(i, report.Range)]
         self.assertEqual(len(ranges), 11)
         first = ranges[0]
         self.assertEqual(
@@ -49,6 +49,13 @@ class ParseDecode(Fixture):
     def test_trace_on_and_breaks_split_the_sequence(self):
         self.assertEqual(dict(self.dec.trace_on), {"begin or filter": 2, "overflow": 1})
         self.assertEqual([len(run) for run in report.segments(self.dec)], [6, 3, 2])
+
+    def test_trace_on_keeps_its_reason_and_the_cycles_it_was_off(self):
+        gaps = [i for i in self.dec.items if isinstance(i, report.TraceOn)]
+        self.assertEqual(
+            [(g.reason, g.cycles) for g in gaps],
+            [("begin or filter", 500), ("begin or filter", 700), ("overflow", 944)],
+        )
 
     def test_a_range_without_a_cycle_count_has_none(self):
         dec = report.parse_decode(
@@ -129,3 +136,74 @@ class Blocks(Fixture):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+def _range(start, end, cycles, ret=False):
+    kind = "iBR V7:impl ret" if ret else "BR  "
+    return (
+        f"Idx:1; ID:10; OCSD_GEN_TRC_ELEM_INSTR_RANGE(exec range=0x{start:x}:[0x{end:x}] num_i(2) "
+        f"last_sz(4) (ISA=A32) E {kind} [CC={cycles}]; )\n"
+    )
+
+
+def _trace_on(reason, cycles):
+    return f"Idx:1; ID:10; OCSD_GEN_TRC_ELEM_TRACE_ON( [{reason}] [CC={cycles}]; )\n"
+
+
+class Calls(unittest.TestCase):
+    LO, HI = 0x1000, 0x1100
+
+    def calls(self, text):
+        return report.calls(report.parse_decode(text), self.LO, self.HI)
+
+    def test_a_call_sums_its_ranges_and_the_time_in_its_callees(self):
+        text = (
+            _range(self.LO, 0x1008, 3)
+            + _trace_on("begin or filter", 50)  # a call out
+            + _range(0x1008, 0x1010, 4, ret=True)
+            + _trace_on("begin or filter", 100)  # the caller, between calls
+        )
+        self.assertEqual(
+            self.calls(text),
+            [{"own": 7, "outside": 50, "calls_out": 1, "total": 57, "by_function": {}}],
+        )
+
+    def test_a_call_splits_its_own_cycles_among_the_traced_functions(self):
+        text = (
+            _range(self.LO, 0x1008, 3)
+            + _range(
+                0x2000, 0x2008, 9, ret=True
+            )  # a traced callee's ranges, then its return
+            + _range(0x1008, 0x1010, 4, ret=True)
+        )
+        functions = [("root", self.LO, self.HI), ("callee", 0x2000, 0x2100)]
+        (call,) = report.calls(report.parse_decode(text), self.LO, self.HI, functions)
+        self.assertEqual(call["by_function"], {"root": 7, "callee": 9})
+
+    def test_a_call_that_lost_trace_is_dropped(self):
+        text = (
+            _range(self.LO, 0x1008, 3)
+            + _trace_on("overflow", 900)
+            + _range(0x1008, 0x1010, 4, ret=True)
+            + _range(self.LO, 0x1008, 2)
+            + _range(0x1008, 0x1010, 5, ret=True)
+        )
+        self.assertEqual(
+            self.calls(text),
+            [{"own": 7, "outside": 0, "calls_out": 0, "total": 7, "by_function": {}}],
+        )
+
+    def test_traced_code_reached_after_the_return_is_not_the_calls(self):
+        text = (
+            _range(self.LO, 0x1008, 3, ret=True)
+            + _trace_on("begin or filter", 1000)
+            + _range(
+                0x2000, 0x2008, 9, ret=True
+            )  # another traced function, from an untraced caller
+            + _trace_on("begin or filter", 1000)
+            + _range(self.LO, 0x1008, 1, ret=True)
+        )
+        self.assertEqual([c["total"] for c in self.calls(text)], [3, 1])
+
+    def test_a_call_the_capture_cuts_short_is_dropped(self):
+        self.assertEqual(self.calls(_range(self.LO, 0x1008, 3)), [])

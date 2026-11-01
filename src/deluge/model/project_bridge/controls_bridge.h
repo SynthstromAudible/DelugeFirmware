@@ -18,9 +18,9 @@
 #pragma once
 
 #include "deluge-project/controller_mapping.h"
-#include "engine-api/types/param.h"
+#include "modulation/knob_target.h"
 #include "modulation/params/param.h"
-#include "modulation/params/param_descriptor.h"
+#include "plugin-api/types/param.h"
 
 #include <optional>
 #include <vector>
@@ -34,13 +34,14 @@ class Song;
 
 namespace deluge::bridge {
 
-/// @brief The param a runtime knob's descriptor points at: a plain param through its engine's map (@p unpatchedKind
-/// numbers an unpatched one), a cable's depth through the instrument's depth ids.
-/// @param descriptor    The knob's runtime descriptor.
+/// @brief The param a runtime knob controls, as the model's controls name it: a plain param through its engine's map
+/// (@p unpatchedKind numbers an unpatched one), a cable's depth as the instrument's depth id. A knob with no target
+/// reads as the null descriptor does.
+/// @param knob          The knob's target.
 /// @param unpatchedKind The Kind that numbers an unpatched param.
 /// @return The target param id.
-[[nodiscard]] deluge::engine::ParamId knobTargetOf(ParamDescriptor descriptor,
-                                                   deluge::modulation::params::Kind unpatchedKind);
+[[nodiscard]] deluge::plugin::ParamId controlTargetOf(const deluge::modulation::KnobTarget& knob,
+                                                      deluge::modulation::params::Kind unpatchedKind);
 
 /// @brief A sound's controls as the model holds them: its 16 mod knobs (button by button, knob 0 then 1).
 /// @param sound The sound.
@@ -53,13 +54,13 @@ namespace deluge::bridge {
 /// @param song The song.
 void refreshControls(::Song& song);
 
-/// @brief The runtime descriptor of a knob's target: the inverse of knobTargetOf (@p unpatchedKind numbers an unpatched
-/// param, as there).
+/// @brief The runtime knob target of a model control's target: the inverse of controlTargetOf (@p unpatchedKind numbers
+/// an unpatched param, as there).
 /// @param target        The model-side target.
 /// @param unpatchedKind The Kind that numbers an unpatched param.
-/// @return The runtime descriptor; null if @p target names no runtime param.
-[[nodiscard]] ParamDescriptor descriptorOf(deluge::engine::ParamId target,
-                                           deluge::modulation::params::Kind unpatchedKind);
+/// @return The knob's target; none if @p target names no runtime param.
+[[nodiscard]] deluge::modulation::KnobTarget knobOfControl(deluge::plugin::ParamId target,
+                                                           deluge::modulation::params::Kind unpatchedKind);
 
 /// @brief Whose controls @p sound's are: its synth track's or its kit row's; nullopt when it is not bound.
 /// @param sound The sound.
@@ -109,6 +110,6 @@ void recordOutputControls(::Output& output, ::Song& song);
 
 /// @brief The engines the app's model codecs name params through.
 /// @return The engines.
-[[nodiscard]] deluge::project::CodecEngines codecEngines();
+[[nodiscard]] deluge::project::CodecPlugins codecPlugins();
 
 } // namespace deluge::bridge

@@ -243,10 +243,6 @@ void InstrumentClipView::sendAuditionNote(bool on, uint8_t yDisplay, uint8_t vel
 void AutoParam::setCurrentValueWithNoReversionOrRecording(ModelStackWithAutoParam const* modelStack, int32_t newValue) {
 }
 
-int32_t getParamFromUserValue(uint8_t p, int8_t userValue) {
-	return 0;
-}
-
 namespace PadLEDs {
 void setTickSquares(const uint8_t* squares, const uint8_t* colours) {
 }
@@ -358,7 +354,7 @@ DELUGE_STUB_DATA(stub_setSettingVtable, "_ZTVN6deluge5edits10SetSettingE", 64)
 // No setting group's table: a lane name the slicer gives its drums is refused before the drum, as the drum's own
 // setName stub drops it.
 DELUGE_STUB_RET(stub_tableOf, "_ZN6deluge7project8table_ofENS0_14SettingGroupIdE",
-                std::span<const deluge::engine::SettingInfo>, {})
+                std::span<const deluge::plugin::SettingInfo>, {})
 DELUGE_STUB_RET(stub_paramSetDocForParam, "_ZN8ParamSet11docForParamEi", deluge::project::DocAutoParam*, nullptr)
 DELUGE_STUB_RET(stub_modelStackWithAutoParamDoc, "_ZNK23ModelStackWithAutoParam3docEv", deluge::project::DocAutoParam*,
                 nullptr)

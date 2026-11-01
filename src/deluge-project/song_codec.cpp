@@ -62,7 +62,7 @@ Value encode(const Groove& groove, int32_t input_tick_magnitude) {
 	auto map = Value::makeMap();
 	map.set("swingAmount", Value::makeNumber(groove.swing_amount));
 	map.set("swingInterval",
-	        Value::makeNumber(sync_level_to_file(engine::index_of(groove.swing_interval), input_tick_magnitude)));
+	        Value::makeNumber(sync_level_to_file(plugin::index_of(groove.swing_interval), input_tick_magnitude)));
 	return map;
 }
 
@@ -77,7 +77,7 @@ std::expected<void, LoadError> decode(const Value& song, Groove& groove, const D
 	if (auto interval = int_of(song.find("swingInterval"))) {
 		const int32_t level = sync_level_from_file(static_cast<uint8_t>(*interval), // wraps, as the reader always has
 		                                           context.input_tick_magnitude);
-		groove.swing_interval = engine::sync_level_from_index(static_cast<uint8_t>(std::min(level, int32_t{9})));
+		groove.swing_interval = plugin::sync_level_from_index(static_cast<uint8_t>(std::min(level, int32_t{9})));
 	}
 	return {};
 }
@@ -140,7 +140,7 @@ Value encode(const ReverbSettings& reverb, int32_t input_tick_magnitude) {
 	compressor.set("volume", Value::makeNumber(reverb.sidechain_volume));
 	compressor.set("shape", Value::makeNumber(reverb.sidechain_shape));
 	compressor.set("syncLevel", Value::makeNumber(
-	                                sync_level_to_file(engine::index_of(reverb.sidechain_sync), input_tick_magnitude)));
+	                                sync_level_to_file(plugin::index_of(reverb.sidechain_sync), input_tick_magnitude)));
 	map.set("compressor", std::move(compressor));
 	return map;
 }
@@ -189,7 +189,7 @@ std::expected<void, LoadError> decode(const Value& reverb, ReverbSettings& setti
 		}
 		if (auto v = int_of(compressor->find("syncLevel"))) {
 			const int32_t level = sync_level_from_file(*v, context.input_tick_magnitude);
-			settings.sidechain_sync = engine::sync_level_from_index(static_cast<uint8_t>(std::min(level, int32_t{9})));
+			settings.sidechain_sync = plugin::sync_level_from_index(static_cast<uint8_t>(std::min(level, int32_t{9})));
 		}
 	}
 	return {};
