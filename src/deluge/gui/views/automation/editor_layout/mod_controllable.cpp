@@ -343,13 +343,18 @@ void AutomationEditorLayoutModControllable::getAutomationParameterName(Clip* cli
 			lastSelectedPatchSource = clip->lastSelectedPatchSource;
 		}
 		if (lastSelectedParamKind == params::Kind::PATCH_CABLE) {
-			// a range cable names its outermost source too: the source of a cable onto another cable's depth
+			// a range cable (onto another cable's depth) also names the source of the innermost cable, the one
+			// onto the param
 			PatchSource source2 = PatchSource::NONE;
 			std::optional<deluge::project::ParamTarget> cable = deluge::bridge::targetOf(
 			    deluge::bridge::OwnerPlugin::INSTRUMENT, params::Kind::PATCH_CABLE, lastSelectedParamID);
 			if (cable) {
 				std::optional<deluge::instrument::CableRoute> route = deluge::instrument::cable_route(cable->id);
 				if (route && deluge::instrument::is_cable_depth(route->destination)) {
+					while (std::optional<deluge::instrument::CableRoute> inner =
+					           deluge::instrument::cable_route(route->destination)) {
+						route = inner;
+					}
 					source2 = route->source;
 				}
 			}
