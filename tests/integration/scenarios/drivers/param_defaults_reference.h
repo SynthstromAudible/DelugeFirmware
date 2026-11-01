@@ -15,8 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-// Every param's default as the engines' own init gave it before the defaults came from the param tables (generated
-// once from the tables, which this check proved equal to that init): the oracle for the table-driven init.
+// Every param's default as the engines' init sets it, recorded as the oracle for the table-driven init: the init
+// reads the tables, so the check compares both against this record rather than against each other.
 #pragma once
 
 #include <array>

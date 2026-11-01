@@ -15,9 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-// Every name paramNameForFile gave a (kind, forMidiFollowFile, runtime index) before the names came from the param
-// tables: generated once from that function, the oracle that its table-driven form gives the same names. Every
-// (kind, flag, index) not listed is "none".
+// Every name paramNameForFile gives a (kind, forMidiFollowFile, runtime index), recorded as the oracle for its
+// table-driven form. Every (kind, flag, index) not listed is "none".
 #pragma once
 
 #include <array>

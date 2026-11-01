@@ -30,17 +30,31 @@
 
 namespace deluge::modulation::params {
 
+namespace {
+/// The row of @p table with id @p id, looked for first at @p index: the tables keep each block's rows dense and in id
+/// order, so a param's value changes (which ask for its smoothing flags) find it without a scan.
+const plugin::ParamInfo* rowNear(std::span<const plugin::ParamInfo> table, std::size_t index, uint32_t id) {
+	if (index < table.size() && table[index].id.value == id) {
+		return &table[index];
+	}
+	return plugin::find_param(table, plugin::ParamId{id});
+}
+} // namespace
+
 const plugin::ParamInfo* paramInfoFor(Kind kind, int32_t paramId) {
+	if (paramId < 0) {
+		return nullptr;
+	}
+	const auto index = static_cast<std::size_t>(paramId);
+	const auto unpatchedId = static_cast<uint32_t>(UNPATCHED_START + paramId);
 	switch (kind) {
 	case Kind::PATCHED:
-		return plugin::find_param(instrument::kParams, plugin::ParamId{static_cast<uint32_t>(paramId)});
+		return rowNear(instrument::kParams, index, static_cast<uint32_t>(paramId));
 	case Kind::NONE:
 	case Kind::UNPATCHED_SOUND:
-		return plugin::find_param(instrument::kParams,
-		                          plugin::ParamId{static_cast<uint32_t>(UNPATCHED_START + paramId)});
+		return rowNear(instrument::kParams, instrument::kParamBlocks[0].count + index, unpatchedId);
 	case Kind::UNPATCHED_GLOBAL:
-		return plugin::find_param(global_effectable::kParams,
-		                          plugin::ParamId{static_cast<uint32_t>(UNPATCHED_START + paramId)});
+		return rowNear(global_effectable::kParams, index, unpatchedId);
 	default:
 		return nullptr;
 	}

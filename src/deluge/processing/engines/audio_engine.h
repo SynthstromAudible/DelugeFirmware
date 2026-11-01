@@ -164,7 +164,8 @@ struct PreviewVolume {
 	int32_t velocityCableDepth;     ///< depth of the VELOCITY -> LOCAL_VOLUME patch cable
 	Polarity velocityCablePolarity; ///< polarity of the VELOCITY -> LOCAL_VOLUME patch cable
 
-	/// The defaults the preview drum is built with, from Sound::initParams() and Sound::setupAsSample().
+	/// The defaults the preview drum is built with: the instrument table's (Sound::initParams()) and
+	/// Sound::setupAsSample()'s.
 	static PreviewVolume neutral();
 };
 

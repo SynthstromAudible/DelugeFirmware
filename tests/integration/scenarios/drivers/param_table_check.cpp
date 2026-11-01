@@ -58,12 +58,12 @@ using deluge::plugin::ParamInfo;
 using deluge::plugin::ParamScope;
 using deluge::scenarios::driver::Io;
 
-/// The runtime's param predicates as they read before the tables carried flags, copied from
+/// Reference copies of the runtime's param predicates, kept verbatim as the oracle for the rows' flags, from
 /// modulation/params/param.cpp (isParamPan, isParamPitch, paramNeedsLPF) and param_set.cpp (the Unpatched and Patched
 /// sets' shouldParamIndicateMiddleValue, doesParamIdAllowAutomation, shouldRecordUnautomatedParamChange,
 /// shouldInterpolateWithFloat), with the set's kind as an argument: the oracle for each row's flags. The stutter rate's
 /// middle detent depends on the stutter's state and is left out.
-namespace old_predicates {
+namespace reference_predicates {
 using namespace params;
 
 bool isParamPan(Kind kind, int32_t paramID) {
@@ -160,8 +160,8 @@ deluge::plugin::ParamFlags flagsOf(Kind kind, int32_t index) {
 	add(patched && paramNeedsLPF(index, false) && !paramNeedsLPF(index, true), ParamFlag::SMOOTHED_USER_ONLY);
 	return flags;
 }
-/// The mapping today's knob overrides (UnpatchedParamSet's compressor threshold, PatchedParamSet's phase widths) and
-/// pan menus (patched_param::Pan on LOCAL_PAN, unpatched_param::Pan on UNPATCHED_PAN) give the param.
+/// The mapping the reference knob overrides (UnpatchedParamSet's compressor threshold, PatchedParamSet's phase widths)
+/// and pan menus (patched_param::Pan on LOCAL_PAN, unpatched_param::Pan on UNPATCHED_PAN) give the param.
 deluge::plugin::MappingKind mappingOf(Kind kind, int32_t index) {
 	using deluge::plugin::MappingKind;
 	if (kind == Kind::PATCHED) {
@@ -175,7 +175,7 @@ deluge::plugin::MappingKind mappingOf(Kind kind, int32_t index) {
 	}
 	return kind == Kind::UNPATCHED_GLOBAL && index == UNPATCHED_PAN ? MappingKind::PAN : MappingKind::STANDARD;
 }
-} // namespace old_predicates
+} // namespace reference_predicates
 
 struct Checker {
 	Io io;
@@ -201,12 +201,12 @@ struct Checker {
 		if ((info.scope == ParamScope::PER_VOICE) != perVoice) {
 			fail(table, info, "its scope is not the runtime's");
 		}
-		if (info.flags != old_predicates::flagsOf(kind, index)) {
+		if (info.flags != reference_predicates::flagsOf(kind, index)) {
 			std::fprintf(io.err, "%s %u: flags %#x, the runtime's predicates give %#x\n", table, info.id.value,
-			             info.flags.bits, old_predicates::flagsOf(kind, index).bits);
+			             info.flags.bits, reference_predicates::flagsOf(kind, index).bits);
 			fail(table, info, "its flags are not the runtime's");
 		}
-		if (info.mapping != old_predicates::mappingOf(kind, index)) {
+		if (info.mapping != reference_predicates::mappingOf(kind, index)) {
 			fail(table, info, "its mapping is not the runtime's knob and menu arithmetic");
 		}
 		const bool centred = info.flags.has(deluge::plugin::ParamFlag::CENTRED);
@@ -214,8 +214,8 @@ struct Checker {
 			fail(table, info, "the runtime's isParamBipolar disagrees with CENTRED");
 		}
 		if (kind == params::Kind::PATCHED
-		    && (params::paramNeedsLPF(index, true) != old_predicates::paramNeedsLPF(index, true)
-		        || params::paramNeedsLPF(index, false) != old_predicates::paramNeedsLPF(index, false))) {
+		    && (params::paramNeedsLPF(index, true) != reference_predicates::paramNeedsLPF(index, true)
+		        || params::paramNeedsLPF(index, false) != reference_predicates::paramNeedsLPF(index, false))) {
 			fail(table, info, "the runtime's paramNeedsLPF disagrees with the smoothing flags");
 		}
 		if (deluge::bridge::paramIdOf(kind, index) != info.id) {
@@ -261,7 +261,7 @@ void checkCables(Checker& check) {
 	}
 }
 
-/// paramNameForFile and fileStringToParam against the names they gave before the tables named the params: every kind,
+/// paramNameForFile and fileStringToParam against the recorded names: every kind,
 /// both file vocabularies, every runtime index; and every name, "range" and an unknown name read back.
 void checkNames(Checker& check) {
 	auto expected = [](int32_t kind, bool midiFollow, int32_t index) -> std::string_view {
@@ -367,7 +367,7 @@ void checkEffectFragments(Checker& check) {
 	}
 }
 
-/// The default the engines' init gave param @p id of @p table before it read the tables.
+/// The recorded default of param @p id of @p table.
 int32_t recordedDefault(param_defaults_reference::Table table, ParamId id) {
 	for (const param_defaults_reference::Default& d : param_defaults_reference::kDefaults) {
 		if (d.table == table && d.id == id.value) {

@@ -1,6 +1,6 @@
-// The param curves as they read at 3b854650f, copied verbatim from util/param_functions.cpp
-// (getFinalParameterValueHybrid/Volume/Linear/Exp, lookupReleaseRate, with the obsolete commented-out code left out)
-// and util/lookuptables/lookuptables.cpp (releaseRateTable64), as the oracle for dsp-next/fixed/curves/param_curve.h.
+// Reference copies of the q31 param curves (getFinalParameterValueHybrid/Volume/Linear/Exp, lookupReleaseRate and
+// releaseRateTable64, without their commented-out code), kept verbatim as the oracle for
+// dsp-next/fixed/curves/param_curve.h.
 #pragma once
 
 #include "dsp-next/core/q31_ops.h"

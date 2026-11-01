@@ -265,7 +265,7 @@ of the synth objects showed their only out-of-core link-deps were defs in gui-la
 into gui-free TUs (all bit-exact, x86 golden 333/333 + ARM oracle):
 - param-math defs (`getFinalParameterValue*`, `getExp`, `lookupReleaseRate`, `paramRanges`/`paramNeutralValues`,
   `getParamRange`/`getParamNeutralValue`, `functionsInit`) → new `util/param_functions.cpp` (the deferred
-  "A-full"); `increase_magnitude_and_saturate` → `param_functions.h`; `functions.h` re-exports.
+  "A-full"; the curves now live in `dsp-next/fixed/curves/param_curve.h`, and only the envelope case stays there); `increase_magnitude_and_saturate` → `param_functions.h`; `functions.h` re-exports.
 - the 3 l10n/iterance preset-table defs → new `util/lookuptables/preset_tables.cpp` (numeric `lookuptables.cpp`
   is now gui-free).
 - `PatchCableSet::getModifiedPatchCableAmount` (the patcher's one PatchCableSet runtime dep — self-contained:

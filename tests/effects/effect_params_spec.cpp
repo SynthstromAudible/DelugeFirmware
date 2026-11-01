@@ -15,9 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-// Each effect's params from its words against the arithmetic the app's adapters used before the effects defined their
-// params (model/fx/chain_inputs.cpp, model/global_effectable/global_effectable.cpp's delay working state,
-// model/fx/song_stutter.cpp's stutter rate, as they read at 3b854650f), copied with each param's neutral written out:
+// Each effect's params from its words against reference copies of the host-chain adapters' arithmetic (the filter
+// and mod FX inputs, the reverb sends, the delay working state, the stutter rate), each param's neutral written out:
 // param_table_check pins those literals to the instrument's neutral table.
 
 #include "effects/bitcrush.h"
@@ -114,7 +113,7 @@ bool same(const FilterParams& a, const FilterParams& b) {
 
 // clang-format off
 describe effect_params("an effect's params from its words", ${
-	it("gives the filters' values as the chain inputs did", _ {
+	it("gives the filters' values as the reference adapters do", _ {
 		int32_t bad = 0;
 		Stream s{7};
 		each_word(0x9E3779B9u, [&](int32_t w) {
@@ -127,7 +126,7 @@ describe effect_params("an effect's params from its words", ${
 		});
 		expect(bad).to_equal(0);
 	});
-	it("gives the mod FX's values as the chain inputs did", _ {
+	it("gives the mod FX's values as the reference adapters do", _ {
 		int32_t bad = 0;
 		Stream s{11};
 		each_word(0x85EBCA6Bu, [&](int32_t w) {
@@ -141,7 +140,7 @@ describe effect_params("an effect's params from its words", ${
 		});
 		expect(bad).to_equal(0);
 	});
-	it("gives the reverb send, the delay's rate and feedback and the stutter's rate as before", _ {
+	it("gives the reverb send, the delay's rate and feedback and the stutter's rate as the reference does", _ {
 		int32_t bad = 0;
 		Stream s{13};
 		each_word(0xC2B2AE35u, [&](int32_t w) {
@@ -151,6 +150,26 @@ describe effect_params("an effect's params from its words", ${
 			bad += final_value(Delay::kFeedback, w) != reference::delayFeedback(w);
 			bad += final_value(Delay::kRate, w) != reference::delayRate(w);
 			bad += final_value(Stutter::kRate, w) != reference::stutterRate(w);
+		});
+		expect(bad).to_equal(0);
+	});
+	it("applies every curve a fragment can name", _ {
+		int32_t bad = 0;
+		Stream s{17};
+		each_word(0x165667B1u, [&](int32_t w) {
+			const int32_t neutral = s.next() & 0x3FFFFFFF;
+			const int32_t c = w >> 2;
+			const auto with = [&](deluge::dsp::fixed::ParamCurve curve) {
+				return final_value(EffectParam{.name = "x", .curve = curve, .neutral = neutral}, w);
+			};
+			using deluge::dsp::fixed::ParamCurve;
+			bad += with(ParamCurve::SQUARE) != curve_square(neutral, c);
+			bad += with(ParamCurve::LINEAR) != curve_linear(neutral, c);
+			bad += with(ParamCurve::BIPOLAR) != deluge::dsp::fixed::curve_bipolar(neutral, c);
+			bad += with(ParamCurve::EXPONENTIAL) != curve_exponential(neutral, c);
+			bad += with(ParamCurve::EXPONENTIAL_INVERTED) != curve_exponential(neutral, -c);
+			bad += with(ParamCurve::RELEASE_TABLE)
+			       != multiply_32x32_rshift32(neutral, deluge::dsp::fixed::release_rate(c));
 		});
 		expect(bad).to_equal(0);
 	});

@@ -18,7 +18,7 @@
 #include "model/fx/chain_inputs.h"
 #include "dsp-next/fixed/curves/param_curve.h"
 #include "dsp-next/fixed/vca/pan.h"
-#include "synth/matrix/descriptors.h" // kParamNeutral, kParamRange
+#include "synth/matrix/descriptors.h" // kParamNeutral
 #include "util/synth_noise.h"
 
 #include "effects/reverb.h"

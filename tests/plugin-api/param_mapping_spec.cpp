@@ -1,3 +1,20 @@
+/*
+ * Copyright © 2026 Synthstrom Audible Limited
+ *
+ * This file is part of The Synthstrom Audible Deluge Firmware.
+ *
+ * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program.
+ * If not, see <https://www.gnu.org/licenses/>.
+ */
+
 #include "param_mapping_reference.h"
 #include "plugin-api/types/param_mapping.h"
 
@@ -27,7 +44,7 @@ void each_word(F f) {
 
 // clang-format off
 describe param_mapping("the param mapping kinds", ${
-	it("converts words to knob positions as today", _{
+	it("converts words to knob positions as the reference does", _{
 		int32_t bad = 0;
 		each_word([&](int32_t v) {
 			bad += to_knob(MappingKind::STANDARD, v) != ref::standard_to_knob(v);
@@ -37,7 +54,7 @@ describe param_mapping("the param mapping kinds", ${
 		});
 		expect(bad).to_equal(0);
 	});
-	it("converts every knob position to a word as today", _{
+	it("converts every knob position to a word as the reference does", _{
 		int32_t bad = 0;
 		for (int32_t k = -64; k <= 64; ++k) {
 			bad += from_knob(MappingKind::STANDARD, k) != ref::standard_from_knob(k);
@@ -47,7 +64,7 @@ describe param_mapping("the param mapping kinds", ${
 		}
 		expect(bad).to_equal(0);
 	});
-	it("converts words to menu numbers as today", _{
+	it("converts words to menu numbers as the reference does", _{
 		int32_t bad = 0;
 		each_word([&](int32_t v) {
 			bad += to_menu(MappingKind::STANDARD, v) != ref::standard_to_menu(v);
@@ -57,7 +74,7 @@ describe param_mapping("the param mapping kinds", ${
 		});
 		expect(bad).to_equal(0);
 	});
-	it("converts every menu number to a word as today", _{
+	it("converts every menu number to a word as the reference does", _{
 		int32_t bad = 0;
 		for (int32_t m = 0; m <= 50; ++m) {
 			bad += from_menu(MappingKind::STANDARD, m) != ref::standard_from_menu(m);

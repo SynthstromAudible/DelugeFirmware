@@ -82,8 +82,6 @@ struct ParamLPF {
  * Drum - one of the many items in a Kit, normally associated with a row of notes.
  */
 
-/// The default volume every Sound gets from Sound::initParams(), as a user value (0-50).
-constexpr int32_t kDefaultSoundVolumeUserValue = 40;
 /// The depth of the VELOCITY -> LOCAL_VOLUME patch cable that Sound::setupAsSample() installs, as a user value.
 constexpr int32_t kSampleDrumVelocityCableUserValue = 50;
 

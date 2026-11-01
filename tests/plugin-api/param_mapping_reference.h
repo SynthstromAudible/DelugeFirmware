@@ -1,12 +1,26 @@
-// The runtime's word↔position arithmetic as it read at 3b854650f, copied verbatim as the oracle for plugin-api's
-// mapping kinds. Sources:
-// knob: modulation/params/param_collection.cpp ParamCollection::paramValueToKnobPos/knobPosToParamValue (standard),
-// modulation/params/param_set.cpp UnpatchedParamSet (compressor threshold) and PatchedParamSet (phase widths)
-// overrides (unipolar), modulation/patch/patch_cable_set.cpp PatchCableSet overrides (cable);
-// menu: gui/menu_item/value_scaling.cpp (standard, half precision, pan) and gui/menu_item/patch_cable_strength.cpp
-// PatchCableStrength::readCurrentValue/writeCurrentValue (cable, kMaxMenuPatchCableValue = 5000);
-// preset: util/functions.cpp getParamFromUserValue's default case; popup: gui/views/view.cpp
-// View::calculateKnobPosForDisplay for a non-MIDI param, its pan-or-pitch test as @p centred.
+/*
+ * Copyright © 2026 Synthstrom Audible Limited
+ *
+ * This file is part of The Synthstrom Audible Deluge Firmware.
+ *
+ * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program.
+ * If not, see <https://www.gnu.org/licenses/>.
+ */
+
+// Reference copies of the q31 word↔position arithmetic, kept verbatim as the oracle for plugin-api's mapping kinds:
+// knob: ParamCollection::paramValueToKnobPos/knobPosToParamValue (standard), the UnpatchedParamSet (compressor
+// threshold) and PatchedParamSet (phase widths) overrides (unipolar), the PatchCableSet overrides (cable);
+// menu: value_scaling's standard, half-precision and pan scalings, PatchCableStrength's read and write (cable, 5000
+// hundredths at a depth of 1); preset: getParamFromUserValue's param case; popup: View::calculateKnobPosForDisplay for
+// a non-MIDI param, its pan-or-pitch test as @p centred.
 #pragma once
 #include <cmath>
 #include <cstdint>

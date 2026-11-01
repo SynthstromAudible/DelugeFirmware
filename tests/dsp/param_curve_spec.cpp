@@ -57,7 +57,7 @@ std::vector<int32_t> neutrals() {
 
 // clang-format off
 describe param_curve_spec("the param curves", ${
-	it("give today's final values for every neutral and combination", _ {
+	it("give the reference curves' final values for every neutral and combination", _ {
 		int32_t bad = 0;
 		for (int32_t n : neutrals()) {
 			each_word([&](int32_t c) {
@@ -72,7 +72,7 @@ describe param_curve_spec("the param curves", ${
 		}
 		expect(bad).to_equal(0);
 	});
-	it("reads the release-rate table as today", _ {
+	it("reads the release-rate table as the reference does", _ {
 		int32_t bad = 0;
 		each_word([&](int32_t v) { bad += curves::release_rate(v) != ref::lookupReleaseRate(v); });
 		for (int32_t step = -40; step <= 40; ++step) {

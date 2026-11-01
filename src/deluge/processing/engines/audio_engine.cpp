@@ -43,6 +43,7 @@
 #include "hid/encoder_input.h"
 #include "hid/encoders.h"
 #include "hid/led/indicator_leds.h"
+#include "instruments/deluge/params.h"
 #include "io/debug/log.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_queue.h"
@@ -2028,7 +2029,9 @@ void registerSideChainHit(int32_t strength) {
 
 PreviewVolume PreviewVolume::neutral() {
 	return {
-	    .volumePostFX = deluge::plugin::preset_word(kDefaultSoundVolumeUserValue),
+	    .volumePostFX =
+	        deluge::plugin::find_param(deluge::instrument::kParams, deluge::instrument::param::kVolumePostFX)
+	            ->default_value,
 	    .localVolume = 0,
 	    .velocityCableDepth = cableDepthFromPreset(kSampleDrumVelocityCableUserValue),
 	    .velocityCablePolarity = PatchCable::getDefaultPolarity(PatchSource::VELOCITY),

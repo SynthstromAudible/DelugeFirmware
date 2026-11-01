@@ -24,8 +24,8 @@
 
 namespace deluge::dsp::fixed::tables {
 
-/// @brief Envelope stage speeds for a release-table param: entry i is the rate at word (i − 32) · 2^24, 65 entries
-/// with the endpoint. 16-byte aligned.
+/// @brief Envelope stage speeds for a release-table param: entry i is the rate at combination (i − 32) · 2^24 (Q24
+/// steps), 65 entries with the endpoint. 16-byte aligned.
 // clang-format off
 alignas(16) inline constexpr std::array<int32_t, 65> kReleaseRate{
 1959518848, 240577040, 126456408, 84972672, 63518640, 50408868, 41567836, 35202512,
