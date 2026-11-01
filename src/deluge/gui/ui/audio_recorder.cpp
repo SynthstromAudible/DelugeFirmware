@@ -160,7 +160,7 @@ AudioRecorder::ThresholdMeterState AudioRecorder::getThresholdMeterState() {
 
 	// get current approximate RMS levels for the input source
 	// when recording mono, show the left channel on both meters
-	const auto level = recorder->approxRMSLevel;
+	const auto level = recorder->getInputLevels();
 	const float right = recorder->recordingNumChannels == 2 ? level.r : level.l;
 
 	ThresholdMeterState state;
