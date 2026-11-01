@@ -32,6 +32,7 @@
 #include "model/drum/gate_drum.h"
 #include "model/edits/edit.h"
 #include "model/edits/param_address_for.h"
+#include "model/edits/record_expression_value.h"
 #include "model/edits/set_param_value.h"
 #include "model/instrument/kit.h"
 #include "model/note/copied_note_row.h"
@@ -4486,9 +4487,12 @@ bool NoteRow::recordPolyphonicExpressionEvent(ModelStackWithNoteRow* modelStack,
 
 		bool doMPEMode = (distanceToNextNode >= distanceToNextNote);
 
-		param->setCurrentValueInResponseToUserInput(
-		    newValueBig, modelStackWithAutoParam, true, livePos, false,
-		    doMPEMode); // Don't allow deletion of nodes in linear run. See comments above that function
+		if (const std::optional<deluge::project::ParamAddress> address =
+		        deluge::edits::addressFor(*modelStackWithAutoParam)) {
+			deluge::edits::Context editCtx{*currentSong, currentSong->project};
+			deluge::edits::RecordExpressionValue edit{*address, newValueBig, static_cast<int32_t>(livePos), doMPEMode};
+			deluge::edits::apply(editCtx, edit);
+		}
 	}
 
 	return true;

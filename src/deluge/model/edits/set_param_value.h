@@ -24,6 +24,13 @@ public:
 		       ///< names, whose address it passes
 	};
 
+	/// @brief How the value is written.
+	enum class Write : uint8_t {
+		USER,  ///< a knob turn: undone and recorded as automation as the engine's setter does
+		SETUP, ///< a default set up for the user: the value alone, as setCurrentValueWithNoReversionOrRecording sets
+		       ///< it (no undo step, no automation); found as EXACT
+	};
+
 	/// @param address                   The param's address.
 	/// @param newValue                  The value, as the engine stores it.
 	/// @param pos                       The region's start, in ticks (a scalar turn: 0).
@@ -31,10 +38,11 @@ public:
 	/// @param resolve                   How apply() finds the param.
 	/// @param mayDeleteNodesInLinearRun Whether the engine may prune a node the write leaves in a straight line; MIDI
 	///                                  and MPE writes pass false, as the value may be sent on as MIDI.
+	/// @param write                     How the value is written.
 	SetParamValue(project::ParamAddress address, int32_t newValue, int32_t pos = 0, int32_t length = 0,
-	              Resolve resolve = Resolve::READ, bool mayDeleteNodesInLinearRun = true)
+	              Resolve resolve = Resolve::READ, bool mayDeleteNodesInLinearRun = true, Write write = Write::USER)
 	    : address_(address), newValue_(newValue), pos_(pos), length_(length),
-	      mayDeleteNodesInLinearRun_(mayDeleteNodesInLinearRun), resolve_(resolve) {}
+	      mayDeleteNodesInLinearRun_(mayDeleteNodesInLinearRun), resolve_(resolve), write_(write) {}
 
 	/// @brief Write the value, then raise the reverb's recompute for a param the reverb's sidechain copies (a
 	/// sidechain's shape, the song's sidechain volume).
@@ -57,6 +65,7 @@ private:
 	/// Engine-only node-pruning hint (not domain intent): forwarded to setValuePossiblyForRegion.
 	bool mayDeleteNodesInLinearRun_;
 	Resolve resolve_;
+	Write write_;
 };
 
 /// @brief The engine stack of the param at @p address, found as @p resolve says; with WRITE, @p address moves to the

@@ -31,6 +31,9 @@
 #include "io/file.hpp"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/instrument_clip.h"
+#include "model/edits/edit.h"
+#include "model/edits/param_address_for.h"
+#include "model/edits/set_param_value.h"
 #include "model/instrument/instrument.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
@@ -927,8 +930,18 @@ getOut:
 
 				// Reset osc volume, if it's not automated
 				if (!modelStackWithParam->autoParam->isAutomated(*modelStackWithParam->doc())) {
-					modelStackWithParam->autoParam->setCurrentValueWithNoReversionOrRecording(modelStackWithParam,
-					                                                                          2147483647);
+					if (const std::optional<deluge::project::ParamAddress> address =
+					        deluge::edits::addressFor(*modelStackWithParam)) {
+						deluge::edits::Context ctx{*currentSong, currentSong->project};
+						deluge::edits::SetParamValue edit{*address,
+						                                  2147483647,
+						                                  0,
+						                                  0,
+						                                  deluge::edits::SetParamValue::Resolve::EXACT,
+						                                  true,
+						                                  deluge::edits::SetParamValue::Write::SETUP};
+						deluge::edits::apply(ctx, edit);
+					}
 				}
 
 				drum->killAllVoices();

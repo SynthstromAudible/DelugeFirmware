@@ -80,6 +80,12 @@ struct ParamAddress {
 	/// @brief The param this address names, without its owner.
 	[[nodiscard]] constexpr ParamTarget target() const { return {space, id}; }
 
+	/// @brief The address of @p target on @p owner, with the clip whose override it is for an INSTRUMENT or DRUM owner.
+	[[nodiscard]] static constexpr ParamAddress of(OwnerId owner, ParamTarget target,
+	                                               std::optional<uint32_t> clip_id = {}) {
+		return {owner, target.space, target.id, clip_id};
+	}
+
 	[[nodiscard]] constexpr bool operator==(const ParamAddress&) const = default;
 };
 

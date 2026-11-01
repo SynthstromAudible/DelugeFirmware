@@ -100,9 +100,14 @@ ModelStackWithAutoParam* paramStackFor(::Song& song, project::ParamAddress& addr
 
 Error SetParamValue::apply(Context& ctx) {
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithAutoParam* stack = paramStackFor(ctx.song, address_, resolve_, memory);
+	ModelStackWithAutoParam* stack =
+	    paramStackFor(ctx.song, address_, write_ == Write::SETUP ? Resolve::EXACT : resolve_, memory);
 	if (stack == nullptr) {
 		return Error::UNSPECIFIED;
+	}
+	if (write_ == Write::SETUP) {
+		stack->autoParam->setCurrentValueWithNoReversionOrRecording(stack, newValue_);
+		return Error::NONE;
 	}
 	const Error error = write(ctx, stack);
 	if (error == Error::NONE && copiedByReverbSidechain(*stack)) {

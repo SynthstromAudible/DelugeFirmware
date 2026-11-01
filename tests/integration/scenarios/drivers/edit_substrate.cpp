@@ -324,6 +324,28 @@ void testParamUndoDedupByAddress(deluge::edits::Context& ctx) {
 	actionLogger.firstAction[BEFORE] = nullptr;
 }
 
+// A setup write sets the value alone: no undo step, no automation.
+void testSetupWrite(deluge::edits::Context& ctx) {
+	namespace params = deluge::modulation::params;
+	const deluge::project::ParamAddress address = deluge::bridge::addressOf(
+	    deluge::project::OwnerId::song(), params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_VOLUME);
+	actionLogger.firstAction[BEFORE] = nullptr;
+	actionLogger.firstAction[AFTER] = nullptr;
+	deluge::edits::SetParamValue edit{address,
+	                                  123456789,
+	                                  0,
+	                                  0,
+	                                  deluge::edits::SetParamValue::Resolve::EXACT,
+	                                  true,
+	                                  deluge::edits::SetParamValue::Write::SETUP};
+	check(deluge::edits::apply(ctx, edit) == Error::NONE, "setup: applies");
+	check(actionLogger.firstAction[BEFORE] == nullptr, "setup: no undo step");
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithAutoParam* lane = deluge::bridge::paramStackExact(ctx.song, address, memory);
+	check(lane != nullptr && lane->autoParam->getCurrentValue() == 123456789, "setup: the value is written");
+	check(lane != nullptr && lane->doc()->nodes.empty(), "setup: no automation");
+}
+
 // PasteParamAutomation funnels the automation-paste site. Seed a clipboard, paste via the Edit,
 // assert nodes written and an AUTOMATION_PASTE Action opened.
 void testPasteParamAutomation(deluge::edits::Context& ctx) {
@@ -1476,6 +1498,7 @@ int edit_substrate_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	testDeleteParamAutomation(ctx);
 	testParamEditsByAddressUndo(ctx);
 	testParamUndoDedupByAddress(ctx);
+	testSetupWrite(ctx);
 	testPasteParamAutomation(ctx);
 	testInlinePokeCharacterization(ctx);
 	testParamSnapshotEquivalence(ctx, song, audioClip);

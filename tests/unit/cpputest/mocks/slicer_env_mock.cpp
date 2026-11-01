@@ -23,7 +23,9 @@
 #include "gui/views/instrument_clip_view.h"
 #include "gui/waveform/waveform_basic_navigator.h"
 #include "model/clip/clip.h"
+#include "model/edits/param_address_for.h"
 #include "model/edits/set_engine_setting.h"
+#include "model/edits/set_param_value.h"
 #include "model/edits/set_source_ranges.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
@@ -238,9 +240,6 @@ AsyncSampleLoad::OutstandingRequests::~OutstandingRequests() = default;
 void InstrumentClipView::sendAuditionNote(bool on, uint8_t yDisplay, uint8_t velocity, uint32_t sampleSyncLength) {
 	deluge::test::auditionNoteCount++;
 	deluge::test::lastAuditionOn = on ? 1 : 0;
-}
-
-void AutoParam::setCurrentValueWithNoReversionOrRecording(ModelStackWithAutoParam const* modelStack, int32_t newValue) {
 }
 
 namespace PadLEDs {
@@ -464,5 +463,17 @@ Error SetEngineSetting::apply(Context& /*ctx*/) {
 }
 Error SetSourceRanges::apply(Context& /*ctx*/) {
 	return Error::NONE;
+}
+// The slicer's setup writes of envelope and osc-volume defaults: no lane here has an address, so none is written.
+std::optional<deluge::project::ParamAddress> ownerAddressFor(const ModelStackWithThreeMainThings& /*modelStack*/) {
+	return std::nullopt;
+}
+std::optional<deluge::project::ParamAddress> addressFor(const ModelStackWithAutoParam& /*modelStack*/) {
+	return std::nullopt;
+}
+Error SetParamValue::apply(Context& /*ctx*/) {
+	return Error::NONE;
+}
+void SetParamValue::emitEvent(Context& /*ctx*/) {
 }
 } // namespace deluge::edits

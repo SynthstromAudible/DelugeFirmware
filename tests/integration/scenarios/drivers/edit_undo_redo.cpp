@@ -40,6 +40,7 @@
 #include "model/edits/nudge_note.h"
 #include "model/edits/param_address_for.h"
 #include "model/edits/paste_note_row.h"
+#include "model/edits/record_expression_value.h"
 #include "model/edits/remove_kit_row.h"
 #include "model/edits/remove_note.h"
 #include "model/edits/repeat_note_edit.h"
@@ -1652,6 +1653,41 @@ void exactAddressTarget(Song* song) {
 	}
 }
 
+// The MPE value a played note sends, written through its Edit with the clock stopped: the lane takes it, and one undo
+// gives back what it was (the engine's own unautomated-change record).
+void recordExpressionTarget(Song* song) {
+	for (int32_t c = 0; c < std::ssize(song->live.clips.session_clips); c++) {
+		Clip* clip = song->live.clips.session_clips[c];
+		if (clip->type != ClipType::INSTRUMENT || clip->output == nullptr || clip->output->type != OutputType::SYNTH
+		    || !clip->paramManager.ensureExpressionParamSetExists()) {
+			continue;
+		}
+		alignas(ModelStackWithAutoParam) char m[MODEL_STACK_MAX_SIZE];
+		ModelStackWithThreeMainThings* owner = setupModelStackWithThreeMainThingsIncludingNoteRow(
+		    m, song, clip, 0, nullptr, clip->output->toModControllable(), &clip->paramManager);
+		ParamCollectionSummary* summary = owner->paramManager->getExpressionParamSetSummary();
+		ModelStackWithAutoParam* lane = summary->paramCollection->getAutoParamFromId(
+		    owner->addParamCollectionAndId(summary->paramCollection, summary, 1), false);
+		const std::optional<deluge::project::ParamAddress> address =
+		    lane != nullptr ? deluge::edits::addressFor(*lane) : std::nullopt;
+		if (!address) {
+			continue;
+		}
+		std::fprintf(io.out, "# target record-expression\n");
+		const int32_t before = lane->autoParam->getCurrentValue();
+		actionLogger.firstAction[BEFORE] = nullptr;
+		actionLogger.firstAction[AFTER] = nullptr;
+		deluge::edits::Context ctx{*currentSong, currentSong->project};
+		deluge::edits::RecordExpressionValue edit{*address, before + 1234567, 0, false};
+		check(deluge::edits::apply(ctx, edit) == Error::NONE, "record-expression: applies");
+		check(lane->autoParam->getCurrentValue() == before + 1234567, "record-expression: the lane takes the value");
+		actionLogger.revert(BEFORE, false, false);
+		check(lane->autoParam->getCurrentValue() == before, "record-expression: undo gives the value back");
+		return;
+	}
+	std::fprintf(io.out, "# no-synth-clip-for-expression\n");
+}
+
 // A param write's undo record outlives its owner's deletion and restore: an arrangement-only synth clip's lane is
 // turned, its clip instance (and with it the clip) deleted; undoing both brings the clip back by its id and the lane
 // back to its value; redoing both deletes it again.
@@ -1900,6 +1936,7 @@ int edit_undo_redo_main(int argc, char** argv, Io driverIo) {
 	sectionTarget(song);
 	cableTarget(song);
 	undoAcrossClipDeleteTarget(song);
+	recordExpressionTarget(song);
 	newShapesTarget(song);
 
 	std::free(xml);
