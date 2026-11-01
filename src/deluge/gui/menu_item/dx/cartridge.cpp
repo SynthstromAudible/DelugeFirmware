@@ -98,6 +98,9 @@ void DxCartridge::loadPatch() {
 	}
 
 	DxPatch* patch = soundEditor.currentSource->ensureDxPatch();
+	if (patch == nullptr) {
+		return;
+	}
 	pd->unpackProgram(patch->params, currentValue);
 	soundEditor.currentSound->killAllVoices();
 	Instrument* instrument = getCurrentInstrument();
