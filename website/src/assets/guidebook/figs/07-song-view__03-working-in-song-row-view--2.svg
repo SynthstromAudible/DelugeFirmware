@@ -1,0 +1,17 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 114.8 71.2">
+<defs>
+<clipPath id="07-song-view__03-working-in-song-row-view--2-clip_1">
+<path transform="matrix(1,0,0,-1,-289.9,230.7)" d="M289.9 159.5H404.8V230.7H289.9Z" clip-rule="evenodd"/>
+</clipPath>
+</defs>
+<g clip-path="url(#07-song-view__03-working-in-song-row-view--2-clip_1)">
+<text fill="currentColor" xml:space="preserve" transform="translate(9.7 63.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Launch Behaviour</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 14.5 18.8)" font-size="5.6" font-family="monospace"><tspan y="0" x="0" textLength="65.6" lengthAdjust="spacingAndGlyphs">LAUNCH STYLE</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 14.5 30.0)" font-size="5.6" font-family="monospace"><tspan y="0" x="0" textLength="65.6" lengthAdjust="spacingAndGlyphs">DEFAULT CLIP</tspan></text>
+<path transform="matrix(1,0,0,-1,-289.9,230.7)" stroke-width=".7" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M304.4 210.3H379.4"/>
+<path transform="matrix(1,0,0,-1,-289.9,230.7)" stroke-width=".8" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M295.9 181.0H398.8V224.8H295.9Z"/>
+<path transform="matrix(1,0,0,-1,-289.9,230.7)" stroke-width=".45" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M302.2 185.3H384.5V221.2H302.2Z"/>
+<path transform="matrix(1,0,0,-1,-289.9,230.7)" d="M303.3 187.7H379.4V199.0H303.3Z" fill="color-mix(in srgb, currentColor 20%, var(--gb-paper))" fill-rule="evenodd"/>
+<text fill="currentColor" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 14.5 39.6)" font-size="5.6" font-family="monospace"><tspan y="0" x="0" textLength="48.7" lengthAdjust="spacingAndGlyphs">FILL CLIP</tspan></text>
+</g>
+</svg>

@@ -1,0 +1,52 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 274.7 182.3"><defs><path id="05-kits__03-kit-presets-samples--3-s1" d="M0 0C0 1.5 -1.2 2.7 -2.7 2.7H-21.2C-22.7 2.7 -23.9 1.5 -23.9 0V-18.5C-23.9 -20 -22.7 -21.2 -21.2 -21.2H-2.7C-1.2 -21.2 0 -20 0 -18.5Z" fill="var(--gb-paper)" fill-rule="evenodd"/></defs>
+<defs>
+<clipPath id="05-kits__03-kit-presets-samples--3-clip_1">
+<path transform="matrix(1,0,0,-1,-77,362.5)" d="M77 180.2H351.7V362.5H77Z" clip-rule="evenodd"/>
+</clipPath>
+<clipPath id="05-kits__03-kit-presets-samples--3-clip_2">
+<path transform="matrix(1,0,0,-1,-77,362.5)" d="M83.0 260.5H147.7V343.8H83.0Z" clip-rule="evenodd"/>
+</clipPath>
+<mask id="05-kits__03-kit-presets-samples--3-mask_3">
+<g transform="matrix(.048206,0,0,.048205999,5.9,18.6)">
+<image id="05-kits__03-kit-presets-samples--3-image_4" width="1335" height="1725" xlink:href="/guidebook/img/05-kits__03-kit-presets-samples--3-1.webp"/>
+</g>
+</mask>
+</defs>
+<g>
+<g clip-path="url(#05-kits__03-kit-presets-samples--3-clip_1)">
+<path transform="matrix(1,0,0,-1,-77,362.5)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M424.8 688.4V83.9"/>
+<text xml:space="preserve" transform="translate(185.1 20.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Sample 6</tspan></text>
+<text xml:space="preserve" transform="translate(185.1 49.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Sample 5</tspan></text>
+<text xml:space="preserve" transform="translate(185.1 80.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Sample 4</tspan></text>
+<text xml:space="preserve" transform="translate(185.1 109.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Sample 3</tspan></text>
+<text xml:space="preserve" transform="translate(185.1 138.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Sample 2</tspan></text>
+<text xml:space="preserve" transform="translate(185.1 166.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Sample 1</tspan></text>
+<text fill="var(--gb-accent)" xml:space="preserve" transform="translate(27.2 78.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Folder</tspan></text>
+<path transform="matrix(1,0,0,-1,-77,362.5)" stroke-width=".6" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M260.0 345.9H202.2V198.8H258.7"/>
+<path transform="matrix(1,0,0,-1,-77,362.5)" d="M345.6 353.9C345.6 355.3 344.4 356.5 342.9 356.5H324.4C322.9 356.5 321.7 355.3 321.7 353.9V335.4C321.7 333.9 322.9 332.7 324.4 332.7H342.9C344.4 332.7 345.6 333.9 345.6 335.4Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-77,362.5)" d="M345.6 353.9V335.4C345.6 333.9 344.4 332.7 342.9 332.7H324.4C322.9 332.7 321.7 333.9 321.7 335.4V353.9C321.7 355.3 322.9 356.5 324.4 356.5H342.9C344.4 356.5 345.6 355.3 345.6 353.9ZM345.0 353.9C345.0 355.0 344.1 355.9 342.9 355.9H324.4C323.3 355.9 322.3 355.0 322.3 353.9V335.4C322.3 334.2 323.3 333.3 324.4 333.3H342.9C344.1 333.3 345.0 334.2 345.0 335.4Z" fill-rule="evenodd"/>
+<use href="#05-kits__03-kit-presets-samples--3-s1" transform="matrix(1 0 0 -1 268.6 67.2)"/>
+<path transform="matrix(1,0,0,-1,-77,362.5)" d="M345.6 295.3V276.8C345.6 275.3 344.4 274.1 342.9 274.1H324.4C322.9 274.1 321.7 275.3 321.7 276.8V295.3C321.7 296.8 322.9 298.0 324.4 298.0H342.9C344.4 298.0 345.6 296.8 345.6 295.3ZM345.0 295.3C345.0 296.5 344.1 297.4 342.9 297.4H324.4C323.3 297.4 322.3 296.5 322.3 295.3V276.8C322.3 275.6 323.3 274.7 324.4 274.7H342.9C344.1 274.7 345.0 275.6 345.0 276.8Z" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-77,362.5)" d="M345.6 236.7C345.6 238.2 344.4 239.4 342.9 239.4H324.4C322.9 239.4 321.7 238.2 321.7 236.7V218.2C321.7 216.8 322.9 215.6 324.4 215.6H342.9C344.4 215.6 345.6 216.8 345.6 218.2Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-77,362.5)" d="M345.6 236.7V218.2C345.6 216.8 344.4 215.6 342.9 215.6H324.4C322.9 215.6 321.7 216.8 321.7 218.2V236.7C321.7 238.2 322.9 239.4 324.4 239.4H342.9C344.4 239.4 345.6 238.2 345.6 236.7ZM345.0 236.7C345.0 237.9 344.1 238.8 342.9 238.8H324.4C323.3 238.8 322.3 237.9 322.3 236.7V218.2C322.3 217.1 323.3 216.2 324.4 216.2H342.9C344.1 216.2 345.0 217.1 345.0 218.2Z" fill-rule="evenodd"/>
+<use href="#05-kits__03-kit-presets-samples--3-s1" transform="matrix(1 0 0 -1 268.6 37.9)"/>
+<path transform="matrix(1,0,0,-1,-77,362.5)" d="M345.6 324.6V306.1C345.6 304.6 344.4 303.4 342.9 303.4H324.4C322.9 303.4 321.7 304.6 321.7 306.1V324.6C321.7 326.1 322.9 327.3 324.4 327.3H342.9C344.4 327.3 345.6 326.1 345.6 324.6ZM345.0 324.6C345.0 325.7 344.1 326.7 342.9 326.7H324.4C323.3 326.7 322.3 325.7 322.3 324.6V306.1C322.3 304.9 323.3 304.0 324.4 304.0H342.9C344.1 304.0 345.0 304.9 345.0 306.1Z" fill-rule="evenodd"/>
+<use href="#05-kits__03-kit-presets-samples--3-s1" transform="matrix(1 0 0 -1 268.6 96.5)"/>
+<path transform="matrix(1,0,0,-1,-77,362.5)" d="M345.6 266.0V247.5C345.6 246.0 344.4 244.8 342.9 244.8H324.4C322.9 244.8 321.7 246.0 321.7 247.5V266.0C321.7 267.5 322.9 268.7 324.4 268.7H342.9C344.4 268.7 345.6 267.5 345.6 266.0ZM345.0 266.0C345.0 267.2 344.1 268.1 342.9 268.1H324.4C323.3 268.1 322.3 267.2 322.3 266.0V247.5C322.3 246.4 323.3 245.4 324.4 245.4H342.9C344.1 245.4 345.0 246.4 345.0 247.5Z" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-77,362.5)" d="M345.6 207.5C345.6 208.9 344.4 210.1 342.9 210.1H324.4C322.9 210.1 321.7 208.9 321.7 207.5V189.0C321.7 187.5 322.9 186.3 324.4 186.3H342.9C344.4 186.3 345.6 187.5 345.6 189.0Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-77,362.5)" d="M345.6 207.5V189.0C345.6 187.5 344.4 186.3 342.9 186.3H324.4C322.9 186.3 321.7 187.5 321.7 189.0V207.5C321.7 208.9 322.9 210.1 324.4 210.1H342.9C344.4 210.1 345.6 208.9 345.6 207.5ZM345.0 207.5C345.0 208.6 344.1 209.5 342.9 209.5H324.4C323.3 209.5 322.3 208.6 322.3 207.5V189.0C322.3 187.8 323.3 186.9 324.4 186.9H342.9C344.1 186.9 345.0 187.8 345.0 189.0Z" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-77,362.5)" d="M136.7 297.2V276.0C136.7 274.6 135.3 273.5 133.6 273.5H101.5C99.8 273.5 98.5 274.6 98.5 276.0V297.2C98.5 298.6 100.4 304.2 102.0 304.2L116.4 304.2C118.1 303.5 119.5 301.8 119.8 299.8H133.6C135.3 299.8 136.7 298.6 136.7 297.2ZM136.1 297.2C136.1 298.3 135.0 299.2 133.6 299.2H119.8C119.5 299.2 119.3 299.4 119.2 299.7 119 301.4 117.7 302.9 116.3 303.6L102.0 303.6H102.0C101.9 303.6 101.8 303.5 101.7 303.4 101.5 303.2 101.2 303.0 101.0 302.6 100.0 301.0 99.1 298.2 99.1 297.2V276.0C99.1 274.9 100.2 274.1 101.5 274.1H133.6C135.0 274.1 136.1 274.9 136.1 276.0Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
+<g clip-path="url(#05-kits__03-kit-presets-samples--3-clip_2)">
+<g mask="url(#05-kits__03-kit-presets-samples--3-mask_3)">
+<g transform="matrix(.048206,0,0,.048205999,5.9,18.6)">
+<image class="gb-ink" id="05-kits__03-kit-presets-samples--3-image_5" width="1335" height="1725" xlink:href="/guidebook/img/05-kits__03-kit-presets-samples--3-2.webp"/>
+</g>
+</g>
+</g>
+<path transform="matrix(1,0,0,-1,-77,362.5)" stroke-width=".6" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M259.4 316.6H202.1"/>
+<path transform="matrix(1,0,0,-1,-77,362.5)" stroke-width=".6" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M260.1 285.8H148.1"/>
+<path transform="matrix(1,0,0,-1,-77,362.5)" stroke-width=".6" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M259.5 255.5H202.4"/>
+<path transform="matrix(1,0,0,-1,-77,362.5)" stroke-width=".6" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M259.4 227.9H202.6"/>
+</g>
+</g>
+</svg>

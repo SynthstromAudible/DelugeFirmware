@@ -253,7 +253,7 @@ const checks = {
     }
     check(
       "no JS: every animated figure fully drawn, no replay button",
-      figures === 24 && bad.length === 0,
+      figures === 26 && bad.length === 0,
       `${figures} figures${bad.length ? `, bad: ${bad.join(", ")}` : ""}`,
     )
     await ctx.close()

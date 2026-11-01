@@ -15,9 +15,11 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_3_3_1 from "../../../../assets/guidebook/figs/03-sequencing__03-tempo-swing--1.svg?raw"
+
 import { Steps } from "@astrojs/starlight/components"
 import StepFocus from "../../../../components/guidebook/StepFocus.astro"
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -65,13 +67,16 @@ Tempo can be set manually or a tap tempo option is available.
 
 </Steps>
 
-<FigurePending id="fig-3.3-1" page={39}>
-  16th Grid Intervals (8th note Swung) · Example 1 Timing on grid 50 = Off ·
-  Example 2 Swing 51 - 99 = notes late · Example 3 Swing 1 - 49 = notes early ·
-  Swing feature provides a rhythmic adjustment that brings a more natural and
-  organic feel to songs and operates generically and not at an individual note
-  level.
-</FigurePending>
+<Figure
+  id="fig-3.3-1"
+  src={fig_fig_3_3_1}
+  alt={
+    "Diagram: 16th Grid Intervals (8th note Swung) Example 1 Timing on grid 50 = Off Example 2 Swing 51 - 99 = notes late Example 3 Swing 1 - 49 = notes…"
+  }
+  page={39}
+/>
+
+Swing feature provides a rhythmic adjustment that brings a more natural and organic feel to songs and operates generically and not at an individual note level.
 
 ### Adjusting the swing interval setting
 

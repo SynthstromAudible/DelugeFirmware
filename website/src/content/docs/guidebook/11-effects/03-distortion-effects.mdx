@@ -15,9 +15,11 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_11_3_1 from "../../../../assets/guidebook/figs/11-effects__03-distortion-effects--1.svg?raw"
+
 import { Steps } from "@astrojs/starlight/components"
 import StepFocus from "../../../../components/guidebook/StepFocus.astro"
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -47,9 +49,12 @@ Pre-filter wave folding distortion. The depth can be patched and automated. The 
 
 Note that wavefold is accessible via an unlabelled shortcut pad located between SATURATION and LPF FREQ pads.
 
-<FigurePending id="fig-11.3-1" page={245}>
-  WAVEFOLD
-</FigurePending>
+<Figure
+  id="fig-11.3-1"
+  src={fig_fig_11_3_1}
+  alt={"Diagram: WAVEFOLD"}
+  page={245}
+/>
 
 AMOUNT: 0-50.
 

@@ -1,0 +1,35 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 113.1 102.5">
+<defs>
+<clipPath id="03-sequencing__07-keyboard-view-chords--3-clip_1">
+<path transform="matrix(1,0,0,-1,-60.5,303.0)" d="M60.5 200.5H173.6V303.0H60.5Z" clip-rule="evenodd"/>
+</clipPath>
+<clipPath id="03-sequencing__07-keyboard-view-chords--3-clip_2">
+<path transform="matrix(1,0,0,-1,-60.5,303.0)" d="M76.7 253.0H167.3V296.9H76.7Z" clip-rule="evenodd"/>
+</clipPath>
+<mask id="03-sequencing__07-keyboard-view-chords--3-mask_3">
+<g transform="matrix(.096,0,0,.09599999,16.0,6.0)">
+<image id="03-sequencing__07-keyboard-view-chords--3-image_4" width="948" height="460" xlink:href="/guidebook/img/03-sequencing__07-keyboard-view-chords--3-1.webp"/>
+</g>
+</mask>
+</defs>
+<g>
+<g clip-path="url(#03-sequencing__07-keyboard-view-chords--3-clip_1)">
+<g clip-path="url(#03-sequencing__07-keyboard-view-chords--3-clip_2)">
+<g mask="url(#03-sequencing__07-keyboard-view-chords--3-mask_3)">
+<g transform="matrix(.096,0,0,.09599999,16.0,6.0)">
+<image class="gb-ink" id="03-sequencing__07-keyboard-view-chords--3-image_5" width="948" height="460" xlink:href="/guidebook/img/03-sequencing__07-keyboard-view-chords--3-2.webp"/>
+</g>
+</g>
+</g>
+<path transform="matrix(1,0,0,-1,-60.5,303.0)" d="M90.5 270.5C94.6 270.5 97.9 267.2 97.9 263.2 97.9 259.2 94.6 255.9 90.5 255.9 86.5 255.9 83.2 259.2 83.2 263.2 83.2 267.2 86.5 270.5 90.5 270.5Z" fill="#5c96cf" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-60.5,303.0)" d="M90.5 270.5C94.6 270.5 97.9 267.2 97.9 263.2 97.9 259.2 94.6 255.9 90.5 255.9 86.5 255.9 83.2 259.2 83.2 263.2 83.2 267.2 86.5 270.5 90.5 270.5ZM90.5 270.1C86.7 270.1 83.6 267.0 83.6 263.2 83.6 259.4 86.7 256.3 90.5 256.3 94.4 256.3 97.5 259.4 97.5 263.2 97.5 267.0 94.4 270.1 90.5 270.1Z" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-60.5,303.0)" d="M136.4 270.5C140.5 270.5 143.8 267.2 143.8 263.2 143.8 259.2 140.5 255.9 136.4 255.9 132.3 255.9 129.0 259.2 129.0 263.2 129.0 267.2 132.3 270.5 136.4 270.5Z" fill="#5c96cf" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-60.5,303.0)" d="M136.4 270.5C140.5 270.5 143.8 267.2 143.8 263.2 143.8 259.2 140.5 255.9 136.4 255.9 132.3 255.9 129.0 259.2 129.0 263.2 129.0 267.2 132.3 270.5 136.4 270.5ZM136.4 270.1C132.5 270.1 129.4 267.0 129.4 263.2 129.4 259.4 132.5 256.3 136.4 256.3 140.2 256.3 143.4 259.4 143.4 263.2 143.4 267.0 140.2 270.1 136.4 270.1Z" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-60.5,303.0)" d="M131.1 296.5C135.2 296.5 138.5 293.2 138.5 289.2 138.5 285.1 135.2 281.9 131.1 281.9 127.0 281.9 123.7 285.1 123.7 289.2 123.7 293.2 127.0 296.5 131.1 296.5Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-60.5,303.0)" d="M131.1 296.5C135.2 296.5 138.5 293.2 138.5 289.2 138.5 285.1 135.2 281.9 131.1 281.9 127.0 281.9 123.7 285.1 123.7 289.2 123.7 293.2 127.0 296.5 131.1 296.5ZM131.1 296.1C127.2 296.1 124.1 293.0 124.1 289.2 124.1 285.4 127.2 282.3 131.1 282.3 134.9 282.3 138.1 285.4 138.1 289.2 138.1 293.0 134.9 296.1 131.1 296.1Z" fill-rule="evenodd"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.0 94.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">[KEYBOARD]</tspan></text>
+<path transform="matrix(1,0,0,-1,-60.5,303.0)" stroke-width=".777778" stroke-linecap="round" stroke-dasharray="2.3,2.3,.000015,.000015" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M90.4 249.0V221.1"/>
+<path transform="matrix(1,0,0,-1,-60.5,303.0)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M424.7 688.6V84.1"/>
+</g>
+</g>
+</svg>

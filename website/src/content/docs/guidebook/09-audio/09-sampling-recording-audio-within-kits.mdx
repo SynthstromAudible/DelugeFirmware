@@ -15,9 +15,12 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_9_9_1 from "../../../../assets/guidebook/figs/09-audio__09-sampling-recording-audio-within-kits--1.svg?raw"
+import fig_fig_9_9_2 from "../../../../assets/guidebook/figs/09-audio__09-sampling-recording-audio-within-kits--2.svg?raw"
+
 import { Steps } from "@astrojs/starlight/components"
 import StepFocus from "../../../../components/guidebook/StepFocus.astro"
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -83,13 +86,14 @@ Kits are a great environment for sampling audio. Samples can be recorded and arr
 
 </Steps>
 
-<FigurePending id="fig-9.9-1" page={209}>
-  Audition pads will be aligned, bottom up to each of the slices and when
-  pressed will trigger the slice. · 1 · 2 · 3 · 4 · 5 · 6 · 7 · 8 · 8 · Single
-  Sample Sliced into the number selected · Kit rows · Lazy chop provides the
-  ability to manually, real time slice the sample into individual slices · 7 6 5
-  4 3 2 1
-</FigurePending>
+<Figure
+  id="fig-9.9-1"
+  src={fig_fig_9_9_1}
+  alt={
+    "Pad grid: Audition pads will be aligned, bottom up to each of the slices and when pressed will trigger the slice. 1 2 3 4 5 6 7 8 8 7 6 5 4 3 2…"
+  }
+  page={209}
+/>
 
 ### Lazy chop manual slicing audio in a kit
 
@@ -117,26 +121,21 @@ Kits are a great environment for sampling audio. Samples can be recorded and arr
 
 </Steps>
 
-<FigurePending id="fig-9.9-2" page={211}>
-  Sample is represented on the upper pads and plays left to right when the
-  bottom left green pad is triggered ie start point. · 1 · 2 · 3 · 4 · 5 · 6 · 5
-  · 6 · 1 · 2 · 3 · 4 · Empty pads trigger a slice being captured during
-  playback. Slices are populated in the 4x4 blocks of pads starting bottom left.
-  Green pads can be used to trigger slices. · 1 Start Point of Sample or first
-  Slice. Press to initially play sample to start manual slicing 2 Start Point of
-  2nd Slice. Press a lower pad while playing to capture the slice point 3 Start
-  Point of 3rd Slice. Press a lower pad while playing to capture the slice point
-  4 Start Point of 4th Slice. Press a lower pad while playing to capture the
-  slice point 5 Start Point of 5th Slice. Press a lower pad while playing to
-  capture the slice point 6 Start Point of 6th Slice. Press a lower pad while
-  playing to capture the slice point · Other slices can be captured across the
-  duration of the sample. · The currently active slice is lit bright green.
-  Other available slices are identified by dimmed green pads. When exiting the
-  slicer, the slices will be represented on the audition pads.
-</FigurePending>
+Sample is represented on the upper pads and plays left to right when the bottom left green pad is triggered ie start point.
+
+<Figure
+  id="fig-9.9-2"
+  src={fig_fig_9_9_2}
+  alt={
+    "Diagram: 1 2 3 4 5 6 5 6 1 2 3 4 Empty pads trigger a slice being captured during playback. Slices are populated in the 4x4 blocks of pads starting…"
+  }
+  page={211}
+/>
+
+Other slices can be captured across the duration of the sample.
+
+The currently active slice is lit bright green. Other available slices are identified by dimmed green pads. When exiting the slicer, the slices will be represented on the audition pads.
 
 Sample Waveform
 
 Slice Pads
-
-<FigurePending id="fig-9.9-3" page={211}></FigurePending>

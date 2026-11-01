@@ -15,24 +15,24 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_5_4_1 from "../../../../assets/guidebook/figs/05-kits__04-alternate-drum-pad-grid-view--1.svg?raw"
+
 import { Steps } from "@astrojs/starlight/components"
 import StepFocus from "../../../../components/guidebook/StepFocus.astro"
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
 While a kit can contain drum and synth sounds it is normally recognised that kits are typically associated with drum kits. An alternate view presents the grid layout as MPC style drum pad zones using KEYBOARD when in KIT mode.
 
-<FigurePending id="fig-5.4-1" page={128}>
-  Notes to trigger the kit’s sounds can be played on drum pads, laid out as a
-  series of 4 x 4 pads, each cluster controlling the sound and each pad
-  controlling the velocity. · This is available by pressing [KEYBOARD] when in
-  Kit View · Sound 8 · Sound 5 · Sound · Sound · Sound 8 · Sound 5 · Sound 4 ·
-  Sound 1 · Sound · Sound · Sound 4 · Sound 1 · The kit sounds are mapped across
-  the pad zones with velocity per individual pad. The drum pad zones are
-  represented by the colour. · Audition pad · The Drum pad size can be adjusted
-  from the default 4x4 range. · Velocity High · Default · Velocity Low
-</FigurePending>
+<Figure
+  id="fig-5.4-1"
+  src={fig_fig_5_4_1}
+  alt={
+    "Pad grid: Notes to trigger the kit’s sounds can be played on drum pads, laid out as a series of 4 x 4 pads, each cluster controlling the sound and…"
+  }
+  page={128}
+/>
 
 <StepFocus />
 

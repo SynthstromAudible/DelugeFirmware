@@ -15,9 +15,11 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_7_6_1 from "../../../../assets/guidebook/figs/07-song-view__06-editing-clips-in-song-view--1.svg?raw"
+
 import { Steps } from "@astrojs/starlight/components"
 import StepFocus from "../../../../components/guidebook/StepFocus.astro"
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -37,9 +39,7 @@ Song view also provides the functionality to edit certain features of clips from
 
 </Steps>
 
-<FigurePending id="fig-7.6-1" page={170}>
-  [PAD] Press & hold pad for clip to show the instrument and preset for the clip
-</FigurePending>
+<Figure id="fig-7.6-1" src={fig_fig_7_6_1} alt={"Diagram: [PAD]"} page={170} />
 
 ### Changing the clips instrument from song view
 

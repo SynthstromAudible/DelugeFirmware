@@ -1,0 +1,21 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 280.0 85.6">
+<defs>
+<clipPath id="06-modulation__01-modulation-routing-basics--4-clip_1">
+<path transform="matrix(1,0,0,-1,-226.8,450.8)" d="M226.8 365.2H506.9V450.8H226.8Z" clip-rule="evenodd"/>
+</clipPath>
+</defs>
+<g clip-path="url(#06-modulation__01-modulation-routing-basics--4-clip_1)">
+<path transform="matrix(1,0,0,-1,-226.8,450.8)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M170.1 688.6V84.1"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(12.1 15.7)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-weight="bold"><tspan y="0" x="0" textLength="50" lengthAdjust="spacingAndGlyphs">MOD MATRIX</tspan></text>
+<path transform="matrix(1,0,0,-1,-226.8,450.8)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M239.5 432.1H360.6"/>
+<path transform="matrix(1,0,0,-1,-226.8,450.8)" stroke-width=".8" stroke-linecap="round" stroke-miterlimit="5" stroke-linejoin="miter" fill="none" stroke="currentColor" d="M232.8 397.0H367.4V444.8H232.8Z"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(149.6 26.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Modulation Matrix List available in the</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(149.6 34.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">sound menu in Clip View - Synth Mode.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(149.6 42.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Press (SOUND) when highlighting a</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(149.6 50.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">modulation to edit.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.0 78.1)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Mod Source : Amount Value : Mod Destination</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 12.1 28.3)" font-size="5.6" font-family="monospace"><tspan y="0" x="0" textLength="81.9" lengthAdjust="spacingAndGlyphs">VELO 50.0 LEVEL</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 12.1 37.9)" font-size="5.6" font-family="monospace"><tspan y="0" x="0" textLength="81.9" lengthAdjust="spacingAndGlyphs">PRES 33.0 LEVEL</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 12.1 47.5)" font-size="5.6" font-family="monospace"><tspan y="0" x="0" textLength="100" lengthAdjust="spacingAndGlyphs">ENV2 50.0 LPF FREQ</tspan></text>
+</g>
+</svg>

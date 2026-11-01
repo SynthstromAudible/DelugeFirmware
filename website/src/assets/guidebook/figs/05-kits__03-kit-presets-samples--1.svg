@@ -1,7 +1,7 @@
-<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 314.8 125.7">
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 317.3 125.7">
 <defs>
 <clipPath id="05-kits__03-kit-presets-samples--1-clip_1">
-<path transform="matrix(1,0,0,-1,-208.6,365.9)" d="M208.6 240.2H523.5V365.9H208.6Z" clip-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-208.6,365.9)" d="M208.6 240.2H526V365.9H208.6Z" clip-rule="evenodd"/>
 </clipPath>
 <clipPath id="05-kits__03-kit-presets-samples--1-clip_2">
 <path transform="matrix(1,0,0,-1,-208.6,365.9)" d="M214.7 246.3H274.2V359.7H214.7Z" clip-rule="evenodd"/>
@@ -24,7 +24,7 @@
 </g>
 <text fill="currentColor" xml:space="preserve" transform="translate(82.0 59.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">[</tspan></text>
 <text fill="currentColor" xml:space="preserve" transform="translate(84.5 59.1)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0">AUDITION</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(127.5 59.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">] +</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(127.5 59.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">]   +</tspan></text>
 <text fill="currentColor" xml:space="preserve" transform="translate(154.1 38.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">[KIT]</tspan></text>
 <text fill="currentColor" xml:space="preserve" transform="translate(148.9 79.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">[LOAD]</tspan></text>
 <text fill="currentColor" xml:space="preserve" transform="translate(200.2 28.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">To open the file browser for</tspan></text>
@@ -34,9 +34,9 @@
 <text fill="currentColor" xml:space="preserve" transform="translate(216.0 68.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">parameters back to</tspan></text>
 <text fill="currentColor" xml:space="preserve" transform="translate(201.0 78.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">defaults when replacing an</tspan></text>
 <text fill="currentColor" xml:space="preserve" transform="translate(216.0 88.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">existing row sound.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(160.9 58.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">or</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(158.4 58.9)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">or</tspan></text>
 <path transform="matrix(1,0,0,-1,-208.6,365.9)" d="M271.9 318.5C271.9 320.0 270.7 321.2 269.2 321.2H252.3C250.8 321.2 249.6 320.0 249.6 318.5V301.7C249.6 300.2 250.8 299.0 252.3 299.0H269.2C270.7 299.0 271.9 300.2 271.9 301.7Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
-<path transform="matrix(1,0,0,-1,-208.6,365.9)" d="M271.9 318.5C271.9 320.0 270.7 321.2 269.2 321.2H252.3C250.8 321.2 249.6 320.0 249.6 318.5V301.7C249.6 300.2 250.8 299.0 252.3 299.0H269.2C270.7 299.0 271.9 300.2 271.9 301.7ZM271.3 318.5V301.7C271.3 300.5 270.4 299.6 269.2 299.6H252.3C251.2 299.6 250.2 300.5 250.2 301.7V318.5C250.2 319.7 251.2 320.6 252.3 320.6H269.2C270.4 320.6 271.3 319.7 271.3 318.5Z" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-208.6,365.9)" d="M271.9 318.5V301.7C271.9 300.2 270.7 299.0 269.2 299.0H252.3C250.8 299.0 249.6 300.2 249.6 301.7V318.5C249.6 320.0 250.8 321.2 252.3 321.2H269.2C270.7 321.2 271.9 320.0 271.9 318.5ZM271.3 318.5C271.3 319.7 270.4 320.6 269.2 320.6H252.3C251.2 320.6 250.2 319.7 250.2 318.5V301.7C250.2 300.5 251.2 299.6 252.3 299.6H269.2C270.4 299.6 271.3 300.5 271.3 301.7Z" fill-rule="evenodd"/>
 </g>
 </g>
 </svg>

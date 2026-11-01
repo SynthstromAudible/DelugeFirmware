@@ -15,9 +15,13 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_3_5_1 from "../../../../assets/guidebook/figs/03-sequencing__05-note-characteristics--1.svg?raw"
+import fig_fig_3_5_2 from "../../../../assets/guidebook/figs/03-sequencing__05-note-characteristics--2.svg?raw"
+import fig_fig_3_5_3 from "../../../../assets/guidebook/figs/03-sequencing__05-note-characteristics--3.svg?raw"
+
 import { Steps } from "@astrojs/starlight/components"
 import StepFocus from "../../../../components/guidebook/StepFocus.astro"
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -36,14 +40,16 @@ Several basic characteristics of notes can be changed in settings. These include
 
 </Steps>
 
-<FigurePending id="fig-3.5-1" page={45}>
-  1 Lighter touch · Velocity is also a modulation source to apply to other
-  parameters as well as volume parameter. · Velocity Relates to how hard a key
-  is pressed and how this reflects the volume of the note. This captures organic
-  and human like recordings. · Heavier touch 127 · Deluge pads are not velocity
-  sensitive. The default velocity is 64 but this default level can be changed in
-  the settings options under the defaults menu.
-</FigurePending>
+<Figure
+  id="fig-3.5-1"
+  src={fig_fig_3_5_1}
+  alt={
+    "Diagram: 1 Lighter touch Velocity is also a Velocity modulation source to apply to other parameters as well as volume parameter. like recordings.…"
+  }
+  page={45}
+/>
+
+Deluge pads are not velocity sensitive. The default velocity is 64 but this default level can be changed in the settings options under the defaults menu.
 
 ### Setting a note to repeat
 
@@ -108,11 +114,14 @@ This is a destructive process and the option is set ON by default in the Setting
 
 </Steps>
 
-<FigurePending id="fig-3.5-2" page={47}>
-  [TRIPLETS VIEW] Switches the grid to triplets view, laying out the grid with 3
-  of 4 columns in the time division. The three notes have the same time period
-  as the original 4.
-</FigurePending>
+<Figure
+  id="fig-3.5-2"
+  src={fig_fig_3_5_2}
+  alt={
+    "Diagram: [TRIPLETS VIEW] Switches the grid to triplets view, laying out the grid with 3 of 4 columns in the time division. The three notes have the…"
+  }
+  page={47}
+/>
 
 ### Editing notes’ length
 
@@ -122,10 +131,15 @@ This is a destructive process and the option is set ON by default in the Setting
 
 </Steps>
 
-<FigurePending id="fig-3.5-3" page={48}>
-  Note Brightly lit showing start of note · Note Extension Dimly lit showing
-  length of note · Grid edge
-</FigurePending>
+<Figure
+  id="fig-3.5-3"
+  animate="playhead"
+  src={fig_fig_3_5_3}
+  alt={
+    "Pad grid: Note Note Extension Dimly lit showing length of note Grid edge"
+  }
+  page={48}
+/>
 
 <Steps>
 

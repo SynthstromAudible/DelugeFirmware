@@ -15,19 +15,18 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_7_2_1 from "../../../../assets/guidebook/figs/07-song-view__02-song-view-basics--1.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
 While the synth and kit clip view is used for developing individual instrument sequences, song view provides a more holistic approach, consolidating all clips into a compressed view, each clip shown as a row. Song view is where all existing clips are managed together, new clips can be added, existing ones deleted and reordered.
 
-<FigurePending id="fig-7.2-1" page={153}>
-  Song view compresses all clips and takes an overall view of the song ‘project’
-  in rows or grid. First time entering song view only one clip will be present.
-  Clips can be created, re-ordered, deleted in song view. · Song Row View
-  (Default) Arrangement style presented with a clip per row. · Clip Clip Clip
-  Empty Clip Empty Clip Empty Clip Empty Clip Empty Clip · Section · Mute · + ·
-  [SONG] + Turn (SELECT) to switch view · SELECT · Song Grid View Session style
-  grid consolidated into an instrument per column. · Section · Mode · Clip
-  Section
-</FigurePending>
+<Figure
+  id="fig-7.2-1"
+  src={fig_fig_7_2_1}
+  alt={
+    "Diagram: Song view compresses all clips and takes an overall view of the song ‘project’ in rows or grid. First time entering song view only one clip…"
+  }
+  page={153}
+/>

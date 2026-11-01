@@ -15,9 +15,15 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_6_1_1 from "../../../../assets/guidebook/figs/06-modulation__01-modulation-routing-basics--1.svg?raw"
+import fig_fig_6_1_2 from "../../../../assets/guidebook/figs/06-modulation__01-modulation-routing-basics--2.svg?raw"
+import fig_fig_6_1_3 from "../../../../assets/guidebook/figs/06-modulation__01-modulation-routing-basics--3.svg?raw"
+import fig_fig_6_1_4 from "../../../../assets/guidebook/figs/06-modulation__01-modulation-routing-basics--4.svg?raw"
+import fig_fig_6_1_5 from "../../../../assets/guidebook/figs/06-modulation__01-modulation-routing-basics--5.svg?raw"
+
 import { Steps } from "@astrojs/starlight/components"
 import StepFocus from "../../../../components/guidebook/StepFocus.astro"
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -27,28 +33,31 @@ Parameters within Deluge can be connected / patched to modulation sources. Multi
 
 There are several modulation sources which are available through the nested menu sound editor. They are also directly accessible from the grid.
 
-| X - horizontal control\*                   | Y - vertical control\*                                                                                                                               |
-| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| ENV 1 - envelope 1                         | ENV 2 - envelope 2                                                                                                                                   |
-| LFO 1                                      | LFO 2 SIDECHAIN.                                                                                                                                     |
-| When a parameter is selected which is      | Compressor patchable to anything.                                                                                                                    |
-| already patched to a source, the specific  | NOTE. Keyboard tracking where sounds                                                                                                                 |
-| source grid buttons will flash slowly. The | reflect high / low of keyboard.                                                                                                                      |
-| selected parameter pad will flash quickly. |                                                                                                                                                      |
-| :key[Shift + Modulation Pad]               | RANDOM. A random number generator each                                                                                                               |
-| while the source is selected and flashing  | time a new voice sounds.                                                                                                                             |
-| will select the DEPTH parameter to enable  |                                                                                                                                                      |
-| editing of the modulation strength between | VELOCITY.                                                                                                                                            |
-| modulator and destination parameter.       | Editable in clip view. Response to how hard a note is played. AFTERTOUCH. External controller aftertouch midi messages. Polyphonic and channel wide. |
+<Figure
+  id="fig-6.1-5"
+  src={fig_fig_6_1_5}
+  alt={
+    "Diagram: X - horizontal control* Y - vertical control* ENV 1 - envelope 1 ENV 2 - envelope 2 LFO 1 LFO 2 SIDECHAIN. Compressor patchable to…"
+  }
+  page={132}
+/>
+
+source grid buttons will flash slowly. The selected parameter pad will flash quickly.
+
+:key[Shift + Modulation Pad] while the source is selected and flashing will select the DEPTH parameter to enable editing of the modulation strength between modulator and destination parameter.
 
 #### Modulation Amount
 
 The modulation amount resolution is adjustable to 2 decimal points. The default presentation is units and decimals but can be changed in the community features settings. Turning the Horizontal :key[Horizontal] knob will select the digit to change and then :key[Turn Select] to adjust the amount.
 
-<FigurePending id="fig-6.1-1" page={132}>
-  LFO1 · 39 · LFO1 · LPF FREQUENCY · LPF FREQUENCY · Mod. Depth Decimals OFF ·
-  Mod. Depth Decimals ON Default · 39.00
-</FigurePending>
+<Figure
+  id="fig-6.1-1"
+  src={fig_fig_6_1_1}
+  alt={
+    "OLED screen: LFO1 39 LFO1 39.00 LPF FREQUENCY LPF FREQUENCY Mod. Depth Decimals OFF Mod. Depth Decimals ON Default"
+  }
+  page={132}
+/>
 
 <StepFocus />
 
@@ -66,13 +75,14 @@ The modulation amount resolution is adjustable to 2 decimal points. The default 
 
 </Steps>
 
-<FigurePending id="fig-6.1-2" page={133}>
-  Destination Parameter Flashes quickly when connected to a modulation source
-  and the destination parameter is selected / in-focus. [SHIFT] + [FREQUENCY] ·
-  LFO1 · 39.00 · LPF FREQUENCY · Cutoff Freq · LFO · Modulator. Flashes quickly
-  when connected to a destination and the source parameter is selected /
-  in-focus [SHIFT] + [LFO 1].
-</FigurePending>
+<Figure
+  id="fig-6.1-2"
+  src={fig_fig_6_1_2}
+  alt={
+    "Diagram: LFO1 39.00 LPF FREQUENCY FREQUENCY] Cutoff Freq LFO Modulator. Flashes quickly when connected to a destination and the source parameter is…"
+  }
+  page={133}
+/>
 
 #### Modulation Source Nested Menu
 
@@ -126,47 +136,39 @@ Then
 
 </Steps>
 
-<FigurePending id="fig-6.1-3" page={135}>
-  LFO1 · 39.00 · Destination parameter name and value are displayed along with
-  the source · LPF FREQUENCY
-</FigurePending>
+<Figure
+  id="fig-6.1-3"
+  src={fig_fig_6_1_3}
+  alt={
+    "Diagram: LFO1 39.00 Destination parameter name and value LPF FREQUENCY are displayed along with the source"
+  }
+  page={135}
+/>
 
-MODULATION SOURCES
+#### Modulation sources and parameters
 
-Mod Matrix List The connection list is found in the Global to Per Voice Sound menu. Press :key[Select] Sound when in Synth mode. Scroll and press to select the ‘MOD MATRIX’ Option Sidechain LFO 1 LFO 2 ENV 1 ENV 2 Velocity Note Random After X Y Touch
+Sidechain and LFO 1 are global to the sound; LFO 2 to Y are per voice. A dash (—) means no modulation is allowed.
 
-Delay Amount / Rate ✔ ✔
-
-Mod FX Depth / Rate ✔ ✔
-
-Arpeggiator Rate ✔ ✔ Global to Sound Reverb Amount ✔ ✔ No Modulation is Allowed
-
-LFO 1 Rate ✔ ✔
-
-Both Overall Volume ✔ ✔ ✔ Hard ✔ ✔ ✔ ✔ ✔ ✔ Connect
-
-PARAMETERS LFO 2 Rate ✔ ✔ ✔ ✔ ✔ ✔ ✔ ✔ ✔ ✔ ✔
-
-| Oscillator Volume            | ✔   | ✔   | ✔   | ✔   | ✔   | ✔   | ✔   | ✔   | ✔   | ✔       | ✔   |
-| ---------------------------- | --- | --- | --- | --- | --- | --- | --- | --- | --- | ------- | --- |
-| Noise Volume                 | ✔   | ✔   | ✔   | ✔   | ✔   | ✔   | ✔   | ✔   | ✔   | ✔       | ✔   |
-| Pitch / Transpose:           | ✔   | ✔   | ✔   | ✔   | ✔   | ✔   | ✔   | ✔   | ✔   | Hard    | ✔   |
-| Overall                      |     |     |     |     |     |     |     |     |     | Connect |     |
-| Pitch / Transpose:           | ✔   | ✔   | ✔   | ✔   | ✔   | ✔   | ✔   | ✔   | ✔   | ✔       | ✔   |
-| Oscillator / FM Modulator    |     |     |     |     |     |     |     |     |     |         |     |
-| Per Voice FM Modulator Level | ✔   | ✔   | ✔   | ✔   | ✔   | ✔   | ✔   | ✔   | ✔   | ✔       | ✔   |
-
-FM Feedback ✔ ✔ ✔ ✔ ✔ ✔ ✔ ✔ ✔ ✔ ✔
-
-Pulse Width ✔ ✔ ✔ ✔ ✔ ✔ ✔ ✔ ✔ ✔ ✔
-
-LPF / HPF Frequency ✔ ✔ ✔ ✔ ✔ ✔ ✔ ✔ ✔ ✔ ✔ / Resonance
-
-ENV 1/2 ADSR ✔ ✔ ✔ ✔ ✔ ✔ ✔ ✔ ✔ ✔ ✔
-
-Pan ✔ ✔ ✔ ✔ ✔ ✔ ✔ ✔ ✔ ✔ ✔
-
-Wavetable Position ✔ ✔ ✔ ✔ ✔ ✔ ✔ ✔ ✔ ✔ ✔
+| Scope           | Parameter                                    | Sidechain | LFO 1 | LFO 2 | ENV 1        | ENV 2 | Velocity | Note | Random | Aftertouch | X            | Y   |
+| --------------- | -------------------------------------------- | --------- | ----- | ----- | ------------ | ----- | -------- | ---- | ------ | ---------- | ------------ | --- |
+| Global to Sound | Delay Amount / Rate                          | ✔         | ✔     | —     | —            | —     | —        | —    | —      | —          | —            | —   |
+|                 | Mod FX Depth / Rate                          | ✔         | ✔     | —     | —            | —     | —        | —    | —      | —          | —            | —   |
+|                 | Arpeggiator Rate                             | ✔         | ✔     | —     | —            | —     | —        | —    | —      | —          | —            | —   |
+|                 | Reverb Amount                                | ✔         | ✔     | —     | —            | —     | —        | —    | —      | —          | —            | —   |
+|                 | LFO 1 Rate                                   | ✔         | ✔     | —     | —            | —     | —        | —    | —      | —          | —            | —   |
+| Both            | Overall Volume                               | ✔         | ✔     | ✔     | Hard Connect | —     | ✔        | ✔    | ✔      | ✔          | ✔            | ✔   |
+| Per Voice       | LFO 2 Rate                                   | ✔         | ✔     | ✔     | ✔            | ✔     | ✔        | ✔    | ✔      | ✔          | ✔            | ✔   |
+|                 | Oscillator Volume                            | ✔         | ✔     | ✔     | ✔            | ✔     | ✔        | ✔    | ✔      | ✔          | ✔            | ✔   |
+|                 | Noise Volume                                 | ✔         | ✔     | ✔     | ✔            | ✔     | ✔        | ✔    | ✔      | ✔          | ✔            | ✔   |
+|                 | Pitch / Transpose: Overall                   | ✔         | ✔     | ✔     | ✔            | ✔     | ✔        | ✔    | ✔      | ✔          | Hard Connect | ✔   |
+|                 | Pitch / Transpose: Oscillator / FM Modulator | ✔         | ✔     | ✔     | ✔            | ✔     | ✔        | ✔    | ✔      | ✔          | ✔            | ✔   |
+|                 | FM Modulator Level                           | ✔         | ✔     | ✔     | ✔            | ✔     | ✔        | ✔    | ✔      | ✔          | ✔            | ✔   |
+|                 | FM Feedback                                  | ✔         | ✔     | ✔     | ✔            | ✔     | ✔        | ✔    | ✔      | ✔          | ✔            | ✔   |
+|                 | Pulse Width                                  | ✔         | ✔     | ✔     | ✔            | ✔     | ✔        | ✔    | ✔      | ✔          | ✔            | ✔   |
+|                 | LPF / HPF Frequency / Resonance              | ✔         | ✔     | ✔     | ✔            | ✔     | ✔        | ✔    | ✔      | ✔          | ✔            | ✔   |
+|                 | ENV 1/2 ADSR                                 | ✔         | ✔     | ✔     | ✔            | ✔     | ✔        | ✔    | ✔      | ✔          | ✔            | ✔   |
+|                 | Pan                                          | ✔         | ✔     | ✔     | ✔            | ✔     | ✔        | ✔    | ✔      | ✔          | ✔            | ✔   |
+|                 | Wavetable Position                           | ✔         | ✔     | ✔     | ✔            | ✔     | ✔        | ✔    | ✔      | ✔          | ✔            | ✔   |
 
 ### Viewing the active modulation list
 
@@ -181,9 +183,11 @@ Wavetable Position ✔ ✔ ✔ ✔ ✔ ✔ ✔ ✔ ✔ ✔ ✔
 
 </Steps>
 
-<FigurePending id="fig-6.1-4" page={137}>
-  MOD MATRIX VELO 50.0 LEVEL PRES 33.0 LEVEL ENV2 50.0 LPF FREQ · Modulation
-  Matrix List available in the sound menu in Clip View - Synth Mode. Press
-  (SOUND) when highlighting a modulation to edit. · Mod Source : Amount Value :
-  Mod Destination
-</FigurePending>
+<Figure
+  id="fig-6.1-4"
+  src={fig_fig_6_1_4}
+  alt={
+    "OLED screen: MOD MATRIX VELO 50.0 LEVEL Modulation Matrix List available in the sound menu in Clip View - Synth Mode. PRES 33.0 LEVEL Press (SOUND) when…"
+  }
+  page={137}
+/>

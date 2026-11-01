@@ -15,9 +15,11 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_3_13_1 from "../../../../assets/guidebook/figs/03-sequencing__13-parameter-automation-view--1.svg?raw"
+
 import { Steps } from "@astrojs/starlight/components"
 import StepFocus from "../../../../components/guidebook/StepFocus.astro"
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -112,22 +114,21 @@ MPE automations are not covered/edited by this Automation Instrument Clip View. 
 
 </Steps>
 
-Automation View
+<Figure
+  id="fig-3.13-1"
+  animate="playhead"
+  src={fig_fig_3_13_1}
+  alt={
+    "Pad grid: [CLIP] Tap the clip button until it flashes to enter automation view. Turn (SELECT) to change the Turn (UPPER) or (LOWER) to parameter or…"
+  }
+  page={77}
+/>
 
-<FigurePending id="fig-3.13-1" page={77}>
-  [CLIP] Tap the clip button until it flashes to enter automation view. · Turn
-  (SELECT) to change the parameter or press a white pad in the main AUTOMATION
-  OVERVIEW. · Turn (UPPER) or (LOWER) to change all Pads or only a held Pad. ·
-  16 x 8 Automation Grid In Focus · A · 26-31 · 65-80 · Value Displayed Range ·
-  Parameter Actual Value · 19-25 · 49-64 · 14-18 · 33-48 · 7-13 · 17-32 · Y ·
-  0-6 · 0-16 · Automation Direction = Play Direction, Start to End · Press
-  (UPPER) or (LOWER) to turn pad selection editing On /Off. Off to edit
-  automation pads. · Press pads to assign a value to a step column. i.e ‘A’ ·
-  Hold [PAD]’s ‘X’ Start and Press ‘Y’ End to select a multi-step automation
-  curve. Press (SELECT) to interpolate between steps ON for a smooth step change
-  or OFF to create stepped changes between column steps. · 45-50 · 113-128 X ·
-  38-44 · 97-112 · 32-38 · 81-96
-</FigurePending>
+Press :key[Upper Gold] or :key[Lower Gold] to turn pad selection editing On /Off. Off to edit automation pads.
+
+Press pads to assign a value to a step column. i.e ‘A’
+
+Hold :key[Pad]’s ‘X’ Start and Press ‘Y’ End to select a multi-step automation curve. Press :key[Select] to interpolate between steps ON for a smooth step change or OFF to create stepped changes between column steps.
 
 Automation View Editing Quick Reference
 

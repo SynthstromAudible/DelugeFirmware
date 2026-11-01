@@ -1,7 +1,7 @@
-<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 370.4 428"><defs><path id="09-audio__12-waveform-view-detailed-audio-editing--1-s1" d="M0 0H33.2" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="currentColor"/></defs>
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 372.5 428"><defs><path id="09-audio__12-waveform-view-detailed-audio-editing--1-s1" d="M0 0H33.2" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.000015,.000015" stroke-linejoin="round" fill="none" stroke="currentColor"/></defs>
 <defs>
 <clipPath id="09-audio__12-waveform-view-detailed-audio-editing--1-clip_1">
-<path transform="matrix(1,0,0,-1,-44.6,560.3)" d="M44.6 132.3H415V560.3H44.6Z" clip-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44.6,560.3)" d="M44.6 132.3H417.1V560.3H44.6Z" clip-rule="evenodd"/>
 </clipPath>
 <clipPath id="09-audio__12-waveform-view-detailed-audio-editing--1-clip_2">
 <path transform="matrix(1,0,0,-1,-44.6,560.3)" d="M94.4 574.5H154.9V595.9H94.4Z" clip-rule="evenodd"/>
@@ -42,7 +42,7 @@
 <text fill="currentColor" xml:space="preserve" transform="translate(146.3 59.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Interpolation *</tspan></text>
 <text fill="currentColor" xml:space="preserve" transform="translate(146.3 68.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Sample interpolation method used for</tspan></text>
 <text fill="color-mix(in srgb, currentColor 73%, var(--gb-paper))" xml:space="preserve" transform="translate(273.1 68.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">time stretching.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(326.0 68.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Options</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(323.9 68.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Options</tspan></text>
 <text fill="currentColor" xml:space="preserve" transform="translate(146.3 77.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">are ‘SINC’ (high quality 16-point windowed sinc) and ‘LINEAR’</tspan></text>
 <text fill="currentColor" xml:space="preserve" transform="translate(146.3 86.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">(low quality linear interpolation).</tspan></text>
 <text fill="currentColor" xml:space="preserve" transform="translate(146.3 173.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Pitch / Speed *</tspan></text>
@@ -65,8 +65,8 @@
 <text fill="currentColor" xml:space="preserve" transform="translate(146.3 354.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Good for samples that contain pre-made beats.</tspan></text>
 <g clip-path="url(#09-audio__12-waveform-view-detailed-audio-editing--1-clip_2)">
 </g>
-<path transform="matrix(1,0,0,-1,-44.6,560.3)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="currentColor" d="M103.1 239.3V213.8H137.4V239.3"/>
-<path transform="matrix(1,0,0,-1,-44.6,560.3)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="currentColor" d="M120.5 213.8V177.4"/>
+<path transform="matrix(1,0,0,-1,-44.6,560.3)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.000015,.000015" stroke-linejoin="round" fill="none" stroke="currentColor" d="M103.1 239.3V213.8H137.4V239.3"/>
+<path transform="matrix(1,0,0,-1,-44.6,560.3)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.000015,.000015" stroke-linejoin="round" fill="none" stroke="currentColor" d="M120.5 213.8V177.4"/>
 <g clip-path="url(#09-audio__12-waveform-view-detailed-audio-editing--1-clip_3)">
 <g mask="url(#09-audio__12-waveform-view-detailed-audio-editing--1-mask_4)">
 <g transform="matrix(.10926901,0,0,.109269,37.6,5.9)">

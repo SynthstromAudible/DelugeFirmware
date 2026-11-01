@@ -15,39 +15,27 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_7_4_1 from "../../../../assets/guidebook/figs/07-song-view__04-working-in-song-grid-view--1.svg?raw"
+import fig_fig_7_4_2 from "../../../../assets/guidebook/figs/07-song-view__04-working-in-song-grid-view--2.svg?raw"
+
 import { Steps } from "@astrojs/starlight/components"
 import StepFocus from "../../../../components/guidebook/StepFocus.astro"
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
 An optional way of presenting the song mode is to use the grid view. Generally speaking this still offers the same core song mode functionality but is presented with a grid style as opposed to a row view and the play and edit modes need to be selected. The functions in row or grid view are generally the same but with some visualisation and application differences.
 
-<FigurePending id="fig-7.4-1" page={163}>
-  Song view compresses all clips and takes an overall view of the song
-  ‘project’. First time entering song view only one clip will be present. Clips
-  can be created, re-ordered, deleted in song view. Hold [SONG] + Turn (SELECT)
-  to switch Row/Grid View · Grid View · Section · Launch Edit · Section · Empty
-  · [PAD] Clips consolidated into individual pads in the grid where columns
-  represent an instrument. Green / Blue Mode determines pad functionality. ·
-  Empty · Empty · Empty · Empty · Empty · Mute Audition / Launch / Section ·
-  (SCROLL▼▲) Individual clips compressed to pads in song grid view. The grid
-  view can be navigated up and down. · [LAUNCH] The mute / launch column pads
-  handles the section ‘launch’ section functionality when in song view. Grid
-  pads containing clips are illuminated. Pressing the corresponding LAUNCH pad
-  will trigger the clips for that row. When the sequence is playing launch will
-  firstly arm the clip, then launch it, played in time with the sequence. Use
-  [SHIFT] + [LAUNCH] for instant play. [SECTION] The audition / section column
-  pads represent the operating mode of the pads. Green Mode Button ON. Grid Pads
-  launch and mute clips, same function as the Mute/ Launch buttons in row view.
-  Mute / Launch pas trigger sections. Blue Mode Button ON. Grid Pads operate the
-  same as row view pads i.e. clips can be edited and created. Mute / Launch pads
-  launch sections and hold to edit repeats. · Deluge will only play one
-  instrument at one time in song view. So for example, if two clips use the same
-  synth preset 1 or clone of 1, the clip rows can each be launched but each one
-  will stop playback of the other, allowing only one instance of each instrument
-  to play at one time.
-</FigurePending>
+<Figure
+  id="fig-7.4-1"
+  src={fig_fig_7_4_1}
+  alt={
+    "Pad grid: Song view compresses all clips and takes an overall view of the song ‘project’. First time entering song view only one clip will be…"
+  }
+  page={163}
+/>
+
+Deluge will only play one instrument at one time in song view. So for example, if two clips use the same synth preset 1 or clone of 1, the clip rows can each be launched but each one will stop playback of the other, allowing only one instance of each instrument to play at one time.
 
 <StepFocus />
 
@@ -94,20 +82,14 @@ Note: Overdub recording and copying clips is not supported in Song Grid View. Th
 
 More advanced options are available in song grid view than just the start stop commands for individual clips. Clips are armed to ensure the timing of the clip start aligns with the overall song.
 
-<FigurePending id="fig-7.4-2" page={166}>
-  [LAUNCH] Mute / launch column pad enables the arming and triggering of clip
-  sections in time with a playing song. · To launch clips GREEN mode must be
-  active, selected using the green [AUDITION] button in song grid view. · The
-  ‘LAUNCH’ button colours are randomly applied laid out in the same order as the
-  song row arrangement view. The buttons trigger the clip sections. Individual
-  pads can also be triggered. · Press [PAD] to launch a clip · Press [LAUNCH] to
-  arm and then launch a section. · Hold [SHIFT] + [LAUNCH] to immediately
-  launch. · Audition / Section Column · GREEN - Launch mode. Play clips in song
-  mode. · BLUE - Edit mode. Edit and create clips · Tap a pad to change the
-  mode. Hold the Audition / Section pad while pressing a [PAD] can temporarily
-  switch modes until the mode button is released. · Mute / Launch / Section ·
-  Audition
-</FigurePending>
+<Figure
+  id="fig-7.4-2"
+  src={fig_fig_7_4_2}
+  alt={
+    "Diagram: [LAUNCH] Mute / launch column pad enables the arming and triggering of clip sections in time with a playing song. To launch clips GREEN…"
+  }
+  page={166}
+/>
 
 Display shows countdown of loops to complete when a clip row is ‘armed’ and launching or stopping clips, default is 1. To increase the loops to play prior to launch / stop, :key[Turn Select] to change the loop countdown.
 

@@ -1,100 +1,103 @@
-<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 370.7 517.6"><defs><path id="10-looping__04-using-a-foot-controller--1-s1" d="M0 0V-27.2" stroke-width=".75" stroke-linecap="butt" stroke-dasharray="2.2,2.2,.0001,.0001" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)"/></defs>
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 370.7 535.4"><defs><path id="10-looping__04-using-a-foot-controller--1-s1" d="M0 0V-27.2" stroke-width=".75" stroke-linecap="butt" stroke-dasharray="2.2,2.2,.000015,.000015" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)"/></defs>
 <defs>
 <clipPath id="10-looping__04-using-a-foot-controller--1-clip_1">
-<path transform="matrix(1,0,0,-1,-44,607.1)" d="M44 89.5H414.7V607.1H44Z" clip-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44,616.7)" d="M44 81.3H414.7V616.7H44Z" clip-rule="evenodd"/>
 </clipPath>
 <clipPath id="10-looping__04-using-a-foot-controller--1-clip_2">
-<path transform="matrix(1,0,0,-1,-44,607.1)" d="M123.2 418.5H341.5V509.2H123.2Z" clip-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44,616.7)" d="M123.2 440.1H341.5V530.8H123.2Z" clip-rule="evenodd"/>
 </clipPath>
 <mask id="10-looping__04-using-a-foot-controller--1-mask_3">
-<g transform="matrix(.023023,0,0,.023023,79.2,97.9)">
+<g transform="matrix(.023023,0,0,.023023,79.2,85.9)">
 <image id="10-looping__04-using-a-foot-controller--1-image_4" width="9484" height="3940" xlink:href="/guidebook/img/10-looping__04-using-a-foot-controller--1-1.webp"/>
 </g>
 </mask>
 </defs>
 <g>
 <g clip-path="url(#10-looping__04-using-a-foot-controller--1-clip_1)">
-<path transform="matrix(1,0,0,-1,-44,607.1)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M424.8 688.6V84.1"/>
+<path transform="matrix(1,0,0,-1,-44,616.7)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M424.8 688.6V84.1"/>
 <g clip-path="url(#10-looping__04-using-a-foot-controller--1-clip_2)">
 <g mask="url(#10-looping__04-using-a-foot-controller--1-mask_3)">
-<g transform="matrix(.023023,0,0,.023023,79.2,97.9)">
+<g transform="matrix(.023023,0,0,.023023,79.2,85.9)">
 <image class="gb-ink" id="10-looping__04-using-a-foot-controller--1-image_5" width="9484" height="3940" xlink:href="/guidebook/img/10-looping__04-using-a-foot-controller--1-2.webp"/>
 </g>
 </g>
 </g>
-<path transform="matrix(1,0,0,-1,-44,607.1)" stroke-width="2.5" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="currentColor" d="M229.5 502.1V507.8C229.7 510.4 229.2 512.6 228.7 514.4 217.0 539.9 241.8 533.1 230.4 558.8 229.2 561.6 229.5 565.6 229.5 567.3V573.0"/>
+<path transform="matrix(1,0,0,-1,-44,616.7)" stroke-width="2.5" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="currentColor" d="M229.5 523.7V528.1C229.7 530.0 229.2 531.8 228.7 533.2 217.0 552.8 241.8 547.5 230.4 567.3 229.2 569.5 229.5 572.5 229.5 573.8V578.2"/>
 <text fill="currentColor" xml:space="preserve" transform="translate(167.5 12.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">MIDI Out</tspan></text>
 <text fill="currentColor" xml:space="preserve" transform="translate(169.4 20.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">to Deluge</tspan></text>
 <text fill="currentColor" xml:space="preserve" transform="translate(171.0 29.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">MIDI In</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(104.4 213.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">LOOP</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(148.8 213.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">LAYER</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(197.9 213.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">PLAY</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(241.9 213.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">UNDO</tspan></text>
-<path transform="matrix(1,0,0,-1,-44,607.1)" stroke-width=".5" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M85.0 95.5H371.3V127.5H85.0Z"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(43.8 494.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">This is one example of a looper pedal set up. Many options exist. N</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(311.9 494.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">ote</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(43.8 503.5)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">data must be sent for commands to work with other MIDI controllers.</tspan></text>
-<path transform="matrix(1,0,0,-1,-44,607.1)" d="M160.9 415.7C164.2 415.7 166.8 413.0 166.8 409.7 166.8 406.5 164.2 403.8 160.9 403.8 157.6 403.8 155.0 406.5 155.0 409.7 155.0 413.0 157.6 415.7 160.9 415.7Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
-<path transform="matrix(1,0,0,-1,-44,607.1)" d="M207.1 415.7C210.4 415.7 213.1 413.0 213.1 409.7 213.1 406.5 210.4 403.8 207.1 403.8 203.9 403.8 201.2 406.5 201.2 409.7 201.2 413.0 203.9 415.7 207.1 415.7Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
-<path transform="matrix(1,0,0,-1,-44,607.1)" d="M253.1 415.7C256.3 415.7 259.0 413.0 259.0 409.7 259.0 406.5 256.3 403.8 253.1 403.8 249.8 403.8 247.1 406.5 247.1 409.7 247.1 413.0 249.8 415.7 253.1 415.7Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
-<path transform="matrix(1,0,0,-1,-44,607.1)" d="M299.3 415.7C302.6 415.7 305.3 413.0 305.3 409.7 305.3 406.5 302.6 403.8 299.3 403.8 296.1 403.8 293.4 406.5 293.4 409.7 293.4 413.0 296.1 415.7 299.3 415.7Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(114.5 200.5)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-weight="bold" font-weight="bold"><tspan y="0" x="0">1</tspan></text>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(160.6 200.5)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-weight="bold" font-weight="bold"><tspan y="0" x="0">2</tspan></text>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(206.7 200.5)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-weight="bold" font-weight="bold"><tspan y="0" x="0">3</tspan></text>
-<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(252.7 200.5)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-weight="bold" font-weight="bold"><tspan y="0" x="0">4</tspan></text>
-<use href="#10-looping__04-using-a-foot-controller--1-s1" transform="matrix(1 0 0 -1 116.9 164.4)"/>
-<use href="#10-looping__04-using-a-foot-controller--1-s1" transform="matrix(1 0 0 -1 162.9 164.4)"/>
-<use href="#10-looping__04-using-a-foot-controller--1-s1" transform="matrix(1 0 0 -1 209 164.4)"/>
-<use href="#10-looping__04-using-a-foot-controller--1-s1" transform="matrix(1 0 0 -1 255.3 164.4)"/>
-<path transform="matrix(1,0,0,-1,-44,607.1)" d="M49.9 341.5H114.3V362.2H49.9Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
-<path transform="matrix(1,0,0,-1,-44,607.1)" d="M114.3 341.5H160.4V362.2H114.3Z" fill="color-mix(in srgb, currentColor 20%, var(--gb-paper))" fill-rule="evenodd"/>
-<path transform="matrix(1,0,0,-1,-44,607.1)" d="M160.4 341.5H408.7V362.2H160.4Z" fill="color-mix(in srgb, currentColor 15%, var(--gb-paper))" fill-rule="evenodd"/>
-<text fill="currentColor" xml:space="preserve" transform="translate(8.8 258.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Menu</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(73.1 254.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Command</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(73.1 261.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Option</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(119.2 258.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Deluge Manual Control</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(223.6 258.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Description</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(8.8 344.8)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Global MIDI</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(8.8 354.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Commands</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(8.8 369.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">[SHIFT] +</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(8.8 376.9)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">(SELECT)</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(8.8 396.6)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">MIDI &gt; CMD</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(73.1 280.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">PLAY</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(119.2 280.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">[PLAY]</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(223.6 280.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Play / stop playback.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(73.1 304.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">RESTART</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(119.2 300.6)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Press (SCROLL◄►) +</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(119.2 308.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">[PLAY]</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(223.6 304.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Restart playback, if already playing.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(73.1 329.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">RECORD</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(119.2 329.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">[RECORD]</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(223.6 329.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Record</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(73.1 350.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">TAP</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(73.1 358.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">TEMPO</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(119.2 354.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">[TAP TEMPO]</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(223.6 350.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Tap tempo to capture a tempo based on</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(223.6 358.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">taps.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(73.1 379.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">UNDO</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(119.2 379.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">[BACK / UNDO]</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(223.6 375.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Reset the last state, undo the prior</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(223.6 383.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">action.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(73.1 404.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">REDO</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(119.2 404.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">[SHIFT] + [REDO]</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(223.6 400.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Restore the last state, redo the prior</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(223.6 408.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">action.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(73.1 429.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">LOOP</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(119.2 429.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0">Triggers a process</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(223.6 425.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Triggers a process the same as</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(223.6 433.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">performing regular looping and overdubs.</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(73.1 453.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">LAYERING</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(73.1 460.9)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">LOOP</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(119.2 457.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0">Triggers a process</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(223.6 449.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Triggers a process the same as</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(223.6 457.0)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">performing continuous looping and</tspan></text>
-<text fill="currentColor" xml:space="preserve" transform="translate(223.6 464.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">overdubs.</tspan></text>
-<path transform="matrix(1,0,0,-1,-44,607.1)" stroke-width="1" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="var(--gb-paper)" d="M49.9 361.9V138.0M114.3 361.9V138.0M160.4 361.9V138.0M264.8 361.9V138.0M408.7 361.9V138.0"/>
-<path transform="matrix(1,0,0,-1,-44,607.1)" stroke-width=".5" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 61%, var(--gb-paper))" d="M49.9 362.2H408.7M50.4 341.5H408.2M114.8 317.9H408.2M114.8 292.9H408.2M114.8 267.9H408.2M114.8 242.9H408.2M114.8 217.9H408.2M114.8 192.9H408.2M114.8 167.9H408.2"/>
-<path transform="matrix(1,0,0,-1,-44,607.1)" stroke-width=".5" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 45%, var(--gb-paper))" d="M49.9 137.7H408.7"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(104.4 201.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">LOOP</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(148.8 201.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">LAYER</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(197.9 201.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">PLAY</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(241.9 201.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">UNDO</tspan></text>
+<path transform="matrix(1,0,0,-1,-44,616.7)" stroke-width=".5" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M96.8 87.3H383.1V119.3H96.8Z"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(55.6 512.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">This is one example of a looper pedal set up. Many options exist. N</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(323.7 512.0)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">ote</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(55.6 521.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">data must be sent for commands to work with other MIDI controllers.</tspan></text>
+<path transform="matrix(1,0,0,-1,-44,616.7)" d="M160.9 437.3C164.2 437.3 166.8 434.6 166.8 431.3 166.8 428.1 164.2 425.4 160.9 425.4 157.6 425.4 155.0 428.1 155.0 431.3 155.0 434.6 157.6 437.3 160.9 437.3Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44,616.7)" d="M207.1 437.3C210.4 437.3 213.1 434.6 213.1 431.3 213.1 428.1 210.4 425.4 207.1 425.4 203.9 425.4 201.2 428.1 201.2 431.3 201.2 434.6 203.9 437.3 207.1 437.3Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44,616.7)" d="M253.1 437.3C256.3 437.3 259.0 434.6 259.0 431.3 259.0 428.1 256.3 425.4 253.1 425.4 249.8 425.4 247.1 428.1 247.1 431.3 247.1 434.6 249.8 437.3 253.1 437.3Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44,616.7)" d="M299.3 437.3C302.6 437.3 305.3 434.6 305.3 431.3 305.3 428.1 302.6 425.4 299.3 425.4 296.1 425.4 293.4 428.1 293.4 431.3 293.4 434.6 296.1 437.3 299.3 437.3Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(114.5 188.5)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-weight="bold" font-weight="bold"><tspan y="0" x="0">1</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(160.6 188.5)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-weight="bold" font-weight="bold"><tspan y="0" x="0">2</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(206.7 188.5)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-weight="bold" font-weight="bold"><tspan y="0" x="0">3</tspan></text>
+<text fill="var(--gb-paper)" xml:space="preserve" transform="translate(252.7 188.5)" font-size="9" font-family="Arial, Helvetica, sans-serif" font-weight="bold" font-weight="bold"><tspan y="0" x="0">4</tspan></text>
+<use href="#10-looping__04-using-a-foot-controller--1-s1" transform="matrix(1 0 0 -1 116.9 152.4)"/>
+<use href="#10-looping__04-using-a-foot-controller--1-s1" transform="matrix(1 0 0 -1 162.9 152.4)"/>
+<use href="#10-looping__04-using-a-foot-controller--1-s1" transform="matrix(1 0 0 -1 209 152.4)"/>
+<use href="#10-looping__04-using-a-foot-controller--1-s1" transform="matrix(1 0 0 -1 255.3 152.4)"/>
+<path transform="matrix(1,0,0,-1,-44,616.7)" d="M49.9 360.7H106.6V381.4H49.9Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44,616.7)" d="M106.6 360.7H155.7V381.4H106.6Z" fill="color-mix(in srgb, currentColor 20%, var(--gb-paper))" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-44,616.7)" d="M155.7 360.7H408.7V381.4H155.7Z" fill="color-mix(in srgb, currentColor 15%, var(--gb-paper))" fill-rule="evenodd"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(8.8 248.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Menu</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(65.4 244.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Command</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(65.4 252.2)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Option</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(114.5 248.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Deluge Manual Control</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(224.6 248.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Description</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(8.8 350.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Global MIDI</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(8.8 359.6)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Commands</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(8.8 374.6)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">[SHIFT] +</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(8.8 382.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">(SELECT)</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(8.8 402.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">MIDI &gt; CMD</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(65.4 270.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">PLAY</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(114.5 270.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">[PLAY]</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(224.6 270.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Play / stop playback.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(65.4 294.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">RESTART</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(114.5 294.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Press (SCROLL◄►) + [PLAY]</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(224.6 294.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Restart playback, if already playing.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(65.4 319.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">RECORD</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(114.5 319.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">[RECORD]</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(224.6 319.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Record</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(65.4 344.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">TAP TEMPO</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(114.5 344.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">[TAP TEMPO]</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(224.6 340.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Tap tempo to capture a tempo based on</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(224.6 348.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">taps.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(65.4 369.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">UNDO</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(114.5 369.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">[BACK / UNDO]</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(224.6 365.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Reset the last state, undo the prior</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(224.6 373.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">action.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(65.4 394.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">REDO</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(114.5 394.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">[SHIFT] + [REDO]</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(224.6 390.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Restore the last state, redo the prior</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(224.6 398.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">action.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(65.4 419.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">LOOP</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(114.5 419.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0">Triggers a process</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(224.6 415.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Triggers a process the same as</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(224.6 423.8)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">performing regular looping and overdubs.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(65.4 443.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">LAYERING</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(65.4 451.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">LOOP</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(114.5 447.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif" font-style="italic" font-style="italic"><tspan y="0" x="0">Triggers a process</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(224.6 439.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Triggers a process the same as</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(224.6 447.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">performing continuous looping and</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(224.6 455.4)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">overdubs.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(65.4 477.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">FILL</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(114.5 477.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Triggers the Fill option on/off</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(224.6 469.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Activates via MIDI a note fill. The fill will</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(224.6 477.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">need to be set on selected notes in the</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(224.6 485.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">probability / iteration menu.</tspan></text>
+<path transform="matrix(1,0,0,-1,-44,616.7)" stroke-width="1" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="var(--gb-paper)" d="M49.9 381.1V127.0M106.6 381.1V127.0M155.7 381.1V127.0M265.8 381.1V127.0M408.7 381.1V127.0"/>
+<path transform="matrix(1,0,0,-1,-44,616.7)" stroke-width=".5" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 61%, var(--gb-paper))" d="M49.9 381.4H408.7M50.4 360.7H408.2M107.1 337.1H408.2M107.1 312.1H408.2M107.1 287.1H408.2M107.1 262.1H408.2M107.1 237.1H408.2M107.1 212.1H408.2M107.1 187.1H408.2"/>
+<path transform="matrix(1,0,0,-1,-44,616.7)" stroke-width=".5" stroke-linecap="butt" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 45%, var(--gb-paper))" d="M107.1 156.9H408.2M49.9 126.8H408.7"/>
 </g>
 </g>
 </svg>

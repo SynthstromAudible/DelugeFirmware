@@ -15,37 +15,30 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_7_3_1 from "../../../../assets/guidebook/figs/07-song-view__03-working-in-song-row-view--1.svg?raw"
+import fig_fig_7_3_2 from "../../../../assets/guidebook/figs/07-song-view__03-working-in-song-row-view--2.svg?raw"
+import fig_fig_7_3_3 from "../../../../assets/guidebook/figs/07-song-view__03-working-in-song-row-view--3.svg?raw"
+import fig_fig_7_3_4 from "../../../../assets/guidebook/figs/07-song-view__03-working-in-song-row-view--4.svg?raw"
+
 import { Steps } from "@astrojs/starlight/components"
 import StepFocus from "../../../../components/guidebook/StepFocus.astro"
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
 Song view provides controls to launch and stop clips and is also the main area to handle loop recording and playback, covered elsewhere in this guide. The default presentation is ‘row’ view. This shows a clip per row. A clip for an instrument can be launched individually or within a section along with other different instruments.
 
-<FigurePending id="fig-7.3-1" page={154}>
-  Song view compresses all clips and takes an overall view of the song
-  ‘project’. First time entering song view only one clip will be present. Clips
-  can be created, re-ordered, deleted in song view. · Hold [SONG] + Turn
-  (SELECT) to switch Row/Grid View · Row View · Clip · Clip · Empty Clip · Empty
-  Clip · Empty Clip · Empty Clip · Empty Clip · Empty Clip · (SCROLL▼▲)
-  Individual clips compressed to one row each in song view. The rows can be
-  navigated up and down beyond the 8 physically displayed. · [LAUNCH] The mute /
-  launch column pads now takes on the ‘launch’ functionality when in song view.
-  Rows containing clips are illuminated. Pressing the corresponding LAUNCH pad
-  will trigger the clip for that row. When the sequence is playing launch will
-  firstly arm the clip, then launch it, played in time with the sequence. Use
-  [SHIFT] + [LAUNCH] for instant play. · [SECTION] The audition / section column
-  pads now takes on the ‘section’ functionality when in song view. Rows
-  containing clips are illuminated and coloured based on the section. Sections
-  enable groups of clips to be launched and controlled simultaneously. Clips can
-  be armed, stopped, played together as a group. · Deluge will only play one
-  instrument at one time in song view. So for example, if two clips use the same
-  synth preset 1 or clone of 1, the clip rows can each be launched but each one
-  will stop playback of the other, allowing only one instance of each instrument
-  to play at one time. · Time · [PAD] Press to select the clip and switch to
-  clip view. · Mute Audition / Launch / Section
-</FigurePending>
+<Figure
+  id="fig-7.3-1"
+  animate="playhead"
+  src={fig_fig_7_3_1}
+  alt={
+    "Pad grid: Song view compresses all clips and takes an overall view of the song ‘project’. First time entering song view only one clip will be…"
+  }
+  page={154}
+/>
+
+Deluge will only play one instrument at one time in song view. So for example, if two clips use the same synth preset 1 or clone of 1, the clip rows can each be launched but each one will stop playback of the other, allowing only one instance of each instrument to play at one time.
 
 <StepFocus />
 
@@ -121,18 +114,25 @@ A clip can operate in default mode or be set as a fill clip. Instead of aligning
 
 </Steps>
 
-<FigurePending id="fig-7.3-2" page={157}>
-  LAUNCH STYLE DEFAULT CLIP FILL CLIP · Launch Behaviour
-</FigurePending>
+<Figure
+  id="fig-7.3-2"
+  src={fig_fig_7_3_2}
+  alt={"OLED screen: LAUNCH STYLE DEFAULT CLIP FILL CLIP Launch Behaviour"}
+  page={157}
+/>
 
 #### Launch Control of Single Clips in Song Row View
 
 More advanced options are available in song row view than just the start stop commands for individual clips. Clips are armed to ensure the timing of the clip start aligns with the overall song. The catch notes option in the community feature settings considers the behaviour of clip transitions to allow for ‘in progress’ note timing or instant switching.
 
-<FigurePending id="fig-7.3-3" page={158}>
-  [LAUNCH] Mute / launch column pad enables the arming and triggering of clips
-  (per row) in time while playing a song. · Mute / Launch / Section · Audition
-</FigurePending>
+<Figure
+  id="fig-7.3-3"
+  src={fig_fig_7_3_3}
+  alt={
+    "Diagram: [LAUNCH] Mute / launch column pad enables the arming and triggering of clips (per row) in time while playing a song. Mute Audition / Launch…"
+  }
+  page={158}
+/>
 
 Press :key[Launch Pad] to play the clip row in song view.
 
@@ -201,20 +201,24 @@ Press :key[Shift + Launch Pad] to immediately play the clip row in song view.
 
 Song sections group together clips so that they can be controlled, launched, armed etc together making it easy to play arrangements and structure live sets. Sections can be structured into a chained sequence automatically playing each. Sections are colour coded for clarity and controlled by the :key[Section Pad] column in song view.
 
-<FigurePending id="fig-7.3-4" page={161}>
-  [SECTION] Audition / section pad indicates the assignment of the clip to a
-  section, identified by its colour · Press [LAUNCH] pad to play the clip row in
-  song view. · Clips belong to the same section that is indicated by that
-  specific pad colour. Colours show the section groupings. · CHANGE SECTION
-  Press [SHIFT] + [SECTION] pad to toggle a colour coded section. · MANUALLY ARM
-  SECTION Press [SECTION] pad of the desired section to manually arm the section
-  ready for playback of collective clips. · Mute / Launch / Section · Audition ·
-  REPEAT MODE Press & hold [SECTION] pad + (SELECT) to change number of
-  repeats:- INFINITE (default), NUMBER, LAUNCH NON-EXCLUSIVELY Display shows
-  countdown of section repeats when a repeat number is defined. To increase the
-  sections to play prior to launch / stop, turn (SELECT) to change the section
-  countdown. Press (SELECT) to cancel section countdown.
-</FigurePending>
+<Figure
+  id="fig-7.3-4"
+  src={fig_fig_7_3_4}
+  alt={
+    "Diagram: [SECTION] Audition / section pad indicates the assignment of the clip to a section, identified by its colour Press [LAUNCH] pad to play the…"
+  }
+  page={161}
+/>
+
+#### REPEAT MODE
+
+Press & hold :key[Section Pad + Select] to change number of repeats:
+
+#### INFINITE (default), NUMBER, LAUNCH NON-EXCLUSIVELY
+
+Display shows countdown of section repeats when a repeat number is defined. To increase the sections to play prior to launch / stop, :key[Turn Select] to change the section countdown.
+
+Press :key[Select] to cancel section countdown.
 
 ### Selecting a section for a clip
 

@@ -15,9 +15,14 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_12_3_1 from "../../../../assets/guidebook/figs/12-midi__03-midi-in--1.svg?raw"
+import fig_fig_12_3_2 from "../../../../assets/guidebook/figs/12-midi__03-midi-in--2.svg?raw"
+import fig_fig_12_3_4 from "../../../../assets/guidebook/figs/12-midi__03-midi-in--3.svg?raw"
+import fig_fig_12_3_5 from "../../../../assets/guidebook/figs/12-midi__03-midi-in--4.svg?raw"
+
 import { Steps } from "@astrojs/starlight/components"
 import StepFocus from "../../../../components/guidebook/StepFocus.astro"
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -39,11 +44,14 @@ The Deluge can be controlled by external MIDI keyboards, controllers or pads by 
 
 </Steps>
 
-<FigurePending id="fig-12.3-1" page={272}>
-  + · + · = · Keyboard is mapped across the notes. For pads ensure the exact pad
-  is assigned to the audition pad required. MIDI foot switches can also be
-  mapped into Deluge.
-</FigurePending>
+<Figure
+  id="fig-12.3-1"
+  src={fig_fig_12_3_1}
+  alt={
+    "Diagram: + + = Keyboard is mapped across the notes. For pads ensure the exact pad is assigned to the audition pad required. MIDI foot switches can…"
+  }
+  page={272}
+/>
 
 ### Setting up an external controller
 
@@ -62,9 +70,12 @@ The Deluge can be controlled by external MIDI keyboards, controllers or pads by 
 
 </Steps>
 
-<FigurePending id="fig-12.3-2" page={273}>
-  = · +
-</FigurePending>
+<Figure
+  id="fig-12.3-2"
+  src={fig_fig_12_3_2}
+  alt={"Diagram: + = +"}
+  page={273}
+/>
 
 #### MIDI Takeover Mode.
 
@@ -80,46 +91,33 @@ MIDI takeover mode, selectable in the MIDI settings governs the way an external 
 4. Within the MIDI Sub-menu, highlight ‘TAKEOVER’ by turning :key[Select].
 5. Press :key[Select] to select the ‘TAKEOVER’ option.
 6. :key[Turn Select] to choose one of the takeover sub-menu options:
+   - JUMP: This is the default mode for the Deluge. As soon as an externally connected MIDI encoder / fader position is changed, the Deluge's internal, mapped encoder position / parameter value jumps to the position of the MIDI encoder / fader.
+   - PICKUP: The Deluge will ignore changes to its internal encoder position / parameter value until the externally connected MIDI encoder / fader's position is equal to the Deluge encoder position. After which the MIDI encoder / fader adjustments will move the Deluge parameter in sync.
+   - SCALE: The Deluge will increase / decrease its internal encoder position / parameter value relative to the change of the connected MIDI encoder / fader position and the amount of "runway" remaining on the MIDI controller. Once the MIDI controller reaches its maximum or minimum position, the MIDI encoder / Fader will move in sync with the Deluge. The Deluge value will always decrease/ increase in the same direction as the MIDI controller.
 
 </Steps>
 
-<FigurePending id="fig-12.3-3" page={274}>
-  • · JUMP: This is the default mode for the Deluge. As soon as an externally
-  connected MIDI encoder / fader position is changed, the Deluge's internal,
-  mapped encoder position / parameter value jumps to the position of the MIDI
-  encoder / fader. · • · PICKUP: The Deluge will ignore changes to its internal
-  encoder position / parameter value until the externally connected MIDI encoder
-  / fader's position is equal to the Deluge encoder position. After which the
-  MIDI encoder / fader adjustments will move the Deluge parameter in sync. · • ·
-  SCALE: The Deluge will increase / decrease its internal encoder position /
-  parameter value relative to the change of the connected MIDI encoder / fader
-  position and the amount of "runway" remaining on the MIDI controller. Once the
-  MIDI controller reaches its maximum or minimum position, the MIDI encoder /
-  Fader will move in sync with the Deluge. The Deluge value will always
-  decrease/ increase in the same direction as the MIDI controller.
-</FigurePending>
-
 Takeover Examples
 
-<FigurePending id="fig-12.3-4" page={275}>
-  Deluge Parameter · External CC Control · Jump - Default At the point that the
-  externally connected MIDI CC position is changed, the Deluge's internal
-  parameter value jumps to the position of the MIDI CC. · 28 · 10 · = · 105 · 41
-  · Example: LPF 0-50 · Example: CC 5 0-127 · Pickup The Deluge parameter value
-  remains static until the externally connected MIDI CC controller position is
-  equal to the Deluge encoder position. After which the MIDI CC Controller
-  adjustments will move the Deluge parameter in sync. · 105 · 41 · Example: LPF
-  0-50 · Example: CC 5 0-127
-</FigurePending>
+<Figure
+  id="fig-12.3-4"
+  src={fig_fig_12_3_4}
+  alt={
+    "Diagram: Deluge Parameter External CC Control Jump - Default At the point that the externally connected MIDI CC position is changed, 10 = 28 the…"
+  }
+  page={275}
+/>
 
 =
 
-<FigurePending id="fig-12.3-5" page={275}>
-  Scale The Deluge will increase / decrease its internal encoder position /
-  parameter value in the same direction and relative, including any gap to the
-  change of the connected MIDI CC controller position. · 32 · 105 · Example: LPF
-  0-50 · Example: CC 5 0-127
-</FigurePending>
+<Figure
+  id="fig-12.3-5"
+  src={fig_fig_12_3_5}
+  alt={
+    "Diagram: Scale The Deluge will increase / decrease its internal encoder position / parameter value in 32 +/- the same direction and relative,…"
+  }
+  page={275}
+/>
 
 +/-
 

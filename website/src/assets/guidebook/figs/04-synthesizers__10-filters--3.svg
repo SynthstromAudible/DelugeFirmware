@@ -1,7 +1,7 @@
-<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 326.6 99.4">
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 329.1 99.4">
 <defs>
 <clipPath id="04-synthesizers__10-filters--3-clip_1">
-<path transform="matrix(1,0,0,-1,-71.1,375.5)" d="M71.1 276.1H397.7V375.5H71.1Z" clip-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-71.1,375.5)" d="M71.1 276.1H400.3V375.5H71.1Z" clip-rule="evenodd"/>
 </clipPath>
 </defs>
 <g clip-path="url(#04-synthesizers__10-filters--3-clip_1)">
@@ -10,8 +10,8 @@
 <path transform="matrix(1,0,0,-1,-71.1,375.5)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 40%, var(--gb-paper))" d="M77.1 361.0V296.1H199.7"/>
 <text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(68.7 37.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Resonance</tspan></text>
 <text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(64.2 17.3)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Cut Off Frequency</tspan></text>
-<path transform="matrix(1,0,0,-1,-71.1,375.5)" stroke-width=".45" stroke-linecap="round" stroke-dasharray="1.3,1.3,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M101.9 358.3V296.4"/>
-<path transform="matrix(1,0,0,-1,-71.1,375.5)" stroke-width=".45" stroke-linecap="round" stroke-dasharray="1.3,1.3,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M134.5 369.5V296.4"/>
+<path transform="matrix(1,0,0,-1,-71.1,375.5)" stroke-width=".45" stroke-linecap="round" stroke-dasharray="1.3,1.3,.000015,.000015" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M101.9 358.3V296.4"/>
+<path transform="matrix(1,0,0,-1,-71.1,375.5)" stroke-width=".45" stroke-linecap="round" stroke-dasharray="1.3,1.3,.000015,.000015" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M134.5 369.5V296.4"/>
 <text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(11.9 26.5)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Stop</tspan></text>
 <text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(11.1 33.0)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Band</tspan></text>
 <text fill="color-mix(in srgb, currentColor 65%, var(--gb-paper))" xml:space="preserve" transform="translate(33.3 26.5)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Transition</tspan></text>

@@ -15,9 +15,13 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import Figure from "../../../../components/guidebook/Figure.astro"
+import fig_fig_5_3_1 from "../../../../assets/guidebook/figs/05-kits__03-kit-presets-samples--1.svg?raw"
+import fig_fig_5_3_2 from "../../../../assets/guidebook/figs/05-kits__03-kit-presets-samples--2.svg?raw"
+import fig_fig_5_3_3 from "../../../../assets/guidebook/figs/05-kits__03-kit-presets-samples--3.svg?raw"
+
 import { Steps } from "@astrojs/starlight/components"
 import StepFocus from "../../../../components/guidebook/StepFocus.astro"
-import FigurePending from "../../../../components/guidebook/FigurePending.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -73,14 +77,16 @@ A synth, MIDI or CV row can be added in the kit view by pressing :key[Audition P
 
 </Steps>
 
-<FigurePending id="fig-5.3-1" page={123}>
-  To open the file browser for the specifically selected row via the audition
-  pad. LOAD option brings parameters back to defaults when replacing an existing
-  row sound. · [KIT] or [LOAD] · [AUDITION] + · The pad shortcut for the file
-  browser [SHIFT] + [BROWSE] can also be used to replace a sample when the row
-  is selected by its [AUDITION] Pad. When [BROWSE] option is used to replace an
-  existing sound its parameters will be retained.
-</FigurePending>
+<Figure
+  id="fig-5.3-1"
+  src={fig_fig_5_3_1}
+  alt={
+    "Diagram: To open the file browser for [KIT] the specifically selected row via the audition pad. [AUDITION] + or LOAD option brings parameters back…"
+  }
+  page={123}
+/>
+
+The pad shortcut for the file browser :key[Shift + Browse Pad] can also be used to replace a sample when the row is selected by its :key[Audition Pad]. When :key[Browse Pad] option is used to replace an existing sound its parameters will be retained.
 
 ### Drum randomizer - adding random samples to a kit
 
@@ -94,7 +100,7 @@ A synth, MIDI or CV row can be added in the kit view by pressing :key[Audition P
 
 </Steps>
 
-<FigurePending id="fig-5.3-2" page={124}></FigurePending>
+<Figure id="fig-5.3-2" src={fig_fig_5_3_2} alt={"Diagram: +"} page={124} />
 
 ### Creating a new kit clip + multiple (folder) samples
 
@@ -112,15 +118,12 @@ A synth, MIDI or CV row can be added in the kit view by pressing :key[Audition P
 
 etc
 
-<FigurePending id="fig-5.3-3" page={126}></FigurePending>
-
-Sample 6
-
-<FigurePending id="fig-5.3-4" page={126}>
-  Folder · Sample 4
-</FigurePending>
-
-Sample 5
+<Figure
+  id="fig-5.3-3"
+  src={fig_fig_5_3_3}
+  alt={"Diagram: Sample 6 Sample 5 Folder Sample 4 Sample 3 Sample 2 Sample 1"}
+  page={126}
+/>
 
 Sample 3
 
@@ -158,4 +161,10 @@ It is recommended to organise your samples in a folder that can be recognised in
 
 </Steps>
 
-<FigurePending id="fig-5.3-5" page={127}></FigurePending>
+<Figure
+  id="fig-5.3-5"
+  img="/guidebook/img/05-kits__03-kit-presets-samples--4.webp"
+  width={189}
+  alt={"Photo: figure from guidebook page 127"}
+  page={127}
+/>

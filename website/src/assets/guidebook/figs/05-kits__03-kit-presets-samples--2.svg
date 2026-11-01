@@ -1,52 +1,47 @@
-<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 275.5 183.5"><defs><path id="05-kits__03-kit-presets-samples--2-s1" d="M0 0C0 1.5 -1.2 2.7 -2.7 2.7H-21.2C-22.7 2.7 -23.9 1.5 -23.9 0V-18.5C-23.9 -20 -22.7 -21.2 -21.2 -21.2H-2.7C-1.2 -21.2 0 -20 0 -18.5Z" fill="var(--gb-paper)" fill-rule="evenodd"/></defs>
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 273.4 125.7">
 <defs>
 <clipPath id="05-kits__03-kit-presets-samples--2-clip_1">
-<path transform="matrix(1,0,0,-1,-77,362.8)" d="M77 179.3H352.5V362.8H77Z" clip-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-95.2,414.5)" d="M95.2 288.8H368.6V414.5H95.2Z" clip-rule="evenodd"/>
 </clipPath>
 <clipPath id="05-kits__03-kit-presets-samples--2-clip_2">
-<path transform="matrix(1,0,0,-1,-77,362.8)" d="M83.0 260.5H147.7V343.8H83.0Z" clip-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-95.2,414.5)" d="M220.8 301.4H362.5V406.3H220.8Z" clip-rule="evenodd"/>
 </clipPath>
 <mask id="05-kits__03-kit-presets-samples--2-mask_3">
-<g transform="matrix(.048206,0,0,.048205999,5.9,18.9)">
-<image id="05-kits__03-kit-presets-samples--2-image_4" width="1335" height="1725" xlink:href="/guidebook/img/05-kits__03-kit-presets-samples--2-1.webp"/>
+<g transform="matrix(.096812,0,0,.096812,125.6,8.1)">
+<image id="05-kits__03-kit-presets-samples--2-image_4" width="1464" height="1086" xlink:href="/guidebook/img/05-kits__03-kit-presets-samples--2-1.webp"/>
+</g>
+</mask>
+<clipPath id="05-kits__03-kit-presets-samples--2-clip_6">
+<path transform="matrix(1,0,0,-1,-95.2,414.5)" d="M101.3 295.0H160.8V408.3H101.3Z" clip-rule="evenodd"/>
+</clipPath>
+<mask id="05-kits__03-kit-presets-samples--2-mask_7">
+<g transform="matrix(.096,0,0,.096,6.0,6.0)">
+<image id="05-kits__03-kit-presets-samples--2-image_8" width="623" height="1184" xlink:href="/guidebook/img/05-kits__03-kit-presets-samples--2-2.webp"/>
 </g>
 </mask>
 </defs>
 <g>
 <g clip-path="url(#05-kits__03-kit-presets-samples--2-clip_1)">
-<path transform="matrix(1,0,0,-1,-77,362.8)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M424.8 688.4V83.9"/>
-<text xml:space="preserve" transform="translate(185.1 20.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Sample 6</tspan></text>
-<text xml:space="preserve" transform="translate(185.1 49.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Sample 5</tspan></text>
-<text xml:space="preserve" transform="translate(185.1 80.4)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Sample 4</tspan></text>
-<text xml:space="preserve" transform="translate(185.1 109.7)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Sample 3</tspan></text>
-<text xml:space="preserve" transform="translate(185.1 138.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Sample 2</tspan></text>
-<text xml:space="preserve" transform="translate(185.1 167.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Sample 1</tspan></text>
-<text fill="var(--gb-accent)" xml:space="preserve" transform="translate(27.2 79.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Folder</tspan></text>
-<path transform="matrix(1,0,0,-1,-77,362.8)" stroke-width=".6" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M260.0 345.9H202.2V198.8H258.7"/>
-<path transform="matrix(1,0,0,-1,-77,362.8)" d="M345.6 353.9C345.6 355.3 344.4 356.5 342.9 356.5H324.4C322.9 356.5 321.7 355.3 321.7 353.9V335.4C321.7 333.9 322.9 332.7 324.4 332.7H342.9C344.4 332.7 345.6 333.9 345.6 335.4Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
-<path transform="matrix(1,0,0,-1,-77,362.8)" d="M345.6 353.9C345.6 355.3 344.4 356.5 342.9 356.5H324.4C322.9 356.5 321.7 355.3 321.7 353.9V335.4C321.7 333.9 322.9 332.7 324.4 332.7H342.9C344.4 332.7 345.6 333.9 345.6 335.4ZM345.0 353.9V335.4C345.0 334.2 344.1 333.3 342.9 333.3H324.4C323.3 333.3 322.3 334.2 322.3 335.4V353.9C322.3 355.0 323.3 355.9 324.4 355.9H342.9C344.1 355.9 345.0 355.0 345.0 353.9Z" fill-rule="evenodd"/>
-<use href="#05-kits__03-kit-presets-samples--2-s1" transform="matrix(1 0 0 -1 268.6 67.5)"/>
-<path transform="matrix(1,0,0,-1,-77,362.8)" d="M345.6 295.3C345.6 296.8 344.4 298.0 342.9 298.0H324.4C322.9 298.0 321.7 296.8 321.7 295.3V276.8C321.7 275.3 322.9 274.1 324.4 274.1H342.9C344.4 274.1 345.6 275.3 345.6 276.8ZM345.0 295.3V276.8C345.0 275.6 344.1 274.7 342.9 274.7H324.4C323.3 274.7 322.3 275.6 322.3 276.8V295.3C322.3 296.5 323.3 297.4 324.4 297.4H342.9C344.1 297.4 345.0 296.5 345.0 295.3Z" fill-rule="evenodd"/>
-<path transform="matrix(1,0,0,-1,-77,362.8)" d="M345.6 236.7C345.6 238.2 344.4 239.4 342.9 239.4H324.4C322.9 239.4 321.7 238.2 321.7 236.7V218.2C321.7 216.8 322.9 215.6 324.4 215.6H342.9C344.4 215.6 345.6 216.8 345.6 218.2Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
-<path transform="matrix(1,0,0,-1,-77,362.8)" d="M345.6 236.7C345.6 238.2 344.4 239.4 342.9 239.4H324.4C322.9 239.4 321.7 238.2 321.7 236.7V218.2C321.7 216.8 322.9 215.6 324.4 215.6H342.9C344.4 215.6 345.6 216.8 345.6 218.2ZM345.0 236.7V218.2C345.0 217.1 344.1 216.2 342.9 216.2H324.4C323.3 216.2 322.3 217.1 322.3 218.2V236.7C322.3 237.9 323.3 238.8 324.4 238.8H342.9C344.1 238.8 345.0 237.9 345.0 236.7Z" fill-rule="evenodd"/>
-<use href="#05-kits__03-kit-presets-samples--2-s1" transform="matrix(1 0 0 -1 268.6 38.2)"/>
-<path transform="matrix(1,0,0,-1,-77,362.8)" d="M345.6 324.6C345.6 326.1 344.4 327.3 342.9 327.3H324.4C322.9 327.3 321.7 326.1 321.7 324.6V306.1C321.7 304.6 322.9 303.4 324.4 303.4H342.9C344.4 303.4 345.6 304.6 345.6 306.1ZM345.0 324.6V306.1C345.0 304.9 344.1 304.0 342.9 304.0H324.4C323.3 304.0 322.3 304.9 322.3 306.1V324.6C322.3 325.7 323.3 326.7 324.4 326.7H342.9C344.1 326.7 345.0 325.7 345.0 324.6Z" fill-rule="evenodd"/>
-<use href="#05-kits__03-kit-presets-samples--2-s1" transform="matrix(1 0 0 -1 268.6 96.8)"/>
-<path transform="matrix(1,0,0,-1,-77,362.8)" d="M345.6 266.0C345.6 267.5 344.4 268.7 342.9 268.7H324.4C322.9 268.7 321.7 267.5 321.7 266.0V247.5C321.7 246.0 322.9 244.8 324.4 244.8H342.9C344.4 244.8 345.6 246.0 345.6 247.5ZM345.0 266.0V247.5C345.0 246.4 344.1 245.4 342.9 245.4H324.4C323.3 245.4 322.3 246.4 322.3 247.5V266.0C322.3 267.2 323.3 268.1 324.4 268.1H342.9C344.1 268.1 345.0 267.2 345.0 266.0Z" fill-rule="evenodd"/>
-<path transform="matrix(1,0,0,-1,-77,362.8)" d="M345.6 207.5C345.6 208.9 344.4 210.1 342.9 210.1H324.4C322.9 210.1 321.7 208.9 321.7 207.5V189.0C321.7 187.5 322.9 186.3 324.4 186.3H342.9C344.4 186.3 345.6 187.5 345.6 189.0Z" fill="var(--gb-paper)" fill-rule="evenodd"/>
-<path transform="matrix(1,0,0,-1,-77,362.8)" d="M345.6 207.5C345.6 208.9 344.4 210.1 342.9 210.1H324.4C322.9 210.1 321.7 208.9 321.7 207.5V189.0C321.7 187.5 322.9 186.3 324.4 186.3H342.9C344.4 186.3 345.6 187.5 345.6 189.0ZM345.0 207.5V189.0C345.0 187.8 344.1 186.9 342.9 186.9H324.4C323.3 186.9 322.3 187.8 322.3 189.0V207.5C322.3 208.6 323.3 209.5 324.4 209.5H342.9C344.1 209.5 345.0 208.6 345.0 207.5Z" fill-rule="evenodd"/>
-<path transform="matrix(1,0,0,-1,-77,362.8)" d="M136.7 297.2C136.7 298.6 135.3 299.8 133.6 299.8H119.8C119.5 301.8 118.1 303.5 116.4 304.2L102.0 304.2C100.4 304.2 98.5 298.6 98.5 297.2V276.0C98.5 274.6 99.8 273.5 101.5 273.5H133.6C135.3 273.5 136.7 274.6 136.7 276.0ZM136.1 297.2V276.0C136.1 274.9 135.0 274.1 133.6 274.1H101.5C100.2 274.1 99.1 274.9 99.1 276.0V297.2C99.1 298.2 100.0 301.0 101.0 302.6 101.2 303.0 101.5 303.2 101.7 303.4 101.8 303.5 101.9 303.6 102.0 303.6L116.3 303.6C117.7 302.9 119 301.4 119.2 299.7 119.3 299.4 119.5 299.2 119.8 299.2H133.6C135.0 299.2 136.1 298.3 136.1 297.2Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-95.2,414.5)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M424.8 688.4V83.9"/>
+<path transform="matrix(1,0,0,-1,-95.2,414.5)" d="M355.4 403.0C355.4 404.1 354.5 405.0 353.4 405.0H333.8C332.7 405.0 331.8 404.1 331.8 403.0V383.8C331.8 382.7 332.7 381.8 333.8 381.8H353.4C354.5 381.8 355.4 382.7 355.4 383.8Z" fill="#62bc56" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-95.2,414.5)" d="M355.4 403.0V383.8C355.4 382.7 354.5 381.8 353.4 381.8H333.8C332.7 381.8 331.8 382.7 331.8 383.8V403.0C331.8 404.1 332.7 405.0 333.8 405.0H353.4C354.5 405.0 355.4 404.1 355.4 403.0ZM354.7 403.0C354.7 403.7 354.1 404.3 353.4 404.3H333.8C333.1 404.3 332.5 403.7 332.5 403.0V383.8C332.5 383.1 333.1 382.5 333.8 382.5H353.4C354.1 382.5 354.7 383.1 354.7 383.8Z" fill="currentColor" fill-rule="evenodd"/>
 <g clip-path="url(#05-kits__03-kit-presets-samples--2-clip_2)">
 <g mask="url(#05-kits__03-kit-presets-samples--2-mask_3)">
-<g transform="matrix(.048206,0,0,.048205999,5.9,18.9)">
-<image class="gb-ink" id="05-kits__03-kit-presets-samples--2-image_5" width="1335" height="1725" xlink:href="/guidebook/img/05-kits__03-kit-presets-samples--2-2.webp"/>
+<g transform="matrix(.096812,0,0,.096812,125.6,8.1)">
+<image class="gb-ink" id="05-kits__03-kit-presets-samples--2-image_5" width="1464" height="1086" xlink:href="/guidebook/img/05-kits__03-kit-presets-samples--2-3.webp"/>
 </g>
 </g>
 </g>
-<path transform="matrix(1,0,0,-1,-77,362.8)" stroke-width=".6" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M259.4 316.6H202.1"/>
-<path transform="matrix(1,0,0,-1,-77,362.8)" stroke-width=".6" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M260.1 285.8H148.1"/>
-<path transform="matrix(1,0,0,-1,-77,362.8)" stroke-width=".6" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M259.5 255.5H202.4"/>
-<path transform="matrix(1,0,0,-1,-77,362.8)" stroke-width=".6" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M259.4 227.9H202.6"/>
+<g clip-path="url(#05-kits__03-kit-presets-samples--2-clip_6)">
+<g mask="url(#05-kits__03-kit-presets-samples--2-mask_7)">
+<g transform="matrix(.096,0,0,.096,6.0,6.0)">
+<image class="gb-ink" id="05-kits__03-kit-presets-samples--2-image_9" width="623" height="1184" xlink:href="/guidebook/img/05-kits__03-kit-presets-samples--2-4.webp"/>
+</g>
+</g>
+</g>
+<path transform="matrix(1,0,0,-1,-95.2,414.5)" d="M159.2 368.3C159.2 369.9 158.0 371.1 156.4 371.1H138.8C137.2 371.1 136.0 369.9 136.0 368.3V350.4C136.0 348.8 137.2 347.6 138.8 347.6H156.4C158.0 347.6 159.2 348.8 159.2 350.4Z" fill="#62bc56" fill-rule="evenodd"/>
+<path transform="matrix(1,0,0,-1,-95.2,414.5)" d="M159.2 368.3V350.4C159.2 348.8 158.0 347.6 156.4 347.6H138.8C137.2 347.6 136.0 348.8 136.0 350.4V368.3C136.0 369.9 137.2 371.1 138.8 371.1H156.4C158.0 371.1 159.2 369.9 159.2 368.3ZM158.6 368.3C158.6 369.5 157.6 370.5 156.4 370.5H138.8C137.6 370.5 136.6 369.5 136.6 368.3V350.4C136.6 349.2 137.6 348.2 138.8 348.2H156.4C157.6 348.2 158.6 349.2 158.6 350.4Z" fill-rule="evenodd"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(87.1 58.9)" font-size="13" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">+</tspan></text>
 </g>
 </g>
 </svg>
