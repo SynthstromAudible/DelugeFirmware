@@ -2530,7 +2530,8 @@ void Sound::setupUnisonStereoSpread() {
 
 void Sound::calculateEffectiveVolume() {
 	// volumeNeutralValueForUnison = (float)getParamNeutralValue(params::LOCAL_VOLUME) / sqrt(numUnison);
-	volumeNeutralValueForUnison = (float)134217728 / sqrtf(snapshot_.num_unison);
+	volumeNeutralValueForUnison =
+	    (float)deluge::synth::matrix::kParamNeutral[params::LOCAL_VOLUME] / sqrtf(snapshot_.num_unison);
 }
 
 // May change mod knob functions. You must update mod knob levels after calling this

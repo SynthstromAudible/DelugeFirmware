@@ -64,12 +64,12 @@ enum class Conversion : uint8_t {
 }
 
 /// @brief One param's patching rules: the chain that combines its cables, the curve that shapes the result, and
-/// whether it is a bipolar param (a position whose cables' sum doubles before the preset, so a full-depth cable reaches
-/// end to end from any preset).
+/// whether it patches as a bipolar param (a position whose cables' sum doubles before the preset, so a full-depth cable
+/// reaches end to end from any preset).
 struct ParamRules {
 	ChainKind chain{ChainKind::MULTIPLY};
 	CurveKind curve{CurveKind::LINEAR};
-	bool bipolar{false};
+	bool patching_bipolar{false};
 	int32_t neutral{0};     ///< the final value the curve gives a combination of zero is built on
 	int32_t range{1 << 30}; ///< how far the preset reaches: its term is preset · range / 2^32
 };
@@ -79,8 +79,9 @@ inline constexpr std::array<ParamRules, modulation::params::kNumParams> kParamRu
 	using namespace modulation::params;
 	constexpr bool kBipolar = true;
 	std::array<ParamRules, kNumParams> table{};
-	auto set = [&](int32_t p, ChainKind chain, CurveKind curve, bool bipolar, int32_t neutral, int32_t range) {
-		table[p] = {.chain = chain, .curve = curve, .bipolar = bipolar, .neutral = neutral, .range = range};
+	auto set = [&](int32_t p, ChainKind chain, CurveKind curve, bool patching_bipolar, int32_t neutral, int32_t range) {
+		table[p] = {
+		    .chain = chain, .curve = curve, .patching_bipolar = patching_bipolar, .neutral = neutral, .range = range};
 	};
 	set(LOCAL_OSC_A_VOLUME, ChainKind::MULTIPLY, CurveKind::SQUARE, false, 134217728, 1073741824);
 	set(LOCAL_OSC_B_VOLUME, ChainKind::MULTIPLY, CurveKind::SQUARE, false, 134217728, 1073741824);
@@ -167,9 +168,9 @@ inline constexpr std::array<int32_t, modulation::params::kNumParams> kParamRange
 	return kParamRules[p].curve;
 }
 
-/// Whether param @p p is a bipolar param.
-[[nodiscard]] constexpr bool is_bipolar(int32_t p) {
-	return kParamRules[p].bipolar;
+/// Whether param @p p patches as a bipolar param.
+[[nodiscard]] constexpr bool is_patching_bipolar(int32_t p) {
+	return kParamRules[p].patching_bipolar;
 }
 
 /// How a cable from @p from shapes its depth into param @p p (an add-chain destination; the other chains use the
