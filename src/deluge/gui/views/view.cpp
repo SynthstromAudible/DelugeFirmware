@@ -2800,12 +2800,28 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfIn
 
 	case UI_MODE_HOLDING_STATUS_PAD:
 		if (on) {
+			bool firstPress = (currentUIMode != UI_MODE_HOLDING_STATUS_PAD);
 			enterUIMode(UI_MODE_HOLDING_STATUS_PAD);
 			context_menu::clip_settings::clipSettings.clip = clip;
 			sessionView.performActionOnPadRelease = false; // Even though there's a chance we're not in session view
-			session.toggleClipStatus(clip, nullptr, Buttons::isShiftButtonPressed(), kInternalButtonPressLatency);
+
+			// The first pad held defers its toggle to release, so it can be used to open clip settings (with select)
+			// instead. Shift (instant) toggles, and further pads pressed while holding one, still act on press.
+			if (firstPress && !Buttons::isShiftButtonPressed()) {
+				statusPadPendingToggleClip = clip;
+				statusPadPressTime = AudioEngine::audioSampleTimer;
+			}
+			else {
+				session.toggleClipStatus(clip, nullptr, Buttons::isShiftButtonPressed(), kInternalButtonPressLatency);
+			}
 		}
 		else {
+			if (clip == statusPadPendingToggleClip) {
+				statusPadPendingToggleClip = nullptr;
+				if ((int32_t)(AudioEngine::audioSampleTimer - statusPadPressTime) < (int32_t)kShortPressTime) {
+					session.toggleClipStatus(clip, nullptr, false, kInternalButtonPressLatency);
+				}
+			}
 			exitUIMode(UI_MODE_HOLDING_STATUS_PAD);
 		}
 		break;
