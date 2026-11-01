@@ -270,7 +270,9 @@ Error ParamManager::beenCloned(int32_t reverseDirectionWithLength) {
 
 // Does *not* forget MPE params
 void ParamManager::forgetParamCollections() {
-	summaries[0].paramCollection = getExpressionParamSet();
+	// Copy the whole summary, not just the pointer - otherwise the expression set inherits the automated/interpolating
+	// flags of whatever main collection was in slot 0, and FOR_EACH_FLAGGED_PARAM would index past its params
+	summaries[0] = *getExpressionParamSetSummary();
 	summaries[1] = {0};
 	expressionParamSetOffset = 0;
 	summaries[2] = {0};
