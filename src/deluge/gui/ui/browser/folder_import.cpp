@@ -871,7 +871,9 @@ skipOctaveCorrection:
 
 	soundEditor.setCurrentMultiRange(numSamples >> 1);
 
-	sampleBrowser.exitAndNeverDeleteDrum();
+	if (request_.exitBrowser) {
+		sampleBrowser.exitAndNeverDeleteDrum();
+	}
 	getCurrentInstrument()->beenEdited();
 
 	display->removeWorkingAnimation();
@@ -1025,7 +1027,9 @@ skipNameStuff:
 
 	getCurrentInstrument()->beenEdited();
 
-	sampleBrowser.exitAndNeverDeleteDrum();
+	if (request_.exitBrowser) {
+		sampleBrowser.exitAndNeverDeleteDrum();
+	}
 	uiNeedsRendering(&instrumentClipView);
 	display->removeWorkingAnimation();
 	return true;

@@ -300,13 +300,32 @@ constexpr uint16_t kSampleBrowserSynthOptions[] = {
     sid(String::STRING_FOR_WAVETABLE),
 };
 
-/// Main's `acceptCurrentOption` never closes these menus synchronously: the import or the claim it asks for closes
-/// them once it ends.
+/// `Kit::acceptCurrentOption`: LOAD ALL imports the folder. Like `Synth`'s, it never closes the menu itself: the load
+/// it parks for the host closes it once it ends (`BrowserScene::long_press_done`).
 bool accept_sample_browser_kit(const menu::MenuContext&, uint8_t) {
+	browser::browser_scene().park_operation(browser::BrowserChoice::Op::ImportKit);
 	return true;
 }
 
-bool accept_sample_browser_synth(const menu::MenuContext&, uint8_t) {
+/// `Synth::acceptCurrentOption` (`gui/context_menu/sample_browser/synth.cpp:95-120`): MULTISAMPLES imports the folder;
+/// the other three claim the file with their own detection choices.
+bool accept_sample_browser_synth(const menu::MenuContext&, uint8_t option) {
+	using Op = browser::BrowserChoice::Op;
+	using Args = browser::BrowserChoice::ClaimArgs;
+	switch (option) {
+	case 0:
+		browser::browser_scene().park_operation(Op::ImportMultisamples);
+		break;
+	case 1:
+		browser::browser_scene().park_operation(Op::Claim, Args{.pitch = 0, .single_cycle = 0, .wavetable = 0});
+		break;
+	case 2:
+		browser::browser_scene().park_operation(Op::Claim, Args{.pitch = 2, .single_cycle = 2, .wavetable = 1});
+		break;
+	default:
+		browser::browser_scene().park_operation(Op::Claim, Args{.pitch = 1, .single_cycle = 1, .wavetable = 2});
+		break;
+	}
 	return true;
 }
 

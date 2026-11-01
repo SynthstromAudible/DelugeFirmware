@@ -51,6 +51,7 @@
 
 namespace deluge::gui {
 struct ClaimRequest;
+struct FolderImportRequest;
 } // namespace deluge::gui
 
 namespace deluge::gui::ui {
@@ -131,6 +132,25 @@ using SampleClaimDispatch = void (*)(const deluge::gui::ClaimRequest& request);
 ///
 /// @param dispatch The dispatcher, or null to put the shipped one back.
 void setSampleClaimDispatch(SampleClaimDispatch dispatch);
+
+/// @brief The completion of a claim a sample browser folder menu asked for (BASIC, SINGLE-CYCLE, WAVETABLE).
+/// A failure closes the menu and leaves the browser (`Synth`'s `closeOnFailure`); a success closes both, as the claim's
+/// own exit does in `main`, and pays back what `shellSampleClaimDone` does.
+/// @param success Whether the claim ended claimed. A cancelled claim calls nothing.
+void shellLongPressClaimDone(bool success);
+
+/// @brief The completion of a folder import a sample browser folder menu asked for (LOAD ALL, MULTISAMPLES): a failure
+///        closes the menu, a success the menu and the browser.
+/// @param success Whether the import succeeded.
+void shellLongPressImportDone(bool success);
+
+/// @brief What a folder menu's import is handed to: `FolderImport::request`'s shape.
+using FolderImportDispatch = void (*)(deluge::gui::FolderImportRequest request);
+
+/// @brief Install a folder-import dispatcher other than `deluge::gui::folderImport`'s `request`: for specs, as
+///        `setSampleClaimDispatch` is.
+/// @param dispatch The dispatcher, or null to put the shipped one back.
+void setFolderImportDispatch(FolderImportDispatch dispatch);
 
 /// @brief Take whatever the ported browser chose, if anything, and perform it.
 ///

@@ -247,10 +247,31 @@ const Descriptor& descriptor(BrowserId id);
 /// The noun half of the same seam `menu::MenuActionRequest` is the verb half of. See
 /// `Descriptor::accept`.
 struct BrowserChoice {
+	/// @brief What the host is to do with the item.
+	enum class Op : uint8_t {
+		Enter,              ///< `enterKeyPress`'s file arm: load the file as the browser's Enter does.
+		Claim,              ///< A sample browser folder menu's BASIC, SINGLE-CYCLE or WAVETABLE: load with `claim`.
+		ImportKit,          ///< The kit menu's LOAD ALL (`FolderImportKind::Kit`).
+		ImportMultisamples, ///< The synth menu's MULTISAMPLES (`FolderImportKind::Multisamples`).
+	};
+	/// @brief `ClaimRequest`'s three detection choices: 0 no, 1 auto, 2 definitely.
+	struct ClaimArgs {
+		int32_t pitch = 0;
+		int32_t single_cycle = 0;
+		int32_t wavetable = 0;
+		bool operator==(const ClaimArgs&) const = default;
+	};
+
 	BrowserId id = BrowserId::Sample;
 	/// The chosen file's full path, as `getCurrentFilePath()` would have spelled it
 	/// (`sample_browser.h:172 getCurrentFilePath`): `currentDir` + "/" + the filename, extension included.
 	std::string path;
+	Op op = Op::Enter;
+	ClaimArgs claim{};
+	/// The item's folder, its filename, and whether the item is itself a folder: what a folder import starts from.
+	std::string dir;
+	std::string filename;
+	bool is_folder = false;
 };
 
 /// @brief The longest name or path this scene will build.
@@ -391,6 +412,17 @@ public:
 	/// a second choice would need the browser reopened and a file chosen inside one tick.
 	/// @return The choice, or `std::nullopt` when none is waiting.
 	std::optional<BrowserChoice> take_choice();
+
+	/// @brief Park @p op on the selected item for the host, leaving this scene and anything over it up: a folder
+	///        menu's accept, whose load closes the menu once it ends (`long_press_done`).
+	/// @param op    What the host is to do.
+	/// @param claim The detection choices, for `Op::Claim`.
+	void park_operation(BrowserChoice::Op op, BrowserChoice::ClaimArgs claim = {});
+
+	/// @brief How a load a folder menu started ended: a failure closes the menu, a success the menu and this browser,
+	///        as `closeOnFailure` and the load's own exit do in `main`. Filed on this scene's next render.
+	/// @param success Whether the load or import succeeded.
+	void long_press_done(bool success);
 
 	/// @brief Whether a choice is waiting for `take_choice()`.
 	/// @return True between a file press parking its path and the consumer draining it.
@@ -547,6 +579,8 @@ private:
 	/// popup has also stopped holding, so its release does nothing.
 	bool holding_ = false;
 	std::optional<uint32_t> hold_deadline_ms_{};
+	/// A folder menu's load has ended: true closes the menu and this browser, false the menu only.
+	std::optional<bool> long_press_done_{};
 
 	/// The end-of-string cursor's blink -- the same idiom `RenameScene` uses.
 	deluge::ui::Blink cursor_blink_{};

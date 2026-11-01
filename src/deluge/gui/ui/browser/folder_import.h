@@ -45,6 +45,9 @@ struct FolderImportRequest {
 	std::string folder;                   ///< The folder to import: the browser's item if a folder, else its folder.
 	std::string previouslyViewedFilename; ///< The file the browser was on, which seeds the common-prefix search.
 	void (*completion)(bool success) = nullptr; ///< Told how the import ended. A cancelled import tells it nothing.
+	/// Close the legacy sample browser once the import succeeds. False for an import the ported browser asked for,
+	/// which its completion closes instead: the legacy browser was never opened.
+	bool exitBrowser = true;
 };
 
 /// @brief The sample browser's folder import: every audio file in a folder, as a kit's drums or a synth's multisample

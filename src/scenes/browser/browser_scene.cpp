@@ -370,6 +370,7 @@ bool BrowserScene::on_enter(const SceneId& id) {
 	id_ = static_cast<BrowserId>(id.arg);
 	holding_ = false;
 	hold_deadline_ms_.reset();
+	long_press_done_.reset();
 	if (!descriptor(id_).can(ctx_)) {
 		return false;
 	}
@@ -1074,6 +1075,19 @@ Result BrowserScene::after_render() {
 	//    one path that needs it. The scene swallows input in `handle()` instead, which is all the
 	//    lock was buying here.
 
+	// 1b. A folder menu's load ended (`long_press_done`): close what `main` closes.
+	if (long_press_done_.has_value()) {
+		const bool success = *long_press_done_;
+		long_press_done_.reset();
+		r.handled = true;
+		(void)r.actions.push_back(Action{.kind = Action::Kind::Remove, .pop_to = context_menu::kContextMenuSceneKind});
+		if (success) {
+			(void)r.actions.push_back(Action{.kind = Action::Kind::Remove, .pop_to = kBrowserSceneKind});
+		}
+		(void)r.actions.push_back(Action{.kind = Action::Kind::RepaintAll});
+		return r;
+	}
+
 	// 2. Collect a landed listing. **Every tick** -- `listing.h`'s `@warning`: a seam left in
 	//    `Ready` refuses every later request, and the natural home for the poll is here.
 	if (const std::optional<ListingResult> out = listing_.take_result(); out.has_value()) {
@@ -1273,6 +1287,25 @@ Result BrowserScene::handle(const UiEvent& event, const UiContext& ctx) {
 	return Result::unhandled();
 }
 
+void BrowserScene::park_operation(BrowserChoice::Op op, BrowserChoice::ClaimArgs claim) {
+	const FileItem* item = item_at(file_index_);
+	if (item == nullptr) {
+		return;
+	}
+	BrowserChoice choice{.id = id_,
+	                     .op = op,
+	                     .claim = claim,
+	                     .dir = std::string{current_dir()},
+	                     .filename = item->filename,
+	                     .is_folder = item->isFolder};
+	choice.path = choice.dir.empty() ? choice.filename : choice.dir + "/" + choice.filename;
+	choice_ = std::move(choice);
+}
+
+void BrowserScene::long_press_done(bool success) {
+	long_press_done_ = success;
+}
+
 bool BrowserScene::current_is_folder() const {
 	const FileItem* item = item_at(file_index_);
 	return item != nullptr && item->isFolder;
@@ -1326,6 +1359,11 @@ std::optional<uint32_t> BrowserScene::next_timer() const {
 	// refused request retried. See `kListingPollMs`.
 	if (listing_.in_flight() || pending_.has_value()) {
 		next = next.has_value() ? std::min(*next, kListingPollMs) : kListingPollMs;
+	}
+
+	// A folder menu's load that ended is acted on by `after_render`, on the next render.
+	if (long_press_done_.has_value()) {
+		return 0;
 	}
 
 	// The long press is answered by `after_render`, so its deadline must render.

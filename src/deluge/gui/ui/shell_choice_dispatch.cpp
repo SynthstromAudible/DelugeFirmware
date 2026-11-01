@@ -22,6 +22,7 @@
 #include "gui/ui/shell_choice_dispatch.h"
 
 #include "gui/l10n/strings.h"
+#include "gui/ui/browser/folder_import.h"
 #include "gui/ui/browser/sample_claim.h"
 #include "gui/ui/load/instrument_load.h"
 #include "gui/ui/sound_editor.h"
@@ -62,6 +63,14 @@ void requestSampleClaim(const deluge::gui::ClaimRequest& request) {
 
 /// @brief What the claim is requested from. `setSampleClaimDispatch`'s subject.
 SampleClaimDispatch claimDispatch = &requestSampleClaim;
+
+/// @brief The shipped folder-import dispatcher.
+void requestFolderImport(deluge::gui::FolderImportRequest request) {
+	deluge::gui::folderImport.request(std::move(request));
+}
+
+/// @brief What a folder import is requested from. `setFolderImportDispatch`'s subject.
+FolderImportDispatch importDispatch = &requestFolderImport;
 
 /// @brief The browser's entered text for @p name, as `Browser::setEnteredTextFromCurrentFilename`
 ///        sets it for a file: the name with its extension cut off. A kit drum is named after it.
@@ -138,18 +147,40 @@ SoundEditor::ResolvedContext resolvedFor(const deluge::scenes::menu::MenuContext
 ///
 /// @param path   The chosen file's full path.
 /// @param target @p path split; its filename names the entered text.
-void claimSampleFile(std::string_view path, const SampleClaimTarget& target) {
+/// @param args       The detection choices: the browser's own for an Enter, a folder menu's for its claims.
+/// @param completion Told how the claim ended.
+void claimSampleFile(std::string_view path, const SampleClaimTarget& target, const SampleClaimArgs& args,
+                     void (*completion)(bool success)) {
 	soundEditor.adoptResolvedContext(resolvedFor(deluge::scenes::menu_scene().menu_context()));
 	claimDispatch({
 	    .path = std::string{path},
 	    .enteredText = enteredTextFor(target.name),
-	    .mayDoPitchDetection = kShellSampleClaimArgs.mayDoPitchDetection,
-	    .mayDoSingleCycle = kShellSampleClaimArgs.mayDoSingleCycle,
-	    .mayDoWaveTable = kShellSampleClaimArgs.mayDoWaveTable,
-	    .loadWithoutExiting = kShellSampleClaimArgs.loadWithoutExiting,
+	    .mayDoPitchDetection = args.mayDoPitchDetection,
+	    .mayDoSingleCycle = args.mayDoSingleCycle,
+	    .mayDoWaveTable = args.mayDoWaveTable,
+	    .loadWithoutExiting = args.loadWithoutExiting,
 	    .origin = deluge::gui::ClaimOrigin::Explicit,
-	    .completion = &shellSampleClaimDone,
+	    .completion = completion,
 	});
+}
+
+/// @brief `SampleBrowser::requestFolderImport` (`sample_browser.cpp:436-452`) for a folder menu's choice: the item's
+///        own folder, or the folder it is in, starting from it. The ported browser closes itself, so the import does
+///        not.
+void importFolder(const BrowserChoice& choice, deluge::gui::FolderImportKind kind) {
+	// An auto-load claim would bind into the sound the import is replacing.
+	deluge::gui::sampleClaim.cancelAutoLoad();
+	soundEditor.adoptResolvedContext(resolvedFor(deluge::scenes::menu_scene().menu_context()));
+	deluge::gui::FolderImportRequest request{
+	    .kind = kind, .completion = &shellLongPressImportDone, .exitBrowser = false};
+	if (choice.is_folder) {
+		request.folder = choice.path;
+	}
+	else {
+		request.folder = choice.dir;
+		request.previouslyViewedFilename = choice.filename;
+	}
+	importDispatch(std::move(request));
 }
 
 /// @brief Announce how a MIDI device definition's load ended, as
@@ -187,6 +218,19 @@ void shellSampleClaimDone(bool success) {
 	// Answers false, harmlessly, when there is nothing to move: only the guest's menu can have
 	// opened the ported browser, so a claim with no recorded opener came from elsewhere.
 	(void)deluge::scenes::menu_scene().reroot_to_scene_opener_page();
+}
+
+void shellLongPressClaimDone(bool success) {
+	browser_scene().long_press_done(success);
+	shellSampleClaimDone(success);
+}
+
+void shellLongPressImportDone(bool success) {
+	browser_scene().long_press_done(success);
+}
+
+void setFolderImportDispatch(FolderImportDispatch dispatch) {
+	importDispatch = dispatch != nullptr ? dispatch : &requestFolderImport;
 }
 
 void setSampleClaimDispatch(SampleClaimDispatch dispatch) {
@@ -231,8 +275,28 @@ void dispatchShellChoices() {
 		// The split is
 		// made before anything acts, so `sim/scenes_spec/browser_choice_spec.cpp` can pin the
 		// decision over every path shape without the arm below it having to be reachable.
-		if (const std::optional<SampleClaimTarget> target = sampleClaimTargetFor(choice->path)) {
-			claimSampleFile(choice->path, *target);
+		switch (choice->op) {
+		case BrowserChoice::Op::Enter:
+			if (const std::optional<SampleClaimTarget> target = sampleClaimTargetFor(choice->path)) {
+				claimSampleFile(choice->path, *target, kShellSampleClaimArgs, &shellSampleClaimDone);
+			}
+			break;
+		case BrowserChoice::Op::Claim:
+			if (const std::optional<SampleClaimTarget> target = sampleClaimTargetFor(choice->path)) {
+				claimSampleFile(choice->path, *target,
+				                {.mayDoPitchDetection = choice->claim.pitch,
+				                 .mayDoSingleCycle = choice->claim.single_cycle,
+				                 .mayDoWaveTable = choice->claim.wavetable,
+				                 .loadWithoutExiting = true},
+				                &shellLongPressClaimDone);
+			}
+			break;
+		case BrowserChoice::Op::ImportKit:
+			importFolder(*choice, deluge::gui::FolderImportKind::Kit);
+			break;
+		case BrowserChoice::Op::ImportMultisamples:
+			importFolder(*choice, deluge::gui::FolderImportKind::Multisamples);
+			break;
 		}
 		break;
 

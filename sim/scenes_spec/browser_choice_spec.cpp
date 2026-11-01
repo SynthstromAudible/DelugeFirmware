@@ -38,6 +38,7 @@
 
 #include "gui/ui/menu_view_of.h"
 #include "scenes/browser/browser_scene.h"
+#include "scenes/context_menu/context_menu_scene.h"
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
@@ -54,6 +55,7 @@
 
 #include "gui/l10n/l10n.h"
 #include "gui/ui/browser/browser.h"
+#include "gui/ui/browser/folder_import.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/browser/sample_claim.h"
 #include "gui/ui/load/instrument_load.h"
@@ -65,6 +67,7 @@
 #include "model/sample/sample.h"
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
+#include "processing/sound/sound_drum.h"
 #include "processing/source.h"
 #include "storage/cluster/cluster.h"
 #include "storage/file_catalogue.h"
@@ -543,6 +546,91 @@ std::string split_of(std::string_view path) {
 	return std::string{t->dir} + "|" + std::string{t->name};
 }
 
+/// @brief The folder-import seam, swapped for a recorder, as `ClaimSpy` swaps the claim's.
+struct ImportSpy {
+	static inline int32_t dispatches = 0;
+	static inline deluge::gui::FolderImportRequest last{};
+
+	static void record(deluge::gui::FolderImportRequest request) {
+		dispatches++;
+		last = std::move(request);
+	}
+
+	ImportSpy() {
+		dispatches = 0;
+		last = {};
+		deluge::gui::ui::setFolderImportDispatch(&record);
+	}
+	~ImportSpy() { deluge::gui::ui::setFolderImportDispatch(nullptr); }
+	ImportSpy(const ImportSpy&) = delete;
+	ImportSpy& operator=(const ImportSpy&) = delete;
+};
+
+constexpr uint8_t kSelectEncButtonX = 4, kSelectEncButtonY = 3;
+constexpr uint8_t kSelectEncoder = 3;
+
+/// @brief Hold Select on @p shell until the long press answers, then let go.
+void long_press(Shell& shell, uint32_t& clock) {
+	clock += 10;
+	shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, kSelectEncButtonX, kSelectEncButtonY, 255}, clock);
+	shell.tick(clock);
+	const uint32_t up = clock + browser::kLongPressMs + 20;
+	while (clock < up) {
+		clock += 10;
+		shell.tick(clock);
+	}
+	shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, kSelectEncButtonX, kSelectEncButtonY, 0}, clock);
+	clock += 10;
+	shell.tick(clock);
+}
+
+/// @brief Turn the select encoder @p detents, then press and release Select: the menu's accept.
+void pick(Shell& shell, uint32_t& clock, int32_t detents) {
+	if (detents != 0) {
+		clock += 10;
+		shell.on_board_event(
+		    DelugeInputEvent{DELUGE_EVENT_ENCODER, kSelectEncoder, 0, static_cast<int16_t>(detents * 2)}, clock);
+		shell.tick(clock);
+	}
+	for (const int16_t v : {int16_t{255}, int16_t{0}}) {
+		clock += 10;
+		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, kSelectEncButtonX, kSelectEncButtonY, v}, clock);
+		shell.tick(clock);
+	}
+}
+
+/// @brief A kit whose one drum is on row 0, with the sample browser opened over it directly, as the long press
+///        needs it.
+struct KitRig {
+	spec::SongFixture song = spec::make_kit_song();
+	deluge::ui::shell::SceneRegistry reg = scene_registry();
+	uitest::FakeSurfaceSet fake{deluge::ui::shell::kDelugeBoard, deluge_profile()};
+	Shell shell{fake, deluge_profile(), reg, deluge::ui::shell::Services{}, ShellConfig{}};
+	uint32_t clock = 0;
+
+	KitRig(const KitRig&) = delete;
+	KitRig& operator=(const KitRig&) = delete;
+	KitRig() { (void)spec::add_drum<SoundDrum>(song); }
+	~KitRig() {
+		while (shell.stack().depth() > 0) {
+			shell.stack().pop(SceneKind::Null);
+		}
+	}
+
+	void open_browser() {
+		select_language();
+		MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
+		                                    /*kit_global_fx=*/false);
+		(void)menu::ensure_first_range(ctx);
+		browser::browser_scene().open(ctx);
+		shell.init(SceneId{browser::kBrowserSceneKind, static_cast<uint16_t>(browser::BrowserId::Sample)});
+		for (int32_t i = 0; i < 4; i++) {
+			clock += 10;
+			shell.tick(clock);
+		}
+	}
+};
+
 } // namespace
 
 describe browser_choice_target(
@@ -999,5 +1087,105 @@ describe browser_choice_reroot(
 	        });
     });
 
+describe browser_choice_long_press(
+    "gui::ui::dispatchShellChoices performing the sample browser's folder menus", $ {
+	    before_each([] {
+		    static QuietDisplay d;
+		    if (display == nullptr) {
+			    display = &d;
+		    }
+	    });
+
+	    it(
+	        "claims BASIC, SINGLE-CYCLE and WAVETABLE with main's detection arguments, keeping the menu up", _ {
+		        struct Want {
+			        int32_t detents;
+			        int32_t pitch, single_cycle, wavetable;
+		        };
+		        for (const Want w : {Want{1, 0, 0, 0}, Want{2, 2, 2, 1}, Want{3, 1, 1, 2}}) {
+			        CleanBrowser clean;
+			        ClaimSpy spy;
+			        ScratchCard card;
+			        ShellRig r;
+			        r.open_browser();
+			        long_press(r.shell, r.clock);
+			        expect(scene_on_stack(r.shell, context_menu::kContextMenuSceneKind)).to_be_true();
+			        pick(r.shell, r.clock, w.detents);
+			        expect(scene_on_stack(r.shell, context_menu::kContextMenuSceneKind)).to_be_true();
+			        deluge::gui::ui::dispatchShellChoices();
+			        expect(spy.dispatches).to_equal(1);
+			        expect(ClaimSpy::last.path).to_equal(std::string{kChosenPath});
+			        expect(ClaimSpy::last.enteredText).to_equal(std::string{"A1"});
+			        expect(ClaimSpy::last.mayDoPitchDetection).to_equal(w.pitch);
+			        expect(ClaimSpy::last.mayDoSingleCycle).to_equal(w.single_cycle);
+			        expect(ClaimSpy::last.mayDoWaveTable).to_equal(w.wavetable);
+			        expect(ClaimSpy::last.loadWithoutExiting).to_be_true();
+		        }
+	        });
+
+	    it(
+	        "imports MULTISAMPLES from a file's folder, starting from that file, and leaves the browser to the host",
+	        _ {
+		        CleanBrowser clean;
+		        ImportSpy spy;
+		        ScratchCard card;
+		        ShellRig r;
+		        r.open_browser();
+		        long_press(r.shell, r.clock);
+		        pick(r.shell, r.clock, 0);
+		        deluge::gui::ui::dispatchShellChoices();
+		        expect(spy.dispatches).to_equal(1);
+		        expect(static_cast<int>(ImportSpy::last.kind))
+		            .to_equal(static_cast<int>(deluge::gui::FolderImportKind::Multisamples));
+		        expect(ImportSpy::last.folder).to_equal(std::string{"SAMPLES/OSC_A"});
+		        expect(ImportSpy::last.previouslyViewedFilename).to_equal(std::string{"A1.WAV"});
+		        expect(ImportSpy::last.exitBrowser).to_be_false();
+	        });
+
+	    it(
+	        "imports a whole folder into a fresh kit with LOAD ALL", _ {
+		        CleanBrowser clean;
+		        ImportSpy spy;
+		        ScratchCard card;
+		        KitRig r;
+		        r.open_browser();
+		        expect(browser::browser_scene().current_is_folder()).to_be_true(); // SAMPLES/OSC_A
+		        long_press(r.shell, r.clock);
+		        expect(static_cast<int>(context_menu::context_menu_scene().descriptor_id()))
+		            .to_equal(static_cast<int>(context_menu::DescriptorId::SampleBrowserKit));
+		        pick(r.shell, r.clock, 0);
+		        deluge::gui::ui::dispatchShellChoices();
+		        expect(spy.dispatches).to_equal(1);
+		        expect(static_cast<int>(ImportSpy::last.kind))
+		            .to_equal(static_cast<int>(deluge::gui::FolderImportKind::Kit));
+		        expect(ImportSpy::last.folder).to_equal(std::string{"SAMPLES/OSC_A"});
+		        expect(ImportSpy::last.previouslyViewedFilename).to_equal(std::string{});
+	        });
+
+	    it(
+	        "closes only the menu when the load fails, and the menu and the browser when it succeeds", _ {
+		        for (const bool success : {false, true}) {
+			        CleanBrowser clean;
+			        ImportSpy spy;
+			        ScratchCard card;
+			        KitRig r;
+			        r.open_browser();
+			        long_press(r.shell, r.clock);
+			        pick(r.shell, r.clock, 0);
+			        deluge::gui::ui::dispatchShellChoices();
+			        expect(ImportSpy::last.completion != nullptr).to_be_true();
+			        if (ImportSpy::last.completion != nullptr) {
+				        ImportSpy::last.completion(success);
+			        }
+			        for (int32_t i = 0; i < 3; i++) {
+				        r.clock += 10;
+				        r.shell.tick(r.clock);
+			        }
+			        expect(scene_on_stack(r.shell, context_menu::kContextMenuSceneKind)).to_be_false();
+			        expect(scene_on_stack(r.shell, browser::kBrowserSceneKind)).to_equal(!success);
+		        }
+	        });
+    });
+
 DELUGE_SPEC(browser_choice_spec, browser_choice_target, browser_choice_dispatch, browser_choice_claim,
-            browser_choice_reroot)
+            browser_choice_reroot, browser_choice_long_press)
