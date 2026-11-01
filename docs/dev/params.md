@@ -11,6 +11,39 @@ an audio track. Ids are pinned forever by the tables' specs. The runtime's own n
 collection `Kind` and index) maps to ids through `model/project_bridge/param_ids.cpp`, and
 `params::paramInfoFor(kind, index)` returns a runtime param's row.
 
+## Identity in the host
+
+The host names a param without its owner as a `project::ParamTarget{ParamSpace space; plugin::ParamId id}`
+(`src/deluge-project/param_address.h`; `ParamAddress::target()` drops an address's owner). In ENGINE space the id is in
+the owner's plugin table, a sound's cable depth being the instrument's depth id (`instruments/deluge/cables.h`); a
+MIDI_CC id is the CC number, an EXPRESSION id the MPE dimension. Ids are per plugin (116 is portamento in the
+instrument's table and mod FX rate in the global effectable's), so a target is read only together with its owner's
+`bridge::OwnerPlugin`, which `ModControllableAudio::ownerPlugin()` gives (a `Sound` is the instrument, a
+`GlobalEffectable` the global effectable).
+
+`bridge::runtimeParamOf(owner, target)` and `bridge::targetOf(owner, kind, index)` (`model/project_bridge/param_ids.h`)
+map a target to and from the runtime's collection kind and index, a cable's index being its packed word. They are the
+one way between the two numberings; until the model stack is retired, the views turn a target into a lane through it
+(the automation view's `laneFor`).
+
+What names params by target:
+
+- the pad-grid shortcuts and the automation view's param orders (`modulation/params/param_targets.h`);
+- MIDI follow's maps, with `MidiFollow::ccOf(owner, target)` for the CC that follows a param, and the performance view's
+  params, layout and shortcuts (global-effectable `ParamId`s);
+- mod and MIDI knobs (`Knob::target`, a `modulation::KnobTarget`; `knobWord` and `knobTargetOf` convert it to and from
+  the descriptor word the files and the model stack use), the global effectable's default knob layout, and what a
+  learning menu teaches a knob (`getLearningThing()`);
+- the cable set and the patch-cable menus, by `synth::CableTarget` word.
+
+A clip's and the song's automation selection (`lastSelectedParamKind`, `lastSelectedParamID`) stays the runtime pair:
+it is what the files record, a MIDI clip's keeping whatever kind was there with its CC.
+
+param_target_check round-trips every runtime param of both plugins and every cable word through the bridge, and holds
+each of these tables to its cells as recorded before it named params by target
+(`tests/integration/scenarios/drivers/param_target_tables_reference.h`), and MIDIFollow.XML to the bytes it was written
+as.
+
 ## The descriptor
 
 Each row is a `plugin::ParamInfo` (`src/plugin-api/types/param.h`):
@@ -70,5 +103,5 @@ combine.
 ## Not yet descriptor-driven
 
 Display names (l10n, the menus), the codec's attribute names (`model/project_bridge/param_serialization.cpp`, grouped
-by element), the identity enums and `Kind`, `ParamDescriptor`, ModelStack, and composing the global-effectable rows
-from the fragments (its library may include only `plugin-api/types/`).
+by element), the identity enums and `Kind` below the bridge, edits and undo by address, ModelStack, and composing the
+global-effectable rows from the fragments (its library may include only `plugin-api/types/`).
