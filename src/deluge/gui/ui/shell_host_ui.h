@@ -407,6 +407,13 @@ public:
 	/// @brief Feed mod button @p whichButton as its matrix button.
 	void modButtonAction(uint8_t whichButton, bool on) override;
 	ActionResult timerCallback() override;
+	/// @brief Arm a tick at once if the shell has model facts to drain and this guest is the current UI.
+	///
+	/// A fact raised between ticks -- by a legacy callback, or through `Shell::route_lowered_turn`
+	/// -- reaches the shell's slot of the dirty set however the legacy drain runs, but a guest with no
+	/// deadline is asleep until something arms its timer. Called by `drain_notifications` on every
+	/// pass of the app loop.
+	void wakeForPendingFacts();
 	bool opened() override;
 	void focusRegained() override;
 	void displayOrLanguageChanged() override;

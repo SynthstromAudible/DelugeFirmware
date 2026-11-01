@@ -138,6 +138,10 @@ public:
 	Result after_render() override {
 		after_renders++;
 		events_at_after_render = events;
+		if (raise_in_after_render) {
+			raise_in_after_render = false;
+			deluge::notify::dirty().raise(Dirty::Oled);
+		}
 		if (!emit_repaint_from_after_render) {
 			return {};
 		}
@@ -146,7 +150,13 @@ public:
 		(void)r.actions.push_back(Action{.kind = Action::Kind::Repaint, .surface = SurfaceRole::Main});
 		return r;
 	}
-	void tick(uint32_t) override { ticks++; }
+	void tick(uint32_t) override {
+		ticks++;
+		if (raise_in_tick) {
+			raise_in_tick = false;
+			deluge::notify::dirty().raise(Dirty::Oled);
+		}
+	}
 	bool owns(const UiEvent& event) const override {
 		return owns_turn && event.kind == UiEvent::Kind::Encoder && event.encoder == deluge::ui::EncoderRole::Select;
 	}
@@ -165,6 +175,8 @@ public:
 	int after_renders = 0, events_at_after_render = -1, events_at_render = -1, turns_seen = 0;
 	/// Presses `render_grid` saw through its frame.
 	int pads_pressed = 0;
+	/// Whether the next `after_render()` / `tick()` raises `Dirty::Oled` (one-shot each).
+	bool raise_in_after_render = false, raise_in_tick = false;
 	/// Whether `owns()` claims the select-encoder turn for the render, as a menu's list does.
 	bool owns_turn = false;
 	/// One letter per event `handle()` saw, in order: `P` pad, `E` encoder, `B` anything else.
@@ -881,6 +893,57 @@ describe shell_tick("shell::Shell::tick", $ {
 		r.shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_PAD, 2, 2, 64}, 26);
 		r.shell.tick(30);
 		expect(r.base.order).to_equal(std::string("EP"));
+	});
+
+	it("a fact raised in after_render is drawn on the next tick without input", _ {
+		deluge::notify::dirty().drain();
+		Rig r;
+		r.shell.init({kBase, 0});
+		r.shell.tick(0);
+		r.consume_pending();
+		r.base.raise_in_after_render = true;
+		deluge::notify::dirty().raise(Dirty::Oled); // a reason to render, so after_render runs
+		const int changed = r.base.model_changed;
+		r.shell.tick(10);
+		// Step 1's fact, then the one after_render raised, at the end of the same tick.
+		expect(r.base.model_changed).to_equal(changed + 2);
+		expect(r.shell.next_wake().has_value()).to_be_true();
+		expect(*r.shell.next_wake()).to_equal(uint32_t(10));
+		const int renders = r.base.oled_renders;
+		r.consume_pending();
+		r.shell.tick(20);
+		expect(r.base.oled_renders).to_be_greater_than(renders);
+	});
+
+	it("a fact raised in tick_stack is drawn on the next tick without input", _ {
+		deluge::notify::dirty().drain();
+		Rig r;
+		r.shell.init({kBase, 0});
+		r.shell.tick(0);
+		r.consume_pending();
+		r.base.raise_in_tick = true;
+		r.shell.tick(10);
+		expect(r.shell.next_wake().has_value()).to_be_true();
+		expect(*r.shell.next_wake()).to_equal(uint32_t(10));
+		const int renders = r.base.oled_renders;
+		r.consume_pending();
+		r.shell.tick(20);
+		expect(r.base.oled_renders).to_be_greater_than(renders);
+	});
+
+	it("a fact raised between ticks is a wake, whatever the legacy drain took", _ {
+		deluge::notify::dirty().drain();
+		Rig r;
+		r.shell.init({kBase, 0});
+		r.shell.tick(0);
+		expect(r.shell.next_wake().has_value()).to_be_false();
+		deluge::notify::dirty().raise(Dirty::Oled);
+		(void)deluge::notify::dirty().drain(deluge::notify::DirtyConsumer::Legacy);
+		expect(r.shell.next_wake(5).has_value()).to_be_true();
+		expect(*r.shell.next_wake(5)).to_equal(uint32_t(5));
+		const int changed = r.base.model_changed;
+		r.shell.tick(5);
+		expect(r.base.model_changed).to_equal(changed + 1);
 	});
 
 	it("a scene covered by an overlay that passes nothing reads no pads", _ {

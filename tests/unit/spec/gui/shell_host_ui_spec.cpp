@@ -8,6 +8,7 @@
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
 #include "model/settings/runtime_feature_settings.h"
+#include "notify/dirty_set.h"
 #include "scenes/marker/marker_scene.h"
 #include "shell/profiles/deluge.h"
 #include "storage/flash_storage.h"
@@ -117,7 +118,11 @@ public:
 	}
 
 	/// Make `handle` take this scene off the stack, the way `MenuScene` answers Back at depth 0.
+	void on_model_changed(const deluge::notify::DirtySet&) override { model_changed++; }
+
 	bool remove_self_on_event = false;
+	/// How many times `on_model_changed` ran.
+	int model_changed = 0;
 
 	/// Every event routed to this scene, in order.
 	std::vector<Seen> seen;
@@ -2339,6 +2344,27 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(120));
 		// The tick really ran on `nowMs()`, not on 0: `next_wake` is `now + 120`.
 		expect(fakelegacyui::timer_arms.back().which == TimerName::UI_SPECIFIC).to_be_true();
+	});
+
+	it("wakes for a fact raised between ticks by a legacy callback, after the legacy drain took its own copy", _ {
+		Rig r;
+		expect(r.open()).to_be_true();
+		set_clock_ms(500);
+		(void)r.guest.timerCallback();
+		uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC); // the timer fired; nothing re-armed it
+		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(-1));
+
+		// `noteModeReadValueAgain`'s shape: a legacy callback raises a fact while the guest sleeps, and
+		// `drain_notifications` runs first, as it does on every pass of the app loop.
+		deluge::notify::raise(deluge::notify::Dirty::Oled);
+		(void)deluge::notify::dirty().drain(deluge::notify::DirtyConsumer::Legacy);
+		r.guest.wakeForPendingFacts();
+		expect(fakelegacyui::ui_specific_armed_ms()).to_equal(int32_t(ShellHostUI::kMinRearmMs));
+
+		const int changed = r.base.model_changed;
+		set_clock_ms(501);
+		(void)r.guest.timerCallback();
+		expect(r.base.model_changed).to_equal(changed + 1);
 	});
 
 	it("arms NOTHING when it is no longer the current UI, however loudly the shell asks for a wake", _ {

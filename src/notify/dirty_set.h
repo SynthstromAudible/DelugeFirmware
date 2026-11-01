@@ -45,6 +45,10 @@ struct ClipBits {
 /// reads thereafter). A drained result has its own, separate accumulator state that nothing will
 /// ever drain again, so calling raise()/raise_clip() on it is meaningless -- only clips()/has()/
 /// any() are meant to be called on one.
+/// @brief Who drains the facts. Each raise reaches every consumer, and each drains only its own
+///        copy, so the legacy UI's drain cannot take a fact the shell has not seen.
+enum class DirtyConsumer : uint8_t { Shell, Legacy, Count };
+
 class DirtySet {
 public:
 	DirtySet() = default;
@@ -60,11 +64,26 @@ public:
 	/// @param session_clip_index Clip index to mark; ignored if out of range.
 	void raise_clip(Dirty d, uint16_t session_clip_index);
 
-	/// @brief Atomically take every dirty fact raised since the last drain(). [task]
-	/// @return A snapshot DirtySet holding what was pending; the accumulator is left cleared.
+	/// @brief Atomically take every fact raised since @p who last drained. [task]
+	/// @param who The consumer draining; the others keep their copies.
+	/// @return A snapshot DirtySet holding what was pending for @p who.
+	DirtySet drain(DirtyConsumer who);
+
+	/// @brief Atomically take every consumer's pending facts at once, merged. [task]
+	///
+	/// For a caller that owns no consumer slot and wants the accumulator clear: a test between
+	/// examples, mostly.
+	/// @return A snapshot DirtySet holding everything any consumer had pending.
 	DirtySet drain();
 
-	/// @brief Test whether @p d is set in this accumulator or snapshot.
+	/// @brief Has @p who anything to drain?
+	/// @param who The consumer.
+	/// @return True if a fact was raised since @p who last drained.
+	bool pending(DirtyConsumer who) const {
+		return slots_[std::to_underlying(who)].bits.load(std::memory_order_relaxed) != 0;
+	}
+
+	/// @brief Test whether @p d is set in this snapshot, or pending for any consumer of this accumulator.
 	///
 	/// @note has(ClipContent)/has(NoteRows) can be true with an empty clips() set: drain() derives
 	/// those two flags from the clip words it just took, but a flag can also come from a plain
@@ -75,11 +94,11 @@ public:
 	/// clip bits show, never a subset. Over-invalidation, never loss.
 	/// @param d The fact to test.
 	/// @return Whether @p d is set.
-	bool has(Dirty d) const { return (bits_.load(std::memory_order_relaxed) >> std::to_underlying(d)) & 1u; }
+	bool has(Dirty d) const { return (all_bits() >> std::to_underlying(d)) & 1u; }
 
-	/// @brief Whether any fact at all is set.
+	/// @brief Whether any fact at all is set, for any consumer.
 	/// @return true if any Dirty fact is set.
-	bool any() const { return bits_.load(std::memory_order_relaxed) != 0; }
+	bool any() const { return all_bits() != 0; }
 
 	/// @brief The clip bits recorded for @p d.
 	/// @param d Dirty::ClipContent or Dirty::NoteRows.
@@ -88,8 +107,22 @@ public:
 
 private:
 	static constexpr int clip_slot(Dirty d) { return d == Dirty::ClipContent ? 0 : d == Dirty::NoteRows ? 1 : -1; }
-	std::atomic<uint32_t> bits_{0};
-	std::atomic<uint32_t> clip_words_[2][kMaxSessionClips / 32] = {};
+	/// One consumer's pending facts. A drained snapshot holds its facts in slot 0.
+	struct Slot {
+		std::atomic<uint32_t> bits{0};
+		std::atomic<uint32_t> clip_words[2][kMaxSessionClips / 32] = {};
+	};
+	static constexpr size_t kSlots = std::to_underlying(DirtyConsumer::Count);
+	uint32_t all_bits() const {
+		uint32_t b = 0;
+		for (const Slot& slot : slots_) {
+			b |= slot.bits.load(std::memory_order_relaxed);
+		}
+		return b;
+	}
+	/// @brief Take one slot's facts into @p out, merged with what it already holds.
+	static void take(Slot& from, DirtySet& out);
+	Slot slots_[kSlots];
 	ClipBits snapshot_[2]; // filled by drain() for the returned copy
 };
 

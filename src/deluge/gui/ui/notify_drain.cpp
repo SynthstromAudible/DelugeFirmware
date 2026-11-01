@@ -1,6 +1,7 @@
 #include "gui/ui/notify_drain.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/root_ui.h"
+#include "gui/ui/shell_host_ui.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/views/arranger_view.h"
@@ -24,7 +25,9 @@ static PopupType popup_type_of(const deluge::notify::Notice& n) {
 
 void drain_notifications() {
 	using namespace deluge::notify;
-	const DirtySet d = dirty().drain();
+	const DirtySet d = dirty().drain(DirtyConsumer::Legacy);
+	// The shell keeps its own copy of every fact; a guest asleep when one arrives is woken for it.
+	shellHostUI.wakeForPendingFacts();
 	if (d.any()) {
 		const LegacyRedraw r = legacy_redraw_for(d);
 		RootUI* root = getRootUI();

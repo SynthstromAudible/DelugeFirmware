@@ -47,6 +47,7 @@
 #include "gui/l10n/strings.h"
 #include "model/song/song.h" // Song::getInputTickMagnitude() -- Kind::SyncLevel's value text
 #include "modulation/sync.h" // syncValueToString -- Kind::SyncLevel's value text
+#include "notify/dirty_set.h"
 #include "notify/notice_queue.h"
 #include "shell/input_lowering.h" // claim_covers -- MenuScene::owns
 #include "shell/leds.h"
@@ -730,7 +731,8 @@ void MenuScene::read_value_again() {
 	const Node* node = focused();
 	if (node != nullptr) {
 		enter_leaf(*node, FocusCause::NoRowPress);
-		reread_unshown_ = 2; // `Value::readValueAgain` redraws (`value.h:77-80`): `next_timer` asks for it now
+		// `Value::readValueAgain` redraws (`value.h:77-80`); the shell draws a raised fact on its next tick.
+		deluge::notify::raise(deluge::notify::Dirty::Oled);
 	}
 }
 
@@ -1273,7 +1275,6 @@ void MenuScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) {
 		return;
 	}
 	select_held_ = f.select_held();
-	reread_unshown_ = 0;
 	// A horizontal page's `initializeItem` on every focus move and `beginSession`, read before its columns draw.
 	if (const Node* const value = focused_value(); value != session_value_) {
 		begin_value_session(value);
@@ -2868,11 +2869,6 @@ constexpr uint32_t kVoiceUsageSampleMs = 500;
 } // namespace
 
 std::optional<uint32_t> MenuScene::next_timer() const {
-	// A value read again from outside a render is due on the panel at once. A dirty fact would not do: raised during
-	// the tick's input step, it waits for a tick nothing has scheduled.
-	if (reread_unshown_ > 0) {
-		return 0;
-	}
 	// The voice usage page's next sample, else the pad blinks: the shorter of the counter's two steps that the plan
 	// uses. Nothing blinking arms nothing.
 	if (voice_usage_place() != VoiceUsagePlace::None) {
@@ -2893,7 +2889,7 @@ std::optional<uint32_t> MenuScene::next_timer() const {
 }
 
 deluge::ui::shell::Scene::RepaintSurfaces MenuScene::timer_repaints() const {
-	return {.oled = reread_unshown_ > 0 || voice_usage_place() != VoiceUsagePlace::None, .grid = true};
+	return {.oled = voice_usage_place() != VoiceUsagePlace::None, .grid = true};
 }
 
 MenuScene::VoiceUsagePlace MenuScene::voice_usage_place() const {
@@ -2909,11 +2905,6 @@ MenuScene::VoiceUsagePlace MenuScene::voice_usage_place() const {
 }
 
 void MenuScene::tick(uint32_t dt_ms) {
-	// The ask outlives the tick it was raised in and the next, whose render it arms; a menu covered on the panel is not
-	// rendered, and must not hold a 0 ms deadline for the cover's whole life.
-	if (reread_unshown_ > 0) {
-		reread_unshown_--;
-	}
 	const VoiceUsagePlace place = voice_usage_place();
 	const VoiceUsagePlace was = std::exchange(voice_usage_at_, place);
 	if (place == VoiceUsagePlace::None) {

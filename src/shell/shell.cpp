@@ -341,8 +341,7 @@ void Shell::tick(uint32_t now_ms) {
 	}
 	const uint32_t dt = now_ms - last_ms_;
 	// 1. Model facts -> the gates and every stacked scene.
-	const notify::DirtySet dirty = notify::dirty().drain();
-	apply_dirty(dirty);
+	apply_dirty(notify::dirty().drain(notify::DirtyConsumer::Shell));
 	// 2. Presentation requests -> the overlay scenes.
 	notices_.drain(notify::notices(), now_ms);
 	// 3. Lower, route and apply, in arrival order. A widget-owned shape the input-frontmost scene's
@@ -542,6 +541,10 @@ void Shell::tick(uint32_t now_ms) {
 			surfaces_.grid().gate.request_repaint_after(*in, now_ms);
 		}
 	}
+	// 8d. Facts this tick raised after step 1 -- in `handle()`, `tick()` or `after_render()` -- reach
+	// the scenes now, and the frames they name are owed to the next tick, at a deadline of now so
+	// `next_wake()` says so.
+	apply_dirty(notify::dirty().drain(notify::DirtyConsumer::Shell), now_ms);
 	// 9. LEDs, every tick.
 	derive_leds(now_ms);
 	flush(now_ms); // Task 8
@@ -552,10 +555,18 @@ void Shell::tick(uint32_t now_ms) {
 	tick_open_ = false;
 }
 
-void Shell::apply_dirty(const notify::DirtySet& dirty) {
+void Shell::apply_dirty(const notify::DirtySet& dirty, std::optional<uint32_t> owed_at) {
 	if (!dirty.any()) {
 		return;
 	}
+	const auto request = [&](RepaintGate& gate) {
+		if (owed_at.has_value()) {
+			gate.request_repaint_after(0, *owed_at);
+		}
+		else {
+			gate.request_repaint();
+		}
+	};
 	for (Scene* scene : stack_.scenes()) {
 		scene->on_model_changed(dirty);
 	}
@@ -570,12 +581,12 @@ void Shell::apply_dirty(const notify::DirtySet& dirty) {
 	const bool untargeted = has_untargeted_fact(dirty);
 	if (dirty.has(Dirty::Oled) || untargeted) {
 		for (OledSurface& s : surfaces_.oled()) {
-			s.gate.request_repaint();
+			request(s.gate);
 		}
 	}
 	if (dirty.has(Dirty::GridMain) || dirty.has(Dirty::GridSidebar) || dirty.has(Dirty::ClipContent)
 	    || dirty.has(Dirty::NoteRows) || untargeted) {
-		surfaces_.grid().gate.request_repaint();
+		request(surfaces_.grid().gate);
 	}
 }
 

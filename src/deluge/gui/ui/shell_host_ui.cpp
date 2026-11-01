@@ -641,7 +641,7 @@ void ShellHostUI::rearmTimer(uint32_t now) {
 		return;
 	}
 
-	const std::optional<uint32_t> deadline = shell_.next_wake();
+	const std::optional<uint32_t> deadline = shell_.next_wake(now);
 	if (!deadline.has_value()) {
 		// Nothing armed anywhere in the shell -- no gate deadline, no scene or service timer, no
 		// declared blink (`shell/shell.cpp:1054-1122`). Legacy has already cleared the timer
@@ -664,6 +664,12 @@ void ShellHostUI::rearmTimer(uint32_t now) {
 	// than arming zero. See the class's `@par The unit mismatch` and `@par Why the floor is 1 ms`.
 	const int32_t in = static_cast<int32_t>(*deadline - now);
 	uiTimerManager.setTimer(TimerName::UI_SPECIFIC, std::clamp(in, kMinRearmMs, kMaxRearmMs));
+}
+
+void ShellHostUI::wakeForPendingFacts() {
+	if (getCurrentUI() == this && deluge::notify::dirty().pending(deluge::notify::DirtyConsumer::Shell)) {
+		armTickSoon();
+	}
 }
 
 void ShellHostUI::armTickSoon() {

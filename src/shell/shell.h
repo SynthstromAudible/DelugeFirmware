@@ -416,6 +416,15 @@ public:
 	///          means, since zero's current meaning is what makes overriding `next_timer()`
 	///          sufficient for an animation at all.
 	std::optional<uint32_t> next_wake() const { return next_wake_; }
+	/// @brief `next_wake()`, asked between ticks: a fact raised since the last tick is a wake now.
+	///
+	/// `next_wake()` is computed at the bottom of each tick, so it cannot know of a fact a legacy
+	/// callback raised since; the shell's own slot of the dirty set does.
+	/// @param now_ms The clock now.
+	/// @return \p now_ms while the shell has facts to drain, else `next_wake()`.
+	std::optional<uint32_t> next_wake(uint32_t now_ms) const {
+		return notify::dirty().pending(notify::DirtyConsumer::Shell) ? std::optional<uint32_t>{now_ms} : next_wake_;
+	}
 
 	/// @name Inspection
 	/// @{
@@ -469,8 +478,11 @@ private:
 	/// `on_model_changed` -- calls `replace_root(hooks.root_for_song(ctx))` if `set_song_hooks`
 	/// was given real hooks; this is the narrower of the song-swap protocol's two paths (see
 	/// `song_loading`'s own doc for the bracketed one) and a no-op with none set.
-	/// @param dirty This tick's drained facts.
-	void apply_dirty(const notify::DirtySet& dirty);
+	/// @param dirty    This tick's drained facts.
+	/// @param owed_at  Unset at the top of the tick, where this tick's render draws them; the tick's
+	///                 clock at its end, where the frames are owed to the next tick and armed at a
+	///                 deadline of now.
+	void apply_dirty(const notify::DirtySet& dirty, std::optional<uint32_t> owed_at = std::nullopt);
 	/// @brief Close the lowering's tick window and route everything ordinary out of it.
 	/// @param now_ms The tick's wall clock.
 	void pump_input(uint32_t now_ms);

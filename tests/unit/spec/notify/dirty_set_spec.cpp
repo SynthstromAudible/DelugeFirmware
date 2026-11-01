@@ -19,6 +19,34 @@ describe dirty_set("notify::DirtySet", $ {
 		expect(s.drain().any()).to_be_false();
 	});
 
+	it("gives each consumer its own copy of a raise", _ {
+		DirtySet s;
+		s.raise(Dirty::Oled);
+		s.raise_clip(Dirty::ClipContent, 3);
+		expect(s.pending(DirtyConsumer::Shell)).to_be_true();
+		const DirtySet legacy = s.drain(DirtyConsumer::Legacy);
+		expect(legacy.has(Dirty::Oled)).to_be_true();
+		expect(s.pending(DirtyConsumer::Legacy)).to_be_false();
+		expect(s.pending(DirtyConsumer::Shell)).to_be_true(); // the legacy drain took only its own
+		const DirtySet shell = s.drain(DirtyConsumer::Shell);
+		expect(shell.has(Dirty::Oled)).to_be_true();
+		expect(shell.clips(Dirty::ClipContent).test(3)).to_be_true();
+		expect(s.pending(DirtyConsumer::Shell)).to_be_false();
+		expect(s.any()).to_be_false();
+	});
+
+	it("drains every consumer at once when asked for no one", _ {
+		DirtySet s;
+		s.raise(Dirty::Oled);
+		(void)s.drain(DirtyConsumer::Legacy);
+		s.raise(Dirty::GridMain);
+		const DirtySet all = s.drain();
+		expect(all.has(Dirty::Oled)).to_be_true();     // the shell's copy
+		expect(all.has(Dirty::GridMain)).to_be_true();
+		expect(s.pending(DirtyConsumer::Shell)).to_be_false();
+		expect(s.pending(DirtyConsumer::Legacy)).to_be_false();
+	});
+
 	it("carries clip bits for ClipContent and NoteRows only", _ {
 		DirtySet s;
 		s.raise_clip(Dirty::ClipContent, 3);

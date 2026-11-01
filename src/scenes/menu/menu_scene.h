@@ -1031,8 +1031,6 @@ private:
 	const Node* blink_screen_ = nullptr;
 	/// The value the last render's session began on (`focused_value()`); a change is a new session.
 	const Node* session_value_ = nullptr;
-	/// Ticks left in which `read_value_again`'s repaint is still asked for: set to 2 by it, cleared by a render.
-	uint8_t reread_unshown_ = 0;
 	uint32_t voice_usage_elapsed_ms_ = 0;
 	/// Where the focus is relative to the voice usage page: its counters sample there.
 	enum class VoiceUsagePlace : uint8_t { None, Page, Counter };

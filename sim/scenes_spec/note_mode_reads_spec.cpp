@@ -978,18 +978,18 @@ describe note_mode_reads_sound_direction("Play Direction under the sound menu --
 		menu_scene().enter_submenu(nodes::sequence_direction);
 		expect(menu_scene().state().enum_index).to_equal(static_cast<int32_t>(SequenceDirection::PINGPONG));
 
+		(void)deluge::notify::dirty().drain();
 		instrumentClipView.lastAuditionedYDisplay = 1;
 		instrumentClipView.potentiallyRefreshNoteRowMenu();
 		expect(menu_scene().state().enum_index).to_equal(static_cast<int32_t>(SequenceDirection::FORWARD));
-		// `Value::readValueAgain`'s `renderUIsForOled()` (`gui/menu_item/value.h:77-80`): the panel is due at once.
-		expect(menu_scene().next_timer() == std::optional<uint32_t>{0}).to_be_true();
-		expect(menu_scene().timer_repaints().oled).to_be_true();
-		// Unrendered -- as under a framed popup -- the ask lapses after the tick that repaints, rather than holding a
-		// 0 ms deadline for the popup's whole life.
-		menu_scene().tick(1);
-		menu_scene().tick(1);
+		// `Value::readValueAgain`'s `renderUIsForOled()` (`gui/menu_item/value.h:77-80`): a re-read value is shown on
+		// the shell's next tick, which a pending fact asks for, whatever the legacy drain takes first.
+		expect(deluge::notify::dirty().pending(deluge::notify::DirtyConsumer::Shell)).to_be_true();
+		(void)deluge::notify::dirty().drain(deluge::notify::DirtyConsumer::Legacy);
+		expect(deluge::notify::dirty().drain(deluge::notify::DirtyConsumer::Shell).has(deluge::notify::Dirty::Oled))
+		    .to_be_true();
+		// And nothing holds a 0 ms timer for it.
 		expect(menu_scene().next_timer() == std::optional<uint32_t>{0}).to_be_false();
-		expect(menu_scene().timer_repaints().oled).to_be_false();
 	});
 
 	it("real audition presses forwarded from the menu re-read it for the newly auditioned row", _ {
