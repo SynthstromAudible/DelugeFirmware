@@ -265,3 +265,9 @@ private:
 };
 
 extern AutomationView automationView;
+
+class MidiFollow;
+
+/// @brief The MIDI CC a MIDI clip's automation overview shows at pad (@p x, @p y): the CC @p follow maps to the
+/// sound shortcut there, or the expression shortcut's pseudo-CC; kNoParamID when there is none.
+uint32_t automationMIDICCShortcut(const MidiFollow& follow, int32_t x, int32_t y);

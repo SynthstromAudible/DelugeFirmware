@@ -21,6 +21,8 @@
 // Exit: 0 agree; 3 a check disagrees (each printed).
 
 #include "definitions_cxx.hpp"
+#include "gui/views/automation_view.h"
+#include "io/midi/midi_follow.h"
 #include "model/project_bridge/param_ids.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_targets.h"
@@ -191,10 +193,54 @@ void checkShortcutsAndOrders(Checker& check) {
 	      deluge::modulation::params::kGlobalParamsForAutomation, Table::AUTOMATION_GLOBAL);
 }
 
+/// A MIDI clip's automation overview shows, at each sound shortcut, the CC MIDI follow maps to that param in a sound's
+/// map, and none when the sound map has none; the expression shortcuts show their pseudo-CCs.
+void checkMIDICCShortcuts(Checker& check) {
+	MidiFollow follow;
+	auto expect = [&](const char* what) {
+		for (int32_t x = 0; x < kDisplayWidth; ++x) {
+			for (int32_t y = 0; y < kDisplayHeight; ++y) {
+				uint32_t expected = deluge::modulation::params::kNoParamID;
+				if (const auto& cell = deluge::modulation::params::kSoundParamShortcuts[x][y]) {
+					RuntimeParam param = *deluge::bridge::runtimeParamOf(OwnerPlugin::INSTRUMENT, *cell);
+					uint8_t cc = MIDI_CC_NONE;
+					if (param.kind == params::Kind::PATCHED) {
+						cc = follow.soundParamToCC[param.index];
+					}
+					else if (param.kind == params::Kind::UNPATCHED_SOUND) {
+						cc = follow.soundParamToCC[params::UNPATCHED_START + param.index];
+					}
+					if (cc != MIDI_CC_NONE) {
+						expected = cc;
+					}
+				}
+				if (x == 14 && y == 7) {
+					expected = CC_NUMBER_PITCH_BEND;
+				}
+				else if (x == 15 && y == 0) {
+					expected = CC_NUMBER_AFTERTOUCH;
+				}
+				else if (x == 15 && y == 7) {
+					expected = CC_NUMBER_Y_AXIS;
+				}
+				const uint32_t shown = automationMIDICCShortcut(follow, x, y);
+				if (shown != expected) {
+					check.fail(what, x * kDisplayHeight + y, static_cast<int>(shown), static_cast<int>(expected));
+				}
+			}
+		}
+	};
+	expect("MIDI CC shortcut, default mappings");
+	// A patched param the sound map leaves unmapped (the master level, at 6,0) has no CC.
+	follow.soundParamToCC[params::GLOBAL_VOLUME_POST_FX] = MIDI_CC_NONE;
+	expect("MIDI CC shortcut, patched param unmapped");
+}
+
 int param_target_check_main(int /*argc*/, char** /*argv*/, Io io) {
 	Checker check{io};
 	checkRoundTrip(check);
 	checkShortcutsAndOrders(check);
+	checkMIDICCShortcuts(check);
 	std::fprintf(io.out, "%d disagreement(s)\n", check.disagreements);
 	return check.disagreements == 0 ? 0 : 3;
 }

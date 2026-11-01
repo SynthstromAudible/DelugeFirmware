@@ -220,32 +220,33 @@ AutomationView::AutomationView() {
 void AutomationView::initMIDICCShortcutsForAutomation() {
 	for (int x = 0; x < kDisplayWidth; x++) {
 		for (int y = 0; y < kDisplayHeight; y++) {
-			uint8_t ccNumber = MIDI_CC_NONE;
-			std::optional<RuntimeParam> cell = cellParam(OwnerPlugin::INSTRUMENT, params::kSoundParamShortcuts[x][y]);
-			if (cell && cell->kind == params::Kind::PATCHED) {
-				ccNumber = midiFollow.soundParamToCC[cell->index];
-				if (ccNumber == MIDI_CC_NONE) {
-					ccNumber = midiFollow.globalParamToCC[cell->index];
-				}
-			}
-			else if (cell && cell->kind == params::Kind::UNPATCHED_SOUND) {
-				ccNumber = midiFollow.soundParamToCC[cell->index + params::UNPATCHED_START];
-				if (ccNumber == MIDI_CC_NONE) {
-					ccNumber = midiFollow.globalParamToCC[cell->index];
-				}
-			}
-			if (ccNumber != MIDI_CC_NONE) {
-				midiCCShortcutsForAutomation[x][y] = ccNumber;
-			}
-			else {
-				midiCCShortcutsForAutomation[x][y] = kNoParamID;
-			}
+			midiCCShortcutsForAutomation[x][y] = automationMIDICCShortcut(midiFollow, x, y);
 		}
 	}
+}
 
-	midiCCShortcutsForAutomation[14][7] = CC_NUMBER_PITCH_BEND;
-	midiCCShortcutsForAutomation[15][0] = CC_NUMBER_AFTERTOUCH;
-	midiCCShortcutsForAutomation[15][7] = CC_NUMBER_Y_AXIS;
+uint32_t automationMIDICCShortcut(const MidiFollow& follow, int32_t x, int32_t y) {
+	if (x == 14 && y == 7) {
+		return CC_NUMBER_PITCH_BEND;
+	}
+	if (x == 15 && y == 0) {
+		return CC_NUMBER_AFTERTOUCH;
+	}
+	if (x == 15 && y == 7) {
+		return CC_NUMBER_Y_AXIS;
+	}
+	uint8_t ccNumber = MIDI_CC_NONE;
+	std::optional<RuntimeParam> cell = cellParam(OwnerPlugin::INSTRUMENT, params::kSoundParamShortcuts[x][y]);
+	if (cell && cell->kind == params::Kind::PATCHED) {
+		ccNumber = follow.soundParamToCC[cell->index];
+	}
+	else if (cell && cell->kind == params::Kind::UNPATCHED_SOUND) {
+		ccNumber = follow.soundParamToCC[cell->index + params::UNPATCHED_START];
+		if (ccNumber == MIDI_CC_NONE) {
+			ccNumber = follow.globalParamToCC[cell->index];
+		}
+	}
+	return ccNumber != MIDI_CC_NONE ? ccNumber : kNoParamID;
 }
 
 // called everytime you open up the automation view
