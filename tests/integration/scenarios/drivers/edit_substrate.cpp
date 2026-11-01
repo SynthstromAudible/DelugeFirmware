@@ -31,8 +31,10 @@
 #include "modulation/params/param_node.h"
 #include "modulation/params/param_set.h"
 #include <cstring>
+#include <optional>
 #include <set>
 #include <span>
+#include <type_traits>
 #include <vector>
 
 #include "deluge-project/instrument_slot.h"
@@ -144,7 +146,8 @@ void testSetParamValuePilot(deluge::edits::Context& ctx) {
 
 	// 1. Mutation: engine value + owner store scalar both updated; scalar path (length 0).
 	{
-		deluge::edits::SetParamValue edit{deluge::edits::addressFor(*ms), newValue, 0, 0, ms};
+		deluge::edits::SetParamValue edit{*deluge::edits::addressFor(*ms), newValue, 0, 0,
+		                                  deluge::edits::SetParamValue::Resolve::EXACT};
 		check(deluge::edits::apply(ctx, edit) == Error::NONE, "pilot: apply succeeds");
 	}
 	check(ms->autoParam->getCurrentValue() == newValue, "pilot: engine currentValue updated");
@@ -163,7 +166,8 @@ void testSetParamValuePilot(deluge::edits::Context& ctx) {
 	// 3. Coalescence + dedupe: a second turn of the same knob merges into the SAME Action and
 	//    does NOT re-snapshot (containsConsequenceParamChange dedupe) — pointer-equality pins both.
 	{
-		deluge::edits::SetParamValue edit{deluge::edits::addressFor(*ms), newValue + 100, 0, 0, ms};
+		deluge::edits::SetParamValue edit{*deluge::edits::addressFor(*ms), newValue + 100, 0, 0,
+		                                  deluge::edits::SetParamValue::Resolve::EXACT};
 		check(deluge::edits::apply(ctx, edit) == Error::NONE, "pilot: second apply succeeds");
 	}
 	check(actionLogger.firstAction[BEFORE] == action, "pilot: second turn coalesced into same Action");
@@ -194,7 +198,8 @@ void testSetParamValuePilot(deluge::edits::Context& ctx) {
 	//    pumps AudioEngine::routine, which this bare unit harness does not initialise; the redo-queue
 	//    Action is simply left to leak at process exit.)
 	{
-		deluge::edits::SetParamValue edit{deluge::edits::addressFor(*ms), ms->autoParam->getCurrentValue(), 0, 0, ms};
+		deluge::edits::SetParamValue edit{*deluge::edits::addressFor(*ms), ms->autoParam->getCurrentValue(), 0, 0,
+		                                  deluge::edits::SetParamValue::Resolve::EXACT};
 		deluge::edits::apply(ctx, edit);
 	}
 	check(actionLogger.firstAction[BEFORE] == nullptr, "pilot: value-unchanged apply opens no Action");
@@ -213,7 +218,8 @@ void testSetParamValueRegionAndFlag(deluge::edits::Context& ctx) {
 	ModelStackWithAutoParam* ms = songStack(buf, ctx.song, kParam);
 
 	int32_t target = ms->autoParam->getCurrentValue() + 250;
-	deluge::edits::SetParamValue edit{deluge::edits::addressFor(*ms), target, 0, 0, ms, /*mayDelete=*/false};
+	deluge::edits::SetParamValue edit{
+	    *deluge::edits::addressFor(*ms), target, 0, 0, deluge::edits::SetParamValue::Resolve::EXACT, false};
 	check(deluge::edits::apply(ctx, edit) == Error::NONE, "region/flag: apply succeeds");
 	check(ms->autoParam->getCurrentValue() == target, "region/flag: value applied");
 }
@@ -233,7 +239,8 @@ void testDeleteParamAutomation(deluge::edits::Context& ctx) {
 	deluge::project::setNodeAtPos(*ms->doc(), 32, -200, true);
 	check(!ms->doc()->nodes.empty(), "delete: seeded automation");
 
-	deluge::edits::DeleteParamAutomation edit{deluge::edits::addressFor(*ms), ms};
+	deluge::edits::DeleteParamAutomation edit{*deluge::edits::addressFor(*ms), ActionAddition::NOT_ALLOWED,
+	                                          deluge::edits::SetParamValue::Resolve::EXACT};
 	check(deluge::edits::apply(ctx, edit) == Error::NONE, "delete: apply succeeds");
 	check(ms->doc()->nodes.empty(), "delete: automation cleared");
 
@@ -279,6 +286,12 @@ void testParamEditsByAddressUndo(deluge::edits::Context& ctx) {
 
 // The undo record of a param holds its address, not a copy of the engine stack.
 static_assert(sizeof(ConsequenceParamChange) < sizeof(Consequence) + sizeof(AutoParamState) + MODEL_STACK_MAX_SIZE);
+
+// The param Edits are built from an address alone.
+static_assert(!std::is_constructible_v<deluge::edits::SetParamValue, std::optional<deluge::project::ParamAddress>,
+                                       int32_t, int32_t, int32_t, ModelStackWithAutoParam*>);
+static_assert(!std::is_constructible_v<deluge::edits::DeleteParamAutomation,
+                                       std::optional<deluge::project::ParamAddress>, ModelStackWithAutoParam*>);
 
 // Two stacks naming one lane are one lane to undo: the Action keeps one record for it.
 void testParamUndoDedupByAddress(deluge::edits::Context& ctx) {
@@ -335,8 +348,8 @@ void testPasteParamAutomation(deluge::edits::Context& ctx) {
 	copied.nodes = copiedNodes;
 	copied.numNodes = 2;
 
-	deluge::edits::PasteParamAutomation edit{deluge::edits::addressFor(*ms), 0, 128, 1.0f, &copied,
-	                                         /*isPatchCable=*/false,         ms};
+	deluge::edits::PasteParamAutomation edit{
+	    *deluge::edits::addressFor(*ms), 0, 128, 1.0f, &copied, deluge::edits::SetParamValue::Resolve::EXACT};
 	check(deluge::edits::apply(ctx, edit) == Error::NONE, "paste: apply succeeds");
 	check(!ms->doc()->nodes.empty(), "paste: nodes written");
 
@@ -361,7 +374,8 @@ void testInlinePokeCharacterization(deluge::edits::Context& ctx) {
 	// (a) SCALAR edit (length 0): the clip's lane is not in the project tree yet, so the write takes the engine's own
 	//     setter (setValuePossiblyForRegion -> setCurrentValueInResponseToUserInput); doc() then relocates it.
 	{
-		deluge::edits::SetParamValue edit{deluge::edits::addressFor(*ms), 0x40000000, 0, 0, ms};
+		deluge::edits::SetParamValue edit{*deluge::edits::addressFor(*ms), 0x40000000, 0, 0,
+		                                  deluge::edits::SetParamValue::Resolve::EXACT};
 		check(deluge::edits::apply(ctx, edit) == Error::NONE, "characterize/scalar: apply succeeds");
 	}
 	check(ms->autoParam->getCurrentValue() == 0x40000000, "characterize/scalar: engine cursor == value");
@@ -378,7 +392,8 @@ void testInlinePokeCharacterization(deluge::edits::Context& ctx) {
 	//     model-first, and must land the same nodes.
 
 	{
-		deluge::edits::SetParamValue edit{deluge::edits::addressFor(*ms), 0x20000000, 0, 96, ms};
+		deluge::edits::SetParamValue edit{*deluge::edits::addressFor(*ms), 0x20000000, 0, 96,
+		                                  deluge::edits::SetParamValue::Resolve::EXACT};
 		check(deluge::edits::apply(ctx, edit) == Error::NONE, "characterize/region: apply succeeds");
 	}
 	deluge::project::DocAutoParam* doc = ms->doc();
@@ -474,7 +489,7 @@ void testRegionFlipViaApply(deluge::edits::Context& ctx, ::Song* engineSong, Tim
 	ms->autoParam->setCurrentValueBasicForSetup(*store, 0x40000000);
 
 	{
-		deluge::edits::SetParamValue edit{addr, 0x20000000, 0, 96, ms};
+		deluge::edits::SetParamValue edit{addr, 0x20000000, 0, 96, deluge::edits::SetParamValue::Resolve::EXACT};
 		check(deluge::edits::apply(ctx, edit) == Error::NONE, "region-flip: apply succeeds");
 	}
 	// Model-first: applyPatch homogenized [0,96); projectRegionFromStore synced the cursor (clock inactive).
@@ -513,7 +528,7 @@ void testScalarFlipViaApply(deluge::edits::Context& ctx, ::Song* engineSong, Tim
 	int32_t newValue = oldValue + 12345;
 
 	{
-		deluge::edits::SetParamValue edit{addr, newValue, 0, 0, ms};
+		deluge::edits::SetParamValue edit{addr, newValue, 0, 0, deluge::edits::SetParamValue::Resolve::EXACT};
 		check(deluge::edits::apply(ctx, edit) == Error::NONE, "scalar-flip: apply succeeds");
 	}
 	// Model-first: applyPatch wrote the store; projectScalarFromStore synced the engine cursor from it.

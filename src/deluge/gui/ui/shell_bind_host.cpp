@@ -182,7 +182,8 @@ public:
 	                  const deluge::serialization::Value& value) override;
 	bool midi_cc_select(const deluge::scenes::bind::KnobFocus& focus, int32_t knob, bool on) override;
 	bool delete_knob_automation(const deluge::project::ParamAddress& address) override {
-		deluge::edits::DeleteParamAutomation edit{address, ActionAddition::NOT_ALLOWED, /*follow_take=*/true};
+		deluge::edits::DeleteParamAutomation edit{address, ActionAddition::NOT_ALLOWED,
+		                                          deluge::edits::SetParamValue::Resolve::WRITE};
 		return currentSong != nullptr && applied(edit);
 	}
 	bool instrument_edited(const deluge::scenes::bind::KnobFocus& focus) override;

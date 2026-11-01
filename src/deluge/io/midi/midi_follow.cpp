@@ -996,9 +996,12 @@ void MidiFollow::handleReceivedCC(MIDICable& cable, ModelStackWithTimelineCounte
 
 			// Set the new Parameter Value for the MIDI Learned Parameter
 			deluge::edits::Context editCtx{*currentSong, currentSong->project};
-			deluge::edits::SetParamValue edit{deluge::edits::addressFor(*modelStackWithParam), newValue, modPos,
-			                                  modLength, modelStackWithParam};
-			deluge::edits::apply(editCtx, edit);
+			if (const std::optional<deluge::project::ParamAddress> editAddress =
+			        deluge::edits::addressFor(*modelStackWithParam)) {
+				deluge::edits::SetParamValue edit{*editAddress, newValue, modPos, modLength,
+				                                  deluge::edits::SetParamValue::Resolve::EXACT};
+				deluge::edits::apply(editCtx, edit);
+			}
 
 			// check if you're currently editing the same learned param in automation view or
 			// performance view if so, you will need to refresh the automation editor grid or the

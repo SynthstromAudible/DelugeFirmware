@@ -10,15 +10,9 @@ namespace deluge::edits {
 
 Error DeleteParamAutomation::apply(Context& ctx) {
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithAutoParam* stack = engineStack_;
+	ModelStackWithAutoParam* stack = paramStackFor(ctx.song, address_, resolve_, memory);
 	if (stack == nullptr) {
-		if (address_) {
-			stack = follow_take_ ? deluge::bridge::paramStackForWrite(ctx.song, *address_, memory)
-			                     : deluge::bridge::paramStackAt(ctx.song, *address_, memory);
-		}
-		if (stack == nullptr) {
-			return Error::UNSPECIFIED;
-		}
+		return Error::UNSPECIFIED;
 	}
 	// Open the AUTOMATION_DELETE Action, then deleteAutomation, which records the undo Consequence into it
 	// (recordParamChangeIfNotAlreadySnapshotted, stealData=true).

@@ -44,8 +44,12 @@ MenuItem* Automation::selectButtonPress() {
 		ModelStackWithAutoParam* modelStack = getModelStackWithParam(modelStackMemory);
 		if (modelStack && modelStack->autoParam) {
 			deluge::edits::Context editCtx{*currentSong, currentSong->project};
-			deluge::edits::DeleteParamAutomation edit{deluge::edits::addressFor(*modelStack), modelStack};
-			deluge::edits::apply(editCtx, edit);
+			if (const std::optional<deluge::project::ParamAddress> editAddress =
+			        deluge::edits::addressFor(*modelStack)) {
+				deluge::edits::DeleteParamAutomation edit{*editAddress, ActionAddition::NOT_ALLOWED,
+				                                          deluge::edits::SetParamValue::Resolve::EXACT};
+				deluge::edits::apply(editCtx, edit);
+			}
 
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_DELETED));
 

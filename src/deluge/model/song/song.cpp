@@ -3246,8 +3246,11 @@ void Song::setBPM(float tempoBPM, bool shouldLogAction) {
 	// early-returns for UNPATCHED_TEMPO (tempo has its own recordTempoChange), so this opens no Action;
 	// shouldLogAction is used below for setBPMInner. A held arranger pad makes it a region edit instead.
 	deluge::edits::Context editCtx{*this, this->project};
-	deluge::edits::SetParamValue edit{deluge::edits::addressFor(*tempoParam), intTempo, pos, length, tempoParam};
-	deluge::edits::apply(editCtx, edit);
+	if (const std::optional<deluge::project::ParamAddress> editAddress = deluge::edits::addressFor(*tempoParam)) {
+		deluge::edits::SetParamValue edit{*editAddress, intTempo, pos, length,
+		                                  deluge::edits::SetParamValue::Resolve::EXACT};
+		deluge::edits::apply(editCtx, edit);
+	}
 	setBPMInner(tempoBPM, shouldLogAction);
 }
 
@@ -3258,9 +3261,11 @@ void Song::clearTempoAutomation() {
 	auto tempoParam = getModelStackWithParam(modelStackWithThreeMainThings, params::UnpatchedGlobal::UNPATCHED_TEMPO);
 	// record it with accuracy of .01. Max tempo is about 20 000bpm so this should fit fine
 	deluge::edits::Context editCtx{*this, this->project};
-	deluge::edits::DeleteParamAutomation edit{deluge::edits::addressFor(*tempoParam), tempoParam,
-	                                          ActionAddition::ALLOWED};
-	deluge::edits::apply(editCtx, edit);
+	if (const std::optional<deluge::project::ParamAddress> editAddress = deluge::edits::addressFor(*tempoParam)) {
+		deluge::edits::DeleteParamAutomation edit{*editAddress, ActionAddition::ALLOWED,
+		                                          deluge::edits::SetParamValue::Resolve::EXACT};
+		deluge::edits::apply(editCtx, edit);
+	}
 	deluge::notify::notice(l10n::String::STRING_FOR_AUTOMATION_CLEARED);
 }
 

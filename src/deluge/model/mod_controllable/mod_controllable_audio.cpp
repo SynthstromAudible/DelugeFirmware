@@ -667,9 +667,12 @@ void ModControllableAudio::handleLearnedKnob(MIDIKnob& knob, MIDICable& cable, u
 
 		// Set the new Parameter Value for the MIDI Learned Parameter
 		deluge::edits::Context editCtx{*currentSong, currentSong->project};
-		deluge::edits::SetParamValue edit{deluge::edits::addressFor(*modelStackWithParam), newValue, modPos, modLength,
-		                                  modelStackWithParam};
-		deluge::edits::apply(editCtx, edit);
+		if (const std::optional<deluge::project::ParamAddress> editAddress =
+		        deluge::edits::addressFor(*modelStackWithParam)) {
+			deluge::edits::SetParamValue edit{*editAddress, newValue, modPos, modLength,
+			                                  deluge::edits::SetParamValue::Resolve::EXACT};
+			deluge::edits::apply(editCtx, edit);
+		}
 
 		// if you're in automation view and editing the same parameter that was just updated
 		// by a learned midi knob, then re-render the pads on the automation editor grid
@@ -755,9 +758,12 @@ void ModControllableAudio::handleLearnedKnob(MIDIKnob& knob, MIDICable& cable, u
 
 		// Set the new Parameter Value for the MIDI Learned Parameter
 		deluge::edits::Context editCtx{*currentSong, currentSong->project};
-		deluge::edits::SetParamValue edit{deluge::edits::addressFor(*modelStackWithParam), newValue, modPos, modLength,
-		                                  modelStackWithParam};
-		deluge::edits::apply(editCtx, edit);
+		if (const std::optional<deluge::project::ParamAddress> editAddress =
+		        deluge::edits::addressFor(*modelStackWithParam)) {
+			deluge::edits::SetParamValue edit{*editAddress, newValue, modPos, modLength,
+			                                  deluge::edits::SetParamValue::Resolve::EXACT};
+			deluge::edits::apply(editCtx, edit);
+		}
 
 		// check if you're currently editing the same learned param in automation view or
 		// performance view if so, you will need to refresh the automation editor grid or the
@@ -826,9 +832,12 @@ bool ModControllableAudio::handleLearnedPitchBend(MIDIKnob& knob, uint8_t data1,
 	int32_t newValue = (value14 << 18) - 2147483648;
 
 	deluge::edits::Context editCtx{*currentSong, currentSong->project};
-	deluge::edits::SetParamValue edit{deluge::edits::addressFor(*modelStackWithParam), newValue, modPos, modLength,
-	                                  modelStackWithParam};
-	deluge::edits::apply(editCtx, edit);
+	if (const std::optional<deluge::project::ParamAddress> editAddress =
+	        deluge::edits::addressFor(*modelStackWithParam)) {
+		deluge::edits::SetParamValue edit{*editAddress, newValue, modPos, modLength,
+		                                  deluge::edits::SetParamValue::Resolve::EXACT};
+		deluge::edits::apply(editCtx, edit);
+	}
 	return true;
 }
 

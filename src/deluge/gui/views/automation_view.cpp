@@ -1356,9 +1356,12 @@ bool AutomationView::handleBackAndHorizontalEncoderButtonComboAction(Clip* clip,
 
 		if (modelStackWithParam && modelStackWithParam->autoParam) {
 			deluge::edits::Context editCtx{*currentSong, currentSong->project};
-			deluge::edits::DeleteParamAutomation edit{deluge::edits::addressFor(*modelStackWithParam),
-			                                          modelStackWithParam};
-			deluge::edits::apply(editCtx, edit);
+			if (const std::optional<deluge::project::ParamAddress> editAddress =
+			        deluge::edits::addressFor(*modelStackWithParam)) {
+				deluge::edits::DeleteParamAutomation edit{*editAddress, ActionAddition::NOT_ALLOWED,
+				                                          deluge::edits::SetParamValue::Resolve::EXACT};
+				deluge::edits::apply(editCtx, edit);
+			}
 
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_DELETED));
 
@@ -2323,8 +2326,12 @@ void AutomationView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 	// if they want to delete automation
 	else if (is_delete_action) {
 		deluge::edits::Context editCtx{*currentSong, currentSong->project};
-		deluge::edits::DeleteParamAutomation edit{deluge::edits::addressFor(*modelStackWithParam), modelStackWithParam};
-		deluge::edits::apply(editCtx, edit);
+		if (const std::optional<deluge::project::ParamAddress> editAddress =
+		        deluge::edits::addressFor(*modelStackWithParam)) {
+			deluge::edits::DeleteParamAutomation edit{*editAddress, ActionAddition::NOT_ALLOWED,
+			                                          deluge::edits::SetParamValue::Resolve::EXACT};
+			deluge::edits::apply(editCtx, edit);
+		}
 
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_DELETED));
 

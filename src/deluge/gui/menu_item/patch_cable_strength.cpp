@@ -242,9 +242,11 @@ void PatchCableStrength::writeCurrentValue() {
 
 	int32_t finalValue = plugin::from_menu(plugin::MappingKind::CABLE_DEPTH, this->getValue());
 	deluge::edits::Context editCtx{*currentSong, currentSong->project};
-	deluge::edits::SetParamValue edit{deluge::edits::addressFor(*modelStackWithParam), finalValue, 0, 0,
-	                                  modelStackWithParam};
-	deluge::edits::apply(editCtx, edit);
+	if (const std::optional<deluge::project::ParamAddress> editAddress =
+	        deluge::edits::addressFor(*modelStackWithParam)) {
+		deluge::edits::SetParamValue edit{*editAddress, finalValue, 0, 0, deluge::edits::SetParamValue::Resolve::EXACT};
+		deluge::edits::apply(editCtx, edit);
+	}
 
 	if (getRootUI() == &automationView) {
 		int32_t p = modelStackWithParam->paramId;

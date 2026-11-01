@@ -219,7 +219,8 @@ void turnStutterRate(ModControllableAudio& owner, TimelineCounter* clip, ParamMa
 	    summary->paramCollection, summary, static_cast<int32_t>(deluge::modulation::params::UNPATCHED_STUTTER_RATE));
 	ModelStackWithAutoParam* withParam = withId->paramCollection->getAutoParamFromId(withId);
 	deluge::edits::Context context{*currentSong, currentSong->project};
-	deluge::edits::SetParamValue edit{deluge::edits::addressFor(*withParam), value, 0, 0, withParam};
+	deluge::edits::SetParamValue edit{*deluge::edits::addressFor(*withParam), value, 0, 0,
+	                                  deluge::edits::SetParamValue::Resolve::EXACT};
 	deluge::edits::apply(context, edit);
 }
 

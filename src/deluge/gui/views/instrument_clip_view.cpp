@@ -7894,10 +7894,13 @@ void InstrumentClipView::reportNoteOffForMPEEditing(ModelStackWithNoteRow* model
 			int32_t newValue = (int32_t)mpeValuesAtHighestPressure[t][expressionDimension] << 16;
 
 			deluge::edits::Context editCtx{*currentSong, currentSong->project};
-			deluge::edits::SetParamValue edit{deluge::edits::addressFor(*modelStackWithAutoParam), newValue,
-			                                  static_cast<int32_t>(view.modPos()),
-			                                  static_cast<int32_t>(view.modLength()), modelStackWithAutoParam};
-			deluge::edits::apply(editCtx, edit);
+			if (const std::optional<deluge::project::ParamAddress> editAddress =
+			        deluge::edits::addressFor(*modelStackWithAutoParam)) {
+				deluge::edits::SetParamValue edit{*editAddress, newValue, static_cast<int32_t>(view.modPos()),
+				                                  static_cast<int32_t>(view.modLength()),
+				                                  deluge::edits::SetParamValue::Resolve::EXACT};
+				deluge::edits::apply(editCtx, edit);
+			}
 		}
 
 		dontDeleteNotesOnDepress();

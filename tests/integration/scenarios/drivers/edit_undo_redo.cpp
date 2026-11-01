@@ -183,7 +183,7 @@ void scriptEditUndoRedo(const char* label, Song* song, ModelStackWithAutoParam* 
 
 	// (2) Forward: the Edit funnels the mutation and pre-logs its ConsequenceParamChange.
 	deluge::edits::Context ctx{*currentSong, currentSong->project};
-	deluge::edits::SetParamValue edit{addr, newValue, 0, 0, msap};
+	deluge::edits::SetParamValue edit{*addr, newValue, 0, 0, deluge::edits::SetParamValue::Resolve::EXACT};
 	check(deluge::edits::apply(ctx, edit) == Error::NONE, "apply succeeds");
 	Snapshot post = snapshotOf(msap);
 	check(post.currentValue == newValue, "forward: value mutated");
@@ -350,7 +350,8 @@ void cableTarget(Song* song) {
 	if (depth == nullptr) {
 		return;
 	}
-	deluge::edits::SetParamValue write{deluge::edits::addressFor(*depth), 1 << 28, 0, 0, depth};
+	deluge::edits::SetParamValue write{*deluge::edits::addressFor(*depth), 1 << 28, 0, 0,
+	                                   deluge::edits::SetParamValue::Resolve::EXACT};
 	deluge::edits::apply(ctx, write);
 	check(cables.records().size() == bare.size() + 1, "create-on-edit: one more record");
 	actionLogger.revert(BEFORE, false, false);
@@ -367,7 +368,8 @@ void cableTarget(Song* song) {
 	if (zero == nullptr || zero->autoParam->isAutomated(*zero->doc())) {
 		return;
 	}
-	deluge::edits::SetParamValue clear{deluge::edits::addressFor(*zero), 0, 0, 0, zero};
+	deluge::edits::SetParamValue clear{*deluge::edits::addressFor(*zero), 0, 0, 0,
+	                                   deluge::edits::SetParamValue::Resolve::EXACT};
 	deluge::edits::apply(ctx, clear);
 	if (clip->isActiveOnOutput()) {
 		check(!cables.records().find(PatchSource::RANDOM, cutoff).has_value(), "delete-at-zero: removes the cable");

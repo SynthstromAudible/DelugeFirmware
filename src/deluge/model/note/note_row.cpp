@@ -4470,10 +4470,13 @@ bool NoteRow::recordPolyphonicExpressionEvent(ModelStackWithNoteRow* modelStack,
 		// And also, set the values now, for in case they're instead gonna stop editing the note before
 		// releasing this MIDI note.
 		deluge::edits::Context editCtx{*currentSong, currentSong->project};
-		deluge::edits::SetParamValue edit{deluge::edits::addressFor(*modelStackWithAutoParam), newValueBig,
-		                                  static_cast<int32_t>(view.modPos()), static_cast<int32_t>(view.modLength()),
-		                                  modelStackWithAutoParam};
-		deluge::edits::apply(editCtx, edit);
+		if (const std::optional<deluge::project::ParamAddress> editAddress =
+		        deluge::edits::addressFor(*modelStackWithAutoParam)) {
+			deluge::edits::SetParamValue edit{*editAddress, newValueBig, static_cast<int32_t>(view.modPos()),
+			                                  static_cast<int32_t>(view.modLength()),
+			                                  deluge::edits::SetParamValue::Resolve::EXACT};
+			deluge::edits::apply(editCtx, edit);
+		}
 	}
 	else {
 		int32_t distanceToNextNote =

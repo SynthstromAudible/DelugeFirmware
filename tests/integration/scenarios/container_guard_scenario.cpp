@@ -535,7 +535,8 @@ void turnParam(ModelStackWithThreeMainThings* ms, int32_t id, int32_t value) {
 	ModelStackWithParamId* withId = ms->addParamCollectionAndId(summary->paramCollection, summary, id);
 	ModelStackWithAutoParam* withParam = withId->paramCollection->getAutoParamFromId(withId);
 	deluge::edits::Context context{*currentSong, currentSong->project};
-	deluge::edits::SetParamValue edit{deluge::edits::addressFor(*withParam), value, 0, 0, withParam};
+	deluge::edits::SetParamValue edit{*deluge::edits::addressFor(*withParam), value, 0, 0,
+	                                  deluge::edits::SetParamValue::Resolve::EXACT};
 	deluge::edits::apply(context, edit);
 }
 
@@ -553,7 +554,8 @@ void turnParamIn(ModelStackWithThreeMainThings* ms, ParamCollectionSummary* summ
 		return;
 	}
 	deluge::edits::Context context{*currentSong, currentSong->project};
-	deluge::edits::SetParamValue edit{deluge::edits::addressFor(*withParam), value, 0, 0, withParam};
+	deluge::edits::SetParamValue edit{*deluge::edits::addressFor(*withParam), value, 0, 0,
+	                                  deluge::edits::SetParamValue::Resolve::EXACT};
 	deluge::edits::apply(context, edit);
 }
 
@@ -1526,11 +1528,11 @@ void editLeg() {
 		turnDelayFeedback(*synth, g_clip, synthParams, kMinimum);
 
 		auto& master = currentSong->live.global_effectable;
-		turnDelayFeedback(master, nullptr, currentSong->paramManager, kMinimum);
+		turnDelayFeedback(master, currentSong, currentSong->paramManager, kMinimum);
 		setDelayType(master, DelayType::OFF);
-		turnDelayFeedback(master, nullptr, currentSong->paramManager, 0);
+		turnDelayFeedback(master, currentSong, currentSong->paramManager, 0);
 		const bool chain = master.effects().delay.type == DelayType::DIGITAL;
-		turnDelayFeedback(master, nullptr, currentSong->paramManager, kMinimum);
+		turnDelayFeedback(master, currentSong, currentSong->paramManager, kMinimum);
 		setDelayType(master, DelayType::OFF);
 		renderBlocks(1);
 		printf("CG-DELAYKNOB lifted=%d analogKept=%d offKept=%d chain=%d\n", lifted ? 1 : 0, analogKept ? 1 : 0,
