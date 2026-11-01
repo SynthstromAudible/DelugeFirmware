@@ -47,6 +47,7 @@ MIDI configuration requires the match up of both Deluge along with the external 
 | MIDI<br />MIDI Settings | CLOCK                | IN - MIDI beat clock input ON or OFF.                                                                                                                                                              |
 |                         |                      | OUT - MIDI beat clock output ON or OFF.                                                                                                                                                            |
 |                         |                      | TEMPO MAGNITUDE MATCHING - tempo matching ON or OFF.                                                                                                                                               |
+|                         | TAKEOVER             | JUMP, PICKUP and SCALE modes which govern the CC control behaviour of Deluge parameters.                                                                                                           |
 |                         | MIDI-THRU            | MIDI-THRU, ON or OFF.                                                                                                                                                                              |
 |                         | COMMANDS             | PLAY                                                                                                                                                                                               |
 |                         |                      | RESTART - restart playback if already playing.                                                                                                                                                     |
@@ -61,33 +62,33 @@ MIDI configuration requires the match up of both Deluge along with the external 
 
 #### MIDI Implementation Chart
 
-| Message                    | Type                         | Transmitted                            | Recognised                                   |
-| -------------------------- | ---------------------------- | -------------------------------------- | -------------------------------------------- |
-| Velocity                   | Note on                      | Yes                                    | Yes                                          |
-|                            | Note off                     | No                                     | No                                           |
-| Aftertouch /<br />Pressure | Polyphonic                   | No                                     | Yes                                          |
-|                            | Channel                      | Yes                                    | Yes                                          |
-| Pitch bend                 |                              | Yes                                    | Yes                                          |
-| CC & general               |                              | Yes<br />Numbers assigned by user      | Yes<br />Parameter must be ‘learned’ by user |
-| Bank select                | CC 0                         | Yes                                    | No                                           |
-|                            | CC 32 (LSB)                  | Yes                                    | No                                           |
-| PGM change                 |                              | Yes                                    | No                                           |
-| Channel mode               | All sound off                | No                                     | No                                           |
-|                            | Reset all controller         | No                                     | No                                           |
-|                            | Local control                | No                                     | No                                           |
-|                            | All notes off                | No                                     | Yes                                          |
-| System common              | System exclusive             | No                                     | No                                           |
-|                            | MIDI time code quarter frame | No                                     | No                                           |
-|                            | Song position pointer        | Yes                                    | Yes                                          |
-|                            | Song select                  | No                                     | No                                           |
-|                            | Tune request                 | No                                     | No                                           |
-| System real time           | Clock                        | Yes\*                                  | Yes                                          |
-|                            | Start                        | Yes\*                                  | Yes                                          |
-|                            | Continue                     | Yes\*                                  | Yes                                          |
-|                            | Stop                         | Yes\*                                  | Yes                                          |
-|                            | Active sensing               | No                                     | No                                           |
-|                            | Reset                        | No                                     | No                                           |
-|                            |                              | \*Only if MIDI Clock output is enabled |                                              |
+| Message               | Type                         | Transmitted                            | Recognised                                   |
+| --------------------- | ---------------------------- | -------------------------------------- | -------------------------------------------- |
+| Velocity              | Note on                      | Yes                                    | Yes                                          |
+|                       | Note off                     | No                                     | No                                           |
+| Aftertouch / Pressure | Polyphonic                   | No                                     | Yes                                          |
+|                       | Channel                      | Yes                                    | Yes                                          |
+| Pitch bend            |                              | Yes                                    | Yes                                          |
+| CC & general          |                              | Yes<br />Numbers assigned by user      | Yes<br />Parameter must be ‘learned’ by user |
+| Bank select           | CC 0                         | Yes                                    | No                                           |
+|                       | CC 32 (LSB)                  | Yes                                    | No                                           |
+| PGM change            |                              | Yes                                    | No                                           |
+| Channel mode          | All sound off                | No                                     | No                                           |
+|                       | Reset all controller         | No                                     | No                                           |
+|                       | Local control                | No                                     | No                                           |
+|                       | All notes off                | No                                     | Yes                                          |
+| System common         | System exclusive             | No                                     | No                                           |
+|                       | MIDI time code quarter frame | No                                     | No                                           |
+|                       | Song position pointer        | Yes                                    | Yes                                          |
+|                       | Song select                  | No                                     | No                                           |
+|                       | Tune request                 | No                                     | No                                           |
+| System real time      | Clock                        | Yes\*                                  | Yes                                          |
+|                       | Start                        | Yes\*                                  | Yes                                          |
+|                       | Continue                     | Yes\*                                  | Yes                                          |
+|                       | Stop                         | Yes\*                                  | Yes                                          |
+|                       | Active sensing               | No                                     | No                                           |
+|                       | Reset                        | No                                     | No                                           |
+|                       |                              | \*Only if MIDI Clock output is enabled |                                              |
 
 <span id="fig-12.2-1"></span>
 

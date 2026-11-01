@@ -1,0 +1,26 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 351 135">
+<defs>
+<clipPath id="06-modulation__03-envelopes-and-low-frequency-oscillators--4-clip_1">
+<path transform="matrix(1,0,0,-1,-192,284.8)" d="M192 149.8H543V284.8H192Z" clip-rule="evenodd"/>
+</clipPath>
+</defs>
+<g clip-path="url(#06-modulation__03-envelopes-and-low-frequency-oscillators--4-clip_1)">
+<path transform="matrix(1,0,0,-1,-192,284.8)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M170.1 688.6V84.1"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(195.1 108.2)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Start on zero and takes small incremental</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(195.1 117.2)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">steps walking up / down from the</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(195.1 126.2)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">previous value when triggered.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(6.2 109.2)" font-size="8" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Random unique value on each trigger.</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="matrix(0 -1 1 0 202.1 55.9)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">AMPLITUDE</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(264.4 85.0)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">TIME</tspan></text>
+<path transform="matrix(1,0,0,-1,-192,284.8)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 40%, var(--gb-paper))" d="M403.5 278.1V212.9"/>
+<path transform="matrix(1,0,0,-1,-192,284.8)" stroke-width=".55" stroke-linecap="round" stroke-dasharray="1.6,1.6,.000015,.000015" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 40%, var(--gb-paper))" d="M403.5 246.5H526.7"/>
+<path transform="matrix(1,0,0,-1,-192,284.8)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M403.5 246.7H418.6V252.9H434.6V261.8H451.4"/>
+<path transform="matrix(1,0,0,-1,-192,284.8)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M451.4 261.8V243.3H470.4V235.4H490.2V252.2H508.3V257.0H527.7V243.6"/>
+<text fill="currentColor" xml:space="preserve" transform="matrix(0 -1 1 0 13.0 55.0)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">AMPLITUDE</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(76.4 83.8)" font-size="6" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">TIME</tspan></text>
+<path transform="matrix(1,0,0,-1,-192,284.8)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 40%, var(--gb-paper))" d="M214.4 279.0V213.8"/>
+<path transform="matrix(1,0,0,-1,-192,284.8)" stroke-width=".55" stroke-linecap="round" stroke-dasharray="1.6,1.6,.000015,.000015" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 40%, var(--gb-paper))" d="M214.4 247.4H337.6"/>
+<path transform="matrix(1,0,0,-1,-192,284.8)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M249.5 274.3H228.5V235.1H214.4"/>
+<path transform="matrix(1,0,0,-1,-192,284.8)" stroke-width=".75" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="var(--gb-accent)" d="M337.3 270.9H323.8V261.3H309.1V233.1H288.9V251.1H267.7V225.5H249.4V274.0"/>
+</g>
+</svg>
