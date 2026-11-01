@@ -3,6 +3,8 @@
 #include "deluge-project/setting_group.h"
 #include "effects/plugin.h"
 #include "effects/settings.h"
+#include "gui/ui/browser/folder_import.h"
+#include "gui/ui/browser/sample_claim.h"
 #include "gui/views/view.h"
 #include "instruments/deluge/settings.h"
 #include "instruments/deluge/words.h"
@@ -215,6 +217,10 @@ class ShellRuntimeFacts final : public deluge::scenes::bind::RuntimeFacts {
 public:
 	[[nodiscard]] bool audio_inputs_present() const override;
 	[[nodiscard]] int32_t live_voice_count() const override;
+	[[nodiscard]] bool kit_takes_whole_folder(deluge::project::SlotAddress slot) const override;
+	[[nodiscard]] bool sample_load_in_flight() const override {
+		return deluge::gui::sampleClaim.explicitInFlight() || deluge::gui::folderImport.inFlight();
+	}
 	[[nodiscard]] uint8_t loaded_sources(deluge::project::SlotAddress slot) const override;
 	[[nodiscard]] const deluge::instrument::SoundState* sound_state(deluge::project::SlotAddress slot) const override;
 	[[nodiscard]] const deluge::effects::EffectStates*
@@ -792,6 +798,18 @@ bool ShellRuntimeFacts::audio_inputs_present() const {
 
 int32_t ShellRuntimeFacts::live_voice_count() const {
 	return AudioEngine::getNumVoices() + (currentSong != nullptr ? currentSong->countAudioVoices() : 0);
+}
+
+bool ShellRuntimeFacts::kit_takes_whole_folder(deluge::project::SlotAddress slot) const {
+	::Clip* clip = currentSong != nullptr ? currentSong->getCurrentClip() : nullptr;
+	if (slot.kind != deluge::project::SlotAddress::Kind::DRUM || clip == nullptr || clip->type != ClipType::INSTRUMENT
+	    || clip->output == nullptr || clip->output->type != OutputType::KIT) {
+		return false;
+	}
+	const auto& rows = static_cast<::InstrumentClip*>(clip)->noteRows;
+	const ::Drum* drum = currentSong->drumForId(slot.id);
+	const ::Kit* kit = static_cast<const ::Kit*>(clip->output);
+	return drum != nullptr && !rows.empty() && rows[0].drum == drum && kit->firstDrum == drum && drum->next == nullptr;
 }
 
 uint8_t ShellRuntimeFacts::loaded_sources(deluge::project::SlotAddress slot) const {

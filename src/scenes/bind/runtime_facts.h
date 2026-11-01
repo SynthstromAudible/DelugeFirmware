@@ -79,6 +79,13 @@ public:
 	/// @brief Audio: the voices sounding now, synth and audio-clip (`cpu::VoiceUsage::sample`,
 	/// `cpu/voice_usage.h:94-96`). No record holds it; it changes every render. Zero for a host that renders nothing.
 	[[nodiscard]] virtual int32_t live_voice_count() const { return 0; }
+	/// @brief Whether the sound at @p slot is a kit's only drum, on its clip's first note row: the kit a whole folder
+	/// of samples may be loaded into, one drum per file (`SampleBrowser::canImportWholeKit`, which also asks that the
+	/// menu edits source 0 -- the caller's to check).
+	[[nodiscard]] virtual bool kit_takes_whole_folder(project::SlotAddress /*slot*/) const { return false; }
+	/// @brief Whether an explicit sample load or a folder import is running: either one closes the sample browser to
+	/// the presses that would start another. False for a host that loads nothing.
+	[[nodiscard]] virtual bool sample_load_in_flight() const { return false; }
 	/// @brief Storage: which sources of the sound at @p slot have an audio file loaded (bit i for source i). A file
 	/// loads after the song that names it, so whether it has is a fact of the card, not of the song.
 	[[nodiscard]] virtual uint8_t loaded_sources(project::SlotAddress slot) const = 0;
