@@ -112,7 +112,7 @@ const config = defineConfig({
             ],
           },
           {
-            label: "Guidebook (OS 4.1)",
+            label: "Guidebook (C1.0)",
             icon: "document",
             link: "/guidebook",
             items: [
