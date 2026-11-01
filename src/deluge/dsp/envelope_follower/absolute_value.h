@@ -56,6 +56,9 @@ public:
 	};
 
 	StereoFloatSample calcApproxRMS(std::span<StereoSample> buffer);
+	/// Same as calcApproxRMS(), for callers that have already summed the block's absolute sample values.
+	/// The means don't need to come from a fixed block size; numSamples sets how far the envelope advances.
+	StereoFloatSample calcApproxRMSFromMeans(float meanL, float meanR, size_t numSamples);
 
 private:
 	float runEnvelope(float current, float desired, float numSamples);
