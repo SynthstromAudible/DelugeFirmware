@@ -10,7 +10,7 @@ using namespace deluge::plugin;
 namespace {
 constexpr std::array<ParamInfo, 3> kTable{{
     {.id = ParamId{0}, .file_name = "volume", .scope = ParamScope::PER_VOICE},
-    {.id = ParamId{7}, .file_name = "pan", .bipolar = true},
+    {.id = ParamId{7}, .file_name = "pan", .flags = ParamFlag::CENTRED},
     {.id = ParamId{90}, .file_name = "tempo"},
 }};
 } // namespace

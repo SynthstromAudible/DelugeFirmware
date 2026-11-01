@@ -44,7 +44,7 @@ enum class ParamFlag : uint16_t {
 	CENTRED = 1 << 0,             ///< shown around zero (pan, pitch)
 	MIDDLE_DETENT = 1 << 1,       ///< the UI marks the middle position
 	NOT_AUTOMATABLE = 1 << 2,     ///< knob changes never write automation
-	RECORD_UNAUTOMATED = 1 << 3,  ///< a change while recording is recorded even with no lane yet
+	NO_UNDO = 1 << 3,             ///< changes to its unautomated value aren't kept for undo
 	FLOAT_INTERPOLATION = 1 << 4, ///< automation interpolates in float
 	SMOOTHED = 1 << 5,            ///< value changes pass the param smoother, from automation too
 	SMOOTHED_USER_ONLY = 1 << 6,  ///< only a user's changes pass the smoother; automation steps land at once
@@ -54,7 +54,8 @@ enum class ParamFlag : uint16_t {
 struct ParamFlags {
 	uint16_t bits{0};
 	constexpr ParamFlags() = default;
-	constexpr explicit ParamFlags(ParamFlag flag) : bits{static_cast<uint16_t>(flag)} {}
+	// Implicit: a single flag is a set of one, so a table row can name one flag as its set
+	constexpr ParamFlags(ParamFlag flag) : bits{static_cast<uint16_t>(flag)} {} // NOLINT(*-explicit-constructor)
 	/// @brief Whether @p flag is in the set.
 	[[nodiscard]] constexpr bool has(ParamFlag flag) const { return (bits & static_cast<uint16_t>(flag)) != 0; }
 	[[nodiscard]] constexpr ParamFlags operator|(ParamFlags other) const {

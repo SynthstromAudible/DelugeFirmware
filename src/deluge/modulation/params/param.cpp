@@ -46,32 +46,18 @@ const plugin::ParamInfo* paramInfoFor(Kind kind, int32_t paramId) {
 	}
 }
 
-bool isParamBipolar(Kind kind, int32_t paramID) {
-	return (kind == Kind::PATCH_CABLE) || isParamPan(kind, paramID) || isParamPitch(kind, paramID)
-	       || isParamPitchBend(kind, paramID);
+bool hasParamFlag(Kind kind, int32_t paramId, plugin::ParamFlag flag) {
+	const plugin::ParamInfo* info = paramInfoFor(kind, paramId);
+	return info != nullptr && info->flags.has(flag);
 }
 
-bool isParamPan(Kind kind, int32_t paramID) {
-	return (kind == Kind::PATCHED && paramID == LOCAL_PAN)
-	       || (kind == Kind::UNPATCHED_GLOBAL && paramID == UNPATCHED_PAN);
+bool isParamBipolar(Kind kind, int32_t paramID) {
+	return (kind == Kind::PATCH_CABLE) || isParamPitchBend(kind, paramID)
+	       || hasParamFlag(kind, paramID, plugin::ParamFlag::CENTRED);
 }
 
 bool isParamArpRhythm(Kind kind, int32_t paramID) {
 	return (kind == Kind::UNPATCHED_SOUND && paramID == UNPATCHED_ARP_RHYTHM);
-}
-
-bool isParamPitch(Kind kind, int32_t paramID) {
-	if (kind == Kind::PATCHED) {
-		return (paramID == LOCAL_PITCH_ADJUST) || (paramID == LOCAL_OSC_A_PITCH_ADJUST)
-		       || (paramID == LOCAL_OSC_B_PITCH_ADJUST) || (paramID == LOCAL_MODULATOR_0_PITCH_ADJUST)
-		       || (paramID == LOCAL_MODULATOR_1_PITCH_ADJUST);
-	}
-	else if (kind == Kind::UNPATCHED_GLOBAL) {
-		return static_cast<UnpatchedGlobal>(paramID) == UNPATCHED_PITCH_ADJUST;
-	}
-	else {
-		return false;
-	}
 }
 
 bool isParamPitchBend(Kind kind, int32_t paramID) {
@@ -405,37 +391,10 @@ char const* getParamDisplayName(Kind kind, int32_t p, ModControllableAudio* modC
 }
 
 bool paramNeedsLPF(ParamType p, bool fromAutomation) {
-	switch (p) {
-
-	// For many params, particularly volumes, we do want the param LPF if the user adjusted it,
-	// so we don't get stepping, but if it's from step automation, we do want it to adjust instantly,
-	// so the new step is instantly at the right volume
-	case params::GLOBAL_VOLUME_POST_FX:
-	case params::GLOBAL_VOLUME_POST_REVERB_SEND:
-	case params::GLOBAL_REVERB_AMOUNT:
-	case params::LOCAL_VOLUME:
-	case params::LOCAL_PAN:
-	case params::LOCAL_LPF_FREQ:
-	case params::LOCAL_HPF_FREQ:
-	case params::LOCAL_OSC_A_VOLUME:
-	case params::LOCAL_OSC_B_VOLUME:
-	case params::LOCAL_OSC_A_WAVE_INDEX:
-	case params::LOCAL_OSC_B_WAVE_INDEX:
-		return !fromAutomation;
-
-	case params::LOCAL_MODULATOR_0_VOLUME:
-	case params::LOCAL_MODULATOR_1_VOLUME:
-	case params::LOCAL_MODULATOR_0_FEEDBACK:
-	case params::LOCAL_MODULATOR_1_FEEDBACK:
-	case params::LOCAL_CARRIER_0_FEEDBACK:
-	case params::LOCAL_CARRIER_1_FEEDBACK:
-	case params::GLOBAL_MOD_FX_DEPTH:
-	case params::GLOBAL_DELAY_FEEDBACK:
-		return true;
-
-	default:
-		return false;
-	}
+	// Volumes and the like smooth a user's change so it doesn't step, but take a step of automation at once so the
+	// step lands at its value
+	return hasParamFlag(Kind::PATCHED, p, plugin::ParamFlag::SMOOTHED)
+	       || (!fromAutomation && hasParamFlag(Kind::PATCHED, p, plugin::ParamFlag::SMOOTHED_USER_ONLY));
 }
 
 /// @brief The name the instrument's or the global effectable's table gives id @p param, or "none".

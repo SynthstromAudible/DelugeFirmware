@@ -23,6 +23,7 @@
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
+#include "model/fx/song_stutter.h"
 #include "model/instrument/instrument.h"
 #include "model/instrument/melodic_instrument.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
@@ -574,39 +575,15 @@ Error ExpressionParamSet::clone(ParamCollection*& result, bool copyAutomation,
 }
 
 bool UnpatchedParamSet::shouldInterpolateWithFloat(ModelStackWithParamId const* modelStack) {
-	// Global
-	if (modelStack->paramCollection->getParamKind() == deluge::modulation::params::Kind::UNPATCHED_GLOBAL) {
-		switch (modelStack->paramId) {
-		case params::UNPATCHED_TEMPO:
-			return true;
-		}
-	}
-	return false;
+	return params::hasParamFlag(getParamKind(), modelStack->paramId, deluge::plugin::ParamFlag::FLOAT_INTERPOLATION);
 }
 
 bool UnpatchedParamSet::shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack) {
-	// Shared
-	switch (modelStack->paramId) {
-	case params::UNPATCHED_STUTTER_RATE:
-		return !(((ModControllableAudio*)modelStack->modControllable)->effects().stutter.use_song_stutter
-		             ? currentSong->live.global_effectable.effects().stutter.quantized
-		             : ((ModControllableAudio*)modelStack->modControllable)->effects().stutter.quantized)
-		       || isUIModeActive(UI_MODE_STUTTERING);
-	case params::UNPATCHED_BASS:
-	case params::UNPATCHED_TREBLE:
-		return true;
+	if (modelStack->paramId == params::UNPATCHED_STUTTER_RATE) {
+		return deluge::model::stutterRateIndicatesMiddle(
+		    *static_cast<ModControllableAudio*>(modelStack->modControllable));
 	}
-	// Global
-	if (modelStack->paramCollection->getParamKind() == deluge::modulation::params::Kind::UNPATCHED_GLOBAL) {
-		switch (modelStack->paramId) {
-		case params::UNPATCHED_DELAY_RATE:
-		case params::UNPATCHED_DELAY_AMOUNT:
-		case params::UNPATCHED_PAN:
-		case params::UNPATCHED_PITCH_ADJUST:
-			return true;
-		}
-	}
-	return false;
+	return params::hasParamFlag(getParamKind(), modelStack->paramId, deluge::plugin::ParamFlag::MIDDLE_DETENT);
 }
 int32_t UnpatchedParamSet::paramValueToKnobPos(int32_t paramValue, ModelStackWithAutoParam* modelStack) {
 	if (modelStack && (modelStack->paramId == params::UNPATCHED_COMPRESSOR_THRESHOLD)) {
@@ -631,11 +608,11 @@ int32_t UnpatchedParamSet::knobPosToParamValue(int32_t knobPos, ModelStackWithAu
 }
 
 bool UnpatchedParamSet::doesParamIdAllowAutomation(ModelStackWithParamId const* modelStack) {
-	return (modelStack->paramId != params::UNPATCHED_STUTTER_RATE);
+	return !params::hasParamFlag(getParamKind(), modelStack->paramId, deluge::plugin::ParamFlag::NOT_AUTOMATABLE);
 }
 
 bool UnpatchedParamSet::shouldRecordUnautomatedParamChange(ModelStackWithParamId const* modelStack) {
-	return (modelStack->paramId != params::UNPATCHED_TEMPO);
+	return !params::hasParamFlag(getParamKind(), modelStack->paramId, deluge::plugin::ParamFlag::NO_UNDO);
 }
 
 // PatchedParamSet --------------------------------------------------------------------------------------------
@@ -728,19 +705,7 @@ int32_t PatchedParamSet::knobPosToParamValue(int32_t knobPos, ModelStackWithAuto
 }
 
 bool PatchedParamSet::shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack) {
-	switch (modelStack->paramId) {
-	case params::LOCAL_PAN:
-	case params::LOCAL_PITCH_ADJUST:
-	case params::LOCAL_OSC_A_PITCH_ADJUST:
-	case params::LOCAL_OSC_B_PITCH_ADJUST:
-	case params::LOCAL_MODULATOR_0_PITCH_ADJUST:
-	case params::LOCAL_MODULATOR_1_PITCH_ADJUST:
-	case params::GLOBAL_DELAY_FEEDBACK:
-	case params::GLOBAL_DELAY_RATE:
-		return true;
-	default:
-		return false;
-	}
+	return params::hasParamFlag(params::Kind::PATCHED, modelStack->paramId, deluge::plugin::ParamFlag::MIDDLE_DETENT);
 }
 
 // ExpressionParamSet --------------------------------------------------------------------------------------------

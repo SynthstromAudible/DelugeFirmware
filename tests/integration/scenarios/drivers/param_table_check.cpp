@@ -16,7 +16,7 @@
  */
 
 // param_table_check — the engines' param tables agree with the runtime: every row's file name is the runtime's
-// name for its runtime index, every runtime param has a row, and each row's scope, bipolarity and default are the
+// name for its runtime index, every runtime param has a row, and each row's scope, flags and default are the
 // runtime's (a default is what the engine's own init gives a fresh instance).
 // Exit: 0 agree; 3 a row disagrees (each printed).
 
@@ -49,6 +49,110 @@ using deluge::plugin::ParamInfo;
 using deluge::plugin::ParamScope;
 using deluge::scenarios::driver::Io;
 
+/// The runtime's param predicates as they read before the tables carried flags, copied from
+/// modulation/params/param.cpp (isParamPan, isParamPitch, paramNeedsLPF) and param_set.cpp (the Unpatched and Patched
+/// sets' shouldParamIndicateMiddleValue, doesParamIdAllowAutomation, shouldRecordUnautomatedParamChange,
+/// shouldInterpolateWithFloat), with the set's kind as an argument: the oracle for each row's flags. The stutter rate's
+/// middle detent depends on the stutter's state and is left out.
+namespace old_predicates {
+using namespace params;
+
+bool isParamPan(Kind kind, int32_t paramID) {
+	return (kind == Kind::PATCHED && paramID == LOCAL_PAN)
+	       || (kind == Kind::UNPATCHED_GLOBAL && paramID == UNPATCHED_PAN);
+}
+bool isParamPitch(Kind kind, int32_t paramID) {
+	if (kind == Kind::PATCHED) {
+		return (paramID == LOCAL_PITCH_ADJUST) || (paramID == LOCAL_OSC_A_PITCH_ADJUST)
+		       || (paramID == LOCAL_OSC_B_PITCH_ADJUST) || (paramID == LOCAL_MODULATOR_0_PITCH_ADJUST)
+		       || (paramID == LOCAL_MODULATOR_1_PITCH_ADJUST);
+	}
+	if (kind == Kind::UNPATCHED_GLOBAL) {
+		return static_cast<UnpatchedGlobal>(paramID) == UNPATCHED_PITCH_ADJUST;
+	}
+	return false;
+}
+bool paramNeedsLPF(ParamType p, bool fromAutomation) {
+	switch (p) {
+	case GLOBAL_VOLUME_POST_FX:
+	case GLOBAL_VOLUME_POST_REVERB_SEND:
+	case GLOBAL_REVERB_AMOUNT:
+	case LOCAL_VOLUME:
+	case LOCAL_PAN:
+	case LOCAL_LPF_FREQ:
+	case LOCAL_HPF_FREQ:
+	case LOCAL_OSC_A_VOLUME:
+	case LOCAL_OSC_B_VOLUME:
+	case LOCAL_OSC_A_WAVE_INDEX:
+	case LOCAL_OSC_B_WAVE_INDEX:
+		return !fromAutomation;
+	case LOCAL_MODULATOR_0_VOLUME:
+	case LOCAL_MODULATOR_1_VOLUME:
+	case LOCAL_MODULATOR_0_FEEDBACK:
+	case LOCAL_MODULATOR_1_FEEDBACK:
+	case LOCAL_CARRIER_0_FEEDBACK:
+	case LOCAL_CARRIER_1_FEEDBACK:
+	case GLOBAL_MOD_FX_DEPTH:
+	case GLOBAL_DELAY_FEEDBACK:
+		return true;
+	default:
+		return false;
+	}
+}
+bool unpatchedIndicatesMiddle(Kind kind, int32_t paramId) {
+	switch (paramId) {
+	case UNPATCHED_BASS:
+	case UNPATCHED_TREBLE:
+		return true;
+	}
+	if (kind == Kind::UNPATCHED_GLOBAL) {
+		switch (paramId) {
+		case UNPATCHED_DELAY_RATE:
+		case UNPATCHED_DELAY_AMOUNT:
+		case UNPATCHED_PAN:
+		case UNPATCHED_PITCH_ADJUST:
+			return true;
+		}
+	}
+	return false;
+}
+bool patchedIndicatesMiddle(int32_t paramId) {
+	switch (paramId) {
+	case LOCAL_PAN:
+	case LOCAL_PITCH_ADJUST:
+	case LOCAL_OSC_A_PITCH_ADJUST:
+	case LOCAL_OSC_B_PITCH_ADJUST:
+	case LOCAL_MODULATOR_0_PITCH_ADJUST:
+	case LOCAL_MODULATOR_1_PITCH_ADJUST:
+	case GLOBAL_DELAY_FEEDBACK:
+	case GLOBAL_DELAY_RATE:
+		return true;
+	default:
+		return false;
+	}
+}
+
+/// The flags the predicates above give the param at @p index of a @p kind collection.
+deluge::plugin::ParamFlags flagsOf(Kind kind, int32_t index) {
+	using deluge::plugin::ParamFlag;
+	deluge::plugin::ParamFlags flags;
+	auto add = [&](bool on, ParamFlag flag) {
+		if (on) {
+			flags = flags | flag;
+		}
+	};
+	const bool patched = kind == Kind::PATCHED;
+	add(isParamPan(kind, index) || isParamPitch(kind, index), ParamFlag::CENTRED);
+	add(patched ? patchedIndicatesMiddle(index) : unpatchedIndicatesMiddle(kind, index), ParamFlag::MIDDLE_DETENT);
+	add(!patched && index == UNPATCHED_STUTTER_RATE, ParamFlag::NOT_AUTOMATABLE);
+	add(!patched && index == UNPATCHED_TEMPO, ParamFlag::NO_UNDO);
+	add(kind == Kind::UNPATCHED_GLOBAL && index == UNPATCHED_TEMPO, ParamFlag::FLOAT_INTERPOLATION);
+	add(patched && paramNeedsLPF(index, true), ParamFlag::SMOOTHED);
+	add(patched && paramNeedsLPF(index, false) && !paramNeedsLPF(index, true), ParamFlag::SMOOTHED_USER_ONLY);
+	return flags;
+}
+} // namespace old_predicates
+
 struct Checker {
 	Io io;
 	int disagreements = 0;
@@ -73,8 +177,19 @@ struct Checker {
 		if ((info.scope == ParamScope::PER_VOICE) != perVoice) {
 			fail(table, info, "its scope is not the runtime's");
 		}
-		if (info.bipolar != params::isParamBipolar(kind, index)) {
-			fail(table, info, "its bipolarity is not the runtime's");
+		if (info.flags != old_predicates::flagsOf(kind, index)) {
+			std::fprintf(io.err, "%s %u: flags %#x, the runtime's predicates give %#x\n", table, info.id.value,
+			             info.flags.bits, old_predicates::flagsOf(kind, index).bits);
+			fail(table, info, "its flags are not the runtime's");
+		}
+		const bool centred = info.flags.has(deluge::plugin::ParamFlag::CENTRED);
+		if (centred != params::isParamBipolar(kind, index)) {
+			fail(table, info, "the runtime's isParamBipolar disagrees with CENTRED");
+		}
+		if (kind == params::Kind::PATCHED
+		    && (params::paramNeedsLPF(index, true) != old_predicates::paramNeedsLPF(index, true)
+		        || params::paramNeedsLPF(index, false) != old_predicates::paramNeedsLPF(index, false))) {
+			fail(table, info, "the runtime's paramNeedsLPF disagrees with the smoothing flags");
 		}
 		if (deluge::bridge::paramIdOf(kind, index) != info.id) {
 			fail(table, info, "the boundary map gives the runtime index another id");

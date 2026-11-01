@@ -100,6 +100,12 @@ struct StutterInput {
 /// @return The stutter and its rate; a null stutter when @p owner is not stuttering.
 [[nodiscard]] StutterInput stutterInput(const ModControllableAudio& owner, ParamManager* paramManager);
 
+/// @brief Whether the stutter-rate knob shows its middle position: a free stutter's rate has a centre, a quantized
+/// stutter's note lengths don't, except while stuttering.
+/// @param owner The stutter's owner (a sound or a global effectable), which may follow the song's stutter settings.
+/// @return True when the middle position is marked.
+[[nodiscard]] bool stutterRateIndicatesMiddle(const ModControllableAudio& owner);
+
 /// @brief Sets @p paramManager's stutter-rate param to its default, as a new owner's params start.
 /// @param paramManager The param manager to initialise.
 /// @param defaults     Whose table's default: UNPATCHED_SOUND for a sound, UNPATCHED_GLOBAL for a global effectable.

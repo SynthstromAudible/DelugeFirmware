@@ -19,6 +19,7 @@
 #include "dsp-next/fixed/curves/param_curve.h"
 #include "synth/matrix/descriptors.h" // kParamNeutral, kParamRange
 
+#include "gui/ui/ui.h"
 #include "libdeluge/system.h" // AudioExcludedSection
 #include "model/mod_controllable/mod_fx_allocator.h"
 #include "model/song/song.h"
@@ -88,6 +89,13 @@ StutterInput stutterInput(const ModControllableAudio& owner, ParamManager* param
 	        .rate = static_cast<uint32_t>(stutterRate(paramManager, stutter.lastQuantizedKnobDiff,
 	                                                  currentSong->getInputTickMagnitude(),
 	                                                  playbackHandler.getTimePerInternalTickInverse()))};
+}
+
+bool stutterRateIndicatesMiddle(const ModControllableAudio& owner) {
+	const bool quantized = owner.effects().stutter.use_song_stutter
+	                           ? currentSong->live.global_effectable.effects().stutter.quantized
+	                           : owner.effects().stutter.quantized;
+	return !quantized || isUIModeActive(UI_MODE_STUTTERING);
 }
 
 void initStutterParams(ParamManager* paramManager, params::Kind defaults) {

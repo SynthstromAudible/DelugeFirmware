@@ -83,6 +83,7 @@
 #include "modulation/params/param_set.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
+#include "plugin-api/types/param_mapping.h"
 #include "processing/audio_output.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
@@ -1312,9 +1313,8 @@ int32_t View::calculateKnobPosForDisplay(params::Kind kind, int32_t paramID, int
 	// calculate parameter value for display by converting 0 - 128 range to same range as menu (0 - 50)
 	valueForDisplayFloat = (knobPosFloat / maxKnobPosFloat) * maxMenuValueFloat;
 
-	// check if parameter is pan or pitch, in which case, further adjust range from 0 - 50 to -25 to +25
-	if (deluge::modulation::params::isParamPan(kind, paramID)
-	    || deluge::modulation::params::isParamPitch(kind, paramID)) {
+	// a centred param (pan, pitch) further adjusts the range from 0 - 50 to -25 to +25
+	if (deluge::modulation::params::hasParamFlag(kind, paramID, deluge::plugin::ParamFlag::CENTRED)) {
 		valueForDisplayFloat = valueForDisplayFloat - maxMenuRelativeValueFloat;
 	}
 

@@ -89,9 +89,9 @@ describe params("the provisional global-effectable param table", ${
 		}
 	});
 
-	it("marks pan and pitch bipolar, and nothing else", _ {
+	it("marks pan and pitch centred, and nothing else", _ {
 		for (const auto& row : kParams) {
-			expect(row.bipolar).to_equal(row.id.value == 121 || row.id.value == 131);
+			expect(row.flags.has(deluge::plugin::ParamFlag::CENTRED)).to_equal(row.id.value == 121 || row.id.value == 131);
 			expect(static_cast<int>(row.scope)).to_equal(static_cast<int>(ParamScope::PER_SOUND));
 		}
 	});
