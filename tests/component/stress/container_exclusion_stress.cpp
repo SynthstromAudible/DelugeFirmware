@@ -68,6 +68,8 @@ void dealloc(void* p) {
 namespace deluge {
 void noteStructuralEdit(StructuralContainer) {
 }
+void noteIndexedNodeEdit() {
+}
 } // namespace deluge
 
 namespace {

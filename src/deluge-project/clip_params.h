@@ -18,6 +18,7 @@
 #pragma once
 
 #include "deluge-project/containers.h"
+#include "deluge-project/edit_guard.h"
 #include "deluge-project/param_automation.h" // DocParamManager
 #include <cstdint>
 
@@ -44,11 +45,21 @@ struct ClipParams {
 	/// @brief Get the clip's store, creating an empty one if absent.
 	/// @param id The clip's stable `Clip::id`.
 	/// @return The clip's DocParamManager.
-	DocParamManager& getOrCreate(uint32_t id) { return by_id[id]; }
+	DocParamManager& getOrCreate(uint32_t id) {
+		if (auto it = by_id.find(id); it != by_id.end()) {
+			return it->second;
+		}
+		EditGuard guard{ModelEdit::PARAM_STORE};
+		return by_id[id];
+	}
 
 	/// @brief Drop the clip's store (on clip destruction).
 	/// @param id The clip's stable `Clip::id`.
-	void remove(uint32_t id) { by_id.erase(id); }
+	void remove(uint32_t id) {
+		decltype(by_id)::node_type dropped; // its lanes are freed after the section
+		EditGuard guard{ModelEdit::PARAM_STORE};
+		dropped = by_id.extract(id);
+	}
 };
 
 } // namespace deluge::project

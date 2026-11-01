@@ -17,6 +17,7 @@
 
 #include "modulation/midi/midi_param_collection.h"
 #include "definitions_cxx.hpp"
+#include "deluge-project/edit_guard.h"
 #include "deluge-project/param_automation.h"
 #include "gui/views/automation_view.h"
 #include "io/midi/midi_engine.h"
@@ -34,6 +35,9 @@
 #include "storage/storage_manager.h"
 #include "util/exceptions.h"
 #include <new>
+
+using deluge::project::EditGuard;
+using deluge::project::ModelEdit;
 
 MIDIParamCollection::MIDIParamCollection(ParamCollectionSummary* summary)
     : ParamCollection(sizeof(MIDIParamCollection), summary) {
@@ -91,6 +95,8 @@ deluge::project::DocMidiParam& MIDIParamCollection::findOrCreateDomMidi(uint8_t 
 			return entry;
 		}
 	}
+	// The render scans these lanes to resolve a CC: a growth may move them.
+	EditGuard guard{ModelEdit::PARAM_STORE};
 	domMidiRef_->push_back(deluge::project::DocMidiParam{cc, {}});
 	return domMidiRef_->back();
 }
@@ -113,6 +119,14 @@ deluge::project::DocAutoParam* MIDIParamCollection::docParamForId(int32_t paramI
 		return docForParam(i);
 	}
 	return nullptr;
+}
+
+deluge::project::DocAutoParam* MIDIParamCollection::findDocParamForId(int32_t paramId) {
+	int32_t i = params.firstAtOrAfter(paramId);
+	if (i >= std::ssize(params) || params[i].cc != paramId) {
+		return nullptr;
+	}
+	return (domMidiRef_ != nullptr) ? findDomMidiNodes(params[i].cc) : &params[i].nodes_;
 }
 
 void MIDIParamCollection::deleteAllParams(Action* action, bool deleteStorageToo) {

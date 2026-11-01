@@ -16,12 +16,18 @@
  */
 
 #include "deluge-project/param_edit.h"
+#include "deluge-project/edit_guard.h"
 #include <algorithm>
 #include <cmath>
 
 namespace deluge::project {
 
+// Every kernel that edits nodes holds one EditGuard (ModelEdit::NODE_KERNEL) across its whole body. The render walks
+// these nodes and, on the device, preempts at any instruction: between two node ops it would see a half-done edit,
+// and an index the kernel computed before it could be stale after a render-side record write.
+
 int32_t setNodeAtPos(DocAutoParam& p, int32_t pos, int32_t value, bool interpolate) {
+	EditGuard guard{ModelEdit::NODE_KERNEL};
 	auto& nodes = p.nodes;
 	// nodes are kept sorted ascending by pos; find the first node at or after pos.
 	auto it =
@@ -120,6 +126,7 @@ int32_t getDistanceToNextNode(const DocAutoParam& p, int32_t pos, int32_t loopLe
 }
 
 void insertTime(DocAutoParam& p, int32_t pos, int32_t lengthToInsert) {
+	EditGuard guard{ModelEdit::NODE_KERNEL};
 	auto& nodes = p.nodes;
 	auto it =
 	    std::lower_bound(nodes.begin(), nodes.end(), pos, [](const ParamNode& n, int32_t key) { return n.pos < key; });
@@ -129,6 +136,7 @@ void insertTime(DocAutoParam& p, int32_t pos, int32_t lengthToInsert) {
 }
 
 void shiftHorizontally(DocAutoParam& p, int32_t amount, int32_t effectiveLength) {
+	EditGuard guard{ModelEdit::NODE_KERNEL};
 	auto& nodes = p.nodes;
 	if (nodes.empty()) {
 		return;
@@ -238,6 +246,7 @@ void tileRepeats(ParamNodeVector& nodes, int32_t wrapPoint, int32_t endPos) {
 } // namespace
 
 void shiftValues(DocAutoParam& p, int32_t offset) {
+	EditGuard guard{ModelEdit::NODE_KERNEL};
 	p.current_value = addSaturating(p.current_value, offset);
 	for (ParamNode& node : p.nodes) {
 		node.value = addSaturating(node.value, offset);
@@ -245,6 +254,7 @@ void shiftValues(DocAutoParam& p, int32_t offset) {
 }
 
 void generateRepeats(DocAutoParam& p, uint32_t oldLength, uint32_t newLength, bool shouldPingpong) {
+	EditGuard guard{ModelEdit::NODE_KERNEL};
 	auto& nodes = p.nodes;
 	if (nodes.empty()) {
 		return;
@@ -367,6 +377,7 @@ void generateRepeats(DocAutoParam& p, uint32_t oldLength, uint32_t newLength, bo
 int32_t homogenizeRegion(DocAutoParam& p, int32_t startPos, int32_t length, int32_t startValue,
                          bool interpolateLeftNode, bool interpolateRightNode, int32_t effectiveLength, bool reversed,
                          bool recordingLinearly, int32_t posAtWhichClipWillCut) {
+	EditGuard guard{ModelEdit::NODE_KERNEL};
 	auto& nodes = p.nodes;
 
 	constexpr int kLeft = 0;  // REGION_EDGE_LEFT
@@ -522,6 +533,7 @@ int32_t homogenizeRegion(DocAutoParam& p, int32_t startPos, int32_t length, int3
 }
 
 void deleteTime(DocAutoParam& p, int32_t startPos, int32_t lengthToDelete, int32_t loopLength) {
+	EditGuard guard{ModelEdit::NODE_KERNEL};
 	auto& nodes = p.nodes;
 
 	int32_t endPos = startPos + lengthToDelete;
@@ -575,6 +587,7 @@ void deleteTime(DocAutoParam& p, int32_t startPos, int32_t lengthToDelete, int32
 }
 
 void moveRegionHorizontally(DocAutoParam& p, int32_t pos, int32_t length, int32_t offset, int32_t lengthBeforeLoop) {
+	EditGuard guard{ModelEdit::NODE_KERNEL};
 	auto& nodes = p.nodes;
 
 	if (nodes.empty()) {
@@ -723,6 +736,7 @@ void moveRegionHorizontally(DocAutoParam& p, int32_t pos, int32_t length, int32_
 }
 
 void deleteNodesWithinRegion(DocAutoParam& p, int32_t pos, int32_t length, int32_t effectiveLength) {
+	EditGuard guard{ModelEdit::NODE_KERNEL};
 	auto& nodes = p.nodes;
 	if (nodes.empty()) {
 		return;
@@ -761,6 +775,7 @@ void deleteNodesWithinRegion(DocAutoParam& p, int32_t pos, int32_t length, int32
 }
 
 void transposeCCValuesToChannelPressure(DocAutoParam& p) {
+	EditGuard guard{ModelEdit::NODE_KERNEL};
 	for (ParamNode& node : p.nodes) {
 		node.value = (node.value >> 1) + (1 << 30);
 	}
@@ -768,6 +783,7 @@ void transposeCCValuesToChannelPressure(DocAutoParam& p) {
 }
 
 void flattenReverse(DocAutoParam& p, int32_t reverseDirectionWithLength) {
+	EditGuard guard{ModelEdit::NODE_KERNEL};
 	auto& nodes = p.nodes;
 	int32_t numNodes = static_cast<int32_t>(nodes.size());
 	if (!reverseDirectionWithLength || !numNodes) {
@@ -812,6 +828,7 @@ void flattenReverse(DocAutoParam& p, int32_t reverseDirectionWithLength) {
 }
 
 void trimToLength(DocAutoParam& p, int32_t newLength, int32_t loopLength) {
+	EditGuard guard{ModelEdit::NODE_KERNEL};
 	auto& nodes = p.nodes;
 
 	// If no nodes, nothing to do.
@@ -855,6 +872,7 @@ void trimToLength(DocAutoParam& p, int32_t newLength, int32_t loopLength) {
 
 void appendParam(DocAutoParam& dest, const DocAutoParam& src, int32_t oldLength, int32_t reverseThisRepeatWithLength,
                  bool pingpongingGenerally) {
+	EditGuard guard{ModelEdit::NODE_KERNEL};
 	auto& destNodes = dest.nodes;
 	const auto& srcNodes = src.nodes;
 
@@ -959,6 +977,7 @@ void appendParam(DocAutoParam& dest, const DocAutoParam& src, int32_t oldLength,
 }
 
 void nudgeNonInterpolatingNodesAtPos(DocAutoParam& p, int32_t pos, int32_t offset, int32_t lengthBeforeLoop) {
+	EditGuard guard{ModelEdit::NODE_KERNEL};
 	auto& nodes = p.nodes;
 
 	int32_t nodeI = firstAtOrAfter(nodes, pos);
@@ -1036,6 +1055,7 @@ std::optional<RegionWriteResult> setValueForRegion(DocAutoParam& p, uint32_t pos
                                                    int32_t effectiveLength, bool interpolateLeftNode,
                                                    bool interpolateRightNode, bool recordingLinearly, bool clockActive,
                                                    int32_t livePos, bool currentlyPlayingReversed) {
+	EditGuard guard{ModelEdit::NODE_KERNEL};
 	auto& nodes = p.nodes;
 
 	// The user can't edit beyond the length of the loop/Clip/TimelineCounter they're editing within.
@@ -1131,6 +1151,7 @@ void copyRegion(const DocAutoParam& p, int32_t startPos, int32_t endPos, int32_t
 
 void pasteRegion(DocAutoParam& p, int32_t startPos, int32_t endPos, float scaleFactor, int32_t loopLength,
                  bool isPatchCable, const CopiedAutomation& copied) {
+	EditGuard guard{ModelEdit::NODE_KERNEL};
 	if (copied.nodes.empty()) {
 		return; // nothing to paste
 	}
@@ -1240,6 +1261,7 @@ void pasteRegion(DocAutoParam& p, int32_t startPos, int32_t endPos, float scaleF
 }
 
 void stealNodes(DocAutoParam& p, int32_t pos, int32_t regionLength, int32_t loopLength, StolenNodes* outStolen) {
+	EditGuard guard{ModelEdit::NODE_KERNEL};
 	auto& nodes = p.nodes;
 
 	int32_t stopAt = pos + regionLength;
@@ -1295,6 +1317,7 @@ void stealNodes(DocAutoParam& p, int32_t pos, int32_t regionLength, int32_t loop
 
 void insertStolenNodes(DocAutoParam& p, int32_t pos, int32_t regionLength, int32_t loopLength,
                        const StolenNodes& stolenNodes) {
+	EditGuard guard{ModelEdit::NODE_KERNEL};
 	// First, clear the destination area (an un-recorded steal).
 	stealNodes(p, pos, regionLength, loopLength);
 
@@ -1319,6 +1342,7 @@ void insertStolenNodes(DocAutoParam& p, int32_t pos, int32_t regionLength, int32
 }
 
 bool makeInterpolationGoodAgain(DocAutoParam& p, int32_t clipLength, int32_t quantizationRShift) {
+	EditGuard guard{ModelEdit::NODE_KERNEL};
 	auto& nodes = p.nodes;
 
 	if (nodes.size() <= 1) {
@@ -1420,6 +1444,7 @@ bool makeInterpolationGoodAgain(DocAutoParam& p, int32_t clipLength, int32_t qua
 int32_t recordLiveValue(DocAutoParam& p, int32_t livePos, int32_t value, int32_t ticksToClear, bool doMPEMode,
                         bool interpolateLeft, int32_t effectiveLength, bool reversed, bool recordingLinearly,
                         int32_t posAtWhichPlaybackWillCut) {
+	EditGuard guard{ModelEdit::NODE_KERNEL};
 	int32_t leftI;
 
 	// Special case: recording MPE linearly, or a zero-length region — insert one node.

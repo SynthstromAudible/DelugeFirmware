@@ -106,6 +106,13 @@ deluge::project::DocAutoParam* ParamSet::docForParam(int32_t p) {
 	return &domStoreRef_->params[p];
 }
 
+deluge::project::DocAutoParam* ParamSet::findDocParamForId(int32_t paramId) {
+	if (domStoreRef_ == nullptr || paramId < 0 || static_cast<size_t>(paramId) >= domStoreRef_->params.size()) {
+		return nullptr;
+	}
+	return &domStoreRef_->params[paramId];
+}
+
 void ParamSet::stripAutomation() {
 	int32_t numParams = getNumParams();
 	for (int32_t p = 0; p < numParams; p++) {

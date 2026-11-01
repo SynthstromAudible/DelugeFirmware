@@ -90,6 +90,25 @@ kinds=<kind=n,...>`:
     CG-GRAINSWAP             a synth's mod FX type set grain, chorus, grain, none by the type menu's Edit while the
                              song plays: after each change the grain holds its ring exactly when the type is the grain
                              (CG-GRAINSWAP blocks=1 noted=1 required)
+    CG-RECORDKNOB            the gold knob turned on a playing synth's volume with record on: each turn records nodes
+                             (a param_edit kernel and the linear-run trim after it, one compound edit), and the latched
+                             render writes over the nodes it reaches (CG-RECORDKNOB recorded=1 and renderKernels>0 required)
+    CG-RELOCATE              automation put in a synth's own store, never relocated, which the render reaches first:
+                             the render reads it where it is and moves nothing into the song's param stores; the knob
+                             turned after moves it, from the interaction tier (CG-RELOCATE renderStoreEdits=0
+                             resident=1 required)
+    CG-CCLEARN               two CCs learned on a playing MIDI clip: its store enters the song's clip params and its CC
+                             lanes grow (CG-CCLEARN lanes=2 required)
+    CG-CABLEADD              a cable added and its depth turned, moving the cable depths into the song's backed params;
+                             then a second cable added and removed, growing and shrinking those lanes
+                             (CG-CABLEADD resident=1 required)
+    CG-DRUMDEL               a kit row deleted by its Edit while the kit plays: the drum's stores leave the song's backed
+                             params (CG-DRUMDEL stores=0 required)
+    CG-PASTE                 the automation editor's paste over a quarter of a playing synth's volume automation
+    CG-TRIM                  a playing synth's volume automation trimmed to half the loop, with a node added at 0
+    CG-STEAL                 a note's automation stolen from one quarter and inserted over the next
+    CG-NODES leg=<LEG> lone= inserts and erases at an index on automation node vectors the interaction tier made
+                             outside a compound edit during the leg; required 0 for the automation legs
     CG-CHOKE                 two choke-mode drums sounded in turn, each choking the other, over 400 blocks
     CG-BIGROW                a note row inserted below 128 others, moving them all; CG-MASK reports the edit's host
                              wall time (maskMicros=), an upper bound on the section it holds (a block is ~2900 us)
@@ -128,6 +147,14 @@ LEGS = [
     "VOICEKILL",
     "VOICEMULTIRANGE",
     "VOICEFAIL",
+    "RECORDKNOB",
+    "RELOCATE",
+    "CCLEARN",
+    "CABLEADD",
+    "DRUMDEL",
+    "PASTE",
+    "TRIM",
+    "STEAL",
     "HEAP",
     "SLAB",
     "MODFXOOM",
@@ -146,6 +173,18 @@ LEGS = [
     "STUTTERCLEAR",
 ]
 # The legs whose edits must all be made while the render is excluded.
+
+# The legs whose automation-node inserts and erases at an index must each be inside a compound edit.
+NODE_LEGS = [
+    "RECORDKNOB",
+    "RELOCATE",
+    "CCLEARN",
+    "CABLEADD",
+    "DRUMDEL",
+    "PASTE",
+    "TRIM",
+    "STEAL",
+]
 
 
 def _grep(result, pattern: str, otherwise: str) -> str:
@@ -232,6 +271,25 @@ def _check(gate, result) -> None:
         )
     for line, why in (
         (
+            "CG-RELOCATE renderStoreEdits=0 resident=1",
+            (
+                "the render must read a store that is not in the song's param stores where it is, moving nothing into "
+                "them, and the knob turned after must move it"
+            ),
+        ),
+        (
+            "CG-CCLEARN lanes=2",
+            "two CCs learned on a playing MIDI clip must each have a lane in the clip's store",
+        ),
+        (
+            "CG-CABLEADD resident=1",
+            "a cable's depth turned must move the cable depths into the song's backed params",
+        ),
+        (
+            "CG-DRUMDEL stores=0",
+            "a deleted kit row's drum must leave no store in the song's backed params",
+        ),
+        (
             "CG-DELAYOOM injected=1 passthrough=1 recovered=1 noted=1",
             (
                 "a delay whose arena region could not be lent must pass the audio through, then start once the "
@@ -297,6 +355,20 @@ def _check(gate, result) -> None:
             f"{found}: a mod FX type change left a grain ring that does not match its type"
         )
         return
+
+    # The render's latched record writes must be reached, or RECORDKNOB says nothing about them.
+    record = re.search(
+        r"CG-RECORDKNOB recorded=1 renderKernels=(\d+)", "\n".join(result.lines)
+    )
+    if not (record and int(record.group(1)) > 0):
+        found = _grep(result, "CG-RECORDKNOB recorded", "no CG-RECORDKNOB line")
+        gate.fail(f"{found}: the render never wrote over the recorded nodes")
+    for leg in NODE_LEGS:
+        if not result.has_line(f"CG-NODES leg={leg} lone=0"):
+            found = _grep(result, f"CG-NODES leg={leg} ", f"no CG-NODES leg={leg} line")
+            gate.fail(
+                f"{found}: an automation node insert or erase at an index ran outside a compound edit"
+            )
 
     failed = [leg for leg in LEGS if not _guarded(result, leg)]
     if failed:

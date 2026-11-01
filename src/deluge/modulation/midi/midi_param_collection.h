@@ -119,6 +119,8 @@ public:
 	/// @copydoc ParamCollection::docParamForId
 	/// @note The paramId is the CC number.
 	deluge::project::DocAutoParam* docParamForId(int32_t paramId) override;
+	/// @copydoc ParamCollection::findDocParamForId
+	deluge::project::DocAutoParam* findDocParamForId(int32_t paramId) override;
 
 private:
 	/// DOM-owned node store (nullptr = unbound). RAII-freed with the collection.

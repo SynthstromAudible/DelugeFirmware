@@ -16,6 +16,13 @@ extern "C" bool deluge_in_audio_context(void) noexcept {
 	return false;
 }
 
+// memory/heaps.h, read by the structural-edit probe: no test renders, so nothing runs on the render tier.
+namespace deluge::memory {
+bool onRenderTier() {
+	return false;
+}
+} // namespace deluge::memory
+
 // Single-threaded tests: nothing can preempt them, so a critical section has nothing to exclude.
 extern "C" void ENTER_CRITICAL_SECTION() noexcept {
 }
