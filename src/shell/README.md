@@ -250,7 +250,7 @@ today: `Action::Repaint` names a `SurfaceRole` and there is no grid role, so the
    `after_render()` reaches the scenes now, and its gates are armed at a deadline of now, so the next
    tick happens and draws it. Between ticks a pending fact is a wake too: `next_wake(now)` answers
    `now`, and the guest arms a tick from `drain_notifications` while it sleeps.
-9. `derive_leds`, then `flush` (Task 8). Every blink declared `LedState::shared(rate)` reads the
+9. `derive_leds`, then `flush`. Every blink declared `LedState::shared(rate)` reads the
    shell's one phase for that rate, as `indicator_leds::ledBlinkState[blinkingType]`: restarted where
    a declarer calls `LedFrame::restart` (its `blinkLed`) and whenever an LED starts blinking on it.
 
@@ -311,7 +311,7 @@ overlay, so without `is_grid_overlay()` a pushed notice would become the base an
 `render_grid` clears first -- leave the pads black. Legacy's popups, console lines and working animation are OLED-only; the pads keep
 showing the view underneath, unchanged.
 
-## Flush (`shell.cpp`, Task 8) -- the seam for spec F
+## Flush (`shell.cpp`) -- the seam for spec F
 
 `Shell::flush` is the only place the shell touches `SurfaceSet`'s sink virtuals, once per tick,
 after LEDs are derived:
@@ -368,7 +368,7 @@ spec F (or a later amendment) would extend.
 |---|---|
 | `led_is_on(state, now_ms)` | The whole `indicator_leds` blinker table (`indicator_leds.h:71-79`, `LED_BLINK*` timers at `kFlashTime`/`kFastFlashTime`) as a pure function: phase is `now_ms / period_ms`, so same-period LEDs blink together, and `until_ms` folds an alert back to On |
 | `LedCompose::compose` | Services first, then the stack bottom to top; `LedFrame::set` overwrites, so the top scene wins for every LED it mentions and the ones beneath supply the rest |
-| `led_send_needed` | The diff Task 8's flush drives `set_led` from; an LED nothing declared is never sent |
+| `led_send_needed` | The diff `flush` drives `set_led` from; an LED nothing declared is never sent |
 
 `Shell::derive_leds` composes into `LedSurface::frame` and resolves each declaration into
 `LedSurface::desired_on`/`desired_declared`, both indexed by *board LED index* (`LedId`'s own

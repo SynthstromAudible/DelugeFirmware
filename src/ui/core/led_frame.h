@@ -21,7 +21,6 @@ enum class LedId : uint8_t;
 /// and mod encoder 0 is `mod0`, the LOWER gold encoder (`src/deluge/hid/encoders.h:80-81`).
 /// Numbering these the other way round would make the pass-through silently swap the two knobs.
 enum class IndicatorId : uint8_t { Lower, Upper };
-/// Declared state of one LED: off, on, or blinking with a period and a deadline.
 /// @brief The two blink rates every blinking LED shares a phase with, as `indicator_leds::blinkLed`'s
 ///        `blinkingType` 0 and 1.
 enum class BlinkRate : uint8_t { Normal, Fast };
@@ -37,6 +36,7 @@ struct BlinkPhase {
 	bool running = false;
 };
 
+/// Declared state of one LED: off, on, or blinking with a period and a deadline.
 struct LedState {
 	enum class Kind : uint8_t { Off, On, Blink, Shared } kind;
 	uint16_t period_ms;

@@ -223,6 +223,9 @@ public:
 	}
 	void render_grid(deluge::ui::grid::GridFrame& frame) override {
 		grid_renders++;
+		if (grid_renders == 1) {
+			first_frame_shift = frame.shift();
+		}
 		if (paints) {
 			(void)frame.pad(0, 0, kOverlayColour);
 		}
@@ -252,6 +255,7 @@ public:
 	bool passes_pads_beneath() const override { return passes_pads; }
 	bool occludes_grid() const override { return occludes; }
 	bool oled_transparent(SurfaceRole) const override { return transparent; }
+	bool input_transparent() const override { return passive; }
 	deluge::ui::grid::GreyoutMask greyout_mask() const override { return mask; }
 
 	/// The local corner `render_oled` draws its box at.
@@ -260,6 +264,10 @@ public:
 	bool overlay = true, occludes = false, transparent = false;
 	/// What `passes_pads_beneath()` answers.
 	bool passes_pads = false;
+	/// What `input_transparent()` answers: a notice-like layer that takes no input.
+	bool passive = false;
+	/// What the first `render_grid` read for shift.
+	bool first_frame_shift = false;
 	/// Whether `leds()` declares the play LED's 200 ms blink, `kSongLed` on the shared normal blink, and restarts the
 	/// shared normal phase (one-shot).
 	bool declares_play = true, shared_blink = false, restart_next = false;
@@ -830,7 +838,9 @@ describe shell_tick("shell::Shell::tick", $ {
 
 		// The base's frame was built with InputMask::all() despite the console above it...
 		expect(r.base.turns_seen).to_equal(1);
-		// ...and the router reached the base's handle(), not the popup's.
+		// ...and the router reached the base's handle(), not the popup's, on the next tick: the Play came after a
+		// turn the base's widgets owned.
+		r.shell.tick(31);
 		expect(r.base.events).to_equal(1);
 		expect(r.base.last_event_kind == UiEvent::Kind::Button).to_be_true();
 	});
@@ -1019,6 +1029,66 @@ describe shell_tick("shell::Shell::tick", $ {
 		r.shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_PAD, 2, 2, 64}, 25);
 		r.shell.tick(30);
 		expect(r.base.pads_pressed).to_equal(1);
+	});
+
+	it("an event after one the scene's widgets own waits for the next tick, which comes at once", _ {
+		deluge::notify::dirty().drain();
+		Rig r;
+		r.base.owns_turn = true;
+		r.base.read_turn = true;
+		r.shell.init({kBase, 0});
+		r.shell.tick(0);
+		r.shell.on_encoder_edges(3, 2, 25);
+		r.shell.on_board_event(button_ev(8, 3, true), 26); // Play, after the owned turn
+		r.shell.tick(30);
+		expect(r.base.turns_seen).to_equal(1);
+		expect(r.base.events).to_equal(0); // not routed against a scene that has not drawn the turn yet
+		expect(*r.shell.next_wake()).to_equal(uint32_t(30));
+		r.shell.tick(31);
+		expect(r.base.events).to_equal(1);
+		expect(r.base.turns_seen).to_equal(1); // the turn was not carried twice
+	});
+
+	it("a scene that owns input under an opaque passive overlay still draws, and claims it", _ {
+		deluge::notify::dirty().drain();
+		ownership_audit() = {};
+		Rig r;
+		r.base.owns_turn = true;
+		r.base.read_turn = true;
+		r.overlay.passive = true;
+		r.shell.init({kBase, 0});
+		expect(r.shell.stack().push({kOverlay, 0})).to_be_true();
+		r.shell.tick(0);
+		r.shell.on_encoder_edges(3, 2, 25);
+		r.shell.tick(30);
+		expect(r.base.turns_seen).to_equal(1);
+		expect(ownership_audit().unclaimed_owned).to_equal(uint32_t(0));
+	});
+
+	it("a scene pushed between ticks starts its clock at the next tick", _ {
+		deluge::notify::dirty().drain();
+		Rig r;
+		r.shell.init({kBase, 0});
+		r.shell.tick(0);
+		expect(r.shell.stack().push({kOverlay, 0})).to_be_true(); // a host's push, as ModKnobs' popup is
+		r.shell.tick(1000);
+		expect(r.overlay.ticked_ms).to_equal(uint32_t(0));
+		r.shell.tick(1010);
+		expect(r.overlay.ticked_ms).to_equal(uint32_t(10));
+	});
+
+	it("a scene a pad press pushes reads shift on its first frame", _ {
+		deluge::notify::dirty().drain();
+		Rig r;
+		r.shell.init({kBase, 0});
+		r.shell.tick(0);
+		r.shell.on_board_event(button_ev(8, 0, true), 5); // Shift down
+		r.shell.tick(10);
+		r.base.push_overlay_from_handle = true;
+		r.shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_PAD, 2, 2, 64}, 15);
+		r.shell.tick(20);
+		expect(r.shell.stack().top().kind() == kOverlay).to_be_true();
+		expect(r.overlay.first_frame_shift).to_be_true();
 	});
 
 	it("a scene pushed by this tick's input starts its clock at this tick", _ {

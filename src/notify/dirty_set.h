@@ -39,16 +39,16 @@ struct ClipBits {
 	}
 };
 
+/// @brief Who drains the facts. Each raise reaches every consumer, and each drains only its own
+///        copy, so the legacy UI's drain cannot take a fact the shell has not seen.
+enum class DirtyConsumer : uint8_t { Shell, Legacy, Count };
+
 /// @brief Pointer-free, [any]-safe accumulator of dirty facts, doubling as the drained snapshot type.
 ///
 /// The same type is both the live accumulator (atomic raises) and the value drain() returns (plain
 /// reads thereafter). A drained result has its own, separate accumulator state that nothing will
 /// ever drain again, so calling raise()/raise_clip() on it is meaningless -- only clips()/has()/
 /// any() are meant to be called on one.
-/// @brief Who drains the facts. Each raise reaches every consumer, and each drains only its own
-///        copy, so the legacy UI's drain cannot take a fact the shell has not seen.
-enum class DirtyConsumer : uint8_t { Shell, Legacy, Count };
-
 class DirtySet {
 public:
 	DirtySet() = default;

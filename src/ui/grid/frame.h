@@ -70,6 +70,9 @@ struct PadFlashList {
 	void clear() { count = 0; }
 };
 
+/// What a covered frame reports for `held_pads()`: nothing held.
+inline constexpr PadMask kNoPadsHeld{};
+
 /// @brief The pad surface a component sees for one tick.
 ///
 /// The grid's defining trick is that **painting and hit-testing are one call**: `pad()` writes a
@@ -105,9 +108,6 @@ struct PadFlashList {
 ///       `ctx.input.pads` through the reference it already holds -- a child region sees *the
 ///       same* event span as its parent, never a filtered copy, without the staleness.
 ///       `local_events()` does the filtering, per call, on demand.
-/// What a covered frame reports for `held_pads()`: nothing held.
-inline constexpr PadMask kNoPadsHeld{};
-
 struct GridFrame : FrameInput {
 	// `FrameInput` (ui/core/frame_context.h) supplies `ctx`, `mask`, every input accessor, the
 	// `claim_*()` methods and `gate()` -- one copy of the input-consumption contract for both

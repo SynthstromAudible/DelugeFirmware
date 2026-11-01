@@ -23,7 +23,7 @@ using notify::Dirty;
 /// 6500000` (`hid/led/pad_leds.cpp:786-788`). Every place that greys a whole view outright asks
 /// for the full amount, `setGreyoutAmount(1)` (`pad_leds.cpp:753`, `:767`, `:783`, `:988`), so the
 /// scaled constant is `1 * 6500000`. (The fractional values at `pad_leds.cpp:991,1003` are a
-/// transition ramping the same scale in and out, which the tween driver -- Task 8 -- owns.)
+/// transition ramping the same scale in and out, which the tween driver owns.)
 /// `RGB::greyOut` then reads it as `0x808080 - proportion` plus `totalRGB * (proportion >> 5)`
 /// over a 23-bit shift (`gfx/grid/rgb.h`), which is why the number is this size rather than 0..255.
 constexpr int32_t kGreyoutAmountFull = 6500000;
@@ -547,9 +547,13 @@ void Shell::tick(uint32_t now_ms) {
 	apply_dirty(notify::dirty().drain(notify::DirtyConsumer::Shell), now_ms);
 	// 9. LEDs, every tick.
 	derive_leds(now_ms);
-	flush(now_ms); // Task 8
+	flush(now_ms);
 	next_wake_ = compute_next_wake(now_ms);
 	last_ms_ = now_ms;
+	up_at_last_tick_.clear();
+	for (Scene* scene : stack_.scenes()) {
+		(void)up_at_last_tick_.push_back(scene);
+	}
 	// The lowering's tick window closes here and not before: the render's claims and the press
 	// edges belong to this tick until the *next* `begin_tick()` clears them.
 	tick_open_ = false;
@@ -607,36 +611,49 @@ void Shell::pump_input(uint32_t now_ms) {
 	// per-tick reset runs and `end_tick` assembles a snapshot for this tick's frames to read.
 	ensure_tick_window(now_ms);
 	lowering_.end_tick(now_ms);
-	up_before_input_.clear();
-	for (Scene* scene : stack_.scenes()) {
-		(void)up_before_input_.push_back(scene);
-	}
 	pad_readers_.clear();
+	stacked_at_pads_.clear();
 	pads_arrived_ = false;
 	owned_ = {};
 	routed_ = {};
 	decider_ = nullptr;
 	deciders_differ_ = false;
+	InputClaims owned_presses{};
 	UiEvent event{UiEvent::Kind::AllReleased};
 	while (lowering_.next(event)) {
+		// Asked per event: an earlier event this tick may have pushed the scene that takes this one.
+		const bool widget = is_widget_owned_shape(event) && lowering_.last_in_snapshot();
+		Scene& top = stack_.input_top();
+		const bool owned = widget && top.owns(event);
+		// What the render owns takes effect when it draws, so once it owns something an event that would act now, or
+		// a second press of an edge it already owns, waits for the next tick: it must find what came before it applied,
+		// as legacy's serial dispatch does.
+		const bool press =
+		    event.on && (event.kind == UiEvent::Kind::Button || event.kind == UiEvent::Kind::EncoderButton);
+		if (owned_.any() && (!owned || (press && claim_covers(owned_presses, event)))) {
+			lowering_.defer_rest(event);
+			break;
+		}
 		// The pads go to whoever could read them when they arrived: a press that closes the scene over
 		// a keyboard is not typed into it as well, as legacy's `ContextMenu::padAction` consumes it.
 		if (event.kind == UiEvent::Kind::Pad && !pads_arrived_) {
 			const std::span<Scene* const> scenes = stack_.scenes();
 			for (size_t k = 0; k < scenes.size(); k++) {
+				(void)stacked_at_pads_.push_back(scenes[k]);
 				if (!covered(k)) {
 					(void)pad_readers_.push_back(scenes[k]);
 				}
 			}
 			pads_arrived_ = true;
 		}
-		// Asked per event: an earlier event this tick may have pushed the scene that takes this one.
-		if (is_widget_owned_shape(event) && lowering_.last_in_snapshot()) {
-			Scene& top = stack_.input_top();
+		if (widget) {
 			deciders_differ_ = deciders_differ_ || (decider_ != nullptr && decider_ != &top);
 			decider_ = &top;
-			if (top.owns(event)) {
+			if (owned) {
 				add_claim(owned_, event);
+				if (press) {
+					add_claim(owned_presses, event);
+				}
 				continue;
 			}
 			lowering_.withdraw(event);
@@ -649,11 +666,12 @@ void Shell::pump_input(uint32_t now_ms) {
 
 void Shell::tick_stack(uint32_t now_ms, uint32_t dt_ms) {
 	const std::span<Scene* const> scenes = stack_.scenes();
-	// A scene this tick's input pushed was not up for the time `dt_ms` covers, so its clock starts
-	// here, as a legacy UI's timer starts when it opens.
+	// A scene pushed since the last tick ended -- by a host between ticks, a notice or this tick's
+	// input -- was not up for the time `dt_ms` covers, so its clock starts here, as a legacy UI's
+	// timer starts when it opens.
 	for (size_t k = scenes.size(); k-- > 0;) {
-		const bool pushed_by_input = std::ranges::find(up_before_input_, scenes[k]) == up_before_input_.end();
-		scenes[k]->tick(pushed_by_input ? 0 : dt_ms);
+		const bool pushed_since = std::ranges::find(up_at_last_tick_, scenes[k]) == up_at_last_tick_.end();
+		scenes[k]->tick(pushed_since ? 0 : dt_ms);
 		// A scene that covers the grid completely is the only thing anyone can see, so nothing
 		// beneath it needs its clock advanced -- legacy's `PadLEDs::renderingLock` era kept every
 		// UI running underneath and paid for it in wasted work.
@@ -748,7 +766,22 @@ bool Shell::render_oled(OledSurface& s) {
 	// copy of it (`Shell::oled_lowest`).
 	const size_t lowest = oled_lowest(s.role);
 	Scene* const focus = &stack_.input_top();
-	for (size_t k = lowest; k < scenes.size(); k++) {
+	// The scene that takes the input is drawn even under an opaque passive layer (a popup, the
+	// screensaver), because its render is where its widgets read that input; the layer then draws
+	// on a cleared panel, so what shows is unchanged.
+	size_t first = lowest;
+	for (size_t k = 0; k < lowest; k++) {
+		if (scenes[k] == focus) {
+			first = k;
+		}
+	}
+	for (size_t k = first; k < scenes.size(); k++) {
+		if (k > first && k < lowest) {
+			continue; // hidden, and not the scene that takes the input
+		}
+		if (k == lowest && k != first) {
+			s.canvas.clear();
+		}
 		// Exactly one scene per pass owns the tick's input, and it is the same one the router hands
 		// events to: the input-frontmost scene (`Scene::input_transparent`). Everything else in the
 		// pass -- beneath it, or a passive layer above it -- draws with `InputMask::none()`, so its
@@ -767,7 +800,10 @@ bool Shell::covered(size_t k) {
 	// Only the scene that takes the input, and a scene beneath it every scene up to it passes pads
 	// to, read the pads and the levels; the passive layers above it take no input at all.
 	const std::span<Scene* const> scenes = stack_.scenes();
-	if (pads_arrived_ && std::ranges::find(pad_readers_, scenes[k]) == pad_readers_.end()) {
+	// A scene stacked then that could not read the pads cannot now; one pushed since answers as the
+	// stack stands.
+	if (pads_arrived_ && std::ranges::find(stacked_at_pads_, scenes[k]) != stacked_at_pads_.end()
+	    && std::ranges::find(pad_readers_, scenes[k]) == pad_readers_.end()) {
 		return true;
 	}
 	const Scene* const focus = &stack_.input_top();
@@ -902,11 +938,9 @@ void Shell::render_grid(uint32_t now_ms) {
 void Shell::audit_ownership() {
 	// Judged only where one scene answered every question this tick and still takes the input: a
 	// scene that took the input after another declined an event claims an edge that is no longer in
-	// the snapshot, which reads nothing. And only if it drew: one covered on every surface this tick
-	// had nothing to read its input with, the same outcome as any other covered input.
+	// the snapshot, which reads nothing.
 	Scene* const taker = &stack_.input_top();
-	if (decider_ != taker || deciders_differ_
-	    || std::ranges::find(rendered_this_tick_, taker) == rendered_this_tick_.end()) {
+	if (decider_ != taker || deciders_differ_) {
 		return;
 	}
 	const InputClaims& claimed = lowering_.ctx().claims;
@@ -1167,6 +1201,10 @@ std::optional<uint32_t> Shell::compute_next_wake(uint32_t now_ms) {
 			best = at;
 		}
 	};
+	// Input `pump_input` deferred to the next tick is due now.
+	if (lowering_.has_queued()) {
+		consider(now_ms);
+	}
 	// Gate deadlines are absolute; scene and service timers are "milliseconds from now".
 	for (OledSurface& s : surfaces_.oled()) {
 		consider(s.gate.next_deadline());

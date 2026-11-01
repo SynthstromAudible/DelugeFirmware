@@ -904,6 +904,37 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		expect(r.shell.stack().depth()).to_equal(size_t(0));
 	});
 
+	it("a Select turn and a Back at the root in one tick: the turn moves the cursor, then the menu closes", _ {
+		// Main handles them in order: the turn, then `goUpOneLevel`'s exit.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(settings_root);
+		r.shell.tick(0);
+		r.turn(1, 10);
+		r.button(kBackX, kBackY, true, 10);
+		r.shell.tick(20);
+		expect(cursor_of(0)).to_equal(1);
+		expect(r.shell.stack().depth()).to_equal(size_t(1));
+		r.shell.tick(21);
+		expect(r.shell.stack().depth()).to_equal(size_t(0));
+	});
+
+	it("a select that enters a submenu and a Back in one tick: enters, then ascends", _ {
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(settings_root);
+		r.shell.tick(0);
+		r.enter(10);
+		r.button(kBackX, kBackY, true, 10);
+		r.shell.tick(20);
+		expect(depth_of()).to_equal(1);
+		r.shell.tick(21);
+		expect(depth_of()).to_equal(0);
+		expect(r.shell.stack().depth()).to_equal(size_t(1)); // ascended, not closed
+	});
+
 	it("a Select turn and the press after it in one tick both reach the menu that took the input", _ {
 		// The press enters in `after_render`, after both were routed, so neither reaches the page it opens.
 		select_language();

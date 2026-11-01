@@ -182,6 +182,15 @@ public:
 	/// in this tick's snapshot, so no widget can read it this tick.
 	/// @return True when the last event is part of the snapshot.
 	bool last_in_snapshot() const { return last_in_snapshot_; }
+	/// @brief Is an event still queued?
+	/// @return True while `next()` would return one.
+	bool has_queued() const { return queue_count_ > 0; }
+	/// @brief Leave \p e, just taken from `next()`, and every event still queued for the next tick.
+	///
+	/// They are taken back out of this tick's snapshot and put into the next one when its window
+	/// opens, so each is read by exactly one tick's frames, in the order it arrived.
+	/// @param e The event `next()` last returned.
+	void defer_rest(const UiEvent& e);
 	/// @brief Take \p e back out of the snapshot the frames read, because it is being routed.
 	///
 	/// An encoder turn subtracts its delta from the snapshot's sum for that encoder; a Select or
@@ -476,6 +485,8 @@ private:
 	uint32_t queue_dropped_ = 0;
 	/// Events still queued that were fed before `end_tick()` took the snapshot.
 	uint8_t in_snapshot_ = 0;
+	/// Queued events `defer_rest` moved to the next tick, whose snapshot `begin_tick` puts them in.
+	uint8_t carried_ = 0;
 	bool last_in_snapshot_ = false;
 	DeferredEvent deferred_[kDeferredCapacity]{};
 	uint8_t deferred_head_ = 0;

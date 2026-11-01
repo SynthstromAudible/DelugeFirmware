@@ -16,6 +16,7 @@
 #include <algorithm>
 #include <cstdio>
 #include <cstring>
+#include <utility>
 
 namespace deluge::scenes::overlay {
 
@@ -210,10 +211,13 @@ void take_notification_slot() {
 
 bool ParamPopupScene::show(Kind kind, int32_t param_id, int32_t knob_pos, PatchSource source1, PatchSource source2,
                            uint32_t now_ms, PopupContext context) {
+	const uint32_t expiry_before = expires_at_ms_;
 	const bool committed = attempt_display(kind, param_id, knob_pos, source1, source2, now_ms, context);
 	if (committed) {
 		take_notification_slot();
 	}
+	// A new popup, or a refresh of the one showing, restarts the lifetime here.
+	armed_since_tick_ = armed_since_tick_ || committed || expires_at_ms_ != expiry_before;
 	return committed;
 }
 
@@ -354,8 +358,10 @@ std::optional<ShownPopup> ParamPopupScene::hand_off(uint32_t now_ms) {
 }
 
 void ParamPopupScene::tick(uint32_t dt_ms) {
+	// A lifetime armed since the last tick counts from its arming, not from that tick.
+	const uint32_t lived_ms = std::exchange(armed_since_tick_, false) ? 0 : dt_ms;
 	if (remaining_ms_ > 0) {
-		remaining_ms_ = dt_ms >= remaining_ms_ ? 0 : remaining_ms_ - dt_ms;
+		remaining_ms_ = lived_ms >= remaining_ms_ ? 0 : remaining_ms_ - lived_ms;
 	}
 	if (has_pending_) {
 		if (dt_ms >= pending_flush_remaining_ms_) {

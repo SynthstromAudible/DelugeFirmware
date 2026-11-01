@@ -445,12 +445,12 @@ struct MenuState;
 /// call `getValue()` after `writeCurrentValue()` has already run.
 using SelectChainFn = const Node* (*)(const MenuContext&, const MenuState&);
 
-/// @brief The escape hatch (spec E §4: at most 10 across the whole tree) for a bespoke item that
-///        doesn't fit any `Kind`: the multi-range editor, patch cables, the file selector, and the
-///        handful of others spec E §4 names.
 /// @brief What a list or option widget claims while drawn focused: the select turn and press.
 inline constexpr deluge::ui::InputClaims kListInput{.turn = true, .select = true};
 
+/// @brief The escape hatch (spec E §4: at most 10 across the whole tree) for a bespoke item that
+///        doesn't fit any `Kind`: the multi-range editor, patch cables, the file selector, and the
+///        handful of others spec E §4 names.
 struct CustomItem {
 	virtual ~CustomItem() = default;
 	virtual void render(deluge::ui::oled::OledFrame&, const MenuContext&, MenuState&) const = 0;

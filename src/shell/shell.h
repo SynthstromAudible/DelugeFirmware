@@ -643,15 +643,17 @@ private:
 		a.fill(-1);
 		return a;
 	}();
-	/// The scenes stacked when `pump_input` began routing; one missing from it was pushed by this tick's input.
-	FixedVector<Scene*, kStackDepth> up_before_input_;
+	/// The scenes stacked when the last tick ended; one missing from it was pushed since.
+	FixedVector<Scene*, kStackDepth> up_at_last_tick_;
 	/// The scenes drawn this tick, in the order they were drawn; each gets one `after_render()`.
 	FixedVector<Scene*, kStackDepth> rendered_this_tick_;
 	/// The widget-owned shapes `pump_input` left in the snapshot this tick.
 	InputClaims owned_{};
 	/// The widget-owned shapes `pump_input` withdrew and routed this tick.
 	InputClaims routed_{};
-	/// The scenes that could read pads when this tick's first pad event came off the queue, and whether one did.
+	/// The scenes stacked, and those of them that could read pads, when this tick's first pad event came off the
+	/// queue, and whether one did.
+	FixedVector<Scene*, kStackDepth> stacked_at_pads_;
 	FixedVector<Scene*, kStackDepth> pad_readers_;
 	bool pads_arrived_ = false;
 	/// The scene `pump_input` last asked `Scene::owns`, and whether a different one was asked earlier this tick.

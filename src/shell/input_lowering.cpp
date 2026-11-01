@@ -118,6 +118,36 @@ void InputLowering::begin_tick(uint32_t now_ms) {
 	}
 	pad_events_.clear();
 	ctx_.begin_tick(now_ms);
+	// What the last tick deferred belongs to this one: back into the sums and edges this tick's
+	// snapshot is assembled from.
+	for (uint8_t i = 0; i < carried_ && i < queue_count_; i++) {
+		const UiEvent& e = queue_[(queue_head_ + i) % kQueueCapacity];
+		had_input_ = true;
+		switch (e.kind) {
+		case UiEvent::Kind::Encoder: {
+			const size_t r = static_cast<size_t>(e.encoder);
+			if (r < kEncoderCount) {
+				tick_delta_[r] = saturating_add(tick_delta_[r], e.delta);
+			}
+			break;
+		}
+		case UiEvent::Kind::Button:
+		case UiEvent::Kind::EncoderButton:
+			if (e.button == ButtonId::SelectEnc) {
+				(e.on ? select_edge_ : select_release_edge_) = e.on || !used_up_.has(ButtonId::SelectEnc);
+			}
+			else if (e.button == ButtonId::Back && e.on) {
+				back_edge_ = true;
+			}
+			break;
+		case UiEvent::Kind::Pad:
+			(void)pad_events_.push_back(ui::PadEvent{e.x, e.y, e.velocity, e.on});
+			break;
+		default:
+			break;
+		}
+	}
+	carried_ = 0;
 }
 
 void InputLowering::end_tick(uint32_t now_ms) {
@@ -417,6 +447,26 @@ void InputLowering::clear_all_held(uint32_t now_ms) {
 
 void InputLowering::emit(const UiEvent& e) {
 	push_out(e);
+}
+
+void InputLowering::defer_rest(const UiEvent& e) {
+	// Back to the front of the queue, as though `next()` had not taken it.
+	queue_head_ = static_cast<uint8_t>((queue_head_ + kQueueCapacity - 1) % kQueueCapacity);
+	queue_[queue_head_] = e;
+	queue_count_++;
+	if (last_in_snapshot_) {
+		in_snapshot_++;
+	}
+	size_t pads = 0;
+	for (uint8_t i = 0; i < in_snapshot_; i++) {
+		const UiEvent& q = queue_[(queue_head_ + i) % kQueueCapacity];
+		withdraw(q);
+		pads += q.kind == UiEvent::Kind::Pad ? 1 : 0;
+	}
+	// The deferred pads are the last ones this window took, so the snapshot keeps the ones before.
+	snap_.pads = snap_.pads.first(snap_.pads.size() - std::min(pads, snap_.pads.size()));
+	carried_ = queue_count_;
+	in_snapshot_ = 0;
 }
 
 void InputLowering::withdraw(const UiEvent& e) {

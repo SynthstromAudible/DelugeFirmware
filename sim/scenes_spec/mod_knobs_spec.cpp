@@ -1510,6 +1510,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		// `last_display_value_` can make the first turn take the same-param-refresh arm and this
 		// example asserts about the previous one's state.
 		expect(overlay::param_popup_scene().remaining_ms() > 0).to_be_true();
+		overlay::param_popup_scene().tick(0); // the tick after a show takes nothing off its lifetime
 		overlay::param_popup_scene().tick(3000);
 		expect(overlay::param_popup_scene().remaining_ms()).to_equal(uint32_t{0});
 
@@ -1575,6 +1576,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		const std::string legacy_named = stub.last_title;
 
 		// The port, with the same context, from its own (drained) state.
+		overlay::param_popup_scene().tick(0); // the tick after a show takes nothing off its lifetime
 		overlay::param_popup_scene().tick(10000);
 		expect(overlay::param_popup_scene().remaining_ms()).to_equal(uint32_t(0));
 		overlay::PopupContext popup_context; // not `context`: CppSpec's own DSL owns that name here
@@ -1586,6 +1588,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		const std::string port_named{overlay::param_popup_scene().shown_name()};
 
 		// And with NO context -- task 1's shape, which is what the widening was needed to escape.
+		overlay::param_popup_scene().tick(0); // the tick after a show takes nothing off its lifetime
 		overlay::param_popup_scene().tick(10000);
 		overlay::param_popup_scene().show(Kind::PATCHED, kMorph, 0, PatchSource::NONE, PatchSource::NONE, 120000);
 		const std::string port_unnamed{overlay::param_popup_scene().shown_name()};

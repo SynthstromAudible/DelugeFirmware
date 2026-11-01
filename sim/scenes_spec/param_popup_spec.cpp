@@ -424,6 +424,7 @@ describe param_popup_spec_body("scenes::overlay::ParamPopupScene", $ {
 		scene.show(Kind::UNPATCHED_GLOBAL, UNPATCHED_VOLUME, 0, PatchSource::NONE, PatchSource::NONE, 20);
 		expect(spy.calls).to_equal(1); // unchanged: legacy did not redraw either.
 		expect(scene.remaining_ms()).to_equal(2000u); // re-armed, not merely "still counting down".
+		scene.tick(0); // the shell's tick the refresh landed in, which takes nothing off the new lifetime
 
 		// --- t=+120: a different param, too soon (well under both ownership thresholds -- 1000ms
 		//     since ownership began, 250ms since the last update) -- rejected. --------------------
@@ -481,6 +482,9 @@ describe param_popup_spec_body("scenes::overlay::ParamPopupScene", $ {
 		expect(scene.remaining_ms()).to_equal(2000u);
 		expect(scene.next_timer().has_value()).to_be_true();
 		expect(*scene.next_timer()).to_equal(2000u);
+		// The tick after a show covers time from before it, so it takes nothing off.
+		scene.tick(10);
+		expect(scene.remaining_ms()).to_equal(2000u);
 
 		// A quiet tick that does not reach the deadline: nothing to remove yet.
 		scene.tick(1000);
@@ -504,6 +508,21 @@ describe param_popup_spec_body("scenes::overlay::ParamPopupScene", $ {
 		// Fires only once: the same tick's `after_render()` called again reports nothing more.
 		Result again = scene.after_render();
 		expect(again.actions.size()).to_equal(0u);
+	});
+
+	it("does not take the time before a re-arm off its new lifetime", _ {
+		// A gold turn between ticks re-arms the shown popup (`View::displayModEncoderValuePopup`'s
+		// `setTimer(DISPLAY, ...)`): its lifetime counts from the turn, not from the last tick.
+		ParamPopupScene& scene = param_popup_scene();
+		scene.show(Kind::UNPATCHED_GLOBAL, UNPATCHED_TEMPO, 0, PatchSource::NONE, PatchSource::NONE, 6'000'000);
+		scene.tick(5);
+		scene.tick(500);
+		expect(scene.remaining_ms()).to_equal(1500u);
+		scene.show(Kind::UNPATCHED_GLOBAL, UNPATCHED_TEMPO, 1, PatchSource::NONE, PatchSource::NONE, 6'001'400);
+		scene.tick(1400); // the shell's dt since its last tick, most of it before the turn
+		expect(scene.remaining_ms()).to_equal(2000u);
+		scene.tick(2000);
+		(void)scene.after_render();
 	});
 
 	it("removes only itself from a real stack, leaving what is above it exactly where it was", _ {

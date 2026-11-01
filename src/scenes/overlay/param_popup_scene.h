@@ -220,10 +220,11 @@ private:
 	char value_[kTextCap + 1] = {};
 	size_t value_len_ = 0;
 
-	uint32_t remaining_ms_ = 0;  // 0: nothing showing. The popup's own lifetime countdown.
-	uint32_t expires_at_ms_ = 0; // The clock time the lifetime runs out, for a hand-off between ticks.
-	bool was_showing_ = false;   // Set true whenever remaining_ms_ becomes nonzero; after_render's
-	                             // "just expired" edge.
+	uint32_t remaining_ms_ = 0;     // 0: nothing showing. The popup's own lifetime countdown.
+	bool armed_since_tick_ = false; // `show()` armed the lifetime since the last `tick()`.
+	uint32_t expires_at_ms_ = 0;    // The clock time the lifetime runs out, for a hand-off between ticks.
+	bool was_showing_ = false;      // Set true whenever remaining_ms_ becomes nonzero; after_render's
+	                                // "just expired" edge.
 
 	// `last_param_*`/`last_display_value_`: legacy's change-detection statics (view.cpp:1105-1109).
 	deluge::modulation::params::Kind last_param_kind_ = deluge::modulation::params::Kind::NONE;
