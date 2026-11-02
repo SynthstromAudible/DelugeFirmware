@@ -118,7 +118,7 @@ test("binds to the nearest Steps before it, not an earlier list", () => {
     children: [
       steps(item(p(key("Clip")))),
       steps(item(p(key("Play"))), item(p(key("Shift")))),
-      p(t("The figure shows this.")),
+      p(t("The figure shows this.")) as unknown as RootContent,
       figure(),
     ],
   }
