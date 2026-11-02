@@ -480,9 +480,8 @@ bool investigate_whole_cluster(Sample* sample, int32_t clusterIndex) {
 	sampleCluster->max = toCoarsePeak(peak.max);
 	sampleCluster->investigated = true;
 
-	// Keep the sample's running peak up to date too, so brightness normalisation is pre-warmed.
-	sample->maxValueFound = std::max(sample->maxValueFound, peak.max);
-	sample->minValueFound = std::min(sample->minValueFound, peak.min);
+	// The sample's found range is left alone: the full-screen waveform scales its bars to it, and main's holds only
+	// what a render has scanned. Whole-cluster peaks folded in here would draw every later render's bars smaller.
 
 	AudioEngine::routineWithClusterLoading();
 

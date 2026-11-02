@@ -358,7 +358,7 @@ std::string g_ejectReferenceLine{};
 
 /// Which stage `dispatch_step` is in, in order. `Eject` sits between the case list and the
 /// browser-driven stages deliberately — see runOneStep()'s hand-off for why it cannot follow them.
-enum class Stage : uint8_t { Cases, Eject, Preview, Cancel, DrawStall, Stall, Done };
+enum class Stage : uint8_t { Cases, Eject, Preview, PrescanRange, Cancel, DrawStall, Stall, Done };
 Stage g_stage = Stage::Cases;
 /// Whether previewFile() has been called. It is called exactly once.
 bool g_previewStarted = false;
@@ -758,6 +758,64 @@ void finishPreviewStage(bool drawn) {
 		g_failures++;
 	}
 	checkTier("preview", g_previewTier);
+}
+
+/// The previewed sample's found range as the preview's draw left it, and how many of its clusters were investigated.
+struct PrescanMark {
+	Sample* sample = nullptr;
+	int32_t min = 0;
+	int32_t max = 0;
+	int32_t investigated = 0;
+};
+PrescanMark g_prescanBefore{};
+int32_t g_prescanTicks = 0;
+/// Bound on the pre-scan stage, in ticks: one cluster per tick, and the preview file holds far fewer.
+constexpr int32_t kMaxPrescanTicks = 4000;
+
+int32_t investigatedClusters(const Sample& sample) {
+	int32_t n = 0;
+	for (size_t i = 0; i < sample.overviewCacheSize(); i++) {
+		n += sample.overviewCacheEntry(static_cast<uint32_t>(i)).investigated ? 1 : 0;
+	}
+	return n;
+}
+
+/// One tick of the pre-scan stage: the background overview scan, as the idle loop runs it.
+void runOnePrescanTick() {
+	if (g_prescanTicks == 0) {
+		Sample* sample = waveformBasicNavigator.sample;
+		g_prescanBefore = PrescanMark{.sample = sample,
+		                              .min = sample != nullptr ? sample->minValueFound : 0,
+		                              .max = sample != nullptr ? sample->maxValueFound : 0,
+		                              .investigated = sample != nullptr ? investigatedClusters(*sample) : 0};
+		audioFileManager.overviewScanAllDone = false;
+	}
+	g_prescanTicks++;
+	audioFileManager.backgroundWaveformOverviewScan();
+}
+
+/// AB-PRESCAN-RANGE: the background pre-scan fills the overview cache without moving the sample's found range. The
+/// full-screen waveform scales its bars to that range, and main's range holds only what a render scanned: a range
+/// widened by whole-cluster peaks draws the next render's bars smaller than main's.
+void finishPrescanStage() {
+	Sample* sample = g_prescanBefore.sample;
+	const bool sameSample = sample != nullptr && sample == waveformBasicNavigator.sample;
+	const int32_t investigated = sameSample ? investigatedClusters(*sample) : 0;
+	const int32_t min = sameSample ? sample->minValueFound : 0;
+	const int32_t max = sameSample ? sample->maxValueFound : 0;
+	printf("AB-PRESCAN-RANGE done=%d ticks=%d scanned=%d min=%d/%d max=%d/%d\n",
+	       audioFileManager.overviewScanAllDone ? 1 : 0, g_prescanTicks, investigated - g_prescanBefore.investigated,
+	       g_prescanBefore.min, min, g_prescanBefore.max, max);
+	if (!sameSample || !audioFileManager.overviewScanAllDone || investigated <= g_prescanBefore.investigated) {
+		printf("FAIL [audioLoadAB/prescan-range]: the pre-scan must finish and investigate clusters the preview's "
+		       "draw did not, on the previewed sample, or this stage tested nothing\n");
+		g_failures++;
+	}
+	else if (min != g_prescanBefore.min || max != g_prescanBefore.max) {
+		printf("FAIL [audioLoadAB/prescan-range]: the pre-scan moved the sample's found range, so the next full-screen "
+		       "render draws its bars smaller than main's\n");
+		g_failures++;
+	}
 }
 
 /// Has anything drawn the cancelled file's waveform?
@@ -1265,8 +1323,8 @@ void deluge_scenario_audio_load_ab_dispatch_step(void) {
 		return;
 	}
 
-	if (g_stage == Stage::Preview || g_stage == Stage::Cancel || g_stage == Stage::Stall
-	    || g_stage == Stage::DrawStall) {
+	if (g_stage == Stage::Preview || g_stage == Stage::PrescanRange || g_stage == Stage::Cancel
+	    || g_stage == Stage::Stall || g_stage == Stage::DrawStall) {
 		// The browser-driven stages run on the UI tier, not as the card step -- that is where the
 		// real browser calls these from. graphicsRoutine() ticks the preview's load here and
 		// draws it on this tier. The cancellation stage's window needs no ordering: previewFile() only
@@ -1277,6 +1335,13 @@ void deluge_scenario_audio_load_ab_dispatch_step(void) {
 			const bool drawn = previewHasDrawn() && !sampleBrowser.previewRedrawPending();
 			if (drawn || g_previewTicks >= kMaxPreviewTicks) {
 				finishPreviewStage(drawn);
+				g_stage = Stage::PrescanRange;
+			}
+		}
+		else if (g_stage == Stage::PrescanRange) {
+			runOnePrescanTick();
+			if (audioFileManager.overviewScanAllDone || g_prescanTicks >= kMaxPrescanTicks) {
+				finishPrescanStage();
 				g_stage = Stage::Cancel;
 			}
 		}

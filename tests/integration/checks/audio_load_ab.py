@@ -29,6 +29,9 @@ What the checks cover (tests/integration/scenarios/audio_load_ab_scenario.cpp wr
   AB-PREVIEW-DRAW-RELEASE
             a redraw pending when the preview's sample is released (Select, a typed move): dropped, never drawn from
             the released sample.
+  AB-PRESCAN-RANGE
+            the background overview pre-scan run to completion over the previewed sample: it must investigate clusters
+            the draw did not and leave the sample's found range as the draw left it.
   AB-PREVIEW-TIER
             for each of the preview stages: no sample was read from the card on the interaction tier.
   AB-SUMMARY / AB-DEFER
@@ -50,7 +53,7 @@ MIN_CASES = 11
 
 SHOWN = re.compile(
     r"^(AB-SUMMARY|AB-DEFER|AB-PREVIEW|AB-CANCEL|AB-PREVIEW-STALL|AB-PREVIEW-TIER|AB-PREVIEW-DRAW"
-    r"|AB-PREVIEW-DRAW-STALL|AB-PREVIEW-DRAW-RELEASE|AB-EJECT-SUMMARY) "
+    r"|AB-PREVIEW-DRAW-STALL|AB-PREVIEW-DRAW-RELEASE|AB-PRESCAN-RANGE|AB-EJECT-SUMMARY) "
 )
 
 
