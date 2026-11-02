@@ -111,9 +111,11 @@ describe synced_phasor("deluge::dsp::fixed SyncedPhasor", ${
 			}
 			expect(bad).to_equal(0);
 		});
-		it("resets within one audible increment of the exact phase", _ {
+		it("resets at or before the exact phase, never behind the retrigger phase", _ {
 			// The master wraps on the first step with an overshoot of a quarter, a half or all but one of its
-			// increment; the exact reset is the retrigger phase plus that fraction of the audible increment.
+			// increment; the exact reset is the retrigger phase plus that fraction of the audible increment. The
+			// reciprocal comes out a touch small (its divisor is the increment's top 16 bits rounded up), so the reset
+			// lands between the retrigger phase and the exact one, plus the reset's one LSB.
 			constexpr uint32_t kAudible = 0x04000000u;
 			constexpr uint32_t kRetrigger = 0x40000000u;
 			int32_t bad = 0;
@@ -122,9 +124,9 @@ describe synced_phasor("deluge::dsp::fixed SyncedPhasor", ${
 					SyncedPhasor synced{Phasor{uq32(0), uq32(kAudible)},
 					                    Phasor{uq32(overshoot - resetter_increment), uq32(resetter_increment)},
 					                    uq32(kRetrigger)};
-					const double exact = kRetrigger + (static_cast<double>(overshoot) * kAudible / resetter_increment);
-					const double error = static_cast<double>(synced.advance().raw()) - exact;
-					bad += (error < -1.0 * kAudible || error > 1.0 * kAudible) ? 1 : 0;
+					const double exact = static_cast<double>(overshoot) * kAudible / resetter_increment;
+					const double gained = static_cast<double>(synced.advance().raw() - kRetrigger);
+					bad += (gained < 0.0 || gained > exact + 1.0) ? 1 : 0;
 				}
 			};
 			for (uint32_t increment = 1; increment <= 65536; ++increment) {
@@ -142,6 +144,13 @@ describe synced_phasor("deluge::dsp::fixed SyncedPhasor", ${
 			int32_t bad = 0;
 			for (uint32_t increment : kEdgeIncrements) {
 				if (reference_holds(increment)) {
+					bad += deluge::dsp::fixed::resetter_reciprocal(increment)
+					       != sync_reference::resetter_reciprocal(increment);
+				}
+			}
+			// Every divisor: the first, last and one-past-a-step increment of each 2^16 step the reference holds for
+			for (uint32_t step = 1; step < 65535; ++step) {
+				for (uint32_t increment : {(step << 16) + 1, (step << 16) + 65535, (step + 1) << 16}) {
 					bad += deluge::dsp::fixed::resetter_reciprocal(increment)
 					       != sync_reference::resetter_reciprocal(increment);
 				}

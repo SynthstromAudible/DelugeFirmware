@@ -134,8 +134,10 @@ NEON kernel that moves onto the types.
 - **Phase:** `Phasor` and `SyncedPhasor` hold, take and return `UQ<32>`; a step is `add_wrap`. The crude oscillators
   forward their phase source's type. The table, pulse and wavetable oscillators and the synth's sources keep raw
   `uint32_t` phase interfaces around their raw kernels and convert where they meet a phasor.
-- **Gain:** a `Ramp` is a `Q<31>` gain and slope; `scale_shl_wrap<N>(ramp)` is the per-wave doubling. Both VCAs take
-  the high word of sample × gain, so their product is Q30: a voice's mix is summed at half scale.
+- **Gain:** a `Ramp` is a `Q<31>` gain and slope; `scale_shl_wrap<N>(ramp)` is the per-wave doubling. The crude VCA
+  (`CrudeAmplitude`) takes the high word of sample × gain with `mla_r`, so its product is Q30. The band-limited VCA
+  (`Amplitude`) takes it doubled with `vqdmulh`, so its product is Q31 of its gain, which each wave sets: the
+  band-limited saw, square and pulse pass `scale_shl_wrap<1>` of the voice's amplitude.
 - **Frames:** `StereoSample`'s `+` and `+=` wrap. `panned_mono` and `panned_stereo` take `Q<30>` amplitudes, unity at
   2^30, and keep `q31_ops.h`'s multiply until the voice kernel moves.
 - **Curves:** `instant_tan` and `release_rate` blend Q28 and Q31 table entries at Q31 weights; the square and linear

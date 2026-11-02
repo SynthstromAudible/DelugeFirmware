@@ -14,8 +14,10 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
-// Reference copies of the hard-sync arithmetic as it was in raw q31 (resetter_reciprocal, SyncedPhasor's reset and
-// SyncWindower), kept verbatim as the oracle for their typed forms in dsp-next/fixed/sync.
+// The hard-sync arithmetic in raw q31 (resetter_reciprocal, SyncedPhasor's reset and SyncWindower), copied verbatim as
+// the oracle for their typed forms in dsp-next/fixed/sync. The reciprocal here is the unfixed one: it is the oracle
+// only for increments of 0 and 65537 to 0xFFFF0000, and negative outside them. SyncWindower takes its reciprocal as a
+// parameter, so that with the fixed one it is the oracle for every increment.
 #pragma once
 
 #include "dsp-next/core/generator.h"
@@ -69,6 +71,7 @@ struct SyncedPhasor {
 	}
 };
 
+template <int32_t (*Reciprocal)(uint32_t) = resetter_reciprocal>
 class SyncWindower {
 public:
 	/// One sync window to fill. @ref offset is the window's start position within the block, for
@@ -87,7 +90,7 @@ public:
 	/// @param retrigger_phase the phase the audible oscillator restarts from at each crossover.
 	SyncWindower(Buffer output, Resetter resetter, uint32_t phase, uint32_t phase_increment, uint32_t retrigger_phase)
 	    : block_start_{output.data()}, window_{output.data()}, samples_remaining_{static_cast<int32_t>(output.size())},
-	      resetter_{resetter}, resetter_divide_{resetter_reciprocal(resetter.phase_increment)}, phase_{phase},
+	      resetter_{resetter}, resetter_divide_{Reciprocal(resetter.phase_increment)}, phase_{phase},
 	      phase_increment_{phase_increment}, retrigger_phase_{retrigger_phase} {}
 
 	/// The next window to fill, or `nullopt` once the block is done. Finalises the previously
