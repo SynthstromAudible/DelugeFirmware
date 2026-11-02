@@ -132,6 +132,7 @@ const config = defineConfig({
             link: "/guidebook",
             items: [
               { label: "About", link: "/guidebook" },
+              { label: "Index", link: "/guidebook/index-a-z" },
               {
                 label: "1 Overview",
                 collapsed: true,

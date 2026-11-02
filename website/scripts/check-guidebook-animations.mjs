@@ -832,6 +832,71 @@ const checks = {
     )
     await calm.close()
   },
+
+  async index(browser) {
+    const path = "index-a-z"
+    const visible = (page, sel) =>
+      page
+        .locator(sel)
+        .evaluateAll((els) =>
+          els
+            .filter((e) => e.offsetParent !== null)
+            .map((e) => e.textContent.trim()),
+        )
+
+    const noJs = await browser.newContext({ javaScriptEnabled: false })
+    const still = await noJs.newPage()
+    await still.goto(url(path), { waitUntil: "load" })
+    const heads = await visible(still, ".gb-index-head")
+    check(
+      "index: without JS, every entry listed and no filter box",
+      heads.length > 100 &&
+        heads.includes("Clip") &&
+        !(await still.locator(".gb-index-filter").isVisible()),
+      `${heads.length} entries`,
+    )
+    await noJs.close()
+
+    const ctx = await browser.newContext()
+    const page = await ctx.newPage()
+    const errors = []
+    page.on("pageerror", (e) => errors.push(String(e)))
+    await page.goto(url(path), { waitUntil: "load" })
+    const input = page.locator(".gb-index-filter input")
+    await input.fill("delete")
+    const delHeads = await visible(page, ".gb-index-head")
+    const delSubs = await visible(page, ".gb-index-subs .gb-index-label")
+    check(
+      "index: filtering for 'delete' keeps its see entry and the deleting tasks, drops the rest",
+      delHeads.includes("Delete") &&
+        delSubs.includes("Deleting a clip from within song view") &&
+        !delHeads.includes("Swing") &&
+        delSubs.every((s) => /delet/i.test(s)),
+      `${delHeads.length} entries, ${delSubs.length} subentries`,
+    )
+    await input.fill("swing")
+    const swing = await visible(page, ".gb-index-head")
+    check(
+      "index: a headword match shows the whole entry",
+      swing.includes("Swing") &&
+        (await visible(page, ".gb-index-subs .gb-index-label")).includes(
+          "Adjusting the swing interval setting",
+        ),
+    )
+    await input.fill("zzqx")
+    check(
+      "index: no match says so",
+      (await visible(page, ".gb-index-head")).length === 0 &&
+        (await page.locator(".gb-index-none").isVisible()),
+    )
+    await input.fill("")
+    check(
+      "index: clearing the filter shows everything again",
+      (await visible(page, ".gb-index-head")).length === heads.length,
+    )
+    check("index: no script errors", errors.length === 0, errors.join("; "))
+    await ctx.close()
+  },
 }
 
 const browser = await chromium.launch()
