@@ -220,16 +220,22 @@ add_compile_options(
         $<$<AND:$<CONFIG:RELEASE,RELWITHDEBINFO>,$<CXX_COMPILER_ID:GNU>>:-fsplit-loops>
         $<$<AND:$<CONFIG:RELEASE,RELWITHDEBINFO>,$<CXX_COMPILER_ID:GNU>>:-funswitch-loops>
 
-        # does not block inlining, just blocks considering all functions for inlining
-    # https://developer.arm.com/documentation/100067/0600/Compiler-Command-line-Options/-finline-functions---fno-inline-functions?lang=en
+    # Inlining. Clang inlines the app at a threshold of 5 (scripts/tasks/task-build.py passes the same to the ThinLTO
+    # link, where most of the app's inlining happens): calls that cost almost nothing to inline (accessors, std::min,
+    # std::clamp, std::array's operator[]) inline, larger functions stay calls unless they are always_inline. The
+    # libraries (cmake/deluge_library.cmake) inline at the default threshold instead.
     #
-    # Applies to clang too, despite meaning something stronger there: GCC disables
-    # only its -finline-functions pass (verified at -O2: -finline-small-functions,
-    # -findirect-inlining, -finline-functions-called-once, -fearly-inlining and
-    # -fpartial-inlining all stay enabled), whereas clang stamps the `noinline`
-    # ATTRIBUTE on every definition. Gating it off for clang was measured and is
-    # worse on every axis — see the note in src/bsp/rust/.cargo/config.toml.
-    -fno-inline-functions
+    # Measured against -fno-inline-functions (which clang implements by marking every definition noinline):
+    # .text -159 KB and SRAM headroom 72 KB -> 314 KB; on the rig, the kernels list -21% cycles per sample (geomean),
+    # va_shapes -8%, fx_chains -2%, filters unchanged. Threshold 25 runs within 1% of it and leaves 31 KB less SRAM;
+    # without the threshold, at the default, .text grew 83 KB and SRAM use 48 KB.
+    #
+    # GCC keeps -fno-inline-functions, which there disables only its -finline-functions pass (verified at -O2:
+    # -finline-small-functions, -findirect-inlining, -finline-functions-called-once, -fearly-inlining and
+    # -fpartial-inlining all stay enabled).
+    $<$<CXX_COMPILER_ID:GNU>:-fno-inline-functions>
+    $<$<CXX_COMPILER_ID:Clang>:-finline-functions>
+    $<$<AND:$<CXX_COMPILER_ID:Clang>,$<NOT:$<BOOL:$<TARGET_PROPERTY:DELUGE_LIBRARY>>>>:-mllvm=-inline-threshold=5>
 
     # Link time optimizations
     #

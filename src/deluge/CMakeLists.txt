@@ -49,14 +49,15 @@ if(DELUGE_DSP_BENCH AND NOT DELUGE_HOST)
     ${CMAKE_CURRENT_LIST_DIR}/bench/pmu_a9.cpp
   )
   # The delay, the filters and the compressor ship from deluge_dsp_fixed, so their cases take that library's flags
-  # (dsp-next/CMakeLists.txt): ARM mode, -finline-functions and no LTO, each after the app's own and so in force.
+  # (dsp-next/CMakeLists.txt): ARM mode, -finline-functions at LLVM's default threshold (225, in place of the app's 5)
+  # and no LTO, each after the app's own and so in force.
   # The mod FX cases call effects::ModFx::render, which deluge_effects builds; mod_fx_cases.cpp keeps the app's flags.
   # The reverb cases call the engine's reverb; reverb_cases.cpp keeps the app's flags.
   set_source_files_properties(${CMAKE_CURRENT_LIST_DIR}/bench/delay_feedback_cases.cpp
     ${CMAKE_CURRENT_LIST_DIR}/bench/delay_cases.cpp
     ${CMAKE_CURRENT_LIST_DIR}/bench/filter_cases.cpp
     ${CMAKE_CURRENT_LIST_DIR}/bench/compressor_cases.cpp
-    PROPERTIES COMPILE_OPTIONS "-fno-lto;-finline-functions;-marm")
+    PROPERTIES COMPILE_OPTIONS "-fno-lto;-finline-functions;-mllvm=-inline-threshold=225;-marm")
 endif()
 
 # ---------------------------------------------------------------------------

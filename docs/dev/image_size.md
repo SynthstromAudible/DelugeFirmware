@@ -52,7 +52,7 @@ The largest contributors:
 | `SD_DMA_BUF` | 64 KB | `.bss`; DMA target, must stay in SRAM |
 | libc/runtime (no debug info) | 98 KB | see the shims lever below |
 
-Under `-fno-inline-functions`, clang marks every definition `noinline`, so 5,910 functions are 4 bytes or less (4,108
+At the audit the app built with `-fno-inline-functions`, under which clang marks every definition `noinline`, so 5,910 functions are 4 bytes or less (4,108
 of them libstdc++ accessors). Each pays a call at every use site. Not an `.ARM.exidx` entry each: lld merges identical
 adjacent entries, so there are 10,125 entries for about 23,000 functions.
 
@@ -71,7 +71,7 @@ Headroom each adds when applied alone to the base (39,480 B in the worktree):
 | Rust `opt-level = "z"` | **+41.5 KB** | Rust text −33 KB, C++ −12 KB |
 | `-Os`, all C++ | +83.2 KB | slows the audio path too |
 | `-Oz`, all C++ | +161.2 KB | slows the audio path too |
-| `-finline-hint-functions` instead of `-fno-inline-functions` | **−18.0 KB** | worse: `.text` +52 KB. Keep `noinline` |
+| `-finline-hint-functions` instead of `-fno-inline-functions` | **−18.0 KB** | worse: `.text` +52 KB; an inline threshold (lever 6) wins |
 | `-fno-unwind-tables` (with `-fignore-exceptions`) | 0 | no-op on ARM EHABI, see below |
 
 **All five recommended levers together** (`--icf=safe`, shims, `-fignore-exceptions`, Rust `"z"`, cold `-Oz`): headroom
@@ -284,7 +284,7 @@ unless marked measured.
 | 3 | No exceptions | 100–145 KB | 4–6 days | OOM recovery paths |
 | 4 | Immediate-mode menus, with context menus | 120–150 KB | large | existing program |
 | 5 | Finish the domain split | 50–70 KB | large | existing program |
-| 6 | Inline threshold instead of `-fno-inline-functions` | ~35 KB | a day of builds | codegen |
+| 6 | Inline threshold instead of `-fno-inline-functions` | **done: 241 KB** | | |
 | 7 | Container instantiations | 25–30 KB | days | low |
 | 8 | Async efatfs | ~25 KB | 3–4 days | low |
 | 9 | Diagnostic strings | 15–25 KB | a day | none |
@@ -329,12 +329,15 @@ unless marked measured.
      alone is 5.6 KB). The bridge is 19 KB, and the streaming XML/JSON backends about 9 KB. The new codecs (about
      66 KB) are already linked, so today both paths are paid for.
    - **Interim:** reading everything through `TreeDocument` drops the two streaming deserializers (about 5 KB).
-6. **An inline threshold, ~35 KB.**
-   - 2,329 C++ functions are 4 bytes or less, reached by 12,091 calls. Inlining them saves about 35 KB of `.text`.
-     Inlining 9–16-byte functions costs about 25 KB, which is why `-finline-hint-functions` lost.
-   - **Try:** `-finline-functions -mllvm -inline-threshold=N` at N = 0, 5 and 25, the same threshold at the ThinLTO
-     link (`-Wl,-mllvm,-inline-threshold=N`), and dsp-next left as it is. Unmeasured; LLVM's single-caller bonus
-     needs watching.
+6. **An inline threshold: done, 241 KB.**
+   - The app builds with `-finline-functions -mllvm=-inline-threshold=5`, and the ThinLTO link takes
+     `-Wl,-mllvm,-inline-threshold=5`; the libraries keep their own flags. Against `-fno-inline-functions`: `.text`
+     1,461,568 → 1,302,140 B, `.ARM.exidx` −44 KB, SRAM headroom 72,480 → 313,940 B, calls to functions of 4 bytes or
+     less 3,485 → 732.
+   - Threshold 0 leaves 297 KB of headroom and 25 leaves 283 KB, at the same speed as 5 within 1%. The link
+     threshold is what matters: inlining at the link's default grew SRAM use by 48 KB.
+   - Speed, cycles per sample on the rig against `-fno-inline-functions`: the kernels list −21% (geomean), va_shapes
+     −8%, fx_chains −2%, filters unchanged (the libraries already inlined).
 7. **Container instantiations, 25–30 KB.** De-duplicated (`--icf=safe` already folds some), libstdc++ code is 132 KB.
    `std::vector` is 40.6 KB across 64 element types, 23.6 KB of it growth paths. `_Rb_tree` is 18.3 KB across 14
    instantiations.

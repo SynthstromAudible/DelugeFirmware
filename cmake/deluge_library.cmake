@@ -4,9 +4,11 @@ include(${CMAKE_CURRENT_LIST_DIR}/library_warnings.cmake)
 
 # deluge_library_target(<target>)
 #
-# The flags every library below the app builds with: a unity build, no LTO (so -finline-functions does the inlining)
-# and ARM (not Thumb) mode on hardware. The app keeps Thumb and -fno-inline-functions; library code must not, since the
-# app's flags cost DSP code its inlining (the mod-matrix spike measured its evaluator 15 % slower under them).
+# The flags every library below the app builds with: a unity build, no LTO (so -finline-functions does the inlining, at
+# the default threshold) and ARM (not Thumb) mode on hardware. The app keeps Thumb and an inline threshold of 5, which
+# keeps its image small; library code inlines more, since DSP code needs it (the mod-matrix spike measured its
+# evaluator 15 % slower with only always_inline functions inlined). DELUGE_LIBRARY marks the target so that the app's
+# threshold leaves it alone.
 function(deluge_library_target target)
   set_target_properties(${target} PROPERTIES
     C_STANDARD ${DELUGE_C_STANDARD}
@@ -15,6 +17,7 @@ function(deluge_library_target target)
     CXX_STANDARD_REQUIRED ON
     CXX_EXTENSIONS ON
     UNITY_BUILD true
+    DELUGE_LIBRARY TRUE
   )
   target_compile_definitions(${target} PUBLIC
     $<$<CONFIG:DEBUG,RELWITHDEBINFO>:IN_HARDWARE_DEBUG=1>

@@ -8,9 +8,8 @@
 # _RUSTFLAGS from the discovered toolchain (device_cxx_env() in scripts/tasks/task-build.py).
 [target.armv7a-deluge-eabihf]
 # No `rustflags` here: the per-target RUSTFLAGS env var replaces this array rather than merging, so
-# a partial copy would be a trap. No inline-threshold override in that flag list either: measured a
-# no-op at the default, and the C++ side's -fno-inline-functions stays on for clang because gating
-# it off grew .text and SRAM.
+# a partial copy would be a trap. The link's flags, including the app's inline threshold at the
+# ThinLTO link, are in device_cxx_env() in scripts/tasks/task-build.py.
 linker = "clang++"
 
 [env]

@@ -189,6 +189,9 @@ def device_cxx_env(root: Path, config: str) -> dict[str, str]:
         # the std::lround()-returns-0 failure.
         f"-L{sysroot}/lib/{MULTILIB}",
         f"-L{gcc_lib[0]}/{MULTILIB}",
+        # The app's inline threshold (the root CMakeLists.txt's Inlining note), at the ThinLTO link, where most of
+        # the app's inlining happens
+        "-Wl,-mllvm,-inline-threshold=5",
     ]
     rustflags = ["-Clinker-plugin-lto", "-Clinker-flavor=gcc"]
     for arg in link_args:
