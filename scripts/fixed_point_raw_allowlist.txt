@@ -36,7 +36,7 @@ src/deluge/dsp-next/fixed/filter/one_pole.h raw=3 boundary=0
 src/deluge/dsp-next/fixed/filter/shelf_pair.h raw=10 boundary=0
 src/deluge/dsp-next/fixed/filter/svf.h raw=13 boundary=0
 src/deluge/dsp-next/fixed/granular/granular_kernel.h raw=20 boundary=0
-src/deluge/dsp-next/fixed/interpolation/table_interpolation.h raw=2 boundary=0
+src/deluge/dsp-next/fixed/interpolation/table_interpolation.h raw=0 boundary=4
 src/deluge/dsp-next/fixed/mix/dry_wet.h raw=0 boundary=4
 src/deluge/dsp-next/fixed/mix/track_monitor.h raw=0 boundary=11
 src/deluge/dsp-next/fixed/mod_fx/mod_fx_kernel.h raw=31 boundary=0
@@ -47,7 +47,7 @@ src/deluge/dsp-next/fixed/reverb/freeverb.h raw=7 boundary=0
 src/deluge/dsp-next/fixed/shaping/sample_rate_reducer.h raw=0 boundary=16
 src/deluge/dsp-next/fixed/shaping/tanh.h raw=1 boundary=2
 src/deluge/dsp-next/fixed/shaping/wavefolder.h raw=0 boundary=7
-src/deluge/dsp-next/fixed/stutter/stutter_kernel.h raw=2 boundary=0
+src/deluge/dsp-next/fixed/stutter/stutter_kernel.h raw=0 boundary=5
 src/deluge/dsp-next/fixed/sync/sync_windower.h raw=0 boundary=15
 src/deluge/dsp-next/fixed/sync/synced_oscillator.h raw=0 boundary=1
 src/deluge/dsp-next/fixed/sync/synced_phasor.h raw=0 boundary=8

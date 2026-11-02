@@ -90,7 +90,7 @@ describe decay_lookup("the decay-curve lookups", ${
 
 // clang-format off
 describe bilinear_lookup("the bilinear table interpolator", ${
-	it("reads the grid's entries at Q16 on the grid", _ {
+	it("reads the grid's entries at Q15 on the grid", _ {
 		expect(kBilinearTableInterpolator.interpolate_signed<kGrid>(0, 0, kAxisBits, kAxisBits))
 		    .to_equal(-9000 * 65536 / 2);
 		expect(kBilinearTableInterpolator.interpolate_signed<kGrid>(3u << 13, 2u << 14, kAxisBits, kAxisBits))

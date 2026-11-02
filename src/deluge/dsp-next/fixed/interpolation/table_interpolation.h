@@ -16,7 +16,7 @@
  */
 #pragma once
 
-#include "dsp-next/core/q31_ops.h" // multiply_32x32_rshift32
+#include "dsp-next/core/fixed_point.h"
 
 #include <bit>
 #include <cstddef>
@@ -111,8 +111,8 @@ inline constexpr LinearTableInterpolator kLinearTableInterpolator{};
 /// entries wide (the `+1`s are the upper neighbours). Its type gives both log2 sizes and the row stride as constants,
 /// so the per-sample path is subscripts and arithmetic with no calls. Each row is sampled as
 /// @ref LinearTableInterpolator::interpolate_signed does, through a pointer to that row, so every read stays inside one
-/// row; the two row values are then blended by the second index's sub-row fraction at Q31, so the result is the
-/// table's units scaled by `2^16` (at most ±2^30 for a table of ±2^14 entries).
+/// row, at Q16 of the table's units; the two row values are then blended by the second index's sub-row fraction at
+/// Q31, so the result is the table's units scaled by `2^15` (at most ±2^29 for a table of ±2^14 entries).
 class BilinearTableInterpolator {
 public:
 	/// @brief Sample @p Table at fractional indices @p input_x (along a row) and @p input_y (across rows).
@@ -121,7 +121,7 @@ public:
 	/// @param input_y Fixed-point position across the rows, @p y_bits wide.
 	/// @param x_bits The width of @p input_x: log2(W − 1) index bits above the fraction.
 	/// @param y_bits The width of @p input_y: log2(R − 1) index bits above the fraction.
-	/// @return The blend, at Q16 of the table's units.
+	/// @return The blend, at Q15 of the table's units.
 	template <const auto& Table>
 	[[nodiscard, gnu::always_inline]] int32_t interpolate_signed(uint32_t input_x, uint32_t input_y, int32_t x_bits,
 	                                                             int32_t y_bits) const {
@@ -136,16 +136,19 @@ public:
 		constexpr auto kRowsLog2 = static_cast<int32_t>(std::bit_width(kRows - 1) - 1);
 
 		const uint32_t row = input_y >> (y_bits - kRowsLog2);
-		const int32_t lower = kLinearTableInterpolator.interpolate_signed(input_x, x_bits, Table[row], kRowSizeLog2);
-		const int32_t upper =
-		    kLinearTableInterpolator.interpolate_signed(input_x, x_bits, Table[row + 1], kRowSizeLog2);
+		// Each row's blend is Q16 of the table's units
+		const auto lower =
+		    Q<16>::from_raw(kLinearTableInterpolator.interpolate_signed(input_x, x_bits, Table[row], kRowSizeLog2));
+		const auto upper =
+		    Q<16>::from_raw(kLinearTableInterpolator.interpolate_signed(input_x, x_bits, Table[row + 1], kRowSizeLog2));
 
 		// The sub-row fraction at Q31: the bits of `input_y` below the row index.
 		const int32_t shift = 31 + kRowsLog2 - y_bits;
-		const uint32_t toward_upper = (shift >= 0 ? (input_y << shift) : (input_y >> -shift)) & 2147483647u;
-		const uint32_t toward_lower = 2147483647u - toward_upper;
-		return multiply_32x32_rshift32(lower, static_cast<int32_t>(toward_lower))
-		       + multiply_32x32_rshift32(upper, static_cast<int32_t>(toward_upper));
+		const auto toward_upper = Q<31>::from_raw(
+		    static_cast<int32_t>((shift >= 0 ? (input_y << shift) : (input_y >> -shift)) & 2147483647u));
+		const Q<31> toward_lower = sub_wrap(Q<31>::max(), toward_upper);
+		// A convex blend of two Q16 values at Q31 weights, Q15: the sum can't wrap
+		return add_wrap(mul(lower, toward_lower), mul(upper, toward_upper)).raw();
 	}
 };
 
