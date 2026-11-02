@@ -17,9 +17,10 @@
 
 #pragma once
 
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/mode.h"
-#include "dsp-next/core/q31_ops.h"
+#include "dsp-next/core/q31_ops.h" // kOneQ31, kOneQ31f
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/core/types.h"
 #include "dsp-next/fixed/filter/one_pole.h"
@@ -199,8 +200,8 @@ struct Compressor {
 	[[nodiscard]] [[gnu::always_inline]] static Block prepare(const Coefficients& c, State& s, std::size_t n) {
 		const auto frames = static_cast<float>(n);
 
-		// The offset keeps a final volume of zero from giving NaNs. At most 2.08 nepers, at 0x7fffffff (about 8 in
-		// 3.29).
+		// The offset keeps a final volume of zero from giving NaNs. The log is of the raw integer, not of its 3.29
+		// value: about 21.5 at 0x7fffffff, ln 2^29 (about 20.1) above the value's 1.39 nepers.
 		const float song_volume = logf(s.levels.final_volume + 1e-10);
 		const float threshold = song_volume * s.threshold;
 		// The song volume lands here, so the envelope smooths it against clicks; the makeup gain and the reduction
@@ -249,18 +250,24 @@ struct Compressor {
 		s.current_volume_l += b.increment_l;
 		s.current_volume_r += b.increment_r;
 
-		// << 4: the gains are 5.26 signed rather than 1.30.
+		// The Q31 frame times its Q26 gain is Q25, lifted to Q29 (wrapping); the saturator reads those bits as its Q31
+		// input, so it takes x × gain / 4.
 		StereoSample y{
-		    .l = AntialiasedTanh::step(kSaturator, EmptyBlock{}, s.saturation_l,
-		                               multiply_32x32_rshift32(x.l, s.current_volume_l) << 4),
-		    .r = AntialiasedTanh::step(kSaturator, EmptyBlock{}, s.saturation_r,
-		                               multiply_32x32_rshift32(x.r, s.current_volume_r) << 4),
+		    .l = AntialiasedTanh::step(
+		        kSaturator, EmptyBlock{}, s.saturation_l,
+		        as_wrap<Q<29>>(mul(Q<31>::from_raw(x.l), Q<26>::from_raw(s.current_volume_l))).raw()),
+		    .r = AntialiasedTanh::step(
+		        kSaturator, EmptyBlock{}, s.saturation_r,
+		        as_wrap<Q<29>>(mul(Q<31>::from_raw(x.r), Q<26>::from_raw(s.current_volume_r))).raw()),
 		};
 
 		if constexpr (M == Mode::BLEND) {
-			// dry_wet_blend's arithmetic (fixed/mix/dry_wet.h). << 1 makes up for the two multiplies.
-			y.l = multiply_accumulate_32x32_rshift32_rounded(multiply_32x32_rshift32(y.l, c.wet), x.l, c.dry) << 1;
-			y.r = multiply_accumulate_32x32_rshift32_rounded(multiply_32x32_rshift32(y.r, c.wet), x.r, c.dry) << 1;
+			// dry_wet_blend's arithmetic (fixed/mix/dry_wet.h), its dry level from the coefficients: two Q31 × Q31
+			// products, Q30, the sum lifted back to Q31.
+			const auto wet = Q<31>::from_raw(c.wet);
+			const auto dry = Q<31>::from_raw(c.dry);
+			y.l = as_wrap<Q<31>>(mla_r(mul(Q<31>::from_raw(y.l), wet), Q<31>::from_raw(x.l), dry)).raw();
+			y.r = as_wrap<Q<31>>(mla_r(mul(Q<31>::from_raw(y.r), wet), Q<31>::from_raw(x.r), dry)).raw();
 		}
 
 		measure(c, s, s.pending);
