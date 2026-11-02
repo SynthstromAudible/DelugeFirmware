@@ -51,6 +51,12 @@ struct XorShift {
 	}
 };
 
+/// Whether the raw reference's reciprocal is right for @p increment: at or below 2^16, and above 0xFFFF0000, it is
+/// negative.
+constexpr bool reference_holds(uint32_t increment) {
+	return increment == 0 || (increment > 65536 && increment <= 0xFFFF0000u);
+}
+
 /// Resetter increments a sweep can't miss: zero, the reciprocal's round-up edges, the slowest masters and the top.
 constexpr uint32_t kEdgeIncrements[] = {0u,          1u,         65535u, 65536u, 65537u, 131072u, 0x10000u << 4,
                                         0xFFFF0000u, 0xFFFFFFFFu};
@@ -94,15 +100,58 @@ describe synced_phasor("deluge::dsp::fixed SyncedPhasor", ${
 		});
 	});
 
+	context("a master at either end of the increments", _ {
+		it("has a positive reciprocal for every increment", _ {
+			int32_t bad = 0;
+			for (uint32_t increment = 1; increment <= 65536; ++increment) {
+				bad += deluge::dsp::fixed::resetter_reciprocal(increment) <= 0;
+			}
+			for (uint32_t increment = 0xFFFF0000u; increment != 0; ++increment) {
+				bad += deluge::dsp::fixed::resetter_reciprocal(increment) <= 0;
+			}
+			expect(bad).to_equal(0);
+		});
+		it("resets within one audible increment of the exact phase", _ {
+			// The master wraps on the first step with an overshoot of a quarter, a half or all but one of its
+			// increment; the exact reset is the retrigger phase plus that fraction of the audible increment.
+			constexpr uint32_t kAudible = 0x04000000u;
+			constexpr uint32_t kRetrigger = 0x40000000u;
+			int32_t bad = 0;
+			auto check = [&](uint32_t resetter_increment) {
+				for (uint32_t overshoot : {resetter_increment / 4, resetter_increment / 2, resetter_increment - 1}) {
+					SyncedPhasor synced{Phasor{uq32(0), uq32(kAudible)},
+					                    Phasor{uq32(overshoot - resetter_increment), uq32(resetter_increment)},
+					                    uq32(kRetrigger)};
+					const double exact = kRetrigger + (static_cast<double>(overshoot) * kAudible / resetter_increment);
+					const double error = static_cast<double>(synced.advance().raw()) - exact;
+					bad += (error < -1.0 * kAudible || error > 1.0 * kAudible) ? 1 : 0;
+				}
+			};
+			for (uint32_t increment = 1; increment <= 65536; ++increment) {
+				check(increment);
+			}
+			for (uint32_t increment : {65537u, 1u << 20, 1u << 26, 0x7FFFFFFFu}) {
+				check(increment);
+			}
+			expect(bad).to_equal(0);
+		});
+	});
+
 	context("against the raw reference", _ {
 		it("computes the resetter reciprocal as the reference does", _ {
 			int32_t bad = 0;
 			for (uint32_t increment : kEdgeIncrements) {
-				bad += deluge::dsp::fixed::resetter_reciprocal(increment) != sync_reference::resetter_reciprocal(increment);
+				if (reference_holds(increment)) {
+					bad += deluge::dsp::fixed::resetter_reciprocal(increment)
+					       != sync_reference::resetter_reciprocal(increment);
+				}
 			}
 			XorShift next;
 			for (int i = 0; i < (1 << 16); ++i) {
 				const uint32_t increment = next();
+				if (!reference_holds(increment)) {
+					continue;
+				}
 				bad += deluge::dsp::fixed::resetter_reciprocal(increment) != sync_reference::resetter_reciprocal(increment);
 			}
 			expect(bad).to_equal(0);
@@ -112,6 +161,9 @@ describe synced_phasor("deluge::dsp::fixed SyncedPhasor", ${
 			XorShift next;
 			auto run = [&](uint32_t increment, uint32_t resetter_increment, uint32_t phase, uint32_t resetter,
 			               uint32_t retrigger) {
+				if (!reference_holds(resetter_increment)) {
+					return;
+				}
 				SyncedPhasor synced{Phasor{uq32(phase), uq32(increment)}, Phasor{uq32(resetter), uq32(resetter_increment)},
 				                    uq32(retrigger)};
 				sync_reference::SyncedPhasor reference{phase, increment, resetter, resetter_increment, retrigger};

@@ -131,6 +131,10 @@ describe sync_windower("deluge::dsp::fixed SyncWindower", ${
 		for (int i = 0; i < 8192; ++i) {
 			// Masters from a few samples per cycle to slower than the block, including increments at or below 2^16
 			const Resetter resetter{xorshift(x), xorshift(x) >> (xorshift(x) % 24)};
+			// At or below 2^16, and above 0xFFFF0000, the raw reference's resetter reciprocal is negative
+			if (resetter.phase_increment <= 65536 || resetter.phase_increment > 0xFFFF0000u) {
+				continue;
+			}
 			const uint32_t phase = xorshift(x);
 			const uint32_t increment = xorshift(x) >> (xorshift(x) & 7);
 			const uint32_t retrigger = xorshift(x);
