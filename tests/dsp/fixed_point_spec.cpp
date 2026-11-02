@@ -15,9 +15,12 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #include "dsp-next/core/fixed_point.h"
+#include <array>
 #include <cppspec.hpp>
 #include <cstdint>
 #include <type_traits>
+#include <utility>
+#include <vector>
 
 using namespace deluge::dsp;
 
@@ -50,6 +53,50 @@ static_assert(!std::is_convertible_v<std::int32_t, Q<31>>);
 static_assert(!std::is_convertible_v<Q<31>, std::int32_t>);
 static_assert(!comparable<Q<31>, Q<30>>);
 static_assert(comparable<Q<31>, Q<31>>);
+
+constexpr std::array<std::int32_t, 14> kEdges{
+    0, 1, -1, 2, -2, INT32_MAX, INT32_MIN, INT32_MAX - 1, INT32_MIN + 1, 1 << 30, -(1 << 30), 0x7FFF, -0x8000, 0x10000};
+
+std::uint32_t xorshift(std::uint32_t& s) {
+	s ^= s << 13;
+	s ^= s >> 17;
+	s ^= s << 5;
+	return s;
+}
+
+/// The edge set against itself, then 200 000 pseudo-random pairs.
+const std::vector<std::pair<std::int32_t, std::int32_t>>& pairs() {
+	static const auto out = [] {
+		std::vector<std::pair<std::int32_t, std::int32_t>> v;
+		for (auto a : kEdges) {
+			for (auto b : kEdges) {
+				v.emplace_back(a, b);
+			}
+		}
+		std::uint32_t s = 0x2545F491u;
+		for (int i = 0; i < 200000; ++i) {
+			const auto a = static_cast<std::int32_t>(xorshift(s));
+			v.emplace_back(a, static_cast<std::int32_t>(xorshift(s)));
+		}
+		return v;
+	}();
+	return out;
+}
+
+std::int32_t sat32(std::int64_t v) {
+	return v > INT32_MAX ? INT32_MAX : v < INT32_MIN ? INT32_MIN : static_cast<std::int32_t>(v);
+}
+std::int32_t wrap32(std::int64_t v) {
+	return static_cast<std::int32_t>(static_cast<std::uint32_t>(v));
+}
+std::int32_t clamp_ref(std::int64_t v, int bits) {
+	const std::int64_t hi = (std::int64_t{1} << (bits - 1)) - 1;
+	const std::int64_t lo = -hi - 1;
+	return static_cast<std::int32_t>(v > hi ? hi : v < lo ? lo : v);
+}
+Q<31> r(std::int32_t v) {
+	return Q<31>::from_raw(v);
+}
 
 } // namespace
 
@@ -89,4 +136,59 @@ describe fixed_point_types("fixed_point types", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(fixed_point_types);
+// clang-format off
+describe fixed_point_add("fixed_point add/sub/clamp", ${
+	it("wraps modulo 2^32 and saturates to the int32 range", _ {
+		std::size_t bad = 0;
+		for (auto [a, b] : pairs()) {
+			const std::int64_t sum = std::int64_t{a} + b;
+			const std::int64_t diff = std::int64_t{a} - b;
+			bad += add_wrap(r(a), r(b)).raw() != wrap32(sum);
+			bad += sub_wrap(r(a), r(b)).raw() != wrap32(diff);
+			bad += add_sat(r(a), r(b)).raw() != sat32(sum);
+			bad += sub_sat(r(a), r(b)).raw() != sat32(diff);
+			bad += add_double_sat(r(a), r(b)).raw() != sat32(std::int64_t{a} + sat32(std::int64_t{b} * 2));
+			bad += sub_double_sat(r(a), r(b)).raw() != sat32(std::int64_t{a} - sat32(std::int64_t{b} * 2));
+			bad += add_halves_sat(r(a), r(b)).raw() != wrap32(std::int64_t{clamp_ref((a >> 1) + (b >> 1), 31)} * 2);
+		}
+		expect(bad).to_equal(std::size_t{0});
+	});
+	it("negates with wrap and with saturation", _ {
+		expect(neg_wrap(r(INT32_MIN)).raw()).to_equal(INT32_MIN);
+		expect(neg_sat(r(INT32_MIN)).raw()).to_equal(INT32_MAX);
+		expect(neg_sat(r(5)).raw()).to_equal(-5);
+		expect(neg_wrap(UQ<32>::from_raw(1u)).raw()).to_equal(UINT32_MAX);
+	});
+	it("clamps to N signed or unsigned bits", _ {
+		std::size_t bad = 0;
+		for (auto [a, b] : pairs()) {
+			bad += clamp_bits<24>(r(a)).raw() != clamp_ref(a, 24);
+			bad += clamp_bits<1>(r(a)).raw() != clamp_ref(a, 1);
+			bad += clamp_bits<32>(r(a)).raw() != a;
+			const int n = 1 + static_cast<int>(static_cast<std::uint32_t>(b) % 32u);
+			bad += clamp_bits(r(a), n).raw() != clamp_ref(a, n);
+			constexpr std::int64_t kUnsignedHi = (std::int64_t{1} << 16) - 1;
+			bad += clamp_unsigned_bits<16>(r(a)).raw()
+			       != static_cast<std::int32_t>(a < 0 ? 0 : a > kUnsignedHi ? kUnsignedHi : a);
+			bad += clamp_high(r(a), r(b)).raw() != (a > b ? b : a);
+		}
+		expect(bad).to_equal(std::size_t{0});
+	});
+	it("works lane-wise on packed int16 pairs", _ {
+		const auto x = Q16x2<15>::pack(Q16<15>::from_raw(30000), Q16<15>::from_raw(-30000));
+		const auto y = Q16x2<15>::pack(Q16<15>::from_raw(10000), Q16<15>::from_raw(-10000));
+		expect(add_sat(x, y).lo().raw()).to_equal(static_cast<std::int16_t>(32767));
+		expect(add_sat(x, y).hi().raw()).to_equal(static_cast<std::int16_t>(-32768));
+		expect(sub_sat(x, y).lo().raw()).to_equal(static_cast<std::int16_t>(20000));
+		expect(sub_sat(y, x).hi().raw()).to_equal(static_cast<std::int16_t>(20000));
+		expect(halving_add(x, y).lo().raw()).to_equal(static_cast<std::int16_t>(20000));
+		expect(halving_add(x, y).hi().raw()).to_equal(static_cast<std::int16_t>(-20000));
+	});
+	it("evaluates at compile time", _ {
+		constexpr auto c = add_sat(Q<31>::max(), Q<31>::one());
+		expect(c.raw()).to_equal(INT32_MAX);
+	});
+});
+// clang-format on
+
+CPPSPEC_MAIN(fixed_point_types, fixed_point_add);

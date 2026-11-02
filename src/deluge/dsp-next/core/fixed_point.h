@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <compare>
 #include <cstdint>
 #include <limits>
@@ -164,6 +165,241 @@ template <int F>
 template <int F>
 [[nodiscard]] consteval Q16<F> q16(double value) {
 	return detail::constant<Q16<F>>(value);
+}
+
+namespace detail {
+
+template <class S>
+[[gnu::always_inline, nodiscard]] constexpr S wrap_add(S a, S b) noexcept {
+	using U = std::make_unsigned_t<S>;
+	return static_cast<S>(static_cast<U>(static_cast<U>(a) + static_cast<U>(b)));
+}
+template <class S>
+[[gnu::always_inline, nodiscard]] constexpr S wrap_sub(S a, S b) noexcept {
+	using U = std::make_unsigned_t<S>;
+	return static_cast<S>(static_cast<U>(static_cast<U>(a) - static_cast<U>(b)));
+}
+template <class S>
+[[gnu::always_inline, nodiscard]] constexpr S wrap_neg(S a) noexcept {
+	return wrap_sub(S{0}, a);
+}
+template <class S>
+[[gnu::always_inline, nodiscard]] constexpr S wrap_shl(S a, int n) noexcept {
+	using U = std::make_unsigned_t<S>;
+	return static_cast<S>(static_cast<U>(static_cast<U>(a) << n));
+}
+[[gnu::always_inline, nodiscard]] constexpr std::int32_t sat32(std::int64_t v) noexcept {
+	return static_cast<std::int32_t>(std::clamp<std::int64_t>(v, INT32_MIN, INT32_MAX));
+}
+
+/// The exact semantics of each ACLE path, for hosts and for constant evaluation.
+namespace portable {
+
+[[gnu::always_inline, nodiscard]] constexpr std::int32_t qadd(std::int32_t a, std::int32_t b) noexcept {
+	return sat32(std::int64_t{a} + b);
+}
+[[gnu::always_inline, nodiscard]] constexpr std::int32_t qsub(std::int32_t a, std::int32_t b) noexcept {
+	return sat32(std::int64_t{a} - b);
+}
+[[gnu::always_inline, nodiscard]] constexpr std::int32_t qdadd(std::int32_t a, std::int32_t b) noexcept {
+	return qadd(a, qadd(b, b));
+}
+[[gnu::always_inline, nodiscard]] constexpr std::int32_t qdsub(std::int32_t a, std::int32_t b) noexcept {
+	return qsub(a, qadd(b, b));
+}
+template <int N>
+[[gnu::always_inline, nodiscard]] constexpr std::int32_t ssat(std::int32_t v) noexcept {
+	static_assert(N >= 1 && N <= 32);
+	constexpr std::int64_t kHi = (std::int64_t{1} << (N - 1)) - 1;
+	constexpr std::int64_t kLo = -kHi - 1;
+	return static_cast<std::int32_t>(std::clamp<std::int64_t>(v, kLo, kHi));
+}
+template <int N>
+[[gnu::always_inline, nodiscard]] constexpr std::int32_t usat(std::int32_t v) noexcept {
+	static_assert(N >= 0 && N <= 31);
+	constexpr auto kHi = static_cast<std::int32_t>((std::uint32_t{1} << N) - 1);
+	return std::clamp(v, 0, kHi);
+}
+[[gnu::always_inline, nodiscard]] constexpr std::int16_t sat16(std::int32_t v) noexcept {
+	return static_cast<std::int16_t>(std::clamp<std::int32_t>(v, INT16_MIN, INT16_MAX));
+}
+/// Applies @p op to each int16 lane of two packed words.
+template <class Op>
+[[gnu::always_inline, nodiscard]] constexpr std::uint32_t lanes16(std::uint32_t a, std::uint32_t b, Op op) noexcept {
+	const auto lo =
+	    static_cast<std::uint16_t>(op(static_cast<std::int16_t>(a & 0xFFFFu), static_cast<std::int16_t>(b & 0xFFFFu)));
+	const auto hi =
+	    static_cast<std::uint16_t>(op(static_cast<std::int16_t>(a >> 16), static_cast<std::int16_t>(b >> 16)));
+	return lo | (std::uint32_t{hi} << 16);
+}
+
+} // namespace portable
+
+} // namespace detail
+
+/// @brief a + b, wrapping modulo 2^bits (`add`). Defined behaviour: computed in the unsigned storage.
+template <class S, int F>
+[[gnu::always_inline, nodiscard]] constexpr Fixed<S, F> add_wrap(Fixed<S, F> a, Fixed<S, F> b) noexcept {
+	return Fixed<S, F>::from_raw(detail::wrap_add(a.raw(), b.raw()));
+}
+/// @brief a − b, wrapping modulo 2^bits (`sub`).
+template <class S, int F>
+[[gnu::always_inline, nodiscard]] constexpr Fixed<S, F> sub_wrap(Fixed<S, F> a, Fixed<S, F> b) noexcept {
+	return Fixed<S, F>::from_raw(detail::wrap_sub(a.raw(), b.raw()));
+}
+/// @brief −a, wrapping: −min() is min() (`rsb`).
+template <class S, int F>
+[[gnu::always_inline, nodiscard]] constexpr Fixed<S, F> neg_wrap(Fixed<S, F> a) noexcept {
+	return Fixed<S, F>::from_raw(detail::wrap_neg(a.raw()));
+}
+
+/// @brief a + b, saturating to [min, max] (`qadd`).
+template <int F>
+[[gnu::always_inline, nodiscard]] constexpr Q<F> add_sat(Q<F> a, Q<F> b) noexcept {
+	if consteval {
+		return Q<F>::from_raw(detail::portable::qadd(a.raw(), b.raw()));
+	}
+#ifdef __ARM_FEATURE_DSP
+	return Q<F>::from_raw(__qadd(a.raw(), b.raw()));
+#else
+	return Q<F>::from_raw(detail::portable::qadd(a.raw(), b.raw()));
+#endif
+}
+/// @brief a − b, saturating to [min, max] (`qsub`).
+template <int F>
+[[gnu::always_inline, nodiscard]] constexpr Q<F> sub_sat(Q<F> a, Q<F> b) noexcept {
+	if consteval {
+		return Q<F>::from_raw(detail::portable::qsub(a.raw(), b.raw()));
+	}
+#ifdef __ARM_FEATURE_DSP
+	return Q<F>::from_raw(__qsub(a.raw(), b.raw()));
+#else
+	return Q<F>::from_raw(detail::portable::qsub(a.raw(), b.raw()));
+#endif
+}
+/// @brief −a, saturating: −min() is max() (`qsub` from zero).
+template <int F>
+[[gnu::always_inline, nodiscard]] constexpr Q<F> neg_sat(Q<F> a) noexcept {
+	return sub_sat(Q<F>::from_raw(0), a);
+}
+/// @brief sat(a + sat(2b)): adds b doubled, each step saturating (`qdadd`).
+template <int F>
+[[gnu::always_inline, nodiscard]] constexpr Q<F> add_double_sat(Q<F> a, Q<F> b) noexcept {
+	if consteval {
+		return Q<F>::from_raw(detail::portable::qdadd(a.raw(), b.raw()));
+	}
+#ifdef __ARM_FEATURE_DSP
+	return Q<F>::from_raw(__qadd(a.raw(), __qdbl(b.raw())));
+#else
+	return Q<F>::from_raw(detail::portable::qdadd(a.raw(), b.raw()));
+#endif
+}
+/// @brief sat(a − sat(2b)): subtracts b doubled, each step saturating (`qdsub`).
+template <int F>
+[[gnu::always_inline, nodiscard]] constexpr Q<F> sub_double_sat(Q<F> a, Q<F> b) noexcept {
+	if consteval {
+		return Q<F>::from_raw(detail::portable::qdsub(a.raw(), b.raw()));
+	}
+#ifdef __ARM_FEATURE_DSP
+	return Q<F>::from_raw(__qsub(a.raw(), __qdbl(b.raw())));
+#else
+	return Q<F>::from_raw(detail::portable::qdsub(a.raw(), b.raw()));
+#endif
+}
+
+/// @brief Clamps to the signed N-bit range [−2^(N−1), 2^(N−1) − 1], keeping the format (`ssat #N`).
+template <int N, int F>
+requires(N >= 1 && N <= 32)
+[[gnu::always_inline, nodiscard]] constexpr Q<F> clamp_bits(Q<F> x) noexcept {
+	if consteval {
+		return Q<F>::from_raw(detail::portable::ssat<N>(x.raw()));
+	}
+#ifdef __ARM_FEATURE_DSP
+	return Q<F>::from_raw(__ssat(x.raw(), N));
+#else
+	return Q<F>::from_raw(detail::portable::ssat<N>(x.raw()));
+#endif
+}
+/// @brief Clamps to the signed @p n-bit range, @p n known only at run time (1 to 32; two compares, no single
+/// instruction).
+template <int F>
+[[gnu::always_inline, nodiscard]] constexpr Q<F> clamp_bits(Q<F> x, int n) noexcept {
+	const std::int64_t hi = (std::int64_t{1} << (n - 1)) - 1;
+	const std::int64_t lo = -hi - 1;
+	const std::int64_t v = x.raw();
+	return Q<F>::from_raw(static_cast<std::int32_t>(std::clamp(v, lo, hi)));
+}
+/// @brief Clamps to [0, 2^N − 1], keeping the format (`usat #N`).
+template <int N, int F>
+requires(N >= 0 && N <= 31)
+[[gnu::always_inline, nodiscard]] constexpr Q<F> clamp_unsigned_bits(Q<F> x) noexcept {
+	if consteval {
+		return Q<F>::from_raw(detail::portable::usat<N>(x.raw()));
+	}
+#ifdef __ARM_FEATURE_DSP
+	return Q<F>::from_raw(static_cast<std::int32_t>(__usat(x.raw(), N)));
+#else
+	return Q<F>::from_raw(detail::portable::usat<N>(x.raw()));
+#endif
+}
+/// @brief The smaller of @p x and @p ceiling: an upper clamp only.
+template <int F>
+[[gnu::always_inline, nodiscard]] constexpr Q<F> clamp_high(Q<F> x, Q<F> ceiling) noexcept {
+	return x < ceiling ? x : ceiling;
+}
+
+/// @brief sat((a >> 1) + (b >> 1)) << 1: the operands' halves summed, then saturate-doubled (`asr`, `add`,
+/// `ssat #31`, `lsl #1`). Its ceiling is 2^31 − 2, as lshift_and_saturate<1> gives.
+template <int F>
+[[gnu::always_inline, nodiscard]] constexpr Q<F> add_halves_sat(Q<F> a, Q<F> b) noexcept {
+	const auto halves = Q<F>::from_raw(detail::wrap_add(a.raw() >> 1, b.raw() >> 1));
+	return Q<F>::from_raw(detail::wrap_shl(clamp_bits<31>(halves).raw(), 1));
+}
+
+/// @brief Lane-wise a + b, each lane saturating to the int16 range (`qadd16`).
+template <int F>
+[[gnu::always_inline, nodiscard]] constexpr Q16x2<F> add_sat(Q16x2<F> a, Q16x2<F> b) noexcept {
+	if consteval {
+		return Q16x2<F>::from_raw(detail::portable::lanes16(
+		    a.raw(), b.raw(), [](std::int16_t x, std::int16_t y) { return detail::portable::sat16(x + y); }));
+	}
+#ifdef __ARM_FEATURE_DSP
+	return Q16x2<F>::from_raw(
+	    static_cast<std::uint32_t>(__qadd16(static_cast<int16x2_t>(a.raw()), static_cast<int16x2_t>(b.raw()))));
+#else
+	return Q16x2<F>::from_raw(detail::portable::lanes16(
+	    a.raw(), b.raw(), [](std::int16_t x, std::int16_t y) { return detail::portable::sat16(x + y); }));
+#endif
+}
+/// @brief Lane-wise a − b, each lane saturating to the int16 range (`qsub16`).
+template <int F>
+[[gnu::always_inline, nodiscard]] constexpr Q16x2<F> sub_sat(Q16x2<F> a, Q16x2<F> b) noexcept {
+	if consteval {
+		return Q16x2<F>::from_raw(detail::portable::lanes16(
+		    a.raw(), b.raw(), [](std::int16_t x, std::int16_t y) { return detail::portable::sat16(x - y); }));
+	}
+#ifdef __ARM_FEATURE_DSP
+	return Q16x2<F>::from_raw(
+	    static_cast<std::uint32_t>(__qsub16(static_cast<int16x2_t>(a.raw()), static_cast<int16x2_t>(b.raw()))));
+#else
+	return Q16x2<F>::from_raw(detail::portable::lanes16(
+	    a.raw(), b.raw(), [](std::int16_t x, std::int16_t y) { return detail::portable::sat16(x - y); }));
+#endif
+}
+/// @brief Lane-wise (a + b) >> 1, never overflowing (`shadd16`).
+template <int F>
+[[gnu::always_inline, nodiscard]] constexpr Q16x2<F> halving_add(Q16x2<F> a, Q16x2<F> b) noexcept {
+	if consteval {
+		return Q16x2<F>::from_raw(detail::portable::lanes16(
+		    a.raw(), b.raw(), [](std::int16_t x, std::int16_t y) { return static_cast<std::int16_t>((x + y) >> 1); }));
+	}
+#ifdef __ARM_FEATURE_DSP
+	return Q16x2<F>::from_raw(
+	    static_cast<std::uint32_t>(__shadd16(static_cast<int16x2_t>(a.raw()), static_cast<int16x2_t>(b.raw()))));
+#else
+	return Q16x2<F>::from_raw(detail::portable::lanes16(
+	    a.raw(), b.raw(), [](std::int16_t x, std::int16_t y) { return static_cast<std::int16_t>((x + y) >> 1); }));
+#endif
 }
 
 } // namespace deluge::dsp
