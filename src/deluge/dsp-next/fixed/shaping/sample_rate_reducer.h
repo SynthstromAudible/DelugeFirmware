@@ -42,8 +42,8 @@ namespace deluge::dsp::fixed {
 ///
 /// **Formats.** A position's fraction of a frame is Q22, the rates Q22 frames per frame, and an interpolation's
 /// weight that fraction reformatted to Q31. Interpolating Q<F> values gives Q<F − 1>: the grabs are Q30 of the input,
-/// and the up-conversion Q29, reformatted to Q31 for the output. That reformat wraps only where the up-conversion
-/// reaches full scale.
+/// and the up-conversion Q29, reformatted to Q31 for the output. That reformat cannot wrap: a blend's two weights sum
+/// to (2^22 − 1) · 2^9, just under one, so a grab stays inside Q30's range and the up-conversion inside Q29's.
 ///
 /// **Events.** @ref start zeroes the last input, the grab and the low position, as the effect does each time it is
 /// switched on; the last grab and the high position carry over.
