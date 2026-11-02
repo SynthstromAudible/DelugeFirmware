@@ -22,11 +22,10 @@
 #pragma once
 
 #include "dsp-next/core/chain.h"
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/kernel.h"
-#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/core/types.h"
-#include "dsp-next/core/wrapping.h"
 #include "dsp-next/fixed/filter/shift_tracker.h"
 
 #include <array>
@@ -105,10 +104,10 @@ struct Freeverb {
 	};
 	/// @brief What the arithmetic reads.
 	struct Coefficients {
-		q31 feedback = 0; ///< Each comb's feedback, Q31.
-		q31 damp1 = 0;    ///< The combs' low-pass memory weight, Q31.
-		q31 damp2 = 0;    ///< The combs' low-pass input weight, INT32_MAX − damp1.
-		q31 wet2 = 0;     ///< Each channel's share of the other: 0 at full width.
+		Q<31> feedback{}; ///< Each comb's feedback.
+		Q<31> damp1{};    ///< The combs' low-pass memory weight.
+		Q<31> damp2{};    ///< The combs' low-pass input weight, max − damp1.
+		Q<31> wet2{};     ///< Each channel's share of the other: 0 at full width.
 		DcBlocker::Coefficients dc{};
 	};
 	/// @brief One channel's indices into its lines and its combs' filter stores.
@@ -141,10 +140,10 @@ struct Freeverb {
 		const float cross = (1.f - s.width) / 2;
 		const float own = (s.width / 2) + 0.5f;
 		return {
-		    .feedback = static_cast<q31>(roomsize * kMax),
-		    .damp1 = damp1,
-		    .damp2 = kMax - damp1,
-		    .wet2 = static_cast<q31>(cross / own * kMax),
+		    .feedback = Q<31>::from_raw(static_cast<q31>(roomsize * static_cast<float>(kMax))),
+		    .damp1 = Q<31>::from_raw(damp1),
+		    .damp2 = sub_wrap(Q<31>::max(), Q<31>::from_raw(damp1)),
+		    .wet2 = Q<31>::from_raw(static_cast<q31>(cross / own * static_cast<float>(kMax))),
 		    .dc = {},
 		};
 	}
@@ -152,17 +151,22 @@ struct Freeverb {
 	/// @brief One frame: the send's next sample, DC-blocked, through both channels, added to @p x.
 	[[nodiscard]] [[gnu::always_inline]] static StereoSample step(const Coefficients& c, const EmptyBlock& /*b*/,
 	                                                              State& s, StereoSample x) {
-		const q31 input = kernel_ops::step_at<DcBlocker, kernel_ops::NoMode::NONE>(c.dc, EmptyBlock{}, s.dc, *s.send);
+		const auto input = Q<31>::from_raw(
+		    kernel_ops::step_at<DcBlocker, kernel_ops::NoMode::NONE>(c.dc, EmptyBlock{}, s.dc, *s.send));
 		++s.send;
-		q31 out_l = 0;
-		q31 out_r = 0;
+		Q<31> out_l{};
+		Q<31> out_r{};
 		combs(c, s, input, out_l, out_r, std::make_index_sequence<kCombs>{});
 		allpasses(s, out_l, out_r, std::make_index_sequence<kAllpasses>{});
-		// Named quirk: out_r takes in the out_l this frame has just made, not the allpasses' left output.
-		out_l = wrapping_add(out_l, multiply_32x32_rshift32_rounded(out_r, c.wet2)) << 1;
-		out_r = wrapping_add(out_r, multiply_32x32_rshift32_rounded(out_l, c.wet2)) << 1;
-		return {.l = wrapping_add(x.l, multiply_32x32_rshift32_rounded(out_l, s.pan_l)),
-		        .r = wrapping_add(x.r, multiply_32x32_rshift32_rounded(out_r, s.pan_r))};
+		// The cross-mix sums at Q30, each channel's own output read as Q30 (twice its value) plus its Q30 share of the
+		// other, then lifts back to Q31. Named quirk: out_r takes in the out_l this frame has just made, not the
+		// allpasses' left output.
+		out_l = cross_mix(out_l, out_r, c.wet2);
+		out_r = cross_mix(out_r, out_l, c.wet2);
+		// The return adds the Q30 product's bits to the Q31 frame: half the output at the return level.
+		return {
+		    .l = add_wrap(Q<31>::from_raw(x.l), reinterpret_bits<Q<31>>(mul_r(out_l, Q<31>::from_raw(s.pan_l)))).raw(),
+		    .r = add_wrap(Q<31>::from_raw(x.r), reinterpret_bits<Q<31>>(mul_r(out_r, Q<31>::from_raw(s.pan_r)))).raw()};
 	}
 
 	/// @brief Event: the owner's memory, kMemoryWords words, zeroed by the owner.
@@ -175,34 +179,39 @@ struct Freeverb {
 	}
 
 private:
+	/// @return @p own read as Q30 plus @p other's share at @p wet2, lifted to Q31: 2 × own + wet2 × other, wrapping.
+	[[nodiscard]] [[gnu::always_inline]] static Q<31> cross_mix(Q<31> own, Q<31> other, Q<31> wet2) {
+		// The comb sum's bits read as Q30, to add the Q30 share at its scale.
+		return as_wrap<Q<31>>(add_wrap(reinterpret_bits<Q<30>>(own), mul_r(other, wet2)));
+	}
 	/// @brief Every comb of both channels, left then right for each, summed into @p out_l and @p out_r. Unrolled at
 	/// compile time, so each line's base and length are immediates and each comb's index and store a fixed offset.
 	template <std::size_t... I>
-	[[gnu::always_inline]] static void combs(const Coefficients& c, State& s, q31 input, q31& out_l, q31& out_r,
+	[[gnu::always_inline]] static void combs(const Coefficients& c, State& s, Q<31> input, Q<31>& out_l, Q<31>& out_r,
 	                                         std::index_sequence<I...> /*combs*/) {
-		((out_l = wrapping_add(
-		      out_l, comb(c, s.memory, kLayout.comb[0][I], s.left.comb_index[I], s.left.comb_store[I], input)),
-		  out_r = wrapping_add(
-		      out_r, comb(c, s.memory, kLayout.comb[1][I], s.right.comb_index[I], s.right.comb_store[I], input))),
+		((out_l =
+		      add_wrap(out_l, comb(c, s.memory, kLayout.comb[0][I], s.left.comb_index[I], s.left.comb_store[I], input)),
+		  out_r = add_wrap(out_r,
+		                   comb(c, s.memory, kLayout.comb[1][I], s.right.comb_index[I], s.right.comb_store[I], input))),
 		 ...);
 	}
 	/// @brief Every allpass of both channels in series, left then right for each, unrolled as @ref combs.
 	template <std::size_t... I>
-	[[gnu::always_inline]] static void allpasses(State& s, q31& out_l, q31& out_r,
+	[[gnu::always_inline]] static void allpasses(State& s, Q<31>& out_l, Q<31>& out_r,
 	                                             std::index_sequence<I...> /*allpasses*/) {
 		((out_l = allpass(s.memory, kLayout.allpass[0][I], s.left.allpass_index[I], out_l),
 		  out_r = allpass(s.memory, kLayout.allpass[1][I], s.right.allpass_index[I], out_r)),
 		 ...);
 	}
 	/// @brief One comb: the line's tail out; its low-passed tail fed back with the input at its head.
-	[[nodiscard]] [[gnu::always_inline]] static q31 comb(const Coefficients& c, q31* memory, Line line, int32_t& index,
-	                                                     q31& store, q31 input) {
+	[[nodiscard]] [[gnu::always_inline]] static Q<31> comb(const Coefficients& c, q31* memory, Line line,
+	                                                       int32_t& index, q31& store, Q<31> input) {
 		q31* const slot = memory + line.base + index;
-		const q31 output = *slot;
-		store = wrapping_add(multiply_32x32_rshift32_rounded(output, c.damp2),
-		                     multiply_32x32_rshift32_rounded(store, c.damp1))
-		        << 1;
-		*slot = wrapping_add(input, multiply_32x32_rshift32_rounded(store, c.feedback) << 1);
+		const auto output = Q<31>::from_raw(*slot);
+		// The low-pass: two Q30 products, their sum lifted to the Q31 store; the feedback's product lifted likewise.
+		const auto stored = as_wrap<Q<31>>(add_wrap(mul_r(output, c.damp2), mul_r(Q<31>::from_raw(store), c.damp1)));
+		store = stored.raw();
+		*slot = add_wrap(input, mul_r_as_wrap<Q<31>>(stored, c.feedback)).raw();
 		if (++index >= static_cast<int32_t>(line.length)) {
 			index = 0;
 		}
@@ -210,11 +219,11 @@ private:
 	}
 	/// @brief One allpass: the tail less the input out; the input plus half the tail in (a feedback of one half, as a
 	/// shift).
-	[[nodiscard]] [[gnu::always_inline]] static q31 allpass(q31* memory, Line line, int32_t& index, q31 input) {
+	[[nodiscard]] [[gnu::always_inline]] static Q<31> allpass(q31* memory, Line line, int32_t& index, Q<31> input) {
 		q31* const slot = memory + line.base + index;
-		const q31 bufout = *slot;
-		const q31 output = wrapping_sub(bufout, input);
-		*slot = wrapping_add(input, bufout >> 1);
+		const auto bufout = Q<31>::from_raw(*slot);
+		const Q<31> output = sub_wrap(bufout, input);
+		*slot = add_wrap(input, halve_floor(bufout)).raw();
 		if (++index >= static_cast<int32_t>(line.length)) {
 			index = 0;
 		}

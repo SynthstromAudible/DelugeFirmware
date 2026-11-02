@@ -49,7 +49,7 @@ src/deluge/dsp-next/fixed/osc/pulse_oscillator.h raw=0 boundary=13
 src/deluge/dsp-next/fixed/osc/sine.cpp raw=1 boundary=4
 src/deluge/dsp-next/fixed/osc/supersaw.cpp raw=0 boundary=7
 src/deluge/dsp-next/fixed/osc/table_oscillator.h raw=0 boundary=9
-src/deluge/dsp-next/fixed/reverb/freeverb.h raw=7 boundary=0
+src/deluge/dsp-next/fixed/reverb/freeverb.h raw=0 boundary=20
 src/deluge/dsp-next/fixed/shaping/sample_rate_reducer.h raw=0 boundary=16
 src/deluge/dsp-next/fixed/shaping/tanh.h raw=1 boundary=4
 src/deluge/dsp-next/fixed/shaping/wavefolder.h raw=0 boundary=7
