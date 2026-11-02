@@ -32,6 +32,7 @@
 #include <vector>
 
 namespace {
+using deluge::dsp::Q;
 using deluge::dsp::Ramp;
 using deluge::dsp::fixed::Buffer;
 using deluge::dsp::fixed::Supersaw;
@@ -136,7 +137,7 @@ double aliasRatioDb(const std::vector<int32_t>& x, double hz) {
 	return 10 * std::log10(alias / signal);
 }
 
-BlockControls controls(bool applyAmplitude, Ramp amplitude = Ramp{0, 0}) {
+BlockControls controls(bool applyAmplitude, Ramp amplitude = Ramp{Q<31>::from_raw(0), Q<31>::from_raw(0)}) {
 	return BlockControls{.amplitude = amplitude,
 	                     .apply_amplitude = applyAmplitude,
 	                     .pulse_width = 0,
@@ -218,7 +219,7 @@ describe supersaw("the dsp-next supersaw", ${
 
 		it("mixes in through the VCA at four times the amplitude, as a quarter-level wave", _ {
 			const uint32_t inc = incrementFor(440);
-			const Ramp amplitude{1 << 26, 0};
+			const Ramp amplitude{Q<31>::from_raw(1 << 26), Q<31>::from_raw(0)};
 			SupersawSource raw{kStartPhase, Supersaw::side_phases_from(kStartPhase)};
 			SupersawSource mixed{kStartPhase, Supersaw::side_phases_from(kStartPhase)};
 			std::vector<int32_t> wave(128);
@@ -228,7 +229,7 @@ describe supersaw("the dsp-next supersaw", ${
 			mixed.render_into(controls(true, amplitude), inc, 0, 0, Buffer{out}, Buffer{scratch});
 			for (size_t i = 0; i < out.size(); i++) {
 				// vqdmulh by the halved, quadrupled amplitude, plus what was already in the buffer
-				auto want = static_cast<int32_t>((static_cast<int64_t>(wave[i]) * ((amplitude.value() << 2) >> 1)) >> 31) + 1000;
+				auto want = static_cast<int32_t>((static_cast<int64_t>(wave[i]) * ((amplitude.value().raw() << 2) >> 1)) >> 31) + 1000;
 				expect(out[i]).to_equal(want);
 			}
 		});

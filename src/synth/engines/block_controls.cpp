@@ -27,7 +27,7 @@ synth::BlockControls make_block_controls(int32_t amplitude, int32_t amplitude_in
                                          uint32_t resetter_phase_increment, uint32_t retrigger_phase,
                                          int32_t cpu_direness) {
 	return synth::BlockControls{
-	    .amplitude = dsp::Ramp{amplitude, amplitude_increment},
+	    .amplitude = dsp::Ramp{dsp::Q<31>::from_raw(amplitude), dsp::Q<31>::from_raw(amplitude_increment)},
 	    .apply_amplitude = apply_amplitude,
 	    .pulse_width = pulse_width,
 	    .retrigger_phase = retrigger_phase,

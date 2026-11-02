@@ -49,7 +49,7 @@ constexpr std::size_t kN = 8;
 // Standalone controls (apply_amplitude=false): the engine writes the raw, scaled wave straight out. pulse_width
 // is the raw modulation value (0 ⇒ no pulse); the shapes derive pulse/sync/retrigger/band-select themselves.
 BlockControls standalone(int32_t cpu_direness, uint32_t pulse_width = 0, std::optional<Phasor> sync = std::nullopt) {
-	return BlockControls{.amplitude = Ramp{0, 0},
+	return BlockControls{.amplitude = Ramp{deluge::dsp::Q<31>::from_raw(0), deluge::dsp::Q<31>::from_raw(0)},
 	                     .apply_amplitude = false,
 	                     .pulse_width = pulse_width,
 	                     .retrigger_phase = 0,

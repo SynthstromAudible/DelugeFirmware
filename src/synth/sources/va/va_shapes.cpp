@@ -254,7 +254,7 @@ void Triangle::render_block(const BlockControls& controls, fixed::Buffer output,
 	Resolved r = resolve_multiply(phasor_, controls, controls.retrigger_phase, 0u);
 	if (r.render.increment().raw() < kTriangleCrudeIncrement || controls.cpu_direness >= 7) {
 		// Crude triangle: half-scale fed to a doubled-amplitude VCA, so the standalone output is doubled back.
-		auto make_vca = [&] { return fixed::CrudeAmplitude{controls.amplitude << 1}; };
+		auto make_vca = [&] { return fixed::CrudeAmplitude{scale_shl_wrap<1>(controls.amplitude)}; };
 		if (r.sync) {
 			fixed::CrudeTriangle osc{fixed::SyncedPhasor{r.render, *r.sync, uq32(r.retrigger)}};
 			render_through_vca(osc, make_vca, Standalone::DOUBLE, controls.apply_amplitude, output, scratch);
@@ -290,8 +290,9 @@ void Saw::render_block(const BlockControls& controls, fixed::Buffer output, fixe
 		}
 		return;
 	}
-	render_band_limited(fixed::saw_bandlimited_table(), phasor_.increment().raw(), controls.amplitude << 1, r.sync,
-	                    r.retrigger, controls.apply_amplitude, output, scratch, r.render);
+	render_band_limited(fixed::saw_bandlimited_table(), phasor_.increment().raw(),
+	                    scale_shl_wrap<1>(controls.amplitude), r.sync, r.retrigger, controls.apply_amplitude, output,
+	                    scratch, r.render);
 	phasor_.seek(r.render.phase());
 }
 
@@ -319,12 +320,13 @@ void Square::render_block(const BlockControls& controls, fixed::Buffer output, f
 		return;
 	}
 	if (pulse_wave) {
-		render_perfect_pulse(controls.amplitude << 1, square_pulse_width, band_select, controls.sync,
+		render_perfect_pulse(scale_shl_wrap<1>(controls.amplitude), square_pulse_width, band_select, controls.sync,
 		                     controls.retrigger_phase, controls.apply_amplitude, output, scratch, phasor_);
 		return;
 	}
-	render_band_limited(fixed::square_bandlimited_table(), phasor_.increment().raw(), controls.amplitude << 1,
-	                    controls.sync, controls.retrigger_phase, controls.apply_amplitude, output, scratch, phasor_);
+	render_band_limited(fixed::square_bandlimited_table(), phasor_.increment().raw(),
+	                    scale_shl_wrap<1>(controls.amplitude), controls.sync, controls.retrigger_phase,
+	                    controls.apply_amplitude, output, scratch, phasor_);
 }
 
 void AnalogSaw::render_block(const BlockControls& controls, fixed::Buffer output, fixed::Buffer scratch) {
@@ -350,8 +352,9 @@ void AnalogSaw::render_block(const BlockControls& controls, fixed::Buffer output
 	}
 	// Genuine analog saw: band-limited, no resetter or retrigger tweak.
 	Resolved r = resolve_multiply(phasor_, controls, controls.retrigger_phase, 0u);
-	render_band_limited(fixed::analog_saw_bandlimited_table(), phasor_.increment().raw(), controls.amplitude << 1,
-	                    r.sync, r.retrigger, controls.apply_amplitude, output, scratch, r.render);
+	render_band_limited(fixed::analog_saw_bandlimited_table(), phasor_.increment().raw(),
+	                    scale_shl_wrap<1>(controls.amplitude), r.sync, r.retrigger, controls.apply_amplitude, output,
+	                    scratch, r.render);
 	phasor_.seek(r.render.phase());
 }
 
@@ -360,8 +363,9 @@ void AnalogSquare::render_block(const BlockControls& controls, fixed::Buffer out
 	Resolved r = (controls.sync || controls.pulse_width == 0)
 	                 ? Resolved{.render = phasor_, .sync = controls.sync, .retrigger = controls.retrigger_phase}
 	                 : divide_pulse_sync(phasor_, controls.pulse_width, controls.retrigger_phase);
-	render_band_limited(fixed::analog_square_bandlimited_table(), phasor_.increment().raw(), controls.amplitude << 1,
-	                    r.sync, r.retrigger, controls.apply_amplitude, output, scratch, r.render);
+	render_band_limited(fixed::analog_square_bandlimited_table(), phasor_.increment().raw(),
+	                    scale_shl_wrap<1>(controls.amplitude), r.sync, r.retrigger, controls.apply_amplitude, output,
+	                    scratch, r.render);
 	phasor_.seek(r.render.phase());
 }
 

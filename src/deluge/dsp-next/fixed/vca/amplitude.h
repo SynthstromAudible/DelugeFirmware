@@ -47,7 +47,7 @@ public:
 	      amplitude_increment_{amplitude_increment << 1} {}
 
 	/// Build from an amplitude @ref deluge::dsp::Ramp (its value + per-sample increment).
-	explicit Amplitude(Ramp ramp) : Amplitude(ramp.value(), ramp.increment()) {}
+	explicit Amplitude(Ramp ramp) : Amplitude(ramp.value().raw(), ramp.increment().raw()) {}
 
 	/// @param raw the freshly-generated wave block (read-only)
 	/// @param mix the existing mix to accumulate into

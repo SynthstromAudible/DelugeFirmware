@@ -51,7 +51,7 @@ public:
 	CrudeAmplitude(int32_t amplitude, int32_t increment) : amplitude_{amplitude}, increment_{increment} {}
 
 	/// Build from an amplitude @ref deluge::dsp::Ramp (its value + per-sample increment).
-	explicit CrudeAmplitude(Ramp ramp) : CrudeAmplitude(ramp.value(), ramp.increment()) {}
+	explicit CrudeAmplitude(Ramp ramp) : CrudeAmplitude(ramp.value().raw(), ramp.increment().raw()) {}
 
 	/// out = raw * amplitude + mix (raw == @p input_a, mix == @p input_b), scalar rounded MAC.
 	void render_block(Signal input_a, Signal input_b, Buffer output) {

@@ -86,7 +86,7 @@ void WavetableSource::render_block(const BlockControls& controls, deluge::dsp::f
 
 	if (controls.apply_amplitude) {
 		// The wavetable's amplitude is pre-shifted <<3 (as the legacy renderOsc did); out = scratch*amp + out.
-		deluge::dsp::fixed::Amplitude vca{controls.amplitude << 3};
+		deluge::dsp::fixed::Amplitude vca{scale_shl_wrap<3>(controls.amplitude)};
 		vca.render_block(deluge::dsp::fixed::Signal{scratch}, deluge::dsp::fixed::Signal{output}, output);
 	}
 

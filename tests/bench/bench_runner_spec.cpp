@@ -1164,13 +1164,13 @@ describe bench_runner("The DSP benchmark runner", ${
 			// Amplitude: vqdmulh of the raw sample by the first lane's halved amplitude, (value + increment) >> 1, plus
 			// the mix, wrapping.
 			render(set.amplitude, kMaxBlock, 1);
-			const int64_t half_amplitude = (int64_t{AmplitudeCase::kRamp.value()} + AmplitudeCase::kRamp.increment()) >> 1;
+			const int64_t half_amplitude = (int64_t{AmplitudeCase::kRamp.value().raw()} + AmplitudeCase::kRamp.increment().raw()) >> 1;
 			const int64_t scaled = (2 * half_amplitude * int64_t{input_a()[0]}) >> 32;
 			expect(output()[0]).to_equal(static_cast<q31>(scaled + int64_t{input_b()[0]}));
 
 			// CrudeAmplitude: the amplitude steps first, then a rounded 32x32 high multiply-accumulate.
 			render(set.crude_amplitude, kMaxBlock, 1);
-			const int64_t amplitude = int64_t{CrudeAmplitudeCase::kRamp.value()} + CrudeAmplitudeCase::kRamp.increment();
+			const int64_t amplitude = int64_t{CrudeAmplitudeCase::kRamp.value().raw()} + CrudeAmplitudeCase::kRamp.increment().raw();
 			const int64_t product = ((amplitude * int64_t{input_a()[0]}) + (int64_t{1} << 31)) >> 32;
 			expect(output()[0]).to_equal(static_cast<q31>(product + int64_t{input_b()[0]}));
 		});

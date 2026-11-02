@@ -16,29 +16,36 @@
  */
 #pragma once
 
-#include <cstdint>
+#include "dsp-next/core/fixed_point.h"
 
 namespace deluge::dsp {
 
-/// @brief A linear ramp: a value advancing by a fixed per-sample increment — the amplitude-domain analogue of
-/// @ref Phasor (which ramps phase). It carries the ramp's parameters (start value + slope); the VCA components
-/// (@ref deluge::dsp::fixed::Amplitude / @ref deluge::dsp::fixed::CrudeAmplitude) are *built from* a Ramp and do
-/// the actual per-sample advance during render. The headline use is a voice's per-block VCA amplitude.
+/// @brief A linear gain ramp: a value advancing by a fixed per-sample increment, the amplitude-domain analogue of
+/// @ref Phasor (which ramps phase). It carries the ramp's parameters (start value and slope); the VCA components
+/// (@ref deluge::dsp::fixed::Amplitude and @ref deluge::dsp::fixed::CrudeAmplitude) are built from a Ramp and do the
+/// per-sample advance during render. The headline use is a voice's per-block VCA amplitude.
+///
+/// The value is a Q<31> gain. Both VCAs take the high word of sample × gain (`vqdmulh` of the halved gain, or
+/// `smmlar`), so their product is Q30: a voice's mix is summed at half scale. A source that pre-scales the gain
+/// (@ref scale_shl_wrap) lets it wrap, as the legacy shifts do.
 class Ramp {
-	int32_t value_;
-	int32_t increment_;
+	Q<31> value_;
+	Q<31> increment_;
 
 public:
-	/// @param value the ramp's start value.
-	/// @param increment the per-sample step added to @p value.
-	constexpr Ramp(int32_t value, int32_t increment) : value_{value}, increment_{increment} {}
+	/// @param value the ramp's start value, a Q<31> gain.
+	/// @param increment the per-sample step added to @p value, Q<31>.
+	constexpr Ramp(Q<31> value, Q<31> increment) : value_{value}, increment_{increment} {}
 
-	[[nodiscard]] constexpr int32_t value() const { return value_; }
-	[[nodiscard]] constexpr int32_t increment() const { return increment_; }
-
-	/// @brief The same ramp with both value and slope shifted left by @p bits — i.e. scaled by `2^bits`. The
-	/// oscillator paths use this for the legacy per-wave amplitude doublings (`amplitude << 1`).
-	[[nodiscard]] constexpr Ramp operator<<(int bits) const { return Ramp{value_ << bits, increment_ << bits}; }
+	[[nodiscard]] constexpr Q<31> value() const { return value_; }
+	[[nodiscard]] constexpr Q<31> increment() const { return increment_; }
 };
+
+/// @brief @p ramp with value and slope both scaled by 2^N, wrapping: the oscillator paths' per-wave amplitude
+/// doublings.
+template <int N>
+[[gnu::always_inline, nodiscard]] constexpr Ramp scale_shl_wrap(Ramp ramp) noexcept {
+	return Ramp{scale_shl_wrap<N>(ramp.value()), scale_shl_wrap<N>(ramp.increment())};
+}
 
 } // namespace deluge::dsp

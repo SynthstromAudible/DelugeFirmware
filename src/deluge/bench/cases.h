@@ -242,7 +242,7 @@ private:
 class AmplitudeCase {
 public:
 	/// @brief The ramp the VCA is built from: a start of 2^29, a quarter of full scale (Q31), rising 1,024 per sample.
-	static constexpr dsp::Ramp kRamp{int32_t{1} << 29, 1024};
+	static constexpr dsp::Ramp kRamp{dsp::Q<31>::from_raw(int32_t{1} << 29), dsp::Q<31>::from_raw(1024)};
 
 	/// @brief Builds the VCA from kRamp, fills both inputs and takes the blocks' spans for @p n.
 	/// @param n Block size to set up for, in samples (frames for the stereo and lanes cases).
@@ -257,9 +257,9 @@ private:
 	dsp::fixed::Amplitude vca_{kRamp};
 	BlockSpans spans_{};
 };
-static_assert(AmplitudeCase::kRamp.value() > 0 && AmplitudeCase::kRamp.increment() > 0);
-static_assert(int64_t{AmplitudeCase::kRamp.value()}
-                  + (int64_t{AmplitudeCase::kRamp.increment()} * int64_t{kSamplesPerRun})
+static_assert(AmplitudeCase::kRamp.value().raw() > 0 && AmplitudeCase::kRamp.increment().raw() > 0);
+static_assert(int64_t{AmplitudeCase::kRamp.value().raw()}
+                  + (int64_t{AmplitudeCase::kRamp.increment().raw()} * int64_t{kSamplesPerRun})
               < int64_t{std::numeric_limits<int32_t>::max() / 2});
 
 /// @brief The crude VCA, `CrudeAmplitude`, mixing input_a into input_b into the output.
@@ -283,9 +283,9 @@ private:
 	dsp::fixed::CrudeAmplitude vca_{kRamp};
 	BlockSpans spans_{};
 };
-static_assert(CrudeAmplitudeCase::kRamp.value() > 0 && CrudeAmplitudeCase::kRamp.increment() > 0);
-static_assert(int64_t{CrudeAmplitudeCase::kRamp.value()}
-                  + (int64_t{CrudeAmplitudeCase::kRamp.increment()} * int64_t{kSamplesPerRun})
+static_assert(CrudeAmplitudeCase::kRamp.value().raw() > 0 && CrudeAmplitudeCase::kRamp.increment().raw() > 0);
+static_assert(int64_t{CrudeAmplitudeCase::kRamp.value().raw()}
+                  + (int64_t{CrudeAmplitudeCase::kRamp.increment().raw()} * int64_t{kSamplesPerRun})
               < int64_t{std::numeric_limits<int32_t>::max() / 2});
 
 /// @brief The perfect pulse, `PulseOscillator`, rendering into the output.

@@ -48,7 +48,9 @@ inline constexpr uint32_t kNoPorta = 0xFFFFFFFF;
 /// be built and unit-tested with zero firmware scaffolding). Pitch/phase is engine state, set when the engine
 /// is created/seeded, not passed here.
 struct BlockControls {
-	deluge::dsp::Ramp amplitude{0, 0}; ///< the VCA amplitude ramp (start value + per-sample increment, q31)
+	deluge::dsp::Ramp amplitude{
+	    deluge::dsp::Q<31>::from_raw(0),
+	    deluge::dsp::Q<31>::from_raw(0)}; ///< the VCA amplitude ramp (start value + per-sample increment, q31)
 	/// When true, VCA-scale the wave and mix it into @c output's prior contents (the normal voice path). When
 	/// false, write the raw "standalone" wave straight out (e.g. the ring-mod carrier, which is multiplied later).
 	bool apply_amplitude{};
