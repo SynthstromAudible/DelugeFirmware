@@ -44,9 +44,9 @@ src/deluge/dsp-next/fixed/osc/crude_oscillators.h raw=0 boundary=4
 src/deluge/dsp-next/fixed/osc/pulse_oscillator.h raw=0 boundary=8
 src/deluge/dsp-next/fixed/osc/table_oscillator.h raw=0 boundary=6
 src/deluge/dsp-next/fixed/reverb/freeverb.h raw=7 boundary=0
-src/deluge/dsp-next/fixed/shaping/sample_rate_reducer.h raw=3 boundary=0
-src/deluge/dsp-next/fixed/shaping/tanh.h raw=2 boundary=0
-src/deluge/dsp-next/fixed/shaping/wavefolder.h raw=6 boundary=0
+src/deluge/dsp-next/fixed/shaping/sample_rate_reducer.h raw=0 boundary=16
+src/deluge/dsp-next/fixed/shaping/tanh.h raw=1 boundary=2
+src/deluge/dsp-next/fixed/shaping/wavefolder.h raw=0 boundary=7
 src/deluge/dsp-next/fixed/stutter/stutter_kernel.h raw=2 boundary=0
 src/deluge/dsp-next/fixed/sync/sync_windower.h raw=0 boundary=15
 src/deluge/dsp-next/fixed/sync/synced_oscillator.h raw=0 boundary=1
