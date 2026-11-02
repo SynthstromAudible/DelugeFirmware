@@ -48,6 +48,7 @@ PROBES = {
     "clang-asan": "install clang with its compiler-rt AddressSanitizer runtime (libclang_rt.asan)",
     "mtools": "apt install mtools -- fs_differential's fixtures are built with mformat",
     "qemu-arm": "apt install qemu-user",
+    "llvm-objdump": "install llvm (llvm-objdump disassembles the fixed-point codegen probe)",
     "arm-linux-gnueabihf-gcc": (
         "apt install g++-arm-linux-gnueabihf -- clang builds for arm-linux against its sysroot, /usr/arm-linux-gnueabihf"
     ),
@@ -271,6 +272,8 @@ def probe(requirement: str, root: Path) -> bool:
             return shutil.which("mformat") is not None
         case "qemu-arm":
             return shutil.which("qemu-arm") is not None
+        case "llvm-objdump":
+            return shutil.which("llvm-objdump") is not None
         case "arm-linux-gnueabihf-gcc":
             # What the arm-linux builds use of it: the sysroot's C library and libstdc++, which clang links against.
             return (Path("/usr/arm-linux-gnueabihf/include/stdio.h")).is_file()

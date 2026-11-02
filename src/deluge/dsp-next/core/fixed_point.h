@@ -17,8 +17,6 @@
 
 #pragma once
 
-#include <algorithm>
-#include <bit>
 #include <compare>
 #include <cstdint>
 #include <limits>
@@ -35,6 +33,10 @@
 /// its overflow policy (`_wrap`, `_sat`, `_clamp_then_shift`) and rounding (`_floor`, `_round`, `_r`), and a format
 /// change is either a reformat (`as_*`: same value, new format) or a scale (`scale_*`: same format, new value). Each
 /// operation compiles to the Cortex-A9 instruction its comment names; tests/unit-arm/codegen checks that.
+///
+/// App TUs build with -fno-inline-functions, which makes every std:: helper they call (std::bit_cast, std::clamp,
+/// std::numeric_limits<>::max()) an out-of-line call; this header uses builtins, comparisons and constexpr constants
+/// instead.
 
 namespace deluge::dsp {
 
@@ -49,6 +51,8 @@ class Fixed {
 public:
 	using storage_type = S;
 	static constexpr int kFractionalBits = F;
+	static constexpr S kStorageMin = std::numeric_limits<S>::min();
+	static constexpr S kStorageMax = std::numeric_limits<S>::max();
 
 	Fixed() = default;
 
@@ -70,12 +74,8 @@ public:
 			return from_raw(static_cast<S>(S{1} << F));
 		}
 	}
-	[[gnu::always_inline, nodiscard]] static constexpr Fixed min() noexcept {
-		return from_raw(std::numeric_limits<S>::min());
-	}
-	[[gnu::always_inline, nodiscard]] static constexpr Fixed max() noexcept {
-		return from_raw(std::numeric_limits<S>::max());
-	}
+	[[gnu::always_inline, nodiscard]] static constexpr Fixed min() noexcept { return from_raw(kStorageMin); }
+	[[gnu::always_inline, nodiscard]] static constexpr Fixed max() noexcept { return from_raw(kStorageMax); }
 
 	friend constexpr bool operator==(Fixed, Fixed) noexcept = default;
 	friend constexpr auto operator<=>(Fixed, Fixed) noexcept = default;
@@ -190,7 +190,13 @@ template <class S>
 	return static_cast<S>(static_cast<U>(static_cast<U>(a) << n));
 }
 [[gnu::always_inline, nodiscard]] constexpr std::int32_t sat32(std::int64_t v) noexcept {
-	return static_cast<std::int32_t>(std::clamp<std::int64_t>(v, INT32_MIN, INT32_MAX));
+	if (v > INT32_MAX) {
+		return INT32_MAX;
+	}
+	if (v < INT32_MIN) {
+		return INT32_MIN;
+	}
+	return static_cast<std::int32_t>(v);
 }
 
 /// The exact semantics of each ACLE path, for hosts and for constant evaluation.
@@ -213,16 +219,31 @@ template <int N>
 	static_assert(N >= 1 && N <= 32);
 	constexpr std::int64_t kHi = (std::int64_t{1} << (N - 1)) - 1;
 	constexpr std::int64_t kLo = -kHi - 1;
-	return static_cast<std::int32_t>(std::clamp<std::int64_t>(v, kLo, kHi));
+	if (v > kHi) {
+		return static_cast<std::int32_t>(kHi);
+	}
+	if (v < kLo) {
+		return static_cast<std::int32_t>(kLo);
+	}
+	return v;
 }
 template <int N>
 [[gnu::always_inline, nodiscard]] constexpr std::int32_t usat(std::int32_t v) noexcept {
 	static_assert(N >= 0 && N <= 31);
 	constexpr auto kHi = static_cast<std::int32_t>((std::uint32_t{1} << N) - 1);
-	return std::clamp(v, 0, kHi);
+	if (v < 0) {
+		return 0;
+	}
+	return v > kHi ? kHi : v;
 }
 [[gnu::always_inline, nodiscard]] constexpr std::int16_t sat16(std::int32_t v) noexcept {
-	return static_cast<std::int16_t>(std::clamp<std::int32_t>(v, INT16_MIN, INT16_MAX));
+	if (v > INT16_MAX) {
+		return INT16_MAX;
+	}
+	if (v < INT16_MIN) {
+		return INT16_MIN;
+	}
+	return static_cast<std::int16_t>(v);
 }
 /// Applies @p op to each int16 lane of two packed words.
 template <class Op>
@@ -328,7 +349,13 @@ template <int F>
 	const std::int64_t hi = (std::int64_t{1} << (n - 1)) - 1;
 	const std::int64_t lo = -hi - 1;
 	const std::int64_t v = x.raw();
-	return Q<F>::from_raw(static_cast<std::int32_t>(std::clamp(v, lo, hi)));
+	if (v > hi) {
+		return Q<F>::from_raw(static_cast<std::int32_t>(hi));
+	}
+	if (v < lo) {
+		return Q<F>::from_raw(static_cast<std::int32_t>(lo));
+	}
+	return x;
 }
 /// @brief Clamps to [0, 2^N − 1], keeping the format (`usat #N`).
 template <int N, int F>
@@ -450,15 +477,20 @@ requires(A + B >= 32)
 template <int A, int B>
 requires(A + B >= 32)
 [[gnu::always_inline, nodiscard]] constexpr Q<A + B - 32> mls(Q<A + B - 32> acc, Q<A> a, Q<B> b) noexcept {
-	const auto high = static_cast<std::int32_t>((-(std::int64_t{a.raw()} * b.raw())) >> 32);
-	return Q<A + B - 32>::from_raw(detail::wrap_add(acc.raw(), high));
+	const auto widened =
+	    static_cast<std::int64_t>(static_cast<std::uint64_t>(static_cast<std::uint32_t>(acc.raw())) << 32);
+	return Q<A + B - 32>::from_raw(static_cast<std::int32_t>(
+	    static_cast<std::uint64_t>(detail::wrap_sub(widened, std::int64_t{a.raw()} * b.raw()) >> 32)));
 }
 /// @brief The rounded high word of acc × 2^32 − a × b, wrapping (`smmlsr`).
 template <int A, int B>
 requires(A + B >= 32)
 [[gnu::always_inline, nodiscard]] constexpr Q<A + B - 32> mls_r(Q<A + B - 32> acc, Q<A> a, Q<B> b) noexcept {
-	const auto high = static_cast<std::int32_t>((0x80000000LL - std::int64_t{a.raw()} * b.raw()) >> 32);
-	return Q<A + B - 32>::from_raw(detail::wrap_add(acc.raw(), high));
+	const auto widened =
+	    static_cast<std::int64_t>(static_cast<std::uint64_t>(static_cast<std::uint32_t>(acc.raw())) << 32);
+	const auto rounded =
+	    detail::wrap_add(detail::wrap_sub(widened, std::int64_t{a.raw()} * b.raw()), std::int64_t{0x80000000LL});
+	return Q<A + B - 32>::from_raw(static_cast<std::int32_t>(static_cast<std::uint64_t>(rounded >> 32)));
 }
 /// @brief The exact product: Q<A> × Q<B> → Q64<A+B> (`smull`).
 template <int A, int B>
@@ -834,7 +866,7 @@ template <int F>
 	if constexpr (F > 0) {
 		std::int32_t bits = x.raw();
 		asm("vcvt.f32.s32 %0, %0, %1" : "+t"(bits) : "I"(F));
-		return std::bit_cast<float>(bits);
+		return __builtin_bit_cast(float, bits);
 	}
 #endif
 	return detail::portable::raw_to_float<F>(x.raw());
@@ -848,7 +880,7 @@ template <int F>
 #ifdef __arm__
 	if constexpr (F > 0) {
 		asm("vcvt.s32.f32 %0, %0, %1" : "+t"(value) : "I"(F));
-		return Q<F>::from_raw(std::bit_cast<std::int32_t>(value));
+		return Q<F>::from_raw(__builtin_bit_cast(std::int32_t, value));
 	}
 #endif
 	return Q<F>::from_raw(detail::portable::float_to_raw<F>(value));
