@@ -38,10 +38,14 @@ struct StereoSample {
 	[[nodiscard]] static constexpr StereoSample from_mono(q31_t mono) { return {.l = mono, .r = mono}; }
 
 	/// @brief @p a + @p b in each channel, wrapping modulo 2^32 (an `add` per channel, with defined overflow).
+	/// @param a,b The frames to add.
+	/// @return Their sum.
 	[[nodiscard]] friend constexpr StereoSample operator+(StereoSample a, StereoSample b) {
 		return {.l = detail::wrap_add(a.l, b.l), .r = detail::wrap_add(a.r, b.r)};
 	}
 	/// @brief Adds @p rhs in each channel, wrapping modulo 2^32.
+	/// @param rhs The frame to add.
+	/// @return This frame.
 	constexpr StereoSample& operator+=(StereoSample rhs) {
 		l = detail::wrap_add(l, rhs.l);
 		r = detail::wrap_add(r, rhs.r);

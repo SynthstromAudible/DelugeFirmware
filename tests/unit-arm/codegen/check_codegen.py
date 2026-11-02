@@ -106,18 +106,19 @@ BUDGET = {
     "probe_from_float_round_31": 34,
 }
 
-# Lane-pack probes: the scalar instruction once per lane, around whatever loads and stores the lanes need.
+# Lane-pack probes: the scalar instruction once per lane, within an instruction budget (the ARM build's count: the
+# lanes' loads and stores and a push/pop) and with nothing through the stack.
 COUNTS = {
-    "probe_lanes2_mul": {"smmul": 2},
-    "probe_lanes2_mla": {"smmla": 2},
-    "probe_lanes2_add_sat": {"qadd": 2},
-    "probe_lanes2_scale_shl_sat_1": {"qadd": 2},
+    "probe_lanes2_mul": ({"smmul": 2}, 7),
+    "probe_lanes2_mla": ({"smmla": 2}, 9),
+    "probe_lanes2_add_sat": ({"qadd": 2}, 8),
+    "probe_lanes2_scale_shl_sat_1": ({"qadd": 2}, 5),
 }
 
 # A loop shape that uses any of these was auto-vectorized into NEON.
 VECTOR_MARKERS = (
     "vmull",
-    "vmov.32",
+    "vmov",
     "vmovl",
     "vshrn",
     "vld1",
@@ -125,6 +126,9 @@ VECTOR_MARKERS = (
     "vcgt",
     "vcge",
     "vceq",
+    "vdup",
+    "vqadd",
+    "vqdmulh",
 )
 
 # Thumb-2's narrow flag-setting forms do the same arithmetic; ARM and Thumb then compare alike.
@@ -218,11 +222,18 @@ def check(found: dict[str, Body], mode: str) -> tuple[list[str], list[str]]:
                     f"[{mode}] {name}: {len(body.mnemonics)} instructions, budget {BUDGET[name]}: {body.mnemonics}"
                 )
         elif name in COUNTS:
-            for mnemonic, times in COUNTS[name].items():
+            counts, budget = COUNTS[name]
+            for mnemonic, times in counts.items():
                 if body.mnemonics.count(mnemonic) != times:
                     errors.append(
                         f"[{mode}] {name}: expected {times} {mnemonic}, got {body.mnemonics}"
                     )
+            if len(body.mnemonics) > budget:
+                errors.append(
+                    f"[{mode}] {name}: {len(body.mnemonics)} instructions, budget {budget}: {body.mnemonics}"
+                )
+            if any(re.search(r"\[sp\b", text) for text in body.text):
+                errors.append(f"[{mode}] {name}: goes through the stack: {body.text}")
             neon = [m for m in body.everything if m.startswith(VECTOR_MARKERS)]
             if neon:
                 errors.append(f"[{mode}] {name}: uses NEON: {neon}")

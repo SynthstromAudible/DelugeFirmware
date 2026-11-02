@@ -32,6 +32,11 @@ static_assert(std::is_same_v<decltype(mul(P<31, 4>{}, Q<31>{})), P<30, 4>>);
 static_assert(std::is_same_v<decltype(mul_wide(P<31, 2>{}, P<31, 2>{})), LanePack<Q64<62>, 2>>);
 static_assert(std::is_same_v<decltype(as_wrap<Q<31>>(P<30, 2>{})), P<31, 2>>);
 static_assert(std::is_same_v<decltype(P<31, 2>{} < P<31, 2>{}), LanePack<bool, 2>>);
+static_assert(std::is_same_v<decltype(P<31, 2>{} == P<31, 2>{}), LanePack<bool, 2>>);
+static_assert(std::is_same_v<decltype(P<31, 2>{} != Q<31>{}), LanePack<bool, 2>>);
+static_assert(std::is_same_v<decltype(Q<31>{} >= P<31, 2>{}), LanePack<bool, 2>>);
+static_assert(std::is_same_v<decltype(mul(P<31, 2>{}, Q16<15>{})), P<30, 2>>);
+static_assert(std::is_same_v<decltype(mul(LanePack<UQ<32>, 2>{}, Q<31>{})), P<31, 2>>);
 template <class A, class B>
 concept addable = requires(A a, B b) { a + b; };
 template <class A, class B>
@@ -41,6 +46,7 @@ static_assert(!addable<P<31, 2>, Q<31>>);
 static_assert(lane_multipliable<P<31, 2>, Q<31>>);
 static_assert(!lane_multipliable<P<31, 2>, P<31, 4>>);     // widths must agree
 static_assert(!lane_multipliable<P<31, 2>, std::int32_t>); // a raw scalar is not a format
+static_assert(!lane_multipliable<P<31, 2>, UQ<32>>);       // no scalar mul(Q, UQ) exists, so no lane one
 
 std::uint32_t xorshift(std::uint32_t& s) {
 	s ^= s << 13;
@@ -147,6 +153,33 @@ std::size_t all_mismatches() {
 	return bad;
 }
 
+/// Mismatches between UQ<32> lane operations (phases) and their scalar operations.
+template <std::size_t N>
+std::size_t phase_mismatches() {
+	std::size_t bad = 0;
+	std::uint32_t s = 0x0bad'cafeu;
+	for (int k = 0; k < 20000; ++k) {
+		LanePack<UQ<32>, N> a;
+		LanePack<UQ<32>, N> b;
+		for (std::size_t i = 0; i < N; ++i) {
+			a.lane[i] = UQ<32>::from_raw(xorshift(s));
+			b.lane[i] = UQ<32>::from_raw(xorshift(s));
+		}
+		const auto sum = add_wrap(a, b);
+		const auto half = scale_shr_floor<1>(a);
+		const auto doubled = scale_shl_wrap<1>(a);
+		const auto gain = Q<31>::from_raw(static_cast<std::int32_t>(xorshift(s)));
+		const auto scaled = mul(a, gain);
+		for (std::size_t i = 0; i < N; ++i) {
+			bad += sum.lane[i] != add_wrap(a.lane[i], b.lane[i]) ? 1 : 0;
+			bad += half.lane[i] != scale_shr_floor<1>(a.lane[i]) ? 1 : 0;
+			bad += doubled.lane[i] != scale_shl_wrap<1>(a.lane[i]) ? 1 : 0;
+			bad += scaled.lane[i] != mul(a.lane[i], gain) ? 1 : 0;
+		}
+	}
+	return bad;
+}
+
 /// Mismatches between each lane comparison and the scalar comparison.
 template <std::size_t N>
 std::size_t comparison_mismatches() {
@@ -182,6 +215,11 @@ describe fixed_point_lanes("fixed_point lane packs", ${
 		expect(all_mismatches<2>()).to_equal(std::size_t{0});
 		expect(all_mismatches<4>()).to_equal(std::size_t{0});
 	});
+	it("apply UQ<32> operations lane by lane, at every width", _ {
+		expect(phase_mismatches<1>()).to_equal(std::size_t{0});
+		expect(phase_mismatches<2>()).to_equal(std::size_t{0});
+		expect(phase_mismatches<4>()).to_equal(std::size_t{0});
+	});
 	it("compare lane by lane, at every width", _ {
 		expect(comparison_mismatches<1>()).to_equal(std::size_t{0});
 		expect(comparison_mismatches<2>()).to_equal(std::size_t{0});
@@ -197,6 +235,11 @@ describe fixed_point_lanes("fixed_point lane packs", ${
 		expect(y.lane[1].raw()).to_equal(-(1 << 28));
 		const auto z = mul(half, x);
 		expect(z.lane[1].raw()).to_equal(-(1 << 28));
+		const auto w = add_sat(Q<31>::max(), x);
+		expect(w.lane[0].raw()).to_equal(INT32_MAX);
+		expect(w.lane[1].raw()).to_equal(INT32_MAX - (1 << 30));
+		const auto q16 = mul(x, Q16<15>::from_raw(1 << 14));
+		expect(q16.lane[1].raw()).to_equal(-(1 << 28));
 	});
 	it("give a mask select reads", _ {
 		P<31, 2> a;
@@ -211,6 +254,14 @@ describe fixed_point_lanes("fixed_point lane packs", ${
 		const auto lower = select(lt, a, b);
 		expect(lower.lane[0].raw()).to_equal(1);
 		expect(lower.lane[1].raw()).to_equal(2);
+		const auto ceiling = Q<31>::from_raw(3);
+		const auto over = a > ceiling;
+		expect(over.lane[0]).to_be_false();
+		expect(over.lane[1]).to_be_true();
+		const auto clamped = select(over, P<31, 2>::broadcast(ceiling), a);
+		expect(clamped.lane[1].raw()).to_equal(3);
+		const auto under = ceiling > a;
+		expect(under.lane[0]).to_be_true();
 	});
 	it("evaluate at compile time", _ {
 		constexpr auto c = add_sat(P<31, 2>::broadcast(Q<31>::max()), Q<31>::one());

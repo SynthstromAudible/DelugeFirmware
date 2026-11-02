@@ -112,11 +112,13 @@ faster on the A9.
 
 ## Lane packs
 
-`src/deluge/dsp-next/core/fixed_point_lanes.h` gives every operation above, and the comparisons, on
-`LanePack<Q<F>, N>`. Each applies its scalar operation lane by lane, so a kernel's step written once over its value
-type reads the same for one stream as for N:
+`src/deluge/dsp-next/core/fixed_point_lanes.h` gives the 32-bit arithmetic above on `LanePack<Q<F>, N>` (and
+`UQ`): the sums, clamps, multiplies, reformats and scales. The header lists what isn't lifted yet: the 64-bit narrows,
+the Q16 forms and the float conversions. `LanePack` itself gives the comparisons. Each operation applies its scalar
+operation lane by lane, so a kernel's step written once over its value type reads the same for one stream as for N:
 - A scalar operand broadcasts, as a coefficient every lane shares does: `mul(pack, gain)`.
-- The result's format is the scalar operation's: two `Q<31>` lanes multiplied give two `Q<30>` lanes.
+- The result's format is the scalar operation's: two `Q<31>` lanes multiplied give two `Q<30>` lanes. An operation
+  exists for a pack only where its scalar operation exists for the lane types.
 - Every pack must be the same width, and a pack of `Fixed` has no arithmetic operators, as a `Fixed` has none.
 - A comparison gives a `LanePack<bool, N>`, which `select` reads.
 

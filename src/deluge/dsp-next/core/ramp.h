@@ -37,12 +37,16 @@ public:
 	/// @param increment the per-sample step added to @p value, Q<31>.
 	constexpr Ramp(Q<31> value, Q<31> increment) : value_{value}, increment_{increment} {}
 
+	/// @return The ramp's start value, a Q<31> gain.
 	[[nodiscard]] constexpr Q<31> value() const { return value_; }
+	/// @return The per-sample step, Q<31>.
 	[[nodiscard]] constexpr Q<31> increment() const { return increment_; }
 };
 
 /// @brief @p ramp with value and slope both scaled by 2^N, wrapping: the oscillator paths' per-wave amplitude
 /// doublings.
+/// @param ramp The ramp to scale.
+/// @return The scaled ramp.
 template <int N>
 [[gnu::always_inline, nodiscard]] constexpr Ramp scale_shl_wrap(Ramp ramp) noexcept {
 	return Ramp{scale_shl_wrap<N>(ramp.value()), scale_shl_wrap<N>(ramp.increment())};

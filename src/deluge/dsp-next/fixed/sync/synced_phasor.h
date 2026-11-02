@@ -53,7 +53,9 @@ public:
 		const UQ<32> resetter = resetter_.advance();
 		// resetter wrapped past 2^32 this step -> a master cycle boundary (crossover).
 		if (resetter < resetter_.increment()) {
-			// The legacy reset arithmetic, kept raw: the products and their shift are not yet named operations.
+			// The legacy reset arithmetic, kept raw: it multiplies the unsigned phase and increment as signed Q31
+			// (smmul), a reinterpretation the typed form would spell out with reinterpret_bits; it moves with the sync
+			// kernel.
 			const uint32_t reset =
 			    (multiply_32x32_rshift32(multiply_32x32_rshift32(static_cast<int32_t>(resetter.raw()),
 			                                                     static_cast<int32_t>(phasor_.increment().raw())),
