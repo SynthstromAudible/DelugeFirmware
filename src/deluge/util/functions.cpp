@@ -1594,8 +1594,10 @@ int32_t howMuchMoreMagnitude(uint32_t to, uint32_t from) {
 
 void noteCodeToString(int32_t noteCode, char* buffer, int32_t* getLengthWithoutDot, bool appendOctaveNo) {
 	char* thisChar = buffer;
-	int32_t octave = (noteCode) / 12 - 2;
-	int32_t noteCodeWithinOctave = (uint16_t)(noteCode + 120) % (uint8_t)12;
+	// Floor division / positive modulo so negative note codes (e.g. from transposing below C-2) land in the right
+	// octave rather than truncating toward zero
+	int32_t noteCodeWithinOctave = ((noteCode % 12) + 12) % 12;
+	int32_t octave = (noteCode - noteCodeWithinOctave) / 12 - 2;
 
 	bool useSharps = FlashStorage::defaultUseSharps;
 
