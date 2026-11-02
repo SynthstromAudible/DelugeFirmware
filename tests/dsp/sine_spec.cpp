@@ -26,6 +26,7 @@
 
 #include "dsp-next/fixed/osc/sine.h"
 #include <arm_neon.h> // int32x4_t, vld1q_u32, vgetq_lane_s32 (SIMDe shim on host)
+#include <array>
 #include <cppspec.hpp>
 #include <cstdint>
 
@@ -43,6 +44,22 @@ constexpr uint32_t kHalf = 0x80000000u;
 constexpr uint32_t kThreeQuarter = 0xC0000000u;
 constexpr uint32_t kEighth = 0x20000000u;
 
+/// FNV-1a over sine() at 2^20 phases spread over the circle, each with scrambled low bits, four per call.
+std::uint64_t sweep_hash() {
+	std::uint64_t hash = 0xcbf2'9ce4'8422'2325ULL;
+	for (uint32_t k = 0; k < (1U << 20); k += 4) {
+		std::array<uint32_t, 4> phases{};
+		for (uint32_t i = 0; i < 4; ++i) {
+			const uint32_t n = k + i;
+			phases[i] = (n << 12) | ((n * 2654435761U) >> 20);
+		}
+		for (const int32_t x : sine(Argon<uint32_t>::Load(phases.data())).to_array()) {
+			hash = (hash ^ static_cast<uint32_t>(x)) * 0x0000'0100'0000'01b3ULL;
+		}
+	}
+	return hash;
+}
+
 // Evaluate one phase by broadcasting it across the vector and reading lane 0.
 int32_t sineAt(uint32_t phase) {
 	int32x4_t out = sine(Argon<uint32_t>{phase});
@@ -52,6 +69,11 @@ int32_t sineAt(uint32_t phase) {
 
 // clang-format off
 describe sine_kernel("deluge::dsp::fixed sine", ${
+	it("matches its raw-Argon form's output over a sweep of the circle", _ {
+		// The hash of sine() as written on raw Argon (value.ShiftLeftLong<16>().MultiplyDoubleAddSaturateLong(diff,
+		// fraction)), recorded before its move onto the typed vectors.
+		expect(sweep_hash()).to_equal(std::uint64_t{9263602503452775841ULL});
+	});
 	context("sine() — cardinal points (fraction zero, exact)", _ {
 		it("is zero at phase 0", _ {
 			expect(sineAt(0)).to_equal(0);

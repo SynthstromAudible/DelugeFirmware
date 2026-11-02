@@ -24,7 +24,49 @@
 #include <arm_neon.h>
 #include <array>
 #include <cppspec.hpp>
+#include <cstddef>
 #include <cstdint>
+#include <cstring>
+
+namespace reference {
+using deluge::dsp::Phasor;
+using deluge::dsp::UQ;
+using deluge::dsp::fixed::Table;
+
+// TableOscillator's state and render as they were written on raw Argon, verbatim (q31 spelt int32_t): the typed
+// oscillator must match it bit for bit.
+class TableOscillator {
+	const int16_t* samples_;
+	int32_t magnitude_;
+	Phasor phasor_;
+
+public:
+	TableOscillator(Table table, uint32_t phase, uint32_t increment)
+	    : samples_{table.samples.data()}, magnitude_{table.magnitude},
+	      phasor_{UQ<32>::from_raw(phase), UQ<32>::from_raw(increment)} {}
+
+	Argon<int32_t> render() {
+		Argon<uint32_t> value_pair = 0U;
+		ArgonHalf<uint16_t> fraction = 0U;
+
+		util::constexpr_for<0, 4, 1>([&]<int i> [[gnu::always_inline]] {
+			uint32_t phase = phasor_.advance().raw();
+			fraction[i] = phase >> (32 - 16 - magnitude_);
+			uint32_t index = phase >> (32 - magnitude_);
+			uint32_t pair;
+			std::memcpy(&pair, reinterpret_cast<const std::byte*>(samples_) + (index << 1), sizeof(pair));
+			value_pair[i] = pair;
+		});
+
+		fraction = fraction >> 1;
+		ArgonHalf<int16_t> entry = value_pair.Narrow().As<int16_t>();
+		ArgonHalf<int16_t> next_entry = value_pair.ShiftRightNarrow<16>().As<int16_t>();
+		Argon<int32_t> entry_wide = entry.ShiftLeftLong<16>();
+		ArgonHalf<int16_t> slope = next_entry - entry;
+		return entry_wide.MultiplyDoubleAddSaturateLong(slope, fraction.As<int16_t>());
+	}
+};
+} // namespace reference
 
 namespace {
 using deluge::dsp::fixed::Table;
@@ -34,10 +76,57 @@ using deluge::dsp::fixed::TableOscillator;
 // table is comfortably in bounds.
 constexpr int32_t kMag = 2;
 constexpr uint32_t kInc = 0x08000000;
+
+std::uint32_t xorshift(std::uint32_t& s) {
+	s ^= s << 13;
+	s ^= s >> 17;
+	s ^= s << 5;
+	return s;
+}
+
+/// A random 257-entry table (magnitude 8 and its interpolation neighbour), the int16 extremes in it side by side.
+std::array<int16_t, 257> random_table() {
+	std::array<int16_t, 257> table{};
+	std::uint32_t s = 0x1357'9bdfu;
+	for (auto& x : table) {
+		x = static_cast<int16_t>(xorshift(s));
+	}
+	table[10] = INT16_MAX;
+	table[11] = INT16_MIN;
+	table[12] = INT16_MAX;
+	table[200] = INT16_MIN;
+	table[201] = INT16_MIN;
+	return table;
+}
+
+/// Lanes where the oscillator and the reference differ over 2^10 random phases and increments, four blocks each.
+std::size_t reference_mismatches() {
+	alignas(16) static const auto table = random_table();
+	std::size_t bad = 0;
+	std::uint32_t s = 0x2468'ace0u;
+	for (int k = 0; k < (1 << 10); ++k) {
+		const uint32_t phase = xorshift(s);
+		const uint32_t increment = xorshift(s) >> (k % 8);
+		TableOscillator osc{Table{table, 8}, phase, increment};
+		reference::TableOscillator expected{Table{table, 8}, phase, increment};
+		for (int block = 0; block < 4; ++block) {
+			const auto got = osc.render().to_array();
+			const auto want = expected.render().to_array();
+			for (std::size_t i = 0; i < 4; ++i) {
+				bad += got[i] != want[i] ? 1 : 0;
+			}
+		}
+	}
+	return bad;
+}
 } // namespace
 
 // clang-format off
 describe table_oscillator("deluge::dsp::fixed TableOscillator", ${
+	it("matches the raw-Argon reference bit for bit", _ {
+		expect(reference_mismatches()).to_equal(std::size_t{0});
+	});
+
 	context("a constant table", _ {
 		it("renders that constant, promoted to the q31 high half, on every lane", _ {
 			// value1 == value2 -> difference 0 -> output is exactly value << 16.

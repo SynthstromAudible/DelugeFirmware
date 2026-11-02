@@ -51,7 +51,8 @@ namespace deluge::dsp::fixed {
 ///
 /// @param carrier_phase The operator's carrier phase, a full-circle q32 value.
 /// @param phase_shift The phase modulation to add, in 24-bit phase units.
-/// @return The interpolated sine sample, in the high half of the result (Q1.31 scale).
+/// @return The interpolated sine sample, Q31: the Q15 entry at Q31 plus the Q15 difference times the Q16 weight
+/// (Q15 × Q16 is Q31, so no doubling). An integer lerp, kept integer.
 [[nodiscard]] int32_t sine_fm_operator(uint32_t carrier_phase, uint32_t phase_shift);
 
 } // namespace deluge::dsp::fixed

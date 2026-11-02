@@ -22,8 +22,79 @@
 #include "dsp-next/fixed/osc/pulse_oscillator.h"
 #include <array>
 #include <cppspec.hpp>
+#include <cstddef>
 #include <cstdint>
+#include <cstring>
+#include <limits>
 #include <vector>
+
+namespace reference {
+using deluge::dsp::Phasor;
+using deluge::dsp::UQ;
+using deluge::dsp::fixed::Table;
+
+// PulseOscillator's state and render as they were written on raw Argon, verbatim (q31 spelt int32_t): the typed
+// oscillator must match it bit for bit.
+class PulseOscillator {
+	const int16_t* samples_;
+	int32_t magnitude_;
+	Phasor phasor_;
+	uint32_t phase_offset_;
+
+	static constexpr int16_t kMin = std::numeric_limits<int16_t>::min();
+	static constexpr int16_t kMax = std::numeric_limits<int16_t>::max();
+
+public:
+	PulseOscillator(Table table, uint32_t phase, uint32_t increment, uint32_t phase_offset)
+	    : samples_{table.samples.data()}, magnitude_{table.magnitude},
+	      phasor_{UQ<32>::from_raw(phase), UQ<32>::from_raw(increment)}, phase_offset_{phase_offset} {}
+
+	Argon<int32_t> render() {
+		const uint32_t phase = phasor_.phase().raw();
+		const uint32_t increment = phasor_.increment().raw();
+
+		Argon<uint32_t> phase_vector = Argon<uint32_t>{phase}.MultiplyAdd(Argon<uint32_t>{1U, 2U, 3U, 4U}, increment);
+		Argon<uint32_t> offset_vector = phase_vector + phase_offset_;
+		const int32_t fraction_shift = 32 - magnitude_ - 16;
+		ArgonHalf<int16_t> fraction_a = (phase_vector >> fraction_shift).Narrow().As<int16_t>();
+		ArgonHalf<int16_t> fraction_b = (offset_vector >> fraction_shift).Narrow().As<int16_t>();
+
+		Argon<uint32_t> pair_a{0U};
+		Argon<uint32_t> pair_b{0U};
+		util::constexpr_for<0, 4, 1>([&]<int i> [[gnu::always_inline]] () {
+			uint32_t here = phase + increment * (i + 1);
+			uint32_t index_a = here >> (32 - magnitude_);
+			uint32_t word_a;
+			std::memcpy(&word_a, reinterpret_cast<const std::byte*>(samples_) + (index_a << 1), sizeof(word_a));
+			pair_a[i] = word_a;
+			uint32_t index_b = (here + phase_offset_) >> (32 - magnitude_);
+			uint32_t word_b;
+			std::memcpy(&word_b, reinterpret_cast<const std::byte*>(samples_) + (index_b << 1), sizeof(word_b));
+			pair_b[i] = word_b;
+		});
+		ArgonHalf<int16_t> entry_a = pair_a.Narrow().As<int16_t>();
+		ArgonHalf<int16_t> next_a = pair_a.ShiftRightNarrow<16>().As<int16_t>();
+		ArgonHalf<int16_t> entry_b = pair_b.Narrow().As<int16_t>();
+		ArgonHalf<int16_t> next_b = pair_b.ShiftRightNarrow<16>().As<int16_t>();
+
+		ArgonHalf<int16_t> strength_a1 = fraction_a | kMin;
+		ArgonHalf<int16_t> strength_a2 = static_cast<int16_t>(kMin) - strength_a1;
+		Argon<int32_t> square_a = strength_a2
+		                              .MultiplyDoubleSaturateLong(next_a) //<
+		                              .MultiplyDoubleAddSaturateLong(strength_a1, entry_a);
+
+		ArgonHalf<int16_t> strength_b2 = fraction_b & kMax;
+		ArgonHalf<int16_t> strength_b1 = static_cast<int16_t>(kMax) - strength_b2;
+		Argon<int32_t> square_b = strength_b2
+		                              .MultiplyDoubleSaturateLong(next_b) //<
+		                              .MultiplyDoubleAddSaturateLong(strength_b1, entry_b);
+
+		Argon<int32_t> output = square_a.MultiplyRoundFixedQMax(square_b) << 1;
+		phasor_.seek(UQ<32>::from_raw(phase + increment * 4));
+		return output;
+	}
+};
+} // namespace reference
 
 namespace {
 using deluge::dsp::fixed::PulseOscillator;
@@ -51,6 +122,53 @@ int32_t referencePulse(uint32_t phase, uint32_t offset, const int16_t* table, in
 	return static_cast<int32_t>(((product + (1LL << 30)) >> 31) * 2);
 }
 
+std::uint32_t xorshift(std::uint32_t& s) {
+	s ^= s << 13;
+	s ^= s >> 17;
+	s ^= s << 5;
+	return s;
+}
+
+/// A random 257-entry table (magnitude 8 and its interpolation neighbour), the int16 extremes in it side by side.
+std::array<int16_t, 257> random_table() {
+	std::array<int16_t, 257> table{};
+	std::uint32_t s = 0x1357'9bdfu;
+	for (auto& x : table) {
+		x = static_cast<int16_t>(xorshift(s));
+	}
+	table[10] = INT16_MAX;
+	table[11] = INT16_MIN;
+	table[12] = INT16_MAX;
+	table[200] = INT16_MIN;
+	table[201] = INT16_MIN;
+	return table;
+}
+
+/// Lanes where the oscillator and the reference differ over 2^10 random phases and increments, at phase offsets 0,
+/// a half cycle and random, four blocks each.
+std::size_t reference_mismatches() {
+	alignas(16) static const auto table = random_table();
+	std::size_t bad = 0;
+	std::uint32_t s = 0x8642'0bdfu;
+	for (int k = 0; k < (1 << 10); ++k) {
+		const uint32_t phase = xorshift(s);
+		const uint32_t increment = xorshift(s) >> (k % 8);
+		const uint32_t random_offset = xorshift(s);
+		for (const uint32_t offset : {0U, 0x8000'0000U, random_offset}) {
+			PulseOscillator osc{Table{table, 8}, phase, increment, offset};
+			reference::PulseOscillator expected{Table{table, 8}, phase, increment, offset};
+			for (int block = 0; block < 4; ++block) {
+				const auto got = osc.render().to_array();
+				const auto want = expected.render().to_array();
+				for (std::size_t i = 0; i < 4; ++i) {
+					bad += got[i] != want[i] ? 1 : 0;
+				}
+			}
+		}
+	}
+	return bad;
+}
+
 std::array<int32_t, 4> renderOnce(uint32_t offset) {
 	PulseOscillator osc{Table{kTable, kMag}, 0u, kInc, offset};
 	std::array<int32_t, 4> out{};
@@ -61,6 +179,9 @@ std::array<int32_t, 4> renderOnce(uint32_t offset) {
 
 // clang-format off
 describe pulse_oscillator("deluge::dsp::fixed PulseOscillator", ${
+	it("matches the raw-Argon reference bit for bit", _ {
+		expect(reference_mismatches()).to_equal(std::size_t{0});
+	});
 	context("render_block", _ {
 		it("fills the buffer with the same samples render() produces", _ {
 			PulseOscillator a{Table{kTable, kMag}, 0u, kInc, 0x60000000u};

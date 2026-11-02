@@ -17,6 +17,7 @@
 #pragma once
 
 #include "dsp-next/core/concepts.h"
+#include "dsp-next/core/fixed_point_neon.h"
 #include "dsp-next/core/generator.h"
 #include "dsp-next/core/phasor.h"
 #include "dsp-next/fixed/bandlimited/table.h"
@@ -87,13 +88,14 @@ public:
 			value_pair[i] = pair;
 		});
 
-		// Linear interpolation, q31 high half: entry + (next - entry) * fraction.
-		fraction = fraction >> 1;
-		ArgonHalf<int16_t> entry = value_pair.Narrow().As<int16_t>();
-		ArgonHalf<int16_t> next_entry = value_pair.ShiftRightNarrow<16>().As<int16_t>();
-		Argon<int32_t> entry_wide = entry.ShiftLeftLong<16>();
-		ArgonHalf<int16_t> slope = next_entry - entry;
-		return entry_wide.MultiplyDoubleAddSaturateLong(slope, fraction.As<int16_t>());
+		// Linear interpolation: entry + (next − entry) × fraction, Q31 of the Q15 table. The phase's 16 bits below the
+		// index, halved, are a non-negative Q15 weight; the slope wraps, and the doubled product saturates into the
+		// entry at Q31.
+		const auto weight = Q16Half<15>::from_raw((fraction >> 1).As<int16_t>());
+		const auto pairs = Q16x2Vec<15>::from_raw(value_pair);
+		const Q16Half<15> entry = pairs.lo();
+		const Q16Half<15> slope = sub_wrap(pairs.hi(), entry);
+		return mla_doubling_wide_sat(from_q16(entry), slope, weight).raw();
 	}
 };
 static_assert(block_generator<TableOscillator>, "a table oscillator fills a block");
