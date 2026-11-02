@@ -16,8 +16,8 @@
  */
 #pragma once
 
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/phasor.h"
-#include "dsp-next/core/q31_ops.h"        // multiply_32x32_rshift32
 #include "dsp-next/fixed/sync/resetter.h" // resetter_reciprocal
 #include <cstdint>
 
@@ -35,9 +35,9 @@ namespace deluge::dsp::fixed {
 /// crossfade — cheaper and aliasing, matching the crude wave path it serves. The reset
 /// arithmetic is transcribed verbatim from the legacy crude-sync loops, so it is bit-exact.
 class SyncedPhasor {
-	Phasor phasor_;           ///< the audible (synced) oscillator's phase
-	Phasor resetter_;         ///< the master phase whose cycle boundaries reset the audible one
-	int32_t resetter_divide_; ///< reciprocal of the increment; >> 47 effective (<< 17 after two q31 muls)
+	Phasor phasor_;         ///< the audible (synced) oscillator's phase
+	Phasor resetter_;       ///< the master phase whose cycle boundaries reset the audible one
+	Q<16> resetter_divide_; ///< 1 / the resetter increment read as Q31 (@ref resetter_reciprocal)
 	UQ<32> retrigger_phase_;
 
 public:
@@ -45,7 +45,8 @@ public:
 	/// @param resetter the master phase accumulator whose cycle boundaries reset @p phasor
 	/// @param retrigger_phase phase the audible wave restarts from at a crossover
 	SyncedPhasor(Phasor phasor, Phasor resetter, UQ<32> retrigger_phase)
-	    : phasor_{phasor}, resetter_{resetter}, resetter_divide_{resetter_reciprocal(resetter.increment().raw())},
+	    : phasor_{phasor}, resetter_{resetter},
+	      resetter_divide_{Q<16>::from_raw(resetter_reciprocal(resetter.increment().raw()))},
 	      retrigger_phase_{retrigger_phase} {}
 
 	[[gnu::always_inline]] UQ<32> advance() {
@@ -53,16 +54,16 @@ public:
 		const UQ<32> resetter = resetter_.advance();
 		// resetter wrapped past 2^32 this step -> a master cycle boundary (crossover).
 		if (resetter < resetter_.increment()) {
-			// The legacy reset arithmetic, kept raw: it multiplies the unsigned phase and increment as signed Q31
-			// (smmul), a reinterpretation the typed form would spell out with reinterpret_bits; it moves with the sync
-			// kernel.
-			const uint32_t reset =
-			    (multiply_32x32_rshift32(multiply_32x32_rshift32(static_cast<int32_t>(resetter.raw()),
-			                                                     static_cast<int32_t>(phasor_.increment().raw())),
-			                             resetter_divide_)
-			     << 17)
-			    + 1 + retrigger_phase_.raw();
-			phase = UQ<32>::from_raw(reset);
+			// The overshoot past the boundary over the resetter increment is how far into this sample the master
+			// wrapped; times the audible increment it is the phase the audible wave has gained since. The phases and
+			// increments are UQ<32>, read as Q31 because the multiplies are signed (smmul): below 2^31 that is the
+			// same bits at twice the value, and the doublings cancel in overshoot × increment / resetter increment.
+			const auto overshoot = reinterpret_bits<Q<31>>(resetter);
+			const auto increment = reinterpret_bits<Q<31>>(phasor_.increment());
+			const Q<14> gained = mul(mul(overshoot, increment), resetter_divide_);
+			const UQ<32> reset = add_wrap(
+			    add_wrap(reinterpret_bits<UQ<32>>(as_wrap<Q<31>>(gained)), UQ<32>::from_raw(1)), retrigger_phase_);
+			phase = reset;
 			phasor_.seek(phase);
 		}
 		return phase;
@@ -77,7 +78,7 @@ public:
 	void set_increment(UQ<32> phasor_increment, UQ<32> resetter_increment) {
 		phasor_.set_increment(phasor_increment);
 		resetter_.set_increment(resetter_increment);
-		resetter_divide_ = resetter_reciprocal(resetter_increment.raw());
+		resetter_divide_ = Q<16>::from_raw(resetter_reciprocal(resetter_increment.raw()));
 	}
 };
 

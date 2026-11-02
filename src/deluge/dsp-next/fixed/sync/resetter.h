@@ -24,7 +24,8 @@ namespace deluge::dsp::fixed {
 /// @brief The reciprocal of a hard-sync resetter's phase increment, used to turn the resetter's
 /// overshoot past a cycle boundary into the fractional sample position of the reset.
 ///
-/// Apply it with `multiply_32x32_rshift32(overshoot, reciprocal) << 17` (an effective >> 47).
+/// Read as Q<16>, it is 1 / the increment read as Q31 (2^47 / increment in raw terms): `mul` a Q31 overshoot by it
+/// for the overshoot's fraction of a sample at Q15, which `as_wrap<Q<31>>` lines up at Q31.
 /// Both sync components (@ref SyncedPhasor, @ref SyncedOscillator) derive this from the resetter
 /// increment they already hold, rather than having the caller precompute it. The increment is
 /// rounded up first so the reciprocal comes out a touch small — products of it can't overflow. That

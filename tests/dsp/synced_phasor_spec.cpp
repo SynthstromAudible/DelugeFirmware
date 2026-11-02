@@ -20,6 +20,7 @@
 
 #include "dsp-next/core/phasor.h"
 #include "dsp-next/fixed/sync/synced_phasor.h"
+#include "sync_reference.h"
 #include <cppspec.hpp>
 #include <cstdint>
 #include <type_traits>
@@ -38,6 +39,21 @@ constexpr UQ<32> uq32(uint32_t raw) {
 }
 
 constexpr UQ<32> kInc = uq32(0x04000000); // audible increment
+
+/// A deterministic spread of words.
+struct XorShift {
+	uint32_t x = 0x9E3779B9u;
+	uint32_t operator()() {
+		x ^= x << 13;
+		x ^= x >> 17;
+		x ^= x << 5;
+		return x;
+	}
+};
+
+/// Resetter increments a sweep can't miss: zero, the reciprocal's round-up edges, the slowest masters and the top.
+constexpr uint32_t kEdgeIncrements[] = {0u,          1u,         65535u, 65536u, 65537u, 131072u, 0x10000u << 4,
+                                        0xFFFF0000u, 0xFFFFFFFFu};
 } // namespace
 
 // clang-format off
@@ -75,6 +91,44 @@ describe synced_phasor("deluge::dsp::fixed SyncedPhasor", ${
 			expect(reset_phase != plain.advance()).to_be_truthy();
 			// phase() reflects the post-reset value.
 			expect(synced.phase().raw()).to_equal(reset_phase.raw());
+		});
+	});
+
+	context("against the raw reference", _ {
+		it("computes the resetter reciprocal as the reference does", _ {
+			int32_t bad = 0;
+			for (uint32_t increment : kEdgeIncrements) {
+				bad += deluge::dsp::fixed::resetter_reciprocal(increment) != sync_reference::resetter_reciprocal(increment);
+			}
+			XorShift next;
+			for (int i = 0; i < (1 << 16); ++i) {
+				const uint32_t increment = next();
+				bad += deluge::dsp::fixed::resetter_reciprocal(increment) != sync_reference::resetter_reciprocal(increment);
+			}
+			expect(bad).to_equal(0);
+		});
+		it("resets to the reference's phase at every crossover", _ {
+			int32_t bad = 0;
+			XorShift next;
+			auto run = [&](uint32_t increment, uint32_t resetter_increment, uint32_t phase, uint32_t resetter,
+			               uint32_t retrigger) {
+				SyncedPhasor synced{Phasor{uq32(phase), uq32(increment)}, Phasor{uq32(resetter), uq32(resetter_increment)},
+				                    uq32(retrigger)};
+				sync_reference::SyncedPhasor reference{phase, increment, resetter, resetter_increment, retrigger};
+				for (int i = 0; i < 64; ++i) {
+					bad += synced.advance().raw() != reference.advance();
+				}
+			};
+			for (uint32_t resetter_increment : kEdgeIncrements) {
+				for (int i = 0; i < 64; ++i) {
+					run(next(), resetter_increment, next(), next(), next());
+				}
+			}
+			for (int i = 0; i < 4096; ++i) {
+				// Masters from a few samples per cycle to slower than the block, audible pitches across the range
+				run(next() >> (next() & 15), next() >> (next() & 15), next(), next(), next());
+			}
+			expect(bad).to_equal(0);
 		});
 	});
 });

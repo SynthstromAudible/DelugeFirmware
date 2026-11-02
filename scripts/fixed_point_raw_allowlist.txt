@@ -47,9 +47,9 @@ src/deluge/dsp-next/fixed/shaping/sample_rate_reducer.h raw=3 boundary=0
 src/deluge/dsp-next/fixed/shaping/tanh.h raw=2 boundary=0
 src/deluge/dsp-next/fixed/shaping/wavefolder.h raw=6 boundary=0
 src/deluge/dsp-next/fixed/stutter/stutter_kernel.h raw=2 boundary=0
-src/deluge/dsp-next/fixed/sync/sync_windower.h raw=3 boundary=2
+src/deluge/dsp-next/fixed/sync/sync_windower.h raw=0 boundary=15
 src/deluge/dsp-next/fixed/sync/synced_oscillator.h raw=0 boundary=1
-src/deluge/dsp-next/fixed/sync/synced_phasor.h raw=2 boundary=6
+src/deluge/dsp-next/fixed/sync/synced_phasor.h raw=0 boundary=8
 src/deluge/dsp-next/fixed/vca/amplitude.h raw=0 boundary=2
 src/deluge/dsp-next/fixed/vca/crude_amplitude.h raw=1 boundary=2
 src/deluge/dsp-next/fixed/vca/send_and_volume.h raw=10 boundary=0

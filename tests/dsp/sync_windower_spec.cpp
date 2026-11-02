@@ -21,9 +21,11 @@
 // is the golden harness's job; here we pin the structural invariants. Dual-arch (x86 SIMDe + ARM).
 
 #include "dsp-next/fixed/sync/sync_windower.h"
+#include "sync_reference.h"
 #include <array>
 #include <cppspec.hpp>
 #include <cstdint>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -46,6 +48,27 @@ std::vector<SyncWindower::Window> collect(uint32_t resetter_increment) {
 		windows.push_back(*window);
 	}
 	return windows;
+}
+
+/// Fills each window with a saw read from its phasor, as an oscillator would, and returns the block and end phase.
+template <class Windower>
+std::pair<std::array<int32_t, kBlock>, uint32_t> render(Resetter resetter, uint32_t phase, uint32_t increment,
+                                                        uint32_t retrigger) {
+	std::array<int32_t, kBlock> buffer{};
+	Windower windower{Buffer{buffer}, resetter, phase, increment, retrigger};
+	while (auto window = windower.next()) {
+		for (int32_t& sample : window->output) {
+			sample = static_cast<int32_t>(window->phasor.advance().raw());
+		}
+	}
+	return {buffer, windower.phase()};
+}
+
+uint32_t xorshift(uint32_t& x) {
+	x ^= x << 13;
+	x ^= x >> 17;
+	x ^= x << 5;
+	return x;
 }
 } // namespace
 
@@ -101,6 +124,20 @@ describe sync_windower("deluge::dsp::fixed SyncWindower", ${
 		std::vector<SyncWindower::Window> windows = collect(0xFFFFFF00u);
 		expect(windows.size() > 1).to_be_truthy();
 		expect(windows.back().offset + static_cast<int32_t>(windows.back().output.size())).to_equal(kBlock);
+	});
+	it("renders the reference's samples and end phase", _ {
+		int32_t bad = 0;
+		uint32_t x = 0x9E3779B9u;
+		for (int i = 0; i < 8192; ++i) {
+			// Masters from a few samples per cycle to slower than the block, including increments at or below 2^16
+			const Resetter resetter{xorshift(x), xorshift(x) >> (xorshift(x) % 24)};
+			const uint32_t phase = xorshift(x);
+			const uint32_t increment = xorshift(x) >> (xorshift(x) & 7);
+			const uint32_t retrigger = xorshift(x);
+			bad += render<SyncWindower>(resetter, phase, increment, retrigger)
+			       != render<sync_reference::SyncWindower>(resetter, phase, increment, retrigger);
+		}
+		expect(bad).to_equal(0);
 	});
 });
 // clang-format on
