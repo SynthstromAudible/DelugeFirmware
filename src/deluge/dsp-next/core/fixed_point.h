@@ -875,7 +875,7 @@ template <int F>
 template <int F>
 [[gnu::always_inline, nodiscard]] constexpr Q<F> from_float(float value) noexcept {
 	if consteval {
-		return Q<F>::from_raw(detail::portable::float_to_raw<F>(value));
+		return Q<F>::from_raw(detail::portable::float_to_raw<F>(static_cast<double>(value)));
 	}
 #ifdef __arm__
 	if constexpr (F > 0) {
@@ -883,7 +883,7 @@ template <int F>
 		return Q<F>::from_raw(__builtin_bit_cast(std::int32_t, value));
 	}
 #endif
-	return Q<F>::from_raw(detail::portable::float_to_raw<F>(value));
+	return Q<F>::from_raw(detail::portable::float_to_raw<F>(static_cast<double>(value)));
 }
 /// @brief A float as Q<F>, rounding half away from zero, saturating, NaN to 0. No single instruction.
 template <int F>
