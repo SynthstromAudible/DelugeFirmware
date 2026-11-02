@@ -14,9 +14,10 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
-// Each fixed-point operation, and its portable twin, against the Cortex-A9 instruction it stands for. The
-// instruction is the ground truth (inline asm); the public operation is the path the firmware takes (ACLE or plain
-// C); the portable twin is the path a host takes. All three must agree bit for bit.
+// Each fixed-point operation against the Cortex-A9 instruction it stands for, and each portable form against the
+// same instruction. The instruction is the ground truth (inline asm); the public operation is the path the firmware
+// takes (ACLE or plain C); the portable form is the path a host and constant evaluation take. The plain-C operations
+// (the high-word multiplies, the wide and unsigned multiplies) have one form for both. All must agree bit for bit.
 
 #include "dsp-next/core/fixed_point.h"
 #include <arm_neon.h>
@@ -348,7 +349,6 @@ std::size_t integer_mismatches() {
 		bad += differs("usat<16>.portable", p::usat<16>(a), isa_usat<16>(a), t);
 		bad += differs("to_q16_sat", to_q16_sat(q31(a)).raw(), isa_ssat16_asr16(a), t);
 		bad += differs("mul_q16", mul(q31(a), b16).raw(), isa_smulwb(a, b), t);
-		bad += differs("mul_bottom", mul_bottom(q31(a), pair(b)).raw(), isa_smulwb(a, b), t);
 		bad += differs("mul_top", mul_top(q31(a), pair(b)).raw(), isa_smulwt(a, b), t);
 		bad += differs("mla_q16", mla(q30(c), q31(a), b16).raw(), isa_smlawb(c, a, b), t);
 		bad += differs("dot", dot(pair(a), pair(b)).raw(), isa_smuad(a, b), t);
@@ -359,6 +359,39 @@ std::size_t integer_mismatches() {
 		bad += differs("q16x2.add_sat", add_sat(pair(a), pair(b)).raw(), isa_qadd16(ua, ub), t);
 		bad += differs("q16x2.sub_sat", sub_sat(pair(a), pair(b)).raw(), isa_qsub16(ua, ub), t);
 		bad += differs("q16x2.halving_add", halving_add(pair(a), pair(b)).raw(), isa_shadd16(ua, ub), t);
+		// The portable forms the host and constant evaluation take, against the same instructions.
+		const auto b_lo = static_cast<std::int16_t>(ub & 0xFFFFu);
+		const auto b_hi = static_cast<std::int16_t>(ub >> 16);
+		const std::int32_t smuad_portable =
+		    detail::wrap_add(detail::lane_product(ua, ub, 0), detail::lane_product(ua, ub, 16));
+		bad += differs("smulwb.portable", detail::mul_word_half(a, b_lo), isa_smulwb(a, b), t);
+		bad += differs("smulwt.portable", detail::mul_word_half(a, b_hi), isa_smulwt(a, b), t);
+		bad += differs("smlawb.portable", detail::wrap_add(c, detail::mul_word_half(a, b_lo)), isa_smlawb(c, a, b), t);
+		bad += differs("smuad.portable", smuad_portable, isa_smuad(a, b), t);
+		bad += differs("smusd.portable",
+		               detail::wrap_sub(detail::lane_product(ua, ub, 0), detail::lane_product(ua, ub, 16)),
+		               isa_smusd(a, b), t);
+		bad += differs("smlad.portable", detail::wrap_add(c, smuad_portable), isa_smlad(c, a, b), t);
+		bad += differs(
+		    "smlald.portable",
+		    detail::wrap_add(acc64, std::int64_t{detail::lane_product(ua, ub, 0)} + detail::lane_product(ua, ub, 16)),
+		    isa_smlald(acc64, a, b), t);
+		bad += differs("qadd16.portable",
+		               p::lanes16(ua, ub, [](std::int16_t x, std::int16_t y) { return p::sat16(x + y); }),
+		               isa_qadd16(ua, ub), t);
+		bad += differs("qsub16.portable",
+		               p::lanes16(ua, ub, [](std::int16_t x, std::int16_t y) { return p::sat16(x - y); }),
+		               isa_qsub16(ua, ub), t);
+		bad += differs(
+		    "shadd16.portable",
+		    p::lanes16(ua, ub, [](std::int16_t x, std::int16_t y) { return static_cast<std::int16_t>((x + y) >> 1); }),
+		    isa_shadd16(ua, ub), t);
+		bad += differs("ssat16_asr16.portable", p::sat16(a >> 16), isa_ssat16_asr16(a), t);
+		bad += differs("usat<0>.portable", p::usat<0>(a), isa_usat<0>(a), t);
+		bad += differs("usat<31>.portable", p::usat<31>(a), isa_usat<31>(a), t);
+		bad += differs("ssat<1>.portable", p::ssat<1>(a), isa_ssat<1>(a), t);
+		bad += differs("ssat<32>.portable", p::ssat<32>(a), isa_ssat<32>(a), t);
+		bad += differs("mul_bottom", mul_bottom(q31(a), pair(b)).raw(), isa_smulwb(a, b), t);
 		bad += differs("mul_doubling_sat", mul_doubling_sat(q31(a), q31(b)).raw(), isa_vqdmulh(a, b), t);
 		bad += differs("mul_doubling_r_sat", mul_doubling_r_sat(q31(a), q31(b)).raw(), isa_vqrdmulh(a, b), t);
 	}
@@ -395,7 +428,7 @@ std::size_t float_mismatches() {
 
 // clang-format off
 describe fixed_point_isa("fixed_point operations against the A9 instructions", ${
-	it("every integer operation, and its portable twin, matches its instruction bit for bit", _ {
+	it("every integer operation, and every portable form, matches its instruction bit for bit", _ {
 		expect(integer_mismatches()).to_equal(std::size_t{0});
 	});
 	it("the float conversions match VFP vcvt for every fractional width", _ {

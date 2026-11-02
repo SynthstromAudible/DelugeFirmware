@@ -77,6 +77,18 @@ static_assert(!wrap_reformattable<Q<30>, Q<31>>);
 static_assert(!floor_reformattable<Q<31>, Q<30>>);
 static_assert(!wrap_reformattable<UQ<31>, Q<30>>);
 static_assert(wrap_scalable<31, Q<31>>);
+template <class To, class From>
+concept round_reformattable = requires(From x) { as_round<To>(x); };
+template <class To, class From>
+concept widenable = requires(From x) { widen<To>(x); };
+// A reformat or widen by the storage's whole width (or more) would shift by it: undefined, so it does not compile.
+static_assert(wrap_reformattable<UQ<32>, UQ<1>>);
+static_assert(!wrap_reformattable<UQ<32>, UQ<0>>);
+static_assert(!floor_reformattable<UQ<0>, UQ<32>>);
+static_assert(!round_reformattable<UQ<0>, UQ<32>>);
+static_assert(!wrap_reformattable<UQ64<64>, UQ64<0>>);
+static_assert(widenable<Q64<32>, Q<0>>);
+static_assert(!widenable<Q64<63>, Q<0>>);
 static_assert(!wrap_scalable<32, Q<31>>);
 static_assert(std::is_same_v<decltype(to_q16_sat(Q<31>{})), Q16<15>>);
 static_assert(std::is_same_v<decltype(from_q16(Q16<15>{})), Q<31>>);
@@ -159,10 +171,26 @@ describe fixed_point_types("fixed_point types", ${
 		expect(lsb_and_a_half.raw()).to_equal(2);
 		constexpr auto minus_one = q<31>(-1.0);
 		expect(minus_one.raw()).to_equal(INT32_MIN);
+		// Rounded once: adding 0.5 first would round the double just below 0.5 up to 1.
+		constexpr auto just_below_half = q<0>(0.49999999999999994);
+		expect(just_below_half.raw()).to_equal(0);
+		constexpr auto minus_two_and_a_half = q<0>(-2.5);
+		expect(minus_two_and_a_half.raw()).to_equal(-3);
+		constexpr auto max_q16 = q16<0>(32767.0);
+		expect(max_q16.raw()).to_equal(static_cast<std::int16_t>(32767));
 	});
 	it("orders values within one format", _ {
-		expect(Q<31>::from_raw(-1) < Q<31>::from_raw(0)).to_be_true();
+		const auto lo = Q<31>::from_raw(-1);
+		const auto hi = Q<31>::from_raw(0);
+		expect(lo < hi).to_be_true();
+		expect(lo <= hi).to_be_true();
+		expect(hi > lo).to_be_true();
+		expect(hi >= lo).to_be_true();
+		expect(lo != hi).to_be_true();
+		expect(hi < lo).to_be_false();
 		expect(Q<31>::from_raw(5) == Q<31>::from_raw(5)).to_be_true();
+		expect(UQ<32>::from_raw(0x8000'0000u) > UQ<32>::from_raw(1u)).to_be_true();
+		expect(Q16x2<15>::from_raw(7u) != Q16x2<15>::from_raw(8u)).to_be_true();
 	});
 	it("packs and unpacks int16 pairs", _ {
 		const auto pair = Q16x2<15>::pack(Q16<15>::from_raw(-2), Q16<15>::from_raw(3));

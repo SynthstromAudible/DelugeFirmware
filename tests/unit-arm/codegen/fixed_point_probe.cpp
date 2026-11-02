@@ -165,5 +165,82 @@ std::int32_t probe_as_round_3(std::int32_t a) {
 std::int32_t probe_from_float_round_31(float v) {
 	return from_float_round<31>(v).raw();
 }
+bool probe_eq(std::int32_t a, std::int32_t b) {
+	return q31(a) == q31(b);
+}
+bool probe_lt(std::int32_t a, std::int32_t b) {
+	return q31(a) < q31(b);
+}
+std::int32_t probe_clamp_high(std::int32_t a, std::int32_t b) {
+	return clamp_high(q31(a), q31(b)).raw();
+}
+std::int32_t probe_neg_wrap(std::int32_t a) {
+	return neg_wrap(q31(a)).raw();
+}
+std::uint32_t probe_pack(std::int16_t lo, std::int16_t hi) {
+	return Q16x2<15>::pack(Q16<15>::from_raw(lo), Q16<15>::from_raw(hi)).raw();
+}
+std::int32_t probe_add_halves_sat(std::int32_t a, std::int32_t b) {
+	return add_halves_sat(q31(a), q31(b)).raw();
+}
+std::int32_t probe_as_clamp_then_shift_3(std::int32_t a) {
+	return as_clamp_then_shift<Q<31>>(Q<28>::from_raw(a)).raw();
+}
+std::int32_t probe_scale_shl_clamp_then_shift_3(std::int32_t a) {
+	return scale_shl_clamp_then_shift<3>(q31(a)).raw();
+}
+std::int32_t probe_scale_shr_round_3(std::int32_t a) {
+	return scale_shr_round<3>(q31(a)).raw();
+}
+std::int32_t probe_halve_toward_zero(std::int32_t a) {
+	return halve_toward_zero(q31(a)).raw();
+}
+std::int32_t probe_from_q16(std::int16_t a) {
+	return from_q16(Q16<15>::from_raw(a)).raw();
+}
+std::int64_t probe_widen_9(std::int32_t a) {
+	return widen<Q64<40>>(q31(a)).raw();
+}
+std::int32_t probe_narrow_floor_wrap(std::int64_t a) {
+	return narrow_floor_wrap<Q<31>>(Q64<62>::from_raw(a)).raw();
+}
+std::int32_t probe_narrow_round_wrap(std::int64_t a) {
+	return narrow_round_wrap<Q<31>>(Q64<62>::from_raw(a)).raw();
+}
+std::int32_t probe_mul_doubling_r_sat(std::int32_t a, std::int32_t b) {
+	return mul_doubling_r_sat(q31(a), q31(b)).raw();
+}
+std::int32_t probe_mul_uq_q(std::uint32_t a, std::int32_t b) {
+	return mul(UQ<32>::from_raw(a), q31(b)).raw();
+}
+std::int32_t probe_mul_bottom(std::int32_t a, std::uint32_t b) {
+	return mul_bottom(q31(a), pair(b)).raw();
+}
+std::int32_t probe_mul_as_sat(std::int32_t a, std::int32_t b) {
+	return mul_as_sat<Q<31>>(q31(a), q31(b)).raw();
+}
+
+// Loop shapes: reported, not gated. A loop of the plain-C multiply-high family can auto-vectorize into NEON that is
+// slower than the scalar loop on the A9 (docs/dev/fixed_point.md); the report shows which shapes do today.
+void loop_mul_gain(std::int32_t* out, const std::int32_t* in, std::int32_t gain, int n) {
+	for (int k = 0; k < n; k++) {
+		out[k] = mul_as_wrap<Q<31>>(q31(in[k]), q31(gain)).raw();
+	}
+}
+void loop_mul_pairs(std::int32_t* out, const std::int32_t* a, const std::int32_t* b, int n) {
+	for (int k = 0; k < n; k++) {
+		out[k] = mul(q31(a[k]), q31(b[k])).raw();
+	}
+}
+void loop_mla_pairs(std::int32_t* acc, const std::int32_t* a, const std::int32_t* b, int n) {
+	for (int k = 0; k < n; k++) {
+		acc[k] = mla(q30(acc[k]), q31(a[k]), q31(b[k])).raw();
+	}
+}
+void loop_add_sat(std::int32_t* out, const std::int32_t* a, const std::int32_t* b, int n) {
+	for (int k = 0; k < n; k++) {
+		out[k] = add_sat(q31(a[k]), q31(b[k])).raw();
+	}
+}
 // NOLINTEND(readability-identifier-naming)
 }

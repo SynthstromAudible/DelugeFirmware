@@ -77,8 +77,26 @@ public:
 	[[gnu::always_inline, nodiscard]] static constexpr Fixed min() noexcept { return from_raw(kStorageMin); }
 	[[gnu::always_inline, nodiscard]] static constexpr Fixed max() noexcept { return from_raw(kStorageMax); }
 
-	friend constexpr bool operator==(Fixed, Fixed) noexcept = default;
-	friend constexpr auto operator<=>(Fixed, Fixed) noexcept = default;
+	// Written out, not defaulted: under the app's -fno-inline-functions a defaulted operator, and the
+	// std::strong_ordering a <=> returns, are out-of-line calls.
+	[[gnu::always_inline, nodiscard]] friend constexpr bool operator==(Fixed a, Fixed b) noexcept {
+		return a.raw_ == b.raw_;
+	}
+	[[gnu::always_inline, nodiscard]] friend constexpr bool operator!=(Fixed a, Fixed b) noexcept {
+		return a.raw_ != b.raw_;
+	}
+	[[gnu::always_inline, nodiscard]] friend constexpr bool operator<(Fixed a, Fixed b) noexcept {
+		return a.raw_ < b.raw_;
+	}
+	[[gnu::always_inline, nodiscard]] friend constexpr bool operator<=(Fixed a, Fixed b) noexcept {
+		return a.raw_ <= b.raw_;
+	}
+	[[gnu::always_inline, nodiscard]] friend constexpr bool operator>(Fixed a, Fixed b) noexcept {
+		return a.raw_ > b.raw_;
+	}
+	[[gnu::always_inline, nodiscard]] friend constexpr bool operator>=(Fixed a, Fixed b) noexcept {
+		return a.raw_ >= b.raw_;
+	}
 
 private:
 	S raw_;
@@ -125,7 +143,12 @@ public:
 		return Q16<F>::from_raw(static_cast<std::int16_t>(raw_ >> 16));
 	}
 
-	friend constexpr bool operator==(Q16x2, Q16x2) noexcept = default;
+	[[gnu::always_inline, nodiscard]] friend constexpr bool operator==(Q16x2 a, Q16x2 b) noexcept {
+		return a.raw_ == b.raw_;
+	}
+	[[gnu::always_inline, nodiscard]] friend constexpr bool operator!=(Q16x2 a, Q16x2 b) noexcept {
+		return a.raw_ != b.raw_;
+	}
 
 private:
 	std::uint32_t raw_;
@@ -142,12 +165,24 @@ consteval T constant(double value) {
 	using S = T::storage_type;
 	static_assert(T::kFractionalBits <= 32);
 	const double scaled = value * static_cast<double>(std::uint64_t{1} << T::kFractionalBits);
-	const double rounded = scaled + (scaled >= 0.0 ? 0.5 : -0.5);
-	if (rounded != rounded || rounded <= static_cast<double>(std::numeric_limits<S>::min()) - 1.0
-	    || rounded >= static_cast<double>(std::numeric_limits<S>::max()) + 1.0) {
+	// The range check comes first, so the truncation below is in range; scaled − its truncation is then exact, and
+	// comparing that fraction with ±0.5 rounds once (adding 0.5 first would round 0.49999999999999994 up).
+	if (scaled != scaled || scaled <= static_cast<double>(std::numeric_limits<S>::min()) - 1.0
+	    || scaled >= static_cast<double>(std::numeric_limits<S>::max()) + 1.0) {
 		constant_out_of_range();
 	}
-	return T::from_raw(static_cast<S>(static_cast<std::int64_t>(rounded)));
+	auto whole = static_cast<std::int64_t>(scaled);
+	const double fraction = scaled - static_cast<double>(whole);
+	if (fraction >= 0.5) {
+		++whole;
+	}
+	else if (fraction <= -0.5) {
+		--whole;
+	}
+	if (whole < std::numeric_limits<S>::min() || whole > std::numeric_limits<S>::max()) {
+		constant_out_of_range();
+	}
+	return T::from_raw(static_cast<S>(whole));
 }
 
 } // namespace detail
@@ -342,18 +377,18 @@ requires(N >= 1 && N <= 32)
 	return Q<F>::from_raw(detail::portable::ssat<N>(x.raw()));
 #endif
 }
-/// @brief Clamps to the signed @p n-bit range, @p n known only at run time (1 to 32; two compares, no single
-/// instruction).
+/// @brief Clamps to the signed @p n-bit range, @p n known only at run time (1 to 32; no single instruction: the
+/// bounds are a shift away, then two compares).
 template <int F>
 [[gnu::always_inline, nodiscard]] constexpr Q<F> clamp_bits(Q<F> x, int n) noexcept {
-	const std::int64_t hi = (std::int64_t{1} << (n - 1)) - 1;
-	const std::int64_t lo = -hi - 1;
-	const std::int64_t v = x.raw();
+	const auto hi = static_cast<std::int32_t>((std::uint32_t{1} << (n - 1)) - 1);
+	const std::int32_t lo = -hi - 1;
+	const std::int32_t v = x.raw();
 	if (v > hi) {
-		return Q<F>::from_raw(static_cast<std::int32_t>(hi));
+		return Q<F>::from_raw(hi);
 	}
 	if (v < lo) {
-		return Q<F>::from_raw(static_cast<std::int32_t>(lo));
+		return Q<F>::from_raw(lo);
 	}
 	return x;
 }
@@ -373,7 +408,7 @@ requires(N >= 0 && N <= 31)
 /// @brief The smaller of @p x and @p ceiling: an upper clamp only.
 template <int F>
 [[gnu::always_inline, nodiscard]] constexpr Q<F> clamp_high(Q<F> x, Q<F> ceiling) noexcept {
-	return x < ceiling ? x : ceiling;
+	return x.raw() < ceiling.raw() ? x : ceiling;
 }
 
 /// @brief sat((a >> 1) + (b >> 1)) << 1: the operands' halves summed, then saturate-doubled (`asr`, `add`,
@@ -450,6 +485,10 @@ namespace detail {
 } // namespace detail
 
 /// @brief The high word of a × b, truncated: Q<A> × Q<B> → Q<A+B−32> (`smmul`). Q31 × Q31 gives Q30.
+/// @note This family (mul, mul_r, mla, mla_r, mls, mls_r) is the plain-C multiply-high idiom, so clang can
+/// auto-vectorize a loop of it into NEON (`vmull.s32` + `vshrn`, or per-lane `umull` with `vmov.32` transfers) that
+/// runs slower than the scalar loop on the A9. Bench each kernel moved onto it; tests/unit-arm/codegen reports which
+/// loop shapes vectorize. See docs/dev/fixed_point.md.
 template <int A, int B>
 requires(A + B >= 32)
 [[gnu::always_inline, nodiscard]] constexpr Q<A + B - 32> mul(Q<A> a, Q<B> b) noexcept {
@@ -565,7 +604,14 @@ requires(A + B >= 16 && A + B - 16 <= 31)
 template <int A, int B>
 requires(A + B >= 16 && A + B - 16 <= 31)
 [[gnu::always_inline, nodiscard]] constexpr Q<A + B - 16> mul_bottom(Q<A> a, Q16x2<B> b) noexcept {
-	return mul(a, b.lo());
+	if consteval {
+		return Q<A + B - 16>::from_raw(detail::mul_word_half(a.raw(), b.lo().raw()));
+	}
+#ifdef __ARM_FEATURE_DSP
+	return Q<A + B - 16>::from_raw(__smulwb(a.raw(), static_cast<int16x2_t>(b.raw())));
+#else
+	return Q<A + B - 16>::from_raw(detail::mul_word_half(a.raw(), b.lo().raw()));
+#endif
 }
 /// @brief (a × the high lane of b) >> 16: Q<A> × Q16x2<B> → Q<A+B−16> (`smulwt`).
 template <int A, int B>
@@ -648,10 +694,15 @@ requires(sizeof(typename To::storage_type) == sizeof(S))
 
 namespace detail {
 
+/// The storage's bit count: a shift by it or more is undefined.
+template <class S>
+inline constexpr int kStorageBits = std::numeric_limits<std::make_unsigned_t<S>>::digits;
 template <class To, class S, int F>
-concept widening = std::is_same_v<typename To::storage_type, S> && (To::kFractionalBits > F);
+concept widening = std::is_same_v<typename To::storage_type, S> && (To::kFractionalBits > F)
+                   && (To::kFractionalBits - F < kStorageBits<S>);
 template <class To, class S, int F>
-concept narrowing = std::is_same_v<typename To::storage_type, S> && (To::kFractionalBits < F);
+concept narrowing = std::is_same_v<typename To::storage_type, S> && (To::kFractionalBits < F)
+                    && (F - To::kFractionalBits < kStorageBits<S>);
 /// A shift amount that leaves at least one bit of @p S.
 template <int N, class S>
 concept shift_amount = N >= 1 && N < std::numeric_limits<std::make_unsigned_t<S>>::digits;
@@ -785,9 +836,10 @@ template <int F>
 	return Q<F>::from_raw(x.raw() / 2);
 }
 
-/// @brief The same value in 64 bits with M ≥ F fractional bits; exact.
+/// @brief The same value in 64 bits with M ≥ F fractional bits; exact (M − F ≤ 32 keeps every int32 in range).
 template <class To, int F>
 requires std::is_same_v<typename To::storage_type, std::int64_t> && (To::kFractionalBits >= F)
+         && (To::kFractionalBits - F <= 32)
 [[gnu::always_inline, nodiscard]] constexpr To widen(Q<F> x) noexcept {
 	return To::from_raw(std::int64_t{x.raw()} << (To::kFractionalBits - F));
 }
@@ -861,7 +913,7 @@ template <int F>
 	if consteval {
 		return detail::portable::raw_to_float<F>(x.raw());
 	}
-#ifdef __arm__
+#if defined(__arm__) && defined(__ARM_FP)
 	// clang does not form the fixed-point vcvt from a convert and a scale; the codegen gate pins this.
 	if constexpr (F > 0) {
 		std::int32_t bits = x.raw();
@@ -877,7 +929,7 @@ template <int F>
 	if consteval {
 		return Q<F>::from_raw(detail::portable::float_to_raw<F>(static_cast<double>(value)));
 	}
-#ifdef __arm__
+#if defined(__arm__) && defined(__ARM_FP)
 	if constexpr (F > 0) {
 		asm("vcvt.s32.f32 %0, %0, %1" : "+t"(value) : "I"(F));
 		return Q<F>::from_raw(__builtin_bit_cast(std::int32_t, value));
