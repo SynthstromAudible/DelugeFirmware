@@ -29,11 +29,11 @@
 #include "bench/reference_impulse_response.h"
 #include "dsp-next/core/concepts.h"
 #include "dsp-next/core/kernel.h"
+#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/stereo.h"
 #include "dsp-next/fixed/delay/analog_impulse_response.h"
 #include "dsp-next/fixed/noise/noise.h"
 #include "dsp-next/fixed/shaping/tanh.h"
-#include "util/fixedpoint.h"
 
 #include <algorithm>
 #include <array>

@@ -35,6 +35,7 @@
 
 #pragma once
 
+#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/core/types.h"
 #include "dsp-next/core/wrapping.h"
@@ -45,7 +46,6 @@
 #include "dsp-next/fixed/mix/dry_wet.h"
 #include "dsp-next/fixed/shaping/tanh.h"
 #include "dsp-next/fixed/shaping/tanh_table.h"
-#include "util/fixedpoint.h"
 #include "util/synth_noise.h"
 
 #include <algorithm>

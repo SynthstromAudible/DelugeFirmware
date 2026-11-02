@@ -25,8 +25,8 @@
 ///
 /// A @ref Buffer is a writable block a component fills; a @ref Signal is a read-only
 /// block it consumes. Per decision Q1 the concrete sample type at component interfaces
-/// is q31 (= int32_t) — zero friction with the app's buffers; FixedPoint<31> is a
-/// later, layout-compatible type-safety layer. Stereo blocks are spans of the app's @ref StereoSample frame.
+/// is q31 (= int32_t) — zero friction with the app's buffers; fixed_point.h's Q<31> is the
+/// layout-compatible typed form interfaces move to. Stereo blocks are spans of the app's @ref StereoSample frame.
 namespace deluge::dsp {
 
 /// @brief A single audio/control sample of type @p T.

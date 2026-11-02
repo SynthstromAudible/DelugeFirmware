@@ -38,10 +38,10 @@
 
 #pragma once
 
+#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/fixed/curves/exp_curve.h"
 #include "dsp-next/fixed/vca/pan.h"
-#include "util/fixedpoint.h"
 
 #include <algorithm>
 #include <cmath>

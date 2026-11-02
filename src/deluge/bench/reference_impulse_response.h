@@ -21,9 +21,9 @@
 /// @brief The delay's analog impulse response as a stereo class, both channels in one tap loop: the reference the
 /// kernel is checked against, and the response the bench's legacy analog case runs.
 
+#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/core/wrapping.h"
-#include "util/fixedpoint.h"
 
 #include <array>
 #include <cstddef>

@@ -7,7 +7,7 @@
 #include "reverb_workloads.h"
 #include <cppspec.hpp>
 
-#include "util/fixedpoint.h"
+#include "dsp-next/core/q31_ops.h"
 #include <cstdint>
 #include <limits>
 #include <ranges>

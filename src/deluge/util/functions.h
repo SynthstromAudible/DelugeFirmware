@@ -19,13 +19,13 @@
 
 #include "const_functions.h"
 #include "definitions_cxx.hpp"
+#include "dsp-next/core/q31_ops.h"
 #include "libdeluge/file_io.h"
 #include "util/audio_format_helpers.h" // byte/format helpers (charsToIntegerConstant, swapEndianness*, …) re-exported
 #include "util/c_string.h"
 #include "util/cfunctions.h" // IWYU pragma: export - minimal set of functions which need c linkage
 #include "util/db_shift.h"
 #include "util/etl_string.h"
-#include "util/fixedpoint.h"
 #include "util/lookuptables/lookuptables.h"
 #include "util/name_compare.h" // IWYU pragma: export - strcmpspecial and friends used to live here
 #include "util/synth_noise.h"

@@ -23,13 +23,13 @@
 
 #pragma once
 
+#include "dsp-next/core/q31_ops.h"
 #include "effects/chain_core.h"
 #include "effects/filter.h"
 #include "effects/master_chain.h"
 #include "effects/saturation.h"
 #include "effects/sound_chain.h"
 #include "effects/track_chain.h"
-#include "util/fixedpoint.h"
 
 #include <optional>
 #include <span>

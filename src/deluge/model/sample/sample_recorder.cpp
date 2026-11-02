@@ -18,6 +18,7 @@
 #include "model/sample/sample_recorder.h"
 #include "definitions.h"
 #include "definitions_cxx.hpp"
+#include "dsp-next/core/q31_ops.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/root_ui.h"
 #include "gui/ui_timer_manager.h"
@@ -40,7 +41,6 @@
 #include "storage/cluster/cluster.h"
 #include "util/boot.h"
 #include "util/exceptions.h"
-#include "util/fixedpoint.h"
 #include "util/functions.h"
 #include "util/notify.h"
 #include <algorithm>

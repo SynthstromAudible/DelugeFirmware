@@ -37,7 +37,8 @@
 ///  - every function holding a plain signed sum that can overflow at full scale is marked
 ///    @ref DELUGE_REFERENCE_LEGACY_ARITHMETIC: `Comb::process`, `Allpass::process`, `ProcessOne`, Freeverb's `process`
 ///    (the DC loop) and both plates' `process` (the q31 mix);
-///  - `util/functions.h` is not included: the copies use only `util/fixedpoint.h`'s multiplies, so the header builds
+///  - `util/functions.h` is not included: the copies use only `dsp-next/core/q31_ops.h`'s multiplies, so the header
+///  builds
 ///    without the libdeluge include path;
 ///  - names the app qualifies with `dsp::` (`OnePole`, `Interpolate`, `toQ31Saturating`) are qualified with
 ///    `reverb_ref::`, and `util::map` with `::util::`, so each resolves to the same function from this namespace;
@@ -51,9 +52,9 @@
 
 #include "argon.hpp"
 #include "definitions_cxx.hpp"
+#include "dsp-next/core/q31_ops.h"
 #include "reverb_views.h"
 #include "reverb_workloads.h"
-#include "util/fixedpoint.h"
 #include "util/misc.h"
 
 #include <algorithm>

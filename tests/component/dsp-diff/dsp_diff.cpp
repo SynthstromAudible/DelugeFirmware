@@ -24,7 +24,7 @@
 /// the `signed_saturate`/`add_saturate`/`subtract_saturate` stub bugs and the q31_* gaps are caught,
 /// and a regression guard going forward). See run.sh.
 
-#include "util/fixedpoint.h"
+#include "dsp-next/core/q31_ops.h"
 
 #include <cstdint>
 #include <cstdio>

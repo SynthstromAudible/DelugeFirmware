@@ -6,8 +6,8 @@
 /// (src/deluge/CMakeLists.txt) and the cases time the delay's feedback as the delay runs it: in place.
 
 #include "bench/cases.h"
+#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/fixed/shaping/tanh.h"
-#include "util/fixedpoint.h"
 
 #include <algorithm>
 #include <cstddef>

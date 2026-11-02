@@ -3,6 +3,7 @@
 #include "bench/reference_impulse_response.h"
 #include "bench/runner.h"
 #include "dsp-next/core/chain.h"
+#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/fixed/delay/delay_processor.h"
 #include "dsp-next/fixed/delay/delay_tape.h"
@@ -16,7 +17,6 @@
 #include "dsp-next/fixed/noise/congruential_step.h"
 #include "dsp-next/fixed/shaping/antialiased_tanh.h"
 #include "dsp-next/fixed/shaping/tanh.h"
-#include "util/fixedpoint.h"
 #include "util/synth_noise.h"
 
 #include <algorithm>

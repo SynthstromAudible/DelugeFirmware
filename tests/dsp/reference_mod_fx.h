@@ -32,11 +32,11 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/core/wrapping.h"
 #include "dsp-next/fixed/bandlimited/waves.h" // triangle
 #include "dsp-next/fixed/osc/sine_table.h"    // kSineTable
-#include "util/fixedpoint.h"
 #include "util/synth_noise.h"
 
 #include <array>

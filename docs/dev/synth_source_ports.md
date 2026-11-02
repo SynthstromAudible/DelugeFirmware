@@ -112,7 +112,7 @@ this design as follows — and the headline is: **Engines need no ports of their
    `getDxEngine()` pool + the `DxVoice`/`DxPatch` ops + the per-block log-pitch/ctrl/`compute` live behind
    `dsp::DxVoiceAdapter` (App-side, per-source). `DX7Source` kept only its bespoke per-unison amplitude/stereo sum
    and relocated into `synth/sources/` (boundary-clean — the amplitude sum's include was narrowed from the fat
-   `util/functions.h` to `util/fixedpoint.h`). **3 of 5 sources now library-resident (VA + wavetable + DX7).**
+   `util/functions.h` to `dsp-next/core/q31_ops.h`). **3 of 5 sources now library-resident (VA + wavetable + DX7).**
 3. **Live-input port — ✅ DONE (commits `a287fd00f`/`6fb5d3f1a`/`340133b1e`; namespace moves
    `e3548ddc6`/`eaf4df0ae`).** `InputSource` depends on `synth::AudioInputPort` and lives in `synth/sources/`; `LiveInputBuffer` and the live pitch shifter moved to
    `synth/sources/input/live/`. `AudioInputAdapter` (`processing/live/`) is the App-side adapter.

@@ -17,9 +17,9 @@
 
 #pragma once
 
+#include "dsp-next/core/q31_ops.h"
 #include "modulation/automation/auto_param.h"
 #include "synth/modulation/cable.h"
-#include "util/fixedpoint.h"
 #include <cstdint>
 
 class Sound;

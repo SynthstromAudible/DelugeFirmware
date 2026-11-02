@@ -18,8 +18,8 @@
 #include "dsp-next/core/control.h"
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/mode.h"
+#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/types.h"
-#include "util/fixedpoint.h"
 
 #include <concepts>
 #include <cppspec.hpp>

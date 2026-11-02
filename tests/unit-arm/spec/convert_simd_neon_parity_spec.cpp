@@ -6,8 +6,8 @@
 // <arm_neon.h> backend (no SIMDe, no compat shim -- see tests/unit-arm/spec/CMakeLists.txt). Two groups:
 //
 //  - FLOAT (the decision gate): Argon<float>::ConvertTo<int32_t,31>() (vcvtq_n_s32_f32) vs the scalar
-//    q31_from_float() from util/fixedpoint.h. Under this arm-linux cross build __arm__ is defined, so
-//    q31_from_float() itself compiles to the VFP `vcvt.s32.f32 #31` instruction (see fixedpoint.h) --
+//    q31_from_float() from dsp-next/core/q31_ops.h. Under this arm-linux cross build __arm__ is defined, so
+//    q31_from_float() itself compiles to the VFP `vcvt.s32.f32 #31` instruction (see q31_ops.h) --
 //    i.e. this is a real-hardware NEON-vs-VFP comparison, executed via qemu's instruction-accurate
 //    emulation of both instruction families, not a software model.
 //
@@ -17,7 +17,7 @@
 //    (LoadInterleaved<3>/store_interleaved).
 //
 // Every group sweeps hand-picked edge cases plus a deterministic pseudo-random walk and asserts zero
-// mismatches, mirroring fixedpoint_vfp_spec.cpp's style.
+// mismatches, mirroring fixed_point_isa_spec.cpp's style.
 
 #include <argon.hpp>
 #include <argon/helpers/size.hpp>
@@ -28,12 +28,12 @@
 #include <cstring>
 #include <vector>
 
+#include "dsp-next/core/q31_ops.h"     // q31_from_float, q31_t
 #include "util/audio_format_helpers.h" // swapEndianness32, swapEndianness2x16
-#include "util/fixedpoint.h"           // q31_from_float, q31_t
 
 namespace {
 
-// --- shared mismatch-accumulation helper (mirrors fixedpoint_vfp_spec.cpp) ---
+// --- shared mismatch-accumulation helper (mirrors fixed_point_isa_spec.cpp) ---
 uint64_t g_reported = 0;
 uint64_t g_fails = 0;
 
@@ -79,7 +79,7 @@ const std::vector<float>& float_inputs() {
 			out.push_back(std::bit_cast<float>(bits));
 		}
 		// Deterministic pseudo-random sweep over the full 32-bit pattern space (same LCG as
-		// fixedpoint_vfp_spec.cpp), skipping non-finite results is NOT done -- NaN/inf patterns are
+		// fixed_point_isa_spec.cpp), skipping non-finite results is NOT done -- NaN/inf patterns are
 		// exactly what we want exercised too.
 		uint32_t x = 0x9e3779b9u;
 		for (int i = 0; i < 20000; ++i) {

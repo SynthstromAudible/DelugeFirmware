@@ -17,6 +17,7 @@
 
 #include "model/fx/song_stutter.h"
 
+#include "dsp-next/core/q31_ops.h"
 #include "libdeluge/system.h" // AudioExcludedSection
 #include "model/mod_controllable/mod_fx_allocator.h"
 #include "model/song/song.h"
@@ -24,7 +25,6 @@
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
 #include "playback/playback_handler.h"
-#include "util/fixedpoint.h"
 #include "util/functions.h"
 #include "util/structural_edit_probe.h"
 

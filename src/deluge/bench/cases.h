@@ -34,6 +34,7 @@
 #include "dsp-next/core/lanes.h"
 #include "dsp-next/core/mono.h"
 #include "dsp-next/core/phasor.h"
+#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/ramp.h"
 #include "dsp-next/core/stereo.h"
 #include "dsp-next/core/types.h"
@@ -56,7 +57,6 @@
 #include "dsp-next/fixed/vca/crude_amplitude.h"
 #include "dsp-next/fixed/wavetable/wave_table_data.h"
 #include "dsp-next/fixed/wavetable/wavetable_oscillator.h"
-#include "util/fixedpoint.h"
 
 #include <algorithm>
 #include <argon.hpp>

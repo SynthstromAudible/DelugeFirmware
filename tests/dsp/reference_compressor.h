@@ -32,6 +32,7 @@
 
 #include "definitions_cxx.hpp"    // kSampleRate
 #include "dsp-next/core/kernel.h" // EmptyBlock
+#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/core/types.h"
 #include "dsp-next/core/wrapping.h"
@@ -39,7 +40,6 @@
 #include "dsp-next/fixed/filter/one_pole.h"
 #include "dsp-next/fixed/shaping/antialiased_tanh.h"
 #include "reference_filters.h"
-#include "util/fixedpoint.h"
 
 #include <algorithm>
 #include <array>

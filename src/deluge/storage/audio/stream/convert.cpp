@@ -1,6 +1,6 @@
 #include "storage/audio/stream/convert.h"
+#include "dsp-next/core/q31_ops.h"
 #include "util/audio_format_helpers.h"
-#include "util/fixedpoint.h"
 #include <bit>
 #include <cstdint>
 
