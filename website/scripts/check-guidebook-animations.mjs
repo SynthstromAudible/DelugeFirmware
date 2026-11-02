@@ -698,6 +698,63 @@ const checks = {
     check("envelope: no script errors", errors.length === 0, errors.join("; "))
     await ctx.close()
   },
+
+  async lfo(browser) {
+    const path = "06-modulation/03-envelopes-and-low-frequency-oscillators"
+    const id = "fig-6.3-2"
+    const fig = sel(id)
+    const traces = (page) =>
+      page
+        .locator(`${fig} .gb-lfo-curve`)
+        .evaluateAll((els) => els.map((e) => e.getAttribute("d")))
+
+    const noJs = await browser.newContext({ javaScriptEnabled: false })
+    const still = await noJs.newPage()
+    await still.goto(url(path), { waitUntil: "load" })
+    const names = await still.locator(`${fig} .gb-lfo-name`).allTextContents()
+    check(
+      "lfo: without JS, all seven shapes drawn and named, no Pause",
+      names.join() ===
+        "Sine,Triangle,Square,Saw,Sample & Hold,Random Walk,Warbler" &&
+        (await traces(still)).every((d) => (d ?? "").length > 100) &&
+        !(await still.locator(`${fig} .gb-lfo-pause`).isVisible()),
+      names.join(),
+    )
+    await noJs.close()
+
+    const ctx = await browser.newContext()
+    const { page, errors } = await open(ctx, path, id)
+    const a = await traces(page)
+    await page.waitForTimeout(400)
+    const b = await traces(page)
+    check(
+      "lfo: the signals advance",
+      a.every((d, i) => d !== b[i]),
+    )
+    await page.locator(`${fig} .gb-lfo-pause`).click()
+    await page.waitForTimeout(100)
+    const c = await traces(page)
+    await page.waitForTimeout(400)
+    const d = await traces(page)
+    check(
+      "lfo: Pause stops them",
+      c.every((x, i) => x === d[i]) &&
+        (await page.locator(`${fig} .gb-lfo-pause`).textContent()) === "Play",
+    )
+    check("lfo: no script errors", errors.length === 0, errors.join("; "))
+    await ctx.close()
+
+    const calm = await browser.newContext({ reducedMotion: "reduce" })
+    const r = await open(calm, path, id)
+    const e = await traces(r.page)
+    await r.page.waitForTimeout(400)
+    check(
+      "lfo: reduced motion starts paused",
+      (await traces(r.page)).every((x, i) => x === e[i]) &&
+        (await r.page.locator(`${fig} .gb-lfo-pause`).textContent()) === "Play",
+    )
+    await calm.close()
+  },
 }
 
 const browser = await chromium.launch()

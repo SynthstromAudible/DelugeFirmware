@@ -15,11 +15,8 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
-import Figure from "../../../../components/guidebook/Figure.astro"
 import EnvelopeFigure from "../../../../components/guidebook/EnvelopeFigure.astro"
-import fig_fig_6_3_2 from "../../../../assets/guidebook/figs/06-modulation__03-envelopes-and-low-frequency-oscillators--2.svg?raw"
-import fig_fig_6_3_3 from "../../../../assets/guidebook/figs/06-modulation__03-envelopes-and-low-frequency-oscillators--3.svg?raw"
-import fig_fig_6_3_4 from "../../../../assets/guidebook/figs/06-modulation__03-envelopes-and-low-frequency-oscillators--4.svg?raw"
+import LfoFigure from "../../../../components/guidebook/LfoFigure.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -38,31 +35,7 @@ When either of the 2 envelopes modulate a parameter other than volume level, it 
 
 The LFO is a continuous modulation function. Wave options are Sine, Saw, Square or Triangle. LFO1 has an additional SYNC parameter to set a sync time interval or switch off. LFO1 does not retrigger and covers all voices. LFO2 is retriggerable and exists for each voice separately.
 
-Triangle Sine
-
-<Figure
+<LfoFigure
   id="fig-6.3-2"
-  src={fig_fig_6_3_2}
-  alt={"Diagram: AMPLITUDE TIME TIME"}
-  page={141}
-/>
-
-Sawtooth Square
-
-<Figure
-  id="fig-6.3-3"
-  src={fig_fig_6_3_3}
-  alt={"Diagram: AMPLITUDE TIME TIME"}
-  page={141}
-/>
-
-Sample & Hold Random Walk
-
-<Figure
-  id="fig-6.3-4"
-  src={fig_fig_6_3_4}
-  alt={
-    "Diagram: AMPLITUDE AMPLITUDE TIME TIME Random unique value on each trigger. Start on zero and takes small incremental steps walking up / down from…"
-  }
-  page={141}
+  alt="The LFO shapes: sine, triangle, square, saw, sample and hold, random walk and warbler, each plotted as amplitude over time."
 />

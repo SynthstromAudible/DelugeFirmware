@@ -1,0 +1,154 @@
+---
+/**
+ * The LFO shapes (6.3): every shape the Deluge's LFOs have, each a small plot in the book's style
+ * with its name (and the book's description, for the two it described). With JavaScript the
+ * signals advance, as on a scope, slowed to half a cycle a second; the random shapes draw new
+ * values each cycle by the firmware's rules (see lfo/lfo.ts). Pause stops them; they start paused
+ * for readers who prefer reduced motion, and stop while off screen.
+ *
+ * Without JavaScript, and in print, each plot is a still trace (from a fixed seed).
+ */
+import "../../styles/guidebook.css"
+import "../../styles/guidebook-lfo.css"
+import { LfoStream, SHAPES, seeded } from "./lfo/lfo.ts"
+import { TILE, renderTile } from "./lfo/lfo-plot.ts"
+import { PER_CYCLE, PREROLL, SCALE, WINDOW } from "./lfo/lfo-view.ts"
+
+type Props = { id: string; alt: string }
+const { id, alt } = Astro.props
+
+const tiles = SHAPES.map((shape, i) => {
+  const stream = new LfoStream(shape.id, seeded(i + 1), {
+    perCycle: PER_CYCLE,
+  })
+  for (let k = 0; k < PREROLL; k++) stream.next()
+  const values = Array.from({ length: WINDOW + 1 }, () => stream.next())
+  return {
+    ...shape,
+    svg: renderTile(values, {
+      clipId: `${id}-${shape.id}`,
+      scale: SCALE[shape.id],
+    }),
+  }
+})
+---
+
+<figure class="gb-figure gb-lfo not-content" id={id} aria-label={alt}>
+  <div class="gb-lfo-grid">
+    {
+      tiles.map((t) => (
+        <div class="gb-lfo-tile" data-shape={t.id}>
+          <p class="gb-lfo-name">{t.name}</p>
+          <svg
+            class="gb-lfo-plot"
+            viewBox={`0 0 ${TILE.w} ${TILE.h}`}
+            role="img"
+            aria-label={t.about ? `${t.name}: ${t.about}` : `${t.name} LFO`}
+            set:html={t.svg}
+          />
+          {t.about && <p class="gb-lfo-about">{t.about}</p>}
+        </div>
+      ))
+    }
+  </div>
+  <div class="gb-lfo-actions" hidden>
+    <button type="button" class="gb-lfo-pause" aria-pressed="false">
+      Pause
+    </button>
+  </div>
+</figure>
+
+<script>
+  import { LfoStream, SHAPES, type ShapeId } from "./lfo/lfo.ts"
+  import { TILE, renderTile } from "./lfo/lfo-plot.ts"
+  import { PER_CYCLE, PREROLL, SCALE, SPEED, WINDOW } from "./lfo/lfo-view.ts"
+
+  function bind(figure: HTMLElement) {
+    const button = figure.querySelector<HTMLButtonElement>(".gb-lfo-pause")
+    const actions = figure.querySelector<HTMLElement>(".gb-lfo-actions")
+    if (!button || !actions) return
+
+    // Live: fresh random values each visit, as on the Deluge.
+    const tiles = [
+      ...figure.querySelectorAll<HTMLElement>(".gb-lfo-tile"),
+    ].flatMap((tile) => {
+      const shape = tile.dataset.shape as ShapeId
+      const svg = tile.querySelector<SVGSVGElement>("svg")
+      if (!svg || !SHAPES.some((s) => s.id === shape)) return []
+      const stream = new LfoStream(shape, Math.random, { perCycle: PER_CYCLE })
+      for (let k = 0; k < PREROLL; k++) stream.next()
+      const values = Array.from({ length: WINDOW + 1 }, () => stream.next())
+      return [{ shape, svg, stream, values, width: TILE.w }]
+    })
+
+    let shift = 0
+    const draw = () => {
+      for (const t of tiles)
+        t.svg.innerHTML = renderTile(t.values, {
+          clipId: `${figure.id}-${t.shape}`,
+          width: t.width,
+          shift,
+          scale: SCALE[t.shape],
+        })
+    }
+
+    // Advance by SPEED values a second, a whole value at a time plus the fraction as a shift.
+    let paused = matchMedia("(prefers-reduced-motion: reduce)").matches
+    let visible = false
+    let frame = 0
+    let last = 0
+    const tick = (now: number) => {
+      shift += ((now - last) / 1000) * SPEED
+      last = now
+      while (shift >= 1) {
+        shift -= 1
+        for (const t of tiles) {
+          t.values.shift()
+          t.values.push(t.stream.next())
+        }
+      }
+      draw()
+      frame = requestAnimationFrame(tick)
+    }
+    const run = () => {
+      cancelAnimationFrame(frame)
+      if (paused || !visible) return
+      last = performance.now()
+      frame = requestAnimationFrame(tick)
+    }
+
+    const label = () => {
+      button.textContent = paused ? "Play" : "Pause"
+      button.setAttribute("aria-pressed", String(paused))
+    }
+    button.addEventListener("click", () => {
+      paused = !paused
+      label()
+      run()
+    })
+    new IntersectionObserver(([entry]) => {
+      visible = entry.isIntersecting
+      run()
+    }).observe(figure)
+
+    // Drawn at the width shown, so the plots' text keeps its size.
+    for (const t of tiles)
+      new ResizeObserver(() => {
+        const shown = Math.max(
+          120,
+          Math.round(t.svg.getBoundingClientRect().width),
+        )
+        if (shown === t.width) return
+        t.width = shown
+        t.svg.setAttribute("viewBox", `0 0 ${shown} ${TILE.h}`)
+        draw()
+      }).observe(t.svg)
+
+    label()
+    actions.hidden = false
+    draw()
+    run()
+  }
+
+  document.querySelectorAll<HTMLElement>("figure.gb-lfo").forEach(bind)
+</script>
