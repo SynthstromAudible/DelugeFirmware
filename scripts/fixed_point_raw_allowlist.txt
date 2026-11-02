@@ -27,8 +27,7 @@ src/deluge/dsp-next/fixed/delay/delay_kernel.h raw=4 boundary=0
 src/deluge/dsp-next/fixed/delay/delay_tape.h raw=4 boundary=0
 src/deluge/dsp-next/fixed/delay/feedback_shaper.h raw=3 boundary=0
 src/deluge/dsp-next/fixed/dynamics/compressor_kernel.h raw=6 boundary=0
-src/deluge/dsp-next/fixed/dynamics/duck_envelope.cpp raw=1 boundary=0
-src/deluge/dsp-next/fixed/dynamics/duck_gain.h raw=1 boundary=0
+src/deluge/dsp-next/fixed/dynamics/duck_gain.h raw=0 boundary=4
 src/deluge/dsp-next/fixed/fft/radix.h raw=36 boundary=0
 src/deluge/dsp-next/fixed/fft/real_dft.cpp raw=2 boundary=0
 src/deluge/dsp-next/fixed/filter/filter_modes.h raw=0 boundary=5

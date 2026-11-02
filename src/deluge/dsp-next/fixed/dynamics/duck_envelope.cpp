@@ -17,6 +17,8 @@
 
 #include "dsp-next/fixed/dynamics/duck_envelope.h"
 
+#include "dsp-next/core/fixed_point.h"
+#include "dsp-next/core/fixed_point_lanes.h"
 #include "dsp-next/fixed/interpolation/table_interpolation.h"
 
 #include <algorithm>
@@ -49,11 +51,6 @@ constexpr uint32_t kPositionToQ15Shift = 8;
 constexpr uint32_t kPositionToQ31Shift = 8;
 /// The shift from a decay-table value (Q31) to Q15, which a weight of up to 2^16 scales back to Q31.
 constexpr uint32_t kDecayToQ15Shift = 16;
-
-/// @return @p a times @p b, both Q31, at Q31: the high word of the product is Q30, shifted up by one.
-[[gnu::always_inline]] inline q31 multiply_q31(q31 a, q31 b) {
-	return multiply_32x32_rshift32(a, b) << 1;
-}
 
 /// @return The decay table's remaining value at @p pos into a stage: about 0 at the start, full scale at the end.
 [[gnu::always_inline]] inline q31 remaining_decay4(uint32_t pos) {
@@ -101,7 +98,8 @@ void enter(State& s, Stage next) {
 
 q31 attack_level(q31 depth, q31 floor, uint32_t pos) {
 	const q31 travelled = kOneQ31 - duck::remaining_decay4(pos);
-	return duck::multiply_q31(depth, travelled) + floor;
+	return to_raw(
+	    add_wrap(mul_as_wrap<Q<31>>(from_raw<Q<31>>(depth), from_raw<Q<31>>(travelled)), from_raw<Q<31>>(floor)));
 }
 
 q31 release_level(q31 depth, uint32_t pos, int32_t curve_extent16) {
@@ -118,7 +116,8 @@ q31 release_level(q31 depth, uint32_t pos, int32_t curve_extent16) {
 		            + ((duck::remaining_decay8(pos) >> duck::kDecayToQ15Shift) * curved);
 	}
 
-	return kOneQ31 - depth + duck::multiply_q31(travelled, depth);
+	const auto depth_q = from_raw<Q<31>>(depth);
+	return to_raw(add_wrap(sub_wrap(Q<31>::max(), depth_q), mul_as_wrap<Q<31>>(from_raw<Q<31>>(travelled), depth_q)));
 }
 
 q31 DuckEnvelope::advance(const Coefficients& c, State& s, std::size_t n) {

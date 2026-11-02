@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "dsp-next/core/q31_ops.h"
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/types.h"
 
 #include <cstdint>
@@ -32,14 +32,15 @@ enum class DuckScale : uint8_t {
 	REVERB_RETURN, ///< The reverb's return volume: 2^29 unducked.
 };
 
-/// @brief The level the duck offsets from before squaring, Q31: a quarter, 2^29.
+/// @brief The level the duck offsets from before squaring, raw: 2^29, which is 2 at the offset sum's Q28. Squared at
+/// REVERB_RETURN's scale it is 2^29 again, the unducked return level the reverb gives without a duck.
 inline constexpr q31 kDuckGainNeutral = 1 << 29;
 /// @brief The shift on the first factor of the square, at either scale.
 inline constexpr int kDuckGainFirstShift = 15;
 
 /// @brief The duck scaled by its depth and offset to the neutral level, then squared at @p S's scale.
-/// @details p = (duck × depth) ≫ 32 + 2^29; CLIP gives (p ≫ 15)(p ≫ 16), REVERB_RETURN (p ≫ 15)(p ≫ 14). Each factor
-/// is truncated before the multiply: the owners' levels, and so their records, are squared that way.
+/// @details p = (duck × depth) ≫ 32 + 2^29, Q28 (Q31 × Q29); CLIP gives (p ≫ 15)(p ≫ 16), REVERB_RETURN (p ≫ 15)(p ≫
+/// 14). Each factor is truncated before the multiply: the owners' levels, and so their records, are squared that way.
 ///
 /// **Wrapping.** The square is taken in unsigned arithmetic and reinterpreted, as the target's `mul` gives it: a duck
 /// above zero or a negative depth lifts p toward 2^30, where REVERB_RETURN's square reaches 2^31 and wraps.
@@ -50,7 +51,8 @@ inline constexpr int kDuckGainFirstShift = 15;
 template <DuckScale S>
 [[nodiscard]] [[gnu::always_inline]] inline q31 duck_gain(q31 duck, q31 depth) {
 	constexpr int kSecondShift = S == DuckScale::CLIP ? 16 : 14;
-	const q31 p = multiply_32x32_rshift32(duck, depth) + kDuckGainNeutral;
+	const q31 p = add_wrap(mul(Q<31>::from_raw(duck), Q<29>::from_raw(depth)), Q<28>::from_raw(kDuckGainNeutral)).raw();
+	// Raw: the square is an integer product of the two truncated factors, not a fixed-point multiply.
 	return static_cast<q31>(static_cast<uint32_t>(p >> kDuckGainFirstShift) * static_cast<uint32_t>(p >> kSecondShift));
 }
 
