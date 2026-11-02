@@ -67,7 +67,7 @@ struct SincWindow {
 /// @param kernel a kernel from @ref blend_sinc_kernel.
 /// @param samples the window to weight.
 /// @returns the interpolated sample, Q30 of the window's Q15 samples: the dot product of @p kernel with @p samples,
-/// each Q15 × Q15 product widened and summed wrapping (`vmlal.s16`), then the four lanes added.
+/// each Q15 × Q15 product widened and summed wrapping (`vmlal.s16`), then the four lanes added (`sum_wrap`).
 ///
 /// Split from @ref blend_sinc_kernel so a stereo consumer can blend the kernel once and apply it to
 /// both channels (as the sample-playback Interpolator does).
@@ -76,7 +76,7 @@ struct SincWindow {
 	for (std::size_t i = 0; i < kSincWindowVectors; ++i) {
 		accumulated = mla_wide(mla_wide(accumulated, kernel[i].lo(), samples[i].lo()), kernel[i].hi(), samples[i].hi());
 	}
-	return accumulated.raw().ReduceAdd();
+	return sum_wrap(accumulated).raw();
 }
 
 /// @brief Apply a windowed-sinc interpolation kernel to a sample window (argon; the shared core of
