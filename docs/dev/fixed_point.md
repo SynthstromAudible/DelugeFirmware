@@ -110,6 +110,32 @@ by ±10–40%. The kernels move onto the typed operations one at a time instead,
 `TODO.md` tracks the LLVM side: smmul-family intrinsics, the NEON cost model, and a scalar ×2 unroll that is 22–30%
 faster on the A9.
 
+## Lane packs
+
+`src/deluge/dsp-next/core/fixed_point_lanes.h` gives every operation above, and the comparisons, on
+`LanePack<Q<F>, N>`. Each applies its scalar operation lane by lane, so a kernel's step written once over its value
+type reads the same for one stream as for N:
+- A scalar operand broadcasts, as a coefficient every lane shares does: `mul(pack, gain)`.
+- The result's format is the scalar operation's: two `Q<31>` lanes multiplied give two `Q<30>` lanes.
+- Every pack must be the same width, and a pack of `Fixed` has no arithmetic operators, as a `Fixed` has none.
+- A comparison gives a `LanePack<bool, N>`, which `select` reads.
+
+The lanes are scalar, not NEON: a two-lane `mul` is two `smmul`, independent chains the A9 overlaps. The codegen gate
+holds the two-lane multiply, multiply-accumulate and saturating add and shift to one instruction per lane. It reports a
+two-lane comparison, which clang's SLP vectorizer pairs into `vcgt.s32`. A typed NEON vocabulary comes with the first
+NEON kernel that moves onto the types.
+
+## Where the types are used
+
+- **Phase:** `Phasor` and `SyncedPhasor` hold, take and return `UQ<32>`; a step is `add_wrap`. The crude oscillators
+  forward their phase source's type. The table, pulse and wavetable oscillators and the synth's sources keep raw
+  `uint32_t` phase interfaces around their raw kernels and convert where they meet a phasor.
+- **Gain:** a `Ramp` is a `Q<31>` gain and slope; `scale_shl_wrap<N>(ramp)` is the per-wave doubling. Both VCAs take
+  the high word of sample × gain, so their product is Q30: a voice's mix is summed at half scale.
+- **Frames:** `StereoSample`'s `+` and `+=` wrap. `panned_mono` and `panned_stereo` take `Q<30>` amplitudes, unity at
+  2^30, and keep `q31_ops.h`'s multiply until the voice kernel moves.
+- **Buffers and frame fields** stay raw `q31` until the kernels that read them use the named operations.
+
 ## Measuring
 
 Device numbers come from the DSP bench (`device_benchmarking.md`). Two images whose code is identical can still
@@ -119,6 +145,13 @@ only valid with the benched code's functions 32-byte aligned: bench builds only,
 
 With that alignment, a layout-only control image matches its base to a median of 0.02%. Put the forms being
 compared into one image where possible.
+
+A change meant to keep the machine code is checked with `tools/compare_codegen.py BASE.elf NEW.elf`. It disassembles
+both images and compares them function by function, with everything the layout sets masked: addresses, pool offsets,
+trap fill and ThinLTO's renamed locals. `--diff NAME` prints a function's masked diff. ThinLTO's decisions move with
+any source change, so an empty result is not the gate. Each changed function is classified:
+- Scheduling or register allocation outside a per-sample loop is recorded in the commit.
+- A changed per-sample loop, a new call or new NEON is benched.
 
 ## The edges
 

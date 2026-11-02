@@ -8,13 +8,14 @@
 # which refuses to raise a raw count or add a file with raw sites.
 #
 # <path> raw=<n> boundary=<n>
-src/deluge/bench/cases.h raw=1 boundary=0
+src/deluge/bench/cases.cpp raw=0 boundary=13
+src/deluge/bench/cases.h raw=1 boundary=22
 src/deluge/bench/delay_feedback_cases.cpp raw=2 boundary=0
 src/deluge/bench/granular_cases.cpp raw=1 boundary=0
 src/deluge/bench/reference_chains.h raw=4 boundary=0
 src/deluge/bench/reference_impulse_response.h raw=2 boundary=0
 src/deluge/dsp-next/core/lane_pack.h raw=6 boundary=0
-src/deluge/dsp-next/core/stereo_sample.h raw=4 boundary=0
+src/deluge/dsp-next/core/stereo_sample.h raw=4 boundary=4
 src/deluge/dsp-next/fixed/curves/exp_curve.h raw=2 boundary=0
 src/deluge/dsp-next/fixed/curves/instant_tan.h raw=2 boundary=0
 src/deluge/dsp-next/fixed/curves/param_curve.h raw=7 boundary=0
@@ -38,17 +39,24 @@ src/deluge/dsp-next/fixed/interpolation/table_interpolation.h raw=2 boundary=0
 src/deluge/dsp-next/fixed/mix/dry_wet.h raw=2 boundary=0
 src/deluge/dsp-next/fixed/mix/track_monitor.h raw=2 boundary=0
 src/deluge/dsp-next/fixed/mod_fx/mod_fx_kernel.h raw=31 boundary=0
+src/deluge/dsp-next/fixed/osc/crude_oscillators.h raw=0 boundary=4
+src/deluge/dsp-next/fixed/osc/pulse_oscillator.h raw=0 boundary=8
+src/deluge/dsp-next/fixed/osc/table_oscillator.h raw=0 boundary=6
 src/deluge/dsp-next/fixed/reverb/freeverb.h raw=7 boundary=0
 src/deluge/dsp-next/fixed/shaping/sample_rate_reducer.h raw=3 boundary=0
 src/deluge/dsp-next/fixed/shaping/tanh.h raw=2 boundary=0
 src/deluge/dsp-next/fixed/shaping/wavefolder.h raw=6 boundary=0
 src/deluge/dsp-next/fixed/stutter/stutter_kernel.h raw=2 boundary=0
-src/deluge/dsp-next/fixed/sync/sync_windower.h raw=3 boundary=0
-src/deluge/dsp-next/fixed/sync/synced_phasor.h raw=2 boundary=0
-src/deluge/dsp-next/fixed/vca/crude_amplitude.h raw=1 boundary=0
+src/deluge/dsp-next/fixed/sync/sync_windower.h raw=3 boundary=2
+src/deluge/dsp-next/fixed/sync/synced_oscillator.h raw=0 boundary=1
+src/deluge/dsp-next/fixed/sync/synced_phasor.h raw=2 boundary=6
+src/deluge/dsp-next/fixed/vca/amplitude.h raw=0 boundary=2
+src/deluge/dsp-next/fixed/vca/crude_amplitude.h raw=1 boundary=2
 src/deluge/dsp-next/fixed/vca/send_and_volume.h raw=10 boundary=0
 src/deluge/dsp-next/fixed/wavetable/band_builder.cpp raw=1 boundary=0
-src/deluge/dsp-next/fixed/wavetable/wavetable_cycle_chunker.h raw=3 boundary=0
+src/deluge/dsp-next/fixed/wavetable/wavetable_cycle_chunker.h raw=3 boundary=2
+src/deluge/dsp-next/fixed/wavetable/wavetable_oscillator.h raw=0 boundary=8
+src/deluge/dsp-next/fixed/wavetable/wavetable_sync_oscillator.h raw=0 boundary=6
 src/deluge/dsp-next/float/reverb/plate.h raw=2 boundary=0
 src/deluge/dsp/timestretch/time_stretcher.cpp raw=5 boundary=0
 src/deluge/gui/menu_item/audio_compressor/compressor_values.h raw=2 boundary=0
@@ -83,6 +91,7 @@ src/effects/delay.cpp raw=1 boundary=0
 src/effects/master_chain.cpp raw=2 boundary=0
 src/effects/param_fragment.h raw=1 boundary=0
 src/effects/sidechain.cpp raw=2 boundary=0
+src/synth/engines/block_controls.cpp raw=0 boundary=4
 src/synth/engines/dual_source_engine.cpp raw=3 boundary=0
 src/synth/engines/fm_engine.cpp raw=14 boundary=0
 src/synth/engines/pitch.h raw=1 boundary=0
@@ -100,6 +109,10 @@ src/synth/sources/input/live/live_pitch_shifter.cpp raw=6 boundary=0
 src/synth/sources/input/live/live_pitch_shifter_play_head.cpp raw=6 boundary=0
 src/synth/sources/oscillator_source.h raw=2 boundary=0
 src/synth/sources/sample/sample_source.cpp raw=4 boundary=0
-src/synth/sources/va/va_shapes.cpp raw=2 boundary=0
-src/synth/sources/wavetable/wavetable_source.cpp raw=2 boundary=0
-src/synth/voice/voice.cpp raw=10 boundary=0
+src/synth/sources/source.h raw=0 boundary=2
+src/synth/sources/source_slot.cpp raw=0 boundary=8
+src/synth/sources/va/va_shapes.cpp raw=2 boundary=28
+src/synth/sources/va/va_shapes.h raw=0 boundary=24
+src/synth/sources/wavetable/wavetable_source.cpp raw=2 boundary=4
+src/synth/sources/wavetable/wavetable_source.h raw=0 boundary=3
+src/synth/voice/voice.cpp raw=10 boundary=4
