@@ -9,7 +9,9 @@
 #include "hid/buttons.h"
 #include "memory/heaps.h"
 #include "model/settings/runtime_feature_settings.h"
+#include "scenes/profile.h"
 #include "scenes/registry.h"
+#include "shell/profiles/deluge.h"
 
 namespace fakelegacyui {
 
@@ -260,12 +262,17 @@ void uiNeedsRendering(UI* ui, uint32_t whichMainRows, uint32_t whichSideRows) {
 }
 
 // ---------------------------------------------------------------------------
-// src/scenes/registry.cpp's share: an empty table, so the one global exists.
+// src/scenes/registry.cpp's and profile.cpp's share: an empty table and the shell's own profile (no l10n hook), so the
+// one global exists.
 // ---------------------------------------------------------------------------
 namespace deluge::scenes {
 
 deluge::ui::shell::SceneRegistry scene_registry() {
 	return deluge::ui::shell::SceneRegistry{std::span<deluge::ui::shell::Scene* const>{}};
+}
+
+const deluge::ui::shell::BoardProfile& deluge_profile() {
+	return deluge::ui::shell::deluge_profile();
 }
 
 } // namespace deluge::scenes
