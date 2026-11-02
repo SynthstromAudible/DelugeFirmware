@@ -24,6 +24,10 @@ import fig_fig_4_10_3 from "../../../../assets/guidebook/figs/04-synthesizers__1
 
 Deluge has a high-pass and low-pass filter. Each is configurable with the mode type and has a morph feature. Filter routing can also configurable.
 
+{/* aside fig-4.10-1 */}
+
+<div class="gb-aside">
+
 <Figure
   id="fig-4.10-1"
   src={fig_fig_4_10_1}
@@ -31,31 +35,65 @@ Deluge has a high-pass and low-pass filter. Each is configurable with the mode t
   page={108}
 />
 
-HPF - HIGH-PASS FILTER ATTENUATION Allows higher frequencies to pass through the filter and cuts off lower frequencies.
+<div>
+
+#### HPF - HIGH-PASS FILTER
+
+Allows higher frequencies to pass through the filter and cuts off lower frequencies.
+
+</div>
+
+</div>
+
+{/* /aside fig-4.10-1 */}
+
+{/* aside fig-4.10-2 */}
+
+<div class="gb-aside">
 
 <Figure
   id="fig-4.10-2"
   src={fig_fig_4_10_2}
-  alt={
-    "Diagram: LPF - LOW-PASS FILTER 2 Pole 12dB/Octave Allows lower frequencies to pass through the filter and cuts off higher frequencies. Deluge…"
-  }
+  alt={"Diagram: 2 Pole 12dB/Octave 4 Pole 24dB/Octave FREQUENCY"}
   page={108}
 />
 
-ATTENUATION
+<div>
+
+#### LPF - LOW-PASS FILTER
+
+Allows lower frequencies to pass through the filter and cuts off higher frequencies. Deluge filters are 2-pole and 4-pole and 4-pole analog drive with saturation only on the LPF. Poles refer to how ‘steep’ or aggressive the cutoff curve is. This is measured in dB per octave.
+
+</div>
+
+</div>
+
+{/* /aside fig-4.10-2 */}
+
+{/* aside fig-4.10-3 */}
+
+<div class="gb-aside">
 
 <Figure
   id="fig-4.10-3"
   src={fig_fig_4_10_3}
   alt={
-    "Diagram: Cut Off Frequency CUTOFF & RESONANCE Stop Transition Band Band Resonance The two parameters common to both the filters provide control over…"
+    "Diagram: Cut Off Frequency Stop Transition Band Band Resonance Pass Band FREQUENCY"
   }
   page={108}
 />
 
-ATTENUATION
+<div>
 
-\`
+#### CUTOFF & RESONANCE
+
+The two parameters common to both the filters provide control over the cutoff frequency and also the resonance (emphasis at the cutoff point).
+
+</div>
+
+</div>
+
+{/* /aside fig-4.10-3 */}
 
 MODE: The LPF has 2 Ladder filters, SVF Notch and SVF Bandpass. The HPF contains a HP Ladder filter, SVF Notch and SVF Bandpass. The State Variable Filters have significantly less distortion than the ladder filters.
 

@@ -15,6 +15,10 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import fig_fig_4_9_5_b from "../../../../assets/guidebook/figs/04-synthesizers__09-oscillators--5-b.svg?raw"
+import fig_fig_4_9_5_c from "../../../../assets/guidebook/figs/04-synthesizers__09-oscillators--5-c.svg?raw"
+import fig_fig_4_9_5_d from "../../../../assets/guidebook/figs/04-synthesizers__09-oscillators--5-d.svg?raw"
+
 import StepFocus from "../../../../components/guidebook/StepFocus.astro"
 import { Steps } from "@astrojs/starlight/components"
 import Figure from "../../../../components/guidebook/Figure.astro"
@@ -66,14 +70,77 @@ Sawtooth ASquare
 
 ## Audio / Inputs as an Oscillator Waveform
 
+{/* aside fig-4.9-5 */}
+
+<div class="gb-aside">
+
 <Figure
   id="fig-4.9-5"
   src={fig_fig_4_9_5}
-  alt={
-    "OLED screen: TYPE INL In left/right, in right or in left, are automatically INR available when a physical line in is connected. INLR TYPE An audio…"
-  }
+  alt={"OLED screen: TYPE INL INR INLR"}
   page={106}
 />
+
+<div>
+
+In left/right, in right or in left, are automatically available when a physical line in is connected.
+
+</div>
+
+</div>
+
+<div class="gb-aside">
+
+<Figure
+  id="fig-4.9-5-b"
+  src={fig_fig_4_9_5_b}
+  alt={"OLED screen: TYPE INR INLR SAMPLE"}
+  page={106}
+/>
+
+<div>
+
+An audio sample can be used as the oscillator source. A series of sample specific options are available in the sound editor when SAMPLE is selected.
+
+</div>
+
+</div>
+
+<div class="gb-aside">
+
+<Figure
+  id="fig-4.9-5-c"
+  src={fig_fig_4_9_5_c}
+  alt={"OLED screen: TYPE INLR SAMPLE WAVETABLE"}
+  page={106}
+/>
+
+<div>
+
+A wavetable file can be assigned to the oscillator source to create a wavetable synth. The main parameter is the wave position used by the oscillator. Navigation function of the wave is accessed in the oscillator options or via the keyboard shortcut.
+
+</div>
+
+</div>
+
+<div class="gb-aside">
+
+<Figure
+  id="fig-4.9-5-d"
+  src={fig_fig_4_9_5_d}
+  alt={"Diagram: figure from guidebook page 106"}
+  page={106}
+/>
+
+<div>
+
+Wavetable navigation set per Osc. Available when Type is Wavetable.
+
+</div>
+
+</div>
+
+{/* /aside fig-4.9-5 */}
 
 The ability to use a standard audio sample as an oscillator is also possible. While single cycles are also useful here, they are better applied in a wavetable synth.
 

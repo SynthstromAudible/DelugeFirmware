@@ -15,6 +15,8 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import fig_fig_5_4_1_a from "../../../../assets/guidebook/figs/05-kits__04-alternate-drum-pad-grid-view--1-a.svg?raw"
+
 import Figure from "../../../../components/guidebook/Figure.astro"
 import fig_fig_5_4_1 from "../../../../assets/guidebook/figs/05-kits__04-alternate-drum-pad-grid-view--1.svg?raw"
 
@@ -25,14 +27,37 @@ import StepFocus from "../../../../components/guidebook/StepFocus.astro"
 
 While a kit can contain drum and synth sounds it is normally recognised that kits are typically associated with drum kits. An alternate view presents the grid layout as MPC style drum pad zones using KEYBOARD when in KIT mode.
 
+{/* aside fig-5.4-1 */}
+
+<div class="gb-aside">
+
+<Figure
+  id="fig-5.4-1-a"
+  src={fig_fig_5_4_1_a}
+  alt={"Diagram: figure from guidebook page 128"}
+  page={128}
+/>
+
+<div>
+
+Notes to trigger the kit’s sounds can be played on drum pads, laid out as a series of 4 x 4 pads, each cluster controlling the sound and each pad controlling the velocity.
+
+This is available by pressing :key[Keyboard] when in Kit View
+
+</div>
+
+</div>
+
 <Figure
   id="fig-5.4-1"
   src={fig_fig_5_4_1}
   alt={
-    "Pad grid: Notes to trigger the kit’s sounds can be played on drum pads, laid out as a series of 4 x 4 pads, each cluster controlling the sound and…"
+    "Pad grid: Sound 8 Sound 5 Sound Sound Sound 8 Sound 5 Sound 4 Sound 1 Sound Sound Sound 4 Sound 1 The kit sounds are mapped across the pad zones with…"
   }
   page={128}
 />
+
+{/* /aside fig-5.4-1 */}
 
 <StepFocus />
 

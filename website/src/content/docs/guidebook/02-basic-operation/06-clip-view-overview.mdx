@@ -15,6 +15,8 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import fig_fig_2_6_1_a from "../../../../assets/guidebook/figs/02-basic-operation__06-clip-view-overview--1-a.svg?raw"
+
 import StepFocus from "../../../../components/guidebook/StepFocus.astro"
 import { Steps } from "@astrojs/starlight/components"
 import Figure from "../../../../components/guidebook/Figure.astro"
@@ -29,15 +31,38 @@ In clip view the pad grid is laid out with 16 x 8 physical pads which represents
 
 ## Grid Basics : Clip View
 
+{/* aside fig-2.6-1 */}
+
+<div class="gb-aside">
+
+<Figure
+  id="fig-2.6-1-a"
+  src={fig_fig_2_6_1_a}
+  alt={"Diagram: figure from guidebook page 20"}
+  page={20}
+/>
+
+<div>
+
+Notes or kit sounds can be programmed in the sequencer at the desired column step for its time position and row for synth pitch or kit sound by pressing a pad to toggle it on (lit) / off (unlit).
+
+In play mode, pressing pads will silently select the step. When not in play mode pads will trigger the sound when selected.
+
+</div>
+
+</div>
+
 <Figure
   id="fig-2.6-1"
   animate="playhead"
   src={fig_fig_2_6_1}
   alt={
-    "Pad grid: Notes or kit sounds can be programmed in the sequencer at the desired column step for its time position and row for synth pitch or kit…"
+    "Pad grid: Sequence plays left to right First steps Time Higher notes Lower notes Synth: pitch is represented by the rows of the grid. Lower rows are…"
   }
   page={20}
 />
+
+{/* /aside fig-2.6-1 */}
 
 <Figure
   id="fig-2.6-2"

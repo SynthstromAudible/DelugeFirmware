@@ -24,11 +24,53 @@ Arranger consists of a group of linearly arranged instrument and audio clip inst
 
 ## Relationship Between Views
 
+{/* aside fig-8.2-1 */}
+
+<div class="gb-aside">
+
 <Figure
   id="fig-8.2-1"
   src={fig_fig_8_2_1}
   alt={
-    "Diagram: Clip View - [CLIP] Note / Sound Note / Sound Rows: discrete synth note pitch or kit sounds. Note / Sound Mute / launch: mute’s sounds or…"
+    "Diagram: Note / Sound Note / Sound Note / Sound Note / Sound Note / Sound Note / Sound Note / Sound Note / Sound The entire clip consisting of all…"
   }
   page={181}
 />
+
+<div>
+
+#### Clip View - [CLIP]
+
+Rows: discrete synth note pitch or kit sounds.
+
+Mute / launch: mute’s sounds or notes.
+
+Audition / section: auditions notes / sounds.
+
+Clip is the entire grid. 5 types of clips exist; synth, kit, MIDI, CV and audio. A clip contains sequencing or audio for each discrete clip element.
+
+#### Song View - [SONG]
+
+Rows: single instrument or audio clip compressed to a representative 1 row each.
+
+Mute / launch: launches clips. Used for looping control and commands.
+
+Audition / section: sections & section launch by colour. Used for looping control and commands.
+
+Clips are arranged into single rows where they can be triggered individually or together in groups managed as coloured sections.
+
+#### Arranger View - [SONG] [SONG]
+
+Rows: individual instrument, MIDI, CV, audio per row.
+
+Mute / launch: mutes / unmutes the ‘track’ row.
+
+Audition / section: auditions a clip by one of its sounds.
+
+Clip instances, arranged in a linear sequencer, handled on an instrument by instrument basis, covers audio clips and includes variations, gaps and parts to be assembled together.
+
+</div>
+
+</div>
+
+{/* /aside fig-8.2-1 */}

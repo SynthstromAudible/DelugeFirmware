@@ -15,6 +15,8 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import fig_fig_7_2_1_a from "../../../../assets/guidebook/figs/07-song-view__02-song-view-basics--1-a.svg?raw"
+
 import Figure from "../../../../components/guidebook/Figure.astro"
 import fig_fig_7_2_1 from "../../../../assets/guidebook/figs/07-song-view__02-song-view-basics--1.svg?raw"
 
@@ -22,11 +24,34 @@ import fig_fig_7_2_1 from "../../../../assets/guidebook/figs/07-song-view__02-so
 
 While the synth and kit clip view is used for developing individual instrument sequences, song view provides a more holistic approach, consolidating all clips into a compressed view, each clip shown as a row. Song view is where all existing clips are managed together, new clips can be added, existing ones deleted and reordered.
 
+{/* aside fig-7.2-1 */}
+
+<div class="gb-aside">
+
+<Figure
+  id="fig-7.2-1-a"
+  src={fig_fig_7_2_1_a}
+  alt={"Diagram: figure from guidebook page 153"}
+  page={153}
+/>
+
+<div>
+
+Song view compresses all clips and takes an overall view of the song ‘project’ in rows or grid.
+
+First time entering song view only one clip will be present. Clips can be created, re-ordered, deleted in song view.
+
+</div>
+
+</div>
+
 <Figure
   id="fig-7.2-1"
   src={fig_fig_7_2_1}
   alt={
-    "Diagram: Song view compresses all clips and takes an overall view of the song ‘project’ in rows or grid. First time entering song view only one clip…"
+    "Diagram: Song Row View (Default) Arrangement style presented with a clip per row. Clip Clip Clip Empty Clip Empty Clip Empty Clip Empty Clip Empty…"
   }
   page={153}
 />
+
+{/* /aside fig-7.2-1 */}

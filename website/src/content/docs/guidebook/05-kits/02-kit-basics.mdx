@@ -15,6 +15,8 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import fig_fig_5_2_1_a from "../../../../assets/guidebook/figs/05-kits__02-kit-basics--1-a.svg?raw"
+
 import Figure from "../../../../components/guidebook/Figure.astro"
 import fig_fig_5_2_1 from "../../../../assets/guidebook/figs/05-kits__02-kit-basics--1.svg?raw"
 
@@ -25,15 +27,38 @@ import StepFocus from "../../../../components/guidebook/StepFocus.astro"
 
 If synth clips mainly support melodic elements with the ability for sample use, kits would more often be used with samples as the primary elements. Kits are used to form step patterns across the grid columns. These sounds can be samples, a synth, audio or even MIDI and CV. Unlike a synth which provides a sequenced melody, kits are used to typically generate a rhythm, maybe for drums or percussion or any other sequenced element.
 
+{/* aside fig-5.2-1 */}
+
+<div class="gb-aside">
+
+<Figure
+  id="fig-5.2-1-a"
+  src={fig_fig_5_2_1_a}
+  alt={"Diagram: figure from guidebook page 119"}
+  page={119}
+/>
+
+<div>
+
+Notes to trigger the kit’s sounds are recorded or programmed into the step sequencer. Programming is done by pressing a pad to toggle it on (lit) / off (unlit).
+
+In play mode, pressing pads will silently enter the step; when not in play mode, pads will additionally audition the sound when selected.
+
+</div>
+
+</div>
+
 <Figure
   id="fig-5.2-1"
   animate="playhead"
   src={fig_fig_5_2_1}
   alt={
-    "Pad grid: Notes to trigger the kit’s sounds are recorded or programmed into the step sequencer. Programming is done by pressing a pad to toggle it on…"
+    "Pad grid: Time Sound Sound Sound Sound Sound Sound Sound Sound Individual sounds per Beats and loops as opposed to single ‘hits’ can also be used.…"
   }
   page={119}
 />
+
+{/* /aside fig-5.2-1 */}
 
 <StepFocus />
 
