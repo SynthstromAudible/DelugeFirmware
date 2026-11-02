@@ -256,3 +256,25 @@ test("a title and heading that differ only in case are one subentry, one link pe
     },
   ])
 })
+
+test("appendix sections sort after numbered ones", () => {
+  const page = (section: string): IndexPage => ({
+    section,
+    title: `Page ${section}`,
+    href: `/guidebook/p-${section}`,
+    headings: [{ depth: 2, slug: "shared", text: "Shared heading" }],
+  })
+  const v: IndexVocab = {
+    headwords: [{ head: "Shared", match: ["shared"] }],
+    see: [],
+    external: [],
+  }
+  const [sub] = entry(
+    buildIndex([page("21.4"), page("A"), page("3.2")], v),
+    "Shared",
+  )!.subs
+  assert.deepEqual(
+    sub.links.map((l) => l.text),
+    ["3.2", "21.4", "A"],
+  )
+})

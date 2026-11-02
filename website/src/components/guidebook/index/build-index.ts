@@ -75,8 +75,11 @@ function names(item: Item, hw: IndexVocab["headwords"][number]): boolean {
   return hw.match.some((m) => word(m).test(text))
 }
 
+// "3.2" < "21.4" < "A" (appendices, lettered, come after every chapter)
 const sectionOrder = (a: string, b: string) => {
-  const [x, y] = [a.split(".").map(Number), b.split(".").map(Number)]
+  const key = (s: string) =>
+    /^\d/.test(s) ? s.split(".").map(Number) : [Infinity, s.charCodeAt(0)]
+  const [x, y] = [key(a), key(b)]
   return x[0] - y[0] || (x[1] ?? 0) - (y[1] ?? 0)
 }
 const alpha = (a: string, b: string) =>
