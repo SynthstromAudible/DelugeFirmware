@@ -68,9 +68,11 @@ Every operation is plain C or an ACLE intrinsic that clang 23 compiles to the in
 Thumb-2. The app's files are Thumb-2; dsp-next's own libraries are ARM. The only inline asm left is the fixed-point
 VFP `vcvt`, which clang does not form by itself.
 
-`tests/unit-arm/codegen` disassembles each operation built with the shipping flags (`-O2 -fno-inline-functions`, both
-instruction sets) and fails on any other instruction sequence. `tests/unit-arm/spec/fixed_point_isa_spec.cpp`
-compares every operation, and its portable version, against the real instruction under qemu.
+`tests/unit-arm/codegen` disassembles each operation in both instruction sets, built with the app's `-O2
+-fno-inline-functions`, the stricter of the image's two inliners. It fails on any other instruction sequence, on a
+wrong immediate where one matters, and on any call. It also reports, without failing, which loop shapes the compiler
+auto-vectorizes. `tests/unit-arm/spec/fixed_point_isa_spec.cpp` compares every operation, and every portable form,
+against the real instruction under qemu.
 
 | Operation | A9 instruction |
 |---|---|
@@ -99,7 +101,8 @@ comparisons and `constexpr` constants instead.
 Clang has no intrinsic for `smmul`, so plain C means the idiom `(int32_t)(((int64_t)a * b) >> 32)`. Clang's loop
 vectorizer widens loops of that idiom into NEON, which is 3–7× slower on the A9: `vmull.s32` + `vshrn.i64`, or a
 `umull` per lane with values shuttled through `vmov.32`. Empty-asm barriers can stop it, but they cost 10–40% in
-other kernels.
+other kernels. `fixed_point.h`'s multiply-high family is that same idiom, so a loop of it can vectorize the same way;
+the codegen gate's loop report shows which shapes do.
 
 Measured on the device with a layout-stable bench (below): every rebuilt form of the helpers moved single kernels
 by ±10–40%. The kernels move onto the typed operations one at a time instead, each benched.
@@ -121,10 +124,14 @@ compared into one image where possible.
 
 - **Buffers** are declared as `Q<F>` arrays by the code that owns them. A single audited raw `int32_t` view sits at
   the codec/DMA edge. There is no `may_alias` and no reinterpreting of buffers.
-- **`scripts/check_fixed_point_raw.py`** counts each file's raw helper calls, DSP-instruction asm and `from_raw` /
-  `.raw()` / `reinterpret_bits` uses outside `fixed_point.h` and `q31_ops.h`. `scripts/fixed_point_raw_allowlist.txt`
-  pins those counts and may only shrink. Moving a file onto the typed operations is the unit of progress; rewrite the
-  list afterwards with `--write`.
+- **`scripts/check_fixed_point_raw.py`** counts two things per file outside `fixed_point.h` and `q31_ops.h`:
+  - raw sites, meaning raw helper calls and DSP-instruction asm;
+  - boundary crossings, meaning `from_raw`, `.raw()`, `->raw()` and `reinterpret_bits`.
+
+  `scripts/fixed_point_raw_allowlist.txt` pins the raw counts, and they may only shrink. A count below its entry also
+  fails until `--write` records it, so freed headroom can't be spent again. Boundary crossings are recorded but not
+  gated: while interfaces still take raw `q31`, moving code onto the typed operations adds them. Moving a file onto
+  the typed operations is the unit of progress.
 - **What the ratchet can't see:** bare `int32_t` audio arithmetic (`+` or `<<` on samples) looks like any other
   integer code, so reviews have to catch it.
 - **Doc comments** still give the physical meaning where the type can't: cycles per sample, unity gain, a legacy

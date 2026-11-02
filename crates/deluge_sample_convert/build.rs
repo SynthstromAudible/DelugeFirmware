@@ -63,8 +63,8 @@ fn main() {
     for f in [&convert_cpp, &stitch_cpp, &helpers_cpp, &shim_cpp] {
         println!("cargo:rerun-if-changed={}", f.display());
     }
-    // The headers those sources include. Cargo scans a directory recursively, so a header added there is
-    // tracked too; without these, a change to q31_ops.h left the crate's tests running the old conversion.
+    // The headers those sources include, so a change to one (q31_ops.h's conversion, say) rebuilds the C++ the
+    // tests run. Cargo scans a directory recursively, so a header added there is tracked too.
     for header in [
         src_deluge.join("dsp-next/core"),
         stream.clone(),

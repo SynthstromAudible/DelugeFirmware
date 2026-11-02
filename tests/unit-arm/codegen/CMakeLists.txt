@@ -1,6 +1,8 @@
-# Every fixed-point operation must compile to the instruction its comment names, at the codegen flags the shipping
-# image's TUs use: app TUs are Thumb-2, dsp-next's are ARM, both at -O2 with -fno-inline-functions. The image is
-# bare metal, so neither the Linux toolchain's stack protector nor its PIC applies.
+# Every fixed-point operation must compile to the instruction its comment names, in both instruction sets the image
+# uses: Thumb-2 (the app's TUs) and ARM (dsp-next's libraries). Both probes take the app's -O2 -fno-inline-functions,
+# the stricter of the two inliners (the libraries build -finline-functions -fno-lto; the app's code is generated in
+# the image's LTO link), so an operation that inlines here inlines in both. The image is bare metal, so neither the
+# Linux toolchain's stack protector nor its PIC applies.
 set(_fixed_point_probe_options
   -O2
   -mcpu=cortex-a9

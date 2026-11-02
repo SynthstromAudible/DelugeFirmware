@@ -151,7 +151,7 @@ Read off the linker scripts and the image's symbols. The load-copy item is built
   image ceiling from `0x202E0000` to the RTT reserve at `0x202EB000`. The `code_end` metadata can keep the rounded
   value.
 - **The `.sdram_init` load copy is compressed and returned to the heap.** `.sdram_init` is linked at its SDRAM address
-  only; the build's staging deflates it into `.sdram_init_pack`, reserved at half its size in the boot-only
+  only; the build's staging deflates it into `.sdram_init_pack`, reserved at 15/32 of its size in the boot-only
   tail after `.ARM.exidx`, and `__sram_heap_base` is the pack's start. The boot inflates it into SDRAM
   (`boot_mem.rs`, `sdram_pack.rs`) before the app creates its heaps, so anything placed in SDRAM costs part of its
   size in the image until the boot (code about half, the setting tables about a tenth), and nothing in steady state
