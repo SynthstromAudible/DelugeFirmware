@@ -47,6 +47,8 @@
 #include "dsp-next/fixed/filter/filter_set.h"
 #include "dsp-next/fixed/filter/one_pole.h"
 #include "dsp-next/fixed/filter/shift_tracker.h"
+#include "dsp-next/fixed/interpolation/interpolator.h"
+#include "dsp-next/fixed/interpolation/windowed_sinc_kernel.h"
 #include "dsp-next/fixed/mix/dry_wet.h"
 #include "dsp-next/fixed/osc/band_limited_table_oscillator.h"
 #include "dsp-next/fixed/osc/crude_oscillators.h"
@@ -716,6 +718,30 @@ public:
 private:
 	uint32_t centre_phase_ = 0;
 	dsp::fixed::Supersaw::SidePhases side_phases_{};
+	BlockSpans spans_{};
+};
+
+/// @brief The sample interpolator, `Interpolator`, as sample playback runs it: each sample advances both tap windows
+/// by one (input_a and input_b's top halves) and interpolates the stereo frame, its left channel into the output.
+/// @details **Timed state:** the windows and the play position carry from block to block; the position steps at
+/// kRate, so the sub-sample phase and the kernel row change every sample.
+class SampleInterpolateCase {
+public:
+	/// @brief The play rate, UQ8.24: about three semitones up.
+	static constexpr uint32_t kRate = 20'000'000;
+	/// @brief The kernel variant sample playback picks at kRate.
+	static constexpr int32_t kVariant = dsp::fixed::WindowedSincKernel::variant_for(static_cast<int32_t>(kRate));
+
+	/// @brief Fills both inputs, empties the windows, restarts the position, and takes the blocks' spans for @p n.
+	/// @param n Block size to set up for, in samples.
+	void setup(std::size_t n);
+	/// @brief Interpolates one block of the size it was set up for.
+	/// @param n Block size, in samples; the size passed to setup().
+	void block(std::size_t n);
+
+private:
+	dsp::fixed::Interpolator interpolator_{};
+	uint32_t position_ = 0;
 	BlockSpans spans_{};
 };
 
@@ -1836,6 +1862,7 @@ struct CaseSet {
 	DryWetBlendCase dry_wet_blend;                                ///< `dry_wet_blend`
 	ReleaseRateCase release_rate;                                 ///< `release_rate`
 	SupersawCase supersaw;                                        ///< `supersaw`
+	SampleInterpolateCase sample_interpolate;                     ///< `sample_interpolate`
 	OnePoleX2Case one_pole_x2;                                    ///< `one_pole_x2`
 	OnePoleX4Case one_pole_x4;                                    ///< `one_pole_x4`
 	ShiftTrackerX4Case shift_tracker_x4;                          ///< `shift_tracker_x4`

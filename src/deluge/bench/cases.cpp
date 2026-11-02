@@ -430,6 +430,22 @@ void SupersawCase::setup(std::size_t n) {
 	side_phases_ = dsp::fixed::Supersaw::side_phases_from(centre_phase_);
 }
 
+void SampleInterpolateCase::setup(std::size_t n) {
+	spans_ = spans(n);
+	fill_inputs();
+	interpolator_ = dsp::fixed::Interpolator{};
+	position_ = 0;
+}
+
+void SampleInterpolateCase::block(std::size_t n) {
+	for (std::size_t i = 0; i < n; ++i) {
+		position_ += kRate;
+		interpolator_.push_l(static_cast<int16_t>(spans_.a[i] >> 16));
+		interpolator_.push_r(static_cast<int16_t>(spans_.b[i] >> 16));
+		spans_.out[i] = interpolator_.interpolate(2, kVariant, position_ & 0xFF'FFFFU).l;
+	}
+}
+
 void SupersawCase::block(std::size_t /*n*/) {
 	dsp::fixed::Supersaw::render(spans_.out, kIncrement, kSpread, dsp::fixed::Supersaw::kNumSaws, centre_phase_,
 	                             side_phases_, true);
@@ -571,6 +587,7 @@ std::span<const Case> kernel_list(CaseSet& s) {
 	    make_case("dry_wet_blend", s.dry_wet_blend),
 	    make_case("release_rate", s.release_rate),
 	    make_case("supersaw", s.supersaw),
+	    make_case("sample_interpolate", s.sample_interpolate),
 	};
 	return kernels;
 }
