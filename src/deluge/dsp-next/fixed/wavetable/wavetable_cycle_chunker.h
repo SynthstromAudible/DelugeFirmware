@@ -17,9 +17,9 @@
 #pragma once
 
 #include "definitions_cxx.hpp" // kInterpolationMaxNumSamples(Magnitude)
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/generator.h"
 #include "dsp-next/core/phasor.h"
-#include "dsp-next/core/q31_ops.h"                             // multiply_32x32_rshift32(_accumulate)_rounded
 #include "dsp-next/fixed/interpolation/sinc_interpolation.h"   // windowed_sinc_apply, SincWindow
 #include "dsp-next/fixed/interpolation/windowed_sinc_kernel.h" // kWindowedSincKernel
 #include "dsp-next/fixed/wavetable/wave_table_data.h"
@@ -46,7 +46,7 @@ constexpr int32_t kSincRowBlendShift =
 	uint32_t index = centre - (kInterpolationMaxNumSamples >> 1);
 	for (std::size_t i = 0; i < kSincWindowVectors; ++i) {
 		index &= (1 << magnitude) - 1;
-		window[i] = Argon<int16_t>::Load(&table[index]);
+		window[i] = Q16Vec<15>::from_raw(Argon<int16_t>::Load(&table[index]));
 		index += Argon<int16_t>::lanes;
 	}
 	return window;
@@ -116,11 +116,12 @@ struct CycleChunk {
 			// Both cycles share the same sub-sample kernel position, so blend the kernel once.
 			SincWindow blended =
 			    blend_sinc_kernel(sinc_kernel_row(kernel, phase, magnitude), sinc_row_blend(phase, magnitude));
-			int32_t value1 = windowed_sinc_dot(blended, load_window(cycle1, phase, magnitude));
-			int32_t value2 = windowed_sinc_dot(blended, load_window(cycle2, phase, magnitude));
-			int32_t difference = value2 - value1;
-			// value1 is taken a magnitude smaller, because the multiply below shrinks `difference` by one.
-			*sample = multiply_accumulate_32x32_rshift32_rounded(value1 >> 1, difference, blend >> 1);
+			const auto value1 = Q<30>::from_raw(windowed_sinc_dot(blended, load_window(cycle1, phase, magnitude)));
+			const auto value2 = Q<30>::from_raw(windowed_sinc_dot(blended, load_window(cycle2, phase, magnitude)));
+			// The UQ32 morph read as Q31 (one fewer bit, top bit clear) weights the Q30 difference: a Q29 product, so
+			// value1 is reformatted to Q29 and the sample comes out Q29 of the cycles' Q15 samples.
+			const auto weight = reinterpret_bits<Q<31>>(as_floor<UQ<31>>(UQ<32>::from_raw(blend)));
+			*sample = mla_r(as_floor<Q<29>>(value1), sub_wrap(value2, value1), weight).raw();
 			blend += cross_cycle_blend_increment;
 		} while (++sample != end);
 	}

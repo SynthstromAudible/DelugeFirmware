@@ -16,6 +16,7 @@
  */
 
 #include "dsp-next/fixed/wavetable/band_builder.h"
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/q31_ops.h"
 #include "dsp-next/fixed/fft/magnitude.h"
 #include "dsp-next/fixed/fft/real_dft.h"
@@ -42,14 +43,17 @@ namespace {
 	}
 }
 
-/// @brief Each cycle value, already 2^-kCycleHeadroomBits of its Q31 sample, as the band's 16-bit sample.
+/// @brief Each cycle value, its sample at Q(31 − kCycleHeadroomBits), as the band's Q15 sample. The sample's value is
+/// in [−1, 1), so its Q15 fits 16 bits and the narrowing cast keeps every bit.
 [[gnu::always_inline]] inline void narrow_band0(int16_t* out, std::span<const int32_t> cycle) {
 	for (std::size_t i = 0; i < cycle.size(); i++) {
-		out[i] = static_cast<int16_t>(cycle[i] >> (16 - kCycleHeadroomBits));
+		const auto sample = Q<31 - kCycleHeadroomBits>::from_raw(cycle[i]);
+		out[i] = static_cast<int16_t>(as_floor<Q<15>>(sample).raw());
 	}
 }
 
-/// @brief Each inverse transform value, shifted down by @p shift, saturated to 16 bits.
+/// @brief Each inverse transform value, shifted down by @p shift, saturated to 16 bits. The shift is the band's
+/// run-time normalisation, so it stays a raw shift: the formats name compile-time shifts only.
 [[gnu::always_inline]] inline void narrow_rendered(int16_t* out, std::span<const int32_t> cycle, int32_t shift) {
 	for (std::size_t i = 0; i < cycle.size(); i++) {
 		out[i] = static_cast<int16_t>(signed_saturate<32 - 16>(cycle[i] >> shift));

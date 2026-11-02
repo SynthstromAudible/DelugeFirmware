@@ -29,7 +29,7 @@ namespace {
 [[gnu::always_inline]] inline SincWindow load_window(const int16_t* buffer) {
 	SincWindow window;
 	for (size_t i = 0; i < kSincWindowVectors; ++i) {
-		window[i] = Argon<int16_t>::Load(&buffer[i * Argon<int16_t>::lanes]);
+		window[i] = Q16Vec<15>::from_raw(Argon<int16_t>::Load(&buffer[i * Argon<int16_t>::lanes]));
 	}
 	return window;
 }
