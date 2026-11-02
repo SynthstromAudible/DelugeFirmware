@@ -155,13 +155,13 @@ inline void digest_high_pass_ladder(const deluge::dsp::fixed::HighPassLadder::St
 		d.add(channel.high_pass_3.z);
 		d.add(channel.saturator.position);
 	}
-	d.add(c.moveability);
-	d.add(c.morph);
-	d.add(c.processed_resonance);
-	d.add(c.divide_by_processed_resonance);
-	d.add(c.low_pass_1_feedback);
-	d.add(c.high_pass_3_feedback);
-	d.add(c.divide_by_total_moveability);
+	d.add(c.moveability.raw());
+	d.add(c.morph.raw());
+	d.add(c.processed_resonance.raw());
+	d.add(c.divide_by_processed_resonance.raw());
+	d.add(c.low_pass_1_feedback.raw());
+	d.add(c.high_pass_3_feedback.raw());
+	d.add(c.divide_by_total_moveability.raw());
 	digest_fade(fade, d);
 }
 
