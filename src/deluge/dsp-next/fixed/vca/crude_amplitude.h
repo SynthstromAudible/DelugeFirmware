@@ -17,7 +17,7 @@
 #pragma once
 
 #include "dsp-next/core/concepts.h"
-#include "dsp-next/core/q31_ops.h" // multiply_accumulate_32x32_rshift32_rounded
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/ramp.h"
 #include "dsp-next/core/types.h"
 #include <cstddef>
@@ -35,29 +35,32 @@ namespace deluge::dsp::fixed {
 /// legacy notes it as a ~20% saving there). Keeping both bit-exact for now means keeping both
 /// arithmetics; unifying them is a later, ear-validated step.
 ///
-/// The amplitude is **pre-incremented** each sample (`amplitude += increment; out = mac(...)`). It is a plain
+/// The amplitude is Q31, **pre-incremented** each sample (`amplitude += increment; out = mac(...)`), wrapping. The
+/// product of the Q31 wave and amplitude is Q30, accumulated into the mix as it comes: the mix is in whatever format
+/// the voice sums at, read as Q30 for the accumulate. It is a plain
 /// @ref block_mixer with no vptr; the arithmetic is per sample, but it keeps a hand-written block loop rather than a
 /// scalar `render(raw, mix)` under the @ref Mixer mixin.
 /// @todo Give it a scalar `render` under the @ref Mixer mixin.
 class CrudeAmplitude {
-	int32_t amplitude_;
-	int32_t increment_;
+	Q<31> amplitude_;
+	Q<31> increment_;
 
 public:
 	using value_type = q31; ///< q31 wave and mix samples.
 
 	/// @param amplitude starting amplitude; the 32x32 MAC scales raw by `amplitude / 2^32`
 	/// @param increment per-sample amplitude step, in the same units
-	CrudeAmplitude(int32_t amplitude, int32_t increment) : amplitude_{amplitude}, increment_{increment} {}
+	CrudeAmplitude(int32_t amplitude, int32_t increment)
+	    : amplitude_{Q<31>::from_raw(amplitude)}, increment_{Q<31>::from_raw(increment)} {}
 
 	/// Build from an amplitude @ref deluge::dsp::Ramp (its value + per-sample increment).
-	explicit CrudeAmplitude(Ramp ramp) : CrudeAmplitude(ramp.value().raw(), ramp.increment().raw()) {}
+	explicit CrudeAmplitude(Ramp ramp) : amplitude_{ramp.value()}, increment_{ramp.increment()} {}
 
 	/// out = raw * amplitude + mix (raw == @p input_a, mix == @p input_b), scalar rounded MAC.
 	void render_block(Signal input_a, Signal input_b, Buffer output) {
 		for (std::size_t i = 0; i < output.size(); ++i) {
-			amplitude_ += increment_;
-			output[i] = multiply_accumulate_32x32_rshift32_rounded(input_b[i], input_a[i], amplitude_);
+			amplitude_ = add_wrap(amplitude_, increment_);
+			output[i] = mla_r(Q<30>::from_raw(input_b[i]), Q<31>::from_raw(input_a[i]), amplitude_).raw();
 		}
 	}
 };

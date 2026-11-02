@@ -19,9 +19,24 @@
 
 #include "dsp-next/fixed/vca/pan.h"
 
+#include <algorithm>
 #include <cppspec.hpp>
+#include <cstdint>
 
 using deluge::dsp::fixed::pan_amplitudes;
+
+namespace reference {
+// Verbatim: the raw form.
+constexpr deluge::dsp::fixed::PanAmplitudes pan_amplitudes(int32_t pan) {
+	constexpr int32_t kUnity = 1073741823;
+	constexpr int32_t kHalfRange = 1073741824;
+	if (pan == 0) {
+		return {.left = kUnity, .right = kUnity};
+	}
+	const int32_t offset = std::clamp(pan, -kHalfRange, kHalfRange);
+	return {.left = pan <= 0 ? kUnity : kHalfRange - offset, .right = pan >= 0 ? kUnity : kHalfRange + offset};
+}
+} // namespace reference
 
 // clang-format off
 describe pan_spec("pan_amplitudes", ${
@@ -39,6 +54,21 @@ describe pan_spec("pan_amplitudes", ${
 		expect(pan_amplitudes(1 << 30).left).to_equal(0);
 		expect(pan_amplitudes(-(1 << 30)).right).to_equal(0);
 		expect(pan_amplitudes(0x7FFFFFFF).left).to_equal(0);
+	});
+	it("gives the reference's amplitudes at every pan", _ {
+		int32_t bad = 0;
+		auto check = [&](int32_t pan) {
+			const auto live = pan_amplitudes(pan);
+			const auto ref = reference::pan_amplitudes(pan);
+			bad += (live.left != ref.left || live.right != ref.right) ? 1 : 0;
+		};
+		for (int32_t pan : {INT32_MIN, -(1 << 30) - 1, -(1 << 30), -1, 0, 1, 1 << 30, (1 << 30) + 1, INT32_MAX}) {
+			check(pan);
+		}
+		for (int64_t pan = INT32_MIN; pan <= INT32_MAX; pan += 65521) {
+			check(static_cast<int32_t>(pan));
+		}
+		expect(bad).to_equal(0);
 	});
 });
 

@@ -27,6 +27,7 @@
 #include "dsp-next/fixed/vca/crude_amplitude.h"
 #include <array>
 #include <cppspec.hpp>
+#include <cstddef>
 #include <cstdint>
 
 namespace {
@@ -40,6 +41,21 @@ using deluge::dsp::fixed::CrudeTriangle;
 using deluge::dsp::fixed::kSineTable;
 using Buffer = deluge::dsp::fixed::Buffer;
 using Signal = deluge::dsp::fixed::Signal;
+
+/// CrudeAmplitude::render_block's loop as it was in raw q31, verbatim.
+void reference_crude_amplitude(int32_t amplitude_, int32_t increment_, Signal input_a, Signal input_b, Buffer output) {
+	for (std::size_t i = 0; i < output.size(); ++i) {
+		amplitude_ += increment_;
+		output[i] = multiply_accumulate_32x32_rshift32_rounded(input_b[i], input_a[i], amplitude_);
+	}
+}
+
+uint32_t xorshift(uint32_t& x) {
+	x ^= x << 13;
+	x ^= x >> 17;
+	x ^= x << 5;
+	return x;
+}
 } // namespace
 
 // clang-format off
@@ -108,6 +124,28 @@ describe crude_oscillators("deluge::dsp::fixed crude oscillators", ${
 				int32_t expected = multiply_accumulate_32x32_rshift32_rounded(mix[i], raw[i], kAmp + (i + 1) * kInc);
 				expect(out[i]).to_equal(expected);
 			}
+		});
+		it("mixes as the raw reference does, over random blocks and ramps", _ {
+			int32_t bad = 0;
+			uint32_t x = 0x9E3779B9u;
+			for (int block = 0; block < 2048; ++block) {
+				std::array<int32_t, 64> raw{};
+				std::array<int32_t, 64> mix{};
+				for (std::size_t i = 0; i < raw.size(); ++i) {
+					raw[i] = static_cast<int32_t>(xorshift(x));
+					mix[i] = static_cast<int32_t>(xorshift(x));
+				}
+				// Steady and ramping amplitudes within ±2^30, stepping at most 2^24 a sample: the raw reference's
+				// signed add must not overflow
+				const int32_t amplitude = static_cast<int32_t>(xorshift(x)) >> 1;
+				const int32_t increment = block % 4 == 0 ? 0 : static_cast<int32_t>(xorshift(x)) >> (7 + (block % 17));
+				std::array<int32_t, 64> live{};
+				std::array<int32_t, 64> ref{};
+				CrudeAmplitude{amplitude, increment}.render_block(Signal{raw}, Signal{mix}, Buffer{live});
+				reference_crude_amplitude(amplitude, increment, Signal{raw}, Signal{mix}, Buffer{ref});
+				bad += live != ref ? 1 : 0;
+			}
+			expect(bad).to_equal(0);
 		});
 	});
 });

@@ -14,6 +14,7 @@ src/deluge/bench/delay_feedback_cases.cpp raw=2 boundary=0
 src/deluge/bench/granular_cases.cpp raw=1 boundary=0
 src/deluge/bench/reference_chains.h raw=4 boundary=0
 src/deluge/bench/reference_impulse_response.h raw=2 boundary=0
+src/deluge/bench/va_shape_cases.cpp raw=0 boundary=7
 src/deluge/dsp-next/core/lane_pack.h raw=6 boundary=0
 src/deluge/dsp-next/core/stereo_sample.h raw=4 boundary=4
 src/deluge/dsp-next/fixed/curves/exp_curve.h raw=1 boundary=3
@@ -51,8 +52,8 @@ src/deluge/dsp-next/fixed/sync/sync_windower.h raw=0 boundary=15
 src/deluge/dsp-next/fixed/sync/synced_oscillator.h raw=0 boundary=1
 src/deluge/dsp-next/fixed/sync/synced_phasor.h raw=0 boundary=8
 src/deluge/dsp-next/fixed/vca/amplitude.h raw=0 boundary=2
-src/deluge/dsp-next/fixed/vca/crude_amplitude.h raw=1 boundary=2
-src/deluge/dsp-next/fixed/vca/send_and_volume.h raw=10 boundary=0
+src/deluge/dsp-next/fixed/vca/crude_amplitude.h raw=0 boundary=5
+src/deluge/dsp-next/fixed/vca/send_and_volume.h raw=0 boundary=21
 src/deluge/dsp-next/fixed/wavetable/band_builder.cpp raw=1 boundary=0
 src/deluge/dsp-next/fixed/wavetable/wavetable_cycle_chunker.h raw=3 boundary=2
 src/deluge/dsp-next/fixed/wavetable/wavetable_oscillator.h raw=0 boundary=8
