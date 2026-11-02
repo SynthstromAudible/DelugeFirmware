@@ -17,6 +17,7 @@
 
 // exp_curve: the exponential curve every param is shaped by — a preset scaled by 2^(adjustment / 2^26 + 2).
 
+#include "curves_reference.h"
 #include "dsp-next/fixed/curves/exp_curve.h"
 
 #include <cppspec.hpp>
@@ -61,6 +62,28 @@ describe exp_curve_spec("exp_curve", ${
 		// 24 octaves (adjustment 22 << 26, no fraction) of a preset small enough to fit: 2 << 24
 		expect(exp_curve(2, 22 << 26)).to_equal(0);
 		expect(exp_curve(8, 22 << 26)).to_equal(1 << 25);
+	});
+	it("gives the reference's value for every preset and adjustment", _ {
+		int32_t bad = 0;
+		constexpr int32_t kEdges[] = {0, 1, -1, 1 << 29, -(1 << 29), 1 << 30, -(1 << 30), INT32_MIN, INT32_MAX};
+		for (int32_t preset : kEdges) {
+			for (int32_t adjustment : kEdges) {
+				bad += exp_curve(preset, adjustment) != curves_reference::exp_curve(preset, adjustment);
+			}
+		}
+		uint32_t x = 0x9E3779B9u;
+		for (int i = 0; i < (1 << 20); ++i) {
+			x ^= x << 13;
+			x ^= x >> 17;
+			x ^= x << 5;
+			const auto preset = static_cast<int32_t>(x);
+			x ^= x << 13;
+			x ^= x >> 17;
+			x ^= x << 5;
+			const auto adjustment = static_cast<int32_t>(x);
+			bad += exp_curve(preset, adjustment) != curves_reference::exp_curve(preset, adjustment);
+		}
+		expect(bad).to_equal(0);
 	});
 });
 

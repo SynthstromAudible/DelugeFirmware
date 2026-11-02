@@ -16,7 +16,7 @@
  */
 #pragma once
 
-#include "dsp-next/core/q31_ops.h"
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/fixed/curves/exp_curve.h"
 #include "dsp-next/fixed/tables/release_rate.h"
 
@@ -41,36 +41,40 @@ enum class ParamCurve : uint8_t {
 };
 
 /// @brief neutral · (1 + c)², saturating at the q31 range.
-/// @param neutral The final value at a zero combination.
+/// @param neutral The final value at a zero combination, in the result's units.
 /// @param combination Q29: 2^29 is "1".
-/// @return The final value.
+/// @return The final value, in the neutral's units.
 [[nodiscard]] inline int32_t curve_square(int32_t neutral, int32_t combination) {
 	// 0 ("0") to 2^30 ("2") ideally, up to 2^31 − 1 ("4") with several cables multiplied
-	int32_t positive = combination + 536870912;
-	// The square, Q29 · Q29 >> 31: Q27 ("1" is 2^27)
-	positive = (positive >> 16) * (positive >> 15);
-	// Saturating: mod FX depth's neutral overflows easily
-	return lshift_and_saturate<5>(multiply_32x32_rshift32(positive, neutral));
+	const Q<29> positive = add_wrap(Q<29>::from_raw(combination), q<29>(1.0));
+	// The square, Q29 · Q29 >> 31: Q27
+	const Q<27> square = Q<27>::from_raw((positive.raw() >> 16) * (positive.raw() >> 15));
+	// The neutral read as Q31 makes the product Q26 of it; back in its units, saturating: mod FX depth's neutral
+	// overflows easily
+	return as_clamp_then_shift<Q<31>>(mul(square, Q<31>::from_raw(neutral))).raw();
 }
 
 /// @brief neutral · (1 + c), saturating at the q31 range.
-/// @param neutral The final value at a zero combination.
+/// @param neutral The final value at a zero combination, in the result's units.
 /// @param combination Q29: 2^29 is "1".
-/// @return The final value.
+/// @return The final value, in the neutral's units.
 [[nodiscard]] inline int32_t curve_linear(int32_t neutral, int32_t combination) {
-	const int32_t positive = combination + 536870912;
-	// Saturating: the sustain level overflows easily
-	return lshift_and_saturate<3>(multiply_32x32_rshift32(positive, neutral));
+	const Q<29> positive = add_wrap(Q<29>::from_raw(combination), q<29>(1.0));
+	// The neutral read as Q31 makes the product Q28 of it; back in its units, saturating: the sustain level overflows
+	// easily
+	return as_clamp_then_shift<Q<31>>(mul(positive, Q<31>::from_raw(neutral))).raw();
 }
 
-/// @brief A position around neutral: neutral + 2c, saturating at ±2^31 in steps of 4. Its ±2^30 is pan's full left
+/// @brief A position around neutral: neutral + 2c, saturating at ±2^30 in steps of 4. Its ±2^30 is pan's full left
 /// to right.
-/// @param neutral The final value at a zero combination.
+/// @param neutral The final value at a zero combination, Q31.
 /// @param combination Q29: 2^29 is "1".
-/// @return The final value.
+/// @return The final value, Q31.
 [[nodiscard]] inline int32_t curve_bipolar(int32_t neutral, int32_t combination) {
-	const int32_t pre_limits = (neutral >> 2) + (combination >> 1);
-	return signed_saturate<32 - 3>(pre_limits) << 2;
+	// A quarter of the neutral plus half the combination's raw value, at Q29: two shifted values, so no wrap
+	const Q<29> pre_limits =
+	    add_wrap(as_floor<Q<29>>(Q<31>::from_raw(neutral)), scale_shr_floor<1>(Q<29>::from_raw(combination)));
+	return as_wrap<Q<31>>(clamp_bits<29>(pre_limits)).raw();
 }
 
 /// @brief neutral · 2^(c / 2^26 + 2), saturating (exp_curve).
@@ -90,7 +94,7 @@ enum class ParamCurve : uint8_t {
 	// std::array's operator[] is an out-of-line call.
 	constexpr const int32_t* kTable = tables::kReleaseRate.data();
 	int32_t which = input >> kMagnitude;
-	const int32_t further = (input << (31 - kMagnitude)) & 2147483647;
+	const Q<31> further = Q<31>::from_raw((input << (31 - kMagnitude)) & 2147483647);
 	which += 32;
 	if (which < 0) {
 		return kTable[0];
@@ -98,9 +102,11 @@ enum class ParamCurve : uint8_t {
 	if (which >= 64) {
 		return kTable[64];
 	}
-	const int32_t value1 = kTable[which];
-	const int32_t value2 = kTable[which + 1];
-	return (multiply_32x32_rshift32(value2, further) + multiply_32x32_rshift32(value1, 2147483647 - further)) << 1;
+	const Q<31> value1 = Q<31>::from_raw(kTable[which]);
+	const Q<31> value2 = Q<31>::from_raw(kTable[which + 1]);
+	// A convex blend of two Q31 entries, Q30 after the Q31 weights: the sum can't wrap
+	const Q<30> blend = add_wrap(mul(value2, further), mul(value1, sub_wrap(Q<31>::max(), further)));
+	return as_wrap<Q<31>>(blend).raw();
 }
 
 /// @brief The combination a stored word gives a param with no cables: the word (a q31 knob position) as Q29.

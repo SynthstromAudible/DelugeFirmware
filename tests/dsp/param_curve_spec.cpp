@@ -80,6 +80,10 @@ describe param_curve_spec("the param curves", ${
 		}
 		expect(bad).to_equal(0);
 	});
+	it("saturates the bipolar curve at ±2^30 in steps of 4", _ {
+		expect(curves::curve_bipolar(INT32_MAX, INT32_MAX)).to_equal((1 << 30) - 4);
+		expect(curves::curve_bipolar(INT32_MIN, INT32_MIN)).to_equal(-(1 << 30));
+	});
 	it("takes a preset word as a quarter-scale combination", _ {
 		expect(curves::preset_combination(INT32_MIN)).to_equal(INT32_MIN >> 2);
 		expect(curves::preset_combination(-1)).to_equal(-1);

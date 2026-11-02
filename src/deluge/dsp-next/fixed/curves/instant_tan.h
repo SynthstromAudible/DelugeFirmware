@@ -17,7 +17,7 @@
 
 #pragma once
 
-#include "dsp-next/core/q31_ops.h"
+#include "dsp-next/core/fixed_point.h"
 
 #include <array>
 #include <cstdint>
@@ -40,15 +40,17 @@ alignas(16) inline constexpr std::array<int32_t, 65> kTanTable = {
 
 /// @brief tan of an angle by table (the ladders' frequency warp): bits 25 to 30 of @p input pick the entry of
 /// @ref kTanTable and the 25 bits below interpolate (at Q31) toward the next.
-/// @param input The angle, non-negative: 2^31 spans the table's 1.44 radians (2^25 per entry).
-/// @return The tangent, Q28 like the table (each Q31 product halves it and the closing shift doubles it back).
+/// @param input The angle, non-negative: 2^31 spans the table's 1.44 radians (2^25 per entry). A negative angle
+/// indexes before the table.
+/// @return The tangent, Q28 like the table.
 [[nodiscard]] inline int32_t instant_tan(int32_t input) {
 	const int32_t which = input >> 25;
-	const int32_t toward_next = (input << 6) & 2147483647;
-	const int32_t lower = kTanTable[which];
-	const int32_t upper = kTanTable[which + 1];
-	return (multiply_32x32_rshift32(upper, toward_next) + multiply_32x32_rshift32(lower, 2147483647 - toward_next))
-	       << 1;
+	const Q<31> toward_next = Q<31>::from_raw((input << 6) & 2147483647);
+	const Q<28> lower = Q<28>::from_raw(kTanTable[which]);
+	const Q<28> upper = Q<28>::from_raw(kTanTable[which + 1]);
+	// A convex blend of two Q28 entries, Q27 after the Q31 weights: the sum can't wrap
+	const Q<27> blend = add_wrap(mul(upper, toward_next), mul(lower, sub_wrap(Q<31>::max(), toward_next)));
+	return as_wrap<Q<28>>(blend).raw();
 }
 
 } // namespace deluge::dsp::fixed

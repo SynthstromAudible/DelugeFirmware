@@ -17,13 +17,12 @@
 
 #pragma once
 
-#include "dsp-next/core/q31_ops.h"
+#include "dsp-next/core/fixed_point.h"
+#include "dsp-next/core/q31_ops.h" // increase_magnitude_and_saturate
 #include "dsp-next/fixed/interpolation/table_interpolation.h"
 
-#include <algorithm>
 #include <array>
 #include <cstdint>
-#include <limits>
 
 namespace deluge::dsp::fixed {
 
@@ -59,15 +58,24 @@ inline constexpr int32_t kExpSaturatingOctaves = 20;
 /// saturated by several cables reaches (up to 33), the scaled value saturates to the whole q31 range.
 [[nodiscard]] inline int32_t exp_curve(int32_t preset, int32_t adjustment) {
 	const int32_t octaves = (adjustment >> 26) + 2;
-	const int32_t within_octave = multiply_32x32_rshift32(
-	    preset, kLinearTableInterpolator.interpolate(adjustment & 67108863, 26, kExpTable.data()));
+	// The Q15 table times the Q15 blend weight: 2^fraction at Q30, from 1 to just under 2
+	const Q<30> power =
+	    Q<30>::from_raw(kLinearTableInterpolator.interpolate(adjustment & 67108863, 26, kExpTable.data()));
+	// The preset read as Q31: the product is a quarter of preset · 2^fraction in the preset's units
+	const int32_t within_octave = mul(Q<31>::from_raw(preset), power).raw();
 	if (octaves <= kExpSaturatingOctaves) {
+		// Raw: a run-time shift saturating to the multiples of 2^octaves has no typed form
 		return increase_magnitude_and_saturate(within_octave, octaves);
 	}
 	// 2^31 times 2^32 still fits in 64 bits; a nonzero value saturates long before
-	const int64_t scaled = static_cast<int64_t>(within_octave) << std::min(octaves, 32);
-	return static_cast<int32_t>(
-	    std::clamp<int64_t>(scaled, std::numeric_limits<int32_t>::min(), std::numeric_limits<int32_t>::max()));
+	const int64_t scaled = static_cast<int64_t>(within_octave) << (octaves < 32 ? octaves : 32);
+	if (scaled > INT32_MAX) {
+		return INT32_MAX;
+	}
+	if (scaled < INT32_MIN) {
+		return INT32_MIN;
+	}
+	return static_cast<int32_t>(scaled);
 }
 
 } // namespace deluge::dsp::fixed

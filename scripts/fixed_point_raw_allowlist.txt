@@ -16,9 +16,9 @@ src/deluge/bench/reference_chains.h raw=4 boundary=0
 src/deluge/bench/reference_impulse_response.h raw=2 boundary=0
 src/deluge/dsp-next/core/lane_pack.h raw=6 boundary=0
 src/deluge/dsp-next/core/stereo_sample.h raw=4 boundary=4
-src/deluge/dsp-next/fixed/curves/exp_curve.h raw=2 boundary=0
-src/deluge/dsp-next/fixed/curves/instant_tan.h raw=2 boundary=0
-src/deluge/dsp-next/fixed/curves/param_curve.h raw=7 boundary=0
+src/deluge/dsp-next/fixed/curves/exp_curve.h raw=1 boundary=3
+src/deluge/dsp-next/fixed/curves/instant_tan.h raw=0 boundary=4
+src/deluge/dsp-next/fixed/curves/param_curve.h raw=0 boundary=16
 src/deluge/dsp-next/fixed/delay/analog_impulse_response.h raw=10 boundary=0
 src/deluge/dsp-next/fixed/delay/delay_kernel.h raw=4 boundary=0
 src/deluge/dsp-next/fixed/delay/delay_tape.h raw=4 boundary=0
