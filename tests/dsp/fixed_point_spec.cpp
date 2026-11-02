@@ -54,6 +54,17 @@ static_assert(!std::is_convertible_v<Q<31>, std::int32_t>);
 static_assert(!comparable<Q<31>, Q<30>>);
 static_assert(comparable<Q<31>, Q<31>>);
 
+static_assert(std::is_same_v<decltype(mul(Q<31>{}, Q<31>{})), Q<30>>);
+static_assert(std::is_same_v<decltype(mul(Q<27>{}, Q<31>{})), Q<26>>);
+static_assert(std::is_same_v<decltype(mul_wide(Q<31>{}, Q<31>{})), Q64<62>>);
+static_assert(std::is_same_v<decltype(mul_doubling_sat(Q<31>{}, Q<31>{})), Q<31>>);
+static_assert(std::is_same_v<decltype(mul(Q<31>{}, Q16<15>{})), Q<30>>);
+static_assert(std::is_same_v<decltype(mul(UQ<32>{}, Q<31>{})), Q<31>>);
+static_assert(std::is_same_v<decltype(dot(Q16x2<15>{}, Q16x2<15>{})), Q<30>>);
+template <class A, class B>
+concept high_word_multipliable = requires(A a, B b) { mul(a, b); };
+static_assert(!high_word_multipliable<Q<15>, Q<15>>);
+
 constexpr std::array<std::int32_t, 14> kEdges{
     0, 1, -1, 2, -2, INT32_MAX, INT32_MIN, INT32_MAX - 1, INT32_MIN + 1, 1 << 30, -(1 << 30), 0x7FFF, -0x8000, 0x10000};
 
@@ -96,6 +107,16 @@ std::int32_t clamp_ref(std::int64_t v, int bits) {
 }
 Q<31> r(std::int32_t v) {
 	return Q<31>::from_raw(v);
+}
+
+std::int32_t acc_of(std::int32_t a, std::int32_t b) {
+	return static_cast<std::int32_t>(static_cast<std::uint32_t>(a) * 2654435761u ^ static_cast<std::uint32_t>(b));
+}
+std::int32_t lo16(std::int32_t v) {
+	return static_cast<std::int16_t>(static_cast<std::uint32_t>(v) & 0xFFFFu);
+}
+std::int32_t hi16(std::int32_t v) {
+	return static_cast<std::int16_t>(static_cast<std::uint32_t>(v) >> 16);
 }
 
 } // namespace
@@ -191,4 +212,87 @@ describe fixed_point_add("fixed_point add/sub/clamp", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(fixed_point_types, fixed_point_add);
+// clang-format off
+describe fixed_point_mul("fixed_point multiplies", ${
+	it("takes the high word of the product, truncated and rounded", _ {
+		std::size_t bad = 0;
+		for (auto [a, b] : pairs()) {
+			const std::int64_t p = std::int64_t{a} * b;
+			const std::int32_t c = acc_of(a, b);
+			const auto acc = Q<30>::from_raw(c);
+			bad += mul(r(a), r(b)).raw() != static_cast<std::int32_t>(p >> 32);
+			bad += mul_r(r(a), r(b)).raw() != static_cast<std::int32_t>((p + 0x80000000LL) >> 32);
+			bad += mla(acc, r(a), r(b)).raw() != wrap32(std::int64_t{c} + (p >> 32));
+			bad += mla_r(acc, r(a), r(b)).raw() != wrap32(std::int64_t{c} + ((p + 0x80000000LL) >> 32));
+			bad += mls(acc, r(a), r(b)).raw() != wrap32(std::int64_t{c} + ((-p) >> 32));
+			bad += mls_r(acc, r(a), r(b)).raw() != wrap32(std::int64_t{c} + ((0x80000000LL - p) >> 32));
+			bad += mul_wide(r(a), r(b)).raw() != p;
+			bad += mla_wide(Q64<62>::from_raw(p), r(a), r(b)).raw()
+			       != static_cast<std::int64_t>(static_cast<std::uint64_t>(p) * 2);
+		}
+		expect(bad).to_equal(std::size_t{0});
+	});
+	it("subtracts the ceiling of the product in mls, not the truncated mul", _ {
+		const auto zero = Q<30>::from_raw(0);
+		expect(mls(zero, r(1), r(1)).raw()).to_equal(-1);
+		expect(sub_wrap(zero, mul(r(1), r(1))).raw()).to_equal(0);
+	});
+	it("multiplies unsigned and mixed-sign operands exactly", _ {
+		std::size_t bad = 0;
+		for (auto [a, b] : pairs()) {
+			const auto ua = static_cast<std::uint32_t>(a);
+			const auto ub = static_cast<std::uint32_t>(b);
+			bad += mul(UQ<32>::from_raw(ua), UQ<32>::from_raw(ub)).raw()
+			       != static_cast<std::uint32_t>((std::uint64_t{ua} * ub) >> 32);
+			bad += mul(UQ<32>::from_raw(ua), r(b)).raw()
+			       != static_cast<std::int32_t>((static_cast<std::int64_t>(ua) * b) >> 32);
+		}
+		expect(bad).to_equal(std::size_t{0});
+	});
+	it("doubles the product and saturates as vqdmulh and vqrdmulh do", _ {
+		std::size_t bad = 0;
+		for (auto [a, b] : pairs()) {
+			const std::int64_t p = std::int64_t{a} * b;
+			const bool both_min = a == INT32_MIN && b == INT32_MIN;
+			bad += mul_doubling_sat(r(a), r(b)).raw() != (both_min ? INT32_MAX : static_cast<std::int32_t>(p >> 31));
+			bad += mul_doubling_r_sat(r(a), r(b)).raw()
+			       != (both_min ? INT32_MAX : static_cast<std::int32_t>((p + (1LL << 30)) >> 31));
+		}
+		expect(bad).to_equal(std::size_t{0});
+		// The doubling multiply keeps a bit the high word drops: 3 × 0.5 in Q31.
+		expect(mul_doubling_sat(r(3), r(1 << 30)).raw()).to_equal(1);
+		expect(mul(r(3), r(1 << 30)).raw()).to_equal(0);
+	});
+	it("multiplies by 16-bit values and packed pairs as the SIMD32 multiplies do", _ {
+		std::size_t bad = 0;
+		for (auto [a, b] : pairs()) {
+			const std::int32_t c = acc_of(a, b);
+			const auto pa = Q16x2<15>::from_raw(static_cast<std::uint32_t>(a));
+			const auto pb = Q16x2<15>::from_raw(static_cast<std::uint32_t>(b));
+			const auto b16 = Q16<15>::from_raw(static_cast<std::int16_t>(lo16(b)));
+			bad += mul(r(a), b16).raw() != static_cast<std::int32_t>((std::int64_t{a} * lo16(b)) >> 16);
+			bad += mla(Q<30>::from_raw(c), r(a), b16).raw()
+			       != wrap32(std::int64_t{c} + ((std::int64_t{a} * lo16(b)) >> 16));
+			bad += mul_bottom(r(a), pb).raw() != static_cast<std::int32_t>((std::int64_t{a} * lo16(b)) >> 16);
+			bad += mul_top(r(a), pb).raw() != static_cast<std::int32_t>((std::int64_t{a} * hi16(b)) >> 16);
+			const std::int64_t lolo = std::int64_t{lo16(a)} * lo16(b);
+			const std::int64_t hihi = std::int64_t{hi16(a)} * hi16(b);
+			bad += dot(pa, pb).raw() != wrap32(lolo + hihi);
+			bad += dot_diff(pa, pb).raw() != wrap32(lolo - hihi);
+			bad += dot_acc(Q<30>::from_raw(c), pa, pb).raw() != wrap32(std::int64_t{c} + lolo + hihi);
+			bad += dot_wide_acc(Q64<30>::from_raw(std::int64_t{c} << 20), pa, pb).raw()
+			       != (std::int64_t{c} << 20) + lolo + hihi;
+		}
+		expect(bad).to_equal(std::size_t{0});
+	});
+	it("reinterprets bits only on request", _ {
+		expect(reinterpret_bits<Q<31>>(UQ<32>::from_raw(0x8000'0000u)).raw()).to_equal(INT32_MIN);
+	});
+	it("evaluates at compile time", _ {
+		constexpr auto c = mul(Q<31>::from_raw(1 << 30), Q<31>::from_raw(1 << 30));
+		expect(c.raw()).to_equal(1 << 28);
+	});
+});
+// clang-format on
+
+CPPSPEC_MAIN(fixed_point_types, fixed_point_add, fixed_point_mul);

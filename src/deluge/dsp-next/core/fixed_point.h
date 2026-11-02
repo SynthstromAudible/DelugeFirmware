@@ -402,4 +402,215 @@ template <int F>
 #endif
 }
 
+namespace detail {
+
+[[gnu::always_inline, nodiscard]] constexpr std::int32_t high_word(std::int32_t a, std::int32_t b) noexcept {
+	return static_cast<std::int32_t>((std::int64_t{a} * b) >> 32);
+}
+[[gnu::always_inline, nodiscard]] constexpr std::int32_t high_word_r(std::int32_t a, std::int32_t b) noexcept {
+	return static_cast<std::int32_t>((std::int64_t{a} * b + 0x80000000LL) >> 32);
+}
+/// (a × b16) >> 16, b16 the low half of @p b sign-extended: smulwb.
+[[gnu::always_inline, nodiscard]] constexpr std::int32_t mul_word_half(std::int32_t a, std::int16_t b) noexcept {
+	return static_cast<std::int32_t>((std::int64_t{a} * b) >> 16);
+}
+[[gnu::always_inline, nodiscard]] constexpr std::int32_t lane_product(std::uint32_t a, std::uint32_t b,
+                                                                      int shift) noexcept {
+	return std::int32_t{static_cast<std::int16_t>(a >> shift)} * static_cast<std::int16_t>(b >> shift);
+}
+
+} // namespace detail
+
+/// @brief The high word of a × b, truncated: Q<A> × Q<B> → Q<A+B−32> (`smmul`). Q31 × Q31 gives Q30.
+template <int A, int B>
+requires(A + B >= 32)
+[[gnu::always_inline, nodiscard]] constexpr Q<A + B - 32> mul(Q<A> a, Q<B> b) noexcept {
+	return Q<A + B - 32>::from_raw(detail::high_word(a.raw(), b.raw()));
+}
+/// @brief The high word of a × b, rounded half up: Q<A> × Q<B> → Q<A+B−32> (`smmulr`).
+template <int A, int B>
+requires(A + B >= 32)
+[[gnu::always_inline, nodiscard]] constexpr Q<A + B - 32> mul_r(Q<A> a, Q<B> b) noexcept {
+	return Q<A + B - 32>::from_raw(detail::high_word_r(a.raw(), b.raw()));
+}
+/// @brief acc + the high word of a × b, wrapping (`smmla`).
+template <int A, int B>
+requires(A + B >= 32)
+[[gnu::always_inline, nodiscard]] constexpr Q<A + B - 32> mla(Q<A + B - 32> acc, Q<A> a, Q<B> b) noexcept {
+	return Q<A + B - 32>::from_raw(detail::wrap_add(acc.raw(), detail::high_word(a.raw(), b.raw())));
+}
+/// @brief acc + the rounded high word of a × b, wrapping (`smmlar`).
+template <int A, int B>
+requires(A + B >= 32)
+[[gnu::always_inline, nodiscard]] constexpr Q<A + B - 32> mla_r(Q<A + B - 32> acc, Q<A> a, Q<B> b) noexcept {
+	return Q<A + B - 32>::from_raw(detail::wrap_add(acc.raw(), detail::high_word_r(a.raw(), b.raw())));
+}
+/// @brief The high word of acc × 2^32 − a × b, wrapping (`smmls`): acc − ceil(a × b / 2^32), not acc − mul(a, b).
+template <int A, int B>
+requires(A + B >= 32)
+[[gnu::always_inline, nodiscard]] constexpr Q<A + B - 32> mls(Q<A + B - 32> acc, Q<A> a, Q<B> b) noexcept {
+	const auto high = static_cast<std::int32_t>((-(std::int64_t{a.raw()} * b.raw())) >> 32);
+	return Q<A + B - 32>::from_raw(detail::wrap_add(acc.raw(), high));
+}
+/// @brief The rounded high word of acc × 2^32 − a × b, wrapping (`smmlsr`).
+template <int A, int B>
+requires(A + B >= 32)
+[[gnu::always_inline, nodiscard]] constexpr Q<A + B - 32> mls_r(Q<A + B - 32> acc, Q<A> a, Q<B> b) noexcept {
+	const auto high = static_cast<std::int32_t>((0x80000000LL - std::int64_t{a.raw()} * b.raw()) >> 32);
+	return Q<A + B - 32>::from_raw(detail::wrap_add(acc.raw(), high));
+}
+/// @brief The exact product: Q<A> × Q<B> → Q64<A+B> (`smull`).
+template <int A, int B>
+[[gnu::always_inline, nodiscard]] constexpr Q64<A + B> mul_wide(Q<A> a, Q<B> b) noexcept {
+	return Q64<A + B>::from_raw(std::int64_t{a.raw()} * b.raw());
+}
+/// @brief acc + the exact product, wrapping modulo 2^64 (`smlal`).
+template <int A, int B>
+[[gnu::always_inline, nodiscard]] constexpr Q64<A + B> mla_wide(Q64<A + B> acc, Q<A> a, Q<B> b) noexcept {
+	return Q64<A + B>::from_raw(detail::wrap_add(acc.raw(), std::int64_t{a.raw()} * b.raw()));
+}
+/// @brief The high word of an unsigned product: UQ<A> × UQ<B> → UQ<A+B−32> (`umull`).
+template <int A, int B>
+requires(A + B >= 32)
+[[gnu::always_inline, nodiscard]] constexpr UQ<A + B - 32> mul(UQ<A> a, UQ<B> b) noexcept {
+	return UQ<A + B - 32>::from_raw(static_cast<std::uint32_t>((std::uint64_t{a.raw()} * b.raw()) >> 32));
+}
+/// @brief The high word of unsigned a × signed b, truncated: UQ<A> × Q<B> → Q<A+B−32>. Exact for every a, unlike
+/// smmul on a's bits read as signed.
+template <int A, int B>
+requires(A + B >= 32 && A + B - 32 <= 31)
+[[gnu::always_inline, nodiscard]] constexpr Q<A + B - 32> mul(UQ<A> a, Q<B> b) noexcept {
+	return Q<A + B - 32>::from_raw(static_cast<std::int32_t>((static_cast<std::int64_t>(a.raw()) * b.raw()) >> 32));
+}
+/// @brief sat((2 × a × b) >> 32): the doubled high word, as vqdmulh. Q<A> × Q<B> → Q<A+B−31>. Differs from
+/// as_sat<Q<31>>(mul(a, b)) in the LSB on about half of all inputs; only min × min saturates.
+template <int A, int B>
+requires(A + B >= 31 && A + B - 31 <= 31)
+[[gnu::always_inline, nodiscard]] constexpr Q<A + B - 31> mul_doubling_sat(Q<A> a, Q<B> b) noexcept {
+	if (a.raw() == INT32_MIN && b.raw() == INT32_MIN) {
+		return Q<A + B - 31>::max();
+	}
+	return Q<A + B - 31>::from_raw(static_cast<std::int32_t>((std::int64_t{a.raw()} * b.raw()) >> 31));
+}
+/// @brief sat((2 × a × b + 2^31) >> 32): the rounded doubled high word, as vqrdmulh. Q<A> × Q<B> → Q<A+B−31>.
+template <int A, int B>
+requires(A + B >= 31 && A + B - 31 <= 31)
+[[gnu::always_inline, nodiscard]] constexpr Q<A + B - 31> mul_doubling_r_sat(Q<A> a, Q<B> b) noexcept {
+	if (a.raw() == INT32_MIN && b.raw() == INT32_MIN) {
+		return Q<A + B - 31>::max();
+	}
+	return Q<A + B - 31>::from_raw(static_cast<std::int32_t>((std::int64_t{a.raw()} * b.raw() + (1LL << 30)) >> 31));
+}
+
+/// @brief (a × b) >> 16 with a 16-bit b: Q<A> × Q16<B> → Q<A+B−16> (`smulwb`).
+template <int A, int B>
+requires(A + B >= 16 && A + B - 16 <= 31)
+[[gnu::always_inline, nodiscard]] constexpr Q<A + B - 16> mul(Q<A> a, Q16<B> b) noexcept {
+	if consteval {
+		return Q<A + B - 16>::from_raw(detail::mul_word_half(a.raw(), b.raw()));
+	}
+#ifdef __ARM_FEATURE_DSP
+	return Q<A + B - 16>::from_raw(__smulwb(a.raw(), static_cast<int16x2_t>(b.raw())));
+#else
+	return Q<A + B - 16>::from_raw(detail::mul_word_half(a.raw(), b.raw()));
+#endif
+}
+/// @brief acc + (a × b) >> 16 with a 16-bit b, wrapping (`smlawb`).
+template <int A, int B>
+requires(A + B >= 16 && A + B - 16 <= 31)
+[[gnu::always_inline, nodiscard]] constexpr Q<A + B - 16> mla(Q<A + B - 16> acc, Q<A> a, Q16<B> b) noexcept {
+	if consteval {
+		return Q<A + B - 16>::from_raw(detail::wrap_add(acc.raw(), detail::mul_word_half(a.raw(), b.raw())));
+	}
+#ifdef __ARM_FEATURE_DSP
+	return Q<A + B - 16>::from_raw(__smlawb(a.raw(), static_cast<int16x2_t>(b.raw()), acc.raw()));
+#else
+	return Q<A + B - 16>::from_raw(detail::wrap_add(acc.raw(), detail::mul_word_half(a.raw(), b.raw())));
+#endif
+}
+/// @brief (a × the low lane of b) >> 16: Q<A> × Q16x2<B> → Q<A+B−16> (`smulwb`).
+template <int A, int B>
+requires(A + B >= 16 && A + B - 16 <= 31)
+[[gnu::always_inline, nodiscard]] constexpr Q<A + B - 16> mul_bottom(Q<A> a, Q16x2<B> b) noexcept {
+	return mul(a, b.lo());
+}
+/// @brief (a × the high lane of b) >> 16: Q<A> × Q16x2<B> → Q<A+B−16> (`smulwt`).
+template <int A, int B>
+requires(A + B >= 16 && A + B - 16 <= 31)
+[[gnu::always_inline, nodiscard]] constexpr Q<A + B - 16> mul_top(Q<A> a, Q16x2<B> b) noexcept {
+	if consteval {
+		return Q<A + B - 16>::from_raw(detail::mul_word_half(a.raw(), b.hi().raw()));
+	}
+#ifdef __ARM_FEATURE_DSP
+	return Q<A + B - 16>::from_raw(__smulwt(a.raw(), static_cast<int16x2_t>(b.raw())));
+#else
+	return Q<A + B - 16>::from_raw(detail::mul_word_half(a.raw(), b.hi().raw()));
+#endif
+}
+
+/// @brief lo × lo + hi × hi, wrapping: Q16x2<A> · Q16x2<B> → Q<A+B> (`smuad`).
+template <int A, int B>
+[[gnu::always_inline, nodiscard]] constexpr Q<A + B> dot(Q16x2<A> x, Q16x2<B> y) noexcept {
+	if consteval {
+		return Q<A + B>::from_raw(
+		    detail::wrap_add(detail::lane_product(x.raw(), y.raw(), 0), detail::lane_product(x.raw(), y.raw(), 16)));
+	}
+#ifdef __ARM_FEATURE_DSP
+	return Q<A + B>::from_raw(__smuad(static_cast<int16x2_t>(x.raw()), static_cast<int16x2_t>(y.raw())));
+#else
+	return Q<A + B>::from_raw(
+	    detail::wrap_add(detail::lane_product(x.raw(), y.raw(), 0), detail::lane_product(x.raw(), y.raw(), 16)));
+#endif
+}
+/// @brief lo × lo − hi × hi, wrapping (`smusd`).
+template <int A, int B>
+[[gnu::always_inline, nodiscard]] constexpr Q<A + B> dot_diff(Q16x2<A> x, Q16x2<B> y) noexcept {
+	if consteval {
+		return Q<A + B>::from_raw(
+		    detail::wrap_sub(detail::lane_product(x.raw(), y.raw(), 0), detail::lane_product(x.raw(), y.raw(), 16)));
+	}
+#ifdef __ARM_FEATURE_DSP
+	return Q<A + B>::from_raw(__smusd(static_cast<int16x2_t>(x.raw()), static_cast<int16x2_t>(y.raw())));
+#else
+	return Q<A + B>::from_raw(
+	    detail::wrap_sub(detail::lane_product(x.raw(), y.raw(), 0), detail::lane_product(x.raw(), y.raw(), 16)));
+#endif
+}
+/// @brief acc + lo × lo + hi × hi, wrapping (`smlad`).
+template <int A, int B>
+[[gnu::always_inline, nodiscard]] constexpr Q<A + B> dot_acc(Q<A + B> acc, Q16x2<A> x, Q16x2<B> y) noexcept {
+	if consteval {
+		return add_wrap(acc, dot(x, y));
+	}
+#ifdef __ARM_FEATURE_DSP
+	return Q<A + B>::from_raw(__smlad(static_cast<int16x2_t>(x.raw()), static_cast<int16x2_t>(y.raw()), acc.raw()));
+#else
+	return add_wrap(acc, dot(x, y));
+#endif
+}
+/// @brief acc + lo × lo + hi × hi in 64 bits (`smlald`).
+template <int A, int B>
+[[gnu::always_inline, nodiscard]] constexpr Q64<A + B> dot_wide_acc(Q64<A + B> acc, Q16x2<A> x, Q16x2<B> y) noexcept {
+	const auto portable = [&] {
+		return Q64<A + B>::from_raw(detail::wrap_add(acc.raw(), std::int64_t{detail::lane_product(x.raw(), y.raw(), 0)}
+		                                                            + detail::lane_product(x.raw(), y.raw(), 16)));
+	};
+	if consteval {
+		return portable();
+	}
+#ifdef __ARM_FEATURE_DSP
+	return Q64<A + B>::from_raw(__smlald(static_cast<int16x2_t>(x.raw()), static_cast<int16x2_t>(y.raw()), acc.raw()));
+#else
+	return portable();
+#endif
+}
+
+/// @brief The same bits read as another type of the same width. Spells out a sign or format reinterpretation the
+/// code depends on; every use carries a comment saying why.
+template <class To, class S, int F>
+requires(sizeof(typename To::storage_type) == sizeof(S))
+[[gnu::always_inline, nodiscard]] constexpr To reinterpret_bits(Fixed<S, F> x) noexcept {
+	return To::from_raw(static_cast<To::storage_type>(x.raw()));
+}
+
 } // namespace deluge::dsp
