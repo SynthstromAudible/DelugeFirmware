@@ -2847,6 +2847,19 @@ group = "tooling"
 runtime = "~1s"
 
 [[harness]]
+name = "compare-codegen-selftest"
+path = "tools"
+level = "unit"
+runner = "script"
+kind = "unit"
+status = "gate"
+gates = "the machine-code comparison of two images hides addresses, literal-pool addresses, in-function offsets, ThinLTO suffixes and a signature's parameter types (functions and call targets keyed by demangled name without parameters, overloads as a set of bodies) but reports a changed immediate as a changed function, and an added or removed function"
+run = ["python3", "-m", "unittest", "test_compare_codegen"]
+tier = "pr"
+group = "tooling"
+runtime = "~1s"
+
+[[harness]]
 name = "stream-bench-parser"
 path = "tools"
 level = "unit"
