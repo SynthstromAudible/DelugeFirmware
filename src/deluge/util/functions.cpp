@@ -1596,8 +1596,12 @@ void noteCodeToString(int32_t noteCode, char* buffer, int32_t* getLengthWithoutD
 	char* thisChar = buffer;
 	// Floor division / positive modulo so negative note codes (e.g. from transposing below C-2) land in the right
 	// octave rather than truncating toward zero
-	int32_t noteCodeWithinOctave = ((noteCode % 12) + 12) % 12;
-	int32_t octave = (noteCode - noteCodeWithinOctave) / 12 - 2;
+	int32_t noteCodeWithinOctave = noteCode % 12;
+	int32_t octave = noteCode / 12 - 2;
+	if (noteCodeWithinOctave < 0) {
+		noteCodeWithinOctave += 12;
+		octave--;
+	}
 
 	bool useSharps = FlashStorage::defaultUseSharps;
 

@@ -65,6 +65,14 @@ describe string("deluge::string", ${
 			expect(string::fromNoteCode(-12)).to_equal("C-3"s);
 			expect(string::fromNoteCode(-13)).to_equal("B-4"s);
 		});
+
+		it("handles multi-digit octaves and the int32_t extremes", _ {
+			expect(string::fromNoteCode(-86)).to_equal("A.-10"s);
+			expect(string::fromNoteCode(INT32_MIN)).to_equal("E-178956973"s);
+			expect(string::fromNoteCode(INT32_MAX)).to_equal("G178956968"s);
+			// Longest possible output; noteCodeToString() callers size buffers with kNoteCodeStringBufferSize (13)
+			expect(string::fromNoteCode(INT32_MIN + 2)).to_equal("F.-178956973"s);
+		});
 	});
 
 	context("caselessEquals", _ {
