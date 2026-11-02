@@ -269,12 +269,12 @@ test("appendix sections sort after numbered ones", () => {
     see: [],
     external: [],
   }
-  const [sub] = entry(
+  const shared = entry(
     buildIndex([page("21.4"), page("A"), page("3.2")], v),
     "Shared",
-  )!.subs
+  )
   assert.deepEqual(
-    sub.links.map((l) => l.text),
+    shared?.subs[0].links.map((l) => l.text),
     ["3.2", "21.4", "A"],
   )
 })

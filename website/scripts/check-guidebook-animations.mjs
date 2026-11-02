@@ -521,12 +521,9 @@ const checks = {
       viewport: { width: 390, height: 900 },
     })
     const p4 = await narrow.newPage()
-    await p4.goto(
-      url("03-clips/04-clip-view-parameter-affect-group-changes"),
-      {
-        waitUntil: "load",
-      },
-    )
+    await p4.goto(url("03-clips/04-clip-view-parameter-affect-group-changes"), {
+      waitUntil: "load",
+    })
     const callouts = await p4.evaluate(() =>
       [
         ...document.querySelectorAll('[id="fig-3.4-1"] .gb-panel-callouts li'),
@@ -543,12 +540,9 @@ const checks = {
       viewport: { width: 1400, height: 1000 },
     })
     const p5 = await wide.newPage()
-    await p5.goto(
-      url("03-clips/04-clip-view-parameter-affect-group-changes"),
-      {
-        waitUntil: "load",
-      },
-    )
+    await p5.goto(url("03-clips/04-clip-view-parameter-affect-group-changes"), {
+      waitUntil: "load",
+    })
     const layout = await p5.evaluate(() => {
       const fig = document.getElementById("fig-3.4-1")
       const boxes = [...fig.querySelectorAll(".gb-panel-callouts li")].map(
@@ -869,7 +863,7 @@ const checks = {
     check(
       "index: filtering for 'delete' keeps its see entry and the deleting tasks, drops the rest",
       delHeads.includes("Delete") &&
-        delSubs.includes("Deleting a clip from within song view") &&
+        delSubs.includes("Deleting a clip from within session view") &&
         !delHeads.includes("Swing") &&
         delSubs.every((s) => /delet/i.test(s)),
       `${delHeads.length} entries, ${delSubs.length} subentries`,

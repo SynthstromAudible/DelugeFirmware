@@ -6,16 +6,19 @@
       "href": "/guidebook/14-arranger-view/03-arranger-view-basics"
     },
     {
-      "term": "song view",
-      "href": "/guidebook/12-session-view/02-session-view-basics"
+      "term": "session view",
+      "href": "/guidebook/12-session-view/02-session-view-basics",
+      "aliases": ["song view"]
     },
     {
-      "term": "song row view",
-      "href": "/guidebook/12-session-view/03-working-in-session-row-view"
+      "term": "session row view",
+      "href": "/guidebook/12-session-view/03-working-in-session-row-view",
+      "aliases": ["song row view"]
     },
     {
-      "term": "song grid view",
-      "href": "/guidebook/12-session-view/04-working-in-session-grid-view"
+      "term": "session grid view",
+      "href": "/guidebook/12-session-view/04-working-in-session-grid-view",
+      "aliases": ["song grid view"]
     },
     {
       "term": "clip view",

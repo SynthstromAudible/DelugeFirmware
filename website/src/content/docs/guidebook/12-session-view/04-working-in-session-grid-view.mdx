@@ -24,7 +24,7 @@ import StepFocus from "../../../../components/guidebook/StepFocus.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
-An optional way of presenting the song mode is to use the grid view. Generally speaking this still offers the same core song mode functionality but is presented with a grid style as opposed to a row view and the play and edit modes need to be selected. The functions in row or grid view are generally the same but with some visualisation and application differences.
+An optional way of presenting the session mode is to use the grid view. Generally speaking this still offers the same core session mode functionality but is presented with a grid style as opposed to a row view and the play and edit modes need to be selected. The functions in row or grid view are generally the same but with some visualisation and application differences.
 
 <Figure
   id="fig-12.4-1"
@@ -35,7 +35,7 @@ An optional way of presenting the song mode is to use the grid view. Generally s
   page={163}
 />
 
-Deluge will only play one instrument at one time in song view. So for example, if two clips use the same synth preset 1 or clone of 1, the clip rows can each be launched but each one will stop playback of the other, allowing only one instance of each instrument to play at one time.
+Deluge will only play one instrument at one time in session view. So for example, if two clips use the same synth preset 1 or clone of 1, the clip rows can each be launched but each one will stop playback of the other, allowing only one instance of each instrument to play at one time.
 
 <StepFocus />
 
@@ -43,7 +43,7 @@ Deluge will only play one instrument at one time in song view. So for example, i
 
 <Steps>
 
-1. Press :key[Song] to switch to song view. The button illuminates blue. If this is a new song and the first this time the song mode is selected, the song may be empty or only show the first clip compressed to the first row.
+1. Press :key[Song] to switch to session view. The button illuminates blue. If this is a new song and the first this time the session mode is selected, the song may be empty or only show the first clip compressed to the first row.
 2. Hold :key[Song + Turn Select] to change between song row and grid view. Select Grid view.
 3. Press :key[Play] to playback the song.
 4. The grid of pads represents consolidated clips and sections. Only the first clip in a section is visible on a pad. Track column colours are randomly generated.
@@ -51,24 +51,24 @@ Deluge will only play one instrument at one time in song view. So for example, i
 
 </Steps>
 
-## Creating a new clip from song grid view
+## Creating a new clip from session grid view
 
 <Steps>
 
-1. Press :key[Song] to switch to song mode. The button illuminates blue. Press :key[Song + Turn Select] to switch to grid view.
+1. Press :key[Song] to switch to session mode. The button illuminates blue. Press :key[Song + Turn Select] to switch to grid view.
 2. Press the blue :key[Audition Pad] to select pad edit, blue mode.
 3. Press a :key[Pad] from the empty, unlit pad on the 16 x 8 main grid, starting in the first column of next available column. Select from an existing column to use the same instrument.
 4. Deluge creates a new clip and transfers the view from song to clip view with synth selected by default.
 5. Any edits, change to synth / kit, steps created etc in the clip will be reflected when switching back to :key[Song] view with the clip added.
-6. Alternatively hold :key[Pad + Turn Select] to assign an instrument directly from within song view.
+6. Alternatively hold :key[Pad + Turn Select] to assign an instrument directly from within session view.
 
 </Steps>
 
-## Selecting an existing clip to edit from song grid view
+## Selecting an existing clip to edit from session grid view
 
 <Steps>
 
-1. Press :key[Song] to switch to song mode. The button illuminates blue. Press :key[Song + Turn Select] to switch to grid view.
+1. Press :key[Song] to switch to session mode. The button illuminates blue. Press :key[Song + Turn Select] to switch to grid view.
 2. Press the blue :key[Audition Pad] to select pad edit, blue mode.
 3. Press a :key[Pad] of any occupied row from the 16 x 8 main grid. The occupied pads containing clips will be illuminated fully or in part.
 4. Deluge transfers the view from song to clip view ready to edit.
@@ -76,11 +76,11 @@ Deluge will only play one instrument at one time in song view. So for example, i
 
 </Steps>
 
-Note: Overdub recording and copying clips is not supported in Song Grid View. These functions should be performed in the default song row view.
+Note: Overdub recording and copying clips is not supported in Session Grid View. These functions should be performed in the default session row view.
 
-### Launch Control of Single Clips in Song Grid View
+### Launch Control of Single Clips in Session Grid View
 
-More advanced options are available in song grid view than just the start stop commands for individual clips. Clips are armed to ensure the timing of the clip start aligns with the overall song.
+More advanced options are available in session grid view than just the start stop commands for individual clips. Clips are armed to ensure the timing of the clip start aligns with the overall song.
 
 <Figure
   id="fig-12.4-2"
@@ -95,9 +95,9 @@ Display shows countdown of loops to complete when a clip row is ‘armed’ and 
 
 Press :key[Select] to cancel loop countdown.
 
-Press :key[Shift + Launch Pad] to immediately play the clip row in song view.
+Press :key[Shift + Launch Pad] to immediately play the clip row in session view.
 
-## Launching / stopping a clip or section in song grid view
+## Launching / stopping a clip or section in session grid view
 
 <Steps>
 
@@ -118,7 +118,7 @@ Press :key[Shift + Launch Pad] to immediately play the clip row in song view.
 
 </Steps>
 
-## Soloing clips in song grid view
+## Soloing clips in session grid view
 
 <Steps>
 
@@ -129,7 +129,7 @@ Press :key[Shift + Launch Pad] to immediately play the clip row in song view.
 
 </Steps>
 
-## Copying a clip in song grid view
+## Copying a clip in session grid view
 
 <Steps>
 
@@ -144,6 +144,6 @@ Press :key[Shift + Launch Pad] to immediately play the clip row in song view.
 
 1. Hold :key[Pad] for any active clip in the column + :key[Turn Vertical].
 2. The colour of the instrument column can be adjusted as required.
-3. Note that this process in Song row view will re-order rows.
+3. Note that this process in Session row view will re-order rows.
 
 </Steps>

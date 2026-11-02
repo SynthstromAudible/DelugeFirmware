@@ -24,7 +24,7 @@
     {
       "head": "Arranger view",
       "match": ["arranger", "arrangement"],
-      "also": ["Song view", "White clips"]
+      "also": ["Session view", "White clips"]
     },
     {
       "head": "Audio clip",
@@ -449,6 +449,20 @@
       "match": ["sequence", "sequencing", "sequencer", "pattern", "patterns"]
     },
     {
+      "head": "Session grid view",
+      "match": ["session grid view", "song grid view", "grid view"],
+      "not": ["session row view", "song row view"]
+    },
+    {
+      "head": "Session row view",
+      "match": ["session row view", "song row view", "row view"]
+    },
+    {
+      "head": "Session view",
+      "match": ["session view", "session mode", "song view", "song mode"],
+      "also": ["Session grid view", "Session row view"]
+    },
+    {
       "head": "Settings",
       "match": ["settings", "setting", "configuration", "system parameter"],
       "not": [
@@ -478,21 +492,16 @@
     {
       "head": "Song",
       "match": ["song", "songs"],
-      "not": ["song view", "song row view", "song grid view", "song mod-fx"]
-    },
-    {
-      "head": "Song grid view",
-      "match": ["song grid view", "grid view"],
-      "not": ["song row view"]
-    },
-    {
-      "head": "Song row view",
-      "match": ["song row view", "row view"]
-    },
-    {
-      "head": "Song view",
-      "match": ["song view", "song mode", "session view"],
-      "also": ["Song grid view", "Song row view"]
+      "not": [
+        "song view",
+        "song row view",
+        "song grid view",
+        "song mod-fx",
+        "session view",
+        "session row view",
+        "session grid view",
+        "session mode"
+      ]
     },
     {
       "head": "Sound editor",
@@ -569,7 +578,7 @@
     {
       "head": "Views",
       "match": ["views", "relationship between views"],
-      "also": ["Arranger view", "Clip view", "Keyboard view", "Song view"]
+      "also": ["Arranger view", "Clip view", "Keyboard view", "Session view"]
     },
     {
       "head": "Volume",
@@ -654,12 +663,20 @@
       "see": ["Sequencing"]
     },
     {
-      "term": "Session view",
-      "see": ["Song grid view"]
-    },
-    {
       "term": "Sidechain",
       "see": ["Compressor"]
+    },
+    {
+      "term": "Song grid view",
+      "see": ["Session grid view"]
+    },
+    {
+      "term": "Song row view",
+      "see": ["Session row view"]
+    },
+    {
+      "term": "Song view",
+      "see": ["Session view"]
     },
     {
       "term": "Track",

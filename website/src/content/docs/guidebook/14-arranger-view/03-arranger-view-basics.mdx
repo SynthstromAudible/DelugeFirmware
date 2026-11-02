@@ -24,7 +24,7 @@ import fig_fig_14_3_3 from "../../../../assets/guidebook/figs/14-arranger-view__
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
-Arranger view allows the chaining of clip instances into a longer more linear arrangements. Song view operates from the perspective of a collection of clips with each clip represented by a row. Arranger view takes its perspective based on ‘tracks’. Each track is presented on a row and represents an individual Instrument, MIDI, CV or audio element. The pads therefore represent clip instances.
+Arranger view allows the chaining of clip instances into a longer more linear arrangements. Session view operates from the perspective of a collection of clips with each clip represented by a row. Arranger view takes its perspective based on ‘tracks’. Each track is presented on a row and represents an individual Instrument, MIDI, CV or audio element. The pads therefore represent clip instances.
 
 ## Arranger View
 
@@ -44,7 +44,7 @@ Arranger view allows the chaining of clip instances into a longer more linear ar
 - Clip ‘instances’ are identical, linked copies of the original clip. Changing the instrument notes, structure of the actual clip will change equally in all instances.
 - Each row represents a track. Only one row per instrument, MIDI, CV, audio and therefore each instance resides on the same row.
 - Clips including the length and song sections should be set up first. These form a prerequisite to arranging the clips in arranger view.
-- Colours of clips in arranger view reflects the colours for the respective section in song view.
+- Colours of clips in arranger view reflects the colours for the respective section in session view.
 - White clips in arranger view indicate unique clip instances which are independent, detached from any original source clip. Used for variations and fills.
 
 <StepFocus />
@@ -54,8 +54,8 @@ Arranger view allows the chaining of clip instances into a longer more linear ar
 <Steps>
 
 1. Select :key[Song] view.
-2. From within song view, press :key[Song] again to switch to ARRANGER view. The song button will flash blue.
-3. Press :key[Song] again to return back to song view - button lit blue.
+2. From within session view, press :key[Song] again to switch to ARRANGER view. The song button will flash blue.
+3. Press :key[Song] again to return back to session view - button lit blue.
 
 </Steps>
 
@@ -66,17 +66,17 @@ Arranger view allows the chaining of clip instances into a longer more linear ar
   }
 />
 
-Arranger view can only be selected from within song view. Clip view cannot be directly selected from arranger view using :key[Clip] and needs to be in song view first to then enable a switch to clip view. Alternatively pressing any clip instance :key[Pad] other than the first, left most pad will switch the clip to its clip view.
+Arranger view can only be selected from within session view. Clip view cannot be directly selected from arranger view using :key[Clip] and needs to be in session view first to then enable a switch to clip view. Alternatively pressing any clip instance :key[Pad] other than the first, left most pad will switch the clip to its clip view.
 
 ## Basic clip instance placement in the arranger
 
 <Steps>
 
-1. Ensure a collection of clips have been produced in clip view, lengths set and arranged as desired and with sections in song view as desired.
+1. Ensure a collection of clips have been produced in clip view, lengths set and arranged as desired and with sections in session view as desired.
 2. Select :key[Song] for arranger view. Button flashes blue.
 3. Arranger view is entered.
    - The grid will be initially blank.
-   - The mute / launch pads will be lit. For example, if 3 instruments are used in song view, maybe each with several clips each, then 3 rows will be set for the three instruments.
+   - The mute / launch pads will be lit. For example, if 3 instruments are used in session view, maybe each with several clips each, then 3 rows will be set for the three instruments.
    - The audition / section pad can be played to listen to a selected sound, ie: snare from a kit or the root note from the synth preset for the specific instrument. Holding down on audition pad will reveal the name of that preset in the display.
    - Rows will default to presets when the audition pad is played for an instrument not used with a clip.
 4. Press a :key[Pad] for the location at the start of the clip instance and on the row for the desired instrument.
@@ -93,7 +93,7 @@ Arranger view can only be selected from within song view. Clip view cannot be di
 <Steps>
 
 1. Press & hold :key[Pad], the clip instance to change + :key[Turn Select].
-2. The clip instance options available will be selected with the select control. The pad will change its colour based on its section colour in song view.
+2. The clip instance options available will be selected with the select control. The pad will change its colour based on its section colour in session view.
 3. Changes will take place at every ‘click’ iteration of the select control knob.
 
 </Steps>
