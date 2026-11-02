@@ -82,8 +82,14 @@ void SlicerScene::open(Sample* sample) {
 	// `SampleBrowser::renderPreviewForTarget` (`gui/ui/browser/sample_browser.cpp:653-655`), onto this
 	// scene's own navigator rather than the shared `waveformBasicNavigator` global. `opened()` with
 	// no holder is legacy's own call there: no remembered view, so the slicer opens zoomed all the
-	// way out.
+	// way out. Reopened on the sample it already shows, the navigator is kept, render cache and all: legacy's global is
+	// not reset between two slicer opens on the same file, and a fresh scan would read the overview cache's coarse
+	// peaks where the first open read the audio.
+	if (sample != nullptr && sample == nav_.sample && sample->filePath == nav_path_) {
+		return;
+	}
 	nav_.sample = sample;
+	nav_path_ = sample != nullptr ? sample->filePath : std::string{};
 	if (sample != nullptr) {
 		nav_.opened();
 	}

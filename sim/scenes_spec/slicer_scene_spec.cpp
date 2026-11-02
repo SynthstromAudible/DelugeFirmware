@@ -938,6 +938,36 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		expect_pads_match(self, r, legacy_pads());
 	});
 
+	it("keeps its waveform when reopened on the same sample, as legacy's navigator does", _ {
+		// Legacy's slicer reads `waveformBasicNavigator`, which nothing resets between two opens on the same file, so
+		// the second open draws the first open's peaks. A navigator re-opened here would scan again, and on the device
+		// that scan reads the overview cache's coarse peaks instead (`find_peaks_per_col`'s whole-cluster arm).
+		Rig r;
+		r.open();
+		r.tick(0);
+		const deluge::gfx::grid::PadGrid first = r.fake.grid().grid();
+
+		for (int32_t i = 0; i < kNumClusters; i++) {
+			OverviewCacheEntry& e = r.sample->overviewCacheEntry(static_cast<uint32_t>(i));
+			e.min = 0;
+			e.max = 0;
+		}
+		r.shell.stack().pop(SceneKind::Null);
+		r.open();
+		r.tick(10);
+
+		int32_t differ = 0;
+		for (int32_t x = 0; x < kDisplayWidth; x++) {
+			for (int32_t y = 0; y < kDisplayHeight; y++) {
+				const auto at = [&](const deluge::gfx::grid::PadGrid& g) {
+					return g.at(static_cast<uint8_t>(x), static_cast<uint8_t>(y));
+				};
+				differ += at(first) == at(r.fake.grid().grid()) ? 0 : 1;
+			}
+		}
+		expect(differ).to_equal(0);
+	});
+
 	it("draws the MANUAL squashed waveform, slice marks and slot grid legacy draws", _ {
 		Rig r;
 		r.open();

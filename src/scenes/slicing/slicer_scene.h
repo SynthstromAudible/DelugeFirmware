@@ -198,6 +198,7 @@
 
 #include <cstdint>
 #include <optional>
+#include <string>
 
 class Sample;
 
@@ -329,7 +330,8 @@ public:
 	/// `waveformBasicNavigator.sample = sample; waveformBasicNavigator.opened();`
 	/// (`SampleBrowser::renderPreviewForTarget`, `gui/ui/browser/sample_browser.cpp:653-655`)
 	/// before the legacy object is opened. Those two lines are
-	/// this call, onto a navigator this scene owns rather than a shared global.
+	/// this call, onto a navigator this scene owns rather than a shared global. Called again on the sample and file it
+	/// already shows, it keeps the navigator, as nothing resets legacy's global between two slicer opens.
 	/// @param sample The sample to slice; null leaves the scene with nothing to draw.
 	void open(Sample* sample);
 
@@ -478,6 +480,8 @@ private:
 	/// (`waveformBasicNavigator`) between the browser, the marker editor and the slicer; every
 	/// port owns its own, as `MarkerScene` already does.
 	deluge::sample::WaveformNav nav_{};
+	/// The file `nav_` was opened on: a reopen keeps the navigator only for the same sample on the same file.
+	std::string nav_path_{};
 
 	/// `int16_t`, as legacy declares it (`gui/ui/slicer.h:69`) -- the wrap in `selectEncoderAction`
 	/// is written against exactly 257 and 1, so the width is part of the behaviour.
