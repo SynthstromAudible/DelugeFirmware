@@ -676,6 +676,24 @@ private:
 	BlockSpans spans_{};
 };
 
+/// @brief `fixed::release_rate`, the release-table curve, once per sample: input_a's samples, scaled to the table's
+/// span, into the output.
+/// @details **Timed state:** stateless; every block is the same lookups on the same input. Each input is a sample
+/// shifted right by two, so its table position spans the 64 interpolated steps around the middle entry. It is a
+/// control-rate function, timed per sample to measure its call.
+class ReleaseRateCase {
+public:
+	/// @brief Fills input_a and takes the blocks' spans for @p n.
+	/// @param n Block size to set up for, in samples.
+	void setup(std::size_t n);
+	/// @brief Looks up one block of the size it was set up for.
+	/// @param n Block size, in samples; the size passed to setup().
+	void block(std::size_t n);
+
+private:
+	BlockSpans spans_{};
+};
+
 /// @brief `Lanes<OnePole, N>` in LOW_PASS at the granular kernel's moveability, op-major: N streams through one
 /// pole, from the lanes input into the lanes output.
 /// @details **Timed state:** every lane's memory carries from block to block, from silence at setup, following its
@@ -1746,6 +1764,7 @@ struct CaseSet {
 	AntialiasedTanhCase antialiased_tanh;                         ///< `antialiased_tanh`
 	Tanh3Case tanh3;                                              ///< `tanh3`
 	DryWetBlendCase dry_wet_blend;                                ///< `dry_wet_blend`
+	ReleaseRateCase release_rate;                                 ///< `release_rate`
 	OnePoleX2Case one_pole_x2;                                    ///< `one_pole_x2`
 	OnePoleX4Case one_pole_x4;                                    ///< `one_pole_x4`
 	ShiftTrackerX4Case shift_tracker_x4;                          ///< `shift_tracker_x4`

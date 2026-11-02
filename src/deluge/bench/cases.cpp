@@ -2,6 +2,7 @@
 
 #include "dsp-next/fixed/bandlimited/saw.h"
 #include "dsp-next/fixed/bandlimited/square.h"
+#include "dsp-next/fixed/curves/param_curve.h"
 #include "dsp-next/fixed/noise/noise.h"
 #include "dsp-next/fixed/sync/synced_oscillator.h"
 
@@ -412,6 +413,17 @@ void DryWetBlendCase::block(std::size_t /*n*/) {
 	mono_.render_block(spans_.a, spans_.b, spans_.out);
 }
 
+void ReleaseRateCase::setup(std::size_t n) {
+	spans_ = spans(n);
+	fill_inputs();
+}
+
+void ReleaseRateCase::block(std::size_t n) {
+	for (std::size_t i = 0; i < n; ++i) {
+		spans_.out[i] = dsp::fixed::release_rate(spans_.a[i] >> 2);
+	}
+}
+
 template <std::size_t N>
 void LanesOnePoleCase<N>::setup(std::size_t n) {
 	spans_ = frame_spans<dsp::Frame<q31, N>>(n);
@@ -546,6 +558,7 @@ std::span<const Case> kernel_list(CaseSet& s) {
 	    make_case("antialiased_tanh", s.antialiased_tanh),
 	    make_case("tanh3", s.tanh3),
 	    make_case("dry_wet_blend", s.dry_wet_blend),
+	    make_case("release_rate", s.release_rate),
 	};
 	return kernels;
 }

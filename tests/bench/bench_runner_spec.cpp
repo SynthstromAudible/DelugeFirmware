@@ -271,6 +271,7 @@ const std::vector<std::string_view> kKernelCaseNames{
     "crude_saw",        "crude_square",  "crude_triangle",   "synced_pulse",  "wavetable",
     "mono_gain",        "mono_vec_gain", "stereo_gain",      "duck_envelope", "shift_tracker",
     "one_pole_lp",      "one_pole_ap",   "antialiased_tanh", "tanh3",         "dry_wet_blend",
+    "release_rate",
 };
 
 /// The lanes list's names, in order.
