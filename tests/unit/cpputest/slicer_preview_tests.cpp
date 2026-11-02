@@ -49,7 +49,7 @@ public:
 	void graphicsRoutine() { slicer_.graphicsRoutine(); }
 
 	/// Whether a load is held for the tick surface to finish.
-	[[nodiscard]] bool previewIsPending() const { return slicer_.auditionLoad_.pending(); }
+	[[nodiscard]] bool previewIsPending() const { return slicer_.core_.audition_pending(); }
 	[[nodiscard]] int32_t auditionNotesSent() const { return deluge::test::auditionNoteCount; }
 	[[nodiscard]] int32_t lastAuditionOn() const { return deluge::test::lastAuditionOn; }
 	[[nodiscard]] int32_t previewGiveUps() const { return slicer_.previewGiveUps(); }

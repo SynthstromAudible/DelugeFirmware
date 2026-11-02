@@ -82,6 +82,7 @@ file(GLOB_RECURSE deluge_SOURCES
         # shipped preview()/graphicsRoutine() instead of a restatement of them. Its world is
         # mocks/slicer_env_mock.cpp (globbed above).
         ../../../src/deluge/gui/ui/slicer.cpp
+        ../../../src/deluge/gui/ui/slice_core.cpp
         # For the DX cartridge window spec: the REAL sysex parser, so the spec measures what
         # DX7Cartridge::load actually does with a truncated bank rather than restating arithmetic.
         ../../../src/deluge/storage/DX7Cartridge.cpp
