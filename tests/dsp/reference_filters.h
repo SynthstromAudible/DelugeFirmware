@@ -68,7 +68,6 @@ namespace filters_reference {
 
 using deluge::dsp::q31;
 using deluge::dsp::StereoSample;
-using deluge::dsp::fixed::CurvedFrequency;
 using deluge::dsp::fixed::FilterConfig;
 using deluge::dsp::fixed::FilterRoute;
 using deluge::dsp::fixed::HighPassSlot;
@@ -111,6 +110,13 @@ struct Digest {
 			add(s.r);
 		}
 	}
+};
+
+/// @brief What the legacy cutoff warp returns: tan(f) (Q28), 1 / (1 + tan(f)) (Q31) and the moveability (Q31).
+struct CurvedFrequency {
+	q31 tanned;
+	q31 divide_by_one_plus_tanned;
+	q31 fc;
 };
 
 /// @brief The cutoff warp the filters configure from: `curve_frequency` (filter_modes.h), copied.

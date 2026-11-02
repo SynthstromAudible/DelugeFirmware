@@ -126,6 +126,7 @@ set(low_pass_ladder_spec_DEPS ${_filter_DEPS})
 set(high_pass_ladder_spec_DEPS ${_filter_DEPS})
 set(svf_spec_DEPS ${_filter_DEPS})
 set(fade_in_spec_DEPS ${_filter_DEPS})
+set(curve_frequency_spec_DEPS ${_filter_DEPS})
 # The filter set runs the three filters.
 set(filter_set_spec_DEPS ${_filter_DEPS} ${_repo_root}/src/deluge/dsp-next/fixed/filter/filter_set.cpp)
 

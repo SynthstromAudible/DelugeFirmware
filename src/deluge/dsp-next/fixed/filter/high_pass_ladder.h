@@ -154,8 +154,8 @@ struct HighPassLadder {
 		Coefficients c{};
 		c.morph = as_clamp_then_shift<Q<31>>(Q<29>::from_raw(s.config.morph));
 		const CurvedFrequency curved = curve_frequency(s.config.frequency);
-		const auto m = Q<31>::from_raw(curved.fc);
-		const auto divide_by_one_plus_tanned = Q<31>::from_raw(curved.divide_by_one_plus_tanned);
+		const Q<31> m = curved.fc;
+		const Q<31> divide_by_one_plus_tanned = curved.divide_by_one_plus_tanned;
 		c.moveability = m;
 
 		const Q<31> damping =

@@ -240,8 +240,8 @@ struct LowPassLadder {
 		}
 
 		const CurvedFrequency curved = curve_frequency(frequency);
-		c.divide_by_one_plus_tanned = Q<31>::from_raw(curved.divide_by_one_plus_tanned);
-		const Q<31> m = std::max(Q<31>::from_raw(curved.fc), Q<31>::from_raw(4317840));
+		c.divide_by_one_plus_tanned = curved.divide_by_one_plus_tanned;
+		const Q<31> m = std::max(curved.fc, Q<31>::from_raw(4317840));
 		c.moveability = m;
 
 		if (ladder == Ladder::T12) {
@@ -269,7 +269,7 @@ struct LowPassLadder {
 		q31 gain = s.gain;
 		if (s.mode != LowPassLadderMode::TRANSISTOR_24DB_DRIVE) {
 			// Extra feedback, but only while the cutoff is low enough not to alias: × 0.536 rather than a half.
-			if (curved.tanned <= 304587486) {
+			if (curved.tanned <= Q<28>::from_raw(304587486)) {
 				c.processed_resonance = mul_r_as_wrap<Q<30>>(c.processed_resonance, Q<31>::from_raw(1150000000));
 			}
 			else {

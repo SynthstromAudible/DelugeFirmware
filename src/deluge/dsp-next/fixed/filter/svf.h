@@ -101,7 +101,7 @@ struct Svf {
 	[[nodiscard]] [[gnu::always_inline]] static Coefficients coefficients(const Settings& s) {
 		Coefficients c{};
 		auto morph = as_clamp_then_shift<Q<31>>(Q<29>::from_raw(s.config.morph));
-		const Q<31> fc = Q<31>::from_raw(curve_frequency(s.config.frequency).fc);
+		const Q<31> fc = curve_frequency(s.config.frequency).fc;
 		// 2^29 − 1 as a high-word multiplier is an eighth, one LSB short.
 		constexpr auto kEighth = UQ<32>::from_raw(static_cast<uint32_t>(Q<31>::max().raw() / 4));
 		c.fc = add_wrap(fc, mul(kEighth, fc));
