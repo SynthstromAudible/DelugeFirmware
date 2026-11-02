@@ -108,14 +108,14 @@ pub async fn pic_pump() {
     }
 }
 
-/// Queues `ev` for the app and wakes its loop with `WAKE_INPUT`; drops it when [`EVENTS`] is full.
+/// Queues `ev` for the app and wakes its loop with `WAKE_INPUT`; drops it when `EVENTS` is full.
 ///
-/// The wake is the only way the driver hears of input: it has no level check on [`EVENTS`].
+/// The wake is the only way the driver hears of input: it has no level check on `EVENTS`.
 pub fn queue_event(ev: DelugeInputEvent) {
     try_queue_event(ev);
 }
 
-/// [`queue_event`], returning false when [`EVENTS`] was full and `ev` was dropped.
+/// [`queue_event`], returning false when `EVENTS` was full and `ev` was dropped.
 pub fn try_queue_event(ev: DelugeInputEvent) -> bool {
     let queued = EVENTS.try_send(ev).is_ok();
     if queued {
@@ -347,9 +347,9 @@ pub fn reset_refresh_count_for_test() {
 /// Background task: the sole PIC transmitter. Drains `OUT`, yielding between sends so the RX pump
 /// and the app keep running.
 ///
-/// Every [`enqueue`] runs synchronously inside the app job that called it, and this task runs on
+/// Every `enqueue` runs synchronously inside the app job that called it, and this task runs on
 /// the same thread executor, so once `OUT` is found empty that job's whole batch has been sent —
-/// exactly the moment to trigger the PIC's refresh, which [`refresh`] does once per batch rather
+/// exactly the moment to trigger the PIC's refresh, which `refresh` does once per batch rather
 /// than once per command. The refresh is sent from here, after the queue is known empty, so it
 /// cannot be dropped by a full queue the way a `try_send` from the app's side could be.
 #[embassy_executor::task]
@@ -566,7 +566,7 @@ pub extern "C" fn deluge_control_set_dimmer_interval(interval: u8) {
 }
 
 /// Returns the free space for queued pad output, in bytes: free queue slots × `BYTES_PER_CMD`, or
-/// none while an OLED frame holds the PIC UART (see [`OLED_FRAME`]).
+/// none while an OLED frame holds the PIC UART (see `OLED_FRAME`).
 ///
 /// The app gates redraws on this against byte counts, so it must not be a slot count.
 #[unsafe(no_mangle)]

@@ -1,7 +1,7 @@
 //! The board-independent half of USB audio: PCM packing, the two frame rings, the from-host
 //! reader's latency window, and the to-host packet sizing.
 //!
-//! [`usb_audio`](super::usb_audio) wires these to the USB pipes, the SSI clock and the C ABI; the
+//! `usb_audio` wires these to the USB pipes, the SSI clock and the C ABI; the
 //! clocking is explained there. Nothing here touches hardware, so the host tests cover it.
 
 use core::cell::UnsafeCell;

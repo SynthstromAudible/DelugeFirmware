@@ -2,7 +2,7 @@
 //!
 //! `.sdram_init` is linked at its SDRAM address only; the image carries it deflated in `.sdram_init_pack`
 //! (`linker/sdram_sections.x`), written after the link by `scripts/tasks/sdram_pack.py`. The boot inflates it into
-//! SDRAM ([`crate::boot_mem`]). The pack is `[u32 LE raw length][u32 LE zlib length][zlib stream][zero padding]`.
+//! SDRAM (`crate::boot_mem`). The pack is `[u32 LE raw length][u32 LE zlib length][zlib stream][zero padding]`.
 
 /// Why a pack did not inflate into its destination.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
