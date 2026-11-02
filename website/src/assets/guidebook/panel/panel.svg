@@ -30,6 +30,7 @@
 <circle data-c="Shift" cx="5159.0" cy="1320.5" r="59.5" stroke-width="3.7"/>
 <circle data-c="Song" cx="2283.5" cy="1103.5" r="59.5" stroke-width="3.7"/>
 <circle data-c="Sync-scaling" cx="4538.0" cy="1103.5" r="59.5" stroke-width="3.6"/>
+<circle data-c="Synced" cx="4776.5" cy="674.0" r="19.6" stroke-width="3.6"/>
 <circle data-c="Synth" cx="3048.5" cy="1103.5" r="59.5" stroke-width="3.7"/>
 <circle data-c="Tap-Tempo" cx="4538.0" cy="887.0" r="59.5" stroke-width="3.6"/>
 <circle data-c="Tempo-Encoder" cx="4536.5" cy="561.0" r="164.2" stroke-width="5.0"/>
@@ -38,6 +39,7 @@
 <circle data-c="Vertical-Encoder" cx="446.5" cy="1211.5" r="164.2" stroke-width="5.0"/>
 <circle cx="5477.0" cy="209.0" r="91.9" stroke-width="2.3"/>
 <circle cx="5477.0" cy="209.0" r="84.0" stroke-width="4.1"/>
+<circle cx="819.5" cy="193.5" r="19.7" stroke-width="3.8"/>
 <circle cx="4536.5" cy="561.5" r="180.2" stroke-width="4.7"/>
 <circle cx="5162.0" cy="561.0" r="180.2" stroke-width="3.7"/>
 <circle cx="987.0" cy="561.0" r="164.2" stroke-width="5.0"/>
@@ -255,7 +257,7 @@
 <g class="txt">
 <text x="1115" y="191" font-size="53.1" textLength="106" lengthAdjust="spacingAndGlyphs">CLK</text>
 <text x="3290" y="192" font-size="53.1" textLength="109" lengthAdjust="spacingAndGlyphs">OUT</text>
-<text x="664" y="215" font-size="53.8" textLength="177" lengthAdjust="spacingAndGlyphs">USB</text>
+<text x="664" y="214" font-size="53.1" textLength="106" lengthAdjust="spacingAndGlyphs">USB</text>
 <text x="2922" y="192" font-size="53.1" textLength="45" lengthAdjust="spacingAndGlyphs">IN</text>
 <text x="3577" y="192" font-size="53.8" textLength="236" lengthAdjust="spacingAndGlyphs">L / MONO</text>
 <text x="4669" y="214" font-size="53.1" textLength="182" lengthAdjust="spacingAndGlyphs">LINE IN</text>
@@ -270,7 +272,7 @@
 <text x="4769" y="622" font-size="46.1" textLength="153" lengthAdjust="spacingAndGlyphs">SWING</text>
 <text x="5366" y="594" font-size="46.1" textLength="145" lengthAdjust="spacingAndGlyphs">LEVEL</text>
 <text x="3985" y="722" font-size="46.1" textLength="129" lengthAdjust="spacingAndGlyphs">REDO</text>
-<text x="4755" y="695" font-size="33.5" textLength="197" lengthAdjust="spacingAndGlyphs">SYNCED</text>
+<text x="4816" y="684" font-size="33.5" textLength="136" lengthAdjust="spacingAndGlyphs">SYNCED</text>
 <text x="935" y="810" font-size="32.1" textLength="104" lengthAdjust="spacingAndGlyphs">LEVEL</text>
 <text x="1354" y="811" font-size="32.1" textLength="131" lengthAdjust="spacingAndGlyphs">ATTACK</text>
 <text x="2206" y="811" font-size="32.1" textLength="152" lengthAdjust="spacingAndGlyphs">STUTTER</text>

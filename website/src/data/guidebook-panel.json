@@ -204,6 +204,13 @@
       "cy": 1103.5,
       "r": 59.5
     },
+    "Synced": {
+      "kind": "button",
+      "shape": "circle",
+      "cx": 4776.5,
+      "cy": 674.0,
+      "r": 19.6
+    },
     "Synth": {
       "kind": "button",
       "shape": "circle",
