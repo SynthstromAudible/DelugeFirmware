@@ -112,3 +112,12 @@ test("rejects a frame file for another figure", () => {
     /fig-y/,
   )
 })
+
+test("orange is an LED colour (parameter buttons, Affect Entire)", () => {
+  const f = validateFrames(file([{ leds: { Play: "orange" } }]), {
+    figure: "fig-x",
+    stepCount: 1,
+    panel,
+  })
+  assert.equal(f.steps[0].leds?.Play, "orange")
+})

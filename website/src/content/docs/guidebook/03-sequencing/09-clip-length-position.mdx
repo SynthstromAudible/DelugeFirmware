@@ -17,8 +17,8 @@ guidebook:
 
 import StepFocus from "../../../../components/guidebook/StepFocus.astro"
 import { Steps } from "@astrojs/starlight/components"
+import PanelFigure from "../../../../components/guidebook/PanelFigure.astro"
 import Figure from "../../../../components/guidebook/Figure.astro"
-import fig_fig_3_9_1 from "../../../../assets/guidebook/figs/03-sequencing__09-clip-length-position--1.svg?raw"
 import fig_fig_3_9_2 from "../../../../assets/guidebook/figs/03-sequencing__09-clip-length-position--2.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
@@ -38,14 +38,9 @@ Default clip length is 1 bar. This however can be changed which will extend the 
 
 </Steps>
 
-<Figure
+<PanelFigure
   id="fig-3.9-1"
-  animate="playhead"
-  src={fig_fig_3_9_1}
-  alt={
-    "Pad grid: 0:2:0 16th grid reduced to half the length. 0:3 0 16th grid reduced to 12 steps, 3/4 length. 0:2:2 16th grid at 10 steps, bar 1, beats 2…"
-  }
-  page={62}
+  alt={"The Deluge front panel: SHIFT held while turning the horizontal encoder; the clip is half the grid long, so the right eight columns of pads are dim grey"}
 />
 
 ### Duplicating pattern contents - multiply clip length

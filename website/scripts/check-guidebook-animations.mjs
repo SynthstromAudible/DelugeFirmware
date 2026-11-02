@@ -253,7 +253,8 @@ const checks = {
     }
     check(
       "no JS: every animated figure fully drawn, no replay button",
-      figures === 26 && bad.length === 0,
+      // 26 before the panel-figure pilot moved 3.2-1, 3.9-1 and 3.14-1 to PanelFigure
+      figures === 23 && bad.length === 0,
       `${figures} figures${bad.length ? `, bad: ${bad.join(", ")}` : ""}`,
     )
     await ctx.close()
@@ -285,10 +286,11 @@ const checks = {
 
   async allColumns(browser) {
     const ctx = await browser.newContext()
-    const id = "fig-3.9-1"
+    // 3.2-3: three direction grids (3.9-1 became a panel figure)
+    const id = "fig-3.2-3"
     const { page, errors } = await open(
       ctx,
-      "03-sequencing/09-clip-length-position",
+      "03-sequencing/02-playing-a-sequence",
       id,
     )
     await waitFor(() => replayVisible(page, id), 6000)
@@ -304,11 +306,150 @@ const checks = {
     )
     const swept = await lit(page, id)
     check(
-      "multi-grid: 3.9-1 sweeps every grid column, no errors",
+      "multi-grid: 3.2-3 sweeps every grid column, no errors",
       swept.length === tagged.length && errors.length === 0,
       `${swept.length}/${tagged.length} cols, ${errors.length} errors ${errors.join("; ")}`,
     )
     await ctx.close()
+  },
+
+  async panelFigures(browser) {
+    const fig = sel("fig-3.2-1")
+    const shown = (page) =>
+      page.evaluate(
+        (s) =>
+          [...document.querySelectorAll(`${s} .gb-panel-frame`)]
+            .filter((f) => !f.hidden && getComputedStyle(f).display !== "none")
+            .map((f) => f.dataset.frame ?? "static"),
+        fig,
+      )
+
+    const page = await browser.newPage()
+    await page.goto(url("03-sequencing/02-playing-a-sequence"), {
+      waitUntil: "load",
+    })
+    check(
+      "panel: before any step, the static frame shows",
+      (await shown(page)).join() === "static",
+      `${await shown(page)}`,
+    )
+    await page
+      .locator("ol.sl-steps")
+      .first()
+      .locator(":scope > li")
+      .nth(1)
+      .click()
+    const play = await page.evaluate((s) => {
+      const frame = document.querySelector(
+        `${s} .gb-panel-frame[data-frame="1"]`,
+      )
+      const el = frame?.querySelector('[data-c="Play"]')
+      const art = document.querySelector(`${s} .gb-panel-art-wrap`)
+      const by = art?.getAttribute("aria-describedby")
+      return {
+        cls: el?.getAttribute("class") ?? "",
+        described: by ? (document.getElementById(by)?.textContent ?? "") : "",
+      }
+    }, fig)
+    check(
+      "panel: step 2 shows frame 2 with PLAY lit green and highlighted",
+      (await shown(page)).join() === "1" &&
+        /led-green/.test(play.cls) &&
+        /hl-press/.test(play.cls),
+      `${await shown(page)}; ${play.cls}`,
+    )
+    check(
+      "panel: the frame is described by its step",
+      /start playback/.test(play.described),
+      play.described.slice(0, 60),
+    )
+    await page.close()
+
+    const noJs = await browser.newContext({ javaScriptEnabled: false })
+    const p2 = await noJs.newPage()
+    await p2.goto(url("03-sequencing/02-playing-a-sequence"), {
+      waitUntil: "load",
+    })
+    check(
+      "panel: without JS only the static frame shows",
+      (await shown(p2)).join() === "static",
+      `${await shown(p2)}`,
+    )
+    await noJs.close()
+
+    const still = await browser.newContext({ reducedMotion: "reduce" })
+    const p3 = await still.newPage()
+    await p3.goto(url("03-sequencing/02-playing-a-sequence"), {
+      waitUntil: "load",
+    })
+    const animations = await p3.evaluate(
+      (s) =>
+        [...document.querySelectorAll(`${s} .hl, ${s} .led-blink`)]
+          .map((el) => getComputedStyle(el).animationName)
+          .filter((n) => n !== "none").length,
+      fig,
+    )
+    check(
+      "panel: reduced motion stops highlight animation",
+      animations === 0,
+      `${animations}`,
+    )
+    await still.close()
+
+    const narrow = await browser.newContext({
+      viewport: { width: 390, height: 900 },
+    })
+    const p4 = await narrow.newPage()
+    await p4.goto(
+      url("02-basic-operation/08-clip-view-parameter-affect-group-changes"),
+      {
+        waitUntil: "load",
+      },
+    )
+    const callouts = await p4.evaluate(() =>
+      [
+        ...document.querySelectorAll('[id="fig-2.8-1"] .gb-panel-callouts li'),
+      ].map((li) => getComputedStyle(li).position),
+    )
+    check(
+      "panel: 2.8-1 callouts become a list on narrow screens",
+      callouts.length === 4 && callouts.every((pos) => pos === "static"),
+      `${callouts}`,
+    )
+    await narrow.close()
+
+    const wide = await browser.newContext({
+      viewport: { width: 1400, height: 1000 },
+    })
+    const p5 = await wide.newPage()
+    await p5.goto(
+      url("02-basic-operation/08-clip-view-parameter-affect-group-changes"),
+      {
+        waitUntil: "load",
+      },
+    )
+    const layout = await p5.evaluate(() => {
+      const fig = document.getElementById("fig-2.8-1")
+      const boxes = [...fig.querySelectorAll(".gb-panel-callouts li")].map(
+        (li) => {
+          const r = li.getBoundingClientRect()
+          return { side: li.dataset.side, top: r.top, bottom: r.bottom }
+        },
+      )
+      const overlaps = boxes.some((a, i) =>
+        boxes.some(
+          (b, j) =>
+            i < j && a.side === b.side && a.top < b.bottom && b.top < a.bottom,
+        ),
+      )
+      return { anchored: fig.classList.contains("gb-panel-anchored"), overlaps }
+    })
+    check(
+      "panel: wide 2.8-1 callouts never overlap (beside the panel when they fit, else a list)",
+      !(layout.anchored && layout.overlaps),
+      JSON.stringify(layout),
+    )
+    await wide.close()
   },
 
   async stepFocus(browser) {

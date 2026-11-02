@@ -68,11 +68,9 @@ const box = windowBox(
 const frameSvgs = file.steps.map((frame, i) =>
   renderFrame(panelSvg, frame, steps?.[i] ?? [], box),
 )
-const [wx, wy, ww, wh] = box
+const ww = box[2]
 const placed = layoutCallouts(callouts, panel, box)
-const pct = (v: number, origin: number, size: number) =>
-  `${(((v - origin) / size) * 100).toFixed(2)}%`
-// Marker size for narrow screens, in panel px.
+// Marker size for the numbered callout list, in panel px.
 const marker = ww * 0.022
 
 // No step chosen (no JS, print): the final state, with every control the steps use.
@@ -94,6 +92,7 @@ const staticSvg = renderFrame(
   ]}
   id={id}
   data-steps={steps ? file.steps.length : undefined}
+  data-window={box.join(" ")}
 >
   <div class="gb-panel-art-wrap" role="img" aria-label={alt}>
     <div class="gb-panel-frame gb-panel-static" set:html={staticSvg} />
@@ -142,10 +141,7 @@ const staticSvg = renderFrame(
     placed.length > 0 && (
       <ol class="gb-panel-callouts">
         {placed.map((c) => (
-          <li
-            data-side={c.side}
-            style={`--xf:${((c.label.x - wx) / ww).toFixed(4)};--y:${pct(c.label.y, wy, wh)}`}
-          >
+          <li data-side={c.side} data-y={c.leader.y2}>
             {c.text}
           </li>
         ))}
@@ -155,6 +151,8 @@ const staticSvg = renderFrame(
 </figure>
 
 <script>
+  import { labelsFit, stackLabels } from "./panel/callouts.ts"
+
   // The current step (StepFocus's "guidebook:step" event on the Steps list before the figure)
   // chooses the frame; until a step is chosen the static frame shows.
   function bind(figure: HTMLElement) {
@@ -191,4 +189,66 @@ const staticSvg = renderFrame(
   document
     .querySelectorAll<HTMLElement>("figure.gb-panel[data-steps]")
     .forEach(bind)
+
+  // Wide figures with left/right callouts: labels beside the panel, stacked by their real
+  // heights, leaders from each label to its control. Otherwise the numbered list stays.
+  const ANCHOR_MIN_WIDTH = 640
+  function anchor(figure: HTMLElement) {
+    const items = [
+      ...figure.querySelectorAll<HTMLLIElement>(".gb-panel-callouts li"),
+    ]
+    const lines = [
+      ...figure.querySelectorAll<SVGLineElement>(".gb-panel-leader"),
+    ]
+    const art = figure.querySelector<HTMLElement>(".gb-panel-art-wrap")
+    const sideOk = items.every((li) =>
+      /^(left|right)$/.test(li.dataset.side ?? ""),
+    )
+    const wide = figure.getBoundingClientRect().width >= ANCHOR_MIN_WIDTH
+    figure.classList.toggle("gb-panel-anchored", Boolean(art && sideOk && wide))
+    if (!art || !figure.classList.contains("gb-panel-anchored")) return
+    // Anchor only if each side's labels fit beside the panel; otherwise keep the list.
+    const fits = ["left", "right"].every((side) =>
+      labelsFit(
+        items
+          .filter((li) => li.dataset.side === side)
+          .map((li) => li.offsetHeight),
+        6,
+        figure.offsetHeight,
+      ),
+    )
+    if (!fits) {
+      figure.classList.remove("gb-panel-anchored")
+      return
+    }
+    const [wx, wy, ww, wh] = (figure.dataset.window ?? "")
+      .split(" ")
+      .map(Number)
+    const artTop = art.offsetTop
+    const artH = art.offsetHeight
+    for (const side of ["left", "right"]) {
+      const group = items
+        .map((li, i) => ({ li, i, y: Number(li.dataset.y) }))
+        .filter(({ li }) => li.dataset.side === side)
+        .sort((a, b) => a.y - b.y)
+      const tops = stackLabels(
+        group.map(({ y }) => artTop + ((y - wy) / wh) * artH),
+        group.map(({ li }) => li.offsetHeight),
+        6,
+        figure.offsetHeight,
+      )
+      group.forEach(({ li, i }, k) => {
+        li.style.top = `${tops[k]}px`
+        const mid = tops[k] + li.offsetHeight / 2 - artTop
+        lines[i]?.setAttribute("x1", String(side === "left" ? wx : wx + ww))
+        lines[i]?.setAttribute("y1", String(wy + (mid / artH) * wh))
+      })
+    }
+  }
+  document
+    .querySelectorAll<HTMLElement>("figure.gb-panel-has-callouts")
+    .forEach((figure) => {
+      anchor(figure)
+      new ResizeObserver(() => anchor(figure)).observe(figure)
+    })
 </script>

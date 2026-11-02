@@ -1,6 +1,11 @@
 import { strict as assert } from "node:assert"
 import { test } from "node:test"
-import { layoutCallouts, LABEL_PITCH } from "./callouts.ts"
+import {
+  labelsFit,
+  layoutCallouts,
+  LABEL_PITCH,
+  stackLabels,
+} from "./callouts.ts"
 import type { PanelMap } from "./panel-map.ts"
 
 const panel = {
@@ -82,4 +87,28 @@ test("labels sit at the window edge on their side", () => {
   )
   assert.equal(l.label.x, window[0])
   assert.equal(r.label.x, window[0] + window[2])
+})
+
+test("stackLabels keeps labels at their controls when there is room", () => {
+  assert.deepEqual(stackLabels([100, 300], [40, 40], 8, 1000), [80, 280])
+})
+
+test("stackLabels pushes overlapping labels apart, in order", () => {
+  // centred on 100 and 110 with heights 60: the second starts below the first plus the gap
+  const tops = stackLabels([100, 110], [60, 60], 8, 1000)
+  assert.equal(tops[0], 70)
+  assert.equal(tops[1], 70 + 60 + 8)
+})
+
+test("stackLabels keeps the stack inside the figure", () => {
+  const tops = stackLabels([950, 990], [60, 60], 8, 1000)
+  assert.ok(tops[1] + 60 <= 1000)
+  assert.ok(tops[0] + 60 + 8 <= tops[1])
+  assert.ok(tops[0] >= 0)
+})
+
+test("labelsFit: the stack must fit the figure's height", () => {
+  assert.equal(labelsFit([60, 60], 8, 128), true)
+  assert.equal(labelsFit([130, 130], 6, 216), false)
+  assert.equal(labelsFit([], 6, 10), true)
 })

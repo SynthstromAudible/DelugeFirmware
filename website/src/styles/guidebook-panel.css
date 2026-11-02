@@ -66,6 +66,9 @@
 .gb-panel-art .led-cyan {
   fill: #36b6c8;
 }
+.gb-panel-art .led-orange {
+  fill: #f08a24;
+}
 
 .gb-panel-art .led-blink {
   animation: gb-panel-blink 0.8s steps(2, jump-none) infinite;
@@ -126,12 +129,10 @@
   }
 }
 
-/* Anchored callouts: labels at the window edge with leaders to their control (wide screens);
-   a numbered list with numbered markers on the panel (narrow screens). */
-.gb-panel {
-  position: relative;
-}
-
+/* Callouts. Default (no JS, print, narrow): numbered markers on the panel and a numbered list
+   below. With JS on a wide figure (.gb-panel-anchored): labels beside the panel, stacked
+   without overlap, with leaders from each label to its control. */
+.gb-panel,
 .gb-panel-art-wrap {
   position: relative;
 }
@@ -146,13 +147,10 @@
 }
 
 .gb-panel-leader {
-  stroke: var(--gb-accent);
-  vector-effect: non-scaling-stroke;
-  stroke-width: 1.5px;
-}
-
-.gb-panel-marker {
   display: none;
+  stroke: var(--gb-accent);
+  stroke-width: 1.5px;
+  vector-effect: non-scaling-stroke;
 }
 
 .gb-panel-marker circle {
@@ -165,64 +163,49 @@
   font-family: Arial, Arimo, sans-serif;
 }
 
-.gb-panel-has-callouts {
+.gb-panel-callouts {
+  margin: 0.5rem 0 0;
+  padding-inline-start: 1.5rem;
+  font-size: var(--sl-text-sm);
+}
+
+.gb-panel-anchored {
   padding-inline: 9rem;
 }
 
-.gb-panel-callouts {
+.gb-panel-anchored .gb-panel-leader {
+  display: inline;
+}
+
+.gb-panel-anchored .gb-panel-marker {
+  display: none;
+}
+
+.gb-panel-anchored .gb-panel-callouts {
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
-.gb-panel-callouts li {
+.gb-panel-anchored .gb-panel-callouts li {
   position: absolute;
-  top: var(--y);
-  max-width: 8.5rem;
+  width: 8.5rem;
   margin: 0;
   font-size: var(--sl-text-xs);
   line-height: 1.25;
-  transform: translateY(-50%);
 }
 
-.gb-panel-callouts li[data-side="left"] {
-  right: calc(100% - 9rem + 0.4rem);
+.gb-panel-anchored .gb-panel-callouts li[data-side="left"] {
+  left: 0;
   text-align: right;
 }
 
-.gb-panel-callouts li[data-side="right"] {
-  left: calc(100% - 9rem + 0.4rem);
+.gb-panel-anchored .gb-panel-callouts li[data-side="right"] {
+  right: 0;
 }
 
-.gb-panel-callouts li[data-side="top"],
-.gb-panel-callouts li[data-side="bottom"] {
-  left: calc(9rem + (100% - 18rem) * var(--xf));
-  transform: translate(-50%, -100%);
-}
-
-@media (max-width: 40rem) {
-  .gb-panel-has-callouts {
+@media print {
+  .gb-panel-anchored {
     padding-inline: 0;
-  }
-
-  .gb-panel-leader {
-    display: none;
-  }
-
-  .gb-panel-marker {
-    display: inline;
-  }
-
-  .gb-panel-callouts {
-    list-style: decimal;
-    padding-inline-start: 1.5rem;
-    margin-top: 0.5rem;
-  }
-
-  .gb-panel-callouts li {
-    position: static;
-    transform: none;
-    max-width: none;
-    text-align: start;
   }
 }

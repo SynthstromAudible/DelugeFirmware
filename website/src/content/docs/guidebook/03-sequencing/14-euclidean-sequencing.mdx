@@ -17,8 +17,8 @@ guidebook:
 
 import StepFocus from "../../../../components/guidebook/StepFocus.astro"
 import { Steps } from "@astrojs/starlight/components"
+import PanelFigure from "../../../../components/guidebook/PanelFigure.astro"
 import Figure from "../../../../components/guidebook/Figure.astro"
-import fig_fig_3_14_1 from "../../../../assets/guidebook/figs/03-sequencing__14-euclidean-sequencing--1.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -47,14 +47,9 @@ Euclidean sequencing is based on greek mathematical principles and specifically 
 
 Applying euclidean patterns is performed row by row and is an iterative process for each row in a pattern where a euclidean generates pattern is required. The creativity in euclidean sequencing comes from the layering of rows with different lengths and a variety of events to build complex patterns and melodies.
 
-<Figure
+<PanelFigure
   id="fig-3.14-1"
-  animate="playhead"
-  src={fig_fig_3_14_1}
-  alt={
-    "Pad grid: Hold [AUDITION] or for silent row selection, [SHIFT] + [AUDITION] + the respective scroll control to set euclidean patterns to the selected…"
-  }
-  page={81}
+  alt={"The Deluge front panel: a row selected with its audition pad, its length and number of events set with the horizontal and vertical encoders, the events shifted along the row, and a second row layered"}
 />
 
 Multiple euclidean sequenced rows with varying lengths adds interest and the perception of generative patterns. Try with kit rows to build interesting percussive beats.

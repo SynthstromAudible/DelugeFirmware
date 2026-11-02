@@ -15,8 +15,8 @@ guidebook:
   mergeStatus: "unreviewed"
 ---
 
+import PanelFigure from "../../../../components/guidebook/PanelFigure.astro"
 import Figure from "../../../../components/guidebook/Figure.astro"
-import fig_fig_2_8_1 from "../../../../assets/guidebook/figs/02-basic-operation__08-clip-view-parameter-affect-group-changes--1.svg?raw"
 
 import { Steps } from "@astrojs/starlight/components"
 import StepFocus from "../../../../components/guidebook/StepFocus.astro"
@@ -27,13 +27,31 @@ In clip view some quick access sound / synth parameters are immediately availabl
 
 #### Parameter Affect Group : Clip View
 
-<Figure
+<PanelFigure
   id="fig-2.8-1"
-  src={fig_fig_2_8_1}
-  alt={
-    "Diagram: LED meters indicates the levels (UPPER) Control associated with the selected in Affects the selected parameter labelled above focus sound…"
-  }
-  page={27}
+  alt={"The parameter affect group: the eight parameter buttons with CUTOFF / FM lit orange, the upper and lower gold knobs with their LED meters, AFFECT ENTIRE lit orange, and CLIP lit blue"}
+  callouts={[
+    {
+      control: "Function-2",
+      text: "Multi-option buttons select the parameter set to be in focus and which can be adjusted by the associated rotary control.",
+      side: "left",
+    },
+    {
+      control: "Lower-Gold-Encoder",
+      text: "(LOWER) control: affects the selected parameter labelled below the parameter selection buttons.",
+      side: "left",
+    },
+    {
+      control: "Upper-Gold-Encoder",
+      text: "(UPPER) control: affects the selected parameter labelled above the parameter selection buttons. Press to change button primary to secondary functions.",
+      side: "right",
+    },
+    {
+      control: "Affect-Entire",
+      text: "[AFFECT ENTIRE] affects all sounds when a kit is selected, irrespective of the row selected by the audition / section pads. Always on for synths.",
+      side: "right",
+    },
+  ]}
 />
 
 :::note

@@ -79,3 +79,32 @@ export function layoutCallouts(
     }
   })
 }
+
+/**
+ * Tops for labels of the given heights, each centred on its control where it can be, pushed
+ * apart (in order) so none overlap, and kept within 0..limit. All values in the same units (px).
+ */
+export function stackLabels(
+  centres: number[],
+  heights: number[],
+  gap: number,
+  limit: number,
+): number[] {
+  const tops: number[] = []
+  centres.forEach((c, i) => {
+    const below = i ? tops[i - 1] + heights[i - 1] + gap : -Infinity
+    tops.push(Math.max(c - heights[i] / 2, below))
+  })
+  for (let i = tops.length - 1; i >= 0; i--) {
+    const ceiling = i === tops.length - 1 ? limit : tops[i + 1] - gap
+    tops[i] = Math.max(0, Math.min(tops[i], ceiling - heights[i]))
+  }
+  return tops
+}
+
+/** Whether labels of these heights, with gaps between them, fit in `limit`. */
+export function labelsFit(heights: number[], gap: number, limit: number) {
+  const total =
+    heights.reduce((a, h) => a + h, 0) + gap * Math.max(0, heights.length - 1)
+  return total <= limit
+}

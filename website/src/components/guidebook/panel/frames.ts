@@ -14,6 +14,7 @@ export const LED_COLOURS = [
   "yellow",
   "magenta",
   "cyan",
+  "orange",
   "off",
 ] as const
 
