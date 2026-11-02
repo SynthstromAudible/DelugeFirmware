@@ -755,6 +755,83 @@ const checks = {
     )
     await calm.close()
   },
+
+  async osc(browser) {
+    const path = "04-synthesizers/09-oscillators"
+    const digital = sel("fig-4.9-2")
+    const analog = sel("fig-4.9-4")
+    const traces = (page, fig) =>
+      page
+        .locator(`${fig} .gb-lfo-curve`)
+        .evaluateAll((els) => els.map((e) => e.getAttribute("d")))
+    const names = (page, fig) =>
+      page.locator(`${fig} .gb-lfo-name`).allTextContents()
+
+    const noJs = await browser.newContext({ javaScriptEnabled: false })
+    const still = await noJs.newPage()
+    await still.goto(url(path), { waitUntil: "load" })
+    const dn = (await names(still, digital)).join()
+    const an = (await names(still, analog)).join()
+    const [dSq] = (await traces(still, digital)).slice(3)
+    const [aSq] = (await traces(still, analog)).slice(1)
+    check(
+      "osc: without JS, the book's shapes drawn and named, no Pause",
+      dn === "Triangle,Sine,Sawtooth,Square" &&
+        an === "Sawtooth,ASquare" &&
+        [
+          ...(await traces(still, digital)),
+          ...(await traces(still, analog)),
+        ].every((d) => (d ?? "").length > 100) &&
+        !(await still.locator(`${digital} .gb-lfo-pause`).isVisible()),
+      `${dn} | ${an}`,
+    )
+    check(
+      "osc: the analog square is the firmware's recording, not the digital square",
+      dSq !== aSq,
+    )
+    await noJs.close()
+
+    const ctx = await browser.newContext()
+    const { page, errors } = await open(ctx, path, "fig-4.9-2")
+    const a = await traces(page, digital)
+    await page.waitForTimeout(400)
+    const b = await traces(page, digital)
+    check(
+      "osc: the signals advance",
+      a.every((d, i) => d !== b[i]),
+    )
+    await page.locator(`${digital} .gb-lfo-pause`).click()
+    await page.waitForTimeout(100)
+    const c = await traces(page, digital)
+    await page.waitForTimeout(400)
+    check(
+      "osc: Pause stops them",
+      (await traces(page, digital)).every((x, i) => x === c[i]) &&
+        (await page.locator(`${digital} .gb-lfo-pause`).textContent()) ===
+          "Play",
+    )
+    await page.locator(analog).scrollIntoViewIfNeeded()
+    const e = await traces(page, analog)
+    await page.waitForTimeout(400)
+    check(
+      "osc: the analog figure runs on its own",
+      (await traces(page, analog)).every((x, i) => x !== e[i]),
+    )
+    check("osc: no script errors", errors.length === 0, errors.join("; "))
+    await ctx.close()
+
+    const calm = await browser.newContext({ reducedMotion: "reduce" })
+    const r = await open(calm, path, "fig-4.9-2")
+    const f = await traces(r.page, digital)
+    await r.page.waitForTimeout(400)
+    check(
+      "osc: reduced motion starts paused",
+      (await traces(r.page, digital)).every((x, i) => x === f[i]) &&
+        (await r.page.locator(`${digital} .gb-lfo-pause`).textContent()) ===
+          "Play",
+    )
+    await calm.close()
+  },
 }
 
 const browser = await chromium.launch()

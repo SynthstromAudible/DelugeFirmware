@@ -114,3 +114,8 @@
     color: #000;
   }
 }
+
+/* The oscillator shapes (OscFigure.astro): two columns, as the book lays them out (4.9). */
+.gb-osc .gb-lfo-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
