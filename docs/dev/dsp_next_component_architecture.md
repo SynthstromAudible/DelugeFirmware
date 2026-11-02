@@ -41,8 +41,8 @@ struct StereoSample { q31 l, r; };                     // one interleaved frame
   (`fp::Sample`, `fp::Buffer`, `fp::Signal`). The kernels live in the same
   namespaces (`fixed::sine`, `fixed::TableOscillator`, ...).
 - The sample type at component interfaces is **`q31` (= `int32_t`)**, so app
-  buffers pass straight in. `FixedPoint<31>` is a later, layout-compatible
-  type-safety layer.
+  buffers pass straight in, until the fixed-point rollout types it as `Q<31>`
+  (`core/fixed_point.h`; see [fixed_point.md](fixed_point.md)).
 - `types.h` includes no Argon, so code that names only block types (the effects
   library, for one) needs no Argon on its include path. The SIMD stereo form,
   `StereoVector`, lives in `core/stereo_vector.h`.
@@ -1743,7 +1743,7 @@ its data-cache stalls 12,290 and 24,883), so those ratios measure where the data
   concepts.
 - **Audible steps** (separate, ear-validated, re-baselined): VCA-arithmetic
   unification, analytic-wave options, band-limiting and sync improvements,
-  `FixedPoint<31>` types, full phase relocation into the engine, per-voice
+  full phase relocation into the engine, per-voice
   noise, the L1 `SourceEngine`/CLAP boundary.
 
 ## Measuring
