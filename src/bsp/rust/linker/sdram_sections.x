@@ -110,13 +110,15 @@ SECTIONS {
         PROVIDE(__sdram_init_end = .);
     } > SDRAM
 
-    /* The deflated load copy, reserved zero-filled at half the content (the GUI's code deflates to
-     * under that, the setting and menu tables to about a tenth) and written after the link; the
-     * staging fails when it does not fit. */
+    /* The deflated load copy, reserved zero-filled at 15/32 of the content and written after the
+     * link; the staging fails when it does not fit. The content deflates to about 43% (the GUI's code
+     * to a little under half, the setting and menu tables to about a tenth), so the reserve keeps a
+     * margin of a few percent: every byte of it is SRAM the image carries, between its code and the
+     * RTT reserve. */
     .sdram_init_pack : ALIGN(16) {
         __sdram_init_pack_start = .;
         BYTE(0)
-        . = __sdram_init_pack_start + SIZEOF(.sdram_init) / 2 + 256;
+        . = __sdram_init_pack_start + SIZEOF(.sdram_init) * 15 / 32 + 256;
         __sdram_init_pack_end = .;
     } > RAM
 
