@@ -231,10 +231,18 @@ struct Compressor {
 		// Each detector's own memory as the frame before the first: it high-passes to 0 and leaves the memory as it is.
 		s.loop.pending = {.l = s.loop.detector_l.z, .r = s.loop.detector_r.z};
 
-		// The steps (5.26 signed) that reach the target gains by the end of the block.
+		// The steps that reach the target gains by the end of the block, 13.18 lifted to 5.26. Each quotient is within
+		// ±2^28 (a target within 31 × 2^22, a gain within 2^23), so its conversion is defined; a target gain of 32 or
+		// more leaves 5.26, and the lift wraps, as on every target.
 		return {
-		    .increment_l = static_cast<int32_t>((final_volume_l - (s.loop.current_volume_l >> 8)) / frames) << 8,
-		    .increment_r = static_cast<int32_t>((final_volume_r - (s.loop.current_volume_r >> 8)) / frames) << 8,
+		    .increment_l =
+		        as_wrap<Q<26>>(Q<18>::from_raw(static_cast<int32_t>(
+		                           (final_volume_l - static_cast<float>(s.loop.current_volume_l >> 8)) / frames)))
+		            .raw(),
+		    .increment_r =
+		        as_wrap<Q<26>>(Q<18>::from_raw(static_cast<int32_t>(
+		                           (final_volume_r - static_cast<float>(s.loop.current_volume_r >> 8)) / frames)))
+		            .raw(),
 		};
 	}
 
@@ -247,8 +255,9 @@ struct Compressor {
 	template <Mode M>
 	[[nodiscard]] [[gnu::always_inline]] static StereoSample step(const Coefficients& c, const Block& b, Loop& s,
 	                                                              StereoSample x) {
-		s.current_volume_l += b.increment_l;
-		s.current_volume_r += b.increment_r;
+		// The ramp wraps with its increment past a gain of 32.
+		s.current_volume_l = add_wrap(Q<26>::from_raw(s.current_volume_l), Q<26>::from_raw(b.increment_l)).raw();
+		s.current_volume_r = add_wrap(Q<26>::from_raw(s.current_volume_r), Q<26>::from_raw(b.increment_r)).raw();
 
 		// The Q31 frame times its Q26 gain is Q25, lifted to Q29 (wrapping); the saturator reads those bits as its Q31
 		// input, so it takes x × gain / 4.
