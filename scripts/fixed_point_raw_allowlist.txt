@@ -22,10 +22,10 @@ src/deluge/dsp-next/core/stereo_sample.h raw=4 boundary=4
 src/deluge/dsp-next/fixed/curves/exp_curve.h raw=1 boundary=3
 src/deluge/dsp-next/fixed/curves/instant_tan.h raw=0 boundary=4
 src/deluge/dsp-next/fixed/curves/param_curve.h raw=0 boundary=16
-src/deluge/dsp-next/fixed/delay/analog_impulse_response.h raw=10 boundary=0
+src/deluge/dsp-next/fixed/delay/analog_impulse_response.h raw=0 boundary=23
 src/deluge/dsp-next/fixed/delay/delay_kernel.h raw=4 boundary=0
 src/deluge/dsp-next/fixed/delay/delay_tape.h raw=4 boundary=0
-src/deluge/dsp-next/fixed/delay/feedback_shaper.h raw=3 boundary=0
+src/deluge/dsp-next/fixed/delay/feedback_shaper.h raw=0 boundary=9
 src/deluge/dsp-next/fixed/dynamics/compressor_kernel.h raw=6 boundary=0
 src/deluge/dsp-next/fixed/dynamics/duck_gain.h raw=0 boundary=4
 src/deluge/dsp-next/fixed/fft/radix.h raw=36 boundary=0

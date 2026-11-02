@@ -17,9 +17,9 @@
 
 #pragma once
 
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/mode.h"
-#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/types.h"
 #include "dsp-next/fixed/delay/analog_impulse_response.h"
 #include "dsp-next/fixed/shaping/tanh.h"
@@ -40,7 +40,8 @@ namespace deluge::dsp::fixed {
 ///   digital clip sounds bad. The response's history is left untouched.
 ///
 /// Each product is the high word of the 32x32 multiply, so a Q31 sample times a Q31 amount comes out Q30, and the
-/// final shift by 2 brings the saturated value back up.
+/// final shift by 2 brings the saturated value back up. The output's bits are read as Q31: DIGITAL's is 2 × x × f,
+/// clipped at ±1/2; ANALOG's tanh reads the Q30 product's bits as its Q31 input, so it is driven by x × f / 2.
 ///
 /// **Mode changes.** The response is nested in the State rather than chained, so a switch between blocks keeps its
 /// history: a digital block leaves it as the last analog block did, and the next analog block resumes from it.
@@ -96,7 +97,9 @@ struct FeedbackShaper {
 	/// @details What ANALOG's step returns after stepping the response; for an owner stepping two channels' responses
 	/// together (@ref AnalogImpulseResponse::step_pair).
 	[[nodiscard]] [[gnu::always_inline]] static q31 analog(const Coefficients& c, q31 response) {
-		return tanh(multiply_32x32_rshift32(response, c.feedback), c.drive) << kOutputShift;
+		const Q<30> product = mul(Q<31>::from_raw(response), Q<31>::from_raw(c.feedback));
+		// Raw: the run-time-drive tanh has no typed form; it reads the product's bits as its Q31 input.
+		return scale_shl_wrap<kOutputShift>(Q<31>::from_raw(tanh(product.raw(), c.drive))).raw();
 	}
 
 	/// @brief One sample of feedback, shaped.
@@ -112,7 +115,9 @@ struct FeedbackShaper {
 			return analog(c, AnalogImpulseResponse::step({}, {}, s.response, x));
 		}
 		else {
-			return signed_saturate<kDigitalBits>(multiply_32x32_rshift32(x, c.feedback)) << kOutputShift;
+			const Q<30> product = mul(Q<31>::from_raw(x), Q<31>::from_raw(c.feedback));
+			// The clipped product, ×4 at Q30, is the Q31 output: 2 × x × f within ±1/2.
+			return reinterpret_bits<Q<31>>(scale_shl_wrap<kOutputShift>(clamp_bits<kDigitalBits>(product))).raw();
 		}
 	}
 };
