@@ -23,6 +23,7 @@
 #include "gui/menu_item/sample/loop_point.h"
 #include "gui/menu_item/sample/utils.h"
 #include "gui/menu_item/selection.h"
+#include "gui/menu_item/source/transpose.h"
 #include "gui/menu_item/submenu.h"
 #include "gui/menu_item/value_scaling.h"
 #include "gui/ui/browser/sample_browser.h"
@@ -458,25 +459,25 @@ public:
 // directly on the slot's own SampleHolderForVoice (for slot 0 this is the same data the OSC-level
 // sample::Transpose edits), mirroring how OSC-level pitch is one entry rather than two separate
 // Transpose/Cents rows.
-class VariantTranspose final : public Decimal {
+//
+// Otherwise it is the oscillator's TRANSPOSE, as sample::Transpose is: SELECT opens the oscillator's pitch
+// modulation, and the name carries the dot while pitch is modulated. Modulation is per oscillator, not per
+// slot - but once the oscillator uses variants, its own TRANSPOSE steps aside, so this is where it's reached.
+class VariantTranspose final : public source::Transpose {
 public:
 	VariantTranspose(l10n::String newName, uint8_t sourceId, uint8_t slotIndex)
-	    : Decimal(newName), sourceId_(sourceId), slotIndex_(slotIndex) {}
+	    : source::Transpose(newName, modulation::params::LOCAL_OSC_A_PITCH_ADJUST, sourceId), slotIndex_(slotIndex) {}
 
 	bool isRangeDependent() override { return true; }
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
-		return isSampleModeSample(modControllable, sourceId_) && variantHolderIsLoaded(sourceId_, slotIndex_);
+		return isSampleModeSample(modControllable, source_id_) && variantHolderIsLoaded(source_id_, slotIndex_);
 	}
 
 	MenuPermission checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
 	                                             ::MultiRange** currentRange) override {
-		return checkVariantHolderPermission(modControllable, sourceId_, slotIndex_, currentRange);
+		return checkVariantHolderPermission(modControllable, source_id_, slotIndex_, currentRange);
 	}
-
-	[[nodiscard]] int32_t getMinValue() const override { return -9600; }
-	[[nodiscard]] int32_t getMaxValue() const override { return 9600; }
-	[[nodiscard]] int32_t getNumDecimalPlaces() const override { return 2; }
 
 	// In a kit, AFFECT ENTIRE works as it does on the oscillator's own TRANSPOSE: every slot of every
 	// sound drum gets this value.
@@ -493,7 +494,7 @@ public:
 		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKit()) {
 			int32_t transpose, cents;
 			computeFinalValuesForTranspose(this->getValue(), &transpose, &cents);
-			applyTransposeToWholeKit(sourceId_, transpose, cents);
+			applyTransposeToWholeKit(source_id_, transpose, cents);
 			getCurrentInstrument()->beenEdited();
 			return;
 		}
@@ -514,11 +515,10 @@ public:
 
 private:
 	SampleHolderForVoice* getHolder() const {
-		MultisampleRange* range = getRoundRobinRange(sourceId_);
+		MultisampleRange* range = getRoundRobinRange(source_id_);
 		return range != nullptr ? range->getVariantHolder(slotIndex_) : nullptr;
 	}
 
-	uint8_t sourceId_;
 	uint8_t slotIndex_;
 };
 
