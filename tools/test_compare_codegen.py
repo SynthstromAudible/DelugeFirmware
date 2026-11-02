@@ -8,7 +8,13 @@ from __future__ import annotations
 
 import unittest
 
-from compare_codegen import canonical, compare, functions, normalise
+from compare_codegen import (
+    canonical,
+    compare,
+    functions,
+    mask_address_halves,
+    normalise,
+)
 
 SAMPLE = """\
 20001000 <foo>:
@@ -29,14 +35,54 @@ class NormaliseTest(unittest.TestCase):
         self.assertEqual(normalise("\tbl\t0x20002000 <bar> @ imm = #0xff8"), "bl <bar>")
         self.assertEqual(
             normalise("\tldr\tr0, [pc, #0x8]           @ 0x20001014 <foo+0x14>"),
-            "ldr r0, [pc, #0x8]",
+            "ldr r0, [pc]",
         )
         self.assertEqual(normalise("\tssat\tr0, #0x18, r0"), "ssat r0, #0x18, r0")
         self.assertEqual(normalise("\t.word\t0x20251190"), ".word ADDR")
         self.assertEqual(normalise("\t.word\t0x00000018"), ".word 0x00000018")
+        # A literal pool's words print with their bytes, whatever the flags.
+        self.assertEqual(normalise("e5 ef 23 20 .word 0x2023efe5"), ".word ADDR")
+        self.assertEqual(
+            normalise("\tldr.w\tr10, [pc, #0x560]       @ 0x200ef1f4 <f+0x568>"),
+            "ldr.w r10, [pc]",
+        )
+        self.assertEqual(normalise("\tadr\tr1, #188 <cosf+0x75>"), "adr r1 <cosf>")
 
     def test_a_branch_into_a_function_keeps_only_its_symbol(self):
         self.assertEqual(normalise("\tb\t0x20001010 <foo+0x10>"), "b <foo>")
+
+
+class AddressHalvesTest(unittest.TestCase):
+    def test_masks_a_register_built_into_an_address_but_not_a_constant(self):
+        body = [
+            "movw r0, #0x65c0",
+            "b <f>",
+            "movwhs r0, #0x65c4",
+            "movt r0, #0x2024",
+            "movw r1, #0x1234",
+            "movt r1, #0x0007",
+        ]
+        self.assertEqual(
+            mask_address_halves(body),
+            [
+                "movw r0, ADDR",
+                "b <f>",
+                "movwhs r0, ADDR",
+                "movt r0, ADDR",
+                "movw r1, #0x1234",
+                "movt r1, #0x0007",
+            ],
+        )
+
+
+class PaddingTest(unittest.TestCase):
+    def test_trailing_trap_fill_is_dropped(self):
+        text = SAMPLE.replace(
+            "20001014:      \t.word\t0x20251190\n",
+            "20001014:      \t.word\t0x20251190\n"
+            "20001018:      \tbmi\t0x20000fc4 <foo+0x18> @ imm = #-0x58\n",
+        )
+        self.assertEqual(compare(functions(SAMPLE), functions(text)), ([], [], []))
 
 
 class CanonicalTest(unittest.TestCase):
