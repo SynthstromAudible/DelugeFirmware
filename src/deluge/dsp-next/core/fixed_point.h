@@ -18,6 +18,7 @@
 #pragma once
 
 #include <algorithm>
+#include <bit>
 #include <compare>
 #include <cstdint>
 #include <limits>
@@ -787,6 +788,79 @@ requires(F >= 16)
 template <int F>
 [[gnu::always_inline, nodiscard]] constexpr Q<F + 16> from_q16(Q16<F> x) noexcept {
 	return Q<F + 16>::from_raw(detail::wrap_shl(std::int32_t{x.raw()}, 16));
+}
+
+namespace detail::portable {
+
+/// 2^F, exact in double for every F up to 32.
+template <int F>
+[[gnu::always_inline, nodiscard]] constexpr double scale_of() noexcept {
+	return static_cast<double>(std::uint64_t{1} << F);
+}
+/// Truncates toward zero and saturates to int32, as VFP's float-to-fixed convert does. ±inf saturate.
+[[gnu::always_inline, nodiscard]] constexpr std::int32_t saturate_to_raw(double scaled) noexcept {
+	if (scaled >= static_cast<double>(INT32_MAX) + 1.0) {
+		return INT32_MAX;
+	}
+	if (scaled <= static_cast<double>(INT32_MIN) - 1.0) {
+		return INT32_MIN;
+	}
+	return static_cast<std::int32_t>(scaled);
+}
+/// vcvt.s32.f32 #F: scale by 2^F, truncate, saturate, NaN to 0. Float promotes to double exactly.
+template <int F>
+[[gnu::always_inline, nodiscard]] constexpr std::int32_t float_to_raw(double value) noexcept {
+	if (value != value) {
+		return 0;
+	}
+	return saturate_to_raw(value * scale_of<F>());
+}
+/// vcvt.f32.s32 #F: one round-to-nearest of raw / 2^F.
+template <int F>
+[[gnu::always_inline, nodiscard]] constexpr float raw_to_float(std::int32_t raw) noexcept {
+	return static_cast<float>(static_cast<double>(raw) / scale_of<F>());
+}
+
+} // namespace detail::portable
+
+/// @brief x as a float, rounded to nearest once (VFP `vcvt.f32.s32 #F`).
+template <int F>
+[[gnu::always_inline, nodiscard]] constexpr float to_float(Q<F> x) noexcept {
+	if consteval {
+		return detail::portable::raw_to_float<F>(x.raw());
+	}
+#ifdef __arm__
+	// clang does not form the fixed-point vcvt from a convert and a scale; the codegen gate pins this.
+	if constexpr (F > 0) {
+		std::int32_t bits = x.raw();
+		asm("vcvt.f32.s32 %0, %0, %1" : "+t"(bits) : "I"(F));
+		return std::bit_cast<float>(bits);
+	}
+#endif
+	return detail::portable::raw_to_float<F>(x.raw());
+}
+/// @brief A float as Q<F>, as VFP `vcvt.s32.f32 #F` converts it: truncating toward zero, saturating, NaN to 0.
+template <int F>
+[[gnu::always_inline, nodiscard]] constexpr Q<F> from_float(float value) noexcept {
+	if consteval {
+		return Q<F>::from_raw(detail::portable::float_to_raw<F>(value));
+	}
+#ifdef __arm__
+	if constexpr (F > 0) {
+		asm("vcvt.s32.f32 %0, %0, %1" : "+t"(value) : "I"(F));
+		return Q<F>::from_raw(std::bit_cast<std::int32_t>(value));
+	}
+#endif
+	return Q<F>::from_raw(detail::portable::float_to_raw<F>(value));
+}
+/// @brief A float as Q<F>, rounding half away from zero, saturating, NaN to 0. No single instruction.
+template <int F>
+[[gnu::always_inline, nodiscard]] constexpr Q<F> from_float_round(float value) noexcept {
+	if (value != value) {
+		return Q<F>::from_raw(0);
+	}
+	const double scaled = static_cast<double>(value) * detail::portable::scale_of<F>();
+	return Q<F>::from_raw(detail::portable::saturate_to_raw(scaled + (scaled >= 0.0 ? 0.5 : -0.5)));
 }
 
 } // namespace deluge::dsp

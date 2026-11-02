@@ -19,6 +19,7 @@
 #include <array>
 #include <cppspec.hpp>
 #include <cstdint>
+#include <limits>
 #include <type_traits>
 #include <utility>
 #include <vector>
@@ -377,4 +378,40 @@ describe fixed_point_format("fixed_point reformat and scale", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(fixed_point_types, fixed_point_add, fixed_point_mul, fixed_point_format);
+// clang-format off
+describe fixed_point_float("fixed_point float conversions", ${
+	it("converts from float as VFP vcvt does: truncating, saturating, NaN to zero", _ {
+		constexpr float kNaN = std::numeric_limits<float>::quiet_NaN();
+		expect(from_float<0>(kNaN).raw()).to_equal(0);
+		expect(from_float<16>(kNaN).raw()).to_equal(0);
+		expect(from_float<31>(kNaN).raw()).to_equal(0);
+		expect(from_float<31>(1.0f).raw()).to_equal(INT32_MAX);
+		expect(from_float<31>(-1.0f).raw()).to_equal(INT32_MIN);
+		expect(from_float<31>(0.75f).raw()).to_equal(0x6000'0000);
+		expect(from_float<31>(std::numeric_limits<float>::infinity()).raw()).to_equal(INT32_MAX);
+		expect(from_float<0>(-1.9f).raw()).to_equal(-1);
+		expect(from_float<24>(-2.5f).raw()).to_equal(-(5 << 23));
+		expect(from_float<1>(1e20f).raw()).to_equal(INT32_MAX);
+	});
+	it("converts to float exactly where the value fits", _ {
+		expect(to_float(Q<31>::from_raw(1 << 30))).to_equal(0.5f);
+		expect(to_float(Q<0>::from_raw(-7))).to_equal(-7.0f);
+		expect(to_float(Q<27>::one())).to_equal(1.0f);
+		expect(to_float(Q<31>::min())).to_equal(-1.0f);
+	});
+	it("rounds half away from zero when asked", _ {
+		expect(from_float_round<0>(2.5f).raw()).to_equal(3);
+		expect(from_float_round<0>(-2.5f).raw()).to_equal(-3);
+		expect(from_float_round<0>(2.4f).raw()).to_equal(2);
+		expect(from_float_round<31>(std::numeric_limits<float>::quiet_NaN()).raw()).to_equal(0);
+		expect(from_float_round<31>(2.0f).raw()).to_equal(INT32_MAX);
+		expect(from_float_round<31>(-2.0f).raw()).to_equal(INT32_MIN);
+	});
+	it("converts at compile time", _ {
+		constexpr auto c = from_float<31>(0.5f);
+		expect(c.raw()).to_equal(1 << 30);
+	});
+});
+// clang-format on
+
+CPPSPEC_MAIN(fixed_point_types, fixed_point_add, fixed_point_mul, fixed_point_format, fixed_point_float);
