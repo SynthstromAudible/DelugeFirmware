@@ -444,6 +444,19 @@ const std::vector<std::string_view> kModMatrixCaseNames{
     "matrix_q31_initial", "delay_feedback_chain_analog", "delay_feedback_chain_digital",
 };
 
+/// The virtual-analog shapes list's names, in order.
+const std::vector<std::string_view> kVaShapeCaseNames{
+    "calibration_loop",
+    "va_saw_crude",
+    "va_saw_crude_sync",
+    "va_square_crude_sync",
+    "va_triangle_crude_sync",
+    "va_saw_sync",
+    "va_analog_saw_sync",
+    "delay_feedback_chain_analog",
+    "delay_feedback_chain_digital",
+};
+
 /// The effect chain list's names, in order.
 const std::vector<std::string_view> kFxChainCaseNames{
     "calibration_loop",
@@ -1030,7 +1043,8 @@ describe bench_runner("The DSP benchmark runner", ${
 		                                     std::pair{CaseList::FX_CHAINS, kFxChainCaseNames},
 		                                     std::pair{CaseList::FFT_FORWARD, kFftForwardCaseNames},
 		                                     std::pair{CaseList::FFT_INVERSE, kFftInverseCaseNames},
-		                                     std::pair{CaseList::MOD_MATRIX, kModMatrixCaseNames}}) {
+		                                     std::pair{CaseList::MOD_MATRIX, kModMatrixCaseNames},
+		                                     std::pair{CaseList::VA_SHAPES, kVaShapeCaseNames}}) {
 				std::vector<std::string_view> names;
 				for (const Case& c : cases(list)) {
 					names.push_back(c.name);
@@ -1080,6 +1094,9 @@ describe bench_runner("The DSP benchmark runner", ${
 			for (const Case& c : cases(CaseList::DX7)) {
 				expect(c.lanes).to_equal(std::size_t{1} + (c.name.starts_with("delay_feedback_chain") ? 1 : 0));
 			}
+			for (const Case& c : cases(CaseList::VA_SHAPES)) {
+				expect(c.lanes).to_equal(std::size_t{1} + (c.name.starts_with("delay_feedback_chain") ? 1 : 0));
+			}
 			for (const Case& c : cases(CaseList::FX_CHAINS)) {
 				expect(c.lanes).to_equal(c.name == "calibration_loop" ? std::size_t{1} : std::size_t{2});
 			}
@@ -1108,7 +1125,8 @@ describe bench_runner("The DSP benchmark runner", ${
 		                                     std::pair{CaseList::FX_CHAINS, kFxChainCaseNames},
 		                                     std::pair{CaseList::FFT_FORWARD, kFftForwardCaseNames},
 		                                     std::pair{CaseList::FFT_INVERSE, kFftInverseCaseNames},
-		                                     std::pair{CaseList::MOD_MATRIX, kModMatrixCaseNames}}) {
+		                                     std::pair{CaseList::MOD_MATRIX, kModMatrixCaseNames},
+		                                     std::pair{CaseList::VA_SHAPES, kVaShapeCaseNames}}) {
 				lines.clear();
 				counters.reset();
 				const RunConfig config{.block_sizes = kBlockSizes};

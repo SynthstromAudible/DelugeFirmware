@@ -821,10 +821,29 @@ std::span<const Case> mod_matrix_list(CaseSet& s) {
 	return mod_matrix;
 }
 
+/// @brief The virtual-analog shapes list.
+std::span<const Case> va_shapes_list(CaseSet& s) {
+	static const std::array va_shapes{
+	    make_case("calibration_loop", s.calibration_loop),
+	    make_case("va_saw_crude", s.va_saw_crude),
+	    make_case("va_saw_crude_sync", s.va_saw_crude_sync),
+	    make_case("va_square_crude_sync", s.va_square_crude_sync),
+	    make_case("va_triangle_crude_sync", s.va_triangle_crude_sync),
+	    make_case("va_saw_sync", s.va_saw_sync),
+	    make_case("va_analog_saw_sync", s.va_analog_saw_sync),
+	    make_case("delay_feedback_chain_analog", s.delay_feedback_chain_analog),
+	    make_case("delay_feedback_chain_digital", s.delay_feedback_chain_digital),
+	};
+	return va_shapes;
+}
+
 /// @brief The cases of @p L.
 template <CaseList L>
 std::span<const Case> list_cases(CaseSet& s) {
-	if constexpr (L == CaseList::MOD_MATRIX) {
+	if constexpr (L == CaseList::VA_SHAPES) {
+		return va_shapes_list(s);
+	}
+	else if constexpr (L == CaseList::MOD_MATRIX) {
 		return mod_matrix_list(s);
 	}
 	else if constexpr (L == CaseList::FFT_FORWARD) {
@@ -909,6 +928,8 @@ std::span<const Case> cases(CaseList list) {
 		return list_cases<CaseList::MOD_MATRIX>(s);
 	case CaseList::FFT_INVERSE:
 		return list_cases<CaseList::FFT_INVERSE>(s);
+	case CaseList::VA_SHAPES:
+		return list_cases<CaseList::VA_SHAPES>(s);
 	case CaseList::KERNELS:
 		break;
 	}

@@ -1653,6 +1653,51 @@ private:
 	Dx7Config config_;
 };
 
+/// @brief Which virtual-analog shape a @ref VaShapeCase renders.
+enum class VaWave : uint8_t { SAW, SQUARE, TRIANGLE, ANALOG_SAW };
+
+/// @brief One virtual-analog shape case's wave, pitch and sync.
+struct VaShapeConfig {
+	VaWave wave;        ///< The shape.
+	uint32_t increment; ///< The audible increment, UQ0.32.
+	bool sync;          ///< Hard-synced to a master at two fifths of the audible pitch.
+};
+
+/// @brief The crude saw at A1, free-running.
+inline constexpr VaShapeConfig kVaSawCrude{.wave = VaWave::SAW, .increment = kA1Increment, .sync = false};
+/// @brief The crude saw at A1, hard-synced.
+inline constexpr VaShapeConfig kVaSawCrudeSync{.wave = VaWave::SAW, .increment = kA1Increment, .sync = true};
+/// @brief The crude square at A1, hard-synced.
+inline constexpr VaShapeConfig kVaSquareCrudeSync{.wave = VaWave::SQUARE, .increment = kA1Increment, .sync = true};
+/// @brief The crude triangle at A1, hard-synced.
+inline constexpr VaShapeConfig kVaTriangleCrudeSync{.wave = VaWave::TRIANGLE, .increment = kA1Increment, .sync = true};
+/// @brief The band-limited saw at A3, hard-synced (the windowed sync oscillator).
+inline constexpr VaShapeConfig kVaSawSync{.wave = VaWave::SAW, .increment = kA3Increment, .sync = true};
+/// @brief The analog saw at A3, hard-synced.
+inline constexpr VaShapeConfig kVaAnalogSawSync{.wave = VaWave::ANALOG_SAW, .increment = kA3Increment, .sync = true};
+
+/// @brief A virtual-analog shape's block as a voice renders it: `synth::va_shape`'s render, its VCA mixing into the
+/// output at a fixed amplitude of a quarter, with the CPU not dire.
+/// @details Setup restarts the shape and its master at phase 0. A synced case's master runs at two fifths of the
+/// audible increment and advances by the block after each render, as the voice's master oscillator does; at A1 that
+/// is a crossover about every 2,000 samples, at A3 about every 500.
+class VaShapeCase {
+public:
+	/// @brief A case of @p config.
+	/// @param config The case's configuration.
+	constexpr explicit VaShapeCase(const VaShapeConfig& config) : config_{config} {}
+
+	/// @brief Restarts the shape and its master, for blocks of @p n samples.
+	/// @param n Block size to set up for, in samples.
+	void setup(std::size_t n);
+	/// @brief Renders one block of the size it was set up for.
+	/// @param n Block size, in samples; the size passed to setup().
+	void block(std::size_t n);
+
+private:
+	VaShapeConfig config_;
+};
+
 /// @brief One FFT case's transform.
 struct FftConfig {
 	bool inverse;      ///< Inverse (bins to samples) rather than forward.
@@ -1870,6 +1915,12 @@ struct CaseSet {
 	Dx7Case dx7_modern_alg32{kDx7ModernAlg32};                                    ///< `dx7_modern_alg32`
 	Dx7Case dx7_mki_alg1_fb{kDx7MkIAlg1Fb};                                       ///< `dx7_mki_alg1_fb`
 	Dx7Case dx7_mki_alg4_fb3{kDx7MkIAlg4Fb3};                                     ///< `dx7_mki_alg4_fb3`
+	VaShapeCase va_saw_crude{kVaSawCrude};                                        ///< `va_saw_crude`
+	VaShapeCase va_saw_crude_sync{kVaSawCrudeSync};                               ///< `va_saw_crude_sync`
+	VaShapeCase va_square_crude_sync{kVaSquareCrudeSync};                         ///< `va_square_crude_sync`
+	VaShapeCase va_triangle_crude_sync{kVaTriangleCrudeSync};                     ///< `va_triangle_crude_sync`
+	VaShapeCase va_saw_sync{kVaSawSync};                                          ///< `va_saw_sync`
+	VaShapeCase va_analog_saw_sync{kVaAnalogSawSync};                             ///< `va_analog_saw_sync`
 	MatrixCase matrix_q31_typical{ModMatrixKind::TYPICAL};                        ///< `matrix_q31_typical`
 	MatrixCase matrix_q31_all{ModMatrixKind::ALL};                                ///< `matrix_q31_all`
 	MatrixCase matrix_q31_initial{ModMatrixKind::INITIAL};                        ///< `matrix_q31_initial`
@@ -1948,6 +1999,9 @@ enum class CaseList : uint8_t {
 	/// The calibration loop, the q31 matrix on the mod-matrix workload (a held note, every source changed,
 	/// note-ons), then the feedback chain's two cases from the chain list.
 	MOD_MATRIX,
+	/// The calibration loop, the virtual-analog shapes as a voice renders them (crude and band-limited, free-running
+	/// and hard-synced), then the feedback chain's two cases from the chain list, as in the delay list.
+	VA_SHAPES,
 };
 
 /// @brief The case list a bench image runs: DELUGE_DSP_BENCH_CASES, as src/deluge/CMakeLists.txt defines it.
@@ -1979,6 +2033,8 @@ inline constexpr CaseList kBenchCaseList = CaseList::FFT_FORWARD;
 inline constexpr CaseList kBenchCaseList = CaseList::FFT_INVERSE;
 #elif defined(DELUGE_DSP_BENCH_MOD_MATRIX)
 inline constexpr CaseList kBenchCaseList = CaseList::MOD_MATRIX;
+#elif defined(DELUGE_DSP_BENCH_VA_SHAPES)
+inline constexpr CaseList kBenchCaseList = CaseList::VA_SHAPES;
 #else
 inline constexpr CaseList kBenchCaseList = CaseList::KERNELS;
 #endif
