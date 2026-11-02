@@ -57,7 +57,8 @@ the same shape wherever you are, and is the same rule a Kit drum has always foll
   - `TRANSPOSE` - a per-slot pitch offset in semitones and cents, independent of the zone's other pitch settings.
     It is one combined value, mirroring how the oscillator's own pitch is one entry rather than two. In a kit,
     holding `AFFECT ENTIRE` while turning it sets the same value on every slot of every sound drum, and the
-    oscillator's own `TRANSPOSE` does the same.
+    oscillator's own `TRANSPOSE` does the same. Pressing `SELECT` on it opens the oscillator's pitch modulation, as
+    on the oscillator's own `TRANSPOSE`; modulation applies to the whole oscillator, not just this slot.
   - `VOL` - a per-slot level trim on the familiar 0-50 scale, where 50 is unity and 0 is silence. Takes recorded
     at different levels rarely match, and this pulls the loud ones into line without touching the oscillator's
     own volume. It only attenuates - there is no boost - so it can never push a variant into clipping.
