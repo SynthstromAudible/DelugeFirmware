@@ -1,8 +1,10 @@
-# The dsp-next specs (tests/dsp) built with UndefinedBehaviorSanitizer's signed-overflow and shift checks, any finding
-# fatal.
+# The dsp-next specs (tests/dsp) built with UndefinedBehaviorSanitizer's signed-overflow, shift and float-to-int
+# conversion checks, any finding fatal.
 #
 # The x86 unit tree builds the same specs, and on the host a plain signed `+` gives the values wrapping_add gives, so an
-# overflow there passes unseen. Here the overflow itself fails the spec. The -m32 flags match tests/unit, so these are
+# overflow there passes unseen. Here the overflow itself fails the spec. A float-to-int conversion out of range is
+# likewise undefined, and the targets differ (x86 gives INT32_MIN where the A9's VCVT saturates): here it fails the
+# spec on the host, where the unit tree would see only a host-only value. The -m32 flags match tests/unit, so these are
 # the same specs at the same word size.
 #
 # Only the specs are instrumented: CppSpec and argon are made available (by specs.cmake) before the sanitizer flags are
@@ -20,14 +22,14 @@ add_link_options(-m32)
 
 include(${CMAKE_CURRENT_LIST_DIR}/../support/cmake/specs.cmake)
 
-set(_ubsan -fsanitize=signed-integer-overflow,shift -fno-sanitize-recover=all)
+set(_ubsan -fsanitize=signed-integer-overflow,shift,float-cast-overflow -fno-sanitize-recover=all)
 add_compile_options(${_ubsan})
 add_link_options(${_ubsan})
 
 enable_testing()
 add_subdirectory(${CMAKE_CURRENT_LIST_DIR}/../dsp dsp)
 
-# Every spec runs with both checks: the shipping code each one builds is checked whole. The verbatim references the
+# Every spec runs with every check: the shipping code each one builds is checked whole. The verbatim references the
 # filter specs compare against (tests/dsp/reference_filters.h) reproduce the legacy plain signed sums, which overflow
 # at full scale as the target's add wraps; each function holding one is marked DELUGE_REFERENCE_LEGACY_ARITHMETIC,
 # which drops the overflow check in that body alone.

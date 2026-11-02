@@ -127,23 +127,21 @@ struct Freeverb {
 		Channel right{};
 	};
 
-	/// @return The coefficients for @p s, in float, each product converted to Q31 by a plain float-to-int conversion.
-	/// @note Width 0 makes wet2's product 2^31, out of int32's range: the conversion is the targets' own (x86 gives
-	/// INT32_MIN, ARM saturates to INT32_MAX), kept as it is.
+	/// @return The coefficients for @p s, in float, each converted to Q31 as the A9's VCVT does: truncating,
+	/// saturating.
+	/// @note Width 0 makes wet2 2^31, one past Q31: it converts to the largest Q31 on every target.
 	[[nodiscard]] static Coefficients coefficients(const Settings& s) {
-		constexpr auto kMax = std::numeric_limits<int32_t>::max();
 		const float roomsize = (s.room_size * kScaleRoom) + kOffsetRoom;
-		const float damp = s.damping * kScaleDamp;
-		const auto damp1 = static_cast<q31>(damp * static_cast<float>(kMax)); // kMax rounds up to 2^31 as a float
+		const Q<31> damp1 = from_float<31>(s.damping * kScaleDamp);
 		// Each channel's share of the other: half the width's shortfall over the channel's own share, which runs from a
 		// half (width 0) to all of it (width 1).
 		const float cross = (1.f - s.width) / 2;
 		const float own = (s.width / 2) + 0.5f;
 		return {
-		    .feedback = Q<31>::from_raw(static_cast<q31>(roomsize * static_cast<float>(kMax))),
-		    .damp1 = Q<31>::from_raw(damp1),
-		    .damp2 = sub_wrap(Q<31>::max(), Q<31>::from_raw(damp1)),
-		    .wet2 = Q<31>::from_raw(static_cast<q31>(cross / own * static_cast<float>(kMax))),
+		    .feedback = from_float<31>(roomsize),
+		    .damp1 = damp1,
+		    .damp2 = sub_wrap(Q<31>::max(), damp1),
+		    .wet2 = from_float<31>(cross / own),
 		    .dc = {},
 		};
 	}

@@ -97,6 +97,9 @@ describe freeverb_kernel("the Freeverb kernel", ${
 			expect(c.wet2.raw()).to_equal(reference->wet2_coefficient());
 		}
 	});
+	it("converts width 0's cross share, 2^31, to the largest Q31 on every target, as the A9's conversion saturates", _ {
+		expect(Freeverb::coefficients({.width = 0.f}).wet2.raw()).to_equal(std::numeric_limits<int32_t>::max());
+	});
 	it("takes out_r's cross-mix from the out_l it has just updated", _ {
 		// Zeroed lines but each comb's first slot: every comb outputs its slot, the allpasses (empty) pass the
 		// sum through unchanged (two sign flips twice), and a silent send adds nothing.

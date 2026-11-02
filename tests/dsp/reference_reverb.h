@@ -455,7 +455,9 @@ private:
 		// Recalculate internal values after parameter change
 
 		wet1 = wet * (width / 2 + 0.5f);
-		wet2 = (((float)1 - width) / 2) / (width / 2 + 0.5f) * std::numeric_limits<int32_t>::max();
+		// At width 0 the product is 2^31: converted as the A9's VCVT converts it, saturating, as the firmware ran.
+		const float wet2_scaled = (((float)1 - width) / 2) / (width / 2 + 0.5f) * std::numeric_limits<int32_t>::max();
+		wet2 = wet2_scaled >= 2147483648.f ? std::numeric_limits<int32_t>::max() : static_cast<int32_t>(wet2_scaled);
 
 		gain = fixedgain * std::numeric_limits<int32_t>::max();
 
