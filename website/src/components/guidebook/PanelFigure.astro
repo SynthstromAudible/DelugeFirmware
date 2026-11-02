@@ -15,13 +15,7 @@ import { validateFrames } from "./panel/frames.ts"
 import type { StepControl } from "./panel/key-controls.ts"
 import { PanelMapSchema } from "./panel/panel-map.ts"
 import { renderFrame, windowBox } from "./panel/render-frame.ts"
-
-/** Anchored callout (see Task 7); declared here so pages can pass them. */
-type Callout = {
-  control: string
-  text: string
-  side: "left" | "right" | "top" | "bottom"
-}
+import { type Callout, layoutCallouts } from "./panel/callouts.ts"
 
 type Props = {
   id: string
@@ -35,7 +29,14 @@ type Props = {
   callouts?: Callout[]
 }
 
-const { id, alt, stepControls, frames = id, window } = Astro.props
+const {
+  id,
+  alt,
+  stepControls,
+  frames = id,
+  window,
+  callouts = [],
+} = Astro.props
 const panel = PanelMapSchema.parse(panelJson)
 const steps: StepControl[][] | undefined = stepControls
   ? JSON.parse(stepControls)
@@ -67,6 +68,13 @@ const box = windowBox(
 const frameSvgs = file.steps.map((frame, i) =>
   renderFrame(panelSvg, frame, steps?.[i] ?? [], box),
 )
+const [wx, wy, ww, wh] = box
+const placed = layoutCallouts(callouts, panel, box)
+const pct = (v: number, origin: number, size: number) =>
+  `${(((v - origin) / size) * 100).toFixed(2)}%`
+// Marker size for narrow screens, in panel px.
+const marker = ww * 0.022
+
 // No step chosen (no JS, print): the final state, with every control the steps use.
 const allControls = [
   ...new Map((steps ?? []).flat().map((c) => [c.id, c])).values(),
@@ -80,7 +88,10 @@ const staticSvg = renderFrame(
 ---
 
 <figure
-  class="gb-figure gb-panel"
+  class:list={[
+    "gb-figure gb-panel",
+    { "gb-panel-has-callouts": placed.length },
+  ]}
   id={id}
   data-steps={steps ? file.steps.length : undefined}
 >
@@ -92,7 +103,55 @@ const staticSvg = renderFrame(
           <div class="gb-panel-frame" data-frame={i} hidden set:html={svg} />
         ))
     }
+    {
+      placed.length > 0 && (
+        <svg
+          class="gb-panel-leaders"
+          viewBox={box.join(" ")}
+          aria-hidden="true"
+          preserveAspectRatio="none"
+        >
+          {placed.map((c, i) => (
+            <g>
+              <line
+                class="gb-panel-leader"
+                x1={c.leader.x1}
+                y1={c.leader.y1}
+                x2={c.leader.x2}
+                y2={c.leader.y2}
+              />
+              <g class="gb-panel-marker">
+                <circle cx={c.leader.x2} cy={c.leader.y2} r={marker} />
+                <text
+                  x={c.leader.x2}
+                  y={c.leader.y2}
+                  font-size={marker * 1.2}
+                  text-anchor="middle"
+                  dominant-baseline="central"
+                >
+                  {i + 1}
+                </text>
+              </g>
+            </g>
+          ))}
+        </svg>
+      )
+    }
   </div>
+  {
+    placed.length > 0 && (
+      <ol class="gb-panel-callouts">
+        {placed.map((c) => (
+          <li
+            data-side={c.side}
+            style={`--xf:${((c.label.x - wx) / ww).toFixed(4)};--y:${pct(c.label.y, wy, wh)}`}
+          >
+            {c.text}
+          </li>
+        ))}
+      </ol>
+    )
+  }
 </figure>
 
 <script>
