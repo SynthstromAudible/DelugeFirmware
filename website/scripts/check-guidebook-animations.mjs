@@ -610,6 +610,94 @@ const checks = {
     check("steps: one current step on the page", onPage === 1, `${onPage}`)
     await page.close()
   },
+
+  async envelope(browser) {
+    const path = "06-modulation/03-envelopes-and-low-frequency-oscillators"
+    const id = "fig-6.3-1"
+    const fig = sel(id)
+    const curve = (page) =>
+      page.locator(`${fig} .gb-env-curve`).getAttribute("d")
+
+    const noJs = await browser.newContext({ javaScriptEnabled: false })
+    const still = await noJs.newPage()
+    await still.goto(url(path), { waitUntil: "load" })
+    check(
+      "envelope: without JS, a still curve with every stage named",
+      ((await curve(still)) ?? "").length > 100 &&
+        (await still.locator(`${fig} .gb-env-stage`).count()) === 4,
+    )
+    check(
+      "envelope: without JS, readouts read-only, no Hold note or TRY IT",
+      (await still.locator(`${fig} input[data-param]:disabled`).count()) ===
+        4 &&
+        !(await still.locator(`${fig} .gb-env-hold`).isVisible()) &&
+        !(await still.locator(`${fig} .gb-env-sticker`).isVisible()),
+    )
+    await noJs.close()
+
+    const ctx = await browser.newContext()
+    const { page, errors } = await open(ctx, path, id)
+    check(
+      "envelope: a TRY IT note points at the controls",
+      await page.locator(`${fig} .gb-env-sticker`).isVisible(),
+    )
+    const before = await curve(page)
+    const attack = page.locator(`${fig} input[data-param="attack"]`)
+    const start = Number(await attack.inputValue())
+    await attack.focus()
+    await attack.press("ArrowRight")
+    const out = await page
+      .locator(`${fig} label:has([data-param="attack"]) output`)
+      .textContent()
+    check(
+      "envelope: arrow key on a readout changes the stage and redraws",
+      out === String(start + 1) && (await curve(page)) !== before,
+      `${out}`,
+    )
+
+    const hold = page.locator(`${fig} .gb-env-hold`)
+    const box = await hold.boundingBox()
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2)
+    await page.mouse.down()
+    const playing = await waitFor(
+      async () => (await page.locator(`${fig} .gb-env-dot`).count()) === 1,
+      1000,
+    )
+    const offWhileHeld = await page
+      .locator(`${fig} text:text-is("Note OFF")`)
+      .count()
+    check(
+      "envelope: holding the note plays it, no note off yet",
+      playing &&
+        offWhileHeld === 0 &&
+        (await hold.getAttribute("aria-pressed")) === "true",
+    )
+    await page.waitForTimeout(400)
+    await page.mouse.up()
+    const released = await waitFor(
+      async () =>
+        (await page.locator(`${fig} text:text-is("Note OFF")`).count()) === 1,
+      1000,
+    )
+    check(
+      "envelope: letting go marks note off and releases",
+      released && (await hold.getAttribute("aria-pressed")) === "false",
+    )
+
+    await page.locator(`${fig} input[value="other"]`).check()
+    await attack.press("ArrowLeft") // stops the note, redraws still
+    const sustainCaption = await page
+      .locator(`${fig} label:has([data-param="sustain"]) .gb-env-oled-caption`)
+      .textContent()
+    check(
+      "envelope: other destination is bipolar about the destination value",
+      (await page.locator(`${fig} .gb-env-dest`).count()) === 1 &&
+        /^(= dest\. value|[+−]\d+ % of depth)$/.test(sustainCaption),
+      `${sustainCaption}`,
+    )
+    check("envelope: no script errors", errors.length === 0, errors.join("; "))
+    await ctx.close()
+  },
 }
 
 const browser = await chromium.launch()
