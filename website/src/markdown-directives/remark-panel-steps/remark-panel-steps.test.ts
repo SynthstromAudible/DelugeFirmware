@@ -140,3 +140,57 @@ test("a figure with no Steps before it gets no stepControls", () => {
   run(tree)
   assert.equal(stepControlsOf(tree, 0), undefined)
 })
+
+const h = (depth: number) =>
+  ({ type: "heading", depth, children: [t("H")] }) as unknown as RootContent
+const attrOf = (tree: Root, index: number, name: string) =>
+  (
+    tree.children[index] as unknown as {
+      attributes: { name: string; value: string }[]
+    }
+  ).attributes.find((a) => a.name === name)?.value
+
+test("a deeper heading (an example under the procedure) doesn't cut the binding", () => {
+  const tree: Root = {
+    type: "root",
+    children: [
+      h(3),
+      steps(item(p(key("Clip"))), item(p(key("Play")))),
+      h(4),
+      p(t("Example.")) as unknown as RootContent,
+      figure(),
+    ],
+  }
+  run(tree)
+  assert.equal(stepControlsOf(tree, 4).length, 2)
+})
+
+test("a heading at the procedure's level cuts the binding", () => {
+  const tree: Root = {
+    type: "root",
+    children: [h(3), steps(item(p(key("Clip")))), h(3), figure()],
+  }
+  run(tree)
+  assert.equal(stepControlsOf(tree, 3), undefined)
+})
+
+test("the bound Steps is named by its index among all Steps in the page", () => {
+  const aside = {
+    type: "mdxJsxFlowElement",
+    name: "Aside",
+    attributes: [],
+    children: [steps(item(p(key("Shift"))))],
+  } as unknown as RootContent
+  const tree: Root = {
+    type: "root",
+    children: [
+      steps(item(p(key("Clip")))), // Steps #0
+      steps(item(p(key("Play"))), item(p(key("Shift")))), // Steps #1, bound
+      aside, // contains Steps #2
+      figure(),
+    ],
+  }
+  run(tree)
+  assert.equal(attrOf(tree, 3, "stepsIndex"), "1")
+  assert.equal(stepControlsOf(tree, 3).length, 2)
+})

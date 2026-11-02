@@ -20,17 +20,18 @@ const ledClasses = (led: Led): string[] => {
   return ["led", `led-${colour}`, ...(blink ? ["led-blink"] : [])]
 }
 
+/** What one control looks like in a frame: its classes and/or inline fill. */
+export type ControlAttributes = { id: string; class?: string; style?: string }
+
 /**
- * The panel SVG showing one frame: cropped to `window`, pad colours filled, lit LEDs and the
- * step's controls marked with classes (styled in guidebook-panel.css). Pure string work on the
- * panel tool's output, where each control is one element carrying `data-c="<id>"`.
+ * The classes (lit LEDs, step highlights) and fills (pad colours) a frame gives each control.
+ * Shared by the build (renderFrame) and the page script, which applies a step's frame to the
+ * figure's one SVG.
  */
-export function renderFrame(
-  panelSvg: string,
+export function frameAttributes(
   frame: Frame,
   highlights: StepControl[],
-  window: Box,
-): string {
+): ControlAttributes[] {
   const classes = new Map<string, string[]>()
   const styles = new Map<string, string>()
   const addClass = (id: string, cls: string[]) =>
@@ -42,15 +43,43 @@ export function renderFrame(
   for (const [id, colour] of Object.entries(frame.pads ?? {}))
     styles.set(id, `fill:${colour}`)
 
+  const ids = [...new Set([...classes.keys(), ...styles.keys()])]
+  return ids
+    .map((id) => {
+      const cls = [...new Set(classes.get(id) ?? [])]
+      return {
+        id,
+        ...(cls.length ? { class: cls.join(" ") } : {}),
+        ...(styles.has(id) ? { style: styles.get(id) } : {}),
+      }
+    })
+    .filter((a) => a.class || a.style)
+}
+
+/**
+ * The panel SVG showing one frame: cropped to `window`, pad colours filled, lit LEDs and the
+ * step's controls marked with classes (styled in guidebook-panel.css). Pure string work on the
+ * panel tool's output, where each control is one element carrying `data-c="<id>"`.
+ */
+export function renderFrame(
+  panelSvg: string,
+  frame: Frame,
+  highlights: StepControl[],
+  window: Box,
+): string {
+  const attrs = new Map(
+    frameAttributes(frame, highlights).map((a) => [a.id, a]),
+  )
   const withControls = panelSvg.replace(
     /<(circle|rect)\b([^>]*?)\sdata-c="([^"]+)"/g,
     (whole, tag: string, before: string, id: string) => {
-      const cls = [...new Set(classes.get(id) ?? [])]
+      const a = attrs.get(id)
+      if (!a) return whole
       const extra = [
-        cls.length ? ` class="${cls.join(" ")}"` : "",
-        styles.has(id) ? ` style="${styles.get(id)}"` : "",
+        a.class ? ` class="${a.class}"` : "",
+        a.style ? ` style="${a.style}"` : "",
       ].join("")
-      return extra ? `<${tag}${before} data-c="${id}"${extra}` : whole
+      return `<${tag}${before} data-c="${id}"${extra}`
     },
   )
   return withControls.replace(

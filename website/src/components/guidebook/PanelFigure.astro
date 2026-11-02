@@ -14,7 +14,11 @@ import panelJson from "../../data/guidebook-panel.json"
 import { validateFrames } from "./panel/frames.ts"
 import type { StepControl } from "./panel/key-controls.ts"
 import { PanelMapSchema } from "./panel/panel-map.ts"
-import { renderFrame, windowBox } from "./panel/render-frame.ts"
+import {
+  frameAttributes,
+  renderFrame,
+  windowBox,
+} from "./panel/render-frame.ts"
 import { type Callout, layoutCallouts } from "./panel/callouts.ts"
 
 type Props = {
@@ -27,6 +31,8 @@ type Props = {
   /** Panel region name or "x y w h"; overrides the frame file's window. */
   window?: string
   callouts?: Callout[]
+  /** Index of the bound <Steps> among the page's Steps: injected by remark-panel-steps. */
+  stepsIndex?: string
 }
 
 const {
@@ -36,6 +42,7 @@ const {
   frames = id,
   window,
   callouts = [],
+  stepsIndex,
 } = Astro.props
 const panel = PanelMapSchema.parse(panelJson)
 const steps: StepControl[][] | undefined = stepControls
@@ -65,9 +72,13 @@ const box = windowBox(
   panel,
 )
 
-const frameSvgs = file.steps.map((frame, i) =>
-  renderFrame(panelSvg, frame, steps?.[i] ?? [], box),
-)
+// Each step's look (lit LEDs, pad colours, highlights) as data; the page script applies it to
+// the one SVG below. One SVG per figure keeps pages light.
+const stepData = steps
+  ? JSON.stringify(
+      file.steps.map((frame, i) => frameAttributes(frame, steps[i] ?? [])),
+    )
+  : undefined
 const ww = box[2]
 const placed = layoutCallouts(callouts, panel, box)
 // Marker size for the numbered callout list, in panel px.
@@ -92,16 +103,11 @@ const staticSvg = renderFrame(
   ]}
   id={id}
   data-steps={steps ? file.steps.length : undefined}
+  data-steps-index={steps ? stepsIndex : undefined}
   data-window={box.join(" ")}
 >
   <div class="gb-panel-art-wrap" role="img" aria-label={alt}>
-    <div class="gb-panel-frame gb-panel-static" set:html={staticSvg} />
-    {
-      steps &&
-        frameSvgs.map((svg, i) => (
-          <div class="gb-panel-frame" data-frame={i} hidden set:html={svg} />
-        ))
-    }
+    <div class="gb-panel-frame" set:html={staticSvg} />
     {
       placed.length > 0 && (
         <svg
@@ -148,39 +154,53 @@ const staticSvg = renderFrame(
       </ol>
     )
   }
+  {
+    stepData && (
+      <script
+        is:inline
+        type="application/json"
+        class="gb-panel-steps"
+        set:html={stepData}
+      />
+    )
+  }
 </figure>
 
 <script>
   import { labelsFit, stackLabels } from "./panel/callouts.ts"
 
-  // The current step (StepFocus's "guidebook:step" event on the Steps list before the figure)
-  // chooses the frame; until a step is chosen the static frame shows.
+  import type { ControlAttributes } from "./panel/render-frame.ts"
+
+  // The bound Steps list (named at build time by its index on the page) drives the figure: the
+  // current step's look is applied to the figure's SVG. Until a step is chosen the figure shows
+  // the final state with every step's controls marked.
   function bind(figure: HTMLElement) {
-    const lists = [
-      ...document.querySelectorAll<HTMLOListElement>(
-        ".sl-markdown-content ol.sl-steps",
-      ),
-    ]
-    const list = lists
-      .filter(
-        (ol) =>
-          ol.compareDocumentPosition(figure) & Node.DOCUMENT_POSITION_FOLLOWING,
-      )
-      .at(-1)
-    if (!list) return
-    const items = [...list.children] as HTMLLIElement[]
-    const frames = [
-      ...figure.querySelectorAll<HTMLElement>(".gb-panel-frame[data-frame]"),
-    ]
-    const still = figure.querySelector<HTMLElement>(".gb-panel-static")
+    const lists = document.querySelectorAll<HTMLOListElement>(
+      ".sl-markdown-content ol.sl-steps",
+    )
+    const list = lists[Number(figure.dataset.stepsIndex)]
+    const data = figure.querySelector(".gb-panel-steps")?.textContent
     const art = figure.querySelector<HTMLElement>(".gb-panel-art-wrap")
+    if (!list || !data || !art) return
+    const steps: ControlAttributes[][] = JSON.parse(data)
+    const controls = [...art.querySelectorAll<SVGElement>("[data-c]")]
+    const items = [...list.children] as HTMLLIElement[]
     list.addEventListener("guidebook:step", (e) => {
       const index = (e as CustomEvent<{ index: number }>).detail.index
-      if (!frames[index]) return
-      frames.forEach((f, i) => (f.hidden = i !== index))
-      if (still) still.hidden = true
+      const step = steps[index]
+      if (!step) return
+      for (const el of controls) {
+        el.removeAttribute("class")
+        el.removeAttribute("style")
+      }
+      for (const { id, class: cls, style } of step) {
+        const el = art.querySelector(`[data-c="${CSS.escape(id)}"]`)
+        if (cls) el?.setAttribute("class", cls)
+        if (style) el?.setAttribute("style", style)
+      }
+      figure.dataset.step = String(index)
       const li = items[index]
-      if (li && art) {
+      if (li) {
         li.id ||= `${figure.id}-step-${index + 1}`
         art.setAttribute("aria-describedby", li.id)
       }

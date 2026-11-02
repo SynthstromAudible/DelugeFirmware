@@ -55,7 +55,7 @@ test("a step-count mismatch names the figure and both counts", () => {
   )
 })
 
-test("without steps any number of frames (at least one) is fine", () => {
+test("without steps a figure has exactly one frame", () => {
   assert.equal(
     validateFrames(file([{}]), { figure: "fig-x", stepCount: undefined, panel })
       .steps.length,
@@ -63,6 +63,21 @@ test("without steps any number of frames (at least one) is fine", () => {
   )
   assert.throws(() =>
     validateFrames(file([]), { figure: "fig-x", stepCount: undefined, panel }),
+  )
+})
+
+test("several frames with no Steps bound is an error, not a silent static figure", () => {
+  assert.throws(
+    () =>
+      validateFrames(file([{}, {}, {}]), {
+        figure: "fig-x",
+        stepCount: undefined,
+        panel,
+      }),
+    (e: Error) =>
+      /fig-x/.test(e.message) &&
+      /3 frames/.test(e.message) &&
+      /no Steps/.test(e.message),
   )
 })
 

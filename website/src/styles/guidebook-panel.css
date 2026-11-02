@@ -119,16 +119,6 @@
   }
 }
 
-@media print {
-  .gb-panel-frame[data-frame] {
-    display: none !important;
-  }
-
-  .gb-panel-static {
-    display: block !important;
-  }
-}
-
 /* Callouts. Default (no JS, print, narrow): numbered markers on the panel and a numbered list
    below. With JS on a wide figure (.gb-panel-anchored): labels beside the panel, stacked
    without overlap, with leaders from each label to its control. */

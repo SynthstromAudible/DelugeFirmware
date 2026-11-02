@@ -37,30 +37,62 @@ function stepsControls(
   )
 }
 
+/** The depth of the nearest heading before `index` among `nodes`, or 0 when there is none. */
+function owningHeadingDepth(nodes: Node[], index: number): number {
+  for (let j = index - 1; j >= 0; j--) {
+    const n = nodes[j] as Node & { depth?: number }
+    if (n.type === "heading") return n.depth ?? 0
+  }
+  return 0
+}
+
 /**
- * Give every <PanelFigure> the controls of each step of the nearest <Steps> before it (stopping
- * at a heading), as a `stepControls` JSON attribute: one array of StepControl per step.
+ * Give every <PanelFigure> the controls of each step of the nearest <Steps> before it, as a
+ * `stepControls` JSON attribute (one array of StepControl per step), and that Steps' index among
+ * all Steps on the page as `stepsIndex` (the page script binds to the same list by index).
+ * A heading between them cuts the binding unless it is deeper than the heading that owns the
+ * Steps (an "Example" under the procedure keeps it).
  */
 export function bindPanelSteps(
   tree: Root,
   panel: PanelMap,
   warn: (msg: string) => void,
 ): void {
+  const stepsOrder = new Map<Node, number>()
+  visit(tree as unknown as Node, (node: Node) => {
+    if (isJsx(node, "Steps")) stepsOrder.set(node, stepsOrder.size)
+  })
+
   visit(tree as unknown as Node, (node: Node) => {
     const children = node.children
     if (!children) return
     children.forEach((child, i) => {
       if (!isJsx(child, "PanelFigure")) return
       if (child.attributes.some((a) => a.name === "stepControls")) return
+      let shallowest = Infinity // shallowest heading passed on the way back
       for (let j = i - 1; j >= 0; j--) {
-        const before = children[j]
-        if (before.type === "heading") return
+        const before = children[j] as Node & { depth?: number }
+        if (before.type === "heading") {
+          shallowest = Math.min(shallowest, before.depth ?? 0)
+          continue
+        }
         if (isJsx(before, "Steps")) {
-          child.attributes.push({
-            type: "mdxJsxAttribute",
-            name: "stepControls",
-            value: JSON.stringify(stepsControls(before, panel, warn)),
-          })
+          const owner = owningHeadingDepth(children, j)
+          const cut =
+            shallowest !== Infinity && (owner === 0 || shallowest <= owner)
+          if (cut) return
+          child.attributes.push(
+            {
+              type: "mdxJsxAttribute",
+              name: "stepControls",
+              value: JSON.stringify(stepsControls(before, panel, warn)),
+            },
+            {
+              type: "mdxJsxAttribute",
+              name: "stepsIndex",
+              value: String(stepsOrder.get(before)),
+            },
+          )
           return
         }
       }

@@ -315,23 +315,21 @@ const checks = {
 
   async panelFigures(browser) {
     const fig = sel("fig-3.2-1")
+    // The figure renders one SVG; the page script records the step it shows in data-step.
     const shown = (page) =>
-      page.evaluate(
-        (s) =>
-          [...document.querySelectorAll(`${s} .gb-panel-frame`)]
-            .filter((f) => !f.hidden && getComputedStyle(f).display !== "none")
-            .map((f) => f.dataset.frame ?? "static"),
-        fig,
-      )
+      page.evaluate((s) => {
+        const f = document.querySelector(s)
+        return `${f.querySelectorAll("svg.gb-panel-art").length} svg, step ${f.dataset.step ?? "none"}`
+      }, fig)
 
     const page = await browser.newPage()
     await page.goto(url("03-sequencing/02-playing-a-sequence"), {
       waitUntil: "load",
     })
     check(
-      "panel: before any step, the static frame shows",
-      (await shown(page)).join() === "static",
-      `${await shown(page)}`,
+      "panel: before any step, the final state shows (one SVG, no step)",
+      (await shown(page)) === "1 svg, step none",
+      await shown(page),
     )
     await page
       .locator("ol.sl-steps")
@@ -340,10 +338,7 @@ const checks = {
       .nth(1)
       .click()
     const play = await page.evaluate((s) => {
-      const frame = document.querySelector(
-        `${s} .gb-panel-frame[data-frame="1"]`,
-      )
-      const el = frame?.querySelector('[data-c="Play"]')
+      const el = document.querySelector(`${s} [data-c="Play"]`)
       const art = document.querySelector(`${s} .gb-panel-art-wrap`)
       const by = art?.getAttribute("aria-describedby")
       return {
@@ -353,7 +348,7 @@ const checks = {
     }, fig)
     check(
       "panel: step 2 shows frame 2 with PLAY lit green and highlighted",
-      (await shown(page)).join() === "1" &&
+      (await shown(page)) === "1 svg, step 1" &&
         /led-green/.test(play.cls) &&
         /hl-press/.test(play.cls),
       `${await shown(page)}; ${play.cls}`,
@@ -365,15 +360,26 @@ const checks = {
     )
     await page.close()
 
+    // 3.14-1 sits under an "Example" sub-heading after its Steps: still bound, 6 steps.
+    const p1 = await browser.newPage()
+    await p1.goto(url("03-sequencing/14-euclidean-sequencing"), {
+      waitUntil: "load",
+    })
+    const bound = await p1.evaluate(
+      () => document.getElementById("fig-3.14-1")?.dataset.steps ?? "unbound",
+    )
+    check("panel: 3.14-1 is bound to its 6 steps", bound === "6", bound)
+    await p1.close()
+
     const noJs = await browser.newContext({ javaScriptEnabled: false })
     const p2 = await noJs.newPage()
     await p2.goto(url("03-sequencing/02-playing-a-sequence"), {
       waitUntil: "load",
     })
     check(
-      "panel: without JS only the static frame shows",
-      (await shown(p2)).join() === "static",
-      `${await shown(p2)}`,
+      "panel: without JS the final state shows (one SVG, no step)",
+      (await shown(p2)) === "1 svg, step none",
+      await shown(p2),
     )
     await noJs.close()
 

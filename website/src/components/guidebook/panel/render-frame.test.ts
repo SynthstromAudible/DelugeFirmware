@@ -81,3 +81,18 @@ test("windowBox resolves region names and explicit boxes", () => {
   assert.deepEqual(windowBox([1, 2, 3, 4], panel), [1, 2, 3, 4])
   assert.throws(() => windowBox("attic", panel), /attic/)
 })
+
+test("frameAttributes: the classes and fill each control gets in a frame", async () => {
+  const { frameAttributes } = await import("./render-frame.ts")
+  const attrs = frameAttributes(
+    {
+      leds: { Play: "green", Shift: "off" },
+      pads: { "pad-1-1": "#ff0000" },
+    },
+    [{ id: "Play", action: "press" }],
+  )
+  assert.deepEqual(attrs, [
+    { id: "Play", class: "led led-green hl hl-press" },
+    { id: "pad-1-1", style: "fill:#ff0000" },
+  ])
+})

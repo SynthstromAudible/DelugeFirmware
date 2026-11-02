@@ -51,7 +51,7 @@ export type Led = z.infer<typeof Led>
 
 /**
  * A figure's frame file, checked against the figure, its Steps and the panel.
- * `stepCount` is the number of steps driving the figure (undefined: no Steps, any count).
+ * `stepCount` is the number of steps driving the figure (undefined: no Steps, so one frame).
  */
 export function validateFrames(
   raw: unknown,
@@ -64,6 +64,10 @@ export function validateFrames(
   const file = FrameFileSchema.parse(raw)
   if (file.figure !== figure)
     throw new Error(`frame file is for ${file.figure}, not ${figure}`)
+  if (stepCount === undefined && file.steps.length > 1)
+    throw new Error(
+      `${figure}: ${file.steps.length} frames but no Steps bound to the figure — is a heading between them?`,
+    )
   if (stepCount !== undefined && file.steps.length !== stepCount)
     throw new Error(
       `${figure}: ${file.steps.length} frames but ${stepCount} steps — one frame per step`,
