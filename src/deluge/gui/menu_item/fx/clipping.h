@@ -58,7 +58,7 @@ public:
 			                 deluge::serialization::Value::makeNumber(current_value));
 		}
 	}
-	[[nodiscard]] int32_t getMaxValue() const override { return 15; }
+	[[nodiscard]] int32_t getMaxValue() const override { return deluge::effects::kMaxClippingAmount; }
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return BAR; }
 };
 

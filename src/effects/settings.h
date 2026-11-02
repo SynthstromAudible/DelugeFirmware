@@ -122,7 +122,7 @@ inline constexpr std::array<plugin::SettingInfo, 23> kEffectSettings{{
     {.path = "lpfMode", .kind = detail::CHOICE, .choices = detail::kLpfModeNames, .default_value = 1},
     {.path = "hpfMode", .kind = detail::CHOICE, .choices = detail::kHpfModeNames, .default_value = 2},
     {.path = "filterRoute", .kind = detail::CHOICE, .choices = detail::kFilterRouteNames},
-    {.path = "clippingAmount", .min = 0, .max = 15, .extras = &detail::kClippingExtras},
+    {.path = "clippingAmount", .choices = {}, .min = 0, .max = kMaxClippingAmount, .extras = &detail::kClippingExtras},
     {.path = "delay/pingPong", .kind = detail::BOOL, .default_value = detail::kDefaults.delay.ping_pong ? 1 : 0},
     {.path = "delay/type", .kind = detail::CHOICE, .choices = detail::kDelayTypeNames},
     {.path = "delay/syncLevel",

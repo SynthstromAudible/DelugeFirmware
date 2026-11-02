@@ -165,7 +165,7 @@ void ModControllableAudio::assignModFXType(ModFXType value) {
 	changeEffects(*this, [&](auto& e) { e.mod_fx.type = value; });
 }
 void ModControllableAudio::setClippingAmount(uint8_t value) {
-	changeEffects(*this, [&](auto& e) { e.saturation.clipping_amount = value; });
+	changeEffects(*this, [&](auto& e) { e.saturation.clipping_amount = deluge::effects::clipping_amount_from(value); });
 }
 void ModControllableAudio::setLpfMode(FilterMode value) {
 	changeEffects(*this, [&](auto& e) { e.filter.lpf_mode = value; });

@@ -143,7 +143,7 @@ bool write_effect_setting(EffectStates& states, std::string_view path, const ser
 		states.filter.route = parse_filter_route(value.str());
 	}
 	else if (entry == "clippingAmount") {
-		states.saturation.clipping_amount = static_cast<uint8_t>(n);
+		states.saturation.clipping_amount = clipping_amount_from(n);
 	}
 	else if (entry == "delay") {
 		if (rest == "pingPong") {
