@@ -138,7 +138,22 @@ NEON kernel that moves onto the types.
   the high word of sample × gain, so their product is Q30: a voice's mix is summed at half scale.
 - **Frames:** `StereoSample`'s `+` and `+=` wrap. `panned_mono` and `panned_stereo` take `Q<30>` amplitudes, unity at
   2^30, and keep `q31_ops.h`'s multiply until the voice kernel moves.
-- **Buffers and frame fields** stay raw `q31` until the kernels that read them use the named operations.
+- **Curves:** `instant_tan` and `release_rate` blend Q28 and Q31 table entries at Q31 weights; the square and linear
+  param curves take a Q29 combination and read the neutral as Q31, so each product is reformatted back to the
+  neutral's units; `exp_curve`'s blend is Q30 of 2^fraction. `quick_log` stays integer (2^25 per octave).
+- **Hard sync:** the phases and increments are `UQ<32>`, read as Q31 for the signed multiplies; the resetter
+  reciprocal is `Q<16>`, 1 / the resetter increment read as Q31, so an overshoot over the increment is a fraction of
+  a sample at Q15.
+- **VCA and mix:** the crude VCA's amplitude is Q31 into a mix read as Q30; `SendAndVolume`'s volumes and gains are
+  Q27 (2^27 unity) with Q30 pan amplitudes; the track monitor's amplitude is Q30 (2^30 unity); the dry/wet blend is
+  Q30 reformatted to Q31.
+- **Shapers:** `tanh<D>` saturates with `scale_shl_clamp_then_shift`; the run-time drive keeps
+  `lshift_and_saturate_unknown`. The wavefolder's gain is Q24. The sample-rate reducer's positions and rates are Q22,
+  its grabs Q30. Table positions and bit-depth masks stay integer.
+- **Interpolation:** the bilinear table interpolator's rows are Q16 and its result Q15 of the table's units; the 1-D
+  lerps stay integer. The stutter blend's Q16 strengths are reformatted to Q30.
+- **Buffers and frame fields** stay raw `q31` until the kernels that read them use the named operations; each
+  kernel's interface stays raw and converts at its entry and exit.
 
 ## Measuring
 
