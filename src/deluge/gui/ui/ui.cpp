@@ -43,8 +43,9 @@ void UI::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 }
 
 void UI::graphicsRoutine() {
-	if (getRootUI() && canSeeViewUnderneath()) {
-		getRootUI()->graphicsRoutine();
+	RootUI* rootUI = getRootUI();
+	if (rootUI && canSeeViewUnderneath()) {
+		rootUI->graphicsRoutine();
 	}
 }
 
