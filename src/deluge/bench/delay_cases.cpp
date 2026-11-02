@@ -1,7 +1,7 @@
 /// @file
 /// @brief The delay whole cases' rig, setup and blocks, built with the DSP library's flags.
 /// @details The delay ships from deluge_dsp_fixed, which builds in ARM mode with -finline-functions and no LTO, where
-/// the app builds in Thumb mode with -fno-inline-functions. This file takes the library's flags
+/// the app builds in Thumb mode at an inline threshold of 5. This file takes the library's flags
 /// (src/deluge/CMakeLists.txt), as delay_feedback_cases.cpp does, so each case's block is one call into the shipped
 /// `DelayProcessor::process`, made as the delay's owner makes it.
 

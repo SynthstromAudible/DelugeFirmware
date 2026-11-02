@@ -126,8 +126,8 @@ inline int32_t clz(uint32_t input) {
 }
 
 ///@brief Convert from a float to a q31 value, saturating above 1.0
-///@note VFP instruction - 1 cycle for issue, 4 cycles result latency. The builtin, not std::bit_cast: under the app's
-/// -fno-inline-functions, std::bit_cast is an out-of-line call.
+///@note VFP instruction - 1 cycle for issue, 4 cycles result latency. Inline asm: clang does not form the
+/// fixed-point `vcvt` by itself.
 static inline q31_t q31_from_float(float value) {
 	asm("vcvt.s32.f32 %0, %0, #31" : "+t"(value));
 	return __builtin_bit_cast(q31_t, value);

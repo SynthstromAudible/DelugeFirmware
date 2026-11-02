@@ -471,8 +471,7 @@ inline constexpr bool partial_step_advances_by_count_v<K> = K::kPartialStepAdvan
 /// one is an index, not a call, at any inlining flags.
 template <typename T, std::size_t N>
 struct ChainVectors {
-	T v[N]; // NOLINT(*-avoid-c-arrays): read per step, where std::array's accessors are calls under
-	        // -fno-inline-functions
+	T v[N]; // NOLINT(*-avoid-c-arrays): read per step, by subscripts that need no inlining
 };
 
 /// @brief How many chains K's chained step runs at once: K::kChains, or 1 when K declares none.

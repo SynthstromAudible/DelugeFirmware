@@ -335,8 +335,7 @@ private:
 		const int32_t main = widen(strength1);
 		const int32_t next = widen(strength2);
 		// Right to left: two past the write head, one past it, the write head, one before it.
-		// A built-in array, not std::array: its operator[] is an out-of-line call under the app's
-		// -fno-inline-functions, and app TUs (the stutterer) reach this write.
+		// A built-in array: its subscripts need no inlining, and app TUs (the stutterer) reach this write.
 		constexpr size_t kStrengths = 4;
 		// NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
 		const int32_t strengths[kStrengths]{next - 65536, next, main, main - 65536};

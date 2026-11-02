@@ -36,9 +36,8 @@
 /// change is either a reformat (`as_*`: same value, new format) or a scale (`scale_*`: same format, new value). Each
 /// operation compiles to the Cortex-A9 instruction its comment names; tests/unit-arm/codegen checks that.
 ///
-/// App TUs build with -fno-inline-functions, which makes every std:: helper they call (std::bit_cast, std::clamp,
-/// std::numeric_limits<>::max()) an out-of-line call; this header uses builtins, comparisons and constexpr constants
-/// instead.
+/// Every operation is always_inline and written with builtins, comparisons and constexpr constants, so that it compiles
+/// to its instruction under any inliner, the codegen probes' -fno-inline-functions included.
 
 namespace deluge::dsp {
 
@@ -79,8 +78,8 @@ public:
 	[[gnu::always_inline, nodiscard]] static constexpr Fixed min() noexcept { return from_raw(kStorageMin); }
 	[[gnu::always_inline, nodiscard]] static constexpr Fixed max() noexcept { return from_raw(kStorageMax); }
 
-	// Written out, not defaulted: under the app's -fno-inline-functions a defaulted operator, and the
-	// std::strong_ordering a <=> returns, are out-of-line calls.
+	// Written out and always_inline, not defaulted: a defaulted operator, and the std::strong_ordering a <=> returns,
+	// are calls wherever only always_inline functions inline (the codegen probes).
 	[[gnu::always_inline, nodiscard]] friend constexpr bool operator==(Fixed a, Fixed b) noexcept {
 		return a.raw_ == b.raw_;
 	}

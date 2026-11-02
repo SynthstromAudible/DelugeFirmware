@@ -192,7 +192,7 @@ per-note-id polyphonic parameter modulation.
 sample, input, a Plaits-style foreign engine). What the host loads on a track, a kit row or a chain is a **plugin**,
 an instrument or an effect; the Deluge instrument is the first instrument plugin. Every library below the app is built
 with the library flags (`cmake/deluge_library.cmake`: unity, `-marm`, `-finline-functions`, no LTO); only the app keeps
-Thumb and `-fno-inline-functions`.
+Thumb and a low inline threshold (5).
 
 | Layer | Directory | Target |
 |---|---|---|

@@ -211,7 +211,7 @@ struct HighPassLadder {
 	                                                     q31 x) {
 		constexpr Saturation kSaturation = saturation_of(M);
 		// The inputs are small (about 16 bits), so this nudge is too; the floor is about as low as the cutoff goes
-		// without sounding broken. A ternary, as `std::max` is an out-of-line call where the app instantiates this.
+		// without sounding broken.
 		// FIXED: the nudge by a zero morph is exactly zero, so the clamp of the block's moveability is the same.
 		const q31 nudged = cutoff_of(M) == Cutoff::FIXED
 		                       ? c.moveability

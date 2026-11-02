@@ -7,8 +7,8 @@
 
 namespace util {
 /// @brief Calls `f.template operator()<i>()` for i = Start, Start + Inc, ... while i < End, unrolled at compile
-/// time. Always inlined, so an unrolled per-lane loop costs no calls in translation units built with
-/// `-fno-inline-functions`.
+/// time. Always inlined, so an unrolled per-lane loop costs no calls in the app's translation units, which inline only
+/// the cheapest calls.
 /// @tparam Start First index.
 /// @tparam End Exclusive upper bound.
 /// @tparam Inc Step between indices.

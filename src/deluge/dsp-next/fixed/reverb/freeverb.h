@@ -63,8 +63,8 @@ struct Freeverb {
 	};
 	/// @brief Every line's place in the memory, left channel at [0], and the words they take.
 	struct Layout {
-		// NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays): read per step; std::array's
-		// operator[] is a call under -fno-inline-functions
+		// NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays): read per step, by subscripts
+		// that need no inlining
 		Line comb[2][kCombs];
 		// NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays): as comb
 		Line allpass[2][kAllpasses];

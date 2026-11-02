@@ -204,7 +204,7 @@ struct Compressor {
 		const float threshold = song_volume * s.threshold;
 		// The song volume lands here, so the envelope smooths it against clicks; the makeup gain and the reduction
 		// then move at the same rate.
-		// The clamps compare as std::max and std::min do, which are out-of-line calls where the app instantiates this.
+		// The clamps compare as std::max and std::min do.
 		const float makeup = (song_volume - threshold - 1) * c.fraction;
 		s.makeup = run_envelope(c, s.makeup, makeup < 0 ? 0 : makeup, frames);
 

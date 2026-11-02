@@ -97,8 +97,8 @@ void PmuA9::start() {
 }
 
 Sample PmuA9::read() {
-	// One read per counter, written out: under -fno-inline-functions an indexed std::array access is a call, which
-	// would sit between the reads.
+	// One read per counter, written out: no indexing, so nothing the inliner might leave as a call sits between the
+	// reads.
 	static_assert(kEventCount == 5);
 	isb();
 	const uint32_t cycles = read_pmccntr();

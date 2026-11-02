@@ -28,8 +28,8 @@ inline constexpr std::size_t kSincWindowVectors = kInterpolationMaxNumSamples / 
 
 /// @brief One interpolation window: the @ref kInterpolationMaxNumSamples samples to weight, as int16 vectors.
 /// @details A built-in array behind an always-inline `operator[]`, not `std::array`: the window is indexed on the
-/// per-sample path of the wavetable oscillators, which build in app translation units, and there
-/// `std::array::operator[]` is an out-of-line call under `-fno-inline-functions`. Built by aggregate initialisation,
+/// per-sample path of the wavetable oscillators, which build in app translation units, where only the
+/// cheapest calls inline. Built by aggregate initialisation,
 /// vector 0 first.
 struct SincWindow {
 	// A built-in array, not std::array: see the @details above.

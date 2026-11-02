@@ -312,7 +312,7 @@ struct LanePack {
 };
 
 /// @brief @p a if @p mask, else @p b: the scalar form of a pack's select, so that a clamp written over V compiles for
-/// a scalar too. A ternary, which inlines where `std::` algorithms are out-of-line calls.
+/// a scalar too. A ternary, so that it needs no inlining.
 /// @param mask The condition.
 /// @param a    The result when @p mask is true.
 /// @param b    The result when @p mask is false.

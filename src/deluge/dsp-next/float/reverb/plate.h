@@ -174,8 +174,7 @@ struct Plate {
 		};
 	}();
 	/// @return An output tap's offset. Named quirk: int × kRatio truncated to int32.
-	/// consteval, so each tap is a constant at its use: a constexpr function is a call per frame under
-	/// -fno-inline-functions.
+	/// consteval, so each tap is a constant at its use whatever the inliner decides.
 	[[nodiscard]] static consteval int32_t tap(int32_t frames) { return static_cast<int32_t>(frames * kRatio); }
 	// Each modulated read at its furthest, plus the slot after, stays inside its line (the output taps: below).
 	static_assert(static_cast<std::size_t>(672.0f * kRatio) + kMaxExcursion + 1 <= kDigital.dap1a.length);
@@ -322,7 +321,7 @@ private:
 		return y;
 	}
 	/// @return @p scaled clamped into q31 (the top at the largest float below 2³¹) and converted: std::clamp's
-	/// comparisons written out, since std::clamp is a call per sample under -fno-inline-functions.
+	/// comparisons written out.
 	[[nodiscard]] [[gnu::always_inline]] static q31 to_q31_saturating(float scaled) {
 		constexpr float kMax = 2147483520.f; // 0x7FFFFF80
 		constexpr float kMin = -2147483648.f;

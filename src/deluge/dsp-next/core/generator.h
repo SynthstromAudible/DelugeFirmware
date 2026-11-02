@@ -75,9 +75,9 @@ concept scalar_generator_render = requires(D d) {
 /// vectors, the partial one included.
 ///
 /// The per-step lambdas are `[[gnu::always_inline]]` and the scalar path is a plain index loop, so nothing
-/// sits between the block loop and `render` but the component's own code. The app's translation units build
-/// with `-fno-inline-functions`, under which clang marks every function definition noinline unless it says
-/// otherwise; a component's `render` is `[[gnu::always_inline]]` for the same reason.
+/// sits between the block loop and `render` but the component's own code. The app's translation units inline
+/// only the cheapest calls (an inline threshold of 5); a component's `render` is `[[gnu::always_inline]]` for the same
+/// reason.
 template <typename Derived, typename T>
 struct Generator {
 	using value_type = T; ///< The sample type of the block.

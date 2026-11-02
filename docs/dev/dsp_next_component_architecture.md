@@ -105,9 +105,9 @@ a path.
 | `T` (`q31`, `f32`, `StereoSample`) | scalar | a plain index loop over raw pointers |
 
 **Everything per sample is `[[gnu::always_inline]]`.** The app's translation
-units build with `-fno-inline-functions` (`CMakeLists.txt`), under which clang
-marks every function definition `noinline` unless it is `always_inline`, and
-ThinLTO keeps that. The mixins are header templates instantiated in those
+units inline only the cheapest calls, at an inline threshold of 5 at compile time
+and at the ThinLTO link (`CMakeLists.txt`), so a function above that stays a
+call unless it is `always_inline`. The mixins are header templates instantiated in those
 translation units, so `dsp-next`'s own `-finline-functions` does not reach
 them. The mixins' per-step lambdas are therefore `[[gnu::always_inline]]` and
 their scalar path is a plain loop with no library calls in it, and every
@@ -465,7 +465,7 @@ what entering GRAIN does for each kind of owner.
   audio tier, and a slot a decay restart has not rewritten reads silence where
   it would have read the owner's earlier audio. `clear` keeps the slots written
   before it, and the frame loop keeps `written` as one conditional move
-  (`std::max` is a call at `-fno-inline-functions`).
+  (a comparison).
 - **The send cursor is an explicit second output.** The reverb feed is a value
   per frame added to a buffer the owner supplies, so `State::send` is that
   buffer's cursor: the `set_send` event sets it and the send amount each block,
@@ -1076,8 +1076,8 @@ per-sample loop, so a `Mono` of one would be inert.
   on it.
 - `render(...)` is a one-sample block: one `prepare` and one dispatch per call.
   A vector kernel renders it as the partial step of a block of one. It builds
-  one-sample spans and runs a whole block's glue, several out-of-line
-  `std::span` calls per call under the shipping `-fno-inline-functions`, so it
+  one-sample spans and runs a whole block's glue, several `std::span`
+  constructions per call, so it
   is a convenience for tests and control-rate values, not for per-sample use in
   shipping code. A component renders blocks; a kernel that needs another kernel
   per sample nests it (see [Composition](#composition)). The same holds for
@@ -1246,7 +1246,7 @@ is the block.
   defines what that does (`DuckEnvelope` returns no duck).
 - **Always inline.** Every member is `[[gnu::always_inline]]`, the
   default constructor included, so nothing sits between the owner's block and the
-  kernel's arithmetic under `-fno-inline-functions`.
+  kernel's arithmetic under the app's low inline threshold.
 
 ### The shared glue
 
@@ -1952,7 +1952,7 @@ firmware, that have to change.
 count a recursive kernel takes, and which kernels are worth fusing. They never
 gate: no test depends on them. A table is evidence for a performance claim with
 its sha and date. A codegen claim uses the exact shipping flags
-(`-fno-inline-functions`, LTO), because a host build differs.
+(the app's inline threshold of 5, LTO), because a host build differs.
 
 ## Review checklist
 
@@ -1995,11 +1995,11 @@ gates:
 - Does each step stay in one domain, with `prepare` the only scalar per-block
   work and `Block` holding values in the step's domain?
 - Are a kernel's `prepare` and `step` `[[gnu::always_inline]]`? App translation
-  units build with `-fno-inline-functions`, so an out-of-line `prepare` is one
+  units inline only the cheapest calls, so an out-of-line `prepare` is one
   call per channel per block. A control kernel's `advance`, called once per
   block, may be out of line; `DuckEnvelope::advance` is.
-- Is a `std::array` read on a per-step path? Under those flags `std::get`,
-  `data()` and `operator[]` are all out-of-line calls. An Argon load that
+- Is a `std::array` read on a per-step path? Its accessors inline only if the
+  app's inliner judges them cheap enough. An Argon load that
   returns a `std::array` of vectors (an interleaved stereo load) goes through
   `detail::to_stereo` (`core/stereo_vector.h`), a `__builtin_bit_cast`, as
   `Mono` and the mixins do; any other such result is bit-cast the same way. A
@@ -2007,8 +2007,8 @@ gates:
   with a NOLINT giving the reason, as `AnalogImpulseResponse` and `SincWindow`
   are, or are read through a pointer taken once per block.
 - Is every function on the per-sample path, the wrapper and mixin glue included,
-  `[[gnu::always_inline]]`? The app's translation units build with
-  `-fno-inline-functions`, so anything else is an out-of-line call per sample
+  `[[gnu::always_inline]]`? The app's translation units inline only
+  the cheapest calls, so anything else can be an out-of-line call per sample
   or per vector in the shipping image.
 - Does a performance claim cite a bench table, or the exact shipping-flags
   disassembly?

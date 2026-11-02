@@ -113,8 +113,8 @@ struct packed_state<K, N> {
 /// storing frame i.
 ///
 /// **Single samples.** `render(…)` is a one-frame block: it builds one-frame spans and runs a whole block's `prepare`,
-/// dispatch and loop, which under the shipping `-fno-inline-functions` costs several out-of-line `std::span` calls per
-/// call. It is a convenience for tests and for control-rate values, not for per-frame use in shipping code.
+/// dispatch and loop, which costs several `std::span` constructions per call. It is a convenience for tests and for
+/// control-rate values, not for per-frame use in shipping code.
 ///
 /// **Op-major.** When K is @ref lane_packable, `Lanes` holds K's state over a `LanePack<q31, N>` and steps each frame
 /// with one `step` over the pack: every operation runs across the lanes before the next, the independent work the
@@ -134,7 +134,7 @@ struct packed_state<K, N> {
 /// State. The loop steps each lane's loop state only: a copy of it, or, when K declares `kStateInPlace`, the member
 /// itself. A kernel declaring either trait is stepped lane by lane, never op-major.
 ///
-/// **Inlining.** As in @ref Mono: the app builds with `-fno-inline-functions`, so `render`, `render_block`, the loop
+/// **Inlining.** As in @ref Mono: the app inlines only the cheapest calls, so `render`, `render_block`, the loop
 /// and the per-frame lane step are `[[gnu::always_inline]]`. The loop runs on local copies of the coefficients and
 /// every lane's loop state (@ref loop_state_t: the whole State unless K declares `kLoopState`), taken after `prepare`
 /// and written back after the block, so that they stay in registers even though the output may alias the component. The
@@ -157,8 +157,8 @@ class Lanes {
 
 	/// @brief One State per lane, lane 0 first.
 	/// @details A struct around a built-in array: a copy is one assignment that constructs nothing, so the loop's
-	/// local copy never passes its address to an out-of-line constructor and stays in registers; and indexing is no
-	/// call, as std::array's is under -fno-inline-functions.
+	/// local copy never passes its address to an out-of-line constructor and stays in registers; and indexing needs
+	/// no inlining.
 	struct States {
 		// NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
 		State lane[N]; ///< The States, lane 0 first.

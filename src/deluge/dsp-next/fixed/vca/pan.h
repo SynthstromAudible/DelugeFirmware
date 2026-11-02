@@ -38,7 +38,6 @@ struct PanAmplitudes {
 	if (pan == 0) {
 		return {.left = kUnity, .right = kUnity};
 	}
-	// Clamped by comparison, not std::clamp: the app's -fno-inline-functions makes that an out-of-line call
 	const int32_t above_left = pan < -kHalfRange ? -kHalfRange : pan;
 	const int32_t offset = above_left > kHalfRange ? kHalfRange : above_left;
 	return {.left = pan <= 0 ? kUnity : kHalfRange - offset, .right = pan >= 0 ? kUnity : kHalfRange + offset};

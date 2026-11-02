@@ -68,9 +68,9 @@ These numbers explain the cost of a streaming q31 loop:
    for every use.
 4. **Prefer 16-bit lanes where the precision allows.** Their multiplies run at full rate and a Q register holds eight
    samples, which also halves the store traffic per sample.
-5. **Keep per-block glue out of the loop.** The app builds with `-fno-inline-functions`, so an accessor such as
-   `std::span::size()` is a call. Once per block it costs a few cycles per block. Inside the loop it costs that per
-   sample.
+5. **Keep per-block glue out of the loop.** The app inlines only the cheapest calls (an inline threshold of 5), so a
+   helper above that stays a call: once per block it costs a few cycles per block, inside the loop that per sample.
+   Per-sample code is `[[gnu::always_inline]]`.
 6. **A fused frame is one dependency chain; take a stage that only consumes the output off it.** The core overlaps
    little of one frame with the next, so a stage appended to the end of a frame's chain adds its latency to every
    frame. The compressor's level measurement, fused onto the output it had just made, ran 12% slower than the two
@@ -245,7 +245,7 @@ the in-place digital chain.
   never follows the store. It is not done: the digital delay shows no cost from the order, and the analog delay's
   in-place cost is register allocation around its tap loops (above), which the pipeline would not remove.
 - **Bench a component with the flags it ships with, and in place if it ships in place.** Under the app's flags
-  (Thumb, `-fno-inline-functions`) a `std::array` member function is an out-of-line call per use: a response reading
+  as they were measured (Thumb, `-fno-inline-functions`, before the inline threshold of 5) a `std::array` member function is an out-of-line call per use: a response reading
   its taps and history through `std::array` makes calls in every frame, and all three analog forms measure about 600
   cycles per channel-sample that way (`.superpowers/estate/bench/2026-10-09-a202884d7-appflags.md`).
   `AnalogImpulseResponse` reads built-in arrays through plain pointers, so its step makes no call under either flag
@@ -492,7 +492,7 @@ Fitted as a + C/2n from n = 32 and 128, the stereo chorus costs about 69 cycles 
 - **The loops' shape.** At the shipping flags minus `-flto=thin` (Thumb-2), no loop has a `muls` or an out-of-line
   accessor; the sine LFO's table interpolation is `mul.w` and `mla`. Stores go to the frame, the ring slot, the phaser's
   memories, the warblers' noise state and spills. No loop has a call, `Mode::WARBLE_MONO` included: its second
-  warbler's value goes to an unused local, not to `std::ignore`, whose assignment is a call at `-fno-inline-functions`.
+  warbler's value goes to an unused local, not to `std::ignore`, whose assignment would be a call where only always_inline functions inline.
 - **The block's fixed cost is about 405 cycles, over half of it the State copy.** For the stereo chorus the fit from
   n = 32 and 128 gives 407 cycles per block and 69 per frame. About 590 instructions run outside the loop: `Mono` copies
   the 100-byte State in and out with `__aeabi_memcpy4`, which `compiler_builtins` implements as six instructions per
@@ -545,8 +545,7 @@ with the baseline to 0.1%.
   one call is `start_grain` (`[[gnu::noinline]]`, 636 B): a grain starts once per `period` frames, 0.08% of frames at
   the benchmark's rate, about one block in ten at n = 128. Before, `processOneGrainSample` was 112 instructions with 6
   calls (`__aeabi_uidivmod`, four `GrainBuffer::operator[]`, `setupGrainsIfNeeded`) and `processGrainFX` called it and
-  `AudioEngine::feedReverbBackdoorForGrain` for every frame. The high-water mark is a comparison, not `std::max`, which
-  is an out-of-line call at `-fno-inline-functions`.
+  `AudioEngine::feedReverbBackdoorForGrain` for every frame. The high-water mark is a comparison.
 - **`kStateInPlace` is kept.** The kernel steps its 330-byte State where it lives. The copied form (the trait removed)
   moves the State in and out through two `__aeabi_memcpy4` calls and the loop addresses a stack copy (24 stack loads
   and 14 stores a frame loop against 16 and 6); against in place it is slower in every case, two runs:
@@ -668,7 +667,7 @@ image d068b23c3. Cycles per channel-sample, the minimum of four runs of each ima
 | `reverb_digital` | 849.13 → 214.68 (-74.7%) | 843.80 → 213.74 (-74.7%) | 841.48 → 213.45 (-74.6%) | 0.19 |
 
 - **The plates gain 69-75%.** The old Mutable and Digital loops called `toQ31Saturating` and the `FxEngine` line and
-  context helpers out of line every frame under `-fno-inline-functions` (eight to nine calls per frame); the plate
+  context helpers out of line every frame under the app's `-fno-inline-functions` of the measurement (eight to nine calls per frame); the plate
   kernel's helpers are `[[gnu::always_inline]]`, so each frame loop has no call and no `muls`, and the LFO's step is
   `vmul`/`vsub`/`vadd.f32` on `d` registers. Mutable reads 169.4 at n=128 in an image built two commits earlier with
   the same plate code: a placement effect of about 3%.
@@ -712,7 +711,7 @@ step bit-exact with it (`dx7::ModernVectorOperator`). Cycles per sample, one run
     shifts among spills; a block now keeps the configured settings and sets only the extra rate, since the rest
     changes only at note-on, release and retune (which a patch change calls);
   - each block copied the patch's 156 bytes and clamped them through `dx7::sanitise`, which the app's
-    `-fno-inline-functions` left as calls to `std::min` and `std::array::operator[]` (196 instructions for 17
+    `-fno-inline-functions` of the measurement left as calls to `std::min` and `std::array::operator[]` (196 instructions for 17
     clamps); the voices now read one clamped copy on `DxPatch`, renewed at note-on and when the patch changes, and
     the clamp is inline over the raw bytes.
 - **The Argon step against the hand kernel.** Stepped one four-lane chain at a time, the Argon step ran 28-37% slower
@@ -728,7 +727,7 @@ step bit-exact with it (`dx7::ModernVectorOperator`). Cycles per sample, one run
   moved algorithm 32 from 85.0 to 92.4 at n=128. Compare cases within one image where the delta is small.
 - **The voice's flags matter.** `dx7::Voice<CongNoise>` is instantiated once in `fixed/dx7/voice.cpp`, built ARM with
   `-finline-functions`. Instantiated in the voice adapter's app file instead, it built Thumb under
-  `-fno-inline-functions` with fifteen out-of-line `std::array::operator[]` calls among others, and every case ran
+  the app's `-fno-inline-functions` of the measurement with fifteen out-of-line `std::array::operator[]` calls among others, and every case ran
   8-16% slower at n=32.
 - **The kernel's arithmetic** is `vmla.f32`/`vmul.f32` + `vadd.f32` (no fused multiply-add on the A9's NEON),
   `vcvt.f32.s32 #22` and `#24`, `vcvt.s32.f32 #24`; the Argon step compiles to the same operations with no `vfma`.

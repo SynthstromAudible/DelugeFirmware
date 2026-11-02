@@ -54,8 +54,7 @@ namespace deluge::dsp::fixed {
 /// neither waits on the other's multiply result. Each pair's history samples and taps are loaded an iteration
 /// ahead of their multiplies, so the loads are not waited on. docs/dev/a9_dsp_performance.md has the cycle counts.
 ///
-/// **No calls.** The taps and the history are built-in arrays, read through plain pointers and subscripts: a
-/// `std::array` member function is an out-of-line call per use under the app's `-fno-inline-functions`, so the step
+/// **No calls.** The taps and the history are built-in arrays, read through plain pointers and subscripts, so the step
 /// makes no call under either the app's flags or the DSP library's, wherever it is instantiated.
 ///
 /// **Channels.** The response never mixes channels: `Stereo<AnalogImpulseResponse>` steps each channel through its own

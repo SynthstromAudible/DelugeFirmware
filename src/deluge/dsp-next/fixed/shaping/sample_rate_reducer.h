@@ -117,7 +117,6 @@ struct SampleRateReducer {
 		s.low_pos -= kOne;
 		s.last_sample = x;
 
-		// Clamped by comparison, not std::min: the app's -fno-inline-functions makes that an out-of-line call
 		const auto toward_grabbed = Q<22>::from_raw(static_cast<q31>(s.high_pos < kBelowOne ? s.high_pos : kBelowOne));
 		const Q<22> toward_last_grabbed = sub_wrap(Q<22>::from_raw(kBelowOne), toward_grabbed);
 		const StereoSample out{

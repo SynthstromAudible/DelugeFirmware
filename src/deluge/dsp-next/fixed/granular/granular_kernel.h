@@ -240,7 +240,6 @@ struct Granular {
 		slot.l = multiply_accumulate_32x32_rshift32_rounded(x.l, grains_l, b.feedback);
 		slot.r = multiply_accumulate_32x32_rshift32_rounded(x.r, grains_r, b.feedback);
 		s.write += 1;
-		// Not std::max: an out-of-line call in the frame loop at -fno-inline-functions.
 		s.written = written > s.write ? written : s.write;
 
 		const q31 wet_l = OnePole::step<OnePole::Mode::LOW_PASS>(kWetLowPass, {}, s.lpf_l, q31_mult(grains_l, b.wet));

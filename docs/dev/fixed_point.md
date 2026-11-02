@@ -68,8 +68,8 @@ Every operation is plain C or an ACLE intrinsic that clang 23 compiles to the in
 Thumb-2. The app's files are Thumb-2; dsp-next's own libraries are ARM. Two kinds of inline asm remain: the
 high-word multiplies (below) and the fixed-point VFP `vcvt`, which clang does not form by itself.
 
-`tests/unit-arm/codegen` disassembles each operation in both instruction sets, built with the app's `-O2
--fno-inline-functions`, the stricter of the image's two inliners. It fails on any other instruction sequence, on a
+`tests/unit-arm/codegen` disassembles each operation in both instruction sets, built with `-O2
+-fno-inline-functions`, which inlines only always_inline functions: stricter than either of the image's inliners. It fails on any other instruction sequence, on a
 wrong immediate where one matters, and on any call. It also reports, without failing, which loop shapes the compiler
 auto-vectorizes; the multiply loops stay scalar. `tests/unit-arm/spec/fixed_point_isa_spec.cpp` compares every operation, and every portable form,
 against the real instruction under qemu.
@@ -90,9 +90,8 @@ against the real instruction under qemu.
 The run-time `clamp_bits(x, n)`, saturating narrows, the scalar `mul_doubling_sat`, `scale_shl_sat` by more than one
 bit and `from_float_round` have no single instruction. The gate holds them to no calls and an instruction budget.
 
-App files build with `-fno-inline-functions`, which turns every `std::` helper they call (`std::bit_cast`,
-`std::clamp`, `std::numeric_limits<>::max()`) into an out-of-line call. Code on the audio path uses builtins,
-comparisons and `constexpr` constants instead.
+The operations are written with builtins, comparisons and `constexpr` constants rather than `std::` helpers, so that
+they compile to their instruction under any inliner, the probes' included.
 
 ### The high-word multiplies are asm
 

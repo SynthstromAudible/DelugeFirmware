@@ -44,7 +44,7 @@ void plane(uint8_t scope, const void* sound, const void* voice, std::span<const 
 /// @brief A voice's block left its sources as @p states.
 void voice_sources(const void* sound, const void* voice, std::span<const SourceState> states);
 #else
-// Always inlined: app code builds with -fno-inline-functions, and an empty call must not survive into device images
+// Always inlined: app code inlines only the cheapest calls, and an empty call must not survive into device images
 [[gnu::always_inline]] inline void note_on(const void* /*sound*/, const void* /*voice*/) {
 }
 [[gnu::always_inline]] inline void plane(uint8_t /*scope*/, const void* /*sound*/, const void* /*voice*/,

@@ -57,8 +57,8 @@ namespace detail {
 
 /// @brief The channels of an interleaved stereo load (`step.Load` in `for_each_interleaved<q31, 2>`) as a
 /// StereoVector.
-/// @details A bit cast rather than element access or a structured binding: std::array's accessors and `std::get`
-/// are calls under `-fno-inline-functions`, and this runs once per step.
+/// @details A bit cast rather than element access or a structured binding, so that the step makes no accessor call
+/// whatever the inliner decides; this runs once per step.
 /// @param channels The left and right vectors, in that order.
 /// @return The same two vectors as a StereoVector.
 [[nodiscard, gnu::always_inline]] inline StereoVector to_stereo(const std::array<Argon<q31>, 2>& channels) {

@@ -136,8 +136,8 @@ struct FrameSpans {
 
 /// @brief The shared q31 blocks' first n samples: the spans a mono case's component renders between.
 /// @details A case builds these at setup, for the block size it is set up for, so that its timed `block` passes them
-/// by copy and makes no call besides its component's own: under the app's `-fno-inline-functions`, building a span
-/// is an out-of-line call, which the calibration would not cancel.
+/// by copy and makes no call besides its component's own: whether building a span inlines is the app inliner's choice,
+/// and a call there is one the calibration would not cancel.
 struct BlockSpans {
 	dsp::fixed::Signal a;   ///< input_a's first n samples.
 	dsp::fixed::Signal b;   ///< input_b's first n samples.

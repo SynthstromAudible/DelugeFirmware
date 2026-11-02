@@ -1,8 +1,8 @@
 /// @file
 /// @brief The delay feedback cases' setup and blocks, built with the DSP library's flags.
 /// @details The delay ships from deluge_dsp_fixed, which builds in ARM mode with -finline-functions and no LTO, where
-/// the app builds in Thumb mode with -fno-inline-functions. Under the app's flags the impulse response's
-/// `std::array` indexing is an out-of-line call per tap, so this file takes the library's flags
+/// the app builds in Thumb mode at an inline threshold of 5. The cases time the impulse response as the library builds
+/// it, so this file takes the library's flags
 /// (src/deluge/CMakeLists.txt) and the cases time the delay's feedback as the delay runs it: in place.
 
 #include "bench/cases.h"

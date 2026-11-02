@@ -130,7 +130,7 @@ public:
 	bool speed_up_release(VoiceClock clock, uint32_t min_fast_release_increment = kSoftCullIncrement);
 
 	/// The voice's local params' final values, indexed by param, as its last matrix pass left them. Always inlined, so
-	/// a call whose result goes unused leaves nothing behind in app code (built with -fno-inline-functions).
+	/// a call whose result goes unused leaves nothing behind in app code, which inlines only the cheapest calls.
 	[[nodiscard, gnu::always_inline]] std::span<const int32_t> param_final_values() const {
 		return params_.param_final_values;
 	}
