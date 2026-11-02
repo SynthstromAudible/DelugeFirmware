@@ -17,11 +17,11 @@
 
 #pragma once
 
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/mode.h"
-#include "dsp-next/core/q31_ops.h"
+#include "dsp-next/core/q31_ops.h" // kOneQ31
 #include "dsp-next/core/types.h"
-#include "dsp-next/core/wrapping.h"
 
 #include <cstdint>
 #include <type_traits>
@@ -30,10 +30,6 @@
 /// @brief The dry/wet blend: the arithmetic the filters' fade runs and the compressor writes out by hand, and
 /// DryWetBlend, a mixer kernel running it at a level constant per block.
 namespace deluge::dsp::fixed {
-
-/// @brief The shift from the blend's rounded high word, Q30 (each product keeps the high word of a Q31 × Q31), back to
-/// Q31.
-inline constexpr int kDryWetBlendToQ31Shift = 1;
 
 /// @brief dry × (1 − level) + wet × level, Q31, in the rounding the filters' fade and the compressor use.
 /// @details The wet product keeps its high word truncated; the dry product is accumulated onto it rounded; the sum,
@@ -49,9 +45,11 @@ inline constexpr int kDryWetBlendToQ31Shift = 1;
 /// @param level The wet level, Q31: 0 is fully dry, kOneQ31 fully wet.
 /// @return The blend, Q31, its lowest bit clear.
 [[nodiscard]] [[gnu::always_inline]] constexpr q31 dry_wet_blend(q31 dry, q31 wet, q31 level) {
-	const q31 dry_level = wrapping_sub(kOneQ31, level);
-	const q31 sum = multiply_accumulate_32x32_rshift32_rounded(multiply_32x32_rshift32(wet, level), dry, dry_level);
-	return sum << kDryWetBlendToQ31Shift;
+	const auto wet_level = Q<31>::from_raw(level);
+	const Q<31> dry_level = sub_wrap(Q<31>::max(), wet_level);
+	// Each product of two Q31 values is Q30
+	const Q<30> sum = mla_r(mul(Q<31>::from_raw(wet), wet_level), Q<31>::from_raw(dry), dry_level);
+	return as_wrap<Q<31>>(sum).raw();
 }
 
 /// @brief The dry/wet blend as a mixer kernel: inputs dry and wet, at a wet level constant per block.

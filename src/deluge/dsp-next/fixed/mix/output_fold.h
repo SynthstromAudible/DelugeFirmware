@@ -36,7 +36,8 @@ enum class OutputFold : uint8_t {
 
 /// @brief The output stage's fold of @p in, each channel ≫ @p shift (the output's gain doublings), to add to its frame.
 /// @details DIFFERENTIAL halves the left and not the right, the difference a balanced line's monitoring is recorded
-/// at. It wraps as the target's `sub` does.
+/// at. It wraps as the target's `sub` does. Each shift is a scale of the Q31 frame by a run-time count, which the typed
+/// shifts (compile-time counts) don't cover, so it stays a raw `>>`.
 /// @param fold The fold.
 /// @param in The input frame, Q31.
 /// @param shift The output's gain doublings.

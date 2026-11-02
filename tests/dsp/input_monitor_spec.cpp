@@ -125,6 +125,17 @@ describe input_monitor_spec("the input folds monitoring adds to the output", ${
 			}
 		}
 	});
+	it("passes the input through at an amplitude of 2^30, its two lowest bits floored", _ {
+		Mono<TrackMonitor> k;
+		std::vector<StereoSample> input{{.l = 0x12345677, .r = -0x12345677}, {.l = INT32_MAX, .r = INT32_MIN}};
+		std::vector<StereoSample> out(input.size(), StereoSample{.l = 0, .r = 0});
+		k.configure({.amplitude_start = 1 << 30, .amplitude_end = 1 << 30, .mode = TrackMonitor::Mode::STEREO});
+		k.render_block(out, input, out);
+		for (std::size_t i = 0; i < input.size(); ++i) {
+			expect(out[i].l).to_equal(input[i].l & ~3);
+			expect(out[i].r).to_equal(input[i].r & ~3);
+		}
+	});
 });
 // clang-format on
 

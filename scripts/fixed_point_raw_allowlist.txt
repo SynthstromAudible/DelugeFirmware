@@ -37,8 +37,8 @@ src/deluge/dsp-next/fixed/filter/shelf_pair.h raw=10 boundary=0
 src/deluge/dsp-next/fixed/filter/svf.h raw=13 boundary=0
 src/deluge/dsp-next/fixed/granular/granular_kernel.h raw=20 boundary=0
 src/deluge/dsp-next/fixed/interpolation/table_interpolation.h raw=2 boundary=0
-src/deluge/dsp-next/fixed/mix/dry_wet.h raw=2 boundary=0
-src/deluge/dsp-next/fixed/mix/track_monitor.h raw=2 boundary=0
+src/deluge/dsp-next/fixed/mix/dry_wet.h raw=0 boundary=4
+src/deluge/dsp-next/fixed/mix/track_monitor.h raw=0 boundary=11
 src/deluge/dsp-next/fixed/mod_fx/mod_fx_kernel.h raw=31 boundary=0
 src/deluge/dsp-next/fixed/osc/crude_oscillators.h raw=0 boundary=4
 src/deluge/dsp-next/fixed/osc/pulse_oscillator.h raw=0 boundary=8

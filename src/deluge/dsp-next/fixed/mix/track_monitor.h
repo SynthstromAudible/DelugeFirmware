@@ -17,9 +17,9 @@
 
 #pragma once
 
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/mode.h"
-#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/core/types.h"
 #include "dsp-next/core/wrapping.h"
@@ -36,9 +36,9 @@ namespace deluge::dsp::fixed {
 /// @brief An audio track's monitoring: the input frame at an amplitude ramped across the block, folded, added to the
 /// track's output frame.
 /// @details The amplitude starts at the block's start value and steps before each frame by (end − start) ÷ n, in
-/// double, truncated toward zero, so the last frame is at the end value. Each channel is (input × amplitude) ≫ 32 ≪ 2.
-/// BALANCED and COMBINE halve each channel by division (toward zero), not by a shift. Sums and differences wrap as the
-/// target's `add` and `sub` do.
+/// double, truncated toward zero, so the last frame is at the end value. The amplitude is Q30 (2^30 unity), so each
+/// channel's product with it is Q29, reformatted to Q31. BALANCED and COMBINE halve each channel toward zero, not by a
+/// shift. Sums and differences wrap as the target's `add` and `sub` do.
 struct TrackMonitor {
 	using value_type = StereoSample; ///< A frame, Q31 per channel.
 	using step_type = StereoSample;  ///< One frame per step.
@@ -53,27 +53,25 @@ struct TrackMonitor {
 	};
 	using Modes = ModeList<Mode::STEREO, Mode::LEFT, Mode::RIGHT, Mode::BALANCED, Mode::COMBINE>; ///< One ramp.
 
-	static constexpr int kAmplitudeShift = 2; ///< The shift after each channel's amplitude product.
-
 	/// @brief The block's ramp and fold.
 	struct Settings {
-		q31 amplitude_start = 0;  ///< The track's amplitude at the block's start.
-		q31 amplitude_end = 0;    ///< At its end.
+		q31 amplitude_start = 0;  ///< The track's amplitude at the block's start, Q30.
+		q31 amplitude_end = 0;    ///< At its end, Q30.
 		Mode mode = Mode::STEREO; ///< The fold.
 	};
 	/// @brief The block's ramp and fold, as set.
 	struct Coefficients {
-		q31 amplitude_start = 0;  ///< The ramp's start.
-		q31 amplitude_end = 0;    ///< The ramp's end.
+		q31 amplitude_start = 0;  ///< The ramp's start, Q30.
+		q31 amplitude_end = 0;    ///< The ramp's end, Q30.
 		Mode mode = Mode::STEREO; ///< The fold.
 	};
 	/// @brief The running amplitude, set by each block's prepare.
 	struct State {
-		q31 amplitude = 0; ///< The amplitude the last frame took.
+		q31 amplitude = 0; ///< The amplitude the last frame took, Q30.
 	};
 	/// @brief The block's per-frame step.
 	struct Block {
-		q31 increment = 0; ///< Added to the amplitude before each frame.
+		q31 increment = 0; ///< Added to the amplitude before each frame, Q30.
 	};
 
 	/// @brief The ramp and fold, unchanged.
@@ -98,21 +96,22 @@ struct TrackMonitor {
 	template <Mode M>
 	[[nodiscard]] [[gnu::always_inline]] static StereoSample step(const Coefficients& /*c*/, const Block& blk, State& s,
 	                                                              StereoSample output, StereoSample input) {
-		s.amplitude = wrapping_add(s.amplitude, blk.increment);
-		const StereoSample in{.l = multiply_32x32_rshift32(input.l, s.amplitude) << kAmplitudeShift,
-		                      .r = multiply_32x32_rshift32(input.r, s.amplitude) << kAmplitudeShift};
-		StereoSample add = in;
+		const Q<30> amplitude = add_wrap(Q<30>::from_raw(s.amplitude), Q<30>::from_raw(blk.increment));
+		s.amplitude = amplitude.raw();
+		const auto l = mul_as_wrap<Q<31>>(Q<31>::from_raw(input.l), amplitude);
+		const auto r = mul_as_wrap<Q<31>>(Q<31>::from_raw(input.r), amplitude);
+		StereoSample add{.l = l.raw(), .r = r.raw()};
 		if constexpr (M == Mode::LEFT) {
-			add = StereoSample::from_mono(in.l);
+			add = StereoSample::from_mono(l.raw());
 		}
 		else if constexpr (M == Mode::RIGHT) {
-			add = StereoSample::from_mono(in.r);
+			add = StereoSample::from_mono(r.raw());
 		}
 		else if constexpr (M == Mode::BALANCED) {
-			add = StereoSample::from_mono(wrapping_sub(in.l / 2, in.r / 2));
+			add = StereoSample::from_mono(sub_wrap(halve_toward_zero(l), halve_toward_zero(r)).raw());
 		}
 		else if constexpr (M == Mode::COMBINE) {
-			add = StereoSample::from_mono(wrapping_add(in.l / 2, in.r / 2));
+			add = StereoSample::from_mono(add_wrap(halve_toward_zero(l), halve_toward_zero(r)).raw());
 		}
 		return {.l = wrapping_add(output.l, add.l), .r = wrapping_add(output.r, add.r)};
 	}
