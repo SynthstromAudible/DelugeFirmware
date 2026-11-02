@@ -3,6 +3,7 @@
 
 #include "scenes/slicing/slicer_scene.h"
 
+#include "ui/grid/columns.h"
 #include "ui/grid/waveform.h"
 #include "ui/oled/detail/int_to_string.h"
 #include "ui/oled/popup.h"
@@ -13,13 +14,13 @@
 #include "model/sample/sample.h"
 #include "model/sample/waveform_scan.h"
 #include "notify/notice_queue.h"
-#include "scenes/run_inline.h"
 
 #include <algorithm>
 #include <array>
 #include <cstdint>
 #include <span>
 #include <string_view>
+#include <utility>
 
 namespace deluge::scenes::slicing {
 
@@ -98,7 +99,19 @@ bool SlicerScene::on_enter(const SceneId& id) {
 	// `open` rather than through `SceneId::arg`.
 	(void)id;
 
-	// `Slicer::focusRegained` (`slicer.cpp:59-72`), line for line.
+	// `Slicer::focusRegained` (`slicer.cpp:59-72`), line for line, after dropping a held audition (our legacy's
+	// `cancelPreview()` first).
+	if (ops_ != nullptr) {
+		ops_->cancel_audition();
+	}
+	// A new visit has no commit out.
+	committing_ = false;
+	landed_ = false;
+	reset_state();
+	return true;
+}
+
+void SlicerScene::reset_state() {
 	actionLogger.deleteAllLogs(); // `:61`
 	num_clips_ = 16;              // `:63`
 	num_manual_slices_ = 1;       // `:65`
@@ -107,7 +120,6 @@ bool SlicerScene::on_enter(const SceneId& id) {
 	for (int32_t i = 0; i < kMaxManualSlices; i++) {
 		points_[i] = SlicePoint{}; // `:69-70`
 	}
-	return true;
 }
 
 void SlicerScene::on_resume() {
@@ -136,7 +148,10 @@ void SlicerScene::on_resume() {
 	// Covered from both sides: `sim/scenes_spec/slicer_scene_spec.cpp`'s "keeps its slice table when
 	// a popup it raised itself expires" (the popup must not reset it) and "resets its state when a
 	// real scene above it closes" (an opaque scene must).
-	(void)on_enter(SceneId{});
+	if (ops_ != nullptr) {
+		ops_->cancel_audition();
+	}
+	reset_state();
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -268,54 +283,45 @@ Result SlicerScene::select_encoder(int32_t offset) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// The audition preview -- `Slicer::preview` / `runPreviewOp` (`slicer.cpp:409-444`)
+// The audition preview -- `Slicer::preview`
 
 void SlicerScene::preview(const PreviewRequest& req) {
-	// `:418-432`, verbatim in structure and in type: snapshot the request (plain values -- nothing
-	// points into `points_` past this call) and coalesce latest-wins onto one owner op, so a burst
-	// of pad taps converges on whichever slice the finger actually landed on, and the op's
-	// "is the sliced sample already resident?" check, the load it may trigger and the audition note
-	// always run together on the worker rather than being split across a yield.
-	if (!preview_coalescer_.request(req)) {
-		return;
-	}
-	if (!deluge::scenes::run_inline(&SlicerScene::run_preview_op, this)) {
-		// `:428-431`: the owner queue was full, so the op will never run and would wedge the
-		// single-flight guard forever. Release it; the next `preview()` re-requests.
-		preview_coalescer_.reset();
-	}
-}
-
-void SlicerScene::run_preview_op(void* self) {
-	// `:435-444`.
-	auto* s = static_cast<SlicerScene*>(self);
-	if (s->ops_ != nullptr) {
-		s->ops_->audition(s->preview_coalescer_.current());
-	}
-	if (s->preview_coalescer_.complete().has_value()) {
-		if (!deluge::scenes::run_inline(&SlicerScene::run_preview_op, self)) {
-			s->preview_coalescer_.reset(); // `:441`
-		}
+	// The host holds the audition's load and sounds it when it lands (`Slicer::preview`, `slicer.cpp:438-485`).
+	if (ops_ != nullptr) {
+		ops_->audition(req);
 	}
 }
 
 // ---------------------------------------------------------------------------------------------
-// The commit -- `Slicer::runDoSliceOp` / `commitSlice` (`slicer.cpp:570-594`)
+// The commit's end
 
-void SlicerScene::run_do_slice_op(void* self) {
-	static_cast<SlicerScene*>(self)->commit_slice(); // `:570-573`
+void SlicerScene::commit_done(bool success) {
+	if (!committing_) {
+		return; // nothing out: a stale answer
+	}
+	committing_ = false;
+	landed_ = success;
 }
 
-void SlicerScene::commit_slice() {
-	if (ops_ != nullptr) {
-		// `:576-589`: `doSlice(target.sliceCount)` and, for a MANUAL commit, the per-drum
-		// start/end/transpose paint loop. They run together for the reason `runDoSliceOp`'s
-		// docstring gives -- the loop indexes drums `doSlice` creates.
-		ops_->commit(pending_commit_);
+Result SlicerScene::after_render() {
+	Result r;
+	if (std::exchange(landed_, false)) {
+		// `doSlice`'s `exitAndNeverDeleteDrum` closes the slicer with the menu and browser beneath it; the host
+		// closes those two.
+		(void)r.actions.push_back(Action{.kind = Action::Kind::Remove, .pop_to = kSlicerSceneKind});
+		(void)r.actions.push_back(Action{.kind = Action::Kind::RepaintAll});
 	}
-	// `:591-593`. Released here and not inside `SliceOps::commit`, because every exit path of
-	// `doSlice` -- its `getOut:` load-failure branch included -- has to reach it.
-	committing_ = false;
+	return r;
+}
+
+std::optional<uint32_t> SlicerScene::next_timer() const {
+	if (landed_) {
+		return 0;
+	}
+	if (ops_ != nullptr && ops_->play_position().has_value()) {
+		return kPlayheadMs;
+	}
+	return std::nullopt;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -429,11 +435,10 @@ Result SlicerScene::pad_action(int32_t x, int32_t y, int32_t velocity) {
 		return r;
 	}
 
-	// `:567` `return sampleBrowser.padAction(x, y, on)`. DIVERGENCE in spelling only: this layer may
-	// not name `sampleBrowser` (`scenes-no-root-ui`), and it does not have to. Legacy hands the pad
-	// to the UI it was opened over; the shell hands an unhandled event to the scene beneath, which
-	// is that same browser. Falling through is the delegation, not a dropped input.
-	return Result::unhandled();
+	// `:567` hands a REGION pad to the sample browser beneath, whose keyboard would move the file under a slicer
+	// slicing another. Swallowed instead (DIFFERENCES records it).
+	r.handled = true;
+	return r;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -466,6 +471,7 @@ Result SlicerScene::button_action(ButtonId b, const UiContext& ctx) {
 	if (b == ButtonId::XEnc) {
 		mode_ = (mode_ == Mode::Region) ? Mode::Manual : Mode::Region; // `:285-286`
 		if (ops_ != nullptr) {
+			ops_->cancel_audition();
 			if (mode_ == Mode::Manual) {
 				ops_->stop_previewing(); // `:287-288`
 			}
@@ -507,36 +513,31 @@ Result SlicerScene::button_action(ButtonId b, const UiContext& ctx) {
 	}
 
 	if (b == ButtonId::SelectEnc) {
-		// `:334-368`. `inCardRoutine` has no counterpart here: it is a defer-and-retry gate whose
-		// port is `InputLowering::set_sd_busy`, not a scene's business. See the class docstring's
-		// "The commit does NOT need `RecorderScene`'s SD-routine guard".
-		//
-		// `:345-349`: snapshot the gesture -- plain values only, nothing pointing into `points_`,
-		// `num_manual_slices_` or `num_clips_` survives past this point.
+		// Snapshot the gesture: plain values only, so nothing pointing into `points_`, `num_manual_slices_` or
+		// `num_clips_` survives past this point, and an encoder turn while the slice's load is out changes nothing
+		// it slices. Main's MANUAL arm also writes `numClips = numManualSlice`; this leaves the REGION count alone.
+		if (ops_ != nullptr) {
+			ops_->cancel_audition();
+		}
 		pending_commit_.is_manual = mode_ == Mode::Manual;
 		pending_commit_.slice_count = pending_commit_.is_manual ? num_manual_slices_ : num_clips_;
 		if (pending_commit_.is_manual) {
 			std::copy(std::begin(points_), std::end(points_), std::begin(pending_commit_.points));
 			if (ops_ != nullptr) {
-				ops_->kill_voices(); // `:350`
+				ops_->kill_voices();
 			}
 		}
-
-		// `:363` -- the gate, closed BEFORE dispatch and not inside the op, because the op ends by
-		// popping this scene (and the browser beneath it) off the stack. It is what makes a second
-		// SELECT_ENC and a BACK arriving during the op no-ops (`:279-281`).
-		committing_ = true;
-		if (!deluge::scenes::run_inline(&SlicerScene::run_do_slice_op, this)) {
-			// `:364-368`: dispatch dropped, so `run_do_slice_op` will never run and would leave the
-			// scene wedged with no BACK and no SELECT_ENC forever. Release what was just closed.
-			committing_ = false;
-		}
+		// The gate, until the host ends the slice (`commit_done`): every button and pad is refused while it is out.
+		committing_ = ops_ != nullptr && ops_->begin_commit(pending_commit_);
 		r.handled = true;
 		return r;
 	}
 
 	if (b == ButtonId::Back) {
-		// `:371-392`.
+		// `:371-392`, after dropping a held audition.
+		if (ops_ != nullptr) {
+			ops_->cancel_audition();
+		}
 		if (mode_ == Mode::Manual && ops_ != nullptr) {
 			// `:376-379` renders the full-height waveform into `PadLEDs::image` on the way out --
 			// legacy's parting frame for the transition it is about to run. It has no counterpart
@@ -567,7 +568,12 @@ Result SlicerScene::handle(const UiEvent& event, const UiContext& ctx) {
 		// Legacy's third parameter is the raw velocity, which it names `on` and passes straight
 		// through to `preview` (`:494`). The shell keeps `on == (velocity != 0)` invariantly
 		// (`InputLowering::on_pad`, `shell/input_lowering.cpp:243-251`), so the velocity alone is
-		// exactly what legacy is handed.
+		// exactly what legacy is handed. Refused while a commit is out (our legacy's `slicePhase_` gate).
+		if (committing_) {
+			Result swallowed;
+			swallowed.handled = true;
+			return swallowed;
+		}
 		return pad_action(event.x, event.y, event.velocity);
 
 	case UiEvent::Kind::Button:
@@ -623,6 +629,30 @@ void SlicerScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) 
 }
 
 void SlicerScene::render_grid(deluge::ui::grid::GridFrame& f) {
+	render_pads(f);
+	// `graphicsRoutine`'s playhead: the newest voice's column on rows 7 to 4, in both modes, substituted over what
+	// the pads show (`PadLEDs::setTickSquares`, slow flash cursor).
+	if (nav_.sample == nullptr || ops_ == nullptr) {
+		return;
+	}
+	const std::optional<int32_t> pos = ops_->play_position();
+	if (!pos.has_value() || *pos < nav_.xScroll || nav_.xZoom <= 0) {
+		return;
+	}
+	const int64_t col = (*pos - nav_.xScroll) / nav_.xZoom;
+	if (col >= kDisplayWidth) {
+		return;
+	}
+	std::array<deluge::ui::grid::TickSquare, kDisplayHeight> per_row{};
+	per_row.fill(deluge::ui::grid::TickSquare{.col = deluge::ui::grid::kNoTickSquare});
+	for (int32_t y = kDisplayHeight - 4; y < kDisplayHeight; y++) {
+		per_row[y] = deluge::ui::grid::TickSquare{.col = static_cast<uint8_t>(col),
+		                                          .colour = deluge::ui::grid::TickColour::Normal};
+	}
+	deluge::ui::grid::tick_squares(f, per_row, deluge::gui::colours::black);
+}
+
+void SlicerScene::render_pads(deluge::ui::grid::GridFrame& f) {
 	if (nav_.sample == nullptr) {
 		return;
 	}

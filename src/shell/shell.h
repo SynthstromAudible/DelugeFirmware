@@ -416,6 +416,9 @@ public:
 	///          means, since zero's current meaning is what makes overriding `next_timer()`
 	///          sufficient for an animation at all.
 	std::optional<uint32_t> next_wake() const { return next_wake_; }
+	/// @brief The router, for a spec that asks what it dropped.
+	/// @return The router.
+	const Router& router() const { return router_; }
 	/// @brief `next_wake()`, asked between ticks: a fact raised since the last tick is a wake now.
 	///
 	/// `next_wake()` is computed at the bottom of each tick, so it cannot know of a fact a legacy

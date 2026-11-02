@@ -12,10 +12,10 @@
 ///
 /// `Slicer` reaches its work through four `gui/` globals -- `sampleBrowser`, `soundEditor`,
 /// `instrumentClipView` and `PadLEDs` -- every one of which `src/scenes/**` may never name
-/// (`scripts/check_layer_rules.py`, `scenes-no-root-ui` and `scenes-includes-gui`). The six calls
-/// that actually matter are collected into `SliceOps` below, one virtual per legacy call site, and
-/// the scene keeps everything else: the state, the guards, the coalescer, the dispatch and the
-/// re-entry gate. See `SliceOps` for the call-site-by-call-site mapping and for what a null `ops()`
+/// (`scripts/check_layer_rules.py`, `scenes-no-root-ui` and `scenes-includes-gui`). The calls that
+/// reach them are collected into `SliceOps` below, and the scene keeps everything else: the state,
+/// the guards, the snapshot at Select and the commit gate. The slice is asynchronous: the host
+/// answers `SliceOps::begin_commit` later with `commit_done`. See `SliceOps` for what a null `ops()`
 /// means.
 ///
 /// @par This is NOT a root scene
@@ -124,15 +124,13 @@
 ///      and deliberately not a scene's business -- the same ruling `RecorderScene::handle`,
 ///      `MarkerScene` and `BrowserScene` all record.
 ///   3. **The hazard `doSlice` does have is a different one, and legacy names it itself.** The
-///      comment at `slicer.cpp:353-362` says the op ends in `sampleBrowser.exitAndNeverDeleteDrum()`
-///      -> `close()`, which pops UIs from inside the dispatched op, so a BACK or a second SELECT_ENC
-///      arriving during that window would mutate the same UI-stack globals from two contexts (and a
-///      second SELECT_ENC would double-slice). Its guard is the `currentUIMode` gate at `:363-368`,
-///      not an SD test -- and *that* is the guard this port carries, as `committing()`.
+///      slice ends in `sampleBrowser.exitAndNeverDeleteDrum()` -> `close()`, so a BACK or a second
+///      SELECT_ENC arriving while its load is out would close the slicer under it or slice twice.
+///      Its guard is the `currentUIMode` gate, not an SD test -- and *that* is the guard this port
+///      carries, as `committing()`.
 ///
-/// So: no `sdRoutineBusy()` call here, and saying so is the finding. What is ported instead is
-/// legacy's own pair -- the re-entry gate (`committing_`) and the dropped-dispatch recovery at
-/// `:364-368` -- both of which are asserted in the spec, in both directions.
+/// So: no `sdRoutineBusy()` call here, and saying so is the finding. What is ported instead is the
+/// re-entry gate (`committing_`), held from Select until the host's `commit_done`.
 ///
 /// @par What this scene's own popups found in the shell
 ///
@@ -197,7 +195,6 @@
 
 #include "definitions_cxx.hpp"
 #include "model/sample/waveform_navigator.h"
-#include "storage/latest_wins.h"
 
 #include <cstdint>
 #include <optional>
@@ -250,11 +247,10 @@ struct PreviewRequest {
 	bool operator==(const PreviewRequest&) const = default;
 };
 
-/// @brief The commit gesture, snapshotted at dispatch time.
+/// @brief The commit gesture, snapshotted at Select.
 ///
-/// Legacy's `Slicer::SliceCommitTarget` (`gui/ui/slicer.h:123-127`). Plain data for the reason its
-/// docstring gives: the dispatched op may yield inside a load, and a concurrent encoder turn or pad
-/// press during that yield must not be able to desync what gets sliced from what gets painted.
+/// Plain data: the slice runs when its load lands, and an encoder turn or pad press while it is out
+/// must not change what gets sliced or painted.
 struct SliceCommit {
 	/// Was the slicer in MANUAL mode at press time (`slicer.cpp:345`)?
 	bool is_manual = false;
@@ -265,75 +261,57 @@ struct SliceCommit {
 	SlicePoint points[kMaxManualSlices]{};
 };
 
-/// @brief Everything `Slicer` does to the audio engine, the model and the card -- the six calls
+/// @brief Everything `Slicer` does to the audio engine, the model and the card -- the calls
 ///        `src/scenes/**` may not spell.
 ///
-/// **This is a boundary, not a new feature.** Each virtual stands for one legacy call site, named
-/// below; together they are the complete set of things `Slicer::padAction`, `Slicer::buttonAction`,
-/// `Slicer::previewForTarget` and `Slicer::commitSlice` do that reach `sampleBrowser`,
-/// `soundEditor`, `instrumentClipView` or `PadLEDs` -- the four `gui/` globals
-/// `scripts/check_layer_rules.py`'s `scenes-no-root-ui` / `scenes-includes-gui` rows forbid. The
-/// scene keeps every part of those functions that is state, arithmetic or a guard, which is the
-/// part an oracle can compare against legacy; the parts below are the part it cannot.
+/// **This is a boundary, not a new feature.** Together the virtuals are what `Slicer::padAction`,
+/// `Slicer::buttonAction` and `Slicer::graphicsRoutine` do that reach `sampleBrowser`, `soundEditor`,
+/// `instrumentClipView` or `PadLEDs`. On the device the host's `SliceCore` does them
+/// (`gui/ui/shell_slice_ops.cpp`), as it does for the legacy `Slicer`. The scene keeps every part of
+/// those functions that is state, arithmetic or a guard, which is the part an oracle can compare
+/// against legacy.
 ///
 /// The same split `scenes::browser::Listing` makes for the card, and for the same reason: one named place that
 /// knows how to reach the thing, rather than a hole in the layer rule.
 ///
 /// @warning **A null `SlicerScene::ops()` is not an error and not a stub.** Nothing links
-///          `deluge_scenes` into an application yet (spec F's `RunOptions::second_registry` is what
-///          will), so today every scene in this library runs with its model side unwired. With no
-///          ops the scene still does all of its own bookkeeping -- the slice table, the modes, the
-///          gate, the coalescer -- and simply performs no audio or card work, which is what a spec
-///          wants and what an unwired application would want too. It is emphatically *not* a
+///          With no ops the scene still does all of its own bookkeeping -- the slice table and the
+///          modes -- and performs no audio or card work and begins no commit, which is what a spec
+///          wants. It is emphatically *not* a
 ///          licence to leave a call out: a call this interface does not carry is a call the port
 ///          has dropped.
 class SliceOps {
 public:
 	virtual ~SliceOps() = default;
 
-	/// @brief `AudioEngine::stopAnyPreviewing()` -- `buttonAction`'s X_ENC arm when it lands in
-	///        MANUAL (`slicer.cpp:287-288`) and `doSlice`'s first statement (`:598`).
+	/// @brief `AudioEngine::stopAnyPreviewing`: silence the browser's preview (X_ENC into MANUAL).
 	virtual void stop_previewing() {}
 
-	/// @brief `getCurrentKit()->firstDrum->killAllVoices()` -- the X_ENC arm (`slicer.cpp:291`), the
-	///        SELECT_ENC arm's MANUAL branch (`:350`) and the BACK arm's MANUAL branch (`:380`).
+	/// @brief Silence the kit's first drum (`firstDrum->killAllVoices`).
 	virtual void kill_voices() {}
 
-	/// @brief `Slicer::previewForTarget` (`slicer.cpp:446-482`): load the sliced sample if it is not
-	///        already resident, point the drum's range at @p req, and sound or silence the audition
-	///        note.
-	///
-	/// Runs on the storage owner -- `SlicerScene` dispatches it through
-	/// `deluge::storage::Owner::run`, exactly as `Slicer::preview` does (`:426`), so the resident
-	/// check, the load it may trigger and the audition note stay together on one op rather than
-	/// being split across a yield.
-	/// @param req The audition request.
+	/// @brief Press or release one audition through the first drum; a press whose sample is not loaded
+	///        sounds once it is.
+	/// @param req The audition, snapshotted.
 	virtual void audition(const PreviewRequest& req) { (void)req; }
 
-	/// @brief The voice walk at the top of `Slicer::padAction`'s "do slice" branch
-	///        (`slicer.cpp:508-534`): where is the previewing drum's sample playing right now?
-	///
-	/// Unported for `graphicsRoutine`'s reason and by the same ruling -- it needs `Sound::voices()`
-	/// to report a live voice, which needs a running `AudioEngine`, which no spec in this tree can
-	/// produce. The *arithmetic* it feeds is ported and measured
-	/// (`SlicerScene::add_slice_at`); only the source of the number is behind this call.
-	/// @return The play position in sample frames, or `nullopt` for legacy's `voiceSample ==
-	///         nullptr` (`:533`), which places no slice at all.
+	/// @brief Forget a held audition, so its load sounds nothing when it lands (enter, X_ENC, Select, BACK).
+	virtual void cancel_audition() {}
+
+	/// @return Where the first drum's newest voice on the sliced file is playing, in samples, if one is.
 	virtual std::optional<int32_t> play_position() { return std::nullopt; }
 
-	/// @brief `buttonAction`'s BACK arm in MANUAL mode (`slicer.cpp:381-388`): put the previewing
-	///        drum's range back to the whole sample, untransposed, on the way out.
+	/// @brief Give the first drum its whole file back, untransposed (BACK out of MANUAL); a drum that holds no
+	///        file is left as it is.
 	virtual void restore_full_range() {}
 
-	/// @brief `Slicer::commitSlice` (`slicer.cpp:575-594`) minus its gate release: `doSlice`
-	///        (`:596-751`) and, for a MANUAL commit, the per-drum start/end/transpose paint loop
-	///        (`:578-589`).
-	///
-	/// Runs on the storage owner (`Owner::run_or_inline`, `slicer.cpp:364`). The gate release at
-	/// `:593` is the scene's, not this call's, because every exit path of `doSlice` -- including its
-	/// internal `getOut:` load-failure branch -- has to reach it.
-	/// @param commit The dispatch-time snapshot.
-	virtual void commit(const SliceCommit& commit) { (void)commit; }
+	/// @brief Start slicing the file with @p commit. The host ends it with `SlicerScene::commit_done`.
+	/// @param commit The gesture, snapshotted at Select.
+	/// @return False when the host refused, and nothing is out.
+	virtual bool begin_commit(const SliceCommit& commit) {
+		(void)commit;
+		return false;
+	}
 };
 
 /// @brief The `SceneKind` this scene is registered under: `FirstApp + 8` (`registry.h`).
@@ -370,6 +348,14 @@ public:
 	/// @param ops The implementation, or null to run with the model side unwired. Borrowed, not
 	///            owned; it must outlive the scene's use of it.
 	void set_ops(SliceOps* ops) { ops_ = ops; }
+
+	/// @brief The host's answer to `SliceOps::begin_commit`, once the slice has ended.
+	///
+	/// A landed slice removes the slicer on the next `after_render` (the host closes the menu and the browser beneath,
+	/// as main's `exitAndNeverDeleteDrum` closes all three); a failed one leaves it open and taking input again.
+	/// Ignored when no commit is out.
+	/// @param success Whether the drums were made.
+	void commit_done(bool success);
 	/// @return The wired boundary, or null. See `SliceOps`.
 	SliceOps* ops() const { return ops_; }
 
@@ -393,6 +379,12 @@ public:
 	/// @brief `Slicer::focusRegained` again, as `on_enter` is -- see the definition, and "What this
 	///        scene's own popups found in the shell" in the class docstring.
 	void on_resume() override;
+	deluge::ui::shell::Result after_render() override;
+	/// @brief Now while a landed commit waits for `after_render`; `kPlayheadMs` while something plays, for the
+	///        playhead (`Slicer::graphicsRoutine` runs every pass of the main loop); nothing otherwise.
+	std::optional<uint32_t> next_timer() const override;
+	/// @brief The grid only: the playhead is all the timer moves.
+	deluge::ui::shell::Scene::RepaintSurfaces timer_repaints() const override { return {.oled = false, .grid = true}; }
 
 	/// @brief False: a plain `UI`, not a `RootUI`. See the table in the class docstring.
 	bool is_root() const override { return false; }
@@ -428,13 +420,13 @@ public:
 	int64_t x_scroll() const { return nav_.xScroll; }
 	/// @return Samples per waveform column.
 	int64_t x_zoom() const { return nav_.xZoom; }
-	/// @return Is a slice commit in flight? Legacy's `currentUIMode ==
-	///         UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES` gate (`slicer.cpp:363`), which makes
-	///         `buttonAction` a no-op until the op releases it (`:279-281`, `:593`).
+	/// @return Is a slice commit out? Legacy's `currentUIMode == UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES` gate,
+	///         which refuses every button and pad until the host ends the commit (`commit_done`).
 	bool committing() const { return committing_; }
-	/// @return Is an audition op in flight? `previewCoalescer_.in_flight()` (`slicer.h:111`).
-	bool previewing() const { return preview_coalescer_.in_flight(); }
 	/// @}
+
+	/// @brief How often the playhead is redrawn while something plays.
+	static constexpr uint32_t kPlayheadMs = 15;
 
 private:
 	/// @brief `Slicer::horizontalEncoderAction` (`slicer.cpp:205-231`).
@@ -469,17 +461,16 @@ private:
 	/// @brief `buttonAction`'s SAVE arm (`slicer.cpp:306-332`), past its held-pad test.
 	void delete_current_slice();
 
-	/// @brief `Slicer::preview` (`slicer.cpp:409-433`): snapshot, coalesce latest-wins, dispatch.
+	/// @brief `Slicer::focusRegained`'s reset: one slice, slot 0, REGION, the table cleared.
+	void reset_state();
+
+	/// @brief `Slicer::renderMainPads`: the waveform, and in MANUAL the slice marks and slot grid.
+	/// @param f The grid frame.
+	void render_pads(deluge::ui::grid::GridFrame& f);
+
+	/// @brief `Slicer::preview`: hand the snapshotted audition to the host, which holds its load.
 	/// @param req The audition request.
 	void preview(const PreviewRequest& req);
-	/// @brief `Slicer::runPreviewOp` (`slicer.cpp:435-444`), as an `Owner::run` thunk.
-	/// @param self The scene.
-	static void run_preview_op(void* self);
-	/// @brief `Slicer::runDoSliceOp` (`slicer.cpp:570-573`), as an `Owner::run_or_inline` thunk.
-	/// @param self The scene.
-	static void run_do_slice_op(void* self);
-	/// @brief `Slicer::commitSlice` (`slicer.cpp:575-594`): the op, and the gate release.
-	void commit_slice();
 
 	/// The scroll/zoom and per-column peak cache. Legacy shares one global
 	/// (`waveformBasicNavigator`) between the browser, the marker editor and the slicer; every
@@ -497,16 +488,14 @@ private:
 	/// The audio/model/card boundary; null until an application wires one. See `SliceOps`.
 	SliceOps* ops_ = nullptr;
 
-	/// `Slicer::previewCoalescer_` (`gui/ui/slicer.h:111`), the same type legacy uses.
-	deluge::storage::LatestWins<PreviewRequest> preview_coalescer_{};
-
-	/// `Slicer::pendingSliceTarget_` (`gui/ui/slicer.h:145`).
+	/// The gesture the commit out was begun with, snapshotted at Select.
 	SliceCommit pending_commit_{};
 
-	/// Legacy's `currentUIMode = UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES` gate (`slicer.cpp:363`),
-	/// scoped to this scene. See "The commit does NOT need `RecorderScene`'s SD-routine guard" in
-	/// the class docstring for what it is for and what it is not.
+	/// Legacy's `currentUIMode = UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES` gate, scoped to this scene: set while the
+	/// host's slice is out, until `commit_done`.
 	bool committing_ = false;
+	/// A landed commit, waiting for `after_render` to remove the slicer.
+	bool landed_ = false;
 };
 
 /// @brief The application's one slicer.

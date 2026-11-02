@@ -72,6 +72,7 @@
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
 #include "ui/core/metrics.h"
+#include "ui/grid/columns.h"
 
 #include "gui/ui/slicer.h"
 #include "gui/ui/ui.h"
@@ -504,12 +505,19 @@ struct FakeOps final : deluge::scenes::slicing::SliceOps {
 	std::vector<deluge::scenes::slicing::SliceCommit> commits;
 	std::optional<int32_t> next_play_position{};
 	int32_t play_position_calls = 0;
+	int32_t cancel_audition_calls = 0;
+	/// What `begin_commit` answers.
+	bool accept_commit = true;
 
 	void stop_previewing() override { stop_previewing_calls++; }
+	void cancel_audition() override { cancel_audition_calls++; }
 	void kill_voices() override { kill_voices_calls++; }
 	void restore_full_range() override { restore_calls++; }
 	void audition(const deluge::scenes::slicing::PreviewRequest& r) override { auditions.push_back(r); }
-	void commit(const deluge::scenes::slicing::SliceCommit& c) override { commits.push_back(c); }
+	bool begin_commit(const deluge::scenes::slicing::SliceCommit& c) override {
+		commits.push_back(c);
+		return accept_commit;
+	}
 	std::optional<int32_t> play_position() override {
 		play_position_calls++;
 		return next_play_position;
@@ -1199,16 +1207,18 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		expect(slicer_scene().mode() == Mode::Region).to_be_true();
 	});
 
-	it("hands a REGION pad to the scene beneath, as legacy hands it to the sample browser", _ {
-		// `:567` `return sampleBrowser.padAction(x, y, on)`. This layer may not name that global; an
-		// unhandled event reaches the same UI through the stack. See the note at the definition.
+	it("swallows a REGION pad, which main hands to the sample browser beneath", _ {
+		// Main's `:567` types it into the browser's keyboard, moving the file under a slicer that is slicing
+		// another: swallowed here, and recorded in DIFFERENCES.
 		Rig r;
 		FakeOps ops;
 		slicer_scene().set_ops(&ops);
 		r.open();
 		r.tick(0);
+		const uint32_t dropped = r.shell.router().dropped_events();
 		r.pad(3, 2, 64, 10);
 		r.settle(10);
+		expect(r.shell.router().dropped_events()).to_equal(dropped);
 		expect(static_cast<int32_t>(ops.auditions.size())).to_equal(0);
 		expect(slicer_scene().current_slice()).to_equal(0);
 	});
@@ -1397,9 +1407,7 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 
 	// --- the commit -----------------------------------------------------------------------------
 
-	it("commits the REGION slice count the select encoder left, in one dispatched op", _ {
-		// `:334-368` and `:570-594`. `doSlice` itself is behind `SliceOps::commit` -- see the file
-		// docstring -- so what is asserted here is the snapshot legacy builds at `:345-349`.
+	it("begins a commit with the REGION count the select encoder left, and stays committing until the host ends it", _ {
 		Rig r;
 		FakeOps ops;
 		slicer_scene().set_ops(&ops);
@@ -1412,16 +1420,12 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		expect(static_cast<int32_t>(ops.commits.size())).to_equal(1);
 		expect(ops.commit_at(0).is_manual).to_be_false();
 		expect(ops.commit_at(0).slice_count).to_equal(20);
-		// `:346` reads `numClips` in REGION mode, and nothing kills voices on that path (`:347-351`).
-		expect(ops.kill_voices_calls).to_equal(0);
-		// The gate is closed before dispatch and released by the op (`:363`, `:593`); on this BSP the
-		// dispatch is inline (`deluge_worker_run`, `task_scheduler_c_api.cpp:101-104`), so by the
-		// time the tick returns it is open again.
-		expect(slicer_scene().committing()).to_be_false();
+		expect(ops.kill_voices_calls).to_equal(0); // REGION kills no voices
+		expect(slicer_scene().committing()).to_be_true();
+		expect(r.on_stack()).to_be_true();
 	});
 
 	it("commits the manual slice table, killing the drum's voices first", _ {
-		// `:345-351`: MANUAL snapshots the whole table by value and kills voices before dispatch.
 		Rig r;
 		FakeOps ops;
 		slicer_scene().set_ops(&ops);
@@ -1440,32 +1444,165 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		expect(ops.commit_at(0).points[2].start_pos).to_equal(200000);
 	});
 
-	it("refuses every button while a commit is in flight, as legacy's top-of-function guard does", _ {
-		// `:279-281` against the gate at `:363`. The gate is not observable on this BSP from outside
-		// the op -- the dispatch is inline -- so the second press is made from INSIDE it, which is
-		// exactly the window the gate exists for (`:353-362`: a BACK arriving there would `close()`
-		// the scene from the executor while the op mutates the same UI stack).
-		struct ReentrantOps final : deluge::scenes::slicing::SliceOps {
-			SlicerScene* scene = nullptr;
-			deluge::ui::shell::UiContext* ctx = nullptr;
-			bool gate_was_closed = false;
-			int32_t commits = 0;
-			void commit(const deluge::scenes::slicing::SliceCommit&) override {
-				commits++;
-				gate_was_closed = scene->committing();
-			}
-		};
+	it("leaves the REGION count as it was after a manual commit", _ {
+		// Main's MANUAL Select writes `numClips = numManualSlice`: not copied, recorded in DIFFERENCES.
 		Rig r;
-		ReentrantOps ops;
-		ops.scene = &slicer_scene();
+		FakeOps ops;
+		slicer_scene().set_ops(&ops);
+		r.open();
+		r.tick(0);
+		r.turn_select(4, 10);
+		r.settle(10);
+		r.x_enc(true, 20);
+		r.settle(20);
+		seed_port({100000});
+		r.select_enc(true, 30);
+		r.settle(30);
+		expect(ops.commit_at(0).slice_count).to_equal(2);
+		expect(slicer_scene().num_clips()).to_equal(20);
+	});
+
+	it("removes itself on the after_render after a landed commit", _ {
+		Rig r;
+		FakeOps ops;
 		slicer_scene().set_ops(&ops);
 		r.open();
 		r.tick(0);
 		r.select_enc(true, 10);
 		r.settle(10);
-		expect(ops.commits).to_equal(1);
-		expect(ops.gate_was_closed).to_be_true();
+		slicer_scene().commit_done(true);
+		expect(slicer_scene().next_timer() == std::optional<uint32_t>{0}).to_be_true();
+		r.settle(20);
+		expect(r.on_stack()).to_be_false();
 		expect(slicer_scene().committing()).to_be_false();
+	});
+
+	it("stays open and takes input again after a failed commit", _ {
+		Rig r;
+		FakeOps ops;
+		slicer_scene().set_ops(&ops);
+		r.open();
+		r.tick(0);
+		r.select_enc(true, 10);
+		r.settle(10);
+		slicer_scene().commit_done(false);
+		r.settle(20);
+		expect(r.on_stack()).to_be_true();
+		expect(slicer_scene().committing()).to_be_false();
+		r.x_enc(true, 30);
+		r.settle(30);
+		expect(slicer_scene().mode() == Mode::Manual).to_be_true();
+	});
+
+	it("refuses buttons and pads while a commit is out", _ {
+		Rig r;
+		FakeOps ops;
+		slicer_scene().set_ops(&ops);
+		r.open();
+		slicer_scene().set_mode(Mode::Manual);
+		r.tick(0);
+		seed_port({100000});
+		r.select_enc(true, 10);
+		r.settle(10);
+		r.back(true, 20);
+		r.settle(20);
+		r.x_enc(true, 30);
+		r.settle(30);
+		r.pad(1, 0, 64, 40); // the second slot
+		r.settle(40);
+		expect(r.on_stack()).to_be_true();
+		expect(slicer_scene().mode() == Mode::Manual).to_be_true();
+		expect(static_cast<int32_t>(ops.auditions.size())).to_equal(0);
+		expect(slicer_scene().current_slice()).to_equal(0);
+		expect(static_cast<int32_t>(ops.commits.size())).to_equal(1);
+	});
+
+	it("keeps the committed count when the select encoder turns while the commit is out", _ {
+		Rig r;
+		FakeOps ops;
+		slicer_scene().set_ops(&ops);
+		r.open();
+		r.tick(0);
+		r.select_enc(true, 10);
+		r.settle(10);
+		r.turn_select(3, 20);
+		r.settle(20);
+		expect(ops.commit_at(0).slice_count).to_equal(16);
+		expect(static_cast<int32_t>(ops.commits.size())).to_equal(1);
+	});
+
+	it("ignores a commit_done with no commit out", _ {
+		Rig r;
+		FakeOps ops;
+		slicer_scene().set_ops(&ops);
+		r.open();
+		r.tick(0);
+		slicer_scene().commit_done(true);
+		r.settle(10);
+		expect(r.on_stack()).to_be_true();
+	});
+
+	it("does not commit when the host refuses", _ {
+		Rig r;
+		FakeOps ops;
+		ops.accept_commit = false;
+		slicer_scene().set_ops(&ops);
+		r.open();
+		r.tick(0);
+		r.select_enc(true, 10);
+		r.settle(10);
+		expect(slicer_scene().committing()).to_be_false();
+	});
+
+	it("cancels the held audition on enter, X_ENC, Select and BACK", _ {
+		Rig r;
+		FakeOps ops;
+		slicer_scene().set_ops(&ops);
+		r.open();
+		r.tick(0);
+		expect(ops.cancel_audition_calls).to_equal(1); // the enter
+		r.x_enc(true, 10);
+		r.settle(10);
+		expect(ops.cancel_audition_calls).to_equal(2);
+		ops.accept_commit = false;
+		r.select_enc(true, 20);
+		r.settle(20);
+		expect(ops.cancel_audition_calls).to_equal(3);
+		r.back(true, 30);
+		r.settle(30);
+		expect(ops.cancel_audition_calls).to_equal(4);
+	});
+
+	it("draws the playhead on rows 7 to 4 at the playing column, in both modes", _ {
+		Rig r;
+		FakeOps ops;
+		slicer_scene().set_ops(&ops);
+		r.open();
+		ops.next_play_position =
+		    static_cast<int32_t>(slicer_scene().x_scroll() + 5 * slicer_scene().x_zoom());
+		const RGB tick = deluge::ui::grid::tick_colour(deluge::ui::grid::TickColour::Normal, RGB{});
+		uint32_t at = 0;
+		for (const Mode mode : {Mode::Region, Mode::Manual}) {
+			slicer_scene().set_mode(mode);
+			r.settle(at);
+			at += 10;
+			const deluge::gfx::grid::PadGrid& g = r.fake.grid().grid();
+			for (int32_t y = 4; y < 8; y++) {
+				expect(g.at(5, y) == tick).to_be_true();
+			}
+			expect(g.at(5, 3) == tick).to_be_false();
+		}
+	});
+
+	it("asks for a tick every 15 ms while something plays, and for none when nothing does", _ {
+		Rig r;
+		FakeOps ops;
+		slicer_scene().set_ops(&ops);
+		r.open();
+		r.tick(0);
+		expect(slicer_scene().next_timer().has_value()).to_be_false();
+		ops.next_play_position = 1000;
+		expect(slicer_scene().next_timer() == std::optional<uint32_t>{15}).to_be_true();
 	});
 
 	// --- BACK -----------------------------------------------------------------------------------

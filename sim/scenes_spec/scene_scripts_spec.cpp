@@ -367,7 +367,7 @@ struct ScriptOps final : deluge::scenes::slicing::SliceOps {
 	void kill_voices() override {}
 	void restore_full_range() override {}
 	void audition(const deluge::scenes::slicing::PreviewRequest&) override {}
-	void commit(const deluge::scenes::slicing::SliceCommit&) override {}
+	bool begin_commit(const deluge::scenes::slicing::SliceCommit&) override { return false; }
 	std::optional<int32_t> play_position() override { return std::nullopt; }
 };
 
