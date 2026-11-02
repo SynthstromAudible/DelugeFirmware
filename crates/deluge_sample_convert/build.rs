@@ -63,6 +63,16 @@ fn main() {
     for f in [&convert_cpp, &stitch_cpp, &helpers_cpp, &shim_cpp] {
         println!("cargo:rerun-if-changed={}", f.display());
     }
+    // The headers those sources include. Cargo scans a directory recursively, so a header added there is
+    // tracked too; without these, a change to q31_ops.h left the crate's tests running the old conversion.
+    for header in [
+        src_deluge.join("dsp-next/core"),
+        stream.clone(),
+        src_deluge.join("storage/audio/audio_file_format.h"),
+        src_deluge.join("util/audio_format_helpers.h"),
+    ] {
+        println!("cargo:rerun-if-changed={}", header.display());
+    }
     println!("cargo:rerun-if-changed=build.rs");
 
     // argon for every mode; SIMDe below, for the host modes only.
