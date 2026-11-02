@@ -17,7 +17,7 @@ guidebook:
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
-Processing power and CPU management
+## Processing power and CPU management
 
 Deluge does not enforce firm limits on how many tracks or voices may sound at once thus allowing the user as many as they wish. The ultimate limitation will inevitably be based on Deluge’s CPU loading especially from concurrent voices or effects. Under conditions of high CPU loading, Deluge will switch off a synth or sample voice to lower its load. Deluge will attempt to do this in the most subtle way possible, preferring to switch off voices which are “releasing”, and those which have been sounding for the longest time.
 
@@ -25,7 +25,7 @@ Unaffected sample voices are very light on the CPU. This has been tested with a 
 
 The Deluge’s analog-modelled oscillator types and drive filter consume a little more CPU than the other types, but not enormously more.
 
-Considerations for CPU power :-
+## Considerations for CPU power
 
     - Analog-simulated delay, time stretching, and pitch shifting (where pitch and time are treated independently - including live audio input) are the highest CPU users.
     - All other effects and synth features, though lighter, will add to the CPU’s load as well.
@@ -35,7 +35,7 @@ Considerations for CPU power :-
     - Voice priority can be manually set for a sound, to tell the Deluge which voices to consider (or not) dropping first - see sound editor.
     - See sample interpolation / pitch for some additional notes on CPU usage.
 
-Sample interpolation / pitch
+## Sample interpolation / pitch
 
 Whether or not actual “pitch shifting”, the process of treating pitch and speed independently, is applied, another process called interpolation is needed anytime a sample needs to be played back at a different pitch, or if its sample rate is different to the Deluge’s native 44.1kHz.
 
@@ -45,7 +45,7 @@ Songs and presets created with pre-V2.1 firmware which include sample pitch adju
 
 The 16-point windowed-sinc interpolation uses a little more CPU power than the lower-quality linear interpolation, but not very much more, thanks to the hardware acceleration features of the Deluge’s CPU. If the Deluge’s CPU becomes overloaded, it may revert to using linear interpolation in some cases. It is not recommended that you manually switch to linear interpolation purely for the purpose of saving CPU power - it won’t have this effect in all cases.
 
-Sample and RAM management
+## Sample and RAM management
 
 The Deluge streams audio samples directly off the SD card, meaning there is no practical limit on the amount of sample content that may be used per song, and the user does not have to wait for all sample data to be read when loading a song.
 

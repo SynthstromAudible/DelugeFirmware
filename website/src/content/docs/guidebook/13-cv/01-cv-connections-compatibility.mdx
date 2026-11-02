@@ -19,7 +19,7 @@ import Figure from "../../../../components/guidebook/Figure.astro"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
-#### CV
+## CV
 
 CV is a classic legacy technology used in the 1970’s prior to the development of the MIDI standards. This uses a gate signal to trigger a note or event followed by a CV value to control the note pitch or value of the destination parameter although standards and compatibility for CV is less defined.
 
@@ -50,7 +50,7 @@ Each CV output may be set, in 0.01V increments, to any value between
    - 0.32V per octave - used by EMS (\*).
    - 0.26V per octave - used on oscillator 3 of the EMS VCS3 (\*).
 
-#### Gate
+## Gate
 
 Gate is a control signal which accompanies CV control settings. Where CV controls pitch, gate controls the note on and off signals. Sometimes gate is also called trigger. Typically gate signals trigger an ADSR envelope but can also trigger a clock and other functions such as an LFO.
 
@@ -61,7 +61,7 @@ Deluge gate output can be switched between 5v and 12v. This switch is located on
 
 .
 
-#### Trigger clock
+## Trigger clock
 
 The Deluge has a “trigger clock” input, allowing it to play as a follower to hardware which outputs a clock signal containing any number of “pulses per quarter-note” (PPQN). It can accept any voltage between 3.3V and 12V. Clock steps are read on the rising edge of the pulses. A device which has a DIN SYNC output could have pin 3 of this connector routed to the tip of the Deluge’s trigger clock input. PPQN can be set, along with an auto-start setting, in the settings menu. See the [MIDI section](/guidebook/12-midi/01-midi-connections) for more information about having the Deluge play as a follower to an external clock source (which could also be a MIDI beat clock). If you wish to use the Deluge as a syncing leader to send a trigger clock signal to other devices, gate output 4 can be set to output a trigger clock signal, and / or gate 3 can be set to output a “run” signal (goes high while playback is occurring; low otherwise). These output assignments are accessible via the settings menu, as is the trigger clock output PPQN setting.
 
