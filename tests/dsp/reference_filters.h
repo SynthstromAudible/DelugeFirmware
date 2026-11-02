@@ -126,7 +126,10 @@ struct CurvedFrequency {
 	/// One at Q58: divided by a Q27 value, it gives the reciprocal at Q31.
 	constexpr double kOneQ58 = 288230376151711744.0;
 	const q31 tanned = deluge::dsp::fixed::instant_tan(lshift_and_saturate<5>(frequency));
-	const auto divide_by_one_plus_tanned = static_cast<q31>(kOneQ58 / static_cast<double>(kOneQ27 + (tanned >> 1)));
+	// Saturated before the cast, as the legacy firmware's VCVT saturates it on the A9: at cutoff 0 the quotient is
+	// 2^31, whose plain cast is undefined (INT32_MIN on x86).
+	const auto divide_by_one_plus_tanned =
+	    static_cast<q31>(std::min(kOneQ58 / static_cast<double>(kOneQ27 + (tanned >> 1)), double{INT32_MAX}));
 	return {
 	    .tanned = tanned,
 	    .divide_by_one_plus_tanned = divide_by_one_plus_tanned,

@@ -21,6 +21,7 @@
 #include "dsp-next/core/types.h"
 #include "dsp-next/fixed/curves/instant_tan.h"
 
+#include <algorithm>
 #include <cstdint>
 
 namespace deluge::dsp::fixed {
@@ -95,9 +96,10 @@ struct CurvedFrequency {
 	constexpr double kOneQ58 = 288230376151711744.0;
 	const auto tanned = Q<28>::from_raw(instant_tan(scale_shl_clamp_then_shift<5>(Q<31>::from_raw(frequency)).raw()));
 	const Q<27> one_plus_tanned = add_wrap(Q<27>::one(), as_floor<Q<27>>(tanned));
-	// Raw: a double reciprocal.
-	const auto divide_by_one_plus_tanned =
-	    Q<31>::from_raw(static_cast<q31>(kOneQ58 / static_cast<double>(one_plus_tanned.raw())));
+	// Raw: a double reciprocal. At cutoff 0 it is 2^31, one past q31's top, so it saturates to one at Q31 first, as the
+	// A9's VCVT would: the cast of 2^31 itself is undefined.
+	const auto divide_by_one_plus_tanned = Q<31>::from_raw(
+	    static_cast<q31>(std::min(kOneQ58 / static_cast<double>(one_plus_tanned.raw()), double{INT32_MAX})));
 	return {
 	    .tanned = tanned,
 	    .divide_by_one_plus_tanned = divide_by_one_plus_tanned,

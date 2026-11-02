@@ -64,13 +64,17 @@ describe curve_frequency_spec("curve_frequency", ${
 	it("warps every 2^16th cutoff and the edges as the legacy warp does", _ {
 		expect(partings(cutoffs())).to_equal(std::size_t{0});
 	});
-#ifdef __arm__
-	// Cutoff 0 divides one at Q58 by one at Q27: 2^31, outside q31, and the cast is undefined (audit B1). The A9's
-	// VCVT saturates it to INT32_MAX; x86 gives INT32_MIN, so the host leaves it out.
+	// Cutoff 0 divides one at Q58 by one at Q27: 2^31, one past q31's top. The A9's VCVT saturates it to INT32_MAX,
+	// one at Q31, and so does every target.
+	it("gives cutoff 0 a reciprocal of one, saturated, and no moveability, on every target", _ {
+		const auto curved = curve_frequency(0);
+		expect(curved.tanned.raw()).to_equal(0);
+		expect(curved.divide_by_one_plus_tanned.raw()).to_equal(INT32_MAX);
+		expect(curved.fc.raw()).to_equal(0);
+	});
 	it("warps cutoff 0 as the legacy warp does on the A9", _ {
 		expect(partings({0})).to_equal(std::size_t{0});
 	});
-#endif
 });
 // clang-format on
 
