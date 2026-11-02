@@ -41,6 +41,12 @@
 #include <span>
 #include <vector>
 
+#ifndef DELUGE_REFERENCE_LEGACY_ARITHMETIC
+/// @brief Marks a reference function whose legacy signed sums may overflow at full scale: UBSan's overflow check is
+/// off in its body (and only there), wherever it is inlined.
+#define DELUGE_REFERENCE_LEGACY_ARITHMETIC __attribute__((no_sanitize("signed-integer-overflow")))
+#endif
+
 namespace delay_reference {
 
 using deluge::dsp::Chain;
@@ -190,7 +196,8 @@ protected:
 		}
 	}
 
-	bool read(DelayTape& primary, std::span<StereoSample> work, int32_t first_frame) const {
+	DELUGE_REFERENCE_LEGACY_ARITHMETIC bool read(DelayTape& primary, std::span<StereoSample> work,
+	                                             int32_t first_frame) const {
 		bool wrapped = false;
 		int32_t frame = first_frame;
 		if (primary.is_native()) {
@@ -232,7 +239,8 @@ protected:
 		return wrapped;
 	}
 
-	static void mix(std::span<StereoSample> work, std::span<StereoSample> block, bool cross) {
+	DELUGE_REFERENCE_LEGACY_ARITHMETIC static void mix(std::span<StereoSample> work, std::span<StereoSample> block,
+	                                                   bool cross) {
 		for (auto [feedback, output] : std::views::zip(work, block)) {
 			const StereoSample delayed = feedback;
 			if (cross) {

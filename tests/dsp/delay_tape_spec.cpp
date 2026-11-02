@@ -30,6 +30,7 @@
 #include <cppspec.hpp>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <ostream>
 #include <span>
 #include <tuple>
@@ -51,6 +52,14 @@ inline StereoSample input(int32_t k) {
 	const uint32_t a = static_cast<uint32_t>(k + 1) * 2654435761u;
 	const uint32_t b = static_cast<uint32_t>(k + 7) * 2246822519u;
 	return {.l = static_cast<int32_t>(a) >> 3, .r = static_cast<int32_t>(b) >> 3};
+}
+
+/// The k-th loud input sample: a full-scale square on each channel (periods 40 and 48), so where the resampled
+/// write's sampled triangle sums above unity the tape's sums leave q31.
+inline StereoSample loud_input(int32_t k) {
+	constexpr int32_t kMax = std::numeric_limits<int32_t>::max();
+	constexpr int32_t kMin = std::numeric_limits<int32_t>::min();
+	return {.l = (k / 20) % 2 == 0 ? kMax : kMin, .r = (k / 24) % 2 == 0 ? kMin : kMax};
 }
 
 /// A 64-bit FNV-1a over 32-bit words.
@@ -77,8 +86,13 @@ struct Run {
 	std::vector<int32_t> out;
 	std::vector<int32_t> strengths;
 	std::vector<int32_t> wraps;
-	int32_t k = 0; ///< inputs consumed
+	int32_t k = 0;     ///< inputs consumed
+	bool loud = false; ///< Whether the inputs are loud_input's rather than input's.
 };
+
+inline StereoSample next_input(const Run& run) {
+	return run.loud ? loud_input(run.k) : input(run.k);
+}
 
 inline void push(Run& run, StereoSample s) {
 	run.out.push_back(s.l);
@@ -94,7 +108,7 @@ void secondaryBlock(T& tape, int32_t rate, int32_t n, Run& run) {
 			if (tape.clear_and_move_on()) {
 				run.wraps.push_back(run.k);
 			}
-			tape.write_native(input(run.k));
+			tape.write_native(next_input(run));
 		}
 		return;
 	}
@@ -105,7 +119,7 @@ void secondaryBlock(T& tape, int32_t rate, int32_t n, Run& run) {
 			}
 		});
 		run.strengths.push_back(strength2);
-		tape.write_resampled(input(run.k), 65536 - strength2, strength2);
+		tape.write_resampled(next_input(run), 65536 - strength2, strength2);
 	}
 }
 
@@ -517,8 +531,8 @@ StutterRecord stutter(int32_t record_rate, int32_t play_rate, bool reverse, bool
 }
 
 /// The delay's secondary tape: 128 samples native, then three blocks of 128 at @p rate.
-Run secondary(Rig& rig, uint32_t native, int32_t rate) {
-	Run run;
+Run secondary(Rig& rig, uint32_t native, int32_t rate, bool loud = false) {
+	Run run{.loud = loud};
 	secondaryBlock(rig.tape, static_cast<int32_t>(native), 128, run);
 	for (int i = 0; i < 3; ++i) {
 		secondaryBlock(rig.tape, rate, 128, run);
@@ -692,6 +706,18 @@ describe delay_tape("DelayTape", ${
 		expect(run.wraps).to_equal(kNinefoldWriteWraps);
 		expect(first(storage(rig.tape), 48)).to_equal(kNinefoldWriteStored);
 		expect(digest(storage(rig.tape))).to_equal(kNinefoldWriteStorageDigest);
+	});
+
+	it("writes full-scale samples resampled sped up, slowed down and four steps wide, the sums wrapping", _ {
+		const auto stored = [](uint32_t native, int32_t rate) {
+			Rig rig{native};
+			std::ignore = secondary(rig, native, rate, true);
+			return digest(storage(rig.tape));
+		};
+		expect(stored(kNative, kFast)).to_equal(6598967852874679029ull);
+		expect(stored(kNative, kSlow)).to_equal(12343239124446944985ull);
+		expect(stored(kNative, 268435456)).to_equal(13713737589667105893ull);
+		expect(stored(1U << 27, 1248225690)).to_equal(12852415917573154741ull);
 	});
 
 	it("reads and writes resampled as the delay's primary tape, from a head saved and restored per block", _ {

@@ -40,6 +40,7 @@
 #include <cstdint>
 #include <cstring>
 #include <functional>
+#include <limits>
 #include <optional>
 #include <ostream>
 #include <span>
@@ -116,6 +117,7 @@ struct BlockStep {
 	DelayBlock settings;  ///< The block's settings, its rate the rate's.
 	bool input;           ///< Whether the block carries input; else it is silence.
 	int32_t impulse = -1; ///< Without input, the frame that carries a single impulse (2^28 on both channels); -1 none.
+	bool loud = false;    ///< With input, at full scale (@ref loud_input) rather than 28 bits of magnitude.
 };
 
 /// @brief A recorded workload: its start and, per block, its step.
@@ -422,6 +424,41 @@ struct Mode {
 	return out;
 }
 
+/// @return The loud workloads, not recorded: each crossing mode combination at full-scale input and the largest
+/// feedback, native and resampled both ways (the read's blend, the sped-up and slowed-down writes), digital and
+/// analog, so every sum the mix and the tape's writes take leaves q31 somewhere. They carry the combinations' ids.
+[[nodiscard]] inline std::vector<Workload> loud_workloads() {
+	using namespace detail;
+	constexpr uint32_t kNative = kRate2048;
+	constexpr uint32_t kLo = kRate2048 / 4 * 3;
+	constexpr uint32_t kHi = kRate2048 / 2 * 3;
+	const auto loud = [](WorkloadId id, std::string_view name, uint32_t rate, bool cross, bool analog) {
+		const Mode mode{.analog = analog,
+		                .saturation = 5,
+		                .ping_pong = cross,
+		                .stereo = true,
+		                .feedback = std::numeric_limits<int32_t>::max()};
+		return Workload{.id = id,
+		                .name = name,
+		                .tapes = {.start = TapeSetup::Start::PRIMARY, .rate = kRate2048},
+		                .blocks = 40,
+		                .step = [=](size_t b) {
+			                BlockStep s = step(kMaxFrames, rate, mode, b < 30);
+			                s.loud = true;
+			                return s;
+		                }};
+	};
+	return {
+	    loud(WorkloadId::NATIVE_CROSS_DIGITAL, "loud_native_cross_digital", kNative, true, false),
+	    loud(WorkloadId::NATIVE_CROSS_ANALOG, "loud_native_cross_analog", kNative, true, true),
+	    loud(WorkloadId::NATIVE_STRAIGHT_DIGITAL, "loud_native_straight_digital", kNative, false, false),
+	    loud(WorkloadId::RES_LO_CROSS_DIGITAL, "loud_res_lo_cross_digital", kLo, true, false),
+	    loud(WorkloadId::RES_LO_CROSS_ANALOG, "loud_res_lo_cross_analog", kLo, true, true),
+	    loud(WorkloadId::RES_HI_CROSS_DIGITAL, "loud_res_hi_cross_digital", kHi, true, false),
+	    loud(WorkloadId::RES_HI_CROSS_ANALOG, "loud_res_hi_cross_analog", kHi, true, true),
+	};
+}
+
 /// @return @p tape's storage as bytes, in place; empty when it has none.
 [[nodiscard]] inline std::span<const std::byte> tape_storage(const DelayTape& tape) {
 	if (!tape.is_active()) {
@@ -464,6 +501,14 @@ struct Digest {
 	const uint32_t a = (k + 1) * 2654435761u;
 	const uint32_t b = (k + 7) * 2246822519u;
 	return {.l = static_cast<int32_t>(a) >> 3, .r = static_cast<int32_t>(b) >> 3};
+}
+
+/// @return Sample @p k of a loud workload's input: @ref input's channels at full scale, so the cross mix's l + r and
+/// the resampled writes' sums leave q31.
+[[nodiscard]] inline StereoSample loud_input(uint32_t k) {
+	const uint32_t a = (k + 1) * 2654435761u;
+	const uint32_t b = (k + 7) * 2246822519u;
+	return {.l = static_cast<int32_t>(a), .r = static_cast<int32_t>(b)};
 }
 
 /// @return Sample @p k of a lap of noise on a tape already playing, 26 bits of magnitude.
@@ -543,7 +588,9 @@ public:
 		const std::span<StereoSample> buffer = out.first(s.frames);
 		for (StereoSample& sample : buffer) {
 			const bool impulse = !s.input && s.impulse == &sample - buffer.data();
-			sample = s.input ? input(k_) : impulse ? kImpulse : StereoSample{.l = 0, .r = 0};
+			sample = s.input   ? (s.loud ? loud_input(k_) : input(k_))
+			         : impulse ? kImpulse
+			                   : StereoSample{.l = 0, .r = 0};
 			++k_;
 		}
 
