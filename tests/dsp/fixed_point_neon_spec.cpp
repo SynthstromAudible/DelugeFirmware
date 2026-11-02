@@ -33,6 +33,12 @@ static_assert(std::is_same_v<decltype(as_floor<QVec<30>>(QVec<31>{})), QVec<30>>
 static_assert(std::is_same_v<decltype(reinterpret_bits<QVec<31>>(UQVec<32>{})), QVec<31>>);
 static_assert(std::is_same_v<decltype(sum_wrap(QVec<30>{})), Q<30>>);
 static_assert(std::is_same_v<decltype(add_wrap(UQVec<32>{}, UQVec<32>{})), UQVec<32>>);
+static_assert(std::is_same_v<decltype(from_q16(Q16Half<15>{})), QVec<31>>);
+static_assert(std::is_same_v<decltype(mul_doubling_wide_sat(Q16Half<15>{}, Q16Half<15>{})), QVec<31>>);
+static_assert(std::is_same_v<decltype(mla_doubling_wide_sat(QVec<31>{}, Q16Half<15>{}, Q16Half<15>{})), QVec<31>>);
+static_assert(std::is_same_v<decltype(mla_wide(QVec<30>{}, Q16Half<15>{}, Q16Half<15>{})), QVec<30>>);
+static_assert(std::is_same_v<decltype(Q16x2Vec<15>{}.lo()), Q16Half<15>>);
+static_assert(std::is_same_v<decltype(Q16Vec<14>{}.hi()), Q16Half<14>>);
 static_assert(std::is_same_v<QVec<31>::register_type, Argon<std::int32_t>>);
 static_assert(std::is_same_v<Q16Half<15>::register_type, ArgonHalf<std::int16_t>>);
 static_assert(std::is_same_v<Q16x2Vec<15>::register_type, Argon<std::uint32_t>>);
@@ -70,6 +76,9 @@ std::array<Scalar, N> lanes(std::uint32_t& s, int round, const std::array<Scalar
 
 std::int32_t wrap32(std::int64_t v) {
 	return static_cast<std::int32_t>(static_cast<std::uint32_t>(static_cast<std::uint64_t>(v)));
+}
+std::int32_t sat32(std::int64_t v) {
+	return static_cast<std::int32_t>(v > INT32_MAX ? INT32_MAX : (v < INT32_MIN ? INT32_MIN : v));
 }
 std::int16_t sat16(std::int64_t v) {
 	return static_cast<std::int16_t>(v > INT16_MAX ? INT16_MAX : (v < INT16_MIN ? INT16_MIN : v));
@@ -179,6 +188,58 @@ std::size_t q16_mismatches() {
 	}
 	return bad;
 }
+/// Mismatches between the widening 16-bit operations and their per-lane references.
+std::size_t wide_mismatches() {
+	std::size_t bad = 0;
+	std::uint32_t s = 0x2545'f491u;
+	for (int k = 0; k < kRounds; ++k) {
+		const auto a = lanes<std::int16_t, 4>(s, k, kEdges16, true);
+		const auto b = lanes<std::int16_t, 4>(s, k, kEdges16, false);
+		const auto acc = lanes<std::int32_t, 4>(s, k, kEdges32, k % 2 == 0);
+		const auto va = Q16Half<15>::from_raw(ArgonHalf<std::int16_t>::Load(a.data()));
+		const auto vb = Q16Half<15>::from_raw(ArgonHalf<std::int16_t>::Load(b.data()));
+		const auto raw_acc = Argon<std::int32_t>::Load(acc.data());
+		const auto widened = from_q16(va);
+		const auto product = mul_doubling_wide_sat(va, vb);
+		const auto doubled_sum = mla_doubling_wide_sat(QVec<31>::from_raw(raw_acc), va, vb);
+		const auto sum = mla_wide(QVec<30>::from_raw(raw_acc), va, vb);
+		for (std::size_t i = 0; i < 4; ++i) {
+			const std::int64_t doubled = sat32(2 * std::int64_t{a[i]} * b[i]);
+			bad += widened.lane(i).raw() != std::int32_t{a[i]} * 65536 ? 1 : 0;
+			bad += product.lane(i).raw() != doubled ? 1 : 0;
+			bad += doubled_sum.lane(i).raw() != sat32(acc[i] + doubled) ? 1 : 0;
+			bad += sum.lane(i).raw() != wrap32(acc[i] + (std::int64_t{a[i]} * b[i])) ? 1 : 0;
+		}
+	}
+	return bad;
+}
+
+/// Mismatches between the half selections and the lanes they select.
+std::size_t half_mismatches() {
+	std::size_t bad = 0;
+	std::uint32_t s = 0x7f4a'7c15u;
+	for (int k = 0; k < kRounds; ++k) {
+		std::array<std::uint32_t, 4> pairs;
+		for (auto& p : pairs) {
+			p = xorshift(s);
+		}
+		const auto words = Q16x2Vec<15>::from_raw(Argon<std::uint32_t>::Load(pairs.data()));
+		const auto los = words.lo();
+		const auto his = words.hi();
+		const auto samples = lanes<std::int16_t, 8>(s, k, kEdges16, true);
+		const auto vector = Q16Vec<15>::from_raw(Argon<std::int16_t>::Load(samples.data()));
+		const auto low = vector.lo();
+		const auto high = vector.hi();
+		for (std::size_t i = 0; i < 4; ++i) {
+			const auto pair = Q16x2<15>::from_raw(pairs[i]);
+			bad += los.lane(i) != pair.lo() ? 1 : 0;
+			bad += his.lane(i) != pair.hi() ? 1 : 0;
+			bad += low.lane(i).raw() != samples[i] ? 1 : 0;
+			bad += high.lane(i).raw() != samples[i + 4] ? 1 : 0;
+		}
+	}
+	return bad;
+}
 } // namespace
 
 // clang-format off
@@ -207,12 +268,21 @@ describe fixed_point_neon("fixed_point NEON vectors", ${
 	it("apply the 16-bit operations lane by lane", _ {
 		expect(q16_mismatches()).to_equal(std::size_t{0});
 	});
+	it("widen 16-bit lanes and their doubling and plain products", _ {
+		expect(wide_mismatches()).to_equal(std::size_t{0});
+	});
+	it("select each pair's halves and each register's halves", _ {
+		expect(half_mismatches()).to_equal(std::size_t{0});
+	});
 	it("saturate only min × min in the doubling multiplies", _ {
 		const auto min = QVec<31>::splat(Q<31>::min());
 		expect(mul_doubling_sat(min, min).lane(0).raw()).to_equal(INT32_MAX);
 		expect(mul_doubling_r_sat(min, min).lane(3).raw()).to_equal(INT32_MAX);
 		expect(mul_doubling_sat(Q16Vec<15>::splat(Q16<15>::min()), Q16<15>::min()).lane(7).raw())
 		    .to_equal(std::int16_t{INT16_MAX});
+		const auto min16 = Q16Half<15>::splat(Q16<15>::min());
+		expect(mul_doubling_wide_sat(min16, min16).lane(0).raw()).to_equal(INT32_MAX);
+		expect(mla_doubling_wide_sat(QVec<31>::splat(Q<31>::min()), min16, min16).lane(1).raw()).to_equal(-1);
 	});
 	it("splat a lane into every lane", _ {
 		const auto x = Q16x2Vec<15>::splat(Q16x2<15>::from_raw(0x8000'7fffu));

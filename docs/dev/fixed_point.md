@@ -151,6 +151,11 @@ name of the scalar operation with the same per-lane meaning:
 | `as_floor<QVec<T>>` | `QVec<F>` → `QVec<T>`, T < F | `vshr.s32 #(F−T)` |
 | `reinterpret_bits<QVec<T>>` | `UQVec<F>` → `QVec<T>`, the same bits | none |
 | `sum_wrap` | the four lanes of `QVec<F>` → `Q<F>`, wrapping | `vadd.i32`, `vpadd.i32`, `vmov` |
+| `lo()`, `hi()` | each pair's halves: `Q16x2Vec<F>` → `Q16Half<F>`; a register's halves: `Q16Vec<F>` → `Q16Half<F>` | `vmovn.i32`, `vshrn.i32 #16`; none |
+| `from_q16` | `Q16Half<F>` → `QVec<F+16>`, exact | `vshll.i16 #16` |
+| `mul_doubling_wide_sat` | sat(2 × a × b): `Q16Half<A>` × `Q16Half<B>` → `QVec<A+B+1>` | `vqdmull.s16` |
+| `mla_doubling_wide_sat` | sat(acc + sat(2 × a × b)), the same formats | `vqdmlal.s16` |
+| `mla_wide` | acc + a × b, wrapping: `Q16Half<A>` × `Q16Half<B>` → `QVec<A+B>` | `vmlal.s16` |
 
 A kernel keeps `Argon` at its interface and converts with `from_raw` and `raw()`, so its callers are unchanged.
 `lane(i)` reads one lane through memory, for tests. The lane spec (`tests/dsp/fixed_point_neon_spec.cpp`) checks each

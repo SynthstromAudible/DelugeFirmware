@@ -94,6 +94,12 @@ EXACT = {
     "probe_vec_add_scale_shr_floor_4": ["vsra.s32"],
     "probe_vec_as_floor_3": ["vshr.s32"],
     "probe_vec_reinterpret_bits": [],
+    "probe_vec_pair_lo": ["vmovn.i32"],
+    "probe_vec_pair_hi": ["vshrn.i32"],
+    "probe_vec_from_q16": ["vshll.i16"],
+    "probe_vec_mul_doubling_wide_sat": ["vqdmull.s16"],
+    "probe_vec_mla_doubling_wide_sat": ["vqdmlal.s16"],
+    "probe_vec_mla_wide": ["vmlal.s16"],  # the high halves are d registers: no move
 }
 
 # Operand text that must appear in the body: the immediates a wrong width or shift would change.

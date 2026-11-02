@@ -277,6 +277,26 @@ int32x4_t probe_vec_as_floor_3(int32x4_t a) {
 int32x4_t probe_vec_reinterpret_bits(uint32x4_t a) {
 	return reinterpret_bits<QVec<31>>(UQVec<32>::from_raw(a)).raw();
 }
+int16x4_t probe_vec_pair_lo(uint32x4_t a) {
+	return Q16x2Vec<15>::from_raw(a).lo().raw();
+}
+int16x4_t probe_vec_pair_hi(uint32x4_t a) {
+	return Q16x2Vec<15>::from_raw(a).hi().raw();
+}
+int32x4_t probe_vec_from_q16(int16x4_t a) {
+	return from_q16(Q16Half<15>::from_raw(a)).raw();
+}
+int32x4_t probe_vec_mul_doubling_wide_sat(int16x4_t a, int16x4_t b) {
+	return mul_doubling_wide_sat(Q16Half<15>::from_raw(a), Q16Half<15>::from_raw(b)).raw();
+}
+int32x4_t probe_vec_mla_doubling_wide_sat(int32x4_t acc, int16x4_t a, int16x4_t b) {
+	return mla_doubling_wide_sat(QVec<31>::from_raw(acc), Q16Half<15>::from_raw(a), Q16Half<15>::from_raw(b)).raw();
+}
+int32x4_t probe_vec_mla_wide(int32x4_t acc, int16x8_t a, int16x8_t b) {
+	const auto x = Q16Vec<15>::from_raw(a);
+	const auto y = Q16Vec<15>::from_raw(b);
+	return mla_wide(QVec<30>::from_raw(acc), x.hi(), y.hi()).raw();
+}
 std::int32_t probe_vec_sum_wrap(int32x4_t a) {
 	return sum_wrap(QVec<30>::from_raw(a)).raw();
 }

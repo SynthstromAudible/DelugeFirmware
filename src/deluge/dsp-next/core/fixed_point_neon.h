@@ -87,6 +87,15 @@ struct neon_register<Q16x2<F>, 4> {
 	return vsub_s16(a, b);
 }
 
+template <class Lane>
+inline constexpr bool kIsQ16x2 = false;
+template <int F>
+inline constexpr bool kIsQ16x2<Q16x2<F>> = true;
+template <class Lane>
+inline constexpr bool kIsQ16 = false;
+template <int F>
+inline constexpr bool kIsQ16<Q16<F>> = true;
+
 } // namespace detail
 
 /// @brief N lanes of @p Lane, a fixed_point.h type, in one NEON register.
@@ -115,6 +124,33 @@ public:
 	}
 	/// @brief Lane @p i, through memory: for tests, not audio paths.
 	[[nodiscard]] Lane lane(std::size_t i) const noexcept { return Lane::from_raw(raw_.to_array()[i]); }
+
+	/// @brief Each pair's low half: Q16x2Vec<F> → Q16Half<F> (`vmovn.i32`).
+	[[gnu::always_inline, nodiscard]] auto lo() const noexcept
+	requires detail::kIsQ16x2<Lane>
+	{
+		using Half = FixedVec<Q16<Lane::kFractionalBits>, 4>;
+		return Half::from_raw(vreinterpret_s16_u16(vmovn_u32(raw_)));
+	}
+	/// @brief Each pair's high half: Q16x2Vec<F> → Q16Half<F> (`vshrn.i32 #16`).
+	[[gnu::always_inline, nodiscard]] auto hi() const noexcept
+	requires detail::kIsQ16x2<Lane>
+	{
+		using Half = FixedVec<Q16<Lane::kFractionalBits>, 4>;
+		return Half::from_raw(vreinterpret_s16_u16(vshrn_n_u32(raw_, 16)));
+	}
+	/// @brief Lanes 0–3: Q16Vec<F> → Q16Half<F> (no instruction: the register's low d half).
+	[[gnu::always_inline, nodiscard]] auto lo() const noexcept
+	requires(detail::kIsQ16<Lane> && N == 8)
+	{
+		return FixedVec<Lane, 4>::from_raw(vget_low_s16(raw_));
+	}
+	/// @brief Lanes 4–7: Q16Vec<F> → Q16Half<F> (no instruction: the register's high d half).
+	[[gnu::always_inline, nodiscard]] auto hi() const noexcept
+	requires(detail::kIsQ16<Lane> && N == 8)
+	{
+		return FixedVec<Lane, 4>::from_raw(vget_high_s16(raw_));
+	}
 
 private:
 	register_type raw_;
@@ -202,6 +238,34 @@ template <class To, int F>
 requires std::is_same_v<To, QVec<To::lane_type::kFractionalBits>>
 [[gnu::always_inline, nodiscard]] inline To reinterpret_bits(UQVec<F> x) noexcept {
 	return To::from_raw(vreinterpretq_s32_u32(x.raw()));
+}
+
+/// @brief A 16-bit value per lane in the top half of 32 bits: Q16Half<F> → QVec<F+16>; exact (`vshll.i16 #16`, the
+/// full-width form).
+template <int F>
+[[gnu::always_inline, nodiscard]] inline QVec<F + 16> from_q16(Q16Half<F> x) noexcept {
+	return QVec<F + 16>::from_raw(vshll_n_s16(x.raw(), 16));
+}
+/// @brief sat(2 × a × b) per lane, widened: Q16<A> × Q16<B> → Q<A+B+1> (`vqdmull.s16`). Q15 × Q15 is Q31; only
+/// −32768 × −32768 saturates.
+template <int A, int B>
+requires(A + B + 1 <= 31)
+[[gnu::always_inline, nodiscard]] inline QVec<A + B + 1> mul_doubling_wide_sat(Q16Half<A> a, Q16Half<B> b) noexcept {
+	return QVec<A + B + 1>::from_raw(vqdmull_s16(a.raw(), b.raw()));
+}
+/// @brief sat(acc + sat(2 × a × b)) per lane, widened: the doubled product saturates, then the sum
+/// (`vqdmlal.s16`).
+template <int A, int B>
+requires(A + B + 1 <= 31)
+[[gnu::always_inline, nodiscard]] inline QVec<A + B + 1> mla_doubling_wide_sat(QVec<A + B + 1> acc, Q16Half<A> a,
+                                                                               Q16Half<B> b) noexcept {
+	return QVec<A + B + 1>::from_raw(vqdmlal_s16(acc.raw(), a.raw(), b.raw()));
+}
+/// @brief acc + a × b per lane, widened and wrapping: Q16<A> × Q16<B> → Q<A+B> (`vmlal.s16`).
+template <int A, int B>
+requires(A + B <= 31)
+[[gnu::always_inline, nodiscard]] inline QVec<A + B> mla_wide(QVec<A + B> acc, Q16Half<A> a, Q16Half<B> b) noexcept {
+	return QVec<A + B>::from_raw(vmlal_s16(acc.raw(), a.raw(), b.raw()));
 }
 
 /// @brief The four lanes' sum, wrapping: QVec<F> → Q<F> (`vadd.i32` of the halves, `vpadd.i32`, `vmov`).
