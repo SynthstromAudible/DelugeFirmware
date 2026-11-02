@@ -143,8 +143,14 @@ public:
 		}
 		else {
 			uint32_t phase_to_crossover = -resetter_.phase - (resetter_.phase_increment >> 1);
-			samples_to_crossover_ += (phase_to_crossover - 1) / resetter_.phase_increment;
-			crosses_ = (samples_remaining_ >= static_cast<int32_t>(samples_to_crossover_));
+			const uint32_t samples_after = (phase_to_crossover - 1) / resetter_.phase_increment;
+			// Compared before it is counted, unsigned: a resetter increment of 1 or 2 puts the crossover 2^31 samples
+			// or more away, past what the count holds. Without a crossover in the block the count is not read again.
+			const auto remaining = static_cast<uint32_t>(samples_remaining_);
+			crosses_ = remaining >= samples_to_crossover_ && samples_after <= remaining - samples_to_crossover_;
+			if (crosses_) {
+				samples_to_crossover_ += samples_after;
+			}
 		}
 		length_ = crosses_ ? static_cast<int32_t>(samples_to_crossover_) : samples_remaining_;
 		started_ = true;

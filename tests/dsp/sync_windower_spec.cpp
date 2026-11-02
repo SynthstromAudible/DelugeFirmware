@@ -152,6 +152,32 @@ describe sync_windower("deluge::dsp::fixed SyncWindower", ${
 		expect(restarts).to_be_greater_than(0);
 		expect(bad).to_equal(0);
 	});
+	it("tiles the block at the slowest masters, whose next crossover is 2^31 samples or more away", _ {
+		// Resetter increments of 1 and 2, far from their boundary and just before it. A bound on the windows makes a
+		// windower that never finishes fail rather than hang
+		int32_t bad = 0;
+		uint32_t x = 0x6A09E667u;
+		for (uint32_t increment : {1u, 2u}) {
+			for (int i = 0; i < 64; ++i) {
+				const uint32_t phase = i % 2 == 0 ? xorshift(x) : 0u - (xorshift(x) % 40u);
+				std::array<int32_t, kBlock> buffer{};
+				SyncWindower windower{Buffer{buffer}, Resetter{phase, increment}, 0u, kInc, 0u};
+				int32_t windows = 0;
+				int32_t end = 0;
+				while (std::optional<SyncWindower::Window> window = windower.next()) {
+					const auto length = static_cast<int32_t>(window->output.size());
+					bad += (length < 1 || window->offset < 0 || window->offset + length > kBlock) ? 1 : 0;
+					end = window->offset + length;
+					if (++windows > kBlock + 1) {
+						++bad;
+						break;
+					}
+				}
+				bad += end != kBlock ? 1 : 0;
+			}
+		}
+		expect(bad).to_equal(0);
+	});
 	it("renders the reference's samples and end phase", _ {
 		int32_t bad = 0;
 		uint32_t x = 0x9E3779B9u;
@@ -181,7 +207,7 @@ describe sync_windower("deluge::dsp::fixed SyncWindower", ${
 			       != render<sync_reference::SyncWindower<&deluge::dsp::fixed::resetter_reciprocal>>(resetter, phase,
 			                                                                                         increment, retrigger);
 		};
-		// From 3: at 1 or 2 the next crossover is 2^31 samples or more away, which the windower cannot count (TODO.md)
+		// From 3: at 1 or 2 the next crossover is 2^31 samples or more away, which the raw reference cannot count
 		for (uint32_t increment : {3u, 255u, 65535u, 65536u, 0xFFFF0001u, 0xFFFFFF00u, 0xFFFFFFFFu}) {
 			for (int i = 0; i < 256; ++i) {
 				// Phases near the boundary, so that the slow masters cross within the block
