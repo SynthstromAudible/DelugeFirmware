@@ -334,3 +334,48 @@ export const CONTROLS = ControlData.parse({
     },
   },
 } as typeof ControlData._input)
+
+/** The keys of a `:key[...]` sequence: chords split by `>`, keys within a chord by `+`. */
+export const sequenceKeys = (sequence: string): string[][] => {
+  const invalidCharacters = [...sequence.matchAll(/[^a-zA-Z\d>+/\s]/g)]
+
+  if (invalidCharacters.length)
+    throw new Error(
+      `Invalid character(s) found: ${JSON.stringify(invalidCharacters.flat())}`,
+    )
+
+  return sequence.split(/\s?>\s?/).map((chord) => chord.split(/\s?\+\s?/))
+}
+
+/** Which control a key names (`Turn Select` -> Select, modifiers [turn]). Throws on unknown keys. */
+export const resolveControl = (
+  key: string,
+): { name: string; modifiers: string[]; keywords: string[] } => {
+  const keywords = key.split(/\s+/).map((keyword) => keyword.toLowerCase())
+
+  const control = Object.keys(CONTROLS).find((control) =>
+    keywords.includes(control.toLowerCase()),
+  )
+
+  if (!control) {
+    const didYouMean = Object.entries(CONTROLS).find(([, { didYouMean }]) =>
+      didYouMean.some((alternative) =>
+        keywords.includes(alternative.toLowerCase()),
+      ),
+    )
+
+    if (didYouMean) {
+      throw new Error(
+        `Unknown action: ${keywords.join(" ")}. Did you mean: ${didYouMean[0]}?`,
+      )
+    } else {
+      throw new Error(`Unknown action: ${keywords.join(" ")}`)
+    }
+  }
+
+  const modifiers = keywords.filter(
+    (keyword) => keyword.toLowerCase() !== control.toLowerCase(),
+  )
+
+  return { name: control, modifiers, keywords }
+}
