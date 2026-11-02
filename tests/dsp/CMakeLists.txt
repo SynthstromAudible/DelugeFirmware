@@ -30,6 +30,8 @@ set(lane_pack_spec_DEPS)
 set(lanes_spec_DEPS)
 # The Mono spec needs no sources: Mono and its reference kernels are header-only.
 set(mono_spec_DEPS)
+# The fixed-point spec needs no sources: fixed_point.h is header-only.
+set(fixed_point_spec_DEPS)
 # The Control spec needs no sources: Control and its reference kernels are header-only.
 set(control_spec_DEPS)
 # The Chain spec needs no sources: Chain, Pinned and the kernels it chains are header-only.
