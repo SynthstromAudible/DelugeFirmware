@@ -31,8 +31,16 @@ namespace deluge::hid::encoders {
 /// reversal needs two (the pending edge is retraced before reverse edges confirm).
 /// Partial reverse travel cancels on returning to the detent, without undoing the
 /// reported click or discarding forward progress.
+///
+/// These thresholds only line up with the physical clicks if the decoder starts at the
+/// detent's resting pin state, so the decoder must be initialised to kRestA/kRestB rather than
+/// a boot-time pin read. Starting off-phase makes the first click after each reversal do nothing.
 class DetentedEncoder {
 public:
+	/// Black encoders rest in a detent with both contacts open (A and B pulled high), as 1.x assumed.
+	static constexpr bool kRestA = true;
+	static constexpr bool kRestB = true;
+
 	DetentedEncoder() = default;
 	DetentedEncoder(const DetentedEncoder&) = delete;
 	DetentedEncoder& operator=(const DetentedEncoder&) = delete;

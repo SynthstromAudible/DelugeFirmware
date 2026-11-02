@@ -431,3 +431,39 @@ TEST(BlackEncoderQuadratureTest, ChatterAtRestDoesNotReportExtraDetents) {
 	CHECK_EQUAL(1, readBlackEncoderMovement(states, true));
 	CHECK_EQUAL(1, readBlackEncoderMovement(states, false));
 }
+
+// Starting from the hardware rest state, every click must report exactly one detent, including the first click after
+// each reversal. A decoder initialised off this phase swallows those reversal clicks until reboot.
+TEST(BlackEncoderQuadratureTest, ClicksFromRestStateSurviveReversals) {
+	// Quadrature states in positive order, starting from the detent rest state (A and B high).
+	constexpr std::array<EncoderPins, 4> cycle = {EncoderPins{true, true}, EncoderPins{true, false},
+	                                              EncoderPins{false, false}, EncoderPins{false, true}};
+	CHECK(cycle[0].a == DetentedEncoder::kRestA && cycle[0].b == DetentedEncoder::kRestB);
+
+	constexpr std::array<int, 12> clicks = {1, -1, 1, 1, -1, -1, -1, 1, -1, 1, 1, -1};
+	for (bool invert : {false, true}) {
+		for (bool pollB : {false, true}) {
+			DetentedEncoder encoder;
+			QuadratureDecoder decoder;
+			decoder.initialize(DetentedEncoder::kRestA, DetentedEncoder::kRestB);
+			int position = 0;
+			for (int click : clicks) {
+				for (int edge = 0; edge < 4; ++edge) {
+					const EncoderPins& previous = cycle[position & 3];
+					position += click;
+					const EncoderPins& current = cycle[position & 3];
+					if (current.a != previous.a) {
+						encoder.apply_edges(decoder.observeAEdge(current.a, current.b, invert));
+					}
+					else if (pollB) {
+						encoder.apply_edges(decoder.observe(current.a, current.b, invert));
+					}
+				}
+				// The encoder task polls the resting pins even when intermediate B edges were missed.
+				const EncoderPins& rest = cycle[position & 3];
+				encoder.apply_edges(decoder.observe(rest.a, rest.b, invert));
+				CHECK_EQUAL(invert ? -click : click, encoder.take());
+			}
+		}
+	}
+}
