@@ -19,6 +19,7 @@
 
 #include "OSLikeStuff/scheduler_api.h"
 #include "hid/encoder_acceleration.h"
+#include "hid/encoder_quadrature.h"
 #include <atomic>
 #include <cstddef>
 #include <cstdint>
@@ -33,8 +34,7 @@ namespace deluge::hid::encoders {
 /// reported click or discarding forward progress.
 ///
 /// These thresholds only line up with the physical clicks if the decoder starts at the
-/// detent's resting pin state, so the decoder must be initialised to kRestA/kRestB rather than
-/// a boot-time pin read. Starting off-phase makes the first click after each reversal do nothing.
+/// detent's resting pin state; see initializeDecoderAtBoot().
 class DetentedEncoder {
 public:
 	/// Black encoders rest in a detent with both contacts open (A and B pulled high), as 1.x assumed.
@@ -79,6 +79,20 @@ private:
 	int32_t edge_accumulator = 0; ///< Accumulates quadrature edges until we have a full detent click.
 	std::atomic_int32_t pos = 0;  ///< Written by the IRQ (apply_edges), drained by the encoder task.
 };
+
+/// Sets a decoder's starting state at boot from the pins as read then.
+/// Detented encoders ignore that read and start from their resting state: DetentedEncoder counts clicks from the
+/// starting state, so a read that catches contact bounce or an unsettled input would leave every click out of step
+/// until the next reboot, making the first click after each reversal do nothing. Continuous encoders have no resting
+/// state, so they start from the pins as read.
+inline void initializeDecoderAtBoot(QuadratureDecoder& decoder, bool detented, bool pinA, bool pinB) {
+	if (detented) {
+		decoder.initialize(DetentedEncoder::kRestA, DetentedEncoder::kRestB);
+	}
+	else {
+		decoder.initialize(pinA, pinB);
+	}
+}
 
 /// Gold mod encoders (MOD_0, MOD_1) are continuous, and accumulate raw edges for velocity.
 /// Four quadrature edges per cycle, matching 1.x.

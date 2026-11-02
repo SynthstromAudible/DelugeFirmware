@@ -140,14 +140,8 @@ void initInterrupts() {
 		enableInputBuffer(1, m.irqPin);
 
 		setPinAsInput(1, m.compPin);
-		if (i < kNumFunctionEncoders) {
-			// Detented: anchor to the resting state. A pin read here can catch contact bounce or an input that
-			// hasn't settled, which would leave every click out of phase until the next reboot.
-			decoders[i].initialize(DetentedEncoder::kRestA, DetentedEncoder::kRestB);
-		}
-		else {
-			decoders[i].initialize(readInput(1, m.irqPin) != 0, readInput(1, m.compPin) != 0);
-		}
+		initializeDecoderAtBoot(decoders[i], i < kNumFunctionEncoders, readInput(1, m.irqPin) != 0,
+		                        readInput(1, m.compPin) != 0);
 
 		setIRQInterruptBothEdges(m.irqNum);
 
