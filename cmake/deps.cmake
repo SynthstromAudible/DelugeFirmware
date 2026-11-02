@@ -24,7 +24,7 @@ FetchContent_Declare(argon
 # NEON intrinsics on non-ARM hosts: argon's <arm/neon.h> and sim/compat's <arm_neon.h> resolve into it.
 FetchContent_Declare(simde
         GIT_REPOSITORY https://github.com/simd-everywhere/simde
-        GIT_TAG v0.8.2
+        GIT_TAG v0.8.4-rc3
         GIT_SHALLOW TRUE
 )
 FetchContent_Declare(CppUTest

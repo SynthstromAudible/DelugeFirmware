@@ -39,7 +39,7 @@ const ARM_ARCH_FLAGS: [&str; 7] = [
 const ARGON_URL: &str = "https://github.com/stellar-aria/argon";
 const ARGON_SHA: &str = "4b8efc4f4f21595d454e415fb619dd91223c0400";
 const SIMDE_URL: &str = "https://github.com/simd-everywhere/simde";
-const SIMDE_SHA: &str = "71fd833d9666141edcd1d3c109a80e228303d8d7"; // == tag v0.8.2
+const SIMDE_SHA: &str = "c86a433df3086512b0b12240defa9d9ddcc9decf"; // == tag v0.8.4-rc3
 
 fn main() {
     let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
