@@ -17,6 +17,7 @@
 #pragma once
 
 #include "dsp-next/core/concepts.h"
+#include "dsp-next/core/fixed_point_neon.h"
 #include "dsp-next/core/mixer.h"
 #include "dsp-next/core/ramp.h"
 #include "dsp-next/core/types.h"
@@ -29,33 +30,33 @@ namespace deluge::dsp::fixed {
 /// @brief The voice VCA, expressed as a mixer: scales a raw wave block by a per-sample
 /// ramped amplitude and sums it into the existing mix — `out = (raw * amp) + mix`.
 ///
-/// Bit-exact port of the legacy `Oscillator::applyAmplitudeVectorToBuffer` (the q31
-/// vector path): the same `vqdmulhq` doubling-high multiply, the same amplitude vector
-/// (`amp + increment·{1,2,3,4}`, halved) and the same `increment << 1` per-vector step.
-/// Caller pre-shifts `amplitude` exactly as the legacy call sites do; this changes no
-/// output sample. (The crude scalar paths use a different VCA arithmetic — a separate
-/// component — and the two are unified later as an audible, re-baselined step.)
+/// The amplitude arrives as Q31 (each wave pre-shifts the voice's amplitude, see docs/dev/fixed_point.md, "Gain") and
+/// is held at Q30, one fewer bit: four samples' amplitudes `amp + increment·{1,2,3,4}`, each reformatted. The doubling
+/// multiply of a Q31 sample by the Q30 amplitude is Q30, summed into a mix read as Q30, as CrudeAmplitude's is. The
+/// legacy `Oscillator::applyAmplitudeVectorToBuffer` computes the same bits.
 class Amplitude : public Mixer<Amplitude, q31> {
-	Argon<int32_t> amplitude_;
-	Argon<int32_t> amplitude_increment_;
+	QVec<30> amplitude_;           ///< The next four samples' amplitudes.
+	QVec<30> amplitude_increment_; ///< Four samples' increments at Q30: the Q31 increment × 4 / 2.
 
 public:
-	/// @param amplitude           starting amplitude (pre-shifted by the caller, as today)
-	/// @param amplitude_increment per-sample amplitude ramp step
+	/// @param amplitude           the starting amplitude, Q31 (pre-shifted by the caller)
+	/// @param amplitude_increment the per-sample amplitude step, Q31
+	/// The ramp positions `amp + increment·{1,2,3,4}` are integer multiples (`vmla.i32`, wrapping).
 	Amplitude(int32_t amplitude, int32_t amplitude_increment)
-	    : amplitude_{Argon<int32_t>{amplitude}.MultiplyAdd(amplitude_increment, int32x4_t{1, 2, 3, 4}) >> 1},
-	      amplitude_increment_{amplitude_increment << 1} {}
+	    : amplitude_{as_floor<QVec<30>>(
+	          QVec<31>::from_raw(Argon<int32_t>{amplitude}.MultiplyAdd(amplitude_increment, int32x4_t{1, 2, 3, 4})))},
+	      amplitude_increment_{QVec<30>::splat(Q<30>::from_raw(amplitude_increment << 1))} {}
 
 	/// Build from an amplitude @ref deluge::dsp::Ramp (its value + per-sample increment).
 	explicit Amplitude(Ramp ramp) : Amplitude(ramp.value().raw(), ramp.increment().raw()) {}
 
-	/// @param raw the freshly-generated wave block (read-only)
-	/// @param mix the existing mix to accumulate into
-	/// @return raw scaled by the (advancing) amplitude, summed with mix
+	/// @param raw the freshly-generated wave block (read-only), Q31
+	/// @param mix the existing mix to accumulate into, Q30
+	/// @return raw scaled by the (advancing) amplitude, summed with mix, Q30
 	[[gnu::always_inline]] Argon<q31> render(Argon<q31> raw, Argon<q31> mix) {
-		int32x4_t scaled = vqdmulhq_s32(amplitude_, raw);
-		amplitude_ = amplitude_ + amplitude_increment_;
-		return Argon<q31>{vaddq_s32(scaled, mix)};
+		const QVec<30> scaled = mul_doubling_sat(amplitude_, QVec<31>::from_raw(raw));
+		amplitude_ = add_wrap(amplitude_, amplitude_increment_);
+		return add_wrap(scaled, QVec<30>::from_raw(mix)).raw();
 	}
 };
 static_assert(block_mixer<Amplitude>, "the VCA mixes a block");
