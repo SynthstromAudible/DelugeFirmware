@@ -38,6 +38,7 @@
 namespace {
 using deluge::dsp::Phasor;
 using deluge::dsp::Ramp;
+using deluge::dsp::UQ;
 using deluge::synth::BlockControls;
 using deluge::synth::VirtualAnalogSource;
 using Wave = deluge::synth::va_shape::Wave;
@@ -64,7 +65,7 @@ std::array<int32_t, kN> renderKernel(Osc osc) {
 }
 
 std::array<int32_t, kN> renderEngine(Wave wave, uint32_t phase, uint32_t increment, const BlockControls& controls) {
-	VirtualAnalogSource engine{wave, Phasor{phase, increment}};
+	VirtualAnalogSource engine{wave, Phasor{UQ<32>::from_raw(phase), UQ<32>::from_raw(increment)}};
 	std::array<int32_t, kN> out{};
 	std::array<int32_t, kN> scratch{};
 	engine.render_block(controls, Buffer{out}, Buffer{scratch});
@@ -79,7 +80,7 @@ describe vae_spec("deluge::synth::VirtualAnalogSource", ${
 
 	it("crude SAW is the phase ramp halved (standalone)", _ {
 		auto got = renderEngine(Wave::SAW, kPhase, kInc, standalone(7));
-		auto raw = renderKernel(deluge::dsp::fixed::CrudeSaw{Phasor{kPhase, kInc}});
+		auto raw = renderKernel(deluge::dsp::fixed::CrudeSaw{Phasor{UQ<32>::from_raw(kPhase), UQ<32>::from_raw(kInc)}});
 		for (std::size_t i = 0; i < kN; ++i) {
 			expect(got[i]).to_equal(raw[i] >> 1); // Standalone::HALVE
 		}
@@ -87,7 +88,7 @@ describe vae_spec("deluge::synth::VirtualAnalogSource", ${
 
 	it("crude SQUARE is the square halved (standalone)", _ {
 		auto got = renderEngine(Wave::SQUARE, kPhase, kInc, standalone(7));
-		auto raw = renderKernel(deluge::dsp::fixed::CrudeSquare{Phasor{kPhase, kInc}, 2147483648u});
+		auto raw = renderKernel(deluge::dsp::fixed::CrudeSquare{Phasor{UQ<32>::from_raw(kPhase), UQ<32>::from_raw(kInc)}, 2147483648u});
 		for (std::size_t i = 0; i < kN; ++i) {
 			expect(got[i]).to_equal(raw[i] >> 1); // Standalone::HALVE
 		}
@@ -95,7 +96,7 @@ describe vae_spec("deluge::synth::VirtualAnalogSource", ${
 
 	it("crude TRIANGLE is the triangle doubled (standalone)", _ {
 		auto got = renderEngine(Wave::TRIANGLE, kPhase, kInc, standalone(7));
-		auto raw = renderKernel(deluge::dsp::fixed::CrudeTriangle{Phasor{kPhase, kInc}});
+		auto raw = renderKernel(deluge::dsp::fixed::CrudeTriangle{Phasor{UQ<32>::from_raw(kPhase), UQ<32>::from_raw(kInc)}});
 		for (std::size_t i = 0; i < kN; ++i) {
 			expect(got[i]).to_equal(raw[i] << 1); // Standalone::DOUBLE
 		}
@@ -116,7 +117,7 @@ describe vae_spec("deluge::synth::VirtualAnalogSource", ${
 	// stays band-limited.
 	it("analog SAW downgrades to the crude digital saw at dire CPU", _ {
 		auto got = renderEngine(Wave::ANALOG_SAW, kPhase, kInc, standalone(7));
-		auto raw = renderKernel(deluge::dsp::fixed::CrudeSaw{Phasor{kPhase, kInc}});
+		auto raw = renderKernel(deluge::dsp::fixed::CrudeSaw{Phasor{UQ<32>::from_raw(kPhase), UQ<32>::from_raw(kInc)}});
 		for (std::size_t i = 0; i < kN; ++i) {
 			expect(got[i]).to_equal(raw[i] >> 1); // Standalone::HALVE
 		}
@@ -135,7 +136,7 @@ describe vae_spec("deluge::synth::VirtualAnalogSource", ${
 	// phase by increment·numSamples per block, so a second block equals a fresh engine seeded at the advanced
 	// phase — this is what lets Voice retire oscPos and hold the engine across render blocks.
 	it("phase persists across blocks (== reseed each block)", _ {
-		VirtualAnalogSource persistent{Wave::SAW, Phasor{kPhase, kInc}};
+		VirtualAnalogSource persistent{Wave::SAW, Phasor{UQ<32>::from_raw(kPhase), UQ<32>::from_raw(kInc)}};
 		std::array<int32_t, kN> out1{};
 		std::array<int32_t, kN> scratch1{};
 		persistent.render_block(standalone(7), Buffer{out1}, Buffer{scratch1});
@@ -152,7 +153,7 @@ describe vae_spec("deluge::synth::VirtualAnalogSource", ${
 	});
 
 	it("set_increment sets the per-block pitch (and the self-advance follows it)", _ {
-		VirtualAnalogSource engine{Wave::SAW, Phasor{kPhase, 0}};
+		VirtualAnalogSource engine{Wave::SAW, Phasor{UQ<32>::from_raw(kPhase), UQ<32>::from_raw(0)}};
 		engine.set_increment(kInc);
 		expect(engine.increment()).to_equal(kInc);
 		std::array<int32_t, kN> out{};
@@ -164,22 +165,22 @@ describe vae_spec("deluge::synth::VirtualAnalogSource", ${
 	it("hard-synced crude SAW matches the synced kernel and reports its phase", _ {
 		constexpr uint32_t kResetPhase = 0x40000000u;
 		constexpr uint32_t kResetInc = 0x01000000u;
-		auto controls = standalone(7, 0, Phasor{kResetPhase, kResetInc});
+		auto controls = standalone(7, 0, Phasor{UQ<32>::from_raw(kResetPhase), UQ<32>::from_raw(kResetInc)});
 
-		VirtualAnalogSource engine{Wave::SAW, Phasor{kPhase, kInc}};
+		VirtualAnalogSource engine{Wave::SAW, Phasor{UQ<32>::from_raw(kPhase), UQ<32>::from_raw(kInc)}};
 		std::array<int32_t, kN> out{};
 		std::array<int32_t, kN> scratch{};
 		engine.render_block(controls, Buffer{out}, Buffer{scratch});
 
 		// The Saw shape applies the +2^31 retrigger tweak internally, so the synced kernel must use it too.
 		deluge::dsp::fixed::CrudeSaw ref{deluge::dsp::fixed::SyncedPhasor{
-		    Phasor{kPhase, kInc}, Phasor{kResetPhase, kResetInc}, 2147483648u}};
+		    Phasor{UQ<32>::from_raw(kPhase), UQ<32>::from_raw(kInc)}, Phasor{UQ<32>::from_raw(kResetPhase), UQ<32>::from_raw(kResetInc)}, UQ<32>::from_raw(2147483648u)}};
 		std::array<int32_t, kN> raw{};
 		ref.render_block(Buffer{raw}); // render in place so ref.phase() reflects the advanced phase
 		for (std::size_t i = 0; i < kN; ++i) {
 			expect(out[i]).to_equal(raw[i] >> 1);
 		}
-		expect(engine.phase()).to_equal(ref.phase());
+		expect(engine.phase()).to_equal(ref.phase().raw());
 	});
 
 	// adjust_pitch (synth/engines/pitch.h) reports success with a zero increment when its pitch multiply rounds down to nothing. A
@@ -197,7 +198,7 @@ describe vae_spec("deluge::synth::VirtualAnalogSource", ${
 	it("renders against a stalled sync master at low and band-limited increments", _ {
 		for (Wave wave : {Wave::SINE, Wave::TRIANGLE, Wave::SQUARE, Wave::SAW, Wave::ANALOG_SAW, Wave::ANALOG_SQUARE}) {
 			for (uint32_t increment : {1u << 20, 1u << 26}) {
-				renderEngine(wave, 0, increment, standalone(0, 0, Phasor{0, 0}));
+				renderEngine(wave, 0, increment, standalone(0, 0, Phasor{UQ<32>::from_raw(0), UQ<32>::from_raw(0)}));
 			}
 		}
 	});

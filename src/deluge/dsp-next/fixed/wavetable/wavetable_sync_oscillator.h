@@ -42,16 +42,16 @@ public:
 
 	WavetableSyncOscillator(WaveTableData table, uint32_t phase, uint32_t increment, Resetter resetter,
 	                        uint32_t retrigger_phase, int32_t wave_index, int32_t wave_index_increment)
-	    : table_{table}, phasor_{phase, increment}, resetter_{resetter}, retrigger_phase_{retrigger_phase},
-	      wave_index_{wave_index}, wave_index_increment_{wave_index_increment} {}
+	    : table_{table}, phasor_{UQ<32>::from_raw(phase), UQ<32>::from_raw(increment)}, resetter_{resetter},
+	      retrigger_phase_{retrigger_phase}, wave_index_{wave_index}, wave_index_increment_{wave_index_increment} {}
 
 	/// The audible phase after rendering — what the voice stores back to continue next block.
-	[[nodiscard]] uint32_t phase() const { return phasor_.phase(); }
+	[[nodiscard]] uint32_t phase() const { return phasor_.phase().raw(); }
 
 	/// @brief Fill @p output with the next `output.size()` samples, chunk by cycle chunk.
 	void render_block(Buffer output) {
-		uint32_t phase = phasor_.phase();
-		uint32_t phase_increment = phasor_.increment();
+		uint32_t phase = phasor_.phase().raw();
+		uint32_t phase_increment = phasor_.increment().raw();
 		uint32_t resetter_phase = resetter_.phase;
 		uint32_t resetter_increment = resetter_.phase_increment;
 
@@ -69,7 +69,7 @@ public:
 			resetter_phase += resetter_increment * static_cast<uint32_t>(chunk->output.size());
 		}
 
-		phasor_.seek(phase);
+		phasor_.seek(UQ<32>::from_raw(phase));
 	}
 
 private:

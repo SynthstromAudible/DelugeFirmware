@@ -38,39 +38,44 @@ class SyncedPhasor {
 	Phasor phasor_;           ///< the audible (synced) oscillator's phase
 	Phasor resetter_;         ///< the master phase whose cycle boundaries reset the audible one
 	int32_t resetter_divide_; ///< reciprocal of the increment; >> 47 effective (<< 17 after two q31 muls)
-	uint32_t retrigger_phase_;
+	UQ<32> retrigger_phase_;
 
 public:
 	/// @param phasor the audible oscillator's phase accumulator
 	/// @param resetter the master phase accumulator whose cycle boundaries reset @p phasor
 	/// @param retrigger_phase phase the audible wave restarts from at a crossover
-	SyncedPhasor(Phasor phasor, Phasor resetter, uint32_t retrigger_phase)
-	    : phasor_{phasor}, resetter_{resetter}, resetter_divide_{resetter_reciprocal(resetter.increment())},
+	SyncedPhasor(Phasor phasor, Phasor resetter, UQ<32> retrigger_phase)
+	    : phasor_{phasor}, resetter_{resetter}, resetter_divide_{resetter_reciprocal(resetter.increment().raw())},
 	      retrigger_phase_{retrigger_phase} {}
 
-	[[gnu::always_inline]] uint32_t advance() {
-		uint32_t phase = phasor_.advance();
-		uint32_t resetter = resetter_.advance();
+	[[gnu::always_inline]] UQ<32> advance() {
+		UQ<32> phase = phasor_.advance();
+		const UQ<32> resetter = resetter_.advance();
 		// resetter wrapped past 2^32 this step -> a master cycle boundary (crossover).
 		if (resetter < resetter_.increment()) {
-			phase = (multiply_32x32_rshift32(multiply_32x32_rshift32(resetter, phasor_.increment()), resetter_divide_)
-			         << 17)
-			        + 1 + retrigger_phase_;
+			// The legacy reset arithmetic, kept raw: the products and their shift are not yet named operations.
+			const uint32_t reset =
+			    (multiply_32x32_rshift32(multiply_32x32_rshift32(static_cast<int32_t>(resetter.raw()),
+			                                                     static_cast<int32_t>(phasor_.increment().raw())),
+			                             resetter_divide_)
+			     << 17)
+			    + 1 + retrigger_phase_.raw();
+			phase = UQ<32>::from_raw(reset);
 			phasor_.seek(phase);
 		}
 		return phase;
 	}
 
-	[[nodiscard]] uint32_t phase() const { return phasor_.phase(); }
-	void seek(uint32_t phase) { phasor_.seek(phase); }
+	[[nodiscard]] UQ<32> phase() const { return phasor_.phase(); }
+	void seek(UQ<32> phase) { phasor_.seek(phase); }
 
 	/// Set the per-block pitch: the audible increment and the master (resetter) increment, recomputing the
 	/// resetter reciprocal. Keeps both accumulated phases. (Two increments because a hard-synced oscillator has
 	/// two pitches — its own and the master's.)
-	void set_increment(uint32_t phasor_increment, uint32_t resetter_increment) {
+	void set_increment(UQ<32> phasor_increment, UQ<32> resetter_increment) {
 		phasor_.set_increment(phasor_increment);
 		resetter_.set_increment(resetter_increment);
-		resetter_divide_ = resetter_reciprocal(resetter_increment);
+		resetter_divide_ = resetter_reciprocal(resetter_increment.raw());
 	}
 };
 

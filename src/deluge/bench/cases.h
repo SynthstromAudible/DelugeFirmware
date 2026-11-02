@@ -357,10 +357,10 @@ public:
 	/// @param n Block size, in samples (frames for the stereo and lanes cases); the size passed to setup().
 	void block(std::size_t n);
 	/// @return The saw's phase.
-	[[nodiscard]] uint32_t phase() const { return saw_.phase(); }
+	[[nodiscard]] uint32_t phase() const { return saw_.phase().raw(); }
 
 private:
-	dsp::fixed::CrudeSaw<dsp::Phasor> saw_{dsp::Phasor{0, kIncrement}};
+	dsp::fixed::CrudeSaw<dsp::Phasor> saw_{dsp::Phasor{dsp::UQ<32>::from_raw(0), dsp::UQ<32>::from_raw(kIncrement)}};
 	BlockSpans spans_{};
 };
 
@@ -383,10 +383,11 @@ public:
 	/// @param n Block size, in samples (frames for the stereo and lanes cases); the size passed to setup().
 	void block(std::size_t n);
 	/// @return The square's phase.
-	[[nodiscard]] uint32_t phase() const { return square_.phase(); }
+	[[nodiscard]] uint32_t phase() const { return square_.phase().raw(); }
 
 private:
-	dsp::fixed::CrudeSquare<dsp::Phasor> square_{dsp::Phasor{0, kIncrement}, kPulseWidth};
+	dsp::fixed::CrudeSquare<dsp::Phasor> square_{
+	    dsp::Phasor{dsp::UQ<32>::from_raw(0), dsp::UQ<32>::from_raw(kIncrement)}, kPulseWidth};
 	BlockSpans spans_{};
 };
 
@@ -405,10 +406,11 @@ public:
 	/// @param n Block size, in samples (frames for the stereo and lanes cases); the size passed to setup().
 	void block(std::size_t n);
 	/// @return The triangle's phase.
-	[[nodiscard]] uint32_t phase() const { return triangle_.phase(); }
+	[[nodiscard]] uint32_t phase() const { return triangle_.phase().raw(); }
 
 private:
-	dsp::fixed::CrudeTriangle<dsp::Phasor> triangle_{dsp::Phasor{0, kIncrement}};
+	dsp::fixed::CrudeTriangle<dsp::Phasor> triangle_{
+	    dsp::Phasor{dsp::UQ<32>::from_raw(0), dsp::UQ<32>::from_raw(kIncrement)}};
 	BlockSpans spans_{};
 };
 
@@ -439,12 +441,12 @@ public:
 	/// @param n Block size, in samples (frames for the stereo and lanes cases); the size passed to setup().
 	void block(std::size_t n);
 	/// @return The master's phase.
-	[[nodiscard]] uint32_t master_phase() const { return master_.phase(); }
+	[[nodiscard]] uint32_t master_phase() const { return master_.phase().raw(); }
 	/// @return The audible oscillator's phase, at the full (not halved) rate.
 	[[nodiscard]] uint32_t audible_phase() const { return audible_phase_; }
 
 private:
-	dsp::Phasor master_{0, kMasterIncrement};
+	dsp::Phasor master_{dsp::UQ<32>::from_raw(0), dsp::UQ<32>::from_raw(kMasterIncrement)};
 	uint32_t audible_phase_ = 0;
 	BlockSpans spans_{};
 };

@@ -82,18 +82,21 @@ void SourceSlot::build_oscillator(OscType osc_type, bool engine_mode, uint32_t o
 	if (engine_mode && va_shape::is_virtual_analog(osc_type)) {
 		const va_shape::Wave wave = va_shape::wave_for(osc_type);
 		if (retrigger) {
-			oscillator_.emplace<VirtualAnalogSource>(wave, dsp::Phasor{seed_phase, 0});
+			oscillator_.emplace<VirtualAnalogSource>(
+			    wave, dsp::Phasor{dsp::UQ<32>::from_raw(seed_phase), dsp::UQ<32>::from_raw(0)});
 		}
 		else if (reset_everything || !std::holds_alternative<VirtualAnalogSource>(oscillator_)) {
-			oscillator_.emplace<VirtualAnalogSource>(wave, dsp::Phasor{osc_pos, 0});
+			oscillator_.emplace<VirtualAnalogSource>(
+			    wave, dsp::Phasor{dsp::UQ<32>::from_raw(osc_pos), dsp::UQ<32>::from_raw(0)});
 		}
 	}
 	else if (engine_mode && osc_type == OscType::WAVETABLE) {
 		if (retrigger) {
-			oscillator_.emplace<WavetableSource>(dsp::Phasor{seed_phase, 0});
+			oscillator_.emplace<WavetableSource>(
+			    dsp::Phasor{dsp::UQ<32>::from_raw(seed_phase), dsp::UQ<32>::from_raw(0)});
 		}
 		else if (reset_everything || !std::holds_alternative<WavetableSource>(oscillator_)) {
-			oscillator_.emplace<WavetableSource>(dsp::Phasor{osc_pos, 0});
+			oscillator_.emplace<WavetableSource>(dsp::Phasor{dsp::UQ<32>::from_raw(osc_pos), dsp::UQ<32>::from_raw(0)});
 		}
 	}
 	else if (engine_mode && osc_type == OscType::SUPERSAW) {

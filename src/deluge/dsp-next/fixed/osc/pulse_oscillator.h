@@ -50,21 +50,21 @@ class PulseOscillator : public Generator<PulseOscillator, q31> {
 
 public:
 	PulseOscillator(Table table, uint32_t phase, uint32_t increment, uint32_t phase_offset)
-	    : samples_{table.samples.data()}, magnitude_{table.magnitude}, phasor_{phase, increment},
-	      phase_offset_{phase_offset} {}
+	    : samples_{table.samples.data()}, magnitude_{table.magnitude},
+	      phasor_{UQ<32>::from_raw(phase), UQ<32>::from_raw(increment)}, phase_offset_{phase_offset} {}
 
 	/// Jump the phase (e.g. a hard-sync reset between windows). See @ref deluge::dsp::Phasor::seek.
-	void seek(uint32_t phase) { phasor_.seek(phase); }
+	void seek(uint32_t phase) { phasor_.seek(UQ<32>::from_raw(phase)); }
 
 	/// The live phase — for reading back a persistent oscillator's phase across blocks.
-	[[nodiscard]] uint32_t phase() const { return phasor_.phase(); }
+	[[nodiscard]] uint32_t phase() const { return phasor_.phase().raw(); }
 
 	/// Change the per-sample phase step for the next block (pitch change), keeping the accumulated phase.
-	void set_increment(uint32_t increment) { phasor_.set_increment(increment); }
+	void set_increment(uint32_t increment) { phasor_.set_increment(UQ<32>::from_raw(increment)); }
 
 	[[gnu::always_inline]] Argon<q31> render() {
-		const uint32_t phase = phasor_.phase();
-		const uint32_t increment = phasor_.increment();
+		const uint32_t phase = phasor_.phase().raw();
+		const uint32_t increment = phasor_.increment().raw();
 
 		// Interpolation fractions for the two squares: A at the phase, B at the offset phase. Each is the 16 phase bits
 		// just below the table index; the strengths below take the 15 they need.
@@ -112,7 +112,7 @@ public:
 
 		// Ring-modulate the two squares; the << 1 restores full scale.
 		Argon<q31> output = square_a.MultiplyRoundFixedQMax(square_b) << 1;
-		phasor_.seek(phase + increment * 4);
+		phasor_.seek(UQ<32>::from_raw(phase + increment * 4));
 		return output;
 	}
 };

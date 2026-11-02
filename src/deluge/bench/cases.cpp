@@ -230,7 +230,7 @@ void BandLimitedTableCase::block(std::size_t /*n*/) {
 
 void CrudeSawCase::setup(std::size_t n) {
 	spans_ = spans(n);
-	saw_ = dsp::fixed::CrudeSaw{dsp::Phasor{0, kIncrement}};
+	saw_ = dsp::fixed::CrudeSaw{dsp::Phasor{dsp::UQ<32>::from_raw(0), dsp::UQ<32>::from_raw(kIncrement)}};
 }
 
 void CrudeSawCase::block(std::size_t /*n*/) {
@@ -239,7 +239,8 @@ void CrudeSawCase::block(std::size_t /*n*/) {
 
 void CrudeSquareCase::setup(std::size_t n) {
 	spans_ = spans(n);
-	square_ = dsp::fixed::CrudeSquare{dsp::Phasor{0, kIncrement}, kPulseWidth};
+	square_ =
+	    dsp::fixed::CrudeSquare{dsp::Phasor{dsp::UQ<32>::from_raw(0), dsp::UQ<32>::from_raw(kIncrement)}, kPulseWidth};
 }
 
 void CrudeSquareCase::block(std::size_t /*n*/) {
@@ -248,7 +249,7 @@ void CrudeSquareCase::block(std::size_t /*n*/) {
 
 void CrudeTriangleCase::setup(std::size_t n) {
 	spans_ = spans(n);
-	triangle_ = dsp::fixed::CrudeTriangle{dsp::Phasor{0, kIncrement}};
+	triangle_ = dsp::fixed::CrudeTriangle{dsp::Phasor{dsp::UQ<32>::from_raw(0), dsp::UQ<32>::from_raw(kIncrement)}};
 }
 
 void CrudeTriangleCase::block(std::size_t /*n*/) {
@@ -257,7 +258,7 @@ void CrudeTriangleCase::block(std::size_t /*n*/) {
 
 void SyncedPulseCase::setup(std::size_t n) {
 	spans_ = spans(n);
-	master_ = dsp::Phasor{0, kMasterIncrement};
+	master_ = dsp::Phasor{dsp::UQ<32>::from_raw(0), dsp::UQ<32>::from_raw(kMasterIncrement)};
 	audible_phase_ = 0;
 }
 
@@ -270,10 +271,10 @@ void SyncedPulseCase::block(std::size_t n) {
 	const dsp::fixed::PulseOscillator pulse{dsp::fixed::square_bandlimited_table().select(kBandSelect), phase,
 	                                        kIncrement, kPhaseOffset};
 	dsp::fixed::SyncedOscillator synced{pulse, phase, kIncrement,
-	                                    dsp::fixed::Resetter{master_.phase(), master_.increment()}, 0};
+	                                    dsp::fixed::Resetter{master_.phase().raw(), master_.increment().raw()}, 0};
 	synced.render_block(spans_.out);
 	audible_phase_ = synced.phase() << 1;
-	master_.seek(master_.phase() + (master_.increment() * static_cast<uint32_t>(n)));
+	master_.seek(dsp::UQ<32>::from_raw(master_.phase().raw() + (master_.increment().raw() * static_cast<uint32_t>(n))));
 }
 
 dsp::fixed::WavetableOscillator WavetableCase::make() {

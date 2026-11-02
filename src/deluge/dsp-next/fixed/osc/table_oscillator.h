@@ -45,17 +45,18 @@ class TableOscillator : public Generator<TableOscillator, q31> {
 
 public:
 	TableOscillator(Table table, uint32_t phase, uint32_t increment)
-	    : samples_{table.samples.data()}, magnitude_{table.magnitude}, phasor_{phase, increment} {}
+	    : samples_{table.samples.data()}, magnitude_{table.magnitude},
+	      phasor_{UQ<32>::from_raw(phase), UQ<32>::from_raw(increment)} {}
 
 	/// Jump the phase (e.g. a hard-sync reset between windows). See @ref deluge::dsp::Phasor::seek.
-	void seek(uint32_t phase) { phasor_.seek(phase); }
+	void seek(uint32_t phase) { phasor_.seek(UQ<32>::from_raw(phase)); }
 
 	/// The live phase — lets a persistent oscillator's phase be read back (e.g. to persist per voice or feed a
 	/// hard-sync master) instead of the caller owning it.
-	[[nodiscard]] uint32_t phase() const { return phasor_.phase(); }
+	[[nodiscard]] uint32_t phase() const { return phasor_.phase().raw(); }
 
 	/// Change the per-sample phase step for the next block (pitch change), keeping the accumulated phase.
-	void set_increment(uint32_t increment) { phasor_.set_increment(increment); }
+	void set_increment(uint32_t increment) { phasor_.set_increment(UQ<32>::from_raw(increment)); }
 
 	/// Swap the band/table this reads, keeping the accumulated phase — the band-limited oscillator uses this to
 	/// re-select its band when the pitch changes between blocks.
@@ -70,8 +71,8 @@ public:
 		Argon<uint32_t> value_pair = 0U;
 		ArgonHalf<uint16_t> fraction = 0U;
 
-		util::constexpr_for<0, 4, 1>([&]<int i> [[gnu::always_inline]] () {
-			uint32_t phase = phasor_.advance();
+		util::constexpr_for<0, 4, 1>([&]<int i> [[gnu::always_inline]] {
+			uint32_t phase = phasor_.advance().raw();
 			fraction[i] = phase >> (32 - 16 - magnitude_);
 			uint32_t index = phase >> (32 - magnitude_);
 			// Read the {entry, next-entry} interpolation pair as one word (the table is flat

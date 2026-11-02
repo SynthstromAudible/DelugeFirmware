@@ -22,23 +22,41 @@
 #include "dsp-next/fixed/sync/synced_phasor.h"
 #include <cppspec.hpp>
 #include <cstdint>
+#include <type_traits>
+#include <utility>
 
 namespace {
 using deluge::dsp::Phasor;
+using deluge::dsp::UQ;
 using deluge::dsp::fixed::SyncedPhasor;
 
-constexpr uint32_t kInc = 0x04000000; // audible increment
+static_assert(std::is_same_v<decltype(std::declval<Phasor&>().advance()), UQ<32>>);
+static_assert(std::is_same_v<decltype(std::declval<SyncedPhasor&>().advance()), UQ<32>>);
+
+constexpr UQ<32> uq32(uint32_t raw) {
+	return UQ<32>::from_raw(raw);
+}
+
+constexpr UQ<32> kInc = uq32(0x04000000); // audible increment
 } // namespace
 
 // clang-format off
 describe synced_phasor("deluge::dsp::fixed SyncedPhasor", ${
+	context("a plain Phasor", _ {
+		it("wraps modulo one cycle", _ {
+			Phasor p{uq32(0xFFFF'FFFFu), uq32(2u)};
+			expect(p.advance().raw()).to_equal(1u);
+			expect(p.phase().raw()).to_equal(1u);
+		});
+	});
+
 	context("a resetter too slow to wrap within the block", _ {
 		it("free-runs identically to a plain Phasor", _ {
 			// ~65536 samples per resetter cycle: no reset over a handful of samples.
-			SyncedPhasor synced{Phasor{0u, kInc}, Phasor{0u, 0x00010000u}, 0u};
-			Phasor plain{0u, kInc};
+			SyncedPhasor synced{Phasor{uq32(0), kInc}, Phasor{uq32(0), uq32(0x00010000u)}, uq32(0)};
+			Phasor plain{uq32(0), kInc};
 			for (int i = 0; i < 8; ++i) {
-				expect(synced.advance()).to_equal(plain.advance());
+				expect(synced.advance().raw()).to_equal(plain.advance().raw());
 			}
 		});
 	});
@@ -46,17 +64,17 @@ describe synced_phasor("deluge::dsp::fixed SyncedPhasor", ${
 	context("a resetter wrapping every 4 samples", _ {
 		it("free-runs until the crossover, then snaps the phase", _ {
 			// resetter += 2^30 each step -> wraps on the 4th advance (0 -> reset).
-			SyncedPhasor synced{Phasor{0u, kInc}, Phasor{0u, 0x40000000u}, 0u};
-			Phasor plain{0u, kInc};
+			SyncedPhasor synced{Phasor{uq32(0), kInc}, Phasor{uq32(0), uq32(0x40000000u)}, uq32(0)};
+			Phasor plain{uq32(0), kInc};
 			// Samples 0..2: no wrap yet, identical to free-running.
-			expect(synced.advance()).to_equal(plain.advance());
-			expect(synced.advance()).to_equal(plain.advance());
-			expect(synced.advance()).to_equal(plain.advance());
+			expect(synced.advance().raw()).to_equal(plain.advance().raw());
+			expect(synced.advance().raw()).to_equal(plain.advance().raw());
+			expect(synced.advance().raw()).to_equal(plain.advance().raw());
 			// Sample 3: resetter wraps -> phase snaps, diverging from the free-running ramp.
-			uint32_t reset_phase = synced.advance();
+			const UQ<32> reset_phase = synced.advance();
 			expect(reset_phase != plain.advance()).to_be_truthy();
 			// phase() reflects the post-reset value.
-			expect(synced.phase()).to_equal(reset_phase);
+			expect(synced.phase().raw()).to_equal(reset_phase.raw());
 		});
 	});
 });

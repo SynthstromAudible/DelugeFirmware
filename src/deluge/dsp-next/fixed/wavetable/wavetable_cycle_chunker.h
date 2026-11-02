@@ -91,8 +91,8 @@ struct CycleChunk {
 		using namespace wavetable_detail;
 		int32_t* __restrict__ sample = output_window.data();
 		int32_t const* const end = sample + output_window.size();
-		uint32_t phase = phasor.phase();
-		uint32_t phase_increment = phasor.increment();
+		uint32_t phase = phasor.phase().raw();
+		uint32_t phase_increment = phasor.increment().raw();
 		int32_t magnitude = band->cycleSizeMagnitude;
 
 		if (single_cycle) {

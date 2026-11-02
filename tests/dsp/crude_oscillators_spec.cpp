@@ -31,6 +31,7 @@
 
 namespace {
 using deluge::dsp::Phasor;
+using deluge::dsp::UQ;
 using deluge::dsp::fixed::CrudeAmplitude;
 using deluge::dsp::fixed::CrudeSaw;
 using deluge::dsp::fixed::CrudeSine;
@@ -45,7 +46,7 @@ using Signal = deluge::dsp::fixed::Signal;
 describe crude_oscillators("deluge::dsp::fixed crude oscillators", ${
 	context("CrudeSaw", _ {
 		it("emits the phase ramp itself", _ {
-			CrudeSaw osc{Phasor{0u, 0x10000000u}};
+			CrudeSaw osc{Phasor{UQ<32>::from_raw(0u), UQ<32>::from_raw(0x10000000u)}};
 			std::array<int32_t, 4> out{};
 			osc.render_block(Buffer{out});
 			// Pre-increment: sample i is phase + (i+1) * increment.
@@ -58,7 +59,7 @@ describe crude_oscillators("deluge::dsp::fixed crude oscillators", ${
 
 	context("CrudeSquare", _ {
 		it("switches at the pulse-width threshold", _ {
-			CrudeSquare osc{Phasor{0u, 0x20000000u}, 0x80000000u}; // 50% duty
+			CrudeSquare osc{Phasor{UQ<32>::from_raw(0u), UQ<32>::from_raw(0x20000000u)}, 0x80000000u}; // 50% duty
 			std::array<int32_t, 4> out{};
 			osc.render_block(Buffer{out});
 			// phases 0x20/0x40/0x60M are below the threshold (high), 0x80M is at/above it (low).
@@ -71,7 +72,7 @@ describe crude_oscillators("deluge::dsp::fixed crude oscillators", ${
 
 	context("CrudeTriangle", _ {
 		it("matches the triangle kernel at each phase", _ {
-			CrudeTriangle osc{Phasor{0u, 0x30000000u}};
+			CrudeTriangle osc{Phasor{UQ<32>::from_raw(0u), UQ<32>::from_raw(0x30000000u)}};
 			std::array<int32_t, 4> out{};
 			osc.render_block(Buffer{out});
 			expect(out[0]).to_equal(deluge::dsp::fixed::triangle_half_scale(0x30000000u));
@@ -83,7 +84,7 @@ describe crude_oscillators("deluge::dsp::fixed crude oscillators", ${
 
 	context("CrudeSine", _ {
 		it("matches the sine LUT at each phase", _ {
-			CrudeSine osc{Phasor{0u, 0x30000000u}};
+			CrudeSine osc{Phasor{UQ<32>::from_raw(0u), UQ<32>::from_raw(0x30000000u)}};
 			std::array<int32_t, 4> out{};
 			osc.render_block(Buffer{out});
 			expect(out[0]).to_equal(kSineTable.value(0x30000000u));

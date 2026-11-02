@@ -137,8 +137,9 @@ public:
 		}
 		length_ = crosses_ ? static_cast<int32_t>(samples_to_crossover_) : samples_remaining_;
 		started_ = true;
-		return Window{Buffer{window_, static_cast<std::size_t>(length_)}, Phasor{phase_, phase_increment_},
-		              static_cast<int32_t>(window_ - block_start_)};
+		return Window{.output = Buffer{window_, static_cast<std::size_t>(length_)},
+		              .phasor = Phasor{UQ<32>::from_raw(phase_), UQ<32>::from_raw(phase_increment_)},
+		              .offset = static_cast<int32_t>(window_ - block_start_)};
 	}
 
 	/// The audible phase after the whole block — what the voice stores to continue next block.
