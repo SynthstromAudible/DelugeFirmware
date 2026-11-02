@@ -122,6 +122,8 @@ operation lane by lane, so a kernel's step written once over its value type read
   exists for a pack only where its scalar operation exists for the lane types.
 - Every pack must be the same width, and a pack of `Fixed` has no arithmetic operators, as a `Fixed` has none.
 - A comparison gives a `LanePack<bool, N>`, which `select` reads.
+- `from_raw<T>(v)` and `to_raw(v)` convert a raw scalar or `LanePack` of raw lanes and its typed counterpart, so a
+  step whose interface is raw types its body once for both: `OnePole` and `ShiftTracker` do.
 
 The lanes are scalar, not NEON: a two-lane `mul` is two `smmul`, independent chains the A9 overlaps. The codegen gate
 holds the two-lane multiply, multiply-accumulate and saturating add and shift to one instruction per lane. It reports a
@@ -202,6 +204,18 @@ instructions.
   `sum_wrap`); the wavetable morph weights the Q30 cycle difference by the morph read as Q31 (`mla_r`), so a morphing
   wavetable's sample is Q29, where a single-cycle wavetable's, the sinc's own, is Q30. The sample interpolator's linear
   path stays an integer lerp, Q30.
+- **Filters:** the one-pole's step rounds (x − z) × m to Q30 and doubles it back to Q31 (`mul_r_as_wrap`); a ladder
+  reads its feedback by a Q30 amount, z × amount at Q31 (`OnePole::feedback`) or at Q29 to sum four
+  (`feedback_unshifted`). `curve_frequency` gives tan(f) at Q28 and 1 / (1 + tan(f)) and the moveability at Q31, the
+  reciprocal saturated at cutoff 0. The low-pass ladder's resonance as fed back, feedbacks and normaliser are Q30 and
+  its loop gains Q26; the 12dB ladder's 2m − 1 is m read as Q30 less one, and the last section's 1 / (1 + tan(f)) is
+  read as Q30, twice its value, as the ladder is tuned. The high-pass ladder's loop reciprocal is Q28 and its output
+  normaliser 1 / 2R at Q25; the morph's nudge, m + 8x × morph, reads m as Q30 for one `mla_r`. The SVF's rate is
+  fc × 1.125 (an eighth as a `UQ<32>` multiplier), its passes run on the Q30 scaled input read as Q31, and the blend
+  is three times its Q30 sum read as Q31. The shelf pair's gains are Q29 (one at a flat knob); its bass step is the
+  Q30 product read as Q31, half the treble's. The reciprocals are double divisions and stay raw, as do `quick_log`'s
+  octaves and the table positions. The high-pass ladder places its saturator with `q31_ops.h`'s asm saturate: the
+  builtin a typed saturate compiles to is sunk out of the loop, and the rescheduled loop ran slower on the A9.
 - **Buffers and frame fields** stay raw `q31` until the kernels that read them use the named operations; each
   kernel's interface stays raw and converts at its entry and exit.
 
