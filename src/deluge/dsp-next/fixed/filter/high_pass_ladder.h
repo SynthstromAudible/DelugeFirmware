@@ -216,7 +216,7 @@ struct HighPassLadder {
 		const q31 nudged = cutoff_of(M) == Cutoff::FIXED
 		                       ? c.moveability
 		                       : multiply_accumulate_32x32_rshift32_rounded(c.moveability, x << 4, c.morph);
-		const q31 m = nudged < kLowerLimit ? kLowerLimit : nudged;
+		const q31 m = std::max(nudged, kLowerLimit);
 
 		const q31 first_output = section_step<OnePole::Mode::HIGH_PASS>(s.high_pass_1, m, x);
 		const q31 feedbacks = wrapping_add(OnePole::feedback(s.high_pass_3, c.high_pass_3_feedback),

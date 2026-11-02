@@ -320,13 +320,11 @@ private:
 		y += coefficient * (x - y);
 		return y;
 	}
-	/// @return @p scaled clamped into q31 (the top at the largest float below 2³¹) and converted: std::clamp's
-	/// comparisons written out.
+	/// @return @p scaled clamped into q31 (the top at the largest float below 2³¹) and converted.
 	[[nodiscard]] [[gnu::always_inline]] static q31 to_q31_saturating(float scaled) {
 		constexpr float kMax = 2147483520.f; // 0x7FFFFF80
 		constexpr float kMin = -2147483648.f;
-		const float clamped = scaled < kMin ? kMin : (kMax < scaled ? kMax : scaled);
-		return static_cast<q31>(clamped);
+		return static_cast<q31>(std::clamp(scaled, kMin, kMax));
 	}
 	/// @return @p x with the two outputs added at the return levels: the output stage, q31 saturating then the
 	/// rounded multiply-accumulate.

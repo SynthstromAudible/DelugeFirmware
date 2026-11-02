@@ -21,8 +21,10 @@
 #include "dsp-next/core/q31_ops.h" // increase_magnitude_and_saturate
 #include "dsp-next/fixed/interpolation/table_interpolation.h"
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
+#include <limits>
 
 namespace deluge::dsp::fixed {
 
@@ -68,14 +70,9 @@ inline constexpr int32_t kExpSaturatingOctaves = 20;
 		return increase_magnitude_and_saturate(within_octave, octaves);
 	}
 	// 2^31 times 2^32 still fits in 64 bits; a nonzero value saturates long before
-	const int64_t scaled = static_cast<int64_t>(within_octave) << (octaves < 32 ? octaves : 32);
-	if (scaled > INT32_MAX) {
-		return INT32_MAX;
-	}
-	if (scaled < INT32_MIN) {
-		return INT32_MIN;
-	}
-	return static_cast<int32_t>(scaled);
+	const int64_t scaled = static_cast<int64_t>(within_octave) << std::min(octaves, 32);
+	return static_cast<int32_t>(
+	    std::clamp<int64_t>(scaled, std::numeric_limits<int32_t>::min(), std::numeric_limits<int32_t>::max()));
 }
 
 } // namespace deluge::dsp::fixed

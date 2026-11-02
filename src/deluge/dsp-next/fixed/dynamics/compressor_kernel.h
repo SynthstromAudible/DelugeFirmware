@@ -25,6 +25,7 @@
 #include "dsp-next/fixed/filter/one_pole.h"
 #include "dsp-next/fixed/shaping/antialiased_tanh.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -204,12 +205,11 @@ struct Compressor {
 		const float threshold = song_volume * s.threshold;
 		// The song volume lands here, so the envelope smooths it against clicks; the makeup gain and the reduction
 		// then move at the same rate.
-		// The clamps compare as std::max and std::min do.
 		const float makeup = (song_volume - threshold - 1) * c.fraction;
-		s.makeup = run_envelope(c, s.makeup, makeup < 0 ? 0 : makeup, frames);
+		s.makeup = run_envelope(c, s.makeup, std::max(makeup, 0.0f), frames);
 
 		const float over = s.log_rms - threshold;
-		s.reduction_envelope = run_envelope(c, s.reduction_envelope, 0 < over ? over : 0, frames);
+		s.reduction_envelope = run_envelope(c, s.reduction_envelope, std::max(0.0f, over), frames);
 
 		const float reduction = -s.reduction_envelope * c.fraction;
 

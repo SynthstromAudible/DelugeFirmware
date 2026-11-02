@@ -23,7 +23,9 @@
 #include "dsp-next/core/types.h"
 #include "dsp-next/fixed/curves/exp_curve.h"
 
+#include <algorithm>
 #include <cstdint>
+#include <limits>
 #include <type_traits>
 
 /// @file
@@ -60,8 +62,8 @@ struct SampleRateReducer {
 
 	/// @brief The param, and the mask the bit depth puts on each grab.
 	struct Settings {
-		q31 sample_rate_reduction = INT32_MIN; ///< The param, Q31; on above its minimum.
-		uint32_t grab_mask = kAllBits;         ///< BitDepth::mask at BitDepth::kGrabMaskBase.
+		q31 sample_rate_reduction = std::numeric_limits<q31>::min(); ///< The param, Q31; on above its minimum.
+		uint32_t grab_mask = kAllBits;                               ///< BitDepth::mask at BitDepth::kGrabMaskBase.
 	};
 	/// @brief The two rates and the grab mask.
 	struct Coefficients {
@@ -79,7 +81,9 @@ struct SampleRateReducer {
 	};
 
 	/// @brief Whether @p sample_rate_reduction reduces the rate.
-	[[nodiscard]] static constexpr bool on(q31 sample_rate_reduction) { return sample_rate_reduction != INT32_MIN; }
+	[[nodiscard]] static constexpr bool on(q31 sample_rate_reduction) {
+		return sample_rate_reduction != std::numeric_limits<q31>::min();
+	}
 
 	/// @brief The rates for @p s; the param must be on.
 	[[nodiscard]] static Coefficients coefficients(const Settings& s) {
@@ -117,7 +121,7 @@ struct SampleRateReducer {
 		s.low_pos -= kOne;
 		s.last_sample = x;
 
-		const auto toward_grabbed = Q<22>::from_raw(static_cast<q31>(s.high_pos < kBelowOne ? s.high_pos : kBelowOne));
+		const auto toward_grabbed = Q<22>::from_raw(static_cast<q31>(std::min(s.high_pos, kBelowOne)));
 		const Q<22> toward_last_grabbed = sub_wrap(Q<22>::from_raw(kBelowOne), toward_grabbed);
 		const StereoSample out{
 		    .l = as_wrap<Q<31>>(between(Q<30>::from_raw(s.last_grabbed.l), Q<30>::from_raw(s.grabbed.l),
