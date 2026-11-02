@@ -165,7 +165,7 @@ jobs:
     if: >-
       github.event_name == 'pull_request' && needs.changes.outputs.firmware == 'true' &&
       github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 30
     continue-on-error: true
     permissions:
@@ -212,7 +212,7 @@ jobs:
     name: host build
     needs: changes
     if: needs.changes.outputs.firmware == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
@@ -243,7 +243,7 @@ jobs:
     name: test matrix
     needs: changes
     if: needs.changes.outputs.firmware == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     outputs:
       include: ${{ steps.emit.outputs.include }}
     steps:
@@ -258,7 +258,7 @@ jobs:
   tests:
     name: tests / ${{ matrix.group }}
     needs: [matrix, host-build]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 45
     strategy:
       fail-fast: false
@@ -420,7 +420,7 @@ jobs:
     name: firmware size
     needs: [changes, firmware]
     if: github.event_name == 'pull_request' && needs.changes.outputs.firmware == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     continue-on-error: true
     permissions:
       actions: read

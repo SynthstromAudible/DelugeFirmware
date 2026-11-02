@@ -1,0 +1,4 @@
+# GitHub-hosted labels newer than the actionlint release the pre-commit hook pins. Remove each once actionlint knows it.
+self-hosted-runner:
+  labels:
+    - ubuntu-26.04

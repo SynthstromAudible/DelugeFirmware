@@ -12,8 +12,8 @@ runs:
       with:
         cache-name: test-prerequisites
         packages: >-
-          gcc-14 g++-14 gcc-14-multilib g++-14-multilib
-          gcc-14-arm-linux-gnueabihf g++-14-arm-linux-gnueabihf qemu-user
+          gcc-16 g++-16 gcc-16-multilib g++-16-multilib
+          gcc-16-arm-linux-gnueabihf g++-16-arm-linux-gnueabihf qemu-user
           ninja-build mtools jq
 
     - uses: ./.github/actions/clang

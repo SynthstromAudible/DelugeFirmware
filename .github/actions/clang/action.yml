@@ -14,12 +14,12 @@ runs:
         echo "deb http://apt.llvm.org/$VERSION_CODENAME/ llvm-toolchain-$VERSION_CODENAME-23 main" \
           | sudo tee /etc/apt/sources.list.d/llvm-23.list >/dev/null
 
-    # libclang-rt for the sanitizer builds; libstdc++-14 because the image's default libstdc++ predates C++26.
+    # libclang-rt for the sanitizer builds; libstdc++-16 for the C++26 library (the image's newest is 15).
     - name: Install clang 23
       uses: ./.github/actions/apt-install
       with:
         cache-name: clang-23
-        packages: clang-23 lld-23 libclang-rt-23-dev libstdc++-14-dev
+        packages: clang-23 lld-23 libclang-rt-23-dev libstdc++-16-dev
 
     - name: Put it on PATH as clang and CC/CXX
       shell: bash

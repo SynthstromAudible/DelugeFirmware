@@ -24,7 +24,7 @@ permissions: {}
 jobs:
   firmware-size:
     name: Report firmware size
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     if: >-
       github.event_name == 'workflow_dispatch' ||
       (github.event.workflow_run.event == 'pull_request' &&
