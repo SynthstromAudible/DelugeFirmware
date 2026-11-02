@@ -424,6 +424,17 @@ void ReleaseRateCase::block(std::size_t n) {
 	}
 }
 
+void SupersawCase::setup(std::size_t n) {
+	spans_ = spans(n);
+	centre_phase_ = 0;
+	side_phases_ = dsp::fixed::Supersaw::side_phases_from(centre_phase_);
+}
+
+void SupersawCase::block(std::size_t /*n*/) {
+	dsp::fixed::Supersaw::render(spans_.out, kIncrement, kSpread, dsp::fixed::Supersaw::kNumSaws, centre_phase_,
+	                             side_phases_, true);
+}
+
 template <std::size_t N>
 void LanesOnePoleCase<N>::setup(std::size_t n) {
 	spans_ = frame_spans<dsp::Frame<q31, N>>(n);
@@ -559,6 +570,7 @@ std::span<const Case> kernel_list(CaseSet& s) {
 	    make_case("tanh3", s.tanh3),
 	    make_case("dry_wet_blend", s.dry_wet_blend),
 	    make_case("release_rate", s.release_rate),
+	    make_case("supersaw", s.supersaw),
 	};
 	return kernels;
 }

@@ -51,6 +51,7 @@
 #include "dsp-next/fixed/osc/band_limited_table_oscillator.h"
 #include "dsp-next/fixed/osc/crude_oscillators.h"
 #include "dsp-next/fixed/osc/pulse_oscillator.h"
+#include "dsp-next/fixed/osc/supersaw.h"
 #include "dsp-next/fixed/shaping/antialiased_tanh.h"
 #include "dsp-next/fixed/shaping/tanh_kernel.h"
 #include "dsp-next/fixed/vca/amplitude.h"
@@ -691,6 +692,30 @@ public:
 	void block(std::size_t n);
 
 private:
+	BlockSpans spans_{};
+};
+
+/// @brief The supersaw, `Supersaw`, rendering into the output as a voice sets it up: seven saws at A3, half spread,
+/// band limited.
+/// @details **Timed state:** free-running from the centre phase 0 and the side phases a voice retriggers at; each
+/// block carries every saw's phase on.
+class SupersawCase {
+public:
+	/// @brief The centre saw's increment: A3.
+	static constexpr uint32_t kIncrement = kA3Increment;
+	/// @brief Half the spread range (the bipolar wave-index param, ±2^30).
+	static constexpr int32_t kSpread = int32_t{1} << 29;
+
+	/// @brief Restarts every saw at its retrigger phase, and takes the output's span for @p n.
+	/// @param n Block size to set up for, in samples.
+	void setup(std::size_t n);
+	/// @brief Renders one block of the size it was set up for.
+	/// @param n Block size, in samples; the size passed to setup().
+	void block(std::size_t n);
+
+private:
+	uint32_t centre_phase_ = 0;
+	dsp::fixed::Supersaw::SidePhases side_phases_{};
 	BlockSpans spans_{};
 };
 
@@ -1810,6 +1835,7 @@ struct CaseSet {
 	Tanh3Case tanh3;                                              ///< `tanh3`
 	DryWetBlendCase dry_wet_blend;                                ///< `dry_wet_blend`
 	ReleaseRateCase release_rate;                                 ///< `release_rate`
+	SupersawCase supersaw;                                        ///< `supersaw`
 	OnePoleX2Case one_pole_x2;                                    ///< `one_pole_x2`
 	OnePoleX4Case one_pole_x4;                                    ///< `one_pole_x4`
 	ShiftTrackerX4Case shift_tracker_x4;                          ///< `shift_tracker_x4`

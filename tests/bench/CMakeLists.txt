@@ -29,6 +29,7 @@ deluge_specs_driver(bench_specs NEON
     ${_src}/dsp-next/fixed/filter/filter_set.cpp
     ${_src}/dsp-next/fixed/interpolation/table_interpolation.cpp
     ${_src}/dsp-next/fixed/interpolation/windowed_sinc_kernel.cpp
+    ${_src}/dsp-next/fixed/osc/supersaw.cpp
     ${_src}/util/lookuptables/lookuptables.cpp
     ${_src}/util/synth_noise.cpp
   INCLUDES ${_src} ${_src}/..)
