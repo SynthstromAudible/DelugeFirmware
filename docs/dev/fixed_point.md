@@ -167,7 +167,14 @@ instructions.
 
 - **Phase:** `Phasor` and `SyncedPhasor` hold, take and return `UQ<32>`; a step is `add_wrap`. The crude oscillators
   forward their phase source's type. The table, pulse and wavetable oscillators and the synth's sources keep raw
-  `uint32_t` phase interfaces around their raw kernels and convert where they meet a phasor.
+  `uint32_t` phase interfaces and convert where they meet a phasor; table and gather positions stay integer.
+- **Table oscillators:** the table, pulse and sine oscillators read `{entry, next}` Q15 pairs as `Q16x2Vec<15>` and
+  interpolate with `mla_doubling_wide_sat`: the entry widened to Q31 plus the doubled product of a Q15 slope and a Q15
+  weight. The pulse interpolates square A with negated weights (its polarity flip) and ring-modulates with
+  `scale_shl_wrap<1>(mul_doubling_r_sat(a, b))`. `sine_fm_operator` stays an integer lerp (Q15 × Q16 is Q31).
+- **Supersaw:** the phases are `UQVec<32>` and each saw is its phase read as Q31; the side saws are summed at
+  2^−kShift scale (`add_scale_shr_floor`, `vsra`), and both gains are Q29, the side gain times 2^kShift, so the mix is
+  Q29.
 - **Gain:** a `Ramp` is a `Q<31>` gain and slope; `scale_shl_wrap<N>(ramp)` is the per-wave doubling. The crude VCA
   (`CrudeAmplitude`) takes the high word of sample × gain with `mla_r`, so its product is Q30. The band-limited VCA
   (`Amplitude`) holds its Q31 amplitude at Q30 (`QVec<30>`) and takes the doubled high word with `mul_doubling_sat`,
@@ -188,7 +195,10 @@ instructions.
   `lshift_and_saturate_unknown`. The wavefolder's gain is Q24. The sample-rate reducer's positions and rates are Q22,
   its grabs Q30. Table positions and bit-depth masks stay integer.
 - **Interpolation:** the bilinear table interpolator's rows are Q16 and its result Q15 of the table's units; the 1-D
-  lerps stay integer. The stutter blend's Q16 strengths are reformatted to Q30.
+  lerps stay integer. The stutter blend's Q16 strengths are reformatted to Q30. The windowed sinc blends Q15 kernel
+  rows (`add_wrap`, `mul_doubling_sat`, `sub_wrap`) and weights a Q15 window into a Q30 sample (`mla_wide`, then
+  `sum_wrap`); the wavetable morph weights the Q30 cycle difference by the morph read as Q31 (`mla_r`), so a morphing
+  wavetable's sample is Q29. The sample interpolator's linear path stays an integer lerp, Q30.
 - **Buffers and frame fields** stay raw `q31` until the kernels that read them use the named operations; each
   kernel's interface stays raw and converts at its entry and exit.
 
