@@ -264,7 +264,10 @@ struct Rig {
 	}
 
 	explicit Rig(const DelugeBoard& board = deluge::ui::shell::kDelugeBoard, const BoardProfile& p = deluge_profile())
-	    : profile(p), fake(board, p), shell(fake, p, reg, deluge::ui::shell::Services{}, ShellConfig{}) {}
+	    : profile(p), fake(board, p), shell(fake, p, reg, deluge::ui::shell::Services{}, ShellConfig{}) {
+		// The app's boot wires the host's ops; an example starts unwired and installs its own.
+		slicer_scene().set_ops(nullptr);
+	}
 
 	/// @brief Open the slicer on the fixture's sample, the way `SampleBrowser` does.
 	void open() {

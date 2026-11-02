@@ -73,6 +73,14 @@
 
 #include "../../dsp/wavetable_band_crc.h"
 
+#include "gui/ui/menu_view_of.h"
+#include "gui/ui/shell_slice_ops.h"
+#include "scenes/menu/context.h"
+#include "scenes/menu/menu_scene.h"
+#include "scenes/menu/nodes/sound_root.h"
+#include "scenes/registry.h"
+#include "scenes/slicing/slicer_scene.h"
+
 #include <cstdio>
 #include <iterator>
 #include <string>
@@ -141,11 +149,15 @@ constexpr const char* kKitPresetSample = "SAMPLES/SCKITD.WAV";
 constexpr const char* kKickSample = "SAMPLES/SCKICK.WAV";
 constexpr const char* kClipSample = "SAMPLES/SCAUD.WAV";
 constexpr const char* kSliceSample = "SAMPLES/SCSLICE.WAV";
+/// The ported slicer's stalled open: a file nothing has loaded, so its load reaches the held card.
+constexpr const char* kShellStallSample = "SAMPLES/SCSLCF.WAV";
 
 /// The one-drum kit presets the new-kit-track gesture loads: the kit leg's, then the manual slice leg's. The region
 /// slice leaves the first kit with four drums, and a slice indexes the drums it makes from the kit's first.
 constexpr const char* kKitPresetPath = "KITS/SCKIT.XML";
 constexpr const char* kManualKitPresetPath = "KITS/SCKIT2.XML";
+/// The ported slicer's legs' one-drum kits, one each: every slice leaves its kit with the drums it made.
+constexpr const char* kShellKitPresetPaths[] = {"KITS/SCSKA.XML", "KITS/SCSKB.XML", "KITS/SCSKC.XML", "KITS/SCSKD.XML"};
 constexpr const char* kKitDrumName = "SCD1";
 
 /// The randomizer legs' kit preset, the third the new-kit-track gesture picks up, and the folder its drums name. The
@@ -274,6 +286,13 @@ enum class Leg : uint8_t {
 	RandomizeStall,
 	RandomizeCancelScan,
 	ImportStall,
+	// The ported slicer's host, through the same SliceCore: a region slice, a manual slice, BACK out of manual mode on
+	// a first drum that holds no file, and an open whose load is held past the stall bound. After every other leg: run
+	// before the randomizer's, two more slices leave its cancelled-scan leg unable to open its folder.
+	ShellSlice,
+	ShellSliceManual,
+	ShellSliceBack,
+	ShellSliceFail,
 	Done
 };
 enum class Step : uint8_t { Prepare, Open, Listing, Select, SelectWait, PreviewWait, ResidentWait, Act, Wait };
@@ -292,6 +311,29 @@ Clip* g_importKitClip = nullptr;
 Clip* g_importSynthClip = nullptr;
 /// The import gate leg's one-drum kit.
 Clip* g_importGateClip = nullptr;
+
+/// The ported slicer's legs: whether the commit was begun, whether the leg has ended, and the BACK leg's verdict.
+bool g_shellCommitBegun = false;
+bool g_shellEnded = false;
+bool g_shellBackKept = false;
+
+bool isShellSlice() {
+	return g_leg == Leg::ShellSlice || g_leg == Leg::ShellSliceManual || g_leg == Leg::ShellSliceBack
+	       || g_leg == Leg::ShellSliceFail;
+}
+
+size_t shellKitIndex() {
+	switch (g_leg) {
+	case Leg::ShellSliceManual:
+		return 1;
+	case Leg::ShellSliceBack:
+		return 2;
+	case Leg::ShellSliceFail:
+		return 3;
+	default:
+		return 0;
+	}
+}
 
 /// What the import gate leg saw: whether its presses were tried, whether the import was still out when they were, and
 /// whether each was refused.
@@ -365,6 +407,14 @@ const char* legName(Leg leg) {
 		return "slice";
 	case Leg::SliceManual:
 		return "slice-manual";
+	case Leg::ShellSlice:
+		return "shell-slice";
+	case Leg::ShellSliceManual:
+		return "shell-slice-manual";
+	case Leg::ShellSliceBack:
+		return "shell-slice-back";
+	case Leg::ShellSliceFail:
+		return "shell-slice-fail";
 	case Leg::RandomizeOne:
 		return "randomize-one";
 	case Leg::RandomizeAll:
@@ -916,6 +966,19 @@ void prepareLeg() {
 			       g_imStallKeptLeases[1], static_cast<int>(g_imStallRangePaths.size()), static_cast<int>(error));
 		});
 		break;
+	case Leg::ShellSlice:
+	case Leg::ShellSliceManual:
+	case Leg::ShellSliceBack:
+	case Leg::ShellSliceFail:
+		buildFixture([] {
+			const KitPresetDrum presetDrum{.name = kKitDrumName, .samplePath = kKitPresetSample};
+			if (writeKitPreset(kShellKitPresetPaths[shellKitIndex()], &presetDrum, 1)) {
+				g_kitClip =
+				    deluge::harness::createNewInstrumentClip(OutputType::KIT, 3, kShellKitPresetPaths[shellKitIndex()]);
+			}
+			printf("SC-PROBE leg=%s prepared kitClip=%d\n", legName(g_leg), g_kitClip != nullptr ? 1 : 0);
+		});
+		break;
 	case Leg::SliceManual:
 		buildFixture([] {
 			// A kit of its own: the region slice left the first with four drums.
@@ -978,6 +1041,10 @@ bool openLeg() {
 	case Leg::Kit:
 	case Leg::Slice:
 	case Leg::SliceManual:
+	case Leg::ShellSlice:
+	case Leg::ShellSliceManual:
+	case Leg::ShellSliceBack:
+	case Leg::ShellSliceFail:
 		return openBrowserOnKitDrum(legName(g_leg));
 	case Leg::RandomizeOne:
 		// The first drum, as a user selects a row before randomizing just that one.
@@ -1079,7 +1146,12 @@ const char* legFile() {
 		return kClipSample;
 	case Leg::Slice:
 	case Leg::SliceManual:
+	case Leg::ShellSlice:
+	case Leg::ShellSliceManual:
+	case Leg::ShellSliceBack:
 		return kSliceSample;
+	case Leg::ShellSliceFail:
+		return kShellStallSample;
 	case Leg::RandomizeOne:
 	case Leg::RandomizeAll:
 	case Leg::RandomizeGate:
@@ -1237,7 +1309,78 @@ void pressRandomize(bool affectEntire) {
 	(void)Buttons::buttonAction(LOAD, false);
 }
 
+void actShellSlice() {
+	// The ported route needs no legacy browser: it was opened only to reach the kit's drum, and closing it gives back
+	// its listing's handles, as a legacy slice's exit does.
+	sampleBrowser.exitAndNeverDeleteDrum();
+	g_shellCommitBegun = false;
+	g_shellEnded = false;
+	g_shellBackKept = false;
+	// What the ported menu edits: the kit's drum, as the browser it was opened from names it.
+	const deluge::scenes::menu::MenuContext ctx = deluge::scenes::menu::context_for(
+	    *currentSong, deluge::gui::menuViewOf(g_kitClip), 0, false, false, false, /*kit_global_fx=*/false);
+	deluge::scenes::menu_scene().open(deluge::scenes::menu::nodes::sound_root, ctx);
+	auto& scene = deluge::scenes::slicing::slicer_scene();
+	scene.open(nullptr);
+	if (g_leg == Leg::ShellSliceBack) {
+		// A first drum that holds no file, as a brand-new kit's has: main dereferences its missing sample here.
+		auto* drum = static_cast<SoundDrum*>(static_cast<Kit*>(g_kitClip->output)->firstDrum);
+		auto* range = static_cast<MultisampleRange*>(drum->sources[0].getOrCreateFirstRange());
+		range->sampleHolder.setAudioFile(nullptr);
+		const uint64_t start = range->sampleHolder.startPos;
+		const uint64_t end = range->sampleHolder.endPos;
+		if (scene.ops() != nullptr) {
+			scene.ops()->restore_full_range();
+		}
+		g_shellBackKept = range->sampleHolder.audioFile == nullptr && range->sampleHolder.startPos == start
+		                  && range->sampleHolder.endPos == end;
+		g_shellEnded = true;
+		return;
+	}
+	if (g_leg == Leg::ShellSliceFail) {
+		deluge_audio_load_set_latency_ms(kStallHoldMs);
+	}
+	deluge::gui::ui::openShellSlice(legFile());
+}
+
+/// The ported slicer's legs, a tick at a time: once the host has opened the slicer on the file, begin the slice; the
+/// leg ends when nothing of the slicer's is out.
+void tickShellSlice() {
+	deluge::gui::ui::pollShellSlicer();
+	auto& scene = deluge::scenes::slicing::slicer_scene();
+	if (g_shellEnded) {
+		return;
+	}
+	if (g_leg == Leg::ShellSliceFail) {
+		// The open never lands: the leg ends when it has given up.
+		g_shellEnded = !deluge::gui::ui::shellSlicerBusy();
+		return;
+	}
+	if (!g_shellCommitBegun) {
+		if (!scene.has_sample()) {
+			return;
+		}
+		deluge::scenes::slicing::SliceCommit commit{};
+		commit.is_manual = g_leg == Leg::ShellSliceManual;
+		commit.slice_count = commit.is_manual ? kManualSliceCount : kSliceRegions;
+		for (int32_t i = 0; i < kManualSliceCount; i++) {
+			commit.points[i] = {.start_pos = kManualSlices[i].startPos, .transpose = kManualSlices[i].transpose};
+		}
+		g_shellCommitBegun = scene.ops() != nullptr && scene.ops()->begin_commit(commit);
+		if (!g_shellCommitBegun) {
+			fail(legName(g_leg), "the host refused the slice");
+			g_shellEnded = true;
+		}
+		return;
+	}
+	g_shellEnded = !deluge::gui::ui::shellSlicerBusy();
+}
+
 void actLeg() {
+	if (isShellSlice()) {
+		actShellSlice();
+		return;
+	}
 	if (g_leg == Leg::WaveTableResident || g_leg == Leg::WaveTableConverted) {
 		g_convBefore = markConversions();
 	}
@@ -1411,11 +1554,93 @@ bool legEnded() {
 	if (g_leg == Leg::Slice || g_leg == Leg::SliceManual) {
 		return !isUIOpen(&slicer);
 	}
+	if (isShellSlice()) {
+		return g_shellEnded;
+	}
 	if (g_leg == Leg::Stall) {
 		// A claim that gives up leaves the browser open and releases the gate; one that binds closes the browser.
 		return !isUIOpen(&sampleBrowser) || currentUIMode != UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
 	}
 	return !isUIOpen(&sampleBrowser);
+}
+
+/// The region slice's end: @p marker reports the kit's drums, how many are bound to the sliced sample, and the
+/// NoteRows.
+void checkRegionSlice(const char* marker) {
+	int32_t drums = 0;
+	int32_t boundToSlice = 0;
+	for (Drum* drum = static_cast<Kit*>(g_kitClip->output)->firstDrum; drum != nullptr; drum = drum->next) {
+		drums++;
+		if (drum->type != DrumType::SOUND) {
+			continue;
+		}
+		AudioFileHolder* holder = firstHolder(static_cast<SoundDrum*>(drum)->sources[0]);
+		if (holder != nullptr && holder->audioFile != nullptr && holder->filePath == kSliceSample) {
+			boundToSlice++;
+		}
+	}
+	auto* clip = static_cast<InstrumentClip*>(g_kitClip);
+	int32_t rowsWithDrum = 0;
+	for (int32_t i = 0; i < std::ssize(clip->noteRows); i++) {
+		if (clip->noteRows[i].drum != nullptr) {
+			rowsWithDrum++;
+		}
+	}
+	printf("%s drums=%d boundToSlice=%d rowsWithDrum=%d ticks=%d\n", marker, drums, boundToSlice, rowsWithDrum,
+	       g_waitTicks);
+	if (drums != kSliceRegions || boundToSlice != kSliceRegions || rowsWithDrum < kSliceRegions) {
+		printf("%s FAIL the slice did not end with %d drums on the sliced sample, each with a NoteRow\n", marker,
+		       kSliceRegions);
+		g_failures++;
+	}
+}
+
+/// The manual slice's end: as `checkRegionSlice`, and each drum painted from the slice points.
+void checkManualSlice(const char* marker) {
+	auto* kit = static_cast<Kit*>(g_kitClip->output);
+	int32_t drums = 0;
+	for (Drum* drum = kit->firstDrum; drum != nullptr; drum = drum->next) {
+		drums++;
+	}
+	int32_t boundToSlice = 0;
+	int32_t painted = 0;
+	for (int32_t i = 0; i < kManualSliceCount && i < drums; i++) {
+		Drum* drum = kit->getDrumFromIndex(i);
+		if (drum->type != DrumType::SOUND) {
+			continue;
+		}
+		auto* range = static_cast<MultisampleRange*>(static_cast<SoundDrum*>(drum)->sources[0].getOrCreateFirstRange());
+		if (range == nullptr || range->sampleHolder.audioFile == nullptr
+		    || !(range->sampleHolder.filePath == kSliceSample)) {
+			continue;
+		}
+		boundToSlice++;
+		const int64_t length = static_cast<Sample*>(range->sampleHolder.audioFile)->lengthInSamples;
+		const int64_t wantEnd = (i == kManualSliceCount - 1) ? length : kManualSlices[i + 1].startPos;
+		const bool match = range->sampleHolder.startPos == static_cast<uint64_t>(kManualSlices[i].startPos)
+		                   && range->sampleHolder.endPos == static_cast<uint64_t>(wantEnd)
+		                   && range->sampleHolder.transpose == kManualSlices[i].transpose;
+		printf("SC-PROBE leg=%s drum=%d start=%llu end=%llu transpose=%d\n", legName(g_leg), i,
+		       static_cast<unsigned long long>(range->sampleHolder.startPos),
+		       static_cast<unsigned long long>(range->sampleHolder.endPos), range->sampleHolder.transpose);
+		painted += match ? 1 : 0;
+	}
+	auto* clip = static_cast<InstrumentClip*>(g_kitClip);
+	int32_t rowsWithDrum = 0;
+	for (int32_t i = 0; i < std::ssize(clip->noteRows); i++) {
+		if (clip->noteRows[i].drum != nullptr) {
+			rowsWithDrum++;
+		}
+	}
+	printf("%s drums=%d boundToSlice=%d painted=%d rowsWithDrum=%d ticks=%d\n", marker, drums, boundToSlice, painted,
+	       rowsWithDrum, g_waitTicks);
+	if (drums != kManualSliceCount || boundToSlice != kManualSliceCount || painted != kManualSliceCount
+	    || rowsWithDrum < kManualSliceCount) {
+		printf("%s FAIL the manual slice did not end with %d drums on the sliced sample, each with a "
+		       "NoteRow and painted from the slice points as they were when Select was pressed\n",
+		       marker, kManualSliceCount);
+		g_failures++;
+	}
 }
 
 void checkLeg() {
@@ -1630,79 +1855,37 @@ void checkLeg() {
 		}
 		break;
 	}
-	case Leg::Slice: {
-		int32_t drums = 0;
-		int32_t boundToSlice = 0;
-		for (Drum* drum = static_cast<Kit*>(g_kitClip->output)->firstDrum; drum != nullptr; drum = drum->next) {
-			drums++;
-			if (drum->type != DrumType::SOUND) {
-				continue;
-			}
-			AudioFileHolder* holder = firstHolder(static_cast<SoundDrum*>(drum)->sources[0]);
-			if (holder != nullptr && holder->audioFile != nullptr && holder->filePath == kSliceSample) {
-				boundToSlice++;
-			}
-		}
-		auto* clip = static_cast<InstrumentClip*>(g_kitClip);
-		int32_t rowsWithDrum = 0;
-		for (int32_t i = 0; i < std::ssize(clip->noteRows); i++) {
-			if (clip->noteRows[i].drum != nullptr) {
-				rowsWithDrum++;
-			}
-		}
-		printf("SC-SLICE drums=%d boundToSlice=%d rowsWithDrum=%d ticks=%d\n", drums, boundToSlice, rowsWithDrum,
-		       g_waitTicks);
-		if (drums != kSliceRegions || boundToSlice != kSliceRegions || rowsWithDrum < kSliceRegions) {
-			printf("SC-SLICE FAIL the slice did not end with %d drums on the sliced sample, each with a NoteRow\n",
-			       kSliceRegions);
+	case Leg::Slice:
+		checkRegionSlice("SC-SLICE");
+		break;
+	case Leg::ShellSlice:
+		checkRegionSlice("SC-SHELL-SLICE");
+		break;
+	case Leg::SliceManual:
+		checkManualSlice("SC-SLICE-MANUAL");
+		break;
+	case Leg::ShellSliceManual:
+		checkManualSlice("SC-SHELL-SLICE-MANUAL");
+		break;
+	case Leg::ShellSliceBack:
+		printf("SC-SHELL-SLICE-BACK kept=%d\n", g_shellBackKept ? 1 : 0);
+		if (!g_shellBackKept) {
+			printf("SC-SHELL-SLICE-BACK FAIL BACK out of manual mode changed a first drum that holds no file\n");
 			g_failures++;
 		}
 		break;
-	}
-	case Leg::SliceManual: {
-		auto* kit = static_cast<Kit*>(g_kitClip->output);
+	case Leg::ShellSliceFail: {
+		deluge_audio_load_set_latency_ms(0);
 		int32_t drums = 0;
-		for (Drum* drum = kit->firstDrum; drum != nullptr; drum = drum->next) {
+		for (Drum* drum = static_cast<Kit*>(g_kitClip->output)->firstDrum; drum != nullptr; drum = drum->next) {
 			drums++;
 		}
-		int32_t boundToSlice = 0;
-		int32_t painted = 0;
-		for (int32_t i = 0; i < kManualSliceCount && i < drums; i++) {
-			Drum* drum = kit->getDrumFromIndex(i);
-			if (drum->type != DrumType::SOUND) {
-				continue;
-			}
-			auto* range =
-			    static_cast<MultisampleRange*>(static_cast<SoundDrum*>(drum)->sources[0].getOrCreateFirstRange());
-			if (range == nullptr || range->sampleHolder.audioFile == nullptr
-			    || !(range->sampleHolder.filePath == kSliceSample)) {
-				continue;
-			}
-			boundToSlice++;
-			const int64_t length = static_cast<Sample*>(range->sampleHolder.audioFile)->lengthInSamples;
-			const int64_t wantEnd = (i == kManualSliceCount - 1) ? length : kManualSlices[i + 1].startPos;
-			const bool match = range->sampleHolder.startPos == static_cast<uint64_t>(kManualSlices[i].startPos)
-			                   && range->sampleHolder.endPos == static_cast<uint64_t>(wantEnd)
-			                   && range->sampleHolder.transpose == kManualSlices[i].transpose;
-			printf("SC-PROBE leg=slice-manual drum=%d start=%llu end=%llu transpose=%d\n", i,
-			       static_cast<unsigned long long>(range->sampleHolder.startPos),
-			       static_cast<unsigned long long>(range->sampleHolder.endPos), range->sampleHolder.transpose);
-			painted += match ? 1 : 0;
-		}
-		auto* clip = static_cast<InstrumentClip*>(g_kitClip);
-		int32_t rowsWithDrum = 0;
-		for (int32_t i = 0; i < std::ssize(clip->noteRows); i++) {
-			if (clip->noteRows[i].drum != nullptr) {
-				rowsWithDrum++;
-			}
-		}
-		printf("SC-SLICE-MANUAL drums=%d boundToSlice=%d painted=%d rowsWithDrum=%d ticks=%d\n", drums, boundToSlice,
-		       painted, rowsWithDrum, g_waitTicks);
-		if (drums != kManualSliceCount || boundToSlice != kManualSliceCount || painted != kManualSliceCount
-		    || rowsWithDrum < kManualSliceCount) {
-			printf("SC-SLICE-MANUAL FAIL the manual slice did not end with %d drums on the sliced sample, each with a "
-			       "NoteRow and painted from the slice points as they were when Select was pressed\n",
-			       kManualSliceCount);
+		const bool ended = g_shellEnded && !deluge::gui::ui::shellSlicerBusy();
+		const bool opened = deluge::scenes::slicing::slicer_scene().has_sample();
+		printf("SC-SHELL-SLICE-FAIL drums=%d ended=%d opened=%d ticks=%d\n", drums, ended ? 1 : 0, opened ? 1 : 0,
+		       g_waitTicks);
+		if (drums != 1 || !ended || opened) {
+			printf("SC-SHELL-SLICE-FAIL FAIL a slicer whose open stalled did not give up with the kit untouched\n");
 			g_failures++;
 		}
 		break;
@@ -2212,13 +2395,16 @@ void runTick() {
 				tickRandomizeCancel();
 			}
 		}
+		if (isShellSlice()) {
+			tickShellSlice();
+		}
 		if ((g_leg == Leg::Slice || g_leg == Leg::SliceManual) && getCurrentUI() == &slicer) {
 			// The slice ends on the slicer's graphics routine: ticked here, as the preview wait ticks the browser's.
 			slicer.graphicsRoutine();
 		}
 		if (legEnded()
 		    || ++g_waitTicks > ((g_leg == Leg::Stall || g_leg == Leg::RandomizeStall || g_leg == Leg::ImportStall
-		                         || g_leg == Leg::PitchStall)
+		                         || g_leg == Leg::PitchStall || g_leg == Leg::ShellSliceFail)
 		                            ? kMaxStallTicks
 		                            : kMaxLegTicks)) {
 			checkLeg();

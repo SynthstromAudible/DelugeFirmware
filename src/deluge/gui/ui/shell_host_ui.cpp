@@ -16,6 +16,7 @@
  */
 
 #include "gui/ui/shell_host_ui.h"
+#include "gui/ui/shell_slice_ops.h"
 
 #include "gui/ui/shell_action_dispatch.h"
 #include "gui/ui/shell_choice_dispatch.h"
@@ -533,6 +534,10 @@ ActionResult ShellHostUI::timerCallback() {
 	// closes -- so there is no "drain while the browser is still open" state for this line to be in.
 	dispatchShellChoices();
 
+	// The slicer's loads -- the open a SLICE asked for above, an audition, a slice -- advance on the guest's ticks, as
+	// the legacy slicer's do on its `graphicsRoutine`; `rearmTimer` keeps those ticks coming while one is out.
+	pollShellSlicer();
+
 	// **The short-Back exit, which is the only exit a user actually performs.**
 	//
 	// `exitUI()` below is the LONG press: `Buttons` arms `TimerName::BACK_MENU_EXIT` for
@@ -641,7 +646,11 @@ void ShellHostUI::rearmTimer(uint32_t now) {
 		return;
 	}
 
-	const std::optional<uint32_t> deadline = shell_.next_wake(now);
+	std::optional<uint32_t> deadline = shell_.next_wake(now);
+	if (shellSlicerBusy()) {
+		const uint32_t poll = now + kShellSlicerPollMs;
+		deadline = deadline.has_value() && static_cast<int32_t>(*deadline - poll) < 0 ? *deadline : poll;
+	}
 	if (!deadline.has_value()) {
 		// Nothing armed anywhere in the shell -- no gate deadline, no scene or service timer, no
 		// declared blink (`shell/shell.cpp:1054-1122`). Legacy has already cleared the timer

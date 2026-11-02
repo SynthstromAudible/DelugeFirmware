@@ -152,6 +152,10 @@ using FolderImportDispatch = void (*)(deluge::gui::FolderImportRequest request);
 /// @param dispatch The dispatcher, or null to put the shipped one back.
 void setFolderImportDispatch(FolderImportDispatch dispatch);
 
+/// @brief Point `soundEditor`'s current sound, source and range at what the ported menu edits, before an operation
+///        that reads them on the menu's behalf.
+void adoptShellMenuContext();
+
 /// @brief Take whatever the ported browser chose, if anything, and perform it.
 ///
 /// @par Call this after every `Shell::tick`, and do not gate it

@@ -1,4 +1,5 @@
 #include "gui/ui/shell_bind_host.h"
+#include "gui/ui/shell_slice_ops.h"
 
 #include "deluge-project/setting_group.h"
 #include "effects/plugin.h"
@@ -219,7 +220,8 @@ public:
 	[[nodiscard]] int32_t live_voice_count() const override;
 	[[nodiscard]] bool kit_takes_whole_folder(deluge::project::SlotAddress slot) const override;
 	[[nodiscard]] bool sample_load_in_flight() const override {
-		return deluge::gui::sampleClaim.explicitInFlight() || deluge::gui::folderImport.inFlight();
+		return deluge::gui::sampleClaim.explicitInFlight() || deluge::gui::folderImport.inFlight()
+		       || deluge::gui::ui::shellSlicerBusy();
 	}
 	[[nodiscard]] uint8_t loaded_sources(deluge::project::SlotAddress slot) const override;
 	[[nodiscard]] const deluge::instrument::SoundState* sound_state(deluge::project::SlotAddress slot) const override;

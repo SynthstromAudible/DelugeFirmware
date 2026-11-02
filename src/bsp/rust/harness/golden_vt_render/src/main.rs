@@ -1115,6 +1115,7 @@ fn write_sine_wav(path: &std::path::Path, channels: u16, frames: u32, freq_hz: f
 ///   reads as a kick.
 /// - `SAMPLES/SCAUD.WAV`: claimed into an audio clip.
 /// - `SAMPLES/SCSLICE.WAV`: one second long, sliced into four regions of 250 ms each.
+/// - `SAMPLES/SCSLCF.WAV`: a file only the ported slicer's stalled open asks for, so nothing has loaded it before.
 /// - `SAMPLES/RD/RD1.WAV`, `RD2.WAV` and `RD3.WAV`: the Drum Randomizer's folder. Its kit preset
 ///   names the first, and the randomizer picks from the folder a drum's sample sits in, so these
 ///   three are reachable by no other leg.
@@ -1182,6 +1183,7 @@ fn fill_sample_claim_card() {
     write_test_wav(&samples.join("SCKICK.WAV"), 1, 16, 4096, 0x33);
     write_test_wav(&samples.join("SCAUD.WAV"), 1, 16, 16384, 0x34);
     write_test_wav(&samples.join("SCSLICE.WAV"), 1, 16, 88200, 0x35);
+    write_test_wav(&samples.join("SCSLCF.WAV"), 1, 16, 88200, 0x36);
     write_test_wav(&randomize.join("RD1.WAV"), 1, 16, 2048, 0x71);
     write_test_wav(&randomize.join("RD2.WAV"), 1, 16, 2560, 0x72);
     write_test_wav(&randomize.join("RD3.WAV"), 1, 16, 3072, 0x73);

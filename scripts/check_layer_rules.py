@@ -334,6 +334,9 @@ LEGACY_PORT_SEAMS = (
     # engine's inputs, a sound's loaded sources and typed state). Host builds only (gui/ui/shell_*). Its HEADER
     # (`shell_bind_host.h`) is deliberately NOT listed: it declares one count and names no port type.
     "src/deluge/gui/ui/shell_bind_host.cpp",
+    # The ported slicer's host: performs `SlicerScene`'s `SliceOps` with `SliceCore`. Its HEADER (`shell_slice_ops.h`)
+    # names no port type, so it is not listed.
+    "src/deluge/gui/ui/shell_slice_ops.cpp",
     # And the menu's: what a menu opens over (the clip, its track and kind, the kit row selected, affect-entire), from
     # the clip a legacy view has open, until the views keep it.
     "src/deluge/gui/ui/menu_view_of.h",

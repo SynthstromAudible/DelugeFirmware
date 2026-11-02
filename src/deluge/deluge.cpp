@@ -98,6 +98,7 @@
 #include "gui/ui/shell_guest_services.h"
 #include "gui/ui/shell_note_bridge.h"
 #include "gui/ui/shell_notification_sink.h"
+#include "gui/ui/shell_slice_ops.h"
 #include "scenes/registry.h"
 
 namespace encoders = deluge::hid::encoders;
@@ -701,6 +702,9 @@ static void deluge_boot(const DelugeBoard* board) {
 	// state, so `src/scenes` reaches it without an include. It holds no `Song`, so it has no
 	// ordering constraint of its own (see `shell_note_bridge.h`).
 	deluge::gui::ui::wireShellNoteBridge();
+
+	// Install the ported slicer's host: the same `SliceCore` the legacy slicer drives.
+	deluge::gui::ui::wireShellSliceOps();
 
 	// Install the notification sink: the shell's `Notice::Kind::Notification` consumer, pointed at
 	// the same `display->displayNotification` call legacy's `drain_notifications` makes for that

@@ -423,6 +423,8 @@ public:
 	/// @return Is a slice commit out? Legacy's `currentUIMode == UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES` gate,
 	///         which refuses every button and pad until the host ends the commit (`commit_done`).
 	bool committing() const { return committing_; }
+	/// @return Whether `open` handed the scene a sample to slice.
+	bool has_sample() const { return nav_.sample != nullptr; }
 	/// @}
 
 	/// @brief How often the playhead is redrawn while something plays.

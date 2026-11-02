@@ -377,6 +377,14 @@ void dispatchShellChoices() {
 	fakelegacyui::choice_dispatches++;
 }
 
+// `gui/ui/shell_slice_ops.cpp`'s share: the real one drives `SliceCore` over the current kit. This suite has no
+// slicer, so nothing is ever out.
+void pollShellSlicer() {
+}
+bool shellSlicerBusy() {
+	return false;
+}
+
 // `gui/ui/shell_pad_forward.cpp`'s share, on exactly the same terms as the two above: the real one
 // names `keyboardScreen`, `instrumentClipView`, `performanceView`, `automationView` and
 // `deluge::scenes::menu_scene()` -- the `deluge_scenes` and legacy-view closures this suite never

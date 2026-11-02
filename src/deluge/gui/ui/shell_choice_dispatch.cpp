@@ -20,6 +20,7 @@
 ///        caller may not gate it, and what the split between the choosing and acting halves is for.
 
 #include "gui/ui/shell_choice_dispatch.h"
+#include "gui/ui/shell_slice_ops.h"
 
 #include "gui/l10n/strings.h"
 #include "gui/ui/browser/folder_import.h"
@@ -151,7 +152,7 @@ SoundEditor::ResolvedContext resolvedFor(const deluge::scenes::menu::MenuContext
 /// @param completion Told how the claim ended.
 void claimSampleFile(std::string_view path, const SampleClaimTarget& target, const SampleClaimArgs& args,
                      void (*completion)(bool success)) {
-	soundEditor.adoptResolvedContext(resolvedFor(deluge::scenes::menu_scene().menu_context()));
+	adoptShellMenuContext();
 	claimDispatch({
 	    .path = std::string{path},
 	    .enteredText = enteredTextFor(target.name),
@@ -263,6 +264,10 @@ std::optional<SampleClaimTarget> sampleClaimTargetFor(std::string_view path) {
 	return SampleClaimTarget{.dir = path.substr(0, slash), .name = name};
 }
 
+void adoptShellMenuContext() {
+	soundEditor.adoptResolvedContext(resolvedFor(deluge::scenes::menu_scene().menu_context()));
+}
+
 void dispatchShellChoices() {
 	// One read, unconditionally, and the read is what empties the slot -- `take_choice()` moves the
 	// choice out and resets the member in the same call (`scenes/browser/browser_scene.cpp:417-421`).
@@ -301,8 +306,7 @@ void dispatchShellChoices() {
 			importFolder(*choice, deluge::gui::FolderImportKind::Multisamples);
 			break;
 		case BrowserChoice::Op::Slice:
-			// Nothing opens the slicer here: the browser is told so, and keeps its file and menu.
-			deluge::scenes::browser::browser_scene().slice_ready(false);
+			openShellSlice(choice->path);
 			break;
 		}
 		break;
