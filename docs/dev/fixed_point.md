@@ -147,6 +147,7 @@ name of the scalar operation with the same per-lane meaning:
 | `mul_doubling_sat` | `QVec<A>` × `QVec<B>` or `Q<B>` → `QVec<A+B−31>`; `Q16Vec<A>` × `Q16<B>` → `Q16Vec<A+B−15>` | `vqdmulh` |
 | `mul_doubling_r_sat` | `QVec<A>` × `QVec<B>` → `QVec<A+B−31>` | `vqrdmulh.s32` |
 | `scale_shl_wrap<N>`, `scale_shr_floor<N>` | `QVec<F>` → `QVec<F>` | `vshl.i32`, `vshr.s32` |
+| `mul_doubling_sat_lane<I>` | `QVec<A>` × lane I of `QVec<B>` → `QVec<A+B−31>`; the other lanes are not read | `vqdmulh.s32` by `d[x]` |
 | `add_scale_shr_floor<N>` | acc + x / 2^N, `QVec<F>` | `vsra.s32` |
 | `as_floor<QVec<T>>` | `QVec<F>` → `QVec<T>`, T < F | `vshr.s32 #(F−T)` |
 | `reinterpret_bits<QVec<T>>` | `UQVec<F>` → `QVec<T>`, the same bits | none |

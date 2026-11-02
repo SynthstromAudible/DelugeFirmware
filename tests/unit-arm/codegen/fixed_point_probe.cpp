@@ -271,6 +271,12 @@ int32x4_t probe_vec_scale_shr_floor_3(int32x4_t a) {
 int32x4_t probe_vec_add_scale_shr_floor_4(int32x4_t acc, int32x4_t a) {
 	return add_scale_shr_floor<4>(QVec<31>::from_raw(acc), QVec<31>::from_raw(a)).raw();
 }
+int32x4_t probe_vec_mul_doubling_sat_lane_1(int32x4_t a, int32x4_t b) {
+	return mul_doubling_sat_lane<1>(QVec<31>::from_raw(a), QVec<29>::from_raw(b)).raw();
+}
+int32x4_t probe_vec_mul_doubling_sat_lane_2(int32x4_t a, int32x4_t b) {
+	return mul_doubling_sat_lane<2>(QVec<31>::from_raw(a), QVec<29>::from_raw(b)).raw();
+}
 int32x4_t probe_vec_as_floor_3(int32x4_t a) {
 	return as_floor<QVec<28>>(QVec<31>::from_raw(a)).raw();
 }

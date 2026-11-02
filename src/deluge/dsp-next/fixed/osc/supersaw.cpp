@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #include "dsp-next/fixed/osc/supersaw.h"
+#include "dsp-next/core/fixed_point_neon.h"
 #include <algorithm>
 #include <argon.hpp>
 #include <array>
@@ -120,40 +121,45 @@ template <size_t kSaws>
 	constexpr int32_t kShift = kSaws > 1 ? side_shift(kSaws) : 0;
 
 	// Both gains in one register, multiplied in by lane, otherwise GCC moves them over from core registers every loop.
-	// Centre saw is used at full scale, the side saws are summed at 1/2^kShift scale
-	Argon<int32_t> gains{static_cast<int32_t>(centre_gain * 0x1p29f),
-	                     static_cast<int32_t>(side_gain * 0x1p29f * (1 << kShift)), 0, 0};
+	// Both are Q29: the centre gain, and the side gain times 2^kShift, restoring the side saws' pre-scale.
+	const auto gains = QVec<29>::from_raw(Argon<int32_t>{
+	    static_cast<int32_t>(centre_gain * 0x1p29f), static_cast<int32_t>(side_gain * 0x1p29f * (1 << kShift)), 0, 0});
 
-	std::array<Argon<uint32_t>, kSaws> phase_vectors;
-	std::array<Argon<uint32_t>, kSaws> step_vectors;
+	// The phases are UQ32; each saw is its phase read as Q31. Their starting positions are integer multiples of the
+	// increments.
+	std::array<UQVec<32>, kSaws> phase_vectors{};
+	std::array<UQVec<32>, kSaws> step_vectors{};
 #pragma GCC unroll 7
 	for (size_t i = 0; i < kSaws; i++) {
-		phase_vectors[i] = Argon<uint32_t>{phases[i]}.MultiplyAdd(uint32x4_t{1, 2, 3, 4}, increments[i]);
-		step_vectors[i] = Argon<uint32_t>{increments[i] * 4};
+		phase_vectors[i] =
+		    UQVec<32>::from_raw(Argon<uint32_t>{phases[i]}.MultiplyAdd(uint32x4_t{1, 2, 3, 4}, increments[i]));
+		step_vectors[i] = UQVec<32>::splat(UQ<32>::from_raw(increments[i] * 4));
 	}
 
 	int32_t* __restrict__ out = buffer;
 	int32_t const* const end = buffer + num_samples;
 	do {
-		Argon<int32_t> mix = phase_vectors[0].template As<int32_t>().MultiplyFixedQMax(gains[0]);
+		// The centre saw at full scale, the side saws summed at 2^−kShift scale, the headroom their sum needs. Each
+		// product is Q29, a quarter-scale mix.
+		QVec<29> mix = mul_doubling_sat_lane<0>(reinterpret_bits<QVec<31>>(phase_vectors[0]), gains);
 		if constexpr (kSaws > 1) {
-			Argon<int32_t> sides = phase_vectors[1].template As<int32_t>();
+			auto sides = reinterpret_bits<QVec<31>>(phase_vectors[1]);
 			if constexpr (kShift > 0) {
-				sides = sides.ShiftRight<kShift>();
+				sides = scale_shr_floor<kShift>(sides);
 			}
 			if constexpr (kSaws > 2) { // A shift of 0 isn't a valid vsra, even in a loop that never runs
 #pragma GCC unroll 7
 				for (size_t i = 2; i < kSaws; i++) {
-					sides = sides.ShiftRightAccumulate<kShift>(phase_vectors[i].template As<int32_t>());
+					sides = add_scale_shr_floor<kShift>(sides, reinterpret_bits<QVec<31>>(phase_vectors[i]));
 				}
 			}
-			mix = mix + sides.MultiplyFixedQMax(gains[1]);
+			mix = add_wrap(mix, mul_doubling_sat_lane<1>(sides, gains));
 		}
-		mix.StoreTo(out);
+		mix.raw().StoreTo(out);
 
 #pragma GCC unroll 7
 		for (size_t i = 0; i < kSaws; i++) {
-			phase_vectors[i] = phase_vectors[i] + step_vectors[i];
+			phase_vectors[i] = add_wrap(phase_vectors[i], step_vectors[i]);
 		}
 		out += 4;
 	} while (out < end);

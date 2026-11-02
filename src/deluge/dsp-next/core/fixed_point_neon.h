@@ -193,6 +193,19 @@ requires(A + B >= 31 && A + B - 31 <= 31)
 [[gnu::always_inline, nodiscard]] inline QVec<A + B - 31> mul_doubling_sat(QVec<A> a, Q<B> b) noexcept {
 	return QVec<A + B - 31>::from_raw(vqdmulhq_n_s32(a.raw(), b.raw()));
 }
+/// @brief sat((2 × a × b) >> 32) per lane, by lane @p I of @p b: Q<A> × Q<B> → Q<A+B−31> (`vqdmulh.s32` by a
+/// d-register lane). Only lane I of @p b is read, so its other lanes may hold other formats.
+template <int I, int A, int B>
+requires(I >= 0 && I < 4 && A + B >= 31 && A + B - 31 <= 31)
+[[gnu::always_inline, nodiscard]] inline QVec<A + B - 31> mul_doubling_sat_lane(QVec<A> a, QVec<B> b) noexcept {
+	const int32x4_t lanes = b.raw();
+	if constexpr (I < 2) {
+		return QVec<A + B - 31>::from_raw(vqdmulhq_lane_s32(a.raw(), vget_low_s32(lanes), I));
+	}
+	else {
+		return QVec<A + B - 31>::from_raw(vqdmulhq_lane_s32(a.raw(), vget_high_s32(lanes), I - 2));
+	}
+}
 /// @brief sat((2 × a × b) >> 16) per lane, by one scalar: Q16<A> × Q16<B> → Q16<A+B−15> (`vqdmulh.s16`). Only
 /// −32768 × −32768 saturates. A loop hoists the `vdup.16` of b.
 template <int A, int B>
@@ -219,6 +232,7 @@ requires detail::shift_amount<N, std::int32_t>
 [[gnu::always_inline, nodiscard]] inline QVec<F> scale_shr_floor(QVec<F> x) noexcept {
 	return QVec<F>::from_raw(vshrq_n_s32(x.raw(), N));
 }
+
 /// @brief acc + x / 2^N per lane in the same format: the shift rounds toward −∞, the add wraps (`vsra.s32 #N`).
 template <int N, int F>
 requires detail::shift_amount<N, std::int32_t>

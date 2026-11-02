@@ -145,10 +145,46 @@ BlockControls controls(bool applyAmplitude, Ramp amplitude = Ramp{Q<31>::from_ra
 	                     .sync = std::nullopt,
 	                     .cpu_direness = 0};
 }
+
+/// FNV-1a over the naive (unbandlimited) render for every saw count, at 2^8 random phase sets and increments and
+/// spreads from the whole param range (0 and both extremes included), two blocks each so the phases carry.
+std::uint64_t naive_hash() {
+	std::uint64_t hash = 0xcbf2'9ce4'8422'2325ULL;
+	std::uint32_t s = 0x0dd5'eedu;
+	auto next = [&] {
+		s ^= s << 13;
+		s ^= s >> 17;
+		s ^= s << 5;
+		return s;
+	};
+	alignas(16) std::array<int32_t, 64> out{};
+	for (int32_t k = 0; k < (1 << 8); ++k) {
+		const int32_t num_saws = 1 + (k % static_cast<int32_t>(Supersaw::kNumSaws));
+		const int32_t spreads[] = {0, -(1 << 30), (1 << 30) - 1, static_cast<int32_t>(next())};
+		const int32_t spread = spreads[(k / 7) % 4];
+		const uint32_t increment = next() >> (4 + (k % 5));
+		uint32_t centre = next();
+		Supersaw::SidePhases sides{};
+		for (auto& p : sides) {
+			p = next();
+		}
+		for (int block = 0; block < 2; ++block) {
+			Supersaw::render(Buffer{out}, increment, spread, num_saws, centre, sides, false);
+			for (const int32_t x : out) {
+				hash = (hash ^ static_cast<uint32_t>(x)) * 0x0000'0100'0000'01b3ULL;
+			}
+		}
+	}
+	return hash;
+}
 } // namespace
 
 // clang-format off
 describe supersaw("the dsp-next supersaw", ${
+	it("matches its raw-Argon naive pass's output for every saw count", _ {
+		// The hash of render_naive as written on raw Argon, recorded before its move onto the typed vectors.
+		expect(naive_hash()).to_equal(std::uint64_t{9833080644123533529ULL});
+	});
 	context("the kernel", _ {
 		it("matches a per-sample polyBLEP for every saw count, spread and pitch", _ {
 			for (double hz : {55.0, 440.0, 1760.0, 5000.0}) {

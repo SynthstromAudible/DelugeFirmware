@@ -32,6 +32,8 @@ static_assert(std::is_same_v<decltype(mul_doubling_r_sat(QVec<31>{}, QVec<31>{})
 static_assert(std::is_same_v<decltype(as_floor<QVec<30>>(QVec<31>{})), QVec<30>>);
 static_assert(std::is_same_v<decltype(reinterpret_bits<QVec<31>>(UQVec<32>{})), QVec<31>>);
 static_assert(std::is_same_v<decltype(sum_wrap(QVec<30>{})), Q<30>>);
+static_assert(std::is_same_v<decltype(add_scale_shr_floor<4>(QVec<31>{}, QVec<31>{})), QVec<31>>);
+static_assert(std::is_same_v<decltype(mul_doubling_sat_lane<1>(QVec<31>{}, QVec<29>{})), QVec<29>>);
 static_assert(std::is_same_v<decltype(add_wrap(UQVec<32>{}, UQVec<32>{})), UQVec<32>>);
 static_assert(std::is_same_v<decltype(from_q16(Q16Half<15>{})), QVec<31>>);
 static_assert(std::is_same_v<decltype(mul_doubling_wide_sat(Q16Half<15>{}, Q16Half<15>{})), QVec<31>>);
@@ -131,6 +133,8 @@ std::size_t arithmetic_mismatches() {
 	                    [](auto a, auto, auto) { return scale_shr_floor<3>(q<31>(a)).raw(); });
 	bad += mismatches32([](auto a, auto b, auto) { return out(add_scale_shr_floor<4>(vec<31>(a), vec<31>(b))); },
 	                    [](auto a, auto b, auto) { return wrap32(std::int64_t{a} + (b >> 4)); });
+	bad += mismatches32([](auto a, auto b, auto) { return out(mul_doubling_sat_lane<1>(vec<31>(a), vec<29>(b))); },
+	                    [](auto a, auto, auto c) { return mul_doubling_sat(q<31>(a), q<29>(c)).raw(); });
 	bad += mismatches32([](auto a, auto, auto) { return out(as_floor<QVec<28>>(vec<31>(a))); },
 	                    [](auto a, auto, auto) { return as_floor<Q<28>>(q<31>(a)).raw(); });
 	bad += mismatches32(

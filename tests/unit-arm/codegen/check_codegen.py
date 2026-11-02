@@ -92,6 +92,8 @@ EXACT = {
     "probe_vec_scale_shl_wrap_3": ["vshl.i32"],
     "probe_vec_scale_shr_floor_3": ["vshr.s32"],
     "probe_vec_add_scale_shr_floor_4": ["vsra.s32"],
+    "probe_vec_mul_doubling_sat_lane_1": ["vqdmulh.s32"],
+    "probe_vec_mul_doubling_sat_lane_2": ["vqdmulh.s32"],
     "probe_vec_as_floor_3": ["vshr.s32"],
     "probe_vec_reinterpret_bits": [],
     "probe_vec_pair_lo": ["vmovn.i32"],
