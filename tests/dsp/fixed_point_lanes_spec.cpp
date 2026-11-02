@@ -48,6 +48,17 @@ static_assert(!lane_multipliable<P<31, 2>, P<31, 4>>);     // widths must agree
 static_assert(!lane_multipliable<P<31, 2>, std::int32_t>); // a raw scalar is not a format
 static_assert(!lane_multipliable<P<31, 2>, UQ<32>>);       // no scalar mul(Q, UQ) exists, so no lane one
 
+// from_raw and to_raw convert a raw scalar or pack and a typed one, of the same width.
+static_assert(std::is_same_v<decltype(from_raw<Q<31>>(std::int32_t{})), Q<31>>);
+static_assert(std::is_same_v<decltype(from_raw<Q<30>>(LanePack<std::int32_t, 4>{})), P<30, 4>>);
+static_assert(std::is_same_v<decltype(from_raw<UQ<32>>(LanePack<std::uint32_t, 2>{})), LanePack<UQ<32>, 2>>);
+static_assert(std::is_same_v<decltype(to_raw(Q<31>{})), std::int32_t>);
+static_assert(std::is_same_v<decltype(to_raw(P<29, 2>{})), LanePack<std::int32_t, 2>>);
+template <class T, class V>
+concept raw_convertible = requires(V v) { from_raw<T>(v); };
+static_assert(!raw_convertible<Q<31>, std::uint32_t>); // a raw value converts only from its format's storage
+static_assert(!raw_convertible<Q<31>, LanePack<std::uint32_t, 2>>);
+
 std::uint32_t xorshift(std::uint32_t& s) {
 	s ^= s << 13;
 	s ^= s >> 17;
@@ -62,6 +73,22 @@ P<31, N> random_pack(std::uint32_t& s) {
 		p.lane[i] = Q<31>::from_raw(static_cast<std::int32_t>(xorshift(s)));
 	}
 	return p;
+}
+
+/// Lanes whose bits change on a round trip from raw to typed and back, over 4096 random packs of width N.
+template <std::size_t N>
+std::size_t round_trip_mismatches() {
+	std::size_t bad = 0;
+	std::uint32_t s = 0x2468'ace1u;
+	for (int k = 0; k < 4096; ++k) {
+		const auto typed = random_pack<N>(s);
+		const LanePack<std::int32_t, N> raw = to_raw(typed);
+		const P<31, N> back = from_raw<Q<31>>(raw);
+		for (std::size_t i = 0; i < N; ++i) {
+			bad += raw.lane[i] != typed.lane[i].raw() || back.lane[i] != typed.lane[i] ? 1 : 0;
+		}
+	}
+	return bad;
 }
 
 /// Mismatches between a lane operation and its scalar operation over 20 000 random packs of width N, lane 0 of the
@@ -210,6 +237,13 @@ std::size_t comparison_mismatches() {
 
 // clang-format off
 describe fixed_point_lanes("fixed_point lane packs", ${
+	it("convert raw and typed lanes both ways with the bits unchanged, at every width", _ {
+		expect(round_trip_mismatches<1>()).to_equal(std::size_t{0});
+		expect(round_trip_mismatches<2>()).to_equal(std::size_t{0});
+		expect(round_trip_mismatches<4>()).to_equal(std::size_t{0});
+		expect(from_raw<Q<31>>(INT32_MIN).raw()).to_equal(INT32_MIN);
+		expect(to_raw(Q<31>::max())).to_equal(INT32_MAX);
+	});
 	it("apply each scalar operation lane by lane, at every width", _ {
 		expect(all_mismatches<1>()).to_equal(std::size_t{0});
 		expect(all_mismatches<2>()).to_equal(std::size_t{0});

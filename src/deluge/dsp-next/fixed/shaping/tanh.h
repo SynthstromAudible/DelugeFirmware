@@ -72,4 +72,14 @@ requires(Drive <= 29)
 	return detail::tanh_lookup(position, Drive);
 }
 
+/// @brief @ref tanh on a typed sample: the same lookup, for a kernel whose arithmetic is typed.
+/// @tparam Drive The drive as a power of two, 0 to 29.
+/// @param sample The input, Q31.
+/// @return The saturated sample, Q31 at a quarter of full scale undriven, shifted down by Drive + 2 as the raw form's.
+template <uint32_t Drive>
+requires(Drive <= 29)
+[[nodiscard]] [[gnu::always_inline]] inline Q<31> tanh(Q<31> sample) {
+	return Q<31>::from_raw(tanh<Drive>(sample.raw()));
+}
+
 } // namespace deluge::dsp::fixed

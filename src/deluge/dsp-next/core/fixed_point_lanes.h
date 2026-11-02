@@ -20,6 +20,7 @@
 #include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/lane_pack.h"
 
+#include <concepts>
 #include <cstddef>
 #include <utility>
 
@@ -31,7 +32,8 @@
 /// `mul_doubling_sat`, `mul_doubling_r_sat`), the reformats (`as_*`, `mul_as_*`) and the scales (`scale_*`, `halve_*`).
 /// Not lifted, as no lane kernel uses them yet: the 64-bit narrows and `widen`, the Q16 and Q16x2 forms (`mul_top`,
 /// `mul_bottom`, `dot*`, `to_q16_sat`, `from_q16`), the float conversions, `reinterpret_bits` and the run-time
-/// `clamp_bits(x, n)`. The comparisons are LanePack's own (lane_pack.h).
+/// `clamp_bits(x, n)`. The comparisons are LanePack's own (lane_pack.h). @ref from_raw and @ref to_raw convert a raw
+/// scalar or pack and a typed one, for a step whose interface is raw.
 ///
 /// A kernel's step written once over its value type V runs on a `Q<F>` for one stream and on `LanePack<Q<F>, N>` for N
 /// streams. The lanes are scalar, so `mul` on two lanes is two `smmul`: independent instructions the A9 overlaps, not
@@ -471,6 +473,51 @@ template <int N, class A>
 requires detail::lanewise_operands<A> && requires(detail::lane_t<A> x) { scale_shr_round<N>(x); }
 [[gnu::always_inline, nodiscard]] constexpr auto scale_shr_round(A a) noexcept {
 	return detail::lanewise([] [[gnu::always_inline]] (auto x) { return scale_shr_round<N>(x); }, a);
+}
+
+// Boundaries: a kernel whose interface is raw converts its operands at entry and its results at exit.
+
+/// @brief @p v's bits read in @p T's format: a raw scalar to a @p T, or a pack of raw lanes to a pack of @p T.
+/// @details For a step written over its value type V, which is a raw scalar for one stream and a raw pack for several:
+/// the one call converts either.
+/// @tparam T The format, a `Fixed`.
+/// @param v A raw value of @p T's storage type, or a pack of them.
+/// @return @p T, or `LanePack<T, N>`, holding @p v's bits.
+template <class T, class V>
+requires detail::kIsFixed<T>
+         && (std::same_as<V, typename T::storage_type>
+             || std::same_as<V, LanePack<typename T::storage_type, detail::kPackWidth<V>>>)
+[[gnu::always_inline, nodiscard]] constexpr auto from_raw(V v) noexcept {
+	if constexpr (std::same_as<V, typename T::storage_type>) {
+		return T::from_raw(v);
+	}
+	else {
+		LanePack<T, detail::kPackWidth<V>> r;
+		for (std::size_t i = 0; i < detail::kPackWidth<V>; ++i) {
+			r.lane[i] = T::from_raw(v.lane[i]);
+		}
+		return r;
+	}
+}
+
+/// @brief @p v's bits as its storage type: a `Fixed` to its raw value, or a pack of them to a pack of raw lanes. The
+/// reverse of @ref from_raw.
+/// @param v A `Fixed`, or a pack of them.
+/// @return The storage type, or `LanePack<storage, N>`, holding @p v's bits.
+template <class V>
+requires detail::kIsFixed<V> || detail::kIsFixedPack<V>
+[[gnu::always_inline, nodiscard]] constexpr auto to_raw(V v) noexcept {
+	if constexpr (detail::kIsFixed<V>) {
+		return v.raw();
+	}
+	else {
+		using S = detail::lane_t<V>::storage_type;
+		LanePack<S, detail::kPackWidth<V>> r;
+		for (std::size_t i = 0; i < detail::kPackWidth<V>; ++i) {
+			r.lane[i] = v.lane[i].raw();
+		}
+		return r;
+	}
 }
 
 } // namespace deluge::dsp

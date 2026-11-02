@@ -144,6 +144,8 @@ COUNTS = {
     "probe_lanes2_mla": ({"smmla": 2}, 9),
     "probe_lanes2_add_sat": ({"qadd": 2}, 8),
     "probe_lanes2_scale_shl_sat_1": ({"qadd": 2}, 5),
+    "probe_lanes2_round_trip": ({}, 5),
+    "probe_lanes2_raw_mul_r": ({"smmulr": 2}, 7),
 }
 
 # A loop shape that uses any of these was auto-vectorized into NEON.

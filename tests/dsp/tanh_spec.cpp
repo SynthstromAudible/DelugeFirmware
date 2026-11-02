@@ -159,6 +159,22 @@ describe tanh_spec("tanh", ${
 			expect(tanh<5>(input)).to_equal(tanh(input, 5));
 		}
 	});
+	it("gives a typed sample the raw form's output", _ {
+		const auto typed = [](uint32_t drive_of, int32_t x) {
+			using deluge::dsp::Q;
+			return drive_of == 0 ? tanh<0>(Q<31>::from_raw(x)).raw()
+			     : drive_of == 3 ? tanh<3>(Q<31>::from_raw(x)).raw()
+			                     : tanh<kTopDrive>(Q<31>::from_raw(x)).raw();
+		};
+		std::size_t bad = 0;
+		for (const int32_t x : reference_inputs()) {
+			bad += typed(0, x) != tanh<0>(x) || typed(3, x) != tanh<3>(x)
+			               || typed(kTopDrive, x) != tanh<kTopDrive>(x)
+			           ? 1
+			           : 0;
+		}
+		expect(bad).to_equal(std::size_t{0});
+	});
 	it("saturates a compile-time drive past 2^19 at its own width", _ {
 		constexpr std::array<int32_t, 7> expected{0, 63, -64, 63, 63, -64, 63};
 		for (std::size_t i = 0; i < kInputs.size(); i++) {

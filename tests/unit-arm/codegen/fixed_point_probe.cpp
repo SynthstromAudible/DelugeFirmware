@@ -342,6 +342,26 @@ void probe_lanes2_add_sat(const std::int32_t* a, const std::int32_t* b, std::int
 void probe_lanes2_scale_shl_sat_1(const std::int32_t* a, std::int32_t* out) {
 	unpack(scale_shl_sat<1>(pack<Q<31>>(a)), out);
 }
+// A raw pack converted to a typed one and back: the conversions are the bits alone, no instruction of their own.
+void probe_lanes2_round_trip(const std::int32_t* a, std::int32_t* out) {
+	LanePack<std::int32_t, 2> raw;
+	raw.lane[0] = a[0];
+	raw.lane[1] = a[1];
+	const auto back = to_raw(from_raw<Q<31>>(raw));
+	out[0] = back.lane[0];
+	out[1] = back.lane[1];
+}
+void probe_lanes2_raw_mul_r(const std::int32_t* a, const std::int32_t* b, std::int32_t* out) {
+	LanePack<std::int32_t, 2> x;
+	LanePack<std::int32_t, 2> y;
+	for (std::size_t i = 0; i < 2; ++i) {
+		x.lane[i] = a[i];
+		y.lane[i] = b[i];
+	}
+	const auto r = to_raw(mul_r(from_raw<Q<31>>(x), from_raw<Q<31>>(y)));
+	out[0] = r.lane[0];
+	out[1] = r.lane[1];
+}
 // Reported, not gated: clang's SLP vectorizer pairs the two compares into NEON (vcgt.s32) in this shape.
 void shape_lanes2_lt(const std::int32_t* a, const std::int32_t* b, bool* out) {
 	const auto r = pack<Q<31>>(a) < pack<Q<31>>(b);
