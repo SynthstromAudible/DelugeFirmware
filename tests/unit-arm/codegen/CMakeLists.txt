@@ -18,6 +18,8 @@ set(_fixed_point_probe_options
 foreach(_mode arm thumb)
   add_library(fixed_point_probe_${_mode} OBJECT fixed_point_probe.cpp)
   target_include_directories(fixed_point_probe_${_mode} PRIVATE ${CMAKE_CURRENT_LIST_DIR}/../../../src/deluge)
+  # The vector probes: this target has a real <arm_neon.h>, so argon needs nothing more.
+  target_link_libraries(fixed_point_probe_${_mode} PRIVATE argon)
   target_compile_options(fixed_point_probe_${_mode} PRIVATE ${_fixed_point_probe_options} -m${_mode})
   set_target_properties(fixed_point_probe_${_mode} PROPERTIES CXX_STANDARD 23 CXX_STANDARD_REQUIRED YES
                                                               POSITION_INDEPENDENT_CODE OFF)

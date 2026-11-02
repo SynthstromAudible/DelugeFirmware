@@ -34,6 +34,8 @@ set(mono_spec_DEPS)
 set(fixed_point_spec_DEPS)
 # The fixed-point lanes spec needs no sources: fixed_point_lanes.h is header-only.
 set(fixed_point_lanes_spec_DEPS)
+# The fixed-point NEON spec needs no sources: fixed_point_neon.h is header-only.
+set(fixed_point_neon_spec_DEPS)
 # The Ramp spec needs no sources: ramp.h is header-only.
 set(ramp_spec_DEPS)
 # The StereoSample spec needs no sources: stereo_sample.h is header-only.

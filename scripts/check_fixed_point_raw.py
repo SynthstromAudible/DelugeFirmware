@@ -6,10 +6,11 @@
 """Ratchet on raw fixed-point arithmetic outside the format types (dsp-next/core/fixed_point.h).
 
 Counts two things per C/C++ file under src/, comments excluded:
-- raw sites: calls to q31_ops.h's raw helpers (multiply_32x32_rshift32, add_saturate, signed_saturate, ...) and inline
-  asm that issues a DSP instruction (smmul, qadd, ssat, vcvt, ...);
+- raw sites: calls to q31_ops.h's raw helpers (multiply_32x32_rshift32, add_saturate, signed_saturate, ...), inline
+  asm that issues a DSP instruction (smmul, qadd, ssat, vcvt, ...), NEON arithmetic intrinsics (vqdmulhq_s32,
+  vmlal_s16, vshrq_n_s32, ...) and Argon's fixed-point methods (MultiplyFixedQMax, ShiftRightAccumulate, ...);
 - boundary crossings: from_raw(), .raw() / ->raw() and reinterpret_bits<>, where typed and raw code meet.
-fixed_point.h and q31_ops.h, which define them, are exempt.
+fixed_point.h, fixed_point_neon.h and q31_ops.h, which define them, are exempt.
 
 The raw counts are pinned in scripts/fixed_point_raw_allowlist.txt and may only SHRINK: a raw site in a file not on the
 list, a count above its entry, and an entry with headroom left (a count below it) all fail; rewrite the list with
@@ -38,6 +39,7 @@ SUFFIXES = {".c", ".cc", ".cpp", ".cxx", ".h", ".hh", ".hpp", ".inc"}
 EXEMPT = frozenset(
     {
         "src/deluge/dsp-next/core/fixed_point.h",
+        "src/deluge/dsp-next/core/fixed_point_neon.h",
         "src/deluge/dsp-next/core/high_word_asm.h",
         "src/deluge/dsp-next/core/q31_ops.h",
     }
@@ -49,6 +51,17 @@ RAW_HELPERS = re.compile(
     r"q31_mult|q31t_rescale|signed_saturate(?:_operand_unknown)?|add_saturate|subtract_saturate|"
     r"lshift_and_saturate(?:_unknown)?|increase_magnitude_and_saturate|q31_from_float|q31_to_float"
     r")\s*[<(]"
+)
+# arm_neon.h's integer arithmetic: adds, subtracts, multiplies (the doubling, rounding, widening and accumulating
+# forms), shifts and narrows. Loads, stores, lane moves and reinterprets are not arithmetic.
+NEON_ARITHMETIC = re.compile(
+    r"(?<![\w.])v(?:q?r?d?mulh|(?:qd)?(?:mlal|mlsl|mull)|q?add|q?sub|q?shl|q?r?shr|r?sra|q?movn|q?r?shrn|shll|mla|mls|mul)"
+    r"q?(?:_n|_lane)?_[su](?:8|16|32|64)\s*\("
+)
+ARGON_FIXED_POINT = re.compile(
+    r"\.\s*(?:MultiplyDoubleSaturateHigh|MultiplyRoundFixedQMax|MultiplyFixedQMax|MultiplyAddFixedQMax|"
+    r"MultiplyDoubleSaturateLong|MultiplyDoubleAddSaturateLong|MultiplyAddLong|ShiftRightAccumulate|ShiftLeftLong|"
+    r"ShiftRightNarrow)\s*[<(]"
 )
 TYPED_BOUNDARY = re.compile(
     r"\bfrom_raw\s*\(|(?:\.|->)\s*raw\s*\(\s*\)|\breinterpret_bits\s*<"
@@ -65,7 +78,8 @@ DSP_INSTRUCTION = re.compile(
 
 HEADER = """\
 # Raw fixed-point arithmetic per file (scripts/check_fixed_point_raw.py), outside dsp-next/core/fixed_point.h and
-# q31_ops.h. `raw`: q31_ops.h helper calls and DSP-instruction inline asm. `boundary`: from_raw()/.raw()/
+# q31_ops.h. `raw`: q31_ops.h helper calls, DSP-instruction inline asm, NEON arithmetic intrinsics and Argon's
+# fixed-point methods. `boundary`: from_raw()/.raw()/
 # reinterpret_bits<> crossings, recorded but not gated.
 #
 # The raw counts may only SHRINK: a count above its entry, a raw site in a file not on the list, or an entry with
@@ -112,6 +126,7 @@ def count(text: str) -> Counts:
     """One file's raw sites and boundary crossings, comments excluded."""
     code = strip_comments(text)
     raw = len(RAW_HELPERS.findall(code))
+    raw += len(NEON_ARITHMETIC.findall(code)) + len(ARGON_FIXED_POINT.findall(code))
     raw += sum(
         1
         for m in ASM_STATEMENT.finditer(code)

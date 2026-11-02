@@ -49,6 +49,15 @@ class CountTest(unittest.TestCase):
         self.assertEqual(count('asm volatile("" ::: "memory");\n').raw, 0)
         self.assertEqual(count('asm("" : "+r"(v));\n').raw, 0)
 
+    def test_counts_neon_arithmetic_and_argon_fixed_point_methods(self):
+        self.assertEqual(count("r = vqdmulhq_s32(a, b);\n").raw, 1)
+        self.assertEqual(count("r = x.MultiplyFixedQMax(y);\n").raw, 1)
+        self.assertEqual(count("r = vmlal_s16(acc, a, b);\n").raw, 1)
+        self.assertEqual(count("r = vshrq_n_s32(a, 3);\n").raw, 1)
+        self.assertEqual(count("r = a.ShiftRightNarrow<16>();\n").raw, 1)
+        self.assertEqual(count("r = vld1q_s32(p);\nvst1q_s32(p, r);\n").raw, 0)
+        self.assertEqual(count("r = vreinterpretq_s32_u32(u);\n").raw, 0)
+
     def test_counts_the_typed_boundary_apart(self):
         counted = count(
             "auto q = Q<31>::from_raw(x);\nint32_t r = q.raw();\nint32_t s = p->raw();\n"

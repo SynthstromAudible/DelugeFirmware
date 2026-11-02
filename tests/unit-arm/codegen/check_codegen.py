@@ -81,6 +81,19 @@ EXACT = {
     "probe_q16x2_halving_add": ["shadd16"],
     "probe_from_float_31": ["vcvt.s32.f32", "vmov"],
     "probe_to_float_31": ["vmov", "vcvt.f32.s32"],
+    "probe_vec_add_wrap": ["vadd.i32"],
+    "probe_vec_sub_wrap": ["vsub.i32"],
+    "probe_vec_add_wrap_phase": ["vadd.i32"],
+    "probe_vec_add_wrap_q16": ["vadd.i16"],
+    "probe_vec_mul_doubling_sat": ["vqdmulh.s32"],
+    "probe_vec_mul_doubling_sat_scalar": ["vdup.32", "vqdmulh.s32"],
+    "probe_vec_mul_doubling_sat_q16": ["vdup.16", "vqdmulh.s16"],
+    "probe_vec_mul_doubling_r_sat": ["vqrdmulh.s32"],
+    "probe_vec_scale_shl_wrap_3": ["vshl.i32"],
+    "probe_vec_scale_shr_floor_3": ["vshr.s32"],
+    "probe_vec_add_scale_shr_floor_4": ["vsra.s32"],
+    "probe_vec_as_floor_3": ["vshr.s32"],
+    "probe_vec_reinterpret_bits": [],
 }
 
 # Operand text that must appear in the body: the immediates a wrong width or shift would change.
@@ -97,6 +110,7 @@ OPERANDS = {
 }
 
 BUDGET = {
+    "probe_vec_sum_wrap": 4,
     "probe_lt": 6,
     "probe_clamp_bits_runtime": 12,
     "probe_narrow_floor_sat": 14,

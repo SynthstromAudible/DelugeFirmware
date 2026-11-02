@@ -19,6 +19,7 @@
 
 #include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/fixed_point_lanes.h"
+#include "dsp-next/core/fixed_point_neon.h"
 #include <cstddef>
 #include <cstdint>
 
@@ -234,6 +235,50 @@ std::int32_t probe_mul_bottom(std::int32_t a, std::uint32_t b) {
 }
 std::int32_t probe_mul_as_sat(std::int32_t a, std::int32_t b) {
 	return mul_as_sat<Q<31>>(typed31(a), typed31(b)).raw();
+}
+
+// Vectors: registers in and out, so each body is the one instruction.
+int32x4_t probe_vec_add_wrap(int32x4_t a, int32x4_t b) {
+	return add_wrap(QVec<31>::from_raw(a), QVec<31>::from_raw(b)).raw();
+}
+int32x4_t probe_vec_sub_wrap(int32x4_t a, int32x4_t b) {
+	return sub_wrap(QVec<31>::from_raw(a), QVec<31>::from_raw(b)).raw();
+}
+uint32x4_t probe_vec_add_wrap_phase(uint32x4_t a, uint32x4_t b) {
+	return add_wrap(UQVec<32>::from_raw(a), UQVec<32>::from_raw(b)).raw();
+}
+int16x8_t probe_vec_add_wrap_q16(int16x8_t a, int16x8_t b) {
+	return add_wrap(Q16Vec<15>::from_raw(a), Q16Vec<15>::from_raw(b)).raw();
+}
+int32x4_t probe_vec_mul_doubling_sat(int32x4_t a, int32x4_t b) {
+	return mul_doubling_sat(QVec<31>::from_raw(a), QVec<30>::from_raw(b)).raw();
+}
+int32x4_t probe_vec_mul_doubling_sat_scalar(int32x4_t a, std::int32_t b) {
+	return mul_doubling_sat(QVec<31>::from_raw(a), Q<29>::from_raw(b)).raw();
+}
+int16x8_t probe_vec_mul_doubling_sat_q16(int16x8_t a, std::int16_t b) {
+	return mul_doubling_sat(Q16Vec<15>::from_raw(a), Q16<15>::from_raw(b)).raw();
+}
+int32x4_t probe_vec_mul_doubling_r_sat(int32x4_t a, int32x4_t b) {
+	return mul_doubling_r_sat(QVec<31>::from_raw(a), QVec<31>::from_raw(b)).raw();
+}
+int32x4_t probe_vec_scale_shl_wrap_3(int32x4_t a) {
+	return scale_shl_wrap<3>(QVec<31>::from_raw(a)).raw();
+}
+int32x4_t probe_vec_scale_shr_floor_3(int32x4_t a) {
+	return scale_shr_floor<3>(QVec<31>::from_raw(a)).raw();
+}
+int32x4_t probe_vec_add_scale_shr_floor_4(int32x4_t acc, int32x4_t a) {
+	return add_scale_shr_floor<4>(QVec<31>::from_raw(acc), QVec<31>::from_raw(a)).raw();
+}
+int32x4_t probe_vec_as_floor_3(int32x4_t a) {
+	return as_floor<QVec<28>>(QVec<31>::from_raw(a)).raw();
+}
+int32x4_t probe_vec_reinterpret_bits(uint32x4_t a) {
+	return reinterpret_bits<QVec<31>>(UQVec<32>::from_raw(a)).raw();
+}
+std::int32_t probe_vec_sum_wrap(int32x4_t a) {
+	return sum_wrap(QVec<30>::from_raw(a)).raw();
 }
 
 // Loop shapes: reported, not gated. The multiply-high family is asm at run time, which the loop vectorizer leaves

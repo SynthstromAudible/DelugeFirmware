@@ -125,8 +125,37 @@ operation lane by lane, so a kernel's step written once over its value type read
 
 The lanes are scalar, not NEON: a two-lane `mul` is two `smmul`, independent chains the A9 overlaps. The codegen gate
 holds the two-lane multiply, multiply-accumulate and saturating add and shift to one instruction per lane. It reports a
-two-lane comparison, which clang's SLP vectorizer pairs into `vcgt.s32`. A typed NEON vocabulary comes with the first
-NEON kernel that moves onto the types.
+two-lane comparison, which clang's SLP vectorizer pairs into `vcgt.s32`. NEON kernels use the vectors below.
+
+## Vectors
+
+`src/deluge/dsp-next/core/fixed_point_neon.h` holds N lanes of one format in one NEON register, with Argon as the
+storage: `FixedVec<Lane, N>`. As with the scalars, a vector has no arithmetic operators, and each operation has the
+name of the scalar operation with the same per-lane meaning:
+
+| Alias | Lanes | Register |
+|---|---|---|
+| `QVec<F>` | four `Q<F>` | `Argon<int32_t>` (int32x4_t) |
+| `UQVec<F>` | four `UQ<F>`; `UQVec<32>` is four phases | `Argon<uint32_t>` |
+| `Q16Vec<F>` | eight `Q16<F>` | `Argon<int16_t>` (int16x8_t) |
+| `Q16Half<F>` | four `Q16<F>`, a half register | `ArgonHalf<int16_t>` (int16x4_t) |
+| `Q16x2Vec<F>` | four `Q16x2<F>` pairs, one per 32-bit lane | `Argon<uint32_t>` |
+
+| Operation | Formats | Instruction |
+|---|---|---|
+| `add_wrap`, `sub_wrap` | any vector of `Q`, `UQ` or `Q16` lanes | `vadd`, `vsub` |
+| `mul_doubling_sat` | `QVec<A>` × `QVec<B>` or `Q<B>` → `QVec<A+B−31>`; `Q16Vec<A>` × `Q16<B>` → `Q16Vec<A+B−15>` | `vqdmulh` |
+| `mul_doubling_r_sat` | `QVec<A>` × `QVec<B>` → `QVec<A+B−31>` | `vqrdmulh.s32` |
+| `scale_shl_wrap<N>`, `scale_shr_floor<N>` | `QVec<F>` → `QVec<F>` | `vshl.i32`, `vshr.s32` |
+| `add_scale_shr_floor<N>` | acc + x / 2^N, `QVec<F>` | `vsra.s32` |
+| `as_floor<QVec<T>>` | `QVec<F>` → `QVec<T>`, T < F | `vshr.s32 #(F−T)` |
+| `reinterpret_bits<QVec<T>>` | `UQVec<F>` → `QVec<T>`, the same bits | none |
+| `sum_wrap` | the four lanes of `QVec<F>` → `Q<F>`, wrapping | `vadd.i32`, `vpadd.i32`, `vmov` |
+
+A kernel keeps `Argon` at its interface and converts with `from_raw` and `raw()`, so its callers are unchanged.
+`lane(i)` reads one lane through memory, for tests. The lane spec (`tests/dsp/fixed_point_neon_spec.cpp`) checks each
+operation lane by lane against the scalar operation: on the x86 host through SIMDe, and under qemu on the A9's own
+instructions.
 
 ## Where the types are used
 
