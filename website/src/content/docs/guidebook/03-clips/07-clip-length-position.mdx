@@ -1,12 +1,12 @@
 ---
-title: "3.5 Clip Length & Position"
+title: "3.7 Clip Length & Position"
 description: "Default clip length is 1 bar."
 sidebar:
-  order: 4
+  order: 6
 banner:
   content: "From the Deluge Manual – Amadeus Edition (community firmware C1.0.0, draft). Newer community firmware may differ."
 guidebook:
-  section: "3.5"
+  section: "3.7"
   chapter: 3
   pdfPages: [68, 69]
   printedPages: [62, 63]
@@ -19,7 +19,7 @@ import StepFocus from "../../../../components/guidebook/StepFocus.astro"
 import { Steps } from "@astrojs/starlight/components"
 import PanelFigure from "../../../../components/guidebook/PanelFigure.astro"
 import Figure from "../../../../components/guidebook/Figure.astro"
-import fig_fig_3_5_2 from "../../../../assets/guidebook/figs/03-clips__05-clip-length-position--2.svg?raw"
+import fig_fig_3_7_2 from "../../../../assets/guidebook/figs/03-clips__07-clip-length-position--2.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -39,7 +39,7 @@ Default clip length is 1 bar. This however can be changed which will extend the 
 </Steps>
 
 <PanelFigure
-  id="fig-3.5-1"
+  id="fig-3.7-1"
   alt={
     "The Deluge front panel: SHIFT held while turning the horizontal encoder; the clip is half the grid long, so the right eight columns of pads are dim grey"
   }
@@ -58,10 +58,20 @@ Default clip length is 1 bar. This however can be changed which will extend the 
 </Steps>
 
 <Figure
-  id="fig-3.5-2"
-  src={fig_fig_3_5_2}
+  id="fig-3.7-2"
+  src={fig_fig_3_7_2}
   alt={
     "Diagram: [SHIFT] + press (SCROLL◄►) Grid sequence pattern is duplicated to extend the entire sequence length. Press (SCROLL▼▲) + turn (SCROLL◄►)…"
   }
   page={63}
 />
+
+## Adjusting a clips horizontal note event position
+
+<Steps>
+
+1. Press :key[Vertical + Turn Horizontal] control to adjust the clip note events i.e. notes and automation horizontally across the grid.
+   - The note events will move 1 step incrementally across the horizontal grid. The steps are based on the zoom level.
+   - Note events which scroll off the edge left or right will wrap back onto the grid from the opposite side.
+
+</Steps>

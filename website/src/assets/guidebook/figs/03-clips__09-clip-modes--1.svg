@@ -1,10 +1,10 @@
 <svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 114.8 71.2">
 <defs>
-<clipPath id="12-session-view__03-working-in-session-row-view--2-clip_1">
+<clipPath id="03-clips__09-clip-modes--1-clip_1">
 <path transform="matrix(1,0,0,-1,-289.9,230.7)" d="M289.9 159.5H404.8V230.7H289.9Z" clip-rule="evenodd"/>
 </clipPath>
 </defs>
-<g clip-path="url(#12-session-view__03-working-in-session-row-view--2-clip_1)">
+<g clip-path="url(#03-clips__09-clip-modes--1-clip_1)">
 <text fill="currentColor" xml:space="preserve" transform="translate(9.7 63.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Launch Behaviour</tspan></text>
 <text fill="currentColor" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 14.5 18.8)" font-size="5.6" font-family="monospace"><tspan y="0" x="0" textLength="65.6" lengthAdjust="spacingAndGlyphs">LAUNCH STYLE</tspan></text>
 <text fill="currentColor" xml:space="preserve" transform="matrix(.928241 0 -0 1.0 14.5 30.0)" font-size="5.6" font-family="monospace"><tspan y="0" x="0" textLength="65.6" lengthAdjust="spacingAndGlyphs">DEFAULT CLIP</tspan></text>

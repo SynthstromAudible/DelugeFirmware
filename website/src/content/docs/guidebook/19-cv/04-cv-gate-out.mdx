@@ -16,9 +16,6 @@ guidebook:
 ---
 
 import StepFocus from "../../../../components/guidebook/StepFocus.astro"
-import { Steps } from "@astrojs/starlight/components"
-import Figure from "../../../../components/guidebook/Figure.astro"
-import fig_fig_19_4_1 from "../../../../assets/guidebook/figs/19-cv__04-cv-gate-out--1.svg?raw"
 
 <div data-pagefind-filter="source:guidebook" hidden />
 
@@ -26,22 +23,8 @@ As well as samples, sounds, synths and MIDI, CV can also be combined within a ki
 
 <StepFocus />
 
-## Creating a basic CV clip
+:::note[See also]
 
-<Steps>
+- [Creating a basic CV clip](/guidebook/03-clips/03-creating-a-clip#creating-a-basic-cv-clip): 3.3 Creating a Clip
 
-1. Select :key[Clip] view.
-2. Press :key[CV] to select a CV clip. Button illuminates red.
-3. :key[Turn Select] to choose the CV channel 1 or 2.
-4. CV will output voltage representing note pitch on this channel and also Gate will output voltage for note on/off on the same channel number.
-
-</Steps>
-
-<Figure
-  id="fig-19.4-1"
-  src={fig_fig_19_4_1}
-  alt={
-    "Diagram: Deluge includes 2 CV outputs, 4 gate outputs (which may also be set individually to output a trigger clock and / or “run” signal), and also…"
-  }
-  page={300}
-/>
+:::

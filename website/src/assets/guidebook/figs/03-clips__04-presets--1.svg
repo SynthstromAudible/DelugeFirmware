@@ -1,19 +1,19 @@
 <svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 350.5 132.9">
 <defs>
-<clipPath id="03-clips__02-clip-view-overview--4-clip_1">
+<clipPath id="03-clips__04-presets--1-clip_1">
 <path transform="matrix(1,0,0,-1,-59.1,472.9)" d="M59.1 340.0H409.6V472.9H59.1Z" clip-rule="evenodd"/>
 </clipPath>
-<clipPath id="03-clips__02-clip-view-overview--4-clip_2">
+<clipPath id="03-clips__04-presets--1-clip_2">
 <path transform="matrix(1,0,0,-1,-59.1,472.9)" d="M178.8 344.7H328.8V460.9H178.8Z" clip-rule="evenodd"/>
 </clipPath>
-<mask id="03-clips__02-clip-view-overview--4-mask_3">
+<mask id="03-clips__04-presets--1-mask_3">
 <g transform="matrix(.096341,0,0,.096341,119.5,27.7)">
-<image id="03-clips__02-clip-view-overview--4-image_4" width="1467" height="1014" xlink:href="/guidebook/img/03-clips__02-clip-view-overview--4-1.webp"/>
+<image id="03-clips__04-presets--1-image_4" width="1467" height="1014" xlink:href="/guidebook/img/03-clips__04-presets--1-1.webp"/>
 </g>
 </mask>
 </defs>
 <g>
-<g clip-path="url(#03-clips__02-clip-view-overview--4-clip_1)">
+<g clip-path="url(#03-clips__04-presets--1-clip_1)">
 <path transform="matrix(1,0,0,-1,-59.1,472.9)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M424.7 688.6V84.1"/>
 <text fill="currentColor" xml:space="preserve" transform="translate(284.9 52.1)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Preset selected.</tspan></text>
 <text fill="currentColor" xml:space="preserve" transform="translate(284.9 23.3)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Preset type.</tspan></text>
@@ -29,10 +29,10 @@
 <path transform="matrix(1,0,0,-1,-59.1,472.9)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.0001,.0001" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 65%, var(--gb-paper))" d="M233.9 391.2H117.3V368.2"/>
 <path transform="matrix(1,0,0,-1,-59.1,472.9)" d="M234.1 394.9C238.0 394.9 241.1 391.7 241.1 387.8 241.1 383.9 238.0 380.7 234.1 380.7 230.1 380.7 227.0 383.9 227.0 387.8 227.0 391.7 230.1 394.9 234.1 394.9Z" fill="var(--gb-accent)" fill-rule="evenodd"/>
 <path transform="matrix(1,0,0,-1,-59.1,472.9)" d="M234.1 394.9C238.0 394.9 241.1 391.7 241.1 387.8 241.1 383.9 238.0 380.7 234.1 380.7 230.1 380.7 227.0 383.9 227.0 387.8 227.0 391.7 230.1 394.9 234.1 394.9ZM234.1 394.5C237.8 394.5 240.8 391.5 240.8 387.8 240.8 384.1 237.8 381.1 234.1 381.1 230.3 381.1 227.3 384.1 227.3 387.8 227.3 391.5 230.3 394.5 234.1 394.5Z" fill="currentColor" fill-rule="evenodd"/>
-<g clip-path="url(#03-clips__02-clip-view-overview--4-clip_2)">
-<g mask="url(#03-clips__02-clip-view-overview--4-mask_3)">
+<g clip-path="url(#03-clips__04-presets--1-clip_2)">
+<g mask="url(#03-clips__04-presets--1-mask_3)">
 <g transform="matrix(.096341,0,0,.096341,119.5,27.7)">
-<image class="gb-ink" id="03-clips__02-clip-view-overview--4-image_5" width="1467" height="1014" xlink:href="/guidebook/img/03-clips__02-clip-view-overview--4-2.webp"/>
+<image class="gb-ink" id="03-clips__04-presets--1-image_5" width="1467" height="1014" xlink:href="/guidebook/img/03-clips__04-presets--1-2.webp"/>
 </g>
 </g>
 </g>

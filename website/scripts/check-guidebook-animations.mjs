@@ -521,12 +521,12 @@ const checks = {
       viewport: { width: 390, height: 900 },
     })
     const p4 = await narrow.newPage()
-    await p4.goto(url("03-clips/04-clip-view-parameter-affect-group-changes"), {
+    await p4.goto(url("03-clips/10-clip-view-parameter-affect-group-changes"), {
       waitUntil: "load",
     })
     const callouts = await p4.evaluate(() =>
       [
-        ...document.querySelectorAll('[id="fig-3.4-1"] .gb-panel-callouts li'),
+        ...document.querySelectorAll('[id="fig-3.10-1"] .gb-panel-callouts li'),
       ].map((li) => getComputedStyle(li).position),
     )
     check(
@@ -540,11 +540,11 @@ const checks = {
       viewport: { width: 1400, height: 1000 },
     })
     const p5 = await wide.newPage()
-    await p5.goto(url("03-clips/04-clip-view-parameter-affect-group-changes"), {
+    await p5.goto(url("03-clips/10-clip-view-parameter-affect-group-changes"), {
       waitUntil: "load",
     })
     const layout = await p5.evaluate(() => {
-      const fig = document.getElementById("fig-3.4-1")
+      const fig = document.getElementById("fig-3.10-1")
       const boxes = [...fig.querySelectorAll(".gb-panel-callouts li")].map(
         (li) => {
           const r = li.getBoundingClientRect()

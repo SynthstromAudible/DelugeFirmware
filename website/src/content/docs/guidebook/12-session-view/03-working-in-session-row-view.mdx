@@ -17,7 +17,6 @@ guidebook:
 
 import Figure from "../../../../components/guidebook/Figure.astro"
 import fig_fig_12_3_1 from "../../../../assets/guidebook/figs/12-session-view__03-working-in-session-row-view--1.svg?raw"
-import fig_fig_12_3_2 from "../../../../assets/guidebook/figs/12-session-view__03-working-in-session-row-view--2.svg?raw"
 import fig_fig_12_3_3 from "../../../../assets/guidebook/figs/12-session-view__03-working-in-session-row-view--3.svg?raw"
 import fig_fig_12_3_4 from "../../../../assets/guidebook/figs/12-session-view__03-working-in-session-row-view--4.svg?raw"
 
@@ -53,18 +52,6 @@ Deluge will only play one instrument at one time in session view. So for example
 
 </Steps>
 
-## Creating a new clip from session view
-
-<Steps>
-
-1. Press :key[Song] to switch to session view. The button illuminates blue.
-2. Press a :key[Pad] of any empty, unlit row from the 16 x 8 main grid.
-3. Deluge creates a new clip and transfers the view from song to clip view with synth selected by default.
-4. Any edits, change to synth / kit, steps created etc in the clip will be reflected when switching back to :key[Song] view with the clip added as a compressed single row.
-5. Alternatively hold :key[Pad + Turn Select] to assign an instrument directly from within session view.
-
-</Steps>
-
 ## Selecting an existing clip to edit from session view
 
 <Steps>
@@ -86,40 +73,6 @@ Deluge will only play one instrument at one time in session view. So for example
 4. Note that this process changes a clip pad colour in Session grid view.
 
 </Steps>
-
-## Changing a clip row colour
-
-<Steps>
-
-1. Press :key[Song] to switch to session view. If in Session grid view the blue edit mode will need to be active.
-2. Press & hold a :key[Pad] + hold :key[Shift + Turn Vertical].
-3. The clip row colour will be adjusted.
-
-</Steps>
-
-### Fill Clips
-
-A clip can operate in default mode or be set as a fill clip. Instead of aligning a triggered clip start, a fill clip is designed to play at the end of a loop, coming to an end at the point of starting the next loop. A fill clip when triggered it will automatically be scheduled to start so that it finishes at the start of the next loop. If the fill clip is longer than the remaining time, it is triggered immediately at a point midway through. The loop length is set by the longest playing clip, or by the total length of a section times the repeat count set for that section. Note that a fill clip is still subject to the one clip per instrument behavior of the Deluge. Fill clips can steal an output from another fill, but they cannot steal from a non-fill. This can lead to some fills never starting since a default type clip has the needed instrument. This can be worked around by cloning the instrument to an independent copy.
-
-## Configuring a fill clip in session view
-
-<Steps>
-
-1. Press :key[Song]
-2. Hold :key[Launch Pad + Select] on an existing clip row.
-3. The fill clip pop-up menu will appear. The default clip mode is normally set but can be changed to a fill clip.
-4. :key[Turn Select] to highlight ‘FILL CLIP’.
-5. Press :key[Select] to select and confirm the option highlighted.
-6. The clip playback will operate to the fill clip launch behaviour. When triggered it will play by aligning its end point with the loop end / next loop start.
-
-</Steps>
-
-<Figure
-  id="fig-12.3-2"
-  src={fig_fig_12_3_2}
-  alt={"OLED screen: LAUNCH STYLE DEFAULT CLIP FILL CLIP Launch Behaviour"}
-  page={157}
-/>
 
 ### Launch Control of Single Clips in Session Row View
 
@@ -252,3 +205,11 @@ Press :key[Select] to cancel section countdown.
 3. The section will play when launched as set by number of repeats for the section.
 
 </Steps>
+
+:::note[See also]
+
+- [Creating a new clip from session view](/guidebook/03-clips/03-creating-a-clip#creating-a-new-clip-from-session-view): 3.3 Creating a Clip
+- [Changing a clip row colour](/guidebook/03-clips/06-clip-colour#changing-a-clip-row-colour): 3.6 Clip Colour
+- [Configuring a fill clip in session view](/guidebook/03-clips/09-clip-modes#configuring-a-fill-clip-in-session-view): 3.9 Clip Modes
+
+:::
