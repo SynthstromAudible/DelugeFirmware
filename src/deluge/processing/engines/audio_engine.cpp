@@ -1653,7 +1653,8 @@ void previewSample(String* path, FilePointer* filePointer, bool shouldActuallySo
 
 	if (shouldActuallySound) {
 		// Adopt the volume of the instrument / kit-row the sample will be loaded into, so the preview sounds the same
-		// before and after selecting it (issue #1591). The song master volume is applied downstream in renderSongFX().
+		// before and after selecting it (issue #1591). The caller has folded in the song and kit output
+		// stages the preview skips; master FX are applied downstream in renderSongFX().
 		PatchedParamSet* previewParams = paramManagerForSamplePreview->getPatchedParamSet();
 		previewParams->params[params::GLOBAL_VOLUME_POST_FX].setCurrentValueBasicForSetup(volume.volumePostFX);
 		previewParams->params[params::LOCAL_VOLUME].setCurrentValueBasicForSetup(volume.localVolume);

@@ -372,7 +372,7 @@ void SoundEditor::setShortcutsVersion(int32_t newVersion) {
 	}
 }
 
-SoundEditor soundEditor{};
+PLACE_SDRAM_BSS SoundEditor soundEditor{};
 
 SoundEditor::SoundEditor() {
 	currentParamShortcutX = kNoSelection;

@@ -1615,12 +1615,25 @@ ramError:
 
 							int32_t numNotes = reader.readTagOrAttributeValueInt();
 
-							newCopiedNoteRow->numNotes = numNotes;
-
-							newCopiedNoteRow->notes =
-							    (Note*)GeneralMemoryAllocator::get().allocLowSpeed(sizeof(Note) * numNotes);
-
+							// The file is untrusted: a repeated tag mustn't leak, and the size mustn't wrap (0 would
+							// ask the allocator for its biggest block)
+							if (newCopiedNoteRow->notes) {
+								delugeDealloc(newCopiedNoteRow->notes);
+								newCopiedNoteRow->notes = nullptr;
+							}
+							newCopiedNoteRow->numNotes = 0;
 							currentNote = 0;
+
+							if (numNotes > 0 && numNotes <= INT32_MAX / (int32_t)sizeof(Note)) {
+								newCopiedNoteRow->notes =
+								    (Note*)GeneralMemoryAllocator::get().allocLowSpeed(sizeof(Note) * numNotes);
+								if (!newCopiedNoteRow->notes) {
+									deleteCopiedNoteRows();
+									display->displayError(Error::INSUFFICIENT_RAM);
+									return Error::INSUFFICIENT_RAM;
+								}
+								newCopiedNoteRow->numNotes = numNotes;
+							}
 						}
 						else if (!strcmp(tagName, "yNote")) {
 							int16_t yNote = reader.readTagOrAttributeValueInt();
@@ -1655,6 +1668,12 @@ ramError:
 									goto getOut;
 								}
 
+								// Never write past what numNotes allocated (or at all, if it hasn't been read). Keep
+								// reading so the rest of the value is consumed.
+								if (currentNote >= newCopiedNoteRow->numNotes) {
+									continue;
+								}
+
 								Note* newNote = &newCopiedNoteRow->notes[currentNote];
 
 								int32_t pos = hexToIntFixedLength(hexChars, 8);
@@ -1683,6 +1702,9 @@ ramError:
 getOut: {}
 						}
 					}
+
+					// Only paste notes that were actually read - the rest of the allocation is uninitialised
+					newCopiedNoteRow->numNotes = std::min(newCopiedNoteRow->numNotes, currentNote);
 				}
 			}
 		}
@@ -5706,10 +5728,16 @@ doDisplayError:
 
 	setSelectedDrum(newDrum); // Does this really need to render?
 
-	// Can't fail because we just set the selected Drum
-	// TODO: what if fail because no RAM
-	bool success = soundEditor.setup(getCurrentInstrumentClip(), &menu_item::file0SelectorMenu, 0);
+	// This operation targets the new drum, even if a previous grid-pad action left
+	// the editor configured for kit-global FX while Affect Entire was enabled.
+	soundEditor.setupKitGlobalFXMenu = false;
+	if (!soundEditor.setup(getCurrentInstrumentClip(), &menu_item::file0SelectorMenu, 0)) {
+		// The new drum stays in the kit as an ordinary empty drum, but say why the browser didn't open
+		display->displayError(Error::UNSPECIFIED);
+		return;
+	}
 
+	bool success;
 	if (doRecording) {
 		success = openUI(&audioRecorder);
 		if (success) {
@@ -6622,6 +6650,16 @@ void InstrumentClipView::commandTransposeScreen(int32_t offset, bool inOctave) {
 						}
 					}
 				}
+			}
+		}
+	}
+
+	// insertStolenNodes() copies the nodes, so the stolen arrays are ours to free - including for any note that
+	// couldn't be placed
+	for (NoteToMove& ntm : notesToMove) {
+		for (StolenParamNodes& stolen : ntm.stolenMPE) {
+			if (stolen.num) {
+				delugeDealloc(stolen.nodes);
 			}
 		}
 	}

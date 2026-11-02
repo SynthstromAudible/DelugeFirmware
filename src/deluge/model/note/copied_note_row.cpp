@@ -21,6 +21,10 @@
 CopiedNoteRow::CopiedNoteRow() {
 	next = nullptr;
 	notes = nullptr;
+	numNotes = 0;
+	// A pattern file may omit these tags, and paste reads both
+	yDisplay = 0;
+	yNote = 0;
 }
 
 CopiedNoteRow::~CopiedNoteRow() {

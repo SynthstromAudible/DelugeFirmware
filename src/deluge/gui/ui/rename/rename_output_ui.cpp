@@ -25,7 +25,7 @@
 #include "model/output.h"
 #include "model/song/song.h"
 
-RenameOutputUI renameOutputUI{"Track name"};
+PLACE_SDRAM_BSS RenameOutputUI renameOutputUI{"Track name"};
 
 std::string_view RenameOutputUI::getCurrentName() const {
 	return output->name.get();

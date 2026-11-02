@@ -2425,6 +2425,9 @@ dontUseCache: {}
 			int adjpitch = logpitch - 278023814;
 
 			DxPatch* patch = sound.sources[s].ensureDxPatch();
+			if (patch == nullptr) {
+				goto instantUnassign;
+			}
 			DxVoiceCtrl ctrl{};
 			ctrl.ampmod = paramFinalValues[params::LOCAL_OSC_A_PHASE_WIDTH + s] >> 13;
 			// ctrl.ratemod = paramFinalValues[params::LOCAL_CARRIER_0_FEEDBACK + s] >> 16;

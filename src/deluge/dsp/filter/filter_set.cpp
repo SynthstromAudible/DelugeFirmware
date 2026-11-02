@@ -17,6 +17,7 @@
 
 #include "dsp/filter/filter_set.h"
 #include "definitions_cxx.hpp"
+#include "model/global_effectable/output_stage_gain.h"
 
 namespace deluge::dsp::filter {
 
@@ -163,7 +164,7 @@ int32_t FilterSet::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMode 
 	}
 	// This changes the overall amplitude so that, with resonance on 50%, the amplitude is the same as it was pre June
 	// 2017
-	filterGain = multiply_32x32_rshift32(filterGain, 1720000000) << 1;
+	filterGain = multiply_32x32_rshift32(filterGain, kFilterSetGainAdjust) << 1;
 
 	// HPF
 	if (HPFOn) {

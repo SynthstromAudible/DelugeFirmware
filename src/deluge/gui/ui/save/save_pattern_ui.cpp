@@ -41,7 +41,7 @@ static constexpr const char* PATTERN_RHYTHMIC_KIT_DEFAULT_FOLDER = "PATTERNS/RHY
 static constexpr const char* PATTERN_RHYTHMIC_DRUM_DEFAULT_FOLDER = "PATTERNS/RHYTHMIC/DRUM";
 static constexpr const char* PATTERN_MELODIC_DEFAULT_FOLDER = "PATTERNS/MELODIC";
 
-SavePatternUI savePatternUI{};
+PLACE_SDRAM_BSS SavePatternUI savePatternUI{};
 
 SavePatternUI::SavePatternUI() {
 	filePrefix = "PATTERN";
