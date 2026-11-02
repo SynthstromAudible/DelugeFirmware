@@ -17,8 +17,6 @@
 
 #include "absolute_value.h"
 #include <cmath>
-#include <cstdint>
-#include <cstdlib>
 
 float AbsValueFollower::runEnvelope(float current, float desired, float numSamples) {
 	float s;
@@ -34,15 +32,13 @@ float AbsValueFollower::runEnvelope(float current, float desired, float numSampl
 // output range is 0-21 (2^31)
 // dac clipping is at 16
 StereoFloatSample AbsValueFollower::calcApproxRMS(std::span<StereoSample> buffer) {
-	// 64-bit so that full-scale q31 input can't overflow: a 32-bit sum overflows once the mean absolute value
-	// exceeds 2^31 / buffer.size(), which for live input is an ordinary signal level
-	int64_t l = 0;
-	int64_t r = 0;
+	q31_t l = 0;
+	q31_t r = 0;
 	StereoFloatSample logMean;
 
 	for (StereoSample sample : buffer) {
-		l += std::abs(static_cast<int64_t>(sample.l));
-		r += std::abs(static_cast<int64_t>(sample.r));
+		l += std::abs(sample.l);
+		r += std::abs(sample.r);
 	}
 
 	float ns = buffer.size();
