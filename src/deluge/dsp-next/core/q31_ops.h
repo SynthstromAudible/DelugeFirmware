@@ -224,6 +224,11 @@ inline int32_t clz(uint32_t input) {
 }
 
 [[gnu::always_inline]] constexpr q31_t q31_from_float(float value) {
+	// NaN converts to 0, as vcvt.s32.f32 gives it.
+	if (value != value) {
+		return 0;
+	}
+
 	// A float is represented as 32 bits:
 	// 1-bit sign, 8-bit exponent, 24-bit mantissa
 

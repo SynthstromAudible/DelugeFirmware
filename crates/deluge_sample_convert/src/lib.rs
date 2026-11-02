@@ -279,7 +279,7 @@ mod tests {
         assert_eq!(convert_word(0.5f32.to_bits() as i32, Float), 0x4000_0000);
     }
 
-    // FLOAT saturation / NaN: q31_from_float saturates at |x| >= 1 and flushes tiny/NaN
+    // FLOAT saturation / NaN: q31_from_float saturates at |x| >= 1, flushes tiny values and converts NaN to 0
     #[test]
     fn convert_word_float_saturation_and_nan() {
         let f = |x: f32| convert_word(x.to_bits() as i32, Float);
@@ -291,8 +291,8 @@ mod tests {
         // In-range values round toward zero (matches VCVT).
         assert_eq!(f(0.5), 0x4000_0000);
         assert_eq!(f(-0.5), -0x4000_0000);
-        // NaN has exponent 0xFF (>= 0) => saturates by sign (positive NaN -> INT32_MAX).
-        assert_eq!(f(f32::NAN), i32::MAX);
+        // NaN converts to 0, as the device's vcvt.s32.f32 gives it.
+        assert_eq!(f(f32::NAN), 0);
         // +/-inf likewise saturate.
         assert_eq!(f(f32::INFINITY), i32::MAX);
         assert_eq!(f(f32::NEG_INFINITY), i32::MIN);
