@@ -36,6 +36,8 @@ set(fixed_point_spec_DEPS)
 set(fixed_point_lanes_spec_DEPS)
 # The Ramp spec needs no sources: ramp.h is header-only.
 set(ramp_spec_DEPS)
+# The StereoSample spec needs no sources: stereo_sample.h is header-only.
+set(stereo_sample_spec_DEPS)
 # The Control spec needs no sources: Control and its reference kernels are header-only.
 set(control_spec_DEPS)
 # The Chain spec needs no sources: Chain, Pinned and the kernels it chains are header-only.

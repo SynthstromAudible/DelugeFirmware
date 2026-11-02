@@ -594,8 +594,9 @@ void Voice::write_stereo(const VoiceOutput& output) {
 
 		// Write to the output buffer, panning or not
 		if (output.pan.do_panning) {
-			*output_sample += deluge::dsp::panned_stereo(output_sample_l, output_sample_r, output.pan.amplitude_l,
-			                                             output.pan.amplitude_r);
+			*output_sample += deluge::dsp::panned_stereo(output_sample_l, output_sample_r,
+			                                             deluge::dsp::Q<30>::from_raw(output.pan.amplitude_l),
+			                                             deluge::dsp::Q<30>::from_raw(output.pan.amplitude_r));
 		}
 		else {
 			*output_sample += StereoSample{.l = output_sample_l, .r = output_sample_r};
@@ -629,7 +630,8 @@ void Voice::write_mono(const VoiceOutput& output) {
 		if (output.sound_in_stereo) {
 			if (output.pan.do_panning) {
 				*(reinterpret_cast<StereoSample*>(output_sample)) +=
-				    deluge::dsp::panned_mono(sample, output.pan.amplitude_l, output.pan.amplitude_r);
+				    deluge::dsp::panned_mono(sample, deluge::dsp::Q<30>::from_raw(output.pan.amplitude_l),
+				                             deluge::dsp::Q<30>::from_raw(output.pan.amplitude_r));
 			}
 			else {
 				*(reinterpret_cast<StereoSample*>(output_sample)) += StereoSample::from_mono(sample);
