@@ -138,6 +138,24 @@ struct OnePole {
 	[[nodiscard]] [[gnu::always_inline]] static q31 feedback_unshifted(const State& s, q31 amount) {
 		return mul_r(Q<31>::from_raw(s.z), Q<31>::from_raw(amount)).raw();
 	}
+
+	/// @brief The memory scaled for a ladder's feedback by a Q30 amount: z × @p amount, Q31. The bits are @ref
+	/// feedback's with the amount's bits read as Q31.
+	/// @param s The memory, read and not stepped.
+	/// @param amount The feedback amount, Q30.
+	/// @return z × @p amount, Q31, wrapping at full scale.
+	[[nodiscard]] [[gnu::always_inline]] static Q<31> feedback(const State& s, Q<30> amount) {
+		return as_wrap<Q<31>>(mul_r(Q<31>::from_raw(s.z), amount));
+	}
+
+	/// @brief @ref feedback at a quarter of its scale, z × @p amount at Q29, for a caller that sums several at Q29
+	/// before reformatting.
+	/// @param s The memory, read and not stepped.
+	/// @param amount The feedback amount, Q30.
+	/// @return z × @p amount, Q29.
+	[[nodiscard]] [[gnu::always_inline]] static Q<29> feedback_unshifted(const State& s, Q<30> amount) {
+		return mul_r(Q<31>::from_raw(s.z), amount);
+	}
 };
 
 static_assert(processor_kernel<OnePole>);

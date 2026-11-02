@@ -111,7 +111,7 @@ struct LadderHeld {
 	void take(deluge::dsp::fixed::LowPassLadderMode m, const AppLowPassLadder::Coefficients& c) {
 		mode = m;
 		if (m != deluge::dsp::fixed::LowPassLadderMode::TRANSISTOR_12DB) {
-			feedback = c.feedbacks[2];
+			feedback = c.feedbacks[2].raw();
 		}
 		if (m == deluge::dsp::fixed::LowPassLadderMode::TRANSISTOR_24DB_DRIVE) {
 			oversample = AppLowPassLadder::ladder_of(c.mode) == AppLowPassLadder::Ladder::DRIVE_OVERSAMPLED;
@@ -131,13 +131,13 @@ inline void digest_low_pass_ladder(const LadderHeld& held, const AppLowPassLadde
 			d.add(section.z);
 		}
 	}
-	d.add(c.processed_resonance);
-	d.add(c.divide_by_total_moveability_and_processed_resonance);
-	d.add(c.moveability);
-	d.add(c.morph);
-	d.add(c.divide_by_one_plus_tanned);
-	d.add(c.feedbacks[0]);
-	d.add(c.feedbacks[1]);
+	d.add(c.processed_resonance.raw());
+	d.add(c.divide_by_total_moveability_and_processed_resonance.raw());
+	d.add(c.moveability.raw());
+	d.add(c.morph.raw());
+	d.add(c.divide_by_one_plus_tanned.raw());
+	d.add(c.feedbacks[0].raw());
+	d.add(c.feedbacks[1].raw());
 	d.add(held.feedback);
 	d.add(held.oversample);
 	digest_fade(fade, d);
