@@ -42,13 +42,6 @@ static inline q31_t toPositive(q31_t a) {
 	return std::countl_zero(input);
 }
 
-///@brief Convert from a q31 to a float
-///@note VFP instruction - 1 cycle for issue, 4 cycles result latency
-[[gnu::always_inline]] constexpr float q31_to_float(q31_t value) {
-	// compiles to "vcvt.f32.s32 %0, %0, #31"
-	return (float)value * (1.0f / (1u << 31));
-}
-
 // this is only defined for 32 bit arm
 #if defined(__arm__)
 #include <arm_acle.h>
@@ -136,6 +129,13 @@ static inline int32_t subtract_saturate(int32_t a, int32_t b) {
 static inline q31_t q31_from_float(float value) {
 	asm("vcvt.s32.f32 %0, %0, #31" : "+t"(value));
 	return std::bit_cast<q31_t>(value);
+}
+
+///@brief Convert from a q31 to a float
+///@note VFP instruction - 1 cycle for issue, 4 cycles result latency
+static inline float q31_to_float(q31_t value) {
+	asm("vcvt.f32.s32 %0, %0, #31" : "+t"(value));
+	return std::bit_cast<float>(value);
 }
 
 #else
@@ -239,7 +239,10 @@ static inline int32_t subtract_saturate(int32_t a, int32_t b) {
 	q31_t output_value = static_cast<q31_t>(mantissa >> shift);
 	return (negative) ? -output_value : output_value;
 }
-
+///@brief Convert from a q31 to a float. Matches the ARM `vcvt.f32.s32 #31` (divide by 2^31).
+static inline float q31_to_float(q31_t value) {
+	return static_cast<float>(value) / 2147483648.0f;
+}
 #endif
 
 /// @brief Fixed point number with a configurable number of fractional bits
