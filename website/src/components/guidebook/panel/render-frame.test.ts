@@ -96,3 +96,58 @@ test("frameAttributes: the classes and fill each control gets in a frame", async
     { id: "pad-1-1", style: "fill:#ff0000" },
   ])
 })
+
+test("fitWindow grows the window to show every control the steps use", async () => {
+  const { fitWindow } = await import("./render-frame.ts")
+  const map = {
+    viewBox: [0, 0, 5808, 3952],
+    controls: {
+      Play: { kind: "button", shape: "circle", cx: 5159, cy: 887, r: 60 },
+      "Horizontal-Encoder": {
+        kind: "encoder",
+        shape: "circle",
+        cx: 987,
+        cy: 561,
+        r: 180,
+      },
+    },
+  } as unknown as PanelMap
+  const band: [number, number, number, number] = [1900, 300, 3700, 1200]
+  // Play is inside: unchanged
+  assert.deepEqual(fitWindow(band, ["Play"], map), band)
+  // the encoder sits left of the band: the window reaches it (with a margin), stays in the panel
+  const [x, y, w, h] = fitWindow(band, ["Play", "Horizontal-Encoder"], map)
+  assert.ok(x <= 987 - 180 && x >= 0, `x ${x}`)
+  assert.ok(x + w >= 1900 + 3700 && x + w <= 5808)
+  assert.ok(y <= 561 - 180 && y >= 0 && y + h <= 3952)
+})
+
+test("demoWindow picks the smallest region holding every control, else the whole panel", async () => {
+  const { demoWindow } = await import("./render-frame.ts")
+  const map = {
+    viewBox: [0, 0, 5808, 3952],
+    controls: {
+      Play: { kind: "button", shape: "circle", cx: 5159, cy: 887, r: 60 },
+      Shift: { kind: "button", shape: "circle", cx: 5159, cy: 1300, r: 60 },
+      "pad-1-1": {
+        kind: "pad",
+        shape: "rect",
+        x: 200,
+        y: 3700,
+        w: 100,
+        h: 100,
+        rx: 10,
+        cx: 250,
+        cy: 3750,
+      },
+    },
+    regions: {
+      full: [0, 0, 5808, 3952],
+      transport: [3631, 223, 1870, 1332],
+      top: [0, 0, 5808, 1600],
+    },
+  } as unknown as PanelMap
+  assert.deepEqual(demoWindow(["Play", "Shift"], map), [3631, 223, 1870, 1332])
+  assert.deepEqual(demoWindow(["Play", "pad-1-1"], map), [0, 0, 5808, 3952])
+  assert.deepEqual(demoWindow([], map), [0, 0, 5808, 3952])
+})

@@ -194,3 +194,71 @@ test("the bound Steps is named by its index among all Steps in the page", () => 
   assert.equal(attrOf(tree, 3, "stepsIndex"), "1")
   assert.equal(stepControlsOf(tree, 3).length, 2)
 })
+
+const ignore = () => undefined
+
+const attr = (node: unknown, name: string) =>
+  (node as { attributes: { name: string; value: unknown }[] }).attributes.find(
+    (a) => a.name === name,
+  )?.value
+
+test("insertPanelDemos: a collapsed demo after each :key Steps without a figure", async () => {
+  const { insertPanelDemos } = await import("./remark-panel-steps.ts")
+  const tree: Root = {
+    type: "root",
+    children: [
+      steps(item(p(t("Press "), key("Clip")))),
+      figure(), // bound to the first Steps: no demo for it
+      heading(),
+      steps(item(p(t("Press "), key("Play"))), item(p(t("Wait")))),
+      heading(),
+      steps(item(p(t("Nothing to press")))),
+    ],
+  }
+  bindPanelSteps(tree, panel, ignore)
+  insertPanelDemos(tree, panel, ignore, "/x/PanelFigure.astro")
+  const names = tree.children.map((n) =>
+    n.type === "mdxJsxFlowElement" ? (n as { name: string }).name : n.type,
+  )
+  assert.deepEqual(names, [
+    "mdxjsEsm",
+    "Steps",
+    "PanelFigure",
+    "heading",
+    "Steps",
+    "PanelFigure",
+    "heading",
+    "Steps",
+  ])
+  const demo = tree.children[5]
+  assert.equal(attr(demo, "auto"), null) // boolean attribute
+  assert.equal(attr(demo, "id"), "panel-demo-2")
+  assert.equal(attr(demo, "stepsIndex"), "1")
+  assert.deepEqual(JSON.parse(attr(demo, "stepControls") as string), [
+    [{ id: "Play", action: "press" }],
+    [],
+  ])
+  // the page gets the import, once
+  const esm = tree.children[0] as unknown as { value: string }
+  assert.match(esm.value, /import PanelFigure from "\/x\/PanelFigure.astro"/)
+})
+
+test("insertPanelDemos: no extra import when the page already imports PanelFigure", async () => {
+  const { insertPanelDemos } = await import("./remark-panel-steps.ts")
+  const tree: Root = {
+    type: "root",
+    children: [
+      {
+        type: "mdxjsEsm",
+        value: 'import PanelFigure from "../PanelFigure.astro"',
+      } as unknown as RootContent,
+      steps(item(p(t("Press "), key("Play")))),
+    ],
+  }
+  insertPanelDemos(tree, panel, ignore, "/x/PanelFigure.astro")
+  assert.equal(
+    tree.children.filter((n) => (n.type as string) === "mdxjsEsm").length,
+    1,
+  )
+  assert.equal((tree.children[2] as { name?: string }).name, "PanelFigure")
+})

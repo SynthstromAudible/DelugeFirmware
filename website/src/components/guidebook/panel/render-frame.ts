@@ -13,6 +13,57 @@ export function windowBox(window: string | Box, panel: PanelMap): Box {
   return box
 }
 
+/**
+ * `window` grown, if needed, to include every listed control (with a margin), within the
+ * panel. A step's controls are always visible even if the chosen window missed one.
+ */
+export function fitWindow(window: Box, ids: string[], panel: PanelMap): Box {
+  let [x0, y0, x1, y1] = [
+    window[0],
+    window[1],
+    window[0] + window[2],
+    window[1] + window[3],
+  ]
+  const margin = 0.02 * panel.viewBox[2]
+  for (const id of ids) {
+    const c = panel.controls[id]
+    if (!c) continue
+    const [cx0, cy0, cx1, cy1] =
+      c.shape === "circle"
+        ? [c.cx - c.r, c.cy - c.r, c.cx + c.r, c.cy + c.r]
+        : [c.x, c.y, c.x + c.w, c.y + c.h]
+    if (cx0 < x0 || cy0 < y0 || cx1 > x1 || cy1 > y1) {
+      x0 = Math.min(x0, cx0 - margin)
+      y0 = Math.min(y0, cy0 - margin)
+      x1 = Math.max(x1, cx1 + margin)
+      y1 = Math.max(y1, cy1 + margin)
+    }
+  }
+  const [, , pw, ph] = panel.viewBox
+  x0 = Math.max(0, x0)
+  y0 = Math.max(0, y0)
+  x1 = Math.min(pw, x1)
+  y1 = Math.min(ph, y1)
+  return [
+    Math.round(x0),
+    Math.round(y0),
+    Math.round(x1 - x0),
+    Math.round(y1 - y0),
+  ]
+}
+
+/**
+ * The window for a demo with no authored frames: the smallest panel region that already holds
+ * every control its steps use (with fitWindow's margin), else the whole panel.
+ */
+export function demoWindow(ids: string[], panel: PanelMap): Box {
+  const area = (b: Box) => b[2] * b[3]
+  const fits = Object.values(panel.regions)
+    .filter((r) => fitWindow(r, ids, panel).every((v, i) => v === r[i]))
+    .sort((a, b) => area(a) - area(b))
+  return ids.length && fits.length ? fits[0] : panel.viewBox
+}
+
 const ledClasses = (led: Led): string[] => {
   const { colour, blink } =
     typeof led === "string" ? { colour: led, blink: false } : led

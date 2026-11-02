@@ -14,6 +14,7 @@ import { remarkDelugeScreen } from "./src/markdown-directives/remark-deluge-scre
 import remarkDirective from "remark-directive"
 import starlightSidebarTopics from "starlight-sidebar-topics"
 import { readFileSync } from "node:fs"
+import { fileURLToPath } from "node:url"
 import { remarkCrossLinks } from "./src/markdown-directives/remark-cross-links/remark-cross-links.ts"
 import { allTerms } from "./src/markdown-directives/remark-cross-links/terms.ts"
 import { remarkPanelSteps } from "./src/markdown-directives/remark-panel-steps/remark-panel-steps.ts"
@@ -283,7 +284,15 @@ const config = defineConfig({
       remarkDelugeKey,
       [
         remarkPanelSteps,
-        { panel: readJson("./src/data/guidebook-panel.json") },
+        {
+          panel: readJson("./src/data/guidebook-panel.json"),
+          component: fileURLToPath(
+            new URL(
+              "./src/components/guidebook/PanelFigure.astro",
+              import.meta.url,
+            ),
+          ),
+        },
       ],
       remarkDelugeScreen,
       [remarkCrossLinks, { terms: crossLinkTerms }],

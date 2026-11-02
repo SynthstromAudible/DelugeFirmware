@@ -199,3 +199,58 @@
     padding-inline: 0;
   }
 }
+
+/* Step demos start collapsed behind a summary the reader opens. */
+.gb-panel-demo > summary {
+  width: fit-content;
+  padding: 0.25rem 0.9rem;
+  border: 1px solid var(--sl-color-gray-4);
+  border-radius: 999px;
+  color: var(--sl-color-white);
+  font-size: var(--sl-text-sm);
+  cursor: pointer;
+}
+
+.gb-panel-demo > summary:hover,
+.gb-panel-demo[open] > summary {
+  border-color: var(--sl-color-accent);
+}
+
+.gb-panel-demo[open] > summary {
+  margin-bottom: 0.5rem;
+}
+
+@media print {
+  .gb-panel-demo > summary,
+  .gb-panel-auto {
+    display: none;
+  }
+}
+
+/* Play the steps (PanelFigure): shown only when JavaScript runs. */
+.gb-panel-play {
+  display: block;
+  margin: 0.5rem auto 0;
+  padding: 0.25rem 0.9rem;
+  border: 1px solid var(--sl-color-gray-4);
+  border-radius: 999px;
+  background: var(--sl-color-bg);
+  color: var(--sl-color-white);
+  font-size: var(--sl-text-sm);
+  cursor: pointer;
+}
+
+.gb-panel-play[hidden] {
+  display: none;
+}
+
+.gb-panel-play:hover,
+.gb-panel-play[aria-pressed="true"] {
+  border-color: var(--sl-color-accent);
+}
+
+@media print {
+  .gb-panel-play {
+    display: none;
+  }
+}

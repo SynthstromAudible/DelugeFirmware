@@ -326,6 +326,15 @@ const checks = {
     await page.goto(url("03-sequencing/02-playing-a-sequence"), {
       waitUntil: "load",
     })
+    // The demo starts collapsed; its summary opens it.
+    const art = page.locator(`${fig} .gb-panel-art-wrap`)
+    check(
+      "panel: the step demo starts collapsed",
+      !(await art.isVisible()) &&
+        (await page.locator(`${fig} details.gb-panel-demo`).count()) === 1,
+    )
+    await page.locator(`${fig} summary`).click()
+    check("panel: opening the demo shows the panel", await art.isVisible())
     check(
       "panel: before any step, the final state shows (one SVG, no step)",
       (await shown(page)) === "1 svg, step none",
@@ -360,6 +369,58 @@ const checks = {
     )
     await page.close()
 
+    // 3.2-1's window grows to include the horizontal encoder its step 3 uses.
+    const pw = await browser.newPage()
+    await pw.goto(url("03-sequencing/02-playing-a-sequence"), {
+      waitUntil: "load",
+    })
+    await pw.locator(`${fig} summary`).click()
+    const viewBoxX = await pw.evaluate(
+      (s) =>
+        Number(
+          document
+            .querySelector(`${s} svg.gb-panel-art`)
+            .getAttribute("viewBox")
+            .split(" ")[0],
+        ),
+      fig,
+    )
+    check(
+      "panel: 3.2-1 shows the horizontal encoder its steps use",
+      viewBoxX <= 987 - 180,
+      `viewBox x ${viewBoxX}`,
+    )
+
+    // Play walks through the steps, the list following, and stops after the last.
+    const state = () =>
+      pw.evaluate((s) => {
+        const f = document.querySelector(s)
+        const cur = [
+          ...document.querySelectorAll("ol.sl-steps"),
+        ][0].querySelector(':scope > li[aria-current="step"]')
+        return {
+          step: f.dataset.step ?? "none",
+          current: cur ? [...cur.parentElement.children].indexOf(cur) : -1,
+          button: f.querySelector(".gb-panel-play").textContent.trim(),
+        }
+      }, fig)
+    await pw.locator(`${fig} .gb-panel-play`).click()
+    await new Promise((r) => setTimeout(r, 2000))
+    const mid = await state()
+    check(
+      "panel: play advances the figure and the list together",
+      mid.step === "1" && mid.current === 1 && mid.button.includes("Stop"),
+      JSON.stringify(mid),
+    )
+    await new Promise((r) => setTimeout(r, 3500))
+    const end = await state()
+    check(
+      "panel: play stops on the last step",
+      end.step === "2" && end.button.includes("Play"),
+      JSON.stringify(end),
+    )
+    await pw.close()
+
     // 3.14-1 sits under an "Example" sub-heading after its Steps: still bound, 6 steps.
     const p1 = await browser.newPage()
     await p1.goto(url("03-sequencing/14-euclidean-sequencing"), {
@@ -377,11 +438,65 @@ const checks = {
       waitUntil: "load",
     })
     check(
+      "panel: without JS there is no play button",
+      !(await p2.locator(`${fig} .gb-panel-play`).isVisible()),
+    )
+    check(
       "panel: without JS the final state shows (one SVG, no step)",
       (await shown(p2)) === "1 svg, step none",
       await shown(p2),
     )
+    await p2.goto(url("03-sequencing/03-tempo-swing"), { waitUntil: "load" })
+    check(
+      "demo: without JS auto demos are not shown",
+      !(await p2.locator("#panel-demo-1").isVisible()),
+    )
     await noJs.close()
+
+    // Auto demos (added under every :key Steps): collapsed, SVG loaded on open, steps drive it.
+    const pa = await browser.newPage()
+    await pa.goto(url("03-sequencing/03-tempo-swing"), { waitUntil: "load" })
+    const demo = "#panel-demo-1"
+    const demoState = () =>
+      pa.evaluate((s) => {
+        const f = document.querySelector(s)
+        return {
+          hidden: f.hidden,
+          open: f.querySelector("details").open,
+          svgs: f.querySelectorAll("svg.gb-panel-art").length,
+          tempo:
+            f
+              .querySelector('[data-c="Tempo-Encoder"]')
+              ?.getAttribute("class") ?? "",
+        }
+      }, demo)
+    const before = await demoState()
+    check(
+      "demo: auto demo shows collapsed, with no SVG until opened",
+      !before.hidden && !before.open && before.svgs === 0,
+      JSON.stringify(before),
+    )
+    await pa.locator(`${demo} summary`).click()
+    await pa.waitForSelector(`${demo} svg.gb-panel-art`)
+    const opened = await demoState()
+    check(
+      "demo: opening loads the panel with the steps' controls marked",
+      opened.svgs === 1 && /\bhl\b/.test(opened.tempo),
+      JSON.stringify(opened),
+    )
+    await pa
+      .locator("ol.sl-steps")
+      .first()
+      .locator(":scope > li")
+      .nth(3)
+      .click()
+    const last = await demoState()
+    check(
+      "demo: a step with no controls clears the marks",
+      !/\bhl\b/.test(last.tempo),
+      JSON.stringify(last),
+    )
+    await pa.close()
 
     const still = await browser.newContext({ reducedMotion: "reduce" })
     const p3 = await still.newPage()
