@@ -17,6 +17,7 @@ import {
 const DOCS = join(import.meta.dirname, "../../../content/docs")
 const ROOT = join(DOCS, "guidebook")
 const vocab = vocabJson as IndexVocab
+const LEGACY = "appendix/e-community-guide-os-41.mdx"
 
 /** Headings that aren't topics: examples, notes, reference tables. */
 export const NOT_TOPICS = [
@@ -34,10 +35,11 @@ export const NOT_TOPICS = [
 
 export function readPages(): IndexPage[] {
   return readdirSync(ROOT, { withFileTypes: true })
-    .filter((d) => d.isDirectory() && !d.name.startsWith("15-"))
+    .filter((d) => d.isDirectory())
     .flatMap((d) =>
       readdirSync(join(ROOT, d.name))
-        .filter((f) => f.endsWith(".mdx"))
+        // Appendix E is the OS 4.1 community guide, not indexed
+        .filter((f) => f.endsWith(".mdx") && `${d.name}/${f}` !== LEGACY)
         .map((f) => {
           const src = readFileSync(join(ROOT, d.name, f), "utf8")
           const title = /^title:\s*"?(.*?)"?$/m.exec(src)?.[1] ?? f
@@ -49,7 +51,7 @@ export function readPages(): IndexPage[] {
           }))
           return {
             section,
-            title: title.replace(/^[\d.]+\s+/, ""),
+            title: title.replace(/^(?:[\d.]+\s+|Appendix [A-Z]: )/, ""),
             href: `/guidebook/${d.name}/${f.replace(/\.mdx$/, "")}`,
             headings,
           }

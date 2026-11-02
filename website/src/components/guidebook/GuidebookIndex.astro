@@ -21,7 +21,7 @@ const entries = await getCollection(
   "docs",
   (e) =>
     e.id.startsWith("guidebook/") &&
-    !e.id.startsWith("guidebook/15-") &&
+    e.id !== "guidebook/appendix/e-community-guide-os-41" &&
     Boolean(e.data.guidebook),
 )
 const pages: IndexPage[] = await Promise.all(
@@ -29,7 +29,7 @@ const pages: IndexPage[] = await Promise.all(
     const { headings } = await render(e)
     return {
       section: e.data.guidebook?.section ?? "",
-      title: e.data.title.replace(/^[\d.]+\s+/, ""),
+      title: e.data.title.replace(/^(?:[\d.]+\s+|Appendix [A-Z]: )/, ""),
       href: `/${e.id}`,
       headings,
     }

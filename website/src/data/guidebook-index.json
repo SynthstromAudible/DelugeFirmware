@@ -132,7 +132,7 @@
     {
       "head": "Delay",
       "match": ["delay"],
-      "sections": ["11.5"]
+      "sections": ["11.6"]
     },
     {
       "head": "Distortion",
@@ -284,7 +284,7 @@
     {
       "head": "Mod-FX",
       "match": ["mod-fx", "modulation effects"],
-      "sections": ["11.7"]
+      "sections": ["11.8"]
     },
     {
       "head": "Modulation",
@@ -305,13 +305,13 @@
       "refs": [
         {
           "label": "mute pads in clip view",
-          "href": "/guidebook/02-basic-operation/06-clip-view-overview#audition--mute-pads--clip-view",
-          "section": "2.6"
+          "href": "/guidebook/03-clips/02-clip-view-overview#audition--mute-pads--clip-view",
+          "section": "3.2"
         },
         {
           "label": "muting and unmuting tracks in arranger view",
-          "href": "/guidebook/08-arranger-view/02-arranger-relationship-with-the-other-views",
-          "section": "8.2"
+          "href": "/guidebook/14-arranger-view/02-arranger-relationship-with-the-other-views",
+          "section": "14.2"
         }
       ]
     },
@@ -413,7 +413,7 @@
     {
       "head": "Reverb",
       "match": ["reverb"],
-      "sections": ["11.6"]
+      "sections": ["11.7"]
     },
     {
       "head": "Sample",
@@ -491,7 +491,7 @@
     },
     {
       "head": "Song view",
-      "match": ["song view", "song mode"],
+      "match": ["song view", "song mode", "session view"],
       "also": ["Song grid view", "Song row view"]
     },
     {
@@ -543,18 +543,18 @@
       "refs": [
         {
           "label": "in clip view",
-          "href": "/guidebook/02-basic-operation/06-clip-view-overview",
-          "section": "2.6"
+          "href": "/guidebook/03-clips/02-clip-view-overview",
+          "section": "3.2"
         },
         {
           "label": "in arranger view",
-          "href": "/guidebook/08-arranger-view/03-arranger-view-basics",
-          "section": "8.3"
+          "href": "/guidebook/14-arranger-view/03-arranger-view-basics",
+          "section": "14.3"
         },
         {
           "label": "as a global MIDI command",
-          "href": "/guidebook/12-midi/04-global-midi-commands",
-          "section": "12.4"
+          "href": "/guidebook/18-midi/04-global-midi-commands",
+          "section": "18.4"
         }
       ]
     },

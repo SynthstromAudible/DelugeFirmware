@@ -1,0 +1,27 @@
+{
+  "figure": "fig-4.2-1",
+  "source": "hand",
+  "window": [1900, 300, 3700, 1200],
+  "steps": [
+    {
+      "note": "Clip view: CLIP lit blue",
+      "leds": {
+        "Clip": "blue"
+      }
+    },
+    {
+      "note": "Playing: PLAY lit green",
+      "leds": {
+        "Clip": "blue",
+        "Play": "green"
+      }
+    },
+    {
+      "note": "Horizontal + Play: playing from the grid position in focus",
+      "leds": {
+        "Clip": "blue",
+        "Play": "green"
+      }
+    }
+  ]
+}

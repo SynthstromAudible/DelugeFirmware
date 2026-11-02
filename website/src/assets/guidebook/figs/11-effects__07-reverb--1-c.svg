@@ -1,0 +1,45 @@
+<svg role="img" fill="currentColor" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" version="1.1" viewBox="0 0 290.8 218.9"><defs><path id="11-effects__07-reverb--1-c-s1" d="M0 0V-22.4" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor"/><path id="11-effects__07-reverb--1-c-s2" d="M0 0H38" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor"/><path id="11-effects__07-reverb--1-c-s3" d="M0 0 -8.5 -4.3V4.2Z" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor"/></defs>
+<defs>
+<clipPath id="11-effects__07-reverb--1-c-clip_1">
+<path transform="matrix(1,0,0,-1,-96.9,313.0)" d="M96.9 94.0H387.7V313.0H96.9Z" clip-rule="evenodd"/>
+</clipPath>
+</defs>
+<g clip-path="url(#11-effects__07-reverb--1-c-clip_1)">
+<path transform="matrix(1,0,0,-1,-96.9,313.0)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M424.8 688.4V83.9"/>
+<path transform="matrix(1,0,0,-1,-96.9,313.0)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="color-mix(in srgb, currentColor 20%, var(--gb-paper))" d="M424.8 688.4V83.9"/>
+<use href="#11-effects__07-reverb--1-c-s1" transform="matrix(1 0 0 -1 126.1 74.5)"/>
+<use href="#11-effects__07-reverb--1-c-s1" transform="matrix(1 0 0 -1 126.1 74.5)"/>
+<use href="#11-effects__07-reverb--1-c-s1" transform="matrix(1 0 0 -1 181.3 74.5)"/>
+<path transform="matrix(1,0,0,-1,-96.9,313.0)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M222.4 264.1C229.4 264.1 235.1 258.3 235.1 251.3 235.1 244.3 229.4 238.5 222.4 238.5 215.3 238.5 209.6 244.3 209.6 251.3 209.6 258.3 215.3 264.1 222.4 264.1Z"/>
+<path transform="matrix(1,0,0,-1,-96.9,313.0)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M277.6 264.1C284.6 264.1 290.3 258.3 290.3 251.3 290.3 244.3 284.6 238.5 277.6 238.5 270.5 238.5 264.8 244.3 264.8 251.3 264.8 258.3 270.5 264.1 277.6 264.1Z"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(135.0 123.2)" font-size="9" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">REVERB</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(118.9 64.2)" font-size="7" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Size</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(118.4 64.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Size</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(170.9 64.3)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Damp</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(124.8 29.6)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Common Reverb</tspan></text>
+<path transform="matrix(1,0,0,-1,-96.9,313.0)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.000015,.000015" stroke-linejoin="round" fill="none" stroke="currentColor" d="M102.9 100.0H182.3V307.0H102.9Z"/>
+<path transform="matrix(1,0,0,-1,-96.9,313.0)" stroke-width=".7" stroke-linecap="round" stroke-dasharray="2.1,2.1,.000015,.000015" stroke-linejoin="round" fill="none" stroke="currentColor" d="M190.8 100.0H343.8V307.0H190.8Z"/>
+<text fill="currentColor" xml:space="preserve" transform="translate(11.4 25.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Sends from Sounds,</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(14.9 33.5)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Instruments, Song</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(206.9 118.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Pan &amp;</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(207.6 126.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Width</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(136.9 180.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">Sidechain</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(237.9 122.7)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">RETURN</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(34.3 121.9)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">SEND</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(34.3 93.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">SEND</tspan></text>
+<text fill="currentColor" xml:space="preserve" transform="translate(34.3 153.1)" font-size="7.5" font-family="Arial, Helvetica, sans-serif"><tspan y="0" x="0">SEND</tspan></text>
+<use href="#11-effects__07-reverb--1-c-s2" transform="matrix(1 0 0 -1 62.7 119.4)"/>
+<use href="#11-effects__07-reverb--1-c-s2" transform="matrix(1 0 0 -1 62.7 90.6)"/>
+<use href="#11-effects__07-reverb--1-c-s2" transform="matrix(1 0 0 -1 62.7 150.6)"/>
+<path transform="matrix(1,0,0,-1,-96.9,313.0)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M250.3 142.6V160.7"/>
+<path transform="matrix(1,0,0,-1,-96.9,313.0)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M293.0 207.3H372.7"/>
+<path transform="matrix(1,0,0,-1,-96.9,313.0)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M292.8 178.5H372.7"/>
+<use href="#11-effects__07-reverb--1-c-s3" transform="matrix(1 0 0 -1 109.5 119.3)"/>
+<use href="#11-effects__07-reverb--1-c-s3" transform="matrix(1 0 0 -1 109.5 90.5)"/>
+<use href="#11-effects__07-reverb--1-c-s3" transform="matrix(1 0 0 -1 109.5 150.5)"/>
+<path transform="matrix(1,0,0,-1,-96.9,313.0)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M250.3 169.5 254.5 161.0H246.0Z"/>
+<path transform="matrix(1,0,0,-1,-96.9,313.0)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M381.7 207.3 373.2 203.1V211.6Z"/>
+<path transform="matrix(1,0,0,-1,-96.9,313.0)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M381.7 178.5 373.2 174.3V182.8Z"/>
+<path transform="matrix(1,0,0,-1,-96.9,313.0)" stroke-width=".7" stroke-linecap="round" stroke-linejoin="round" fill="none" stroke="currentColor" d="M207.9 170.3H293.0V215.6H207.9Z"/>
+</g>
+</svg>

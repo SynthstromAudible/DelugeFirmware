@@ -3,147 +3,147 @@
     {
       "term": "arranger view",
       "aliases": ["arranger"],
-      "href": "/guidebook/08-arranger-view/03-arranger-view-basics"
+      "href": "/guidebook/14-arranger-view/03-arranger-view-basics"
     },
     {
       "term": "song view",
-      "href": "/guidebook/07-song-view/02-song-view-basics"
+      "href": "/guidebook/12-session-view/02-session-view-basics"
     },
     {
       "term": "song row view",
-      "href": "/guidebook/07-song-view/03-working-in-song-row-view"
+      "href": "/guidebook/12-session-view/03-working-in-session-row-view"
     },
     {
       "term": "song grid view",
-      "href": "/guidebook/07-song-view/04-working-in-song-grid-view"
+      "href": "/guidebook/12-session-view/04-working-in-session-grid-view"
     },
     {
       "term": "clip view",
-      "href": "/guidebook/02-basic-operation/06-clip-view-overview"
+      "href": "/guidebook/03-clips/02-clip-view-overview"
     },
     {
       "term": "keyboard view",
-      "href": "/guidebook/03-sequencing/07-keyboard-view-chords"
+      "href": "/guidebook/05-keyboard-views/01-keyboard-view-chords"
     },
     {
       "term": "automation view",
       "aliases": ["parameter automation view"],
-      "href": "/guidebook/03-sequencing/13-parameter-automation-view"
+      "href": "/guidebook/06-automation/02-parameter-automation-view"
     },
     {
       "term": "parameter automation",
-      "href": "/guidebook/03-sequencing/12-parameter-automation-basics"
+      "href": "/guidebook/06-automation/01-parameter-automation-basics"
     },
     {
       "term": "waveform view",
-      "href": "/guidebook/09-audio/12-waveform-view-detailed-audio-editing"
+      "href": "/guidebook/16-audio/10-waveform-view-detailed-audio-editing"
     },
     {
       "term": "drum pad grid",
       "aliases": ["drum pad grid view"],
-      "href": "/guidebook/05-kits/04-alternate-drum-pad-grid-view"
+      "href": "/guidebook/05-keyboard-views/02-alternate-drum-pad-grid-view"
     },
     {
       "term": "cross-screen editing",
       "aliases": ["cross-screen edit mode", "cross screen editing"],
-      "href": "/guidebook/03-sequencing/10-cross-screen-editing"
+      "href": "/guidebook/04-sequencing/08-cross-screen-editing"
     },
     {
       "term": "euclidean",
       "aliases": ["euclidean sequencing", "euclidean patterns"],
-      "href": "/guidebook/03-sequencing/14-euclidean-sequencing"
+      "href": "/guidebook/04-sequencing/10-euclidean-sequencing"
     },
     {
       "term": "probability",
-      "href": "/guidebook/03-sequencing/11-note-creativity-probability-iteration-dependance"
+      "href": "/guidebook/04-sequencing/09-note-creativity-probability-iteration-dependance"
     },
     {
       "term": "iteration",
-      "href": "/guidebook/03-sequencing/11-note-creativity-probability-iteration-dependance"
+      "href": "/guidebook/04-sequencing/09-note-creativity-probability-iteration-dependance"
     },
     {
       "term": "swing",
-      "href": "/guidebook/03-sequencing/03-tempo-swing"
+      "href": "/guidebook/04-sequencing/03-tempo-swing"
     },
     {
       "term": "note scales",
       "aliases": ["scale mode"],
-      "href": "/guidebook/03-sequencing/06-note-scales"
+      "href": "/guidebook/04-sequencing/06-note-scales"
     },
     {
       "term": "chords",
       "aliases": ["chord"],
-      "href": "/guidebook/03-sequencing/07-keyboard-view-chords"
+      "href": "/guidebook/05-keyboard-views/01-keyboard-view-chords"
     },
     {
       "term": "clip length",
-      "href": "/guidebook/03-sequencing/09-clip-length-position"
+      "href": "/guidebook/03-clips/05-clip-length-position"
     },
     {
       "term": "factory library",
-      "href": "/guidebook/02-basic-operation/01-factory-library"
+      "href": "/guidebook/appendix/b-factory-library"
     },
     {
       "term": "alphanumeric keyboard",
       "aliases": ["QWERTY"],
-      "href": "/guidebook/02-basic-operation/09-alphanumeric-keyboard-grid-layout"
+      "href": "/guidebook/02-basics/04-alphanumeric-keyboard-grid-layout"
     },
     {
       "term": "affect entire",
-      "href": "/guidebook/02-basic-operation/08-clip-view-parameter-affect-group-changes"
+      "href": "/guidebook/03-clips/04-clip-view-parameter-affect-group-changes"
     },
     {
       "term": "subtractive",
       "aliases": ["subtractive synthesis", "subtractive synthesizer"],
-      "href": "/guidebook/04-synthesizers/02-deluge-subtractive-synthesizer-overview"
+      "href": "/guidebook/07-synthesizers/02-synthesizer-concepts#deluge-subtractive-synthesizer-overview"
     },
     {
       "term": "FM synthesis",
       "aliases": ["FM synthesizer", "FM synth"],
-      "href": "/guidebook/04-synthesizers/03-deluge-fm-synthesizer-overview"
+      "href": "/guidebook/07-synthesizers/02-synthesizer-concepts#deluge-fm-synthesizer-overview"
     },
     {
       "term": "wavetable",
       "aliases": ["wavetables", "wavetable synthesis"],
-      "href": "/guidebook/04-synthesizers/04-deluge-wavetable-synthesizer-overview"
+      "href": "/guidebook/07-synthesizers/02-synthesizer-concepts#deluge-wavetable-synthesizer-overview"
     },
     {
       "term": "sound editor",
-      "href": "/guidebook/04-synthesizers/08-sound-editor-synthesizer-parameters"
+      "href": "/guidebook/07-synthesizers/05-sound-editor-synthesizer-parameters"
     },
     {
       "term": "oscillators",
       "aliases": ["oscillator"],
-      "href": "/guidebook/04-synthesizers/09-oscillators"
+      "href": "/guidebook/07-synthesizers/06-oscillators"
     },
     {
       "term": "filters",
       "aliases": ["filter", "low-pass filter", "high-pass filter"],
-      "href": "/guidebook/04-synthesizers/10-filters"
+      "href": "/guidebook/07-synthesizers/07-filters"
     },
     {
       "term": "voices",
-      "href": "/guidebook/04-synthesizers/11-deluge-voices"
+      "href": "/guidebook/07-synthesizers/08-deluge-voices"
     },
     {
       "term": "arpeggiator",
       "aliases": ["arp"],
-      "href": "/guidebook/04-synthesizers/12-arpeggiator"
+      "href": "/guidebook/08-arpeggiator/01-arpeggiator"
     },
     {
       "term": "single-cycle waveforms",
       "aliases": ["single-cycle", "single cycle"],
-      "href": "/guidebook/04-synthesizers/13-single-cycle-waveforms"
+      "href": "/guidebook/07-synthesizers/09-single-cycle-waveforms"
     },
     {
       "term": "mod matrix",
       "aliases": ["modulation matrix", "modulation routing"],
-      "href": "/guidebook/06-modulation/01-modulation-routing-basics"
+      "href": "/guidebook/10-modulation/01-modulation-routing-basics"
     },
     {
       "term": "envelopes",
       "aliases": ["envelope"],
-      "href": "/guidebook/06-modulation/03-envelopes-and-low-frequency-oscillators"
+      "href": "/guidebook/10-modulation/03-envelopes-and-low-frequency-oscillators"
     },
     {
       "term": "LFO",
@@ -152,145 +152,145 @@
         "low frequency oscillator",
         "low frequency oscillators"
       ],
-      "href": "/guidebook/06-modulation/03-envelopes-and-low-frequency-oscillators"
+      "href": "/guidebook/10-modulation/03-envelopes-and-low-frequency-oscillators"
     },
     {
       "term": "sidechain",
       "aliases": ["sidechain compressor", "side chain"],
-      "href": "/guidebook/06-modulation/04-sidechain-compressor"
+      "href": "/guidebook/11-effects/03-sidechain-compressor"
     },
     {
       "term": "collect media",
-      "href": "/guidebook/07-song-view/08-collect-media-function"
+      "href": "/guidebook/15-songs-and-files/02-collect-media-function"
     },
     {
       "term": "white pads",
-      "href": "/guidebook/08-arranger-view/04-white-pads-for-variations"
+      "href": "/guidebook/14-arranger-view/04-white-pads-for-variations"
     },
     {
       "term": "resampling",
       "aliases": ["resample"],
-      "href": "/guidebook/09-audio/11-resampling-deluge-output"
+      "href": "/guidebook/16-audio/09-resampling-deluge-output"
     },
     {
       "term": "audio clips",
       "aliases": ["audio clip"],
-      "href": "/guidebook/09-audio/06-recording-into-audio-clips-in-song-view"
+      "href": "/guidebook/16-audio/06-recording-into-audio-clips-in-session-view"
     },
     {
       "term": "time-stretching",
       "aliases": ["time stretching", "time-stretch", "pitch shifting"],
-      "href": "/guidebook/09-audio/15-time-stretching-pitch-shifting"
+      "href": "/guidebook/16-audio/13-time-stretching-pitch-shifting"
     },
     {
       "term": "looper",
       "aliases": ["looping"],
-      "href": "/guidebook/10-looping/01-deluge-looping-overview"
+      "href": "/guidebook/17-looping/01-deluge-looping-overview"
     },
     {
       "term": "overdub",
       "aliases": ["overdubbing", "overdubs"],
-      "href": "/guidebook/10-looping/03-basic-looping"
+      "href": "/guidebook/17-looping/03-basic-looping"
     },
     {
       "term": "foot controller",
       "aliases": ["foot switch", "foot switches"],
-      "href": "/guidebook/10-looping/04-using-a-foot-controller"
+      "href": "/guidebook/17-looping/04-using-a-foot-controller"
     },
     {
       "term": "loop margins",
-      "href": "/guidebook/10-looping/05-audio-loop-margins"
+      "href": "/guidebook/17-looping/05-audio-loop-margins"
     },
     {
       "term": "distortion",
       "aliases": ["bitcrush", "decimation", "saturation", "wavefold"],
-      "href": "/guidebook/11-effects/03-distortion-effects"
+      "href": "/guidebook/11-effects/04-distortion-effects"
     },
     {
       "term": "EQ",
       "aliases": ["equalisation", "equalization"],
-      "href": "/guidebook/11-effects/04-eq-equalisation"
+      "href": "/guidebook/11-effects/05-eq-equalisation"
     },
     {
       "term": "DELAY",
-      "href": "/guidebook/11-effects/05-delay",
+      "href": "/guidebook/11-effects/06-delay",
       "caseSensitive": true
     },
     {
       "term": "ping-pong",
-      "href": "/guidebook/11-effects/05-delay"
+      "href": "/guidebook/11-effects/06-delay"
     },
     {
       "term": "reverb",
-      "href": "/guidebook/11-effects/06-reverb"
+      "href": "/guidebook/11-effects/07-reverb"
     },
     {
       "term": "mod-fx",
       "aliases": ["modulation effects", "chorus", "flanger", "phaser"],
-      "href": "/guidebook/11-effects/07-modulation-effects"
+      "href": "/guidebook/11-effects/08-modulation-effects"
     },
     {
       "term": "stutter",
-      "href": "/guidebook/11-effects/08-stutter-effect"
+      "href": "/guidebook/11-effects/09-stutter-effect"
     },
     {
       "term": "MIDI learn",
-      "href": "/guidebook/12-midi/03-midi-in"
+      "href": "/guidebook/18-midi/03-midi-in"
     },
     {
       "term": "global MIDI commands",
-      "href": "/guidebook/12-midi/04-global-midi-commands"
+      "href": "/guidebook/18-midi/04-global-midi-commands"
     },
     {
       "term": "tempo magnitude matching",
-      "href": "/guidebook/12-midi/05-tempo-magnitude-matching"
+      "href": "/guidebook/18-midi/05-tempo-magnitude-matching"
     },
     {
       "term": "sync-scaling",
       "aliases": ["sync scaling"],
-      "href": "/guidebook/12-midi/06-sync-scaling"
+      "href": "/guidebook/18-midi/06-sync-scaling"
     },
     {
       "term": "MPE",
       "aliases": ["polyphonic aftertouch"],
-      "href": "/guidebook/12-midi/10-overview-of-midi-mpe-and-polyphonic-aftertouch"
+      "href": "/guidebook/18-midi/10-overview-of-midi-mpe-and-polyphonic-aftertouch"
     },
     {
       "term": "gate outputs",
       "aliases": ["gate output"],
-      "href": "/guidebook/13-cv/03-cv-gate-out"
+      "href": "/guidebook/19-cv/04-cv-gate-out"
     },
     {
       "term": "trigger clock",
-      "href": "/guidebook/13-cv/01-cv-connections-compatibility#trigger-clock"
+      "href": "/guidebook/19-cv/02-cv-connections-compatibility#trigger-clock"
     },
     {
       "term": "firmware update",
       "aliases": ["updating firmware"],
-      "href": "/guidebook/14-system-general/02-updating-deluge-firmware"
+      "href": "/guidebook/21-settings-and-system/02-updating-deluge-firmware"
     },
     {
       "term": "pad colours",
       "aliases": ["pad colors"],
-      "href": "/guidebook/14-system-general/03-deluge-pad-colours"
+      "href": "/guidebook/21-settings-and-system/03-deluge-pad-colours"
     },
     {
       "term": "CPU load",
       "aliases": ["CPU performance"],
-      "href": "/guidebook/14-system-general/04-deluge-cpu-performance"
+      "href": "/guidebook/21-settings-and-system/04-deluge-cpu-performance"
     },
     {
       "term": "USB host",
       "aliases": ["USB host mode"],
-      "href": "/guidebook/14-system-general/05-usb-host-mode-for-devices"
+      "href": "/guidebook/20-usb-host/01-usb-host-mode-for-devices"
     },
     {
       "term": "quick reference",
-      "href": "/guidebook/14-system-general/08-quick-reference-commands"
+      "href": "/guidebook/appendix/a-quick-reference-commands"
     },
     {
       "term": "community guide",
-      "href": "/guidebook/15-community-guide/00-introduction"
+      "href": "/guidebook/appendix/e-community-guide-os-41"
     }
   ],
   "menu": {

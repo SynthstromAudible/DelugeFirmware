@@ -1,0 +1,32 @@
+{
+  "figure": "fig-4.2-2",
+  "source": "hand",
+  "window": [1900, 300, 3700, 1200],
+  "steps": [
+    {
+      "note": "Clip view: CLIP lit blue",
+      "leds": {
+        "Clip": "blue"
+      }
+    },
+    {
+      "note": "Shift + direction pad: setup menu shows the play direction",
+      "leds": {
+        "Clip": "blue"
+      }
+    },
+    {
+      "note": "Turn SELECT to choose the direction",
+      "leds": {
+        "Clip": "blue"
+      }
+    },
+    {
+      "note": "Playing: PLAY lit green",
+      "leds": {
+        "Clip": "blue",
+        "Play": "green"
+      }
+    }
+  ]
+}

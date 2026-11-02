@@ -63,8 +63,8 @@ const checks = {
     const page = await ctx.newPage()
     const overlaps = []
     for (const path of [
-      "09-audio/09-sampling-recording-audio-within-kits",
-      "03-sequencing/01-sequencing-workflow",
+      "09-kits/04-sampling-recording-audio-within-kits",
+      "04-sequencing/01-sequencing-workflow",
     ]) {
       await page.goto(url(path), { waitUntil: "load" })
       overlaps.push(
@@ -98,7 +98,7 @@ const checks = {
 
   async stepTabStops(browser) {
     const page = await browser.newPage()
-    await page.goto(url("08-arranger-view/03-arranger-view-basics"), {
+    await page.goto(url("14-arranger-view/03-arranger-view-basics"), {
       waitUntil: "load",
     })
     const perList = await page.evaluate(() =>
@@ -118,19 +118,19 @@ const checks = {
     const ctx = await browser.newContext()
     const { page } = await open(
       ctx,
-      "03-sequencing/08-navigating-the-grid",
-      "fig-3.8-1",
+      "04-sequencing/07-navigating-the-grid",
+      "fig-4.7-1",
     )
-    const replay = page.locator(`${sel("fig-3.8-1")} .gb-replay`)
+    const replay = page.locator(`${sel("fig-4.7-1")} .gb-replay`)
     const lightsUp = await waitFor(
-      async () => (await lit(page, "fig-3.8-1")).length > 0,
+      async () => (await lit(page, "fig-4.7-1")).length > 0,
       1000,
     )
     check("playhead: pads light up on 3.8", lightsUp)
     let notesCovered = 0
     for (let t = 0; t < 10; t++) {
       notesCovered += await page
-        .locator(`${sel("fig-3.8-1")} .gb-cell-on[data-note]`)
+        .locator(`${sel("fig-4.7-1")} .gb-cell-on[data-note]`)
         .count()
       await page.waitForTimeout(60)
     }
@@ -140,7 +140,7 @@ const checks = {
       `${notesCovered}`,
     )
     const done = await waitFor(() => replay.isVisible(), 5000)
-    const left = await page.locator(`${sel("fig-3.8-1")} .gb-cell-on`).count()
+    const left = await page.locator(`${sel("fig-4.7-1")} .gb-cell-on`).count()
     check(
       "playhead: replay appears after one pass, nothing left lit",
       done && left === 0,
@@ -153,8 +153,8 @@ const checks = {
     const ctx = await browser.newContext()
     const { page } = await open(
       ctx,
-      "03-sequencing/01-sequencing-workflow",
-      "fig-3.1-1",
+      "04-sequencing/01-sequencing-workflow",
+      "fig-4.1-1",
     )
     const state = () =>
       page.evaluate((s) => {
@@ -172,7 +172,7 @@ const checks = {
               parseFloat(e.getAttribute("opacity") ?? "1"),
           ).length,
         }
-      }, sel("fig-3.1-1"))
+      }, sel("fig-4.1-1"))
     const early = await state()
     check("draw: 3.1 is animating", early.running > 0, JSON.stringify(early))
     await page.waitForTimeout(3000)
@@ -188,8 +188,8 @@ const checks = {
   async reducedMotion(browser) {
     const ctx = await browser.newContext({ reducedMotion: "reduce" })
     for (const [path, id] of [
-      ["03-sequencing/08-navigating-the-grid", "fig-3.8-1"],
-      ["03-sequencing/01-sequencing-workflow", "fig-3.1-1"],
+      ["04-sequencing/07-navigating-the-grid", "fig-4.7-1"],
+      ["04-sequencing/01-sequencing-workflow", "fig-4.1-1"],
     ]) {
       const { page } = await open(ctx, path, id)
       const faded = await page.evaluate(
@@ -262,20 +262,20 @@ const checks = {
 
   async independentReplay(browser) {
     const ctx = await browser.newContext()
-    const path = "03-sequencing/12-parameter-automation-basics"
-    const { page } = await open(ctx, path, "fig-3.12-1")
-    await page.locator(sel("fig-3.12-2")).scrollIntoViewIfNeeded()
+    const path = "06-automation/01-parameter-automation-basics"
+    const { page } = await open(ctx, path, "fig-6.1-1")
+    await page.locator(sel("fig-6.1-2")).scrollIntoViewIfNeeded()
     const both = await waitFor(
       async () =>
-        (await replayVisible(page, "fig-3.12-1")) &&
-        (await replayVisible(page, "fig-3.12-2")),
+        (await replayVisible(page, "fig-6.1-1")) &&
+        (await replayVisible(page, "fig-6.1-2")),
       8000,
     )
     await page.evaluate(() => (window.__lit = {}))
-    await page.locator(`${sel("fig-3.12-1")} .gb-replay`).click()
+    await page.locator(`${sel("fig-6.1-1")} .gb-replay`).click()
     await page.waitForTimeout(600)
-    const a = (await lit(page, "fig-3.12-1")).length
-    const b = (await lit(page, "fig-3.12-2")).length
+    const a = (await lit(page, "fig-6.1-1")).length
+    const b = (await lit(page, "fig-6.1-2")).length
     check(
       "two figures: replaying one leaves the other alone",
       both && a > 0 && b === 0,
@@ -287,10 +287,10 @@ const checks = {
   async allColumns(browser) {
     const ctx = await browser.newContext()
     // 3.2-3: three direction grids (3.9-1 became a panel figure)
-    const id = "fig-3.2-3"
+    const id = "fig-4.2-3"
     const { page, errors } = await open(
       ctx,
-      "03-sequencing/02-playing-a-sequence",
+      "04-sequencing/02-playing-a-sequence",
       id,
     )
     await waitFor(() => replayVisible(page, id), 6000)
@@ -314,7 +314,7 @@ const checks = {
   },
 
   async panelFigures(browser) {
-    const fig = sel("fig-3.2-1")
+    const fig = sel("fig-4.2-1")
     // The figure renders one SVG; the page script records the step it shows in data-step.
     const shown = (page) =>
       page.evaluate((s) => {
@@ -323,7 +323,7 @@ const checks = {
       }, fig)
 
     const page = await browser.newPage()
-    await page.goto(url("03-sequencing/02-playing-a-sequence"), {
+    await page.goto(url("04-sequencing/02-playing-a-sequence"), {
       waitUntil: "load",
     })
     // The demo starts collapsed; its summary opens it.
@@ -371,7 +371,7 @@ const checks = {
 
     // 3.2-1's window grows to include the horizontal encoder its step 3 uses.
     const pw = await browser.newPage()
-    await pw.goto(url("03-sequencing/02-playing-a-sequence"), {
+    await pw.goto(url("04-sequencing/02-playing-a-sequence"), {
       waitUntil: "load",
     })
     await pw.locator(`${fig} summary`).click()
@@ -423,18 +423,18 @@ const checks = {
 
     // 3.14-1 sits under an "Example" sub-heading after its Steps: still bound, 6 steps.
     const p1 = await browser.newPage()
-    await p1.goto(url("03-sequencing/14-euclidean-sequencing"), {
+    await p1.goto(url("04-sequencing/10-euclidean-sequencing"), {
       waitUntil: "load",
     })
     const bound = await p1.evaluate(
-      () => document.getElementById("fig-3.14-1")?.dataset.steps ?? "unbound",
+      () => document.getElementById("fig-4.10-1")?.dataset.steps ?? "unbound",
     )
     check("panel: 3.14-1 is bound to its 6 steps", bound === "6", bound)
     await p1.close()
 
     const noJs = await browser.newContext({ javaScriptEnabled: false })
     const p2 = await noJs.newPage()
-    await p2.goto(url("03-sequencing/02-playing-a-sequence"), {
+    await p2.goto(url("04-sequencing/02-playing-a-sequence"), {
       waitUntil: "load",
     })
     check(
@@ -446,7 +446,7 @@ const checks = {
       (await shown(p2)) === "1 svg, step none",
       await shown(p2),
     )
-    await p2.goto(url("03-sequencing/03-tempo-swing"), { waitUntil: "load" })
+    await p2.goto(url("04-sequencing/03-tempo-swing"), { waitUntil: "load" })
     check(
       "demo: without JS auto demos are not shown",
       !(await p2.locator("#panel-demo-1").isVisible()),
@@ -455,7 +455,7 @@ const checks = {
 
     // Auto demos (added under every :key Steps): collapsed, SVG loaded on open, steps drive it.
     const pa = await browser.newPage()
-    await pa.goto(url("03-sequencing/03-tempo-swing"), { waitUntil: "load" })
+    await pa.goto(url("04-sequencing/03-tempo-swing"), { waitUntil: "load" })
     const demo = "#panel-demo-1"
     const demoState = () =>
       pa.evaluate((s) => {
@@ -500,7 +500,7 @@ const checks = {
 
     const still = await browser.newContext({ reducedMotion: "reduce" })
     const p3 = await still.newPage()
-    await p3.goto(url("03-sequencing/02-playing-a-sequence"), {
+    await p3.goto(url("04-sequencing/02-playing-a-sequence"), {
       waitUntil: "load",
     })
     const animations = await p3.evaluate(
@@ -522,14 +522,14 @@ const checks = {
     })
     const p4 = await narrow.newPage()
     await p4.goto(
-      url("02-basic-operation/08-clip-view-parameter-affect-group-changes"),
+      url("03-clips/04-clip-view-parameter-affect-group-changes"),
       {
         waitUntil: "load",
       },
     )
     const callouts = await p4.evaluate(() =>
       [
-        ...document.querySelectorAll('[id="fig-2.8-1"] .gb-panel-callouts li'),
+        ...document.querySelectorAll('[id="fig-3.4-1"] .gb-panel-callouts li'),
       ].map((li) => getComputedStyle(li).position),
     )
     check(
@@ -544,13 +544,13 @@ const checks = {
     })
     const p5 = await wide.newPage()
     await p5.goto(
-      url("02-basic-operation/08-clip-view-parameter-affect-group-changes"),
+      url("03-clips/04-clip-view-parameter-affect-group-changes"),
       {
         waitUntil: "load",
       },
     )
     const layout = await p5.evaluate(() => {
-      const fig = document.getElementById("fig-2.8-1")
+      const fig = document.getElementById("fig-3.4-1")
       const boxes = [...fig.querySelectorAll(".gb-panel-callouts li")].map(
         (li) => {
           const r = li.getBoundingClientRect()
@@ -575,7 +575,7 @@ const checks = {
 
   async stepFocus(browser) {
     const page = await browser.newPage()
-    await page.goto(url("05-kits/03-kit-presets-samples"), {
+    await page.goto(url("09-kits/03-kit-presets-samples"), {
       waitUntil: "load",
     })
     const steps = page.locator("ol.sl-steps").first().locator(":scope > li")
@@ -612,8 +612,8 @@ const checks = {
   },
 
   async envelope(browser) {
-    const path = "06-modulation/03-envelopes-and-low-frequency-oscillators"
-    const id = "fig-6.3-1"
+    const path = "10-modulation/03-envelopes-and-low-frequency-oscillators"
+    const id = "fig-10.3-1"
     const fig = sel(id)
     const curve = (page) =>
       page.locator(`${fig} .gb-env-curve`).getAttribute("d")
@@ -700,8 +700,8 @@ const checks = {
   },
 
   async lfo(browser) {
-    const path = "06-modulation/03-envelopes-and-low-frequency-oscillators"
-    const id = "fig-6.3-2"
+    const path = "10-modulation/03-envelopes-and-low-frequency-oscillators"
+    const id = "fig-10.3-2"
     const fig = sel(id)
     const traces = (page) =>
       page
@@ -757,9 +757,9 @@ const checks = {
   },
 
   async osc(browser) {
-    const path = "04-synthesizers/09-oscillators"
-    const digital = sel("fig-4.9-2")
-    const analog = sel("fig-4.9-4")
+    const path = "07-synthesizers/06-oscillators"
+    const digital = sel("fig-7.6-2")
+    const analog = sel("fig-7.6-4")
     const traces = (page, fig) =>
       page
         .locator(`${fig} .gb-lfo-curve`)
@@ -792,7 +792,7 @@ const checks = {
     await noJs.close()
 
     const ctx = await browser.newContext()
-    const { page, errors } = await open(ctx, path, "fig-4.9-2")
+    const { page, errors } = await open(ctx, path, "fig-7.6-2")
     const a = await traces(page, digital)
     await page.waitForTimeout(400)
     const b = await traces(page, digital)
@@ -821,7 +821,7 @@ const checks = {
     await ctx.close()
 
     const calm = await browser.newContext({ reducedMotion: "reduce" })
-    const r = await open(calm, path, "fig-4.9-2")
+    const r = await open(calm, path, "fig-7.6-2")
     const f = await traces(r.page, digital)
     await r.page.waitForTimeout(400)
     check(
