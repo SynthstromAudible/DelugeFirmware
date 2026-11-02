@@ -85,12 +85,12 @@ inline void digest_svf(const deluge::dsp::fixed::Svf::State& left, const deluge:
 		d.add(channel.low);
 		d.add(channel.band);
 	}
-	d.add(c.fc);
-	d.add(c.q);
-	d.add(c.in);
-	d.add(c.c_low);
-	d.add(c.c_band);
-	d.add(c.c_high);
+	d.add(c.fc.raw());
+	d.add(c.q.raw());
+	d.add(c.in.raw());
+	d.add(c.c_low.raw());
+	d.add(c.c_band.raw());
+	d.add(c.c_high.raw());
 	d.add(c.mode == deluge::dsp::fixed::Svf::Mode::BAND);
 	digest_fade(fade, d);
 }
