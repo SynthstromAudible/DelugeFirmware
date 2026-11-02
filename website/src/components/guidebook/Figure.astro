@@ -1,8 +1,9 @@
 ---
 /**
  * A rebuilt Guidebook figure: an inline SVG (so theme colours apply) or an
- * image, shown at its natural size (1pt in the PDF = 4/3 px) and never wider
- * than the column. Asset URLs under /guidebook/img/ get the site base.
+ * image, shown at its natural size (1pt in the PDF = 4/3 px) times
+ * --gb-figure-scale (guidebook.css) and never wider than the column. Asset
+ * URLs under /guidebook/img/ get the site base.
  */
 import "../../styles/guidebook.css"
 
@@ -38,7 +39,7 @@ const natural =
 const sizing = natural
   ? wide
     ? `width: ${natural}px`
-    : `max-width: min(100%, ${natural}px)`
+    : `max-width: min(100%, calc(${natural}px * var(--gb-figure-scale, 1)))`
   : undefined
 ---
 

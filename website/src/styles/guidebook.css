@@ -3,6 +3,9 @@
   --gb-accent: #d61e24;
   --gb-muted: #6b6a6b;
   --gb-paper: var(--sl-color-black); /* page background */
+  /* Figures grow past the book's print size (its labels are 5-7.5pt) up to the
+     column width; small figures grow in proportion rather than to full width. */
+  --gb-figure-scale: 1.5;
 }
 
 :root[data-theme="dark"] {
@@ -52,7 +55,7 @@
 }
 
 .gb-aside > .gb-figure {
-  flex: 0 1 var(--gb-natural, 50%);
+  flex: 0 1 calc(var(--gb-natural, 33%) * var(--gb-figure-scale));
   min-width: 0;
 }
 
