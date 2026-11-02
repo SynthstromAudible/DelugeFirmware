@@ -57,6 +57,22 @@ class CountTest(unittest.TestCase):
         self.assertEqual(count("r = a.ShiftRightNarrow<16>();\n").raw, 1)
         self.assertEqual(count("r = vld1q_s32(p);\nvst1q_s32(p, r);\n").raw, 0)
         self.assertEqual(count("r = vreinterpretq_s32_u32(u);\n").raw, 0)
+        self.assertEqual(
+            count(
+                "r = vaddl_s16(a, b);\nr = vrhaddq_u8(a, b);\nr = vqrshlq_s32(a, b);\n"
+            ).raw,
+            3,
+        )
+        self.assertEqual(
+            count("r = vpaddl_u16(a);\nr = vqmovun_s32(a);\nr = vqabsq_s16(a);\n").raw,
+            3,
+        )
+        self.assertEqual(
+            count(
+                "r = vmaxq_s32(a, b);\nr = vcgtq_s32(a, b);\nr = vabdq_s16(a, b);\n"
+            ).raw,
+            0,
+        )
 
     def test_counts_the_typed_boundary_apart(self):
         counted = count(

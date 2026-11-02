@@ -39,9 +39,10 @@ class Amplitude : public Mixer<Amplitude, q31> {
 	QVec<30> amplitude_increment_; ///< Four samples' increments at Q30: the Q31 increment × 4 / 2.
 
 public:
+	/// @brief Starts the ramp at @p amplitude, rising by @p amplitude_increment per sample.
+	/// @details The ramp positions `amp + increment·{1,2,3,4}` are integer multiples (`vmla.i32`, wrapping).
 	/// @param amplitude           the starting amplitude, Q31 (pre-shifted by the caller)
 	/// @param amplitude_increment the per-sample amplitude step, Q31
-	/// The ramp positions `amp + increment·{1,2,3,4}` are integer multiples (`vmla.i32`, wrapping).
 	Amplitude(int32_t amplitude, int32_t amplitude_increment)
 	    : amplitude_{as_floor<QVec<30>>(
 	          QVec<31>::from_raw(Argon<int32_t>{amplitude}.MultiplyAdd(amplitude_increment, int32x4_t{1, 2, 3, 4})))},

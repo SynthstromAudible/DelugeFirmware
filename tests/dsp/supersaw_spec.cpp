@@ -146,8 +146,9 @@ BlockControls controls(bool applyAmplitude, Ramp amplitude = Ramp{Q<31>::from_ra
 	                     .cpu_direness = 0};
 }
 
-/// FNV-1a over the naive (unbandlimited) render for every saw count, at 2^8 random phase sets and increments and
-/// spreads from the whole param range (0 and both extremes included), two blocks each so the phases carry.
+/// FNV-1a over the naive (unbandlimited) render for every saw count, at 2^8 random phase sets and increments, two
+/// blocks each so the phases carry. The spreads are 0, both ends of the ±2^30 param range, and random int32s, most
+/// beyond it, which render clamps.
 std::uint64_t naive_hash() {
 	std::uint64_t hash = 0xcbf2'9ce4'8422'2325ULL;
 	std::uint32_t s = 0x0dd5'eedu;
@@ -181,8 +182,8 @@ std::uint64_t naive_hash() {
 
 // clang-format off
 describe supersaw("the dsp-next supersaw", ${
-	it("matches its raw-Argon naive pass's output for every saw count", _ {
-		// The hash of render_naive as written on raw Argon, recorded before its move onto the typed vectors.
+	it("keeps the naive pass's output for every saw count", _ {
+		// The naive pass's output hash over the sweep: a change means the kernel's output changed.
 		expect(naive_hash()).to_equal(std::uint64_t{9833080644123533529ULL});
 	});
 	context("the kernel", _ {

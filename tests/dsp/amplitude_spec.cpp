@@ -32,8 +32,7 @@
 #include <vector>
 
 namespace reference {
-// Amplitude's constructor and render as they were written on raw Argon, verbatim (q31 spelt int32_t): the typed VCA
-// must match it bit for bit.
+// A raw-Argon reference of Amplitude (q31 spelt int32_t): the typed VCA must match it bit for bit.
 class Amplitude {
 	Argon<int32_t> amplitude_;
 	Argon<int32_t> amplitude_increment_;

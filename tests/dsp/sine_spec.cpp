@@ -69,9 +69,8 @@ int32_t sineAt(uint32_t phase) {
 
 // clang-format off
 describe sine_kernel("deluge::dsp::fixed sine", ${
-	it("matches its raw-Argon form's output over a sweep of the circle", _ {
-		// The hash of sine() as written on raw Argon (value.ShiftLeftLong<16>().MultiplyDoubleAddSaturateLong(diff,
-		// fraction)), recorded before its move onto the typed vectors.
+	it("keeps its output over a sweep of the circle", _ {
+		// sine()'s output hash over the sweep: a change means the kernel's output changed.
 		expect(sweep_hash()).to_equal(std::uint64_t{9263602503452775841ULL});
 	});
 	context("sine() — cardinal points (fraction zero, exact)", _ {

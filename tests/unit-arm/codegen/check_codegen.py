@@ -106,6 +106,15 @@ EXACT = {
 
 # Operand text that must appear in the body: the immediates a wrong width or shift would change.
 OPERANDS = {
+    "probe_vec_scale_shl_wrap_3": ["#0x3"],
+    "probe_vec_scale_shr_floor_3": ["#0x3"],
+    "probe_vec_as_floor_3": ["#0x3"],
+    "probe_vec_add_scale_shr_floor_4": ["#0x4"],
+    "probe_vec_pair_hi": ["#0x10"],
+    "probe_vec_from_q16": ["#0x10"],
+    # b arrives in q1 (d2, d3): lane 1 is d2[1], lane 2 is d3[0].
+    "probe_vec_mul_doubling_sat_lane_1": ["d2[1]"],
+    "probe_vec_mul_doubling_sat_lane_2": ["d3[0]"],
     "probe_clamp_bits_24": ["#0x18"],
     "probe_clamp_unsigned_16": ["#0x10"],
     "probe_clamp_after_shr": ["#0x18", "asr #4"],

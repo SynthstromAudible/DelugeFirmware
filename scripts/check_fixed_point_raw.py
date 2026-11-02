@@ -52,10 +52,12 @@ RAW_HELPERS = re.compile(
     r"lshift_and_saturate(?:_unknown)?|increase_magnitude_and_saturate|q31_from_float|q31_to_float"
     r")\s*[<(]"
 )
-# arm_neon.h's integer arithmetic: adds, subtracts, multiplies (the doubling, rounding, widening and accumulating
-# forms), shifts and narrows. Loads, stores, lane moves and reinterprets are not arithmetic.
+# arm_neon.h's integer arithmetic: adds and subtracts (the saturating, widening, narrowing, halving and pairwise forms),
+# multiplies (the doubling, rounding, widening and accumulating forms), shifts and narrows, widens, negates and
+# absolute values. Loads, stores, lane moves, reinterprets, compares, min/max and vabd are not counted.
 NEON_ARITHMETIC = re.compile(
-    r"(?<![\w.])v(?:q?r?d?mulh|(?:qd)?(?:mlal|mlsl|mull)|q?add|q?sub|q?shl|q?r?shr|r?sra|q?movn|q?r?shrn|shll|mla|mls|mul)"
+    r"(?<![\w.])v(?:q?r?d?mulh|(?:qd)?(?:mlal|mlsl|mull)|q?add|q?sub|(?:add|sub)[lw]|r?(?:add|sub)hn|r?hadd|hsub|"
+    r"q?r?shl|q?r?shr|r?sra|q?movn|qmovun|movl|q?r?shrn|q?r?shrun|shll|mla|mls|mul|padd|paddl|q?neg|q?abs)"
     r"q?(?:_n|_lane)?_[su](?:8|16|32|64)\s*\("
 )
 ARGON_FIXED_POINT = re.compile(

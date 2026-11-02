@@ -33,8 +33,7 @@ using deluge::dsp::Phasor;
 using deluge::dsp::UQ;
 using deluge::dsp::fixed::Table;
 
-// TableOscillator's state and render as they were written on raw Argon, verbatim (q31 spelt int32_t): the typed
-// oscillator must match it bit for bit.
+// A raw-Argon reference of TableOscillator (q31 spelt int32_t): the typed oscillator must match it bit for bit.
 class TableOscillator {
 	const int16_t* samples_;
 	int32_t magnitude_;

@@ -159,6 +159,8 @@ name of the scalar operation with the same per-lane meaning:
 | `mla_wide` | acc + a × b, wrapping: `Q16Half<A>` × `Q16Half<B>` → `QVec<A+B>` | `vmlal.s16` |
 
 A kernel keeps `Argon` at its interface and converts with `from_raw` and `raw()`, so its callers are unchanged.
+Helpers private to one family of kernels may pass the vectors between themselves: the windowed sinc's `SincWindow`
+holds `Q16Vec<15>`, for its blend, its dot product and their two window loaders.
 `lane(i)` reads one lane through memory, for tests. The lane spec (`tests/dsp/fixed_point_neon_spec.cpp`) checks each
 operation lane by lane against the scalar operation: on the x86 host through SIMDe, and under qemu on the A9's own
 instructions.
@@ -198,7 +200,8 @@ instructions.
   lerps stay integer. The stutter blend's Q16 strengths are reformatted to Q30. The windowed sinc blends Q15 kernel
   rows (`add_wrap`, `mul_doubling_sat`, `sub_wrap`) and weights a Q15 window into a Q30 sample (`mla_wide`, then
   `sum_wrap`); the wavetable morph weights the Q30 cycle difference by the morph read as Q31 (`mla_r`), so a morphing
-  wavetable's sample is Q29. The sample interpolator's linear path stays an integer lerp, Q30.
+  wavetable's sample is Q29, where a single-cycle wavetable's, the sinc's own, is Q30. The sample interpolator's linear
+  path stays an integer lerp, Q30.
 - **Buffers and frame fields** stay raw `q31` until the kernels that read them use the named operations; each
   kernel's interface stays raw and converts at its entry and exit.
 

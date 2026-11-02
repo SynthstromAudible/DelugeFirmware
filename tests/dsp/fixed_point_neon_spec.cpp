@@ -20,6 +20,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <type_traits>
+#include <utility>
 
 using namespace deluge::dsp;
 
@@ -133,8 +134,6 @@ std::size_t arithmetic_mismatches() {
 	                    [](auto a, auto, auto) { return scale_shr_floor<3>(q<31>(a)).raw(); });
 	bad += mismatches32([](auto a, auto b, auto) { return out(add_scale_shr_floor<4>(vec<31>(a), vec<31>(b))); },
 	                    [](auto a, auto b, auto) { return wrap32(std::int64_t{a} + (b >> 4)); });
-	bad += mismatches32([](auto a, auto b, auto) { return out(mul_doubling_sat_lane<1>(vec<31>(a), vec<29>(b))); },
-	                    [](auto a, auto, auto c) { return mul_doubling_sat(q<31>(a), q<29>(c)).raw(); });
 	bad += mismatches32([](auto a, auto, auto) { return out(as_floor<QVec<28>>(vec<31>(a))); },
 	                    [](auto a, auto, auto) { return as_floor<Q<28>>(q<31>(a)).raw(); });
 	bad += mismatches32(
@@ -145,6 +144,25 @@ std::size_t arithmetic_mismatches() {
 	    [](auto a, auto, auto) {
 		    return reinterpret_bits<Q<31>>(UQ<32>::from_raw(static_cast<std::uint32_t>(a))).raw();
 	    });
+	return bad;
+}
+
+/// Mismatches between the by-lane multiply by lane I and the scalar multiply by b's lane I, over kRounds random vectors
+/// with the edge pairs in lane 0 of a and lane I of b.
+template <int I>
+std::size_t lane_mismatches() {
+	std::size_t bad = 0;
+	std::uint32_t s = 0x1a2b'3c4du;
+	for (int k = 0; k < kRounds; ++k) {
+		const auto a = lanes<std::int32_t, 4>(s, k, kEdges32, true);
+		auto b = lanes<std::int32_t, 4>(s, k, kEdges32, false);
+		std::swap(b[0], b[I]);
+		const auto got = mul_doubling_sat_lane<I>(vec<31>(Argon<std::int32_t>::Load(a.data())),
+		                                          vec<29>(Argon<std::int32_t>::Load(b.data())));
+		for (std::size_t i = 0; i < 4; ++i) {
+			bad += got.lane(i) != mul_doubling_sat(q<31>(a[i]), q<29>(b[I])) ? 1 : 0;
+		}
+	}
 	return bad;
 }
 
@@ -251,6 +269,12 @@ describe fixed_point_neon("fixed_point NEON vectors", ${
 	it("apply each 32-bit operation lane by lane, as the scalar operation", _ {
 		expect(arithmetic_mismatches()).to_equal(std::size_t{0});
 	});
+	it("multiply by each lane of the other vector", _ {
+		expect(lane_mismatches<0>()).to_equal(std::size_t{0});
+		expect(lane_mismatches<1>()).to_equal(std::size_t{0});
+		expect(lane_mismatches<2>()).to_equal(std::size_t{0});
+		expect(lane_mismatches<3>()).to_equal(std::size_t{0});
+	});
 	it("add and subtract phases lane by lane, wrapping", _ {
 		expect(phase_mismatches()).to_equal(std::size_t{0});
 	});
@@ -282,6 +306,9 @@ describe fixed_point_neon("fixed_point NEON vectors", ${
 		const auto min = QVec<31>::splat(Q<31>::min());
 		expect(mul_doubling_sat(min, min).lane(0).raw()).to_equal(INT32_MAX);
 		expect(mul_doubling_r_sat(min, min).lane(3).raw()).to_equal(INT32_MAX);
+		expect(mul_doubling_sat(min, Q<31>::min()).lane(2).raw()).to_equal(INT32_MAX);
+		expect(mul_doubling_sat_lane<0>(min, min).lane(1).raw()).to_equal(INT32_MAX);
+		expect(mul_doubling_sat_lane<3>(min, min).lane(0).raw()).to_equal(INT32_MAX);
 		expect(mul_doubling_sat(Q16Vec<15>::splat(Q16<15>::min()), Q16<15>::min()).lane(7).raw())
 		    .to_equal(std::int16_t{INT16_MAX});
 		const auto min16 = Q16Half<15>::splat(Q16<15>::min());

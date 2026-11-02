@@ -33,8 +33,7 @@ using deluge::dsp::Phasor;
 using deluge::dsp::UQ;
 using deluge::dsp::fixed::Table;
 
-// PulseOscillator's state and render as they were written on raw Argon, verbatim (q31 spelt int32_t): the typed
-// oscillator must match it bit for bit.
+// A raw-Argon reference of PulseOscillator (q31 spelt int32_t): the typed oscillator must match it bit for bit.
 class PulseOscillator {
 	const int16_t* samples_;
 	int32_t magnitude_;
@@ -163,6 +162,19 @@ std::size_t reference_mismatches() {
 				for (std::size_t i = 0; i < 4; ++i) {
 					bad += got[i] != want[i] ? 1 : 0;
 				}
+			}
+		}
+	}
+	// Square A's weights saturate only where its fraction's low 15 bits are 0 (w − 1 = −1, so a1 = −32768): put every
+	// lane there, on the table's adjacent INT16_MIN entries (index 200), with and without the fraction's top bit.
+	for (const uint32_t phase : {200U << 24, (200U << 24) | 0x0080'0000U}) {
+		for (const uint32_t offset : {0U, 0x8000'0000U}) {
+			PulseOscillator osc{Table{table, 8}, phase, 0, offset};
+			reference::PulseOscillator expected{Table{table, 8}, phase, 0, offset};
+			const auto got = osc.render().to_array();
+			const auto want = expected.render().to_array();
+			for (std::size_t i = 0; i < 4; ++i) {
+				bad += got[i] != want[i] ? 1 : 0;
 			}
 		}
 	}
