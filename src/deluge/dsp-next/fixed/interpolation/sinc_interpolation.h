@@ -18,6 +18,7 @@
 
 #include "definitions_cxx.hpp" // kInterpolationMaxNumSamples
 #include <argon.hpp>
+#include <array>
 #include <cstddef>
 #include <cstdint>
 
@@ -27,14 +28,9 @@ namespace deluge::dsp::fixed {
 inline constexpr std::size_t kSincWindowVectors = kInterpolationMaxNumSamples / Argon<int16_t>::lanes;
 
 /// @brief One interpolation window: the @ref kInterpolationMaxNumSamples samples to weight, as int16 vectors.
-/// @details A built-in array behind an always-inline `operator[]`, not `std::array`: the window is indexed on the
-/// per-sample path of the wavetable oscillators, which build in app translation units, where only the
-/// cheapest calls inline. Built by aggregate initialisation,
-/// vector 0 first.
+/// @details Built by aggregate initialisation, vector 0 first.
 struct SincWindow {
-	// A built-in array, not std::array: see the @details above.
-	// NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
-	Argon<int16_t> vectors[kSincWindowVectors];
+	std::array<Argon<int16_t>, kSincWindowVectors> vectors; ///< The vectors, vector 0 first.
 
 	/// @brief Vector @p i, less than @ref kSincWindowVectors.
 	[[nodiscard, gnu::always_inline]] Argon<int16_t>& operator[](std::size_t i) { return vectors[i]; }

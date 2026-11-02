@@ -23,6 +23,7 @@
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/core/types.h"
 
+#include <array>
 #include <concepts>
 #include <cstddef>
 #include <utility>
@@ -138,7 +139,7 @@ struct packed_state<K, N> {
 /// and the per-frame lane step are `[[gnu::always_inline]]`. The loop runs on local copies of the coefficients and
 /// every lane's loop state (@ref loop_state_t: the whole State unless K declares `kLoopState`), taken after `prepare`
 /// and written back after the block, so that they stay in registers even though the output may alias the component. The
-/// States and Blocks are built-in arrays in a struct, whose copy constructs nothing and whose indexing is no call.
+/// States and Blocks are arrays in a struct, whose copy constructs nothing.
 template <kernel K, std::size_t N, class F = Frame<typename K::value_type, N>>
 requires(N >= 1 && !staged_kernel<K> && !control_kernel<K>)
 class Lanes {
@@ -156,18 +157,15 @@ class Lanes {
 	using PackedState = typename detail::packed_state<K, N>::type; ///< Every lane's State in one, when op-major.
 
 	/// @brief One State per lane, lane 0 first.
-	/// @details A struct around a built-in array: a copy is one assignment that constructs nothing, so the loop's
-	/// local copy never passes its address to an out-of-line constructor and stays in registers; and indexing needs
-	/// no inlining.
+	/// @details A struct around an array: a copy is one assignment that constructs nothing, so the loop's local copy
+	/// stays in registers.
 	struct States {
-		// NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
-		State lane[N]; ///< The States, lane 0 first.
+		std::array<State, N> lane; ///< The States, lane 0 first.
 	};
 
 	/// @brief One Block per lane, lane 0 first, held as @ref States is.
 	struct Blocks {
-		// NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
-		Block lane[N]; ///< The Blocks, lane 0 first.
+		std::array<Block, N> lane; ///< The Blocks, lane 0 first.
 	};
 
 	/// @brief One loop state per lane, lane 0 first, held as @ref States is: the local copy the loop steps when K
@@ -623,7 +621,7 @@ private:
 		}
 	}
 
-	/// @brief Each lane's State as a built-in array, or nothing when the State is packed.
+	/// @brief Each lane's State in an array, or nothing when the State is packed.
 	struct NoStates {};
 	/// @brief The packed state, or nothing when each lane holds its own State.
 	struct NoPackedState {};

@@ -23,6 +23,7 @@
 #include "dsp-next/core/types.h"
 #include "dsp-next/core/wrapping.h"
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <type_traits>
@@ -54,9 +55,6 @@ namespace deluge::dsp::fixed {
 /// neither waits on the other's multiply result. Each pair's history samples and taps are loaded an iteration
 /// ahead of their multiplies, so the loads are not waited on. docs/dev/a9_dsp_performance.md has the cycle counts.
 ///
-/// **No calls.** The taps and the history are built-in arrays, read through plain pointers and subscripts, so the step
-/// makes no call under either the app's flags or the DSP library's, wherever it is instantiated.
-///
 /// **Channels.** The response never mixes channels: `Stereo<AnalogImpulseResponse>` steps each channel through its own
 /// State, exactly as a stereo response stepping both channels side by side.
 struct AnalogImpulseResponse {
@@ -69,9 +67,7 @@ struct AnalogImpulseResponse {
 	static constexpr std::size_t kHistory = kTaps - 1;
 
 	/// @brief The taps, Q31: a short pre-ring, the main lobe at taps 8 and 9, then a damped tail.
-	// A built-in array, not std::array: see **No calls** above.
-	// NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
-	static constexpr int32_t kResponse[kTaps]{
+	static constexpr std::array<int32_t, kTaps> kResponse{
 	    -3203916,   8857848,   24813136,  41537808, 35217472,  15195632,  -27538592, -61984128, 1944654848,
 	    1813580928, 438462784, 101125088, 6042048,  -22429488, -46218864, -56638560, -64785312, -52108528,
 	    -37256992,  -11863856, 1390352,   14663296, 12784464,  14254800,  5690912,   4490736,
@@ -80,9 +76,7 @@ struct AnalogImpulseResponse {
 	/// @brief Taps 25 down to 1, Q31, in the history's order: history sample j, oldest first, is x[n − 25 + j] and
 	/// meets tap `taps[j]`, tap 25 − j.
 	struct HistoryTaps {
-		// A built-in array, not std::array: see **No calls** above.
-		// NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
-		int32_t taps[kHistory]; ///< Tap 25 − j at j, Q31.
+		std::array<int32_t, kHistory> taps; ///< Tap 25 − j at j, Q31.
 	};
 
 	/// @brief Taps 25 down to 1, in the history's order.
@@ -102,9 +96,8 @@ struct AnalogImpulseResponse {
 	/// @brief One channel's last 25 inputs. State{} is silence: every input 0.
 	struct State {
 		/// The last 25 inputs, Q31: entries i and i + 25 hold the same input, so the 25 from `oldest` on run oldest
-		/// first. A built-in array, not std::array: see **No calls** above.
-		// NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
-		q31 history[2 * kHistory]{};
+		/// first.
+		std::array<q31, 2 * kHistory> history{};
 		/// Where the oldest input lies, in [0, 25).
 		uint32_t oldest = 0;
 	};
@@ -122,8 +115,8 @@ struct AnalogImpulseResponse {
 	/// @return The response's output, Q31.
 	[[nodiscard]] [[gnu::always_inline]] static q31 step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& s,
 	                                                     q31 x) {
-		const q31* const h = s.history + s.oldest;
-		const int32_t* const t = kHistoryTaps.taps;
+		const q31* const h = s.history.data() + s.oldest;
+		const int32_t* const t = kHistoryTaps.taps.data();
 		q31 even = multiply_32x32_rshift32_rounded(x, kResponse[0]);
 		q31 odd = 0;
 		q31 h0 = h[0];
@@ -162,9 +155,9 @@ struct AnalogImpulseResponse {
 	/// @return Each channel's response, Q31.
 	[[nodiscard]] [[gnu::always_inline]] static StereoSample step_pair(State& left, State& right, q31 x_left,
 	                                                                   q31 x_right) {
-		const q31* const h_left = left.history + left.oldest;
-		const q31* const h_right = right.history + right.oldest;
-		const int32_t* const t = kHistoryTaps.taps;
+		const q31* const h_left = left.history.data() + left.oldest;
+		const q31* const h_right = right.history.data() + right.oldest;
+		const int32_t* const t = kHistoryTaps.taps.data();
 		q31 sum_left = multiply_32x32_rshift32_rounded(x_left, kResponse[0]);
 		q31 sum_right = multiply_32x32_rshift32_rounded(x_right, kResponse[0]);
 		// Unrolled by 5 (of 25): measured on the rig against the plain loop and a full unroll, which spills.

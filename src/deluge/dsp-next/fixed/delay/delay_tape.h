@@ -21,6 +21,7 @@
 #include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/stereo_sample.h"
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -335,10 +336,8 @@ private:
 		const int32_t main = widen(strength1);
 		const int32_t next = widen(strength2);
 		// Right to left: two past the write head, one past it, the write head, one before it.
-		// A built-in array: its subscripts need no inlining, and app TUs (the stutterer) reach this write.
 		constexpr size_t kStrengths = 4;
-		// NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
-		const int32_t strengths[kStrengths]{next - 65536, next, main, main - 65536};
+		const std::array<int32_t, kStrengths> strengths{next - 65536, next, main, main - 65536};
 
 		StereoSample* pos = write_position(2);
 		for (size_t i = 0; i < kStrengths; ++i) {

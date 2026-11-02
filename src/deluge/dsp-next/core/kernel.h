@@ -20,6 +20,7 @@
 #include "dsp-next/core/mode.h"
 #include "dsp-next/core/stereo_vector.h"
 #include "dsp-next/core/types.h"
+#include <array>
 #include <concepts>
 #include <cstddef>
 #include <cstdint>
@@ -467,11 +468,10 @@ template <typename K>
 requires std::same_as<std::remove_cv_t<decltype(K::kPartialStepAdvancesByCount)>, bool>
 inline constexpr bool partial_step_advances_by_count_v<K> = K::kPartialStepAdvancesByCount;
 
-/// @brief N consecutive vectors, one per chain of a chained step (see @ref chains_of_v): a built-in array, so reading
-/// one is an index, not a call, at any inlining flags.
+/// @brief N consecutive vectors, one per chain of a chained step (see @ref chains_of_v).
 template <typename T, std::size_t N>
 struct ChainVectors {
-	T v[N]; // NOLINT(*-avoid-c-arrays): read per step, by subscripts that need no inlining
+	std::array<T, N> v; ///< The vectors, chain 0 first.
 };
 
 /// @brief How many chains K's chained step runs at once: K::kChains, or 1 when K declares none.

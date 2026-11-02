@@ -29,6 +29,7 @@
 #include "dsp-next/core/wrapping.h"
 #include "dsp-next/fixed/filter/shift_tracker.h"
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
@@ -63,11 +64,8 @@ struct Freeverb {
 	};
 	/// @brief Every line's place in the memory, left channel at [0], and the words they take.
 	struct Layout {
-		// NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays): read per step, by subscripts
-		// that need no inlining
-		Line comb[2][kCombs];
-		// NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays): as comb
-		Line allpass[2][kAllpasses];
+		std::array<std::array<Line, kCombs>, 2> comb;
+		std::array<std::array<Line, kAllpasses>, 2> allpass;
 		uint32_t words;
 	};
 	/// @brief The lines end to end: the combs left then right, then the allpasses left then right, at Jezar's tunings

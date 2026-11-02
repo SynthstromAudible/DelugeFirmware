@@ -1059,8 +1059,8 @@ per-sample loop, so a `Mono` of one would be inert.
 - **`kChains`.** A q31 vector kernel whose step is one long dependency chain
   declares `static constexpr std::size_t kChains = N` and `step_chains` (a
   template on the mode when moded), taking each input as
-  `ChainVectors<step_type, N>` of consecutive vectors (a built-in array, so
-  reading one is no call) and returning N outputs the same way. `Mono` runs
+  `ChainVectors<step_type, N>` of consecutive vectors and returning N outputs
+  the same way. `Mono` runs
   every whole group of N vectors through it, then the rest of the block, the
   partial vector included, through `step`. It must compute exactly what N
   `step`s in a row compute, state included; it exists to write the N chains'
@@ -2003,9 +2003,8 @@ gates:
   returns a `std::array` of vectors (an interleaved stereo load) goes through
   `detail::to_stereo` (`core/stereo_vector.h`), a `__builtin_bit_cast`, as
   `Mono` and the mixins do; any other such result is bit-cast the same way. A
-  kernel's own arrays (taps, a history, a window) are built-in arrays, each
-  with a NOLINT giving the reason, as `AnalogImpulseResponse` and `SincWindow`
-  are, or are read through a pointer taken once per block.
+  kernel's own arrays (taps, a history, a window) are `std::array`s, read by
+  subscript or through a pointer taken once per step.
 - Is every function on the per-sample path, the wrapper and mixin glue included,
   `[[gnu::always_inline]]`? The app's translation units inline only
   the cheapest calls, so anything else can be an out-of-line call per sample

@@ -90,8 +90,7 @@ enum class ParamCurve : uint8_t {
 /// @return The rate, Q31 of the table's scale.
 [[nodiscard]] inline int32_t release_rate(int32_t input) {
 	constexpr int32_t kMagnitude = 24;
-	// Indexed through a pointer taken at compile time, by subscripts that need no inlining
-	constexpr const int32_t* kTable = tables::kReleaseRate.data();
+	constexpr const auto& kTable = tables::kReleaseRate;
 	int32_t which = input >> kMagnitude;
 	const Q<31> further = Q<31>::from_raw((input << (31 - kMagnitude)) & 2147483647);
 	which += 32;
