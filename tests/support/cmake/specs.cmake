@@ -11,7 +11,9 @@ set(DELUGE_REPO_ROOT ${CMAKE_CURRENT_LIST_DIR}/../../..)
 FetchContent_MakeAvailable(CppSpec argon)
 deluge_argon_headers_are_system()
 
-if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm64|aarch64)$")
+# An ARM target has a real <arm_neon.h>: the arm-linux cross (tests/unit-arm, run under qemu) checks the A9's own
+# instructions, and an arm64 host its own; only other hosts reach NEON through SIMDe.
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm|arm64|aarch64)$")
   set(DELUGE_TEST_NEON_NATIVE ON)
 endif()
 
