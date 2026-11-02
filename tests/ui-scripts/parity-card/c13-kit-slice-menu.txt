@@ -1,0 +1,37 @@
+# The sample browser's long press on a file in a fresh kit (Shift + Kit, one drum on row 0): SAMPLES offers SLICE, which
+# opens the slicer; four regions, a look at manual mode, then Select slices and lands in the clip view.
+100   snapshot boot
+6000  button Shift down
+6050  button Kit down
+6070  button Kit up
+6100  button Shift up
+9500  pad 17 0 down
+9550  pad 17 0 up
+11000 button Shift down
+11100 pad 0 5 down
+11150 pad 0 5 up
+11200 button Shift up
+13000 snapshot browser
+13500 encoder Select +1
+14500 button SelectEnc down
+14520 button SelectEnc up
+16500 snapshot in-clips
+17000 button SelectEnc down
+17700 snapshot held
+17800 button SelectEnc up
+18500 encoder Select +1
+19500 snapshot slice-option
+20000 button SelectEnc down
+20020 button SelectEnc up
+23000 snapshot slicer
+23500 encoder Select -12
+25000 snapshot four-regions
+25500 button XEnc down
+25520 button XEnc up
+27000 snapshot manual
+27500 button XEnc down
+27520 button XEnc up
+29000 snapshot region-again
+29500 button SelectEnc down
+29520 button SelectEnc up
+36000 snapshot sliced

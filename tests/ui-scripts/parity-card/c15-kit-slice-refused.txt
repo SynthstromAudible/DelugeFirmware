@@ -1,0 +1,20 @@
+# Shift + Select on a file in a kit of many drums refuses the slicer with a popup, and the browser stays.
+100   snapshot boot
+6000  button Kit down
+6020  button Kit up
+9500  pad 17 0 down
+9550  pad 17 0 up
+11000 button Shift down
+11100 pad 0 5 down
+11150 pad 0 5 up
+11200 button Shift up
+13000 snapshot browser
+13500 button Shift down
+13600 button SelectEnc down
+13620 button SelectEnc up
+13700 button Shift up
+14200 snapshot popup
+16500 snapshot popup-gone
+17000 button Back down
+17020 button Back up
+18500 snapshot closed

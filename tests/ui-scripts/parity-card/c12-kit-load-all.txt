@@ -1,8 +1,6 @@
 # The sample browser's long press on a fresh kit (Shift + Kit, one drum on row 0): SAMPLES > LOAD ALL on a folder of
 # samples imports one drum per file and lands in the clip view.
 100   snapshot boot
-5000  button Clip down
-5020  button Clip up
 6000  button Shift down
 6050  button Kit down
 6070  button Kit up

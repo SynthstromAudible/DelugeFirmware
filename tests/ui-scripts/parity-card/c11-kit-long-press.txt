@@ -1,7 +1,5 @@
 # The sample browser's long press on a kit: a kit of many drums refuses the whole folder with a popup.
 100   snapshot boot
-5000  button Clip down
-5020  button Clip up
 6000  button Kit down
 6020  button Kit up
 8950  snapshot kit

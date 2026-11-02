@@ -1,0 +1,35 @@
+# Shift + Select on a file in a fresh kit's sample browser opens the slicer with a SLICER popup; BACK returns to the
+# browser; the second time, Select slices into the default sixteen regions and lands in the clip view.
+100   snapshot boot
+6000  button Shift down
+6050  button Kit down
+6070  button Kit up
+6100  button Shift up
+9500  pad 17 0 down
+9550  pad 17 0 up
+11000 button Shift down
+11100 pad 0 5 down
+11150 pad 0 5 up
+11200 button Shift up
+13000 snapshot browser
+13500 encoder Select +1
+14500 button SelectEnc down
+14520 button SelectEnc up
+16500 snapshot in-clips
+17000 button Shift down
+17100 button SelectEnc down
+17120 button SelectEnc up
+17200 button Shift up
+17700 snapshot popup
+20000 snapshot slicer
+20500 button Back down
+20520 button Back up
+22000 snapshot back-in-browser
+22500 button Shift down
+22600 button SelectEnc down
+22620 button SelectEnc up
+22700 button Shift up
+25500 snapshot slicer-again
+26000 button SelectEnc down
+26020 button SelectEnc up
+33000 snapshot sliced
