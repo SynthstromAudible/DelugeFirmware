@@ -86,17 +86,20 @@ enum class ParamCurve : uint8_t {
 /// @return The rate, Q31 of the table's scale.
 [[nodiscard]] inline int32_t release_rate(int32_t input) {
 	constexpr int32_t kMagnitude = 24;
+	// Indexed through a pointer taken at compile time: the app's TUs build with -fno-inline-functions, under which
+	// std::array's operator[] is an out-of-line call.
+	constexpr const int32_t* kTable = tables::kReleaseRate.data();
 	int32_t which = input >> kMagnitude;
 	const int32_t further = (input << (31 - kMagnitude)) & 2147483647;
 	which += 32;
 	if (which < 0) {
-		return tables::kReleaseRate[0];
+		return kTable[0];
 	}
 	if (which >= 64) {
-		return tables::kReleaseRate[64];
+		return kTable[64];
 	}
-	const int32_t value1 = tables::kReleaseRate[which];
-	const int32_t value2 = tables::kReleaseRate[which + 1];
+	const int32_t value1 = kTable[which];
+	const int32_t value2 = kTable[which + 1];
 	return (multiply_32x32_rshift32(value2, further) + multiply_32x32_rshift32(value1, 2147483647 - further)) << 1;
 }
 
