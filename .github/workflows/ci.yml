@@ -71,6 +71,9 @@ jobs:
       - name: dsp-next stays within the L0 boundary
         run: python3 scripts/check_dsp_boundary.py
 
+      - name: Raw fixed-point arithmetic does not grow outside the format types
+        run: python3 scripts/check_fixed_point_raw.py
+
       - name: The synth core stays within its boundary
         run: python3 scripts/check_synth_boundary.py
 

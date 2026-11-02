@@ -1,0 +1,104 @@
+# Raw fixed-point arithmetic per file: q31_ops.h helper calls, DSP-instruction inline asm and from_raw()/.raw()/
+# reinterpret_bits<> outside dsp-next/core/fixed_point.h and q31_ops.h (scripts/check_fixed_point_raw.py).
+#
+# This list may only SHRINK: a count above its entry, or a file not on it, fails the check. Moving a file's
+# arithmetic onto fixed_point.h's typed operations is the unit of progress; afterwards rewrite the list with
+#   scripts/check_fixed_point_raw.py --write
+# which refuses to raise a count or add a file.
+#
+# <path> <count>
+src/deluge/bench/cases.h 1
+src/deluge/bench/delay_feedback_cases.cpp 2
+src/deluge/bench/granular_cases.cpp 1
+src/deluge/bench/reference_chains.h 4
+src/deluge/bench/reference_impulse_response.h 2
+src/deluge/dsp-next/core/lane_pack.h 6
+src/deluge/dsp-next/core/stereo_sample.h 4
+src/deluge/dsp-next/fixed/curves/exp_curve.h 2
+src/deluge/dsp-next/fixed/curves/instant_tan.h 2
+src/deluge/dsp-next/fixed/curves/param_curve.h 7
+src/deluge/dsp-next/fixed/delay/analog_impulse_response.h 10
+src/deluge/dsp-next/fixed/delay/delay_kernel.h 4
+src/deluge/dsp-next/fixed/delay/delay_tape.h 4
+src/deluge/dsp-next/fixed/delay/feedback_shaper.h 3
+src/deluge/dsp-next/fixed/dynamics/compressor_kernel.h 6
+src/deluge/dsp-next/fixed/dynamics/duck_envelope.cpp 1
+src/deluge/dsp-next/fixed/dynamics/duck_gain.h 1
+src/deluge/dsp-next/fixed/fft/real_dft.cpp 2
+src/deluge/dsp-next/fixed/filter/filter_modes.h 2
+src/deluge/dsp-next/fixed/filter/filter_set.cpp 1
+src/deluge/dsp-next/fixed/filter/high_pass_ladder.h 13
+src/deluge/dsp-next/fixed/filter/low_pass_ladder.h 23
+src/deluge/dsp-next/fixed/filter/one_pole.h 3
+src/deluge/dsp-next/fixed/filter/shelf_pair.h 10
+src/deluge/dsp-next/fixed/filter/svf.h 13
+src/deluge/dsp-next/fixed/granular/granular_kernel.h 20
+src/deluge/dsp-next/fixed/interpolation/table_interpolation.h 2
+src/deluge/dsp-next/fixed/mix/dry_wet.h 2
+src/deluge/dsp-next/fixed/mix/track_monitor.h 2
+src/deluge/dsp-next/fixed/mod_fx/mod_fx_kernel.h 31
+src/deluge/dsp-next/fixed/reverb/freeverb.h 7
+src/deluge/dsp-next/fixed/shaping/sample_rate_reducer.h 3
+src/deluge/dsp-next/fixed/shaping/tanh.h 2
+src/deluge/dsp-next/fixed/shaping/wavefolder.h 6
+src/deluge/dsp-next/fixed/stutter/stutter_kernel.h 2
+src/deluge/dsp-next/fixed/sync/sync_windower.h 3
+src/deluge/dsp-next/fixed/sync/synced_phasor.h 2
+src/deluge/dsp-next/fixed/vca/crude_amplitude.h 1
+src/deluge/dsp-next/fixed/vca/send_and_volume.h 10
+src/deluge/dsp-next/fixed/wavetable/band_builder.cpp 1
+src/deluge/dsp-next/fixed/wavetable/wavetable_cycle_chunker.h 3
+src/deluge/dsp-next/float/reverb/plate.h 2
+src/deluge/dsp/timestretch/time_stretcher.cpp 5
+src/deluge/gui/menu_item/audio_compressor/compressor_values.h 2
+src/deluge/model/drum/drum.cpp 2
+src/deluge/model/fx/chain_inputs.cpp 1
+src/deluge/model/fx/song_stutter.cpp 1
+src/deluge/model/fx/track_channel.cpp 1
+src/deluge/model/global_effectable/global_effectable.cpp 6
+src/deluge/model/instrument/cv_instrument.cpp 1
+src/deluge/model/instrument/midi_instrument.cpp 2
+src/deluge/model/sample/pitch_scan.cpp 1
+src/deluge/model/sample/sample.cpp 1
+src/deluge/model/sample/sample.h 1
+src/deluge/model/sample/sample_holder_for_clip.cpp 1
+src/deluge/model/sample/sample_low_level_reader.cpp 6
+src/deluge/model/sample/sample_recorder.cpp 2
+src/deluge/model/voice/voice_sample.cpp 8
+src/deluge/modulation/arpeggiator.cpp 8
+src/deluge/modulation/automation/auto_param.cpp 4
+src/deluge/playback/playback_handler.cpp 4
+src/deluge/processing/audio_output.cpp 4
+src/deluge/processing/engines/audio_engine.cpp 8
+src/deluge/processing/metronome/metronome.cpp 1
+src/deluge/processing/sound/sound.cpp 5
+src/deluge/storage/audio/stream/convert.cpp 1
+src/deluge/storage/wave_table/wave_table_cycle_reader.cpp 1
+src/deluge/util/functions.h 1
+src/deluge/util/param_functions.cpp 1
+src/deluge/util/phase_increment_fine_tuner.cpp 1
+src/effects/chain_core.cpp 1
+src/effects/delay.cpp 1
+src/effects/master_chain.cpp 2
+src/effects/param_fragment.h 1
+src/effects/sidechain.cpp 2
+src/synth/engines/dual_source_engine.cpp 3
+src/synth/engines/fm_engine.cpp 14
+src/synth/engines/pitch.h 1
+src/synth/engines/ring_mod_engine.cpp 8
+src/synth/engines/slot_engine.cpp 1
+src/synth/engines/subtractive_engine.cpp 1
+src/synth/matrix/matrix_fixed.h 9
+src/synth/modulation/cable_depth.h 4
+src/synth/modulation/envelope.cpp 5
+src/synth/modulation/lfo.h 3
+src/synth/sources/dx7/dx7_source.cpp 4
+src/synth/sources/input/input_source.cpp 8
+src/synth/sources/input/live/live_input_buffer.cpp 1
+src/synth/sources/input/live/live_pitch_shifter.cpp 6
+src/synth/sources/input/live/live_pitch_shifter_play_head.cpp 6
+src/synth/sources/oscillator_source.h 2
+src/synth/sources/sample/sample_source.cpp 4
+src/synth/sources/va/va_shapes.cpp 2
+src/synth/sources/wavetable/wavetable_source.cpp 2
+src/synth/voice/voice.cpp 10

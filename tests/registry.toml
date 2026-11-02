@@ -2754,6 +2754,32 @@ group = "tooling"
 runtime = "~1s"
 
 [[harness]]
+name = "fixed-point-raw-selftest"
+path = "scripts"
+level = "unit"
+runner = "script"
+kind = "unit"
+status = "gate"
+gates = "the fixed-point raw-arithmetic ratchet counts every raw q31_ops.h helper call, DSP-instruction inline asm and typed-boundary crossing (from_raw, .raw(), reinterpret_bits) outside comments, exempts fixed_point.h and q31_ops.h, fails on a new file or a grown count, and refuses to rewrite its allowlist upward"
+run = ["python3", "-m", "unittest", "test_check_fixed_point_raw"]
+tier = "pr"
+group = "tooling"
+runtime = "~1s"
+
+[[harness]]
+name = "fixed-point-raw"
+path = "."
+level = "unit"
+runner = "script"
+kind = "unit"
+status = "gate"
+gates = "raw fixed-point arithmetic outside dsp-next/core/fixed_point.h and q31_ops.h does not grow: no file's count of raw q31 helper calls, DSP-instruction asm and from_raw/.raw()/reinterpret_bits rises above scripts/fixed_point_raw_allowlist.txt, and no new file appears"
+run = ["python3", "scripts/check_fixed_point_raw.py"]
+tier = "pr"
+group = "tooling"
+runtime = "~2s"
+
+[[harness]]
 name = "library-boundary-selftest"
 path = "scripts"
 level = "unit"
