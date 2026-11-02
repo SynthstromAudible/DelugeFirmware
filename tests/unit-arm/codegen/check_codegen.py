@@ -8,8 +8,9 @@
 Disassembles fixed_point_probe.cpp's objects (one ARM, one Thumb-2) and compares each probe's instructions, its final
 return excluded, with EXACT, and the operand text with OPERANDS where an immediate matters. An operation with no single
 A9 instruction is listed in BUDGET instead: it must make no call (a call or tail-call relocation in its body) and stay
-within that many instructions. The loop_* functions are REPORTED, not gated: they show which loop shapes the compiler
-auto-vectorizes today.
+within that many instructions. A lane-pack probe is listed in COUNTS: no call, and each named instruction exactly that
+many times, one per lane. The loop_* and shape_* functions are REPORTED, not gated: they show which loop and lane-pack
+shapes the compiler auto-vectorizes today.
 
 Usage:
     check_codegen.py OBJDUMP ARM_OBJECT THUMB_OBJECT
@@ -105,8 +106,26 @@ BUDGET = {
     "probe_from_float_round_31": 34,
 }
 
+# Lane-pack probes: the scalar instruction once per lane, around whatever loads and stores the lanes need.
+COUNTS = {
+    "probe_lanes2_mul": {"smmul": 2},
+    "probe_lanes2_mla": {"smmla": 2},
+    "probe_lanes2_add_sat": {"qadd": 2},
+    "probe_lanes2_scale_shl_sat_1": {"qadd": 2},
+}
+
 # A loop shape that uses any of these was auto-vectorized into NEON.
-VECTOR_MARKERS = ("vmull", "vmov.32", "vmovl", "vshrn", "vld1", "vst1")
+VECTOR_MARKERS = (
+    "vmull",
+    "vmov.32",
+    "vmovl",
+    "vshrn",
+    "vld1",
+    "vst1",
+    "vcgt",
+    "vcge",
+    "vceq",
+)
 
 # Thumb-2's narrow flag-setting forms do the same arithmetic; ARM and Thumb then compare alike.
 FLAG_SETTING_NARROW = re.compile(r"^(add|sub|rsb|mov|mvn|lsl|lsr|asr)s$")
@@ -143,7 +162,7 @@ def bodies(objdump: str, obj: str, thumb: bool) -> dict[str, Body]:
     found: dict[str, Body] = {}
     current: Body | None = None
     for line in out.stdout.splitlines():
-        header = re.match(r"^[0-9a-f]+ <((?:probe|loop)_\w+)>:$", line)
+        header = re.match(r"^[0-9a-f]+ <((?:probe|loop|shape)_\w+)>:$", line)
         if header:
             current = found.setdefault(header.group(1), Body())
             continue
@@ -175,7 +194,7 @@ def bodies(objdump: str, obj: str, thumb: bool) -> dict[str, Body]:
 def check(found: dict[str, Body], mode: str) -> tuple[list[str], list[str]]:
     errors, report = [], []
     probes = {name for name in found if name.startswith("probe_")}
-    for name in sorted(set(EXACT) | set(BUDGET) | probes):
+    for name in sorted(set(EXACT) | set(BUDGET) | set(COUNTS) | probes):
         body = found.get(name)
         if body is None:
             errors.append(f"[{mode}] {name}: missing from the probe")
@@ -198,9 +217,20 @@ def check(found: dict[str, Body], mode: str) -> tuple[list[str], list[str]]:
                 errors.append(
                     f"[{mode}] {name}: {len(body.mnemonics)} instructions, budget {BUDGET[name]}: {body.mnemonics}"
                 )
+        elif name in COUNTS:
+            for mnemonic, times in COUNTS[name].items():
+                if body.mnemonics.count(mnemonic) != times:
+                    errors.append(
+                        f"[{mode}] {name}: expected {times} {mnemonic}, got {body.mnemonics}"
+                    )
+            neon = [m for m in body.everything if m.startswith(VECTOR_MARKERS)]
+            if neon:
+                errors.append(f"[{mode}] {name}: uses NEON: {neon}")
         else:
-            errors.append(f"[{mode}] {name}: in the probe but not in EXACT or BUDGET")
-    for name in sorted(n for n in found if n.startswith("loop_")):
+            errors.append(
+                f"[{mode}] {name}: in the probe but not in EXACT, BUDGET or COUNTS"
+            )
+    for name in sorted(n for n in found if n.startswith(("loop_", "shape_"))):
         neon = sorted(
             {m for m in found[name].everything if m.startswith(VECTOR_MARKERS)}
         )
@@ -223,7 +253,8 @@ def main(argv: list[str]) -> int:
         print(error)
     if not errors:
         print(
-            f"fixed-point codegen: {len(EXACT)} exact, {len(BUDGET)} budgeted, ARM and Thumb-2: OK"
+            f"fixed-point codegen: {len(EXACT)} exact, {len(BUDGET)} budgeted, {len(COUNTS)} lane-counted, "
+            "ARM and Thumb-2: OK"
         )
     return 1 if errors else 0
 
