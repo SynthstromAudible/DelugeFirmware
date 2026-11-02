@@ -35,6 +35,7 @@
 #include "scenes/menu/context.h"
 #include "scenes/profile.h"
 #include "scenes/registry.h"
+#include "scenes/slicing/slicer_scene.h"
 
 #include "notify/notice_queue.h"
 #include "shell/notices.h"
@@ -418,6 +419,8 @@ const BoardProfile& profile_64() {
 /// Board encoder indices and matrix coordinates (`shell/profiles/deluge.cpp`).
 constexpr uint8_t kSelectEncoder = 3;
 constexpr uint8_t kSelectEncButtonX = 4, kSelectEncButtonY = 3;
+/// SHIFT, at matrix (8, 0) (`shell/profiles/deluge.cpp`).
+constexpr uint8_t kShiftX = 8, kShiftY = 0;
 constexpr uint8_t kBackX = 7, kBackY = 1;
 constexpr int32_t kHomeRow = deluge::ui::grid::kTextKeyboardHomeRow;
 
@@ -2114,8 +2117,154 @@ describe browser_long_press("scenes::browser::BrowserScene holding Select", $ {
 		menu.on_exit();
 	});
 });
+
+describe browser_slicer_doors("scenes::browser::BrowserScene the slicer's two doors", $ {
+	it("the kit menu offers SLICE on a file and not on a folder", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_kit_song();
+		(void)spec::add_drum<SoundDrum>(f);
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		const context_menu::Descriptor& kit = context_menu::descriptor(context_menu::DescriptorId::SampleBrowserKit);
+		expect(kit.options_now != nullptr).to_be_true();
+		std::array<uint8_t, context_menu::kMaxOptions> out{};
+		select_folder(r, false);
+		expect(kit.options_now != nullptr ? kit.options_now(sound_context(f), out) : 0).to_equal(size_t(2));
+		select_folder(r, true);
+		expect(kit.options_now != nullptr ? kit.options_now(sound_context(f), out) : 0).to_equal(size_t(1));
+		expect(static_cast<int>(out[0])).to_equal(0);
+	});
+
+	it("SLICE parks a slice of the selected file and keeps the menu", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_kit_song();
+		(void)spec::add_drum<SoundDrum>(f);
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		(void)browser_scene().take_choice();
+		select_folder(r, false);
+		const context_menu::Descriptor& kit = context_menu::descriptor(context_menu::DescriptorId::SampleBrowserKit);
+		expect(kit.accept(sound_context(f), 1)).to_be_true();
+		const std::optional<browser::BrowserChoice> choice = browser_scene().take_choice();
+		expect(choice.has_value() && choice->op == browser::BrowserChoice::Op::Slice).to_be_true();
+		expect(choice.has_value() && !choice->is_folder && !choice->path.empty()).to_be_true();
+	});
+
+	it("Shift+Select on a file in a fresh kit parks a slice and keeps the browser", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_kit_song();
+		(void)spec::add_drum<SoundDrum>(f);
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		(void)browser_scene().take_choice();
+		select_folder(r, false);
+		r.button(kShiftX, kShiftY, true, r.clock + 5);
+		const uint32_t down = press_select(r);
+		release_select(r, down + 20);
+		r.settle();
+		const std::optional<browser::BrowserChoice> choice = browser_scene().take_choice();
+		expect(choice.has_value() && choice->op == browser::BrowserChoice::Op::Slice).to_be_true();
+		expect(r.browser_on_stack()).to_be_true();
+		expect(popup_text(r)).to_equal(std::string{});
+	});
+
+	it("Shift+Select in a kit that is not fresh says only a brand-new kit can use the slicer", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_kit_song();
+		(void)spec::add_drum<SoundDrum>(f);
+		(void)spec::add_drum<SoundDrum>(f);
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		(void)browser_scene().take_choice();
+		select_folder(r, false);
+		r.button(kShiftX, kShiftY, true, r.clock + 5);
+		const uint32_t down = press_select(r);
+		release_select(r, down + 20);
+		r.settle();
+		expect(browser_scene().take_choice().has_value()).to_be_false();
+		expect(popup_text(r)).to_equal(
+		    std::string{deluge::l10n::get(String::STRING_FOR_CAN_ONLY_USE_SLICER_FOR_BRAND_NEW_KIT)});
+	});
+
+	it("Shift+Select on a synth claims the file as Select does", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_synth_song();
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		(void)browser_scene().take_choice();
+		select_folder(r, false);
+		r.button(kShiftX, kShiftY, true, r.clock + 5);
+		const uint32_t down = press_select(r);
+		release_select(r, down + 20);
+		r.settle();
+		const std::optional<browser::BrowserChoice> choice = browser_scene().take_choice();
+		expect(choice.has_value() && choice->op == browser::BrowserChoice::Op::Enter).to_be_true();
+	});
+
+	it("pushes the slicer the host opened, with SLICER on the Shift+Select door only", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_kit_song();
+		(void)spec::add_drum<SoundDrum>(f);
+		{
+			Rig r;
+			r.open_and_land(sound_context(f), BrowserId::Sample);
+			(void)browser_scene().take_choice();
+			select_folder(r, false);
+			r.button(kShiftX, kShiftY, true, r.clock + 5);
+			const uint32_t down = press_select(r);
+			release_select(r, down + 20);
+			r.settle();
+			(void)browser_scene().take_choice();
+			browser_scene().slice_ready(true);
+			r.step(); // arms the browser's timer
+			r.step(); // renders, and pushes
+			expect(on_stack(r, slicing::kSlicerSceneKind) != nullptr).to_be_true();
+			r.step(); // the popup the push filed
+			expect(popup_text(r)).to_equal(std::string{"SLICER"});
+		}
+		{
+			Rig r;
+			r.open_and_land(sound_context(f), BrowserId::Sample);
+			(void)browser_scene().take_choice();
+			select_folder(r, false);
+			(void)context_menu::descriptor(context_menu::DescriptorId::SampleBrowserKit).accept(sound_context(f), 1);
+			(void)browser_scene().take_choice();
+			browser_scene().slice_ready(true);
+			r.step(); // arms the browser's timer
+			r.step(); // renders, and pushes
+			expect(on_stack(r, slicing::kSlicerSceneKind) != nullptr).to_be_true();
+			expect(popup_text(r)).to_equal(std::string{});
+		}
+	});
+
+	it("pushes nothing when the host could not open the slice, or had no slice out", _ {
+		CleanBrowser clean;
+		ScratchCard card;
+		spec::SongFixture f = spec::make_kit_song();
+		(void)spec::add_drum<SoundDrum>(f);
+		Rig r;
+		r.open_and_land(sound_context(f), BrowserId::Sample);
+		(void)browser_scene().take_choice();
+		browser_scene().slice_ready(true); // nothing out
+		r.step();
+		expect(on_stack(r, slicing::kSlicerSceneKind) == nullptr).to_be_true();
+		select_folder(r, false);
+		(void)context_menu::descriptor(context_menu::DescriptorId::SampleBrowserKit).accept(sound_context(f), 1);
+		(void)browser_scene().take_choice();
+		browser_scene().slice_ready(false);
+		r.step();
+		expect(on_stack(r, slicing::kSlicerSceneKind) == nullptr).to_be_true();
+		expect(r.browser_on_stack()).to_be_true();
+	});
+});
     // clang-format on
 
     DELUGE_SPEC(browser_scene_spec, browser_descriptors, browser_composition, browser_open, browser_in_flight,
                 browser_navigation, browser_typing, browser_accept, browser_legacy_pixels, browser_goldens,
-                browser_long_press)
+                browser_long_press, browser_slicer_doors)

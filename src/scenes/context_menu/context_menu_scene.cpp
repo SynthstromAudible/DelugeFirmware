@@ -291,7 +291,7 @@ bool accept_audio_source(const menu::MenuContext&, uint8_t) {
 	return false;
 }
 
-constexpr uint16_t kSampleBrowserKitOptions[] = {sid(String::STRING_FOR_LOAD_ALL)};
+constexpr uint16_t kSampleBrowserKitOptions[] = {sid(String::STRING_FOR_LOAD_ALL), sid(String::STRING_FOR_SLICE)};
 
 constexpr uint16_t kSampleBrowserSynthOptions[] = {
     sid(String::STRING_FOR_MULTISAMPLES),
@@ -300,11 +300,23 @@ constexpr uint16_t kSampleBrowserSynthOptions[] = {
     sid(String::STRING_FOR_WAVETABLE),
 };
 
-/// `Kit::acceptCurrentOption`: LOAD ALL imports the folder. Like `Synth`'s, it never closes the menu itself: the load
-/// it parks for the host closes it once it ends (`BrowserScene::long_press_done`).
-bool accept_sample_browser_kit(const menu::MenuContext&, uint8_t) {
-	browser::browser_scene().park_operation(browser::BrowserChoice::Op::ImportKit);
+/// `Kit::acceptCurrentOption`: LOAD ALL imports the folder; SLICE opens the slicer on the file, over this menu. Like
+/// `Synth`'s, it never closes the menu itself: the load it parks for the host closes it once it ends
+/// (`BrowserScene::long_press_done`).
+bool accept_sample_browser_kit(const menu::MenuContext&, uint8_t option) {
+	browser::browser_scene().park_operation(option == 0 ? browser::BrowserChoice::Op::ImportKit
+	                                                    : browser::BrowserChoice::Op::Slice);
 	return true;
+}
+
+/// `Kit::isCurrentOptionAvailable`: LOAD ALL always, SLICE only on a file.
+size_t sample_browser_kit_options_now(const menu::MenuContext&, std::span<uint8_t> out) {
+	size_t n = 0;
+	out[n++] = 0;
+	if (!browser::browser_scene().current_is_folder() && n < out.size()) {
+		out[n++] = 1;
+	}
+	return n;
 }
 
 /// `Synth::acceptCurrentOption` (`gui/context_menu/sample_browser/synth.cpp:95-120`): MULTISAMPLES imports the folder;
@@ -359,7 +371,7 @@ constexpr std::array<Descriptor, static_cast<size_t>(DescriptorId::Count)> kDesc
     {sid(String::STRING_FOR_AUDIO_SOURCE), kAudioSourceOptions, accept_audio_source, initial_audio_source,
      on_move_audio_source, footer_audio_source},
     {sid(String::STRING_FOR_SAMPLES), kSampleBrowserKitOptions, accept_sample_browser_kit, nullptr, nullptr, nullptr,
-     nullptr, sample_browser_pad, sample_load_busy},
+     sample_browser_kit_options_now, sample_browser_pad, sample_load_busy},
     {sid(String::STRING_FOR_LOAD_FILES), kSampleBrowserSynthOptions, accept_sample_browser_synth, nullptr, nullptr,
      nullptr, sample_browser_synth_options_now, sample_browser_pad, sample_load_busy},
 }};

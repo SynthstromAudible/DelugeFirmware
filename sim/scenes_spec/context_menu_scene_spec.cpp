@@ -316,12 +316,13 @@ describe cm_descriptors("scenes::context_menu descriptor table", $ {
 	});
 
 	it("gives the sample browser's two folder menus main's headings and options", _ {
-		// `context_menu::sample_browser::Kit` and `::Synth` (`gui/context_menu/sample_browser/`). The kit's SLICE
-		// waits for the slicer, so LOAD ALL is its one option.
+		// `context_menu::sample_browser::Kit` and `::Synth` (`gui/context_menu/sample_browser/`).
 		const Descriptor& kit = context_menu::descriptor(DescriptorId::SampleBrowserKit);
 		expect(static_cast<int>(kit.title)).to_equal(static_cast<int>(String::STRING_FOR_SAMPLES));
-		expect(kit.options.size()).to_equal(size_t(1));
+		expect(kit.options.size()).to_equal(size_t(2));
 		expect(static_cast<int>(kit.options[0])).to_equal(static_cast<int>(String::STRING_FOR_LOAD_ALL));
+		expect(static_cast<int>(kit.options.size() > 1 ? kit.options[1] : 0))
+		    .to_equal(static_cast<int>(String::STRING_FOR_SLICE));
 		const Descriptor& synth = context_menu::descriptor(DescriptorId::SampleBrowserSynth);
 		expect(static_cast<int>(synth.title)).to_equal(static_cast<int>(String::STRING_FOR_LOAD_FILES));
 		const uint16_t want[] = {static_cast<uint16_t>(String::STRING_FOR_MULTISAMPLES),
@@ -332,9 +333,9 @@ describe cm_descriptors("scenes::context_menu descriptor table", $ {
 		for (size_t i = 0; i < std::size(want) && i < synth.options.size(); i++) {
 			expect(static_cast<int>(synth.options[i])).to_equal(static_cast<int>(want[i]));
 		}
-		// Both hand pads to the browser beneath and refuse input while the load they started runs; only the synth's
-		// options depend on what the browser holds.
-		expect(kit.pad != nullptr && kit.busy != nullptr && kit.options_now == nullptr).to_be_true();
+		// Both hand pads to the browser beneath, refuse input while the load they started runs, and offer what the
+		// browser holds: the kit's SLICE only on a file.
+		expect(kit.pad != nullptr && kit.busy != nullptr && kit.options_now != nullptr).to_be_true();
 		expect(synth.pad != nullptr && synth.busy != nullptr && synth.options_now != nullptr).to_be_true();
 	});
 

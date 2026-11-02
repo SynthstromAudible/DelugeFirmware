@@ -35,6 +35,7 @@
 #include "instruments/deluge/sound_state.h"
 #include "scenes/bind/runtime_facts.h"
 #include "scenes/context_menu/context_menu_scene.h"
+#include "scenes/slicing/slicer_scene.h"
 #include "storage/file_catalogue.h"
 #include "storage/file_item.h"
 #include "storage/flash_storage.h"
@@ -363,6 +364,9 @@ bool BrowserScene::on_enter(const SceneId& id) {
 	hold_deadline_ms_.reset();
 	long_press_done_.reset();
 	awaiting_load_ = false;
+	slice_out_ = false;
+	slice_ready_.reset();
+	slice_from_shift_ = false;
 	if (!descriptor(id_).can(ctx_)) {
 		return false;
 	}
@@ -847,7 +851,7 @@ void BrowserScene::request_reload(bool from_end, int32_t direction, int32_t offs
 // ---------------------------------------------------------------------------------------------
 // Navigation
 
-Result BrowserScene::enter_key_press() {
+Result BrowserScene::enter_key_press(bool shift) {
 	const Descriptor& d = descriptor(id_);
 	const FileItem* item = item_at(file_index_);
 	if (item == nullptr) {
@@ -877,6 +881,23 @@ Result BrowserScene::enter_key_press() {
 		req.path = item->filename;
 		file_request(std::move(req));
 		return repaint_all();
+	}
+
+	// Shift+Select on a file in a kit's sample browser opens the slicer instead of claiming
+	// (`SampleBrowser::enterKeyPress`, `sample_browser.cpp:389-400`); on anything else shift changes nothing.
+	if (shift && id_ == BrowserId::Sample && ctx_.is_kit) {
+		Result r;
+		r.handled = true;
+		if (!fresh_kit()) {
+			(void)r.actions.push_back(Action{
+			    .kind = Action::Kind::Popup,
+			    .surface = SurfaceRole::Main,
+			    .popup_string = static_cast<uint16_t>(String::STRING_FOR_CAN_ONLY_USE_SLICER_FOR_BRAND_NEW_KIT)});
+			return r;
+		}
+		park_operation(BrowserChoice::Op::Slice);
+		slice_from_shift_ = true;
+		return r;
 	}
 
 	// `getCurrentFilePath()` (`sample_browser.h:172 getCurrentFilePath`, `load_midi_device_definition_ui.cpp:214-218`):
@@ -1082,6 +1103,22 @@ Result BrowserScene::after_render() {
 		return r;
 	}
 
+	// 1c. A slice the host opened: the slicer goes on top, over the menu on the SLICE door, with main's popup on the
+	//     Shift+Select door (`SampleBrowser::enterKeyPress`'s `displayPopup("SLICER")`).
+	if (slice_ready_.has_value()) {
+		const bool opened = *slice_ready_;
+		slice_ready_.reset();
+		r.handled = true;
+		if (opened) {
+			if (std::exchange(slice_from_shift_, false)) {
+				notify::notice_text("SLICER");
+			}
+			(void)r.actions.push_back(Action{.kind = Action::Kind::Push, .id = SceneId{slicing::kSlicerSceneKind, 0}});
+		}
+		slice_from_shift_ = false;
+		return r;
+	}
+
 	// 2. Collect a landed listing. **Every tick** -- `listing.h`'s `@warning`: a seam left in
 	//    `Ready` refuses every later request, and the natural home for the poll is here.
 	if (const std::optional<ListingResult> out = listing_.take_result(); out.has_value()) {
@@ -1133,7 +1170,7 @@ Result BrowserScene::after_render() {
 		const char c = static_cast<char>(resp.index);
 		if (c == deluge::ui::grid::kTextKeyboardEnter) {
 			// `QwertyUI::padAction`'s enter arm (`qwerty_ui.cpp:231-252`) -> `enterKeyPress()`.
-			const Result done = enter_key_press();
+			const Result done = enter_key_press(shift_);
 			r.handled = true;
 			for (const Action& a : done.actions) {
 				(void)r.actions.push_back(a);
@@ -1157,6 +1194,7 @@ Result BrowserScene::after_render() {
 }
 
 Result BrowserScene::handle(const UiEvent& event, const UiContext& ctx) {
+	shift_ = ctx.shift;
 
 	// **What keeps button and encoder input out while a listing runs** (pad events are gated by
 	// `after_render` instead -- see the class docstring), and legacy's own first line:
@@ -1216,7 +1254,7 @@ Result BrowserScene::handle(const UiEvent& event, const UiContext& ctx) {
 			}
 			holding_ = false;
 			hold_deadline_ms_.reset();
-			return enter_key_press();
+			return enter_key_press(ctx.shift);
 		}
 		break;
 
@@ -1298,6 +1336,24 @@ void BrowserScene::park_operation(BrowserChoice::Op op, BrowserChoice::ClaimArgs
 	choice.path = choice.dir.empty() ? choice.filename : choice.dir + "/" + choice.filename;
 	choice_ = std::move(choice);
 	awaiting_load_ = op != BrowserChoice::Op::Enter;
+	slice_out_ = op == BrowserChoice::Op::Slice;
+	slice_from_shift_ = false;
+}
+
+void BrowserScene::slice_ready(bool opened) {
+	if (!slice_out_) {
+		return;
+	}
+	slice_out_ = false;
+	slice_ready_ = opened;
+	if (!opened) {
+		awaiting_load_ = false; // nothing more comes for this slice
+	}
+}
+
+bool BrowserScene::fresh_kit() const {
+	return ctx_.source_index == 0 && ctx_.facts != nullptr && ctx_.addresses.slot
+	       && ctx_.facts->kit_takes_whole_folder(*ctx_.addresses.slot);
 }
 
 void BrowserScene::long_press_done(bool success) {
@@ -1335,10 +1391,8 @@ Result BrowserScene::long_press() {
 	}
 	if (ctx_.is_kit) {
 		// `SampleBrowser::canImportWholeKit` (`sample_browser.cpp:550-554`).
-		const bool fresh_kit = ctx_.source_index == 0 && ctx_.facts != nullptr && ctx_.addresses.slot
-		                       && ctx_.facts->kit_takes_whole_folder(*ctx_.addresses.slot);
-		return fresh_kit ? menu(context_menu::DescriptorId::SampleBrowserKit)
-		                 : popup(String::STRING_FOR_CAN_ONLY_IMPORT_WHOLE_FOLDER_INTO_BRAND_NEW_KIT);
+		return fresh_kit() ? menu(context_menu::DescriptorId::SampleBrowserKit)
+		                   : popup(String::STRING_FOR_CAN_ONLY_IMPORT_WHOLE_FOLDER_INTO_BRAND_NEW_KIT);
 	}
 	std::array<uint8_t, context_menu::kMaxOptions> available{};
 	if (context_menu::sample_browser_synth_options(ctx_, current_is_folder(), available) == 0) {
@@ -1363,8 +1417,8 @@ std::optional<uint32_t> BrowserScene::next_timer() const {
 		next = next.has_value() ? std::min(*next, kListingPollMs) : kListingPollMs;
 	}
 
-	// A folder menu's load that ended is acted on by `after_render`, on the next render.
-	if (long_press_done_.has_value()) {
+	// A folder menu's load that ended, or a slice the host opened, is acted on by `after_render`, on the next render.
+	if (long_press_done_.has_value() || slice_ready_.has_value()) {
 		return 0;
 	}
 

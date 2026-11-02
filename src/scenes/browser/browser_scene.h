@@ -253,6 +253,7 @@ struct BrowserChoice {
 		Claim,              ///< A sample browser folder menu's BASIC, SINGLE-CYCLE or WAVETABLE: load with `claim`.
 		ImportKit,          ///< The kit menu's LOAD ALL (`FolderImportKind::Kit`).
 		ImportMultisamples, ///< The synth menu's MULTISAMPLES (`FolderImportKind::Multisamples`).
+		Slice,              ///< The kit menu's SLICE, or Shift+Select in a fresh kit: open `SlicerScene` on the file.
 	};
 	/// @brief `ClaimRequest`'s three detection choices: 0 no, 1 auto, 2 definitely.
 	struct ClaimArgs {
@@ -423,6 +424,12 @@ public:
 	///        as `closeOnFailure` and the load's own exit do in `main`. Filed on this scene's next render.
 	/// @param success Whether the load or import succeeded.
 	void long_press_done(bool success);
+	/// @brief The host's answer to a parked `Op::Slice`, once it has loaded the file and opened `SlicerScene` on it (or
+	///        could not): the next `after_render` pushes `SlicerScene`, with main's `"SLICER"` popup on the
+	///        Shift+Select door. A slice that did not open pushes nothing (the host showed why). Ignored unless a slice
+	///        is out.
+	/// @param opened Whether `slicing::slicer_scene()` holds the file now.
+	void slice_ready(bool opened);
 
 	/// @brief Whether a choice is waiting for `take_choice()`.
 	/// @return True between a file press parking its path and the consumer draining it.
@@ -507,8 +514,13 @@ private:
 	/// @param offset     The turn that provoked it, applied to the search on landing.
 	void request_reload(bool from_end, int32_t direction, int32_t offset);
 	/// @brief `Browser::mainButtonAction`'s release arm -> `enterKeyPress`.
+	/// @param shift Whether SHIFT is held: on a file in a kit's sample browser, `SlicerScene`'s door
+	///              (`SampleBrowser::enterKeyPress`, `sample_browser.cpp:389-400`).
 	/// @return What the shell should do.
-	deluge::ui::shell::Result enter_key_press();
+	deluge::ui::shell::Result enter_key_press(bool shift);
+	/// @brief `SampleBrowser::canImportWholeKit`: a kit whose only drum is the one edited, on source 0.
+	/// @return Whether this kit may take a whole folder or a slice.
+	bool fresh_kit() const;
 	/// @brief `SampleBrowser::timerCallback`'s long-press arm (`sample_browser.cpp:309-355`): a popup, or one of the
 	///        two folder menus, for the item Select is held on.
 	/// @return What the shell should do.
@@ -586,6 +598,13 @@ private:
 	std::optional<uint32_t> hold_deadline_ms_{};
 	/// A folder menu's load has ended: true closes the menu and this browser, false the menu only.
 	std::optional<bool> long_press_done_{};
+	/// A parked slice's open, waiting for the host (`slice_out_`), then for `after_render` (`slice_ready_`); and
+	/// whether it came through the Shift+Select door.
+	bool slice_out_ = false;
+	std::optional<bool> slice_ready_{};
+	bool slice_from_shift_ = false;
+	/// The shift level the last event carried, for the keyboard's Enter key, which `after_render` answers.
+	bool shift_ = false;
 	/// This browser parked a load for a folder menu and has not heard how it ended: only that load's end is acted on.
 	bool awaiting_load_ = false;
 

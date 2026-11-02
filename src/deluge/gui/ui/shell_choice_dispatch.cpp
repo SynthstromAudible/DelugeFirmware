@@ -300,6 +300,10 @@ void dispatchShellChoices() {
 		case BrowserChoice::Op::ImportMultisamples:
 			importFolder(*choice, deluge::gui::FolderImportKind::Multisamples);
 			break;
+		case BrowserChoice::Op::Slice:
+			// Nothing opens the slicer here: the browser is told so, and keeps its file and menu.
+			deluge::scenes::browser::browser_scene().slice_ready(false);
+			break;
 		}
 		break;
 
