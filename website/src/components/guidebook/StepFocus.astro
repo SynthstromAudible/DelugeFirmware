@@ -18,6 +18,12 @@
       }
       li.setAttribute("aria-current", "step")
       li.tabIndex = 0
+      // PanelFigure listens: the figure after this list shows this step's frame.
+      ol.dispatchEvent(
+        new CustomEvent("guidebook:step", {
+          detail: { index: items.indexOf(li) },
+        }),
+      )
     }
     items.forEach((li, i) => {
       li.tabIndex = i === 0 ? 0 : -1

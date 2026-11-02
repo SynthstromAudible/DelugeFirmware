@@ -16,6 +16,7 @@ import starlightSidebarTopics from "starlight-sidebar-topics"
 import { readFileSync } from "node:fs"
 import { remarkCrossLinks } from "./src/markdown-directives/remark-cross-links/remark-cross-links.ts"
 import { allTerms } from "./src/markdown-directives/remark-cross-links/terms.ts"
+import { remarkPanelSteps } from "./src/markdown-directives/remark-panel-steps/remark-panel-steps.ts"
 
 const readJson = (/** @type {string} */ path) =>
   JSON.parse(readFileSync(new URL(path, import.meta.url), "utf8"))
@@ -280,6 +281,10 @@ const config = defineConfig({
       ],
       remarkDirective,
       remarkDelugeKey,
+      [
+        remarkPanelSteps,
+        { panel: readJson("./src/data/guidebook-panel.json") },
+      ],
       remarkDelugeScreen,
       [remarkCrossLinks, { terms: crossLinkTerms }],
       [

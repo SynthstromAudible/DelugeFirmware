@@ -94,3 +94,42 @@ const staticSvg = renderFrame(
     }
   </div>
 </figure>
+
+<script>
+  // The current step (StepFocus's "guidebook:step" event on the Steps list before the figure)
+  // chooses the frame; until a step is chosen the static frame shows.
+  function bind(figure: HTMLElement) {
+    const lists = [
+      ...document.querySelectorAll<HTMLOListElement>(
+        ".sl-markdown-content ol.sl-steps",
+      ),
+    ]
+    const list = lists
+      .filter(
+        (ol) =>
+          ol.compareDocumentPosition(figure) & Node.DOCUMENT_POSITION_FOLLOWING,
+      )
+      .at(-1)
+    if (!list) return
+    const items = [...list.children] as HTMLLIElement[]
+    const frames = [
+      ...figure.querySelectorAll<HTMLElement>(".gb-panel-frame[data-frame]"),
+    ]
+    const still = figure.querySelector<HTMLElement>(".gb-panel-static")
+    const art = figure.querySelector<HTMLElement>(".gb-panel-art-wrap")
+    list.addEventListener("guidebook:step", (e) => {
+      const index = (e as CustomEvent<{ index: number }>).detail.index
+      if (!frames[index]) return
+      frames.forEach((f, i) => (f.hidden = i !== index))
+      if (still) still.hidden = true
+      const li = items[index]
+      if (li && art) {
+        li.id ||= `${figure.id}-step-${index + 1}`
+        art.setAttribute("aria-describedby", li.id)
+      }
+    })
+  }
+  document
+    .querySelectorAll<HTMLElement>("figure.gb-panel[data-steps]")
+    .forEach(bind)
+</script>
