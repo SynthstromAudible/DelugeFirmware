@@ -1,10 +1,11 @@
 // Every guidebook link in the built site resolves: the target page exists and, for an #anchor,
-// the page has an element with that id. Run after `CI=true pnpm build`:
-// node scripts/check-guidebook-links.mjs [dist dir]
+// the page has an element with that id. Run after `CI=true pnpm build`, with the same
+// SITE_BASE_PATH: node scripts/check-guidebook-links.mjs [dist dir]
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs"
 import { join } from "node:path"
 
 const dist = process.argv[2] ?? new URL("../dist/", import.meta.url).pathname
+const base = (process.env.SITE_BASE_PATH || "").replace(/\/$/, "")
 const pages = (dir) =>
   readdirSync(dir).flatMap((name) => {
     const p = join(dir, name)
@@ -28,6 +29,7 @@ const idsOf = (file) => {
 const isRedirect = (html) => html.includes('http-equiv="refresh"')
 
 let links = 0
+let prefixed = 0
 const unique = new Set()
 const problems = []
 for (const file of pages(join(dist, "guidebook"))) {
@@ -37,11 +39,12 @@ for (const file of pages(join(dist, "guidebook"))) {
     .slice(dist.length - 1, -"index.html".length)
     .replace(/\/$/, "")
   for (const [, href] of html.matchAll(/\shref="([^"]+)"/g)) {
-    if (!href.startsWith("/guidebook") && !href.startsWith("#")) continue
+    if (!href.startsWith(`${base}/guidebook`) && !href.startsWith("#")) continue
     links++
+    if (!href.startsWith("#")) prefixed++
     const [path, anchor] = href.startsWith("#")
       ? [here, href.slice(1)]
-      : href.split("#")
+      : href.slice(base.length).split("#")
     const key = `${path}#${anchor ?? ""}`
     if (unique.has(key)) continue
     unique.add(key)
@@ -58,6 +61,10 @@ for (const file of pages(join(dist, "guidebook"))) {
       problems.push(`${here}: ${href}: no #${anchor}`)
   }
 }
+if (!prefixed)
+  problems.push(
+    `no links to ${base}/guidebook found: is SITE_BASE_PATH the one the site was built with?`,
+  )
 for (const p of problems) console.error(p)
 console.log(
   `${links} links, ${unique.size} unique, ${problems.length} problems`,

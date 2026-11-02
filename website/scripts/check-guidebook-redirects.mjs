@@ -1,5 +1,6 @@
 // Every pre-reorg guidebook URL (src/data/guidebook-redirects.json) has a built redirect page
-// pointing at its new URL. Run after `CI=true pnpm build`: node scripts/check-guidebook-redirects.mjs
+// pointing at its new URL under the site's base path. Run after `CI=true pnpm build`, with the same
+// SITE_BASE_PATH: node scripts/check-guidebook-redirects.mjs
 import { existsSync, readFileSync } from "node:fs"
 import { join } from "node:path"
 
@@ -9,6 +10,7 @@ const redirects = JSON.parse(
     new URL("../src/data/guidebook-redirects.json", import.meta.url),
   ),
 )
+const base = (process.env.SITE_BASE_PATH || "").replace(/\/$/, "")
 const missing = []
 for (const [from, to] of Object.entries(redirects)) {
   const file = join(dist, from, "index.html")
@@ -20,8 +22,8 @@ for (const [from, to] of Object.entries(redirects)) {
   const target = /http-equiv="refresh" content="\d+;url=([^"]+)"/.exec(
     html,
   )?.[1]
-  if (!target || !target.replaceAll("&#38;", "&").endsWith(to))
-    missing.push(`${from}: points at ${target}, not ${to}`)
+  if (target?.replaceAll("&#38;", "&") !== base + to)
+    missing.push(`${from}: points at ${target}, not ${base + to}`)
 }
 for (const m of missing) console.error(m)
 console.log(

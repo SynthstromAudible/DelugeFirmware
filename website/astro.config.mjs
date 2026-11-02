@@ -39,7 +39,13 @@ const config = defineConfig({
   // Use passthrough in CI to keep builds deterministic.
   image: isCI ? { service: passthroughImageService() } : undefined,
   // Guidebook pages moved by the reorganization (online-manual tools/guidebook/reorg.py)
-  redirects: guidebookRedirects,
+  // Astro doesn't add `base` to redirect destinations; page links get it from RemarkLinkRewrite.
+  redirects: Object.fromEntries(
+    Object.entries(guidebookRedirects).map(([from, to]) => [
+      from,
+      `${siteBasePath}${to}`,
+    ]),
+  ),
   integrations: [
     svelte(),
     starlight({
