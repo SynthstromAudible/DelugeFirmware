@@ -20,6 +20,7 @@
 
 #include "gui/ui/shell_action_dispatch.h"
 #include "gui/ui/shell_choice_dispatch.h"
+#include "gui/ui/shell_drum_creator.h"
 #include "gui/ui/shell_guest_services.h"
 #include "gui/ui/shell_note_mode.h"
 #include "gui/ui/shell_pad_forward.h"
@@ -1141,6 +1142,8 @@ void ShellHostUI::closeGuest() {
 	exitNoteModeBeforeClose();
 	// And its settings arm, which comes first there (`gui/ui/sound_editor.cpp:952-962`); the two roots never meet.
 	saveSettingsBeforeClose();
+	// A drum the creator made and the browser was backed out of: `SampleBrowser::exitAction` deletes it before closing.
+	discardShellDrumCreatorBeforeClose();
 
 	// The knob popup still showing goes to legacy's display, then the stack empties so the next open starts clean.
 	if (closeHook_ != nullptr) {

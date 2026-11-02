@@ -2032,8 +2032,8 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(fakelegacyui::knob_clear_saw_close).to_be_false();
 	});
 
-	it("runs the note mode's exit and the settings save on both close paths, after the indicator clear and before "
-	   "close()", _ {
+	it("runs the note mode's exit, the settings save and the drum creator's discard on both close paths, after the "
+	   "indicator clear and before close()", _ {
 		// `SoundEditor::exitCompletely`'s note arms (`gui/ui/sound_editor.cpp:749-755`) run before its
 		// `close()` (`:761`); `closeGuest` is the body of both of the guest's close paths, so both
 		// must reach it, and neither survive path may.
@@ -2051,6 +2051,8 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 			expect(fakelegacyui::note_exit_saw_close).to_be_false();
 			expect(fakelegacyui::settings_saves).to_equal(1);
 			expect(fakelegacyui::settings_save_saw_close).to_be_false();
+			expect(fakelegacyui::drum_creator_discards).to_equal(1);
+			expect(fakelegacyui::drum_creator_discard_saw_close).to_be_false();
 			expect(fakelegacyui::closed.size()).to_equal(size_t(1));
 		}
 		{
@@ -2069,6 +2071,8 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 			expect(fakelegacyui::note_exit_saw_close).to_be_false();
 			expect(fakelegacyui::settings_saves).to_equal(1);
 			expect(fakelegacyui::settings_save_saw_close).to_be_false();
+			expect(fakelegacyui::drum_creator_discards).to_equal(1);
+			expect(fakelegacyui::drum_creator_discard_saw_close).to_be_false();
 			expect(fakelegacyui::closed.size()).to_equal(size_t(1));
 		}
 	});

@@ -33,6 +33,7 @@
 #include "gui/ui/rename/rename_drum_ui.h"
 #include "gui/ui/sample_marker_editor.h"
 #include "gui/ui/save/save_kit_row_ui.h"
+#include "gui/ui/shell_drum_creator.h"
 #include "gui/ui/shell_note_mode.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
@@ -5651,6 +5652,13 @@ void InstrumentClipView::enterDrumCreator(ModelStackWithNoteRow* modelStack, boo
 	}
 
 	setSelectedDrum(newDrum); // Does this really need to render?
+
+	// Under the shell menu the ported browser opens on the new drum (`gui/ui/shell_drum_creator.h`); recording keeps
+	// legacy's audio recorder.
+	if (!doRecording && deluge::gui::ui::shellMenuEnabled()
+	    && deluge::gui::ui::openShellDrumCreator(getCurrentInstrumentClip(), newDrum)) {
+		return;
+	}
 
 	// Can't fail because we just set the selected Drum
 	// TODO: what if fail because no RAM

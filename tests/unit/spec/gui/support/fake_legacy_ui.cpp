@@ -1,6 +1,7 @@
 #include "fake_legacy_ui.h"
 
 #include "definitions_cxx.hpp"
+#include "gui/ui/shell_drum_creator.h"
 #include "gui/ui/shell_note_mode.h"
 #include "gui/ui/shell_pad_forward.h"
 #include "gui/ui/ui.h"
@@ -50,6 +51,8 @@ int note_mode_exits = 0;
 bool note_exit_saw_close = false;
 int settings_saves = 0;
 bool settings_save_saw_close = false;
+int drum_creator_discards = 0;
+bool drum_creator_discard_saw_close = false;
 bool note_exit_saw_knob_clear = false;
 std::vector<TimerArm> timer_arms;
 std::vector<TimerName> timer_unsets;
@@ -107,6 +110,8 @@ void reset() {
 	note_exit_saw_close = false;
 	settings_saves = 0;
 	settings_save_saw_close = false;
+	drum_creator_discards = 0;
+	drum_creator_discard_saw_close = false;
 	note_exit_saw_knob_clear = false;
 	timer_arms.clear();
 	timer_unsets.clear();
@@ -446,6 +451,11 @@ bool legacyInhibitsScreensaver() {
 void saveSettingsBeforeClose() {
 	fakelegacyui::settings_saves++;
 	fakelegacyui::settings_save_saw_close = !fakelegacyui::closed.empty();
+}
+
+void discardShellDrumCreatorBeforeClose() {
+	fakelegacyui::drum_creator_discards++;
+	fakelegacyui::drum_creator_discard_saw_close = !fakelegacyui::closed.empty();
 }
 } // namespace deluge::gui::ui
 

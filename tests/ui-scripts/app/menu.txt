@@ -396,4 +396,24 @@
 26600  button Back down
 26620  button Back up
 26900  snapshot shortcut-closed
-27900  quit
+
+# 9. The drum creator. A tap on pad (2, 4) deletes the note step 1 made, so the clip is empty and Shift + KIT gives it a
+# new, empty kit (with a note in it, KIT refuses: "CLIP NOT EMPTY"). A new kit runs
+# `InstrumentClipView::enterDrumCreator` on its row 0 (`completeNewInstrument`): a new drum and the sample browser open
+# on it, with the sound editor set up but not open -- the "NEW KIT CREATED" popup over "AUDIO FILES". Under the toggle
+# the ported browser opens on the new drum's file selector, so the legs' pads differ as `file-selector`'s do (the
+# ported browser shows its keyboard from the start: D23), the KIT LED is off under the guest as SYNTH is there, and the
+# new drum's audition-pad colour is random on each leg (D11). BACK with no file chosen is `SampleBrowser::exitAction`'s
+# drum-creator arm, which deletes the drum only while the kit holds another drum no row uses -- this kit holds none,
+# so the drum stays on both legs and the clip view shows KIT 1.
+27200  pad 2 4 down
+27300  pad 2 4 up
+27800  button Shift down
+27850  button Kit down
+27870  button Kit up
+27900  button Shift up
+28600  snapshot drum-creator
+28900  button Back down
+28920  button Back up
+29900  snapshot drum-creator-back
+30900  quit
