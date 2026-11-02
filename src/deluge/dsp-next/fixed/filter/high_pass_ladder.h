@@ -46,8 +46,8 @@ namespace deluge::dsp::fixed {
 /// and z₂ are the third and second sections' memories, fb₃ and fb₂ their feedbacks, and D the reciprocal of the loop
 /// gain. a is saturated by the block's mode, then fed through the third section's high-pass into the second section's
 /// low-pass, whose memories feed back on the next sample; the output is a / 2R, R the processed resonance. The morph
-/// moves each sample's cutoff with the input itself: 8x is x × 2^4 wrapping, so past |x| = 2^27 (a loud input) the
-/// nudge wraps, and the cutoff jumps.
+/// moves each sample's cutoff with the input itself: 8x is x × 2^4 wrapping, so for x outside [−2^27, 2^27) (a loud
+/// input) the nudge wraps, and the cutoff jumps.
 ///
 /// **Modes.** A mode is the saturation (@ref Saturation), chosen per block by the processed resonance: BYPASS (at most
 /// 750000000), TANH (@ref tanh at drive 2, past 750000000) and ANTIALIASED (@ref AntialiasedTanh at drive 1, past
@@ -120,7 +120,7 @@ struct HighPassLadder {
 		Q<25> divide_by_processed_resonance{};
 		Q<30> low_pass_1_feedback{};         ///< The second section's feedback, Q30.
 		Q<30> high_pass_3_feedback{};        ///< The third section's feedback, Q30.
-		Q<28> divide_by_total_moveability{}; ///< 1 / (1 − the loop gain), Q28.
+		Q<28> divide_by_total_moveability{}; ///< R / (1 − mR/2 + m²R), Q28: R over the loop's denominator.
 		q31 gain_compensation = 0;           ///< The gain going in, cut as the resonance rises, Q31.
 		Mode mode = Mode::BYPASS;            ///< The saturation and cutoff, dispatched on once per block.
 	};
@@ -177,7 +177,7 @@ struct HighPassLadder {
 
 		const Q<28> to_divide_by = add_wrap(sub_wrap(Q<28>::one(), as_floor<Q<28>>(moveability_times_resonance)),
 		                                    moveability_squared_times_resonance);
-		// Raw: a double reciprocal, R (Q30) × 2^26 over the Q28 loop gain, gives Q28.
+		// Raw: a double division, R (Q30) × 2^26 over the Q28 denominator, gives Q28.
 		c.divide_by_total_moveability =
 		    Q<28>::from_raw(static_cast<int32_t>(static_cast<double>(c.processed_resonance.raw()) * 67108864.0
 		                                         / static_cast<double>(static_cast<uint32_t>(to_divide_by.raw()))));
@@ -267,8 +267,8 @@ private:
 	static constexpr AntialiasedTanh::Coefficients kSaturator = AntialiasedTanh::coefficients({.drive = 1});
 
 	/// @brief The block's moveability nudged by the input: m + 8x × morph, Q31.
-	/// @details x × 2^4 wraps past |x| = 2^27. The rounded high word of 16x × morph is Q30; m is read as Q30 to take
-	/// it in one multiply-accumulate, and the sum read back as Q31 is m + 8x × morph.
+	/// @details x × 2^4 wraps for x outside [−2^27, 2^27). The rounded high word of 16x × morph is Q30; m is read as
+	/// Q30 to take it in one multiply-accumulate, and the sum read back as Q31 is m + 8x × morph.
 	[[nodiscard]] [[gnu::always_inline]] static Q<31> nudge(const Coefficients& c, Q<31> x) {
 		return reinterpret_bits<Q<31>>(mla_r(reinterpret_bits<Q<30>>(c.moveability), scale_shl_wrap<4>(x), c.morph));
 	}

@@ -120,27 +120,9 @@ struct OnePole {
 		}
 	}
 
-	/// @brief The memory scaled for a ladder's feedback: z × @p amount × 2, Q31.
-	/// @details The rounded product is Q30; reading it back as Q31 and doubling both wrap as two's complement: at
-	/// full-scale z and amount the result leaves Q31.
-	/// @param s The memory, read and not stepped.
-	/// @param amount The feedback amount, Q31.
-	/// @return z × @p amount × 2, Q31.
-	[[nodiscard]] [[gnu::always_inline]] static q31 feedback(const State& s, q31 amount) {
-		return scale_shl_wrap<1>(mul_r_as_wrap<Q<31>>(Q<31>::from_raw(s.z), Q<31>::from_raw(amount))).raw();
-	}
-
-	/// @brief The memory scaled for a ladder's feedback at a quarter of @ref feedback's scale: z × @p amount, Q30 (z ×
-	/// @p amount ÷ 2 read as Q31), for a caller that sums several at Q30 before shifting.
-	/// @param s The memory, read and not stepped.
-	/// @param amount The feedback amount, Q31.
-	/// @return z × @p amount, Q30.
-	[[nodiscard]] [[gnu::always_inline]] static q31 feedback_unshifted(const State& s, q31 amount) {
-		return mul_r(Q<31>::from_raw(s.z), Q<31>::from_raw(amount)).raw();
-	}
-
-	/// @brief The memory scaled for a ladder's feedback by a Q30 amount: z × @p amount, Q31. The bits are @ref
-	/// feedback's with the amount's bits read as Q31.
+	/// @brief The memory scaled for a ladder's feedback: z × @p amount, Q31.
+	/// @details The rounded product is Q30, reformatted to Q31: at full-scale z and amount the result wraps as two's
+	/// complement.
 	/// @param s The memory, read and not stepped.
 	/// @param amount The feedback amount, Q30.
 	/// @return z × @p amount, Q31, wrapping at full scale.

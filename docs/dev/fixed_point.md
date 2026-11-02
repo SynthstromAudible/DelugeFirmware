@@ -212,7 +212,7 @@ instructions.
   read as Q30, twice its value, as the ladder is tuned. The high-pass ladder's loop reciprocal is Q28 and its output
   normaliser 1 / 2R at Q25; the morph's nudge, m + 8x × morph, reads m as Q30 for one `mla_r`. The SVF's rate is
   fc × 1.125 (an eighth as a `UQ<32>` multiplier), its passes run on the Q30 scaled input read as Q31, and the blend
-  is three times its Q30 sum read as Q31. The shelf pair's gains are Q29 (one at a flat knob); its bass step is the
+  is three times its Q30 sum read as Q31. The shelf pair's gains are Q29 (the treble's one at a flat knob, the bass's the excess over one); its bass step is the
   Q30 product read as Q31, half the treble's. The reciprocals are double divisions and stay raw, as do `quick_log`'s
   octaves and the table positions. The high-pass ladder places its saturator with `q31_ops.h`'s asm saturate: the
   builtin a typed saturate compiles to is sunk out of the loop, and the rescheduled loop ran slower on the A9.

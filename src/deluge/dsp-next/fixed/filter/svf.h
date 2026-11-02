@@ -94,10 +94,10 @@ struct Svf {
 
 	/// @brief The coefficients for @p s.
 	/// @details The cutoff is warped by @ref curve_frequency and raised by an eighth (the filter's true cutoff is the
-	/// arcsine of its rate, so × 1.125 brings it loosely in line with the ladders'). The resonance (Q29 at most) read
-	/// as Q31 is 4r: q = 1 − 4r, in = q/2 + 1/2, then q is squared, which matches the ladders better and makes `in` its
-	/// square root. The morph is lifted to Q31 (saturating); in BAND its lower half moves low → band and its upper half
-	/// band → high, each at twice the rate, so no weight overflows.
+	/// arcsine of its rate, so × 1.125 brings it loosely in line with the ladders'). The resonance (Q29 at most) is
+	/// widened to Q31 (× 4 in raw bits): q = 1 − r, in = q/2 + 1/2, then q is squared, which matches the ladders better
+	/// and makes `in` its square root. The morph is lifted to Q31 (saturating); in BAND its lower half moves low → band
+	/// and its upper half band → high, each at twice the rate, so no weight overflows.
 	[[nodiscard]] [[gnu::always_inline]] static Coefficients coefficients(const Settings& s) {
 		Coefficients c{};
 		auto morph = as_clamp_then_shift<Q<31>>(Q<29>::from_raw(s.config.morph));

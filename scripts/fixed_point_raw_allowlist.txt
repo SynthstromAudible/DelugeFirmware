@@ -35,7 +35,7 @@ src/deluge/dsp-next/fixed/filter/filter_modes.h raw=0 boundary=5
 src/deluge/dsp-next/fixed/filter/filter_set.cpp raw=0 boundary=3
 src/deluge/dsp-next/fixed/filter/high_pass_ladder.h raw=1 boundary=28
 src/deluge/dsp-next/fixed/filter/low_pass_ladder.h raw=0 boundary=36
-src/deluge/dsp-next/fixed/filter/one_pole.h raw=0 boundary=9
+src/deluge/dsp-next/fixed/filter/one_pole.h raw=0 boundary=3
 src/deluge/dsp-next/fixed/filter/shelf_pair.h raw=0 boundary=20
 src/deluge/dsp-next/fixed/filter/svf.h raw=0 boundary=14
 src/deluge/dsp-next/fixed/granular/granular_kernel.h raw=20 boundary=0

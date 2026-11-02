@@ -75,12 +75,13 @@ std::vector<std::string> partings() {
 	return parted;
 }
 
-/// Settings across the range: dark and resonant, mid, and bright with the morph past half.
+/// Settings across the range: dark, mid, bright at the top resonance with the morph at its top, and the top resonance
+/// with the morph just below half.
 const std::vector<FilterConfig> kConfigs{
     {.frequency = 1 << 22, .resonance = 0, .morph = 0, .allow_oversampling = true},
     {.frequency = 1 << 24, .resonance = 1 << 28, .morph = 1 << 27, .allow_oversampling = true},
     {.frequency = 50000000, .resonance = 536870911, .morph = (1 << 29) - 1, .allow_oversampling = false},
-    {.frequency = 1 << 26, .resonance = 536870911, .morph = 1 << 28, .allow_oversampling = true},
+    {.frequency = 1 << 26, .resonance = 536870911, .morph = (1 << 28) - 1, .allow_oversampling = true},
 };
 
 /// A block at the rails and between: full-scale square bursts, then xorshift noise across the whole range.

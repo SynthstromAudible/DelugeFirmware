@@ -245,7 +245,7 @@ struct LowPassLadder {
 		c.moveability = m;
 
 		if (ladder == Ladder::T12) {
-			// m read as Q30 is 2m, so this is 2m − 1: in [−1, 0.76) for m in [0, 0.88].
+			// m read as Q30 is 2m, so this is 2m − 1: in (−1, 0.77) for m in [0.002, 0.884].
 			const Q<30> moveability_negative = sub_wrap(reinterpret_bits<Q<30>>(m), Q<30>::one());
 			c.feedbacks[1] = mul_r_as_wrap<Q<30>>(moveability_negative, c.divide_by_one_plus_tanned);
 			c.feedbacks[0] = mul_r_as_wrap<Q<30>>(c.feedbacks[1], m);

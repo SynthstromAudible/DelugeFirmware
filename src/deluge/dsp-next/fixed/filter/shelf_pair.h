@@ -33,7 +33,8 @@ namespace deluge::dsp::fixed {
 
 /// @brief Bass and treble shelves, each a one-pole split of the signal, added back scaled by its gain.
 /// @details Per frame: the treble is split off (a one-pole low-pass keeps the rest), then the bass is a one-pole
-/// low-pass of what remains; the treble and then the bass are added back, each × its gain (Q29, one at a flat knob).
+/// low-pass of what remains; the treble and then the bass are added back, each × its gain (Q29): the treble's is one at
+/// a flat knob, and the bass's, added to a signal that still holds the bass, is the excess over one, zero when flat.
 /// The memories, sums and differences wrap as the target's `add` and `sub` do, the bands' add-backs included: a boost
 /// at full scale wraps.
 ///
