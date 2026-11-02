@@ -75,7 +75,7 @@ class CountTest(unittest.TestCase):
 
 
 class ScanTest(unittest.TestCase):
-    def test_scans_c_family_files_and_exempts_the_two_headers(self):
+    def test_scans_c_family_files_and_exempts_the_core_headers(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             (root / "src/a").mkdir(parents=True)
@@ -88,6 +88,14 @@ class ScanTest(unittest.TestCase):
                 (root / exempt).parent.mkdir(parents=True, exist_ok=True)
                 (root / exempt).write_text("q31_mult(a, b);\n")
             self.assertEqual(scan(root), {"src/a/k.cpp": Counts(2, 1)})
+
+    def test_the_asm_header_is_not_counted(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            asm = root / "src/deluge/dsp-next/core/high_word_asm.h"
+            asm.parent.mkdir(parents=True)
+            asm.write_text('asm("smmul %0, %1, %2" : "=r"(out) : "r"(a), "r"(b));\n')
+            self.assertEqual(scan(root), {})
 
 
 class RatchetTest(unittest.TestCase):

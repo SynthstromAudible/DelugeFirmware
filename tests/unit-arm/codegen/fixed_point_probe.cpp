@@ -236,8 +236,8 @@ std::int32_t probe_mul_as_sat(std::int32_t a, std::int32_t b) {
 	return mul_as_sat<Q<31>>(typed31(a), typed31(b)).raw();
 }
 
-// Loop shapes: reported, not gated. A loop of the plain-C multiply-high family can auto-vectorize into NEON that is
-// slower than the scalar loop on the A9 (docs/dev/fixed_point.md); the report shows which shapes do today.
+// Loop shapes: reported, not gated. The multiply-high family is asm at run time, which the loop vectorizer leaves
+// scalar; a plain-C form would vectorize into NEON that is slower on the A9 (docs/dev/fixed_point.md).
 void loop_mul_gain(std::int32_t* out, const std::int32_t* in, std::int32_t gain, int n) {
 	for (int k = 0; k < n; k++) {
 		out[k] = mul_as_wrap<Q<31>>(typed31(in[k]), typed31(gain)).raw();

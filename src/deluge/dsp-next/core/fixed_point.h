@@ -26,6 +26,8 @@
 #include <arm_acle.h>
 #endif
 
+#include "dsp-next/core/high_word_asm.h"
+
 /// @file
 /// @brief Fixed-point numbers whose format is part of their type, and the named operations on them.
 ///
@@ -468,9 +470,19 @@ template <int F>
 namespace detail {
 
 [[gnu::always_inline, nodiscard]] constexpr std::int32_t high_word(std::int32_t a, std::int32_t b) noexcept {
+#ifdef __arm__
+	if !consteval {
+		return arm::smmul(a, b);
+	}
+#endif
 	return static_cast<std::int32_t>((std::int64_t{a} * b) >> 32);
 }
 [[gnu::always_inline, nodiscard]] constexpr std::int32_t high_word_r(std::int32_t a, std::int32_t b) noexcept {
+#ifdef __arm__
+	if !consteval {
+		return arm::smmulr(a, b);
+	}
+#endif
 	return static_cast<std::int32_t>((std::int64_t{a} * b + 0x80000000LL) >> 32);
 }
 /// (a × b16) >> 16, b16 the low half of @p b sign-extended: smulwb.
@@ -485,10 +497,8 @@ namespace detail {
 } // namespace detail
 
 /// @brief The high word of a × b, truncated: Q<A> × Q<B> → Q<A+B−32> (`smmul`). Q31 × Q31 gives Q30.
-/// @note This family (mul, mul_r, mla, mla_r, mls, mls_r) is the plain-C multiply-high idiom, so clang can
-/// auto-vectorize a loop of it into NEON (`vmull.s32` + `vshrn`, or per-lane `umull` with `vmov.32` transfers) that
-/// runs slower than the scalar loop on the A9. Bench each kernel moved onto it; tests/unit-arm/codegen reports which
-/// loop shapes vectorize. See docs/dev/fixed_point.md.
+/// @note For this family (mul, mul_r, mla, mla_r, mls, mls_r), at run time on ARM this is the asm in
+/// high_word_asm.h, which the loop vectorizer leaves alone; the portable body is the constant-evaluated and host form.
 template <int A, int B>
 requires(A + B >= 32)
 [[gnu::always_inline, nodiscard]] constexpr Q<A + B - 32> mul(Q<A> a, Q<B> b) noexcept {
@@ -504,18 +514,33 @@ requires(A + B >= 32)
 template <int A, int B>
 requires(A + B >= 32)
 [[gnu::always_inline, nodiscard]] constexpr Q<A + B - 32> mla(Q<A + B - 32> acc, Q<A> a, Q<B> b) noexcept {
+#ifdef __arm__
+	if !consteval {
+		return Q<A + B - 32>::from_raw(detail::arm::smmla(acc.raw(), a.raw(), b.raw()));
+	}
+#endif
 	return Q<A + B - 32>::from_raw(detail::wrap_add(acc.raw(), detail::high_word(a.raw(), b.raw())));
 }
 /// @brief acc + the rounded high word of a × b, wrapping (`smmlar`).
 template <int A, int B>
 requires(A + B >= 32)
 [[gnu::always_inline, nodiscard]] constexpr Q<A + B - 32> mla_r(Q<A + B - 32> acc, Q<A> a, Q<B> b) noexcept {
+#ifdef __arm__
+	if !consteval {
+		return Q<A + B - 32>::from_raw(detail::arm::smmlar(acc.raw(), a.raw(), b.raw()));
+	}
+#endif
 	return Q<A + B - 32>::from_raw(detail::wrap_add(acc.raw(), detail::high_word_r(a.raw(), b.raw())));
 }
 /// @brief The high word of acc × 2^32 − a × b, wrapping (`smmls`): acc − ceil(a × b / 2^32), not acc − mul(a, b).
 template <int A, int B>
 requires(A + B >= 32)
 [[gnu::always_inline, nodiscard]] constexpr Q<A + B - 32> mls(Q<A + B - 32> acc, Q<A> a, Q<B> b) noexcept {
+#ifdef __arm__
+	if !consteval {
+		return Q<A + B - 32>::from_raw(detail::arm::smmls(acc.raw(), a.raw(), b.raw()));
+	}
+#endif
 	const auto widened =
 	    static_cast<std::int64_t>(static_cast<std::uint64_t>(static_cast<std::uint32_t>(acc.raw())) << 32);
 	return Q<A + B - 32>::from_raw(static_cast<std::int32_t>(
@@ -525,6 +550,11 @@ requires(A + B >= 32)
 template <int A, int B>
 requires(A + B >= 32)
 [[gnu::always_inline, nodiscard]] constexpr Q<A + B - 32> mls_r(Q<A + B - 32> acc, Q<A> a, Q<B> b) noexcept {
+#ifdef __arm__
+	if !consteval {
+		return Q<A + B - 32>::from_raw(detail::arm::smmlsr(acc.raw(), a.raw(), b.raw()));
+	}
+#endif
 	const auto widened =
 	    static_cast<std::int64_t>(static_cast<std::uint64_t>(static_cast<std::uint32_t>(acc.raw())) << 32);
 	const auto rounded =

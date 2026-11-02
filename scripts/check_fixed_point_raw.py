@@ -36,7 +36,11 @@ ALLOWLIST_PATH = REPO_ROOT / "scripts" / "fixed_point_raw_allowlist.txt"
 SCOPE = ("src",)
 SUFFIXES = {".c", ".cc", ".cpp", ".cxx", ".h", ".hh", ".hpp", ".inc"}
 EXEMPT = frozenset(
-    {"src/deluge/dsp-next/core/fixed_point.h", "src/deluge/dsp-next/core/q31_ops.h"}
+    {
+        "src/deluge/dsp-next/core/fixed_point.h",
+        "src/deluge/dsp-next/core/high_word_asm.h",
+        "src/deluge/dsp-next/core/q31_ops.h",
+    }
 )
 
 RAW_HELPERS = re.compile(

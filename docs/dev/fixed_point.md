@@ -65,13 +65,13 @@ They differ in the lowest bit on about half of all inputs. Pick the one whose bi
 ## The instructions
 
 Every operation is plain C or an ACLE intrinsic that clang 23 compiles to the instruction below, in ARM and in
-Thumb-2. The app's files are Thumb-2; dsp-next's own libraries are ARM. The only inline asm left is the fixed-point
-VFP `vcvt`, which clang does not form by itself.
+Thumb-2. The app's files are Thumb-2; dsp-next's own libraries are ARM. Two kinds of inline asm remain: the
+high-word multiplies (below) and the fixed-point VFP `vcvt`, which clang does not form by itself.
 
 `tests/unit-arm/codegen` disassembles each operation in both instruction sets, built with the app's `-O2
 -fno-inline-functions`, the stricter of the image's two inliners. It fails on any other instruction sequence, on a
 wrong immediate where one matters, and on any call. It also reports, without failing, which loop shapes the compiler
-auto-vectorizes. `tests/unit-arm/spec/fixed_point_isa_spec.cpp` compares every operation, and every portable form,
+auto-vectorizes; the multiply loops stay scalar. `tests/unit-arm/spec/fixed_point_isa_spec.cpp` compares every operation, and every portable form,
 against the real instruction under qemu.
 
 | Operation | A9 instruction |
@@ -94,20 +94,22 @@ App files build with `-fno-inline-functions`, which turns every `std::` helper t
 `std::clamp`, `std::numeric_limits<>::max()`) into an out-of-line call. Code on the audio path uses builtins,
 comparisons and `constexpr` constants instead.
 
-### Why the high-word multiplies stay asm in `q31_ops.h`
+### The high-word multiplies are asm
 
-`q31_ops.h`'s raw helpers, which the code not yet moved to the types still calls, keep their inline asm.
+`src/deluge/dsp-next/core/high_word_asm.h` holds `smmul`, `smmulr`, `smmla`, `smmlar`, `smmls` and `smmlsr` as inline
+asm, the one implementation behind both `q31_ops.h`'s raw helpers and, at run time on ARM, `fixed_point.h`'s `mul`
+family. Moving a kernel from the helpers to the types therefore leaves its instructions as they were. The portable C
+bodies are the constant-evaluated and host forms.
 
 Clang has no intrinsic for `smmul`, so plain C means the idiom `(int32_t)(((int64_t)a * b) >> 32)`. Clang's loop
 vectorizer widens loops of that idiom into NEON, which is 3–7× slower on the A9: `vmull.s32` + `vshrn.i64`, or a
 `umull` per lane with values shuttled through `vmov.32`. Empty-asm barriers can stop it, but they cost 10–40% in
-other kernels. `fixed_point.h`'s multiply-high family is that same idiom, so a loop of it can vectorize the same way;
-the codegen gate's loop report shows which shapes do.
+other kernels. The asm is opaque to the vectorizer.
 
-Measured on the device with a layout-stable bench (below): every rebuilt form of the helpers moved single kernels
-by ±10–40%. The kernels move onto the typed operations one at a time instead, each benched.
+Measured on the device with a layout-stable bench (below): every plain-C form of the helpers moved single kernels
+by ±10–40%.
 
-`TODO.md` tracks the LLVM side: smmul-family intrinsics, the NEON cost model, and a scalar ×2 unroll that is 22–30%
+`TODO.md` tracks the LLVM side, where the asm would give way to an intrinsic: smmul-family intrinsics, the NEON cost model, and a scalar ×2 unroll that is 22–30%
 faster on the A9.
 
 ## Lane packs

@@ -22,6 +22,8 @@
 #include <cstdint>
 #include <limits>
 
+#include "dsp-next/core/high_word_asm.h"
+
 /// @file
 /// @brief The scalar Q31 primitives every layer uses: the Q31 type and constants, the A9's high-word multiplies,
 /// multiply-accumulates and saturating ops (one instruction each on ARM, with exact portable twins elsewhere), and the
@@ -49,61 +51,48 @@ static inline q31_t to_positive(q31_t a) {
 // be. Use this when several corrective shifts can be accumulated and then combined
 static inline q31_t multiply_32x32_rshift32(q31_t a, q31_t b) __attribute__((always_inline, unused));
 static inline q31_t multiply_32x32_rshift32(q31_t a, q31_t b) {
-	q31_t out;
-	asm("smmul %0, %1, %2" : "=r"(out) : "r"(a), "r"(b));
-	return out;
+	return deluge::dsp::detail::arm::smmul(a, b);
 }
 
 // This multiplies two numbers in signed Q31 fixed point and rounds the result
 static inline q31_t multiply_32x32_rshift32_rounded(q31_t a, q31_t b) __attribute__((always_inline, unused));
 static inline q31_t multiply_32x32_rshift32_rounded(q31_t a, q31_t b) {
-	q31_t out;
-	asm("smmulr %0, %1, %2" : "=r"(out) : "r"(a), "r"(b));
-	return out;
+	return deluge::dsp::detail::arm::smmulr(a, b);
 }
 
 // This multiplies two numbers in signed Q31 fixed point, returning the result in q31. This is more useful for readable
 // multiplies
 static inline q31_t q31_mult(q31_t a, q31_t b) __attribute__((always_inline, unused));
 static inline q31_t q31_mult(q31_t a, q31_t b) {
-	q31_t out;
-	asm("smmul %0, %1, %2" : "=r"(out) : "r"(a), "r"(b));
-	return out * 2;
+	return deluge::dsp::detail::arm::smmul(a, b) * 2;
 }
 
 // This multiplies a number in q31 by a number in q32 (e.g. unsigned, 2^32 representing one), returning a scaled value a
 static inline q31_t q31t_rescale(q31_t a, uint32_t proportion) __attribute__((always_inline, unused));
 static inline q31_t q31t_rescale(q31_t a, uint32_t proportion) {
-	q31_t out;
-	asm("smmul %0, %1, %2" : "=r"(out) : "r"(a), "r"(proportion));
-	return out;
+	// The same bits as the uint32: smmul reads them as signed
+	return deluge::dsp::detail::arm::smmul(a, static_cast<int32_t>(proportion));
 }
 
 // Multiplies A and B, adds to sum, and returns output
 static inline q31_t multiply_accumulate_32x32_rshift32_rounded(q31_t sum, q31_t a, q31_t b)
     __attribute__((always_inline, unused));
 static inline q31_t multiply_accumulate_32x32_rshift32_rounded(q31_t sum, q31_t a, q31_t b) {
-	q31_t out;
-	asm("smmlar %0, %1, %2, %3" : "=r"(out) : "r"(a), "r"(b), "r"(sum));
-	return out;
+	return deluge::dsp::detail::arm::smmlar(sum, a, b);
 }
 
 // Multiplies A and B, adds to sum, and returns output
 static inline q31_t multiply_accumulate_32x32_rshift32(q31_t sum, q31_t a, q31_t b)
     __attribute__((always_inline, unused));
 static inline q31_t multiply_accumulate_32x32_rshift32(q31_t sum, q31_t a, q31_t b) {
-	q31_t out;
-	asm("smmla %0, %1, %2, %3" : "=r"(out) : "r"(a), "r"(b), "r"(sum));
-	return out;
+	return deluge::dsp::detail::arm::smmla(sum, a, b);
 }
 
 // Multiplies A and B, subtracts from sum, and returns output
 static inline q31_t multiply_subtract_32x32_rshift32_rounded(q31_t sum, q31_t a, q31_t b)
     __attribute__((always_inline, unused));
 static inline q31_t multiply_subtract_32x32_rshift32_rounded(q31_t sum, q31_t a, q31_t b) {
-	q31_t out;
-	asm("smmlsr %0, %1, %2, %3" : "=r"(out) : "r"(a), "r"(b), "r"(sum));
-	return out;
+	return deluge::dsp::detail::arm::smmlsr(sum, a, b);
 }
 
 // computes limit((val >> rshift), 2**bits)
