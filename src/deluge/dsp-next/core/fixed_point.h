@@ -613,4 +613,180 @@ requires(sizeof(typename To::storage_type) == sizeof(S))
 	return To::from_raw(static_cast<To::storage_type>(x.raw()));
 }
 
+namespace detail {
+
+template <class To, class S, int F>
+concept widening = std::is_same_v<typename To::storage_type, S> && (To::kFractionalBits > F);
+template <class To, class S, int F>
+concept narrowing = std::is_same_v<typename To::storage_type, S> && (To::kFractionalBits < F);
+/// A shift amount that leaves at least one bit of @p S.
+template <int N, class S>
+concept shift_amount = N >= 1 && N < std::numeric_limits<std::make_unsigned_t<S>>::digits;
+
+/// floor(x / 2^n) + bit (n − 1) of x: round half up, without ever forming x + 2^(n−1).
+template <class S>
+[[gnu::always_inline, nodiscard]] constexpr S shr_round(S x, int n) noexcept {
+	return static_cast<S>((x >> n) + ((x >> (n - 1)) & 1));
+}
+/// x × 2^n saturated to the int32 range (`qadd x, x` for n = 1; compare-and-select otherwise).
+template <int N>
+[[gnu::always_inline, nodiscard]] constexpr std::int32_t shl_sat(std::int32_t x) noexcept {
+	if constexpr (N == 1) {
+		if consteval {
+			return portable::qadd(x, x);
+		}
+#ifdef __ARM_FEATURE_DSP
+		return __qadd(x, x);
+#else
+		return portable::qadd(x, x);
+#endif
+	}
+	else {
+		constexpr std::int32_t kHi = INT32_MAX >> N;
+		constexpr std::int32_t kLo = INT32_MIN >> N;
+		if (x > kHi) {
+			return INT32_MAX;
+		}
+		if (x < kLo) {
+			return INT32_MIN;
+		}
+		return wrap_shl(x, N);
+	}
+}
+
+} // namespace detail
+
+/// @brief Same value, more fractional bits; bits shifted out of the top wrap (`lsl`).
+template <class To, class S, int F>
+requires detail::widening<To, S, F>
+[[gnu::always_inline, nodiscard]] constexpr To as_wrap(Fixed<S, F> x) noexcept {
+	return To::from_raw(detail::wrap_shl(x.raw(), To::kFractionalBits - F));
+}
+/// @brief Same value, more fractional bits, saturating to [min, max] (`qadd x, x` for one bit; compare-and-select
+/// otherwise). The ceiling is INT32_MAX.
+template <class To, int F>
+requires detail::widening<To, std::int32_t, F>
+[[gnu::always_inline, nodiscard]] constexpr To as_sat(Q<F> x) noexcept {
+	return To::from_raw(detail::shl_sat<To::kFractionalBits - F>(x.raw()));
+}
+/// @brief Same value, n = M − F more fractional bits: clamps to 32 − n bits, then shifts (`ssat`, `lsl`). The
+/// ceiling is 2^31 − 2^n, not INT32_MAX; this is lshift_and_saturate<n>.
+template <class To, int F>
+requires detail::widening<To, std::int32_t, F>
+[[gnu::always_inline, nodiscard]] constexpr To as_clamp_then_shift(Q<F> x) noexcept {
+	constexpr int kN = To::kFractionalBits - F;
+	return To::from_raw(detail::wrap_shl(clamp_bits<32 - kN>(x).raw(), kN));
+}
+/// @brief Same value, fewer fractional bits, rounding toward −∞ (`asr`, or `lsr` unsigned).
+template <class To, class S, int F>
+requires detail::narrowing<To, S, F>
+[[gnu::always_inline, nodiscard]] constexpr To as_floor(Fixed<S, F> x) noexcept {
+	return To::from_raw(static_cast<S>(x.raw() >> (F - To::kFractionalBits)));
+}
+/// @brief Same value, fewer fractional bits, rounding half up; never wraps (`asr`, `and`, `add`).
+template <class To, class S, int F>
+requires detail::narrowing<To, S, F>
+[[gnu::always_inline, nodiscard]] constexpr To as_round(Fixed<S, F> x) noexcept {
+	return To::from_raw(detail::shr_round(x.raw(), F - To::kFractionalBits));
+}
+
+/// @brief as_wrap<To>(mul(a, b)): the high word reformatted, wrapping (`smmul`, `lsl`). q31_mult is
+/// mul_as_wrap<Q<31>>, and −1 × −1 gives −1.
+template <class To, int A, int B>
+requires(A + B >= 32) && detail::widening<To, std::int32_t, A + B - 32>
+[[gnu::always_inline, nodiscard]] constexpr To mul_as_wrap(Q<A> a, Q<B> b) noexcept {
+	return as_wrap<To>(mul(a, b));
+}
+/// @brief as_sat<To>(mul(a, b)): the high word reformatted, saturating (`smmul`, then `qadd` or compares).
+template <class To, int A, int B>
+requires(A + B >= 32) && detail::widening<To, std::int32_t, A + B - 32>
+[[gnu::always_inline, nodiscard]] constexpr To mul_as_sat(Q<A> a, Q<B> b) noexcept {
+	return as_sat<To>(mul(a, b));
+}
+/// @brief as_wrap<To>(mul_r(a, b)): the rounded high word reformatted, wrapping (`smmulr`, `lsl`) — the filters'
+/// commonest step.
+template <class To, int A, int B>
+requires(A + B >= 32) && detail::widening<To, std::int32_t, A + B - 32>
+[[gnu::always_inline, nodiscard]] constexpr To mul_r_as_wrap(Q<A> a, Q<B> b) noexcept {
+	return as_wrap<To>(mul_r(a, b));
+}
+
+/// @brief x × 2^N in the same format, wrapping (`lsl`).
+template <int N, class S, int F>
+requires detail::shift_amount<N, S>
+[[gnu::always_inline, nodiscard]] constexpr Fixed<S, F> scale_shl_wrap(Fixed<S, F> x) noexcept {
+	return Fixed<S, F>::from_raw(detail::wrap_shl(x.raw(), N));
+}
+/// @brief x × 2^N in the same format, saturating to [min, max] (`qadd x, x` for N = 1).
+template <int N, int F>
+requires detail::shift_amount<N, std::int32_t>
+[[gnu::always_inline, nodiscard]] constexpr Q<F> scale_shl_sat(Q<F> x) noexcept {
+	return Q<F>::from_raw(detail::shl_sat<N>(x.raw()));
+}
+/// @brief x clamped to 32 − N bits, then × 2^N, in the same format (`ssat`, `lsl`): lshift_and_saturate<N>.
+template <int N, int F>
+requires detail::shift_amount<N, std::int32_t>
+[[gnu::always_inline, nodiscard]] constexpr Q<F> scale_shl_clamp_then_shift(Q<F> x) noexcept {
+	return Q<F>::from_raw(detail::wrap_shl(clamp_bits<32 - N>(x).raw(), N));
+}
+/// @brief x / 2^N in the same format, rounding toward −∞ (`asr`).
+template <int N, class S, int F>
+requires detail::shift_amount<N, S>
+[[gnu::always_inline, nodiscard]] constexpr Fixed<S, F> scale_shr_floor(Fixed<S, F> x) noexcept {
+	return Fixed<S, F>::from_raw(static_cast<S>(x.raw() >> N));
+}
+/// @brief x / 2^N in the same format, rounding half up; never wraps.
+template <int N, class S, int F>
+requires detail::shift_amount<N, S>
+[[gnu::always_inline, nodiscard]] constexpr Fixed<S, F> scale_shr_round(Fixed<S, F> x) noexcept {
+	return Fixed<S, F>::from_raw(detail::shr_round(x.raw(), N));
+}
+/// @brief x / 2 rounding toward −∞ (`asr #1`).
+template <int F>
+[[gnu::always_inline, nodiscard]] constexpr Q<F> halve_floor(Q<F> x) noexcept {
+	return Q<F>::from_raw(x.raw() >> 1);
+}
+/// @brief x / 2 rounding toward zero (`add` of the sign bit, `asr #1`).
+template <int F>
+[[gnu::always_inline, nodiscard]] constexpr Q<F> halve_toward_zero(Q<F> x) noexcept {
+	return Q<F>::from_raw(x.raw() / 2);
+}
+
+/// @brief The same value in 64 bits with M ≥ F fractional bits; exact.
+template <class To, int F>
+requires std::is_same_v<typename To::storage_type, std::int64_t> && (To::kFractionalBits >= F)
+[[gnu::always_inline, nodiscard]] constexpr To widen(Q<F> x) noexcept {
+	return To::from_raw(std::int64_t{x.raw()} << (To::kFractionalBits - F));
+}
+/// @brief A 64-bit value in 32 bits with M ≤ F fractional bits, rounding toward −∞; the high bits wrap.
+template <class To, int F>
+requires std::is_same_v<typename To::storage_type, std::int32_t> && (To::kFractionalBits <= F)
+[[gnu::always_inline, nodiscard]] constexpr To narrow_floor_wrap(Q64<F> x) noexcept {
+	return To::from_raw(static_cast<std::int32_t>(static_cast<std::uint64_t>(x.raw() >> (F - To::kFractionalBits))));
+}
+/// @brief A 64-bit value in 32 bits with M < F fractional bits, rounding half up; the high bits wrap.
+template <class To, int F>
+requires std::is_same_v<typename To::storage_type, std::int32_t> && (To::kFractionalBits < F)
+[[gnu::always_inline, nodiscard]] constexpr To narrow_round_wrap(Q64<F> x) noexcept {
+	return To::from_raw(
+	    static_cast<std::int32_t>(static_cast<std::uint64_t>(detail::shr_round(x.raw(), F - To::kFractionalBits))));
+}
+/// @brief A 64-bit value in 32 bits with M ≤ F fractional bits, rounding toward −∞ and saturating.
+template <class To, int F>
+requires std::is_same_v<typename To::storage_type, std::int32_t> && (To::kFractionalBits <= F)
+[[gnu::always_inline, nodiscard]] constexpr To narrow_floor_sat(Q64<F> x) noexcept {
+	return To::from_raw(detail::sat32(x.raw() >> (F - To::kFractionalBits)));
+}
+/// @brief The top half of x as a 16-bit value, saturating: Q<F> → Q16<F−16> (`ssat #16, x, asr #16`).
+template <int F>
+requires(F >= 16)
+[[gnu::always_inline, nodiscard]] constexpr Q16<F - 16> to_q16_sat(Q<F> x) noexcept {
+	return Q16<F - 16>::from_raw(static_cast<std::int16_t>(clamp_bits<16>(scale_shr_floor<16>(x)).raw()));
+}
+/// @brief A 16-bit value in the top half of 32 bits: Q16<F> → Q<F+16>; exact.
+template <int F>
+[[gnu::always_inline, nodiscard]] constexpr Q<F + 16> from_q16(Q16<F> x) noexcept {
+	return Q<F + 16>::from_raw(detail::wrap_shl(std::int32_t{x.raw()}, 16));
+}
+
 } // namespace deluge::dsp

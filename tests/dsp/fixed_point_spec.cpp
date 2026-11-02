@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #include "dsp-next/core/fixed_point.h"
+#include <algorithm>
 #include <array>
 #include <cppspec.hpp>
 #include <cstdint>
@@ -64,6 +65,20 @@ static_assert(std::is_same_v<decltype(dot(Q16x2<15>{}, Q16x2<15>{})), Q<30>>);
 template <class A, class B>
 concept high_word_multipliable = requires(A a, B b) { mul(a, b); };
 static_assert(!high_word_multipliable<Q<15>, Q<15>>);
+template <class To, class From>
+concept wrap_reformattable = requires(From x) { as_wrap<To>(x); };
+template <class To, class From>
+concept floor_reformattable = requires(From x) { as_floor<To>(x); };
+template <int N, class T>
+concept wrap_scalable = requires(T x) { scale_shl_wrap<N>(x); };
+static_assert(wrap_reformattable<Q<31>, Q<30>>);
+static_assert(!wrap_reformattable<Q<30>, Q<31>>);
+static_assert(!floor_reformattable<Q<31>, Q<30>>);
+static_assert(!wrap_reformattable<UQ<31>, Q<30>>);
+static_assert(wrap_scalable<31, Q<31>>);
+static_assert(!wrap_scalable<32, Q<31>>);
+static_assert(std::is_same_v<decltype(to_q16_sat(Q<31>{})), Q16<15>>);
+static_assert(std::is_same_v<decltype(from_q16(Q16<15>{})), Q<31>>);
 
 constexpr std::array<std::int32_t, 14> kEdges{
     0, 1, -1, 2, -2, INT32_MAX, INT32_MIN, INT32_MAX - 1, INT32_MIN + 1, 1 << 30, -(1 << 30), 0x7FFF, -0x8000, 0x10000};
@@ -295,4 +310,71 @@ describe fixed_point_mul("fixed_point multiplies", ${
 });
 // clang-format on
 
-CPPSPEC_MAIN(fixed_point_types, fixed_point_add, fixed_point_mul);
+// clang-format off
+describe fixed_point_format("fixed_point reformat and scale", ${
+	it("widens wrapping, saturating, or clamping then shifting", _ {
+		std::size_t bad = 0;
+		for (auto [a, b] : pairs()) {
+			const auto x = Q<28>::from_raw(a);
+			bad += as_wrap<Q<31>>(x).raw() != wrap32(std::int64_t{a} * 8);
+			bad += as_sat<Q<31>>(x).raw() != sat32(std::int64_t{a} * 8);
+			bad += as_sat<Q<31>>(Q<30>::from_raw(a)).raw() != sat32(std::int64_t{a} * 2);
+			bad += as_clamp_then_shift<Q<31>>(x).raw() != wrap32(std::int64_t{clamp_ref(a, 29)} * 8);
+			bad += scale_shl_wrap<3>(r(a)).raw() != wrap32(std::int64_t{a} * 8);
+			bad += scale_shl_sat<3>(r(a)).raw() != sat32(std::int64_t{a} * 8);
+			bad += scale_shl_clamp_then_shift<3>(r(a)).raw() != wrap32(std::int64_t{clamp_ref(a, 29)} * 8);
+		}
+		expect(bad).to_equal(std::size_t{0});
+		expect(as_sat<Q<31>>(Q<30>::max()).raw()).to_equal(INT32_MAX);
+		expect(as_clamp_then_shift<Q<31>>(Q<30>::max()).raw()).to_equal(INT32_MAX - 1);
+	});
+	it("narrows by flooring or rounding half up, never wrapping", _ {
+		std::size_t bad = 0;
+		for (auto [a, b] : pairs()) {
+			const std::int64_t round_ref = (std::int64_t{a} + 4) >> 3;
+			bad += as_floor<Q<28>>(r(a)).raw() != (a >> 3);
+			bad += as_round<Q<28>>(r(a)).raw() != static_cast<std::int32_t>(round_ref);
+			bad += scale_shr_floor<3>(r(a)).raw() != (a >> 3);
+			bad += scale_shr_round<3>(r(a)).raw() != static_cast<std::int32_t>(round_ref);
+			const auto u = static_cast<std::uint32_t>(a);
+			bad += as_round<UQ<29>>(UQ<32>::from_raw(u)).raw() != static_cast<std::uint32_t>((std::uint64_t{u} + 4) >> 3);
+		}
+		expect(bad).to_equal(std::size_t{0});
+		expect(as_round<Q<30>>(Q<31>::max()).raw()).to_equal(1 << 30);
+	});
+	it("halves by flooring or toward zero", _ {
+		expect(halve_floor(r(-3)).raw()).to_equal(-2);
+		expect(halve_toward_zero(r(-3)).raw()).to_equal(-1);
+		expect(halve_floor(r(3)).raw()).to_equal(1);
+	});
+	it("changes width between 16, 32 and 64 bits", _ {
+		std::size_t bad = 0;
+		for (auto [a, b] : pairs()) {
+			const std::int64_t wide = std::int64_t{a} * b;
+			bad += widen<Q64<40>>(Q<31>::from_raw(a)).raw() != std::int64_t{a} * 512;
+			bad += narrow_floor_wrap<Q<31>>(Q64<62>::from_raw(wide)).raw() != wrap32(wide >> 31);
+			bad += narrow_round_wrap<Q<31>>(Q64<62>::from_raw(wide)).raw() != wrap32((wide + (1LL << 30)) >> 31);
+			bad += narrow_floor_sat<Q<31>>(Q64<62>::from_raw(wide)).raw() != sat32(wide >> 31);
+			bad += to_q16_sat(r(a)).raw()
+			       != static_cast<std::int16_t>(std::clamp<std::int32_t>(a >> 16, INT16_MIN, INT16_MAX));
+			bad += from_q16(Q16<15>::from_raw(static_cast<std::int16_t>(lo16(a)))).raw() != lo16(a) * 65536;
+		}
+		expect(bad).to_equal(std::size_t{0});
+	});
+	it("composes a multiply with a reformat", _ {
+		std::size_t bad = 0;
+		for (auto [a, b] : pairs()) {
+			const std::int64_t p = std::int64_t{a} * b;
+			bad += mul_as_wrap<Q<31>>(r(a), r(b)).raw() != wrap32((p >> 32) * 2);
+			bad += mul_as_sat<Q<31>>(r(a), r(b)).raw() != sat32((p >> 32) * 2);
+			bad += mul_r_as_wrap<Q<31>>(r(a), r(b)).raw() != wrap32(((p + 0x80000000LL) >> 32) * 2);
+		}
+		expect(bad).to_equal(std::size_t{0});
+		expect(mul_as_wrap<Q<31>>(r(INT32_MIN), r(INT32_MIN)).raw()).to_equal(INT32_MIN);
+		// The saturated reformat of the high word drops the bit the doubling multiply keeps.
+		expect(as_sat<Q<31>>(mul(r(3), r(1 << 30))).raw()).to_equal(0);
+	});
+});
+// clang-format on
+
+CPPSPEC_MAIN(fixed_point_types, fixed_point_add, fixed_point_mul, fixed_point_format);
