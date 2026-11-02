@@ -1,0 +1,96 @@
+---
+/**
+ * A Guidebook figure that is a window onto the Deluge front panel, showing what the Deluge looks
+ * like after each step of the procedure before it. Frames (pad colours, lit buttons) come from
+ * src/data/guidebook-frames/<id>.json; the step's controls (`stepControls`) are filled in at
+ * build time by remark-panel-steps from the preceding <Steps> list.
+ *
+ * Without JavaScript (and in print) the figure shows the last frame with every step's controls
+ * marked. With JavaScript, StepFocus's current step selects the frame.
+ */
+import "../../styles/guidebook-panel.css"
+import panelSvg from "../../assets/guidebook/panel/panel.svg?raw"
+import panelJson from "../../data/guidebook-panel.json"
+import { validateFrames } from "./panel/frames.ts"
+import type { StepControl } from "./panel/key-controls.ts"
+import { PanelMapSchema } from "./panel/panel-map.ts"
+import { renderFrame, windowBox } from "./panel/render-frame.ts"
+
+/** Anchored callout (see Task 7); declared here so pages can pass them. */
+type Callout = {
+  control: string
+  text: string
+  side: "left" | "right" | "top" | "bottom"
+}
+
+type Props = {
+  id: string
+  alt: string
+  /** JSON StepControl[][]: injected by remark-panel-steps, one entry per step. */
+  stepControls?: string
+  /** Frame file id (default: `id`). */
+  frames?: string
+  /** Panel region name or "x y w h"; overrides the frame file's window. */
+  window?: string
+  callouts?: Callout[]
+}
+
+const { id, alt, stepControls, frames = id, window } = Astro.props
+const panel = PanelMapSchema.parse(panelJson)
+const steps: StepControl[][] | undefined = stepControls
+  ? JSON.parse(stepControls)
+  : undefined
+
+const files = import.meta.glob("../../data/guidebook-frames/*.json", {
+  eager: true,
+  import: "default",
+})
+const raw = files[`../../data/guidebook-frames/${frames}.json`]
+if (!raw)
+  throw new Error(
+    `${id}: no frame file src/data/guidebook-frames/${frames}.json`,
+  )
+const file = validateFrames(raw, {
+  figure: frames,
+  stepCount: steps?.length,
+  panel,
+})
+
+const explicit = window?.split(/\s+/).map(Number)
+const box = windowBox(
+  explicit?.length === 4 && explicit.every(Number.isFinite)
+    ? (explicit as [number, number, number, number])
+    : (window ?? file.window),
+  panel,
+)
+
+const frameSvgs = file.steps.map((frame, i) =>
+  renderFrame(panelSvg, frame, steps?.[i] ?? [], box),
+)
+// No step chosen (no JS, print): the final state, with every control the steps use.
+const allControls = [
+  ...new Map((steps ?? []).flat().map((c) => [c.id, c])).values(),
+]
+const staticSvg = renderFrame(
+  panelSvg,
+  file.steps.at(-1) ?? {},
+  allControls,
+  box,
+)
+---
+
+<figure
+  class="gb-figure gb-panel"
+  id={id}
+  data-steps={steps ? file.steps.length : undefined}
+>
+  <div class="gb-panel-art-wrap" role="img" aria-label={alt}>
+    <div class="gb-panel-frame gb-panel-static" set:html={staticSvg} />
+    {
+      steps &&
+        frameSvgs.map((svg, i) => (
+          <div class="gb-panel-frame" data-frame={i} hidden set:html={svg} />
+        ))
+    }
+  </div>
+</figure>

@@ -1,0 +1,127 @@
+/* The Deluge front panel in Guidebook figures (PanelFigure.astro). Ink follows the text colour;
+   pad colours come inline from the frame data; LEDs and step highlights are classes. */
+:root {
+  --gb-panel-fill: #e7e6e5; /* the book's grey knob fill */
+  --gb-panel-blue: #4a86c5; /* QWERTY letters */
+  --gb-panel-hl: #f5a623; /* step highlight */
+}
+
+:root[data-theme="dark"] {
+  --gb-panel-fill: #3a3d44;
+  --gb-panel-blue: #7fb0e3;
+}
+
+.gb-panel-art-wrap {
+  color: var(--sl-color-white);
+}
+
+.gb-panel-frame svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.gb-panel-art .fill {
+  fill: var(--gb-panel-fill);
+}
+
+.gb-panel-art .ctrl > * {
+  fill: none;
+  stroke: currentColor;
+}
+
+.gb-panel-art .ink,
+.gb-panel-art .txt text {
+  fill: currentColor;
+}
+
+.gb-panel-art .txt text {
+  font-family: Arial, Arimo, "Liberation Sans", Helvetica, sans-serif;
+  font-weight: 700;
+}
+
+.gb-panel-art .txt .blue {
+  fill: var(--gb-panel-blue);
+}
+
+/* Lit buttons: the firmware's LED colours. */
+.gb-panel-art .led-white {
+  fill: #f4f4f4;
+}
+.gb-panel-art .led-red {
+  fill: #e5332a;
+}
+.gb-panel-art .led-green {
+  fill: #3cb44b;
+}
+.gb-panel-art .led-blue {
+  fill: #4a86c5;
+}
+.gb-panel-art .led-yellow {
+  fill: #f2c12e;
+}
+.gb-panel-art .led-magenta {
+  fill: #d0459b;
+}
+.gb-panel-art .led-cyan {
+  fill: #36b6c8;
+}
+
+.gb-panel-art .led-blink {
+  animation: gb-panel-blink 0.8s steps(2, jump-none) infinite;
+}
+
+/* The step's controls: pressed, held, or turned. Stroke widths are panel px (5808 wide). */
+.gb-panel-art .hl {
+  stroke: var(--gb-panel-hl);
+  stroke-width: 14;
+}
+
+.gb-panel-art .hl-press {
+  animation: gb-panel-press 1.2s ease-in-out infinite;
+}
+
+.gb-panel-art .hl-hold {
+  stroke-width: 22;
+}
+
+.gb-panel-art .hl-turn {
+  stroke-dasharray: 40 24;
+  animation: gb-panel-turn 1.6s linear infinite;
+}
+
+@keyframes gb-panel-blink {
+  50% {
+    fill-opacity: 0.2;
+  }
+}
+
+@keyframes gb-panel-press {
+  50% {
+    stroke-opacity: 0.35;
+  }
+}
+
+@keyframes gb-panel-turn {
+  to {
+    stroke-dashoffset: -128;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gb-panel-art .led-blink,
+  .gb-panel-art .hl-press,
+  .gb-panel-art .hl-turn {
+    animation: none;
+  }
+}
+
+@media print {
+  .gb-panel-frame[data-frame] {
+    display: none !important;
+  }
+
+  .gb-panel-static {
+    display: block !important;
+  }
+}
