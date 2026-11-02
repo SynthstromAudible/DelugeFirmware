@@ -1140,7 +1140,7 @@ ActionResult AutomationView::buttonAction(hid::Button b, bool on, bool inCardRou
 
 	using namespace hid::button;
 
-	// Sean todo: need to refactor this to handle different automation view types more cleanly
+	// Sean todo: need to refactor this to handle different automation view types more cleanly and safely
 
 	Clip* clip = getCurrentClip();
 	bool isAudioClip = clip->type == ClipType::AUDIO;
