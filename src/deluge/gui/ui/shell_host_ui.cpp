@@ -32,6 +32,7 @@
 #include "libdeluge/scheduler.h" // getSystemTime()
 #include "model/settings/runtime_feature_settings.h"
 #include "scenes/marker/marker_scene.h"
+#include "scenes/profile.h"
 #include "scenes/registry.h"
 #include "shell/profiles/deluge.h"
 #include "storage/flash_storage.h"
@@ -1216,5 +1217,7 @@ bool ShellHostUI::noteOnReceivedForMidiLearn(MIDICable& cable, int32_t channel, 
 
 } // namespace deluge::gui::ui
 
-// SDRAM: the guest and its scene stack are menu-time state, never read by the audio tier or an interrupt.
-PLACE_SDRAM_BSS deluge::gui::ui::ShellHostUI shellHostUI{deluge::scenes::scene_registry()};
+// SDRAM: the guest and its scene stack are menu-time state, never read by the audio tier or an interrupt. The scenes'
+// profile, not the shell's: it carries the l10n bridge, so a popup a scene raises by string id shows its text.
+PLACE_SDRAM_BSS deluge::gui::ui::ShellHostUI shellHostUI{
+    deluge::scenes::scene_registry(), deluge::ui::shell::kDelugeBoard, deluge::scenes::deluge_profile()};
