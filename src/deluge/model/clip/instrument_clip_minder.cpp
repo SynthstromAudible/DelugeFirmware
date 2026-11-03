@@ -565,7 +565,7 @@ void InstrumentClipMinder::drawActualNoteCode(int16_t noteCode) {
 		return;
 	}
 
-	char noteName[5];
+	char noteName[kNoteCodeStringBufferSize];
 	int32_t isNatural = 1; // gets modified inside noteCodeToString to be 0 if sharp.
 	noteCodeToString(noteCode, noteName, &isNatural);
 
