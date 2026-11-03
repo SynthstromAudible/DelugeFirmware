@@ -1493,6 +1493,28 @@ void ModControllableAudio::clearModFXMemory() {
 	}
 }
 
+int32_t ModControllableAudio::getSamplesUntilFXTailsEnd(ModFXType modFXType) const {
+	if (modFXType == ModFXType::NONE && compressor.getThreshold() <= 0) {
+		return 0;
+	}
+	int32_t modFXSamples = 0;
+	switch (modFXType) {
+	case ModFXType::NONE:
+		break;
+	case ModFXType::CHORUS:
+		[[fallthrough]];
+	case ModFXType::CHORUS_STEREO:
+		modFXSamples = 20 * 44;
+		break;
+	case ModFXType::GRAIN:
+		modFXSamples = (grainFX != nullptr) ? grainFX->getSamplesToShutdown() : 0;
+		break;
+	default:
+		modFXSamples = 90 * 441;
+	}
+	return std::max(modFXSamples, static_cast<int32_t>(compressor.getReleaseMS() * 44));
+}
+
 bool ModControllableAudio::setModFXType(ModFXType newType) {
 	// For us ModControllableAudios, this is really simple. Memory gets allocated in
 	// GlobalEffectable::processFXForGlobalEffectable(). This function is overridden in Sound
