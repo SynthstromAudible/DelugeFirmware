@@ -144,7 +144,7 @@ struct LowPassLadder {
 
 	/// @brief What the owner sets each block.
 	struct Settings {
-		q31 gain = 0; ///< The volume going in, Q31.
+		q31 gain = 0; ///< The volume going in, in the owner's format.
 		/// The cutoff (Q31, lifted by 2^5 onto the tan table: see @ref FilterConfig::frequency), the resonance (Q29)
 		/// and the morph (Q29), and whether the drive ladder may oversample.
 		FilterConfig config{};
@@ -162,7 +162,7 @@ struct LowPassLadder {
 		/// The first three sections' feedbacks, Q30; the 12dB ladder reads the first two.
 		// NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays): indexing is no call
 		Q<30> feedbacks[3]{};
-		q31 gain_compensation = 0; ///< The gain going in, compensated for the resonance and mode, Q31.
+		q31 gain_compensation = 0; ///< The gain going in, compensated for the resonance and mode, in its format.
 		Mode mode = Mode::T12;     ///< The ladder and its input form, dispatched on once per block.
 	};
 
@@ -280,6 +280,7 @@ struct LowPassLadder {
 			const Q<29> cut = sub_wrap(Q<29>::one(), Q<29>::from_raw(std::min(s.config.resonance, int32_t{536870911})));
 			const Q<29> resonant = sub_wrap(Q<29>::one(), mul_as_wrap<Q<29>>(cut, cut));
 			const Q<29> gain_modifier = add_wrap(Q<29>::from_raw(268435456), resonant);
+			// Read as Q31 only to scale it: the Q29 factor moved back gives the same bits in any format.
 			gain = mul_as_wrap<Q<31>>(Q<31>::from_raw(gain), gain_modifier).raw();
 		}
 		else {
@@ -296,7 +297,7 @@ struct LowPassLadder {
 		return c;
 	}
 
-	/// @brief The gain compensation, Q31: the gain going in, compensated for the resonance and mode.
+	/// @brief The gain compensation: the gain going in, in its format, compensated for the resonance and mode.
 	[[nodiscard]] [[gnu::always_inline]] static constexpr q31 gain(const Coefficients& c) {
 		return c.gain_compensation;
 	}

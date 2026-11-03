@@ -169,6 +169,7 @@ q31 FilterSet::configure(q31 gain, const FilterConfig& low, LowPassSlot low_slot
 	low_last_ = low_slot.kind;
 
 	// At 50% resonance this keeps the level the filters had before their resonance compensation.
+	// The gain is read as Q31 only to scale it: the Q31 factor moved back gives the same bits in any format.
 	gain = mul_as_wrap<Q<31>>(Q<31>::from_raw(gain), Q<31>::from_raw(1720000000)).raw();
 
 	if (high_slot.kind != HighPassSlot::Kind::OFF) {

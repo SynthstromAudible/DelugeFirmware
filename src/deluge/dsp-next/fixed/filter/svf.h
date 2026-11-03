@@ -64,7 +64,7 @@ struct Svf {
 
 	/// @brief What the owner sets each block.
 	struct Settings {
-		q31 gain = 0; ///< The volume going in, Q31: returned unchanged as the compensation.
+		q31 gain = 0; ///< The volume going in, in the owner's format: returned unchanged as the compensation.
 		/// The cutoff, resonance (Q29) and morph (Q29). A high-pass slot passes its morph already inverted
 		/// ((1 << 29) - 1 - morph), so it sweeps high → band or notch → low.
 		FilterConfig config{};
@@ -79,7 +79,7 @@ struct Svf {
 		Q<31> c_low{};             ///< The low outputs' weight in the blend, Q31.
 		Q<31> c_band{};            ///< The band outputs' weight in the blend (BAND only), Q31.
 		Q<31> c_high{};            ///< The high outputs' weight in the blend, Q31.
-		q31 gain_compensation = 0; ///< The gain the owner set, Q31, which @ref gain returns.
+		q31 gain_compensation = 0; ///< The gain the owner set, which @ref gain returns.
 		Mode mode = Mode::BAND;    ///< Which outputs the blend reads, dispatched on once per block.
 	};
 
@@ -134,7 +134,7 @@ struct Svf {
 		return c;
 	}
 
-	/// @brief The gain compensation: the gain the owner set, unchanged, Q31.
+	/// @brief The gain compensation: the gain the owner set, unchanged.
 	[[nodiscard]] [[gnu::always_inline]] static constexpr q31 gain(const Coefficients& c) {
 		return c.gain_compensation;
 	}
