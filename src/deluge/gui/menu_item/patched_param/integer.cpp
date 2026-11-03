@@ -47,8 +47,10 @@ void Integer::writeCurrentValue() {
 	ModelStackWithAutoParam* modelStack = getModelStack(modelStackMemory);
 	int32_t value = getFinalValue();
 	deluge::edits::Context editCtx{*currentSong, currentSong->project};
-	deluge::edits::SetParamValue edit{deluge::edits::addressFor(*modelStack), value, 0, 0, modelStack};
-	deluge::edits::apply(editCtx, edit);
+	if (const std::optional<deluge::project::ParamAddress> editAddress = deluge::edits::addressFor(*modelStack)) {
+		deluge::edits::SetParamValue edit{*editAddress, value, 0, 0, deluge::edits::SetParamValue::Resolve::EXACT};
+		deluge::edits::apply(editCtx, edit);
+	}
 
 	// If affect-entire button held, do whole kit
 	if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
@@ -64,17 +66,24 @@ void Integer::writeCurrentValue() {
 				    getModelStackFromSoundDrum(modelStackMemoryForSoundDrum, soundDrum)
 				        ->getPatchedAutoParamFromId(getP());
 				deluge::edits::Context drumEditCtx{*currentSong, currentSong->project};
-				deluge::edits::SetParamValue drumEdit{deluge::edits::addressFor(*modelStackForSoundDrum), value, 0, 0,
-				                                      modelStackForSoundDrum};
-				deluge::edits::apply(drumEditCtx, drumEdit);
+				if (const std::optional<deluge::project::ParamAddress> drumEditAddress =
+				        deluge::edits::addressFor(*modelStackForSoundDrum)) {
+					deluge::edits::SetParamValue drumEdit{*drumEditAddress, value, 0, 0,
+					                                      deluge::edits::SetParamValue::Resolve::EXACT};
+					deluge::edits::apply(drumEditCtx, drumEdit);
+				}
 			}
 		}
 	}
 	// Or, the normal case of just one sound
 	else {
 		deluge::edits::Context elseEditCtx{*currentSong, currentSong->project};
-		deluge::edits::SetParamValue elseEdit{deluge::edits::addressFor(*modelStack), value, 0, 0, modelStack};
-		deluge::edits::apply(elseEditCtx, elseEdit);
+		if (const std::optional<deluge::project::ParamAddress> elseEditAddress =
+		        deluge::edits::addressFor(*modelStack)) {
+			deluge::edits::SetParamValue elseEdit{*elseEditAddress, value, 0, 0,
+			                                      deluge::edits::SetParamValue::Resolve::EXACT};
+			deluge::edits::apply(elseEditCtx, elseEdit);
+		}
 	}
 
 	// send midi follow feedback

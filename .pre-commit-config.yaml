@@ -76,6 +76,13 @@ repos:
         language: system
         pass_filenames: false
         files: ^(src/deluge/dsp-next/|scripts/check_dsp_boundary\.py)
+      - id: fixed-point-raw
+        name: fixed-point raw-arithmetic ratchet
+        description: raw Q31 helper calls, DSP-instruction asm and from_raw()/.raw() outside fixed_point.h may only shrink
+        entry: python3 scripts/check_fixed_point_raw.py
+        language: system
+        pass_filenames: false
+        files: ^(src/.*\.(c|cc|cpp|cxx|h|hh|hpp|inc)$|scripts/(check_fixed_point_raw\.py|fixed_point_raw_allowlist\.txt))
       - id: synth-boundary
         name: synth core boundary
         description: src/synth must not include app layers (model/processing/gui/storage/...), the legacy dsp/, or the HAL/BSP

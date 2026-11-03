@@ -23,6 +23,9 @@
 #include "hid/display/display.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/instrument_clip.h"
+#include "model/edits/edit.h"
+#include "model/edits/param_address_for.h"
+#include "model/edits/set_param_value.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/sample/sample.h"
@@ -43,6 +46,42 @@
 #include <iterator>
 
 namespace params = deluge::modulation::params;
+
+namespace {
+/// Set patched param @p param of @p owner (the sound the sound editor edits) to @p value, as a default set up for the
+/// user: no undo step, no automation.
+void setUpSoundParam(ModelStackWithThreeMainThings& owner, int32_t param, int32_t value) {
+	const std::optional<deluge::project::ParamAddress> sound = deluge::edits::ownerAddressFor(owner);
+	if (!sound) {
+		return;
+	}
+	deluge::edits::Context ctx{*currentSong, currentSong->project};
+	deluge::edits::SetParamValue edit{
+	    deluge::project::ParamAddress::of(sound->owner, deluge::project::engine_target(param), sound->clip_id),
+	    value,
+	    0,
+	    0,
+	    deluge::edits::SetParamValue::Resolve::EXACT,
+	    true,
+	    deluge::edits::SetParamValue::Write::SETUP};
+	deluge::edits::apply(ctx, edit);
+}
+
+/// Set up @p lane at @p value, as a default for the user: no undo step, no automation.
+void setUpLane(const ModelStackWithAutoParam& lane, int32_t value) {
+	if (const std::optional<deluge::project::ParamAddress> address = deluge::edits::addressFor(lane)) {
+		deluge::edits::Context ctx{*currentSong, currentSong->project};
+		deluge::edits::SetParamValue edit{*address,
+		                                  value,
+		                                  0,
+		                                  0,
+		                                  deluge::edits::SetParamValue::Resolve::EXACT,
+		                                  true,
+		                                  deluge::edits::SetParamValue::Write::SETUP};
+		deluge::edits::apply(ctx, edit);
+	}
+}
+} // namespace
 
 namespace deluge::gui::ui {
 
@@ -104,18 +143,8 @@ void SliceCore::sound_audition(const AuditionTarget& target) {
 
 		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
-		ParamCollectionSummary* summary = modelStack->paramManager->getPatchedParamSetSummary();
-		ModelStackWithParamId* modelStackWithParamId =
-		    modelStack->addParamCollectionAndId(summary->paramCollection, summary, params::LOCAL_ENV_0_RELEASE);
-		ModelStackWithAutoParam* modelStackWithAutoParam =
-		    modelStackWithParamId->paramCollection->getAutoParamFromId(modelStackWithParamId);
-		modelStackWithAutoParam->autoParam->setCurrentValueWithNoReversionOrRecording(modelStackWithAutoParam,
-		                                                                              deluge::plugin::preset_word(1));
-		modelStackWithParamId =
-		    modelStack->addParamCollectionAndId(summary->paramCollection, summary, params::LOCAL_ENV_0_ATTACK);
-		modelStackWithAutoParam = modelStackWithParamId->paramCollection->getAutoParamFromId(modelStackWithParamId);
-		modelStackWithAutoParam->autoParam->setCurrentValueWithNoReversionOrRecording(modelStackWithAutoParam,
-		                                                                              deluge::plugin::preset_word(1));
+		setUpSoundParam(*modelStack, params::LOCAL_ENV_0_RELEASE, deluge::plugin::preset_word(1));
+		setUpSoundParam(*modelStack, params::LOCAL_ENV_0_ATTACK, deluge::plugin::preset_word(1));
 	}
 	instrumentClipView.sendAuditionNote(target.on, 0, 64, 0);
 }
@@ -309,10 +338,7 @@ Error SliceCore::do_slice(int32_t sliceCount) {
 
 		// Reset osc volume, if it's not automated
 		if (!modelStackWithParam->autoParam->isAutomated(*modelStackWithParam->doc())) {
-			modelStackWithParam->autoParam->setCurrentValueWithNoReversionOrRecording(modelStackWithParam, 2147483647);
-			//((ParamManagerBase*)soundEditor.currentParamManager)->setPatchedParamValue(params::LOCAL_OSC_A_VOLUME +
-			// soundEditor.currentSourceIndex, 2147483647, 0xFFFFFFFF, 0, soundEditor.currentSound, currentSong,
-			// getCurrentClip(), false);
+			setUpLane(*modelStackWithParam, 2147483647);
 		}
 
 		SoundDrum* firstDrum = (SoundDrum*)soundEditor.currentSound;
@@ -354,13 +380,7 @@ Error SliceCore::do_slice(int32_t sliceCount) {
 		// The zone edits above set up the first drum's slice range: record them.
 		deluge::gui::menu_item::recordRanges(*firstDrum, 0);
 		if (doEnvelopes) {
-			ParamCollectionSummary* summary = modelStack->paramManager->getPatchedParamSetSummary();
-			ModelStackWithParamId* modelStackWithParamId =
-			    modelStack->addParamCollectionAndId(summary->paramCollection, summary, params::LOCAL_ENV_0_RELEASE);
-			ModelStackWithAutoParam* modelStackWithAutoParam =
-			    modelStackWithParamId->paramCollection->getAutoParamFromId(modelStackWithParamId);
-			modelStackWithAutoParam->autoParam->setCurrentValueWithNoReversionOrRecording(
-			    modelStackWithAutoParam, deluge::plugin::preset_word(1));
+			setUpSoundParam(*modelStack, params::LOCAL_ENV_0_RELEASE, deluge::plugin::preset_word(1));
 		}
 
 		// Do the rest of the Drums

@@ -26,6 +26,7 @@
 // side. The inversion is this method, not the include -- a `model/` class that renders. Its
 // extracted form is `ui::grid::waveform_row`, which takes a `GridFrame` that `model/` cannot
 // build, so closing this belongs to whoever moves clip-row rendering into the scene layer.
+#include "dsp-next/core/q31_ops.h"
 #include "gui/waveform/waveform_renderer.h"
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
@@ -47,7 +48,6 @@
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/blocking_sample_load.h"
 #include "storage/storage_manager.h"
-#include "util/fixedpoint.h"
 #include "util/notify.h"
 #include <new>
 

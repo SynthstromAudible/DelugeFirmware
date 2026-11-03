@@ -37,8 +37,8 @@
 ///  - every function holding a plain signed sum that can overflow at full scale is marked
 ///    @ref DELUGE_REFERENCE_LEGACY_ARITHMETIC: `Comb::process`, `Allpass::process`, `ProcessOne`, Freeverb's `process`
 ///    (the DC loop) and both plates' `process` (the q31 mix);
-///  - `util/functions.h` is not included: the copies use only `util/fixedpoint.h`'s multiplies, so the header builds
-///    without the libdeluge include path;
+///  - `util/functions.h` is not included: the copies use only `dsp-next/core/q31_ops.h`'s multiplies, so the
+///    header builds without the libdeluge include path;
 ///  - names the app qualifies with `dsp::` (`OnePole`, `Interpolate`, `toQ31Saturating`) are qualified with
 ///    `reverb_ref::`, and `util::map` with `::util::`, so each resolves to the same function from this namespace;
 ///    `FxEngine` drops its `DELUGE_DSP_BOUNDS_CHECK` blocks;
@@ -51,9 +51,9 @@
 
 #include "argon.hpp"
 #include "definitions_cxx.hpp"
+#include "dsp-next/core/q31_ops.h"
 #include "reverb_views.h"
 #include "reverb_workloads.h"
-#include "util/fixedpoint.h"
 #include "util/misc.h"
 
 #include <algorithm>
@@ -455,7 +455,9 @@ private:
 		// Recalculate internal values after parameter change
 
 		wet1 = wet * (width / 2 + 0.5f);
-		wet2 = (((float)1 - width) / 2) / (width / 2 + 0.5f) * std::numeric_limits<int32_t>::max();
+		// At width 0 the product is 2^31: converted as the A9's VCVT converts it, saturating, as the firmware ran.
+		const float wet2_scaled = (((float)1 - width) / 2) / (width / 2 + 0.5f) * std::numeric_limits<int32_t>::max();
+		wet2 = wet2_scaled >= 2147483648.f ? std::numeric_limits<int32_t>::max() : static_cast<int32_t>(wet2_scaled);
 
 		gain = fixedgain * std::numeric_limits<int32_t>::max();
 

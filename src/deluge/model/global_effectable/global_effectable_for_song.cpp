@@ -16,18 +16,12 @@
  */
 
 #include "model/global_effectable/global_effectable_for_song.h"
-#include "model/mod_controllable/delay_arena_app.h"
-#include "model/mod_controllable/mod_fx_allocator.h"
 
-GlobalEffectableForSong::GlobalEffectableForSong()
-    : chain_{deluge::model::kModFxRingAllocator, deluge::model::kGranularAllocator, deluge::model::delayArena()} {
-	// A new owner's filter mode and mod FX type are set once its chain exists.
-	setLpfMode(FilterMode::TRANSISTOR_24DB);
-	filter().reset();
-	assignModFXType(ModFXType::NONE);
+GlobalEffectableForSong::GlobalEffectableForSong(deluge::model::MasterChannel& channel) : channel_{channel} {
+	bindBinding(channel_.binding());
 	modKnobMode = 1;
 }
 
 GlobalEffectableForSong::~GlobalEffectableForSong() {
-	releaseChainMemory();
+	endStutterIfStuttering();
 }

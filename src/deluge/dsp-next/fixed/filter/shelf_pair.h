@@ -17,12 +17,11 @@
 
 #pragma once
 
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/mode.h"
-#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/core/types.h"
-#include "dsp-next/core/wrapping.h"
 #include "dsp-next/fixed/curves/exp_curve.h"
 
 #include <cstdint>
@@ -34,11 +33,14 @@ namespace deluge::dsp::fixed {
 
 /// @brief Bass and treble shelves, each a one-pole split of the signal, added back scaled by its gain.
 /// @details Per frame: the treble is split off (a one-pole low-pass keeps the rest), then the bass is a one-pole
-/// low-pass of what remains; the treble and then the bass are added back, each × its gain ≫ 32 ≪ 3. The memories, sums
-/// and differences wrap as the target's `add` and `sub` do.
+/// low-pass of what remains; the treble and then the bass are added back, each × its gain (Q29): the treble's is one at
+/// a flat knob, and the bass's, added to a signal that still holds the bass, is the excess over one, zero when flat.
+/// The memories, sums and differences wrap as the target's `add` and `sub` do, the bands' add-backs included: a boost
+/// at full scale wraps.
 ///
-/// **Not @ref OnePole.** These steps truncate the product (its high word, unrounded), and the treble's step is
-/// doubled (≪ 1) while the bass's is not: the EQ's own arithmetic, kept for bit-exactness.
+/// **Not @ref OnePole.** These steps truncate the product (its high word, unrounded), and the treble's step is the
+/// Q30 product reformatted to Q31 while the bass's is the Q30 product read as Q31, half of it: the EQ's own
+/// arithmetic, kept for bit-exactness.
 ///
 /// **Modes.** BOTH, BASS and TREBLE step only the bands that are on, so a flat band's memory holds still and resumes
 /// where it stopped. With both bands flat the owner does not run the kernel (@ref flat).
@@ -58,18 +60,6 @@ struct ShelfPair {
 	static constexpr q31 kBassPreset = 120000000;
 	/// @brief The exp_curve preset the treble's moveability starts from.
 	static constexpr q31 kTreblePreset = 700000000;
-	/// @brief The treble step's doubling; the bass's step is not doubled.
-	static constexpr int kTrebleStepShift = 1;
-	/// @brief The shift on each band's gain product.
-	static constexpr int kBandGainShift = 3;
-	/// @brief Half of one, Q31: a knob halved is offset by it to [0, 1) before squaring.
-	static constexpr q31 kKnobOffset = 1073741824;
-	/// @brief Taken from the bass's squared knob, so the knob at 0 is flat and at its minimum removes the bass.
-	static constexpr q31 kBassGainOffset = 536870912;
-	/// @brief The halving that takes a knob into [-1/2, 1/2) before kKnobOffset lifts it into [0, 1).
-	static constexpr int kKnobHalve = 1;
-	/// @brief The doubling of a squared knob's rounded high word back to Q31.
-	static constexpr int kSquareToQ31Shift = 1;
 	/// @brief A frequency knob's shift and scale into exp_curve's adjustment.
 	static constexpr int kFrequencyShift = 5;
 	static constexpr int32_t kFrequencyScale = 6;
@@ -84,10 +74,10 @@ struct ShelfPair {
 
 	/// @brief The bands' moveabilities and gains, and which step.
 	struct Coefficients {
-		q31 bass_m = 0;         ///< Q31, from exp_curve(kBassPreset, …); 0 while the bass is flat.
-		q31 treble_m = 0;       ///< Q31, from exp_curve(kTreblePreset, …); 0 while the treble is flat.
-		q31 bass_gain = 0;      ///< The bass knob squared, less kBassGainOffset.
-		q31 treble_gain = 0;    ///< The treble knob squared; 536870912 is flat.
+		Q<31> bass_m{};         ///< Q31, from exp_curve(kBassPreset, …); 0 while the bass is flat.
+		Q<31> treble_m{};       ///< Q31, from exp_curve(kTreblePreset, …); 0 while the treble is flat.
+		Q<29> bass_gain{};      ///< (1 + the bass knob)² − 1, Q29: 0 at a flat knob, −1 (no bass) at its minimum.
+		Q<29> treble_gain{};    ///< (1 + the treble knob)², Q29: one at a flat knob.
 		Mode mode = Mode::BOTH; ///< The bands that are on.
 	};
 
@@ -104,14 +94,17 @@ struct ShelfPair {
 	[[nodiscard]] static Coefficients coefficients(const Settings& s) {
 		const bool bass = s.bass != 0;
 		const bool treble = s.treble != 0;
-		const q31 bass_knob = (s.bass >> kKnobHalve) + kKnobOffset;
-		const q31 treble_knob = (s.treble >> kKnobHalve) + kKnobOffset;
+		// 1 + the knob, Q30: in [0, 2).
+		const Q<30> bass_knob = add_wrap(as_floor<Q<30>>(Q<31>::from_raw(s.bass)), Q<30>::one());
+		const Q<30> treble_knob = add_wrap(as_floor<Q<30>>(Q<31>::from_raw(s.treble)), Q<30>::one());
+		// Raw: exp_curve's adjustment is an integer scale of the frequency knob.
 		return {
-		    .bass_m = bass ? exp_curve(kBassPreset, (s.bass_frequency >> kFrequencyShift) * kFrequencyScale) : 0,
-		    .treble_m =
-		        treble ? exp_curve(kTreblePreset, (s.treble_frequency >> kFrequencyShift) * kFrequencyScale) : 0,
-		    .bass_gain = (multiply_32x32_rshift32_rounded(bass_knob, bass_knob) << kSquareToQ31Shift) - kBassGainOffset,
-		    .treble_gain = multiply_32x32_rshift32_rounded(treble_knob, treble_knob) << kSquareToQ31Shift,
+		    .bass_m = Q<31>::from_raw(
+		        bass ? exp_curve(kBassPreset, (s.bass_frequency >> kFrequencyShift) * kFrequencyScale) : 0),
+		    .treble_m = Q<31>::from_raw(
+		        treble ? exp_curve(kTreblePreset, (s.treble_frequency >> kFrequencyShift) * kFrequencyScale) : 0),
+		    .bass_gain = sub_wrap(mul_r_as_wrap<Q<29>>(bass_knob, bass_knob), Q<29>::one()),
+		    .treble_gain = mul_r_as_wrap<Q<29>>(treble_knob, treble_knob),
 		    .mode = bass && treble ? Mode::BOTH : (bass ? Mode::BASS : Mode::TREBLE),
 		};
 	}
@@ -127,32 +120,37 @@ struct ShelfPair {
 	                                                              State& s, StereoSample x) {
 		constexpr bool kTreble = M != Mode::BASS;
 		constexpr bool kBass = M != Mode::TREBLE;
-		StereoSample treble{};
+		Q<31> l = Q<31>::from_raw(x.l);
+		Q<31> r = Q<31>::from_raw(x.r);
+		Q<31> treble_l{};
+		Q<31> treble_r{};
 		if constexpr (kTreble) {
-			s.without_treble.l = wrapping_add(s.without_treble.l,
-			                                  multiply_32x32_rshift32(wrapping_sub(x.l, s.without_treble.l), c.treble_m)
-			                                      << kTrebleStepShift);
-			s.without_treble.r = wrapping_add(s.without_treble.r,
-			                                  multiply_32x32_rshift32(wrapping_sub(x.r, s.without_treble.r), c.treble_m)
-			                                      << kTrebleStepShift);
-			treble = {.l = wrapping_sub(x.l, s.without_treble.l), .r = wrapping_sub(x.r, s.without_treble.r)};
-			x = s.without_treble;
+			const auto without_l = Q<31>::from_raw(s.without_treble.l);
+			const auto without_r = Q<31>::from_raw(s.without_treble.r);
+			const Q<31> next_l = add_wrap(without_l, mul_as_wrap<Q<31>>(sub_wrap(l, without_l), c.treble_m));
+			const Q<31> next_r = add_wrap(without_r, mul_as_wrap<Q<31>>(sub_wrap(r, without_r), c.treble_m));
+			s.without_treble = {.l = next_l.raw(), .r = next_r.raw()};
+			treble_l = sub_wrap(l, next_l);
+			treble_r = sub_wrap(r, next_r);
+			l = next_l;
+			r = next_r;
 		}
 		if constexpr (kBass) {
-			s.bass_only.l =
-			    wrapping_add(s.bass_only.l, multiply_32x32_rshift32(wrapping_sub(x.l, s.bass_only.l), c.bass_m));
-			s.bass_only.r =
-			    wrapping_add(s.bass_only.r, multiply_32x32_rshift32(wrapping_sub(x.r, s.bass_only.r), c.bass_m));
+			const auto bass_l = Q<31>::from_raw(s.bass_only.l);
+			const auto bass_r = Q<31>::from_raw(s.bass_only.r);
+			// The Q30 product read as Q31: half the step.
+			s.bass_only.l = add_wrap(bass_l, reinterpret_bits<Q<31>>(mul(sub_wrap(l, bass_l), c.bass_m))).raw();
+			s.bass_only.r = add_wrap(bass_r, reinterpret_bits<Q<31>>(mul(sub_wrap(r, bass_r), c.bass_m))).raw();
 		}
 		if constexpr (kTreble) {
-			x.l = wrapping_add(x.l, multiply_32x32_rshift32(treble.l, c.treble_gain) << kBandGainShift);
-			x.r = wrapping_add(x.r, multiply_32x32_rshift32(treble.r, c.treble_gain) << kBandGainShift);
+			l = add_wrap(l, mul_as_wrap<Q<31>>(treble_l, c.treble_gain));
+			r = add_wrap(r, mul_as_wrap<Q<31>>(treble_r, c.treble_gain));
 		}
 		if constexpr (kBass) {
-			x.l = wrapping_add(x.l, multiply_32x32_rshift32(s.bass_only.l, c.bass_gain) << kBandGainShift);
-			x.r = wrapping_add(x.r, multiply_32x32_rshift32(s.bass_only.r, c.bass_gain) << kBandGainShift);
+			l = add_wrap(l, mul_as_wrap<Q<31>>(Q<31>::from_raw(s.bass_only.l), c.bass_gain));
+			r = add_wrap(r, mul_as_wrap<Q<31>>(Q<31>::from_raw(s.bass_only.r), c.bass_gain));
 		}
-		return x;
+		return {.l = l.raw(), .r = r.raw()};
 	}
 };
 

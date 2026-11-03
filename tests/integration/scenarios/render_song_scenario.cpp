@@ -219,7 +219,8 @@ void turnStutterRate(ModControllableAudio& owner, TimelineCounter* clip, ParamMa
 	    summary->paramCollection, summary, static_cast<int32_t>(deluge::modulation::params::UNPATCHED_STUTTER_RATE));
 	ModelStackWithAutoParam* withParam = withId->paramCollection->getAutoParamFromId(withId);
 	deluge::edits::Context context{*currentSong, currentSong->project};
-	deluge::edits::SetParamValue edit{deluge::edits::addressFor(*withParam), value, 0, 0, withParam};
+	deluge::edits::SetParamValue edit{*deluge::edits::addressFor(*withParam), value, 0, 0,
+	                                  deluge::edits::SetParamValue::Resolve::EXACT};
 	deluge::edits::apply(context, edit);
 }
 
@@ -253,7 +254,7 @@ void runStutters(uint64_t block) {
 	bool stuttering = false;
 	for (StutterSpan& span : g_stutterAt) {
 		ModControllableAudio* owner = stutterOwner(span.owner, params, clip);
-		const bool now = owner != nullptr && currentSong->live.stutter.isStuttering(*owner);
+		const bool now = owner != nullptr && currentSong->live.stutter.isStuttering(owner->core());
 		if (now && g_stutterRateAsked && !g_stutterRateDone && block >= g_stutterRateAt) {
 			turnStutterRate(*owner, clip, *params, g_stutterRateValue);
 			g_stutterRateDone = true;

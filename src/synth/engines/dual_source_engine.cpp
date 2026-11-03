@@ -21,7 +21,6 @@
 #include "synth/engines/block_controls.h"
 #include "synth/engines/pitch.h"
 #include "synth/sources/interpolation_buffer_size.h"
-#include "util/fixedpoint.h"
 #include <algorithm>
 #include <cstring>
 #include <optional>

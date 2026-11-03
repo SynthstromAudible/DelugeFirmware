@@ -37,6 +37,8 @@ enum class MIDIMatchType;
 class Kit final : public Instrument, public GlobalEffectableForClip {
 public:
 	Kit();
+	[[nodiscard]] deluge::model::TrackChannel& channel() override { return channel_; }
+	[[nodiscard]] const deluge::model::TrackChannel& channel() const override { return channel_; }
 
 	ArpeggiatorForKit arpeggiator;
 	ArpeggiatorSettings defaultArpSettings;
@@ -127,9 +129,7 @@ public:
 	GateDrum* getGateDrumForChannel(int32_t gateChannel);
 	void resetDrumTempValues();
 	void setupWithoutActiveClip(ModelStack* modelStack) override;
-	void getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb,
-	                            GlobalEffectableForClip** globalEffectableWithMostReverb,
-	                            int32_t* highestReverbAmountFound) override;
+	[[nodiscard]] deluge::model::ReverbCandidate reverbCandidate(deluge::model::ReverbCandidate best) override;
 	uint8_t* getModKnobMode() override { return &modKnobMode; }
 	Output* toOutput() override { return this; }
 
@@ -142,12 +142,6 @@ public:
 	void endAuditioningForDrum(ModelStackWithNoteRow* modelStack, Drum* drum, int32_t velocity = kDefaultLiftValue);
 	void offerBendRangeUpdate(ModelStack* modelStack, MIDICable& cable, int32_t channelOrZone, int32_t whichBendRange,
 	                          int32_t bendSemitones) override;
-
-	bool renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStack,
-	                                   std::span<StereoSample> globalEffectableBuffer, int32_t* bufferToTransferTo,
-	                                   int32_t* reverbBuffer, int32_t reverbAmountAdjust, int32_t sideChainHitPending,
-	                                   bool shouldLimitDelayFeedback, bool isClipActive, int32_t pitchAdjust,
-	                                   int32_t amplitudeAtStart, int32_t amplitudeAtEnd) override;
 
 	char const* getXMLTag() override { return "kit"; }
 
@@ -178,6 +172,25 @@ protected:
 	bool isKit() override { return true; }
 
 private:
+	/// @brief Renders the kit's drums into its channel's buffer, each through its own effects.
+	/// @param modelStack The kit's model stack; its timeline counter may be null.
+	/// @param buffer The channel's buffer, zeroed; the drums add into it.
+	/// @param bufferToTransferTo Unused by a kit (null).
+	/// @param reverbBuffer The song's reverb send buffer.
+	/// @param reverbAmountAdjust The reverb send scaling, scaled by the kit's volume, Q31.
+	/// @param sideChainHitPending The sidechain hit pending this block, Q31; 0 for none.
+	/// @param shouldLimitDelayFeedback Whether the drums' delay feedback is capped below self-oscillation.
+	/// @param isClipActive Whether the kit's active clip plays.
+	/// @param pitchAdjust The kit's pitch adjust, applied to every drum.
+	/// @param amplitudeAtStart Unused by a kit.
+	/// @param amplitudeAtEnd Unused by a kit.
+	/// @return Whether any drum rendered.
+	bool renderContent(ModelStackWithTimelineCounter* modelStack, std::span<StereoSample> buffer,
+	                   int32_t* bufferToTransferTo, int32_t* reverbBuffer, int32_t reverbAmountAdjust,
+	                   int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive,
+	                   int32_t pitchAdjust, int32_t amplitudeAtStart, int32_t amplitudeAtEnd);
+	/// The kit's channel strip: the chain its drums render into, its settings and view.
+	deluge::model::TrackChannel channel_;
 	Error readDrumFromFile(Deserializer& reader, Song* song, Clip* clip, DrumType drumType,
 	                       int32_t readAutomationUpToPos);
 	void writeDrumToFile(Serializer& writer, Drum* thisDrum, ParamManager* paramManagerForDrum, bool savingSong,

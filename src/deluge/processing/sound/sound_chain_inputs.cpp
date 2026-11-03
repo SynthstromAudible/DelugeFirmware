@@ -32,7 +32,7 @@ deluge::effects::SoundChainInputs soundChainInputs(Sound& sound, ParamManager& p
                                                    int32_t reverbSendAmount) {
 	const auto& finals = sound.params.param_final_values;
 	UnpatchedParamSet* unpatched = paramManager.getUnpatchedParamSet();
-	const deluge::model::StutterInput stutter = deluge::model::stutterInput(sound, &paramManager);
+	const deluge::model::StutterInput stutter = deluge::model::stutterInput(sound.core(), &paramManager);
 	return {
 	    .fx =
 	        {

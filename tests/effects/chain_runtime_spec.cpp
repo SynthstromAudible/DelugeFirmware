@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-// The chain runtimes (sound_chain.h, clip_chain.h, master_chain.h) against each home's sequence over the same
+// The chain runtimes (sound_chain.h, track_chain.h, master_chain.h) against each home's sequence over the same
 // components (bench/reference_chains.h, which the bench times too): two chains built alike, one driven by the runtime
 // and one by the reference, block by block over every workload (chain_workloads.h), each side from the same state of
 // the synth-wide noise stream the filters and the grain draw from, their output, reverb send, recorder tap and noise
@@ -23,9 +23,9 @@
 // after the send and volume, before the filter.
 
 #include "effects/chain.h"
-#include "effects/clip_chain.h"
 #include "effects/master_chain.h"
 #include "effects/sound_chain.h"
+#include "effects/track_chain.h"
 
 #include "bench/reference_chains.h"
 #include "chain_workloads.h"
@@ -155,7 +155,7 @@ std::string sound_difference() {
 	return {};
 }
 
-/// @return The first difference between ClipChain and the reference over every workload, or empty.
+/// @return The first difference between TrackChain and the reference over every workload, or empty.
 std::string clip_difference() {
 	for (const cw::Workload& w : cw::kWorkloads) {
 		const EffectStates s = cw::settings(w);
@@ -163,8 +163,8 @@ std::string clip_difference() {
 		DelayArena arena_b{cw::kArenaMemory};
 		std::string found;
 		{
-			ClipChain run{cw::kAllocator, cw::kAllocator, arena_a, 134217728};
-			ClipChain ref{cw::kAllocator, cw::kAllocator, arena_b, 134217728};
+			TrackChain run{cw::kAllocator, cw::kAllocator, arena_a, 134217728};
+			TrackChain ref{cw::kAllocator, cw::kAllocator, arena_b, 134217728};
 			cw::hand_over(run.core(), s);
 			cw::hand_over(ref.core(), s);
 			Stutter stutter_a{cw::kAllocator};
@@ -178,7 +178,7 @@ std::string clip_difference() {
 			for (int b = 0; b < cw::kBlocks && found.empty(); ++b) {
 				const std::size_t frames = cw::kBlockFrames[b % cw::kBlockFrames.size()];
 				const bool rendered = cw::sounding(w, b);
-				const ClipChainInputs in{
+				const TrackChainInputs in{
 				    .fx = cw::fx_inputs(w, s),
 				    .bitcrush = cw::kBitcrush,
 				    .filter = cw::kFilter,
@@ -203,7 +203,7 @@ std::string clip_difference() {
 				for (auto [chain, side, stutter, scratch] :
 				     {std::tuple{&run, &a, &stutter_a, &scratch_a}, std::tuple{&ref, &r, &stutter_b, &scratch_b}}) {
 					deluge::synth_noise.seed(noise);
-					ClipChainInputs mine = in;
+					TrackChainInputs mine = in;
 					mine.fx.delay = cw::delay_state(chain->core(), w, s, rendered);
 					mine.stutter = w.stutter ? stutter : nullptr;
 					mine.filter_scratch = scratch->view();
@@ -214,7 +214,7 @@ std::string clip_difference() {
 						++side->calls;
 					};
 					if (chain == &run) {
-						ClipBlock levels = run.begin_block(mine, frames);
+						TrackBlock levels = run.begin_block(mine, frames);
 						side->sent = run.process(block, mine, levels, rendered, send, tap);
 					}
 					else {
@@ -341,7 +341,7 @@ describe chain_runtime("the effect chain runtimes", ${
 		expect(sound_difference()).to_equal(std::string{});
 	});
 
-	it("render a clip chain as the reference does, over every workload", _ {
+	it("render a track chain as the reference does, over every workload", _ {
 		expect(clip_difference()).to_equal(std::string{});
 	});
 
@@ -349,8 +349,8 @@ describe chain_runtime("the effect chain runtimes", ${
 		expect(master_difference()).to_equal(std::string{});
 	});
 
-	it("render a clip chain's effects in chain.h's order, the sidechain's duck before them", _ {
-		expect(as_vector(ClipChain::order())).to_equal(chain_order(Home::CLIP, {"sidechain"}));
+	it("render a track chain's effects in chain.h's order, the sidechain's duck before them", _ {
+		expect(as_vector(TrackChain::order())).to_equal(chain_order(Home::TRACK, {"sidechain"}));
 	});
 
 	it("render the master's effects in chain.h's order, its saturation and sidechain unrendered", _ {
@@ -363,8 +363,8 @@ describe chain_runtime("the effect chain runtimes", ${
 		expect(MasterChain::order()[*at]).to_equal(chain_effects(Home::MASTER)[*at]);
 	});
 
-	it("render a sound's effects in a clip chain's order, without the filter and saturation its voices hold", _ {
-		expect(as_vector(SoundChain::order())).to_equal(chain_order(Home::CLIP, {"saturation", "filter", "sidechain"}));
+	it("render a sound's effects in a track chain's order, without the filter and saturation its voices hold", _ {
+		expect(as_vector(SoundChain::order())).to_equal(chain_order(Home::TRACK, {"saturation", "filter", "sidechain"}));
 	});
 });
 // clang-format on

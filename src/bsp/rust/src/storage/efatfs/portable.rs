@@ -207,7 +207,7 @@ impl ExtentMap {
 }
 
 /// Maps the file `ctx` names further along its cluster chain, through the cluster holding
-/// `byte_offset` and [`CHAIN_STRETCH`] past it, from `map` so far.
+/// `byte_offset` and `CHAIN_STRETCH` past it, from `map` so far.
 ///
 /// An I/O error leaves the map as it was, so the read goes through the filesystem this time and
 /// mapping is tried again on the next.

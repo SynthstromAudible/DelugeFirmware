@@ -31,6 +31,7 @@
 #include "model/consequence/consequence_note_array_change.h"
 #include "model/consequence/consequence_note_existence.h"
 #include "model/consequence/consequence_param_change.h"
+#include "model/edits/param_address_for.h"
 #include "model/model_stack.h"
 #include "model/note/note.h"
 #include "model/song/clip_iterators.h"
@@ -176,24 +177,23 @@ Error Action::revert(TimeType time, ModelStack* modelStack) {
 	return error;
 }
 
-bool Action::containsConsequenceParamChange(ParamCollection* paramCollection, int32_t paramId) {
-	// See if this param has already had its state snapshotted. If so, get out
-	for (Consequence* thisCons = firstConsequence; thisCons; thisCons = thisCons->next) {
-		if (thisCons->type == Consequence::PARAM_CHANGE) {
-			ConsequenceParamChange* thisConsParamChange = (ConsequenceParamChange*)thisCons;
-			if (thisConsParamChange->modelStack.paramCollection == paramCollection
-			    && thisConsParamChange->modelStack.paramId == paramId) {
-				return true;
-			}
+bool Action::containsConsequenceParamChange(const deluge::project::ParamAddress& address) {
+	for (Consequence* c = firstConsequence; c != nullptr; c = c->next) {
+		if (c->type == Consequence::PARAM_CHANGE && static_cast<ConsequenceParamChange*>(c)->address == address) {
+			return true;
 		}
 	}
 	return false;
 }
 
 void Action::recordParamChangeIfNotAlreadySnapshotted(ModelStackWithAutoParam const* modelStack, bool stealData) {
+	const std::optional<deluge::project::ParamAddress> address = deluge::edits::addressFor(*modelStack);
+	if (!address) {
+		return;
+	}
 
 	// If we already have a snapshot of this, we can get out.
-	if (containsConsequenceParamChange(modelStack->paramCollection, modelStack->paramId)) {
+	if (containsConsequenceParamChange(*address)) {
 
 		// Except, if we were planning to steal the data, well we'd better pretend we've just done that by deleting it
 		// instead.
@@ -203,16 +203,21 @@ void Action::recordParamChangeIfNotAlreadySnapshotted(ModelStackWithAutoParam co
 		return;
 	}
 
-	// If we're still here, we need to snapshot.
-	recordParamChangeDefinitely(modelStack, stealData);
+	recordParamChange(*address, modelStack, stealData);
 }
 
 void Action::recordParamChangeDefinitely(ModelStackWithAutoParam const* modelStack, bool stealData) {
+	if (const std::optional<deluge::project::ParamAddress> address = deluge::edits::addressFor(*modelStack)) {
+		recordParamChange(*address, modelStack, stealData);
+	}
+}
 
+void Action::recordParamChange(const deluge::project::ParamAddress& address, ModelStackWithAutoParam const* modelStack,
+                               bool stealData) {
 	void* consMemory = deluge::memory::alloc_sdram(sizeof(ConsequenceParamChange));
 
 	if (consMemory) {
-		ConsequenceParamChange* newCons = new (consMemory) ConsequenceParamChange(modelStack, stealData);
+		ConsequenceParamChange* newCons = new (consMemory) ConsequenceParamChange(address, modelStack, stealData);
 		addConsequence(newCons);
 	}
 }

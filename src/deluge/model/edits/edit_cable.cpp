@@ -21,6 +21,7 @@
 #include "model/action/action_logger.h"
 #include "model/clip/clip.h"
 #include "model/consequence/consequence_instrument_delta.h"
+#include "model/edits/param_address_for.h"
 #include "model/model_stack.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/patch/patch_cable_set.h"
@@ -41,8 +42,12 @@ void recordCableEdit(ModelStackWithThreeMainThings const* modelStack, CableEdit 
 	if (action == nullptr) {
 		return;
 	}
+	const std::optional<project::ParamAddress> owner = ownerAddressFor(*modelStack);
+	if (!owner) {
+		return;
+	}
 	if (void* memory = deluge::memory::alloc_sdram(sizeof(ConsequenceInstrumentDelta)); memory != nullptr) {
-		action->addConsequence(new (memory) ConsequenceInstrumentDelta(modelStack, std::move(edit)));
+		action->addConsequence(new (memory) ConsequenceInstrumentDelta(*owner, std::move(edit)));
 	}
 }
 

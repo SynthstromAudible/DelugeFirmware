@@ -23,7 +23,9 @@
 #include "gui/views/instrument_clip_view.h"
 #include "gui/waveform/waveform_basic_navigator.h"
 #include "model/clip/clip.h"
+#include "model/edits/param_address_for.h"
 #include "model/edits/set_engine_setting.h"
+#include "model/edits/set_param_value.h"
 #include "model/edits/set_source_ranges.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
@@ -136,7 +138,7 @@ void resetSlicerEnv() {
 	new (&g_range.get()->sampleHolder.filePath) std::string();
 	new (&g_sample.get()->filePath) std::string("SAMPLES/SLICE.WAV");
 
-	g_kit.get()->firstDrum = reinterpret_cast<Drum*>(g_drum.get());
+	g_kit.get()->firstDrum = static_cast<Drum*>(g_drum.get());
 
 	// AUDIO, so graphicsRoutine()'s voice-position lookup short-circuits before it reaches the
 	// voice machinery. It is the deferral re-ask at the top of that function the specs are after.
@@ -240,9 +242,6 @@ void InstrumentClipView::sendAuditionNote(bool on, uint8_t yDisplay, uint8_t vel
 	deluge::test::lastAuditionOn = on ? 1 : 0;
 }
 
-void AutoParam::setCurrentValueWithNoReversionOrRecording(ModelStackWithAutoParam const* modelStack, int32_t newValue) {
-}
-
 namespace PadLEDs {
 void setTickSquares(const uint8_t* squares, const uint8_t* colours) {
 }
@@ -322,8 +321,10 @@ DELUGE_STUB_RET(stub_waveformRendererRenderFullScreen,
                 bool, false)
 DELUGE_STUB_FN(stub_instrumentClipViewRecalculateColours, "_ZN18InstrumentClipView18recalculateColoursEv")
 DELUGE_STUB_FN(stub_modControllableAudioDtor, "_ZN20ModControllableAudioD2Ev")
-// ~Sound gives its delay's tapes back and destroys its chain, whose mod FX and granular free their blocks.
+// ~Sound gives its delay's tapes back, ends the song's stutter if its chain plays it, and destroys its chain, whose mod
+// FX and granular free their blocks.
 DELUGE_STUB_FN(stub_modControllableAudioReleaseChainMemory, "_ZN20ModControllableAudio18releaseChainMemoryEv")
+DELUGE_STUB_FN(stub_modControllableAudioEndStutterIfStuttering, "_ZN20ModControllableAudio22endStutterIfStutteringEv")
 DELUGE_STUB_FN(stub_modFxDtor, "_ZN6deluge7effects5ModFxD1Ev")
 DELUGE_STUB_FN(stub_granularDtor, "_ZN6deluge7effects8GranularD1Ev")
 DELUGE_STUB_FN(stub_sampleHolderForVoiceClaimClusterReasons, "_ZN20SampleHolderForVoice19claimClusterReasonsEbi")
@@ -334,7 +335,7 @@ DELUGE_STUB_FN(stub_uiModEncoderButtonAction, "_ZN2UI22modEncoderButtonActionEhb
 DELUGE_STUB_FN(stub_uiDisplayOrLanguageChanged, "_ZN2UI24displayOrLanguageChangedEv")
 DELUGE_STUB_FN(stub_uiClose, "_ZN2UI5closeEv")
 DELUGE_STUB_FN(stub_uiCtor, "_ZN2UIC2Ev")
-DELUGE_STUB_RET(stub_kitGetDrumFromIndex, "_ZN3Kit16getDrumFromIndexEi", Drum*, reinterpret_cast<Drum*>(g_drum.get()))
+DELUGE_STUB_RET(stub_kitGetDrumFromIndex, "_ZN3Kit16getDrumFromIndexEi", Drum*, static_cast<Drum*>(g_drum.get()))
 DELUGE_STUB_FN(stub_kitResetDrumTempValues, "_ZN3Kit19resetDrumTempValuesEv")
 DELUGE_STUB_FN(stub_kitAddDrum, "_ZN3Kit7addDrumEP4DrumP4Song")
 DELUGE_STUB_FN(stub_drumCtor, "_ZN4DrumC2EN6deluge7project8DrumTypeE")
@@ -466,5 +467,17 @@ Error SetEngineSetting::apply(Context& /*ctx*/) {
 }
 Error SetSourceRanges::apply(Context& /*ctx*/) {
 	return Error::NONE;
+}
+// The slicer's setup writes of envelope and osc-volume defaults: no lane here has an address, so none is written.
+std::optional<deluge::project::ParamAddress> ownerAddressFor(const ModelStackWithThreeMainThings& /*modelStack*/) {
+	return std::nullopt;
+}
+std::optional<deluge::project::ParamAddress> addressFor(const ModelStackWithAutoParam& /*modelStack*/) {
+	return std::nullopt;
+}
+Error SetParamValue::apply(Context& /*ctx*/) {
+	return Error::NONE;
+}
+void SetParamValue::emitEvent(Context& /*ctx*/) {
 }
 } // namespace deluge::edits

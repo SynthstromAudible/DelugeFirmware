@@ -43,6 +43,7 @@
 #include "model/edits/edit.h"
 #include "model/edits/param_address_for.h"
 #include "model/edits/set_param_value.h"
+#include "model/fx/channel_setup.h"
 #include "model/fx/song_stutter.h"
 #include "model/mod_controllable/delay_arena_app.h"
 #include "model/mod_controllable/delay_type.h"
@@ -69,28 +70,12 @@
 
 namespace params = deluge::modulation::params;
 
-ModControllableAudio::ModControllableAudio() {
-	SyncLevel syncLevel;
-	Song* song = preLoadedSong;
-	if (!song) {
-		song = currentSong;
-	}
-	if (song) {
-		syncLevel = (SyncLevel)(8
-		                        - (song->project.transport.inside_world_tick_magnitude
-		                           + song->project.transport.inside_world_tick_magnitude_offset_from_bpm));
-	}
-	else {
-		syncLevel = (SyncLevel)(8 - FlashStorage::defaultMagnitude);
-	}
-	ownEffects_.delay.sync_level = syncLevel;
-	ownEffects_.sidechain = deluge::modulation::default_sidechain_state();
-	modControllableSnapshot_.effects = ownEffects_; // nothing renders this owner yet
-}
+ModControllableAudio::ModControllableAudio() = default;
 
-ModControllableAudio::~ModControllableAudio() {
-	// An owner deleted while it stutters ends the stutter, so no later owner at its address plays the tape.
-	if (currentSong != nullptr && currentSong->live.stutter.isStuttering(*this)) {
+ModControllableAudio::~ModControllableAudio() = default;
+
+void ModControllableAudio::endStutterIfStuttering() {
+	if (currentSong != nullptr && currentSong->live.stutter.isStuttering(core())) {
 		currentSong->live.stutter.end();
 		currentSong->live.stutter.clearSnap();
 		exitUIMode(UI_MODE_STUTTERING);
@@ -98,14 +83,7 @@ ModControllableAudio::~ModControllableAudio() {
 }
 
 void ModControllableAudio::releaseChainMemory() {
-	deluge::effects::Delay& delay = core().delay();
-	deluge::effects::DelayChange change = delay.prepare(deluge::effects::DelayType::OFF);
-	{
-		AudioExcludedSection section; // the render takes from the arena
-		delay.commit(deluge::effects::DelayType::OFF, change);
-		deluge::noteStructuralEdit(deluge::StructuralContainer::DELAY_TAPE);
-	}
-	delay.finish(change);
+	deluge::model::releaseDelayMemory(core().delay());
 }
 
 void ModControllableAudio::cloneFrom(ModControllableAudio* other) {
@@ -150,49 +128,22 @@ void ModControllableAudio::writeAttributesToFile(Serializer& writer, const delug
 }
 
 void ModControllableAudio::setEffects(const deluge::effects::EffectStates& next) {
-	if (boundEffects_ != nullptr) {
-		*boundEffects_ = next;
-	}
-	else {
-		ownEffects_ = next;
-	}
+	binding_->store(next);
 	projectModControllableSnapshot();
 }
 
 void ModControllableAudio::bindEffects(deluge::effects::EffectStates* record) {
-	if (record != nullptr) {
-		*record = effects();
-	}
-	else if (boundEffects_ != nullptr) {
-		ownEffects_ = *boundEffects_;
-	}
-	boundEffects_ = record;
+	binding_->bind(record);
 	projectModControllableSnapshot();
 }
 
 void ModControllableAudio::projectModControllableSnapshot() {
-	const ModFXType type = effects().mod_fx.type;
-	deluge::effects::RingChange ring = core().mod_fx().prepare(type);
-	deluge::effects::GranularBlockChange grain = core().granular().prepare(type);
 	const deluge::effects::DelayType delayType = effects().delay.type;
-	const std::size_t delayReserve = (delayType != deluge::effects::DelayType::OFF && currentSong != nullptr)
-	                                     ? deluge::model::delayReserveFrames(*currentSong, *this)
-	                                     : 0;
-	deluge::effects::DelayChange delayChange = core().delay().prepare(delayType);
-	{
-		AudioExcludedSection section; // the render reads the copy, the ring, the grain's blocks and the delay's arena
-		modControllableSnapshot_.effects = effects();
-		projectView(modControllableSnapshot_);
-		core().mod_fx().commit(modControllableSnapshot_.effects.mod_fx.type, ring);
-		deluge::noteStructuralEdit(deluge::StructuralContainer::MOD_FX_RING);
-		core().granular().commit(modControllableSnapshot_.effects.mod_fx.type, grain);
-		deluge::noteStructuralEdit(deluge::StructuralContainer::GRAIN_BLOCK);
-		core().delay().commit(delayType, delayChange, delayReserve);
-		deluge::noteStructuralEdit(deluge::StructuralContainer::DELAY_TAPE);
-	}
-	core().delay().finish(delayChange);
-	core().granular().finish(grain);
-	core().mod_fx().finish(ring);
+	const std::size_t delayReserve =
+	    (delayType != deluge::effects::DelayType::OFF && currentSong != nullptr)
+	        ? deluge::model::delayReserveFrames(*currentSong, core(), effects().delay, asSound() != nullptr)
+	        : 0;
+	binding_->project(core(), delayReserve, projectedModFXParam());
 }
 
 namespace {
@@ -214,7 +165,7 @@ void ModControllableAudio::assignModFXType(ModFXType value) {
 	changeEffects(*this, [&](auto& e) { e.mod_fx.type = value; });
 }
 void ModControllableAudio::setClippingAmount(uint8_t value) {
-	changeEffects(*this, [&](auto& e) { e.saturation.clipping_amount = value; });
+	changeEffects(*this, [&](auto& e) { e.saturation.clipping_amount = deluge::effects::clipping_amount_from(value); });
 }
 void ModControllableAudio::setLpfMode(FilterMode value) {
 	changeEffects(*this, [&](auto& e) { e.filter.lpf_mode = value; });
@@ -667,9 +618,12 @@ void ModControllableAudio::handleLearnedKnob(MIDIKnob& knob, MIDICable& cable, u
 
 		// Set the new Parameter Value for the MIDI Learned Parameter
 		deluge::edits::Context editCtx{*currentSong, currentSong->project};
-		deluge::edits::SetParamValue edit{deluge::edits::addressFor(*modelStackWithParam), newValue, modPos, modLength,
-		                                  modelStackWithParam};
-		deluge::edits::apply(editCtx, edit);
+		if (const std::optional<deluge::project::ParamAddress> editAddress =
+		        deluge::edits::addressFor(*modelStackWithParam)) {
+			deluge::edits::SetParamValue edit{*editAddress, newValue, modPos, modLength,
+			                                  deluge::edits::SetParamValue::Resolve::EXACT};
+			deluge::edits::apply(editCtx, edit);
+		}
 
 		// if you're in automation view and editing the same parameter that was just updated
 		// by a learned midi knob, then re-render the pads on the automation editor grid
@@ -755,9 +709,12 @@ void ModControllableAudio::handleLearnedKnob(MIDIKnob& knob, MIDICable& cable, u
 
 		// Set the new Parameter Value for the MIDI Learned Parameter
 		deluge::edits::Context editCtx{*currentSong, currentSong->project};
-		deluge::edits::SetParamValue edit{deluge::edits::addressFor(*modelStackWithParam), newValue, modPos, modLength,
-		                                  modelStackWithParam};
-		deluge::edits::apply(editCtx, edit);
+		if (const std::optional<deluge::project::ParamAddress> editAddress =
+		        deluge::edits::addressFor(*modelStackWithParam)) {
+			deluge::edits::SetParamValue edit{*editAddress, newValue, modPos, modLength,
+			                                  deluge::edits::SetParamValue::Resolve::EXACT};
+			deluge::edits::apply(editCtx, edit);
+		}
 
 		// check if you're currently editing the same learned param in automation view or
 		// performance view if so, you will need to refresh the automation editor grid or the
@@ -826,9 +783,12 @@ bool ModControllableAudio::handleLearnedPitchBend(MIDIKnob& knob, uint8_t data1,
 	int32_t newValue = (value14 << 18) - 2147483648;
 
 	deluge::edits::Context editCtx{*currentSong, currentSong->project};
-	deluge::edits::SetParamValue edit{deluge::edits::addressFor(*modelStackWithParam), newValue, modPos, modLength,
-	                                  modelStackWithParam};
-	deluge::edits::apply(editCtx, edit);
+	if (const std::optional<deluge::project::ParamAddress> editAddress =
+	        deluge::edits::addressFor(*modelStackWithParam)) {
+		deluge::edits::SetParamValue edit{*editAddress, newValue, modPos, modLength,
+		                                  deluge::edits::SetParamValue::Resolve::EXACT};
+		deluge::edits::apply(editCtx, edit);
+	}
 	return true;
 }
 
@@ -873,7 +833,7 @@ void ModControllableAudio::beginStutter(ParamManagerForTimeline* paramManager) {
 	const auto rate = static_cast<uint32_t>(
 	    deluge::model::stutterRate(paramManager, stutter.lastQuantizedKnobDiff, currentSong->getInputTickMagnitude(),
 	                               playbackHandler.getTimePerInternalTickInverse()));
-	if (stutter.begin(*this, settings, rate) != Error::NONE) {
+	if (stutter.begin(core(), settings, rate) != Error::NONE) {
 		// No stutter: the snap memory goes back to how it was.
 		if (settings.quantized) {
 			stutter.lastQuantizedKnobDiff = knobDiffBefore;
@@ -1099,10 +1059,10 @@ void ModControllableAudio::wontBeRenderedForAWhile() {
 }
 
 void ModControllableAudio::clearModFXMemory() {
-	if (modControllableSnapshot_.effects.mod_fx.type == ModFXType::GRAIN) {
+	if (modControllableSnapshot().effects.mod_fx.type == ModFXType::GRAIN) {
 		core().granular().clear();
 	}
-	else if (modControllableSnapshot_.effects.mod_fx.type != ModFXType::NONE) {
+	else if (modControllableSnapshot().effects.mod_fx.type != ModFXType::NONE) {
 		core().mod_fx().clearMemory();
 	}
 }

@@ -55,7 +55,7 @@ jobs:
   build:
     name: Build
     if: ${{ !inputs.skip }}
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 60
     steps:
       - name: Checkout branch

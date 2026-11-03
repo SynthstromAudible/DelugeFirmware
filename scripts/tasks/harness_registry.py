@@ -33,6 +33,8 @@ GROUPS = {
     "model": "golden-vt-render",
     "storage": None,
     "unit": None,
+    # The C++ ctest trees, apart from `unit`: built cold, they and the cargo builds overran one job's time limit.
+    "unit-cpp": None,
     "tooling": None,
 }
 
@@ -48,8 +50,13 @@ PROBES = {
     "clang-asan": "install clang with its compiler-rt AddressSanitizer runtime (libclang_rt.asan)",
     "mtools": "apt install mtools -- fs_differential's fixtures are built with mformat",
     "qemu-arm": "apt install qemu-user",
+    "llvm-objdump": "install llvm (llvm-objdump disassembles the fixed-point codegen probe)",
     "arm-linux-gnueabihf-gcc": (
         "apt install g++-arm-linux-gnueabihf -- clang builds for arm-linux against its sysroot, /usr/arm-linux-gnueabihf"
+    ),
+    "arm-none-eabi-gcc": (
+        "run ./dbt once (without DBT_NOENV) to fetch the pinned toolchain into toolchain/current, "
+        "or point DBT_TOOLCHAIN_PATH at a directory holding one"
     ),
     "song-corpus": (
         "set DELUGE_BACKUP (default ~/Deluge Backup) or DELUGE_SONG_CORPUS to a directory of .XML songs, "
@@ -271,9 +278,17 @@ def probe(requirement: str, root: Path) -> bool:
             return shutil.which("mformat") is not None
         case "qemu-arm":
             return shutil.which("qemu-arm") is not None
+        case "llvm-objdump":
+            return shutil.which("llvm-objdump") is not None
         case "arm-linux-gnueabihf-gcc":
             # What the arm-linux builds use of it: the sysroot's C library and libstdc++, which clang links against.
             return (Path("/usr/arm-linux-gnueabihf/include/stdio.h")).is_file()
+        case "arm-none-eabi-gcc":
+            # Where deluge_sample_convert's build.rs looks for the device compiler.
+            base = Path(os.environ.get("DBT_TOOLCHAIN_PATH") or root)
+            return (
+                base / "toolchain/current/arm-none-eabi-gcc/bin/arm-none-eabi-g++"
+            ).is_file()
         case "song-corpus":
             for var in ("DELUGE_SONG_CORPUS", "DELUGE_BACKUP"):
                 value = os.environ.get(var)

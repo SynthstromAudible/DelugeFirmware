@@ -15,7 +15,7 @@ inputs:
 runs:
   using: composite
   steps:
-    # The key rolls monthly so cached packages track noble-updates, and on any
+    # The key rolls monthly so cached packages track the release's updates, and on any
     # change to the package list; restore-keys seeds from the previous cache.
     - name: Compute apt cache key
       id: key
@@ -24,7 +24,7 @@ runs:
         PACKAGES: ${{ inputs.packages }}
         CACHE_NAME: ${{ inputs.cache-name }}
       run: |
-        # ImageOS is set by the runner, e.g. ubuntu24
+        # ImageOS is set by the runner, e.g. ubuntu26
         prefix="apt-$CACHE_NAME-${ImageOS:?}-"
         hash=$(echo "$PACKAGES" | sha256sum | cut -c1-16)
         {

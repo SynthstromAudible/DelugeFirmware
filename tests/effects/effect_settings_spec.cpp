@@ -42,6 +42,14 @@ describe effect_settings("the effects' settings in an Edit's form", ${
 		expect(firstUncheckedAnswer(EffectStates{})).to_equal(std::string{});
 		expect(firstUncheckedAnswer(busy())).to_equal(std::string{});
 	});
+	it("writes a clipping amount past the saturation's range as its highest, and a negative one as off", _ {
+		for (const auto& [n, expected] : {std::pair{15, 15}, std::pair{16, 15}, std::pair{300, 15}, std::pair{-1, 0}}) {
+			EffectStates states;
+			expect(write_effect_setting(states, "clippingAmount", deluge::serialization::Value::makeNumber(n)))
+			    .to_be_true();
+			expect(static_cast<int>(states.saturation.clipping_amount)).to_equal(expected);
+		}
+	});
 	it("gives a sync level as the level itself", _ {
 		expect(effect_setting_value(busy(), "delay/syncLevel")->str()).to_equal(std::string("4"));
 	});

@@ -30,6 +30,16 @@ set(lane_pack_spec_DEPS)
 set(lanes_spec_DEPS)
 # The Mono spec needs no sources: Mono and its reference kernels are header-only.
 set(mono_spec_DEPS)
+# The fixed-point spec needs no sources: fixed_point.h is header-only.
+set(fixed_point_spec_DEPS)
+# The fixed-point lanes spec needs no sources: fixed_point_lanes.h is header-only.
+set(fixed_point_lanes_spec_DEPS)
+# The fixed-point NEON spec needs no sources: fixed_point_neon.h is header-only.
+set(fixed_point_neon_spec_DEPS)
+# The Ramp spec needs no sources: ramp.h is header-only.
+set(ramp_spec_DEPS)
+# The StereoSample spec needs no sources: stereo_sample.h is header-only.
+set(stereo_sample_spec_DEPS)
 # The Control spec needs no sources: Control and its reference kernels are header-only.
 set(control_spec_DEPS)
 # The Chain spec needs no sources: Chain, Pinned and the kernels it chains are header-only.
@@ -116,6 +126,7 @@ set(low_pass_ladder_spec_DEPS ${_filter_DEPS})
 set(high_pass_ladder_spec_DEPS ${_filter_DEPS})
 set(svf_spec_DEPS ${_filter_DEPS})
 set(fade_in_spec_DEPS ${_filter_DEPS})
+set(curve_frequency_spec_DEPS ${_filter_DEPS})
 # The filter set runs the three filters.
 set(filter_set_spec_DEPS ${_filter_DEPS} ${_repo_root}/src/deluge/dsp-next/fixed/filter/filter_set.cpp)
 

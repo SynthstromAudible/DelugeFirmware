@@ -17,10 +17,11 @@
 
 #pragma once
 
+#include "dsp-next/core/fixed_point.h"
+#include "dsp-next/core/fixed_point_lanes.h"
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/mode.h"
 #include "dsp-next/core/types.h"
-#include "dsp-next/core/wrapping.h"
 
 #include <cstdint>
 #include <type_traits>
@@ -92,12 +93,15 @@ struct ShiftTracker {
 	template <Mode M, class V>
 	[[nodiscard]] [[gnu::always_inline]] static V step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, StateT<V>& s,
 	                                                   std::type_identity_t<V> x) {
-		s.y = wrapping_add(s.y, wrapping_sub(x, s.y) >> N);
+		const auto x_q = from_raw<Q<31>>(x);
+		const auto y_last = from_raw<Q<31>>(s.y);
+		const auto y = add_wrap(y_last, scale_shr_floor<N>(sub_wrap(x_q, y_last)));
+		s.y = to_raw(y);
 		if constexpr (M == Mode::TRACK) {
 			return s.y;
 		}
 		else {
-			return wrapping_sub(x, s.y);
+			return to_raw(sub_wrap(x_q, y));
 		}
 	}
 };

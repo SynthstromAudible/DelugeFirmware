@@ -20,6 +20,7 @@
 #include "effects/words.h"
 #include "plugin-api/types/sync.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <limits>
 
@@ -33,7 +34,16 @@ struct FilterState {
 	bool operator==(const FilterState&) const = default;
 };
 
-/// @brief How hard the saturation clips: 0 is off.
+/// @brief The highest clipping amount: the saturation's drive and output shift stay inside 32 bits up to it.
+inline constexpr uint8_t kMaxClippingAmount = 15;
+
+/// @brief @p amount as a clipping amount, clamped to 0 to @ref kMaxClippingAmount: a file or a setting can hold any
+/// number.
+[[nodiscard]] constexpr uint8_t clipping_amount_from(int64_t amount) {
+	return static_cast<uint8_t>(std::clamp<int64_t>(amount, 0, kMaxClippingAmount));
+}
+
+/// @brief How hard the saturation clips: 0 is off, @ref kMaxClippingAmount the most.
 struct SaturationState {
 	uint8_t clipping_amount{0};
 	bool operator==(const SaturationState&) const = default;
@@ -69,8 +79,8 @@ struct StutterState {
 struct CompressorState {
 	int32_t attack{5 << 24};
 	int32_t release{5 << 24};
-	/// The setting. The master renders it (its knob); a sound and a clip chain render their threshold param every block
-	/// instead. A host chain's record and file hold the setting; a sound's file holds its param's.
+	/// The setting. The master renders it (its knob); a sound and a track chain render their threshold param every
+	/// block instead. A host chain's record and file hold the setting; a sound's file holds its param's.
 	int32_t threshold{0};
 	int32_t ratio{64 << 24};
 	int32_t sidechain_hpf{0};

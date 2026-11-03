@@ -17,12 +17,11 @@
 
 #pragma once
 
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/mode.h"
-#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/core/types.h"
-#include "dsp-next/core/wrapping.h"
 #include "dsp-next/fixed/delay/delay_tape.h"
 
 #include <cstddef>
@@ -195,12 +194,13 @@ struct Stutter {
 	}
 
 private:
-	/// @return The taps @p a and @p b weighed by @p strength1 and @p strength2 (16.16, summing to 65536), Q31. The sum
-	/// wraps, as the hardware's add does, and the shift goes through uint32_t.
+	/// @return The taps @p a and @p b weighed by @p strength1 and @p strength2 (Q16, summing to 65536), Q31. Each
+	/// weight is reformatted to Q30, so each product is Q29; the sum and its reformat to Q31 wrap, as the hardware's
+	/// add and shift do.
 	[[nodiscard]] [[gnu::always_inline]] static q31 mix(q31 a, q31 b, int32_t strength1, int32_t strength2) {
-		const q31 sum =
-		    wrapping_add(multiply_32x32_rshift32(a, strength1 << 14), multiply_32x32_rshift32(b, strength2 << 14));
-		return static_cast<q31>(static_cast<uint32_t>(sum) << 2);
+		const Q<29> sum = add_wrap(mul(Q<31>::from_raw(a), as_wrap<Q<30>>(Q<16>::from_raw(strength1))),
+		                           mul(Q<31>::from_raw(b), as_wrap<Q<30>>(Q<16>::from_raw(strength2))));
+		return as_wrap<Q<31>>(sum).raw();
 	}
 };
 

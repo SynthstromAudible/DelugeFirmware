@@ -23,11 +23,13 @@
 #include "dsp-next/fixed/wavetable/wavetable_cycle_chunker.h"
 #include <array>
 #include <cppspec.hpp>
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <vector>
 
 namespace {
+using deluge::dsp::Q;
 using deluge::dsp::fixed::Buffer;
 using deluge::dsp::fixed::CycleChunk;
 using deluge::dsp::fixed::WaveTableBand;
@@ -57,8 +59,50 @@ std::vector<CycleChunk> collect(const WaveTableData& table, Buffer output, int32
 }
 } // namespace
 
+namespace morph_reference {
+std::uint32_t xorshift(std::uint32_t& s) {
+	s ^= s << 13;
+	s ^= s >> 17;
+	s ^= s << 5;
+	return s;
+}
+
+/// The morph on q31_ops.h's rounded multiply-accumulate, value1 halved, the blend halved: the typed morph must match it
+/// bit for bit. The difference is taken through uint32_t, so it wraps where the plain subtraction would overflow.
+int32_t raw_morph(int32_t value1, int32_t value2, uint32_t blend) {
+	const auto difference = static_cast<int32_t>(static_cast<uint32_t>(value2) - static_cast<uint32_t>(value1));
+	return multiply_accumulate_32x32_rshift32_rounded(value1 >> 1, difference, static_cast<int32_t>(blend >> 1));
+}
+
+/// Mismatches between the typed morph and the raw one over 2^16 random values and blends, the rails and the blend's
+/// ends included.
+std::size_t mismatches() {
+	constexpr std::array<int32_t, 5> kValues{0, 1, -1, INT32_MIN, INT32_MAX};
+	constexpr std::array<uint32_t, 4> kBlends{0, 0x8000'0000U, 0xFFFF'FFFFU, 1};
+	std::size_t bad = 0;
+	std::uint32_t s = 0x6d6f'7270u;
+	for (int k = 0; k < (1 << 16); ++k) {
+		auto value1 = static_cast<int32_t>(xorshift(s));
+		auto value2 = static_cast<int32_t>(xorshift(s));
+		auto blend = xorshift(s);
+		if (k < static_cast<int>(kValues.size() * kValues.size() * kBlends.size())) {
+			value1 = kValues[k % kValues.size()];
+			value2 = kValues[(k / kValues.size()) % kValues.size()];
+			blend = kBlends[k / (kValues.size() * kValues.size())];
+		}
+		const auto got =
+		    deluge::dsp::fixed::wavetable_detail::morph(Q<30>::from_raw(value1), Q<30>::from_raw(value2), blend);
+		bad += got.raw() != raw_morph(value1, value2, blend) ? 1 : 0;
+	}
+	return bad;
+}
+} // namespace morph_reference
+
 // clang-format off
 describe wavetable_cycle_chunker("deluge::dsp::fixed WavetableCycleChunker", ${
+	it("morphs between two cycles as the rounded multiply-accumulate does, bit for bit", _ {
+		expect(morph_reference::mismatches()).to_equal(std::size_t{0});
+	});
 	it("yields one whole-block single-cycle chunk for a single-cycle wavetable", _ {
 		std::array<int32_t, kBlock> buffer{};
 		WaveTableData table = make_table(/*num_cycles=*/1, /*transitions_magnitude=*/0, /*wave_index_multiplier=*/0x40000000);

@@ -35,9 +35,8 @@ namespace deluge::dsp::fixed {
 /// @code sine(phase + (modulation << 8)) @endcode
 ///
 /// @param phase Four phase positions, each a full-circle q32 value (2^32 == one cycle).
-/// @return Four interpolated sine samples, each left-shifted into the high half of its
-///         32-bit lane (Q1.31 scale, not reduced to a clean q31); the caller applies
-///         amplitude.
+/// @return Four interpolated sine samples, Q31: each Q15 entry widened to Q31 plus the doubled, saturating product
+///         of the Q15 difference and the Q15 weight. The caller applies amplitude.
 [[nodiscard]] Argon<int32_t> sine(Argon<uint32_t> phase);
 
 /// @brief One sample of an FM operator's sine, in the operator's 24-bit phase format.
@@ -51,7 +50,8 @@ namespace deluge::dsp::fixed {
 ///
 /// @param carrier_phase The operator's carrier phase, a full-circle q32 value.
 /// @param phase_shift The phase modulation to add, in 24-bit phase units.
-/// @return The interpolated sine sample, in the high half of the result (Q1.31 scale).
+/// @return The interpolated sine sample, Q31: the Q15 entry at Q31 plus the Q15 difference times the Q16 weight
+/// (Q15 × Q16 is Q31, so no doubling). An integer lerp, kept integer.
 [[nodiscard]] int32_t sine_fm_operator(uint32_t carrier_phase, uint32_t phase_shift);
 
 } // namespace deluge::dsp::fixed

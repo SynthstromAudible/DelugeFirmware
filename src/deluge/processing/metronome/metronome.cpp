@@ -17,7 +17,7 @@
 
 #include "processing/metronome/metronome.h"
 
-#include "util/fixedpoint.h"
+#include "dsp-next/core/q31_ops.h"
 
 #include <cmath>
 

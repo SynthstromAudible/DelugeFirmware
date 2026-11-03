@@ -285,9 +285,8 @@ describe convert_cluster("convert_cluster_data", $ {
 		expect(load_word_unaligned(&data[8])).to_equal(0x7FFFFFFF);
 		// -0.5f -> 0xC0000000.
 		expect(load_word_unaligned(&data[12])).to_equal(static_cast<int32_t>(0xC0000000));
-		// NaN (quiet, sign bit clear on this host) saturates to Q31 max, same as a positive out-of-range
-		// value -- pins the scalar q31_from_float's actual NaN handling for the SIMD path to match.
-		expect(load_word_unaligned(&data[16])).to_equal(0x7FFFFFFF);
+		// NaN converts to 0, as the device's VFP and NEON conversions give it.
+		expect(load_word_unaligned(&data[16])).to_equal(0);
 		// +inf saturates to Q31 max (the scalar-tail word).
 		expect(load_word_unaligned(&data[20])).to_equal(0x7FFFFFFF);
 	});

@@ -12,7 +12,7 @@ namespace deluge::project::test {
 namespace detail {
 
 inline effects::Home home_of(ChainHome home) {
-	return home == ChainHome::MASTER ? effects::Home::MASTER : effects::Home::CLIP;
+	return home == ChainHome::MASTER ? effects::Home::MASTER : effects::Home::TRACK;
 }
 
 inline FxChain decode_chain(const serialization::Value& element, ChainHome home, int32_t tick_magnitude) {
@@ -34,7 +34,7 @@ inline void encode_chain(const FxChain& chain, serialization::Value& element, in
 	if (states == nullptr) {
 		return;
 	}
-	const effects::Home home = chain.reverb_return ? effects::Home::MASTER : effects::Home::CLIP;
+	const effects::Home home = chain.reverb_return ? effects::Home::MASTER : effects::Home::TRACK;
 	effects::write_chain(effects::encode_chain(*states, home, {.input_tick_magnitude = tick_magnitude}),
 	                     effects::view_value({.mod_fx_param = chain.mod_fx_param, .filter_type = chain.filter_type}),
 	                     element);

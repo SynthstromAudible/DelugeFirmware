@@ -78,13 +78,12 @@ inline constexpr bool is_partial_step_v<argon::vectorize::InterleavedStep<T, Str
 /// itself: @ref staged_kernel requires it to give the same result when `in` and `out` are the same buffer.
 ///
 /// **Single samples.** `render(…)` is a one-sample block: it builds one-sample spans and runs a whole block's
-/// `prepare`, dispatch and loop, which under the shipping `-fno-inline-functions` costs several out-of-line
-/// `std::span` calls per call. It is a convenience for tests and for control-rate values, not for per-sample use in
-/// shipping code: a component renders blocks, and a kernel that needs another kernel per sample nests it and calls
-/// it through @ref kernel_ops.
+/// `prepare`, dispatch and loop, which costs several `std::span` constructions per call. It is a convenience for tests
+/// and for control-rate values, not for per-sample use in shipping code: a component renders blocks, and a kernel that
+/// needs another kernel per sample nests it and calls it through @ref kernel_ops.
 ///
-/// **Inlining.** The app builds with `-fno-inline-functions`, which marks every definition noinline unless it says
-/// otherwise, so `render`, `render_block`, the loop and every lambda handed to Argon are `[[gnu::always_inline]]`:
+/// **Inlining.** The app inlines only the cheapest calls (an inline threshold of 5), so `render`, `render_block`, the
+/// loop and every lambda handed to Argon are `[[gnu::always_inline]]`:
 /// nothing sits between the block loop and the kernel's own always-inline `step`.
 template <kernel K>
 requires(!control_kernel<K>)
@@ -311,7 +310,7 @@ private:
 	/// @brief Fill @p out from the input blocks @p in (none, one or two), one `step` at mode @p M per sample or
 	/// vector; the loop is picked from K's step type (see the class documentation).
 	/// @details The blocks' pointers and length are read here, once, so that the loop itself touches only raw
-	/// pointers: a span accessor is a call under `-fno-inline-functions`.
+	/// pointers.
 	template <auto M, typename Ctx, typename... In>
 	[[gnu::always_inline]] static void loop(const Coefficients& c, const Block& block, LoopState& s, Ctx& context,
 	                                        Buffer<value_type> out, In... in) {

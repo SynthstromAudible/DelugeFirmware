@@ -102,7 +102,7 @@ static RUNNING_BUFFER: core::sync::atomic::AtomicUsize = core::sync::atomic::Ato
 /// (`DELUGE_WAKE_STORAGE`): the operation's result is visible once this returns.
 ///
 /// The task calls this while holding the `REQUEST` lock when marking an operation in flight.
-/// Host tests call it directly to reach [`collect`]'s IN_FLIGHT branch without running the task.
+/// Host tests call it directly to reach `collect`'s IN_FLIGHT branch without running the task.
 pub async fn mark_in_flight(entry: Option<OpKey>) {
     let done = entry.is_none();
     *IN_FLIGHT.lock().await = entry;

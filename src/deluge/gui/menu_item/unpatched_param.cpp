@@ -74,19 +74,23 @@ void UnpatchedParam::writeCurrentValue() {
 				    getModelStackFromSoundDrum(modelStackMemoryForSoundDrum, soundDrum)
 				        ->getUnpatchedAutoParamFromId(getP());
 				deluge::edits::Context drumEditCtx{*currentSong, currentSong->project};
-				deluge::edits::SetParamValue drumEdit{deluge::edits::addressFor(*modelStackForSoundDrum), value, 0, 0,
-				                                      modelStackForSoundDrum};
-				deluge::edits::apply(drumEditCtx, drumEdit);
+				if (const std::optional<deluge::project::ParamAddress> drumEditAddress =
+				        deluge::edits::addressFor(*modelStackForSoundDrum)) {
+					deluge::edits::SetParamValue drumEdit{*drumEditAddress, value, 0, 0,
+					                                      deluge::edits::SetParamValue::Resolve::EXACT};
+					deluge::edits::apply(drumEditCtx, drumEdit);
+				}
 			}
 		}
 	}
-	// Or, the normal case of just one sound. setCurrentValueInResponseToUserInput writes the owner's DOM store
-	// scalar itself, so there is a single edit path for every owner — no song-global special case.
+	// Or, the normal case of just one sound: one edit path for every owner, the song's included.
 	else {
 		deluge::edits::Context editCtx{*currentSong, currentSong->project};
-		deluge::edits::SetParamValue edit{deluge::edits::addressFor(*modelStackWithParam), value, 0, 0,
-		                                  modelStackWithParam};
-		deluge::edits::apply(editCtx, edit);
+		if (const std::optional<deluge::project::ParamAddress> editAddress =
+		        deluge::edits::addressFor(*modelStackWithParam)) {
+			deluge::edits::SetParamValue edit{*editAddress, value, 0, 0, deluge::edits::SetParamValue::Resolve::EXACT};
+			deluge::edits::apply(editCtx, edit);
+		}
 	}
 
 	// send midi follow feedback

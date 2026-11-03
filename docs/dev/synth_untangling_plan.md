@@ -192,7 +192,7 @@ per-note-id polyphonic parameter modulation.
 sample, input, a Plaits-style foreign engine). What the host loads on a track, a kit row or a chain is a **plugin**,
 an instrument or an effect; the Deluge instrument is the first instrument plugin. Every library below the app is built
 with the library flags (`cmake/deluge_library.cmake`: unity, `-marm`, `-finline-functions`, no LTO); only the app keeps
-Thumb and `-fno-inline-functions`.
+Thumb and a low inline threshold (5).
 
 | Layer | Directory | Target |
 |---|---|---|
@@ -444,8 +444,9 @@ boundary will be ready for it.
 
 ### Explicitly out of scope (for this effort)
 
-- The Sound-level FX chain (`ModControllableAudio`) — a second, separate
-  untangling.
+- The Sound-level FX chain (`SoundChain`, which `Sound` owns through its
+  `ModControllableAudio` base) — a second, separate untangling. The host's
+  chains already have their own owners (`TrackChannel`, `MasterChannel`).
 - The arpeggiator — note-event domain; could later become an L3 event
   processor.
 - The float32 core migration — *enabled* by the interface rules above,

@@ -1,5 +1,6 @@
 #pragma once
 #include "definitions_cxx.hpp"
+#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/fixed/dynamics/rms_feedback_compressor.h"
 #include "gui/menu_item/decimal.h"
 #include "gui/menu_item/integer.h"
@@ -12,7 +13,6 @@
 #include "modulation/params/param_set.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
-#include "util/fixedpoint.h"
 
 namespace deluge::gui::menu_item::audio_compressor {
 

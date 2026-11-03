@@ -47,14 +47,14 @@ public:
 	explicit WavetableSource(deluge::dsp::Phasor seed) : phasor_{seed} {}
 
 	/// The current render phase (UQ0.32). Persists across blocks — Voice reads it for osc-sync / skip.
-	[[nodiscard]] uint32_t phase() const { return phasor_.phase(); }
+	[[nodiscard]] uint32_t phase() const { return phasor_.phase().raw(); }
 	[[nodiscard]] std::optional<uint32_t> current_phase() const override { return phase(); }
 	void advance_phase(uint32_t delta) override { seek(phase() + delta); }
 
 	/// Jump the phase (a skipped source still advances, or an external reseed). Leaves the increment.
-	void seek(uint32_t phase) { phasor_.seek(phase); }
+	void seek(uint32_t phase) { phasor_.seek(deluge::dsp::UQ<32>::from_raw(phase)); }
 	/// Set the per-block pitch (UQ0.32). Voice calls this each block before @ref render_block.
-	void set_increment(uint32_t increment) { phasor_.set_increment(increment); }
+	void set_increment(uint32_t increment) { phasor_.set_increment(deluge::dsp::UQ<32>::from_raw(increment)); }
 
 	/// The wavetable band-data **view** to render (built app-side from the source's loaded `WaveTable`) — set per
 	/// block by Voice. The storage seam is now this view, not a `WaveTable` pointer, so the source is App-free.

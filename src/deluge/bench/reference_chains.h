@@ -23,13 +23,13 @@
 
 #pragma once
 
+#include "dsp-next/core/q31_ops.h"
 #include "effects/chain_core.h"
-#include "effects/clip_chain.h"
 #include "effects/filter.h"
 #include "effects/master_chain.h"
 #include "effects/saturation.h"
 #include "effects/sound_chain.h"
-#include "util/fixedpoint.h"
+#include "effects/track_chain.h"
 
 #include <optional>
 #include <span>
@@ -145,14 +145,14 @@ inline bool sound(fx::ChainCore& c, const fx::SoundChainInputs& in, std::span<St
 /// @param c                         The chain components.
 /// @param filter_                   The clip's filter.
 /// @param saturation_               The clip's saturation.
-/// @param in                        The clip chain inputs.
+/// @param in                        The track chain inputs.
 /// @param global_effectable_audio   The block, processed in place.
 /// @param renderedLastTime          Whether the content rendered this time.
 /// @param reverbBuffer              The reverb send.
 /// @param tap                       The recorder, called with the block before the reverb send.
 /// @return Whether anything was sent to the reverb.
 template <typename Tap>
-bool clip(fx::ChainCore& c, fx::Filter& filter_, fx::Saturation& saturation_, const fx::ClipChainInputs& in,
+bool clip(fx::ChainCore& c, fx::Filter& filter_, fx::Saturation& saturation_, const fx::TrackChainInputs& in,
           std::span<StereoSample> global_effectable_audio, bool renderedLastTime, fx::ReverbSend reverbBuffer,
           Tap&& tap) {
 	const fx::EffectStates& settings = *in.fx.settings;

@@ -16,10 +16,10 @@
  */
 #pragma once
 
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/processor.h"
-#include "dsp-next/core/q31_ops.h" // multiply_32x32_rshift32, add_saturate, kOneQ31
+#include "dsp-next/core/q31_ops.h" // kOneQ31
 #include "dsp-next/core/types.h"
-#include "dsp-next/core/wrapping.h"
 
 #include <type_traits>
 
@@ -29,7 +29,7 @@
 namespace deluge::dsp::fixed {
 
 /// @brief Folds the signal back on itself the further it is driven: the input, scaled by the fold amount, goes through
-/// the cubic 4(¾x − x³) twice, which flips the wave around zero more times the harder it is driven.
+/// the cubic 3x − 8x³ twice, which flips the wave around zero more times the harder it is driven.
 /// @details Stateless and per-sample, so it runs in place on a mono buffer or on an interleaved stereo one alike. The
 /// output is shifted down by 7 to compensate for the fold's gain.
 class Wavefolder : public Processor<Wavefolder, q31> {
@@ -37,39 +37,38 @@ public:
 	/// @brief Sets the fold amount.
 	/// @param amount The fold amount, Q31: 0 folds least (a floor of 0.1 always applies), kOneQ31 most. The voice
 	/// passes LOCAL_FOLD's final value, and renders the folder only when that is above 0.
-	explicit Wavefolder(q31 amount) : drive_(add_saturate(amount, kMinimumDrive)) {}
+	explicit Wavefolder(q31 amount)
+	    // The amount plus the floor saturates at 1 (Q31); its bits read as Q24 are the gain, 12.8 to 128
+	    : drive_(reinterpret_bits<Q<24>>(add_sat(Q<31>::from_raw(amount), Q<31>::from_raw(kMinimumDrive)))) {}
 
 	/// @brief One sample through the fold.
 	/// @param sample Q31.
 	/// @return The folded sample, Q31, 7 bits down.
 	[[nodiscard, gnu::always_inline]] q31 render(q31 sample) const {
-		const q31 driven = lshift_and_saturate_unknown(multiply_32x32_rshift32(drive_, sample), 8);
-		return fold(driven) >> 7;
+		// The sample times the gain, Q23, saturated as it is reformatted to Q31
+		const auto driven = as_clamp_then_shift<Q<31>>(mul(drive_, Q<31>::from_raw(sample)));
+		return scale_shr_floor<7>(fold(driven)).raw();
 	}
 
-	/// @brief The fold curve: 4(¾x − x³) applied twice, x in Q31 with kOneQ31 as 1.
-	/// @details Each multiply is `multiply_32x32_rshift32` (a Q31 product halved), so each is doubled back. The
-	/// doublings and the ×8 wrap modulo 2^32 at full scale, as the target's shifts do.
-	[[nodiscard, gnu::always_inline]] static q31 fold(q31 x) { return cubic(cubic(x)); }
+	/// @brief The fold curve: 3x − 8x³ applied twice, x in Q31 with kOneQ31 as 1.
+	/// @details Each product of Q31 values is Q30, reformatted back to Q31. The reformats and the final ×4 wrap modulo
+	/// 2^32 at full scale, as the target's shifts do.
+	[[nodiscard, gnu::always_inline]] static Q<31> fold(Q<31> x) { return cubic(cubic(x)); }
 
 private:
-	/// @brief 4(¾x − x³), Q31.
-	[[nodiscard, gnu::always_inline]] static q31 cubic(q31 x) {
-		const q31 x2 = wrapping_scale<2>(multiply_32x32_rshift32(x, x));
-		const q31 x3 = wrapping_scale<2>(multiply_32x32_rshift32(x2, x));
-		return wrapping_scale<8>(wrapping_sub(multiply_32x32_rshift32(kThreeFourths, x), x3));
-	}
-
-	/// @brief @p x times @p N, wrapping modulo 2^32 (a left shift on the target).
-	template <uint32_t N>
-	[[nodiscard, gnu::always_inline]] static constexpr q31 wrapping_scale(q31 x) {
-		return static_cast<q31>(static_cast<uint32_t>(x) * N);
+	/// @brief 3x − 8x³, Q31.
+	[[nodiscard, gnu::always_inline]] static Q<31> cubic(Q<31> x) {
+		const auto x2 = mul_as_wrap<Q<31>>(x, x);
+		const auto x3 = mul_as_wrap<Q<31>>(x2, x);
+		// ¾x at Q30 less x³'s Q31 bits read as Q30 (2x³): ¾x − 2x³, which × 4 is the curve
+		const Q<30> quarter = sub_wrap(mul(Q<31>::from_raw(kThreeFourths), x), reinterpret_bits<Q<30>>(x3));
+		return as_wrap<Q<31>>(scale_shl_wrap<2>(quarter));
 	}
 
 	static constexpr q31 kMinimumDrive = static_cast<q31>(0.1 * kOneQ31);  ///< The drive floor, Q31 (0.1).
 	static constexpr q31 kThreeFourths = static_cast<q31>(0.75 * kOneQ31); ///< ¾, Q31.
 
-	q31 drive_; ///< The fold amount plus the floor, saturated, Q31.
+	Q<24> drive_; ///< The gain: the fold amount plus the floor, saturated at 1 as Q31, read as Q24.
 };
 
 static_assert(!std::is_polymorphic_v<Wavefolder>);

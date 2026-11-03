@@ -16,6 +16,8 @@
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
 #include "model/consequence/consequence.h"
+#include "model/consequence/consequence_instrument_delta.h"
+#include "model/consequence/consequence_param_change.h"
 #include "model/edits/delete_param_automation.h"
 #include "model/edits/param_address_for.h"
 #include "model/edits/paste_param_automation.h"
@@ -30,8 +32,10 @@
 #include "modulation/params/param_node.h"
 #include "modulation/params/param_set.h"
 #include <cstring>
+#include <optional>
 #include <set>
 #include <span>
+#include <type_traits>
 #include <vector>
 
 #include "deluge-project/instrument_slot.h"
@@ -115,19 +119,19 @@ void testDispatcher(deluge::edits::Context& ctx) {
 	}
 }
 
-// Build a ModelStackWithAutoParam over a real UnpatchedParamSet, song-less (=> addressFor()
-// nullopt; doc() falls back to the collection's own store) — the param_projection pattern,
-// but with a real collection so remotelySwapParamState/undo is the real engine path.
-ModelStackWithAutoParam* makeStack(char* buf, ParamManagerForTimeline& pm, int32_t paramId) {
-	std::memset(buf, 0, MODEL_STACK_MAX_SIZE);
-	auto* ms = reinterpret_cast<ModelStackWithAutoParam*>(buf);
-	ms->paramManager = &pm;
-	ms->paramCollection = pm.getUnpatchedParamSet();
-	ms->summary = pm.getUnpatchedParamSetSummary();
-	ms->kind = pm.getUnpatchedParamSet()->getParamKind(); // keep the threaded kind consistent (doc() ALPHA-asserts)
-	ms->paramId = paramId;
-	ms->autoParam = &pm.getUnpatchedParamSet()->params[paramId];
-	return ms;
+// The harness's audio clip, whose own params the clip-level cases edit.
+AudioClip* g_audioClip = nullptr;
+
+// The song's own param @p paramId, as the engine names it.
+ModelStackWithAutoParam* songStack(char* buf, ::Song& song, int32_t paramId) {
+	return song.setupModelStackWithSongAsTimelineCounter(buf)->getUnpatchedAutoParamFromId(paramId);
+}
+
+// The harness audio clip's own param @p paramId, as the engine names it.
+ModelStackWithAutoParam* clipStack(char* buf, ::Song& song, int32_t paramId) {
+	return setupModelStackWithThreeMainThingsButNoNoteRow(buf, &song, g_audioClip->output->toModControllable(),
+	                                                      g_audioClip, &g_audioClip->paramManager)
+	    ->getUnpatchedAutoParamFromId(paramId);
 }
 
 void testSetParamValuePilot(deluge::edits::Context& ctx) {
@@ -135,29 +139,26 @@ void testSetParamValuePilot(deluge::edits::Context& ctx) {
 
 	actionLogger.deleteAllLogs();
 
-	ParamManagerForTimeline pm;
-	pm.setupUnpatched();
 	alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE]{};
-	ModelStackWithAutoParam* ms = makeStack(buf, pm, kParam);
+	ModelStackWithAutoParam* ms = songStack(buf, ctx.song, kParam);
 
 	int32_t oldValue = ms->autoParam->getCurrentValue();
 	int32_t newValue = oldValue + 100;
 
 	// 1. Mutation: engine value + owner store scalar both updated; scalar path (length 0).
 	{
-		deluge::edits::SetParamValue edit{deluge::edits::addressFor(*ms), newValue, 0, 0, ms};
+		deluge::edits::SetParamValue edit{*deluge::edits::addressFor(*ms), newValue, 0, 0,
+		                                  deluge::edits::SetParamValue::Resolve::EXACT};
 		check(deluge::edits::apply(ctx, edit) == Error::NONE, "pilot: apply succeeds");
 	}
 	check(ms->autoParam->getCurrentValue() == newValue, "pilot: engine currentValue updated");
 	check(ms->doc()->current_value == newValue, "pilot: DOM store scalar updated");
 
-	// 2. Undo record: one open Action of the right type, holding a param Consequence. (The param
-	//    consequence lives on the generic firstConsequence list — the firstParamConsequence member
-	//    is vestigial/never populated; containsConsequenceParamChange is what the engine searches.)
+	// 2. Undo record: one open Action of the right type, holding a param Consequence.
 	Action* action = actionLogger.firstAction[BEFORE];
 	check(action != nullptr, "pilot: an Action was opened");
 	check(action->type == ActionType::PARAM_UNAUTOMATED_VALUE_CHANGE, "pilot: Action type is param change");
-	check(action->containsConsequenceParamChange(ms->paramCollection, ms->paramId),
+	check(action->containsConsequenceParamChange(*deluge::edits::addressFor(*ms)),
 	      "pilot: ConsequenceParamChange recorded");
 	check(action->nextAction == nullptr, "pilot: exactly one Action");
 	Consequence* firstCons = action->firstConsequence;
@@ -166,7 +167,8 @@ void testSetParamValuePilot(deluge::edits::Context& ctx) {
 	// 3. Coalescence + dedupe: a second turn of the same knob merges into the SAME Action and
 	//    does NOT re-snapshot (containsConsequenceParamChange dedupe) — pointer-equality pins both.
 	{
-		deluge::edits::SetParamValue edit{deluge::edits::addressFor(*ms), newValue + 100, 0, 0, ms};
+		deluge::edits::SetParamValue edit{*deluge::edits::addressFor(*ms), newValue + 100, 0, 0,
+		                                  deluge::edits::SetParamValue::Resolve::EXACT};
 		check(deluge::edits::apply(ctx, edit) == Error::NONE, "pilot: second apply succeeds");
 	}
 	check(actionLogger.firstAction[BEFORE] == action, "pilot: second turn coalesced into same Action");
@@ -197,15 +199,15 @@ void testSetParamValuePilot(deluge::edits::Context& ctx) {
 	//    pumps AudioEngine::routine, which this bare unit harness does not initialise; the redo-queue
 	//    Action is simply left to leak at process exit.)
 	{
-		deluge::edits::SetParamValue edit{deluge::edits::addressFor(*ms), ms->autoParam->getCurrentValue(), 0, 0, ms};
+		deluge::edits::SetParamValue edit{*deluge::edits::addressFor(*ms), ms->autoParam->getCurrentValue(), 0, 0,
+		                                  deluge::edits::SetParamValue::Resolve::EXACT};
 		deluge::edits::apply(ctx, edit);
 	}
 	check(actionLogger.firstAction[BEFORE] == nullptr, "pilot: value-unchanged apply opens no Action");
 }
 
-// The extended ctor (pos/length region args + the mayDelete funnel field). The song-less
-// standalone stack has no timeline counter, so setValuePossiblyForRegion routes to the scalar branch
-// regardless; this pins that the 6-arg ctor with mayDelete=false compiles, applies, and mutates.
+// The extended ctor (pos/length region args + the mayDelete funnel field): a scalar write with mayDelete=false
+// compiles, applies, and mutates.
 void testSetParamValueRegionAndFlag(deluge::edits::Context& ctx) {
 	// UNPATCHED_TEMPO is the one param shouldRecordUnautomatedParamChange skips, so apply() opens no
 	// Action here — deliberately: this case asserts only ctor + value plumbing, and opening an Action
@@ -213,13 +215,12 @@ void testSetParamValueRegionAndFlag(deluge::edits::Context& ctx) {
 	// (uninitialised in this bare harness — see testSetParamValuePilot).
 	constexpr int32_t kParam = deluge::modulation::params::UNPATCHED_TEMPO;
 
-	ParamManagerForTimeline pm;
-	pm.setupUnpatched();
 	alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE]{};
-	ModelStackWithAutoParam* ms = makeStack(buf, pm, kParam);
+	ModelStackWithAutoParam* ms = songStack(buf, ctx.song, kParam);
 
 	int32_t target = ms->autoParam->getCurrentValue() + 250;
-	deluge::edits::SetParamValue edit{deluge::edits::addressFor(*ms), target, 0, 0, ms, /*mayDelete=*/false};
+	deluge::edits::SetParamValue edit{
+	    *deluge::edits::addressFor(*ms), target, 0, 0, deluge::edits::SetParamValue::Resolve::EXACT, false};
 	check(deluge::edits::apply(ctx, edit) == Error::NONE, "region/flag: apply succeeds");
 	check(ms->autoParam->getCurrentValue() == target, "region/flag: value applied");
 }
@@ -232,16 +233,15 @@ void testDeleteParamAutomation(deluge::edits::Context& ctx) {
 	actionLogger.firstAction[BEFORE] = nullptr;
 	actionLogger.firstAction[AFTER] = nullptr;
 
-	ParamManagerForTimeline pm;
-	pm.setupUnpatched();
 	alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE]{};
-	ModelStackWithAutoParam* ms = makeStack(buf, pm, kParam);
+	ModelStackWithAutoParam* ms = songStack(buf, ctx.song, kParam);
 
 	deluge::project::setNodeAtPos(*ms->doc(), 0, 100, false);
 	deluge::project::setNodeAtPos(*ms->doc(), 32, -200, true);
 	check(!ms->doc()->nodes.empty(), "delete: seeded automation");
 
-	deluge::edits::DeleteParamAutomation edit{deluge::edits::addressFor(*ms), ms};
+	deluge::edits::DeleteParamAutomation edit{*deluge::edits::addressFor(*ms), ActionAddition::NOT_ALLOWED,
+	                                          deluge::edits::SetParamValue::Resolve::EXACT};
 	check(deluge::edits::apply(ctx, edit) == Error::NONE, "delete: apply succeeds");
 	check(ms->doc()->nodes.empty(), "delete: automation cleared");
 
@@ -285,24 +285,80 @@ void testParamEditsByAddressUndo(deluge::edits::Context& ctx) {
 	actionLogger.firstAction[BEFORE] = nullptr;
 }
 
+// The undo record of a param holds its address, not a copy of the engine stack.
+static_assert(sizeof(ConsequenceParamChange) < sizeof(Consequence) + sizeof(AutoParamState) + MODEL_STACK_MAX_SIZE);
+// Nor does a cable topology edit's.
+static_assert(sizeof(ConsequenceInstrumentDelta) < sizeof(Consequence) + sizeof(CableEdit) + MODEL_STACK_MAX_SIZE);
+
+// The param Edits are built from an address alone.
+static_assert(!std::is_constructible_v<deluge::edits::SetParamValue, std::optional<deluge::project::ParamAddress>,
+                                       int32_t, int32_t, int32_t, ModelStackWithAutoParam*>);
+static_assert(!std::is_constructible_v<deluge::edits::DeleteParamAutomation,
+                                       std::optional<deluge::project::ParamAddress>, ModelStackWithAutoParam*>);
+
+// Two stacks naming one lane are one lane to undo: the Action keeps one record for it.
+void testParamUndoDedupByAddress(deluge::edits::Context& ctx) {
+	namespace params = deluge::modulation::params;
+	actionLogger.firstAction[BEFORE] = nullptr;
+	actionLogger.firstAction[AFTER] = nullptr;
+	Action* action = actionLogger.getNewAction(ActionType::PARAM_UNAUTOMATED_VALUE_CHANGE, ActionAddition::NOT_ALLOWED);
+	check(action != nullptr, "dedup: an Action opens");
+	if (action == nullptr) {
+		return;
+	}
+	auto record = [&](int32_t id) {
+		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithAutoParam* lane =
+		    ctx.song.setupModelStackWithSongAsTimelineCounter(memory)->getUnpatchedAutoParamFromId(id);
+		action->recordParamChangeIfNotAlreadySnapshotted(lane);
+	};
+	auto records = [&] {
+		int32_t n = 0;
+		for (Consequence* c = action->firstConsequence; c != nullptr; c = c->next) {
+			n += c->type == Consequence::PARAM_CHANGE ? 1 : 0;
+		}
+		return n;
+	};
+	record(params::UNPATCHED_VOLUME);
+	record(params::UNPATCHED_VOLUME);
+	check(records() == 1, "dedup: one lane recorded twice is one record");
+	record(params::UNPATCHED_PAN);
+	check(records() == 2, "dedup: another lane is another record");
+	actionLogger.firstAction[BEFORE] = nullptr;
+}
+
+// A setup write sets the value alone: no undo step, no automation.
+void testSetupWrite(deluge::edits::Context& ctx) {
+	namespace params = deluge::modulation::params;
+	const deluge::project::ParamAddress address = deluge::bridge::addressOf(
+	    deluge::project::OwnerId::song(), params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_VOLUME);
+	actionLogger.firstAction[BEFORE] = nullptr;
+	actionLogger.firstAction[AFTER] = nullptr;
+	deluge::edits::SetParamValue edit{address,
+	                                  123456789,
+	                                  0,
+	                                  0,
+	                                  deluge::edits::SetParamValue::Resolve::EXACT,
+	                                  true,
+	                                  deluge::edits::SetParamValue::Write::SETUP};
+	check(deluge::edits::apply(ctx, edit) == Error::NONE, "setup: applies");
+	check(actionLogger.firstAction[BEFORE] == nullptr, "setup: no undo step");
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithAutoParam* lane = deluge::bridge::paramStackExact(ctx.song, address, memory);
+	check(lane != nullptr && lane->autoParam->getCurrentValue() == 123456789, "setup: the value is written");
+	check(lane != nullptr && lane->doc()->nodes.empty(), "setup: no automation");
+}
+
 // PasteParamAutomation funnels the automation-paste site. Seed a clipboard, paste via the Edit,
 // assert nodes written and an AUTOMATION_PASTE Action opened.
 void testPasteParamAutomation(deluge::edits::Context& ctx) {
-	constexpr int32_t kParam = 6;
+	constexpr int32_t kParam = 8;
 	actionLogger.firstAction[BEFORE] = nullptr;
 	actionLogger.firstAction[AFTER] = nullptr;
 
-	ParamManagerForTimeline pm;
-	pm.setupUnpatched();
+	// The clip's param: paste reads the clip's loop length.
 	alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE]{};
-	ModelStackWithAutoParam* ms = makeStack(buf, pm, kParam);
-	// paste needs getLoopLength(); a no-timeline stack gets it from the noteRow's independent loop length.
-	// song stays null (makeStack memset) so addressFor short-circuits to nullopt -> collection store.
-	NoteRow nr;
-	nr.setLoopLengthIfIndependent(128);
-	ms->setNoteRow(&nr);
-	// paste's automated-now path calls paramManager->notifyParamModifiedInSomeWay -> expectEvent.
-	ms->paramManager = &pm;
+	ModelStackWithAutoParam* ms = clipStack(buf, ctx.song, kParam);
 
 	// Clipboard: two nodes on their own timeline; the first MUST be at pos 0.
 	ParamNode copiedNodes[2];
@@ -317,8 +373,8 @@ void testPasteParamAutomation(deluge::edits::Context& ctx) {
 	copied.nodes = copiedNodes;
 	copied.numNodes = 2;
 
-	deluge::edits::PasteParamAutomation edit{deluge::edits::addressFor(*ms), 0, 128, 1.0f, &copied,
-	                                         /*isPatchCable=*/false,         ms};
+	deluge::edits::PasteParamAutomation edit{
+	    *deluge::edits::addressFor(*ms), 0, 128, 1.0f, &copied, deluge::edits::SetParamValue::Resolve::EXACT};
 	check(deluge::edits::apply(ctx, edit) == Error::NONE, "paste: apply succeeds");
 	check(!ms->doc()->nodes.empty(), "paste: nodes written");
 
@@ -329,23 +385,22 @@ void testPasteParamAutomation(deluge::edits::Context& ctx) {
 // Characterizes what the in-line poke does to the engine cursor AND the model store
 // (deluge-project DocAutoParam) for a SCALAR edit and a REGION edit, driven through the real
 // deluge::edits::apply. This PINS the {engine cursor, model current_value, model nodes} transition
-// ParamSnapshot::applyPatch must reproduce. `regionTimelineCounter` is a real Clip (its
-// getCurrentlyRecordingLinearly() cast in homogenizeRegion must be valid; the value is inert here).
-void testInlinePokeCharacterization(deluge::edits::Context& ctx, TimelineCounter* regionTimelineCounter) {
+// ParamSnapshot::applyPatch must reproduce, on the harness audio clip's own param (a real Clip: homogenizeRegion
+// casts the timeline counter to read getCurrentlyRecordingLinearly()).
+void testInlinePokeCharacterization(deluge::edits::Context& ctx) {
 	// Leak-reset (crash-safe: no consequence freeing -> no headless audio pump).
 	actionLogger.firstAction[BEFORE] = nullptr;
 	actionLogger.firstAction[AFTER] = nullptr;
 
 	constexpr int32_t kParam = 3;
-	ParamManagerForTimeline pm;
-	pm.setupUnpatched();
 	alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE]{};
-	ModelStackWithAutoParam* ms = makeStack(buf, pm, kParam);
+	ModelStackWithAutoParam* ms = clipStack(buf, ctx.song, kParam);
 
-	// (a) SCALAR edit (length 0): setValuePossiblyForRegion -> setCurrentValueInResponseToUserInput. song stays
-	//     null so addressFor short-circuits to nullopt and doc() resolves to the collection's own store.
+	// (a) SCALAR edit (length 0): the clip's lane is not in the project tree yet, so the write takes the engine's own
+	//     setter (setValuePossiblyForRegion -> setCurrentValueInResponseToUserInput); doc() then relocates it.
 	{
-		deluge::edits::SetParamValue edit{deluge::edits::addressFor(*ms), 0x40000000, 0, 0, ms};
+		deluge::edits::SetParamValue edit{*deluge::edits::addressFor(*ms), 0x40000000, 0, 0,
+		                                  deluge::edits::SetParamValue::Resolve::EXACT};
 		check(deluge::edits::apply(ctx, edit) == Error::NONE, "characterize/scalar: apply succeeds");
 	}
 	check(ms->autoParam->getCurrentValue() == 0x40000000, "characterize/scalar: engine cursor == value");
@@ -358,16 +413,12 @@ void testInlinePokeCharacterization(deluge::edits::Context& ctx, TimelineCounter
 	// (b) REGION edit (nonzero length + timeline counter): setValuePossiblyForRegion -> setValueForRegion, whose
 	//     node/current_value mutation is a proven-equivalent DOM kernel deluge::project::setValueForRegion (see the
 	//     exhaustive engine==DOM matrix in param_projection.cpp). The region dispatch needs
-	//     timelineCounterIsSet(); getLoopLength() is satisfied by a NoteRow with an independent loop length (no
-	//     Song deref). song stays null so addressFor -> nullopt -> the same collection store the scalar half used.
-	NoteRow nr;
-	nr.setLoopLengthIfIndependent(128);
-	ms->setNoteRow(&nr);
-	ms->setTimelineCounter(regionTimelineCounter);
-	ms->paramManager = &pm;
+	//     timelineCounterIsSet(); getLoopLength() is the clip's. The lane is in the tree now, so the write is
+	//     model-first, and must land the same nodes.
 
 	{
-		deluge::edits::SetParamValue edit{deluge::edits::addressFor(*ms), 0x20000000, 0, 96, ms};
+		deluge::edits::SetParamValue edit{*deluge::edits::addressFor(*ms), 0x20000000, 0, 96,
+		                                  deluge::edits::SetParamValue::Resolve::EXACT};
 		check(deluge::edits::apply(ctx, edit) == Error::NONE, "characterize/region: apply succeeds");
 	}
 	deluge::project::DocAutoParam* doc = ms->doc();
@@ -393,17 +444,8 @@ void testParamSnapshotEquivalence(deluge::edits::Context& ctx, ::Song* engineSon
 	actionLogger.firstAction[AFTER] = nullptr;
 
 	constexpr int32_t kParam = 4;
-	ParamManagerForTimeline pm;
-	pm.setupUnpatched();
-	// An audio clip's params are UNPATCHED_GLOBAL; the bare setupUnpatched leaves the set's kind NONE (it is
-	// normally stamped by GlobalEffectable::initParams). Set it so the address resolves in the model tree
-	// (slotInManager keys the unpatched slot by UNPATCHED_SOUND/UNPATCHED_GLOBAL).
-	pm.getUnpatchedParamSet()->kind = deluge::modulation::params::Kind::UNPATCHED_GLOBAL;
 	alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE]{};
-	ModelStackWithAutoParam* ms = makeStack(buf, pm, kParam);
-	ms->song = engineSong;
-	ms->setTimelineCounter(clipTC);
-	ms->paramManager = &pm;
+	ModelStackWithAutoParam* ms = clipStack(buf, *engineSong, kParam);
 
 	// The edit's durable address, and the store it resolves to. First doc() touch relocates pm's store into the
 	// model's clip_params tree (the lazy relocation) so resolveParam and doc() return the same DocAutoParam.
@@ -457,14 +499,8 @@ void testRegionFlipViaApply(deluge::edits::Context& ctx, ::Song* engineSong, Tim
 	actionLogger.firstAction[AFTER] = nullptr;
 
 	constexpr int32_t kParam = 7;
-	ParamManagerForTimeline pm;
-	pm.setupUnpatched();
-	pm.getUnpatchedParamSet()->kind = deluge::modulation::params::Kind::UNPATCHED_GLOBAL;
 	alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE]{};
-	ModelStackWithAutoParam* ms = makeStack(buf, pm, kParam);
-	ms->song = engineSong;
-	ms->setTimelineCounter(clipTC);
-	ms->paramManager = &pm;
+	ModelStackWithAutoParam* ms = clipStack(buf, *engineSong, kParam);
 
 	std::optional<deluge::project::ParamAddress> addrOpt = deluge::edits::addressFor(*ms);
 	check(addrOpt.has_value(), "region-flip: resolvable address");
@@ -478,7 +514,7 @@ void testRegionFlipViaApply(deluge::edits::Context& ctx, ::Song* engineSong, Tim
 	ms->autoParam->setCurrentValueBasicForSetup(*store, 0x40000000);
 
 	{
-		deluge::edits::SetParamValue edit{addr, 0x20000000, 0, 96, ms};
+		deluge::edits::SetParamValue edit{addr, 0x20000000, 0, 96, deluge::edits::SetParamValue::Resolve::EXACT};
 		check(deluge::edits::apply(ctx, edit) == Error::NONE, "region-flip: apply succeeds");
 	}
 	// Model-first: applyPatch homogenized [0,96); projectRegionFromStore synced the cursor (clock inactive).
@@ -504,14 +540,8 @@ void testScalarFlipViaApply(deluge::edits::Context& ctx, ::Song* engineSong, Tim
 	actionLogger.firstAction[AFTER] = nullptr;
 
 	constexpr int32_t kParam = 6;
-	ParamManagerForTimeline pm;
-	pm.setupUnpatched();
-	pm.getUnpatchedParamSet()->kind = deluge::modulation::params::Kind::UNPATCHED_GLOBAL;
 	alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE]{};
-	ModelStackWithAutoParam* ms = makeStack(buf, pm, kParam);
-	ms->song = engineSong;
-	ms->setTimelineCounter(clipTC);
-	ms->paramManager = &pm;
+	ModelStackWithAutoParam* ms = clipStack(buf, *engineSong, kParam);
 
 	std::optional<deluge::project::ParamAddress> addrOpt = deluge::edits::addressFor(*ms);
 	check(addrOpt.has_value(), "scalar-flip: resolvable address");
@@ -523,7 +553,7 @@ void testScalarFlipViaApply(deluge::edits::Context& ctx, ::Song* engineSong, Tim
 	int32_t newValue = oldValue + 12345;
 
 	{
-		deluge::edits::SetParamValue edit{addr, newValue, 0, 0, ms};
+		deluge::edits::SetParamValue edit{addr, newValue, 0, 0, deluge::edits::SetParamValue::Resolve::EXACT};
 		check(deluge::edits::apply(ctx, edit) == Error::NONE, "scalar-flip: apply succeeds");
 	}
 	// Model-first: applyPatch wrote the store; projectScalarFromStore synced the engine cursor from it.
@@ -1458,6 +1488,10 @@ int edit_substrate_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	auto* audioClip = new AudioClip(*song);
 	audioClip->setLoopLength(128); // give the region-edit timeline counter a loop length (getLoopLength())
 	(void)song->live.clips.session_clips.insertClipAt(audioClip, 0);
+	audioClip->paramManager.setupUnpatched();
+	GlobalEffectable::initParamsForAudioClip(&audioClip->paramManager);
+	audioClip->output = song->createNewAudioOutput(); // a clip's params are found through its output, as in a song
+	g_audioClip = audioClip;
 
 	deluge::edits::Context ctx{*song, song->project};
 	deluge::bridge::typedWriteAudit() = {.enabled = true}; // every typed write, checked against the old decode
@@ -1466,8 +1500,10 @@ int edit_substrate_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	testSetParamValueRegionAndFlag(ctx);
 	testDeleteParamAutomation(ctx);
 	testParamEditsByAddressUndo(ctx);
+	testParamUndoDedupByAddress(ctx);
+	testSetupWrite(ctx);
 	testPasteParamAutomation(ctx);
-	testInlinePokeCharacterization(ctx, audioClip);
+	testInlinePokeCharacterization(ctx);
 	testParamSnapshotEquivalence(ctx, song, audioClip);
 	testScalarFlipViaApply(ctx, song, audioClip);
 	testRegionFlipViaApply(ctx, song, audioClip);

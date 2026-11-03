@@ -691,10 +691,13 @@ void AutomationEditorLayoutModControllable::automationModEncoderActionForUnselec
 			initInterpolation();
 
 			deluge::edits::Context editCtx{*currentSong, currentSong->project};
-			deluge::edits::SetParamValue edit{deluge::edits::addressFor(*modelStackWithParam), newValue,
-			                                  static_cast<int32_t>(view.modPos()),
-			                                  static_cast<int32_t>(view.modLength()), modelStackWithParam};
-			deluge::edits::apply(editCtx, edit);
+			if (const std::optional<deluge::project::ParamAddress> editAddress =
+			        deluge::edits::addressFor(*modelStackWithParam)) {
+				deluge::edits::SetParamValue edit{*editAddress, newValue, static_cast<int32_t>(view.modPos()),
+				                                  static_cast<int32_t>(view.modLength()),
+				                                  deluge::edits::SetParamValue::Resolve::EXACT};
+				deluge::edits::apply(editCtx, edit);
+			}
 
 			if (!getOnArrangerView()) {
 				modelStackWithParam->getTimelineCounter()->instrumentBeenEdited();
@@ -768,21 +771,17 @@ void AutomationEditorLayoutModControllable::pasteAutomation(ModelStackWithAutoPa
 	float scaleFactor = (float)pastedAutomationWidth / getCopiedParamAutomation()->width;
 
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
-		bool isPatchCable = (modelStackWithParam->paramCollection
-		                     == modelStackWithParam->paramManager->getPatchCableSetAllowJibberish());
-		// Ok this is cursed, but will work fine so long as
-		// the possibly invalid memory here doesn't accidentally
-		// equal modelStack->paramCollection.
-
 		deluge::edits::Context editCtx{*currentSong, currentSong->project};
-		deluge::edits::PasteParamAutomation edit{deluge::edits::addressFor(*modelStackWithParam),
-		                                         startPos,
-		                                         endPos,
-		                                         scaleFactor,
-		                                         getCopiedParamAutomation(),
-		                                         isPatchCable,
-		                                         modelStackWithParam};
-		deluge::edits::apply(editCtx, edit);
+		if (const std::optional<deluge::project::ParamAddress> editAddress =
+		        deluge::edits::addressFor(*modelStackWithParam)) {
+			deluge::edits::PasteParamAutomation edit{*editAddress,
+			                                         startPos,
+			                                         endPos,
+			                                         scaleFactor,
+			                                         getCopiedParamAutomation(),
+			                                         deluge::edits::SetParamValue::Resolve::EXACT};
+			deluge::edits::apply(editCtx, edit);
+		}
 
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_PASTED));
 
@@ -909,9 +908,12 @@ void AutomationEditorLayoutModControllable::setAutomationParameterValue(ModelSta
 	if (squareNodeLeftStart >= 0) {
 		int32_t currentValue = modelStack->autoParam->getValuePossiblyAtPos(squareNodeLeftStart, modelStack);
 		deluge::edits::Context leftEditCtx{*currentSong, currentSong->project};
-		deluge::edits::SetParamValue leftEdit{deluge::edits::addressFor(*modelStack), currentValue, squareNodeLeftStart,
-		                                      kParamNodeWidth, modelStack};
-		deluge::edits::apply(leftEditCtx, leftEdit);
+		if (const std::optional<deluge::project::ParamAddress> leftEditAddress =
+		        deluge::edits::addressFor(*modelStack)) {
+			deluge::edits::SetParamValue leftEdit{*leftEditAddress, currentValue, squareNodeLeftStart, kParamNodeWidth,
+			                                      deluge::edits::SetParamValue::Resolve::EXACT};
+			deluge::edits::apply(leftEditCtx, leftEdit);
+		}
 	}
 
 	// create a node to the right with the current interpolation status
@@ -919,9 +921,12 @@ void AutomationEditorLayoutModControllable::setAutomationParameterValue(ModelSta
 	if (squareNodeRightStart < effectiveLength) {
 		int32_t currentValue = modelStack->autoParam->getValuePossiblyAtPos(squareNodeRightStart, modelStack);
 		deluge::edits::Context rightEditCtx{*currentSong, currentSong->project};
-		deluge::edits::SetParamValue rightEdit{deluge::edits::addressFor(*modelStack), currentValue,
-		                                       squareNodeRightStart, kParamNodeWidth, modelStack};
-		deluge::edits::apply(rightEditCtx, rightEdit);
+		if (const std::optional<deluge::project::ParamAddress> rightEditAddress =
+		        deluge::edits::addressFor(*modelStack)) {
+			deluge::edits::SetParamValue rightEdit{*rightEditAddress, currentValue, squareNodeRightStart,
+			                                       kParamNodeWidth, deluge::edits::SetParamValue::Resolve::EXACT};
+			deluge::edits::apply(rightEditCtx, rightEdit);
+		}
 	}
 
 	// reset interpolation to false for the single pad we're changing (so that the nodes around it don't
@@ -932,12 +937,18 @@ void AutomationEditorLayoutModControllable::setAutomationParameterValue(ModelSta
 	// effect on one pad (and whatever pad it was changed every time)...super weird...calling twice
 	// fixed it...
 	deluge::edits::Context padEditCtx{*currentSong, currentSong->project};
-	deluge::edits::SetParamValue padEdit1{deluge::edits::addressFor(*modelStack), newValue, squareStart,
-	                                      static_cast<int32_t>(squareWidth), modelStack};
-	deluge::edits::apply(padEditCtx, padEdit1);
-	deluge::edits::SetParamValue padEdit2{deluge::edits::addressFor(*modelStack), newValue, squareStart,
-	                                      static_cast<int32_t>(squareWidth), modelStack};
-	deluge::edits::apply(padEditCtx, padEdit2);
+	if (const std::optional<deluge::project::ParamAddress> padEdit1Address = deluge::edits::addressFor(*modelStack)) {
+		deluge::edits::SetParamValue padEdit1{*padEdit1Address, newValue, squareStart,
+		                                      static_cast<int32_t>(squareWidth),
+		                                      deluge::edits::SetParamValue::Resolve::EXACT};
+		deluge::edits::apply(padEditCtx, padEdit1);
+	}
+	if (const std::optional<deluge::project::ParamAddress> padEdit2Address = deluge::edits::addressFor(*modelStack)) {
+		deluge::edits::SetParamValue padEdit2{*padEdit2Address, newValue, squareStart,
+		                                      static_cast<int32_t>(squareWidth),
+		                                      deluge::edits::SetParamValue::Resolve::EXACT};
+		deluge::edits::apply(padEditCtx, padEdit2);
+	}
 
 	if (!getOnArrangerView()) {
 		modelStack->getTimelineCounter()->instrumentBeenEdited();
@@ -1246,12 +1257,20 @@ void AutomationEditorLayoutModControllable::handleAutomationMultiPadPress(
 			int32_t newValue =
 			    modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
 			deluge::edits::Context fillEditCtx{*currentSong, currentSong->project};
-			deluge::edits::SetParamValue fillEdit1{deluge::edits::addressFor(*modelStackWithParam), newValue,
-			                                       squareStart, static_cast<int32_t>(squareWidth), modelStackWithParam};
-			deluge::edits::apply(fillEditCtx, fillEdit1);
-			deluge::edits::SetParamValue fillEdit2{deluge::edits::addressFor(*modelStackWithParam), newValue,
-			                                       squareStart, static_cast<int32_t>(squareWidth), modelStackWithParam};
-			deluge::edits::apply(fillEditCtx, fillEdit2);
+			if (const std::optional<deluge::project::ParamAddress> fillEdit1Address =
+			        deluge::edits::addressFor(*modelStackWithParam)) {
+				deluge::edits::SetParamValue fillEdit1{*fillEdit1Address, newValue, squareStart,
+				                                       static_cast<int32_t>(squareWidth),
+				                                       deluge::edits::SetParamValue::Resolve::EXACT};
+				deluge::edits::apply(fillEditCtx, fillEdit1);
+			}
+			if (const std::optional<deluge::project::ParamAddress> fillEdit2Address =
+			        deluge::edits::addressFor(*modelStackWithParam)) {
+				deluge::edits::SetParamValue fillEdit2{*fillEdit2Address, newValue, squareStart,
+				                                       static_cast<int32_t>(squareWidth),
+				                                       deluge::edits::SetParamValue::Resolve::EXACT};
+				deluge::edits::apply(fillEditCtx, fillEdit2);
+			}
 
 			if (!getOnArrangerView()) {
 				modelStackWithParam->getTimelineCounter()->instrumentBeenEdited();

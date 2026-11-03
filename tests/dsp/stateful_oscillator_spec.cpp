@@ -32,6 +32,7 @@
 
 namespace {
 using deluge::dsp::Phasor;
+using deluge::dsp::UQ;
 using deluge::dsp::fixed::BandLimitedTableOscillator;
 using deluge::dsp::fixed::CrudeSaw;
 using deluge::dsp::fixed::PulseOscillator;
@@ -133,14 +134,14 @@ describe stateful_oscillator("dsp-next stateful oscillators", ${
 
 	context("CrudeSaw", _ {
 		it("set_increment then render equals a fresh oscillator at the new increment + phase", _ {
-			CrudeSaw a{Phasor{0u, kInc}};
+			CrudeSaw a{Phasor{UQ<32>::from_raw(0u), UQ<32>::from_raw(kInc)}};
 			block(a);
-			a.set_increment(kInc2);
+			a.set_increment(UQ<32>::from_raw(kInc2));
 			auto got = block(a);
 
-			CrudeSaw b{Phasor{0u, kInc}};
+			CrudeSaw b{Phasor{UQ<32>::from_raw(0u), UQ<32>::from_raw(kInc)}};
 			block(b);
-			CrudeSaw fresh{Phasor{b.phase(), kInc2}};
+			CrudeSaw fresh{Phasor{b.phase(), UQ<32>::from_raw(kInc2)}};
 			expect(got).to_equal(block(fresh));
 		});
 	});

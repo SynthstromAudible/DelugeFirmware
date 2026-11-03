@@ -18,15 +18,19 @@
 #include "model/consequence/consequence_param_change.h"
 #include "definitions_cxx.hpp"
 #include "model/consequence/consequence.h"
+#include "model/model_stack.h"
+#include "model/project_bridge/param_stack.h"
+#include "model/song/song.h"
 #include "modulation/params/param_collection.h"
 #include "modulation/params/param_node_vector.h"
 #include "util/exceptions.h"
 #include "util/functions.h"
 #include <new>
 
-ConsequenceParamChange::ConsequenceParamChange(ModelStackWithAutoParam const* modelStack, bool stealData) {
+ConsequenceParamChange::ConsequenceParamChange(deluge::project::ParamAddress address,
+                                               ModelStackWithAutoParam const* modelStack, bool stealData)
+    : address(address) {
 	type = Consequence::PARAM_CHANGE;
-	memcpy(modelStackMemory, modelStack, sizeof(ModelStackWithParamId));
 
 	state.value = modelStack->autoParam->currentValue;
 
@@ -45,13 +49,12 @@ ConsequenceParamChange::ConsequenceParamChange(ModelStackWithAutoParam const* mo
 	}
 }
 
-Error ConsequenceParamChange::revert(TimeType time, ModelStack* modelStackWithSong) {
-
-	// We only actually store one state at a time - either the before, or the after. As we revert in either direction,
-	// we swap our stored state with that of the param in question - like, actually swap the pointer to the
-	// ParamNodeVector, so it's real efficient!
-
-	modelStack.paramCollection->remotelySwapParamState(&state, &modelStack);
-
+Error ConsequenceParamChange::revert(TimeType /*time*/, ModelStack* modelStackWithSong) {
+	// One state is stored at a time, the before or the after: reverting either way swaps it with the lane's (the node
+	// vectors themselves are swapped, not copied).
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	if (ModelStackWithAutoParam* lane = deluge::bridge::paramStackExact(*modelStackWithSong->song, address, memory)) {
+		lane->paramCollection->remotelySwapParamState(&state, lane);
+	}
 	return Error::NONE;
 }

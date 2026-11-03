@@ -58,6 +58,9 @@
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
+#include "model/edits/edit.h"
+#include "model/edits/param_address_for.h"
+#include "model/edits/set_param_value.h"
 #include "model/instrument/instrument.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
@@ -1052,12 +1055,18 @@ void SampleBrowser::audioFileIsNowSet() {
 	// Reset osc volume, if it's not automated and was at 0. Wait but that will only do it for the current
 	// ParamManager... there could be other ones...
 	if (!modelStackWithParam->autoParam->containsSomething(*modelStackWithParam->doc(), -2147483648)) {
-		modelStackWithParam->autoParam->setCurrentValueWithNoReversionOrRecording(modelStackWithParam, 2147483647);
-
-		// Hmm crap, we probably still do need to notify...
-		//((ParamManagerBase*)soundEditor.currentParamManager)->setPatchedParamValue(params::LOCAL_OSC_A_VOLUME +
-		// soundEditor.currentSourceIndex, 2147483647, 0xFFFFFFFF, 0, soundEditor.currentSound, currentSong,
-		// getCurrentClip(), false);
+		if (const std::optional<deluge::project::ParamAddress> address =
+		        deluge::edits::addressFor(*modelStackWithParam)) {
+			deluge::edits::Context ctx{*currentSong, currentSong->project};
+			deluge::edits::SetParamValue edit{*address,
+			                                  2147483647,
+			                                  0,
+			                                  0,
+			                                  deluge::edits::SetParamValue::Resolve::EXACT,
+			                                  true,
+			                                  deluge::edits::SetParamValue::Write::SETUP};
+			deluge::edits::apply(ctx, edit);
+		}
 	}
 }
 

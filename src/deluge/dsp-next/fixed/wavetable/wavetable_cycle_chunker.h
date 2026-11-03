@@ -17,9 +17,10 @@
 #pragma once
 
 #include "definitions_cxx.hpp" // kInterpolationMaxNumSamples(Magnitude)
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/generator.h"
 #include "dsp-next/core/phasor.h"
-#include "dsp-next/core/q31_ops.h"                             // multiply_32x32_rshift32(_accumulate)_rounded
+#include "dsp-next/core/q31_ops.h"                             // multiply_32x32_rshift32_rounded
 #include "dsp-next/fixed/interpolation/sinc_interpolation.h"   // windowed_sinc_apply, SincWindow
 #include "dsp-next/fixed/interpolation/windowed_sinc_kernel.h" // kWindowedSincKernel
 #include "dsp-next/fixed/wavetable/wave_table_data.h"
@@ -46,7 +47,7 @@ constexpr int32_t kSincRowBlendShift =
 	uint32_t index = centre - (kInterpolationMaxNumSamples >> 1);
 	for (std::size_t i = 0; i < kSincWindowVectors; ++i) {
 		index &= (1 << magnitude) - 1;
-		window[i] = Argon<int16_t>::Load(&table[index]);
+		window[i] = Q16Vec<15>::from_raw(Argon<int16_t>::Load(&table[index]));
 		index += Argon<int16_t>::lanes;
 	}
 	return window;
@@ -55,6 +56,17 @@ constexpr int32_t kSincRowBlendShift =
 /// The Q15 blend toward the next kernel row (the sub-sample position), for @p phase at this magnitude.
 [[gnu::always_inline]] inline int16_t sinc_row_blend(uint32_t phase, int32_t magnitude) {
 	return (static_cast<uint32_t>(-phase) >> (kSincRowBlendShift - magnitude)) & 32767;
+}
+
+/// @brief One morphing sample: @p value1 toward @p value2 by @p blend.
+/// @param value1 the first cycle's interpolated sample, Q30.
+/// @param value2 the second cycle's, Q30.
+/// @param blend the morph, UQ32: 0 is all @p value1.
+/// @return Q29 of the cycles' samples. The blend read as Q31 (one fewer bit, top bit clear) weights the wrapping Q30
+/// difference, a Q29 product (`smmlar`), so value1 is reformatted to Q29.
+[[gnu::always_inline]] inline Q<29> morph(Q<30> value1, Q<30> value2, uint32_t blend) {
+	const auto weight = reinterpret_bits<Q<31>>(as_floor<UQ<31>>(UQ<32>::from_raw(blend)));
+	return mla_r(as_floor<Q<29>>(value1), sub_wrap(value2, value1), weight);
 }
 
 /// The first of the two kernel rows to blend, for @p phase, offset into @p kernel.
@@ -91,8 +103,8 @@ struct CycleChunk {
 		using namespace wavetable_detail;
 		int32_t* __restrict__ sample = output_window.data();
 		int32_t const* const end = sample + output_window.size();
-		uint32_t phase = phasor.phase();
-		uint32_t phase_increment = phasor.increment();
+		uint32_t phase = phasor.phase().raw();
+		uint32_t phase_increment = phasor.increment().raw();
 		int32_t magnitude = band->cycleSizeMagnitude;
 
 		if (single_cycle) {
@@ -116,11 +128,9 @@ struct CycleChunk {
 			// Both cycles share the same sub-sample kernel position, so blend the kernel once.
 			SincWindow blended =
 			    blend_sinc_kernel(sinc_kernel_row(kernel, phase, magnitude), sinc_row_blend(phase, magnitude));
-			int32_t value1 = windowed_sinc_dot(blended, load_window(cycle1, phase, magnitude));
-			int32_t value2 = windowed_sinc_dot(blended, load_window(cycle2, phase, magnitude));
-			int32_t difference = value2 - value1;
-			// value1 is taken a magnitude smaller, because the multiply below shrinks `difference` by one.
-			*sample = multiply_accumulate_32x32_rshift32_rounded(value1 >> 1, difference, blend >> 1);
+			const auto value1 = Q<30>::from_raw(windowed_sinc_dot(blended, load_window(cycle1, phase, magnitude)));
+			const auto value2 = Q<30>::from_raw(windowed_sinc_dot(blended, load_window(cycle2, phase, magnitude)));
+			*sample = morph(value1, value2, blend).raw();
 			blend += cross_cycle_blend_increment;
 		} while (++sample != end);
 	}

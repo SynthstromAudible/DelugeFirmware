@@ -7,7 +7,7 @@
 #include "reverb_workloads.h"
 #include <cppspec.hpp>
 
-#include "util/fixedpoint.h"
+#include "dsp-next/core/q31_ops.h"
 #include <cstdint>
 #include <limits>
 #include <ranges>
@@ -91,11 +91,14 @@ describe freeverb_kernel("the Freeverb kernel", ${
 			reference->setWidth(knob);
 			const Freeverb::Coefficients c =
 			    Freeverb::coefficients({.room_size = knob, .damping = knob, .width = knob});
-			expect(c.feedback).to_equal(reference->comb_feedback());
-			expect(c.damp1).to_equal(reference->comb_damp1());
-			expect(c.damp2).to_equal(reference->comb_damp2());
-			expect(c.wet2).to_equal(reference->wet2_coefficient());
+			expect(c.feedback.raw()).to_equal(reference->comb_feedback());
+			expect(c.damp1.raw()).to_equal(reference->comb_damp1());
+			expect(c.damp2.raw()).to_equal(reference->comb_damp2());
+			expect(c.wet2.raw()).to_equal(reference->wet2_coefficient());
 		}
+	});
+	it("converts width 0's cross share, 2^31, to the largest Q31 on every target, as the A9's conversion saturates", _ {
+		expect(Freeverb::coefficients({.width = 0.f}).wet2.raw()).to_equal(std::numeric_limits<int32_t>::max());
 	});
 	it("takes out_r's cross-mix from the out_l it has just updated", _ {
 		// Zeroed lines but each comb's first slot: every comb outputs its slot, the allpasses (empty) pass the
@@ -115,7 +118,7 @@ describe freeverb_kernel("the Freeverb kernel", ${
 		std::vector<StereoSample> frame(1, StereoSample{.l = 0, .r = 0});
 		runner.render(send, frame, kLevel, kLevel);
 
-		const int32_t wet2 = Freeverb::coefficients(settings).wet2;
+		const int32_t wet2 = Freeverb::coefficients(settings).wet2.raw();
 		const int32_t left = 8 * kLeftTail;
 		const int32_t right = 8 * kRightTail;
 		const int32_t left_mixed = (left + multiply_32x32_rshift32_rounded(right, wet2)) << 1;

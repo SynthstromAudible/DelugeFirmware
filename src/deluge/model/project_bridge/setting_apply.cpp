@@ -274,7 +274,7 @@ bool applyEffectValue(ModControllableAudio& owner, std::string_view path, const 
 		owner.setFilterRoute(fx::parse_filter_route(text));
 	}
 	else if (path == "clippingAmount") {
-		owner.setClippingAmount(static_cast<uint8_t>(number));
+		owner.setClippingAmount(deluge::effects::clipping_amount_from(number));
 	}
 	else if (path == "delay/pingPong") {
 		owner.setDelayPingPong(on);

@@ -17,10 +17,11 @@
 
 #pragma once
 
-#include "dsp-next/core/q31_ops.h"
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/types.h"
 #include "dsp-next/fixed/curves/instant_tan.h"
 
+#include <algorithm>
 #include <cstdint>
 
 namespace deluge::dsp::fixed {
@@ -80,27 +81,29 @@ struct FilterConfig {
 
 /// @brief A cutoff warped onto the filters' frequency scale, with the reciprocals the filters build on.
 struct CurvedFrequency {
-	/// tan(f), Q28 (1 is 268435456).
-	q31 tanned;
-	/// 1 / (1 + tan(f)), Q31: the reciprocal of 1 at Q27 plus half the Q28 tan(f).
-	q31 divide_by_one_plus_tanned;
+	/// tan(f), Q28.
+	Q<28> tanned;
+	/// 1 / (1 + tan(f)), Q31: the reciprocal of 1 + tan(f) at Q27.
+	Q<31> divide_by_one_plus_tanned;
 	/// The moveability tan(f) / (1 + tan(f)), Q31.
-	q31 fc;
+	Q<31> fc;
 };
 
 /// @brief Warps @p frequency (Q31, see @ref FilterConfig::frequency) through tan, and derives 1 / (1 + tan) and the
 /// moveability from it.
 [[nodiscard]] inline CurvedFrequency curve_frequency(q31 frequency) {
-	/// One at Q27 (where half of a Q28 tan lands).
-	constexpr int32_t kOneQ27 = 134217728;
 	/// One at Q58: divided by a Q27 value, it gives the reciprocal at Q31.
 	constexpr double kOneQ58 = 288230376151711744.0;
-	const q31 tanned = instant_tan(lshift_and_saturate<5>(frequency));
-	const auto divide_by_one_plus_tanned = static_cast<q31>(kOneQ58 / static_cast<double>(kOneQ27 + (tanned >> 1)));
+	const auto tanned = Q<28>::from_raw(instant_tan(scale_shl_clamp_then_shift<5>(Q<31>::from_raw(frequency)).raw()));
+	const Q<27> one_plus_tanned = add_wrap(Q<27>::one(), as_floor<Q<27>>(tanned));
+	// Raw: a double reciprocal. At cutoff 0 it is 2^31, one past q31's top, so it saturates to one at Q31 first, as the
+	// A9's VCVT would: the cast of 2^31 itself is undefined.
+	const auto divide_by_one_plus_tanned = Q<31>::from_raw(
+	    static_cast<q31>(std::min(kOneQ58 / static_cast<double>(one_plus_tanned.raw()), double{INT32_MAX})));
 	return {
 	    .tanned = tanned,
 	    .divide_by_one_plus_tanned = divide_by_one_plus_tanned,
-	    .fc = multiply_32x32_rshift32_rounded(tanned, divide_by_one_plus_tanned) << 4,
+	    .fc = mul_r_as_wrap<Q<31>>(tanned, divide_by_one_plus_tanned),
 	};
 }
 

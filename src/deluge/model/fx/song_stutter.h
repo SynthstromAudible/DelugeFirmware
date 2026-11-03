@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp" // Error
 #include "dsp-next/core/stereo_sample.h"
+#include "effects/chain_core.h"
 #include "effects/state.h"
 #include "effects/stutter.h"
 #include "modulation/params/param.h"
@@ -26,7 +27,6 @@
 #include <cstdint>
 #include <span>
 
-class ModControllableAudio;
 class ParamManager;
 
 namespace deluge::model {
@@ -45,24 +45,24 @@ public:
 
 	/// @brief [task] Begins @p owner's stutter at @p rate (8.24 on the delay's rate scale), playing as @p settings
 	/// say, ending another owner's in the same section.
-	/// @param owner    The owner whose chain renders the stutter.
+	/// @param owner    The chain that renders the stutter.
 	/// @param settings How the stutter plays.
 	/// @param rate     Initial rate, 8.24 on the delay's rate scale.
 	/// @return INSUFFICIENT_RAM, and nothing changed, when the tape cannot be allocated.
-	[[nodiscard]] Error begin(ModControllableAudio& owner, const deluge::effects::StutterState& settings,
+	[[nodiscard]] Error begin(const deluge::effects::ChainCore& owner, const deluge::effects::StutterState& settings,
 	                          uint32_t rate);
 	/// @brief [task] Ends the stutter, if any, and frees its tape.
 	void end();
 	/// @brief [render] The stutter, while @p owner is the one stuttering; else null.
-	/// @param owner The owner asking.
+	/// @param owner The chain asking.
 	/// @return The song's stutter, or null.
-	[[nodiscard]] deluge::effects::Stutter* stutterFor(const ModControllableAudio& owner) {
+	[[nodiscard]] deluge::effects::Stutter* stutterFor(const deluge::effects::ChainCore& owner) {
 		return owner_ == &owner ? &fx_ : nullptr;
 	}
 	/// @brief Whether @p owner is the one stuttering.
-	/// @param owner The owner asking.
+	/// @param owner The chain asking.
 	/// @return True if @p owner owns the stutter.
-	[[nodiscard]] bool isStuttering(const ModControllableAudio& owner) const { return owner_ == &owner; }
+	[[nodiscard]] bool isStuttering(const deluge::effects::ChainCore& owner) const { return owner_ == &owner; }
 	/// @brief Whether any owner is stuttering.
 	/// @return True if a stutter is active.
 	[[nodiscard]] bool active() const { return owner_ != nullptr; }
@@ -82,8 +82,8 @@ public:
 
 private:
 	deluge::effects::Stutter fx_;
-	/// The owner stuttering, compared and never dereferenced; set and cleared with the render excluded.
-	const ModControllableAudio* owner_ = nullptr;
+	/// The chain stuttering, compared and never dereferenced; set and cleared with the render excluded.
+	const deluge::effects::ChainCore* owner_ = nullptr;
 };
 
 /// @brief What an owner's chain renders of the song's stutter this block.
@@ -95,18 +95,17 @@ struct StutterInput {
 
 /// @brief [render] The current song's stutter for @p owner's chain, at the rate @p paramManager's stutter param gives:
 /// none with no song current (a sample preview between songs) or while another owner stutters.
-/// @param owner        The owner whose chain is rendering.
+/// @param owner        The chain rendering.
 /// @param paramManager The owner's param manager, which holds its stutter-rate param.
 /// @return The stutter and its rate; a null stutter when @p owner is not stuttering.
-[[nodiscard]] StutterInput stutterInput(const ModControllableAudio& owner, ParamManager* paramManager);
+[[nodiscard]] StutterInput stutterInput(const deluge::effects::ChainCore& owner, ParamManager* paramManager);
 
 /// @brief Whether the stutter-rate knob shows its middle position: a free stutter's rate has a centre, a quantized
 /// stutter's note lengths don't, except while stuttering.
-/// @param owner      The stutter's owner (a sound or a global effectable), which may follow the song's stutter
-/// settings.
+/// @param owner      The stutter settings of the knob's owner (a sound or a host chain), which may follow the song's.
 /// @param stuttering Whether a stutter is playing now.
 /// @return True when the middle position is marked.
-[[nodiscard]] bool stutterRateIndicatesMiddle(const ModControllableAudio& owner, bool stuttering);
+[[nodiscard]] bool stutterRateIndicatesMiddle(const deluge::effects::StutterState& owner, bool stuttering);
 
 /// @brief Sets @p paramManager's stutter-rate param to its default, as a new owner's params start.
 /// @param paramManager The param manager to initialise.

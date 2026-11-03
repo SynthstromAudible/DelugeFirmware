@@ -41,8 +41,8 @@ struct StereoSample { q31 l, r; };                     // one interleaved frame
   (`fp::Sample`, `fp::Buffer`, `fp::Signal`). The kernels live in the same
   namespaces (`fixed::sine`, `fixed::TableOscillator`, ...).
 - The sample type at component interfaces is **`q31` (= `int32_t`)**, so app
-  buffers pass straight in. `FixedPoint<31>` is a later, layout-compatible
-  type-safety layer.
+  buffers pass straight in, until the fixed-point rollout types it as `Q<31>`
+  (`core/fixed_point.h`; see [fixed_point.md](fixed_point.md)).
 - `types.h` includes no Argon, so code that names only block types (the effects
   library, for one) needs no Argon on its include path. The SIMD stereo form,
   `StereoVector`, lives in `core/stereo_vector.h`.
@@ -105,9 +105,9 @@ a path.
 | `T` (`q31`, `f32`, `StereoSample`) | scalar | a plain index loop over raw pointers |
 
 **Everything per sample is `[[gnu::always_inline]]`.** The app's translation
-units build with `-fno-inline-functions` (`CMakeLists.txt`), under which clang
-marks every function definition `noinline` unless it is `always_inline`, and
-ThinLTO keeps that. The mixins are header templates instantiated in those
+units inline only the cheapest calls, at an inline threshold of 5 at compile time
+and at the ThinLTO link (`CMakeLists.txt`), so a function above that stays a
+call unless it is `always_inline`. The mixins are header templates instantiated in those
 translation units, so `dsp-next`'s own `-finline-functions` does not reach
 them. The mixins' per-step lambdas are therefore `[[gnu::always_inline]]` and
 their scalar path is a plain loop with no library calls in it, and every
@@ -465,7 +465,7 @@ what entering GRAIN does for each kind of owner.
   audio tier, and a slot a decay restart has not rewritten reads silence where
   it would have read the owner's earlier audio. `clear` keeps the slots written
   before it, and the frame loop keeps `written` as one conditional move
-  (`std::max` is a call at `-fno-inline-functions`).
+  (a comparison).
 - **The send cursor is an explicit second output.** The reverb feed is a value
   per frame added to a buffer the owner supplies, so `State::send` is that
   buffer's cursor: the `set_send` event sets it and the send amount each block,
@@ -563,8 +563,8 @@ by `effects::Stutter` (`effects/stutter.{h,cpp}`). The kernel knows
 the tape it is pointed at, the rate and whether it records or plays; the
 component knows the allocator; the song's stutter (`deluge::model::SongStutter`,
 `model/fx/song_stutter.{h,cpp}`, in `Song::live`) knows which owner is
-stuttering; the owner (`ModControllableAudio`) keeps the UI mode and the
-quantized snap of the stutter-rate param; `deluge::model::stutterInput` hands
+stuttering, by the chain core that plays the tape; the owner's knob code keeps
+the UI mode and the quantized snap of the stutter-rate param; `deluge::model::stutterInput` hands
 the owner's chain the stutter and its rate each block (see "Effect chains").
 
 - **Four modes, one loop each.** Record or play, over a native or a resampled
@@ -666,7 +666,7 @@ engine's monitoring decision to a copy of the function it replaced.
 - **`duck_gain<DuckScale>` (`fixed/dynamics/duck_gain.h`).** A sidechain's duck as a squared level, once per block,
   so a function rather than a kernel form. One law at two output scales, both named: `CLIP` (2^27 unducked, a clip
   chain's post-reverb volume) and `REVERB_RETURN` (2^29 unducked, the reverb's return). `effects::Sidechain::level`
-  is the one place a duck becomes a level; `ClipChain` and `effects::Reverb` (which owns its return's `Sidechain`
+  is the one place a duck becomes a level; `TrackChain` and `effects::Reverb` (which owns its return's `Sidechain`
   and a `ReturnDuck`, the depth and shape `AudioEngine::updateReverbParams` chooses) both call it.
 - **`SendAndVolume` (`fixed/vca/send_and_volume.h`).** A stereo processor with a `prepare` (the gains at this block's
   volumes, the ramp's step from the last block's post-reverb volume, pan folded in) and the two running gains as its
@@ -1059,8 +1059,8 @@ per-sample loop, so a `Mono` of one would be inert.
 - **`kChains`.** A q31 vector kernel whose step is one long dependency chain
   declares `static constexpr std::size_t kChains = N` and `step_chains` (a
   template on the mode when moded), taking each input as
-  `ChainVectors<step_type, N>` of consecutive vectors (a built-in array, so
-  reading one is no call) and returning N outputs the same way. `Mono` runs
+  `ChainVectors<step_type, N>` of consecutive vectors and returning N outputs
+  the same way. `Mono` runs
   every whole group of N vectors through it, then the rest of the block, the
   partial vector included, through `step`. It must compute exactly what N
   `step`s in a row compute, state included; it exists to write the N chains'
@@ -1076,8 +1076,8 @@ per-sample loop, so a `Mono` of one would be inert.
   on it.
 - `render(...)` is a one-sample block: one `prepare` and one dispatch per call.
   A vector kernel renders it as the partial step of a block of one. It builds
-  one-sample spans and runs a whole block's glue, several out-of-line
-  `std::span` calls per call under the shipping `-fno-inline-functions`, so it
+  one-sample spans and runs a whole block's glue, several `std::span`
+  constructions per call, so it
   is a convenience for tests and control-rate values, not for per-sample use in
   shipping code. A component renders blocks; a kernel that needs another kernel
   per sample nests it (see [Composition](#composition)). The same holds for
@@ -1246,7 +1246,7 @@ is the block.
   defines what that does (`DuckEnvelope` returns no duck).
 - **Always inline.** Every member is `[[gnu::always_inline]]`, the
   default constructor included, so nothing sits between the owner's block and the
-  kernel's arithmetic under `-fno-inline-functions`.
+  kernel's arithmetic under the app's low inline threshold.
 
 ### The shared glue
 
@@ -1445,7 +1445,7 @@ block's inputs from its params and makes one call.
   voices: bitcrush, mod FX or grain, EQ, delay, stutter, send and volume,
   compressor. The per-voice filter and saturation stay in `Sound`. The sidechain
   is a patch source, and the sound renders it before its voices.
-- **`ClipChain`** (`clip_chain.{h,cpp}`) is a kit's or an audio track's chain,
+- **`TrackChain`** (`track_chain.{h,cpp}`) is a kit's or an audio track's chain,
   in two steps around the content render:
   - `begin_block` configures the filters (which compensate the post-FX volume),
     ducks the post-reverb volume by the sidechain and configures the
@@ -1467,7 +1467,7 @@ block's inputs from its params and makes one call.
   The master's saturation and sidechain are saved with the song and not
   rendered.
 - **Inputs are values.** Each inputs struct (`FxInputs`, `SoundChainInputs`,
-  `ClipChainInputs`, `MasterChainInputs`, `MasterPostInputs`) carries:
+  `TrackChainInputs`, `MasterChainInputs`, `MasterPostInputs`) carries:
   - param finals and knobs;
   - the owner's render copy of its settings (`const EffectStates*`);
   - the delay's working state, which the owner set up on the chain's delay;
@@ -1479,18 +1479,24 @@ block's inputs from its params and makes one call.
   (`processing/sound/sound_chain_inputs`) reads a sound's patcher finals, so it
   travels with `Sound` when the synth becomes a plugin. Its `SoundChain` is the
   synth's own FX section, which the mod matrix modulates.
-  - `clipChainInputs`, `masterChainInputs` and `masterPostInputs`
+  - `trackChainInputs`, `masterChainInputs` and `masterPostInputs`
     (`model/fx/chain_inputs`) read unpatched params and automation. Those
-    chains are the host's inserts and master bus.
+    chains are the host's inserts and master.
+  - The host's chains have their own owners. A kit or an audio track holds a
+    `TrackChannel` (`model/fx/track_channel`), which owns its `TrackChain`, the
+    chain's settings and render copy (`EffectsBinding`) and its knobs' view
+    (`ChainView`), and renders the chain around the content the track hands it.
+    The song holds a `MasterChannel` (`model/fx/master_channel`), which the
+    engine renders around the reverb.
   - The master's two halves read their inputs at the points the render always
     has: the half before, in `Song::renderAudio` before its param tick; the half
     after, after the reverb.
   - The reverb send is an argument to every chain (`ReverbSend`), so a plugin's
     send can become an output port.
 - **Order.** Each runtime's `order()` names the effects it renders, in order.
-  `chain_runtime_spec` checks the clip chain's and the master's against
+  `chain_runtime_spec` checks the track chain's and the master's against
   `chain.h`'s `chain_effects`, the master's reverb return against
-  `reverb_return`, and the sound's against the clip chain's order without
+  `reverb_return`, and the sound's against the track chain's order without
   saturation, filter and sidechain.
 - **Evidence.** `bench/reference_chains.h` writes each home's sequence out over
   the components.
@@ -1737,7 +1743,7 @@ its data-cache stalls 12,290 and 24,883), so those ratios measure where the data
   concepts.
 - **Audible steps** (separate, ear-validated, re-baselined): VCA-arithmetic
   unification, analytic-wave options, band-limiting and sync improvements,
-  `FixedPoint<31>` types, full phase relocation into the engine, per-voice
+  full phase relocation into the engine, per-voice
   noise, the L1 `SourceEngine`/CLAP boundary.
 
 ## Measuring
@@ -1807,7 +1813,7 @@ it drops some:
   feedback chain controls as the delay list;
 - `compressor`: `RmsFeedbackCompressor` as its owners call it, fully wet and
   blended at half, through `render` (the song master) and `render_volume_neutral`
-  (a sound, a clip chain), in place over a loud stereo block, past the threshold
+  (a sound, a track chain), in place over a loud stereo block, past the threshold
   so it reduces the gain. One compressor serves every case, fresh at each setup.
   These cases build with the library's flags
   (`src/deluge/bench/compressor_cases.cpp`), and the list ends with the same two
@@ -1946,7 +1952,7 @@ firmware, that have to change.
 count a recursive kernel takes, and which kernels are worth fusing. They never
 gate: no test depends on them. A table is evidence for a performance claim with
 its sha and date. A codegen claim uses the exact shipping flags
-(`-fno-inline-functions`, LTO), because a host build differs.
+(the app's inline threshold of 5, LTO), because a host build differs.
 
 ## Review checklist
 
@@ -1989,20 +1995,19 @@ gates:
 - Does each step stay in one domain, with `prepare` the only scalar per-block
   work and `Block` holding values in the step's domain?
 - Are a kernel's `prepare` and `step` `[[gnu::always_inline]]`? App translation
-  units build with `-fno-inline-functions`, so an out-of-line `prepare` is one
+  units inline only the cheapest calls, so an out-of-line `prepare` is one
   call per channel per block. A control kernel's `advance`, called once per
   block, may be out of line; `DuckEnvelope::advance` is.
-- Is a `std::array` read on a per-step path? Under those flags `std::get`,
-  `data()` and `operator[]` are all out-of-line calls. An Argon load that
+- Is a `std::array` read on a per-step path? Its accessors inline only if the
+  app's inliner judges them cheap enough. An Argon load that
   returns a `std::array` of vectors (an interleaved stereo load) goes through
   `detail::to_stereo` (`core/stereo_vector.h`), a `__builtin_bit_cast`, as
   `Mono` and the mixins do; any other such result is bit-cast the same way. A
-  kernel's own arrays (taps, a history, a window) are built-in arrays, each
-  with a NOLINT giving the reason, as `AnalogImpulseResponse` and `SincWindow`
-  are, or are read through a pointer taken once per block.
+  kernel's own arrays (taps, a history, a window) are `std::array`s, read by
+  subscript or through a pointer taken once per step.
 - Is every function on the per-sample path, the wrapper and mixin glue included,
-  `[[gnu::always_inline]]`? The app's translation units build with
-  `-fno-inline-functions`, so anything else is an out-of-line call per sample
+  `[[gnu::always_inline]]`? The app's translation units inline only
+  the cheapest calls, so anything else can be an out-of-line call per sample
   or per vector in the shipping image.
 - Does a performance claim cite a bench table, or the exact shipping-flags
   disassembly?

@@ -148,6 +148,52 @@ std::vector<FilterConfig> sweep_configs() {
 	return configs;
 }
 
+/// A block at the rails and between: full-scale square bursts, then xorshift noise across the whole range, so the
+/// morph's nudge (x × 2^4) wraps.
+std::vector<q31> loud_block() {
+	std::vector<q31> block;
+	for (std::size_t i = 0; i < 128; ++i) {
+		block.push_back((i / 8) % 2 == 0 ? q31{kOneQ31} : q31{INT32_MIN});
+	}
+	uint32_t state = 0x2468'ace1u;
+	for (std::size_t i = 0; i < 384; ++i) {
+		state ^= state << 13;
+		state ^= state >> 17;
+		state ^= state << 5;
+		block.push_back(static_cast<q31>(state));
+	}
+	return block;
+}
+
+/// Samples where the kernel's step parts from the reference's render over loud_block(), at each saturation with the
+/// morph off, mid and full, and how many inputs the step met whose x × 2^4 leaves q31.
+std::pair<std::size_t, std::size_t> loud_partings() {
+	std::size_t parted = 0;
+	std::size_t wrapped = 0;
+	for (const q31 resonance : kSaturations) {
+		for (const q31 morph : {q31{0}, q31{1 << 26}, q31{536870911}}) {
+			const FilterConfig config{.frequency = 1 << 23, .resonance = resonance, .morph = morph};
+			ReferenceHighPassLadder reference;
+			reference.zero(); // no fade: the step alone
+			std::ignore = reference.configure(kGain, config);
+			std::vector<q31> expected = loud_block();
+			std::vector<q31> scratch(expected.size());
+			reference.render_mono(expected, scratch);
+
+			const Ladder::Coefficients c = Ladder::coefficients({.gain = kGain, .config = config});
+			Ladder::State s{};
+			const std::vector<q31> in = loud_block();
+			for (std::size_t i = 0; i < in.size(); ++i) {
+				const q31 out = deluge::dsp::with_mode<Ladder::Modes>(
+				    c.mode, [&]<Ladder::Mode M>() { return Ladder::step<M>(c, {}, s, in[i]); });
+				parted += out != expected[i] ? 1 : 0;
+				wrapped += morph != 0 && (in[i] > (kOneQ31 >> 4) || in[i] < (INT32_MIN >> 4)) ? 1 : 0;
+			}
+		}
+	}
+	return {parted, wrapped};
+}
+
 /// A channel's three sections' memories (Q31) and the saturator's position (unsigned over 32 bits).
 using ChannelWords = std::array<int64_t, 4>;
 
@@ -173,6 +219,12 @@ describe high_pass_ladder("HighPassLadder", ${
 			const filter_workloads::FilterWorkload& workload = filter_workloads::filter_workload(id);
 			expect(kernel_filters::record(workload)).to_equal(filter_workloads::kRecorded.at(static_cast<size_t>(id)));
 		}
+	});
+
+	it("steps as the reference renders at full-scale input in every saturation, the morph's nudge wrapping", _ {
+		const auto [parted, wrapped] = loud_partings();
+		expect(parted).to_equal(std::size_t{0});
+		expect(wrapped).to_be_greater_than(std::size_t{0});
 	});
 
 	it("configures every coefficient and compensates the gain as the reference's configure does", _ {

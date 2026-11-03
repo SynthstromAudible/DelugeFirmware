@@ -37,9 +37,9 @@ const ARM_ARCH_FLAGS: [&str; 7] = [
 
 // Must match the revisions in `cmake/deps.cmake`.
 const ARGON_URL: &str = "https://github.com/stellar-aria/argon";
-const ARGON_SHA: &str = "4b8efc4f4f21595d454e415fb619dd91223c0400";
+const ARGON_SHA: &str = "e0110e84546f7abbe3f655c04eaec77b782180bb";
 const SIMDE_URL: &str = "https://github.com/simd-everywhere/simde";
-const SIMDE_SHA: &str = "71fd833d9666141edcd1d3c109a80e228303d8d7"; // == tag v0.8.2
+const SIMDE_SHA: &str = "c86a433df3086512b0b12240defa9d9ddcc9decf"; // == tag v0.8.4-rc3
 
 fn main() {
     let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -62,6 +62,16 @@ fn main() {
     let shim_cpp = manifest.join("cpp/shim.cpp");
     for f in [&convert_cpp, &stitch_cpp, &helpers_cpp, &shim_cpp] {
         println!("cargo:rerun-if-changed={}", f.display());
+    }
+    // The headers those sources include, so a change to one (q31_ops.h's conversion, say) rebuilds the C++ the
+    // tests run. Cargo scans a directory recursively, so a header added there is tracked too.
+    for header in [
+        src_deluge.join("dsp-next/core"),
+        stream.clone(),
+        src_deluge.join("storage/audio/audio_file_format.h"),
+        src_deluge.join("util/audio_format_helpers.h"),
+    ] {
+        println!("cargo:rerun-if-changed={}", header.display());
     }
     println!("cargo:rerun-if-changed=build.rs");
 

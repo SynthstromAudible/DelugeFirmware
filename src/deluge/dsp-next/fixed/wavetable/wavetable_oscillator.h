@@ -38,27 +38,27 @@ public:
 
 	WavetableOscillator(WaveTableData table, uint32_t phase, uint32_t increment, int32_t wave_index,
 	                    int32_t wave_index_increment)
-	    : table_{table}, phasor_{phase, increment}, wave_index_{wave_index},
+	    : table_{table}, phasor_{UQ<32>::from_raw(phase), UQ<32>::from_raw(increment)}, wave_index_{wave_index},
 	      wave_index_increment_{wave_index_increment} {}
 
 	/// The phase after rendering — what the voice stores back to continue next block.
-	[[nodiscard]] uint32_t phase() const { return phasor_.phase(); }
+	[[nodiscard]] uint32_t phase() const { return phasor_.phase().raw(); }
 
 	/// @brief Fill @p output with the next `output.size()` samples, chunk by cycle chunk.
 	void render_block(Buffer output) {
-		uint32_t phase = phasor_.phase();
-		uint32_t phase_increment = phasor_.increment();
+		uint32_t phase = phasor_.phase().raw();
+		uint32_t phase_increment = phasor_.increment().raw();
 
 		WavetableCycleChunker chunker{table_, output, phase_increment, wave_index_, wave_index_increment_};
 		while (std::optional<CycleChunk> chunk = chunker.next()) {
 			if (chunk->band == nullptr) {
 				continue; // no band has data for this cycle pair — skip it (phase doesn't advance)
 			}
-			chunk->render(chunk->output, Phasor{phase, phase_increment}, 0);
+			chunk->render(chunk->output, Phasor{UQ<32>::from_raw(phase), UQ<32>::from_raw(phase_increment)}, 0);
 			phase += phase_increment * static_cast<uint32_t>(chunk->output.size());
 		}
 
-		phasor_.seek(phase);
+		phasor_.seek(UQ<32>::from_raw(phase));
 	}
 
 private:

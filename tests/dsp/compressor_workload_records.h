@@ -264,6 +264,18 @@ inline const std::array<WorkloadRecord, kCompressorWorkloadCount> kFixedCompress
                  0x1420e647781c462fULL, 0x87ff3d39a9bdba06ULL, 0xcfc6b076dfc79bdcULL, 0xcfd992168c4ffa98ULL,
                  0xd6db1221ac0ee6a6ULL, 0xebefb8f7974320eaULL, 0xc1508ea01948a626ULL, 0x2776b41efb65094cULL},
      .state = 0x8b68c24f883ee508ULL},
+    // comp_gain_past_32
+    {.outputs = {0xbd4e837217c688a8ULL, 0xdad8e04f1d6ec789ULL, 0xea0b5c8274ebcd7bULL, 0xe046fc1ae7928e13ULL,
+                 0xe9bbf3366aaf0870ULL, 0x8e82d80f7d3f8dc7ULL, 0x252d69888ef6f2bbULL, 0xee677fc6dcbd5aafULL,
+                 0x7ddcc07e8a2331e4ULL, 0x1d78041359ae92efULL, 0x100e6dc171c9c5c7ULL, 0x8397225784c60415ULL,
+                 0xc1d7539c0694d1a9ULL, 0xbc113ddfce71e92bULL, 0x0eff13b60e8fc03bULL, 0x4c8063dedc0d7f32ULL,
+                 0x2316312a636361ddULL, 0xeb5dfba80908ba8eULL, 0xf42e9ca420504e40ULL, 0x621df17beab23e06ULL,
+                 0xef9f74f52af0898eULL, 0xd906060cf8ea3dc5ULL, 0x5c25a841c953efe0ULL, 0x69bf647734a5bff5ULL,
+                 0x58035a5ff6aa137fULL, 0xd3a2c7f15a7eb47cULL, 0xf656e5c630b91f09ULL, 0x14acf806e78ea7d2ULL,
+                 0xd3c246d16cfc4430ULL, 0x3dcecf439fbe0536ULL, 0x53c58222c3b97821ULL, 0xc49ca42a08e615c7ULL,
+                 0x46543a62277618baULL, 0xb4f72440f703e403ULL, 0x8ec7ba2f441d7de2ULL, 0x70f8fc35da342f0aULL,
+                 0x1903e2e4142152edULL, 0x4eded002de770d7fULL, 0xccbc2cdba343dc85ULL, 0xaca0ed111478ec95ULL},
+     .state = 0x5f826b55a4b8de33ULL},
 }};
 
 } // namespace compressor_workloads

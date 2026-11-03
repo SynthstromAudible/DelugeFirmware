@@ -33,16 +33,19 @@ struct OwnerId {
 		SONG,       // song-global params (the master effect chain's)
 		CLIP,       // a clip's own params, identified by its Clip::id (audio clips)
 		INSTRUMENT, // an output's own params (a synth, a kit, an audio track), identified by its Output::id
-		DRUM,       // a per-drum owner (SoundDrum), identified by its Drum::id
+		DRUM,       // a per-drum owner (any drum type), identified by its Drum::id
+		NOTE_ROW,   // a melodic clip's note row (its MPE lanes), identified by its clip's Clip::id and its note
 	};
 
 	Kind kind{Kind::SONG};
-	uint32_t id{0}; // the owner's durable id (Clip / Output / Drum, per kind). Unused when SONG.
+	uint32_t id{0}; // the owner's durable id (Clip / Output / Drum, per kind; NOTE_ROW: the clip's). Unused when SONG.
+	int32_t row{0}; // NOTE_ROW: the row's note (its y note). Unused otherwise.
 
 	static constexpr OwnerId song() { return {Kind::SONG, 0}; }
 	static constexpr OwnerId clip(uint32_t id) { return {Kind::CLIP, id}; }
 	static constexpr OwnerId instrument(uint32_t outputSerialId) { return {Kind::INSTRUMENT, outputSerialId}; }
 	static constexpr OwnerId drum(uint32_t drumSerialId) { return {Kind::DRUM, drumSerialId}; }
+	static constexpr OwnerId note_row(uint32_t clipId, int32_t note) { return {Kind::NOTE_ROW, clipId, note}; }
 
 	// Ordered so OwnerId (and keys built from it) can index the ordered `fast_map` backed-param store.
 	auto operator<=>(const OwnerId&) const = default;
@@ -79,6 +82,14 @@ struct ParamAddress {
 
 	/// @brief The param this address names, without its owner.
 	[[nodiscard]] constexpr ParamTarget target() const { return {space, id}; }
+
+	/// @brief The address of @p target on @p owner, with the clip whose override it is for an INSTRUMENT or DRUM owner.
+	[[nodiscard]] static constexpr ParamAddress of(OwnerId owner, ParamTarget target,
+	                                               std::optional<uint32_t> clip_id = {}) {
+		return {owner, target.space, target.id, clip_id};
+	}
+
+	[[nodiscard]] constexpr bool operator==(const ParamAddress&) const = default;
 };
 
 } // namespace deluge::project

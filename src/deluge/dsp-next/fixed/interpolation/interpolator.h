@@ -69,6 +69,8 @@ struct Interpolator {
 	[[nodiscard]] StereoSample interpolate(std::size_t channels, int32_t which_kernel, uint32_t osc_pos);
 
 	/// @brief 2-tap linear interpolation between the two newest window samples — the cheap alternative.
+	/// @details An integer lerp: the Q15 samples times Q15 weights that sum to 32767, so the frame is Q30 of the
+	/// samples, as @ref interpolate's is.
 	/// @param channels 1 = mono, 2 = stereo. @param phase the sub-sample phase.
 	[[nodiscard]] StereoSample interpolate_linear(std::size_t channels, uint32_t phase);
 

@@ -113,6 +113,21 @@ describe reference_granular("the granular reference", ${
 		}
 	});
 
+	it("draws the pitch class's ends rarely at full randomness: the triangle's tails, not its clipped rails", _ {
+		// A triangle from -1 to 1 reaches the ends (|draw| × 3.5 past 3) on about 1% of grains each; the saturating
+		// sum of two full-range draws, clipped at ±1, on about a sixth.
+		ReferenceGranular::reset_counters();
+		std::ignore = render(workload_named("PITCH_CLASSES"));
+		const auto& drawn = ReferenceGranular::pitch_classes;
+		std::size_t grains = 0;
+		for (const std::size_t n : drawn) {
+			grains += n;
+		}
+		expect(grains).to_be_greater_than(std::size_t{200});
+		expect(drawn[6] * 20 < grains).to_be_true(); // +3, octave reverse
+		expect(drawn[7] * 20 < grains).to_be_true(); // -4, octave and a fifth reverse
+	});
+
 	it("wraps the reverb feed in FULL_SCALE", _ {
 		ReferenceGranular::reset_counters();
 		std::ignore = render(workload_named("FULL_SCALE"));

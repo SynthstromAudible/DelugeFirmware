@@ -48,7 +48,7 @@ static PERIOD_OVERRIDE_US: AtomicU64 = AtomicU64::new(0);
 #[cfg(not(target_os = "none"))]
 static BACKOFF_OVERRIDE_US: AtomicU64 = AtomicU64::new(0);
 
-/// Sets the tick cadence override. Call before spawning [`render_task`].
+/// Sets the tick cadence override. Call before spawning `render_task`.
 #[cfg(not(target_os = "none"))]
 pub fn set_period_override_us(period_us: u64, backoff_us: u64) {
     PERIOD_OVERRIDE_US.store(period_us, Ordering::Relaxed);

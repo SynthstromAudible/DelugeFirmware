@@ -17,6 +17,7 @@
 #pragma once
 
 #include "dsp-next/core/concepts.h"
+#include "dsp-next/core/fixed_point_neon.h"
 #include "dsp-next/core/generator.h"
 #include "dsp-next/core/phasor.h"
 #include "dsp-next/fixed/bandlimited/table.h"
@@ -45,17 +46,18 @@ class TableOscillator : public Generator<TableOscillator, q31> {
 
 public:
 	TableOscillator(Table table, uint32_t phase, uint32_t increment)
-	    : samples_{table.samples.data()}, magnitude_{table.magnitude}, phasor_{phase, increment} {}
+	    : samples_{table.samples.data()}, magnitude_{table.magnitude},
+	      phasor_{UQ<32>::from_raw(phase), UQ<32>::from_raw(increment)} {}
 
 	/// Jump the phase (e.g. a hard-sync reset between windows). See @ref deluge::dsp::Phasor::seek.
-	void seek(uint32_t phase) { phasor_.seek(phase); }
+	void seek(uint32_t phase) { phasor_.seek(UQ<32>::from_raw(phase)); }
 
 	/// The live phase — lets a persistent oscillator's phase be read back (e.g. to persist per voice or feed a
 	/// hard-sync master) instead of the caller owning it.
-	[[nodiscard]] uint32_t phase() const { return phasor_.phase(); }
+	[[nodiscard]] uint32_t phase() const { return phasor_.phase().raw(); }
 
 	/// Change the per-sample phase step for the next block (pitch change), keeping the accumulated phase.
-	void set_increment(uint32_t increment) { phasor_.set_increment(increment); }
+	void set_increment(uint32_t increment) { phasor_.set_increment(UQ<32>::from_raw(increment)); }
 
 	/// Swap the band/table this reads, keeping the accumulated phase — the band-limited oscillator uses this to
 	/// re-select its band when the pitch changes between blocks.
@@ -70,8 +72,8 @@ public:
 		Argon<uint32_t> value_pair = 0U;
 		ArgonHalf<uint16_t> fraction = 0U;
 
-		util::constexpr_for<0, 4, 1>([&]<int i> [[gnu::always_inline]] () {
-			uint32_t phase = phasor_.advance();
+		util::constexpr_for<0, 4, 1>([&]<int i> [[gnu::always_inline]] {
+			uint32_t phase = phasor_.advance().raw();
 			fraction[i] = phase >> (32 - 16 - magnitude_);
 			uint32_t index = phase >> (32 - magnitude_);
 			// Read the {entry, next-entry} interpolation pair as one word (the table is flat
@@ -86,13 +88,14 @@ public:
 			value_pair[i] = pair;
 		});
 
-		// Linear interpolation, q31 high half: entry + (next - entry) * fraction.
-		fraction = fraction >> 1;
-		ArgonHalf<int16_t> entry = value_pair.Narrow().As<int16_t>();
-		ArgonHalf<int16_t> next_entry = value_pair.ShiftRightNarrow<16>().As<int16_t>();
-		Argon<int32_t> entry_wide = entry.ShiftLeftLong<16>();
-		ArgonHalf<int16_t> slope = next_entry - entry;
-		return entry_wide.MultiplyDoubleAddSaturateLong(slope, fraction.As<int16_t>());
+		// Linear interpolation: entry + (next − entry) × fraction, Q31 of the Q15 table. The phase's 16 bits below the
+		// index, halved, are a non-negative Q15 weight; the slope wraps, and the doubled product saturates into the
+		// entry at Q31.
+		const auto weight = Q16Half<15>::from_raw((fraction >> 1).As<int16_t>());
+		const auto pairs = Q16x2Vec<15>::from_raw(value_pair);
+		const Q16Half<15> entry = pairs.lo();
+		const Q16Half<15> slope = sub_wrap(pairs.hi(), entry);
+		return mla_doubling_wide_sat(from_q16(entry), slope, weight).raw();
 	}
 };
 static_assert(block_generator<TableOscillator>, "a table oscillator fills a block");

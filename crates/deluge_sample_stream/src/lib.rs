@@ -68,6 +68,7 @@ unsafe extern "C" {
     /// Returns the process-wide resource manager (`libdeluge/sample_stream.h`).
     pub fn deluge_streaming_resource_manager() -> *mut c_void;
     /// Registers or replaces an asset's fill-context (`libdeluge/streaming_fill.h`).
+    #[cfg(not(test))]
     pub fn deluge_streaming_set_fill_context(
         mgr: *mut c_void,
         asset: u32,
@@ -76,6 +77,12 @@ unsafe extern "C" {
     /// Retires an asset, freeing its resident chunks (`deluge_resource.h`).
     fn deluge_resource_release_asset(mgr: *mut c_void, asset: u32);
 }
+
+// `deluge_sample_fill` exports the real `deluge_streaming_set_fill_context`, and a test binary
+// built as one codegen unit (`CARGO_INCREMENTAL=0`, as in CI) links it, so its fake cannot share
+// the symbol name.
+#[cfg(test)]
+pub(crate) use mock_backing::deluge_streaming_set_fill_context;
 
 /// In-test fakes for the consumed externs, which a plain `cargo test` does not link.
 ///
@@ -268,8 +275,8 @@ pub(crate) mod mock_backing {
         fake_manager()
     }
 
-    #[unsafe(no_mangle)]
-    extern "C" fn deluge_streaming_set_fill_context(
+    /// Stands in for the extern under its Rust path, not its symbol (see the re-export above).
+    pub(crate) unsafe fn deluge_streaming_set_fill_context(
         _mgr: *mut c_void,
         asset: u32,
         ctx: DelugeStreamingFillContext,

@@ -17,6 +17,7 @@
 
 #include "model/fx/song_stutter.h"
 
+#include "dsp-next/core/q31_ops.h"
 #include "libdeluge/system.h" // AudioExcludedSection
 #include "model/mod_controllable/mod_fx_allocator.h"
 #include "model/song/song.h"
@@ -24,7 +25,6 @@
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
 #include "playback/playback_handler.h"
-#include "util/fixedpoint.h"
 #include "util/functions.h"
 #include "util/structural_edit_probe.h"
 
@@ -42,7 +42,8 @@ constexpr int32_t kStutterSync = 7;
 SongStutter::SongStutter() : fx_{kStutterAllocator} {
 }
 
-Error SongStutter::begin(ModControllableAudio& owner, const deluge::effects::StutterState& settings, uint32_t rate) {
+Error SongStutter::begin(const deluge::effects::ChainCore& owner, const deluge::effects::StutterState& settings,
+                         uint32_t rate) {
 	deluge::effects::StutterChange change = fx_.prepare(rate);
 	bool began = false;
 	{
@@ -73,7 +74,7 @@ void SongStutter::end() {
 	fx_.finish(change);
 }
 
-StutterInput stutterInput(const ModControllableAudio& owner, ParamManager* paramManager) {
+StutterInput stutterInput(const deluge::effects::ChainCore& owner, ParamManager* paramManager) {
 	if (currentSong == nullptr) {
 		return {};
 	}
@@ -88,10 +89,10 @@ StutterInput stutterInput(const ModControllableAudio& owner, ParamManager* param
 	                                                  playbackHandler.getTimePerInternalTickInverse()))};
 }
 
-bool stutterRateIndicatesMiddle(const ModControllableAudio& owner, bool stuttering) {
-	const bool quantized = owner.effects().stutter.use_song_stutter
-	                           ? currentSong->live.global_effectable.effects().stutter.quantized
-	                           : owner.effects().stutter.quantized;
+bool stutterRateIndicatesMiddle(const deluge::effects::StutterState& owner, bool stuttering) {
+	const bool quantized = owner.use_song_stutter
+	                           ? currentSong->live.master_channel.binding().effects().stutter.quantized
+	                           : owner.quantized;
 	return !quantized || stuttering;
 }
 

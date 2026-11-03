@@ -16,51 +16,49 @@
  */
 #pragma once
 
-#include <cstdint>
+#include "dsp-next/core/fixed_point.h"
 
 namespace deluge::dsp {
 
-/// @brief A q32 phase accumulator: the single home for an oscillator's phase state.
+/// @brief A phase accumulator: the single home for an oscillator's phase state.
 ///
-/// Phase is unsigned 0.32 fixed-point — the full uint32 range is one cycle, so it wraps
-/// for free. @ref increment is the per-sample phase step (frequency · 2^32 / sampleRate).
-/// Oscillators own a Phasor rather than threading a raw `uint32_t&`, which is what lets a
-/// combinator like @ref deluge::dsp::fixed::SyncedOscillator re-seed phase (@ref seek) at a
-/// sync crossover without knowing the oscillator's internals.
+/// Phase and increment are UQ<32>: 2^32 is one cycle, so the phase wraps for free (@ref add_wrap). @ref increment
+/// is the per-sample phase step (frequency · 2^32 / sampleRate). Oscillators own a Phasor rather than threading a raw
+/// phase reference, which is what lets a combinator like @ref deluge::dsp::fixed::SyncedOscillator re-seed phase
+/// (@ref seek) at a sync crossover without knowing the oscillator's internals.
 ///
-/// @ref advance pre-increments: it steps the phase *then* returns it, matching the legacy
-/// render kernels (`phase += increment; use(phase)` per sample), so substituting a Phasor is
-/// bit-exact.
+/// @ref advance pre-increments: it steps the phase *then* returns it, matching the legacy render kernels
+/// (`phase += increment; use(phase)` per sample), so substituting a Phasor is bit-exact.
 class Phasor {
-	uint32_t phase_;
-	uint32_t increment_;
+	UQ<32> phase_;
+	UQ<32> increment_;
 
 public:
 	/// @brief A phasor at @p phase advancing by @p increment per sample.
-	/// @param phase The starting phase, 0.32 unsigned: the full range is one cycle.
-	/// @param increment The per-sample phase step, 0.32 unsigned.
-	constexpr Phasor(uint32_t phase, uint32_t increment) : phase_{phase}, increment_{increment} {}
+	/// @param phase The starting phase.
+	/// @param increment The per-sample phase step.
+	constexpr Phasor(UQ<32> phase, UQ<32> increment) : phase_{phase}, increment_{increment} {}
 
-	/// @brief Step the phase by one increment and return the new value (pre-increment semantics).
-	/// @return The phase after the step, 0.32 unsigned.
-	[[gnu::always_inline]] constexpr uint32_t advance() {
-		phase_ += increment_;
+	/// @brief Step the phase by one increment, wrapping, and return the new value (pre-increment semantics).
+	/// @return The phase after the step.
+	[[gnu::always_inline]] constexpr UQ<32> advance() {
+		phase_ = add_wrap(phase_, increment_);
 		return phase_;
 	}
 
 	/// @brief The current phase.
-	/// @return The phase, 0.32 unsigned.
-	[[nodiscard, gnu::always_inline]] constexpr uint32_t phase() const { return phase_; }
+	/// @return The phase.
+	[[nodiscard, gnu::always_inline]] constexpr UQ<32> phase() const { return phase_; }
 	/// @brief The per-sample phase step.
-	/// @return The increment, 0.32 unsigned.
-	[[nodiscard, gnu::always_inline]] constexpr uint32_t increment() const { return increment_; }
+	/// @return The increment.
+	[[nodiscard, gnu::always_inline]] constexpr UQ<32> increment() const { return increment_; }
 
 	/// @brief Jump the phase to @p phase (e.g. a hard-sync reset). Leaves the increment unchanged.
-	/// @param phase The new phase, 0.32 unsigned.
-	[[gnu::always_inline]] constexpr void seek(uint32_t phase) { phase_ = phase; }
+	/// @param phase The new phase.
+	[[gnu::always_inline]] constexpr void seek(UQ<32> phase) { phase_ = phase; }
 	/// @brief Set the per-sample phase step, keeping the phase.
-	/// @param increment The new per-sample step, 0.32 unsigned.
-	[[gnu::always_inline]] constexpr void set_increment(uint32_t increment) { increment_ = increment; }
+	/// @param increment The new per-sample step.
+	[[gnu::always_inline]] constexpr void set_increment(UQ<32> increment) { increment_ = increment; }
 };
 
 } // namespace deluge::dsp

@@ -44,6 +44,35 @@ each of these tables to its recorded runtime cells
 (`tests/integration/scenarios/drivers/param_target_tables_reference.h`), and MIDIFollow.XML to the bytes it was written
 as.
 
+## Edits and undo by address
+
+A param Edit (`SetParamValue`, `DeleteParamAutomation`, `PasteParamAutomation`, `RecordExpressionValue`;
+`model/edits/`) is built from a `project::ParamAddress` alone, and finds its param below the Edit, through the bridge in
+`model/project_bridge/param_stack.h`, as its `SetParamValue::Resolve` says:
+
+- READ (`paramStackAt`): the param as it stands; an address that names nothing is refused.
+- WRITE (`paramStackForWrite`): as a gold knob writes it: what it turns is made (a cable, a MIDI CC or expression lane),
+  the take is written while the arrangement records the clip, and the owner is marked edited.
+- EXACT (`paramStackExact`): exactly what the address names, never following a take; a lane is made, a cable is not.
+  A caller that already holds an engine stack for its own reads passes that stack's address
+  (`edits::addressFor`) with EXACT, so the Edit reaches the lane the stack names.
+
+A setup write (`SetParamValue::Write::SETUP`) sets the value alone, with no undo step and no automation: the defaults
+the slicer and the sample browser set up for the user.
+
+Every lane has an address. The owners are the song; a clip (an audio clip, a MIDI or CV clip's CC and expression
+lanes); an instrument (a synth or a kit) or a drum of any type, with the clip whose params they are; and, with no clip,
+an instrument's or a sound drum's own params, which an arranger row edits. `edits::ownerAddressFor` names the owner of
+an engine stack; edit_undo_redo checks over the corpus that the exact lookup of every lane's address finds the lane its
+stack named.
+
+Undo records the address. `ConsequenceParamChange` holds the lane's address and the state not in it, and reverts by
+swapping that state with the lane `paramStackExact` finds; an Action keeps one record per address. A cable topology
+edit's record (`ConsequenceInstrumentDelta`) holds its sound's address and reverts through the sound
+`soundStackExact` finds. No Edit and no undo record holds an engine stack; the bridge builds one where the engine needs
+it. What still takes a stack is the engine's own record sites (`Action::recordParamChange*`, which take the address from
+it) and the reads beside an edit, both for the model stack's retirement to move.
+
 ## The descriptor
 
 Each row is a `plugin::ParamInfo` (`src/plugin-api/types/param.h`):

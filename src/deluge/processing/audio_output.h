@@ -39,16 +39,12 @@ public:
 	AudioOutput();
 	~AudioOutput() override;
 	void cloneFrom(ModControllableAudio* other) override;
+	[[nodiscard]] deluge::model::TrackChannel& channel() override { return channel_; }
+	[[nodiscard]] const deluge::model::TrackChannel& channel() const override { return channel_; }
 
 	void renderOutput(ModelStack* modelStack, std::span<StereoSample> buffer, int32_t* reverbBuffer,
 	                  int32_t reverbAmountAdjust, int32_t sideChainHitPending, bool shouldLimitDelayFeedback,
 	                  bool isClipActive) override;
-
-	bool renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStack,
-	                                   std::span<StereoSample> globalEffectableBuffer, int32_t* bufferToTransferTo,
-	                                   int32_t* reverbBuffer, int32_t reverbAmountAdjust, int32_t sideChainHitPending,
-	                                   bool shouldLimitDelayFeedback, bool isClipActive, int32_t pitchAdjust,
-	                                   int32_t amplitudeAtStart, int32_t amplitudeAtEnd) override;
 
 	void resetEnvelope();
 	bool matchesPreset(OutputType otherType, int32_t channel, int32_t channelSuffix, char const* otherName,
@@ -60,9 +56,6 @@ public:
 	uint8_t* getModKnobMode() override { return &modKnobMode; }
 
 	void cutAllSound() override;
-	void getThingWithMostReverb(Sound** soundWithMostReverb, ParamManagerForTimeline** paramManagerWithMostReverb,
-	                            Kit** kitWithMostReverb, int32_t* highestReverbAmountFound);
-
 	Error readFromFile(Deserializer& reader, Song* song, Clip* clip, int32_t readAutomationUpToPos) override;
 	bool writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song) override;
 	void deleteBackedUpParamManagers(Song* song) override;
@@ -70,9 +63,7 @@ public:
 	                   PgmChangeSend maySendMIDIPGMs = PgmChangeSend::ONCE) override;
 	bool isSkippingRendering() override;
 	Output* toOutput() override { return this; }
-	void getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb,
-	                            GlobalEffectableForClip** globalEffectableWithMostReverb,
-	                            int32_t* highestReverbAmountFound) override;
+	[[nodiscard]] deluge::model::ReverbCandidate reverbCandidate(deluge::model::ReverbCandidate best) override;
 
 	// A TimelineCounter is required
 	void offerReceivedCCToLearnedParams(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value,
@@ -176,7 +167,7 @@ public:
 protected:
 	Clip* createNewClipForArrangementRecording(ModelStack* modelStack) override;
 	bool wantsToBeginArrangementRecording() override;
-	bool willRenderAsOneChannelOnlyWhichWillNeedCopying() override;
+	bool willRenderAsOneChannelOnlyWhichWillNeedCopying();
 
 	/// returns true for loopers and samplers without a file
 	bool modeAllowsMonitoring() const;
@@ -184,4 +175,26 @@ protected:
 	void recordRecordingFrom();
 	/// Which output to record from. Only valid when inputChannel is AudioInputChannel::SPECIFIC_OUTPUT.
 	Output* outputRecordingFrom{nullptr};
+
+private:
+	/// @brief Renders the audio track's active clip (its sample, or its input while monitoring) into its channel's
+	/// buffer.
+	/// @param modelStack The track's model stack; its timeline counter may be null.
+	/// @param render The channel's buffer, zeroed; the clip renders into it.
+	/// @param bufferToTransferTo Where to render instead of @p render, or null; the channel passes null.
+	/// @param reverbBuffer The song's reverb send buffer.
+	/// @param reverbAmountAdjust The reverb send scaling, scaled by the track's volume, Q31.
+	/// @param sideChainHitPending The sidechain hit pending this block, Q31; 0 for none.
+	/// @param shouldLimitDelayFeedback Whether a delay's feedback is capped below self-oscillation.
+	/// @param isClipActive Whether the track's active clip plays.
+	/// @param pitchAdjust The track's pitch adjust.
+	/// @param amplitudeAtStart The clip's amplitude scale at the block's start, Q27 (134217728 is unity).
+	/// @param amplitudeAtEnd The clip's amplitude scale at the block's end, Q27 (134217728 is unity).
+	/// @return Whether the clip rendered.
+	bool renderContent(ModelStackWithTimelineCounter* modelStack, std::span<StereoSample> render,
+	                   int32_t* bufferToTransferTo, int32_t* reverbBuffer, int32_t reverbAmountAdjust,
+	                   int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive,
+	                   int32_t pitchAdjust, int32_t amplitudeAtStart, int32_t amplitudeAtEnd);
+	/// The audio track's channel strip: the chain its clip renders into, its settings and view.
+	deluge::model::TrackChannel channel_;
 };

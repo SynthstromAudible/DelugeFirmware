@@ -33,27 +33,27 @@ namespace deluge::effects {
 
 /// @brief What a kit's or an audio track's chain reads for one block, as the owner resolved it from its unpatched
 /// params.
-struct ClipChainInputs {
+struct TrackChainInputs {
 	FxInputs fx;
 	BitcrushParams bitcrush;
-	FilterParams filter;
+	FilterParams filter{};
 	dsp::fixed::FilterScratch filter_scratch; ///< The audio tier's filter scratch.
-	int32_t volume_post_fx;                   ///< The post-FX volume before the filter's compensation, Q31.
-	int32_t reverb_send;                      ///< The reverb send amount, Q31.
-	int32_t pan;                              ///< The pan param halved, Q31 (0 the centre).
-	bool sidechain_on;                        ///< Whether the sidechain volume param is above its minimum.
-	int32_t sidechain_hit;                    ///< The hit pending for the sidechain this block, Q31; 0 for none.
-	int32_t sidechain_shape;                  ///< The sidechain shape param, Q31.
-	int32_t sidechain_depth;                  ///< The sidechain volume as a patch cable's depth, Q29.
-	uint32_t tick_inverse;                    ///< The playback handler's getTimePerInternalTickInverse().
-	int32_t post_reverb_volume_neutral;       ///< The post-reverb volume with no duck, Q31.
-	int32_t compressor_threshold; ///< The threshold param, Q31; at or below 0 the compressor resets instead.
-	Stutter* stutter;             ///< The song's stutter while this owner is the one stuttering, else null.
-	uint32_t stutter_rate;        ///< The stutter's rate on the delay's rate scale (16777216 neutral).
+	int32_t volume_post_fx{};                 ///< The post-FX volume before the filter's compensation, Q31.
+	int32_t reverb_send{};                    ///< The reverb send amount, Q31.
+	int32_t pan{};                            ///< The pan param halved, Q31 (0 the centre).
+	bool sidechain_on{};                      ///< Whether the sidechain volume param is above its minimum.
+	int32_t sidechain_hit{};                  ///< The hit pending for the sidechain this block, Q31; 0 for none.
+	int32_t sidechain_shape{};                ///< The sidechain shape param, Q31.
+	int32_t sidechain_depth{};                ///< The sidechain volume as a patch cable's depth, Q29.
+	uint32_t tick_inverse{};                  ///< The playback handler's getTimePerInternalTickInverse().
+	int32_t post_reverb_volume_neutral{};     ///< The post-reverb volume with no duck, Q31.
+	int32_t compressor_threshold{}; ///< The threshold param, Q31; at or below 0 the compressor resets instead.
+	Stutter* stutter{nullptr};      ///< The song's stutter while this owner is the one stuttering, else null.
+	uint32_t stutter_rate{};        ///< The stutter's rate on the delay's rate scale (16777216 neutral).
 };
 
 /// @brief The volumes begin_block works out before the content renders, which process applies.
-struct ClipBlock {
+struct TrackBlock {
 	int32_t volume_post_fx;     ///< After the filter's compensation, Q31; the bitcrush, mod FX and grain scale it.
 	int32_t post_reverb_volume; ///< Ducked by the sidechain while it is on, Q31.
 };
@@ -61,15 +61,15 @@ struct ClipBlock {
 /// @brief A kit's or an audio track's effects: the sidechain's duck, then (after the owner renders its content into the
 /// block) saturation, filter, bitcrush, mod FX or grain, EQ, delay, stutter, the recorder's tap, reverb send, volume
 /// and pan, then the compressor.
-class ClipChain {
+class TrackChain {
 public:
 	/// @brief Build a chain whose mod FX and granular buffers come from the given allocators.
 	/// @param mod_fx_allocator The ring allocator for the mod FX's buffers.
 	/// @param granular_allocator The ring allocator for the granular effect's buffers.
 	/// @param arena Where the delay's tapes come from. A host chain keeps its grains on entering GRAIN.
 	/// @param post_reverb_volume_neutral The post-reverb volume the first block ramps from, Q31.
-	ClipChain(RingAllocator mod_fx_allocator, RingAllocator granular_allocator, DelayArena& arena,
-	          int32_t post_reverb_volume_neutral);
+	TrackChain(RingAllocator mod_fx_allocator, RingAllocator granular_allocator, DelayArena& arena,
+	           int32_t post_reverb_volume_neutral);
 
 	[[nodiscard]] ChainCore& core() { return core_; }
 	[[nodiscard]] const ChainCore& core() const { return core_; }
@@ -83,7 +83,7 @@ public:
 	/// @param in What the chain reads for this block.
 	/// @param frames The block's length.
 	/// @return The volumes process applies.
-	[[nodiscard]] ClipBlock begin_block(const ClipChainInputs& in, std::size_t frames);
+	[[nodiscard]] TrackBlock begin_block(const TrackChainInputs& in, std::size_t frames);
 
 	// TODO(c++26): take std::function_ref<void(std::span<const dsp::StereoSample>)> once the device's libstdc++
 	// provides it (arm-none-eabi GCC 16; 15.2.1 does not).
@@ -97,7 +97,7 @@ public:
 	/// @param tap Called with the block after the stutter, before the send and volume: the owner's recorder.
 	/// @return Whether the block fed the reverb.
 	template <typename Tap>
-	bool process(std::span<dsp::StereoSample> block, const ClipChainInputs& in, ClipBlock& levels, bool rendered,
+	bool process(std::span<dsp::StereoSample> block, const TrackChainInputs& in, TrackBlock& levels, bool rendered,
 	             ReverbSend send, Tap&& tap) {
 		pre_tap(block, in, levels, rendered, send);
 		tap(std::span<const dsp::StereoSample>{block});
@@ -111,11 +111,11 @@ public:
 
 private:
 	/// @brief Saturation to the stutter.
-	void pre_tap(std::span<dsp::StereoSample> block, const ClipChainInputs& in, ClipBlock& levels, bool rendered,
+	void pre_tap(std::span<dsp::StereoSample> block, const TrackChainInputs& in, TrackBlock& levels, bool rendered,
 	             ReverbSend send);
 	/// @brief Send, volume and pan, then the compressor.
 	/// @return Whether the block fed the reverb.
-	bool post_tap(std::span<dsp::StereoSample> block, const ClipChainInputs& in, const ClipBlock& levels,
+	bool post_tap(std::span<dsp::StereoSample> block, const TrackChainInputs& in, const TrackBlock& levels,
 	              ReverbSend send);
 
 	ChainCore core_;

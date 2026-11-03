@@ -31,8 +31,66 @@
 #include <span>
 #include <vector>
 
+namespace reference {
+// A raw-Argon reference of Amplitude (q31 spelt int32_t): the typed VCA must match it bit for bit.
+class Amplitude {
+	Argon<int32_t> amplitude_;
+	Argon<int32_t> amplitude_increment_;
+
+public:
+	Amplitude(int32_t amplitude, int32_t amplitude_increment)
+	    : amplitude_{Argon<int32_t>{amplitude}.MultiplyAdd(amplitude_increment, int32x4_t{1, 2, 3, 4}) >> 1},
+	      amplitude_increment_{amplitude_increment << 1} {}
+
+	Argon<int32_t> render(Argon<int32_t> raw, Argon<int32_t> mix) {
+		int32x4_t scaled = vqdmulhq_s32(amplitude_, raw);
+		amplitude_ = amplitude_ + amplitude_increment_;
+		return Argon<int32_t>{vaddq_s32(scaled, mix)};
+	}
+};
+} // namespace reference
+
 namespace {
 using deluge::dsp::fixed::Amplitude;
+
+std::uint32_t xorshift(std::uint32_t& s) {
+	s ^= s << 13;
+	s ^= s >> 17;
+	s ^= s << 5;
+	return s;
+}
+
+/// Lanes where the VCA and the reference differ over 2^12 random four-block runs: random raw and mix, a steady
+/// amplitude every fourth run, ramps bounded so the reference's signed adds stay defined (|amplitude| ≤ 2^30,
+/// |increment| ≤ 2^24, four blocks).
+std::size_t reference_mismatches() {
+	std::size_t bad = 0;
+	std::uint32_t s = 0xa5a5'1234u;
+	for (int k = 0; k < (1 << 12); ++k) {
+		const auto amplitude = static_cast<int32_t>(xorshift(s)) >> 1;
+		const int32_t increment = k % 4 == 0 ? 0 : static_cast<int32_t>(xorshift(s)) >> 7;
+		Amplitude vca{amplitude, increment};
+		reference::Amplitude expected{amplitude, increment};
+		for (int block = 0; block < 4; ++block) {
+			std::array<int32_t, 4> raw{};
+			std::array<int32_t, 4> mix{};
+			for (std::size_t i = 0; i < 4; ++i) {
+				raw[i] = static_cast<int32_t>(xorshift(s));
+				mix[i] = static_cast<int32_t>(xorshift(s));
+			}
+			if (k < 16) {
+				raw.fill(k % 2 == 0 ? INT32_MIN : INT32_MAX);
+			}
+			const auto got = vca.render(Argon<int32_t>::Load(raw.data()), Argon<int32_t>::Load(mix.data())).to_array();
+			const auto want =
+			    expected.render(Argon<int32_t>::Load(raw.data()), Argon<int32_t>::Load(mix.data())).to_array();
+			for (std::size_t i = 0; i < 4; ++i) {
+				bad += got[i] != want[i] ? 1 : 0;
+			}
+		}
+	}
+	return bad;
+}
 
 // Apply a fresh VCA to one broadcast 4-lane vector: out = (raw * amp) + mix.
 int32x4_t applyOnce(int32_t amplitude, int32_t increment, int32_t raw, int32_t mix) {
@@ -93,6 +151,10 @@ describe amplitude_vca("deluge::dsp::fixed Amplitude (VCA mixer)", ${
 			expect(vgetq_lane_s32(out, 1)).to_be_less_than(vgetq_lane_s32(out, 2));
 			expect(vgetq_lane_s32(out, 2)).to_be_less_than(vgetq_lane_s32(out, 3));
 		});
+	});
+
+	it("matches the raw-Argon reference bit for bit", _ {
+		expect(reference_mismatches()).to_equal(std::size_t{0});
 	});
 
 	context("blocks that are not a lane multiple", _ {

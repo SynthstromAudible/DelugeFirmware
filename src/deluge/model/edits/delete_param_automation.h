@@ -3,9 +3,7 @@
 #include "deluge-project/param_address.h"
 #include "model/action/action_logger.h" // ActionAddition
 #include "model/edits/edit.h"
-#include <optional>
-
-class ModelStackWithAutoParam;
+#include "model/edits/set_param_value.h"
 
 namespace deluge::edits {
 
@@ -15,32 +13,23 @@ namespace deluge::edits {
 /// stolen before-nodes into that Action as the undo Consequence.
 class DeleteParamAutomation final : public Edit {
 public:
-	/// @param address     Durable lane id; nullopt for a never-saved owner (engine-resolved). Not used by apply().
-	/// @param engineStack Borrowed engine stack naming the auto-param; must outlive apply().
-	/// @param addition    The Action-coalescing policy (tempo passes ALLOWED; others NOT_ALLOWED).
-	DeleteParamAutomation(std::optional<project::ParamAddress> address, ModelStackWithAutoParam* engineStack,
-	                      ActionAddition addition = ActionAddition::NOT_ALLOWED)
-	    : address_(address), engineStack_(engineStack), addition_(addition) {}
-	/// @brief The param at @p address, which apply() finds in the song itself (bridge::paramStackAt); an address that
-	/// names no param is refused.
+	/// @brief The param at @p address, which apply() finds in the song itself as @p resolve says (an address that
+	/// names no param is refused); a knob's delete resolves as a write, the take's while the arrangement records.
 	/// @param address  The param's address.
-	/// @param addition The Action-coalescing policy.
-	/// @param follow_take A gold knob's delete: while the arrangement records the clip, its take's (made once).
+	/// @param addition The Action-coalescing policy (tempo passes ALLOWED; others NOT_ALLOWED).
+	/// @param resolve  How apply() finds the param.
 	explicit DeleteParamAutomation(project::ParamAddress address, ActionAddition addition = ActionAddition::NOT_ALLOWED,
-	                               bool follow_take = false)
-	    : address_(address), engineStack_(nullptr), addition_(addition), follow_take_(follow_take) {}
+	                               SetParamValue::Resolve resolve = SetParamValue::Resolve::READ)
+	    : address_(address), addition_(addition), resolve_(resolve) {}
 
 	/// @copydoc Edit::apply
 	Error apply(Context& ctx) override;
 
 private:
-	/// Durable lane id (nullopt = never-saved owner, engine-resolved); apply() resolves it when no stack was given.
-	std::optional<project::ParamAddress> address_;
-	/// Borrowed engine stack, like SetParamValue::engineStack_; null for the address form.
-	ModelStackWithAutoParam* engineStack_;
+	project::ParamAddress address_;
 	/// The Action-coalescing policy (tempo passes ALLOWED; others NOT_ALLOWED).
 	ActionAddition addition_;
-	bool follow_take_{false};
+	SetParamValue::Resolve resolve_;
 };
 
 } // namespace deluge::edits

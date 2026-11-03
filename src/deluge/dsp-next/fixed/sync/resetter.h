@@ -16,7 +16,6 @@
  */
 #pragma once
 
-#include <algorithm>
 #include <cstdint>
 
 namespace deluge::dsp::fixed {
@@ -24,12 +23,15 @@ namespace deluge::dsp::fixed {
 /// @brief The reciprocal of a hard-sync resetter's phase increment, used to turn the resetter's
 /// overshoot past a cycle boundary into the fractional sample position of the reset.
 ///
-/// Apply it with `multiply_32x32_rshift32(overshoot, reciprocal) << 17` (an effective >> 47).
+/// Read as Q<16>, it is 1 / the increment read as Q31 (2^47 / increment in raw terms): `mul` a Q31 overshoot by it
+/// for the overshoot's fraction of a sample at Q15, which `as_wrap<Q<31>>` lines up at Q31.
 /// Both sync components (@ref SyncedPhasor, @ref SyncedOscillator) derive this from the resetter
-/// increment they already hold, rather than having the caller precompute it. The increment is
-/// rounded up first so the reciprocal comes out a touch small — products of it can't overflow. That
-/// round-up wraps to 0 for an increment above 0xFFFF0000 (which Voice::adjustPitch can produce: it
-/// only rejects results at or above 2^32), so the divisor is clamped to 1.
+/// increment they already hold, rather than having the caller precompute it.
+///
+/// The divisor is the increment's top 16 bits rounded up, 1 to 2^16, so the reciprocal comes out a touch small and
+/// a reset lands at or before its exact phase, never past the next sample's. An increment up to 2^16 (a master
+/// slower than about 0.67 Hz) has a divisor of 1, whose 2^31 doesn't fit: it clamps to 2^31 − 1, which places its
+/// resets earlier still but within the sample.
 ///
 /// @p resetter_increment of 0 means the resetter never crosses a boundary (@ref SyncWindower renders
 /// the block unsynced); the reciprocal is then unused, but the division must still not run: on the
@@ -39,8 +41,13 @@ namespace deluge::dsp::fixed {
 	if (resetter_increment == 0) {
 		return 0;
 	}
-	const auto rounded_up = static_cast<uint16_t>((resetter_increment + 65535) >> 16);
-	return static_cast<int32_t>(2147483648u / std::max<uint16_t>(rounded_up, 1));
+	// Rounded up without forming increment + 65535, which wraps for an increment above 0xFFFF0000 (Voice::adjustPitch
+	// can produce one: it only rejects results at or above 2^32)
+	const uint32_t rounded_up = (resetter_increment >> 16) + ((resetter_increment & 65535) != 0 ? 1 : 0);
+	if (rounded_up == 1) {
+		return INT32_MAX;
+	}
+	return static_cast<int32_t>(2147483648u / rounded_up);
 }
 
 } // namespace deluge::dsp::fixed

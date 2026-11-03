@@ -18,7 +18,7 @@
 #include "dsp-next/fixed/filter/filter_set.h"
 #include "dsp-next/core/wrapping.h"
 
-#include "dsp-next/core/q31_ops.h"
+#include "dsp-next/core/fixed_point.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -169,7 +169,7 @@ q31 FilterSet::configure(q31 gain, const FilterConfig& low, LowPassSlot low_slot
 	low_last_ = low_slot.kind;
 
 	// At 50% resonance this keeps the level the filters had before their resonance compensation.
-	gain = multiply_32x32_rshift32(gain, 1720000000) << 1;
+	gain = mul_as_wrap<Q<31>>(Q<31>::from_raw(gain), Q<31>::from_raw(1720000000)).raw();
 
 	if (high_slot.kind != HighPassSlot::Kind::OFF) {
 		hold_high_pass(high_slot.kind);

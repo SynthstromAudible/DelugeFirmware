@@ -37,7 +37,7 @@ void SupersawSource::render_into(const BlockControls& controls, uint32_t phase_i
 
 	if (controls.apply_amplitude) {
 		// The supersaw comes out at a quarter of a saw's level; out = scratch*amp + out.
-		deluge::dsp::fixed::Amplitude vca{controls.amplitude << 2};
+		deluge::dsp::fixed::Amplitude vca{scale_shl_wrap<2>(controls.amplitude)};
 		vca.render_block(deluge::dsp::fixed::Signal{scratch.data(), num_samples}, deluge::dsp::fixed::Signal{output},
 		                 output);
 	}

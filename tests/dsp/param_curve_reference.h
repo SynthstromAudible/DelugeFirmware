@@ -3,8 +3,8 @@
 // dsp-next/fixed/curves/param_curve.h.
 #pragma once
 
+#include "curves_reference.h"
 #include "dsp-next/core/q31_ops.h"
-#include "dsp-next/fixed/curves/exp_curve.h"
 
 #include <cstdint>
 
@@ -41,7 +41,7 @@ inline int32_t getFinalParameterValueLinear(int32_t paramNeutralValue, int32_t p
 }
 
 inline int32_t getFinalParameterValueExp(int32_t paramNeutralValue, int32_t patchedValue) {
-	return deluge::dsp::fixed::exp_curve(paramNeutralValue, patchedValue);
+	return curves_reference::exp_curve(paramNeutralValue, patchedValue);
 }
 
 inline int32_t lookupReleaseRate(int32_t input) {

@@ -18,43 +18,34 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "dsp-next/core/stereo_sample.h"
-#include "effects/clip_chain.h"
+#include "model/fx/track_channel.h"
 #include "model/global_effectable/global_effectable.h"
-#include "model/sample/sample_recorder.h"
 #include "util/functions.h"
 
 class ParamManagerForTimeline;
-class TimelineCounter;
 class Output;
 class Clip;
-class ModelStack;
 class ModelStackWithThreeMainThings;
-class ModelStackWithTimelineCounter;
 
 class GlobalEffectableForClip : public GlobalEffectable {
 public:
-	GlobalEffectableForClip();
-	~GlobalEffectableForClip() override;
+	/// @brief The track's channel strip: its chain, the chain's settings and its view.
+	/// @return The channel the kit or audio track holds.
+	[[nodiscard]] virtual deluge::model::TrackChannel& channel() = 0;
+	[[nodiscard]] virtual const deluge::model::TrackChannel& channel() const = 0;
 
-	[[nodiscard]] deluge::effects::ClipChain& chain() { return chain_; }
-	[[nodiscard]] deluge::effects::ChainCore& core() final { return chain_.core(); }
-	[[nodiscard]] const deluge::effects::ChainCore& core() const final { return chain_.core(); }
-	[[nodiscard]] deluge::effects::Filter& filter() final { return chain_.filter(); }
+	[[nodiscard]] deluge::effects::TrackChain& chain() { return channel().chain(); }
+	[[nodiscard]] deluge::effects::ChainCore& core() final { return channel().core(); }
+	[[nodiscard]] const deluge::effects::ChainCore& core() const final { return channel().core(); }
+	[[nodiscard]] deluge::effects::Filter& filter() final { return channel().filter(); }
+	[[nodiscard]] deluge::model::ChainView& chainView() final { return channel().view(); }
+	[[nodiscard]] const deluge::model::ChainView& chainView() const final { return channel().view(); }
 
-	int32_t getSidechainVolumeAmountAsPatchCableDepth(ParamManager* paramManager);
 	void modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager,
 	                     const deluge::project::CompView& comp = {}) final;
 	bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack,
 	                            deluge::project::CompView* comp = nullptr) final;
 	virtual Output* toOutput() = 0;
-	void getThingWithMostReverb(Clip* activeClip, Sound** soundWithMostReverb,
-	                            ParamManager** paramManagerWithMostReverb,
-	                            GlobalEffectableForClip** globalEffectableWithMostReverb,
-	                            int32_t* highestReverbAmountFound);
-
-	/// @brief The bus's effects: its saturation after its drums or audio clip render, then its filters and the rest.
-	deluge::effects::ClipChain chain_;
 
 	/// @brief The two mod knobs a clip's global effectable lays out differently from the song's: the sidechain volume
 	/// (mode 4, upper) and the pitch adjust (mode 6, lower); nullopt for the others.
@@ -63,19 +54,4 @@ public:
 
 protected:
 	int32_t getParameterFromKnob(int32_t whichModEncoder, const deluge::project::CompView& comp) final;
-	void renderOutput(ModelStackWithTimelineCounter* modelStack, ParamManager* paramManagerForClip,
-	                  std::span<StereoSample> output, int32_t* reverbBuffer, int32_t reverbAmountAdjust,
-	                  int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive,
-	                  OutputType outputType, SampleRecorder* recorder);
-
-	virtual bool renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStack,
-	                                           std::span<StereoSample> globalEffectableBuffer,
-	                                           int32_t* bufferToTransferTo, int32_t* reverbBuffer,
-	                                           int32_t reverbAmountAdjust, int32_t sideChainHitPending,
-	                                           bool shouldLimitDelayFeedback, bool isClipActive, int32_t pitchAdjust,
-	                                           int32_t amplitudeAtStart, int32_t amplitudeAtEnd) = 0;
-
-	virtual bool willRenderAsOneChannelOnlyWhichWillNeedCopying() { return false; }
-
-	bool renderedLastTime = false;
 };

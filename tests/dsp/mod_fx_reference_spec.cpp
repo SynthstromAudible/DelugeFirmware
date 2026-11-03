@@ -118,6 +118,20 @@ describe reference_mod_fx("the mod FX reference", ${
 		}
 	});
 
+	it("pulls its warbler toward a target more than 2^31 away, not away from it", _ {
+		deluge::dsp::test::ref_lfo_wave::Warbler w;
+		w.held_value_ = INT32_MAX - 1000;
+		w.target_ = INT32_MIN + 1000;
+		uint32_t phase = 0;
+		std::ignore = w.render(phase, 1U << 20, 1);
+		expect(w.speed_ < 0).to_be_true();
+		w.held_value_ = INT32_MIN + 1000;
+		w.target_ = INT32_MAX - 1000;
+		w.speed_ = 0;
+		std::ignore = w.render(phase, 1U << 20, 1);
+		expect(w.speed_ > 0).to_be_true();
+	});
+
 	it("wraps an add in FULL_SCALE", _ {
 		ReferenceModFx::reset_wraps();
 		std::ignore = render(workload_named("FULL_SCALE"));

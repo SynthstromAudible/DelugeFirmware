@@ -2,7 +2,7 @@
 //! calls the app whenever a time it asked for comes or a wake reason arrives.
 //!
 //! The app owns its jobs and their order (`deluge::runtime::Loop`); this task owns only the
-//! waiting. Wake reasons accumulate in [`REASONS`] from any tier and are handed to the next pass.
+//! waiting. Wake reasons accumulate in `REASONS` from any tier and are handed to the next pass.
 //! The encoder and input reasons are level-triggered, read from the edge counters and the input
 //! queue after every wait, so edges and events that arrive between passes are never lost.
 

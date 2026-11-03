@@ -31,9 +31,9 @@
  },
  "community/A Busted Sqb": {
   "frames": 88200,
-  "peak": 139801344,
-  "rms_db": -34.22,
-  "sha256": "c016147f9ef3baba3454b8749a0d8f5034fd6085ae72120161b6457fd1b4ba0b"
+  "peak": 138360832,
+  "rms_db": -34.3,
+  "sha256": "ed4f6a02edb3de6a27160126bd79a54a7e60da1e1ad10987c5704c9bd00af202"
  },
  "community/A Fm Bass Funk": {
   "frames": 88200,
@@ -182,8 +182,8 @@
  "community/Crumbling Pad": {
   "frames": 88200,
   "peak": 262521088,
-  "rms_db": -28.24,
-  "sha256": "d1de197a93035031745d0bcfd887199d4849cf2c3caf3b82cc11c3031a940304"
+  "rms_db": -27.99,
+  "sha256": "5f1c57775d49b31f77b8ac848b70a443087b00dc2ac26c6dd2f2ca03d0eeebeb"
  },
  "community/D-303": {
   "frames": 88200,
@@ -391,9 +391,9 @@
  },
  "community/MPE Curvilinear": {
   "frames": 88200,
-  "peak": 91511552,
-  "rms_db": -34.12,
-  "sha256": "3dfb3bf4e9f483efb708334bb147b6f58e9d22fc421be28d4a35910b486897a5"
+  "peak": 90844928,
+  "rms_db": -34.11,
+  "sha256": "e3b4a2832b0cc8cb1ec4184920efd8ef136af4b3f331b6be4ca5ba45a3d16565"
  },
  "community/MPE Desert Strata": {
   "frames": 88200,
@@ -559,9 +559,9 @@
  },
  "community/Ringmod Pad": {
   "frames": 88200,
-  "peak": 199236352,
-  "rms_db": -32.62,
-  "sha256": "f55372a9782e09167764a1f3aa3e7ede2770e9a7ff3739577861c08455bcb20d"
+  "peak": 201525760,
+  "rms_db": -32.59,
+  "sha256": "393ec096e6e711cbd4c55649732880bcaeb61dbde0496b307682934e19ed6ce3"
  },
  "community/Rubberdemon": {
   "frames": 88200,
@@ -656,8 +656,8 @@
  "community/Synthetic 1": {
   "frames": 88200,
   "peak": 257953536,
-  "rms_db": -34.66,
-  "sha256": "4e5b92e447b7113bf1b27e8641acc404d6618e6772a05c7dcd0134ced01496d6"
+  "rms_db": -34.62,
+  "sha256": "c620f45b51ee738bdd2845fed2ef71d604b77dda8777684d53d37ee00ab80cc0"
  },
  "community/Tension": {
   "frames": 88200,
@@ -2209,15 +2209,15 @@
  },
  "stereo/modfx_grain": {
   "frames": 88200,
-  "peak": 310294016,
-  "rms_db": -29.44,
-  "sha256": "636894764e1ad8509afbe354832b4405d164f255aab813d7901816d5c108e6d1"
+  "peak": 340907264,
+  "rms_db": -28.71,
+  "sha256": "86ee75d8e73c67e82c570fee1775c08ebef10ff53dbb79621eb014ffca70b93a"
  },
  "stereo/modfx_warble": {
   "frames": 88200,
   "peak": 336116992,
-  "rms_db": -23.19,
-  "sha256": "0a4605edc948f1814cc40275961c00fa0ce68d50fffe31ba96d5ff9e24e0f045"
+  "rms_db": -23.75,
+  "sha256": "4e87e13b6928857b5358fc2c22d9b637401191a6f154a1291a2092b1f02b275d"
  },
  "stereo/noise_unison": {
   "frames": 88200,
@@ -2455,9 +2455,9 @@
  },
  "wavetable/morph_sync": {
   "frames": 88200,
-  "peak": 435595776,
-  "rms_db": -24.36,
-  "sha256": "6bd1a0333033ef22b7165807ddc6974fdce4ff0684f4049793d68c01a0d1aa8a"
+  "peak": 442308608,
+  "rms_db": -24.37,
+  "sha256": "0fca2b6502e1e62b7f7da569d95daff5885006b9e4a3ad149e8cb73f14fb0526"
  },
  "wavetable/scw": {
   "frames": 88200,
@@ -2485,9 +2485,9 @@
  },
  "wavetable/sync": {
   "frames": 88200,
-  "peak": 487034624,
-  "rms_db": -24.23,
-  "sha256": "2a12f163d3ecbf7f51aa0faf024c942d946b84c18f3c852e75a82f3b17bc255c"
+  "peak": 486677760,
+  "rms_db": -24.25,
+  "sha256": "b242a9775fd6b6e72bee191c184aa33c997495a5c19db86353d944dd233aeaa3"
  },
  "wavetable_basic": {
   "frames": 88200,

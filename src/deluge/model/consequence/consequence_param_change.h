@@ -17,19 +17,25 @@
 
 #pragma once
 
+#include "deluge-project/param_address.h"
 #include "model/consequence/consequence.h"
-#include "model/model_stack.h"
 #include "modulation/automation/auto_param.h"
-#include <cstdint>
 
+class ModelStackWithAutoParam;
+
+/// @brief The undo record of one param lane: its address and whichever of its states (before or after) the lane does
+/// not hold now.
 class ConsequenceParamChange final : public Consequence {
 public:
-	ConsequenceParamChange(ModelStackWithAutoParam const* modelStack, bool stealData);
+	/// @param address    The lane's address (edits::addressFor of @p modelStack).
+	/// @param modelStack The lane, whose value and nodes are captured.
+	/// @param stealData  Take the lane's nodes (the caller is clearing them) instead of copying them.
+	ConsequenceParamChange(deluge::project::ParamAddress address, ModelStackWithAutoParam const* modelStack,
+	                       bool stealData);
+	/// @brief Swap the stored state with the lane's, found by its address exactly (bridge::paramStackExact); a lane
+	/// that no longer resolves is left alone.
 	Error revert(TimeType time, ModelStack* modelStackWithSong) override;
 
-	union {
-		alignas(ModelStackWithAutoParam) char modelStackMemory[MODEL_STACK_MAX_SIZE]{};
-		ModelStackWithParamId modelStack; // TODO: yikes, is this safe? What about NoteRow pointers etc?
-	};
+	deluge::project::ParamAddress address;
 	AutoParamState state;
 };

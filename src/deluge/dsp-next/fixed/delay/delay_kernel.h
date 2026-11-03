@@ -18,9 +18,9 @@
 #pragma once
 
 #include "dsp-next/core/chain.h"
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/mode.h"
-#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/core/types.h"
 #include "dsp-next/fixed/delay/analog_impulse_response.h"
@@ -269,12 +269,15 @@ struct Delay {
 				}
 				const StereoSample from1 = primary.current();
 				const StereoSample from2 = *next;
-				delayed.l = (multiply_32x32_rshift32(from1.l, strength1 << 14)
-				             + multiply_32x32_rshift32(from2.l, strength2 << 14))
-				            << 2;
-				delayed.r = (multiply_32x32_rshift32(from1.r, strength1 << 14)
-				             + multiply_32x32_rshift32(from2.r, strength2 << 14))
-				            << 2;
+				// The 16.16 strengths at Q30, so each tap's product is Q29 and their sum is lifted to Q31.
+				const auto weight1 = as_wrap<Q<30>>(Q<16>::from_raw(strength1));
+				const auto weight2 = as_wrap<Q<30>>(Q<16>::from_raw(strength2));
+				delayed.l = as_wrap<Q<31>>(add_wrap(mul(Q<31>::from_raw(from1.l), weight1),
+				                                    mul(Q<31>::from_raw(from2.l), weight2)))
+				                .raw();
+				delayed.r = as_wrap<Q<31>>(add_wrap(mul(Q<31>::from_raw(from1.r), weight1),
+				                                    mul(Q<31>::from_raw(from2.r), weight2)))
+				                .raw();
 			}
 		}
 
@@ -300,7 +303,9 @@ struct Delay {
 		StereoSample to_tape = feedback;
 		if constexpr (M.mix == Mix::CROSS) {
 			to_tape.l = feedback.r;
-			to_tape.r = ((dry.l + dry.r) >> 1) + feedback.l;
+			to_tape.r = add_wrap(halve_floor(add_wrap(Q<31>::from_raw(dry.l), Q<31>::from_raw(dry.r))),
+			                     Q<31>::from_raw(feedback.l))
+			                .raw();
 		}
 		else {
 			to_tape += dry;

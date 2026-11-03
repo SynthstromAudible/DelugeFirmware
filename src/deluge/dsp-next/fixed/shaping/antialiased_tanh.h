@@ -23,6 +23,7 @@
 #include "dsp-next/fixed/shaping/tanh.h" // kTanhCentre
 #include "dsp-next/fixed/shaping/tanh_table.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <type_traits>
 
@@ -116,11 +117,8 @@ struct AntialiasedTanh {
 
 private:
 	/// @brief @p x's position at the coefficients' drive: sat(x · 2^drive) + @ref kTanhCentre, wrapping unsigned.
-	/// @details Clamps with two ternaries: `std::clamp` is an out-of-line call where the app instantiates this.
 	[[nodiscard]] [[gnu::always_inline]] static uint32_t position_of(const Coefficients& c, q31 x) {
-		const q31 low_clamped = x < c.floor ? c.floor : x;
-		const q31 clamped = low_clamped > c.ceiling ? c.ceiling : low_clamped;
-		return (static_cast<uint32_t>(clamped) << c.drive) + kTanhCentre;
+		return (static_cast<uint32_t>(std::clamp(x, c.floor, c.ceiling)) << c.drive) + kTanhCentre;
 	}
 };
 

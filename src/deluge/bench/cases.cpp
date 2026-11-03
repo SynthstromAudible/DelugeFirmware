@@ -2,6 +2,7 @@
 
 #include "dsp-next/fixed/bandlimited/saw.h"
 #include "dsp-next/fixed/bandlimited/square.h"
+#include "dsp-next/fixed/curves/param_curve.h"
 #include "dsp-next/fixed/noise/noise.h"
 #include "dsp-next/fixed/sync/synced_oscillator.h"
 
@@ -230,7 +231,7 @@ void BandLimitedTableCase::block(std::size_t /*n*/) {
 
 void CrudeSawCase::setup(std::size_t n) {
 	spans_ = spans(n);
-	saw_ = dsp::fixed::CrudeSaw{dsp::Phasor{0, kIncrement}};
+	saw_ = dsp::fixed::CrudeSaw{dsp::Phasor{dsp::UQ<32>::from_raw(0), dsp::UQ<32>::from_raw(kIncrement)}};
 }
 
 void CrudeSawCase::block(std::size_t /*n*/) {
@@ -239,7 +240,8 @@ void CrudeSawCase::block(std::size_t /*n*/) {
 
 void CrudeSquareCase::setup(std::size_t n) {
 	spans_ = spans(n);
-	square_ = dsp::fixed::CrudeSquare{dsp::Phasor{0, kIncrement}, kPulseWidth};
+	square_ =
+	    dsp::fixed::CrudeSquare{dsp::Phasor{dsp::UQ<32>::from_raw(0), dsp::UQ<32>::from_raw(kIncrement)}, kPulseWidth};
 }
 
 void CrudeSquareCase::block(std::size_t /*n*/) {
@@ -248,7 +250,7 @@ void CrudeSquareCase::block(std::size_t /*n*/) {
 
 void CrudeTriangleCase::setup(std::size_t n) {
 	spans_ = spans(n);
-	triangle_ = dsp::fixed::CrudeTriangle{dsp::Phasor{0, kIncrement}};
+	triangle_ = dsp::fixed::CrudeTriangle{dsp::Phasor{dsp::UQ<32>::from_raw(0), dsp::UQ<32>::from_raw(kIncrement)}};
 }
 
 void CrudeTriangleCase::block(std::size_t /*n*/) {
@@ -257,7 +259,7 @@ void CrudeTriangleCase::block(std::size_t /*n*/) {
 
 void SyncedPulseCase::setup(std::size_t n) {
 	spans_ = spans(n);
-	master_ = dsp::Phasor{0, kMasterIncrement};
+	master_ = dsp::Phasor{dsp::UQ<32>::from_raw(0), dsp::UQ<32>::from_raw(kMasterIncrement)};
 	audible_phase_ = 0;
 }
 
@@ -270,10 +272,10 @@ void SyncedPulseCase::block(std::size_t n) {
 	const dsp::fixed::PulseOscillator pulse{dsp::fixed::square_bandlimited_table().select(kBandSelect), phase,
 	                                        kIncrement, kPhaseOffset};
 	dsp::fixed::SyncedOscillator synced{pulse, phase, kIncrement,
-	                                    dsp::fixed::Resetter{master_.phase(), master_.increment()}, 0};
+	                                    dsp::fixed::Resetter{master_.phase().raw(), master_.increment().raw()}, 0};
 	synced.render_block(spans_.out);
 	audible_phase_ = synced.phase() << 1;
-	master_.seek(master_.phase() + (master_.increment() * static_cast<uint32_t>(n)));
+	master_.seek(dsp::UQ<32>::from_raw(master_.phase().raw() + (master_.increment().raw() * static_cast<uint32_t>(n))));
 }
 
 dsp::fixed::WavetableOscillator WavetableCase::make() {
@@ -411,6 +413,44 @@ void DryWetBlendCase::block(std::size_t /*n*/) {
 	mono_.render_block(spans_.a, spans_.b, spans_.out);
 }
 
+void ReleaseRateCase::setup(std::size_t n) {
+	spans_ = spans(n);
+	fill_inputs();
+}
+
+void ReleaseRateCase::block(std::size_t n) {
+	for (std::size_t i = 0; i < n; ++i) {
+		spans_.out[i] = dsp::fixed::release_rate(spans_.a[i] >> 2);
+	}
+}
+
+void SupersawCase::setup(std::size_t n) {
+	spans_ = spans(n);
+	centre_phase_ = 0;
+	side_phases_ = dsp::fixed::Supersaw::side_phases_from(centre_phase_);
+}
+
+void SampleInterpolateCase::setup(std::size_t n) {
+	spans_ = spans(n);
+	fill_inputs();
+	interpolator_ = dsp::fixed::Interpolator{};
+	position_ = 0;
+}
+
+void SampleInterpolateCase::block(std::size_t n) {
+	for (std::size_t i = 0; i < n; ++i) {
+		position_ += kRate;
+		interpolator_.push_l(static_cast<int16_t>(spans_.a[i] >> 16));
+		interpolator_.push_r(static_cast<int16_t>(spans_.b[i] >> 16));
+		spans_.out[i] = interpolator_.interpolate(2, kVariant, position_ & 0xFF'FFFFU).l;
+	}
+}
+
+void SupersawCase::block(std::size_t /*n*/) {
+	dsp::fixed::Supersaw::render(spans_.out, kIncrement, kSpread, dsp::fixed::Supersaw::kNumSaws, centre_phase_,
+	                             side_phases_, true);
+}
+
 template <std::size_t N>
 void LanesOnePoleCase<N>::setup(std::size_t n) {
 	spans_ = frame_spans<dsp::Frame<q31, N>>(n);
@@ -545,6 +585,9 @@ std::span<const Case> kernel_list(CaseSet& s) {
 	    make_case("antialiased_tanh", s.antialiased_tanh),
 	    make_case("tanh3", s.tanh3),
 	    make_case("dry_wet_blend", s.dry_wet_blend),
+	    make_case("release_rate", s.release_rate),
+	    make_case("supersaw", s.supersaw),
+	    make_case("sample_interpolate", s.sample_interpolate),
 	};
 	return kernels;
 }
@@ -807,10 +850,29 @@ std::span<const Case> mod_matrix_list(CaseSet& s) {
 	return mod_matrix;
 }
 
+/// @brief The virtual-analog shapes list.
+std::span<const Case> va_shapes_list(CaseSet& s) {
+	static const std::array va_shapes{
+	    make_case("calibration_loop", s.calibration_loop),
+	    make_case("va_saw_crude", s.va_saw_crude),
+	    make_case("va_saw_crude_sync", s.va_saw_crude_sync),
+	    make_case("va_square_crude_sync", s.va_square_crude_sync),
+	    make_case("va_triangle_crude_sync", s.va_triangle_crude_sync),
+	    make_case("va_saw_sync", s.va_saw_sync),
+	    make_case("va_analog_saw_sync", s.va_analog_saw_sync),
+	    make_case("delay_feedback_chain_analog", s.delay_feedback_chain_analog),
+	    make_case("delay_feedback_chain_digital", s.delay_feedback_chain_digital),
+	};
+	return va_shapes;
+}
+
 /// @brief The cases of @p L.
 template <CaseList L>
 std::span<const Case> list_cases(CaseSet& s) {
-	if constexpr (L == CaseList::MOD_MATRIX) {
+	if constexpr (L == CaseList::VA_SHAPES) {
+		return va_shapes_list(s);
+	}
+	else if constexpr (L == CaseList::MOD_MATRIX) {
 		return mod_matrix_list(s);
 	}
 	else if constexpr (L == CaseList::FFT_FORWARD) {
@@ -895,6 +957,8 @@ std::span<const Case> cases(CaseList list) {
 		return list_cases<CaseList::MOD_MATRIX>(s);
 	case CaseList::FFT_INVERSE:
 		return list_cases<CaseList::FFT_INVERSE>(s);
+	case CaseList::VA_SHAPES:
+		return list_cases<CaseList::VA_SHAPES>(s);
 	case CaseList::KERNELS:
 		break;
 	}

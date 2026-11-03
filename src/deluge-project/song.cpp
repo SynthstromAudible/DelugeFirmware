@@ -71,6 +71,8 @@ DocAutoParam* Song::resolveParam(const ParamAddress& address) {
 	case OwnerId::Kind::INSTRUMENT:
 	case OwnerId::Kind::DRUM:
 		return laneInManager(backed_params.find(address.owner, address.clip_id), address);
+	case OwnerId::Kind::NOTE_ROW:
+		return nullptr; // a melodic note row's lanes are held by its own expression set, not the tree
 	}
 	return nullptr;
 }

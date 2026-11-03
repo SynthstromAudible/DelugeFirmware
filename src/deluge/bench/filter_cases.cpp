@@ -1,7 +1,7 @@
 /// @file
 /// @brief The filter cases' rig, setup and blocks, built with the DSP library's flags.
 /// @details The filters ship from deluge_dsp_fixed, which builds in ARM mode with -finline-functions and no LTO, where
-/// the app builds in Thumb mode with -fno-inline-functions. This file takes the library's flags
+/// the app builds in Thumb mode at an inline threshold of 5. This file takes the library's flags
 /// (src/deluge/CMakeLists.txt), as delay_cases.cpp does. Each block calls the filter set through its public
 /// `configure` and `render_mono` or `render_stereo`, as a voice calls it, so the cases keep timing whatever filters the
 /// set holds. A fading case switches the low-pass off and back on first, so its fade runs over every block.

@@ -29,6 +29,7 @@
 #include <random>
 
 namespace {
+using deluge::dsp::Q16Vec;
 using deluge::dsp::fixed::SincWindow;
 using deluge::dsp::fixed::windowed_sinc_apply;
 
@@ -64,7 +65,8 @@ int32_t reference_apply(const int16_t* kernel_row, int16_t row_blend, const int1
 }
 
 int32_t argon_apply(const int16_t* kernel_row, int16_t row_blend, const int16_t* samples) {
-	SincWindow window{Argon<int16_t>::Load(samples), Argon<int16_t>::Load(samples + Argon<int16_t>::lanes)};
+	SincWindow window{Q16Vec<15>::from_raw(Argon<int16_t>::Load(samples)),
+	                  Q16Vec<15>::from_raw(Argon<int16_t>::Load(samples + Argon<int16_t>::lanes))};
 	return windowed_sinc_apply(kernel_row, row_blend, window);
 }
 } // namespace

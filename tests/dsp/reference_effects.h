@@ -21,7 +21,7 @@
 ///
 /// The copies are, in order: `effects::Bitcrush` (`effects/bitcrush.{h,cpp}`), `effects::Equalizer`
 /// (`effects/equalizer.{h,cpp}`), `effects::SendAndVolume` (`effects/send_and_volume.{h,cpp}`), the
-/// clip chain's duck level (`ClipChain::begin_block`), the reverb return's duck level (`AudioEngine::renderReverb`),
+/// track chain's duck level (`TrackChain::begin_block`), the reverb return's duck level (`AudioEngine::renderReverb`),
 /// the metronome's render (`processing/metronome/metronome.cpp`), the output stage's monitoring fold (the output loop
 /// in `AudioEngine`) and an audio track's monitoring loop (`AudioOutput::render`).
 ///
@@ -38,10 +38,10 @@
 
 #pragma once
 
+#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/fixed/curves/exp_curve.h"
 #include "dsp-next/fixed/vca/pan.h"
-#include "util/fixedpoint.h"
 
 #include <algorithm>
 #include <cmath>
@@ -304,7 +304,7 @@ private:
 
 // ---- the two duck levels ----
 
-/// ClipChain::begin_block's level: the square of the ducked level, scaled to 134217728 at no duck.
+/// TrackChain::begin_block's level: the square of the ducked level, scaled to 134217728 at no duck.
 DELUGE_REFERENCE_EFFECTS_LEGACY_ARITHMETIC inline int32_t clip_duck_level(int32_t duck, int32_t depth) {
 	const int32_t positive = multiply_32x32_rshift32(duck, depth) + 536870912;
 	return (positive >> 15) * (positive >> 16);

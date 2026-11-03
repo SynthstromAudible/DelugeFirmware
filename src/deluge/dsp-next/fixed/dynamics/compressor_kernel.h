@@ -17,14 +17,16 @@
 
 #pragma once
 
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/mode.h"
-#include "dsp-next/core/q31_ops.h"
+#include "dsp-next/core/q31_ops.h" // kOneQ31, kOneQ31f
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/core/types.h"
 #include "dsp-next/fixed/filter/one_pole.h"
 #include "dsp-next/fixed/shaping/antialiased_tanh.h"
 
+#include <algorithm>
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
@@ -109,6 +111,9 @@ struct Compressor {
 	/// @brief Both modes: one loop each, with no branch on the blend inside it.
 	using Modes = ModeList<Mode::WET, Mode::BLEND>;
 
+	/// @brief The target gain's range, 13.18: the 5.26 gain's, just under ±32.
+	static constexpr float kGainCeiling = 8388607.f;
+	static constexpr float kGainFloor = -8388608.f;
 	/// @brief How hard the output is driven into the tanh: by 2^3.
 	static constexpr uint32_t kSaturation = 3;
 	/// @brief The output saturation's coefficients: the antialiased tanh at drive @ref kSaturation.
@@ -198,18 +203,17 @@ struct Compressor {
 	[[nodiscard]] [[gnu::always_inline]] static Block prepare(const Coefficients& c, State& s, std::size_t n) {
 		const auto frames = static_cast<float>(n);
 
-		// The offset keeps a final volume of zero from giving NaNs. At most 2.08 nepers, at 0x7fffffff (about 8 in
-		// 3.29).
+		// The offset keeps a final volume of zero from giving NaNs. The log is of the raw integer, not of its 3.29
+		// value: about 21.5 at 0x7fffffff, ln 2^29 (about 20.1) above the value's 1.39 nepers.
 		const float song_volume = logf(s.levels.final_volume + 1e-10);
 		const float threshold = song_volume * s.threshold;
 		// The song volume lands here, so the envelope smooths it against clicks; the makeup gain and the reduction
 		// then move at the same rate.
-		// The clamps compare as std::max and std::min do, which are out-of-line calls where the app instantiates this.
 		const float makeup = (song_volume - threshold - 1) * c.fraction;
-		s.makeup = run_envelope(c, s.makeup, makeup < 0 ? 0 : makeup, frames);
+		s.makeup = run_envelope(c, s.makeup, std::max(makeup, 0.0f), frames);
 
 		const float over = s.log_rms - threshold;
-		s.reduction_envelope = run_envelope(c, s.reduction_envelope, 0 < over ? over : 0, frames);
+		s.reduction_envelope = run_envelope(c, s.reduction_envelope, std::max(0.0f, over), frames);
 
 		const float reduction = -s.reduction_envelope * c.fraction;
 
@@ -218,9 +222,12 @@ struct Compressor {
 		const float exp_gain = std::exp(gain_nepers);
 		const float gain = 31 < exp_gain ? 31 : exp_gain;
 
-		// The channels' target gains, 13.18 signed, held as floats on the way to the increments.
-		const float final_volume_l = gain * static_cast<float>(s.levels.volume_l >> 9);
-		const float final_volume_r = gain * static_cast<float>(s.levels.volume_r >> 9);
+		// The channels' target gains, 13.18 signed, held as floats on the way to the increments, and held within the
+		// 5.26 gain's range: a volume above unity at a gain near 31 asks for more than 32, and gets the rail.
+		const float final_volume_l =
+		    std::clamp(gain * static_cast<float>(s.levels.volume_l >> 9), kGainFloor, kGainCeiling);
+		const float final_volume_r =
+		    std::clamp(gain * static_cast<float>(s.levels.volume_r >> 9), kGainFloor, kGainCeiling);
 
 		// × 4 for dB, then × 4 again for the LEDs' range, since a 30 dB reduction is all but silence.
 		const auto leds = static_cast<int32_t>(-(reduction) * 4 * 4);
@@ -230,10 +237,19 @@ struct Compressor {
 		// Each detector's own memory as the frame before the first: it high-passes to 0 and leaves the memory as it is.
 		s.loop.pending = {.l = s.loop.detector_l.z, .r = s.loop.detector_r.z};
 
-		// The steps (5.26 signed) that reach the target gains by the end of the block.
+		// The steps that reach the target gains by the end of the block, 13.18 lifted to 5.26. Each quotient is within
+		// ±2^24 (a target and a gain each within 2^23), so its conversion is defined. A step of 32 or more per frame
+		// (from one rail toward the other over a block of a frame or two) saturates: that block ends short of its
+		// target, and the next carries on.
 		return {
-		    .increment_l = static_cast<int32_t>((final_volume_l - (s.loop.current_volume_l >> 8)) / frames) << 8,
-		    .increment_r = static_cast<int32_t>((final_volume_r - (s.loop.current_volume_r >> 8)) / frames) << 8,
+		    .increment_l =
+		        as_sat<Q<26>>(Q<18>::from_raw(static_cast<int32_t>(
+		                          (final_volume_l - static_cast<float>(s.loop.current_volume_l >> 8)) / frames)))
+		            .raw(),
+		    .increment_r =
+		        as_sat<Q<26>>(Q<18>::from_raw(static_cast<int32_t>(
+		                          (final_volume_r - static_cast<float>(s.loop.current_volume_r >> 8)) / frames)))
+		            .raw(),
 		};
 	}
 
@@ -246,21 +262,29 @@ struct Compressor {
 	template <Mode M>
 	[[nodiscard]] [[gnu::always_inline]] static StereoSample step(const Coefficients& c, const Block& b, Loop& s,
 	                                                              StereoSample x) {
-		s.current_volume_l += b.increment_l;
-		s.current_volume_r += b.increment_r;
+		// The ramp runs from its start toward a target, both within 5.26, by steps that never overshoot it (a
+		// saturated step falls short), so the sum never leaves 5.26.
+		s.current_volume_l = add_wrap(Q<26>::from_raw(s.current_volume_l), Q<26>::from_raw(b.increment_l)).raw();
+		s.current_volume_r = add_wrap(Q<26>::from_raw(s.current_volume_r), Q<26>::from_raw(b.increment_r)).raw();
 
-		// << 4: the gains are 5.26 signed rather than 1.30.
+		// The Q31 frame times its Q26 gain is Q25, lifted to Q29 (wrapping); the saturator reads those bits as its Q31
+		// input, so it takes x × gain / 4.
 		StereoSample y{
-		    .l = AntialiasedTanh::step(kSaturator, EmptyBlock{}, s.saturation_l,
-		                               multiply_32x32_rshift32(x.l, s.current_volume_l) << 4),
-		    .r = AntialiasedTanh::step(kSaturator, EmptyBlock{}, s.saturation_r,
-		                               multiply_32x32_rshift32(x.r, s.current_volume_r) << 4),
+		    .l = AntialiasedTanh::step(
+		        kSaturator, EmptyBlock{}, s.saturation_l,
+		        as_wrap<Q<29>>(mul(Q<31>::from_raw(x.l), Q<26>::from_raw(s.current_volume_l))).raw()),
+		    .r = AntialiasedTanh::step(
+		        kSaturator, EmptyBlock{}, s.saturation_r,
+		        as_wrap<Q<29>>(mul(Q<31>::from_raw(x.r), Q<26>::from_raw(s.current_volume_r))).raw()),
 		};
 
 		if constexpr (M == Mode::BLEND) {
-			// dry_wet_blend's arithmetic (fixed/mix/dry_wet.h). << 1 makes up for the two multiplies.
-			y.l = multiply_accumulate_32x32_rshift32_rounded(multiply_32x32_rshift32(y.l, c.wet), x.l, c.dry) << 1;
-			y.r = multiply_accumulate_32x32_rshift32_rounded(multiply_32x32_rshift32(y.r, c.wet), x.r, c.dry) << 1;
+			// dry_wet_blend's arithmetic (fixed/mix/dry_wet.h), its dry level from the coefficients: two Q31 × Q31
+			// products, Q30, the sum lifted back to Q31.
+			const auto wet = Q<31>::from_raw(c.wet);
+			const auto dry = Q<31>::from_raw(c.dry);
+			y.l = as_wrap<Q<31>>(mla_r(mul(Q<31>::from_raw(y.l), wet), Q<31>::from_raw(x.l), dry)).raw();
+			y.r = as_wrap<Q<31>>(mla_r(mul(Q<31>::from_raw(y.r), wet), Q<31>::from_raw(x.r), dry)).raw();
 		}
 
 		measure(c, s, s.pending);

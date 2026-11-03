@@ -47,7 +47,8 @@ namespace deluge::dsp {
 /// fails to compile: one taking the state by value, which would change a copy, and one taking it by const reference,
 /// which could not change it. `on` returns what the event returns, a reference included.
 ///
-/// **Inlining.** The app builds with `-fno-inline-functions`, so every member is `[[gnu::always_inline]]`: nothing
+/// **Inlining.** The app inlines only the cheapest calls (an inline threshold of 5), so every member is
+/// `[[gnu::always_inline]]`: nothing
 /// sits between the owner's block and the kernel's arithmetic.
 template <control_kernel K>
 class Control {

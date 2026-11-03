@@ -476,7 +476,10 @@ PY
 
     if [ -n "${DBT_DID_UNPACKING}" ]; then
       dbtenv_setup_python
-      pre-commit install --install-hooks
+      # DBT_NO_PYTHON_UPGRADE (CI) skips the wheels pre-commit comes in, and CI has no hooks to install.
+      if command -v pre-commit >/dev/null 2>&1; then
+        pre-commit install --install-hooks
+      fi
     fi
 }
 

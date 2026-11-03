@@ -21,6 +21,7 @@
 #include "deluge-project/controller_mapping.h"
 #include "hid/button.h"
 #include "model/clip/clip_instance_vector.h"
+#include "model/fx/reverb_candidate.h"
 #include "model/sample/sample_recorder.h"
 #include "modulation/params/param.h"
 #include "storage/audio/audio_load_context.h"
@@ -188,9 +189,13 @@ public:
 	bool isEmpty(bool displayPopup = true);
 	void clipLengthChanged(Clip* clip, int32_t oldLength);
 	virtual void cutAllSound() {}
-	virtual void getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb,
-	                                    GlobalEffectableForClip** globalEffectableWithMostReverb,
-	                                    int32_t* highestReverbAmountFound) {}
+	/// @brief The reverb's auto duck's search past this output: the loudest unautomated send among its active clip's
+	/// owners, if louder than @p best, and how it ducks the return. An output with no audio sends nothing.
+	/// @param best The best so far.
+	/// @return The new best.
+	[[nodiscard]] virtual deluge::model::ReverbCandidate reverbCandidate(deluge::model::ReverbCandidate best) {
+		return best;
+	}
 	/// If there's a clip matching the name on this output, returns it.
 	Clip* getClipFromName(std::string_view name);
 

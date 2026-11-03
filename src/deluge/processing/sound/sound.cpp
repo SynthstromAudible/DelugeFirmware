@@ -144,6 +144,7 @@ deluge::synth::NoteOnEvent noteOnEvent(int32_t noteCodePreArp, int32_t noteCodeP
 
 Sound::Sound()
     : chain_{deluge::model::kModFxRingAllocator, deluge::model::kGranularAllocator, deluge::model::delayArena()} {
+	bindBinding(effectsBinding_);
 	unpatchedParamKind_ = params::Kind::UNPATCHED_SOUND;
 
 	// CONTAINMENT for the cross-tier race on voices_. The audio render runs on a
@@ -408,7 +409,7 @@ void Sound::setupAsBlankSynth(ParamManager* paramManager, bool is_dx) {
 }
 
 ModFXType Sound::getModFXType() {
-	return modControllableSnapshot_.effects.mod_fx.type;
+	return modControllableSnapshot().effects.mod_fx.type;
 }
 
 void Sound::patchedParamPresetValueChanged(uint8_t p, ModelStackWithSoundFlags* modelStack, int32_t oldValue,
@@ -730,7 +731,7 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 	case params::LOCAL_LPF_FREQ:
 	case params::LOCAL_LPF_MORPH:
 	case params::LOCAL_LPF_RESONANCE:
-		if (modControllableSnapshot_.effects.filter.lpf_mode == FilterMode::OFF) {
+		if (modControllableSnapshot().effects.filter.lpf_mode == FilterMode::OFF) {
 			return PatchCableAcceptance::DISALLOWED;
 		}
 		break;
@@ -738,7 +739,7 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 	case params::LOCAL_HPF_FREQ:
 	case params::LOCAL_HPF_MORPH:
 	case params::LOCAL_HPF_RESONANCE:
-		if (modControllableSnapshot_.effects.filter.hpf_mode == FilterMode::OFF) {
+		if (modControllableSnapshot().effects.filter.hpf_mode == FilterMode::OFF) {
 			return PatchCableAcceptance::DISALLOWED;
 		}
 		break;
@@ -1549,7 +1550,7 @@ void Sound::reassessRenderSkippingStatus(ModelStackWithSoundFlags* modelStack, b
 	// pending - otherwise it'd stay pending forever (issue #2262)
 	bool skippingStatusNow =
 	    (voices_.empty() && (core().delay().repeatsUntilAbandon() == 0u)
-	     && (currentSong == nullptr || !currentSong->live.stutter.isStuttering(*this))
+	     && (currentSong == nullptr || !currentSong->live.stutter.isStuttering(core()))
 	     && ((arpSettings == nullptr) || !getArp()->hasAnyInputNotesActive() || arpSettings->mode == ArpMode::OFF)
 	     && !getArp()->hasPendingNotes(arpSettings));
 
@@ -1558,7 +1559,7 @@ void Sound::reassessRenderSkippingStatus(ModelStackWithSoundFlags* modelStack, b
 		if (skippingStatusNow) {
 
 			// We wanna start, skipping, but if MOD fx are on...
-			if ((modControllableSnapshot_.effects.mod_fx.type != ModFXType::NONE)
+			if ((modControllableSnapshot().effects.mod_fx.type != ModFXType::NONE)
 			    || core().compressor().dsp().threshold() > 0) {
 
 				// If we didn't start the wait-time yet, start it now
@@ -1572,7 +1573,7 @@ doCutModFXTail:
 					}
 
 					int32_t waitSamplesModfx = 0;
-					switch (modControllableSnapshot_.effects.mod_fx.type) {
+					switch (modControllableSnapshot().effects.mod_fx.type) {
 					case ModFXType::CHORUS:
 						[[fallthrough]];
 					case ModFXType::CHORUS_STEREO:
@@ -1618,25 +1619,37 @@ yupStartSkipping:
 	}
 }
 
-void Sound::getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb,
-                                   GlobalEffectableForClip** globalEffectableWithMostReverb,
-                                   int32_t* highestReverbAmountFound, ParamManagerForTimeline* paramManager) {
-
-	PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
-	if (!patchedParams->params[params::GLOBAL_REVERB_AMOUNT].isAutomated(
+deluge::model::ReverbCandidate Sound::reverbCandidate(deluge::model::ReverbCandidate best,
+                                                      ParamManagerForTimeline& paramManager) {
+	PatchedParamSet* patchedParams = paramManager.getPatchedParamSet();
+	if (patchedParams->params[params::GLOBAL_REVERB_AMOUNT].isAutomated(
 	        *patchedParams->docForParam(params::GLOBAL_REVERB_AMOUNT))
-	    && patchedParams->params[params::GLOBAL_REVERB_AMOUNT].containsSomething(
+	    || !patchedParams->params[params::GLOBAL_REVERB_AMOUNT].containsSomething(
 	        *patchedParams->docForParam(params::GLOBAL_REVERB_AMOUNT), -2147483648)) {
-
-		// We deliberately don't use the LPF'ed param here
-		int32_t reverbHere = patchedParams->getValue(params::GLOBAL_REVERB_AMOUNT);
-		if (*highestReverbAmountFound < reverbHere) {
-			*highestReverbAmountFound = reverbHere;
-			*soundWithMostReverb = this;
-			*paramManagerWithMostReverb = paramManager;
-			*globalEffectableWithMostReverb = nullptr;
-		}
+		return best;
 	}
+	// We deliberately don't use the LPF'ed param here
+	const int32_t reverbHere = patchedParams->getValue(params::GLOBAL_REVERB_AMOUNT);
+	if (!deluge::model::beats(reverbHere, best)) {
+		return best;
+	}
+
+	// The duck's depth is the sidechain's cable to the post-reverb volume, if there is one.
+	PatchCableSet* patchCableSet = paramManager.getPatchCableSet();
+	const int32_t whichCable = patchCableSet->getPatchCableIndex(
+	    PatchSource::SIDECHAIN, deluge::synth::CableTarget::param(params::GLOBAL_VOLUME_POST_REVERB_SEND));
+	const int32_t depth =
+	    (whichCable != 255)
+	        ? deluge::synth::modified_depth(patchCableSet->patchCables[whichCable].param.getCurrentValue(),
+	                                        PatchSource::SIDECHAIN, params::GLOBAL_VOLUME_POST_REVERB_SEND)
+	        : 0;
+	return {
+	    .amount = reverbHere,
+	    .found = true,
+	    .duck_depth = depth,
+	    .duck_shape = paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_SIDECHAIN_SHAPE),
+	    .rates = modControllableSnapshot().effects.sidechain,
+	};
 }
 
 // fromAutomation means whether the changes was caused by automation playing back - as opposed to the user turning the
@@ -1815,7 +1828,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		int32_t old = params.source_values[patchSourceSidechainUnderlying];
 		params.source_values[patchSourceSidechainUnderlying] = core().sidechain().render(
 		    output.size(), paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_SIDECHAIN_SHAPE),
-		    modControllableSnapshot_.effects.sidechain, playbackHandler.getTimePerInternalTickInverse());
+		    modControllableSnapshot().effects.sidechain, playbackHandler.getTimePerInternalTickInverse());
 		uint32_t anyChange = (old != params.source_values[patchSourceSidechainUnderlying]);
 		sourcesChanged.fetch_or(anyChange << patchSourceSidechainUnderlying, std::memory_order_acq_rel);
 	}
@@ -1893,7 +1906,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	}
 	delayWorkingState.userDelayRate = params.param_final_values[params::GLOBAL_DELAY_RATE - params::FIRST_GLOBAL];
 	uint32_t timePerTickInverse = playbackHandler.getTimePerInternalTickInverse(true);
-	core().delay().setupWorkingState(delayWorkingState, modControllableSnapshot_.effects.delay, timePerTickInverse,
+	core().delay().setupWorkingState(delayWorkingState, modControllableSnapshot().effects.delay, timePerTickInverse,
 	                                 !voices_.empty());
 	delayWorkingState.analog_saturation = 8;
 
@@ -1922,7 +1935,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		q31_t hpfMorph = getSmoothedPatchedParamValue(params::LOCAL_HPF_MORPH, *paramManager);
 		q31_t hpfFreq = getSmoothedPatchedParamValue(params::LOCAL_HPF_FREQ, *paramManager);
 		bool doLPF = thisHasFilters
-		             && (modControllableSnapshot_.effects.filter.lpf_mode == FilterMode::TRANSISTOR_24DB_DRIVE
+		             && (modControllableSnapshot().effects.filter.lpf_mode == FilterMode::TRANSISTOR_24DB_DRIVE
 		                 || paramManager->getPatchCableSet()->doesParamHaveSomethingPatchedToIt(params::LOCAL_LPF_FREQ)
 		                 || (lpfFreq < 0x7FFFFFD2) || (lpfMorph > std::numeric_limits<q31_t>::min()));
 		bool doHPF =
@@ -1947,11 +1960,11 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		ExpressionParamSet* expressionParams = paramManager->getExpressionParamSet();
 		const uint8_t* bendRangesSrc = expressionParams ? expressionParams->bendRanges : FlashStorage::defaultBendRange;
 		const VoiceConfig voiceConfig{
-		    .low_pass = doLPF ? deluge::effects::low_pass_slot(modControllableSnapshot_.effects.filter.lpf_mode)
+		    .low_pass = doLPF ? deluge::effects::low_pass_slot(modControllableSnapshot().effects.filter.lpf_mode)
 		                      : deluge::dsp::fixed::LowPassSlot{},
-		    .high_pass = doHPF ? deluge::effects::high_pass_slot(modControllableSnapshot_.effects.filter.hpf_mode)
+		    .high_pass = doHPF ? deluge::effects::high_pass_slot(modControllableSnapshot().effects.filter.hpf_mode)
 		                       : deluge::dsp::fixed::HighPassSlot{},
-		    .filter_route = deluge::effects::filter_route(modControllableSnapshot_.effects.filter.route),
+		    .filter_route = deluge::effects::filter_route(modControllableSnapshot().effects.filter.route),
 		    .volume_neutral_value_for_unison = volumeNeutralValueForUnison,
 		    .cpu_direness = AudioEngine::cpuDireness,
 		    .voice_priority = snapshot_.voice_priority,
@@ -1967,7 +1980,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		    .has_filters = thisHasFilters,
 		    .expression_sources_changed_at_synth_level = expressionSourcesChangedAtSynthLevel,
 		    .monophonic_expression_values = monophonicExpressionValues,
-		    .clipping_amount = modControllableSnapshot_.effects.saturation.clipping_amount,
+		    .clipping_amount = modControllableSnapshot().effects.saturation.clipping_amount,
 		    .doing_osc_sync = renderingOscillatorSyncCurrently(paramManager),
 		    .engine_rendering_in_stereo = AudioEngine::renderInStereo,
 		    .num_unison = snapshot_.num_unison,
@@ -2164,7 +2177,7 @@ void Sound::stopSkippingRendering(ArpeggiatorSettings* arpSettings) {
 				core().sidechain().registerHitRetrospectively(
 				    AudioEngine::sizeLastSideChainHit,
 				    AudioEngine::audioSampleTimer - AudioEngine::timeLastSideChainHit,
-				    modControllableSnapshot_.effects.sidechain, playbackHandler.getTimePerInternalTickInverse());
+				    modControllableSnapshot().effects.sidechain, playbackHandler.getTimePerInternalTickInverse());
 				//}
 			}
 			// Special state to make it grab the actual value the first time it's rendered
@@ -2584,10 +2597,10 @@ void Sound::setSynthMode(SynthMode value, Song* song) {
 			}
 		}
 		// switch the filters back on if needed
-		if (modControllableSnapshot_.effects.filter.lpf_mode == FilterMode::OFF) {
+		if (modControllableSnapshot().effects.filter.lpf_mode == FilterMode::OFF) {
 			setLpfMode(FilterMode::TRANSISTOR_24DB);
 		}
-		if (modControllableSnapshot_.effects.filter.hpf_mode == FilterMode::OFF) {
+		if (modControllableSnapshot().effects.filter.hpf_mode == FilterMode::OFF) {
 			setHpfMode(FilterMode::HPLADDER);
 		}
 	}
@@ -2707,8 +2720,8 @@ bool Sound::anyNoteIsOn() {
 }
 
 bool Sound::hasFilters() {
-	return (modControllableSnapshot_.effects.filter.lpf_mode != FilterMode::OFF
-	        || modControllableSnapshot_.effects.filter.hpf_mode != FilterMode::OFF);
+	return (modControllableSnapshot().effects.filter.lpf_mode != FilterMode::OFF
+	        || modControllableSnapshot().effects.filter.hpf_mode != FilterMode::OFF);
 }
 
 void Sound::readParamsFromFile(Deserializer& reader, ParamManagerForTimeline* paramManager,
@@ -2997,7 +3010,7 @@ Error Sound::applyState(const deluge::instrument::SoundState& state) {
 deluge::instrument::SoundState Sound::seededState() const {
 	deluge::instrument::SoundState seeded;
 	seedScalarsInto(seeded);
-	seeded.effects = modControllableSnapshot_.effects; // what the render plays
+	seeded.effects = modControllableSnapshot().effects; // what the render plays
 	for (int32_t s = 0; s < kNumSources; s++) {
 		sources[s].seedScalarsInto(seeded.sources[s]);
 		sources[s].seedDxPatchInto(seeded.sources[s]);

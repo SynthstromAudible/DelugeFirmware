@@ -35,6 +35,7 @@
 
 #pragma once
 
+#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/core/types.h"
 #include "dsp-next/core/wrapping.h"
@@ -45,7 +46,6 @@
 #include "dsp-next/fixed/mix/dry_wet.h"
 #include "dsp-next/fixed/shaping/tanh.h"
 #include "dsp-next/fixed/shaping/tanh_table.h"
-#include "util/fixedpoint.h"
 #include "util/synth_noise.h"
 
 #include <algorithm>
@@ -68,7 +68,6 @@ namespace filters_reference {
 
 using deluge::dsp::q31;
 using deluge::dsp::StereoSample;
-using deluge::dsp::fixed::CurvedFrequency;
 using deluge::dsp::fixed::FilterConfig;
 using deluge::dsp::fixed::FilterRoute;
 using deluge::dsp::fixed::HighPassSlot;
@@ -113,6 +112,13 @@ struct Digest {
 	}
 };
 
+/// @brief What the legacy cutoff warp returns: tan(f) (Q28), 1 / (1 + tan(f)) (Q31) and the moveability (Q31).
+struct CurvedFrequency {
+	q31 tanned;
+	q31 divide_by_one_plus_tanned;
+	q31 fc;
+};
+
 /// @brief The cutoff warp the filters configure from: `curve_frequency` (filter_modes.h), copied.
 [[nodiscard]] inline CurvedFrequency curve_frequency(q31 frequency) {
 	/// One at Q27 (where half of a Q28 tan lands).
@@ -120,7 +126,10 @@ struct Digest {
 	/// One at Q58: divided by a Q27 value, it gives the reciprocal at Q31.
 	constexpr double kOneQ58 = 288230376151711744.0;
 	const q31 tanned = deluge::dsp::fixed::instant_tan(lshift_and_saturate<5>(frequency));
-	const auto divide_by_one_plus_tanned = static_cast<q31>(kOneQ58 / static_cast<double>(kOneQ27 + (tanned >> 1)));
+	// Saturated before the cast, as the legacy firmware's VCVT saturates it on the A9: at cutoff 0 the quotient is
+	// 2^31, whose plain cast is undefined (INT32_MIN on x86).
+	const auto divide_by_one_plus_tanned =
+	    static_cast<q31>(std::min(kOneQ58 / static_cast<double>(kOneQ27 + (tanned >> 1)), double{INT32_MAX}));
 	return {
 	    .tanned = tanned,
 	    .divide_by_one_plus_tanned = divide_by_one_plus_tanned,

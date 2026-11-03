@@ -256,13 +256,13 @@ level = "unit"
 runner = "ctest"
 kind = "sanitizer"
 status = "gate"
-gates = "the dsp-next specs (tests/dsp) must run without a signed overflow or an out-of-range shift under UndefinedBehaviorSanitizer, any finding fatal: on the host a plain signed + gives the values wrapping_add gives, so the unit tree cannot see a kernel that overflows where it must wrap. Every spec runs with both checks; only the verbatim references' legacy sums are unchecked, per function (see tests/dsp-ubsan/CMakeLists.txt)"
+gates = "the dsp-next specs (tests/dsp) must run without a signed overflow, an out-of-range shift or an out-of-range float-to-int conversion under UndefinedBehaviorSanitizer, any finding fatal: on the host a plain signed + gives the values wrapping_add gives, so the unit tree cannot see a kernel that overflows where it must wrap, and an out-of-range conversion gives a host-only value where the A9 saturates. Every spec runs with every check; only the verbatim references' legacy sums are unchecked, per function (see tests/dsp-ubsan/CMakeLists.txt)"
 source = "tests/dsp-ubsan"
 tree = "build/test-dsp-ubsan"
 configure = ["-G", "Ninja"]
 requires = ["cmake", "clang"]
 tier = "pr"
-group = "unit"
+group = "unit-cpp"
 runtime = "~1m first build, ~5s after"
 
 [[harness]]
@@ -2127,7 +2127,7 @@ configure = ["-G", "Ninja Multi-Config"]
 ctest_args = ["-C", "Debug"]
 requires = ["cmake", "clang"]
 tier = "pr"
-group = "unit"
+group = "unit-cpp"
 runtime = "~2m first build, ~5s after"
 
 [[harness]]
@@ -2137,13 +2137,13 @@ level = "unit"
 runner = "ctest"
 kind = "unit"
 status = "gate"
-gates = "the fixed-point, VFP and NEON specs must hold on ARM, cross-built and run under qemu: the NEON conversion kernels must match their scalar references bit for bit"
+gates = "the fixed-point, VFP and NEON specs must hold on ARM, cross-built and run under qemu: the NEON conversion kernels must match their scalar references bit for bit, every fixed-point operation (and its portable twin) must match the A9 instruction it stands for, and every fixed-point operation must compile, at the shipping image's ARM and Thumb-2 codegen flags, to the instruction it names (tests/unit-arm/codegen)"
 source = "tests/unit-arm"
 tree = "build/test-unit-arm"
 configure = ["-G", "Ninja"]
-requires = ["cmake", "clang", "arm-linux-gnueabihf-gcc", "qemu-arm"]
+requires = ["cmake", "clang", "arm-linux-gnueabihf-gcc", "qemu-arm", "llvm-objdump"]
 tier = "pr"
-group = "unit"
+group = "unit-cpp"
 runtime = "~1m first build, ~5s after"
 
 [[harness]]
@@ -2184,7 +2184,7 @@ kind = "unit"
 status = "gate"
 gates = "deluge_sample_convert's tests: the sample format conversions, against the app C++ its build.rs compiles"
 run = ["cargo", "test"]
-requires = ["cargo", "clang"]
+requires = ["cargo", "clang", "arm-none-eabi-gcc"]
 tier = "pr"
 group = "storage"
 runtime = "~1m"
@@ -2754,6 +2754,32 @@ group = "tooling"
 runtime = "~1s"
 
 [[harness]]
+name = "fixed-point-raw-selftest"
+path = "scripts"
+level = "unit"
+runner = "script"
+kind = "unit"
+status = "gate"
+gates = "the fixed-point raw-arithmetic ratchet counts raw q31_ops.h helper calls and DSP-instruction inline asm (asm or __asm__, any instruction of the template) apart from typed-boundary crossings (from_raw, .raw(), ->raw(), reinterpret_bits), outside comments but not inside strings; exempts fixed_point.h and q31_ops.h; fails on a raw site in an unlisted file, a grown raw count, or an entry with headroom left; lets boundary crossings grow; and refuses to rewrite a raw count upward"
+run = ["python3", "-m", "unittest", "test_check_fixed_point_raw"]
+tier = "pr"
+group = "tooling"
+runtime = "~1s"
+
+[[harness]]
+name = "fixed-point-raw"
+path = "."
+level = "unit"
+runner = "script"
+kind = "unit"
+status = "gate"
+gates = "raw fixed-point arithmetic outside dsp-next/core/fixed_point.h and q31_ops.h only shrinks: no file's count of raw q31 helper calls and DSP-instruction asm differs from scripts/fixed_point_raw_allowlist.txt (a lower count fails until the list is rewritten, so freed headroom cannot be spent again), and no new file has raw sites"
+run = ["python3", "scripts/check_fixed_point_raw.py"]
+tier = "pr"
+group = "tooling"
+runtime = "~2s"
+
+[[harness]]
 name = "library-boundary-selftest"
 path = "scripts"
 level = "unit"
@@ -2816,6 +2842,19 @@ kind = "unit"
 status = "gate"
 gates = "the DSP bench host script's parsing of device captures: partial, mismatched and malformed runs are rejected, a run failing the calibration_loop or DBGAUTHSTATUS sanity check is written marked and exits 4, and the table text and probe arguments are exact"
 run = ["python3", "-m", "unittest", "test_dsp_bench"]
+tier = "pr"
+group = "tooling"
+runtime = "~1s"
+
+[[harness]]
+name = "compare-codegen-selftest"
+path = "tools"
+level = "unit"
+runner = "script"
+kind = "unit"
+status = "gate"
+gates = "the machine-code comparison of two images names what an address points at instead of its value (a sized symbol, or ADDR in a loaded segment, for literal-pool words and the movw/movt pairs that reach each other along the function's branches; an in-function branch as the index it lands on) and masks pc-relative and adr offsets, lld's trap fill, ThinLTO suffixes and a signature's parameter types; it reports a changed constant (one outside every loaded segment, in a pool word or a movw/movt pair), a reference moved to another symbol, a retargeted branch and an added or removed function"
+run = ["python3", "-m", "unittest", "test_compare_codegen"]
 tier = "pr"
 group = "tooling"
 runtime = "~1s"

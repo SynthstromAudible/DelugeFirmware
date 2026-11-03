@@ -17,6 +17,7 @@
 #pragma once
 
 #include "dsp-next/core/concepts.h"
+#include "dsp-next/core/fixed_point_neon.h"
 #include "dsp-next/core/generator.h"
 #include "dsp-next/core/phasor.h"
 #include "dsp-next/fixed/bandlimited/table.h"
@@ -50,21 +51,21 @@ class PulseOscillator : public Generator<PulseOscillator, q31> {
 
 public:
 	PulseOscillator(Table table, uint32_t phase, uint32_t increment, uint32_t phase_offset)
-	    : samples_{table.samples.data()}, magnitude_{table.magnitude}, phasor_{phase, increment},
-	      phase_offset_{phase_offset} {}
+	    : samples_{table.samples.data()}, magnitude_{table.magnitude},
+	      phasor_{UQ<32>::from_raw(phase), UQ<32>::from_raw(increment)}, phase_offset_{phase_offset} {}
 
 	/// Jump the phase (e.g. a hard-sync reset between windows). See @ref deluge::dsp::Phasor::seek.
-	void seek(uint32_t phase) { phasor_.seek(phase); }
+	void seek(uint32_t phase) { phasor_.seek(UQ<32>::from_raw(phase)); }
 
 	/// The live phase — for reading back a persistent oscillator's phase across blocks.
-	[[nodiscard]] uint32_t phase() const { return phasor_.phase(); }
+	[[nodiscard]] uint32_t phase() const { return phasor_.phase().raw(); }
 
 	/// Change the per-sample phase step for the next block (pitch change), keeping the accumulated phase.
-	void set_increment(uint32_t increment) { phasor_.set_increment(increment); }
+	void set_increment(uint32_t increment) { phasor_.set_increment(UQ<32>::from_raw(increment)); }
 
 	[[gnu::always_inline]] Argon<q31> render() {
-		const uint32_t phase = phasor_.phase();
-		const uint32_t increment = phasor_.increment();
+		const uint32_t phase = phasor_.phase().raw();
+		const uint32_t increment = phasor_.increment().raw();
 
 		// Interpolation fractions for the two squares: A at the phase, B at the offset phase. Each is the 16 phase bits
 		// just below the table index; the strengths below take the 15 they need.
@@ -91,28 +92,26 @@ public:
 			std::memcpy(&word_b, reinterpret_cast<const std::byte*>(samples_) + (index_b << 1), sizeof(word_b));
 			pair_b[i] = word_b;
 		});
-		ArgonHalf<int16_t> entry_a = pair_a.Narrow().As<int16_t>();
-		ArgonHalf<int16_t> next_a = pair_a.ShiftRightNarrow<16>().As<int16_t>();
-		ArgonHalf<int16_t> entry_b = pair_b.Narrow().As<int16_t>();
-		ArgonHalf<int16_t> next_b = pair_b.ShiftRightNarrow<16>().As<int16_t>();
+		const auto pairs_a = Q16x2Vec<15>::from_raw(pair_a);
+		const auto pairs_b = Q16x2Vec<15>::from_raw(pair_b);
 
-		// Interpolate each square. Square A is done with flipped polarity (the strengths are
-		// biased by kMin), which is the polarity flip the ring-mod needs anyway.
-		ArgonHalf<int16_t> strength_a1 = fraction_a | kMin;
-		ArgonHalf<int16_t> strength_a2 = static_cast<int16_t>(kMin) - strength_a1;
-		Argon<int32_t> square_a = strength_a2
-		                              .MultiplyDoubleSaturateLong(next_a) //<
-		                              .MultiplyDoubleAddSaturateLong(strength_a1, entry_a);
+		// Interpolate each square between its Q15 entries, Q31. The weight w is each fraction's low 15 bits; square A
+		// is interpolated with weights w − 1 and −w, so it comes out negated: the polarity flip the ring-mod needs
+		// anyway. fraction | kMin is w − 1 whatever the fraction's top bit: as a subtraction it would need a mask
+		// first.
+		const auto strength_a1 = Q16Half<15>::from_raw(fraction_a | kMin);
+		const Q16Half<15> strength_a2 = sub_wrap(Q16Half<15>::splat(Q16<15>::min()), strength_a1);
+		const QVec<31> square_a =
+		    mla_doubling_wide_sat(mul_doubling_wide_sat(strength_a2, pairs_a.hi()), strength_a1, pairs_a.lo());
 
-		ArgonHalf<int16_t> strength_b2 = fraction_b & kMax;
-		ArgonHalf<int16_t> strength_b1 = static_cast<int16_t>(kMax) - strength_b2;
-		Argon<int32_t> square_b = strength_b2
-		                              .MultiplyDoubleSaturateLong(next_b) //<
-		                              .MultiplyDoubleAddSaturateLong(strength_b1, entry_b);
+		const auto strength_b2 = Q16Half<15>::from_raw(fraction_b & kMax);
+		const Q16Half<15> strength_b1 = sub_wrap(Q16Half<15>::splat(Q16<15>::max()), strength_b2);
+		const QVec<31> square_b =
+		    mla_doubling_wide_sat(mul_doubling_wide_sat(strength_b2, pairs_b.hi()), strength_b1, pairs_b.lo());
 
-		// Ring-modulate the two squares; the << 1 restores full scale.
-		Argon<q31> output = square_a.MultiplyRoundFixedQMax(square_b) << 1;
-		phasor_.seek(phase + increment * 4);
+		// Ring-modulate the two squares: the rounded doubling product, then << 1 restores full scale (wrapping).
+		const Argon<q31> output = scale_shl_wrap<1>(mul_doubling_r_sat(square_a, square_b)).raw();
+		phasor_.seek(UQ<32>::from_raw(phase + increment * 4));
 		return output;
 	}
 };

@@ -11,8 +11,8 @@
 #include "alloc_seams.h"
 #include "patch_cases.h"
 
+#include "dsp-next/core/q31_ops.h"
 #include "synth/modulation/cable_depth.h"
-#include "util/fixedpoint.h"
 
 #include <array>
 #include <cppspec.hpp>

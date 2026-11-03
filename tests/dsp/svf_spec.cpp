@@ -75,12 +75,55 @@ std::vector<std::string> partings() {
 	return parted;
 }
 
-/// Settings across the range: dark and resonant, mid, and bright with the morph past half.
+/// Settings across the range: dark, mid, bright at the top resonance with the morph at its top, and the top resonance
+/// with the morph just below half.
 const std::vector<FilterConfig> kConfigs{
     {.frequency = 1 << 22, .resonance = 0, .morph = 0, .allow_oversampling = true},
     {.frequency = 1 << 24, .resonance = 1 << 28, .morph = 1 << 27, .allow_oversampling = true},
     {.frequency = 50000000, .resonance = 536870911, .morph = (1 << 29) - 1, .allow_oversampling = false},
+    {.frequency = 1 << 26, .resonance = 536870911, .morph = (1 << 28) - 1, .allow_oversampling = true},
 };
+
+/// A block at the rails and between: full-scale square bursts, then xorshift noise across the whole range.
+std::vector<q31> loud_block() {
+	std::vector<q31> block;
+	for (std::size_t i = 0; i < 128; ++i) {
+		block.push_back((i / 8) % 2 == 0 ? q31{kOneQ31} : q31{INT32_MIN});
+	}
+	uint32_t state = 0x1357'9bdfu;
+	for (std::size_t i = 0; i < 384; ++i) {
+		state ^= state << 13;
+		state ^= state >> 17;
+		state ^= state << 5;
+		block.push_back(static_cast<q31>(state));
+	}
+	return block;
+}
+
+/// Samples where the kernel's step parts from the reference's render, over loud_block() at every config and mode.
+std::size_t loud_partings() {
+	std::size_t parted = 0;
+	for (const FilterConfig& config : kConfigs) {
+		for (const SvfMode mode : {SvfMode::BAND, SvfMode::NOTCH}) {
+			filters_reference::ReferenceStateVariableFilter reference;
+			reference.zero(); // no fade: the step alone
+			(void)reference.configure(kOneQ31, config, mode);
+			std::vector<q31> expected = loud_block();
+			std::vector<q31> scratch(expected.size());
+			reference.render_mono(expected, scratch);
+
+			const Svf::Coefficients c = Svf::coefficients({.gain = kOneQ31, .config = config, .mode = mode});
+			Svf::State s{};
+			const std::vector<q31> in = loud_block();
+			for (std::size_t i = 0; i < in.size(); ++i) {
+				const q31 out = mode == SvfMode::BAND ? Svf::step<Svf::Mode::BAND>(c, {}, s, in[i])
+				                                      : Svf::step<Svf::Mode::NOTCH>(c, {}, s, in[i]);
+				parted += out != expected[i] ? 1 : 0;
+			}
+		}
+	}
+	return parted;
+}
 
 } // namespace
 
@@ -96,6 +139,10 @@ describe svf("Svf", ${
 			const filter_workloads::FilterWorkload& workload = filter_workloads::filter_workload(id);
 			expect(kernel_filters::record(workload)).to_equal(filter_workloads::kRecorded.at(static_cast<size_t>(id)));
 		}
+	});
+
+	it("steps as the reference renders at the top resonance, both morph halves and full-scale input, in both modes", _ {
+		expect(loud_partings()).to_equal(std::size_t{0});
 	});
 
 	it("passes the gain through as its compensation, as the reference's configure returns it", _ {

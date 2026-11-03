@@ -18,9 +18,10 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "dsp-next/core/q31_ops.h"
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/stereo_sample.h"
 
+#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <optional>
@@ -235,7 +236,7 @@ public:
 			write_sped_up(sample, strength2);
 		}
 		else {
-			write_slowed_down(sample, strength1, strength2);
+			write_slowed_down(*resample_, sample, strength1, strength2);
 		}
 	}
 
@@ -292,7 +293,9 @@ private:
 
 	/// @brief A write at above the native rate: a triangle at least two steps either side of the long position,
 	/// from its far right to where its left side falls to nothing. Each write is the sample at the strength the
-	/// triangle has there (4.28), shifted back up by 3.
+	/// triangle has there (Q28), shifted back up by 3. The triangle is twice as wide as the rate needs, so the
+	/// strengths a tape sample takes sum to about 2: the Q30 product is added as a Q31 sample, half its value, which
+	/// keeps unity.
 	[[gnu::always_inline]] void write_sped_up(StereoSample sample, int32_t strength2) {
 		const auto far_right = static_cast<int32_t>(
 		    (static_cast<uint32_t>(strength2) + (resample_->spin_rate_for_sped_up_writing >> 8)) >> 16);
@@ -305,8 +308,14 @@ private:
 			                            - (static_cast<uint32_t>(from_long_pos >> 4) * resample_->divide_by_rate));
 		};
 		auto add = [&](int32_t strength) {
-			pos->l += multiply_32x32_rshift32(sample.l, strength) << 3;
-			pos->r += multiply_32x32_rshift32(sample.r, strength) << 3;
+			const auto at = Q<28>::from_raw(strength);
+			// The half-strength write (see above): the Q30 product read as Q31.
+			pos->l = add_wrap(Q<31>::from_raw(pos->l),
+			                  reinterpret_bits<Q<31>>(mul_as_wrap<Q<30>>(Q<31>::from_raw(sample.l), at)))
+			             .raw();
+			pos->r = add_wrap(Q<31>::from_raw(pos->r),
+			                  reinterpret_bits<Q<31>>(mul_as_wrap<Q<30>>(Q<31>::from_raw(sample.r), at)))
+			             .raw();
 			pos = before(pos);
 		};
 
@@ -328,27 +337,27 @@ private:
 
 	/// @brief A write at below the native rate: four samples, from two right of the write head back to one left of
 	/// it, each at its side's strength (16.16) widened by the rate multiple and scaled by the write size adjustment.
-	[[gnu::always_inline]] void write_slowed_down(StereoSample sample, int32_t strength1, int32_t strength2) {
+	/// @param resample The tape's resampling, which a slowed-down tape has.
+	[[gnu::always_inline]] void write_slowed_down(const Resample& resample, StereoSample sample, int32_t strength1,
+	                                              int32_t strength2) {
 		const auto widen = [&](int32_t strength) {
-			return static_cast<int32_t>(static_cast<uint32_t>(strength) + resample_->rate_multiple - 65536);
+			return static_cast<int32_t>(static_cast<uint32_t>(strength) + resample.rate_multiple - 65536);
 		};
 		const int32_t main = widen(strength1);
 		const int32_t next = widen(strength2);
 		// Right to left: two past the write head, one past it, the write head, one before it.
-		// A built-in array, not std::array: its operator[] is an out-of-line call under the app's
-		// -fno-inline-functions, and app TUs (the stutterer) reach this write.
 		constexpr size_t kStrengths = 4;
-		// NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
-		const int32_t strengths[kStrengths]{next - 65536, next, main, main - 65536};
+		const std::array<int32_t, kStrengths> strengths{next - 65536, next, main, main - 65536};
 
 		StereoSample* pos = write_position(2);
 		for (size_t i = 0; i < kStrengths; ++i) {
 			const int32_t strength = strengths[i];
 			if (strength > 0) {
-				const auto gain =
-				    static_cast<int32_t>(static_cast<uint32_t>(strength >> 2) * resample_->write_size_adjustment);
-				pos->l += multiply_32x32_rshift32(sample.l, gain) << 2;
-				pos->r += multiply_32x32_rshift32(sample.r, gain) << 2;
+				// Raw: an integer product of the 16.14 strength and the 16.16 adjustment, the gain at Q30.
+				const auto gain = Q<30>::from_raw(
+				    static_cast<int32_t>(static_cast<uint32_t>(strength >> 2) * resample.write_size_adjustment));
+				pos->l = add_wrap(Q<31>::from_raw(pos->l), mul_as_wrap<Q<31>>(Q<31>::from_raw(sample.l), gain)).raw();
+				pos->r = add_wrap(Q<31>::from_raw(pos->r), mul_as_wrap<Q<31>>(Q<31>::from_raw(sample.r), gain)).raw();
 			}
 			if (i + 1 < kStrengths) {
 				pos = before(pos);

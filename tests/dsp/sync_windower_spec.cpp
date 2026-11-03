@@ -21,9 +21,12 @@
 // is the golden harness's job; here we pin the structural invariants. Dual-arch (x86 SIMDe + ARM).
 
 #include "dsp-next/fixed/sync/sync_windower.h"
+#include "sync_reference.h"
 #include <array>
 #include <cppspec.hpp>
 #include <cstdint>
+#include <optional>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -46,6 +49,27 @@ std::vector<SyncWindower::Window> collect(uint32_t resetter_increment) {
 		windows.push_back(*window);
 	}
 	return windows;
+}
+
+/// Fills each window with a saw read from its phasor, as an oscillator would, and returns the block and end phase.
+template <class Windower>
+std::pair<std::array<int32_t, kBlock>, uint32_t> render(Resetter resetter, uint32_t phase, uint32_t increment,
+                                                        uint32_t retrigger) {
+	std::array<int32_t, kBlock> buffer{};
+	Windower windower{Buffer{buffer}, resetter, phase, increment, retrigger};
+	while (auto window = windower.next()) {
+		for (int32_t& sample : window->output) {
+			sample = static_cast<int32_t>(window->phasor.advance().raw());
+		}
+	}
+	return {buffer, windower.phase()};
+}
+
+uint32_t xorshift(uint32_t& x) {
+	x ^= x << 13;
+	x ^= x >> 17;
+	x ^= x << 5;
+	return x;
 }
 } // namespace
 
@@ -95,12 +119,108 @@ describe sync_windower("deluge::dsp::fixed SyncWindower", ${
 		expect(windower.phase()).to_equal(static_cast<uint32_t>(kInc * kBlock));
 	});
 
-	// The seam reciprocal rounds the increment up to 16 bits before dividing, which wraps to zero above 0xFFFF0000;
-	// adjustPitch only rejects increments at or above 2^32, so these are reachable.
-	it("tiles the block when the resetter increment wraps the reciprocal's round-up", _ {
+	// Voice::adjustPitch only rejects increments at or above 2^32, so increments above 0xFFFF0000 are reachable.
+	it("tiles the block when the resetter increment is within 2^16 of a whole cycle", _ {
 		std::vector<SyncWindower::Window> windows = collect(0xFFFFFF00u);
 		expect(windows.size() > 1).to_be_truthy();
 		expect(windows.back().offset + static_cast<int32_t>(windows.back().output.size())).to_equal(kBlock);
+	});
+	it("restarts at or before the exact phase, never behind the retrigger phase, at masters of 2^16 and slower", _ {
+		// The master is an eighth or a quarter of its increment past the boundary at the crossover sample: the restarted
+		// window's phase is the retrigger phase, backed up one increment for the redone crossover sample, plus the phase
+		// gained since, exactly that fraction of the audible increment. The reciprocal's 16-bit divisor makes it smaller
+		// for these masters, never negative
+		constexpr uint32_t kRetrigger = 0x40000000u;
+		int32_t bad = 0;
+		int32_t restarts = 0;
+		for (uint32_t increment : {8u, 255u, 4096u, 65535u, 65536u, 1u << 20}) {
+			for (uint32_t ahead : {increment / 8, increment / 4}) {
+				std::array<int32_t, kBlock> buffer{};
+				SyncWindower windower{Buffer{buffer}, Resetter{ahead - (increment * 4), increment}, 0u, kInc, kRetrigger};
+				const auto exact = static_cast<int64_t>(uint64_t{kInc} * ahead / increment);
+				bool first = true;
+				while (std::optional<SyncWindower::Window> window = windower.next()) {
+					if (!first) {
+						const auto gained = static_cast<int32_t>(window->phasor.phase().raw() - kRetrigger + kInc);
+						bad += (gained < 0 || gained > exact) ? 1 : 0;
+						++restarts;
+					}
+					first = false;
+				}
+			}
+		}
+		expect(restarts).to_be_greater_than(0);
+		expect(bad).to_equal(0);
+	});
+	it("tiles the block at the slowest masters, whose next crossover is 2^31 samples or more away", _ {
+		// Resetter increments of 1 and 2, far from their boundary and just before it. A bound on the windows makes a
+		// windower that never finishes fail rather than hang
+		int32_t bad = 0;
+		uint32_t x = 0x6A09E667u;
+		for (uint32_t increment : {1u, 2u}) {
+			for (int i = 0; i < 64; ++i) {
+				const uint32_t phase = i % 2 == 0 ? xorshift(x) : 0u - (xorshift(x) % 40u);
+				std::array<int32_t, kBlock> buffer{};
+				SyncWindower windower{Buffer{buffer}, Resetter{phase, increment}, 0u, kInc, 0u};
+				int32_t windows = 0;
+				int32_t end = 0;
+				while (std::optional<SyncWindower::Window> window = windower.next()) {
+					const auto length = static_cast<int32_t>(window->output.size());
+					bad += (length < 1 || window->offset < 0 || window->offset + length > kBlock) ? 1 : 0;
+					end = window->offset + length;
+					if (++windows > kBlock + 1) {
+						++bad;
+						break;
+					}
+				}
+				bad += end != kBlock ? 1 : 0;
+			}
+		}
+		expect(bad).to_equal(0);
+	});
+	it("renders the reference's samples and end phase", _ {
+		int32_t bad = 0;
+		uint32_t x = 0x9E3779B9u;
+		for (int i = 0; i < 8192; ++i) {
+			// Masters from a few samples per cycle to slower than the block, including increments at or below 2^16
+			const Resetter resetter{xorshift(x), xorshift(x) >> (xorshift(x) % 24)};
+			// At or below 2^16, and above 0xFFFF0000, the raw reference's resetter reciprocal is negative
+			if (resetter.phase_increment <= 65536 || resetter.phase_increment > 0xFFFF0000u) {
+				continue;
+			}
+			const uint32_t phase = xorshift(x);
+			const uint32_t increment = xorshift(x) >> (xorshift(x) & 7);
+			const uint32_t retrigger = xorshift(x);
+			bad += render<SyncWindower>(resetter, phase, increment, retrigger)
+			       != render<sync_reference::SyncWindower<>>(resetter, phase, increment, retrigger);
+		}
+		expect(bad).to_equal(0);
+	});
+	it("renders as the reference with the fixed reciprocal does, at every resetter increment", _ {
+		int32_t bad = 0;
+		uint32_t x = 0x2545F491u;
+		auto check = [&](Resetter resetter) {
+			const uint32_t phase = xorshift(x);
+			const uint32_t increment = xorshift(x) >> (xorshift(x) & 7);
+			const uint32_t retrigger = xorshift(x);
+			bad += render<SyncWindower>(resetter, phase, increment, retrigger)
+			       != render<sync_reference::SyncWindower<&deluge::dsp::fixed::resetter_reciprocal>>(resetter, phase,
+			                                                                                         increment, retrigger);
+		};
+		// From 3: at 1 or 2 the next crossover is 2^31 samples or more away, which the raw reference cannot count
+		for (uint32_t increment : {3u, 255u, 65535u, 65536u, 0xFFFF0001u, 0xFFFFFF00u, 0xFFFFFFFFu}) {
+			for (int i = 0; i < 256; ++i) {
+				// Phases near the boundary, so that the slow masters cross within the block
+				check(Resetter{0u - (xorshift(x) % (increment * 32u + 1u)), increment});
+			}
+		}
+		for (int i = 0; i < 4096; ++i) {
+			const Resetter resetter{xorshift(x), xorshift(x) >> (xorshift(x) % 30)};
+			if (resetter.phase_increment >= 3) {
+				check(resetter);
+			}
+		}
+		expect(bad).to_equal(0);
 	});
 });
 // clang-format on

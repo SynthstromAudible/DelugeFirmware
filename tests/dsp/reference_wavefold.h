@@ -20,7 +20,7 @@
 // but for its doublings and ×8, written as the wrapping operations the target computes, so the spec's signed-overflow
 // sanitizer sees the same two's-complement result.
 
-#include "util/fixedpoint.h"
+#include "dsp-next/core/q31_ops.h"
 
 #include <cstdint>
 

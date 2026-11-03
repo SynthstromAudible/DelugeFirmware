@@ -17,11 +17,11 @@
 
 #pragma once
 
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/mode.h"
-#include "dsp-next/core/q31_ops.h"
+#include "dsp-next/core/q31_ops.h" // lshift_and_saturate
 #include "dsp-next/core/types.h"
-#include "dsp-next/core/wrapping.h"
 #include "dsp-next/fixed/filter/filter_modes.h"
 #include "dsp-next/fixed/filter/one_pole.h"
 #include "dsp-next/fixed/shaping/antialiased_tanh.h"
@@ -40,13 +40,14 @@ namespace deluge::dsp::fixed {
 /// high resonance.
 /// @details Per sample, with the sections' memories (Q31) and the block's moveability m:
 ///
-///     m' = max(m + x·2^4 × morph, −2^23),   h = HP₁(x),   a = (h + fb₃ z₃ + fb₂ z₂) × D
+///     m' = max(m + 8x × morph, −2^-8),   h = HP₁(x),   a = 2 (h + fb₃ z₃ + fb₂ z₂) × D
 ///
 /// where HP₁ steps the first section at m' as a high-pass (@ref OnePole::Mode::HIGH_PASS: x less its low-pass), z₃
 /// and z₂ are the third and second sections' memories, fb₃ and fb₂ their feedbacks, and D the reciprocal of the loop
 /// gain. a is saturated by the block's mode, then fed through the third section's high-pass into the second section's
-/// low-pass, whose memories feed back on the next sample; the output is a normalised by the processed resonance. The
-/// morph moves each sample's cutoff with the input itself.
+/// low-pass, whose memories feed back on the next sample; the output is a / 2R, R the processed resonance. The morph
+/// moves each sample's cutoff with the input itself: 8x is x × 2^4 wrapping, so for x outside [−2^27, 2^27) (a loud
+/// input) the nudge wraps, and the cutoff jumps.
 ///
 /// **Modes.** A mode is the saturation (@ref Saturation), chosen per block by the processed resonance: BYPASS (at most
 /// 750000000), TANH (@ref tanh at drive 2, past 750000000) and ANTIALIASED (@ref AntialiasedTanh at drive 1, past
@@ -112,14 +113,14 @@ struct HighPassLadder {
 
 	/// @brief What a step reads, and the gain compensation the owner reads back.
 	struct Coefficients {
-		q31 moveability = 0;         ///< tan(f) / (1 + tan(f)), Q31.
-		q31 morph = 0;               ///< The morph, Q31.
-		q31 processed_resonance = 0; ///< The resonance as fed back, Q30 (1 is 1073741824), the extra feedback applied.
-		/// The output normalisation: 2^31 over the processed resonance's top 8 bits (its value >> 23).
-		q31 divide_by_processed_resonance = 0;
-		q31 low_pass_1_feedback = 0;         ///< The second section's feedback, Q30.
-		q31 high_pass_3_feedback = 0;        ///< The third section's feedback, Q30.
-		q31 divide_by_total_moveability = 0; ///< 1 / (1 − the loop gain), Q28 (1 is 268435456).
+		Q<31> moveability{};         ///< tan(f) / (1 + tan(f)), Q31.
+		Q<31> morph{};               ///< The morph, Q31.
+		Q<30> processed_resonance{}; ///< The resonance as fed back, Q30, the extra feedback applied.
+		/// The output normalisation, 1 / 2R at Q25: 2^31 over the processed resonance's top 8 bits (its value >> 23).
+		Q<25> divide_by_processed_resonance{};
+		Q<30> low_pass_1_feedback{};         ///< The second section's feedback, Q30.
+		Q<30> high_pass_3_feedback{};        ///< The third section's feedback, Q30.
+		Q<28> divide_by_total_moveability{}; ///< R / (1 − mR/2 + m²R), Q28: R over the loop's denominator.
 		q31 gain_compensation = 0;           ///< The gain going in, cut as the resonance rises, Q31.
 		Mode mode = Mode::BYPASS;            ///< The saturation and cutoff, dispatched on once per block.
 	};
@@ -142,41 +143,44 @@ struct HighPassLadder {
 	}
 
 	/// @brief The coefficients for @p s.
-	/// @details The resonance is squared onto a curve, floored, given extra feedback (× 1200000000 / 2^31 × 2) and
+	/// @details The resonance is squared onto a curve, floored, given extra feedback (× 1200000000 / 2^31) and
 	/// inverted for the output's normalisation; the loop gain's reciprocal is taken through doubles. The gain falls
 	/// with the fourth power of the resonance.
 	[[nodiscard]] [[gnu::always_inline]] static Coefficients coefficients(const Settings& s) {
-		constexpr int32_t kExtraFeedback = 1200000000;
+		constexpr auto kExtraFeedback = Q<31>::from_raw(1200000000);
 		constexpr int32_t kResonanceUpperLimit = 536870911;
-		constexpr int32_t kLeastResonance = 134217728;
+		constexpr auto kLeastResonance = Q<30>::from_raw(134217728);
 
 		Coefficients c{};
-		c.morph = lshift_and_saturate<2>(s.config.morph);
+		c.morph = as_clamp_then_shift<Q<31>>(Q<29>::from_raw(s.config.morph));
 		const CurvedFrequency curved = curve_frequency(s.config.frequency);
-		c.moveability = curved.fc;
+		const Q<31> m = curved.fc;
+		const Q<31> divide_by_one_plus_tanned = curved.divide_by_one_plus_tanned;
+		c.moveability = m;
 
-		int32_t resonance = kOneQ31 - (std::min(s.config.resonance, kResonanceUpperLimit) << 2);
-		resonance = multiply_32x32_rshift32_rounded(resonance, resonance) << 1;
-		const int32_t processed_resonance_unaltered = std::max(kOneQ31 - resonance, kLeastResonance);
+		const Q<31> damping =
+		    sub_wrap(Q<31>::max(), as_wrap<Q<31>>(Q<29>::from_raw(std::min(s.config.resonance, kResonanceUpperLimit))));
+		// 1 − damping² at Q31, read as Q30: twice it.
+		const Q<30> processed_resonance_unaltered = std::max(
+		    reinterpret_bits<Q<30>>(sub_wrap(Q<31>::max(), mul_r_as_wrap<Q<31>>(damping, damping))), kLeastResonance);
 
-		c.processed_resonance = multiply_32x32_rshift32(processed_resonance_unaltered, kExtraFeedback) << 1;
+		c.processed_resonance = mul_as_wrap<Q<30>>(processed_resonance_unaltered, kExtraFeedback);
+		// Raw: a double reciprocal of the resonance's top bits, 2^31 over its value >> 23, gives 1 / 2R at Q25.
 		c.divide_by_processed_resonance =
-		    static_cast<q31>(2147483648.0 / static_cast<double>(c.processed_resonance >> 23));
+		    Q<25>::from_raw(static_cast<q31>(2147483648.0 / static_cast<double>(c.processed_resonance.raw() >> 23)));
 
-		// Q29 (1 is 536870912).
-		const int32_t moveability_times_resonance =
-		    multiply_32x32_rshift32(processed_resonance_unaltered, c.moveability);
-		// Q28 (1 is 268435456).
-		const int32_t moveability_squared_times_resonance =
-		    multiply_32x32_rshift32(moveability_times_resonance, c.moveability);
+		const Q<29> moveability_times_resonance = mul(processed_resonance_unaltered, m);
+		const Q<28> moveability_squared_times_resonance = mul(moveability_times_resonance, m);
 
-		c.high_pass_3_feedback = -multiply_32x32_rshift32_rounded(c.moveability, curved.divide_by_one_plus_tanned);
-		c.low_pass_1_feedback = curved.divide_by_one_plus_tanned >> 1;
+		c.high_pass_3_feedback = neg_wrap(mul_r(m, divide_by_one_plus_tanned));
+		c.low_pass_1_feedback = as_floor<Q<30>>(divide_by_one_plus_tanned);
 
-		const auto to_divide_by = static_cast<uint32_t>(int32_t{268435456} - (moveability_times_resonance >> 1)
-		                                                + moveability_squared_times_resonance);
-		c.divide_by_total_moveability = static_cast<int32_t>(static_cast<double>(c.processed_resonance) * 67108864.0
-		                                                     / static_cast<double>(to_divide_by));
+		const Q<28> to_divide_by = add_wrap(sub_wrap(Q<28>::one(), as_floor<Q<28>>(moveability_times_resonance)),
+		                                    moveability_squared_times_resonance);
+		// Raw: a double division, R (Q30) × 2^26 over the Q28 denominator, gives Q28.
+		c.divide_by_total_moveability =
+		    Q<28>::from_raw(static_cast<int32_t>(static_cast<double>(c.processed_resonance.raw()) * 67108864.0
+		                                         / static_cast<double>(static_cast<uint32_t>(to_divide_by.raw()))));
 
 		Saturation saturation = Saturation::BYPASS;
 		if (c.processed_resonance > kAntialiasAbove) {
@@ -185,13 +189,15 @@ struct HighPassLadder {
 		else if (c.processed_resonance > kTanhAbove) {
 			saturation = Saturation::TANH;
 		}
-		c.mode = mode_of(saturation, c.morph == 0 ? Cutoff::FIXED : Cutoff::MORPHING);
+		c.mode = mode_of(saturation, c.morph == Q<31>{} ? Cutoff::FIXED : Cutoff::MORPHING);
 
-		// The volume falls as the resonance rises.
-		const q31 raw_resonance = std::min(s.config.resonance, q31{kOneQ31 >> 2}) << 2;
-		q31 squared = multiply_32x32_rshift32(raw_resonance, raw_resonance) << 1;
-		squared = (multiply_32x32_rshift32(squared, squared) >> 4) * 19;
-		c.gain_compensation = multiply_32x32_rshift32(s.gain, kOneQ31 - squared) << 1;
+		// The volume falls as the resonance rises: by 19/32 of its fourth power.
+		const auto resonance = as_wrap<Q<31>>(Q<29>::from_raw(std::min(s.config.resonance, q31{kOneQ31 >> 2})));
+		const auto squared = mul_as_wrap<Q<31>>(resonance, resonance);
+		const Q<30> fourth = mul(squared, squared);
+		// Raw: the × 19 / 2^4 is an integer scale, reading the Q30 fourth power as Q31.
+		const auto cut = Q<31>::from_raw((fourth.raw() >> 4) * 19);
+		c.gain_compensation = mul_as_wrap<Q<31>>(Q<31>::from_raw(s.gain), sub_wrap(Q<31>::max(), cut)).raw();
 		return c;
 	}
 
@@ -210,29 +216,30 @@ struct HighPassLadder {
 	[[nodiscard]] [[gnu::always_inline]] static q31 step(const Coefficients& c, const EmptyBlock& /*b*/, State& s,
 	                                                     q31 x) {
 		constexpr Saturation kSaturation = saturation_of(M);
-		// The inputs are small (about 16 bits), so this nudge is too; the floor is about as low as the cutoff goes
-		// without sounding broken. A ternary, as `std::max` is an out-of-line call where the app instantiates this.
-		// FIXED: the nudge by a zero morph is exactly zero, so the clamp of the block's moveability is the same.
-		const q31 nudged = cutoff_of(M) == Cutoff::FIXED
-		                       ? c.moveability
-		                       : multiply_accumulate_32x32_rshift32_rounded(c.moveability, x << 4, c.morph);
-		const q31 m = nudged < kLowerLimit ? kLowerLimit : nudged;
+		const auto input = Q<31>::from_raw(x);
+		// The floor is about as low as the cutoff goes without sounding broken. FIXED: the nudge by a zero morph is
+		// exactly zero, so the clamp of the block's moveability is the same.
+		const Q<31> nudged = cutoff_of(M) == Cutoff::FIXED ? c.moveability : nudge(c, input);
+		const Q<31> m = std::max(nudged, kLowerLimit);
 
 		const q31 first_output = section_step<OnePole::Mode::HIGH_PASS>(s.high_pass_1, m, x);
-		const q31 feedbacks = wrapping_add(OnePole::feedback(s.high_pass_3, c.high_pass_3_feedback),
-		                                   OnePole::feedback(s.low_pass_1, c.low_pass_1_feedback));
-		q31 a = multiply_32x32_rshift32_rounded(c.divide_by_total_moveability, wrapping_add(first_output, feedbacks))
-		        << kLoopShift;
+		const Q<31> feedbacks = add_wrap(OnePole::feedback(s.high_pass_3, c.high_pass_3_feedback),
+		                                 OnePole::feedback(s.low_pass_1, c.low_pass_1_feedback));
+		// (h + feedback) × D is Q27; to Q31 and doubled, wrapping.
+		Q<31> a = scale_shl_wrap<1>(
+		    mul_r_as_wrap<Q<31>>(c.divide_by_total_moveability, add_wrap(Q<31>::from_raw(first_output), feedbacks)));
 
 		if constexpr (kSaturation == Saturation::ANTIALIASED) {
-			a = AntialiasedTanh::step(kSaturator, EmptyBlock{}, s.saturator, a);
+			a = Q<31>::from_raw(AntialiasedTanh::step(kSaturator, EmptyBlock{}, s.saturator, a.raw()));
 		}
 		else {
 			// The saturator is placed at shift 2 although it saturates at drive 1 (shift 1): this placement is
 			// part of the output contract, so switching ANTIALIASED in interpolates its first sample from a position
-			// twice as far from the centre (short of saturation).
+			// twice as far from the centre (short of saturation). The centre's add wraps the position. Raw: the asm
+			// saturate holds the loop's schedule; the builtin a typed saturate compiles to is sunk out of the loop,
+			// and the A9 ran the rescheduled loop 5–22% slower (filter_hp_*).
 			AntialiasedTanh::place(s.saturator,
-			                       static_cast<uint32_t>(lshift_and_saturate<kPlaceShift>(a)) + kTanhCentre);
+			                       static_cast<uint32_t>(lshift_and_saturate<kPlaceShift>(a.raw())) + kTanhCentre);
 			if constexpr (kSaturation == Saturation::TANH) {
 				a = tanh<kTanhDrive>(a);
 			}
@@ -240,22 +247,18 @@ struct HighPassLadder {
 
 		// Only the sections' memories are wanted here: they feed back on the next sample.
 		std::ignore = section_step<OnePole::Mode::LOW_PASS>(
-		    s.low_pass_1, m, section_step<OnePole::Mode::HIGH_PASS>(s.high_pass_3, m, a));
+		    s.low_pass_1, m, section_step<OnePole::Mode::HIGH_PASS>(s.high_pass_3, m, a.raw()));
 
-		return multiply_32x32_rshift32_rounded(a, c.divide_by_processed_resonance) << kOutputShift;
+		return mul_r_as_wrap<Q<31>>(a, c.divide_by_processed_resonance).raw();
 	}
 
 private:
-	/// @brief The processed resonance (Q30) above which the loop saturates through the antialiased tanh.
-	static constexpr q31 kAntialiasAbove = 900000000;
-	/// @brief The processed resonance (Q30) above which the loop saturates through the tanh.
-	static constexpr q31 kTanhAbove = 750000000;
-	/// @brief The lowest per-sample moveability, Q31: −2^23.
-	static constexpr q31 kLowerLimit = -(kOneQ31 >> 8);
-	/// @brief The shift from the loop's Q28 reciprocal product back to Q31, doubled.
-	static constexpr int kLoopShift = 4 + 1;
-	/// @brief The shift from the output normalisation's product back to Q31, halved.
-	static constexpr int kOutputShift = 8 - 1;
+	/// @brief The processed resonance above which the loop saturates through the antialiased tanh, Q30.
+	static constexpr auto kAntialiasAbove = Q<30>::from_raw(900000000);
+	/// @brief The processed resonance above which the loop saturates through the tanh, Q30.
+	static constexpr auto kTanhAbove = Q<30>::from_raw(750000000);
+	/// @brief The lowest per-sample moveability, Q31: −2^-8.
+	static constexpr auto kLowerLimit = Q<31>::from_raw(-(kOneQ31 >> 8));
 	/// @brief The tanh's drive, as a power of two.
 	static constexpr uint32_t kTanhDrive = 2;
 	/// @brief The shift the bypass and the tanh place the saturator's position at.
@@ -263,10 +266,17 @@ private:
 	/// @brief The antialiased tanh at drive 1.
 	static constexpr AntialiasedTanh::Coefficients kSaturator = AntialiasedTanh::coefficients({.drive = 1});
 
+	/// @brief The block's moveability nudged by the input: m + 8x × morph, Q31.
+	/// @details x × 2^4 wraps for x outside [−2^27, 2^27). The rounded high word of 16x × morph is Q30; m is read as
+	/// Q30 to take it in one multiply-accumulate, and the sum read back as Q31 is m + 8x × morph.
+	[[nodiscard]] [[gnu::always_inline]] static Q<31> nudge(const Coefficients& c, Q<31> x) {
+		return reinterpret_bits<Q<31>>(mla_r(reinterpret_bits<Q<30>>(c.moveability), scale_shl_wrap<4>(x), c.morph));
+	}
+
 	/// @brief One step of @p section at moveability @p m in mode @p M.
 	template <OnePole::Mode M>
-	[[nodiscard]] [[gnu::always_inline]] static q31 section_step(OnePole::State& section, q31 m, q31 x) {
-		return OnePole::step<M>(OnePole::Coefficients{.m = m, .mode = M}, EmptyBlock{}, section, x);
+	[[nodiscard]] [[gnu::always_inline]] static q31 section_step(OnePole::State& section, Q<31> m, q31 x) {
+		return OnePole::step<M>(OnePole::Coefficients{.m = m.raw(), .mode = M}, EmptyBlock{}, section, x);
 	}
 };
 

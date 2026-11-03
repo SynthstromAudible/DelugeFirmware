@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "deluge-project/fx_chain.h"
 #include "effects/filter.h"
+#include "model/fx/chain_view.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "modulation/arpeggiator.h"
 #include "serialization/value.h"
@@ -82,15 +83,12 @@ public:
 	                                       int32_t readAutomationUpToPos);
 	static bool readParamTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
 	                                 int32_t readAutomationUpToPos);
-	deluge::effects::Delay::State createDelayWorkingState(ParamManager& paramManager,
-	                                                      bool shouldLimitDelayFeedback = false,
-	                                                      bool soundComingIn = true);
 	int32_t getKnobPosForNonExistentParam(int32_t whichModEncoder, ModelStackWithAutoParam* modelStack,
 	                                      const deluge::project::CompView& comp = {}) override;
 	ActionResult modEncoderActionForNonExistentParam(int32_t offset, int32_t whichModEncoder,
 	                                                 ModelStackWithAutoParam* modelStack,
 	                                                 const deluge::project::CompView& comp = {}) override;
-	/// @brief The chain's filters: a clip chain's or the master's.
+	/// @brief The chain's filters: a track chain's or the master's.
 	/// @return The filters.
 	[[nodiscard]] virtual deluge::effects::Filter& filter() = 0;
 	/// @brief Sets which value the mod FX knob and which filter the filter knobs edit, in the bound record while there
@@ -106,7 +104,11 @@ public:
 	void unbindChain();
 	/// @brief The chain record this owner plays, or null when it plays its own.
 	/// @return The bound record.
-	[[nodiscard]] const deluge::project::FxChain* boundChain() const { return boundChain_; }
+	[[nodiscard]] const deluge::project::FxChain* boundChain() const { return chainView().bound(); }
+	/// @brief Which values the chain's knobs edit: the view the chain's owner holds.
+	/// @return The chain's view.
+	[[nodiscard]] virtual deluge::model::ChainView& chainView() = 0;
+	[[nodiscard]] virtual const deluge::model::ChainView& chainView() const = 0;
 	[[nodiscard]] const ::GlobalEffectable* asGlobalEffectable() const override { return this; }
 	/// @return Which value the mod FX knob edits.
 	[[nodiscard]] ModFXParam modFXParam() const;
@@ -114,11 +116,7 @@ public:
 	[[nodiscard]] FilterType filterType() const;
 
 	ModFXType getModFXType() override;
-	void projectView(deluge::snapshot::ModControllableSnapshot& copy) override;
-	/// @brief The mod FX type in effect.
-	/// @param paramManager The owner's param manager.
-	/// @return The mod FX type: NONE while the selected mod FX knob is at its minimum (the soft off).
-	ModFXType getActiveModFXType(ParamManager* paramManager);
+	[[nodiscard]] std::optional<ModFXParam> projectedModFXParam() const override;
 
 protected:
 	virtual int32_t getParameterFromKnob(int32_t whichModEncoder, const deluge::project::CompView& comp);
@@ -133,12 +131,6 @@ private:
 	/// @brief The compressor threshold the comp-edit knob shows: the render's.
 	/// @return The threshold (Q31).
 	[[nodiscard]] q31_t displayedCompressorThreshold();
-	/// @brief Which value the mod FX knob edits while no record holds the view.
-	ModFXParam modFXParam_{ModFXParam::FEEDBACK};
-	/// @brief Which filter the filter knobs edit while no record holds the view.
-	FilterType filterType_{FilterType::LPF};
-	/// @brief The record whose effects and view this owner plays, or null.
-	deluge::project::FxChain* boundChain_{nullptr};
 	void displayCompressorAndReverbSettings(bool on, const deluge::project::CompView& comp);
 	static char const* getCompressorModeDisplayName(const deluge::project::CompView& comp);
 	static char const* getCompressorParamDisplayName(const deluge::project::CompView& comp);

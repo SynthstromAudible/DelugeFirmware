@@ -1341,7 +1341,8 @@ void View::modEncoderButtonAction_deleteAutomation(uint8_t whichModEncoder, Mode
 	}
 	if (const std::optional<deluge::project::ParamAddress> address = knobParamAddress(*modelStackWithParam)) {
 		deluge::edits::Context editCtx{*currentSong, currentSong->project};
-		deluge::edits::DeleteParamAutomation edit{*address, ActionAddition::NOT_ALLOWED, /*follow_take=*/true};
+		deluge::edits::DeleteParamAutomation edit{*address, ActionAddition::NOT_ALLOWED,
+		                                          deluge::edits::SetParamValue::Resolve::WRITE};
 		deluge::edits::apply(editCtx, edit);
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_AUTOMATION_DELETED));
 	}

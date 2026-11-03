@@ -1,7 +1,8 @@
 name: Clang
 description: >
   The host C/C++ compiler: clang 23 from apt.llvm.org, as `clang`/`clang++` on PATH and as CC/CXX, so dbt's CMake
-  trees and cc-rs build scripts both use it. The host build is C++26, which the runner image's clang and gcc reject.
+  trees and cc-rs build scripts both use it, with LLVM's binutils (llvm-ar, llvm-nm, ...) beside it. The host build
+  is C++26, which the runner image's clang and gcc reject.
 
 runs:
   using: composite
@@ -14,12 +15,12 @@ runs:
         echo "deb http://apt.llvm.org/$VERSION_CODENAME/ llvm-toolchain-$VERSION_CODENAME-23 main" \
           | sudo tee /etc/apt/sources.list.d/llvm-23.list >/dev/null
 
-    # libclang-rt for the sanitizer builds; libstdc++-14 because the image's default libstdc++ predates C++26.
+    # libclang-rt for the sanitizer builds; libstdc++-16 for the C++26 library (the image's newest is 15).
     - name: Install clang 23
       uses: ./.github/actions/apt-install
       with:
         cache-name: clang-23
-        packages: clang-23 lld-23 libclang-rt-23-dev libstdc++-14-dev
+        packages: clang-23 lld-23 llvm-23 libclang-rt-23-dev libstdc++-16-dev
 
     - name: Put it on PATH as clang and CC/CXX
       shell: bash
@@ -28,6 +29,10 @@ runs:
         mkdir -p "$bin"
         ln -sf /usr/bin/clang-23 "$bin/clang"
         ln -sf /usr/bin/clang++-23 "$bin/clang++"
+        # The builds name LLVM's binutils unversioned (llvm-ar indexes the LTO archives).
+        for tool in llvm-ar llvm-ranlib llvm-nm llvm-objdump llvm-objcopy llvm-readelf llvm-cxxfilt; do
+          ln -sf "/usr/bin/$tool-23" "$bin/$tool"
+        done
         echo "$bin" >> "$GITHUB_PATH"
         { echo "CC=$bin/clang"; echo "CXX=$bin/clang++"; } >> "$GITHUB_ENV"
         "$bin/clang++" --version | head -1

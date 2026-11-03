@@ -77,6 +77,7 @@ void noteDrumListEdit(const Song* song) {
 } // namespace
 
 Kit::Kit() : Instrument(OutputType::KIT), arpeggiator(), defaultArpSettings() {
+	bindBinding(channel_.binding());
 	defaultArpSettings.numOctaves = 1;
 	firstDrum = nullptr;
 	selectedDrum = nullptr;
@@ -92,8 +93,8 @@ Kit::~Kit() {
 	// Reset arpeggiator
 	arpeggiator.reset();
 
-	// A kit destroyed in a song drops its record (its rows' too) here, while its effects base is alive: ~Output runs
-	// after that base is destroyed, and a record's removal hands the owner back what the record held.
+	// A kit destroyed in a song drops its record (its rows' too) here, while its channel is alive: ~Output runs after
+	// the channel is destroyed, and a record's removal hands the owner back what the record held.
 	if (currentSong != nullptr && docOutput_ != nullptr) {
 		currentSong->removeDocOutput(this);
 		docOutput_ = nullptr;
@@ -120,6 +121,7 @@ Kit::~Kit() {
 		toDelete->~Drum();
 		delugeDealloc(toDealloc);
 	}
+	endStutterIfStuttering();
 }
 
 Drum* Kit::getNextDrum(Drum* fromDrum) {
@@ -568,7 +570,7 @@ void Kit::drumRemoved(Drum* drum) {
 	}
 
 	// The Drum is usually about to be deallocated, so it must not stay in the render list, or
-	// renderGlobalEffectableForClip() would use it after it's freed. Remove it in all builds.
+	// renderContent() would use it after it's freed. Remove it in all builds.
 	if (drum->type == DrumType::SOUND && renderingDrums.contains(static_cast<SoundDrum*>(drum))) {
 		if constexpr (ALPHA_OR_BETA_VERSION) {
 			FREEZE_WITH_ERROR("E321");
@@ -651,11 +653,10 @@ void Kit::cutAllSound() {
 }
 
 // Beware - unlike usual, modelStack, a ModelStackWithThreeMainThings*,  might have a NULL timelineCounter
-bool Kit::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStack,
-                                        std::span<StereoSample> globalEffectableBuffer, int32_t* bufferToTransferTo,
-                                        int32_t* reverbBuffer, int32_t reverbAmountAdjust, int32_t sideChainHitPending,
-                                        bool shouldLimitDelayFeedback, bool isClipActive, int32_t pitchAdjust,
-                                        int32_t amplitudeAtStart, int32_t amplitudeAtEnd) {
+bool Kit::renderContent(ModelStackWithTimelineCounter* modelStack, std::span<StereoSample> buffer,
+                        int32_t* bufferToTransferTo, int32_t* reverbBuffer, int32_t reverbAmountAdjust,
+                        int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive,
+                        int32_t pitchAdjust, int32_t amplitudeAtStart, int32_t amplitudeAtEnd) {
 	bool rendered = false;
 	// Render Drums. The walk copes with a drum that stops rendering (leaves the list) as it renders, and with one whose
 	// render removes the next (see RenderingDrums::walk).
@@ -698,8 +699,8 @@ bool Kit::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStac
 		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 		    modelStack->addNoteRow(noteRowIndex, thisNoteRow)->addOtherTwoThings(soundDrum, drumParamManager);
 
-		soundDrum->render(modelStackWithThreeMainThings, globalEffectableBuffer, reverbBuffer, sideChainHitPending,
-		                  reverbAmountAdjust, shouldLimitDelayFeedback, pitchAdjust,
+		soundDrum->render(modelStackWithThreeMainThings, buffer, reverbBuffer, sideChainHitPending, reverbAmountAdjust,
+		                  shouldLimitDelayFeedback, pitchAdjust,
 		                  nullptr); // According to our volume, we tell Drums to send less reverb
 		rendered = true;
 	});
@@ -733,7 +734,7 @@ yesTickParamManager:
 					ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
 					    modelStack->addNoteRow(i, thisNoteRow)
 					        ->addOtherTwoThings((SoundDrum*)thisNoteRow->drum, &thisNoteRow->paramManager);
-					thisNoteRow->paramManager.tickSamples(globalEffectableBuffer.size(), modelStackWithThreeMainThings);
+					thisNoteRow->paramManager.tickSamples(buffer.size(), modelStackWithThreeMainThings);
 					continue;
 				}
 
@@ -809,15 +810,27 @@ void Kit::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, i
 		int32_t pitchAdjust = deluge::dsp::fixed::curve_exponential(
 		    kMaxSampleValue, unpatchedParams->getValue(params::UNPATCHED_PITCH_ADJUST) >> 3);
 
-		GlobalEffectableForClip::renderedLastTime = renderGlobalEffectableForClip(
-		    modelStackWithTimelineCounter, output, nullptr, reverbBuffer, reverbAmountAdjust, sideChainHitPending,
-		    shouldLimitDelayFeedback, isClipActive, pitchAdjust, 134217728, 134217728);
+		channel_.rendered_last_time = renderContent(modelStackWithTimelineCounter, output, nullptr, reverbBuffer,
+		                                            reverbAmountAdjust, sideChainHitPending, shouldLimitDelayFeedback,
+		                                            isClipActive, pitchAdjust, 134217728, 134217728);
 	}
 	// render kit row with kit affect entire FX
 	else {
-		GlobalEffectableForClip::renderOutput(modelStackWithTimelineCounter, paramManager, output, reverbBuffer,
-		                                      reverbAmountAdjust, sideChainHitPending, shouldLimitDelayFeedback,
-		                                      isClipActive, OutputType::KIT, recorder);
+		channel_.render(modelStackWithTimelineCounter, *paramManager, output,
+		                {.reverb_buffer = reverbBuffer,
+		                 .reverb_amount_adjust = reverbAmountAdjust,
+		                 .side_chain_hit_pending = sideChainHitPending,
+		                 .should_limit_delay_feedback = shouldLimitDelayFeedback,
+		                 .is_clip_active = isClipActive,
+		                 .output_type = OutputType::KIT,
+		                 .recorder = recorder,
+		                 .tick_owner = this},
+		                [&](const deluge::model::ContentBlock& c) {
+			                return renderContent(modelStackWithTimelineCounter, c.buffer, nullptr, c.reverb_buffer,
+			                                     c.reverb_amount_adjust, c.side_chain_hit_pending,
+			                                     c.should_limit_delay_feedback, c.is_clip_active, c.pitch_adjust,
+			                                     134217728, 134217728);
+		                });
 	}
 
 	// For Midi and Gate rows, we need to call the render method of the arpeggiator post-output
@@ -1506,26 +1519,21 @@ void Kit::resetDrumTempValues() {
 	}
 }
 
-void Kit::getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb,
-                                 GlobalEffectableForClip** globalEffectableWithMostReverb,
-                                 int32_t* highestReverbAmountFound) {
-
-	GlobalEffectableForClip::getThingWithMostReverb(activeClip, soundWithMostReverb, paramManagerWithMostReverb,
-	                                                globalEffectableWithMostReverb, highestReverbAmountFound);
-
-	if (activeClip) {
-
-		for (int32_t i = 0; i < std::ssize(((InstrumentClip*)activeClip)->noteRows); i++) {
-			NoteRow* thisNoteRow = &((InstrumentClip*)activeClip)->noteRows[i];
-			if (!thisNoteRow->drum || thisNoteRow->drum->type != DrumType::SOUND) {
-				continue;
-			}
-			((SoundDrum*)thisNoteRow->drum)
-			    ->getThingWithMostReverb(soundWithMostReverb, paramManagerWithMostReverb,
-			                             globalEffectableWithMostReverb, highestReverbAmountFound,
-			                             &thisNoteRow->paramManager);
-		}
+deluge::model::ReverbCandidate Kit::reverbCandidate(deluge::model::ReverbCandidate best) {
+	if (!activeClip) {
+		return best;
 	}
+	// The kit's own send first, then its drums', in note-row order.
+	best = channel_.reverbCandidate(best, activeClip->paramManager);
+	auto* clip = static_cast<InstrumentClip*>(activeClip);
+	for (int32_t i = 0; i < std::ssize(clip->noteRows); i++) {
+		NoteRow* thisNoteRow = &clip->noteRows[i];
+		if (!thisNoteRow->drum || thisNoteRow->drum->type != DrumType::SOUND) {
+			continue;
+		}
+		best = static_cast<SoundDrum*>(thisNoteRow->drum)->reverbCandidate(best, thisNoteRow->paramManager);
+	}
+	return best;
 }
 
 void Kit::receivedNoteForDrum(ModelStackWithTimelineCounter* modelStack, MIDICable& cable, bool on, int32_t channel,

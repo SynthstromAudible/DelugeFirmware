@@ -74,9 +74,24 @@ template <typename A, typename B, typename Keep>
 	return parted;
 }
 
-/// @return Whether neither level defect is reached in workload @p id.
+/// @return Whether no defect is reached in workload @p id: neither level defect, nor the gains' wrap.
 [[nodiscard]] bool defect_free(cw::CompressorWorkloadId id) {
-	return !cw::defects_fire(id);
+	return !cw::defects_fire(id) && !cw::gain_wraps(id);
+}
+
+/// @return How many blocks of @p workload end with compressor @p C's left gain negative or its right gain positive:
+/// the gains GAIN_PAST_32 asks for are +62 and -62, so either is a wrap.
+template <typename C>
+[[nodiscard]] size_t gain_wrapped_blocks(const cw::CompressorWorkload& workload) {
+	cw::CompressorRun<C> run{workload};
+	std::vector<StereoSample> block;
+	size_t wrapped = 0;
+	for (size_t b = 0; b < workload.blocks; ++b) {
+		std::ignore = run.block(b, block);
+		const compressor_reference::View v = run.compressor().view();
+		wrapped += static_cast<size_t>(v.current_volume_l < 0 || v.current_volume_r > 0);
+	}
+	return wrapped;
 }
 
 /// @return Workload @p id.
@@ -171,6 +186,11 @@ describe verbatim_compressor("the compressor's verbatim reference", ${
 		}
 	});
 
+	it("wraps its channel gains past 32 in GAIN_PAST_32", _ {
+		expect(gain_wrapped_blocks<ReferenceRmsFeedbackCompressor>(workload_of(cw::CompressorWorkloadId::GAIN_PAST_32)))
+		    .to_be_greater_than(size_t{0});
+	});
+
 	it("wraps its sum to a negative mean square in WRAPPED_SUM", _ {
 		expect(probe_levels(workload_of(cw::CompressorWorkloadId::WRAPPED_SUM)).negative_means)
 		    .to_be_greater_than(size_t{0});
@@ -210,6 +230,21 @@ describe fixed_compressor("the compressor's fixed reference", ${
 				    .to_have_value();
 			}
 		}
+	});
+
+	it("holds its channel gains at the 5.26 rails in GAIN_PAST_32, parting from the verbatim one there", _ {
+		const cw::CompressorWorkload& workload = workload_of(cw::CompressorWorkloadId::GAIN_PAST_32);
+		expect(gain_wrapped_blocks<FixedReferenceRmsFeedbackCompressor>(workload)).to_equal(size_t{0});
+		cw::CompressorRun<FixedReferenceRmsFeedbackCompressor> run{workload};
+		std::vector<StereoSample> block;
+		for (size_t b = 0; b < workload.blocks; ++b) {
+			std::ignore = run.block(b, block);
+		}
+		// Past 31 on each side, at most 32: at the rails.
+		expect(run.compressor().view().current_volume_l > (31 << 26)).to_be_true();
+		expect(run.compressor().view().current_volume_r < -(31 << 26)).to_be_true();
+		expect(cw::first_parting<ReferenceRmsFeedbackCompressor, FixedReferenceRmsFeedbackCompressor>(workload))
+		    .to_have_value();
 	});
 
 	it("keeps its mean square non-negative and its level a number after every block of every workload", _ {

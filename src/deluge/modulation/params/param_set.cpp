@@ -16,6 +16,7 @@
  */
 
 #include "modulation/params/param_set.h"
+#include "deluge-project/edit_guard.h"
 #include "deluge-project/param_automation.h"
 #include "deluge/model/settings/runtime_feature_settings.h"
 #include "gui/views/automation_view.h"
@@ -101,6 +102,17 @@ void ParamSet::bindDomStore() {
 void ParamSet::bindDomStoreExternal(deluge::project::DocParamSet* ext) {
 	domStore_.reset();  // drop any lazily-created own store — we resolve against the external one now
 	domStoreRef_ = ext; // owner-resolution points at the externally-owned store (not ours to free)
+}
+
+void ParamSet::ownExternalStore() {
+	if (domStoreRef_ == nullptr || domStoreRef_ == domStore_.get()) {
+		return;
+	}
+	auto own = std::make_unique<deluge::project::DocParamSet>(*domStoreRef_);
+	// The render resolves this set's lanes through domStoreRef_: it sees the old store or the copy, never neither.
+	deluge::project::EditGuard guard{deluge::project::ModelEdit::PARAM_STORE};
+	domStore_ = std::move(own);
+	domStoreRef_ = domStore_.get();
 }
 
 deluge::project::DocParamSet* ParamSet::domStore() {
@@ -597,7 +609,8 @@ bool UnpatchedParamSet::shouldInterpolateWithFloat(ModelStackWithParamId const* 
 bool UnpatchedParamSet::shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack) {
 	if (modelStack->paramId == params::UNPATCHED_STUTTER_RATE) {
 		return deluge::model::stutterRateIndicatesMiddle(
-		    *static_cast<ModControllableAudio*>(modelStack->modControllable), isUIModeActive(UI_MODE_STUTTERING));
+		    static_cast<ModControllableAudio*>(modelStack->modControllable)->effects().stutter,
+		    isUIModeActive(UI_MODE_STUTTERING));
 	}
 	return params::hasParamFlag(getParamKind(), modelStack->paramId, deluge::plugin::ParamFlag::MIDDLE_DETENT);
 }

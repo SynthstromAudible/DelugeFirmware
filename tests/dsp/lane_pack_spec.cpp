@@ -25,12 +25,12 @@
 #include "dsp-next/core/lane_pack.h"
 
 #include "dsp-next/core/frame.h"
+#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/wrapping.h"
 #include "dsp-next/fixed/filter/one_pole.h"
 #include "dsp-next/fixed/filter/shift_tracker.h"
 #include "dsp-next/fixed/noise/noise.h"
 #include "dsp-next/fixed/shaping/antialiased_tanh.h"
-#include "util/fixedpoint.h"
 
 #include <array>
 #include <concepts>
@@ -51,7 +51,7 @@ namespace deluge::dsp::fixed::lane_pack_probe {
 /// OnePole's ALL_PASS step: every operation its three modes use.
 template <class V>
 [[nodiscard]] V one_pole_step(q31 m, V& z, V x) {
-	const V v = multiply_32x32_rshift32_rounded(wrapping_sub(x, z), m) << OnePole::kProductToQ31Shift;
+	const V v = multiply_32x32_rshift32_rounded(wrapping_sub(x, z), m) << 1;
 	const V y = wrapping_add(v, z);
 	z = wrapping_add(y, v);
 	return wrapping_sub(wrapping_add(y, y), x);

@@ -23,10 +23,10 @@
 #include "dsp-next/fixed/osc/click.h"
 
 #include "dsp-next/core/mono.h"
+#include "dsp-next/core/q31_ops.h"
 #include "effects_workloads.h"
 #include "processing/metronome/metronome.h"
 #include "reference_effects.h"
-#include "util/fixedpoint.h"
 
 #include <algorithm>
 #include <array>

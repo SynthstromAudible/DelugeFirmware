@@ -103,39 +103,39 @@
  },
  "RS_GRAIN_MASTER": {
   "frames": 384000,
-  "peak": 152569600,
-  "rms_db": -37.24,
-  "sha256": "d02bb034351b226e4e3d82d7e368b561bab1b7f15e333ec3ea35f634e0037944"
+  "peak": 141726720,
+  "rms_db": -37.05,
+  "sha256": "155bf0c9b402aee713186694e55a598299e134dcb76d315de09f99057bbc1144"
  },
  "RS_GRAIN_MONO": {
   "frames": 384000,
-  "peak": 1349794048,
-  "rms_db": -19.98,
-  "sha256": "c91e33a609d037c3da597c37b8cc3847d88859b7b60c1a004fd770b35ee3fc64"
+  "peak": 1228997120,
+  "rms_db": -19.8,
+  "sha256": "bc0c573f8c01792f2cae6de86443ab9db04efe2073ea6353738097ae2ed5a515"
  },
  "RS_GRAIN_OWNERS": {
   "frames": 384000,
-  "peak": 184405248,
-  "rms_db": -35.47,
-  "sha256": "b67ba922d6bdc7d7131d6e44f135589a04b8e91c2df4d33c7a010c8ee235dd24"
+  "peak": 192194816,
+  "rms_db": -35.38,
+  "sha256": "02dea10adbedf70e2577a52d89236c811aee13693466d6bda2867810b0caab40"
  },
  "RS_GRAIN_RESTART": {
   "frames": 512000,
-  "peak": 1125889792,
-  "rms_db": -19.49,
-  "sha256": "1f65bf34514d02090bdff010e10573b305992dae381dd8ab7197c7a2420ec8cf"
+  "peak": 1166575616,
+  "rms_db": -19.37,
+  "sha256": "75f48063158e2c8e03920a7635c51828ed54acf49d651a5fba00658736d4be4f"
  },
  "RS_GRAIN_STEREO": {
   "frames": 384000,
-  "peak": 633338880,
-  "rms_db": -25.1,
-  "sha256": "1ccdeb3ed26c4b13eafbb98d1d6c4ed523a154c56a90e6da8b8b0e9909617dd5"
+  "peak": 711760640,
+  "rms_db": -24.81,
+  "sha256": "c20cb2219881c89a52658a7c1ff978789f6956a502d20706ff458ce4d5b42641"
  },
  "RS_GRAIN_SWITCH": {
   "frames": 384000,
-  "peak": 937129216,
-  "rms_db": -21.32,
-  "sha256": "0067a51bbf66cc2b3ae18ebc2ea19c7a970fb6a9029d5e3cbd665b06b8260e49"
+  "peak": 983380480,
+  "rms_db": -21.24,
+  "sha256": "2e1bd39e6aefd2d60fd82c0f841342b7547ee313db94eac91f82155be431c00e"
  },
  "RS_KIT_COMP": {
   "frames": 384000,
@@ -247,15 +247,15 @@
  },
  "RS_MODFX_STEREO_B": {
   "frames": 384000,
-  "peak": 870925312,
-  "rms_db": -17.82,
-  "sha256": "90434b36823fd4a2526acb47a85b38e59b124959bf51754d53eabca2932ed591"
+  "peak": 867592704,
+  "rms_db": -18.39,
+  "sha256": "2198cbb404446f09c3f67b68618658fbfb177add86650fc46e5a066957325ff9"
  },
  "RS_MODFX_SWITCH": {
   "frames": 384000,
   "peak": 1799701504,
-  "rms_db": -12.04,
-  "sha256": "0e40262ad2bda36ae2923f619ce6714d27f895b8ceb841b50c04402bdd27d052"
+  "rms_db": -11.88,
+  "sha256": "2463fbc7fbf968260b0d406745b1d8e71ae315e2fd1a533730373138c8665342"
  },
  "RS_PINGPONG_SWEEP": {
   "frames": 384000,

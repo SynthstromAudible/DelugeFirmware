@@ -81,6 +81,10 @@ public:
 	/// not own.
 	/// @param ext The externally-owned store; must outlive this set's use of it.
 	void bindDomStoreExternal(deluge::project::DocParamSet* ext);
+	/// @brief Resolve against a copy of the bound external store that this set owns, so the set no longer depends on
+	///        the external store's owner: a clip keeps its expression set when its instrument is replaced, and the old
+	///        instrument's tree entry goes with it. A no-op for an unbound set or one that owns its store.
+	void ownExternalStore();
 	/// @brief The bound DOM store (owned or external), or nullptr if unbound. Test / inspection accessor.
 	/// @return The bound store, or nullptr.
 	deluge::project::DocParamSet* domStore();

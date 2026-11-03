@@ -1,6 +1,6 @@
 /// @file
 /// @brief The effect chain cases' rig, setup and blocks.
-/// @details Each block is one home's chain over the block in place: its runtime (effects::SoundChain, ClipChain or
+/// @details Each block is one home's chain over the block in place: its runtime (effects::SoundChain, TrackChain or
 /// MasterChain) or the same sequence written out over its components (bench/reference_chains.h), at the settings and
 /// inputs its owner would hand it, with the owner's delay working state set up first. The rings and tapes come from the
 /// app's allocators and delay arena, as an owner's do.
@@ -9,9 +9,9 @@
 
 #include "bench/reference_chains.h"
 #include "definitions_cxx.hpp"
-#include "effects/clip_chain.h"
 #include "effects/master_chain.h"
 #include "effects/sound_chain.h"
+#include "effects/track_chain.h"
 #include "model/mod_controllable/delay_arena_app.h"
 #include "model/mod_controllable/mod_fx_allocator.h"
 #include "processing/render_scratch.h"
@@ -38,7 +38,7 @@ constexpr uint32_t kTickInverse = 18'700'000;
 /// send. The cases run one after another, so they share it; each case's setup makes its chain anew.
 struct FxChainRig {
 	std::optional<effects::SoundChain> sound;
-	std::optional<effects::ClipChain> clip;
+	std::optional<effects::TrackChain> clip;
 	std::optional<effects::MasterChain> master;
 	effects::EffectStates settings{};
 	dsp::Buffer<StereoSample> work{};                      ///< The lanes output's first n frames, in place.
@@ -166,8 +166,8 @@ void sound_block(bool reference) {
 }
 
 void clip_block(bool reference) {
-	effects::ClipChain& chain = *rig.clip;
-	const effects::ClipChainInputs in{
+	effects::TrackChain& chain = *rig.clip;
+	const effects::TrackChainInputs in{
 	    .fx = fx_inputs(chain.core(), 0x08000000),
 	    .bitcrush = kBitcrush,
 	    .filter = filter_params(),
@@ -192,7 +192,7 @@ void clip_block(bool reference) {
 		    chain_reference::clip(chain.core(), chain.filter(), chain.saturation(), in, rig.work, true, send, tap);
 	}
 	else {
-		effects::ClipBlock levels = chain.begin_block(in, rig.work.size());
+		effects::TrackBlock levels = chain.begin_block(in, rig.work.size());
 		std::ignore = chain.process(rig.work, in, levels, true, send, tap);
 	}
 }

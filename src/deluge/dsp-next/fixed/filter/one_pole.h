@@ -17,11 +17,11 @@
 
 #pragma once
 
+#include "dsp-next/core/fixed_point.h"
+#include "dsp-next/core/fixed_point_lanes.h"
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/mode.h"
-#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/types.h"
-#include "dsp-next/core/wrapping.h"
 
 #include <cstdint>
 #include <type_traits>
@@ -38,7 +38,7 @@ namespace deluge::dsp::fixed {
 ///     v = (x − z) × m,   y = v + z,   z ← y + v
 ///
 /// y is the low-pass output. The product is rounded to Q30 (a multiply keeping the high word) and doubled back to Q31,
-/// so its lowest bit is always clear (see @ref kProductToQ31Shift).
+/// wrapping, so its lowest bit is always clear.
 ///
 /// **Modes.** LOW_PASS returns y. HIGH_PASS returns x − y: the input less the low-pass, from the same updated memory,
 /// as the high-pass ladder and the compressor's detector subtract it. ALL_PASS returns 2y − x. All three move z
@@ -61,11 +61,6 @@ struct OnePole {
 		ALL_PASS,  ///< 2y − x, the low-pass output doubled less the input.
 	};
 	using Modes = ModeList<Mode::LOW_PASS, Mode::HIGH_PASS, Mode::ALL_PASS>; ///< All three share the one memory.
-
-	/// @brief The shift from the rounded high word of (x − z) × m, Q30, back to Q31: the step v.
-	static constexpr int kProductToQ31Shift = 1;
-	/// @brief The shift from the rounded high word of z × amount, Q30, to the feedback: z × amount × 2, Q31.
-	static constexpr int kFeedbackShift = 2;
 
 	/// @brief What the owner sets.
 	struct Settings {
@@ -108,36 +103,40 @@ struct OnePole {
 	template <Mode M, class V>
 	[[nodiscard]] [[gnu::always_inline]] static V step(const Coefficients& c, const EmptyBlock& /*b*/, StateT<V>& s,
 	                                                   std::type_identity_t<V> x) {
-		const V v = multiply_32x32_rshift32_rounded(wrapping_sub(x, s.z), V{c.m}) << kProductToQ31Shift;
-		const V y = wrapping_add(v, s.z);
-		s.z = wrapping_add(y, v);
+		const auto x_q = from_raw<Q<31>>(x);
+		const auto z = from_raw<Q<31>>(s.z);
+		// (x − z) × m rounds to Q30, and its doubling back to Q31 wraps: at full scale the product leaves Q31.
+		const auto v = mul_r_as_wrap<Q<31>>(sub_wrap(x_q, z), Q<31>::from_raw(c.m));
+		const auto y = add_wrap(v, z);
+		s.z = to_raw(add_wrap(y, v));
 		if constexpr (M == Mode::LOW_PASS) {
-			return y;
+			return to_raw(y);
 		}
 		else if constexpr (M == Mode::HIGH_PASS) {
-			return wrapping_sub(x, y);
+			return to_raw(sub_wrap(x_q, y));
 		}
 		else {
-			return wrapping_sub(wrapping_add(y, y), x);
+			return to_raw(sub_wrap(add_wrap(y, y), x_q));
 		}
 	}
 
-	/// @brief The memory scaled for a ladder's feedback: z × @p amount × 2, Q31.
-	/// @details The shift wraps as two's complement: at full-scale z and amount the product leaves q31.
+	/// @brief The memory scaled for a ladder's feedback: z × @p amount, Q31.
+	/// @details The rounded product is Q30, reformatted to Q31: at full-scale z and amount the result wraps as two's
+	/// complement.
 	/// @param s The memory, read and not stepped.
-	/// @param amount The feedback amount, Q31.
-	/// @return z × @p amount × 2, Q31.
-	[[nodiscard]] [[gnu::always_inline]] static q31 feedback(const State& s, q31 amount) {
-		return multiply_32x32_rshift32_rounded(s.z, amount) << kFeedbackShift;
+	/// @param amount The feedback amount, Q30.
+	/// @return z × @p amount, Q31, wrapping at full scale.
+	[[nodiscard]] [[gnu::always_inline]] static Q<31> feedback(const State& s, Q<30> amount) {
+		return as_wrap<Q<31>>(mul_r(Q<31>::from_raw(s.z), amount));
 	}
 
-	/// @brief The memory scaled for a ladder's feedback at a quarter of @ref feedback's scale: z × @p amount ÷ 2, Q31,
-	/// for a caller that sums several before shifting.
+	/// @brief @ref feedback at a quarter of its scale, z × @p amount at Q29, for a caller that sums several at Q29
+	/// before reformatting.
 	/// @param s The memory, read and not stepped.
-	/// @param amount The feedback amount, Q31.
-	/// @return z × @p amount ÷ 2, Q31.
-	[[nodiscard]] [[gnu::always_inline]] static q31 feedback_unshifted(const State& s, q31 amount) {
-		return multiply_32x32_rshift32_rounded(s.z, amount);
+	/// @param amount The feedback amount, Q30.
+	/// @return z × @p amount, Q29.
+	[[nodiscard]] [[gnu::always_inline]] static Q<29> feedback_unshifted(const State& s, Q<30> amount) {
+		return mul_r(Q<31>::from_raw(s.z), amount);
 	}
 };
 

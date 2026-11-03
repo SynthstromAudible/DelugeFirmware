@@ -22,8 +22,8 @@ namespace deluge::synth {
 
 void WavetableSource::render_block(const BlockControls& controls, deluge::dsp::fixed::Buffer output,
                                    deluge::dsp::fixed::Buffer scratch) {
-	const uint32_t orig_phase = phasor_.phase();
-	const uint32_t orig_inc = phasor_.increment();
+	const uint32_t orig_phase = phasor_.phase().raw();
+	const uint32_t orig_inc = phasor_.increment().raw();
 
 	// Pulse-width-as-sync preamble (relocated verbatim from the legacy renderOsc WAVETABLE body). Wavetable is
 	// never SINE/SAW/SQUARE, so it takes none of the per-wave retrigger/resetter tweaks — only the plain multiply
@@ -33,8 +33,8 @@ void WavetableSource::render_block(const BlockControls& controls, deluge::dsp::f
 	const bool do_pulse_wave = (controls.pulse_width != 0 && !real_sync);
 	uint32_t render_phase = orig_phase;
 	uint32_t render_inc = orig_inc;
-	uint32_t resetter_phase = real_sync ? controls.sync->phase() : 0;
-	uint32_t resetter_inc = real_sync ? controls.sync->increment() : 0;
+	uint32_t resetter_phase = real_sync ? controls.sync->phase().raw() : 0;
+	uint32_t resetter_inc = real_sync ? controls.sync->increment().raw() : 0;
 
 	if (do_pulse_wave) {
 		do_osc_sync = true;
@@ -86,17 +86,17 @@ void WavetableSource::render_block(const BlockControls& controls, deluge::dsp::f
 
 	if (controls.apply_amplitude) {
 		// The wavetable's amplitude is pre-shifted <<3 (as the legacy renderOsc did); out = scratch*amp + out.
-		deluge::dsp::fixed::Amplitude vca{controls.amplitude << 3};
+		deluge::dsp::fixed::Amplitude vca{scale_shl_wrap<3>(controls.amplitude)};
 		vca.render_block(deluge::dsp::fixed::Signal{scratch}, deluge::dsp::fixed::Signal{output}, output);
 	}
 
 	// Phase persistence — the legacy maybeStorePhase rule, now internal: a pulse keeps the original-domain advance
 	// (the rewritten render phase is discarded), otherwise the rendered (possibly hard-synced) phase persists.
 	if (do_pulse_wave) {
-		phasor_.seek(orig_phase + orig_inc * static_cast<uint32_t>(output.size()));
+		seek(orig_phase + orig_inc * static_cast<uint32_t>(output.size()));
 	}
 	else {
-		phasor_.seek(rendered_phase);
+		seek(rendered_phase);
 	}
 }
 

@@ -360,8 +360,8 @@ describe low_pass_ladder("LowPassLadder", ${
 				const Ladder::Coefficients c = Ladder::coefficients(settings);
 				reached[static_cast<std::size_t>(c.mode)] = true;
 
-				const bool unresonant = c.morph <= 0 && c.processed_resonance == 0
-				                        && c.divide_by_total_moveability_and_processed_resonance == (q31{1} << 30);
+				const bool unresonant = c.morph.raw() <= 0 && c.processed_resonance.raw() == 0
+				                        && c.divide_by_total_moveability_and_processed_resonance.raw() == (q31{1} << 30);
 				const Ladder::Input expected = unresonant ? Ladder::Input::UNRESONANT : Ladder::Input::FED_BACK;
 				expect(Ladder::input_of(c.mode)).to_equal(expected);
 

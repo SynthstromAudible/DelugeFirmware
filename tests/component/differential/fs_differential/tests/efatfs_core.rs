@@ -1048,7 +1048,6 @@ fn write_interleaved(
     pieces: usize,
     cluster: usize,
 ) -> (Vec<u8>, Vec<u8>) {
-    use fs_differential::ops::FsOpsMut;
     let piece = |file: u8, i: usize| -> Vec<u8> {
         (0..cluster)
             .map(|j| (file as usize * 101 + i * 7 + j / 512) as u8)
@@ -1241,7 +1240,6 @@ fn an_unaligned_read_is_not_mapped_first() {
 /// far below the directory's size.
 #[test]
 fn directory_index_makes_repeat_lookups_cheap() {
-    use fs_differential::ops::FsOpsMut;
     let _lock = TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let _disk = RamDisk::load(&fat32());
     let mut efatfs = EFatFs::mount();
@@ -1283,7 +1281,6 @@ fn directory_index_makes_repeat_lookups_cheap() {
 /// place or renamed is found with its own content.
 #[test]
 fn directory_index_survives_create_remove_and_rename() {
-    use fs_differential::ops::{FsOps, FsOpsMut};
     let _lock = TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let _disk = RamDisk::load(&fat32());
     let mut efatfs = EFatFs::mount();

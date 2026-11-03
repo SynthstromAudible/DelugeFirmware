@@ -22,6 +22,7 @@
 #include "dsp-next/core/stereo_sample.h"
 #include "effects/delay.h"
 #include "hid/button.h"
+#include "model/fx/effects_binding.h"
 #include "model/mod_controllable/filters/filter_config.h"
 #include "model/mod_controllable/mod_controllable.h"
 #include "model/snapshot/mod_controllable_snapshot.h"
@@ -30,6 +31,7 @@
 #include "synth/modulation/cable.h"
 #include "synth/modulation/lfo.h"
 #include "util/functions.h"
+#include <optional>
 
 #include "effects/chain_core.h"
 #include "effects/state.h"
@@ -83,11 +85,9 @@ public:
 	/// @return The threshold (Q31).
 	[[nodiscard]] q31_t savedCompressorThreshold() const { return core().compressor().dsp().threshold(); }
 
-	/// @brief This owner's effect settings: a bound sound's are its SoundState's, any other owner's its own.
+	/// @brief This owner's effect settings, as its binding holds them: a bound record's, else the binding's own.
 	/// @return The effect settings.
-	[[nodiscard]] const deluge::effects::EffectStates& effects() const {
-		return boundEffects_ != nullptr ? *boundEffects_ : ownEffects_;
-	}
+	[[nodiscard]] const deluge::effects::EffectStates& effects() const { return binding_->effects(); }
 	/// @brief Make @p next this owner's effect settings, and the render's copy of them, which is replaced with the
 	/// render excluded.
 	/// @param next The new effect settings.
@@ -97,18 +97,16 @@ public:
 	/// @param record The record that holds the settings, or nullptr to hold them in this owner.
 	void bindEffects(deluge::effects::EffectStates* record);
 	/// @brief The render's copy of the effect settings: it reads nothing else of them.
-	deluge::snapshot::ModControllableSnapshot modControllableSnapshot_{};
-	/// @brief The render's copy of the effect settings.
 	/// @return The render's copy.
 	[[nodiscard]] const deluge::snapshot::ModControllableSnapshot& modControllableSnapshot() const {
-		return modControllableSnapshot_;
+		return binding_->snapshot();
 	}
 	/// @brief Copy the settings into the render's copy, with the render excluded.
 	void projectModControllableSnapshot();
-	/// @brief Inside projectModControllableSnapshot's excluded section: the owner's view into @p copy, for a host chain
-	/// (its selected mod FX knob); nothing for a sound.
-	/// @param copy The render's copy being filled.
-	virtual void projectView(deluge::snapshot::ModControllableSnapshot& /*copy*/) {}
+	/// @brief The view projectModControllableSnapshot copies into the render's copy: a host chain's selected mod FX
+	/// knob, which its soft off reads; nullopt for a sound.
+	/// @return The selected mod FX knob, or nullopt.
+	[[nodiscard]] virtual std::optional<ModFXParam> projectedModFXParam() const { return std::nullopt; }
 	/// @brief Store the mod-FX type; setModFXType() does the same and returns true. For the load path and
 	/// cloneFrom().
 	/// @param value The mod FX type to store.
@@ -249,12 +247,19 @@ public:
 	deluge::fast_vector<MIDIKnob> midi_knobs{};
 
 private:
-	deluge::effects::EffectStates ownEffects_{};
-	deluge::effects::EffectStates* boundEffects_{nullptr};
+	/// The binding that holds this owner's settings and the render's copy; set first in each owner's constructor.
+	deluge::model::EffectsBinding* binding_{nullptr};
 
 protected:
-	/// @brief Gives the delay's tapes back to the arena and leaves its margin, as a change to OFF does. Each owner
-	/// calls it first in its destructor, while its chain still exists.
+	/// @brief Ends the song's stutter if this owner's chain plays it, so no later chain at its address plays the tape.
+	/// Each owner calls it at the end of its destructor's body, while its chain still exists.
+	void endStutterIfStuttering();
+	/// @brief Makes @p binding the one this owner's settings and render copy live in. Each owner calls it first in its
+	/// constructor, before anything reads its effects.
+	/// @param binding The owner's binding, which outlives every use through this owner.
+	void bindBinding(deluge::model::EffectsBinding& binding) { binding_ = &binding; }
+	/// @brief Gives the delay's tapes back to the arena and leaves its margin, as a change to OFF does. A sound calls
+	/// it in its destructor, while its chain still exists; a host chain's channel does the same for itself.
 	void releaseChainMemory();
 	void switchDelayPingPong();
 	/// @brief One press of the delay's feedback knob: digital, analog, off, digital, by one Edit.

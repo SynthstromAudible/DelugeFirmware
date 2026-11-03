@@ -3,6 +3,7 @@
 #include "bench/reference_impulse_response.h"
 #include "bench/runner.h"
 #include "dsp-next/core/chain.h"
+#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/fixed/delay/delay_processor.h"
 #include "dsp-next/fixed/delay/delay_tape.h"
@@ -16,7 +17,6 @@
 #include "dsp-next/fixed/noise/congruential_step.h"
 #include "dsp-next/fixed/shaping/antialiased_tanh.h"
 #include "dsp-next/fixed/shaping/tanh.h"
-#include "util/fixedpoint.h"
 #include "util/synth_noise.h"
 
 #include <algorithm>
@@ -267,10 +267,11 @@ static_assert(SyncedPulseCase::kAudibleIncrement > SyncedPulseCase::kMasterIncre
 
 /// The kernels list's names, in order.
 const std::vector<std::string_view> kKernelCaseNames{
-    "calibration_loop", "amplitude",     "crude_amplitude",  "pulse",         "band_limited_table",
-    "crude_saw",        "crude_square",  "crude_triangle",   "synced_pulse",  "wavetable",
-    "mono_gain",        "mono_vec_gain", "stereo_gain",      "duck_envelope", "shift_tracker",
-    "one_pole_lp",      "one_pole_ap",   "antialiased_tanh", "tanh3",         "dry_wet_blend",
+    "calibration_loop", "amplitude",     "crude_amplitude",    "pulse",         "band_limited_table",
+    "crude_saw",        "crude_square",  "crude_triangle",     "synced_pulse",  "wavetable",
+    "mono_gain",        "mono_vec_gain", "stereo_gain",        "duck_envelope", "shift_tracker",
+    "one_pole_lp",      "one_pole_ap",   "antialiased_tanh",   "tanh3",         "dry_wet_blend",
+    "release_rate",     "supersaw",      "sample_interpolate",
 };
 
 /// The lanes list's names, in order.
@@ -441,6 +442,19 @@ const std::vector<std::string_view> kFftInverseCaseNames{
 const std::vector<std::string_view> kModMatrixCaseNames{
     "calibration_loop",   "matrix_q31_typical",          "matrix_q31_all",
     "matrix_q31_initial", "delay_feedback_chain_analog", "delay_feedback_chain_digital",
+};
+
+/// The virtual-analog shapes list's names, in order.
+const std::vector<std::string_view> kVaShapeCaseNames{
+    "calibration_loop",
+    "va_saw_crude",
+    "va_saw_crude_sync",
+    "va_square_crude_sync",
+    "va_triangle_crude_sync",
+    "va_saw_sync",
+    "va_analog_saw_sync",
+    "delay_feedback_chain_analog",
+    "delay_feedback_chain_digital",
 };
 
 /// The effect chain list's names, in order.
@@ -1029,7 +1043,8 @@ describe bench_runner("The DSP benchmark runner", ${
 		                                     std::pair{CaseList::FX_CHAINS, kFxChainCaseNames},
 		                                     std::pair{CaseList::FFT_FORWARD, kFftForwardCaseNames},
 		                                     std::pair{CaseList::FFT_INVERSE, kFftInverseCaseNames},
-		                                     std::pair{CaseList::MOD_MATRIX, kModMatrixCaseNames}}) {
+		                                     std::pair{CaseList::MOD_MATRIX, kModMatrixCaseNames},
+		                                     std::pair{CaseList::VA_SHAPES, kVaShapeCaseNames}}) {
 				std::vector<std::string_view> names;
 				for (const Case& c : cases(list)) {
 					names.push_back(c.name);
@@ -1079,6 +1094,9 @@ describe bench_runner("The DSP benchmark runner", ${
 			for (const Case& c : cases(CaseList::DX7)) {
 				expect(c.lanes).to_equal(std::size_t{1} + (c.name.starts_with("delay_feedback_chain") ? 1 : 0));
 			}
+			for (const Case& c : cases(CaseList::VA_SHAPES)) {
+				expect(c.lanes).to_equal(std::size_t{1} + (c.name.starts_with("delay_feedback_chain") ? 1 : 0));
+			}
 			for (const Case& c : cases(CaseList::FX_CHAINS)) {
 				expect(c.lanes).to_equal(c.name == "calibration_loop" ? std::size_t{1} : std::size_t{2});
 			}
@@ -1107,7 +1125,8 @@ describe bench_runner("The DSP benchmark runner", ${
 		                                     std::pair{CaseList::FX_CHAINS, kFxChainCaseNames},
 		                                     std::pair{CaseList::FFT_FORWARD, kFftForwardCaseNames},
 		                                     std::pair{CaseList::FFT_INVERSE, kFftInverseCaseNames},
-		                                     std::pair{CaseList::MOD_MATRIX, kModMatrixCaseNames}}) {
+		                                     std::pair{CaseList::MOD_MATRIX, kModMatrixCaseNames},
+		                                     std::pair{CaseList::VA_SHAPES, kVaShapeCaseNames}}) {
 				lines.clear();
 				counters.reset();
 				const RunConfig config{.block_sizes = kBlockSizes};
@@ -1163,13 +1182,13 @@ describe bench_runner("The DSP benchmark runner", ${
 			// Amplitude: vqdmulh of the raw sample by the first lane's halved amplitude, (value + increment) >> 1, plus
 			// the mix, wrapping.
 			render(set.amplitude, kMaxBlock, 1);
-			const int64_t half_amplitude = (int64_t{AmplitudeCase::kRamp.value()} + AmplitudeCase::kRamp.increment()) >> 1;
+			const int64_t half_amplitude = (int64_t{AmplitudeCase::kRamp.value().raw()} + AmplitudeCase::kRamp.increment().raw()) >> 1;
 			const int64_t scaled = (2 * half_amplitude * int64_t{input_a()[0]}) >> 32;
 			expect(output()[0]).to_equal(static_cast<q31>(scaled + int64_t{input_b()[0]}));
 
 			// CrudeAmplitude: the amplitude steps first, then a rounded 32x32 high multiply-accumulate.
 			render(set.crude_amplitude, kMaxBlock, 1);
-			const int64_t amplitude = int64_t{CrudeAmplitudeCase::kRamp.value()} + CrudeAmplitudeCase::kRamp.increment();
+			const int64_t amplitude = int64_t{CrudeAmplitudeCase::kRamp.value().raw()} + CrudeAmplitudeCase::kRamp.increment().raw();
 			const int64_t product = ((amplitude * int64_t{input_a()[0]}) + (int64_t{1} << 31)) >> 32;
 			expect(output()[0]).to_equal(static_cast<q31>(product + int64_t{input_b()[0]}));
 		});

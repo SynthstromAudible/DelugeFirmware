@@ -520,7 +520,7 @@ pub unsafe extern "C" fn deluge_audio_load_can_progress(file_path: *const c_char
     !queue.iter().any(|request| request.path == path) && !queue.is_full()
 }
 
-/// The loader's epoch; see [`EPOCH`] and `audio_load.h`.
+/// The loader's epoch; see `EPOCH` and `audio_load.h`.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_audio_load_epoch() -> u32 {
     EPOCH.load(core::sync::atomic::Ordering::Acquire)
@@ -638,7 +638,7 @@ pub unsafe extern "C" fn deluge_audio_load_collect(
 /// Discards the answer the loader still owes for `file_path`, if it owes one. See `audio_load.h`.
 ///
 /// Marks the path only while something for it is queued, in flight or published (a contended table counts as
-/// outstanding, as in [`probe`]), so a path with nothing outstanding leaves no mark. Never waits.
+/// outstanding, as in `probe`), so a path with nothing outstanding leaves no mark. Never waits.
 ///
 /// # Safety
 ///

@@ -34,6 +34,7 @@
 #include "dsp-next/core/lanes.h"
 #include "dsp-next/core/mono.h"
 #include "dsp-next/core/phasor.h"
+#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/ramp.h"
 #include "dsp-next/core/stereo.h"
 #include "dsp-next/core/types.h"
@@ -46,17 +47,19 @@
 #include "dsp-next/fixed/filter/filter_set.h"
 #include "dsp-next/fixed/filter/one_pole.h"
 #include "dsp-next/fixed/filter/shift_tracker.h"
+#include "dsp-next/fixed/interpolation/interpolator.h"
+#include "dsp-next/fixed/interpolation/windowed_sinc_kernel.h"
 #include "dsp-next/fixed/mix/dry_wet.h"
 #include "dsp-next/fixed/osc/band_limited_table_oscillator.h"
 #include "dsp-next/fixed/osc/crude_oscillators.h"
 #include "dsp-next/fixed/osc/pulse_oscillator.h"
+#include "dsp-next/fixed/osc/supersaw.h"
 #include "dsp-next/fixed/shaping/antialiased_tanh.h"
 #include "dsp-next/fixed/shaping/tanh_kernel.h"
 #include "dsp-next/fixed/vca/amplitude.h"
 #include "dsp-next/fixed/vca/crude_amplitude.h"
 #include "dsp-next/fixed/wavetable/wave_table_data.h"
 #include "dsp-next/fixed/wavetable/wavetable_oscillator.h"
-#include "util/fixedpoint.h"
 
 #include <algorithm>
 #include <argon.hpp>
@@ -136,8 +139,8 @@ struct FrameSpans {
 
 /// @brief The shared q31 blocks' first n samples: the spans a mono case's component renders between.
 /// @details A case builds these at setup, for the block size it is set up for, so that its timed `block` passes them
-/// by copy and makes no call besides its component's own: under the app's `-fno-inline-functions`, building a span
-/// is an out-of-line call, which the calibration would not cancel.
+/// by copy and makes no call besides its component's own: whether building a span inlines is the app inliner's choice,
+/// and a call there is one the calibration would not cancel.
 struct BlockSpans {
 	dsp::fixed::Signal a;   ///< input_a's first n samples.
 	dsp::fixed::Signal b;   ///< input_b's first n samples.
@@ -242,7 +245,7 @@ private:
 class AmplitudeCase {
 public:
 	/// @brief The ramp the VCA is built from: a start of 2^29, a quarter of full scale (Q31), rising 1,024 per sample.
-	static constexpr dsp::Ramp kRamp{int32_t{1} << 29, 1024};
+	static constexpr dsp::Ramp kRamp{dsp::Q<31>::from_raw(int32_t{1} << 29), dsp::Q<31>::from_raw(1024)};
 
 	/// @brief Builds the VCA from kRamp, fills both inputs and takes the blocks' spans for @p n.
 	/// @param n Block size to set up for, in samples (frames for the stereo and lanes cases).
@@ -257,9 +260,9 @@ private:
 	dsp::fixed::Amplitude vca_{kRamp};
 	BlockSpans spans_{};
 };
-static_assert(AmplitudeCase::kRamp.value() > 0 && AmplitudeCase::kRamp.increment() > 0);
-static_assert(int64_t{AmplitudeCase::kRamp.value()}
-                  + (int64_t{AmplitudeCase::kRamp.increment()} * int64_t{kSamplesPerRun})
+static_assert(AmplitudeCase::kRamp.value().raw() > 0 && AmplitudeCase::kRamp.increment().raw() > 0);
+static_assert(int64_t{AmplitudeCase::kRamp.value().raw()}
+                  + (int64_t{AmplitudeCase::kRamp.increment().raw()} * int64_t{kSamplesPerRun})
               < int64_t{std::numeric_limits<int32_t>::max() / 2});
 
 /// @brief The crude VCA, `CrudeAmplitude`, mixing input_a into input_b into the output.
@@ -283,9 +286,9 @@ private:
 	dsp::fixed::CrudeAmplitude vca_{kRamp};
 	BlockSpans spans_{};
 };
-static_assert(CrudeAmplitudeCase::kRamp.value() > 0 && CrudeAmplitudeCase::kRamp.increment() > 0);
-static_assert(int64_t{CrudeAmplitudeCase::kRamp.value()}
-                  + (int64_t{CrudeAmplitudeCase::kRamp.increment()} * int64_t{kSamplesPerRun})
+static_assert(CrudeAmplitudeCase::kRamp.value().raw() > 0 && CrudeAmplitudeCase::kRamp.increment().raw() > 0);
+static_assert(int64_t{CrudeAmplitudeCase::kRamp.value().raw()}
+                  + (int64_t{CrudeAmplitudeCase::kRamp.increment().raw()} * int64_t{kSamplesPerRun})
               < int64_t{std::numeric_limits<int32_t>::max() / 2});
 
 /// @brief The perfect pulse, `PulseOscillator`, rendering into the output.
@@ -357,10 +360,10 @@ public:
 	/// @param n Block size, in samples (frames for the stereo and lanes cases); the size passed to setup().
 	void block(std::size_t n);
 	/// @return The saw's phase.
-	[[nodiscard]] uint32_t phase() const { return saw_.phase(); }
+	[[nodiscard]] uint32_t phase() const { return saw_.phase().raw(); }
 
 private:
-	dsp::fixed::CrudeSaw<dsp::Phasor> saw_{dsp::Phasor{0, kIncrement}};
+	dsp::fixed::CrudeSaw<dsp::Phasor> saw_{dsp::Phasor{dsp::UQ<32>::from_raw(0), dsp::UQ<32>::from_raw(kIncrement)}};
 	BlockSpans spans_{};
 };
 
@@ -383,10 +386,11 @@ public:
 	/// @param n Block size, in samples (frames for the stereo and lanes cases); the size passed to setup().
 	void block(std::size_t n);
 	/// @return The square's phase.
-	[[nodiscard]] uint32_t phase() const { return square_.phase(); }
+	[[nodiscard]] uint32_t phase() const { return square_.phase().raw(); }
 
 private:
-	dsp::fixed::CrudeSquare<dsp::Phasor> square_{dsp::Phasor{0, kIncrement}, kPulseWidth};
+	dsp::fixed::CrudeSquare<dsp::Phasor> square_{
+	    dsp::Phasor{dsp::UQ<32>::from_raw(0), dsp::UQ<32>::from_raw(kIncrement)}, kPulseWidth};
 	BlockSpans spans_{};
 };
 
@@ -405,10 +409,11 @@ public:
 	/// @param n Block size, in samples (frames for the stereo and lanes cases); the size passed to setup().
 	void block(std::size_t n);
 	/// @return The triangle's phase.
-	[[nodiscard]] uint32_t phase() const { return triangle_.phase(); }
+	[[nodiscard]] uint32_t phase() const { return triangle_.phase().raw(); }
 
 private:
-	dsp::fixed::CrudeTriangle<dsp::Phasor> triangle_{dsp::Phasor{0, kIncrement}};
+	dsp::fixed::CrudeTriangle<dsp::Phasor> triangle_{
+	    dsp::Phasor{dsp::UQ<32>::from_raw(0), dsp::UQ<32>::from_raw(kIncrement)}};
 	BlockSpans spans_{};
 };
 
@@ -439,12 +444,12 @@ public:
 	/// @param n Block size, in samples (frames for the stereo and lanes cases); the size passed to setup().
 	void block(std::size_t n);
 	/// @return The master's phase.
-	[[nodiscard]] uint32_t master_phase() const { return master_.phase(); }
+	[[nodiscard]] uint32_t master_phase() const { return master_.phase().raw(); }
 	/// @return The audible oscillator's phase, at the full (not halved) rate.
 	[[nodiscard]] uint32_t audible_phase() const { return audible_phase_; }
 
 private:
-	dsp::Phasor master_{0, kMasterIncrement};
+	dsp::Phasor master_{dsp::UQ<32>::from_raw(0), dsp::UQ<32>::from_raw(kMasterIncrement)};
 	uint32_t audible_phase_ = 0;
 	BlockSpans spans_{};
 };
@@ -671,6 +676,72 @@ public:
 
 private:
 	dsp::Mono<dsp::fixed::DryWetBlend> mono_;
+	BlockSpans spans_{};
+};
+
+/// @brief `fixed::release_rate`, the release-table curve, once per sample: input_a's samples, scaled to the table's
+/// span, into the output.
+/// @details **Timed state:** stateless; every block is the same lookups on the same input. Each input is a sample
+/// shifted right by two, so its table position spans the 64 interpolated steps around the middle entry. It is a
+/// control-rate function, timed per sample to measure its call.
+class ReleaseRateCase {
+public:
+	/// @brief Fills input_a and takes the blocks' spans for @p n.
+	/// @param n Block size to set up for, in samples.
+	void setup(std::size_t n);
+	/// @brief Looks up one block of the size it was set up for.
+	/// @param n Block size, in samples; the size passed to setup().
+	void block(std::size_t n);
+
+private:
+	BlockSpans spans_{};
+};
+
+/// @brief The supersaw, `Supersaw`, rendering into the output as a voice sets it up: seven saws at A3, half spread,
+/// band limited.
+/// @details **Timed state:** free-running from the centre phase 0 and the side phases a voice retriggers at; each
+/// block carries every saw's phase on.
+class SupersawCase {
+public:
+	/// @brief The centre saw's increment: A3.
+	static constexpr uint32_t kIncrement = kA3Increment;
+	/// @brief Half the spread range (the bipolar wave-index param, ±2^30).
+	static constexpr int32_t kSpread = int32_t{1} << 29;
+
+	/// @brief Restarts every saw at its retrigger phase, and takes the output's span for @p n.
+	/// @param n Block size to set up for, in samples.
+	void setup(std::size_t n);
+	/// @brief Renders one block of the size it was set up for.
+	/// @param n Block size, in samples; the size passed to setup().
+	void block(std::size_t n);
+
+private:
+	uint32_t centre_phase_ = 0;
+	dsp::fixed::Supersaw::SidePhases side_phases_{};
+	BlockSpans spans_{};
+};
+
+/// @brief The sample interpolator, `Interpolator`, as sample playback runs it: each sample advances both tap windows
+/// by one (input_a and input_b's top halves) and interpolates the stereo frame, its left channel into the output.
+/// @details **Timed state:** the windows and the play position carry from block to block; the position steps at
+/// kRate, so the sub-sample phase and the kernel row change every sample.
+class SampleInterpolateCase {
+public:
+	/// @brief The play rate, UQ8.24: about three semitones up.
+	static constexpr uint32_t kRate = 20'000'000;
+	/// @brief The kernel variant sample playback picks at kRate.
+	static constexpr int32_t kVariant = dsp::fixed::WindowedSincKernel::variant_for(static_cast<int32_t>(kRate));
+
+	/// @brief Fills both inputs, empties the windows, restarts the position, and takes the blocks' spans for @p n.
+	/// @param n Block size to set up for, in samples.
+	void setup(std::size_t n);
+	/// @brief Interpolates one block of the size it was set up for.
+	/// @param n Block size, in samples; the size passed to setup().
+	void block(std::size_t n);
+
+private:
+	dsp::fixed::Interpolator interpolator_{};
+	uint32_t position_ = 0;
 	BlockSpans spans_{};
 };
 
@@ -1313,7 +1384,7 @@ inline constexpr q31 kCompressorFinalVolume = 134'217'728;
 /// @brief One compressor case's configuration.
 struct CompressorCaseConfig {
 	q31 blend;    ///< The blend knob, Q31: kOneQ31 fully wet.
-	bool neutral; ///< `render_volume_neutral`, as a sound and a clip chain call it; else `render`, as the song master
+	bool neutral; ///< `render_volume_neutral`, as a sound and a track chain call it; else `render`, as the song master
 	              ///< does.
 };
 
@@ -1347,7 +1418,7 @@ struct CompressorRig {
 [[nodiscard]] const CompressorRig& compressor_rig();
 
 /// @brief The compressor's block as its owners render it today: `RmsFeedbackCompressor::render` (the song master) or
-/// `render_volume_neutral` (a sound, a clip chain), in place over the lanes output, fully wet or blended.
+/// `render_volume_neutral` (a sound, a track chain), in place over the lanes output, fully wet or blended.
 /// @details Setup replaces the compressor with a fresh one at compressor_knobs(), and copies the lanes input's first n
 /// frames (fill_compressor_input()) into the lanes output. Each block compresses that block in place, over the block
 /// before's output.
@@ -1633,6 +1704,51 @@ private:
 	Dx7Config config_;
 };
 
+/// @brief Which virtual-analog shape a @ref VaShapeCase renders.
+enum class VaWave : uint8_t { SAW, SQUARE, TRIANGLE, ANALOG_SAW };
+
+/// @brief One virtual-analog shape case's wave, pitch and sync.
+struct VaShapeConfig {
+	VaWave wave;        ///< The shape.
+	uint32_t increment; ///< The audible increment, UQ0.32.
+	bool sync;          ///< Hard-synced to a master at two fifths of the audible pitch.
+};
+
+/// @brief The crude saw at A1, free-running.
+inline constexpr VaShapeConfig kVaSawCrude{.wave = VaWave::SAW, .increment = kA1Increment, .sync = false};
+/// @brief The crude saw at A1, hard-synced.
+inline constexpr VaShapeConfig kVaSawCrudeSync{.wave = VaWave::SAW, .increment = kA1Increment, .sync = true};
+/// @brief The crude square at A1, hard-synced.
+inline constexpr VaShapeConfig kVaSquareCrudeSync{.wave = VaWave::SQUARE, .increment = kA1Increment, .sync = true};
+/// @brief The crude triangle at A1, hard-synced.
+inline constexpr VaShapeConfig kVaTriangleCrudeSync{.wave = VaWave::TRIANGLE, .increment = kA1Increment, .sync = true};
+/// @brief The band-limited saw at A3, hard-synced (the windowed sync oscillator).
+inline constexpr VaShapeConfig kVaSawSync{.wave = VaWave::SAW, .increment = kA3Increment, .sync = true};
+/// @brief The analog saw at A3, hard-synced.
+inline constexpr VaShapeConfig kVaAnalogSawSync{.wave = VaWave::ANALOG_SAW, .increment = kA3Increment, .sync = true};
+
+/// @brief A virtual-analog shape's block as a voice renders it: `synth::va_shape`'s render, its VCA mixing into the
+/// output at a fixed amplitude of a quarter, with the CPU not dire.
+/// @details Setup restarts the shape and its master at phase 0. A synced case's master runs at two fifths of the
+/// audible increment and advances by the block after each render, as the voice's master oscillator does; at A1 that
+/// is a crossover about every 2,000 samples, at A3 about every 500.
+class VaShapeCase {
+public:
+	/// @brief A case of @p config.
+	/// @param config The case's configuration.
+	constexpr explicit VaShapeCase(const VaShapeConfig& config) : config_{config} {}
+
+	/// @brief Restarts the shape and its master, for blocks of @p n samples.
+	/// @param n Block size to set up for, in samples.
+	void setup(std::size_t n);
+	/// @brief Renders one block of the size it was set up for.
+	/// @param n Block size, in samples; the size passed to setup().
+	void block(std::size_t n);
+
+private:
+	VaShapeConfig config_;
+};
+
 /// @brief One FFT case's transform.
 struct FftConfig {
 	bool inverse;      ///< Inverse (bins to samples) rather than forward.
@@ -1676,7 +1792,7 @@ struct FxChainConfig {
 };
 
 /// @brief One block of a home's effect chain at typical settings, in place over the lanes output: the chorus, a
-/// ringing digital delay, the EQ moved off flat, the bitcrush on, and the compressor on (a clip chain's filter and
+/// ringing digital delay, the EQ moved off flat, the bitcrush on, and the compressor on (a track chain's filter and
 /// saturation too, and the master's filter); the owner's delay working state set up each block, as its owner does.
 /// @details The runtime and the reference cases render the same components the same way, so their difference is the
 /// cost of the runtime's call layer.
@@ -1744,6 +1860,9 @@ struct CaseSet {
 	AntialiasedTanhCase antialiased_tanh;                         ///< `antialiased_tanh`
 	Tanh3Case tanh3;                                              ///< `tanh3`
 	DryWetBlendCase dry_wet_blend;                                ///< `dry_wet_blend`
+	ReleaseRateCase release_rate;                                 ///< `release_rate`
+	SupersawCase supersaw;                                        ///< `supersaw`
+	SampleInterpolateCase sample_interpolate;                     ///< `sample_interpolate`
 	OnePoleX2Case one_pole_x2;                                    ///< `one_pole_x2`
 	OnePoleX4Case one_pole_x4;                                    ///< `one_pole_x4`
 	ShiftTrackerX4Case shift_tracker_x4;                          ///< `shift_tracker_x4`
@@ -1849,6 +1968,12 @@ struct CaseSet {
 	Dx7Case dx7_modern_alg32{kDx7ModernAlg32};                                    ///< `dx7_modern_alg32`
 	Dx7Case dx7_mki_alg1_fb{kDx7MkIAlg1Fb};                                       ///< `dx7_mki_alg1_fb`
 	Dx7Case dx7_mki_alg4_fb3{kDx7MkIAlg4Fb3};                                     ///< `dx7_mki_alg4_fb3`
+	VaShapeCase va_saw_crude{kVaSawCrude};                                        ///< `va_saw_crude`
+	VaShapeCase va_saw_crude_sync{kVaSawCrudeSync};                               ///< `va_saw_crude_sync`
+	VaShapeCase va_square_crude_sync{kVaSquareCrudeSync};                         ///< `va_square_crude_sync`
+	VaShapeCase va_triangle_crude_sync{kVaTriangleCrudeSync};                     ///< `va_triangle_crude_sync`
+	VaShapeCase va_saw_sync{kVaSawSync};                                          ///< `va_saw_sync`
+	VaShapeCase va_analog_saw_sync{kVaAnalogSawSync};                             ///< `va_analog_saw_sync`
 	MatrixCase matrix_q31_typical{ModMatrixKind::TYPICAL};                        ///< `matrix_q31_typical`
 	MatrixCase matrix_q31_all{ModMatrixKind::ALL};                                ///< `matrix_q31_all`
 	MatrixCase matrix_q31_initial{ModMatrixKind::INITIAL};                        ///< `matrix_q31_initial`
@@ -1927,6 +2052,9 @@ enum class CaseList : uint8_t {
 	/// The calibration loop, the q31 matrix on the mod-matrix workload (a held note, every source changed,
 	/// note-ons), then the feedback chain's two cases from the chain list.
 	MOD_MATRIX,
+	/// The calibration loop, the virtual-analog shapes as a voice renders them (crude and band-limited, free-running
+	/// and hard-synced), then the feedback chain's two cases from the chain list, as in the delay list.
+	VA_SHAPES,
 };
 
 /// @brief The case list a bench image runs: DELUGE_DSP_BENCH_CASES, as src/deluge/CMakeLists.txt defines it.
@@ -1958,6 +2086,8 @@ inline constexpr CaseList kBenchCaseList = CaseList::FFT_FORWARD;
 inline constexpr CaseList kBenchCaseList = CaseList::FFT_INVERSE;
 #elif defined(DELUGE_DSP_BENCH_MOD_MATRIX)
 inline constexpr CaseList kBenchCaseList = CaseList::MOD_MATRIX;
+#elif defined(DELUGE_DSP_BENCH_VA_SHAPES)
+inline constexpr CaseList kBenchCaseList = CaseList::VA_SHAPES;
 #else
 inline constexpr CaseList kBenchCaseList = CaseList::KERNELS;
 #endif

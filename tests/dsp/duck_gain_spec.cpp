@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-// duck_gain at both scalings against the two expressions it replaces (the clip chain's and the reverb return's), over
+// duck_gain at both scalings against the two expressions it replaces (the track chain's and the reverb return's), over
 // the duck's whole range and the depths a patch cable's amount gives, negative ones included, and its neutral values.
 
 #include "dsp-next/fixed/dynamics/duck_gain.h"

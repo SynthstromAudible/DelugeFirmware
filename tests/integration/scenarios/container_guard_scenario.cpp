@@ -432,8 +432,11 @@ struct MasterFxRender {
 MasterFxRender renderMasterFx(GlobalEffectable& master, ParamManager& params) {
 	static q31_t send[kRenderBlockFrames]{};
 	MasterFxRender made;
-	const deluge::effects::Delay::State delayState = master.createDelayWorkingState(params);
-	const deluge::effects::FxInputs fx = deluge::model::hostFxInputs(master, params, delayState, 0);
+	const deluge::snapshot::ModControllableSnapshot& snapshot = master.modControllableSnapshot();
+	const deluge::effects::Delay::State delayState =
+	    deluge::model::delayWorkingState(params, master.core().delay(), snapshot.effects.delay, false, true);
+	const deluge::effects::FxInputs fx =
+	    deluge::model::hostFxInputs(snapshot, deluge::model::activeModFXType(snapshot, params), params, delayState, 0);
 	for (int32_t b = 0; b < kModFxBlocks; b++) {
 		StereoSample block[kRenderBlockFrames]{};
 		for (uint32_t i = 0; i < kRenderBlockFrames; i++) {
@@ -535,7 +538,8 @@ void turnParam(ModelStackWithThreeMainThings* ms, int32_t id, int32_t value) {
 	ModelStackWithParamId* withId = ms->addParamCollectionAndId(summary->paramCollection, summary, id);
 	ModelStackWithAutoParam* withParam = withId->paramCollection->getAutoParamFromId(withId);
 	deluge::edits::Context context{*currentSong, currentSong->project};
-	deluge::edits::SetParamValue edit{deluge::edits::addressFor(*withParam), value, 0, 0, withParam};
+	deluge::edits::SetParamValue edit{*deluge::edits::addressFor(*withParam), value, 0, 0,
+	                                  deluge::edits::SetParamValue::Resolve::EXACT};
 	deluge::edits::apply(context, edit);
 }
 
@@ -553,7 +557,8 @@ void turnParamIn(ModelStackWithThreeMainThings* ms, ParamCollectionSummary* summ
 		return;
 	}
 	deluge::edits::Context context{*currentSong, currentSong->project};
-	deluge::edits::SetParamValue edit{deluge::edits::addressFor(*withParam), value, 0, 0, withParam};
+	deluge::edits::SetParamValue edit{*deluge::edits::addressFor(*withParam), value, 0, 0,
+	                                  deluge::edits::SetParamValue::Resolve::EXACT};
 	deluge::edits::apply(context, edit);
 }
 
@@ -1526,11 +1531,11 @@ void editLeg() {
 		turnDelayFeedback(*synth, g_clip, synthParams, kMinimum);
 
 		auto& master = currentSong->live.global_effectable;
-		turnDelayFeedback(master, nullptr, currentSong->paramManager, kMinimum);
+		turnDelayFeedback(master, currentSong, currentSong->paramManager, kMinimum);
 		setDelayType(master, DelayType::OFF);
-		turnDelayFeedback(master, nullptr, currentSong->paramManager, 0);
+		turnDelayFeedback(master, currentSong, currentSong->paramManager, 0);
 		const bool chain = master.effects().delay.type == DelayType::DIGITAL;
-		turnDelayFeedback(master, nullptr, currentSong->paramManager, kMinimum);
+		turnDelayFeedback(master, currentSong, currentSong->paramManager, kMinimum);
 		setDelayType(master, DelayType::OFF);
 		renderBlocks(1);
 		printf("CG-DELAYKNOB lifted=%d analogKept=%d offKept=%d chain=%d\n", lifted ? 1 : 0, analogKept ? 1 : 0,
@@ -1672,13 +1677,13 @@ void editLeg() {
 		auto* track = static_cast<AudioOutput*>(g_audio->output);
 		const uint32_t notedBefore = deluge::notedStructuralEdits(StructuralContainer::STUTTER_TAPE);
 		track->beginStutter(&g_audio->paramManager);
-		const bool first = stutter.isStuttering(*track) && isUIModeActive(UI_MODE_STUTTERING);
+		const bool first = stutter.isStuttering(track->core()) && isUIModeActive(UI_MODE_STUTTERING);
 		renderBlocks(20);
 		const auto rate = static_cast<uint32_t>(
 		    deluge::model::stutterRate(&g_clip->paramManager, 0, currentSong->getInputTickMagnitude(),
 		                               playbackHandler.getTimePerInternalTickInverse()));
-		const bool handed = stutter.begin(*g_kit, g_kit->effects().stutter, rate) == Error::NONE;
-		const bool second = handed && stutter.isStuttering(*g_kit) && !stutter.isStuttering(*track);
+		const bool handed = stutter.begin(g_kit->core(), g_kit->effects().stutter, rate) == Error::NONE;
+		const bool second = handed && stutter.isStuttering(g_kit->core()) && !stutter.isStuttering(track->core());
 		renderBlocks(20);
 		g_kit->endStutter(&g_clip->paramManager);
 		renderBlocks(5);
@@ -1736,7 +1741,7 @@ void editLeg() {
 		unpatched->params[deluge::modulation::params::UNPATCHED_STUTTER_RATE].setCurrentValueBasicForSetup(
 		    unpatched->knobPosToParamValue(20, nullptr));
 		lone->beginStutter(&paramManager);
-		const bool began = stutter.isStuttering(*lone) && stutter.lastQuantizedKnobDiff == 8 - 20;
+		const bool began = stutter.isStuttering(lone->core()) && stutter.lastQuantizedKnobDiff == 8 - 20;
 		AudioEngine::retire(static_cast<Output*>(lone));
 		renderBlocks(3);
 		AudioEngine::reclaimRetired();
@@ -1753,7 +1758,7 @@ void editLeg() {
 		// from the outgoing song before it is retired.
 		const uint32_t notedBefore = deluge::notedStructuralEdits(StructuralContainer::STUTTER_TAPE);
 		g_kit->beginStutter(&g_clip->paramManager);
-		const bool began = currentSong->live.stutter.isStuttering(*g_kit) && isUIModeActive(UI_MODE_STUTTERING);
+		const bool began = currentSong->live.stutter.isStuttering(g_kit->core()) && isUIModeActive(UI_MODE_STUTTERING);
 		renderBlocks(20);
 		Song* const outgoing = currentSong;
 		AudioEngine::songSwapAboutToHappen();
@@ -1787,7 +1792,7 @@ void editLeg() {
 		// the accept, so only the hand-over it notes can be read.
 		const uint32_t notedBefore = deluge::notedStructuralEdits(StructuralContainer::STUTTER_TAPE);
 		g_kit->beginStutter(&g_clip->paramManager);
-		const bool began = currentSong->live.stutter.isStuttering(*g_kit) && isUIModeActive(UI_MODE_STUTTERING);
+		const bool began = currentSong->live.stutter.isStuttering(g_kit->core()) && isUIModeActive(UI_MODE_STUTTERING);
 		renderBlocks(20);
 		std::ignore = deluge::gui::context_menu::clearSong.acceptCurrentOption();
 		// The begin noted one hand-over and the end, before the old song was let go, another.

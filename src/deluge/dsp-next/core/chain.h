@@ -442,8 +442,8 @@ private:
 /// **Loop state.** A part declaring `kLoopState` steps on that member of its State; the chain declares none, so a
 /// wrapper copies the chain's whole State around its loop.
 ///
-/// **Inlining.** Every member is `[[gnu::always_inline]]`, so under the shipping `-fno-inline-functions` the parts'
-/// steps land in the wrapper's loop with no call between them.
+/// **Inlining.** Every member is `[[gnu::always_inline]]`, so at the app's inline threshold of 5, which inlines only
+/// the cheapest calls, the parts' steps land in the wrapper's loop with no call between them.
 template <kernel... Ks>
 requires chainable<Ks...>
 struct Chain : detail::ChainTypes<Ks...>::ModesBase,

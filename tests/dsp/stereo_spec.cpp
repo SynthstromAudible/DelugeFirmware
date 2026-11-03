@@ -1,9 +1,9 @@
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/mode.h"
 #include "dsp-next/core/mono.h"
+#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/stereo.h"
 #include "dsp-next/fixed/noise/noise.h"
-#include "util/fixedpoint.h"
 
 #include <array>
 #include <cppspec.hpp>

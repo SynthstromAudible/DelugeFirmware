@@ -277,7 +277,7 @@ void decode(const Value& element, EffectStates& states, const plugin::CodecConte
 			states.filter.route = parse_filter_route(text_or_empty(value));
 		}
 		else if (key == "clippingAmount") {
-			states.saturation.clipping_amount = static_cast<uint8_t>(int_or_zero(value));
+			states.saturation.clipping_amount = clipping_amount_from(int_or_zero(value));
 		}
 		else if (key == "delay") {
 			read_delay(value, states.delay, context);

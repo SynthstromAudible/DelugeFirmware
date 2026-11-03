@@ -28,9 +28,9 @@
 #include "dsp-next/core/concepts.h"
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/mono.h"
+#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/fixed/noise/noise.h"
 #include "reference_filters.h"
-#include "util/fixedpoint.h"
 
 #include <array>
 #include <cppspec.hpp>
@@ -132,6 +132,16 @@ bool sum_overflows(q31 a, q31 b) {
 }
 
 /// The class's feedbackOutput on @p memory, its shift written through uint32_t so that it wraps as the class's does.
+/// OnePole::feedback at the amount's bits read as Q30, as raw bits.
+q31 feedback_bits(const OnePole::State& s, q31 amount) {
+	return OnePole::feedback(s, deluge::dsp::Q<30>::from_raw(amount)).raw();
+}
+
+/// OnePole::feedback_unshifted at the amount's bits read as Q30, as raw bits.
+q31 feedback_unshifted_bits(const OnePole::State& s, q31 amount) {
+	return OnePole::feedback_unshifted(s, deluge::dsp::Q<30>::from_raw(amount)).raw();
+}
+
 q31 wrapped_feedback(q31 memory, q31 amount) {
 	return static_cast<q31>(static_cast<uint32_t>(multiply_32x32_rshift32_rounded(memory, amount)) << 2);
 }
@@ -296,31 +306,31 @@ describe one_pole_spec("OnePole", ${
 				}
 				expect(s.z).to_equal(pole.memory());
 				for (const q31 amount : kAmounts) {
-					expect(OnePole::feedback(s, amount)).to_equal(pole.feedbackOutput(amount));
-					expect(OnePole::feedback_unshifted(s, amount)).to_equal(pole.feedbackOutputUnshifted(amount));
+					expect(feedback_bits(s, amount)).to_equal(pole.feedbackOutput(amount));
+					expect(feedback_unshifted_bits(s, amount)).to_equal(pole.feedbackOutputUnshifted(amount));
 				}
 			}
 		});
 
 		it("reads the feedback from the memory alone, without stepping it", _ {
 			const OnePole::State s{.z = 805326848};
-			expect(OnePole::feedback(s, kRampMoveability)).to_equal(402663424);
-			expect(OnePole::feedback_unshifted(s, kRampMoveability)).to_equal(100665856);
+			expect(feedback_bits(s, kRampMoveability)).to_equal(402663424);
+			expect(feedback_unshifted_bits(s, kRampMoveability)).to_equal(100665856);
 			expect(s.z).to_equal(805326848);
 		});
 
 		it("reads the feedback at full-scale memories, its shift wrapping as the class's does", _ {
 			// z * amount at full scale is 2^30 - 1 or 2^30, which the shift by 2 carries out of q31.
-			expect(OnePole::feedback({.z = kMin}, kMin)).to_equal(q31{0});
-			expect(OnePole::feedback({.z = kMax}, kMax)).to_equal(q31{-4});
-			expect(OnePole::feedback({.z = kMin + 1}, kMin + 1)).to_equal(q31{-4});
-			expect(OnePole::feedback_unshifted({.z = kMin}, kMin)).to_equal(q31{1 << 30});
-			expect(OnePole::feedback_unshifted({.z = kMax}, kMax)).to_equal(q31{(1 << 30) - 1});
+			expect(feedback_bits({.z = kMin}, kMin)).to_equal(q31{0});
+			expect(feedback_bits({.z = kMax}, kMax)).to_equal(q31{-4});
+			expect(feedback_bits({.z = kMin + 1}, kMin + 1)).to_equal(q31{-4});
+			expect(feedback_unshifted_bits({.z = kMin}, kMin)).to_equal(q31{1 << 30});
+			expect(feedback_unshifted_bits({.z = kMax}, kMax)).to_equal(q31{(1 << 30) - 1});
 			for (const q31 z : {kMin, kMax, kMin + 1}) {
 				const OnePole::State s{.z = z};
 				for (const q31 amount : kAmounts) {
-					expect(OnePole::feedback(s, amount)).to_equal(wrapped_feedback(z, amount));
-					expect(OnePole::feedback_unshifted(s, amount)).to_equal(multiply_32x32_rshift32_rounded(z, amount));
+					expect(feedback_bits(s, amount)).to_equal(wrapped_feedback(z, amount));
+					expect(feedback_unshifted_bits(s, amount)).to_equal(multiply_32x32_rshift32_rounded(z, amount));
 				}
 				expect(s.z).to_equal(z);
 			}
@@ -344,8 +354,8 @@ describe one_pole_spec("OnePole", ${
 					for (const auto& [state, ref] : {std::pair{&low, &low_ref}, {&high, &high_ref}, {&all, &all_ref}}) {
 						for (const q31 amount : kAmounts) {
 							feedback_wraps += feedback_overflows(ref->memory, amount) ? 1 : 0;
-							expect(OnePole::feedback(*state, amount)).to_equal(wrapped_feedback(ref->memory, amount));
-							expect(OnePole::feedback_unshifted(*state, amount))
+							expect(feedback_bits(*state, amount)).to_equal(wrapped_feedback(ref->memory, amount));
+							expect(feedback_unshifted_bits(*state, amount))
 							    .to_equal(multiply_32x32_rshift32_rounded(ref->memory, amount));
 						}
 					}

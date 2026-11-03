@@ -18,12 +18,14 @@
 // instant_tan: tan of a Q31 angle by table (the ladders' frequency warp). The values were recorded from the app's
 // instantTan.
 
+#include "curves_reference.h"
 #include "dsp-next/fixed/curves/instant_tan.h"
 
 #include <cppspec.hpp>
 #include <cstdint>
 
 using deluge::dsp::fixed::instant_tan;
+using deluge::dsp::fixed::kTanTable;
 
 // clang-format off
 describe instant_tan_spec("instant_tan", ${
@@ -35,6 +37,19 @@ describe instant_tan_spec("instant_tan", ${
 		expect(instant_tan(1 << 26)).to_equal(12087754);
 		expect(instant_tan(1 << 29)).to_equal(101039870);
 		expect(instant_tan(0x3FFFFFFF)).to_equal(235436120);
+	});
+	it("gives the reference's value at every angle", _ {
+		int32_t bad = 0;
+		for (int64_t angle = 0; angle <= INT32_MAX; angle += 997) {
+			bad += instant_tan(static_cast<int32_t>(angle)) != curves_reference::instant_tan(static_cast<int32_t>(angle));
+		}
+		for (int32_t angle : {0, (1 << 25) - 1, 1 << 25, INT32_MAX}) {
+			bad += instant_tan(angle) != curves_reference::instant_tan(angle);
+		}
+		expect(bad).to_equal(0);
+	});
+	it("reads the table's entries at Q28", _ {
+		expect(instant_tan(0)).to_equal(kTanTable[0]);
 	});
 });
 

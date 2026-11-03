@@ -55,7 +55,7 @@ public:
 	using value_type = q31; ///< Full-scale q31 wave samples.
 
 	explicit CrudeSaw(Phase phasor) : phasor_{phasor} {}
-	[[nodiscard]] uint32_t phase() const { return phasor_.phase(); }
+	[[nodiscard]] UQ<32> phase() const { return phasor_.phase(); }
 
 	/// Forward a per-block pitch change to the phase source (a Phasor takes one increment; a SyncedPhasor takes
 	/// the audible + resetter increments), keeping the accumulated phase.
@@ -67,7 +67,7 @@ public:
 	/// @brief Fill @p output with the next `output.size()` samples, one phase step each.
 	void render_block(Buffer output) {
 		for (q31& sample : output) {
-			sample = static_cast<int32_t>(phasor_.advance());
+			sample = static_cast<int32_t>(phasor_.advance().raw());
 		}
 	}
 };
@@ -89,7 +89,7 @@ public:
 	using value_type = q31; ///< Full-scale q31 wave samples.
 
 	CrudeSquare(Phase phasor, uint32_t pulse_width) : phasor_{phasor}, pulse_width_{pulse_width} {}
-	[[nodiscard]] uint32_t phase() const { return phasor_.phase(); }
+	[[nodiscard]] UQ<32> phase() const { return phasor_.phase(); }
 
 	/// Forward a per-block pitch change to the phase source (a Phasor takes one increment; a SyncedPhasor takes
 	/// the audible + resetter increments), keeping the accumulated phase.
@@ -101,7 +101,7 @@ public:
 	/// @brief Fill @p output with the next `output.size()` samples, one phase step each.
 	void render_block(Buffer output) {
 		for (q31& sample : output) {
-			sample = square(phasor_.advance(), pulse_width_);
+			sample = square(phasor_.advance().raw(), pulse_width_);
 		}
 	}
 };
@@ -121,7 +121,7 @@ public:
 	using value_type = q31; ///< Full-scale q31 wave samples.
 
 	explicit CrudeTriangle(Phase phasor) : phasor_{phasor} {}
-	[[nodiscard]] uint32_t phase() const { return phasor_.phase(); }
+	[[nodiscard]] UQ<32> phase() const { return phasor_.phase(); }
 
 	/// Forward a per-block pitch change to the phase source (a Phasor takes one increment; a SyncedPhasor takes
 	/// the audible + resetter increments), keeping the accumulated phase.
@@ -133,7 +133,7 @@ public:
 	/// @brief Fill @p output with the next `output.size()` samples, one phase step each.
 	void render_block(Buffer output) {
 		for (q31& sample : output) {
-			sample = triangle_half_scale(phasor_.advance());
+			sample = triangle_half_scale(phasor_.advance().raw());
 		}
 	}
 };
@@ -154,7 +154,7 @@ public:
 	using value_type = q31; ///< Full-scale q31 wave samples.
 
 	explicit CrudeSine(Phase phasor) : phasor_{phasor} {}
-	[[nodiscard]] uint32_t phase() const { return phasor_.phase(); }
+	[[nodiscard]] UQ<32> phase() const { return phasor_.phase(); }
 
 	/// Forward a per-block pitch change to the phase source (a Phasor takes one increment; a SyncedPhasor takes
 	/// the audible + resetter increments), keeping the accumulated phase.
@@ -166,7 +166,7 @@ public:
 	/// @brief Fill @p output with the next `output.size()` samples, one phase step each.
 	void render_block(Buffer output) {
 		for (q31& sample : output) {
-			sample = kSineTable.value(phasor_.advance());
+			sample = kSineTable.value(phasor_.advance().raw());
 		}
 	}
 };

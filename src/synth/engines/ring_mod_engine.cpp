@@ -16,12 +16,12 @@
  */
 
 #include "synth/engines/ring_mod_engine.h"
+#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/types.h" // deluge::dsp::fixed::Buffer
 #include "dsp-next/fixed/vca/pan.h"
 #include "synth/engines/block_controls.h" // make_block_controls
 #include "synth/engines/pitch.h"
 #include "synth/sources/source_slot.h"
-#include "util/fixedpoint.h"
 #include <algorithm>
 #include <type_traits>
 #include <utility>

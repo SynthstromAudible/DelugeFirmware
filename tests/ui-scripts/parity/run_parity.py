@@ -8,7 +8,12 @@ snapshot; the report lists every snapshot whose windows share no state, or whose
 
 Usage:
   run_parity.py --emu <delugemu checkout> --ref <main deluge.elf> --test <deluge.elf> --sd <card.img>
-                --out <dir> script.txt [script.txt ...]
+                --out <dir> [--jobs N] [--cache DIR | --no-cache] script.txt [script.txt ...]
+
+A run is deterministic, so its snapshots are cached under --cache (default $XDG_CACHE_HOME/deluge-parity), keyed by the
+image, the script, the card and this runner: a reference image compared again, or a script whose image did not change,
+is not run again. Runs not in the cache go to --jobs emulators at once (default: half the cores, at most 16), each with
+its own ports and working directory.
 
 Setup: delugemu (https://github.com/SynthstromAudible/delugemu), built with its scripts/build.sh (check that
 `strings qemu/build/qemu-system-arm | grep wfe_halted` finds its WFE patch); the card is the Synthstrom factory card
@@ -28,6 +33,8 @@ Script lines (`#` starts a comment):
 """
 
 import argparse
+import concurrent.futures
+import hashlib
 import json
 import os
 import shutil
@@ -58,6 +65,10 @@ EXTRA_QEMU = ("-global", "rza1l-gpio.edge-spacing-ns=3000000")
 # A deterministic virtual clock, paused at reset: the runner advances it to exact times and injects input there, so a
 # script replays identically on an image (timers, popups and random colours included).
 ICOUNT = ("-icount", "shift=2,sleep=off", "-S")
+
+
+class RunError(Exception):
+    """A run that cannot give snapshots: the emulator did not start, the script is wrong, or the image aborted."""
 
 
 def parse(path):
@@ -143,7 +154,7 @@ def launch(session_cls, qmp_client_cls, emu, elf, card, extra, workdir, midi):
     while not os.path.exists(sock):
         if proc.poll() is not None or time.monotonic() > deadline:
             proc.kill()
-            sys.exit(f"run.sh did not start; see {log}")
+            raise RunError(f"run.sh did not start; see {log}")
         time.sleep(0.1)
     dz = session_cls(
         qmp_client_cls(sock, connect_timeout=15.0),
@@ -239,14 +250,14 @@ def run_script(session_cls, qmp_client_cls, controls, emu, elf, sd, script, work
             elif verb == "snapshot":
                 label = args[0]
                 if label in snaps:
-                    sys.exit(f"{where}: snapshot label {label!r} used twice")
+                    raise RunError(f"{where}: snapshot label {label!r} used twice")
                 snaps[label] = snapshot(dz, midi, random_pads)
                 continue
             else:
-                sys.exit(f"{where}: unknown verb {verb!r}")
+                raise RunError(f"{where}: unknown verb {verb!r}")
             advance(dz, SETTLE)
         if watch.aborts:
-            sys.exit(
+            raise RunError(
                 f"{os.path.basename(script)}: the image took {watch.aborts} data or prefetch abort(s)"
             )
     finally:
@@ -279,6 +290,28 @@ def differences(ref, test):
     return found
 
 
+def file_digest(path):
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for block in iter(lambda: f.read(1 << 20), b""):
+            h.update(block)
+    return h.hexdigest()
+
+
+def cache_key(elf_digest, script, card, runner_digest):
+    """What a run's snapshots depend on: the image, the script, the card (by size and modification time: hashing a
+    card image takes longer than the run), this runner and the window it reads."""
+    card_stat = os.stat(card)
+    parts = [
+        elf_digest,
+        file_digest(script),
+        f"{card_stat.st_size}:{card_stat.st_mtime_ns}",
+        runner_digest,
+        str(WINDOW),
+    ]
+    return hashlib.sha256("\n".join(parts).encode()).hexdigest()
+
+
 def main():
     parser = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
@@ -290,6 +323,17 @@ def main():
     parser.add_argument("--test", required=True)
     parser.add_argument("--sd", required=True)
     parser.add_argument("--out", required=True)
+    parser.add_argument(
+        "--jobs", type=int, default=max(1, min(16, (os.cpu_count() or 2) // 2))
+    )
+    parser.add_argument(
+        "--cache",
+        default=os.path.join(
+            os.environ.get("XDG_CACHE_HOME", os.path.expanduser("~/.cache")),
+            "deluge-parity",
+        ),
+    )
+    parser.add_argument("--no-cache", action="store_true")
     parser.add_argument("scripts", nargs="+")
     a = parser.parse_args()
     if not a.emu:
@@ -304,41 +348,79 @@ def main():
     from delugemu.qmp import QmpClient
 
     os.makedirs(a.out, exist_ok=True)
+    if not a.no_cache:
+        os.makedirs(a.cache, exist_ok=True)
+    runner_digest = file_digest(os.path.abspath(__file__))
+    elf_digests = {elf: file_digest(elf) for elf in {a.ref, a.test}}
+
+    results = {}  # (script, side) -> snapshots
+    pending = []  # (script, side, elf, cache path)
+    for script in a.scripts:
+        for side, elf in (("ref", a.ref), ("test", a.test)):
+            key = cache_key(elf_digests[elf], script, a.sd, runner_digest)
+            cached = None if a.no_cache else os.path.join(a.cache, f"{key}.json")
+            if cached and os.path.exists(cached):
+                with open(cached, encoding="utf-8") as f:
+                    results[(script, side)] = json.load(f)
+                print(f"{os.path.basename(script)} [{side}] cached", flush=True)
+            else:
+                pending.append((script, side, elf, cached))
+
+    def run(job):
+        script, side, elf, cached = job
+        name = os.path.splitext(os.path.basename(script))[0]
+        workdir = tempfile.mkdtemp(prefix=f"parity-{name}-{side}-")
+        started = time.monotonic()
+        try:
+            snaps = run_script(
+                DelugeSession, QmpClient, CONTROLS, a.emu, elf, a.sd, script, workdir
+            )
+        finally:
+            shutil.rmtree(workdir, ignore_errors=True)
+        if cached:
+            with open(cached + ".tmp", "w", encoding="utf-8") as f:
+                json.dump(snaps, f)
+            os.replace(cached + ".tmp", cached)
+        print(
+            f"{name} [{side}] {len(snaps)} snapshots in {time.monotonic() - started:.0f} s",
+            flush=True,
+        )
+        return snaps
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=a.jobs) as pool:
+        futures = {pool.submit(run, job): job for job in pending}
+        for future in concurrent.futures.as_completed(futures):
+            script, side, _, _ = futures[future]
+            try:
+                results[(script, side)] = future.result()
+            except RunError as e:
+                for other in futures:
+                    other.cancel()
+                sys.exit(str(e))
+
     total = 0
     differing = 0
     for script in a.scripts:
         name = os.path.splitext(os.path.basename(script))[0]
-        results = {}
-        for side, elf in (("ref", a.ref), ("test", a.test)):
-            workdir = tempfile.mkdtemp(prefix=f"parity-{name}-{side}-")
-            started = time.monotonic()
-            results[side] = run_script(
-                DelugeSession, QmpClient, CONTROLS, a.emu, elf, a.sd, script, workdir
-            )
+        ref, test = results[(script, "ref")], results[(script, "test")]
+        for side, snaps in (("ref", ref), ("test", test)):
             with open(
                 os.path.join(a.out, f"{name}.{side}.json"), "w", encoding="utf-8"
             ) as f:
-                json.dump(results[side], f, indent=1)
-            print(
-                f"{name} [{side}] {len(results[side])} snapshots in {time.monotonic() - started:.0f} s",
-                flush=True,
-            )
-            shutil.rmtree(workdir, ignore_errors=True)
-        diffs = differences(results["ref"], results["test"])
-        total += len(results["ref"])
+                json.dump(snaps, f, indent=1)
+        diffs = differences(ref, test)
+        total += len(ref)
         differing += len(diffs)
         for label, parts in diffs:
             print(f"DIFF {name}/{label}: {', '.join(parts)}")
             if "oled" in parts:
-                ref_oled = results["ref"][label]["frames"][0]["oled"]
-                test_oled = results["test"][label]["frames"][0]["oled"]
+                ref_oled = ref[label]["frames"][0]["oled"]
+                test_oled = test[label]["frames"][0]["oled"]
                 for r, t in zip(ref_oled.splitlines(), test_oled.splitlines()):
                     if r != t:
                         print(f"  {r} | {t}")
             if "midi" in parts:
-                print(
-                    f"  midi {results['ref'][label]['midi']} | {results['test'][label]['midi']}"
-                )
+                print(f"  midi {ref[label]['midi']} | {test[label]['midi']}")
     print(f"PARITY {total - differing} of {total} snapshots identical")
     return 1 if differing else 0
 

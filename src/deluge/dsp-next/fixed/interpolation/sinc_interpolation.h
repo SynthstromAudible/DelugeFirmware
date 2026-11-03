@@ -17,7 +17,9 @@
 #pragma once
 
 #include "definitions_cxx.hpp" // kInterpolationMaxNumSamples
+#include "dsp-next/core/fixed_point_neon.h"
 #include <argon.hpp>
+#include <array>
 #include <cstddef>
 #include <cstdint>
 
@@ -26,39 +28,36 @@ namespace deluge::dsp::fixed {
 /// Number of 8-lane int16 vectors that hold one interpolation window (kInterpolationMaxNumSamples taps).
 inline constexpr std::size_t kSincWindowVectors = kInterpolationMaxNumSamples / Argon<int16_t>::lanes;
 
-/// @brief One interpolation window: the @ref kInterpolationMaxNumSamples samples to weight, as int16 vectors.
-/// @details A built-in array behind an always-inline `operator[]`, not `std::array`: the window is indexed on the
-/// per-sample path of the wavetable oscillators, which build in app translation units, and there
-/// `std::array::operator[]` is an out-of-line call under `-fno-inline-functions`. Built by aggregate initialisation,
-/// vector 0 first.
+/// @brief One interpolation window: the @ref kInterpolationMaxNumSamples Q15 samples or kernel taps to weight, as
+/// int16 vectors.
+/// @details Built by aggregate initialisation, vector 0 first.
 struct SincWindow {
-	// A built-in array, not std::array: see the @details above.
-	// NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
-	Argon<int16_t> vectors[kSincWindowVectors];
+	std::array<Q16Vec<15>, kSincWindowVectors> vectors; ///< The vectors, vector 0 first.
 
 	/// @brief Vector @p i, less than @ref kSincWindowVectors.
-	[[nodiscard, gnu::always_inline]] Argon<int16_t>& operator[](std::size_t i) { return vectors[i]; }
+	[[nodiscard, gnu::always_inline]] Q16Vec<15>& operator[](std::size_t i) { return vectors[i]; }
 	/// @brief Vector @p i, less than @ref kSincWindowVectors.
-	[[nodiscard, gnu::always_inline]] const Argon<int16_t>& operator[](std::size_t i) const { return vectors[i]; }
+	[[nodiscard, gnu::always_inline]] const Q16Vec<15>& operator[](std::size_t i) const { return vectors[i]; }
 };
 
 /// @brief Position a windowed-sinc kernel to sub-sample accuracy (argon).
 ///
 /// @param kernel_row the first of two adjacent kernel rows — each @ref kInterpolationMaxNumSamples
-/// taps, the next row one window later in memory. The kernel table is discretised into a fixed
+/// Q15 taps, the next row one window later in memory. The kernel table is discretised into a fixed
 /// number of sub-sample rows; this picks the lower one.
 /// @param row_blend the Q15 fraction (`[0, 0x7FFF]`) to interpolate from @p kernel_row toward the
 /// next row — i.e. the sub-sample position between the two table rows (`a + (b - a) · row_blend`).
 /// @returns the blended kernel, ready to weight a sample window with @ref windowed_sinc_dot.
 ///
-/// `MultiplyAddFixedQMax` is the argon form of `vaddq(a, vqdmulhq_n(b - a, row_blend))`.
+/// The difference wraps, its product with the blend saturates (`vqdmulh` by scalar), and the sum wraps.
 [[gnu::always_inline]] inline SincWindow blend_sinc_kernel(const int16_t* kernel_row, int16_t row_blend) {
+	const auto blend = Q16<15>::from_raw(row_blend);
 	SincWindow kernel;
 	for (std::size_t i = 0; i < kSincWindowVectors; ++i) {
-		Argon<int16_t> row = Argon<int16_t>::Load(kernel_row + i * Argon<int16_t>::lanes);
-		Argon<int16_t> next_row =
-		    Argon<int16_t>::Load(kernel_row + kInterpolationMaxNumSamples + i * Argon<int16_t>::lanes);
-		kernel[i] = row.MultiplyAddFixedQMax(next_row - row, row_blend);
+		const auto row = Q16Vec<15>::from_raw(Argon<int16_t>::Load(kernel_row + i * Argon<int16_t>::lanes));
+		const auto next_row = Q16Vec<15>::from_raw(
+		    Argon<int16_t>::Load(kernel_row + kInterpolationMaxNumSamples + i * Argon<int16_t>::lanes));
+		kernel[i] = add_wrap(row, mul_doubling_sat(sub_wrap(next_row, row), blend));
 	}
 	return kernel;
 }
@@ -67,18 +66,17 @@ struct SincWindow {
 ///
 /// @param kernel a kernel from @ref blend_sinc_kernel.
 /// @param samples the window to weight.
-/// @returns the interpolated sample (the dot product of @p kernel with @p samples).
+/// @returns the interpolated sample, Q30 of the window's Q15 samples: the dot product of @p kernel with @p samples,
+/// each Q15 × Q15 product widened and summed wrapping (`vmlal.s16`), then the four lanes added (`sum_wrap`).
 ///
 /// Split from @ref blend_sinc_kernel so a stereo consumer can blend the kernel once and apply it to
-/// both channels (as the sample-playback Interpolator does). `MultiplyAddLong` is `vmlal`,
-/// `ReduceAdd` the final horizontal add.
+/// both channels (as the sample-playback Interpolator does).
 [[gnu::always_inline]] inline int32_t windowed_sinc_dot(const SincWindow& kernel, const SincWindow& samples) {
-	Argon<int32_t> accumulated = 0;
+	auto accumulated = QVec<30>::splat(Q<30>::from_raw(0));
 	for (std::size_t i = 0; i < kSincWindowVectors; ++i) {
-		accumulated = accumulated.MultiplyAddLong(kernel[i].GetLow(), samples[i].GetLow())
-		                  .MultiplyAddLong(kernel[i].GetHigh(), samples[i].GetHigh());
+		accumulated = mla_wide(mla_wide(accumulated, kernel[i].lo(), samples[i].lo()), kernel[i].hi(), samples[i].hi());
 	}
-	return accumulated.ReduceAdd();
+	return sum_wrap(accumulated).raw();
 }
 
 /// @brief Apply a windowed-sinc interpolation kernel to a sample window (argon; the shared core of

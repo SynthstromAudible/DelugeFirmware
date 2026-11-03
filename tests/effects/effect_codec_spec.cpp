@@ -6,6 +6,7 @@
 #include <cppspec.hpp>
 #include <ostream>
 #include <string>
+#include <utility>
 
 using namespace deluge::effects;
 using deluge::serialization::Value;
@@ -62,6 +63,15 @@ describe effect_codec("an owner element's effect entries", ${
 		read.stutter.use_song_stutter = false;
 		decode(*doc->find("sound"), read, kAtOne);
 		expect(read.stutter.use_song_stutter).to_be_true();
+	});
+	it("reads a clipping amount past the saturation's range as its highest, and a negative one as off", _ {
+		for (const auto& [text, expected] : {std::pair{"15", 15}, std::pair{"16", 15}, std::pair{"255", 15},
+		                                     std::pair{"4000", 15}, std::pair{"-3", 0}}) {
+			auto doc = deluge::serialization::parseXml(std::string{R"(<sound clippingAmount=")"} + text + R"("/>)");
+			EffectStates read;
+			decode(*doc->find("sound"), read, kAtOne);
+			expect(static_cast<int>(read.saturation.clipping_amount)).to_equal(expected);
+		}
 	});
 	it("reads a factory preset's compressor tag as the sidechain", _ {
 		auto doc = deluge::serialization::parseXml(R"(<sound><compressor attack="11" release="22" syncLevel="0"/></sound>)");

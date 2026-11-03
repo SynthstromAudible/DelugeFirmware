@@ -21,7 +21,7 @@
 
 #include "effects/filter.h"
 
-#include "util/fixedpoint.h"
+#include "dsp-next/core/q31_ops.h"
 #include "util/synth_noise.h"
 
 #include <algorithm>
@@ -38,7 +38,7 @@ using deluge::dsp::StereoSample;
 namespace {
 
 constexpr uint32_t kSeed = 123456789;
-/// A clip chain's post-FX volume at neutral (Q31), as the master starts from.
+/// A track chain's post-FX volume at neutral (Q31), as the master starts from.
 constexpr int32_t kVolume = 167763968;
 constexpr int32_t kMinimum = std::numeric_limits<int32_t>::min();
 constexpr int32_t kMaximum = std::numeric_limits<int32_t>::max();

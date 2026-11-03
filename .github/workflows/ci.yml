@@ -71,6 +71,9 @@ jobs:
       - name: dsp-next stays within the L0 boundary
         run: python3 scripts/check_dsp_boundary.py
 
+      - name: Raw fixed-point arithmetic does not grow outside the format types
+        run: python3 scripts/check_fixed_point_raw.py
+
       - name: The synth core stays within its boundary
         run: python3 scripts/check_synth_boundary.py
 
@@ -90,7 +93,7 @@ jobs:
     name: lint (Rust)
     needs: changes
     if: needs.changes.outputs.firmware == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
@@ -111,24 +114,26 @@ jobs:
             tests/component/differential/region_read_differential
             tests/component/differential/region_source_differential
 
-      # deluge_sample_convert is outside the crates/ workspace, so each step names it too.
+      # deluge_sample_convert is outside the crates/ workspace, so each step names it too. Every cargo runs from its
+      # crate's directory: rustup picks the toolchain from the working directory's rust-toolchain.toml, not the
+      # manifest's, and the repository root has none, so a --manifest-path run from the root gets the runner's stable.
       - name: rustfmt
         run: |
-          cargo fmt --manifest-path crates/Cargo.toml --all --check
-          cargo fmt --manifest-path src/bsp/rust/Cargo.toml --check
-          cargo fmt --manifest-path crates/deluge_sample_convert/Cargo.toml --check
+          (cd crates && cargo fmt --all --check)
+          (cd src/bsp/rust && cargo fmt --check)
+          (cd crates/deluge_sample_convert && cargo fmt --check)
           for m in tests/component/differential/*/Cargo.toml src/bsp/rust/harness/*/Cargo.toml; do
-            cargo fmt --manifest-path "$m" --check
+            (cd "$(dirname "$m")" && cargo fmt --check)
           done
 
       # Host target only: the BSP's device lint runs with the device build (build.yml), which has its C++ tree.
       - name: clippy
         run: |
-          cargo clippy --manifest-path crates/Cargo.toml --all-targets -- -D warnings
-          cargo clippy --manifest-path crates/deluge_sample_convert/Cargo.toml --all-targets -- -D warnings
+          (cd crates && cargo clippy --all-targets -- -D warnings)
+          (cd crates/deluge_sample_convert && cargo clippy --all-targets -- -D warnings)
           for m in tests/component/differential/*/Cargo.toml; do
             echo "== $m"
-            cargo clippy --manifest-path "$m" --all-targets -- -D warnings
+            (cd "$(dirname "$m")" && cargo clippy --all-targets -- -D warnings)
           done
 
       # Private items too: most of this code is crate-internal, and its links break as easily. golden_vt_render and
@@ -141,7 +146,7 @@ jobs:
           for m in crates/Cargo.toml crates/deluge_sample_convert/Cargo.toml src/bsp/rust/Cargo.toml \
                    tests/component/differential/*/Cargo.toml; do
             echo "== $m"
-            cargo doc --manifest-path "$m" --workspace --no-deps --document-private-items
+            (cd "$(dirname "$m")" && cargo doc --workspace --no-deps --document-private-items)
           done
 
       - name: The test registry's table is current
@@ -162,7 +167,7 @@ jobs:
     if: >-
       github.event_name == 'pull_request' && needs.changes.outputs.firmware == 'true' &&
       github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 30
     continue-on-error: true
     permissions:
@@ -209,7 +214,7 @@ jobs:
     name: host build
     needs: changes
     if: needs.changes.outputs.firmware == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
@@ -240,7 +245,7 @@ jobs:
     name: test matrix
     needs: changes
     if: needs.changes.outputs.firmware == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     outputs:
       include: ${{ steps.emit.outputs.include }}
     steps:
@@ -255,7 +260,7 @@ jobs:
   tests:
     name: tests / ${{ matrix.group }}
     needs: [matrix, host-build]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     timeout-minutes: 45
     strategy:
       fail-fast: false
@@ -417,7 +422,7 @@ jobs:
     name: firmware size
     needs: [changes, firmware]
     if: github.event_name == 'pull_request' && needs.changes.outputs.firmware == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     continue-on-error: true
     permissions:
       actions: read

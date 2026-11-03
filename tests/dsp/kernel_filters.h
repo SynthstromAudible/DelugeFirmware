@@ -85,12 +85,12 @@ inline void digest_svf(const deluge::dsp::fixed::Svf::State& left, const deluge:
 		d.add(channel.low);
 		d.add(channel.band);
 	}
-	d.add(c.fc);
-	d.add(c.q);
-	d.add(c.in);
-	d.add(c.c_low);
-	d.add(c.c_band);
-	d.add(c.c_high);
+	d.add(c.fc.raw());
+	d.add(c.q.raw());
+	d.add(c.in.raw());
+	d.add(c.c_low.raw());
+	d.add(c.c_band.raw());
+	d.add(c.c_high.raw());
 	d.add(c.mode == deluge::dsp::fixed::Svf::Mode::BAND);
 	digest_fade(fade, d);
 }
@@ -111,7 +111,7 @@ struct LadderHeld {
 	void take(deluge::dsp::fixed::LowPassLadderMode m, const AppLowPassLadder::Coefficients& c) {
 		mode = m;
 		if (m != deluge::dsp::fixed::LowPassLadderMode::TRANSISTOR_12DB) {
-			feedback = c.feedbacks[2];
+			feedback = c.feedbacks[2].raw();
 		}
 		if (m == deluge::dsp::fixed::LowPassLadderMode::TRANSISTOR_24DB_DRIVE) {
 			oversample = AppLowPassLadder::ladder_of(c.mode) == AppLowPassLadder::Ladder::DRIVE_OVERSAMPLED;
@@ -131,13 +131,13 @@ inline void digest_low_pass_ladder(const LadderHeld& held, const AppLowPassLadde
 			d.add(section.z);
 		}
 	}
-	d.add(c.processed_resonance);
-	d.add(c.divide_by_total_moveability_and_processed_resonance);
-	d.add(c.moveability);
-	d.add(c.morph);
-	d.add(c.divide_by_one_plus_tanned);
-	d.add(c.feedbacks[0]);
-	d.add(c.feedbacks[1]);
+	d.add(c.processed_resonance.raw());
+	d.add(c.divide_by_total_moveability_and_processed_resonance.raw());
+	d.add(c.moveability.raw());
+	d.add(c.morph.raw());
+	d.add(c.divide_by_one_plus_tanned.raw());
+	d.add(c.feedbacks[0].raw());
+	d.add(c.feedbacks[1].raw());
 	d.add(held.feedback);
 	d.add(held.oversample);
 	digest_fade(fade, d);
@@ -155,13 +155,13 @@ inline void digest_high_pass_ladder(const deluge::dsp::fixed::HighPassLadder::St
 		d.add(channel.high_pass_3.z);
 		d.add(channel.saturator.position);
 	}
-	d.add(c.moveability);
-	d.add(c.morph);
-	d.add(c.processed_resonance);
-	d.add(c.divide_by_processed_resonance);
-	d.add(c.low_pass_1_feedback);
-	d.add(c.high_pass_3_feedback);
-	d.add(c.divide_by_total_moveability);
+	d.add(c.moveability.raw());
+	d.add(c.morph.raw());
+	d.add(c.processed_resonance.raw());
+	d.add(c.divide_by_processed_resonance.raw());
+	d.add(c.low_pass_1_feedback.raw());
+	d.add(c.high_pass_3_feedback.raw());
+	d.add(c.divide_by_total_moveability.raw());
 	digest_fade(fade, d);
 }
 

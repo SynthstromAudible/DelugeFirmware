@@ -85,30 +85,41 @@ void markOwnerEdited(::Song& song, const project::ParamAddress& address) {
 }
 } // namespace
 
-Error SetParamValue::apply(Context& ctx) {
-	ModelStackWithAutoParam* const borrowed = engineStack_;
-	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
-	if (borrowed == nullptr) {
-		if (address_) {
-			engineStack_ = resolve_ == Resolve::WRITE ? deluge::bridge::paramStackForWrite(ctx.song, *address_, memory)
-			                                          : deluge::bridge::paramStackAt(ctx.song, *address_, memory);
-		}
-		if (engineStack_ == nullptr) {
-			return Error::UNSPECIFIED;
-		}
+ModelStackWithAutoParam* paramStackFor(::Song& song, project::ParamAddress& address, SetParamValue::Resolve resolve,
+                                       void* memory) {
+	switch (resolve) {
+	case SetParamValue::Resolve::READ:
+		return bridge::paramStackAt(song, address, memory);
+	case SetParamValue::Resolve::WRITE:
+		return bridge::paramStackForWrite(song, address, memory);
+	case SetParamValue::Resolve::EXACT:
+		return bridge::paramStackExact(song, address, memory);
 	}
-	const Error error = write(ctx);
-	if (error == Error::NONE && copiedByReverbSidechain(*engineStack_)) {
+	return nullptr;
+}
+
+Error SetParamValue::apply(Context& ctx) {
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithAutoParam* stack =
+	    paramStackFor(ctx.song, address_, write_ == Write::SETUP ? Resolve::EXACT : resolve_, memory);
+	if (stack == nullptr) {
+		return Error::UNSPECIFIED;
+	}
+	if (write_ == Write::SETUP) {
+		stack->autoParam->setCurrentValueWithNoReversionOrRecording(stack, newValue_);
+		return Error::NONE;
+	}
+	const Error error = write(ctx, stack);
+	if (error == Error::NONE && copiedByReverbSidechain(*stack)) {
 		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 	}
 	if (error == Error::NONE && resolve_ == Resolve::WRITE) {
-		markOwnerEdited(ctx.song, *address_);
+		markOwnerEdited(ctx.song, address_);
 	}
-	engineStack_ = borrowed; // a resolved stack lives in this frame only
 	return error;
 }
 
-Error SetParamValue::write(Context& ctx) {
+Error SetParamValue::write(Context& ctx, ModelStackWithAutoParam* stack) {
 	// The Edit owns its undo record: snapshot the before-state into the open Action up front, replicating the guard
 	// at the interior log site (auto_param.cpp setCurrentValueInResponseToUserInput, "record value change")
 	// evaluated pre-mutation. The interior log then dedupes via Action::containsConsequenceParamChange, so this
@@ -121,7 +132,7 @@ Error SetParamValue::write(Context& ctx) {
 	// nodes now non-empty — so excluding every (isPlaying && recordingArmed) case matches it exactly.
 	// setValuePossiblyForRegion sends (length != 0 && timelineCounterIsSet) to setValueForRegion; everything else is
 	// the scalar path that reaches the interior unautomated-change log.
-	const bool scalarPath = length_ == 0 || !engineStack_->timelineCounterIsSet();
+	const bool scalarPath = length_ == 0 || !stack->timelineCounterIsSet();
 
 	// Hoisted out of the pre-log so the model-first decision below can reuse them. recordingActive is the exact
 	// condition under which the scalar poke RECORDS automation (setCurrentValueInResponseToUserInput's recording
@@ -129,30 +140,28 @@ Error SetParamValue::write(Context& ctx) {
 	bool isPlaying = false;
 	bool recordingActive = false;
 	if (scalarPath) {
-		isPlaying =
-		    playbackHandler.isEitherClockActive() && !playbackHandler.ticksLeftInCountIn
-		    && (!engineStack_->timelineCounterIsSet() || engineStack_->getTimelineCounter()->isPlayingAutomationNow());
-		const bool recordingArmed = playbackHandler.recording != RecordingMode::OFF
-		                            && engineStack_->timelineCounterIsSet()
-		                            && engineStack_->getTimelineCounter()->armedForRecording;
+		isPlaying = playbackHandler.isEitherClockActive() && !playbackHandler.ticksLeftInCountIn
+		            && (!stack->timelineCounterIsSet() || stack->getTimelineCounter()->isPlayingAutomationNow());
+		const bool recordingArmed = playbackHandler.recording != RecordingMode::OFF && stack->timelineCounterIsSet()
+		                            && stack->getTimelineCounter()->armedForRecording;
 		recordingActive = isPlaying && recordingArmed;
 
-		if (newValue_ != engineStack_->autoParam->getCurrentValue() && !recordingActive
-		    && (engineStack_->doc()->nodes.empty() || !isPlaying)) {
-			actionLogger.recordUnautomatedParamChange(engineStack_);
+		if (newValue_ != stack->autoParam->getCurrentValue() && !recordingActive
+		    && (stack->doc()->nodes.empty() || !isPlaying)) {
+			actionLogger.recordUnautomatedParamChange(stack);
 		}
 	}
 
 	// The persistent scalar store write is model-first (ParamSnapshot::applyPatch is the sole writer), and the engine
 	// derives its RT state (cursor/interpolation/notify/latch) from the store. Taken only for a resolvable scalar
-	// lane that isn't recording automation. Region, recording-active scalar, and unaddressable/not-yet-relocated
+	// lane that isn't recording automation. Region, recording-active scalar, and not-yet-relocated
 	// lanes keep the in-line poke as the writer (it resolves via doc() with the relocate/engine-store fallback, so
 	// no lane is dropped).
-	if (scalarPath && !recordingActive && address_.has_value() && ctx.model.resolveParam(*address_) != nullptr) {
-		const int32_t oldValue = engineStack_->autoParam->getCurrentValue();
-		deluge::snapshot::ParamSnapshot::applyPatch(ctx.model, *address_, newValue_, 0, 0, std::nullopt);
-		engineStack_->autoParam->projectScalarFromStore(engineStack_, oldValue, isPlaying);
-		settleCableDepth(engineStack_);
+	if (scalarPath && !recordingActive && ctx.model.resolveParam(address_) != nullptr) {
+		const int32_t oldValue = stack->autoParam->getCurrentValue();
+		deluge::snapshot::ParamSnapshot::applyPatch(ctx.model, address_, newValue_, 0, 0, std::nullopt);
+		stack->autoParam->projectScalarFromStore(stack, oldValue, isPlaying);
+		settleCableDepth(stack);
 		return Error::NONE;
 	}
 
@@ -160,46 +169,40 @@ Error SetParamValue::write(Context& ctx) {
 	// the DOM kernel), and projectRegionFromStore derives the engine RT tail (cursor + interpolation-reset /
 	// UI-notify + notify) from the branch the kernel took (RegionWriteResult). The undo snapshot is taken AHEAD of
 	// the patch, with the same getNewAction + record call setValueForRegion makes, so held-pad region drags
-	// coalesce identically. Only unresolvable / not-yet-relocated lanes keep the in-line poke below.
-	if (length_ != 0 && engineStack_->timelineCounterIsSet() && address_.has_value()
-	    && ctx.model.resolveParam(*address_) != nullptr) {
+	// coalesce identically. Only not-yet-relocated lanes keep the in-line poke below.
+	if (length_ != 0 && stack->timelineCounterIsSet() && ctx.model.resolveParam(address_) != nullptr) {
 		// Mirror setValueForRegion's pos>=effectiveLength early return (before any Action), so a held-pad edit beyond
 		// the loop is a true no-op — no undo step.
-		if (pos_ >= engineStack_->getLoopLength()) {
+		if (pos_ >= stack->getLoopLength()) {
 			return Error::NONE;
 		}
-		const int32_t oldValue = engineStack_->autoParam->getCurrentValue();
-		const bool automatedBefore = engineStack_->autoParam->isAutomated(*engineStack_->doc());
+		const int32_t oldValue = stack->autoParam->getCurrentValue();
+		const bool automatedBefore = stack->autoParam->isAutomated(*stack->doc());
 		Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
 		if (action != nullptr) {
-			action->recordParamChangeIfNotAlreadySnapshotted(engineStack_);
+			action->recordParamChangeIfNotAlreadySnapshotted(stack);
 		}
 		std::optional<deluge::project::RegionWriteResult> result = deluge::snapshot::ParamSnapshot::applyPatch(
-		    ctx.model, *address_, newValue_, pos_, length_, gatherRegionContext(engineStack_));
+		    ctx.model, address_, newValue_, pos_, length_, gatherRegionContext(stack));
 		if (result.has_value()) {
-			engineStack_->autoParam->projectRegionFromStore(engineStack_, oldValue, automatedBefore, *result);
+			stack->autoParam->projectRegionFromStore(stack, oldValue, automatedBefore, *result);
 		}
-		settleCableDepth(engineStack_);
+		settleCableDepth(stack);
 		return Error::NONE;
 	}
 
-	// Unaddressable / unresolvable lanes: delegate to the engine's own setter.
-	engineStack_->autoParam->setValuePossiblyForRegion(newValue_, engineStack_, pos_, length_,
-	                                                   mayDeleteNodesInLinearRun_);
-	settleCableDepth(engineStack_);
+	// A scalar write while recording automation, and a lane not yet in the project tree: the engine's own setter.
+	stack->autoParam->setValuePossiblyForRegion(newValue_, stack, pos_, length_, mayDeleteNodesInLinearRun_);
+	settleCableDepth(stack);
 	return Error::NONE;
 }
 
 void SetParamValue::emitEvent(Context& ctx) {
-	if (!address_.has_value()) {
-		// Engine-only lane (never-saved owner, engine-resolved only) — nothing to patch in the model.
-		return;
-	}
 #if ALPHA_OR_BETA_VERSION
 	// Verify the durable ParamAddress still resolves to a live DOM param, proving the feed's addressing end-to-end.
 	// The store write is owned by apply() (model-first via ParamSnapshot::applyPatch where the lane resolves;
-	// unresolvable lanes keep the in-line poke), so emitEvent does not patch.
-	if (ctx.model.resolveParam(*address_) == nullptr) {
+	// lanes not yet in the tree keep the in-line poke), so emitEvent does not patch.
+	if (ctx.model.resolveParam(address_) == nullptr) {
 		D_PRINTLN("M4 event feed: SetParamValue address did not resolve to a DOM param");
 	}
 #else

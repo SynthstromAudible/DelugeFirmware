@@ -59,7 +59,7 @@ struct FxInputs {
 
 /// @brief The effect components every home has, and the mod FX, EQ and delay stage they share.
 ///
-/// A home's runtime (SoundChain, ClipChain, MasterChain) owns one and adds the components only it has. The owner
+/// A home's runtime (SoundChain, TrackChain, MasterChain) owns one and adds the components only it has. The owner
 /// reaches the components by name for its hand-overs (the mod FX and granular types, the delay's type and reserves).
 class ChainCore {
 public:

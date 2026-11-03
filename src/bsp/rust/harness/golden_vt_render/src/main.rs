@@ -1524,6 +1524,12 @@ fn main() {
             "render_preset" => memory_card::install(Some(&std::path::PathBuf::from(
                 std::env::var_os("RENDER_TREE").expect("render_preset needs RENDER_TREE"),
             ))),
+            // Scenarios that build their song in memory and read nothing from a card: an empty one, so they run
+            // where the song corpus is absent (CI).
+            "clock_input" | "mapping_dispatch" | "param_projection" | "param_table_check"
+            | "param_target_check" | "param_clone" | "patch_routing" | "document_version"
+            | "preset_parse" | "effect_owners" | "edit_substrate" | "xml_replay_diff"
+            | "model_decode_diff" => memory_card::install(None),
             _ => memory_card::install(Some(&sd_image::golden_fixture_tree(&repo_root, &fixture))),
         }
     }

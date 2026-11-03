@@ -23,7 +23,7 @@
 class SoundDrum;
 
 /// @brief The drums of one kit that are rendering now; the render walks them every block
-///        (Kit::renderGlobalEffectableForClip).
+///        (Kit::renderContent).
 ///
 /// Held in an intrusive list, so adding and removing a drum never allocates: the render adds and removes drums as
 /// their voices start and end, and must not touch the heap. Every add and remove runs inside an

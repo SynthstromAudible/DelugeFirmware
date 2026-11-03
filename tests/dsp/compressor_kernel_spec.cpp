@@ -42,6 +42,7 @@
 #include <string>
 #include <string_view>
 #include <tuple>
+#include <utility>
 #include <vector>
 
 using deluge::dsp::Mono;
@@ -347,6 +348,36 @@ describe compressor_kernel("the Compressor kernel", ${
 		expect(s.loop.detector_r.z).to_equal(expected.loop.detector_r.z);
 		expect(s.levels.threshold).to_equal(expected.levels.threshold);
 		expect(s.gain_reduction).to_equal(expected.gain_reduction);
+	});
+
+	it("holds a gain ramp at the 5.26 rail at a volume just above unity", _ {
+		// The gain at its cap of 31 and a volume of about 1.03 (4.27): the 13.18 target, 31 × (volume >> 9) =
+		// 8394800, is past 32 and held at the rail, 2^23 − 1.
+		constexpr q31 kVolume = 270800 << 9;
+		constexpr q31 kRail = 8388607 << 8;
+		const Compressor::Coefficients c = Compressor::coefficients({});
+		const auto prepared = [&](q31 current) {
+			Compressor::State s{};
+			Compressor::set_levels(s, {.volume_l = kVolume, .volume_r = -kVolume, .final_volume = 1 << 29});
+			s.makeup = 50;
+			s.log_rms = -100;
+			s.loop.current_volume_l = current;
+			s.loop.current_volume_r = -current;
+			const Compressor::Block b = Compressor::prepare(c, s, 1);
+			std::ignore = Compressor::step<Compressor::Mode::WET>(c, b, s.loop, {.l = 0, .r = 0});
+			return std::pair{b, s.loop};
+		};
+		// From a gain of 24 over one frame the step reaches the rail exactly.
+		const auto [from_24, loop_24] = prepared(3 << 29);
+		expect(from_24.increment_l).to_equal(kRail - (3 << 29));
+		expect(loop_24.current_volume_l).to_equal(kRail);
+		expect(loop_24.current_volume_r).to_equal(-kRail - 256);
+		// From -24 the step is past 32 a frame: it saturates, and the ramp ends the frame short of the rail.
+		const auto [from_minus_24, loop_minus_24] = prepared(-(3 << 29));
+		expect(from_minus_24.increment_l).to_equal(INT32_MAX);
+		expect(from_minus_24.increment_r).to_equal(INT32_MIN);
+		expect(loop_minus_24.current_volume_l).to_equal(INT32_MAX - (3 << 29));
+		expect(loop_minus_24.current_volume_r).to_equal(INT32_MIN + (3 << 29));
 	});
 
 	it("takes the threshold knob into the block's levels and a fraction of the volume's level", _ {

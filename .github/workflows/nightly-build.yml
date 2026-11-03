@@ -56,7 +56,7 @@ jobs:
   # too: next also takes local merges that no pull request's CI run ever saw.
   test-nightly-matrix:
     name: test matrix (nightly)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     needs: nightly-detect
     if: needs.nightly-detect.outputs.new-commits > 0
     outputs:
@@ -72,7 +72,7 @@ jobs:
     name: ${{ matrix.test }}
     needs: [nightly-detect, test-nightly-matrix]
     if: needs.nightly-detect.outputs.new-commits > 0
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-26.04
     strategy:
       fail-fast: false
       matrix:

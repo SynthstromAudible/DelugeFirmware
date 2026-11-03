@@ -58,7 +58,7 @@ static_assert(!moded_kernel<AnalogImpulseResponse>);
 static_assert(!std::is_polymorphic_v<AnalogImpulseResponse>);
 static_assert(processor<Stereo<AnalogImpulseResponse>>);
 static_assert(detail::plain_value<AnalogImpulseResponse::State>);
-static_assert(std::extent_v<decltype(AnalogImpulseResponse::State::history)> == 50);
+static_assert(std::tuple_size_v<decltype(AnalogImpulseResponse::State::history)> == 50);
 static_assert(AnalogImpulseResponse::kHistory == 25);
 static_assert(std::size(AnalogImpulseResponse::kResponse) == 26);
 

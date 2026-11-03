@@ -46,7 +46,8 @@ namespace deluge::dsp {
 /// member uses: the converting constructor takes exactly a T, and a bare `0` is an `int`, which is a q31 only where
 /// `int32_t` is `int`. A default-initialised pack's lanes are indeterminate, as a q31's would be. The comparisons give
 /// a pack of bool, which @ref select reads.
-/// @tparam T The lane type: q31 for the fixed-point operations, any arithmetic type for the rest.
+/// @tparam T The lane type: q31 for the raw fixed-point operations here, a `Fixed` for fixed_point_lanes.h's, any
+/// arithmetic type for the rest.
 /// @tparam N The number of lanes. At least 1.
 template <class T, std::size_t N>
 requires(N >= 1)
@@ -134,9 +135,12 @@ struct LanePack {
 		return r;
 	}
 
-	/// @brief Whether @p a < @p b, in each lane.
+	/// @brief Whether @p a < @p b, in each lane. A scalar operand broadcasts (the converting constructor), on
+	/// either side: `pack < ceiling`.
+	/// @param a,b The operands.
+	/// @return Each lane's comparison, which @ref select reads.
 	[[nodiscard]] [[gnu::always_inline]] friend constexpr LanePack<bool, N> operator<(LanePack a, LanePack b)
-	requires(std::is_arithmetic_v<T> && !std::same_as<T, bool>)
+	requires(!std::same_as<T, bool> && std::totally_ordered<T>)
 	{
 		LanePack<bool, N> r;
 		for (std::size_t i = 0; i < N; ++i) {
@@ -145,13 +149,72 @@ struct LanePack {
 		return r;
 	}
 
-	/// @brief Whether @p a > @p b, in each lane.
+	/// @brief Whether @p a > @p b, in each lane. A scalar operand broadcasts (the converting constructor), on
+	/// either side: `pack < ceiling`.
+	/// @param a,b The operands.
+	/// @return Each lane's comparison, which @ref select reads.
 	[[nodiscard]] [[gnu::always_inline]] friend constexpr LanePack<bool, N> operator>(LanePack a, LanePack b)
-	requires(std::is_arithmetic_v<T> && !std::same_as<T, bool>)
+	requires(!std::same_as<T, bool> && std::totally_ordered<T>)
 	{
 		LanePack<bool, N> r;
 		for (std::size_t i = 0; i < N; ++i) {
 			r.lane[i] = a.lane[i] > b.lane[i];
+		}
+		return r;
+	}
+
+	/// @brief Whether @p a <= @p b, in each lane. A scalar operand broadcasts (the converting constructor), on
+	/// either side: `pack < ceiling`.
+	/// @param a,b The operands.
+	/// @return Each lane's comparison, which @ref select reads.
+	[[nodiscard]] [[gnu::always_inline]] friend constexpr LanePack<bool, N> operator<=(LanePack a, LanePack b)
+	requires(!std::same_as<T, bool> && std::totally_ordered<T>)
+	{
+		LanePack<bool, N> r;
+		for (std::size_t i = 0; i < N; ++i) {
+			r.lane[i] = a.lane[i] <= b.lane[i];
+		}
+		return r;
+	}
+
+	/// @brief Whether @p a >= @p b, in each lane. A scalar operand broadcasts (the converting constructor), on
+	/// either side: `pack < ceiling`.
+	/// @param a,b The operands.
+	/// @return Each lane's comparison, which @ref select reads.
+	[[nodiscard]] [[gnu::always_inline]] friend constexpr LanePack<bool, N> operator>=(LanePack a, LanePack b)
+	requires(!std::same_as<T, bool> && std::totally_ordered<T>)
+	{
+		LanePack<bool, N> r;
+		for (std::size_t i = 0; i < N; ++i) {
+			r.lane[i] = a.lane[i] >= b.lane[i];
+		}
+		return r;
+	}
+
+	/// @brief Whether @p a == @p b, in each lane. A scalar operand broadcasts (the converting constructor), on
+	/// either side: `pack < ceiling`.
+	/// @param a,b The operands.
+	/// @return Each lane's comparison, which @ref select reads.
+	[[nodiscard]] [[gnu::always_inline]] friend constexpr LanePack<bool, N> operator==(LanePack a, LanePack b)
+	requires(!std::same_as<T, bool> && std::totally_ordered<T>)
+	{
+		LanePack<bool, N> r;
+		for (std::size_t i = 0; i < N; ++i) {
+			r.lane[i] = a.lane[i] == b.lane[i];
+		}
+		return r;
+	}
+
+	/// @brief Whether @p a != @p b, in each lane. A scalar operand broadcasts (the converting constructor), on
+	/// either side: `pack < ceiling`.
+	/// @param a,b The operands.
+	/// @return Each lane's comparison, which @ref select reads.
+	[[nodiscard]] [[gnu::always_inline]] friend constexpr LanePack<bool, N> operator!=(LanePack a, LanePack b)
+	requires(!std::same_as<T, bool> && std::totally_ordered<T>)
+	{
+		LanePack<bool, N> r;
+		for (std::size_t i = 0; i < N; ++i) {
+			r.lane[i] = a.lane[i] != b.lane[i];
 		}
 		return r;
 	}
@@ -249,7 +312,7 @@ struct LanePack {
 };
 
 /// @brief @p a if @p mask, else @p b: the scalar form of a pack's select, so that a clamp written over V compiles for
-/// a scalar too. A ternary, which inlines where `std::` algorithms are out-of-line calls.
+/// a scalar too. A ternary, so that it needs no inlining.
 /// @param mask The condition.
 /// @param a    The result when @p mask is true.
 /// @param b    The result when @p mask is false.

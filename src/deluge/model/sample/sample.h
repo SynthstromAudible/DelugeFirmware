@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "dsp-next/core/q31_ops.h"
 #include "model/sample/overview_cache_entry.h"
 #include "model/sample/sample_length_sentinel.h"
 #include "model/sample/sample_perc_cache_zone.h"
@@ -26,7 +27,6 @@
 #include "storage/audio/stream/sample_stream.h"
 #include "storage/cluster/cluster.h" // Cluster::size_magnitude, for geometricClusterCount()
 #include "util/containers.h"
-#include "util/fixedpoint.h"
 #include "util/functions.h"
 #include "util/segmented_vector.h" // deluge::SegmentedVector, for overviewCache_
 #include <array>

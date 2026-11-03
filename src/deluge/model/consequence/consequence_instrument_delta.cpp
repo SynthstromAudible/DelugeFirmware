@@ -16,18 +16,22 @@
  */
 #include "model/consequence/consequence_instrument_delta.h"
 
+#include "model/model_stack.h"
+#include "model/project_bridge/param_stack.h"
+#include "model/song/song.h"
 #include "processing/sound/sound.h"
 
-#include <cstring>
 #include <utility>
 
-ConsequenceInstrumentDelta::ConsequenceInstrumentDelta(ModelStackWithThreeMainThings const* modelStack, CableEdit edit)
-    : edit_(std::move(edit)) {
-	std::memcpy(modelStackMemory_, modelStack, sizeof(ModelStackWithThreeMainThings));
+ConsequenceInstrumentDelta::ConsequenceInstrumentDelta(deluge::project::ParamAddress owner, CableEdit edit)
+    : owner_(owner), edit_(std::move(edit)) {
 }
 
-Error ConsequenceInstrumentDelta::revert(TimeType time, ModelStack* /*modelStack*/) {
-	ModMatrixHost matrix{*static_cast<Sound*>(target_.modControllable), *target_.paramManager};
-	matrix.apply(edit_, time);
+Error ConsequenceInstrumentDelta::revert(TimeType time, ModelStack* modelStack) {
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	if (ModelStackWithThreeMainThings* sound = deluge::bridge::soundStackExact(*modelStack->song, owner_, memory)) {
+		ModMatrixHost matrix{*static_cast<Sound*>(sound->modControllable), *sound->paramManager};
+		matrix.apply(edit_, time);
+	}
 	return Error::NONE;
 }

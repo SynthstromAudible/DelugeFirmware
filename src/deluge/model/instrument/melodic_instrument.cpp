@@ -688,13 +688,13 @@ void MelodicInstrument::processParamFromInputMIDIChannel(int32_t cc, int32_t new
 	if (modelStackWithParam->autoParam) {
 		// mayDelete=false: this value may need to be re-output as MIDI, so don't prune nodes in a linear run.
 		deluge::edits::Context editCtx{*currentSong, currentSong->project};
-		deluge::edits::SetParamValue edit{deluge::edits::addressFor(*modelStackWithParam),
-		                                  newValue,
-		                                  modPos,
-		                                  modLength,
-		                                  modelStackWithParam,
-		                                  /*mayDelete=*/false};
-		deluge::edits::apply(editCtx, edit);
+		if (const std::optional<deluge::project::ParamAddress> editAddress =
+		        deluge::edits::addressFor(*modelStackWithParam)) {
+			deluge::edits::SetParamValue edit{
+			    *editAddress,       newValue, modPos, modLength, deluge::edits::SetParamValue::Resolve::EXACT,
+			    /*mayDelete=*/false};
+			deluge::edits::apply(editCtx, edit);
+		}
 	}
 }
 

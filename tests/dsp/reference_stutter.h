@@ -28,11 +28,11 @@
 
 #pragma once
 
+#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/core/wrapping.h"
 #include "dsp-next/fixed/delay/delay_tape.h"
 #include "effects/state.h"
-#include "util/fixedpoint.h"
 
 #include <cstddef>
 #include <cstdint>

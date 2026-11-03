@@ -62,6 +62,7 @@ char const* aoModeToString(AudioOutputMode mode) {
 	return aoModeStringMap(mode);
 }
 AudioOutput::AudioOutput() : Output(OutputType::AUDIO) {
+	bindBinding(channel_.binding());
 	modKnobMode = 0;
 	inputChannel = AudioInputChannel::LEFT;
 	mode = AudioOutputMode::player;
@@ -69,12 +70,13 @@ AudioOutput::AudioOutput() : Output(OutputType::AUDIO) {
 
 AudioOutput::~AudioOutput() {
 	releaseMonitoringClaim();
-	// An audio track destroyed in a song drops its record here, while its effects base is alive: ~Output runs after
-	// that base is destroyed, and a record's removal hands the owner back what the record held.
+	// An audio track destroyed in a song drops its record here, while its channel is alive: ~Output runs after the
+	// channel is destroyed, and a record's removal hands the owner back what the record held.
 	if (currentSong != nullptr && docOutput_ != nullptr) {
 		currentSong->removeDocOutput(this);
 		docOutput_ = nullptr;
 	}
+	endStutterIfStuttering();
 }
 
 void AudioOutput::setMode(AudioOutputMode newMode) {
@@ -177,9 +179,21 @@ void AudioOutput::renderOutput(ModelStack* modelStack, std::span<StereoSample> o
 
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(activeClip);
 
-	GlobalEffectableForClip::renderOutput(modelStackWithTimelineCounter, paramManager, output, reverbBuffer,
-	                                      reverbAmountAdjust, sideChainHitPending, shouldLimitDelayFeedback,
-	                                      isClipActive, OutputType::AUDIO, recorder);
+	channel_.render(modelStackWithTimelineCounter, *paramManager, output,
+	                {.reverb_buffer = reverbBuffer,
+	                 .reverb_amount_adjust = reverbAmountAdjust,
+	                 .side_chain_hit_pending = sideChainHitPending,
+	                 .should_limit_delay_feedback = shouldLimitDelayFeedback,
+	                 .is_clip_active = isClipActive,
+	                 .output_type = OutputType::AUDIO,
+	                 .recorder = recorder,
+	                 .tick_owner = this},
+	                [&](const deluge::model::ContentBlock& c) {
+		                return renderContent(modelStackWithTimelineCounter, c.buffer, nullptr, c.reverb_buffer,
+		                                     c.reverb_amount_adjust, c.side_chain_hit_pending,
+		                                     c.should_limit_delay_feedback, c.is_clip_active, c.pitch_adjust, 134217728,
+		                                     134217728);
+	                });
 }
 
 void AudioOutput::resetEnvelope() {
@@ -213,12 +227,10 @@ bool AudioOutput::modeAllowsMonitoring() const {
 }
 
 // Beware - unlike usual, modelStack, a ModelStackWithThreeMainThings*,  might have a NULL timelineCounter
-bool AudioOutput::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* modelStack,
-                                                std::span<StereoSample> render, int32_t* bufferToTransferTo,
-                                                int32_t* reverbBuffer, int32_t reverbAmountAdjust,
-                                                int32_t sideChainHitPending, bool shouldLimitDelayFeedback,
-                                                bool isClipActive, int32_t pitchAdjust, int32_t amplitudeAtStart,
-                                                int32_t amplitudeAtEnd) {
+bool AudioOutput::renderContent(ModelStackWithTimelineCounter* modelStack, std::span<StereoSample> render,
+                                int32_t* bufferToTransferTo, int32_t* reverbBuffer, int32_t reverbAmountAdjust,
+                                int32_t sideChainHitPending, bool shouldLimitDelayFeedback, bool isClipActive,
+                                int32_t pitchAdjust, int32_t amplitudeAtStart, int32_t amplitudeAtEnd) {
 	bool rendered = false;
 	// audio outputs can have an activeClip while being muted
 	if (isClipActive) {
@@ -381,9 +393,8 @@ void AudioOutput::cutAllSound() {
 	}
 }
 
-void AudioOutput::getThingWithMostReverb(Sound** soundWithMostReverb,
-                                         ParamManagerForTimeline** paramManagerWithMostReverb, Kit** kitWithMostReverb,
-                                         int32_t* highestReverbAmountFound) {
+deluge::model::ReverbCandidate AudioOutput::reverbCandidate(deluge::model::ReverbCandidate best) {
+	return activeClip ? channel_.reverbCandidate(best, activeClip->paramManager) : best;
 }
 
 // Unlike for Instruments, AudioOutputs will only be written as part of a Song, so clipForSavingOutputOnly will always
@@ -535,13 +546,6 @@ bool AudioOutput::setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmCh
 
 bool AudioOutput::isSkippingRendering() {
 	return mode == AudioOutputMode::player && (!activeClip || !((AudioClip*)activeClip)->voiceSample);
-}
-
-void AudioOutput::getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** paramManagerWithMostReverb,
-                                         GlobalEffectableForClip** globalEffectableWithMostReverb,
-                                         int32_t* highestReverbAmountFound) {
-	GlobalEffectableForClip::getThingWithMostReverb(activeClip, soundWithMostReverb, paramManagerWithMostReverb,
-	                                                globalEffectableWithMostReverb, highestReverbAmountFound);
 }
 
 ModelStackWithAutoParam* AudioOutput::getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,

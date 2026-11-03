@@ -857,7 +857,7 @@ void deleteLeg() {
 		// drum actually gone, reclaimed by the end of the run). The site's real safety value is on release builds:
 		// the hasActiveVoices() check below is ALPHA_OR_BETA_VERSION-only, and retire()'s let-go now kills a drum's
 		// voices unconditionally before it is freed, whichever build this runs on. No render block runs between the
-		// insert and the call that reaches it: Kit::renderGlobalEffectableForClip's E254 freezes a set member that
+		// insert and the call that reaches it: Kit::renderContent's E254 freezes a set member that
 		// still reads skippingRendering.
 		g_kit->renderingDrums.add(g_drum);
 		g_step = "songSwapAboutToHappen";

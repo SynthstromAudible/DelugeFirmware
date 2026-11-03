@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #include "sine.h"
+#include "dsp-next/core/fixed_point_neon.h"
 #include <array>
 #include <limits>
 
@@ -93,10 +94,10 @@ namespace deluge::dsp::fixed {
 
 	auto [value, diff] = ArgonHalf<int16_t>::LoadGatherOffsetIndexInterleaved<2>(sine_wave_diff.data(), index.Narrow());
 
-	// Linear interpolation, value + diff*fraction, kept in the high half of a q31 lane:
-	// promote the int16 value to bit 16, then qdmlal adds the (doubled, saturating)
-	// diff*fraction term without reducing back to q31.
-	return value.ShiftLeftLong<16>().MultiplyDoubleAddSaturateLong(diff, fraction);
+	// Linear interpolation, value + diff × fraction: the Q15 value widened to Q31, plus the doubled, saturating
+	// product of the Q15 difference and the Q15 weight, also Q31.
+	const auto entry = Q16Half<15>::from_raw(value);
+	return mla_doubling_wide_sat(from_q16(entry), Q16Half<15>::from_raw(diff), Q16Half<15>::from_raw(fraction)).raw();
 }
 
 [[gnu::hot]] int32_t sine_fm_operator(uint32_t carrier_phase, uint32_t phase_shift) {
