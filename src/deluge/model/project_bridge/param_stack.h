@@ -86,6 +86,18 @@ namespace deluge::bridge {
 [[nodiscard]] ::ModelStackWithAutoParam* paramStackExact(::Song& song, const project::ParamAddress& address,
                                                          void* memory);
 
+/// @brief The engine stack naming exactly what @p address names, for the render: resolve-only, it makes nothing (the
+/// interaction tier made the lane before it handed the render a write to it) and walks only the clip, output and note
+/// row lists the render walks each tick, which their editors fence. An owner with no clip names nothing here: its
+/// backed-up params are not the render's.
+///
+/// @param song    The song holding the owner.
+/// @param address The param's address.
+/// @param memory  MODEL_STACK_MAX_SIZE bytes, aligned as ModelStackWithAutoParam, which the stack lives in.
+/// @return The stack, or null where @p song holds no such owner or param.
+[[nodiscard]] ::ModelStackWithAutoParam* paramStackOnRender(::Song& song, const project::ParamAddress& address,
+                                                            void* memory);
+
 /// @brief The engine stack of the sound @p owner names exactly (a synth or a sound drum, in its clip by id, or its
 /// backed-up params with no clip id), with no param; the id is not read.
 /// @param song   The song holding the sound.

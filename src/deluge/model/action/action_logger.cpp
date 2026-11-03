@@ -28,6 +28,7 @@
 #include "hid/led/indicator_leds.h"
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
+#include "memory/heaps.h"
 #include "model/action/action.h"
 #include "model/action/action_clip_state.h"
 #include "model/clip/audio_clip.h"
@@ -42,6 +43,7 @@
 #include "model/instrument/kit.h"
 #include "model/song/clip_iterators.h"
 #include "model/song/song.h"
+#include "modulation/automation/record_events.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/playback_mode.h"
 #include "playback/mode/session.h"
@@ -85,6 +87,11 @@ void ActionLogger::deleteLastAction() {
 }
 
 Action* ActionLogger::getNewAction(ActionType newActionType, ActionAddition addToExistingIfPossible) {
+#if ALPHA_OR_BETA_VERSION
+	if (deluge::memory::onRenderTier()) {
+		++deluge::modulation::renderUndoCalls;
+	}
+#endif
 
 	if (!currentSong) {
 		return nullptr;

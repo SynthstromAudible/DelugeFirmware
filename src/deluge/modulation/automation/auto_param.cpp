@@ -40,6 +40,7 @@
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/automation/copied_param_automation.h"
+#include "modulation/automation/record_events.h"
 #include "modulation/params/param_collection.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_node.h"
@@ -226,6 +227,7 @@ void AutoParam::setCurrentValueInResponseToUserInput(int32_t value, ModelStackWi
 	int32_t oldValue = played_;
 	bool automatedBefore = isAutomated(*modelStack->doc());
 	bool automationChanged = false;
+	bool recorded = false; // the write went to the render as a recorded value
 	resetInterpolationIncrement();
 
 	bool isPlaying =
@@ -274,115 +276,52 @@ void AutoParam::setCurrentValueInResponseToUserInput(int32_t value, ModelStackWi
 				action->recordParamChangeIfNotAlreadySnapshotted(modelStack, false);
 			}
 
-			int32_t posAtWhichPlaybackWillCut = modelStack->getPosAtWhichPlaybackWillCut();
+			// What the kernel reads beyond the lane's nodes, read here; what it decides from the nodes, the render
+			// decides when it writes the event, so a second write before its next block sees the first.
+			deluge::modulation::RecordEvent event{
+			    .song = modelStack->song,
+			    .livePos = livePos,
+			    .value = value,
+			    .ticksToClear = ticksToClear,
+			    .effectiveLength = effectiveLength,
+			    .posAtWhichPlaybackWillCut = modelStack->getPosAtWhichPlaybackWillCut(),
+			    .timePerInternalTick = timePerInternalTick,
+			    .reversed = modelStack->isCurrentlyPlayingReversed(),
+			    .mpe = doMPEMode,
+			};
+			// recordingLinearly is only consulted deep in homogenizeRegion's forward-wrap branch (Clip-recording
+			// context), so guard the Clip cast against a Song timeline (as AutoParam::homogenizeRegion does).
+			if (TimelineCounter* tc = modelStack->getTimelineCounterAllowNull();
+			    tc && tc != static_cast<TimelineCounter*>(modelStack->song)) {
+				event.recordingLinearly = static_cast<Clip*>(tc)->getCurrentlyRecordingLinearly();
+			}
+			// We'll just not bother with the linear-run delete if reversed, for now... or ever...
+			event.deleteLinearRun = mayDeleteNodesInLinearRun && !event.reversed
+			                        && modelStack->paramCollection->mayParamInterpolate(modelStack->paramId);
+			// Wait, I can no longer see why this matters...
+			event.backtrackingCouldLoopBack = modelStack->getTimelineCounter()->backtrackingCouldLoopBackToEnd();
+			const std::optional<deluge::project::ParamAddress> address = deluge::edits::addressFor(*modelStack);
 
-			bool reversed = modelStack->isCurrentlyPlayingReversed();
-
-			// From the first index read to the latch, one section: the render reads and, latched, writes these nodes,
-			// and the indexes below are only good while it cannot run.
 			{
 				AudioExcludedSection section;
-
-				// Since May 2020, we don't interpolate the start of the region if there was not another node just
-				// before it. Perhaps in a perfect world, we'd also consider how different the new value is from the old
-				// value, and maybe even insert a note to interpolate from.
-				bool shouldInterpolateRegionStart = false;
-
-				if (!reversed
-				    && std::ssize(nodesRef)) { // Yeah turns out we just don't need the result from this if we're
-					// reversed. RIP the work I put into making this code reverse-compatible.
-					// The old GREATER_OR_EQUAL/LESS comparison arg was literally an offset added to the lower bound
-					int32_t prevNodeI = nodesRef.firstAtOrAfter(livePos + (int32_t)reversed) - (reversed ? 0 : 1);
-					if (prevNodeI >= 0 && prevNodeI < std::ssize(nodesRef)) { // If there was a Node before livePos...
-investigatePrevNode:
-						ParamNode* prevNode = (ParamNode*)&nodesRef[prevNodeI];
-						int32_t ticksAgo = livePos - prevNode->pos;
-						if (reversed) {
-							ticksAgo = -ticksAgo;
-						}
-						if (ticksAgo <= 0) {
-							ticksAgo += effectiveLength;
-						}
-						shouldInterpolateRegionStart = (ticksAgo * timePerInternalTick < TIME_TO_INTERPOLATE_WITHIN);
-					}
-					else { // Or if there was no Node before livePos...
-
-						int32_t timeSinceLoopPoint = livePos;
-						if (reversed) {
-							timeSinceLoopPoint = effectiveLength - timeSinceLoopPoint;
-						}
-
-						// If livePos was close enough to 0 that we need to look at wrapped Nodes back around on the
-						// right...
-						if (timeSinceLoopPoint * timePerInternalTick < TIME_TO_INTERPOLATE_WITHIN) {
-							prevNodeI = reversed ? 0 : (std::ssize(nodesRef) - 1);
-							goto investigatePrevNode;
-						}
-					}
+				if (address) {
+					event.lane = *address;
 				}
-
-				// Forward the recording node write to the recordLiveValue DOM kernel, which captures exactly this
-				// branch's node mutation (setNodeAtPos for the MPE / zero-clear shortcut, else homogenizeRegion plus
-				// the reversed further-right-node fixup, then current_value=value). interpolateLeft is the engine's
-				// already-decided `reversed || shouldInterpolateRegionStart`. recordingLinearly is only consulted deep
-				// in homogenizeRegion's forward-wrap branch (Clip-recording context), so guard the Clip cast against a
-				// Song timeline (as AutoParam::homogenizeRegion does).
-				bool shouldInterpolateLeft = reversed || shouldInterpolateRegionStart;
-				bool recordingLinearly = false;
-				if (TimelineCounter* tc = modelStack->getTimelineCounterAllowNull();
-				    tc && tc != static_cast<TimelineCounter*>(modelStack->song)) {
-					recordingLinearly = static_cast<Clip*>(tc)->getCurrentlyRecordingLinearly();
-				}
-				if (!doMPEMode && ticksToClear != 0) {
-					freezeOnRejectedRegion(*modelStack->doc(), livePos, ticksToClear, reversed,
-					                       posAtWhichPlaybackWillCut);
-				}
-				int32_t leftI = deluge::project::recordLiveValue(
-				    *modelStack->doc(), livePos, value, ticksToClear, doMPEMode, shouldInterpolateLeft, effectiveLength,
-				    reversed, recordingLinearly, posAtWhichPlaybackWillCut);
-				if (leftI == -1) {
-					goto getOut;
-				}
-
-				// Now that we've definitely left any previous nodes alone, see if they form a linear run and we can
-				// delete some of them? We'll just not bother with this if reversed, for now... or ever...
-				if (mayDeleteNodesInLinearRun && !reversed
-				    && modelStack->paramCollection->mayParamInterpolate(modelStack->paramId)
-				    && std::ssize(nodesRef) >= 3) {
-					bool backtrackingCouldLoopBackToEnd =
-					    modelStack->getTimelineCounter()
-					        ->backtrackingCouldLoopBackToEnd(); // Wait, I can no longer see why this matters...
-					int32_t prevI = leftI - 1;
-					if (prevI == -1) {
-						if (!backtrackingCouldLoopBackToEnd) {
-							goto skipThat;
-						}
-						prevI = std::ssize(nodesRef) - 1;
-					}
-					deleteRedundantNodeInLinearRun(*modelStack->doc(), prevI, effectiveLength,
-					                               backtrackingCouldLoopBackToEnd);
-
-skipThat: {}
-				}
-
-#if ENABLE_SEQUENTIALITY_TESTS
-				nodesRef.testSequentiality("ffff");
+				if (!address || !deluge::modulation::postRecordEvent(event)) {
+					// The render is excluded: write what it has queued, then this, so the writes land in order.
+					deluge::modulation::applyRecordEvents(*modelStack->song);
+					writeRecordedValue(*modelStack->doc(), event);
+#if ALPHA_OR_BETA_VERSION
+					++(address ? deluge::modulation::recordRingFullFallbacks
+					           : deluge::modulation::recordWritesOutsideExecutor);
 #endif
-
+				}
 				if (!doMPEMode) {
 					renewedOverridingAtTime = 1; // Latch - until we come to the next node
 				}
 			}
 			automationChanged = true;
-
-#if ALPHA_OR_BETA_VERSION
-			if (!nodesRef.empty()) {
-				ParamNode* rightmostNode = &nodesRef[std::ssize(nodesRef) - 1];
-				if (rightmostNode->pos >= effectiveLength) {
-					FREEZE_WITH_ERROR("llll");
-				}
-			}
-#endif
+			recorded = true;
 		}
 
 		// Or if not recording...
@@ -402,8 +341,8 @@ skipThat: {}
 	// (drum.cpp's recording guard is commented out, so note_row.cpp's recordPolyphonicExpressionEvent live-play
 	// branch reaches here when stopped).
 	//
-	// If still unautomated (or not currently playing), record value change
-	if (nodesRef.empty() || !isPlaying) {
+	// If still unautomated (or not currently playing), record value change. A recorded value automates the lane.
+	if ((!recorded && nodesRef.empty()) || !isPlaying) {
 		if (value != played_) {
 			actionLogger.recordUnautomatedParamChange(modelStack);
 		}
@@ -411,11 +350,101 @@ skipThat: {}
 
 getOut:
 	// The edit is the lane's new base, which save reads (doc() resolves the tree store when bound, the engine-inline
-	// fallback otherwise), and what it plays now.
-	setBase(*modelStack->doc(), value);
-	bool automatedNow = isAutomated(*modelStack->doc());
+	// fallback otherwise), and what it plays now. A recorded value's base is the kernel's to write, after it has read
+	// the old one for where the cleared stretch returns to.
+	if (recorded) {
+		setPlayed(value);
+	}
+	else {
+		setBase(*modelStack->doc(), value);
+	}
+	bool automatedNow = recorded || isAutomated(*modelStack->doc());
 	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, automationChanged, automatedBefore,
 	                                                          automatedNow);
+}
+
+void AutoParam::writeRecordedValue(deluge::project::DocAutoParam& lane, const deluge::modulation::RecordEvent& event) {
+	auto& nodesRef = lane.nodes;
+	const int32_t livePos = event.livePos;
+	const int32_t effectiveLength = event.effectiveLength;
+	const bool reversed = event.reversed;
+	const uint32_t timePerInternalTick = event.timePerInternalTick;
+
+	// Since May 2020, we don't interpolate the start of the region if there was not another node just before it.
+	// Perhaps in a perfect world, we'd also consider how different the new value is from the old value, and maybe even
+	// insert a note to interpolate from.
+	bool shouldInterpolateRegionStart = false;
+
+	if (!reversed && std::ssize(nodesRef)) { // Yeah turns out we just don't need the result from this if we're
+		// reversed. RIP the work I put into making this code reverse-compatible.
+		// The old GREATER_OR_EQUAL/LESS comparison arg was literally an offset added to the lower bound
+		int32_t prevNodeI = nodesRef.firstAtOrAfter(livePos + (int32_t)reversed) - (reversed ? 0 : 1);
+		if (prevNodeI >= 0 && prevNodeI < std::ssize(nodesRef)) { // If there was a Node before livePos...
+investigatePrevNode:
+			ParamNode* prevNode = (ParamNode*)&nodesRef[prevNodeI];
+			int32_t ticksAgo = livePos - prevNode->pos;
+			if (reversed) {
+				ticksAgo = -ticksAgo;
+			}
+			if (ticksAgo <= 0) {
+				ticksAgo += effectiveLength;
+			}
+			shouldInterpolateRegionStart = (ticksAgo * timePerInternalTick < TIME_TO_INTERPOLATE_WITHIN);
+		}
+		else { // Or if there was no Node before livePos...
+
+			int32_t timeSinceLoopPoint = livePos;
+			if (reversed) {
+				timeSinceLoopPoint = effectiveLength - timeSinceLoopPoint;
+			}
+
+			// If livePos was close enough to 0 that we need to look at wrapped Nodes back around on the right...
+			if (timeSinceLoopPoint * timePerInternalTick < TIME_TO_INTERPOLATE_WITHIN) {
+				prevNodeI = reversed ? 0 : (std::ssize(nodesRef) - 1);
+				goto investigatePrevNode;
+			}
+		}
+	}
+
+	// The recordLiveValue kernel makes the node mutation: setNodeAtPos for the MPE / zero-clear shortcut, else
+	// homogenizeRegion plus the reversed further-right-node fixup, then the base.
+	if (!event.mpe && event.ticksToClear != 0) {
+		freezeOnRejectedRegion(lane, livePos, event.ticksToClear, reversed, event.posAtWhichPlaybackWillCut);
+	}
+	int32_t leftI = deluge::project::recordLiveValue(
+	    lane, livePos, event.value, event.ticksToClear, event.mpe, reversed || shouldInterpolateRegionStart,
+	    effectiveLength, reversed, event.recordingLinearly, event.posAtWhichPlaybackWillCut);
+	if (leftI == -1) {
+		return;
+	}
+
+	// Now that we've definitely left any previous nodes alone, see if they form a linear run and we can delete some
+	// of them?
+	if (event.deleteLinearRun && std::ssize(nodesRef) >= 3) {
+		int32_t prevI = leftI - 1;
+		if (prevI == -1) {
+			if (!event.backtrackingCouldLoopBack) {
+				goto skipThat;
+			}
+			prevI = std::ssize(nodesRef) - 1;
+		}
+		deleteRedundantNodeInLinearRun(lane, prevI, effectiveLength, event.backtrackingCouldLoopBack);
+
+skipThat: {}
+	}
+
+#if ENABLE_SEQUENTIALITY_TESTS
+	nodesRef.testSequentiality("ffff");
+#endif
+
+#if ALPHA_OR_BETA_VERSION
+	if (!nodesRef.empty()) {
+		ParamNode* rightmostNode = &nodesRef[std::ssize(nodesRef) - 1];
+		if (rightmostNode->pos >= effectiveLength) {
+			FREEZE_WITH_ERROR("llll");
+		}
+	}
+#endif
 }
 
 void AutoParam::projectScalarFromStore(ModelStackWithAutoParam const* modelStack, int32_t oldValue, bool isPlaying) {

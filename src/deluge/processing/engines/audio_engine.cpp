@@ -67,6 +67,7 @@
 #include "model/song/song.h"
 #include "model/voice/voice_sample.h"
 #include "model/voice/voice_slot.h"
+#include "modulation/automation/record_events.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "modulation/sidechain/sidechain.h"
 #include "playback/render_requests.h"
@@ -1185,6 +1186,9 @@ static void renderAppBlock(const DelugeStereoSample* in, DelugeStereoSample* out
 		voices_started_this_render = 0;
 
 		size_t numSamples = frames - produced;
+		if (currentSong != nullptr) {
+			deluge::modulation::applyRecordEvents(*currentSong);
+		}
 		tickSongFinalizeWindows(numSamples);
 
 		numSamplesLastTime = numSamples;
@@ -1753,6 +1757,9 @@ uint32_t routine() {
 		constexpr int32_t kOfflineBlocksPerRoutine = SSI_TX_BUFFER_NUM_SAMPLES / kOfflineFramesPerBlock;
 		for (int32_t block = 0; block < kOfflineBlocksPerRoutine; ++block) {
 			size_t numSamples = kOfflineFramesPerBlock;
+			if (currentSong != nullptr) {
+				deluge::modulation::applyRecordEvents(*currentSong);
+			}
 			tickSongFinalizeWindows(numSamples);
 			sendWindowOutputsNow();
 

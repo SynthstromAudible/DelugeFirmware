@@ -16,7 +16,12 @@
 // a reversed clip's, and a latch drifting back across a clip lane's nodes. A clip records only while active, so the
 // driver makes each one active and armed; a song without the clip kind prints `case <name> none`.
 //
-// Exit: 0 = ran + dumped; 1 = load error; 2 = usage/IO; 3 = setup precondition failed.
+// A recorded value reaches its lane when the render next starts a block, so the driver starts one (marked as the
+// render's) after each write and around each latch tick. Two probes ride along on stderr: no recorded write makes the
+// render log undo (the latch still does, for now), and 70 writes with no block between them, past the render's queue,
+// leave the lane as the same writes a block apart do.
+//
+// Exit: 0 = ran + dumped; 1 = load error; 2 = usage/IO; 3 = setup precondition or a probe failed.
 //
 // The dump is deterministic, so param_record_run.py byte-compares stdout against a committed baseline captured from
 // engine-native recording.
@@ -24,6 +29,7 @@
 #include "deluge-project/param_automation.h"
 #include "deluge-project/param_edit.h"
 #include "memory/general_memory_allocator.h"
+#include "memory/heaps.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
@@ -32,6 +38,7 @@
 #include "model/project_bridge/song_serialization.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
+#include "modulation/automation/record_events.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_set.h"
 #include "playback/mode/arrangement.h"
@@ -41,6 +48,7 @@
 #include "storage/storage_manager.h"
 #include "storage/value_tree_deserializer.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -156,6 +164,36 @@ constexpr Event script[] = {
     {36, 1500000000, 100}, {48, 200000000, 100}, {60, -800000000, 100},
 };
 
+/// A probe failed: the run exits 3 once it has dumped everything.
+bool probeFailed = false;
+
+// What the render does at the start of a block, as a render block: write the values the interaction tier recorded.
+void renderBlockStart() {
+	deluge::memory::noteRenderBlock(true);
+	deluge::modulation::applyRecordEvents(*currentSong);
+	deluge::memory::noteRenderBlock(false);
+}
+
+/// Whether the render tier logged undo since @p before; a recorded write's snapshot is the interaction tier's.
+bool renderLoggedUndo([[maybe_unused]] uint32_t before, [[maybe_unused]] const char* name) {
+#if ALPHA_OR_BETA_VERSION
+	if (deluge::modulation::renderUndoCalls != before) {
+		std::fprintf(io.err, "%s: the render logged undo %u times\n", name,
+		             static_cast<unsigned>(deluge::modulation::renderUndoCalls - before));
+		return true;
+	}
+#endif
+	return false;
+}
+
+uint32_t renderUndoCallsNow() {
+#if ALPHA_OR_BETA_VERSION
+	return deluge::modulation::renderUndoCalls;
+#else
+	return 0;
+#endif
+}
+
 // Run the script through the live-record path. With @p loopLength non-zero the positions scale to 0..5/6 of the loop,
 // so a clip of any length records the same shape.
 void recordScript(ModelStackWithAutoParam* msap, int32_t loopLength, bool mpe) {
@@ -164,6 +202,7 @@ void recordScript(ModelStackWithAutoParam* msap, int32_t loopLength, bool mpe) {
 		const int32_t livePos = loopLength != 0 ? e.livePos * loopLength / 72 : e.livePos;
 		msap->autoParam->setCurrentValueInResponseToUserInput(e.value, msap, /*shouldLogAction=*/true, livePos,
 		                                                      /*mayDeleteNodesInLinearRun=*/!mpe, mpe);
+		renderBlockStart();
 	}
 }
 
@@ -174,7 +213,9 @@ void tickLatch(ModelStackWithAutoParam* msap, std::span<const int32_t> positions
 	for (int32_t pos : positions) {
 		lastProcessedPos = pos;
 		AudioEngine::audioSampleTimer += 2000;
+		deluge::memory::noteRenderBlock(true);
 		msap->autoParam->processCurrentPos(msap, reversed, false, true, false);
+		deluge::memory::noteRenderBlock(false);
 		char label[32];
 		snprintf(label, sizeof label, "tick %ld", (long)pos);
 		dumpParam(label, msap);
@@ -189,7 +230,9 @@ void clipCase(const char* name, ModelStackWithAutoParam* msap, Clip* clip, bool 
 	}
 	std::fprintf(io.out, "case %s len=%ld\n", name, (long)clip->loopLength());
 	dumpParam("initial", msap);
+	const uint32_t undoBefore = renderUndoCallsNow();
 	recordScript(msap, clip->loopLength(), mpe);
+	probeFailed |= renderLoggedUndo(undoBefore, name);
 	dumpParam("after-record", msap);
 	actionLogger.closeAction(ActionType::RECORD);
 	actionLogger.revert(BEFORE, false, false);
@@ -212,6 +255,59 @@ void arm(Clip* clip) {
 	clip->activeIfNoSolo = true;
 	clip->soloingInSessionMode = false;
 	clip->armedForRecording = true;
+}
+
+// Writes made faster than the render's blocks: 70 values with no block between them, past the queue's 64, must leave
+// the lane as the same 70 written one block apart; the ones the queue had no room for the interaction tier writes,
+// after what was queued. Checked on stderr: the drained run's nodes are already pinned by the cases above.
+void burstCase(Song* song, InstrumentClip* clip, ModelStackWithAutoParam* lane) {
+	constexpr int32_t kWrites = 70;
+	const int32_t len = clip->loopLength();
+	// Undo gives back the lane's played value but not its base, which the cleared stretches return to: each run starts
+	// from the same one.
+	const int32_t base = lane->doc()->current_value;
+	auto record = [&](bool blockEach) {
+		lane->autoParam->setBase(*lane->doc(), base);
+		for (int32_t i = 0; i < kWrites; i++) {
+			AudioEngine::audioSampleTimer += 100;
+			lane->autoParam->setCurrentValueInResponseToUserInput((i % 7) * 300000000 - 900000000, lane, true,
+			                                                      i * len / (kWrites + 10), true, false);
+			if (blockEach) {
+				renderBlockStart();
+			}
+		}
+		renderBlockStart();
+		std::vector<ParamNode> nodes(lane->doc()->nodes.begin(), lane->doc()->nodes.end());
+		actionLogger.closeAction(ActionType::RECORD);
+		actionLogger.revert(BEFORE, false, false);
+		return nodes;
+	};
+	const std::vector<ParamNode> apart = record(true);
+#if ALPHA_OR_BETA_VERSION
+	const uint32_t fallbacksBefore = deluge::modulation::recordRingFullFallbacks;
+#endif
+	const std::vector<ParamNode> burst = record(false);
+	const bool same = std::ranges::equal(apart, burst, [](const ParamNode& a, const ParamNode& b) {
+		return a.pos == b.pos && a.value == b.value && a.interpolated == b.interpolated;
+	});
+#if ALPHA_OR_BETA_VERSION
+	const uint32_t fallbacks = deluge::modulation::recordRingFullFallbacks - fallbacksBefore;
+#else
+	const uint32_t fallbacks = 0;
+#endif
+	for (size_t i = 0; i < std::min(apart.size(), burst.size()); i++) {
+		if (apart[i].pos != burst[i].pos || apart[i].value != burst[i].value
+		    || apart[i].interpolated != burst[i].interpolated) {
+			std::fprintf(io.err, "burst first diff at %zu: (%ld,%ld,%d) vs (%ld,%ld,%d)\n", i, (long)apart[i].pos,
+			             (long)apart[i].value, apart[i].interpolated, (long)burst[i].pos, (long)burst[i].value,
+			             burst[i].interpolated);
+			break;
+		}
+	}
+	std::fprintf(io.err, "burst: %s, %zu/%zu nodes, %u written by the interaction tier\n", same ? "same" : "DIFFERENT",
+	             apart.size(), burst.size(), static_cast<unsigned>(fallbacks));
+	probeFailed |= !same || apart.empty();
+	(void)song;
 }
 
 // Clip lanes recorded under RecordingMode::NORMAL: a synth's patched param, a kit row's, a MIDI CC, an MPE lane and a
@@ -293,9 +389,13 @@ void clipCases(Song* song) {
 		deluge::project::setNodeAtPos(*lane->doc(), len * 3 / 4, -200000000, true);
 		AudioEngine::audioSampleTimer += 100;
 		lane->autoParam->setCurrentValueInResponseToUserInput(500000000, lane, true, len / 8, true, false);
+		renderBlockStart();
 		dumpParam("after-record", lane);
 		const int32_t positions[] = {len / 4, len / 2, len * 5 / 8, len * 3 / 4, len - 1};
+		const uint32_t undoBefore = renderUndoCallsNow();
 		tickLatch(lane, positions, false, synth->lastProcessedPos);
+		// The latch keeps its own undo snapshot on the render for now: the probe sees it.
+		std::fprintf(io.err, "latch: render undo calls %u\n", static_cast<unsigned>(renderUndoCallsNow() - undoBefore));
 		actionLogger.closeAction(ActionType::RECORD);
 		actionLogger.revert(BEFORE, false, false);
 		dumpParam("after-undo", lane);
@@ -304,6 +404,9 @@ void clipCases(Song* song) {
 	}
 	else {
 		std::fprintf(io.out, "case latch none\n");
+	}
+	if (synth != nullptr) {
+		burstCase(song, synth, synthStack(synth)->getPatchedAutoParamFromId(params::LOCAL_PITCH_ADJUST));
 	}
 	playbackHandler.recording = RecordingMode::ARRANGEMENT;
 }
@@ -380,7 +483,9 @@ int param_record_diff_main(int argc, char** argv, Io driverIo) {
 	AutoParamState undoState;
 	undoState.value = ap.getCurrentValue();
 
+	const uint32_t undoBefore = renderUndoCallsNow();
 	recordScript(msap, 0, false);
+	probeFailed |= renderLoggedUndo(undoBefore, "song-global");
 	dumpParam("after-record", msap);
 
 	// The engine edit method also writes the owner's DOM store scalar, so save can read the store. After the recorded
@@ -415,13 +520,18 @@ int param_record_diff_main(int argc, char** argv, Io driverIo) {
 	for (int32_t pos : positions) {
 		playbackHandler.lastSwungTickActioned = pos;
 		AudioEngine::audioSampleTimer += 2000;
+		deluge::memory::noteRenderBlock(true);
 		ap.processCurrentPos(msap, false, false, true, false);
+		deluge::memory::noteRenderBlock(false);
 		char label[32];
 		snprintf(label, sizeof label, "tick %ld", (long)pos);
 		dumpParam(label, msap);
 	}
 
 	clipCases(song);
+	if (probeFailed) {
+		return 3;
+	}
 
 	free(xml);
 	return 0;

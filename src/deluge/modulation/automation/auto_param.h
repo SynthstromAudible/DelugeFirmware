@@ -42,6 +42,11 @@ class CopiedParamAutomation;
 class TimelineCounter;
 class Clip;
 class ModelStackWithAutoParam;
+class Song;
+namespace deluge::modulation {
+struct RecordEvent;
+void applyRecordEvents(::Song& song);
+} // namespace deluge::modulation
 
 // For backing up a snapshot
 class AutoParamState {
@@ -208,6 +213,12 @@ public:
 	// it only works in empty stretches of time.
 
 private:
+	friend void deluge::modulation::applyRecordEvents(::Song& song);
+
+	/// @brief Write a value recorded while playing into @p lane: the live-record kernel, with what it decides from the
+	/// lane's own nodes (whether the region's start interpolates, which node of a straight run to drop). The render's
+	/// apply of a queued event; the interaction tier runs it only with the render excluded.
+	void writeRecordedValue(deluge::project::DocAutoParam& lane, const deluge::modulation::RecordEvent& event);
 	bool deleteRedundantNodeInLinearRun(deluge::project::DocAutoParam& doc, int32_t lastNodeInRunI,
 	                                    int32_t effectiveLength, bool mayLoopAroundBackToEnd = true);
 	void setupInterpolation(ModelStackWithAutoParam const* modelStack, ParamNode* nextNode, int32_t effectiveLength,

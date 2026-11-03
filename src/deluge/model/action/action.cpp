@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
+#include "memory/heaps.h"
 #include "model/action/action_clip_state.h"
 #include "model/action/action_logger.h"
 #include "model/clip/audio_clip.h"
@@ -36,6 +37,7 @@
 #include "model/note/note.h"
 #include "model/song/clip_iterators.h"
 #include "model/song/song.h"
+#include "modulation/automation/record_events.h"
 #include "processing/engines/audio_engine.h"
 #include "storage/audio/audio_file_manager.h"
 #include "util/functions.h"
@@ -214,6 +216,11 @@ void Action::recordParamChangeDefinitely(ModelStackWithAutoParam const* modelSta
 
 void Action::recordParamChange(const deluge::project::ParamAddress& address, ModelStackWithAutoParam const* modelStack,
                                bool stealData) {
+#if ALPHA_OR_BETA_VERSION
+	if (deluge::memory::onRenderTier()) {
+		++deluge::modulation::renderUndoCalls;
+	}
+#endif
 	void* consMemory = deluge::memory::alloc_sdram(sizeof(ConsequenceParamChange));
 
 	if (consMemory) {

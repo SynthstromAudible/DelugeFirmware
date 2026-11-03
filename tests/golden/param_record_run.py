@@ -27,7 +27,11 @@ BASELINE_DIR = os.path.join(
 
 def main(argv=None):
     return driver.baseline_diff(
-        "param_record_diff", BASELINE_DIR, argv, description=__doc__
+        "param_record_diff",
+        BASELINE_DIR,
+        argv,
+        description=__doc__,
+        require_exit_0=True,
     )
 
 
