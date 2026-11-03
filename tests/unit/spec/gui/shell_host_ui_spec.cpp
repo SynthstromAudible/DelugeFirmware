@@ -1545,6 +1545,30 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(fakelegacyui::pad_forwards).to_equal(3);
 	});
 
+	it("opens knowing a SHIFT legacy saw go down, and loses it on the release", _ {
+		// SHIFT pressed in the clip view, then SHIFT + a shortcut pad opening the menu: the guest's shell never saw
+		// the press, but the press is still down and the next shortcut press is a SHIFT one.
+		Rig r;
+		fakelegacyui::reset();
+		fakelegacyui::shift_button_pressed = true;
+		expect(r.open()).to_be_true();
+		expect(r.guest.shell().lowering().shift()).to_be_true();
+		fakelegacyui::shift_button_pressed = false;
+		(void)r.guest.buttonAction(deluge::hid::button::SHIFT, false);
+		expect(r.guest.shell().lowering().shift()).to_be_false();
+	});
+
+	it("opens with a latched SHIFT still latched", _ {
+		Rig r;
+		fakelegacyui::reset();
+		fakelegacyui::shift_button_pressed = true;
+		fakelegacyui::shift_stuck = true;
+		expect(r.open()).to_be_true();
+		expect(r.guest.shell().lowering().shift()).to_be_true();
+		expect(r.guest.shell().lowering().sticky()).to_be_true();
+		fakelegacyui::reset();
+	});
+
 	it("feeds the release of a pad whose press it fed, and only that release", _ {
 		// The menu claims a Shift + pad press; the release comes with Shift up and fails the claim's gate, but
 		// leaving it with legacy would leave the shell holding the pad for good.

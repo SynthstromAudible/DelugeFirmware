@@ -414,6 +414,13 @@ void InputLowering::clear_shift_sticky() {
 	shift_pressed_ = false;
 }
 
+void InputLowering::seed_shift(bool pressed, bool stuck) {
+	shift_pressed_ = pressed || stuck;
+	shift_stuck_ = stuck;
+	held_.set(ButtonId::Shift, pressed && !stuck);
+	consider_shift_release_for_sticky_ = false;
+}
+
 void InputLowering::set_shift_is_sticky(bool sticky) {
 	cfg_.shift_is_sticky = sticky;
 	if (!sticky) {

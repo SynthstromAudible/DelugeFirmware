@@ -221,6 +221,11 @@ public:
 	/// the old setting would stay on with nothing left to clear it.
 	/// @param sticky The new setting.
 	void set_shift_is_sticky(bool sticky);
+	/// @brief Take up a SHIFT state that arose before this lowering saw any event: held (@p pressed), and latched
+	///        (@p stuck) -- legacy's `isShiftButtonPressed` and `isShiftStuck`, which a SHIFT pressed before the
+	///        shell took input leaves set. A held SHIFT carried in releases on its next release event, and latches
+	///        nothing on it.
+	void seed_shift(bool pressed, bool stuck);
 	/// @brief Is the sticky-shift feature enabled?
 	bool shift_is_sticky() const { return cfg_.shift_is_sticky; }
 	/// @brief Set the tap threshold at runtime, in milliseconds.

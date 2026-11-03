@@ -128,6 +128,9 @@ bool ShellHostUI::opened() {
 	// opened after a setting changed while it was shut.
 	shell_.lowering().set_shift_is_sticky(runtimeFeatureSettings.get(RuntimeFeatureSettingType::ShiftIsSticky)
 	                                      == RuntimeFeatureStateToggle::On);
+	// And the SHIFT itself: one pressed before the guest opened -- SHIFT then a shortcut pad in a clip view -- is still
+	// held, and the shell saw no press for it.
+	shell_.lowering().seed_shift(Buttons::isShiftButtonPressed(), Buttons::isShiftStuck());
 
 	// **No `Shell::boot()` here, and its absence is deliberate.** The first version of this function
 	// called it, on the reasoning that the panels want a repaint on the way in. They do, and they
