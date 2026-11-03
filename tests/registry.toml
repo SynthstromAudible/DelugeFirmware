@@ -262,7 +262,7 @@ tree = "build/test-dsp-ubsan"
 configure = ["-G", "Ninja"]
 requires = ["cmake", "clang"]
 tier = "pr"
-group = "unit-cpp"
+group = "unit-cpp-variants"
 runtime = "~1m first build, ~5s after"
 
 [[harness]]
@@ -2143,7 +2143,7 @@ tree = "build/test-unit-arm"
 configure = ["-G", "Ninja"]
 requires = ["cmake", "clang", "arm-linux-gnueabihf-gcc", "qemu-arm", "llvm-objdump"]
 tier = "pr"
-group = "unit-cpp"
+group = "unit-cpp-variants"
 runtime = "~1m first build, ~5s after"
 
 [[harness]]
