@@ -162,6 +162,10 @@ deluge::project::DocAutoParam* ModelStackWithAutoParam::doc() const {
 	return paramCollection->docParamForId(paramId);
 }
 
+bool isUnheldLane(const deluge::project::DocAutoParam& lane) {
+	return &lane == &g_unheldLane;
+}
+
 void AutoParam::init(deluge::project::DocAutoParam& doc) {
 	doc.nodes.init();
 }
@@ -222,6 +226,9 @@ void freezeOnRejectedRegion([[maybe_unused]] const deluge::project::DocAutoParam
 void AutoParam::setCurrentValueInResponseToUserInput(int32_t value, ModelStackWithAutoParam const* modelStack,
                                                      bool shouldLogAction, int32_t livePos,
                                                      bool mayDeleteNodesInLinearRun, bool doMPEMode) {
+	if (modelStack->song != nullptr) {
+		deluge::modulation::drainRecordEvents(*modelStack->song); // what this reads includes what was recorded
+	}
 	// Resolve the DOM node store via the ModelStack.
 	auto& nodesRef = modelStack->doc()->nodes;
 	int32_t oldValue = played_;
@@ -314,12 +321,15 @@ void AutoParam::setCurrentValueInResponseToUserInput(int32_t value, ModelStackWi
 					writeRecordedValue(*modelStack->doc(), event);
 #if ALPHA_OR_BETA_VERSION
 					++(address ? deluge::modulation::recordRingFullFallbacks
-					           : deluge::modulation::recordWritesOutsideExecutor);
+					           : deluge::modulation::recordWritesWithoutAddress);
 #endif
 				}
 				if (!doMPEMode) {
 					renewedOverridingAtTime = 1; // Latch - until we come to the next node
 				}
+				// Played now, before the render can move it on. Its base is the kernel's to write, after it has read
+				// the old one for where the cleared stretch returns to.
+				setPlayed(value);
 			}
 			automationChanged = true;
 			recorded = true;
@@ -351,12 +361,8 @@ void AutoParam::setCurrentValueInResponseToUserInput(int32_t value, ModelStackWi
 
 getOut:
 	// The edit is the lane's new base, which save reads (doc() resolves the tree store when bound, the engine-inline
-	// fallback otherwise), and what it plays now. A recorded value's base is the kernel's to write, after it has read
-	// the old one for where the cleared stretch returns to.
-	if (recorded) {
-		setPlayed(value);
-	}
-	else {
+	// fallback otherwise), and what it plays now; a recorded value is played already.
+	if (!recorded) {
 		setBase(*modelStack->doc(), value);
 	}
 	bool automatedNow = recorded || isAutomated(*modelStack->doc());
@@ -557,6 +563,9 @@ removeMiddleNodeInRun:
 
 // action is optional. If you don't supply it, consequences won't be recorded
 void AutoParam::deleteAutomation(Action* action, ModelStackWithAutoParam const* modelStack, bool shouldNotify) {
+	if (modelStack->song != nullptr) {
+		deluge::modulation::drainRecordEvents(*modelStack->song); // nothing recorded lands after the delete
+	}
 	// Resolve the DOM node store via the ModelStack.
 	auto& nodesRef = modelStack->doc()->nodes;
 

@@ -47,6 +47,7 @@
 #include "model/scale/utils.h"
 #include "model/song/song.h"
 #include "modulation/arpeggiator.h"
+#include "modulation/automation/record_events.h"
 #include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
 #include "modulation/patch/patch_cable_set.h"
@@ -4493,6 +4494,7 @@ extern int16_t zeroMPEValues[kNumExpressionDimensions];
 
 void InstrumentClip::recordNoteOn(ModelStackWithNoteRow* modelStack, int32_t velocity, bool forcePos0,
                                   int16_t const* mpeValuesOrNull, int32_t fromMIDIChannel) {
+	deluge::modulation::drainRecordEvents(*modelStack->song); // the note's MPE values land after what was recorded
 
 	NoteRow* noteRow = modelStack->getNoteRow();
 

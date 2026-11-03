@@ -19,6 +19,7 @@
 #include "model/project_bridge/patch_cable_words.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
+#include "modulation/automation/record_events.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/patch/patch_cable.h"
@@ -201,6 +202,7 @@ describe param_by_address("a param set by its address", ${
 		f.clip->armedForRecording = true;
 		f.song->setCurrentClip(f.clip);
 		const Error error = set(*f.song, lpf, 0x18000000);
+		deluge::modulation::applyRecordEvents(*f.song); // the render's next block writes the recorded value
 		playbackHandler.recording = recording;
 		playbackHandler.playbackState = state;
 		f.clip->armedForRecording = armed;

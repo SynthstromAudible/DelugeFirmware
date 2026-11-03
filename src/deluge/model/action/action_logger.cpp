@@ -347,6 +347,9 @@ Action* ActionLogger::recordPerformanceViewPress(FXColumnPress fxPressBefore[kDi
 // Clip resize.
 bool ActionLogger::revert(TimeType time, bool updateVisually, bool doNavigation) {
 	D_PRINTLN("ActionLogger::revert");
+	if (currentSong != nullptr) {
+		deluge::modulation::drainRecordEvents(*currentSong); // what is undone includes every value recorded
+	}
 
 	deleteLastActionIfEmpty();
 

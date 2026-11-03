@@ -96,19 +96,23 @@ lane's nodes: the play position, the clip's length, direction and cut position, 
 length. The render writes the queued events at the start of its next block, before it ticks, through
 `bridge::paramStackOnRender` (resolve-only: the interaction tier made the lane); what the kernel decides from the
 nodes (whether the region's start interpolates, which node of a straight run to drop) it decides then, so a second
-write before that block sees the first. An event made in another song, or whose clip has since gone, is dropped. With
-the queue full, the interaction tier, with the render excluded, writes what is queued and then its own. The kernel
+write before that block sees the first. Before the interaction tier itself reads or edits lanes (each recorded write, every
+Edit, undo and redo, an automation delete, a recorded note's MPE values) it writes what is still queued, with the
+render excluded, so it sees every value it recorded and nothing lands after its edit; a song being freed hands its
+queue over or drops it. An event made in another song, or whose clip has since gone, is dropped. With the queue full,
+or a lane with no address, the interaction tier writes in place, with the render excluded, after what is queued. The kernel
 writes the base after reading the old one, where the cleared stretch returns to; the interaction tier sets only the
 played value.
 
 The latch's drift-back stays on the render and keeps its own undo snapshot: it also records over lanes the interaction
 tier never snapshotted (a knob turned just before record, an override on an unarmed clip). Editor writes to a recording
-lane (automation-view pads, paste, delete) stay interaction-tier Edits under the render's exclusion.
+lane (automation-view pads, paste, delete) stay interaction-tier Edits under the render's exclusion, after the queue.
 
 Alpha counters: `renderUndoCalls` (undo logged on the render tier), `renderNodeGrowths` (a recorded write the reserved
-room did not cover), `recordRingFullFallbacks`, `recordWritesOutsideExecutor` (a lane with no address, written in
-place). param-record-diff checks the first two stay 0 across its recorded cases, and that 70 writes with no render
-block between them leave the lane as the same writes a block apart.
+room did not cover), `recordRingFullFallbacks`, `recordWritesWithoutAddress` (written in place). param-record-diff
+checks across its recorded cases (not the latch) that the render logs no undo, allocates nothing and grows no lane,
+that 70 writes with no render block between them leave the lane, its base and its played value as the same writes a
+block apart, and that a write undone before the next block stays undone.
 
 ## The descriptor
 

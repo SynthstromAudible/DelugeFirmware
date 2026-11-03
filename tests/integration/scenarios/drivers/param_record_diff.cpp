@@ -18,8 +18,9 @@
 //
 // A recorded value reaches its lane when the render next starts a block, so the driver starts one (marked as the
 // render's) after each write and around each latch tick. Probes ride along on stderr: no recorded write makes the
-// render log undo (the latch still does, for now) or grow a node vector, and 70 writes with no block between them, past
-// the render's queue, leave the lane as the same writes a block apart do.
+// render log undo (the latch still does, for now), allocate or grow a node vector; a recorded lane's base is what it
+// plays; 70 writes with no block between them leave the lane as the same writes a block apart do; and a write undone
+// before the next block stays undone.
 //
 // Exit: 0 = ran + dumped; 1 = load error; 2 = usage/IO; 3 = setup precondition or a probe failed.
 //
@@ -169,9 +170,14 @@ bool probeFailed = false;
 
 // What the render does at the start of a block, as a render block: write the values the interaction tier recorded.
 void renderBlockStart() {
+	const uint32_t allocations = deluge::memory::audioTierAllocations();
 	deluge::memory::noteRenderBlock(true);
 	deluge::modulation::applyRecordEvents(*currentSong);
 	deluge::memory::noteRenderBlock(false);
+	if (deluge::memory::audioTierAllocations() != allocations) {
+		std::fprintf(io.err, "the render allocated writing recorded values\n");
+		probeFailed = true;
+	}
 }
 
 /// Whether the render tier logged undo since @p before; a recorded write's snapshot is the interaction tier's.
@@ -253,6 +259,11 @@ void clipCase(const char* name, ModelStackWithAutoParam* msap, Clip* clip, bool 
 	const uint32_t undoBefore = renderUndoCallsNow();
 	const uint32_t growthsBefore = renderNodeGrowthsNow();
 	recordScript(msap, clip->loopLength(), mpe);
+	if (msap->doc()->current_value != msap->autoParam->played()) {
+		std::fprintf(io.err, "%s: base %ld, played %ld after recording\n", name, (long)msap->doc()->current_value,
+		             (long)msap->autoParam->played());
+		probeFailed = true;
+	}
 	probeFailed |= renderLoggedUndo(undoBefore, name);
 	probeFailed |= renderGrewNodes(growthsBefore, name);
 	dumpParam("after-record", msap);
@@ -279,10 +290,28 @@ void arm(Clip* clip) {
 	clip->armedForRecording = true;
 }
 
-// Writes made faster than the render's blocks: 70 values with no block between them, past the queue's 64, must leave
-// the lane as the same 70 written one block apart; the ones the queue had no room for the interaction tier writes,
-// after what was queued. Checked on stderr: the drained run's nodes are already pinned by the cases above.
-void burstCase(Song* song, InstrumentClip* clip, ModelStackWithAutoParam* lane) {
+// What a recorded run left: the lane's nodes, base and played value.
+struct Take {
+	std::vector<ParamNode> nodes;
+	int32_t base;
+	int32_t played;
+	bool operator==(const Take& other) const {
+		return base == other.base && played == other.played
+		       && std::ranges::equal(nodes, other.nodes, [](const ParamNode& a, const ParamNode& b) {
+			          return a.pos == b.pos && a.value == b.value && a.interpolated == b.interpolated;
+		          });
+	}
+};
+
+Take takeOf(ModelStackWithAutoParam* lane) {
+	return {
+	    {lane->doc()->nodes.begin(), lane->doc()->nodes.end()}, lane->doc()->current_value, lane->autoParam->played()};
+}
+
+// Writes made faster than the render's blocks: 70 values with no block between them must leave the lane as the same
+// 70 written one block apart. Each write first writes what is still queued, so the queue never fills. Checked on
+// stderr: the run a block apart is already pinned by the cases above.
+void burstCase(InstrumentClip* clip, ModelStackWithAutoParam* lane) {
 	constexpr int32_t kWrites = 70;
 	const int32_t len = clip->loopLength();
 	// Undo gives back the lane's played value but not its base, which the cleared stretches return to: each run starts
@@ -299,39 +328,58 @@ void burstCase(Song* song, InstrumentClip* clip, ModelStackWithAutoParam* lane) 
 			}
 		}
 		renderBlockStart();
-		std::vector<ParamNode> nodes(lane->doc()->nodes.begin(), lane->doc()->nodes.end());
+		Take take = takeOf(lane);
 		actionLogger.closeAction(ActionType::RECORD);
 		actionLogger.revert(BEFORE, false, false);
-		return nodes;
+		return take;
 	};
 	const uint32_t growthsBefore = renderNodeGrowthsNow();
-	const std::vector<ParamNode> apart = record(true);
+	const Take apart = record(true);
 #if ALPHA_OR_BETA_VERSION
 	const uint32_t fallbacksBefore = deluge::modulation::recordRingFullFallbacks;
+	const uint32_t inPlaceBefore = deluge::modulation::recordWritesWithoutAddress;
 #endif
-	const std::vector<ParamNode> burst = record(false);
-	const bool same = std::ranges::equal(apart, burst, [](const ParamNode& a, const ParamNode& b) {
-		return a.pos == b.pos && a.value == b.value && a.interpolated == b.interpolated;
-	});
-#if ALPHA_OR_BETA_VERSION
-	const uint32_t fallbacks = deluge::modulation::recordRingFullFallbacks - fallbacksBefore;
-#else
-	const uint32_t fallbacks = 0;
-#endif
-	for (size_t i = 0; i < std::min(apart.size(), burst.size()); i++) {
-		if (apart[i].pos != burst[i].pos || apart[i].value != burst[i].value
-		    || apart[i].interpolated != burst[i].interpolated) {
-			std::fprintf(io.err, "burst first diff at %zu: (%ld,%ld,%d) vs (%ld,%ld,%d)\n", i, (long)apart[i].pos,
-			             (long)apart[i].value, apart[i].interpolated, (long)burst[i].pos, (long)burst[i].value,
-			             burst[i].interpolated);
+	const Take burst = record(false);
+	const bool same = apart == burst;
+	for (size_t i = 0; i < std::min(apart.nodes.size(), burst.nodes.size()); i++) {
+		const ParamNode& a = apart.nodes[i];
+		const ParamNode& b = burst.nodes[i];
+		if (a.pos != b.pos || a.value != b.value || a.interpolated != b.interpolated) {
+			std::fprintf(io.err, "burst first diff at %zu: (%ld,%ld,%d) vs (%ld,%ld,%d)\n", i, (long)a.pos,
+			             (long)a.value, a.interpolated, (long)b.pos, (long)b.value, b.interpolated);
 			break;
 		}
 	}
-	std::fprintf(io.err, "burst: %s, %zu/%zu nodes, %u written by the interaction tier\n", same ? "same" : "DIFFERENT",
-	             apart.size(), burst.size(), static_cast<unsigned>(fallbacks));
-	probeFailed |= !same || apart.empty();
+	std::fprintf(io.err, "burst: %s, %zu/%zu nodes, base %ld/%ld, played %ld/%ld\n", same ? "same" : "DIFFERENT",
+	             apart.nodes.size(), burst.nodes.size(), (long)apart.base, (long)burst.base, (long)apart.played,
+	             (long)burst.played);
+	probeFailed |= !same || apart.nodes.empty();
 	probeFailed |= renderGrewNodes(growthsBefore, "burst");
-	(void)song;
+#if ALPHA_OR_BETA_VERSION
+	if (deluge::modulation::recordRingFullFallbacks != fallbacksBefore
+	    || deluge::modulation::recordWritesWithoutAddress != inPlaceBefore) {
+		std::fprintf(io.err, "burst: the queue filled, or a lane had no address\n");
+		probeFailed = true;
+	}
+#endif
+}
+
+// A value recorded and undone before the render's next block: the undo takes it back, and the block after writes
+// nothing.
+void queuedUndoCase(InstrumentClip* clip, ModelStackWithAutoParam* lane) {
+	const Take before = takeOf(lane);
+	AudioEngine::audioSampleTimer += 100;
+	lane->autoParam->setCurrentValueInResponseToUserInput(700000000, lane, true, clip->loopLength() / 3, true, false);
+	actionLogger.closeAction(ActionType::RECORD);
+	actionLogger.revert(BEFORE, false, false);
+	renderBlockStart();
+	const Take after = takeOf(lane);
+	const bool same = before.nodes.size() == after.nodes.size()
+	                  && std::ranges::equal(before.nodes, after.nodes, [](const ParamNode& a, const ParamNode& b) {
+		                     return a.pos == b.pos && a.value == b.value && a.interpolated == b.interpolated;
+	                     });
+	std::fprintf(io.err, "queued-undo: %s, %zu nodes after\n", same ? "undone" : "NOT UNDONE", after.nodes.size());
+	probeFailed |= !same;
 }
 
 // Clip lanes recorded under RecordingMode::NORMAL: a synth's patched param, a kit row's, a MIDI CC, an MPE lane and a
@@ -430,7 +478,8 @@ void clipCases(Song* song) {
 		std::fprintf(io.out, "case latch none\n");
 	}
 	if (synth != nullptr) {
-		burstCase(song, synth, synthStack(synth)->getPatchedAutoParamFromId(params::LOCAL_PITCH_ADJUST));
+		burstCase(synth, synthStack(synth)->getPatchedAutoParamFromId(params::LOCAL_PITCH_ADJUST));
+		queuedUndoCase(synth, synthStack(synth)->getPatchedAutoParamFromId(params::LOCAL_PITCH_ADJUST));
 	}
 	playbackHandler.recording = RecordingMode::ARRANGEMENT;
 }

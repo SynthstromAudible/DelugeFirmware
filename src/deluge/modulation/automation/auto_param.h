@@ -57,6 +57,10 @@ public:
 
 struct StolenParamNodes;
 
+/// @brief Whether @p lane is the stand-in the render reads for a lane nothing holds yet: it reads as unautomated, and
+/// nothing may be written into it.
+[[nodiscard]] bool isUnheldLane(const deluge::project::DocAutoParam& lane);
+
 class AutoParam {
 public:
 	AutoParam();

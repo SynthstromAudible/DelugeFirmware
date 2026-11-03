@@ -24,6 +24,8 @@
 /// A knob, MIDI or MPE write while recording takes the undo snapshot on the interaction tier and posts an event with
 /// what it read there (the play position, the clip's length and direction, how much ahead to clear); the render
 /// applies the events at the start of its next block, before it ticks, so they land in the order they were made.
+/// Before the interaction tier itself reads or edits lanes (a write, an Edit, undo, an automation delete, a recorded
+/// note's MPE values) it writes what is still queued, with the render excluded, so it sees what it recorded.
 
 #include "definitions_cxx.hpp"
 #include "deluge-project/param_address.h"
@@ -48,8 +50,8 @@ struct RecordEvent {
 	bool reversed{false};
 	bool recordingLinearly{false};
 	bool mpe{false};
-	bool deleteLinearRun{false}; ///< the write may delete a node it leaves in a straight run (not MPE, an interpolating
-	                             ///< param, not reversed)
+	/// The write may delete a node it leaves in a straight run: not MPE, an interpolating param, not reversed.
+	bool deleteLinearRun{false};
 	bool backtrackingCouldLoopBack{false};
 };
 
@@ -70,9 +72,17 @@ void reserveForRecordedWrite(project::ParamNodeVector& nodes);
 /// capacity per call. [task] only with the render excluded, which makes it the queue's one consumer while it runs.
 void applyRecordEvents(::Song& song);
 
+/// @brief [task] Write what is still queued into @p song's lanes, with the render excluded: before the interaction tier
+/// reads or edits lanes, so it sees every value it recorded. [audio] as applyRecordEvents.
+void drainRecordEvents(::Song& song);
+
+/// @brief [task] @p song is going: write the queue into the current song if that is another, else drop it, so no event
+/// outlives the song its lane is addressed in.
+void forgetRecordEvents(const ::Song& song);
+
 #if ALPHA_OR_BETA_VERSION
 /// Recorded values the interaction tier wrote itself because their lane has no address to queue them by.
-extern uint32_t recordWritesOutsideExecutor;
+extern uint32_t recordWritesWithoutAddress;
 /// Writes applied by the interaction tier because the queue was full.
 extern uint32_t recordRingFullFallbacks;
 /// `ActionLogger::getNewAction` and `Action::recordParamChange` calls made on the render tier.

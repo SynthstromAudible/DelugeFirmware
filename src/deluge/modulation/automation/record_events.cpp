@@ -16,8 +16,11 @@
  */
 
 #include "modulation/automation/record_events.h"
+#include "io/debug/log.h"
+#include "libdeluge/system.h"
 #include "model/model_stack.h"
 #include "model/project_bridge/param_stack.h"
+#include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
 #include "util/spsc_ring.h"
 #include <algorithm>
@@ -26,7 +29,7 @@
 namespace deluge::modulation {
 
 #if ALPHA_OR_BETA_VERSION
-uint32_t recordWritesOutsideExecutor = 0;
+uint32_t recordWritesWithoutAddress = 0;
 uint32_t recordRingFullFallbacks = 0;
 uint32_t renderUndoCalls = 0;
 uint32_t renderNodeGrowths = 0;
@@ -42,7 +45,9 @@ void reserveForRecordedWrite(project::ParamNodeVector& nodes) {
 	const auto room = static_cast<size_t>(kNodesPerRecordedWrite) * (g_recordEvents.size() + 1);
 	if (nodes.capacity() < nodes.size() + room) {
 		// Grown by at least its size, so a run of writes copies the nodes a logarithmic number of times.
-		(void)nodes.reserveExtra(static_cast<int32_t>(std::max(room, nodes.size())));
+		if (!nodes.reserveExtra(static_cast<int32_t>(std::max(room, nodes.size())))) {
+			D_PRINTLN("no room reserved for a recorded write: the render grows the lane");
+		}
 	}
 }
 
@@ -60,6 +65,9 @@ void applyRecordEvents(::Song& song) {
 		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 		if (ModelStackWithAutoParam* stack = bridge::paramStackOnRender(song, event.lane, memory)) {
 			project::DocAutoParam& lane = *stack->doc();
+			if (isUnheldLane(lane)) {
+				continue;
+			}
 #if ALPHA_OR_BETA_VERSION
 			const size_t capacity = lane.nodes.capacity();
 #endif
@@ -71,6 +79,23 @@ void applyRecordEvents(::Song& song) {
 #endif
 		}
 	}
+}
+
+void drainRecordEvents(::Song& song) {
+	if (g_recordEvents.empty()) {
+		return;
+	}
+	AudioExcludedSection section;
+	applyRecordEvents(song);
+}
+
+void forgetRecordEvents(const ::Song& song) {
+	AudioExcludedSection section;
+	if (currentSong != nullptr && currentSong != &song) {
+		applyRecordEvents(*currentSong);
+	}
+	RecordEvent event;
+	while (g_recordEvents.try_pop(event)) {}
 }
 
 } // namespace deluge::modulation

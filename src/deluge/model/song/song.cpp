@@ -75,6 +75,7 @@
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/clip_iterators.h"
 #include "model/voice/voice_sample.h"
+#include "modulation/automation/record_events.h"
 #include "modulation/midi/midi_param_collection.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "modulation/sidechain/sidechain.h"
@@ -308,6 +309,7 @@ int32_t Song::retiredPendingAtLastConstruction() {
 }
 
 Song::~Song() {
+	deluge::modulation::forgetRecordEvents(*this);
 	if (currentSong == this || anySoundRegistered(live.media.first_output)
 	    || anySoundRegistered(live.media.first_hibernating_instrument)) {
 		g_songsDestroyedWhileReachable.fetch_add(1, std::memory_order_relaxed);
