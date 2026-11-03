@@ -159,13 +159,14 @@ void DuckEnvelope::hit_at(const Coefficients& c, State& s, q31 strength, uint32_
 	s.floor = kOneQ31 - strength;
 	s.depth = strength;
 
-	if (duck::lasts_past(c.attack_step, samples_ago)) {
+	// An instant attack has no attack to place the hit in, as a live hit has none: its step is never read.
+	if (!c.instant_attack && duck::lasts_past(c.attack_step, samples_ago)) {
 		s.stage = Stage::ATTACK;
 		s.pos = samples_ago * c.attack_step;
 		return;
 	}
 
-	const uint32_t since_release = samples_ago - (kStageLength / c.attack_step);
+	const uint32_t since_release = c.instant_attack ? samples_ago : samples_ago - (kStageLength / c.attack_step);
 	if (duck::lasts_past(c.release_step, since_release)) {
 		s.stage = Stage::RELEASE;
 		s.pos = since_release * c.release_step;
