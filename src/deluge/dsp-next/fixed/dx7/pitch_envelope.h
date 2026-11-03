@@ -35,6 +35,7 @@
 
 #pragma once
 
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/types.h"
 #include "dsp-next/fixed/dx7/envelope_params.h"
@@ -89,7 +90,7 @@ struct PitchEnvelope {
 	    58,  60,  62,  64,  66,  68,  70,  72,  74,  76,  79,  82,  85,  88,  91,  94,  98,  102, 106, 110,
 	    115, 120, 125, 130, 135, 141, 147, 153, 159, 165, 171, 178, 185, 193, 202, 211, 232, 243, 254, 255};
 
-	/// @brief A level byte (0 to 99) as a pitch offset in 1/32 octave, so a level shifted up by 19 is Q24 octaves.
+	/// @brief A level byte (0 to 99) as a pitch offset in 1/32 octave, Q5 octaves.
 	static constexpr std::array<int8_t, 100> kLevel{
 	    -128, -116, -104, -95, -85, -76, -68, -61, -56, -52, -49, -46, -43, -41, -39, -37, -35, -33, -32, -31,
 	    -30,  -29,  -28,  -27, -26, -25, -24, -23, -22, -21, -20, -19, -18, -17, -16, -15, -14, -13, -12, -11,
@@ -106,15 +107,17 @@ struct PitchEnvelope {
 	[[nodiscard]] [[gnu::always_inline]] static q31 advance(const Coefficients& c, State& s, std::size_t n) {
 		const auto count = static_cast<int32_t>(n);
 		if (s.stage < 3 || (s.stage < 4 && !s.down)) {
+			// A block's step is an integer product, well inside the word: at most 255 kUnit a sample.
+			const Q<24> step = Q<24>::from_raw(count * s.increment);
 			if (s.rising) {
-				s.level += count * s.increment;
+				s.level = add_wrap(Q<24>::from_raw(s.level), step).raw();
 				if (s.level >= s.target) {
 					s.level = s.target;
 					enter_stage(c, s, s.stage + 1);
 				}
 			}
 			else {
-				s.level -= count * s.increment;
+				s.level = sub_wrap(Q<24>::from_raw(s.level), step).raw();
 				if (s.level <= s.target) {
 					s.level = s.target;
 					enter_stage(c, s, s.stage + 1);
@@ -126,7 +129,7 @@ struct PitchEnvelope {
 
 	/// @brief Key down: the level jumps to level 4 and stage 0 starts.
 	[[gnu::always_inline]] static void start(const Coefficients& c, State& s) {
-		s.level = kLevel[c.params.levels[3]] << 19;
+		s.level = level_of(c.params.levels[3]);
 		s.down = true;
 		enter_stage(c, s, 0);
 	}
@@ -140,11 +143,16 @@ struct PitchEnvelope {
 	}
 
 private:
+	/// @brief A level byte as Q24 octaves: kLevel's 1/32 octave is Q5.
+	[[nodiscard]] [[gnu::always_inline]] static constexpr int32_t level_of(uint8_t level) {
+		return as_wrap<Q<24>>(Q<5>::from_raw(kLevel[level])).raw();
+	}
+
 	/// @brief Enters @p stage, reading its rate and level; past stage 3 nothing is read and the level holds.
 	[[gnu::always_inline]] static void enter_stage(const Coefficients& c, State& s, int32_t stage) {
 		s.stage = stage;
 		if (stage < 4) {
-			s.target = kLevel[c.params.levels[stage]] << 19;
+			s.target = level_of(c.params.levels[stage]);
 			s.rising = s.target > s.level;
 			s.increment = kRate[c.params.rates[stage]] * kUnit;
 		}

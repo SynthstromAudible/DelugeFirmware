@@ -36,6 +36,7 @@
 
 #pragma once
 
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/types.h"
 #include "dsp-next/fixed/dx7/lfo_delay.h"
@@ -94,15 +95,20 @@ struct Lfo {
 	/// @param n The block's length in samples; may be 0.
 	/// @return The wave's value after the block, Q24.
 	[[nodiscard]] [[gnu::always_inline]] static q31 advance(const Coefficients& c, State& s, std::size_t n) {
-		s.phase += static_cast<uint32_t>(n) * c.delta;
+		// The block's step is an integer product: the delta times the samples.
+		s.phase = add_wrap(UQ<32>::from_raw(s.phase), UQ<32>::from_raw(static_cast<uint32_t>(n) * c.delta)).raw();
 		return wave_value(c, s.phase);
 	}
+
+	/// @brief The wave's middle, 0.5.
+	static constexpr Q<24> kMiddle = q<24>(0.5);
 
 	/// @brief Key sync: the phase to just under half a cycle.
 	[[gnu::always_inline]] static void key_sync(State& s) { s.phase = (1U << 31) - 1; }
 
 	/// @brief The wave at @p phase, Q24 from 0 to 1 << 24.
-	/// @param phase The phase, Q32 cycles, read as a signed word: the square shifts it arithmetically.
+	/// @param phase The phase, Q32 cycles, read as a signed word: the square shifts it arithmetically. The saws and
+	/// the square are bit operations on the phase's word, so they stay raw.
 	[[nodiscard]] [[gnu::always_inline]] static q31 wave_value(const Coefficients& c, uint32_t phase) {
 		const auto p = static_cast<int32_t>(phase);
 		switch (c.waveform == 0 ? 4 : c.waveform) {
@@ -112,10 +118,10 @@ struct Lfo {
 			return static_cast<q31>((p ^ (1U << 31)) >> 8);
 		case 3: // square
 			return ((~p) >> 7) & (1 << 24);
-		case 4: // sine
-			return (1 << 23) + (sin_lookup(*c.tables, p >> 8) >> 1);
+		case 4: // sine: the Q24 sine at the phase in 2^24 per cycle, halved about the middle
+			return add_wrap(kMiddle, halve_floor(Q<24>::from_raw(sin_lookup(*c.tables, p >> 8)))).raw();
 		default:
-			return 1 << 23;
+			return kMiddle.raw();
 		}
 	}
 };

@@ -36,6 +36,7 @@
 
 #include "dsp-next/fixed/dx7/envelope.h"
 
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/wrapping.h"
 
 #include <algorithm>
@@ -56,20 +57,23 @@ q31 Envelope::advance(const Coefficients& c, State& s, std::size_t n) {
 
 	if ((s.stage < 3 || (s.stage < 4 && !s.down)) && s.hold == 0) {
 		if (s.rising) {
-			s.level = std::max(s.level, kJumpTarget << 16);
-			// The slope is the doublings left below 17, 0 to 16, so the climb flattens near the top.
-			const int32_t slope = wrapping_sub(17 << 24, s.level) >> 24;
-			const auto step = static_cast<int32_t>(static_cast<uint32_t>(slope) * static_cast<uint32_t>(s.increment)
-			                                       * static_cast<uint32_t>(count));
-			s.level = wrapping_add(s.level, step);
+			const Q<24> level = std::max(Q<24>::from_raw(s.level), as_wrap<Q<24>>(Q<8>::from_raw(kJumpTarget)));
+			// The slope is the whole doublings left below 17, 0 to 16, so the climb flattens near the top.
+			const int32_t slope = as_floor<Q<0>>(sub_wrap(q<24>(17.0), level)).raw();
+			// The slope times the increment for each sample: an integer product, in the level's Q24 units.
+			const auto step = Q<24>::from_raw(static_cast<int32_t>(
+			    static_cast<uint32_t>(slope) * static_cast<uint32_t>(s.increment) * static_cast<uint32_t>(count)));
+			s.level = add_wrap(level, step).raw();
 			if (s.level >= s.target) {
 				s.level = s.target;
 				enter_stage(c, s, s.stage + 1, c.extra_rate);
 			}
 		}
 		else {
-			const auto step = static_cast<int32_t>(static_cast<uint32_t>(s.increment) * static_cast<uint32_t>(count));
-			s.level = wrapping_sub(s.level, step);
+			// The increment for each sample: an integer product, in the level's Q24 units.
+			const auto step = Q<24>::from_raw(
+			    static_cast<int32_t>(static_cast<uint32_t>(s.increment) * static_cast<uint32_t>(count)));
+			s.level = sub_wrap(Q<24>::from_raw(s.level), step).raw();
 			if (s.level <= s.target) {
 				s.level = s.target;
 				enter_stage(c, s, s.stage + 1, c.extra_rate);
@@ -80,9 +84,10 @@ q31 Envelope::advance(const Coefficients& c, State& s, std::size_t n) {
 }
 
 int32_t Envelope::stage_target(int32_t level, int32_t output_level) {
+	// The level byte on the output scale, in microsteps (Q8 doublings): integer, as the DX7's table gives it.
 	int32_t microsteps = (scale_output_level(level) >> 1) << 6;
 	microsteps = wrapping_sub(wrapping_add(microsteps, output_level), kLevelOffset);
-	return std::max(microsteps, 16) << 16;
+	return as_wrap<Q<24>>(Q<8>::from_raw(std::max(microsteps, 16))).raw();
 }
 
 void Envelope::enter_stage(const Coefficients& c, State& s, int32_t stage, int32_t extra_rate) {
