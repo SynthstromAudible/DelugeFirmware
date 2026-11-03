@@ -271,6 +271,29 @@ jobs:
 
       - uses: ./.github/actions/test-prerequisites
 
+      # The C++ ctest trees compile some 3000 translation units cold, which is most of these jobs' time. Their CMake
+      # compiles through ccache when it is installed (cmake/ccache.cmake), so a warm cache keeps only what changed.
+      - name: Install ccache
+        if: startsWith(matrix.group, 'unit-cpp')
+        uses: ./.github/actions/apt-install
+        with:
+          cache-name: ccache
+          packages: ccache
+
+      - name: Cache the compiled objects
+        if: startsWith(matrix.group, 'unit-cpp')
+        uses: actions/cache@v6
+        with:
+          path: ${{ runner.temp }}/ccache
+          key: ccache-${{ matrix.group }}-${{ github.sha }}
+          restore-keys: ccache-${{ matrix.group }}-
+
+      - name: Point ccache at the cache
+        if: startsWith(matrix.group, 'unit-cpp')
+        run: |
+          { echo "CCACHE_DIR=$RUNNER_TEMP/ccache"; echo "CCACHE_MAXSIZE=2G"; } >> "$GITHUB_ENV"
+          CCACHE_DIR="$RUNNER_TEMP/ccache" ccache --zero-stats
+
       - name: Fetch the host build
         if: matrix.prebuilt != ''
         uses: actions/download-artifact@v8
@@ -290,6 +313,10 @@ jobs:
         run: |
           read -ra tests <<< "$TESTS"
           DBT_NOENV=1 DBT_NO_SYNC=1 ./dbt test $PREBUILT --strict --junit build/results -j "$(nproc)" "${tests[@]}"
+
+      - name: Report the ccache hit rate
+        if: always() && startsWith(matrix.group, 'unit-cpp')
+        run: ccache --show-stats
 
       - name: Upload Test Results
         uses: actions/upload-artifact@v7
