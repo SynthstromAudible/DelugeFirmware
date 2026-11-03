@@ -136,6 +136,9 @@ constexpr const char* kStallSample = "SAMPLES/SCSTALL.WAV";
 constexpr uint32_t kGateHoldMs = 400;
 /// How long the loader holds each load in the stall leg: far past the claim's stall bound.
 constexpr uint32_t kStallHoldMs = 30000;
+/// The randomizer's stall leg holds its load just past the walk's stall bound (`AsyncSampleLoad::kMaxStalledUs`, 18 s),
+/// so the held load lands soon after the walk gives up on it and leaves the single-flight loader to the next leg.
+constexpr uint32_t kRandomizeStallHoldMs = 19000;
 /// The supersede legs' second files. The landed leg's is in memory from the gate leg, so its preview lands in the tick
 /// the cursor reaches it; the loading leg's is not, and the loader holds its preview.
 constexpr const char* kSupersedeLanded = "SAMPLES/SCGATE.WAV";
@@ -274,6 +277,11 @@ enum class Leg : uint8_t {
 	AudioClip,
 	Slice,
 	SliceManual,
+	// The ported slicer's host, through the same SliceCore: a region slice, a manual slice, and BACK out of manual
+	// mode on a first drum that holds no file. Its held open is ShellSliceFail, with the other loader-hold legs.
+	ShellSlice,
+	ShellSliceManual,
+	ShellSliceBack,
 	RandomizeOne,
 	RandomizeAll,
 	RandomizeGate,
@@ -286,12 +294,6 @@ enum class Leg : uint8_t {
 	RandomizeStall,
 	RandomizeCancelScan,
 	ImportStall,
-	// The ported slicer's host, through the same SliceCore: a region slice, a manual slice, BACK out of manual mode on
-	// a first drum that holds no file, and an open whose load is held past the stall bound. After every other leg: run
-	// before the randomizer's, two more slices leave its cancelled-scan leg unable to open its folder.
-	ShellSlice,
-	ShellSliceManual,
-	ShellSliceBack,
 	ShellSliceFail,
 	Done
 };
@@ -1055,7 +1057,7 @@ bool openLeg() {
 		deluge_audio_load_set_latency_ms(kGateHoldMs);
 		return openRandomizeLeg("randomize-gate", kitDrum());
 	case Leg::RandomizeStall:
-		deluge_audio_load_set_latency_ms(kStallHoldMs);
+		deluge_audio_load_set_latency_ms(kRandomizeStallHoldMs);
 		return openRandomizeLeg("randomize-stall", nullptr);
 	case Leg::RandomizeCancelScan:
 		// The DIRECTORY channel held, not the loader: this leg never reaches a load.
@@ -1542,9 +1544,10 @@ bool legEnded() {
 	}
 	if (isRandomize()) {
 		// The gesture closes the gate and the walk releases it: the leg ends when the mode is gone -- for the gate leg,
-		// once its presses have been tried.
-		return (g_leg != Leg::RandomizeGate || g_rdGateTried)
-		       && currentUIMode != UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
+		// once its presses have been tried. The stall leg's walk gives up on a load the loader still holds under the
+		// leg's latency; the loader is single-flight, so that load has to finish before the next leg's own can start.
+		return (g_leg != Leg::RandomizeGate || g_rdGateTried) && currentUIMode != UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES
+		       && (g_leg != Leg::RandomizeStall || deluge_audio_load_can_progress(kRandomizeStallSample));
 	}
 	if (isSupersede()) {
 		AudioFileHolder* holder = firstHolder(g_synth->sources[0]);
@@ -2108,8 +2111,9 @@ void checkLeg() {
 			g_failures++;
 		}
 		else if (!landed) {
-			printf("RD-CANCELSCAN FAIL a randomize made after %d cancelled opens could not open its folder: the "
-			       "handles those opens produced were collected but never given back\n",
+			printf("RD-CANCELSCAN FAIL a randomize made after %d cancelled opens did not bind a file from its folder: "
+			       "either the handles those opens produced were never given back, or its load is queued behind one "
+			       "an earlier leg left in the loader\n",
 			       kRandomizeCancelRounds);
 			g_failures++;
 		}
