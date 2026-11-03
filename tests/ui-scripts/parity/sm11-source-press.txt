@@ -1,0 +1,66 @@
+# ShellMenu: SHIFT + a patching-source pad under the sound menu patches that source to what the menu shows, as
+# `main`'s `potentialShortcutPadAction` does: a source on a patched param opens its cable-strength page; a held source
+# and a second one open the range page; the active source's pad pressed again takes its second layer (ENV1 -> ENV3);
+# on an item that takes no source, (15,0) does nothing and (15,1..3) are the randomizer shortcuts. Run on the
+# ShellMenu card, and once with ShellMenu off as the control.
+100   snapshot boot
+300   button Shift down
+400   pad 6 0 down
+440   pad 6 0 up
+500   button Shift up
+1200  snapshot volume
+2200  button Shift down
+2300  pad 15 1 down
+2340  pad 15 1 up
+2400  button Shift up
+3100  snapshot velocity-strength
+4100  button Shift down
+4200  pad 15 1 down
+4240  pad 15 1 up
+4300  button Shift up
+5000  snapshot velocity-again
+6000  button Shift down
+6100  pad 15 1 down
+6200  pad 15 2 down
+6240  pad 15 2 up
+6280  pad 15 1 up
+6300  button Shift up
+7000  snapshot range
+8000  button Shift down
+8100  pad 3 7 down
+8140  pad 3 7 up
+8200  button Shift up
+8900  snapshot osc-sync
+9900  button Shift down
+10000 pad 15 0 down
+10040 pad 15 0 up
+10100 button Shift up
+10800 snapshot osc-sync-aftertouch
+11800 button Shift down
+11900 pad 6 4 down
+11940 pad 6 4 up
+12000 button Shift up
+12700 snapshot synth-mode
+13700 button Shift down
+13800 pad 15 2 down
+13840 pad 15 2 up
+13900 button Shift up
+14600 snapshot synth-mode-random
+15600 button Shift down
+15700 pad 8 7 down
+15740 pad 8 7 up
+15800 button Shift up
+16500 snapshot lpf
+17500 button Shift down
+17600 pad 14 6 down
+17640 pad 14 6 up
+17700 button Shift up
+18400 snapshot env1-strength
+19400 button Shift down
+19500 pad 14 6 down
+19540 pad 14 6 up
+19600 button Shift up
+20300 snapshot env3-strength
+21300 button Back down
+21320 button Back up
+22000 snapshot closed
