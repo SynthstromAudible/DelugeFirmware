@@ -162,6 +162,12 @@ public:
 		return head_.load(std::memory_order_relaxed) == tail_.load(std::memory_order_acquire);
 	}
 
+	/// @brief [task] [audio] How many elements are queued as of this call. Like `empty()`, it can go stale the
+	///        instant the other side pushes or pops; exact while that side cannot run.
+	[[nodiscard]] std::size_t size() const noexcept {
+		return tail_.load(std::memory_order_acquire) - head_.load(std::memory_order_acquire);
+	}
+
 	/// @brief Compile-time capacity (the `N` template parameter).
 	[[nodiscard]] static constexpr std::size_t capacity() noexcept { return N; }
 

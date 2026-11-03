@@ -304,6 +304,7 @@ void AutoParam::setCurrentValueInResponseToUserInput(int32_t value, ModelStackWi
 
 			{
 				AudioExcludedSection section;
+				deluge::modulation::reserveForRecordedWrite(modelStack->doc()->nodes);
 				if (address) {
 					event.lane = *address;
 				}

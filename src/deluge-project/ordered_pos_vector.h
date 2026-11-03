@@ -250,6 +250,8 @@ public:
 
 	// Standard container surface
 	[[nodiscard]] size_t size() const { return elements_.size(); }
+	/// @brief How many elements fit before an insert reallocates.
+	[[nodiscard]] size_t capacity() const { return elements_.capacity(); }
 	[[nodiscard]] bool empty() const { return elements_.empty(); }
 	/// @brief The elements are destroyed outside the section: only the buffer handover is masked.
 	void clear() {

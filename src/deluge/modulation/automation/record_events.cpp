@@ -20,6 +20,7 @@
 #include "model/project_bridge/param_stack.h"
 #include "modulation/automation/auto_param.h"
 #include "util/spsc_ring.h"
+#include <algorithm>
 #include <cstddef>
 
 namespace deluge::modulation {
@@ -28,6 +29,7 @@ namespace deluge::modulation {
 uint32_t recordWritesOutsideExecutor = 0;
 uint32_t recordRingFullFallbacks = 0;
 uint32_t renderUndoCalls = 0;
+uint32_t renderNodeGrowths = 0;
 #endif
 
 namespace {
@@ -35,6 +37,14 @@ namespace {
 constexpr std::size_t kRecordEventCapacity = 64;
 util::SpscRing<RecordEvent, kRecordEventCapacity> g_recordEvents;
 } // namespace
+
+void reserveForRecordedWrite(project::ParamNodeVector& nodes) {
+	const auto room = static_cast<size_t>(kNodesPerRecordedWrite) * (g_recordEvents.size() + 1);
+	if (nodes.capacity() < nodes.size() + room) {
+		// Grown by at least its size, so a run of writes copies the nodes a logarithmic number of times.
+		(void)nodes.reserveExtra(static_cast<int32_t>(std::max(room, nodes.size())));
+	}
+}
 
 bool postRecordEvent(const RecordEvent& event) {
 	return g_recordEvents.try_push(event);
@@ -49,7 +59,16 @@ void applyRecordEvents(::Song& song) {
 		}
 		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 		if (ModelStackWithAutoParam* stack = bridge::paramStackOnRender(song, event.lane, memory)) {
-			stack->autoParam->writeRecordedValue(*stack->doc(), event);
+			project::DocAutoParam& lane = *stack->doc();
+#if ALPHA_OR_BETA_VERSION
+			const size_t capacity = lane.nodes.capacity();
+#endif
+			stack->autoParam->writeRecordedValue(lane, event);
+#if ALPHA_OR_BETA_VERSION
+			if (lane.nodes.capacity() != capacity) {
+				++renderNodeGrowths;
+			}
+#endif
 		}
 	}
 }

@@ -27,6 +27,7 @@
 
 #include "definitions_cxx.hpp"
 #include "deluge-project/param_address.h"
+#include "deluge-project/param_node.h"
 #include <cstdint>
 
 class Song;
@@ -52,6 +53,14 @@ struct RecordEvent {
 	bool backtrackingCouldLoopBack{false};
 };
 
+/// @brief [task] The nodes one recorded write can add to its lane: the cleared region's two edges, and one the latch
+/// may add where its override ends.
+inline constexpr int32_t kNodesPerRecordedWrite = 3;
+
+/// @brief [task] Make room in @p nodes for a recorded write and for every write still queued, so the render does not
+/// grow the vector when it writes them. With the render excluded.
+void reserveForRecordedWrite(project::ParamNodeVector& nodes);
+
 /// @brief [task] Queue @p event for the render.
 /// @return false when the queue is full: the caller, with the render excluded, writes the queue and then its event.
 [[nodiscard]] bool postRecordEvent(const RecordEvent& event);
@@ -68,6 +77,8 @@ extern uint32_t recordWritesOutsideExecutor;
 extern uint32_t recordRingFullFallbacks;
 /// `ActionLogger::getNewAction` and `Action::recordParamChange` calls made on the render tier.
 extern uint32_t renderUndoCalls;
+/// Recorded writes the render had to grow a lane's node vector for: the reserved room ran out.
+extern uint32_t renderNodeGrowths;
 #endif
 
 } // namespace deluge::modulation

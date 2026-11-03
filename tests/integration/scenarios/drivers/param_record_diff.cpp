@@ -17,9 +17,9 @@
 // driver makes each one active and armed; a song without the clip kind prints `case <name> none`.
 //
 // A recorded value reaches its lane when the render next starts a block, so the driver starts one (marked as the
-// render's) after each write and around each latch tick. Two probes ride along on stderr: no recorded write makes the
-// render log undo (the latch still does, for now), and 70 writes with no block between them, past the render's queue,
-// leave the lane as the same writes a block apart do.
+// render's) after each write and around each latch tick. Probes ride along on stderr: no recorded write makes the
+// render log undo (the latch still does, for now) or grow a node vector, and 70 writes with no block between them, past
+// the render's queue, leave the lane as the same writes a block apart do.
 //
 // Exit: 0 = ran + dumped; 1 = load error; 2 = usage/IO; 3 = setup precondition or a probe failed.
 //
@@ -186,6 +186,26 @@ bool renderLoggedUndo([[maybe_unused]] uint32_t before, [[maybe_unused]] const c
 	return false;
 }
 
+/// Whether the render grew a lane's node vector for a recorded write since @p before.
+bool renderGrewNodes([[maybe_unused]] uint32_t before, [[maybe_unused]] const char* name) {
+#if ALPHA_OR_BETA_VERSION
+	if (deluge::modulation::renderNodeGrowths != before) {
+		std::fprintf(io.err, "%s: the render grew a node vector %u times\n", name,
+		             static_cast<unsigned>(deluge::modulation::renderNodeGrowths - before));
+		return true;
+	}
+#endif
+	return false;
+}
+
+uint32_t renderNodeGrowthsNow() {
+#if ALPHA_OR_BETA_VERSION
+	return deluge::modulation::renderNodeGrowths;
+#else
+	return 0;
+#endif
+}
+
 uint32_t renderUndoCallsNow() {
 #if ALPHA_OR_BETA_VERSION
 	return deluge::modulation::renderUndoCalls;
@@ -231,8 +251,10 @@ void clipCase(const char* name, ModelStackWithAutoParam* msap, Clip* clip, bool 
 	std::fprintf(io.out, "case %s len=%ld\n", name, (long)clip->loopLength());
 	dumpParam("initial", msap);
 	const uint32_t undoBefore = renderUndoCallsNow();
+	const uint32_t growthsBefore = renderNodeGrowthsNow();
 	recordScript(msap, clip->loopLength(), mpe);
 	probeFailed |= renderLoggedUndo(undoBefore, name);
+	probeFailed |= renderGrewNodes(growthsBefore, name);
 	dumpParam("after-record", msap);
 	actionLogger.closeAction(ActionType::RECORD);
 	actionLogger.revert(BEFORE, false, false);
@@ -282,6 +304,7 @@ void burstCase(Song* song, InstrumentClip* clip, ModelStackWithAutoParam* lane) 
 		actionLogger.revert(BEFORE, false, false);
 		return nodes;
 	};
+	const uint32_t growthsBefore = renderNodeGrowthsNow();
 	const std::vector<ParamNode> apart = record(true);
 #if ALPHA_OR_BETA_VERSION
 	const uint32_t fallbacksBefore = deluge::modulation::recordRingFullFallbacks;
@@ -307,6 +330,7 @@ void burstCase(Song* song, InstrumentClip* clip, ModelStackWithAutoParam* lane) 
 	std::fprintf(io.err, "burst: %s, %zu/%zu nodes, %u written by the interaction tier\n", same ? "same" : "DIFFERENT",
 	             apart.size(), burst.size(), static_cast<unsigned>(fallbacks));
 	probeFailed |= !same || apart.empty();
+	probeFailed |= renderGrewNodes(growthsBefore, "burst");
 	(void)song;
 }
 
@@ -484,8 +508,10 @@ int param_record_diff_main(int argc, char** argv, Io driverIo) {
 	undoState.value = ap.getCurrentValue();
 
 	const uint32_t undoBefore = renderUndoCallsNow();
+	const uint32_t growthsBefore = renderNodeGrowthsNow();
 	recordScript(msap, 0, false);
 	probeFailed |= renderLoggedUndo(undoBefore, "song-global");
+	probeFailed |= renderGrewNodes(growthsBefore, "song-global");
 	dumpParam("after-record", msap);
 
 	// The engine edit method also writes the owner's DOM store scalar, so save can read the store. After the recorded
