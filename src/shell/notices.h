@@ -79,10 +79,9 @@ public:
 	uint8_t popup_type() const { return popup_type_; }
 
 	void render_oled(SurfaceRole role, ui::oled::OledFrame& frame) override;
-	/// @brief Never transparent on `Main`: a shown popup draws its whole box (border or cleared
-	///        interior, per style) over whatever the scene below left there, so the shell need
-	///        not re-render the scene below just to keep this surface current. Every other
-	///        surface is untouched, so the scene below should still draw it.
+	/// @brief Transparent on every surface: legacy draws a popup onto the image the UI beneath left
+	///        (`OLED::sendMainImage`, `hid/display/oled.cpp:364-376`), so around its window the screen
+	///        still shows that UI, and the shell has to draw the scene below first.
 	bool oled_transparent(SurfaceRole role) const override;
 	/// @brief A grid overlay that paints nothing.
 	///

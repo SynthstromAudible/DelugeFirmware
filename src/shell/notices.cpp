@@ -116,11 +116,13 @@ void PopupScene::render_oled(SurfaceRole role, ui::oled::OledFrame& frame) {
 	if (role != SurfaceRole::Main) {
 		return;
 	}
-	ui::oled::popup_text(frame, text_, style_for(popup_type_));
+	// Legacy draws a popup on the whole canvas, so a tall window's top border lands on a row above `visible_top`.
+	ui::oled::OledFrame panel = ui::oled::panel_frame(frame);
+	ui::oled::popup_text(panel, text_, style_for(popup_type_));
 }
 
-bool PopupScene::oled_transparent(SurfaceRole role) const {
-	return role != SurfaceRole::Main;
+bool PopupScene::oled_transparent(SurfaceRole /*role*/) const {
+	return true;
 }
 
 void ConsoleScene::append(std::string_view line, uint32_t now_ms, uint8_t popup_type) {

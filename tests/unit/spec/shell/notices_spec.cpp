@@ -393,6 +393,14 @@ describe shell_notices("shell::Notices", $ {
 		expect(std::string(r.notices.last_popup_text())).to_equal(std::string("SECOND")); // updated in place
 	});
 
+	it("a popup is drawn over what the scene beneath shows on the OLED, as legacy's is composited", _ {
+		// `OLED::sendMainImage` (`hid/display/oled.cpp:364-376`) draws a popup onto the image the UI beneath left, so
+		// around the popup's window the screen still shows that UI. Transparent on Main is what makes the shell's
+		// walk draw the scene beneath first.
+		Rig r;
+		expect(r.popup.oled_transparent(SurfaceRole::Main)).to_be_true();
+	});
+
 	it("every notice scene is a passive grid overlay that never takes input", _ {
 		Rig r;
 		// The shell picks the grid base as the topmost scene that is *not* a grid overlay and
@@ -713,6 +721,16 @@ describe shell_notices("shell::Notices", $ {
 		r.notices.drain(r.queue, 0);
 		expect(r.stack.depth()).to_equal(size_t(1));
 		expect(r.stack.top().kind() == SceneKind::Working).to_be_true();
+	});
+
+	it("draws a popup tall enough to reach above the visible rows there, as legacy's does", _ {
+		// Three lines put the window's top border on canvas row 4, above the 48-row panel's `visible_top` (5).
+		// `main` draws it there (`parity-card/c11-kit-long-press/popup`): legacy's popup draws on the whole canvas.
+		deluge::ui::test::Rig48 rig;
+		PopupScene popup;
+		popup.show("CAN ONLY IMPORT WHOLE FOLDER INTO BRAND-NEW KIT", /*popup_type=*/1, 0, 800);
+		popup.render_oled(SurfaceRole::Main, rig.frame);
+		expect(rig.lit(10, 4)).to_be_true();
 	});
 
 	it("renders the popup goldens at both geometries", _ {
