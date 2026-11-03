@@ -15,7 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #include "synth/sources/dx7/dx7_source.h"
-#include "dsp-next/core/q31_ops.h" // multiply_32x32_rshift32
+#include "dsp-next/core/fixed_point.h"
+#include "dsp-next/core/stereo_sample.h"
 #include <span>
 
 namespace deluge::synth {
@@ -29,19 +30,28 @@ SourceRenderResult DX7Source::render(const SourceBlock& block) {
 		return SourceRenderResult::UNASSIGN;
 	}
 
-	int32_t source_amplitude_now = block.source_amplitude;
+	using dsp::Q;
+	// The DX7's sample is Q24, full scale 2^24, and mixes in at a quarter of the buffer's Q31 full scale: its word is
+	// read as Q26. The source amplitude is a Q31 gain, stepped before each sample; the buffer's sums wrap.
+	Q<31> amplitude = Q<31>::from_raw(block.source_amplitude);
+	const Q<31> step = Q<31>::from_raw(block.amplitude_increment);
 	if (block.stereo_unison) {
+		const Q<30> amplitude_l = Q<30>::from_raw(block.amplitude_l);
+		const Q<30> amplitude_r = Q<30>::from_raw(block.amplitude_r);
 		for (int i = 0; i < block.num_samples; i++) {
-			source_amplitude_now += block.amplitude_increment;
-			int amplified = multiply_32x32_rshift32(fm[i], source_amplitude_now) << 6;
-			block.osc_buffer[(i << 1)] += multiply_32x32_rshift32(amplified, block.amplitude_l) << 2;
-			block.osc_buffer[(i << 1) + 1] += multiply_32x32_rshift32(amplified, block.amplitude_r) << 2;
+			amplitude = add_wrap(amplitude, step);
+			const auto amplified = mul_as_wrap<Q<31>>(Q<26>::from_raw(fm[i]), amplitude);
+			const dsp::StereoSample panned = dsp::panned_mono(amplified.raw(), amplitude_l, amplitude_r);
+			auto* frame = &block.osc_buffer[i << 1];
+			frame[0] = add_wrap(Q<31>::from_raw(frame[0]), Q<31>::from_raw(panned.l)).raw();
+			frame[1] = add_wrap(Q<31>::from_raw(frame[1]), Q<31>::from_raw(panned.r)).raw();
 		}
 	}
 	else {
 		for (int i = 0; i < block.num_samples; i++) {
-			source_amplitude_now += block.amplitude_increment;
-			block.osc_buffer[i] += multiply_32x32_rshift32(fm[i], source_amplitude_now) << 6;
+			amplitude = add_wrap(amplitude, step);
+			const auto amplified = mul_as_wrap<Q<31>>(Q<26>::from_raw(fm[i]), amplitude);
+			block.osc_buffer[i] = add_wrap(Q<31>::from_raw(block.osc_buffer[i]), amplified).raw();
 		}
 	}
 	return SourceRenderResult::ACTIVE;
