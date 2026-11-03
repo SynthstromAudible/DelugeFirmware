@@ -43,6 +43,7 @@
 #include "dsp-next/fixed/dx7/algorithms.h"
 #include "dsp-next/fixed/dx7/envelope.h"
 #include "dsp-next/fixed/dx7/graph.h"
+#include "dsp-next/fixed/dx7/lfo.h"
 #include "dsp-next/fixed/dx7/lfo_delay.h"
 #include "dsp-next/fixed/dx7/lookup.h"
 #include "dsp-next/fixed/dx7/patch.h"
@@ -236,12 +237,12 @@ bool Voice<Noise>::render_block(const Settings& s, Buffer out, const BlockInputs
 	int32_t lfo_val = in.lfo_value;
 
 	// pitch: the LFO's depth after its delay, at the patch's sensitivity, plus the pitch envelope. The depths are a
-	// byte scaled to 0 to 257, Q8.
+	// byte (0 to 99) scaled to 0 to 255, Q8.
 	const int32_t pitch_depth = (p[kPitchModDepth] * 165) >> 6;
 	const int32_t pitch_sens = kPitchModSens[p[kPitchModSensitivity] & 7];
 	const uint32_t pmd = static_cast<uint32_t>(pitch_depth) * static_cast<uint32_t>(lfo_delay); // Q8 × Q24: Q32
-	// The LFO about its middle, times the sensitivity (0 to 7): an integer product, Q24.
-	const int32_t senslfo = pitch_sens * sub_wrap(Q<24>::from_raw(lfo_val), q<24>(0.5)).raw();
+	// The LFO about its middle, times the sensitivity's table value (0 to 255): an integer product, Q24.
+	const int32_t senslfo = pitch_sens * sub_wrap(Q<24>::from_raw(lfo_val), Lfo::kMiddle).raw();
 	// The Q32 depth times the Q24 swing, scaled to the pitch's Q24 octaves by the sensitivity's table: a 64-bit
 	// integer scaling. |pmd · senslfo| < 2^32 · 2^31, so the shifted product is under 2^24 and abs never meets
 	// INT32_MIN.
@@ -284,7 +285,8 @@ bool Voice<Noise>::render_block(const Settings& s, Buffer out, const BlockInputs
 			const auto ldiff =
 			    static_cast<uint32_t>((static_cast<uint64_t>(level.raw()) * (static_cast<uint64_t>(pt) << 4)) >> 28);
 			level = sub_wrap(level, Q<24>::from_raw(static_cast<int32_t>(ldiff)));
-			level = add_wrap(level, Q<24>::from_raw((ams >> 16) * in.amp_mod)); // AMS steps of amp_mod's doublings
+			level = add_wrap(
+			    level, Q<24>::from_raw((ams >> 16) * in.amp_mod)); // amp_mod times the sensitivity's Q8 table value
 		}
 		// velocity sensitivity (0 to 7) steps of vel_mod's doublings
 		graph.level_in[op] = add_wrap(level, Q<24>::from_raw(p[off + 15] * in.vel_mod)).raw();

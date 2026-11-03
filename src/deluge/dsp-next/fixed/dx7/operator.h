@@ -253,7 +253,7 @@ struct Operator {
 		else {
 			// The level in 1/1024 doublings, below kEnvMax: an attenuation, integer.
 			gain1 = op.gain_out == 0 ? kEnvMax - 1 : op.gain_out;
-			gain2 = kEnvMax - (c.level_in >> (28 - 14));
+			gain2 = kEnvMax - as_floor<Q<10>>(Q<24>::from_raw(c.level_in)).raw();
 		}
 		// The rounded per-sample step, (gain2 − gain1 + n/2) / n by the block's reciprocal: integer in either unit.
 		return {gain1, gain2, div_n(wrapping_add(wrapping_sub(gain2, gain1), len >> 1), inv_n)};

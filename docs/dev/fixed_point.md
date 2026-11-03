@@ -243,7 +243,7 @@ instructions.
 - **FFT:** the values are Q31 sample words, unscaled, and every stage's sums wrap. A vector product is a Q31 value
   times a Q31 twiddle, `mul_doubling_sat` on `QVec<31>` (`mul_doubling_r_sat` in the 16-point inverse); the 8-point
   inverse's √½ is the exact product floored to Q31 (`narrow_floor_wrap(mul_wide)`), and its real split sums two Q30
-  high words (`mul`) and reads the sum back as Q31. The real DFT accumulates its rounded high words at Q30 (`mla_r`).
+  high words (`mul`) and moves the sum to Q31 (`as_wrap`, the top bit wrapping). The real DFT accumulates its rounded high words at Q30 (`mla_r`).
 - **DX7:** a `Phase` is `Q<24>`, 2^24 per cycle, wrapping; a frequency, a modulation or a sample added to a phase is
   in the same format. The modern sample is the Q24 sine times the Q24 linear gain (`narrow_floor_wrap(mul_wide)`);
   the four-lane operator converts its Q24 gains and Q22 half-cycle positions to float and its product back with the

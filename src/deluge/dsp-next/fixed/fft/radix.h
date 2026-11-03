@@ -62,7 +62,7 @@
 /// every sum and difference wraps. Every vector product is a Q31 value times a Q31 twiddle, the saturating doubling
 /// high half (@ref twiddled), truncating except in the 16-point inverse, which rounds (@ref twiddled_r). The scalar
 /// 8-point paths differ: the 8-point inverse multiplies by √½ as the exact product floored to Q31, and its real split
-/// sums two Q30 high words and then doubles the sum back to Q31, both wrapping. Each kernel computes its values from
+/// sums two Q30 high words and moves the sum to Q31, its top bit wrapping. Each kernel computes its values from
 /// the same operands in the same order the recorded transforms were made with, so they match bit for bit.
 namespace deluge::dsp::fixed::fft::detail {
 
@@ -135,16 +135,6 @@ struct Two {
 [[nodiscard, gnu::always_inline]] inline int32_t times_sqrt_half(int32_t x) {
 	constexpr Q<31> kSqrtHalf = Q<31>::from_raw(1518500249);
 	return narrow_floor_wrap<Q<31>>(mul_wide(Q<31>::from_raw(x), kSqrtHalf)).raw();
-}
-
-/// @brief Q31 @p a × Q31 @p b in Q30: the product's high word, truncated.
-[[nodiscard, gnu::always_inline]] inline int32_t high_product(int32_t a, int32_t b) {
-	return mul(Q<31>::from_raw(a), Q<31>::from_raw(b)).raw();
-}
-
-/// @brief A Q30 sum of two @ref high_product results in Q31: @p x doubled, the bit shifted out of the top wrapping.
-[[nodiscard, gnu::always_inline]] inline int32_t doubled(int32_t x) {
-	return as_wrap<Q<31>>(Q<30>::from_raw(x)).raw();
 }
 
 /// @brief Writes complex value @p k of an interleaved (r, i) output: the caller's sample words, written as words.
@@ -663,8 +653,13 @@ template <Direction D>
 		const int32_t fek_i = wrapping_add(fk.i, fnkc.i);
 		const int32_t tmp_r = wrapping_sub(fk.r, fnkc.r);
 		const int32_t tmp_i = wrapping_sub(fk.i, fnkc.i);
-		const int32_t fok_r = doubled(wrapping_add(high_product(tmp_r, tw[k - 1].r), high_product(tmp_i, tw[k - 1].i)));
-		const int32_t fok_i = doubled(wrapping_sub(high_product(tmp_i, tw[k - 1].r), high_product(tmp_r, tw[k - 1].i)));
+		// Q31 × Q31 twiddle in Q30 high words; their sum moves to Q31, its top bit wrapping.
+		const Q<31> t_r = Q<31>::from_raw(tmp_r);
+		const Q<31> t_i = Q<31>::from_raw(tmp_i);
+		const Q<31> w_r = Q<31>::from_raw(tw[k - 1].r);
+		const Q<31> w_i = Q<31>::from_raw(tw[k - 1].i);
+		const int32_t fok_r = as_wrap<Q<31>>(add_wrap(mul(t_r, w_r), mul(t_i, w_i))).raw();
+		const int32_t fok_i = as_wrap<Q<31>>(sub_wrap(mul(t_i, w_r), mul(t_r, w_i))).raw();
 		dst[k] = {wrapping_add(fek_r, fok_r), wrapping_add(fek_i, fok_i)};
 		dst[ncfft - k] = {wrapping_sub(fek_r, fok_r), wrapping_sub(fok_i, fek_i)};
 	}

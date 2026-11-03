@@ -251,7 +251,7 @@ private:
 	/// one. The mask is a bit operation on the phase, so it stays raw.
 	[[nodiscard]] [[gnu::always_inline]] static QVec<22> position(Phases at) {
 		const QVec<22> in_half = QVec<22>::from_raw(Argon<int32_t>{at.raw()} & Argon<int32_t>{0x7fffff});
-		return sub_wrap(in_half, QVec<22>::splat(Q<22>::from_raw(0x400000)));
+		return sub_wrap(in_half, QVec<22>::splat(q<22>(1.0)));
 	}
 
 	/// @brief @p v as it is, hidden from the optimiser, so a sum of it is not reassociated with what made it.

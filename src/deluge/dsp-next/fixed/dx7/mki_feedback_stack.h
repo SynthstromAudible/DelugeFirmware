@@ -130,7 +130,7 @@ struct MkIFeedbackStack {
 		b.dgain[0] = g.dgain;
 		s.op[0].gain_out = g.gain2;
 		for (std::size_t k = 1; k < N; ++k) {
-			const int32_t gain_out = kEnvMax - (c.level_in[k] >> (28 - 14));
+			const int32_t gain_out = kEnvMax - as_floor<Q<10>>(Q<24>::from_raw(c.level_in[k])).raw();
 			const int32_t start = gain_out == 0 ? kEnvMax - 1 : gain_out;
 			s.op[k].gain_out = gain_out;
 			s.loop.gain[k] = start;
@@ -146,9 +146,9 @@ struct MkIFeedbackStack {
 	/// @brief One sample down the stack.
 	/// @return The last op's sample, which is also the next sample's feedback.
 	[[nodiscard]] [[gnu::always_inline]] static q31 step(const Coefficients& c, const Block& b, Loop& l) {
-		// The last two samples' sum, scaled down by a run-time shift, so raw. The attenuations are integer.
+		// The last two samples' sum, scaled down by a run-time shift, so raw.
 		const Phase scaled = Phase::from_raw(wrapping_add(l.feedback.y0, l.feedback.y1) >> (c.feedback_shift + 1));
-		l.gain[0] = wrapping_add(l.gain[0], b.dgain[0]);
+		l.gain[0] = wrapping_add(l.gain[0], b.dgain[0]); // the attenuations are integer
 		l.feedback.y0 = l.feedback.y1;
 		q31 y =
 		    mki_sin(*c.tables, add_wrap(Phase::from_raw(l.phase[0]), scaled).raw(), static_cast<uint16_t>(l.gain[0]));

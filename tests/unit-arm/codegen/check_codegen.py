@@ -109,6 +109,8 @@ EXACT = {
 # Operand text that must appear in the body: the immediates a wrong width or shift would change.
 OPERANDS = {
     "probe_vec_scale_shl_wrap_3": ["#0x3"],
+    "probe_vec_to_float_24": ["#0x18"],
+    "probe_vec_from_float_24": ["#0x18"],
     "probe_vec_scale_shr_floor_3": ["#0x3"],
     "probe_vec_as_floor_3": ["#0x3"],
     "probe_vec_add_scale_shr_floor_4": ["#0x4"],

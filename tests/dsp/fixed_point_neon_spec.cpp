@@ -270,29 +270,22 @@ std::uint32_t bits(float x) {
 	return std::bit_cast<std::uint32_t>(x);
 }
 
-/// A float vector's lanes, stored: a lane read from a const vector does not compile.
-std::array<float, 4> stored(Argon<float> v) {
-	std::array<float, 4> lanes{};
-	v.StoreTo(lanes.data());
-	return lanes;
-}
-
 /// Mismatches between the vector fixed↔float conversions at Q<F> and the scalar ones, over edge values and floats
 /// out of range, NaN and below the format's LSB.
 template <int F>
 std::size_t float_mismatches() {
 	constexpr std::array<std::int32_t, 8> kRaw{0, 1, -1, 1 << 22, -(1 << 23), INT32_MAX, INT32_MIN, 3 << 20};
-	const std::array<float, 8> floats{1.5F,       200.F,       -200.F, std::numeric_limits<float>::quiet_NaN(),
-	                                  0x1.8p-25F, -0x1.8p-25F, -0.F,   4.5e9F};
+	const std::array<float, 8> floats{1.5F,       200.F,       -4.5e9F, std::numeric_limits<float>::quiet_NaN(),
+	                                  0x1.8p-25F, -0x1.8p-25F, -0.F,    4.5e9F};
 	std::size_t bad = 0;
 	for (std::size_t base = 0; base < 8; base += 4) {
 		const Argon<float> as_float = to_float(vec<F>(Argon<std::int32_t>::Load(kRaw.data() + base)));
-		const auto as_float_lanes = stored(as_float);
 		const auto back = from_float<F>(as_float);
 		const auto from = from_float<F>(Argon<float>::Load(floats.data() + base));
 		for (std::size_t i = 0; i < 4; ++i) {
-			bad += bits(as_float_lanes[i]) != bits(to_float(q<F>(kRaw[base + i]))) ? 1 : 0;
-			bad += back.lane(i).raw() != from_float<F>(as_float_lanes[i]).raw() ? 1 : 0;
+			const auto lane = static_cast<float>(as_float[i]);
+			bad += bits(lane) != bits(to_float(q<F>(kRaw[base + i]))) ? 1 : 0;
+			bad += back.lane(i).raw() != from_float<F>(lane).raw() ? 1 : 0;
 			bad += from.lane(i).raw() != from_float<F>(floats[base + i]).raw() ? 1 : 0;
 		}
 	}
