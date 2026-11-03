@@ -17,12 +17,12 @@
 
 #pragma once
 
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/mode.h"
-#include "dsp-next/core/q31_ops.h"
+#include "dsp-next/core/q31_ops.h" // kOneQ31
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/core/types.h"
-#include "dsp-next/core/wrapping.h"
 #include "dsp-next/fixed/bandlimited/waves.h"
 #include "dsp-next/fixed/noise/cong.h"
 #include "dsp-next/fixed/osc/sine_table.h"
@@ -92,7 +92,7 @@ struct ModFx {
 		uint32_t rate;            ///< The main LFO's increment, UQ0.32.
 		uint32_t rate2;           ///< The second warbler's increment, UQ0.32.
 		int32_t delay_offset;     ///< The tap's centre, 16.16 frames.
-		int32_t delay_depth;      ///< The tap's swing, 16.16 frames per unit LFO.
+		int32_t delay_depth;      ///< The tap's swing, Q17: the Q31 LFO times it is 16.16 frames.
 		int32_t feedback;         ///< Q31.
 		int32_t depth;            ///< The phaser's depth, Q31.
 		int32_t volume_gain;      ///< The post-FX volume's multiplier, Q31.
@@ -123,9 +123,12 @@ struct ModFx {
 
 	/// @return The coefficients for @p s: today's setup arithmetic for the mode's type.
 	[[nodiscard]] static Coefficients coefficients(const Settings& s) {
+		// The rate's bits read as Q31 (0.97 × a rate below 2^31), the product's as the UQ0.32 increment.
+		const auto rate2 =
+		    reinterpret_bits<UQ<32>>(mul_as_wrap<Q<31>>(Q<31>::from_raw(s.rate), Q<31>::from_raw(kWarbleWidth)));
 		Coefficients c{
 		    .rate = static_cast<uint32_t>(s.rate),
-		    .rate2 = static_cast<uint32_t>(multiply_32x32_rshift32(s.rate, kWarbleWidth) << 1),
+		    .rate2 = rate2.raw(),
 		    .delay_offset = 0,
 		    .delay_depth = 0,
 		    .feedback = 0,
@@ -134,29 +137,43 @@ struct ModFx {
 		    .volume_shift = 1,
 		    .mode = s.mode,
 		};
+		const auto depth = Q<31>::from_raw(s.depth);
 		if (is_chorus_like(s.mode)) {
-			c.delay_offset = multiply_32x32_rshift32(kMaxDelay, (s.offset >> 1) + 1073741824);
-			c.delay_depth = multiply_32x32_rshift32(c.delay_offset, s.depth) << 2;
+			// The offset knob as [0, 1); the Q15 product with the 16.16 longest delay is read as 16.16, so the centre
+			// runs to half the ring. The swing is the centre times the depth, at Q17.
+			const Q<31> knob = add_wrap(halve_floor(Q<31>::from_raw(s.offset)), Q<31>::from_raw(1 << 30));
+			const auto centre = reinterpret_bits<Q<16>>(mul(Q<16>::from_raw(kMaxDelay), knob));
+			c.delay_offset = centre.raw();
+			c.delay_depth = as_wrap<Q<17>>(mul(centre, depth)).raw();
 			return c;
 		}
-		const int32_t a = s.feedback >> 1;
-		const int32_t b = 2147483647 - ((a + 1073741824) >> 2) * 3;
-		const int32_t b2 = multiply_32x32_rshift32(b, b);
-		const int32_t b3 = multiply_32x32_rshift32(b, b2);
-		c.feedback = static_cast<int32_t>(2147483648LL - (b3 << 2));
-		// The volume cut at high feedback.
-		const int32_t squared = multiply_32x32_rshift32(c.feedback, c.feedback) << 1;
-		int32_t squared2 = multiply_32x32_rshift32(squared, squared) << 1;
-		squared2 = multiply_32x32_rshift32(squared2, squared) << 1;
-		squared2 = (multiply_32x32_rshift32(squared2, squared2) >> 4) * 23;
-		c.volume_gain = 2147483647 - squared2;
+		// The feedback 1 − b³, b running from 1 down to a quarter as the knob rises: 2^31 less the cube at Q31, as
+		// min less it wrapping.
+		// Raw: an integer scale of the knob's quarter by 3.
+		const auto b = Q<31>::from_raw(2147483647 - (((s.feedback >> 1) + 1073741824) >> 2) * 3);
+		const Q<29> b3 = mul(b, mul(b, b));
+		const Q<31> feedback = sub_wrap(Q<31>::min(), as_wrap<Q<31>>(b3));
+		c.feedback = feedback.raw();
+		// The volume cut at high feedback: 1 − 23/32 × the feedback's twelfth power.
+		const auto squared = mul_as_wrap<Q<31>>(feedback, feedback);
+		const auto fourth = mul_as_wrap<Q<31>>(squared, squared);
+		const auto sixth = mul_as_wrap<Q<31>>(fourth, squared);
+		const Q<30> twelfth = mul(sixth, sixth);
+		// Raw: an integer scale of the Q30 power's bits by 23/16, read as Q31 (so 23/32 of it).
+		c.volume_gain = sub_wrap(Q<31>::max(), Q<31>::from_raw((twelfth.raw() >> 4) * 23)).raw();
 		if (s.mode == Mode::FLANGER || s.mode == Mode::FLANGER_MONO) {
+			// The 16.16 amplitude read as Q17, half of it, so the LFO's ±1 swings from the shortest delay to the
+			// longest.
 			c.delay_offset = kFlangerOffset;
 			c.delay_depth = kFlangerAmplitude;
 		}
 		else if (s.mode == Mode::WARBLE || s.mode == Mode::WARBLE_MONO) {
-			c.delay_offset = kFlangerOffset + multiply_32x32_rshift32(kFlangerOffset, s.offset);
-			c.delay_depth = multiply_32x32_rshift32(c.delay_offset, s.depth) << 1;
+			// The Q15 product read as 16.16: the offset knob moves the centre by up to half of it either way. The
+			// swing is the centre times the depth at Q16, read as Q17: half the chorus's.
+			const auto base = Q<16>::from_raw(kFlangerOffset);
+			const Q<16> centre = add_wrap(base, reinterpret_bits<Q<16>>(mul(base, Q<31>::from_raw(s.offset))));
+			c.delay_offset = centre.raw();
+			c.delay_depth = as_wrap<Q<16>>(mul(centre, depth)).raw();
 		}
 		else { // PHASER
 			c.volume_shift = 0;
@@ -167,7 +184,8 @@ struct ModFx {
 	/// @return @p volume after the mode's gain: what the owner multiplies its post-FX volume by, whether or not the
 	/// block renders.
 	[[nodiscard]] [[gnu::always_inline]] static int32_t post_fx_volume(const Coefficients& c, int32_t volume) {
-		return multiply_32x32_rshift32(volume, c.volume_gain) << c.volume_shift;
+		// Raw: a run-time shift, 1 or 0 (the phaser).
+		return mul(Q<31>::from_raw(volume), Q<31>::from_raw(c.volume_gain)).raw() << c.volume_shift;
 	}
 
 	/// @brief Zeroes the main warbler when the mode's wave is not the one the main LFO last stepped.
@@ -262,9 +280,14 @@ private:
 				w.target = static_cast<q31>(noise.next());
 				w.speed = 0;
 			}
-			const int32_t distance = wrapping_sub(w.target, w.held);
-			w.speed = wrapping_add(w.speed, multiply_32x32_rshift32(distance, static_cast<int32_t>(inc >> 8)));
-			w.held = add_saturate(w.held, w.speed);
+			// The spring: the distance to the target (wrapping past 2^31 apart, so the pull then points away from
+			// it), times the increment / 2^8 as a Q31 gain, its Q30 product's bits added to the Q31 speed; the held
+			// value saturates at a rail.
+			const Q<31> distance = sub_wrap(Q<31>::from_raw(w.target), Q<31>::from_raw(w.held));
+			const Q<30> pull = mul(distance, Q<31>::from_raw(static_cast<int32_t>(inc >> 8)));
+			const Q<31> speed = add_wrap(Q<31>::from_raw(w.speed), reinterpret_bits<Q<31>>(pull));
+			w.speed = speed.raw();
+			w.held = add_sat(Q<31>::from_raw(w.held), speed).raw();
 			phase += inc;
 			return w.held;
 		}
@@ -272,13 +295,25 @@ private:
 
 	/// @brief The tap at @p delay (16.16 frames behind the write index) on one channel, interpolated.
 	struct Tap {
-		int32_t strength1; ///< Q31 weight of the nearer slot.
-		int32_t strength2; ///< Q31 weight of the farther slot.
-		int32_t pos;       ///< The nearer slot's unmasked index.
+		Q<31> strength1; ///< The nearer slot's weight.
+		Q<31> strength2; ///< The farther slot's weight.
+		int32_t pos;     ///< The nearer slot's unmasked index.
 	};
 	[[nodiscard]] [[gnu::always_inline]] static Tap tap_at(const State& s, int32_t delay) {
-		const int32_t strength2 = (delay & 65535) << 15;
-		return {.strength1 = (65535 << 15) - strength2, .strength2 = strength2, .pos = s.write - (delay >> 16)};
+		// The delay's 16-bit fraction as the farther slot's weight, the nearer's its complement from 65535.
+		const auto strength2 = as_wrap<Q<31>>(Q<16>::from_raw(delay & 65535));
+		return {.strength1 = sub_wrap(as_wrap<Q<31>>(Q<16>::from_raw(65535)), strength2),
+		        .strength2 = strength2,
+		        .pos = s.write - (delay >> 16)};
+	}
+	/// @return The tap on one channel's ring words: the two slots weighed, Q30.
+	[[nodiscard]] [[gnu::always_inline]] static Q<30> tap_value(const Tap& t, q31 nearer, q31 farther) {
+		return add_wrap(mul_r(Q<31>::from_raw(nearer), t.strength1), mul_r(Q<31>::from_raw(farther), t.strength2));
+	}
+	/// @return The tap's delay at LFO @p lfo: the centre plus the LFO times the swing, 16.16 frames.
+	[[nodiscard]] [[gnu::always_inline]] static int32_t tap_delay(const Coefficients& c, int32_t lfo) {
+		return add_wrap(mul(Q<31>::from_raw(lfo), Q<17>::from_raw(c.delay_depth)), Q<16>::from_raw(c.delay_offset))
+		    .raw();
 	}
 
 	/// @brief One ring-mode frame: LFOs, taps, the ring write, the mix.
@@ -298,44 +333,50 @@ private:
 					[[maybe_unused]] const int32_t second_warbler =
 					    lfo<Wave::WARBLER>(s.phase2, s.warbler2, c.rate2, noise);
 				}
-				return wrapping_sub(0, lfo1);
+				return neg_wrap(Q<31>::from_raw(lfo1)).raw();
 			}
 		}();
 		StereoSample* const ring = s.ring;
-		Tap t = tap_at(s, multiply_32x32_rshift32(lfo1, c.delay_depth) + c.delay_offset);
-		int32_t out_l = multiply_32x32_rshift32_rounded(ring[t.pos & kRingMask].l, t.strength1)
-		                + multiply_32x32_rshift32_rounded(ring[(t.pos - 1) & kRingMask].l, t.strength2);
+		Tap t = tap_at(s, tap_delay(c, lfo1));
+		const Q<30> tap_l = tap_value(t, ring[t.pos & kRingMask].l, ring[(t.pos - 1) & kRingMask].l);
 		if constexpr (kOwnRightTap) {
-			t = tap_at(s, multiply_32x32_rshift32(lfo2, c.delay_depth) + c.delay_offset);
+			t = tap_at(s, tap_delay(c, lfo2));
 		}
-		int32_t out_r = multiply_32x32_rshift32_rounded(ring[t.pos & kRingMask].r, t.strength1)
-		                + multiply_32x32_rshift32_rounded(ring[(t.pos - 1) & kRingMask].r, t.strength2);
+		const Q<30> tap_r = tap_value(t, ring[t.pos & kRingMask].r, ring[(t.pos - 1) & kRingMask].r);
 
+		const auto feedback = Q<31>::from_raw(c.feedback);
+		const auto x_l = Q<31>::from_raw(x.l);
+		const auto x_r = Q<31>::from_raw(x.r);
+		Q<31> out_l{};
+		Q<31> out_r{};
 		StereoSample& slot = ring[s.write];
 		if constexpr (M == Mode::FLANGER || M == Mode::FLANGER_MONO) {
-			out_l = multiply_32x32_rshift32_rounded(out_l, c.feedback) << 2;
-			slot.l = wrapping_add(out_l, x.l);
-			out_r = multiply_32x32_rshift32_rounded(out_r, c.feedback) << 2;
-			slot.r = wrapping_add(out_r, x.r);
+			// The tap times the feedback, Q29, lifted to Q31 and written back over the input.
+			out_l = mul_r_as_wrap<Q<31>>(tap_l, feedback);
+			slot.l = add_wrap(out_l, x_l).raw();
+			out_r = mul_r_as_wrap<Q<31>>(tap_r, feedback);
+			slot.r = add_wrap(out_r, x_r).raw();
 		}
 		else if constexpr (kWarble) {
-			slot.l = wrapping_add(multiply_32x32_rshift32_rounded(out_l, c.feedback), x.l);
-			slot.r = wrapping_add(multiply_32x32_rshift32_rounded(out_r, c.feedback), x.r);
-			out_l <<= 1;
-			out_r <<= 1;
+			// The Q29 product's bits are written back as Q31: a quarter of the flanger's feedback.
+			slot.l = add_wrap(reinterpret_bits<Q<31>>(mul_r(tap_l, feedback)), x_l).raw();
+			slot.r = add_wrap(reinterpret_bits<Q<31>>(mul_r(tap_r, feedback)), x_r).raw();
+			out_l = as_wrap<Q<31>>(tap_l);
+			out_r = as_wrap<Q<31>>(tap_r);
 		}
 		else {
-			out_l <<= 1;
+			out_l = as_wrap<Q<31>>(tap_l);
 			slot.l = x.l;
-			out_r <<= 1;
+			out_r = as_wrap<Q<31>>(tap_r);
 			slot.r = x.r;
 		}
 		s.write = (s.write + 1) & kRingMask;
 		if constexpr (M == Mode::DIMENSION || kWarble) {
-			return {.l = out_l << 1, .r = out_r << 1};
+			// The wet signal alone, doubled, wrapping.
+			return {.l = scale_shl_wrap<1>(out_l).raw(), .r = scale_shl_wrap<1>(out_r).raw()};
 		}
 		else {
-			return {.l = wrapping_add(x.l, out_l), .r = wrapping_add(x.r, out_r)};
+			return {.l = add_wrap(x_l, out_l).raw(), .r = add_wrap(x_r, out_r).raw()};
 		}
 	}
 
@@ -343,21 +384,26 @@ private:
 	[[nodiscard]] [[gnu::always_inline]] static StereoSample phaser_step(const Coefficients& c, State& s,
 	                                                                     StereoSample x, Noise& noise) {
 		const int32_t lfo1 = lfo<Wave::SINE>(s.phase, s.warbler, c.rate, noise);
-		// "1" is about 2^30 here.
-		const int32_t a1 = wrapping_sub(
-		    1073741824, multiply_32x32_rshift32_rounded(
-		                    static_cast<int32_t>((static_cast<uint32_t>(lfo1) + 2147483648U) >> 1), c.depth));
-		const int32_t minus_a1 = wrapping_sub(0, a1);
-		s.phaser.l = wrapping_add(x.l, multiply_32x32_rshift32_rounded(s.phaser.l, c.feedback) << 1);
-		s.phaser.r = wrapping_add(x.r, multiply_32x32_rshift32_rounded(s.phaser.r, c.feedback) << 1);
+		// The allpass coefficient, Q30: one less the LFO offset to [0, 1) times the depth.
+		// Raw: the LFO offset to [0, 1) by an unsigned add and a halving.
+		const auto lfo_unit = Q<31>::from_raw(static_cast<int32_t>((static_cast<uint32_t>(lfo1) + 2147483648U) >> 1));
+		const Q<30> a1 = sub_wrap(Q<30>::one(), mul_r(lfo_unit, Q<31>::from_raw(c.depth)));
+		const Q<30> minus_a1 = neg_wrap(a1);
+		const auto feedback = Q<31>::from_raw(c.feedback);
+		Q<31> phaser_l = add_wrap(Q<31>::from_raw(x.l), mul_r_as_wrap<Q<31>>(Q<31>::from_raw(s.phaser.l), feedback));
+		Q<31> phaser_r = add_wrap(Q<31>::from_raw(x.r), mul_r_as_wrap<Q<31>>(Q<31>::from_raw(s.phaser.r), feedback));
+		// Each stage's products, Q31 × Q30, are Q29, lifted to Q31.
 		for (StereoSample& stage : s.allpass) {
-			const StereoSample in = s.phaser;
-			s.phaser.l = wrapping_add(multiply_32x32_rshift32_rounded(s.phaser.l, minus_a1) << 2, stage.l);
-			stage.l = wrapping_add(multiply_32x32_rshift32_rounded(s.phaser.l, a1) << 2, in.l);
-			s.phaser.r = wrapping_add(multiply_32x32_rshift32_rounded(s.phaser.r, minus_a1) << 2, stage.r);
-			stage.r = wrapping_add(multiply_32x32_rshift32_rounded(s.phaser.r, a1) << 2, in.r);
+			const Q<31> in_l = phaser_l;
+			const Q<31> in_r = phaser_r;
+			phaser_l = add_wrap(mul_r_as_wrap<Q<31>>(phaser_l, minus_a1), Q<31>::from_raw(stage.l));
+			stage.l = add_wrap(mul_r_as_wrap<Q<31>>(phaser_l, a1), in_l).raw();
+			phaser_r = add_wrap(mul_r_as_wrap<Q<31>>(phaser_r, minus_a1), Q<31>::from_raw(stage.r));
+			stage.r = add_wrap(mul_r_as_wrap<Q<31>>(phaser_r, a1), in_r).raw();
 		}
-		return {.l = wrapping_add(x.l, s.phaser.l), .r = wrapping_add(x.r, s.phaser.r)};
+		s.phaser = {.l = phaser_l.raw(), .r = phaser_r.raw()};
+		return {.l = add_wrap(Q<31>::from_raw(x.l), phaser_l).raw(),
+		        .r = add_wrap(Q<31>::from_raw(x.r), phaser_r).raw()};
 	}
 };
 
