@@ -159,6 +159,8 @@ name of the scalar operation with the same per-lane meaning:
 | `mul_doubling_wide_sat` | sat(2 × a × b): `Q16Half<A>` × `Q16Half<B>` → `QVec<A+B+1>` | `vqdmull.s16` |
 | `mla_doubling_wide_sat` | sat(acc + sat(2 × a × b)), the same formats | `vqdmlal.s16` |
 | `mla_wide` | acc + a × b, wrapping: `Q16Half<A>` × `Q16Half<B>` → `QVec<A+B>` | `vmlal.s16` |
+| `to_float` | `QVec<F>` → `Argon<float>`, each lane rounded to nearest once | `vcvt.f32.s32 #F` |
+| `from_float<F>` | `Argon<float>` → `QVec<F>`, truncating toward zero, saturating, NaN to 0 | `vcvt.s32.f32 #F` |
 
 A kernel keeps `Argon` at its interface and converts with `from_raw` and `raw()`, so its callers are unchanged.
 Helpers private to one family of kernels may pass the vectors between themselves: the windowed sinc's `SincWindow`
@@ -238,6 +240,19 @@ instructions.
 - **Granular:** the grain sum is Q28 (tap × Q31 window × Q30 pan), lifted to Q31; the ring's feedback takes the
   input's bits as the Q30 accumulator; the output is `add_sat`. The window's rise, grain sizes and pitch steps stay
   integer.
+- **FFT:** the values are Q31 sample words, unscaled, and every stage's sums wrap. A vector product is a Q31 value
+  times a Q31 twiddle, `mul_doubling_sat` on `QVec<31>` (`mul_doubling_r_sat` in the 16-point inverse); the 8-point
+  inverse's √½ is the exact product floored to Q31 (`narrow_floor_wrap(mul_wide)`), and its real split sums two Q30
+  high words (`mul`) and reads the sum back as Q31. The real DFT accumulates its rounded high words at Q30 (`mla_r`).
+- **DX7:** a `Phase` is `Q<24>`, 2^24 per cycle, wrapping; a frequency, a modulation or a sample added to a phase is
+  in the same format. The modern sample is the Q24 sine times the Q24 linear gain (`narrow_floor_wrap(mul_wide)`);
+  the four-lane operator converts its Q24 gains and Q22 half-cycle positions to float and its product back with the
+  vector `to_float` and `from_float<24>`. Levels are Q24 doublings (an envelope's microsteps are Q8, the pitch
+  envelope's bytes Q5 octaves), the LFO's phase `UQ<32>` and its wave Q24, the amplitude depth Q8 times the Q24
+  delay. MkI's attenuations, the gain ramps' reciprocal steps, the rate and level tables, the run-time feedback
+  shift, the phase masks and sign tests, and the MIDI scalings stay integer; `neon_fm_kernel.s` is assembly, its
+  register map pinned by `dx7_asm_pin_spec`. The DX7 source mixes the Q24 sample into the Q31 buffer at a quarter of
+  full scale, reading its word as Q26.
 - **Buffers and frame fields** stay raw `q31` until the kernels that read them use the named operations; each
   kernel's interface stays raw and converts at its entry and exit.
 
