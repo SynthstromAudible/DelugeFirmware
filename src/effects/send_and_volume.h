@@ -26,9 +26,9 @@
 
 namespace deluge::effects {
 
-/// @brief One block's send and volume: the volumes and send the owner resolved (Q31, 134217728 is unity for the
-/// volumes), its pan (Q31, 0 is the centre), whether to ramp the post-reverb volume from the last block's, and whether
-/// the engine renders in stereo (pan applies only then).
+/// @brief One block's send and volume: the volumes the owner resolved (Q27: 2^27 unity), its Q31 send, its pan (Q31, 0
+/// is the centre), whether to ramp the post-reverb volume from the last block's, and whether the engine renders in
+/// stereo (pan applies only then).
 struct SendAndVolumeParams {
 	int32_t post_fx_volume{0};
 	int32_t post_reverb_volume{0};

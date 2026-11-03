@@ -45,10 +45,10 @@ struct MasterPostInputs {
 	dsp::fixed::FilterScratch filter_scratch; ///< The audio tier's filter scratch.
 	dsp::fixed::Cong* noise = nullptr; ///< The synth's noise stream the filter draws from. Never null once built.
 	BitcrushParams bitcrush;
-	int32_t master_volume; ///< The volume before the filter's compensation, Q31.
+	int32_t master_volume; ///< The volume before the filter's compensation, Q27: 2^27 unity.
 	bool do_pan;           ///< Whether the pan applies: off the centre, in stereo, and not a no-op.
-	int32_t pan_l;         ///< The left gain when it does, Q29.
-	int32_t pan_r;         ///< The right gain when it does, Q29.
+	int32_t pan_l;         ///< The left gain when it does, Q30: 2^30 unity (pan_amplitudes).
+	int32_t pan_r;         ///< The right gain when it does, Q30: 2^30 unity (pan_amplitudes).
 	int32_t song_volume;   ///< The song volume's final, Q31; the compressor's makeup takes it >> 3.
 	Stutter* stutter;      ///< The song's stutter while the master is the one stuttering, else null.
 	uint32_t stutter_rate; ///< The stutter's rate on the delay's rate scale (16777216 neutral).

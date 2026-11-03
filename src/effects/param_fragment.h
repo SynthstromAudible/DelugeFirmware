@@ -16,6 +16,7 @@
  */
 #pragma once
 
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/fixed/curves/param_curve.h"
 #include "plugin-api/types/param_mapping.h"
 
@@ -60,7 +61,8 @@ struct EffectParam {
 	case dsp::fixed::ParamCurve::EXPONENTIAL_INVERTED:
 		return dsp::fixed::curve_exponential(neutral, -combination);
 	case dsp::fixed::ParamCurve::RELEASE_TABLE:
-		return multiply_32x32_rshift32(neutral, dsp::fixed::release_rate(combination));
+		// The neutral times the release rate, Q31 of the table's scale: the high word, the neutral's units halved.
+		return mul(dsp::Q<31>::from_raw(neutral), dsp::Q<31>::from_raw(dsp::fixed::release_rate(combination))).raw();
 	}
 	return word;
 }
