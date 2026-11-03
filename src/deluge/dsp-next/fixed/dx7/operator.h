@@ -77,6 +77,7 @@
 
 #pragma once
 
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/mode.h"
 #include "dsp-next/core/types.h"
@@ -111,6 +112,10 @@ enum class Output : uint8_t {
 	SET, ///< Replaces it.
 	ADD, ///< Adds to it.
 };
+
+/// @brief A phase: 2^24 per cycle, wrapping modulo 2^32, so 1.0 in Q24 is one cycle. A frequency is a phase step, and
+/// a modulation or a sample added to a phase is in the same format.
+using Phase = Q<24>;
 
 /// @brief An operator's state carried across blocks, and across changes of engine and input.
 struct OperatorState {
@@ -241,13 +246,16 @@ struct Operator {
 		int32_t gain1 = 0;
 		int32_t gain2 = 0;
 		if (engine_of(c.mode) == Engine::MODERN) {
+			// The level in Q24 doublings, 14 doublings down, is the exp2's input: a linear Q24 gain.
 			gain1 = op.gain_out;
-			gain2 = exp2_lookup(*c.tables, wrapping_sub(c.level_in, 14 * (1 << 24)));
+			gain2 = exp2_lookup(*c.tables, sub_wrap(Q<24>::from_raw(c.level_in), q<24>(14.0)).raw());
 		}
 		else {
+			// The level in 1/1024 doublings, below kEnvMax: an attenuation, integer.
 			gain1 = op.gain_out == 0 ? kEnvMax - 1 : op.gain_out;
-			gain2 = kEnvMax - (c.level_in >> (28 - 14));
+			gain2 = kEnvMax - as_floor<Q<10>>(Q<24>::from_raw(c.level_in)).raw();
 		}
+		// The rounded per-sample step, (gain2 − gain1 + n/2) / n by the block's reciprocal: integer in either unit.
 		return {gain1, gain2, div_n(wrapping_add(wrapping_sub(gain2, gain1), len >> 1), inv_n)};
 	}
 
@@ -282,28 +290,30 @@ struct Operator {
 	template <Mode M>
 	[[nodiscard]] [[gnu::always_inline]] static q31 step(const Coefficients& c, const Block& b, Loop& l, q31 modulation,
 	                                                     q31 accumulator) {
-		l.gain = wrapping_add(l.gain, b.dgain);
-		q31 at = l.phase;
+		l.gain = wrapping_add(l.gain, b.dgain); // a Q24 gain or an attenuation, by the engine: integer either way
+		Phase at = Phase::from_raw(l.phase);
 		if constexpr (input_of(M) == Input::BUS) {
-			at = wrapping_add(at, modulation);
+			at = add_wrap(at, Phase::from_raw(modulation));
 		}
 		else if constexpr (input_of(M) == Input::FEEDBACK) {
-			at = wrapping_add(at, wrapping_add(l.feedback.y0, l.feedback.y1) >> (c.feedback_shift + 1));
+			// The last two samples' sum, scaled down by a run-time shift, so raw.
+			at = add_wrap(at, Phase::from_raw(wrapping_add(l.feedback.y0, l.feedback.y1) >> (c.feedback_shift + 1)));
 			l.feedback.y0 = l.feedback.y1;
 		}
 		q31 y = 0;
 		if constexpr (engine_of(M) == Engine::MODERN) {
-			y = static_cast<q31>((static_cast<int64_t>(sin_lookup(*c.tables, at)) * l.gain) >> 24);
+			const Q<24> sine = Q<24>::from_raw(sin_lookup(*c.tables, at.raw()));
+			y = narrow_floor_wrap<Q<24>>(mul_wide(sine, Q<24>::from_raw(l.gain))).raw();
 		}
 		else {
-			y = mki_sin(*c.tables, at, static_cast<uint16_t>(l.gain));
+			y = mki_sin(*c.tables, at.raw(), static_cast<uint16_t>(l.gain));
 		}
 		if constexpr (input_of(M) == Input::FEEDBACK) {
 			l.feedback.y1 = y;
 		}
-		l.phase = wrapping_add(l.phase, c.freq);
+		l.phase = add_wrap(Phase::from_raw(l.phase), Phase::from_raw(c.freq)).raw();
 		if constexpr (output_of(M) == Output::ADD) {
-			return wrapping_add(accumulator, y);
+			return add_wrap(Q<24>::from_raw(accumulator), Q<24>::from_raw(y)).raw();
 		}
 		return y;
 	}

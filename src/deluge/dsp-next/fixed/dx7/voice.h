@@ -37,11 +37,13 @@
 #pragma once
 
 #include "dsp-next/core/control.h"
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/types.h"
 #include "dsp-next/core/wrapping.h"
 #include "dsp-next/fixed/dx7/algorithms.h"
 #include "dsp-next/fixed/dx7/envelope.h"
 #include "dsp-next/fixed/dx7/graph.h"
+#include "dsp-next/fixed/dx7/lfo.h"
 #include "dsp-next/fixed/dx7/lfo_delay.h"
 #include "dsp-next/fixed/dx7/lookup.h"
 #include "dsp-next/fixed/dx7/patch.h"
@@ -234,23 +236,29 @@ bool Voice<Noise>::render_block(const Settings& s, Buffer out, const BlockInputs
 	const int32_t lfo_delay = lfo_delay_.advance(n);
 	int32_t lfo_val = in.lfo_value;
 
-	// pitch: the LFO's depth after its delay, at the patch's sensitivity, plus the pitch envelope
+	// pitch: the LFO's depth after its delay, at the patch's sensitivity, plus the pitch envelope. The depths are a
+	// byte (0 to 99) scaled to 0 to 255, Q8.
 	const int32_t pitch_depth = (p[kPitchModDepth] * 165) >> 6;
 	const int32_t pitch_sens = kPitchModSens[p[kPitchModSensitivity] & 7];
-	const uint32_t pmd = static_cast<uint32_t>(pitch_depth) * static_cast<uint32_t>(lfo_delay); // Q32
-	const int32_t senslfo = pitch_sens * (lfo_val - (1 << 23));
-	// |pmd · senslfo| < 2^32 · 2^31, so the shifted product is under 2^24 and abs never meets INT32_MIN
+	const uint32_t pmd = static_cast<uint32_t>(pitch_depth) * static_cast<uint32_t>(lfo_delay); // Q8 × Q24: Q32
+	// The LFO about its middle, times the sensitivity's table value (0 to 255): an integer product, Q24.
+	const int32_t senslfo = pitch_sens * sub_wrap(Q<24>::from_raw(lfo_val), Lfo::kMiddle).raw();
+	// The Q32 depth times the Q24 swing, scaled to the pitch's Q24 octaves by the sensitivity's table: a 64-bit
+	// integer scaling. |pmd · senslfo| < 2^32 · 2^31, so the shifted product is under 2^24 and abs never meets
+	// INT32_MIN.
 	const int32_t pmod = std::abs(static_cast<int32_t>((static_cast<int64_t>(pmd) * senslfo) >> 39));
-	int32_t pitch_mod = pitch_env_.advance(n) + (pmod * (senslfo < 0 ? -1 : 1));
-	pitch_mod += in.base_pitch;
+	// Q24 octaves, each well inside the word: the envelope's ±4, the LFO's under 1 and the note's.
+	const Q<24> pitch_mod =
+	    add_wrap(add_wrap(Q<24>::from_raw(pitch_env_.advance(n)), Q<24>::from_raw(pmod * (senslfo < 0 ? -1 : 1))),
+	             Q<24>::from_raw(in.base_pitch));
 
 	// amplitude: the LFO's depth after its delay, inverted, no shallower than the envelope's floor
-	lfo_val = (1 << 24) - lfo_val;
+	const Q<24> lfo_inverted = sub_wrap(Q<24>::one(), Q<24>::from_raw(lfo_val));
 	const int32_t amp_depth = (p[kAmpModDepth] * 165) >> 6;
-	uint32_t amd_mod = static_cast<uint32_t>((static_cast<int64_t>(amp_depth) * lfo_delay) >> 8); // Q24
-	amd_mod = static_cast<uint32_t>((static_cast<int64_t>(amd_mod) * lfo_val) >> 24);
-	const uint32_t eg_floor = static_cast<uint32_t>(in.eg_mod + 1) << 17;
-	amd_mod = std::max((1U << 24) - eg_floor, amd_mod);
+	const auto amp_delayed = narrow_floor_wrap<Q<24>>(mul_wide(Q<8>::from_raw(amp_depth), Q<24>::from_raw(lfo_delay)));
+	auto amd_mod = narrow_floor_wrap<Q<24>>(mul_wide(amp_delayed, lfo_inverted));
+	const Q<24> eg_floor = as_wrap<Q<24>>(Q<7>::from_raw(in.eg_mod + 1)); // the floor, 1 to 128 in 1/128
+	amd_mod = std::max(sub_wrap(Q<24>::one(), eg_floor), amd_mod);
 
 	Graph::Settings graph{.engine = s.engine, .algorithm = p[kAlgorithm], .feedback = p[kFeedback], .tables = s.tables};
 	for (std::size_t op = 0; op < 6; ++op) {
@@ -261,20 +269,27 @@ bool Voice<Noise>::render_block(const Settings& s, Buffer out, const BlockInputs
 			std::ignore = env_[op].advance(n);
 			continue;
 		}
-		graph.freq[op] = freq_lookup(*s.tables, p[off + 17] != 0 ? base_pitch_[op] : base_pitch_[op] + pitch_mod);
+		graph.freq[op] =
+		    freq_lookup(*s.tables, p[off + 17] != 0 ? base_pitch_[op]
+		                                            : add_wrap(Q<24>::from_raw(base_pitch_[op]), pitch_mod).raw());
 		with_extra_rate(op, in.rate_mod);
-		int32_t level = env_[op].advance(n);
+		Q<24> level = Q<24>::from_raw(env_[op].advance(n)); // Q24 doublings
 		const auto ams = static_cast<int32_t>(kAmpModSens[p[off + 14] & 3]);
 		if (ams != 0) {
-			const auto sensamp = static_cast<uint32_t>((static_cast<uint64_t>(amd_mod) * ams) >> 24);
+			// The modulation depth through the sensitivity's table, then the device's float curve: integer and
+			// float scalings as the records pin them, so raw.
+			const auto sensamp =
+			    static_cast<uint32_t>((static_cast<uint64_t>(static_cast<uint32_t>(amd_mod.raw())) * ams) >> 24);
 			const auto pt =
 			    static_cast<uint32_t>(exp(static_cast<double>(static_cast<float>(sensamp) / 262144) * 0.07 + 12.2));
 			const auto ldiff =
-			    static_cast<uint32_t>((static_cast<uint64_t>(level) * (static_cast<uint64_t>(pt) << 4)) >> 28);
-			level = wrapping_sub(level, static_cast<int32_t>(ldiff));
-			level = wrapping_add(level, (ams >> 16) * in.amp_mod);
+			    static_cast<uint32_t>((static_cast<uint64_t>(level.raw()) * (static_cast<uint64_t>(pt) << 4)) >> 28);
+			level = sub_wrap(level, Q<24>::from_raw(static_cast<int32_t>(ldiff)));
+			level = add_wrap(
+			    level, Q<24>::from_raw((ams >> 16) * in.amp_mod)); // amp_mod times the sensitivity's Q8 table value
 		}
-		graph.level_in[op] = wrapping_add(level, p[off + 15] * in.vel_mod);
+		// velocity sensitivity (0 to 7) steps of vel_mod's doublings
+		graph.level_in[op] = add_wrap(level, Q<24>::from_raw(p[off + 15] * in.vel_mod)).raw();
 	}
 	graph_.render_block(graph, out, buses);
 

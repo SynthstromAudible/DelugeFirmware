@@ -41,6 +41,7 @@
 
 #pragma once
 
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/types.h"
 #include "dsp-next/core/wrapping.h"
@@ -129,7 +130,7 @@ struct MkIFeedbackStack {
 		b.dgain[0] = g.dgain;
 		s.op[0].gain_out = g.gain2;
 		for (std::size_t k = 1; k < N; ++k) {
-			const int32_t gain_out = kEnvMax - (c.level_in[k] >> (28 - 14));
+			const int32_t gain_out = kEnvMax - as_floor<Q<10>>(Q<24>::from_raw(c.level_in[k])).raw();
 			const int32_t start = gain_out == 0 ? kEnvMax - 1 : gain_out;
 			s.op[k].gain_out = gain_out;
 			s.loop.gain[k] = start;
@@ -145,15 +146,18 @@ struct MkIFeedbackStack {
 	/// @brief One sample down the stack.
 	/// @return The last op's sample, which is also the next sample's feedback.
 	[[nodiscard]] [[gnu::always_inline]] static q31 step(const Coefficients& c, const Block& b, Loop& l) {
-		const q31 scaled = wrapping_add(l.feedback.y0, l.feedback.y1) >> (c.feedback_shift + 1);
-		l.gain[0] = wrapping_add(l.gain[0], b.dgain[0]);
+		// The last two samples' sum, scaled down by a run-time shift, so raw.
+		const Phase scaled = Phase::from_raw(wrapping_add(l.feedback.y0, l.feedback.y1) >> (c.feedback_shift + 1));
+		l.gain[0] = wrapping_add(l.gain[0], b.dgain[0]); // the attenuations are integer
 		l.feedback.y0 = l.feedback.y1;
-		q31 y = mki_sin(*c.tables, wrapping_add(l.phase[0], scaled), static_cast<uint16_t>(l.gain[0]));
-		l.phase[0] = wrapping_add(l.phase[0], c.freq[0]);
+		q31 y =
+		    mki_sin(*c.tables, add_wrap(Phase::from_raw(l.phase[0]), scaled).raw(), static_cast<uint16_t>(l.gain[0]));
+		l.phase[0] = add_wrap(Phase::from_raw(l.phase[0]), Phase::from_raw(c.freq[0])).raw();
 		util::constexpr_for<1, N, 1>([&]<std::size_t K> [[gnu::always_inline]] () {
 			l.gain[K] = wrapping_add(l.gain[K], b.dgain[K]);
-			y = mki_sin(*c.tables, wrapping_add(l.phase[K], y), static_cast<uint16_t>(l.gain[K]));
-			l.phase[K] = wrapping_add(l.phase[K], c.freq[K]);
+			const Phase at = add_wrap(Phase::from_raw(l.phase[K]), Phase::from_raw(y));
+			y = mki_sin(*c.tables, at.raw(), static_cast<uint16_t>(l.gain[K]));
+			l.phase[K] = add_wrap(Phase::from_raw(l.phase[K]), Phase::from_raw(c.freq[K])).raw();
 		});
 		l.feedback.y1 = y;
 		return y;

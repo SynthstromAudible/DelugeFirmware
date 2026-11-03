@@ -16,9 +16,11 @@
  */
 #include "dsp-next/core/fixed_point_neon.h"
 #include <array>
+#include <bit>
 #include <cppspec.hpp>
 #include <cstddef>
 #include <cstdint>
+#include <limits>
 #include <type_traits>
 #include <utility>
 
@@ -262,6 +264,33 @@ std::size_t half_mismatches() {
 	}
 	return bad;
 }
+
+/// A float's bits, so NaN and −0 compare as themselves.
+std::uint32_t bits(float x) {
+	return std::bit_cast<std::uint32_t>(x);
+}
+
+/// Mismatches between the vector fixed↔float conversions at Q<F> and the scalar ones, over edge values and floats
+/// out of range, NaN and below the format's LSB.
+template <int F>
+std::size_t float_mismatches() {
+	constexpr std::array<std::int32_t, 8> kRaw{0, 1, -1, 1 << 22, -(1 << 23), INT32_MAX, INT32_MIN, 3 << 20};
+	const std::array<float, 8> floats{1.5F,       200.F,       -4.5e9F, std::numeric_limits<float>::quiet_NaN(),
+	                                  0x1.8p-25F, -0x1.8p-25F, -0.F,    4.5e9F};
+	std::size_t bad = 0;
+	for (std::size_t base = 0; base < 8; base += 4) {
+		const Argon<float> as_float = to_float(vec<F>(Argon<std::int32_t>::Load(kRaw.data() + base)));
+		const auto back = from_float<F>(as_float);
+		const auto from = from_float<F>(Argon<float>::Load(floats.data() + base));
+		for (std::size_t i = 0; i < 4; ++i) {
+			const auto lane = static_cast<float>(as_float[i]);
+			bad += bits(lane) != bits(to_float(q<F>(kRaw[base + i]))) ? 1 : 0;
+			bad += back.lane(i).raw() != from_float<F>(lane).raw() ? 1 : 0;
+			bad += from.lane(i).raw() != from_float<F>(floats[base + i]).raw() ? 1 : 0;
+		}
+	}
+	return bad;
+}
 } // namespace
 
 // clang-format off
@@ -314,6 +343,16 @@ describe fixed_point_neon("fixed_point NEON vectors", ${
 		const auto min16 = Q16Half<15>::splat(Q16<15>::min());
 		expect(mul_doubling_wide_sat(min16, min16).lane(0).raw()).to_equal(INT32_MAX);
 		expect(mla_doubling_wide_sat(QVec<31>::splat(Q<31>::min()), min16, min16).lane(1).raw()).to_equal(-1);
+	});
+	it("convert to and from float lane by lane, as the scalar conversions", _ {
+		expect(float_mismatches<22>()).to_equal(std::size_t{0});
+		expect(float_mismatches<24>()).to_equal(std::size_t{0});
+	});
+	it("convert a float to fixed point truncating toward zero, saturating, NaN to 0", _ {
+		const std::array<float, 4> edges{0x1.8p-24F, -0x1.8p-24F, 200.F, std::numeric_limits<float>::quiet_NaN()};
+		const auto x = from_float<24>(Argon<float>::Load(edges.data()));
+		expect(out(x)).to_equal(std::array<std::int32_t, 4>{1, -1, INT32_MAX, 0});
+		expect(from_float<24>(Argon<float>{-200.F}).lane(0).raw()).to_equal(INT32_MIN);
 	});
 	it("splat a lane into every lane", _ {
 		const auto x = Q16x2Vec<15>::splat(Q16x2<15>::from_raw(0x8000'7fffu));
