@@ -140,14 +140,16 @@ Song* load_song(char* xml, size_t xmlLen, deluge::storage::DocumentFormat format
 	return song;
 }
 
-// A comparable snapshot of one param lane: the engine cursor + a copy of the DOM node store.
+// A comparable snapshot of one param lane: the played value, the base (what a save writes) and a copy of the nodes.
 struct Snapshot {
 	int32_t currentValue;
+	int32_t base;
 	std::vector<ParamNode> nodes;
 };
 Snapshot snapshotOf(ModelStackWithAutoParam* msap) {
 	Snapshot s;
 	s.currentValue = msap->autoParam->getCurrentValue();
+	s.base = msap->doc()->current_value;
 	const auto& nodes = msap->doc()->nodes;
 	for (int32_t i = 0; i < std::ssize(nodes); i++) {
 		s.nodes.push_back(nodes[i]);
@@ -155,7 +157,7 @@ Snapshot snapshotOf(ModelStackWithAutoParam* msap) {
 	return s;
 }
 bool equalSnapshot(const Snapshot& a, const Snapshot& b) {
-	if (a.currentValue != b.currentValue || a.nodes.size() != b.nodes.size()) {
+	if (a.currentValue != b.currentValue || a.base != b.base || a.nodes.size() != b.nodes.size()) {
 		return false;
 	}
 	for (size_t i = 0; i < a.nodes.size(); i++) {

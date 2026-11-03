@@ -1727,6 +1727,9 @@ void AutoParam::swapState(AutoParamState* state, ModelStackWithAutoParam const* 
 	int32_t oldValueHere = played_;
 	played_ = state->value;
 	state->value = oldValueHere;
+	const int32_t oldBase = modelStack->doc()->current_value;
+	deluge::project::set_base(*modelStack->doc(), state->base);
+	state->base = oldBase;
 	nodesRef.swap(state->nodes);
 
 	bool automatedNow = isAutomated(*modelStack->doc());

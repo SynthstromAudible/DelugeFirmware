@@ -52,7 +52,8 @@ void applyRecordEvents(::Song& song);
 class AutoParamState {
 public:
 	ParamNodeVector nodes{};
-	int32_t value{};
+	int32_t value{}; ///< the played value
+	int32_t base{};  ///< the lane's base (DocAutoParam::current_value)
 };
 
 struct StolenParamNodes;

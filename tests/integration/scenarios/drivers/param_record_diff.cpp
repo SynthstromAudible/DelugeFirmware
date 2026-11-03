@@ -248,7 +248,25 @@ void tickLatch(ModelStackWithAutoParam* msap, std::span<const int32_t> positions
 	}
 }
 
-// One clip lane: record the script, then undo and redo the take.
+// What a recorded run left: the lane's nodes, base and played value.
+struct Take {
+	std::vector<ParamNode> nodes;
+	int32_t base;
+	int32_t played;
+	bool operator==(const Take& other) const {
+		return base == other.base && played == other.played
+		       && std::ranges::equal(nodes, other.nodes, [](const ParamNode& a, const ParamNode& b) {
+			          return a.pos == b.pos && a.value == b.value && a.interpolated == b.interpolated;
+		          });
+	}
+};
+
+Take takeOf(ModelStackWithAutoParam* lane) {
+	return {
+	    {lane->doc()->nodes.begin(), lane->doc()->nodes.end()}, lane->doc()->current_value, lane->autoParam->played()};
+}
+
+// One clip lane: record the script, then undo the take (which gives back the lane, its base included) and redo it.
 void clipCase(const char* name, ModelStackWithAutoParam* msap, Clip* clip, bool mpe) {
 	if (msap == nullptr || msap->autoParam == nullptr) {
 		std::fprintf(io.out, "case %s none\n", name);
@@ -256,6 +274,7 @@ void clipCase(const char* name, ModelStackWithAutoParam* msap, Clip* clip, bool 
 	}
 	std::fprintf(io.out, "case %s len=%ld\n", name, (long)clip->loopLength());
 	dumpParam("initial", msap);
+	const Take initial = takeOf(msap);
 	const uint32_t undoBefore = renderUndoCallsNow();
 	const uint32_t growthsBefore = renderNodeGrowthsNow();
 	recordScript(msap, clip->loopLength(), mpe);
@@ -270,6 +289,11 @@ void clipCase(const char* name, ModelStackWithAutoParam* msap, Clip* clip, bool 
 	actionLogger.closeAction(ActionType::RECORD);
 	actionLogger.revert(BEFORE, false, false);
 	dumpParam("after-undo", msap);
+	if (!(takeOf(msap) == initial)) {
+		std::fprintf(io.err, "%s: undo left base %ld (was %ld)\n", name, (long)msap->doc()->current_value,
+		             (long)initial.base);
+		probeFailed = true;
+	}
 	actionLogger.revert(AFTER, false, false);
 	dumpParam("after-redo", msap);
 }
@@ -290,35 +314,13 @@ void arm(Clip* clip) {
 	clip->armedForRecording = true;
 }
 
-// What a recorded run left: the lane's nodes, base and played value.
-struct Take {
-	std::vector<ParamNode> nodes;
-	int32_t base;
-	int32_t played;
-	bool operator==(const Take& other) const {
-		return base == other.base && played == other.played
-		       && std::ranges::equal(nodes, other.nodes, [](const ParamNode& a, const ParamNode& b) {
-			          return a.pos == b.pos && a.value == b.value && a.interpolated == b.interpolated;
-		          });
-	}
-};
-
-Take takeOf(ModelStackWithAutoParam* lane) {
-	return {
-	    {lane->doc()->nodes.begin(), lane->doc()->nodes.end()}, lane->doc()->current_value, lane->autoParam->played()};
-}
-
 // Writes made faster than the render's blocks: 70 values with no block between them must leave the lane as the same
 // 70 written one block apart. Each write first writes what is still queued, so the queue never fills. Checked on
 // stderr: the run a block apart is already pinned by the cases above.
 void burstCase(InstrumentClip* clip, ModelStackWithAutoParam* lane) {
 	constexpr int32_t kWrites = 70;
 	const int32_t len = clip->loopLength();
-	// Undo gives back the lane's played value but not its base, which the cleared stretches return to: each run starts
-	// from the same one.
-	const int32_t base = lane->doc()->current_value;
 	auto record = [&](bool blockEach) {
-		lane->autoParam->setBase(*lane->doc(), base);
 		for (int32_t i = 0; i < kWrites; i++) {
 			AudioEngine::audioSampleTimer += 100;
 			lane->autoParam->setCurrentValueInResponseToUserInput((i % 7) * 300000000 - 900000000, lane, true,
@@ -374,10 +376,7 @@ void queuedUndoCase(InstrumentClip* clip, ModelStackWithAutoParam* lane) {
 	actionLogger.revert(BEFORE, false, false);
 	renderBlockStart();
 	const Take after = takeOf(lane);
-	const bool same = before.nodes.size() == after.nodes.size()
-	                  && std::ranges::equal(before.nodes, after.nodes, [](const ParamNode& a, const ParamNode& b) {
-		                     return a.pos == b.pos && a.value == b.value && a.interpolated == b.interpolated;
-	                     });
+	const bool same = before == after;
 	std::fprintf(io.err, "queued-undo: %s, %zu nodes after\n", same ? "undone" : "NOT UNDONE", after.nodes.size());
 	probeFailed |= !same;
 }
@@ -555,6 +554,7 @@ int param_record_diff_main(int argc, char** argv, Io driverIo) {
 	// snapshot an Action holds for undo; swapState(&state) swaps it with the live param.
 	AutoParamState undoState;
 	undoState.value = ap.getCurrentValue();
+	undoState.base = msap->doc()->current_value;
 
 	const uint32_t undoBefore = renderUndoCallsNow();
 	const uint32_t growthsBefore = renderNodeGrowthsNow();

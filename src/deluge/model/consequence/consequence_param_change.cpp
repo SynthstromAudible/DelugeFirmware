@@ -33,6 +33,7 @@ ConsequenceParamChange::ConsequenceParamChange(deluge::project::ParamAddress add
 	type = Consequence::PARAM_CHANGE;
 
 	state.value = modelStack->autoParam->played();
+	state.base = modelStack->doc()->current_value;
 
 	// Either steal the data...
 	if (stealData) {
