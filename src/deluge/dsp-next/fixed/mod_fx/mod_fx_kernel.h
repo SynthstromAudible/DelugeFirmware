@@ -280,10 +280,10 @@ private:
 				w.target = static_cast<q31>(noise.next());
 				w.speed = 0;
 			}
-			// The spring: the distance to the target (wrapping past 2^31 apart, so the pull then points away from
-			// it), times the increment / 2^8 as a Q31 gain, its Q30 product's bits added to the Q31 speed; the held
-			// value saturates at a rail.
-			const Q<31> distance = sub_wrap(Q<31>::from_raw(w.target), Q<31>::from_raw(w.held));
+			// The spring: the distance to the target, saturating so the pull points toward even a target more than
+			// 2^31 away, times the increment / 2^8 as a Q31 gain, its Q30 product's bits added to the Q31 speed; the
+			// held value saturates at a rail.
+			const Q<31> distance = sub_sat(Q<31>::from_raw(w.target), Q<31>::from_raw(w.held));
 			const Q<30> pull = mul(distance, Q<31>::from_raw(static_cast<int32_t>(inc >> 8)));
 			const Q<31> speed = add_wrap(Q<31>::from_raw(w.speed), reinterpret_bits<Q<31>>(pull));
 			w.speed = speed.raw();

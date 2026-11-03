@@ -2216,8 +2216,8 @@
  "stereo/modfx_warble": {
   "frames": 88200,
   "peak": 336116992,
-  "rms_db": -23.19,
-  "sha256": "0a4605edc948f1814cc40275961c00fa0ce68d50fffe31ba96d5ff9e24e0f045"
+  "rms_db": -23.75,
+  "sha256": "4e87e13b6928857b5358fc2c22d9b637401191a6f154a1291a2092b1f02b275d"
  },
  "stereo/noise_unison": {
   "frames": 88200,

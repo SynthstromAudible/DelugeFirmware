@@ -27,7 +27,9 @@
 ///  - the LFO is a copy of the sine, triangle and warbler waves of `synth/modulation/lfo.h` with the variant's re-seat
 ///  rule;
 ///  - every add or subtract that can wrap is a wrapping one, so the spec's signed-overflow sanitizer sees the same
-///    two's-complement result the target computes.
+///    two's-complement result the target computes;
+///  - the warbler's distance to its target saturates, where the app's wraps and pulls away from a target more than
+///    2^31 off: the one change from the legacy arithmetic.
 
 #pragma once
 
@@ -78,7 +80,9 @@ struct Warbler {
 			target_ = deluge::synth_noise.next();
 			speed_ = 0;
 		}
-		int32_t distance_to_target = wrapping_sub(target_, held_value_);
+		// Fixed: the distance saturates, so a target more than 2^31 away pulls toward it; the legacy wrapping
+		// subtract pulled away.
+		int32_t distance_to_target = subtract_saturate(target_, held_value_);
 		speed_ =
 		    wrapping_add(speed_, num_samples * (multiply_32x32_rshift32(distance_to_target, phase_increment >> 8)));
 		held_value_ = add_saturate(held_value_, speed_);

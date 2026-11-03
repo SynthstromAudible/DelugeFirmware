@@ -233,7 +233,7 @@ instructions.
   product; its envelope multiplies at Q31.
 - **Mod FX:** the tap's swing is Q17 (the Q31 LFO times it is 16.16 frames), its centre 16.16, its weights Q31 and
   the weighed slots Q30; the flanger's feedback is lifted to Q31, the warble's written as Q29 bits read as Q31. The
-  warbler's spring adds a Q30 pull to its Q31 speed, wrapping past 2^31 apart, and `held` saturates. The phaser's
+  warbler's spring adds a Q30 pull to its Q31 speed, its distance saturating, and `held` saturates. The phaser's
   coefficient is Q30. The volume cut's integer scale and the post-FX volume's run-time shift stay raw.
 - **Granular:** the grain sum is Q28 (tap × Q31 window × Q30 pan), lifted to Q31; the ring's feedback takes the
   input's bits as the Q30 accumulator; the output is `add_sat`. The window's rise, grain sizes and pitch steps stay
