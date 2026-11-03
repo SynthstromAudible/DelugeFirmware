@@ -104,6 +104,12 @@ public:
 	void setupShortcutBlink(int32_t x, int32_t y, int32_t frequency, int32_t colour = 0L);
 	bool findPatchedParam(int32_t paramLookingFor, int32_t* xout, int32_t* yout, bool* isSecondLayerParamOut);
 	void updateSourceBlinks(MenuItem* currentItem);
+	/// @name The patching-source blink `updateSourceBlinks` planned for source column @p x (0 or 1), row @p y.
+	/// @{
+	uint8_t sourceShortcutBlinkFrequency(int32_t x, int32_t y) const { return sourceShortcutBlinkFrequencies[x][y]; }
+	uint8_t sourceShortcutBlinkColour(int32_t x, int32_t y) const { return sourceShortcutBlinkColours[x][y]; }
+	bool sourceShortcutBlinkAlternates(int32_t x, int32_t y) const { return source_shortcut_blink_alternates[x][y]; }
+	/// @}
 	void resetSourceBlinks();
 
 	uint8_t navigationDepth{};

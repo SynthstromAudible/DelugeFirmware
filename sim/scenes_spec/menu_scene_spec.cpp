@@ -56,6 +56,7 @@
 
 #include <version.h> // kFirmwareVersionString -- the real firmware_version CustomItem's own draw
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <span>
@@ -2371,23 +2372,25 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 		expect(menu_scene().focused_value() == &nodes::lpf_freq).to_be_true();
 		const uint32_t anchor = menu_scene().state().blink_anchor_ms;
 		const PadFlash pad{kLpfFreqX, kLpfFreqY, FlashColour::Default};
+		// The sources patched to the cutoff flash on the source steps; the param pad is this example's subject.
+		const auto param_flashes = [&] {
+			return static_cast<size_t>(std::ranges::count(r.fake.flashes_sent, pad));
+		};
 
 		// Short of the param step: nothing yet.
 		r.shell.tick(anchor + menu::kSourceBlinkMs - 1);
-		expect(r.fake.flashes_sent.empty()).to_be_true();
+		expect(param_flashes()).to_equal(size_t(0));
 
 		// The scene armed the grid gate for the step edge, so this tick renders with no input and
 		// the flash goes out exactly on it -- `next_timer()`'s fixed 180 ms alone would land late.
 		r.shell.tick(anchor + menu::kSourceBlinkMs);
-		expect(r.fake.flashes_sent.size()).to_equal(size_t(1));
-		expect(!r.fake.flashes_sent.empty() && r.fake.flashes_sent[0] == pad).to_be_true();
+		expect(param_flashes()).to_equal(size_t(1));
 
-		// The rest of the cycle flashes nothing; the next cycle's param step flashes again.
+		// The rest of the cycle flashes nothing there; the next cycle's param step flashes again.
 		r.shell.tick(anchor + menu::kBlinkCycleMs);
-		expect(r.fake.flashes_sent.size()).to_equal(size_t(1));
+		expect(param_flashes()).to_equal(size_t(1));
 		r.shell.tick(anchor + menu::kBlinkCycleMs + menu::kSourceBlinkMs);
-		expect(r.fake.flashes_sent.size()).to_equal(size_t(2));
-		expect(r.fake.flashes_sent.size() == 2 && r.fake.flashes_sent[1] == pad).to_be_true();
+		expect(param_flashes()).to_equal(size_t(2));
 		// No pad of the shell's grid was ever lit for it.
 		expect(r.pad_colour(kLpfFreqX, kLpfFreqY) == RGB{0, 0, 0}).to_be_true();
 	});

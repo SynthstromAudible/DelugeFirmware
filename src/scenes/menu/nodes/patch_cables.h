@@ -120,6 +120,11 @@ public:
 	                                 const deluge::ui::shell::UiContext& ui_ctx, const MenuContext& ctx,
 	                                 MenuState& state) const override;
 	void on_focus(const MenuContext& ctx, MenuState& state) const override;
+	/// The cable under the cursor's destination, as `PatchCables::blinkShortcuts` blinks it (`patch_cables.cpp`).
+	uint8_t patched_param_to_blink(const MenuContext& ctx, const MenuState& state) const override;
+	/// Its source every cycle, and the source whose depth it modulates every fourth.
+	uint8_t source_blink(const MenuContext& ctx, const MenuState& state, PatchSource source,
+	                     deluge::ui::grid::FlashColour& colour) const override;
 };
 
 /// @brief One of the two source pickers -- `source_selection::Regular` / `source_selection::Range`.
@@ -151,6 +156,12 @@ public:
 	void on_focus(const MenuContext& ctx, MenuState& state) const override;
 
 	constexpr Which which() const { return which_; }
+
+	/// `SourceSelection::getIndexOfPatchedParamToBlink` / `shouldBlinkPatchingSourceShortcut`
+	/// (`source_selection.cpp:309-318`): the param, and every source patched to the destination.
+	uint8_t patched_param_to_blink(const MenuContext& ctx, const MenuState& state) const override;
+	uint8_t source_blink(const MenuContext& ctx, const MenuState& state, PatchSource source,
+	                     deluge::ui::grid::FlashColour& colour) const override;
 
 private:
 	Which which_;
@@ -190,6 +201,13 @@ public:
 	deluge::synth::CableTarget learn_descriptor(const MenuContext& ctx, const MenuState& state) const override;
 
 	constexpr Which which() const { return which_; }
+
+	/// `PatchCableStrength::getIndexOfPatchedParamToBlink` (`patch_cable_strength.cpp:284-290`, the volume triple
+	/// folded to POST_FX) and the three classes' `shouldBlinkPatchingSourceShortcut` (`regular.cpp:67-83`,
+	/// `range.cpp:42-56`, `fixed.cpp:35-43`).
+	uint8_t patched_param_to_blink(const MenuContext& ctx, const MenuState& state) const override;
+	uint8_t source_blink(const MenuContext& ctx, const MenuState& state, PatchSource source,
+	                     deluge::ui::grid::FlashColour& colour) const override;
 
 	/// @brief Set the polarity the page shows to @p polarity, and the cable's own where it exists (a SHIFT+turn); a
 	/// cable the page makes later takes it.

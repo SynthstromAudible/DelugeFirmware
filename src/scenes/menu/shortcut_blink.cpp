@@ -17,11 +17,14 @@
 
 #include "scenes/menu/shortcut_blink.h"
 
+#include "scenes/menu/menu_state.h"
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/nodes.h"
+#include "scenes/menu/nodes/patching.h"
 
 #include <algorithm>
 #include <iterator>
+#include <span>
 
 namespace deluge::scenes::menu {
 
@@ -42,6 +45,104 @@ bool blinks_shortcut(const Node& node) {
 	return std::ranges::find(kNoBlinkNodes, &node) == std::ranges::end(kNoBlinkNodes);
 }
 
+/// The flash colour of a pad on the second shortcut layer, or the first's.
+FlashColour layer_colour(bool second_layer) {
+	return second_layer ? FlashColour::Yellow : FlashColour::Default;
+}
+
+/// @brief The sound arm's search for @p item's own pad (`updatePadLightsFor`, `sound_editor.cpp:1150-1168`).
+///
+/// Cell by cell, column-major: a second-layer cell ends the search at once; a first-layer cell takes the pad, except
+/// that an odd column after an earlier pad ends the search while source 1 is not the one edited -- the two
+/// oscillators' columns share their items. Main's reverb-sidechain carve-out (`x == 10 && y < 6 &&
+/// editingReverbSidechain()`) is not here: nothing selects the reverb's sidechain for editing, so it never fires.
+ParamBlink own_pad(const MenuContext& ctx, const Node& item) {
+	const std::span<const Node* const> first = shortcut_layer(ctx.root, false);
+	const std::span<const Node* const> second = shortcut_layer(ctx.root, true);
+	ParamBlink found{};
+	for (uint8_t x = 0; x < kShortcutCols; x++) {
+		for (uint8_t y = 0; y < kShortcutRows; y++) {
+			const size_t cell = (size_t{y} * kShortcutCols) + x;
+			if (second.data() != first.data() && second[cell] == &item) {
+				return ParamBlink{.x = x, .y = y, .valid = true, .freq_mask = 0, .colour = FlashColour::Yellow};
+			}
+			if (first[cell] == &item) {
+				if (found.valid && (x & 1) != 0 && ctx.source_index == 0) {
+					return found;
+				}
+				found = ParamBlink{.x = x, .y = y, .valid = true, .freq_mask = 0, .colour = FlashColour::Default};
+			}
+		}
+	}
+	return found;
+}
+
+/// Whether @p node is the patched param @p p's own item.
+bool is_patched_param(const Node* node, uint8_t p) {
+	return node != nullptr && node->bind.param.kind == deluge::modulation::params::Kind::PATCHED
+	       && node->bind.param.index == p;
+}
+
+/// @brief The pad of patched param @p p, every fourth cycle -- `SoundEditor::findPatchedParam` (`sound_editor.cpp:
+///        1011-1032`): cell by cell, column-major, the first layer before the second at each cell.
+ParamBlink patched_param_pad(MenuContext::Root root, uint8_t p) {
+	if (p == kNoBlink) {
+		return {};
+	}
+	const std::span<const Node* const> first = shortcut_layer(root, false);
+	const std::span<const Node* const> second = shortcut_layer(root, true);
+	for (uint8_t x = 0; x < kShortcutCols; x++) {
+		for (uint8_t y = 0; y < kShortcutRows; y++) {
+			const size_t cell = (size_t{y} * kShortcutCols) + x;
+			for (const bool on_second : {false, true}) {
+				if (is_patched_param((on_second ? second : first)[cell], p)) {
+					return ParamBlink{.x = x, .y = y, .valid = true, .freq_mask = 3, .colour = layer_colour(on_second)};
+				}
+			}
+		}
+	}
+	return {};
+}
+
+/// @brief How @p item blinks @p source's pad: its own answer for a bespoke item, and for a patched param every fourth
+///        cycle when the source is patched to it (`PatchedParam::shouldBlinkPatchingSourceShortcut`).
+uint8_t source_answer(const MenuContext& ctx, const MenuState& state, const Node& item, PatchSource source,
+                      FlashColour& colour) {
+	if (item.custom != nullptr) {
+		return item.custom->source_blink(ctx, state, source, colour);
+	}
+	if (item.bind.param.kind == deluge::modulation::params::Kind::PATCHED) {
+		return patching::source_is_patched(ctx, source, deluge::synth::CableTarget::param(item.bind.param.index))
+		           ? 3
+		           : kNoBlink;
+	}
+	return kNoBlink;
+}
+
+/// @brief `SoundEditor::updateSourceBlinks` (`sound_editor.cpp:1034-1064`): each source pad's first-layer source, then
+///        its second-layer one; the lower frequency wins, a second-layer win flashes yellow, and an equal frequency
+///        alternates.
+void plan_sources(const MenuContext& ctx, const MenuState& state, const Node& item, BlinkPlan& plan) {
+	for (uint8_t sx = 0; sx < 2; sx++) {
+		for (uint8_t y = 0; y < kShortcutRows; y++) {
+			SourceBlink& blink = plan.sources[sx][y];
+			blink = SourceBlink{};
+			if (const PatchSource s = patching::mod_source_shortcut(sx, y, false); s < kLastPatchSource) {
+				blink.freq_mask = source_answer(ctx, state, item, s, blink.colour);
+			}
+			if (const PatchSource s = patching::mod_source_shortcut(sx, y, true); s < kLastPatchSource) {
+				FlashColour unused = FlashColour::Default;
+				const uint8_t second = source_answer(ctx, state, item, s, unused);
+				blink.alternates = second != kNoBlink && second == blink.freq_mask;
+				if (second < blink.freq_mask) {
+					blink.freq_mask = second;
+					blink.colour = FlashColour::Yellow;
+				}
+			}
+		}
+	}
+}
+
 } // namespace
 
 bool BlinkPlan::any_source() const {
@@ -50,7 +151,7 @@ bool BlinkPlan::any_source() const {
 	});
 }
 
-BlinkPlan plan_blinks(const MenuContext& ctx, const MenuState& /*state*/, const Node& focused) {
+BlinkPlan plan_blinks(const MenuContext& ctx, const MenuState& state, const Node& focused) {
 	BlinkPlan plan;
 	// `updatePadLightsFor` returns at once under the note and note-row editors and sets nothing up
 	// in the settings menu (`sound_editor.cpp:1029-1036`).
@@ -58,15 +159,29 @@ BlinkPlan plan_blinks(const MenuContext& ctx, const MenuState& /*state*/, const 
 	    || ctx.root == MenuContext::Root::NoteRowEditor || !blinks_shortcut(focused)) {
 		return plan;
 	}
-	const ShortcutPos pos = shortcut_pos(ctx.root, focused);
-	if (pos.valid) {
-		plan.param = ParamBlink{
-		    .x = pos.x,
-		    .y = pos.y,
-		    .valid = true,
-		    .freq_mask = 0,
-		    .colour = pos.second_layer ? FlashColour::Yellow : FlashColour::Default,
-		};
+	if (ctx.root != MenuContext::Root::Sound && ctx.root != MenuContext::Root::Drum) {
+		// The table arms: the item's own pad, every cycle.
+		const ShortcutPos pos = shortcut_pos(ctx.root, focused);
+		if (pos.valid) {
+			plan.param = ParamBlink{
+			    .x = pos.x, .y = pos.y, .valid = true, .freq_mask = 0, .colour = layer_colour(pos.second_layer)};
+		}
+		return plan;
+	}
+	// The sound arm. The range picker blinks for the item it heads to.
+	const Node* item = &focused;
+	if (item == &nodes::multi_range && state.walk.pending_after_range != nullptr) {
+		item = state.walk.pending_after_range;
+	}
+	plan.param = own_pad(ctx, *item);
+	if (!plan.param.valid) {
+		// Failing that, the patched param the item is patching (`:1171-1183`).
+		const uint8_t p = item->custom != nullptr ? item->custom->patched_param_to_blink(ctx, state) : kNoBlink;
+		plan.param = patched_param_pad(ctx.root, p);
+	}
+	// A source never blinks without a param pad (`:1185-1195`).
+	if (plan.param.valid) {
+		plan_sources(ctx, state, *item, plan);
 	}
 	return plan;
 }

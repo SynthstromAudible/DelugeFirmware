@@ -24,6 +24,7 @@
 #include "scenes/bind/target.h"
 #include "synth/modulation/cable.h"  // CustomItem::learn_descriptor -- returned by value
 #include "ui/core/frame_context.h"   // CustomItem::owned_input
+#include "ui/grid/frame.h"           // CustomItem::source_blink
 #include "ui/oled/column_drawings.h" // DrawColumn
 #include "ui/oled/columns.h"         // ArtColumn
 #include "ui/oled/meters.h"
@@ -698,6 +699,20 @@ struct CustomItem {
 	/// @brief Does this item want the LEARN LED blinking while it is focused?
 	///        `MenuItem::shouldBlinkLearnLed` (`sound_editor.cpp:949-954`, `:488-492`).
 	virtual bool wants_learn_blink() const { return false; }
+
+	/// @brief The patched param whose shortcut pad blinks while this item is focused and has no pad of its own --
+	///        `MenuItem::getIndexOfPatchedParamToBlink` (`sound_editor.cpp:1171-1183`).
+	/// @return The param, or 255 for none.
+	virtual uint8_t patched_param_to_blink(const MenuContext& /*ctx*/, const MenuState& /*state*/) const { return 255; }
+
+	/// @brief How the patching-source pad for @p source blinks while this item is focused --
+	///        `MenuItem::shouldBlinkPatchingSourceShortcut` (`sound_editor.cpp:1034-1064`).
+	/// @param colour Set to the flash colour when it is not the default.
+	/// @return The frequency mask (0 every cycle, 3 every fourth), or 255 for no blink.
+	virtual uint8_t source_blink(const MenuContext& /*ctx*/, const MenuState& /*state*/, PatchSource /*source*/,
+	                             deluge::ui::grid::FlashColour& /*colour*/) const {
+		return 255;
+	}
 
 	/// @brief Does the legacy item derive from `Value`, whose select turn uses a held Select press up
 	///        (`Value::selectEncoderAction`, `menu_item/value.h:64-67`)? A list item derived from `MenuItem` or
