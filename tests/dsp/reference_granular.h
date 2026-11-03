@@ -29,6 +29,8 @@
 ///  - the reverb feed (`AudioEngine::feedReverbBackdoorForGrain`) adds into a span argument, wrapping;
 ///  - every add that can wrap is a wrapping one, so the spec's signed-overflow sanitizer sees the same two's-complement
 ///    result the target computes;
+///  - the pitch class's triangle draw is the mean of two draws, where the app's saturating sum clipped a quarter of
+///    them to the rails: the one change from the legacy arithmetic;
 ///  - the pan law and the quick log are dsp-next's own (`pan_amplitudes`, `quick_log`);
 ///  - the unused tempo argument and `grainLastTickCountIsZero` are dropped;
 ///  - counters and read accessors the spec asserts through, which the output does not depend on.
@@ -226,7 +228,9 @@ private:
 	[[nodiscard]] static q31_t sampleTriangleDistribution() {
 		auto u1 = getNoise();
 		auto u2 = getNoise();
-		auto s = add_saturate(u1, u2);
+		// Fixed: the mean of the two draws, the triangle the doc names; the legacy saturating sum clipped a quarter of
+		// the draws to the rails.
+		auto s = (u1 >> 1) + (u2 >> 1);
 		return s;
 	}
 

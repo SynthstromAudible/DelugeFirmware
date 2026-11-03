@@ -329,13 +329,11 @@ private:
 	[[nodiscard]] [[gnu::always_inline]] static int32_t random(Noise& noise, int32_t upper) {
 		return static_cast<uint16_t>(noise.next() >> 16) % (upper + 1);
 	}
-	/// @return The saturating sum of two full-range draws, Q31: a triangle from -2 to 2 clipped to [-1, 1), so about
-	/// a quarter of the draws sit at a rail (an eighth at each), and the rest spread as the triangle's middle. Not the
-	/// triangle from -1 to 1 the two draws' mean would give; the legacy firmware draws it this way.
+	/// @return A triangle distribution from -1 to 1, Q31: the mean of two full-range draws (Irwin–Hall of two).
 	[[nodiscard]] [[gnu::always_inline]] static q31 triangle(Noise& noise) {
 		const auto u1 = Q<31>::from_raw(static_cast<q31>(noise.next()));
 		const auto u2 = Q<31>::from_raw(static_cast<q31>(noise.next()));
-		return add_sat(u1, u2).raw();
+		return add_wrap(halve_floor(u1), halve_floor(u2)).raw();
 	}
 
 	/// @brief Starts the first silent grain, if any, at @p write_index: its spray, direction, pitch, length, window and
@@ -383,7 +381,7 @@ private:
 				g.reverse = true;
 				break;
 			default:
-				g.pitch = 3072; // -4, octave and a fifth, reverse: about a sixth of draws at full randomness
+				g.pitch = 3072; // -4, octave and a fifth, reverse: about 1% of draws at full randomness
 				g.reverse = true;
 				break;
 			}
