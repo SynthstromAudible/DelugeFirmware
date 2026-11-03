@@ -10,6 +10,7 @@
 #include "scenes/menu/nodes/nodes.h"
 #include "scenes/menu/nodes/patch_cables.h"
 #include "scenes/menu/nodes/patching.h"
+#include "scenes/menu/pads.h"
 #include "scenes/menu/shortcut_overlay.h"
 #include "scenes/profile.h"
 #include "scenes/registry.h"
@@ -197,6 +198,20 @@ describe menu_shift_overlay("scenes::MenuScene -- the SHIFT shortcut overlay", $
 		r.shift(false);
 		expect(menu_scene().pad_regions() == PadRegions::None).to_be_true();
 		expect(menu_scene().greyout_mask().cols).to_equal(uint32_t{0});
+	});
+
+	it("greys an instrument clip's settings menu as the clip's, sparing the audition column", _ {
+		// `getGreyoutColsAndRows` decides by the root UI alone: the settings menu over an instrument clip greys all but
+		// the audition column, as the clip's own menus do.
+		select_language();
+		Rig r;
+		MenuContext ctx = r.menu_context();
+		ctx.root = MenuContext::Root::Settings;
+		ctx.addresses.clip.reset(); // the settings context names no clip
+		ctx.root_greyout = MenuContext::RootGreyout::InstrumentClip;
+		menu::MenuState st{};
+		st.path[0] = &nodes::root_settings;
+		expect(menu::greyout_mask(ctx, st).cols).to_equal(uint32_t{0xFFFFFFFE});
 	});
 
 	it("stays up while shift is latched", _ {

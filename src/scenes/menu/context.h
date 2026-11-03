@@ -148,9 +148,10 @@ struct MenuContext {
 	/// @brief The greyout `SoundEditor::getGreyoutColsAndRows` decides by the root UI's type alone
 	///        (`sound_editor.cpp:441-460`), which this layer may not read: the menu's opener sets it.
 	enum class RootGreyout : uint8_t {
-		Menu,         ///< Any other root: the menu's own arms decide.
-		Nothing,      ///< The keyboard screen, or the automation view's editor: grey nothing.
-		SpareSidebar, ///< The automation view outside its editor: grey all but the sidebar.
+		Menu,           ///< Any other root: the menu's own arms decide.
+		Nothing,        ///< The keyboard screen, or the automation view's editor: grey nothing.
+		SpareSidebar,   ///< The automation view outside its editor: grey all but the sidebar.
+		InstrumentClip, ///< An instrument clip view: grey all but the audition column, whatever menu is open.
 	};
 	RootGreyout root_greyout = RootGreyout::Menu;
 

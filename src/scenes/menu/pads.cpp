@@ -273,8 +273,10 @@ deluge::ui::grid::GreyoutMask greyout_mask(const MenuContext& ctx, const MenuSta
 	if (ctx.root == MenuContext::Root::NoteRowEditor) {
 		return {};
 	}
-	if (ctx.addresses.clip && !ctx.is_song_view && !ctx.is_audio_clip) {
-		return {0xFFFFFFFEu, 0}; // `:236` / `:283` INSTRUMENT_CLIP, the plain sound-editor arm
+	// INSTRUMENT_CLIP's plain arm: the opener names the root UI; a context built without one reads it from the clip.
+	if (ctx.root_greyout == MenuContext::RootGreyout::InstrumentClip
+	    || (ctx.addresses.clip && !ctx.is_song_view && !ctx.is_audio_clip)) {
+		return {0xFFFFFFFEu, 0};
 	}
 	// `:252` default -- which is where an AUDIO_CLIP root UI lands too: legacy's switch has no
 	// `UIType::AUDIO_CLIP` case, so an audio clip greys everything including the sidebar. Testing

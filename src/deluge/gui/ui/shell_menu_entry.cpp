@@ -116,6 +116,9 @@ menu::MenuContext resolveContext(Clip* clip, int32_t sourceIndex, bool performan
 		if (root->getUIType() == UIType::KEYBOARD_SCREEN) {
 			ctx.root_greyout = menu::MenuContext::RootGreyout::Nothing;
 		}
+		else if (root->getUIType() == UIType::INSTRUMENT_CLIP) {
+			ctx.root_greyout = menu::MenuContext::RootGreyout::InstrumentClip;
+		}
 		else if (root->getUIType() == UIType::AUTOMATION) {
 			ctx.root_greyout = automationView.inAutomationEditor() ? menu::MenuContext::RootGreyout::Nothing
 			                                                       : menu::MenuContext::RootGreyout::SpareSidebar;
