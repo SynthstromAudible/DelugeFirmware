@@ -33,8 +33,12 @@ add_library(deluge_scenes STATIC
     menu/bindings.cpp
     menu/context.cpp
     menu/chains.cpp
+    menu/learn.cpp
+    menu/menu_core.cpp
     menu/menu_scene.cpp
     menu/present.cpp
+    menu/value_session.cpp
+    menu/voice_usage.cpp
     menu/node_id.cpp
     menu/note_bridge.cpp
     menu/relevance.cpp

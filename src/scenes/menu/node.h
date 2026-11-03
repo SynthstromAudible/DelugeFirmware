@@ -463,7 +463,7 @@ struct CustomItem {
 
 	/// @par The focus hooks: three names, two questions
 	///
-	/// **`on_focus`, `on_focus_backward` and `MenuScene::FocusCause` look like three spellings of one
+	/// **`on_focus`, `on_focus_backward` and `FocusCause` look like three spellings of one
 	/// thing, and a contributor has to learn all of them. They are not one thing** (E3 final review,
 	/// A7). What each answers, and when it fires:
 	///
@@ -472,7 +472,7 @@ struct CustomItem {
 	///   one of the two fires per focus transition; `MenuScene::ascend` runs the backward one
 	///   *instead of* the forward one.
 	/// * **Was there a select press on this node's own row?** -- answered by *one discriminator*,
-	///   `MenuScene::FocusCause`, scoped per item by `on_focus_is_press()`. It is consulted before
+	///   `FocusCause`, scoped per item by `on_focus_is_press()`. It is consulted before
 	///   `on_focus`, and decides whether it runs at all.
 	///
 	/// **Why they are not one mechanism**, in each direction:
@@ -490,7 +490,7 @@ struct CustomItem {
 	/// Rule of thumb: override a hook when the item **does something different**; consult the cause
 	/// when the scene must decide whether the item should act **at all**.
 
-	/// @brief Called when this item becomes the focused node (`MenuScene::enter_leaf`, on `open()`,
+	/// @brief Called when this item becomes the focused node (`ValueSession::enter_leaf`, on `open()`,
 	///        descending into a child, and restoring saved state into a leaf) -- mirroring legacy's
 	///        `MenuItem::beginSession` (`gui/menu_item/menu_item.h`), which every stateful bespoke
 	///        item overrides to (re-)initialise itself before its first render of a visit.
@@ -537,7 +537,7 @@ struct CustomItem {
 	/// @brief Commit whatever this item has been editing -- `MenuItem::writeCurrentValue`, for a
 	///        bespoke item whose value does not live in a `Binding`.
 	///
-	/// The mirror of `on_focus`: `MenuScene::commit_value`'s `Kind::Custom` arm calls it, which is
+	/// The mirror of `on_focus`: `ValueSession::commit`'s `Kind::Custom` arm calls it, which is
 	/// reached from `after_render` when the item set `MenuTick::value_changed` during its render.
 	/// That indirection is the point -- a `CustomItem::render` may not write the model
 	/// (`menu_scene.h`: "never mutates the model from `render_oled`"), so an item that edits a value
@@ -618,7 +618,7 @@ struct CustomItem {
 	/// press on that row behind it -- the jump is a press, but on a grid pad. Legacy guards the same
 	/// case explicitly -- `Toggle::selectButtonPress` returns without toggling when the item is
 	/// already the current one (`gui/menu_item/toggle.h:35-37`), which is precisely "we got here
-	/// without a press on our row". With this true, `MenuScene::enter_leaf` runs `on_focus` only for
+	/// without a press on our row". With this true, `ValueSession::enter_leaf` runs `on_focus` only for
 	/// `FocusCause::RowPress`, whose two values are named for exactly this question.
 	///
 	/// @note The line is **"does it act without a press"**, not "does it do anything". The items

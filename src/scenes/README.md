@@ -588,7 +588,7 @@ deep link onto `start_stem_export` re-filed the export. Legacy guards exactly th
 `Toggle::selectButtonPress` returns without toggling when `soundEditor.getCurrentMenuItem() == this`
 (`gui/menu_item/toggle.h:35-37`), i.e. when it was reached without a press on its row.
 
-The port of that guard is two pieces: `MenuScene::enter_leaf` takes a `FocusCause`
+The port of that guard is two pieces: `ValueSession::enter_leaf` takes a `FocusCause`
 (`RowPress` from `descend_to`, `NoRowPress` from `retarget`, `restore_state` and `ascend` — the
 values are named for the question they answer, "a select press on **this node's own row**?", because
 a shortcut-pad jump is a real press and the old `Restored` said otherwise), and

@@ -123,7 +123,7 @@ public:
 	/// on the linked arm **cleared the user's definition file with no user action**. Legacy guards
 	/// exactly this case and no other: `Toggle::selectButtonPress` returns without toggling when
 	/// `soundEditor.getCurrentMenuItem() == this` (`toggle.h:35-37`), i.e. when the item was
-	/// reached without a press on its row. `MenuScene::enter_leaf`'s `FocusCause` is the port of
+	/// reached without a press on its row. `ValueSession::enter_leaf`'s `FocusCause` is the port of
 	/// that test.
 	bool on_focus_is_press() const override { return true; }
 

@@ -989,7 +989,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		(void)menu::assign_node_ids(nodes::kAllRoots);
 		// Process-wide flash-backed state (`nodes/settings.cpp` `get_default_tempo_lower`), so it is
 		// saved and put back. Set BEFORE `open()`, which is what seeds `MenuState::edit_int` /
-		// `edit_upper` from the model (`MenuScene::enter_leaf`'s `Kind::Range` arm). A split pair well
+		// `edit_upper` from the model (`ValueSession::enter_leaf`'s `Kind::Range` arm). A split pair well
 		// inside `kDefaultTempoRange{60, 240, 1}`, so the two ends are visibly distinct in `idle`,
 		// neither detent below clamps, and `focus_left_when_split` has a split to act on.
 		const SavedRange saved = SavedRange::capture(FlashStorage::DEFAULT_RANGE_TEMPO);

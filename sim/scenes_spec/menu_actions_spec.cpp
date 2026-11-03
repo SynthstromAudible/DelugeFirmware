@@ -1130,7 +1130,7 @@ describe menu_action_items("scenes::menu the four pure verbs", $ {
 		// navigates into these items at all (`shouldEnterSubmenu() == false`,
 		// `gui/ui/sound_editor.cpp:420-423`), so the only way to reach the body is a press on the
 		// parent's row, and `Toggle` -- the same shape -- guards the other way in explicitly
-		// (`gui/menu_item/toggle.h:35-37`). `MenuScene::enter_leaf`'s `FocusCause` is that
+		// (`gui/menu_item/toggle.h:35-37`). `ValueSession::enter_leaf`'s `FocusCause` is that
 		// discriminator and `CustomItem::on_focus_is_press` is its scope.
 		//
 		// A deep link onto one of these therefore shows the item's own title and does nothing --

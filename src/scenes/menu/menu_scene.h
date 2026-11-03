@@ -35,10 +35,14 @@
 #include "scenes/menu/action.h"
 #include "scenes/menu/chains.h"
 #include "scenes/menu/context.h"
+#include "scenes/menu/learn.h"
+#include "scenes/menu/menu_core.h"
 #include "scenes/menu/menu_state.h"
 #include "scenes/menu/node.h"
 #include "scenes/menu/present.h"
 #include "scenes/menu/shortcut_blink.h"
+#include "scenes/menu/value_session.h"
+#include "scenes/menu/voice_usage.h"
 #include "shell/scene.h"
 #include "ui/core/encoder_acceleration.h"
 #include "ui/core/response.h"
@@ -62,31 +66,6 @@ namespace deluge::scenes::menu {
 ///        rather than `>=`.
 inline constexpr uint32_t kNavButtonDebounceMs = 140;
 
-/// @brief `cpu::VoiceUsage`'s counters (`cpu/voice_usage.h:94-111`): the last sample, the maximum, and a whole-number
-///        average over every sample since the page opened.
-class VoiceUsageSampler {
-public:
-	/// @brief Forget every sample (`VoiceUsage::beginSession`, `:70-73`).
-	void reset() { *this = {}; }
-	/// @brief Take one sample of @p live voices (`VoiceUsage::sample`, `:94-99`).
-	void sample(int32_t live) {
-		live_ = live;
-		total_ += static_cast<uint64_t>(std::max<int32_t>(live, 0));
-		count_++;
-		maximum_ = std::max(maximum_, live);
-	}
-	[[nodiscard]] int32_t live() const { return live_; }
-	[[nodiscard]] int32_t maximum() const { return maximum_; }
-	/// @brief `averageVoiceCount` (`:101-103`): 0 before any sample.
-	[[nodiscard]] int32_t average() const { return count_ == 0 ? 0 : static_cast<int32_t>(total_ / count_); }
-	[[nodiscard]] uint32_t samples() const { return count_; }
-
-private:
-	int32_t live_ = 0;
-	int32_t maximum_ = 0;
-	uint64_t total_ = 0;
-	uint32_t count_ = 0;
-};
 /// @brief The menu interpreter. One instance for the whole application (`registry.h`'s
 ///        `menu_scene()`).
 class MenuScene final : public deluge::ui::shell::Scene {
@@ -141,7 +120,7 @@ public:
 	bool select_acts_on_release() const override { return true; }
 	/// @brief True in learn mode, which `SoundEditor::buttonAction`'s Select arm does not act in
 	///        (`sound_editor.cpp:609-614`).
-	bool select_release_blocked() const override { return visit_.learn_mode; }
+	bool select_release_blocked() const override { return visit_.learn.mode(); }
 	void on_model_changed(const deluge::notify::DirtySet& dirty) override;
 
 	/// @brief True: the menu draws over the base view's pads rather than replacing them.
@@ -179,7 +158,7 @@ public:
 	/// @brief Advance the voice usage page's sampling clock (`VoiceUsage::timerCallback`, `cpu/voice_usage.h:77-87`).
 	void tick(uint32_t dt_ms) override;
 	/// @brief The voice usage page's counters.
-	const VoiceUsageSampler& voice_usage() const { return voice_usage_; }
+	const VoiceUsageSampler& voice_usage() const { return voice_usage_.sampler(); }
 
 	/// @brief The node currently on screen (`path[depth]`), or `nullptr` before `open()`.
 	const Node* focused() const;
@@ -230,22 +209,15 @@ public:
 	/// the same, to `focused()`'s `CustomItem` -- the item decides, exactly as legacy's virtual
 	/// dispatch let it.
 	///
-	/// @warning **Nothing calls these yet.** Routing MIDI into the scene stack belongs to the
-	///          wiring plan; legacy's `currentUIMode == UI_MODE_MIDI_LEARN` gate and its shift
-	///          exclusion (`:1550`, `:1562`) are that plan's, not this layer's -- a scene may not
-	///          read a legacy UI mode. What is here is the half a menu owns: which item the message
-	///          reaches, and what that item does with it.
+	/// The note-on and program-change entry points are `ShellHostUI`'s two `UI` overrides
+	/// (`gui/ui/shell_guest_services.cpp`); `learn_cc` has no `UI` virtual to override and no caller.
 	///
 	/// @warning **`wants_learn_blink()` is NOT the learn gate.** Legacy enters learn mode on
-	///          `getCurrentMenuItem()->allowsLearnMode()` (`sound_editor.cpp:511`) and only then
-	///          asks `shouldBlinkLearnLed()` for the LED (`:488`, `:911-916`). They are different
-	///          predicates over different sets: `allowsLearnMode` is true on every
-	///          `MenuItemWithCCLearning` -- all the patched/unpatched params, the transpose items,
-	///          the MIDI-follow items -- every one of which blinks *false*. A wiring author who
-	///          gates delivery on `wants_learn_blink()` would silently drop param CC learn and its
-	///          `CANT_LEARN` popup along with it. The port has no `allows_learn_mode()` hook yet
-	///          because nothing needs one until that plan exists; adding it is that plan's first
-	///          job, not a synonym for this.
+	///          `getCurrentMenuItem()->allowsLearnMode()` (`sound_editor.cpp:511`), ported as `MenuLearn::allows_mode`,
+	///          and only then asks `shouldBlinkLearnLed()` for the LED (`:488`, `:911-916`). They are different
+	///          predicates over different sets: `allowsLearnMode` is true on every `MenuItemWithCCLearning` -- all the
+	///          patched/unpatched params, the transpose items, the MIDI-follow items -- every one of which blinks
+	///          *false*.
 	/// @{
 	/// @brief Offer a note-on to the focused item. @return Whether it was used.
 	bool learn_note_on(::MIDICable& cable, int32_t channel, int32_t note);
@@ -455,12 +427,12 @@ public:
 	deluge::ui::InputClaims owned_input() const;
 
 private:
+	/// @brief The scene's context and state, for a unit's call.
+	MenuCore core() { return {ctx_, st_}; }
 	/// @brief Fill @p out with @p node's children that `relevant` admits, resolving
 	///        `dynamic_children` first.
 	/// @return How many were written.
 	size_t visible_children(const Node& node, std::span<const Node*> out) const;
-	/// @brief The focused node's `CustomItem`, or `nullptr` when it is not a `Kind::Custom` leaf.
-	const CustomItem* focused_custom() const;
 	/// @brief @p node's @p index'th visible child, or `nullptr`.
 	const Node* child_at(const Node& node, int32_t index) const;
 	/// @brief The child the current layout has focus on, or `nullptr`.
@@ -556,43 +528,6 @@ private:
 	void render_leaf_sync_level(deluge::ui::oled::OledFrame& f, const Node& node);
 	void render_leaf_range(deluge::ui::oled::OledFrame& f, const Node& node);
 
-	/// @brief Why a leaf is being focused -- the discriminator legacy spells as
-	///        `soundEditor.getCurrentMenuItem() == this` (`gui/menu_item/toggle.h:35-37`).
-	///
-	/// Legacy reaches a bespoke item's work by two routes and treats them differently:
-	/// `selectButtonPress()` (a press on the parent's row) *acts*, while `beginSession()` -- which
-	/// `focusRegained` -> `beginScreen` also runs on every re-entry, `sound_editor.cpp:330`,
-	/// `:1015` -- only (re-)initialises. `CustomItem::on_focus` is `beginSession`, so a port that
-	/// ran it on every focus transition ran *both* meanings, and an item whose `on_focus` stands in
-	/// for a press fired without one. This is that lost distinction, restored.
-	/// **The question is "a select press on THIS node's own row?", not "a press at all"** (E3 final
-	/// review, A6). The values used to be `Descended`/`Restored`, and `Restored` was a lie for one
-	/// of the routes it covers: a **shortcut-pad jump is a real press**, just not one on this node's
-	/// row. The behaviour was right -- legacy reaches a shortcut jump through `beginSession`, never
-	/// `selectButtonPress` -- so the names moved to say what the two values have always meant,
-	/// rather than a third cause being invented for a distinction nothing acts on.
-	/// `CustomItem::on_focus_is_press()`'s whole contract is then readable from this enum alone:
-	/// such an item is given `on_focus` for `RowPress` and withheld it for `NoRowPress`.
-	enum class FocusCause : uint8_t {
-		/// A select press on this node's own row in its parent's list: `enter_child` ->
-		/// `descend_to`, the one path with a press behind it. Legacy's `selectButtonPress` path.
-		RowPress,
-		/// Focus reached this node by any other route, so nothing pressed its row: `retarget` (a
-		/// `SceneId` deep link, the shortcut-pad jump, `open()`), `restore_state`'s rebuild, and
-		/// `ascend`'s re-seed. Legacy's `beginScreen`/`focusRegained` path, and exactly the case
-		/// `Toggle::selectButtonPress`'s guard exists for. A shortcut jump belongs here **because
-		/// its press was on a grid pad, not on this row** -- it is not a "restore", which is what
-		/// the old name claimed.
-		NoRowPress,
-	};
-
-	/// @brief Load @p node's value into the edit storage its kind uses.
-	/// @param cause Why this focus is happening -- see `FocusCause`. A `Kind::Custom` node whose
-	///              item answers `CustomItem::on_focus_is_press()` is given `on_focus` only for
-	///              `FocusCause::RowPress`.
-	void enter_leaf(const Node& node, FocusCause cause);
-	/// @brief Commit the edit storage for @p node through `bindings::write`.
-	void commit_value(const Node& node);
 	/// @brief Descend into @p child if its permission allows, opening the range picker for
 	///        `MustSelectRange`.
 	void enter_child(const Node& child);
@@ -614,14 +549,8 @@ private:
 			drain_trace_[drain_trace_len_++] = band;
 		}
 	}
-	/// The voice usage page's counters and the time since their last sample; `voice_usage_at_` is where the last tick
-	/// found the focus, so arriving on the page or a counter begins its session.
-	VoiceUsageSampler voice_usage_;
-	uint32_t voice_usage_elapsed_ms_ = 0;
-	/// Where the focus is relative to the voice usage page: its counters sample there.
-	enum class VoiceUsagePlace : uint8_t { None, Page, Counter };
-	VoiceUsagePlace voice_usage_place() const;
-	VoiceUsagePlace voice_usage_at_ = VoiceUsagePlace::None;
+	/// The voice usage page's clock and counters; process-lifetime, like legacy's `cpu::VoiceUsage`.
+	VoiceUsageClock voice_usage_;
 	/// What `render_horizontal`'s columns draw from, here rather than on the stack: a group page has up to
 	/// `kMaxMenuColumns` of them, and the scene lives in SDRAM.
 	ColumnSlot column_slots_[kMaxMenuColumns];
@@ -662,26 +591,18 @@ private:
 		/// Whether the next `leds()` restarts the shared normal blink, BACK's and LEARN's (`blinkLed`), and the screen
 		/// the render last checked that against (`beginScreen` restarts it for a LEARN-blinking item).
 		bool blink_restart = true;
-		/// @brief Legacy's `UI_MODE_MIDI_LEARN`: entered on a LEARN press with Shift up, no other UI mode on, and an
-		///        item that allows learn; left on LEARN's release (`sound_editor.cpp:716-745`). Select's release does
-		///        nothing in it.
-		bool learn_mode = false;
-		/// Whether the next `leds()` restarts the shared fast blink, as learn mode's `blinkLed(LEARN, 255, 1)` does.
-		bool learn_restart = false;
+		/// Learn mode and its LED.
+		MenuLearn learn;
 		/// @brief `ascend()` went up from depth 0: legacy's `exitCompletely()`, drained by `after_render`.
 		bool close_requested = false;
 		/// @brief Select was held during the last render: a value edited under it uses the press up
 		///        (`Value::selectEncoderAction`, `menu_item/value.h:64-67`).
 		bool select_held = false;
 		const Node* blink_screen = nullptr;
-		/// The value the last render's session began on (`focused_value()`); a change is a new session.
-		const Node* session_value = nullptr;
+		/// The value being edited.
+		ValueSession session;
 	};
 	Visit visit_{};
-
-	/// @brief `getCurrentMenuItem()->allowsLearnMode()`: on a page, its selected child's (`Submenu::allowsLearnMode`,
-	///        `submenu.cpp:233-238`), which a child page never allows.
-	bool allows_learn_mode() const;
 
 	/// @brief Record the selected child of every submenu on the current path; only while `ctx_` is the one the path
 	///        was walked with, since reading which children show runs their relevance tests.
@@ -696,15 +617,6 @@ private:
 	/// @brief Focus @p column on the page `focused()` shows, when the page lists it visibly;
 	///        otherwise leave the focus where it is (`Submenu::focusChild`).
 	void focus_column(const Node& column);
-
-	/// @brief `Direction::checkPermissionToBeginSession`'s latch (`sequence/direction.h:117-119`): when @p value is
-	///        Play Direction on a non-kit clip, `MenuContext::selected_note_row` takes whether a row is auditioning.
-	///
-	/// Taken where the item begins: a re-root, a row press, and a horizontal column gaining focus. Legacy's horizontal
-	/// page also re-takes it on the way back from the item and after each column move (`HorizontalMenu::beginSession`
-	/// and `selectEncoderAction` -> `focusChild`); Play Direction is a column only in the note-row editor, whose root
-	/// answers for the latch (`bindings.cpp`'s `note_row_bridge_direction`), so those re-takes change nothing.
-	void begin_value_session(const Node* value);
 
 public:
 	/// @name The two navigation steps a caller outside the scene takes (note-family Task 7a)
