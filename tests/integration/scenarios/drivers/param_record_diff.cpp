@@ -9,33 +9,32 @@
 // dump must reproduce it bit-for-bit. No real audio scheduler is driven — "time" is controlled by writing
 // AudioEngine::audioSampleTimer and passing an explicit livePos.
 //
-// Target: the song-global unpatched param UNPATCHED_VOLUME (timelineCounter = the Song; the same param family
-// song_edit_roundtrip already exercises). Recording is armed via RecordingMode::ARRANGEMENT, which also makes
-// Song::isPlayingAutomationNow() true and satisfies the whole `isPlaying && recording && armed` gate.
+// Targets: the song-global unpatched param UNPATCHED_VOLUME, recorded under RecordingMode::ARRANGEMENT (which makes
+// Song::isPlayingAutomationNow() true and satisfies the whole `isPlaying && recording && armed` gate), undone, redone,
+// saved and reloaded, then its latch drifting back as the arrangement plays on. Then clip lanes under
+// RecordingMode::NORMAL, each take undone and redone: a synth's patched param, a kit row's, a MIDI CC, an MPE lane and
+// a reversed clip's, and a latch drifting back across a clip lane's nodes. A clip records only while active, so the
+// driver makes each one active and armed; a song without the clip kind prints `case <name> none`.
 //
 // Exit: 0 = ran + dumped; 1 = load error; 2 = usage/IO; 3 = setup precondition failed.
 //
 // The dump is deterministic, so param_record_run.py byte-compares stdout against a committed baseline captured from
-// engine-native recording; the recording node write (the recordLiveValue kernel) must reproduce it exactly. Driving
-// a live Song timeline also covers what the param_projection oracle's NoteRow stack never does.
-//
-// SCOPE: a scripted live-record sequence on a song-global param, PLUS undo/redo (swapState) and
-// save/reload persistence. Remaining follow-up — a finite-loop InstrumentClip target (the scenario that also
-// exercises homogenizeRegion's recordingLinearly forward-wrap branch; that branch's *logic* is already covered
-// by the param_projection homogenizeRegion oracle's finite-effLen + wrap cases, so this would add
-// integration confirmation, not new logic). It needs more setup than the song-global path: the clip must be
-// made active (Clip::isPlayingAutomationNow() checks currentSong->isClipActive(this)), and clip recording uses
-// RecordingMode::NORMAL, whose getNewAction actually allocates an Action (vs ARRANGEMENT returning null) — so
-// the Action subsystem's headless behaviour must be verified first.
+// engine-native recording.
 
 #include "deluge-project/param_automation.h"
+#include "deluge-project/param_edit.h"
 #include "memory/general_memory_allocator.h"
+#include "model/action/action_logger.h"
+#include "model/clip/instrument_clip.h"
+#include "model/drum/drum.h"
 #include "model/model_stack.h"
+#include "model/note/note_row.h"
 #include "model/project_bridge/song_serialization.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_set.h"
+#include "playback/mode/arrangement.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "scenarios/drivers/tree_load.h"
@@ -47,7 +46,9 @@
 #include <cstdlib>
 #include <cstring>
 #include <optional>
+#include <span>
 #include <string_view>
+#include <vector>
 
 #include "model/project_bridge/param_ids.h"
 #include "scenarios/drivers/driver.h"
@@ -142,6 +143,171 @@ static void dumpAfterSaveReload(Song* song) {
 	free(buf);
 }
 
+// A deterministic series of "knob turns" at explicit play positions (livePos passed directly, bypassing the
+// play-position plumbing). Between events AudioEngine::audioSampleTimer advances to model elapsed time, which the
+// override-latch logic reads.
+struct Event {
+	int32_t livePos;
+	int32_t value;
+	uint32_t timerAdvance;
+};
+constexpr Event script[] = {
+    {0, 400000000, 100},   {12, 900000000, 100}, {24, -300000000, 100},
+    {36, 1500000000, 100}, {48, 200000000, 100}, {60, -800000000, 100},
+};
+
+// Run the script through the live-record path. With @p loopLength non-zero the positions scale to 0..5/6 of the loop,
+// so a clip of any length records the same shape.
+void recordScript(ModelStackWithAutoParam* msap, int32_t loopLength, bool mpe) {
+	for (const Event& e : script) {
+		AudioEngine::audioSampleTimer += e.timerAdvance;
+		const int32_t livePos = loopLength != 0 ? e.livePos * loopLength / 72 : e.livePos;
+		msap->autoParam->setCurrentValueInResponseToUserInput(e.value, msap, /*shouldLogAction=*/true, livePos,
+		                                                      /*mayDeleteNodesInLinearRun=*/!mpe, mpe);
+	}
+}
+
+// Play the latched lane forward over @p positions as the render's tick does: each position reached, the latch
+// rewrites the node there while recording.
+void tickLatch(ModelStackWithAutoParam* msap, std::span<const int32_t> positions, bool reversed,
+               int32_t& lastProcessedPos) {
+	for (int32_t pos : positions) {
+		lastProcessedPos = pos;
+		AudioEngine::audioSampleTimer += 2000;
+		msap->autoParam->processCurrentPos(msap, reversed, false, true, false);
+		char label[32];
+		snprintf(label, sizeof label, "tick %ld", (long)pos);
+		dumpParam(label, msap);
+	}
+}
+
+// One clip lane: record the script, then undo and redo the take.
+void clipCase(const char* name, ModelStackWithAutoParam* msap, Clip* clip, bool mpe) {
+	if (msap == nullptr || msap->autoParam == nullptr) {
+		std::fprintf(io.out, "case %s none\n", name);
+		return;
+	}
+	std::fprintf(io.out, "case %s len=%ld\n", name, (long)clip->loopLength());
+	dumpParam("initial", msap);
+	recordScript(msap, clip->loopLength(), mpe);
+	dumpParam("after-record", msap);
+	actionLogger.closeAction(ActionType::RECORD);
+	actionLogger.revert(BEFORE, false, false);
+	dumpParam("after-undo", msap);
+	actionLogger.revert(AFTER, false, false);
+	dumpParam("after-redo", msap);
+}
+
+template <typename Pred>
+InstrumentClip* firstInstrumentClip(Song* song, Pred pred) {
+	for (Clip* clip : song->live.clips.session_clips) {
+		if (clip->type == ClipType::INSTRUMENT && clip->output != nullptr && pred(*clip->output)) {
+			return static_cast<InstrumentClip*>(clip);
+		}
+	}
+	return nullptr;
+}
+
+void arm(Clip* clip) {
+	clip->activeIfNoSolo = true;
+	clip->soloingInSessionMode = false;
+	clip->armedForRecording = true;
+}
+
+// Clip lanes recorded under RecordingMode::NORMAL: a synth's patched param, a kit row's, a MIDI CC, an MPE lane and a
+// reversed clip's, each with its take undone and redone; then the latch drifting back across a clip lane's nodes.
+void clipCases(Song* song) {
+	playbackHandler.recording = RecordingMode::NORMAL;
+	InstrumentClip* synth = firstInstrumentClip(song, [](Output& o) { return o.type == OutputType::SYNTH; });
+	InstrumentClip* kit = firstInstrumentClip(song, [](Output& o) { return o.type == OutputType::KIT; });
+	InstrumentClip* midi = firstInstrumentClip(song, [](Output& o) { return o.type == OutputType::MIDI_OUT; });
+	for (InstrumentClip* clip : {synth, kit, midi}) {
+		if (clip != nullptr) {
+			arm(clip);
+		}
+	}
+
+	alignas(ModelStackWithAutoParam) char m[MODEL_STACK_MAX_SIZE]{};
+	auto synthStack = [&](InstrumentClip* clip) {
+		return setupModelStackWithThreeMainThingsIncludingNoteRow(
+		    m, song, clip, 0, nullptr, clip->output->toModControllable(), &clip->paramManager);
+	};
+
+	if (synth != nullptr) {
+		clipCase("synth-patched", synthStack(synth)->getPatchedAutoParamFromId(params::LOCAL_LPF_FREQ), synth, false);
+	}
+	else {
+		std::fprintf(io.out, "case synth-patched none\n");
+	}
+
+	ModelStackWithAutoParam* row = nullptr;
+	if (kit != nullptr) {
+		for (int32_t i = 0; i < std::ssize(kit->noteRows) && row == nullptr; i++) {
+			NoteRow& nr = kit->noteRows[i];
+			if (nr.drum != nullptr && nr.drum->type == DrumType::SOUND) {
+				row = setupModelStackWithThreeMainThingsIncludingNoteRow(m, song, kit, kit->getNoteRowId(&nr, i), &nr,
+				                                                         nr.drum->toModControllable(), &nr.paramManager)
+				          ->getPatchedAutoParamFromId(params::LOCAL_LPF_FREQ);
+			}
+		}
+	}
+	clipCase("kit-row", row, kit, false);
+
+	ModelStackWithAutoParam* cc = nullptr;
+	if (midi != nullptr) {
+		ModelStackWithThreeMainThings* owner = synthStack(midi);
+		ParamCollectionSummary* summary = midi->paramManager.getMIDIParamCollectionSummary();
+		if (summary->paramCollection != nullptr) {
+			cc = summary->paramCollection->getAutoParamFromId(
+			    owner->addParamCollectionAndId(summary->paramCollection, summary, 74), true);
+		}
+	}
+	clipCase("midi-cc", cc, midi, false);
+
+	ModelStackWithAutoParam* mpe = nullptr;
+	if (synth != nullptr && synth->paramManager.ensureExpressionParamSetExists()) {
+		ModelStackWithThreeMainThings* owner = synthStack(synth);
+		ParamCollectionSummary* summary = owner->paramManager->getExpressionParamSetSummary();
+		mpe = summary->paramCollection->getAutoParamFromId(
+		    owner->addParamCollectionAndId(summary->paramCollection, summary, 1), false);
+	}
+	clipCase("mpe", mpe, synth, true);
+
+	if (synth != nullptr) {
+		synth->sequenceDirectionMode = SequenceDirection::REVERSE;
+		synth->currentlyPlayingReversed = true;
+		clipCase("reversed", synthStack(synth)->getPatchedAutoParamFromId(params::LOCAL_OSC_A_VOLUME), synth, false);
+		synth->sequenceDirectionMode = SequenceDirection::FORWARD;
+		synth->currentlyPlayingReversed = false;
+	}
+	else {
+		std::fprintf(io.out, "case reversed none\n");
+	}
+
+	if (synth != nullptr) {
+		ModelStackWithAutoParam* lane = synthStack(synth)->getPatchedAutoParamFromId(params::LOCAL_LPF_RESONANCE);
+		const int32_t len = synth->loopLength();
+		std::fprintf(io.out, "case latch len=%ld\n", (long)len);
+		deluge::project::setNodeAtPos(*lane->doc(), 0, 100000000, false);
+		deluge::project::setNodeAtPos(*lane->doc(), len / 2, 700000000, true);
+		deluge::project::setNodeAtPos(*lane->doc(), len * 3 / 4, -200000000, true);
+		AudioEngine::audioSampleTimer += 100;
+		lane->autoParam->setCurrentValueInResponseToUserInput(500000000, lane, true, len / 8, true, false);
+		dumpParam("after-record", lane);
+		const int32_t positions[] = {len / 4, len / 2, len * 5 / 8, len * 3 / 4, len - 1};
+		tickLatch(lane, positions, false, synth->lastProcessedPos);
+		actionLogger.closeAction(ActionType::RECORD);
+		actionLogger.revert(BEFORE, false, false);
+		dumpParam("after-undo", lane);
+		actionLogger.revert(AFTER, false, false);
+		dumpParam("after-redo", lane);
+	}
+	else {
+		std::fprintf(io.out, "case latch none\n");
+	}
+	playbackHandler.recording = RecordingMode::ARRANGEMENT;
+}
+
 int param_record_diff_main(int argc, char** argv, Io driverIo) {
 	io = driverIo;
 	if (argc < 2) {
@@ -206,20 +372,6 @@ int param_record_diff_main(int argc, char** argv, Io driverIo) {
 		}
 	}
 
-	// --- Scripted live recording sequence -----------------------------------------------------------------
-	// A deterministic series of "knob turns" at explicit play positions (livePos passed directly, bypassing the
-	// play-position plumbing). Between events we advance AudioEngine::audioSampleTimer to model elapsed time,
-	// which the override-latch logic reads.
-	struct Event {
-		int32_t livePos;
-		int32_t value;
-		uint32_t timerAdvance;
-	};
-	static const Event script[] = {
-	    {0, 400000000, 100},   {12, 900000000, 100}, {24, -300000000, 100},
-	    {36, 1500000000, 100}, {48, 200000000, 100}, {60, -800000000, 100},
-	};
-
 	std::fprintf(io.out, "# param_record_diff: %s\n", argv[1]);
 	dumpParam("initial", msap);
 
@@ -228,11 +380,7 @@ int param_record_diff_main(int argc, char** argv, Io driverIo) {
 	AutoParamState undoState;
 	undoState.value = ap.getCurrentValue();
 
-	for (const Event& e : script) {
-		AudioEngine::audioSampleTimer += e.timerAdvance;
-		ap.setCurrentValueInResponseToUserInput(e.value, msap, /*shouldLogAction=*/true, /*livePos=*/e.livePos,
-		                                        /*mayDeleteNodesInLinearRun=*/true, /*isMPE=*/false);
-	}
+	recordScript(msap, 0, false);
 	dumpParam("after-record", msap);
 
 	// The engine edit method also writes the owner's DOM store scalar, so save can read the store. After the recorded
@@ -253,6 +401,27 @@ int param_record_diff_main(int argc, char** argv, Io driverIo) {
 	// Persistence: save the song and reload it; the recorded automation must survive the DOM serialization
 	// round-trip. Re-fetch the param from the fresh Song and dump it.
 	dumpAfterSaveReload(song);
+	currentSong = song; // the reload made the copy current; the cases below record into, and undo against, this one
+
+	// The song param, still latched from the script, drifts back across its nodes as the arrangement plays on.
+	std::fprintf(io.out, "case arranger-latch\n");
+	arrangement.playbackStartedAtPos = 0;
+	std::vector<int32_t> positions;
+	for (const ParamNode& node : msap->doc()->nodes) {
+		if (node.pos != 0) {
+			positions.push_back(node.pos);
+		}
+	}
+	for (int32_t pos : positions) {
+		playbackHandler.lastSwungTickActioned = pos;
+		AudioEngine::audioSampleTimer += 2000;
+		ap.processCurrentPos(msap, false, false, true, false);
+		char label[32];
+		snprintf(label, sizeof label, "tick %ld", (long)pos);
+		dumpParam(label, msap);
+	}
+
+	clipCases(song);
 
 	free(xml);
 	return 0;
