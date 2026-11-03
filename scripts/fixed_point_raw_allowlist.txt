@@ -101,10 +101,10 @@ src/deluge/util/functions.h raw=1 boundary=0
 src/deluge/util/param_functions.cpp raw=1 boundary=0
 src/deluge/util/phase_increment_fine_tuner.cpp raw=1 boundary=0
 src/effects/chain_core.cpp raw=1 boundary=0
-src/effects/delay.cpp raw=1 boundary=0
+src/effects/delay.cpp raw=0 boundary=3
 src/effects/master_chain.cpp raw=2 boundary=0
 src/effects/param_fragment.h raw=1 boundary=0
-src/effects/sidechain.cpp raw=2 boundary=0
+src/effects/sidechain.cpp raw=0 boundary=5
 src/synth/engines/block_controls.cpp raw=0 boundary=4
 src/synth/engines/dual_source_engine.cpp raw=3 boundary=0
 src/synth/engines/fm_engine.cpp raw=24 boundary=0
