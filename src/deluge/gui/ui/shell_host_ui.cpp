@@ -93,7 +93,9 @@ bool ShellHostUI::opened() {
 	if (!canOpen()) {
 		return false;
 	}
+	// A pad held from an earlier visit was released to legacy once that visit closed; this visit starts with none.
 	fedPads_ = deluge::ui::PadMask{};
+	shell_.lowering().forget_held_pads();
 
 	// Start from an empty stack rather than pushing onto whatever the last session left. This is
 	// not tidiness: `SceneStack` holds one `Scene*` per kind, so pushing a kind that is already
@@ -130,7 +132,7 @@ bool ShellHostUI::opened() {
 	                                      == RuntimeFeatureStateToggle::On);
 	// And the SHIFT itself: one pressed before the guest opened -- SHIFT then a shortcut pad in a clip view -- is still
 	// held, and the shell saw no press for it.
-	shell_.lowering().seed_shift(Buttons::isShiftButtonPressed(), Buttons::isShiftStuck());
+	shell_.lowering().seed_shift(Buttons::isShiftButtonPressed(), Buttons::isShiftStuck(), nowMs());
 
 	// **No `Shell::boot()` here, and its absence is deliberate.** The first version of this function
 	// called it, on the reasoning that the panels want a repaint on the way in. They do, and they
@@ -351,7 +353,10 @@ void ShellHostUI::syncPads() {
 	}
 	handBack(regions_without(moved, owned));
 	if (ownerChanged || greyoutChanged) {
-		PadLEDs::reassessGreyout();
+		// A scene that takes the main pads and greys every column is the menu's SHIFT overlay, whose greyout
+		// `renderMainShortcutsOnly` applies at once (`PadLEDs::doGreyoutInstantly()`) rather than fading it in.
+		const bool overlay = deluge::ui::shell::holds(gained, PadRegions::Main) && mask.cols == 0xFFFFFFFFu;
+		PadLEDs::reassessGreyout(overlay);
 	}
 }
 
@@ -554,17 +559,12 @@ ActionResult ShellHostUI::timerCallback() {
 	// (`MenuScene::handle_event`'s Back arm, `scenes/menu/menu_scene.cpp`), the port of `sound_editor.cpp:456`'s BACK
 	// case ->
 	// `:471` `goUpOneLevel()` -> `:710-717` `SoundEditor::goUpOneLevel`, whose depth-0 arm is
-	// `exitCompletely()` at `:716`. (`MenuView::render`'s own comment on that block cites `:433` and
-	// `:678` for those two; both are stale -- `:433` is an `AFFECT_ENTIRE` blink and `:678` is
-	// `handlePotentialParamMenuChange`. Reported in F1 task 11's report, not corrected here: they
-	// are pre-existing and belong to the sweep task, and a citation moved by the wrong hand is how
-	// this plan has lost seven of them.) That removes the scene and empties the
-	// stack, and **nothing in legacy closes this UI when it happens**: `close()` lived only on
-	// `exitUI`'s path.
+	// `exitCompletely()` at `:716`. That removes the scene and empties the stack, and **nothing in
+	// legacy closes this UI when it happens**: `close()` lived only on `exitUI`'s path.
 	//
 	// What that left is precisely the state `opened()` refuses to create -- "An empty guest is worse
-	// than no guest: it would swallow every pad while drawing nothing" (`:138-140`). Measured on the
-	// F1 task 11 A/B: with the toggle on, Back from the ported menu's root left `shellHostUI`
+	// than no guest: it would swallow every pad while drawing nothing" (`:138-140`). Measured on an
+	// emulator A/B: with the toggle on, Back from the ported menu's root left `shellHostUI`
 	// current with an empty stack, `renderOLED` painting nothing over legacy's cleared frame, and
 	// every later button (Session, Select) swallowed. The toggle-off leg of the same script exited
 	// to the clip view. So the close belongs on both paths, and this is the one that carries the

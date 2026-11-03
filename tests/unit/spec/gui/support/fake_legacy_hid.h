@@ -54,6 +54,8 @@ extern int control_flushes;
 extern std::vector<PadFlash> pad_flashes;
 /// How many times `PadLEDs::reassessGreyout()` was called.
 extern int greyout_reassessments;
+/// How many of those asked for the greyout at once (`doInstantly`).
+extern int instant_greyout_reassessments;
 /// How many times a fake `OLED::sendMainImage()` found legacy's dirty flag raised.
 extern int oled_frames_marked;
 /// @}

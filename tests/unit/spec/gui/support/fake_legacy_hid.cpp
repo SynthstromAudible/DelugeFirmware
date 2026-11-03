@@ -17,6 +17,7 @@ std::vector<std::pair<uint8_t, std::vector<RGB>>> raw_pad_column_writes;
 int control_flushes = 0;
 std::vector<PadFlash> pad_flashes;
 int greyout_reassessments = 0;
+int instant_greyout_reassessments = 0;
 int oled_frames_marked = 0;
 uint32_t pad_output_space = 1u << 20;
 bool led_blinking[64]{};
@@ -77,8 +78,8 @@ void sortLedsForCol(int32_t x) {
 // Stands in for `reassessGreyout` (`hid/led/pad_leds.cpp`): counted, since the greyout it would
 // re-read is legacy's own query of the open UIs.
 void reassessGreyout(bool doInstantly) {
-	(void)doInstantly;
 	fakelegacy::greyout_reassessments++;
+	fakelegacy::instant_greyout_reassessments += doInstantly ? 1 : 0;
 }
 
 } // namespace PadLEDs
@@ -162,6 +163,7 @@ void reset() {
 	led_writes.clear();
 	pad_flashes.clear();
 	greyout_reassessments = 0;
+	instant_greyout_reassessments = 0;
 	std::memset(led_blinking, 0, sizeof(led_blinking));
 	std::memset(indicator_leds::ledStates, 0, sizeof(indicator_leds::ledStates));
 	indicator_writes.clear();

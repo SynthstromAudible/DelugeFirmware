@@ -100,6 +100,17 @@ describe shell_input_lowering("shell::InputLowering", $ {
 		expect(in.shift()).to_be_false();
 	});
 
+	it("times a seeded held SHIFT's release from the seed, so a quick release of a latched one unlatches", _ {
+		// Latched, pressed again, then the shell takes over: the release that follows is the tap that unlatches it.
+		InputLowering in(uitest::test_profile_input(), LoweringConfig{.shift_is_sticky = true});
+		in.begin_tick(1000);
+		in.seed_shift(true, true, 1000);
+		expect(in.sticky()).to_be_true();
+		in.on_board_event(button_ev(8, 0, false), 1050);
+		expect(in.sticky()).to_be_false();
+		expect(in.shift()).to_be_false();
+	});
+
 	it("does not stick when the shift press outlasts hold_time_ms, or when sticky is off", _ {
 		InputLowering in(uitest::test_profile_input(), LoweringConfig{.shift_is_sticky = true});
 		in.begin_tick(0);

@@ -889,6 +889,22 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(fakelegacy::greyout_reassessments).to_equal(1);
 	});
 
+	it("greys at once when a scene takes the main pads and greys every column, as the SHIFT overlay does", _ {
+		// `renderMainShortcutsOnly` calls `PadLEDs::doGreyoutInstantly()`: the overlay's greyout does not fade in.
+		Rig r;
+		r.base.overlay = true;
+		r.base.regions = PadRegions::None;
+		r.base.greyout = {};
+		expect(r.open()).to_be_true();
+		r.guest.shell().tick(0);
+		const int instant = fakelegacy::instant_greyout_reassessments;
+		r.base.regions = PadRegions::Main;
+		r.base.greyout = {0xFFFFFFFFu, 0};
+		set_clock_ms(10);
+		(void)r.guest.timerCallback();
+		expect(fakelegacy::instant_greyout_reassessments).to_equal(instant + 1);
+	});
+
 	it("takes every pad when a scene comes to own the grid, and hands them back when it goes", _ {
 		Rig r;
 		r.base.overlay = true;
@@ -1543,6 +1559,23 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		fakelegacyui::shift_button_pressed = false;
 		(void)r.guest.padAction(3, 4, 64); // no shift
 		expect(fakelegacyui::pad_forwards).to_equal(3);
+	});
+
+	it("reopens with no pad held when the guest closed between a fed press and its release", _ {
+		// SHIFT + a pad fed to the menu, the menu closed with the pad still down, the release then legacy's: the next
+		// visit's shell must not still hold the pad (LEARN refuses while one is held).
+		Rig r;
+		expect(r.open()).to_be_true();
+		fakelegacyui::reset();
+		r.base.claim = GridPadClaim::ShortcutsOnly;
+		fakelegacyui::shift_button_pressed = true;
+		(void)r.guest.padAction(3, 4, 64);
+		r.guest.shell().tick(1);
+		expect(r.guest.shell().lowering().held_pads().test(3, 4)).to_be_true();
+		(void)r.guest.exitUI(); // the stack empties: the guest closes
+		fakelegacyui::shift_button_pressed = false;
+		expect(r.open()).to_be_true();
+		expect(r.guest.shell().lowering().held_pads().test(3, 4)).to_be_false();
 	});
 
 	it("opens knowing a SHIFT legacy saw go down, and loses it on the release", _ {

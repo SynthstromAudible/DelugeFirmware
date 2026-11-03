@@ -414,7 +414,8 @@ void InputLowering::clear_shift_sticky() {
 	shift_pressed_ = false;
 }
 
-void InputLowering::seed_shift(bool pressed, bool stuck) {
+void InputLowering::seed_shift(bool pressed, bool stuck, uint32_t now_ms) {
+	shift_pressed_at_ = now_ms;
 	shift_pressed_ = pressed || stuck;
 	shift_stuck_ = stuck;
 	held_.set(ButtonId::Shift, pressed && !stuck);
