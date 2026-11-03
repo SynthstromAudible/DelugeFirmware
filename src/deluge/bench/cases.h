@@ -1541,7 +1541,7 @@ inline constexpr int32_t kGranularRandomnessNone = 0;
 /// range.
 inline constexpr int32_t kGranularRandomnessMax = 0x7fffffff;
 /// @brief The granular cases' reverb send knob, Q31: an eighth. With the rig's volume, 8× unity, the send it makes is
-/// one Q26 LSB under full scale, just short of the send's wrap. Each block turns it into the component's
+/// one Q26 LSB under full scale, just short of where it saturates. Each block turns it into the component's
 /// argument with the post-effect volume, as an owner's chain does (effects::ChainCore::render_fx).
 inline constexpr int32_t kGranularVerbAmount = 0x10000000;
 /// @brief The frames of untimed setup blocks: more than one full 65,536-frame ring. The kernel wraps its write index

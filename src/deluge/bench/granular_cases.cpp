@@ -44,9 +44,7 @@ void render_block(const GranularConfig& config) {
 	    .mix = kGranularMix,
 	    .density = config.density,
 	    .randomness = config.randomness,
-	    // as the owner's chain forms it: the Q27 volume times the Q31 send, moved to Q31
-	    .send_amount =
-	        mul_as_wrap<dsp::Q<31>>(dsp::Q<27>::from_raw(rig.volume), dsp::Q<31>::from_raw(kGranularVerbAmount)).raw(),
+	    .send_amount = effects::grain_send_amount(rig.volume, kGranularVerbAmount), // as the owner's chain forms it
 	    .sound = true,
 	};
 	rig.granular->render(rig.work, in, rig.volume, std::span{rig.send}.first(rig.work.size()), deluge::synth_noise);

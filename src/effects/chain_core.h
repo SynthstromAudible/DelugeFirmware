@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/fixed/noise/cong.h"
 #include "effects/bitcrush.h"
@@ -56,6 +57,14 @@ struct FxInputs {
 	/// once built.
 	dsp::fixed::Cong* noise = nullptr;
 };
+
+/// @brief The granular's reverb send: the post-FX volume times the send knob.
+/// @param post_fx_volume The owner's post-FX volume, Q27: 2^27 unity.
+/// @param send The send knob, Q31.
+/// @return The Q26 product moved to the Q31 send, holding at full scale where volume × send reaches 1.0.
+[[nodiscard]] inline int32_t grain_send_amount(int32_t post_fx_volume, int32_t send) {
+	return mul_as_sat<dsp::Q<31>>(dsp::Q<27>::from_raw(post_fx_volume), dsp::Q<31>::from_raw(send)).raw();
+}
 
 /// @brief The effect components every home has, and the mod FX, EQ and delay stage they share.
 ///
