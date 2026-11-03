@@ -29,7 +29,7 @@ namespace deluge::bench {
 
 namespace {
 
-/// Unity post-FX and post-reverb volume, Q31.
+/// Unity post-FX and post-reverb volume, Q27.
 constexpr int32_t kVolume = 134217728;
 /// The playback handler's tick inverse near 120 bpm; the delay is unsynced, so only its start reads it.
 constexpr uint32_t kTickInverse = 18'700'000;

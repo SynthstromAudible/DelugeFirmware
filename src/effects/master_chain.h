@@ -49,8 +49,9 @@ struct MasterPostInputs {
 	bool do_pan;           ///< Whether the pan applies: off the centre, in stereo, and not a no-op.
 	int32_t pan_l;         ///< The left gain when it does, Q30: 2^30 unity (pan_amplitudes).
 	int32_t pan_r;         ///< The right gain when it does, Q30: 2^30 unity (pan_amplitudes).
-	int32_t song_volume;   ///< The song volume's final; the compressor reads an eighth of it as its 3.29 final volume.
-	Stutter* stutter;      ///< The song's stutter while the master is the one stuttering, else null.
+	int32_t song_volume; ///< The song volume's final, Q27 (the curve's 2^27, halved); the compressor reads an eighth of
+	                     ///< it as its 3.29 final volume.
+	Stutter* stutter;    ///< The song's stutter while the master is the one stuttering, else null.
 	uint32_t stutter_rate; ///< The stutter's rate on the delay's rate scale (16777216 neutral).
 };
 

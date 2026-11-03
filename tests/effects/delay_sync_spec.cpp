@@ -40,7 +40,7 @@ constexpr std::array<Case, 20> kCases{{
     {2147483647, plugin::SyncType::EVEN, plugin::SyncLevel::WHOLE, 0x7fffffffU, 2147483584}, // clamped
     {2147483647, plugin::SyncType::TRIPLET, plugin::SyncLevel::TWO_HUNDRED_FIFTY_SIXTH, 0x7fffffffU, 2147467264},
     {16777216, plugin::SyncType::EVEN, plugin::SyncLevel::SIXTEENTH, 0x80000000U, 0}, // the inverse is -1: -2^23 << 10
-    {16777216, plugin::SyncType::EVEN, plugin::SyncLevel::SIXTEENTH, 0x7fffffffU, 2147482624}, // the inverse at its top
+    {16777216, plugin::SyncType::EVEN, plugin::SyncLevel::SIXTEENTH, 0x7fffffffU, 2147482624}, // the inverse at its top, clamped
     {16777216, plugin::SyncType::EVEN, plugin::SyncLevel::WHOLE, 0x00000080U, 64}, // half an LSB rounds up to 1
 }};
 

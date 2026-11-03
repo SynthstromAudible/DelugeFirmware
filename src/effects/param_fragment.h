@@ -61,7 +61,8 @@ struct EffectParam {
 	case dsp::fixed::ParamCurve::EXPONENTIAL_INVERTED:
 		return dsp::fixed::curve_exponential(neutral, -combination);
 	case dsp::fixed::ParamCurve::RELEASE_TABLE:
-		// The neutral times the release rate, Q31 of the table's scale: the high word, the neutral's units halved.
+		// The neutral, read at Q31 to take the high word, times the Q31 rate: the result is in the neutral's units,
+		// times rate / 2.
 		return mul(dsp::Q<31>::from_raw(neutral), dsp::Q<31>::from_raw(dsp::fixed::release_rate(combination))).raw();
 	}
 	return word;

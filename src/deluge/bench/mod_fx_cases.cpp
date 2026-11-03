@@ -23,7 +23,7 @@ namespace {
 /// so they share it; each case's setup makes the component anew.
 struct ModFxRig {
 	std::optional<effects::ModFx> mod_fx; ///< The component, as a Sound's.
-	int32_t volume{kOneQ31 >> 1};         ///< The post-effect volume the component scales in place (Q31).
+	int32_t volume{kOneQ31 >> 1};         ///< The post-effect volume the component scales in place, Q27: 8× unity.
 	dsp::Buffer<StereoSample> work{};     ///< The lanes output's first n frames, processed in place.
 };
 

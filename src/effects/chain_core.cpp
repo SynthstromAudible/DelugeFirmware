@@ -37,7 +37,7 @@ void ChainCore::render_fx(std::span<dsp::StereoSample> block, const FxInputs& in
 		                     .density = in.mod_fx_offset,
 		                     .randomness = in.mod_fx_feedback,
 		                     // The Q27 post-FX volume times the Q31 send is Q26, moved to the Q31 send; it wraps
-		                     // where volume × send reaches 2^26.
+		                     // where volume × send reaches 1.0 (twice unity volume with a half send).
 		                     .send_amount = mul_as_wrap<dsp::Q<31>>(dsp::Q<27>::from_raw(post_fx_volume),
 		                                                            dsp::Q<31>::from_raw(in.grain_send))
 		                                        .raw(),

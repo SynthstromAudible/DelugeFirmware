@@ -65,11 +65,11 @@ void MasterChain::post_reverb(std::span<dsp::StereoSample> block, const EffectSt
 
 	Compressor& compressor = core_.compressor();
 	compressor.configure(settings.compressor); // the master's threshold is its knob
-	// The compressor's channel gains are 4.27 and its final volume 3.29: the master halves its volume into them and
-	// takes an eighth of the song's, as it is tuned.
+	// The compressor's channel gains are 4.27 and its final volume 3.29: the master halves its Q27 volume into the
+	// gains, and reads an eighth of the song's Q27 volume as the final volume, as it is tuned.
 	compressor.dsp().render(block, scale_shr_floor<1>(Q<27>::from_raw(volume_l)).raw(),
 	                        scale_shr_floor<1>(Q<27>::from_raw(volume_r)).raw(),
-	                        scale_shr_floor<3>(Q<29>::from_raw(post.song_volume)).raw());
+	                        scale_shr_floor<3>(Q<27>::from_raw(post.song_volume)).raw());
 }
 
 std::span<const std::string_view> MasterChain::order() {

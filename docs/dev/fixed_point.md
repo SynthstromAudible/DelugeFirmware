@@ -258,8 +258,8 @@ instructions.
   delay's synced rate the Q24 rate times it, rounded, Q23; the sync levels' run-time shifts and the sync types' 3/2 and
   2/3 stay integer. The grain send is the Q27 volume times the Q31 send, moved to Q31; the master's pan amplitudes are
   Q30, and it halves its volume into the compressor's 4.27 gains and takes an eighth of the song volume as its 3.29
-  final volume (`scale_shr_floor`). The bench's chain and impulse-response references and its legacy analog case keep
-  their raw arithmetic: they are written independently of what they check.
+  final volume (`scale_shr_floor`). The bench's chain and impulse-response references keep their raw arithmetic, written
+  independently of what they check, and so does its legacy analog case, the arithmetic the kernel is compared against.
 - **Buffers and frame fields** stay raw `q31` until the kernels that read them use the named operations; each
   kernel's interface stays raw and converts at its entry and exit.
 

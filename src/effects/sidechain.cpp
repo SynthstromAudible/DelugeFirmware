@@ -35,7 +35,8 @@ dsp::fixed::DuckEnvelope::Settings Sidechain::settings(const SidechainState& sta
 	}
 
 	// The tick inverse is the multiply's signed Q31 operand. A step word lifted to Q11 (the attack) or Q13 (the
-	// release) times it is the synced step at Q10 or Q12; the level's shift is a run-time shift, so raw.
+	// release) times it is Q10 or Q12, and that word, shifted by the level (a run-time shift, so raw), is the duck's
+	// step: the step word times the inverse, times 2^10 or 2^12.
 	const auto inverse = dsp::Q<31>::from_raw(static_cast<int32_t>(time_per_tick_inverse));
 	const int32_t level = plugin::index_of(state.sync_level);
 

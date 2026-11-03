@@ -79,7 +79,7 @@ public:
 	void startSkippingRendering() { mono_.on<&Granular::restart>(); }
 
 	/// @brief The reference's processGrainFX: renders @p frames in place while there is sound or the countdown runs,
-	/// adding the reverb feed into @p send and scaling @p volume (Q31).
+	/// adding the reverb feed into @p send and scaling @p volume (Q27).
 	void processGrainFX(std::span<StereoSample> frames, int32_t rate, int32_t mix, int32_t density, int32_t randomness,
 	                    int32_t* volume, bool sound, q31_t reverb_amount, std::span<q31_t> send) {
 		if (sound || mono_.state().wraps_to_shutdown >= 0) {

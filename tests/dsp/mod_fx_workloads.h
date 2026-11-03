@@ -78,7 +78,7 @@ inline constexpr int32_t kDepth = 0x40000000;
 inline constexpr int32_t kOffset = 0x20000000;
 inline constexpr int32_t kFeedback = 0x20000000;
 
-/// @brief The post-FX volume a run starts each block's chain from, Q31.
+/// @brief The post-FX volume a run starts each block's chain from, Q27.
 inline constexpr int32_t kStartVolume = 0x30000000;
 
 /// @brief The block lengths a workload cycles through: 1 to 9, then 128.
