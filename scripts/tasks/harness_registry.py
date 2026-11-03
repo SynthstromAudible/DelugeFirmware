@@ -33,6 +33,8 @@ GROUPS = {
     "model": "golden-vt-render",
     "storage": None,
     "unit": None,
+    # The C++ ctest trees, apart from `unit`: built cold, they and the cargo builds overran one job's time limit.
+    "unit-cpp": None,
     "tooling": None,
 }
 
