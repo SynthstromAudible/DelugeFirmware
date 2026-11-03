@@ -97,8 +97,8 @@ public:
 	/// @brief Takes one block's settings.
 	/// @param state The owner's filter modes and route.
 	/// @param params The block's param values.
-	/// @param post_fx_volume The owner's post-FX volume going in (Q31).
-	/// @return The owner's post-FX volume after the filters' compensation (Q31): each running filter's, and the set's
+	/// @param post_fx_volume The owner's post-FX volume going in, Q27: 2^27 unity.
+	/// @return The owner's post-FX volume after the filters' compensation, Q27: each running filter's, and the set's
 	/// scaling that keeps the level at 50% resonance.
 	[[nodiscard]] int32_t configure(const FilterState& state, const FilterParams& params, int32_t post_fx_volume);
 

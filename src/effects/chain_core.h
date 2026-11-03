@@ -67,7 +67,7 @@ public:
 	/// @param granular_allocator Where the granular's State and ring come from.
 	/// @param enter What entering GRAIN does to the granular: CLEAR for a sound, KEEP for a host chain.
 	/// @param arena Where the delay's tapes come from.
-	/// @param last_post_reverb_volume The send and volume's first ramp start, Q31; -1 leaves it for the first block.
+	/// @param last_post_reverb_volume The send and volume's first ramp start, Q27; -1 leaves it for the first block.
 	ChainCore(RingAllocator mod_fx_allocator, RingAllocator granular_allocator, EnterGrain enter, DelayArena& arena,
 	          int32_t last_post_reverb_volume);
 	ChainCore(const ChainCore&) = delete;
@@ -92,7 +92,7 @@ public:
 
 	/// @brief The mod FX (or the granular, when the type in effect is GRAIN), the EQ, then the delay, over @p block in
 	/// place.
-	/// @param post_fx_volume The post-FX volume, Q31: the mod FX and the granular scale it.
+	/// @param post_fx_volume The post-FX volume, Q27 (2^27 unity): the mod FX and the granular scale it.
 	/// @param sound Whether any sound came in this block.
 	/// @param block The audio to process in place.
 	/// @param in The block's resolved effect inputs.

@@ -34,8 +34,8 @@ namespace deluge::effects {
 /// had rendered.
 struct MasterChainInputs {
 	FxInputs fx;
-	int32_t volume_post_fx;     ///< The song's post-FX volume, Q31.
-	int32_t post_reverb_volume; ///< Q31.
+	int32_t volume_post_fx;     ///< The song's post-FX volume, Q27: 2^27 unity.
+	int32_t post_reverb_volume; ///< Q27: 2^27 unity.
 	int32_t reverb_send;        ///< The reverb send amount the send and volume adds, Q31.
 };
 
@@ -49,7 +49,7 @@ struct MasterPostInputs {
 	bool do_pan;           ///< Whether the pan applies: off the centre, in stereo, and not a no-op.
 	int32_t pan_l;         ///< The left gain when it does, Q30: 2^30 unity (pan_amplitudes).
 	int32_t pan_r;         ///< The right gain when it does, Q30: 2^30 unity (pan_amplitudes).
-	int32_t song_volume;   ///< The song volume's final, Q31; the compressor's makeup takes it >> 3.
+	int32_t song_volume;   ///< The song volume's final; the compressor reads an eighth of it as its 3.29 final volume.
 	Stutter* stutter;      ///< The song's stutter while the master is the one stuttering, else null.
 	uint32_t stutter_rate; ///< The stutter's rate on the delay's rate scale (16777216 neutral).
 };

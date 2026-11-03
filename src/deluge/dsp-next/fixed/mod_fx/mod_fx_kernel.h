@@ -184,8 +184,9 @@ struct ModFx {
 	/// @return @p volume after the mode's gain: what the owner multiplies its post-FX volume by, whether or not the
 	/// block renders.
 	[[nodiscard]] [[gnu::always_inline]] static int32_t post_fx_volume(const Coefficients& c, int32_t volume) {
-		// Raw: a run-time shift, 1 or 0 (the phaser).
-		return mul(Q<31>::from_raw(volume), Q<31>::from_raw(c.volume_gain)).raw() << c.volume_shift;
+		// The Q27 volume times the Q31 gain is Q26, kept in the volume's Q27 word, so the gain halves it; the shift,
+		// 1 or 0 (the phaser), is a run-time shift, so raw.
+		return mul(Q<27>::from_raw(volume), Q<31>::from_raw(c.volume_gain)).raw() << c.volume_shift;
 	}
 
 	/// @brief Zeroes the main warbler when the mode's wave is not the one the main LFO last stepped.

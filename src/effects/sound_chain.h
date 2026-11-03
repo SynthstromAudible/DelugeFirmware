@@ -32,7 +32,7 @@ namespace deluge::effects {
 struct SoundChainInputs {
 	FxInputs fx;
 	BitcrushParams bitcrush;
-	int32_t post_fx_volume;       ///< GLOBAL_VOLUME_POST_FX's final, Q31.
+	int32_t post_fx_volume;       ///< GLOBAL_VOLUME_POST_FX's final, Q27: 2^27 unity.
 	int32_t post_reverb_volume;   ///< GLOBAL_VOLUME_POST_REVERB_SEND's final, Q31.
 	int32_t reverb_send;          ///< The reverb send amount, Q31.
 	bool sound;                   ///< Whether the sound has voices.
