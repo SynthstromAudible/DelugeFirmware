@@ -17,7 +17,7 @@
 
 #include "effects/chain_core.h"
 
-#include "dsp-next/core/q31_ops.h"
+#include "dsp-next/core/fixed_point.h"
 
 namespace deluge::effects {
 
@@ -36,7 +36,7 @@ void ChainCore::render_fx(std::span<dsp::StereoSample> block, const FxInputs& in
 		                     .mix = in.mod_fx_depth,
 		                     .density = in.mod_fx_offset,
 		                     .randomness = in.mod_fx_feedback,
-		                     .send_amount = multiply_32x32_rshift32(post_fx_volume, in.grain_send) << 5,
+		                     .send_amount = grain_send_amount(post_fx_volume, in.grain_send),
 		                     .sound = sound,
 		                 },
 		                 post_fx_volume, send.first(block.size()), *in.noise);

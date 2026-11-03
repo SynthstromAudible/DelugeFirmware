@@ -29,6 +29,8 @@
 #include "bench/runner.h"
 #include "dsp-next/core/chain.h"
 #include "dsp-next/core/control.h"
+#include "dsp-next/core/fixed_point.h"
+#include "dsp-next/core/fixed_point_neon.h"
 #include "dsp-next/core/frame.h"
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/lanes.h"
@@ -164,17 +166,18 @@ struct Gain {
 	/// @param s The settings.
 	/// @return The gain, unchanged.
 	static Coefficients coefficients(const Settings& s) { return {.gain = s.gain}; }
-	/// @return @p x · gain, Q31: the high word of the Q62 product is Q30, shifted up by one.
+	/// @return @p x · gain, Q31: the Q30 high word moved to Q31, wrapping at −1 · −1.
 	[[gnu::always_inline]] static q31 step(const Coefficients& c, const dsp::EmptyBlock& /*block*/, State& /*state*/,
 	                                       q31 x) {
-		return multiply_32x32_rshift32(x, c.gain) << 1;
+		return mul_as_wrap<dsp::Q<31>>(dsp::Q<31>::from_raw(x), dsp::Q<31>::from_raw(c.gain)).raw();
 	}
 };
 static_assert(dsp::processor_kernel<Gain>);
 
 /// @brief Gain on four lanes at a time: the reference Argon processor kernel.
-/// @details One saturating doubling high multiply (`vqdmulh`) per vector, which equals Gain's arithmetic except that
-/// it saturates the one product, -1 · -1, that Gain wraps.
+/// @details One saturating doubling high multiply (`vqdmulh`) per vector: the high word of 2 · x · gain, so it keeps
+/// the bit Gain's shift clears and differs from Gain in the LSB wherever that bit is set; it saturates −1 · −1, which
+/// Gain wraps.
 struct VecGain {
 	using value_type = q31;       ///< Q31 samples.
 	using step_type = Argon<q31>; ///< One vector of four samples per step.
@@ -188,7 +191,7 @@ struct VecGain {
 	/// @return Each lane of @p x · gain, Q31.
 	[[gnu::always_inline]] static Argon<q31> step(const Coefficients& c, const dsp::EmptyBlock& /*block*/,
 	                                              State& /*state*/, Argon<q31> x) {
-		return x.MultiplyFixedQMax(c.gain);
+		return mul_doubling_sat(dsp::QVec<31>::from_raw(x), dsp::Q<31>::from_raw(c.gain)).raw();
 	}
 };
 static_assert(dsp::processor_kernel<VecGain>);
@@ -1537,7 +1540,8 @@ inline constexpr int32_t kGranularRandomnessNone = 0;
 /// @brief The random cases' pitch randomness, signed Q31: the maximum, so grains draw their pitch from the full
 /// range.
 inline constexpr int32_t kGranularRandomnessMax = 0x7fffffff;
-/// @brief The granular cases' reverb send knob, Q31: a moderate amount. Each block turns it into the component's
+/// @brief The granular cases' reverb send knob, Q31: an eighth. With the rig's volume, 8× unity, the send it makes is
+/// one Q26 LSB under full scale, just short of where it saturates. Each block turns it into the component's
 /// argument with the post-effect volume, as an owner's chain does (effects::ChainCore::render_fx).
 inline constexpr int32_t kGranularVerbAmount = 0x10000000;
 /// @brief The frames of untimed setup blocks: more than one full 65,536-frame ring. The kernel wraps its write index

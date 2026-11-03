@@ -257,8 +257,8 @@ describe convert_cluster("convert_cluster_data", $ {
 		expect(std::to_integer<int>(data[56])).to_equal(56);
 	});
 
-	it("FLOAT converts each word to Q31 via q31_from_float across a region that straddles a future "
-	   "16-byte SIMD chunk boundary (20 bytes = 5 words = 1 full 16-byte/4-word chunk + a "
+	it("FLOAT converts each word to Q31 as vcvt does, on the vector path and the scalar tail alike, across a "
+	   "region that straddles a 16-byte SIMD chunk boundary (20 bytes = 5 words = 1 full 16-byte/4-word chunk + a "
 	   "4-byte/1-word scalar tail); pins saturation and NaN/+inf behavior", _ {
 		constexpr size_t cluster_size = 64; // 2^6
 		std::array<std::byte, cluster_size> data{};

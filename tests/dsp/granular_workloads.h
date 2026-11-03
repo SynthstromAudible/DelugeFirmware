@@ -91,7 +91,7 @@ inline constexpr int32_t kRandomnessNone = 0;
 inline constexpr int32_t kRandomnessMid = 0x40000000; ///< @copydoc kRandomnessNone
 inline constexpr int32_t kRandomnessMax = INT32_MAX;  ///< @copydoc kRandomnessNone
 
-/// @brief The post-FX volume a run starts each block's chain from, Q31.
+/// @brief The post-FX volume a run starts each block's chain from, Q27.
 inline constexpr int32_t kStartVolume = 0x30000000;
 
 /// @brief The frames an extremes block holds each extreme: a square wave low enough to pass the wet low-pass.

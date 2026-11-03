@@ -159,11 +159,11 @@ public:
 	/// @param change What commit filled in.
 	void finish(RingChange& change);
 
-	/// @brief Render: the mod FX over @p block in place, multiplying @p post_fx_volume (Q31) by the type's gain
+	/// @brief Render: the mod FX over @p block in place, multiplying @p post_fx_volume (Q27) by the type's gain
 	///        when a sound comes in and the type is an effect (not NONE or grain).
 	/// @param block The stereo block, processed in place.
 	/// @param in The type and knobs for this block.
-	/// @param post_fx_volume The owner's post-FX volume (Q31); scaled in place.
+	/// @param post_fx_volume The owner's post-FX volume, Q27: 2^27 unity; scaled in place.
 	/// @param noise The synth's noise stream, which the warblers draw their targets from.
 	void render(std::span<dsp::StereoSample> block, const ModFxInputs& in, int32_t& post_fx_volume,
 	            dsp::fixed::Cong& noise);

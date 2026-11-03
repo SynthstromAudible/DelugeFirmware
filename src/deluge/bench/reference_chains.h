@@ -19,7 +19,8 @@
 // from the send and volume's prime to the compressor; a kit's or an audio track's from the filter's settings and the
 // sidechain's duck to the compressor, its content render left out (the block arrives rendered); the song master's half
 // before the reverb, the caller's between, then its half after. Owner reads are the inputs fields that carry them. The
-// runtimes are checked against this, so it is written independently of them and changes only with the sound itself.
+// runtimes are checked against this, so it is written independently of them and changes only with the sound itself;
+// its arithmetic stays raw on purpose.
 
 #pragma once
 
@@ -31,6 +32,8 @@
 #include "effects/sound_chain.h"
 #include "effects/track_chain.h"
 
+#include <algorithm>
+#include <cstdint>
 #include <optional>
 #include <span>
 
@@ -59,7 +62,9 @@ inline void process_fx(fx::ChainCore& c, std::span<StereoSample> buffer, fx::Mod
 		    .mix = in.mod_fx_depth,
 		    .density = in.mod_fx_offset,
 		    .randomness = in.mod_fx_feedback,
-		    .send_amount = multiply_32x32_rshift32(*postFXVolume, verbAmount) << 5,
+		    // The volume times the send, shifted up by 5 in 64 bits and held at full scale.
+		    .send_amount = static_cast<q31_t>(std::min<int64_t>(
+		        int64_t{multiply_32x32_rshift32(*postFXVolume, verbAmount)} << 5, int64_t{INT32_MAX})),
 		    .sound = anySoundComingIn,
 		};
 		c.granular().render(buffer, grain, *postFXVolume, {reverbBuffer.data(), buffer.size()}, *in.noise);

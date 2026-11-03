@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/fixed/noise/cong.h"
 #include "effects/bitcrush.h"
@@ -57,6 +58,14 @@ struct FxInputs {
 	dsp::fixed::Cong* noise = nullptr;
 };
 
+/// @brief The granular's reverb send: the post-FX volume times the send knob.
+/// @param post_fx_volume The owner's post-FX volume, Q27: 2^27 unity.
+/// @param send The send knob, Q31.
+/// @return The Q26 product moved to the Q31 send, holding at full scale where volume × send reaches 1.0.
+[[nodiscard]] inline int32_t grain_send_amount(int32_t post_fx_volume, int32_t send) {
+	return mul_as_sat<dsp::Q<31>>(dsp::Q<27>::from_raw(post_fx_volume), dsp::Q<31>::from_raw(send)).raw();
+}
+
 /// @brief The effect components every home has, and the mod FX, EQ and delay stage they share.
 ///
 /// A home's runtime (SoundChain, TrackChain, MasterChain) owns one and adds the components only it has. The owner
@@ -67,7 +76,7 @@ public:
 	/// @param granular_allocator Where the granular's State and ring come from.
 	/// @param enter What entering GRAIN does to the granular: CLEAR for a sound, KEEP for a host chain.
 	/// @param arena Where the delay's tapes come from.
-	/// @param last_post_reverb_volume The send and volume's first ramp start, Q31; -1 leaves it for the first block.
+	/// @param last_post_reverb_volume The send and volume's first ramp start, Q27; -1 leaves it for the first block.
 	ChainCore(RingAllocator mod_fx_allocator, RingAllocator granular_allocator, EnterGrain enter, DelayArena& arena,
 	          int32_t last_post_reverb_volume);
 	ChainCore(const ChainCore&) = delete;
@@ -92,7 +101,7 @@ public:
 
 	/// @brief The mod FX (or the granular, when the type in effect is GRAIN), the EQ, then the delay, over @p block in
 	/// place.
-	/// @param post_fx_volume The post-FX volume, Q31: the mod FX and the granular scale it.
+	/// @param post_fx_volume The post-FX volume, Q27 (2^27 unity): the mod FX and the granular scale it.
 	/// @param sound Whether any sound came in this block.
 	/// @param block The audio to process in place.
 	/// @param in The block's resolved effect inputs.

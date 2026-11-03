@@ -9,10 +9,9 @@
 # which refuses to raise a raw count or add a file with raw sites.
 #
 # <path> raw=<n> boundary=<n>
-src/deluge/bench/cases.cpp raw=0 boundary=13
-src/deluge/bench/cases.h raw=2 boundary=22
+src/deluge/bench/cases.cpp raw=0 boundary=16
+src/deluge/bench/cases.h raw=0 boundary=28
 src/deluge/bench/delay_feedback_cases.cpp raw=2 boundary=0
-src/deluge/bench/granular_cases.cpp raw=1 boundary=0
 src/deluge/bench/reference_chains.h raw=4 boundary=0
 src/deluge/bench/reference_impulse_response.h raw=2 boundary=0
 src/deluge/bench/va_shape_cases.cpp raw=0 boundary=7
@@ -100,11 +99,11 @@ src/deluge/storage/wave_table/wave_table_cycle_reader.cpp raw=1 boundary=0
 src/deluge/util/functions.h raw=1 boundary=0
 src/deluge/util/param_functions.cpp raw=1 boundary=0
 src/deluge/util/phase_increment_fine_tuner.cpp raw=1 boundary=0
-src/effects/chain_core.cpp raw=1 boundary=0
-src/effects/delay.cpp raw=1 boundary=0
-src/effects/master_chain.cpp raw=2 boundary=0
-src/effects/param_fragment.h raw=1 boundary=0
-src/effects/sidechain.cpp raw=2 boundary=0
+src/effects/chain_core.h raw=0 boundary=3
+src/effects/delay.cpp raw=0 boundary=3
+src/effects/master_chain.cpp raw=0 boundary=12
+src/effects/param_fragment.h raw=0 boundary=3
+src/effects/sidechain.cpp raw=0 boundary=5
 src/synth/engines/block_controls.cpp raw=0 boundary=4
 src/synth/engines/dual_source_engine.cpp raw=3 boundary=0
 src/synth/engines/fm_engine.cpp raw=24 boundary=0

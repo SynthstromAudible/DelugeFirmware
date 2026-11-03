@@ -38,7 +38,7 @@ struct TrackChainInputs {
 	BitcrushParams bitcrush;
 	FilterParams filter{};
 	dsp::fixed::FilterScratch filter_scratch; ///< The audio tier's filter scratch.
-	int32_t volume_post_fx{};                 ///< The post-FX volume before the filter's compensation, Q31.
+	int32_t volume_post_fx{};                 ///< The post-FX volume before the filter's compensation, Q27: 2^27 unity.
 	int32_t reverb_send{};                    ///< The reverb send amount, Q31.
 	int32_t pan{};                            ///< The pan param halved, Q31 (0 the centre).
 	bool sidechain_on{};                      ///< Whether the sidechain volume param is above its minimum.
@@ -46,7 +46,7 @@ struct TrackChainInputs {
 	int32_t sidechain_shape{};                ///< The sidechain shape param, Q31.
 	int32_t sidechain_depth{};                ///< The sidechain volume as a patch cable's depth, Q29.
 	uint32_t tick_inverse{};                  ///< The playback handler's getTimePerInternalTickInverse().
-	int32_t post_reverb_volume_neutral{};     ///< The post-reverb volume with no duck, Q31.
+	int32_t post_reverb_volume_neutral{};     ///< The post-reverb volume with no duck, Q27: 2^27 unity.
 	int32_t compressor_threshold{}; ///< The threshold param, Q31; at or below 0 the compressor resets instead.
 	Stutter* stutter{nullptr};      ///< The song's stutter while this owner is the one stuttering, else null.
 	uint32_t stutter_rate{};        ///< The stutter's rate on the delay's rate scale (16777216 neutral).
@@ -54,8 +54,8 @@ struct TrackChainInputs {
 
 /// @brief The volumes begin_block works out before the content renders, which process applies.
 struct TrackBlock {
-	int32_t volume_post_fx;     ///< After the filter's compensation, Q31; the bitcrush, mod FX and grain scale it.
-	int32_t post_reverb_volume; ///< Ducked by the sidechain while it is on, Q31.
+	int32_t volume_post_fx;     ///< After the filter's compensation, Q27; the bitcrush, mod FX and grain scale it.
+	int32_t post_reverb_volume; ///< Ducked by the sidechain while it is on, Q27.
 };
 
 /// @brief A kit's or an audio track's effects: the sidechain's duck, then (after the owner renders its content into the
@@ -67,7 +67,7 @@ public:
 	/// @param mod_fx_allocator The ring allocator for the mod FX's buffers.
 	/// @param granular_allocator The ring allocator for the granular effect's buffers.
 	/// @param arena Where the delay's tapes come from. A host chain keeps its grains on entering GRAIN.
-	/// @param post_reverb_volume_neutral The post-reverb volume the first block ramps from, Q31.
+	/// @param post_reverb_volume_neutral The post-reverb volume the first block ramps from, Q27.
 	TrackChain(RingAllocator mod_fx_allocator, RingAllocator granular_allocator, DelayArena& arena,
 	           int32_t post_reverb_volume_neutral);
 

@@ -22,6 +22,7 @@
 #include "dsp-next/fixed/dynamics/duck_gain.h"
 #include "effects/state.h"
 
+#include <cassert>
 #include <cstdint>
 
 namespace deluge::effects {
@@ -94,7 +95,11 @@ public:
 		if (b.hit != 0) {
 			registerHit(b.hit);
 		}
-		return dsp::fixed::duck_gain<S>(render(b.frames, b.shape, b.state, b.tick_inverse), b.depth);
+		const int32_t duck = render(b.frames, b.shape, b.state, b.tick_inverse);
+		// The ranges duck_gain's square stays in range for (see its Wrapping note).
+		assert(duck <= 0 && duck > INT32_MIN);
+		assert(b.depth >= -(1 << 30) && b.depth <= (1 << 30));
+		return dsp::fixed::duck_gain<S>(duck, b.depth);
 	}
 
 	/// @brief Ends the duck, as for an owner that will not render for a while; see dsp::fixed::DuckEnvelope::stop.

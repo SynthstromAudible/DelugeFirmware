@@ -105,7 +105,7 @@ struct HighPassLadder {
 
 	/// @brief What the owner sets each block.
 	struct Settings {
-		q31 gain = 0; ///< The volume going in, Q31.
+		q31 gain = 0; ///< The volume going in, in the owner's format.
 		/// The cutoff (Q31, lifted by 2^5 onto the tan table: see @ref FilterConfig::frequency), the resonance (Q29)
 		/// and the morph (Q29). The oversampling flag is not read.
 		FilterConfig config{};
@@ -121,7 +121,7 @@ struct HighPassLadder {
 		Q<30> low_pass_1_feedback{};         ///< The second section's feedback, Q30.
 		Q<30> high_pass_3_feedback{};        ///< The third section's feedback, Q30.
 		Q<28> divide_by_total_moveability{}; ///< R / (1 − mR/2 + m²R), Q28: R over the loop's denominator.
-		q31 gain_compensation = 0;           ///< The gain going in, cut as the resonance rises, Q31.
+		q31 gain_compensation = 0;           ///< The gain going in, cut as the resonance rises, in its format.
 		Mode mode = Mode::BYPASS;            ///< The saturation and cutoff, dispatched on once per block.
 	};
 
@@ -197,11 +197,12 @@ struct HighPassLadder {
 		const Q<30> fourth = mul(squared, squared);
 		// Raw: the × 19 / 2^4 is an integer scale, reading the Q30 fourth power as Q31.
 		const auto cut = Q<31>::from_raw((fourth.raw() >> 4) * 19);
+		// The gain is read as Q31 only to scale it: the Q31 factor moved back gives the same bits in any format.
 		c.gain_compensation = mul_as_wrap<Q<31>>(Q<31>::from_raw(s.gain), sub_wrap(Q<31>::max(), cut)).raw();
 		return c;
 	}
 
-	/// @brief The gain compensation, Q31: the gain going in, cut as the resonance rises.
+	/// @brief The gain compensation: the gain going in, in its format, cut as the resonance rises.
 	[[nodiscard]] [[gnu::always_inline]] static constexpr q31 gain(const Coefficients& c) {
 		return c.gain_compensation;
 	}

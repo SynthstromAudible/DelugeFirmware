@@ -97,13 +97,13 @@ public:
 	void finish(GranularBlockChange& change);
 
 	/// @brief Render: the granular effect over @p block in place while sound comes in or the shutdown countdown runs.
-	/// Scales @p post_fx_volume (Q31) by 1/√2 then, adds the reverb feed into @p reverb_send (one value per frame),
+	/// Scales @p post_fx_volume (Q27) by 1/√2 then, adds the reverb feed into @p reverb_send (one value per frame),
 	/// and restarts the effect when the countdown ends. Passes through when no ring is held.
 	/// @details The owner's chain calls this every rendered block while the type in effect is GRAIN, with all four
 	/// knobs (ChainCore::render_fx).
 	/// @param block The stereo block, processed in place.
 	/// @param in The knobs and sound flag for this block.
-	/// @param post_fx_volume The owner's post-FX volume (Q31); scaled in place.
+	/// @param post_fx_volume The owner's post-FX volume, Q27: 2^27 unity; scaled in place.
 	/// @param reverb_send The reverb feed, one value per frame; the effect adds into it.
 	/// @param noise The synth's noise stream, which a starting grain draws from.
 	/// @pre @p reverb_send holds at least one value per frame of @p block.

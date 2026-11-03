@@ -282,18 +282,20 @@ describe duck_envelope("DuckEnvelope", ${
 		expect(stages).to_equal(kLateEdgeStages);
 	});
 
-	it("places a late hit by the attack's step even when the attack is instant", _ {
-		// The minimum attack lasts 2^23 / 1048576 = 8 samples: a hit 3 samples ago lands in the attack at 3 * 1048576,
-		// and one 10 samples ago 2 samples into the release, at 2 * 3680.
-		Control<DuckEnvelope> in_attack{kInstantRates};
-		in_attack.on<&DuckEnvelope::hit_at>(kHit, uint32_t{3});
-		expect(in_attack.state().stage).to_equal(S::ATTACK);
-		expect(in_attack.state().pos).to_equal(3145728U);
+	it("places a late hit straight in its release when the attack is instant, as a live hit starts", _ {
+		// No attack: a hit 3 samples ago is 3 samples into the release, at 3 * 3680, and one 10 samples ago at 10 *
+		// 3680, whatever the attack's step.
+		Control<DuckEnvelope> three_ago{kInstantRates};
+		three_ago.on<&DuckEnvelope::hit_at>(kHit, uint32_t{3});
+		expect(three_ago.state().stage).to_equal(S::RELEASE);
+		expect(three_ago.state().pos).to_equal(11040U);
 
-		Control<DuckEnvelope> in_release{kInstantRates};
-		in_release.on<&DuckEnvelope::hit_at>(kHit, uint32_t{10});
-		expect(in_release.state().stage).to_equal(S::RELEASE);
-		expect(in_release.state().pos).to_equal(7360U);
+		Settings wrapped = kInstantRates; // a synced instant attack's step, wrapped in its lift
+		wrapped.attack = INT32_MIN;
+		Control<DuckEnvelope> ten_ago{wrapped};
+		ten_ago.on<&DuckEnvelope::hit_at>(kHit, uint32_t{10});
+		expect(ten_ago.state().stage).to_equal(S::RELEASE);
+		expect(ten_ago.state().pos).to_equal(36800U);
 	});
 
 	it("stops the duck, weighing a pending hit against the level it stood at", _ {

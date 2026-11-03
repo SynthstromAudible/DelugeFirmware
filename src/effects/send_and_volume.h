@@ -26,9 +26,9 @@
 
 namespace deluge::effects {
 
-/// @brief One block's send and volume: the volumes and send the owner resolved (Q31, 134217728 is unity for the
-/// volumes), its pan (Q31, 0 is the centre), whether to ramp the post-reverb volume from the last block's, and whether
-/// the engine renders in stereo (pan applies only then).
+/// @brief One block's send and volume: the volumes the owner resolved (Q27: 2^27 unity), its Q31 send, its pan (Q31, 0
+/// is the centre), whether to ramp the post-reverb volume from the last block's, and whether the engine renders in
+/// stereo (pan applies only then).
 struct SendAndVolumeParams {
 	int32_t post_fx_volume{0};
 	int32_t post_reverb_volume{0};
@@ -43,7 +43,7 @@ struct SendAndVolumeParams {
 class SendAndVolume {
 public:
 	/// @brief Ramps first from @p last_post_reverb_volume; -1 is "unset", which prime() fills in.
-	/// @param last_post_reverb_volume The volume to ramp from, Q31, or -1 for unset.
+	/// @param last_post_reverb_volume The volume to ramp from, Q27, or -1 for unset.
 	explicit SendAndVolume(int32_t last_post_reverb_volume = 0) {
 		gains_.on<&dsp::fixed::SendAndVolume::start_from>(last_post_reverb_volume);
 	}
@@ -58,7 +58,7 @@ public:
 	                           const SendAndVolumeParams& params);
 
 	/// @brief Before a first block: ramp from @p post_reverb_volume, if nothing has been ramped from yet.
-	/// @param post_reverb_volume The volume to ramp from, Q31.
+	/// @param post_reverb_volume The volume to ramp from, Q27.
 	void prime(int32_t post_reverb_volume) { gains_.on<&dsp::fixed::SendAndVolume::prime>(post_reverb_volume); }
 
 	/// @brief Forget the last block's volume: the next prime() sets it.

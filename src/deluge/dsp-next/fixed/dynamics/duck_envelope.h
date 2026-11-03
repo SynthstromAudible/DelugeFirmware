@@ -132,9 +132,10 @@ struct DuckEnvelope {
 	///
 	/// The hit's attack starts from no duck, travelling the hit's whole strength, wherever the level stood.
 	/// Each stage lasts its length over its step in whole samples, rounded down: a hit landing in a stage's last,
-	/// partial sample is placed at the next stage's start. The attack is placed by its step even when the attack is
-	/// instant. A zero step is a stage that never ends, so a hit at a zero rate stays in that stage, at position 0.
-	/// The owner's settings give a zero rate: a song file's rate of 0, or a long synced rate at a slow tempo.
+	/// partial sample is placed at the next stage's start. An instant attack places the hit in its release, as a live
+	/// hit starts there. A zero step is a stage that never ends, so a hit at a zero rate stays in that stage, at
+	/// position 0. The owner's settings give a zero rate: a song file's rate of 0, or a long synced rate at a slow
+	/// tempo.
 	static void hit_at(const Coefficients& c, State& s, q31 strength, uint32_t samples_ago);
 
 	/// @brief Ends the duck: the next block returns no duck unless a hit arrives.

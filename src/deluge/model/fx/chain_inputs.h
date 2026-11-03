@@ -91,7 +91,7 @@ class TrackChannel;
 /// @brief The song master's half before the reverb, from the song's params once its outputs have rendered; sets up the
 /// block's delay working state on the master's delay.
 /// @param song The song whose master chain is read.
-/// @param volumePostFX The song's post-FX volume, Q31, as its outputs were rendered at.
+/// @param volumePostFX The song's post-FX volume, Q27: 2^27 unity, as its outputs were rendered at.
 /// @return The master chain's pre-reverb inputs.
 [[nodiscard]] effects::MasterChainInputs masterChainInputs(Song& song, int32_t volumePostFX);
 

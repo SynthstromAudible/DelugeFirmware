@@ -253,6 +253,13 @@ instructions.
   shift, the phase masks and sign tests, and the MIDI scalings stay integer; `neon_fm_kernel.s` is assembly, its
   register map pinned by `dx7_asm_pin_spec`. The DX7 source mixes the Q24 sample into the Q31 buffer at a quarter of
   full scale, reading its word as Q26.
+- **Effects:** the owners' post-FX and post-reverb volumes are Q27, 2^27 unity (the send and volume kernel's
+  `Volume`). A tempo-synced step is a step word lifted to Q11 or Q13 times the tick inverse read as signed Q31, and the
+  delay's synced rate the Q24 rate times it, rounded, Q23; the sync levels' run-time shifts and the sync types' 3/2 and
+  2/3 stay integer. The grain send is the Q27 volume times the Q31 send, moved to Q31; the master's pan amplitudes are
+  Q30, and it halves its volume into the compressor's 4.27 gains and takes an eighth of the song volume as its 3.29
+  final volume (`scale_shr_floor`). The bench's chain and impulse-response references keep their raw arithmetic, written
+  independently of what they check, and so does its legacy analog case, the arithmetic the kernel is compared against.
 - **Buffers and frame fields** stay raw `q31` until the kernels that read them use the named operations; each
   kernel's interface stays raw and converts at its entry and exit.
 

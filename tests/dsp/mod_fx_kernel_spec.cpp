@@ -105,7 +105,7 @@ public:
 		}
 	}
 
-	/// @brief Renders @p frames in place for @p block, scaling @p volume (Q31) as the owner does.
+	/// @brief Renders @p frames in place for @p block, scaling @p volume (Q27) as the owner does.
 	void process(const mw::ModFxBlock& block, std::span<StereoSample> frames, int32_t& volume) {
 		if (!block.sound || block.type == ModFXType::NONE || block.type == ModFXType::GRAIN) {
 			return;

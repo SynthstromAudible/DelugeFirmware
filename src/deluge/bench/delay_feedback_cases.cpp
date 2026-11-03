@@ -81,6 +81,7 @@ void DelayFeedbackLegacyAnalogCase::setup(std::size_t n) {
 	drive_ = kDelayDrive;
 }
 
+// The legacy feedback's arithmetic, raw on purpose: what the bench compares the kernel against.
 void DelayFeedbackLegacyAnalogCase::block(std::size_t /*n*/) {
 	for (StereoSample& sample : work_) {
 		sample = response_.process(sample);

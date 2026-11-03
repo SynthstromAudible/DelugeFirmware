@@ -17,7 +17,7 @@
 
 #include "effects/delay.h"
 
-#include "dsp-next/core/q31_ops.h"
+#include "dsp-next/core/fixed_point.h"
 
 #include <algorithm>
 #include <atomic>
@@ -41,7 +41,11 @@ int32_t synced_delay_rate(int32_t userDelayRate, const DelayState& settings, uin
 	if (syncLevel == plugin::SyncLevel::NONE) {
 		return userDelayRate;
 	}
-	int64_t rate = multiply_32x32_rshift32_rounded(userDelayRate, static_cast<int32_t>(timePerInternalTickInverse));
+	// The Q24 rate times the tick inverse read as signed Q31, rounded: Q23, widened for the sync type's 3/2 or 2/3. The
+	// clamp and the level's shift are integer: a run-time shift.
+	int64_t rate = mul_r(dsp::Q<24>::from_raw(userDelayRate),
+	                     dsp::Q<31>::from_raw(static_cast<int32_t>(timePerInternalTickInverse)))
+	                   .raw();
 	if (settings.sync_type == plugin::SyncType::TRIPLET) {
 		rate = rate * 3 / 2;
 	}
