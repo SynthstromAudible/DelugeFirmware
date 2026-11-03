@@ -162,9 +162,9 @@ struct ModernVectorOperator {
 	template <Mode M>
 	[[nodiscard]] [[gnu::always_inline]] static Argon<q31> step(const Coefficients& /*c*/, const Block& b, Loop& l,
 	                                                            Argon<q31> modulation, Argon<q31> accumulator) {
-		Phase at = Phase::from_raw(l.phase);
+		Phases at = Phases::from_raw(l.phase);
 		if constexpr (M == Mode::BUS_SET || M == Mode::BUS_ADD) {
-			at = add_wrap(at, Phase::from_raw(modulation));
+			at = add_wrap(at, Phases::from_raw(modulation));
 		}
 		const Argon<int32_t> sign = half_cycle_sign(at);
 		const Argon<float> x = to_float(position(at));
@@ -173,7 +173,7 @@ struct ModernVectorOperator {
 		p = Argon<float>{kPoly2}.MultiplyAdd(u, p);
 		p = Argon<float>{kPoly3}.MultiplyAdd(u, p);
 		const Argon<int32_t> y = from_float<24>(p * l.gain).raw() ^ sign;
-		l.phase = add_wrap(Phase::from_raw(l.phase), Phase::from_raw(b.phase_step)).raw();
+		l.phase = add_wrap(Phases::from_raw(l.phase), Phases::from_raw(b.phase_step)).raw();
 		l.gain = in_order(l.gain + b.gain_step);
 		if constexpr (M == Mode::NONE_ADD || M == Mode::BUS_ADD) {
 			return add_wrap(QVec<24>::from_raw(y), QVec<24>::from_raw(accumulator)).raw();
@@ -189,17 +189,17 @@ struct ModernVectorOperator {
 	[[nodiscard]] [[gnu::always_inline]] static Vectors step_chains(const Coefficients& /*c*/, const Block& b, Loop& l,
 	                                                                const Vectors& modulation,
 	                                                                const Vectors& accumulator) {
-		const Phase step = Phase::from_raw(b.phase_step);
-		const Phase p0 = Phase::from_raw(l.phase);
-		const Phase p1 = add_wrap(p0, step);
-		const Phase p2 = add_wrap(p1, step);
-		Phase a0 = p0;
-		Phase a1 = p1;
-		Phase a2 = p2;
+		const Phases step = Phases::from_raw(b.phase_step);
+		const Phases p0 = Phases::from_raw(l.phase);
+		const Phases p1 = add_wrap(p0, step);
+		const Phases p2 = add_wrap(p1, step);
+		Phases a0 = p0;
+		Phases a1 = p1;
+		Phases a2 = p2;
 		if constexpr (M == Mode::BUS_SET || M == Mode::BUS_ADD) {
-			a0 = add_wrap(a0, Phase::from_raw(modulation.v[0]));
-			a1 = add_wrap(a1, Phase::from_raw(modulation.v[1]));
-			a2 = add_wrap(a2, Phase::from_raw(modulation.v[2]));
+			a0 = add_wrap(a0, Phases::from_raw(modulation.v[0]));
+			a1 = add_wrap(a1, Phases::from_raw(modulation.v[1]));
+			a2 = add_wrap(a2, Phases::from_raw(modulation.v[2]));
 		}
 		const Argon<int32_t> s0 = half_cycle_sign(a0);
 		const Argon<int32_t> s1 = half_cycle_sign(a1);
@@ -238,18 +238,18 @@ struct ModernVectorOperator {
 	[[gnu::always_inline]] static void resume(State& s, OperatorState op) { s.op = op; }
 
 private:
-	/// @brief Four phases, 2^24 per cycle, wrapping.
-	using Phase = QVec<24>;
+	/// @brief Four phases, as Phase.
+	using Phases = QVec<24>;
 
 	/// @brief All ones in each lane whose phase is in its cycle's second half (bit 23 set), else zero: the sign the
 	/// output is inverted by.
-	[[nodiscard]] [[gnu::always_inline]] static Argon<int32_t> half_cycle_sign(Phase at) {
+	[[nodiscard]] [[gnu::always_inline]] static Argon<int32_t> half_cycle_sign(Phases at) {
 		return Argon<int32_t>{at.raw()}.CompareTestNonzero(Argon<int32_t>{0x800000}).ToMask().template As<int32_t>();
 	}
 
 	/// @brief Each lane's position in its half cycle, in [-1, 1): the phase's low 23 bits, [0, 2) read as Q22, less
 	/// one. The mask is a bit operation on the phase, so it stays raw.
-	[[nodiscard]] [[gnu::always_inline]] static QVec<22> position(Phase at) {
+	[[nodiscard]] [[gnu::always_inline]] static QVec<22> position(Phases at) {
 		const QVec<22> in_half = QVec<22>::from_raw(Argon<int32_t>{at.raw()} & Argon<int32_t>{0x7fffff});
 		return sub_wrap(in_half, QVec<22>::splat(Q<22>::from_raw(0x400000)));
 	}
