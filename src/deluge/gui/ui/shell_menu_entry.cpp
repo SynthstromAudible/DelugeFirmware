@@ -19,6 +19,7 @@
 #include "gui/ui/menu_view_of.h"
 
 #include "gui/ui/keyboard/keyboard_screen.h"
+#include "gui/ui/shell_drum_creator.h"
 #include "gui/ui/shell_host_ui.h"
 #include "gui/ui/ui.h"
 #include "gui/views/automation_view.h"
@@ -143,6 +144,8 @@ const menu::Node* rootNodeFor(const menu::MenuContext& ctx) {
 /// entry point that installs a `MenuContext`.
 /// @return Whether the guest is now open.
 bool openGuest(const menu::Node& root, const menu::MenuContext& ctx, uint16_t arg, const menu::Node* shortcut) {
+	// A guest torn down without its close (`nullifyUIs`) leaves the creator's drum behind; a new guest is not its.
+	forgetShellDrumCreator();
 	deluge::scenes::menu_scene().open(root, ctx);
 	if (shortcut != nullptr) {
 		arg = deluge::scenes::menu_scene().arm_shortcut_landing(*shortcut);

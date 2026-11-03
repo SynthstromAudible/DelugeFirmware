@@ -141,10 +141,8 @@ SoundEditor::ResolvedContext resolvedFor(const deluge::scenes::menu::MenuContext
 /// `openShellMenu` resolved for this visit, so it is a mirror of a resolution rather than a second
 /// one. See `SoundEditor::adoptResolvedContext`.
 ///
-/// @warning The file arm is a fan-out and only its `else` is deferred: shift+select on a kit opens
-///          the slicer in the legacy browser, and here loads the sample. `Descriptor::accept` carries
-///          no shift bit, and this runs a tick after the press, so the shift state cannot be read
-///          here. Closing it means the shift state travelling on `BrowserChoice`.
+/// Only a claim reaches here: Shift+Select on a file in a kit is decided by `BrowserScene` with the press, which parks
+/// a slice or refuses, so the shift state never has to be read a tick later.
 ///
 /// @param path   The chosen file's full path.
 /// @param target @p path split; its filename names the entered text.

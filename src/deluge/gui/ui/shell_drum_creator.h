@@ -35,6 +35,9 @@ namespace deluge::gui::ui {
 /// @return Whether the guest is now open; false leaves nothing open and nothing remembered.
 bool openShellDrumCreator(InstrumentClip* clip, SoundDrum* drum);
 
+/// @brief Forget the drum the creator made, without touching it: a guest is opening, and it is not the creator's.
+void forgetShellDrumCreator();
+
 /// @brief `SampleBrowser::exitAction`'s drum-creator arm, run as the guest closes.
 ///
 /// When the guest was opened by `openShellDrumCreator`, the drum it made is deleted if its file was never chosen and

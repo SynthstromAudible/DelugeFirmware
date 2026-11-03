@@ -133,27 +133,10 @@ void SlicerScene::on_resume() {
 	// (`gui/ui/ui.cpp:194-199`), and legacy's `Slicer` gets nothing else on that edge -- so this is
 	// `Slicer::focusRegained` (`gui/ui/slicer.cpp:59-72`) again, exactly as `on_enter` is.
 	//
-	// @par Why this was empty for one task, and what changed
-	//
-	// E4 task 10 measured a regression the mapping alone did not predict: `Slicer` raises timed
-	// popups from four of its own arms -- `horizontalEncoderAction` (`:227`), `verticalEncoderAction`
-	// (`:243`), `buttonAction`'s Y_ENC arm (`:301`) and, as a cancel, `padAction` (`:503`, `:540`).
-	// In legacy a popup is a *display overlay* (`OLED::popupText`), not a UI on
-	// `uiNavigationHierarchy`, so it never reaches `closeUI`; in the shell a popup **is** a scene,
-	// and `SceneStack::remove` used to fire `on_resume()` on the scene beneath whenever the scene it
-	// removed sat highest. Place forty slices by hand, tap a pad, and 800 ms later
-	// (`kPopupTimeoutMs`, `shell/notices.cpp:31`) every one of them was gone.
-	//
-	// The fix was the shell's, not this scene's: `SceneStack` now fires `on_resume()` only when
-	// `input_top()` actually changes hands, and an `input_transparent()` overlay never holds it
-	// (`shell/scene_stack.h`'s contract table; design spec §15.7). A popup coming and going is
-	// therefore no longer an edge at all, and the legacy body is back -- so the first wiring that
-	// pushes something real over the slicer, a context menu or a MIDI-learn overlay, gets legacy's
-	// reset rather than silently not getting it.
-	//
-	// Covered from both sides: `sim/scenes_spec/slicer_scene_spec.cpp`'s "keeps its slice table when
-	// a popup it raised itself expires" (the popup must not reset it) and "resets its state when a
-	// real scene above it closes" (an opaque scene must).
+	// A popup this scene raises is a shell scene, where legacy's is a display overlay that never reaches `closeUI`;
+	// `SceneStack` fires `on_resume()` only when `input_top()` changes hands, and an `input_transparent()` popup never
+	// holds it, so a popup coming and going leaves the slice table alone. A real scene closing above the slicer gets
+	// legacy's reset. Both are asserted in `sim/scenes_spec/slicer_scene_spec.cpp`.
 	if (ops_ != nullptr) {
 		ops_->cancel_audition();
 	}
@@ -267,7 +250,7 @@ Result SlicerScene::select_encoder(int32_t offset) {
 	}
 	else {
 		// `:258-271`. MANUAL mode only ever *removes* slices from here -- adding them is
-		// `padAction`'s (Task 10) -- so a positive turn only re-clamps the cursor.
+		// `padAction`'s -- so a positive turn only re-clamps the cursor.
 		if (offset < 0) {
 			num_manual_slices_ += offset;
 			if (num_manual_slices_ <= 0) {
@@ -401,9 +384,9 @@ Result SlicerScene::pad_action(int32_t x, int32_t y, int32_t velocity) {
 			}
 		}
 		else { // `:506` do slice
-			// `:508-534` is the voice walk, which is not ported -- see `SliceOps::play_position`.
+			// `:508-534` is the voice walk, which the host runs -- see `SliceOps::play_position`.
 			// `:533`'s `if (voiceSample != nullptr)` is exactly "the walk found one", which is what
-			// an engaged `nullopt` means here.
+			// an engaged optional means here.
 			//
 			// NOT a defect, but worth writing down because it reads like one: legacy declares
 			// `MultisampleRange* range;` uninitialised at `:510`, captures it BY REFERENCE into the
@@ -596,10 +579,9 @@ Result SlicerScene::handle(const UiEvent& event, const UiContext& ctx) {
 	case UiEvent::Kind::Encoder:
 		break;
 
-	// The two MIDI kinds (F1 task 10's transport, `shell/scene.h`) are declined here for the reason
-	// every scene ported so far declines them: claiming one means answering `learnable_at(pad)`,
-	// which is the timeline scenes' work (E5/E6). Declining lets `Router::run_chain` carry the
-	// message on to `services::MidiLearn`, which is where legacy's `view.` fallback puts it.
+	// The two MIDI kinds (`shell/scene.h`) are declined here, as every non-timeline scene declines them: claiming one
+	// means answering `learnable_at(pad)`, which is the timeline scenes' work. Declining lets `Router::run_chain` carry
+	// the message on to `services::MidiLearn`, which is where legacy's `view.` fallback puts it.
 	case UiEvent::Kind::MidiNoteOn:
 	case UiEvent::Kind::MidiCc:
 	case UiEvent::Kind::AllReleased:
@@ -675,9 +657,7 @@ void SlicerScene::render_pads(deluge::ui::grid::GridFrame& f) {
 	//
 	// A frame that cannot grant all of that is handled by `GridFrame` itself: `pad()` outside
 	// `visible()` paints nothing and `peek()` returns black, which is exactly what a clipped write
-	// would have left behind. An earlier cut of this function clamped both axes and then used
-	// legacy's constants anyway, which made the clamp decorative -- the review caught it, and the
-	// answer was to delete it rather than to spread it through arithmetic that is transcribed.
+	// would have left behind, so there is no clamp of this function's own.
 
 	// `renderFullScreen`'s scan (`gui/waveform/waveform_renderer.cpp:51-54`), and its early return:
 	// a scan that could not load every cluster leaves the image **untouched** -- it returns before

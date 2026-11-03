@@ -69,6 +69,10 @@ bool openShellDrumCreator(InstrumentClip* clip, SoundDrum* drum) {
 	return true;
 }
 
+void forgetShellDrumCreator() {
+	creatorDrum = nullptr;
+}
+
 void discardShellDrumCreatorBeforeClose() {
 	SoundDrum* drum = std::exchange(creatorDrum, nullptr);
 	if (drum == nullptr) {

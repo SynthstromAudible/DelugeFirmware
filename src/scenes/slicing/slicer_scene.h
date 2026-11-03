@@ -3,10 +3,8 @@
 /// @brief `SlicerScene` -- the slicer: a waveform on the pads, a slice count on the OLED, and (in
 ///        MANUAL mode) a 64-slot slice grid under the waveform.
 ///
-/// The port of `Slicer` (`gui/ui/slicer.{h,cpp}`), which `SampleBrowser` and the sample browser's
-/// kit context menu open once a sample has been chosen. Task 9 covered the state, the two renders
-/// and the three encoder arms; Task 10 added `padAction`, the rest of `buttonAction`, the audition
-/// preview and the slice commit.
+/// The port of `Slicer` (`gui/ui/slicer.{h,cpp}`), which the sample browser opens on a file in a brand-new kit: from
+/// the kit's SAMPLES menu (SLICE) or with Shift+Select.
 ///
 /// @par Everything this scene does to the audio, the model and the card goes through `SliceOps`
 ///
@@ -18,173 +16,86 @@
 /// answers `SliceOps::begin_commit` later with `commit_done`. See `SliceOps` for what a null `ops()`
 /// means.
 ///
-/// @par This is NOT a root scene
+/// @par This is not a root scene
 ///
-/// The plan's prose calls it one; it is not. `class Slicer final : public UI` (`gui/ui/slicer.h:33`)
-/// -- a plain `UI`, opened with `openUI(&slicer)` from `gui/ui/browser/sample_browser.cpp:378` and
-/// `gui/context_menu/sample_browser/kit.cpp:77`, and `grep "public RootUI"` finds exactly two
-/// classes in the tree, `TimelineView` and `KeyboardScreen` (`shell/scene.h:508-511`, which already
-/// records this). So `is_root()` is false, and `services::GlobalControls` correctly gates the
-/// `View::buttonAction` group of legacy's global button arms off it: with the slicer up, those arms
-/// are unreachable in legacy too, because `UI::buttonAction`'s base returns `NOT_DEALT_WITH`
-/// without forwarding to `view` (`gui/ui/ui.h:98-100`).
+/// `class Slicer final : public UI` (`gui/ui/slicer.h:33`) is a plain `UI`, opened with `openUI(&slicer)`; the only
+/// `RootUI`s are `TimelineView` and `KeyboardScreen` (`shell/scene.h`). So `is_root()` is false, and
+/// `services::GlobalControls` gates the `View::buttonAction` group of legacy's global button arms off it: with the
+/// slicer up, those arms are unreachable in legacy too, because `UI::buttonAction`'s base returns `NOT_DEALT_WITH`
+/// without forwarding to `view` (`gui/ui/ui.h:98-100`). It does not consume `scenes::timeline::TimelineState` either:
+/// legacy's slicer navigates a *sample*, through `waveformBasicNavigator`, not a timeline.
 ///
-/// It does not consume `scenes::timeline::TimelineState` either: legacy's slicer navigates a
-/// *sample*, through `waveformBasicNavigator`, not a timeline.
+/// @par The composition predicates
 ///
-/// @par The composition predicates -- five, not the four the brief named
-///
-///   * **`is_root()` -> false.** `class Slicer final : public UI` (`gui/ui/slicer.h:33`).
+///   * **`is_root()` -> false**, above.
 ///   * **`oled_transparent(role) -> true`.** `Slicer()` sets `oledShowsUIUnderneath = true`
 ///     (`gui/ui/slicer.h:35`), and `renderOLED` then clears only its own window.
-///   * **`is_grid_overlay() -> true`.** `renderMainPads` (`gui/ui/slicer.cpp:103-152`) returns true
-///     unconditionally, so this is drawn over whatever root is beneath and is not the grid base.
-///   * **`occludes_grid() -> false.`** `Slicer` overrides `renderMainPads` only. It has no
-///     `renderSidebar`, and `UI::renderSidebar`'s base returns false (`gui/ui/ui.h:148-151`), so
-///     `doAnyPendingGridRendering`'s top-down walk (`gui/ui/ui.cpp:305-349`) keeps going and the
-///     sidebar beneath paints -- exactly `MarkerScene`'s situation. The predicate's own definition
-///     is "covers the grid COMPLETELY, so scenes beneath need not render" (`shell/scene.h`), and its
-///     one consumer is `Shell::tick_stack` (`shell/shell.cpp:594-608`), which stops advancing clocks
-///     beneath a scene that claims it; claiming it here would stop the clock of the scene that owns
-///     the sidebar.
+///   * **`is_grid_overlay() -> true`.** `renderMainPads` returns true unconditionally, so this is drawn over whatever
+///     root is beneath and is not the grid base.
+///   * **`occludes_grid() -> false.`** `Slicer` overrides `renderMainPads` only. It has no `renderSidebar`, and
+///     `UI::renderSidebar`'s base returns false (`gui/ui/ui.h:148-151`), so legacy's top-down grid walk keeps going and
+///     the sidebar beneath paints -- `MarkerScene`'s situation. The predicate means "covers the grid completely, so
+///     scenes beneath need not render" (`shell/scene.h`), and `Shell::tick_stack` stops advancing clocks beneath a
+///     scene that claims it; claiming it here would stop the clock of the scene that owns the sidebar.
 ///
-/// @par The one legacy predicate that points the other way, and why it does not change the answer
-///
-/// `Slicer::canSeeViewUnderneath()` returns **false** (`gui/ui/slicer.h:38`) -- the only legacy
-/// predicate on this class that says "do not run the layer beneath". It has two consumers in the
-/// tree and neither is about grid composition:
-///
-///   * `UI::graphicsRoutine` (`gui/ui/ui.cpp:47-51`), which forwards the per-tick redraw to the root
-///     UI only when it is true. Moot for `Slicer`, which overrides `graphicsRoutine` itself.
-///   * `Session::armingChanged` (`playback/mode/session.cpp:1295`), which uses it to decide whether
-///     an arming change should raise `Dirty::Oled` and flash the play LED. That is an OLED question
-///     -- with the slicer's own page up, the session view's OLED content is not on screen -- and
-///     false is right for it. It says nothing about which pads get painted.
-///
-/// Neither is `renderSidebar`, and `renderSidebar` is what the grid walk actually consults.
+/// `Slicer::canSeeViewUnderneath()` returns false (`gui/ui/slicer.h:38`), the one legacy predicate that points the
+/// other way. Neither of its consumers is about grid composition: `UI::graphicsRoutine` forwards the per-tick redraw
+/// to the root only when it is true, which `Slicer` overrides anyway, and `Session::armingChanged` uses it to decide
+/// whether the session view's OLED is on screen.
 ///
 /// @par What draws what
 ///
-/// Nothing here calls an `OledFrame` or `GridFrame` primitive (`check_layer_rules.py`,
-/// `scenes-no-frame-primitives`), and nothing names `waveformRenderer` or `waveformBasicNavigator`
-/// (`scenes-no-legacy-waveform`):
+/// Nothing here calls an `OledFrame` or `GridFrame` primitive (`scenes-no-frame-primitives`), and nothing names
+/// `waveformRenderer` or `waveformBasicNavigator` (`scenes-no-legacy-waveform`):
 ///
-///   * `renderOLED`'s window, rule, label and centred count (`gui/ui/slicer.cpp:74-98`) ->
-///     `ui::oled::count_window`.
-///   * `renderMainPads`' two `waveformRenderer.renderFullScreen` calls (`:108`, `:114`) ->
-///     `deluge::sample::find_peaks_per_col` + `ui::grid::waveform_full`.
-///   * the MANUAL slice grid and slice marks (`:117-149`) -> `GridFrame::pad` through the region,
-///     with the colours resolved here.
+///   * `renderOLED`'s window, rule, label and centred count -> `ui::oled::count_window`.
+///   * `renderMainPads`' two `waveformRenderer.renderFullScreen` calls -> `deluge::sample::find_peaks_per_col` +
+///     `ui::grid::waveform_full`.
+///   * the MANUAL slice grid and slice marks -> `GridFrame::pad` through the region, with the colours resolved here.
+///   * `graphicsRoutine`'s playhead -> `ui::grid::tick_squares` on rows 7 to 4 at the column `SliceOps::play_position`
+///     reports, asked again every `kPlayheadMs` while something plays (`next_timer`).
 ///
-/// @par `graphicsRoutine` -- the playhead -- is deliberately not ported
+/// @par The commit does not need `RecorderScene`'s SD-routine guard
 ///
-/// `Slicer::graphicsRoutine` (`slicer.cpp:156-203`) walks the current kit's first drum for a
-/// sounding `VoiceSample`, turns its play position into a column, and hands rows 4..7 to
-/// `PadLEDs::setTickSquares`. Two halves, and only one of them is ready:
+/// `RecorderScene::after_render` asks `AudioEngine::sdRoutineBusy()` before it finishes a recording, because freeing a
+/// `SampleRecorder` suspended part-way through its own `cardRoutine()` leaves that routine running on freed memory
+/// (`gui/ui/audio_recorder.cpp:168-176`). The slicer's commit is not that shape:
 ///
-///   * the *paint* half now exists in the toolkit (`ui::grid::tick_squares`, `ui/grid/columns.h`),
-///     which closes the gap `MarkerScene` recorded for the same routine;
-///   * the *walk* does not. It needs `Sound::voices()` to report a live voice, which means a
-///     running audio engine, and no spec in this tree can produce one -- `sim/scenes_spec`'s
-///     fixtures build a `Song` by direct construction with no `AudioEngine::init()` behind them.
-///     Every branch of the column arithmetic (`:186-192`) would therefore ship unmeasured, and the
-///     only branch a spec CAN reach is "no voices, no tick square", which asserts nothing.
+///   1. `cardRoutine()` exists only on `SampleRecorder`, and `Slicer::doSlice` frees no recorder: its one
+///      `delugeDealloc` releases a `SoundDrum` it allocated itself, before `kit->addDrum` publishes it.
+///   2. The commit is input-driven. Legacy refuses the Select from inside a card routine
+///      (`REMIND_ME_OUTSIDE_CARD_ROUTINE`), and that defer-and-retry gate is `InputLowering::set_sd_busy`, not a
+///      scene's business -- as `RecorderScene::handle`, `MarkerScene` and `BrowserScene` also hold.
+///   3. The hazard the slice does have is re-entry: a Back or a second Select while its load is out would close the
+///      slicer under it or slice twice. Legacy guards it with the `currentUIMode` gate; this scene carries it as
+///      `committing()`, held from Select until the host's `commit_done`.
 ///
-/// Ported as a consequence: **nothing, and no timer.** `graphicsRoutine` is a per-tick redraw
-/// driven by audio, not a deadline (it is called from the main loop, never from
-/// `uiTimerManager`), so with the playhead absent this scene has no time-driven state at all --
-/// `next_timer()` stays `std::nullopt` and `timer_repaints()` is left at its default rather than
-/// being overridden to claim surfaces nothing would repaint. Whoever ports the walk owns both.
+/// @par `on_resume()` and popups
 ///
-/// @par The commit does NOT need `RecorderScene`'s SD-routine guard, and here is the evidence
-///
-/// `RecorderScene::after_render` has to ask `AudioEngine::sdRoutineBusy()` before it finishes a
-/// recording, because legacy states the hazard itself on `AudioRecorder::slowRoutine`
-/// (`gui/ui/audio_recorder.cpp:168-176`): *the recorder may be suspended part-way through its own
-/// `cardRoutine()`, and freeing it there leaves that `cardRoutine()` running on freed memory, then
-/// frees it a second time.* Three facts, all read rather than assumed, say the slicer's commit is
-/// not that shape:
-///
-///   1. **`cardRoutine()` exists on exactly one class in this tree.** `grep -rn cardRoutine
-///      src/deluge` finds `SampleRecorder::cardRoutine` (`model/sample/sample_recorder.h:67`,
-///      `sample_recorder.cpp:375`) and its one pump, `AudioEngine::doRecorderCardRoutines`
-///      (`audio_engine.cpp:1682`) -- nothing else. The hazard is "free an object whose own
-///      `cardRoutine()` is suspended", and `Slicer::doSlice` (`gui/ui/slicer.cpp:596-751`) frees no
-///      `SampleRecorder`: its only `delugeDealloc` (`:703`) releases the `SoundDrum` it allocated
-///      thirteen lines earlier at `:690`, on the `ramError2` path, and **I read the enclosing
-///      braces** -- `kit->addDrum(newDrum)` is at `:711`, below both error labels, so nothing else
-///      holds that pointer when it is freed.
-///   2. **The commit is input-driven; the recorder's completion arm is not.** `RecorderScene` polls
-///      from the shell tick with no input at all, which is why the deferral had to be its own. The
-///      slicer commits only from `Slicer::buttonAction`'s SELECT_ENC arm, and legacy already refuses
-///      that press from inside a card routine -- `if (inCardRoutine) return
-///      ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;` (`slicer.cpp:335-337`), and the BACK arm
-///      repeats it at `:372-374`. That is the **defer-and-retry** gate whose port is
-///      `InputLowering::set_sd_busy` (`shell/input_lowering.h:318`), deliberately not an `Action`
-///      and deliberately not a scene's business -- the same ruling `RecorderScene::handle`,
-///      `MarkerScene` and `BrowserScene` all record.
-///   3. **The hazard `doSlice` does have is a different one, and legacy names it itself.** The
-///      slice ends in `sampleBrowser.exitAndNeverDeleteDrum()` -> `close()`, so a BACK or a second
-///      SELECT_ENC arriving while its load is out would close the slicer under it or slice twice.
-///      Its guard is the `currentUIMode` gate, not an SD test -- and *that* is the guard this port
-///      carries, as `committing()`.
-///
-/// So: no `sdRoutineBusy()` call here, and saying so is the finding. What is ported instead is the
-/// re-entry gate (`committing_`), held from Select until the host's `commit_done`.
-///
-/// @par What this scene's own popups found in the shell
-///
-/// `on_resume()` is `Slicer::focusRegained` (`gui/ui/slicer.cpp:59-72`), the same body `on_enter`
-/// runs, because `closeUI` calls `focusRegained()` on whatever it leaves on top
-/// (`gui/ui/ui.cpp:194-199`). Task 10 measured that mapping firing where legacy never would: a
-/// legacy popup is a display overlay, not a UI, while a shell popup is a `SceneKind::Popup` scene,
-/// and `SceneStack::remove` used to notify the scene beneath whenever the scene it removed sat
-/// highest. So a Y_ENC press raising a popup (`slicer.cpp:301`), or a slice-pad tap cancelling one
-/// (`:503`), wiped forty hand-placed slices 800 ms later.
-///
-/// The body was empty for exactly one task while the shell was corrected. **It is not any more:**
-/// `SceneStack` now fires `on_resume()` only when `input_top()` changes hands, and an
-/// `input_transparent()` overlay never holds it, so a popup coming and going is not an edge
-/// (`shell/scene_stack.h`'s contract table; design spec §15.7). Both directions are asserted in
+/// `on_resume()` is `Slicer::focusRegained` (`gui/ui/slicer.cpp:59-72`), because `closeUI` calls `focusRegained()` on
+/// whatever it leaves on top (`gui/ui/ui.cpp:194-199`). A legacy popup is a display overlay, not a UI, while a shell
+/// popup is a `SceneKind::Popup` scene; `SceneStack` fires `on_resume()` only when `input_top()` changes hands, and an
+/// `input_transparent()` overlay never holds it, so a popup the scene raises coming and going does not reset its
+/// slice table (`shell/scene_stack.h`'s contract table). Both directions are asserted in
 /// `sim/scenes_spec/slicer_scene_spec.cpp`.
 ///
-/// @par Two legacy defects found while porting, reproduced or clipped rather than fixed
+/// @par Two legacy defects, clipped rather than reproduced
 ///
-///   * **`Slicer::renderMainPads` does not check `image != nullptr`.** `UI`'s own header says it
-///     must ("These *must* check whether image has been supplied", `gui/ui/ui.h:141-142`) and
-///     `SampleMarkerEditor::renderMainPads` does (`sample_marker_editor.cpp:1362-1366`). `closeUI`
-///     quizzes every UI above the one being closed with the no-argument form
-///     (`gui/ui/ui.cpp:186`), and closing the slicer itself takes that path, so
-///     `waveformRenderer.renderFullScreen` is reached with a null image and memsets through it.
-///     Reported, not fixed -- it is a legacy edit this plan does not authorise. The port has no
-///     equivalent: `render_grid` is always handed a real frame.
-///   * **The MANUAL slice mark can land in the sidebar.** `image[4][x]` with
-///     `x = startPos / lengthInSamples * 16` (`:123-128`) is 16 when `startPos` has been driven to
-///     `lengthInSamples`, which `horizontalEncoderAction`'s clamp (`:220-221`) allows -- and column
-///     16 is the first sidebar column. Legacy composes the grid **top-down**
-///     (`doAnyPendingGridRendering`, `gui/ui/ui.cpp:305-349`), so the sidebar UI beneath overwrites that pad later in
-///     the same pass; the shell composes **bottom-up** (`Shell::render_grid`, `shell/shell.cpp:741-857`: base first,
-///     then overlays), so reproducing the write here would leave the stray pad visible where legacy's is not. The port
-///     therefore paints the slice marks inside the main-column region, which clips it. Behaviour
-///     preserved by clipping, not by transcription -- the one place in this file where those differ.
+///   * **`Slicer::renderMainPads` does not check `image != nullptr`**, which `UI`'s header requires
+///     (`gui/ui/ui.h:141-142`); closing the slicer quizzes it with the no-argument form (`gui/ui/ui.cpp:186`). The port
+///     has no equivalent: `render_grid` is always handed a real frame.
+///   * **The MANUAL slice mark can land in the sidebar.** `x = startPos / lengthInSamples * 16` is 16 once a slice has
+///     been clamped to the end of the sample, and column 16 is the first sidebar column. Legacy composes the grid
+///     top-down, so the sidebar beneath overwrites that pad in the same pass; the shell composes bottom-up
+///     (`Shell::render_grid`), so the write would leave a stray pad. The marks are painted inside the main-column
+///     region, which clips it.
 ///
 /// @par Why the directory and namespace are `slicing/` and not `slicer/`
 ///
-/// The plan asks for `src/scenes/slicer/slicer_scene.{h,cpp}`. The `scenes-no-root-ui` ratchet
-/// (`scripts/check_layer_rules.py`'s `ROOT_UI_GLOBALS`) lists the legacy global `slicer`
-/// (`gui/ui/slicer.cpp:55`) among the names `src/scenes/**` may never spell, as a whole-word
-/// pattern -- and `#include "scenes/slicer/slicer_scene.h"` contains that whole word. **Measured,
-/// with the path put back and the namespace left alone: two violations, in two files, one line
-/// each** -- this file's own include and `registry.cpp`'s. `count_file` skips comment-only lines
-/// (`check_layer_rules.py:961-975`), so the docstring mentions above never counted.
-///
-/// Two real include lines is not "the path is impossible"; it is "the row as written flags this
-/// path, and narrowing it to skip `#include` would preserve its stated purpose exactly". That
-/// narrowing is a change to a shared checker, so it went up as an open question for E4 task 14
-/// rather than being made here, and the local fix stands: the directory and the namespace are
-/// `slicing`, ratified by the controller, and the file names are the plan's. `SlicerScene`,
-/// `kSlicerSceneKind` and `slicer_scene()` are all unaffected -- `\bslicer\b` does not match a name
-/// that continues into another word character.
+/// `scenes-no-root-ui` (`scripts/check_layer_rules.py`'s `ROOT_UI_GLOBALS`) lists the legacy global `slicer` as a
+/// whole word `src/scenes/**` may never spell, and `#include "scenes/slicer/slicer_scene.h"` contains it.
+/// `SlicerScene`, `kSlicerSceneKind` and `slicer_scene()` are unaffected: `\bslicer\b` does not match a name that
+/// continues into another word character.
 ///
 /// @warning This scene must not raise `Action::Kind::LockInput`, and does not. See the warning on
 ///          `Action` in `shell/scene.h`.
@@ -275,12 +186,11 @@ struct SliceCommit {
 /// The same split `scenes::browser::Listing` makes for the card, and for the same reason: one named place that
 /// knows how to reach the thing, rather than a hole in the layer rule.
 ///
-/// @warning **A null `SlicerScene::ops()` is not an error and not a stub.** Nothing links
-///          With no ops the scene still does all of its own bookkeeping -- the slice table and the
-///          modes -- and performs no audio or card work and begins no commit, which is what a spec
-///          wants. It is emphatically *not* a
-///          licence to leave a call out: a call this interface does not carry is a call the port
-///          has dropped.
+/// @warning **A null `SlicerScene::ops()` is not an error and not a stub.** The application wires the host's ops at
+///          boot (`gui::ui::wireShellSliceOps`); a spec starts unwired. With no ops the scene still does all of its
+///          own bookkeeping -- the slice table and the modes -- and performs no audio or card work and begins no
+///          commit. It is not a licence to leave a call out: a call this interface does not carry is a call the
+///          port has dropped.
 class SliceOps {
 public:
 	virtual ~SliceOps() = default;
@@ -337,11 +247,8 @@ public:
 
 	/// @brief Switch between REGION and MANUAL.
 	///
-	/// The **state half** of `Slicer::buttonAction`'s `X_ENC` arm (`slicer.cpp:283-294`). The arm
-	/// itself -- the button routing, `AudioEngine::stopAnyPreviewing()` and
-	/// `getCurrentKit()->firstDrum->killAllVoices()` -- belongs with the rest of `buttonAction` and
-	/// the preview machinery it tears down, which is Task 10's; this is the piece the render and
-	/// the encoder arms branch on, so it lands with them.
+	/// The state half of `Slicer::buttonAction`'s `X_ENC` arm (`slicer.cpp:283-294`), for specs that set a mode
+	/// without the button; the button's arm also silences the preview and the first drum (`button_action`).
 	/// @param mode The mode to switch to.
 	void set_mode(Mode mode);
 
@@ -378,8 +285,8 @@ public:
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
 	                                 const deluge::ui::shell::UiContext& ctx) override;
 	bool on_enter(const deluge::ui::shell::SceneId& id) override;
-	/// @brief `Slicer::focusRegained` again, as `on_enter` is -- see the definition, and "What this
-	///        scene's own popups found in the shell" in the class docstring.
+	/// @brief `Slicer::focusRegained` again, as `on_enter` is -- see "`on_resume()` and popups" in the file
+	///        comment.
 	void on_resume() override;
 	deluge::ui::shell::Result after_render() override;
 	/// @brief Now while a landed commit waits for `after_render`; `kPlayheadMs` while something plays, for the
@@ -405,7 +312,7 @@ public:
 	bool oled_transparent(deluge::ui::shell::SurfaceRole) const override { return true; }
 
 	/// @name Observable state
-	/// Legacy's four public members (`gui/ui/slicer.h:62-65, 69`), for specs and for Task 10.
+	/// Legacy's four public members (`gui/ui/slicer.h:62-65, 69`), for specs.
 	/// @{
 	/// @return REGION or MANUAL (`slicerMode`).
 	Mode mode() const { return mode_; }
