@@ -291,4 +291,30 @@ template <int F>
 	return Q<F>::from_raw(vget_lane_s32(vpadd_s32(halves, halves), 0));
 }
 
+/// @brief Each lane as a float, rounded to nearest once, as the scalar to_float (`vcvt.f32.s32 #F`; plain `vcvt` for
+/// F = 0).
+template <int F>
+requires(F >= 0 && F <= 32)
+[[gnu::always_inline, nodiscard]] inline Argon<float> to_float(QVec<F> x) noexcept {
+	const Argon<std::int32_t> lanes{x.raw()};
+	if constexpr (F == 0) {
+		return lanes.ConvertTo<float>();
+	}
+	else {
+		return lanes.ConvertTo<float, F>();
+	}
+}
+/// @brief Each float lane as Q<F>, as the scalar from_float: truncating toward zero, saturating, NaN to 0
+/// (`vcvt.s32.f32 #F`; plain `vcvt` for F = 0).
+template <int F>
+requires(F >= 0 && F <= 32)
+[[gnu::always_inline, nodiscard]] inline QVec<F> from_float(Argon<float> x) noexcept {
+	if constexpr (F == 0) {
+		return QVec<F>::from_raw(x.ConvertTo<std::int32_t>());
+	}
+	else {
+		return QVec<F>::from_raw(x.ConvertTo<std::int32_t, F>());
+	}
+}
+
 } // namespace deluge::dsp

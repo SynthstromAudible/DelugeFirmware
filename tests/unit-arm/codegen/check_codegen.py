@@ -89,6 +89,8 @@ EXACT = {
     "probe_vec_mul_doubling_sat_scalar": ["vdup.32", "vqdmulh.s32"],
     "probe_vec_mul_doubling_sat_q16": ["vdup.16", "vqdmulh.s16"],
     "probe_vec_mul_doubling_r_sat": ["vqrdmulh.s32"],
+    "probe_vec_to_float_24": ["vcvt.f32.s32"],
+    "probe_vec_from_float_24": ["vcvt.s32.f32"],
     "probe_vec_scale_shl_wrap_3": ["vshl.i32"],
     "probe_vec_scale_shr_floor_3": ["vshr.s32"],
     "probe_vec_add_scale_shr_floor_4": ["vsra.s32"],
