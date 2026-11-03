@@ -257,11 +257,11 @@ describe menu_binding_hooks("scenes::menu::MenuScene Binding hooks (adjust, valu
 		//
 		// A single stage-then-`on_resume`-then-commit sequence is not enough to tell the reset
 		// apart from `on_resume`'s OTHER four resets (`value_changed`/`value_node` alone already
-		// stop `after_render`'s `if (st_.value_changed && st_.value_node != nullptr)` guard from
+		// stop `after_render`'s `if (st_.tick.value_changed && st_.tick.value_node != nullptr)` guard from
 		// committing anything at all, whether or not `edit_offset` itself was cleared) -- confirmed
 		// by mutation below, and recorded in the report rather than shipped as a silently-vacuous
 		// example. Two turns, with `on_resume` run between them, isolates it: if `on_resume` failed
-		// to clear `edit_offset`, the second turn's own accumulation (`st_.edit_offset += detents`)
+		// to clear `edit_offset`, the second turn's own accumulation (`st_.tick.edit_offset += detents`)
 		// would add onto the first turn's abandoned offset instead of starting fresh from it.
 		select_language();
 		deluge::notify::dirty().drain();
@@ -318,15 +318,15 @@ describe menu_binding_hooks("scenes::menu::MenuScene Binding hooks (adjust, valu
 		// Confirms the staging actually happened, so the assertion below cannot pass vacuously
 		// (an already-zero `edit_offset` would make `on_enter` look like it cleared something it
 		// never saw).
-		expect(menu_scene().state().edit_offset != 0).to_be_true();
+		expect(menu_scene().state().tick.edit_offset != 0).to_be_true();
 
 		menu_scene().on_enter(SceneId{SceneKind::FirstApp, 0});
 
-		expect(menu_scene().state().edit_offset).to_equal(0);
+		expect(menu_scene().state().tick.edit_offset).to_equal(0);
 	});
 
 	it("three separate turns before a settle still commit once, with the sum of the detents", _ {
-		// `render_horizontal`'s edit block accumulates into `MenuState::edit_offset` on every turn;
+		// `render_horizontal`'s edit block accumulates into `MenuTick::edit_offset` on every turn;
 		// `commit_value` applies it once and clears it. Three turns between ticks exercise the
 		// accumulation itself, not just a single-turn passthrough.
 		select_language();

@@ -26,7 +26,7 @@
 /// @par Why the guest examples open the browser from the menu rather than as the initial scene
 ///
 /// Because that is the only way it is ever open. `FileBrowserItem::on_focus`
-/// (`scenes/menu/nodes/sample.cpp:77-106`) opens the scene and files `MenuState::pending_scene`
+/// (`scenes/menu/nodes/sample.cpp:77-106`) opens the scene and files `MenuWalkState::pending_scene`
 /// (`:104-105`), so the browser is always **above** a `MenuScene` on the shell stack. Pushed alone,
 /// the stack would empty the moment `Defer` closed it, and `ShellHostUI::timerCallback` would take
 /// its `closeGuest()` arm (`gui/ui/shell_host_ui.cpp:556-559`) -- `closeUI` on a guest that is not

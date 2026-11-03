@@ -47,11 +47,11 @@
 ///           *navigates* to a page rather than committing a value) and `midi_devices`
 ///           (`midi/devices.h:24-39`, a scrolling device list) were its last three members until
 ///           E2 task 10 gave all three real items -- `CvSelectionItem`, `GateSelectionItem` and
-///           `MidiDevicesItem`, `nodes/dynamic.h` -- along with the `MenuState::source_choice` /
+///           `MidiDevicesItem`, `nodes/dynamic.h` -- along with the `MenuWalkState::source_choice` /
 ///           `midi_cable_choice` write-back the note below used to say they were missing.) (Two
 ///           groups used to be here too, at
 ///           `kPending`: the five `reset_*` items, which E2 task 7 gave a real `ResetItem` opening
-///           `context_menu::ContextMenuScene` through `MenuState::pending_scene` (see "1. Actions"
+///           `context_menu::ContextMenuScene` through `MenuWalkState::pending_scene` (see "1. Actions"
 ///           below); and the twelve `midi_command_*` (`midi/command.h`, MIDI-learn items), which E2
 ///           task 8 gave a real `MidiCommandItem` -- they navigate nowhere, they bind an incoming
 ///           MIDI message to a `GlobalMIDICommand`, and the entry points that deliver that message
@@ -80,7 +80,7 @@
 /// @note **Both halves of those two chains are closed (E2 task 10).** (1) Legacy's selectors
 ///       *write* `soundEditor.currentSourceIndex` before navigating, and `MenuContext::source_index`
 ///       is still not writable from a `SelectChainFn` (handed a `const MenuContext&`) -- so the
-///       selector records its cursor in `MenuState::source_choice` and `MenuScene::after_render`
+///       selector records its cursor in `MenuWalkState::source_choice` and `MenuScene::after_render`
 ///       applies it to the scene's own mutable context ahead of the same tick's `select_chain`
 ///       call, the shape `MultiRangeItem`/`range_choice` established. (2) `cv_selection` and
 ///       `gate_selection` are real `CustomItem`s now (`nodes/dynamic.h`), so their renderers do

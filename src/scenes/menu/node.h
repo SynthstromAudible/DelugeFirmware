@@ -77,7 +77,7 @@ namespace deluge::scenes::menu {
 ///     finally made those items real. Every legacy `MenuItem` whose select press *does* something
 ///     rather than editing a value reaches a UI this layer may not touch, so what they needed was
 ///     not a `Kind` but a way to *name* the action for someone else to run: `MenuAction` and
-///     `MenuState::pending_action` (`scenes/menu/action.h`). A `Kind::Action` would have had to
+///     `MenuWalkState::pending_action` (`scenes/menu/action.h`). A `Kind::Action` would have had to
 ///     carry the same intent through a `Binding` that has nowhere to put it, and would still not
 ///     have performed anything. `MenuScene::enter_child` keeps no action arm.
 ///
@@ -538,7 +538,7 @@ struct CustomItem {
 	///        bespoke item whose value does not live in a `Binding`.
 	///
 	/// The mirror of `on_focus`: `MenuScene::commit_value`'s `Kind::Custom` arm calls it, which is
-	/// reached from `after_render` when the item set `MenuState::value_changed` during its render.
+	/// reached from `after_render` when the item set `MenuTick::value_changed` during its render.
 	/// That indirection is the point -- a `CustomItem::render` may not write the model
 	/// (`menu_scene.h`: "never mutates the model from `render_oled`"), so an item that edits a value
 	/// records the change and this hook performs it, exactly where every other kind's write happens.

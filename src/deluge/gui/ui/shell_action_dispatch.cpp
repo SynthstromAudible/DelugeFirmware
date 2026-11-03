@@ -79,7 +79,7 @@ namespace {
 /// is no navigation left for it to ask for.
 ///
 /// It has also already happened. The port reproduces the whole of legacy's `DISABLED` arm on the
-/// **producing** side: `PerformEditorItem::render` leaves `MenuState::render_resp.entered` set so
+/// **producing** side: `PerformEditorItem::render` leaves `MenuTick::render_resp.entered` set so
 /// `after_render`'s leaf arm ascends, and files no request at all
 /// (`scenes/menu/nodes/actions.cpp:153-158`). That is what `scenes/menu/action.h:113-114`'s "never
 /// `DISABLED`" promise is made of, and `sim/scenes_spec/menu_actions_spec.cpp`'s "goes up a level on

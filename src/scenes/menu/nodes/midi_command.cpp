@@ -187,7 +187,7 @@ void MidiCommandItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& 
 	// `MenuItem::selectButtonPress`'s `return nullptr` means to `SoundEditor` (`sound_editor.cpp:395-428`).
 	// `Kind::Custom`'s dispatch draws nothing else, so this item claims the press itself.
 	if (f.select_pressed()) {
-		state.render_resp.entered = true;
+		state.tick.render_resp.entered = true;
 	}
 }
 

@@ -202,12 +202,12 @@ void MultiRangeItem::on_focus(const MenuContext& ctx, MenuState& state) const {
 
 	// `:54` -- `soundEditor.setCurrentMultiRange(this->getValue())`. A `CustomItem` gets a
 	// `const MenuContext&`, so the choice is recorded and `MenuScene::after_render` applies it
-	// through `menu::select_range` (see `MenuState::range_choice`).
+	// through `menu::select_range` (see `MenuWalkState::range_choice`).
 	//
 	// `:53`'s `getOrCreateFirstRange()` is *not* repeated here: `MenuScene::enter_child` already
 	// runs it for every range-dependent descent, which is where legacy runs it too
 	// (`checkPermissionToBeginSessionForRangeSpecificParam:1938`, ahead of every arm).
-	state.range_choice = static_cast<int16_t>(cursor);
+	state.walk.range_choice = static_cast<int16_t>(cursor);
 }
 
 void MultiRangeItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const {
@@ -233,7 +233,7 @@ void MultiRangeItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& c
 		rows[row].selectable = true;
 	}
 
-	state.render_resp = deluge::ui::oled::list(
+	state.tick.render_resp = deluge::ui::oled::list(
 	    f, deluge::ui::oled::menu_rect(f), state.list[depth_of(state)],
 	    std::span<const deluge::ui::oled::ListRow>{rows, static_cast<size_t>(count)}, state.scroll[depth_of(state)]);
 
@@ -242,10 +242,10 @@ void MultiRangeItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& c
 	// every frame rather than only on a move, for the same reason `SourceSelectionItem` does.
 	const int32_t cursor = state.list[depth_of(state)].cursor;
 	if (count > 0 && cursor >= 0 && cursor < count) {
-		state.range_choice = static_cast<int16_t>(cursor);
+		state.walk.range_choice = static_cast<int16_t>(cursor);
 	}
 	if (count == 0 && f.select_pressed()) {
-		state.render_resp.entered = true; // nothing to pick: the press ascends
+		state.tick.render_resp.entered = true; // nothing to pick: the press ascends
 	}
 }
 
@@ -256,7 +256,7 @@ deluge::ui::shell::Result MultiRangeItem::handle(const deluge::ui::shell::UiEven
 }
 
 const Node* multi_range_chain(const MenuContext& /*ctx*/, const MenuState& state) {
-	return state.pending_after_range; // `multi_range.cpp:360-362`
+	return state.walk.pending_after_range; // `multi_range.cpp:360-362`
 }
 
 } // namespace deluge::scenes::menu::nodes

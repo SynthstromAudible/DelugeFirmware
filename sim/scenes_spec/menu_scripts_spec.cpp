@@ -418,7 +418,7 @@ struct SavedRange {
 // row (`ui/oled/list.cpp:121`) -- so SOUND -> ACTIONS -> RECORD TO SAMPLE is two ordinary select
 // presses. `recorder.txt` drives that door first and the shortcut second, in one run, because the
 // two do not end the same way: the ordinary route leaves the item at depth 2 where
-// `MenuState::go_up_on_resume` ascends to the ACTIONS list, and the jump re-roots onto the item at
+// `MenuWalkState::go_up_on_resume` ascends to the ACTIONS list, and the jump re-roots onto the item at
 // depth 0, where going up closes the menu.
 
 /// @brief The minimum `Display` the model reaches for.
@@ -890,8 +890,8 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		expect(cursor0()).to_equal(1); // the Select detent landed the cursor on row 1
 		// The substitution happened and is still recorded: `enter_child` set both, and `ascend` has no
 		// business dropping them -- the item is still the one the picker was standing in for.
-		expect(menu_scene().state().range_picker_pending).to_be_true();
-		expect(menu_scene().state().pending_after_range == &nodes::source0_transpose).to_be_true();
+		expect(menu_scene().state().walk.range_picker_pending).to_be_true();
+		expect(menu_scene().state().walk.pending_after_range == &nodes::source0_transpose).to_be_true();
 		// And the picker really ran `MultiRange::beginSession` on this source: nothing was remembered,
 		// so it took `numRanges >> 1` (`multi_range.cpp:46-50`), which `menu::select_range` remembers.
 		expect(services::view_state().last_range(
@@ -1067,7 +1067,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		// `STRING_FOR_OK` (task 6's correction -- not a NO/YES pair), and `step()` clamps.
 		expect(static_cast<int>(context_menu::context_menu_scene().selection().option)).to_equal(0);
 		// `shouldGoUpOneLevelOnBegin` (`gui/menu_item/reset_settings/reset.h:29-33`) as
-		// `MenuState::go_up_on_resume`: the resume ascends OUT of the item the press descended into,
+		// `MenuWalkState::go_up_on_resume`: the resume ascends OUT of the item the press descended into,
 		// so the list is on screen again rather than the item that opened the window. (`reset_settings`
 		// is this run's path root, so that ascend lands back on it -- one level up from `reset_flash`.)
 		expect(menu_scene().focused() == &nodes::reset_settings).to_be_true();
@@ -1352,8 +1352,8 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		expect(static_cast<int>(din.ports[1].mpeUpperZoneLastMemberChannel)).to_equal(15);
 		// The `MenuState` selections the four frames above were drawn from are still the ones the
 		// write used: `mpe_direction` OUT and `mpe_zone` UPPER (`io/midi/midi_device.h:33-36`).
-		expect(static_cast<int>(menu_scene().state().mpe_direction)).to_equal(1);
-		expect(static_cast<int>(menu_scene().state().mpe_zone)).to_equal(1);
+		expect(static_cast<int>(menu_scene().state().walk.mpe_direction)).to_equal(1);
+		expect(static_cast<int>(menu_scene().state().walk.mpe_zone)).to_equal(1);
 		// The Back at the end left the zone selector, not the device list: the chain descended twice
 		// and only one level came back.
 		expect(menu_scene().focused() == &nodes::mpe_zone).to_be_true();
@@ -1377,7 +1377,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 
 		// The script descended into KICKS, typed one character there, and came back out -- so the
 		// scene really did run all three listings, and the last BACK (`Browser::backButtonAction`'s
-		// top-of-tree arm, `browser.cpp:1283`) closed it. `MenuState::go_up_on_resume` (`nodes/sample.h`,
+		// top-of-tree arm, `browser.cpp:1283`) closed it. `MenuWalkState::go_up_on_resume` (`nodes/sample.h`,
 		// legacy's `shouldGoUpOneLevelOnBegin`) then went up from the item the jump re-rooted onto, at
 		// depth 0, which closed the menu too: `after_close.state` names no menu scene.
 		expect(browser::browser_scene().browser_id() == browser::BrowserId::Sample).to_be_true();

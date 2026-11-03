@@ -26,7 +26,7 @@
 /// `MenuScene::take_action()` (`scenes/menu/menu_scene.h:704`) hands it out.
 ///
 /// **Seven verbs, and they are not all one shape.** Five are root-UI behaviour filed by writing
-/// `MenuState::pending_action` directly, and they are tabulated at `scenes/menu/action.h:13-19`.
+/// `MenuWalkState::pending_action` directly, and they are tabulated at `scenes/menu/action.h:13-19`.
 /// The other two are settings writes filed through `MenuScene::request_action` by a `Binding::set`
 /// hook that is handed no `MenuState` at all -- `SetShortcutsVersion` (F2 task 6) and
 /// `ScreensaverSettingsChanged` (F2 task 7), argued at `action.h:29-65`. The difference matters to

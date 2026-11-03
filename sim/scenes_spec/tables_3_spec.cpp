@@ -2253,7 +2253,7 @@ describe tables_3_reset_items("scenes::menu batch-3 tables: the five reset_* ite
 			r.shell.tick(110);
 
 			// `CustomItem::on_focus` fired from `enter_leaf`, and this tick's `after_render` turned
-			// the resulting `MenuState::pending_scene` into a `Push` -- the context menu is on top.
+			// the resulting `MenuWalkState::pending_scene` into a `Push` -- the context menu is on top.
 			expect(&r.shell.stack().input_top() == &context_menu::context_menu_scene()).to_be_true();
 			expect(r.shell.stack().depth()).to_equal(size_t(2));
 			expect(static_cast<int>(context_menu::context_menu_scene().descriptor_id()))
@@ -2606,7 +2606,7 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 	// as data: `cv::Selection` (`gui/menu_item/cv/selection.h:27-55`), `gate::Selection`
 	// (`gui/menu_item/gate/selection.h:29-72`) and `midi::Devices`
 	// (`gui/menu_item/midi/devices.h:24-39`, `devices.cpp`). The port is three `CustomItem`s
-	// (`menu/nodes/dynamic.h`) plus the `MenuState::source_choice` / `midi_cable_choice`
+	// (`menu/nodes/dynamic.h`) plus the `MenuWalkState::source_choice` / `midi_cable_choice`
 	// write-back `settings.h` recorded as owed.
 	//
 	// **These are NOT `Node::dynamic_children` nodes**, which is what the plan expected them to be.
@@ -2755,7 +2755,7 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 		// The write-back half: `Devices::selectEncoderAction` assigns
 		// `soundEditor.currentMIDICable` on every move (`devices.cpp:102`), and the next
 		// `beginSession` reads it back to reselect that device (`:41-49`). The port routes the same
-		// fact through `MenuState::midi_cable_choice` -> `MenuScene::after_render` ->
+		// fact through `MenuWalkState::midi_cable_choice` -> `MenuScene::after_render` ->
 		// `MenuContext::midi_cable` -> `MidiDevicesItem::on_focus`, so the round trip is what proves
 		// it: descend, move, leave, come back, and the cursor is where it was left.
 		CableFixture cables;
@@ -2853,7 +2853,7 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 		ctx.midi_cable = &MIDIDeviceManager::upstreamUSBMIDICable2; // the stale one
 		Rig r;
 		r.open(nodes::midi_devices, ctx);
-		expect(menu_scene().state().midi_cable_choice == &MIDIDeviceManager::dinMIDIPorts).to_be_true();
+		expect(menu_scene().state().walk.midi_cable_choice == &MIDIDeviceManager::dinMIDIPorts).to_be_true();
 	});
 
 	it("does not move the source index just because the selector was opened", _ {
@@ -2871,7 +2871,7 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 		for (const Node* selector : {&nodes::cv_selection, &nodes::gate_selection}) {
 			Rig r;
 			r.open(*selector, settings.ctx);
-			expect(int(menu_scene().state().source_choice)).to_equal(-1);
+			expect(int(menu_scene().state().walk.source_choice)).to_equal(-1);
 		}
 	});
 
@@ -2967,7 +2967,7 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 	it("drains the selector's output index BEFORE the navigation arm, not after", _ {
 		// The load-bearing case of `MenuState`'s drain-order contract (`menu_scene.h`, "The
 		// one-shot mailboxes, and the order `after_render` must drain them in"):
-		// `MenuScene::after_render` writes `ctx_.source_index` from `MenuState::source_choice`
+		// `MenuScene::after_render` writes `ctx_.source_index` from `MenuWalkState::source_choice`
 		// *above* the `render_resp.entered` arm, because `gate_selection_chain` picks its target
 		// from `ctx_.source_index` and must see the output the user just picked -- legacy assigns
 		// `soundEditor.currentSourceIndex` on the way through `selectButtonPress`
@@ -2994,7 +2994,7 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 			r.button(kSelectEncButtonX, kSelectEncButtonY, false, 100);
 			r.shell.tick(110);
 			expect(menu_scene().focused() == &nodes::gate_mode).to_be_true();
-			expect(int(menu_scene().state().source_choice)).to_equal(-1); // drained, not merely read
+			expect(int(menu_scene().state().walk.source_choice)).to_equal(-1); // drained, not merely read
 		}
 
 		// ... and the reverse: incoming context names output 0, the cursor is walked to the
@@ -3013,7 +3013,7 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 			r.button(kSelectEncButtonX, kSelectEncButtonY, false, 300);
 			r.shell.tick(310);
 			expect(menu_scene().focused() == &nodes::gate_off_time).to_be_true();
-			expect(int(menu_scene().state().source_choice)).to_equal(-1);
+			expect(int(menu_scene().state().walk.source_choice)).to_equal(-1);
 		}
 	});
 

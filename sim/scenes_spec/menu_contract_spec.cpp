@@ -92,13 +92,13 @@ describe menu_contract_drain("scenes::MenuScene::after_render -- the drain order
 		r.shell.tick(0);
 
 		MenuState& st = menu_scene().state_for_spec();
-		st.range_choice = 0;
-		st.source_choice = 0;
-		st.value_changed = true;
-		st.value_node = &nodes::lpf_freq;
-		st.render_resp.entered = true;
-		st.pending_action = menu::MenuActionRequest{.action = menu::MenuAction::PadBrightnessChanged};
-		st.pending_scene = SceneId{slicing::kSlicerSceneKind, 0};
+		st.walk.range_choice = 0;
+		st.walk.source_choice = 0;
+		st.tick.value_changed = true;
+		st.tick.value_node = &nodes::lpf_freq;
+		st.tick.render_resp.entered = true;
+		st.walk.pending_action = menu::MenuActionRequest{.action = menu::MenuAction::PadBrightnessChanged};
+		st.walk.pending_scene = SceneId{slicing::kSlicerSceneKind, 0};
 		(void)menu_scene().after_render();
 
 		const std::vector<Band> want{Band::RangeChoice, Band::SourceChoice, Band::ValueCommit, Band::Navigation,
@@ -146,7 +146,7 @@ describe menu_contract_visit("scenes::MenuScene -- a visit's state", $ {
 		r.shell.tick(0);
 		// A scene opener's scene returning at the root goes up below depth 0, which asks the menu to close on its next
 		// after_render.
-		menu_scene().state_for_spec().go_up_on_resume = true;
+		menu_scene().state_for_spec().walk.go_up_on_resume = true;
 		menu_scene().on_resume();
 		while (r.shell.stack().depth() > 0) {
 			r.shell.stack().pop(SceneKind::Null); // closed some other way before it did

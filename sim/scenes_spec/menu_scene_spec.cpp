@@ -1438,7 +1438,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		r.button(kShiftX, kShiftY, false, 40);
 		r.shell.tick(50);
 		expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
-		expect(menu_scene().state().pending_after_range == &nodes::source0_transpose).to_be_true();
+		expect(menu_scene().state().walk.pending_after_range == &nodes::source0_transpose).to_be_true();
 
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 60);
 		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 60);
@@ -1535,11 +1535,11 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		// (`sound_editor.cpp:1857-1858`). So the *picker* is entered, not the leaf.
 		expect(depth_of()).to_equal(1);
 		expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
-		expect(menu_scene().state().range_picker_pending).to_be_true();
-		expect(menu_scene().state().pending_after_range == &transpose_leaf).to_be_true();
+		expect(menu_scene().state().walk.range_picker_pending).to_be_true();
+		expect(menu_scene().state().walk.pending_after_range == &transpose_leaf).to_be_true();
 
 		// Both ranges are on screen, and the picker has selected one -- `setCurrentMultiRange`
-		// (`sound_editor.cpp:1983-1986`), applied by `after_render` from `MenuState::range_choice`.
+		// (`sound_editor.cpp:1983-1986`), applied by `after_render` from `MenuWalkState::range_choice`.
 		// `MultiRange::beginSession` (`multi_range.cpp:46-50`): a `defaultRangeI` of -1 is invalid, so
 		// the picker opens on `numRanges >> 1` -- range 1 of the two -- and `select_range` writes that
 		// back, which is legacy's `soundEditor.currentSource->defaultRangeI = ...` (`:225`).
@@ -1560,7 +1560,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		r.shell.tick(140);
 		expect(depth_of()).to_equal(2);
 		expect(menu_scene().focused() == &transpose_leaf).to_be_true();
-		expect(menu_scene().state().range_picker_pending).to_be_false();
+		expect(menu_scene().state().walk.range_picker_pending).to_be_false();
 	});
 
 	it("a range-dependent node on a ZERO-range source opens, because enter_child creates the range", _ {
@@ -1590,7 +1590,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		// The leaf itself is on screen -- no picker in between -- and the range it needs now exists.
 		expect(depth_of()).to_equal(1);
 		expect(menu_scene().focused() == &transpose_leaf).to_be_true();
-		expect(menu_scene().state().range_picker_pending).to_be_false();
+		expect(menu_scene().state().walk.range_picker_pending).to_be_false();
 		expect(static_cast<int>(std::ssize(sound->sources[0].ranges))).to_equal(1);
 		// `Source::getOrCreateFirstRange` gives it the top of the keyboard (`source.cpp:165`).
 		expect(static_cast<int>(sound->sources[0].ranges.getElement(0)->topNote)).to_equal(32767);
@@ -1659,8 +1659,8 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		// deep link has no path to descend from -- and the item it stood in for is remembered.
 		expect(depth_of()).to_equal(0);
 		expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
-		expect(menu_scene().state().range_picker_pending).to_be_true();
-		expect(menu_scene().state().pending_after_range == &transpose_leaf).to_be_true();
+		expect(menu_scene().state().walk.range_picker_pending).to_be_true();
+		expect(menu_scene().state().walk.pending_after_range == &transpose_leaf).to_be_true();
 		// And the two ranges are still the source's own: nothing was allocated on top of them.
 		expect(static_cast<int>(std::ssize(sound->sources[0].ranges))).to_equal(2);
 	});

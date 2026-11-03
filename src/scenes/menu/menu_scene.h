@@ -141,7 +141,7 @@ public:
 	bool select_acts_on_release() const override { return true; }
 	/// @brief True in learn mode, which `SoundEditor::buttonAction`'s Select arm does not act in
 	///        (`sound_editor.cpp:609-614`).
-	bool select_release_blocked() const override { return learn_mode_; }
+	bool select_release_blocked() const override { return visit_.learn_mode; }
 	void on_model_changed(const deluge::notify::DirtySet& dirty) override;
 
 	/// @brief True: the menu draws over the base view's pads rather than replacing them.
@@ -314,7 +314,7 @@ public:
 	/// @brief Collect the root-UI action a menu item asked for, if any, and clear it.
 	///
 	/// The application-facing half of the action seam (`scenes/menu/action.h`). `after_render`
-	/// drains `MenuState::pending_action` into a one-slot outbox here -- beside where it drains
+	/// drains `MenuWalkState::pending_action` into a one-slot outbox here -- beside where it drains
 	/// `pending_scene` into a `Push`, and for the same reason: an item's hook has no `Result` to put
 	/// anything in. `gui::ui::dispatchShellActions` (`gui/ui/shell_action_dispatch.h`) polls this
 	/// after ticking the shell, and is where each verb's legacy statement lands.
@@ -385,9 +385,9 @@ public:
 	///
 	/// @warning This overwrites whatever is in the field, exactly as an item's own assignment does.
 	///          The one-slot mailbox's warning above applies unchanged.
-	void request_action(MenuActionRequest request) { st_.pending_action = request; }
+	void request_action(MenuActionRequest request) { st_.walk.pending_action = request; }
 
-	/// @brief Re-root the menu onto the horizontal page that lists `MenuState::scene_opener`, with
+	/// @brief Re-root the menu onto the horizontal page that lists `MenuWalkState::scene_opener`, with
 	///        that item focused -- the sample claim (`SampleClaim`)'s return affordance
 	///        (`gui/ui/browser/sample_browser.cpp:1116-1118`).
 	///
@@ -617,12 +617,6 @@ private:
 	/// The voice usage page's counters and the time since their last sample; `voice_usage_at_` is where the last tick
 	/// found the focus, so arriving on the page or a counter begins its session.
 	VoiceUsageSampler voice_usage_;
-	/// Whether the next `leds()` restarts the shared normal blink, BACK's and LEARN's (`blinkLed`), and the screen the
-	/// render last checked that against (`beginScreen` restarts it for a LEARN-blinking item).
-	bool blink_restart_ = true;
-	const Node* blink_screen_ = nullptr;
-	/// The value the last render's session began on (`focused_value()`); a change is a new session.
-	const Node* session_value_ = nullptr;
 	uint32_t voice_usage_elapsed_ms_ = 0;
 	/// Where the focus is relative to the voice usage page: its counters sample there.
 	enum class VoiceUsagePlace : uint8_t { None, Page, Counter };
@@ -658,21 +652,32 @@ private:
 	static constexpr size_t kRememberedRows = 128;
 	RememberedRow remembered_[kRememberedRows]{};
 	uint32_t remembered_clock_ = 0;
-	/// @brief `ascend()` went up from depth 0: legacy's `exitCompletely()`, drained by `after_render`.
-	bool close_requested_ = false;
-	/// @brief Use up the current Select press at the next `after_render`: legacy's `SoundEditor::opened` and
-	///        `focusRegained` (`sound_editor.cpp:513-516`, `:531-533`), so the release of a press that opened or
-	///        returned to the menu does not act.
-	bool use_up_select_ = false;
-	/// @brief Select was held during the last render: a value edited under it uses the press up
-	///        (`Value::selectEncoderAction`, `menu_item/value.h:64-67`).
-	bool select_held_ = false;
-	/// @brief Legacy's `UI_MODE_MIDI_LEARN`: entered on a LEARN press with Shift up, no other UI mode on, and an item
-	///        that allows learn; left on LEARN's release (`sound_editor.cpp:716-745`). Select's release does nothing in
-	///        it.
-	bool learn_mode_ = false;
-	/// Whether the next `leds()` restarts the shared fast blink, as learn mode's `blinkLed(LEARN, 255, 1)` does.
-	bool learn_restart_ = false;
+	/// @brief What belongs to one open of the scene: reset by value in `open()` and `on_enter()`, which is legacy's
+	///        `beginScreen` -- a new screen.
+	struct Visit {
+		/// @brief Use up the current Select press at the next `after_render`: legacy's `SoundEditor::opened` and
+		///        `focusRegained` (`sound_editor.cpp:513-516`, `:531-533`), so the release of a press that opened or
+		///        returned to the menu does not act.
+		bool use_up_select = true;
+		/// Whether the next `leds()` restarts the shared normal blink, BACK's and LEARN's (`blinkLed`), and the screen
+		/// the render last checked that against (`beginScreen` restarts it for a LEARN-blinking item).
+		bool blink_restart = true;
+		/// @brief Legacy's `UI_MODE_MIDI_LEARN`: entered on a LEARN press with Shift up, no other UI mode on, and an
+		///        item that allows learn; left on LEARN's release (`sound_editor.cpp:716-745`). Select's release does
+		///        nothing in it.
+		bool learn_mode = false;
+		/// Whether the next `leds()` restarts the shared fast blink, as learn mode's `blinkLed(LEARN, 255, 1)` does.
+		bool learn_restart = false;
+		/// @brief `ascend()` went up from depth 0: legacy's `exitCompletely()`, drained by `after_render`.
+		bool close_requested = false;
+		/// @brief Select was held during the last render: a value edited under it uses the press up
+		///        (`Value::selectEncoderAction`, `menu_item/value.h:64-67`).
+		bool select_held = false;
+		const Node* blink_screen = nullptr;
+		/// The value the last render's session began on (`focused_value()`); a change is a new session.
+		const Node* session_value = nullptr;
+	};
+	Visit visit_{};
 
 	/// @brief `getCurrentMenuItem()->allowsLearnMode()`: on a page, its selected child's (`Submenu::allowsLearnMode`,
 	///        `submenu.cpp:233-238`), which a child page never allows.

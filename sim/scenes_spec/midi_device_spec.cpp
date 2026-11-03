@@ -676,22 +676,22 @@ describe midi_device_mpe("scenes::menu E3 task 8: the MPE direction, zone and me
 		r.shell.tick(0);
 		uint32_t at = 10;
 		r.press(at); // into `mpe_direction`
-		expect(int(menu_scene().state().mpe_direction)).to_equal(MIDI_DIRECTION_INPUT_TO_DELUGE);
+		expect(int(menu_scene().state().walk.mpe_direction)).to_equal(MIDI_DIRECTION_INPUT_TO_DELUGE);
 
 		r.walk(1, at); // OUT
-		expect(int(menu_scene().state().mpe_direction)).to_equal(MIDI_DIRECTION_OUTPUT_FROM_DELUGE);
+		expect(int(menu_scene().state().walk.mpe_direction)).to_equal(MIDI_DIRECTION_OUTPUT_FROM_DELUGE);
 
 		r.press(at); // into `mpe_zone`; the direction stays where the user left it
 		expect(menu_scene().focused() == &nodes::mpe_zone).to_be_true();
-		expect(int(menu_scene().state().mpe_direction)).to_equal(MIDI_DIRECTION_OUTPUT_FROM_DELUGE);
-		expect(int(menu_scene().state().mpe_zone)).to_equal(MPE_ZONE_LOWER_NUMBERED_FROM_0);
+		expect(int(menu_scene().state().walk.mpe_direction)).to_equal(MIDI_DIRECTION_OUTPUT_FROM_DELUGE);
+		expect(int(menu_scene().state().walk.mpe_zone)).to_equal(MPE_ZONE_LOWER_NUMBERED_FROM_0);
 
 		r.walk(1, at); // UPPER ZONE
-		expect(int(menu_scene().state().mpe_zone)).to_equal(1);
+		expect(int(menu_scene().state().walk.mpe_zone)).to_equal(1);
 		r.press(at); // into the member-channel page: both selections survive the descent
 		expect(menu_scene().focused() == &nodes::mpe_zone_num_member_channels).to_be_true();
-		expect(int(menu_scene().state().mpe_direction)).to_equal(MIDI_DIRECTION_OUTPUT_FROM_DELUGE);
-		expect(int(menu_scene().state().mpe_zone)).to_equal(1);
+		expect(int(menu_scene().state().walk.mpe_direction)).to_equal(MIDI_DIRECTION_OUTPUT_FROM_DELUGE);
+		expect(int(menu_scene().state().walk.mpe_zone)).to_equal(1);
 	});
 
 	it("reads and bounds the member-channel page exactly as the legacy item does, over all four "
@@ -717,8 +717,8 @@ describe midi_device_mpe("scenes::menu E3 task 8: the MPE direction, zone and me
 					   // A `MenuState` of this example's own rather than the scene singleton's:
 					   // `MenuScene::state()` is const, and the item reads nothing else.
 					   menu::MenuState st{};
-					   st.mpe_direction = direction;
-					   st.mpe_zone = zone;
+					   st.walk.mpe_direction = direction;
+					   st.walk.mpe_zone = zone;
 					   nodes::kMpeZoneChannelsItem.on_focus(ctx, st);
 
 					   const std::string label = std::string{cable->getDisplayName()} + " d" + std::to_string(direction)
@@ -750,8 +750,8 @@ describe midi_device_mpe("scenes::menu E3 task 8: the MPE direction, zone and me
 				for (const int32_t value : {0, 4, 7}) {
 					baseline(*f.a, *f.b);
 					menu::MenuState st{};
-					st.mpe_direction = direction;
-					st.mpe_zone = zone;
+					st.walk.mpe_direction = direction;
+					st.walk.mpe_zone = zone;
 					st.edit_int = value;
 					nodes::kMpeZoneChannelsItem.commit(ctx, st);
 					const std::string got = CableState::capture(*f.a, *f.b);

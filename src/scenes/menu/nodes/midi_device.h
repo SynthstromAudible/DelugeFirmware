@@ -32,7 +32,7 @@
 /// binding: every hook shipped before this one reads a device-wide global (`FlashStorage`,
 /// `midiEngine`, `playbackHandler`, `cvEngine`) or the context's song/sound. `midi_cable` is the
 /// one `MenuContext` member `context_for()` never assigns -- the device list publishes it, through
-/// `MenuState::midi_cable_choice` and `MenuScene::after_render` (`menu_scene.h`, mailbox 3) -- so
+/// `MenuWalkState::midi_cable_choice` and `MenuScene::after_render` (`menu_scene.h`, mailbox 3) -- so
 /// these five are the first nodes in the tree whose value depends on a *selection the user made two
 /// pages up*. Legacy spells the same dependency as `soundEditor.currentMIDICable->...` in each of
 /// the five `readCurrentValue`/`writeCurrentValue` pairs.
@@ -75,13 +75,13 @@
 /// `soundEditor.currentMIDICable->ports[directionSelectorMenu.whichDirection]`
 /// (`zone_num_member_channels.cpp:29-31`) and its read/write branch on
 /// `zoneSelectorMenu.whichZone` (`:38`, `:58`, `:68`). That is precisely the shape
-/// `MenuState::patching_param` / `patch_source` / `patch_range_source` already have
+/// `MenuWalkState::patching_param` / `patch_source` / `patch_range_source` already have
 /// (`menu_scene.h`: legacy's `source_selection::regularMenu.s`, read by four pages).
 ///
 /// **The rule is two questions, not "where did legacy keep it".** "Legacy stores it on a menu item,
 /// so it is `MenuState`" is only a proxy, and `MenuContext::midi_cable` is the counterexample that
 /// breaks it: a `soundEditor.current*` member -- so context -- that is nonetheless *written* by a
-/// menu item, through `MenuState::midi_cable_choice` and `MenuScene::after_render`. What actually
+/// menu item, through `MenuWalkState::midi_cable_choice` and `MenuScene::after_render`. What actually
 /// decides is:
 ///
 ///   1. **Does a `Binding::get`/`set` -- handed only a `const MenuContext&` -- ever need to see
@@ -164,14 +164,14 @@ void set_device_send_thru(const MenuContext& ctx, int32_t value);
 IntRange mpe_zone_channels_range(const MenuContext& ctx, const MenuState& state);
 
 /// @brief `ZoneNumMemberChannels::readCurrentValue()` (`:56-64`) -- the member-channel count on the
-///        port `MenuState::mpe_direction` names, for the zone `MenuState::mpe_zone` names.
+///        port `MenuWalkState::mpe_direction` names, for the zone `MenuWalkState::mpe_zone` names.
 int32_t mpe_zone_channels_value(const MenuContext& ctx, const MenuState& state);
 /// @}
 
 /// @brief `mpe::DirectionSelector` (`gui/menu_item/mpe/direction_selector.{h,cpp}`).
 ///
 /// A `CustomItem` rather than a `Kind::Enum` node for two independent reasons, either of which
-/// would be enough: its value is `MenuState::mpe_direction` (see the file note), which a
+/// would be enough: its value is `MenuWalkState::mpe_direction` (see the file note), which a
 /// `Binding::get`/`set` cannot reach; and its title is computed from that value at render time,
 /// which `Node::title` cannot express.
 class MpeDirectionItem final : public CustomItem {
@@ -189,7 +189,7 @@ public:
 };
 
 /// @brief `mpe::ZoneSelector` (`gui/menu_item/mpe/zone_selector.{h,cpp}`). Same shape as
-///        `MpeDirectionItem`, over `MenuState::mpe_zone`, minus the runtime title.
+///        `MpeDirectionItem`, over `MenuWalkState::mpe_zone`, minus the runtime title.
 class MpeZoneItem final : public CustomItem {
 public:
 	/// @brief True: the legacy item is a `Value` (`CustomItem::is_value`).
@@ -207,7 +207,7 @@ public:
 /// @brief `mpe::ZoneNumMemberChannels` (`gui/menu_item/mpe/zone_num_member_channels.{h,cpp}`).
 ///
 /// The one value editor here, and a `CustomItem` for the same reason the two selectors are: which
-/// half of which `MIDIPort` it addresses is `MenuState::mpe_direction` / `mpe_zone`, and its bounds
+/// half of which `MIDIPort` it addresses is `MenuWalkState::mpe_direction` / `mpe_zone`, and its bounds
 /// move with them (`getMaxValue`, `zone_num_member_channels.cpp:33-54`). `on_focus` is
 /// `Number::beginSession`'s `readCurrentValue` (there is no override of its own -- legacy's is
 /// commented out at `zone_num_member_channels.h:28`), `render` is `IntegerWithOff`'s huge-number

@@ -15,7 +15,7 @@
 #include <cstdint>
 #include <span>
 
-/// @brief Forward declared for `MenuState::patch_polarity` -- see the note there. Defined in
+/// @brief Forward declared for `MenuWalkState::patch_polarity` -- see the note there. Defined in
 ///        `modulation/patch/patch_cable.h`; a scoped enum with an explicit underlying type is
 ///        complete enough to store by value from its declaration alone.
 enum class Polarity : uint8_t;
@@ -41,6 +41,214 @@ inline constexpr size_t kMaxMenuChildren = kMaxDynamicChildren;
 ///        (`HorizontalMenuGroup::preparePaging`, `horizontal_menu_group.cpp:167-205`), and the largest, the oscillator
 ///        group, has 41. `menu_scene.cpp` checks every group against it.
 inline constexpr size_t kMaxMenuColumns = 48;
+
+/// @brief What one tick's render observed, for `MenuScene::after_render` to act on: written by the render and the
+///        hooks it calls, drained and reset by value at the end of every `after_render`, and on `on_resume` and
+///        `retarget`.
+struct MenuTick {
+	/// A `Binding::adjust` node (spec E-note-family §5.2): the select turn's detents, accumulated
+	/// since the last commit rather than folded into a `moved` value the way `edit_int`/
+	/// `enum_index` are -- there is no absolute value to stage, only an offset to hand
+	/// `bindings::adjust`. `render_horizontal`'s edit block is the only writer; `commit_value`
+	/// clears it back to 0 once the offset has been applied.
+	int32_t edit_offset = 0;
+	/// The widget `Response` the render pass produced (`changed` / `entered`).
+	deluge::ui::Response render_resp{};
+	/// Whether the render pass moved the value in the edit storage above.
+	bool value_changed = false;
+	/// Which node `value_changed` belongs to.
+	///
+	/// An addition to the brief's field list, forced by the horizontal layout: there the node on
+	/// screen is the *submenu* and the edited value belongs to the focused column's child, so
+	/// "the current node" is not enough to commit through.
+	const Node* value_node = nullptr;
+	/// Whether `render_oled` read (and therefore claimed) the back button this tick. Only ever
+	/// set at `depth > 0` -- see `MenuScene::render_oled`.
+	bool back_claimed = false;
+	/// A select press on a *value* column of a horizontal page, which `columns` does not own (it
+	/// claims the press only for a submenu column, `ui/oled/columns.cpp:451-455`). `after_render`
+	/// answers it the way a leaf's own select press is answered, not the way this field's name
+	/// suggests: `Submenu::selectButtonPress` forwards to the focused item
+	/// (`gui/menu_item/submenu.cpp:187-194`), whose own `select_chain` is entered if it names one
+	/// and `ascend()` otherwise -- `SoundEditor::buttonAction`'s SELECT arm
+	/// (`gui/ui/sound_editor.cpp:394-424`). **Not** `HorizontalMenu::handleItemAction`
+	/// (`gui/menu_item/horizontal_menu.cpp:663-679`), which never runs from a select press at all --
+	/// its one caller is the *instrument-button* path, `buttonAction`'s `:96-97`
+	/// (`handleInstrumentButtonPress`) reaching it when the pressed button's column is already
+	/// focused. This field's old doc attributed the notification to that call by mistake; a select
+	/// press on a value column raises no notification (spec E-note-family §3.2's third bullet).
+	bool column_press = false;
+	/// Whether shift was held on this tick's frame: a select press with it on an automation item deletes the item's
+	/// param's automation instead of navigating (`MenuScene::after_render`).
+	bool select_shift = false;
+};
+
+/// @brief What belongs to one walk through the tree from a root: the range picker, the selectors' choices, the
+///        patch-cable and MPE pages' selection, and the requests a custom item files. Reset by value whenever the
+///        menu re-roots (`MenuScene::retarget`).
+struct MenuWalkState {
+	/// Spec E §4.1's `MustSelectRange` outcome. E1 recorded it and left the node unentered; E2 task
+	/// 9 acts on it -- `enter_child` descends into `nodes::multi_range` instead, which is legacy's
+	/// own substitution at `sound_editor.cpp:1857-1858` (`multiRangeMenu.menuItemHeadingTo = newItem`
+	/// followed by `newItem = &multiRangeMenu`).
+	///
+	/// Stays true for as long as the picker is the reason the deeper item has not been opened; the
+	/// picker's `select_chain` reads `pending_after_range` to know where to head.
+	bool range_picker_pending = false;
+	/// The node that will be entered once a range is chosen -- legacy's
+	/// `MultiRange::menuItemHeadingTo` (`gui/menu_item/multi_range.h:34`), which is exactly what its
+	/// `selectButtonPress` returns (`multi_range.cpp:360-362`).
+	const Node* pending_after_range = nullptr;
+	/// @brief A range index the focused picker chose this tick, or -1 for none.
+	///
+	/// The picker is a `CustomItem` and is handed a **`const MenuContext&`**, so it cannot do
+	/// legacy's `soundEditor.setCurrentMultiRange(...)` itself; it records the index here and
+	/// `after_render` -- which owns the scene's own mutable `ctx_` -- applies it through
+	/// `menu::select_range`. Same shape as `pending_scene`: the item asks, `after_render` does.
+	int16_t range_choice = -1;
+	/// @brief An output index a focused selector chose this tick, or -1 for none.
+	///
+	/// The same shape as `range_choice`, for the same reason and for the two items `settings.h`'s
+	/// own note said were owed one: `cv::Selection` and `gate::Selection` assign
+	/// `soundEditor.currentSourceIndex` from their own `selectButtonPress` (`cv/selection.h:42`,
+	/// `gate/selection.h:47`), and a `CustomItem` is handed a **`const MenuContext&`**. So
+	/// `CvSelectionItem`/`GateSelectionItem` (`nodes/dynamic.h`) record the cursor here and
+	/// `after_render` -- which owns the scene's own mutable `ctx_` -- writes
+	/// `MenuContext::source_index`, *before* the same tick's select press consults `select_chain`.
+	int8_t source_choice = -1;
+	/// @brief A MIDI cable the focused device list chose this tick, or null for none.
+	///
+	/// `midi::Devices` assigns `soundEditor.currentMIDICable` from both `beginSession`
+	/// (`devices.cpp:55`) and `selectEncoderAction` (`devices.cpp:102`); the port's counterpart is
+	/// `MenuContext::midi_cable`, written by `after_render` from what `MidiDevicesItem` records
+	/// here. A pointer rather than an index because that is what the context field is, and because
+	/// legacy's own index space (`lowestDeviceNum`.. , `devices.cpp:36`) is not the row order the
+	/// list renders.
+	::MIDICable* midi_cable_choice = nullptr;
+	/// @name The patch-cable pages' shared selection -- legacy's three globals, as scene state.
+	///
+	/// Legacy spreads these across `SoundEditor::patchingParamSelected` (`gui/ui/sound_editor.h`),
+	/// `source_selection::regularMenu.s` and `source_selection::rangeMenu.s`
+	/// (`gui/menu_item/source_selection.h:36`, one `PatchSource` member per singleton page). They are
+	/// genuinely shared *navigation* state -- which param a cable is being made to, which source it
+	/// comes from, and which source modulates that source's depth -- read by four different pages,
+	/// so they live on `MenuState` beside the path rather than on any one item.
+	///
+	/// @note `PatchedParam::selectButtonPress` (`gui/menu_item/patched_param.cpp:32-40`) writes
+	///       `patching_param` in legacy, on the way out of the param item. `SelectChainFn` takes a
+	///       **`const MenuState&`**, so the port cannot write it there; `SourceSelectionItem::on_focus`
+	///       does it instead, reading the param out of `path[depth - 1]` -- the node the chain came
+	///       from, which `enter_child` has just pushed this page under. Same fact, one hop later.
+	/// @{
+	/// `soundEditor.patchingParamSelected`; `deluge::modulation::params::kNoParamID` for none.
+	uint8_t patching_param = 255;
+	/// `source_selection::regularMenu.s` -- the cable's own source.
+	PatchSource patch_source = PatchSource::NOT_AVAILABLE;
+	/// `source_selection::rangeMenu.s` -- the source modulating *that* cable's depth.
+	PatchSource patch_range_source = PatchSource::NOT_AVAILABLE;
+	/// @brief `PatchCableStrength::polarity_in_the_ui_` (`gui/menu_item/patch_cable_strength.h:78`):
+	///        the polarity the page is *showing*, which a cable that does not exist yet has no home
+	///        for.
+	///
+	/// Legacy keeps it on the item because a `PatchCableStrength` is a singleton with one visit's
+	/// worth of state; here the item is `const`, so it lives beside the rest of the page's
+	/// navigation state. `on_focus` seeds it (from the cable, or `PatchCable::getDefaultPolarity`),
+	/// the render writes it, and `commit` applies it to a cable it has just created -- which is
+	/// legacy's `getModelStack(..., allowCreation = true)` doing `setPatchCablePolarity` on the
+	/// `!patch_cable_exists_` path (`patch_cable_strength.cpp:223-227`).
+	///
+	/// @note `Polarity` is **forward declared** at the top of this file rather than included:
+	///       `modulation/patch/patch_cable.h` drags in `modulation/automation/auto_param.h`, which
+	///       the `scenes-model-stack` ratchet confines to `bindings.cpp` and `context.cpp`, and
+	///       which every translation unit that includes this header would otherwise inherit. A
+	///       scoped enum with an explicit underlying type is completely specified by its
+	///       declaration, so storing one by value needs nothing more.
+	Polarity patch_polarity = Polarity{1}; // Polarity::BIPOLAR
+	/// @name The MPE pages' shared selection -- legacy's two menu-item members, as scene state.
+	///
+	/// `mpe::DirectionSelector::whichDirection` (`gui/menu_item/mpe/direction_selector.h:39`) and
+	/// `mpe::ZoneSelector::whichZone` (`mpe/zone_selector.h:41`) are members of two singleton menu
+	/// items that a **third** page reads: `ZoneNumMemberChannels::getPort()` indexes
+	/// `currentMIDICable->ports[directionSelectorMenu.whichDirection]`
+	/// (`mpe/zone_num_member_channels.cpp:29-31`) and its read/write/bounds all branch on
+	/// `zoneSelectorMenu.whichZone` (`:38`, `:58`, `:68`).
+	///
+	/// Exactly the shape `patching_param`/`patch_source` above have, and placed here by the same
+	/// two-part test (`nodes/midi_device.h` argues it in full, and says why "legacy kept it on a
+	/// menu item" is only a proxy -- `MenuContext::midi_cable` is a `soundEditor.current*` member
+	/// that a menu item nonetheless writes):
+	///
+	///   1. Could a `Binding::get`/`set`, handed only a `const MenuContext&`, ever need to see it?
+	///      If yes it must be a `MenuContext` field. These two: **no** -- their only readers are
+	///      `CustomItem`s, which are handed `MenuState` as well.
+	///   2. Does it die when the walk is re-rooted? If yes it belongs here. These two: **yes**.
+	///
+	/// Which is also why the three MPE items are `CustomItem`s rather than data nodes.
+	///
+	/// @note Both zero values are 0 -- `MIDI_DIRECTION_INPUT_TO_DELUGE`
+	///       (`io/midi/midi_device.h:33`) and `MPE_ZONE_LOWER_NUMBERED_FROM_0` (`:36`) -- which is also
+	///       what each selector's `beginSession` forward arm assigns, so the initialiser here and
+	///       `retarget`'s reset say the same thing legacy's own entry does.
+	/// @{
+	/// `directionSelectorMenu.whichDirection`: 0 = into the Deluge, 1 = out of it.
+	uint8_t mpe_direction = 0;
+	/// `zoneSelectorMenu.whichZone`: 0 = the lower zone, 1 = the upper.
+	uint8_t mpe_zone = 0;
+	/// @brief A scene a focused `CustomItem` asked the shell to push, or `SceneKind::Null` for
+	///        none.
+	///
+	/// The port of the `openUI(...)` call every legacy bespoke item makes from its own
+	/// `beginSession` (`gui/menu_item/edit_name.cpp:54`, `file_selector.cpp`, `loop_point.cpp`,
+	/// `sample_marker_editor.cpp`, `dx/browse.cpp`, `osc/audio_recorder.h`). `CustomItem::on_focus`
+	/// IS `beginSession` (`node.h`) but returns `void` -- and it has to, because it is reached from
+	/// `retarget()` and `restore_state()` as well as from `after_render`, neither of which has a
+	/// `Result` to put an `Action` in. So the item writes its request here and `after_render`, which
+	/// does have one, drains it into a `Push`.
+	///
+	/// @note Written by a `CustomItem`, read and cleared by `MenuScene::after_render`, and dropped
+	///       by `retarget` along with the rest of the per-visit state.
+	deluge::ui::shell::SceneId pending_scene{};
+	/// @brief A root-UI action a focused `CustomItem` asked to have performed, or
+	///        `MenuAction::None` for none -- the **verb** counterpart of `pending_scene`
+	///        (`scenes/menu/action.h`).
+	///
+	/// `pending_scene` works because everything it can name is inside `src/scenes`. The five items
+	/// in `nodes/actions.h` run legacy root-UI behaviour instead -- `openUI(&performanceView)`,
+	/// `audioClipView.setClipLengthEqualToSampleLength()`, `stemExport.startStemExportProcess(...)`
+	/// -- every one of which names a symbol this layer may not include. So the item names an
+	/// *intent* and the application-side wiring performs it.
+	///
+	/// @note Written by a `CustomItem` (from `on_focus` for the four pure verbs, from `render` for
+	///       `PerformEditorItem`), read and cleared by `MenuScene::after_render` into
+	///       `MenuScene::take_action()`, and dropped by `retarget` along with the rest of the
+	///       per-visit state -- exactly `pending_scene`'s lifecycle.
+	MenuActionRequest pending_action{};
+	/// @brief Step up one level the next time this scene resumes -- legacy's
+	///        `SoundEditor::shouldGoUpOneLevelOnBegin` (`gui/ui/sound_editor.h:113`).
+	///
+	/// Set when `pending_scene` is pushed, exactly where legacy sets the flag (beside its own
+	/// `openUI`), and read in `on_resume`, exactly where legacy reads it
+	/// (`SoundEditor::focusRegained`, `sound_editor.cpp:318-321`). Without it, closing the pushed
+	/// scene would land back on the item that opened it and `on_focus` would open it again on the
+	/// next descent -- which is precisely why legacy has the flag.
+	bool go_up_on_resume = false;
+	/// @brief The item whose `on_focus` pushed the scene that is now on top -- legacy's
+	///        `sampleBrowser.menuItemHeadingTo` (`gui/ui/sound_editor.cpp:2092`).
+	///
+	/// **Not `MultiRange::menuItemHeadingTo`.** That name resolves on two different objects and
+	/// `pending_after_range` above is the *other* one (`gui/menu_item/multi_range.h:34`, written at
+	/// `sound_editor.cpp:1857`). This field is the browser's/recorder's pair member, written at
+	/// `sound_editor.cpp:2092` and `:2101`, and it is spelled `scene_opener` precisely so the two
+	/// never read as the same thing.
+	///
+	/// Written beside `go_up_on_resume`, exactly where legacy's is written on the way *in* to the
+	/// browser, and read by `reroot_to_scene_opener_page()` on the way back out. Legacy stores the
+	/// item's *page* alongside it (`parentMenuHeadingTo`, `sound_editor.cpp:2093`) because
+	/// `SampleBrowser` cannot reach the horizontal-menus chain from where it reads the pair back;
+	/// this scene can walk its own tables, so only half the pair is stored and the other half is
+	/// resolved at read time. Dropped by `retarget` with the rest of the per-visit state.
+	const Node* scene_opener = nullptr;
+};
 
 /// @brief Live interpreter state: the path, the widgets' own POD state, and what this tick's
 ///        render observed for `after_render()` to act on.
@@ -124,12 +332,6 @@ struct MenuState {
 	/// `Kind::Range`: `range_value` takes two `int32_t&`s -- `edit_int` is the **lower** edge and
 	/// this is the upper (`node.h`'s `RangeSpec`).
 	int32_t edit_upper = 0;
-	/// A `Binding::adjust` node (spec E-note-family §5.2): the select turn's detents, accumulated
-	/// since the last commit rather than folded into a `moved` value the way `edit_int`/
-	/// `enum_index` are -- there is no absolute value to stage, only an offset to hand
-	/// `bindings::adjust`. `render_horizontal`'s edit block is the only writer; `commit_value`
-	/// clears it back to 0 once the offset has been applied.
-	int32_t edit_offset = 0;
 	/// `Kind::Range`: which end the horizontal encoder has selected.
 	///
 	/// Legacy keeps the same fact in `SoundEditor::editingRangeEdge`, one global shared by every
@@ -172,66 +374,10 @@ struct MenuState {
 	uint32_t nav_press_ms = 0;
 
 	// --- what this tick's render observed, for after_render to act on ---
-	/// The widget `Response` the render pass produced (`changed` / `entered`).
-	deluge::ui::Response render_resp{};
-	/// Whether the render pass moved the value in the edit storage above.
-	bool value_changed = false;
-	/// Which node `value_changed` belongs to.
-	///
-	/// An addition to the brief's field list, forced by the horizontal layout: there the node on
-	/// screen is the *submenu* and the edited value belongs to the focused column's child, so
-	/// "the current node" is not enough to commit through.
-	const Node* value_node = nullptr;
-	/// Whether `render_oled` read (and therefore claimed) the back button this tick. Only ever
-	/// set at `depth > 0` -- see `MenuScene::render_oled`.
-	bool back_claimed = false;
-	/// A select press on a *value* column of a horizontal page, which `columns` does not own (it
-	/// claims the press only for a submenu column, `ui/oled/columns.cpp:451-455`). `after_render`
-	/// answers it the way a leaf's own select press is answered, not the way this field's name
-	/// suggests: `Submenu::selectButtonPress` forwards to the focused item
-	/// (`gui/menu_item/submenu.cpp:187-194`), whose own `select_chain` is entered if it names one
-	/// and `ascend()` otherwise -- `SoundEditor::buttonAction`'s SELECT arm
-	/// (`gui/ui/sound_editor.cpp:394-424`). **Not** `HorizontalMenu::handleItemAction`
-	/// (`gui/menu_item/horizontal_menu.cpp:663-679`), which never runs from a select press at all --
-	/// its one caller is the *instrument-button* path, `buttonAction`'s `:96-97`
-	/// (`handleInstrumentButtonPress`) reaching it when the pressed button's column is already
-	/// focused. This field's old doc attributed the notification to that call by mistake; a select
-	/// press on a value column raises no notification (spec E-note-family §3.2's third bullet).
-	bool column_press = false;
-	/// Whether shift was held on this tick's frame: a select press with it on an automation item deletes the item's
-	/// param's automation instead of navigating (`MenuScene::after_render`).
-	bool select_shift = false;
-	/// Spec E §4.1's `MustSelectRange` outcome. E1 recorded it and left the node unentered; E2 task
-	/// 9 acts on it -- `enter_child` descends into `nodes::multi_range` instead, which is legacy's
-	/// own substitution at `sound_editor.cpp:1857-1858` (`multiRangeMenu.menuItemHeadingTo = newItem`
-	/// followed by `newItem = &multiRangeMenu`).
-	///
-	/// Stays true for as long as the picker is the reason the deeper item has not been opened; the
-	/// picker's `select_chain` reads `pending_after_range` to know where to head.
-	bool range_picker_pending = false;
-	/// The node that will be entered once a range is chosen -- legacy's
-	/// `MultiRange::menuItemHeadingTo` (`gui/menu_item/multi_range.h:34`), which is exactly what its
-	/// `selectButtonPress` returns (`multi_range.cpp:360-362`).
-	const Node* pending_after_range = nullptr;
-
-	/// @brief A range index the focused picker chose this tick, or -1 for none.
-	///
-	/// The picker is a `CustomItem` and is handed a **`const MenuContext&`**, so it cannot do
-	/// legacy's `soundEditor.setCurrentMultiRange(...)` itself; it records the index here and
-	/// `after_render` -- which owns the scene's own mutable `ctx_` -- applies it through
-	/// `menu::select_range`. Same shape as `pending_scene`: the item asks, `after_render` does.
-	int16_t range_choice = -1;
-
-	/// @brief An output index a focused selector chose this tick, or -1 for none.
-	///
-	/// The same shape as `range_choice`, for the same reason and for the two items `settings.h`'s
-	/// own note said were owed one: `cv::Selection` and `gate::Selection` assign
-	/// `soundEditor.currentSourceIndex` from their own `selectButtonPress` (`cv/selection.h:42`,
-	/// `gate/selection.h:47`), and a `CustomItem` is handed a **`const MenuContext&`**. So
-	/// `CvSelectionItem`/`GateSelectionItem` (`nodes/dynamic.h`) record the cursor here and
-	/// `after_render` -- which owns the scene's own mutable `ctx_` -- writes
-	/// `MenuContext::source_index`, *before* the same tick's select press consults `select_chain`.
-	int8_t source_choice = -1;
+	/// What this tick's render observed; `after_render` drains it and resets it by value.
+	MenuTick tick{};
+	/// What belongs to the current walk from a root; `retarget` resets it by value.
+	MenuWalkState walk{};
 
 	/// @brief The last row `render_output_selection` (`nodes/dynamic.cpp`) saw pressed that named a
 	///        real physical output -- NOT a mailbox, and deliberately not the same field as
@@ -251,147 +397,9 @@ struct MenuState {
 	/// `GateSelectionItem::on_focus_backward`.
 	int8_t real_output_choice = 0;
 
-	/// @brief A MIDI cable the focused device list chose this tick, or null for none.
-	///
-	/// `midi::Devices` assigns `soundEditor.currentMIDICable` from both `beginSession`
-	/// (`devices.cpp:55`) and `selectEncoderAction` (`devices.cpp:102`); the port's counterpart is
-	/// `MenuContext::midi_cable`, written by `after_render` from what `MidiDevicesItem` records
-	/// here. A pointer rather than an index because that is what the context field is, and because
-	/// legacy's own index space (`lowestDeviceNum`.. , `devices.cpp:36`) is not the row order the
-	/// list renders.
-	::MIDICable* midi_cable_choice = nullptr;
-
-	/// @name The patch-cable pages' shared selection -- legacy's three globals, as scene state.
-	///
-	/// Legacy spreads these across `SoundEditor::patchingParamSelected` (`gui/ui/sound_editor.h`),
-	/// `source_selection::regularMenu.s` and `source_selection::rangeMenu.s`
-	/// (`gui/menu_item/source_selection.h:36`, one `PatchSource` member per singleton page). They are
-	/// genuinely shared *navigation* state -- which param a cable is being made to, which source it
-	/// comes from, and which source modulates that source's depth -- read by four different pages,
-	/// so they live on `MenuState` beside the path rather than on any one item.
-	///
-	/// @note `PatchedParam::selectButtonPress` (`gui/menu_item/patched_param.cpp:32-40`) writes
-	///       `patching_param` in legacy, on the way out of the param item. `SelectChainFn` takes a
-	///       **`const MenuState&`**, so the port cannot write it there; `SourceSelectionItem::on_focus`
-	///       does it instead, reading the param out of `path[depth - 1]` -- the node the chain came
-	///       from, which `enter_child` has just pushed this page under. Same fact, one hop later.
-	/// @{
-	/// `soundEditor.patchingParamSelected`; `deluge::modulation::params::kNoParamID` for none.
-	uint8_t patching_param = 255;
-	/// `source_selection::regularMenu.s` -- the cable's own source.
-	PatchSource patch_source = PatchSource::NOT_AVAILABLE;
-	/// `source_selection::rangeMenu.s` -- the source modulating *that* cable's depth.
-	PatchSource patch_range_source = PatchSource::NOT_AVAILABLE;
-
-	/// @brief `PatchCableStrength::polarity_in_the_ui_` (`gui/menu_item/patch_cable_strength.h:78`):
-	///        the polarity the page is *showing*, which a cable that does not exist yet has no home
-	///        for.
-	///
-	/// Legacy keeps it on the item because a `PatchCableStrength` is a singleton with one visit's
-	/// worth of state; here the item is `const`, so it lives beside the rest of the page's
-	/// navigation state. `on_focus` seeds it (from the cable, or `PatchCable::getDefaultPolarity`),
-	/// the render writes it, and `commit` applies it to a cable it has just created -- which is
-	/// legacy's `getModelStack(..., allowCreation = true)` doing `setPatchCablePolarity` on the
-	/// `!patch_cable_exists_` path (`patch_cable_strength.cpp:223-227`).
-	///
-	/// @note `Polarity` is **forward declared** at the top of this file rather than included:
-	///       `modulation/patch/patch_cable.h` drags in `modulation/automation/auto_param.h`, which
-	///       the `scenes-model-stack` ratchet confines to `bindings.cpp` and `context.cpp`, and
-	///       which every translation unit that includes this header would otherwise inherit. A
-	///       scoped enum with an explicit underlying type is completely specified by its
-	///       declaration, so storing one by value needs nothing more.
-	Polarity patch_polarity = Polarity{1}; // Polarity::BIPOLAR
 	/// @}
 
-	/// @name The MPE pages' shared selection -- legacy's two menu-item members, as scene state.
-	///
-	/// `mpe::DirectionSelector::whichDirection` (`gui/menu_item/mpe/direction_selector.h:39`) and
-	/// `mpe::ZoneSelector::whichZone` (`mpe/zone_selector.h:41`) are members of two singleton menu
-	/// items that a **third** page reads: `ZoneNumMemberChannels::getPort()` indexes
-	/// `currentMIDICable->ports[directionSelectorMenu.whichDirection]`
-	/// (`mpe/zone_num_member_channels.cpp:29-31`) and its read/write/bounds all branch on
-	/// `zoneSelectorMenu.whichZone` (`:38`, `:58`, `:68`).
-	///
-	/// Exactly the shape `patching_param`/`patch_source` above have, and placed here by the same
-	/// two-part test (`nodes/midi_device.h` argues it in full, and says why "legacy kept it on a
-	/// menu item" is only a proxy -- `MenuContext::midi_cable` is a `soundEditor.current*` member
-	/// that a menu item nonetheless writes):
-	///
-	///   1. Could a `Binding::get`/`set`, handed only a `const MenuContext&`, ever need to see it?
-	///      If yes it must be a `MenuContext` field. These two: **no** -- their only readers are
-	///      `CustomItem`s, which are handed `MenuState` as well.
-	///   2. Does it die when the walk is re-rooted? If yes it belongs here. These two: **yes**.
-	///
-	/// Which is also why the three MPE items are `CustomItem`s rather than data nodes.
-	///
-	/// @note Both zero values are 0 -- `MIDI_DIRECTION_INPUT_TO_DELUGE`
-	///       (`io/midi/midi_device.h:33`) and `MPE_ZONE_LOWER_NUMBERED_FROM_0` (`:36`) -- which is also
-	///       what each selector's `beginSession` forward arm assigns, so the initialiser here and
-	///       `retarget`'s reset say the same thing legacy's own entry does.
-	/// @{
-	/// `directionSelectorMenu.whichDirection`: 0 = into the Deluge, 1 = out of it.
-	uint8_t mpe_direction = 0;
-	/// `zoneSelectorMenu.whichZone`: 0 = the lower zone, 1 = the upper.
-	uint8_t mpe_zone = 0;
 	/// @}
-
-	/// @brief A scene a focused `CustomItem` asked the shell to push, or `SceneKind::Null` for
-	///        none.
-	///
-	/// The port of the `openUI(...)` call every legacy bespoke item makes from its own
-	/// `beginSession` (`gui/menu_item/edit_name.cpp:54`, `file_selector.cpp`, `loop_point.cpp`,
-	/// `sample_marker_editor.cpp`, `dx/browse.cpp`, `osc/audio_recorder.h`). `CustomItem::on_focus`
-	/// IS `beginSession` (`node.h`) but returns `void` -- and it has to, because it is reached from
-	/// `retarget()` and `restore_state()` as well as from `after_render`, neither of which has a
-	/// `Result` to put an `Action` in. So the item writes its request here and `after_render`, which
-	/// does have one, drains it into a `Push`.
-	///
-	/// @note Written by a `CustomItem`, read and cleared by `MenuScene::after_render`, and dropped
-	///       by `retarget` along with the rest of the per-visit state.
-	deluge::ui::shell::SceneId pending_scene{};
-
-	/// @brief A root-UI action a focused `CustomItem` asked to have performed, or
-	///        `MenuAction::None` for none -- the **verb** counterpart of `pending_scene`
-	///        (`scenes/menu/action.h`).
-	///
-	/// `pending_scene` works because everything it can name is inside `src/scenes`. The five items
-	/// in `nodes/actions.h` run legacy root-UI behaviour instead -- `openUI(&performanceView)`,
-	/// `audioClipView.setClipLengthEqualToSampleLength()`, `stemExport.startStemExportProcess(...)`
-	/// -- every one of which names a symbol this layer may not include. So the item names an
-	/// *intent* and the application-side wiring performs it.
-	///
-	/// @note Written by a `CustomItem` (from `on_focus` for the four pure verbs, from `render` for
-	///       `PerformEditorItem`), read and cleared by `MenuScene::after_render` into
-	///       `MenuScene::take_action()`, and dropped by `retarget` along with the rest of the
-	///       per-visit state -- exactly `pending_scene`'s lifecycle.
-	MenuActionRequest pending_action{};
-
-	/// @brief Step up one level the next time this scene resumes -- legacy's
-	///        `SoundEditor::shouldGoUpOneLevelOnBegin` (`gui/ui/sound_editor.h:113`).
-	///
-	/// Set when `pending_scene` is pushed, exactly where legacy sets the flag (beside its own
-	/// `openUI`), and read in `on_resume`, exactly where legacy reads it
-	/// (`SoundEditor::focusRegained`, `sound_editor.cpp:318-321`). Without it, closing the pushed
-	/// scene would land back on the item that opened it and `on_focus` would open it again on the
-	/// next descent -- which is precisely why legacy has the flag.
-	bool go_up_on_resume = false;
-
-	/// @brief The item whose `on_focus` pushed the scene that is now on top -- legacy's
-	///        `sampleBrowser.menuItemHeadingTo` (`gui/ui/sound_editor.cpp:2092`).
-	///
-	/// **Not `MultiRange::menuItemHeadingTo`.** That name resolves on two different objects and
-	/// `pending_after_range` above is the *other* one (`gui/menu_item/multi_range.h:34`, written at
-	/// `sound_editor.cpp:1857`). This field is the browser's/recorder's pair member, written at
-	/// `sound_editor.cpp:2092` and `:2101`, and it is spelled `scene_opener` precisely so the two
-	/// never read as the same thing.
-	///
-	/// Written beside `go_up_on_resume`, exactly where legacy's is written on the way *in* to the
-	/// browser, and read by `reroot_to_scene_opener_page()` on the way back out. Legacy stores the
-	/// item's *page* alongside it (`parentMenuHeadingTo`, `sound_editor.cpp:2093`) because
-	/// `SampleBrowser` cannot reach the horizontal-menus chain from where it reads the pair back;
-	/// this scene can walk its own tables, so only half the pair is stored and the other half is
-	/// resolved at read time. Dropped by `retarget` with the rest of the per-visit state.
-	const Node* scene_opener = nullptr;
 };
 
 /// @brief What survives a `replace_root`.

@@ -38,7 +38,7 @@
 /// runs `Toggle::selectButtonPress` -> `toggleValue()` (`:25-29`, `:33-44`) and leaves the user on
 /// the parent list. The port has no equivalent of that flag (`nodes/actions.h`): it descends for one
 /// tick, `on_focus` -- which **is** `beginSession` (`node.h`) -- does the toggle, and the item leaves
-/// again. On the *link* arm that is `MenuState::pending_scene` plus `go_up_on_resume`, exactly as
+/// again. On the *link* arm that is `MenuWalkState::pending_scene` plus `go_up_on_resume`, exactly as
 /// `nodes/sample.h`'s items; on the *unlink* arm there is no scene to push, so `render` reports
 /// `entered` and `MenuScene::after_render`'s leaf arm ascends -- which is what `ResetItem` and the
 /// four `ActionItem`s already do for the same legacy shape.

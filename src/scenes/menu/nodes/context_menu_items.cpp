@@ -78,7 +78,7 @@ void ContextMenuItem::on_focus(const MenuContext& ctx, MenuState& state) const {
 	// whichever member of the context it needs. `on_enter` is the second (the seeding walk, or
 	// `initial_option`). The third is the `pending_scene` push.
 	deluge::scenes::context_menu::context_menu_scene().open(ctx);
-	state.pending_scene =
+	state.walk.pending_scene =
 	    deluge::ui::shell::SceneId{deluge::scenes::context_menu::kContextMenuSceneKind, descriptor_id_};
 }
 

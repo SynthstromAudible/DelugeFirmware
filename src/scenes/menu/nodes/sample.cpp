@@ -97,12 +97,12 @@ void FileBrowserItem::on_focus(const MenuContext& ctx, MenuState& state) const {
 	// *re-rooting* -- and it belonged to whoever performs `claimCurrentFile` against
 	// `BrowserScene::take_choice()`, which is the same seam and the same owner
 	// (`browser_scene.h`'s `Descriptor::accept`). **Paid, F3 task 3**: this item's half of the pair
-	// is `MenuState::scene_opener`, recorded by `MenuScene::after_render` where legacy's
+	// is `MenuWalkState::scene_opener`, recorded by `MenuScene::after_render` where legacy's
 	// `maybeGetParentMenu` records its own; the page half is resolved from the tables and the
 	// re-rooting applied by `MenuScene::reroot_to_scene_opener_page()`, which
 	// `deluge::gui::ui::shellSampleClaimDone` calls on the claim's success.
 	browser::browser_scene().open(with_source(ctx));
-	state.pending_scene = deluge::ui::shell::SceneId{browser::kBrowserSceneKind, kSampleBrowserArg};
+	state.walk.pending_scene = deluge::ui::shell::SceneId{browser::kBrowserSceneKind, kSampleBrowserArg};
 }
 
 void MarkerItem::on_focus(const MenuContext& ctx, MenuState& state) const {
@@ -116,7 +116,7 @@ void MarkerItem::on_focus(const MenuContext& ctx, MenuState& state) const {
 	// `with_source` is `LoopPoint`'s `setCurrentSource` (`:68`) and, for `kAudioClipWaveform`'s
 	// negative index, the audio-clip opener's *absence* of one.
 	marker::marker_scene().open(with_source(ctx));
-	state.pending_scene = deluge::ui::shell::SceneId{marker::kMarkerSceneKind, marker_};
+	state.walk.pending_scene = deluge::ui::shell::SceneId{marker::kMarkerSceneKind, marker_};
 }
 
 void AudioRecorderItem::on_focus(const MenuContext& ctx, MenuState& state) const {
@@ -136,7 +136,7 @@ void AudioRecorderItem::on_focus(const MenuContext& ctx, MenuState& state) const
 	//
 	// **The `MenuScene` half now exists and this arm is still unpaid.** F3 task 3 added
 	// `MenuScene::reroot_to_scene_opener_page()`, and this item already records the half it owns:
-	// `MenuState::scene_opener` is written for every scene push, this one included. What is missing
+	// `MenuWalkState::scene_opener` is written for every scene push, this one included. What is missing
 	// is a *caller* -- `deluge::gui::ui::shellSampleClaimDone` calls it because the browser's choice
 	// is drained through `BrowserScene::take_choice()`, and `RecorderScene` has no equivalent outbox
 	// and no dispatcher draining one.
@@ -148,14 +148,14 @@ void AudioRecorderItem::on_focus(const MenuContext& ctx, MenuState& state) const
 	// those two statements. What a caller would additionally have to carry is the pair's own
 	// content -- `parentMenuHeadingTo` is `&sourceMenuGroup` unconditionally and `menuItemHeadingTo`
 	// is the matching *file selector*, not the recorder (`sound_editor.cpp:2100-2102`) -- and
-	// `shouldGoUpOneLevelOnBegin = false` (`:44`), which is `MenuState::go_up_on_resume`.
+	// `shouldGoUpOneLevelOnBegin = false` (`:44`), which is `MenuWalkState::go_up_on_resume`.
 	// So the consequence here is still one extra BACK press after a recording.
 	//
 	// `process()` is not called either, and that is the whole of task 5: legacy runs the recorder
 	// as a blocking loop from this stack frame (`gui/ui/audio_recorder.cpp:193-242`), while the
 	// scene is driven by the shell's own tick (`recorder_scene.h` §1).
 	recorder::recorder_scene().open(with_source(ctx));
-	state.pending_scene = deluge::ui::shell::SceneId{recorder::kRecorderSceneKind, 0};
+	state.walk.pending_scene = deluge::ui::shell::SceneId{recorder::kRecorderSceneKind, 0};
 }
 
 } // namespace deluge::scenes::menu::nodes

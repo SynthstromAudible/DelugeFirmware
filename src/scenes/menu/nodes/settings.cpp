@@ -985,7 +985,7 @@ void FirmwareVersionItem::render(deluge::ui::oled::OledFrame& f, const MenuConte
 	// `render_leaf_sync_level`, for one) -- `Kind::Custom`'s own dispatch draws nothing else, so
 	// this item claims it itself.
 	if (f.select_pressed()) {
-		state.render_resp.entered = true;
+		state.tick.render_resp.entered = true;
 	}
 }
 
@@ -1062,7 +1062,7 @@ void BatteryLevelItem::render(deluge::ui::oled::OledFrame& f, const MenuContext&
 	f.gate().request_repaint_after(500, now);
 
 	if (f.select_pressed()) {
-		state.render_resp.entered = true;
+		state.tick.render_resp.entered = true;
 	}
 }
 

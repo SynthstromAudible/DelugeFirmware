@@ -106,9 +106,7 @@ int32_t instrument_button_index(ButtonId b) {
 void MenuScene::open(const Node& root, const MenuContext& ctx) {
 	ctx_ = ctx;
 	st_ = MenuState{};
-	use_up_select_ = true;
-	learn_mode_ = false;
-	blink_restart_ = true; // `blinkLed(IndicatorLED::BACK)` as the editor opens (`sound_editor.cpp:571`)
+	visit_ = {}; // `blinkLed(IndicatorLED::BACK)` as the editor opens (`sound_editor.cpp:571`), among the rest
 	landing_column_ = nullptr;
 	retarget(root);
 }
@@ -137,7 +135,7 @@ std::span<const Node* const> MenuScene::roots() {
 
 void MenuScene::retarget(const Node& node) {
 	// A re-rooted menu is not the one a pending close was asked for.
-	close_requested_ = false;
+	visit_.close_requested = false;
 	st_.path[0] = &node;
 	for (uint8_t i = 1; i < kMenuDepth; i++) {
 		st_.path[i] = nullptr;
@@ -146,53 +144,16 @@ void MenuScene::retarget(const Node& node) {
 	st_.list[0] = deluge::ui::ListState{};
 	st_.columns[0] = deluge::ui::ColumnsState{};
 	st_.scroll[0] = deluge::ui::ScrollText{};
-	st_.render_resp = {};
-	st_.value_changed = false;
-	st_.value_node = nullptr;
-	st_.back_claimed = false;
-	st_.column_press = false;
+	// The tick's observations and everything the walk chose -- a pending range, the selectors' choices, the patch-cable
+	// and MPE pages' selection, a custom item's scene or action request, the recorded opener -- belong to the path this
+	// re-rooting abandons. Cleared before `enter_leaf` below, which may file a fresh request (landing straight on an
+	// `EditNameItem` through `SceneId::arg`). `taken_action_` is not the walk's: a request already drained into the
+	// outbox has been accepted and must still reach `take_action()`'s caller.
+	st_.tick = {};
+	st_.walk = {};
 	ctx_.selected_note_row = false;
-	session_value_ = nullptr;
+	visit_.session_value = nullptr;
 	voice_usage_at_ = VoiceUsagePlace::None;
-	// Same reason as the three siblings above: an offset staged for the abandoned path has nothing
-	// left to commit through once `value_node` is gone, and a stale one would otherwise double up
-	// with whatever a fresh turn on the new path accumulates next (fix round 1, Important 1).
-	st_.edit_offset = 0;
-	// A pending range belongs to the item that asked for one; re-rooting the path abandons that
-	// item, so the request goes with it rather than surviving to mislead E2's picker.
-	st_.range_picker_pending = false;
-	st_.pending_after_range = nullptr;
-	st_.range_choice = -1;
-	// Same reasoning for the CV/gate/device selectors' pending choices: they belong to the item
-	// this re-rooting abandons, and applying one afterwards would point a freshly opened page at
-	// the previous walk's output.
-	st_.source_choice = -1;
-	st_.midi_cable_choice = nullptr;
-	// The patch-cable pages' shared selection belongs to a walk through the tree, not to the tree:
-	// re-rooting abandons that walk, so `patching_param` and the two sources go back to "nothing
-	// chosen" rather than pointing a freshly opened page at the last visit's cable.
-	st_.patching_param = 255;
-	st_.patch_source = PatchSource::NOT_AVAILABLE;
-	st_.patch_range_source = PatchSource::NOT_AVAILABLE;
-	// And the same for the MPE pages' direction and zone: they belong to the walk that reached the
-	// device page, not to the tree, and each selector's own `beginSession` forward arm assigns
-	// exactly these two values anyway (`mpe/direction_selector.cpp:25-27`, `mpe/zone_selector.cpp:26-28`).
-	st_.mpe_direction = 0;
-	st_.mpe_zone = 0;
-	// Same reasoning for the scene a custom item asked to open: it belongs to the item this
-	// re-rooting abandons. Cleared *before* `enter_leaf` below, which is the one call that can
-	// legitimately set it again (landing straight on an `EditNameItem` through `SceneId::arg`).
-	st_.pending_scene = SceneId{};
-	// And the same for the action a custom item asked to have performed -- the verb half of the same
-	// seam, cleared in the same place and for the same reason. `taken_action_` is deliberately NOT
-	// cleared: a request already drained into the outbox has been accepted and must still reach
-	// `take_action()`'s caller, whatever the path does afterwards.
-	st_.pending_action = MenuActionRequest{};
-	st_.go_up_on_resume = false;
-	// And the same for the item that opened the pushed scene: it belongs to the walk this
-	// re-rooting abandons, and `reroot_to_scene_opener_page()` -- which is itself one of the
-	// callers here -- must not be able to fire twice off one recorded opener.
-	st_.scene_opener = nullptr;
 	if (is_leaf(node.kind)) {
 		// `NoRowPress`: re-rooting is `open()`, a `SceneId` deep link or the shortcut-pad jump. The
 		// jump IS a press -- on a grid pad, not on this node's row -- which is the distinction the
@@ -270,7 +231,7 @@ void MenuScene::restore_row() {
 }
 
 bool MenuScene::on_enter(const SceneId& id) {
-	blink_restart_ = true; // `blinkLed(IndicatorLED::BACK)` (`sound_editor.cpp:571`)
+	visit_ = {}; // `beginScreen`: a new screen, with `blinkLed(IndicatorLED::BACK)` (`sound_editor.cpp:571`)
 	// `SceneId::arg` is deliberately NOT part of the `SceneState` cache key (`shell/scene.h:68`),
 	// so a re-entry restores the kind's last saved state and *then* lands here: this must
 	// overwrite `path`/`depth` from `arg` rather than trust what `restore_state` put there.
@@ -344,8 +305,8 @@ bool MenuScene::on_enter(const SceneId& id) {
 				// re-roots rather than descending because there is no path to descend from.
 				// The two writes come after `retarget`, which resets both fields.
 				retarget(nodes::multi_range);
-				st_.range_picker_pending = true;
-				st_.pending_after_range = target;
+				st_.walk.range_picker_pending = true;
+				st_.walk.pending_after_range = target;
 				return true;
 			}
 		}
@@ -379,7 +340,7 @@ uint16_t MenuScene::arm_shortcut_landing(const Node& target) {
 }
 
 void MenuScene::on_resume() {
-	blink_restart_ =
+	visit_.blink_restart =
 	    true; // `focusRegained`'s `setLedStates` -> `blinkLed(IndicatorLED::BACK)` (`sound_editor.cpp:552`)
 	// `SoundEditor::focusRegained` (`gui/ui/sound_editor.cpp:317-327`): "If just came back from a
 	// deeper nested UI", step up one level. The flag is set where the push was requested (see
@@ -387,9 +348,9 @@ void MenuScene::on_resume() {
 	// again the instant the user gets back.
 	// A landing armed by a jump whose `Replace` never reached `on_enter` is stale.
 	landing_column_ = nullptr;
-	use_up_select_ = true;
-	if (st_.go_up_on_resume) {
-		st_.go_up_on_resume = false;
+	visit_.use_up_select = true;
+	if (st_.walk.go_up_on_resume) {
+		st_.walk.go_up_on_resume = false;
 		// A browser that closed on a chosen file has a claim coming, and the claim lands the menu on the source page
 		// (`SampleClaim::stepFinish` closes the browser and reopens the editor there, `sample_claim.cpp:563-577`;
 		// here `reroot_to_scene_opener_page`). Going up from depth 0 first would close the menu under it.
@@ -399,19 +360,12 @@ void MenuScene::on_resume() {
 	}
 	// Otherwise the path is kept exactly as it was. Reset only the per-tick observations, which
 	// belong to a render pass that never happened.
-	st_.render_resp = {};
-	st_.value_changed = false;
-	st_.value_node = nullptr;
-	st_.back_claimed = false;
-	st_.column_press = false;
-	// An offset staged for a render pass that never happened is not a live edit either (fix round
-	// 1, Important 1) -- see `retarget`'s identical reset for the full reasoning.
-	st_.edit_offset = 0;
+	st_.tick = {};
 }
 
 bool MenuScene::reroot_to_scene_opener_page() {
 	// Read before `retarget` runs, which drops it along with the rest of the abandoned walk.
-	const Node* item = st_.scene_opener;
+	const Node* item = st_.walk.scene_opener;
 	if (item == nullptr || st_.path[0] == nullptr) {
 		// No opener recorded, or no menu at all (`on_model_changed`'s song swap empties the path).
 		// Legacy's own guard is the same shape -- the pair is only read when both halves are
@@ -452,7 +406,7 @@ bool MenuScene::reroot_to_scene_opener_page() {
 }
 
 void MenuScene::begin_value_session(const Node* value) {
-	session_value_ = value;
+	visit_.session_value = value;
 	if (value == &nodes::sequence_direction && !ctx_.is_kit) {
 		ctx_.selected_note_row = note_bridge() != nullptr && note_bridge()->row_auditioning();
 	}
@@ -759,8 +713,8 @@ bool MenuScene::enter_range_picker_if_needed(const Node& child, bool suppress_wh
 	if (permission_for(child, ctx_) != Permission::MustSelectRange) {
 		return false;
 	}
-	st_.range_picker_pending = true;
-	st_.pending_after_range = &child;
+	st_.walk.range_picker_pending = true;
+	st_.walk.pending_after_range = &child;
 	descend_to(nodes::multi_range);
 	return true;
 }
@@ -786,9 +740,9 @@ void MenuScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) {
 	if (role != SurfaceRole::Main) {
 		return;
 	}
-	select_held_ = f.select_held();
+	visit_.select_held = f.select_held();
 	// A horizontal page's `initializeItem` on every focus move and `beginSession`, read before its columns draw.
-	if (const Node* const value = focused_value(); value != session_value_) {
+	if (const Node* const value = focused_value(); value != visit_.session_value) {
 		begin_value_session(value);
 	}
 	const Node* node = focused();
@@ -797,20 +751,20 @@ void MenuScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) {
 	}
 	// `beginScreen`'s `blinkLed(LEARN)` for an item that wants it (`sound_editor.cpp:1167-1169`) restarts the shared
 	// phase, BACK's too, at this tick's `leds()`; the open's and LEARN's release are filed the same way.
-	if (node != blink_screen_) {
-		blink_screen_ = node;
-		blink_restart_ = blink_restart_ || wants_learn_blink();
+	if (node != visit_.blink_screen) {
+		visit_.blink_screen = node;
+		visit_.blink_restart = visit_.blink_restart || wants_learn_blink();
 	}
 
-	st_.render_resp = {};
-	st_.column_press = false;
-	st_.select_shift = f.shift();
+	st_.tick.render_resp = {};
+	st_.tick.column_press = false;
+	st_.tick.select_shift = f.shift();
 
 	// **The depth test precedes the read.** At depth 0 `owns` leaves Back to `handle()`, which pops the scene --
 	// legacy's back at the root closing the editor (`sound_editor.cpp:456` -> `:433` `goUpOneLevel()` -> `:678`
 	// `exitCompletely()`) -- so the render must not read it there: the read IS the claim.
 	if (st_.depth > 0) {
-		st_.back_claimed = f.back_pressed();
+		st_.tick.back_claimed = f.back_pressed();
 	}
 
 	switch (node->kind) {
@@ -882,7 +836,7 @@ void MenuScene::render_vertical(deluge::ui::oled::OledFrame& f, const Node& node
 	// `menu_rect(f)` is the legacy-reproducing rect (`ui/oled/list.h:33`) -- never a hand-computed
 	// one. `list` clamps the cursor, walks it with `f.turn()`, and reports `entered` on a select
 	// press, claiming both for the tick.
-	st_.render_resp =
+	st_.tick.render_resp =
 	    deluge::ui::oled::list(f, deluge::ui::oled::menu_rect(f), st_.list[st_.depth],
 	                           std::span<const deluge::ui::oled::ListRow>{rows, n}, st_.scroll[st_.depth]);
 }
@@ -927,7 +881,7 @@ void MenuScene::render_horizontal(deluge::ui::oled::OledFrame& f, const Node& no
 				// its siblings) has no absolute value to stage, so there is nothing to put in
 				// `edit_int`/`enum_index` here. The column below reads `bindings::read` for this
 				// node instead of any edit storage, for the same reason.
-				st_.edit_offset += detents;
+				st_.tick.edit_offset += detents;
 			}
 			else {
 				const IntRange range = bindings::range(target, ctx_);
@@ -972,8 +926,8 @@ void MenuScene::render_horizontal(deluge::ui::oled::OledFrame& f, const Node& no
 					break;
 				}
 			}
-			st_.value_changed = true;
-			st_.value_node = &target;
+			st_.tick.value_changed = true;
+			st_.tick.value_node = &target;
 		}
 	}
 
@@ -983,10 +937,10 @@ void MenuScene::render_horizontal(deluge::ui::oled::OledFrame& f, const Node& no
 		const Node& kid = *kids[i];
 		// A `Binding::adjust` node stages no absolute value (see the edit block above) -- only
 		// `bindings::read` is ever meaningful for it, so its column always re-reads rather than
-		// consulting `st_.value_node`/`edit_int`. That leaves one frame of lag before the commit's
+		// consulting `st_.tick.value_node`/`edit_int`. That leaves one frame of lag before the commit's
 		// write is visible here, because renders never write the model; `node.h`'s `AdjustFn` doc
 		// names this rather than working around it.
-		const bool has_staged_edit = kid.bind.adjust == nullptr && st_.value_node == &kid;
+		const bool has_staged_edit = kid.bind.adjust == nullptr && st_.tick.value_node == &kid;
 		int32_t value = bindings::read(kid, ctx_);
 		if (has_staged_edit) {
 			value = kid.kind == Kind::Enum     ? st_.enum_index
@@ -1026,20 +980,20 @@ void MenuScene::render_horizontal(deluge::ui::oled::OledFrame& f, const Node& no
 			               .ctx = &call};
 		}
 	}
-	st_.render_resp = deluge::ui::oled::columns(f, f.bounds(), st_.columns[st_.depth],
-	                                            std::span<const deluge::ui::oled::Column>{cols, n},
-	                                            page_title(title_scratch), page_render);
+	st_.tick.render_resp = deluge::ui::oled::columns(f, f.bounds(), st_.columns[st_.depth],
+	                                                 std::span<const deluge::ui::oled::Column>{cols, n},
+	                                                 page_title(title_scratch), page_render);
 
 	// `columns` claims the press only for a submenu column (`ui/oled/columns.cpp:451-455`), so a
 	// press on a *value* column reaches nobody. `after_render` answers it as `Submenu::selectButtonPress`
 	// forwarding to the focused item does (`gui/menu_item/submenu.cpp:187-194`): enter its
-	// `select_chain` target, or `ascend()` -- see `MenuState::column_press`'s own doc for why that
+	// `select_chain` target, or `ascend()` -- see `MenuTick::column_press`'s own doc for why that
 	// is not `HorizontalMenu::handleItemAction`. The read is on the same frame instance `columns`
 	// was handed, so the claim is idempotent (`ui/core/frame_context.h`, rule 2) and never trips
 	// `double_claim`.
 	const int32_t settled = n == 0 ? -1 : clamp_to(st_.columns[st_.depth].focused, 0, static_cast<int32_t>(n) - 1);
 	if (settled >= 0 && kids[settled]->kind != Kind::Submenu) {
-		st_.column_press = f.select_pressed();
+		st_.tick.column_press = f.select_pressed();
 	}
 }
 
@@ -1079,10 +1033,10 @@ void MenuScene::render_leaf_int(deluge::ui::oled::OledFrame& f, const Node& node
 	}
 	const deluge::ui::Response r =
 	    deluge::ui::oled::int_value(f, f.bounds(), st_.edit_int, bindings::range(node, ctx_), style, /*focused=*/true);
-	st_.render_resp = r;
+	st_.tick.render_resp = r;
 	if (r.changed) {
-		st_.value_changed = true;
-		st_.value_node = &node;
+		st_.tick.value_changed = true;
+		st_.tick.value_node = &node;
 	}
 	// `int_value` owns the select encoder now -- legacy edits the value with it on a number screen
 	// (`SoundEditor::selectEncoderAction`, `sound_editor.cpp:1122`), and so does this port
@@ -1090,7 +1044,7 @@ void MenuScene::render_leaf_int(deluge::ui::oled::OledFrame& f, const Node& node
 	// (`MenuItem::selectButtonPress` returning nullptr -> `goUpOneLevel`) is still this scene's to
 	// claim -- `int_value` never reads `select_pressed()`.
 	if (f.select_pressed()) {
-		st_.render_resp.entered = true;
+		st_.tick.render_resp.entered = true;
 	}
 	// This claim is idempotent (`ui/core/frame_context.h` rule 2): `int_value` already claimed the
 	// turn above while editing. Kept so the ownership reads here too.
@@ -1113,16 +1067,16 @@ void MenuScene::render_leaf_range(deluge::ui::oled::OledFrame& f, const Node& no
 	const deluge::ui::Response r =
 	    deluge::ui::oled::range_value(f, f.bounds(), st_.edit_int, st_.edit_upper, bindings::range(node, ctx_),
 	                                  st_.edit_edge, spec->format, spec->clamp, /*focused=*/true);
-	st_.render_resp = r;
+	st_.tick.render_resp = r;
 	if (r.changed) {
-		st_.value_changed = true;
-		st_.value_node = &node;
+		st_.tick.value_changed = true;
+		st_.tick.value_node = &node;
 	}
 	// `range_value` owns the select and horizontal encoders now, not the gold knobs (`values.h`'s
 	// note on the two `selectEncoderAction`s it ports); the select press that leaves the item is
 	// this scene's, exactly as on a number screen.
 	if (f.select_pressed()) {
-		st_.render_resp.entered = true;
+		st_.tick.render_resp.entered = true;
 	}
 	f.claim_turn(); // idempotent (`ui/core/frame_context.h` rule 2): `range_value` already claimed it above.
 }
@@ -1137,13 +1091,13 @@ void MenuScene::render_leaf_decimal(deluge::ui::oled::OledFrame& f, const Node& 
 	    deluge::ui::oled::decimal_value(f, f.bounds(), st_.edit_int, bindings::range(node, ctx_),
 	                                    node.bind.decimal_places, st_.decimal_pos, st_.cursor_blink,
 	                                    /*focused=*/true);
-	st_.render_resp = r;
+	st_.tick.render_resp = r;
 	if (r.changed) {
-		st_.value_changed = true;
-		st_.value_node = &node;
+		st_.tick.value_changed = true;
+		st_.tick.value_node = &node;
 	}
 	if (f.select_pressed()) {
-		st_.render_resp.entered = true;
+		st_.tick.render_resp.entered = true;
 	}
 	// Idempotent, as `render_leaf_int`: `decimal_value` already claimed the turn above while editing.
 	f.claim_turn();
@@ -1163,10 +1117,10 @@ void MenuScene::render_leaf_enum(deluge::ui::oled::OledFrame& f, const Node& nod
 	    deluge::ui::oled::enum_value(f, deluge::ui::oled::menu_rect(f), st_.enum_index,
 	                                 std::span<const std::string_view>{names_buf, n}, st_.enum_list, st_.enum_scroll,
 	                                 /*wrap=*/false);
-	st_.render_resp = r;
+	st_.tick.render_resp = r;
 	if (r.changed) {
-		st_.value_changed = true;
-		st_.value_node = &node;
+		st_.tick.value_changed = true;
+		st_.tick.value_node = &node;
 	}
 }
 
@@ -1183,10 +1137,10 @@ void MenuScene::render_leaf_toggle(deluge::ui::oled::OledFrame& f, const Node& n
 	// (`ui/oled/values.h:202-206`).
 	const deluge::ui::Response r =
 	    deluge::ui::oled::toggle(f, deluge::ui::oled::menu_rect(f), st_.edit_bool, off, on, st_.scroll[st_.depth]);
-	st_.render_resp = r;
+	st_.tick.render_resp = r;
 	if (r.changed) {
-		st_.value_changed = true;
-		st_.value_node = &node;
+		st_.tick.value_changed = true;
+		st_.tick.value_node = &node;
 	}
 }
 
@@ -1205,9 +1159,9 @@ void MenuScene::render_leaf_sync_level(deluge::ui::oled::OledFrame& f, const Nod
 		const int32_t next = std::clamp<int32_t>(st_.edit_int + d, r.min, r.max);
 		if (next != st_.edit_int) {
 			st_.edit_int = next;
-			st_.render_resp.changed = true;
-			st_.value_changed = true;
-			st_.value_node = &node;
+			st_.tick.render_resp.changed = true;
+			st_.tick.value_changed = true;
+			st_.tick.value_node = &node;
 		}
 	}
 
@@ -1248,7 +1202,7 @@ void MenuScene::render_leaf_sync_level(deluge::ui::oled::OledFrame& f, const Nod
 
 	// The select press leaves the item, same as every other leaf's arm.
 	if (f.select_pressed()) {
-		st_.render_resp.entered = true;
+		st_.tick.render_resp.entered = true;
 	}
 }
 
@@ -1356,8 +1310,8 @@ void MenuScene::leds(deluge::ui::LedFrame& f) {
 	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Scale), scale ? kOn : kOff);
 
 	// `blinkLed`'s default blink, on the phase every normal blink shares (`indicator_leds.cpp:78-95`).
-	if (blink_restart_) {
-		blink_restart_ = false;
+	if (visit_.blink_restart) {
+		visit_.blink_restart = false;
 		f.restart(deluge::ui::BlinkRate::Normal);
 	}
 	const deluge::ui::LedState shared_blink = deluge::ui::LedState::shared(deluge::ui::BlinkRate::Normal);
@@ -1367,11 +1321,11 @@ void MenuScene::leds(deluge::ui::LedFrame& f) {
 	// every tick rather than only on a change, because that is what an `LedFrame` is -- the full
 	// state of the LEDs this scene owns, redeclared each time. It is `blinkLed`'s default blink, BACK's.
 	// While learning, `blinkLed(LEARN, 255, 1)`'s fast blink (`sound_editor.cpp:744`), restarted at the press.
-	if (learn_restart_) {
-		learn_restart_ = false;
+	if (visit_.learn_restart) {
+		visit_.learn_restart = false;
 		f.restart(deluge::ui::BlinkRate::Fast);
 	}
-	if (learn_mode_) {
+	if (visit_.learn_mode) {
 		(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Learn),
 		            deluge::ui::LedState::shared(deluge::ui::BlinkRate::Fast));
 	}
@@ -1455,8 +1409,8 @@ void MenuScene::commit_value(const Node& node) {
 	// notification below reads the post-commit value through `bindings::read` -- legacy's own
 	// order (`selectEncoderAction` then `displayNotification`, `horizontal_menu.cpp:326-328`).
 	if (node.bind.adjust != nullptr) {
-		bindings::adjust(node, ctx_, st_.edit_offset);
-		st_.edit_offset = 0;
+		bindings::adjust(node, ctx_, st_.tick.edit_offset);
+		st_.tick.edit_offset = 0;
 		return;
 	}
 	switch (node.kind) {
@@ -1540,9 +1494,9 @@ void MenuScene::enter_child(const Node& child) {
 
 	// The picker's job is done the moment the item it was heading to opens -- legacy drops
 	// `menuItemHeadingTo` on the floor the same way, by simply navigating past it.
-	if (&child == st_.pending_after_range) {
-		st_.range_picker_pending = false;
-		st_.pending_after_range = nullptr;
+	if (&child == st_.walk.pending_after_range) {
+		st_.walk.range_picker_pending = false;
+		st_.walk.pending_after_range = nullptr;
 	}
 	// `SoundEditor`'s select arm (`sound_editor.cpp:630-634`, the `maybeGetParentMenu` / `focusChild` pair before
 	// `enterSubmenu`): an item a chained page lists is entered on that page, focused on it, unless that page is the one
@@ -1562,7 +1516,7 @@ void MenuScene::ascend() {
 	// (`submenu.cpp:21`) reconstructs from the item it navigated backward from.
 	//
 	// Going up from depth 0 closes the editor (`:715-717`, `exitCompletely()`): a leaf a shortcut jump re-rooted
-	// onto, or a scene opener whose scene returned (`MenuState::go_up_on_resume`), leaves the menu rather than its
+	// onto, or a scene opener whose scene returned (`MenuWalkState::go_up_on_resume`), leaves the menu rather than its
 	// bare title screen. `after_render` turns the request into the scene's `Remove`.
 	//
 	// `endScreen()` (-> `HorizontalMenu::endSession`) runs before the depth test, so leaving a horizontal page
@@ -1574,7 +1528,7 @@ void MenuScene::ascend() {
 	}
 	do {
 		if (st_.depth == 0) {
-			close_requested_ = true;
+			visit_.close_requested = true;
 			return;
 		}
 		st_.path[st_.depth] = nullptr;
@@ -1632,13 +1586,14 @@ Result MenuScene::after_render() {
 	// A `Value`-derived bespoke item's cursor moved under a held Select is a value edited under it.
 	const Node* const shown = focused();
 	const bool value_turned = shown != nullptr && shown->kind == Kind::Custom && shown->custom != nullptr
-	                          && shown->custom->is_value() && st_.render_resp.changed;
-	if (std::exchange(use_up_select_, false) || ((st_.value_changed || value_turned) && select_held_)) {
+	                          && shown->custom->is_value() && st_.tick.render_resp.changed;
+	if (std::exchange(visit_.use_up_select, false)
+	    || ((st_.tick.value_changed || value_turned) && visit_.select_held)) {
 		(void)r.actions.push_back(Action{.kind = Action::Kind::UseUpSelect});
 	}
-	if (close_requested_) {
+	if (visit_.close_requested) {
 		// `ascend()` went up from depth 0 since the last render (`on_resume`'s go-up): `exitCompletely()`.
-		close_requested_ = false;
+		visit_.close_requested = false;
 		r.handled = true;
 		(void)r.actions.push_back(Action{.kind = Action::Kind::Remove, .pop_to = SceneKind::FirstApp});
 		return r;
@@ -1657,10 +1612,10 @@ Result MenuScene::after_render() {
 	// (`sound_editor.cpp:1983-1986`), which `MultiRangeItem` cannot do itself: it is handed a
 	// `const MenuContext&` and this is the scene's own mutable one. Applied on every tick the picker
 	// republishes its cursor, which is exactly when legacy calls it (`multi_range.cpp:54`, `:249`).
-	if (st_.range_choice >= 0) {
+	if (st_.walk.range_choice >= 0) {
 		trace_drain(DrainBand::RangeChoice);
-		select_range(ctx_, st_.range_choice);
-		st_.range_choice = -1;
+		select_range(ctx_, st_.walk.range_choice);
+		st_.walk.range_choice = -1;
 	}
 
 	// The CV/gate selectors' own commit -- `soundEditor.currentSourceIndex = this->getValue()`
@@ -1669,20 +1624,20 @@ Result MenuScene::after_render() {
 	// `range_choice`, and deliberately **above** the `entered` arm below: legacy assigns
 	// `currentSourceIndex` on the way through `selectButtonPress`, so `gate_selection_chain` and
 	// `gate_mode_names` must both see the output the user just picked, not the previous one.
-	if (st_.source_choice >= 0) {
+	if (st_.walk.source_choice >= 0) {
 		trace_drain(DrainBand::SourceChoice);
-		ctx_.source_index = st_.source_choice;
-		st_.source_choice = -1;
+		ctx_.source_index = st_.walk.source_choice;
+		st_.walk.source_choice = -1;
 	}
-	if (st_.midi_cable_choice != nullptr) {
+	if (st_.walk.midi_cable_choice != nullptr) {
 		trace_drain(DrainBand::MidiCableChoice);
-		ctx_.midi_cable = st_.midi_cable_choice;
-		st_.midi_cable_choice = nullptr;
+		ctx_.midi_cable = st_.walk.midi_cable_choice;
+		st_.walk.midi_cable_choice = nullptr;
 	}
 
-	if (st_.value_changed && st_.value_node != nullptr) {
+	if (st_.tick.value_changed && st_.tick.value_node != nullptr) {
 		trace_drain(DrainBand::ValueCommit);
-		commit_value(*st_.value_node);
+		commit_value(*st_.tick.value_node);
 		// The write raises its own `notify::Dirty` facts (`bindings.cpp`), which repaint the
 		// surfaces those name; `RepaintAll` covers what a commit changed *off* this surface (a
 		// mod-knob indicator, the automation grid). Never `Action{Repaint, SurfaceRole::None}`,
@@ -1697,13 +1652,13 @@ Result MenuScene::after_render() {
 	// (`handleInstrumentButtonPress`'s tail `:437`, `handleItemAction` `:666` -- both ported in
 	// `handle()`'s button code, which calls `notify_column` itself). **Not** on a select press on
 	// a value column (`Submenu::selectButtonPress` never calls `displayNotification` at all --
-	// `column_press` used to be listed here by mistake, see `MenuState::column_press`'s doc).
+	// `column_press` used to be listed here by mistake, see `MenuTick::column_press`'s doc).
 	//
 	// `notify_column` is `notice_text`'s call, factored out so `handle()`'s button code raises the
 	// same notification through the same text-building rules -- see its own doc for why the
 	// legacy call sites split across two functions of this class.
 	const bool horizontal = is_horizontal(*node);
-	if (horizontal && (st_.render_resp.changed || st_.value_changed)) {
+	if (horizontal && (st_.tick.render_resp.changed || st_.tick.value_changed)) {
 		if (const Node* column = selected_child(*node); column != nullptr && column->kind != Kind::Submenu) {
 			notify_column(*column);
 		}
@@ -1713,9 +1668,9 @@ Result MenuScene::after_render() {
 	// automation item deletes its param's automation, raises the popup where there was a param, and stays put -- on a
 	// leaf, and on a horizontal page's value column, which `Submenu::selectButtonPress` forwards the press to.
 	bool deleting_automation = false;
-	if (st_.select_shift && (st_.render_resp.entered || st_.column_press)) {
+	if (st_.tick.select_shift && (st_.tick.render_resp.entered || st_.tick.column_press)) {
 		const Node* item =
-		    st_.render_resp.entered ? (node->kind == Kind::Submenu ? nullptr : node) : selected_child(*node);
+		    st_.tick.render_resp.entered ? (node->kind == Kind::Submenu ? nullptr : node) : selected_child(*node);
 		if (item != nullptr && is_automation_item(*item)) {
 			deleting_automation = true;
 			const std::optional<deluge::project::ParamAddress> address = automation_address(*item, ctx_, st_);
@@ -1731,7 +1686,7 @@ Result MenuScene::after_render() {
 	if (deleting_automation) {
 		// No navigation: legacy's shift arm answers NO_NAVIGATION.
 	}
-	else if (st_.render_resp.entered) {
+	else if (st_.tick.render_resp.entered) {
 		trace_drain(DrainBand::Navigation);
 		if (node->kind == Kind::Submenu) {
 			if (const Node* child = selected_child(*node); child != nullptr) {
@@ -1757,7 +1712,7 @@ Result MenuScene::after_render() {
 			ascend();
 		}
 	}
-	else if (st_.column_press) {
+	else if (st_.tick.column_press) {
 		// `Submenu::selectButtonPress` forwarding to the focused item, on a horizontal page's value
 		// column (`gui/menu_item/submenu.cpp:187-194`): the column's own `selectButtonPress()`
 		// override runs FIRST, as the horizontal forward's own call -- not a separate arm bolted on
@@ -1793,7 +1748,7 @@ Result MenuScene::after_render() {
 				// `PatchedParam::selectButtonPress` (`patched_param.cpp:32-40`) records the param it patches. The
 				// source page reads it from the level above it, which here is the page, not the column.
 				if (column->bind.param.kind == deluge::modulation::params::Kind::PATCHED) {
-					st_.patching_param = column->bind.param.index;
+					st_.walk.patching_param = column->bind.param.index;
 				}
 				enter_child(*chained);
 			}
@@ -1802,7 +1757,7 @@ Result MenuScene::after_render() {
 			}
 		}
 	}
-	else if (st_.back_claimed) {
+	else if (st_.tick.back_claimed) {
 		// Only ever set at depth > 0 (see `render_oled`); at depth 0 the back was never claimed
 		// and `handle()` pops the scene instead.
 		ascend();
@@ -1827,9 +1782,9 @@ Result MenuScene::after_render() {
 	//     which is exactly the discriminator -- see below.
 	//
 	// Placed **above** the repaint check so the ascend is covered by it.
-	if (st_.pending_action.engaged()) {
+	if (st_.walk.pending_action.engaged()) {
 		trace_drain(DrainBand::PendingAction);
-		taken_action_ = st_.pending_action;
+		taken_action_ = st_.walk.pending_action;
 		// `on_focus` fires from `enter_leaf`, i.e. before this tick's render; a request filed from
 		// `render` (`PerformEditorItem`) arrives with the item already drawn. The four that ascend
 		// are the four that file from `on_focus`, which is the same set as "legacy never enters
@@ -1855,7 +1810,7 @@ Result MenuScene::after_render() {
 		// `shouldEnterSubmenu()`, and both reach `writeCurrentValue` from
 		// `Value<T>::selectEncoderAction` (`gui/menu_item/value.h:69`) -- once per detent, with the
 		// user still standing on the page. Same discriminator, same conclusion: no ascend.
-		switch (st_.pending_action.action) {
+		switch (st_.walk.pending_action.action) {
 		case MenuAction::StartStemExport:
 		case MenuAction::SetClipLengthToSampleLength:
 		case MenuAction::OpenSongMidiLearn:
@@ -1875,7 +1830,7 @@ Result MenuScene::after_render() {
 		case MenuAction::None:
 			break;
 		}
-		st_.pending_action = MenuActionRequest{};
+		st_.walk.pending_action = MenuActionRequest{};
 		r.handled = true;
 	}
 
@@ -1892,42 +1847,34 @@ Result MenuScene::after_render() {
 	}
 
 	// A `CustomItem` that asked, from `on_focus`, for another scene to be opened over the menu --
-	// the port of `openUI(...)` from a legacy bespoke item's `beginSession` (`MenuState::pending_scene`).
+	// the port of `openUI(...)` from a legacy bespoke item's `beginSession` (`MenuWalkState::pending_scene`).
 	// Drained here because this is the first hook after `enter_leaf` that has a `Result` to put the
 	// `Push` in, and `go_up_on_resume` is set alongside it exactly where legacy sets
 	// `shouldGoUpOneLevelOnBegin` -- beside its own `openUI` call.
-	if (st_.pending_scene.kind != SceneKind::Null) {
+	if (st_.walk.pending_scene.kind != SceneKind::Null) {
 		trace_drain(DrainBand::PendingScene);
-		(void)r.actions.push_back(Action{.kind = Action::Kind::Push, .id = st_.pending_scene});
-		st_.pending_scene = SceneId{};
-		st_.go_up_on_resume = true;
+		(void)r.actions.push_back(Action{.kind = Action::Kind::Push, .id = st_.walk.pending_scene});
+		st_.walk.pending_scene = SceneId{};
+		st_.walk.go_up_on_resume = true;
 		// `sampleBrowser.menuItemHeadingTo = item` (`gui/ui/sound_editor.cpp:2092`), and
 		// `osc::AudioRecorder::menuItemHeadingTo` (`:2101`) for the recorder half. Legacy writes it
 		// on the way in, from `maybeGetParentMenu`, which is exactly here: the statement beside its
 		// own `openUI`. The four items with no return affordance record one too and nothing ever
 		// reads it -- `reroot_to_scene_opener_page()` is called only from the sample claim -- which
 		// is cheaper than teaching this arm which items have a pair.
-		st_.scene_opener = focused();
+		st_.walk.scene_opener = focused();
 		r.handled = true;
 	}
 
-	st_.render_resp = {};
-	st_.value_changed = false;
-	st_.value_node = nullptr;
-	st_.back_claimed = false;
-	st_.column_press = false;
-	// `commit_value` already clears this on the ordinary path (staged and committed inside this
-	// same call), so this is a backstop rather than the usual writer: any tick that reaches here
-	// without having committed -- because `value_changed` was never set, or because some earlier
-	// return in this function skipped the commit block above -- must not let an offset survive
-	// into a later tick's accumulation (fix round 1, Important 1).
-	st_.edit_offset = 0;
+	// This tick's observations are spent, an uncommitted select-turn offset included: none may survive into a later
+	// tick's accumulation.
+	st_.tick = {};
 	// Every tick, while `ctx_` is known good: a re-root or a song swap may leave the path naming nodes whose
 	// relevance can no longer be read, so the rows are never recorded from those.
 	remember_path();
-	if (close_requested_) {
+	if (visit_.close_requested) {
 		// This render's own navigation went up from depth 0: `exitCompletely()`, in place of the step it asked for.
-		close_requested_ = false;
+		visit_.close_requested = false;
 		r.actions.clear();
 		r.handled = true;
 		(void)r.actions.push_back(Action{.kind = Action::Kind::Remove, .pop_to = SceneKind::FirstApp});
@@ -2011,9 +1958,9 @@ Result MenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 	// the event goes on as before.
 	if (event.kind == UiEvent::Kind::Button && event.button == ButtonId::Learn) {
 		const bool pad_held = std::ranges::any_of(ctx.held_pads.cols, [](uint32_t col) { return col != 0; });
-		learn_mode_ = false;
+		visit_.learn_mode = false;
 		if (!event.on && wants_learn_blink()) {
-			blink_restart_ = true; // the release's `blinkLed(LEARN)` (`sound_editor.cpp:736-738`)
+			visit_.blink_restart = true; // the release's `blinkLed(LEARN)` (`sound_editor.cpp:736-738`)
 		}
 		if (event.on && !pad_held && !ctx_.addresses.affect_entire) {
 			if (!allows_learn_mode()) {
@@ -2023,8 +1970,8 @@ Result MenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 				unlearn();
 			}
 			else {
-				learn_mode_ = true;
-				learn_restart_ = true; // `blinkLed(LEARN, 255, 1)` starts lit at the press
+				visit_.learn_mode = true;
+				visit_.learn_restart = true; // `blinkLed(LEARN, 255, 1)` starts lit at the press
 			}
 		}
 	}
@@ -2462,7 +2409,7 @@ bool MenuScene::go_up_one_level() {
 	ascend();
 	// `:715-717` on a later pass: `ascend()` stepped down to depth 0 and `:720-722` refused that level too, so it
 	// asked for the close. The caller closes the editor itself, so the request is taken back here.
-	return !std::exchange(close_requested_, false);
+	return !std::exchange(visit_.close_requested, false);
 }
 
 void MenuScene::enter_submenu(const Node& node) {

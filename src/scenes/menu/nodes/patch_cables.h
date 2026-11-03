@@ -254,7 +254,7 @@ extern const Node patch_cable_strength_range;
 ///
 /// Always the source picker. The `soundEditor.patchingParamSelected = this->getP()` half of that
 /// function happens in `SourceSelectionItem::on_focus` instead -- a `SelectChainFn` is handed a
-/// **`const MenuState&`** and cannot write it (see `MenuState::patching_param`).
+/// **`const MenuState&`** and cannot write it (see `MenuWalkState::patching_param`).
 ///
 /// The shift-held arm (`Automation::selectButtonPress`, automation delete) is the interpreter's
 /// (`MenuScene::after_render`), which sees shift; this hook answers the unshifted press.

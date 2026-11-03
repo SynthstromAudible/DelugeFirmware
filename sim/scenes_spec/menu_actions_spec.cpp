@@ -1105,7 +1105,7 @@ describe menu_action_seam("scenes::menu action seam", $ {
 		r.shell.tick(5);
 		r.enter(10);
 		r.shell.tick(20);
-		// `retarget` drops `MenuState::pending_action`, but the drain has already moved this one into
+		// `retarget` drops `MenuWalkState::pending_action`, but the drain has already moved this one into
 		// the scene's own outbox, which it must not drop -- see `MenuScene::taken_action_`.
 		menu_scene().open(nodes::root_song, ctx);
 		expect(scene().take_action().action == MenuAction::StartStemExport).to_be_true();
@@ -2874,7 +2874,7 @@ describe menu_action_settings("settings writes that legacy applies at once", $ {
 	it("each setter files its action, and only on legacy's own condition", _ {
 		const menu::MenuContext ctx{};
 		const auto filed = [] {
-			const MenuAction a = scene().state().pending_action.action;
+			const MenuAction a = scene().state().walk.pending_action.action;
 			scene().request_action(MenuActionRequest{});
 			return a;
 		};

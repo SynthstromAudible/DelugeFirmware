@@ -105,7 +105,7 @@ void ActionItem::on_focus(const MenuContext& /*ctx*/, MenuState& state) const {
 	// The whole body of all four legacy classes: one statement in `selectButtonPress`, then
 	// `NO_NAVIGATION`. `CustomItem::on_focus` IS `beginSession` (`node.h`), and a descent into one of
 	// these items is what the press that legacy answered directly turns into here (`actions.h`).
-	state.pending_action = MenuActionRequest{.action = action_, .arg = 0};
+	state.walk.pending_action = MenuActionRequest{.action = action_, .arg = 0};
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -138,10 +138,10 @@ void PerformEditorItem::render(deluge::ui::oled::OledFrame& f, const MenuContext
 
 	const size_t d = depth_of(state);
 	int32_t index = state.list[d].cursor;
-	state.render_resp =
+	state.tick.render_resp =
 	    deluge::ui::oled::enum_value(f, deluge::ui::oled::menu_rect(f), index, names, state.list[d], state.scroll[d]);
 
-	if (!state.render_resp.entered) {
+	if (!state.tick.render_resp.entered) {
 		return;
 	}
 
@@ -159,12 +159,12 @@ void PerformEditorItem::render(deluge::ui::oled::OledFrame& f, const MenuContext
 
 	// `:55-60` -- the two bools the mirror stands in for, written on the press and nowhere else.
 	set_performance_editing_mode(mode);
-	state.pending_action =
+	state.walk.pending_action =
 	    MenuActionRequest{.action = MenuAction::OpenPerformanceView, .arg = static_cast<uint16_t>(mode)};
 
 	// `:73` -- `return NO_NAVIGATION`. Clearing `entered` is how a `CustomItem` says "I consumed
 	// this press" (`actions.h`); leaving it set would ascend out of a page legacy stays on.
-	state.render_resp.entered = false;
+	state.tick.render_resp.entered = false;
 }
 
 deluge::ui::shell::Result PerformEditorItem::handle(const deluge::ui::shell::UiEvent& /*event*/,

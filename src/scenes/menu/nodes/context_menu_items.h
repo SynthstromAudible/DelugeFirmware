@@ -14,7 +14,7 @@
 /// Both legacy classes are the same three statements -- point the context menu at what it acts on,
 /// `setupAndCheckAvailability()`, `openUI()` -- and both return `NO_NAVIGATION`. `CustomItem::on_focus`
 /// IS `beginSession` (`node.h`), so that is where this does the same thing, except that a scene may
-/// not touch the `Shell` stack itself: it records the push in `MenuState::pending_scene` and
+/// not touch the `Shell` stack itself: it records the push in `MenuWalkState::pending_scene` and
 /// `MenuScene::after_render` turns it into an `Action`. `EditNameItem` (`nodes/edit_name.h`) has the
 /// identical shape for `rename::RenameScene`.
 ///
