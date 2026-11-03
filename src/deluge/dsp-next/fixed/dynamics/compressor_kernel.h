@@ -111,6 +111,9 @@ struct Compressor {
 	/// @brief Both modes: one loop each, with no branch on the blend inside it.
 	using Modes = ModeList<Mode::WET, Mode::BLEND>;
 
+	/// @brief The target gain's range, 13.18: the 5.26 gain's, just under ±32.
+	static constexpr float kGainCeiling = 8388607.f;
+	static constexpr float kGainFloor = -8388608.f;
 	/// @brief How hard the output is driven into the tanh: by 2^3.
 	static constexpr uint32_t kSaturation = 3;
 	/// @brief The output saturation's coefficients: the antialiased tanh at drive @ref kSaturation.
@@ -219,9 +222,12 @@ struct Compressor {
 		const float exp_gain = std::exp(gain_nepers);
 		const float gain = 31 < exp_gain ? 31 : exp_gain;
 
-		// The channels' target gains, 13.18 signed, held as floats on the way to the increments.
-		const float final_volume_l = gain * static_cast<float>(s.levels.volume_l >> 9);
-		const float final_volume_r = gain * static_cast<float>(s.levels.volume_r >> 9);
+		// The channels' target gains, 13.18 signed, held as floats on the way to the increments, and held within the
+		// 5.26 gain's range: a volume above unity at a gain near 31 asks for more than 32, and gets the rail.
+		const float final_volume_l =
+		    std::clamp(gain * static_cast<float>(s.levels.volume_l >> 9), kGainFloor, kGainCeiling);
+		const float final_volume_r =
+		    std::clamp(gain * static_cast<float>(s.levels.volume_r >> 9), kGainFloor, kGainCeiling);
 
 		// × 4 for dB, then × 4 again for the LEDs' range, since a 30 dB reduction is all but silence.
 		const auto leds = static_cast<int32_t>(-(reduction) * 4 * 4);
@@ -232,16 +238,17 @@ struct Compressor {
 		s.loop.pending = {.l = s.loop.detector_l.z, .r = s.loop.detector_r.z};
 
 		// The steps that reach the target gains by the end of the block, 13.18 lifted to 5.26. Each quotient is within
-		// ±2^28 (a target within 31 × 2^22, a gain within 2^23), so its conversion is defined; a step of 32 or more
-		// per frame leaves 5.26, and the lift wraps, as on every target.
+		// ±2^24 (a target and a gain each within 2^23), so its conversion is defined. A step of 32 or more per frame
+		// (from one rail toward the other over a block of a frame or two) saturates: that block ends short of its
+		// target, and the next carries on.
 		return {
 		    .increment_l =
-		        as_wrap<Q<26>>(Q<18>::from_raw(static_cast<int32_t>(
-		                           (final_volume_l - static_cast<float>(s.loop.current_volume_l >> 8)) / frames)))
+		        as_sat<Q<26>>(Q<18>::from_raw(static_cast<int32_t>(
+		                          (final_volume_l - static_cast<float>(s.loop.current_volume_l >> 8)) / frames)))
 		            .raw(),
 		    .increment_r =
-		        as_wrap<Q<26>>(Q<18>::from_raw(static_cast<int32_t>(
-		                           (final_volume_r - static_cast<float>(s.loop.current_volume_r >> 8)) / frames)))
+		        as_sat<Q<26>>(Q<18>::from_raw(static_cast<int32_t>(
+		                          (final_volume_r - static_cast<float>(s.loop.current_volume_r >> 8)) / frames)))
 		            .raw(),
 		};
 	}
@@ -255,7 +262,8 @@ struct Compressor {
 	template <Mode M>
 	[[nodiscard]] [[gnu::always_inline]] static StereoSample step(const Coefficients& c, const Block& b, Loop& s,
 	                                                              StereoSample x) {
-		// The ramp wraps where the gain crosses 32.
+		// The ramp runs from its start toward a target, both within 5.26, by steps that never overshoot it (a
+		// saturated step falls short), so the sum never leaves 5.26.
 		s.current_volume_l = add_wrap(Q<26>::from_raw(s.current_volume_l), Q<26>::from_raw(b.increment_l)).raw();
 		s.current_volume_r = add_wrap(Q<26>::from_raw(s.current_volume_r), Q<26>::from_raw(b.increment_r)).raw();
 

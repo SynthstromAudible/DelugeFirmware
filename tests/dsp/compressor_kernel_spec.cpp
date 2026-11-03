@@ -42,6 +42,7 @@
 #include <string>
 #include <string_view>
 #include <tuple>
+#include <utility>
 #include <vector>
 
 using deluge::dsp::Mono;
@@ -349,35 +350,34 @@ describe compressor_kernel("the Compressor kernel", ${
 		expect(s.gain_reduction).to_equal(expected.gain_reduction);
 	});
 
-	it("wraps a gain ramp past the 5.26 range at a volume just above unity, as every target computes it", _ {
-		// The gain at its cap of 31, a volume of about 1.03 (4.27) and a gain of 24 (5.26) ramping over one frame: the
-		// 13.18 target, 31 × (volume >> 9) = 8394800, lifted by 256 is past 2^31. The step from 24 is in range, so only
-		// the ramp's sum wraps; from a gain of 0 the step itself passes 32, and its lift wraps.
+	it("holds a gain ramp at the 5.26 rail at a volume just above unity", _ {
+		// The gain at its cap of 31 and a volume of about 1.03 (4.27): the 13.18 target, 31 × (volume >> 9) =
+		// 8394800, is past 32 and held at the rail, 2^23 − 1.
 		constexpr q31 kVolume = 270800 << 9;
-		constexpr q31 kCurrent = 3 << 29;
+		constexpr q31 kRail = 8388607 << 8;
 		const Compressor::Coefficients c = Compressor::coefficients({});
-		Compressor::State s{};
-		Compressor::set_levels(s, {.volume_l = kVolume, .volume_r = kVolume, .final_volume = 1 << 29});
-		s.makeup = 50;
-		s.log_rms = -100;
-		s.loop.current_volume_l = kCurrent;
-		s.loop.current_volume_r = kCurrent;
-		const Compressor::Block b = Compressor::prepare(c, s, 1);
-		constexpr int64_t kTarget = int64_t{31} * (kVolume >> 9) * 256;
-		expect(b.increment_l).to_equal(static_cast<q31>(kTarget - kCurrent));
-		expect(b.increment_r).to_equal(static_cast<q31>(kTarget - kCurrent));
-		std::ignore = Compressor::step<Compressor::Mode::WET>(c, b, s.loop, {.l = 0, .r = 0});
-		const auto wrapped = static_cast<q31>(static_cast<uint32_t>(kTarget));
-		expect(s.loop.current_volume_l).to_equal(wrapped);
-		expect(s.loop.current_volume_r).to_equal(wrapped);
-
-		Compressor::State from_zero{};
-		Compressor::set_levels(from_zero, {.volume_l = kVolume, .volume_r = kVolume, .final_volume = 1 << 29});
-		from_zero.makeup = 50;
-		from_zero.log_rms = -100;
-		const Compressor::Block step = Compressor::prepare(c, from_zero, 1);
-		expect(step.increment_l).to_equal(wrapped);
-		expect(step.increment_r).to_equal(wrapped);
+		const auto prepared = [&](q31 current) {
+			Compressor::State s{};
+			Compressor::set_levels(s, {.volume_l = kVolume, .volume_r = -kVolume, .final_volume = 1 << 29});
+			s.makeup = 50;
+			s.log_rms = -100;
+			s.loop.current_volume_l = current;
+			s.loop.current_volume_r = -current;
+			const Compressor::Block b = Compressor::prepare(c, s, 1);
+			std::ignore = Compressor::step<Compressor::Mode::WET>(c, b, s.loop, {.l = 0, .r = 0});
+			return std::pair{b, s.loop};
+		};
+		// From a gain of 24 over one frame the step reaches the rail exactly.
+		const auto [from_24, loop_24] = prepared(3 << 29);
+		expect(from_24.increment_l).to_equal(kRail - (3 << 29));
+		expect(loop_24.current_volume_l).to_equal(kRail);
+		expect(loop_24.current_volume_r).to_equal(-kRail - 256);
+		// From -24 the step is past 32 a frame: it saturates, and the ramp ends the frame short of the rail.
+		const auto [from_minus_24, loop_minus_24] = prepared(-(3 << 29));
+		expect(from_minus_24.increment_l).to_equal(INT32_MAX);
+		expect(from_minus_24.increment_r).to_equal(INT32_MIN);
+		expect(loop_minus_24.current_volume_l).to_equal(INT32_MAX - (3 << 29));
+		expect(loop_minus_24.current_volume_r).to_equal(INT32_MIN + (3 << 29));
 	});
 
 	it("takes the threshold knob into the block's levels and a fraction of the volume's level", _ {

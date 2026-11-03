@@ -92,10 +92,11 @@ enum class CompressorWorkloadId : uint8_t {
 	UNEQUAL_VOLUMES,     ///< The master with its channel gains far apart, swapping sides every 8 blocks.
 	WRAPPED_SUM,         ///< A clip at 50% blend on full-scale input: a block's sum of squares passes 2^31.
 	INT32_MIN_DETECTOR,  ///< A clip all but dry: one frame per block whose high-passed left is exactly INT32_MIN.
+	GAIN_PAST_32,        ///< The master at full makeup, its channel gains ±2: the target gains pass ±32.
 };
 
 /// @brief How many compressor workloads there are.
-inline constexpr size_t kCompressorWorkloadCount = static_cast<size_t>(CompressorWorkloadId::INT32_MIN_DETECTOR) + 1;
+inline constexpr size_t kCompressorWorkloadCount = static_cast<size_t>(CompressorWorkloadId::GAIN_PAST_32) + 1;
 
 /// @brief How many workloads the legacy compressor's records cover: those up to MASTER_VOLUME_STEPS.
 inline constexpr size_t kLegacyRecordedCount = static_cast<size_t>(CompressorWorkloadId::MASTER_VOLUME_STEPS) + 1;
@@ -103,8 +104,7 @@ inline constexpr size_t kLegacyRecordedCount = static_cast<size_t>(CompressorWor
 /// @return Whether a level defect of the legacy compressor is reached in workload @p id.
 /// @details The 32-bit sum of squares wraps in WRAPPED_SUM, and in the ONSET_PARTIAL_WET workloads' loud blocks of 24
 /// frames and more, whose 40% dry part is near full scale. A detector output is exactly INT32_MIN in
-/// INT32_MIN_DETECTOR, where the legacy `std::abs` is undefined. Everywhere else the legacy compressor and the one with
-/// both defects fixed render alike.
+/// INT32_MIN_DETECTOR, where the legacy `std::abs` is undefined.
 [[nodiscard]] constexpr bool defects_fire(CompressorWorkloadId id) {
 	switch (id) {
 	case CompressorWorkloadId::MASTER_ONSET_PARTIAL_WET:
@@ -116,6 +116,12 @@ inline constexpr size_t kLegacyRecordedCount = static_cast<size_t>(CompressorWor
 	default:
 		return false;
 	}
+}
+
+/// @return Whether the legacy compressor's channel gains wrap past 32 in workload @p id: in GAIN_PAST_32 alone.
+/// Everywhere neither this nor a level defect fires, the legacy compressor and the fixed one render alike.
+[[nodiscard]] constexpr bool gain_wraps(CompressorWorkloadId id) {
+	return id == CompressorWorkloadId::GAIN_PAST_32;
 }
 
 /// @brief A recorded compressor workload.
@@ -270,6 +276,20 @@ inline constexpr q31 kPartialWet = 1288490188;
 		             s.knobs.blend = 1;
 		             s.knobs.sidechain_hpf = 0;
 		             s.min_left = true;
+		             return s;
+	             }});
+	w.push_back({.id = CompressorWorkloadId::GAIN_PAST_32,
+	             .name = "comp_gain_past_32",
+	             .owner = Owner::MASTER,
+	             .blocks = kBlocks,
+	             .step = [](size_t b) {
+		             CompressorStep s = owner_step(Owner::MASTER, b);
+		             // The threshold knob at its top and the final volume at full scale drive the makeup, and so the
+		             // gain, to its cap of 31; at a channel gain of ±2 the targets ask for ±62.
+		             s.knobs.threshold = INT32_MAX;
+		             s.final_volume = INT32_MAX;
+		             s.volume_l = 1 << 28;
+		             s.volume_r = -(1 << 28);
 		             return s;
 	             }});
 	return w;

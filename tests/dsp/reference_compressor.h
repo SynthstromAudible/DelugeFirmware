@@ -23,10 +23,13 @@
 /// measurement keeps two defects: the block's sum of squares wraps in 32 bits on a loud block (a negative sum makes
 /// the level NaN), and `std::abs` of a detector output of exactly INT32_MIN is undefined. Clang, on the target and the
 /// host, takes the larger of the two magnitudes unsigned, so INT32_MIN measures 2^31 there, but nothing guarantees it.
-/// That function is marked @ref DELUGE_REFERENCE_LEGACY_ARITHMETIC.
+/// Its channel gains wrap past 32 (a volume above unity at a gain near 31): the ramp's sum is a plain signed `+=`.
+/// The two functions are marked @ref DELUGE_REFERENCE_LEGACY_ARITHMETIC.
 ///
 /// @ref compressor_reference::FixedReferenceRmsFeedbackCompressor is the firmware compressor, on the one-pole and
-/// antialiased tanh kernels, with only those two defects fixed: what a rewrite must match bit for bit.
+/// antialiased tanh kernels, with those two defects fixed and a third: the legacy channel gains wrap past 32 (a volume
+/// above unity at a gain near 31), where the fixed one holds them at the 5.26 rail. What a rewrite must match bit for
+/// bit.
 
 #pragma once
 
@@ -137,8 +140,8 @@ public:
 	/// @param volume_l, volume_r The channels' linear gain, 4.27 signed.
 	/// @param final_volume The peak-to-peak volume scale, 3.29.
 	/// @param scratch Holds the block as it came in, for the blend; read only when the blend is below fully wet.
-	void render(std::span<StereoSample> block, q31 volume_l, q31 volume_r, q31 final_volume,
-	            CompressorScratch scratch) {
+	DELUGE_REFERENCE_LEGACY_ARITHMETIC void render(std::span<StereoSample> block, q31 volume_l, q31 volume_r,
+	                                               q31 final_volume, CompressorScratch scratch) {
 		if (wet_ != kOneQ31) {
 			std::ranges::copy(block, scratch.begin());
 		}
@@ -341,12 +344,18 @@ private:
 
 static_assert(std::is_trivially_copyable_v<ReferenceRmsFeedbackCompressor>);
 
-/// @brief The firmware compressor (`RmsFeedbackCompressor`) with only its two level defects fixed: the target a rewrite
-/// matches bit for bit.
+/// @brief The firmware compressor (`RmsFeedbackCompressor`) with its two level defects and its gain wrap fixed: the
+/// target a rewrite matches bit for bit.
 ///
 /// The block's sum of squares is added in 64 bits, so it never wraps, and each detector output's magnitude is taken
-/// unsigned, so INT32_MIN measures 2^31. Wherever neither defect fires it renders exactly as the verbatim reference.
+/// unsigned, so INT32_MIN measures 2^31. The channel gains' targets are held within 5.26 and their ramps saturate, so a
+/// gain asked past 32 holds at the rail. Wherever no defect fires it renders exactly as the verbatim reference.
 class FixedReferenceRmsFeedbackCompressor {
+	/// @return @p step (13.18) lifted to 5.26, saturating.
+	[[nodiscard]] static q31 lift_saturating(int32_t step) {
+		return static_cast<q31>(std::clamp<int64_t>(int64_t{step} * 256, INT32_MIN, INT32_MAX));
+	}
+
 public:
 	/// @brief A compressor at the default knobs, fully wet, with no gain reduction.
 	FixedReferenceRmsFeedbackCompressor() {
@@ -422,18 +431,20 @@ public:
 		float gain = std::exp(gain_nepers);
 		gain = std::min<float>(gain, 31);
 
-		const float final_volume_l = gain * static_cast<float>(volume_l >> 9);
-		const float final_volume_r = gain * static_cast<float>(volume_r >> 9);
+		// Fixed: the target gains held within 5.26 (the legacy's wrap past 32) and the steps' lift saturating; the
+		// ramp then never leaves 5.26, and its saturating add only says so.
+		const float final_volume_l = std::clamp(gain * static_cast<float>(volume_l >> 9), -8388608.f, 8388607.f);
+		const float final_volume_r = std::clamp(gain * static_cast<float>(volume_r >> 9), -8388608.f, 8388607.f);
 
-		const q31 increment_l =
-		    static_cast<int32_t>((final_volume_l - (current_volume_l_ >> 8)) / static_cast<float>(block.size())) << 8;
-		const q31 increment_r =
-		    static_cast<int32_t>((final_volume_r - (current_volume_r_ >> 8)) / static_cast<float>(block.size())) << 8;
+		const q31 increment_l = lift_saturating(
+		    static_cast<int32_t>((final_volume_l - (current_volume_l_ >> 8)) / static_cast<float>(block.size())));
+		const q31 increment_r = lift_saturating(
+		    static_cast<int32_t>((final_volume_r - (current_volume_r_ >> 8)) / static_cast<float>(block.size())));
 
 		for (std::size_t i = 0; i < block.size(); i++) {
 			StereoSample& sample = block[i];
-			current_volume_l_ += increment_l;
-			current_volume_r_ += increment_r;
+			current_volume_l_ = add_saturate(current_volume_l_, increment_l);
+			current_volume_r_ = add_saturate(current_volume_r_, increment_r);
 
 			sample.l = multiply_32x32_rshift32(sample.l, current_volume_l_) << 4;
 			sample.l = AntialiasedTanh::step(kSaturator, EmptyBlock{}, saturation_l_, sample.l);
