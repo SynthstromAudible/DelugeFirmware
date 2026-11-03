@@ -353,7 +353,7 @@ private:
 			g.reverse = random255(noise) < 76;
 
 			// The pitch class: more randomness reaches further from unison.
-			// The draw times the randomness, Q31, times 3.5 (7 at Q1): its integer part, -4 to 3.
+			// The draw times the randomness, Q31, times 3.5 (7 at Q1), floored: -4 to 3.
 			const Q<31> spread = mul_as_wrap<Q<31>>(Q<31>::from_raw(triangle(noise)), Q<31>::from_raw(b.randomness));
 			const auto pitch_class = static_cast<int8_t>(mul(spread, Q<1>::from_raw(7)).raw());
 			switch (pitch_class) {
@@ -383,7 +383,7 @@ private:
 				g.reverse = true;
 				break;
 			default:
-				g.pitch = 3072; // octave and a fifth, reverse: rare even at full randomness
+				g.pitch = 3072; // -4, octave and a fifth, reverse: about a sixth of draws at full randomness
 				g.reverse = true;
 				break;
 			}

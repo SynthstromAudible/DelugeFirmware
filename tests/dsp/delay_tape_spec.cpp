@@ -708,7 +708,7 @@ describe delay_tape("DelayTape", ${
 		expect(digest(storage(rig.tape))).to_equal(kNinefoldWriteStorageDigest);
 	});
 
-	it("writes full-scale samples resampled sped up, slowed down and four steps wide, the sums wrapping", _ {
+	it("writes full-scale samples resampled sped up, slowed down, four steps wide and ninefold, the sums wrapping", _ {
 		const auto stored = [](uint32_t native, int32_t rate) {
 			Rig rig{native};
 			std::ignore = secondary(rig, native, rate, true);

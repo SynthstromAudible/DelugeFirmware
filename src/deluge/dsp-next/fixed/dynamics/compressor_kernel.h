@@ -232,8 +232,8 @@ struct Compressor {
 		s.loop.pending = {.l = s.loop.detector_l.z, .r = s.loop.detector_r.z};
 
 		// The steps that reach the target gains by the end of the block, 13.18 lifted to 5.26. Each quotient is within
-		// ±2^28 (a target within 31 × 2^22, a gain within 2^23), so its conversion is defined; a target gain of 32 or
-		// more leaves 5.26, and the lift wraps, as on every target.
+		// ±2^28 (a target within 31 × 2^22, a gain within 2^23), so its conversion is defined; a step of 32 or more
+		// per frame leaves 5.26, and the lift wraps, as on every target.
 		return {
 		    .increment_l =
 		        as_wrap<Q<26>>(Q<18>::from_raw(static_cast<int32_t>(
@@ -255,7 +255,7 @@ struct Compressor {
 	template <Mode M>
 	[[nodiscard]] [[gnu::always_inline]] static StereoSample step(const Coefficients& c, const Block& b, Loop& s,
 	                                                              StereoSample x) {
-		// The ramp wraps with its increment past a gain of 32.
+		// The ramp wraps where the gain crosses 32.
 		s.current_volume_l = add_wrap(Q<26>::from_raw(s.current_volume_l), Q<26>::from_raw(b.increment_l)).raw();
 		s.current_volume_r = add_wrap(Q<26>::from_raw(s.current_volume_r), Q<26>::from_raw(b.increment_r)).raw();
 

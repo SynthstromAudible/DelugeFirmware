@@ -228,8 +228,8 @@ instructions.
   channel's own output as Q30 (twice it) to add its Q30 share of the other; the return adds the Q30 product of output
   and level as Q31.
 - **Dynamics:** the compressor's gains are Q26 (5.26), the gain product Q25 lifted to Q29, which the saturator reads
-  as Q31 (x × gain / 4); the gain ramp's 13.18 step is lifted to Q26 and added with `add_wrap`, both wrapping past a
-  gain of 32. The ducker's offset sum is Q28 (the Q31 duck times the Q29 depth, plus 2) and its square an integer
+  as Q31 (x × gain / 4); the gain ramp's 13.18 step is lifted to Q26 (wrapping at a step of 32 or more) and added
+  with `add_wrap` (wrapping where the gain crosses 32). The ducker's offset sum is Q28 (the Q31 duck times the Q29 depth, plus 2) and its square an integer
   product; its envelope multiplies at Q31.
 - **Mod FX:** the tap's swing is Q17 (the Q31 LFO times it is 16.16 frames), its centre 16.16, its weights Q31 and
   the weighed slots Q30; the flanger's feedback is lifted to Q31, the warble's written as Q29 bits read as Q31. The

@@ -179,7 +179,7 @@ struct Freeverb {
 private:
 	/// @return @p own read as Q30 plus @p other's share at @p wet2, lifted to Q31: 2 × own + wet2 × other, wrapping.
 	[[nodiscard]] [[gnu::always_inline]] static Q<31> cross_mix(Q<31> own, Q<31> other, Q<31> wet2) {
-		// The comb sum's bits read as Q30, to add the Q30 share at its scale.
+		// The allpasses' output's bits read as Q30, to add the Q30 share at its scale.
 		return as_wrap<Q<31>>(add_wrap(reinterpret_bits<Q<30>>(own), mul_r(other, wet2)));
 	}
 	/// @brief Every comb of both channels, left then right for each, summed into @p out_l and @p out_r. Unrolled at

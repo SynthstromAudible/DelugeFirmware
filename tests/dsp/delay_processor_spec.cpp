@@ -578,7 +578,7 @@ describe delay_processor("DelayProcessor", ${
 		expect(delay_workloads::all_workloads().size()).to_equal(delay_workloads::kWorkloadCount);
 	});
 
-	it("renders every loud workload as the frame-order reference does, the mix's and the tape's sums wrapping", _ {
+	it("renders every loud workload as the frame-order reference does, the mix's sums wrapping", _ {
 		std::vector<std::string> parted;
 		for (const delay_workloads::Workload& workload : delay_workloads::loud_workloads()) {
 			const auto parting =

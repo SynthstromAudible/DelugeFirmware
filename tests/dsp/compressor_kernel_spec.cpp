@@ -351,8 +351,8 @@ describe compressor_kernel("the Compressor kernel", ${
 
 	it("wraps a gain ramp past the 5.26 range at a volume just above unity, as every target computes it", _ {
 		// The gain at its cap of 31, a volume of about 1.03 (4.27) and a gain of 24 (5.26) ramping over one frame: the
-		// 13.18 target, 31 × (volume >> 9) = 8394800, lifted by 256 is past 2^31, so the increment and the ramp's sum
-		// wrap.
+		// 13.18 target, 31 × (volume >> 9) = 8394800, lifted by 256 is past 2^31. The step from 24 is in range, so only
+		// the ramp's sum wraps; from a gain of 0 the step itself passes 32, and its lift wraps.
 		constexpr q31 kVolume = 270800 << 9;
 		constexpr q31 kCurrent = 3 << 29;
 		const Compressor::Coefficients c = Compressor::coefficients({});
@@ -370,6 +370,14 @@ describe compressor_kernel("the Compressor kernel", ${
 		const auto wrapped = static_cast<q31>(static_cast<uint32_t>(kTarget));
 		expect(s.loop.current_volume_l).to_equal(wrapped);
 		expect(s.loop.current_volume_r).to_equal(wrapped);
+
+		Compressor::State from_zero{};
+		Compressor::set_levels(from_zero, {.volume_l = kVolume, .volume_r = kVolume, .final_volume = 1 << 29});
+		from_zero.makeup = 50;
+		from_zero.log_rms = -100;
+		const Compressor::Block step = Compressor::prepare(c, from_zero, 1);
+		expect(step.increment_l).to_equal(wrapped);
+		expect(step.increment_r).to_equal(wrapped);
 	});
 
 	it("takes the threshold knob into the block's levels and a fraction of the volume's level", _ {

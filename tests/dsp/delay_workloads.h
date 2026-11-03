@@ -424,9 +424,9 @@ struct Mode {
 	return out;
 }
 
-/// @return The loud workloads, not recorded: each crossing mode combination at full-scale input and the largest
-/// feedback, native and resampled both ways (the read's blend, the sped-up and slowed-down writes), digital and
-/// analog, so every sum the mix and the tape's writes take leaves q31 somewhere. They carry the combinations' ids.
+/// @return The loud workloads, not recorded, at full-scale input and the largest feedback: the crossing mix native
+/// and resampled both ways (the read's blend, the sped-up and slowed-down writes), digital and analog, and the
+/// straight mix native and digital, so the mix's sums leave q31. They carry the combinations' ids.
 [[nodiscard]] inline std::vector<Workload> loud_workloads() {
 	using namespace detail;
 	constexpr uint32_t kNative = kRate2048;

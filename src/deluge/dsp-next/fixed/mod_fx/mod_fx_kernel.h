@@ -123,7 +123,7 @@ struct ModFx {
 
 	/// @return The coefficients for @p s: today's setup arithmetic for the mode's type.
 	[[nodiscard]] static Coefficients coefficients(const Settings& s) {
-		// The rate's bits read as Q31 (0.97 × a rate below 2^31), the product's as the UQ0.32 increment.
+		// The rate's bits read as Q31 (it is below 2^31), times 0.97; the product's bits as the UQ0.32 increment.
 		const auto rate2 =
 		    reinterpret_bits<UQ<32>>(mul_as_wrap<Q<31>>(Q<31>::from_raw(s.rate), Q<31>::from_raw(kWarbleWidth)));
 		Coefficients c{
