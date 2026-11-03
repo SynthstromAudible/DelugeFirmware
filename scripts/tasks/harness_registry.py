@@ -52,6 +52,10 @@ PROBES = {
     "arm-linux-gnueabihf-gcc": (
         "apt install g++-arm-linux-gnueabihf -- clang builds for arm-linux against its sysroot, /usr/arm-linux-gnueabihf"
     ),
+    "arm-none-eabi-gcc": (
+        "run ./dbt once (without DBT_NOENV) to fetch the pinned toolchain into toolchain/current, "
+        "or point DBT_TOOLCHAIN_PATH at a directory holding one"
+    ),
     "song-corpus": (
         "set DELUGE_BACKUP (default ~/Deluge Backup) or DELUGE_SONG_CORPUS to a directory of .XML songs, "
         "or have the golden fixtures already rebuilt in DELUGE_GOLDEN_DIR (default ~/.cache/deluge-golden)"
@@ -277,6 +281,12 @@ def probe(requirement: str, root: Path) -> bool:
         case "arm-linux-gnueabihf-gcc":
             # What the arm-linux builds use of it: the sysroot's C library and libstdc++, which clang links against.
             return (Path("/usr/arm-linux-gnueabihf/include/stdio.h")).is_file()
+        case "arm-none-eabi-gcc":
+            # Where deluge_sample_convert's build.rs looks for the device compiler.
+            base = Path(os.environ.get("DBT_TOOLCHAIN_PATH") or root)
+            return (
+                base / "toolchain/current/arm-none-eabi-gcc/bin/arm-none-eabi-g++"
+            ).is_file()
         case "song-corpus":
             for var in ("DELUGE_SONG_CORPUS", "DELUGE_BACKUP"):
                 value = os.environ.get(var)

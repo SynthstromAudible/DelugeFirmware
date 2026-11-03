@@ -25,6 +25,19 @@ runs:
 
     - uses: ./.github/actions/clang
 
+    # deluge_sample_convert's build.rs compiles its armv7a-NEON check with the dbt toolchain's arm-none-eabi-g++.
+    - name: Cache the dbt toolchain
+      uses: actions/cache@v6
+      with:
+        path: toolchain
+        key: dbt-toolchain-${{ runner.os }}-${{ hashFiles('toolchain/REQUIRED_VERSION', 'src/bsp/rust/rust-toolchain.toml') }}
+
+    - name: Fetch the dbt toolchain
+      shell: bash
+      env:
+        DBT_NO_PYTHON_UPGRADE: "1"
+      run: . scripts/toolchain/dbtenv.sh
+
     - name: Install CMake
       uses: lukka/get-cmake@latest
 
