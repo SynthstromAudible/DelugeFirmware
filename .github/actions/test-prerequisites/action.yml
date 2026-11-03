@@ -12,8 +12,8 @@ runs:
       with:
         cache-name: test-prerequisites
         packages: >-
-          gcc-16 g++-16 gcc-16-multilib g++-16-multilib
-          gcc-16-arm-linux-gnueabihf g++-16-arm-linux-gnueabihf qemu-user
+          gcc-16 g++-16 gcc-16-multilib g++-16-multilib gcc-multilib g++-multilib
+          gcc-16-arm-linux-gnueabihf g++-16-arm-linux-gnueabihf qemu-user python3-numpy
           ninja-build mtools jq
 
     - uses: ./.github/actions/clang
@@ -48,3 +48,12 @@ runs:
     - uses: Swatinem/rust-cache@v2
       with:
         workspaces: ". -> build/cargo-harness"
+
+    # Each rust-toolchain.toml's toolchain, installed one at a time: tests run in parallel, and parallel cargo calls
+    # that each find a toolchain missing race on rustup's download directory.
+    - name: Install the pinned Rust toolchains
+      shell: bash
+      run: |
+        git ls-files '*rust-toolchain.toml' | while read -r f; do
+          (cd "$(dirname "$f")" && rustup toolchain install)
+        done
