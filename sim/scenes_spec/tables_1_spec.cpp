@@ -374,7 +374,7 @@ struct Rig {
 		while (shell.stack().depth() > 0) {
 			shell.stack().pop(deluge::ui::shell::SceneKind::Null);
 		}
-		menu_scene().forget_rows(); // each example starts with the rows a boot has
+		menu_scene().reset_process_state(); // each example starts with the rows a boot has
 	}
 
 	void open(const Node& root, const MenuContext& ctx) {

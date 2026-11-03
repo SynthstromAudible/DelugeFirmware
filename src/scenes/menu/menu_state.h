@@ -46,7 +46,7 @@ inline constexpr size_t kMaxMenuColumns = 48;
 ///        hooks it calls, drained and reset by value at the end of every `after_render`, and on `on_resume` and
 ///        `retarget`.
 struct MenuTick {
-	/// A `Binding::adjust` node (spec E-note-family §5.2): the select turn's detents, accumulated
+	/// A `Binding::adjust` node: the select turn's detents, accumulated
 	/// since the last commit rather than folded into a `moved` value the way `edit_int`/
 	/// `enum_index` are -- there is no absolute value to stage, only an offset to hand
 	/// `bindings::adjust`. `render_horizontal`'s edit block is the only writer; `commit_value`
@@ -75,8 +75,8 @@ struct MenuTick {
 	/// (`gui/menu_item/horizontal_menu.cpp:663-679`), which never runs from a select press at all --
 	/// its one caller is the *instrument-button* path, `buttonAction`'s `:96-97`
 	/// (`handleInstrumentButtonPress`) reaching it when the pressed button's column is already
-	/// focused. This field's old doc attributed the notification to that call by mistake; a select
-	/// press on a value column raises no notification (spec E-note-family §3.2's third bullet).
+	/// focused. A select
+	/// press on a value column raises no notification.
 	bool column_press = false;
 	/// Whether shift was held on this tick's frame: a select press with it on an automation item deletes the item's
 	/// param's automation instead of navigating (`MenuScene::after_render`).
@@ -87,10 +87,9 @@ struct MenuTick {
 ///        patch-cable and MPE pages' selection, and the requests a custom item files. Reset by value whenever the
 ///        menu re-roots (`MenuScene::retarget`).
 struct MenuWalkState {
-	/// Spec E §4.1's `MustSelectRange` outcome. E1 recorded it and left the node unentered; E2 task
-	/// 9 acts on it -- `enter_child` descends into `nodes::multi_range` instead, which is legacy's
-	/// own substitution at `sound_editor.cpp:1857-1858` (`multiRangeMenu.menuItemHeadingTo = newItem`
-	/// followed by `newItem = &multiRangeMenu`).
+	/// The `MustSelectRange` permission outcome: `enter_child` descends into `nodes::multi_range` instead, which is
+	/// legacy's own substitution at `sound_editor.cpp:1857-1858` (`multiRangeMenu.menuItemHeadingTo = newItem` followed
+	/// by `newItem = &multiRangeMenu`).
 	///
 	/// Stays true for as long as the picker is the reason the deeper item has not been opened; the
 	/// picker's `select_chain` reads `pending_after_range` to know where to head.
@@ -381,9 +380,8 @@ struct MenuState {
 
 	/// @brief The last row `render_output_selection` (`nodes/dynamic.cpp`) saw pressed that named a
 	///        real physical output -- NOT a mailbox, and deliberately not the same field as
-	///        `source_choice` above (task 10, fix round 1 renamed it from `gate_last_real_output`:
-	///        `CvSelectionItem` writes it too, harmlessly, since both its rows are real outputs, so
-	///        a gate-only name lied about who touches it).
+	///        `source_choice` above (`CvSelectionItem` writes it too, harmlessly, since both
+	///        its rows are real outputs, so the name is not gate-specific).
 	///
 	/// `source_choice`/`ctx.source_index` legitimately becomes `NUM_GATE_CHANNELS` -- the
 	/// minimum-off-time sentinel -- for the one tick `gate_selection_chain` routes off it

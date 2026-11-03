@@ -283,7 +283,7 @@ struct Rig {
 		while (shell.stack().depth() > 0) {
 			shell.stack().pop(SceneKind::Null);
 		}
-		menu_scene().forget_rows(); // each example starts with the rows a boot has
+		menu_scene().reset_process_state(); // each example starts with the rows a boot has
 	}
 
 	explicit Rig(const BoardProfile& p = deluge_profile()) : profile(p), fake(deluge::ui::shell::kDelugeBoard, p) {}
@@ -1183,7 +1183,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 	it("reopening a group lands on the member and column last focused", _ {
 		select_language();
 		deluge::notify::dirty().drain();
-		menu_scene().forget_rows();
+		menu_scene().reset_process_state();
 		Rig r;
 		const MenuContext ctx = r.open(menu::nodes::filters_group);
 		r.shell.tick(0);

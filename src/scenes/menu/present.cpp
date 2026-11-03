@@ -324,7 +324,7 @@ void present_column(const Node& node, const MenuContext& ctx, int32_t value, Col
 	}
 
 	if (node.bind.value_text != nullptr) {
-		// `Binding::value_text` (spec E-note-family §5.3): legacy's bespoke column text --
+		// `Binding::value_text`: legacy's bespoke column text --
 		// `35%`/`35L`, `3:4`, `FILL` struck through for `NOT_FILL` -- replaces whatever the
 		// node's own `Kind` would otherwise have drawn, exactly as legacy's own
 		// `renderInHorizontalMenu` override does for these items.
@@ -415,7 +415,7 @@ void present_column(const Node& node, const MenuContext& ctx, int32_t value, Col
 
 std::string_view column_notification(const Node& column, const MenuContext& ctx, int32_t value, std::span<char> out) {
 	if (column.bind.value_text != nullptr) {
-		// `Binding::value_text` (spec E-note-family §5.3): the item's own `getNotificationValue`.
+		// `Binding::value_text`: the item's own `getNotificationValue`.
 		const ValueText vt = column.bind.value_text(ctx, value, ValueTextUse::Notification, out);
 		if (!vt.fallback) {
 			return std::string_view{out.data(), std::min(vt.length, out.size())};

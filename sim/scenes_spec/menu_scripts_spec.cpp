@@ -38,7 +38,7 @@
 /// state the pixels could not have shown anyway; the script files say which and why.
 ///
 /// **Why one node id resolves correctly across every script.** `MenuScene::on_enter` re-targets the
-/// path from `SceneId::arg` (`node_by_id`) but never touches `ctx_` (`menu_scene.cpp:359-418`), so
+/// path from `SceneId::arg` (`node_by_id`) but never touches `ctx_` (`MenuScene::on_enter`), so
 /// each `it` block calls `menu_scene().open(target, ctx)` itself first -- purely to install `ctx_`
 /// for its own fixture on the process-wide singleton -- before handing `expect_script_goldens` a
 /// `RunOptions::initial_scene` that re-targets the path a second time via the id. `assign_node_ids`
@@ -290,7 +290,7 @@ constexpr uint16_t sid(String s) {
 /// `after_render`'s repaint requests through it, and a fact an earlier `it` left behind must not
 /// leak into this one's first tick.
 void reset_globals() {
-	menu_scene().forget_rows(); // each example starts with the rows a boot has
+	menu_scene().reset_process_state(); // each example starts with the rows a boot has
 	deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
 	deluge::notify::Notice discard;
 	while (deluge::notify::notices().pop(discard)) {}

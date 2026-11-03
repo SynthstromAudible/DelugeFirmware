@@ -97,9 +97,7 @@ void MenuView::render(MenuCore core, deluge::ui::oled::OledFrame& f, const Node&
 		}
 		break;
 	default: {
-		// Every `Kind` `node.h` declares now has an arm above: `Bipolar`, `Range`, `MultiRange`,
-		// `Colour` and `Action` were dropped in Task 8 (zero nodes, no interpreter written for
-		// them), and `SyncLevel` gained one just above. Nothing in the current tree reaches this
+		// Every `Kind` `node.h` declares has an arm above. Nothing in the current tree reaches this
 		// arm; it stays only so a `Kind` a later plan adds still draws its title rather than
 		// nothing at all until that plan writes its own interpreter.
 		NodeText scratch;
@@ -157,7 +155,7 @@ void MenuView::render_horizontal(MenuCore core, deluge::ui::oled::OledFrame& f, 
 	f.claim_turn();
 	if (n != 0 && turned != 0 && kids[focus]->kind != Kind::Submenu) {
 		const Node& target = *kids[focus];
-		// `Binding::permitted` (spec E-note-family §5.3): legacy's
+		// `Binding::permitted`: legacy's
 		// `selectEncoderActionIsPermitted()` check, consulted *before* the edit and *before* the
 		// notification (`horizontal_menu.cpp:321-324`, ahead of `:326-328`). A refusal stages
 		// nothing and raises no notification here -- the hook raises its own popup, exactly as
@@ -171,7 +169,7 @@ void MenuView::render_horizontal(MenuCore core, deluge::ui::oled::OledFrame& f, 
 				detents = -detents;
 			}
 			if (target.bind.adjust != nullptr) {
-				// `Binding::adjust` (spec §5.2): accumulate the turn's detents rather than
+				// `Binding::adjust`: accumulate the turn's detents rather than
 				// computing `moved` -- an offset write (`instrumentClipView.adjustVelocity` and
 				// its siblings) has no absolute value to stage, so there is nothing to put in
 				// `edit_int`/`enum_index` here. The column below reads `bindings::read` for this
@@ -301,10 +299,9 @@ void MenuView::render_leaf_int(MenuCore core, deluge::ui::oled::OledFrame& f, co
 	// `f.bounds()`, NOT `menu_rect(f)`: `int_value` places its digits at a rect-relative
 	// `kValueY`, calibrated (per its own doc comment) for `rect == f.bounds()` -- exactly the
 	// same reason `render_leaf_decimal` below takes `f.bounds()` rather than `menu_rect(f)`.
-	// Passing `menu_rect(f)` here added `Style::menu_base_y` (14px on the 48-row panel) on top of
-	// `kValueY`'s own offset and pushed the huge digit glyph low enough to clip off the panel's
-	// bottom edge -- caught by task 11's `menu_int` acceptance script/golden, which is the first
-	// place this screen was ever rendered to a `.pbm` and looked at.
+	// Passing `menu_rect(f)` here would add `Style::menu_base_y` (14px on the 48-row panel) on top of
+	// `kValueY`'s own offset and push the huge digit glyph low enough to clip off the panel's
+	// bottom edge.
 	// A param is legacy's `IntegerContinuous` (`patched_param::Integer`, `UnpatchedParam`): the digits over a value
 	// bar.
 	deluge::ui::oled::ValueStyle style = node.bind.style;
@@ -335,7 +332,7 @@ void MenuView::render_leaf_int(MenuCore core, deluge::ui::oled::OledFrame& f, co
 		st.tick.value_changed = true;
 		st.tick.value_node = &node;
 	}
-	// `int_value` owns the select encoder now -- legacy edits the value with it on a number screen
+	// `int_value` owns the select encoder -- legacy edits the value with it on a number screen
 	// (`SoundEditor::selectEncoderAction`, `sound_editor.cpp:1122`), and so does this port
 	// (`ui/oled/values.cpp`'s `select_delta`). The select *press* that leaves the item
 	// (`MenuItem::selectButtonPress` returning nullptr -> `goUpOneLevel`) is still this scene's to
@@ -371,7 +368,7 @@ void MenuView::render_leaf_range(MenuCore core, deluge::ui::oled::OledFrame& f, 
 		st.tick.value_changed = true;
 		st.tick.value_node = &node;
 	}
-	// `range_value` owns the select and horizontal encoders now, not the gold knobs (`values.h`'s
+	// `range_value` owns the select and horizontal encoders, not the gold knobs (`values.h`'s
 	// note on the two `selectEncoderAction`s it ports); the select press that leaves the item is
 	// this scene's, exactly as on a number screen.
 	if (f.select_pressed()) {
@@ -480,8 +477,8 @@ void MenuView::render_leaf_sync_level(MenuCore core, deluge::ui::oled::OledFrame
 	// no field for it -- `MetricBold9` is hard-coded the same way at `ui/oled/columns.cpp:277` for
 	// the same reason, a legacy font choice with no `Style` counterpart. Getting this wrong doesn't
 	// just mismatch the pixels: a note-length string in the huge font (`kTextHugeSpacingX` = 18px
-	// per character) runs off both edges of a 128px panel, which is exactly the clipping bug this
-	// task exists to not repeat.
+	// per character) runs off both edges of a 128px panel, which is the clipping this
+	// choice avoids.
 	//
 	// No `f.clear(band)` here, unlike `int_value`/`decimal_value`: this scene may not call an
 	// `OledFrame` drawing primitive directly (this file's own top-of-file note), and legacy's

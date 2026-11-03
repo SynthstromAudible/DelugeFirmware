@@ -155,7 +155,7 @@ constexpr uint8_t kSelectEncoder = 3;
 /// The same table's 4 = `EncoderRole::GoldUpper` (`shell/profiles/deluge.cpp:69-76`), which lowers to
 /// `InputSnapshot::edit[0]` (`shell/input_lowering.cpp:80`). It no longer moves a `Kind::Int` leaf:
 /// since note-family task 1 `int_value` claims the select turn instead (`ui/oled/values.cpp:88-89`),
-/// as `render_leaf_int` records (`scenes/menu/menu_scene.cpp:1084-1086`).
+/// as `render_leaf_int` records (`MenuView::render_leaf_int`, `scenes/menu/view.cpp`).
 constexpr uint8_t kGoldUpperEncoder = 4;
 /// Matrix coordinates of the select-encoder button (`kMatrix`, `shell/profiles/deluge.cpp`).
 constexpr uint8_t kSelectEncButtonX = 4, kSelectEncButtonY = 3;
@@ -191,7 +191,7 @@ struct Rig {
 		while (shell.stack().depth() > 0) {
 			shell.stack().pop(SceneKind::Null);
 		}
-		menu_scene().forget_rows(); // each example starts with the rows a boot has
+		menu_scene().reset_process_state(); // each example starts with the rows a boot has
 	}
 
 	explicit Rig(const DelugeBoard& board = deluge::ui::shell::kDelugeBoard, const BoardProfile& p = deluge_profile())
@@ -270,7 +270,7 @@ struct GuestRig {
 		while (ui.shell().stack().depth() > 0) {
 			ui.shell().stack().pop(SceneKind::Null);
 		}
-		menu_scene().forget_rows(); // each example starts with the rows a boot has
+		menu_scene().reset_process_state(); // each example starts with the rows a boot has
 	}
 
 	/// `Rig::open`'s two halves, through the guest's own door: point the scene at @p root with a
@@ -2233,7 +2233,7 @@ describe menu_action_stem_export("gui::ui::dispatchShellActions -- StartStemExpo
 		// `soundEditor`. The dispatcher's answer is `SceneStack::remove(SceneKind::FirstApp)` on the
 		// guest's own stack -- the same statement `MenuScene::handle` already uses for the short-Back
 		// exit, which IS `exitCompletely()` reached through `SoundEditor::goUpOneLevel`
-		// (`scenes/menu/menu_scene.cpp:2057-2071`; `gui/ui/sound_editor.cpp:710-717`, the call at
+		// (`MenuScene::handle_event`'s Back arm, `scenes/menu/menu_scene.cpp`; `gui/ui/sound_editor.cpp:710-717`, the call at
 		// `:716`). The full argument, including why neither `closeUI` nor `closeGuest()` can be
 		// called from there, is at `closePortedMenu` in `gui/ui/shell_action_dispatch.cpp`.
 		//

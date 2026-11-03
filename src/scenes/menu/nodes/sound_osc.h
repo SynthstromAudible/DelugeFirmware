@@ -49,11 +49,10 @@
 ///       `recorder::RecorderScene` -- as six distinct instances, one per (item, source) pair, so
 ///       spec E §4's budget of ten now counts 3 classes / 6 instances here rather than 1.
 ///
-///       **In a horizontal page the item still does not run**: `MenuScene::render_columns`
-///       dispatches on `Kind` and `Custom` falls to its `default:` arm -> `meter_column`
-///       (`menu_scene.cpp:1030-1041`), so these eight columns draw empty bars. Legacy renders each of
-///       them itself (`FileSelector::renderInHorizontalMenu`, `file_selector.cpp:88-91`;
-///       `LoopPoint::renderInHorizontalMenu`, `sample/loop_point.cpp:75-90`;
+///       **In a horizontal page the item still does not run**: `present_column`
+///       (`menu/present.cpp`) dispatches on `Kind` and `Custom` falls to its `default:` arm -> `meter_column`, so these
+///       eight columns draw empty bars. Legacy renders each of them itself (`FileSelector::renderInHorizontalMenu`,
+///       `file_selector.cpp:88-91`; `LoopPoint::renderInHorizontalMenu`, `sample/loop_point.cpp:75-90`;
 ///       `osc::AudioRecorder::renderInHorizontalMenu`, `osc/audio_recorder.h:81-114`), which `Node`
 ///       has no field for and which is a `Hint`/widget question rather than a wiring one.
 ///

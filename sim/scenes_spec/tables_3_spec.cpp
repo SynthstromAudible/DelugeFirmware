@@ -752,7 +752,7 @@ struct Rig {
 		while (shell.stack().depth() > 0) {
 			shell.stack().pop(deluge::ui::shell::SceneKind::Null);
 		}
-		menu_scene().forget_rows(); // each example starts with the rows a boot has
+		menu_scene().reset_process_state(); // each example starts with the rows a boot has
 	}
 
 	explicit Rig(const DelugeBoard& board = deluge::ui::shell::kDelugeBoard,
@@ -975,7 +975,7 @@ void focus_command_row(Rig& r, const MenuContext& ctx, size_t row) {
 		while (deluge::notify::notices().pop(stray)) {}
 	}
 	// The turns below count from row 0, so the page must not land on the row an earlier walk left it on.
-	menu_scene().forget_rows();
+	menu_scene().reset_process_state();
 	r.open(nodes::midi_commands, ctx);
 	r.shell.tick(0);
 	for (size_t t = 0; t < row; t++) {

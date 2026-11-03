@@ -104,7 +104,7 @@ void ValueSession::enter_leaf(MenuCore core, const Node& node, FocusCause cause)
 void ValueSession::commit(MenuCore core, const Node& node) const {
 	MenuContext& ctx = core.ctx;
 	MenuState& st = core.st;
-	// `Binding::adjust` (spec E-note-family §5.2), ahead of the `Kind` switch: an offset-writing
+	// `Binding::adjust`, ahead of the `Kind` switch: an offset-writing
 	// node commits through the hook whatever its `Kind` is (velocity/probability/iterance are
 	// `Kind::Int`), so this has to run before the switch would otherwise reach `bindings::write`.
 	// `after_render` already commits before it raises the horizontal notification, so the
@@ -138,7 +138,7 @@ void ValueSession::commit(MenuCore core, const Node& node) const {
 	case Kind::Range:
 		// Both ends, every commit. Legacy writes both too -- `IntegerRange`/`KeyRange` edit `lower`
 		// and `upper` in place and have no `writeCurrentValue` at all, because the members *are* the
-		// storage (now `FlashStorage::defaultRanges`, `storage/flash_storage.h`). A commit that wrote
+		// storage (`FlashStorage::defaultRanges`, `storage/flash_storage.h`). A commit that wrote
 		// only the moved end would leave the other one behind whenever `RangeClamp::Push` dragged it.
 		bindings::write(node, ctx, st.edit_int);
 		if (const RangeSpec* spec = node.bind.range_spec; spec != nullptr && spec->set_upper != nullptr) {

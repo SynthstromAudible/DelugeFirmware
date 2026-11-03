@@ -19,13 +19,12 @@ namespace deluge::scenes::menu {
 /// `focusRegained` -> `beginScreen` also runs on every re-entry, `sound_editor.cpp:330`,
 /// `:1015` -- only (re-)initialises. `CustomItem::on_focus` is `beginSession`, so a port that
 /// ran it on every focus transition ran *both* meanings, and an item whose `on_focus` stands in
-/// for a press fired without one. This is that lost distinction, restored.
-/// **The question is "a select press on THIS node's own row?", not "a press at all"** (E3 final
-/// review, A6). The values used to be `Descended`/`Restored`, and `Restored` was a lie for one
-/// of the routes it covers: a **shortcut-pad jump is a real press**, just not one on this node's
-/// row. The behaviour was right -- legacy reaches a shortcut jump through `beginSession`, never
-/// `selectButtonPress` -- so the names moved to say what the two values have always meant,
-/// rather than a third cause being invented for a distinction nothing acts on.
+/// for a press fired without one. This enum keeps that distinction.
+/// **The question is "a select press on THIS node's own row?", not "a press at all".**
+/// A **shortcut-pad jump is a real press**, just not one on this node's
+/// row: legacy reaches a shortcut jump through `beginSession`, never
+/// `selectButtonPress`, so the two values name whether the row was pressed rather than
+/// inventing a third cause for a distinction nothing acts on.
 /// `CustomItem::on_focus_is_press()`'s whole contract is then readable from this enum alone:
 /// such an item is given `on_focus` for `RowPress` and withheld it for `NoRowPress`.
 enum class FocusCause : uint8_t {
@@ -36,8 +35,7 @@ enum class FocusCause : uint8_t {
 	/// `SceneId` deep link, the shortcut-pad jump, `open()`), `restore_state`'s rebuild, and
 	/// `ascend`'s re-seed. Legacy's `beginScreen`/`focusRegained` path, and exactly the case
 	/// `Toggle::selectButtonPress`'s guard exists for. A shortcut jump belongs here **because
-	/// its press was on a grid pad, not on this row** -- it is not a "restore", which is what
-	/// the old name claimed.
+	/// its press was on a grid pad, not on this row** -- it is not a "restore".
 	NoRowPress,
 };
 

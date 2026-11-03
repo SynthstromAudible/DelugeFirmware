@@ -101,7 +101,7 @@ public:
 	Result handle(const UiEvent& ev, const UiContext& ctx) override {
 		seen.push_back(Seen{ev, ctx.shift, ctx.sticky, ctx.now_ms});
 		if (remove_self_on_event) {
-			// `MenuScene`'s answer to Back at depth 0 (`scenes/menu/menu_scene.cpp:2057`),
+			// `MenuScene`'s answer to Back at depth 0 (`MenuScene::handle_event`'s Back arm),
 			// reduced to the one thing this suite is about: a scene that takes itself off the
 			// stack from inside `Shell::tick`'s routing. Off by default so every other example
 			// keeps the delivery-only behaviour below.
@@ -1054,7 +1054,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		Rig r;
 		expect(r.open()).to_be_true();
 
-		// `MenuScene::occludes_grid()` is false (`scenes/menu/menu_scene.h:508`), and
+		// `MenuScene::occludes_grid()` is false (`scenes/menu/menu_scene.h`), and
 		// `SoundEditor::canSeeViewUnderneath()` is true (`gui/ui/sound_editor.h:121`) -- the guest
 		// has to land on legacy's answer, because `UI::graphicsRoutine` runs the root view's
 		// animation only while it does (`gui/ui/ui.cpp:47-51`).
@@ -1079,7 +1079,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(r.open()).to_be_true();
 
 		// `MenuScene::greyout_mask` spells legacy's `doGreyout == false` as an all-zero mask
-		// (`scenes/menu/menu_scene.cpp:2082-2083`), and legacy's false means "obey UI under me"
+		// (`menu::greyout_mask`, `scenes/menu/pads.cpp`), and legacy's false means "obey UI under me"
 		// (`gui/ui/ui.h:136-138`). The two out-parameters are accumulators the caller zeroed and
 		// the next UI down is about to be asked with (`gui/ui/ui.cpp:73-83`), so a false answer must
 		// leave them alone.
@@ -1861,7 +1861,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		// Legacy reads `ShiftIsSticky` at shift-release time (`hid/buttons.cpp:250`); the shell reads
 		// its own `LoweringConfig` field, which defaults to false. Unseeded, a sticky-shift user's
 		// latched shift is invisible to `ctx.shift` -- the whole gate on the menu's shortcut-pad
-		// jump (`scenes/menu/menu_scene.cpp:2004`).
+		// jump (`MenuPads::handle_pad`, `scenes/menu/pads.cpp`).
 		Rig on;
 		runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShiftIsSticky, RuntimeFeatureStateToggle::On);
 		expect(on.open()).to_be_true();
@@ -2648,7 +2648,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		r.base.led_declared = true;
 		r.base.led_id = static_cast<deluge::ui::LedId>(ButtonId::Back);
 		// The same shape `MenuScene::leds` declares for BACK and LEARN
-		// (`scenes/menu/menu_scene.cpp:1373`, `:1380`): a plain blink, no deadline.
+		// (`MenuScene::leds`, `MenuLearn::leds`): a plain blink, no deadline.
 		r.base.led_state = deluge::ui::LedState{deluge::ui::LedState::Kind::Blink, 128, 0};
 		expect(r.open()).to_be_true();
 

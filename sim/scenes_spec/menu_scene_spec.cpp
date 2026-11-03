@@ -369,7 +369,7 @@ struct Rig {
 		while (shell.stack().depth() > 0) {
 			shell.stack().pop(SceneKind::Null);
 		}
-		menu_scene().forget_rows(); // each example starts with the rows a boot has
+		menu_scene().reset_process_state(); // each example starts with the rows a boot has
 	}
 
 	explicit Rig(const DelugeBoard& board = deluge::ui::shell::kDelugeBoard, const BoardProfile& p = deluge_profile())
@@ -1198,7 +1198,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		// the editor forgets nothing.
 		select_language();
 		deluge::notify::dirty().drain();
-		menu_scene().forget_rows();
+		menu_scene().reset_process_state();
 		Rig r;
 		(void)r.open(settings_root);
 		r.shell.tick(0);
@@ -1217,7 +1217,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 	it("each root remembers its own row, and a submenu its own", _ {
 		select_language();
 		deluge::notify::dirty().drain();
-		menu_scene().forget_rows();
+		menu_scene().reset_process_state();
 		Rig r;
 		(void)r.open(settings_root);
 		r.shell.tick(0);
@@ -1251,7 +1251,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		// shortcut jumped straight to, or a scene opener whose scene returned, closes the editor when it goes up.
 		select_language();
 		deluge::notify::dirty().drain();
-		menu_scene().forget_rows();
+		menu_scene().reset_process_state();
 		Rig r;
 		(void)r.open(int_leaf);
 		r.shell.tick(0);
@@ -2668,7 +2668,7 @@ describe menu_scene_goldens("scenes::menu::MenuScene pixels", $ {
 			expect(menu_scene().focused() == &sync_leaf).to_be_true();
 			// `after_render` moves the path only *after* the render that entered it, so the panel
 			// still shows the old (list) screen this same tick -- the entered leaf is only drawn on
-			// the next one (`descend_to`'s `st_.path[st_.depth] = &child`, `menu_scene.cpp:1509`;
+			// the next one (`MenuWalk::descend_to`'s `st.path[st.depth] = &child`, `scenes/menu/walk.cpp`;
 			// `open_lpf` above needs the identical extra tick for the same reason).
 			r.shell.tick(120);
 			expect_golden(self, "../ui/menu/menu_sync_level_48.pbm", r.fake.pbm(0));

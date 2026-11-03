@@ -10,7 +10,7 @@
 /// What it deliberately cannot see: nothing reads `grid_pad_claim()` yet. There is no forwarding
 /// path, no `ShellHostUI::claimsGridPad`, and no grid-pad test through a `Shell` -- those are later
 /// tasks. This file only opens a real `MenuScene` on a real root (`MenuScene::open` writes `ctx_`
-/// and resets `st_` without needing a `Shell` at all, `scenes/menu/menu_scene.cpp:331-335`) and
+/// and resets `st_` without needing a `Shell` at all, `MenuScene::open`, `scenes/menu/menu_scene.cpp`) and
 /// reads the new virtual straight off it.
 
 #include "gui/ui/menu_view_of.h"

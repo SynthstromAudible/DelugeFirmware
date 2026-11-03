@@ -128,8 +128,8 @@ NoteModeKind activeNoteMode() {
 	const deluge::ui::shell::Scene* const menu = &deluge::scenes::menu_scene();
 	for (const deluge::ui::shell::Scene* scene : shellHostUI.shell().stack().scenes()) {
 		if (scene == menu) {
-			// `menu_context()` (`scenes/menu/menu_scene.h:653`) is replaced only by `MenuScene::open`
-			// (`scenes/menu/menu_scene.cpp:331-335`) and by a song swap (`:575-578`, which resets the
+			// `MenuScene::menu_context()` is replaced only by `MenuScene::open`
+			// and by a song swap (`MenuScene::on_model_changed`, which resets the
 			// root to `Settings`), so while the menu is stacked this is the root it was opened at.
 			return modeForRoot(deluge::scenes::menu_scene().menu_context().root);
 		}
@@ -235,7 +235,7 @@ void exitNoteModeBeforeClose() {
 	//     `is_root()` override on a scene the guest hosts would break this key**: Shift+Select over
 	//     that scene would re-root a note-mode session at `Settings`, and this function would skip the
 	//     note exit on close.
-	//   * A song swap resets the root to `Settings` (`scenes/menu/menu_scene.cpp:575-578`).
+	//   * A song swap resets the root to `Settings` (`MenuScene::on_model_changed`).
 	switch (modeForRoot(deluge::scenes::menu_scene().menu_context().root)) {
 	case NoteModeKind::NoteEditor:
 		noteModeLegacyCalls().exitNoteEditor(); // `gui/ui/sound_editor.cpp:750`

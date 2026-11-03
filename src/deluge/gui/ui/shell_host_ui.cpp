@@ -115,7 +115,7 @@ bool ShellHostUI::opened() {
 	// (`hid/buttons.cpp:250`) while the shell reads a `LoweringConfig` field that defaults to false
 	// (`shell/input_lowering.h:29-31`). Left unseeded, a sticky-shift user's latched shift would be
 	// invisible to `ctx.shift`, which is the whole gate on the menu's shortcut-pad jump
-	// (`scenes/menu/menu_scene.cpp:2004`) -- so shortcut pads would silently stop working under the
+	// (`MenuPads::handle_pad`, `scenes/menu/pads.cpp`) -- so shortcut pads would silently stop working under the
 	// toggle.
 	//
 	// `opened()` is the right place and the setter is the right tool: `set_shift_is_sticky` exists
@@ -255,7 +255,7 @@ bool ShellHostUI::canSeeViewUnderneath() {
 	//    (`gui/ui/ui.h:158`), set false by `UI::UI` (`gui/ui/ui.cpp:31-33`) and read by
 	//    `doAnyPendingOLEDRendering` to decide how far down the stack to start drawing
 	//    (`gui/ui/ui.cpp:351-371`, the walk at `:353-356`). `SoundEditor` leaves it false and
-	//    `MenuScene::oled_transparent` returns false (`scenes/menu/menu_scene.h:524-525`) -- those
+	//    `MenuScene::oled_transparent` returns false (`scenes/menu/menu_scene.h`) -- those
 	//    two already agree, and neither is this hook.
 	//  - `Slicer` sets `oledShowsUIUnderneath = true` and returns **false** here
 	//    (`gui/ui/slicer.h:33-38`), on the same object. One legacy UI holding both values at once is
@@ -271,7 +271,7 @@ bool ShellHostUI::canSeeViewUnderneath() {
 	//
 	// It lands where legacy lands for the first tenant: `SoundEditor::canSeeViewUnderneath` is true
 	// (`gui/ui/sound_editor.h:121`) and `MenuScene::occludes_grid` is false
-	// (`scenes/menu/menu_scene.h:507-508`). Mapping it to `oled_transparent(Main)` would have made
+	// (`scenes/menu/menu_scene.h`). Mapping it to `oled_transparent(Main)` would have made
 	// it false and frozen the clip view's playhead under an open menu.
 	return !shell_.stack().top().occludes_grid();
 }
@@ -282,7 +282,7 @@ bool ShellHostUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	//
 	// The port spells `doGreyout == false` as an **all-zero mask**, deliberately and at the code:
 	// `MenuScene::greyout_mask` returns `{}` for the arms where
-	// `SoundEditor::getGreyoutColsAndRows` sets `doGreyout = false` (`scenes/menu/menu_scene.cpp:2079-2117`,
+	// `SoundEditor::getGreyoutColsAndRows` sets `doGreyout = false` (`menu::greyout_mask`, `scenes/menu/pads.cpp`,
 	// against `gui/ui/sound_editor.cpp:252-294`). Every arm of legacy's switch that leaves
 	// `doGreyout` true also writes a non-zero `*cols` (`:270`, `:275`, `:283`, `:290`), so
 	// "non-zero mask" and "doGreyout" are the same predicate on the shipped tree, and this is the
@@ -491,9 +491,9 @@ ActionResult ShellHostUI::timerCallback() {
 	// **The action drain, and both halves of where it sits are load-bearing.**
 	//
 	// `MenuScene::take_action()` is a one-slot mailbox with a silent overwrite
-	// (`scenes/menu/menu_scene.h:672-700`), and it announces nothing: "`after_render` returns no
+	// (`MenuScene::take_action`, `scenes/menu/menu_scene.h`), and it announces nothing: "`after_render` returns no
 	// `Action` announcing that one is waiting, so nothing enforces the polling: **poll after every
-	// tick, or requests are dropped or stale**" (`:675-677`). This line is the polling for the
+	// tick, or requests are dropped or stale**" (the same warning). This line is the polling for the
 	// **menu's** outbox. `dispatchShellActions` performs whatever it finds.
 	//
 	// (This used to say "and it is the only one in the firmware". F3 task 1 made that false:
@@ -551,9 +551,10 @@ ActionResult ShellHostUI::timerCallback() {
 	// from that arm (`gui/ui_timer_manager.cpp:149-155`). A short Back never reaches it -- it is fed
 	// into the shell like any other button (`buttonAction` below) and routed inside `Shell::tick`,
 	// where `MenuScene` answers Back at depth 0 with `Action::Kind::Remove{.pop_to = FirstApp}`
-	// (`scenes/menu/menu_scene.cpp:2057-2071`), the port of `sound_editor.cpp:456`'s BACK case ->
+	// (`MenuScene::handle_event`'s Back arm, `scenes/menu/menu_scene.cpp`), the port of `sound_editor.cpp:456`'s BACK
+	// case ->
 	// `:471` `goUpOneLevel()` -> `:710-717` `SoundEditor::goUpOneLevel`, whose depth-0 arm is
-	// `exitCompletely()` at `:716`. (`MenuScene`'s own comment on that block cites `:433` and
+	// `exitCompletely()` at `:716`. (`MenuView::render`'s own comment on that block cites `:433` and
 	// `:678` for those two; both are stale -- `:433` is an `AFFECT_ENTIRE` blink and `:678` is
 	// `handlePotentialParamMenuChange`. Reported in F1 task 11's report, not corrected here: they
 	// are pre-existing and belong to the sweep task, and a citation moved by the wrong hand is how
@@ -780,7 +781,7 @@ bool ShellHostUI::claimsGridPad(int32_t x, int32_t y, int32_t velocity) {
 		// `SoundEditor::potentialShortcutPadAction`'s gate (`gui/ui/sound_editor.cpp:1169-1186`),
 		// minus two halves that stay on legacy's side (M1: this comment used to name only the
 		// first). One is `isUIModeActive(UI_MODE_AUDITIONING)`, which `MenuScene` already drops
-		// with the reason recorded (`scenes/menu/menu_scene.cpp:2000-2003`). The other is the
+		// with the reason recorded (`MenuPads::handle_pad`, `scenes/menu/pads.cpp`). The other is the
 		// automation-view interpolation carve-out, `getRootUI() == &automationView && x == 0 &&
 		// (y == 6 || y == 7)` (`:1174-1177`), which exempts those two pads from claiming a shortcut
 		// jump at all -- `src/scenes` cannot ask `getRootUI()`'s identity, so `MenuScene` claims
@@ -788,7 +789,7 @@ bool ShellHostUI::claimsGridPad(int32_t x, int32_t y, int32_t velocity) {
 		// rather than closed (`src/scenes/README.md`'s carry table, item 3). Past what remains of
 		// the gate legacy claims unconditionally, even where no shortcut table has an entry
 		// (`:1431`) -- and so does `MenuScene`, which returns `Result::unhandled()` and lets the pad
-		// die (`menu_scene.cpp:2037`). The two agree; see spec §3.1.
+		// die (`MenuScene::handle_event`'s fall-through). The two agree; see spec §3.1.
 		return velocity != 0 && x < kDisplayWidth && Buttons::isShiftButtonPressed();
 	}
 	return true; // `-Werror=switch` makes this unreachable; it is here for the enum's future.
@@ -1065,9 +1066,9 @@ ActionResult ShellHostUI::exitUI() {
 	// long-press Back leaves the *whole* menu however deep it was, not one level. So does this,
 	// for the first tenant: the ported menu keeps its navigation depth inside one scene
 	// (`MenuScene`'s `st_.depth`) and only asks the shell to remove itself when Back arrives at
-	// depth 0 (`scenes/menu/menu_scene.cpp:2057-2071`). One `pop()` here is therefore one whole
-	// menu, exactly as `exitCompletely` is. A future tenant that stacks a scene per level would
-	// make this differ, and that is the condition to watch.
+	// depth 0 (`MenuScene::handle_event`'s Back arm, `scenes/menu/menu_scene.cpp`). One `pop()` here is therefore one
+	// whole menu, exactly as `exitCompletely` is. A future tenant that stacks a scene per level would make this differ,
+	// and that is the condition to watch.
 	//
 	// **One divergence from legacy remains, recorded rather than fixed.**
 	//

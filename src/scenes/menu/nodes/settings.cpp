@@ -587,8 +587,8 @@ namespace {
 ///
 /// Filed through `menu_scene().request_action` for `set_shortcuts_version`'s reason, verbatim: a
 /// `Binding::set` hook is handed no `MenuState` (`SetFn`, `node.h:140`), and the commit and the
-/// drain are the same `after_render` -- `commit_value` at `menu_scene.cpp:1659`, the move into the
-/// outbox at `:1774-1775`.
+/// drain are the same `after_render` -- `commit_value` (`ValueSession::commit`), then the move into the
+/// outbox (`MenuScene::after_render`'s `pending_action` drain).
 void request_screensaver_notify() {
 	menu_scene().request_action(MenuActionRequest{.action = MenuAction::ScreensaverSettingsChanged});
 }

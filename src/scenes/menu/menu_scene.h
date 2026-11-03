@@ -1,7 +1,6 @@
 #pragma once
 
-/// @brief `MenuScene` -- one shell `Scene` that interprets any `Node` tree (spec E §4, amended by
-///        `.superpowers/sdd/2026-08-27-ui-scenes-menus-1/task-5-brief.md`).
+/// @brief `MenuScene` -- one shell `Scene` that interprets any `Node` tree.
 ///
 /// There is exactly one of these for the whole menu system. It renders whatever `Node` is at the
 /// top of its own path through the toolkit widgets, consumes input the toolkit way (a widget
@@ -19,12 +18,12 @@
 /// back -> `goUpOneLevel` `:710`, which exits at depth 0 via `exitCompletely` `:716`),
 /// `horizontalEncoderAction` (`:1046`), `padAction` (`:1460`) with `potentialShortcutPadAction`
 /// (`:1166`), `enterSubmenu` (`:362`), `setupShortcutBlink` (`:997`) / `blinkShortcut`
-/// (`:1012-1038`), `getGreyoutColsAndRows` (`:252`), and the `MultiRange` redirect -> spec E
-/// §4.1's `Permission::MustSelectRange`.
+/// (`:1012-1038`), `getGreyoutColsAndRows` (`:252`), and the `MultiRange` redirect
+/// (`Permission::MustSelectRange`).
 ///
 /// **What this scene may not do.** It never calls an `OledFrame` drawing primitive
 /// (`pixel`/`hline`/`rect`/`glyphs`/...): everything on screen comes from a `ui::oled` widget, so
-/// the layout rules live in one place and Task 12's ratchet can count primitive calls at zero.
+/// the layout rules live in one place and the count of primitive calls here stays at zero.
 /// It never allocates, never reads a wall clock (the frame's `now_ms()` is the only time it
 /// knows), and never mutates the model from `render_oled`/`render_grid` -- `after_render()` and
 /// `handle()` are the two places a write may happen.
@@ -77,9 +76,9 @@ public:
 	///          of this tree's callers do.** `on_enter` re-roots unconditionally: from
 	///          `node_by_id(arg)` when `arg != 0`, and otherwise from `ctx_.root` -- the copy this
 	///          function just installed -- so whichever node was passed here is overwritten one
-	///          call later. Measured, not reasoned: F1 task 9 mutated
+	///          call later. Measured, not reasoned: mutating
 	///          `gui/ui/shell_menu_entry.cpp`'s call to pass `roots[0]` instead of the resolved
-	///          root and **nothing in the suite noticed**. The parameter is kept because this is
+	///          root left **nothing in the suite noticing**. The parameter is kept because this is
 	///          the only entry point that installs a `MenuContext` at all, and because a scene left
 	///          pointing at the wrong root between this call and `on_enter` is a real (if brief)
 	///          inconsistency for anything that reads `focused()`. What it is not is a second
@@ -95,8 +94,6 @@ public:
 	///        `current_item_` for the life of the firmware, and this scene is as long-lived), the horizontal encoder's
 	///        acceleration and the voice-usage clock reset.
 	void reset_process_state();
-	/// @brief `reset_process_state`.
-	void forget_rows() { reset_process_state(); }
 
 	deluge::ui::shell::SceneKind kind() const override;
 	void render_oled(deluge::ui::shell::SurfaceRole role, deluge::ui::oled::OledFrame& frame) override;
@@ -134,7 +131,7 @@ public:
 	/// Three predicates there, `!inSettingsMenu() && !inNoteEditor() && !inNoteRowEditor()`, decide
 	/// whether `potentialShortcutPadAction` even runs; on any of the three failing, every pad --
 	/// shift or not -- falls through to the forwarding switch and the tail instead. `inSettingsMenu`
-	/// is `Root::Settings`; Task 6 gives the other two their roots.
+	/// is `Root::Settings`, `inNoteEditor` is `Root::NoteEditor`, and `inNoteRowEditor` is `Root::NoteRowEditor`.
 	deluge::ui::shell::GridPadClaim grid_pad_claim() const override {
 		return (ctx_.root == MenuContext::Root::Settings || ctx_.root == MenuContext::Root::NoteEditor
 		        || ctx_.root == MenuContext::Root::NoteRowEditor)
@@ -150,10 +147,10 @@ public:
 	void save_state(deluge::ui::shell::SceneState& state) const override;
 	void restore_state(const deluge::ui::shell::SceneState& state) override;
 	std::optional<uint32_t> next_timer() const override;
-	/// @brief Grid only (E3 task 10 fix round 1): `next_timer()`'s deadline here is purely the
+	/// @brief Grid only: `next_timer()`'s deadline here is purely the
 	///        shortcut/source pad blink cadence -- a grid concern -- and the submenu's OLED content
-	///        never depends on it. Arming the OLED gates from it too (the fold's original default)
-	///        cost nothing in pixels but blitted both panels unconditionally, forever, whenever the
+	///        never depends on it. Arming the OLED gates from it too would cost nothing in pixels but
+	///        blit both panels unconditionally, forever, whenever the
 	///        focused node had shortcut or source pads. See `Scene::timer_repaints()`'s own doc.
 	/// On the voice usage page the timer is also its 500 ms sample, which the panel shows.
 	deluge::ui::shell::Scene::RepaintSurfaces timer_repaints() const override;
@@ -175,9 +172,9 @@ public:
 	/// unchanged -- there the leaf IS what the encoders edit. On a vertical submenu, or a
 	/// horizontal page focused on a submenu column, there is nothing to edit and this is null.
 	///
-	/// Added for `services::ModKnobs::popup_suppressed` (`scenes/services/mod_knobs.cpp`), whose
-	/// same-param test named `focused()` before this task and forwarded no further than the page
-	/// itself on a horizontal menu -- wrong by the same measure `shouldForwardButtons` names.
+	/// Exists for `services::ModKnobs::popup_suppressed` (`scenes/services/mod_knobs.cpp`)'s
+	/// same-param test: `focused()` stops at the page itself on a horizontal menu, which is wrong by
+	/// the same measure `shouldForwardButtons` names.
 	const Node* focused_value() const;
 
 	/// @brief Re-read the focused node's value from the model -- `MenuItem::readValueAgain`.
@@ -193,7 +190,7 @@ public:
 	/// `readValueAgain` is -- reload the storage, with nothing pressed on this row (legacy's
 	/// `beginScreen`/`focusRegained` shape). A no-op when nothing is focused.
 	void read_value_again();
-	/// @brief The `deluge::synth::CableTarget` MIDI/CC learn (E3) binds to the focused node.
+	/// @brief The `deluge::synth::CableTarget` MIDI/CC learn binds to the focused node.
 	///
 	/// @note **Param learn, not global-command learn.** This is `PatchedParam`/`UnpatchedParam`'s
 	///       `getLearningThing()` (`bindings.h`'s `learn_target`): "which automatable parameter
@@ -239,9 +236,9 @@ public:
 	/// @}
 	/// @brief The application's root menus, indexed by `MenuContext::Root`.
 	///
-	/// @note All twelve entries are filled in (`menu_scene.cpp`'s `kRoots`, Tasks 6-8): the sound
+	/// @note All twelve entries are filled in (`menu_scene.cpp`'s `kRoots`): the sound
 	///       root, the drum/MIDI-drum/gate-drum roots, MIDI-or-CV, the audio-clip, performance,
-	///       song and kit-global-FX roots, the settings root, and (Task 6) the note-editor and
+	///       song and kit-global-FX roots, the settings root, and the note-editor and
 	///       note-row-editor roots. `on_enter(arg == 0)` therefore resolves a real root from
 	///       `MenuContext::root`; a caller may still name a node directly through `open()` or
 	///       through `SceneId::arg`.
@@ -249,7 +246,7 @@ public:
 
 	/// @brief The live interpreter state.
 	///
-	/// Exposed for specs and for E2's range picker (which has to see `range_picker_pending`);
+	/// Exposed for specs and for the range picker (which has to see `range_picker_pending`);
 	/// nothing outside may write it.
 	const MenuState& state() const { return st_; }
 	/// @brief The state, writable: for specs that file a mailbox the way a node would.
@@ -271,7 +268,7 @@ public:
 
 	/// @brief What the menu is currently editing -- the `MenuContext` the last `open()` installed.
 	///
-	/// Added by F1 task 9, and the reason is a real gap rather than convenience: the application's
+	/// This exists for a real gap rather than convenience: the application's
 	/// entry points resolve this context themselves (`gui/ui/shell_menu_entry.cpp`), and two of its
 	/// fields -- `is_session_view` and `is_performance` -- change nothing about which root is opened
 	/// and everything about which items are relevant inside it. Without this accessor a caller
@@ -293,14 +290,12 @@ public:
 	/// anything in. `gui::ui::dispatchShellActions` (`gui/ui/shell_action_dispatch.h`) polls this
 	/// after ticking the shell, and is where each verb's legacy statement lands.
 	///
-	/// @note **All seven of these actions are performed as of F2 task 7.** The consumer arrived with
-	///       F2 task 1 and polls once per guest tick; task 2 gave `OpenPerformanceView` a body,
-	///       task 3 `StartStemExport`, and task 4 the three one-line verbs
-	///       (`SetClipLengthToSampleLength`, `OpenSongMidiLearn`, `OpenSongMacros`). Tasks 6 and 7
-	///       then added two enumerators that did not exist when this note first said "five" --
-	///       `SetShortcutsVersion` and `ScreensaverSettingsChanged` -- each with its arm. What each
-	///       arm still owes is narrower than "an empty arm" -- it is a named residue per arm -- and
-	///       is recorded at the arms themselves (`gui/ui/shell_action_dispatch.h`) rather than here.
+	/// @note **All seven of these actions are performed.** The consumer polls once per guest tick and
+	///       has a body for each: `OpenPerformanceView`, `StartStemExport`, the three one-line verbs
+	///       (`SetClipLengthToSampleLength`, `OpenSongMidiLearn`, `OpenSongMacros`), `SetShortcutsVersion`
+	///       and `ScreensaverSettingsChanged`. What each
+	///       arm still owes is a named residue per arm, recorded at the arms themselves
+	///       (`gui/ui/shell_action_dispatch.h`) rather than here.
 	///
 	/// @warning **This is a one-slot mailbox with a silent overwrite, not an exactly-once queue.**
 	///          Two requests filed between two polls lose the first, and a request nobody polls for
@@ -313,12 +308,11 @@ public:
 	///          allocates nothing, so a fixed ring with its own overflow policy -- the same problem
 	///          one level down) or a new `Action` kind for the router to carry, which would put a
 	///          concept the shell has no business knowing about (a legacy root-UI call) into
-	///          `shell/scene.h`. An honest mailbox plus this warning was judged better than a
+	///          `shell/scene.h`. An honest mailbox plus this warning is better than a
 	///          guarantee that only half holds. **No shipped item can lose a request today, but the
-	///          reason is narrower than it used to be and the arithmetic does not carry it.** This
-	///          warning used to argue "one tick delivers at most one select press", which was a
-	///          complete argument while a select press was the only route in. It is not any more.
-	///          There are two: a `CustomItem` writing `pending_action` from `on_focus`/`render`, and
+	///          reason is narrow and the arithmetic does not carry it.** "One tick delivers at most
+	///          one select press" would be a complete argument only if a select press were the sole
+	///          route in. There are two routes: a `CustomItem` writing `pending_action` from `on_focus`/`render`, and
 	///          `request_action` below, reached from a `Binding::set` hook by way of `commit_value`.
 	///          Each fires at most once per `after_render`, so the ceiling is **two**, not one --
 	///          "once each" is exactly the pair this paragraph needs to rule out, and it does not
@@ -376,7 +370,7 @@ public:
 	///     is what makes this a separate statement rather than something the move carries along.
 	///   * `soundEditor.menuItemNavigationRecord[0] = parentMenuHeadingTo` (`:1117`) -> `path[0]`.
 	///   * `soundEditor.navigationDepth = 0` (`:1118`) -> `depth = 0`. This is the whole of the
-	///     "one extra BACK press" this port used to cost: without it the user is left on the file
+	///     "one extra BACK press" it would otherwise cost: without it the user is left on the file
 	///     selector at whatever depth it was opened from, one level further in than legacy leaves
 	///     them -- and, on the shortcut-pad route, out of the menu altogether.
 	///
@@ -498,10 +492,9 @@ private:
 	MenuWalk walk_;
 
 public:
-	/// @name The two navigation steps a caller outside the scene takes (note-family Task 7a)
+	/// @name The two navigation steps a caller outside the scene takes
 	///
-	/// Declared here, after the members, only so that adding them moved no line of this header that
-	/// the tree already cites. They belong beside `read_value_again()` in spirit.
+	/// They belong beside `read_value_again()` in spirit.
 	/// @{
 	/// @brief One level up the path -- `SoundEditor::goUpOneLevel` (`gui/ui/sound_editor.cpp:710-729`), for a
 	///        caller outside the scene.
@@ -522,7 +515,7 @@ public:
 	/// @brief Push @p node one level below the focused node -- `SoundEditor::enterSubmenu`
 	///        (`gui/ui/sound_editor.cpp:362-369`), for a caller outside the scene.
 	///
-	/// Added by note-family Task 7a for `SoundEditor::toggleNoteEditorParamMenu`'s press arm
+	/// For `SoundEditor::toggleNoteEditorParamMenu`'s press arm
 	/// (`:1967-1969`). Legacy's body is `endScreen()`, `navigationDepth++`, the record write and
 	/// `beginScreen(navigatedBackwardFrom)` (`:364-368`), and `beginScreen` begins the item's session
 	/// without asking `checkPermissionToBeginSession` (`:957-976`) -- so this is `descend_to`, which
@@ -536,8 +529,8 @@ public:
 	///       `Submenu::beginSession` (`gui/menu_item/submenu.cpp:11-19`) -> `focusChild(nullptr)`
 	///       (`:21-37`), which keeps the process-lifetime object's `current_item_`: a second toggle hold
 	///       lands on the column last focused. `descend_to` resets `st_.list[depth]` and
-	///       `st_.columns[depth]` (`scenes/menu/menu_scene.cpp:1510-1511`), so this always lands on the
-	///       first. It is `src/scenes/README.md:1709-1735`'s carry 5 -- focus kept per depth for a
+	///       `st_.columns[depth]` (`MenuWalk::descend_to`, `menu/walk.cpp`), so this always lands on the
+	///       first. It is `src/scenes/README.md`'s carry 5 -- focus kept per depth for a
 	///       session, not per menu object for the process -- met by a descend rather than a re-open.
 	///       Recorded, not changed.
 	void enter_submenu(const Node& node);

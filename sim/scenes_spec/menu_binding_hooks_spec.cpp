@@ -184,7 +184,7 @@ struct Rig {
 		while (shell.stack().depth() > 0) {
 			shell.stack().pop(SceneKind::Null);
 		}
-		menu_scene().forget_rows(); // each example starts with the rows a boot has
+		menu_scene().reset_process_state(); // each example starts with the rows a boot has
 	}
 
 	explicit Rig(const BoardProfile& p = deluge_profile()) : profile(p), fake(deluge::ui::shell::kDelugeBoard, p) {}
@@ -252,7 +252,7 @@ describe menu_binding_hooks("scenes::menu::MenuScene Binding hooks (adjust, valu
 	   _ {
 		// Fix round 1, Important 1's regression: driven without the `Shell` at all, since
 		// `render_oled`/`on_resume`/`after_render` are all public on `menu_scene()`
-		// (`menu_scene.h:495`, `:502`, `:498`) and this rig's `input` is a plain field a spec sets
+		// (`MenuScene`, `scenes/menu/menu_scene.h`) and this rig's `input` is a plain field a spec sets
 		// directly (`spec/ui/support/frames.h`'s own doc on `OledRig`).
 		//
 		// A single stage-then-`on_resume`-then-commit sequence is not enough to tell the reset
@@ -296,10 +296,10 @@ describe menu_binding_hooks("scenes::menu::MenuScene Binding hooks (adjust, valu
 
 	it("on_enter() discards a staged offset through retarget(), unmasked by open()'s own reset", _ {
 		// Fix round 1, Important 1's regression, `retarget()`'s half (fix round 3): `on_enter` is
-		// public (`menu_scene.h:501`) and, on its `arg == 0` fallback (`menu_scene.cpp:492-498`),
+		// public (`MenuScene::on_enter`) and, on its `arg == 0` fallback,
 		// reads `ctx_.root` -- already set by `r.open()` below -- looks up `roots()[ctx_.root]`, and
-		// calls `retarget(*target)` (`:502`) with **no preceding `st_ = MenuState{}`**. That is the
-		// difference from `open()`, whose own full reset (`:333`) runs before its own
+		// calls `retarget(*target)` with **no preceding `st_ = MenuState{}`**. That is the
+		// difference from `open()`, whose own full reset runs before its own
 		// `retarget()` call and would mask `retarget`'s reset being missing entirely. `on_enter`'s
 		// `arg == 0` branch re-roots onto whatever `nodes::sound_root` (or similar) `ctx_.root`
 		// names, not back onto `adjust_page` -- fine here, since the assertion is only about

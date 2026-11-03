@@ -64,7 +64,7 @@ void MenuWalk::retarget(MenuCore core, ValueSession& session, const Node& node) 
 	if (is_leaf(node.kind)) {
 		// `NoRowPress`: re-rooting is `open()`, a `SceneId` deep link or the shortcut-pad jump. The
 		// jump IS a press -- on a grid pad, not on this node's row -- which is the distinction the
-		// value's name carries and the old `Restored` did not (final review, A6).
+		// value's name carries.
 		session.begin(core, &node); // `setup()`'s permission check
 		session.enter_leaf(core, node, FocusCause::NoRowPress);
 	}
@@ -278,8 +278,6 @@ void MenuWalk::enter_horizontal_item(MenuCore core, ValueSession& session, const
 void MenuWalk::descend_to(MenuCore core, ValueSession& session, const Node& child) {
 	MenuContext& ctx = core.ctx;
 	MenuState& st = core.st;
-	// (Task 8 removed `Kind::Action` -- no table declares one, see `node.h`'s `Kind`. The arm that
-	// ran an action in place rather than descending went with it.)
 	if (st.depth + 1 >= kMenuDepth) {
 		return;
 	}
@@ -313,8 +311,7 @@ void MenuWalk::enter_child(MenuCore core, ValueSession& session, const Node& chi
 	// (`sound_editor.cpp:1993-1997`), ahead of every one of its arms, plus legacy's
 	// `MUST_SELECT_RANGE` substitution (`:1857-1858`): both factored into
 	// `enter_range_picker_if_needed`, which `handle()`'s button-focus code shares -- see its own
-	// doc for why the two callers need the same piece. E1's carry list records the allocation as
-	// owed to task 9; task 2 (E-note-family) is what actually shares it with a second caller.
+	// doc for why the two callers need the same piece.
 	if (enter_range_picker_if_needed(core, session, child, /*suppress_when_allowed=*/false)) {
 		return;
 	}
@@ -371,8 +368,8 @@ void MenuWalk::ascend(MenuCore core, ValueSession& session) {
 	// `beginSession` on the item it lands on -- so a value leaf reached by going *up* re-reads its
 	// value from the model, exactly as one reached by going down does.
 	//
-	// E2 task 12 found the port did not, with the `menu_chain` script. Ascending to a leaf happens
-	// only where a chain descended *from* one (`Node::select_chain`, E2 task 3), and the chain target
+	// Ascending to a leaf happens
+	// only where a chain descended *from* one (`Node::select_chain`), and the chain target
 	// is often another value leaf that writes the shared `MenuState::edit_int` on its way through:
 	// `nodes::unison_count` -> `unison_spread` left the count's page redrawing the SPREAD's value and
 	// editing from it, so the first gold detent after a Back jumped the count to a number the user
@@ -382,18 +379,16 @@ void MenuWalk::ascend(MenuCore core, ValueSession& session) {
 	// **`Kind::Custom` gets its own arm, not `enter_leaf`.** `CustomItem::on_focus` is `beginSession`
 	// with `navigatedBackwardFrom == nullptr` -- the *forward* arm only -- so re-running it here
 	// would fire the forward arm on a backward navigation and send the CV/gate/device selectors back
-	// to row 0 every time the user stepped out of the page they had just opened. (E3 task 7 narrowed
-	// the *other* direction rather than this one: `enter_leaf` now takes a `FocusCause`, and every
-	// call site below passes `NoRowPress` -- which is what it always meant.)
+	// to row 0 every time the user stepped out of the page they had just opened. (`enter_leaf` takes a
+	// `FocusCause`, and every call site below passes `NoRowPress`.)
 	//
-	// E2 task 12 fix round 1 named the gap this left: with no backward arm at all, the exclusion
-	// itself had to stand in for one -- "leave `MenuState::list[depth]` alone" -- and that is sound
+	// Excluding `Kind::Custom` from `enter_leaf` alone would leave the exclusion standing in for a backward arm --
+	// "leave `MenuState::list[depth]` alone" -- and that is sound
 	// only while every chain-source item's backward behaviour happens to be exactly that. It is not:
-	// `GateSelectionItem::on_focus_backward` (`nodes/dynamic.cpp`) is the case where it is not,
-	// found while writing this arm's own test (E3 task 10). `CustomItem::on_focus_backward`
-	// (`node.h`) is the real hook now; its do-nothing default gives every other chain-source item
-	// (`CvSelectionItem`, `MidiDevicesItem`, `PatchCablesItem`, `SourceSelectionItem`) exactly the
-	// "keep the cursor" answer this comment used to hard-code for all of them.
+	// `GateSelectionItem::on_focus_backward` (`nodes/dynamic.cpp`) is a case where it is not.
+	// `CustomItem::on_focus_backward` (`node.h`) is the real hook; its do-nothing default gives every
+	// other chain-source item (`CvSelectionItem`, `MidiDevicesItem`, `PatchCablesItem`,
+	// `SourceSelectionItem`) the "keep the cursor" answer.
 	if (const Node* const landed = st.path[st.depth]; landed != nullptr && is_leaf(landed->kind)) {
 		if (landed->kind == Kind::Custom) {
 			if (landed->custom != nullptr) {
@@ -486,9 +481,9 @@ void MenuWalk::restore(MenuCore core, ValueSession& session, const SceneState& s
 			// `rename_scene_spec.cpp`'s "reopens the editor when a menu parked on the item is
 			// restored".
 			//
-			// **It is deliberate only for an item whose legacy body is `beginSession`.** E3 task 7
-			// found the other half: an item whose `on_focus` stands in for `selectButtonPress` --
-			// `nodes::MidiDeviceLinkedItem`, the four `nodes::ActionItem`s -- was having its
+			// **It is deliberate only for an item whose legacy body is `beginSession`.** An
+			// item whose `on_focus` stands in for `selectButtonPress` --
+			// `nodes::MidiDeviceLinkedItem`, the four `nodes::ActionItem`s -- would have its
 			// *press* replayed here, so restoring a menu parked on the MIDI device-definition
 			// toggle cleared the linked file with no user action, and restoring one parked on
 			// `start_stem_export` re-filed the export. `enter_leaf`'s `FocusCause` is the

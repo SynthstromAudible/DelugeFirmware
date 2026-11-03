@@ -28,7 +28,7 @@
 
 #include "scenes/menu/menu_scene.h"
 
-#include "scenes/menu/nodes/nodes.h" // `roots()`' table (task 8)
+#include "scenes/menu/nodes/nodes.h" // `roots()`' table
 
 #include "scenes/bind/dispatch.h"
 #include "scenes/browser/browser_scene.h" // on_resume: a chosen file's claim re-roots the menu
@@ -76,15 +76,15 @@ SceneKind MenuScene::kind() const {
 }
 
 std::span<const Node* const> MenuScene::roots() {
-	// One slot per `MenuContext::Root`, and every one of them filled: Tasks 6-8 wrote the tables.
+	// One slot per `MenuContext::Root`, and every one of them filled.
 	// This array is `on_enter`'s "arg 0 means the root the context chose" lookup, and adding or
 	// re-pointing a root is a change to this array alone.
-	// Task 8: one node per `MenuContext::Root`, in enumerator order. `Root::MidiOrCv` holds the
+	// One node per `MenuContext::Root`, in enumerator order. `Root::MidiOrCv` holds the
 	// MIDI-titled spelling of that root -- the title `menus.cpp`'s constructor gives it; a caller
 	// on a CV output takes `nodes::midi_or_cv_root(ctx)` instead (`nodes/roots.h`'s note).
-	// Task 6 appends `NoteEditor`/`NoteRowEditor`: a menu opened with `ctx.root` set to either
+	// `NoteEditor`/`NoteRowEditor` are the last two: a menu opened with `ctx.root` set to either
 	// (`openShellMenu`'s `NoteMode`) re-roots here through `on_enter`'s `arg == 0` path
-	// (`menu_scene.h:472-490`'s warning), exactly as every other root does.
+	// (`MenuScene::open`'s warning), exactly as every other root does.
 	static const Node* const kRoots[static_cast<size_t>(MenuContext::Root::Count)] = {
 	    &nodes::sound_root,         &nodes::root_drum,       &nodes::root_midi_or_cv,  &nodes::root_midi_drum,
 	    &nodes::root_gate_drum,     &nodes::root_audio_clip, &nodes::root_performance, &nodes::root_song,
@@ -186,8 +186,8 @@ bool MenuScene::on_enter(const SceneId& id) {
 		}
 	}
 	else {
-		// Arg 0 means "the root this context chose" -- a real fallback since Task 6 filled
-		// `roots()` in. It refuses (returns false below) only if `ctx_.root` is out of range.
+		// Arg 0 means "the root this context chose" -- the fallback through
+		// `roots()`. It refuses (returns false below) only if `ctx_.root` is out of range.
 		const std::span<const Node* const> r = roots();
 		const size_t i = static_cast<size_t>(ctx_.root);
 		target = i < r.size() ? r[i] : nullptr;
@@ -331,8 +331,8 @@ const Node* MenuScene::focused_value() const {
 // Rendering. Draws AND consumes input (the toolkit's rule); never touches the model.
 
 void MenuScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) {
-	// One `oled_role_by_index` entry on this board, so every other role is somebody else's panel
-	// (spec E §3 rule 5). Returning before anything is read keeps the claims clean too.
+	// One `oled_role_by_index` entry on this board, so every other role is somebody else's panel.
+	// Returning before anything is read keeps the claims clean too.
 	if (role != SurfaceRole::Main) {
 		return;
 	}
@@ -475,7 +475,7 @@ Result MenuScene::after_render() {
 	// (`handleInstrumentButtonPress`'s tail `:437`, `handleItemAction` `:666` -- both ported in
 	// `handle()`'s button code, which calls `notify_column` itself). **Not** on a select press on
 	// a value column (`Submenu::selectButtonPress` never calls `displayNotification` at all --
-	// `column_press` used to be listed here by mistake, see `MenuTick::column_press`'s doc).
+	// see `MenuTick::column_press`'s doc).
 	//
 	// `notify_column` is `notice_text`'s call, factored out so `handle()`'s button code raises the
 	// same notification through the same text-building rules -- see its own doc for why the
@@ -541,7 +541,7 @@ Result MenuScene::after_render() {
 		// override runs FIRST, as the horizontal forward's own call -- not a separate arm bolted on
 		// after. No notification either way: neither `Toggle`'s/`Selection`'s `selectButtonPress`
 		// nor the chain/ascend arms below call `displayNotification` (see `MenuState::
-		// column_press`'s doc for the call this used to be attributed to by mistake).
+		// column_press`'s doc).
 		if (const Node* column = selected_child(*node); column != nullptr && column->kind != Kind::Submenu) {
 			if (column->kind == Kind::Toggle || column->selection_is_toggle) {
 				// `Toggle::selectButtonPress` (`toggle.h:38-42`) and `Selection::selectButtonPress`
@@ -595,7 +595,7 @@ Result MenuScene::after_render() {
 	//   * The request goes into the one-slot outbox `take_action()` empties. There is no `Action`
 	//     kind for it and there must not be: the shell knows about scenes, and what these items run
 	//     is not a scene (`openUI(&performanceView)`, `stemExport.startStemExportProcess(...)`).
-	//     `gui::ui::dispatchShellActions` is the consumer, as of F2 task 1.
+	//     `gui::ui::dispatchShellActions` is the consumer.
 	//   * The four `ActionItem`s ascend straight back out. Legacy never descends into them at all --
 	//     `shouldEnterSubmenu()` is false, so `SoundEditor` calls `selectButtonPress()` and stays on
 	//     the parent list (`gui/ui/sound_editor.cpp:420-423`). Ascending on the tick the request is
@@ -614,7 +614,7 @@ Result MenuScene::after_render() {
 		// this item" -- so the test is on the action's own identity rather than on a flag, and a
 		// sixth action added without deciding this question fails the `switch`'s coverage warning.
 		//
-		// **The sixth arrived (F2 task 6) and does NOT ascend**, and the rule above is what decides
+		// **The sixth, `SetShortcutsVersion`, does NOT ascend**, and the rule above is what decides
 		// it rather than a preference. `SetShortcutsVersion` is filed from a `Binding::set` hook,
 		// which runs from `commit_value` a few lines above -- not from `on_focus`, and not from any
 		// press. It is also the other half of the same rule: legacy DOES enter this item. It is a
@@ -625,7 +625,7 @@ Result MenuScene::after_render() {
 		// on it. Ascending here would close that page under the user on the first turn, which is UI
 		// the port would be inventing.
 		//
-		// **The seventh (F2 task 7) has the sixth's shape exactly, so it takes the sixth's answer.**
+		// **The seventh, `ScreensaverSettingsChanged`, has the sixth's shape exactly, so it takes the sixth's answer.**
 		// `ScreensaverSettingsChanged` is filed from the same `Binding::set` route, by two hooks
 		// (`nodes::set_screensaver_mode`, `nodes::set_screensaver_timeout`); and legacy enters both
 		// of their items too. `ScreensaverModeMenu` is a `Selection` and `ScreensaverTimeout` an
@@ -770,16 +770,15 @@ Result MenuScene::handle_event(const UiEvent& event, const UiContext& ctx) {
 	//
 	// `Remove{.pop_to = SceneKind::FirstApp}`, NOT `Pop` with any `pop_to`: `SceneStack::pop(kind)`
 	// pops the topmost scene of that kind *and everything above it* (`scene_stack.cpp:63-95`), so
-	// `Pop{.pop_to = FirstApp}` -- this scene's own first, wrong fix for the bug below -- still tore
+	// `Pop{.pop_to = FirstApp}` would tear
 	// down a live `Working` animation or `Popup` sitting over the menu along with it. `Remove`
 	// (`SceneStack::remove`) excises just the named scene and leaves everything else exactly where
 	// it was, which is what "close the editor" should mean regardless of which overlay happens to be
 	// up. And it has to name a kind at all rather than defaulting to `Pop{.pop_to = Null}` ("just the
 	// top"): a `Notices`-driven overlay (`Console` in particular, which -- unlike `Popup`/`Working`
 	// -- is never removed again once shown) can legitimately be pushed above this scene between the
-	// render that produced this `Result` and the router applying it -- found by task 11's
-	// `menu_submenu_horizontal` acceptance script once its `Console` notice was made visible
-	// (`shell/notices.cpp`'s `Kind::Console` fix): with `Null`, pressing Back while that notice was
+	// render that produced this `Result` and the router applying it (`menu_submenu_horizontal`'s
+	// `Console` notice): with `Null`, pressing Back while that notice was
 	// still showing closed the console strip and left the menu itself on the stack.
 	if (event.kind == UiEvent::Kind::Button && event.button == ButtonId::Back && event.on && st_.depth == 0) {
 		// `SoundEditor::goUpOneLevel` runs `endScreen()` (-> `currentMenuItem->endSession()`)
@@ -841,8 +840,7 @@ void MenuScene::tick(uint32_t dt_ms) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Navigation for callers outside the scene (note-family Task 7a). At the end of the file so that
-// adding them moved no line the tree already cites.
+// Navigation for callers outside the scene.
 
 bool MenuScene::go_up_one_level() {
 	if (st_.depth == 0) {
