@@ -107,8 +107,18 @@ describe menu_source_press("scenes::MenuScene -- SHIFT and a patching-source pad
 		r.shift_press(15, 1); // VELOCITY
 		expect(menu_scene().focused() == &nodes::patch_cable_strength_regular).to_be_true();
 		expect(int(r.st().depth)).to_equal(1);
-		expect(int(r.st().walk.patching_param)).to_equal(int(params::GLOBAL_VOLUME_POST_FX));
 		expect(int(r.st().walk.patch_source)).to_equal(int(PatchSource::VELOCITY));
+	});
+
+	it("opens the volume cable the source already drives, not a new POST_FX one", _ {
+		// `Regular::checkPermissionToBeginSession`: a source POST_FX refuses is retried on POST_REVERB_SEND, then
+		// LOCAL_VOLUME, each asked on its own. The fixture's synth patches VELOCITY to LOCAL_VOLUME.
+		select_language();
+		Rig r;
+		r.open(nodes::master_volume);
+		r.shift_press(15, 1); // VELOCITY
+		expect(int(r.st().walk.patching_param)).to_equal(int(params::LOCAL_VOLUME));
+		expect(r.st().edit_int != 0).to_be_true(); // the existing cable's depth, not an empty one
 	});
 
 	it("a second press of the active source on a patch-cable page takes its second layer", _ {

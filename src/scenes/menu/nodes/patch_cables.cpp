@@ -529,10 +529,7 @@ void PatchCableStrengthItem::on_focus(const MenuContext& ctx, MenuState& state) 
 		// `Regular::checkPermissionToBeginSession` (`patch_cable_strength/regular.cpp:46-65`): the
 		// three volume params are one destination to the user, so a source that cannot reach POST_FX
 		// is retried against POST_REVERB_SEND and then LOCAL_VOLUME before the page gives up.
-		const auto disallowed = [&](int32_t p) {
-			deluge::synth::CableTarget only = deluge::synth::CableTarget::param(p);
-			return !patching::source_is_allowed(ctx, state.walk.patch_source, only);
-		};
+		const auto disallowed = [&](int32_t p) { return !patching::source_may_patch(ctx, state.walk.patch_source, p); };
 		if (disallowed(params::GLOBAL_VOLUME_POST_FX)) {
 			state.walk.patching_param = params::GLOBAL_VOLUME_POST_REVERB_SEND;
 			if (disallowed(params::GLOBAL_VOLUME_POST_REVERB_SEND)) {
@@ -938,6 +935,16 @@ namespace params = deluge::modulation::params;
 using nodes::find_cable;
 using nodes::sound_state_of;
 
+bool source_may_patch(const MenuContext& ctx, PatchSource source, int32_t param) {
+	const deluge::instrument::SoundState* state = sound_state_of(ctx);
+	if (state == nullptr) {
+		return false;
+	}
+	const bool is_drum = ctx.addresses.slot->kind == deluge::project::SlotAddress::Kind::DRUM;
+	return deluge::instrument::cable_allowed(static_cast<deluge::instrument::PatchSource>(source),
+	                                         deluge::plugin::ParamId{static_cast<uint32_t>(param)}, *state, is_drum);
+}
+
 bool source_is_allowed(const MenuContext& ctx, PatchSource source, deluge::synth::CableTarget destination) {
 	// `:181-192` -- patching to another cable's range: a global source can control any range, a
 	// local one only a cable that goes to a local param.
@@ -947,17 +954,8 @@ bool source_is_allowed(const MenuContext& ctx, PatchSource source, deluge::synth
 		}
 		return destination.param_index() < params::FIRST_GLOBAL;
 	}
-	const deluge::instrument::SoundState* state = sound_state_of(ctx);
-	if (state == nullptr) {
-		return false;
-	}
-	const bool is_drum = ctx.addresses.slot->kind == deluge::project::SlotAddress::Kind::DRUM;
 	const int32_t p = destination.param_index();
-	const auto allowed = [&](int32_t target) {
-		return deluge::instrument::cable_allowed(static_cast<deluge::instrument::PatchSource>(source),
-		                                         deluge::plugin::ParamId{static_cast<uint32_t>(target)}, *state,
-		                                         is_drum);
-	};
+	const auto allowed = [&](int32_t target) { return source_may_patch(ctx, source, target); };
 	// `:196-215` -- the volume triple is one destination as far as the user is concerned, so any of
 	// the three accepting the source makes it offerable.
 	if (p == params::GLOBAL_VOLUME_POST_FX) {

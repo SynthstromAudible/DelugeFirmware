@@ -15,6 +15,10 @@ namespace deluge::scenes::menu::patching {
 ///        @p destination on the sound @p ctx edits? The volume triple is one destination.
 bool source_is_allowed(const MenuContext& ctx, PatchSource source, deluge::synth::CableTarget destination);
 
+/// @brief `Sound::maySourcePatchToParam` != `DISALLOWED`: may @p source modulate param @p param itself? Unlike
+///        `source_is_allowed`, the volume triple's members answer each for itself.
+bool source_may_patch(const MenuContext& ctx, PatchSource source, int32_t param);
+
 /// @brief `PatchCableSet::isSourcePatchedToDestinationDescriptorVolumeInspecific`: is a cable from @p source to
 ///        @p destination on the sound @p ctx edits? The volume triple is one destination.
 bool source_is_patched(const MenuContext& ctx, PatchSource source, deluge::synth::CableTarget destination);
