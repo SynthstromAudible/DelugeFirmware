@@ -28,8 +28,8 @@ src/deluge/dsp-next/fixed/delay/delay_tape.h raw=0 boundary=16
 src/deluge/dsp-next/fixed/delay/feedback_shaper.h raw=0 boundary=9
 src/deluge/dsp-next/fixed/dynamics/compressor_kernel.h raw=0 boundary=24
 src/deluge/dsp-next/fixed/dynamics/duck_gain.h raw=0 boundary=4
-src/deluge/dsp-next/fixed/fft/radix.h raw=36 boundary=0
-src/deluge/dsp-next/fixed/fft/real_dft.cpp raw=2 boundary=0
+src/deluge/dsp-next/fixed/fft/radix.h raw=0 boundary=14
+src/deluge/dsp-next/fixed/fft/real_dft.cpp raw=0 boundary=6
 src/deluge/dsp-next/fixed/filter/filter_modes.h raw=0 boundary=5
 src/deluge/dsp-next/fixed/filter/filter_set.cpp raw=0 boundary=3
 src/deluge/dsp-next/fixed/filter/high_pass_ladder.h raw=1 boundary=28

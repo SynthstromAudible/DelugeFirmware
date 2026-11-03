@@ -46,6 +46,8 @@
 
 #pragma once
 
+#include "dsp-next/core/fixed_point.h"
+#include "dsp-next/core/fixed_point_neon.h"
 #include "dsp-next/core/wrapping.h"
 #include "dsp-next/fixed/fft/complex.h"
 
@@ -56,16 +58,27 @@
 #include <utility>
 
 /// @file
-/// @brief The int32 FFT's radix kernels, stage loop and real splits. Every sum and difference wraps. Every vector
-/// product is the saturating doubling high half, truncating except in the 16-point inverse, which rounds. The scalar
-/// 8-point paths differ: the 8-point inverse multiplies by √½ as a 64-bit product shifted down by 31, and its real
-/// split sums two 64-bit products' high words and then doubles the sum, both wrapping. Each kernel computes its values
-/// from the same operands in the same order the recorded transforms were made with, so they match bit for bit.
+/// @brief The int32 FFT's radix kernels, stage loop and real splits. The values are Q31 sample words, unscaled, and
+/// every sum and difference wraps. Every vector product is a Q31 value times a Q31 twiddle, the saturating doubling
+/// high half (@ref twiddled), truncating except in the 16-point inverse, which rounds (@ref twiddled_r). The scalar
+/// 8-point paths differ: the 8-point inverse multiplies by √½ as the exact product floored to Q31, and its real split
+/// sums two Q30 high words and then doubles the sum back to Q31, both wrapping. Each kernel computes its values from
+/// the same operands in the same order the recorded transforms were made with, so they match bit for bit.
 namespace deluge::dsp::fixed::fft::detail {
 
 enum class Direction : uint8_t { FORWARD, INVERSE };
 
 using V = Argon<int32_t>;
+
+/// @brief Four Q31 values times four Q31 twiddles, the saturating doubling high half, truncated (`vqdmulh`).
+[[nodiscard, gnu::always_inline]] inline V twiddled(V x, V w) {
+	return mul_doubling_sat(QVec<31>::from_raw(x), QVec<31>::from_raw(w)).raw();
+}
+
+/// @brief As @ref twiddled, rounded (`vqrdmulh`): the 16-point inverse's products.
+[[nodiscard, gnu::always_inline]] inline V twiddled_r(V x, V w) {
+	return mul_doubling_r_sat(QVec<31>::from_raw(x), QVec<31>::from_raw(w)).raw();
+}
 
 /// @brief Four complex values de-interleaved: their real parts and their imaginary parts.
 struct Pair {
@@ -118,20 +131,20 @@ struct Two {
 	}};
 }
 
-/// @brief (@p x · √½) in Q31: the product of the wrapped 32-bit value in 64 bits, shifted down and truncated.
+/// @brief Q31 @p x · √½: the exact Q62 product floored to Q31, which keeps the bit @ref mul's Q30 high word drops.
 [[nodiscard, gnu::always_inline]] inline int32_t times_sqrt_half(int32_t x) {
-	constexpr int64_t kSqrtHalf = 1518500249; // √½ in Q31
-	return static_cast<int32_t>((static_cast<int64_t>(x) * kSqrtHalf) >> 31);
+	constexpr Q<31> kSqrtHalf = Q<31>::from_raw(1518500249);
+	return narrow_floor_wrap<Q<31>>(mul_wide(Q<31>::from_raw(x), kSqrtHalf)).raw();
 }
 
-/// @brief The high word of the 64-bit product @p a × @p b.
+/// @brief Q31 @p a × Q31 @p b in Q30: the product's high word, truncated.
 [[nodiscard, gnu::always_inline]] inline int32_t high_product(int32_t a, int32_t b) {
-	return static_cast<int32_t>((static_cast<int64_t>(a) * b) >> 32);
+	return mul(Q<31>::from_raw(a), Q<31>::from_raw(b)).raw();
 }
 
-/// @brief @p x doubled, wrapping.
+/// @brief A Q30 sum of two @ref high_product results in Q31: @p x doubled, the bit shifted out of the top wrapping.
 [[nodiscard, gnu::always_inline]] inline int32_t doubled(int32_t x) {
-	return static_cast<int32_t>(static_cast<uint32_t>(x) << 1);
+	return as_wrap<Q<31>>(Q<30>::from_raw(x)).raw();
 }
 
 /// @brief Writes complex value @p k of an interleaved (r, i) output: the caller's sample words, written as words.
@@ -247,18 +260,18 @@ struct Two {
 	const Pair tw2 = load2(words(tw + 4));
 	const Pair tw3 = load2(words(tw + 8));
 
-	V s0_r = in_r4567.MultiplyRoundFixedQMax(tw1.r);
-	V s0_i = in_i4567.MultiplyRoundFixedQMax(tw1.r);
-	V s1_r = in_r89ab.MultiplyRoundFixedQMax(tw2.r);
-	V s1_i = in_i89ab.MultiplyRoundFixedQMax(tw2.r);
-	V s2_r = in_rcdef.MultiplyRoundFixedQMax(tw3.r);
-	V s2_i = in_icdef.MultiplyRoundFixedQMax(tw3.r);
-	const V tmp0 = in_i4567.MultiplyRoundFixedQMax(tw1.i);
-	const V tmp1 = in_r4567.MultiplyRoundFixedQMax(tw1.i);
-	const V tmp2 = in_i89ab.MultiplyRoundFixedQMax(tw2.i);
-	const V tmp3 = in_r89ab.MultiplyRoundFixedQMax(tw2.i);
-	const V tmp4 = in_icdef.MultiplyRoundFixedQMax(tw3.i);
-	const V tmp5 = in_rcdef.MultiplyRoundFixedQMax(tw3.i);
+	V s0_r = twiddled_r(in_r4567, tw1.r);
+	V s0_i = twiddled_r(in_i4567, tw1.r);
+	V s1_r = twiddled_r(in_r89ab, tw2.r);
+	V s1_i = twiddled_r(in_i89ab, tw2.r);
+	V s2_r = twiddled_r(in_rcdef, tw3.r);
+	V s2_i = twiddled_r(in_icdef, tw3.r);
+	const V tmp0 = twiddled_r(in_i4567, tw1.i);
+	const V tmp1 = twiddled_r(in_r4567, tw1.i);
+	const V tmp2 = twiddled_r(in_i89ab, tw2.i);
+	const V tmp3 = twiddled_r(in_r89ab, tw2.i);
+	const V tmp4 = twiddled_r(in_icdef, tw3.i);
+	const V tmp5 = twiddled_r(in_rcdef, tw3.i);
 	s0_r = s0_r.Add(tmp0);
 	s0_i = s0_i.Subtract(tmp1);
 	s1_r = s1_r.Add(tmp2);
@@ -343,10 +356,10 @@ template <Direction D>
 			s7_r = sin7_r.Add(sin7_i);
 			s7_i = sin7_i.Subtract(sin7_r);
 		}
-		s3_r = s3_r.MultiplyFixedQMax(tw_81);
-		s3_i = s3_i.MultiplyFixedQMax(tw_81);
-		s7_r = s7_r.MultiplyFixedQMax(tw_81n);
-		s7_i = s7_i.MultiplyFixedQMax(tw_81n);
+		s3_r = twiddled(s3_r, tw_81);
+		s3_i = twiddled(s3_i, tw_81);
+		s7_r = twiddled(s7_r, tw_81n);
+		s7_i = twiddled(s7_i, tw_81n);
 
 		const V s8_r = sin0_r.Add(sin4_r);
 		const V s8_i = sin0_i.Add(sin4_i);
@@ -458,18 +471,18 @@ template <Direction D>
 		const Pair tw1 = load2(twp + tw_step);
 		const Pair tw2 = load2(twp + (2 * tw_step));
 		twp += 8;
-		V s1_r = in1.r.MultiplyFixedQMax(tw0.r);
-		V s1_i = in1.i.MultiplyFixedQMax(tw0.r);
-		V s2_r = in2.r.MultiplyFixedQMax(tw1.r);
-		V s2_i = in2.i.MultiplyFixedQMax(tw1.r);
-		V s3_r = in3.r.MultiplyFixedQMax(tw2.r);
-		V s3_i = in3.i.MultiplyFixedQMax(tw2.r);
-		const V tmp0 = in1.i.MultiplyFixedQMax(tw0.i);
-		const V tmp1 = in1.r.MultiplyFixedQMax(tw0.i);
-		const V tmp2 = in2.i.MultiplyFixedQMax(tw1.i);
-		const V tmp3 = in2.r.MultiplyFixedQMax(tw1.i);
-		const V tmp4 = in3.i.MultiplyFixedQMax(tw2.i);
-		const V tmp5 = in3.r.MultiplyFixedQMax(tw2.i);
+		V s1_r = twiddled(in1.r, tw0.r);
+		V s1_i = twiddled(in1.i, tw0.r);
+		V s2_r = twiddled(in2.r, tw1.r);
+		V s2_i = twiddled(in2.i, tw1.r);
+		V s3_r = twiddled(in3.r, tw2.r);
+		V s3_i = twiddled(in3.i, tw2.r);
+		const V tmp0 = twiddled(in1.i, tw0.i);
+		const V tmp1 = twiddled(in1.r, tw0.i);
+		const V tmp2 = twiddled(in2.i, tw1.i);
+		const V tmp3 = twiddled(in2.r, tw1.i);
+		const V tmp4 = twiddled(in3.i, tw2.i);
+		const V tmp5 = twiddled(in3.r, tw2.i);
 		if constexpr (D == Direction::FORWARD) { // rotate by the twiddle
 			s1_r = s1_r.Subtract(tmp0);
 			s1_i = s1_i.Add(tmp1);
@@ -585,10 +598,10 @@ template <Direction D>
 		const V f1k_i = fpk.i.Add(fpnk_i);
 		const V f2k_r = fpk.r.Subtract(fpnk_r);
 		const V f2k_i = fpk.i.Subtract(fpnk_i);
-		const V tmp0 = f2k_r.MultiplyFixedQMax(twk.r);
-		const V tmp1 = f2k_i.MultiplyFixedQMax(twk.i);
-		const V tmp2 = f2k_r.MultiplyFixedQMax(twk.i);
-		const V tmp3 = f2k_i.MultiplyFixedQMax(twk.r);
+		const V tmp0 = twiddled(f2k_r, twk.r);
+		const V tmp1 = twiddled(f2k_i, twk.i);
+		const V tmp2 = twiddled(f2k_r, twk.i);
+		const V tmp3 = twiddled(f2k_i, twk.r);
 		const V tw_r = tmp0.Subtract(tmp1);
 		const V tw_i = tmp2.Add(tmp3);
 		const V dst2_r = f1k_r.SubtractHalve(tw_r);
@@ -627,10 +640,10 @@ template <Direction D>
 			const V fek_i = fk.i.Add(fnkc_i);
 			const V tmp0 = fk.r.Subtract(fnkc_r);
 			const V tmp1 = fk.i.Subtract(fnkc_i);
-			V fok_r = tmp0.MultiplyFixedQMax(twk.r);
-			V fok_i = tmp1.MultiplyFixedQMax(twk.r);
-			const V tmp2 = tmp1.MultiplyFixedQMax(twk.i);
-			const V tmp3 = tmp0.MultiplyFixedQMax(twk.i);
+			V fok_r = twiddled(tmp0, twk.r);
+			V fok_i = twiddled(tmp1, twk.r);
+			const V tmp2 = twiddled(tmp1, twk.i);
+			const V tmp3 = twiddled(tmp0, twk.i);
 			fok_r = fok_r.Add(tmp2);
 			fok_i = fok_i.Subtract(tmp3);
 			const V dst2_r = fek_r.Subtract(fok_r);
