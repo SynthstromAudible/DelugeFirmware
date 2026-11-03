@@ -64,14 +64,19 @@ async fn send_frame(fb: &oled::FrameBuffer) {
 /// Stores a 1-bpp framebuffer of `width * height / 8` bytes (page-major) and signals the render
 /// task; returns without waiting for the transfer. A frame identical to the stored one is dropped:
 /// the panel already shows it, and every transfer occupies the RSPI0 bus that CV output shares.
+///
+/// # Safety
+///
+/// `pixels` must be valid for reads of `width * height / 8` bytes, or of
+/// [`oled::FRAME_BYTES`] if that is fewer.
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_display_blit_oled(
+pub unsafe extern "C" fn deluge_display_blit_oled(
     pixels: *const u8,
     width: u16,
     height: u16,
 ) -> DelugeStatus {
     let n = (width as usize * height as usize / 8).min(oled::FRAME_BYTES);
-    // SAFETY: the app passes `n` valid framebuffer bytes; FRAME is only touched
+    // SAFETY: the caller passes `n` valid framebuffer bytes; FRAME is only touched
     // here and in oled_render, which cannot run concurrently with this copy.
     let src = unsafe { core::slice::from_raw_parts(pixels, n) };
     // The harness shadow takes every blit, duplicates included: a test may reset it between frames.
@@ -92,8 +97,12 @@ pub extern "C" fn deluge_display_blit_oled(
 
 /// Blits to panel `index`. The Deluge has one panel: index 0 is [`deluge_display_blit_oled`], any
 /// other index is `DELUGE_ERR_PARAM`.
+///
+/// # Safety
+///
+/// As [`deluge_display_blit_oled`].
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_display_blit_oled_n(
+pub unsafe extern "C" fn deluge_display_blit_oled_n(
     index: u8,
     pixels: *const u8,
     width: u16,
@@ -102,7 +111,8 @@ pub extern "C" fn deluge_display_blit_oled_n(
     if index != 0 {
         return DELUGE_ERR_PARAM;
     }
-    deluge_display_blit_oled(pixels, width, height)
+    // SAFETY: this function's own contract.
+    unsafe { deluge_display_blit_oled(pixels, width, height) }
 }
 
 /// Whether panel `index` is mid-transfer. Never: a blit only stashes the frame for the render task,
@@ -127,8 +137,12 @@ pub extern "C" fn deluge_display_init() {
 ///
 /// Polls the PIC receive ring directly rather than awaiting [`control`](super::control)'s queue:
 /// callers are mid-assertion, and on the fault-vector path no executor is running.
+///
+/// # Safety
+///
+/// `pixels` must be valid for reads of [`oled::FRAME_BYTES`] bytes.
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_display_freeze(pixels: *const u8) {
+pub unsafe extern "C" fn deluge_display_freeze(pixels: *const u8) {
     /// PIC byte for a select-knob press — the resume gesture.
     const PIC_SELECT_KNOB_PRESS: u8 = 175;
     /// PIC prefix byte marking the following button code as a release, not a press.
@@ -136,7 +150,7 @@ pub extern "C" fn deluge_display_freeze(pixels: *const u8) {
     const PIC_NEXT_PAD_OFF: u8 = 252;
 
     let mut fb = oled::FrameBuffer::new();
-    // SAFETY: the fault handler passes a full-framebuffer pointer.
+    // SAFETY: the caller passes a full-framebuffer pointer.
     unsafe {
         let src = core::slice::from_raw_parts(pixels, oled::FRAME_BYTES);
         fb.pages.as_flattened_mut().copy_from_slice(src);

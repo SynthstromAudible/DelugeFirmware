@@ -158,8 +158,12 @@ fn button_event(id: u8, value: i16) -> DelugeInputEvent {
 /// `factory_reset_requested` is always false: the PIC parser does not decode the boot
 /// reset-burst. Every field must be written — an uninitialised struct makes the app read stack
 /// garbage and factory-reset the settings.
+///
+/// # Safety
+///
+/// `out` must be valid for writes of a [`DelugeBootInfo`].
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_control_read_boot_info(out: *mut DelugeBootInfo) {
+pub unsafe extern "C" fn deluge_control_read_boot_info(out: *mut DelugeBootInfo) {
     let fw = BOOT_FW.load(Ordering::Relaxed);
     let (version, oled_present) = if fw & BOOT_FW_RECEIVED != 0 {
         ((fw & 0x7f) as u8, (fw & 0x80) != 0)
@@ -167,7 +171,7 @@ pub extern "C" fn deluge_control_read_boot_info(out: *mut DelugeBootInfo) {
         // The version byte did not arrive in time; this board has the OLED.
         (0, true)
     };
-    // SAFETY: the app passes a valid DelugeBootInfo out-pointer (sync boot call).
+    // SAFETY: the caller passes a valid DelugeBootInfo out-pointer.
     unsafe {
         (*out).pic_firmware_version = version;
         (*out).oled_present = oled_present;
@@ -176,11 +180,15 @@ pub extern "C" fn deluge_control_read_boot_info(out: *mut DelugeBootInfo) {
 }
 
 /// Drains one decoded input event into `*out`; returns false when none is buffered.
+///
+/// # Safety
+///
+/// `out` must be valid for writes of a [`DelugeInputEvent`].
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_control_poll_event(out: *mut DelugeInputEvent) -> bool {
+pub unsafe extern "C" fn deluge_control_poll_event(out: *mut DelugeInputEvent) -> bool {
     match EVENTS.try_receive() {
         Ok(ev) => {
-            // SAFETY: the app passes a valid DelugeInputEvent out-pointer.
+            // SAFETY: the caller passes a valid DelugeInputEvent out-pointer.
             unsafe { *out = ev };
             true
         }
@@ -425,11 +433,19 @@ fn enqueue(cmd: PicOut) -> bool {
 
 /// Sets the colours of a main-grid column pair from `count` entries of `colours` (the app sends
 /// 16, in PIC wire order; at most 16 are used).
+///
+/// # Safety
+///
+/// `colours` must be valid for reads of `count` entries, or of 16 if that is fewer.
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_control_set_pad_columns(idx: u8, colours: *const DelugeColour, count: u8) {
+pub unsafe extern "C" fn deluge_control_set_pad_columns(
+    idx: u8,
+    colours: *const DelugeColour,
+    count: u8,
+) {
     let mut buf = [[0u8; 3]; 16];
     let n = (count as usize).min(16);
-    // SAFETY: the app passes `count` valid DelugeColour entries.
+    // SAFETY: the caller passes `count` valid DelugeColour entries.
     let src = unsafe { core::slice::from_raw_parts(colours, n) };
     for (dst, c) in buf.iter_mut().zip(src) {
         *dst = [c.r, c.g, c.b];
@@ -474,8 +490,12 @@ pub extern "C" fn deluge_control_scroll_done() {
 
 /// Performs a vertical scroll, supplying the whole incoming row: `count` entries of `colours`, one
 /// per column (the app sends all 18; at most 18 are used).
+///
+/// # Safety
+///
+/// `colours` must be valid for reads of `count` entries, or of 18 if that is fewer.
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_control_scroll_vertical(
+pub unsafe extern "C" fn deluge_control_scroll_vertical(
     up: bool,
     colours: *const DelugeColour,
     count: u8,
@@ -484,7 +504,7 @@ pub extern "C" fn deluge_control_scroll_vertical(
     crate::peripherals::rig_harness::record_scroll();
     let mut buf = [[0u8; 3]; 18];
     let n = (count as usize).min(18);
-    // SAFETY: the app passes `count` valid DelugeColour entries.
+    // SAFETY: the caller passes `count` valid DelugeColour entries.
     let src = unsafe { core::slice::from_raw_parts(colours, n) };
     for (dst, c) in buf.iter_mut().zip(src) {
         *dst = [c.r, c.g, c.b];
@@ -509,11 +529,15 @@ pub extern "C" fn deluge_control_set_led(led: u8, on: bool) {
 
 /// Sets a gold-knob indicator ring: `which` selects the knob (0 or non-zero); `levels` holds
 /// `count` per-LED brightnesses (the ring has 4; at most 4 are used).
+///
+/// # Safety
+///
+/// `levels` must be valid for reads of `count` bytes, or of 4 if that is fewer.
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_control_set_indicator(which: u8, levels: *const u8, count: u8) {
+pub unsafe extern "C" fn deluge_control_set_indicator(which: u8, levels: *const u8, count: u8) {
     let mut ring = [0u8; 4];
     let n = (count as usize).min(4);
-    // SAFETY: the app passes `count` valid brightness bytes.
+    // SAFETY: the caller passes `count` valid brightness bytes.
     let src = unsafe { core::slice::from_raw_parts(levels, n) };
     ring[..n].copy_from_slice(&src[..n]);
     #[cfg(not(target_os = "none"))]

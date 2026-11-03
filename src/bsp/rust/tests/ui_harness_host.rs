@@ -19,7 +19,7 @@ fn a_column_pair_lands_on_both_columns() {
     let mut colours = [DelugeColour { r: 0, g: 0, b: 0 }; 16];
     colours[0] = DelugeColour { r: 1, g: 2, b: 3 }; // column 2, row 0
     colours[15] = DelugeColour { r: 4, g: 5, b: 6 }; // column 3, row 7
-    control::deluge_control_set_pad_columns(1, colours.as_ptr(), 16);
+    unsafe { control::deluge_control_set_pad_columns(1, colours.as_ptr(), 16) };
     let pads =
         unsafe { core::slice::from_raw_parts(ui_harness::host_script_pad_shadow(), 32 * 8 * 3) };
     assert_eq!(&pads[(2 * 8) * 3..(2 * 8) * 3 + 3], &[1, 2, 3]);
@@ -31,7 +31,7 @@ fn leds_and_rings_are_recorded() {
     let _g = serial();
     control::deluge_control_set_led(5, true);
     let levels = [9u8, 8, 7];
-    control::deluge_control_set_indicator(1, levels.as_ptr(), 3);
+    unsafe { control::deluge_control_set_indicator(1, levels.as_ptr(), 3) };
     let leds = unsafe { core::slice::from_raw_parts(ui_harness::host_script_led_shadow(), 64) };
     assert_eq!(leds[5], 1);
     assert!(
@@ -48,7 +48,7 @@ fn the_oled_shadow_is_null_until_the_first_blit() {
     let (mut w, mut h) = (0u16, 0u16);
     assert!(ui_harness::host_script_oled_shadow(0, &mut w, &mut h).is_null());
     let frame = [0xA5u8; 768];
-    display::deluge_display_blit_oled(frame.as_ptr(), 128, 48);
+    unsafe { display::deluge_display_blit_oled(frame.as_ptr(), 128, 48) };
     let p = ui_harness::host_script_oled_shadow(0, &mut w, &mut h);
     assert_eq!((w, h), (128, 48));
     assert_eq!(unsafe { *p.add(767) }, 0xA5);
@@ -68,7 +68,7 @@ fn a_pushed_pad_is_what_the_app_polls() {
         y: 0,
         value: 0,
     };
-    assert!(control::deluge_control_poll_event(&mut ev));
+    assert!(unsafe { control::deluge_control_poll_event(&mut ev) });
     assert_eq!((ev.kind, ev.x, ev.y, ev.value), (KIND_PAD, 3, 4, 200));
 }
 

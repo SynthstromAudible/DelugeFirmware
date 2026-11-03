@@ -111,7 +111,7 @@ impl FillOps for FakeOps {
         (self.chunk_by_id(id) as *const FakeChunk) as *mut c_void
     }
 
-    fn is_unloadable(&self, chunk: *mut c_void) -> bool {
+    unsafe fn is_unloadable(&self, chunk: *mut c_void) -> bool {
         // SAFETY: only ever called with a pointer this test double's `next()`
         // just returned.
         let fc = unsafe { Self::chunk_from_ptr(chunk) };
@@ -119,7 +119,7 @@ impl FillOps for FakeOps {
         fc.unloadable
     }
 
-    fn begin(&self, chunk: *mut c_void) -> StreamingFillDescriptor {
+    unsafe fn begin(&self, chunk: *mut c_void) -> StreamingFillDescriptor {
         // SAFETY: only ever called with a pointer this test double's `next()`
         // just returned.
         let fc = unsafe { Self::chunk_from_ptr(chunk) };
@@ -158,7 +158,7 @@ impl FillOps for FakeOps {
         *self.read_result.borrow()
     }
 
-    fn finish(&self, chunk: *mut c_void, read_ok: bool) -> bool {
+    unsafe fn finish(&self, chunk: *mut c_void, read_ok: bool) -> bool {
         // SAFETY: same pointer `begin` was just called with.
         let fc = unsafe { Self::chunk_from_ptr(chunk) };
         self.calls.borrow_mut().push(Call::Finish {
@@ -169,21 +169,21 @@ impl FillOps for FakeOps {
         read_ok
     }
 
-    fn external_lease_count(&self, chunk: *mut c_void) -> u32 {
+    unsafe fn external_lease_count(&self, chunk: *mut c_void) -> u32 {
         // SAFETY: same pointer `begin`/`read` were just called with.
         let fc = unsafe { Self::chunk_from_ptr(chunk) };
         self.calls.borrow_mut().push(Call::LeaseCount(fc.id));
         fc.lease_count
     }
 
-    fn release_owned(&self, chunk: *mut c_void) {
+    unsafe fn release_owned(&self, chunk: *mut c_void) {
         // SAFETY: same pointer the other ops were just called with.
         let fc = unsafe { Self::chunk_from_ptr(chunk) };
         self.calls.borrow_mut().push(Call::ReleaseOwned(fc.id));
         fc.queue_leased.set(false);
     }
 
-    fn enqueue_lowest(&self, chunk: *mut c_void) {
+    unsafe fn enqueue_lowest(&self, chunk: *mut c_void) {
         // SAFETY: same pointer `begin`/`finish` were just called with.
         let fc = unsafe { Self::chunk_from_ptr(chunk) };
         self.calls.borrow_mut().push(Call::EnqueueLowest(fc.id));

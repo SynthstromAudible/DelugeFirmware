@@ -43,7 +43,7 @@ fn service(now: u64, reasons: u32) -> u64 {
     }
     let mut ev = pad(0);
     let mut drained = 0;
-    while !LEAVE.load(SeqCst) && control::deluge_control_poll_event(&mut ev) {
+    while !LEAVE.load(SeqCst) && unsafe { control::deluge_control_poll_event(&mut ev) } {
         drained += 1;
     }
     DRAINED.lock().unwrap().push(drained);
@@ -277,5 +277,5 @@ fn a_deferred_event_does_not_raise_input_on_later_passes() {
     );
     // Drain it for the next test.
     let mut ev = pad(0);
-    while control::deluge_control_poll_event(&mut ev) {}
+    while unsafe { control::deluge_control_poll_event(&mut ev) } {}
 }
