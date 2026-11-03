@@ -12,9 +12,16 @@ runs:
       with:
         cache-name: test-prerequisites
         packages: >-
-          gcc-16 g++-16 gcc-16-multilib g++-16-multilib gcc-multilib g++-multilib
+          gcc-16 g++-16 gcc-16-multilib g++-16-multilib
           gcc-16-arm-linux-gnueabihf g++-16-arm-linux-gnueabihf qemu-user python3-numpy
           ninja-build mtools jq
+
+    # The 32-bit builds include <asm/...> through glibc. gcc-multilib would link /usr/include/asm to the x86_64 copy,
+    # but it conflicts with the armhf cross compilers (both own that path), so the link is made here instead.
+    - name: Link the multilib asm headers
+      shell: bash
+      run: |
+        [ -e /usr/include/asm ] || sudo ln -s x86_64-linux-gnu/asm /usr/include/asm
 
     - uses: ./.github/actions/clang
 
