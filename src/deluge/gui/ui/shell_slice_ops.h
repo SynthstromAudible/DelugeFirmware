@@ -45,6 +45,13 @@ void pollShellSlicer();
 /// @return Whether one of the slicer's loads is out, so the guest keeps ticking to finish it.
 bool shellSlicerBusy();
 
+/// @return Whether a slice is out. The guest refuses to close while one is: its drums land in the kit it was asked for.
+bool shellSliceOut();
+
+/// @brief Drop the slicer's pending open and held audition as the guest closes, so neither lands in what the next guest
+///        edits.
+void releaseShellSlicerBeforeClose();
+
 /// @brief How often the guest ticks while the slicer has a load out.
 inline constexpr int32_t kShellSlicerPollMs = 15;
 

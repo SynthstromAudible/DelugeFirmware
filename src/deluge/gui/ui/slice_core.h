@@ -91,12 +91,18 @@ public:
 	/// @return Where the first drum's newest voice on its file is playing, in samples, if one is.
 	std::optional<int32_t> play_position();
 
+	/// @brief What a slice does to the browser preview's holder.
+	enum class Preview : uint8_t {
+		Release, ///< `AudioEngine::stopAnyPreviewing`: silenced and its holder unbound, as legacy's `doSlice` does.
+		Keep,    ///< Silenced, its holder left bound, so the sample stays loaded if the slice fails.
+	};
+
 	/// @brief Start slicing @p path into the first drum and as many new drums as @p target names.
 	///
-	/// Silences the first drum for a manual slice, stops any browser preview, cuts the sound and points its holder at
-	/// @p path; the slice itself runs when the load lands (`tick_slice`). @p target is copied: later changes to the
-	/// caller's own count or points do not reach it.
-	void begin_slice(const Target& target, std::string_view path);
+	/// Silences the first drum for a manual slice, stops the browser preview as @p preview says, cuts the sound and
+	/// points its holder at @p path; the slice itself runs when the load lands (`tick_slice`). @p target is copied:
+	/// later changes to the caller's own count or points do not reach it.
+	void begin_slice(const Target& target, std::string_view path, Preview preview = Preview::Release);
 	/// @return Whether a slice's load is out.
 	[[nodiscard]] bool slicing() const { return slicing_; }
 	/// @brief Finish the slice whose load has landed.

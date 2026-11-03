@@ -1336,6 +1336,12 @@ void actShellSlice() {
 		}
 		g_shellBackKept = range->sampleHolder.audioFile == nullptr && range->sampleHolder.startPos == start
 		                  && range->sampleHolder.endPos == end;
+		// The guest closing with the slicer's open still out drops it, so it cannot land in the next guest.
+		deluge::gui::ui::openShellSlice(legFile());
+		deluge::gui::ui::releaseShellSlicerBeforeClose();
+		if (deluge::gui::ui::shellSlicerBusy()) {
+			fail(legName(g_leg), "the guest's close left the slicer's open out");
+		}
 		g_shellEnded = true;
 		return;
 	}
@@ -1372,6 +1378,13 @@ void tickShellSlice() {
 		if (!g_shellCommitBegun) {
 			fail(legName(g_leg), "the host refused the slice");
 			g_shellEnded = true;
+			return;
+		}
+		// The slicer stays open on its sample if the slice fails, so the preview's holder has to keep it loaded.
+		const auto* range =
+		    static_cast<const MultisampleRange*>(AudioEngine::sampleForPreview->sources[0].ranges.getElement(0));
+		if (range->sampleHolder.audioFile == nullptr || range->sampleHolder.filePath != legFile()) {
+			fail(legName(g_leg), "the slice let go of the sample the slicer shows");
 		}
 		return;
 	}

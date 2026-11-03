@@ -249,6 +249,13 @@ extern std::optional<ActionResult> note_vertical_answer;
 extern int note_mode_exits;
 /// How many times `saveSettingsBeforeClose()` was called.
 extern int settings_saves;
+/// What `shellSliceOut()` answers: whether a slice is out. False by default.
+extern bool slice_out;
+/// How many times `releaseShellSlicerBeforeClose()` was called.
+extern int slicer_releases;
+/// Whether `closeUI` had already run when `releaseShellSlicerBeforeClose()` was called. Must be false: a load the close
+/// leaves out is dropped before the UI beneath gets focus.
+extern bool slicer_release_saw_close;
 /// How many times `discardShellDrumCreatorBeforeClose()` was called.
 extern int drum_creator_discards;
 /// Whether `closeUI` had already run when `discardShellDrumCreatorBeforeClose()` was called. Must be false: legacy's

@@ -55,6 +55,9 @@ int settings_saves = 0;
 bool settings_save_saw_close = false;
 int drum_creator_discards = 0;
 bool drum_creator_discard_saw_close = false;
+bool slice_out = false;
+int slicer_releases = 0;
+bool slicer_release_saw_close = false;
 bool note_exit_saw_knob_clear = false;
 std::vector<TimerArm> timer_arms;
 std::vector<TimerName> timer_unsets;
@@ -114,6 +117,9 @@ void reset() {
 	settings_save_saw_close = false;
 	drum_creator_discards = 0;
 	drum_creator_discard_saw_close = false;
+	slice_out = false;
+	slicer_releases = 0;
+	slicer_release_saw_close = false;
 	note_exit_saw_knob_clear = false;
 	timer_arms.clear();
 	timer_unsets.clear();
@@ -390,11 +396,18 @@ void dispatchShellChoices() {
 }
 
 // `gui/ui/shell_slice_ops.cpp`'s share: the real one drives `SliceCore` over the current kit. This suite has no
-// slicer, so nothing is ever out.
+// slicer: a spec says whether a slice is out, and the release records where in the close it ran.
 void pollShellSlicer() {
 }
 bool shellSlicerBusy() {
 	return false;
+}
+bool shellSliceOut() {
+	return fakelegacyui::slice_out;
+}
+void releaseShellSlicerBeforeClose() {
+	fakelegacyui::slicer_releases++;
+	fakelegacyui::slicer_release_saw_close = !fakelegacyui::closed.empty();
 }
 
 // `gui/ui/shell_pad_forward.cpp`'s share, on exactly the same terms as the two above: the real one

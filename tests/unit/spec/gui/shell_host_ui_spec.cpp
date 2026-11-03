@@ -2032,8 +2032,8 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(fakelegacyui::knob_clear_saw_close).to_be_false();
 	});
 
-	it("runs the note mode's exit, the settings save and the drum creator's discard on both close paths, after the "
-	   "indicator clear and before close()", _ {
+	it("runs the note mode's exit, the settings save, the drum creator's discard and the slicer's release on both "
+	   "close paths, after the indicator clear and before close()", _ {
 		// `SoundEditor::exitCompletely`'s note arms (`gui/ui/sound_editor.cpp:749-755`) run before its
 		// `close()` (`:761`); `closeGuest` is the body of both of the guest's close paths, so both
 		// must reach it, and neither survive path may.
@@ -2053,6 +2053,8 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 			expect(fakelegacyui::settings_save_saw_close).to_be_false();
 			expect(fakelegacyui::drum_creator_discards).to_equal(1);
 			expect(fakelegacyui::drum_creator_discard_saw_close).to_be_false();
+			expect(fakelegacyui::slicer_releases).to_equal(1);
+			expect(fakelegacyui::slicer_release_saw_close).to_be_false();
 			expect(fakelegacyui::closed.size()).to_equal(size_t(1));
 		}
 		{
@@ -2073,8 +2075,24 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 			expect(fakelegacyui::settings_save_saw_close).to_be_false();
 			expect(fakelegacyui::drum_creator_discards).to_equal(1);
 			expect(fakelegacyui::drum_creator_discard_saw_close).to_be_false();
+			expect(fakelegacyui::slicer_releases).to_equal(1);
+			expect(fakelegacyui::slicer_release_saw_close).to_be_false();
 			expect(fakelegacyui::closed.size()).to_equal(size_t(1));
 		}
+	});
+
+	it("refuses a long-press Back while a slice is out, and closes once it is not", _ {
+		// A slice that is out lands in the kit it was asked for, so the guest must not close under it.
+		Rig r;
+		expect(r.open(kBase)).to_be_true();
+		fakelegacyui::slice_out = true;
+		expect(r.guest.exitUI() == ActionResult::DEALT_WITH).to_be_true();
+		expect(r.guest.shell().stack().depth()).to_equal(size_t(1));
+		expect(fakelegacyui::closed.size()).to_equal(size_t(0));
+
+		fakelegacyui::slice_out = false;
+		expect(r.guest.exitUI() == ActionResult::ACTIONED_AND_CAUSED_CHANGE).to_be_true();
+		expect(fakelegacyui::closed.size()).to_equal(size_t(1));
 	});
 
 	it("feeds each gold-knob push once, though legacy delivers it twice", _ {

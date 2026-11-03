@@ -214,12 +214,17 @@ std::optional<int32_t> SliceCore::play_position() {
 	return voiceSample->getPlaySample((Sample*)range->sampleHolder.audioFile, guide);
 }
 
-void SliceCore::begin_slice(const Target& target, std::string_view path) {
+void SliceCore::begin_slice(const Target& target, std::string_view path, Preview preview) {
 	pending_ = target;
 	if (pending_.isManual) {
 		kill_voices(); // stop
 	}
-	AudioEngine::stopAnyPreviewing();
+	if (preview == Preview::Release) {
+		AudioEngine::stopAnyPreviewing();
+	}
+	else {
+		AudioEngine::sampleForPreview->killAllVoices();
+	}
 
 	// The first drum names the file, set once here, and the load binds it.
 	soundEditor.cutSound();

@@ -394,6 +394,8 @@ DELUGE_STUB_DATA(stub_currentUIMode, "currentUIMode", sizeof(uint32_t))
 DELUGE_STUB_DATA(stub_waveformBasicNavigator, "waveformBasicNavigator", sizeof(WaveformBasicNavigator))
 DELUGE_STUB_DATA(stub_actionLogger, "actionLogger", 1024)
 DELUGE_STUB_DATA(stub_matrixDriver, "matrixDriver", 1024)
+// `SliceCore::begin_slice`'s Keep arm reads it; the legacy slicer these specs drive takes the Release arm.
+DELUGE_STUB_DATA(stub_sampleForPreview, "_ZN11AudioEngine16sampleForPreviewE", sizeof(void*))
 DELUGE_STUB_DATA(stub_sampleBrowser, "sampleBrowser", 8192)
 DELUGE_STUB_DATA(stub_soundEditor, "soundEditor", 8192)
 DELUGE_STUB_DATA(stub_instrumentClipView, "instrumentClipView", 8192)

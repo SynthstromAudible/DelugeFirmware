@@ -1079,6 +1079,11 @@ ActionResult ShellHostUI::exitUI() {
 	//
 	// What Back leaves is the input top, not the raw top: a passive overlay drawn over it is not
 	// the scene the user is in.
+	// A slice that is out lands in the kit it was asked for, so the guest stays until it has: as the slicer refuses
+	// a short Back while it commits.
+	if (shellSliceOut()) {
+		return ActionResult::DEALT_WITH;
+	}
 	if (shell_.stack().has_input_scene()) {
 		(void)shell_.stack().remove(shell_.stack().input_top().kind());
 	}
@@ -1144,6 +1149,7 @@ void ShellHostUI::closeGuest() {
 	saveSettingsBeforeClose();
 	// A drum the creator made and the browser was backed out of: `SampleBrowser::exitAction` deletes it before closing.
 	discardShellDrumCreatorBeforeClose();
+	releaseShellSlicerBeforeClose();
 
 	// The knob popup still showing goes to legacy's display, then the stack empties so the next open starts clean.
 	if (closeHook_ != nullptr) {

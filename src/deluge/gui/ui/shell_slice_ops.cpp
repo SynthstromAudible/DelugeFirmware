@@ -31,6 +31,7 @@
 #include "storage/audio/latest_sample_load.h"
 #include "storage/multi_range/multisample_range.h"
 
+#include <optional>
 #include <string>
 
 namespace deluge::gui::ui {
@@ -60,10 +61,8 @@ public:
 		                                                   .on = req.on});
 	}
 	void cancel_audition() override { core_.cancel_audition(); }
-	std::optional<int32_t> play_position() override {
-		adoptShellMenuContext();
-		return core_.play_position();
-	}
+	/// The position `poll` read this tick: the scene asks while it renders, which must not move `soundEditor`.
+	std::optional<int32_t> play_position() override { return play_position_; }
 	void restore_full_range() override { (void)core_.restore_full_range(); }
 	bool begin_commit(const SliceCommit& commit) override {
 		if (core_.slicing() || path_.empty()) {
@@ -77,7 +76,8 @@ public:
 			target.manualPoints[i] =
 			    SliceItem{.startPos = commit.points[i].start_pos, .transpose = commit.points[i].transpose};
 		}
-		core_.begin_slice(target, path_);
+		// The slicer stays open on its sample if the slice fails, and the preview's holder is what keeps it loaded.
+		core_.begin_slice(target, path_, SliceCore::Preview::Keep);
 		return true;
 	}
 
@@ -104,6 +104,13 @@ public:
 	}
 
 	void poll() {
+		if (!busy() && sample_ == nullptr) {
+			play_position_.reset();
+			return;
+		}
+		// The audition and the slice act on what the ported menu edits, and another UI may have moved `soundEditor`
+		// since they were asked for.
+		adoptShellMenuContext();
 		poll_open();
 		core_.tick_audition();
 		if (const std::optional<SliceCore::SliceEnd> end = core_.tick_slice()) {
@@ -117,8 +124,19 @@ public:
 			}
 			slicer_scene().commit_done(end->landed);
 		}
+		play_position_ = sample_ != nullptr ? core_.play_position() : std::nullopt;
 	}
 
+	/// @brief Drop what the guest's close leaves behind: a pending open and a held audition, which would otherwise
+	///        land in whatever the next guest edits. A slice that is out cannot be dropped; the close is refused
+	///        while one is (`slicing`).
+	void release() {
+		open_load_.cancel();
+		core_.cancel_audition();
+		play_position_.reset();
+	}
+
+	[[nodiscard]] bool slicing() const { return core_.slicing(); }
 	[[nodiscard]] bool busy() const { return open_load_.pending() || core_.slicing() || core_.audition_pending(); }
 
 private:
@@ -153,6 +171,7 @@ private:
 	deluge::storage::LatestSampleLoad<uint32_t> open_load_{};
 	std::string path_{};
 	Sample* sample_ = nullptr;
+	std::optional<int32_t> play_position_{};
 };
 
 HostSliceOps& host() {
@@ -176,6 +195,14 @@ void pollShellSlicer() {
 
 bool shellSlicerBusy() {
 	return host().busy();
+}
+
+bool shellSliceOut() {
+	return host().slicing();
+}
+
+void releaseShellSlicerBeforeClose() {
+	host().release();
 }
 
 } // namespace deluge::gui::ui
