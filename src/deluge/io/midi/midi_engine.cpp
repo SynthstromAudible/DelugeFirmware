@@ -55,7 +55,7 @@ extern "C" {
 volatile uint32_t usbLock = 0;
 }
 
-PLACE_SDRAM_BSS MidiEngine midiEngine{};
+PLACE_SDRAM_DATA MidiEngine midiEngine{};
 
 MidiEngine::MidiEngine() {
 	numSerialMidiInput = 0;
@@ -204,7 +204,7 @@ void MidiEngine::sendMidi(MIDISource source, MIDIMessage message, int32_t filter
 
 namespace {
 // Shared with the MIDI/gate output timer's interrupt: only touched under a CriticalSectionGuard
-PLACE_SDRAM_BSS MIDIQueue midiQueue;
+PLACE_SDRAM_DATA MIDIQueue midiQueue;
 } // namespace
 
 void MidiEngine::queueMIDI(MIDIMessage message, int32_t filter, bool sendUSB, bool sendDIN) {

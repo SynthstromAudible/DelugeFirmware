@@ -26,7 +26,7 @@
 
 using namespace deluge::gui;
 
-PLACE_SDRAM_BSS AutomationEditorLayoutNote automationEditorLayoutNote{};
+PLACE_SDRAM_DATA AutomationEditorLayoutNote automationEditorLayoutNote{};
 
 // gets the length of the note row, renders the pads corresponding to current note parameter values set up to the
 // note row length renders the undefined area of the note row that the user can't interact with
