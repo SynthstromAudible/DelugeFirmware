@@ -1755,7 +1755,7 @@ describe midi_learn_table("a pad's learn is the song's mapping table's, on both 
 	});
 
 	it("an input learn's velocity cable and bend range record no undo step", _ {
-		// Legacy writes both as a setup write (`setCurrentValueBasicForSetup`): learning is no edit to undo.
+		// Legacy writes both as a setup write (`AutoParam::setBase`): learning is no edit to undo.
 		static spec::SongFixture fixture = spec::make_synth_song();
 		give_active_clip(fixture);
 		Song* const saved = currentSong;

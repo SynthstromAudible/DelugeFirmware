@@ -24,7 +24,7 @@ Error SetPatchCable::apply(Context& ctx) {
 			stack->autoParam->projectScalarFromStore(stack, oldValue, /*isPlaying=*/false);
 		}
 		else {
-			stack->autoParam->setCurrentValueBasicForSetup(*stack->doc(), value_);
+			stack->autoParam->setBase(*stack->doc(), value_);
 		}
 		return Error::NONE;
 	}

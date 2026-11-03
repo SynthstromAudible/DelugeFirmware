@@ -67,14 +67,14 @@
 	6630 // 150ms. Only seems to have an effect for MIDI, which is confusing me...
 
 // AutoParam is a pure interpolation cursor: it holds no node storage. Node data lives in the DOM, resolved per-op via
-// the owner (ModelStackWithAutoParam::doc()). currentValue is the RT cursor.
+// the owner (ModelStackWithAutoParam::doc()). played_ is the RT cursor.
 AutoParam::AutoParam() {
-	currentValue = 0;
+	played_ = 0;
 	resetInterpolationIncrement();
 	renewedOverridingAtTime = 0;
 }
 
-AutoParam::AutoParam(AutoParam const& other) : currentValue(other.currentValue) {
+AutoParam::AutoParam(AutoParam const& other) : played_(other.played_) {
 	resetInterpolationIncrement();
 	renewedOverridingAtTime = 0;
 }
@@ -83,14 +83,14 @@ AutoParam& AutoParam::operator=(AutoParam const& other) {
 	if (this == &other) {
 		return *this;
 	}
-	currentValue = other.currentValue;
+	played_ = other.played_;
 	resetInterpolationIncrement();
 	renewedOverridingAtTime = 0;
 	return *this;
 }
 
 AutoParam::AutoParam(AutoParam&& other) noexcept
-    : currentValue(other.currentValue), valueIncrementPerHalfTick(other.valueIncrementPerHalfTick),
+    : played_(other.played_), valueIncrementPerHalfTick(other.valueIncrementPerHalfTick),
       value_increment_per_half_tick_float(other.value_increment_per_half_tick_float),
       interpolation_increment_remainder_float(other.interpolation_increment_remainder_float),
       renewedOverridingAtTime(other.renewedOverridingAtTime) {
@@ -100,7 +100,7 @@ AutoParam& AutoParam::operator=(AutoParam&& other) noexcept {
 	if (this == &other) {
 		return *this;
 	}
-	currentValue = other.currentValue;
+	played_ = other.played_;
 	valueIncrementPerHalfTick = other.valueIncrementPerHalfTick;
 	value_increment_per_half_tick_float = other.value_increment_per_half_tick_float;
 	interpolation_increment_remainder_float = other.interpolation_increment_remainder_float;
@@ -135,7 +135,7 @@ deluge::project::DocAutoParam* ModelStackWithAutoParam::doc() const {
 		if (deluge::project::DocAutoParam* own = paramCollection->findDocParamForId(paramId)) {
 			return own;
 		}
-		g_unheldLane.current_value = 0;
+		deluge::project::set_base(g_unheldLane, 0);
 		return &g_unheldLane;
 	}
 	// The owner isn't tree-resident yet: a runtime-created instrument/drum made after load, with no id yet. Mint
@@ -170,15 +170,14 @@ void AutoParam::copyOverridingFrom(AutoParam* otherParam) {
 		renewedOverridingAtTime = otherParam->renewedOverridingAtTime;
 		resetInterpolationIncrement();
 	}
-	currentValue = otherParam->currentValue;
+	played_ = otherParam->played_;
 }
 
 // This is mostly for "expression" params, which we frequently want to bump back to 0 - often when there is no
 // automation, or when playback is stopped.
 void AutoParam::setCurrentValueWithNoReversionOrRecording(ModelStackWithAutoParam const* modelStack, int32_t value) {
-	int32_t oldValue = currentValue;
-	currentValue = value;
-	modelStack->doc()->current_value = value; // value authority: sync the owner's DOM store scalar
+	int32_t oldValue = played_;
+	setBase(*modelStack->doc(), value);
 	bool automatedNow = isAutomated(*modelStack->doc());
 	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, false, automatedNow, automatedNow);
 }
@@ -214,7 +213,7 @@ void freezeOnRejectedRegion([[maybe_unused]] const deluge::project::DocAutoParam
 } // namespace
 
 // Clip not required, but if you don't supply it, you can't record anything.
-// You can assume that this will always change the currentValue.
+// You can assume that this will always change the played_.
 // livePos may be supplied as -1, meaning get it live. Or, you can override this by specifying one.
 // The main purpose of mayDeleteNodesInLinearRun is so that it can be prevented from happening for MPE recording - even
 // though MPE will normally interpolate for internal synths, we want to preserve the original MIDI as closely as
@@ -224,7 +223,7 @@ void AutoParam::setCurrentValueInResponseToUserInput(int32_t value, ModelStackWi
                                                      bool mayDeleteNodesInLinearRun, bool doMPEMode) {
 	// Resolve the DOM node store via the ModelStack.
 	auto& nodesRef = modelStack->doc()->nodes;
-	int32_t oldValue = currentValue;
+	int32_t oldValue = played_;
 	bool automatedBefore = isAutomated(*modelStack->doc());
 	bool automationChanged = false;
 	resetInterpolationIncrement();
@@ -405,16 +404,15 @@ skipThat: {}
 	//
 	// If still unautomated (or not currently playing), record value change
 	if (nodesRef.empty() || !isPlaying) {
-		if (value != currentValue) {
+		if (value != played_) {
 			actionLogger.recordUnautomatedParamChange(modelStack);
 		}
 	}
 
 getOut:
-	currentValue = value;
-	// Value authority: keep the owner's DOM store scalar in sync with this user edit, so save can read the store
-	// (doc() resolves the tree store when bound, the engine-inline fallback otherwise).
-	modelStack->doc()->current_value = value;
+	// The edit is the lane's new base, which save reads (doc() resolves the tree store when bound, the engine-inline
+	// fallback otherwise), and what it plays now.
+	setBase(*modelStack->doc(), value);
 	bool automatedNow = isAutomated(*modelStack->doc());
 	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, automationChanged, automatedBefore,
 	                                                          automatedNow);
@@ -434,7 +432,7 @@ void AutoParam::projectScalarFromStore(ModelStackWithAutoParam const* modelStack
 			renewedOverridingAtTime = 0xFFFFFFFF;
 		}
 	}
-	currentValue = modelStack->doc()->current_value;
+	playBase(*modelStack->doc());
 	bool automatedNow = isAutomated(*modelStack->doc());
 	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, false, automatedNow, automatedNow);
 }
@@ -443,7 +441,7 @@ void AutoParam::projectRegionFromStore(ModelStackWithAutoParam const* modelStack
                                        bool automatedBefore, deluge::project::RegionWriteResult result) {
 	// The store (nodes + current_value) was already written model-first (ParamSnapshot::applyPatch's region
 	// kernel). Reproduce setValueForRegion's post-mutation tail from the branch
-	// the kernel took (result.currentValueEffect). currentValue = doc->current_value is uniform: the value-taking
+	// the kernel took (result.currentValueEffect). Playing the base is uniform: the value-taking
 	// branches wrote the new value into the store; NotifyOnly left it unchanged.
 	using deluge::project::RegionCurrentValueEffect;
 	if (result.currentValueEffect == RegionCurrentValueEffect::SetAndResetInterp) {
@@ -454,7 +452,7 @@ void AutoParam::projectRegionFromStore(ModelStackWithAutoParam const* modelStack
 		// clock-active, playhead outside: the engine leaves current_value alone and notifies the UI of automation.
 		view.notifyParamAutomationOccurred(modelStack->paramManager);
 	}
-	currentValue = modelStack->doc()->current_value;
+	playBase(*modelStack->doc());
 	bool automatedNow = isAutomated(*modelStack->doc());
 	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, result.automationChanged,
 	                                                          automatedBefore, automatedNow);
@@ -837,7 +835,7 @@ recordOverNodeJustReached:
 adjustNodeJustReached:
 				// D_PRINTLN("adjusting node value");
 				if (!didPinpong) {
-					nodeJustReached->value = currentValue;
+					nodeJustReached->value = played_;
 				}
 				nodeJustReached->interpolated = true;
 				// TODO: if reversing, should we set the one to the right to interpolating too?
@@ -895,8 +893,8 @@ adjustNodeJustReached:
 	// become the case), we need to jump to the node's value. (Or, it'll be the value of the node to the left if the
 	// node here isn't interpolated.)
 	if ((!noNeedToJumpToValue || mustUpdateValueAtEveryNode) && !renewedOverridingAtTime) {
-		int32_t oldValue = currentValue;
-		currentValue = valueJustReached;
+		int32_t oldValue = played_;
+		played_ = valueJustReached;
 
 		// The call to notifyParamModifiedInSomeWay() below normally has the ability to delete this AutoParam, which we
 		// want it not to. It won't if we still contain automation, which I think we have to... Let's just verify that.
@@ -973,7 +971,7 @@ void AutoParam::setupInterpolation(ModelStackWithAutoParam const* modelStack, Pa
 		return; // If it's latched-until-next-node-hit, we're not allowed to interpolate.
 	}
 
-	int32_t halfDistance = (nextNodeInOurDirection->value >> 1) - (currentValue >> 1);
+	int32_t halfDistance = (nextNodeInOurDirection->value >> 1) - (played_ >> 1);
 
 	if (!halfDistance) {
 		return;
@@ -1078,10 +1076,10 @@ bool AutoParam::applyValueIncrement(int32_t value_increment) {
 	}
 
 	// store current value (so we can check if it changed below)
-	int32_t oldValue = currentValue;
+	int32_t oldValue = played_;
 
 	// add value increment, clamp within the int32 limits (-2147483648, 2147483647)
-	currentValue = add_saturate(currentValue, value_increment);
+	played_ = add_saturate(played_, value_increment);
 
 	// check if overflow occurred (e.g. increment would push current value over limit)
 	bool overflow_occurred = (value_increment > 0 && oldValue > INT32_MAX - value_increment)
@@ -1093,12 +1091,12 @@ bool AutoParam::applyValueIncrement(int32_t value_increment) {
 	}
 
 	// return if we changed the current value
-	return (currentValue != oldValue);
+	return (played_ != oldValue);
 }
 
 /// multiplies a per-half-tick increment by a number of half ticks, clamping to the int32 range rather than wrapping.
 /// A steep increment (a short segment covering a big value change) times a large number of skipped ticks overflows an
-/// int32 easily, and a wrapped increment sends currentValue in the wrong direction entirely.
+/// int32 easily, and a wrapped increment sends played_ in the wrong direction entirely.
 static int32_t saturatingIncrement(int32_t incrementPerHalfTick, int64_t halfTicks) {
 	int64_t increment = (int64_t)incrementPerHalfTick * halfTicks;
 	return (int32_t)std::clamp<int64_t>(increment, INT32_MIN, INT32_MAX);
@@ -1171,7 +1169,7 @@ void AutoParam::deleteNodesWithinRegion(ModelStackWithAutoParam const* modelStac
 	if (!isAutomated(*modelStack->doc())) {
 		return;
 	}
-	int32_t oldValue = currentValue;
+	int32_t oldValue = played_;
 	int32_t effectiveLength = modelStack->getLoopLength();
 	Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
 	if (length >= effectiveLength) {
@@ -1182,9 +1180,9 @@ void AutoParam::deleteNodesWithinRegion(ModelStackWithAutoParam const* modelStac
 			action->recordParamChangeIfNotAlreadySnapshotted(modelStack, false);
 		}
 		deluge::project::DocAutoParam* doc = modelStack->doc();
-		doc->current_value = currentValue;
+		adoptPlayedAsBase(*doc);
 		deluge::project::deleteNodesWithinRegion(*doc, pos, length, effectiveLength);
-		currentValue = doc->current_value;
+		playBase(*doc);
 	}
 	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, true, true,
 	                                                          isAutomated(*modelStack->doc()));
@@ -1202,7 +1200,7 @@ void AutoParam::setValueForRegion(uint32_t pos, uint32_t length, int32_t value,
 	// Resolve the DOM node store via the ModelStack.
 	auto& nodesRef = modelStack->doc()->nodes;
 
-	int32_t oldValue = currentValue;
+	int32_t oldValue = played_;
 	bool automatedBefore = isAutomated(*modelStack->doc());
 	bool automationChanged = false;
 
@@ -1233,8 +1231,7 @@ void AutoParam::setValueForRegion(uint32_t pos, uint32_t length, int32_t value,
 				action->recordParamChangeIfNotAlreadySnapshotted(modelStack, false);
 			}
 		}
-		currentValue = value;
-		modelStack->doc()->current_value = value; // value authority: sync the owner's DOM store scalar
+		setBase(*modelStack->doc(), value);
 	}
 
 	// Or, normal case
@@ -1285,8 +1282,7 @@ void AutoParam::setValueForRegion(uint32_t pos, uint32_t length, int32_t value,
 			if (clockActive) {
 				resetInterpolationIncrement();
 			}
-			currentValue = value;
-			modelStack->doc()->current_value = value; // value authority: sync the owner's DOM store scalar
+			setBase(*modelStack->doc(), value);
 		}
 		else {
 			view.notifyParamAutomationOccurred(modelStack->paramManager);
@@ -1340,7 +1336,7 @@ int32_t AutoParam::getValueAtPos(uint32_t pos, ModelStackWithAutoParam const* mo
 	return deluge::project::getValueAtPos(*modelStack->doc(), pos, modelStack->getLoopLength(), reversed);
 }
 
-// Returns whether a change was made to currentValue
+// Returns whether a change was made to played_
 bool AutoParam::grabValueFromPos(uint32_t pos, ModelStackWithAutoParam const* modelStack) {
 	// Resolve the DOM node store via the ModelStack.
 	auto& nodesRef = modelStack->doc()->nodes;
@@ -1348,9 +1344,9 @@ bool AutoParam::grabValueFromPos(uint32_t pos, ModelStackWithAutoParam const* mo
 		return false;
 	}
 
-	int32_t oldValue = currentValue;
-	currentValue = getValueAtPos(pos, modelStack);
-	return (currentValue != oldValue);
+	int32_t oldValue = played_;
+	played_ = getValueAtPos(pos, modelStack);
+	return (played_ != oldValue);
 }
 
 void AutoParam::setPlayPos(uint32_t pos, ModelStackWithAutoParam const* modelStack, bool reversed) {
@@ -1360,8 +1356,8 @@ void AutoParam::setPlayPos(uint32_t pos, ModelStackWithAutoParam const* modelSta
 	resetInterpolationIncrement(); // We may calculate this, below
 	renewedOverridingAtTime = 0;
 	if (!nodesRef.empty()) {
-		int32_t oldValue = currentValue;
-		currentValue = getValueAtPos(pos, modelStack, reversed);
+		int32_t oldValue = played_;
+		played_ = getValueAtPos(pos, modelStack, reversed);
 
 		// Get next node
 		int32_t rightI = nodesRef.firstAtOrAfter(pos + (int32_t)!reversed);
@@ -1516,7 +1512,7 @@ void AutoParam::writeToFile(deluge::project::DocAutoParam const& doc, Serializer
 
 	writer.write("0x");
 
-	int32_t valueNow = (valueForOverride && isAutomated(doc)) ? *valueForOverride : currentValue;
+	int32_t valueNow = (valueForOverride && isAutomated(doc)) ? *valueForOverride : played_;
 
 	intToHex(valueNow, buffer);
 	writer.write(buffer);
@@ -1565,20 +1561,18 @@ Error AutoParam::readFromFile(deluge::project::DocAutoParam& doc, Deserializer& 
 
 		for (int32_t i = 2; i < 12 && (buffer[i] = reader.readNextCharOfTagOrAttributeValue()); i++) {}
 		buffer[11] = 0;
-		currentValue = stringToInt(buffer);
-		doc.current_value = currentValue; // the store scalar is sourced from the file
+		setBase(doc, stringToInt(buffer));
 		return Error::NONE;
 	}
 
 	// Or, normal case - hex and automation...
 
-	// First, read currentValue
+	// First, read the base value
 	char const* hexChars = reader.readNextCharsOfTagOrAttributeValue(8);
 	if (!hexChars) {
 		return Error::NONE;
 	}
-	currentValue = hexToIntFixedLength(hexChars, 8);
-	doc.current_value = currentValue; // the store scalar is sourced from the file
+	setBase(doc, hexToIntFixedLength(hexChars, 8));
 
 	// And now read in the automation
 	int32_t numElementsToAllocateFor = 0;
@@ -1666,7 +1660,7 @@ bool AutoParam::containsSomething(const deluge::project::DocAutoParam& doc, uint
 	if (isAutomated(doc)) {
 		return true;
 	}
-	uint32_t* a = (uint32_t*)&currentValue;
+	uint32_t* a = (uint32_t*)&played_;
 	return (*a != (uint32_t)neutralValue);
 }
 
@@ -1674,13 +1668,12 @@ bool AutoParam::containedSomethingBefore(bool wasAutomatedBefore, uint32_t value
 	return (wasAutomatedBefore || valueBefore != neutralValue);
 }
 
-// Value sync: the kernel mutates DocAutoParam::current_value (the DOM base), but the engine's live RT cursor is the
-// separate `currentValue` member. So for value-touching ops we sync currentValue to doc.current_value, run the
-// kernel, then read it back.
+// The kernel works on the lane's base. The legacy instrument runs it on what the param plays now, so the played value
+// becomes the base first, and the result is played.
 void AutoParam::shiftValues(deluge::project::DocAutoParam& doc, int32_t offset) {
-	doc.current_value = currentValue;
+	adoptPlayedAsBase(doc);
 	deluge::project::shiftValues(doc, offset);
-	currentValue = doc.current_value;
+	playBase(doc);
 }
 
 void AutoParam::shiftHorizontally(deluge::project::DocAutoParam& doc, int32_t amount, int32_t effectiveLength) {
@@ -1692,8 +1685,8 @@ void AutoParam::swapState(AutoParamState* state, ModelStackWithAutoParam const* 
 	auto& nodesRef = modelStack->doc()->nodes;
 	bool automatedBefore = isAutomated(*modelStack->doc());
 
-	int32_t oldValueHere = currentValue;
-	currentValue = state->value;
+	int32_t oldValueHere = played_;
+	played_ = state->value;
 	state->value = oldValueHere;
 	nodesRef.swap(state->nodes);
 
@@ -1831,11 +1824,11 @@ void AutoParam::paste(int32_t startPos, int32_t endPos, float scaleFactor, Model
 		}
 	}
 
-	// TODO: should currentValue instantly change if we're playing?
+	// TODO: should played_ instantly change if we're playing?
 
 	nodesRef.testSequentiality("E440");
 
-	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, currentValue, true, automatedBefore,
+	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, played_, true, automatedBefore,
 	                                                          isAutomated(*modelStack->doc()));
 }
 
@@ -1924,9 +1917,9 @@ Error AutoParam::makeInterpolationGoodAgain(deluge::project::DocAutoParam& doc, 
 }
 
 void AutoParam::transposeCCValuesToChannelPressureValues(deluge::project::DocAutoParam& doc) {
-	doc.current_value = currentValue; // value sync (see shiftValues)
+	adoptPlayedAsBase(doc); // as shiftValues
 	deluge::project::transposeCCValuesToChannelPressure(doc);
-	currentValue = doc.current_value;
+	playBase(doc);
 }
 
 /// this is used in arranger view to delete time between automation nodes (shift + <>)
@@ -2092,7 +2085,7 @@ void AutoParam::insertStolenNodes(ModelStackWithAutoParam const* modelStack, int
 		}
 	}
 
-	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, currentValue, true, wasAutomatedBefore,
+	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, played_, true, wasAutomatedBefore,
 	                                                          isAutomated(*modelStack->doc()));
 
 	nodesRef.testSequentiality("E423");

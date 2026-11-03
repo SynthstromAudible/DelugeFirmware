@@ -536,7 +536,7 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 		auto cableScalarOk = [](ParamManagerForTimeline& pm) {
 			PatchCableSet* pcs = pm.getPatchCableSet();
 			for (int32_t c = 0; c < pcs->numPatchCables; c++) {
-				if (pcs->docForParam(c)->current_value != pcs->patchCables[c].param.currentValue) {
+				if (pcs->docForParam(c)->current_value != pcs->patchCables[c].param.played()) {
 					return false;
 				}
 			}
@@ -551,7 +551,7 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 				return false;
 			}
 			for (int32_t p = 0; p < s->getNumParams() && p < (int32_t)s->domStore()->params.size(); p++) {
-				if (s->domStore()->params[p].current_value != s->params[p].currentValue) {
+				if (s->domStore()->params[p].current_value != s->params[p].played()) {
 					return false;
 				}
 			}
@@ -712,7 +712,7 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 		auto setScalarOk = [](ParamManagerForTimeline& pm) {
 			auto ok = [](ParamSet* s) {
 				for (int32_t p = 0; p < s->getNumParams(); p++) {
-					if (s->docForParam(p)->current_value != s->params[p].currentValue) {
+					if (s->docForParam(p)->current_value != s->params[p].played()) {
 						return false;
 					}
 				}
@@ -723,7 +723,7 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 		auto cableScalarOk = [](ParamManagerForTimeline& pm) {
 			PatchCableSet* pcs = pm.getPatchCableSet();
 			for (int32_t c = 0; c < pcs->numPatchCables; c++) {
-				if (pcs->docForParam(c)->current_value != pcs->patchCables[c].param.currentValue) {
+				if (pcs->docForParam(c)->current_value != pcs->patchCables[c].param.played()) {
 					return false;
 				}
 			}
@@ -784,9 +784,9 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 	// The edits must be visible in the engine immediately.
 	AutoParam& engVal = song->paramManager.getUnpatchedParamSet()->params[pVal];
 	AutoParam& engAuto = song->paramManager.getUnpatchedParamSet()->params[pAuto];
-	if (engVal.currentValue != kSentinel
+	if (engVal.played() != kSentinel
 	    || song->paramManager.getUnpatchedParamSet()->docForParam(pAuto)->nodes.size() != 2) {
-		std::fprintf(io.err, "EDIT DID NOT LAND engVal=%d autoNodes=%zu\n", engVal.currentValue,
+		std::fprintf(io.err, "EDIT DID NOT LAND engVal=%d autoNodes=%zu\n", engVal.played(),
 		             song->paramManager.getUnpatchedParamSet()->docForParam(pAuto)->nodes.size());
 		return 3;
 	}
@@ -795,7 +795,7 @@ int song_edit_roundtrip_main(int argc, char** argv, Io driverIo) {
 	// song-global save read the STORE (the song's global-effectable block, holding kSentinel) — NOT the engine
 	// cursor. If save still projected the engine, the file would carry this distinct value and the reload assert
 	// below (reloaded store == engine == kSentinel) would fail.
-	engVal.currentValue = 0x0BADF00D;
+	engVal.setPlayed(0x0BADF00D);
 
 	// Session macros name their clip and output by id: aim two at the last session clip and the first output, and
 	// require that they name the same clip and output after the reload.
@@ -1456,7 +1456,7 @@ opsChecked:;
 	}
 	deluge::project::DocParamSet& rstore = *unpatchedStore(reloaded->project.master_params);
 	int32_t storeVal = rstore.params[pVal].current_value;
-	int32_t engineVal = reloaded->paramManager.getUnpatchedParamSet()->params[pVal].currentValue;
+	int32_t engineVal = reloaded->paramManager.getUnpatchedParamSet()->params[pVal].played();
 
 	const auto& storeNodes = rstore.params[pAuto].nodes;
 	const auto& engNodes = reloaded->paramManager.getUnpatchedParamSet()->docForParam(pAuto)->nodes;

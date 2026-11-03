@@ -94,9 +94,9 @@ describe set_kit_lane_setting("an arp setting written across a kit's lanes", ${
 		// The second row's envelope never sustains (no sustain, and a release no shorter than its decay): it holds no tails.
 		alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 		PatchedParamSet* patched = getModelStackFromSoundDrum(memory, l.second)->paramManager->getPatchedParamSet();
-		patched->params[deluge::modulation::params::LOCAL_ENV_0_SUSTAIN].setCurrentValueBasicForSetup(
+		patched->params[deluge::modulation::params::LOCAL_ENV_0_SUSTAIN].setBase(
 		    *patched->docForParam(deluge::modulation::params::LOCAL_ENV_0_SUSTAIN), std::numeric_limits<int32_t>::min());
-		patched->params[deluge::modulation::params::LOCAL_ENV_0_RELEASE].setCurrentValueBasicForSetup(
+		patched->params[deluge::modulation::params::LOCAL_ENV_0_RELEASE].setBase(
 		    *patched->docForParam(deluge::modulation::params::LOCAL_ENV_0_RELEASE), std::numeric_limits<int32_t>::max());
 		const MenuContext ctx = menu::context_for(*l.f.song, deluge::gui::menuViewOf(l.f.clip), 0, false, false, false, false);
 		const bool sound_tails = spec::drum_allows_note_tails(l.sound);

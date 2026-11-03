@@ -826,11 +826,11 @@ Error Slicer::doSlice(int32_t sliceCount) {
 			deluge::gui::menu_item::recordRanges(*newDrum, 0);
 
 			if (doEnvelopes) {
-				paramManager.getPatchedParamSet()->params[params::LOCAL_ENV_0_ATTACK].setCurrentValueBasicForSetup(
+				paramManager.getPatchedParamSet()->params[params::LOCAL_ENV_0_ATTACK].setBase(
 				    *paramManager.getPatchedParamSet()->docForParam(params::LOCAL_ENV_0_ATTACK),
 				    deluge::plugin::preset_word(1));
 				if (i != sliceCount - 1) {
-					paramManager.getPatchedParamSet()->params[params::LOCAL_ENV_0_RELEASE].setCurrentValueBasicForSetup(
+					paramManager.getPatchedParamSet()->params[params::LOCAL_ENV_0_RELEASE].setBase(
 					    *paramManager.getPatchedParamSet()->docForParam(params::LOCAL_ENV_0_RELEASE),
 					    deluge::plugin::preset_word(1));
 				}

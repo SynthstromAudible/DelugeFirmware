@@ -2062,13 +2062,13 @@ void soundPreview(PreviewVolume const& volume) {
 	// Adopt the volume of the instrument / kit-row the sample will be loaded into, so the preview sounds the same
 	// before and after selecting it (issue #1591). The song master volume is applied downstream in renderSongFX().
 	PatchedParamSet* previewParams = paramManagerForSamplePreview->getPatchedParamSet();
-	previewParams->params[params::GLOBAL_VOLUME_POST_FX].setCurrentValueBasicForSetup(volume.volumePostFX);
-	previewParams->params[params::LOCAL_VOLUME].setCurrentValueBasicForSetup(volume.localVolume);
+	previewParams->params[params::GLOBAL_VOLUME_POST_FX].setPlayed(volume.volumePostFX);
+	previewParams->params[params::LOCAL_VOLUME].setPlayed(volume.localVolume);
 
 	// setupAsSample() gives the preview drum one patch cable, VELOCITY -> LOCAL_VOLUME, unless it ran out of memory.
 	PatchCableSet* previewCables = paramManagerForSamplePreview->getPatchCableSet();
 	if (previewCables->numPatchCables != 0) {
-		previewCables->patchCables[0].param.setCurrentValueBasicForSetup(volume.velocityCableDepth);
+		previewCables->patchCables[0].param.setPlayed(volume.velocityCableDepth);
 		previewCables->setPolarity(0, volume.velocityCablePolarity);
 	}
 

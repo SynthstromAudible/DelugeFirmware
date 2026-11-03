@@ -4734,7 +4734,7 @@ doHomogenize:
 
 		// These manual sets are in case we quantized forwards and the region we just created actually begins after
 		// "now"-time.
-		param->currentValue = value;
+		param->setPlayed(value);
 		param->resetInterpolationIncrement();
 		// TODO: and to make it perfect, we'd also want to ignore any further nodes between now and the start of the
 		// region. Or, could probably get away with just deleting them.

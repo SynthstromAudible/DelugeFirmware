@@ -448,7 +448,7 @@ DocAutoParam readDocAutoParam(Deserializer& in, int32_t readAutomationUpToPos) {
 	AutoParam tmp;
 	DocAutoParam result;
 	tmp.readFromFile(result, in, readAutomationUpToPos);
-	result.current_value = tmp.currentValue;
+	deluge::project::set_base(result, tmp.played());
 	return result;
 }
 
@@ -457,14 +457,16 @@ DocAutoParam readDocAutoParam(Deserializer& in, int32_t readAutomationUpToPos) {
 namespace {
 // Read one leaf into a live param + mark its automation flag (matching ParamSet::readParam). The leaf
 // goes through the DOM (readDocAutoParam → fromDocAutoParam) so the file format + back-compat are shared
-// with the write side; the net effect on currentValue + nodes is identical to a direct readParam.
+// with the write side; the net effect on the played value + nodes is identical to a direct readParam.
 void readLiveParam(Deserializer& in, ParamSet& set, ParamCollectionSummary& summary, ParamId id,
                    int32_t readAutomationUpToPos) {
 	// The live set holds the param at its runtime index, through its engine's map.
 	const int32_t p = *runtimeIndexOf(set.getParamKind(), id);
 	DocAutoParam doc = readDocAutoParam(in, readAutomationUpToPos);
-	// Land the value in the RT cursor and the nodes in the set's owner-resolved DOM store.
-	fromDocAutoParam(doc, set.params[p].currentValue, set.docForParam(p)->nodes);
+	// Land the value in the played cursor and the nodes in the set's owner-resolved DOM store.
+	int32_t value = 0;
+	fromDocAutoParam(doc, value, set.docForParam(p)->nodes);
+	set.params[p].setPlayed(value);
 	if (set.params[p].isAutomated(*set.docForParam(p))) {
 		set.paramHasAutomationNow(&summary, p);
 	}

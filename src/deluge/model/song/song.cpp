@@ -4880,7 +4880,7 @@ void Song::setParamsInAutomationMode(bool newState) {
 		// Restore the unautomated values, where automation is present
 		for (int32_t p = 0; p < params::kMaxNumUnpatchedParams; p++) {
 			if (unpatchedParams->params[p].isAutomated(*unpatchedParams->docForParam(p))) {
-				unpatchedParams->params[p].currentValue = live.unautomated_param_values[p];
+				unpatchedParams->params[p].setPlayed(live.unautomated_param_values[p]);
 			}
 		}
 	}

@@ -106,10 +106,10 @@ void build(MatrixRig& r) {
 			target = deluge::synth::CableTarget::param(w.param);
 		}
 		const uint8_t c = r.cables.getPatchCableIndex(static_cast<PatchSource>(w.source), target);
-		r.cables.patchCables[c].param.setCurrentValueBasicForSetup(*r.cables.docForParam(c), w.amount);
+		r.cables.patchCables[c].param.setBase(*r.cables.docForParam(c), w.amount);
 	}
 	for (const mm::WorkloadDestination& d : mm::kDestinations) {
-		r.patched.params[d.param].setCurrentValueBasicForSetup(d.preset_q31);
+		r.patched.params[d.param].setPlayed(d.preset_q31);
 	}
 	for (VoiceParams& plane : r.voice_planes) {
 		for (const auto& [source, value] : mm::kStaticSources) {

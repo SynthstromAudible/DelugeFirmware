@@ -247,7 +247,7 @@ void tileRepeats(ParamNodeVector& nodes, int32_t wrapPoint, int32_t endPos) {
 
 void shiftValues(DocAutoParam& p, int32_t offset) {
 	EditGuard guard{ModelEdit::NODE_KERNEL};
-	p.current_value = addSaturating(p.current_value, offset);
+	set_base(p, addSaturating(p.current_value, offset));
 	for (ParamNode& node : p.nodes) {
 		node.value = addSaturating(node.value, offset);
 	}
@@ -744,7 +744,7 @@ void deleteNodesWithinRegion(DocAutoParam& p, int32_t pos, int32_t length, int32
 
 	if (length >= effectiveLength) { // whole loop — clear all automation
 		nodes.clear();
-		p.current_value = 0;
+		set_base(p, 0);
 		return;
 	}
 
@@ -770,7 +770,7 @@ void deleteNodesWithinRegion(DocAutoParam& p, int32_t pos, int32_t length, int32
 	}
 
 	if (nodes.empty()) {
-		p.current_value = 0; // MPE safety: zero the value when no automation remains
+		set_base(p, 0); // MPE safety: zero the value when no automation remains
 	}
 }
 
@@ -779,7 +779,7 @@ void transposeCCValuesToChannelPressure(DocAutoParam& p) {
 	for (ParamNode& node : p.nodes) {
 		node.value = (node.value >> 1) + (1 << 30);
 	}
-	p.current_value = (p.current_value >> 1) + (1 << 30);
+	set_base(p, (p.current_value >> 1) + (1 << 30));
 }
 
 void flattenReverse(DocAutoParam& p, int32_t reverseDirectionWithLength) {
@@ -1066,7 +1066,7 @@ std::optional<RegionWriteResult> setValueForRegion(DocAutoParam& p, uint32_t pos
 	// Special case: the region covers the whole loop/Clip/TimelineCounter — collapse to a flat value.
 	if (length == static_cast<uint32_t>(effectiveLength)) {
 		nodes.clear();
-		p.current_value = value;
+		set_base(p, value);
 		// automationChanged stays false on this path; current_value is set with no interp reset / UI notify.
 		return RegionWriteResult{false, RegionCurrentValueEffect::Set};
 	}
@@ -1081,7 +1081,7 @@ std::optional<RegionWriteResult> setValueForRegion(DocAutoParam& p, uint32_t pos
 
 	// If the transport isn't running right now, the edit takes effect on current_value immediately.
 	if (!clockActive) {
-		p.current_value = value;
+		set_base(p, value);
 		return RegionWriteResult{true, RegionCurrentValueEffect::Set};
 	}
 
@@ -1093,7 +1093,7 @@ std::optional<RegionWriteResult> setValueForRegion(DocAutoParam& p, uint32_t pos
 		mostRecentI = static_cast<int32_t>(nodes.size()) - 1;
 	}
 	if (mostRecentI == firstI) {
-		p.current_value = value;
+		set_base(p, value);
 		return RegionWriteResult{true, RegionCurrentValueEffect::SetAndResetInterp};
 	}
 	return RegionWriteResult{true, RegionCurrentValueEffect::NotifyOnly};
@@ -1473,7 +1473,7 @@ int32_t recordLiveValue(DocAutoParam& p, int32_t livePos, int32_t value, int32_t
 		}
 	}
 
-	p.current_value = value;
+	set_base(p, value);
 	return leftI;
 }
 

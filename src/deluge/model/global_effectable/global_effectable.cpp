@@ -120,8 +120,8 @@ void GlobalEffectable::initParamsForAudioClip(ParamManagerForTimeline* paramMana
 	initParams(paramManager);
 	// An audio track starts quieter than the song and a kit's affect-entire, which keep the table's default
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
-	unpatchedParams->params[params::UNPATCHED_VOLUME].setCurrentValueBasicForSetup(
-	    *unpatchedParams->docForParam(params::UNPATCHED_VOLUME), -536870912);
+	unpatchedParams->params[params::UNPATCHED_VOLUME].setBase(*unpatchedParams->docForParam(params::UNPATCHED_VOLUME),
+	                                                          -536870912);
 }
 
 void GlobalEffectable::modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager,

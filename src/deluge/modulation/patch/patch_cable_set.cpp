@@ -197,9 +197,10 @@ PatchCable* PatchCableSet::appendCable(const deluge::synth::CableRecord& record)
 	cable->from = record.source;
 	cable->destination = record.target;
 	cable->polarity = static_cast<Polarity>(record.polarity);
-	cable->param.currentValue = 0;
 	// Every cable has its lane from the start, so a lookup never grows the table under a lane already handed out.
-	laneFor(record.source, cable->destination) = {};
+	deluge::project::DocAutoParam& lane = laneFor(record.source, cable->destination);
+	lane = {};
+	cable->param.playBase(lane);
 	return cable;
 }
 
@@ -207,8 +208,7 @@ PatchCable* PatchCableSet::appendDefaultCable(PatchSource from, uint8_t to, int3
 	PatchCable* cable = appendCable({from, deluge::synth::CableTarget::param(to),
 	                                 static_cast<deluge::synth::CablePolarity>(PatchCable::getDefaultPolarity(from))});
 	if (cable != nullptr) {
-		cable->param.currentValue = amount;
-		docForParam(numPatchCables - 1)->current_value = amount;
+		cable->param.setBase(*docForParam(numPatchCables - 1), amount);
 	}
 	return cable;
 }
@@ -223,7 +223,7 @@ bool PatchCableSet::replaceRecords(Sound& sound, ParamManager& paramManager,
 	std::vector<Kept> kept;
 	kept.reserve(numPatchCables + 1);
 	for (int32_t c = 0; c < numPatchCables; c++) {
-		kept.push_back({records_[c], patchCables[c].param.currentValue, *docForParam(c)});
+		kept.push_back({records_[c], patchCables[c].param.played(), *docForParam(c)});
 	}
 	if (restore != nullptr) {
 		kept.push_back({restore->cable, restore->lane.current_value, restore->lane});
@@ -244,8 +244,8 @@ bool PatchCableSet::replaceRecords(Sound& sound, ParamManager& paramManager,
 			};
 			// The last match wins, so a lane being restored replaces the one the cable had.
 			if (const auto it = std::ranges::find_last_if(kept, same).begin(); it != kept.end()) {
-				cable->param.currentValue = it->value;
 				*docForParam(numPatchCables - 1) = it->lane;
+				cable->param.setPlayed(it->value);
 			}
 		}
 		setupPatching(sound, paramManager);
@@ -1142,7 +1142,7 @@ void PatchCableSet::grabVelocityToLevelFromMIDICable(MIDICable& cable) {
 	}
 
 	const uint8_t c = static_cast<uint8_t>(patchCable - patchCables);
-	patchCable->param.setCurrentValueBasicForSetup(*docForParam(c), cable.defaultVelocityToLevel);
+	patchCable->param.setBase(*docForParam(c), cable.defaultVelocityToLevel);
 }
 
 PatchCable* PatchCableSet::getPatchCableFromVelocityToLevel() {

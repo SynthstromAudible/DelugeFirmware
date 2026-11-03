@@ -54,16 +54,16 @@ void setNodeIn(deluge::project::DocAutoParam& doc, int32_t pos, int32_t value, b
 
 int param_clone_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	io = driverIo;
-	// (a) AutoParam is a pure cursor — copy carries only currentValue (node storage lives in the DOM, and
+	// (a) AutoParam is a pure cursor — copy carries only the played value (node storage lives in the DOM, and
 	// is exercised by the ParamManager/ParamSet clone blocks below).
 	{
 		AutoParam src;
-		src.currentValue = 555;
+		src.setPlayed(555);
 		AutoParam dst;
 		dst = src; // copy assign
-		check(dst.currentValue == 555, "autoparam copy assign: currentValue copied");
+		check(dst.played() == 555, "autoparam copy assign: played value copied");
 		AutoParam ctor(src); // copy ctor
-		check(ctor.currentValue == 555, "autoparam copy ctor: currentValue copied");
+		check(ctor.played() == 555, "autoparam copy ctor: played value copied");
 	}
 
 	// (b) ParamManager clone: exercises the polymorphic per-collection clone chain
@@ -72,7 +72,7 @@ int param_clone_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		ParamManagerForTimeline pm;
 		check(pm.setupWithPatching() == Error::NONE, "pm setupWithPatching");
 
-		pm.getUnpatchedParamSet()->params[2].currentValue = 678;
+		pm.getUnpatchedParamSet()->params[2].setPlayed(678);
 		setNodeIn(*pm.getUnpatchedParamSet()->docForParam(2), 16, 321, false);
 		setNodeIn(*pm.getPatchedParamSet()->docForParam(5), 0, 100, true);
 
@@ -80,7 +80,7 @@ int param_clone_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 		pcs->appendCable(
 		    {PatchSource::ENVELOPE_0, deluge::synth::CableTarget::param(7), deluge::synth::CablePolarity::BIPOLAR});
 		pcs->numUsablePatchCables = 1; // beenCloned() only fixes up cables < numUsablePatchCables; the rest it init()s
-		pcs->patchCables[0].param.currentValue = 536870912;
+		pcs->patchCables[0].param.setPlayed(536870912);
 		setNodeIn(*pcs->docForParam(0), 0, -536870912, true);
 
 		ParamManagerForTimeline clone;
@@ -124,7 +124,7 @@ int param_clone_main(int /*argc*/, char** /*argv*/, Io driverIo) {
 	{
 		ParamManagerForTimeline pm;
 		check(pm.setupWithPatching() == Error::NONE, "clone(strip): pm setup");
-		pm.getUnpatchedParamSet()->params[2].currentValue = 678;
+		pm.getUnpatchedParamSet()->params[2].setPlayed(678);
 		setNodeIn(*pm.getUnpatchedParamSet()->docForParam(2), 16, 321, false);
 
 		ParamCollection* cloned = nullptr;

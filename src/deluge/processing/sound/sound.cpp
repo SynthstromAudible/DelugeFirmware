@@ -271,21 +271,21 @@ void Sound::setupAsSample(ParamManagerForTimeline* paramManager) {
 
 	PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
 
-	patchedParams->params[params::LOCAL_OSC_B_VOLUME].setCurrentValueBasicForSetup(
-	    *patchedParams->docForParam(params::LOCAL_OSC_B_VOLUME), -2147483648);
-	patchedParams->params[params::LOCAL_ENV_0_ATTACK].setCurrentValueBasicForSetup(
-	    *patchedParams->docForParam(params::LOCAL_ENV_0_ATTACK), deluge::plugin::preset_word(0));
-	patchedParams->params[params::LOCAL_ENV_0_DECAY].setCurrentValueBasicForSetup(
-	    *patchedParams->docForParam(params::LOCAL_ENV_0_DECAY), deluge::plugin::preset_word(20));
-	patchedParams->params[params::LOCAL_ENV_0_SUSTAIN].setCurrentValueBasicForSetup(
-	    *patchedParams->docForParam(params::LOCAL_ENV_0_SUSTAIN), deluge::plugin::preset_word(50));
-	patchedParams->params[params::LOCAL_ENV_0_RELEASE].setCurrentValueBasicForSetup(
-	    *patchedParams->docForParam(params::LOCAL_ENV_0_RELEASE), deluge::plugin::preset_word(0));
+	patchedParams->params[params::LOCAL_OSC_B_VOLUME].setBase(*patchedParams->docForParam(params::LOCAL_OSC_B_VOLUME),
+	                                                          -2147483648);
+	patchedParams->params[params::LOCAL_ENV_0_ATTACK].setBase(*patchedParams->docForParam(params::LOCAL_ENV_0_ATTACK),
+	                                                          deluge::plugin::preset_word(0));
+	patchedParams->params[params::LOCAL_ENV_0_DECAY].setBase(*patchedParams->docForParam(params::LOCAL_ENV_0_DECAY),
+	                                                         deluge::plugin::preset_word(20));
+	patchedParams->params[params::LOCAL_ENV_0_SUSTAIN].setBase(*patchedParams->docForParam(params::LOCAL_ENV_0_SUSTAIN),
+	                                                           deluge::plugin::preset_word(50));
+	patchedParams->params[params::LOCAL_ENV_0_RELEASE].setBase(*patchedParams->docForParam(params::LOCAL_ENV_0_RELEASE),
+	                                                           deluge::plugin::preset_word(0));
 
-	patchedParams->params[params::LOCAL_LPF_RESONANCE].setCurrentValueBasicForSetup(
-	    *patchedParams->docForParam(params::LOCAL_LPF_RESONANCE), -2147483648);
-	patchedParams->params[params::LOCAL_LPF_FREQ].setCurrentValueBasicForSetup(
-	    *patchedParams->docForParam(params::LOCAL_LPF_FREQ), 2147483647);
+	patchedParams->params[params::LOCAL_LPF_RESONANCE].setBase(*patchedParams->docForParam(params::LOCAL_LPF_RESONANCE),
+	                                                           -2147483648);
+	patchedParams->params[params::LOCAL_LPF_FREQ].setBase(*patchedParams->docForParam(params::LOCAL_LPF_FREQ),
+	                                                      2147483647);
 
 	modKnobs[6][0].target = deluge::modulation::knobParam(params::LOCAL_PITCH_ADJUST);
 
@@ -302,29 +302,29 @@ void Sound::setupAsSample(ParamManagerForTimeline* paramManager) {
 void Sound::setupAsDefaultSynth(ParamManager* paramManager) {
 
 	PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
-	patchedParams->params[params::LOCAL_OSC_B_VOLUME].setCurrentValueBasicForSetup(
-	    *patchedParams->docForParam(params::LOCAL_OSC_B_VOLUME), 0x47AE1457);
-	patchedParams->params[params::LOCAL_LPF_RESONANCE].setCurrentValueBasicForSetup(
-	    *patchedParams->docForParam(params::LOCAL_LPF_RESONANCE), 0xA2000000);
-	patchedParams->params[params::LOCAL_LPF_FREQ].setCurrentValueBasicForSetup(
-	    *patchedParams->docForParam(params::LOCAL_LPF_FREQ), 0x10000000);
-	patchedParams->params[params::LOCAL_ENV_0_ATTACK].setCurrentValueBasicForSetup(
-	    *patchedParams->docForParam(params::LOCAL_ENV_0_ATTACK), 0x80000000);
-	patchedParams->params[params::LOCAL_ENV_0_DECAY].setCurrentValueBasicForSetup(
-	    *patchedParams->docForParam(params::LOCAL_ENV_0_DECAY), 0xE6666654);
-	patchedParams->params[params::LOCAL_ENV_0_SUSTAIN].setCurrentValueBasicForSetup(
-	    *patchedParams->docForParam(params::LOCAL_ENV_0_SUSTAIN), 0x7FFFFFFF);
-	patchedParams->params[params::LOCAL_ENV_0_RELEASE].setCurrentValueBasicForSetup(
-	    *patchedParams->docForParam(params::LOCAL_ENV_0_RELEASE), 0x851EB851);
-	patchedParams->params[params::LOCAL_ENV_1_ATTACK].setCurrentValueBasicForSetup(
-	    *patchedParams->docForParam(params::LOCAL_ENV_1_ATTACK), 0xA3D70A37);
-	patchedParams->params[params::LOCAL_ENV_1_DECAY].setCurrentValueBasicForSetup(
-	    *patchedParams->docForParam(params::LOCAL_ENV_1_DECAY), 0xA3D70A37);
-	patchedParams->params[params::LOCAL_ENV_1_SUSTAIN].setCurrentValueBasicForSetup(
-	    *patchedParams->docForParam(params::LOCAL_ENV_1_SUSTAIN), 0xFFFFFFE9);
-	patchedParams->params[params::LOCAL_ENV_1_RELEASE].setCurrentValueBasicForSetup(
-	    *patchedParams->docForParam(params::LOCAL_ENV_1_RELEASE), 0xE6666654);
-	patchedParams->params[params::GLOBAL_VOLUME_POST_FX].setCurrentValueBasicForSetup(
+	patchedParams->params[params::LOCAL_OSC_B_VOLUME].setBase(*patchedParams->docForParam(params::LOCAL_OSC_B_VOLUME),
+	                                                          0x47AE1457);
+	patchedParams->params[params::LOCAL_LPF_RESONANCE].setBase(*patchedParams->docForParam(params::LOCAL_LPF_RESONANCE),
+	                                                           0xA2000000);
+	patchedParams->params[params::LOCAL_LPF_FREQ].setBase(*patchedParams->docForParam(params::LOCAL_LPF_FREQ),
+	                                                      0x10000000);
+	patchedParams->params[params::LOCAL_ENV_0_ATTACK].setBase(*patchedParams->docForParam(params::LOCAL_ENV_0_ATTACK),
+	                                                          0x80000000);
+	patchedParams->params[params::LOCAL_ENV_0_DECAY].setBase(*patchedParams->docForParam(params::LOCAL_ENV_0_DECAY),
+	                                                         0xE6666654);
+	patchedParams->params[params::LOCAL_ENV_0_SUSTAIN].setBase(*patchedParams->docForParam(params::LOCAL_ENV_0_SUSTAIN),
+	                                                           0x7FFFFFFF);
+	patchedParams->params[params::LOCAL_ENV_0_RELEASE].setBase(*patchedParams->docForParam(params::LOCAL_ENV_0_RELEASE),
+	                                                           0x851EB851);
+	patchedParams->params[params::LOCAL_ENV_1_ATTACK].setBase(*patchedParams->docForParam(params::LOCAL_ENV_1_ATTACK),
+	                                                          0xA3D70A37);
+	patchedParams->params[params::LOCAL_ENV_1_DECAY].setBase(*patchedParams->docForParam(params::LOCAL_ENV_1_DECAY),
+	                                                         0xA3D70A37);
+	patchedParams->params[params::LOCAL_ENV_1_SUSTAIN].setBase(*patchedParams->docForParam(params::LOCAL_ENV_1_SUSTAIN),
+	                                                           0xFFFFFFE9);
+	patchedParams->params[params::LOCAL_ENV_1_RELEASE].setBase(*patchedParams->docForParam(params::LOCAL_ENV_1_RELEASE),
+	                                                           0xE6666654);
+	patchedParams->params[params::GLOBAL_VOLUME_POST_FX].setBase(
 	    *patchedParams->docForParam(params::GLOBAL_VOLUME_POST_FX), 0x50000000);
 
 	PatchCableSet* patchCableSet = paramManager->getPatchCableSet();
@@ -374,28 +374,28 @@ void Sound::setupDefaultExpressionPatching(ParamManager* paramManager) {
 void Sound::setupAsBlankSynth(ParamManager* paramManager, bool is_dx) {
 
 	PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
-	patchedParams->params[params::LOCAL_OSC_B_VOLUME].setCurrentValueBasicForSetup(
-	    *patchedParams->docForParam(params::LOCAL_OSC_B_VOLUME), -2147483648);
-	patchedParams->params[params::LOCAL_LPF_FREQ].setCurrentValueBasicForSetup(
-	    *patchedParams->docForParam(params::LOCAL_LPF_FREQ), 2147483647);
-	patchedParams->params[params::LOCAL_LPF_RESONANCE].setCurrentValueBasicForSetup(
-	    *patchedParams->docForParam(params::LOCAL_LPF_RESONANCE), -2147483648);
-	patchedParams->params[params::LOCAL_ENV_0_ATTACK].setCurrentValueBasicForSetup(
-	    *patchedParams->docForParam(params::LOCAL_ENV_0_ATTACK), -2147483648);
-	patchedParams->params[params::LOCAL_ENV_0_DECAY].setCurrentValueBasicForSetup(
-	    *patchedParams->docForParam(params::LOCAL_ENV_0_DECAY), deluge::plugin::preset_word(20));
-	patchedParams->params[params::LOCAL_ENV_0_SUSTAIN].setCurrentValueBasicForSetup(
-	    *patchedParams->docForParam(params::LOCAL_ENV_0_SUSTAIN), 2147483647);
+	patchedParams->params[params::LOCAL_OSC_B_VOLUME].setBase(*patchedParams->docForParam(params::LOCAL_OSC_B_VOLUME),
+	                                                          -2147483648);
+	patchedParams->params[params::LOCAL_LPF_FREQ].setBase(*patchedParams->docForParam(params::LOCAL_LPF_FREQ),
+	                                                      2147483647);
+	patchedParams->params[params::LOCAL_LPF_RESONANCE].setBase(*patchedParams->docForParam(params::LOCAL_LPF_RESONANCE),
+	                                                           -2147483648);
+	patchedParams->params[params::LOCAL_ENV_0_ATTACK].setBase(*patchedParams->docForParam(params::LOCAL_ENV_0_ATTACK),
+	                                                          -2147483648);
+	patchedParams->params[params::LOCAL_ENV_0_DECAY].setBase(*patchedParams->docForParam(params::LOCAL_ENV_0_DECAY),
+	                                                         deluge::plugin::preset_word(20));
+	patchedParams->params[params::LOCAL_ENV_0_SUSTAIN].setBase(*patchedParams->docForParam(params::LOCAL_ENV_0_SUSTAIN),
+	                                                           2147483647);
 	if (is_dx) {
 		sources[0].oscType = OscType::DX7;
 		sources[0].ensureDxPatch(); // initializes DX engine if this is the first dx7patch
 		// velocity is forwarded to dx7 engine, don't do master volume
 		paramManager->getPatchCableSet()->truncateCables(0);
-		patchedParams->params[params::LOCAL_ENV_0_RELEASE].setCurrentValueBasicForSetup(
+		patchedParams->params[params::LOCAL_ENV_0_RELEASE].setBase(
 		    *patchedParams->docForParam(params::LOCAL_ENV_0_RELEASE), 2147483647); // 30 ish
 	}
 	else {
-		patchedParams->params[params::LOCAL_ENV_0_RELEASE].setCurrentValueBasicForSetup(
+		patchedParams->params[params::LOCAL_ENV_0_RELEASE].setBase(
 		    *patchedParams->docForParam(params::LOCAL_ENV_0_RELEASE), -2147483648);
 
 		PatchCableSet* patchCableSet = paramManager->getPatchCableSet();
@@ -2446,7 +2446,7 @@ void Sound::ensureParamPresetValueWithoutKnobIsZeroWithMinimalDetails(ParamManag
 
 	// No knobs were assigned to this param, so make it 0 (in the store — the persisted source — and the cursor).
 	if (!any_assigned) {
-		param->setCurrentValueBasicForSetup(*paramManager->getPatchedParamSet()->docForParam(p), 0);
+		param->setBase(*paramManager->getPatchedParamSet()->docForParam(p), 0);
 	}
 }
 
@@ -2826,7 +2826,7 @@ Error Sound::createParamManagerForLoading(ParamManagerForTimeline* paramManager)
 
 	initParams(paramManager);
 
-	paramManager->getUnpatchedParamSet()->params[params::UNPATCHED_SIDECHAIN_SHAPE].setCurrentValueBasicForSetup(
+	paramManager->getUnpatchedParamSet()->params[params::UNPATCHED_SIDECHAIN_SHAPE].setBase(
 	    *paramManager->getUnpatchedParamSet()->docForParam(params::UNPATCHED_SIDECHAIN_SHAPE),
 	    2147483647); // Hmm, why this here? Obviously I had some reason...
 	return Error::NONE;
