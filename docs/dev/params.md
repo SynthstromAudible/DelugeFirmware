@@ -73,6 +73,43 @@ edit's record (`ConsequenceInstrumentDelta`) holds its sound's address and rever
 it. What still takes a stack is the engine's own record sites (`Action::recordParamChange*`, which take the address from
 it) and the reads beside an edit, both for the model stack's retirement to move.
 
+## Base and played value
+
+A lane's base (`DocAutoParam::current_value`, written only through `project::set_base`) is the model's: what the param
+plays where it has no automation, and what a file saves. Its played value (`AutoParam::played()`) is the engine
+cursor's: the lane at the playhead, interpolated, latched or overridden. The cursor is written by the executor
+(playback, interpolation, the latch) and by four named operations:
+
+- `setBase(lane, v)`: an edit, a file read or a setup default; the value is the base and is played.
+- `playBase(lane)`: the cursor projected from the model after a read, a rebuild or a model-first write.
+- `setPlayed(v)`: the played value alone, base untouched: a transient effect (the stutter's restore, a sample preview's
+  adopted volume), or what a lane played carried across a rebuild of its owner.
+- `adoptPlayedAsBase(lane)`: the legacy instrument's rule before a kernel that works on the base (deleting nodes in a
+  region, shifting values, CC to channel pressure): what plays becomes the base, then the result is played.
+
+## Recording while playing
+
+While a clip records, the render is the only writer of its lanes' nodes (`modulation/automation/record_events.h`). A
+knob, MIDI or MPE write takes the undo snapshot on the interaction tier, reserves room in the lane for what the write
+can add (and for every write still queued), and posts a `RecordEvent` with what the live-record kernel reads beyond the
+lane's nodes: the play position, the clip's length, direction and cut position, how far ahead to clear, the tick
+length. The render writes the queued events at the start of its next block, before it ticks, through
+`bridge::paramStackOnRender` (resolve-only: the interaction tier made the lane); what the kernel decides from the
+nodes (whether the region's start interpolates, which node of a straight run to drop) it decides then, so a second
+write before that block sees the first. An event made in another song, or whose clip has since gone, is dropped. With
+the queue full, the interaction tier, with the render excluded, writes what is queued and then its own. The kernel
+writes the base after reading the old one, where the cleared stretch returns to; the interaction tier sets only the
+played value.
+
+The latch's drift-back stays on the render and keeps its own undo snapshot: it also records over lanes the interaction
+tier never snapshotted (a knob turned just before record, an override on an unarmed clip). Editor writes to a recording
+lane (automation-view pads, paste, delete) stay interaction-tier Edits under the render's exclusion.
+
+Alpha counters: `renderUndoCalls` (undo logged on the render tier), `renderNodeGrowths` (a recorded write the reserved
+room did not cover), `recordRingFullFallbacks`, `recordWritesOutsideExecutor` (a lane with no address, written in
+place). param-record-diff checks the first two stay 0 across its recorded cases, and that 70 writes with no render
+block between them leave the lane as the same writes a block apart.
+
 ## The descriptor
 
 Each row is a `plugin::ParamInfo` (`src/plugin-api/types/param.h`):

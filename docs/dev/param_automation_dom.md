@@ -26,9 +26,9 @@ ParamManager
 
 - **Leaf (`AutoParam`) is already nearly value-shaped.** `ParamNode`
   (`modulation/params/param_node.h`) is a clean POD: `{int32 value, pos (Positionable), bool
-  interpolated}`. `AutoParam` (`modulation/automation/auto_param.h`) = `currentValue` + a
+  interpolated}`. `AutoParam` (`modulation/automation/auto_param.h`) = the played value (`played_`) + a
   `ParamNodeVector nodes`. `AutoParam::writeToFile` (`auto_param.cpp:1856`) emits a compact hex blob:
-  `0x` + `currentValue`(8 hex) + per-node `value`(8 hex) + `pos|interpolated<<31`(8 hex).
+  `0x` + the value (8 hex: the played value from this writer, the base from the model's save) + per-node `value`(8 hex) + `pos|interpolated<<31`(8 hex).
 - **Structure is live engine.** `ParamManager` / `ParamSet` / `PatchCableSet` hold the running
   modulation state (interpolation cursors, summaries, pool-allocated node storage) — not serializable
   as data.
@@ -48,7 +48,7 @@ not re-define it).
 ```cpp
 // The automation leaf — value form of AutoParam.
 struct DocAutoParam {
-    int32_t current_value;        // AutoParam::currentValue
+    int32_t current_value;        // the base (project::set_base); AutoParam::played() is the cursor
     Vec<ParamNode> nodes;         // AutoParam::nodes (empty => unautomated, use current_value)
 };
 
@@ -108,9 +108,9 @@ resonance/morph`, `hpf.*`) and has special blocks (patch cables, MPE). So the co
 ## Projection (DOM ↔ engine)
 
 - `toDocument(const ParamManager&) -> DocParamManager`: copy each collection's AutoParams
-  (`currentValue` + nodes) into `DocAutoParam`; copy patch cables.
+  (value + nodes) into `DocAutoParam`; copy patch cables.
 - `fromDocument(const DocParamManager&, ParamManager& out)`: allocate/clear collections, set each
-  AutoParam's `currentValue` + node vector, rebuild patch cables, then the existing post-load fixups
+  AutoParam's played value + node vector, rebuild patch cables, then the existing post-load fixups
   (summaries, `setupPatching`) run as today.
 - Patch cables and expression params are first-class in the schema (not afterthoughts) because they are
   AutoParam-bearing and part of the saved state.
