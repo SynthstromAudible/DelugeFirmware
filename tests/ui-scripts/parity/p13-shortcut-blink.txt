@@ -7,13 +7,13 @@
 440   pad 6 0 up
 500   button Shift up
 1200  snapshot volume
-1500  encoder Select -2
-2200  snapshot volume-edited
-2500  button Shift down
-2600  pad 8 7 down
-2640  pad 8 7 up
-2700  button Shift up
-3400  snapshot lpf-freq
-3700  button Back down
-3720  button Back up
-4400  snapshot closed
+2300  encoder Select -2
+3000  snapshot volume-edited
+3300  button Shift down
+3400  pad 8 7 down
+3440  pad 8 7 up
+3500  button Shift up
+4200  snapshot lpf-freq
+4500  button Back down
+4520  button Back up
+5200  snapshot closed
