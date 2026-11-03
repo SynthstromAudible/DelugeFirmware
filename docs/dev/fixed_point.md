@@ -216,6 +216,28 @@ instructions.
   Q30 product read as Q31, half the treble's. The reciprocals are double divisions and stay raw, as do `quick_log`'s
   octaves and the table positions. The high-pass ladder places its saturator with `q31_ops.h`'s asm saturate: the
   builtin a typed saturate compiles to is sunk out of the loop, and the rescheduled loop ran slower on the A9.
+- **Delay:** the analog impulse response's taps are Q31 and its sums Q30 (`mul_r`, `mla_r`), the output their bits
+  read as Q31; the feedback shaper's products are Q30, the digital clip `clamp_bits<29>` then `scale_shl_wrap<2>`
+  read as Q31, and the run-time-drive tanh reads the Q30 product's bits as its input. The resampled read lifts its
+  16.16 strengths to Q30 and its Q29 tap sum to Q31; the cross mix's mono sum is `halve_floor(add_wrap(l, r))`. The
+  tape's sped-up write adds the Q30 product of a sample and its Q28 strength as Q31 (half, the triangle being twice
+  as wide as the rate needs); the slowed-down write's gain is Q30. Ring positions and strengths' integer arithmetic
+  stay raw.
+- **Reverb:** the freeverb's coefficients are `Q<31>`, converted with `from_float<31>` (saturating at width 0's 2^31,
+  as the A9 does); the combs' low-pass and feedback are Q30 products lifted to Q31; the cross-mix reads each
+  channel's own output as Q30 (twice it) to add its Q30 share of the other; the return adds the Q30 product of output
+  and level as Q31.
+- **Dynamics:** the compressor's gains are Q26 (5.26), the gain product Q25 lifted to Q29, which the saturator reads
+  as Q31 (x × gain / 4); the gain ramp's 13.18 step is lifted to Q26 and added with `add_wrap`, both wrapping past a
+  gain of 32. The ducker's offset sum is Q28 (the Q31 duck times the Q29 depth, plus 2) and its square an integer
+  product; its envelope multiplies at Q31.
+- **Mod FX:** the tap's swing is Q17 (the Q31 LFO times it is 16.16 frames), its centre 16.16, its weights Q31 and
+  the weighed slots Q30; the flanger's feedback is lifted to Q31, the warble's written as Q29 bits read as Q31. The
+  warbler's spring adds a Q30 pull to its Q31 speed, wrapping past 2^31 apart, and `held` saturates. The phaser's
+  coefficient is Q30. The volume cut's integer scale and the post-FX volume's run-time shift stay raw.
+- **Granular:** the grain sum is Q28 (tap × Q31 window × Q30 pan), lifted to Q31; the ring's feedback takes the
+  input's bits as the Q30 accumulator; the output is `add_sat`. The window's rise, grain sizes and pitch steps stay
+  integer.
 - **Buffers and frame fields** stay raw `q31` until the kernels that read them use the named operations; each
   kernel's interface stays raw and converts at its entry and exit.
 
