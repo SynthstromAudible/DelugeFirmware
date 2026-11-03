@@ -19,7 +19,8 @@
 // from the send and volume's prime to the compressor; a kit's or an audio track's from the filter's settings and the
 // sidechain's duck to the compressor, its content render left out (the block arrives rendered); the song master's half
 // before the reverb, the caller's between, then its half after. Owner reads are the inputs fields that carry them. The
-// runtimes are checked against this, so it is written independently of them and changes only with the sound itself.
+// runtimes are checked against this, so it is written independently of them and changes only with the sound itself;
+// its arithmetic stays raw on purpose.
 
 #pragma once
 

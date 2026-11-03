@@ -9,10 +9,10 @@
 # which refuses to raise a raw count or add a file with raw sites.
 #
 # <path> raw=<n> boundary=<n>
-src/deluge/bench/cases.cpp raw=0 boundary=13
-src/deluge/bench/cases.h raw=2 boundary=22
+src/deluge/bench/cases.cpp raw=0 boundary=16
+src/deluge/bench/cases.h raw=0 boundary=28
 src/deluge/bench/delay_feedback_cases.cpp raw=2 boundary=0
-src/deluge/bench/granular_cases.cpp raw=1 boundary=0
+src/deluge/bench/granular_cases.cpp raw=0 boundary=3
 src/deluge/bench/reference_chains.h raw=4 boundary=0
 src/deluge/bench/reference_impulse_response.h raw=2 boundary=0
 src/deluge/bench/va_shape_cases.cpp raw=0 boundary=7
