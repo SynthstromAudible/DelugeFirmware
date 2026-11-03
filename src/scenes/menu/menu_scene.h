@@ -44,6 +44,7 @@
 #include "ui/oled/columns.h"
 
 #include <algorithm>
+#include <array>
 #include <cstdint>
 #include <optional>
 #include <span>
@@ -548,9 +549,12 @@ public:
 	/// @param ctx  What the menu edits.
 	void open(const Node& root, const MenuContext& ctx);
 
-	/// @brief Forget every submenu's remembered row, as a boot does: each legacy `Submenu` keeps its
-	///        `current_item_` for the life of the firmware, and this scene is as long-lived.
-	void forget_rows();
+	/// @brief Back to what a boot leaves: every submenu's remembered row forgotten (each legacy `Submenu` keeps its
+	///        `current_item_` for the life of the firmware, and this scene is as long-lived), the horizontal encoder's
+	///        acceleration and the voice-usage clock reset.
+	void reset_process_state();
+	/// @brief `reset_process_state`.
+	void forget_rows() { reset_process_state(); }
 
 	deluge::ui::shell::SceneKind kind() const override;
 	void render_oled(deluge::ui::shell::SurfaceRole role, deluge::ui::oled::OledFrame& frame) override;
@@ -708,6 +712,22 @@ public:
 	/// Exposed for specs and for E2's range picker (which has to see `range_picker_pending`);
 	/// nothing outside may write it.
 	const MenuState& state() const { return st_; }
+	/// @brief The state, writable: for specs that file a mailbox the way a node would.
+	MenuState& state_for_spec() { return st_; }
+
+	/// @brief One arm of `after_render`, in the order "The one-shot mailboxes" (`MenuState`) documents.
+	enum class DrainBand : uint8_t {
+		RangeChoice,
+		SourceChoice,
+		MidiCableChoice,
+		ValueCommit,
+		Navigation,
+		PendingAction,
+		Repaint,
+		PendingScene,
+	};
+	/// @return The arms the last `after_render` acted on, in the order they acted: the witness of the drain order.
+	std::span<const DrainBand> drain_trace() const { return {drain_trace_.data(), drain_trace_len_}; }
 
 	/// @brief What the menu is currently editing -- the `MenuContext` the last `open()` installed.
 	///
@@ -863,15 +883,16 @@ public:
 	///         target's own; 0 when that node has no id.
 	uint16_t arm_shortcut_landing(const Node& target);
 
+	/// @brief The inputs `render_oled` claims for the page focused now: the claim sites of `render_oled` and the
+	///        `render_*` functions it dispatches to, answered before they run.
+	/// @return The claim set.
+	deluge::ui::InputClaims owned_input() const;
+
 private:
 	/// @brief Fill @p out with @p node's children that `relevant` admits, resolving
 	///        `dynamic_children` first.
 	/// @return How many were written.
 	size_t visible_children(const Node& node, std::span<const Node*> out) const;
-	/// @brief The inputs `render_oled` claims for the page focused now: the claim sites of `render_oled` and the
-	///        `render_*` functions it dispatches to, answered before they run.
-	/// @return The claim set.
-	deluge::ui::InputClaims owned_input() const;
 	/// @brief The focused node's `CustomItem`, or `nullptr` when it is not a `Kind::Custom` leaf.
 	const CustomItem* focused_custom() const;
 	/// @brief @p node's @p index'th visible child, or `nullptr`.
@@ -1019,6 +1040,14 @@ private:
 	void retarget(const Node& node);
 
 	MenuState st_{};
+	/// What the last `after_render` drained, in order (`drain_trace`).
+	std::array<DrainBand, 8> drain_trace_{};
+	size_t drain_trace_len_ = 0;
+	void trace_drain(DrainBand band) {
+		if (drain_trace_len_ < drain_trace_.size()) {
+			drain_trace_[drain_trace_len_++] = band;
+		}
+	}
 	/// The voice usage page's counters and the time since their last sample; `voice_usage_at_` is where the last tick
 	/// found the focus, so arriving on the page or a counter begins its session.
 	VoiceUsageSampler voice_usage_;

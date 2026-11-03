@@ -444,11 +444,15 @@ void MenuScene::retarget(const Node& node) {
 	}
 }
 
-void MenuScene::forget_rows() {
+void MenuScene::reset_process_state() {
 	for (RememberedRow& row : remembered_) {
 		row = RememberedRow{};
 	}
 	remembered_clock_ = 0;
+	horizontal_acceleration_ = deluge::ui::EncoderAcceleration{};
+	voice_usage_ = VoiceUsageSampler{};
+	voice_usage_elapsed_ms_ = 0;
+	voice_usage_at_ = VoiceUsagePlace::None;
 }
 
 void MenuScene::remember_path() {
@@ -2111,6 +2115,7 @@ MenuActionRequest MenuScene::take_action() {
 
 Result MenuScene::after_render() {
 	Result r;
+	drain_trace_len_ = 0;
 	// A `Value`-derived bespoke item's cursor moved under a held Select is a value edited under it.
 	const Node* const shown = focused();
 	const bool value_turned = shown != nullptr && shown->kind == Kind::Custom && shown->custom != nullptr
@@ -2140,6 +2145,7 @@ Result MenuScene::after_render() {
 	// `const MenuContext&` and this is the scene's own mutable one. Applied on every tick the picker
 	// republishes its cursor, which is exactly when legacy calls it (`multi_range.cpp:54`, `:249`).
 	if (st_.range_choice >= 0) {
+		trace_drain(DrainBand::RangeChoice);
 		select_range(ctx_, st_.range_choice);
 		st_.range_choice = -1;
 	}
@@ -2151,15 +2157,18 @@ Result MenuScene::after_render() {
 	// `currentSourceIndex` on the way through `selectButtonPress`, so `gate_selection_chain` and
 	// `gate_mode_names` must both see the output the user just picked, not the previous one.
 	if (st_.source_choice >= 0) {
+		trace_drain(DrainBand::SourceChoice);
 		ctx_.source_index = st_.source_choice;
 		st_.source_choice = -1;
 	}
 	if (st_.midi_cable_choice != nullptr) {
+		trace_drain(DrainBand::MidiCableChoice);
 		ctx_.midi_cable = st_.midi_cable_choice;
 		st_.midi_cable_choice = nullptr;
 	}
 
 	if (st_.value_changed && st_.value_node != nullptr) {
+		trace_drain(DrainBand::ValueCommit);
 		commit_value(*st_.value_node);
 		// The write raises its own `notify::Dirty` facts (`bindings.cpp`), which repaint the
 		// surfaces those name; `RepaintAll` covers what a commit changed *off* this surface (a
@@ -2210,6 +2219,7 @@ Result MenuScene::after_render() {
 		// No navigation: legacy's shift arm answers NO_NAVIGATION.
 	}
 	else if (st_.render_resp.entered) {
+		trace_drain(DrainBand::Navigation);
 		if (node->kind == Kind::Submenu) {
 			if (const Node* child = selected_child(*node); child != nullptr) {
 				enter_child(*child);
@@ -2305,6 +2315,7 @@ Result MenuScene::after_render() {
 	//
 	// Placed **above** the repaint check so the ascend is covered by it.
 	if (st_.pending_action.engaged()) {
+		trace_drain(DrainBand::PendingAction);
 		taken_action_ = st_.pending_action;
 		// `on_focus` fires from `enter_leaf`, i.e. before this tick's render; a request filed from
 		// `render` (`PerformEditorItem`) arrives with the item already drawn. The four that ascend
@@ -2363,6 +2374,7 @@ Result MenuScene::after_render() {
 		repaint = true;
 	}
 	if (repaint) {
+		trace_drain(DrainBand::Repaint);
 		(void)r.actions.push_back(Action{.kind = Action::Kind::RepaintAll});
 	}
 
@@ -2372,6 +2384,7 @@ Result MenuScene::after_render() {
 	// `Push` in, and `go_up_on_resume` is set alongside it exactly where legacy sets
 	// `shouldGoUpOneLevelOnBegin` -- beside its own `openUI` call.
 	if (st_.pending_scene.kind != SceneKind::Null) {
+		trace_drain(DrainBand::PendingScene);
 		(void)r.actions.push_back(Action{.kind = Action::Kind::Push, .id = st_.pending_scene});
 		st_.pending_scene = SceneId{};
 		st_.go_up_on_resume = true;
