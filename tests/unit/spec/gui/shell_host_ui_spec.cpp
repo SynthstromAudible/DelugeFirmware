@@ -1539,9 +1539,34 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(r.base.seen.size()).to_equal(size_t(1));
 
 		(void)r.guest.padAction(kDisplayWidth + 1, 4, 64); // sidebar: never a shortcut
-		(void)r.guest.padAction(3, 4, 0);                  // release: never a shortcut
+		(void)r.guest.padAction(5, 4, 0);                  // the release of a press it never fed
 		fakelegacyui::shift_button_pressed = false;
 		(void)r.guest.padAction(3, 4, 64); // no shift
+		expect(fakelegacyui::pad_forwards).to_equal(3);
+	});
+
+	it("feeds the release of a pad whose press it fed, and only that release", _ {
+		// The menu claims a Shift + pad press; the release comes with Shift up and fails the claim's gate, but
+		// leaving it with legacy would leave the shell holding the pad for good.
+		Rig r;
+		expect(r.open()).to_be_true();
+		fakelegacyui::reset();
+		r.base.claim = GridPadClaim::ShortcutsOnly;
+
+		fakelegacyui::shift_button_pressed = true;
+		(void)r.guest.padAction(3, 4, 64);
+		fakelegacyui::shift_button_pressed = false;
+		(void)r.guest.padAction(3, 4, 0);
+		r.guest.shell().tick(1);
+		expect(r.base.seen.size()).to_equal(size_t(2));
+		expect(fakelegacyui::pad_forwards).to_equal(0);
+		expect(r.guest.shell().lowering().held_pads().test(3, 4)).to_be_false(); // the LEARN arm's "no pad held"
+
+		(void)r.guest.padAction(6, 2, 64); // no shift: legacy's
+		(void)r.guest.padAction(6, 2, 0);  // and so is its release
+		(void)r.guest.padAction(3, 4, 0);  // a second release of the fed pad is legacy's
+		r.guest.shell().tick(2);
+		expect(r.base.seen.size()).to_equal(size_t(2));
 		expect(fakelegacyui::pad_forwards).to_equal(3);
 	});
 

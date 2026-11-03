@@ -93,6 +93,7 @@ bool ShellHostUI::opened() {
 	if (!canOpen()) {
 		return false;
 	}
+	fedPads_ = deluge::ui::PadMask{};
 
 	// Start from an empty stack rather than pushing onto whatever the last session left. This is
 	// not tidiness: `SceneStack` holds one `Scene*` per kind, so pushing a kind that is already
@@ -803,7 +804,14 @@ ActionResult ShellHostUI::padAction(int32_t x, int32_t y, int32_t velocity) {
 	// Unlike `buttonAction`'s (see there) this guard is not redundant with `on_pad`'s and is
 	// covered by an example that folds a coordinate on purpose.
 	if (x >= 0 && y >= 0 && x <= UINT8_MAX && y <= UINT8_MAX) {
-		if (claimsGridPad(x, y, velocity)) {
+		// The release of a press the shell was fed is the shell's too, whatever the claim now says: a Shift + pad
+		// shortcut is released with Shift up, and leaving that release with legacy would leave the pad held in the
+		// shell for good.
+		const auto px = static_cast<uint8_t>(x);
+		const auto py = static_cast<uint8_t>(y);
+		const bool release_of_fed = velocity == 0 && fedPads_.test(px, py);
+		if (release_of_fed || claimsGridPad(x, y, velocity)) {
+			fedPads_.set(px, py, velocity != 0);
 			feed(DelugeInputEvent{DELUGE_EVENT_PAD, static_cast<uint8_t>(x), static_cast<uint8_t>(y),
 			                      static_cast<int16_t>(velocity)});
 		}

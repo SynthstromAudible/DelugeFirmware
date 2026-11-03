@@ -22,6 +22,7 @@
 #include "shell/profiles/deluge.h"
 #include "shell/scene.h"
 #include "shell/shell.h"
+#include "ui/core/input.h"
 
 #include <cstdint>
 
@@ -546,6 +547,9 @@ private:
 	/// `top()` would let such an overlay's default `All` swallow a pad the menu beneath it would
 	/// have forwarded.
 	bool claimsGridPad(int32_t x, int32_t y, int32_t velocity);
+	/// @brief The pads whose press the shell was fed and whose release it has not yet been: their releases are fed
+	///        too, claimed or not.
+	deluge::ui::PadMask fedPads_{};
 
 	/// @brief Hand each pad region between legacy and the guest when the stack changes who owns it,
 	///        and re-read the greyout when the stack changes it.
