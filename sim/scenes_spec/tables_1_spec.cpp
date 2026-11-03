@@ -374,7 +374,7 @@ struct Rig {
 		while (shell.stack().depth() > 0) {
 			shell.stack().pop(deluge::ui::shell::SceneKind::Null);
 		}
-		menu_scene().forget_rows(); // each example starts with the rows a boot has
+		menu_scene().reset_process_state(); // each example starts with the rows a boot has
 	}
 
 	void open(const Node& root, const MenuContext& ctx) {
@@ -484,11 +484,11 @@ describe tables_1_range_picker("scenes::menu batch-1 tables: the multi-range pic
 	it("chains to the node it stood in for, and its chain_targets are the range-dependent set", _ {
 		// `MultiRange::selectButtonPress` is `return menuItemHeadingTo` (`multi_range.cpp:360-362`),
 		// and `menuItemHeadingTo` is what `SoundEditor::setup` wrote there (`:1804`). The port's
-		// equivalent pair is `MenuState::pending_after_range` and this hook.
+		// equivalent pair is `MenuWalkState::pending_after_range` and this hook.
 		RangeFixture f{2};
 		menu::MenuState st{};
 		expect(nodes::multi_range_chain(f.ctx, st) == nullptr).to_be_true(); // nothing pending -> ascend
-		st.pending_after_range = &nodes::source0_transpose;
+		st.walk.pending_after_range = &nodes::source0_transpose;
 		expect(nodes::multi_range_chain(f.ctx, st) == &nodes::source0_transpose).to_be_true();
 
 		// The span has to be the whole `range_dependent` set, because any one of them can be what

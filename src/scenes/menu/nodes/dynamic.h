@@ -33,11 +33,11 @@
 /// `settings.h`'s own note records it -- legacy's two selectors assign
 /// `soundEditor.currentSourceIndex` on their way out (`cv/selection.h:42`, `gate/selection.h:47`),
 /// and a `SelectChainFn` is handed a `const MenuContext&` and cannot. The fix is the shape
-/// `MultiRangeItem` already established for `setCurrentMultiRange` (`MenuState::range_choice`): the
-/// item records its cursor in `MenuState::source_choice` and `MenuScene::after_render` -- which owns
+/// `MultiRangeItem` already established for `setCurrentMultiRange` (`MenuWalkState::range_choice`): the
+/// item records its cursor in `MenuWalkState::source_choice` and `MenuScene::after_render` -- which owns
 /// the scene's own mutable `MenuContext` -- applies it, *before* the same tick's select press
 /// consults `select_chain`. `MidiDevicesItem` does the same for `soundEditor.currentMIDICable`
-/// through `MenuState::midi_cable_choice`.
+/// through `MenuWalkState::midi_cable_choice`.
 ///
 /// With that in place `cv_selection` / `gate_selection` are finished items rather than `kPending`
 /// placeholders: `gate_selection_chain` (`settings.cpp`) now sees the output the user actually

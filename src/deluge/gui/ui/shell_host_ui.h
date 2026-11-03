@@ -22,6 +22,7 @@
 #include "shell/profiles/deluge.h"
 #include "shell/scene.h"
 #include "shell/shell.h"
+#include "ui/core/input.h"
 
 #include <cstdint>
 
@@ -532,8 +533,8 @@ private:
 	/// The body both of the guest's close paths share: `exitUI()`'s long-press Back, and
 	/// `timerCallback()`'s "the shell's stack emptied during the tick", which is what a *short* Back
 	/// at the ported menu's root produces (`MenuScene`'s `Action::Kind::Remove`,
-	/// `scenes/menu/menu_scene.cpp:2057-2071`). Neither the ring hand-back nor the close may be
-	/// skipped on either path; see the definition for why the order between them is fixed.
+	/// `MenuScene::handle_event`'s Back arm, `scenes/menu/menu_scene.cpp`). Neither the ring hand-back nor the close
+	/// may be skipped on either path; see the definition for why the order between them is fixed.
 	///
 	/// Arms no timer: `close()` is `closeUI(this)`, which unsets `TimerName::UI_SPECIFIC` itself
 	/// (`gui/ui/ui.cpp:197`). Callers must not re-arm after it.
@@ -546,6 +547,9 @@ private:
 	/// `top()` would let such an overlay's default `All` swallow a pad the menu beneath it would
 	/// have forwarded.
 	bool claimsGridPad(int32_t x, int32_t y, int32_t velocity);
+	/// @brief The pads whose press the shell was fed and whose release it has not yet been: their releases are fed
+	///        too, claimed or not.
+	deluge::ui::PadMask fedPads_{};
 
 	/// @brief Hand each pad region between legacy and the guest when the stack changes who owns it,
 	///        and re-read the greyout when the stack changes it.

@@ -73,7 +73,7 @@
 ///           `Toggle`: the ON arm opens `browser::BrowserScene` on `BrowserId::MidiDeviceDefinition`
 ///           (`midi/device_definition/linked.h:42`) and the OFF arm clears the linked file name (`:45-48`).
 ///         * `set_clip_length`, `start_stem_export`, `song_midi_learn` and `configure_song_macros` are
-///           `nodes::ActionItem`s that file a `MenuAction` through `MenuState::pending_action`, the verb
+///           `nodes::ActionItem`s that file a `MenuAction` through `MenuWalkState::pending_action`, the verb
 ///           counterpart of `pending_scene` -- see `scenes/menu/action.h`. The action is *filed*, not performed:
 ///           performing it is the wiring's job.
 ///         * `audio_source_selector` is a `nodes::ContextMenuItem` on `context_menu::DescriptorId::AudioSource`.

@@ -51,7 +51,7 @@ void give_three_ranges(::Sound& sound, int32_t s) {
 int32_t picker_cursor(const MenuContext& ctx) {
 	menu::MenuState state{};
 	nodes::kMultiRangeItem.on_focus(ctx, state);
-	return state.range_choice;
+	return state.walk.range_choice;
 }
 
 } // namespace

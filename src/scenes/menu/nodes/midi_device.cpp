@@ -79,7 +79,7 @@ void draw_node_title(deluge::ui::oled::OledFrame& f, const MenuState& state) {
 void render_selection(deluge::ui::oled::OledFrame& f, MenuState& state, std::span<const std::string_view> names) {
 	const size_t d = depth_of(state);
 	int32_t index = state.list[d].cursor;
-	state.render_resp =
+	state.tick.render_resp =
 	    deluge::ui::oled::enum_value(f, deluge::ui::oled::menu_rect(f), index, names, state.list[d], state.scroll[d]);
 }
 
@@ -121,7 +121,7 @@ MIDIPort* mpe_port(const MenuContext& ctx, const MenuState& state) {
 	if (ctx.midi_cable == nullptr) {
 		return nullptr;
 	}
-	return &ctx.midi_cable->ports[state.mpe_direction != 0 ? 1 : 0];
+	return &ctx.midi_cable->ports[state.walk.mpe_direction != 0 ? 1 : 0];
 }
 
 } // namespace
@@ -134,7 +134,7 @@ IntRange mpe_zone_channels_range(const MenuContext& ctx, const MenuState& state)
 		return IntRange{0, 0, 1};
 	}
 	// "This limits it so we don't eat into the other zone" (`:36`).
-	int32_t num_channels_available = state.mpe_zone == MPE_ZONE_LOWER_NUMBERED_FROM_0
+	int32_t num_channels_available = state.walk.mpe_zone == MPE_ZONE_LOWER_NUMBERED_FROM_0
 	                                     ? port->mpeUpperZoneLastMemberChannel
 	                                     : 15 - port->mpeLowerZoneLastMemberChannel;
 
@@ -154,8 +154,8 @@ int32_t mpe_zone_channels_value(const MenuContext& ctx, const MenuState& state) 
 	if (port == nullptr) {
 		return 0;
 	}
-	return state.mpe_zone == MPE_ZONE_LOWER_NUMBERED_FROM_0 ? port->mpeLowerZoneLastMemberChannel
-	                                                        : 15 - port->mpeUpperZoneLastMemberChannel;
+	return state.walk.mpe_zone == MPE_ZONE_LOWER_NUMBERED_FROM_0 ? port->mpeLowerZoneLastMemberChannel
+	                                                             : 15 - port->mpeUpperZoneLastMemberChannel;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -244,7 +244,7 @@ void set_device_send_thru(const MenuContext& ctx, int32_t value) {
 
 void MpeDirectionItem::on_focus(const MenuContext& /*ctx*/, MenuState& state) const {
 	focus_selection(state);
-	state.mpe_direction = MIDI_DIRECTION_INPUT_TO_DELUGE; // `direction_selector.cpp:25-27`
+	state.walk.mpe_direction = MIDI_DIRECTION_INPUT_TO_DELUGE; // `direction_selector.cpp:25-27`
 }
 
 void MpeDirectionItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& /*ctx*/, MenuState& state) const {
@@ -264,8 +264,8 @@ void MpeDirectionItem::render(deluge::ui::oled::OledFrame& f, const MenuContext&
 	// `writeCurrentValue` (`direction_selector.h:37`): `whichDirection = getValue()`. A legacy
 	// `Value` writes on every encoder move, not only on the press, and `ZoneNumMemberChannels`
 	// reads the member -- so this republishes every frame, exactly as `SourceSelectionItem` does
-	// for `MenuState::patch_source` (`scenes/menu/nodes/patch_cables.cpp:459-465`).
-	state.mpe_direction = chosen(state, 2);
+	// for `MenuWalkState::patch_source` (`scenes/menu/nodes/patch_cables.cpp:459-465`).
+	state.walk.mpe_direction = chosen(state, 2);
 }
 
 deluge::ui::shell::Result MpeDirectionItem::handle(const deluge::ui::shell::UiEvent& /*event*/,
@@ -279,7 +279,7 @@ deluge::ui::shell::Result MpeDirectionItem::handle(const deluge::ui::shell::UiEv
 
 void MpeZoneItem::on_focus(const MenuContext& /*ctx*/, MenuState& state) const {
 	focus_selection(state);
-	state.mpe_zone = MPE_ZONE_LOWER_NUMBERED_FROM_0; // `zone_selector.cpp:25-27`
+	state.walk.mpe_zone = MPE_ZONE_LOWER_NUMBERED_FROM_0; // `zone_selector.cpp:25-27`
 }
 
 void MpeZoneItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& /*ctx*/, MenuState& state) const {
@@ -294,7 +294,7 @@ void MpeZoneItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& /*ct
 	};
 	render_selection(f, state, names);
 
-	state.mpe_zone = chosen(state, 2); // `writeCurrentValue` (`zone_selector.h:30`)
+	state.walk.mpe_zone = chosen(state, 2); // `writeCurrentValue` (`zone_selector.h:30`)
 }
 
 deluge::ui::shell::Result MpeZoneItem::handle(const deluge::ui::shell::UiEvent& /*event*/,
@@ -323,16 +323,16 @@ void MpeZoneChannelsItem::render(deluge::ui::oled::OledFrame& f, const MenuConte
 	const deluge::ui::Response r =
 	    deluge::ui::oled::int_value(f, f.bounds(), state.edit_int, mpe_zone_channels_range(ctx, state),
 	                                deluge::ui::oled::ValueStyle{.off_at_zero = true}, /*focused=*/true);
-	state.render_resp = r;
+	state.tick.render_resp = r;
 	if (r.changed) {
-		state.value_changed = true;
-		state.value_node = focused_of(state);
+		state.tick.value_changed = true;
+		state.tick.value_node = focused_of(state);
 	}
 	// `int_value` owns the gold knobs only, so the select press that leaves the item
 	// (`MenuItem::selectButtonPress` returning nullptr -> `goUpOneLevel`) is this scene's to claim,
 	// and the select *encoder* is claimed for the same reason `render_leaf_int` claims it.
 	if (f.select_pressed()) {
-		state.render_resp.entered = true;
+		state.tick.render_resp.entered = true;
 	}
 	f.claim_turn();
 }
@@ -343,7 +343,7 @@ void MpeZoneChannelsItem::commit(const MenuContext& ctx, MenuState& state) const
 	if (port == nullptr) {
 		return;
 	}
-	if (state.mpe_zone == MPE_ZONE_LOWER_NUMBERED_FROM_0) {
+	if (state.walk.mpe_zone == MPE_ZONE_LOWER_NUMBERED_FROM_0) {
 		port->mpeLowerZoneLastMemberChannel = static_cast<uint8_t>(state.edit_int);
 	}
 	else {
@@ -355,8 +355,8 @@ void MpeZoneChannelsItem::commit(const MenuContext& ctx, MenuState& state) const
 
 	// "If this was for an output, we transmit an MCM message to tell the device about our MPE zone
 	// for the MIDI they'll be receiving from us." (`:78-84`)
-	if (state.mpe_direction == MIDI_DIRECTION_OUTPUT_FROM_DELUGE) {
-		const int32_t master_channel = state.mpe_zone == MPE_ZONE_LOWER_NUMBERED_FROM_0 ? 0 : 15;
+	if (state.walk.mpe_direction == MIDI_DIRECTION_OUTPUT_FROM_DELUGE) {
+		const int32_t master_channel = state.walk.mpe_zone == MPE_ZONE_LOWER_NUMBERED_FROM_0 ? 0 : 15;
 		ctx.midi_cable->sendRPN(master_channel, 0, 6, state.edit_int);
 	}
 }

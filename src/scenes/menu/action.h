@@ -4,7 +4,7 @@
 /// @brief The **action seam**: how a menu item says "run this root-UI action" without the scenes
 ///        layer reaching into `gui/`.
 ///
-/// `MenuState::pending_scene` is the noun half of this seam and has been there since task 5: an item
+/// `MenuWalkState::pending_scene` is the noun half of this seam and has been there since task 5: an item
 /// names a *scene* and `MenuScene::after_render` turns the request into a `Push`. It works because
 /// every scene a menu wants to open is inside `src/scenes`. Five ported items are not like that --
 /// what their select press does is run a piece of legacy root-UI behaviour:
@@ -72,7 +72,7 @@
 ///   2. `MenuActionRequest` -- that enumerator plus one `uint16_t` payload, for the two actions
 ///      whose meaning is not fixed by their identity (`OpenPerformanceView` carries which editing
 ///      mode; `SetShortcutsVersion` carries which layout).
-///   3. `MenuState::pending_action` -- the field an item writes, exactly as it writes
+///   3. `MenuWalkState::pending_action` -- the field an item writes, exactly as it writes
 ///      `pending_scene` (`menu_scene.h`); or, for a hook that is handed no state,
 ///      `MenuScene::request_action`, which writes that same field.
 ///   4. `MenuScene::after_render` drains it **where `pending_scene` is drained**, and parks it in
@@ -104,7 +104,7 @@ namespace deluge::scenes::menu {
 /// @brief The closed set of root-UI actions a menu item may request.
 ///
 /// Closed on purpose: a wiring-side dispatcher can `switch` over it and a new enumerator breaks that
-/// switch loudly. `None` is the "no request" state of `MenuState::pending_action`, the way
+/// switch loudly. `None` is the "no request" state of `MenuWalkState::pending_action`, the way
 /// `SceneKind::Null` is `pending_scene`'s.
 enum class MenuAction : uint8_t {
 	/// @brief No action requested.

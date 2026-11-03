@@ -217,6 +217,7 @@
 ///          exactly the 500 ms `LoweringConfig::short_press_ms` already carries
 ///          (`shell/input_lowering.h:19-26`).
 
+#include "scenes/menu/context.h"
 #include "scenes/services/learn_mode.h"
 
 #include "ui/core/led_frame.h"
@@ -286,6 +287,9 @@ public:
 		/// Legacy's comment there: only show the tempo pop-up if we are not in Song / Arranger
 		/// view.
 		bool current_ui_is_song_or_arranger = false;
+		/// The root view's greyout arm (`MenuContext::RootGreyout`), which the settings menu this service opens
+		/// greys by.
+		menu::MenuContext::RootGreyout root_greyout = menu::MenuContext::RootGreyout::Menu;
 	};
 
 	/// @param stack    The scene stack this service pushes the settings menu onto

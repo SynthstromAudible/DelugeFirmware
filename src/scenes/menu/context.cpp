@@ -170,6 +170,8 @@ MenuContext context_for(Song& song, const services::MenuView& view, int8_t sourc
 	ctx.is_session_view = session_view_root;
 	ctx.is_performance = performance_view;
 	ctx.horizontal_menus = runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::HorizontalMenus);
+	ctx.shortcut_overlay = runtimeFeatureSettings.get(RuntimeFeatureSettingType::ShortcutOverlay)
+	                       != static_cast<uint32_t>(RuntimeFeatureStateShortcutOverlay::Off);
 	ctx.resolved = true;
 
 	// ---------------------------------------------------------------------------------------

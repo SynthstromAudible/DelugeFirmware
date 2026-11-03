@@ -56,6 +56,7 @@
 
 #include <version.h> // kFirmwareVersionString -- the real firmware_version CustomItem's own draw
 
+#include <algorithm>
 #include <array>
 #include <cstdint>
 #include <span>
@@ -368,7 +369,7 @@ struct Rig {
 		while (shell.stack().depth() > 0) {
 			shell.stack().pop(SceneKind::Null);
 		}
-		menu_scene().forget_rows(); // each example starts with the rows a boot has
+		menu_scene().reset_process_state(); // each example starts with the rows a boot has
 	}
 
 	explicit Rig(const DelugeBoard& board = deluge::ui::shell::kDelugeBoard, const BoardProfile& p = deluge_profile())
@@ -1197,7 +1198,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		// the editor forgets nothing.
 		select_language();
 		deluge::notify::dirty().drain();
-		menu_scene().forget_rows();
+		menu_scene().reset_process_state();
 		Rig r;
 		(void)r.open(settings_root);
 		r.shell.tick(0);
@@ -1216,7 +1217,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 	it("each root remembers its own row, and a submenu its own", _ {
 		select_language();
 		deluge::notify::dirty().drain();
-		menu_scene().forget_rows();
+		menu_scene().reset_process_state();
 		Rig r;
 		(void)r.open(settings_root);
 		r.shell.tick(0);
@@ -1250,7 +1251,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		// shortcut jumped straight to, or a scene opener whose scene returned, closes the editor when it goes up.
 		select_language();
 		deluge::notify::dirty().drain();
-		menu_scene().forget_rows();
+		menu_scene().reset_process_state();
 		Rig r;
 		(void)r.open(int_leaf);
 		r.shell.tick(0);
@@ -1377,10 +1378,17 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		    UiEvent{.kind = UiEvent::Kind::Pad, .x = kLpfFreqX, .y = kLpfFreqY, .velocity = 64, .on = true},
 		    shifted.ctx);
 		expect(res.handled).to_be_true();
-		expect(res.actions.size()).to_equal(size_t(1));
-		expect(static_cast<int>(res.actions[0].kind)).to_equal(static_cast<int>(deluge::ui::shell::Action::Kind::Replace));
-		expect(static_cast<int>(res.actions[0].id.kind)).to_equal(static_cast<int>(SceneKind::FirstApp));
-		expect(static_cast<int>(res.actions[0].id.arg)).to_equal(static_cast<int>(menu::node_id(nodes::filters_group)));
+		// The press is also SHIFT's first sight of the menu, so the overlay's repaint may ride beside it.
+		const auto is_replace = [](const deluge::ui::shell::Action& a) {
+			return a.kind == deluge::ui::shell::Action::Kind::Replace;
+		};
+		expect(std::ranges::count_if(res.actions, is_replace)).to_equal(1);
+		const auto replace = std::ranges::find_if(res.actions, is_replace);
+		expect(replace != res.actions.end()).to_be_true();
+		if (replace != res.actions.end()) {
+			expect(static_cast<int>(replace->id.kind)).to_equal(static_cast<int>(SceneKind::FirstApp));
+			expect(static_cast<int>(replace->id.arg)).to_equal(static_cast<int>(menu::node_id(nodes::filters_group)));
+		}
 		// `handle()` itself moves nothing: the router's Replace does, through `on_enter`.
 		expect(menu_scene().focused() == &settings_root).to_be_true();
 	});
@@ -1438,7 +1446,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		r.button(kShiftX, kShiftY, false, 40);
 		r.shell.tick(50);
 		expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
-		expect(menu_scene().state().pending_after_range == &nodes::source0_transpose).to_be_true();
+		expect(menu_scene().state().walk.pending_after_range == &nodes::source0_transpose).to_be_true();
 
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 60);
 		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 60);
@@ -1535,11 +1543,11 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		// (`sound_editor.cpp:1857-1858`). So the *picker* is entered, not the leaf.
 		expect(depth_of()).to_equal(1);
 		expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
-		expect(menu_scene().state().range_picker_pending).to_be_true();
-		expect(menu_scene().state().pending_after_range == &transpose_leaf).to_be_true();
+		expect(menu_scene().state().walk.range_picker_pending).to_be_true();
+		expect(menu_scene().state().walk.pending_after_range == &transpose_leaf).to_be_true();
 
 		// Both ranges are on screen, and the picker has selected one -- `setCurrentMultiRange`
-		// (`sound_editor.cpp:1983-1986`), applied by `after_render` from `MenuState::range_choice`.
+		// (`sound_editor.cpp:1983-1986`), applied by `after_render` from `MenuWalkState::range_choice`.
 		// `MultiRange::beginSession` (`multi_range.cpp:46-50`): a `defaultRangeI` of -1 is invalid, so
 		// the picker opens on `numRanges >> 1` -- range 1 of the two -- and `select_range` writes that
 		// back, which is legacy's `soundEditor.currentSource->defaultRangeI = ...` (`:225`).
@@ -1560,7 +1568,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		r.shell.tick(140);
 		expect(depth_of()).to_equal(2);
 		expect(menu_scene().focused() == &transpose_leaf).to_be_true();
-		expect(menu_scene().state().range_picker_pending).to_be_false();
+		expect(menu_scene().state().walk.range_picker_pending).to_be_false();
 	});
 
 	it("a range-dependent node on a ZERO-range source opens, because enter_child creates the range", _ {
@@ -1590,7 +1598,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		// The leaf itself is on screen -- no picker in between -- and the range it needs now exists.
 		expect(depth_of()).to_equal(1);
 		expect(menu_scene().focused() == &transpose_leaf).to_be_true();
-		expect(menu_scene().state().range_picker_pending).to_be_false();
+		expect(menu_scene().state().walk.range_picker_pending).to_be_false();
 		expect(static_cast<int>(std::ssize(sound->sources[0].ranges))).to_equal(1);
 		// `Source::getOrCreateFirstRange` gives it the top of the keyboard (`source.cpp:165`).
 		expect(static_cast<int>(sound->sources[0].ranges.getElement(0)->topNote)).to_equal(32767);
@@ -1659,8 +1667,8 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		// deep link has no path to descend from -- and the item it stood in for is remembered.
 		expect(depth_of()).to_equal(0);
 		expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
-		expect(menu_scene().state().range_picker_pending).to_be_true();
-		expect(menu_scene().state().pending_after_range == &transpose_leaf).to_be_true();
+		expect(menu_scene().state().walk.range_picker_pending).to_be_true();
+		expect(menu_scene().state().walk.pending_after_range == &transpose_leaf).to_be_true();
 		// And the two ranges are still the source's own: nothing was allocated on top of them.
 		expect(static_cast<int>(std::ssize(sound->sources[0].ranges))).to_equal(2);
 	});
@@ -2371,23 +2379,25 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 		expect(menu_scene().focused_value() == &nodes::lpf_freq).to_be_true();
 		const uint32_t anchor = menu_scene().state().blink_anchor_ms;
 		const PadFlash pad{kLpfFreqX, kLpfFreqY, FlashColour::Default};
+		// The sources patched to the cutoff flash on the source steps; the param pad is this example's subject.
+		const auto param_flashes = [&] {
+			return static_cast<size_t>(std::ranges::count(r.fake.flashes_sent, pad));
+		};
 
 		// Short of the param step: nothing yet.
 		r.shell.tick(anchor + menu::kSourceBlinkMs - 1);
-		expect(r.fake.flashes_sent.empty()).to_be_true();
+		expect(param_flashes()).to_equal(size_t(0));
 
 		// The scene armed the grid gate for the step edge, so this tick renders with no input and
 		// the flash goes out exactly on it -- `next_timer()`'s fixed 180 ms alone would land late.
 		r.shell.tick(anchor + menu::kSourceBlinkMs);
-		expect(r.fake.flashes_sent.size()).to_equal(size_t(1));
-		expect(!r.fake.flashes_sent.empty() && r.fake.flashes_sent[0] == pad).to_be_true();
+		expect(param_flashes()).to_equal(size_t(1));
 
-		// The rest of the cycle flashes nothing; the next cycle's param step flashes again.
+		// The rest of the cycle flashes nothing there; the next cycle's param step flashes again.
 		r.shell.tick(anchor + menu::kBlinkCycleMs);
-		expect(r.fake.flashes_sent.size()).to_equal(size_t(1));
+		expect(param_flashes()).to_equal(size_t(1));
 		r.shell.tick(anchor + menu::kBlinkCycleMs + menu::kSourceBlinkMs);
-		expect(r.fake.flashes_sent.size()).to_equal(size_t(2));
-		expect(r.fake.flashes_sent.size() == 2 && r.fake.flashes_sent[1] == pad).to_be_true();
+		expect(param_flashes()).to_equal(size_t(2));
 		// No pad of the shell's grid was ever lit for it.
 		expect(r.pad_colour(kLpfFreqX, kLpfFreqY) == RGB{0, 0, 0}).to_be_true();
 	});
@@ -2658,7 +2668,7 @@ describe menu_scene_goldens("scenes::menu::MenuScene pixels", $ {
 			expect(menu_scene().focused() == &sync_leaf).to_be_true();
 			// `after_render` moves the path only *after* the render that entered it, so the panel
 			// still shows the old (list) screen this same tick -- the entered leaf is only drawn on
-			// the next one (`descend_to`'s `st_.path[st_.depth] = &child`, `menu_scene.cpp:1509`;
+			// the next one (`MenuWalk::descend_to`'s `st.path[st.depth] = &child`, `scenes/menu/walk.cpp`;
 			// `open_lpf` above needs the identical extra tick for the same reason).
 			r.shell.tick(120);
 			expect_golden(self, "../ui/menu/menu_sync_level_48.pbm", r.fake.pbm(0));

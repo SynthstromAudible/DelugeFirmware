@@ -79,7 +79,7 @@ namespace {
 /// is no navigation left for it to ask for.
 ///
 /// It has also already happened. The port reproduces the whole of legacy's `DISABLED` arm on the
-/// **producing** side: `PerformEditorItem::render` leaves `MenuState::render_resp.entered` set so
+/// **producing** side: `PerformEditorItem::render` leaves `MenuTick::render_resp.entered` set so
 /// `after_render`'s leaf arm ascends, and files no request at all
 /// (`scenes/menu/nodes/actions.cpp:153-158`). That is what `scenes/menu/action.h:113-114`'s "never
 /// `DISABLED`" promise is made of, and `sim/scenes_spec/menu_actions_spec.cpp`'s "goes up a level on
@@ -152,10 +152,10 @@ void openPerformanceView(PerformanceEditingMode mode) {
 /// root is legacy's `SoundEditor::goUpOneLevel` depth-0 arm, which *is* `exitCompletely()`
 /// (`gui/ui/sound_editor.cpp:710-717`, the call at `:716`), and `MenuScene::handle` ports it as
 /// `Action{.kind = Action::Kind::Remove, .pop_to = SceneKind::FirstApp}`
-/// (`scenes/menu/menu_scene.cpp:2057-2071`). `SceneStack::remove` and not `pop`, for the reason
-/// recorded there (`:2044-2056`): `pop` would take a `Working` animation or a `Popup` sitting over
-/// the menu down with it, and "close the editor" should not mean that. This is that same statement,
-/// reached by a different press, so the two exits of the ported menu agree by construction.
+/// (`MenuScene::handle_event`'s Back arm, `scenes/menu/menu_scene.cpp`). `SceneStack::remove` and not `pop`, for the
+/// reason recorded there: `pop` would take a `Working` animation or a `Popup` sitting over the menu down with it, and
+/// "close the editor" should not mean that. This is that same statement, reached by a different press, so the two exits
+/// of the ported menu agree by construction.
 ///
 /// Taking the menu off is the whole of it, because `ShellHostUI::timerCallback` closes the guest
 /// itself once nothing stacked takes input (`gui/ui/shell_host_ui.cpp`), the only close path the
@@ -306,10 +306,10 @@ std::optional<StemExportType> stemExportTypeForRootUI() {
 
 void dispatchShellActions() {
 	// One read, unconditionally, and the read is what empties the slot -- `take_action()` returns
-	// the request and clears it in the same call (`scenes/menu/menu_scene.h:702-703`). So an early
+	// the request and clears it in the same call (`MenuScene::take_action`). So an early
 	// return above this line would not be "nothing to do", it would be "the request stays in the
 	// outbox until something else asks", which is the stale delivery the mailbox's own warning
-	// describes (`:672-677`).
+	// describes (`MenuScene::take_action`'s warning).
 	const MenuActionRequest req = menu_scene().take_action();
 	if (!req.engaged()) {
 		return;

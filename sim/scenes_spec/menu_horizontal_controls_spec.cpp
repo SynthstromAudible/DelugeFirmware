@@ -283,7 +283,7 @@ struct Rig {
 		while (shell.stack().depth() > 0) {
 			shell.stack().pop(SceneKind::Null);
 		}
-		menu_scene().forget_rows(); // each example starts with the rows a boot has
+		menu_scene().reset_process_state(); // each example starts with the rows a boot has
 	}
 
 	explicit Rig(const BoardProfile& p = deluge_profile()) : profile(p), fake(deluge::ui::shell::kDelugeBoard, p) {}
@@ -1183,7 +1183,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 	it("reopening a group lands on the member and column last focused", _ {
 		select_language();
 		deluge::notify::dirty().drain();
-		menu_scene().forget_rows();
+		menu_scene().reset_process_state();
 		Rig r;
 		const MenuContext ctx = r.open(menu::nodes::filters_group);
 		r.shell.tick(0);
@@ -1351,7 +1351,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		expect(fv == nullptr ? -1 : static_cast<int>(menu::node_id(*fv))).to_equal(static_cast<int>(menu::node_id(menu::nodes::lpf_freq)));
 		r.enter(400);
 		r.shell.tick(410);
-		expect(static_cast<int>(menu_scene().state().patching_param))
+		expect(static_cast<int>(menu_scene().state().walk.patching_param))
 		    .to_equal(static_cast<int>(deluge::modulation::params::LOCAL_LPF_FREQ));
 		const uint8_t d = menu_scene().state().depth;
 		expect(static_cast<int>(menu_scene().state().list[d].cursor)).to_equal(static_cast<int>(vertical_cursor));
@@ -2040,7 +2040,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 
 		// The picker opened instead of the column itself -- a real descent, one level deeper.
 		expect(depth_of()).to_equal(1);
-		expect(menu_scene().state().range_picker_pending).to_be_true();
+		expect(menu_scene().state().walk.range_picker_pending).to_be_true();
 		// And the page's own focus was still assigned to RANGE_COL first, exactly as
 		// `handleInstrumentButtonPress` assigns `current_item_` before the range check.
 		expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(4);
@@ -2074,12 +2074,12 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 
 		r.press(kMidiX, kMidiY, 800); // new focus onto SESSION_COL: picker suppressed
 		expect(depth_of()).to_equal(0);
-		expect(menu_scene().state().range_picker_pending).to_be_false();
+		expect(menu_scene().state().walk.range_picker_pending).to_be_false();
 		expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(6);
 
 		r.press(kMidiX, kMidiY, 1100); // already focused: permission checked unconditionally
 		expect(depth_of()).to_equal(1);
-		expect(menu_scene().state().range_picker_pending).to_be_true();
+		expect(menu_scene().state().walk.range_picker_pending).to_be_true();
 	});
 
 	it("LEDs: SYNTH/KIT/MIDI/CV light the focused column's slots", _ {

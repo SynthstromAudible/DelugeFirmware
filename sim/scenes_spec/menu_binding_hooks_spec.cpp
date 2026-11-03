@@ -184,7 +184,7 @@ struct Rig {
 		while (shell.stack().depth() > 0) {
 			shell.stack().pop(SceneKind::Null);
 		}
-		menu_scene().forget_rows(); // each example starts with the rows a boot has
+		menu_scene().reset_process_state(); // each example starts with the rows a boot has
 	}
 
 	explicit Rig(const BoardProfile& p = deluge_profile()) : profile(p), fake(deluge::ui::shell::kDelugeBoard, p) {}
@@ -252,16 +252,16 @@ describe menu_binding_hooks("scenes::menu::MenuScene Binding hooks (adjust, valu
 	   _ {
 		// Fix round 1, Important 1's regression: driven without the `Shell` at all, since
 		// `render_oled`/`on_resume`/`after_render` are all public on `menu_scene()`
-		// (`menu_scene.h:495`, `:502`, `:498`) and this rig's `input` is a plain field a spec sets
+		// (`MenuScene`, `scenes/menu/menu_scene.h`) and this rig's `input` is a plain field a spec sets
 		// directly (`spec/ui/support/frames.h`'s own doc on `OledRig`).
 		//
 		// A single stage-then-`on_resume`-then-commit sequence is not enough to tell the reset
 		// apart from `on_resume`'s OTHER four resets (`value_changed`/`value_node` alone already
-		// stop `after_render`'s `if (st_.value_changed && st_.value_node != nullptr)` guard from
+		// stop `after_render`'s `if (st_.tick.value_changed && st_.tick.value_node != nullptr)` guard from
 		// committing anything at all, whether or not `edit_offset` itself was cleared) -- confirmed
 		// by mutation below, and recorded in the report rather than shipped as a silently-vacuous
 		// example. Two turns, with `on_resume` run between them, isolates it: if `on_resume` failed
-		// to clear `edit_offset`, the second turn's own accumulation (`st_.edit_offset += detents`)
+		// to clear `edit_offset`, the second turn's own accumulation (`st_.tick.edit_offset += detents`)
 		// would add onto the first turn's abandoned offset instead of starting fresh from it.
 		select_language();
 		deluge::notify::dirty().drain();
@@ -296,10 +296,10 @@ describe menu_binding_hooks("scenes::menu::MenuScene Binding hooks (adjust, valu
 
 	it("on_enter() discards a staged offset through retarget(), unmasked by open()'s own reset", _ {
 		// Fix round 1, Important 1's regression, `retarget()`'s half (fix round 3): `on_enter` is
-		// public (`menu_scene.h:501`) and, on its `arg == 0` fallback (`menu_scene.cpp:492-498`),
+		// public (`MenuScene::on_enter`) and, on its `arg == 0` fallback,
 		// reads `ctx_.root` -- already set by `r.open()` below -- looks up `roots()[ctx_.root]`, and
-		// calls `retarget(*target)` (`:502`) with **no preceding `st_ = MenuState{}`**. That is the
-		// difference from `open()`, whose own full reset (`:333`) runs before its own
+		// calls `retarget(*target)` with **no preceding `st_ = MenuState{}`**. That is the
+		// difference from `open()`, whose own full reset runs before its own
 		// `retarget()` call and would mask `retarget`'s reset being missing entirely. `on_enter`'s
 		// `arg == 0` branch re-roots onto whatever `nodes::sound_root` (or similar) `ctx_.root`
 		// names, not back onto `adjust_page` -- fine here, since the assertion is only about
@@ -318,15 +318,15 @@ describe menu_binding_hooks("scenes::menu::MenuScene Binding hooks (adjust, valu
 		// Confirms the staging actually happened, so the assertion below cannot pass vacuously
 		// (an already-zero `edit_offset` would make `on_enter` look like it cleared something it
 		// never saw).
-		expect(menu_scene().state().edit_offset != 0).to_be_true();
+		expect(menu_scene().state().tick.edit_offset != 0).to_be_true();
 
 		menu_scene().on_enter(SceneId{SceneKind::FirstApp, 0});
 
-		expect(menu_scene().state().edit_offset).to_equal(0);
+		expect(menu_scene().state().tick.edit_offset).to_equal(0);
 	});
 
 	it("three separate turns before a settle still commit once, with the sum of the detents", _ {
-		// `render_horizontal`'s edit block accumulates into `MenuState::edit_offset` on every turn;
+		// `render_horizontal`'s edit block accumulates into `MenuTick::edit_offset` on every turn;
 		// `commit_value` applies it once and clears it. Three turns between ticks exercise the
 		// accumulation itself, not just a single-turn passthrough.
 		select_language();

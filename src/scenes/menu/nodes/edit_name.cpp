@@ -53,7 +53,7 @@ void EditNameItem::on_focus(const MenuContext& ctx, MenuState& state) const {
 	// and open it. `open()` is the `renameClipUI.clip = clip` / `renameOutputUI.output = ...`
 	// assignment, generalised -- the target table reads whichever member of the context it needs.
 	rename::rename_scene().open(ctx);
-	state.pending_scene = deluge::ui::shell::SceneId{rename::kRenameSceneKind, target_};
+	state.walk.pending_scene = deluge::ui::shell::SceneId{rename::kRenameSceneKind, target_};
 }
 
 } // namespace deluge::scenes::menu::nodes

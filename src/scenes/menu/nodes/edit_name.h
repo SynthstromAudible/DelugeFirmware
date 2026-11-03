@@ -7,12 +7,12 @@
 /// `MenuItem` whose entire body is a `beginSession` override: it points the right `RenameUI` at the
 /// right model object and calls `openUI()` on it. `CustomItem::on_focus` is `beginSession`
 /// (`node.h`), so that is where this does the same thing -- except that a scene may not touch the
-/// stack itself, so instead of opening a UI it records the push in `MenuState::pending_scene` and
+/// stack itself, so instead of opening a UI it records the push in `MenuWalkState::pending_scene` and
 /// `MenuScene::after_render` turns it into an `Action`.
 ///
 /// Legacy's `soundEditor.shouldGoUpOneLevelOnBegin = true` (`edit_name.cpp:50`), which makes the
 /// menu step back out of the item when the rename UI closes (`SoundEditor::focusRegained`,
-/// `gui/ui/sound_editor.cpp:318-321`), is `MenuState::go_up_on_resume` -- set by the same
+/// `gui/ui/sound_editor.cpp:318-321`), is `MenuWalkState::go_up_on_resume` -- set by the same
 /// `after_render` arm, read by `MenuScene::on_resume`.
 ///
 /// @note Legacy also calls `instrumentClipView.cancelAllAuditioning()` on the way

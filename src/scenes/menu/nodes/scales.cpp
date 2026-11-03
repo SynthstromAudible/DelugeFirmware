@@ -139,11 +139,11 @@ void ActiveScalesItem::render(deluge::ui::oled::OledFrame& f, const MenuContext&
 	}
 
 	const size_t d = depth_of(state);
-	state.render_resp =
+	state.tick.render_resp =
 	    deluge::ui::oled::list(f, deluge::ui::oled::menu_rect(f), state.list[d],
 	                           std::span<const deluge::ui::oled::ListRow>{rows, kScaleRows}, state.scroll[d]);
 
-	if (!state.render_resp.entered) {
+	if (!state.tick.render_resp.entered) {
 		return;
 	}
 
@@ -151,9 +151,9 @@ void ActiveScalesItem::render(deluge::ui::oled::OledFrame& f, const MenuContext&
 	// The flip itself is `commit()`'s -- a render may not write the model -- and clearing `entered`
 	// is how this item says it consumed the press, so `after_render`'s leaf arm does not ascend out
 	// of a page legacy stays on. Same two moves as `PerformEditorItem` (`nodes/actions.cpp`).
-	state.value_changed = true;
-	state.value_node = node;
-	state.render_resp.entered = false;
+	state.tick.value_changed = true;
+	state.tick.value_node = node;
+	state.tick.render_resp.entered = false;
 }
 
 void ActiveScalesItem::commit(const MenuContext& ctx, MenuState& state) const {

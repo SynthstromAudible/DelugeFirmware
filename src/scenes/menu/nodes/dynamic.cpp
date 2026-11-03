@@ -104,10 +104,10 @@ void render_output_selection(deluge::ui::oled::OledFrame& f, MenuState& state, s
 
 	const size_t d = depth_of(state);
 	int32_t index = state.list[d].cursor;
-	state.render_resp =
+	state.tick.render_resp =
 	    deluge::ui::oled::enum_value(f, deluge::ui::oled::menu_rect(f), index, names, state.list[d], state.scroll[d]);
-	if (state.render_resp.entered && !names.empty()) {
-		state.source_choice =
+	if (state.tick.render_resp.entered && !names.empty()) {
+		state.walk.source_choice =
 		    static_cast<int8_t>(std::clamp<int32_t>(index, 0, static_cast<int32_t>(names.size()) - 1));
 		if (index >= 0 && static_cast<size_t>(index) < real_output_limit) {
 			state.real_output_choice = static_cast<int8_t>(index);
@@ -278,7 +278,7 @@ void MidiDevicesItem::on_focus(const MenuContext& ctx, MenuState& state) const {
 
 	// `:55` -- `soundEditor.currentMIDICable = getCable(this->getValue())`. A `CustomItem` gets a
 	// `const MenuContext&`, so the choice is recorded and `MenuScene::after_render` applies it (see
-	// `MenuState::midi_cable_choice`), exactly as `MultiRangeItem` does for the selected range.
+	// `MenuWalkState::midi_cable_choice`), exactly as `MultiRangeItem` does for the selected range.
 	//
 	// **Unconditional, like legacy's own statement** (fix round 1, minor 2). With nothing connected
 	// at all -- DIN included -- there is no row to sit on, but legacy still lands on
@@ -286,7 +286,7 @@ void MidiDevicesItem::on_focus(const MenuContext& ctx, MenuState& state) const {
 	// (`devices.cpp:138-141`; the guard at `:133-136` only rejects indices, not disconnection). So
 	// the empty list resolves to DIN rather than leaving the previous visit's cable in place, which
 	// `nullptr` -- this field's "no choice" sentinel -- would have done.
-	state.midi_cable_choice = cursor < n ? cables[cursor] : cable_at(kLowestDeviceNum);
+	state.walk.midi_cable_choice = cursor < n ? cables[cursor] : cable_at(kLowestDeviceNum);
 }
 
 void MidiDevicesItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& /*ctx*/, MenuState& state) const {
@@ -307,15 +307,16 @@ void MidiDevicesItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& 
 	}
 
 	const size_t d = depth_of(state);
-	state.render_resp = deluge::ui::oled::list(f, deluge::ui::oled::menu_rect(f), state.list[d],
-	                                           std::span<const deluge::ui::oled::ListRow>{rows, n}, state.scroll[d]);
+	state.tick.render_resp =
+	    deluge::ui::oled::list(f, deluge::ui::oled::menu_rect(f), state.list[d],
+	                           std::span<const deluge::ui::oled::ListRow>{rows, n}, state.scroll[d]);
 
 	// `selectEncoderAction`'s own tail (`devices.cpp:102`): the cursor IS the selection, and
 	// `soundEditor.currentMIDICable` follows it. Legacy's skip-the-disconnected loop (`:86-104`) has
 	// no port because the row list is already the connected cables only.
 	const int32_t cursor = state.list[d].cursor;
 	if (n > 0 && cursor >= 0 && static_cast<size_t>(cursor) < n) {
-		state.midi_cable_choice = cables[cursor];
+		state.walk.midi_cable_choice = cables[cursor];
 	}
 }
 

@@ -32,6 +32,7 @@
 #include "scenes/menu/node_id.h"
 #include "scenes/menu/nodes/nodes.h"
 #include "scenes/menu/shortcut_blink.h"
+#include "scenes/menu/shortcut_overlay.h"
 #include "scenes/menu/shortcuts.h"
 #include "scenes/menu/validate.h"
 #include "scenes/profile.h"
@@ -45,15 +46,27 @@
 #include "gui/menu_item/file_selector.h"
 #include "gui/menu_item/horizontal_menu.h"
 #include "gui/menu_item/horizontal_menu_group.h"
+#include "gui/menu_item/patch_cable_strength/range.h"
+#include "gui/menu_item/patch_cable_strength/regular.h"
+#include "gui/menu_item/patch_cables.h"
+#include "gui/menu_item/source_selection/range.h"
+#include "gui/menu_item/source_selection/regular.h"
 #include "gui/menu_item/submenu.h"
 #include "gui/ui/menus.h"
 #include "gui/ui/sound_editor.h"
+#include "gui/ui/ui.h"
+#include "gui/views/instrument_clip_view.h"
+#include "modulation/patch/patch_cable.h"
+#include "modulation/patch/patch_cable_set.h"
+#include "scenes/bind/write_sink.h"
+#include "scenes/menu/nodes/patch_cables.h"
 
 #include "model/clip/instrument_clip.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "processing/sound/sound_instrument.h"
 
+#include "support/global_guest_menu.h"
 #include "support/legacy_menu_order.h"
 #include "support/menu_engine.h"
 #include "support/song_fixture.h"
@@ -76,6 +89,9 @@
 
 using namespace deluge::scenes;
 using deluge::scenes::menu::MenuContext;
+using deluge::scenes::menu::MenuState;
+using deluge::scenes::spec::UiStackGuard;
+namespace legacy = deluge::gui::menu_item;
 using deluge::scenes::menu::Node;
 using deluge::scenes::menu::ShortcutPos;
 
@@ -144,7 +160,7 @@ void select_language() {
 /// dereference with nothing installed. `tables_2_spec` / `tables_3_spec` install the same globals
 /// for the same reason; the fixture is built once and never torn down (`song_fixture.h`'s ownership
 /// note).
-void install_sound_context() {
+const MenuContext& install_sound_context() {
 	select_language();
 	static spec::SongFixture fixture = spec::make_synth_song();
 	static const MenuContext ctx =
@@ -163,6 +179,7 @@ void install_sound_context() {
 	soundEditor.currentArpSettings = engine.arp;
 	soundEditor.setupKitGlobalFXMenu = false;
 	soundEditor.navigationDepth = 0;
+	return ctx;
 }
 
 std::string text_of(uint16_t id) {
@@ -1127,100 +1144,358 @@ describe shortcut_blink_cadence("scenes::menu shortcut blink: legacy's counter",
 		}
 	});
 });
-describe shortcut_landing("scenes::menu shortcut landing against SoundEditor::maybeGetParentMenu", $ {
-	it("lands every shortcut cell of every root on the page legacy's chain search finds", _ {
-		const bool was_on = runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::HorizontalMenus);
-		runtimeFeatureSettings.set(RuntimeFeatureSettingType::HorizontalMenus, RuntimeFeatureStateToggle::On);
-		std::string bad;
-		size_t compared = 0;
-		size_t on_a_page = 0;
-		// Every root's legacy-to-port identity together: a chain may name a page the root's own tree
-		// does not hold (a MIDI drum's chain is the sound chain).
-		std::map<const ::MenuItem*, const Node*> all_identity;
-		for (const LandingRoot& lr : landing_roots()) {
-			map_tree(*lr.legacy, *menu::MenuScene::roots()[static_cast<size_t>(lr.root)], all_identity);
-		}
-		// No tree lists a group; the chains name them, so each answers for itself.
-		all_identity[&arpMenuGroup] = &nodes::arp_group;
-		all_identity[&arpMenuGroupKit] = &nodes::arp_group_kit;
-		all_identity[&arpMenuGroupMIDIOrCV] = &nodes::arp_group_midi;
-		all_identity[&voiceMenuGroup] = &nodes::voice_group;
-		all_identity[&envMenuGroup] = &nodes::env_group;
-		all_identity[&lfoMenuGroup] = &nodes::lfo_group;
-		all_identity[&reverbMenuGroup] = &nodes::reverb_group;
-		all_identity[&filtersMenuGroup] = &nodes::filters_group;
-		all_identity[&globalFiltersMenuGroup] = &nodes::global_filters_group;
-		all_identity[&globalReverbMenuGroup] = &nodes::global_reverb_group;
-		all_identity[&sourceMenuGroup] = &nodes::source_group;
-		for (const LandingRoot& lr : landing_roots()) {
-			const Node* port_root = menu::MenuScene::roots()[static_cast<size_t>(lr.root)];
-			std::map<const ::MenuItem*, const Node*> identity;
-			map_tree(*lr.legacy, *port_root, identity);
-			std::map<const Node*, ::MenuItem*> legacy_of;
-			for (const auto& [item, node] : identity) {
-				legacy_of.emplace(node, const_cast<::MenuItem*>(item));
-			}
-			std::set<const Node*> seen;
-			for (bool second : {false, true}) {
-				for (uint8_t x = 0; x < menu::kShortcutCols; x++) {
-					for (uint8_t y = 0; y < menu::kShortcutRows; y++) {
-						const Node* node = menu::shortcut_node(lr.root, second, x, y);
-						if (node == nullptr || !seen.insert(node).second) {
-							continue;
-						}
-						const auto found = legacy_of.find(node);
-						if (found == legacy_of.end()) {
-							continue;
-						}
-						compared++;
-						auto* legacy_page = legacy_parent(*lr.chain, found->second);
-						const Node* port_page = menu::shortcut_landing_page(lr.root, *node);
-						const std::string where = "root " + std::to_string(static_cast<int>(lr.root)) + " ("
-						                          + std::to_string(x) + ", " + std::to_string(y) + ") "
-						                          + text_of(node->name) + ": ";
-						if (legacy_page == nullptr) {
-							if (port_page != nullptr) {
-								bad += where + "legacy opens it alone, the port on " + text_of(port_page->name) + "\n";
-							}
-							continue;
-						}
-						on_a_page++;
-						if (port_page == nullptr) {
-							bad += where + "legacy opens it on a page, the port alone\n";
-							continue;
-						}
-						// A group answers for the member menu that lists the item; any legacy
-						// horizontal menu listing it that maps to the port page agrees.
-						bool agrees = false;
-						for (const auto& [item, mapped] : all_identity) {
-							auto* menu = dynamic_cast<deluge::gui::menu_item::HorizontalMenu*>(const_cast<::MenuItem*>(item));
-							if (menu != nullptr && mapped == port_page && menu->hasItem(found->second)
-							    && (menu == legacy_page || legacy_page->hasItem(found->second))) {
-								agrees = true;
-							}
-						}
-						// A chain page outside the root's tree (the recorder page): by name.
-						if (!agrees
-						    && dynamic_cast<deluge::gui::menu_item::HorizontalMenuGroup*>(legacy_page) == nullptr
-						    && std::string{legacy_page->getName()} == text_of(port_page->name)
-						    && std::ranges::contains(port_page->children, node)) {
-							agrees = true;
-						}
-						if (!agrees) {
-							bad += where + "the port lands on " + text_of(port_page->name) + "\n";
-						}
-					}
+namespace {
+
+/// @brief A legacy flash colour byte as the grid names it.
+std::string colour_name(uint8_t legacy) {
+	switch (legacy) {
+	case 0:
+		return "white";
+	case 0b11:
+		return "yellow";
+	case 0b110:
+		return "palette6";
+	default:
+		return "colour" + std::to_string(legacy);
+	}
+}
+
+std::string colour_name(deluge::ui::grid::FlashColour c) {
+	return colour_name(static_cast<uint8_t>(c));
+}
+
+/// @brief Everything `updatePadLightsFor` planned, spelled so two plans compare as text.
+std::string legacy_plan() {
+	std::string out;
+	if (soundEditor.currentParamShortcutX != kNoSelection) {
+		out += "param " + std::to_string(soundEditor.currentParamShortcutX) + ","
+		       + std::to_string(soundEditor.currentParamShortcutY) + " f"
+		       + std::to_string(soundEditor.paramShortcutBlinkFrequency) + " "
+		       + colour_name(soundEditor.currentParamColour) + ";";
+		for (int32_t sx = 0; sx < 2; sx++) {
+			for (int32_t y = 0; y < kDisplayHeight; y++) {
+				const uint8_t f = soundEditor.sourceShortcutBlinkFrequency(sx, y);
+				if (f != 255) {
+					out += " src " + std::to_string(sx) + "," + std::to_string(y) + " f" + std::to_string(f) + " "
+					       + colour_name(soundEditor.sourceShortcutBlinkColour(sx, y))
+					       + (soundEditor.sourceShortcutBlinkAlternates(sx, y) ? " alt" : "");
 				}
 			}
 		}
-		runtimeFeatureSettings.set(RuntimeFeatureSettingType::HorizontalMenus,
-		                           was_on ? RuntimeFeatureStateToggle::On : RuntimeFeatureStateToggle::Off);
+	}
+	return out;
+}
+
+std::string port_plan(const menu::BlinkPlan& plan) {
+	std::string out;
+	if (plan.param.valid) {
+		out += "param " + std::to_string(plan.param.x) + "," + std::to_string(plan.param.y) + " f"
+		       + std::to_string(plan.param.freq_mask) + " " + colour_name(plan.param.colour) + ";";
+		for (int32_t sx = 0; sx < 2; sx++) {
+			for (int32_t y = 0; y < kDisplayHeight; y++) {
+				const menu::SourceBlink& s = plan.sources[sx][y];
+				if (s.freq_mask != menu::kNoBlink) {
+					out += " src " + std::to_string(sx) + "," + std::to_string(y) + " f" + std::to_string(s.freq_mask)
+					       + " " + colour_name(s.colour) + (s.alternates ? " alt" : "");
+				}
+			}
+		}
+	}
+	return out;
+}
+
+/// @brief Write a cable through the app's sink, as the strength page writes one.
+bool seed_cable(const MenuContext& ctx, deluge::synth::CableTarget learn, int32_t menu_value) {
+	const std::optional<deluge::scenes::bind::WriteRequest> request =
+	    menu::nodes::cable_request(ctx, learn, menu_value, PatchCable::getDefaultPolarity(learn.bottom_source()));
+	return request.has_value() && ctx.sink->write(*request);
+}
+
+/// @brief Seed, once, cables on the fixture's sound for the source blinks to find: both layers of one pad pair, a volume cable the
+///        volume triple folds, a cable on a second-layer param, and one on another cable's depth.
+bool seed_blink_cables(const MenuContext& ctx) {
+	namespace p = deluge::modulation::params;
+	using deluge::synth::CableTarget;
+	static bool seeded = false;
+	if (seeded) {
+		return true;
+	}
+	seeded = true;
+	bool ok = true;
+	ok = seed_cable(ctx, CableTarget::depth_of(p::LOCAL_LPF_FREQ, PatchSource::ENVELOPE_1), 1000) && ok;
+	ok = seed_cable(ctx, CableTarget::depth_of(p::LOCAL_LPF_FREQ, PatchSource::ENVELOPE_3), 1000) && ok;
+	ok = seed_cable(ctx, CableTarget::depth_of(p::LOCAL_LPF_FREQ, PatchSource::LFO_GLOBAL_1), 900) && ok;
+	ok = seed_cable(ctx, CableTarget::depth_of(p::LOCAL_VOLUME, PatchSource::AFTERTOUCH), 800) && ok;
+	ok = seed_cable(ctx, CableTarget::depth_of(p::LOCAL_ENV_2_ATTACK, PatchSource::RANDOM), 700) && ok;
+	ok = seed_cable(ctx,
+	                  CableTarget::depth_of_depth(p::LOCAL_LPF_FREQ, PatchSource::ENVELOPE_1, PatchSource::LFO_LOCAL_1),
+	                  600) && ok;
+	return ok;
+}
+
+/// @brief Legacy's plan for @p item, from a clean slate.
+std::string legacy_plan_for(::MenuItem* item) {
+	soundEditor.currentParamShortcutX = kNoSelection;
+	soundEditor.updatePadLightsFor(item);
+	return legacy_plan();
+}
+
+} // namespace
+
+// clang-format off
+describe shortcut_blink_plan("scenes::menu shortcut blink plan against SoundEditor::updatePadLightsFor", $ {
+	it("plans the blinks main's updatePadLightsFor plans, for every patched and patch-cable item", _ {
+		const MenuContext& ctx = install_sound_context();
+		UiStackGuard ui;
+		setRootUILowLevel(&instrumentClipView);
+		expect(seed_blink_cables(ctx)).to_be_true();
+		soundEditor.currentSourceIndex = 0;
+		namespace p = deluge::modulation::params;
+		std::string bad;
+		size_t compared = 0;
+		size_t with_sources = 0;
+		const auto check = [&](const std::string& where, ::MenuItem* item, const Node& node, const MenuState& st) {
+			const std::string want = legacy_plan_for(item);
+			const std::string got = port_plan(menu::plan_blinks(ctx, st, node));
+			compared++;
+			with_sources += want.find(" src ") != std::string::npos ? 1 : 0;
+			if (want != got) {
+				bad += where + "\n  legacy: " + want + "\n  port:   " + got + "\n";
+			}
+		};
+
+		// Every leaf of the sound root.
+		std::map<const ::MenuItem*, const Node*> identity;
+		map_tree(soundEditorRootMenu, nodes::sound_root, identity);
+		for (const auto& [item, node] : identity) {
+			// The patch cables page plans from its own timer, compared below.
+			if (node->kind == menu::Kind::Submenu || node == &nodes::patch_cables) {
+				continue;
+			}
+			MenuState st{};
+			st.path[0] = node;
+			check("leaf " + text_of(node->name), const_cast<::MenuItem*>(item), *node, st);
+		}
+
+		// The source pickers and strength pages, over params on both layers and the volume triple.
+		const uint8_t kParams[] = {p::LOCAL_LPF_FREQ, p::GLOBAL_VOLUME_POST_FX, p::LOCAL_VOLUME,
+		                           p::GLOBAL_VOLUME_POST_REVERB_SEND, p::LOCAL_ENV_2_ATTACK, p::LOCAL_PITCH_ADJUST};
+		const PatchSource kSources[] = {PatchSource::ENVELOPE_1, PatchSource::ENVELOPE_3, PatchSource::LFO_GLOBAL_1,
+		                                PatchSource::AFTERTOUCH, PatchSource::RANDOM};
+		for (const uint8_t param : kParams) {
+			soundEditor.patchingParamSelected = param;
+			MenuState st{};
+			st.walk.patching_param = param;
+			st.path[0] = &nodes::source_selection_regular;
+			check("regular source list p" + std::to_string(param), &legacy::source_selection::regularMenu,
+			      nodes::source_selection_regular, st);
+			for (const PatchSource source : kSources) {
+				legacy::source_selection::regularMenu.s = source;
+				st.walk.patch_source = source;
+				const std::string tag = " p" + std::to_string(param) + " s" + std::to_string(static_cast<int>(source));
+				st.path[0] = &nodes::patch_cable_strength_regular;
+				check("regular strength" + tag, &legacy::patch_cable_strength::regularMenu,
+				      nodes::patch_cable_strength_regular, st);
+				st.path[0] = &nodes::source_selection_range;
+				check("range source list" + tag, &legacy::source_selection::rangeMenu, nodes::source_selection_range,
+				      st);
+				for (const PatchSource range : {PatchSource::LFO_LOCAL_1, PatchSource::VELOCITY}) {
+					legacy::source_selection::rangeMenu.s = range;
+					st.walk.patch_range_source = range;
+					st.path[0] = &nodes::patch_cable_strength_range;
+					check("range strength" + tag + " r" + std::to_string(static_cast<int>(range)),
+					      &legacy::patch_cable_strength::rangeMenu, nodes::patch_cable_strength_range, st);
+				}
+			}
+		}
+
+		// The patch cables page, on every cable: legacy plans it from its own throttled timer.
+		PatchCableSet* set = spec::menu_engine(ctx).params->getPatchCableSetAllowJibberish();
+		for (int32_t i = 0; i < set->numPatchCables; i++) {
+			patchCablesMenu.currentValue = i;
+			soundEditor.currentParamShortcutX = kNoSelection;
+			patchCablesMenu.blinkShortcuts();
+			const std::string want = legacy_plan();
+			MenuState st{};
+			st.path[0] = &nodes::patch_cables;
+			st.list[0].cursor = static_cast<int16_t>(i);
+			const std::string got = port_plan(menu::plan_blinks(ctx, st, nodes::patch_cables));
+			compared++;
+			if (want != got) {
+				bad += "patch cables row " + std::to_string(i) + "\n  legacy: " + want + "\n  port:   " + got + "\n";
+			}
+		}
 		expect(bad).to_equal(std::string{});
-		expect(compared > size_t(150)).to_be_true();
-		expect(on_a_page > size_t(80)).to_be_true();
+		expect(compared > size_t(100)).to_be_true();
+		expect(with_sources > size_t(10)).to_be_true();
+	});
+
+	it("never blinks a source without a param pad", _ {
+		const MenuContext& ctx = install_sound_context();
+		expect(seed_blink_cables(ctx)).to_be_true();
+		std::map<const ::MenuItem*, const Node*> identity;
+		map_tree(soundEditorRootMenu, nodes::sound_root, identity);
+		for (const auto& [item, node] : identity) {
+			MenuState st{};
+			st.path[0] = node;
+			const menu::BlinkPlan plan = menu::plan_blinks(ctx, st, *node);
+			if (!plan.param.valid) {
+				expect(plan.any_source()).to_be_false();
+			}
+		}
+	});
+
+	it("folds the volume triple to POST_FX's pad on a strength page", _ {
+		namespace p = deluge::modulation::params;
+		const MenuContext& ctx = install_sound_context();
+		MenuState post_fx{};
+		post_fx.walk.patching_param = p::GLOBAL_VOLUME_POST_FX;
+		post_fx.walk.patch_source = PatchSource::AFTERTOUCH;
+		const menu::BlinkPlan want = menu::plan_blinks(ctx, post_fx, nodes::patch_cable_strength_regular);
+		expect(want.param.valid).to_be_true();
+		for (const uint8_t param : {uint8_t{p::LOCAL_VOLUME}, uint8_t{p::GLOBAL_VOLUME_POST_REVERB_SEND}}) {
+			MenuState st = post_fx;
+			st.walk.patching_param = param;
+			const menu::BlinkPlan got = menu::plan_blinks(ctx, st, nodes::patch_cable_strength_regular);
+			expect(got.param == want.param).to_be_true();
+		}
 	});
 });
 // clang-format on
 
+namespace {} // namespace
+
+// clang-format off
+describe shortcut_overlay_colours("scenes::menu SHIFT overlay colours against SoundEditor::renderMainShortcutsOnly", $ {
+	it("paints main's shortcut colours cell by cell for the sound root", _ {
+		const MenuContext& ctx = install_sound_context();
+		UiStackGuard ui;
+		setRootUILowLevel(&instrumentClipView); // the sound tables are a clip view's
+		RGB image[kDisplayHeight][kDisplayWidth + kSideBarWidth]{};
+		uint8_t occupancy[kDisplayHeight][kDisplayWidth + kSideBarWidth]{};
+		SoundEditor::renderMainShortcutsOnly(soundEditor.currentModControllable, image, occupancy, false);
+		deluge::ui::test::GridRig rig;
+		menu::paint_shortcut_colours(rig.frame, ctx);
+		std::string bad;
+		size_t lit = 0;
+		for (int32_t x = 0; x < kDisplayWidth; x++) {
+			for (int32_t y = 0; y < kDisplayHeight; y++) {
+				const RGB want = image[y][x];
+				const RGB got = rig.frame.peek(x, y);
+				lit += want == RGB{0, 0, 0} ? 0 : 1;
+				if (!(want == got)) {
+					bad += "(" + std::to_string(x) + "," + std::to_string(y) + ") main " + std::to_string(want.r) + ","
+					       + std::to_string(want.g) + "," + std::to_string(want.b) + " ours " + std::to_string(got.r)
+					       + "," + std::to_string(got.g) + "," + std::to_string(got.b) + "\n";
+				}
+			}
+		}
+		expect(bad).to_equal(std::string{});
+		expect(lit > size_t(60)).to_be_true();
+	});
+});
+// clang-format on
+
+describe shortcut_landing(
+    "scenes::menu shortcut landing against SoundEditor::maybeGetParentMenu", $ {
+	    it(
+	        "lands every shortcut cell of every root on the page legacy's chain search finds", _ {
+		        const bool was_on = runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::HorizontalMenus);
+		        runtimeFeatureSettings.set(RuntimeFeatureSettingType::HorizontalMenus, RuntimeFeatureStateToggle::On);
+		        std::string bad;
+		        size_t compared = 0;
+		        size_t on_a_page = 0;
+		        // Every root's legacy-to-port identity together: a chain may name a page the root's own tree
+		        // does not hold (a MIDI drum's chain is the sound chain).
+		        std::map<const ::MenuItem*, const Node*> all_identity;
+		        for (const LandingRoot& lr : landing_roots()) {
+			        map_tree(*lr.legacy, *menu::MenuScene::roots()[static_cast<size_t>(lr.root)], all_identity);
+		        }
+		        // No tree lists a group; the chains name them, so each answers for itself.
+		        all_identity[&arpMenuGroup] = &nodes::arp_group;
+		        all_identity[&arpMenuGroupKit] = &nodes::arp_group_kit;
+		        all_identity[&arpMenuGroupMIDIOrCV] = &nodes::arp_group_midi;
+		        all_identity[&voiceMenuGroup] = &nodes::voice_group;
+		        all_identity[&envMenuGroup] = &nodes::env_group;
+		        all_identity[&lfoMenuGroup] = &nodes::lfo_group;
+		        all_identity[&reverbMenuGroup] = &nodes::reverb_group;
+		        all_identity[&filtersMenuGroup] = &nodes::filters_group;
+		        all_identity[&globalFiltersMenuGroup] = &nodes::global_filters_group;
+		        all_identity[&globalReverbMenuGroup] = &nodes::global_reverb_group;
+		        all_identity[&sourceMenuGroup] = &nodes::source_group;
+		        for (const LandingRoot& lr : landing_roots()) {
+			        const Node* port_root = menu::MenuScene::roots()[static_cast<size_t>(lr.root)];
+			        std::map<const ::MenuItem*, const Node*> identity;
+			        map_tree(*lr.legacy, *port_root, identity);
+			        std::map<const Node*, ::MenuItem*> legacy_of;
+			        for (const auto& [item, node] : identity) {
+				        legacy_of.emplace(node, const_cast<::MenuItem*>(item));
+			        }
+			        std::set<const Node*> seen;
+			        for (bool second : {false, true}) {
+				        for (uint8_t x = 0; x < menu::kShortcutCols; x++) {
+					        for (uint8_t y = 0; y < menu::kShortcutRows; y++) {
+						        const Node* node = menu::shortcut_node(lr.root, second, x, y);
+						        if (node == nullptr || !seen.insert(node).second) {
+							        continue;
+						        }
+						        const auto found = legacy_of.find(node);
+						        if (found == legacy_of.end()) {
+							        continue;
+						        }
+						        compared++;
+						        auto* legacy_page = legacy_parent(*lr.chain, found->second);
+						        const Node* port_page = menu::shortcut_landing_page(lr.root, *node);
+						        const std::string where = "root " + std::to_string(static_cast<int>(lr.root)) + " ("
+						                                  + std::to_string(x) + ", " + std::to_string(y) + ") "
+						                                  + text_of(node->name) + ": ";
+						        if (legacy_page == nullptr) {
+							        if (port_page != nullptr) {
+								        bad += where + "legacy opens it alone, the port on " + text_of(port_page->name)
+								               + "\n";
+							        }
+							        continue;
+						        }
+						        on_a_page++;
+						        if (port_page == nullptr) {
+							        bad += where + "legacy opens it on a page, the port alone\n";
+							        continue;
+						        }
+						        // A group answers for the member menu that lists the item; any legacy
+						        // horizontal menu listing it that maps to the port page agrees.
+						        bool agrees = false;
+						        for (const auto& [item, mapped] : all_identity) {
+							        auto* menu = dynamic_cast<deluge::gui::menu_item::HorizontalMenu*>(
+							            const_cast<::MenuItem*>(item));
+							        if (menu != nullptr && mapped == port_page && menu->hasItem(found->second)
+							            && (menu == legacy_page || legacy_page->hasItem(found->second))) {
+								        agrees = true;
+							        }
+						        }
+						        // A chain page outside the root's tree (the recorder page): by name.
+						        if (!agrees
+						            && dynamic_cast<deluge::gui::menu_item::HorizontalMenuGroup*>(legacy_page)
+						                   == nullptr
+						            && std::string{legacy_page->getName()} == text_of(port_page->name)
+						            && std::ranges::contains(port_page->children, node)) {
+							        agrees = true;
+						        }
+						        if (!agrees) {
+							        bad += where + "the port lands on " + text_of(port_page->name) + "\n";
+						        }
+					        }
+				        }
+			        }
+		        }
+		        runtimeFeatureSettings.set(RuntimeFeatureSettingType::HorizontalMenus,
+		                                   was_on ? RuntimeFeatureStateToggle::On : RuntimeFeatureStateToggle::Off);
+		        expect(bad).to_equal(std::string{});
+		        expect(compared > size_t(150)).to_be_true();
+		        expect(on_a_page > size_t(80)).to_be_true();
+	        });
+    });
+// clang-format on
+
 DELUGE_SPEC(shortcuts_spec, shortcuts_transcription, shortcuts_shape, shortcuts_validation, shortcuts_profile,
-            shortcuts_version_1, shortcut_blink_cadence, shortcut_landing)
+            shortcuts_version_1, shortcut_blink_cadence, shortcut_blink_plan, shortcut_overlay_colours,
+            shortcut_landing)

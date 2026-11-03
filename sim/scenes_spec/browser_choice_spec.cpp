@@ -26,7 +26,7 @@
 /// @par Why the guest examples open the browser from the menu rather than as the initial scene
 ///
 /// Because that is the only way it is ever open. `FileBrowserItem::on_focus`
-/// (`scenes/menu/nodes/sample.cpp:77-106`) opens the scene and files `MenuState::pending_scene`
+/// (`scenes/menu/nodes/sample.cpp:77-106`) opens the scene and files `MenuWalkState::pending_scene`
 /// (`:104-105`), so the browser is always **above** a `MenuScene` on the shell stack. Pushed alone,
 /// the stack would empty the moment `Defer` closed it, and `ShellHostUI::timerCallback` would take
 /// its `closeGuest()` arm (`gui/ui/shell_host_ui.cpp:556-559`) -- `closeUI` on a guest that is not
@@ -336,7 +336,7 @@ struct ShellRig {
 		while (shell.stack().depth() > 0) {
 			shell.stack().pop(SceneKind::Null);
 		}
-		menu_scene().forget_rows(); // each example starts with the rows a boot has
+		menu_scene().reset_process_state(); // each example starts with the rows a boot has
 	}
 
 	/// @brief Open the menu at `file0_selector` and let the item push the browser over it.
@@ -412,7 +412,7 @@ struct GuestRig {
 		while (ui.shell().stack().depth() > 0) {
 			ui.shell().stack().pop(SceneKind::Null);
 		}
-		menu_scene().forget_rows(); // each example starts with the rows a boot has
+		menu_scene().reset_process_state(); // each example starts with the rows a boot has
 	}
 
 	/// `ShellRig::open_browser`'s two halves through the guest's own door.
@@ -472,7 +472,7 @@ struct MidiRig {
 		while (shell.stack().depth() > 0) {
 			shell.stack().pop(SceneKind::Null);
 		}
-		menu_scene().forget_rows(); // each example starts with the rows a boot has
+		menu_scene().reset_process_state(); // each example starts with the rows a boot has
 	}
 
 	MIDIInstrument* instrument() { return static_cast<MIDIInstrument*>(song.instrument); }

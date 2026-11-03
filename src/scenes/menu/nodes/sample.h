@@ -20,8 +20,8 @@
 /// entire body is a `beginSession` override that points a UI at something and calls `openUI()` on
 /// it. `CustomItem::on_focus` IS `beginSession` (`node.h`), so that is where these do the same
 /// thing -- except that a scene may not touch the `Shell` stack itself, so instead of opening a UI
-/// each records the push in `MenuState::pending_scene` and `MenuScene::after_render` turns it into
-/// an `Action::Kind::Push`. `MenuState::go_up_on_resume` is set alongside it, which is legacy's
+/// each records the push in `MenuWalkState::pending_scene` and `MenuScene::after_render` turns it into
+/// an `Action::Kind::Push`. `MenuWalkState::go_up_on_resume` is set alongside it, which is legacy's
 /// `soundEditor.shouldGoUpOneLevelOnBegin = true` -- set by all five
 /// (`file_selector.cpp:37`, `sample/loop_point.cpp:67`, `osc/audio_recorder.h:37`,
 /// `audio_clip/sample_marker_editor.cpp:45`).

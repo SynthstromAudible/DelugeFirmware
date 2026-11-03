@@ -51,6 +51,9 @@ struct MenuContext {
 	///        renders and edits as a vertical list and the horizontal-menu chains answer nothing
 	///        (`horizontal_menu.cpp:592-597`, `sound_editor.cpp:2328-2330`).
 	bool horizontal_menus = true;
+	/// @brief The SHIFT shortcut overlay setting is on (`RuntimeFeatureSettingType::ShortcutOverlay` not `Off`; on
+	///        by default, as `MenuOnly` is).
+	bool shortcut_overlay = true;
 
 	/// @brief Which root menu `setup()` would have opened (`sound_editor.cpp:1770-1826`).
 	///
@@ -145,9 +148,10 @@ struct MenuContext {
 	/// @brief The greyout `SoundEditor::getGreyoutColsAndRows` decides by the root UI's type alone
 	///        (`sound_editor.cpp:441-460`), which this layer may not read: the menu's opener sets it.
 	enum class RootGreyout : uint8_t {
-		Menu,         ///< Any other root: the menu's own arms decide.
-		Nothing,      ///< The keyboard screen, or the automation view's editor: grey nothing.
-		SpareSidebar, ///< The automation view outside its editor: grey all but the sidebar.
+		Menu,           ///< Any other root: the menu's own arms decide.
+		Nothing,        ///< The keyboard screen, or the automation view's editor: grey nothing.
+		SpareSidebar,   ///< The automation view outside its editor: grey all but the sidebar.
+		InstrumentClip, ///< An instrument clip view: grey all but the audition column, whatever menu is open.
 	};
 	RootGreyout root_greyout = RootGreyout::Menu;
 
@@ -161,8 +165,8 @@ struct MenuContext {
 	///        `SoundDrum` has no note row (`sound_editor.cpp:1719-1721`), and a kit with neither
 	///        affect-entire nor a selected drum (`:1677-1684`).
 	///
-	/// An addition to the brief's field list, forced by the signature: `context_for()` returns a
-	/// value, not `setup()`'s `bool`, so the refusal needs somewhere to live. Nothing else in this
+	/// `context_for()` returns a value, not `setup()`'s `bool`, so the refusal needs somewhere to
+	/// live. Nothing else in this
 	/// struct distinguishes those two cases from a legitimately sparse context -- the settings root
 	/// also has a null `params`.
 	bool resolved = false;

@@ -5,4 +5,8 @@ led Kit on
 led Scale on
 indicator lower 0 0 0 0
 indicator upper 0 0 0 0
+flash 15 1 0
+flash 15 3 0
+flash 15 6 0
+flash 15 7 0
 flash 8 7 0

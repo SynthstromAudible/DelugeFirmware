@@ -112,6 +112,8 @@ extern bool sd_routine_active;
 /// @{
 /// What `Buttons::isShiftButtonPressed()` returns.
 extern bool shift_button_pressed;
+/// What `Buttons::isShiftStuck()` returns.
+extern bool shift_stuck;
 /// @}
 
 /// @name What the guest calls out to, on the two paths this suite cannot build

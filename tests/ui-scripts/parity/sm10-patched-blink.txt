@@ -1,0 +1,47 @@
+# ShellMenu: the patched-param and patching-source blinks main plans (`updatePadLightsFor`): a patched param's sources
+# on its own page, the param pad every fourth cycle on its source list and cable-strength page, and a second-layer
+# param's pad yellow. Run on the ShellMenu card.
+100   snapshot boot
+# Master > Volume, then its source list.
+1100  button Shift down
+1200  pad 6 0 down
+1240  pad 6 0 up
+1300  button Shift up
+2000  snapshot volume
+3000  button SelectEnc down
+3040  button SelectEnc up
+3800  snapshot volume-sources
+4800  button Back down
+4820  button Back up
+# The cutoff: its sources, its source list, and the strength page of the first source.
+5100  button Shift down
+5200  pad 8 7 down
+5240  pad 8 7 up
+5300  button Shift up
+6000  snapshot lpf
+7000  button SelectEnc down
+7040  button SelectEnc up
+7800  snapshot lpf-sources
+8800  button SelectEnc down
+8840  button SelectEnc up
+9600  snapshot lpf-strength
+10600 button Back down
+10620 button Back up
+10800 button Back down
+10820 button Back up
+# The second layer's attack (a double press of the attack pad), then its source list: the param pad is yellow.
+11100 button Shift down
+11200 pad 8 3 down
+11240 pad 8 3 up
+11400 pad 8 3 down
+11440 pad 8 3 up
+11500 button Shift up
+12200 snapshot env3-attack
+13200 button SelectEnc down
+13240 button SelectEnc up
+14000 snapshot env3-attack-sources
+15000 button Back down
+15020 button Back up
+15200 button Back down
+15220 button Back up
+15900 snapshot closed

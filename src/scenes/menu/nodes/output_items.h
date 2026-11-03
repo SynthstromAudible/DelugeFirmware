@@ -38,7 +38,7 @@
 /// runs `Toggle::selectButtonPress` -> `toggleValue()` (`:25-29`, `:33-44`) and leaves the user on
 /// the parent list. The port has no equivalent of that flag (`nodes/actions.h`): it descends for one
 /// tick, `on_focus` -- which **is** `beginSession` (`node.h`) -- does the toggle, and the item leaves
-/// again. On the *link* arm that is `MenuState::pending_scene` plus `go_up_on_resume`, exactly as
+/// again. On the *link* arm that is `MenuWalkState::pending_scene` plus `go_up_on_resume`, exactly as
 /// `nodes/sample.h`'s items; on the *unlink* arm there is no scene to push, so `render` reports
 /// `entered` and `MenuScene::after_render`'s leaf arm ascends -- which is what `ResetItem` and the
 /// four `ActionItem`s already do for the same legacy shape.
@@ -123,7 +123,7 @@ public:
 	/// on the linked arm **cleared the user's definition file with no user action**. Legacy guards
 	/// exactly this case and no other: `Toggle::selectButtonPress` returns without toggling when
 	/// `soundEditor.getCurrentMenuItem() == this` (`toggle.h:35-37`), i.e. when the item was
-	/// reached without a press on its row. `MenuScene::enter_leaf`'s `FocusCause` is the port of
+	/// reached without a press on its row. `ValueSession::enter_leaf`'s `FocusCause` is the port of
 	/// that test.
 	bool on_focus_is_press() const override { return true; }
 

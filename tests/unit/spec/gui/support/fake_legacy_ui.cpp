@@ -26,6 +26,7 @@ std::vector<UiCall> ui_calls;
 double system_time_s = 0.0;
 bool sd_routine_active = false;
 bool shift_button_pressed = false;
+bool shift_stuck = false;
 int knob_indicator_clears = 0;
 bool knob_clear_saw_close = false;
 int service_wirings = 0;
@@ -88,6 +89,7 @@ void reset() {
 	system_time_s = 0.0;
 	sd_routine_active = false;
 	shift_button_pressed = false;
+	shift_stuck = false;
 	knob_indicator_clears = 0;
 	knob_clear_saw_close = false;
 	service_wirings = 0;
@@ -485,5 +487,8 @@ void discardShellDrumCreatorBeforeClose() {
 namespace Buttons {
 bool isShiftButtonPressed() {
 	return fakelegacyui::shift_button_pressed;
+}
+bool isShiftStuck() {
+	return fakelegacyui::shift_stuck;
 }
 } // namespace Buttons

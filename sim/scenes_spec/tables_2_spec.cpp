@@ -536,7 +536,7 @@ struct Rig {
 		while (shell.stack().depth() > 0) {
 			shell.stack().pop(deluge::ui::shell::SceneKind::Null);
 		}
-		menu_scene().forget_rows(); // each example starts with the rows a boot has
+		menu_scene().reset_process_state(); // each example starts with the rows a boot has
 	}
 
 	explicit Rig(const DelugeBoard& board = deluge::ui::shell::kDelugeBoard,
@@ -1211,12 +1211,12 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 		// constructs the legacy globals with (`:806-807`, `:1727-1728`).
 		menu::MenuState vib{};
 		nodes::kVibratoItem.on_focus(fixture().ctx, vib);
-		expect(int(vib.patching_param)).to_equal(int(deluge::modulation::params::LOCAL_PITCH_ADJUST));
-		expect(int(vib.patch_source)).to_equal(int(PatchSource::LFO_GLOBAL_1));
+		expect(int(vib.walk.patching_param)).to_equal(int(deluge::modulation::params::LOCAL_PITCH_ADJUST));
+		expect(int(vib.walk.patch_source)).to_equal(int(PatchSource::LFO_GLOBAL_1));
 		menu::MenuState duck{};
 		nodes::kSidechainVolumeItem.on_focus(fixture().ctx, duck);
-		expect(int(duck.patching_param)).to_equal(int(deluge::modulation::params::GLOBAL_VOLUME_POST_REVERB_SEND));
-		expect(int(duck.patch_source)).to_equal(int(PatchSource::SIDECHAIN));
+		expect(int(duck.walk.patching_param)).to_equal(int(deluge::modulation::params::GLOBAL_VOLUME_POST_REVERB_SEND));
+		expect(int(duck.walk.patch_source)).to_equal(int(PatchSource::SIDECHAIN));
 	});
 
 	it("chains exactly where the legacy items' own selectButtonPress chains", _ {
@@ -1231,9 +1231,9 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 		legacy::source_selection::rangeMenu.s = PatchSource::LFO_GLOBAL_1;
 
 		menu::MenuState st{};
-		st.patching_param = deluge::modulation::params::LOCAL_LPF_FREQ;
-		st.patch_source = PatchSource::ENVELOPE_1;
-		st.patch_range_source = PatchSource::LFO_GLOBAL_1;
+		st.walk.patching_param = deluge::modulation::params::LOCAL_LPF_FREQ;
+		st.walk.patch_source = PatchSource::ENVELOPE_1;
+		st.walk.patch_range_source = PatchSource::LFO_GLOBAL_1;
 
 		struct Case {
 			const Node* node;
@@ -1333,8 +1333,8 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 
 		// ... and the port through a `MenuState` filled in independently of them.
 		menu::MenuState st{};
-		st.patching_param = deluge::modulation::params::LOCAL_LPF_FREQ;
-		st.patch_source = PatchSource::ENVELOPE_1;
+		st.walk.patching_param = deluge::modulation::params::LOCAL_LPF_FREQ;
+		st.walk.patch_source = PatchSource::ENVELOPE_1;
 		nodes::kPatchCableStrengthRegularItem.on_focus(f.ctx, st);
 		expect(st.edit_int).to_equal(legacy_value);
 		expect(st.edit_int).to_equal(int32_t(1234));
@@ -1394,9 +1394,9 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 		expect(PatchCable::hasPolarity(kSource)).to_be_true();
 
 		menu::MenuState st{};
-		st.patching_param = deluge::modulation::params::LOCAL_HPF_RESONANCE;
-		st.patch_source = kSource;
-		st.patch_polarity = chosen;
+		st.walk.patching_param = deluge::modulation::params::LOCAL_HPF_RESONANCE;
+		st.walk.patch_source = kSource;
+		st.walk.patch_polarity = chosen;
 		st.edit_int = 2000;
 		nodes::kPatchCableStrengthRegularItem.commit(f.ctx, st);
 
@@ -1413,10 +1413,10 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 
 		// `on_focus` reads it back off the cable, which is `beginSession`'s own arm (`:61-63`).
 		menu::MenuState reopened{};
-		reopened.patching_param = deluge::modulation::params::LOCAL_HPF_RESONANCE;
-		reopened.patch_source = kSource;
+		reopened.walk.patching_param = deluge::modulation::params::LOCAL_HPF_RESONANCE;
+		reopened.walk.patch_source = kSource;
 		nodes::kPatchCableStrengthRegularItem.on_focus(f.ctx, reopened);
-		expect(static_cast<int>(reopened.patch_polarity)).to_equal(static_cast<int>(chosen));
+		expect(static_cast<int>(reopened.walk.patch_polarity)).to_equal(static_cast<int>(chosen));
 	});
 
 	it("deletes automation on shift+select exactly where the legacy item is an Automation", _ {
@@ -1436,8 +1436,8 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 		Rigged& f = fixture();
 		install(f.ctx, f.song.song);
 		menu::MenuState st{};
-		st.patching_param = deluge::modulation::params::LOCAL_LPF_FREQ;
-		st.patch_source = PatchSource::ENVELOPE_1;
+		st.walk.patching_param = deluge::modulation::params::LOCAL_LPF_FREQ;
+		st.walk.patch_source = PatchSource::ENVELOPE_1;
 		deluge::synth::CableTarget destination = deluge::synth::CableTarget::param(deluge::modulation::params::LOCAL_LPF_FREQ);
 		const auto address = nodes::kPatchCableStrengthRegularItem.automation_address(f.ctx, st);
 		expect(nodes::kPatchCableStrengthRegularItem.is_automation_item()).to_be_true();
@@ -1456,9 +1456,9 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 		menu::MenuState st{};
 		st.depth = 0;
 		st.path[0] = &nodes::sidechain; // a horizontal page, its columns custom items among them
-		st.patching_param = deluge::modulation::params::LOCAL_HPF_MORPH;
-		st.patch_source = kSource;
-		st.patch_polarity = fresh == Polarity::BIPOLAR ? Polarity::UNIPOLAR : Polarity::BIPOLAR;
+		st.walk.patching_param = deluge::modulation::params::LOCAL_HPF_MORPH;
+		st.walk.patch_source = kSource;
+		st.walk.patch_polarity = fresh == Polarity::BIPOLAR ? Polarity::UNIPOLAR : Polarity::BIPOLAR;
 		st.edit_int = 1200;
 		nodes::kPatchCableStrengthRegularItem.commit(f.ctx, st);
 		PatchCableSet* set = spec::menu_engine(f.ctx).params->getPatchCableSetAllowJibberish();
@@ -1482,10 +1482,10 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 		                                                                              : Polarity::BIPOLAR;
 
 		menu::MenuState st{};
-		st.patching_param = deluge::modulation::params::LOCAL_OSC_A_PITCH_ADJUST;
-		st.patch_source = kSource;
+		st.walk.patching_param = deluge::modulation::params::LOCAL_OSC_A_PITCH_ADJUST;
+		st.walk.patch_source = kSource;
 		nodes::kPatchCableStrengthRegularItem.set_polarity(f.ctx, st, flipped);
-		expect(static_cast<int>(st.patch_polarity)).to_equal(static_cast<int>(flipped));
+		expect(static_cast<int>(st.walk.patch_polarity)).to_equal(static_cast<int>(flipped));
 		const uint8_t after = set->getPatchCableIndex(kSource, destination);
 		expect(static_cast<int>(set->patchCables[after].polarity)).to_equal(static_cast<int>(flipped));
 		expect(static_cast<int>(set->records()[after].polarity)).to_equal(static_cast<int>(flipped));
@@ -1507,8 +1507,8 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 		}
 		expect(set->numPatchCables).to_equal(static_cast<uint8_t>(kMaxNumPatchCables));
 		menu::MenuState st{};
-		st.patching_param = deluge::modulation::params::LOCAL_LPF_FREQ;
-		st.patch_source = PatchSource::AFTERTOUCH;
+		st.walk.patching_param = deluge::modulation::params::LOCAL_LPF_FREQ;
+		st.walk.patch_source = PatchSource::AFTERTOUCH;
 		st.edit_int = 2000;
 		nodes::kPatchCableStrengthRegularItem.commit(ctx, st);
 		deluge::synth::CableTarget destination = deluge::synth::CableTarget::param(deluge::modulation::params::LOCAL_LPF_FREQ);
@@ -1554,10 +1554,10 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 			arrived.path[1] = got;
 			const auto* item = static_cast<const nodes::PatchCableStrengthItem*>(got->custom);
 			item->on_focus(f.ctx, arrived);
-			expect(int(arrived.patching_param)).to_equal(int(soundEditor.patchingParamSelected));
-			expect(int(arrived.patch_source)).to_equal(int(legacy::source_selection::regularMenu.s));
+			expect(int(arrived.walk.patching_param)).to_equal(int(soundEditor.patchingParamSelected));
+			expect(int(arrived.walk.patch_source)).to_equal(int(legacy::source_selection::regularMenu.s));
 			if (!set->patchCables[i].destination.is_param()) {
-				expect(int(arrived.patch_range_source)).to_equal(int(legacy::source_selection::rangeMenu.s));
+				expect(int(arrived.walk.patch_range_source)).to_equal(int(legacy::source_selection::rangeMenu.s));
 			}
 			compared++;
 		}

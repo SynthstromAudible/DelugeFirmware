@@ -221,6 +221,15 @@ public:
 	/// the old setting would stay on with nothing left to clear it.
 	/// @param sticky The new setting.
 	void set_shift_is_sticky(bool sticky);
+	/// @brief Take up a SHIFT state that arose before this lowering saw any event: held (@p pressed), and latched
+	///        (@p stuck) -- legacy's `isShiftButtonPressed` and `isShiftStuck`, which a SHIFT pressed before the
+	///        shell took input leaves set. A held SHIFT carried in releases on its next release event, and latches
+	///        nothing on it; the release is timed from @p now_ms, so a quick one unlatches a latched SHIFT.
+	/// @param now_ms When the shell took over.
+	void seed_shift(bool pressed, bool stuck, uint32_t now_ms);
+	/// @brief Forget every held pad without a release event: the shell is starting over, and the scenes that heard
+	///        those presses are gone. Unlike `clear_all_held`, nothing is emitted.
+	void forget_held_pads() { held_pads_ = PadMask{}; }
 	/// @brief Is the sticky-shift feature enabled?
 	bool shift_is_sticky() const { return cfg_.shift_is_sticky; }
 	/// @brief Set the tap threshold at runtime, in milliseconds.

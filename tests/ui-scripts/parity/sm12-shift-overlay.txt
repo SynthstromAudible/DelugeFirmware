@@ -1,0 +1,80 @@
+# ShellMenu: SHIFT under a sound menu shows main's shortcut colour overlay over a greyed grid -- every shortcut pad
+# coloured by what it edits, the patching-source column blue where a source may patch to the focused param, the
+# range rule while a source pad is held on a cable page -- and hands the pads back on release, on BACK, and not at
+# all in the settings menu. Run on the ShellMenu card, and once with ShellMenu off as the control.
+100   snapshot boot
+300   button SelectEnc down
+340   button SelectEnc up
+1000  snapshot root
+1200  button Shift down
+1900  snapshot root-shift
+2900  button Shift up
+3600  snapshot root-released
+# Master > Volume, SHIFT still held from the jump.
+4600  button Shift down
+4700  pad 6 0 down
+4740  pad 6 0 up
+5400  snapshot volume-shift
+6400  button Shift up
+6600  button SelectEnc down
+6640  button SelectEnc up
+7300  button Shift down
+8000  snapshot volume-sources-shift
+9000  button Shift up
+# The strength page of the first source; a source pad held under SHIFT turns the column to the range rule.
+9200  button SelectEnc down
+9240  button SelectEnc up
+9900  button Shift down
+10000 pad 15 2 down
+10700 snapshot cable-source-held
+11700 pad 15 2 up
+11800 button Shift up
+12000 button Back down
+12020 button Back up
+12200 button Back down
+12220 button Back up
+12400 button Back down
+12420 button Back up
+# The second layer's attack and its source list.
+13100 button Shift down
+13200 pad 8 3 down
+13240 pad 8 3 up
+13400 pad 8 3 down
+13440 pad 8 3 up
+14100 snapshot env3-attack-shift
+15100 button Shift up
+15300 button SelectEnc down
+15340 button SelectEnc up
+16000 button Shift down
+16700 snapshot env3-sources-shift
+# BACK with SHIFT held all the way out: the pads go back to the clip view.
+17700 button Back down
+17720 button Back up
+17900 button Back down
+17920 button Back up
+18100 button Back down
+18120 button Back up
+18800 snapshot closed-shift
+19800 button Shift up
+# The keyboard root: greyed under the overlay, where the plain menu greys nothing.
+20000 button Keyboard down
+20040 button Keyboard up
+20300 button SelectEnc down
+20340 button SelectEnc up
+21000 snapshot keyboard-menu
+22000 button Shift down
+22700 snapshot keyboard-shift
+23700 button Shift up
+23900 button Back down
+23920 button Back up
+24100 button Keyboard down
+24140 button Keyboard up
+# The settings menu: no overlay.
+24400 button Shift down
+24500 button SelectEnc down
+24540 button SelectEnc up
+25200 snapshot settings-shift
+26200 button Shift up
+26400 button Back down
+26420 button Back up
+27100 snapshot end

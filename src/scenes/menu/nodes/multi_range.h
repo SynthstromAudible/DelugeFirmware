@@ -12,7 +12,7 @@
 /// Not from any submenu -- exactly as in legacy, where no menu literal names `multiRangeMenu`.
 /// `MenuScene::enter_child` descends into `nodes::multi_range` whenever `permission_for` answers
 /// `Permission::MustSelectRange`, having first recorded the item it was heading to in
-/// `MenuState::pending_after_range`. `multi_range_chain` -- this page's `Node::select_chain` -- then
+/// `MenuWalkState::pending_after_range`. `multi_range_chain` -- this page's `Node::select_chain` -- then
 /// returns that item, which is precisely `MultiRange::selectButtonPress`'s `return menuItemHeadingTo`
 /// (`multi_range.cpp:360-362`).
 ///
@@ -38,7 +38,7 @@
 ///     (`deletePress`, `:261-311`). Both are range *editing* rather than range *selection*, both
 ///     mutate `Source::ranges` under a `killAllVoices` + `AudioEngine::audioRoutineLocked` window,
 ///     and neither has an input route here: legacy reaches `deletePress` from `SoundEditor`'s own
-///     BACK handling, which in this port is `MenuState::back_claimed` -> `MenuScene::ascend`.
+///     BACK handling, which in this port is `MenuTick::back_claimed` -> `MenuScene::ascend`.
 ///   * **Editing a range edge** (`soundEditor.editingRangeEdge`, `:74-154`, and the `invertArea`
 ///     highlight at `:415-433`): a `SoundEditor` mode this layer has no equivalent of, and the
 ///     highlight is a frame primitive.

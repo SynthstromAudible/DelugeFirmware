@@ -52,7 +52,7 @@
 ///
 /// `selectButtonPress` (`:108-112`) flips the bit and returns `NO_NAVIGATION`. A `CustomItem::render`
 /// may not touch the model (`menu_scene.h`), so the render records the press through
-/// `MenuState::value_changed`/`value_node` and `commit()` performs the flip -- the same split the
+/// `MenuTick::value_changed`/`value_node` and `commit()` performs the flip -- the same split the
 /// three patch-cable pages use, and the one place in the scene where a write is allowed.
 
 #include "scenes/menu/node.h"

@@ -123,6 +123,7 @@ void wireShellGuestServices() {
 	// segfaulting `sim/scenes_spec/boot_wiring_spec.cpp`.
 	controlView.current_ui_is_clip_minder = currentUIIsClipMinderScreen();
 	controlView.root_is_performance = getRootUI() == &performanceView;
+	controlView.root_greyout = deluge::gui::menuRootGreyout();
 	controlView.loading_song = loadSongUI.isLoadingSong();
 	controlView.current_ui_is_song_or_arranger =
 	    getCurrentUI() == static_cast<UI*>(&sessionView) || getCurrentUI() == static_cast<UI*>(&arrangerView);

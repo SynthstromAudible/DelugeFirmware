@@ -28,39 +28,20 @@
 
 #include "scenes/menu/menu_scene.h"
 
-#include "model/project_bridge/controls_bridge.h"
-
-#include "scenes/menu/nodes/nodes.h" // `roots()`' table (task 8)
-#include "scenes/menu/note_bridge.h"
+#include "scenes/menu/nodes/nodes.h" // `roots()`' table
 
 #include "scenes/bind/dispatch.h"
-#include "scenes/bind/write_sink.h"
 #include "scenes/browser/browser_scene.h" // on_resume: a chosen file's claim re-roots the menu
-#include "scenes/menu/bindings.h"
 #include "scenes/menu/node_id.h"
-#include "scenes/menu/shortcuts.h"
-#include "scenes/profile.h"
 
-#include "gfx/oled/icons.h"
-#include "gui/l10n/l10n.h"
-#include "gui/l10n/short_label.h"
-#include "gui/l10n/strings.h"
-#include "model/song/song.h" // Song::getInputTickMagnitude() -- Kind::SyncLevel's value text
-#include "modulation/sync.h" // syncValueToString -- Kind::SyncLevel's value text
-#include "notify/dirty_set.h"
 #include "notify/notice_queue.h"
 #include "shell/input_lowering.h" // claim_covers -- MenuScene::owns
-#include "shell/leds.h"
-#include "ui/core/metrics.h" // kSyncValueY -- Kind::SyncLevel's value band baseline
-#include "ui/oled/columns.h"
-#include "ui/oled/list.h"
-#include "ui/oled/meters.h"
-#include "ui/oled/text.h"
-#include "ui/oled/values.h"
 
-#include <algorithm>
-#include <array>
-#include <cstring>
+#include "gui/l10n/strings.h"
+#include "notify/dirty_set.h"
+#include "scenes/menu/bindings.h"
+#include "scenes/menu/chains.h"
+
 #include <span>
 #include <utility>
 
@@ -77,267 +58,7 @@ using deluge::ui::shell::TextScratch;
 using deluge::ui::shell::UiContext;
 using deluge::ui::shell::UiEvent;
 
-namespace {
-
-/// @brief Resolve a `Node`'s l10n id to text through the one sanctioned path
-///        (`shell/profile.h:147`, which already implements the digits fallback).
-std::string_view text_of(uint16_t string_id, TextScratch& scratch) {
-	return scenes::deluge_profile().text_or_digits(string_id, scratch);
-}
-
-} // namespace
-
-// `Submenu::drawSubmenuItemsForOled` blits `renderSubmenuItemTypeForOled` on every row
-// (`gui/menu_item/submenu.cpp:117`): the base arrow (`menu_item.cpp:69-75`), `Toggle`'s checkbox (`toggle.cpp:50-57`),
-// `Selection`'s checkbox when `isToggle()` (`selection.cpp:38-56`), and the MIDI device-definition items' own (a
-// `Kind::Custom` here).
-const deluge::gfx::oled::Icon* row_icon(const Node& node, const MenuContext& ctx) {
-	const auto checkbox = [&] {
-		return bindings::read(node, ctx) != 0 ? &deluge::gfx::oled::icons::checkedBox
-		                                      : &deluge::gfx::oled::icons::uncheckedBox;
-	};
-	switch (node.kind) {
-	case Kind::Toggle:
-		return checkbox();
-	case Kind::Enum:
-		return node.selection_is_toggle ? checkbox() : &deluge::gfx::oled::icons::submenuArrow;
-	case Kind::Custom:
-		// `node.custom` is never null for a `Kind::Custom` node -- `validate.h`'s `NullCustom` rule.
-		return node.custom->row_icon(ctx);
-	default:
-		return &deluge::gfx::oled::icons::submenuArrow;
-	}
-}
-
-namespace {
-
-/// @brief Render @p value into @p buf as decimal digits.
-/// @return A view over @p buf; never longer than @p n.
-std::string_view format_uint(uint32_t value, char* buf, size_t n) {
-	char digits[12];
-	size_t d = 0;
-	do {
-		digits[d++] = static_cast<char>('0' + value % 10);
-		value /= 10;
-	} while (value != 0 && d < sizeof(digits));
-	size_t out = 0;
-	while (d > 0 && out < n) {
-		buf[out++] = digits[--d];
-	}
-	return {buf, out};
-}
-
-/// @brief `-value` as a magnitude, through `int64_t` so `INT32_MIN` does not overflow.
-uint32_t magnitude_of(int32_t value) {
-	return value < 0 ? static_cast<uint32_t>(-static_cast<int64_t>(value)) : static_cast<uint32_t>(value);
-}
-
-/// @brief Render @p value into @p buf as signed decimal digits.
-/// @return A view over @p buf; never longer than @p n.
-std::string_view format_int(int32_t value, char* buf, size_t n) {
-	size_t out = 0;
-	if (value < 0 && out < n) {
-		buf[out++] = '-';
-	}
-	char digits[12];
-	const std::string_view d = format_uint(magnitude_of(value), digits, sizeof(digits));
-	for (const char c : d) {
-		if (out >= n) {
-			break;
-		}
-		buf[out++] = c;
-	}
-	return {buf, out};
-}
-
-/// @brief Render @p value into @p buf with a period @p places from the right.
-///
-/// Legacy's rule, from `Decimal::drawPixelsForOled` (`gui/menu_item/decimal.cpp:129-153`):
-/// `intToString(value, buffer, numDecimalPlaces + 1)` zero-pads the digits to **at least
-/// `places + 1`**, and the period is then drawn at `length - numDecimalPlaces`. So there is always
-/// a whole part before the point, however small the value: 5 at 2 places is `0.05`, 0 is `0.00`,
-/// 50 at 3 places is `0.050`, and a negative keeps its sign outside the padding (`-0.05`).
-///
-/// @param value  The value in the item's smallest unit.
-/// @param places How many of its digits are after the point.
-/// @param buf    Destination.
-/// @param n      Size of @p buf.
-/// @return A view over @p buf; never longer than @p n.
-std::string_view format_decimal(int32_t value, uint8_t places, char* buf, size_t n) {
-	if (places == 0) {
-		return format_int(value, buf, n);
-	}
-	char digits[12];
-	const std::string_view d = format_uint(magnitude_of(value), digits, sizeof(digits));
-	// `intToString`'s minimum-width padding: at least `places + 1` digits, so the point always has
-	// something to its left.
-	const size_t total = std::max(d.size(), static_cast<size_t>(places) + 1);
-	const size_t pad = total - d.size();
-
-	size_t out = 0;
-	if (value < 0 && out < n) {
-		buf[out++] = '-';
-	}
-	for (size_t i = 0; i < total && out < n; i++) {
-		if (i == total - places) {
-			buf[out++] = '.';
-			if (out >= n) {
-				break;
-			}
-		}
-		buf[out++] = i < pad ? '0' : d[i - pad];
-	}
-	return {buf, out};
-}
-
-/// @brief `norm` for a `MeterColumn`: where @p value sits in `[min, max]`.
-float normalised(int32_t value, IntRange range) {
-	const int32_t span = range.max - range.min;
-	if (span == 0) {
-		return 0.0f;
-	}
-	return static_cast<float>(value - range.min) / static_cast<float>(span);
-}
-
-int32_t clamp_to(int32_t v, int32_t lo, int32_t hi) {
-	return v < lo ? lo : (v > hi ? hi : v);
-}
-
-/// @brief Does this kind draw a value screen rather than a list of children?
-bool is_leaf(Kind k) {
-	return k != Kind::Submenu;
-}
-
-/// @brief Which horizontal-page column button @p b is -- legacy's `select_map`
-///        (`gui/menu_item/horizontal_menu.cpp:97`), or -1 for every other button.
-int32_t instrument_button_index(ButtonId b) {
-	switch (b) {
-	case ButtonId::Synth:
-		return 0;
-	case ButtonId::Kit:
-		return 1;
-	case ButtonId::Midi:
-		return 2;
-	case ButtonId::Cv:
-		return 3;
-	default:
-		return -1;
-	}
-}
-
-/// @brief The `Layout::Horizontal` submenu in @p node's subtree that lists @p item, or null.
-///
-/// `SoundEditor::maybeGetParentMenu`'s one statement of substance
-/// (`gui/ui/sound_editor.cpp:2084`): `find_if(chain, [](HorizontalMenu* menu) { return
-/// menu->hasItem(item); })`, over the chain `getCurrentHorizontalMenusChain(false)` picks for the
-/// current root (`:2079`, the dispatch at `:2108-2130`).
-///
-/// **The chain is spelled as reachability rather than as a list**, and that is the one liberty
-/// taken. Legacy's chains are curated `deluge::vector`s -- `horizontalMenusChainForSound` is
-/// `{&sourceMenuGroup, &voiceMenuGroup, ...}` (`gui/ui/menus.cpp:2270-2272`) -- and there is no
-/// port of them, nor of `HorizontalMenuGroup` (`gui/menu_item/horizontal_menu_group.h:26`), whose
-/// five members this port models as five ordinary sibling submenus. What both spellings answer for
-/// the two items this is reached for is the same page: `file0_selector` is listed by `source0`
-/// under the Sound and Drum roots (`nodes/sound_osc.h`'s `kSource0Children`) and by
-/// `audio_clip_sample` under the audio-clip root (`nodes/roots.h`'s `kAudioClipSampleChildren`),
-/// which is `sourceMenuGroup` focused on `source0Menu` (`menus.cpp:1748-1749`, `:333-349`) and
-/// `audioClipSampleMenu` (`:1186-1196`) respectively.
-///
-/// Static `children` only: a `dynamic_children` node produces its list from a `MenuContext` and
-/// none of the roots reaches either file selector through one, so resolving them here would be
-/// machinery with no caller.
-///
-/// The feature guard `getCurrentHorizontalMenusChain` opens with (`gui/ui/sound_editor.cpp:2112-2114`) is the
-/// caller's: `reroot_to_scene_opener_page` reads `MenuContext::horizontal_menus` before calling this.
-/// @brief The most columns any group lists between its members, the run `render_horizontal` materialises for it.
-consteval size_t largest_group_columns() {
-	size_t most = 0;
-	for (const Node* group : nodes::kAllGroups) {
-		size_t columns = 0;
-		for (const Node* member : group->children) {
-			columns += member->children.size();
-		}
-		most = std::max(most, columns);
-	}
-	return most;
-}
-static_assert(largest_group_columns() <= kMaxMenuColumns, "a group lists more columns than a page materialises");
-
-const Node* horizontal_page_listing(const Node& node, const Node& item) {
-	if (node.kind != Kind::Submenu) {
-		return nullptr;
-	}
-	if (node.layout == Layout::Horizontal) {
-		for (const Node* kid : node.children) {
-			if (kid == &item) {
-				return &node;
-			}
-		}
-	}
-	for (const Node* kid : node.children) {
-		if (kid == nullptr) {
-			continue;
-		}
-		if (const Node* found = horizontal_page_listing(*kid, item); found != nullptr) {
-			return found;
-		}
-	}
-	return nullptr;
-}
-
-} // namespace
-
-std::string_view display_text(const Node& node, ValueTextUse use, const MenuContext& ctx, NodeText& scratch) {
-	if (node.bind.name_text != nullptr) {
-		const ValueText vt = node.bind.name_text(ctx, 0, use, std::span<char>{scratch.chars, sizeof(scratch.chars)});
-		if (!vt.fallback) {
-			return {scratch.chars, std::min(vt.length, sizeof(scratch.chars))};
-		}
-	}
-	return node_text(use == ValueTextUse::Title ? node.title : node.name, node, ctx, scratch);
-}
-
-std::string_view column_label(const Node& node, const MenuContext& ctx, NodeText& scratch) {
-	if (node.column_name != 0) {
-		return node_text(node.column_name, node, ctx, scratch);
-	}
-	if (node.short_column_label) {
-		if (const auto shortened = deluge::l10n::shortForm(static_cast<deluge::l10n::String>(node.name))) {
-			return *shortened;
-		}
-	}
-	return display_text(node, ValueTextUse::Name, ctx, scratch);
-}
-
-std::string_view node_text(uint16_t string_id, const Node& node, const MenuContext& ctx, NodeText& scratch) {
-	const std::string_view text = text_of(string_id, scratch.digits);
-	if (node.title_arg == 0) {
-		return text;
-	}
-	const size_t star = text.find('*');
-	if (star == std::string_view::npos) {
-		return text;
-	}
-	const int32_t arg = node.title_arg == kTitleArgSourceIndex ? ctx.source_index + 1 : node.title_arg;
-	size_t len = std::min(text.size(), sizeof(scratch.chars));
-	std::copy_n(text.data(), len, scratch.chars);
-	if (star + 1 < text.size() && text[star + 1] == '*') {
-		// `intToString(i, str, 2)`: at least two digits, then the terminator.
-		char digits[10];
-		size_t n = 0;
-		for (auto v = static_cast<uint32_t>(arg); (v != 0 || n < 2) && n < sizeof(digits); v /= 10) {
-			digits[n++] = static_cast<char>('0' + (v % 10));
-		}
-		len = star;
-		while (n > 0 && len < sizeof(scratch.chars)) {
-			scratch.chars[len++] = digits[--n];
-		}
-	}
-	else if (star < len) {
-		scratch.chars[star] = static_cast<char>('0' + arg);
-	}
-	return std::string_view{scratch.chars, len};
-}
+using namespace detail;
 
 // ---------------------------------------------------------------------------------------------
 // Lifecycle
@@ -345,10 +66,8 @@ std::string_view node_text(uint16_t string_id, const Node& node, const MenuConte
 void MenuScene::open(const Node& root, const MenuContext& ctx) {
 	ctx_ = ctx;
 	st_ = MenuState{};
-	use_up_select_ = true;
-	learn_mode_ = false;
-	blink_restart_ = true; // `blinkLed(IndicatorLED::BACK)` as the editor opens (`sound_editor.cpp:571`)
-	landing_column_ = nullptr;
+	visit_ = {}; // `blinkLed(IndicatorLED::BACK)` as the editor opens (`sound_editor.cpp:571`), among the rest
+	pads_.forget_landing();
 	retarget(root);
 }
 
@@ -357,15 +76,15 @@ SceneKind MenuScene::kind() const {
 }
 
 std::span<const Node* const> MenuScene::roots() {
-	// One slot per `MenuContext::Root`, and every one of them filled: Tasks 6-8 wrote the tables.
+	// One slot per `MenuContext::Root`, and every one of them filled.
 	// This array is `on_enter`'s "arg 0 means the root the context chose" lookup, and adding or
 	// re-pointing a root is a change to this array alone.
-	// Task 8: one node per `MenuContext::Root`, in enumerator order. `Root::MidiOrCv` holds the
+	// One node per `MenuContext::Root`, in enumerator order. `Root::MidiOrCv` holds the
 	// MIDI-titled spelling of that root -- the title `menus.cpp`'s constructor gives it; a caller
 	// on a CV output takes `nodes::midi_or_cv_root(ctx)` instead (`nodes/roots.h`'s note).
-	// Task 6 appends `NoteEditor`/`NoteRowEditor`: a menu opened with `ctx.root` set to either
+	// `NoteEditor`/`NoteRowEditor` are the last two: a menu opened with `ctx.root` set to either
 	// (`openShellMenu`'s `NoteMode`) re-roots here through `on_enter`'s `arg == 0` path
-	// (`menu_scene.h:472-490`'s warning), exactly as every other root does.
+	// (`MenuScene::open`'s warning), exactly as every other root does.
 	static const Node* const kRoots[static_cast<size_t>(MenuContext::Root::Count)] = {
 	    &nodes::sound_root,         &nodes::root_drum,       &nodes::root_midi_or_cv,  &nodes::root_midi_drum,
 	    &nodes::root_gate_drum,     &nodes::root_audio_clip, &nodes::root_performance, &nodes::root_song,
@@ -375,143 +94,23 @@ std::span<const Node* const> MenuScene::roots() {
 }
 
 void MenuScene::retarget(const Node& node) {
-	// A re-rooted menu is not the one a pending close was asked for.
-	close_requested_ = false;
-	st_.path[0] = &node;
-	for (uint8_t i = 1; i < kMenuDepth; i++) {
-		st_.path[i] = nullptr;
-	}
-	st_.depth = 0;
-	st_.list[0] = deluge::ui::ListState{};
-	st_.columns[0] = deluge::ui::ColumnsState{};
-	st_.scroll[0] = deluge::ui::ScrollText{};
-	st_.render_resp = {};
-	st_.value_changed = false;
-	st_.value_node = nullptr;
-	st_.back_claimed = false;
-	st_.column_press = false;
-	ctx_.selected_note_row = false;
-	session_value_ = nullptr;
-	voice_usage_at_ = VoiceUsagePlace::None;
-	// Same reason as the three siblings above: an offset staged for the abandoned path has nothing
-	// left to commit through once `value_node` is gone, and a stale one would otherwise double up
-	// with whatever a fresh turn on the new path accumulates next (fix round 1, Important 1).
-	st_.edit_offset = 0;
-	// A pending range belongs to the item that asked for one; re-rooting the path abandons that
-	// item, so the request goes with it rather than surviving to mislead E2's picker.
-	st_.range_picker_pending = false;
-	st_.pending_after_range = nullptr;
-	st_.range_choice = -1;
-	// Same reasoning for the CV/gate/device selectors' pending choices: they belong to the item
-	// this re-rooting abandons, and applying one afterwards would point a freshly opened page at
-	// the previous walk's output.
-	st_.source_choice = -1;
-	st_.midi_cable_choice = nullptr;
-	// The patch-cable pages' shared selection belongs to a walk through the tree, not to the tree:
-	// re-rooting abandons that walk, so `patching_param` and the two sources go back to "nothing
-	// chosen" rather than pointing a freshly opened page at the last visit's cable.
-	st_.patching_param = 255;
-	st_.patch_source = PatchSource::NOT_AVAILABLE;
-	st_.patch_range_source = PatchSource::NOT_AVAILABLE;
-	// And the same for the MPE pages' direction and zone: they belong to the walk that reached the
-	// device page, not to the tree, and each selector's own `beginSession` forward arm assigns
-	// exactly these two values anyway (`mpe/direction_selector.cpp:25-27`, `mpe/zone_selector.cpp:26-28`).
-	st_.mpe_direction = 0;
-	st_.mpe_zone = 0;
-	// Same reasoning for the scene a custom item asked to open: it belongs to the item this
-	// re-rooting abandons. Cleared *before* `enter_leaf` below, which is the one call that can
-	// legitimately set it again (landing straight on an `EditNameItem` through `SceneId::arg`).
-	st_.pending_scene = SceneId{};
-	// And the same for the action a custom item asked to have performed -- the verb half of the same
-	// seam, cleared in the same place and for the same reason. `taken_action_` is deliberately NOT
-	// cleared: a request already drained into the outbox has been accepted and must still reach
-	// `take_action()`'s caller, whatever the path does afterwards.
-	st_.pending_action = MenuActionRequest{};
-	st_.go_up_on_resume = false;
-	// And the same for the item that opened the pushed scene: it belongs to the walk this
-	// re-rooting abandons, and `reroot_to_scene_opener_page()` -- which is itself one of the
-	// callers here -- must not be able to fire twice off one recorded opener.
-	st_.scene_opener = nullptr;
-	if (is_leaf(node.kind)) {
-		// `NoRowPress`: re-rooting is `open()`, a `SceneId` deep link or the shortcut-pad jump. The
-		// jump IS a press -- on a grid pad, not on this node's row -- which is the distinction the
-		// value's name carries and the old `Restored` did not (final review, A6).
-		begin_value_session(&node); // `setup()`'s permission check
-		enter_leaf(node, FocusCause::NoRowPress);
-	}
-	else {
-		restore_row();
-	}
+	walk_.retarget(core(), visit_.session, node);
+	voice_usage_.leave();
 }
 
-void MenuScene::forget_rows() {
-	for (RememberedRow& row : remembered_) {
-		row = RememberedRow{};
-	}
-	remembered_clock_ = 0;
-}
-
-void MenuScene::remember_path() {
-	for (uint8_t d = 0; d <= st_.depth && d < kMenuDepth; d++) {
-		const Node* node = st_.path[d];
-		if (node == nullptr || node->kind != Kind::Submenu) {
-			continue;
-		}
-		const Node* child =
-		    is_horizontal(*node) ? child_at(*node, st_.columns[d].focused) : child_at(*node, st_.list[d].cursor);
-		if (child == nullptr) {
-			continue;
-		}
-		// The submenu's own entry, else an empty one, else the least recently recorded.
-		RememberedRow* slot = &remembered_[0];
-		for (RememberedRow& row : remembered_) {
-			if (row.submenu == node) {
-				slot = &row;
-				break;
-			}
-			if (row.recorded < slot->recorded) {
-				slot = &row;
-			}
-		}
-		*slot = RememberedRow{.submenu = node, .child = child, .recorded = ++remembered_clock_};
-	}
-}
-
-void MenuScene::restore_row() {
-	const Node* node = focused();
-	if (node == nullptr || node->kind != Kind::Submenu) {
-		return;
-	}
-	for (const RememberedRow& row : remembered_) {
-		if (row.submenu != node) {
-			continue;
-		}
-		// `Submenu::focusChild` (`submenu.cpp:21-36`): a child the page no longer shows leaves the first one.
-		const Node* kids[kMaxMenuChildren];
-		const size_t n = visible_children(*node, kids);
-		for (size_t k = 0; k < n; k++) {
-			if (kids[k] == row.child) {
-				if (is_horizontal(*node)) {
-					st_.columns[st_.depth].focused = static_cast<int8_t>(k);
-				}
-				else {
-					st_.list[st_.depth].cursor = static_cast<int16_t>(k);
-				}
-				return;
-			}
-		}
-		return;
-	}
+void MenuScene::reset_process_state() {
+	walk_.forget_rows();
+	view_.forget_acceleration();
+	voice_usage_ = VoiceUsageClock{};
 }
 
 bool MenuScene::on_enter(const SceneId& id) {
-	blink_restart_ = true; // `blinkLed(IndicatorLED::BACK)` (`sound_editor.cpp:571`)
 	// `SceneId::arg` is deliberately NOT part of the `SceneState` cache key (`shell/scene.h:68`),
 	// so a re-entry restores the kind's last saved state and *then* lands here: this must
 	// overwrite `path`/`depth` from `arg` rather than trust what `restore_state` put there.
 	const Node* target = nullptr;
 	const Node* page = nullptr;
-	const Node* const column = std::exchange(landing_column_, nullptr);
+	const Node* const column = pads_.take_landing();
 	if (id.arg != 0) {
 		target = node_by_id(id.arg);
 		// A shortcut landing names the page; the permission and range gate below are the column's,
@@ -578,16 +177,17 @@ bool MenuScene::on_enter(const SceneId& id) {
 				// (`descend_to(nodes::multi_range)` below); this is the deep link's copy, and it
 				// re-roots rather than descending because there is no path to descend from.
 				// The two writes come after `retarget`, which resets both fields.
+				visit_ = {};
 				retarget(nodes::multi_range);
-				st_.range_picker_pending = true;
-				st_.pending_after_range = target;
+				st_.walk.range_picker_pending = true;
+				st_.walk.pending_after_range = target;
 				return true;
 			}
 		}
 	}
 	else {
-		// Arg 0 means "the root this context chose" -- a real fallback since Task 6 filled
-		// `roots()` in. It refuses (returns false below) only if `ctx_.root` is out of range.
+		// Arg 0 means "the root this context chose" -- the fallback through
+		// `roots()`. It refuses (returns false below) only if `ctx_.root` is out of range.
 		const std::span<const Node* const> r = roots();
 		const size_t i = static_cast<size_t>(ctx_.root);
 		target = i < r.size() ? r[i] : nullptr;
@@ -596,57 +196,49 @@ bool MenuScene::on_enter(const SceneId& id) {
 		return false;
 	}
 	if (page != nullptr) {
+		visit_ = {};
 		retarget(*page);
-		focus_column(*target);
+		walk_.focus_column(core(), *target);
 		return true;
 	}
+	// `beginScreen`: a new screen, with `blinkLed(IndicatorLED::BACK)` (`sound_editor.cpp:571`). Reset only on a
+	// screen that opens: a refused id leaves the menu the visit it was, as the shell rolls the move back.
+	visit_ = {};
 	retarget(*target);
 	return true;
 }
 
 uint16_t MenuScene::arm_shortcut_landing(const Node& target) {
-	landing_column_ = nullptr;
-	if (const Node* page = shortcut_landing_page(ctx_, target); page != nullptr && node_id(*page) != 0) {
-		landing_column_ = &target;
-		return node_id(*page);
-	}
-	return node_id(target);
+	return pads_.arm_landing(ctx_, target);
 }
 
 void MenuScene::on_resume() {
-	blink_restart_ =
+	visit_.blink_restart =
 	    true; // `focusRegained`'s `setLedStates` -> `blinkLed(IndicatorLED::BACK)` (`sound_editor.cpp:552`)
 	// `SoundEditor::focusRegained` (`gui/ui/sound_editor.cpp:317-327`): "If just came back from a
 	// deeper nested UI", step up one level. The flag is set where the push was requested (see
 	// `after_render`), and it is what stops the item that opened the pushed scene from opening it
 	// again the instant the user gets back.
 	// A landing armed by a jump whose `Replace` never reached `on_enter` is stale.
-	landing_column_ = nullptr;
-	use_up_select_ = true;
-	if (st_.go_up_on_resume) {
-		st_.go_up_on_resume = false;
+	pads_.forget_landing();
+	visit_.use_up_select = true;
+	if (st_.walk.go_up_on_resume) {
+		st_.walk.go_up_on_resume = false;
 		// A browser that closed on a chosen file has a claim coming, and the claim lands the menu on the source page
 		// (`SampleClaim::stepFinish` closes the browser and reopens the editor there, `sample_claim.cpp:563-577`;
 		// here `reroot_to_scene_opener_page`). Going up from depth 0 first would close the menu under it.
 		if (!(st_.depth == 0 && browser::browser_scene().has_choice())) {
-			ascend();
+			walk_.ascend(core(), visit_.session);
 		}
 	}
 	// Otherwise the path is kept exactly as it was. Reset only the per-tick observations, which
 	// belong to a render pass that never happened.
-	st_.render_resp = {};
-	st_.value_changed = false;
-	st_.value_node = nullptr;
-	st_.back_claimed = false;
-	st_.column_press = false;
-	// An offset staged for a render pass that never happened is not a live edit either (fix round
-	// 1, Important 1) -- see `retarget`'s identical reset for the full reasoning.
-	st_.edit_offset = 0;
+	st_.tick = {};
 }
 
 bool MenuScene::reroot_to_scene_opener_page() {
 	// Read before `retarget` runs, which drops it along with the rest of the abandoned walk.
-	const Node* item = st_.scene_opener;
+	const Node* item = st_.walk.scene_opener;
 	if (item == nullptr || st_.path[0] == nullptr) {
 		// No opener recorded, or no menu at all (`on_model_changed`'s song swap empties the path).
 		// Legacy's own guard is the same shape -- the pair is only read when both halves are
@@ -682,30 +274,8 @@ bool MenuScene::reroot_to_scene_opener_page() {
 	// Legacy discards `focusChild`'s bool at this site (it is only consulted at
 	// `gui/ui/sound_editor.cpp:1860`), so an item its page no longer shows simply leaves the page
 	// focused on its first column, which is what falling out of this loop does.
-	focus_column(*item);
+	walk_.focus_column(core(), *item);
 	return true;
-}
-
-void MenuScene::begin_value_session(const Node* value) {
-	session_value_ = value;
-	if (value == &nodes::sequence_direction && !ctx_.is_kit) {
-		ctx_.selected_note_row = note_bridge() != nullptr && note_bridge()->row_auditioning();
-	}
-}
-
-void MenuScene::focus_column(const Node& column) {
-	const Node* page = focused();
-	if (page == nullptr) {
-		return;
-	}
-	const Node* kids[kMaxMenuChildren];
-	const size_t n = visible_children(*page, kids);
-	for (size_t k = 0; k < n; k++) {
-		if (kids[k] == &column) {
-			st_.columns[st_.depth].focused = static_cast<int8_t>(k);
-			return;
-		}
-	}
 }
 
 void MenuScene::on_model_changed(const deluge::notify::DirtySet& dirty) {
@@ -719,560 +289,61 @@ void MenuScene::on_model_changed(const deluge::notify::DirtySet& dirty) {
 }
 
 const Node* MenuScene::focused() const {
-	return st_.depth < kMenuDepth ? st_.path[st_.depth] : nullptr;
+	return menu::focused(st_);
 }
 
 void MenuScene::read_value_again() {
-	const Node* node = focused();
-	if (node != nullptr) {
-		enter_leaf(*node, FocusCause::NoRowPress);
-		// `Value::readValueAgain` redraws (`value.h:77-80`); the shell draws a raised fact on its next tick.
-		deluge::notify::raise(deluge::notify::Dirty::Oled);
-	}
+	visit_.session.read_again(core());
 }
 
 std::optional<deluge::project::OwnerParamTarget> MenuScene::learn_target() const {
-	const Node* node = focused();
-	if (node == nullptr) {
-		return std::nullopt;
-	}
-	// A bespoke item whose descriptor is not a `Binding::param` answers first -- the three
-	// patch-cable-strength pages, whose `getLearningThing()` is assembled from the navigation state
-	// (`node.h`'s `CustomItem::learn_descriptor`). Every other item leaves it null and falls through
-	// to the `ParamRef` answer, which is what all 53 `PatchedParam` nodes and every `UnpatchedParam`
-	// node use.
-	if (node->kind == Kind::Custom && node->custom != nullptr) {
-		const deluge::synth::CableTarget from_item = node->custom->learn_descriptor(ctx_, st_);
-		const std::optional<deluge::project::ControlsAddress> owner = bindings::controls_owner(ctx_);
-		if (!from_item.is_null() && owner) {
-			return deluge::project::OwnerParamTarget{
-			    .owner = *owner,
-			    .param = deluge::bridge::controlTargetOf(deluge::modulation::knobTargetOf(from_item),
-			                                             deluge::modulation::params::Kind::UNPATCHED_SOUND)};
-		}
-	}
-	return bindings::learn_target(*node, ctx_);
-}
-
-// ---------------------------------------------------------------------------------------------
-// MIDI learn: `SoundEditor`'s three delivery members and `unlearnAction`, forwarded to the focused
-// item exactly as legacy's `getCurrentMenuItem()->learnX(...)` did (`sound_editor.cpp:516`,
-// `:1550-1570`). F1 task 10 wired the note-on and program-change halves --
-// `ShellHostUI`'s two `UI` overrides, through `gui/ui/shell_guest_services.h` -- and could not wire
-// `learn_cc`, which has no `UI` virtual to override. See `node.h`'s note on the declarations.
-
-bool MenuScene::allows_learn_mode() const {
-	const Node* node = focused();
-	if (node != nullptr && node->kind == Kind::Submenu) {
-		node = selected_child(*node);
-	}
-	if (node == nullptr || node->kind == Kind::Submenu) {
-		return false;
-	}
-	if (node->allows_learn_mode || bindings::learn_target(*node, ctx_).has_value()) {
-		return true;
-	}
-	return node->kind == Kind::Custom && node->custom != nullptr
-	       && !node->custom->learn_descriptor(ctx_, st_).is_null();
-}
-
-const CustomItem* MenuScene::focused_custom() const {
-	const Node* node = focused();
-	// A `Kind::Custom` node is the only kind that can carry a learn hook, and `Node::custom` is only
-	// ever read for one (`render_oled`, `enter_leaf`, `handle` all guard the same way).
-	return node != nullptr && node->kind == Kind::Custom ? node->custom : nullptr;
+	return visit_.learn.target(ctx_, st_);
 }
 
 bool MenuScene::learn_note_on(::MIDICable& cable, int32_t channel, int32_t note) {
-	const CustomItem* item = focused_custom();
-	return item != nullptr && item->learn_note_on(cable, channel, note);
+	return visit_.learn.note_on(st_, cable, channel, note);
 }
 
 bool MenuScene::learn_cc(::MIDICable& cable, int32_t channel, int32_t cc, int32_t value) {
-	const CustomItem* item = focused_custom();
-	return item != nullptr && item->learn_cc(cable, channel, cc, value);
+	return visit_.learn.cc(st_, cable, channel, cc, value);
 }
 
 bool MenuScene::learn_program_change(::MIDICable& cable, int32_t channel, int32_t program) {
-	const CustomItem* item = focused_custom();
-	return item != nullptr && item->learn_program_change(cable, channel, program);
+	return visit_.learn.program_change(st_, cable, channel, program);
 }
 
 void MenuScene::unlearn() {
-	// Unconditional, like legacy's own call: `MenuItem::unlearnAction`'s base is an empty body, so
-	// an item with nothing to forget forgets nothing and no caller has to ask first.
-	if (const CustomItem* item = focused_custom(); item != nullptr) {
-		item->unlearn();
-	}
-	// `MenuItemWithCCLearning::unlearnAction` (`menu_item_with_cc_learning.cpp:25-41`): a param's learned knob goes,
-	// with a popup when there was one.
-	const std::optional<deluge::project::OwnerParamTarget> target = learn_target();
-	if (target && ctx_.model != nullptr && ctx_.sink != nullptr && ctx_.model->mappings.find(*target) != nullptr
-	    && ctx_.sink->learn(*target, std::nullopt, std::nullopt)) {
-		deluge::notify::notice_string(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_UNLEARNED));
-	}
+	visit_.learn.unlearn(ctx_, st_);
 }
 
 bool MenuScene::wants_learn_blink() const {
-	const CustomItem* item = focused_custom();
-	return item != nullptr && item->wants_learn_blink();
+	return visit_.learn.wants_blink(st_);
 }
 
 // ---------------------------------------------------------------------------------------------
 // Tree walking
 
-size_t MenuScene::visible_children(const Node& node, std::span<const Node*> out) const {
-	return bindings::listed_children(node, ctx_, out,
-	                                 is_horizontal(node) ? bindings::ListFor::Columns : bindings::ListFor::Rows);
-}
-
-const Node* MenuScene::child_at(const Node& node, int32_t index) const {
-	const Node* kids[kMaxMenuChildren];
-	const size_t n = visible_children(node, kids);
-	if (index < 0 || static_cast<size_t>(index) >= n) {
-		return nullptr;
-	}
-	return kids[index];
-}
-
 const Node* MenuScene::selected_child(const Node& node) const {
-	if (node.kind != Kind::Submenu) {
-		return nullptr;
-	}
-	return is_horizontal(node) ? child_at(node, st_.columns[st_.depth].focused)
-	                           : child_at(node, st_.list[st_.depth].cursor);
+	return menu::selected_child(ctx_, st_, node);
 }
 
 const Node* MenuScene::focused_value() const {
-	const Node* node = focused();
-	if (node == nullptr) {
-		return nullptr;
-	}
-	if (node->kind != Kind::Submenu) {
-		return node; // a leaf IS what the encoders edit
-	}
-	if (!is_horizontal(*node)) {
-		return nullptr; // a vertical page's row is not itself a value -- `shouldForwardButtons`
-		                // (`submenu.cpp:181-185`) only forwards on the HORIZONTAL rendering style
-	}
-	const Node* column = selected_child(*node);
-	return (column != nullptr && column->kind != Kind::Submenu) ? column : nullptr;
-}
-
-const Node* MenuScene::pad_subject() const {
-	if (on_horizontal_page()) {
-		return selected_child(*focused());
-	}
-	return focused();
-}
-
-bool MenuScene::on_horizontal_page() const {
-	const Node* node = focused();
-	return node != nullptr && is_horizontal(*node);
-}
-
-bool MenuScene::is_horizontal(const Node& node) const {
-	return renders_horizontal(node, ctx_);
-}
-
-bool renders_horizontal(const Node& node, const MenuContext& ctx) {
-	// With the feature off a horizontal page is a vertical list.
-	return node.kind == Kind::Submenu && node.layout == Layout::Horizontal && ctx.horizontal_menus;
-}
-
-size_t MenuScene::build_column_list(const Node& node, std::span<const Node*> kids,
-                                    std::span<deluge::ui::oled::Column> cols, std::span<NodeText> label_scratch) const {
-	const size_t n = visible_children(node, kids);
-	for (size_t i = 0; i < n; i++) {
-		const Node& kid = *kids[i];
-		cols[i] = deluge::ui::oled::Column{};
-		cols[i].label = column_label(kid, ctx_, label_scratch[i]);
-		cols[i].slots = kid.slots;
-		cols[i].show_label = kid.show_column_label;
-		cols[i].relevant = bindings::relevant(kid, ctx_);
-		cols[i].is_submenu = kid.kind == Kind::Submenu;
-	}
-	if (node.is_group) {
-		// Each member after the first opens its own page (`HorizontalMenuGroup::preparePaging`).
-		size_t first = 0;
-		for (const Node* member : node.children) {
-			if (member == nullptr) {
-				continue;
-			}
-			const Node* scratch[kMaxMenuChildren];
-			const size_t count = bindings::listed_children(*member, ctx_, scratch, bindings::ListFor::Columns);
-			if (count != 0 && first < n) {
-				cols[first].page_break = true;
-			}
-			first += count;
-		}
-	}
-	return n;
-}
-
-deluge::ui::oled::Paging MenuScene::horizontal_paging() const {
-	const Node* node = focused();
-	if (node == nullptr || !on_horizontal_page()) {
-		return {};
-	}
-	const Node* kids[kMaxMenuColumns];
-	deluge::ui::oled::Column cols[kMaxMenuColumns]{};
-	NodeText label_scratch[kMaxMenuColumns];
-	const size_t n = build_column_list(*node, std::span<const Node*>{kids, kMaxMenuColumns},
-	                                   std::span<deluge::ui::oled::Column>{cols, kMaxMenuColumns},
-	                                   std::span<NodeText>{label_scratch, kMaxMenuColumns});
-	return deluge::ui::oled::paging_of(std::span<const deluge::ui::oled::Column>{cols, n},
-	                                   st_.columns[st_.depth].focused);
-}
-
-std::string_view MenuScene::page_title(NodeText& scratch) const {
-	const Node* node = focused();
-	if (node == nullptr) {
-		return {};
-	}
-	const int32_t focus = std::max<int32_t>(0, st_.columns[st_.depth].focused);
-	const Node* member = bindings::group_member_of(*node, ctx_, static_cast<size_t>(focus));
-	const Node& titled = member != nullptr ? *member : *node;
-	if (titled.page_title != nullptr) {
-		// The member's own page: legacy's `paging.visiblePageNumber` counts the member menu's pages alone.
-		const Node* kids[kMaxMenuColumns];
-		deluge::ui::oled::Column cols[kMaxMenuColumns]{};
-		NodeText label_scratch[kMaxMenuColumns];
-		const size_t n = build_column_list(*node, std::span<const Node*>{kids, kMaxMenuColumns},
-		                                   std::span<deluge::ui::oled::Column>{cols, kMaxMenuColumns},
-		                                   std::span<NodeText>{label_scratch, kMaxMenuColumns});
-		const std::span<const deluge::ui::oled::Column> span{cols, n};
-		int32_t first = std::min<int32_t>(focus, static_cast<int32_t>(n) - 1);
-		while (first > 0 && bindings::group_member_of(*node, ctx_, static_cast<size_t>(first - 1)) == member) {
-			first--;
-		}
-		const auto page = static_cast<uint8_t>(deluge::ui::oled::paging_of(span, focus).page
-		                                       - deluge::ui::oled::paging_of(span, first).page);
-		const ValueText vt = titled.page_title(ctx_, page, std::span<char>{scratch.chars, sizeof(scratch.chars)});
-		if (!vt.fallback) {
-			return {scratch.chars, std::min(vt.length, sizeof(scratch.chars))};
-		}
-	}
-	return display_text(titled, ValueTextUse::Title, ctx_, scratch);
-}
-
-int32_t input_tick_magnitude(const MenuContext& ctx) {
-	return ctx.model != nullptr ? ctx.model->transport.inside_world_tick_magnitude
-	                                  + ctx.model->transport.inside_world_tick_magnitude_offset_from_bpm
-	                            : 0;
-}
-
-void option_list_column(deluge::ui::oled::OledFrame& slot_frame, bool /*focused*/, void* ctx) {
-	const auto* call = static_cast<const ColumnSlot::OptionList*>(ctx);
-	if (call == nullptr || call->node == nullptr || call->ctx == nullptr) {
-		return;
-	}
-	deluge::ui::oled::OledFrame panel = deluge::ui::oled::panel_frame(slot_frame);
-	const int32_t top = panel.canvas.geometry().visible_top;
-	const int32_t width = panel.canvas.geometry().width;
-	panel.hline(top + deluge::ui::kTitleSeparatorY, 0, width - 1);
-
-	std::string_view names[kMaxDynamicNames];
-	TextScratch scratch[kMaxDynamicNames];
-	const auto n = static_cast<int32_t>(bindings::names(*call->node, *call->ctx, names, scratch));
-	if (n == 0) {
-		return;
-	}
-	// `Selection::drawPixelsForOled` (`selection.cpp:8-28`): the current option in the middle row where the list
-	// allows, else as near it as the ends let it be.
-	const int32_t visible = panel.style.menu_rows;
-	const int32_t current = std::clamp(call->value, int32_t{0}, n - 1);
-	const int32_t n_before = current - std::max<int32_t>(0, current - visible);
-	const int32_t n_after = std::min<int32_t>(current + visible, n) - current;
-	int32_t pos = (visible - 1) / 2;
-	int32_t tail = visible - pos;
-	if (n_before < pos) {
-		pos = n_before;
-	}
-	else if (n_after < tail) {
-		tail = n_after;
-		pos = std::min<int32_t>(visible - tail, n_before);
-	}
-	deluge::ui::oled::ListRow rows[kMaxDynamicNames];
-	for (int32_t i = 0; i < n; i++) {
-		rows[i].label = names[i];
-	}
-	deluge::ui::ListState state{.cursor = static_cast<int16_t>(current), .scroll = static_cast<int16_t>(current - pos)};
-	deluge::ui::ScrollText scroll{};
-	const deluge::gfx::oled::Rect below_title{0, top, width, panel.canvas.geometry().height - top};
-	panel.region(below_title, deluge::ui::InputMask::none(), [&](deluge::ui::oled::OledFrame& f) {
-		(void)deluge::ui::oled::list(f, deluge::ui::oled::menu_rect(f), state,
-		                             std::span<const deluge::ui::oled::ListRow>{rows, static_cast<size_t>(n)}, scroll,
-		                             /*allow_motion=*/false);
-	});
-}
-
-void present_column(const Node& node, const MenuContext& ctx, int32_t value, ColumnSlot& slot,
-                    deluge::ui::oled::Column& col) {
-	col.label = column_label(node, ctx, slot.label_scratch);
-	col.show_label = node.show_column_label;
-	if (node.bind.value_text != nullptr) {
-		// A `getColumnLabel` that depends on the value or the context.
-		const ValueText vt =
-		    node.bind.value_text(ctx, value, ValueTextUse::Label, std::span<char>{slot.label, sizeof(slot.label)});
-		if (!vt.fallback) {
-			col.label = std::string_view{slot.label, std::min(vt.length, sizeof(slot.label))};
-		}
-	}
-
-	const auto draw_art = [&](const deluge::ui::oled::ArtColumn& art) {
-		slot.art = art;
-		col.render = deluge::ui::oled::art_column;
-		col.ctx = &slot.art;
-	};
-	const auto draw_text = [&](std::string_view text) {
-		const size_t copied = std::min(text.size(), sizeof(slot.value));
-		std::memcpy(slot.value, text.data(), copied);
-		slot.text = deluge::ui::oled::TextColumn{.value = std::string_view{slot.value, copied}};
-		col.render = deluge::ui::oled::text_column;
-		col.ctx = &slot.text;
-	};
-
-	if (node.option_list_column) {
-		slot.list = ColumnSlot::OptionList{.node = &node, .ctx = &ctx, .value = value};
-		col.render = option_list_column;
-		col.ctx = &slot.list;
-		return;
-	}
-
-	if (node.bind.column_draw != nullptr) {
-		if (const auto drawing = node.bind.column_draw(ctx, value)) {
-			slot.draw = *drawing;
-			col.render = deluge::ui::oled::draw_column;
-			col.ctx = &slot.draw;
-			col.span_next = drawing->span_next;
-			return;
-		}
-	}
-
-	if (node.bind.column_art != nullptr) {
-		if (const auto art = node.bind.column_art(ctx, value)) {
-			draw_art(*art);
-			return;
-		}
-	}
-
-	if (node.bind.value_text != nullptr) {
-		// `Binding::value_text` (spec E-note-family §5.3): legacy's bespoke column text --
-		// `35%`/`35L`, `3:4`, `FILL` struck through for `NOT_FILL` -- replaces whatever the
-		// node's own `Kind` would otherwise have drawn, exactly as legacy's own
-		// `renderInHorizontalMenu` override does for these items.
-		const ValueText vt =
-		    node.bind.value_text(ctx, value, ValueTextUse::Column, std::span<char>{slot.value, sizeof(slot.value)});
-		if (!vt.fallback) {
-			slot.text = deluge::ui::oled::TextColumn{
-			    .value = std::string_view{slot.value, std::min(vt.length, sizeof(slot.value))},
-			    .strikethrough = vt.strikethrough};
-			col.render = deluge::ui::oled::text_column;
-			col.ctx = &slot.text;
-			return;
-		}
-	}
-
-	// `Number::renderInHorizontalMenu` (`gui/menu_item/number.cpp:75-102`): the item's rendering style picks the meter,
-	// and a plain number is a `meter_column` with `Hint::None` (`ui/oled/columns.h`'s note on the missing fifth arm).
-	const auto draw_meter = [&] {
-		const IntRange range = bindings::range(node, ctx);
-		slot.meter.hint = node.hint;
-		slot.meter.norm = normalised(value, range);
-		slot.meter.raw = value;
-		slot.meter.raw_max = range.max; // `Hint::Ducking` is the one hint that reads this
-		col.render = deluge::ui::oled::meter_column;
-		col.ctx = &slot.meter;
-	};
-
-	switch (node.kind) {
-	case Kind::Submenu:
-		col.render = deluge::ui::oled::submenu_column;
-		break;
-	case Kind::Toggle:
-		slot.toggle.on = value != 0;
-		col.render = deluge::ui::oled::toggle_column;
-		col.ctx = &slot.toggle;
-		break;
-	case Kind::Enum: {
-		std::array<std::string_view, kMaxDynamicNames> names{};
-		std::array<TextScratch, kMaxDynamicNames> scratch{};
-		const size_t count = bindings::names(node, ctx, names, scratch, bindings::NameForm::Short);
-		draw_text(count == 0 ? std::string_view{} : names[static_cast<size_t>(clamp_to(value, 0, count - 1))]);
-		break;
-	}
-	case Kind::SyncLevel: {
-		// `SyncLevel::getColumnLabel` and `renderInHorizontalMenu` (`gui/menu_item/sync_level.cpp:40-77`): OFF in
-		// the row face under the name, else the note length as the label over the sync type's icon.
-		if (syncValueToSyncLevel(value) == SYNC_LEVEL_NONE) {
-			draw_art({.text = deluge::l10n::getView(deluge::l10n::String::STRING_FOR_OFF)});
-			break;
-		}
-		etl::string<30> label;
-		syncValueToStringForHorzMenuLabel(syncValueToSyncType(value), syncValueToSyncLevel(value), label,
-		                                  input_tick_magnitude(ctx));
-		const size_t copied = std::min(label.size(), sizeof(slot.label));
-		std::memcpy(slot.label, label.data(), copied);
-		col.label = std::string_view{slot.label, copied};
-		const deluge::gfx::oled::Icon* icon = &deluge::gfx::oled::icons::syncTypeEven;
-		if (syncValueToSyncType(value) == SYNC_TYPE_DOTTED) {
-			icon = &deluge::gfx::oled::icons::syncTypeDotted;
-		}
-		else if (syncValueToSyncType(value) == SYNC_TYPE_TRIPLET) {
-			icon = &deluge::gfx::oled::icons::syncTypeTriplets;
-		}
-		draw_art({.icon = icon, .dy = -3});
-		break;
-	}
-	case Kind::Decimal: {
-		// `Decimal::renderInHorizontalMenu` (`gui/menu_item/decimal.cpp:176-191`): a rendering style other than NUMBER
-		// draws as `Number` does; a NUMBER keeps three characters of a value at or below -10.00, which would not fit
-		// the column.
-		if (node.hint != Hint::None) {
-			draw_meter();
-			break;
-		}
-		char buf[16];
-		std::string_view text = format_decimal(value, node.bind.decimal_places, buf, sizeof(buf));
-		if (value <= -1000) {
-			text = text.substr(0, 3);
-		}
-		draw_text(text);
-		break;
-	}
-	default:
-		draw_meter();
-		break;
-	}
-}
-
-void MenuScene::notify_column(const Node& column) {
-	// Legacy's `HorizontalMenu::displayNotification` (`horizontal_menu.cpp:335-343`) ends in one
-	// call, `display->displayNotification(menuItem->getName(), notificationValueBuf.data())`
-	// (`:342`): a one-line banner across the top of the panel, in the display's single popup slot,
-	// typed `PopupType::NOTIFICATION` (`hid/display/oled.cpp:768`). `notify::notice_notification`
-	// carries exactly that (title, value) pair, and both of its consumers end in that slot or its
-	// port: legacy's `drain_notifications` calls the same function, and `shell::Notices::drain`
-	// reaches it through the application's `NotificationSink` -- or, with no sink installed, draws
-	// `shell::NotificationScene`, which is transparent over the menu and takes no input
-	// (`shell/notices.h`). It copies into the queue's own slot, so the stack buffers below are
-	// enough.
-	//
-	// `displayNotification` refuses first when the item's `showNotification()` is false
-	// (`horizontal_menu.cpp:336-338`): every submenu (`submenu.h:69`), and the items `Node::show_notification`
-	// marks. Centralised here, so no call site lights a banner legacy never would.
-	if (column.kind == Kind::Submenu || !column.show_notification) {
-		return;
-	}
-	char value_buf[32];
-	const std::string_view text =
-	    column_notification(column, ctx_, bindings::read(column, ctx_), std::span<char>{value_buf, sizeof(value_buf)});
-	NodeText name_scratch;
-	const std::string_view name = display_text(column, ValueTextUse::Name, ctx_, name_scratch);
-	deluge::notify::notice_notification(name, text);
-}
-
-std::string_view column_notification(const Node& column, const MenuContext& ctx, int32_t value, std::span<char> out) {
-	if (column.bind.value_text != nullptr) {
-		// `Binding::value_text` (spec E-note-family §5.3): the item's own `getNotificationValue`.
-		const ValueText vt = column.bind.value_text(ctx, value, ValueTextUse::Notification, out);
-		if (!vt.fallback) {
-			return std::string_view{out.data(), std::min(vt.length, out.size())};
-		}
-	}
-	const auto copy = [&](std::string_view from) {
-		const size_t copied = std::min(from.size(), out.size());
-		std::memcpy(out.data(), from.data(), copied);
-		return std::string_view{out.data(), copied};
-	};
-	switch (column.kind) {
-	case Kind::Decimal: {
-		// `Decimal::getNotificationValue` (`decimal.h:31-33`), and what an override appends to it.
-		const std::string_view base = format_decimal(value, column.bind.decimal_places, out.data(), out.size());
-		if (column.bind.notification_suffix == nullptr) {
-			return base;
-		}
-		const size_t added = column.bind.notification_suffix(ctx, out.subspan(base.size()));
-		return std::string_view{out.data(), base.size() + added};
-	}
-	case Kind::Enum: {
-		// `Selection::getNotificationValue` (`selection.cpp:62-64`): the option's full name.
-		std::array<std::string_view, kMaxDynamicNames> names{};
-		std::array<deluge::ui::shell::TextScratch, kMaxDynamicNames> scratch{};
-		const size_t count = bindings::names(column, ctx, names, scratch);
-		if (count == 0) {
-			return {};
-		}
-		return copy(names[static_cast<size_t>(clamp_to(value, 0, static_cast<int32_t>(count) - 1))]);
-	}
-	case Kind::SyncLevel: {
-		// `Enumeration::getNotificationValue` is `getShortOption` (`enumeration.h:25`), which `SyncLevel` spells as
-		// the note length, or OFF (`sync_level.cpp:83-91`).
-		if (value == 0) {
-			return copy(deluge::l10n::getView(deluge::l10n::String::STRING_FOR_OFF));
-		}
-		etl::string<30> length;
-		syncValueToString(static_cast<uint32_t>(value), length, input_tick_magnitude(ctx));
-		return copy(std::string_view{length.data(), length.size()});
-	}
-	case Kind::Toggle:
-		// `Toggle` has no `getNotificationValue`, so the base class's empty one stands (`menu_item.h:324`).
-		return {};
-	default:
-		// `Number::getNotificationValue` (`number.cpp:429-431`): the value, doubled for the PERCENT style.
-		return format_int(column.hint == Hint::Percent ? value * 2 : value, out.data(), out.size());
-	}
-}
-
-bool MenuScene::enter_range_picker_if_needed(const Node& child, bool suppress_when_allowed) {
-	if (child.range_dependent && !ensure_first_range(ctx_)) {
-		deluge::notify::notice_string(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_ERROR_INSUFFICIENT_RAM));
-		return true;
-	}
-	// `handleInstrumentButtonPress`'s own suppression (`horizontal_menu.cpp:427-428`):
-	// `MUST_SELECT_RANGE && !allowToBeginSessionFromHorizontalMenu()`. Only that ONE caller passes
-	// `suppress_when_allowed = true` -- `enter_child`'s general descend and `handleItemAction`'s
-	// already-focused-press arm (`enter_horizontal_item`, below) both honour `MUST_SELECT_RANGE`
-	// unconditionally, exactly as their own legacy call sites do (`:424`, `:669-677`, neither reads
-	// `allowToBeginSessionFromHorizontalMenu` at all).
-	if (suppress_when_allowed && child.allow_session_from_horizontal) {
-		return false;
-	}
-	if (permission_for(child, ctx_) != Permission::MustSelectRange) {
-		return false;
-	}
-	st_.range_picker_pending = true;
-	st_.pending_after_range = &child;
-	descend_to(nodes::multi_range);
-	return true;
-}
-
-void MenuScene::enter_horizontal_item(const Node& child) {
-	// `HorizontalMenu::handleItemAction`'s else-path (`horizontal_menu.cpp:669-677`): a submenu OR
-	// an `allowToBeginSessionFromHorizontalMenu` column, already focused, pressed again. Permission
-	// only matters for `MUST_SELECT_RANGE` (the picker substitutes for the item); every other
-	// answer -- `Yes`, and `No`, which `handleItemAction` never even reads -- enters unconditionally
-	// (`soundEditor.enterSubmenu(menuItem)`, no `shouldEnterSubmenu()`/`Permission::No` gate at all,
-	// unlike `enter_child`'s general descend).
-	if (!enter_range_picker_if_needed(child, /*suppress_when_allowed=*/false)) {
-		descend_to(child);
-	}
+	return menu::focused_value(ctx_, st_);
 }
 
 // ---------------------------------------------------------------------------------------------
 // Rendering. Draws AND consumes input (the toolkit's rule); never touches the model.
 
 void MenuScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) {
-	// One `oled_role_by_index` entry on this board, so every other role is somebody else's panel
-	// (spec E §3 rule 5). Returning before anything is read keeps the claims clean too.
+	// One `oled_role_by_index` entry on this board, so every other role is somebody else's panel.
+	// Returning before anything is read keeps the claims clean too.
 	if (role != SurfaceRole::Main) {
 		return;
 	}
-	select_held_ = f.select_held();
+	visit_.select_held = f.select_held();
 	// A horizontal page's `initializeItem` on every focus move and `beginSession`, read before its columns draw.
-	if (const Node* const value = focused_value(); value != session_value_) {
-		begin_value_session(value);
+	if (const Node* const value = focused_value(); value != visit_.session.value()) {
+		visit_.session.begin(core(), value);
 	}
 	const Node* node = focused();
 	if (node == nullptr) {
@@ -1280,492 +351,25 @@ void MenuScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) {
 	}
 	// `beginScreen`'s `blinkLed(LEARN)` for an item that wants it (`sound_editor.cpp:1167-1169`) restarts the shared
 	// phase, BACK's too, at this tick's `leds()`; the open's and LEARN's release are filed the same way.
-	if (node != blink_screen_) {
-		blink_screen_ = node;
-		blink_restart_ = blink_restart_ || wants_learn_blink();
+	if (node != visit_.blink_screen) {
+		visit_.blink_screen = node;
+		visit_.blink_restart = visit_.blink_restart || wants_learn_blink();
 	}
 
-	st_.render_resp = {};
-	st_.column_press = false;
-	st_.select_shift = f.shift();
-
-	// **The depth test precedes the read.** At depth 0 `owns` leaves Back to `handle()`, which pops the scene --
-	// legacy's back at the root closing the editor (`sound_editor.cpp:456` -> `:433` `goUpOneLevel()` -> `:678`
-	// `exitCompletely()`) -- so the render must not read it there: the read IS the claim.
-	if (st_.depth > 0) {
-		st_.back_claimed = f.back_pressed();
-	}
-
-	switch (node->kind) {
-	case Kind::Submenu:
-		if (is_horizontal(*node)) {
-			render_horizontal(f, *node);
-		}
-		else {
-			render_vertical(f, *node);
-		}
-		break;
-	case Kind::Int:
-		render_leaf_int(f, *node);
-		break;
-	case Kind::Decimal:
-		// A `DecimalWithoutScrolling` names its value and edits a step at a time, as an integer screen does.
-		if (node->bind.leaf_text != nullptr) {
-			render_leaf_int(f, *node);
-		}
-		else {
-			render_leaf_decimal(f, *node);
-		}
-		break;
-	case Kind::Enum:
-		render_leaf_enum(f, *node);
-		break;
-	case Kind::Toggle:
-		render_leaf_toggle(f, *node);
-		break;
-	case Kind::SyncLevel:
-		render_leaf_sync_level(f, *node);
-		break;
-	case Kind::Range:
-		render_leaf_range(f, *node);
-		break;
-	case Kind::Custom:
-		if (node->custom != nullptr) {
-			node->custom->render(f, ctx_, st_);
-		}
-		break;
-	default: {
-		// Every `Kind` `node.h` declares now has an arm above: `Bipolar`, `Range`, `MultiRange`,
-		// `Colour` and `Action` were dropped in Task 8 (zero nodes, no interpreter written for
-		// them), and `SyncLevel` gained one just above. Nothing in the current tree reaches this
-		// arm; it stays only so a `Kind` a later plan adds still draws its title rather than
-		// nothing at all until that plan writes its own interpreter.
-		NodeText scratch;
-		deluge::ui::oled::title(f, display_text(*node, ValueTextUse::Title, ctx_, scratch));
-		break;
-	}
-	}
-}
-
-void MenuScene::render_vertical(deluge::ui::oled::OledFrame& f, const Node& node) {
-	NodeText title_scratch;
-	deluge::ui::oled::title(f, display_text(node, ValueTextUse::Title, ctx_, title_scratch));
-
-	const Node* kids[kMaxMenuChildren];
-	const size_t n = visible_children(node, kids);
-
-	deluge::ui::oled::ListRow rows[kMaxMenuChildren];
-	NodeText label_scratch[kMaxMenuChildren];
-	for (size_t i = 0; i < n; i++) {
-		rows[i].label = display_text(*kids[i], ValueTextUse::Name, ctx_, label_scratch[i]);
-		rows[i].icon = row_icon(*kids[i], ctx_);
-		rows[i].selectable = true;
-	}
-
-	// `menu_rect(f)` is the legacy-reproducing rect (`ui/oled/list.h:33`) -- never a hand-computed
-	// one. `list` clamps the cursor, walks it with `f.turn()`, and reports `entered` on a select
-	// press, claiming both for the tick.
-	st_.render_resp =
-	    deluge::ui::oled::list(f, deluge::ui::oled::menu_rect(f), st_.list[st_.depth],
-	                           std::span<const deluge::ui::oled::ListRow>{rows, n}, st_.scroll[st_.depth]);
-}
-
-void MenuScene::render_horizontal(deluge::ui::oled::OledFrame& f, const Node& node) {
-	const Node* kids[kMaxMenuColumns];
-	deluge::ui::oled::Column cols[kMaxMenuColumns]{};
-	NodeText label_scratch[kMaxMenuColumns];
-	const size_t n = build_column_list(node, std::span<const Node*>{kids, kMaxMenuColumns},
-	                                   std::span<deluge::ui::oled::Column>{cols, kMaxMenuColumns},
-	                                   std::span<NodeText>{label_scratch, kMaxMenuColumns});
-
-	// `HorizontalMenu::selectEncoderAction` (`gui/menu_item/horizontal_menu.cpp:309-326`): the select
-	// turn edits the focused column and never moves focus. A horizontal menu is itself a submenu, so
-	// `SoundEditor::selectEncoderAction` hands it the raw offset (`gui/ui/sound_editor.cpp:1122`) --
-	// no SHIFT multiplier here -- and a submenu column is left alone (`:315-318`). The edit is the
-	// offset times `calcNextKnobSpeed` (`:326`, `:630-633`, `kHorizontalMenuAcceleration`), truncated
-	// to an int as legacy's `int32_t` parameter does. The turn is read (and claimed) BEFORE `columns`
-	// draws the page, so a detent edits the column the user was looking at; `columns` itself no
-	// longer touches the turn at all (`ui/oled/columns.cpp`'s own note).
-	const int32_t focus = n == 0 ? 0 : clamp_to(st_.columns[st_.depth].focused, 0, static_cast<int32_t>(n) - 1);
-	const int8_t turned = f.turn();
-	f.claim_turn();
-	if (n != 0 && turned != 0 && kids[focus]->kind != Kind::Submenu) {
-		const Node& target = *kids[focus];
-		// `Binding::permitted` (spec E-note-family §5.3): legacy's
-		// `selectEncoderActionIsPermitted()` check, consulted *before* the edit and *before* the
-		// notification (`horizontal_menu.cpp:321-324`, ahead of `:326-328`). A refusal stages
-		// nothing and raises no notification here -- the hook raises its own popup, exactly as
-		// legacy's side effect does.
-		if (target.bind.permitted == nullptr || target.bind.permitted(ctx_)) {
-			auto detents = static_cast<int32_t>(
-			    turned
-			    * horizontal_acceleration_.advance(turned, static_cast<double>(f.now_ms()) / 1000.0,
-			                                       deluge::ui::kHorizontalMenuAcceleration));
-			if (target.bind.reverse_in_horizontal != nullptr && target.bind.reverse_in_horizontal(ctx_)) {
-				detents = -detents;
-			}
-			if (target.bind.adjust != nullptr) {
-				// `Binding::adjust` (spec §5.2): accumulate the turn's detents rather than
-				// computing `moved` -- an offset write (`instrumentClipView.adjustVelocity` and
-				// its siblings) has no absolute value to stage, so there is nothing to put in
-				// `edit_int`/`enum_index` here. The column below reads `bindings::read` for this
-				// node instead of any edit storage, for the same reason.
-				st_.edit_offset += detents;
-			}
-			else {
-				const IntRange range = bindings::range(target, ctx_);
-				// The toolkit's own guard: a zero `step` would give a dead select knob
-				// (`ui/oled/values.cpp:38-40`'s `coarse_step`).
-				int32_t step = range.step != 0 ? range.step : 1;
-				// `getNumberEditSize` on a horizontal page (`decimal.cpp:49-54`): a Decimal moves 1.00 a detent, 0.01
-				// with SELECT or SHIFT held; a node's own `HorizontalStep` overrides either.
-				const HorizontalStep& hs = target.bind.horizontal_step;
-				if (target.kind == Kind::Decimal || hs.coarse != 0) {
-					const int32_t coarse = hs.coarse != 0 ? hs.coarse : (target.kind == Kind::Decimal ? 100 : step);
-					const int32_t fine = hs.fine != 0 ? hs.fine : 1;
-					step = (f.select_held() || f.shift()) ? fine : coarse;
-				}
-				int32_t current = bindings::read(target, ctx_);
-				const std::optional<int32_t> turned_to =
-				    target.bind.turn != nullptr ? target.bind.turn(ctx_, current, detents) : std::nullopt;
-				if (hs.restart_from_negative && detents > 0 && current < 0) {
-					current = -step;
-				}
-				int32_t moved = current + detents * step;
-				if (target.bind.wrap_in_horizontal && range.max >= range.min) {
-					const int32_t span = range.max - range.min + 1;
-					moved = range.min + (((moved - range.min) % span) + span) % span;
-				}
-				moved = clamp_to(turned_to.value_or(moved), range.min, range.max);
-				// Set on every permitted turn, clamp or not: legacy calls `child->selectEncoderAction(...)`
-				// and `displayNotification(child)` unconditionally once it has decided the turn is permitted
-				// (`selectEncoderActionIsPermitted()`, `:321`) -- it never re-reads the value first to
-				// see whether the clamp actually moved it (`:326-328`). Gating this on `moved != current`
-				// dropped the notification on a turn already at an endpoint; `commit_value` writing the same
-				// value back at a clamp is harmless, exactly as legacy's own re-write is.
-				switch (target.kind) {
-				case Kind::Enum:
-					st_.enum_index = moved;
-					break;
-				case Kind::Toggle:
-					st_.edit_bool = moved != 0;
-					break;
-				default:
-					st_.edit_int = moved;
-					break;
-				}
-			}
-			st_.value_changed = true;
-			st_.value_node = &target;
-		}
-	}
-
-	// Everything a `Column` points at has to outlive the `columns` call.
-	std::span<ColumnSlot> slots{column_slots_};
-	for (size_t i = 0; i < n; i++) {
-		const Node& kid = *kids[i];
-		// A `Binding::adjust` node stages no absolute value (see the edit block above) -- only
-		// `bindings::read` is ever meaningful for it, so its column always re-reads rather than
-		// consulting `st_.value_node`/`edit_int`. That leaves one frame of lag before the commit's
-		// write is visible here, because renders never write the model; `node.h`'s `AdjustFn` doc
-		// names this rather than working around it.
-		const bool has_staged_edit = kid.bind.adjust == nullptr && st_.value_node == &kid;
-		int32_t value = bindings::read(kid, ctx_);
-		if (has_staged_edit) {
-			value = kid.kind == Kind::Enum     ? st_.enum_index
-			        : kid.kind == Kind::Toggle ? int32_t{st_.edit_bool}
-			                                   : st_.edit_int;
-		}
-		present_column(kid, ctx_, value, slots[i], cols[i]);
-	}
-
-	NodeText title_scratch;
-	// `f.bounds()`, not `menu_rect(f)`: this widget owns the whole panel including its own title
-	// band (`ui/oled/columns.h:127`).
-	// A member page drawn whole (`Node::page_draw`): legacy's `renderMenuItems` overrides, which number the focused
-	// item among the member's own.
-	struct PageDrawCall {
-		const Node* member;
-		const MenuContext* ctx;
-		int32_t focus;
-	};
-	PageDrawCall call{};
-	deluge::ui::oled::PageRender page_render{};
-	if (n > 0) {
-		const int32_t focus = clamp_to(st_.columns[st_.depth].focused, 0, static_cast<int32_t>(n) - 1);
-		const Node* member = bindings::group_member_of(node, ctx_, static_cast<size_t>(focus));
-		if (member != nullptr && member->page_draw != nullptr) {
-			int32_t first = focus;
-			while (first > 0 && bindings::group_member_of(node, ctx_, static_cast<size_t>(first - 1)) == member) {
-				first--;
-			}
-			call = PageDrawCall{.member = member, .ctx = &ctx_, .focus = focus - first};
-			page_render = {.draw =
-			                   [](deluge::ui::oled::OledFrame& frame, int32_t, void* ctx) {
-				                   const auto& c = *static_cast<const PageDrawCall*>(ctx);
-				                   deluge::ui::oled::OledFrame panel = deluge::ui::oled::panel_frame(frame);
-				                   c.member->page_draw(panel, *c.ctx, c.focus);
-			                   },
-			               .ctx = &call};
-		}
-	}
-	st_.render_resp = deluge::ui::oled::columns(f, f.bounds(), st_.columns[st_.depth],
-	                                            std::span<const deluge::ui::oled::Column>{cols, n},
-	                                            page_title(title_scratch), page_render);
-
-	// `columns` claims the press only for a submenu column (`ui/oled/columns.cpp:451-455`), so a
-	// press on a *value* column reaches nobody. `after_render` answers it as `Submenu::selectButtonPress`
-	// forwarding to the focused item does (`gui/menu_item/submenu.cpp:187-194`): enter its
-	// `select_chain` target, or `ascend()` -- see `MenuState::column_press`'s own doc for why that
-	// is not `HorizontalMenu::handleItemAction`. The read is on the same frame instance `columns`
-	// was handed, so the claim is idempotent (`ui/core/frame_context.h`, rule 2) and never trips
-	// `double_claim`.
-	const int32_t settled = n == 0 ? -1 : clamp_to(st_.columns[st_.depth].focused, 0, static_cast<int32_t>(n) - 1);
-	if (settled >= 0 && kids[settled]->kind != Kind::Submenu) {
-		st_.column_press = f.select_pressed();
-	}
-}
-
-void MenuScene::render_leaf_int(deluge::ui::oled::OledFrame& f, const Node& node) {
-	NodeText scratch;
-	deluge::ui::oled::title(f, display_text(node, ValueTextUse::Title, ctx_, scratch));
-
-	// `f.bounds()`, NOT `menu_rect(f)`: `int_value` places its digits at a rect-relative
-	// `kValueY`, calibrated (per its own doc comment) for `rect == f.bounds()` -- exactly the
-	// same reason `render_leaf_decimal` below takes `f.bounds()` rather than `menu_rect(f)`.
-	// Passing `menu_rect(f)` here added `Style::menu_base_y` (14px on the 48-row panel) on top of
-	// `kValueY`'s own offset and pushed the huge digit glyph low enough to clip off the panel's
-	// bottom edge -- caught by task 11's `menu_int` acceptance script/golden, which is the first
-	// place this screen was ever rendered to a `.pbm` and looked at.
-	// A param is legacy's `IntegerContinuous` (`patched_param::Integer`, `UnpatchedParam`): the digits over a value
-	// bar.
-	deluge::ui::oled::ValueStyle style = node.bind.style;
-	style.continuous = node.bind.param.valid();
-	struct LabelCall {
-		const Node* node;
-		const MenuContext* ctx;
-	};
-	const LabelCall call{&node, &ctx_};
-	style.hook_ctx = &call;
-	if (node.bind.turn != nullptr) {
-		style.turn = [](int32_t value, int32_t offset, const void* c) -> std::optional<int32_t> {
-			const auto& lc = *static_cast<const LabelCall*>(c);
-			return lc.node->bind.turn(*lc.ctx, value, offset);
-		};
-	}
-	if (node.bind.leaf_text != nullptr) {
-		style.label = [](int32_t value, const void* c, std::span<char> out) -> std::string_view {
-			const auto& lc = *static_cast<const LabelCall*>(c);
-			const ValueText vt = lc.node->bind.leaf_text(*lc.ctx, value, ValueTextUse::Column, out);
-			return vt.fallback ? std::string_view{} : std::string_view{out.data(), std::min(vt.length, out.size())};
-		};
-	}
-	const deluge::ui::Response r =
-	    deluge::ui::oled::int_value(f, f.bounds(), st_.edit_int, bindings::range(node, ctx_), style, /*focused=*/true);
-	st_.render_resp = r;
-	if (r.changed) {
-		st_.value_changed = true;
-		st_.value_node = &node;
-	}
-	// `int_value` owns the select encoder now -- legacy edits the value with it on a number screen
-	// (`SoundEditor::selectEncoderAction`, `sound_editor.cpp:1122`), and so does this port
-	// (`ui/oled/values.cpp`'s `select_delta`). The select *press* that leaves the item
-	// (`MenuItem::selectButtonPress` returning nullptr -> `goUpOneLevel`) is still this scene's to
-	// claim -- `int_value` never reads `select_pressed()`.
-	if (f.select_pressed()) {
-		st_.render_resp.entered = true;
-	}
-	// This claim is idempotent (`ui/core/frame_context.h` rule 2): `int_value` already claimed the
-	// turn above while editing. Kept so the ownership reads here too.
-	f.claim_turn();
-}
-
-void MenuScene::render_leaf_range(deluge::ui::oled::OledFrame& f, const Node& node) {
-	NodeText scratch;
-	deluge::ui::oled::title(f, display_text(node, ValueTextUse::Title, ctx_, scratch));
-
-	const RangeSpec* spec = node.bind.range_spec;
-	if (spec == nullptr || spec->format == nullptr) {
-		// `validate_tree` reports this (`Issue::Kind::RangeWithoutSpec`); drawing the title and
-		// nothing else is the same fail-visible choice `render_oled`'s null-custom arm makes.
-		return;
-	}
-
-	// `f.bounds()`, NOT `menu_rect(f)`, for `render_leaf_int`'s reason: `range_value` places its
-	// digits at a rect-relative `kValueY` calibrated for the whole panel.
-	const deluge::ui::Response r =
-	    deluge::ui::oled::range_value(f, f.bounds(), st_.edit_int, st_.edit_upper, bindings::range(node, ctx_),
-	                                  st_.edit_edge, spec->format, spec->clamp, /*focused=*/true);
-	st_.render_resp = r;
-	if (r.changed) {
-		st_.value_changed = true;
-		st_.value_node = &node;
-	}
-	// `range_value` owns the select and horizontal encoders now, not the gold knobs (`values.h`'s
-	// note on the two `selectEncoderAction`s it ports); the select press that leaves the item is
-	// this scene's, exactly as on a number screen.
-	if (f.select_pressed()) {
-		st_.render_resp.entered = true;
-	}
-	f.claim_turn(); // idempotent (`ui/core/frame_context.h` rule 2): `range_value` already claimed it above.
-}
-
-void MenuScene::render_leaf_decimal(deluge::ui::oled::OledFrame& f, const Node& node) {
-	NodeText scratch;
-	deluge::ui::oled::title(f, display_text(node, ValueTextUse::Title, ctx_, scratch));
-
-	// `f.bounds()`, NOT `menu_rect(f)`: `decimal_value` draws at a canvas-absolute y and honours
-	// the rect horizontally only (`ui/oled/values.h:111`), and its goldens were recorded that way.
-	const deluge::ui::Response r =
-	    deluge::ui::oled::decimal_value(f, f.bounds(), st_.edit_int, bindings::range(node, ctx_),
-	                                    node.bind.decimal_places, st_.decimal_pos, st_.cursor_blink,
-	                                    /*focused=*/true);
-	st_.render_resp = r;
-	if (r.changed) {
-		st_.value_changed = true;
-		st_.value_node = &node;
-	}
-	if (f.select_pressed()) {
-		st_.render_resp.entered = true;
-	}
-	// Idempotent, as `render_leaf_int`: `decimal_value` already claimed the turn above while editing.
-	f.claim_turn();
-}
-
-void MenuScene::render_leaf_enum(deluge::ui::oled::OledFrame& f, const Node& node) {
-	NodeText scratch;
-	deluge::ui::oled::title(f, display_text(node, ValueTextUse::Title, ctx_, scratch));
-
-	std::string_view names_buf[kMaxDynamicNames];
-	TextScratch names_scratch[kMaxDynamicNames];
-	const size_t n = bindings::names(node, ctx_, names_buf, names_scratch);
-
-	// `enum_value` takes a `ListState` AND a `ScrollText` of its own and has no `focused`
-	// parameter -- it owns the turn and the select itself (`ui/oled/values.h:190-191`).
-	const deluge::ui::Response r =
-	    deluge::ui::oled::enum_value(f, deluge::ui::oled::menu_rect(f), st_.enum_index,
-	                                 std::span<const std::string_view>{names_buf, n}, st_.enum_list, st_.enum_scroll,
-	                                 /*wrap=*/false);
-	st_.render_resp = r;
-	if (r.changed) {
-		st_.value_changed = true;
-		st_.value_node = &node;
-	}
-}
-
-void MenuScene::render_leaf_toggle(deluge::ui::oled::OledFrame& f, const Node& node) {
-	NodeText scratch;
-	deluge::ui::oled::title(f, display_text(node, ValueTextUse::Title, ctx_, scratch));
-
-	TextScratch off_scratch;
-	TextScratch on_scratch;
-	const std::string_view off = text_of(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_OFF), off_scratch);
-	const std::string_view on = text_of(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_ON), on_scratch);
-
-	// A `bool&`, no `focused`; a select press reports `entered` and leaves `changed` false
-	// (`ui/oled/values.h:202-206`).
-	const deluge::ui::Response r =
-	    deluge::ui::oled::toggle(f, deluge::ui::oled::menu_rect(f), st_.edit_bool, off, on, st_.scroll[st_.depth]);
-	st_.render_resp = r;
-	if (r.changed) {
-		st_.value_changed = true;
-		st_.value_node = &node;
-	}
-}
-
-void MenuScene::render_leaf_sync_level(deluge::ui::oled::OledFrame& f, const Node& node) {
-	NodeText scratch;
-	deluge::ui::oled::title(f, display_text(node, ValueTextUse::Title, ctx_, scratch));
-
-	// Legacy is `SyncLevel::drawPixelsForOled` (`gui/menu_item/sync_level.cpp:30-38`). `SyncLevel`
-	// derives from `Enumeration`, not `Integer` (`sync_level.h:27`), so -- unlike `render_leaf_int`
-	// just above -- the SELECT ENCODER moves the value here, clamped rather than wrapped
-	// (`Enumeration::selectEncoderAction`, `enumeration.cpp:19-31`, `wrapAround()` unoverridden by
-	// `SyncLevel`). The gold knobs are left unclaimed, same as legacy leaves them alone for any
-	// `Enumeration`.
-	const IntRange r = bindings::range(node, ctx_);
-	if (const int8_t d = f.turn(); d != 0) {
-		const int32_t next = std::clamp<int32_t>(st_.edit_int + d, r.min, r.max);
-		if (next != st_.edit_int) {
-			st_.edit_int = next;
-			st_.render_resp.changed = true;
-			st_.value_changed = true;
-			st_.value_node = &node;
-		}
-	}
-
-	// `f.bounds()`, NOT `menu_rect(f)` -- same reasoning as `render_leaf_int` above (`menu_rect(f)`
-	// would add `Style::menu_base_y` on top of the baseline's own offset and clip the string off
-	// the panel's bottom edge). But the font is `MetricBold13`, NOT `f.style.value_font`/`big_font`
-	// (both `MetricBold20`): legacy draws this one in the smaller "Big" face at its own baseline
-	// (`sync_level.cpp:37`, `kSyncValueY`'s doc comment in `ui/core/metrics.h`), and `Style` carries
-	// no field for it -- `MetricBold9` is hard-coded the same way at `ui/oled/columns.cpp:277` for
-	// the same reason, a legacy font choice with no `Style` counterpart. Getting this wrong doesn't
-	// just mismatch the pixels: a note-length string in the huge font (`kTextHugeSpacingX` = 18px
-	// per character) runs off both edges of a 128px panel, which is exactly the clipping bug this
-	// task exists to not repeat.
-	//
-	// No `f.clear(band)` here, unlike `int_value`/`decimal_value`: this scene may not call an
-	// `OledFrame` drawing primitive directly (this file's own top-of-file note), and legacy's
-	// `SyncLevel::drawPixelsForOled` does not clear its band either -- `Shell::render_oled` already
-	// clears the whole canvas before any scene draws (`shell/shell.cpp:683`), which is what makes
-	// that safe for a full-panel screen like this one.
-	constexpr deluge::gfx::oled::FontId kFont = deluge::gfx::oled::FontId::MetricBold13;
-	const deluge::gfx::oled::Rect band{f.bounds().x, f.bounds().y + deluge::ui::kSyncValueY, f.bounds().w,
-	                                   deluge::ui::oled::text_height_for(kFont)};
-
-	// Centred text, not digits: legacy draws the literal "OFF" at zero, else `syncValueToString`
-	// against the song's *input* tick magnitude (`sync_level.cpp:26-28`), never the raw menu-option
-	// integer this node's binding actually stores.
-	etl::string<30> buffer;
-	std::string_view text_val;
-	if (st_.edit_int != 0) {
-		syncValueToString(static_cast<uint32_t>(st_.edit_int), buffer, input_tick_magnitude(ctx_));
-		text_val = std::string_view{buffer.data(), buffer.size()};
-	}
-	else {
-		TextScratch off_scratch;
-		text_val = text_of(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_OFF), off_scratch);
-	}
-	deluge::ui::oled::text(f, band, text_val, {.font = kFont, .align = deluge::ui::oled::Align::Centre});
-
-	// The select press leaves the item, same as every other leaf's arm.
-	if (f.select_pressed()) {
-		st_.render_resp.entered = true;
-	}
+	view_.render(core(), f, *node);
 }
 
 void MenuScene::render_grid(deluge::ui::grid::GridFrame& f) {
-	// Reads no input at all. That is what keeps "a scene reads any one input in at most one render
-	// pass per tick" (`shell/README.md`) true for a scene drawn on two surfaces: the OLED pass owns
-	// turn/select/back/edit, and this pass owns nothing. It paints no pixel either: the shortcut
-	// blinks are pad flashes, as legacy's `blinkShortcut` plays them (`sound_editor.cpp:1205-1245`).
-	const Node* node = pad_subject();
-	if (node == nullptr) {
-		return;
+	// The shift level, latched or not, kept in step here as well as from `handle`'s events. A covered frame reads no
+	// input, and a menu under another scene shows no overlay.
+	if (!f.covered) {
+		visit_.shift_held = f.shift();
+		if (overlay_up()) {
+			render_overlay(f, ctx_, st_, focused_value());
+		}
 	}
-	const uint32_t now = f.now_ms();
-	const BlinkPlan plan = plan_blinks(ctx_, st_, *node);
-	if (st_.blink_node != node || st_.blink_plan != plan) {
-		st_.blink_node = node;
-		st_.blink_plan = plan;
-		st_.blink_anchor_ms = now;
-		st_.blink_fired_step = UINT32_MAX;
-	}
-	if (!plan.param.valid && !plan.any_source()) {
-		return;
-	}
-	// Legacy steps its counter on a timer and flashes once per step; a frame lands anywhere inside
-	// a step, so the step is derived from the clock and flashed the first time a frame sees it.
-	const uint32_t step = blink_step(st_.blink_anchor_ms, now);
-	if (step != st_.blink_fired_step) {
-		fire_blink_step(f, plan, step);
-		st_.blink_fired_step = step;
-	}
-	// `next_timer()` answers one fixed interval for the whole scene, but the steps are unequal
-	// (20 ms, then 180 ms), so this arms the grid's gate for the next step's edge itself -- the
-	// grid's alone, since a blink changes no OLED pixel.
-	f.grid_gate().request_repaint_after(ms_to_next_step(st_.blink_anchor_ms, now), now);
+	// The blinks flash over the overlay: the control surface plays them over whatever the pads hold.
+	pads_.render_grid(core(), f);
 }
 
 void MenuScene::leds(deluge::ui::LedFrame& f) {
@@ -1780,328 +384,23 @@ void MenuScene::leds(deluge::ui::LedFrame& f) {
 		return;
 	}
 	constexpr deluge::ui::LedState kOff{deluge::ui::LedState::Kind::Off, 0, 0};
-	constexpr deluge::ui::LedState kOn{deluge::ui::LedState::Kind::On, 0, 0};
 	// `Save` is never a horizontal-page LED in legacy either -- unaffected by anything below.
 	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Save), kOff);
 
-	// SYNTH/KIT/MIDI/CV: `updateSelectedMenuItemLED` (`gui/menu_item/horizontal_menu.cpp:546-572`).
-	// CROSS_SCREEN/SCALE: `renderOLED`'s own two-line LED update (`:118-119`). Both fresh every
-	// tick, gated on nothing -- an `LedFrame` is the whole LED state, redeclared each time, the same
-	// as LEARN below. Off on a vertical page or with nothing focused, matching legacy's own
-	// `endSession` extinguishing all six when a horizontal page is left (`:576-585`).
-	bool synth = false;
-	bool kit = false;
-	bool midi = false;
-	bool cv = false;
-	bool cross_screen = false;
-	bool scale = false;
-	if (on_horizontal_page()) {
-		const Node* node = focused();
-		const Node* kids[kMaxMenuColumns];
-		deluge::ui::oled::Column cols[kMaxMenuColumns]{};
-		NodeText label_scratch[kMaxMenuColumns];
-		const size_t n = build_column_list(*node, std::span<const Node*>{kids, kMaxMenuColumns},
-		                                   std::span<deluge::ui::oled::Column>{cols, kMaxMenuColumns},
-		                                   std::span<NodeText>{label_scratch, kMaxMenuColumns});
-		const int32_t focused_col =
-		    n == 0 ? 0 : clamp_to(st_.columns[st_.depth].focused, 0, static_cast<int32_t>(n) - 1);
-		const std::span<const deluge::ui::oled::Column> span{cols, n};
-
-		// `column_under_button(span, focused_col, b) == focused_col` is exactly
-		// `updateSelectedMenuItemLED`'s `i >= start_column && i < end_column` test: both name "does
-		// button b's column cover the focused one", the first by re-deriving it from the same page
-		// window, the second by accumulating slots up to the match.
-		bool lit[4] = {};
-		for (int32_t b = 0; b < 4; b++) {
-			lit[b] = deluge::ui::oled::column_under_button(span, focused_col, b) == focused_col;
-		}
-		// `page_items.size() > 1 || page_items[0]->isSubmenu() || page_items[0]->getOccupiedSlots() <
-		// 4`: legacy suppresses all four only for a *single*, *non-submenu* column spanning the
-		// whole page. All four buttons landing on `focused_col` is exactly "the page holds one
-		// column and it covers every slot" -- the only way every button can resolve to the same
-		// index -- so this reproduces the OR as its negation without walking the page twice.
-		if (lit[0] && lit[1] && lit[2] && lit[3] && n > 0 && !cols[focused_col].is_submenu) {
-			lit[0] = lit[1] = lit[2] = lit[3] = false;
-		}
-		synth = lit[0];
-		kit = lit[1];
-		midi = lit[2];
-		cv = lit[3];
-		const bool has_pages = deluge::ui::oled::paging_of(span, focused_col).total_pages > 1;
-		cross_screen = has_pages;
-		scale = has_pages;
-	}
-	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Synth), synth ? kOn : kOff);
-	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Kit), kit ? kOn : kOff);
-	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Midi), midi ? kOn : kOff);
-	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Cv), cv ? kOn : kOff);
-	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::CrossScreen), cross_screen ? kOn : kOff);
-	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Scale), scale ? kOn : kOff);
+	page_button_leds(ctx_, st_, f);
 
 	// `blinkLed`'s default blink, on the phase every normal blink shares (`indicator_leds.cpp:78-95`).
-	if (blink_restart_) {
-		blink_restart_ = false;
+	if (visit_.blink_restart) {
+		visit_.blink_restart = false;
 		f.restart(deluge::ui::BlinkRate::Normal);
 	}
 	const deluge::ui::LedState shared_blink = deluge::ui::LedState::shared(deluge::ui::BlinkRate::Normal);
 	(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Back), shared_blink);
-	// `SoundEditor::beginScreen`'s tail (`sound_editor.cpp:949-954`): every screen change asks the
-	// item whether it wants the LEARN LED, and blinks or extinguishes it accordingly. Declared on
-	// every tick rather than only on a change, because that is what an `LedFrame` is -- the full
-	// state of the LEDs this scene owns, redeclared each time. It is `blinkLed`'s default blink, BACK's.
-	// While learning, `blinkLed(LEARN, 255, 1)`'s fast blink (`sound_editor.cpp:744`), restarted at the press.
-	if (learn_restart_) {
-		learn_restart_ = false;
-		f.restart(deluge::ui::BlinkRate::Fast);
-	}
-	if (learn_mode_) {
-		(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Learn),
-		            deluge::ui::LedState::shared(deluge::ui::BlinkRate::Fast));
-	}
-	else {
-		(void)f.set(static_cast<deluge::ui::LedId>(ButtonId::Learn), wants_learn_blink() ? shared_blink : kOff);
-	}
+	visit_.learn.leds(st_, f, shared_blink);
 }
 
 // ---------------------------------------------------------------------------------------------
 // Navigation and commits: the one place the render pass's observations touch the model.
-
-void MenuScene::enter_leaf(const Node& node, FocusCause cause) {
-	switch (node.kind) {
-	case Kind::Enum:
-		st_.enum_index = bindings::read(node, ctx_);
-		st_.enum_list = deluge::ui::ListState{};
-		st_.enum_scroll = deluge::ui::ScrollText{};
-		break;
-	case Kind::Toggle:
-		st_.edit_bool = bindings::read(node, ctx_) != 0;
-		st_.scroll[st_.depth] = deluge::ui::ScrollText{};
-		break;
-	case Kind::Decimal:
-		st_.edit_int = bindings::read(node, ctx_);
-		st_.decimal_pos = 0;
-		st_.cursor_blink = deluge::ui::Blink{};
-		break;
-	case Kind::Range: {
-		// `Range::beginSession` (`gui/menu_item/range.cpp:30-33`) is `editingRangeEdge = OFF`, and
-		// `IntegerRange::beginSession` (`integer_range.cpp:26-31`) then takes LEFT when the two ends
-		// differ. `KeyRange` has no override, so it stops at OFF -- which is exactly what
-		// `RangeSpec::focus_left_when_split` says.
-		st_.edit_int = bindings::read(node, ctx_); // the lower edge
-		st_.edit_upper = st_.edit_int;
-		st_.edit_edge = deluge::ui::oled::RangeEdge::Off;
-		if (const RangeSpec* spec = node.bind.range_spec; spec != nullptr) {
-			if (spec->get_upper != nullptr) {
-				st_.edit_upper = spec->get_upper(ctx_);
-			}
-			if (spec->focus_left_when_split && st_.edit_int != st_.edit_upper) {
-				st_.edit_edge = deluge::ui::oled::RangeEdge::Left;
-			}
-		}
-		break;
-	}
-	case Kind::Custom:
-		// `CustomItem::on_focus` -- legacy's `MenuItem::beginSession`. No `bind` to read either way;
-		// unlike the other kinds, a custom item's own state (if it has any) lives on the item, not
-		// in `MenuState`'s shared edit storage.
-		//
-		// **Except for an item whose `on_focus` is really `selectButtonPress`** (`node.h`'s
-		// `CustomItem::on_focus_is_press`). Legacy never navigates into such an item at all
-		// (`shouldEnterSubmenu() == false`); the port descends for one tick and acts from
-		// `on_focus`, which is right for a press on this row and wrong for every other way in. A
-		// `NoRowPress` focus has none -- `restore_state` rebuilding a saved path, a `SceneId` deep
-		// link, the shortcut-pad jump -- and running the press there fired
-		// `MidiDeviceLinkedItem`'s unlink arm (clearing a linked definition file the user never
-		// touched) and re-filed an `ActionItem`'s verb. Legacy's own guard is the same test spelled
-		// against its own state: `Toggle::selectButtonPress` returns without toggling when
-		// `soundEditor.getCurrentMenuItem() == this` (`gui/menu_item/toggle.h:35-37`).
-		//
-		// Scoped by the item rather than applied to every `Kind::Custom`, because a blanket skip
-		// would regress a shipped, specced ruling: `EditNameItem` and the nine `nodes/sample.h`
-		// items *must* re-open their scene on a restore -- see `restore_state` below, which argues
-		// it with legacy agreeing (`EditName::beginSession` opens `RenameUI` unconditionally).
-		if (node.custom != nullptr && (cause == FocusCause::RowPress || !node.custom->on_focus_is_press())) {
-			node.custom->on_focus(ctx_, st_);
-		}
-		break;
-	default:
-		st_.edit_int = bindings::read(node, ctx_);
-		break;
-	}
-}
-
-void MenuScene::commit_value(const Node& node) {
-	// `Binding::adjust` (spec E-note-family §5.2), ahead of the `Kind` switch: an offset-writing
-	// node commits through the hook whatever its `Kind` is (velocity/probability/iterance are
-	// `Kind::Int`), so this has to run before the switch would otherwise reach `bindings::write`.
-	// `after_render` already commits before it raises the horizontal notification, so the
-	// notification below reads the post-commit value through `bindings::read` -- legacy's own
-	// order (`selectEncoderAction` then `displayNotification`, `horizontal_menu.cpp:326-328`).
-	if (node.bind.adjust != nullptr) {
-		bindings::adjust(node, ctx_, st_.edit_offset);
-		st_.edit_offset = 0;
-		return;
-	}
-	switch (node.kind) {
-	case Kind::Custom:
-		// `CustomItem::commit` -- `writeCurrentValue` for an item whose value has no `Binding`
-		// behind it (the three patch-cable-strength pages). `bindings::write` would be a no-op for
-		// such a node, so the item performs its own write here, in the one place a write may happen.
-		if (node.custom != nullptr) {
-			node.custom->commit(ctx_, st_);
-		}
-		break;
-	case Kind::Enum:
-		bindings::write(node, ctx_, st_.enum_index);
-		// A target's list can change under the write (a stored choice that no longer applies leaves it once the
-		// write moves off it): the cursor follows the value, not the old position.
-		if (node.bind.target.valid()) {
-			st_.enum_index = bindings::read(node, ctx_);
-		}
-		break;
-	case Kind::Toggle:
-		bindings::write(node, ctx_, st_.edit_bool ? 1 : 0);
-		break;
-	case Kind::Range:
-		// Both ends, every commit. Legacy writes both too -- `IntegerRange`/`KeyRange` edit `lower`
-		// and `upper` in place and have no `writeCurrentValue` at all, because the members *are* the
-		// storage (now `FlashStorage::defaultRanges`, `storage/flash_storage.h`). A commit that wrote
-		// only the moved end would leave the other one behind whenever `RangeClamp::Push` dragged it.
-		bindings::write(node, ctx_, st_.edit_int);
-		if (const RangeSpec* spec = node.bind.range_spec; spec != nullptr && spec->set_upper != nullptr) {
-			spec->set_upper(ctx_, st_.edit_upper);
-		}
-		break;
-	default:
-		bindings::write(node, ctx_, st_.edit_int);
-		break;
-	}
-}
-
-void MenuScene::descend_to(const Node& child) {
-	// (Task 8 removed `Kind::Action` -- no table declares one, see `node.h`'s `Kind`. The arm that
-	// ran an action in place rather than descending went with it.)
-	if (st_.depth + 1 >= kMenuDepth) {
-		return;
-	}
-	// `SoundEditor::beginScreen` runs `endScreen()` (-> `currentMenuItem->endSession()`) before
-	// switching to any new item (`sound_editor.cpp:977-982`); `HorizontalMenu::endSession`
-	// (`horizontal_menu.cpp:576-591`) is the one override that cancels a live notification popup
-	// (`:587-589`) -- every other `MenuItem::endSession` (`menu_item.cpp:81`) is a no-op. This is
-	// "entering a child" from a horizontal page.
-	if (on_horizontal_page()) {
-		deluge::notify::notice_kind(deluge::notify::Notice::Kind::CancelNotification);
-	}
-	remember_path();
-	st_.depth++;
-	st_.path[st_.depth] = &child;
-	st_.list[st_.depth] = deluge::ui::ListState{};
-	st_.columns[st_.depth] = deluge::ui::ColumnsState{};
-	st_.scroll[st_.depth] = deluge::ui::ScrollText{};
-	if (is_leaf(child.kind)) {
-		begin_value_session(&child);             // `Submenu::selectButtonPress`'s permission check
-		enter_leaf(child, FocusCause::RowPress); // the one path with a select press behind it
-	}
-	else {
-		restore_row();
-	}
-}
-
-void MenuScene::enter_child(const Node& child) {
-	// `checkPermissionToBeginSessionForRangeSpecificParam`'s **first statement**
-	// (`sound_editor.cpp:1993-1997`), ahead of every one of its arms, plus legacy's
-	// `MUST_SELECT_RANGE` substitution (`:1857-1858`): both factored into
-	// `enter_range_picker_if_needed`, which `handle()`'s button-focus code shares -- see its own
-	// doc for why the two callers need the same piece. E1's carry list records the allocation as
-	// owed to task 9; task 2 (E-note-family) is what actually shares it with a second caller.
-	if (enter_range_picker_if_needed(child, /*suppress_when_allowed=*/false)) {
-		return;
-	}
-	if (permission_for(child, ctx_) == Permission::No) {
-		return;
-	}
-
-	// The picker's job is done the moment the item it was heading to opens -- legacy drops
-	// `menuItemHeadingTo` on the floor the same way, by simply navigating past it.
-	if (&child == st_.pending_after_range) {
-		st_.range_picker_pending = false;
-		st_.pending_after_range = nullptr;
-	}
-	// `SoundEditor`'s select arm (`sound_editor.cpp:630-634`, the `maybeGetParentMenu` / `focusChild` pair before
-	// `enterSubmenu`): an item a chained page lists is entered on that page, focused on it, unless that page is the one
-	// already shown.
-	if (const Node* page = shortcut_landing_page(ctx_, child); page != nullptr && page != focused()) {
-		descend_to(*page);
-		focus_column(child);
-		return;
-	}
-	descend_to(child);
-}
-
-void MenuScene::ascend() {
-	// `SoundEditor::goUpOneLevel` (`sound_editor.cpp:710-721`): step up, skipping any level whose
-	// permission has since become `No`. The cursor each level is restored to is the one
-	// `st_.list[depth]` has been holding all along, which is what legacy's `focusChild`
-	// (`submenu.cpp:21`) reconstructs from the item it navigated backward from.
-	//
-	// Going up from depth 0 closes the editor (`:715-717`, `exitCompletely()`): a leaf a shortcut jump re-rooted
-	// onto, or a scene opener whose scene returned (`MenuState::go_up_on_resume`), leaves the menu rather than its
-	// bare title screen. `after_render` turns the request into the scene's `Remove`.
-	//
-	// `endScreen()` (-> `HorizontalMenu::endSession`) runs before the depth test, so leaving a horizontal page
-	// cancels its notification whether the step lands on a parent or closes the menu. Read before the loop pops
-	// anything, while `focused()` still names the page being left.
-	remember_path();
-	if (on_horizontal_page()) {
-		deluge::notify::notice_kind(deluge::notify::Notice::Kind::CancelNotification);
-	}
-	do {
-		if (st_.depth == 0) {
-			close_requested_ = true;
-			return;
-		}
-		st_.path[st_.depth] = nullptr;
-		st_.depth--;
-	} while (st_.path[st_.depth] != nullptr && permission_for(*st_.path[st_.depth], ctx_) == Permission::No);
-
-	// `goUpOneLevel` ends with `beginScreen(oldItem)` (`sound_editor.cpp:710-729`), i.e. it re-runs
-	// `beginSession` on the item it lands on -- so a value leaf reached by going *up* re-reads its
-	// value from the model, exactly as one reached by going down does.
-	//
-	// E2 task 12 found the port did not, with the `menu_chain` script. Ascending to a leaf happens
-	// only where a chain descended *from* one (`Node::select_chain`, E2 task 3), and the chain target
-	// is often another value leaf that writes the shared `MenuState::edit_int` on its way through:
-	// `nodes::unison_count` -> `unison_spread` left the count's page redrawing the SPREAD's value and
-	// editing from it, so the first gold detent after a Back jumped the count to a number the user
-	// never chose. Nothing above a leaf needs this (a submenu's cursor is `st_.list[depth]`, which
-	// `ascend` deliberately keeps -- see the note above).
-	//
-	// **`Kind::Custom` gets its own arm, not `enter_leaf`.** `CustomItem::on_focus` is `beginSession`
-	// with `navigatedBackwardFrom == nullptr` -- the *forward* arm only -- so re-running it here
-	// would fire the forward arm on a backward navigation and send the CV/gate/device selectors back
-	// to row 0 every time the user stepped out of the page they had just opened. (E3 task 7 narrowed
-	// the *other* direction rather than this one: `enter_leaf` now takes a `FocusCause`, and every
-	// call site below passes `NoRowPress` -- which is what it always meant.)
-	//
-	// E2 task 12 fix round 1 named the gap this left: with no backward arm at all, the exclusion
-	// itself had to stand in for one -- "leave `MenuState::list[depth]` alone" -- and that is sound
-	// only while every chain-source item's backward behaviour happens to be exactly that. It is not:
-	// `GateSelectionItem::on_focus_backward` (`nodes/dynamic.cpp`) is the case where it is not,
-	// found while writing this arm's own test (E3 task 10). `CustomItem::on_focus_backward`
-	// (`node.h`) is the real hook now; its do-nothing default gives every other chain-source item
-	// (`CvSelectionItem`, `MidiDevicesItem`, `PatchCablesItem`, `SourceSelectionItem`) exactly the
-	// "keep the cursor" answer this comment used to hard-code for all of them.
-	if (const Node* const landed = st_.path[st_.depth]; landed != nullptr && is_leaf(landed->kind)) {
-		if (landed->kind == Kind::Custom) {
-			if (landed->custom != nullptr) {
-				landed->custom->on_focus_backward(ctx_, st_);
-			}
-		}
-		else {
-			enter_leaf(*landed, FocusCause::NoRowPress);
-		}
-	}
-}
 
 MenuActionRequest MenuScene::take_action() {
 	const MenuActionRequest taken = taken_action_;
@@ -2111,16 +410,19 @@ MenuActionRequest MenuScene::take_action() {
 
 Result MenuScene::after_render() {
 	Result r;
+#ifdef DELUGE_HOST
+	drain_trace_len_ = 0;
+#endif
 	// A `Value`-derived bespoke item's cursor moved under a held Select is a value edited under it.
 	const Node* const shown = focused();
 	const bool value_turned = shown != nullptr && shown->kind == Kind::Custom && shown->custom != nullptr
-	                          && shown->custom->is_value() && st_.render_resp.changed;
-	if (std::exchange(use_up_select_, false) || ((st_.value_changed || value_turned) && select_held_)) {
+	                          && shown->custom->is_value() && st_.tick.render_resp.changed;
+	if (std::exchange(visit_.use_up_select, false)
+	    || ((st_.tick.value_changed || value_turned) && visit_.select_held)) {
 		(void)r.actions.push_back(Action{.kind = Action::Kind::UseUpSelect});
 	}
-	if (close_requested_) {
+	if (walk_.take_close_request()) {
 		// `ascend()` went up from depth 0 since the last render (`on_resume`'s go-up): `exitCompletely()`.
-		close_requested_ = false;
 		r.handled = true;
 		(void)r.actions.push_back(Action{.kind = Action::Kind::Remove, .pop_to = SceneKind::FirstApp});
 		return r;
@@ -2139,9 +441,10 @@ Result MenuScene::after_render() {
 	// (`sound_editor.cpp:1983-1986`), which `MultiRangeItem` cannot do itself: it is handed a
 	// `const MenuContext&` and this is the scene's own mutable one. Applied on every tick the picker
 	// republishes its cursor, which is exactly when legacy calls it (`multi_range.cpp:54`, `:249`).
-	if (st_.range_choice >= 0) {
-		select_range(ctx_, st_.range_choice);
-		st_.range_choice = -1;
+	if (st_.walk.range_choice >= 0) {
+		trace_drain(DrainBand::RangeChoice);
+		select_range(ctx_, st_.walk.range_choice);
+		st_.walk.range_choice = -1;
 	}
 
 	// The CV/gate selectors' own commit -- `soundEditor.currentSourceIndex = this->getValue()`
@@ -2150,17 +453,20 @@ Result MenuScene::after_render() {
 	// `range_choice`, and deliberately **above** the `entered` arm below: legacy assigns
 	// `currentSourceIndex` on the way through `selectButtonPress`, so `gate_selection_chain` and
 	// `gate_mode_names` must both see the output the user just picked, not the previous one.
-	if (st_.source_choice >= 0) {
-		ctx_.source_index = st_.source_choice;
-		st_.source_choice = -1;
+	if (st_.walk.source_choice >= 0) {
+		trace_drain(DrainBand::SourceChoice);
+		ctx_.source_index = st_.walk.source_choice;
+		st_.walk.source_choice = -1;
 	}
-	if (st_.midi_cable_choice != nullptr) {
-		ctx_.midi_cable = st_.midi_cable_choice;
-		st_.midi_cable_choice = nullptr;
+	if (st_.walk.midi_cable_choice != nullptr) {
+		trace_drain(DrainBand::MidiCableChoice);
+		ctx_.midi_cable = st_.walk.midi_cable_choice;
+		st_.walk.midi_cable_choice = nullptr;
 	}
 
-	if (st_.value_changed && st_.value_node != nullptr) {
-		commit_value(*st_.value_node);
+	if (st_.tick.value_changed && st_.tick.value_node != nullptr) {
+		trace_drain(DrainBand::ValueCommit);
+		visit_.session.commit(core(), *st_.tick.value_node);
 		// The write raises its own `notify::Dirty` facts (`bindings.cpp`), which repaint the
 		// surfaces those name; `RepaintAll` covers what a commit changed *off* this surface (a
 		// mod-knob indicator, the automation grid). Never `Action{Repaint, SurfaceRole::None}`,
@@ -2175,15 +481,15 @@ Result MenuScene::after_render() {
 	// (`handleInstrumentButtonPress`'s tail `:437`, `handleItemAction` `:666` -- both ported in
 	// `handle()`'s button code, which calls `notify_column` itself). **Not** on a select press on
 	// a value column (`Submenu::selectButtonPress` never calls `displayNotification` at all --
-	// `column_press` used to be listed here by mistake, see `MenuState::column_press`'s doc).
+	// see `MenuTick::column_press`'s doc).
 	//
 	// `notify_column` is `notice_text`'s call, factored out so `handle()`'s button code raises the
 	// same notification through the same text-building rules -- see its own doc for why the
 	// legacy call sites split across two functions of this class.
 	const bool horizontal = is_horizontal(*node);
-	if (horizontal && (st_.render_resp.changed || st_.value_changed)) {
+	if (horizontal && (st_.tick.render_resp.changed || st_.tick.value_changed)) {
 		if (const Node* column = selected_child(*node); column != nullptr && column->kind != Kind::Submenu) {
-			notify_column(*column);
+			notify_column(ctx_, *column);
 		}
 	}
 
@@ -2191,9 +497,9 @@ Result MenuScene::after_render() {
 	// automation item deletes its param's automation, raises the popup where there was a param, and stays put -- on a
 	// leaf, and on a horizontal page's value column, which `Submenu::selectButtonPress` forwards the press to.
 	bool deleting_automation = false;
-	if (st_.select_shift && (st_.render_resp.entered || st_.column_press)) {
+	if (st_.tick.select_shift && (st_.tick.render_resp.entered || st_.tick.column_press)) {
 		const Node* item =
-		    st_.render_resp.entered ? (node->kind == Kind::Submenu ? nullptr : node) : selected_child(*node);
+		    st_.tick.render_resp.entered ? (node->kind == Kind::Submenu ? nullptr : node) : selected_child(*node);
 		if (item != nullptr && is_automation_item(*item)) {
 			deleting_automation = true;
 			const std::optional<deluge::project::ParamAddress> address = automation_address(*item, ctx_, st_);
@@ -2209,10 +515,11 @@ Result MenuScene::after_render() {
 	if (deleting_automation) {
 		// No navigation: legacy's shift arm answers NO_NAVIGATION.
 	}
-	else if (st_.render_resp.entered) {
+	else if (st_.tick.render_resp.entered) {
+		trace_drain(DrainBand::Navigation);
 		if (node->kind == Kind::Submenu) {
 			if (const Node* child = selected_child(*node); child != nullptr) {
-				enter_child(*child);
+				walk_.enter_child(core(), visit_.session, *child);
 			}
 		}
 		else if (const Node* chained = node->select_chain != nullptr ? node->select_chain(ctx_, st_) : nullptr) {
@@ -2224,23 +531,23 @@ Result MenuScene::after_render() {
 			//
 			// `enter_child` applies legacy's `maybeGetParentMenu`/`focusChild` reparenting: an item a chained page
 			// lists is entered on that page, focused on it.
-			enter_child(*chained);
+			walk_.enter_child(core(), visit_.session, *chained);
 		}
 		else {
 			// A leaf's select press goes up, it does not re-enter: `MenuItem::selectButtonPress`
 			// returns nullptr and `SoundEditor` reads that as "up". `toggle`'s own doc says the
 			// same thing from the widget's side -- a press reports `entered` and leaves `changed`
 			// false, so this must not flip the value (`ui/oled/values.h:202-206`).
-			ascend();
+			walk_.ascend(core(), visit_.session);
 		}
 	}
-	else if (st_.column_press) {
+	else if (st_.tick.column_press) {
 		// `Submenu::selectButtonPress` forwarding to the focused item, on a horizontal page's value
 		// column (`gui/menu_item/submenu.cpp:187-194`): the column's own `selectButtonPress()`
 		// override runs FIRST, as the horizontal forward's own call -- not a separate arm bolted on
 		// after. No notification either way: neither `Toggle`'s/`Selection`'s `selectButtonPress`
 		// nor the chain/ascend arms below call `displayNotification` (see `MenuState::
-		// column_press`'s doc for the call this used to be attributed to by mistake).
+		// column_press`'s doc).
 		if (const Node* column = selected_child(*node); column != nullptr && column->kind != Kind::Submenu) {
 			if (column->kind == Kind::Toggle || column->selection_is_toggle) {
 				// `Toggle::selectButtonPress` (`toggle.h:38-42`) and `Selection::selectButtonPress`
@@ -2258,31 +565,31 @@ Result MenuScene::after_render() {
 				// browser outright with no permission or range check at all (`file_selector.cpp:
 				// 49-52`) -- `enter_child`/`enter_range_picker_if_needed` must not run for this one,
 				// see `CustomItem::opens_directly_on_horizontal_select`'s doc.
-				descend_to(*column);
+				walk_.descend_to(core(), visit_.session, *column);
 			}
 			else if (column->allow_session_from_horizontal) {
 				// `Submenu::selectButtonPress` returns the item itself when it begins its own session from the
 				// horizontal page (`submenu.cpp:191-193`), and the select arm enters it the general way.
-				enter_child(*column);
+				walk_.enter_child(core(), visit_.session, *column);
 			}
 			else if (const Node* chained =
 			             column->select_chain != nullptr ? column->select_chain(ctx_, st_) : nullptr) {
 				// `PatchedParam::selectButtonPress` (`patched_param.cpp:32-40`) records the param it patches. The
 				// source page reads it from the level above it, which here is the page, not the column.
 				if (column->bind.param.kind == deluge::modulation::params::Kind::PATCHED) {
-					st_.patching_param = column->bind.param.index;
+					st_.walk.patching_param = column->bind.param.index;
 				}
-				enter_child(*chained);
+				walk_.enter_child(core(), visit_.session, *chained);
 			}
 			else {
-				ascend();
+				walk_.ascend(core(), visit_.session);
 			}
 		}
 	}
-	else if (st_.back_claimed) {
+	else if (st_.tick.back_claimed) {
 		// Only ever set at depth > 0 (see `render_oled`); at depth 0 the back was never claimed
 		// and `handle()` pops the scene instead.
-		ascend();
+		walk_.ascend(core(), visit_.session);
 	}
 
 	// The verb half of the `pending_scene` seam (`scenes/menu/action.h`): a `CustomItem` that asked
@@ -2294,7 +601,7 @@ Result MenuScene::after_render() {
 	//   * The request goes into the one-slot outbox `take_action()` empties. There is no `Action`
 	//     kind for it and there must not be: the shell knows about scenes, and what these items run
 	//     is not a scene (`openUI(&performanceView)`, `stemExport.startStemExportProcess(...)`).
-	//     `gui::ui::dispatchShellActions` is the consumer, as of F2 task 1.
+	//     `gui::ui::dispatchShellActions` is the consumer.
 	//   * The four `ActionItem`s ascend straight back out. Legacy never descends into them at all --
 	//     `shouldEnterSubmenu()` is false, so `SoundEditor` calls `selectButtonPress()` and stays on
 	//     the parent list (`gui/ui/sound_editor.cpp:420-423`). Ascending on the tick the request is
@@ -2304,15 +611,16 @@ Result MenuScene::after_render() {
 	//     which is exactly the discriminator -- see below.
 	//
 	// Placed **above** the repaint check so the ascend is covered by it.
-	if (st_.pending_action.engaged()) {
-		taken_action_ = st_.pending_action;
+	if (st_.walk.pending_action.engaged()) {
+		trace_drain(DrainBand::PendingAction);
+		taken_action_ = st_.walk.pending_action;
 		// `on_focus` fires from `enter_leaf`, i.e. before this tick's render; a request filed from
 		// `render` (`PerformEditorItem`) arrives with the item already drawn. The four that ascend
 		// are the four that file from `on_focus`, which is the same set as "legacy never enters
 		// this item" -- so the test is on the action's own identity rather than on a flag, and a
 		// sixth action added without deciding this question fails the `switch`'s coverage warning.
 		//
-		// **The sixth arrived (F2 task 6) and does NOT ascend**, and the rule above is what decides
+		// **The sixth, `SetShortcutsVersion`, does NOT ascend**, and the rule above is what decides
 		// it rather than a preference. `SetShortcutsVersion` is filed from a `Binding::set` hook,
 		// which runs from `commit_value` a few lines above -- not from `on_focus`, and not from any
 		// press. It is also the other half of the same rule: legacy DOES enter this item. It is a
@@ -2323,7 +631,7 @@ Result MenuScene::after_render() {
 		// on it. Ascending here would close that page under the user on the first turn, which is UI
 		// the port would be inventing.
 		//
-		// **The seventh (F2 task 7) has the sixth's shape exactly, so it takes the sixth's answer.**
+		// **The seventh, `ScreensaverSettingsChanged`, has the sixth's shape exactly, so it takes the sixth's answer.**
 		// `ScreensaverSettingsChanged` is filed from the same `Binding::set` route, by two hooks
 		// (`nodes::set_screensaver_mode`, `nodes::set_screensaver_timeout`); and legacy enters both
 		// of their items too. `ScreensaverModeMenu` is a `Selection` and `ScreensaverTimeout` an
@@ -2331,12 +639,12 @@ Result MenuScene::after_render() {
 		// `shouldEnterSubmenu()`, and both reach `writeCurrentValue` from
 		// `Value<T>::selectEncoderAction` (`gui/menu_item/value.h:69`) -- once per detent, with the
 		// user still standing on the page. Same discriminator, same conclusion: no ascend.
-		switch (st_.pending_action.action) {
+		switch (st_.walk.pending_action.action) {
 		case MenuAction::StartStemExport:
 		case MenuAction::SetClipLengthToSampleLength:
 		case MenuAction::OpenSongMidiLearn:
 		case MenuAction::OpenSongMacros:
-			ascend();
+			walk_.ascend(core(), visit_.session);
 			break;
 		case MenuAction::OpenPerformanceView:
 		case MenuAction::SetShortcutsVersion:
@@ -2351,7 +659,7 @@ Result MenuScene::after_render() {
 		case MenuAction::None:
 			break;
 		}
-		st_.pending_action = MenuActionRequest{};
+		st_.walk.pending_action = MenuActionRequest{};
 		r.handled = true;
 	}
 
@@ -2363,45 +671,40 @@ Result MenuScene::after_render() {
 		repaint = true;
 	}
 	if (repaint) {
+		trace_drain(DrainBand::Repaint);
 		(void)r.actions.push_back(Action{.kind = Action::Kind::RepaintAll});
 	}
 
 	// A `CustomItem` that asked, from `on_focus`, for another scene to be opened over the menu --
-	// the port of `openUI(...)` from a legacy bespoke item's `beginSession` (`MenuState::pending_scene`).
+	// the port of `openUI(...)` from a legacy bespoke item's `beginSession` (`MenuWalkState::pending_scene`).
 	// Drained here because this is the first hook after `enter_leaf` that has a `Result` to put the
 	// `Push` in, and `go_up_on_resume` is set alongside it exactly where legacy sets
 	// `shouldGoUpOneLevelOnBegin` -- beside its own `openUI` call.
-	if (st_.pending_scene.kind != SceneKind::Null) {
-		(void)r.actions.push_back(Action{.kind = Action::Kind::Push, .id = st_.pending_scene});
-		st_.pending_scene = SceneId{};
-		st_.go_up_on_resume = true;
+	if (st_.walk.pending_scene.kind != SceneKind::Null) {
+		trace_drain(DrainBand::PendingScene);
+		visit_.shift_held = false; // the pushed scene is the one SHIFT now reaches
+
+		(void)r.actions.push_back(Action{.kind = Action::Kind::Push, .id = st_.walk.pending_scene});
+		st_.walk.pending_scene = SceneId{};
+		st_.walk.go_up_on_resume = true;
 		// `sampleBrowser.menuItemHeadingTo = item` (`gui/ui/sound_editor.cpp:2092`), and
 		// `osc::AudioRecorder::menuItemHeadingTo` (`:2101`) for the recorder half. Legacy writes it
 		// on the way in, from `maybeGetParentMenu`, which is exactly here: the statement beside its
 		// own `openUI`. The four items with no return affordance record one too and nothing ever
 		// reads it -- `reroot_to_scene_opener_page()` is called only from the sample claim -- which
 		// is cheaper than teaching this arm which items have a pair.
-		st_.scene_opener = focused();
+		st_.walk.scene_opener = focused();
 		r.handled = true;
 	}
 
-	st_.render_resp = {};
-	st_.value_changed = false;
-	st_.value_node = nullptr;
-	st_.back_claimed = false;
-	st_.column_press = false;
-	// `commit_value` already clears this on the ordinary path (staged and committed inside this
-	// same call), so this is a backstop rather than the usual writer: any tick that reaches here
-	// without having committed -- because `value_changed` was never set, or because some earlier
-	// return in this function skipped the commit block above -- must not let an offset survive
-	// into a later tick's accumulation (fix round 1, Important 1).
-	st_.edit_offset = 0;
+	// This tick's observations are spent, an uncommitted select-turn offset included: none may survive into a later
+	// tick's accumulation.
+	st_.tick = {};
 	// Every tick, while `ctx_` is known good: a re-root or a song swap may leave the path naming nodes whose
 	// relevance can no longer be read, so the rows are never recorded from those.
-	remember_path();
-	if (close_requested_) {
+	walk_.remember_path(ctx_, st_);
+	if (walk_.take_close_request()) {
 		// This render's own navigation went up from depth 0: `exitCompletely()`, in place of the step it asked for.
-		close_requested_ = false;
 		r.actions.clear();
 		r.handled = true;
 		(void)r.actions.push_back(Action{.kind = Action::Kind::Remove, .pop_to = SceneKind::FirstApp});
@@ -2409,69 +712,28 @@ Result MenuScene::after_render() {
 	return r;
 }
 
+deluge::ui::InputClaims MenuScene::owned_input() const {
+	return menu::owned_input(ctx_, st_);
+}
+
 bool MenuScene::owns(const UiEvent& event) const {
 	return deluge::ui::shell::claim_covers(owned_input(), event);
 }
 
-deluge::ui::InputClaims MenuScene::owned_input() const {
-	deluge::ui::InputClaims c{};
-	c.back = st_.depth > 0; // `render_oled` reads Back only below the root
-	const Node* node = focused();
-	if (node == nullptr) {
-		return c;
+Result MenuScene::handle(const UiEvent& event, const UiContext& ctx) {
+	// The SHIFT overlay follows the shift level each event brings; a change takes or gives back the pads and the
+	// greyout, and while it shows a source pad's press or release can change the source column.
+	const bool overlay_was_up = overlay_up();
+	visit_.shift_held = ctx.shift;
+	Result r = handle_event(event, ctx);
+	if (overlay_up() != overlay_was_up
+	    || (overlay_up() && event.kind == UiEvent::Kind::Pad && is_patching_source_pad(event.x, event.y))) {
+		(void)r.actions.push_back(Action{.kind = Action::Kind::RepaintAll});
 	}
-	switch (node->kind) {
-	case Kind::Submenu:
-		if (is_horizontal(*node)) {
-			// `render_horizontal` reads the turn on every page; the press goes to `columns` on a relevant submenu
-			// column and to the value column's own read otherwise, which leaves an irrelevant submenu column's.
-			c.turn = true;
-			const Node* kids[kMaxMenuColumns];
-			const size_t n = visible_children(*node, std::span<const Node*>{kids, kMaxMenuColumns});
-			if (n > 0) {
-				const Node& kid = *kids[clamp_to(st_.columns[st_.depth].focused, 0, static_cast<int32_t>(n) - 1)];
-				c.select = kid.kind != Kind::Submenu || bindings::relevant(kid, ctx_);
-			}
-		}
-		else {
-			c.turn = c.select = true; // `list`
-		}
-		break;
-	case Kind::Decimal:
-		// A `DecimalWithoutScrolling` draws as an integer screen; `decimal_value` moves its cursor with the scroll.
-		c.horizontal = node->bind.leaf_text == nullptr;
-		c.turn = c.select = true;
-		break;
-	case Kind::Range:
-		// `render_leaf_range` draws only the title for a range without a spec.
-		if (node->bind.range_spec != nullptr && node->bind.range_spec->format != nullptr) {
-			c.turn = c.select = c.horizontal = true;
-		}
-		break;
-	case Kind::Int:
-	case Kind::Enum:
-	case Kind::Toggle:
-	case Kind::SyncLevel:
-		c.turn = c.select = true;
-		break;
-	case Kind::Custom:
-		if (node->custom != nullptr) {
-			const deluge::ui::InputClaims item = node->custom->owned_input(ctx_, st_);
-			c.turn = item.turn;
-			c.edit0 = item.edit0;
-			c.edit1 = item.edit1;
-			c.horizontal = item.horizontal;
-			c.vertical = item.vertical;
-			c.select = item.select;
-		}
-		break;
-	default:
-		break;
-	}
-	return c;
+	return r;
 }
 
-Result MenuScene::handle(const UiEvent& event, const UiContext& ctx) {
+Result MenuScene::handle_event(const UiEvent& event, const UiContext& ctx) {
 	// Legacy's `UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR` as a level rather than a mode
 	// (`gui/menu_item/unpatched_param.cpp:52`). The AFFECT-ENTIRE button is an ordinary button, so
 	// its own press and release both reach here and keep this in step before any write path runs;
@@ -2479,28 +741,9 @@ Result MenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 	ctx_.affect_entire_held = ctx.held.has(ButtonId::AffectEntire);
 	ctx_.addresses.affect_entire = bindings::writes_whole_kit(ctx_);
 
-	// `SoundEditor::buttonAction`'s LEARN arm (`sound_editor.cpp:718-745`): a press with no UI mode on (a held pad is
-	// legacy's auditioning or notes-pressed mode, a kit-wide AFFECT ENTIRE hold its own) refuses an item that does not
-	// allow learn with a popup, unlearns with Shift held, else starts learn mode; the release ends it. Observed only:
-	// the event goes on as before.
-	if (event.kind == UiEvent::Kind::Button && event.button == ButtonId::Learn) {
-		const bool pad_held = std::ranges::any_of(ctx.held_pads.cols, [](uint32_t col) { return col != 0; });
-		learn_mode_ = false;
-		if (!event.on && wants_learn_blink()) {
-			blink_restart_ = true; // the release's `blinkLed(LEARN)` (`sound_editor.cpp:736-738`)
-		}
-		if (event.on && !pad_held && !ctx_.addresses.affect_entire) {
-			if (!allows_learn_mode()) {
-				deluge::notify::notice_string(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_CANT_LEARN));
-			}
-			else if (ctx.shift) {
-				unlearn();
-			}
-			else {
-				learn_mode_ = true;
-				learn_restart_ = true; // `blinkLed(LEARN, 255, 1)` starts lit at the press
-			}
-		}
+	// `SoundEditor::buttonAction`'s LEARN arm (`sound_editor.cpp:718-745`), observed only: the event goes on as before.
+	if (visit_.learn.observe(ctx_, st_, event, ctx)) {
+		visit_.blink_restart = true; // the release's `blinkLed(LEARN)` (`sound_editor.cpp:736-738`)
 	}
 
 	// A custom item owns its input while it is focused: it sees every event first and, if it
@@ -2518,185 +761,30 @@ Result MenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 		}
 	}
 
-	// SYNTH/KIT/MIDI/CV/CROSS_SCREEN/SCALE on a horizontal page -- `HorizontalMenu::buttonAction`
-	// (`gui/menu_item/horizontal_menu.cpp:70-107`). Checked before the shortcut-pad jump: these six
-	// are never shortcut-pad buttons, but placing this ahead keeps every button arm together and
-	// matches legacy's own precedence (`buttonAction` is `MenuItem`'s override, reached before
-	// `SoundEditor::buttonAction`'s own switch ever sees SELECT/BACK/etc).
-	if (event.kind == UiEvent::Kind::Button && event.on && on_horizontal_page()) {
-		const int32_t button = instrument_button_index(event.button); // Synth 0, Kit 1, Midi 2, Cv 3, else -1
-		const int32_t page_dir = event.button == ButtonId::CrossScreen ? 1 : event.button == ButtonId::Scale ? -1 : 0;
-		if (button >= 0 || page_dir != 0) {
-			// `:77-82`: one 140 ms debounce shared by all six buttons, one shared timestamp updated
-			// only on a press this arm accepts (`:102`).
-			if (ctx.now_ms - st_.nav_press_ms <= kNavButtonDebounceMs) {
-				Result r;
-				r.handled = true;
-				return r;
-			}
-			st_.nav_press_ms = ctx.now_ms;
-
-			const Node* node = focused();
-			const Node* kids[kMaxMenuColumns];
-			deluge::ui::oled::Column cols[kMaxMenuColumns]{};
-			NodeText label_scratch[kMaxMenuColumns];
-			const size_t n = build_column_list(*node, std::span<const Node*>{kids, kMaxMenuColumns},
-			                                   std::span<deluge::ui::oled::Column>{cols, kMaxMenuColumns},
-			                                   std::span<NodeText>{label_scratch, kMaxMenuColumns});
-			const int32_t focused_col =
-			    n == 0 ? 0 : clamp_to(st_.columns[st_.depth].focused, 0, static_cast<int32_t>(n) - 1);
-
-			Result r;
-			r.handled = true;
-			bool repaint = false;
-
-			if (page_dir != 0) {
-				// `:85-94`: SHIFT + CROSS_SCREEN/SCALE at depth 0 switches the chained menu (`switchHorizontalMenu`,
-				// `:364-394`); otherwise, and at depth > 0 where there is no chain, `switchVisiblePage` (`:341-362`).
-				if (st_.depth == 0 && ctx.shift) {
-					repaint = switch_chained_page(page_dir);
-				}
-				else if (n > 0) {
-					const int32_t target = deluge::ui::oled::page_switch(
-					    std::span<const deluge::ui::oled::Column>{cols, n}, focused_col, page_dir);
-					if (target != focused_col) {
-						st_.columns[st_.depth].focused = static_cast<int8_t>(target);
-						// `switchVisiblePage` runs `initializeItem(*current_item_)` on the newly
-						// landed item and discards the result entirely (`:359`) -- not even
-						// `MUST_SELECT_RANGE` is acted on here, only the allocation side effect a
-						// range-dependent item's permission check performs matters.
-						if (kids[target]->range_dependent) {
-							(void)ensure_first_range(ctx_);
-						}
-						// `switchVisiblePage` cancels the notification unconditionally once past its
-						// own `totalPages <= 1` guard (`:363-365`) -- `page_switch` returning a
-						// different column already implies that guard passed.
-						deluge::notify::notice_kind(deluge::notify::Notice::Kind::CancelNotification);
-						repaint = true;
-					}
-				}
-			}
-			else if (n > 0) {
-				const int32_t target = deluge::ui::oled::column_under_button(
-				    std::span<const deluge::ui::oled::Column>{cols, n}, focused_col, button);
-				// `layout == FIXED && !isItemRelevant(item)` (`:411-414`): a disabled column under
-				// the button does nothing at all, not even a focus change.
-				if (target >= 0 && cols[target].relevant) {
-					if (target == focused_col) {
-						// `handleItemAction` (`:663-677`): the already-focused column's own press.
-						const Node& col_node = *kids[target];
-						if (col_node.kind == Kind::Submenu || col_node.allow_session_from_horizontal) {
-							// Both answer true to `!isSubmenu() && !allowToBeginSessionFromHorizontalMenu()`'s
-							// negation, so legacy takes the same "enter" branch for either: `enterSubmenu` after
-							// the range check, with no chain redirect.
-							enter_horizontal_item(col_node);
-						}
-						else {
-							// `MenuItem::selectButtonPress`'s overrides any other ported column kind
-							// reaches are `Toggle`'s flip (`gui/menu_item/toggle.h:38-42`) and
-							// `Selection`'s (`gui/menu_item/selection.h:54-63`, when `isToggle()`) -- see
-							// `Node::selection_is_toggle`'s own doc for the three live examples;
-							// every other kind's base is a no-op. No `select_chain` here -- legacy's
-							// `handleItemAction` calls `selectButtonPress()` directly, never
-							// `enterSubmenu`, for this arm.
-							if (col_node.kind == Kind::Toggle || col_node.selection_is_toggle) {
-								bindings::write(col_node, ctx_, bindings::read(col_node, ctx_) == 0 ? 1 : 0);
-							}
-							notify_column(col_node);
-						}
-						repaint = true;
-					}
-					else {
-						// `handleInstrumentButtonPress`'s new-focus tail (`:424-437`): `current_item_`
-						// is assigned before the range check, so the focus below happens whether or
-						// not the picker ends up opening over it.
-						st_.columns[st_.depth].focused = static_cast<int8_t>(target);
-						if (!enter_range_picker_if_needed(*kids[target], /*suppress_when_allowed=*/true)) {
-							notify_column(*kids[target]);
-						}
-						repaint = true;
-					}
-				}
-			}
-
-			if (repaint) {
-				(void)r.actions.push_back(Action{.kind = Action::Kind::RepaintAll});
-			}
-			return r;
-		}
+	// The six page buttons on a horizontal page, ahead of the shortcut-pad jump, as legacy's `buttonAction` override
+	// is reached before `SoundEditor::buttonAction`'s own switch.
+	if (std::optional<Result> r = handle_page_button(core(), walk_, visit_.session, event, ctx)) {
+		return *r;
 	}
 
-	// (a) The shortcut-pad jump. A `Pad` event is never masked (`ui/core/frame_context.h`, rule
-	// 4), so it always arrives here. Legacy gates the non-auditioning case on
-	// `Buttons::isShiftButtonPressed()` (`sound_editor.cpp:1169`); the auditioning half is a UI
-	// mode this layer may not read, so shift is the whole gate.
-	if (event.kind == UiEvent::Kind::Pad && event.on && ctx.shift) {
-		// Legacy's second-layer toggle (`sound_editor.cpp:1364-1379`), which is a *double press of
-		// the focused item's own shortcut pad* -- not shift, which is only the gate above. Pressing
-		// any other pad clears it, and a patch-cable item never arms it.
-		//
-		// Scoped to the sound arm, because that is the only branch legacy touches
-		// `secondLayerShortcutsToggled` in (the `else` at `:1303`) and the only pair of roots with a
-		// second layer at all. On any other root the flag is left exactly as it was, rather than
-		// being cleared by a press legacy never looked at.
-		const bool sound_arm = ctx_.root == MenuContext::Root::Sound || ctx_.root == MenuContext::Root::Drum;
-		if (sound_arm) {
-			const Node* current = pad_subject();
-			const ShortcutPos here = current != nullptr ? shortcut_pos(ctx_.root, *current) : ShortcutPos{};
-			const bool same_pad = here.valid && here.x == event.x && here.y == event.y;
-			// `getCurrentMenuItem()->getParamKind()`: on a horizontal page that is the focused
-			// column's own when it is not a submenu (`Submenu::getParamKind`, `shouldForwardButtons`),
-			// which is `focused_value()`.
-			const Node* value = focused_value();
-			const bool is_patch_cable =
-			    value != nullptr && value->bind.param.kind == deluge::modulation::params::Kind::PATCH_CABLE;
-			st_.second_layer = (same_pad && !is_patch_cable) ? !st_.second_layer : false;
-		}
-
-		const Node* target = shortcut_node(ctx_.root, sound_arm && st_.second_layer, event.x, event.y);
-		if (target != nullptr && !shortcut_applies(*target, ctx_)) {
-			deluge::notify::notice_string(
-			    static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_PARAMETER_NOT_APPLICABLE));
-			Result r;
-			r.handled = true;
-			return r;
-		}
-		// A node the registry never numbered cannot be named in a `SceneId`, and `on_enter` would
-		// refuse the id and roll the move back -- so the jump is simply not offered.
-		const uint16_t id = target != nullptr ? arm_shortcut_landing(*target) : 0;
-		if (id != 0) {
-			// `setup()` -> `beginScreen` -> `endScreen` ends the page being left (`sound_editor.cpp:977-982`), and
-			// `HorizontalMenu::endSession` cancels its notification (`horizontal_menu.cpp:576-591`).
-			if (on_horizontal_page()) {
-				deluge::notify::notice_kind(deluge::notify::Notice::Kind::CancelNotification);
-			}
-			// `Replace`, not an in-place re-target: `SceneId::arg` is how the shell spells which
-			// node is open (`Shell::state_lines()` -> `app16/<id>`), and a path the scene moved
-			// behind the stack's back would make that line lie. `on_enter` does the re-target on
-			// the way back in, and `save_state`/`restore_state` carry what should survive.
-			Result r;
-			r.handled = true;
-			(void)r.actions.push_back(Action{.kind = Action::Kind::Replace, .id = SceneId{SceneKind::FirstApp, id}});
-			return r;
-		}
-		return Result::unhandled();
+	if (std::optional<Result> r = pads_.handle_pad(core(), walk_, visit_.session, event, ctx)) {
+		return *r;
 	}
 
-	// (b) Back at the root. `owns` leaves it to this arm at depth 0, which closes the editor --
+	// Back at the root. `owns` leaves it to this arm at depth 0, which closes the editor --
 	// `sound_editor.cpp:456`'s BACK case -> `:471` `goUpOneLevel()` -> `:716` `exitCompletely()`.
 	//
 	// `Remove{.pop_to = SceneKind::FirstApp}`, NOT `Pop` with any `pop_to`: `SceneStack::pop(kind)`
 	// pops the topmost scene of that kind *and everything above it* (`scene_stack.cpp:63-95`), so
-	// `Pop{.pop_to = FirstApp}` -- this scene's own first, wrong fix for the bug below -- still tore
+	// `Pop{.pop_to = FirstApp}` would tear
 	// down a live `Working` animation or `Popup` sitting over the menu along with it. `Remove`
 	// (`SceneStack::remove`) excises just the named scene and leaves everything else exactly where
 	// it was, which is what "close the editor" should mean regardless of which overlay happens to be
 	// up. And it has to name a kind at all rather than defaulting to `Pop{.pop_to = Null}` ("just the
 	// top"): a `Notices`-driven overlay (`Console` in particular, which -- unlike `Popup`/`Working`
 	// -- is never removed again once shown) can legitimately be pushed above this scene between the
-	// render that produced this `Result` and the router applying it -- found by task 11's
-	// `menu_submenu_horizontal` acceptance script once its `Console` notice was made visible
-	// (`shell/notices.cpp`'s `Kind::Console` fix): with `Null`, pressing Back while that notice was
+	// render that produced this `Result` and the router applying it (`menu_submenu_horizontal`'s
+	// `Console` notice): with `Null`, pressing Back while that notice was
 	// still showing closed the console strip and left the menu itself on the stack.
 	if (event.kind == UiEvent::Kind::Button && event.button == ButtonId::Back && event.on && st_.depth == 0) {
 		// `SoundEditor::goUpOneLevel` runs `endScreen()` (-> `currentMenuItem->endSession()`)
@@ -2721,358 +809,57 @@ Result MenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 // Composition, saved state and timers
 
 deluge::ui::grid::GreyoutMask MenuScene::greyout_mask() const {
-	// `SoundEditor::getGreyoutColsAndRows` (`sound_editor.cpp:441-484`). The two arms that branch on
-	// the root UI's type arrive as `MenuContext::root_greyout`. `doGreyout == false` is spelled as an
-	// all-zero mask, which `greyout()` already reads as "grey nothing".
-	// Same reason as `leds()`: with no path there is no menu on screen, so greying the grid under
-	// it would leave the base view dimmed with nothing over it.
-	if (focused() == nullptr) {
-		return {};
+	// While the overlay shows every column is greyed, whatever the root (`getGreyoutColsAndRows`,
+	// `sound_editor.cpp:463-467`).
+	if (overlay_up()) {
+		return {0xFFFFFFFFu, 0};
 	}
-	// `:450-458`: the KEYBOARD_SCREEN and AUTOMATION arms, which branch on the root UI's type.
-	if (ctx_.root_greyout == MenuContext::RootGreyout::Nothing) {
-		return {};
-	}
-	if (ctx_.root_greyout == MenuContext::RootGreyout::SpareSidebar) {
-		return {0xFFFFFFFCu, 0};
-	}
-	if (ctx_.is_performance) {
-		return {}; // `:248` PERFORMANCE
-	}
-	// `:274-277` INSTRUMENT_CLIP's `inNoteEditor()` sub-arm: grey the sidebar only.
-	if (ctx_.root == MenuContext::Root::NoteEditor) {
-		return {0x03, 0};
-	}
-	// `:278-281` INSTRUMENT_CLIP's `inNoteRowEditor()` sub-arm: don't grey out the note row editor.
-	if (ctx_.root == MenuContext::Root::NoteRowEditor) {
-		return {};
-	}
-	if (ctx_.addresses.clip && !ctx_.is_song_view && !ctx_.is_audio_clip) {
-		return {0xFFFFFFFEu, 0}; // `:236` / `:283` INSTRUMENT_CLIP, the plain sound-editor arm
-	}
-	// `:252` default -- which is where an AUDIO_CLIP root UI lands too: legacy's switch has no
-	// `UIType::AUDIO_CLIP` case, so an audio clip greys everything including the sidebar. Testing
-	// `!is_audio_clip` above is what keeps it out of the INSTRUMENT_CLIP arm.
-	return {0xFFFFFFFFu, 0};
+	return menu::greyout_mask(ctx_, st_);
 }
 
 void MenuScene::save_state(SceneState& state) const {
-	// Value-initialised, not default-initialised: every member has its own initialiser, but the
-	// `memcpy` at the end of this function copies `sizeof(MenuSavedState)` bytes into a
-	// `SceneState`, and that includes the alignment padding between `depth` and `focus`. Default
-	// initialisation leaves those bytes indeterminate, so two saves of the same menu position
-	// could produce different `SceneState` bytes. `MenuSavedState`'s default constructor is
-	// implicit, so `{}` zero-initialises the whole object -- padding included -- before the member
-	// initialisers run. Unobservable today (nothing compares or hashes `SceneState`), and cheap
-	// enough that it should not have to stay unobservable to be correct.
-	MenuSavedState saved{};
-	if (st_.path[0] != nullptr) {
-		saved.root_node_id = node_id(*st_.path[0]);
-	}
-	saved.depth = st_.depth;
-	for (uint8_t level = 0; level < st_.depth && level + 1 < kMenuDepth; level++) {
-		const Node* parent = st_.path[level];
-		const Node* wanted = st_.path[level + 1];
-		if (parent == nullptr || wanted == nullptr) {
-			break;
-		}
-		const Node* kids[kMaxMenuChildren];
-		const size_t n = visible_children(*parent, kids);
-		for (size_t i = 0; i < n; i++) {
-			if (kids[i] == wanted) {
-				saved.path_child[level] = static_cast<uint8_t>(i);
-				break;
-			}
-		}
-	}
-	const Node* node = focused();
-	saved.focus =
-	    (node != nullptr && is_horizontal(*node)) ? st_.columns[st_.depth].focused : st_.list[st_.depth].cursor;
-	std::memcpy(state.bytes, &saved, sizeof(saved));
+	walk_.save(ctx_, st_, state);
 }
 
 void MenuScene::restore_state(const SceneState& state) {
-	MenuSavedState saved;
-	std::memcpy(&saved, state.bytes, sizeof(saved));
-
-	const Node* root = node_by_id(saved.root_node_id);
-	if (root == nullptr) {
-		return;
-	}
-	retarget(*root);
-
-	for (uint8_t level = 0; level < saved.depth && level < kMenuDepth - 1; level++) {
-		const Node* child = child_at(*st_.path[level], saved.path_child[level]);
-		if (child == nullptr) {
-			break; // the table changed under the save; stop at the deepest level that still exists
-		}
-		// Seed the level we are leaving with the row we took out of it, so a `Back` straight after
-		// a restore lands where the user was -- legacy rebuilds exactly this through
-		// `Submenu::focusChild(navigatedBackwardFrom)` (`gui/menu_item/submenu.cpp:21-37`).
-		if (is_horizontal(*st_.path[level])) {
-			st_.columns[level].focused = static_cast<int8_t>(saved.path_child[level]);
-		}
-		else {
-			st_.list[level].cursor = saved.path_child[level];
-		}
-		st_.depth = static_cast<uint8_t>(level + 1);
-		st_.path[st_.depth] = child;
-		if (is_leaf(child->kind)) {
-			// Fix round 1, Minor 2. This reaches `CustomItem::on_focus`, so restoring a menu that
-			// was parked on an item which opens a scene (`nodes::EditNameItem`) re-opens that
-			// scene on the next `after_render`. **That is deliberate, and it is what legacy does.**
-			// `SoundEditor::focusRegained` ends in `beginScreen()` (`sound_editor.cpp:330`), which
-			// calls `beginSession` on whatever the current item is (`:1015`), and
-			// `EditName::beginSession` opens `RenameUI` unconditionally
-			// (`gui/menu_item/edit_name.cpp:29-54`) -- there is no "only the first time" arm
-			// anywhere in that path.
-			//
-			// It is also the only coherent answer: `restore_state` is `replace_root`'s way of
-			// putting the user back where they were, and where they were *is* the editor. Skipping
-			// the hook would restore a menu sitting on a name-editor item that draws only its own
-			// title and does nothing until the user backs out and re-enters it. Specced by
-			// `rename_scene_spec.cpp`'s "reopens the editor when a menu parked on the item is
-			// restored".
-			//
-			// **It is deliberate only for an item whose legacy body is `beginSession`.** E3 task 7
-			// found the other half: an item whose `on_focus` stands in for `selectButtonPress` --
-			// `nodes::MidiDeviceLinkedItem`, the four `nodes::ActionItem`s -- was having its
-			// *press* replayed here, so restoring a menu parked on the MIDI device-definition
-			// toggle cleared the linked file with no user action, and restoring one parked on
-			// `start_stem_export` re-filed the export. `enter_leaf`'s `FocusCause` is the
-			// discriminator and `CustomItem::on_focus_is_press` is the scope; see both.
-			enter_leaf(*child, FocusCause::NoRowPress);
-		}
-	}
-
-	const Node* node = focused();
-	if (node != nullptr && is_horizontal(*node)) {
-		st_.columns[st_.depth].focused = static_cast<int8_t>(saved.focus);
-	}
-	else {
-		st_.list[st_.depth].cursor = saved.focus;
-	}
+	walk_.restore(core(), visit_.session, state);
+	voice_usage_.leave();
 }
-
-namespace {
-/// `cpu::VoiceUsage::kRefreshIntervalMs` (`cpu/voice_usage.h:91`).
-constexpr uint32_t kVoiceUsageSampleMs = 500;
-} // namespace
 
 std::optional<uint32_t> MenuScene::next_timer() const {
 	// The voice usage page's next sample, else the pad blinks: the shorter of the counter's two steps that the plan
 	// uses. Nothing blinking arms nothing.
-	if (voice_usage_place() != VoiceUsagePlace::None) {
-		return kVoiceUsageSampleMs - std::min(voice_usage_elapsed_ms_, kVoiceUsageSampleMs);
+	if (const std::optional<uint32_t> sample = voice_usage_.next_timer(st_)) {
+		return sample;
 	}
-	const Node* node = pad_subject();
-	if (node == nullptr) {
-		return std::nullopt;
-	}
-	const BlinkPlan plan = plan_blinks(ctx_, st_, *node);
-	if (plan.any_source()) {
-		return kSourceBlinkMs;
-	}
-	if (plan.param.valid) {
-		return kShortcutBlinkMs;
-	}
-	return std::nullopt;
+	return pad_next_timer(ctx_, st_);
 }
 
 deluge::ui::shell::Scene::RepaintSurfaces MenuScene::timer_repaints() const {
-	return {.oled = voice_usage_place() != VoiceUsagePlace::None, .grid = true};
-}
-
-MenuScene::VoiceUsagePlace MenuScene::voice_usage_place() const {
-	const Node* const node = focused();
-	if (node == &nodes::voice_usage) {
-		return VoiceUsagePlace::Page;
-	}
-	if (node == &nodes::voice_usage_live || node == &nodes::voice_usage_average
-	    || node == &nodes::voice_usage_maximum) {
-		return VoiceUsagePlace::Counter;
-	}
-	return VoiceUsagePlace::None;
+	return {.oled = VoiceUsageClock::place_of(focused()) != VoiceUsageClock::Place::None, .grid = true};
 }
 
 void MenuScene::tick(uint32_t dt_ms) {
-	const VoiceUsagePlace place = voice_usage_place();
-	const VoiceUsagePlace was = std::exchange(voice_usage_at_, place);
-	if (place == VoiceUsagePlace::None) {
-		return;
-	}
-	const int32_t live = ctx_.facts != nullptr ? ctx_.facts->live_voice_count() : 0;
-	if (place != was) {
-		// `VoiceUsage::beginSession` resets and samples, on arrival and on the way back from a counter
-		// (`cpu/voice_usage.h:70-76`); `VoiceCount::beginSession` samples without a reset (`:29-33`).
-		if (place == VoiceUsagePlace::Page) {
-			voice_usage_.reset();
-		}
-		voice_usage_.sample(live);
-		voice_usage_elapsed_ms_ = 0;
-	}
-	else {
-		voice_usage_elapsed_ms_ += dt_ms;
-		if (voice_usage_elapsed_ms_ < kVoiceUsageSampleMs) {
-			return;
-		}
-		voice_usage_elapsed_ms_ = 0;
-		voice_usage_.sample(live);
-	}
-	// The VERTICAL style re-reads the open counter (`:81-86`); the page's columns read the sampler as they draw.
-	if (place == VoiceUsagePlace::Counter) {
+	if (voice_usage_.tick(ctx_, st_, dt_ms)) {
 		read_value_again();
 	}
 }
 
 // ---------------------------------------------------------------------------------------------
-// Navigation for callers outside the scene (note-family Task 7a). At the end of the file so that
-// adding them moved no line the tree already cites.
+// Navigation for callers outside the scene.
 
 bool MenuScene::go_up_one_level() {
 	if (st_.depth == 0) {
 		return false; // `sound_editor.cpp:715-717`, on the loop's first pass
 	}
-	ascend();
+	walk_.ascend(core(), visit_.session);
 	// `:715-717` on a later pass: `ascend()` stepped down to depth 0 and `:720-722` refused that level too, so it
 	// asked for the close. The caller closes the editor itself, so the request is taken back here.
-	return !std::exchange(close_requested_, false);
+	return !walk_.take_close_request();
 }
 
 void MenuScene::enter_submenu(const Node& node) {
-	descend_to(node); // `sound_editor.cpp:364-368`
-}
-
-namespace {
-
-// `SoundEditor::getCurrentHorizontalMenusChain`'s five chains (`gui/ui/menus.cpp`,
-// `horizontalMenusChainFor*`), each `HorizontalMenuGroup` spelled as its member pages in order.
-constexpr const Node* kSoundChain[] = {
-    &nodes::recorder,  &nodes::sound_master,  &nodes::source_group, &nodes::voice_group, &nodes::env_group,
-    &nodes::lfo_group, &nodes::filters_group, &nodes::eq,           &nodes::mod_fx,      &nodes::reverb_group,
-    &nodes::delay,     &nodes::distortion,    &nodes::sidechain,    &nodes::audio_comp,  &nodes::stutter,
-    &nodes::arp_group, &nodes::randomizer};
-constexpr const Node* kKitChain[] = {&nodes::kit_clip_master,   &nodes::global_filters_group, &nodes::eq,
-                                     &nodes::global_mod_fx,     &nodes::global_reverb_group,  &nodes::global_delay,
-                                     &nodes::global_distortion, &nodes::global_sidechain,     &nodes::audio_comp,
-                                     &nodes::stutter,           &nodes::arp_group_kit,        &nodes::randomizer};
-constexpr const Node* kSongChain[] = {&nodes::song_master,       &nodes::global_filters_group, &nodes::eq,
-                                      &nodes::global_mod_fx,     &nodes::global_reverb_group,  &nodes::global_delay,
-                                      &nodes::global_distortion, &nodes::audio_comp,           &nodes::stutter};
-constexpr const Node* kAudioClipChain[] = {&nodes::song_master,
-                                           &nodes::audio_clip_sample,
-                                           &nodes::global_filters_group,
-                                           &nodes::eq,
-                                           &nodes::global_mod_fx,
-                                           &nodes::global_reverb_group,
-                                           &nodes::global_delay,
-                                           &nodes::audio_clip_distortion,
-                                           &nodes::global_sidechain,
-                                           &nodes::audio_comp,
-                                           &nodes::stutter};
-constexpr const Node* kMidiOrCvChain[] = {&nodes::arp_group_midi, &nodes::randomizer};
-
-std::span<const Node* const> chain_for(MenuContext::Root root) {
-	switch (root) {
-	case MenuContext::Root::Sound:
-	case MenuContext::Root::Drum:
-	case MenuContext::Root::MidiDrum:
-	case MenuContext::Root::GateDrum:
-		return kSoundChain;
-	case MenuContext::Root::KitGlobalFx:
-		return kKitChain;
-	case MenuContext::Root::Song:
-	case MenuContext::Root::Performance:
-		return kSongChain;
-	case MenuContext::Root::AudioClip:
-		return kAudioClipChain;
-	case MenuContext::Root::MidiOrCv:
-		return kMidiOrCvChain;
-	default:
-		return {};
-	}
-}
-
-} // namespace
-
-const Node* shortcut_landing_page(const MenuContext& ctx, const Node& target) {
-	// `getCurrentHorizontalMenusChain` answers nothing with the feature off, so the item opens alone.
-	if (!ctx.horizontal_menus) {
-		return nullptr;
-	}
-	return shortcut_landing_page(ctx.root, target);
-}
-
-bool page_lists(const Node& page, const Node& column) {
-	if (page.kind != Kind::Submenu) {
-		return false;
-	}
-	// A group lists what its member pages list, not the member pages (`HorizontalMenuGroup::hasItem`,
-	// `horizontal_menu_group.cpp:209-211`).
-	if (page.is_group) {
-		return std::ranges::any_of(page.children,
-		                           [&](const Node* m) { return m != nullptr && page_lists(*m, column); });
-	}
-	return std::ranges::contains(page.children, &column);
-}
-
-const Node* shortcut_landing_page(MenuContext::Root root, const Node& target) {
-	// `maybeGetParentMenu`'s two early answers: the start markers and the audio clip's waveform go
-	// straight to the marker editor, the file selectors straight to the browser.
-	constexpr const Node* kOpensItself[] = {&nodes::sample0_start, &nodes::sample1_start, &nodes::audio_clip_waveform,
-	                                        &nodes::file0_selector, &nodes::file1_selector};
-	if (std::ranges::find(kOpensItself, &target) != std::ranges::end(kOpensItself)) {
-		return nullptr;
-	}
-	// `maybeGetParentMenu`'s search: the first chain page that lists the item.
-	for (const Node* page : chain_for(root)) {
-		if (page_lists(*page, target)) {
-			return page;
-		}
-	}
-	return nullptr;
-}
-
-bool MenuScene::switch_chained_page(int32_t direction) {
-	// `HorizontalMenu::switchHorizontalMenu` (`horizontal_menu.cpp:364-394`).
-	const std::span<const Node* const> chain = chain_for(ctx_.root);
-	if (chain.empty() || direction == 0) {
-		return false;
-	}
-	const auto count = static_cast<int32_t>(chain.size());
-	const auto at = std::ranges::find(chain, focused());
-	const auto current = static_cast<int32_t>(std::distance(chain.begin(), at));
-	for (int32_t step = 1; step <= count; step++) {
-		const int32_t index = ((current + direction * step) % count + count) % count;
-		const Node& target = *chain[index];
-		const Node* kids[kMaxMenuChildren];
-		if (visible_children(target, kids) == 0) {
-			continue; // no relevant items: on to the next menu
-		}
-		retarget(target);
-		st_.columns[0] = deluge::ui::ColumnsState{};
-		// Mod FX opens on its second page, the selected effect's controls (`:383`).
-		if (&target == &nodes::mod_fx || &target == &nodes::global_mod_fx) {
-			const Node* page_kids[kMaxMenuColumns];
-			deluge::ui::oled::Column cols[kMaxMenuColumns]{};
-			NodeText label_scratch[kMaxMenuColumns];
-			const size_t n = build_column_list(target, std::span<const Node*>{page_kids, kMaxMenuColumns},
-			                                   std::span<deluge::ui::oled::Column>{cols, kMaxMenuColumns},
-			                                   std::span<NodeText>{label_scratch, kMaxMenuColumns});
-			st_.columns[0].focused = static_cast<int8_t>(
-			    deluge::ui::oled::page_switch(std::span<const deluge::ui::oled::Column>{cols, n}, 0, 1));
-		}
-		deluge::notify::notice_kind(deluge::notify::Notice::Kind::CancelNotification);
-		return true;
-	}
-	return false;
-}
-
-bool shortcut_applies(const Node& target, const MenuContext& ctx) {
-	if (&target == &nodes::file0_selector || &target == &nodes::file1_selector) {
-		return true;
-	}
-	return bindings::relevant(target, ctx);
+	walk_.descend_to(core(), visit_.session, node); // `sound_editor.cpp:364-368`
 }
 
 bool is_automation_item(const Node& item) {

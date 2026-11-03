@@ -163,9 +163,9 @@ void adoptShellMenuContext();
 /// `BrowserScene::take_choice()` is a one-slot outbox that announces nothing -- `enter` files it and
 /// returns an ordinary `Result` (`scenes/browser/browser_scene.cpp:896-898`), so no `Action` says a
 /// choice is waiting and nothing enforces the polling. That is `MenuScene::take_action()`'s hazard
-/// (`scenes/menu/menu_scene.h:672-677`, the poll at `:704`) in the same shape, and it lands as the same requirement on
-/// this function's *caller*: poll after every tick, or a choice is delivered whenever something next
-/// asks, against whatever song and clip exist then.
+/// (`scenes/menu/menu_scene.h`, the warning on `take_action`) in the same shape, and it lands as the same requirement
+/// on this function's *caller*: poll after every tick, or a choice is delivered whenever something next asks, against
+/// whatever song and clip exist then.
 ///
 /// So the one call site (`ShellHostUI::timerCallback`) makes the poll unconditional, and sits
 /// **after** `Shell::tick` and **above** the close check that can return early -- both for the

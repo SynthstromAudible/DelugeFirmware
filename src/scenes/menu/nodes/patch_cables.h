@@ -120,6 +120,13 @@ public:
 	                                 const deluge::ui::shell::UiContext& ui_ctx, const MenuContext& ctx,
 	                                 MenuState& state) const override;
 	void on_focus(const MenuContext& ctx, MenuState& state) const override;
+	/// `PatchCables::blinkShortcutsSoon` (`patch_cables.cpp:135-139`): 500 ms on an OLED panel.
+	uint16_t blink_delay_ms() const override { return 500; }
+	/// The cable under the cursor's destination, as `PatchCables::blinkShortcuts` blinks it (`patch_cables.cpp`).
+	uint8_t patched_param_to_blink(const MenuContext& ctx, const MenuState& state) const override;
+	/// Its source every cycle, and the source whose depth it modulates every fourth.
+	uint8_t source_blink(const MenuContext& ctx, const MenuState& state, PatchSource source,
+	                     deluge::ui::grid::FlashColour& colour) const override;
 };
 
 /// @brief One of the two source pickers -- `source_selection::Regular` / `source_selection::Range`.
@@ -151,6 +158,22 @@ public:
 	void on_focus(const MenuContext& ctx, MenuState& state) const override;
 
 	constexpr Which which() const { return which_; }
+
+	/// `source_selection::Range::getPatchingSourceShortcutTarget` (`range.h:28-30`): the item above.
+	SourceTarget source_target(bool /*previous_held*/) const override {
+		return which_ == Which::Range ? SourceTarget::Parent : SourceTarget::Parameter;
+	}
+
+	/// `source_selection::Regular::patchingSourceShortcutPress` (`regular.cpp:50-66`): the source's strength page, or
+	/// PARAMETER NOT APPLICABLE for a source the destination refuses; `Range`'s asks the item above.
+	deluge::scenes::menu::SourcePress source_press(const MenuContext& ctx, MenuState& state, PatchSource source,
+	                                               bool previous_held, const Node*& open) const override;
+
+	/// `SourceSelection::getIndexOfPatchedParamToBlink` / `shouldBlinkPatchingSourceShortcut`
+	/// (`source_selection.cpp:309-318`): the param, and every source patched to the destination.
+	uint8_t patched_param_to_blink(const MenuContext& ctx, const MenuState& state) const override;
+	uint8_t source_blink(const MenuContext& ctx, const MenuState& state, PatchSource source,
+	                     deluge::ui::grid::FlashColour& colour) const override;
 
 private:
 	Which which_;
@@ -190,6 +213,28 @@ public:
 	deluge::synth::CableTarget learn_descriptor(const MenuContext& ctx, const MenuState& state) const override;
 
 	constexpr Which which() const { return which_; }
+
+	/// The three classes' `patchingSourceShortcutPress` (`regular.cpp:85-91`, `range.cpp:58-60`, `fixed.cpp:45-48`):
+	/// another held source pad opens the range page for the pressed source (`Fixed` always opens it); otherwise the
+	/// item above answers.
+	deluge::scenes::menu::SourcePress source_press(const MenuContext& ctx, MenuState& state, PatchSource source,
+	                                               bool previous_held, const Node*& open) const override;
+	bool is_patch_cable() const override { return true; }
+	/// `Regular::getPatchingSourceShortcutTarget` (`regular.h:35-37`): a range with another source pad held, else the
+	/// item above; `Range` the item above; `Fixed` always a range.
+	SourceTarget source_target(bool previous_held) const override {
+		if (which_ == Which::Fixed || (which_ == Which::Regular && previous_held)) {
+			return SourceTarget::Range;
+		}
+		return SourceTarget::Parent;
+	}
+
+	/// `PatchCableStrength::getIndexOfPatchedParamToBlink` (`patch_cable_strength.cpp:284-290`, the volume triple
+	/// folded to POST_FX) and the three classes' `shouldBlinkPatchingSourceShortcut` (`regular.cpp:67-83`,
+	/// `range.cpp:42-56`, `fixed.cpp:35-43`).
+	uint8_t patched_param_to_blink(const MenuContext& ctx, const MenuState& state) const override;
+	uint8_t source_blink(const MenuContext& ctx, const MenuState& state, PatchSource source,
+	                     deluge::ui::grid::FlashColour& colour) const override;
 
 	/// @brief Set the polarity the page shows to @p polarity, and the cable's own where it exists (a SHIFT+turn); a
 	/// cable the page makes later takes it.
@@ -254,7 +299,7 @@ extern const Node patch_cable_strength_range;
 ///
 /// Always the source picker. The `soundEditor.patchingParamSelected = this->getP()` half of that
 /// function happens in `SourceSelectionItem::on_focus` instead -- a `SelectChainFn` is handed a
-/// **`const MenuState&`** and cannot write it (see `MenuState::patching_param`).
+/// **`const MenuState&`** and cannot write it (see `MenuWalkState::patching_param`).
 ///
 /// The shift-held arm (`Automation::selectButtonPress`, automation delete) is the interpreter's
 /// (`MenuScene::after_render`), which sees shift; this hook answers the unshifted press.

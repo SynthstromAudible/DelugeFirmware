@@ -232,6 +232,32 @@ code generation. Ten root tables live in `menu/nodes/*.cpp` (one file per legacy
 kit, MIDI/CV, song, settings, …), gathered by `MenuScene::roots()`
 (`menu/menu_scene.h`/`nodes/nodes.h`) and indexed by `MenuContext::Root`.
 
+### The menu scene and its units
+
+`MenuScene` (`menu/menu_scene.{h,cpp}`) is the one scene that interprets any `Node` tree. It owns the
+`MenuContext` and the `MenuState` and keeps the scene's own contracts -- the lifecycle, the order
+`after_render` drains its mailboxes in, the order `handle` offers an event around -- and hands the rest
+to units it owns by value. A unit is given the context and state per call (`MenuCore`,
+`menu/menu_core.h`, which also holds the read-only tree queries) and keeps no pointer back to the scene.
+
+| unit | file | what it does |
+|---|---|---|
+| `MenuState`, `MenuTick`, `MenuWalkState` | `menu_state.h` | the path, the widgets' state, the tick's observations and the walk's choices, each reset by value |
+| presentation | `present.{h,cpp}` | node text, horizontal columns, notifications, row icons |
+| chains | `chains.{h,cpp}` | the horizontal-menu chains and where a named node lands |
+| `MenuWalk` | `walk.{h,cpp}` | re-rooting, descending, ascending, the range picker, the remembered rows, saved state |
+| `MenuView` | `view.{h,cpp}` | the OLED render, and `owned_input`, the claims it makes |
+| `ValueSession` | `value_session.{h,cpp}` | loading a leaf's value into the edit storage and committing it |
+| `MenuLearn` | `learn.{h,cpp}` | learn mode, the LEARN button and LED, learn delivery |
+| `VoiceUsageClock` | `voice_usage.{h,cpp}` | the voice usage page's counters and sampling |
+| page buttons | `page_buttons.{h,cpp}` | SYNTH/KIT/MIDI/CV/CROSS_SCREEN/SCALE on a horizontal page |
+| `MenuPads` | `pads.{h,cpp}` | the shortcut blinks, the SHIFT + pad jump, SHIFT + a patching-source pad, the greyout |
+| shortcut blinks | `shortcut_blink.{h,cpp}` | `updatePadLightsFor`'s plan: the param pad, the patched-param fallback, the sources |
+| SHIFT overlay | `shortcut_overlay.{h,cpp}` | the shortcut colour map and the patching-source column while SHIFT is held |
+
+The per-visit facts -- learn mode, the value session, the pending blink restart, the shift level the
+overlay follows -- sit in the scene's private `Visit`, reset by value whenever the scene is entered.
+
 ### Legacy features not yet ported
 
 Legacy's menus are the truth the tree transcribes. Small legacy changes are followed as they land; a
@@ -562,8 +588,8 @@ same hold without a second scene-local mechanism.
 override that calls `openUI(renameUI)`. `CustomItem::on_focus` *is* `beginSession`, but it returns
 `void` — and must, because it is also reached from `retarget()` and `restore_state()`, neither of
 which has a `Result` to put an `Action` in. So the item writes the request into
-`MenuState::pending_scene` and `MenuScene::after_render` — the first hook after `enter_leaf` that
-does have a `Result` — drains it into an `Action::Kind::Push`. It sets `MenuState::go_up_on_resume`
+`MenuWalkState::pending_scene` and `MenuScene::after_render` — the first hook after `enter_leaf` that
+does have a `Result` — drains it into an `Action::Kind::Push`. It sets `MenuWalkState::go_up_on_resume`
 at the same moment, which is legacy's `soundEditor.shouldGoUpOneLevelOnBegin`
 (`edit_name.cpp:50`, read by `SoundEditor::focusRegained`, `sound_editor.cpp:318-321`): without it,
 closing the pushed scene would land back on the item and `on_focus` would open it again.
@@ -588,7 +614,7 @@ deep link onto `start_stem_export` re-filed the export. Legacy guards exactly th
 `Toggle::selectButtonPress` returns without toggling when `soundEditor.getCurrentMenuItem() == this`
 (`gui/menu_item/toggle.h:35-37`), i.e. when it was reached without a press on its row.
 
-The port of that guard is two pieces: `MenuScene::enter_leaf` takes a `FocusCause`
+The port of that guard is two pieces: `ValueSession::enter_leaf` takes a `FocusCause`
 (`RowPress` from `descend_to`, `NoRowPress` from `retarget`, `restore_state` and `ascend` — the
 values are named for the question they answer, "a select press on **this node's own row**?", because
 a shortcut-pad jump is a real press and the old `Restored` said otherwise), and
@@ -1011,11 +1037,11 @@ Seven things are worth finding from here rather than from the header.
   so `[A, popup, B]` removing `B` notified the **popup** while `A`, which genuinely regains the
   input top, got nothing. And `Scene` had no `on_pause` for the edge to pair with -- deliberately
   still true, and now stated as a decision on `Scene::on_resume` rather than left open. `MenuScene`
-  took the spurious edge too (`go_up_on_resume` guards only the `ascend()` at
-  `menu_scene.cpp:511-514`; the tail resets five per-tick fields unconditionally at `:516-520`, and
+  took the spurious edge too (`go_up_on_resume` guards only the `ascend()` in
+  `MenuScene::on_resume`; its tail resets the per-tick fields unconditionally, and
   the scene raised `Notice::Kind::Console` itself -- its column notification until note-family task 8b, and `menu/bindings.cpp:373`), but cost
-  nothing by it: those five fields are drained at the end of every `after_render` (`menu_scene.cpp:1848-1852`) and
-  `render_oled` re-zeroes two of them at its own head (`:828-829`), while `Notices` is a `Service`
+  nothing by it: those five fields are drained at the end of every `after_render` (`MenuScene::after_render`'s tail) and
+  `render_oled` re-zeroes two of them at its own head (`MenuView::render`), while `Notices` is a `Service`
   and ticks at `Shell::tick` step 4 (`shell/shell.cpp:325-326`) -- before any render. They were already
   at their defaults every time the edge arrived.
 
@@ -1257,7 +1283,7 @@ citations. Their port-side `@warning`s are complete.
 
 ## The action seam (`menu/action.h`, E2 task 11b)
 
-`MenuState::pending_scene` is the **noun** half of the seam: an item names a scene, and
+`MenuWalkState::pending_scene` is the **noun** half of the seam: an item names a scene, and
 `MenuScene::after_render` — the first hook after `enter_leaf` that has a `Result` — turns the
 request into an `Action::Kind::Push`. It works because every scene a menu wants to open lives in
 `src/scenes`.
@@ -1287,7 +1313,7 @@ So `action.h` adds the **verb** half, in the same shape:
 2. `MenuActionRequest` — that enumerator plus one `uint16_t` payload, for the two actions whose
    meaning is not fixed by their identity (`OpenPerformanceView` carries the editing mode;
    `SetShortcutsVersion` carries the layout).
-3. `MenuState::pending_action` — the field an item writes, exactly as it writes `pending_scene`; or,
+3. `MenuWalkState::pending_action` — the field an item writes, exactly as it writes `pending_scene`; or,
    for a `Binding::set` hook that is handed no `MenuState` at all, `MenuScene::request_action`
    (F2 task 6), which writes that same field.
 4. `MenuScene::after_render` drains it **where `pending_scene` is drained**, and parks it in
@@ -1469,7 +1495,7 @@ in, kept because it names the legacy routines each item has to be checked agains
 
 | carried | where it is recorded | size |
 |---|---|---|
-| **The RECORDER's "heading to" return path** — legacy re-roots the navigation record onto the oscillator's horizontal page when a file is accepted or a recording finishes, so the user does not land back on the item that opened the scene. `SoundEditor::maybeGetParentMenu` (`gui/ui/sound_editor.cpp:2073`) writes the pair; the sample claim (`SampleClaim`) (`gui/ui/browser/sample_browser.cpp:1111-1122`) and `osc::AudioRecorder::beginSession` (`osc/audio_recorder.h:40-48`) read it back. The port's equivalent record is `MenuState::path`/`depth`, which only `MenuScene` may write. **The browser half is paid (F3 task 3)**: `MenuScene::reroot_to_scene_opener_page()` is the entry point, `MenuState::scene_opener` is the port of `menuItemHeadingTo`, and `gui::ui::shellSampleClaimDone` calls it on the claim's success. The recorder half is not, because nothing drains a recording the way `take_choice()` drains a file. **The re-rooting itself is the same three statements** — `osc/audio_recorder.h:42` sets `navigationDepth = 0` and `:43` indexes with it, so `[navigationDepth]` IS `[0]`; only the statement order differs. What a caller must additionally carry is the pair's content (`parentMenuHeadingTo` is `&sourceMenuGroup` unconditionally; `menuItemHeadingTo` is the matching *file selector*, not the recorder — `sound_editor.cpp:2100-2102`) and `shouldGoUpOneLevelOnBegin = false` (`:44`), which is `MenuState::go_up_on_resume`. | `browser/browser_scene.h`'s `Descriptor::accept` note and `menu/nodes/sample.cpp`'s `AudioRecorderItem::on_focus` | a caller for the existing entry point; costs one extra BACK press after a recording until then |
+| **The RECORDER's "heading to" return path** — legacy re-roots the navigation record onto the oscillator's horizontal page when a file is accepted or a recording finishes, so the user does not land back on the item that opened the scene. `SoundEditor::maybeGetParentMenu` (`gui/ui/sound_editor.cpp:2073`) writes the pair; the sample claim (`SampleClaim`) (`gui/ui/browser/sample_browser.cpp:1111-1122`) and `osc::AudioRecorder::beginSession` (`osc/audio_recorder.h:40-48`) read it back. The port's equivalent record is `MenuState::path`/`depth`, which only `MenuScene` may write. **The browser half is paid (F3 task 3)**: `MenuScene::reroot_to_scene_opener_page()` is the entry point, `MenuWalkState::scene_opener` is the port of `menuItemHeadingTo`, and `gui::ui::shellSampleClaimDone` calls it on the claim's success. The recorder half is not, because nothing drains a recording the way `take_choice()` drains a file. **The re-rooting itself is the same three statements** — `osc/audio_recorder.h:42` sets `navigationDepth = 0` and `:43` indexes with it, so `[navigationDepth]` IS `[0]`; only the statement order differs. What a caller must additionally carry is the pair's content (`parentMenuHeadingTo` is `&sourceMenuGroup` unconditionally; `menuItemHeadingTo` is the matching *file selector*, not the recorder — `sound_editor.cpp:2100-2102`) and `shouldGoUpOneLevelOnBegin = false` (`:44`), which is `MenuWalkState::go_up_on_resume`. | `browser/browser_scene.h`'s `Descriptor::accept` note and `menu/nodes/sample.cpp`'s `AudioRecorderItem::on_focus` | a caller for the existing entry point; costs one extra BACK press after a recording until then |
 | ~~**A `Kind::Custom` node cannot draw a row icon in its parent's list**~~ — **done, F2 task 8.** `CustomItem::row_icon(const MenuContext&)` (`menu/node.h`) is the hook this row asked for; its default is the **submenu arrow**, because that is what legacy's base `MenuItem::renderSubmenuItemTypeForOled` blits (`gui/menu_item/menu_item.cpp:69-75`), and `MidiDeviceLinkedItem` overrides it with `Linked`'s checked/unchecked box (`gui/menu_item/midi/device_definition/linked.h:56-78`). Found by the level-3 A/B rather than by inspection: with no icon, a `Kind::Custom` row also kept the 14px legacy reserves for one (`gui/menu_item/submenu.cpp:109`), so its label ran 14px wider than legacy's — which is what made `set_clip_length`'s row differ between the two legs. What the row still owes is the **second text row** `Linked` draws under a checked box (the linked file's base name, `linked.h:72`): `ui::oled::ListRow` has one label and one icon (`ui/oled/list.h`). | `menu/nodes/output_items.h`'s divergence list, and `menu_scene.cpp`'s `row_icon` | the second text row |
 | ~~**`midiDeviceMenu`'s subtree**~~ — **done, E3 task 8** (`menu/nodes/midi_device.{h,cpp}`): eight nodes, three bespoke (the MPE arm), a per-cable binding family over `MenuContext::midi_cable`, and `midi_devices`' `select_chain`. What it leaves behind is one gap, of exactly the kind `menu/nodes/dynamic.h` already records for the formatted "CV OUTPUT N" titles: `midi::Device::getTitle()` is the cable's own display name (`gui/menu_item/midi/device.h:8`) and a `Node::title` is one static id, so the page's title bar carries "MIDI DEVICES" rather than the device's name. | `menu/nodes/midi_device.h`'s "What did not survive" | — |
 | ~~**Splitting session from arranger**~~ — **done, E3 task 9.** `song_midi_learn` and `configure_song_macros` used to stay visible in the arranger because `MenuContext` could not tell the two apart. The conflation was three-way — `sound_editor.cpp:1779-1782 setup` selects the song root for `sessionView`, `arrangerView` *and* `automationView`, and legacy hides these two from all but the first — and is now carried by two bools rather than three: `context_for` takes `session_view_root` (`getRootUI() == &sessionView`) beside the existing `session_or_arranger_root` (`!rootUIIsClipMinderScreen()`), `MenuContext::is_session_view` reports it, and `relevance::is_session_view` guards both nodes. Nothing distinguishes the arranger from the song automation view, because no legacy `isRelevant` does. Cost as built: the one parameter, one field and one predicate the estimate named, plus **85** positional-bool call sites (not ~62 — the estimate undercounted) and two `available_when` keys in the dump JSON, which moved no node id. | `menu/nodes/actions.h`, `menu/context.h`'s `is_session_view` | — |
@@ -1502,8 +1528,8 @@ in, kept because it names the legacy routines each item has to be checked agains
 | **Behaviour the port added and legacy lacks: ruled to match legacy.** The shell's overlay dim, two gold indicators blinking at once, the MIDI-device browser reopening on its remembered definition and the listing's default-directory fallback on FILE_NOT_FOUND are gone: legacy has none of them. The gold knob's acceleration is legacy's `EncoderAcceleration`. The lowering's first-gold-turn debounce stays, an accepted difference (parity tracker). `GestureEvent::Hold`, the widened `SecondPad`, `ui/oled/popup.h`'s progress bar and `ui/oled/misc.h`'s `vu`/`adsr` have no caller under `src/scenes` or `src/shell`, so they ship no UX; each becomes a difference the moment a scene calls it. | the parity tracker; `services/mod_knobs.cpp`; `browser/browser_scene.cpp`; `browser/listing.cpp` | — |
 | **Automation retargeting on a column focus change has no port** (spec E-note-family §3.3). `SoundEditor::handlePotentialParamMenuChange` (`gui/ui/sound_editor.cpp:676-708`) runs after a BACK or SELECT move (`:430`, `:474`) and after a horizontal page's focus changes (`:661`), and calls the new param item's `buttonAction`, whose arms swap or re-select automation view (`gui/menu_item/automation/automation.cpp:68-135`). It is keyed on `getRootUI() == &automationView`, which `src/scenes` may not read, like the interpolation-pad carry below. | spec E-note-family §3.3 | an automation-view scene, or a seam that tells the guest the focused param changed |
 | **`currentUIMode` gating of select editing has no port** (spec E-note-family §3.3). `SoundEditor::selectEncoderAction` edits only inside `selectEncoderUIModes` (`gui/ui/sound_editor.cpp:1069-1070`, the test at `:1089-1091`); `MenuScene` has no UI-mode state and edits on every turn it receives. | spec E-note-family §3.3 | a UI-mode fact handed to the scene, then the same range test |
-| **A select press acts at press; legacy acts at release.** `SoundEditor::buttonAction`'s SELECT arm runs on `!on && !Buttons::selectButtonPressUsedUp` (`gui/ui/sound_editor.cpp:385-389`), and a turn while the encoder is held sets that bit (`gui/menu_item/value.h:65-66`), so legacy discards a press that was used to turn. The port reads the press edge -- `columns` for a submenu column (`ui/oled/columns.cpp:451-455`), `render_horizontal` for a value column (`scenes/menu/menu_scene.cpp:1059-1062`) -- so a press held through a turn has already acted. | this row | a select release edge from `InputLowering` that honours the used-up bit, read by the scene and the widgets |
-| **`Submenu::shouldForwardButtons` also forwards `buttonAction` to a horizontal page's focused value column, and the port forwards only the select press** (spec E-note-family §8). Legacy forwards both `selectButtonPress` (`gui/menu_item/submenu.cpp:187-194`) and `buttonAction` (`:196-200`) under `shouldForwardButtons` (`:181-185`). The port answers the select press per column (`scenes/menu/menu_scene.cpp:1714-1747`) but routes `CustomItem::handle` only to the focused node itself (`scenes/menu/menu_scene.cpp:1877-1882`), which on a horizontal page is the page. No note node is custom. | spec E-note-family §8 | `handle` forwarded to a focused `Kind::Custom` column on a horizontal page |
+| **A select press acts at press; legacy acts at release.** `SoundEditor::buttonAction`'s SELECT arm runs on `!on && !Buttons::selectButtonPressUsedUp` (`gui/ui/sound_editor.cpp:385-389`), and a turn while the encoder is held sets that bit (`gui/menu_item/value.h:65-66`), so legacy discards a press that was used to turn. The port reads the press edge -- `columns` for a submenu column (`ui/oled/columns.cpp:451-455`), `render_horizontal` for a value column (`MenuView::render_horizontal`, `scenes/menu/view.cpp`) -- so a press held through a turn has already acted. | this row | a select release edge from `InputLowering` that honours the used-up bit, read by the scene and the widgets |
+| **`Submenu::shouldForwardButtons` also forwards `buttonAction` to a horizontal page's focused value column, and the port forwards only the select press** (spec E-note-family §8). Legacy forwards both `selectButtonPress` (`gui/menu_item/submenu.cpp:187-194`) and `buttonAction` (`:196-200`) under `shouldForwardButtons` (`:181-185`). The port answers the select press per column (`MenuScene::after_render`'s `column_press` arm) but routes `CustomItem::handle` only to the focused node itself (`MenuScene::handle_event`), which on a horizontal page is the page. No note node is custom. | spec E-note-family §8 | `handle` forwarded to a focused `Kind::Custom` column on a horizontal page |
 | **The note bridge's real-view coverage is a stated sample.** `sim/scenes_spec/note_bridge_spec.cpp` drives the real `wireShellNoteBridge()` against the real `instrumentClipView` for the install, `note_selected`/`note_velocity`, `adjust_note_velocity`'s gate on legacy's arm and the note-mode arm, `row_probability`'s row creation, `row_sequence_direction`'s kit guard and `iterance_preset_label` (the file doc, `:23-54`), and names what it does not pin (`:56-61`): the probability, iterance and fill reads and writes, `set_row_sequence_direction` and `adjust_row_probability`. Each is a sibling of a pinned entry; none is faked. | `note_bridge_spec.cpp`'s file doc | one real-view example per unpinned entry |
 | **The shell sends an LED only when its own record says it changed, and legacy writes LEDs behind that record.** `led_send_needed` (`src/shell/leds.cpp:75-80`) sends on `!sent_once || last_on != desired_on`; a direct legacy write does not update `last_on`, so an Off the shell never saw can go unsent. The level-3 ported leg keeps `led Synth on` where the legacy leg has none (`tests/golden/ui/app/menu_shell/pad-menu-open.state`, `pad-audition-forwarded.state`, `pad-audition-released.state`). Pre-existing. | this row | the guest invalidating the shell's LED record when legacy writes, or legacy writing through the shell |
 | **Legacy edits the auditioned row's Play Direction under the regular sound roots; the port shows the clip-wide value.** Holding an audition pad in the regular sound editor forwards the pad to `instrumentClipView` (`gui/ui/sound_editor.cpp:1499-1503`); a select into Play Direction (`sequenceDirectionMenu`, in `soundEditorRootMenu` and `soundEditorRootMenuMIDIOrCV`, `gui/ui/menus.cpp:1774`/`:1802`, `:1952`/`:1964`) latches `selectedNoteRow` (`gui/menu_item/sequence/direction.h:118`), and `InstrumentClipView::potentiallyRefreshNoteRowMenu`'s legacy arm re-reads the item for each newly auditioned row (`gui/views/instrument_clip_view.cpp:5564-5575`). Under `Root::Sound`/`Root::MidiOrCv` the port has no such arm. | `scenes/menu/bindings.cpp:872-884` | the auditioned-row arm under those two roots; porting it is Kate's call |
@@ -1636,7 +1662,7 @@ placeholders, `firmware_version`/`battery_level`, their own finished `CustomItem
 `battery::Level`'s charging heuristic with `mutable` state on the item, the way legacy keeps it on
 the menu item instance); E2 task 5 gave the three name editors theirs, `nodes::EditNameItem`, which
 opens `rename::RenameScene` — the port of legacy's five-class `gui/ui/rename/` directory — through
-`MenuState::pending_scene`; E2 task 7 the five reset items and task 8 the twelve MIDI commands; E2
+`MenuWalkState::pending_scene`; E2 task 7 the five reset items and task 8 the twelve MIDI commands; E2
 task 9 the two patch-cable pages, the two source pickers, the mod matrix, the two fixed cables and
 the range picker; E2 task 10 the CV and gate output selectors and the MIDI device list
 (`menu/nodes/dynamic.h`); E2 task 11b the five action items, the two preset-scale checklists and the
@@ -1653,7 +1679,7 @@ not come with them.
 
 1. ~~**The two note-editor forwarding arms are not ported.**~~ **Ported, and reachable since note-family task 8.**
    The note roots have `MenuContext::Root` enumerators, and `MenuScene::grid_pad_claim` answers
-   `GridPadClaim::None` for both (`scenes/menu/menu_scene.h:518-523`). The guest forwards the two
+   `GridPadClaim::None` for both (`MenuScene::grid_pad_claim`). The guest forwards the two
    arms by `activeNoteMode()` (`gui/ui/shell_pad_forward.cpp:147`, `:155`). Task 8 gates sites 12
    and 13 (`gui/ui/shell_menu_entry.cpp`'s table), which is what opens those roots. The record as it
    was written follows; its line numbers are `e73f13c8d`'s. `gui/ui/sound_editor.cpp:1484`
@@ -1662,10 +1688,10 @@ not come with them.
    `inNoteRowEditor()` (`sound_editor.cpp:1916-1918`, `:1920-1922`), which read
    `menuItemNavigationRecord[0]` — a member no guest path writes — and the roots they serve,
    `noteEditorRootMenu`/`noteRowEditorRootMenu`, have no `MenuContext::Root` enumerator at all
-   (`scenes/menu/context.h:68-80`; `scenes/menu/menu_scene.h:485-489`'s own doc comment already says
+   (`scenes/menu/context.h:68-80`; `scenes/menu/menu_scene.h`'s own doc comment already said
    so). They arrive together with `GridPadClaim::None`'s second producer, once sites 12 and 13 of
    `shell_menu_entry.cpp`'s fourteen-entry table (migration §10.2 item 2) gain a ported root — today
-   `None` has exactly one producer, `MenuScene` on a `Settings` root (`menu_scene.h:487-489`).
+   `None` has exactly one producer, `MenuScene` on a `Settings` root (`MenuScene::grid_pad_claim`).
    **Recorded here rather than written:**
    legacy's two arms are not a bare forward each -- `sound_editor.cpp:1483-1497` splits on
    coordinate, not only on which arm: `inNoteEditor()`'s main grid (`x < kDisplayWidth`) goes to
@@ -1695,7 +1721,7 @@ not come with them.
    Legacy's shift-held shortcut gate exempts `x == 0, y == 6|7` from claiming a shortcut jump when
    `getRootUI() == &automationView` (`sound_editor.cpp:1175-1177`), deferring those two pads to
    automation view's own interpolation/pad-selection handling. `MenuScene`'s ported shift gate
-   (`scenes/menu/menu_scene.cpp:2000-2038`) has no equivalent, and correctly cannot: it lives in
+   (`MenuPads::handle_pad`, `scenes/menu/pads.cpp`) has no equivalent, and correctly cannot: it lives in
    `src/scenes`, which may not name `getRootUI()` or `automationView`, and `MenuContext::Root` names
    a menu root, not a `getRootUI()` identity. **Not the same blocker as "settings-root shortcut
    jumps" above, and this row previously said it was.** That block sits on the `src/scenes` side of
@@ -1712,14 +1738,14 @@ not come with them.
    `potentialShortcutPadAction` is `ignoreAction = !(isUIModeActive(UI_MODE_AUDITIONING) &&
    getRootUI() == &instrumentClipView)` (`sound_editor.cpp:1171-1172`) — a UI-mode read `src/scenes`
    may not make. `MenuScene`'s ported shift gate already records dropping that half, with the reason:
-   under the port, shift is the whole gate (`scenes/menu/menu_scene.cpp:2000-2003`).
+   under the port, shift is the whole gate (`MenuPads::handle_pad`).
    `ShellHostUI::claimsGridPad`'s `ShortcutsOnly` arm (`gui/ui/shell_host_ui.cpp:769-782`) cites both
    sites and inherits the same drop rather than re-arguing it.
 5. **A fifth carry the plan did not know about, found while recording the level-3 A/B (task 5) and
    player-reachable today, with the toggle on.** Legacy's static `Submenu::focusChild`
    (`gui/menu_item/submenu.cpp:21-34`) leaves `current_item_` alone when called with `nullptr` on a
    re-open of the process-lifetime static object — the real device remembers the row a menu was last
-   left on. `MenuScene::open` (`scenes/menu/menu_scene.cpp:331-335`) resets `st_ = MenuState{}`
+   left on. `MenuScene::open` resets `st_ = MenuState{}`
    unconditionally on every open, so the port always reopens on the first row. Reachable with an
    ordinary gesture: scroll a menu off its first row, back out, reopen, and the two legs land on
    different rows. `tests/ui-scripts/app/menu.txt` now carries one corrective gesture,
@@ -1737,11 +1763,11 @@ not come with them.
    well, because unlike the other four here a player meets it immediately.
    **A second path to the same divergence (note-family task 7a).** Holding a note pad in the note
    editor enters its parameter menu through `MenuScene::enter_submenu`, which is `descend_to` and
-   resets `st_.columns[depth]` (`scenes/menu/menu_scene.cpp:1510-1511`), so the port lands on column 0
+   resets `st_.columns[depth]` (`MenuWalk::descend_to`, `scenes/menu/walk.cpp`), so the port lands on column 0
    on every hold. Legacy's `HorizontalMenu::beginSession` (`gui/menu_item/horizontal_menu.cpp:40-48`)
    reaches `Submenu::beginSession` (`gui/menu_item/submenu.cpp:11-19`), whose `focusChild(nullptr)`
    keeps the process-lifetime object's `current_item_`, so a second hold lands on the column last
-   focused. Recorded at `scenes/menu/menu_scene.h:952-962`; it closes with the rest of this carry.
+   focused. Recorded at `MenuScene::enter_submenu`'s doc (`scenes/menu/menu_scene.h`); it closes with the rest of this carry.
 6. **A sixth carry (M2): the ~1 ms window after `Exit` empties the stack, during which an arriving
    pad is claimed rather than forwarded.** `PadForwardTarget::Exit` runs `closePortedMenu()`, which
    empties the guest's own `SceneStack` (`gui/ui/shell_action_dispatch.cpp`) but leaves the guest

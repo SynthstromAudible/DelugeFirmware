@@ -32,9 +32,20 @@ add_library(deluge_scenes STATIC
     registry.cpp
     menu/bindings.cpp
     menu/context.cpp
+    menu/chains.cpp
+    menu/learn.cpp
+    menu/menu_core.cpp
     menu/menu_scene.cpp
+    menu/present.cpp
+    menu/shortcut_overlay.cpp
+    menu/value_session.cpp
+    menu/view.cpp
+    menu/voice_usage.cpp
+    menu/walk.cpp
     menu/node_id.cpp
     menu/note_bridge.cpp
+    menu/page_buttons.cpp
+    menu/pads.cpp
     menu/relevance.cpp
     menu/shortcut_blink.cpp
     menu/shortcuts.cpp

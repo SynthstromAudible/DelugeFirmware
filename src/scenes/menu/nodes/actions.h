@@ -37,7 +37,7 @@
 ///       `EditingMode::selectButtonPress` returns `nullptr` on `DISABLED` -- "go up a level"
 ///       (`node.h`'s `SelectChainFn`) -- and `NO_NAVIGATION` on the other two, i.e. stay put while
 ///       the performance view is opened over the menu. `PerformEditorItem::render` reproduces both:
-///       on `DISABLED` it leaves `MenuState::render_resp.entered` set, so `after_render`'s leaf arm
+///       on `DISABLED` it leaves `MenuTick::render_resp.entered` set, so `after_render`'s leaf arm
 ///       ascends; on `VALUE`/`PARAM` it files the request and *clears* `entered`, so nothing
 ///       navigates. Clearing it is the only way a `CustomItem` can say "I consumed this press",
 ///       because `enum_value` sets the flag before the item sees it.

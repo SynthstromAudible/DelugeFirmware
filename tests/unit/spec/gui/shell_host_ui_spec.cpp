@@ -101,7 +101,7 @@ public:
 	Result handle(const UiEvent& ev, const UiContext& ctx) override {
 		seen.push_back(Seen{ev, ctx.shift, ctx.sticky, ctx.now_ms});
 		if (remove_self_on_event) {
-			// `MenuScene`'s answer to Back at depth 0 (`scenes/menu/menu_scene.cpp:2057`),
+			// `MenuScene`'s answer to Back at depth 0 (`MenuScene::handle_event`'s Back arm),
 			// reduced to the one thing this suite is about: a scene that takes itself off the
 			// stack from inside `Shell::tick`'s routing. Off by default so every other example
 			// keeps the delivery-only behaviour below.
@@ -889,6 +889,22 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(fakelegacy::greyout_reassessments).to_equal(1);
 	});
 
+	it("greys at once when a scene takes the main pads and greys every column, as the SHIFT overlay does", _ {
+		// `renderMainShortcutsOnly` calls `PadLEDs::doGreyoutInstantly()`: the overlay's greyout does not fade in.
+		Rig r;
+		r.base.overlay = true;
+		r.base.regions = PadRegions::None;
+		r.base.greyout = {};
+		expect(r.open()).to_be_true();
+		r.guest.shell().tick(0);
+		const int instant = fakelegacy::instant_greyout_reassessments;
+		r.base.regions = PadRegions::Main;
+		r.base.greyout = {0xFFFFFFFFu, 0};
+		set_clock_ms(10);
+		(void)r.guest.timerCallback();
+		expect(fakelegacy::instant_greyout_reassessments).to_equal(instant + 1);
+	});
+
 	it("takes every pad when a scene comes to own the grid, and hands them back when it goes", _ {
 		Rig r;
 		r.base.overlay = true;
@@ -1054,7 +1070,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		Rig r;
 		expect(r.open()).to_be_true();
 
-		// `MenuScene::occludes_grid()` is false (`scenes/menu/menu_scene.h:508`), and
+		// `MenuScene::occludes_grid()` is false (`scenes/menu/menu_scene.h`), and
 		// `SoundEditor::canSeeViewUnderneath()` is true (`gui/ui/sound_editor.h:121`) -- the guest
 		// has to land on legacy's answer, because `UI::graphicsRoutine` runs the root view's
 		// animation only while it does (`gui/ui/ui.cpp:47-51`).
@@ -1079,7 +1095,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(r.open()).to_be_true();
 
 		// `MenuScene::greyout_mask` spells legacy's `doGreyout == false` as an all-zero mask
-		// (`scenes/menu/menu_scene.cpp:2082-2083`), and legacy's false means "obey UI under me"
+		// (`menu::greyout_mask`, `scenes/menu/pads.cpp`), and legacy's false means "obey UI under me"
 		// (`gui/ui/ui.h:136-138`). The two out-parameters are accumulators the caller zeroed and
 		// the next UI down is about to be asked with (`gui/ui/ui.cpp:73-83`), so a false answer must
 		// leave them alone.
@@ -1539,9 +1555,75 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		expect(r.base.seen.size()).to_equal(size_t(1));
 
 		(void)r.guest.padAction(kDisplayWidth + 1, 4, 64); // sidebar: never a shortcut
-		(void)r.guest.padAction(3, 4, 0);                  // release: never a shortcut
+		(void)r.guest.padAction(5, 4, 0);                  // the release of a press it never fed
 		fakelegacyui::shift_button_pressed = false;
 		(void)r.guest.padAction(3, 4, 64); // no shift
+		expect(fakelegacyui::pad_forwards).to_equal(3);
+	});
+
+	it("reopens with no pad held when the guest closed between a fed press and its release", _ {
+		// SHIFT + a pad fed to the menu, the menu closed with the pad still down, the release then legacy's: the next
+		// visit's shell must not still hold the pad (LEARN refuses while one is held).
+		Rig r;
+		expect(r.open()).to_be_true();
+		fakelegacyui::reset();
+		r.base.claim = GridPadClaim::ShortcutsOnly;
+		fakelegacyui::shift_button_pressed = true;
+		(void)r.guest.padAction(3, 4, 64);
+		r.guest.shell().tick(1);
+		expect(r.guest.shell().lowering().held_pads().test(3, 4)).to_be_true();
+		(void)r.guest.exitUI(); // the stack empties: the guest closes
+		fakelegacyui::shift_button_pressed = false;
+		expect(r.open()).to_be_true();
+		expect(r.guest.shell().lowering().held_pads().test(3, 4)).to_be_false();
+	});
+
+	it("opens knowing a SHIFT legacy saw go down, and loses it on the release", _ {
+		// SHIFT pressed in the clip view, then SHIFT + a shortcut pad opening the menu: the guest's shell never saw
+		// the press, but the press is still down and the next shortcut press is a SHIFT one.
+		Rig r;
+		fakelegacyui::reset();
+		fakelegacyui::shift_button_pressed = true;
+		expect(r.open()).to_be_true();
+		expect(r.guest.shell().lowering().shift()).to_be_true();
+		fakelegacyui::shift_button_pressed = false;
+		(void)r.guest.buttonAction(deluge::hid::button::SHIFT, false);
+		expect(r.guest.shell().lowering().shift()).to_be_false();
+	});
+
+	it("opens with a latched SHIFT still latched", _ {
+		Rig r;
+		fakelegacyui::reset();
+		fakelegacyui::shift_button_pressed = true;
+		fakelegacyui::shift_stuck = true;
+		expect(r.open()).to_be_true();
+		expect(r.guest.shell().lowering().shift()).to_be_true();
+		expect(r.guest.shell().lowering().sticky()).to_be_true();
+		fakelegacyui::reset();
+	});
+
+	it("feeds the release of a pad whose press it fed, and only that release", _ {
+		// The menu claims a Shift + pad press; the release comes with Shift up and fails the claim's gate, but
+		// leaving it with legacy would leave the shell holding the pad for good.
+		Rig r;
+		expect(r.open()).to_be_true();
+		fakelegacyui::reset();
+		r.base.claim = GridPadClaim::ShortcutsOnly;
+
+		fakelegacyui::shift_button_pressed = true;
+		(void)r.guest.padAction(3, 4, 64);
+		fakelegacyui::shift_button_pressed = false;
+		(void)r.guest.padAction(3, 4, 0);
+		r.guest.shell().tick(1);
+		expect(r.base.seen.size()).to_equal(size_t(2));
+		expect(fakelegacyui::pad_forwards).to_equal(0);
+		expect(r.guest.shell().lowering().held_pads().test(3, 4)).to_be_false(); // the LEARN arm's "no pad held"
+
+		(void)r.guest.padAction(6, 2, 64); // no shift: legacy's
+		(void)r.guest.padAction(6, 2, 0);  // and so is its release
+		(void)r.guest.padAction(3, 4, 0);  // a second release of the fed pad is legacy's
+		r.guest.shell().tick(2);
+		expect(r.base.seen.size()).to_equal(size_t(2));
 		expect(fakelegacyui::pad_forwards).to_equal(3);
 	});
 
@@ -1812,7 +1894,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		// Legacy reads `ShiftIsSticky` at shift-release time (`hid/buttons.cpp:250`); the shell reads
 		// its own `LoweringConfig` field, which defaults to false. Unseeded, a sticky-shift user's
 		// latched shift is invisible to `ctx.shift` -- the whole gate on the menu's shortcut-pad
-		// jump (`scenes/menu/menu_scene.cpp:2004`).
+		// jump (`MenuPads::handle_pad`, `scenes/menu/pads.cpp`).
 		Rig on;
 		runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShiftIsSticky, RuntimeFeatureStateToggle::On);
 		expect(on.open()).to_be_true();
@@ -2599,7 +2681,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		r.base.led_declared = true;
 		r.base.led_id = static_cast<deluge::ui::LedId>(ButtonId::Back);
 		// The same shape `MenuScene::leds` declares for BACK and LEARN
-		// (`scenes/menu/menu_scene.cpp:1373`, `:1380`): a plain blink, no deadline.
+		// (`MenuScene::leds`, `MenuLearn::leds`): a plain blink, no deadline.
 		r.base.led_state = deluge::ui::LedState{deluge::ui::LedState::Kind::Blink, 128, 0};
 		expect(r.open()).to_be_true();
 

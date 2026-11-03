@@ -289,7 +289,7 @@ void MidiDeviceLinkedItem::on_focus(const MenuContext& ctx, MenuState& state) co
 	// the whole of the wiring it was waiting for.
 	//
 	// A scene may not touch the `Shell` stack itself, so the push is recorded in
-	// `MenuState::pending_scene` and `MenuScene::after_render` turns it into an
+	// `MenuWalkState::pending_scene` and `MenuScene::after_render` turns it into an
 	// `Action::Kind::Push`, setting `go_up_on_resume` beside it. Legacy does not set
 	// `shouldGoUpOneLevelOnBegin` here -- it never descended into the item in the first place -- so
 	// the two agree on where the user lands when the browser closes: the parent list.
@@ -300,7 +300,7 @@ void MidiDeviceLinkedItem::on_focus(const MenuContext& ctx, MenuState& state) co
 	// browser's own `accept` performs the load, so unlike the sample side there is no
 	// `take_choice()` for a dispatcher to drain.
 	browser::browser_scene().open(ctx);
-	state.pending_scene = deluge::ui::shell::SceneId{browser::kBrowserSceneKind, browser_arg_};
+	state.walk.pending_scene = deluge::ui::shell::SceneId{browser::kBrowserSceneKind, browser_arg_};
 }
 
 void MidiDeviceLinkedItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& /*ctx*/, MenuState& state) const {
@@ -325,7 +325,7 @@ void MidiDeviceLinkedItem::render(deluge::ui::oled::OledFrame& f, const MenuCont
 	// (`FocusCause::NoRowPress` plus `on_focus_is_press`, see the class note), the title is simply the
 	// screen, and this drives a no-op `ascend()` every frame: `ascend` returns immediately at depth
 	// 0 (`menu_scene.cpp`). Harmless and cheap, but not accidental.
-	state.render_resp.entered = true;
+	state.tick.render_resp.entered = true;
 }
 
 deluge::ui::shell::Result MidiDeviceLinkedItem::handle(const deluge::ui::shell::UiEvent& /*event*/,
@@ -385,8 +385,8 @@ void SpecificOutputItem::render(deluge::ui::oled::OledFrame& f, const MenuContex
 			// on, including one that hit an end and moved nothing: legacy re-writes the same output
 			// there, and `setOutputRecordingFrom` releasing and re-taking its own monitoring claim
 			// is not a difference this port should invent.
-			state.value_changed = true;
-			state.value_node = state.depth < kMenuDepth ? state.path[state.depth] : nullptr;
+			state.tick.value_changed = true;
+			state.tick.value_node = state.depth < kMenuDepth ? state.path[state.depth] : nullptr;
 		}
 	}
 
@@ -438,7 +438,7 @@ void SpecificOutputItem::render(deluge::ui::oled::OledFrame& f, const MenuContex
 	// not override it. Nothing else here claims the press, so it has to be said explicitly; without
 	// it the page could only be left with BACK.
 	if (f.select_pressed()) {
-		state.render_resp.entered = true;
+		state.tick.render_resp.entered = true;
 	}
 }
 

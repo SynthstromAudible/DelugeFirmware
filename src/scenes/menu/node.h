@@ -24,6 +24,7 @@
 #include "scenes/bind/target.h"
 #include "synth/modulation/cable.h"  // CustomItem::learn_descriptor -- returned by value
 #include "ui/core/frame_context.h"   // CustomItem::owned_input
+#include "ui/grid/frame.h"           // CustomItem::source_blink
 #include "ui/oled/column_drawings.h" // DrawColumn
 #include "ui/oled/columns.h"         // ArtColumn
 #include "ui/oled/meters.h"
@@ -77,7 +78,7 @@ namespace deluge::scenes::menu {
 ///     finally made those items real. Every legacy `MenuItem` whose select press *does* something
 ///     rather than editing a value reaches a UI this layer may not touch, so what they needed was
 ///     not a `Kind` but a way to *name* the action for someone else to run: `MenuAction` and
-///     `MenuState::pending_action` (`scenes/menu/action.h`). A `Kind::Action` would have had to
+///     `MenuWalkState::pending_action` (`scenes/menu/action.h`). A `Kind::Action` would have had to
 ///     carry the same intent through a `Binding` that has nowhere to put it, and would still not
 ///     have performed anything. `MenuScene::enter_child` keeps no action arm.
 ///
@@ -141,6 +142,23 @@ struct ParamRef {
 
 /// @brief Forward declared only -- see the file-level note. Defined in `context.h` (a later task).
 struct MenuContext;
+
+/// @brief What a patching-source pad patches to while an item is focused -- `PatchingSourceShortcutTarget`.
+enum class SourceTarget : uint8_t {
+	Parameter, ///< The focused param.
+	Parent,    ///< Whatever the item above answers.
+	Range,     ///< A cable's range.
+};
+
+/// @brief An item's answer to SHIFT and a patching-source pad -- `MenuItem::patchingSourceShortcutPress`'s three.
+enum class SourcePress : uint8_t {
+	/// Nothing happens (`nullptr`): the press stops at this item.
+	Unhandled,
+	/// Ask the item one level up (`NO_NAVIGATION`); past the root the menu closes.
+	GoUp,
+	/// Open the node the item names, one level below it.
+	Open,
+};
 
 using GetFn = int32_t (*)(const MenuContext&);
 using SetFn = void (*)(const MenuContext&, int32_t);
@@ -463,7 +481,7 @@ struct CustomItem {
 
 	/// @par The focus hooks: three names, two questions
 	///
-	/// **`on_focus`, `on_focus_backward` and `MenuScene::FocusCause` look like three spellings of one
+	/// **`on_focus`, `on_focus_backward` and `FocusCause` look like three spellings of one
 	/// thing, and a contributor has to learn all of them. They are not one thing** (E3 final review,
 	/// A7). What each answers, and when it fires:
 	///
@@ -472,7 +490,7 @@ struct CustomItem {
 	///   one of the two fires per focus transition; `MenuScene::ascend` runs the backward one
 	///   *instead of* the forward one.
 	/// * **Was there a select press on this node's own row?** -- answered by *one discriminator*,
-	///   `MenuScene::FocusCause`, scoped per item by `on_focus_is_press()`. It is consulted before
+	///   `FocusCause`, scoped per item by `on_focus_is_press()`. It is consulted before
 	///   `on_focus`, and decides whether it runs at all.
 	///
 	/// **Why they are not one mechanism**, in each direction:
@@ -490,7 +508,7 @@ struct CustomItem {
 	/// Rule of thumb: override a hook when the item **does something different**; consult the cause
 	/// when the scene must decide whether the item should act **at all**.
 
-	/// @brief Called when this item becomes the focused node (`MenuScene::enter_leaf`, on `open()`,
+	/// @brief Called when this item becomes the focused node (`ValueSession::enter_leaf`, on `open()`,
 	///        descending into a child, and restoring saved state into a leaf) -- mirroring legacy's
 	///        `MenuItem::beginSession` (`gui/menu_item/menu_item.h`), which every stateful bespoke
 	///        item overrides to (re-)initialise itself before its first render of a visit.
@@ -537,8 +555,8 @@ struct CustomItem {
 	/// @brief Commit whatever this item has been editing -- `MenuItem::writeCurrentValue`, for a
 	///        bespoke item whose value does not live in a `Binding`.
 	///
-	/// The mirror of `on_focus`: `MenuScene::commit_value`'s `Kind::Custom` arm calls it, which is
-	/// reached from `after_render` when the item set `MenuState::value_changed` during its render.
+	/// The mirror of `on_focus`: `ValueSession::commit`'s `Kind::Custom` arm calls it, which is
+	/// reached from `after_render` when the item set `MenuTick::value_changed` during its render.
 	/// That indirection is the point -- a `CustomItem::render` may not write the model
 	/// (`menu_scene.h`: "never mutates the model from `render_oled`"), so an item that edits a value
 	/// records the change and this hook performs it, exactly where every other kind's write happens.
@@ -618,7 +636,7 @@ struct CustomItem {
 	/// press on that row behind it -- the jump is a press, but on a grid pad. Legacy guards the same
 	/// case explicitly -- `Toggle::selectButtonPress` returns without toggling when the item is
 	/// already the current one (`gui/menu_item/toggle.h:35-37`), which is precisely "we got here
-	/// without a press on our row". With this true, `MenuScene::enter_leaf` runs `on_focus` only for
+	/// without a press on our row". With this true, `ValueSession::enter_leaf` runs `on_focus` only for
 	/// `FocusCause::RowPress`, whose two values are named for exactly this question.
 	///
 	/// @note The line is **"does it act without a press"**, not "does it do anything". The items
@@ -698,6 +716,44 @@ struct CustomItem {
 	/// @brief Does this item want the LEARN LED blinking while it is focused?
 	///        `MenuItem::shouldBlinkLearnLed` (`sound_editor.cpp:949-954`, `:488-492`).
 	virtual bool wants_learn_blink() const { return false; }
+
+	/// @brief The patched param whose shortcut pad blinks while this item is focused and has no pad of its own --
+	///        `MenuItem::getIndexOfPatchedParamToBlink` (`sound_editor.cpp:1171-1183`).
+	/// @return The param, or 255 for none.
+	virtual uint8_t patched_param_to_blink(const MenuContext& /*ctx*/, const MenuState& /*state*/) const { return 255; }
+
+	/// @brief How the patching-source pad for @p source blinks while this item is focused --
+	///        `MenuItem::shouldBlinkPatchingSourceShortcut` (`sound_editor.cpp:1034-1064`).
+	/// @param colour Set to the flash colour when it is not the default.
+	/// @return The frequency mask (0 every cycle, 3 every fourth), or 255 for no blink.
+	/// @brief SHIFT and the patching-source pad for @p source while this item is focused --
+	///        `MenuItem::patchingSourceShortcutPress` (`sound_editor.cpp:1532-1609`).
+	/// @param previous_held Another patching-source pad is held (`isOtherModSourcePadPressed`).
+	/// @param open          Set to the node to open when the answer is `SourcePress::Open`.
+	virtual SourcePress source_press(const MenuContext& /*ctx*/, MenuState& /*state*/, PatchSource /*source*/,
+	                                 bool /*previous_held*/, const Node*& /*open*/) const {
+		return SourcePress::Unhandled;
+	}
+
+	/// @brief What a patching-source pad patches to while this item is focused --
+	///        `MenuItem::getPatchingSourceShortcutTarget`. Read by the SHIFT overlay's source column.
+	/// @param previous_held Another patching-source pad is held.
+	virtual SourceTarget source_target(bool /*previous_held*/) const { return SourceTarget::Parameter; }
+
+	/// @brief How long this item's shortcut blink waits after the item opens or its list cursor moves --
+	///        `PatchCables::blinkShortcutsSoon`'s throttle, so scrolling a list is not a storm of flashes.
+	/// @return Milliseconds; 0 for none.
+	virtual uint16_t blink_delay_ms() const { return 0; }
+
+	/// @brief Is this item a patch cable's strength -- `getParamKind() == Kind::PATCH_CABLE`? Such an item never
+	///        arms the second shortcut layer, and on it a second press of the active source takes the source's second
+	///        layer.
+	virtual bool is_patch_cable() const { return false; }
+
+	virtual uint8_t source_blink(const MenuContext& /*ctx*/, const MenuState& /*state*/, PatchSource /*source*/,
+	                             deluge::ui::grid::FlashColour& /*colour*/) const {
+		return 255;
+	}
 
 	/// @brief Does the legacy item derive from `Value`, whose select turn uses a held Select press up
 	///        (`Value::selectEncoderAction`, `menu_item/value.h:64-67`)? A list item derived from `MenuItem` or

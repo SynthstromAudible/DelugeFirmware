@@ -23,10 +23,10 @@
 ///
 /// The producing half is `src/scenes`': a ported menu item asks for a piece of legacy behaviour it
 /// may not perform, `MenuScene::after_render` moves the request into a one-slot outbox, and
-/// `MenuScene::take_action()` (`scenes/menu/menu_scene.h:704`) hands it out.
+/// `MenuScene::take_action()` (`scenes/menu/menu_scene.h`) hands it out.
 ///
 /// **Seven verbs, and they are not all one shape.** Five are root-UI behaviour filed by writing
-/// `MenuState::pending_action` directly, and they are tabulated at `scenes/menu/action.h:13-19`.
+/// `MenuWalkState::pending_action` directly, and they are tabulated at `scenes/menu/action.h:13-19`.
 /// The other two are settings writes filed through `MenuScene::request_action` by a `Binding::set`
 /// hook that is handed no `MenuState` at all -- `SetShortcutsVersion` (F2 task 6) and
 /// `ScreensaverSettingsChanged` (F2 task 7), argued at `action.h:29-65`. The difference matters to
@@ -61,10 +61,10 @@ namespace deluge::gui::ui {
 /// @par Call this after every `Shell::tick`, and do not gate it
 ///
 /// `MenuScene::take_action()` is **a one-slot mailbox with a silent overwrite, not an exactly-once
-/// queue** (`scenes/menu/menu_scene.h:672-700`), and the consequence stated there is a requirement
+/// queue** (`MenuScene::take_action`, `scenes/menu/menu_scene.h`), and the consequence stated there is a requirement
 /// on this function's caller rather than on this function: "`after_render` returns no `Action`
 /// announcing that one is waiting, so nothing enforces the polling: **poll after every tick, or
-/// requests are dropped or stale**" (`:676-677`). Nothing in the shell will complain if a tick
+/// requests are dropped or stale**" (the same warning). Nothing in the shell will complain if a tick
 /// skips the poll; the request simply arrives whenever someone next asks, against whatever state
 /// exists then.
 ///
