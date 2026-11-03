@@ -52,8 +52,8 @@ void MenuView::render(MenuCore core, deluge::ui::oled::OledFrame& f, const Node&
 	st.tick.select_shift = f.shift();
 
 	// **The depth test precedes the read.** At depth 0 `owns` leaves Back to `handle()`, which pops the scene --
-	// legacy's back at the root closing the editor (`sound_editor.cpp:456` -> `:433` `goUpOneLevel()` -> `:678`
-	// `exitCompletely()`) -- so the render must not read it there: the read IS the claim.
+	// legacy's back at the root closing the editor (`SoundEditor::buttonAction`'s BACK arm -> `goUpOneLevel()`, whose
+	// depth-0 arm is `exitCompletely()`) -- so the render must not read it there: the read IS the claim.
 	if (st.depth > 0) {
 		st.tick.back_claimed = f.back_pressed();
 	}

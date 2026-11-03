@@ -3,6 +3,7 @@
 /// @file
 /// @brief What a menu opens over, as the view shows it, from the clip a legacy view has open.
 
+#include "scenes/menu/context.h"
 #include "scenes/services/view_state.h"
 
 class Clip;
@@ -13,5 +14,9 @@ namespace deluge::gui {
 ///        row is in the clip), and the clip's affect-entire.
 /// @param clip The clip the menu opens over, or null for a song-level or settings menu.
 [[nodiscard]] scenes::services::MenuView menuViewOf(::Clip* clip);
+
+/// @brief The greyout arm the root UI on screen gives a menu over it -- `SoundEditor::getGreyoutColsAndRows`' switch on
+///        `getRootUI()->getUIType()` (`gui/ui/sound_editor.cpp:441-484`), which `src/scenes` may not ask.
+[[nodiscard]] scenes::menu::MenuContext::RootGreyout menuRootGreyout();
 
 } // namespace deluge::gui

@@ -58,9 +58,9 @@ struct MenuTick {
 	bool value_changed = false;
 	/// Which node `value_changed` belongs to.
 	///
-	/// An addition to the brief's field list, forced by the horizontal layout: there the node on
-	/// screen is the *submenu* and the edited value belongs to the focused column's child, so
-	/// "the current node" is not enough to commit through.
+	/// Needed by the horizontal layout: there the node on screen is the *submenu* and the edited
+	/// value belongs to the focused column's child, so "the current node" is not enough to commit
+	/// through.
 	const Node* value_node = nullptr;
 	/// Whether `render_oled` read (and therefore claimed) the back button this tick. Only ever
 	/// set at `depth > 0` -- see `MenuScene::render_oled`.
@@ -357,6 +357,11 @@ struct MenuState {
 	/// The counter step `render_grid` last flashed, so each step flashes once however many frames
 	/// fall inside it; `UINT32_MAX` for none since the anchor.
 	uint32_t blink_fired_step = UINT32_MAX;
+	/// The last grid frame was covered by a scene that takes the input: the menu plans no blink and asks no wake.
+	bool blink_covered = false;
+	/// The list cursor the blink was planned at, for an item whose blink waits after each move
+	/// (`CustomItem::blink_delay_ms`).
+	int16_t blink_cursor = 0;
 
 	/// Legacy's `secondLayerShortcutsToggled` (`sound_editor.cpp:1364-1371`): pressing the focused
 	/// item's own shortcut pad a second time takes the second shortcut layer, and pressing any

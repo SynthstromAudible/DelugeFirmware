@@ -65,6 +65,47 @@ describe menu_pads("scenes::menu::MenuPads -- blinks under a covering scene", $ 
 		expect(std::ranges::count(frame_at(pads, core, 2005 + menu::kSourceBlinkMs, false), cutoff)).to_equal(1);
 	});
 
+	it("asks for no blink wake while covered, and asks again once uncovered", _ {
+		deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
+		spec::SongFixture song = spec::make_synth_song();
+		MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
+		                                    /*kit_global_fx=*/false);
+		menu::MenuState st{};
+		st.path[0] = &nodes::lpf_freq;
+		menu::MenuPads pads;
+		const menu::MenuCore core{ctx, st};
+		(void)frame_at(pads, core, 1000, false);
+		expect(menu::pad_next_timer(ctx, st).has_value()).to_be_true();
+		(void)frame_at(pads, core, 1100, true);
+		expect(menu::pad_next_timer(ctx, st).has_value()).to_be_false();
+		(void)frame_at(pads, core, 1200, false);
+		expect(menu::pad_next_timer(ctx, st).has_value()).to_be_true();
+	});
+
+	it("waits 500 ms after the patch cables page opens or its cursor moves before it blinks", _ {
+		// `PatchCables::blinkShortcutsSoon`: scrolling the list shows no flashes until the cursor rests.
+		deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
+		spec::SongFixture song = spec::make_synth_song(); // its synth patches NOTE and VELOCITY to the cutoff
+		MenuContext ctx = menu::context_for(*song.song, deluge::gui::menuViewOf(song.clip), 0, false, false, false,
+		                                    /*kit_global_fx=*/false);
+		menu::MenuState st{};
+		st.path[0] = &nodes::patch_cables;
+		menu::MenuPads pads;
+		const menu::MenuCore core{ctx, st};
+		const auto flashes_between = [&](uint32_t from, uint32_t to) {
+			size_t n = 0;
+			for (uint32_t t = from; t < to; t += 10) {
+				n += frame_at(pads, core, t, false).size();
+			}
+			return n;
+		};
+		expect(flashes_between(1000, 1500)).to_equal(size_t(0));
+		expect(flashes_between(1500, 2000) > 0).to_be_true();
+		st.list[0].cursor = 1;
+		expect(flashes_between(2000, 2500)).to_equal(size_t(0));
+		expect(flashes_between(2500, 3000) > 0).to_be_true();
+	});
+
 	it("an exclusive blink flashes only its pad, on every other cycle", _ {
 		const menu::BlinkPlan plan = menu::exclusive_blink(5, 5);
 		expect(plan.any_source()).to_be_false();

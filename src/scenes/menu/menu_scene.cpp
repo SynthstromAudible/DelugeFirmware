@@ -105,7 +105,6 @@ void MenuScene::reset_process_state() {
 }
 
 bool MenuScene::on_enter(const SceneId& id) {
-	visit_ = {}; // `beginScreen`: a new screen, with `blinkLed(IndicatorLED::BACK)` (`sound_editor.cpp:571`)
 	// `SceneId::arg` is deliberately NOT part of the `SceneState` cache key (`shell/scene.h:68`),
 	// so a re-entry restores the kind's last saved state and *then* lands here: this must
 	// overwrite `path`/`depth` from `arg` rather than trust what `restore_state` put there.
@@ -178,6 +177,7 @@ bool MenuScene::on_enter(const SceneId& id) {
 				// (`descend_to(nodes::multi_range)` below); this is the deep link's copy, and it
 				// re-roots rather than descending because there is no path to descend from.
 				// The two writes come after `retarget`, which resets both fields.
+				visit_ = {};
 				retarget(nodes::multi_range);
 				st_.walk.range_picker_pending = true;
 				st_.walk.pending_after_range = target;
@@ -196,10 +196,14 @@ bool MenuScene::on_enter(const SceneId& id) {
 		return false;
 	}
 	if (page != nullptr) {
+		visit_ = {};
 		retarget(*page);
 		walk_.focus_column(core(), *target);
 		return true;
 	}
+	// `beginScreen`: a new screen, with `blinkLed(IndicatorLED::BACK)` (`sound_editor.cpp:571`). Reset only on a
+	// screen that opens: a refused id leaves the menu the visit it was, as the shell rolls the move back.
+	visit_ = {};
 	retarget(*target);
 	return true;
 }
@@ -406,7 +410,9 @@ MenuActionRequest MenuScene::take_action() {
 
 Result MenuScene::after_render() {
 	Result r;
+#ifdef DELUGE_HOST
 	drain_trace_len_ = 0;
+#endif
 	// A `Value`-derived bespoke item's cursor moved under a held Select is a value edited under it.
 	const Node* const shown = focused();
 	const bool value_turned = shown != nullptr && shown->kind == Kind::Custom && shown->custom != nullptr

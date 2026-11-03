@@ -139,6 +139,24 @@ describe menu_contract_claims("scenes::MenuScene::owned_input -- the render's cl
 });
 
 describe menu_contract_visit("scenes::MenuScene -- a visit's state", $ {
+	it("keeps the visit when on_enter refuses the id it is given", _ {
+		// A refused `on_enter` rolls the move back: the menu stays the visit it was, learn mode and all.
+		select_language();
+		Rig r;
+		r.open(nodes::sound_root, nodes::lpf_freq);
+		r.shell.tick(0);
+		const deluge::ui::shell::ButtonSet held{};
+		const deluge::ui::PadMask pads{};
+		const deluge::ui::shell::UiContext ui{held, pads, false, false, 0, deluge_profile()};
+		(void)menu_scene().handle(
+		    deluge::ui::shell::UiEvent{.kind = deluge::ui::shell::UiEvent::Kind::Button,
+		                               .button = deluge::ui::shell::ButtonId::Learn, .on = true},
+		    ui);
+		expect(menu_scene().select_release_blocked()).to_be_true(); // learn mode
+		expect(menu_scene().on_enter(SceneId{SceneKind::FirstApp, 0xFFFF})).to_be_false();
+		expect(menu_scene().select_release_blocked()).to_be_true();
+	});
+
 	it("starts a reopened visit clean: a close asked for by the last visit does not close this one", _ {
 		select_language();
 		Rig r;

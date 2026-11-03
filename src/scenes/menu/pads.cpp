@@ -53,6 +53,7 @@ void MenuPads::render_grid(MenuCore core, deluge::ui::grid::GridFrame& f) {
 	// Under a scene that takes the input -- the browser, the slicer, a context menu -- the shortcut blinks are that
 	// scene's, or nobody's (`main`'s browser plays its own exclusive one). The anchor is dropped so the cycle starts
 	// over when the menu is uncovered.
+	st.blink_covered = f.covered;
 	if (f.covered) {
 		st.blink_node = nullptr;
 		return;
@@ -63,13 +64,22 @@ void MenuPads::render_grid(MenuCore core, deluge::ui::grid::GridFrame& f) {
 	}
 	const uint32_t now = f.now_ms();
 	const BlinkPlan plan = plan_blinks(ctx, st, *node);
-	if (st.blink_node != node || st.blink_plan != plan) {
+	// An item that delays its blink (the patch cables list) starts over on every cursor move, as its own
+	// `readValueAgain` restarts the wait, even when the plan stays the same.
+	const uint16_t delay = node->custom != nullptr ? node->custom->blink_delay_ms() : 0;
+	const int16_t cursor = st.list[st.depth].cursor;
+	if (st.blink_node != node || st.blink_plan != plan || (delay != 0 && st.blink_cursor != cursor)) {
 		st.blink_node = node;
 		st.blink_plan = plan;
-		st.blink_anchor_ms = now;
+		st.blink_cursor = cursor;
+		st.blink_anchor_ms = now + delay;
 		st.blink_fired_step = UINT32_MAX;
 	}
 	if (!plan.param.valid && !plan.any_source()) {
+		return;
+	}
+	if (static_cast<int32_t>(st.blink_anchor_ms - now) > 0) {
+		f.grid_gate().request_repaint_after(st.blink_anchor_ms - now, now);
 		return;
 	}
 	// Legacy steps its counter on a timer and flashes once per step; a frame lands anywhere inside
@@ -292,6 +302,9 @@ deluge::ui::grid::GreyoutMask greyout_mask(const MenuContext& ctx, const MenuSta
 }
 
 std::optional<uint32_t> pad_next_timer(const MenuContext& ctx, const MenuState& st) {
+	if (st.blink_covered) {
+		return std::nullopt;
+	}
 	const Node* node = pad_subject(ctx, st);
 	if (node == nullptr) {
 		return std::nullopt;

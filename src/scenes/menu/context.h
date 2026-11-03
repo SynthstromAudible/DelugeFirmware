@@ -165,8 +165,8 @@ struct MenuContext {
 	///        `SoundDrum` has no note row (`sound_editor.cpp:1719-1721`), and a kit with neither
 	///        affect-entire nor a selected drum (`:1677-1684`).
 	///
-	/// An addition to the brief's field list, forced by the signature: `context_for()` returns a
-	/// value, not `setup()`'s `bool`, so the refusal needs somewhere to live. Nothing else in this
+	/// `context_for()` returns a value, not `setup()`'s `bool`, so the refusal needs somewhere to
+	/// live. Nothing else in this
 	/// struct distinguishes those two cases from a legitimately sparse context -- the settings root
 	/// also has a null `params`.
 	bool resolved = false;

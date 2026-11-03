@@ -120,6 +120,8 @@ public:
 	                                 const deluge::ui::shell::UiContext& ui_ctx, const MenuContext& ctx,
 	                                 MenuState& state) const override;
 	void on_focus(const MenuContext& ctx, MenuState& state) const override;
+	/// `PatchCables::blinkShortcutsSoon` (`patch_cables.cpp:135-139`): 500 ms on an OLED panel.
+	uint16_t blink_delay_ms() const override { return 500; }
 	/// The cable under the cursor's destination, as `PatchCables::blinkShortcuts` blinks it (`patch_cables.cpp`).
 	uint8_t patched_param_to_blink(const MenuContext& ctx, const MenuState& state) const override;
 	/// Its source every cycle, and the source whose depth it modulates every fourth.

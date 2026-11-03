@@ -263,8 +263,11 @@ public:
 		Repaint,
 		PendingScene,
 	};
+#ifdef DELUGE_HOST
 	/// @return The arms the last `after_render` acted on, in the order they acted: the witness of the drain order.
+	///         Host builds only; the device keeps no trace.
 	std::span<const DrainBand> drain_trace() const { return {drain_trace_.data(), drain_trace_len_}; }
+#endif
 
 	/// @brief What the menu is currently editing -- the `MenuContext` the last `open()` installed.
 	///
@@ -444,13 +447,17 @@ private:
 	void retarget(const Node& node);
 
 	MenuState st_{};
+#ifdef DELUGE_HOST
 	/// What the last `after_render` drained, in order (`drain_trace`).
 	std::array<DrainBand, 8> drain_trace_{};
 	size_t drain_trace_len_ = 0;
-	void trace_drain(DrainBand band) {
+#endif
+	void trace_drain([[maybe_unused]] DrainBand band) {
+#ifdef DELUGE_HOST
 		if (drain_trace_len_ < drain_trace_.size()) {
 			drain_trace_[drain_trace_len_++] = band;
 		}
+#endif
 	}
 	/// The voice usage page's clock and counters; process-lifetime, like legacy's `cpu::VoiceUsage`.
 	VoiceUsageClock voice_usage_;

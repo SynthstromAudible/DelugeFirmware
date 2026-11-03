@@ -740,6 +740,11 @@ struct CustomItem {
 	/// @param previous_held Another patching-source pad is held.
 	virtual SourceTarget source_target(bool /*previous_held*/) const { return SourceTarget::Parameter; }
 
+	/// @brief How long this item's shortcut blink waits after the item opens or its list cursor moves --
+	///        `PatchCables::blinkShortcutsSoon`'s throttle, so scrolling a list is not a storm of flashes.
+	/// @return Milliseconds; 0 for none.
+	virtual uint16_t blink_delay_ms() const { return 0; }
+
 	/// @brief Is this item a patch cable's strength -- `getParamKind() == Kind::PATCH_CABLE`? Such an item never
 	///        arms the second shortcut layer, and on it a second press of the active source takes the source's second
 	///        layer.

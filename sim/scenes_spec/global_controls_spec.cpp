@@ -1008,6 +1008,26 @@ describe global_controls_spec_body("scenes::services::GlobalControls", $ {
 		rig.press(ButtonId::Shift, false, 24'015);
 	});
 
+	it("shift+SELECT_ENC: over an instrument clip, the settings menu greys as the clip's", _ {
+		// `getGreyoutColsAndRows` decides by the root UI alone: an instrument clip under the settings menu keeps its
+		// audition column lit.
+		static spec::SongFixture fixture = spec::make_synth_song();
+		currentSong = fixture.song;
+		release_all_legacy_buttons();
+		GcRig rig;
+		rig.gc.set_song(fixture.song);
+		expect(reset_transport(100'000)).to_be_true();
+		GlobalControls::ViewState vs;
+		vs.root_greyout = menu::MenuContext::RootGreyout::InstrumentClip;
+		rig.gc.set_view_state(vs);
+		rig.press(ButtonId::Shift, true, 26'000);
+		const Result r = rig.press(ButtonId::SelectEnc, true, 26'005);
+		expect(r.handled).to_be_true();
+		expect(menu_scene().greyout_mask().cols).to_equal(uint32_t{0xFFFFFFFE});
+		rig.press(ButtonId::SelectEnc, false, 26'010);
+		rig.press(ButtonId::Shift, false, 26'015);
+	});
+
 	it("shift+SELECT_ENC: refuses while recording to the arrangement", _ {
 		// `:452-455`.
 		static spec::SongFixture fixture = spec::make_synth_song();

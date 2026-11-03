@@ -342,10 +342,12 @@ void GlobalControls::handle_settings_menu(const UiContext& ctx, Result& result) 
 	// Buttons::isShiftButtonPressed()` (`view.cpp:450`). So the root is `settingsRootMenu`
 	// (`:1769`) whatever view is on screen, and `context_for`'s two matching arguments are passed
 	// false for exactly that reason rather than because the view is unknown here.
-	const menu::MenuContext menu_ctx = menu::context_for(*song_, services::MenuView{}, /*source_index=*/0,
-	                                                     /*performance_view=*/false,
-	                                                     /*session_or_arranger_root=*/false,
-	                                                     /*session_view_root=*/false, /*kit_global_fx=*/false);
+	menu::MenuContext menu_ctx = menu::context_for(*song_, services::MenuView{}, /*source_index=*/0,
+	                                               /*performance_view=*/false,
+	                                               /*session_or_arranger_root=*/false,
+	                                               /*session_view_root=*/false, /*kit_global_fx=*/false);
+	// The greyout still follows the root view under the menu (`getGreyoutColsAndRows`).
+	menu_ctx.root_greyout = view_.root_greyout;
 	const std::span<const menu::Node* const> roots = menu::MenuScene::roots();
 	const size_t i = static_cast<size_t>(menu::MenuContext::Root::Settings);
 	if (i >= roots.size() || roots[i] == nullptr) {

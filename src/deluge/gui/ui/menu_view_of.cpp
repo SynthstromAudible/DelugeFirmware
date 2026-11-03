@@ -1,5 +1,9 @@
 #include "gui/ui/menu_view_of.h"
 
+#include "gui/ui/root_ui.h"
+#include "gui/ui/ui.h"
+#include "gui/views/automation_view.h"
+
 #include "model/clip/clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
@@ -47,6 +51,24 @@ scenes::services::MenuView menuViewOf(::Clip* clip) {
 		}
 	}
 	return view;
+}
+
+scenes::menu::MenuContext::RootGreyout menuRootGreyout() {
+	using RootGreyout = scenes::menu::MenuContext::RootGreyout;
+	RootUI* root = getRootUI();
+	if (root == nullptr) {
+		return RootGreyout::Menu;
+	}
+	switch (root->getUIType()) {
+	case UIType::KEYBOARD_SCREEN:
+		return RootGreyout::Nothing;
+	case UIType::AUTOMATION:
+		return automationView.inAutomationEditor() ? RootGreyout::Nothing : RootGreyout::SpareSidebar;
+	case UIType::INSTRUMENT_CLIP:
+		return RootGreyout::InstrumentClip;
+	default:
+		return RootGreyout::Menu;
+	}
 }
 
 } // namespace deluge::gui

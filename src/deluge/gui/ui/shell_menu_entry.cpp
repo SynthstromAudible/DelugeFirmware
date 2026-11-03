@@ -111,19 +111,7 @@ menu::MenuContext resolveContext(Clip* clip, int32_t sourceIndex, bool performan
 	menu::MenuContext ctx =
 	    menu::context_for(*currentSong, deluge::gui::menuViewOf(clip), static_cast<int8_t>(sourceIndex),
 	                      performanceView, sessionOrArrangerRoot, sessionViewRoot, kitGlobalFx);
-	// `SoundEditor::getGreyoutColsAndRows`' root-type arms (`gui/ui/sound_editor.cpp:441-460`).
-	if (RootUI* root = getRootUI(); root != nullptr) {
-		if (root->getUIType() == UIType::KEYBOARD_SCREEN) {
-			ctx.root_greyout = menu::MenuContext::RootGreyout::Nothing;
-		}
-		else if (root->getUIType() == UIType::INSTRUMENT_CLIP) {
-			ctx.root_greyout = menu::MenuContext::RootGreyout::InstrumentClip;
-		}
-		else if (root->getUIType() == UIType::AUTOMATION) {
-			ctx.root_greyout = automationView.inAutomationEditor() ? menu::MenuContext::RootGreyout::Nothing
-			                                                       : menu::MenuContext::RootGreyout::SpareSidebar;
-		}
-	}
+	ctx.root_greyout = deluge::gui::menuRootGreyout();
 	ctx.root_is_keyboard = getRootUI() == &keyboardScreen;
 	return ctx;
 }
