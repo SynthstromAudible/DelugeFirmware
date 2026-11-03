@@ -737,7 +737,7 @@ Result MenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 		return *r;
 	}
 
-	if (std::optional<Result> r = pads_.handle_pad(core(), event, ctx)) {
+	if (std::optional<Result> r = pads_.handle_pad(core(), walk_, visit_.session, event, ctx)) {
 		return *r;
 	}
 

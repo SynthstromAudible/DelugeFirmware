@@ -143,6 +143,16 @@ struct ParamRef {
 /// @brief Forward declared only -- see the file-level note. Defined in `context.h` (a later task).
 struct MenuContext;
 
+/// @brief An item's answer to SHIFT and a patching-source pad -- `MenuItem::patchingSourceShortcutPress`'s three.
+enum class SourcePress : uint8_t {
+	/// Nothing happens (`nullptr`): the press stops at this item.
+	Unhandled,
+	/// Ask the item one level up (`NO_NAVIGATION`); past the root the menu closes.
+	GoUp,
+	/// Open the node the item names, one level below it.
+	Open,
+};
+
 using GetFn = int32_t (*)(const MenuContext&);
 using SetFn = void (*)(const MenuContext&, int32_t);
 using RangeFn = IntRange (*)(const MenuContext&);
@@ -709,6 +719,20 @@ struct CustomItem {
 	///        `MenuItem::shouldBlinkPatchingSourceShortcut` (`sound_editor.cpp:1034-1064`).
 	/// @param colour Set to the flash colour when it is not the default.
 	/// @return The frequency mask (0 every cycle, 3 every fourth), or 255 for no blink.
+	/// @brief SHIFT and the patching-source pad for @p source while this item is focused --
+	///        `MenuItem::patchingSourceShortcutPress` (`sound_editor.cpp:1532-1609`).
+	/// @param previous_held Another patching-source pad is held (`isOtherModSourcePadPressed`).
+	/// @param open          Set to the node to open when the answer is `SourcePress::Open`.
+	virtual SourcePress source_press(const MenuContext& /*ctx*/, MenuState& /*state*/, PatchSource /*source*/,
+	                                 bool /*previous_held*/, const Node*& /*open*/) const {
+		return SourcePress::Unhandled;
+	}
+
+	/// @brief Is this item a patch cable's strength -- `getParamKind() == Kind::PATCH_CABLE`? Such an item never
+	///        arms the second shortcut layer, and on it a second press of the active source takes the source's second
+	///        layer.
+	virtual bool is_patch_cable() const { return false; }
+
 	virtual uint8_t source_blink(const MenuContext& /*ctx*/, const MenuState& /*state*/, PatchSource /*source*/,
 	                             deluge::ui::grid::FlashColour& /*colour*/) const {
 		return 255;

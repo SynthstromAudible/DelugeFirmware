@@ -20,8 +20,11 @@
 
 #include "scenes/menu/pads.h"
 
+#include "scenes/menu/bindings.h"
 #include "scenes/menu/chains.h"
 #include "scenes/menu/node_id.h"
+#include "scenes/menu/nodes/patch_cables.h"
+#include "scenes/menu/nodes/patching.h"
 #include "scenes/menu/walk.h"
 
 #include "gui/l10n/strings.h"
@@ -74,7 +77,115 @@ void MenuPads::render_grid(MenuCore core, deluge::ui::grid::GridFrame& f) {
 	f.grid_gate().request_repaint_after(ms_to_next_step(st.blink_anchor_ms, now), now);
 }
 
-std::optional<Result> MenuPads::handle_pad(MenuCore core, const UiEvent& event, const UiContext& ui) {
+namespace {
+
+/// The patching-source column: (14, 5..7) and all of column 15.
+bool is_source_pad(uint8_t x, uint8_t y) {
+	return (x == kShortcutCols - 2 && y >= 5) || x == kShortcutCols - 1;
+}
+
+/// The randomizer trio, (15, 1..3): shortcuts when no item takes the source press.
+bool is_randomizer_pad(uint8_t x, uint8_t y) {
+	return x == kShortcutCols - 1 && y >= 1 && y <= 3;
+}
+
+/// `getParamKind() == Kind::PATCH_CABLE` for @p node.
+bool is_patch_cable_item(const Node* node) {
+	return node != nullptr
+	       && ((node->custom != nullptr && node->custom->is_patch_cable())
+	           || node->bind.param.kind == deluge::modulation::params::Kind::PATCH_CABLE);
+}
+
+/// `isOtherModSourcePadPressed` (`sound_editor.cpp:237-246`): a patching-source pad other than (@p x, @p y) is held.
+bool other_source_pad_held(const UiContext& ui, uint8_t x, uint8_t y) {
+	for (uint8_t sx = kShortcutCols - 2; sx < kShortcutCols; sx++) {
+		for (uint8_t sy = 0; sy < kShortcutRows; sy++) {
+			if (is_source_pad(sx, sy) && (sx != x || sy != y) && ui.held_pads.test(sx, sy)) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+/// @brief The answer of the item at @p depth: a horizontal page answers for its focused column
+///        (`Submenu::patchingSourceShortcutPress`, `submenu.cpp:290-297`), and a patched param through the regular
+///        source list, keeping its own param selected only when the list opens a page (`patched_param.cpp:78-88`).
+SourcePress answer_at(MenuCore core, uint8_t depth, PatchSource source, bool previous_held, const Node*& open) {
+	MenuContext& ctx = core.ctx;
+	MenuState& st = core.st;
+	const Node* node = st.path[depth];
+	if (node != nullptr && node->kind == Kind::Submenu) {
+		node = is_horizontal(ctx, *node) ? child_at(ctx, *node, st.columns[depth].focused) : nullptr;
+	}
+	if (node == nullptr) {
+		return SourcePress::Unhandled;
+	}
+	if (node->custom != nullptr) {
+		return node->custom->source_press(ctx, st, source, previous_held, open);
+	}
+	if (node->bind.param.kind == deluge::modulation::params::Kind::PATCHED) {
+		const uint8_t previous = st.walk.patching_param;
+		st.walk.patching_param = node->bind.param.index;
+		const SourcePress r = nodes::kSourceSelectionRegularItem.source_press(ctx, st, source, previous_held, open);
+		if (r != SourcePress::Open) {
+			st.walk.patching_param = previous;
+		}
+		return r;
+	}
+	return SourcePress::Unhandled;
+}
+
+} // namespace
+
+std::optional<Result> MenuPads::source_press(MenuCore core, MenuWalk& walk, ValueSession& session, uint8_t x, uint8_t y,
+                                             const UiContext& ui) {
+	MenuContext& ctx = core.ctx;
+	MenuState& st = core.st;
+	const uint8_t sx = x - (kShortcutCols - 2);
+	PatchSource source = patching::mod_source_shortcut(sx, y, false);
+	// A second press on the source a patch-cable page edits (its pad blinks white every cycle) takes the pad's second
+	// layer, ENV3 for ENV1 (`sound_editor.cpp:1537-1548`).
+	const SourceBlink& blink = st.blink_plan.sources[sx][y];
+	if (blink.freq_mask == 0 && blink.colour != deluge::ui::grid::FlashColour::Yellow
+	    && is_patch_cable_item(focused_value(ctx, st))) {
+		if (const PatchSource second = patching::mod_source_shortcut(sx, y, true);
+		    second != PatchSource::NOT_AVAILABLE) {
+			source = second;
+		}
+	}
+	Result handled;
+	handled.handled = true;
+	if (source >= kLastPatchSource) {
+		return handled;
+	}
+	const bool previous_held = other_source_pad_held(ui, x, y);
+	for (int32_t d = st.depth;; d--) {
+		const Node* open = nullptr;
+		const SourcePress answer = answer_at(core, static_cast<uint8_t>(d), source, previous_held, open);
+		if (answer == SourcePress::GoUp) {
+			if (d == 0) {
+				// `exitCompletely()`.
+				(void)handled.actions.push_back(Action{.kind = Action::Kind::Remove, .pop_to = SceneKind::FirstApp});
+				return handled;
+			}
+			continue;
+		}
+		if (answer != SourcePress::Open || open == nullptr || permission_for(*open, ctx) == Permission::No) {
+			return std::nullopt;
+		}
+		for (int32_t i = d + 1; i <= st.depth && i < kMenuDepth; i++) {
+			st.path[i] = nullptr;
+		}
+		st.depth = static_cast<uint8_t>(d);
+		walk.descend_to(core, session, *open);
+		(void)handled.actions.push_back(Action{.kind = Action::Kind::RepaintAll});
+		return handled;
+	}
+}
+
+std::optional<Result> MenuPads::handle_pad(MenuCore core, MenuWalk& walk, ValueSession& session, const UiEvent& event,
+                                           const UiContext& ui) {
 	MenuContext& ctx = core.ctx;
 	MenuState& st = core.st;
 	// The shortcut-pad jump. A `Pad` event is never masked (`ui/core/frame_context.h`, rule
@@ -91,7 +202,16 @@ std::optional<Result> MenuPads::handle_pad(MenuCore core, const UiEvent& event, 
 		// second layer at all. On any other root the flag is left exactly as it was, rather than
 		// being cleared by a press legacy never looked at.
 		const bool sound_arm = ctx.root == MenuContext::Root::Sound || ctx.root == MenuContext::Root::Drum;
-		if (sound_arm) {
+		// The patching-source column patches a source to the focused item before it is a shortcut at all.
+		if (sound_arm && is_source_pad(event.x, event.y)) {
+			if (std::optional<Result> r = source_press(core, walk, session, event.x, event.y, ui)) {
+				return r;
+			}
+		}
+		// Only the regular shortcut cells and the randomizer trio of the source column touch the second layer.
+		const bool toggles_layer =
+		    sound_arm && (!is_source_pad(event.x, event.y) || is_randomizer_pad(event.x, event.y));
+		if (toggles_layer) {
 			const Node* current = pad_subject(ctx, st);
 			const ShortcutPos here = current != nullptr ? shortcut_pos(ctx.root, *current) : ShortcutPos{};
 			const bool same_pad = here.valid && here.x == event.x && here.y == event.y;
@@ -99,12 +219,10 @@ std::optional<Result> MenuPads::handle_pad(MenuCore core, const UiEvent& event, 
 			// column's own when it is not a submenu (`Submenu::getParamKind`, `shouldForwardButtons`),
 			// which is `focused_value()`.
 			const Node* value = focused_value(ctx, st);
-			const bool is_patch_cable =
-			    value != nullptr && value->bind.param.kind == deluge::modulation::params::Kind::PATCH_CABLE;
-			st.second_layer = (same_pad && !is_patch_cable) ? !st.second_layer : false;
+			st.second_layer = (same_pad && !is_patch_cable_item(value)) ? !st.second_layer : false;
 		}
 
-		const Node* target = shortcut_node(ctx.root, sound_arm && st.second_layer, event.x, event.y);
+		const Node* target = shortcut_node(ctx.root, toggles_layer && st.second_layer, event.x, event.y);
 		if (target != nullptr && !shortcut_applies(*target, ctx)) {
 			deluge::notify::notice_string(
 			    static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_PARAMETER_NOT_APPLICABLE));

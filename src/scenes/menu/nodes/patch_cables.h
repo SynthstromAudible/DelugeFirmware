@@ -157,6 +157,11 @@ public:
 
 	constexpr Which which() const { return which_; }
 
+	/// `source_selection::Regular::patchingSourceShortcutPress` (`regular.cpp:50-66`): the source's strength page, or
+	/// PARAMETER NOT APPLICABLE for a source the destination refuses; `Range`'s asks the item above.
+	deluge::scenes::menu::SourcePress source_press(const MenuContext& ctx, MenuState& state, PatchSource source,
+	                                               bool previous_held, const Node*& open) const override;
+
 	/// `SourceSelection::getIndexOfPatchedParamToBlink` / `shouldBlinkPatchingSourceShortcut`
 	/// (`source_selection.cpp:309-318`): the param, and every source patched to the destination.
 	uint8_t patched_param_to_blink(const MenuContext& ctx, const MenuState& state) const override;
@@ -201,6 +206,13 @@ public:
 	deluge::synth::CableTarget learn_descriptor(const MenuContext& ctx, const MenuState& state) const override;
 
 	constexpr Which which() const { return which_; }
+
+	/// The three classes' `patchingSourceShortcutPress` (`regular.cpp:85-91`, `range.cpp:58-60`, `fixed.cpp:45-48`):
+	/// another held source pad opens the range page for the pressed source (`Fixed` always opens it); otherwise the
+	/// item above answers.
+	deluge::scenes::menu::SourcePress source_press(const MenuContext& ctx, MenuState& state, PatchSource source,
+	                                               bool previous_held, const Node*& open) const override;
+	bool is_patch_cable() const override { return true; }
 
 	/// `PatchCableStrength::getIndexOfPatchedParamToBlink` (`patch_cable_strength.cpp:284-290`, the volume triple
 	/// folded to POST_FX) and the three classes' `shouldBlinkPatchingSourceShortcut` (`regular.cpp:67-83`,

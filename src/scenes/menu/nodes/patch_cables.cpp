@@ -31,6 +31,7 @@
 #include "scenes/menu/menu_scene.h"
 #include "scenes/profile.h"
 
+#include "notify/notice_queue.h"
 #include "ui/oled/list.h"
 #include "ui/oled/routing.h"
 #include "ui/oled/text.h"
@@ -880,6 +881,34 @@ uint8_t PatchCableStrengthItem::source_blink(const MenuContext& ctx, const MenuS
 		return find_cable(ctx, source, learn_descriptor(ctx, state)).has_value() ? 3 : 255;
 	}
 	return 255;
+}
+
+SourcePress SourceSelectionItem::source_press(const MenuContext& ctx, MenuState& state, PatchSource source,
+                                              bool /*previous_held*/, const Node*& open) const {
+	if (which_ == Which::Range) {
+		return SourcePress::GoUp;
+	}
+	// The volume triple is one destination: a press from either of its other two members patches POST_FX.
+	const uint8_t previous = state.walk.patching_param;
+	state.walk.patching_param = folded_volume(previous);
+	if (!patching::source_is_allowed(ctx, source, destination_for(state, false))) {
+		state.walk.patching_param = previous;
+		deluge::notify::notice_string(static_cast<uint16_t>(String::STRING_FOR_PARAMETER_NOT_APPLICABLE));
+		return SourcePress::Unhandled;
+	}
+	state.walk.patch_source = source;
+	open = &patch_cable_strength_regular;
+	return SourcePress::Open;
+}
+
+SourcePress PatchCableStrengthItem::source_press(const MenuContext& /*ctx*/, MenuState& state, PatchSource source,
+                                                 bool previous_held, const Node*& open) const {
+	if (which_ == Which::Range || (which_ == Which::Regular && !previous_held)) {
+		return SourcePress::GoUp;
+	}
+	state.walk.patch_range_source = source;
+	open = &patch_cable_strength_range;
+	return SourcePress::Open;
 }
 
 // The nodes. Defined here rather than in the header -- see `patch_cables.h` for why (the chain is

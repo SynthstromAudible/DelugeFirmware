@@ -5,6 +5,8 @@
 ///        landing the jump arms, and the grid greyout under the menu.
 
 #include "scenes/menu/menu_core.h"
+#include "scenes/menu/value_session.h"
+#include "scenes/menu/walk.h"
 #include "shell/scene.h"
 #include "ui/grid/effects.h"
 
@@ -28,8 +30,18 @@ public:
 	void render_grid(MenuCore core, deluge::ui::grid::GridFrame& f);
 	/// @brief SHIFT + a pad: the second-layer toggle and the jump (`potentialShortcutPadAction`).
 	/// @return The result when the event was a SHIFT + pad press, else nullopt.
-	std::optional<deluge::ui::shell::Result> handle_pad(MenuCore core, const deluge::ui::shell::UiEvent& event,
+	std::optional<deluge::ui::shell::Result> handle_pad(MenuCore core, MenuWalk& walk, ValueSession& session,
+	                                                    const deluge::ui::shell::UiEvent& event,
 	                                                    const deluge::ui::shell::UiContext& ui);
+	/// @brief SHIFT + the patching-source pad (@p x, @p y): the source arm of `potentialShortcutPadAction`
+	///        (`sound_editor.cpp:1532-1609`).
+	///
+	/// The pad's source -- its second layer when the pad is the active source of a patch-cable page that blinks it
+	/// white -- is offered to the focused item, then each item above while they answer `SourcePress::GoUp`; past the
+	/// root the menu closes. An item's `Open` opens its node one level below it, when that node's permission allows.
+	/// @return The result when an item took the press or the pad names no source, else nullopt.
+	std::optional<deluge::ui::shell::Result> source_press(MenuCore core, MenuWalk& walk, ValueSession& session,
+	                                                      uint8_t x, uint8_t y, const deluge::ui::shell::UiContext& ui);
 	/// @brief Arm the landing for a jump to @p target: its page's id when a chained page lists it, else its own.
 	uint16_t arm_landing(const MenuContext& ctx, const Node& target);
 	/// @brief The armed landing column, disarming it.
