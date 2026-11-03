@@ -123,8 +123,7 @@ void convert_24bit_range(char* begin, char const* end, Yield yield) {
 }
 
 /// @brief Vectorized transform over the 16-byte-aligned prefix of [begin, end), for formats with a SIMD
-///        path (UNSIGNED_8, ENDIANNESS_WRONG_32, ENDIANNESS_WRONG_16, and FLOAT on real NEON only — see
-///        the `#if` below).
+///        path (UNSIGNED_8, ENDIANNESS_WRONG_32, ENDIANNESS_WRONG_16 and FLOAT).
 ///
 /// Yields roughly every 1024 bytes (64 lanes), matching convert_word_range's cadence.
 /// @tparam Yield Cooperative-scheduling callable; see convert_cluster_data's @note for what it's for.
@@ -136,14 +135,8 @@ void convert_24bit_range(char* begin, char const* end, Yield yield) {
 ///         no SIMD path, `begin` is returned unchanged so the caller's scalar loop covers the whole range.
 template <class Yield>
 std::byte* convert_range_simd(std::byte* begin, std::byte* end, RawDataFormat format, Yield yield) {
-	// Integer formats always take the SIMD path; FLOAT only on real NEON (the #if below).
-	bool const has_int_simd_path = format == RawDataFormat::UNSIGNED_8 || format == RawDataFormat::ENDIANNESS_WRONG_32
-	                               || format == RawDataFormat::ENDIANNESS_WRONG_16;
-#if defined(__ARM_NEON) || defined(__ARM_FEATURE_MVE)
-	bool const has_simd_path = has_int_simd_path || format == RawDataFormat::FLOAT;
-#else
-	bool const has_simd_path = has_int_simd_path;
-#endif
+	bool const has_simd_path = format == RawDataFormat::UNSIGNED_8 || format == RawDataFormat::ENDIANNESS_WRONG_32
+	                           || format == RawDataFormat::ENDIANNESS_WRONG_16 || format == RawDataFormat::FLOAT;
 	if (!has_simd_path) {
 		return begin;
 	}
@@ -164,13 +157,11 @@ std::byte* convert_range_simd(std::byte* begin, std::byte* end, RawDataFormat fo
 		case RawDataFormat::ENDIANNESS_WRONG_16:
 			Argon<uint8_t>::Load(p).Reverse16bit().StoreTo(p);
 			break;
-#if defined(__ARM_NEON) || defined(__ARM_FEATURE_MVE)
-		case RawDataFormat::FLOAT: {
+		case RawDataFormat::FLOAT: { // vcvt semantics on every target: truncate, saturate, NaN to 0
 			auto converted = Argon<float>::Load(reinterpret_cast<const float*>(p)).ConvertTo<int32_t, 31>();
 			converted.StoreTo(reinterpret_cast<int32_t*>(p));
 			break;
 		}
-#endif
 		default:
 			std::unreachable();
 		}
