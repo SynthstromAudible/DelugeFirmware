@@ -23,6 +23,7 @@
 #include "scenes/menu/menu_core.h"
 #include "scenes/menu/nodes/nodes.h"
 
+#include <algorithm>
 #include <utility>
 
 namespace deluge::scenes::menu {

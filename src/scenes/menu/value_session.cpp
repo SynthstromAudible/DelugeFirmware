@@ -20,11 +20,11 @@
 
 #include "scenes/menu/value_session.h"
 
-#include "scenes/menu/bindings.h"
 #include "scenes/menu/nodes/nodes.h"
 #include "scenes/menu/note_bridge.h"
 
 #include "notify/dirty_set.h"
+#include "scenes/menu/bindings.h"
 
 namespace deluge::scenes::menu {
 

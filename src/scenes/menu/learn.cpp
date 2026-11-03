@@ -31,7 +31,6 @@
 
 #include "deluge-project/song.h"
 
-#include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
 #include "notify/notice_queue.h"
 

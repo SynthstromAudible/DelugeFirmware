@@ -20,24 +20,25 @@
 
 #include "scenes/menu/present.h"
 
-#include "scenes/menu/bindings.h"
 #include "scenes/menu/nodes/nodes.h"
 #include "scenes/profile.h"
 
+#include "notify/notice_queue.h"
+
+#include "gui/l10n/short_label.h"
+#include "model/song/song.h" // Song::getInputTickMagnitude() -- Kind::SyncLevel's value text
+#include "ui/oled/list.h"
+
 #include "gfx/oled/icons.h"
 #include "gui/l10n/l10n.h"
-#include "gui/l10n/short_label.h"
 #include "gui/l10n/strings.h"
-#include "model/song/song.h" // Song::getInputTickMagnitude() -- Kind::SyncLevel's value text
-#include "modulation/sync.h" // syncValueToString -- Kind::SyncLevel's value text
-#include "ui/core/metrics.h"
+#include "modulation/sync.h"
+#include "scenes/menu/bindings.h"
 #include "ui/oled/columns.h"
-#include "ui/oled/list.h"
 #include "ui/oled/meters.h"
-#include "ui/oled/text.h"
-#include "ui/oled/values.h"
 
 #include <algorithm>
+#include <array>
 #include <cstring>
 #include <span>
 
@@ -462,6 +463,32 @@ std::string_view column_notification(const Node& column, const MenuContext& ctx,
 		// `Number::getNotificationValue` (`number.cpp:429-431`): the value, doubled for the PERCENT style.
 		return format_int(column.hint == Hint::Percent ? value * 2 : value, out.data(), out.size());
 	}
+}
+
+void notify_column(const MenuContext& ctx, const Node& column) {
+	// Legacy's `HorizontalMenu::displayNotification` (`horizontal_menu.cpp:335-343`) ends in one
+	// call, `display->displayNotification(menuItem->getName(), notificationValueBuf.data())`
+	// (`:342`): a one-line banner across the top of the panel, in the display's single popup slot,
+	// typed `PopupType::NOTIFICATION` (`hid/display/oled.cpp:768`). `notify::notice_notification`
+	// carries exactly that (title, value) pair, and both of its consumers end in that slot or its
+	// port: legacy's `drain_notifications` calls the same function, and `shell::Notices::drain`
+	// reaches it through the application's `NotificationSink` -- or, with no sink installed, draws
+	// `shell::NotificationScene`, which is transparent over the menu and takes no input
+	// (`shell/notices.h`). It copies into the queue's own slot, so the stack buffers below are
+	// enough.
+	//
+	// `displayNotification` refuses first when the item's `showNotification()` is false
+	// (`horizontal_menu.cpp:336-338`): every submenu (`submenu.h:69`), and the items `Node::show_notification`
+	// marks. Centralised here, so no call site lights a banner legacy never would.
+	if (column.kind == Kind::Submenu || !column.show_notification) {
+		return;
+	}
+	char value_buf[32];
+	const std::string_view text =
+	    column_notification(column, ctx, bindings::read(column, ctx), std::span<char>{value_buf, sizeof(value_buf)});
+	NodeText name_scratch;
+	const std::string_view name = display_text(column, ValueTextUse::Name, ctx, name_scratch);
+	deluge::notify::notice_notification(name, text);
 }
 
 } // namespace deluge::scenes::menu

@@ -109,6 +109,19 @@ void present_column(const Node& node, const MenuContext& ctx, int32_t value, Col
 /// @return The text; empty for a `Toggle`, whose legacy item spells none.
 std::string_view column_notification(const Node& column, const MenuContext& ctx, int32_t value, std::span<char> out);
 
+/// @brief Emit the horizontal-page notification for @p column -- the pair
+///        `HorizontalMenu::displayNotification` prints (`horizontal_menu.cpp:335-343`), name
+///        and formatted value on one line. Shared by `after_render`'s value-edit arm and
+///        `handle()`'s button-focus code, which is where legacy's own three call sites are:
+///        `selectEncoderAction` (`:328`), `handleInstrumentButtonPress`'s new-focus tail
+///        (`:437`), and `handleItemAction`'s plain-column arm (`:666`). `handleItemAction`'s
+///        other arm -- a submenu, or an `allowToBeginSessionFromHorizontalMenu` column, already
+///        focused -- calls `enterSubmenu` instead (`:677`) and never reaches
+///        `displayNotification` at all; that is `enter_horizontal_item`, not this method.
+/// @param ctx    The menu context.
+/// @param column The column the edit or press was on.
+void notify_column(const MenuContext& ctx, const Node& column);
+
 /// @brief Helpers the menu's presentation and its scene share.
 namespace detail {
 

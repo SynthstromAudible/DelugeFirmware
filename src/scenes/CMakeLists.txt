@@ -38,9 +38,13 @@ add_library(deluge_scenes STATIC
     menu/menu_scene.cpp
     menu/present.cpp
     menu/value_session.cpp
+    menu/view.cpp
     menu/voice_usage.cpp
+    menu/walk.cpp
     menu/node_id.cpp
     menu/note_bridge.cpp
+    menu/page_buttons.cpp
+    menu/pads.cpp
     menu/relevance.cpp
     menu/shortcut_blink.cpp
     menu/shortcuts.cpp

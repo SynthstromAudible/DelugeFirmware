@@ -20,9 +20,10 @@
 
 #include "scenes/menu/chains.h"
 
-#include "scenes/menu/bindings.h"
 #include "scenes/menu/menu_state.h"
 #include "scenes/menu/nodes/nodes.h"
+
+#include "scenes/menu/bindings.h"
 
 #include <algorithm>
 #include <span>

@@ -39,10 +39,14 @@
 #include "scenes/menu/menu_core.h"
 #include "scenes/menu/menu_state.h"
 #include "scenes/menu/node.h"
+#include "scenes/menu/pads.h"
+#include "scenes/menu/page_buttons.h"
 #include "scenes/menu/present.h"
 #include "scenes/menu/shortcut_blink.h"
 #include "scenes/menu/value_session.h"
+#include "scenes/menu/view.h"
 #include "scenes/menu/voice_usage.h"
+#include "scenes/menu/walk.h"
 #include "shell/scene.h"
 #include "ui/core/encoder_acceleration.h"
 #include "ui/core/response.h"
@@ -57,14 +61,6 @@
 #include <span>
 
 namespace deluge::scenes::menu {
-
-/// @brief The debounce shared by SYNTH/KIT/MIDI/CV/CROSS_SCREEN/SCALE on a horizontal page --
-///        `HorizontalMenu::buttonAction`'s `navigation_buttons_debounce_threshold`
-///        (`horizontal_menu.cpp:78`), 0.14 s as milliseconds. A press is accepted only when
-///        strictly more time than this has passed since the last accepted one
-///        (`MenuState::nav_press_ms`), matching legacy's `time - last > threshold` (`:81-82`)
-///        rather than `>=`.
-inline constexpr uint32_t kNavButtonDebounceMs = 140;
 
 /// @brief The menu interpreter. One instance for the whole application (`registry.h`'s
 ///        `menu_scene()`).
@@ -425,119 +421,21 @@ public:
 	///        `render_*` functions it dispatches to, answered before they run.
 	/// @return The claim set.
 	deluge::ui::InputClaims owned_input() const;
+	/// @brief The focused horizontal page's paging (empty off one): the page counter and the SCALE/CROSS_SCREEN rule
+	///        read the same.
+	deluge::ui::oled::Paging horizontal_paging() const { return menu::horizontal_paging(ctx_, st_); }
+	/// @brief The focused page's title (`menu::page_title`).
+	std::string_view page_title(NodeText& scratch) const { return menu::page_title(ctx_, st_, scratch); }
 
 private:
 	/// @brief The scene's context and state, for a unit's call.
 	MenuCore core() { return {ctx_, st_}; }
-	/// @brief Fill @p out with @p node's children that `relevant` admits, resolving
-	///        `dynamic_children` first.
-	/// @return How many were written.
-	size_t visible_children(const Node& node, std::span<const Node*> out) const;
-	/// @brief @p node's @p index'th visible child, or `nullptr`.
-	const Node* child_at(const Node& node, int32_t index) const;
 	/// @brief The child the current layout has focus on, or `nullptr`.
 	const Node* selected_child(const Node& node) const;
-	/// @brief True when `focused()` is a `Layout::Horizontal` submenu -- the gate
-	///        `HorizontalMenu::buttonAction`'s six-button arm ports (`handle()`'s button code).
-	bool on_horizontal_page() const;
-	/// @brief True when @p node renders and edits as a horizontal page: a `Layout::Horizontal` submenu with
-	///        `MenuContext::horizontal_menus` on (`HorizontalMenu::renderingStyle()`).
-	bool is_horizontal(const Node& node) const;
-	/// @brief SHIFT + CROSS_SCREEN/SCALE at depth 0: replace the page with the next (or previous) menu of the root's
-	///        chain that has columns, landing on its first page -- mod FX's second -- as `switchHorizontalMenu` does.
-	/// @param direction +1 or -1.
-	/// @return Whether the page changed.
-	bool switch_chained_page(int32_t direction);
-
-public:
-	/// @brief The focused horizontal page's paging (empty off one): the page counter and the SCALE/CROSS_SCREEN rule
-	///        read the same.
-	/// @return Page, total pages and position, as `ui::oled::paging_of` answers for the focused column.
-	deluge::ui::oled::Paging horizontal_paging() const;
-	/// @brief The focused page's title: on a group (`Node::is_group`) the focused column's member's, as
-	///        `HorizontalMenuGroup::getTitle` (`horizontal_menu_group.cpp:77-79`).
-	/// @param scratch Storage the returned view may point into.
-	/// @return The title text.
-	std::string_view page_title(NodeText& scratch) const;
-
-private:
-	/// @brief Turn @p node's visible children into a `Column` span carrying label, slots,
-	///        relevance and `is_submenu` -- the part of a horizontal page's presentation
-	///        `handle()`'s button code needs as well as `render_horizontal`'s full render, factored
-	///        so the two read one list rather than two copies of the same rule
-	///        (`kid.relevant == nullptr || kid.relevant(ctx_)`, `kid.kind == Kind::Submenu`).
-	///        `render`/`ctx` are left null; only the renderer fills those in, and only when
-	///        actually drawing.
-	/// @param node          The horizontal submenu to list.
-	/// @param kids          Written with @p node's visible children, parallel to @p cols.
-	/// @param cols          Written with one `Column` per child.
-	/// @param label_scratch Backing storage for each column's label text; must outlive @p cols.
-	/// @return How many children were written (`visible_children`'s own count).
-	size_t build_column_list(const Node& node, std::span<const Node*> kids, std::span<deluge::ui::oled::Column> cols,
-	                         std::span<NodeText> label_scratch) const;
-	/// @brief Emit the horizontal-page notification for @p column -- the pair
-	///        `HorizontalMenu::displayNotification` prints (`horizontal_menu.cpp:335-343`), name
-	///        and formatted value on one line. Shared by `after_render`'s value-edit arm and
-	///        `handle()`'s button-focus code, which is where legacy's own three call sites are:
-	///        `selectEncoderAction` (`:328`), `handleInstrumentButtonPress`'s new-focus tail
-	///        (`:437`), and `handleItemAction`'s plain-column arm (`:666`). `handleItemAction`'s
-	///        other arm -- a submenu, or an `allowToBeginSessionFromHorizontalMenu` column, already
-	///        focused -- calls `enterSubmenu` instead (`:677`) and never reaches
-	///        `displayNotification` at all; that is `enter_horizontal_item`, not this method.
-	void notify_column(const Node& column);
-	/// @brief `checkPermissionToBeginSessionForRangeSpecificParam`'s allocation
-	///        (`sound_editor.cpp:1993-1997`) plus legacy's `MUST_SELECT_RANGE` substitution --
-	///        `multiRangeMenu.menuItemHeadingTo = newItem; newItem = &multiRangeMenu;`
-	///        (`:1857-1858`) -- the one piece `enter_child` (a descent) and `handle()`'s button
-	///        focus (legacy's `initializeItem` call, `horizontal_menu.cpp:424`, `:669`) both run,
-	///        because both are ways into `MenuItem::checkPermissionToBeginSession`'s range branch.
-	///
-	///        **Not `Permission::No`.** `enter_child`'s own switch still owns that arm: a descent
-	///        refuses outright on `No`, but `HorizontalMenu::handleInstrumentButtonPress` never
-	///        consults `initializeItem`'s return for anything but `MUST_SELECT_RANGE` -- a button
-	///        focus proceeds regardless of `Yes`/`No`, which is why this helper answers only the
-	///        range question and leaves `No` to whichever caller cares.
-	/// @param child               The node a session is about to begin on.
-	/// @param suppress_when_allowed When true, and `child.allow_session_from_horizontal` is set,
-	///         skip the `MUST_SELECT_RANGE` check entirely and answer false -- the port of
-	///         `handleInstrumentButtonPress`'s own extra condition
-	///         (`!(*current_item_)->allowToBeginSessionFromHorizontalMenu()`, `:427-428`), which
-	///         no other caller of this helper has. See `Node::allow_session_from_horizontal`'s own
-	///         doc for the two legacy call sites and why only one of them suppresses.
-	/// @return True if @p child must not be entered/focused as itself this tick -- the range
-	///         picker was opened instead, or the allocation failed and a notice was shown. False
-	///         (permission `Yes` or `No`, or the range check was suppressed) means the caller
-	///         proceeds with its own next step.
-	bool enter_range_picker_if_needed(const Node& child, bool suppress_when_allowed);
-	/// @brief `HorizontalMenu::handleItemAction`'s else-path (`horizontal_menu.cpp:669-677`): a
-	///        submenu, or an `allow_session_from_horizontal` value column, pressed while already
-	///        focused. Runs the range check unconditionally (unlike the button-focus arm) and then
-	///        always enters -- `handleItemAction` never reads `Permission::No` at all, unlike
-	///        `enter_child`'s general descend.
-	/// @param child The already-focused column being pressed again.
-	void enter_horizontal_item(const Node& child);
-
-	void render_vertical(deluge::ui::oled::OledFrame& f, const Node& node);
-	void render_horizontal(deluge::ui::oled::OledFrame& f, const Node& node);
-	// One helper per kind: each owns the widget's own argument shapes rather than sharing an
-	// `edit_value` the widgets do not agree on.
-	void render_leaf_int(deluge::ui::oled::OledFrame& f, const Node& node);
-	void render_leaf_decimal(deluge::ui::oled::OledFrame& f, const Node& node);
-	void render_leaf_enum(deluge::ui::oled::OledFrame& f, const Node& node);
-	void render_leaf_toggle(deluge::ui::oled::OledFrame& f, const Node& node);
-	void render_leaf_sync_level(deluge::ui::oled::OledFrame& f, const Node& node);
-	void render_leaf_range(deluge::ui::oled::OledFrame& f, const Node& node);
-
-	/// @brief Descend into @p child if its permission allows, opening the range picker for
-	///        `MustSelectRange`.
-	void enter_child(const Node& child);
-	/// @brief Push @p child onto the path with no permission question asked -- the half of
-	///        `enter_child` the range-picker substitution reuses.
-	void descend_to(const Node& child);
-	/// @brief Go up one level, skipping levels whose permission is now `No`
-	///        (`sound_editor.cpp:710-721`).
-	void ascend();
-	/// @brief Re-root the path at @p node (the shortcut jump and `on_enter`'s re-target).
+	bool on_horizontal_page() const { return menu::on_horizontal_page(ctx_, st_); }
+	bool is_horizontal(const Node& node) const { return menu::is_horizontal(ctx_, node); }
+	/// @brief Re-root the path at @p node (the shortcut jump and `on_enter`'s re-target), and begin the voice usage
+	///        page's session afresh.
 	void retarget(const Node& node);
 
 	MenuState st_{};
@@ -551,11 +449,8 @@ private:
 	}
 	/// The voice usage page's clock and counters; process-lifetime, like legacy's `cpu::VoiceUsage`.
 	VoiceUsageClock voice_usage_;
-	/// What `render_horizontal`'s columns draw from, here rather than on the stack: a group page has up to
-	/// `kMaxMenuColumns` of them, and the scene lives in SDRAM.
-	ColumnSlot column_slots_[kMaxMenuColumns];
-	/// `HorizontalMenu::acceleration()`: one select-turn acceleration for every horizontal page, as legacy's static is.
-	deluge::ui::EncoderAcceleration horizontal_acceleration_{};
+	/// The renders, and the storage a horizontal page draws from.
+	MenuView view_;
 	MenuContext ctx_{};
 
 	/// @brief The one-slot outbox `take_action()` empties. Not part of `MenuState`: `retarget`
@@ -563,24 +458,9 @@ private:
 	///        delivered even if the path moves in the same tick.
 	MenuActionRequest taken_action_{};
 
-	/// @brief The column the next `on_enter` focuses on the page it opens, set by
-	///        `arm_shortcut_landing` (from `handle()`'s jump, alongside the `Replace` it returns, or
-	///        from the application before it opens the guest). Consumed by `on_enter`, cleared by
-	///        `open()` and `on_resume()`. Not part of `MenuState`: the shell restores that between the
-	///        `Replace` and `on_enter`.
-	const Node* landing_column_ = nullptr;
+	/// The shortcut pads: their blinks, the jump and the landing it arms.
+	MenuPads pads_;
 
-	/// @brief The child each submenu was last left on: legacy's per-`Submenu` `current_item_` (`submenu.cpp:9-18`),
-	///        which a fresh visit lands on. Once all are in use the least recently recorded entry is overwritten; the
-	///        submenus on the current path are recorded on every render, so a root is never the one evicted.
-	struct RememberedRow {
-		const Node* submenu = nullptr;
-		const Node* child = nullptr;
-		uint32_t recorded = 0; ///< `remembered_clock_` when last recorded; 0 for an empty entry
-	};
-	static constexpr size_t kRememberedRows = 128;
-	RememberedRow remembered_[kRememberedRows]{};
-	uint32_t remembered_clock_ = 0;
 	/// @brief What belongs to one open of the scene: reset by value in `open()` and `on_enter()`, which is legacy's
 	///        `beginScreen` -- a new screen.
 	struct Visit {
@@ -593,8 +473,6 @@ private:
 		bool blink_restart = true;
 		/// Learn mode and its LED.
 		MenuLearn learn;
-		/// @brief `ascend()` went up from depth 0: legacy's `exitCompletely()`, drained by `after_render`.
-		bool close_requested = false;
 		/// @brief Select was held during the last render: a value edited under it uses the press up
 		///        (`Value::selectEncoderAction`, `menu_item/value.h:64-67`).
 		bool select_held = false;
@@ -603,20 +481,8 @@ private:
 		ValueSession session;
 	};
 	Visit visit_{};
-
-	/// @brief Record the selected child of every submenu on the current path; only while `ctx_` is the one the path
-	///        was walked with, since reading which children show runs their relevance tests.
-	void remember_path();
-	/// @brief Put the submenu at the current depth on the child it was last left on, if it still shows it.
-	void restore_row();
-
-	/// @brief The node whose shortcut pad blinks and toggles the second layer: a horizontal page's
-	///        focused column (`Submenu::updatePadLights`), else `focused()`.
-	const Node* pad_subject() const;
-
-	/// @brief Focus @p column on the page `focused()` shows, when the page lists it visibly;
-	///        otherwise leave the focus where it is (`Submenu::focusChild`).
-	void focus_column(const Node& column);
+	/// The walk through the tree, and the rows each submenu was last left on (process lifetime).
+	MenuWalk walk_;
 
 public:
 	/// @name The two navigation steps a caller outside the scene takes (note-family Task 7a)
