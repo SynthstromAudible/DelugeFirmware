@@ -37,6 +37,7 @@ add_library(deluge_scenes STATIC
     menu/menu_core.cpp
     menu/menu_scene.cpp
     menu/present.cpp
+    menu/shortcut_overlay.cpp
     menu/value_session.cpp
     menu/view.cpp
     menu/voice_usage.cpp

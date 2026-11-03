@@ -356,6 +356,15 @@ void MenuScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) {
 }
 
 void MenuScene::render_grid(deluge::ui::grid::GridFrame& f) {
+	// The shift level, latched or not, kept in step here as well as from `handle`'s events. A covered frame reads no
+	// input, and a menu under another scene shows no overlay.
+	if (!f.covered) {
+		visit_.shift_held = f.shift();
+		if (overlay_up()) {
+			render_overlay(f, ctx_, st_, focused_value());
+		}
+	}
+	// The blinks flash over the overlay: the control surface plays them over whatever the pads hold.
 	pads_.render_grid(core(), f);
 }
 
@@ -667,6 +676,8 @@ Result MenuScene::after_render() {
 	// `shouldGoUpOneLevelOnBegin` -- beside its own `openUI` call.
 	if (st_.walk.pending_scene.kind != SceneKind::Null) {
 		trace_drain(DrainBand::PendingScene);
+		visit_.shift_held = false; // the pushed scene is the one SHIFT now reaches
+
 		(void)r.actions.push_back(Action{.kind = Action::Kind::Push, .id = st_.walk.pending_scene});
 		st_.walk.pending_scene = SceneId{};
 		st_.walk.go_up_on_resume = true;
@@ -704,6 +715,19 @@ bool MenuScene::owns(const UiEvent& event) const {
 }
 
 Result MenuScene::handle(const UiEvent& event, const UiContext& ctx) {
+	// The SHIFT overlay follows the shift level each event brings; a change takes or gives back the pads and the
+	// greyout, and while it shows a source pad's press or release can change the source column.
+	const bool overlay_was_up = overlay_up();
+	visit_.shift_held = ctx.shift;
+	Result r = handle_event(event, ctx);
+	if (overlay_up() != overlay_was_up
+	    || (overlay_up() && event.kind == UiEvent::Kind::Pad && is_patching_source_pad(event.x, event.y))) {
+		(void)r.actions.push_back(Action{.kind = Action::Kind::RepaintAll});
+	}
+	return r;
+}
+
+Result MenuScene::handle_event(const UiEvent& event, const UiContext& ctx) {
 	// Legacy's `UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR` as a level rather than a mode
 	// (`gui/menu_item/unpatched_param.cpp:52`). The AFFECT-ENTIRE button is an ordinary button, so
 	// its own press and release both reach here and keep this in step before any write path runs;
@@ -780,6 +804,11 @@ Result MenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 // Composition, saved state and timers
 
 deluge::ui::grid::GreyoutMask MenuScene::greyout_mask() const {
+	// While the overlay shows every column is greyed, whatever the root (`getGreyoutColsAndRows`,
+	// `sound_editor.cpp:463-467`).
+	if (overlay_up()) {
+		return {0xFFFFFFFFu, 0};
+	}
 	return menu::greyout_mask(ctx_, st_);
 }
 

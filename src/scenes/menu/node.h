@@ -143,6 +143,13 @@ struct ParamRef {
 /// @brief Forward declared only -- see the file-level note. Defined in `context.h` (a later task).
 struct MenuContext;
 
+/// @brief What a patching-source pad patches to while an item is focused -- `PatchingSourceShortcutTarget`.
+enum class SourceTarget : uint8_t {
+	Parameter, ///< The focused param.
+	Parent,    ///< Whatever the item above answers.
+	Range,     ///< A cable's range.
+};
+
 /// @brief An item's answer to SHIFT and a patching-source pad -- `MenuItem::patchingSourceShortcutPress`'s three.
 enum class SourcePress : uint8_t {
 	/// Nothing happens (`nullptr`): the press stops at this item.
@@ -727,6 +734,11 @@ struct CustomItem {
 	                                 bool /*previous_held*/, const Node*& /*open*/) const {
 		return SourcePress::Unhandled;
 	}
+
+	/// @brief What a patching-source pad patches to while this item is focused --
+	///        `MenuItem::getPatchingSourceShortcutTarget`. Read by the SHIFT overlay's source column.
+	/// @param previous_held Another patching-source pad is held.
+	virtual SourceTarget source_target(bool /*previous_held*/) const { return SourceTarget::Parameter; }
 
 	/// @brief Is this item a patch cable's strength -- `getParamKind() == Kind::PATCH_CABLE`? Such an item never
 	///        arms the second shortcut layer, and on it a second press of the active source takes the source's second

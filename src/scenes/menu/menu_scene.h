@@ -43,6 +43,7 @@
 #include "scenes/menu/page_buttons.h"
 #include "scenes/menu/present.h"
 #include "scenes/menu/shortcut_blink.h"
+#include "scenes/menu/shortcut_overlay.h"
 #include "scenes/menu/value_session.h"
 #include "scenes/menu/view.h"
 #include "scenes/menu/voice_usage.h"
@@ -121,6 +122,11 @@ public:
 
 	/// @brief True: the menu draws over the base view's pads rather than replacing them.
 	bool is_grid_overlay() const override { return true; }
+	/// @brief The main pads while the SHIFT overlay shows (`SoundEditor::renderMainPads` answers for them then);
+	///        otherwise none, and the pads are the root's.
+	deluge::ui::shell::PadRegions pad_regions() const override {
+		return overlay_up() ? deluge::ui::shell::PadRegions::Main : deluge::ui::shell::PadRegions::None;
+	}
 	/// @brief False: the base view keeps painting under the menu.
 	bool occludes_grid() const override { return false; }
 	/// @brief `SoundEditor::padAction`'s gate at `gui/ui/sound_editor.cpp:1467`, as a declaration.
@@ -428,6 +434,11 @@ public:
 	std::string_view page_title(NodeText& scratch) const { return menu::page_title(ctx_, st_, scratch); }
 
 private:
+	/// @brief Whether the SHIFT shortcut overlay shows (`shortcut_overlay.h`).
+	bool overlay_up() const { return overlay_shown(ctx_, visit_.shift_held); }
+	/// @brief `handle`'s body, beneath its SHIFT-overlay bookkeeping.
+	deluge::ui::shell::Result handle_event(const deluge::ui::shell::UiEvent& event,
+	                                       const deluge::ui::shell::UiContext& ctx);
 	/// @brief The scene's context and state, for a unit's call.
 	MenuCore core() { return {ctx_, st_}; }
 	/// @brief The child the current layout has focus on, or `nullptr`.
@@ -479,6 +490,8 @@ private:
 		const Node* blink_screen = nullptr;
 		/// The value being edited.
 		ValueSession session;
+		/// The shift level the last event or uncovered frame brought, latched or not: the SHIFT overlay's.
+		bool shift_held = false;
 	};
 	Visit visit_{};
 	/// The walk through the tree, and the rows each submenu was last left on (process lifetime).

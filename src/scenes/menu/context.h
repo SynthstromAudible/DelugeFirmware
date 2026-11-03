@@ -51,6 +51,9 @@ struct MenuContext {
 	///        renders and edits as a vertical list and the horizontal-menu chains answer nothing
 	///        (`horizontal_menu.cpp:592-597`, `sound_editor.cpp:2328-2330`).
 	bool horizontal_menus = true;
+	/// @brief The SHIFT shortcut overlay setting is on (`RuntimeFeatureSettingType::ShortcutOverlay` not `Off`; on
+	///        by default, as `MenuOnly` is).
+	bool shortcut_overlay = true;
 
 	/// @brief Which root menu `setup()` would have opened (`sound_editor.cpp:1770-1826`).
 	///

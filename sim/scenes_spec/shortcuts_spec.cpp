@@ -32,6 +32,7 @@
 #include "scenes/menu/node_id.h"
 #include "scenes/menu/nodes/nodes.h"
 #include "scenes/menu/shortcut_blink.h"
+#include "scenes/menu/shortcut_overlay.h"
 #include "scenes/menu/shortcuts.h"
 #include "scenes/menu/validate.h"
 #include "scenes/profile.h"
@@ -1364,6 +1365,37 @@ describe shortcut_blink_plan("scenes::menu shortcut blink plan against SoundEdit
 
 namespace {} // namespace
 
+// clang-format off
+describe shortcut_overlay_colours("scenes::menu SHIFT overlay colours against SoundEditor::renderMainShortcutsOnly", $ {
+	it("paints main's shortcut colours cell by cell for the sound root", _ {
+		const MenuContext& ctx = install_sound_context();
+		UiStackGuard ui;
+		setRootUILowLevel(&instrumentClipView); // the sound tables are a clip view's
+		RGB image[kDisplayHeight][kDisplayWidth + kSideBarWidth]{};
+		uint8_t occupancy[kDisplayHeight][kDisplayWidth + kSideBarWidth]{};
+		SoundEditor::renderMainShortcutsOnly(soundEditor.currentModControllable, image, occupancy, false);
+		deluge::ui::test::GridRig rig;
+		menu::paint_shortcut_colours(rig.frame, ctx);
+		std::string bad;
+		size_t lit = 0;
+		for (int32_t x = 0; x < kDisplayWidth; x++) {
+			for (int32_t y = 0; y < kDisplayHeight; y++) {
+				const RGB want = image[y][x];
+				const RGB got = rig.frame.peek(x, y);
+				lit += want == RGB{0, 0, 0} ? 0 : 1;
+				if (!(want == got)) {
+					bad += "(" + std::to_string(x) + "," + std::to_string(y) + ") main " + std::to_string(want.r) + ","
+					       + std::to_string(want.g) + "," + std::to_string(want.b) + " ours " + std::to_string(got.r)
+					       + "," + std::to_string(got.g) + "," + std::to_string(got.b) + "\n";
+				}
+			}
+		}
+		expect(bad).to_equal(std::string{});
+		expect(lit > size_t(60)).to_be_true();
+	});
+});
+// clang-format on
+
 describe shortcut_landing(
     "scenes::menu shortcut landing against SoundEditor::maybeGetParentMenu", $ {
 	    it(
@@ -1465,4 +1497,5 @@ describe shortcut_landing(
 // clang-format on
 
 DELUGE_SPEC(shortcuts_spec, shortcuts_transcription, shortcuts_shape, shortcuts_validation, shortcuts_profile,
-            shortcuts_version_1, shortcut_blink_cadence, shortcut_blink_plan, shortcut_landing)
+            shortcuts_version_1, shortcut_blink_cadence, shortcut_blink_plan, shortcut_overlay_colours,
+            shortcut_landing)

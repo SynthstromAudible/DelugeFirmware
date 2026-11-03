@@ -25,6 +25,7 @@
 #include "scenes/menu/node_id.h"
 #include "scenes/menu/nodes/patch_cables.h"
 #include "scenes/menu/nodes/patching.h"
+#include "scenes/menu/shortcut_overlay.h"
 #include "scenes/menu/walk.h"
 
 #include "gui/l10n/strings.h"
@@ -79,11 +80,6 @@ void MenuPads::render_grid(MenuCore core, deluge::ui::grid::GridFrame& f) {
 
 namespace {
 
-/// The patching-source column: (14, 5..7) and all of column 15.
-bool is_source_pad(uint8_t x, uint8_t y) {
-	return (x == kShortcutCols - 2 && y >= 5) || x == kShortcutCols - 1;
-}
-
 /// The randomizer trio, (15, 1..3): shortcuts when no item takes the source press.
 bool is_randomizer_pad(uint8_t x, uint8_t y) {
 	return x == kShortcutCols - 1 && y >= 1 && y <= 3;
@@ -94,18 +90,6 @@ bool is_patch_cable_item(const Node* node) {
 	return node != nullptr
 	       && ((node->custom != nullptr && node->custom->is_patch_cable())
 	           || node->bind.param.kind == deluge::modulation::params::Kind::PATCH_CABLE);
-}
-
-/// `isOtherModSourcePadPressed` (`sound_editor.cpp:237-246`): a patching-source pad other than (@p x, @p y) is held.
-bool other_source_pad_held(const UiContext& ui, uint8_t x, uint8_t y) {
-	for (uint8_t sx = kShortcutCols - 2; sx < kShortcutCols; sx++) {
-		for (uint8_t sy = 0; sy < kShortcutRows; sy++) {
-			if (is_source_pad(sx, sy) && (sx != x || sy != y) && ui.held_pads.test(sx, sy)) {
-				return true;
-			}
-		}
-	}
-	return false;
 }
 
 /// @brief The answer of the item at @p depth: a horizontal page answers for its focused column
@@ -159,7 +143,7 @@ std::optional<Result> MenuPads::source_press(MenuCore core, MenuWalk& walk, Valu
 	if (source >= kLastPatchSource) {
 		return handled;
 	}
-	const bool previous_held = other_source_pad_held(ui, x, y);
+	const bool previous_held = other_source_pad_held(ui.held_pads, x, y);
 	for (int32_t d = st.depth;; d--) {
 		const Node* open = nullptr;
 		const SourcePress answer = answer_at(core, static_cast<uint8_t>(d), source, previous_held, open);
@@ -203,14 +187,14 @@ std::optional<Result> MenuPads::handle_pad(MenuCore core, MenuWalk& walk, ValueS
 		// being cleared by a press legacy never looked at.
 		const bool sound_arm = ctx.root == MenuContext::Root::Sound || ctx.root == MenuContext::Root::Drum;
 		// The patching-source column patches a source to the focused item before it is a shortcut at all.
-		if (sound_arm && is_source_pad(event.x, event.y)) {
+		if (sound_arm && is_patching_source_pad(event.x, event.y)) {
 			if (std::optional<Result> r = source_press(core, walk, session, event.x, event.y, ui)) {
 				return r;
 			}
 		}
 		// Only the regular shortcut cells and the randomizer trio of the source column touch the second layer.
 		const bool toggles_layer =
-		    sound_arm && (!is_source_pad(event.x, event.y) || is_randomizer_pad(event.x, event.y));
+		    sound_arm && (!is_patching_source_pad(event.x, event.y) || is_randomizer_pad(event.x, event.y));
 		if (toggles_layer) {
 			const Node* current = pad_subject(ctx, st);
 			const ShortcutPos here = current != nullptr ? shortcut_pos(ctx.root, *current) : ShortcutPos{};

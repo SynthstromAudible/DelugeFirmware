@@ -1378,10 +1378,17 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		    UiEvent{.kind = UiEvent::Kind::Pad, .x = kLpfFreqX, .y = kLpfFreqY, .velocity = 64, .on = true},
 		    shifted.ctx);
 		expect(res.handled).to_be_true();
-		expect(res.actions.size()).to_equal(size_t(1));
-		expect(static_cast<int>(res.actions[0].kind)).to_equal(static_cast<int>(deluge::ui::shell::Action::Kind::Replace));
-		expect(static_cast<int>(res.actions[0].id.kind)).to_equal(static_cast<int>(SceneKind::FirstApp));
-		expect(static_cast<int>(res.actions[0].id.arg)).to_equal(static_cast<int>(menu::node_id(nodes::filters_group)));
+		// The press is also SHIFT's first sight of the menu, so the overlay's repaint may ride beside it.
+		const auto is_replace = [](const deluge::ui::shell::Action& a) {
+			return a.kind == deluge::ui::shell::Action::Kind::Replace;
+		};
+		expect(std::ranges::count_if(res.actions, is_replace)).to_equal(1);
+		const auto replace = std::ranges::find_if(res.actions, is_replace);
+		expect(replace != res.actions.end()).to_be_true();
+		if (replace != res.actions.end()) {
+			expect(static_cast<int>(replace->id.kind)).to_equal(static_cast<int>(SceneKind::FirstApp));
+			expect(static_cast<int>(replace->id.arg)).to_equal(static_cast<int>(menu::node_id(nodes::filters_group)));
+		}
 		// `handle()` itself moves nothing: the router's Replace does, through `on_enter`.
 		expect(menu_scene().focused() == &settings_root).to_be_true();
 	});
