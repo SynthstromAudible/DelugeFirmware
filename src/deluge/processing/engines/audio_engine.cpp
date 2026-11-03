@@ -1296,11 +1296,11 @@ int32_t* getInputReadPos(AudioInputChannel channel) {
 
 namespace {
 
-/// The song's post-FX volume as the metronome takes it: the song volume param's final value, halved; kOneQ31 with no
+/// The song's post-FX volume as the metronome takes it, Q27: the song volume param's final value, halved; unity with no
 /// song.
 int32_t metronomeVolumePostFx() {
 	if (currentSong == nullptr) {
-		return kOneQ31;
+		return 1 << 27; // unity, Q27: playback triggers the click only with a song, so this is defensive
 	}
 	return deluge::dsp::fixed::curve_square(134217728, deluge::dsp::fixed::preset_combination(
 	                                                       currentSong->paramManager.getUnpatchedParamSet()->getValue(
