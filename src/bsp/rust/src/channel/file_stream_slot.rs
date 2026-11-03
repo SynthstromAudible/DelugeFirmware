@@ -184,3 +184,9 @@ impl AnswerSlot {
         );
     }
 }
+
+impl Default for AnswerSlot {
+    fn default() -> Self {
+        Self::new()
+    }
+}

@@ -88,19 +88,21 @@ pub extern "C" fn deluge_board_init_early(_have_oled: bool) {
     }
 }
 
+/// SSI0, its pins and its TX/RX DMA channels: what the codec bring-up takes.
+#[cfg(target_os = "none")]
+type AudioParts = (
+    rza1_hal::Peri<'static, deluge_bsp::board::AudioSsi>,
+    deluge_bsp::board::AudioPins,
+    rza1_hal::Peri<'static, deluge_bsp::board::SsiTxDma>,
+    rza1_hal::Peri<'static, deluge_bsp::board::SsiRxDma>,
+);
+
 /// SSI0 and its DMA channels, from `runtime::device::start` until the app's
 /// `deluge_board_init_audio` brings the codec up (its place in the C++ init sequence).
 #[cfg(target_os = "none")]
 static AUDIO_PARTS: embassy_sync::blocking_mutex::Mutex<
     embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex,
-    core::cell::RefCell<
-        Option<(
-            rza1_hal::Peri<'static, deluge_bsp::board::AudioSsi>,
-            deluge_bsp::board::AudioPins,
-            rza1_hal::Peri<'static, deluge_bsp::board::SsiTxDma>,
-            rza1_hal::Peri<'static, deluge_bsp::board::SsiRxDma>,
-        )>,
-    >,
+    core::cell::RefCell<Option<AudioParts>>,
 > = embassy_sync::blocking_mutex::Mutex::new(core::cell::RefCell::new(None));
 
 /// Keep the audio parts for [`deluge_board_init_audio`].

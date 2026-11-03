@@ -285,6 +285,8 @@ mod prod {
         /// Creates the ops over the resource-manager singleton.
         ///
         /// Call only after `deluge_app_init` has set the cluster size (see `streaming_fill_task`).
+        // No `Default`: a default would hide that precondition.
+        #[allow(clippy::new_without_default)]
         pub fn new() -> Self {
             let mgr = super::resource_manager();
             Self { mgr }

@@ -302,15 +302,14 @@ pub fn read(start: Instant, acquired: Option<Instant>, end: Instant, holder: Opt
         let wait = micros_since(start, acquired);
         add(&mut s.trace.fs_wait, wait);
         add(&mut s.trace.read, micros_since(acquired, end));
-        if wait >= LONG_FS_WAIT_US {
-            if let Some((tier, _)) = holder {
-                let t = tier as usize;
-                s.trace.long_fs_waits_by_tier[t] =
-                    s.trace.long_fs_waits_by_tier[t].saturating_add(1);
-                let wait32 = u32::try_from(wait).unwrap_or(u32::MAX);
-                if wait32 > s.trace.long_fs_wait_max_by_tier[t] {
-                    s.trace.long_fs_wait_max_by_tier[t] = wait32;
-                }
+        if wait >= LONG_FS_WAIT_US
+            && let Some((tier, _)) = holder
+        {
+            let t = tier as usize;
+            s.trace.long_fs_waits_by_tier[t] = s.trace.long_fs_waits_by_tier[t].saturating_add(1);
+            let wait32 = u32::try_from(wait).unwrap_or(u32::MAX);
+            if wait32 > s.trace.long_fs_wait_max_by_tier[t] {
+                s.trace.long_fs_wait_max_by_tier[t] = wait32;
             }
         }
     });

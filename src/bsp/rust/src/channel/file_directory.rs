@@ -222,10 +222,10 @@ pub(crate) fn flush_tables() {
     if let Ok(mut in_flight) = IN_FLIGHT.try_lock() {
         *in_flight = None;
     }
-    if let Ok(mut result) = RESULT.try_lock() {
-        if let Some(orphan) = drain(&mut result) {
-            close_handle_now(orphan);
-        }
+    if let Ok(mut result) = RESULT.try_lock()
+        && let Some(orphan) = drain(&mut result)
+    {
+        close_handle_now(orphan);
     }
 }
 
@@ -430,6 +430,13 @@ impl ProdDirOps {
 }
 
 #[cfg(has_app)]
+impl Default for ProdDirOps {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[cfg(has_app)]
 impl DirOps for ProdDirOps {
     async fn open_dir(&self, path: &str) -> Result<u32, i8> {
         // The `task_dir_open` that `deluge_efatfs_dir_open` spins on, awaited instead.
@@ -441,11 +448,9 @@ impl DirOps for ProdDirOps {
                 // `deluge_efatfs_mount_generation`, which tells the C++ side to run
                 // `firstCardRead()`.
                 backing::mount().await.map_err(|_| NO_FILESYSTEM)?;
-                backing::task_dir_open(path)
-                    .await
-                    .map_err(|status| status as i8)
+                backing::task_dir_open(path).await
             }
-            other => other.map_err(|status| status as i8),
+            other => other,
         }
     }
 

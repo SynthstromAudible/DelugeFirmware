@@ -396,6 +396,12 @@ impl ClaimOnce {
     }
 }
 
+impl Default for ClaimOnce {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Publishes `outcome` under `(op, key)`, stamped with `generation`, replacing whatever the slot
 /// held.
 ///
@@ -1859,11 +1865,9 @@ impl ProdByteOps {
         match backing::task_file_open(path, mode).await {
             Err(NO_FILESYSTEM) => {
                 backing::mount().await.map_err(|_| NO_FILESYSTEM)?;
-                backing::task_file_open(path, mode)
-                    .await
-                    .map_err(|status| status as i8)
+                backing::task_file_open(path, mode).await
             }
-            other => other.map_err(|status| status as i8),
+            other => other,
         }
     }
 
@@ -1872,11 +1876,9 @@ impl ProdByteOps {
         match backing::task_dir_open(path).await {
             Err(NO_FILESYSTEM) => {
                 backing::mount().await.map_err(|_| NO_FILESYSTEM)?;
-                backing::task_dir_open(path)
-                    .await
-                    .map_err(|status| status as i8)
+                backing::task_dir_open(path).await
             }
-            other => other.map_err(|status| status as i8),
+            other => other,
         }
     }
 
@@ -1892,10 +1894,10 @@ impl ProdByteOps {
                 match backing::task_mkdir(path).await {
                     Ok(()) => Ok(()),
                     Err(EXISTS) => Ok(()),
-                    Err(status) => Err(status as i8),
+                    Err(status) => Err(status),
                 }
             }
-            Err(status) => Err(status as i8),
+            Err(status) => Err(status),
         }
     }
 
@@ -1906,22 +1908,25 @@ impl ProdByteOps {
 }
 
 #[cfg(has_app)]
+impl Default for ProdByteOps {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[cfg(has_app)]
 impl ByteOps for ProdByteOps {
     async fn read_all(&self, path: &str, into: &mut [u8; MAX_BYTES]) -> Result<usize, i8> {
         let handle = Self::open_mounted(path, OPEN_READ).await?;
         // Every path must reach the close (a leaked handle costs a file-table slot for the rest of
         // the mount), so the result is bound rather than returned with `?`.
         let result = async {
-            let size = backing::task_file_size(handle)
-                .await
-                .map_err(|status| status as i8)?;
+            let size = backing::task_file_size(handle).await?;
             if size as usize > MAX_BYTES {
                 // Never a truncated prefix: it would parse with the remaining settings reset.
                 return Err(NO_MEMORY);
             }
-            let read = backing::task_file_read_exact(handle, &mut into[..size as usize])
-                .await
-                .map_err(|status| status as i8)?;
+            let read = backing::task_file_read_exact(handle, &mut into[..size as usize]).await?;
             // Short of the size just read means the read stopped early: a failure.
             if read != size as usize {
                 return Err(ERR_IO);
@@ -1943,12 +1948,8 @@ impl ByteOps for ProdByteOps {
         let result = async {
             // Truncate first so a shorter file never keeps an older, longer file's tail. The open
             // mode's own truncation is not relied on.
-            backing::task_file_truncate(handle, 0)
-                .await
-                .map_err(|status| status as i8)?;
-            let written = backing::task_file_write(handle, bytes)
-                .await
-                .map_err(|status| status as i8)?;
+            backing::task_file_truncate(handle, 0).await?;
+            let written = backing::task_file_write(handle, bytes).await?;
             // A short write is a failure: a partial settings file is corrupt but would still parse.
             if written != bytes.len() {
                 return Err(ERR_IO);
@@ -1962,9 +1963,7 @@ impl ByteOps for ProdByteOps {
     }
 
     async fn unlink(&self, path: &str) -> Result<(), i8> {
-        backing::task_unlink(path)
-            .await
-            .map_err(|status| status as i8)
+        backing::task_unlink(path).await
     }
 
     async fn exists(&self, path: &str) -> Result<bool, i8> {
@@ -2024,20 +2023,15 @@ impl ByteOps for ProdByteOps {
             timestamp.second,
         )
         .await
-        .map_err(|status| status as i8)
     }
 
     async fn read_at(&self, path: &str, offset: u32, into: &mut [u8]) -> Result<usize, i8> {
         let handle = Self::open_mounted(path, OPEN_READ).await?;
         let result = async {
-            backing::task_file_seek(handle, offset)
-                .await
-                .map_err(|status| status as i8)?;
+            backing::task_file_seek(handle, offset).await?;
             // A short read is end-of-file, not a failure: the SysEx file reader detects EOF this
             // way.
-            backing::task_file_read_exact(handle, into)
-                .await
-                .map_err(|status| status as i8)
+            backing::task_file_read_exact(handle, into).await
         }
         .await;
         backing::task_file_close(handle).await;
@@ -2059,12 +2053,9 @@ impl ByteOps for ProdByteOps {
             Err(status) => return Err(status),
         };
         let result = async {
-            backing::task_file_seek(handle, offset)
-                .await
-                .map_err(|status| status as i8)?;
+            backing::task_file_seek(handle, offset).await?;
             backing::task_file_write(handle, bytes)
                 .await
-                .map_err(|status| status as i8)
                 .map(|written| written as u32)
         }
         .await;
@@ -2075,9 +2066,7 @@ impl ByteOps for ProdByteOps {
 
     async fn stat(&self, path: &str) -> Result<u32, i8> {
         let handle = Self::open_mounted(path, OPEN_READ).await?;
-        let result = backing::task_file_size(handle)
-            .await
-            .map_err(|status| status as i8);
+        let result = backing::task_file_size(handle).await;
         backing::task_file_close(handle).await;
         result
     }
@@ -2097,12 +2086,8 @@ impl ByteOps for ProdByteOps {
             let mut offset: u32 = 0;
             loop {
                 let chunk = &mut scratch[..chunk_len];
-                backing::task_file_seek(src, offset)
-                    .await
-                    .map_err(|status| status as i8)?;
-                let read = backing::task_file_read_exact(src, chunk)
-                    .await
-                    .map_err(|status| status as i8)?;
+                backing::task_file_seek(src, offset).await?;
+                let read = backing::task_file_read_exact(src, chunk).await?;
                 if read == 0 {
                     return Ok(());
                 }
@@ -2116,12 +2101,8 @@ impl ByteOps for ProdByteOps {
                 // Non-truncating open, as in `write_at`.
                 let dst = Self::open_mounted(to, OPEN_READ).await?;
                 let written = async {
-                    backing::task_file_seek(dst, offset)
-                        .await
-                        .map_err(|status| status as i8)?;
-                    backing::task_file_write(dst, &chunk[..read])
-                        .await
-                        .map_err(|status| status as i8)
+                    backing::task_file_seek(dst, offset).await?;
+                    backing::task_file_write(dst, &chunk[..read]).await
                 }
                 .await;
                 backing::task_file_close(dst).await;
@@ -2188,9 +2169,7 @@ impl ByteOps for ProdByteOps {
         if let Some(parent) = Self::parent_of(to) {
             let _ = backing::task_mkdir(parent).await;
         }
-        backing::task_rename(from, to)
-            .await
-            .map_err(|status| status as i8)
+        backing::task_rename(from, to).await
     }
 }
 

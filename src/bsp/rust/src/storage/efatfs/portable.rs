@@ -343,10 +343,11 @@ impl<const N: usize> HandleTable<N> {
     /// while the FS work was in flight. `File::new_from_context` cannot catch that splice, because
     /// the old file's directory entry is still valid on disk.
     pub fn commit(&mut self, handle: u32, captured_generation: u32, newctx: FileContext) {
-        if let Some(slot) = self.slots.get_mut(handle as usize) {
-            if slot.generation == captured_generation && slot.ctx.is_some() {
-                slot.ctx = Some(newctx);
-            }
+        if let Some(slot) = self.slots.get_mut(handle as usize)
+            && slot.generation == captured_generation
+            && slot.ctx.is_some()
+        {
+            slot.ctx = Some(newctx);
         }
     }
 
@@ -415,10 +416,11 @@ impl<const N: usize> HandleTable<N> {
 
     /// Stores `map` for `handle` if the slot still holds the file it was made for.
     pub fn commit_map(&mut self, handle: u32, captured_generation: u32, map: MapState) {
-        if let Some(slot) = self.slots.get_mut(handle as usize) {
-            if slot.generation == captured_generation && slot.ctx.is_some() {
-                slot.map = map;
-            }
+        if let Some(slot) = self.slots.get_mut(handle as usize)
+            && slot.generation == captured_generation
+            && slot.ctx.is_some()
+        {
+            slot.map = map;
         }
     }
 
@@ -806,10 +808,10 @@ where
     // Create the parent first (mkdir -p): `create_file` returns NotFound without it, and the
     // exclusive `exists` check below errors on a missing parent rather than returning false. This
     // lets a write-create into a fresh nested folder (e.g. SAMPLES/RESAMPLE) succeed.
-    if let Some(slash) = path.rfind('/') {
-        if slash > 0 {
-            mkdir(fs, &path[..slash]).await?;
-        }
+    if let Some(slash) = path.rfind('/')
+        && slash > 0
+    {
+        mkdir(fs, &path[..slash]).await?;
     }
     if exclusive && root.exists(path).await.map_err(|e| error_to_status(&e))? {
         return Err(DELUGE_ERR_EXISTS);
@@ -1151,11 +1153,12 @@ impl TaskFileTable {
         newctx: FileContext,
         new_position: u32,
     ) {
-        if let Some(slot) = self.slots.get_mut(handle as usize) {
-            if slot.generation == captured_generation && slot.ctx.is_some() {
-                slot.ctx = Some(newctx);
-                slot.position = new_position;
-            }
+        if let Some(slot) = self.slots.get_mut(handle as usize)
+            && slot.generation == captured_generation
+            && slot.ctx.is_some()
+        {
+            slot.ctx = Some(newctx);
+            slot.position = new_position;
         }
     }
 
