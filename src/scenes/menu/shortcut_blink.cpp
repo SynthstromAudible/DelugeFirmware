@@ -186,6 +186,12 @@ BlinkPlan plan_blinks(const MenuContext& ctx, const MenuState& state, const Node
 	return plan;
 }
 
+BlinkPlan exclusive_blink(uint8_t x, uint8_t y) {
+	BlinkPlan plan;
+	plan.param = ParamBlink{.x = x, .y = y, .valid = true, .freq_mask = 1, .colour = FlashColour::Default};
+	return plan;
+}
+
 uint32_t blink_step(uint32_t anchor_ms, uint32_t now_ms) {
 	const uint32_t d = now_ms - anchor_ms;
 	return 2 * (d / kBlinkCycleMs) + ((d % kBlinkCycleMs) >= kSourceBlinkMs ? 1 : 0);

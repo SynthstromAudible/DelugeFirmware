@@ -50,6 +50,13 @@ void MenuPads::render_grid(MenuCore core, deluge::ui::grid::GridFrame& f) {
 	// pass per tick" (`shell/README.md`) true for a scene drawn on two surfaces: the OLED pass owns
 	// turn/select/back/edit, and this pass owns nothing. It paints no pixel either: the shortcut
 	// blinks are pad flashes, as legacy's `blinkShortcut` plays them (`sound_editor.cpp:1205-1245`).
+	// Under a scene that takes the input -- the browser, the slicer, a context menu -- the shortcut blinks are that
+	// scene's, or nobody's (`main`'s browser plays its own exclusive one). The anchor is dropped so the cycle starts
+	// over when the menu is uncovered.
+	if (f.covered) {
+		st.blink_node = nullptr;
+		return;
+	}
 	const Node* node = pad_subject(ctx, st);
 	if (node == nullptr) {
 		return;
