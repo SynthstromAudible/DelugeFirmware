@@ -16,7 +16,7 @@
  */
 #include "synth/sources/input/input_source.h"
 #include "board_config.h" // NUM_MONO_INPUT_CHANNELS, SSI_RX_BUFFER_NUM_SAMPLES
-#include "dsp-next/core/q31_ops.h"
+#include "dsp-next/core/fixed_point.h"
 #include "memory/memory_allocator_interface.h" // allocMaxSpeed / delugeDealloc (the thin allocator seam)
 #include "synth/sources/input/audio_input_port.h"
 #include "synth/sources/input/live/live_input_buffer.h"
@@ -25,6 +25,18 @@
 #include <new>
 
 namespace deluge::synth {
+
+namespace {
+/// @brief An input sample times the source amplitude: the high word, ×16 as the input is levelled.
+[[gnu::always_inline]] inline int32_t levelled(int32_t sample, int32_t amplitude) {
+	return scale_shl_wrap<4>(mul(dsp::Q<31>::from_raw(sample), dsp::Q<31>::from_raw(amplitude))).raw();
+}
+
+/// @brief @p value added into the buffer word at @p sample, wrapping.
+[[gnu::always_inline]] inline void add_into(int32_t* sample, int32_t value) {
+	*sample = add_wrap(dsp::Q<31>::from_raw(*sample), dsp::Q<31>::from_raw(value)).raw();
+}
+} // namespace
 namespace {
 /// The input channel a live-input `OscType` names: the note-on boundary is the only place the synth reads it.
 InputChannel channel_from_osc_type(OscType input_type) {
@@ -100,8 +112,7 @@ void InputSource::render_input(int32_t* osc_buffer, int32_t num_samples, uint32_
 			                                             amplitude_increment, interpolation_buffer_size, *in_, noise));
 
 			for (int32_t i = 0; i < num_samples; i++) {
-				osc_buffer[(i << 1)] += multiply_32x32_rshift32(render_buffer[i], amplitude_l) << 2;
-				osc_buffer[(i << 1) + 1] += multiply_32x32_rshift32(render_buffer[i], amplitude_r) << 2;
+				add_panned(&osc_buffer[i << 1], render_buffer[i], amplitude_l, amplitude_r);
 			}
 		}
 		else {
@@ -142,9 +153,9 @@ void InputSource::render_input(int32_t* osc_buffer, int32_t num_samples, uint32_
 				do {
 					source_amplitude_now += amplitude_increment;
 
-					int32_t sample = multiply_32x32_rshift32(input_read_pos[channel_offset], source_amplitude_now) << 4;
-					*(osc_buffer_pos++) += multiply_32x32_rshift32(sample, amplitude_l) << 2;
-					*(osc_buffer_pos++) += multiply_32x32_rshift32(sample, amplitude_r) << 2;
+					add_panned(osc_buffer_pos, levelled(input_read_pos[channel_offset], source_amplitude_now),
+					           amplitude_l, amplitude_r);
+					osc_buffer_pos += 2;
 
 					input_read_pos += NUM_MONO_INPUT_CHANNELS;
 					if (input_read_pos >= input_ring_end) {
@@ -158,8 +169,7 @@ void InputSource::render_input(int32_t* osc_buffer, int32_t num_samples, uint32_
 					source_amplitude_now += amplitude_increment;
 
 					// Mono / left channel (or stereo condensed to mono)
-					*(osc_buffer_pos++) += multiply_32x32_rshift32(input_read_pos[channel_offset], source_amplitude_now)
-					                       << 4;
+					add_into(osc_buffer_pos++, levelled(input_read_pos[channel_offset], source_amplitude_now));
 
 					input_read_pos += NUM_MONO_INPUT_CHANNELS;
 					if (input_read_pos >= input_ring_end) {
@@ -185,15 +195,17 @@ void InputSource::render_input(int32_t* osc_buffer, int32_t num_samples, uint32_
 
 				// If condensing to mono, do that now
 				if (!stereo_buffer) {
-					sample_l = ((sample_l >> 1) + (sample_r >> 1));
+					sample_l = add_wrap(halve_floor(dsp::Q<31>::from_raw(sample_l)),
+					                    halve_floor(dsp::Q<31>::from_raw(sample_r)))
+					               .raw();
 				}
 
 				// Mono / left channel (or stereo condensed to mono)
-				*(osc_buffer_pos++) += multiply_32x32_rshift32(sample_l, source_amplitude_now) << 4;
+				add_into(osc_buffer_pos++, levelled(sample_l, source_amplitude_now));
 
 				// Right channel
 				if (stereo_buffer) {
-					*(osc_buffer_pos++) += multiply_32x32_rshift32(sample_r, source_amplitude_now) << 4;
+					add_into(osc_buffer_pos++, levelled(sample_r, source_amplitude_now));
 				}
 
 				input_read_pos += NUM_MONO_INPUT_CHANNELS;

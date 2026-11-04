@@ -15,7 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #include "synth/sources/va/va_shapes.h"
-#include "dsp-next/core/q31_ops.h" // multiply_32x32_rshift32_rounded
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/ramp.h"
 #include "dsp-next/fixed/bandlimited/analog_saw.h"
 #include "dsp-next/fixed/bandlimited/analog_square.h"
@@ -92,26 +92,37 @@ struct Resolved {
 Resolved multiply_pulse_sync(Phasor original, uint32_t pulse_width, uint32_t retrigger, uint32_t resetter_tweak) {
 	const uint32_t resetter_phase = original.phase().raw() + resetter_tweak;
 	const uint32_t resetter_increment = original.increment().raw();
-	const uint32_t pulse_width_abs = (static_cast<int32_t>(pulse_width) >= 0) ? pulse_width : -pulse_width;
-
-	int32_t resetter_to_multiply = resetter_phase >> 1;
-	if (resetter_phase >= (uint32_t)-(resetter_increment >> 1)) {
-		// Count the last little bit of the cycle as actually a negative-number bit of the next one. (Subtracting
-		// half a cycle in unsigned arithmetic — the int32 wraps two's-complement, as the legacy relies on.)
-		resetter_to_multiply -= kHalfCycle;
-	}
-
-	const auto half_width = static_cast<q31_t>((pulse_width_abs >> 1) + kQuarterCycle);
-	const uint32_t render_phase =
-	    (static_cast<uint32_t>(multiply_32x32_rshift32_rounded(half_width, resetter_to_multiply)) << 3) + retrigger;
-	const uint32_t render_increment =
-	    static_cast<uint32_t>(multiply_32x32_rshift32_rounded(half_width, static_cast<q31_t>(resetter_increment >> 1)))
-	    << 3;
+	const PulseRewrite rewrite = multiply_pulse_rewrite(pulse_width, resetter_phase, resetter_increment);
+	const uint32_t render_phase = rewrite.phase + retrigger;
+	const uint32_t render_increment = rewrite.increment;
 
 	return Resolved{.render = Phasor{uq32(render_phase), uq32(render_increment)},
 	                .sync = Phasor{uq32(resetter_phase), uq32(resetter_increment)},
 	                .retrigger = retrigger};
 }
+
+} // namespace
+
+PulseRewrite multiply_pulse_rewrite(uint32_t pulse_width, uint32_t resetter_phase, uint32_t resetter_increment) {
+	using deluge::dsp::Q;
+	const uint32_t pulse_width_abs = (static_cast<int32_t>(pulse_width) >= 0) ? pulse_width : -pulse_width;
+
+	// Half the phase, read as signed Q31; the last little bit of the cycle counts as the next one's negative start,
+	// half a cycle less, wrapping
+	auto resetter_to_multiply = deluge::dsp::reinterpret_bits<Q<31>>(as_floor<UQ<31>>(uq32(resetter_phase)));
+	if (resetter_phase >= (uint32_t)-(resetter_increment >> 1)) {
+		resetter_to_multiply = sub_wrap(resetter_to_multiply, Q<31>::from_raw(static_cast<int32_t>(kHalfCycle)));
+	}
+
+	// Half the width plus a quarter cycle, read as Q31; the rounded products moved up by 3, their words the render
+	// phase and increment
+	const auto half_width = Q<31>::from_raw(static_cast<int32_t>((pulse_width_abs >> 1) + kQuarterCycle));
+	const auto half_increment = Q<31>::from_raw(static_cast<int32_t>(resetter_increment >> 1));
+	return {.phase = static_cast<uint32_t>(scale_shl_wrap<3>(mul_r(half_width, resetter_to_multiply)).raw()),
+	        .increment = static_cast<uint32_t>(scale_shl_wrap<3>(mul_r(half_width, half_increment)).raw())};
+}
+
+namespace {
 
 /// Pulse-width-as-sync, "divide" family (analog square only): the same idea, but the render rate is derived by
 /// dividing the phase by the (half-)width rather than multiplying. No resetter tweak.

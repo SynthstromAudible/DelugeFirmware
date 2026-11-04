@@ -16,8 +16,8 @@
  */
 
 #include "synth/sources/input/live/live_pitch_shifter.h"
-#include "definitions_cxx.hpp"     // TimeStretch::Crossfade constants
-#include "dsp-next/core/q31_ops.h" // multiply_32x32_rshift32
+#include "definitions_cxx.hpp" // TimeStretch::Crossfade constants
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/fixed/curves/quick_log.h"
 #include "dsp-next/fixed/interpolation/table_interpolation.h"
 #include "dsp-next/fixed/interpolation/windowed_sinc_kernel.h"
@@ -264,23 +264,28 @@ startRenderAgain:
 
 		// Use linear crossfades. These sound less jarring when doing short hops. Square root ones sound better for
 		// longer hops, with more difference in material between hops (i.e. time more stretched)
-		int32_t newer_hop_amplitude_now = crossfade_progress << 7;
+		using deluge::dsp::Q;
+		// The crossfade's Q24 progress as the newer hop's Q31 amplitude, the older's the rest of full scale
+		int32_t newer_hop_amplitude_now = as_wrap<Q<31>>(Q<24>::from_raw(crossfade_progress)).raw();
 		int32_t older_hop_amplitude_now = 2147483647 - newer_hop_amplitude_now;
 
 		crossfade_progress += crossfade_increment * num_samples_this_timestretched_read;
 
-		int32_t newer_hop_amplitude_after = lshift_and_saturate<7>(crossfade_progress);
+		// Where the progress will be, held to [−1, 1) before its move to Q31
+		int32_t newer_hop_amplitude_after = as_wrap<Q<31>>(clamp_bits<25>(Q<24>::from_raw(crossfade_progress))).raw();
 
 		int32_t newer_hop_amplitude_increment = (int32_t)(newer_hop_amplitude_after - newer_hop_amplitude_now)
 		                                        / (int32_t)num_samples_this_timestretched_read;
 
-		int32_t hop_amplitude_change = multiply_32x32_rshift32(amplitude, newer_hop_amplitude_increment) << 1;
+		// The source amplitude times each Q31 hop amplitude (and its step), moved back to Q31
+		const auto source = Q<31>::from_raw(amplitude);
+		int32_t hop_amplitude_change = mul_as_wrap<Q<31>>(source, Q<31>::from_raw(newer_hop_amplitude_increment)).raw();
 
 		newer_amplitude_increment_now = amplitude_increment + hop_amplitude_change;
-		newer_source_amplitude_now = multiply_32x32_rshift32(amplitude, newer_hop_amplitude_now) << 1;
+		newer_source_amplitude_now = mul_as_wrap<Q<31>>(source, Q<31>::from_raw(newer_hop_amplitude_now)).raw();
 
 		older_amplitude_increment_now = amplitude_increment - hop_amplitude_change;
-		older_source_amplitude_now = multiply_32x32_rshift32(amplitude, older_hop_amplitude_now) << 1;
+		older_source_amplitude_now = mul_as_wrap<Q<31>>(source, Q<31>::from_raw(older_hop_amplitude_now)).raw();
 	}
 
 	// Or, if we're just hearing the newer play-head
@@ -526,10 +531,13 @@ void LivePitchShifter::hop_end(int32_t phase_increment, LiveInputBuffer* live_in
 			// tried yet.
 
 #if !MEASURE_HOP_END_PERFORMANCE
-			min_search +=
-			    (multiply_32x32_rshift32(
-			         min_search, multiply_32x32_rshift32(static_cast<int32_t>(noise.next()), random_element << 8))
-			     << 2);
+			// The search length's word times a random fraction (the Q31 noise times the random element moved up 8), the
+			// high words, ×4
+			const auto fraction = mul(deluge::dsp::Q<31>::from_raw(static_cast<int32_t>(noise.next())),
+			                          deluge::dsp::Q<31>::from_raw(random_element << 8));
+			min_search += scale_shl_wrap<2>(mul(deluge::dsp::Q<31>::from_raw(min_search),
+			                                    deluge::dsp::Q<31>::from_raw(fraction.raw())))
+			                  .raw();
 #endif
 
 			int32_t back_edge = min_search >> kPercBufferReductionMagnitude; // Pixellated

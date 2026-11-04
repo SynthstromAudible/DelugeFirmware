@@ -137,4 +137,18 @@ public:
 /// @brief The phase at which @p type's wave crosses zero rising, UQ0.32: a quarter turn for the triangle, 0 otherwise.
 [[nodiscard]] uint32_t initial_phase_for_zero(OscType type);
 
+/// @brief A render phase and increment rewritten for pulse-width-as-sync.
+struct PulseRewrite {
+	uint32_t phase;     ///< The render phase, before the retrigger is added, UQ<32>.
+	uint32_t increment; ///< The render increment, UQ<32>.
+};
+
+/// @brief Pulse-width-as-sync's multiply rewrite: the self-sync master's phase and increment scaled up so one rewritten
+/// cycle spans the pulse width.
+/// @param pulse_width The pulse width, UQ<32> (its magnitude is used).
+/// @param resetter_phase The self-sync master's phase, UQ<32>.
+/// @param resetter_increment The master's increment, UQ<32>.
+[[nodiscard]] PulseRewrite multiply_pulse_rewrite(uint32_t pulse_width, uint32_t resetter_phase,
+                                                  uint32_t resetter_increment);
+
 } // namespace deluge::synth::va_shape

@@ -18,7 +18,7 @@
 #include "synth/sources/input/live/live_input_buffer.h"
 #include "board_config.h" // NUM_MONO_INPUT_CHANNELS, SSI_RX_BUFFER_NUM_SAMPLES
 #include "definitions_cxx.hpp"
-#include "dsp-next/core/q31_ops.h" // multiply_32x32_rshift32_rounded
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/fixed/shaping/tanh.h"
 #include "synth/sources/input/audio_input_port.h"
 #include <string.h>
@@ -83,7 +83,9 @@ void LiveInputBuffer::give_input(int32_t num_samples, AudioInputPort& port, Inpu
 
 		for (int32_t p = 0; p < kDifferenceLPFPoles; p++) {
 			int32_t distance_to_go = angle - angle_lpf_mem[p];
-			angle_lpf_mem[p] += multiply_32x32_rshift32_rounded(distance_to_go, 1 << 23); // distanceToGo >> 9;
+			// A 1/512 step toward the angle, rounded: the rounded high word of the distance times 2^23
+			angle_lpf_mem[p] +=
+			    mul_r(deluge::dsp::Q<31>::from_raw(distance_to_go), deluge::dsp::Q<31>::from_raw(1 << 23)).raw();
 
 			angle = angle_lpf_mem[p];
 		}

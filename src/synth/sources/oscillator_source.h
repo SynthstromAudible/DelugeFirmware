@@ -16,9 +16,8 @@
  */
 #pragma once
 
-#include "dsp-next/core/q31_ops.h" // multiply_32x32_rshift32
-#include "dsp-next/core/types.h"   // deluge::dsp::fixed::Buffer
-#include "synth/sources/source.h"  // Source, SourceBlock, BlockControls
+#include "dsp-next/core/types.h"  // deluge::dsp::fixed::Buffer
+#include "synth/sources/source.h" // Source, SourceBlock, BlockControls
 #include <cstdint>
 #include <cstring>
 
@@ -47,10 +46,8 @@ public:
 		                 deluge::dsp::fixed::Buffer{render_buffer, static_cast<size_t>(block.num_samples)});
 
 		if (block.stereo_buffer) {
-			// TODO: if the render buffer were typed we could use addPannedMono()
 			for (int32_t i = 0; i < block.num_samples; i++) {
-				block.osc_buffer[(i << 1)] += multiply_32x32_rshift32(render_buffer[i], block.amplitude_l) << 2;
-				block.osc_buffer[(i << 1) + 1] += multiply_32x32_rshift32(render_buffer[i], block.amplitude_r) << 2;
+				add_panned(&block.osc_buffer[i << 1], render_buffer[i], block.amplitude_l, block.amplitude_r);
 			}
 		}
 		return SourceRenderResult::ACTIVE;

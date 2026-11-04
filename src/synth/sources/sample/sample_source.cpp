@@ -17,7 +17,6 @@
 
 #include "synth/sources/sample/sample_source.h"
 #include "definitions_cxx.hpp"
-#include "dsp-next/core/q31_ops.h"
 #include "synth/sources/sample/time_stretch_adjust.h"
 #include <cstdint>
 #include <cstdlib> // std::abs
@@ -180,17 +179,14 @@ dontUseCache: {}
 
 	if (stereo_unison) {
 		if (num_channels == 2) {
-			// TODO: society if renderBasicSource() took a StereoSample[] buffer already
 			for (int32_t i = 0; i < num_samples; i++) {
-				osc_buffer[(i << 1)] += multiply_32x32_rshift32(render_buffer[(i << 1)], amplitude_l) << 2;
-				osc_buffer[(i << 1) + 1] += multiply_32x32_rshift32(render_buffer[(i << 1) + 1], amplitude_r) << 2;
+				add_panned(&osc_buffer[i << 1], render_buffer[i << 1], render_buffer[(i << 1) + 1], amplitude_l,
+				           amplitude_r);
 			}
 		}
 		else {
-			// TODO: if render buffer was typed we could use addPannedMono()
 			for (int32_t i = 0; i < num_samples; i++) {
-				osc_buffer[(i << 1)] += multiply_32x32_rshift32(render_buffer[i], amplitude_l) << 2;
-				osc_buffer[(i << 1) + 1] += multiply_32x32_rshift32(render_buffer[i], amplitude_r) << 2;
+				add_panned(&osc_buffer[i << 1], render_buffer[i], amplitude_l, amplitude_r);
 			}
 		}
 	}
