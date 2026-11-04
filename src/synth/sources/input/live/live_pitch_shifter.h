@@ -38,7 +38,7 @@ public:
 	/// Render @p numSamplesThisFunctionCall of pitch-shifted output, summed into @p outputBuffer.
 	/// @return the number of time-stretch hops performed this call. The caller folds this into the host's
 	/// per-routine hop accounting (CPU-load spreading) — the pitch-shifter itself stays free of that global.
-	[[nodiscard]] int32_t render(int32_t* output_buffer, int32_t num_samples_this_function_call,
+	[[nodiscard]] int32_t render(dsp::Q<31>* output_buffer, int32_t num_samples_this_function_call,
 	                             int32_t phase_increment, int32_t amplitude, int32_t amplitude_increment,
 	                             int32_t interpolation_buffer_size, AudioInputPort& port, dsp::fixed::Cong& noise);
 

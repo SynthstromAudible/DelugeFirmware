@@ -117,7 +117,7 @@ namespace params = deluge::modulation::params;
 using namespace deluge;
 using deluge::synth::LiveInputBuffer;
 
-extern int32_t spareRenderingBuffer[][SSI_TX_BUFFER_NUM_SAMPLES];
+extern deluge::dsp::Q<31> spareRenderingBuffer[][SSI_TX_BUFFER_NUM_SAMPLES];
 
 // #define REPORT_CPU_USAGE 1
 

@@ -65,7 +65,7 @@ private:
 	                                      int32_t source_amplitude, int32_t amplitude_increment,
 	                                      uint32_t phase_increment, bool do_osc_sync, const uint32_t* sync_pos,
 	                                      const uint32_t* sync_increments, int32_t wave_index_increment,
-	                                      bool stereo_unison, int32_t amplitude_l, int32_t amplitude_r);
+	                                      bool stereo_unison, dsp::Q<30> amplitude_l, dsp::Q<30> amplitude_r);
 };
 
 } // namespace deluge::synth

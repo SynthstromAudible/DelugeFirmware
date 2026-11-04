@@ -38,22 +38,22 @@
 namespace deluge::synth {
 
 namespace {
-/// @brief Adds @p sample times the amplitude into the buffer word at @p out, wrapping: the rounded product moved to
+/// @brief Adds @p sample times the amplitude into the buffer sample at @p out, wrapping: the rounded product moved to
 /// Q31, then ×2^(N − 1) for the play head mode's level, ×16 repitched or interpolated and ×8 direct.
 template <int N>
-[[gnu::always_inline]] inline void add_levelled(int32_t* out, int32_t sample, int32_t amplitude) {
+[[gnu::always_inline]] inline void add_levelled(dsp::Q<31>* out, int32_t sample, int32_t amplitude) {
 	const auto product = mul_r_as_wrap<dsp::Q<31>>(dsp::Q<31>::from_raw(sample), dsp::Q<31>::from_raw(amplitude));
-	*out = add_wrap(dsp::Q<31>::from_raw(*out), scale_shl_wrap<N - 1>(product)).raw();
+	*out = add_wrap(*out, scale_shl_wrap<N - 1>(product));
 }
 } // namespace
 
 // NOLINTNEXTLINE(readability-function-cognitive-complexity): split by the pitch-shifter rewrite (TODO.md)
-void LivePitchShifterPlayHead::render(int32_t* __restrict__ output_buffer, int32_t num_samples, int32_t num_channels,
+void LivePitchShifterPlayHead::render(dsp::Q<31>* __restrict__ output_buffer, int32_t num_samples, int32_t num_channels,
                                       int32_t phase_increment, int32_t amplitude, int32_t amplitude_increment,
                                       [[maybe_unused]] int32_t* repitched_buffer, int32_t* raw_buffer,
                                       int32_t which_kernel, int32_t interpolation_buffer_size) {
 
-	int32_t* output_buffer_end = output_buffer + num_samples * num_channels;
+	dsp::Q<31>* output_buffer_end = output_buffer + num_samples * num_channels;
 
 #if INPUT_ENABLE_REPITCHED_BUFFER
 	if (mode == PlayHeadMode::REPITCHED_BUFFER) {

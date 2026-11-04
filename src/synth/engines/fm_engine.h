@@ -86,22 +86,23 @@ private:
 	                        std::span<const uint32_t, kNumSources> phase_increments, Pass& pass);
 
 	// The FM operator renders: pure DSP over the buffers and phases they are handed.
-	static void render_sine_wave_with_feedback(int32_t* buffer_start, int32_t num_samples, uint32_t* phase,
+	static void render_sine_wave_with_feedback(dsp::Q<31>* buffer_start, int32_t num_samples, uint32_t* phase,
 	                                           int32_t amplitude, uint32_t phase_increment, int32_t feedback_amount,
 	                                           int32_t* last_feedback_value, bool add, int32_t amplitude_increment);
-	static void render_fm_with_feedback(int32_t* buffer_start, int32_t num_samples, uint32_t* phase, int32_t amplitude,
-	                                    uint32_t phase_increment, int32_t feedback_amount, int32_t* last_feedback_value,
-	                                    int32_t amplitude_increment);
-	static void render_fm_with_feedback_add(int32_t* buffer_start, int32_t num_samples, int32_t* fm_buffer,
+	static void render_fm_with_feedback(dsp::Q<31>* buffer_start, int32_t num_samples, uint32_t* phase,
+	                                    int32_t amplitude, uint32_t phase_increment, int32_t feedback_amount,
+	                                    int32_t* last_feedback_value, int32_t amplitude_increment);
+	static void render_fm_with_feedback_add(dsp::Q<31>* buffer_start, int32_t num_samples, const dsp::Q<31>* fm_buffer,
 	                                        uint32_t* phase, int32_t amplitude, uint32_t phase_increment,
 	                                        int32_t feedback_amount, int32_t* last_feedback_value,
 	                                        int32_t amplitude_increment);
 	/// The sine operator without feedback, four samples at a time (NEON).
-	static void render_sine_wave(int32_t* buffer_start, int32_t num_samples, uint32_t phase_now, int32_t amplitude,
+	static void render_sine_wave(dsp::Q<31>* buffer_start, int32_t num_samples, uint32_t phase_now, int32_t amplitude,
 	                             uint32_t phase_increment, bool add, int32_t amplitude_increment);
 	/// The carrier frequency-modulated by @p fm_buffer without feedback, added, four samples at a time (NEON).
-	static void render_fm_add(int32_t* buffer_start, int32_t num_samples, int32_t* fm_buffer, uint32_t phase_now,
-	                          int32_t amplitude, uint32_t phase_increment, int32_t amplitude_increment);
+	static void render_fm_add(dsp::Q<31>* buffer_start, int32_t num_samples, const dsp::Q<31>* fm_buffer,
+	                          uint32_t phase_now, int32_t amplitude, uint32_t phase_increment,
+	                          int32_t amplitude_increment);
 
 	// The state only FM uses, indexed [unison part][modulator]
 	std::array<std::array<uint32_t, kNumModulators>, kMaxNumVoicesUnison> modulator_phase_{};

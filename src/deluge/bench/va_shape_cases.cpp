@@ -32,8 +32,8 @@ dsp::Phasor phasor(uint32_t increment) {
 struct VaShapeRig {
 	std::variant<va::Saw, va::Square, va::Triangle, va::AnalogSaw> shape{va::Saw{phasor(0)}};
 	dsp::Phasor master = phasor(0);
-	alignas(16) std::array<q31_t, kMaxBlock> output{};
-	alignas(16) std::array<q31_t, kMaxBlock> scratch{};
+	alignas(16) std::array<dsp::Q<31>, kMaxBlock> output{};
+	alignas(16) std::array<dsp::Q<31>, kMaxBlock> scratch{};
 };
 
 VaShapeRig rig{};
@@ -41,7 +41,7 @@ VaShapeRig rig{};
 } // namespace
 
 void VaShapeCase::setup(std::size_t /*n*/) {
-	rig.output.fill(0);
+	rig.output.fill(dsp::Q<31>{});
 	const dsp::Phasor audible = phasor(config_.increment);
 	switch (config_.wave) {
 	case VaWave::SAW:
@@ -66,8 +66,8 @@ void VaShapeCase::block(std::size_t n) {
 	if (config_.sync) {
 		controls.sync = rig.master;
 	}
-	const std::span<int32_t> output{rig.output.data(), n};
-	const std::span<int32_t> scratch{rig.scratch.data(), n};
+	const std::span<dsp::Q<31>> output{rig.output.data(), n};
+	const std::span<dsp::Q<31>> scratch{rig.scratch.data(), n};
 	std::visit([&](auto& shape) { shape.render_block(controls, output, scratch); }, rig.shape);
 	rig.master.seek(
 	    dsp::UQ<32>::from_raw(rig.master.phase().raw() + (rig.master.increment().raw() * static_cast<uint32_t>(n))));

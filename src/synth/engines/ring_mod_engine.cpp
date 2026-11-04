@@ -69,8 +69,8 @@ void RingModEngine::render_parts(const EngineBlock& block, const std::array<uint
 
 		const deluge::dsp::fixed::PanAmplitudes unison_pan_amplitudes =
 		    deluge::dsp::fixed::pan_amplitudes(deluge::dsp::Q<31>::from_raw(stereo_unison ? cfg.unison_pan[u] : 0));
-		int32_t unison_amplitude_l = unison_pan_amplitudes.left.raw();
-		int32_t unison_amplitude_r = unison_pan_amplitudes.right.raw();
+		const dsp::Q<30> unison_amplitude_l = unison_pan_amplitudes.left;
+		const dsp::Q<30> unison_amplitude_r = unison_pan_amplitudes.right;
 
 		// The two sources' phase increments. One too high abandons every remaining unison part: the parts ascend in
 		// frequency, so the rest are too high as well.
@@ -120,9 +120,10 @@ void RingModEngine::render_parts(const EngineBlock& block, const std::array<uint
 }
 
 namespace {
-/// @brief The two sources' Q31 product, Q30, times the level, rounded: the high words as the ring mod has them.
-[[gnu::always_inline]] inline int32_t ring_product(int32_t a, int32_t b, dsp::Q<31> amplitude) {
-	return mul_r(mul(dsp::Q<31>::from_raw(a), dsp::Q<31>::from_raw(b)), amplitude).raw();
+/// @brief The two sources' product, Q30, times the level, rounded: the high words as the ring mod has them. The
+/// level's format folds in the scale, so the product's word is the output sample.
+[[gnu::always_inline]] inline dsp::Q<31> ring_product(dsp::Q<31> a, dsp::Q<31> b, dsp::Q<31> amplitude) {
+	return dsp::reinterpret_bits<dsp::Q<31>>(mul_r(mul(a, b), amplitude));
 }
 } // namespace
 
@@ -148,15 +149,16 @@ int32_t RingModEngine::level(bool has_filters, int32_t filter_gain, OscType sour
 
 void RingModEngine::render_unison_part(const RingSource& src0, const RingSource& src1, bool do_osc_sync,
                                        uint32_t osc_sync_pos, bool has_filters, int32_t cpu_direness,
-                                       int32_t filter_gain, int32_t unison_amplitude_l, int32_t unison_amplitude_r,
-                                       bool stereo_unison, int32_t* osc_buffer, int32_t num_samples, int32_t* scratch0,
-                                       int32_t* scratch1, std::span<int32_t> sync_scratch) {
+                                       int32_t filter_gain, dsp::Q<30> unison_amplitude_l,
+                                       dsp::Q<30> unison_amplitude_r, bool stereo_unison, dsp::Q<31>* osc_buffer,
+                                       int32_t num_samples, dsp::Q<31>* scratch0, dsp::Q<31>* scratch1,
+                                       std::span<dsp::Q<31>> sync_scratch) {
 
 	using dsp::Q;
 	const Q<31> amplitude_for_ring_mod = Q<31>::from_raw(level(has_filters, filter_gain, src0.osc_type, src1.osc_type));
 
 	const std::array<const RingSource*, kNumSources> sources{&src0, &src1};
-	const std::array<int32_t*, kNumSources> scratch{scratch0, scratch1};
+	const std::array<dsp::Q<31>*, kNumSources> scratch{scratch0, scratch1};
 
 	for (int32_t s = 0; s < 2; s++) {
 		// Source 0 can never be the synced (slave) oscillator — it is the master.
@@ -172,8 +174,8 @@ void RingModEngine::render_unison_part(const RingSource& src0, const RingSource&
 		    make_block_controls(0, 0, source.pulse_width, /*apply_amplitude=*/false, synced, osc_sync_pos,
 		                        src0.phase_increment, source.retrigger_phase, cpu_direness);
 		// NOLINTEND(readability-suspicious-call-argument)
-		const std::span<int32_t> out{scratch[s], static_cast<size_t>(num_samples)};
-		const std::span<int32_t> sync_block = sync_scratch.first(static_cast<size_t>(num_samples));
+		const std::span<dsp::Q<31>> out{scratch[s], static_cast<size_t>(num_samples)};
+		const std::span<dsp::Q<31>> sync_block = sync_scratch.first(static_cast<size_t>(num_samples));
 		std::visit(
 		    [&]<class Held>(Held& held) {
 			    if constexpr (std::is_same_v<Held, VirtualAnalogSource>) {
@@ -189,20 +191,20 @@ void RingModEngine::render_unison_part(const RingSource& src0, const RingSource&
 			    }
 			    else {
 				    // No oscillator held (a mode change under a live voice): a silent wave
-				    std::ranges::fill(out, 0);
+				    std::ranges::fill(out, dsp::Q<31>{});
 			    }
 		    },
 		    source.part->oscillator());
 	}
 
-	int32_t* __restrict__ output = osc_buffer;
-	int32_t* __restrict__ input0 = scratch0;
-	int32_t* __restrict__ input1 = scratch1;
+	dsp::Q<31>* __restrict__ output = osc_buffer;
+	dsp::Q<31>* __restrict__ input0 = scratch0;
+	dsp::Q<31>* __restrict__ input1 = scratch1;
 
 	if (stereo_unison) {
-		int32_t const* const osc_buffer_end = osc_buffer + 2 * num_samples;
+		dsp::Q<31> const* const osc_buffer_end = osc_buffer + 2 * num_samples;
 		do {
-			const int32_t out = ring_product(*input0, *input1, amplitude_for_ring_mod);
+			const dsp::Q<31> out = ring_product(*input0, *input1, amplitude_for_ring_mod);
 			add_panned(output, out, unison_amplitude_l, unison_amplitude_r);
 			output += 2;
 			input0++;
@@ -210,11 +212,9 @@ void RingModEngine::render_unison_part(const RingSource& src0, const RingSource&
 		} while (output != osc_buffer_end);
 	}
 	else {
-		int32_t const* const osc_buffer_end = osc_buffer + num_samples;
+		dsp::Q<31> const* const osc_buffer_end = osc_buffer + num_samples;
 		do {
-			*output = add_wrap(Q<31>::from_raw(*output),
-			                   Q<31>::from_raw(ring_product(*input0, *input1, amplitude_for_ring_mod)))
-			              .raw();
+			add_into(output, ring_product(*input0, *input1, amplitude_for_ring_mod));
 			input0++;
 			input1++;
 		} while (++output != osc_buffer_end);

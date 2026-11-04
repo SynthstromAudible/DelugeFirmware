@@ -25,10 +25,10 @@ namespace {
 /// A source no voice knows: it adds a constant level.
 class DroneSource final : public Source {
 public:
-	explicit DroneSource(int32_t level) : level_{level} {}
+	explicit DroneSource(int32_t level) : level_{deluge::dsp::Q<31>::from_raw(level)} {}
 	SourceRenderResult render(const SourceBlock& block) override {
 		for (int32_t i = 0; i < block.num_samples; i++) {
-			block.osc_buffer[i] += level_;
+			block.osc_buffer[i] = add_wrap(block.osc_buffer[i], level_);
 		}
 		renders++;
 		return SourceRenderResult::ACTIVE;
@@ -36,7 +36,7 @@ public:
 	int32_t renders = 0;
 
 private:
-	int32_t level_;
+	deluge::dsp::Q<31> level_;
 };
 
 /// An engine no voice knows, over the voice's slots: each active slot of each part plays its drone.
@@ -74,7 +74,7 @@ VoiceConfig two_source_config(SynthMode mode) {
 }
 
 /// Plays @p blocks blocks of a two-source note; @return the last block.
-std::array<int32_t, kBlock * 2> play(SynthMode mode, bool osc_sync, int32_t blocks) {
+std::array<deluge::dsp::Q<31>, kBlock * 2> play(SynthMode mode, bool osc_sync, int32_t blocks) {
 	auto rig = std::make_unique<Rig>();
 	const NoteSetup setup = two_sources_and_noise();
 	VoiceConfig cfg = two_source_config(mode);
@@ -86,9 +86,9 @@ std::array<int32_t, kBlock * 2> play(SynthMode mode, bool osc_sync, int32_t bloc
 	return rig->out;
 }
 
-bool any_sound(const std::array<int32_t, kBlock * 2>& out) {
+bool any_sound(const std::array<deluge::dsp::Q<31>, kBlock * 2>& out) {
 	for (int32_t i = 0; i < kBlock; i++) {
-		if (out[i] != 0) {
+		if (out[i] != deluge::dsp::Q<31>{}) {
 			return true;
 		}
 	}
@@ -112,11 +112,11 @@ describe synth_engine_spec("synth engines", ${
 			expect(rig->voice.unison_parts[0].slots[0].active).to_be_true();
 			expect(rig->voice.unison_parts[0].slots[1].active).to_be_false();
 
-			std::array<int32_t, kBlock> out{};
+			std::array<deluge::dsp::Q<31>, kBlock> out{};
 			engine.render({.osc_buffer = out.data(), .num_samples = kBlock, .parts = rig->voice.unison_parts, .cfg = &cfg});
 			expect(engine.drones[0].renders).to_equal(1);
 			expect(engine.drones[1].renders).to_equal(0);
-			expect(out[0]).to_equal(1000);
+			expect(out[0].raw()).to_equal(1000);
 		});
 
 		it("declare the hooks later engines need, and no engine here uses them", _{

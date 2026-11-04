@@ -107,7 +107,7 @@ using deluge::synth::VoiceConfig;
 namespace params = deluge::modulation::params;
 
 // Defined in processing/render_scratch.cpp: the render scratch shared engine-wide, handed to each voice's render.
-extern int32_t spareRenderingBuffer[][SSI_TX_BUFFER_NUM_SAMPLES];
+extern deluge::dsp::Q<31> spareRenderingBuffer[][SSI_TX_BUFFER_NUM_SAMPLES];
 
 namespace {
 /// Sounds destroyed while they still had live voices. Always on; relaxed, because it is evidence, not synchronisation:
@@ -1920,8 +1920,8 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 
 	// FIXME(@stellar-aria): if we have simulataneous sounds rendering, they'll overwrite
 	// each other in this buffer. It probably should be object or thread-local
-	alignas(CACHE_LINE_SIZE) static q31_t sound_memory[SSI_TX_BUFFER_NUM_SAMPLES * 2];
-	memset(sound_memory, 0, output.size() * sizeof(q31_t) * (voice_rendered_in_stereo ? 2 : 1));
+	alignas(CACHE_LINE_SIZE) static deluge::dsp::Q<31> sound_memory[SSI_TX_BUFFER_NUM_SAMPLES * 2];
+	std::fill_n(sound_memory, output.size() * (voice_rendered_in_stereo ? 2 : 1), deluge::dsp::Q<31>{});
 
 	std::span sound_mono{sound_memory, output.size()};
 	std::span sound_stereo{(StereoSample*)sound_memory, output.size()};
@@ -2068,17 +2068,14 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		if (!voice_rendered_in_stereo) {
 			if (doPanning) {
 				// right to left because of in-place mono to stereo expansion
-				// The voices render raw Q31 samples.
-				std::transform(sound_mono.rbegin(), sound_mono.rend(), sound_stereo.rbegin(), [=](q31_t sample) {
-					return dsp::panned_mono(dsp::Q<31>::from_raw(sample), dsp::Q<30>::from_raw(amplitudeL),
-					                        dsp::Q<30>::from_raw(amplitudeR));
+				std::transform(sound_mono.rbegin(), sound_mono.rend(), sound_stereo.rbegin(), [=](dsp::Q<31> sample) {
+					return dsp::panned_mono(sample, dsp::Q<30>::from_raw(amplitudeL), dsp::Q<30>::from_raw(amplitudeR));
 				});
 			}
 			else {
 				// right to left because of in-place mono to stereo expansion
-				std::transform(sound_mono.rbegin(), sound_mono.rend(), sound_stereo.rbegin(), [](q31_t sample) {
-					return StereoSample::from_mono(dsp::Q<31>::from_raw(sample)); // the voices' raw Q31
-				});
+				std::transform(sound_mono.rbegin(), sound_mono.rend(), sound_stereo.rbegin(),
+				               [](dsp::Q<31> sample) { return StereoSample::from_mono(sample); });
 			}
 		}
 
@@ -2100,7 +2097,8 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 			// Clear the non-overlapping portion of the stereo buffer (yes this is janky).
 			// Use data()+size() for the past-the-end pointer, not &sound_mono[size()] — the latter
 			// calls span::operator[] with an out-of-bounds index (UB; the hardened host build asserts).
-			memset(sound_mono.data() + sound_mono.size(), 0, sound_stereo.size_bytes() - sound_mono.size_bytes());
+			std::fill(sound_mono.data() + sound_mono.size(), sound_mono.data() + (sound_stereo.size() * 2),
+			          dsp::Q<31>{});
 		}
 	}
 

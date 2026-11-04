@@ -112,15 +112,16 @@ src/deluge/model/sample/sample_low_level_reader.cpp raw=0 boundary=10
 src/deluge/model/sample/sample_low_level_reader.h raw=0 boundary=4
 src/deluge/model/sample/sample_recorder.cpp raw=2 boundary=8
 src/deluge/model/song/song.cpp raw=0 boundary=2
-src/deluge/model/voice/voice_sample.cpp raw=0 boundary=11
+src/deluge/model/voice/sample_playback_adapter.cpp raw=0 view=1 boundary=2
+src/deluge/model/voice/voice_sample.cpp raw=0 view=1 boundary=11
 src/deluge/modulation/arpeggiator.cpp raw=0 boundary=7
 src/deluge/modulation/automation/auto_param.cpp raw=0 boundary=8
 src/deluge/playback/playback_handler.cpp raw=0 boundary=3
 src/deluge/processing/audio_output.cpp raw=0 view=1 boundary=17
-src/deluge/processing/dx7/dx_voice_adapter.cpp raw=0 view=1 boundary=1
+src/deluge/processing/dx7/dx_voice_adapter.cpp raw=0 boundary=1
 src/deluge/processing/engines/audio_engine.cpp raw=0 boundary=33
 src/deluge/processing/metronome/metronome.cpp raw=0 boundary=3
-src/deluge/processing/sound/sound.cpp raw=0 boundary=13
+src/deluge/processing/sound/sound.cpp raw=0 boundary=11
 src/deluge/processing/sound/sound_chain_inputs.cpp raw=0 boundary=4
 src/deluge/storage/audio/stream/convert.cpp raw=0 boundary=1
 src/deluge/storage/wave_table/wave_table_cycle_reader.cpp raw=0 boundary=1
@@ -150,25 +151,24 @@ src/scenes/services/knob_push.cpp raw=0 boundary=5
 src/synth/engines/block_controls.cpp raw=0 boundary=4
 src/synth/engines/block_controls.h raw=0 boundary=2
 src/synth/engines/dual_source_engine.cpp raw=0 boundary=10
-src/synth/engines/fm_engine.cpp raw=0 boundary=44
+src/synth/engines/fm_engine.cpp raw=0 boundary=42
 src/synth/engines/pitch.h raw=0 boundary=6
-src/synth/engines/ring_mod_engine.cpp raw=0 boundary=13
+src/synth/engines/ring_mod_engine.cpp raw=0 boundary=6
 src/synth/engines/slot_engine.cpp raw=0 boundary=3
 src/synth/engines/subtractive_engine.cpp raw=0 boundary=3
 src/synth/matrix/matrix_fixed.h raw=0 boundary=49
 src/synth/modulation/cable_depth.h raw=0 boundary=12
 src/synth/modulation/envelope.cpp raw=0 boundary=17
 src/synth/modulation/lfo.h raw=0 boundary=15
-src/synth/sources/dx7/dx7_source.cpp raw=0 boundary=12
-src/synth/sources/input/input_source.cpp raw=0 boundary=6
+src/synth/sources/dx7/dx7_source.cpp raw=0 boundary=2
+src/synth/sources/input/input_source.cpp raw=0 boundary=5
 src/synth/sources/input/live/live_input_buffer.cpp raw=0 boundary=5
 src/synth/sources/input/live/live_pitch_shifter.cpp raw=0 boundary=15
-src/synth/sources/input/live/live_pitch_shifter_play_head.cpp raw=0 boundary=6
-src/synth/sources/source.h raw=0 boundary=14
+src/synth/sources/input/live/live_pitch_shifter_play_head.cpp raw=0 boundary=4
+src/synth/sources/source.h raw=0 boundary=2
 src/synth/sources/source_slot.cpp raw=0 boundary=8
-src/synth/sources/supersaw/supersaw_source.cpp raw=0 view=4 boundary=0
-src/synth/sources/va/va_shapes.cpp raw=0 view=12 boundary=34
+src/synth/sources/va/va_shapes.cpp raw=0 boundary=34
 src/synth/sources/va/va_shapes.h raw=0 boundary=24
-src/synth/sources/wavetable/wavetable_source.cpp raw=0 view=5 boundary=4
+src/synth/sources/wavetable/wavetable_source.cpp raw=0 boundary=4
 src/synth/sources/wavetable/wavetable_source.h raw=0 boundary=3
-src/synth/voice/voice.cpp raw=0 view=6 boundary=48
+src/synth/voice/voice.cpp raw=0 boundary=39

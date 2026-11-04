@@ -158,33 +158,31 @@ Resolved resolve_multiply(Phasor original, const BlockControls& controls, uint32
 
 /// out = (scratch · amplitude) + out — the dsp-next Amplitude mixer with a ramped amplitude vector. The hard-sync
 /// arms render the wave into `scratch`, then mix it into `output`'s prior contents (the normal voice path).
-void mix_through_vca(Ramp amplitude, std::span<int32_t> output, std::span<int32_t> scratch) {
+void mix_through_vca(Ramp amplitude, std::span<dsp::Q<31>> output, std::span<dsp::Q<31>> scratch) {
 	fixed::Amplitude vca{amplitude};
-	vca.render_block(dsp::typed_view(std::span<const int32_t>{scratch}),
-	                 dsp::typed_view(std::span<const int32_t>{output}), dsp::typed_view(output));
+	vca.render_block(scratch, output, output);
 }
 
 /// Render `osc`'s raw wave, then either scale-and-mix it through its VCA (when amplitude applies) or write the
 /// standalone wave (rescaled per @p scale) straight out. `make_vca` builds the VCA only when it is needed.
 template <typename Osc, typename MakeVca>
-void render_through_vca(Osc& osc, MakeVca make_vca, Standalone scale, bool apply_amplitude, std::span<int32_t> output,
-                        std::span<int32_t> scratch) {
+void render_through_vca(Osc& osc, MakeVca make_vca, Standalone scale, bool apply_amplitude,
+                        std::span<dsp::Q<31>> output, std::span<dsp::Q<31>> scratch) {
 	if (apply_amplitude) {
-		osc.render_block(dsp::typed_view(scratch));
+		osc.render_block(scratch);
 		auto vca = make_vca();
-		vca.render_block(dsp::typed_view(std::span<const int32_t>{scratch}),
-		                 dsp::typed_view(std::span<const int32_t>{output}), dsp::typed_view(output));
+		vca.render_block(scratch, output, output);
 	}
 	else {
-		osc.render_block(dsp::typed_view(output));
+		osc.render_block(output);
 		if (scale == Standalone::HALVE) {
 			for (auto& sample : output) {
-				sample >>= 1;
+				sample = halve_floor(sample);
 			}
 		}
 		else if (scale == Standalone::DOUBLE) {
 			for (auto& sample : output) {
-				sample <<= 1;
+				sample = scale_shl_wrap<1>(sample);
 			}
 		}
 	}
@@ -195,15 +193,15 @@ void render_through_vca(Osc& osc, MakeVca make_vca, Standalone scale, bool apply
 /// reports its advanced phase back through `phasor`.
 void render_band_limited(const fixed::BandlimitedTable& bands, uint32_t selection_increment, Ramp amplitude,
                          const std::optional<Phasor>& sync, uint32_t retrigger, bool apply_amplitude,
-                         std::span<int32_t> output, std::span<int32_t> scratch, Phasor& phasor) {
+                         std::span<dsp::Q<31>> output, std::span<dsp::Q<31>> scratch, Phasor& phasor) {
 	if (sync) {
-		std::span<int32_t> dst = apply_amplitude ? scratch : output;
+		std::span<dsp::Q<31>> dst = apply_amplitude ? scratch : output;
 		fixed::SyncedOscillator osc{
 		    fixed::BandLimitedTableOscillator{bands, phasor.phase().raw(), phasor.increment().raw(),
 		                                      selection_increment},
 		    phasor.phase().raw(), phasor.increment().raw(),
 		    fixed::Resetter{.phase = sync->phase().raw(), .phase_increment = sync->increment().raw()}, retrigger};
-		osc.render_block(dsp::typed_view(dst));
+		osc.render_block(dst);
 		phasor.seek(uq32(osc.phase()));
 		mix_through_vca(amplitude, output, scratch);
 	}
@@ -219,27 +217,27 @@ void render_band_limited(const fixed::BandlimitedTable& bands, uint32_t selectio
 /// rate (the legacy pulse trick), so a synced phase is doubled back before being reported. @p pulse_width is the
 /// width already offset by half a cycle; @p band_select is the (mildly band-limited) increment that picks the band.
 void render_perfect_pulse(Ramp amplitude, uint32_t pulse_width, uint32_t band_select, const std::optional<Phasor>& sync,
-                          uint32_t retrigger, bool apply_amplitude, std::span<int32_t> output,
-                          std::span<int32_t> scratch, Phasor& phasor) {
+                          uint32_t retrigger, bool apply_amplitude, std::span<dsp::Q<31>> output,
+                          std::span<dsp::Q<31>> scratch, Phasor& phasor) {
 	const uint32_t phase_offset = -(pulse_width >> 1);
 	const uint32_t phase = scale_shr_floor<1>(phasor.phase()).raw();
 	const uint32_t increment = scale_shr_floor<1>(phasor.increment()).raw();
 	fixed::PulseOscillator pulse{fixed::square_bandlimited_table().select(band_select), phase, increment, phase_offset};
 	if (sync) {
-		std::span<int32_t> dst = apply_amplitude ? scratch : output;
+		std::span<dsp::Q<31>> dst = apply_amplitude ? scratch : output;
 		fixed::SyncedOscillator osc{
 		    pulse, phase, increment,
 		    fixed::Resetter{.phase = sync->phase().raw(), .phase_increment = sync->increment().raw()}, retrigger};
-		osc.render_block(dsp::typed_view(dst));
+		osc.render_block(dst);
 		phasor.seek(scale_shl_wrap<1>(uq32(osc.phase())));
 		mix_through_vca(amplitude, output, scratch);
 	}
 	else if (apply_amplitude) {
-		pulse.render_block(dsp::typed_view(scratch));
+		pulse.render_block(scratch);
 		mix_through_vca(amplitude, output, scratch);
 	}
 	else {
-		pulse.render_block(dsp::typed_view(output));
+		pulse.render_block(output);
 	}
 }
 
@@ -251,7 +249,7 @@ void render_perfect_pulse(Ramp amplitude, uint32_t pulse_width, uint32_t band_se
 
 } // namespace
 
-void Sine::render_block(const BlockControls& controls, std::span<int32_t> output, std::span<int32_t> scratch) {
+void Sine::render_block(const BlockControls& controls, std::span<dsp::Q<31>> output, std::span<dsp::Q<31>> scratch) {
 	// Sine has no aliasing — a single band (the small sine table) covers every pitch.
 	static const fixed::Band kSineBand[] = {{deluge::dsp::fixed::tables::kSineSmall.data(), 8, 0xFFFFFFFFu}};
 	static const fixed::BandlimitedTable kSineTable{kSineBand};
@@ -263,7 +261,8 @@ void Sine::render_block(const BlockControls& controls, std::span<int32_t> output
 	phasor_.seek(r.render.phase());
 }
 
-void Triangle::render_block(const BlockControls& controls, std::span<int32_t> output, std::span<int32_t> scratch) {
+void Triangle::render_block(const BlockControls& controls, std::span<dsp::Q<31>> output,
+                            std::span<dsp::Q<31>> scratch) {
 	// Triangle takes no retrigger or self-sync resetter tweak.
 	Resolved r = resolve_multiply(phasor_, controls, controls.retrigger_phase, 0u);
 	if (r.render.increment().raw() < kTriangleCrudeIncrement || controls.cpu_direness >= 7) {
@@ -285,7 +284,7 @@ void Triangle::render_block(const BlockControls& controls, std::span<int32_t> ou
 	phasor_.seek(r.render.phase());
 }
 
-void Saw::render_block(const BlockControls& controls, std::span<int32_t> output, std::span<int32_t> scratch) {
+void Saw::render_block(const BlockControls& controls, std::span<dsp::Q<31>> output, std::span<dsp::Q<31>> scratch) {
 	// Retrigger shifts half a cycle; its pulse-as-sync self-sync master shifts the same.
 	const uint32_t retrigger = controls.retrigger_phase + kHalfCycle;
 	Resolved r = resolve_multiply(phasor_, controls, retrigger, kHalfCycle);
@@ -310,7 +309,7 @@ void Saw::render_block(const BlockControls& controls, std::span<int32_t> output,
 	phasor_.seek(r.render.phase());
 }
 
-void Square::render_block(const BlockControls& controls, std::span<int32_t> output, std::span<int32_t> scratch) {
+void Square::render_block(const BlockControls& controls, std::span<dsp::Q<31>> output, std::span<dsp::Q<31>> scratch) {
 	// The square's pulse is the *perfect* pulse (not pulse-as-sync), so its render phase is never rewritten — only
 	// a real sync resets it. The width is offset half a cycle, and the band is mildly limited (×0.6) when pulsing.
 	const bool pulse_wave = (controls.pulse_width != 0);
@@ -343,7 +342,8 @@ void Square::render_block(const BlockControls& controls, std::span<int32_t> outp
 	                    controls.apply_amplitude, output, scratch, phasor_);
 }
 
-void AnalogSaw::render_block(const BlockControls& controls, std::span<int32_t> output, std::span<int32_t> scratch) {
+void AnalogSaw::render_block(const BlockControls& controls, std::span<dsp::Q<31>> output,
+                             std::span<dsp::Q<31>> scratch) {
 	// At a high band number on a dire CPU, downgrade to the crude digital saw. The downgrade keeps the digital
 	// saw's self-sync resetter tweak (+half cycle) but — matching the legacy — *not* its retrigger tweak (the
 	// analog saw never gets that). The decision is on the original pitch.
@@ -372,7 +372,8 @@ void AnalogSaw::render_block(const BlockControls& controls, std::span<int32_t> o
 	phasor_.seek(r.render.phase());
 }
 
-void AnalogSquare::render_block(const BlockControls& controls, std::span<int32_t> output, std::span<int32_t> scratch) {
+void AnalogSquare::render_block(const BlockControls& controls, std::span<dsp::Q<31>> output,
+                                std::span<dsp::Q<31>> scratch) {
 	// Analog square's pulse-as-sync uses the "divide" rewrite; no retrigger or resetter tweak.
 	Resolved r = (controls.sync || controls.pulse_width == 0)
 	                 ? Resolved{.render = phasor_, .sync = controls.sync, .retrigger = controls.retrigger_phase}

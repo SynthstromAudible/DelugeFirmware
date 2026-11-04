@@ -18,7 +18,7 @@
 
 #include "definitions_cxx.hpp"    // OscType
 #include "dsp-next/core/phasor.h" // deluge::dsp::Phasor
-#include "dsp-next/core/types.h"  // std::span<int32_t>
+#include "dsp-next/core/types.h"  // std::span<dsp::Q<31>>
 #include "synth/sources/source.h" // BlockControls
 #include <cstdint>
 
@@ -50,7 +50,7 @@ public:
 	[[nodiscard]] uint32_t increment() const { return phasor_.increment().raw(); }
 	void set_increment(uint32_t increment) { phasor_.set_increment(deluge::dsp::UQ<32>::from_raw(increment)); }
 	void seek(uint32_t phase) { phasor_.seek(deluge::dsp::UQ<32>::from_raw(phase)); }
-	void render_block(const BlockControls& controls, std::span<int32_t> output, std::span<int32_t> scratch);
+	void render_block(const BlockControls& controls, std::span<dsp::Q<31>> output, std::span<dsp::Q<31>> scratch);
 };
 
 /// @brief Triangle: crude (half-scale, doubled VCA) at low pitch / dire CPU, else band-limited.
@@ -63,7 +63,7 @@ public:
 	[[nodiscard]] uint32_t increment() const { return phasor_.increment().raw(); }
 	void set_increment(uint32_t increment) { phasor_.set_increment(deluge::dsp::UQ<32>::from_raw(increment)); }
 	void seek(uint32_t phase) { phasor_.seek(deluge::dsp::UQ<32>::from_raw(phase)); }
-	void render_block(const BlockControls& controls, std::span<int32_t> output, std::span<int32_t> scratch);
+	void render_block(const BlockControls& controls, std::span<dsp::Q<31>> output, std::span<dsp::Q<31>> scratch);
 };
 
 /// @brief Sawtooth: crude (phase ramp) at low table number / dire CPU, else band-limited.
@@ -76,7 +76,7 @@ public:
 	[[nodiscard]] uint32_t increment() const { return phasor_.increment().raw(); }
 	void set_increment(uint32_t increment) { phasor_.set_increment(deluge::dsp::UQ<32>::from_raw(increment)); }
 	void seek(uint32_t phase) { phasor_.seek(deluge::dsp::UQ<32>::from_raw(phase)); }
-	void render_block(const BlockControls& controls, std::span<int32_t> output, std::span<int32_t> scratch);
+	void render_block(const BlockControls& controls, std::span<dsp::Q<31>> output, std::span<dsp::Q<31>> scratch);
 };
 
 /// @brief Square / pulse: crude switch at low table number / dire CPU; the perfect band-limited pulse (two
@@ -90,7 +90,7 @@ public:
 	[[nodiscard]] uint32_t increment() const { return phasor_.increment().raw(); }
 	void set_increment(uint32_t increment) { phasor_.set_increment(deluge::dsp::UQ<32>::from_raw(increment)); }
 	void seek(uint32_t phase) { phasor_.seek(deluge::dsp::UQ<32>::from_raw(phase)); }
-	void render_block(const BlockControls& controls, std::span<int32_t> output, std::span<int32_t> scratch);
+	void render_block(const BlockControls& controls, std::span<dsp::Q<31>> output, std::span<dsp::Q<31>> scratch);
 };
 
 /// @brief Analog sawtooth — band-limited, but downgrades internally to the crude digital saw at a high band
@@ -105,7 +105,7 @@ public:
 	[[nodiscard]] uint32_t increment() const { return phasor_.increment().raw(); }
 	void set_increment(uint32_t increment) { phasor_.set_increment(deluge::dsp::UQ<32>::from_raw(increment)); }
 	void seek(uint32_t phase) { phasor_.seek(deluge::dsp::UQ<32>::from_raw(phase)); }
-	void render_block(const BlockControls& controls, std::span<int32_t> output, std::span<int32_t> scratch);
+	void render_block(const BlockControls& controls, std::span<dsp::Q<31>> output, std::span<dsp::Q<31>> scratch);
 };
 
 /// @brief Analog square — always band-limited.
@@ -118,7 +118,7 @@ public:
 	[[nodiscard]] uint32_t increment() const { return phasor_.increment().raw(); }
 	void set_increment(uint32_t increment) { phasor_.set_increment(deluge::dsp::UQ<32>::from_raw(increment)); }
 	void seek(uint32_t phase) { phasor_.seek(deluge::dsp::UQ<32>::from_raw(phase)); }
-	void render_block(const BlockControls& controls, std::span<int32_t> output, std::span<int32_t> scratch);
+	void render_block(const BlockControls& controls, std::span<dsp::Q<31>> output, std::span<dsp::Q<31>> scratch);
 };
 
 /// @brief Whether @p type is one of the six virtual-analog waves (the first OscType entries, up to ANALOG_SAW_2);

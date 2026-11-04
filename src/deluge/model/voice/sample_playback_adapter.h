@@ -88,8 +88,8 @@ public:
 	LateStartOutcome attempt_late_start(int64_t rawSamplesLate, int32_t numSamples) override;
 	bool possibly_set_up_cache(int32_t phaseIncrement, int32_t timeStretchRatio, int32_t priorityRating,
 	                           LoopType loopingType) override;
-	bool render(int32_t* buffer, int32_t numSamples, LoopType loopingType, int32_t phaseIncrement,
-	            int32_t timeStretchRatio, int32_t sourceAmplitude, int32_t amplitudeIncrement,
+	bool render(deluge::dsp::Q<31>* buffer, int32_t numSamples, LoopType loopingType, int32_t phaseIncrement,
+	            int32_t timeStretchRatio, deluge::dsp::Q<31> sourceAmplitude, deluge::dsp::Q<31> amplitudeIncrement,
 	            int32_t interpolationBufferSize, int32_t priorityRating) override;
 
 private:

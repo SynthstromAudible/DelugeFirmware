@@ -54,15 +54,22 @@ using dsp::UQ;
 	return clamp_bits<22>(mul(Q<31>::from_raw(feedback_value), Q<31>::from_raw(feedback_amount))).raw();
 }
 
+/// @brief An operator's product as its buffer holds it. The buffers hold the operators' Q30 products in the voice's
+/// Q31 samples: the voice reads an FM voice's buffer as its samples, the carriers' levels holding the voice's gain.
+[[gnu::always_inline]] inline Q<31> buffer_sample(Q<30> product) {
+	return dsp::reinterpret_bits<Q<31>>(product);
+}
+
 /// @brief A sine's Q31 word times the amplitude, the rounded high word: Q30, as the carriers' buffer sums it and as
 /// every operator path rounds.
-[[gnu::always_inline]] inline int32_t scaled(int32_t value, int32_t amplitude) {
-	return mul_r(Q<31>::from_raw(value), Q<31>::from_raw(amplitude)).raw();
+[[gnu::always_inline]] inline Q<31> scaled(int32_t value, int32_t amplitude) {
+	return buffer_sample(mul_r(Q<31>::from_raw(value), Q<31>::from_raw(amplitude)));
 }
 
 /// @brief @p accumulator plus a sine's Q31 word times the amplitude, the rounded high word, wrapping.
-[[gnu::always_inline]] inline int32_t accumulated(int32_t accumulator, int32_t value, int32_t amplitude) {
-	return mla_r(Q<30>::from_raw(accumulator), Q<31>::from_raw(value), Q<31>::from_raw(amplitude)).raw();
+[[gnu::always_inline]] inline Q<31> accumulated(Q<31> accumulator, int32_t value, int32_t amplitude) {
+	return buffer_sample(
+	    mla_r(dsp::reinterpret_bits<Q<30>>(accumulator), Q<31>::from_raw(value), Q<31>::from_raw(amplitude)));
 }
 
 /// @brief Four lanes of the ramping amplitude, each read at Q30 (halved), so the doubling multiply gives the high word.
@@ -75,9 +82,14 @@ using dsp::UQ;
 	return QVec<30>::from_raw(lanes);
 }
 
-/// @brief @p result added into the buffer's four words at @p sample, wrapping.
-[[gnu::always_inline]] inline void add_into(int32_t* sample, QVec<30> result) {
-	vst1q_s32(sample, add_wrap(QVec<30>::from_raw(vld1q_s32(sample)), result).raw());
+/// @brief Four operator products as their buffer holds them (@ref buffer_sample).
+[[gnu::always_inline]] inline QVec<31> buffer_samples(QVec<30> products) {
+	return QVec<31>::from_raw(products.raw());
+}
+
+/// @brief @p result added into the buffer's four samples at @p sample, wrapping.
+[[gnu::always_inline]] inline void add_into(Q<31>* sample, QVec<30> result) {
+	buffer_samples(add_wrap(QVec<30>::from_raw(QVec<31>::load(sample).raw()), result)).store(sample);
 }
 } // namespace
 
@@ -158,7 +170,7 @@ EngineRenderResult FMEngine::render(const EngineBlock& block) {
 	const bool stereo_unison = c.stereo_unison;
 
 	// FM renders no noise
-	memset(block.osc_buffer, 0, (stereo_unison ? 2 : 1) * block.num_samples * sizeof(int32_t));
+	std::fill_n(block.osc_buffer, (stereo_unison ? 2 : 1) * block.num_samples, Q<31>{});
 
 	Pass pass = begin(block);
 
@@ -265,7 +277,7 @@ bool FMEngine::render_modulators(const EngineBlock& block, int32_t u,
 	const VoiceConfig& cfg = *block.cfg;
 	const FmControls& c = block.fm;
 	const int32_t num_samples = block.num_samples;
-	int32_t* const modulator_scratch = block.spare_buffers[2];
+	Q<31>* const modulator_scratch = block.spare_buffers[2];
 	const std::array<bool, kNumModulators>& active = pass.modulators_active;
 
 	// Modulator 1 into a silent modulator 0 sounds nothing
@@ -301,17 +313,17 @@ void FMEngine::render_unison_part(const EngineBlock& block, int32_t u,
                                   std::span<const uint32_t, kNumSources> phase_increments, Pass& pass) {
 	const FmControls& c = block.fm;
 	const int32_t num_samples = block.num_samples;
-	int32_t* const osc_buffer = block.osc_buffer;
+	Q<31>* const osc_buffer = block.osc_buffer;
 
 	// The modulators' increments, with the overall and their own pitch adjust; one too high stops sounding, which
 	// holds for the higher parts after this one
 	const std::array<uint32_t, kNumModulators> increments = modulator_increments(block, u, pass);
 
-	int32_t* fm_osc_buffer = osc_buffer;
+	Q<31>* fm_osc_buffer = osc_buffer;
 	if (c.stereo_unison) {
 		// buffer 0-1: stereo output, 2: modulators, 3: per-unison carriers
 		fm_osc_buffer = block.spare_buffers[3];
-		memset(fm_osc_buffer, 0, num_samples * sizeof(int32_t));
+		std::fill_n(fm_osc_buffer, num_samples, Q<31>{});
 	}
 
 	const bool modulated = render_modulators(block, u, increments, pass);
@@ -341,12 +353,12 @@ void FMEngine::render_unison_part(const EngineBlock& block, int32_t u,
 		const dsp::fixed::PanAmplitudes pan =
 		    dsp::fixed::pan_amplitudes(dsp::Q<31>::from_raw(block.cfg->unison_pan[u]));
 		for (int32_t i = 0; i < num_samples; i++) {
-			add_panned(&osc_buffer[i << 1], fm_osc_buffer[i], pan.left.raw(), pan.right.raw());
+			add_panned(&osc_buffer[i << 1], fm_osc_buffer[i], pan.left, pan.right);
 		}
 	}
 }
 
-void FMEngine::render_sine_wave_with_feedback(int32_t* buffer_start, int32_t num_samples, uint32_t* phase,
+void FMEngine::render_sine_wave_with_feedback(Q<31>* buffer_start, int32_t num_samples, uint32_t* phase,
                                               int32_t amplitude, uint32_t phase_increment, int32_t feedback_amount,
                                               int32_t* last_feedback_value, bool add, int32_t amplitude_increment) {
 
@@ -355,9 +367,9 @@ void FMEngine::render_sine_wave_with_feedback(int32_t* buffer_start, int32_t num
 
 	if (feedback_amount != 0) {
 		int32_t amplitude_now = amplitude;
-		int32_t* this_sample = buffer_start;
+		Q<31>* this_sample = buffer_start;
 		int32_t feedback_value = *last_feedback_value;
-		int32_t* buffer_end = buffer_start + num_samples;
+		Q<31>* buffer_end = buffer_start + num_samples;
 		do {
 			amplitude_now += amplitude_increment;
 			const int32_t feedback = feedback_modulation(feedback_value, feedback_amount);
@@ -375,11 +387,11 @@ void FMEngine::render_sine_wave_with_feedback(int32_t* buffer_start, int32_t num
 	}
 }
 
-void FMEngine::render_sine_wave(int32_t* buffer_start, int32_t num_samples, uint32_t phase_now, int32_t amplitude,
+void FMEngine::render_sine_wave(Q<31>* buffer_start, int32_t num_samples, uint32_t phase_now, int32_t amplitude,
                                 uint32_t phase_increment, bool add, int32_t amplitude_increment) {
 	int32_t amplitude_now = amplitude;
-	int32_t* this_sample = buffer_start;
-	int32_t* buffer_end = buffer_start + num_samples;
+	Q<31>* this_sample = buffer_start;
+	Q<31>* buffer_end = buffer_start + num_samples;
 
 	if (amplitude_increment != 0) {
 		do {
@@ -394,7 +406,7 @@ void FMEngine::render_sine_wave(int32_t* buffer_start, int32_t num_samples, uint
 				add_into(this_sample, result);
 			}
 			else {
-				vst1q_s32(this_sample, result.raw());
+				buffer_samples(result).store(this_sample);
 			}
 
 			this_sample += 4;
@@ -413,7 +425,7 @@ void FMEngine::render_sine_wave(int32_t* buffer_start, int32_t num_samples, uint
 				add_into(this_sample, result);
 			}
 			else {
-				vst1q_s32(this_sample, result.raw());
+				buffer_samples(result).store(this_sample);
 			}
 
 			this_sample += 4;
@@ -421,7 +433,7 @@ void FMEngine::render_sine_wave(int32_t* buffer_start, int32_t num_samples, uint
 	}
 }
 
-void FMEngine::render_fm_with_feedback(int32_t* buffer_start, int32_t num_samples, uint32_t* phase, int32_t amplitude,
+void FMEngine::render_fm_with_feedback(Q<31>* buffer_start, int32_t num_samples, uint32_t* phase, int32_t amplitude,
                                        uint32_t phase_increment, int32_t feedback_amount, int32_t* last_feedback_value,
                                        int32_t amplitude_increment) {
 
@@ -430,8 +442,8 @@ void FMEngine::render_fm_with_feedback(int32_t* buffer_start, int32_t num_sample
 
 	if (feedback_amount != 0) {
 		int32_t amplitude_now = amplitude;
-		int32_t* this_sample = buffer_start;
-		int32_t* buffer_end = buffer_start + num_samples;
+		Q<31>* this_sample = buffer_start;
+		Q<31>* buffer_end = buffer_start + num_samples;
 
 		int32_t feedback_value = *last_feedback_value;
 		do {
@@ -440,7 +452,7 @@ void FMEngine::render_fm_with_feedback(int32_t* buffer_start, int32_t num_sample
 			const int32_t feedback = feedback_modulation(feedback_value, feedback_amount);
 
 			// The modulator's and the feedback's phase modulation, summed wrapping
-			const int32_t sum = add_wrap(Q<31>::from_raw(*this_sample), Q<31>::from_raw(feedback)).raw();
+			const int32_t sum = add_wrap(*this_sample, Q<31>::from_raw(feedback)).raw();
 
 			feedback_value = dsp::fixed::sine_fm_operator(phase_now += phase_increment, sum);
 			*this_sample = scaled(feedback_value, amplitude_now);
@@ -450,17 +462,18 @@ void FMEngine::render_fm_with_feedback(int32_t* buffer_start, int32_t num_sample
 	}
 	else {
 		int32_t amplitude_now = amplitude;
-		int32_t* this_sample = buffer_start;
-		int32_t* buffer_end = buffer_start + num_samples;
+		Q<31>* this_sample = buffer_start;
+		Q<31>* buffer_end = buffer_start + num_samples;
 		do {
 			amplitude_now += amplitude_increment;
-			int32_t fm_value = dsp::fixed::sine_fm_operator(phase_now += phase_increment, *this_sample);
+			// The modulator's word is the phase modulation
+			int32_t fm_value = dsp::fixed::sine_fm_operator(phase_now += phase_increment, this_sample->raw());
 			*this_sample = scaled(fm_value, amplitude_now);
 		} while (++this_sample != buffer_end);
 	}
 }
 
-void FMEngine::render_fm_with_feedback_add(int32_t* buffer_start, int32_t num_samples, int32_t* fm_buffer,
+void FMEngine::render_fm_with_feedback_add(Q<31>* buffer_start, int32_t num_samples, const Q<31>* fm_buffer,
                                            uint32_t* phase, int32_t amplitude, uint32_t phase_increment,
                                            int32_t feedback_amount, int32_t* last_feedback_value,
                                            int32_t amplitude_increment) {
@@ -470,9 +483,9 @@ void FMEngine::render_fm_with_feedback_add(int32_t* buffer_start, int32_t num_sa
 
 	if (feedback_amount != 0) {
 		int32_t amplitude_now = amplitude;
-		int32_t* this_sample = buffer_start;
-		int32_t* fm_sample = fm_buffer;
-		int32_t* buffer_end = buffer_start + num_samples;
+		Q<31>* this_sample = buffer_start;
+		const Q<31>* fm_sample = fm_buffer;
+		Q<31>* buffer_end = buffer_start + num_samples;
 
 		int32_t feedback_value = *last_feedback_value;
 		do {
@@ -481,7 +494,7 @@ void FMEngine::render_fm_with_feedback_add(int32_t* buffer_start, int32_t num_sa
 			const int32_t feedback = feedback_modulation(feedback_value, feedback_amount);
 
 			// The modulator's and the feedback's phase modulation, summed wrapping
-			const int32_t sum = add_wrap(Q<31>::from_raw(*(fm_sample++)), Q<31>::from_raw(feedback)).raw();
+			const int32_t sum = add_wrap(*(fm_sample++), Q<31>::from_raw(feedback)).raw();
 
 			feedback_value = dsp::fixed::sine_fm_operator(phase_now += phase_increment, sum);
 			*this_sample = accumulated(*this_sample, feedback_value, amplitude_now);
@@ -494,13 +507,13 @@ void FMEngine::render_fm_with_feedback_add(int32_t* buffer_start, int32_t num_sa
 	}
 }
 
-void FMEngine::render_fm_add(int32_t* buffer_start, int32_t num_samples, int32_t* fm_buffer, uint32_t phase_now,
+void FMEngine::render_fm_add(Q<31>* buffer_start, int32_t num_samples, const Q<31>* fm_buffer, uint32_t phase_now,
                              int32_t amplitude, uint32_t phase_increment, int32_t amplitude_increment) {
 	int32_t amplitude_now = amplitude;
-	int32_t* this_sample = buffer_start;
-	int32_t* buffer_end = buffer_start + num_samples;
-	auto* fm_sample = reinterpret_cast<uint32_t*>(fm_buffer);
-	int32_t* buffer_pre_end = buffer_end - 4;
+	Q<31>* this_sample = buffer_start;
+	Q<31>* buffer_end = buffer_start + num_samples;
+	const Q<31>* fm_sample = fm_buffer;
+	Q<31>* buffer_pre_end = buffer_end - 4;
 
 	uint32x4_t phase_vector;
 	for (int32_t i = 0; i < 4; i++) {
@@ -512,7 +525,8 @@ void FMEngine::render_fm_add(int32_t* buffer_start, int32_t num_samples, int32_t
 
 	if (amplitude_increment != 0) {
 		while (true) {
-			uint32x4_t phase_shift = vld1q_u32(fm_sample);
+			// The modulators' words are the phase modulation
+			uint32x4_t phase_shift = vreinterpretq_u32_s32(QVec<31>::load(fm_sample).raw());
 			int32x4_t sine_value_vector =
 			    dsp::fixed::sine(Argon<uint32_t>{phase_vector} + (Argon<uint32_t>{phase_shift} << 8));
 
@@ -534,7 +548,8 @@ void FMEngine::render_fm_add(int32_t* buffer_start, int32_t num_samples, int32_t
 
 	else {
 		while (true) {
-			uint32x4_t phase_shift = vld1q_u32(fm_sample);
+			// The modulators' words are the phase modulation
+			uint32x4_t phase_shift = vreinterpretq_u32_s32(QVec<31>::load(fm_sample).raw());
 			int32x4_t sine_value_vector =
 			    dsp::fixed::sine(Argon<uint32_t>{phase_vector} + (Argon<uint32_t>{phase_shift} << 8));
 

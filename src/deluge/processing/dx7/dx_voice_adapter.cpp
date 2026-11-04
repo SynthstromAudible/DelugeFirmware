@@ -16,7 +16,6 @@
  */
 #include "processing/dx7/dx_voice_adapter.h"
 #include "board_config.h" // CACHE_LINE_SIZE
-#include "dsp-next/core/buffer_view.h"
 #include "dsp-next/fixed/dx7/algorithms.h"
 #include "processing/dx7/dx_engine.h"
 #include "processing/dx7/dx_patch.h"
@@ -24,7 +23,6 @@
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
-#include <cstring> // memset
 
 namespace deluge::dsp {
 
@@ -78,12 +76,12 @@ void DxVoiceAdapter::keyup() {
 	}
 }
 
-std::span<const int32_t> DxVoiceAdapter::render(int32_t numSamples, uint32_t phaseIncrement, int32_t ampModParam,
-                                                bool patchChanged, int midinote) {
+std::span<const Q<24>> DxVoiceAdapter::render(int32_t numSamples, uint32_t phaseIncrement, int32_t ampModParam,
+                                              bool patchChanged, int midinote) {
 	// kMaxBlock samples, 16-byte aligned at least: the device's NEON kernel writes past the block (Graph::render_block)
-	static int32_t uniBuf[fixed::dx7::kMaxBlock] __attribute__((aligned(CACHE_LINE_SIZE)));
+	static Q<24> uniBuf[fixed::dx7::kMaxBlock] __attribute__((aligned(CACHE_LINE_SIZE)));
 	static_assert(CACHE_LINE_SIZE % 16 == 0);
-	memset(uniBuf, 0, sizeof uniBuf);
+	std::fill(std::begin(uniBuf), std::end(uniBuf), Q<24>{});
 
 	// TODO: 1. use existing int log function?
 	//       2. going from phase to logs (and then the voice's frequency table turning those logs into phase again) is
@@ -105,11 +103,10 @@ std::span<const int32_t> DxVoiceAdapter::render(int32_t numSamples, uint32_t pha
 		voice_->retune(s);
 	}
 	const auto n = static_cast<std::size_t>(numSamples);
-	// The voice renders Q24 samples into the raw block the caller reads.
-	if (!voice_->render_block(s, typed_view<Q<24>>(std::span<int32_t>{uniBuf, n}), in, getDxEngine()->buses())) {
+	if (!voice_->render_block(s, std::span<Q<24>>{uniBuf, n}, in, getDxEngine()->buses())) {
 		return {}; // voice has ended
 	}
-	return std::span<const int32_t>{uniBuf, n};
+	return std::span<const Q<24>>{uniBuf, n};
 }
 
 } // namespace deluge::dsp

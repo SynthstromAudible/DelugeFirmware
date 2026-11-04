@@ -49,8 +49,8 @@ public:
 	bool note_on(void* patch, int midinote, int velocity) override;
 	void keyup() override;
 	void unassign() override;
-	std::span<const int32_t> render(int32_t numSamples, uint32_t phaseIncrement, int32_t ampModParam, bool patchChanged,
-	                                int midinote) override;
+	std::span<const deluge::dsp::Q<24>> render(int32_t numSamples, uint32_t phaseIncrement, int32_t ampModParam,
+	                                           bool patchChanged, int midinote) override;
 };
 
 } // namespace deluge::dsp

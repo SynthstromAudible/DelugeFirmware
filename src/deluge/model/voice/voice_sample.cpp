@@ -17,6 +17,7 @@
 
 #include "model/voice/voice_sample.h"
 #include "definitions_cxx.hpp"
+#include "dsp-next/core/buffer_view.h"
 #include "dsp-next/core/fixed_point.h"
 #include "dsp-next/fixed/interpolation/windowed_sinc_kernel.h"
 #include "dsp/timestretch/time_stretcher.h"
@@ -37,7 +38,7 @@
 
 extern "C" {}
 
-extern int32_t spareRenderingBuffer[][SSI_TX_BUFFER_NUM_SAMPLES];
+extern deluge::dsp::Q<31> spareRenderingBuffer[][SSI_TX_BUFFER_NUM_SAMPLES];
 
 void VoiceSample::beenUnassigned(bool wontBeUsedAgain) {
 	unassignAllReasons(wontBeUsedAgain);
@@ -1239,7 +1240,8 @@ readNonTimestretched:
 			int32_t* timeStretchResultWritePos;
 			int32_t numChannelsInTimeStretchResult;
 
-			int32_t* const tempBuffer = spareRenderingBuffer[1];
+			// The sample reader's time stretching works on raw words
+			int32_t* const tempBuffer = deluge::dsp::raw_view(std::span{spareRenderingBuffer[1]}).data();
 
 			if (cache) { // If writing cache...
 
