@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include "util/lookuptables/lookuptables.h" // noteIntervalTable
+
 #include <cstdint>
 #include <limits>
 
@@ -33,4 +35,21 @@
 	const uint64_t scaled = (uint64_t{increment} * ratio) >> 24;
 	return scaled > std::numeric_limits<int32_t>::max() ? std::numeric_limits<int32_t>::max()
 	                                                    : static_cast<int32_t>(scaled);
+}
+
+/// @brief The increment that plays a sample of @p sample_rate transposed by @p transpose semitones (±96): the
+/// semitone's Q30 interval placed by the octave, then scaled from the sample's rate to the engine's, held under 2^31
+/// (from about +84, the top octaves play at the most an increment holds).
+[[nodiscard]] inline int32_t transposed_neutral(int32_t transpose, uint32_t sample_rate, uint32_t engine_rate) {
+	const int32_t note_within_octave = static_cast<uint16_t>(transpose + 240) % 12;
+	const int32_t octave = (static_cast<uint16_t>(transpose + 120) / 12) - 10;
+	const int32_t interval = noteIntervalTable[note_within_octave];
+	// The interval is Q30 of 1×: six octaves up is the interval itself (Q24), lower octaves shift it down, higher up
+	uint64_t neutral =
+	    octave <= 6 ? static_cast<uint64_t>(interval >> (6 - octave)) : static_cast<uint64_t>(interval) << (octave - 6);
+	if (sample_rate != engine_rate) {
+		neutral = neutral * sample_rate / engine_rate;
+	}
+	return neutral > std::numeric_limits<int32_t>::max() ? std::numeric_limits<int32_t>::max()
+	                                                     : static_cast<int32_t>(neutral);
 }
