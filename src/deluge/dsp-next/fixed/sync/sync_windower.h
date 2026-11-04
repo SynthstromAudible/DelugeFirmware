@@ -31,8 +31,8 @@ namespace deluge::dsp::fixed {
 /// restart the audible oscillator. The reciprocal used to place the seam (see
 /// @ref resetter_reciprocal) is derived from @ref phase_increment, not stored here.
 struct Resetter {
-	uint32_t phase;
-	uint32_t phase_increment;
+	UQ<32> phase;
+	UQ<32> phase_increment;
 };
 
 /// @brief Splits a render block into hard-sync windows, one per master-oscillator cycle.
@@ -70,11 +70,11 @@ public:
 	/// @param phase the audible oscillator's starting phase (UQ0.32; pre-increment per sample).
 	/// @param phase_increment the audible oscillator's per-sample phase step (UQ0.32).
 	/// @param retrigger_phase the phase the audible oscillator restarts from at each crossover.
-	SyncWindower(dsp::Buffer<Q<31>> output, Resetter resetter, uint32_t phase, uint32_t phase_increment,
-	             uint32_t retrigger_phase)
+	SyncWindower(dsp::Buffer<Q<31>> output, Resetter resetter, UQ<32> phase, UQ<32> phase_increment,
+	             UQ<32> retrigger_phase)
 	    : block_start_{output.data()}, window_{output.data()}, samples_remaining_{static_cast<int32_t>(output.size())},
-	      resetter_{resetter}, resetter_divide_{Q<16>::from_raw(resetter_reciprocal(resetter.phase_increment))},
-	      phase_{phase}, phase_increment_{phase_increment}, retrigger_phase_{retrigger_phase} {}
+	      resetter_{resetter}, resetter_divide_{Q<16>::from_raw(resetter_reciprocal(resetter.phase_increment.raw()))},
+	      phase_{phase.raw()}, phase_increment_{phase_increment.raw()}, retrigger_phase_{retrigger_phase.raw()} {}
 
 	/// The next window to fill, or `nullopt` once the block is done. Finalises the previously
 	/// handed-out window first (blends its seam, advances past the crossover), so call it in a
@@ -112,13 +112,14 @@ public:
 
 			// Advance the resetter past the crossover. After the first crossover its phase reads one
 			// sample late, so subtract `crossed_over_` (0 the first time, 1 thereafter).
-			resetter_.phase += resetter_.phase_increment * (samples_to_crossover_ - (crossed_over_ ? 1u : 0u));
+			resetter_.phase = dsp::advanced(resetter_.phase, resetter_.phase_increment,
+			                                samples_to_crossover_ - (crossed_over_ ? 1u : 0u));
 
 			// The resetter's overshoot past the boundary over its increment is the reset's fraction of a sample, within
 			// ±0.5 (the boundary is biased to mid-sample); doubled, ±0.5 spans the fade's full range. The phase and
 			// increments are UQ<32> read as Q31 for the signed multiplies (smmul): see SyncedPhasor.
-			seam_fade_ = scale_shl_wrap<1>(
-			    as_wrap<Q<31>>(mul(reinterpret_bits<Q<31>>(UQ<32>::from_raw(resetter_.phase)), resetter_divide_)));
+			seam_fade_ =
+			    scale_shl_wrap<1>(as_wrap<Q<31>>(mul(reinterpret_bits<Q<31>>(resetter_.phase), resetter_divide_)));
 			// Twice the fraction times the increment read as Q31 (twice its value) is Q30 of four times their
 			// product: its bits are the phase the restarted wave has gained
 			phase_ = add_wrap(reinterpret_bits<UQ<32>>(
@@ -139,12 +140,14 @@ public:
 		// A resetter with no increment never reaches a boundary (Voice::adjustPitch can round a pitch down to a zero
 		// increment, and a pulse-width self-sync takes the oscillator's own), so the rest of the block is one
 		// unsynced window. Dividing by it would trap: the Embassy BSP's division intrinsic raises UNDEF.
-		if (resetter_.phase_increment == 0) [[unlikely]] {
+		if (resetter_.phase_increment == UQ<32>{}) [[unlikely]] {
 			crosses_ = false;
 		}
 		else {
-			uint32_t phase_to_crossover = -resetter_.phase - (resetter_.phase_increment >> 1);
-			const uint32_t samples_after = (phase_to_crossover - 1) / resetter_.phase_increment;
+			// Raw: the samples to the crossover are an integer division of the phases' words
+			const uint32_t resetter_increment = resetter_.phase_increment.raw();
+			uint32_t phase_to_crossover = -resetter_.phase.raw() - (resetter_increment >> 1);
+			const uint32_t samples_after = (phase_to_crossover - 1) / resetter_increment;
 			// Compared before it is counted, unsigned: a resetter increment of 1 or 2 puts the crossover 2^31 samples
 			// or more away, past what the count holds. Without a crossover in the block the count is not read again.
 			const auto remaining = static_cast<uint32_t>(samples_remaining_);
@@ -162,7 +165,7 @@ public:
 
 	/// The audible phase after the whole block — what the voice stores to continue next block.
 	/// Valid once @ref next has returned `nullopt`.
-	[[nodiscard]] uint32_t phase() const { return phase_; }
+	[[nodiscard]] UQ<32> phase() const { return UQ<32>::from_raw(phase_); }
 
 private:
 	Q<31>* block_start_;

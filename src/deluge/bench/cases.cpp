@@ -204,8 +204,8 @@ void CrudeAmplitudeCase::block(std::size_t /*n*/) {
 dsp::fixed::PulseOscillator PulseCase::make() {
 	// The voice picks a pulse's band for 0.6 times the note's increment.
 	const auto band_select = static_cast<uint32_t>(uint64_t{kA4Increment} * 3 / 5);
-	return dsp::fixed::PulseOscillator{dsp::fixed::square_bandlimited_table().select(band_select), 0, kIncrement,
-	                                   kPhaseOffset};
+	return dsp::fixed::PulseOscillator{dsp::fixed::square_bandlimited_table().select(band_select), dsp::UQ<32>{},
+	                                   dsp::UQ<32>::from_raw(kIncrement), dsp::UQ<32>::from_raw(kPhaseOffset)};
 }
 
 void PulseCase::setup(std::size_t n) {
@@ -218,7 +218,8 @@ void PulseCase::block(std::size_t /*n*/) {
 }
 
 dsp::fixed::BandLimitedTableOscillator BandLimitedTableCase::make() {
-	return dsp::fixed::BandLimitedTableOscillator{dsp::fixed::saw_bandlimited_table(), 0, kIncrement};
+	return dsp::fixed::BandLimitedTableOscillator{dsp::fixed::saw_bandlimited_table(), dsp::UQ<32>{},
+	                                              dsp::UQ<32>::from_raw(kIncrement)};
 }
 
 void BandLimitedTableCase::setup(std::size_t n) {
@@ -267,15 +268,15 @@ void SyncedPulseCase::setup(std::size_t n) {
 void SyncedPulseCase::block(std::size_t n) {
 	// As the voice's synced pulse: the pulse runs at half the audible phase and increment, its band picked for 0.6
 	// times the audible increment, and the phase it ends on is stored back doubled.
-	const uint32_t phase = scale_shr_floor<1>(dsp::UQ<32>::from_raw(audible_phase_)).raw();
-	constexpr uint32_t kIncrement = kAudibleIncrement >> 1;
+	const dsp::UQ<32> phase = scale_shr_floor<1>(dsp::UQ<32>::from_raw(audible_phase_));
+	constexpr auto kIncrement = dsp::UQ<32>::from_raw(kAudibleIncrement >> 1);
 	constexpr auto kBandSelect = static_cast<uint32_t>(uint64_t{kAudibleIncrement} * 3 / 5);
 	const dsp::fixed::PulseOscillator pulse{dsp::fixed::square_bandlimited_table().select(kBandSelect), phase,
-	                                        kIncrement, kPhaseOffset};
+	                                        kIncrement, dsp::UQ<32>::from_raw(kPhaseOffset)};
 	dsp::fixed::SyncedOscillator synced{pulse, phase, kIncrement,
-	                                    dsp::fixed::Resetter{master_.phase().raw(), master_.increment().raw()}, 0};
+	                                    dsp::fixed::Resetter{master_.phase(), master_.increment()}, dsp::UQ<32>{}};
 	synced.render_block(spans_.out);
-	audible_phase_ = scale_shl_wrap<1>(dsp::UQ<32>::from_raw(synced.phase())).raw();
+	audible_phase_ = scale_shl_wrap<1>(synced.phase()).raw();
 	// The master's increment times the block's samples: an integer product, wrapping.
 	master_.seek(
 	    add_wrap(master_.phase(), dsp::UQ<32>::from_raw(master_.increment().raw() * static_cast<uint32_t>(n))));
@@ -292,7 +293,7 @@ dsp::fixed::WavetableOscillator WavetableCase::make() {
 	                                      &wavetable_band,
 	                                      sizeof(dsp::fixed::WaveTableBand),
 	                                      1};
-	return dsp::fixed::WavetableOscillator{table, 0, kIncrement, kWaveIndex, 0};
+	return dsp::fixed::WavetableOscillator{table, dsp::UQ<32>{}, dsp::UQ<32>::from_raw(kIncrement), kWaveIndex, 0};
 }
 
 void WavetableCase::setup(std::size_t n) {

@@ -22,7 +22,7 @@ namespace deluge::synth {
 
 void WavetableSource::render_block(const BlockControls& controls, std::span<dsp::Q<31>> output,
                                    std::span<dsp::Q<31>> scratch) {
-	// Raw: the pulse rewrite and the oscillators step the phases' words
+	// Raw: the pulse rewrite works on the phases' words
 	const uint32_t orig_phase = phasor_.phase().raw();
 	const uint32_t orig_inc = phasor_.increment().raw();
 
@@ -52,9 +52,10 @@ void WavetableSource::render_block(const BlockControls& controls, std::span<dsp:
 
 	// Render through the dsp-next view-based oscillator — the same non-sync/sync dispatch WaveTable::render does,
 	// now driven directly over our band-data view (no storage reach).
-	uint32_t rendered_phase = 0;
+	dsp::UQ<32> rendered_phase{};
 	if (!do_osc_sync) {
-		deluge::dsp::fixed::WavetableOscillator osc{table_, render_phase, render_inc, wave_index,
+		deluge::dsp::fixed::WavetableOscillator osc{table_, dsp::UQ<32>::from_raw(render_phase),
+		                                            dsp::UQ<32>::from_raw(render_inc), wave_index,
 		                                            wave_index_increment_};
 		osc.render_block(std::span<dsp::Q<31>>{dst, output.size()});
 		rendered_phase = osc.phase();
@@ -62,10 +63,11 @@ void WavetableSource::render_block(const BlockControls& controls, std::span<dsp:
 	else {
 		deluge::dsp::fixed::WavetableSyncOscillator osc{
 		    table_,
-		    render_phase,
-		    render_inc,
-		    deluge::dsp::fixed::Resetter{.phase = resetter_phase, .phase_increment = resetter_inc},
-		    controls.retrigger_phase,
+		    dsp::UQ<32>::from_raw(render_phase),
+		    dsp::UQ<32>::from_raw(render_inc),
+		    deluge::dsp::fixed::Resetter{.phase = dsp::UQ<32>::from_raw(resetter_phase),
+		                                 .phase_increment = dsp::UQ<32>::from_raw(resetter_inc)},
+		    dsp::UQ<32>::from_raw(controls.retrigger_phase),
 		    wave_index,
 		    wave_index_increment_};
 		osc.render_block(std::span<dsp::Q<31>>{dst, output.size()});
@@ -84,7 +86,7 @@ void WavetableSource::render_block(const BlockControls& controls, std::span<dsp:
 		seek(dsp::advanced(phasor_.phase(), phasor_.increment(), static_cast<uint32_t>(output.size())));
 	}
 	else {
-		seek(dsp::UQ<32>::from_raw(rendered_phase));
+		seek(rendered_phase);
 	}
 }
 

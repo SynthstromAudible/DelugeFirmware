@@ -108,7 +108,8 @@ describe vae_spec("deluge::synth::VirtualAnalogSource", ${
 		static const deluge::dsp::fixed::Band kSineBand[] = {{deluge::dsp::fixed::tables::kSineSmall.data(), 8, 0xFFFFFFFFu}};
 		static const deluge::dsp::fixed::BandlimitedTable kSineTable{kSineBand};
 		auto got = renderEngine(Wave::SINE, kPhase, kInc, standalone(7));
-		auto raw = renderKernel(deluge::dsp::fixed::BandLimitedTableOscillator{kSineTable, kPhase, kInc, kInc});
+		auto raw = renderKernel(deluge::dsp::fixed::BandLimitedTableOscillator{kSineTable, UQ<32>::from_raw(kPhase), UQ<32>::from_raw(kInc),
+		                                                                 UQ<32>::from_raw(kInc)});
 		for (std::size_t i = 0; i < kN; ++i) {
 			expect(got[i]).to_equal(raw[i]); // Standalone::DIRECT
 		}
@@ -128,7 +129,8 @@ describe vae_spec("deluge::synth::VirtualAnalogSource", ${
 	it("analog SAW stays band-limited when CPU is fine", _ {
 		auto got = renderEngine(Wave::ANALOG_SAW, kPhase, kInc, standalone(0));
 		auto raw = renderKernel(deluge::dsp::fixed::BandLimitedTableOscillator{
-		    deluge::dsp::fixed::analog_saw_bandlimited_table(), kPhase, kInc, kInc});
+		    deluge::dsp::fixed::analog_saw_bandlimited_table(), UQ<32>::from_raw(kPhase), UQ<32>::from_raw(kInc),
+		    UQ<32>::from_raw(kInc)});
 		for (std::size_t i = 0; i < kN; ++i) {
 			expect(got[i]).to_equal(raw[i]); // Standalone::DIRECT
 		}

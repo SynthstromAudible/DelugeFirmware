@@ -316,7 +316,7 @@ public:
 	/// @param n Block size, in samples (frames for the stereo and lanes cases); the size passed to setup().
 	void block(std::size_t n);
 	/// @return The pulse's phase.
-	[[nodiscard]] uint32_t phase() const { return pulse_.phase(); }
+	[[nodiscard]] uint32_t phase() const { return pulse_.phase().raw(); }
 
 private:
 	dsp::fixed::PulseOscillator pulse_{make()};
@@ -339,7 +339,7 @@ public:
 	/// @param n Block size, in samples (frames for the stereo and lanes cases); the size passed to setup().
 	void block(std::size_t n);
 	/// @return The oscillator's phase.
-	[[nodiscard]] uint32_t phase() const { return oscillator_.phase(); }
+	[[nodiscard]] uint32_t phase() const { return oscillator_.phase().raw(); }
 
 private:
 	dsp::fixed::BandLimitedTableOscillator oscillator_{make()};
@@ -485,7 +485,7 @@ public:
 	/// @param n Block size, in samples (frames for the stereo and lanes cases); the size passed to setup().
 	void block(std::size_t n);
 	/// @return The oscillator's phase.
-	[[nodiscard]] uint32_t phase() const { return oscillator_.phase(); }
+	[[nodiscard]] uint32_t phase() const { return oscillator_.phase().raw(); }
 
 private:
 	dsp::fixed::WavetableOscillator oscillator_{make()};

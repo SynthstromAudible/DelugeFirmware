@@ -44,24 +44,25 @@ class PulseOscillator : public Generator<PulseOscillator, Q<31>> {
 	const int16_t* samples_;
 	int32_t magnitude_;
 	Phasor phasor_;
-	uint32_t phase_offset_; ///< phase distance between the two squares; sets the duty cycle
+	uint32_t
+	    phase_offset_; ///< phase distance between the two squares, its word as the loop steps it; sets the duty cycle
 
 	static constexpr int16_t kMin = std::numeric_limits<int16_t>::min();
 	static constexpr int16_t kMax = std::numeric_limits<int16_t>::max();
 
 public:
-	PulseOscillator(Table table, uint32_t phase, uint32_t increment, uint32_t phase_offset)
-	    : samples_{table.samples.data()}, magnitude_{table.magnitude},
-	      phasor_{UQ<32>::from_raw(phase), UQ<32>::from_raw(increment)}, phase_offset_{phase_offset} {}
+	PulseOscillator(Table table, UQ<32> phase, UQ<32> increment, UQ<32> phase_offset)
+	    : samples_{table.samples.data()}, magnitude_{table.magnitude}, phasor_{phase, increment},
+	      phase_offset_{phase_offset.raw()} {}
 
 	/// Jump the phase (e.g. a hard-sync reset between windows). See @ref deluge::dsp::Phasor::seek.
-	void seek(uint32_t phase) { phasor_.seek(UQ<32>::from_raw(phase)); }
+	void seek(UQ<32> phase) { phasor_.seek(phase); }
 
 	/// The live phase — for reading back a persistent oscillator's phase across blocks.
-	[[nodiscard]] uint32_t phase() const { return phasor_.phase().raw(); }
+	[[nodiscard]] UQ<32> phase() const { return phasor_.phase(); }
 
 	/// Change the per-sample phase step for the next block (pitch change), keeping the accumulated phase.
-	void set_increment(uint32_t increment) { phasor_.set_increment(UQ<32>::from_raw(increment)); }
+	void set_increment(UQ<32> increment) { phasor_.set_increment(increment); }
 
 	[[gnu::always_inline]] QVec<31> render() {
 		const uint32_t phase = phasor_.phase().raw();
