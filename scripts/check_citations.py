@@ -882,8 +882,9 @@ def load_exceptions() -> set[str]:
     }
 
 
-def scan() -> list[tuple[str, int, str, str, str]]:
-    """Every certainly-wrong citation as `(citing file, line, token, resolved path, why)`."""
+def scan(paths: tuple[str, ...] = ()) -> list[tuple[str, int, str, str, str]]:
+    """Every certainly-wrong citation as `(citing file, line, token, resolved path, why)`; with @p paths, only
+    those written in files under these path prefixes."""
     index = cited_index(CITED_ROOT)
     # The port layers are a SEPARATE index, consulted only when the legacy one has no candidate at
     # all, and with its own `recent_dirs`. Both halves of that are deliberate. 24 basenames exist in
@@ -904,6 +905,8 @@ def scan() -> list[tuple[str, int, str, str, str]]:
             if not p.is_file() or p.suffix not in SCAN_SUFFIXES:
                 continue
             rel = str(p.relative_to(REPO))
+            if paths and not rel.startswith(paths):
+                continue
             recent_dirs: list[str] = []
             recent_port_dirs: list[str] = []
             prev_line = ""
@@ -976,10 +979,16 @@ def main() -> int:
     ap.add_argument(
         "--list-all", action="store_true", help="ignore scripts/citation_exceptions.txt"
     )
+    ap.add_argument(
+        "--paths",
+        nargs="+",
+        default=[],
+        help="only citations written in files under these path prefixes",
+    )
     a = ap.parse_args()
 
     excepted = set() if a.list_all else load_exceptions()
-    hits = scan()
+    hits = scan(tuple(a.paths))
     shown = [h for h in hits if f"{h[0]}:{h[2]}" not in excepted]
     for rel, lineno, token, resolved, why in shown:
         print(f"{rel}:{lineno}: citation `{token}` -> {resolved}: {why}")

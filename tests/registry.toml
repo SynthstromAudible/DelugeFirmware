@@ -2754,6 +2754,19 @@ group = "tooling"
 runtime = "~1s"
 
 [[harness]]
+name = "doc-hygiene-selftest"
+path = "scripts"
+level = "unit"
+runner = "script"
+kind = "unit"
+status = "gate"
+gates = "the UI docs lint flags task, review and workstream breadcrumbs and rename narration in comments and Markdown, and file:line citations to our own code; passes legacy citations, symbol citations, plain prose and string literals"
+run = ["python3", "-m", "unittest", "test_check_doc_hygiene"]
+tier = "pr"
+group = "tooling"
+runtime = "~1s"
+
+[[harness]]
 name = "fixed-point-raw-selftest"
 path = "scripts"
 level = "unit"
