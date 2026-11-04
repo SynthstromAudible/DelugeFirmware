@@ -111,8 +111,8 @@ src/synth/engines/pitch.h raw=1 boundary=0
 src/synth/engines/ring_mod_engine.cpp raw=8 boundary=0
 src/synth/engines/slot_engine.cpp raw=1 boundary=0
 src/synth/engines/subtractive_engine.cpp raw=1 boundary=0
-src/synth/matrix/matrix_fixed.h raw=10 boundary=0
-src/synth/modulation/cable_depth.h raw=4 boundary=0
+src/synth/matrix/matrix_fixed.h raw=0 boundary=41
+src/synth/modulation/cable_depth.h raw=0 boundary=12
 src/synth/modulation/envelope.cpp raw=5 boundary=0
 src/synth/modulation/lfo.h raw=3 boundary=0
 src/synth/sources/dx7/dx7_source.cpp raw=0 boundary=15
