@@ -72,6 +72,23 @@ describe codec_decode("the Deluge instrument reads every format a sound was save
 		expect(static_cast<int32_t>(state.unison_detune)).to_equal(50);
 		expect(static_cast<int32_t>(state.unison_stereo_spread)).to_equal(0);
 	});
+	it("holds every tune's cents to a quarter tone either way", _ {
+		auto doc = deluge::serialization::parseXml(
+		    R"(<sound cents="99"><osc1 type="square" cents="-120"/><osc2 type="sine" cents="51"/></sound>)");
+		SoundState state = new_synth_state();
+		(void)decode(*doc->find("sound"), state, kNewSong);
+		expect(static_cast<int32_t>(state.cents)).to_equal(50);
+		expect(static_cast<int32_t>(state.sources[0].cents)).to_equal(-50);
+		expect(static_cast<int32_t>(state.sources[1].cents)).to_equal(50);
+	});
+	it("holds a sample range's cents, its source's moved in, to a quarter tone", _ {
+		auto doc = deluge::serialization::parseXml(
+		    R"(<sound><osc1 type="sample" cents="40"><sampleRanges><sampleRange rangeTopNote="127" cents="30"/></sampleRanges></osc1></sound>)");
+		SoundState state = new_synth_state();
+		(void)decode(*doc->find("sound"), state, kNewSong);
+		expect(state.sources[0].ranges.empty()).to_be_false();
+		expect(static_cast<int32_t>(state.sources[0].ranges[0].cents)).to_equal(50);
+	});
 	it("reads back a wavetable split into ranges", _ {
 		SoundState written = new_synth_state();
 		written.modulator_transpose[1] = 0; // a subtractive sound's file holds no modulators; a read starts them at 0

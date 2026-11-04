@@ -411,6 +411,15 @@ int32_t intOf(const Value& value) {
 	return serialization::int_of(&value).value_or(0);
 }
 
+/// The most cents a tune can be: ±50, a quarter tone; cents × 42949672 (a cent's phase-increment step) overflows past
+/// it.
+constexpr int32_t kMaxCents = 50;
+
+/// A cents attribute, held to ±kMaxCents: a file may hold any number.
+int8_t cents_of(const Value& value) {
+	return static_cast<int8_t>(std::clamp(intOf(value), -kMaxCents, kMaxCents));
+}
+
 std::string_view textOf(const Value& value) {
 	return value.isScalar() ? std::string_view(value.str()) : std::string_view{};
 }
@@ -516,7 +525,7 @@ std::expected<void, plugin::StateError> readRanges(const Value& list, SourceStat
 				range.transpose = static_cast<int16_t>(intOf(value));
 			}
 			else if (!wavetable && key == "cents") {
-				range.cents = static_cast<int8_t>(intOf(value));
+				range.cents = cents_of(value);
 			}
 		}
 		auto at = std::ranges::upper_bound(src.ranges, range.top_note, {}, &RangeState::top_note);
@@ -542,7 +551,7 @@ std::expected<void, plugin::StateError> readSource(const Value& osc, SoundState&
 			src.transpose = static_cast<int16_t>(intOf(value));
 		}
 		else if (key == "cents") {
-			src.cents = static_cast<int8_t>(intOf(value));
+			src.cents = cents_of(value);
 		}
 		else if (key == "loopMode") {
 			src.repeat_mode = repeatModeOf(value);
@@ -608,7 +617,7 @@ void readModulator(const Value& modulator, SoundState& state, size_t m) {
 			state.modulator_transpose[m] = static_cast<int16_t>(state.modulator_transpose[m] + intOf(value));
 		}
 		else if (key == "cents") {
-			state.modulator_cents[m] = static_cast<int8_t>(intOf(value));
+			state.modulator_cents[m] = cents_of(value);
 		}
 		else if (key == "retrigPhase") {
 			state.modulator_retrigger_phase[m] = static_cast<uint32_t>(intOf(value));
@@ -685,7 +694,7 @@ std::expected<void, plugin::StateError> decodeImpl(const Value& element, SoundSt
 			state.transpose = static_cast<int16_t>(intOf(value));
 		}
 		else if (key == "cents") {
-			state.cents = static_cast<int8_t>(intOf(value));
+			state.cents = cents_of(value);
 		}
 		else if (key == "unison") {
 			if (value.isMap()) {
@@ -743,7 +752,7 @@ std::expected<void, plugin::StateError> decodeImpl(const Value& element, SoundSt
 		if (state.synth_mode != SynthMode::FM && src.osc_type == OscType::SAMPLE) {
 			for (RangeState& range : src.ranges) {
 				range.transpose = static_cast<int16_t>(range.transpose + src.transpose);
-				range.cents = static_cast<int8_t>(range.cents + src.cents);
+				range.cents = static_cast<int8_t>(std::clamp(range.cents + src.cents, -kMaxCents, kMaxCents));
 			}
 			src.transpose = 0;
 			src.cents = 0;
