@@ -119,11 +119,11 @@ src/deluge/modulation/automation/auto_param.cpp raw=0 boundary=8
 src/deluge/modulation/params/param_set.h raw=0 boundary=1
 src/deluge/modulation/patch/patch_cable.h raw=0 boundary=1
 src/deluge/playback/playback_handler.cpp raw=0 boundary=3
-src/deluge/processing/audio_output.cpp raw=0 boundary=17
+src/deluge/processing/audio_output.cpp raw=0 boundary=18
 src/deluge/processing/dx7/dx_voice_adapter.cpp raw=0 boundary=1
 src/deluge/processing/engines/audio_engine.cpp raw=0 boundary=33
 src/deluge/processing/metronome/metronome.cpp raw=0 boundary=3
-src/deluge/processing/sound/sound.cpp raw=0 boundary=12
+src/deluge/processing/sound/sound.cpp raw=0 boundary=20
 src/deluge/processing/sound/sound_chain_inputs.cpp raw=0 boundary=4
 src/deluge/storage/audio/stream/convert.cpp raw=0 boundary=1
 src/deluge/storage/wave_table/wave_table_cycle_reader.cpp raw=0 boundary=1
@@ -163,8 +163,9 @@ src/synth/matrix/evaluator.cpp raw=0 boundary=2
 src/synth/matrix/matrix_fixed.h raw=0 boundary=21
 src/synth/matrix/param_format.h raw=0 boundary=2
 src/synth/modulation/cable_depth.h raw=0 boundary=7
-src/synth/modulation/envelope.cpp raw=0 boundary=17
-src/synth/modulation/lfo.h raw=0 boundary=15
+src/synth/modulation/envelope.cpp raw=0 boundary=10
+src/synth/modulation/lfo.cpp raw=0 boundary=3
+src/synth/modulation/lfo.h raw=0 boundary=13
 src/synth/sources/dx7/dx7_source.cpp raw=0 boundary=3
 src/synth/sources/input/input_source.cpp raw=0 boundary=6
 src/synth/sources/input/live/live_input_buffer.cpp raw=0 boundary=5
@@ -177,4 +178,4 @@ src/synth/sources/supersaw/supersaw_source.cpp raw=0 boundary=2
 src/synth/sources/supersaw/supersaw_source.h raw=0 boundary=4
 src/synth/sources/va/va_shapes.cpp raw=0 boundary=16
 src/synth/sources/wavetable/wavetable_source.cpp raw=0 boundary=11
-src/synth/voice/voice.cpp raw=0 boundary=34
+src/synth/voice/voice.cpp raw=0 boundary=40

@@ -42,8 +42,8 @@ struct VoiceConfig {
 	LFOConfig lfo2_config; ///< The first local LFO's wave and sync
 	LFOConfig lfo4_config; ///< The second local LFO's wave and sync
 	/// Each local LFO's phase increment when synced to the transport (0, unused, when it runs free).
-	uint32_t lfo2_synced_phase_increment;
-	uint32_t lfo4_synced_phase_increment;
+	dsp::UQ<32> lfo2_synced_phase_increment;
+	dsp::UQ<32> lfo4_synced_phase_increment;
 
 	bool has_filters; ///< The sound's filters can run at all
 

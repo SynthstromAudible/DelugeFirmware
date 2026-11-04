@@ -86,16 +86,17 @@ bool Voice::note_on(const deluge::synth::NoteSetup& setup, const SoundSnapshot& 
 	// only after that that we can render the "actual" envelope output values, taking their own input patching into
 	// account.
 	for (int32_t e = 0; e < kNumEnvelopes; e++) {
-		envelopes_[e].set_output_level(setup.attack_is_zero[e] ? kQ31Max : 0);
+		envelopes_[e].set_output_level(setup.attack_is_zero[e] ? Q<31>::max() : Q<31>{});
 	}
 
 	// Setup and render local LFO
 	lfo2_.set_local_initial_phase(snapshot.lfo_config[LFO2_ID]);
+	// The source values are Q31 words
 	params_.source_values[util::to_underlying(PatchSource::LFO_LOCAL_1)] =
-	    lfo2_.render(0, snapshot.lfo_config[LFO2_ID], 0, *noise_);
+	    lfo2_.render(0, snapshot.lfo_config[LFO2_ID], dsp::UQ<32>{}, *noise_).raw();
 	lfo4_.set_local_initial_phase(snapshot.lfo_config[LFO4_ID]);
 	params_.source_values[util::to_underlying(PatchSource::LFO_LOCAL_2)] =
-	    lfo4_.render(0, snapshot.lfo_config[LFO4_ID], 0, *noise_);
+	    lfo4_.render(0, snapshot.lfo_config[LFO4_ID], dsp::UQ<32>{}, *noise_).raw();
 
 	// Setup some sources which won't change for the duration of this note
 	params_.source_values[util::to_underlying(PatchSource::VELOCITY)] =
@@ -140,10 +141,12 @@ bool Voice::note_on(const deluge::synth::NoteSetup& setup, const SoundSnapshot& 
 	for (int32_t e = 0; e < kNumEnvelopes; e++) {
 		int32_t attack =
 		    matrix::param_value_at<params::LOCAL_ENV_0_ATTACK, kNumEnvelopes>(params_.param_final_values, e);
-		int32_t sustain = params_.param_final_values[params::LOCAL_ENV_0_SUSTAIN + e];
+		const Q<31> sustain =
+		    matrix::param_value_at<params::LOCAL_ENV_0_SUSTAIN, kNumEnvelopes>(params_.param_final_values, e);
 		bool directly_to_decay = (attack > 245632); // Skip a (near-)instant attack straight to decay.
+		// The source values are Q31 words
 		params_.source_values[util::to_underlying(PatchSource::ENVELOPE_0) + e] =
-		    envelopes_[e].note_on(directly_to_decay, sustain);
+		    envelopes_[e].note_on(directly_to_decay, sustain).raw();
 	}
 	stamp_envelope0_stage_entry(clock);
 
@@ -229,7 +232,8 @@ void Voice::setup_porta(int32_t last_note_code) {
 		phase_increment = kQ31Max;
 	}
 
-	porta_envelope_max_amplitude_ = phase_increment - kMaxSampleValue;
+	// The interval table's word is the pitch factor at Q24 (2^24 unison); the depth is it less one
+	porta_envelope_max_amplitude_ = sub_wrap(Q<24>::from_raw(phase_increment), Q<24>::one());
 }
 
 void Voice::randomize_osc_phases(const SoundSnapshot& snapshot, dsp::fixed::Cong& noise) {
@@ -287,10 +291,11 @@ void Voice::note_off(const deluge::synth::ReleaseInfo& release, bool allow_relea
 	             static_cast<int32_t>(priority_rating(release.voice_priority, release.num_active_voices)));
 }
 
-uint32_t Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge::modulation::params::Local param,
-                                              uint32_t synced_phase_increment) {
+dsp::UQ<32> Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge::modulation::params::Local param,
+                                                 dsp::UQ<32> synced_phase_increment) {
 	if (config.sync_level == deluge::plugin::SyncLevel::NONE) {
-		return params_.param_final_values[param];
+		// The LFO rate params' words are phase increments (param_format.h)
+		return dsp::UQ<32>::from_raw(static_cast<uint32_t>(params_.param_final_values[param]));
 	}
 	return synced_phase_increment;
 }
@@ -474,12 +479,18 @@ bool Voice::render_modulation(const matrix::MatrixBlock& control_block, const Vo
 			if (e == 0 && (override_amplitude_envelope_release_rate_ != 0)) {
 				release = override_amplitude_envelope_release_rate_;
 			}
-			params_.source_values[util::to_underlying(PatchSource::ENVELOPE_0) + e] = envelopes_[e].render(
-			    num_samples,
-			    matrix::param_value_at<params::LOCAL_ENV_0_ATTACK, kNumEnvelopes>(params_.param_final_values, e),
-			    matrix::param_value_at<params::LOCAL_ENV_0_DECAY, kNumEnvelopes>(params_.param_final_values, e),
-			    params_.param_final_values[params::LOCAL_ENV_0_SUSTAIN + e], release,
-			    deluge::dsp::fixed::tables::kDecaySmall8.data());
+			// The source values are Q31 words
+			params_.source_values[util::to_underlying(PatchSource::ENVELOPE_0) + e] =
+			    envelopes_[e]
+			        .render(
+			            num_samples,
+			            matrix::param_value_at<params::LOCAL_ENV_0_ATTACK, kNumEnvelopes>(params_.param_final_values,
+			                                                                              e),
+			            matrix::param_value_at<params::LOCAL_ENV_0_DECAY, kNumEnvelopes>(params_.param_final_values, e),
+			            matrix::param_value_at<params::LOCAL_ENV_0_SUSTAIN, kNumEnvelopes>(params_.param_final_values,
+			                                                                               e),
+			            release, deluge::dsp::fixed::tables::kDecaySmall8.data())
+			        .raw();
 			const auto any_change =
 			    static_cast<uint32_t>(old != params_.source_values[util::to_underlying(PatchSource::ENVELOPE_0) + e]);
 			sources_changed |= any_change << (util::to_underlying(PatchSource::ENVELOPE_0) + e);
@@ -497,10 +508,12 @@ bool Voice::render_modulation(const matrix::MatrixBlock& control_block, const Vo
 		// TODO: Same as with LFO1, there should be no reason to recompute the phase increment
 		// for every sample.
 		params_.source_values[util::to_underlying(PatchSource::LFO_LOCAL_1)] =
-		    lfo2_.render(num_samples, cfg.lfo2_config,
-		                 get_local_lfo_phase_increment(cfg.lfo2_config, params::LOCAL_LFO_LOCAL_FREQ_1,
-		                                               cfg.lfo2_synced_phase_increment),
-		                 *noise_);
+		    lfo2_
+		        .render(num_samples, cfg.lfo2_config,
+		                get_local_lfo_phase_increment(cfg.lfo2_config, params::LOCAL_LFO_LOCAL_FREQ_1,
+		                                              cfg.lfo2_synced_phase_increment),
+		                *noise_)
+		        .raw();
 		const auto any_change =
 		    static_cast<uint32_t>(old != params_.source_values[util::to_underlying(PatchSource::LFO_LOCAL_1)]);
 		sources_changed |= any_change << util::to_underlying(PatchSource::LFO_LOCAL_1);
@@ -510,10 +523,12 @@ bool Voice::render_modulation(const matrix::MatrixBlock& control_block, const Vo
 		// TODO: Same as with LFO1, there should be no reason to recompute the phase increment
 		// for every sample.
 		params_.source_values[util::to_underlying(PatchSource::LFO_LOCAL_2)] =
-		    lfo4_.render(num_samples, cfg.lfo4_config,
-		                 get_local_lfo_phase_increment(cfg.lfo4_config, params::LOCAL_LFO_LOCAL_FREQ_2,
-		                                               cfg.lfo4_synced_phase_increment),
-		                 *noise_);
+		    lfo4_
+		        .render(num_samples, cfg.lfo4_config,
+		                get_local_lfo_phase_increment(cfg.lfo4_config, params::LOCAL_LFO_LOCAL_FREQ_2,
+		                                              cfg.lfo4_synced_phase_increment),
+		                *noise_)
+		        .raw();
 		const auto any_change =
 		    static_cast<uint32_t>(old != params_.source_values[util::to_underlying(PatchSource::LFO_LOCAL_2)]);
 		sources_changed |= any_change << util::to_underlying(PatchSource::LFO_LOCAL_2);
@@ -567,11 +582,11 @@ int32_t Voice::pitch_adjust(const VoiceConfig& cfg, int32_t num_samples, int32_t
 
 	// Porta
 	if (porta_envelope_pos_ < 8388608) {
-		int32_t env_value = get_decay4(porta_envelope_pos_, 23);
-		// One plus the Q31 decay times the Q24 porta depth, Q24
-		const auto porta =
-		    mul_r_as_wrap<Q<24>>(Q<31>::from_raw(env_value), Q<24>::from_raw(porta_envelope_max_amplitude_));
-		const int32_t pitch_adjustment_here = add_wrap(Q<24>::from_raw(kMaxSampleValue), porta).raw();
+		// The decay table's words are Q31 levels
+		const auto env_value = Q<31>::from_raw(get_decay4(porta_envelope_pos_, 23));
+		// One plus the decay times the porta depth
+		const auto porta = mul_r_as_wrap<Q<24>>(env_value, porta_envelope_max_amplitude_);
+		const int32_t pitch_adjustment_here = add_wrap(Q<24>::one(), porta).raw();
 		overall_pitch_adjust = pitch_product(overall_pitch_adjust, pitch_adjustment_here);
 
 		// Move envelope on. Using the "release rate" lookup table gives by far the best range of speed values
@@ -807,7 +822,7 @@ void Voice::auto_release_if_due(const VoiceConfig& cfg, const VoiceBlock& block,
 	// device's integer division by zero gives 0
 	override_amplitude_envelope_release_rate_ = highest_num_samples_left != 0 ? 8388608 / highest_num_samples_left : 0;
 	if (envelopes_[0].is_at_attack_start()) {
-		envelopes_[0].set_output_level(kQ31Max);
+		envelopes_[0].set_output_level(Q<31>::max());
 	}
 	envelopes_[0].unconditional_release();
 	stamp_envelope0_stage_entry(block.clock);

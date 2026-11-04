@@ -476,7 +476,7 @@ private:
 	/// @brief Count one destruction that found live voices (see soundsDestroyedWithLiveVoices()).
 	static void noteDestroyedWithLiveVoices();
 
-	uint32_t getGlobalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::params::Global param);
+	deluge::dsp::UQ<32> getGlobalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::params::Global param);
 	void recalculateFineTuner();
 	void recalculateModulatorTransposer(uint8_t m, ModelStackWithSoundFlags* modelStack);
 	void setupUnisonDetuners(ModelStackWithSoundFlags* modelStack);

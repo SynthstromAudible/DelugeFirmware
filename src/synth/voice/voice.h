@@ -77,8 +77,8 @@ public:
 		Evaluator::run_uncabled_param(matrix_pass(), control_block, param);
 	}
 
-	uint32_t get_local_lfo_phase_increment(const LFOConfig& config, deluge::modulation::params::Local param,
-	                                       uint32_t synced_phase_increment);
+	dsp::UQ<32> get_local_lfo_phase_increment(const LFOConfig& config, deluge::modulation::params::Local param,
+	                                          dsp::UQ<32> synced_phase_increment);
 	/// Renders one block, adding into @p args.buffer. @return false once the voice has ended and must be unassigned.
 	bool render(const matrix::MatrixBlock& control_block, const VoiceConfig& cfg, const VoiceBlock& block,
 	            const VoiceRenderArgs& args);
@@ -170,7 +170,7 @@ private:
 	int32_t note_code_after_arpeggiation_{};
 
 	uint32_t porta_envelope_pos_{};
-	int32_t porta_envelope_max_amplitude_{};
+	dsp::Q<24> porta_envelope_max_amplitude_{}; ///< The glide's depth: the interval's pitch factor less one
 
 	int32_t overall_osc_amplitude_last_time_{};
 

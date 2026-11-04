@@ -923,7 +923,7 @@ void Sound::retriggerVoice(const ActiveVoice& voice, ModelStackWithSoundFlags* m
                            int32_t noteCodePostArp, int32_t velocity, int16_t const* mpeValues,
                            uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate,
                            int32_t fromMIDIChannel) {
-	int32_t envelopePositions[kNumEnvelopes];
+	deluge::dsp::Q<31> envelopePositions[kNumEnvelopes];
 	for (int32_t e = 0; e < kNumEnvelopes; e++) {
 		envelopePositions[e] = voice->kernel.envelope(e).output_level();
 	}
@@ -1796,8 +1796,10 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		// already cause a resync. Maybe tempo changes do too? If so, this could be part of
 		// the resync logic. Note: same issue exists with LFO2 now that it supports sync.
 		params.source_values[patchSourceLFOGlobalUnderlying] =
-		    globalLFO1.render(output.size(), snapshot_.lfo_config[LFO1_ID],
-		                      getGlobalLFOPhaseIncrement(LFO1_ID, params::GLOBAL_LFO_FREQ_1), deluge::synth_noise);
+		    globalLFO1
+		        .render(output.size(), snapshot_.lfo_config[LFO1_ID],
+		                getGlobalLFOPhaseIncrement(LFO1_ID, params::GLOBAL_LFO_FREQ_1), deluge::synth_noise)
+		        .raw(); // the source values are Q31 words
 		uint32_t anyChange = (old != params.source_values[patchSourceLFOGlobalUnderlying]);
 		sourcesChanged.fetch_or(anyChange << patchSourceLFOGlobalUnderlying, std::memory_order_acq_rel);
 	}
@@ -1810,8 +1812,10 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		// already cause a resync. Maybe tempo changes do too? If so, this could be part of
 		// the resync logic. Note: same issue exists with LFO2 now that it supports sync.
 		params.source_values[patchSourceLFOGlobalUnderlying] =
-		    globalLFO3.render(output.size(), snapshot_.lfo_config[LFO3_ID],
-		                      getGlobalLFOPhaseIncrement(LFO3_ID, params::GLOBAL_LFO_FREQ_2), deluge::synth_noise);
+		    globalLFO3
+		        .render(output.size(), snapshot_.lfo_config[LFO3_ID],
+		                getGlobalLFOPhaseIncrement(LFO3_ID, params::GLOBAL_LFO_FREQ_2), deluge::synth_noise)
+		        .raw(); // the source values are Q31 words
 		uint32_t anyChange = (old != params.source_values[patchSourceLFOGlobalUnderlying]);
 		sourcesChanged.fetch_or(anyChange << patchSourceLFOGlobalUnderlying, std::memory_order_acq_rel);
 	}
@@ -1979,12 +1983,15 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		    .synth_mode = getSynthMode(),
 		    .lfo2_config = snapshot_.lfo_config[LFO2_ID],
 		    .lfo4_config = snapshot_.lfo_config[LFO4_ID],
-		    .lfo2_synced_phase_increment = (snapshot_.lfo_config[LFO2_ID].sync_level == SYNC_LEVEL_NONE)
-		                                       ? 0
-		                                       : getSyncedLFOPhaseIncrement(snapshot_.lfo_config[LFO2_ID]),
-		    .lfo4_synced_phase_increment = (snapshot_.lfo_config[LFO4_ID].sync_level == SYNC_LEVEL_NONE)
-		                                       ? 0
-		                                       : getSyncedLFOPhaseIncrement(snapshot_.lfo_config[LFO4_ID]),
+		    // The synced increments come from the transport's integer tick maths
+		    .lfo2_synced_phase_increment =
+		        deluge::dsp::UQ<32>::from_raw((snapshot_.lfo_config[LFO2_ID].sync_level == SYNC_LEVEL_NONE)
+		                                          ? 0
+		                                          : getSyncedLFOPhaseIncrement(snapshot_.lfo_config[LFO2_ID])),
+		    .lfo4_synced_phase_increment =
+		        deluge::dsp::UQ<32>::from_raw((snapshot_.lfo_config[LFO4_ID].sync_level == SYNC_LEVEL_NONE)
+		                                          ? 0
+		                                          : getSyncedLFOPhaseIncrement(snapshot_.lfo_config[LFO4_ID])),
 		    .has_filters = thisHasFilters,
 		    .expression_sources_changed_at_synth_level = expressionSourcesChangedAtSynthLevel,
 		    .monophonic_expression_values = monophonicExpressionValues,
@@ -2212,12 +2219,15 @@ void Sound::getArpBackInTimeAfterSkippingRendering(ArpeggiatorSettings* arpSetti
 	}
 }
 
-uint32_t Sound::getGlobalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::params::Global param) {
+deluge::dsp::UQ<32> Sound::getGlobalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::params::Global param) {
+	using deluge::dsp::UQ;
 	const LFOConfig& config = snapshot_.lfo_config[lfoId];
 	if (config.sync_level == SYNC_LEVEL_NONE) {
-		return params.param_final_values[param - params::FIRST_GLOBAL];
+		// The LFO rate params' words are phase increments (param_format.h)
+		return UQ<32>::from_raw(static_cast<uint32_t>(params.param_final_values[param - params::FIRST_GLOBAL]));
 	}
-	return getSyncedLFOPhaseIncrement(config);
+	// The synced increment comes from the transport's integer tick maths
+	return UQ<32>::from_raw(getSyncedLFOPhaseIncrement(config));
 }
 
 uint32_t Sound::getSyncedLFOPhaseIncrement(const LFOConfig& config) {
@@ -2278,7 +2288,9 @@ void Sound::resyncGlobalLFOs(bool reset_state) {
 				uint32_t timePerInternalTick = playbackHandler.getTimePerInternalTick();
 				uint32_t timePerPeriod = numInternalTicksPerPeriod * timePerInternalTick;
 				uint32_t offsetTime = offsetTicks * timePerInternalTick + timeSinceLastTick;
-				globalLFO1.advance_phase((uint32_t)((float)offsetTime / timePerPeriod * 4294967296));
+				// Raw: the offset's share of the period, in floating point, as a phase word
+				globalLFO1.advance_phase(
+				    deluge::dsp::UQ<32>::from_raw((uint32_t)((float)offsetTime / timePerPeriod * 4294967296)));
 			}
 		}
 	}
@@ -2317,7 +2329,9 @@ void Sound::resyncGlobalLFOs(bool reset_state) {
 				uint32_t timePerInternalTick = playbackHandler.getTimePerInternalTick();
 				uint32_t timePerPeriod = numInternalTicksPerPeriod * timePerInternalTick;
 				uint32_t offsetTime = offsetTicks * timePerInternalTick + timeSinceLastTick;
-				globalLFO3.advance_phase((uint32_t)((float)offsetTime / timePerPeriod * 4294967296));
+				// Raw: the offset's share of the period, in floating point, as a phase word
+				globalLFO3.advance_phase(
+				    deluge::dsp::UQ<32>::from_raw((uint32_t)((float)offsetTime / timePerPeriod * 4294967296)));
 			}
 		}
 	}

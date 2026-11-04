@@ -202,7 +202,7 @@ void AudioOutput::resetEnvelope() {
 		AudioClip* activeAudioClip = (AudioClip*)activeClip;
 
 		bool directlyToDecay = (activeAudioClip->attack() == -2147483648);
-		envelope.note_on(directlyToDecay, 2147483647);
+		envelope.note_on(directlyToDecay, deluge::dsp::Q<31>::max());
 	}
 	amplitudeLastTime = 0;
 	overrideAmplitudeEnvelopeReleaseRate = 0;
@@ -248,10 +248,12 @@ bool AudioOutput::renderContent(ModelStackWithTimelineCounter* modelStack, std::
 			        .raw();
 
 renderEnvelope:
-			int32_t amplitudeLocal = (envelope.render(render.size(), attack, 8388608, 2147483647, 0,
-			                                          deluge::dsp::fixed::tables::kDecaySmall4.data())
-			                          >> 1)
-			                         + 1073741824;
+			// The centred envelope made unipolar: halved, plus a half
+			int32_t amplitudeLocal =
+			    add_wrap(halve_floor(envelope.render(render.size(), attack, 8388608, deluge::dsp::Q<31>::max(), 0,
+			                                         deluge::dsp::fixed::tables::kDecaySmall4.data())),
+			             deluge::dsp::q<31>(0.5))
+			        .raw();
 
 			if (envelope.stage() >= Envelope::Stage::OFF) {
 				if (activeAudioClip.doingLateStart) {
