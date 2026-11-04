@@ -549,8 +549,10 @@ otherwise. `gui/ui/shell_menu_entry.cpp`'s table names all fourteen.
   popup to legacy's display.
 * **Activity.** Every pad, button and encoder the guest sees, forwarded or not, is screensaver
   activity (`Shell::note_activity`).
-* **MIDI learn.** Program change and note-on reach `MenuScene::learn_*` through the `UI` virtuals
-  legacy dispatches; CC and pitch bend have no `UI` virtual and do not reach the guest.
+* **MIDI learn.** `PlaybackHandler` offers note-on, program change, CC and pitch bend to the current UI
+  (`UI::noteOnReceivedForMidiLearn` and its three siblings). The guest routes each as a `UiEvent` MIDI kind:
+  the menu learns into the row, column or item under the cursor in its own learn mode (`MenuLearn::offer`),
+  then `services::MidiLearn` in its learn mode, then the base answer (legacy's learn mode, `View`).
 
 ## Boot wiring this layer does not do for itself
 
@@ -639,7 +641,7 @@ it leaves both lists.
 | `ClipView`'s clip shift (Y_ENC, or X_ENC held + CLIP) | `AudioClipScene` claims it, as legacy does, and does nothing: two of `Clip::shiftHorizontally`'s arguments depend on whether the automation view is current | port it with `AutomationScene` |
 | `AudioClipView::renderSidebar`'s macro arm | `View::renderMacros` while holding SONG; its reads are all outside this layer | the arm, once the macro state is reachable |
 | clip-row rendering | `AudioClip::renderAsSingleRow` draws from `model/` and includes the legacy waveform renderer | moving it into `SessionScene` |
-| MIDI learn into the menu | gold-knob learn of a menu param (`MenuItem::learnKnob`) is not reached (`MenuScene::learn_target` has no caller), and CC and pitch-bend learn have no `UI` virtual into the guest | a `learnKnob` arm and the two transports |
+| the MIDI follow channel's screen | `midi::FollowChannel::drawInteger` (input differentiation, device, channel) has no port; the node draws a bare number (`parity/DIFFERENCES.md` D73) | a drawing for the nineteen nodes |
 | pad MIDI learn | no scene answers `learnable_at(pad)`, so `MidiLearn::thing_pressed` gets only its own TAP/PLAY/RECORD arms | the root scenes answering it |
 | automation retargeting | `SoundEditor::handlePotentialParamMenuChange` re-selects the automation view's param after a BACK, a SELECT or a horizontal column move; it is keyed on the root UI | an automation scene, or a seam telling the guest the focused param changed |
 | select editing gated by UI mode | `SoundEditor::selectEncoderAction` edits only inside `selectEncoderUIModes`; `MenuScene` edits on every turn | a UI-mode fact handed to the scene |

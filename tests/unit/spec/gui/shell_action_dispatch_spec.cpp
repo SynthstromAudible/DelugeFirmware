@@ -4,7 +4,7 @@
 ///
 /// **What this file can see, and what it deliberately cannot.** `deluge::gui::ui::dispatchShellActions()`
 /// is stubbed here, in `gui/support/fake_legacy_ui.cpp`, on exactly the terms `wireShellGuestServices`
-/// and the two `shellGuestMenuLearn*` hooks already are: the real one reads
+/// already is: the real one reads
 /// `deluge::scenes::menu_scene()` and its arms name `performanceView`, `audioClipView`, `stemExport`
 /// and two `gui/context_menu/` singletons, none of which exist in this suite's link closure
 /// (`tests/spec/CMakeLists.txt:28-35`). So **nothing here asserts that a request is performed, or

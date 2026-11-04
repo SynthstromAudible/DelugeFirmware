@@ -190,7 +190,8 @@ public:
 	/// `readValueAgain` is -- reload the storage, with nothing pressed on this row (legacy's
 	/// `beginScreen`/`focusRegained` shape). A no-op when nothing is focused.
 	void read_value_again();
-	/// @brief The `deluge::synth::CableTarget` MIDI/CC learn binds to the focused node.
+	/// @brief The param a knob learn binds to on the learn node (`MenuLearn::node`): the row, column or item under the
+	///        cursor.
 	///
 	/// @note **Param learn, not global-command learn.** This is `PatchedParam`/`UnpatchedParam`'s
 	///       `getLearningThing()` (`bindings.h`'s `learn_target`): "which automatable parameter
@@ -200,16 +201,11 @@ public:
 	///       `midi_command_*` nodes have no `bind.param`, so this returns none for every one of them.
 	std::optional<deluge::project::OwnerParamTarget> learn_target() const;
 
-	/// @name MIDI-learn entry points -- the port of `SoundEditor`'s own three delivery members.
+	/// @name MIDI-learn entry points -- the item learns of `SoundEditor`'s learn answers.
 	///
-	/// `SoundEditor::noteOnReceivedForMidiLearn` / `midiCCReceived` / `pcReceivedForMidiLearn`
-	/// (`gui/ui/sound_editor.cpp:1605-1625`) each forward to `getCurrentMenuItem()->learnX(...)`
-	/// and report whether the message was used; `unlearn` is `unlearnAction()` at `:478`. These do
-	/// the same, to `focused()`'s `CustomItem` -- the item decides, exactly as legacy's virtual
-	/// dispatch let it.
-	///
-	/// The note-on and program-change entry points are `ShellHostUI`'s two `UI` overrides
-	/// (`gui/ui/shell_guest_services.cpp`); `learn_cc` has no `UI` virtual to override and no caller.
+	/// Each delivers one message to the learn node's item, as `getCurrentMenuItem()->learnX(...)` does, and says
+	/// whether it learned; `unlearn` is `unlearnAction()`. In learn mode a real MIDI message reaches the same members
+	/// through `handle()` (`MenuLearn::offer`), which also decides whether the message was used.
 	///
 	/// @warning **`wants_learn_blink()` is NOT the learn gate.** Legacy enters learn mode on
 	///          `getCurrentMenuItem()->allowsLearnMode()` (`SoundEditor::buttonAction`'s LEARN arm), ported as
@@ -218,26 +214,26 @@ public:
 	///          `MenuItemWithCCLearning` -- all the patched/unpatched params, the transpose items, the MIDI-follow
 	///          items -- every one of which blinks *false*.
 	/// @{
-	/// @brief Offer a note-on to the focused item.
+	/// @brief Offer a note-on to the learn node's item.
 	/// @param cable   The cable it arrived on.
 	/// @param channel Its MIDI channel.
 	/// @param note    Its note number.
-	/// @return Whether it was used.
+	/// @return Whether it learned.
 	bool learn_note_on(::MIDICable& cable, int32_t channel, int32_t note);
-	/// @brief Offer a CC to the focused item.
+	/// @brief Offer a CC to the learn node's item.
 	/// @param cable   The cable it arrived on.
 	/// @param channel Its MIDI channel.
 	/// @param cc      The controller number.
 	/// @param value   The controller value.
-	/// @return Whether it was used.
+	/// @return Whether it learned.
 	bool learn_cc(::MIDICable& cable, int32_t channel, int32_t cc, int32_t value);
-	/// @brief Offer a program change to the focused item.
+	/// @brief Offer a program change to the learn node's item.
 	/// @param cable   The cable it arrived on.
 	/// @param channel Its MIDI channel.
 	/// @param program The program number.
-	/// @return Whether it was used.
+	/// @return Whether it learned.
 	bool learn_program_change(::MIDICable& cable, int32_t channel, int32_t program);
-	/// @brief Ask the focused item to forget what it learned.
+	/// @brief Ask the learn node's item to forget what it learned.
 	void unlearn();
 	/// @brief Does the focused item want the LEARN LED blinking? `MenuItem::shouldBlinkLearnLed`.
 	///

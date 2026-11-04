@@ -134,8 +134,7 @@ extern int service_wirings;
 
 /// @brief How many times `deluge::gui::ui::dispatchShellActions()` was called.
 ///
-/// Faked for the third time for the same reason as `wireShellGuestServices` and the two
-/// `shellGuestMenuLearn*` hooks above: the real one reads `deluge::scenes::menu_scene()` and so
+/// Faked for the same reason as `wireShellGuestServices`: the real one reads `deluge::scenes::menu_scene()` and so
 /// belongs to the `deluge_scenes` closure this suite never builds (`gui/ui/shell_action_dispatch.h`
 /// says so in its own words). What that leaves assertable here is the half that lives in
 /// `ShellHostUI::timerCallback` and cannot be seen from anywhere else -- **that the poll happens,
