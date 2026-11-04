@@ -24,7 +24,7 @@ describe clip_increment("an audio clip's phase increments", ${
 		// a ratio whose product would pass 64 bits
 		expect(scaled_increment(1 << 30, uint64_t{1} << 40)).to_equal(kMax);
 	});
-	it("place a transpose's interval by its octave, as before, from -96 to +83", _ {
+	it("place a transpose's interval by its octave from -96 to +83", _ {
 		expect(transposed_neutral(0, kRate, kRate)).to_equal(1 << 24);           // the interval 2^30 >> 6
 		expect(transposed_neutral(12, kRate, kRate)).to_equal(1 << 25);
 		expect(transposed_neutral(72, kRate, kRate)).to_equal(1 << 30);
@@ -34,6 +34,10 @@ describe clip_increment("an audio clip's phase increments", ${
 	it("hold the top octaves under 2^31 rather than shifting by a negative count", _ {
 		expect(transposed_neutral(84, kRate, kRate)).to_equal(kMax);
 		expect(transposed_neutral(96, kRate, kRate)).to_equal(kMax);
+	});
+	it("take a cents adjustment, held under 2^31 from an increment already at its top", _ {
+		expect(cents_scaled(1 << 24, 1 << 30)).to_equal(1 << 24);
+		expect(cents_scaled(kMax, 1104560776)).to_equal(kMax); // +49 cents on +84's held increment
 	});
 	it("scale to the sample's rate, held under 2^31", _ {
 		expect(transposed_neutral(0, 22050, kRate)).to_equal(1 << 23);

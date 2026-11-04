@@ -50,10 +50,7 @@ void SampleHolderForClip::recalculateNeutralPhaseIncrement() {
 		if (cents) {
 			int32_t multiplier = kLinearTableInterpolator.interpolate(
 			    2147483648u + PhaseIncrementFineTuner::cents_step(cents), 32, centAdjustTableSmall);
-			// The increment read as Q31 (it stays under 2^31) times the cents' Q30 multiplier, moved back to Q31
-			neutralPhaseIncrement = mul_as_wrap<deluge::dsp::Q<31>>(deluge::dsp::Q<31>::from_raw(neutralPhaseIncrement),
-			                                                        deluge::dsp::Q<30>::from_raw(multiplier))
-			                            .raw();
+			neutralPhaseIncrement = cents_scaled(neutralPhaseIncrement, multiplier);
 		}
 	}
 }
