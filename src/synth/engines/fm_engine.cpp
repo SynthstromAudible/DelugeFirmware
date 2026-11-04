@@ -54,9 +54,10 @@ using dsp::UQ;
 	return clamp_bits<22>(mul(Q<31>::from_raw(feedback_value), Q<31>::from_raw(feedback_amount))).raw();
 }
 
-/// @brief A sine's Q31 word times the amplitude, the high word: Q30, as the carriers' buffer sums it.
+/// @brief A sine's Q31 word times the amplitude, the rounded high word: Q30, as the carriers' buffer sums it and as
+/// every operator path rounds.
 [[gnu::always_inline]] inline int32_t scaled(int32_t value, int32_t amplitude) {
-	return mul(Q<31>::from_raw(value), Q<31>::from_raw(amplitude)).raw();
+	return mul_r(Q<31>::from_raw(value), Q<31>::from_raw(amplitude)).raw();
 }
 
 /// @brief @p accumulator plus a sine's Q31 word times the amplitude, the rounded high word, wrapping.
