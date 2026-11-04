@@ -16,6 +16,7 @@
  */
 
 #include "model/fx/chain_inputs.h"
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/fixed/curves/param_curve.h"
 #include "dsp-next/fixed/vca/pan.h"
 #include "synth/matrix/descriptors.h" // kParamNeutral
@@ -130,8 +131,11 @@ effects::TrackChainInputs trackChainInputs(const TrackChannel& channel, ParamMan
 	// Make it a bit bigger so that default filter resonance doesn't reduce volume overall. Kits add a quarter of the
 	// volume; audio tracks add the exact factor 471633397 / 2^32.
 	int32_t volumePostFX = volumeAdjustment;
-	volumePostFX += (outputType == OutputType::AUDIO) ? multiply_32x32_rshift32_rounded(volumeAdjustment, 471633397)
-	                                                  : (volumeAdjustment >> 2);
+	volumePostFX +=
+	    (outputType == OutputType::AUDIO)
+	        // the rounded high word: the volume times 471633397 / 2^32, in its units
+	        ? mul_r(deluge::dsp::Q<31>::from_raw(volumeAdjustment), deluge::dsp::Q<31>::from_raw(471633397)).raw()
+	        : (volumeAdjustment >> 2);
 
 	const int32_t reverbSendAmount = effects::final_value(
 	    effects::Reverb::kSend, unpatched->getValue(params::UNPATCHED_REVERB_SEND_AMOUNT), reverbAmountAdjust);

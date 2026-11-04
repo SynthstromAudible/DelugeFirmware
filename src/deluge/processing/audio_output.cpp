@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "deluge-project/audio_input.h"
 #include "deluge-project/doc_output.h" // complete DocOutput type for the identity record
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/mono.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/fixed/curves/param_curve.h"
@@ -264,10 +265,12 @@ renderEnvelope:
 					amplitudeLastTime = amplitudeLocal;
 				}
 
+				// Each Q31 amplitude times the clip's, the high word: Q30, half the level, as the voice's mix is summed
+				using deluge::dsp::Q;
 				int32_t amplitudeEffectiveStart =
-				    multiply_32x32_rshift32(amplitudeLastTime, amplitudeAtStart); // Reduces amplitude another >>1
+				    mul(Q<31>::from_raw(amplitudeLastTime), Q<31>::from_raw(amplitudeAtStart)).raw();
 				int32_t amplitudeEffectiveEnd =
-				    multiply_32x32_rshift32(amplitudeLocal, amplitudeAtEnd); // Reduces amplitude another >>1
+				    mul(Q<31>::from_raw(amplitudeLocal), Q<31>::from_raw(amplitudeAtEnd)).raw();
 
 				int32_t amplitudeIncrementEffective =
 				    static_cast<int32_t>(static_cast<double>(amplitudeEffectiveEnd - amplitudeEffectiveStart)
@@ -323,10 +326,14 @@ renderEnvelope:
 		int32_t amplitude_start = amplitudeAtStart;
 		int32_t amplitude_end = amplitudeAtEnd;
 		if (!AudioEngine::inputMonitor.warmed_up()) {
+			// The amplitude times the warming monitor's Q31 gain, moved back to Q31
+			using deluge::dsp::Q;
 			amplitude_start =
-			    multiply_32x32_rshift32(amplitude_start, AudioEngine::inputMonitor.gain(AudioEngine::audioSampleTimer))
-			    << 1;
-			amplitude_end = multiply_32x32_rshift32(amplitude_end, monitoring_gain_end) << 1;
+			    mul_as_wrap<Q<31>>(Q<31>::from_raw(amplitude_start),
+			                       Q<31>::from_raw(AudioEngine::inputMonitor.gain(AudioEngine::audioSampleTimer)))
+			        .raw();
+			amplitude_end =
+			    mul_as_wrap<Q<31>>(Q<31>::from_raw(amplitude_end), Q<31>::from_raw(monitoring_gain_end)).raw();
 		}
 
 		using deluge::dsp::fixed::TrackMonitor;

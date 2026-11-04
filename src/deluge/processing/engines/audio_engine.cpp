@@ -16,6 +16,7 @@
  */
 
 #include "processing/engines/audio_engine.h"
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/fixed/curves/param_curve.h"
 #include "dsp-next/fixed/vca/pan.h"
 #include "model/fx/chain_inputs.h"
@@ -123,6 +124,23 @@ extern int32_t spareRenderingBuffer[][SSI_TX_BUFFER_NUM_SAMPLES];
 #define NUM_SAMPLES_FOR_CPU_USAGE_REPORT 32
 
 #define AUDIO_OUTPUT_GAIN_DOUBLINGS 8
+
+namespace {
+/// @brief An output sample at the output's gain: doubled AUDIO_OUTPUT_GAIN_DOUBLINGS times, held to the word first.
+[[gnu::always_inline]] inline int32_t output_gain(int32_t sample) {
+	using deluge::dsp::Q;
+	return scale_shl_wrap<AUDIO_OUTPUT_GAIN_DOUBLINGS>(
+	           clamp_bits<32 - AUDIO_OUTPUT_GAIN_DOUBLINGS>(Q<31>::from_raw(sample)))
+	    .raw();
+}
+
+/// @brief @p sample plus the USB input it monitors, brought down to the output stage's level before its gain,
+/// saturating.
+[[gnu::always_inline]] inline int32_t with_usb_monitor(int32_t sample, int32_t usb) {
+	using deluge::dsp::Q;
+	return add_sat(Q<31>::from_raw(sample), scale_shr_floor<AUDIO_OUTPUT_GAIN_DOUBLINGS>(Q<31>::from_raw(usb))).raw();
+}
+} // namespace
 
 #ifdef REPORT_CPU_USAGE
 #define REPORT_AVERAGE_NUM 10
@@ -1544,8 +1562,12 @@ void renderReverb(size_t numSamples) {
 		}
 
 		if (thisDoPanning) {
-			reverbAmplitudeL = multiply_32x32_rshift32(reverbAmplitudeL, reverbOutputVolume) << 2;
-			reverbAmplitudeR = multiply_32x32_rshift32(reverbAmplitudeR, reverbOutputVolume) << 2;
+			// The Q30 pan amplitudes times the Q31 output volume, Q29, moved to Q31
+			using deluge::dsp::Q;
+			reverbAmplitudeL =
+			    mul_as_wrap<Q<31>>(Q<30>::from_raw(reverbAmplitudeL), Q<31>::from_raw(reverbOutputVolume)).raw();
+			reverbAmplitudeR =
+			    mul_as_wrap<Q<31>>(Q<30>::from_raw(reverbAmplitudeR), Q<31>::from_raw(reverbOutputVolume)).raw();
 		}
 		else {
 			reverbAmplitudeL = reverbAmplitudeR = reverbOutputVolume;
@@ -1897,22 +1919,22 @@ static uint32_t outputStage(DelugeStereoSample* out, uint32_t produced, uint32_t
 				}
 			}
 			else {
-				toUSB[numSamplesOutputted].l = lshift_and_saturate<AUDIO_OUTPUT_GAIN_DOUBLINGS>(lAdjusted);
-				toUSB[numSamplesOutputted].r = lshift_and_saturate<AUDIO_OUTPUT_GAIN_DOUBLINGS>(rAdjusted);
+				toUSB[numSamplesOutputted].l = output_gain(lAdjusted);
+				toUSB[numSamplesOutputted].r = output_gain(rAdjusted);
 			}
 		}
 
 		if (doUSBDirectMonitoring) {
-			lAdjusted = add_saturate(lAdjusted, usbReadPos[0] >> (AUDIO_OUTPUT_GAIN_DOUBLINGS));
-			rAdjusted = add_saturate(rAdjusted, usbReadPos[1] >> (AUDIO_OUTPUT_GAIN_DOUBLINGS));
+			lAdjusted = with_usb_monitor(lAdjusted, usbReadPos[0]);
+			rAdjusted = with_usb_monitor(rAdjusted, usbReadPos[1]);
 			usbReadPos += NUM_MONO_INPUT_CHANNELS;
 			if (usbReadPos >= usbInputEnd) {
 				usbReadPos -= SSI_RX_BUFFER_NUM_SAMPLES * NUM_MONO_INPUT_CHANNELS;
 			}
 		}
 
-		outputBufferForResampling[numSamplesOutputted].l = lshift_and_saturate<AUDIO_OUTPUT_GAIN_DOUBLINGS>(lAdjusted);
-		outputBufferForResampling[numSamplesOutputted].r = lshift_and_saturate<AUDIO_OUTPUT_GAIN_DOUBLINGS>(rAdjusted);
+		outputBufferForResampling[numSamplesOutputted].l = output_gain(lAdjusted);
+		outputBufferForResampling[numSamplesOutputted].r = output_gain(rAdjusted);
 		if (outputRealAudio) {
 			out[produced + numSamplesOutputted].l = outputBufferForResampling[numSamplesOutputted].l;
 			out[produced + numSamplesOutputted].r = outputBufferForResampling[numSamplesOutputted].r;
