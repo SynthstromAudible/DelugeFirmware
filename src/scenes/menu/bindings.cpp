@@ -34,15 +34,15 @@
 ///   * toggle default -- `Toggle::selectEncoderAction` (`gui/menu_item/toggle.cpp:14-17`), a `Value<bool>`
 ///   * automation refresh -- `automationView.possiblyRefreshAutomationEditorGrid` (`patched_param/integer.cpp:73-77`,
 ///     `unpatched_param.cpp:77-81`)
-///   * patched learn -- `PatchedParam::getLearningThing` (`gui/menu_item/patched_param.cpp:51-55`)
-///   * unpatched learn -- `UnpatchedParam::getLearningThing` (`gui/menu_item/unpatched_param.cpp:88-92`)
+///   * patched learn -- `PatchedParam::getLearningThing` (`gui/menu_item/patched_param.cpp`)
+///   * unpatched learn -- `UnpatchedParam::getLearningThing` (`gui/menu_item/unpatched_param.cpp`)
 ///
 /// **What did NOT come across.**
 ///
 ///   * The UI-mode half of the affect-entire condition. Legacy asks
 ///     `currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()`
-///     (`unpatched_param.cpp:52`). The first half is a `currentUIMode` read, which this layer may not do, so it
-///     arrives as `MenuContext::affect_entire_held` -- a field the caller sets and `context_for` never does. It is
+///     (`UnpatchedParam::writeCurrentValue`). The first half is a `currentUIMode` read, which this layer may not do, so
+///     it arrives as `MenuContext::affect_entire_held` -- a field the caller sets and `context_for` never does. It is
 ///     deliberately NOT `MenuContext::affect_entire`: that is the *clip's*
 ///     `InstrumentClip::affectEntire` setting, which is true on the kit-row grid-shortcut path
 ///     (`sound_editor.cpp:1205-1213`) where legacy edits one row only.
@@ -108,7 +108,7 @@ std::array<std::array<char, 40>, kMaxDynamicNames> unavailable_text{};
 /// caller has room to render: `Enumeration::selectEncoderAction` clamps against `size()` on every
 /// detent (`enumeration.cpp:19,28`), so running a `dynamic_names` hook to obtain it is exactly what
 /// legacy does, at the same rate. That is why the window here is the full `kMaxDynamicNames`
-/// (`node.h:98` -- the documented cap on what one call may produce) rather than whatever `out` span
+/// (`node.h` -- the documented cap on what one call may produce) rather than whatever `out` span
 /// `names()` was handed: a caller with room for four names still edits a ten-option enum over its
 /// real 0..9 range. Cost is a `std::string_view[64]` -- 512 bytes on the
 /// 32-bit target -- in this frame for the duration of the hook call.
@@ -122,10 +122,10 @@ size_t name_count(const Node& node, const MenuContext& ctx) {
 
 } // namespace
 
-/// Legacy `unpatched_param.cpp:52` / `patched_param/integer.cpp:45` -- write the whole kit rather than the
-/// selected row? `editingKitRow()` (`sound_editor.cpp:207-209`) is `is_kit && !is_kit_global_fx`;
-/// the held-button half arrives as `affect_entire_held` (see the file header). Declared in
-/// `bindings.h` because a couple of the tables' own `set` hooks branch on it.
+/// Legacy `UnpatchedParam::writeCurrentValue` / `patched_param::Integer::writeCurrentValue` -- write the whole kit
+/// rather than the selected row? `SoundEditor::editingKitRow` is `is_kit && !is_kit_global_fx`; the held-button half
+/// arrives as `affect_entire_held` (see the file header). Declared in `bindings.h` because a couple of the tables' own
+/// `set` hooks branch on it.
 bool writes_whole_kit(const MenuContext& ctx) {
 	return ctx.affect_entire_held && ctx.is_kit && !ctx.is_kit_global_fx && ctx.addresses.kit_output.has_value()
 	       && ctx.addresses.clip.has_value();
@@ -265,12 +265,13 @@ void write(const Node& node, const MenuContext& ctx, int32_t value) {
 				//    `setCurrentValueInResponseToUserInput` triggers through
 				//    `ParamManager::notifyParamModifiedInSomeWay` -> `view.notifyParamAutomationOccurred`
 				//    (`auto_param.cpp:1161`, `view.cpp:1708-1728`), whose deferred `displayAutomation()` calls
-				//    `setKnobIndicatorLevels()` (`view.cpp:1758-1761`). `legacy_redraw_for` lists both
+				//    `setKnobIndicatorLevels()` (`View::displayAutomation`). `legacy_redraw_for` lists both
 				//    enumerators under `r.oled` (`gui/ui/notify_drain_mapping.cpp:20`).
 				//
 				//  * `Dirty::GridMain` -- the PAD half, and the reason the pair above is not enough.
 				//    `possiblyRefreshAutomationEditorGrid` ends in
-				//    `uiNeedsRendering(&automationView)` (`automation_view.cpp:625`), i.e. a main-pad re-render
+				//    `uiNeedsRendering(&automationView)` (`AutomationView::possiblyRefreshAutomationEditorGrid`), i.e.
+				//    a main-pad re-render
 				//    (`AutomationView::renderMainPads`, `:633`) -- and `ParamAutomation`/`ModTarget` appear
 				//    *only* in `r.oled`, never in `r.main_rows` (`notify_drain_mapping.cpp:13-14`). Without this
 				//    third raise, editing the param the automation view is showing would stop repainting its
@@ -342,11 +343,11 @@ IntRange range(const Node& node, const MenuContext& ctx) {
 		// `patched_param/integer.h:35-36` and `unpatched_param.h:42-43`.
 		//
 		// This arm is also where `Kind::Bipolar`, `Range`, `MultiRange`, `Colour` and `SyncLevel`
-		// land. Their interpreters are E2's, and each will want its own
+		// land. Each of them wants its own
 		// default -- legacy `menu_item::Bipolar`, `menu_item::Range`, `multi_range.h`,
-		// `menu_item::Colour`, `sync_level.h`. Until then 0..50 is a placeholder, not a claim:
-		// nothing in E1's tables declares one of those kinds, and every one of them will arrive
-		// with either a `fixed_range` from its builder or a `range` hook, both of which are
+		// `menu_item::Colour`, `sync_level.h`. Until one has its own, 0..50 is a placeholder, not a claim:
+		// no table declares a node that reaches here without one, and every such node carries
+		// either a `fixed_range` from its builder or a `range` hook, both of which are
 		// consulted above before this switch is ever reached. Deliberately not a hard failure --
 		// a `FREEZE` in a library this layer means to keep pure would be worse than a wrong number.
 		return IntRange{kMinMenuValue, kMaxMenuValue, 1};
@@ -408,7 +409,7 @@ size_t names(const Node& node, const MenuContext& ctx, std::span<std::string_vie
 	}
 
 	// Ids resolve through the profile's `text_or_digits`, never `text_lookup` directly --
-	// `shell/profile.h:147` already implements the digits fallback for an id with no entry.
+	// `BoardProfile::text_or_digits` already implements the digits fallback for an id with no entry.
 	const size_t count = std::min(node.bind.names.size(), limit);
 	for (size_t i = 0; i < count; ++i) {
 		out[i] = name_of(node.bind.names[i], scratch[i]);
@@ -455,11 +456,11 @@ int32_t menu_to_pan(int32_t menu_value) {
 	return deluge::scenes::bind::stored_of(deluge::plugin::MappingKind::PAN, menu_value);
 }
 int32_t unsigned_to_menu(uint32_t stored) {
-	// `computeCurrentValueForUnsignedMenuItem` (`value_scaling.cpp:18-20`).
+	// `computeCurrentValueForUnsignedMenuItem` (`value_scaling.cpp`).
 	return ((int64_t)stored * kMaxMenuValue + 2147483648) >> 32;
 }
 uint32_t menu_to_unsigned(int32_t menu_value) {
-	// `computeFinalValueForUnsignedMenuItem` (`value_scaling.cpp:60-62`).
+	// `computeFinalValueForUnsignedMenuItem` (`value_scaling.cpp`).
 	return (uint32_t)menu_value * 85899345;
 }
 

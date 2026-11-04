@@ -3,42 +3,41 @@
 /// @brief The sidechain page as data: `sidechain` and its six columns, plus the three `SideChain`
 ///        conversions the reverb's own sidechain page reuses.
 ///
-/// `inline constexpr` for the reason `sound_filters.h` explains (task-6 fix round 1, I3). From
+/// `inline constexpr` for the reason `sound_filters.h` explains. From
 /// `gui/ui/menus.cpp`'s `sidechainMenu` literal (`:814-823`) and the globals it names (`:806-812`):
 ///
 // clang-format off
 /// | node | legacy global | legacy class | kind |
 /// |---|---|---|---|
-/// | `sidechain_volume` | `sidechainVolumeShortcutMenu` (`:806`) | `sidechain::VolumeShortcut` (`sidechain/volume.h:23`) | **Custom, E2** |
-/// | `sidechain_sync` | `sidechainSyncMenu` (`:808`) | `sidechain::Sync` (`sidechain/sync.h:28`) | SyncLevel, 10 options |
+/// | `sidechain_volume` | `sidechainVolumeShortcutMenu` (`:806`) | `sidechain::VolumeShortcut` (`sidechain/volume.h:23`) | **Custom** |
+/// | `sidechain_sync` | `sidechainSyncMenu` (`:808`) | `sidechain::Sync` (`sidechain/sync.h`) | SyncLevel, 10 options |
 /// | `sidechain_shape` | `sidechainShapeMenu` (`:811`) | `sidechain::Shape` (`sidechain/shape.h:6`) | Int (param; its Edit raises the reverb's recompute) |
-/// | `sidechain_send` | `sidechainSendMenu` (`:805`) | `sidechain::Send` (`sidechain/send.h:28`) | Int |
-/// | `sidechain_attack` | `sidechainAttackMenu` (`:809`) | `sidechain::Attack` (`sidechain/attack.h:28`) | Int |
-/// | `sidechain_release` | `sidechainReleaseMenu` (`:810`) | `sidechain::Release` (`sidechain/release.h:28`) | Int |
+/// | `sidechain_send` | `sidechainSendMenu` (`:805`) | `sidechain::Send` (`sidechain/send.h`) | Int |
+/// | `sidechain_attack` | `sidechainAttackMenu` (`:809`) | `sidechain::Attack` (`sidechain/attack.h`) | Int |
+/// | `sidechain_release` | `sidechainReleaseMenu` (`:810`) | `sidechain::Release` (`sidechain/release.h`) | Int |
 /// | `sidechain` | `sidechainMenu` (`:814`) | `HorizontalMenu` | Submenu (Horizontal) |
 // clang-format on
 ///
-/// @note **`sidechainVolumeShortcutMenu` is an E2 placeholder.** It derives from
+/// @note **`sidechainVolumeShortcutMenu` is a custom node.** It derives from
 ///       `patch_cable_strength::Fixed` -- the ducking amount is the strength of the
-///       `SIDECHAIN -> GLOBAL_VOLUME_POST_REVERB_SEND` patch cable, not a parameter -- and spec E
-///       §4 lists patch-cable strength among the bespoke items E2 owns. Same treatment as
-///       `sound_master.h`'s `vibrato`.
+///       `SIDECHAIN -> GLOBAL_VOLUME_POST_REVERB_SEND` patch cable, not a parameter -- so it is a
+///       `custom` node over `kSidechainVolumeItem`. Same treatment as `sound_master.h`'s `vibrato`.
 ///
-/// @note **`sidechain::Sync` overrides `size()` to 10** (`sidechain/sync.h:33`), not
+/// @note **`sidechain::Sync` overrides `size()` to 10** (`sidechain/sync.h`), not
 ///       `NUM_SYNC_VALUES`, which is why `sync_level_item` takes its range as an argument.
 ///
 /// @note **Attack and release are lookup-table indices, not values.** Legacy stores a rate and
 ///       shows the closest index into `attackRateTable` / `releaseRateTable`
-///       (`sidechain/attack.h:34-37`, `release.h:34-37`) -- `util/lookuptables/lookuptables.h:122-123`,
-///       outside `src/scenes`' include allow-list, so the `.cpp` declares the two arrays `extern`
-///       and transcribes `getLookupIndexFromValue` (`util/functions.cpp:1428-1443`) locally. The
-///       same treatment `sound_compressor.cpp` gives `lshiftAndSaturate<24>`.
+///       (`sidechain/attack.h:34-37`, `release.h:34-37`) -- `attackRateTable` / `releaseRateTable` in
+///       `util/lookuptables/lookuptables.h`, outside `src/scenes`' include allow-list, so the `.cpp` declares the two
+///       arrays `extern` and transcribes `getLookupIndexFromValue` (`util/functions.cpp`) locally. The same treatment
+///       `sound_compressor.cpp` gives `lshiftAndSaturate<24>`.
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/detail.h"
 #include "scenes/menu/nodes/param_shows.h"
 #include "scenes/menu/nodes/patch_cables.h" // the volume-ducking item is a fixed patch cable
-#include "scenes/menu/nodes/sound_osc.h"    // kPending
+#include "scenes/menu/nodes/sound_osc.h"
 #include "scenes/menu/relevance.h"
 
 #include "plugin-api/types/sync.h"
@@ -64,7 +63,7 @@ int32_t sidechain_release_from_menu(int32_t menu_value);
 int32_t sidechain_sync_to_menu(deluge::plugin::SyncType type, deluge::plugin::SyncLevel level);
 /// @}
 
-/// @brief `SyncLevel::size()` for both sidechains -- `sidechain::Sync::size()` (`sidechain/sync.h:33`).
+/// @brief `SyncLevel::size()` for both sidechains -- `sidechain::Sync::size()` (`sidechain/sync.h`).
 inline constexpr IntRange kSidechainSyncRange{0, 9, 1};
 
 /// @brief `Attack::getMaxValue` / `Release::getMaxValue` (`sidechain/attack.h:63`, `release.h:63`):

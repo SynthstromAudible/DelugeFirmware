@@ -34,7 +34,7 @@ namespace {
 
 /// @brief Whether @p node's shortcut pad blinks while it is focused.
 ///
-/// `SoundEditor::updatePadLightsFor` (`sound_editor.cpp:1036-1040`) sets up no blink for the name
+/// `SoundEditor::updatePadLightsFor` sets up no blink for the name
 /// editors and the sample-marker editors, although the shortcut tables hold them.
 /// @param node The focused node.
 /// @return False for those nodes, true for every other.
@@ -119,7 +119,7 @@ uint8_t source_answer(const MenuContext& ctx, const MenuState& state, const Node
 	return kNoBlink;
 }
 
-/// @brief `SoundEditor::updateSourceBlinks` (`sound_editor.cpp:1034-1064`): each source pad's first-layer source, then
+/// @brief `SoundEditor::updateSourceBlinks`: each source pad's first-layer source, then
 ///        its second-layer one; the lower frequency wins, a second-layer win flashes yellow, and an equal frequency
 ///        alternates.
 void plan_sources(const MenuContext& ctx, const MenuState& state, const Node& item, BlinkPlan& plan) {

@@ -50,7 +50,7 @@ size_t build_column_list(const MenuContext& ctx, const Node& node, std::span<con
 deluge::ui::oled::Paging horizontal_paging(const MenuContext& ctx, const MenuState& st);
 
 /// @brief The focused page's title: on a group (`Node::is_group`) the focused column's member's, as
-///        `HorizontalMenuGroup::getTitle` (`horizontal_menu_group.cpp:77-79`).
+///        `HorizontalMenuGroup::getTitle`.
 /// @param scratch Storage the returned view may point into.
 /// @return The title text.
 std::string_view page_title(const MenuContext& ctx, const MenuState& st, NodeText& scratch);
@@ -78,7 +78,7 @@ public:
 	///        (`sound_editor.cpp:1993-1997`) plus legacy's `MUST_SELECT_RANGE` substitution --
 	///        `multiRangeMenu.menuItemHeadingTo = newItem; newItem = &multiRangeMenu;`
 	///        (`:1857-1858`) -- the one piece `enter_child` (a descent) and `handle()`'s button
-	///        focus (legacy's `initializeItem` call, `horizontal_menu.cpp:424`, `:669`) both run,
+	///        focus (legacy's `initializeItem` call in `HorizontalMenu::handleItemAction`) both run,
 	///        because both are ways into `MenuItem::checkPermissionToBeginSession`'s range branch.
 	///
 	///        **Not `Permission::No`.** `enter_child`'s own switch still owns that arm: a descent
@@ -99,7 +99,7 @@ public:
 	///         proceeds with its own next step.
 	bool enter_range_picker_if_needed(MenuCore core, ValueSession& session, const Node& child,
 	                                  bool suppress_when_allowed);
-	/// @brief `HorizontalMenu::handleItemAction`'s else-path (`horizontal_menu.cpp:669-677`): a
+	/// @brief `HorizontalMenu::handleItemAction`'s else-path: a
 	///        submenu, or an `allow_session_from_horizontal` value column, pressed while already
 	///        focused. Runs the range check unconditionally (unlike the button-focus arm) and then
 	///        always enters -- `handleItemAction` never reads `Permission::No` at all, unlike

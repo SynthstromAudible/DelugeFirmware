@@ -6,8 +6,8 @@
 // clang-format off
 /// | node | legacy global | legacy class | what it is |
 /// |---|---|---|---|
-/// | `midi_device_linked` | `midiDeviceLinkedMenu` (`gui/ui/menus.cpp:906`) | `midi::device_definition::Linked` (`midi/device_definition/linked.h:29`) | a **toggle**: on opens the definition browser, off clears the linked file |
-/// | `specific_output_selector` | `specificOutputSelectorMenu` (`gui/ui/menus.cpp:1151`) | `audio_clip::SpecificSourceOutputSelector` (`audio_clip/specific_output_source_selector.h:26`) | an **output picker**: which track an audio track records from |
+/// | `midi_device_linked` | `midiDeviceLinkedMenu` (`gui/ui/menus.cpp`) | `midi::device_definition::Linked` (`midi/device_definition/linked.h`) | a **toggle**: on opens the definition browser, off clears the linked file |
+/// | `specific_output_selector` | `specificOutputSelectorMenu` (`gui/ui/menus.cpp`) | `audio_clip::SpecificSourceOutputSelector` (`audio_clip/specific_output_source_selector.h`) | an **output picker**: which track an audio track records from |
 // clang-format on
 ///
 /// Grouped in one file because they are one subject: both read and write the track the context
@@ -15,16 +15,16 @@
 /// why neither belongs in `nodes/sample.h` -- those nine are the file/sample family, parameterised
 /// by which oscillator they are about.
 ///
-/// @note **`specific_output_selector` is not a browser, and the plan's own brief warned not to
-///       assume it was.** It is the one item in this pair that draws a page of its own and edits a
+/// @note **`specific_output_selector` is not a browser.** It is the one item in this pair that draws a page of its own
+/// and edits a
 ///       value on it: `SpecificSourceOutputSelector` overrides `drawPixelsForOled` and
 ///       `selectEncoderAction` and walks the song's output list, skipping every output the audio
 ///       track cannot record from (`AudioOutput::canRecordFrom`,
 ///       `processing/audio_output.h:109-111`, which excludes itself, MIDI and CV).
 ///
-/// @note **`midi_device_linked` is a `Toggle`, which the brief did not say.**
+/// @note **`midi_device_linked` is a `Toggle`.**
 ///       `midi::device_definition::Linked` derives from `menu_item::Toggle`
-///       (`midi/device_definition/linked.h:29`): its value is "is a definition file linked"
+///       (`midi/device_definition/linked.h`): its value is "is a definition file linked"
 ///       (`readCurrentValue`, `:33-36`, i.e. `!deviceDefinitionFileName.empty()`) and its
 ///       `writeCurrentValue` (`:37-49`) has **two** arms -- turning it *on* opens
 ///       `loadMidiDeviceDefinitionUI` (`:42`), turning it *off* clears the file name (`:46-47`).
@@ -53,15 +53,14 @@
 ///
 /// ## Divergences, stated here rather than absorbed
 ///
-///   * **The parent row's file name is not drawn; the checkbox now is.** `Linked` overrides
+///   * **The parent row draws the checkbox but not the file name.** `Linked` overrides
 ///     `renderSubmenuItemTypeForOled` (`linked.h:56-78`) to draw a checked/unchecked box on its row
-///     in the parent list and, when checked, the linked file's base name under it. F2 task 8 added
-///     the `CustomItem::row_icon` hook this needed (`scenes/menu/node.h`) and
-///     `MidiDeviceLinkedItem::row_icon` below answers it with the box, so the row is no longer
-///     write-only from the user's side. The node still stays `Kind::Custom`, because the committed
-///     menu-dump JSON carries the node's type. **The second text row is still owed**:
-///     `ui::oled::ListRow` carries one label and one icon (`ui/oled/list.h`), and a second line of
-///     text under a row is a `list` change rather than an item's.
+///     in the parent list and, when checked, the linked file's base name under it. The
+///     `CustomItem::row_icon` hook (`scenes/menu/node.h`) carries the box and
+///     `MidiDeviceLinkedItem::row_icon` below answers it, so the row shows the item's state. The node
+///     stays `Kind::Custom`, because the committed menu-dump JSON carries the node's type. **The second text row is
+///     still owed**: `ui::oled::ListRow` carries one label and one icon (`ui/oled/list.h`), and a second line of text
+///     under a row is a `list` change rather than an item's.
 ///   * **`on_focus` toggles, so a *restore* toggles too.** `MenuScene::restore_state` re-runs
 ///     `enter_leaf` on the leaf a saved menu was parked on, which reaches `on_focus`
 ///     (`menu_scene.cpp`'s note there, which argues that this is right for an item that opens a
@@ -133,7 +132,7 @@ public:
 	/// Not the arrow `CustomItem::row_icon` defaults to (`node.h`), because this item's legacy class
 	/// is one of the three that override the base blit. The **second text row** that override also
 	/// draws when checked -- the linked file's base name, at `yPixel + kTextSpacingY * 2`
-	/// (`linked.h:72`) -- is still not ported: `ui::oled::ListRow` has one label and one icon per
+	/// (`linked.h`) -- is still not ported: `ui::oled::ListRow` has one label and one icon per
 	/// row (`ui/oled/list.h`), and a second row of text under a row is a `list` change rather than
 	/// an item's. That remains this item's divergence; the checkbox no longer does.
 	const deluge::gfx::oled::Icon* row_icon(const MenuContext& ctx) const override;

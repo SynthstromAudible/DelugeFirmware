@@ -4,9 +4,9 @@
 ///        leaves apiece (minus the row family's velocity, which legacy never gave a row), and the
 ///        two custom-iterance pages a select press on either family's iterance leaf can chain to.
 ///
-/// Spec E-note-family §5.5, each row citing its legacy object in `gui/ui/menus.cpp`. All state
-/// lives behind `instrumentClipView`, reached through `NoteBridge` (`scenes/menu/note_bridge.h`,
-/// Task 4) rather than any model read here -- every hook below calls `note_bridge()` and nothing
+/// Each row cites its legacy object in `gui/ui/menus.cpp`. All state
+/// lives behind `instrumentClipView`, reached through `NoteBridge` (`scenes/menu/note_bridge.h`)
+/// rather than any model read here -- every hook below calls `note_bridge()` and nothing
 /// else.
 ///
 // clang-format off
@@ -15,7 +15,7 @@
 /// | `note_editor_root` | `noteEditorRootMenu` (`:1880`) | `HorizontalMenu` | Submenu (Horizontal) |
 /// | `note_velocity` | `noteVelocityMenu` | `note::Velocity` (`note/velocity.h:31`) | Int |
 /// | `note_editor_probability` | `noteProbabilityMenu` | `note::Probability` (`note/probability.h:32`) | Int |
-/// | `note_iterance` | `noteIteranceMenu` | `note::IterancePreset` (`note/iterance_preset.h:32`) | Int |
+/// | `note_iterance` | `noteIteranceMenu` | `note::IterancePreset` (`note/iterance_preset.h`) | Int |
 /// | `note_fill` | `noteFillMenu` | `note::Fill` (`note/fill.h:32`) | Int |
 /// | `note_custom_iterance_root` | `noteCustomIteranceRootMenu` (`:1859`) | `Submenu` | Submenu (Vertical) |
 /// | `note_iterance_divisor` | `noteCustomIteranceDivisor` | `note::IteranceDivisor` (`note/iterance_divisor.h:28`) | Int |
@@ -41,7 +41,7 @@
 ///       (`note/selected_note.h:29-42`) and `note_row::SelectedNoteRow`'s twin
 ///       (`note_row/selected_note_row.h:34-43`): each tests the bridge's own selection predicate
 ///       and, on refusal, raises legacy's own popup text -- `"Select Note"` / `"Select Row"`,
-///       literally legacy's (`note/selected_note.h:37`, `note_row/selected_note_row.h:36`). Every
+///       literally legacy's (`note/selected_note.h`, `note_row/selected_note_row.h:36`). Every
 ///       leaf of its family carries the guard **except** the step toggles: `IteranceStepToggle`
 ///       derives from `Toggle`, not `SelectedNote`/`SelectedNoteRow`, and overrides no permission
 ///       hook (`note/iterance_step_toggle.h:26`, `note_row/iterance_step_toggle.h:26`).
@@ -69,15 +69,15 @@
 /// @note **`note_editor_probability`, not `note_probability`.** `nodes::note_probability` already
 ///       names `sound_randomizer.h`'s `randomizerNoteProbabilityMenu` (the *randomizer's* per-note
 ///       trigger chance, an unrelated `RandomizerUnpatchedParam`); the two would collide as C++
-///       identifiers in the same `nodes` namespace. Every other leaf here keeps the plain name the
-///       design spec gives it -- this is the one substitution a real naming clash forced.
+///       identifiers in the same `nodes` namespace. Every other leaf here keeps the plain name
+///       of its legacy menu item -- this is the one substitution a real naming clash forced.
 ///
 /// @note **`note_editor_root` has no velocity counterpart in the row family.** Legacy's own
 ///       `noteRowEditorRootMenu` (`gui/ui/menus.cpp:1927-1933`) lists `sequenceDirectionMenu`,
 ///       `noteRowProbabilityMenu`, `noteRowIteranceMenu`, `noteRowFillMenu` -- four children, no
 ///       row-velocity item exists anywhere in `gui/menu_item/note_row/`. `sequence_direction` is
 ///       `nodes/sound_actions.h`'s existing node, reused here unchanged: its own note-row bridge
-///       path is a later task's (spec §5.5's resolution 2), not this file's to edit.
+///       path is not this file's to edit.
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/detail.h"
@@ -95,7 +95,7 @@ bool permitted_note(const MenuContext& ctx);
 bool permitted_row(const MenuContext& ctx);
 /// @}
 
-/// @name The three bespoke value texts, shared by the note and note-row families (spec §5.3):
+/// @name The three bespoke value texts, shared by the note and note-row families:
 ///       neither depends on which bridge half produced the value, only on the value and which
 ///       caller is asking. Bodies in the `.cpp`.
 /// @{

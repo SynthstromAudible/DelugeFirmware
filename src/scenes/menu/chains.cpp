@@ -136,7 +136,7 @@ bool page_lists(const Node& page, const Node& column) {
 		return false;
 	}
 	// A group lists what its member pages list, not the member pages (`HorizontalMenuGroup::hasItem`,
-	// `horizontal_menu_group.cpp:209-211`).
+	// `horizontal_menu_group.cpp`).
 	if (page.is_group) {
 		return std::ranges::any_of(page.children,
 		                           [&](const Node* m) { return m != nullptr && page_lists(*m, column); });

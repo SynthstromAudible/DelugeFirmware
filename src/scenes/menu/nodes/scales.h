@@ -4,17 +4,17 @@
 /// @brief `ActiveScalesItem` -- the two preset-scale checklists.
 ///
 /// The port of `deluge::gui::menu_item::ActiveScaleMenu` (`gui/menu_item/active_scales.{h,cpp}`),
-/// which legacy instantiates twice (`gui/ui/menus.cpp:1670`, `:2071`):
+/// which legacy instantiates twice (`gui/ui/menus.cpp`):
 ///
 // clang-format off
 /// | node | legacy global | `ActiveScaleMenu::Kind` | the bitset it edits |
 /// |---|---|---|---|
 /// | `default_active_scale` | `defaultActiveScaleMenu` (`gui/ui/menus.cpp:1670`) | `DEFAULT` | `FlashStorage::defaultDisabledPresetScales` (`storage/flash_storage.h:74`) |
-/// | `active_scales` | `activeScaleMenu` (`gui/ui/menus.cpp:2071`) | `SONG` | `currentSong->disabledPresetScales` (`model/song/song.h:223`) |
+/// | `active_scales` | `activeScaleMenu` (`gui/ui/menus.cpp`) | `SONG` | `currentSong->disabledPresetScales` (`model/song/song.h:223`) |
 // clang-format on
 ///
-/// One row per `PresetScale` from 0 to `LAST_PRESET_SCALE` (`model/scale/preset_scales.h:78`),
-/// labelled from `scalelikeNames` (`:97`), each carrying a checked or unchecked box. The select
+/// One row per `PresetScale` from 0 to `LAST_PRESET_SCALE` (`model/scale/preset_scales.h`),
+/// labelled from `scalelikeNames`, each carrying a checked or unchecked box. The select
 /// press toggles the row's bit and stays put; there is nothing to navigate into.
 ///
 /// ## Why this needs no new widget
@@ -23,10 +23,10 @@
 /// comment is "adapted from submenu.cpp & toggle.cpp". It is `Submenu::drawSubmenuItemsForOled` with
 /// a checkbox in place of the arrow, and `ui::oled::list` already ports that renderer -- same label
 /// origin (`style.inset_x` == `kTextSpacingX`), same icon x (`rect.right() - kSubmenuIconSpacingX -
-/// 3`, `list.cpp:126` against `menu_item.h:280`), same label shortening (`4 + kSubmenuIconSpacingX +
-/// 3`, `list.cpp:133-135` against `menu_item.h:278`), same `invertLeftEdgeForMenuHighlighting`
+/// 3`, `ui/oled/list.cpp` against `menu_item.h:280`), same label shortening (`4 + kSubmenuIconSpacingX +
+/// 3`, `ui/oled/list.cpp` against `menu_item.h:278`), same `invertLeftEdgeForMenuHighlighting`
 /// highlight, same side scroller on the focused row. So this item composes `list` and hands it
-/// `icons::checkedBox` / `icons::uncheckedBox`, which is the same thing task 6's `ContextMenuScene`
+/// `icons::checkedBox` / `icons::uncheckedBox`, which is the same thing `ContextMenuScene`
 /// could *not* do and had to grow `option_window` for.
 ///
 /// The windowing agrees too, and that is worth stating because it looks like it might not.

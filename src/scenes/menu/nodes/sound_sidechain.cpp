@@ -32,7 +32,7 @@ namespace deluge::scenes::menu::nodes {
 
 namespace {
 
-/// @brief `getLookupIndexFromValue` (`util/functions.cpp:1428-1443`), transcribed: `util/` is outside
+/// @brief `getLookupIndexFromValue` (`util/functions.cpp`), transcribed: `util/` is outside
 ///        `src/scenes`' include allow-list. The `bestDistance` comparison is legacy's own signed/unsigned
 ///        mix, reproduced exactly rather than "fixed": changing it would change which index a given
 ///        stored rate shows as.

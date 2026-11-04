@@ -74,7 +74,7 @@ void draw_title_for(deluge::ui::oled::OledFrame& f, const MenuState& state) {
 /// `Selection` value member does, and what its `beginSession(navigatedBackwardFrom != nullptr)` arm
 /// reads back (`cv/selection.h:31-39`, `gate/selection.h:33-41`).
 ///
-/// **Published on the press only, not every frame** (fix round 1, minor 3). Legacy assigns
+/// **Published on the press only, not every frame.** Legacy assigns
 /// `soundEditor.currentSourceIndex` in `selectButtonPress` and nowhere else
 /// (`cv/selection.h:42`, `gate/selection.h:47`); walking the cursor and backing out is a read-only
 /// gesture there, so it is one here too. `MultiRangeItem` republishes `range_choice` every frame
@@ -86,13 +86,13 @@ void draw_title_for(deluge::ui::oled::OledFrame& f, const MenuState& state) {
 /// exactly the order legacy's single statement has. `menu_scene.h`'s mailbox note names this the
 /// *load-bearing* drain-order case, and `tables_3_spec.cpp`'s "drains the selector's output index
 /// BEFORE the navigation arm, not after" pins it: `source_choice` is published on every entered
-/// press, unconditionally, exactly as before task 10 -- **including** the row past the last real
+/// press, unconditionally -- **including** the row past the last real
 /// output (`gate::Selection`'s minimum-off-time row), because `gate_selection_chain`
 /// (`nodes/settings.cpp`) routes off that same value the same tick.
 ///
 /// @param real_output_limit How many leading @p names rows are real outputs -- `names.size()` for
 ///        `cv::Selection` (both rows are), `NUM_GATE_CHANNELS` for `gate::Selection` (row 4 is the
-///        minimum-off-time page). Only used to keep `state.real_output_choice` -- see
+///        minimum-off-time page). Serves only to keep `state.real_output_choice` -- see
 ///        `GateSelectionItem::on_focus_backward` for why `source_choice`/`ctx.source_index` cannot
 ///        serve that hook: routing needs the value this function just published to include the
 ///        off-time row, but restoring the cursor on the way back must NOT, and legacy keeps the two
@@ -121,11 +121,11 @@ void render_output_selection(deluge::ui::oled::OledFrame& f, MenuState& state, s
 /// `CustomItem::on_focus` fires only on a *descent* into the item (`MenuScene::descend_to` ->
 /// `enter_leaf`), never on the way back up from the page it opened -- which is precisely legacy's
 /// `navigatedBackwardFrom == nullptr` test, one hop earlier. `CustomItem::on_focus_backward` is
-/// E3 task 10's port of that arm (`setValue(soundEditor.currentSourceIndex)`); see
+/// the port of that arm (`setValue(soundEditor.currentSourceIndex)`); see
 /// `GateSelectionItem::on_focus_backward` for the one of these two that needs it.
 ///
 /// It does **not** publish a `source_choice` either: legacy's `beginSession` moves the item's own
-/// value and leaves `soundEditor.currentSourceIndex` alone, and so does this (fix round 1).
+/// value and leaves `soundEditor.currentSourceIndex` alone, and so does this.
 void focus_output_selection(MenuState& state) {
 	const size_t d = depth_of(state);
 	state.list[d] = deluge::ui::ListState{};
@@ -280,7 +280,7 @@ void MidiDevicesItem::on_focus(const MenuContext& ctx, MenuState& state) const {
 	// `const MenuContext&`, so the choice is recorded and `MenuScene::after_render` applies it (see
 	// `MenuWalkState::midi_cable_choice`), exactly as `MultiRangeItem` does for the selected range.
 	//
-	// **Unconditional, like legacy's own statement** (fix round 1, minor 2). With nothing connected
+	// **Unconditional, like legacy's own statement.** With nothing connected
 	// at all -- DIN included -- there is no row to sit on, but legacy still lands on
 	// `getCable(lowestDeviceNum)`, which is the DIN cable whatever its `connectionFlags` say
 	// (`devices.cpp:138-141`; the guard at `:133-136` only rejects indices, not disconnection). So

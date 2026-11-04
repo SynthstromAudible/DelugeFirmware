@@ -40,7 +40,7 @@
 // `util/lookuptables/lookuptables.h` is outside this layer's include allowance
 // (`scripts/check_layer_rules.py`'s `scenes-includes-outside`), so the three note-name tables
 // `noteCodeToString` reads are declared here at the global scope where they are defined
-// (`util/lookuptables/lookuptables.cpp:487-490`) -- the same spelling `sound_sidechain.cpp` uses for
+// (`util/lookuptables/lookuptables.cpp`) -- the same spelling `sound_sidechain.cpp` uses for
 // the sidechain rate tables.
 extern const uint8_t noteCodeToNoteLetter[];
 extern const uint8_t noteCodeToNoteLetterFlats[];
@@ -53,7 +53,7 @@ namespace {
 using deluge::l10n::String;
 
 /// @brief `noteCodeToString(noteCode, buffer, nullptr, /*appendOctaveNo=*/true)`
-///        (`util/functions.cpp:1678-1707`), transcribed and appending into a caller-owned buffer.
+///        (`noteCodeToString` in `util/functions.cpp`), transcribed and appending into a caller-owned buffer.
 ///
 /// The sharps-vs-flats choice really is a global preference read
 /// (`FlashStorage::defaultUseSharps`), not menu state, so it is read here exactly as legacy reads it.

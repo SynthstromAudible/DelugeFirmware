@@ -114,8 +114,8 @@ DELUGE_STEM_TOGGLE(mixdown, exportMixdown)
 
 // ---------------------------------------------------------------------------------------------
 
-// (Fix round 1, minor 7: `kBatch3OtherRoots` was exported here and referenced by nothing -- a second
-// hand-maintained root list that could drift from `nodes.h`'s `kAllRoots`, which is the one list
-// `MenuScene::roots()`, `validate_tree` and Task 10's dump all take. Deleted.)
+// This file exports no root list of its own: `nodes.h`'s `kAllRoots` is the one list
+// `MenuScene::roots()`, `validate_tree` and the menu dump all take, so a second hand-maintained
+// list could only drift from it.
 
 } // namespace deluge::scenes::menu::nodes

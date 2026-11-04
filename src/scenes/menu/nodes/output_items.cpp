@@ -49,8 +49,8 @@
 
 // `util/functions.h` is outside this layer's include allowance (`src/scenes/CMakeLists.txt`, and
 // `scripts/check_layer_rules.py`'s `scenes-includes-outside`), so the one function needed is
-// declared here at the global scope where it is defined (`util/functions.cpp:596
-// getOutputTypeName`) -- the spelling `multi_range.cpp` uses for the three note-name tables.
+// declared here at the global scope where it is defined (`getOutputTypeName` in
+// `util/functions.cpp`) -- the spelling `multi_range.cpp` uses for the three note-name tables.
 char const* getOutputTypeName(OutputType outputType, int32_t channel);
 
 namespace deluge::scenes::menu::nodes {

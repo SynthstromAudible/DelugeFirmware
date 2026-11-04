@@ -16,7 +16,7 @@
  */
 
 /// @file
-/// @brief The batch-1 relevance predicates. See `relevance.h` for the interface and for why the
+/// @brief The relevance predicates. See `relevance.h` for the interface and for why the
 ///        per-source ones come in twos.
 ///
 /// Every function here is a transcription of the legacy `isRelevant` override cited on its
@@ -85,7 +85,7 @@ bool file_selector(const MenuContext& ctx, uint8_t index) {
 	       || (state->synth_mode == SynthMode::RINGMOD && state->sources[index].osc_type == OscType::WAVETABLE);
 }
 
-/// @brief `sample::Transpose::isRelevant` (`gui/menu_item/sample/transpose.h:139-145`).
+/// @brief `sample::Transpose::isRelevant` (`gui/menu_item/sample/transpose.h`).
 bool transpose(const MenuContext& ctx, uint8_t index) {
 	const deluge::instrument::SoundState* state = sound_state(ctx);
 	if (state == nullptr) {
@@ -133,7 +133,7 @@ bool osc1_is_sample(const MenuContext& ctx) {
 	return is_sample_mode_sample(ctx, 1);
 }
 // ---------------------------------------------------------------------------------------------
-// Batch 2 -- the rest of the sound-editor root
+// The rest of the sound-editor root
 
 bool is_kit_row(const MenuContext& ctx) {
 	return ctx.is_kit && !ctx.is_kit_global_fx;
@@ -172,7 +172,7 @@ bool bend_submenu(const MenuContext& ctx) {
 	return type == Instrument::SYNTH || type == Instrument::CV || type == Instrument::MIDI;
 }
 
-// --- Batch 3 (Task 8) -------------------------------------------------------------------------
+// --- Settings root and the other roots -------------------------------------------------------------------------
 
 bool is_midi_out(const MenuContext& ctx) {
 	return ctx.addresses.instrument == deluge::plugin::SettingContext::Instrument::MIDI;
@@ -218,7 +218,7 @@ bool is_session_view(const MenuContext& ctx) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// The registry (Task 10's dump)
+// The registry
 //
 // **Adding a predicate to `relevance.h` means adding a row here.** Nothing can check that
 // mechanically -- C++ has no way to enumerate a header's declarations -- so the guards are: the
@@ -227,12 +227,11 @@ bool is_session_view(const MenuContext& ctx) {
 // actually use resolves to a real name and that the count is what this file says.
 //
 // **The sixteen `nodes::relevant_*_iterance_step_*` rows below are the one exception to "declared
-// in `relevance.h`".** They are `scenes/menu/nodes/note.h`'s (spec E-note-family task 5), not this
-// header's, but `name_of` is the only mechanism that turns a `RelevantFn` into a printable name --
-// The menu dump's "available_when" field calls it on every node's `relevant`, note family
-// included -- and an unregistered predicate there prints `"?"`, not silence: fix round 1 caught
-// sixteen `"?"` entries in the committed dump this way
-// (`website/src/data/generated/menu-tree.json`) that no *running* spec had noticed, because
+// in `relevance.h`".** They are `scenes/menu/nodes/note.h`'s, not this
+// header's, but `name_of` is the only mechanism that turns a `RelevantFn` into a printable name:
+// the menu dump's "available_when" field calls it on every node's `relevant`, note family
+// included, and an unregistered predicate there prints `"?"`, not silence. The committed dump
+// (`website/src/data/generated/menu-tree.json`) is where such an entry shows, because
 // every spec that asserts "no `?`" walks a lockstep pairing against the ten `MenuContext::Root`
 // fixtures (`tables_1_spec.cpp`'s `all_pairs()`, `tables_2_spec.cpp`/`tables_3_spec.cpp`'s
 // `tree().pairs`), and the note family has no `Root` of its own to be paired through. Forward
@@ -288,7 +287,7 @@ constexpr std::array<NamedPredicate, 34> kRegistry{
     DELUGE_RELEVANCE_ROW(audio_source_is_specific),
     DELUGE_RELEVANCE_ROW(audio_clip_has_sample),
     DELUGE_RELEVANCE_ROW(is_session_view),
-    // spec E-note-family task 5, fix round 1 -- see this section's own note above.
+    // The note family's predicates -- see this section's own note above.
     DELUGE_RELEVANCE_ROW(nodes::relevant_note_iterance_step_1),
     DELUGE_RELEVANCE_ROW(nodes::relevant_note_iterance_step_2),
     DELUGE_RELEVANCE_ROW(nodes::relevant_note_iterance_step_3),

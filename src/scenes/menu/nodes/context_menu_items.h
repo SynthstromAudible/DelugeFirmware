@@ -18,11 +18,10 @@
 /// `MenuScene::after_render` turns it into an `Action`. `EditNameItem` (`nodes/edit_name.h`) has the
 /// identical shape for `rename::RenameScene`.
 ///
-/// @note **This was `nodes::ResetItem`, in `settings.h`.** E2 task 11b widened it: the sixth
+/// @note **One class serves the five reset items and the `audio_source_selector` item.** The sixth
 ///       descriptor (`audio_source_selector`) is declared in `roots.h`, which `settings.h` includes
-///       rather than the other way round, so the class had to move somewhere both can see. One class
-///       and six instances beats two identical classes in two headers; nothing about the five reset
-///       items changed but the name.
+///       rather than the other way round, so the class lives where both can see it. One class and
+///       six instances beats two identical classes in two headers.
 ///
 /// @note Spelled with a plain `uint16_t` rather than `context_menu::DescriptorId`, for the same
 ///       reason `EditNameItem::target_` is a `uint16_t` rather than a `rename::TargetId`: a

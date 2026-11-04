@@ -264,7 +264,7 @@ bool MenuWalk::enter_range_picker_if_needed(MenuCore core, ValueSession& session
 }
 
 void MenuWalk::enter_horizontal_item(MenuCore core, ValueSession& session, const Node& child) {
-	// `HorizontalMenu::handleItemAction`'s else-path (`horizontal_menu.cpp:669-677`): a submenu OR
+	// `HorizontalMenu::handleItemAction`'s else-path: a submenu OR
 	// an `allowToBeginSessionFromHorizontalMenu` column, already focused, pressed again. Permission
 	// only matters for `MUST_SELECT_RANGE` (the picker substitutes for the item); every other
 	// answer -- `Yes`, and `No`, which `handleItemAction` never even reads -- enters unconditionally
@@ -339,7 +339,7 @@ void MenuWalk::enter_child(MenuCore core, ValueSession& session, const Node& chi
 void MenuWalk::ascend(MenuCore core, ValueSession& session) {
 	MenuContext& ctx = core.ctx;
 	MenuState& st = core.st;
-	// `SoundEditor::goUpOneLevel` (`sound_editor.cpp:710-721`): step up, skipping any level whose
+	// `SoundEditor::goUpOneLevel`: step up, skipping any level whose
 	// permission has since become `No`. The cursor each level is restored to is the one
 	// `st.list[depth]` has been holding all along, which is what legacy's `focusChild`
 	// (`submenu.cpp:21`) reconstructs from the item it navigated backward from.
@@ -364,7 +364,7 @@ void MenuWalk::ascend(MenuCore core, ValueSession& session) {
 		st.depth--;
 	} while (st.path[st.depth] != nullptr && permission_for(*st.path[st.depth], ctx) == Permission::No);
 
-	// `goUpOneLevel` ends with `beginScreen(oldItem)` (`sound_editor.cpp:710-729`), i.e. it re-runs
+	// `goUpOneLevel` ends with `beginScreen(oldItem)`, i.e. it re-runs
 	// `beginSession` on the item it lands on -- so a value leaf reached by going *up* re-reads its
 	// value from the model, exactly as one reached by going down does.
 	//
@@ -465,10 +465,10 @@ void MenuWalk::restore(MenuCore core, ValueSession& session, const SceneState& s
 		st.depth = static_cast<uint8_t>(level + 1);
 		st.path[st.depth] = child;
 		if (is_leaf(child->kind)) {
-			// Fix round 1, Minor 2. This reaches `CustomItem::on_focus`, so restoring a menu that
+			// This reaches `CustomItem::on_focus`, so restoring a menu that
 			// was parked on an item which opens a scene (`nodes::EditNameItem`) re-opens that
 			// scene on the next `after_render`. **That is deliberate, and it is what legacy does.**
-			// `SoundEditor::focusRegained` ends in `beginScreen()` (`sound_editor.cpp:330`), which
+			// `SoundEditor::focusRegained` ends in `beginScreen()`, which
 			// calls `beginSession` on whatever the current item is (`:1015`), and
 			// `EditName::beginSession` opens `RenameUI` unconditionally
 			// (`gui/menu_item/edit_name.cpp:29-54`) -- there is no "only the first time" arm

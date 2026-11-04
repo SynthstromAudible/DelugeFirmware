@@ -18,7 +18,7 @@
 /// @file
 /// @brief The menu-tree validator. See `validate.h` for the rule list and the `Issue` shape.
 ///
-/// **Rule-by-rule, against spec E §4.4's sentence** ("Every node reachable from a root; every
+/// **Rule by rule** ("Every node reachable from a root; every
 /// `Submenu` non-empty under at least one context; every `ParamRef` resolves for its
 /// `MenuContext`; every `Enum` has `names` or `dynamic_names`; every shortcut cell points at a
 /// node; no duplicate `(name, parent)`; `Custom` count <= 10"):
@@ -43,23 +43,23 @@
 ///     together (see `co_visible` for why that qualifier is there). Siblings with different
 ///     `title_arg`s show different text and do not collide.
 ///   * *`Custom` <= 10* -> `TooManyCustom`, counting **nodes that point at a custom item**
-///     (`validate.h`'s `kMaxCustomNodes`), and no longer at 10 -- see that constant for the
-///     deviation and the real number.
+///     (`validate.h`'s `kMaxCustomNodes`), not distinct items -- see that constant for why and for
+///     the real number.
 ///
-/// plus, beyond §4.4: `MissingTitle`, `NullCustom` and `RangeWithoutSpec` (three ways a node would
+/// plus: `MissingTitle`, `NullCustom` and `RangeWithoutSpec` (three ways a node would
 /// render nothing),
 /// `FlagMismatch` with `Flag::ChainTargetsMismatch` (a `select_chain` hook
 /// without its static target list, or the reverse), and with `Flag::AdjustWithoutGet`
-/// (E-note-family task 3: `Binding::adjust` on a node with no `get`, which would read through
+/// (`Binding::adjust` on a node with no `get`, which would read through
 /// `param` and write through the hook),
-/// `PlaceholderCustom` (a node that renders a stand-in rather than a real item -- unconditional
-/// since E3 task 7 retired the last two stand-ins and with them the option that suppressed this,
-/// see `validate.h`'s `kPendingCustomNodes`), and the two `FlagMismatch` audits (task 6's ruling 4).
+/// `PlaceholderCustom` (a node that renders a stand-in rather than a real item -- unconditional,
+/// see `validate.h`'s `kPendingCustomNodes`), and the two `FlagMismatch` audits of
+/// `RangeDependent` and `HalfPrecision`.
 ///
 /// **No heap, no model.** The walk uses two fixed `kMaxNodes`-wide arrays of node pointers -- the
 /// reachable set and `collect`'s explicit work stack -- so the frame is `2 * kMaxNodes *
 /// sizeof(const Node*)`: 8 KB on the 32-bit target, 16 KB on a 64-bit host. Fine for a spec, and
-/// the reason nothing here is recursive; check it against the device stack before Task 12 wires
+/// the reason nothing here is recursive; check it against the device stack before wiring
 /// this into boot.
 
 #include "scenes/menu/validate.h"
@@ -186,7 +186,7 @@ size_t visible_count(const Node& node, const MenuContext& ctx) {
 /// @brief Can @p a and @p b be shown at the same time?
 ///
 /// The qualifier on the `DuplicateName` rule, and the same kind of refinement `EmptySubmenu`
-/// already carries: spec E §4.4's sentence is "no duplicate `(name, parent)`", but legacy's tree
+/// already carries: the plain rule is "no duplicate `(name, parent)`", but legacy's tree
 /// deliberately puts **variant pairs** side by side under one parent -- one item for a sound, one
 /// for a MIDI/CV clip, named identically because the user only ever sees one of them. There are
 /// eighteen such pairs in the sound-editor root alone (every randomizer parameter and its
@@ -261,7 +261,7 @@ deluge::ui::shell::FixedVector<Issue, 64> validate_tree(std::span<const Node* co
                                                         ValidateOptions options) {
 	Issues out;
 
-	// Ruling Q7: ids first, so everything downstream (and the `Unreachable` rule below) has them.
+	// Ids first, so everything downstream (and the `Unreachable` rule below) has them.
 	const uint16_t assigned = assign_node_ids(roots);
 
 	Reachable seen;
@@ -279,8 +279,8 @@ deluge::ui::shell::FixedVector<Issue, 64> validate_tree(std::span<const Node* co
 	}
 
 	// --- Per-node rules -----------------------------------------------------------------------
-	// Fix round 2, I4: counted in **nodes that point at a custom item**, not in distinct
-	// `CustomItem` instances -- see `kMaxCustomNodes` for why the old spelling could never fire.
+	// Counted in **nodes that point at a custom item**, not in distinct
+	// `CustomItem` instances -- see `kMaxCustomNodes` for why.
 	size_t custom_count = 0;
 	const Node* last_custom = nullptr;
 
@@ -408,7 +408,7 @@ deluge::ui::shell::FixedVector<Issue, 64> validate_tree(std::span<const Node* co
 		}
 	}
 
-	// --- The two flag audits (ruling 4) -------------------------------------------------------
+	// --- The two flag audits -------------------------------------------------------
 	check_flag_set(out, seen, expected_range_dependent, Flag::RangeDependent, flag_range_dependent);
 	check_flag_set(out, seen, expected_half_precision, Flag::HalfPrecision, flag_half_precision);
 

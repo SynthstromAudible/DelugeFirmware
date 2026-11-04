@@ -30,7 +30,7 @@ std::optional<deluge::ui::oled::ArtColumn> lock_art(const MenuContext& ctx, int3
 /// and speed are independent.
 std::optional<deluge::ui::oled::ArtColumn> keyboard_art(const MenuContext& ctx, int32_t value);
 /// `sample::Reverse` and `audio_clip::Reverse::renderInHorizontalMenu` (`sample/reverse.h:68-73`,
-/// `audio_clip/reverse.h:71-75`): the direction arrow, mirrored when reversed.
+/// `audio_clip/reverse.h`): the direction arrow, mirrored when reversed.
 std::optional<deluge::ui::oled::ArtColumn> direction_art(const MenuContext& ctx, int32_t value);
 /// `lfo::Type::renderInHorizontalMenu` (`lfo/type.h:77-101`): the shape's icon.
 std::optional<deluge::ui::oled::ArtColumn> lfo_type_art(const MenuContext& ctx, int32_t value);
@@ -66,7 +66,7 @@ ValueText retrigger_phase_text(const MenuContext& ctx, int32_t value, ValueTextU
 ValueText ducking_auto_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
 /// `sample::Reverse` and `audio_clip::Reverse::getNotificationValue` (`sample/reverse.h:77-79`): ON or OFF.
 ValueText on_off_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
-/// `reverb::Width::getColumnLabel` (`reverb/width.h:50-62`): DIFFUSION for the plate models, else the short width.
+/// `reverb::Width::getColumnLabel` (`reverb/width.h`): DIFFUSION for the plate models, else the short width.
 ValueText reverb_width_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
 /// `reverb::RoomSize::getName` (`reverb/room_size.h:40-49`), which its column label reads: TIME for the plate models.
 ValueText reverb_room_size_text(const MenuContext& ctx, int32_t value, ValueTextUse use, std::span<char> out);
@@ -115,7 +115,7 @@ bool hpf_morph_reversed(const MenuContext& ctx);
 std::optional<ui::oled::DrawColumn> glide_draw(const MenuContext& ctx, int32_t value);
 /// `unison::Detune::renderInHorizontalMenu` (`unison/detune.h:57-98`): three splaying lines.
 std::optional<ui::oled::DrawColumn> detune_draw(const MenuContext& ctx, int32_t value);
-/// `osc::PulseWidth::renderInHorizontalMenu` (`osc/pulse_width.h:54-77`): one cycle of the pulse.
+/// `osc::PulseWidth::renderInHorizontalMenu` (`osc/pulse_width.h`): one cycle of the pulse.
 std::optional<ui::oled::DrawColumn> pulse_width_draw(const MenuContext& ctx, int32_t value);
 /// `delay::Amount` and `Amount_Unpatched::renderInHorizontalMenu` (`delay/amount.h:35-58`): the bar to 24, "!" past.
 std::optional<ui::oled::DrawColumn> delay_amount_draw(const MenuContext& ctx, int32_t value);

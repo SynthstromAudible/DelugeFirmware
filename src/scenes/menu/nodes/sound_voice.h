@@ -1,19 +1,19 @@
 #pragma once
 
-/// @brief The voice page as data: `voice` and its five columns, the last of which is task 6's
+/// @brief The voice page as data: `voice` and its five columns, the last of which is the
 ///        unison page.
 ///
-/// `inline constexpr` for the reason `sound_filters.h` explains (task-6 fix round 1, I3). From
+/// `inline constexpr` for the reason `sound_filters.h` explains. From
 /// `gui/ui/menus.cpp`'s `voiceMenu` literal (`:707-710`) and the globals it names (`:702-705`):
 ///
 // clang-format off
 /// | node | legacy global | legacy class | kind |
 /// |---|---|---|---|
-/// | `voice_priority` | `priorityMenu` (`:705`) | `voice::Priority` (`voice/priority.h:29`) | Enum |
-/// | `polyphony` | `polyphonyMenu` (`:702`) | `voice::PolyphonyType` (`voice/polyphony.h:99`) | Enum (dynamic) |
-/// | `voice_count` | `voice::polyphonicVoiceCountMenu` (`:703`) | `voice::VoiceCount` (`voice/polyphony.h:31`) | Int |
+/// | `voice_priority` | `priorityMenu` (`:705`) | `voice::Priority` (`voice/priority.h`) | Enum |
+/// | `polyphony` | `polyphonyMenu` (`:702`) | `voice::PolyphonyType` (`voice/polyphony.h`) | Enum (dynamic) |
+/// | `voice_count` | `voice::polyphonicVoiceCountMenu` (`:703`) | `voice::VoiceCount` (`voice/polyphony.h`) | Int |
 /// | `portamento` | `portaMenu` (`:704`) | `voice::Portamento` (`voice/portamento.h:24`), `UNPATCHED_PORTAMENTO` | Int (param) |
-/// | `unison` | `unisonMenu` | `HorizontalMenu` -- **task 6's**, `sound_unison.h` | Submenu (Horizontal) |
+/// | `unison` | `unisonMenu` | `HorizontalMenu` -- `sound_unison.h` | Submenu (Horizontal) |
 /// | `voice` | `voiceMenu` (`:707`) | `HorizontalMenu`, `Layout::FIXED` | Submenu (Horizontal) |
 // clang-format on
 ///
@@ -30,8 +30,8 @@
 ///
 /// @note **`Portamento` draws bespoke art** (a glide line between two notes,
 ///       `voice/portamento.h:29-66`) with no `getRenderingStyle()` override, so legacy's declared
-///       style is KNOB while what it *draws* is neither. `Hint::None` is the honest answer, on the
-///       convention task 6 set (its concern 5).
+///       style is KNOB while what it *draws* is neither. `Hint::None` is the honest answer, the
+///       convention for a column whose legacy style does not match what it draws.
 
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/node.h"
@@ -86,7 +86,7 @@ inline constexpr Node voice_count = with_column_name(
         off_at_zero_text),
     sid(deluge::l10n::String::STRING_FOR_MAX_VOICES_SHORT));
 
-/// @brief `PolyphonyType::selectButtonPress()` (`voice/polyphony.h:139-143`): a select press opens
+/// @brief `PolyphonyType::selectButtonPress()` (`voice/polyphony.h`): a select press opens
 ///        the voice count when the mode is POLY, and otherwise falls through to
 ///        `Selection::selectButtonPress()`, which for an already-open menu is the base class's
 ///        "ascend" (`selection.h:54-64`).

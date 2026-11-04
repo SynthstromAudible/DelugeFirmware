@@ -4,7 +4,7 @@
 ///
 /// Three `constexpr` post-hoc modifiers and one string-id cast, in one place rather than copied
 /// into six translation units. They exist because `node.h`'s builders take the arguments the
-/// common case needs and nothing more (Task 2's deliberate choice, see `with_range_dependent`);
+/// common case needs and nothing more (a deliberate choice, see `with_range_dependent`);
 /// the handful of legacy items that also need a distinct title on a non-`param` kind, a meter hint
 /// on a `Decimal`, or more than one horizontal slot say so here, at the call site, in the shape
 /// `with_range_dependent` already established.
@@ -46,7 +46,7 @@ constexpr Node with_hint(Node n, Hint hint) {
 }
 
 /// @brief @p n occupying @p slots of a horizontal page's four -- `MenuItem::getOccupiedSlots()`
-///        (`gui/menu_item/menu_item.h:304`).
+///        (`gui/menu_item/menu_item.h`).
 constexpr Node with_slots(Node n, uint8_t slots) {
 	n.slots = slots;
 	return n;
@@ -66,7 +66,7 @@ constexpr Node with_range(Node n, IntRange r) {
 
 /// @brief @p n with an explicit `Binding::style` -- the unit suffix, or "OFF" in place of 0.
 ///
-/// `int_value`/`decimal_value` take a `ValueStyle` (`ui/oled/values.h:25-30`) and
+/// `int_value`/`decimal_value` take a `ValueStyle` (`ui/oled/values.h`) and
 /// `MenuScene::render_leaf_int` hands it `node.bind.style`, but no builder has an argument for one.
 /// The port of legacy's presentation *subclasses* of `Integer`: `IntegerWithOff` draws 0 as "OFF"
 /// (`gui/menu_item/integer.cpp:41-50`), which is `off_at_zero`.

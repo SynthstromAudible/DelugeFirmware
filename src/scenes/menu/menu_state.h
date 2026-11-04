@@ -24,7 +24,7 @@ namespace deluge::scenes::menu {
 
 /// @brief How deep a menu path may go, and how many `ListState`s the scene therefore keeps.
 ///
-/// Unrelated to `ui::shell::kStackDepth` (`shell/scene.h:59`), which counts *scenes*: the whole
+/// Unrelated to `ui::shell::kStackDepth`, which counts *scenes*: the whole
 /// menu is one scene however deep the user walks into it. Eight is legacy's own
 /// `menuItemNavigationRecord` depth (`gui/ui/sound_editor.h`).
 inline constexpr uint8_t kMenuDepth = 8;
@@ -66,13 +66,13 @@ struct MenuTick {
 	/// set at `depth > 0` -- see `MenuScene::render_oled`.
 	bool back_claimed = false;
 	/// A select press on a *value* column of a horizontal page, which `columns` does not own (it
-	/// claims the press only for a submenu column, `ui/oled/columns.cpp:451-455`). `after_render`
+	/// claims the press only for a submenu column, `ui::oled::columns`). `after_render`
 	/// answers it the way a leaf's own select press is answered, not the way this field's name
 	/// suggests: `Submenu::selectButtonPress` forwards to the focused item
 	/// (`gui/menu_item/submenu.cpp:187-194`), whose own `select_chain` is entered if it names one
 	/// and `ascend()` otherwise -- `SoundEditor::buttonAction`'s SELECT arm
 	/// (`gui/ui/sound_editor.cpp:394-424`). **Not** `HorizontalMenu::handleItemAction`
-	/// (`gui/menu_item/horizontal_menu.cpp:663-679`), which never runs from a select press at all --
+	/// (`gui/menu_item/horizontal_menu.cpp`), which never runs from a select press at all --
 	/// its one caller is the *instrument-button* path, `buttonAction`'s `:96-97`
 	/// (`handleInstrumentButtonPress`) reaching it when the pressed button's column is already
 	/// focused. A select
@@ -235,14 +235,14 @@ struct MenuWalkState {
 	///        `sampleBrowser.menuItemHeadingTo` (`gui/ui/sound_editor.cpp:2092`).
 	///
 	/// **Not `MultiRange::menuItemHeadingTo`.** That name resolves on two different objects and
-	/// `pending_after_range` above is the *other* one (`gui/menu_item/multi_range.h:34`, written at
-	/// `sound_editor.cpp:1857`). This field is the browser's/recorder's pair member, written at
-	/// `sound_editor.cpp:2092` and `:2101`, and it is spelled `scene_opener` precisely so the two
+	/// `pending_after_range` above is the *other* one (`gui/menu_item/multi_range.h:34`, written in
+	/// `SoundEditor::setup`). This field is the browser's/recorder's pair member, written in
+	/// `SoundEditor::setup`, and it is spelled `scene_opener` precisely so the two
 	/// never read as the same thing.
 	///
 	/// Written beside `go_up_on_resume`, exactly where legacy's is written on the way *in* to the
 	/// browser, and read by `reroot_to_scene_opener_page()` on the way back out. Legacy stores the
-	/// item's *page* alongside it (`parentMenuHeadingTo`, `sound_editor.cpp:2093`) because
+	/// item's *page* alongside it (`parentMenuHeadingTo`, written in `SoundEditor::setup`) because
 	/// `SampleBrowser` cannot reach the horizontal-menus chain from where it reads the pair back;
 	/// this scene can walk its own tables, so only half the pair is stored and the other half is
 	/// resolved at read time. Dropped by `retarget` with the rest of the per-visit state.
@@ -274,7 +274,7 @@ struct MenuWalkState {
 ///
 ///   1. **`range_choice`** -- above navigation. `select_range` writes `ctx_`'s multi-range and a
 ///      descent decided below reads it; legacy commits it inside `selectButtonPress`
-///      (`gui/ui/sound_editor.cpp:1983-1987 setCurrentMultiRange`).
+///      (`SoundEditor::setCurrentMultiRange`).
 ///   2. **`source_choice`** -- above navigation, and this is the load-bearing one.
 ///      `ctx_.source_index` is what `gate_selection_chain` picks its target from and what
 ///      `gate_mode_names` formats, so draining it below navigation chains off the *previous*
@@ -306,7 +306,7 @@ struct MenuState {
 	/// One per menu depth, so walking back up restores the level's own cursor -- legacy's
 	/// `Submenu::current_item_` being a member of each submenu (`submenu.cpp:21`).
 	///
-	/// @note `list[depth].editing` IS the editing flag (`ui/core/state.h:15`): a reserved bool no
+	/// @note `list[depth].editing` IS the editing flag (`ListState::editing` in `ui/core/state.h`): a reserved bool no
 	///       widget reads, which is exactly what a scene-owned "the leaf is being edited" bit
 	///       wants to be.
 	deluge::ui::ListState list[kMenuDepth]{};
@@ -320,13 +320,13 @@ struct MenuState {
 	// --- typed per-kind edit storage: the widgets do not share one int32 ---
 	/// `Kind::Int` and `Kind::Decimal`: `int_value` / `decimal_value` take an `int32_t&`.
 	int32_t edit_int = 0;
-	/// `Kind::Toggle`: `toggle()` takes a `bool&` (`ui/oled/values.h:216-217`).
+	/// `Kind::Toggle`: `toggle()` takes a `bool&` (`oled::toggle`).
 	bool edit_bool = false;
 	/// `Kind::Enum`: `enum_value()` takes an `int32_t& index` ...
 	int32_t enum_index = 0;
 	/// ... plus its own `ListState` ...
 	deluge::ui::ListState enum_list{};
-	/// ... plus its own `ScrollText` (`ui/oled/values.h:190-191`).
+	/// ... plus its own `ScrollText` (`oled::enum_value`).
 	deluge::ui::ScrollText enum_scroll{};
 	/// `Kind::Range`: `range_value` takes two `int32_t&`s -- `edit_int` is the **lower** edge and
 	/// this is the upper (`node.h`'s `RangeSpec`).
@@ -340,7 +340,7 @@ struct MenuState {
 	deluge::ui::oled::RangeEdge edit_edge = deluge::ui::oled::RangeEdge::Off;
 	/// `decimal_value`'s in/out cursor position.
 	int8_t decimal_pos = 0;
-	/// `decimal_value`'s OLED cursor blink ONLY (`ui/core/state.h:38`; `until_ms` is a phase
+	/// `decimal_value`'s OLED cursor blink ONLY (`ui::Blink` in `ui/core/state.h`; `until_ms` is a phase
 	/// anchor, not a deadline).
 	deluge::ui::Blink cursor_blink{};
 	/// `render_grid`: when the current shortcut-blink cycle started, legacy's

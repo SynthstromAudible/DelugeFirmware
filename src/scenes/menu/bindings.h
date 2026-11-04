@@ -1,17 +1,15 @@
 #pragma once
 
-/// @brief The only place the menu system reads and writes the model (spec E §4, amended by
-///        `.superpowers/sdd/2026-08-27-ui-scenes-menus-1/task-4-brief.md`).
+/// @brief The only place the menu system reads and writes the model.
 ///
 /// A `Node`'s `Binding` is plain data: a target (a setting or a param, which `scenes/bind` reads and the menu's sink
 /// writes) or a `get`/`set` pair. These functions turn that data into a read, a write, a range, a name list and a
 /// MIDI-learn descriptor. (Items whose value has no target keep their own logic, as a `get`/`set` pair the tree
 /// supplies -- nothing here scales or interprets what those hooks return.)
 ///
-/// @note **`model/model_stack.h` and `modulation/automation/auto_param.h` are reached by
-///       `bindings.cpp` only** -- it and `context.cpp` are the two files the
-///       `scenes-model-stack-outside-context` ratchet (`scripts/check_layer_rules.py`) excludes.
-///       This header pulls in neither.
+/// @note **No model stack.** Neither `model/model_stack.h` nor `modulation/automation/auto_param.h` is included
+///       anywhere under `src/scenes` (`scenes-model-stack-outside-context` and `scenes-model-stack`,
+///       `scripts/check_layer_rules.py`); `bindings.cpp` reads and writes through `bind::Target` and the write sink.
 ///
 /// @note **No `gui/menu_item/`.** The value scaling the `get`/`set` items reuse (`standard_to_menu` and friends)
 ///       is the plugin API's menu mapping (`plugin-api/types/param_mapping.h`), which legacy's menu items use too.
@@ -99,7 +97,7 @@ int32_t read(const Node& node, const MenuContext& ctx);
 /// @param value The new value, in menu units.
 void write(const Node& node, const MenuContext& ctx, int32_t value);
 
-/// @brief Commit an offset edit through `node.bind.adjust` (spec E-note-family §5.2).
+/// @brief Commit an offset edit through `node.bind.adjust`.
 ///
 /// Mirrors `write`'s `get`/`set` hook arm: call the hook, then raise `Dirty::Oled` -- the hook
 /// itself performs whatever model write legacy's `adjustVelocity`/`adjustProbability`/
@@ -125,7 +123,7 @@ IntRange range(const Node& node, const MenuContext& ctx);
 /// @brief Fill @p out with @p node's `Kind::Enum` option names.
 ///
 /// Static `bind.names` ids are resolved through `scenes::deluge_profile().text_or_digits(id,
-/// scratch[i])` -- the one sanctioned text path (`shell/profile.h:147`), which already implements
+/// scratch[i])` -- the one sanctioned text path (`BoardProfile::text_or_digits`), which already implements
 /// the digits fallback for an unresolvable id. A `bind.dynamic_names` hook fills `out` itself and
 /// never touches @p scratch.
 ///
@@ -166,7 +164,7 @@ void write_song(const MenuContext& ctx, std::string_view path, int32_t value);
 /// @brief Would a write from @p ctx sweep every `SoundDrum` in the kit?
 ///
 /// Legacy's `currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR &&
-/// soundEditor.editingKitRow()` (`gui/menu_item/unpatched_param.cpp:52`): the request a hook makes then names the
+/// soundEditor.editingKitRow()` (`UnpatchedParam::writeCurrentValue`): the request a hook makes then names the
 /// whole kit (`Addresses::affect_entire`). Exposed because a couple of legacy items take a *different code
 /// path* rather than a filtered one when it is false -- `sample::PitchSpeed` and
 /// `sample::Interpolation` write `getCurrentSampleControls()` (which is the audio clip's, on an
@@ -193,10 +191,10 @@ int32_t menu_to_standard(int32_t menu_value);
 int32_t pan_to_menu(int32_t stored);
 /// @brief A PAN param's word (`plugin::from_menu`): -25..25 -> INT32 range.
 int32_t menu_to_pan(int32_t menu_value);
-/// @brief `computeCurrentValueForUnsignedMenuItem` (`value_scaling.cpp:18-20`): 0..UINT32_MAX ->
+/// @brief `computeCurrentValueForUnsignedMenuItem` (`value_scaling.cpp`): 0..UINT32_MAX ->
 ///        0..50.
 int32_t unsigned_to_menu(uint32_t stored);
-/// @brief `computeFinalValueForUnsignedMenuItem` (`value_scaling.cpp:60-62`): 0..50 ->
+/// @brief `computeFinalValueForUnsignedMenuItem` (`value_scaling.cpp`): 0..50 ->
 ///        0..UINT32_MAX. Note it has no `kMaxMenuValue` special case, unlike its signed sibling.
 uint32_t menu_to_unsigned(int32_t menu_value);
 /// @}

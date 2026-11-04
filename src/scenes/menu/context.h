@@ -1,7 +1,7 @@
 #pragma once
 
 /// @brief `MenuContext` -- what a menu edits -- and the three pure functions that produce it, reach
-///        the model through it, and gate entry into a node with it (spec E §4 and §4.1).
+///        the model through it, and gate entry into a node with it.
 ///
 /// This is the context-resolution half of `SoundEditor::setup`
 /// (`src/deluge/gui/ui/sound_editor.cpp:1673-1906`), `SoundEditor::getCurrentModelStack` (`:1999`)
@@ -39,8 +39,7 @@ struct Node;
 
 /// @brief Everything a menu item needs to know about what it is editing.
 ///
-/// One value replaces the twelve `soundEditor.current*` members the survey lists
-/// (`.superpowers/sdd/2026-08-27-ui-scenes-menus/menu-survey-summary.md`, "SoundEditor"): a menu
+/// One value replaces the twelve `soundEditor.current*` members: a menu
 /// hook is handed a `const MenuContext&` instead of reading a global.
 ///
 /// It holds what a node edits by address -- the record (`model`), the owners (`addresses`) -- and what it reads and
@@ -63,7 +62,7 @@ struct MenuContext {
 	///       read (`noteEditorRootMenu` `:1775`, `noteRowEditorRootMenu` `:1778`) -- so, unlike every
 	///       other enumerator here, `context_for` never assigns either one; a caller that wants one
 	///       (`gui/ui/shell_menu_entry.cpp`'s `openShellMenu`, `NoteMode`) sets `ctx.root` itself
-	///       after resolving the rest of the context (spec E-note-family task 6).
+	///       after resolving the rest of the context.
 	enum class Root : uint8_t {
 		Sound,
 		Drum,
@@ -95,7 +94,7 @@ struct MenuContext {
 
 	/// @brief Is the AFFECT-ENTIRE button held right now? Legacy's
 	///        `currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR`
-	///        (`gui/menu_item/unpatched_param.cpp:52` and the 20-odd items that spell the same test).
+	///        (`UnpatchedParam::writeCurrentValue` and the 20-odd items that spell the same test).
 	///
 	/// A UI fact, so -- like `midi_cable` -- `context_for()` never assigns it: the caller sets it,
 	/// exactly as it reduces the other UI reads to `context_for`'s `bool` arguments (task-3 ruling 2).
@@ -228,14 +227,14 @@ enum class Permission : uint8_t {
 	MustSelectRange,
 };
 
-/// @brief Apply spec E §4.1's permission rule to @p node in @p ctx.
+/// @brief Apply the menu's permission rule to @p node in @p ctx.
 ///
 /// Ports the base `MenuItem::checkPermissionToBeginSession` (`gui/menu_item/menu_item.cpp:27-31`,
 /// relevance only) plus the range rule the range-specific overrides share via
-/// `SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam` (`sound_editor.cpp:1988-2015`).
+/// `SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam` (`sound_editor.cpp`).
 ///
 /// The range rule fires on `Node::range_dependent` -- legacy's `MenuItem::isRangeDependent()`
-/// (`gui/menu_item/menu_item.h:202`) -- **not** on "has a `bind.param`". An ordinary patched param
+/// (`MenuItem::isRangeDependent`) -- **not** on "has a `bind.param`". An ordinary patched param
 /// on a multisampled sound takes the base rule and opens (`Yes`); only a range-dependent item on a
 /// source with more than one `MultiRange` and none selected gets `MustSelectRange`.
 Permission permission_for(const Node& node, const MenuContext& ctx);
@@ -259,13 +258,13 @@ int32_t range_top_note(const MenuContext& ctx, int32_t index);
 ///        choice is unambiguous -- `Source::getOrCreateFirstRange()` at `sound_editor.cpp:1993`.
 ///
 /// **This is the allocation `permission_for` deliberately does not do** (see this file's `.cpp`,
-/// "Owed to E2"): legacy's `checkPermissionToBeginSessionForRangeSpecificParam` *creates* the first
-/// range before it answers anything, and can fail with `INSUFFICIENT_RAM`. `permission_for` stayed a
+/// "Not owned by this file"): legacy's `checkPermissionToBeginSessionForRangeSpecificParam` *creates* the first
+/// range before it answers anything, and can fail with `INSUFFICIENT_RAM`. `permission_for` is a
 /// pure predicate, so **every** caller that actually opens a range-dependent item does this first.
 /// There are two, because legacy has two ways in and makes no distinction between them:
 /// `MenuScene::enter_child` for a descent, and `MenuScene::on_enter` for a `SceneId::arg` deep link
 /// (the eight gated `openShellMenu` sites and the shortcut-pad jump's `Action::Kind::Replace`).
-/// F3 task 4 added the second after the ported file selector, reached by the deep link, refused to
+/// The second exists because the ported file selector, reached by the deep link, refuses to
 /// open its browser on a source with no ranges.
 ///
 /// On success it also mirrors legacy's `*previouslySelectedRange = firstRange` (`:1951`): when the
@@ -279,7 +278,7 @@ int32_t range_top_note(const MenuContext& ctx, int32_t index);
 bool ensure_first_range(MenuContext& ctx);
 
 /// @brief Point @p ctx at range @p index -- `SoundEditor::setCurrentMultiRange`
-///        (`sound_editor.cpp:1983-1986`), plus `Source::defaultRangeI`, which the picker keeps in
+///        (`sound_editor.cpp`), plus `Source::defaultRangeI`, which the picker keeps in
 ///        step with its own cursor (`multi_range.cpp:239`).
 ///
 /// Out-of-range indices are ignored rather than clamped: legacy indexes `ranges.getElement(i)`
@@ -287,7 +286,7 @@ bool ensure_first_range(MenuContext& ctx);
 void select_range(MenuContext& ctx, int32_t index);
 
 /// @brief Point @p ctx at oscillator source @p index -- `SoundEditor::setCurrentSource`
-///        (`sound_editor.cpp:242-251 setCurrentSource`), plus the range reset `SoundEditor::setup`
+///        (`sound_editor.cpp`), plus the range reset `SoundEditor::setup`
 ///        performs alongside it (`:1786-1788`).
 ///
 /// Legacy's per-source bespoke items each hold their own `source_id_` and open with
@@ -311,7 +310,7 @@ void select_range(MenuContext& ctx, int32_t index);
 /// @param ctx   The context to re-point. A context with no `sound` (an audio clip, the settings
 ///              root) is left exactly as it is: there is no source to select, which is precisely
 ///              why `audio_clip::SampleMarkerEditor::beginSession`
-///              (`gui/menu_item/audio_clip/sample_marker_editor.cpp:43-51`) has no such call.
+///              (`gui/menu_item/audio_clip/sample_marker_editor.cpp`) has no such call.
 /// @param index Which of `Sound::sources`. Negative, or past the last source, is a no-op --
 ///              `nodes::MarkerItem` spells "the audio-clip opener, which selects no source" as -1.
 void select_source(MenuContext& ctx, int8_t index);

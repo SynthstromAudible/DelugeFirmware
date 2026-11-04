@@ -86,7 +86,7 @@ constexpr uint8_t kFlashCursorSlow = 2;
 // The three note-name tables `format_range_key` reads. `util/lookuptables/lookuptables.h` is outside
 // this layer's include allowance (`scripts/check_layer_rules.py`'s `scenes-includes-outside`), so
 // they are declared here at the global scope where they are defined
-// (`util/lookuptables/lookuptables.cpp:487-490`) -- the same spelling `multi_range.cpp:43-45` uses.
+// (`util/lookuptables/lookuptables.cpp`) -- the same spelling `multi_range.cpp` uses.
 extern const uint8_t noteCodeToNoteLetter[];
 extern const uint8_t noteCodeToNoteLetterFlats[];
 extern const bool noteCodeIsSharp[];
@@ -257,7 +257,7 @@ void set_midi_select_kit_row(const MenuContext&, int32_t value) {
 }
 
 int32_t get_midi_thru(const MenuContext&) {
-	return from_bool(midiEngine.midiThru); // `menus.cpp:1312`
+	return from_bool(midiEngine.midiThru); // `midiThruMenu`
 }
 void set_midi_thru(const MenuContext&, int32_t value) {
 	midiEngine.midiThru = value != 0;
@@ -349,14 +349,16 @@ void set_default_keyboard_layout(const MenuContext&, int32_t value) {
 }
 
 int32_t get_default_kb_velocity_glide(const MenuContext&) {
-	return from_bool(FlashStorage::keyboardFunctionsVelocityGlide, /*invert=*/true); // `menus.cpp:1537`
+	return from_bool(FlashStorage::keyboardFunctionsVelocityGlide,
+	                 /*invert=*/true); // `defaultUIKeyboardFunctionsVelocityGlide`
 }
 void set_default_kb_velocity_glide(const MenuContext&, int32_t value) {
 	FlashStorage::keyboardFunctionsVelocityGlide = value == 0;
 }
 
 int32_t get_default_kb_modwheel_glide(const MenuContext&) {
-	return from_bool(FlashStorage::keyboardFunctionsModwheelGlide, /*invert=*/true); // `menus.cpp:1542`
+	return from_bool(FlashStorage::keyboardFunctionsModwheelGlide,
+	                 /*invert=*/true); // `defaultUIKeyboardFunctionsModwheelGlide`
 }
 void set_default_kb_modwheel_glide(const MenuContext&, int32_t value) {
 	FlashStorage::keyboardFunctionsModwheelGlide = value == 0;
@@ -396,19 +398,19 @@ void set_default_use_sharps(const MenuContext&, int32_t value) {
 // Defaults: automation
 
 int32_t get_default_automation_interpolate(const MenuContext&) {
-	return from_bool(FlashStorage::automationInterpolate); // `menus.cpp:1616`
+	return from_bool(FlashStorage::automationInterpolate); // `defaultAutomationInterpolateMenu`
 }
 void set_default_automation_interpolate(const MenuContext&, int32_t value) {
 	FlashStorage::automationInterpolate = value != 0;
 }
 int32_t get_default_automation_clear(const MenuContext&) {
-	return from_bool(FlashStorage::automationClear); // `menus.cpp:1620`
+	return from_bool(FlashStorage::automationClear); // `defaultAutomationClearMenu`
 }
 void set_default_automation_clear(const MenuContext&, int32_t value) {
 	FlashStorage::automationClear = value != 0;
 }
 int32_t get_default_automation_shift(const MenuContext&) {
-	return from_bool(FlashStorage::automationShift); // `menus.cpp:1623`
+	return from_bool(FlashStorage::automationShift); // `defaultAutomationShiftMenu`
 }
 void set_default_automation_shift(const MenuContext&, int32_t value) {
 	FlashStorage::automationShift = value != 0;
@@ -586,7 +588,7 @@ namespace {
 /// `MenuAction::ScreensaverSettingsChanged` (`scenes/menu/action.h`).
 ///
 /// Filed through `menu_scene().request_action` for `set_shortcuts_version`'s reason, verbatim: a
-/// `Binding::set` hook is handed no `MenuState` (`SetFn`, `node.h:140`), and the commit and the
+/// `Binding::set` hook is handed no `MenuState` (`SetFn` in `node.h`), and the commit and the
 /// drain are the same `after_render` -- `commit_value` (`ValueSession::commit`), then the move into the
 /// outbox (`MenuScene::after_render`'s `pending_action` drain).
 void request_screensaver_notify() {
@@ -791,7 +793,7 @@ int32_t get_shortcuts_version(const MenuContext&) {
 }
 void set_shortcuts_version(const MenuContext&, int32_t value) {
 	// `shortcuts::Version::writeCurrentValue` (`shortcuts/version.h:27`) ->
-	// `SoundEditor::setShortcutsVersion` (`gui/ui/sound_editor.cpp:112-181`).
+	// `SoundEditor::setShortcutsVersion` (`gui/ui/sound_editor.cpp`).
 	//
 	// **TWO WRITES, AND NEITHER IS REDUNDANT. Do not delete one for the other.**
 	//
@@ -804,9 +806,9 @@ void set_shortcuts_version(const MenuContext&, int32_t value) {
 	//      `src/scenes` may not name `SoundEditor` (`scenes-includes-outside`,
 	//      `scripts/check_layer_rules.py`) -- so the write is asked for rather than made, and
 	//      `gui::ui::dispatchShellActions` performs it (`gui/ui/shell_action_dispatch.cpp`'s
-	//      `SetShortcutsVersion` arm). F1 task 8 recorded the gap this closes: without it, a layout
-	//      chosen from the *ported* settings menu was in force for the session and gone at the next
-	//      power-on. The reverse direction was already fine and still is --
+	//      `SetShortcutsVersion` arm). Without it, a layout
+	//      chosen from the *ported* settings menu would be in force for the session and gone at the next
+	//      power-on. The reverse direction needs nothing:
 	//      `SoundEditor::setShortcutsVersion` pushes into this layer, so a layout chosen from the
 	//      legacy menu, at boot, or by a factory reset is followed here.
 	//
@@ -877,13 +879,13 @@ void set_cv_volts(const MenuContext& ctx, int32_t value) {
 
 int32_t get_cv_transpose(const MenuContext& ctx) {
 	// `cv::Transpose::readCurrentValue` (`cv/transpose.h:34-37`), over
-	// `computeCurrentValueForTranspose` (`gui/menu_item/value_scaling.cpp:64-66`) -- the same
+	// `computeCurrentValueForTranspose` (`gui/menu_item/value_scaling.cpp`) -- the same
 	// packing `sound_osc.cpp` and `roots.cpp` transcribe for the other transposes.
 	const CVChannel& channel = cvEngine.cvChannels[output_index(ctx, NUM_PHYSICAL_CV_CHANNELS)];
 	return channel.transpose * 100 + channel.cents;
 }
 void set_cv_transpose(const MenuContext& ctx, int32_t value) {
-	// `computeFinalValuesForTranspose` (`value_scaling.cpp:68-73`) then `transpose.h:39-43`.
+	// `computeFinalValuesForTranspose` (`value_scaling.cpp`) then `cv::Transpose::writeCurrentValue`.
 	const int32_t current = value + 25600;
 	const int32_t semitones = (current + 50) / 100;
 	cvEngine.setCVTranspose(static_cast<uint8_t>(output_index(ctx, NUM_PHYSICAL_CV_CHANNELS)), semitones - 256,
@@ -946,13 +948,13 @@ const Node* gate_selection_chain(const MenuContext& ctx, const MenuState&) {
 }
 
 // ---------------------------------------------------------------------------------------------
-// 12-13. Battery and firmware (`CustomItem`s, E2 task 2 fix round 1 -- see `settings.h`'s note on
+// 12-13. Battery and firmware (`CustomItem`s -- see `settings.h`'s note on
 // why these are not a shared `Kind`)
 
 namespace {
 /// @brief The node currently on screen, so a `CustomItem` -- which is handed no `Node` of its own,
 ///        only `MenuState` -- can still draw its own title. Mirrors `PendingCustom::render`
-///        (`nodes/sound_osc.cpp:52`).
+///        (`nodes/sound_osc.cpp`).
 const Node* focused_of(const MenuState& state) {
 	return state.depth < kMenuDepth ? state.path[state.depth] : nullptr;
 }

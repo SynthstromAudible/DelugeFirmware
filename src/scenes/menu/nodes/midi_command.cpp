@@ -83,7 +83,7 @@ std::string_view format_int(int32_t v, char (&buf)[12]) {
 ///     panel's own `visible_top`, which the frame's origin already carries. It is a *pair* because
 ///     `visible_top` is 5 on the 48-row panel and 0 on a 64-row one, so a single constant is wrong
 ///     on one of them by five rows. Selected from `Style::menu_base_y`, the profile value
-///     `ui::oled::output_name` already picks its own 48/64 pair with (`ui/oled/misc.cpp:57`) --
+///     `ui::oled::output_name` already picks its own 48/64 pair with (`output_name` in `ui/oled/misc.cpp`) --
 ///     never from the framebuffer's height, so a mismatched (Style, Geometry) pair cannot disagree.
 ///   * `kApple7Height7YAdjust` -- legacy draws these rows at `kTextSizeYUpdated` (7), which selects
 ///     the Apple face's height-7 variant; `FontId::Apple7` is the height-9 one, which draws the
@@ -141,8 +141,8 @@ void MidiCommandItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& 
 		// band it falls in, plus one for 1-based display.
 		//
 		// The two MPE-zone arms are live, not defensive: `PlaybackHandler::noteMessageReceived`
-		// (`playback/playback_handler.cpp:2966-2968`) resolves the channel through
-		// `MIDIPort::channelToZone` (`io/midi/midi_device.cpp:236-238`) *before* dispatching to
+		// (`playback/playback_handler.cpp`) resolves the channel through
+		// `MIDIPort::channelToZone` (`io/midi/midi_device.cpp`) *before* dispatching to
 		// `noteOnReceivedForMidiLearn`, so a note-on learn from an MPE-configured input port really
 		// does store `MIDI_CHANNEL_MPE_LOWER_ZONE`/`UPPER_ZONE` here. (The CC path is unaffected --
 		// `midiCCReceived` is handed the raw channel.)
@@ -195,7 +195,7 @@ deluge::ui::shell::Result MidiCommandItem::handle(const deluge::ui::shell::UiEve
                                                   const deluge::ui::shell::UiContext& /*ui_ctx*/,
                                                   const MenuContext& /*ctx*/, MenuState& /*state*/) const {
 	// `midi::Command` has no `buttonAction`/`padAction` override, and learn does not arrive as a
-	// `UiEvent`: it comes through `MenuScene::learn_note_on` and friends, which F1 task 10 wired to
+	// `UiEvent`: it comes through `MenuScene::learn_note_on` and friends, which are wired to
 	// `ShellHostUI`'s two `UI` learn virtuals (`learn_cc` excepted -- see `node.h`). Nothing to
 	// consume here.
 	return {};

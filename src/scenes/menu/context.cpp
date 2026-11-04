@@ -19,7 +19,7 @@
 /// @brief The port of `SoundEditor::setup`'s context resolution and the common `checkPermissionToBeginSession` rule,
 ///        over the song's records and what the view says it opened over (`services::MenuView`). See `context.h`.
 ///
-/// **What did NOT come across** (task-3 ruling 2 -- `setup()` is half context resolution, half UI
+/// **What did NOT come across** (`setup()` is half context resolution, half UI
 /// choreography, and only the first half belongs in `src/scenes`). UI side, not ported:
 ///
 ///   * `:1684` `getCurrentUI()`, `:1687` `rootUIIsClipMinderScreen()`, `:1709`
@@ -33,13 +33,13 @@
 ///     `MenuContext::addresses` carries the same information as data.
 ///   * `:1836-1837`/`:1860-1862` `maybeGetParentMenu` / `focusChild` (horizontal-menu focusing),
 ///     `:1857` `multiRangeMenu.menuItemHeadingTo`, `:1858` substituting the range picker for the
-///     chosen item -- navigation, which is `MenuScene`'s job (spec E §4.1).
+///     chosen item -- navigation, which is `MenuScene`'s job.
 ///   * `:1866-1871` `allowsNoteTails` -- a `SoundEditor` render flag, not part of what is edited.
 ///   * `:1899-1904` `endScreen()`, `navigationDepth`, `shouldGoUpOneLevelOnBegin`,
 ///     `menuItemNavigationRecord` -- `MenuState`, which belongs to the interpreter.
 ///
-/// **Owed to E2** -- behaviour of `setup()` that is neither UI nor context, has no owner yet, and
-/// will silently change if nothing picks it up when `MenuScene` lands (fix round 1, Minor 5):
+/// **Not owned by this file** -- behaviour of `setup()` that is neither UI nor context, and that
+/// will silently change if whoever opens a menu does not pick it up:
 ///
 ///   * `:1771` `actionLogger.deleteAllLogs()` -- a mutation of undo history on every menu open.
 ///   * `:1839-1843` remembering the previously selected `MultiRange` across sessions, and dropping
@@ -344,13 +344,13 @@ Permission permission_for(const Node& node, const MenuContext& ctx) {
 	}
 
 	// The rule the range-specific overrides share, via
-	// `SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam` (`sound_editor.cpp:1988`) --
+	// `SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam` --
 	// e.g. `menu_item::sample::Transpose::checkPermissionToBeginSession`
 	// (`gui/menu_item/sample/transpose.h:120-135`), which after its own relevance and osc-type test
 	// defers to it verbatim.
 	//
 	// The discriminator is `Node::range_dependent`, the port of `MenuItem::isRangeDependent()`
-	// (`gui/menu_item/menu_item.h:202`; true at `sample/transpose.h:137`, `sample/loop_point.h:31`,
+	// (`MenuItem::isRangeDependent`; true at `sample/transpose.h:137`, `sample/loop_point.h:31`,
 	// `multi_range.h:32`) -- NOT "the node has a `bind.param`". Everything else, an ordinary
 	// patched param on a multisampled sound included, takes the base rule above and opens: legacy
 	// routes it through `MenuItem::checkPermissionToBeginSession` (`menu_item.cpp:27-31`), which
@@ -373,8 +373,8 @@ Permission permission_for(const Node& node, const MenuContext& ctx) {
 	// changed, which is the same condition.
 	//
 	// Unreachable for a context straight out of `context_for`: the only cases that set `ctx.range_index`
-	// (kit row, single range) already returned `Yes` above. This is E2's entry point -- once the
-	// picker writes a chosen range back into the context, this is the arm that lets the item open.
+	// (kit row, single range) already returned `Yes` above. This is the entry point for a picker: once it
+	// writes a chosen range back into the context, this is the arm that lets the item open.
 	if (ctx.range_index >= 0) {
 		return Permission::Yes;
 	}

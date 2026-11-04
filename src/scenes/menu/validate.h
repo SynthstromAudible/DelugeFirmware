@@ -1,10 +1,9 @@
 #pragma once
 
-/// @brief The menu-tree validator (spec E §4.4: "host test, every build").
+/// @brief The menu-tree validator (host test, every build).
 ///
-/// Every rule spec E §4.4 lists is one `Issue::Kind` below, plus the two flag audits ruling 4 of
-/// this task's brief adds -- a `Node` flag that a table forgot to set is invisible at runtime
-/// (the item just quietly behaves like an ordinary one), so the expected sets are written down
+/// Every rule is one `Issue::Kind` below, including the two flag audits -- a `Node` flag that a table forgot to set is
+/// invisible at runtime (the item just quietly behaves like an ordinary one), so the expected sets are written down
 /// here and a mismatch is an `Issue`, not a silent pass.
 ///
 /// The validator is deliberately **model-free**: it walks `Node` data, calls `RelevantFn`s with
@@ -71,12 +70,9 @@ struct Issue {
 		/// @brief A `Kind::Custom` pointing at a stand-in rather than the real item
 		///        (`CustomItem::is_placeholder()`).
 		///
-		/// **Unconditional since E3 task 7.** It used to be suppressible by
-		/// `ValidateOptions::allow_placeholder_custom`, which is how an E1/E2 spec said out loud
-		/// that the implementations were still owed. Every node in the tree now has a real item
-		/// (`kPendingCustomNodes` is 0), so that option could no longer suppress anything -- and a
-		/// permanently-satisfiable opt-out is exactly the shape that later hides a regression, so
-		/// it was deleted rather than left standing. The rule itself stays, and so does
+		/// **Unconditional.** Every node in the tree has a real item (`kPendingCustomNodes` is 0), and
+		/// a permanently-satisfiable opt-out is exactly the shape that later hides a regression, so
+		/// `ValidateOptions` has none. The rule stays, and so does
 		/// `nodes::kPending`: the next table that needs a stand-in still gets one, and this reports
 		/// it with nothing left to turn it off.
 		PlaceholderCustom,
@@ -106,7 +102,7 @@ enum class Flag : uint16_t {
 	ChainTargetsMismatch,
 	/// @brief `Binding::adjust` on a node with no `get` -- a combination that would read through
 	///        `param` and write through the hook, silently disagreeing about where the value lives
-	///        (spec E-note-family §5.2: `read` stays `get` even for an offset-writing node).
+	///        (`read` stays `get` even for an offset-writing node).
 	///
 	/// The value-kind rule just above (`is_value_kind(n.kind) && !n.bind.param.valid() && n.bind.get
 	/// == nullptr`) already reports a value node with neither `get` nor a `param` at all; this is
@@ -126,37 +122,17 @@ enum class Flag : uint16_t {
 /// @brief The cap on the `Kind::Custom` escape hatch, counted in **nodes that point at a custom
 ///        item**.
 ///
-/// **Deviation from spec E §4** ("at most 10 across the whole tree"), fix round 2, I4. The rule
-/// used to count *distinct `CustomItem` instances*, on the reasoning that two oscillator
-/// file-selector nodes sharing one `FileSelector` implementation are one bespoke item -- which is
-/// how spec E §4's own list of seven counts them. That spelling was inert: E1 ships the *shape* of
-/// its bespoke items and points all 59 of them at the one shared `nodes::kPending` placeholder
-/// (`nodes/sound_osc.h`), so the distinct-instance count of the whole shipped tree is **1** and
-/// `TooManyCustom` could not fire however many custom nodes a table added. It would have started
-/// counting for real only once E2 replaced the placeholders one by one -- i.e. the rule was
-/// switched off for exactly the phase it was meant to police.
+/// Counting nodes rather than distinct `CustomItem` instances keeps the rule live: the shipped
+/// tree's custom nodes each have their own item (no two share one), so the two counts are equal
+/// today, but a distinct-instance count would stay at 1 if a table pointed many nodes at one shared
+/// stand-in, and `TooManyCustom` could never fire however many custom nodes it added.
 ///
-/// Counting nodes makes it live today, at the cost of no longer being spec E's number: the shipped
-/// tree has **55** `Kind::Custom` nodes reachable from `nodes::kAllRoots` -- 64 through E2 task 9,
-/// less the nine E2 task 11 turned into ordinary `Kind::Enum` items (the six pad colours, the play
-/// cursor, the dev-sysex setting and the shortcuts version) and the three E2 task 11b turned into
-/// `Kind::Range` (`default_tempo`, `default_swing_amount`, `default_key`) -- behind **55 distinct
-/// items, every one of them real**. E3 task 6 added nine, one per (item, source) pair
-/// (`nodes/sample.h`), and E3 task 7 the last two (`nodes/output_items.h`); the shared
-/// `nodes::kPending` placeholder left the set with them, which is why 51 became 52 rather than 53.
-/// **E3 task 8 added the last three**: the MPE direction and zone selectors and the member-channel
-/// editor (`nodes/midi_device.h`), which are bespoke because their value is `MenuState` navigation
-/// state a `Binding::get`/`set` cannot see. Node count and distinct-item count are still equal: no
-/// two nodes share an item.
-/// So the cap is pinned just above that count rather than at 10: it is a ratchet against the escape
-/// hatch growing unnoticed, not a claim that ten was ever achievable.
-/// `sim/scenes_spec/shortcuts_spec.cpp` asserts the exact 55 separately, so a table that adds a custom node has to say
-/// so in two places. Recorded in `src/scenes/README.md`.
-///
-/// **E2 task 12 ratcheted it from 56 to 53**, and E3 task 8 moved it back to 56 -- still exactly
-/// one above the count, which is the standing rule. The cap was once sized against E2 task 9's
-/// tree and then three item tasks took nodes back out of the escape hatch without it following them
-/// down; a cap four above the count is four bespoke items an inattentive table could add for free.
+/// The shipped tree has **55** `Kind::Custom` nodes reachable from `nodes::kAllRoots`, behind **55
+/// distinct items, every one of them real**. The cap is pinned exactly one above that count: it is
+/// a ratchet against the escape hatch growing unnoticed, not a claim that any smaller number was
+/// achievable. A cap sitting further above the count would be that many bespoke items an
+/// inattentive table could add for free. `sim/scenes_spec/shortcuts_spec.cpp` asserts the exact 55
+/// separately, so a table that adds a custom node has to say so in two places.
 inline constexpr size_t kMaxCustomNodes = 56;
 
 /// @brief The number of `Kind::Custom` nodes the shipped tree actually has (`kAllRoots`).
@@ -167,41 +143,33 @@ inline constexpr size_t kShippedCustomNodes = 55;
 
 /// @brief How many of `kShippedCustomNodes` still point at `nodes::kPending`.
 ///
-/// **Zero -- the menu tree has no placeholders left.** E2 finished every bespoke item it owned and
-/// left eleven, the file/sample family, all of which needed the card. E3 task 6 closed nine of
-/// those out (`nodes/sample.h`): the two oscillator file browsers onto `browser::BrowserScene`, the
-/// four loop points and the audio clip's waveform view onto `marker::MarkerScene`, and the two
-/// record-to-sample items onto `recorder::RecorderScene`. E3 task 7 closed out the last two, which
-/// were never a family -- two one-offs that open neither a sample scene nor, in one case, anything
-/// at all (`nodes/output_items.h`):
+/// **Zero -- the menu tree has no placeholders left.** The file/sample family points at the scenes
+/// that own those jobs (`nodes/sample.h`): the two oscillator file browsers at
+/// `browser::BrowserScene`, the four loop points and the audio clip's waveform view at
+/// `marker::MarkerScene`, and the two record-to-sample items at `recorder::RecorderScene`. Two
+/// one-offs open neither a sample scene nor, in one case, anything at all
+/// (`nodes/output_items.h`):
 ///
 ///   * `midi_device_linked` -- a `Toggle` whose ON arm opens the definition browser
-///     (`browser::BrowserId::MidiDeviceDefinition`, shipped complete by E3 task 3) and whose OFF
-///     arm clears the linked file name.
+///     (`browser::BrowserId::MidiDeviceDefinition`) and whose OFF arm clears the linked file name.
 ///   * `specific_output_selector` -- the audio clip's `TRACK` picker, a page over the song's output
 ///     list rather than a file browser.
 ///
 /// **This must stay 0.** `sim/scenes_spec/output_items_spec.cpp` asserts it three ways -- this
 /// constant, a strict `validate_tree` over `kAllRoots` reporting no `PlaceholderCustom`, and a walk
-/// of every reachable `Kind::Custom` node -- and there is no longer any `ValidateOptions` field
-/// that could stand the rule down. A table that adds a placeholder fails there rather than hiding
-/// inside a number that happened not to move.
+/// of every reachable `Kind::Custom` node -- and there is no `ValidateOptions` field that could
+/// stand the rule down. A table that adds a placeholder fails there rather than hiding inside a
+/// number that happened not to move.
 inline constexpr size_t kPendingCustomNodes = 0;
 
 /// @brief Which of the strict rules the caller is deliberately standing down.
 ///
-/// Default-constructed is strict, so a caller that says nothing gets every rule. Only E1's own
-/// specs opt out, and only from the one rule that is *about* E1 being unfinished.
+/// Default-constructed is strict, so a caller that says nothing gets every rule. There is
+/// deliberately no option to stand down `PlaceholderCustom`: with `kPendingCustomNodes` at 0 an
+/// opt-out would be permanently satisfiable, which is the shape that hides the next regression.
+/// `nodes::kPending` still exists, so a table that needs a stand-in can have one -- it just cannot
+/// ask for silence.
 struct ValidateOptions {
-	/// @note **`allow_placeholder_custom` used to be here and is gone (E3 task 7).** It accepted
-	///       `Kind::Custom` nodes pointing at `CustomItem::is_placeholder()` stand-ins, which is how
-	///       an E1/E2 spec said out loud that the tree was not finished. With
-	///       `kPendingCustomNodes` at 0 it could never suppress anything again, and an opt-out that
-	///       is permanently satisfiable is the shape that hides the next regression rather than the
-	///       shape that documents this one. The **rule** it suppressed is untouched and now
-	///       unconditional (`Issue::Kind::PlaceholderCustom`), and `nodes::kPending` still exists,
-	///       so a table that needs a stand-in can still have one -- it just cannot ask for silence.
-
 	/// @brief Skip the `ShortcutToNothing` sweep entirely.
 	///
 	/// That rule is quantified over *every* `MenuContext::Root`'s shortcut table, so it only means
@@ -213,9 +181,9 @@ struct ValidateOptions {
 	bool skip_shortcut_sweep = false;
 };
 
-/// @brief Check @p roots against every spec E §4.4 rule.
+/// @brief Check @p roots against every rule.
 ///
-/// Calls `assign_node_ids(roots)` first (ruling Q7), so ids exist before anything downstream needs
+/// Calls `assign_node_ids(roots)` first, so ids exist before anything downstream needs
 /// them and so the `Unreachable` rule has something to test.
 ///
 /// @param roots     The tree's root nodes, in declaration order.

@@ -11,7 +11,7 @@
 /// | `file0_selector` / `file1_selector` | `menu_item::FileSelector` (`gui/menu_item/file_selector.h:26`) | `sampleBrowser` (`file_selector.cpp:36-47 beginSession`) | `browser::BrowserScene`, `BrowserId::Sample` |
 /// | `sample0_start` / `sample1_start` | `sample::Start` (`gui/menu_item/sample/start.h:21`) | `sampleMarkerEditor`, `markerType = START` (`sample/loop_point.cpp:69 beginSession`) | `marker::MarkerScene`, `MarkerType::START` |
 /// | `sample0_end` / `sample1_end` | `sample::End` (`gui/menu_item/sample/end.h:21`) | `sampleMarkerEditor`, `markerType = END` (same line) | `marker::MarkerScene`, `MarkerType::END` |
-/// | `audio_clip_waveform` | `audio_clip::SampleMarkerEditor` (`gui/menu_item/audio_clip/sample_marker_editor.h:26`) | `sampleMarkerEditor`, `markerType = whichMarker` (`audio_clip/sample_marker_editor.cpp:46 beginSession`) | `marker::MarkerScene`, `MarkerType::END` |
+/// | `audio_clip_waveform` | `audio_clip::SampleMarkerEditor` (`gui/menu_item/audio_clip/sample_marker_editor.h:26`) | `sampleMarkerEditor`, `markerType = whichMarker` (`audio_clip/sample_marker_editor.cpp`, `beginSession`) | `marker::MarkerScene`, `MarkerType::END` |
 /// | `sample0_recorder` / `sample1_recorder` | `osc::AudioRecorder` (`gui/menu_item/osc/audio_recorder.h:28`) | `audioRecorder` (`osc/audio_recorder.h:50 beginSession`) | `recorder::RecorderScene` |
 // clang-format on
 ///
@@ -24,9 +24,9 @@
 /// an `Action::Kind::Push`. `MenuWalkState::go_up_on_resume` is set alongside it, which is legacy's
 /// `soundEditor.shouldGoUpOneLevelOnBegin = true` -- set by all five
 /// (`file_selector.cpp:37`, `sample/loop_point.cpp:67`, `osc/audio_recorder.h:37`,
-/// `audio_clip/sample_marker_editor.cpp:45`).
+/// `audio_clip/sample_marker_editor.cpp`).
 ///
-/// @note **`menu::select_source` is the fourth statement none of the three worked examples needed.**
+/// @note **Each opener also applies `menu::select_source`, legacy's `setCurrentSource`.**
 ///       Three of the five legacy classes follow `shouldGoUpOneLevelOnBegin` with
 ///       `soundEditor.setCurrentSource(sourceId_)`, because a legacy per-source item carries its own
 ///       `source_id_` and the `SoundEditor` globals it is about to hand to another UI still name
@@ -47,7 +47,7 @@
 ///       audioFile` (`audio_clip/sample_marker_editor.cpp:35-38`), `AudioRecorder`'s
 ///       "already recording" (`gui/ui/audio_recorder.cpp:69-71`) -- is each scene's own `can()`,
 ///       consulted by its `on_enter`. A refused push is not a lost frame: `SceneStack::push`
-///       (`shell/scene_stack.cpp:44-59`) unwinds and resumes the input top, which is the menu
+///       (`shell/scene_stack.cpp`) unwinds and resumes the input top, which is the menu
 ///       whenever the refused scene is an opaque one (all of these are) -- and that is where
 ///       `go_up_on_resume` steps back out of the item, the same place legacy's failed `openUI`
 ///       leaves it. This is `EditNameItem`'s shipped behaviour, not a new rule.

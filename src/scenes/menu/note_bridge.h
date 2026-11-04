@@ -1,10 +1,10 @@
 #pragma once
 
-/// @brief `instrumentClipView`'s note and note-row state, reached without an include (spec §5.4).
+/// @brief `instrumentClipView`'s note and note-row state, reached without an include.
 ///
-/// The note editor and note-row editor (Task 5's 25 leaves) read and write sixteen
+/// The note editor and note-row editor (25 leaves) read and write sixteen
 /// `instrumentClipView` members named across `gui/menu_item/note/` and `note_row/`, plus the
-/// iterance preset labels (`util/lookuptables/lookuptables.cpp:508`) -- all of it behind
+/// iterance preset labels (`iterancePresets` in `util/lookuptables/preset_tables.cpp`) -- all of it behind
 /// `gui/views/instrument_clip_view.h`, which `src/scenes` may not include. `NoteBridge` is a
 /// struct of function pointers instead: declared here with no legacy include, installed once at
 /// boot from `gui/ui/shell_note_bridge.cpp`, and called synchronously -- legacy calls
@@ -17,20 +17,20 @@
 /// `hasPopup || inNoteEditor` where `inNoteEditor = noteEditorOpen() || noteRowEditorOpen()`
 /// (`:3067`, `:3118`), and `setNoteRowParameterValue` likewise (`:4141`, `:4144`) -- so a write
 /// through this bridge with neither satisfied leaves the model unchanged and raises legacy's own
-/// popup (`sim/scenes_spec/note_bridge_spec.cpp` pins exactly that shape). Note-family task 7a
-/// widened those predicates to see the ported note mode (`util/note_editor_open.h`); this bridge
-/// still does not paper over the gate itself.
+/// popup (`sim/scenes_spec/note_bridge_spec.cpp` pins exactly that shape). Those predicates
+/// see the ported note mode through `util/note_editor_open.h`; this bridge does not paper over the
+/// gate itself.
 ///
 /// **Reads that allocate.** The note-row entries create a `NoteRow` for a non-kit clip when none
 /// exists yet, the way `SelectedNoteRow::getIndividualNoteRow` does
 /// (`gui/menu_item/note_row/selected_note_row.h:45-61`); the bridge keeps that.
 ///
 /// **Iterance crosses as a raw `int32_t`** (`Iterance::toInt`/`fromInt`,
-/// `model/iterance/iterance.h`, which `src/scenes` may include) -- not as a preset index. Task 5's
+/// `model/iterance/iterance.h`, which `src/scenes` may include) -- not as a preset index. The
 /// leaves convert with `Iterance::fromInt(...).toPresetIndex()` themselves.
 ///
 /// **A read with nothing selected returns 0**, matching legacy's own "no pressed note" case; the
-/// popup and edit guard belong to Task 5's `Binding::permitted` hook, not to this struct.
+/// popup and edit guard belong to the leaves' `Binding::permitted` hook, not to this struct.
 
 #include <cstddef>
 #include <cstdint>

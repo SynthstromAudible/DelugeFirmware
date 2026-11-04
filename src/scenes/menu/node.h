@@ -1,12 +1,11 @@
 #pragma once
 
-/// @brief The declarative menu data model (spec E §4, amended by
-///        `.superpowers/sdd/2026-08-27-ui-scenes-menus-1/task-2-brief.md`): `Node`, `Binding`,
+/// @brief The declarative menu data model: `Node`, `Binding`,
 ///        `ParamRef`, and the `constexpr` builders that assemble a menu tree as plain data.
 ///
 /// @note **This header is model-free and host-testable.** Its only model include is
 ///       `modulation/params/param.h`, for `params::Kind` -- pulling in `definitions_cxx.hpp` is
-///       accepted collateral (see the brief). Nothing here reaches into `gui/`: l10n string ids
+///       accepted collateral. Nothing here reaches into `gui/`: l10n string ids
 ///       are carried as plain `uint16_t` rather than `l10n::String`, so a caller resolves them
 ///       through whatever string table it likes. `MenuContext` and `MenuState` are forward
 ///       declared only -- their definitions belong to later tasks (`context.h`, the interpreter's
@@ -56,28 +55,24 @@ namespace deluge::scenes::menu {
 
 /// @brief What a `Node` is: which builder made it, and (with `Hint`) which widget renders it.
 ///
-/// A `Kind` exists only if at least 3 items in E1's own tables use it -- spec E §4's rule, and
-/// **Task 8 applied it**: with all eleven roots declared, `sim/scenes_spec/tables_3_spec.cpp`
-/// counts the nodes of each kind across `nodes::kAllRoots` and fails below three.
+/// A `Kind` exists only if at least three items in the tables use it: with all eleven roots
+/// declared, `sim/scenes_spec/tables_3_spec.cpp` counts the nodes of each kind across
+/// `nodes::kAllRoots` and fails below three.
 ///
-/// Five enumerators did not survive that count and were removed rather than left as speculation:
+/// Four kinds that were considered are absent, and one is present on exactly the threshold:
 ///
 ///   * `Bipolar`, `MultiRange`, `Colour` -- zero nodes each, and no interpreter. The legacy items
-///     that would have wanted them are all E2's bespoke ones (`menu_item::Bipolar`,
-///     `multi_range.h`, `menu_item::Colour`), and every one of those is a `Kind::Custom`
-///     placeholder in E1 because its state lives behind the `gui/` wall. (`Colour` stayed deleted
-///     even after E2 task 11 made the six pad colours real: they are ordinary `Kind::Enum` nodes.)
-///   * `Range` was deleted with them, on the same count, and **E2 task 11b brought it back** --
-///     under the same rule, run the other way. Spec E §4's threshold is "a kind exists only if at
-///     least 3 items use it", and there are now exactly three: `default_tempo`,
-///     `default_swing_amount` (`IntegerRange`, `gui/ui/menus.cpp:1645-1648`) and `default_key`
-///     (`KeyRange`, `:1650`). Three is the threshold, so the kind is warranted and no more nodes
-///     were invented to pad it out: `MultiRange`'s picker is a different editor
-///     (`nodes/multi_range.h`, a `CustomItem`) and is deliberately not counted here.
-///   * `Action` -- zero nodes, and **still zero after E2 task 11b**, which is the task that
-///     finally made those items real. Every legacy `MenuItem` whose select press *does* something
-///     rather than editing a value reaches a UI this layer may not touch, so what they needed was
-///     not a `Kind` but a way to *name* the action for someone else to run: `MenuAction` and
+///     that would want them (`menu_item::Bipolar`, `multi_range.h`, `menu_item::Colour`) are
+///     bespoke, and every one of those is a `Kind::Custom` because its state lives behind the
+///     `gui/` wall. (The six pad colours are ordinary `Kind::Enum` nodes.)
+///   * `Range` is present, with exactly three nodes: `default_tempo`, `default_swing_amount`
+///     (`IntegerRange`, `gui/ui/menus.cpp:1645-1648`) and `default_key` (`KeyRange`, `:1650`).
+///     Three is the threshold, so the kind is warranted and no more nodes were invented to pad it
+///     out: `MultiRange`'s picker is a different editor (`nodes/multi_range.h`, a `CustomItem`) and
+///     is deliberately not counted here.
+///   * `Action` -- zero nodes. Every legacy `MenuItem` whose select press *does* something rather
+///     than editing a value reaches a UI this layer may not touch, so what they need is not a
+///     `Kind` but a way to *name* the action for someone else to run: `MenuAction` and
 ///     `MenuWalkState::pending_action` (`scenes/menu/action.h`). A `Kind::Action` would have had to
 ///     carry the same intent through a `Binding` that has nowhere to put it, and would still not
 ///     have performed anything. `MenuScene::enter_child` keeps no action arm.
@@ -106,12 +101,12 @@ enum class Kind : uint8_t {
 enum class Layout : uint8_t { Vertical, Horizontal };
 
 /// @brief The horizontal-menu meter style a node's value draws with -- an alias, not a new type
-///        (`ui/oled/meters.h:41`). `Enum`/`Toggle` are toolkit-only slot styles `columns` uses to
+///        (`ui::oled::Hint` in `ui/oled/meters.h`). `Enum`/`Toggle` are toolkit-only slot styles `columns` uses to
 ///        pick a slot renderer; every other enumerator maps 1:1 onto legacy's `Number::RenderingStyle`.
 using Hint = deluge::ui::oled::Hint;
 
 /// @brief An edited value's bounds and coarse step -- an alias, not a new type
-///        (`ui/oled/values.h:20`).
+///        (`ui::oled::Range` in `ui/oled/values.h`).
 using IntRange = deluge::ui::oled::Range;
 
 /// @brief Which arithmetic converts a `ParamRef`'s stored `int32_t` to and from the menu units the
@@ -122,11 +117,11 @@ using IntRange = deluge::ui::oled::Range;
 /// `Binding`. Only a `ParamRef` binding is scaled at all -- a `get`/`set` hook owns its own units --
 /// so only `param()` takes one.
 ///
-///   * `Standard` -- INT32 range <-> 0..50. `patched_param::Integer` (`patched_param/integer.cpp:33,79`),
-///     `menu_item::UnpatchedParam` (`unpatched_param.cpp:36,84`); the overwhelming majority.
+///   * `Standard` -- INT32 range <-> 0..50. `patched_param::Integer` (`patched_param/integer.cpp`),
+///     `menu_item::UnpatchedParam` (`unpatched_param.cpp`); the overwhelming majority.
 ///   * `HalfPrecision` -- 0..INT32_MAX <-> 0..50, for params that "aren't set up for negative
-///     inputs" (`value_scaling.cpp:35-36`): `osc::PulseWidth` (`osc/pulse_width.h:32,34-37`) and
-///     `audio_compressor::CompParam` (`audio_compressor/compressor_params.h:29-33`).
+///     inputs" (`value_scaling.cpp`): `osc::PulseWidth` (`osc/pulse_width.h:32,34-37`) and
+///     `audio_compressor::CompParam` (`audio_compressor/compressor_params.h`).
 ///   * `Pan` -- INT32 range <-> -25..25, and a -25..25 range rather than 0..50:
 ///     `patched_param::Pan` (`patched_param/pan.cpp:28-34`, `pan.h:26-27`) and
 ///     `unpatched_param::Pan` (`unpatched_param/pan.cpp:29-36`, `pan.h:28-29`).
@@ -166,7 +161,7 @@ using RangeFn = IntRange (*)(const MenuContext&);
 using RelevantFn = bool (*)(const MenuContext&);
 using DynamicNamesFn = size_t (*)(const MenuContext&, std::span<std::string_view> out);
 
-/// @brief Commit an offset edit -- `Binding::adjust` (spec E-note-family §5.2).
+/// @brief Commit an offset edit -- `Binding::adjust`.
 ///
 /// The port of `instrumentClipView.adjustVelocity(offset)` and its three siblings (probability,
 /// iterance, fill, in both the note and note-row families): each moves every note under a
@@ -308,15 +303,15 @@ inline constexpr size_t kMaxNodes = 1024;
 ///       `bindings::read`/`write` test `get`/`set` first, `bindings::learn_target` reads `param`,
 ///       and `bindings::range` already prefers `fixed_range` over the param's default.
 ///
-/// @note **`range` vs `fixed_range`.** Spec E §4 gives `range` as a function of `MenuContext` --
-///       genuinely dynamic bounds (e.g. a rate whose ceiling depends on sync mode) -- documented
-///       there as "optional; default from ParamRef" for a bound item. That leaves no field for the
-///       common case the brief's own `int_item`/`decimal_item` builders take a *literal* `IntRange`
-///       argument: a plain function pointer cannot close over an arbitrary runtime value, so a
+/// @note **`range` vs `fixed_range`.** `range` is a function of `MenuContext` --
+///       genuinely dynamic bounds (e.g. a rate whose ceiling depends on sync mode) -- optional,
+///       defaulting from the `ParamRef` for a bound item. That leaves no field for the
+///       common case the `int_item`/`decimal_item` builders take: a *literal* `IntRange`
+///       argument. A plain function pointer cannot close over an arbitrary runtime value, so a
 ///       literal range cannot be smuggled through `range` without one hand-written trampoline
 ///       function per distinct range (impractical, and not what those builders' signatures ask
 ///       for). `fixed_range` is the addition that resolves this: it holds the literal bounds those
-///       two builders are given, engaged only when `range == nullptr`. Task 6+'s interpreter reads
+///       two builders are given, engaged only when `range == nullptr`. The interpreter reads
 ///       in this order: `range(ctx)` if set, else `fixed_range` if engaged, else derive from
 ///       `param` (model code, out of reach here).
 /// @brief The half of a `Kind::Range` binding that a `Kind::Int` one has no room for.
@@ -390,7 +385,7 @@ struct Binding {
 	/// waveform the grid draws); every target write repaints the OLED.
 	bool repaints_grid = false;
 
-	/// @brief Write by offset rather than by value (spec E-note-family §5.2, `AdjustFn`'s own doc).
+	/// @brief Write by offset rather than by value (see `AdjustFn`'s own doc).
 	///
 	/// When set, the interpreter's edit path accumulates the select turn's detents rather than
 	/// computing `read + delta`, and commits through this instead of `set`: `read` (`get`) is
@@ -452,7 +447,7 @@ struct MenuState;
 ///        legacy's `MenuItem* MenuItem::selectButtonPress()` (`gui/menu_item/menu_item.h`).
 ///
 /// Returning `nullptr` means "ascend", which is exactly the base class's `return nullptr` arm and
-/// exactly what `SoundEditor` reads as `goUpOneLevel()` (`gui/ui/sound_editor.cpp:395-428`).
+/// exactly what `SoundEditor` reads as `goUpOneLevel()` (`SoundEditor::buttonAction`'s SELECT arm).
 ///
 /// It takes the context and the interpreter's state because the answer is value-dependent for two
 /// of the ported overrides: `arpeggiator::PresetMode` opens the custom octave-mode page only on
@@ -466,9 +461,9 @@ using SelectChainFn = const Node* (*)(const MenuContext&, const MenuState&);
 /// @brief What a list or option widget claims while drawn focused: the select turn and press.
 inline constexpr deluge::ui::InputClaims kListInput{.turn = true, .select = true};
 
-/// @brief The escape hatch (spec E §4: at most 10 across the whole tree) for a bespoke item that
+/// @brief The escape hatch (capped at `kMaxCustomNodes` across the whole tree) for a bespoke item that
 ///        doesn't fit any `Kind`: the multi-range editor, patch cables, the file selector, and the
-///        handful of others spec E §4 names.
+///        handful of others.
 struct CustomItem {
 	virtual ~CustomItem() = default;
 	virtual void render(deluge::ui::oled::OledFrame&, const MenuContext&, MenuState&) const = 0;
@@ -482,8 +477,8 @@ struct CustomItem {
 	/// @par The focus hooks: three names, two questions
 	///
 	/// **`on_focus`, `on_focus_backward` and `FocusCause` look like three spellings of one
-	/// thing, and a contributor has to learn all of them. They are not one thing** (E3 final review,
-	/// A7). What each answers, and when it fires:
+	/// thing, and a contributor has to learn all of them. They are not one thing** What each answers, and when it
+	/// fires:
 	///
 	/// * **Which direction did focus arrive from?** -- answered by *two virtuals*: `on_focus`
 	///   (forward) and `on_focus_backward` (returning from a page this item itself opened). Exactly
@@ -517,11 +512,10 @@ struct CustomItem {
 	/// enough). Fires once per focus transition, not once per render -- `render_oled`'s `Kind::Custom`
 	/// arm calls only `render`, every tick; this is the one hook a `CustomItem` gets for "I just
 	/// became the screen", the same distinction `beginSession` draws from `drawPixelsForOled` in
-	/// legacy. Named examples this task's foundation exists for: `battery::Level::beginSession`
+	/// legacy. Examples: `battery::Level::beginSession`
 	/// resets its charging-heuristic baseline (`battery/level.h:43-51`, and see
 	/// `nodes::BatteryLevelItem::on_focus`); `midi::Command::beginSession` (twelve items) and
-	/// `midi::Devices::beginSession` (which seeds the initially-selected device) are E2's next
-	/// callers.
+	/// `midi::Devices::beginSession` (which seeds the initially-selected device) are the same case.
 	virtual void on_focus(const MenuContext&, MenuState&) const {}
 
 	/// @brief Called when this item becomes the focused node again because a page it opened was
@@ -541,10 +535,9 @@ struct CustomItem {
 	/// (legacy's "walk back to the source `s`", `source_selection.cpp:110-116`) are both exactly
 	/// that case and both stay on the default; each says so at its own `on_focus`.
 	///
-	/// **E3 task 10 added this hook because "leave `MenuState` alone" is not always the backward
-	/// arm.** Until then `ascend` skipped `Kind::Custom` outright and the skip *was* the stand-in --
-	/// recorded at that site as sound only while every chain-source custom item's backward behaviour
-	/// happened to be "keep what `MenuState` already holds", with nothing testing it. It is not:
+	/// **This hook exists because "leave `MenuState` alone" is not always the backward
+	/// arm.** Skipping `Kind::Custom` on the way back would be sound only while every chain-source
+	/// custom item's backward behaviour is "keep what `MenuState` already holds", and it is not:
 	/// `gate::Selection`'s backward arm is `setValue(soundEditor.currentSourceIndex)`
 	/// (`gui/menu_item/gate/selection.h:33-41`) and its `selectButtonPress` does **not** write
 	/// `currentSourceIndex` on the minimum-off-time row (`:45-47`), so legacy puts the cursor back on
@@ -576,19 +569,16 @@ struct CustomItem {
 	/// checkbox (`gui/menu_item/toggle.h:22`, `gui/menu_item/selection.h:41`; bodies at
 	/// `toggle.cpp:50-57`, `selection.cpp:38-56`), and `midi::device_definition::Linked` and
 	/// `HideUnlabeled` with a checkbox of their own
-	/// (`gui/menu_item/midi/device_definition/linked.h:56`, `hide_unlabeled.h:48`). A bespoke item
+	/// (`gui/menu_item/midi/device_definition/linked.h`, `hide_unlabeled.h`). A bespoke item
 	/// whose legacy class overrides none of those therefore draws the arrow, whatever it is.
 	///
-	/// Counted, not asserted -- this file's own brief warns against an ungrepped superlative, and
-	/// this sentence said "three" and then listed four until F2 task 8's review:
+	/// Counted, not asserted:
 	/// `grep -rn renderSubmenuItemTypeForOled src/deluge/` is seven hits -- the base declaration
 	/// (`menu_item.h:282`) and its definition (`menu_item.cpp:69`), the `Submenu` call site
 	/// (`submenu.cpp:117`), and the four overrides above.
 	///
-	/// This hook is what `src/scenes/README.md` recorded as owed when it wrote "a `Kind::Custom`
-	/// node cannot draw a row icon in its parent's list … closing this needs a `CustomItem` hook
-	/// `row_icon` can ask". `MenuScene`'s `row_icon` asks it for every `Kind::Custom` node
-	/// (`menu_scene.cpp`).
+	/// The free function `row_icon` (`menu/present.cpp`) asks this hook for every `Kind::Custom` node,
+	/// so a bespoke node draws the same row icon its legacy class does.
 	///
 	/// @param ctx The menu context, for an item whose icon is value-dependent (the checkbox arms
 	///            above are: `MidiDeviceLinkedItem` reads whether a definition file is linked).
@@ -600,22 +590,19 @@ struct CustomItem {
 		return &deluge::gfx::oled::icons::submenuArrow;
 	}
 
-	/// @brief Is this a stand-in for an item E2 still owes, rather than the real thing?
+	/// @brief Is this a stand-in for an item that is not implemented yet, rather than the real thing?
 	///
-	/// E1's tables have to name every legacy bespoke item so the tree's *shape* is complete, but the
-	/// implementations of the file selector, the audio recorder, the loop points, the name editors,
-	/// the patch-cable pages and the multi-range picker all belonged to E2 and E3. Such a node
-	/// points at a shared placeholder (`nodes::kPending`) that draws the item's title and consumes
-	/// nothing.
+	/// The tables name every legacy bespoke item so the tree's *shape* is complete, even where the
+	/// item's implementation is not written. Such a node points at a shared placeholder (`nodes::kPending`) that draws
+	/// the item's title and consumes nothing.
 	///
 	/// A null `custom` would be worse -- nothing would render, and `validate.h`'s `NullCustom` rule
 	/// exists precisely to catch that -- but a placeholder is still not a finished item, so
 	/// `validate_tree` reports one (`Issue::Kind::PlaceholderCustom`).
 	///
-	/// @note **No node in the shipped tree answers true any more** (E3 task 7,
-	///       `validate.h`'s `kPendingCustomNodes`), and the option that used to suppress the rule
-	///       is gone with them. This hook and `nodes::kPending` stay: they are what a *future*
-	///       table declaring a shape before its item exists reaches for, and the rule now reports
+	/// @note **No node in the shipped tree answers true** (`validate.h`'s
+	///       `kPendingCustomNodes` is 0), and no option suppresses the rule. This hook and `nodes::kPending` stay: they
+	///       are what a *future* table declaring a shape before its item exists reaches for, and the rule now reports
 	///       such a node with nothing able to turn it off.
 	virtual bool is_placeholder() const { return false; }
 
@@ -624,7 +611,7 @@ struct CustomItem {
 	/// `on_focus` is `beginSession`, and `MenuScene` runs it on every focus transition -- a descent
 	/// from the parent list, a `SceneId` deep link, the shortcut-pad jump, and `restore_state`
 	/// rebuilding a saved path. Legacy runs `beginSession` on all of those too
-	/// (`SoundEditor::focusRegained` -> `beginScreen`, `gui/ui/sound_editor.cpp:330`, `:1053`), so
+	/// (`SoundEditor::focusRegained` -> `beginScreen`, `gui/ui/sound_editor.cpp`), so
 	/// for an item that *initialises* itself there the port matches and this stays false.
 	///
 	/// **It must be true for an item whose `on_focus` is really `selectButtonPress`.** Legacy has
@@ -680,7 +667,7 @@ struct CustomItem {
 	///
 	/// Every default here is "did nothing, used nothing", so no other `CustomItem` changes.
 	///
-	/// @note **Two of the three are routed now** (F1 task 10):
+	/// @note **Two of the three are routed:**
 	///       `ShellHostUI::noteOnReceivedForMidiLearn` and `pcReceivedForMidiLearn` override the two
 	///       `UI` virtuals legacy's dispatchers ask (`gui/ui/ui.h:130`, `:132`) and forward here
 	///       through `MenuScene::learn_note_on` / `learn_program_change`. **`learn_cc` still has
@@ -832,9 +819,9 @@ struct Node {
 
 	/// @brief Does this item edit something that belongs to one `MultiRange` rather than to the
 	///        `Sound` as a whole? The port of `MenuItem::isRangeDependent()`
-	///        (`gui/menu_item/menu_item.h:202`, "only relevant to some note ranges").
+	///        (`MenuItem::isRangeDependent`, "only relevant to some note ranges").
 	///
-	/// This, not "has a `bind.param`", is what makes spec E §4.1's permission rule fire
+	/// This, not "has a `bind.param`", is what makes the menu's permission rule fire
 	/// (`menu::permission_for`). The distinction matters: an ordinary patched param such as LPF
 	/// frequency lives on the `Sound` and is editable on a multisampled synth without picking a
 	/// range first, while a range-dependent item's value lives in the range itself
@@ -842,7 +829,7 @@ struct Node {
 	/// nowhere to go until one is chosen.
 	///
 	/// The legacy items that override `isRangeDependent()` to true, and so are the ones that set
-	/// this when Tasks 6-8 declare them: `sample/transpose.h:137`, `sample/loop_point.h:31`, and
+	/// this: `sample/transpose.h:137`, `sample/loop_point.h:31`, and
 	/// `multi_range.h:32` (the picker itself). `file_selector` and `osc/audio_recorder` reach the
 	/// same rule through `checkPermissionToBeginSessionForRangeSpecificParam` without the override,
 	/// and set this too.
@@ -851,7 +838,7 @@ struct Node {
 	/// @brief Does this item open itself directly from a horizontal page, bypassing the normal
 	///        range-picker gate and column-press notification? The port of
 	///        `MenuItem::allowToBeginSessionFromHorizontalMenu()`
-	///        (`gui/menu_item/menu_item.h:314`, default false).
+	///        (`MenuItem::allowToBeginSessionFromHorizontalMenu`, default false).
 	///
 	/// Five legacy classes override it to true, every one a scene opener:
 	/// `FileSelector` (`gui/menu_item/file_selector.h:35`), `osc::AudioRecorder`
@@ -890,12 +877,12 @@ struct Node {
 	/// selectButtonPress` (`toggle.h:38-42`): when the page, not the item, is current, it calls
 	/// `toggleValue()` (`:44-50`, a no-op unless `isToggle()`) and returns `NO_NAVIGATION`. Six
 	/// legacy classes override `isToggle()` to true: `arpeggiator::Mode`
-	/// (`arpeggiator/mode.h:100`), `arpeggiator::IncludeInKitArp` (`arpeggiator/
+	/// (`arpeggiator/mode.h`), `arpeggiator::IncludeInKitArp` (`arpeggiator/
 	/// include_in_kit_arp.h:88`) and `runtime_feature::SettingToggle` (`runtime_feature/setting.h:
 	/// 40-49`, the `isToggle()` override at `:45`) sit
 	/// only on vertical pages in the shipped tree and are never reached as a horizontal column; the
 	/// three that do are `delay::PingPong` (`delay/ping_pong.h:30`, ported `delay_ping_pong`,
-	/// on `delay`/`global_delay`), `randomizer::RandomizerLock` (`randomizer/randomizer_lock.h:62`,
+	/// on `delay`/`global_delay`), `randomizer::RandomizerLock` (`randomizer/randomizer_lock.h`,
 	/// ported `randomizer_lock`, on `randomizer`) and `sample::PitchSpeed`
 	/// (`sample/pitch_speed.h:80`, ported `sample<i>_pitch_speed`, on `source<i>`/
 	/// `audio_clip_sample`) -- all three `Kind::Enum`, which is why this cannot simply be folded

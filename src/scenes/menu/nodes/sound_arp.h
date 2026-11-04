@@ -2,33 +2,33 @@
 
 /// @brief The arpeggiator subtree as data: `arp` and its five children, two of which are pages.
 ///
-/// `inline constexpr` for the reason `sound_filters.h` explains (task-6 fix round 1, I3). From
+/// `inline constexpr` for the reason `sound_filters.h` explains. From
 /// `gui/ui/menus.cpp`'s `arpMenu` (`:654-668`), `arpBasicMenu` (`:626-627`), `arpPatternMenu`
 /// (`:637-644`) and `arpMpeMenu` (`:652`):
 ///
 // clang-format off
 /// | node | legacy global | legacy class | kind |
 /// |---|---|---|---|
-/// | `arp_mode` | `arpModeMenu` (`:501`) | `arpeggiator::Mode` (`arpeggiator/mode.h:30`) | Enum (toggle) |
-/// | `arp_preset` | `arpPresetModeMenu` (`:499`) | `arpeggiator::PresetMode` (`preset_mode.h:34`) | Enum |
+/// | `arp_mode` | `arpModeMenu` (`:501`) | `arpeggiator::Mode` | Enum (toggle) |
+/// | `arp_preset` | `arpPresetModeMenu` (`:499`) | `arpeggiator::PresetMode` | Enum |
 /// | `arp_gate` | `arpGateMenu` (`:527`) | `arpeggiator::ArpUnpatchedParam`, `UNPATCHED_ARP_GATE` | Int (param) |
-/// | `arp_sync` | `arpSyncMenu` (`:502`) | `arpeggiator::Sync` (`arpeggiator/sync.h:26`) | SyncLevel |
+/// | `arp_sync` | `arpSyncMenu` (`:502`) | `arpeggiator::Sync` | SyncLevel |
 /// | `arp_rate` | `arpRateMenu` (`:503`) | `arpeggiator::Rate` (`arpeggiator/rate.h:23`), `GLOBAL_ARP_RATE` | Int (param) |
 /// | `arp_basic` | `arpBasicMenu` (`:626`) | `HorizontalMenu` | Submenu (Horizontal) |
-/// | `arp_octaves` | `arpOctavesMenu` (`:508`) | `arpeggiator::Octaves` (`octaves.h:26`) | Int |
-/// | `arp_step_repeat` | `arpStepRepeatMenu` (`:524`) | `arpeggiator::StepRepeat` (`step_repeat.h:26`) | Int |
-/// | `arp_octave_mode` | `arpOctaveModeMenu` (`:509`) | `arpeggiator::OctaveMode` (`octave_mode.h:29`) | Enum |
-/// | `arp_note_mode` | `arpNoteModeMenu` (`:515`) | `arpeggiator::NoteMode` (`note_mode.h:25`) | Enum |
-/// | `arp_note_mode_drums` | `arpNoteModeMenuForDrums` (`:516`) | `arpeggiator::NoteModeForDrums` (`note_mode_for_drums.h:28`) | Enum |
-/// | `arp_chord_simulator` | `arpChordSimulatorMenuKit` (`:522`) | `arpeggiator::ChordType` (`chord_type.h:30`) | Enum |
-/// | `arp_rhythm` | `arpRhythmMenu` (`:530`) | `arpeggiator::Rhythm` (`rhythm.h:30`), `UNPATCHED_ARP_RHYTHM` | Int (param), 2 slots |
-/// | `arp_rhythm_midi` | `arpRhythmMenuMIDIOrCV` (`:532`) | `arpeggiator::midi_cv::Rhythm` (`midi_cv/rhythm.h:30`) | Int, 2 slots |
-/// | `arp_sequence_length` | `arpSequenceLengthMenu` (`:534`) | `arpeggiator::SequenceLength` (`sequence_length.h:25`) | Int (param) |
-/// | `arp_sequence_length_midi` | `arpSequenceLengthMenuMIDIOrCV` (`:536`) | `midi_cv::SequenceLength` (`midi_cv/sequence_length.h:25`) | Int |
+/// | `arp_octaves` | `arpOctavesMenu` (`:508`) | `arpeggiator::Octaves` | Int |
+/// | `arp_step_repeat` | `arpStepRepeatMenu` (`:524`) | `arpeggiator::StepRepeat` | Int |
+/// | `arp_octave_mode` | `arpOctaveModeMenu` (`:509`) | `arpeggiator::OctaveMode` | Enum |
+/// | `arp_note_mode` | `arpNoteModeMenu` (`:515`) | `arpeggiator::NoteMode` | Enum |
+/// | `arp_note_mode_drums` | `arpNoteModeMenuForDrums` (`:516`) | `arpeggiator::NoteModeForDrums` | Enum |
+/// | `arp_chord_simulator` | `arpChordSimulatorMenuKit` (`:522`) | `arpeggiator::ChordType` | Enum |
+/// | `arp_rhythm` | `arpRhythmMenu` (`:530`) | `arpeggiator::Rhythm`, `UNPATCHED_ARP_RHYTHM` | Int (param), 2 slots |
+/// | `arp_rhythm_midi` | `arpRhythmMenuMIDIOrCV` (`:532`) | `arpeggiator::midi_cv::Rhythm` | Int, 2 slots |
+/// | `arp_sequence_length` | `arpSequenceLengthMenu` (`:534`) | `arpeggiator::SequenceLength` | Int (param) |
+/// | `arp_sequence_length_midi` | `arpSequenceLengthMenuMIDIOrCV` (`:536`) | `midi_cv::SequenceLength` | Int |
 /// | `arp_pattern` | `arpPatternMenu` (`:637`) | `HorizontalMenu` | Submenu (Horizontal) |
-/// | `arp_mpe_velocity` | `arpMpeVelocityMenu` (`:651`) | `arpeggiator::ArpMpeVelocity` (`mpe_velocity.h:26`) | Enum |
+/// | `arp_mpe_velocity` | `arpMpeVelocityMenu` (`:651`) | `arpeggiator::ArpMpeVelocity` | Enum |
 /// | `arp_mpe` | `arpMpeMenu` (`:652`) | `submenu::ArpMpeSubmenu` (`submenu/arp_mpe_submenu.h:21`) | Submenu (Vertical) |
-/// | `arp_include_in_kit_arp` | `arpIncludeInKitArpMenu` (`:539`) | `arpeggiator::IncludeInKitArp` (`include_in_kit_arp.h:28`) | Enum (toggle) |
+/// | `arp_include_in_kit_arp` | `arpIncludeInKitArpMenu` (`:539`) | `arpeggiator::IncludeInKitArp` | Enum (toggle) |
 /// | `arp` | `arpMenu` (`:654`) | `Submenu` | Submenu (Vertical) |
 // clang-format on
 ///
@@ -36,28 +36,26 @@
 /// a kit with affect-entire, a synth, MIDI or CV clip -- the owners `SoundEditor::setup` chose.
 ///
 /// @note **`isToggle()` is not a `Kind`.** `arpeggiator::Mode` and `IncludeInKitArp` are
-///       `Selection`s with two options that legacy draws as a checkbox (`mode.h:100`,
-///       `include_in_kit_arp.h:71-72`) and refuses to open as a submenu
-///       (`shouldEnterSubmenu()`, `:87`/`:75`). `Kind::Enum` keeps the option list -- which is what
-///       the spec compares against `Selection::getOptions` -- and the checkbox rendering is a
-///       `Hint`-level fact this generation's interpreter does not draw. Same call task 6 made for
-///       `sample::PitchSpeed` (its S6).
+///       `Selection`s with two options that legacy draws as a checkbox (their `isToggle()` overrides) and refuses to
+///       open as a submenu (their `shouldEnterSubmenu()` overrides). `Kind::Enum` keeps the option list -- which is
+///       what the spec compares against `Selection::getOptions` -- and the checkbox rendering is a `Hint`-level fact
+///       this generation's interpreter does not draw. `sample::PitchSpeed` is treated the same way.
 ///
 /// @note **Three legacy `selectButtonPress()` jumps live here, and four pages exist only because of
 ///       them.** `PresetMode` opens the custom octave-mode page when the preset is CUSTOM
-///       (`preset_mode.h:109-118`), and `OctaveModeToNoteMode` / `OctaveModeToNoteModeForDrums`
-///       chain on to the note mode (`octave_mode.h:90`, `:99`). `arpPatternMenu` names the *plain*
+///       (`PresetMode::selectButtonPress`), and `OctaveModeToNoteMode` / `OctaveModeToNoteModeForDrums`
+///       chain on to the note mode (their `selectButtonPress` overrides). `arpPatternMenu` names the *plain*
 ///       `arpOctaveModeMenu` and `arpNoteModeMenu`, not those chaining subclasses, so all four of
 ///       the subclasses' globals (`menus.cpp:511-521`) are unreachable from any submenu literal --
 ///       which is why the port declares them below, next to the hooks that name them, rather than
-///       in a children span. The complete sweep of every `selectButtonPress` override in
-///       `gui/menu_item/` is the design spec's `selectButtonPress()` amendment.
+///       in a children span. Every `selectButtonPress` override in `gui/menu_item/` was
+///       swept for this.
 ///
 /// @note **Bespoke renderers with no `Hint`.** `PresetMode` draws an icon per preset
-///       (`preset_mode.h:109-140`) and both rhythm items draw the pattern as characters
-///       (`rhythm.h:26-45`, `midi_cv/rhythm.h:39-55`); `SequenceLength` draws "OFF" at zero
-///       (`sequence_length.h:25-33`). All four take `Hint::None`, which is the honest answer for
-///       art the toolkit has no meter for.
+///       (`PresetMode::renderInHorizontalMenu`) and both rhythm items draw the pattern as characters
+///       (`arpeggiator::Rhythm::drawInteger` / `renderInHorizontalMenu`, and the same two in `midi_cv::Rhythm`);
+///       `SequenceLength` draws "OFF" at zero (its `renderInHorizontalMenu`). All four take `Hint::None`, which is the
+///       honest answer for art the toolkit has no meter for.
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/column_hooks.h"
@@ -86,7 +84,7 @@ int32_t get_arp_preset(const MenuContext& ctx);
 void set_arp_preset(const MenuContext& ctx, int32_t value);
 /// @}
 
-/// `arpeggiator::PresetMode::getOptions` (`preset_mode.h:96-108`).
+/// `arpeggiator::PresetMode::getOptions`.
 inline constexpr uint16_t kArpPresetNames[] = {
     sid(deluge::l10n::String::STRING_FOR_OFF),    sid(deluge::l10n::String::STRING_FOR_UP),
     sid(deluge::l10n::String::STRING_FOR_DOWN),   sid(deluge::l10n::String::STRING_FOR_BOTH),
@@ -143,8 +141,8 @@ inline constexpr Node arp_note_mode_from_octave_mode_drums = with_short_column_l
                             arp_row("arpeggiator/noteMode", true, Target::FanOutFact::NONE, ShownOn::ON_LANE)),
                sid(deluge::l10n::String::STRING_FOR_ARP_NOTE_MODE_MENU_TITLE)));
 
-/// @brief `OctaveModeToNoteMode::selectButtonPress()` (`octave_mode.h:90`) and its drum twin's
-///        (`:99`): both chain on unconditionally, differing only in which note-mode page they name.
+/// @brief `OctaveModeToNoteMode::selectButtonPress()` and its drum twin's: both chain on unconditionally, differing
+/// only in which note-mode page they name.
 /// @{
 inline constexpr const Node* kArpOctaveModeToNoteModeChain[] = {&arp_note_mode_from_octave_mode};
 inline constexpr const Node* kArpOctaveModeToNoteModeDrumsChain[] = {&arp_note_mode_from_octave_mode_drums};
@@ -169,7 +167,7 @@ inline constexpr Node arp_octave_mode_to_note_mode_drums = with_short_column_lab
 
 // --- the basic page --------------------------------------------------------------------------
 
-/// @brief `PresetMode::selectButtonPress()` (`preset_mode.h:109-118`): only the CUSTOM preset opens
+/// @brief `PresetMode::selectButtonPress()`: only the CUSTOM preset opens
 ///        anything, and which page it opens depends on whether a kit row is being edited
 ///        (`soundEditor.editingKitRow()`, which `relevance::is_kit_row` ports). Every other preset
 ///        returns null, i.e. ascends.
@@ -231,8 +229,8 @@ inline constexpr Node arp_basic =
 
 // --- the pattern page ------------------------------------------------------------------------
 
-// `Octaves::getMinValue`/`getMaxValue` (`octaves.h:37-38`) and `StepRepeat`'s (`step_repeat.h:36-37`);
-// both render a plain NUMBER (`octaves.h:53`, `step_repeat.h:53`), hence `Hint::None`.
+// `Octaves::getMinValue`/`getMaxValue` and `StepRepeat`'s; both render a plain NUMBER
+// (`getRenderingStyle`), hence `Hint::None`.
 inline constexpr Node arp_octaves = with_short_column_label(with_title(
     setting_item(sid(deluge::l10n::String::STRING_FOR_NUMBER_OF_OCTAVES), Kind::Int, arp_row("arpeggiator/numOctaves")),
     sid(deluge::l10n::String::STRING_FOR_ARP_OCTAVES_MENU_TITLE)));
@@ -253,8 +251,8 @@ inline constexpr Node arp_note_mode_drums = with_short_column_label(
 inline constexpr Node arp_chord_simulator = with_short_column_label(with_title(
     setting_item(sid(deluge::l10n::String::STRING_FOR_CHORD_SIMULATOR), Kind::Enum, arp_row("arpeggiator/chordType")),
     sid(deluge::l10n::String::STRING_FOR_ARP_CHORD_SIMULATOR_MENU_TITLE)));
-// `Rhythm::getOccupiedSlots()` is 2 (`rhythm.h:51-52`), as is its MIDI/CV twin's
-// (`midi_cv/rhythm.h:70`); the range is `{0, kMaxPresetArpRhythm}` (`rhythm.h:70`), and
+// `Rhythm::getOccupiedSlots()` is 2, as is its MIDI/CV twin's; the range is
+// `{0, kMaxPresetArpRhythm}` (`Rhythm::getMinValue`/`getMaxValue`), and
 // `kMaxPresetArpRhythm == kMaxMenuValue` (`modulation/arpeggiator_rhythms.h:28`), which is the
 // param default -- so no `with_range` is needed on either.
 inline constexpr Node arp_rhythm = with_column_art(

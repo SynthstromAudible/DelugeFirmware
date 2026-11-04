@@ -29,7 +29,7 @@
 namespace deluge::scenes::menu {
 
 namespace {
-/// `cpu::VoiceUsage::kRefreshIntervalMs` (`cpu/voice_usage.h:91`).
+/// `cpu::VoiceUsage::kRefreshIntervalMs` (`cpu/voice_usage.h`).
 constexpr uint32_t kVoiceUsageSampleMs = 500;
 } // namespace
 

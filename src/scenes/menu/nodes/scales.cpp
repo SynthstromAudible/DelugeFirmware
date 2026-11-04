@@ -47,7 +47,7 @@ namespace deluge::scenes::menu::nodes {
 namespace {
 
 /// @brief The number of rows both items draw: `PresetScale` 0 .. `LAST_PRESET_SCALE`
-///        (`model/scale/preset_scales.h:70-80`).
+///        (`model/scale/preset_scales.h`).
 ///
 /// `NUM_PRESET_SCALES` is `LAST_PRESET_SCALE + 1`, i.e. the preset scales and nothing after them --
 /// `USER_SCALE` and the rest of `NUM_SCALELIKE` are not offered here, exactly as
@@ -118,7 +118,7 @@ void ActiveScalesItem::set_disabled(const MenuContext& ctx, size_t index, bool v
 void ActiveScalesItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const {
 	// `MenuItem::renderOLED` (`gui/menu_item/menu_item.cpp:37-41`) draws the screen title and then
 	// calls `drawPixelsForOled`; `ActiveScaleMenu` overrides only the second, so the title is legacy's
-	// too. (`drawName()` is overridden to nothing, `active_scales.cpp:25-26`, which is the 7SEG path.)
+	// too. (`drawName()` is overridden to nothing, `active_scales.cpp`, which is the 7SEG path.)
 	const Node* node = focused_of(state);
 	deluge::ui::shell::TextScratch scratch;
 	deluge::ui::oled::title(f, node != nullptr ? deluge_profile().text_or_digits(node->title, scratch)
@@ -130,7 +130,7 @@ void ActiveScalesItem::render(deluge::ui::oled::OledFrame& f, const MenuContext&
 	// renderer and not merely a similar one.
 	deluge::ui::oled::ListRow rows[kScaleRows];
 	for (size_t i = 0; i < kScaleRows; i++) {
-		// `scalelikeNames` holds `char const*` with static storage (`model/scale/preset_scales.h:97`),
+		// `scalelikeNames` holds `char const*` with static storage (`model/scale/preset_scales.h`),
 		// so the view outlives this frame.
 		rows[i].label = std::string_view{scalelikeNames[i]};
 		rows[i].icon =

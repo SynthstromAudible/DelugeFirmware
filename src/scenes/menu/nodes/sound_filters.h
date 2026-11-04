@@ -3,37 +3,33 @@
 /// @brief The filters subtree as data: `sound_filters` -> {`lpf`, `hpf`, `filter_routing`}.
 ///
 /// Every node is `inline constexpr`, so it has one address across every translation unit that
-/// includes this header (fix round 1, I3). That is what lets Task 9's shortcut tables be
+/// includes this header. That is what lets the shortcut tables be
 /// `constexpr const Node* shortcuts_sound[16][8]` naming `&lpf_freq` directly, the way legacy's
 /// `paramShortcutsForSounds` names `&lpfFreqMenu` -- rather than walking `children` spans at
 /// runtime. The `.cpp` keeps the `get`/`set` hook bodies and the exported `k…Children` span.
 ///
-/// Transcribed from the retired generator's declarative spec
-/// (`gui/menu_item/generate/dmenus/filter/{lpf,hpf,__init__}.py`) and its committed output
-/// (`generate/g_menus.inc:2-30`, at `ce4a79de0`), with the get/set logic of the two non-`ParamRef`
-/// items taken from the legacy classes they instantiated:
+/// Transcribed from `gui/ui/menus.cpp`'s filter block, from `lpfModeMenu`, with the get/set logic of the two
+/// non-`ParamRef` items taken from the legacy classes they instantiated:
 ///
 // clang-format off
-/// | node | legacy global (`g_menus.inc`) | legacy class |
+/// | node | legacy global | legacy class |
 /// |---|---|---|
-/// | `lpf_mode` | `lpfModeMenu` (`:259`) | `filter::FilterModeSelection` (`filter/mode.h:34`) |
-/// | `lpf_freq` | `lpfFreqMenu` (`:260`) | `filter::FilterParam` (`filter/param.h:33`) |
-/// | `lpf_res` | `lpfResMenu` (`:261`) | `filter::FilterParam` |
-/// | `lpf_morph` | `lpfMorphMenu` (`:262`) | `filter::FilterParam` |
-/// | `lpf` | `lpfMenu` (`:269`) | `HorizontalMenu` |
-/// | `hpf_mode` | `hpfModeMenu` (`:270`) | `filter::FilterModeSelection` |
-/// | `hpf_freq` | `hpfFreqMenu` (`:271`) | `filter::FilterParam` |
-/// | `hpf_res` | `hpfResMenu` (`:272`) | `filter::FilterParam` |
-/// | `hpf_morph` | `hpfMorphMenu` (`:273`) | `filter::FilterParam` |
-/// | `hpf` | `hpfMenu` (`:280`) | `HorizontalMenu` |
-/// | `filter_routing` | `filterRoutingMenu` (`:281`) | `FilterRouting` (`filter_route.h:27`) |
-/// | `sound_filters` | `soundFiltersMenu` (`:287`) | `Submenu` |
+/// | `lpf_mode` | `lpfModeMenu` | `filter::FilterModeSelection` (`filter/mode.h:34`) |
+/// | `lpf_freq` | `lpfFreqMenu` | `filter::FilterParam` (`filter/param.h:33`) |
+/// | `lpf_res` | `lpfResMenu` | `filter::FilterParam` |
+/// | `lpf_morph` | `lpfMorphMenu` | `filter::FilterParam` |
+/// | `lpf` | `lpfMenu` | `HorizontalMenu` |
+/// | `hpf_mode` | `hpfModeMenu` | `filter::FilterModeSelection` |
+/// | `hpf_freq` | `hpfFreqMenu` | `filter::FilterParam` |
+/// | `hpf_res` | `hpfResMenu` | `filter::FilterParam` |
+/// | `hpf_morph` | `hpfMorphMenu` | `filter::FilterParam` |
+/// | `hpf` | `hpfMenu` | `HorizontalMenu` |
+/// | `filter_routing` | `filterRoutingMenu` | `FilterRouting` |
+/// | `sound_filters` | `soundFiltersMenu` | `Submenu` |
 // clang-format on
 ///
-/// @note **The morph items' name.** The Python spec gives `lpfMorphMenu` `name=STRING_FOR_MORPH,
-///       title=STRING_FOR_LPF_MORPH`, but its emitted argument list is `["{title}", ...]`, so the
-///       generated line passes the *title* into the two-argument constructor and the item's name and
-///       title are both `STRING_FOR_LPF_MORPH` (`g_menus.inc:5`). `g_menus.inc` is what the firmware
+/// @note **The morph items' name.** `lpfMorphMenu` in `menus.cpp` passes `STRING_FOR_LPF_MORPH` as both the
+///       item's name and its title (not `STRING_FOR_MORPH` for the name), and `menus.cpp` is what the firmware
 ///       ships, so that is what is transcribed. Legacy then overrides `getName()`/`getTitle()` to
 ///       return the *filter mode's* morph name instead (`filter/param.h:40-41` ->
 ///       `FilterInfo::getMorphNameOr`, `filter/info.h:78-89`), and its column label to the short
@@ -117,7 +113,7 @@ inline constexpr Node hpf_morph = with_name_text(
 inline constexpr const Node* kHpfChildren[] = {&hpf_mode, &hpf_freq, &hpf_res, &hpf_morph};
 inline constexpr Node hpf = submenu(sid(deluge::l10n::String::STRING_FOR_HPF), kHpfChildren, Layout::Horizontal);
 
-/// Four slots wide -- `FilterRouting::getOccupiedSlots()` (`filter_route.h:62`), which draws the
+/// Four slots wide -- `FilterRouting::getOccupiedSlots()`, which draws the
 /// whole page rather than one column. Affect-entire routes only the drums with both filters on
 /// (`filter_route.h:49-50`).
 inline constexpr Node filter_routing = with_option_list_column(without_notification(
@@ -130,7 +126,7 @@ inline constexpr Node filter_routing = with_option_list_column(without_notificat
 inline constexpr const Node* kFiltersChildren[] = {&lpf, &hpf, &filter_routing};
 inline constexpr Node sound_filters = submenu(sid(deluge::l10n::String::STRING_FOR_FILTERS), kFiltersChildren);
 
-/// @brief This file's contribution to `kBatch1Roots`: `soundFiltersMenu` (`g_menus.inc:30`).
+/// @brief This file's contribution to `kBatch1Roots`: `soundFiltersMenu` (`menus.cpp`).
 ///
 /// Defined in the matching `.cpp`, which is also where the `get`/`set` hook bodies live.
 extern const std::span<const Node* const> kSoundFiltersChildren;

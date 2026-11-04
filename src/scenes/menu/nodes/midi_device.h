@@ -5,25 +5,24 @@
 ///        direction/zone selectors that hang off it.
 ///
 /// The port of `midi::Device midiDeviceMenu` (`gui/ui/menus.cpp:1448-1458`), the six-child submenu
-/// `midi::Devices::selectButtonPress` returns (`gui/menu_item/midi/devices.cpp:154-156`). E2 task 10
-/// declared the device *list* and recorded this page as owed (`nodes/dynamic.h`, "What is still
-/// owed"); this file is that debt, and `settings.h`'s `midi_devices` gains its `select_chain` with
-/// it, so the page is reachable, numbered, validated and dumped.
+/// `midi::Devices::selectButtonPress` returns (`gui/menu_item/midi/devices.cpp:154-156`). The device
+/// *list* is declared in `nodes/dynamic.h`; `settings.h`'s `midi_devices` chains to this page with
+/// its `select_chain`, so the page is reachable, numbered, validated and dumped.
 ///
 /// ## The six children, each with its legacy item
 ///
-///   | node | legacy item | legacy write |
-///   |---|---|---|
-///   | `mpe_direction` | `mpe::DirectionSelector directionSelectorMenu` (`menus.cpp:1475`,
-///   `gui/menu_item/mpe/direction_selector.h:25-43`) | its own `whichDirection` (`:37`) | |
-///   `device_default_velocity_to_level` | `midi::DefaultVelocityToLevel defaultVelocityToLevelMenu` (`menus.cpp:1443`,
-///   `midi/default_velocity_to_level.h:24-37`) | `MIDICable::defaultVelocityToLevel` | | `device_send_clock` |
-///   `midi::DeviceSendClock device_send_clock_menu` (`menus.cpp:1444`, `midi/device_send_clock.h:24-32`) |
-///   `MIDICable::sendClock` | | `device_receive_clock` | `midi::DeviceReceiveClock device_receive_clock_menu`
-///   (`menus.cpp:1445`, `midi/device_receive_clock.h:24-32`) | `MIDICable::receiveClock` | | `device_is_relative` |
-///   `midi::DeviceIsRelative device_is_relative_menu` (`menus.cpp:1446`, `midi/device_is_relative.h:24-32`) |
-///   `MIDICable::is_relative` | | `device_send_thru` | `midi::DeviceSendThru device_send_thru_menu` (`menus.cpp:1447`)
-///   | `MIDICable::midi_thru` |
+///   - `mpe_direction` -- legacy `mpe::DirectionSelector directionSelectorMenu`; writes its own
+///     `whichDirection`.
+///   - `device_default_velocity_to_level` -- legacy `midi::DefaultVelocityToLevel
+///     defaultVelocityToLevelMenu`; writes `MIDICable::defaultVelocityToLevel`.
+///   - `device_send_clock` -- legacy `midi::DeviceSendClock device_send_clock_menu`; writes
+///     `MIDICable::sendClock`.
+///   - `device_receive_clock` -- legacy `midi::DeviceReceiveClock device_receive_clock_menu`; writes
+///     `MIDICable::receiveClock`.
+///   - `device_is_relative` -- legacy `midi::DeviceIsRelative device_is_relative_menu`; writes
+///     `MIDICable::is_relative`.
+///   - `device_send_thru` -- legacy `midi::DeviceSendThru device_send_thru_menu`; writes
+///     `MIDICable::midi_thru`.
 ///
 /// ## The per-cable binding family
 ///
@@ -41,7 +40,7 @@
 /// its own navigation cannot reach the page without `Devices::beginSession` having assigned the
 /// pointer first (`devices.cpp:55`); this port can be pointed at the node directly by a `SceneId`
 /// deep link or a spec, so the guard is the port's, in the same spirit as `cable_at`'s
-/// (`nodes/dynamic.cpp:119-135`).
+/// (`nodes/dynamic.cpp`).
 ///
 /// Every one of the four also raises `MIDIDeviceManager::anyChangesToSave` on write, exactly where
 /// legacy does; the velocity one additionally re-patches the song

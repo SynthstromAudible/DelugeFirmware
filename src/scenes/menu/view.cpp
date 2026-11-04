@@ -124,7 +124,7 @@ void MenuView::render_vertical(MenuCore core, deluge::ui::oled::OledFrame& f, co
 		rows[i].selectable = true;
 	}
 
-	// `menu_rect(f)` is the legacy-reproducing rect (`ui/oled/list.h:33`) -- never a hand-computed
+	// `menu_rect(f)` is the legacy-reproducing rect (`menu_rect` in `ui/oled/list.h`) -- never a hand-computed
 	// one. `list` clamps the cursor, walks it with `f.turn()`, and reports `entered` on a select
 	// press, claiming both for the tick.
 	st.tick.render_resp =
@@ -179,7 +179,7 @@ void MenuView::render_horizontal(MenuCore core, deluge::ui::oled::OledFrame& f, 
 			else {
 				const IntRange range = bindings::range(target, ctx);
 				// The toolkit's own guard: a zero `step` would give a dead select knob
-				// (`ui/oled/values.cpp:38-40`'s `coarse_step`).
+				// (`coarse_step` in `ui/oled/values.cpp`).
 				int32_t step = range.step != 0 ? range.step : 1;
 				// `getNumberEditSize` on a horizontal page (`decimal.cpp:49-54`): a Decimal moves 1.00 a detent, 0.01
 				// with SELECT or SHIFT held; a node's own `HorizontalStep` overrides either.
@@ -245,7 +245,7 @@ void MenuView::render_horizontal(MenuCore core, deluge::ui::oled::OledFrame& f, 
 
 	NodeText title_scratch;
 	// `f.bounds()`, not `menu_rect(f)`: this widget owns the whole panel including its own title
-	// band (`ui/oled/columns.h:127`).
+	// band (`columns` in `ui/oled/columns.h`).
 	// A member page drawn whole (`Node::page_draw`): legacy's `renderMenuItems` overrides, which number the focused
 	// item among the member's own.
 	struct PageDrawCall {
@@ -277,7 +277,7 @@ void MenuView::render_horizontal(MenuCore core, deluge::ui::oled::OledFrame& f, 
 	                                                std::span<const deluge::ui::oled::Column>{cols, n},
 	                                                page_title(ctx, st, title_scratch), page_render);
 
-	// `columns` claims the press only for a submenu column (`ui/oled/columns.cpp:451-455`), so a
+	// `columns` claims the press only for a submenu column (`columns` in `ui/oled/columns.cpp`), so a
 	// press on a *value* column reaches nobody. `after_render` answers it as `Submenu::selectButtonPress`
 	// forwarding to the focused item does (`gui/menu_item/submenu.cpp:187-194`): enter its
 	// `select_chain` target, or `ascend()` -- see `MenuTick::column_press`'s own doc for why that
@@ -384,7 +384,7 @@ void MenuView::render_leaf_decimal(MenuCore core, deluge::ui::oled::OledFrame& f
 	deluge::ui::oled::title(f, display_text(node, ValueTextUse::Title, ctx, scratch));
 
 	// `f.bounds()`, NOT `menu_rect(f)`: `decimal_value` draws at a canvas-absolute y and honours
-	// the rect horizontally only (`ui/oled/values.h:111`), and its goldens were recorded that way.
+	// the rect horizontally only (`decimal_value` in `ui/oled/values.h`), and its goldens were recorded that way.
 	const deluge::ui::Response r =
 	    deluge::ui::oled::decimal_value(f, f.bounds(), st.edit_int, bindings::range(node, ctx),
 	                                    node.bind.decimal_places, st.decimal_pos, st.cursor_blink,
@@ -412,7 +412,7 @@ void MenuView::render_leaf_enum(MenuCore core, deluge::ui::oled::OledFrame& f, c
 	const size_t n = bindings::names(node, ctx, names_buf, names_scratch);
 
 	// `enum_value` takes a `ListState` AND a `ScrollText` of its own and has no `focused`
-	// parameter -- it owns the turn and the select itself (`ui/oled/values.h:190-191`).
+	// parameter -- it owns the turn and the select itself (`enum_value` in `ui/oled/values.h`).
 	const deluge::ui::Response r =
 	    deluge::ui::oled::enum_value(f, deluge::ui::oled::menu_rect(f), st.enum_index,
 	                                 std::span<const std::string_view>{names_buf, n}, st.enum_list, st.enum_scroll,
@@ -436,7 +436,7 @@ void MenuView::render_leaf_toggle(MenuCore core, deluge::ui::oled::OledFrame& f,
 	const std::string_view on = text_of(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_ON), on_scratch);
 
 	// A `bool&`, no `focused`; a select press reports `entered` and leaves `changed` false
-	// (`ui/oled/values.h:202-206`).
+	// (`toggle` in `ui/oled/values.h`).
 	const deluge::ui::Response r =
 	    deluge::ui::oled::toggle(f, deluge::ui::oled::menu_rect(f), st.edit_bool, off, on, st.scroll[st.depth]);
 	st.tick.render_resp = r;
@@ -474,7 +474,7 @@ void MenuView::render_leaf_sync_level(MenuCore core, deluge::ui::oled::OledFrame
 	// the panel's bottom edge). But the font is `MetricBold13`, NOT `f.style.value_font`/`big_font`
 	// (both `MetricBold20`): legacy draws this one in the smaller "Big" face at its own baseline
 	// (`sync_level.cpp:37`, `kSyncValueY`'s doc comment in `ui/core/metrics.h`), and `Style` carries
-	// no field for it -- `MetricBold9` is hard-coded the same way at `ui/oled/columns.cpp:277` for
+	// no field for it -- `MetricBold9` is hard-coded the same way in `columns` (`ui/oled/columns.cpp`) for
 	// the same reason, a legacy font choice with no `Style` counterpart. Getting this wrong doesn't
 	// just mismatch the pixels: a note-length string in the huge font (`kTextHugeSpacingX` = 18px
 	// per character) runs off both edges of a 128px panel, which is the clipping this
@@ -483,7 +483,7 @@ void MenuView::render_leaf_sync_level(MenuCore core, deluge::ui::oled::OledFrame
 	// No `f.clear(band)` here, unlike `int_value`/`decimal_value`: this scene may not call an
 	// `OledFrame` drawing primitive directly (this file's own top-of-file note), and legacy's
 	// `SyncLevel::drawPixelsForOled` does not clear its band either -- `Shell::render_oled` already
-	// clears the whole canvas before any scene draws (`shell/shell.cpp:683`), which is what makes
+	// clears the whole canvas before any scene draws, which is what makes
 	// that safe for a full-panel screen like this one.
 	constexpr deluge::gfx::oled::FontId kFont = deluge::gfx::oled::FontId::MetricBold13;
 	const deluge::gfx::oled::Rect band{f.bounds().x, f.bounds().y + deluge::ui::kSyncValueY, f.bounds().w,

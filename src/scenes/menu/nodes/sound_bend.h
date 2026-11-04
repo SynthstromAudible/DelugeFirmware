@@ -3,15 +3,15 @@
 /// @brief The bend-range subtree as data: the two-item `bend` submenu, and the single
 ///        `drum_bend_range` item that stands in for it on a kit row.
 ///
-/// `inline constexpr` for the reason `sound_filters.h` explains (task-6 fix round 1, I3). From
+/// `inline constexpr` for the reason `sound_filters.h` explains. From
 /// `gui/ui/menus.cpp`'s `bendMenu` literal (`:795-801`) and the globals it names (`:790-791`,
 /// `:1732`):
 ///
 // clang-format off
 /// | node | legacy global | legacy class | kind |
 /// |---|---|---|---|
-/// | `bend_range_main` | `mainBendRangeMenu` (`:792`) | `bend_range::Main` (`bend_range/main.h:25`) | Int |
-/// | `bend_range_per_finger` | `perFingerBendRangeMenu` (`:793`) | `bend_range::PerFinger` (`bend_range/per_finger.h:25`) | Int |
+/// | `bend_range_main` | `mainBendRangeMenu` (`:792`) | `bend_range::Main` | Int |
+/// | `bend_range_per_finger` | `perFingerBendRangeMenu` (`:793`) | `bend_range::PerFinger` | Int |
 /// | `bend` | `bendMenu` (`:795`) | `submenu::Bend` (`submenu/bend.h:23`) | Submenu (Vertical) |
 /// | `drum_bend_range` | `drumBendRangeMenu` (`:1732`) | `bend_range::PerFinger` | Int |
 // clang-format on
@@ -19,12 +19,12 @@
 /// @note **`bendMenu` and `drumBendRangeMenu` are siblings under the sound root sharing one name**
 ///       (`STRING_FOR_BEND_RANGE`). That is legacy's own doing and is not a `DuplicateName` report:
 ///       they are never relevant at once -- the submenu is for SYNTH/CV/MIDI outputs
-///       (`submenu/bend.h:26-30`), the single item for a kit row (`bend_range/per_finger.h:40-42`)
+///       (`submenu/bend.h`'s `isRelevant`), the single item for a kit row (`bend_range::PerFinger::isRelevant`)
 ///       -- and `validate.cpp`'s `co_visible` is what encodes that.
 ///
 /// @note **The two `bend_range::PerFinger` objects need different relevance**, because the class's
-///       own override depends on how deep the menu is (`per_finger.h:41`) and the two are used at
-///       different depths. See each node's note below; review round 1, I1.
+///       own override depends on how deep the menu is (`bend_range::PerFinger::isRelevant`) and the two are used at
+///       different depths. See each node's note below.
 ///
 /// @note **All three items read and write the clip's `ExpressionParamSet`**, creating it on demand
 ///       (`getOrCreateExpressionParamSet(editingKit())`, `bend_range/main.h:28-30`), and fall back
@@ -56,9 +56,9 @@ inline constexpr Node bend_range_main = setting_item(sid(deluge::l10n::String::S
                                                      Hint::Knob);
 /// @brief The per-finger range **inside the bend submenu**, where legacy always shows it.
 ///
-/// `bend_range::PerFinger::isRelevant` is `soundEditor.navigationDepth == 1 || editingKit()`
-/// (`bend_range/per_finger.h:41`). The depth is 0 while the root list is on screen
-/// (`sound_editor.cpp:1902`) and 1 inside a first-level submenu (`:366`), and this object is only
+/// `bend_range::PerFinger::isRelevant` is `soundEditor.navigationDepth == 1 || editingKit()`.
+/// The depth is 0 while the root list is on screen (`SoundEditor::setup` resets it;
+/// `SoundEditor::enterSubmenu` increments it) and 1 inside a first-level submenu, and this object is only
 /// ever reached one level down, inside `bendMenu` -- so the first arm short-circuits to true and
 /// legacy shows the item unconditionally there. A null `relevant` is that fact: always relevant,
 /// wherever this node is reachable. (`drum_bend_range` below is the *same class* used as a root
@@ -77,7 +77,7 @@ inline constexpr Node bend =
 
 /// The same class and hooks as `bend_range_per_finger`, under its own name -- legacy's
 /// "the single option available for Drums" (`menus.cpp:1732`) -- but a **root child**, i.e. shown
-/// at `navigationDepth == 0`, where `per_finger.h:41`'s first arm is false and only `editingKit()`
+/// at `navigationDepth == 0`, where `PerFinger::isRelevant`'s first arm is false and only `editingKit()`
 /// decides. `with_relevant` is what attaches the predicate to the shared shape.
 inline constexpr Node drum_bend_range = setting_item(sid(deluge::l10n::String::STRING_FOR_BEND_RANGE), Kind::Int,
                                                      {.kind = deluge::scenes::bind::Target::Kind::MODEL,

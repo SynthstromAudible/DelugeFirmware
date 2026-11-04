@@ -1,6 +1,6 @@
 #pragma once
 
-/// @brief The settings root as data (task 8, batch 3) -- `gui/ui/menus.cpp`'s `settingsRootMenu`
+/// @brief The settings root as data -- `gui/ui/menus.cpp`'s `settingsRootMenu`
 ///        literal (`:2152-2168`) and everything under it.
 ///
 /// Fourteen children, in the literal's own order: the actions page, the CV and gate output
@@ -13,60 +13,50 @@
 /// (`playback/playback_handler.h`), on `runtimeFeatureSettings`
 /// (`model/settings/runtime_feature_settings.h`) or on `AudioEngine`. Every one of those is inside
 /// this layer's include allow-list (see `scripts/check_layer_rules.py`'s `scenes-includes-outside`,
-/// which task 8 widened to `io/**` on exactly the argument tasks 3 and 7 made for `processing/**`
-/// and `dsp/**` -- `io` is already in the checker's own NON_UI glob and is held to the same
-/// no-`gui/`, no-`hid/` rules as `model/`), so the hooks read and write the real thing.
+/// which allows `io/**` on the same argument as `processing/**` and `dsp/**` -- `io` is
+/// in the checker's own NON_UI glob and is held to the same no-`gui/`, no-`hid/` rules as `model/`), so the hooks read
+/// and write the real thing.
 ///
-/// @note **What is a `Kind::Custom` placeholder here, and why.** Three groups, all of them items
-///       whose state or whose action is behind the wall this layer may not cross:
+/// @note **No `Kind::Custom` placeholder remains here.** Every item whose state or action sits behind the
+///       `hid/`/`gui/` wall this layer may not cross has a real node:
 ///
-///         * **`hid/` state.** (This group is empty now.) `flash_status` (`PadLEDs::flashCursor`,
-///           `flash/status.h:26-32`), `shortcuts_version` (`soundEditor.shortcutsVersion`,
-///           `shortcuts/version.h:26-27`) and the six `pad_colour_*` (`menu_item::Colour::value`,
-///           `colour.h:66`) were its members until **E2 task 11**, which found that not one of
-///           the three actually needed a bespoke item -- only a reachable byte:
+///         * **`hid/` state.** `flash_status` (`PadLEDs::flashCursor`, `flash/status.h:26-32`),
+///           `shortcuts_version` (`soundEditor.shortcutsVersion`, `shortcuts/version.h:26-27`) and the
+///           six `pad_colour_*` (`menu_item::Colour::value`, `colour.h:66`) are ordinary `Kind::Enum`
+///           nodes with get/set hooks, because none needed a bespoke item, only a reachable byte:
 ///             - `flashCursor` is a plain namespace-scope `uint8_t` (`hid/led/pad_leds.h:47`) that
 ///               a declaration reaches without including anything from `hid/`, exactly as
 ///               `batteryMV` is reached below.
-///             - `Colour::value` genuinely could not be reached -- it was a member of a `gui/`
-///               class -- so task 11 **moved the six bytes** to `FlashStorage::padColours`
-///               (`storage/flash_storage.h`), where the persistence code that has always read and
-///               written them (`storage/flash_storage.cpp:576-579`, `:972-975`) already lived, and
-///               made `Colour::value` a reference onto one of them. No legacy call site changed.
+///             - The six pad-colour bytes live in `FlashStorage::padColours` (`storage/flash_storage.h`),
+///               where the persistence code that reads and writes them
+///               (`storage/flash_storage.cpp:576-579`, `:972-975`) lives, and `Colour::value` is a
+///               reference onto one of them. A member of a `gui/` class could not be reached from here.
 ///             - `shortcutsVersion` selects a shortcut *layer*, and this layer owns its own tables,
 ///               so the port keeps the setting in `menu/shortcuts.cpp` beside them
 ///               (`menu::set_shortcuts_version`). That is the one item whose value legacy and the
 ///               port hold separately; `tables_3_spec.cpp`'s `value_is_port_owned` says so.
-///           All three are ordinary `Kind::Enum` nodes with get/set hooks now. (`battery_level`/`firmware_version` used
-///           to point here too, at `kPending`, but neither actually reaches behind the `hid/` wall -- `batteryMV` is a
-///           plain global set from `deluge.cpp`'s main loop, the same one `sound_editor.cpp:1458` reads with its own
-///           bare `extern` -- so E2 task 2 gave them real, finished `CustomItem`s instead of leaving them as
-///           placeholders; see "12-13. Battery and firmware" below.)
-///         * **UI navigation.** (This group is empty now. `cv_selection` / `gate_selection`
-///           (`cv/selection.h:27-55`, `gate/selection.h:29-72`: `Selection`s whose select press
-///           *navigates* to a page rather than committing a value) and `midi_devices`
-///           (`midi/devices.h:24-39`, a scrolling device list) were its last three members until
-///           E2 task 10 gave all three real items -- `CvSelectionItem`, `GateSelectionItem` and
-///           `MidiDevicesItem`, `nodes/dynamic.h` -- along with the `MenuWalkState::source_choice` /
-///           `midi_cable_choice` write-back the note below used to say they were missing.) (Two
-///           groups used to be here too, at
-///           `kPending`: the five `reset_*` items, which E2 task 7 gave a real `ResetItem` opening
-///           `context_menu::ContextMenuScene` through `MenuWalkState::pending_scene` (see "1. Actions"
-///           below); and the twelve `midi_command_*` (`midi/command.h`, MIDI-learn items), which E2
-///           task 8 gave a real `MidiCommandItem` -- they navigate nowhere, they bind an incoming
-///           MIDI message to a `GlobalMIDICommand`, and the entry points that deliver that message
-///           are `MenuScene::learn_note_on`/`learn_cc`/`learn_program_change`/`unlearn` -- the
-///           first and third of which F1 task 10 gave a producer.)
-///         * **Items with genuinely dynamic state.** (`default_tempo`, `default_swing_amount` and
-///           `default_key` were on this list. E2 task 11b brought `Kind::Range` back -- they are
-///           exactly the three consumers spec E §4's own threshold asks for -- and moved their
-///           `lower`/`upper` off the legacy menu items into `FlashStorage::defaultRanges`, the same
-///           move `padColours` made, because a member of a `gui/` class has no bare-`extern`
-///           escape. See `kDefaultTempoRange` below and `ui/oled/values.h`'s `range_value`.)
-///           (`default_active_scale` was `ActiveScaleMenu` (`gui/menu_item/active_scales.h:13-31`)
-///           and still is -- but task 11b ported it: `nodes::ActiveScalesItem` (`nodes/scales.h`)
-///           needed no new machinery either, because legacy's own renderer is
-///           `Submenu::drawSubmenuItemsForOled` with a checkbox, which `ui::oled::list` already is.)
+///           `battery_level` and `firmware_version` do not reach behind the `hid/` wall either --
+///           `batteryMV` is a plain global set from `deluge.cpp`'s main loop, the same one
+///           `sound_editor.cpp:1458` reads with its own bare `extern` -- so they are real, finished
+///           `CustomItem`s; see "12-13. Battery and firmware" below.
+///         * **UI navigation.** `cv_selection` / `gate_selection` (`cv/selection.h:27-55`,
+///           `gate/selection.h:29-72`: `Selection`s whose select press *navigates* to a page rather than
+///           committing a value) and `midi_devices` (`midi/devices.h:24-39`, a scrolling device list) are
+///           the real items `CvSelectionItem`, `GateSelectionItem` and `MidiDevicesItem`
+///           (`nodes/dynamic.h`), with a `MenuWalkState::source_choice` / `midi_cable_choice` write-back.
+///           The five `reset_*` items are a real `ResetItem` opening `context_menu::ContextMenuScene`
+///           through `MenuWalkState::pending_scene` (see "1. Actions" below). The twelve `midi_command_*`
+///           (`midi/command.h`, MIDI-learn items) are a real `MidiCommandItem`: they navigate nowhere, they
+///           bind an incoming MIDI message to a `GlobalMIDICommand`, and the entry points that deliver that
+///           message are `MenuScene::learn_note_on`/`learn_cc`/`learn_program_change`/`unlearn`.
+///         * **Items with genuinely dynamic state.** `default_tempo`, `default_swing_amount` and
+///           `default_key` are `Kind::Range` -- exactly the three consumers that
+///           justify a `Range` kind -- and their `lower`/`upper` live in `FlashStorage::defaultRanges`, not on
+///           the legacy menu items, for the same reason `padColours` does (a member of a `gui/` class has
+///           no bare-`extern` escape). See `kDefaultTempoRange` below and `ui/oled/values.h`'s
+///           `range_value`. `default_active_scale` is `nodes::ActiveScalesItem` (`nodes/scales.h`); legacy's
+///           `ActiveScaleMenu` (`gui/menu_item/active_scales.h:13-31`) renders through
+///           `Submenu::drawSubmenuItemsForOled` with a checkbox, which `ui::oled::list` already is.
 ///
 /// @note **`cvSubmenu`, `gateModeMenu` and `gateOffTimeMenu` are declared, but not as children of
 ///       anything.** They are not children of `settingsRootMenu` -- legacy reaches them only from
@@ -74,10 +64,10 @@
 ///       (`cv/selection.h:41-46`, `gate/selection.h:43-54`) -- so the port hangs them off
 ///       `cv_selection` / `gate_selection`'s `Node::chain_targets` instead, which is what the
 ///       reachability walk follows to number and validate them without inventing a parent the
-///       legacy tree does not have. The complete sweep of every chaining override in
-///       `gui/menu_item/` is the design spec's `selectButtonPress()` amendment.
+///       legacy tree does not have. Every chaining override in `gui/menu_item/` was
+///       swept for this; these two selectors are the only ones that need it.
 ///
-/// @note **Both halves of those two chains are closed (E2 task 10).** (1) Legacy's selectors
+/// @note **Both halves of those two chains are closed.** (1) Legacy's selectors
 ///       *write* `soundEditor.currentSourceIndex` before navigating, and `MenuContext::source_index`
 ///       is still not writable from a `SelectChainFn` (handed a `const MenuContext&`) -- so the
 ///       selector records its cursor in `MenuWalkState::source_choice` and `MenuScene::after_render`
@@ -86,8 +76,8 @@
 ///       `gate_selection` are real `CustomItem`s now (`nodes/dynamic.h`), so their renderers do
 ///       report a select press and the interpreter does fire the hooks. What is still owed is
 ///       narrower and is listed in `nodes/dynamic.h`: the formatted "CV OUTPUT 3" titles. (The
-///       third chain, `midi_devices` -> the per-device page, was owed until **E3 task 8** and is
-///       declared just below; the page itself is `nodes/midi_device.h`.)
+///       third chain, `midi_devices` -> the per-device page, is declared just below; the page
+///       itself is `nodes/midi_device.h`.)
 ///
 /// @note **What a write does besides storing, legacy's `hid/` calls, is filed as a `MenuAction`** for
 ///       `gui::ui::dispatchShellActions` to perform: the screensaver's `settingsChanged()`
@@ -101,8 +91,8 @@
 #include "scenes/menu/nodes/dynamic.h"      // the CV/gate selectors and the MIDI device list
 #include "scenes/menu/nodes/midi_command.h" // the twelve `MidiCommandItem`s
 #include "scenes/menu/nodes/midi_device.h"  // the per-device page `midi_devices` chains to
-#include "scenes/menu/nodes/roots.h"        // kThresholdModeNames, and `kPending` through it
-#include "scenes/menu/nodes/scales.h"       // kDefaultActiveScalesItem (task 11b)
+#include "scenes/menu/nodes/roots.h"        // kThresholdModeNames
+#include "scenes/menu/nodes/scales.h"       // kDefaultActiveScalesItem
 #include "scenes/menu/relevance.h"
 
 #include <limits>
@@ -318,11 +308,11 @@ void set_flash_status(const MenuContext& ctx, int32_t value);
 /// port keeps it in `menu/shortcuts.cpp` beside the tables it selects, and selects a whole layer
 /// rather than editing one -- see `menu::set_shortcuts_version`.
 ///
-/// **The write does two things as of F2 task 6**, and both are needed: the layer selection above,
+/// **The write does two things**, and both are needed: the layer selection above,
 /// and a `MenuAction::SetShortcutsVersion` request (`scenes/menu/action.h`) that the dispatcher
-/// turns into `soundEditor.setShortcutsVersion(...)` -- which is what reaches flash byte 60. Before
-/// that, a layout chosen from the ported menu was gone at the next power-on. The reasoning is at the
-/// hook itself.
+/// turns into `soundEditor.setShortcutsVersion(...)` -- which is what reaches flash byte 60. Without
+/// the request a layout chosen from the ported menu would be gone at the next power-on. The reasoning
+/// is at the hook itself.
 /// @{
 int32_t get_shortcuts_version(const MenuContext& ctx);
 void set_shortcuts_version(const MenuContext& ctx, int32_t value);
@@ -377,8 +367,8 @@ void set_gate_off_time(const MenuContext& ctx, int32_t value);
 // 1. Actions
 
 /// The five reset items are `nodes::ContextMenuItem`s (`nodes/context_menu_items.h`) -- one class
-/// for every menu item that opens `context_menu::ContextMenuScene`, which E2 task 11b widened from
-/// `ResetItem` when `audio_source_selector` became the sixth such item. See that header.
+/// for every menu item that opens `context_menu::ContextMenuScene` (`audio_source_selector` is the
+/// sixth such item). See that header.
 
 inline constexpr Node reset_flash = custom(sid(String::STRING_FOR_RESET_FLASH), &kResetFlashItem);
 inline constexpr Node reset_community_features =
@@ -396,7 +386,7 @@ inline constexpr Node settings_actions = submenu(sid(String::STRING_FOR_ACTIONS)
 // ---------------------------------------------------------------------------------------------
 // 2-3. The CV and gate output selectors, and the three pages only their select press reaches
 //
-// `cvSubmenu` (`menus.cpp:1232`), `gateModeMenu` (`:1223`) and `gateOffTimeMenu` (`:1224`) are not
+// `cvSubmenu` (`menus.cpp:1232`), `gateModeMenu` and `gateOffTimeMenu` (`:1224`) are not
 // children of `settingsRootMenu` or of anything else: legacy reaches all three only through
 // `cv::Selection::selectButtonPress` / `gate::Selection::selectButtonPress`. They are declared
 // here, ahead of the two selectors, because a chain hook needs their addresses;
@@ -404,7 +394,7 @@ inline constexpr Node settings_actions = submenu(sid(String::STRING_FOR_ACTIONS)
 
 /// `cv::Volts::getMinValue`/`getMaxValue`/`getNumDecimalPlaces` (`cv/volts.h:32-34`). Legacy draws
 /// "Hz/V" instead of a number at zero and refuses the horizontal encoder there (`:42-56`) -- a
-/// bespoke render this generation's `Decimal` interpreter has no field for, recorded not dropped.
+/// bespoke render this generation's `Decimal` interpreter has no field for.
 inline constexpr Node cv_volts =
     with_title_arg(with_title(decimal_item(sid(String::STRING_FOR_VOLTS_PER_OCTAVE), get_cv_volts, set_cv_volts,
                                            IntRange{0, 200, 1}, 2),
@@ -430,7 +420,7 @@ inline constexpr Node cv_submenu =
 /// on its way in (`gate/selection.h:52`). The port makes that a `dynamic_names` hook over
 /// `MenuContext::source_index` rather than mutable state on the item.
 ///
-/// Legacy's `gateModeMenu` is default-constructed (`menus.cpp:1223`), so it has **no name at all**
+/// Legacy's `gateModeMenu` is default-constructed in `menus.cpp`, so it has **no name at all**
 /// -- only a `FormattedTitle` (`gate/mode.h:36`). A `Node::name` of 0 would trip
 /// `validate_tree`'s `MissingTitle` (the builders default `title` to `name`), so the port uses the
 /// title for both, as it does for `gate_off_time` just below.
@@ -601,7 +591,7 @@ inline constexpr Node midi_takeover =
     enumeration(sid(String::STRING_FOR_TAKEOVER), kMidiTakeoverNames, get_midi_takeover, set_midi_takeover);
 
 /// The twelve `midi::Command` learn items (`menus.cpp:1416-1428`), each backed by its own
-/// `MidiCommandItem` (E2 task 8, `nodes/midi_command.h`) -- one per learnable `GlobalMIDICommand`.
+/// `MidiCommandItem` (`nodes/midi_command.h`) -- one per learnable `GlobalMIDICommand`.
 /// The order is `midiCommandsMenu`'s own (`menus.cpp:1430-1436`), which is NOT the enum's order.
 /// @{
 inline constexpr Node midi_command_play = with_learn_mode(custom(sid(String::STRING_FOR_PLAY), &kMidiCommandPlayItem));
@@ -637,8 +627,7 @@ inline constexpr Node midi_input_differentiation = toggle_item(
 /// The device list, and the per-device page a select press on it opens --
 /// `Devices::selectButtonPress` returns `&midiDeviceMenu` unconditionally
 /// (`gui/menu_item/midi/devices.cpp:154-156`). The page and its chain hook are `nodes/midi_device.h`;
-/// this is the edge that makes them reachable, numbered, validated and dumped (E3 task 8, the debt
-/// `nodes/dynamic.h` recorded).
+/// this is the edge that makes them reachable, numbered, validated and dumped.
 inline constexpr Node midi_devices = with_select_chain(
     with_title(custom(sid(String::STRING_FOR_DEVICES), &kMidiDevicesItem), sid(String::STRING_FOR_MIDI_DEVICES)),
     midi_devices_chain, kMidiDevicesChain);
@@ -743,8 +732,9 @@ inline constexpr uint16_t kFavouritesLayoutNames[] = {
     sid(String::STRING_FOR_OFF),
 };
 
-// The two keyboard-function toggles are `InvertedToggleBool`s (`menus.cpp:1537,1542`): the stored
-// flag is the *glide* mode and the menu shows *momentary*, so read and write both negate.
+// The two keyboard-function toggles are `InvertedToggleBool`s (`menus.cpp`'s `defaultUIKeyboardFunctionsVelocityGlide`
+// and `defaultUIKeyboardFunctionsModwheelGlide`): the stored flag is the *glide* mode and the menu shows *momentary*,
+// so read and write both negate.
 inline constexpr Node default_kb_velocity_glide =
     toggle_item(sid(String::STRING_FOR_DEFAULT_UI_KB_CONTROLS_VELOCITY_MOMENTARY), get_default_kb_velocity_glide,
                 set_default_kb_velocity_glide);
@@ -1178,9 +1168,8 @@ inline constexpr Node runtime_features =
 // ---------------------------------------------------------------------------------------------
 // 12-13. Battery and firmware
 //
-// Both are `CustomItem`s, not a shared `Kind`: spec E's own rule (design spec line 95, "a kind
-// exists only if >=3 items use it" -- the same rule Task 8 used to delete `Bipolar`/`Range`/
-// `MultiRange`/`Colour`/`Action`) keeps a two-consumer kind out of `node.h`. Legacy's
+// Both are `CustomItem`s, not a shared `Kind`: the rule is that a kind exists only if
+// >=3 items use it, which keeps a two-consumer kind out of `node.h`. Legacy's
 // `battery::Level` / `firmware::Version` (`gui/menu_item/battery/level.h`, `firmware/version.h`)
 // have no `writeCurrentValue` and no `buttonAction` override -- only a `drawPixelsForOled` that
 // formats a string and draws it -- but `battery::Level` keeps state across renders (the charging

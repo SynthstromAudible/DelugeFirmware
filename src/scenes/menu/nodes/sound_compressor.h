@@ -2,28 +2,28 @@
 
 /// @brief The compressor subtree as data: `audio_comp` and its six columns.
 ///
-/// `inline constexpr` for the reason `sound_filters.h` explains (fix round 1, I3). From
-/// `gui/menu_item/generate/dmenus/compressor.py` and `generate/g_menus.inc:31-45` (at `ce4a79de0`):
+/// `inline constexpr` for the reason `sound_filters.h` explains. From
+/// `gui/ui/menus.cpp`'s compressor block, from `threshold`:
 ///
 // clang-format off
 /// | node | legacy global | legacy class |
 /// |---|---|---|
-/// | `comp_threshold` | `threshold` (`:288`) | `audio_compressor::CompParam` (`audio_compressor/compressor_params.h:26`) |
-/// | `comp_ratio` | `compRatio` (`:289`) | `audio_compressor::Ratio` (`compressor_values.h:85`) |
-/// | `comp_blend` | `compBlend` (`:290`) | `audio_compressor::Blend` (`compressor_values.h:108`) |
-/// | `comp_attack` | `compAttack` (`:291`) | `audio_compressor::Attack` (`compressor_values.h:57`) |
-/// | `comp_release` | `compRelease` (`:292`) | `audio_compressor::Release` (`compressor_values.h:70`) |
-/// | `comp_hpf` | `compHPF` (`:293`) | `audio_compressor::SideHPF` (`compressor_values.h:95`) |
-/// | `audio_comp` | `audioCompMenu` (`:302`) | `HorizontalMenu` |
+/// | `comp_threshold` | `threshold` | `audio_compressor::CompParam` (`audio_compressor/compressor_params.h:26`) |
+/// | `comp_ratio` | `compRatio` | `audio_compressor::Ratio` |
+/// | `comp_blend` | `compBlend` | `audio_compressor::Blend` |
+/// | `comp_attack` | `compAttack` | `audio_compressor::Attack` |
+/// | `comp_release` | `compRelease` | `audio_compressor::Release` |
+/// | `comp_hpf` | `compHPF` | `audio_compressor::SideHPF` |
+/// | `audio_comp` | `audioCompMenu` | `HorizontalMenu` |
 // clang-format on
 ///
 /// @note **`Scaling::HalfPrecision` on the threshold** -- `CompParam::readCurrentValue` /
-///       `getFinalValue` (`compressor_params.h:29-33`) are the half-precision pair, the exception
+///       `getFinalValue` (`audio_compressor::CompParam`) are the half-precision pair, the exception
 ///       `bindings.h` says a table must name at the call site because nothing can infer it. The
 ///       validator's `Flag::HalfPrecision` audit re-checks that it is set (`kHalfPrecisionNodes`).
 ///
 /// @note **The five `CompressorValue`s store and edit the knob position** (`Kind::Decimal` over 0..`kMaxKnobPos`), as
-///       legacy's `DecimalWithoutScrolling` does (`compressor_values.h:18`); their banners and screens show
+///       legacy's `DecimalWithoutScrolling` does (`audio_compressor::CompressorValue`); their banners and screens show
 ///       `getDisplayValue()`'s real units through `compressor_banner`/`compressor_screen`.
 
 #include "scenes/menu/node.h"
@@ -54,8 +54,9 @@ inline constexpr Node comp_threshold = param(
     sid(deluge::l10n::String::STRING_FOR_THRESHOLD),
     {deluge::modulation::params::Kind::UNPATCHED_SOUND, deluge::modulation::params::UNPATCHED_COMPRESSOR_THRESHOLD},
     Hint::Bar, nullptr, sid(deluge::l10n::String::STRING_FOR_COMP_THRESHOLD_MENU_TITLE), Scaling::HalfPrecision);
-// The decimal-place counts are `compressor_values.h:52`, `:78` and `:127`; the hints are
-// `getRenderingStyle()` at `:54`, `:65`, `:79` and `:106`.
+// The decimal-place counts are the `getNumDecimalPlaces()` overrides of `audio_compressor::CompressorValue`, `Release`
+// and `Blend`; the hints are the `getRenderingStyle()` overrides of `CompressorValue`, `Attack`, `Release` and
+// `SideHPF`.
 inline constexpr Node comp_ratio = with_leaf_text(
     with_value_text(
         with_horizontal_step(
@@ -121,7 +122,7 @@ inline constexpr const Node* kCompChildren[] = {&comp_threshold, &comp_ratio,   
 inline constexpr Node audio_comp = submenu(sid(deluge::l10n::String::STRING_FOR_COMMUNITY_FEATURE_MASTER_COMPRESSOR),
                                            kCompChildren, Layout::Horizontal);
 
-/// @brief This file's contribution to `kBatch1Roots`: `audioCompMenu` (`g_menus.inc:45`).
+/// @brief This file's contribution to `kBatch1Roots`: `audioCompMenu` (`menus.cpp`).
 ///
 /// Defined in the matching `.cpp`, which is also where the `get`/`set` hook bodies live.
 extern const std::span<const Node* const> kSoundCompressorChildren;

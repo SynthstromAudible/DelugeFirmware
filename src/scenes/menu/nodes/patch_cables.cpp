@@ -77,7 +77,7 @@ void append(char* out, size_t& len, size_t cap, std::string_view s) {
 }
 
 /// @brief A menu-unit cable value (-5000..5000) as "-12.34" -- the `floatToString(level / 100, ...,
-///        2, 2)` at `patch_cables.cpp:80`, without the float.
+///        2, 2)` in `PatchCables::renderOptions`, without the float.
 void append_cable_value(char* out, size_t& len, size_t cap, int32_t value) {
 	if (value < 0) {
 		append(out, len, cap, "-");
@@ -282,7 +282,7 @@ void PatchCablesItem::on_focus(const MenuContext& /*ctx*/, MenuState& state) con
 	// entry and is restored from `savedVal` on the way back. The port needs no `savedVal`: coming
 	// *back* from a chained page runs `MenuScene::ascend`, which does not call `on_focus` at all, so
 	// `list[depth]` still holds the cursor the user left. This hook is therefore the forward-entry
-	// arm alone, and `on_focus_backward` (E3 task 10's port of the `savedVal` restore) is left on
+	// arm alone, and `on_focus_backward` (the port of the `savedVal` restore) is left on
 	// its do-nothing default -- deliberately, not by omission: `list[depth]` already holding the
 	// value `savedVal` would restore is exactly what makes the default correct here, unlike
 	// `GateSelectionItem`'s (`nodes/dynamic.cpp`), which needs the hook because its own cursor is
@@ -563,15 +563,12 @@ void PatchCableStrengthItem::on_focus(const MenuContext& ctx, MenuState& state) 
 /// is 5) each of them lands on exactly the canvas row `PatchCableStrength::renderOLED` names, and
 /// on the taller panel the page hugs the visible top as one piece instead of splitting in half.
 ///
-/// That last part is the fix for E2 task 12's re-ruling. The page used to be laid out two ways at
-/// once: the diagram and the switch frame-local, but the number on `decimal_value`'s
-/// **canvas-absolute** rows 20/41 -- which are `Decimal::drawPixelsForOled`'s constants for the
-/// *full-panel* number page, not this page's. Those rows sit 10 rows below legacy's number, which
-/// left no room under it, which is why the switch had been pushed to the top of the frame, above
-/// the number, where legacy puts it below. So the page had legacy's *face* for the number (task 12)
-/// and the toolkit's *position* for the switch -- an arrangement neither argument supported.
-/// `DecimalLayout` now carries the rows as well as the face (`ui/oled/values.h`), the number goes
-/// where `patch_cable_strength.cpp` puts it, and the switch follows it down to legacy's `startY`.
+/// Every part of the page is laid out one way. `decimal_value`'s own rows 20/41 are
+/// **canvas-absolute**: `Decimal::drawPixelsForOled`'s constants for the *full-panel* number page,
+/// not this page's. They sit 10 rows below legacy's number, which would leave no room under it for
+/// the switch, where legacy puts it. So `DecimalLayout` carries the rows as well as the face
+/// (`ui/oled/values.h`), the number goes where `patch_cable_strength.cpp` puts it, and the switch
+/// follows it down to legacy's `startY`.
 ///
 /// Legacy's four constants, and what each becomes here:
 ///
@@ -663,13 +660,12 @@ void PatchCableStrengthItem::render(deluge::ui::oled::OledFrame& f, const MenuCo
 	// `drawStringAlignRight(..., OLED_MAIN_WIDTH_PIXELS - rightPadding)`
 	// (`patch_cable_strength.cpp:172-177`).
 	//
-	// E2 task 12 fix round 1. Task 9 left this on the toolkit's default huge face, on the reasoning
-	// that the difference was cosmetic; it is not. At 18px per glyph the string runs off the panel
-	// for **every** value of magnitude 10 or more, and further for every negative one -- most of the
-	// +/-50.00 range (`kMinMenuPatchCableValue`/`kMaxMenuPatchCableValue`), on the single number this
-	// page exists to edit, while the mod-matrix list one level up renders the same value correctly.
-	// At 11px the widest string this range reaches (`-50.00`, five glyphs and a half-width period =
-	// 60px) sits comfortably inside the 70px column left of the diagram.
+	// The toolkit's default huge face is wrong here, and the difference is not cosmetic. At 18px per
+	// glyph the string runs off the panel for **every** value of magnitude 10 or more, and further
+	// for every negative one -- most of the +/-50.00 range (`kMinMenuPatchCableValue`/`kMaxMenuPatchCableValue`), on
+	// the single number this page exists to edit, while the mod-matrix list one level up renders the same value
+	// correctly. At 11px the widest string this range reaches (`-50.00`, five glyphs and a half-width period = 60px)
+	// sits comfortably inside the 70px column left of the diagram.
 	static constexpr deluge::ui::oled::DecimalLayout kValueLayout{.font = deluge::gfx::oled::FontId::MetricBold13,
 	                                                              .right_pad = 3,
 	                                                              .text_dy = kValueTextY,
@@ -756,11 +752,11 @@ const Node* source_selection_regular_chain(const MenuContext& /*ctx*/, const Men
 }
 
 const Node* source_selection_range_chain(const MenuContext& /*ctx*/, const MenuState& /*state*/) {
-	return &patch_cable_strength_range; // `source_selection/range.cpp:33`
+	return &patch_cable_strength_range; // `source_selection::Range::selectButtonPress`
 }
 
 const Node* patch_cable_strength_chain(const MenuContext& /*ctx*/, const MenuState& /*state*/) {
-	return &source_selection_range; // `patch_cable_strength.cpp:308`
+	return &source_selection_range; // `PatchCableStrength::selectButtonPress`
 }
 
 const Node* patch_cables_chain(const MenuContext& ctx, const MenuState& state) {

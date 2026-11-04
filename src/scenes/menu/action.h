@@ -4,7 +4,7 @@
 /// @brief The **action seam**: how a menu item says "run this root-UI action" without the scenes
 ///        layer reaching into `gui/`.
 ///
-/// `MenuWalkState::pending_scene` is the noun half of this seam and has been there since task 5: an item
+/// `MenuWalkState::pending_scene` is the noun half of this seam: an item
 /// names a *scene* and `MenuScene::after_render` turns the request into a `Push`. It works because
 /// every scene a menu wants to open is inside `src/scenes`. Five ported items are not like that --
 /// what their select press does is run a piece of legacy root-UI behaviour:
@@ -26,7 +26,7 @@
 /// legacy `ContextMenu` subclasses that this plan has not ported, so even `pending_scene` could not
 /// spell them.
 ///
-/// ## The sixth item, which is a different shape (F2 task 6)
+/// ## The sixth item, which is a different shape
 ///
 /// `shortcuts_version` is **not** one of those five and must not be read as one. Its select press
 /// does nothing special: it is an ordinary `Kind::Enum` leaf, and legacy's own
@@ -34,10 +34,10 @@
 /// What crosses the wall is its **write**. `shortcuts::Version::writeCurrentValue`
 /// (`gui/menu_item/shortcuts/version.h:27`) is `soundEditor.setShortcutsVersion(this->getValue())`,
 /// and `SoundEditor::shortcutsVersion` is the byte `FlashStorage::writeSettings` stores at flash
-/// byte 60 (`storage/flash_storage.cpp:982`). The ported hook could reach neither symbol, so it
-/// wrote only this layer's mirror (`menu::set_shortcuts_version`, `scenes/menu/shortcuts.h`) and a
-/// layout chosen from the ported settings menu was in force for the session and gone at the next
-/// power-on. `MenuAction::SetShortcutsVersion` is that missing half.
+/// byte 60 (`storage/flash_storage.cpp:982`). The ported hook can reach neither symbol, so it
+/// writes only this layer's mirror (`menu::set_shortcuts_version`, `scenes/menu/shortcuts.h`), so without
+/// the action a layout chosen from the ported settings menu would be in force for the session and gone
+/// at the next power-on. `MenuAction::SetShortcutsVersion` is the legacy half of that write.
 ///
 /// Two consequences follow from "a write, not a press", and both are load-bearing below:
 ///
@@ -46,7 +46,7 @@
 ///   * it must **not** ascend the menu, because legacy stays on the item while the user turns the
 ///     encoder. See the `switch` in `MenuScene::after_render` that decides that question.
 ///
-/// ## The seventh, which is the sixth's shape again, twice over (F2 task 7)
+/// ## The seventh, which is the sixth's shape again, twice over
 ///
 /// `screensaver_mode` and `screensaver_timeout` are two more writes, not presses, and they share
 /// **one** enumerator. Legacy's `ScreensaverModeMenu::writeCurrentValue` and
@@ -54,10 +54,11 @@
 /// are each two statements: a `FlashStorage` assignment, and
 /// `hid::display::Screensaver::settingsChanged()`. The port already makes the assignment -- the two
 /// hooks write `FlashStorage::screensaverMode` and `screensaverTimeoutMinutes` themselves
-/// (`nodes/settings.cpp:601`, `:609`), so **these settings have always persisted**, which is the one
-/// way this differs from `shortcuts_version`'s gap. What it could not do is the second statement:
-/// `settingsChanged()` is `hid/`, which `src/scenes` may not include. So both screensavers kept
-/// their old timings until the next boot or the next edit made from the legacy menu.
+/// (the screensaver setters in `nodes/settings.cpp`), so **these settings persist**, which is the one
+/// way this differs from `shortcuts_version`. What the hooks cannot do is the second statement:
+/// `settingsChanged()` is `hid/`, which `src/scenes` may not include. Without the action both
+/// screensavers would keep their old timings until the next boot or the next edit made from the
+/// legacy menu.
 ///
 /// **One enumerator, because legacy's notify takes no argument.** `settingsChanged()` is a
 /// zero-parameter static that re-reads both globals itself (`hid/display/screensaver.cpp:200-241`),
@@ -81,8 +82,8 @@
 /// ## What this file does NOT do
 ///
 /// `take_action()` is an outbox and this file is only its producing half. Its consumer,
-/// `gui::ui::dispatchShellActions` (`gui/ui/shell_action_dispatch.h`), arrived with F2 task 1 and
-/// drains it once per guest tick; **all seven arms have bodies as of F2 task 7**. The specs in
+/// `gui::ui::dispatchShellActions` (`gui/ui/shell_action_dispatch.h`), drains it once per guest tick;
+/// **every arm has a body**. The specs in
 /// `sim/scenes_spec/menu_actions_spec.cpp` assert both halves: that the right item emits the right
 /// *identity* and payload through the real input path, and -- in the four `dispatchShellActions`
 /// groups -- that the legacy effect happens. Only `StartStemExport`'s acting half is still pinned by
@@ -113,19 +114,19 @@ enum class MenuAction : uint8_t {
 	/// @brief Enter the performance view in the editing mode named by `MenuActionRequest::arg`
 	///        (a `PerformanceEditingMode`, and never `DISABLED` -- see `nodes/actions.h`).
 	///
-	/// The dispatcher owed `editing_mode.h:56-95` and pays it as of F2 task 2: set
+	/// The dispatcher performs `editing_mode.h:56-95`: set
 	/// `performanceView.defaultEditingMode = true` and `editingParam` from the payload, call
 	/// `performanceView.resetPerformanceView(modelStack)` unless `editingParam`, then `openUI(...)`.
 	OpenPerformanceView,
 
 	/// @brief Begin a stem export. `arg` is unused.
 	///
-	/// The dispatcher performs all of `stem_export/start.h:31-49` as of F2 task 3, **including the
+	/// The dispatcher performs all of `stem_export/start.h:31-49`, **including the
 	/// `getRootUI()` fan-out that picks between `StemExportType::MIXDOWN`/`TRACK`/`CLIP`/`DRUM`**.
 	/// The `soundEditor.exitCompletely()` that precedes it (`:32`) is performed *in equivalent
 	/// form rather than verbatim*, and that is the one divergence: under the guest the open UI is
 	/// `ShellHostUI` and not `soundEditor`, so the literal call would walk `closeUI` off the front
-	/// of the navigation stack. `closePortedMenu` (`gui/ui/shell_action_dispatch.cpp:189-191`)
+	/// of the navigation stack. `closePortedMenu` (`gui/ui/shell_action_dispatch.cpp`)
 	/// empties the guest's scene stack instead and lets `ShellHostUI::timerCallback` do the close
 	/// it already owns -- the same statement the menu's own root-Back reaches. That file argues it
 	/// at length; this reference exists so the divergence is not discoverable only from there.
@@ -148,8 +149,8 @@ enum class MenuAction : uint8_t {
 	///        `shortcuts_version` item's write. `arg` is the value the item was set to.
 	///
 	/// The dispatcher performs `shortcuts::Version::writeCurrentValue`'s one statement
-	/// (`gui/menu_item/shortcuts/version.h:27`) on the real `soundEditor`, which F1 task 8
-	/// established is the single writer covering all four legacy paths that change this setting
+	/// (`gui/menu_item/shortcuts/version.h:27`) on the real `soundEditor`, which is the single writer covering all four
+	/// legacy paths that change this setting
 	/// (`SoundEditor::setShortcutsVersion`, `gui/ui/sound_editor.cpp:112-181`, the census in its own
 	/// comment). That is what puts the choice in flash byte 60
 	/// (`FlashStorage::writeSettings`, `storage/flash_storage.cpp:982`).
@@ -162,7 +163,7 @@ enum class MenuAction : uint8_t {
 	///
 	/// **This does not loop, and that is a design constraint rather than an observation.**
 	/// `SoundEditor::setShortcutsVersion` mirrors *into* this layer -- it calls
-	/// `menu::set_shortcuts_version` (`scenes/menu/shortcuts.h`), F1 task 8's fix. That callee is the
+	/// `menu::set_shortcuts_version` (`scenes/menu/shortcuts.h`). That callee is the
 	/// free function that assigns one file-scope `ShortcutsVersion` in `menu/shortcuts.cpp`; it is
 	/// **not** `nodes::set_shortcuts_version`, files no request and touches no `MenuState`. So the
 	/// round trip is exactly one lap: hook -> request -> dispatcher -> legacy write -> mirror write,
@@ -176,8 +177,8 @@ enum class MenuAction : uint8_t {
 	/// The dispatcher performs the second statement of `ScreensaverModeMenu::writeCurrentValue` and
 	/// of `ScreensaverTimeout::writeCurrentValue` (`gui/menu_item/defaults/screensaver.h:40`, `:62`).
 	/// The first statement of each -- the `FlashStorage` assignment -- is already made by the ported
-	/// hook itself, so unlike `SetShortcutsVersion` **no value is lost at power-off**; what was
-	/// missing was only the immediate apply.
+	/// hook itself, so unlike `SetShortcutsVersion` **no value is lost at power-off**; all that is
+	/// needed is the immediate apply.
 	///
 	/// **One call updates both screensavers, which is why one enumerator is enough.**
 	/// `Screensaver::settingsChanged()` (`hid/display/screensaver.cpp:200-241`) does three things:
@@ -191,7 +192,7 @@ enum class MenuAction : uint8_t {
 	///
 	/// **This does not loop.** `settingsChanged()` writes no menu state and files no request: its
 	/// only reach back into this layer is `Shell::set_screensaver_idle_ms`, which sets one number on
-	/// a `shell::Screensaver` service (`shell/shell.h:223-229`). Nothing on that path touches
+	/// a `shell::Screensaver` service (`Shell::set_screensaver_idle_ms`). Nothing on that path touches
 	/// `MenuState`, so the round trip is hook -> request -> notify, and it stops.
 	ScreensaverSettingsChanged,
 
@@ -234,12 +235,12 @@ struct MenuActionRequest {
 /// and `performanceView.editingParam` -- two plain `bool` members of a `gui/views/` class
 /// (`gui/views/performance_view.h:112-113`), read and written from thirty-odd places inside that
 /// view. There is no bare-`extern` escape from a class member (the trick `settings.cpp` uses for
-/// `PadLEDs::flashCursor`), and unlike task 11's `Colour::value` these are not one setting byte that
+/// `PadLEDs::flashCursor`), and unlike `Colour::value` these are not one setting byte that
 /// obviously belongs in `FlashStorage` -- they are that view's live mode. So the port owns a mirror,
 /// which is exactly the arrangement `menu::shortcuts_version()` already documents for
-/// `soundEditor.shortcutsVersion` (`scenes/menu/shortcuts.h`, task 11 §4).
+/// `soundEditor.shortcutsVersion` (`scenes/menu/shortcuts.h`).
 ///
-/// **What the wiring plan owed, and what it paid (F2 task 5, shipped).** The mirror is
+/// **Who keeps the mirror in step.** The mirror is
 /// authoritative for what the menu *shows* and for what `MenuAction::OpenPerformanceView` carries.
 /// It is not authoritative for the view, so `set_performance_editing_mode()` has to be called at
 /// **every** site that moves those two bools. There are **five writers: four inside
@@ -264,13 +265,13 @@ struct MenuActionRequest {
 /// (`gui/menu_item/performance_session_view/editing_mode.h:50-97`, the writes at `:56-57` and
 /// `:60-61`, the call at `:84`) -- **the legacy menu item this node ports**, and the only writer outside the view.
 ///
-/// **Why the fifth is not one of the four, and why excluding it was wrong.** "Behind the menu's
-/// back" reads like it excludes the menu's own item, and F2 task 5's first pass excluded it on
-/// exactly that reading. The exclusion holds only while `RuntimeFeatureSettingType::ShellMenu` is
+/// **Why the fifth is a sync site like the four.** "Behind the menu's
+/// back" reads like it excludes the menu's own item, but it does not. An exclusion holds only while
+/// `RuntimeFeatureSettingType::ShellMenu` is
 /// **On**. With the toggle off, this item is the way into an editing mode from a menu
-/// (`gui/views/performance_view.cpp:882`'s `else` branch), it writes both bools, and a mirror it
+/// (the `else` branch of `PerformanceView::buttonAction`'s SELECT_ENC arm), it writes both bools, and a mirror it
 /// does not maintain sits stale until the toggle is flipped -- at which point `PerformEditorItem`
-/// seeds its cursor from the rot (`menu/nodes/actions.cpp:121`). That is the same flip-on staleness
+/// seeds its cursor from the rot (`PerformEditorItem::on_focus`). That is the same flip-on staleness
 /// that makes gating the other four calls a bug, so the same answer applies: the mirror is
 /// maintained by **every** writer, in both toggle states, or it is not maintained at all. The call
 /// passes `currentMode` rather than re-deriving, because the branch above it set the bools *from*
@@ -281,18 +282,17 @@ struct MenuActionRequest {
 /// be re-checked rather than believed: `grep -rn "defaultEditingMode\|editingParam" src sim` and
 /// keep the assignments. Nine are in `PerformanceView` (the four sites above, eight lines, plus the
 /// constructor); four are `EditingMode::selectButtonPress`'s two arms; two pairs are
-/// `gui/ui/shell_action_dispatch.cpp:95-100`, this seam's own arm, which runs *from* a mirror the
-/// node has already set. Nothing else in the tree writes either bool. Every one of those either
-/// syncs or is a pair that starts in agreement -- the constructor's `defaultEditingMode = false`
+/// the `OpenPerformanceView` arm of `gui/ui/shell_action_dispatch.cpp`, this seam's own arm, which runs *from* a mirror
+/// the node has already set. Nothing else in the tree writes either bool. Every one of those either syncs or is a pair
+/// that starts in agreement -- the constructor's `defaultEditingMode = false`
 /// (`gui/views/performance_view.cpp:239`) against this mirror's own `DISABLED` initialiser
-/// (`menu/nodes/actions.cpp:45`). That constructor write is deliberately **not** a sync site: it
-/// runs at static init, the two already agree, and a call there would only add a dependency on two
-/// translation units' initialisation order. The reasoning is repeated at that line, so a reader who
-/// counts four calls against nine writes in that file does not "fix" it.
+/// (the mirror's initialiser in `menu/nodes/actions.cpp`). That constructor write is deliberately **not** a sync site:
+/// it runs at static init, the two already agree, and a call there would only add a dependency on two translation
+/// units' initialisation order. The reasoning is repeated at that line, so a reader who counts four calls against nine
+/// writes in that file does not "fix" it.
 ///
-/// A site listed here until F2 task 5 **does not exist**: `focusRegained`
-/// (`gui/views/performance_view.cpp:328-345`) writes neither bool. The write that entry's `:189`
-/// pointed at was the constructor's, correctly numbered at the time and wrongly attributed.
+/// `PerformanceView::focusRegained` writes neither bool, so it is not a sync site; the one write
+/// near it is the constructor's.
 ///
 /// With all five the mirror and the view agree at every point the menu can observe, **in both
 /// toggle states**. This is the single node excluded from the generic port-vs-legacy value
@@ -310,7 +310,7 @@ struct MenuActionRequest {
 ///          `sim/scenes_spec/menu_actions_spec.cpp`'s `menu_action_perform_mirror` group pin all
 ///          five sites and all four of that helper's callers, but they can only fail for a site
 ///          that exists; they cannot notice a new one. The durable fix is to move the two bools out
-///          of the view, which is a larger legacy change than this task took on; until then this
+///          of the view, which is a larger legacy change; until then this
 ///          comment is the contract.
 /// @{
 

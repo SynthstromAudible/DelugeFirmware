@@ -2,33 +2,31 @@
 
 /// @brief The master page as data: `sound_master` and its five columns.
 ///
-/// `inline constexpr` for the reason `sound_filters.h` explains (task-6 fix round 1, I3). From
+/// `inline constexpr` for the reason `sound_filters.h` explains. From
 /// `gui/ui/menus.cpp`'s `soundMasterMenu` literal (`:1739-1742`) and the globals it names
 /// (`:1727`, `:1727-1735`):
 ///
 // clang-format off
 /// | node | legacy global | legacy class | kind |
 /// |---|---|---|---|
-/// | `synth_mode` | `synthModeMenu` (`:1735`) | `SynthModeSelection` (`gui/menu_item/synth_mode.h:28`) | Enum |
+/// | `synth_mode` | `synthModeMenu` (`:1735`) | `SynthModeSelection` (`gui/menu_item/synth_mode.h`) | Enum |
 /// | `master_volume` | `volumeMenu` (`:1731`) | `patched_param::Integer`, `GLOBAL_VOLUME_POST_FX`, `BAR` | Int (param) |
 /// | `master_pan` | `panMenu` (`:1733`) | `patched_param::Pan`, `LOCAL_PAN` (`patched_param/pan.h:21`) | Int (param, `Scaling::Pan`) |
 /// | `master_transpose` | `masterTransposeMenu` (`:1725`) | `MasterTranspose` (`master_transpose.h:31`) | Int (hooks + learn param) |
-/// | `vibrato` | `vibratoMenu` (`:1725`) | `patch_cable_strength::Fixed` | **Custom, E2** |
+/// | `vibrato` | `vibratoMenu` (`:1725`) | `patch_cable_strength::Fixed` | **Custom** |
 /// | `sound_master` | `soundMasterMenu` (`:1739`) | `HorizontalMenu` | Submenu (Horizontal) |
 // clang-format on
 ///
-/// @note **`vibratoMenu` is an E2 placeholder.** `patch_cable_strength::Fixed` edits a *patch
+/// @note **`vibratoMenu` is a custom node.** `patch_cable_strength::Fixed` edits a *patch
 ///       cable*'s strength, not a parameter: its `readCurrentValue`/`writeCurrentValue` go through
-///       `PatchCableSet` (`gui/menu_item/patch_cable_strength.cpp`), and spec E §4 lists
-///       "patch-cable strength" among the bespoke items E2 owns alongside the patch-cable pages
-///       themselves. The node names it and points at `kPending`, so the tree's shape is right and
-///       `validate_tree` reports it (`Issue::Kind::PlaceholderCustom`) until E2 lands.
+///       `PatchCableSet` (`gui/menu_item/patch_cable_strength.cpp`), so it is a `custom` node over
+///       `kVibratoItem` rather than a data-only page.
 ///
 /// @note **`masterTransposeMenu` is a `menu_item::Transpose`-shaped item**: an `Integer` with its
 ///       own read/write over `Sound::transpose` AND a `PatchedParam` reporting
 ///       `LOCAL_PITCH_ADJUST` (`master_transpose.h:69-70`), exactly the pattern
-///       `detail.h::with_learn_param` exists for (task-6 fix round 1, I1). Its `Hint` is `None`:
-///       `getRenderingStyle()` returns `NUMBER` (`master_transpose.h:86`).
+///       `detail.h::with_learn_param` exists for. Its `Hint` is `None`:
+///       `getRenderingStyle()` returns `NUMBER` (`Decimal::getRenderingStyle`).
 ///
 /// @note **`SynthModeSelection::writeCurrentValue` ends with `view.setKnobIndicatorLevels()`**
 ///       (`synth_mode.h:57`) -- `gui/views/` is behind the `scenes-includes-outside` wall, and the
@@ -40,7 +38,7 @@
 #include "scenes/menu/nodes/detail.h"
 #include "scenes/menu/nodes/fan_out_rules.h"
 #include "scenes/menu/nodes/patch_cables.h" // `vibrato` is a fixed patch cable
-#include "scenes/menu/nodes/sound_osc.h"    // kPending
+#include "scenes/menu/nodes/sound_osc.h"
 #include "scenes/menu/relevance.h"
 
 #include <span>

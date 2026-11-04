@@ -105,7 +105,7 @@ void MenuScene::reset_process_state() {
 }
 
 bool MenuScene::on_enter(const SceneId& id) {
-	// `SceneId::arg` is deliberately NOT part of the `SceneState` cache key (`shell/scene.h:68`),
+	// `SceneId::arg` is deliberately NOT part of the `SceneState` cache key (see `SceneId`),
 	// so a re-entry restores the kind's last saved state and *then* lands here: this must
 	// overwrite `path`/`depth` from `arg` rather than trust what `restore_state` put there.
 	const Node* target = nullptr;
@@ -130,25 +130,26 @@ bool MenuScene::on_enter(const SceneId& id) {
 		// `enter_child` (below) already runs it for a descent, which covers everything
 		// reached by walking the menu. A deep link does not descend: it re-roots. So site 8 of
 		// `gui/ui/shell_menu_entry.cpp`'s table -- `soundEditor.setup(getCurrentInstrumentClip(),
-		// &menu_item::file0SelectorMenu, 0)`, `gui/views/instrument_clip_view.cpp:515` -- and the
+		// &menu_item::file0SelectorMenu, 0)`, `InstrumentClipView::buttonAction`'s SELECT arm -- and the
 		// shortcut-pad jump, which comes back through here as an `Action::Kind::Replace`
 		// (`handle`'s `Replace` arm), both arrived with no range selected on a source with no
 		// ranges yet. **Measured** at level 3 on a fresh synth clip: the toggle-OFF leg opened the
 		// sample browser and the toggle-ON leg did not, because `browser::sample_can` refuses a
-		// null `AudioFileHolder` (`scenes/browser/browser_scene.cpp:152-164`) and the push was
+		// null `AudioFileHolder` (`scenes/browser/browser_scene.cpp`) and the push was
 		// declined, leaving the menu parked on the file selector's own title page.
 		//
 		// **The range gate in full, but NOT `permission_for` around it.** Legacy's gate here is the
 		// *item's own* `checkPermissionToBeginSession` override, and the five scene-opener items
 		// override it in a way that never consults `isRelevant`:
-		// `FileSelector::checkPermissionToBeginSession` (`gui/menu_item/file_selector.cpp:68-86`)
+		// `FileSelector::checkPermissionToBeginSession` (`gui/menu_item/file_selector.cpp`)
 		// answers YES for any SUBTRACTIVE sound and defers the rest to the range check, while
-		// `FileSelector::isRelevant` (`:54-67`) additionally demands `oscType == SAMPLE`.
+		// `FileSelector::isRelevant` additionally demands `oscType == SAMPLE`.
 		// `permission_for` is the port of the *base* `MenuItem::checkPermissionToBeginSession`
 		// (`gui/menu_item/menu_item.cpp:27-31`, relevance and nothing else) plus the range rule, so
 		// calling it here would refuse site 8 on a default SAW synth that legacy opens. That gap --
 		// `Node` has no port of an item-specific `checkPermissionToBeginSession` that bypasses
-		// relevance -- is recorded in `src/scenes/README.md` rather than half-closed here.
+		// relevance -- is listed in `src/scenes/README.md`'s "Legacy features not yet ported" rather than half-closed
+		// here.
 		//
 		// What is NOT skipped is the range half, both of its arms. Paying only the allocation and
 		// dropping `MUST_SELECT_RANGE` would be a partial port of a two-armed gate, which is worse
@@ -215,7 +216,7 @@ uint16_t MenuScene::arm_shortcut_landing(const Node& target) {
 void MenuScene::on_resume() {
 	visit_.blink_restart =
 	    true; // `focusRegained`'s `setLedStates` -> `blinkLed(IndicatorLED::BACK)` (`sound_editor.cpp:552`)
-	// `SoundEditor::focusRegained` (`gui/ui/sound_editor.cpp:317-327`): "If just came back from a
+	// `SoundEditor::focusRegained` (`gui/ui/sound_editor.cpp`): "If just came back from a
 	// deeper nested UI", step up one level. The flag is set where the push was requested (see
 	// `after_render`), and it is what stops the item that opened the pushed scene from opening it
 	// again the instant the user gets back.
@@ -242,7 +243,7 @@ bool MenuScene::reroot_to_scene_opener_page() {
 	if (item == nullptr || st_.path[0] == nullptr) {
 		// No opener recorded, or no menu at all (`on_model_changed`'s song swap empties the path).
 		// Legacy's own guard is the same shape -- the pair is only read when both halves are
-		// non-null (`gui/ui/browser/sample_browser.cpp:1111`).
+		// non-null (`SampleClaim::stepFinish`, `gui/ui/browser/sample_claim.cpp`).
 		return false;
 	}
 	// With the feature off legacy's chain is `nullopt`, so `maybeGetParentMenu` writes no pair and `claimCurrentFile`
@@ -271,8 +272,8 @@ bool MenuScene::reroot_to_scene_opener_page() {
 	// `parentMenuHeadingTo->focusChild(menuItemHeadingTo)` (`:1116`). It is a separate statement
 	// here for the reason the header gives -- legacy's focus lives on the page object, the port's
 	// lives at the page's *depth* -- and it runs after `retarget`, which resets `columns[0]`.
-	// Legacy discards `focusChild`'s bool at this site (it is only consulted at
-	// `gui/ui/sound_editor.cpp:1860`), so an item its page no longer shows simply leaves the page
+	// Legacy discards `focusChild`'s bool at this site (it is only consulted in
+	// `SoundEditor::setup`), so an item its page no longer shows simply leaves the page
 	// focused on its first column, which is what falling out of this loop does.
 	walk_.focus_column(core(), *item);
 	return true;
@@ -375,7 +376,7 @@ void MenuScene::render_grid(deluge::ui::grid::GridFrame& f) {
 void MenuScene::leds(deluge::ui::LedFrame& f) {
 	// Button LEDs only: `LedFrame` has no pad concept whatever, so the pad blink above is a pad
 	// flash rather than an LED declaration. The set is `SoundEditor::setLedStates`
-	// (`sound_editor.cpp:339-352`), minus the parts that belong to services (`playbackHandler`,
+	// (`sound_editor.cpp`), minus the parts that belong to services (`playbackHandler`,
 	// `view.setKnobIndicatorLevels`).
 	// Nothing to declare while the path is empty: `on_model_changed(SongSwapped)` drops it and the
 	// scene draws nothing until the application re-`open()`s, so announcing the menu's LED set
@@ -438,9 +439,10 @@ Result MenuScene::after_render() {
 	bool repaint = false;
 
 	// The range picker's own commit -- `soundEditor.setCurrentMultiRange(...)`
-	// (`sound_editor.cpp:1983-1986`), which `MultiRangeItem` cannot do itself: it is handed a
+	// (`sound_editor.cpp`), which `MultiRangeItem` cannot do itself: it is handed a
 	// `const MenuContext&` and this is the scene's own mutable one. Applied on every tick the picker
-	// republishes its cursor, which is exactly when legacy calls it (`multi_range.cpp:54`, `:249`).
+	// republishes its cursor, which is exactly when legacy calls it (`MultiRange::beginSession`, `selectEncoderAction`,
+	// `deletePress` and `noteOnToChangeRange`).
 	if (st_.walk.range_choice >= 0) {
 		trace_drain(DrainBand::RangeChoice);
 		select_range(ctx_, st_.walk.range_choice);
@@ -470,7 +472,7 @@ Result MenuScene::after_render() {
 		// The write raises its own `notify::Dirty` facts (`bindings.cpp`), which repaint the
 		// surfaces those name; `RepaintAll` covers what a commit changed *off* this surface (a
 		// mod-knob indicator, the automation grid). Never `Action{Repaint, SurfaceRole::None}`,
-		// which is a documented no-op (`shell/scene.h:206`).
+		// which is a documented no-op (`Action::Kind::Repaint`'s doc in `shell/scene.h`).
 		repaint = true;
 	}
 
@@ -537,7 +539,7 @@ Result MenuScene::after_render() {
 			// A leaf's select press goes up, it does not re-enter: `MenuItem::selectButtonPress`
 			// returns nullptr and `SoundEditor` reads that as "up". `toggle`'s own doc says the
 			// same thing from the widget's side -- a press reports `entered` and leaves `changed`
-			// false, so this must not flip the value (`ui/oled/values.h:202-206`).
+			// false, so this must not flip the value (`oled::toggle` in `ui/oled/values.h`).
 			walk_.ascend(core(), visit_.session);
 		}
 	}
@@ -626,7 +628,7 @@ Result MenuScene::after_render() {
 		// press. It is also the other half of the same rule: legacy DOES enter this item. It is a
 		// plain `menu_item::Selection` (`gui/menu_item/shortcuts/version.h:23`) and overrides
 		// nothing, so `shouldEnterSubmenu()` is the base's `return true`
-		// (`gui/menu_item/menu_item.h:271`) -- `SoundEditor` navigates into its page and
+		// (`MenuItem::shouldEnterSubmenu`) -- `SoundEditor` navigates into its page and
 		// `writeCurrentValue` (`shortcuts/version.h:27`) runs on every detent while the user stands
 		// on it. Ascending here would close that page under the user on the first turn, which is UI
 		// the port would be inventing.
@@ -735,7 +737,7 @@ Result MenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 
 Result MenuScene::handle_event(const UiEvent& event, const UiContext& ctx) {
 	// Legacy's `UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR` as a level rather than a mode
-	// (`gui/menu_item/unpatched_param.cpp:52`). The AFFECT-ENTIRE button is an ordinary button, so
+	// (`UnpatchedParam::writeCurrentValue`). The AFFECT-ENTIRE button is an ordinary button, so
 	// its own press and release both reach here and keep this in step before any write path runs;
 	// `bindings::write` is the only reader.
 	ctx_.affect_entire_held = ctx.held.has(ButtonId::AffectEntire);
@@ -772,10 +774,10 @@ Result MenuScene::handle_event(const UiEvent& event, const UiContext& ctx) {
 	}
 
 	// Back at the root. `owns` leaves it to this arm at depth 0, which closes the editor --
-	// `sound_editor.cpp:456`'s BACK case -> `:471` `goUpOneLevel()` -> `:716` `exitCompletely()`.
+	// `sound_editor.cpp`'s BACK case -> `SoundEditor::goUpOneLevel` -> `SoundEditor::exitCompletely`.
 	//
 	// `Remove{.pop_to = SceneKind::FirstApp}`, NOT `Pop` with any `pop_to`: `SceneStack::pop(kind)`
-	// pops the topmost scene of that kind *and everything above it* (`scene_stack.cpp:63-95`), so
+	// pops the topmost scene of that kind *and everything above it* (`SceneStack::pop`), so
 	// `Pop{.pop_to = FirstApp}` would tear
 	// down a live `Working` animation or `Popup` sitting over the menu along with it. `Remove`
 	// (`SceneStack::remove`) excises just the named scene and leaves everything else exactly where
@@ -788,7 +790,7 @@ Result MenuScene::handle_event(const UiEvent& event, const UiContext& ctx) {
 	// still showing closed the console strip and left the menu itself on the stack.
 	if (event.kind == UiEvent::Kind::Button && event.button == ButtonId::Back && event.on && st_.depth == 0) {
 		// `SoundEditor::goUpOneLevel` runs `endScreen()` (-> `currentMenuItem->endSession()`)
-		// **before** its depth-0 arm's `exitCompletely()` (`sound_editor.cpp:711-716`) -- the same
+		// **before** its depth-0 arm's `exitCompletely()` (`SoundEditor::goUpOneLevel`) -- the same
 		// cancel `descend_to`/`ascend` make, just reached by the one path neither of them covers: a
 		// depth-0 horizontal page closing the whole menu rather than navigating within it.
 		// `reroot_to_scene_opener_page()` puts a claimed file selector's browser back here at
@@ -850,11 +852,12 @@ void MenuScene::tick(uint32_t dt_ms) {
 
 bool MenuScene::go_up_one_level() {
 	if (st_.depth == 0) {
-		return false; // `sound_editor.cpp:715-717`, on the loop's first pass
+		return false; // `SoundEditor::goUpOneLevel`'s depth-0 arm, on the loop's first pass
 	}
 	walk_.ascend(core(), visit_.session);
-	// `:715-717` on a later pass: `ascend()` stepped down to depth 0 and `:720-722` refused that level too, so it
-	// asked for the close. The caller closes the editor itself, so the request is taken back here.
+	// `SoundEditor::goUpOneLevel`'s depth-0 arm on a later pass: `ascend()` stepped down to depth 0 and `:720-722`
+	// refused that level too, so it asked for the close. The caller closes the editor itself, so the request is taken
+	// back here.
 	return !walk_.take_close_request();
 }
 

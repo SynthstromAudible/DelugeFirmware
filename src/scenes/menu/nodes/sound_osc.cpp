@@ -50,7 +50,7 @@ using deluge::l10n::String;
 void PendingCustom::render(deluge::ui::oled::OledFrame& f, const MenuContext& /*ctx*/, MenuState& state) const {
 	// Deliberately the same "honest placeholder" `MenuScene`'s own unimplemented-kind arm draws
 	// (`MenuView::render`'s `default:` arm, `menu/view.cpp`): the user sees which item they are on rather than the
-	// previous screen. Replaced, per item, when E2 lands the browser, the recorder and the marker editor.
+	// previous screen.
 	const Node* node = state.depth < kMenuDepth ? state.path[state.depth] : nullptr;
 	deluge::ui::shell::TextScratch scratch;
 	deluge::ui::oled::title(f, node != nullptr ? deluge_profile().text_or_digits(node->title, scratch)
@@ -72,7 +72,7 @@ namespace {
 // `sample::Transpose` (`gui/menu_item/sample/transpose.h:31-175`) -- "this is actually the
 // Oscillator transpose" (`sample/transpose.h:31`).
 
-/// @brief `computeCurrentValueForTranspose` (`gui/menu_item/value_scaling.cpp:64-66`).
+/// @brief `computeCurrentValueForTranspose` (`gui/menu_item/value_scaling.cpp`).
 constexpr int32_t transpose_to_menu(int32_t transpose, int32_t cents) {
 	return transpose * 100 + cents;
 }

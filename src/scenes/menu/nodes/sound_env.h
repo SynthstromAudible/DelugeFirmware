@@ -2,12 +2,11 @@
 
 /// @brief The four envelope subtrees as data: `env1` .. `env4`, each an ADSR page.
 ///
-/// `inline constexpr` for the reason `sound_filters.h` explains (fix round 1, I3). From
-/// `gui/menu_item/generate/dmenus/envelope/{envelope,__init__}.py` and
-/// `generate/g_menus.inc:159-202` (at `ce4a79de0`). Every leaf is an `envelope::Segment`
+/// `inline constexpr` for the reason `sound_filters.h` explains. From
+/// `gui/ui/menus.cpp`'s envelope block, from `env1AttackMenu`. Every leaf is an `envelope::Segment`
 /// (`gui/menu_item/envelope/segment.h:24`), which is a `source::PatchedParam` -- a patched param
 /// whose index is `p + source_id_` (`gui/menu_item/source/patched_param.h:21`), with the envelope
-/// number playing the part of the source id. The generator therefore emits
+/// number playing the part of the source id. The legacy menu therefore uses
 /// `params::LOCAL_ENV_0_ATTACK` with an envelope index of 0..3 and the four attack params come out
 /// consecutive (`modulation/params/param.h:112-115`), which is exactly what a `ParamRef` carries
 /// directly here.

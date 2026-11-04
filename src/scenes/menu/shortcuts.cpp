@@ -22,7 +22,7 @@
 /// pad column `x`, eight cells `y = 0..7` -- so a reviewer can diff it line for line against
 /// `gui/ui/menus.cpp`. `from_columns` transposes them once, at compile time, into the row-major
 /// `Cells` the lookups index. A `comingSoonMenu` cell becomes `nullptr` (legacy pops up
-/// "unimplemented" and goes nowhere, `sound_editor.cpp:1381`) and says so in the line comment.
+/// "unimplemented" and goes nowhere, in `SoundEditor::potentialShortcutPadAction`) and says so in the line comment.
 ///
 /// The transcription is not trusted on its own: `sim/scenes_spec/shortcuts_spec.cpp` walks every
 /// `(x, y)` of every legacy array and of every port layer and asserts the two agree in both
@@ -32,9 +32,8 @@
 ///       which is what the legacy arrays hold as written; `kSoundV1Cells`, `kDrumV1Cells` and
 ///       `kAudioClipV1Cells` are the pre-3.0 one, and `set_shortcuts_version` selects between them
 ///       for every lookup in this file. `nodes::shortcuts_version` is the setting item that calls
-///       it. (E1 recorded this layer as owed and the setting as one that "selects nothing"; both
-///       are now closed. `SoundEditor::setShortcutsVersion` reaches the same layout by *writing*
-///       into the V3 arrays -- see `menu::set_shortcuts_version` for the two ways that differs.)
+///       it. `SoundEditor::setShortcutsVersion` reaches the same layout by *writing*
+///       into the V3 arrays -- see `menu::set_shortcuts_version` for the two ways that differs.
 
 #include "scenes/menu/shortcuts.h"
 
@@ -69,8 +68,7 @@ constexpr Cells from_columns(const Node* const (&cols)[kShortcutCols][kShortcutR
 }
 
 /// @brief A legacy one-dimensional table, laid into column 11 -- the column
-///        `potentialShortcutPadAction` (`sound_editor.cpp:1332`) and `updatePadLightsFor`
-///        (`:836`, `:848`) index it at.
+///        `potentialShortcutPadAction` and `updatePadLightsFor` index it at.
 constexpr Cells from_column11(const Node* const (&col)[kShortcutRows]) {
 	Cells out{};
 	for (uint8_t y = 0; y < kShortcutRows; y++) {
@@ -82,8 +80,8 @@ constexpr Cells from_column11(const Node* const (&col)[kShortcutRows]) {
 /// @brief @p base with the name-editor cell swapped for the drum one.
 ///
 /// Legacy does this at lookup time rather than in the table: `potentialShortcutPadAction`
-/// (`sound_editor.cpp:1334-1336`, `:1323-1325`) rewrites `editNameMenu` to `drumNameEditMenu` for a
-/// kit output or a non-audio drum row, and `updatePadLightsFor` (`:843-845`, `:858-861`) does the
+/// rewrites `editNameMenu` to `drumNameEditMenu` for a
+/// kit output or a non-audio drum row, and `updatePadLightsFor` does the
 /// same on the way back. Baking it into a per-root layer keeps both directions of the lookup pure
 /// table reads, and keeps `shortcut_layer` honest about what a root's grid actually holds.
 constexpr Cells with_drum_name(Cells base) {
@@ -204,7 +202,7 @@ constexpr const Node* kMidiOrCvColumn[kShortcutRows] = {
     &n::arp_rate_midi, &n::arp_sync, &n::arp_gate_midi, &n::arp_octaves, &n::arp_preset, &n::edit_name, nullptr, nullptr,
 };
 
-/// `gateDrumParamShortcuts` (`gui/ui/menus.cpp:1211`) -- one column, `y = 0..7`.
+/// `gateDrumParamShortcuts` (`gui/ui/menus.cpp`) -- one column, `y = 0..7`.
 constexpr const Node* kGateDrumColumn[kShortcutRows] = {
     &n::arp_rate_midi, &n::arp_sync, &n::arp_gate_midi, &n::arp_rhythm_midi, &n::arp_mode, &n::drum_name_edit, nullptr, nullptr,
 };
@@ -290,7 +288,7 @@ constexpr Cells kMidiExtraCells = [] {
 /// (`sound_editor.cpp:1208-1212`), so **column 15 is admitted only at y == 1** -- legacy can never
 /// press the table's own `(15, 2)` and `(15, 3)` cells (`randomizerLockMenu`,
 /// `randomizerNoteProbabilityMenu`), even though it transcribes them. The blink side does not share
-/// the guard: `setupShortcutsBlinkFromTable` (`sound_editor.cpp:863`, `:786-795`) scans the whole
+/// the guard: `SoundEditor::setupShortcutsBlinkFromTable` scans the whole
 /// 16x8 table, so those two cells *do* blink when their item is open.
 ///
 /// So this is press-only, exactly as `kMidiExtraCells` is: there the press side sees pads the blink

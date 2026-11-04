@@ -47,7 +47,7 @@ bool page_lists(const Node& page, const Node& column);
 /// @brief The `Layout::Horizontal` submenu in @p node's subtree that lists @p item, or null.
 ///
 /// `SoundEditor::maybeGetParentMenu`'s one statement of substance
-/// (`gui/ui/sound_editor.cpp:2084`): `find_if(chain, [](HorizontalMenu* menu) { return
+/// (`gui/ui/sound_editor.cpp`): `find_if(chain, [](HorizontalMenu* menu) { return
 /// menu->hasItem(item); })`, over the chain `getCurrentHorizontalMenusChain(false)` picks for the
 /// current root (`:2079`, the dispatch at `:2108-2130`).
 ///

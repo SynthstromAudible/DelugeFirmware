@@ -1,9 +1,8 @@
 #pragma once
 
-/// @brief The stable node-id registry (ruling Q7): `SceneId::arg` is a stable node id, not a
+/// @brief The stable node-id registry: `SceneId::arg` is a stable node id, not a
 ///        pointer -- `MenuScene::on_enter` resolves it through `node_by_id`, `validate_tree`
-///        (Task 6) calls `assign_node_ids` before its checks, and the menu dump (Task 10)
-///        emits the ids it produces.
+///        calls `assign_node_ids` before its checks, and the menu dump emits the ids it produces.
 #include "scenes/menu/node.h"
 
 #include <cstdint>
@@ -33,7 +32,7 @@ namespace deluge::scenes::menu {
 ///         reached (the registry has no room for more) and this returns `kMaxNodes` -- fewer than
 ///         the tree's true reachable count, which is the caller's signal that the tree overflowed
 ///         the registry. This is deliberately not a silent partial success: `validate_tree`
-///         (Task 6) is expected to compare this return value against its own full reachable-node
+///         is expected to compare this return value against its own full reachable-node
 ///         walk and fail loudly on a mismatch.
 uint16_t assign_node_ids(std::span<const Node* const> roots);
 

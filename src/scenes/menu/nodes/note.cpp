@@ -36,7 +36,7 @@ Iterance resolved_iterance(int32_t raw) {
 }
 
 // -------------------------------------------------------------------------------------------
-// One shared body per hook kind (fix round 1, important 2): the note and note-row families
+// One shared body per hook kind the note and note-row families
 // differ only in which `NoteBridge` member they read and write, so a small pointer-to-member
 // accessor picks that out and every hook below is a one-line call through it.
 // -------------------------------------------------------------------------------------------
@@ -84,8 +84,8 @@ bool iterance_has_target(const IteranceFamily& family) {
 
 /// `IterancePreset::readCurrentValue` converts the leftmost note's raw iterance to a preset index
 /// (`note/iterance_preset.h:44-52`, `note_row/iterance_preset.h:48-60`); the bridge hands back the
-/// raw int, so the conversion happens here (`note_bridge.h`'s own doc: "Task 5's leaves convert with
-/// `Iterance::fromInt(...).toPresetIndex()` themselves").
+/// raw int, so the conversion happens here, with
+/// `Iterance::fromInt(...).toPresetIndex()`.
 int32_t get_iterance_preset(const IteranceFamily& family) {
 	return Iterance::fromInt(iterance_raw(family)).toPresetIndex();
 }
@@ -171,7 +171,7 @@ bool permitted_note(const MenuContext&) {
 	if (note_bridge()->note_selected()) {
 		return true;
 	}
-	deluge::notify::notice_text("Select Note"); // `note/selected_note.h:37`
+	deluge::notify::notice_text("Select Note"); // `note/selected_note.h`
 	return false;
 }
 
@@ -184,7 +184,7 @@ bool permitted_row(const MenuContext&) {
 }
 
 // -------------------------------------------------------------------------------------------
-// The three bespoke value texts, shared by both families (spec §5.3).
+// The three bespoke value texts, shared by both families.
 // -------------------------------------------------------------------------------------------
 
 /// `Probability::getProbabilityValue` (`note/probability.h:93-104`), and its two callers:
@@ -237,7 +237,7 @@ ValueText value_text_iterance(const MenuContext&, int32_t value, ValueTextUse us
 
 /// `Fill::renderInHorizontalMenu` (`note/fill.h:62-80`): the column draws only `"OFF"`/`"FILL"`,
 /// struck through on `NOT_FILL`. `Fill::getNotificationValue` (`:82-84`) and
-/// `InstrumentClipView::getFillString` (`gui/views/instrument_clip_view.cpp:3564-3577`) spell the
+/// `InstrumentClipView::getFillString` (`gui/views/instrument_clip_view.cpp`) spell the
 /// notification's three values. `note_row::Fill` is byte-identical (`note_row/fill.h:32-97`).
 ValueText value_text_fill(const MenuContext&, int32_t value, ValueTextUse use, std::span<char> out) {
 	if (use == ValueTextUse::Label) {

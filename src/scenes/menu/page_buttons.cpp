@@ -176,7 +176,7 @@ std::optional<Result> handle_page_button(MenuCore core, MenuWalk& walk, ValueSes
 void page_button_leds(const MenuContext& ctx, const MenuState& st, deluge::ui::LedFrame& f) {
 	constexpr deluge::ui::LedState kOff{deluge::ui::LedState::Kind::Off, 0, 0};
 	constexpr deluge::ui::LedState kOn{deluge::ui::LedState::Kind::On, 0, 0};
-	// SYNTH/KIT/MIDI/CV: `updateSelectedMenuItemLED` (`gui/menu_item/horizontal_menu.cpp:546-572`).
+	// SYNTH/KIT/MIDI/CV: `HorizontalMenu::updateSelectedMenuItemLED`.
 	// CROSS_SCREEN/SCALE: `renderOLED`'s own two-line LED update (`:118-119`). Both fresh every
 	// tick, gated on nothing -- an `LedFrame` is the whole LED state, redeclared each time, the same
 	// as LEARN below. Off on a vertical page or with nothing focused, matching legacy's own

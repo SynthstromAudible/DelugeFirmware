@@ -3,7 +3,7 @@
 /// @brief The sound-editor root's actions page as data, plus the two root children that are single
 ///        leaves rather than subtrees (the play direction and the output-MIDI page).
 ///
-/// `inline constexpr` for the reason `sound_filters.h` explains (task-6 fix round 1, I3). From
+/// `inline constexpr` for the reason `sound_filters.h` explains. From
 /// `gui/ui/menus.cpp`:
 ///
 // clang-format off
@@ -13,21 +13,21 @@
 /// | `edit_clip_name` | `audioClipNameEditMenu` (`:1129`) | `EditName` | Custom (`EditNameItem`) |
 /// | `edit_name` | `editNameMenu` (`:1134`) | `Submenu` | Submenu (Vertical) |
 /// | `sound_actions` | `soundEditorRootActionsMenu` (`:1764`) | `Submenu` | Submenu (Vertical) |
-/// | `sequence_direction` | `sequenceDirectionMenu` (`:935`) | `sequence::Direction` (`sequence/direction.h:30`) | Enum (dynamic) |
-/// | `output_midi_channel` | `outputMidiChannelMenu` (`:901`) | `midi::sound::OutputMidiChannel` (`midi/sound/channel.h:30`) | Int |
-/// | `output_midi_note` | `outputMidiNoteForDrumMenu` (`:902`) | `midi::sound::OutputMidiNoteForDrum` (`midi/sound/note_for_drum.h:29`) | Int |
+/// | `sequence_direction` | `sequenceDirectionMenu` (`:935`) | `sequence::Direction` | Enum (dynamic) |
+/// | `output_midi_channel` | `outputMidiChannelMenu` (`:901`) | `midi::sound::OutputMidiChannel` | Int |
+/// | `output_midi_note` | `outputMidiNoteForDrumMenu` (`:902`) | `midi::sound::OutputMidiNoteForDrum` | Int |
 /// | `output_midi` | `outputMidiSubmenu` (`:903`) | `Submenu` | Submenu (Vertical) |
 // clang-format on
 ///
 /// `soundEditorRootActionsMenu`'s other two children are `sample0RecorderMenu` /
-/// `sample1RecorderMenu`, already declared by task 6 (`sound_osc.h`'s `sample0_recorder` /
+/// `sample1RecorderMenu`, declared in `sound_osc.h` (`sample0_recorder` /
 /// `sample1_recorder`) as the recorder page's columns. They are the *same* legacy objects, so this
 /// file names the same nodes rather than declaring second copies -- which is also what keeps
 /// `validate_tree`'s `TooManyCustom` count honest (it counts custom *nodes*, so a second copy of a
 /// node would be a second count).
 ///
 /// @note **Both `EditName` items are real.** `EditName::beginSession` opens `RenameUI`
-///       (`gui/menu_item/edit_name.cpp`); spec E §4 lists "edit-name" among the bespoke items, and
+///       (`gui/menu_item/edit_name.cpp`); "edit-name" is one of the bespoke items, and
 ///       nothing about pushing another UI fits any `Kind`. They are `nodes::EditNameItem`s
 ///       (`edit_name.h`), which open `rename::RenameScene` on the matching `rename::TargetId` --
 ///       `edit_track_name` on `Output` (legacy's `Target::AUDIO_OUTPUT` -> `renameOutputUI`) and
@@ -39,7 +39,7 @@
 ///       consults `soundEditor.selectedNoteRow` and `instrumentClipView.lastAuditionedYDisplay`,
 ///       both UI state `src/scenes` may not read, and creates a note row if none exists. The hooks
 ///       below do the kit arm and legacy's own no-note-row fallback (the clip's
-///       `sequenceDirectionMode`, `:56-61`), and the audition arm belongs to spec E's
+///       `sequenceDirectionMode`, `:56-61`), and the audition arm belongs to the
 ///       `NoteClipScene`. The option list is dynamic for the same reason: the fourth option, NONE,
 ///       is offered only when a note row was resolved (`:83-86`).
 ///

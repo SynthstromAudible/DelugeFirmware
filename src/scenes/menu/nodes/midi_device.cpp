@@ -98,7 +98,7 @@ uint8_t chosen(const MenuState& state, int32_t count) {
 /// hop earlier for the path that matters here -- the walk back up from the page this item chained
 /// to keeps the cursor rather than resetting it.
 ///
-/// **Not "only on a descent", though** (fix round 1, minor 1): `enter_leaf` also runs `on_focus`
+/// **Not "only on a descent", though:** `enter_leaf` also runs `on_focus`
 /// for `FocusCause::NoRowPress` -- `open()`, a `SceneId` deep link, the shortcut-pad jump,
 /// `restore_state` rebuilding a saved path -- for any item whose `on_focus_is_press()` is false, as
 /// these two are. Only the *ascend* path is excluded. That is right here and needs no
@@ -264,7 +264,7 @@ void MpeDirectionItem::render(deluge::ui::oled::OledFrame& f, const MenuContext&
 	// `writeCurrentValue` (`direction_selector.h:37`): `whichDirection = getValue()`. A legacy
 	// `Value` writes on every encoder move, not only on the press, and `ZoneNumMemberChannels`
 	// reads the member -- so this republishes every frame, exactly as `SourceSelectionItem` does
-	// for `MenuWalkState::patch_source` (`scenes/menu/nodes/patch_cables.cpp:459-465`).
+	// for `MenuWalkState::patch_source` (`scenes/menu/nodes/patch_cables.cpp`).
 	state.walk.mpe_direction = chosen(state, 2);
 }
 

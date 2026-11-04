@@ -2,15 +2,14 @@
 
 /// @brief The four LFO subtrees as data: `lfo1` .. `lfo4`, each {shape, sync, rate}.
 ///
-/// `inline constexpr` for the reason `sound_filters.h` explains (fix round 1, I3). From
-/// `gui/menu_item/generate/dmenus/lfo/{lfo,__init__}.py` and `generate/g_menus.inc:203-238`
-/// (at `ce4a79de0`):
+/// `inline constexpr` for the reason `sound_filters.h` explains. From
+/// `gui/ui/menus.cpp`'s LFO block, from `lfo1TypeMenu`:
 ///
 // clang-format off
 /// | node | legacy global | legacy class / param |
 /// |---|---|---|
-/// | `lfo<n>_type` | `lfo<n>TypeMenu` | `lfo::Type` (`gui/menu_item/lfo/type.h:28`) |
-/// | `lfo<n>_sync` | `lfo<n>SyncMenu` | `lfo::Sync` (`gui/menu_item/lfo/sync.h:28`) |
+/// | `lfo<n>_type` | `lfo<n>TypeMenu` | `lfo::Type` (`gui/menu_item/lfo/type.h`) |
+/// | `lfo<n>_sync` | `lfo<n>SyncMenu` | `lfo::Sync` (`gui/menu_item/lfo/sync.h`) |
 /// | `lfo1_rate` | `lfo1RateMenu` | `patched_param::Integer`, `GLOBAL_LFO_FREQ_1` |
 /// | `lfo2_rate` | `lfo2RateMenu` | `patched_param::Integer`, `LOCAL_LFO_LOCAL_FREQ_1` |
 /// | `lfo3_rate` | `lfo3RateMenu` | `patched_param::Integer`, `GLOBAL_LFO_FREQ_2` |
@@ -18,13 +17,13 @@
 /// | `lfo<n>` | `lfo<n>Menu` | `HorizontalMenu` |
 // clang-format on
 ///
-/// The odd/even alternation of global and local rate params is the Python spec's own
-/// (`dmenus/lfo/lfo.py:29-33`: `isGlobal = i % 2 == 0`, `index = 1 if i < 2 else 2`), and it matches
+/// The odd/even alternation of global and local rate params is the legacy menu's own
+/// (LFO 1 and 3 take the global rate params, LFO 2 and 4 the local ones), and it matches
 /// `definitions_cxx.hpp:390-393`'s "LFO 1 (global), LFO 2 (local), LFO 3 (global), LFO 4 (local)".
 ///
-/// @note **`Kind::SyncLevel` comes from `node.h`'s `sync_level_item()`.** Task 6 built these two by
-///       hand and said the next task needing one should promote the builder; Task 7 needs four more
-///       (`arpSyncMenu`, `delaySyncMenu`, `sidechainSyncMenu`, `reverbSidechainSyncMenu`) and did.
+/// @note **`Kind::SyncLevel` comes from `node.h`'s `sync_level_item()`.** The builder is shared by
+///       every `SyncLevel` item: the two LFO syncs, `arpSyncMenu`, `delaySyncMenu`,
+///       `sidechainSyncMenu` and `reverbSidechainSyncMenu`.
 ///       The value is legacy's own menu option index, `SyncLevel::syncTypeAndLevelToMenuOption`
 ///       (`gui/menu_item/sync_level.cpp:79-81`), over `SyncLevel::size() == NUM_SYNC_VALUES`
 ///       (`sync_level.h:31`, `model/sync.h:37`). The option *names* are `getNoteLengthName`, which
@@ -34,7 +33,7 @@
 ///
 /// @note **`lfo::Type`'s title is a `FormattedTitle`** substituting the LFO number into
 ///       `STRING_FOR_LFO_TYPE` (`lfo/type.h:30,33`), as `lfo::Sync`'s is for `STRING_FOR_LFO_SYNC`
-///       (`lfo/sync.h:29,32`); both nodes carry that number as their `title_arg`.
+///       (`lfo/sync.h`); both nodes carry that number as their `title_arg`.
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/column_hooks.h"

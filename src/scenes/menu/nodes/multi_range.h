@@ -75,10 +75,10 @@ public:
 	void on_focus(const MenuContext& ctx, MenuState& state) const override;
 };
 
-/// @brief The single instance -- `multiRangeMenu` (`gui/menu_item/multi_range.cpp:37`).
+/// @brief The single instance -- `multiRangeMenu` (`gui/menu_item/multi_range.cpp`).
 inline const MultiRangeItem kMultiRangeItem{};
 
-/// @brief One picker row's label -- `MultiRange::getText` (`multi_range.cpp:313-358`) with
+/// @brief One picker row's label -- `MultiRange::getText` (`multi_range.cpp`) with
 ///        `mayShowJustOne = false`, which is what `drawPixelsForOled` passes (`:401`).
 ///
 /// The lower end is "BOTTOM" for range 0 and the previous range's `topNote + 1` otherwise, padded
@@ -99,7 +99,7 @@ inline const MultiRangeItem kMultiRangeItem{};
 std::string_view range_row_label(const MenuContext& ctx, int32_t index, char* buf, size_t cap,
                                  deluge::ui::shell::TextScratch& scratch);
 
-/// @brief `MultiRange::selectButtonPress` (`multi_range.cpp:360-362`): whatever the picker was
+/// @brief `MultiRange::selectButtonPress` (`multi_range.cpp`): whatever the picker was
 ///        substituted for.
 ///
 /// Null when nothing is pending, which `MenuScene` reads as "ascend" -- the same answer a leaf with

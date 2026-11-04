@@ -2,19 +2,20 @@
 
 /// @brief The unison subtree as data: `unison` and its three columns.
 ///
-/// `inline constexpr` for the reason `sound_filters.h` explains (fix round 1, I3). From
-/// `gui/menu_item/generate/dmenus/unison.py` and `generate/g_menus.inc:46-54` (at `ce4a79de0`):
+/// `inline constexpr` for the reason `sound_filters.h` explains. From
+/// `gui/ui/menus.cpp`'s unison block, from `numUnisonMenu`:
 ///
 // clang-format off
 /// | node | legacy global | legacy class |
 /// |---|---|---|
-/// | `unison_count` | `numUnisonMenu` (`:303`) | `unison::CountToStereoSpread` (`unison/count.h:76`) |
-/// | `unison_detune` | `unisonDetuneMenu` (`:304`) | `unison::Detune` (`unison/detune.h:27`) |
-/// | `unison_spread` | `unison::stereoSpreadMenu` (`:48`) | `unison::StereoSpread` (`unison/stereoSpread.h:27`) |
-/// | `unison` | `unisonMenu` (`:311`) | `HorizontalMenu`, `Layout::FIXED` |
+/// | `unison_count` | `numUnisonMenu` | `unison::CountToStereoSpread` (`unison/count.h`) |
+/// | `unison_detune` | `unisonDetuneMenu` | `unison::Detune` (`unison/detune.h`) |
+/// | `unison_spread` | `unison::stereoSpreadMenu` | `unison::StereoSpread` (`unison/stereoSpread.h`) |
+/// | `unison` | `unisonMenu` | `HorizontalMenu`, `Layout::FIXED` |
 // clang-format on
 ///
-/// @note `unisonMenu` is built with `HorizontalMenu::Layout::FIXED` (`g_menus.inc:54`): `with_fixed_columns`.
+/// @note `unisonMenu` is built with `HorizontalMenu::Layout::FIXED` (`unisonMenu` in `menus.cpp`):
+/// `with_fixed_columns`.
 ///
 /// @note **Hints.** `Count` and `Detune` both override `renderInHorizontalMenu` with bespoke art -- a
 ///       big centred integer with no label (`unison/count.h:60-67`, `unison_count`'s
@@ -42,7 +43,7 @@ namespace deluge::scenes::menu::nodes {
 /// @}
 
 // Ranges: `Count::getMinValue`/`getMaxValue` (`unison/count.h:64-65`), `Detune::getMaxValue`
-// (`unison/detune.h:61`), `StereoSpread::getMaxValue` (`stereoSpread.h:53`), each over `Number`'s
+// (`unison/detune.h`), `StereoSpread::getMaxValue` (`stereoSpread.h`), each over `Number`'s
 // default minimum of 0 where no minimum is overridden.
 inline constexpr Node unison_detune = with_column_draw(
     with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_UNISON_DETUNE), Kind::Int,
@@ -56,13 +57,13 @@ inline constexpr Node unison_detune = with_column_draw(
 // `assign_node_ids` visits a node's `chain_targets` while visiting the node itself, before the
 // parent moves on to its next child, so `unison_spread` is numbered as `unison_count`'s chain target
 // and lands *ahead* of `unison_detune` (221 vs 222 in the shipped dump). That is a consequence of
-// the walk, not of this reordering, and it is why E2 task 3's id shift is not uniform.
+// the walk, not of this reordering, so the ids of the unison nodes do not follow their on-screen order.
 inline constexpr Node unison_spread =
     with_title(setting_item(sid(deluge::l10n::String::STRING_FOR_UNISON_STEREO_SPREAD), Kind::Int,
                             {.kind = deluge::scenes::bind::Target::Kind::SOUND, .path = "unison/spread"}, Hint::Knob),
                sid(deluge::l10n::String::STRING_FOR_UNISON_STEREO_SPREAD_MENU_TITLE));
 
-/// @brief `CountToStereoSpread::selectButtonPress()` (`unison/count.h:76-79`): a select press on the
+/// @brief `CountToStereoSpread::selectButtonPress()` (`unison/count.h`): a select press on the
 ///        count opens the stereo spread, unconditionally.
 ///
 /// The one ported chain whose target is already a static child of the same page, so nothing new is
@@ -84,7 +85,7 @@ inline constexpr const Node* kUnisonChildren[] = {&unison_count, &unison_detune,
 inline constexpr Node unison =
     with_fixed_columns(submenu(sid(deluge::l10n::String::STRING_FOR_UNISON), kUnisonChildren, Layout::Horizontal));
 
-/// @brief This file's contribution to `kBatch1Roots`: `unisonMenu` (`g_menus.inc:54`).
+/// @brief This file's contribution to `kBatch1Roots`: `unisonMenu`.
 ///
 /// Defined in the matching `.cpp`, which is also where the `get`/`set` hook bodies live.
 extern const std::span<const Node* const> kSoundUnisonChildren;

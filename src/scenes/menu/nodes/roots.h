@@ -79,7 +79,7 @@
 ///         * `audio_source_selector` is a `nodes::ContextMenuItem` on `context_menu::DescriptorId::AudioSource`.
 ///         * `specific_output_selector` is a `nodes::SpecificOutputItem` (`nodes/output_items.h`): the song's
 ///           output list walked with the select encoder, skipping every output the audio track cannot record
-///           from (`audio_clip/specific_output_source_selector.h:26`).
+///           from (`audio_clip/specific_output_source_selector.h`).
 ///         * `audio_clip_waveform` is the marker editor (`audio_clip/sample_marker_editor.h:26`).
 ///         * `perform_editor` is a `nodes::PerformEditorItem` that renders the three-option list and files
 ///           `MenuAction::OpenPerformanceView`; the mode it shows is mirrored on this side of the wall by
@@ -313,7 +313,7 @@ inline constexpr Node root_drum = submenu(sid(String::STRING_FOR_SOUND), kDrumRo
 inline constexpr const Node* kMidiOrCvActionsChildren[] = {&edit_name};
 inline constexpr Node midi_or_cv_actions = submenu(sid(String::STRING_FOR_ACTIONS), kMidiOrCvActionsChildren);
 
-/// `midiDeviceLinkedMenu` (`gui/ui/menus.cpp:906`), a `midi::device_definition::Linked` -- a
+/// `midiDeviceLinkedMenu` (`gui/ui/menus.cpp`), a `midi::device_definition::Linked` -- a
 /// `Toggle` whose ON arm opens `loadMidiDeviceDefinitionUI` and whose OFF arm clears the linked
 /// file name (`midi/device_definition/linked.h:37-49`). Both arms are `nodes::kMidiDeviceLinked`.
 inline constexpr Node midi_device_linked = with_relevant(
@@ -423,7 +423,7 @@ inline constexpr const Node* kAudioClipActionsChildren[] = {&edit_name, &set_cli
 inline constexpr Node audio_clip_actions = submenu(sid(String::STRING_FOR_ACTIONS), kAudioClipActionsChildren);
 
 inline constexpr Node audio_source_selector = custom(sid(String::STRING_FOR_AUDIO_SOURCE), &kAudioSourceItem);
-/// `specificOutputSelectorMenu` (`gui/ui/menus.cpp:1151`), an
+/// `specificOutputSelectorMenu` (`gui/ui/menus.cpp`), an
 /// `audio_clip::SpecificSourceOutputSelector` -- the picker for which track this audio track
 /// records from, **not** a browser (`nodes/output_items.h`).
 inline constexpr Node specific_output_selector =
@@ -546,7 +546,7 @@ inline constexpr Node active_scales = custom(sid(String::STRING_FOR_ACTIVE_SCALE
 /// The song root's two session-only items: `song::ConfigureMacros::isRelevant`
 /// (`gui/menu_item/song/configure_macros.h:35-37`) and `song::MidiLearn::isRelevant`
 /// (`gui/menu_item/song/midi_learn.h:35-37`) are both `getRootUI() == &sessionView`, so both are
-/// hidden in the arranger and the song automation view even though `setup()` (`sound_editor.cpp:1819-1822`)
+/// hidden in the arranger and the song automation view even though `SoundEditor::setup`
 /// opens this same root there. They are the only two nodes in the whole tree that spend
 /// `MenuContext::is_session_view`.
 inline constexpr Node configure_song_macros =

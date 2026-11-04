@@ -24,11 +24,11 @@
 ///           list that a hook could decide that the table cannot.
 ///
 ///       So all three are `CustomItem`s that draw their own list, which is also what legacy does.
-///       The menu dump's fail-closed arm for `dynamic_children` therefore stays exactly as
-///       Task 9 left it: there is still no real case to design its JSON shape against, and
+///       The menu dump's fail-closed arm for `dynamic_children` therefore stays
+///       as it is: there is no real case to design its JSON shape against, and
 ///       inventing one unexercised is the mistake that arm exists to prevent.
 ///
-/// ## The half Task 8 left owed: writing `MenuContext::source_index`
+/// ## Writing `MenuContext::source_index`
 ///
 /// `settings.h`'s own note records it -- legacy's two selectors assign
 /// `soundEditor.currentSourceIndex` on their way out (`cv/selection.h:42`, `gate/selection.h:47`),
@@ -44,7 +44,7 @@
 /// picked, and `gate_mode_names` -- legacy's `gateModeMenu.updateOptions(value)`
 /// (`gate/selection.h:52`) -- offers CLOCK or RUN SIGNAL on the right output.
 ///
-/// ## What is still owed
+/// ## Divergence
 ///
 ///   * **`Devices::current_scroll_`.** Legacy keeps its own top-of-viewport index and its own
 ///     `computeScrollForSelected` (`devices.cpp:59-76`). `ui::oled::list` owns the window and the

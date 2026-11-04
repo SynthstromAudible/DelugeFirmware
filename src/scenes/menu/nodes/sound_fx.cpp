@@ -60,10 +60,10 @@ int32_t reverb_float_to_menu(float value) {
 	return static_cast<int32_t>(std::lround(value * kMaxMenuValue));
 }
 
-/// @brief `stutter::StutterDirection`'s own enumerators (`stutter/direction.h:29`).
+/// @brief `stutter::StutterDirection`'s own enumerators.
 enum StutterOption : uint8_t { kUseSong = 0, kForward, kReversed, kForwardPingPong, kReversedPingPong };
 
-/// @brief `StutterDirection::showUseSongOption()` (`stutter/direction.h:105`): the song's own
+/// @brief `StutterDirection::showUseSongOption()`: the song's own
 ///        stutter config has nothing to inherit from, so it does not offer "use song". Everything else the
 ///        menu edits a stutter of -- a sound, a kit's or an audio track's chain -- is not the song's.
 bool show_use_song(const MenuContext& ctx) {

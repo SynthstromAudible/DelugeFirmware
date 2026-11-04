@@ -2,7 +2,7 @@
 
 /// @brief The randomizer page as data: `randomizer` and its twenty-four columns.
 ///
-/// `inline constexpr` for the reason `sound_filters.h` explains (task-6 fix round 1, I3). From
+/// `inline constexpr` for the reason `sound_filters.h` explains. From
 /// `gui/ui/menus.cpp`'s `randomizerMenu` literal (`:599-624`) and the globals it names
 /// (`:559-597`).
 ///
@@ -16,36 +16,36 @@
 // clang-format off
 /// | node | legacy global | legacy class | param / field |
 /// |---|---|---|---|
-/// | `randomizer_lock` | `randomizerLockMenu` (`:543`) | `randomizer::RandomizerLock` (`randomizer_lock.h:26`) | `randomizerLock` |
+/// | `randomizer_lock` | `randomizerLockMenu` (`:543`) | `randomizer::RandomizerLock` (`randomizer_lock.h`) | `randomizerLock` |
 /// | `spread_gate` | `spreadGateMenu` (`:545`) | `RandomizerUnpatchedParam`, BAR | `UNPATCHED_ARP_SPREAD_GATE` |
-/// | `spread_gate_midi` | `spreadGateMenuMIDIOrCV` (`:547`) | `midi_cv::SpreadGate` (`midi_cv/spread_gate.h:24`) | `spreadGate` |
+/// | `spread_gate_midi` | `spreadGateMenuMIDIOrCV` (`:547`) | `midi_cv::SpreadGate` (`midi_cv/spread_gate.h`) | `spreadGate` |
 /// | `spread_octave` | `spreadOctaveMenu` (`:549`) | `RandomizerSoundOnlyUnpatchedParam`, BAR | `UNPATCHED_ARP_SPREAD_OCTAVE` |
-/// | `spread_octave_midi` | `spreadOctaveMenuMIDIOrCV` (`:551`) | `midi_cv::SpreadOctave` (`spread_octave.h:24`) | `spreadOctave` |
+/// | `spread_octave_midi` | `spreadOctaveMenuMIDIOrCV` (`:551`) | `midi_cv::SpreadOctave` (`spread_octave.h`) | `spreadOctave` |
 /// | `spread_velocity` | `spreadVelocityMenu` (`:553`) | `RandomizerUnpatchedParam`, BAR | `UNPATCHED_SPREAD_VELOCITY` |
-/// | `spread_velocity_midi` | `spreadVelocityMenuMIDIOrCV` (`:555`) | `midi_cv::SpreadVelocity` (`spread_velocity.h:24`) | `spreadVelocity` |
+/// | `spread_velocity_midi` | `spreadVelocityMenuMIDIOrCV` (`:555`) | `midi_cv::SpreadVelocity` (`spread_velocity.h`) | `spreadVelocity` |
 /// | `ratchet_amount` | `ratchetAmountMenu` (`:557`) | `RandomizerUnpatchedParam`, BAR | `UNPATCHED_ARP_RATCHET_AMOUNT` |
-/// | `ratchet_amount_midi` | `ratchetAmountMenuMIDIOrCV` (`:559`) | `midi_cv::RatchetAmount` (`ratchet_amount.h:24`) | `ratchetAmount` |
+/// | `ratchet_amount_midi` | `ratchetAmountMenuMIDIOrCV` (`:559`) | `midi_cv::RatchetAmount` (`ratchet_amount.h`) | `ratchetAmount` |
 /// | `ratchet_probability` | `ratchetProbabilityMenu` (`:561`) | `RandomizerUnpatchedParam`, PERCENT | `UNPATCHED_ARP_RATCHET_PROBABILITY` |
-/// | `ratchet_probability_midi` | `ratchetProbabilityMenuMIDIOrCV` (`:564`) | `midi_cv::RatchetProbability` (`ratchet_probability.h:24`) | `ratchetProbability` |
+/// | `ratchet_probability_midi` | `ratchetProbabilityMenuMIDIOrCV` (`:564`) | `midi_cv::RatchetProbability` (`ratchet_probability.h`) | `ratchetProbability` |
 /// | `chord_polyphony` | `chordPolyphonyMenu` (`:566`) | `RandomizerNonKitSoundUnpatchedParam`, BAR | `UNPATCHED_ARP_CHORD_POLYPHONY` |
-/// | `chord_polyphony_midi` | `chordPolyphonyMenuMIDIOrCV` (`:568`) | `midi_cv::ChordPolyphony` (`chord_polyphony.h:24`) | `chordPolyphony` |
+/// | `chord_polyphony_midi` | `chordPolyphonyMenuMIDIOrCV` (`:568`) | `midi_cv::ChordPolyphony` (`chord_polyphony.h`) | `chordPolyphony` |
 /// | `chord_probability` | `chordProbabilityMenu` (`:570`) | `RandomizerNonKitSoundUnpatchedParam`, PERCENT | `UNPATCHED_ARP_CHORD_PROBABILITY` |
-/// | `chord_probability_midi` | `chordProbabilityMenuMIDIOrCV` (`:573`) | `midi_cv::ChordProbability` (`chord_probability.h:25`) | `chordProbability` |
+/// | `chord_probability_midi` | `chordProbabilityMenuMIDIOrCV` (`:573`) | `midi_cv::ChordProbability` (`chord_probability.h`) | `chordProbability` |
 /// | `note_probability` | `randomizerNoteProbabilityMenu` (`:575`) | `RandomizerUnpatchedParam`, PERCENT | `UNPATCHED_NOTE_PROBABILITY` |
-/// | `note_probability_midi` | `randomizerNoteProbabilityMenuMIDIOrCV` (`:577`) | `midi_cv::NoteProbability` (`note_probability.h:24`) | `noteProbability` |
+/// | `note_probability_midi` | `randomizerNoteProbabilityMenuMIDIOrCV` (`:577`) | `midi_cv::NoteProbability` (`note_probability.h`) | `noteProbability` |
 /// | `swap_probability` | `swapProbabilityMenu` (`:579`) | `RandomizerUnpatchedParam`, PERCENT | `UNPATCHED_ARP_SWAP_PROBABILITY` |
-/// | `swap_probability_midi` | `swapProbabilityMenuMIDIOrCV` (`:582`) | `midi_cv::SwapProbability` (`swap_probability.h:24`) | `swapProbability` |
+/// | `swap_probability_midi` | `swapProbabilityMenuMIDIOrCV` (`:582`) | `midi_cv::SwapProbability` (`swap_probability.h`) | `swapProbability` |
 /// | `bass_probability` | `bassProbabilityMenu` (`:584`) | `RandomizerUnpatchedParam`, PERCENT | `UNPATCHED_ARP_BASS_PROBABILITY` |
-/// | `bass_probability_midi` | `bassProbabilityMenuMIDIOrCV` (`:587`) | `midi_cv::BassProbability` (`bass_probability.h:25`) | `bassProbability` |
+/// | `bass_probability_midi` | `bassProbabilityMenuMIDIOrCV` (`:587`) | `midi_cv::BassProbability` (`bass_probability.h`) | `bassProbability` |
 /// | `glide_probability` | `glideProbabilityMenu` (`:590`) | `RandomizerUnpatchedParam`, PERCENT | `UNPATCHED_ARP_GLIDE_PROBABILITY` |
-/// | `glide_probability_midi` | `glideProbabilityMenuMIDIOrCV` (`:593`) | `midi_cv::GlideProbability` (`glide_probability.h:25`) | `glideProbability` |
+/// | `glide_probability_midi` | `glideProbabilityMenuMIDIOrCV` (`:593`) | `midi_cv::GlideProbability` (`glide_probability.h`) | `glideProbability` |
 /// | `reverse_probability` | `reverseProbabilityMenu` (`:595`) | `RandomizerUnpatchedParam`, PERCENT | `UNPATCHED_REVERSE_PROBABILITY` |
 /// | `randomizer` | `randomizerMenu` (`:599`) | `HorizontalMenu` | Submenu (Horizontal) |
 // clang-format on
 ///
 /// @note **The `midi_cv` items use the *unsigned* value scaling** --
 ///       `computeCurrentValueForUnsignedMenuItem` / `computeFinalValueForUnsignedMenuItem`
-///       (`gui/menu_item/value_scaling.cpp:18-20`, `:60-62`) -- because the `ArpeggiatorSettings`
+///       (`gui/menu_item/value_scaling.cpp`) -- because the `ArpeggiatorSettings`
 ///       fields they read are `uint32_t` (`modulation/arpeggiator.h:139-147`). That is a *third*
 ///       scaling, distinct from `Scaling::Standard` and `Scaling::HalfPrecision`, but it is not a
 ///       new `Scaling` enumerator: `Scaling` only ever applies to a `ParamRef` binding
@@ -124,7 +124,7 @@ DELUGE_RANDOMIZER_PARAM(ratchet_probability, STRING_FOR_RATCHET_PROBABILITY,
 DELUGE_RANDOMIZER_MIDI(ratchet_probability_midi, STRING_FOR_RATCHET_PROBABILITY,
                        STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE, "arpeggiator/ratchetProbability", Hint::Percent);
 
-// `RandomizerNonKitSoundUnpatchedParam::isRelevant` (`randomizer_unpatched_param.h:52-55`).
+// `RandomizerNonKitSoundUnpatchedParam::isRelevant` (`randomizer_unpatched_param.h`).
 DELUGE_RANDOMIZER_PARAM(chord_polyphony, STRING_FOR_CHORD_POLYPHONY, STRING_FOR_ARP_CHORD_POLYPHONY_MENU_TITLE,
                         UNPATCHED_ARP_CHORD_POLYPHONY, param_shows::kRandomizerNonKit, Hint::Bar);
 DELUGE_RANDOMIZER_MIDI(chord_polyphony_midi, STRING_FOR_CHORD_POLYPHONY, STRING_FOR_ARP_CHORD_POLYPHONY_MENU_TITLE,

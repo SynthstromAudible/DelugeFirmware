@@ -9,10 +9,9 @@
 /// `MenuContext::Root`. `sim/scenes_spec/shortcuts_spec.cpp` cross-checks every cell of every table
 /// against the legacy array it came from, in both directions.
 ///
-/// The board no longer carries any of this: `BoardProfile::shortcuts` (two
+/// The board profile does not carry these: `BoardProfile::shortcuts` (two
 /// `std::span<const uint16_t>` layers) could not hold five 16x8 tables of *node pointers* plus two
-/// one-dimensional ones selected by context, so the field is gone and the tables live here (ruling
-/// Q2).
+/// one-dimensional ones selected by context, so the tables live here.
 
 #include "scenes/menu/context.h"
 
@@ -50,8 +49,7 @@ struct ShortcutPos {
 ///
 /// A legacy one-dimensional table (`midiOrCVParamShortcuts`, `gateDrumParamShortcuts`) is stored as
 /// a full grid with only **column 11** filled -- the column `potentialShortcutPadAction`
-/// (`sound_editor.cpp:1332`) and `updatePadLightsFor` (`:874`, `:886`) index it at. (The task brief
-/// said column 0; legacy says 11.)
+/// and `updatePadLightsFor` index it at.
 ///
 /// @param root         Which menu root is open.
 /// @param second_layer Legacy's second shortcut layer -- see `shortcut_node`.
@@ -70,7 +68,7 @@ std::span<const Node* const> shortcut_layer(MenuContext::Root root, bool second_
 ///        shortcut.
 ///
 /// Ports the table lookup inside `SoundEditor::potentialShortcutPadAction`
-/// (`gui/ui/sound_editor.cpp:1195-1380`): which of the seven tables is consulted follows from
+/// (in `gui/ui/sound_editor.cpp`): which of the seven tables is consulted follows from
 /// @p root, exactly as legacy's chain of `rootUIIsClipMinderScreen()` / `setupKitGlobalFXMenu` /
 /// `ClipType::AUDIO` / output-type tests does.
 ///
@@ -144,7 +142,7 @@ enum class ShortcutsVersion : uint8_t {
 ShortcutsVersion shortcuts_version();
 
 /// @brief Select @p version -- the port of `SoundEditor::setShortcutsVersion`
-///        (`gui/ui/sound_editor.cpp:112-181`), and the reason `nodes::shortcuts_version` is a real
+///        and the reason `nodes::shortcuts_version` is a real
 ///        item rather than a setting that "selects nothing".
 ///
 /// @note **This selects a layer; legacy *mutates* one.** `setShortcutsVersion`'s `V1` arm assigns

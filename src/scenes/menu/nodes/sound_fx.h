@@ -1,9 +1,9 @@
 #pragma once
 
 /// @brief The FX subtree as data: `sound_fx` and its seven pages (EQ, delay, reverb, stutter,
-///        mod FX, distortion) plus the noise level, which is task 6's own node.
+///        mod FX, distortion) plus the noise level, which `sound_osc.h` declares.
 ///
-/// `inline constexpr` for the reason `sound_filters.h` explains (task-6 fix round 1, I3). From
+/// `inline constexpr` for the reason `sound_filters.h` explains. From
 /// `gui/ui/menus.cpp`'s `soundFXMenu` literal (`:1751-1762`) and the page literals it names.
 ///
 // clang-format off
@@ -15,42 +15,42 @@
 /// | `eq_treble_freq` | `trebleFreqMenu` (`:749`) | same, `UNPATCHED_TREBLE_FREQ` | Int (param) |
 /// | `eq` | `eqMenu` (`:752`) | `eq::EqMenu` (`eq/eq_menu.h:28`), a `HorizontalMenu` | Submenu (Horizontal) |
 /// | `delay_amount` | `delayFeedbackMenu` (`:763`) | `delay::Amount` (`delay/amount.h:26`), `GLOBAL_DELAY_FEEDBACK` | Int (param) |
-/// | `delay_ping_pong` | `delayPingPongMenu` (`:766`) | `delay::PingPong` (`delay/ping_pong.h:27`) | Enum (toggle) |
-/// | `delay_sync` | `delaySyncMenu` (`:768`) | `delay::Sync` (`delay/sync.h:27`) | SyncLevel |
+/// | `delay_ping_pong` | `delayPingPongMenu` (`:766`) | `delay::PingPong` | Enum (toggle) |
+/// | `delay_sync` | `delaySyncMenu` (`:768`) | `delay::Sync` | SyncLevel |
 /// | `delay_rate` | `delayRateMenu` (`:765`) | `patched_param::Integer`, `GLOBAL_DELAY_RATE` | Int (param) |
 /// | `delay_type` | `delayTypeMenu` | `delay::Type` (`delay/type.h`) | Enum |
 /// | `delay` | `delayMenu` (`:770`) | `HorizontalMenu` | Submenu (Horizontal) |
 /// | `reverb_amount` | `reverbAmountMenu` (`:847`) | `reverb::Amount` (`reverb/amount.h:22`), `GLOBAL_REVERB_AMOUNT` | Int (param) |
-/// | `reverb_room_size` | `reverbRoomSizeMenu` (`:849`) | `reverb::RoomSize` (`reverb/room_size.h:25`) | Int |
-/// | `reverb_damping` | `reverbDampingMenu` (`:850`) | `reverb::Damping` (`reverb/damping.h:24`) | Int |
-/// | `reverb_width` | `reverbWidthMenu` (`:851`) | `reverb::Width` (`reverb/width.h:25`) | Int |
+/// | `reverb_room_size` | `reverbRoomSizeMenu` (`:849`) | `reverb::RoomSize` | Int |
+/// | `reverb_damping` | `reverbDampingMenu` (`:850`) | `reverb::Damping` | Int |
+/// | `reverb_width` | `reverbWidthMenu` (`:851`) | `reverb::Width` | Int |
 /// | `reverb_model` | `reverbModelMenu` (`:853`) | `reverb::Model` (`reverb/model.h:10`) | Enum |
 /// | `reverb_pan` | `reverbPanMenu` (`:852`) | `reverb::Pan` (`reverb/pan.h:26`) | Int (pan scaling) |
 /// | `reverb_hpf` | `reverbHPFMenu` (`:854`) | `reverb::HPF` (`reverb/hpf.h:27`) | Int |
-/// | `reverb_lpf` | `reverbLPFMenu` (`:855`) | `reverb::LPF` (`reverb/lpf.h:26`) | Int |
-/// | `reverb_sidechain_volume` | `reverbSidechainVolumeMenu` (`:827`) | `reverb::sidechain::Volume` (`reverb/sidechain/volume.h:24`) | Int |
-/// | `reverb_sidechain_shape` | `reverbSidechainShapeMenu` (`:833`) | `reverb::sidechain::Shape` (`reverb/sidechain/shape.h:25`) | Int |
+/// | `reverb_lpf` | `reverbLPFMenu` (`:855`) | `reverb::LPF` | Int |
+/// | `reverb_sidechain_volume` | `reverbSidechainVolumeMenu` (`:827`) | `reverb::sidechain::Volume` | Int |
+/// | `reverb_sidechain_shape` | `reverbSidechainShapeMenu` (`:833`) | `reverb::sidechain::Shape` | Int |
 /// | `reverb_sidechain_attack` | `reverbSidechainAttackMenu` (`:829`) | `sidechain::Attack`, reverb spelling | Int |
 /// | `reverb_sidechain_release` | `reverbSidechainReleaseMenu` (`:831`) | `sidechain::Release`, reverb spelling | Int |
 /// | `reverb_sidechain_sync` | `reverbSidechainSyncMenu` (`:828`) | `sidechain::Sync`, reverb spelling | SyncLevel, 10 options |
 /// | `reverb_sidechain` | `reverbSidechainMenu` (`:835`) | `HorizontalMenu`, `FIXED` | Submenu (Horizontal) |
 /// | `reverb` | `reverbMenu` (`:857`) | `HorizontalMenu` | Submenu (Horizontal) |
 /// | `stutter_rate` | `stutterRateMenu` (`:784`) | `stutter::Rate` (`stutter/rate.h:24`), `UNPATCHED_STUTTER_RATE` | Int (param) |
-/// | `stutter_direction` | `stutterDirectionMenu` (`:782`) | `stutter::StutterDirection` (`stutter/direction.h:29`) | Enum (dynamic) |
-/// | `stutter_quantize` | `stutterQuantizedMenu` (`:783`) | `stutter::QuantizedStutter` (`stutter/quantized.h:29`) | Toggle |
+/// | `stutter_direction` | `stutterDirectionMenu` (`:782`) | `stutter::StutterDirection` | Enum (dynamic) |
+/// | `stutter_quantize` | `stutterQuantizedMenu` (`:783`) | `stutter::QuantizedStutter` | Toggle |
 /// | `stutter` | `stutterMenu` (`:786`) | `HorizontalMenu`, `FIXED` | Submenu (Horizontal) |
-/// | `mod_fx_type` | `modFXTypeMenu` (`:724`) | `mod_fx::Type` (`mod_fx/type.h:30`) | Enum (dynamic), 4 slots |
-/// | `mod_fx_depth` | `modFXDepthMenu` (`:728`) | `mod_fx::Depth_Patched` (`depth_patched.h:25`), `GLOBAL_MOD_FX_DEPTH` | Int (param) |
+/// | `mod_fx_type` | `modFXTypeMenu` (`:724`) | `mod_fx::Type` | Enum (dynamic), 4 slots |
+/// | `mod_fx_depth` | `modFXDepthMenu` (`:728`) | `mod_fx::Depth_Patched`, `GLOBAL_MOD_FX_DEPTH` | Int (param) |
 /// | `mod_fx_rate` | `modFXRateMenu` (`:725`) | `mod_fx::Rate` (`mod_fx/rate.h:23`), `GLOBAL_MOD_FX_RATE` | Int (param) |
-/// | `mod_fx_feedback` | `modFXFeedbackMenu` (`:726`) | `mod_fx::Feedback` (`mod_fx/feedback.h:24`), `UNPATCHED_MOD_FX_FEEDBACK` | Int (param) |
-/// | `mod_fx_offset` | `modFXOffsetMenu` (`:730`) | `mod_fx::Offset` (`mod_fx/offset.h:25`), `UNPATCHED_MOD_FX_OFFSET` | Int (param) |
-/// | `mod_fx` | `modFXMenu` (`:733`) | `submenu::ModFxHorizontalMenu` (`submenu/mod_fx.h:24`) | Submenu (Horizontal) |
-/// | `saturation` | `clippingMenu` (`:883`) | `fx::Clipping` (`fx/clipping.h:29`) | Int |
+/// | `mod_fx_feedback` | `modFXFeedbackMenu` (`:726`) | `mod_fx::Feedback`, `UNPATCHED_MOD_FX_FEEDBACK` | Int (param) |
+/// | `mod_fx_offset` | `modFXOffsetMenu` (`:730`) | `mod_fx::Offset`, `UNPATCHED_MOD_FX_OFFSET` | Int (param) |
+/// | `mod_fx` | `modFXMenu` (`:733`) | `submenu::ModFxHorizontalMenu` | Submenu (Horizontal) |
+/// | `saturation` | `clippingMenu` (`:883`) | `fx::Clipping` | Int |
 /// | `bitcrush` | `bitcrushMenu` (`:886`) | `UnpatchedParam`, `UNPATCHED_BITCRUSHING`, BAR | Int (param) |
 /// | `decimation` | `srrMenu` (`:884`) | `UnpatchedParam`, `UNPATCHED_SAMPLE_RATE_REDUCTION`, BAR | Int (param) |
 /// | `wavefold` | `foldMenu` (`:887`) | `patched_param::Integer`, `LOCAL_FOLD`, BAR | Int (param) |
 /// | `distortion` | `soundDistortionMenu` (`:890`) | `HorizontalMenu` | Submenu (Horizontal) |
-/// | `noise` | `noiseMenu` | `patched_param::IntegerNonFM` -- **task 6's**, `sound_osc.h` | Int (param) |
+/// | `noise` | `noiseMenu` | `patched_param::IntegerNonFM` -- declared in `sound_osc.h` | Int (param) |
 /// | `sound_fx` | `soundFXMenu` (`:1751`) | `Submenu` | Submenu (Vertical) |
 // clang-format on
 ///
@@ -181,7 +181,7 @@ inline constexpr Node delay = submenu(sid(deluge::l10n::String::STRING_FOR_DELAY
 
 // --- Reverb ------------------------------------------------------------------------------------
 //
-// The four float-backed items share `{0, kMaxMenuValue}` (`reverb/room_size.h:28 readCurrentValue` and siblings);
+// The four float-backed items share `{0, kMaxMenuValue}` (`reverb::RoomSize::readCurrentValue` and siblings);
 // the pan is -25..25 (`reverb/pan.h:26-27`); the sidechain volume starts at -1, which the item
 // draws as AUTO (`reverb/sidechain/volume.h:26-27,30-39`).
 

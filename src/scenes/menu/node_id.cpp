@@ -9,18 +9,18 @@ namespace {
 /// @brief The registry's own hash table: open-addressed, `kMaxNodes * 2` slots hashed on the
 ///        node's own pointer, linear-probed on collision.
 ///
-/// The brief allows either a linear-probe scan or an open-addressed table; this is the latter --
+/// Open addressing rather than a linear scan over the assigned entries:
 /// `kMaxNodes` is 1024, so a linear scan over every assigned entry to answer `node_id` would be
 /// up to 1024 pointer comparisons per lookup, versus O(1) expected here with a load factor capped
 /// at 50%. The table is rebuilt from empty on every `assign_node_ids` call (never incrementally
 /// updated), so an empty slot encountered while probing is a genuine "not present" -- no tombstone
 /// bookkeeping is needed.
 ///
-/// **A slot holds the id alone, not `{node, id}`** (fix round 2, M5). The node a slot stands for is
-/// already recoverable -- it is `g_by_id[id - 1]` -- so storing the pointer a second time bought
+/// **A slot holds the id alone, not `{node, id}`.** The node a slot stands for is
+/// already recoverable -- it is `g_by_id[id - 1]` -- so storing the pointer a second time would buy
 /// nothing but `.bss`: a `{const Node*, uint16_t}` slot is 8 bytes after padding on the 32-bit
-/// target, against 2 for a bare id, and the two arrays together cost 20 KB where they now cost 8
-/// (`2048 * 2 + 1024 * 4`). Probing is otherwise unchanged: `0` is the empty slot (ids start at 1),
+/// target, against 2 for a bare id, and the two arrays together cost 20 KB where they cost 8
+/// (`2048 * 2 + 1024 * 4`). `0` is the empty slot (ids start at 1),
 /// and the pointer comparison a probe needs goes through `g_by_id` instead of through the slot.
 constexpr size_t kTableSlots = kMaxNodes * 2;
 

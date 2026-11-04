@@ -3,58 +3,57 @@
 /// @brief The oscillator subtree as data: the sample recorder, both sources, both FM modulators and
 ///        the mixer -- six of the seventeen batch-1 roots.
 ///
-/// `inline constexpr` for the reason `sound_filters.h` explains (fix round 1, I3). From
-/// `gui/menu_item/generate/dmenus/oscillator/{__init__,source,modulator,recorder}.py` and
-/// `generate/g_menus.inc:55-158` (at `ce4a79de0`). The largest of the six subtrees, and the only one
+/// `inline constexpr` for the reason `sound_filters.h` explains. From
+/// `gui/ui/menus.cpp`'s oscillator block, from `sample0RecorderMenu`. The largest of the six subtrees, and the only one
 /// with bespoke (`Kind::Custom`) items.
 ///
 // clang-format off
-/// | node | legacy global (`g_menus.inc`) | legacy class |
+/// | node | legacy global | legacy class |
 /// |---|---|---|
-/// | `sample<i>_recorder` | `sample<i>RecorderMenu` (`:55-56`) | `osc::AudioRecorder` (`osc/audio_recorder.h:28`) |
-/// | `recorder` | `recorderMenu` (`:318`) | `HorizontalMenu` |
-/// | `osc<i>_type` | `osc<i>TypeMenu` (`:62`, `:93`) | `osc::Type` (`osc/type.h:34`) |
-/// | `file<i>_selector` | `file<i>SelectorMenu` (`:63`, `:94`) | `FileSelector` (`file_selector.h:26`) |
-/// | `source<i>_transpose` | `source<i>TransposeMenu` (`:64`, `:95`) | `sample::Transpose` (`sample/transpose.h:31`) |
-/// | `source<i>_wave_index` | `source<i>WaveIndexMenu` (`:65`, `:96`) | `osc::source::WaveIndex` (`osc/source/wave_index.h:23`) |
-/// | `osc<i>_pulse_width` | `osc<i>PulseWidthMenu` (`:66`, `:97`) | `osc::PulseWidth` (`osc/pulse_width.h:25`) |
-/// | `source<i>_feedback` | `source<i>FeedbackMenu` (`:67`, `:98`) | `osc::source::Feedback` (`osc/source/feedback.h:23`) |
-/// | `osc<i>_phase` | `osc<i>PhaseMenu` (`:68`, `:99`) | `osc::RetriggerPhase` (`osc/retrigger_phase.h:26`) |
-/// | `sample<i>_reverse` | `sample<i>ReverseMenu` (`:69`, `:100`) | `sample::Reverse` (`sample/reverse.h:27`) |
-/// | `sample<i>_repeat` | `sample<i>RepeatMenu` (`:70`, `:101`) | `sample::Repeat` (`sample/repeat.h:32`) |
-/// | `sample<i>_time_stretch` | `sample<i>TimeStretchMenu` (`:71`, `:102`) | `sample::TimeStretch` (`sample/time_stretch.h:27`) |
-/// | `sample<i>_pitch_speed` | `sample<i>PitchSpeedMenu` (`:72`, `:103`) | `sample::PitchSpeed` (`sample/pitch_speed.h:29`) |
-/// | `sample<i>_interpolation` | `sample<i>InterpolationMenu` (`:73`, `:104`) | `sample::Interpolation` (`sample/interpolation.h:25`) |
-/// | `sample<i>_start` / `_end` | `sample<i>StartMenu` / `EndMenu` (`:74-75`, `:105-106`) | `sample::Start` / `End` over `LoopPoint` (`sample/loop_point.h:25`) |
-/// | `source<i>` | `source<i>Menu` (`:92`, `:123`) | `submenu::ActualSource` (`submenu/actual_source.h:23`) |
-/// | `modulator<i>_transpose` | `modulator<i>TransposeMenu` (`:124`, `:133`) | `modulator::Transpose` (`modulator/transpose.h:28`) |
-/// | `modulator<i>_feedback` | `modulator<i>FeedbackMenu` (`:125`, `:134`) | `source::patched_param::ModulatorFeedback` (`modulator_feedback.h:23`) |
-/// | `modulator<i>_phase_node` | `modulator<i>PhaseMenu` (`:126`, `:135`) | `osc::RetriggerPhase`, `for_modulator` |
-/// | `modulator_dest` | `modulatorDestMenu` (`:393`) | `modulator::Destination` (`modulator/destination.h:28`) |
-/// | `modulator<i>` | `modulator<i>Menu` (`:132`, `:143`) | `submenu::Modulator` (`submenu/modulator.h:21`) |
-/// | `source<i>_volume` | `source<i>VolumeMenu` (`:144-145`) | `osc::source::Volume` (`osc/source/volume.h:24`) |
-/// | `modulator<i>_volume` | `modulator<i>Volume` (`:146-147`) | `source::patched_param::ModulatorLevel` (`modulator_level.h:23`) |
-/// | `noise` | `noiseMenu` (`:405`) | `patched_param::IntegerNonFM` (`patched_param/integer_non_fm.h:22`) |
-/// | `osc_sync` | `oscSyncMenu` (`:406`) | `osc::Sync` (`osc/sync.h:26`) |
-/// | `osc_mixer` | `oscMixerMenu` (`:415`) | `HorizontalMenu` |
+/// | `sample<i>_recorder` | `sample<i>RecorderMenu` | `osc::AudioRecorder` (`osc/audio_recorder.h:28`) |
+/// | `recorder` | `recorderMenu` | `HorizontalMenu` |
+/// | `osc<i>_type` | `osc<i>TypeMenu` | `osc::Type` (`osc/type.h`) |
+/// | `file<i>_selector` | `file<i>SelectorMenu` | `FileSelector` (`file_selector.h:26`) |
+/// | `source<i>_transpose` | `source<i>TransposeMenu` | `sample::Transpose` (`sample/transpose.h`) |
+/// | `source<i>_wave_index` | `source<i>WaveIndexMenu` | `osc::source::WaveIndex` (`osc/source/wave_index.h:23`) |
+/// | `osc<i>_pulse_width` | `osc<i>PulseWidthMenu` | `osc::PulseWidth` (`osc/pulse_width.h:25`) |
+/// | `source<i>_feedback` | `source<i>FeedbackMenu` | `osc::source::Feedback` (`osc/source/feedback.h:23`) |
+/// | `osc<i>_phase` | `osc<i>PhaseMenu` | `osc::RetriggerPhase` (`osc/retrigger_phase.h`) |
+/// | `sample<i>_reverse` | `sample<i>ReverseMenu` | `sample::Reverse` (`sample/reverse.h`) |
+/// | `sample<i>_repeat` | `sample<i>RepeatMenu` | `sample::Repeat` (`sample/repeat.h`) |
+/// | `sample<i>_time_stretch` | `sample<i>TimeStretchMenu` | `sample::TimeStretch` (`sample/time_stretch.h`) |
+/// | `sample<i>_pitch_speed` | `sample<i>PitchSpeedMenu` | `sample::PitchSpeed` (`sample/pitch_speed.h`) |
+/// | `sample<i>_interpolation` | `sample<i>InterpolationMenu` | `sample::Interpolation` (`sample/interpolation.h`) |
+/// | `sample<i>_start` / `_end` | `sample<i>StartMenu` / `EndMenu` | `sample::Start` / `End` over `LoopPoint` (`sample/loop_point.h:25`) |
+/// | `source<i>` | `source<i>Menu` | `submenu::ActualSource` (`submenu/actual_source.h:23`) |
+/// | `modulator<i>_transpose` | `modulator<i>TransposeMenu` | `modulator::Transpose` (`modulator/transpose.h`) |
+/// | `modulator<i>_feedback` | `modulator<i>FeedbackMenu` | `source::patched_param::ModulatorFeedback` (`modulator_feedback.h:23`) |
+/// | `modulator<i>_phase_node` | `modulator<i>PhaseMenu` | `osc::RetriggerPhase`, `for_modulator` |
+/// | `modulator_dest` | `modulatorDestMenu` | `modulator::Destination` (`modulator/destination.h`) |
+/// | `modulator<i>` | `modulator<i>Menu` | `submenu::Modulator` (`submenu/modulator.h:21`) |
+/// | `source<i>_volume` | `source<i>VolumeMenu` | `osc::source::Volume` (`osc/source/volume.h:24`) |
+/// | `modulator<i>_volume` | `modulator<i>Volume` | `source::patched_param::ModulatorLevel` (`modulator_level.h:23`) |
+/// | `noise` | `noiseMenu` | `patched_param::IntegerNonFM` (`patched_param/integer_non_fm.h:22`) |
+/// | `osc_sync` | `oscSyncMenu` | `osc::Sync` (`osc/sync.h`) |
+/// | `osc_mixer` | `oscMixerMenu` | `HorizontalMenu` |
 // clang-format on
 ///
 /// @note **The four bespoke items, and they are real now.** `FileSelector`, `osc::AudioRecorder` and
 ///       the two `LoopPoint`s do not edit a value at all -- each `beginSession`s straight into
-///       another whole UI (the sample browser, the audio recorder, the sample marker editor). Spec
-///       E §4 calls those `Kind::Custom` and names "file selector" among the seven it expects.
-///       E1 and E2 pointed all eight nodes at `kPending`; **E3 task 6 gave them
-///       `nodes/sample.h`'s three item classes** -- `FileBrowserItem` over `browser::BrowserScene`,
-///       `MarkerItem` over `marker::MarkerScene` and `AudioRecorderItem` over
-///       `recorder::RecorderScene` -- as six distinct instances, one per (item, source) pair, so
-///       spec E §4's budget of ten now counts 3 classes / 6 instances here rather than 1.
+///       another whole UI (the sample browser, the audio recorder, the sample marker editor). They
+///       are `Kind::Custom` nodes over `nodes/sample.h`'s three item classes -- `FileBrowserItem`
+///       over `browser::BrowserScene`, `MarkerItem` over `marker::MarkerScene` and
+///       `AudioRecorderItem` over `recorder::RecorderScene` -- as six distinct instances, one per
+///       (item, source) pair.
 ///
-///       **In a horizontal page the item still does not run**: `present_column`
-///       (`menu/present.cpp`) dispatches on `Kind` and `Custom` falls to its `default:` arm -> `meter_column`, so these
-///       eight columns draw empty bars. Legacy renders each of them itself (`FileSelector::renderInHorizontalMenu`,
+///       **In a horizontal page the item still does not run**: `present_column` (`menu/present.cpp`)
+///       draws each of these columns from the node's `Binding` hooks, which `column_hooks.h` supplies
+///       -- `file_selector_art` and `file0_label`/`file1_label` for the file selector,
+///       `recorder0_draw`/`recorder1_draw` for the recorder, `loop_start_draw`/`loop_end_draw` for the
+///       loop points. Legacy renders each of them itself (`FileSelector::renderInHorizontalMenu`,
 ///       `file_selector.cpp:88-91`; `LoopPoint::renderInHorizontalMenu`, `sample/loop_point.cpp:75-90`;
-///       `osc::AudioRecorder::renderInHorizontalMenu`, `osc/audio_recorder.h:81-114`), which `Node`
-///       has no field for and which is a `Hint`/widget question rather than a wiring one.
+///       `osc::AudioRecorder::renderInHorizontalMenu`, `osc/audio_recorder.h:81-114`), and the hooks are
+///       their transcriptions, not the items.
 ///
 /// @note **`range_dependent`.** Four legacy classes in this subtree override
 ///       `checkPermissionToBeginSession` to route through
@@ -74,7 +73,7 @@
 ///       (`source/transpose.h:28-32`), `unlearnAction`/`allowsLearnMode`/`learnKnob`
 ///       (`transpose.h:28-32`). Without the reference, MIDI/CC learn on
 ///       `LOCAL_OSC_A/B_PITCH_ADJUST` and `LOCAL_MODULATOR_0/1_PITCH_ADJUST` would silently vanish
-///       (fix round 1, I1). `node.h`'s `Binding` precedence note explains why declaring both is safe.
+///      . `node.h`'s `Binding` precedence note explains why declaring both is safe.
 ///
 /// @note **Per-source relevance.** Legacy bakes `source_id_` into each item; `RelevantFn` has no
 ///       room for one, so `relevance.h` declares `osc0_*` / `osc1_*` pairs. See its own note.
@@ -117,11 +116,9 @@ namespace deluge::scenes::menu::nodes {
 
 /// @brief The shared placeholder for a node whose real item is still owed.
 ///
-/// **Nothing anywhere points here any more** -- E3 task 6 retired this file's own eight users and
-/// E3 task 7 the last two, in `nodes/roots.h` (`validate.h`'s `kPendingCustomNodes` is 0). It stays
-/// for its history *and as a live mechanism*: a table that has to declare a node's shape before its
-/// item exists still points here, and `validate_tree` now reports that with nothing able to
-/// suppress it -- the option that could was deleted with the last user.
+/// **Nothing points here at present** (`validate.h`'s `kPendingCustomNodes` is 0). It is a live
+/// mechanism: a table that has to declare a node's shape before its item exists points here, and
+/// `validate_tree` reports that, with no option able to suppress it.
 ///
 /// Both members are defined in `sound_osc.cpp`: declaring them here keeps this header free of the
 /// oled toolkit's and the shell's dependency closures, exactly as `node.h` keeps `CustomItem` free
@@ -356,8 +353,8 @@ inline constexpr const Node* kModulator1Children[] = {&modulator1_transpose, &mo
 inline constexpr Node modulator1 = submenu(sid(deluge::l10n::String::STRING_FOR_FM_MODULATOR_2), kModulator1Children,
                                            Layout::Horizontal, relevance::is_fm);
 
-// The recorder page (`g_menus.inc:55-61`). Two slots wide each --
-// `AudioRecorder::getOccupiedSlots()` (`osc/audio_recorder.h:77`).
+// The recorder page (`sample0RecorderMenu` .. `recorderMenu` in `menus.cpp`). Two slots wide each --
+// `AudioRecorder::getOccupiedSlots()` (`osc/audio_recorder.h`).
 inline constexpr Node sample0_recorder =
     with_column_draw(without_notification(without_column_label(
                          with_title_arg(with_slots(with_allow_session_from_horizontal(with_range_dependent(
@@ -378,7 +375,7 @@ inline constexpr const Node* kRecorderChildren[] = {&sample0_recorder, &sample1_
 inline constexpr Node recorder =
     submenu(sid(deluge::l10n::String::STRING_FOR_SAMPLE_RECORDER), kRecorderChildren, Layout::Horizontal);
 
-// The mixer page (`g_menus.inc:144-158`).
+// The mixer page (`source0VolumeMenu` onward in `menus.cpp`).
 inline constexpr Node source0_volume =
     with_value_text(with_title_arg(with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_OSC_LEVEL_MENU_TITLE),
                                                           {deluge::modulation::params::Kind::PATCHED,

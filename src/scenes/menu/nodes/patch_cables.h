@@ -1,8 +1,8 @@
 #pragma once
 
 /// @brief The patch-cable pages: the mod-matrix list, the two source pickers, and the three
-///        cable-strength editors -- E2 task 9's port of `gui/menu_item/patch_cables.{h,cpp}` (192
-///        lines), `patch_cable_strength.{h,cpp}` (390) and the four singletons under
+///        cable-strength editors -- the port of `gui/menu_item/patch_cables.{h,cpp}`,
+///        `patch_cable_strength.{h,cpp}` and the four singletons under
 ///        `gui/menu_item/source_selection/` and `gui/menu_item/patch_cable_strength/`.
 ///
 /// Six legacy globals become six `CustomItem`s and four new `Node`s:
@@ -10,23 +10,22 @@
 /// | legacy global (`gui/ui/menus.cpp`) | port |
 /// |---|---|
 /// | `patchCablesMenu` (`:1737`) | `nodes::patch_cables` -> `kPatchCablesItem` |
-/// | `source_selection::regularMenu` (`source_selection/regular.cpp:24`) | `nodes::source_selection_regular` |
-/// | `patch_cable_strength::regularMenu` (`patch_cable_strength/regular.cpp:28`) |
-/// `nodes::patch_cable_strength_regular` | | `source_selection::rangeMenu` (`source_selection/range.cpp:24`) |
-/// `nodes::source_selection_range` | | `patch_cable_strength::rangeMenu` (`patch_cable_strength/range.cpp:23`) |
-/// `nodes::patch_cable_strength_range` | | `vibratoMenu` (`:1727`), `sidechainVolumeShortcutMenu` (`:806`) |
-/// `nodes::vibrato`, `nodes::sidechain_volume` |
+/// | `source_selection::regularMenu` (`source_selection/regular.cpp`) | `nodes::source_selection_regular` |
+/// | `patch_cable_strength::regularMenu` | `nodes::patch_cable_strength_regular` |
+/// | `source_selection::rangeMenu` | `nodes::source_selection_range` |
+/// | `patch_cable_strength::rangeMenu` | `nodes::patch_cable_strength_range` |
+/// | `vibratoMenu`, `sidechainVolumeShortcutMenu` | `nodes::vibrato`, `nodes::sidechain_volume` |
 ///
 /// ## The chain
 ///
 /// Every one of these pages is reached through `MenuItem::selectButtonPress()`, i.e. through
-/// `Node::select_chain` + `Node::chain_targets` (E2 task 3). The whole graph:
+/// `Node::select_chain` + `Node::chain_targets`. The whole graph:
 ///
 /// ```
 ///   53 PatchedParam nodes --(patched_param.cpp:32-40)--> source_selection_regular
 ///   source_selection_regular --(source_selection/regular.cpp:33)--> patch_cable_strength_regular
 ///   patch_cable_strength_regular --(patch_cable_strength.cpp:302-309)--> source_selection_range
-///   source_selection_range --(source_selection/range.cpp:33)--> patch_cable_strength_range
+///   source_selection_range --(source_selection/range.cpp)--> patch_cable_strength_range
 ///   patch_cable_strength_range --(patch_cable_strength.cpp:302-309)--> source_selection_range   <-- a 2-cycle
 ///   patch_cables --(patch_cables.cpp:164-190)--> patch_cable_strength_{regular,range}
 ///   vibrato, sidechain_volume --(patch_cable_strength.cpp:302-309)--> source_selection_range
@@ -62,12 +61,6 @@
 ///     is given. That is the one reason the polarity switch does not sit on legacy's own canvas row
 ///     34 -- see `kRoutingDiagramWidth` in the `.cpp`, which also explains why the switch's *row*
 ///     is frame-local where `decimal_value`'s is canvas-absolute.
-///   * `PatchCables::blinkShortcuts` / `blinkShortcutsSoon` / `timerCallback`
-///     (`patch_cables.cpp:113-151`) and the three `shouldBlinkPatchingSourceShortcut` overrides:
-///     grid-pad blinking driven by `uiTimerManager` and `soundEditor.setupShortcutBlink`.
-///     `MenuScene::render_grid` owns the port's one blink cycle and keys it off the focused *node*
-///     (`shortcut_blink.h`'s `kShortcutBlinkMs`); making it key off a focused item's own answer is the
-///     wiring plan's, not this task's.
 ///   * `PatchCableStrength::horizontalEncoderAction`'s `delayHorizontalScrollUntil` escape into
 ///     `automationView` / `keyboardScreen` (`:338-365`) -- both are `gui/views/`.
 ///   * `PatchCableStrength::buttonAction`'s MIDI/CV button polarity shortcut (`:311-323`) and
@@ -76,11 +69,20 @@
 ///     fallback walk (`patch_cable_strength/regular.cpp:51-62`) IS ported, in
 ///     `PatchCableStrengthItem::on_focus`.
 ///   * `Fixed::patchingSourceShortcutPress` and friends -- patching-source *pad* presses, which
-///     arrive as grid input this task does not wire.
+///     arrive as grid input, which `source_press` below handles.
 ///
-/// ## What DID come across that once did not
+/// ## Source-pad blinking
 ///
-/// The routing diagram and the BI/UNI box **are** ported, as of fix round 1: they are
+/// Legacy's `PatchCables::blinkShortcuts` / `blinkShortcutsSoon` / `timerCallback`
+/// (`patch_cables.cpp`) and the three `shouldBlinkPatchingSourceShortcut` overrides drive grid-pad
+/// blinking from `uiTimerManager` and `soundEditor.setupShortcutBlink`. The port has no per-item
+/// timer: `MenuScene::render_grid` owns the one blink cycle (`shortcut_blink.h`'s
+/// `kShortcutBlinkMs`), and each item here answers into it through `CustomItem::patched_param_to_blink`,
+/// `source_blink` and `blink_delay_ms` (read by `shortcut_blink.cpp` and `pads.cpp`).
+///
+/// ## What is ported
+///
+/// The routing diagram and the BI/UNI box **are** ported: they are
 /// `ui::oled::routing_chain` and `ui::oled::segmented_switch` (`ui/oled/routing.h`), transcribed
 /// coordinate for coordinate from `renderOLED`'s two blocks and pinned byte-for-byte against them
 /// in `tests/spec/ui/routing_spec.cpp`. The scenes layer may not call an `OledFrame` primitive
@@ -120,7 +122,7 @@ public:
 	                                 const deluge::ui::shell::UiContext& ui_ctx, const MenuContext& ctx,
 	                                 MenuState& state) const override;
 	void on_focus(const MenuContext& ctx, MenuState& state) const override;
-	/// `PatchCables::blinkShortcutsSoon` (`patch_cables.cpp:135-139`): 500 ms on an OLED panel.
+	/// `PatchCables::blinkShortcutsSoon` (`patch_cables.cpp`): 500 ms on an OLED panel.
 	uint16_t blink_delay_ms() const override { return 500; }
 	/// The cable under the cursor's destination, as `PatchCables::blinkShortcuts` blinks it (`patch_cables.cpp`).
 	uint8_t patched_param_to_blink(const MenuContext& ctx, const MenuState& state) const override;
@@ -164,13 +166,13 @@ public:
 		return which_ == Which::Range ? SourceTarget::Parent : SourceTarget::Parameter;
 	}
 
-	/// `source_selection::Regular::patchingSourceShortcutPress` (`regular.cpp:50-66`): the source's strength page, or
-	/// PARAMETER NOT APPLICABLE for a source the destination refuses; `Range`'s asks the item above.
+	/// `source_selection::Regular::patchingSourceShortcutPress` (`source_selection/regular.cpp`): the source's strength
+	/// page, or PARAMETER NOT APPLICABLE for a source the destination refuses; `Range`'s asks the item above.
 	deluge::scenes::menu::SourcePress source_press(const MenuContext& ctx, MenuState& state, PatchSource source,
 	                                               bool previous_held, const Node*& open) const override;
 
 	/// `SourceSelection::getIndexOfPatchedParamToBlink` / `shouldBlinkPatchingSourceShortcut`
-	/// (`source_selection.cpp:309-318`): the param, and every source patched to the destination.
+	/// (`source_selection.cpp`): the param, and every source patched to the destination.
 	uint8_t patched_param_to_blink(const MenuContext& ctx, const MenuState& state) const override;
 	uint8_t source_blink(const MenuContext& ctx, const MenuState& state, PatchSource source,
 	                     deluge::ui::grid::FlashColour& colour) const override;
@@ -214,9 +216,9 @@ public:
 
 	constexpr Which which() const { return which_; }
 
-	/// The three classes' `patchingSourceShortcutPress` (`regular.cpp:85-91`, `range.cpp:58-60`, `fixed.cpp:45-48`):
-	/// another held source pad opens the range page for the pressed source (`Fixed` always opens it); otherwise the
-	/// item above answers.
+	/// The three classes' `patchingSourceShortcutPress` (`patch_cable_strength/regular.cpp`, `range.cpp:58-60`,
+	/// `fixed.cpp:45-48`): another held source pad opens the range page for the pressed source (`Fixed` always opens
+	/// it); otherwise the item above answers.
 	deluge::scenes::menu::SourcePress source_press(const MenuContext& ctx, MenuState& state, PatchSource source,
 	                                               bool previous_held, const Node*& open) const override;
 	bool is_patch_cable() const override { return true; }
@@ -230,8 +232,8 @@ public:
 	}
 
 	/// `PatchCableStrength::getIndexOfPatchedParamToBlink` (`patch_cable_strength.cpp:284-290`, the volume triple
-	/// folded to POST_FX) and the three classes' `shouldBlinkPatchingSourceShortcut` (`regular.cpp:67-83`,
-	/// `range.cpp:42-56`, `fixed.cpp:35-43`).
+	/// folded to POST_FX) and the three classes' `shouldBlinkPatchingSourceShortcut`
+	/// (`patch_cable_strength/regular.cpp`, `range.cpp:42-56`, `fixed.cpp:35-43`).
 	uint8_t patched_param_to_blink(const MenuContext& ctx, const MenuState& state) const override;
 	uint8_t source_blink(const MenuContext& ctx, const MenuState& state, PatchSource source,
 	                     deluge::ui::grid::FlashColour& colour) const override;
@@ -307,7 +309,7 @@ const Node* patched_param_chain(const MenuContext& ctx, const MenuState& state);
 
 /// @brief `source_selection::Regular::selectButtonPress` (`source_selection/regular.cpp:32-34`).
 const Node* source_selection_regular_chain(const MenuContext& ctx, const MenuState& state);
-/// @brief `source_selection::Range::selectButtonPress` (`source_selection/range.cpp:32-34`).
+/// @brief `source_selection::Range::selectButtonPress` (`source_selection/range.cpp`).
 const Node* source_selection_range_chain(const MenuContext& ctx, const MenuState& state);
 /// @brief `PatchCableStrength::selectButtonPress`'s non-shift arm
 ///        (`patch_cable_strength.cpp:302-309`) -- always the range source picker. Shared by all
@@ -344,10 +346,9 @@ cable_request(const MenuContext& ctx, deluge::synth::CableTarget learn, int32_t 
 /// @brief @p n with the chain every `PatchedParam`-derived legacy item has.
 ///
 /// Applied at the 29 declaration sites whose `bind.param.kind == params::Kind::PATCHED` (the macros
-/// in `sound_osc.h` / `sound_env.h` / `sound_lfo.h` expand several of them), which E2 task 3
-/// measured to be **exactly 53 nodes** -- the same set as the legacy items that derive from
-/// `menu_item::PatchedParam`, verified by `dynamic_cast` over a lockstep walk. `tables_2_spec` pins
-/// both halves of that equality, so a `param(... Kind::PATCHED ...)` added without this wrapper
+/// in `sound_osc.h` / `sound_env.h` / `sound_lfo.h` expand several of them), which is **exactly 53 nodes** -- the same
+/// set as the legacy items that derive from `menu_item::PatchedParam`, verified by `dynamic_cast` over a lockstep walk.
+/// `tables_2_spec` pins both halves of that equality, so a `param(... Kind::PATCHED ...)` added without this wrapper
 /// fails there rather than silently losing its select press.
 constexpr Node with_patch_chain(Node n) {
 	return with_select_chain(n, &patched_param_chain, kPatchedParamChain);

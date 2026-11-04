@@ -7,10 +7,10 @@
 // clang-format off
 /// | node | legacy global | legacy class | emits |
 /// |---|---|---|---|
-/// | `perform_editor` | `performEditorMenu` (`gui/ui/menus.cpp:2005`) | `performance_session_view::EditingMode` (`performance_session_view/editing_mode.h:29`) | `OpenPerformanceView` + mode |
+/// | `perform_editor` | `performEditorMenu` (`gui/ui/menus.cpp:2005`) | `performance_session_view::EditingMode` (`performance_session_view/editing_mode.h`) | `OpenPerformanceView` + mode |
 /// | `start_stem_export` | `startStemExportMenu` (`gui/ui/menus.cpp:2018`) | `stem_export::Start` (`stem_export/start.h:27`) | `StartStemExport` |
 /// | `set_clip_length` | `setClipLengthMenu` (`gui/ui/menus.cpp:1131-1132`) | `audio_clip::SetClipLengthEqualToSampleLength` (`audio_clip/set_clip_length_equal_to_sample_length.h:22`) | `SetClipLengthToSampleLength` |
-/// | `song_midi_learn` | `midiLearnMenu` (`gui/ui/menus.cpp:2082`) | `song::MidiLearn` (`song/midi_learn.h:23`) | `OpenSongMidiLearn` |
+/// | `song_midi_learn` | `midiLearnMenu` (`gui/ui/menus.cpp`) | `song::MidiLearn` (`song/midi_learn.h:23`) | `OpenSongMidiLearn` |
 /// | `configure_song_macros` | `configureSongMacrosMenu` (`gui/ui/menus.cpp:2081`) | `song::ConfigureMacros` (`song/configure_macros.h:23`) | `OpenSongMacros` |
 // clang-format on
 ///
@@ -24,7 +24,7 @@
 /// The port has no equivalent of that flag: `MenuScene::after_render`'s `entered` arm always
 /// `enter_child`s. So the port descends for one tick, `on_focus` (= `beginSession`, `node.h`) files
 /// the request, and `after_render` drains it and ascends straight back out -- which is what the five
-/// `ResetItem`s already do for the same legacy shape (`nodes/settings.h:409-418`), except that they
+/// `ResetItem`s (`nodes/settings.h`) already do for the same legacy shape, except that they
 /// ascend by way of `go_up_on_resume` after a pushed scene closes and these have no scene to push.
 /// From the user's side the two are the same gesture: press, the parent list is still there.
 ///
@@ -45,24 +45,24 @@
 /// ## Divergences, named rather than absorbed
 ///
 ///   * **`soundEditor.exitCompletely()`** (`stem_export/start.h:32`) closes the whole menu before
-///     the export starts. `MenuAction::StartStemExport`'s dispatcher performs it, as of F2 task 3,
+///     the export starts. `MenuAction::StartStemExport`'s dispatcher performs it,
 ///     and it has to be the dispatcher rather than this item: the scene cannot pop itself out from
 ///     under a request it has not yet handed over. The port's own ascend is a no-op once the
 ///     dispatcher pops the scene. **Performed in equivalent form rather than verbatim** --
-///     `closePortedMenu` (`gui/ui/shell_action_dispatch.cpp:189-191`) empties the guest's scene
+///     `closePortedMenu` (`gui/ui/shell_action_dispatch.cpp`) empties the guest's scene
 ///     stack, because under the guest the open UI is `ShellHostUI` and the literal call would walk
 ///     `closeUI` off the front of the navigation stack. Argued in full at that helper.
 ///   * (**`isRelevant() == (getRootUI() == &sessionView)`** on `song::MidiLearn` (`song/midi_learn.h:35-37`)
-///     and `song::ConfigureMacros` (`song/configure_macros.h:35-37`) is no longer a divergence --
-///     E3 task 9. It used to be one because `MenuContext::is_song_view` is `context_for`'s
+///     and `song::ConfigureMacros` (`song/configure_macros.h:35-37`) is not a divergence.
+///     `MenuContext::is_song_view` alone would be one, because it is `context_for`'s
 ///     `session_or_arranger_root` argument, i.e. `!rootUIIsClipMinderScreen()`, which is true in the
-///     arranger and the song automation view as well; `setup()` (`sound_editor.cpp:1819-1822`) opens
-///     one song root for all three. `context_for` now takes the narrower `session_view_root` too and
+///     arranger and the song automation view as well; `SoundEditor::setup` opens
+///     one song root for all three. `context_for` therefore also takes the narrower `session_view_root` too and
 ///     reports it as `MenuContext::is_session_view`, and both nodes carry
 ///     `relevance::is_session_view`. The two bools are a deliberately coarse encoding of that
 ///     three-way fact: nothing tells the arranger from the automation view, because no legacy
 ///     `isRelevant` does.)
-///   * **`ConfigureMacros`/`MidiLearn` open legacy `ContextMenu` subclasses this plan has not
+///   * **`ConfigureMacros`/`MidiLearn` open legacy `ContextMenu` subclasses that are not
 ///     ported.** The intent names the action, not a `context_menu::DescriptorId`; when those two
 ///     menus are ported the dispatcher is where the two spellings meet.
 
@@ -75,7 +75,7 @@ namespace deluge::scenes::menu::nodes {
 
 /// @brief A menu item whose entire body is "file one `MenuAction` and get out of the way".
 ///
-/// One class, four instances -- the `ResetItem` shape (`nodes/settings.h:409-411`), which is the same
+/// One class, four instances -- the `ResetItem` shape (`nodes/settings.h`), which is the same
 /// legacy shape (a `MenuItem` that is only a `selectButtonPress`).
 class ActionItem final : public CustomItem {
 public:
@@ -97,7 +97,7 @@ public:
 	/// @brief Yes -- `on_focus` here IS `selectButtonPress` (see the class note above), so it must
 	///        not run for a focus with no press behind it (`node.h`'s `CustomItem::on_focus_is_press`).
 	///
-	/// E3 task 7. The exposure this closes is the `SceneId::arg` deep link and `restore_state`:
+	/// This closes the exposure through the `SceneId::arg` deep link and `restore_state`:
 	/// at depth >= 1 the action drain ascends inside the same `after_render`, so a save can never
 	/// capture one of these as the parked leaf -- but a menu opened *on* the item, or restored onto
 	/// it, re-filed `StartStemExport` / `SetClipLengthToSampleLength` / the two song verbs with the

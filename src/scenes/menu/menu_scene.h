@@ -12,10 +12,10 @@
 /// **Ports.** `MenuItem::drawItemsForOled` (`gui/menu_item/menu_item.cpp:47`),
 /// `Submenu::drawSubmenuItemsForOled` / `focusChild` (`gui/menu_item/submenu.cpp:99`, `:21`),
 /// `HorizontalMenu::renderOLED` / `renderMenuItems` / `switchVisiblePage` / `selectMenuItem` /
-/// `preparePaging` (`gui/menu_item/horizontal_menu.cpp:477`, called at `:114` and `:378`) -- all four already
+/// `preparePaging` (`gui/menu_item/horizontal_menu.cpp`) -- all four already
 /// pinned by the `list` / `columns` widgets, which this scene composes rather than re-implements;
-/// `SoundEditor::selectEncoderAction` (`gui/ui/sound_editor.cpp:1072`), `buttonAction` (`:371`,
-/// back -> `goUpOneLevel` `:710`, which exits at depth 0 via `exitCompletely` `:716`),
+/// `SoundEditor::selectEncoderAction` (`gui/ui/sound_editor.cpp`), `buttonAction` (back ->
+/// `goUpOneLevel`, which exits at depth 0 via `exitCompletely`),
 /// `horizontalEncoderAction` (`:1046`), `padAction` (`:1460`) with `potentialShortcutPadAction`
 /// (`:1166`), `enterSubmenu` (`:362`), `setupShortcutBlink` (`:997`) / `blinkShortcut`
 /// (`:1012-1038`), `getGreyoutColsAndRows` (`:252`), and the `MultiRange` redirect
@@ -141,7 +141,7 @@ public:
 	/// @brief False for every role: a menu covers the Main panel.
 	bool oled_transparent(deluge::ui::shell::SurfaceRole) const override { return false; }
 	// `input_transparent()` stays at its default false: `MenuScene` IS the `input_top()`
-	// (`shell/scene.h:445`), which is what makes its frames the focused ones.
+	// (`SceneStack::input_top`), which is what makes its frames the focused ones.
 
 	deluge::ui::grid::GreyoutMask greyout_mask() const override;
 	void save_state(deluge::ui::shell::SceneState& state) const override;
@@ -212,11 +212,11 @@ public:
 	/// (`gui/ui/shell_guest_services.cpp`); `learn_cc` has no `UI` virtual to override and no caller.
 	///
 	/// @warning **`wants_learn_blink()` is NOT the learn gate.** Legacy enters learn mode on
-	///          `getCurrentMenuItem()->allowsLearnMode()` (`sound_editor.cpp:511`), ported as `MenuLearn::allows_mode`,
-	///          and only then asks `shouldBlinkLearnLed()` for the LED (`:488`, `:911-916`). They are different
-	///          predicates over different sets: `allowsLearnMode` is true on every `MenuItemWithCCLearning` -- all the
-	///          patched/unpatched params, the transpose items, the MIDI-follow items -- every one of which blinks
-	///          *false*.
+	///          `getCurrentMenuItem()->allowsLearnMode()` (`SoundEditor::buttonAction`'s LEARN arm), ported as
+	///          `MenuLearn::allows_mode`, and only then asks `shouldBlinkLearnLed()` for the LED (`:488`, `:911-916`).
+	///          They are different predicates over different sets: `allowsLearnMode` is true on every
+	///          `MenuItemWithCCLearning` -- all the patched/unpatched params, the transpose items, the MIDI-follow
+	///          items -- every one of which blinks *false*.
 	/// @{
 	/// @brief Offer a note-on to the focused item. @return Whether it was used.
 	bool learn_note_on(::MIDICable& cable, int32_t channel, int32_t note);
@@ -380,7 +380,7 @@ public:
 	/// @par Why the page is resolved here rather than carried in
 	///
 	/// Legacy writes `parentMenuHeadingTo` on the way in because `SoundEditor::maybeGetParentMenu`
-	/// (`gui/ui/sound_editor.cpp:2073`) is the only place that has the chain in scope. Its body is
+	/// (`gui/ui/sound_editor.cpp`) is the only place that has the chain in scope. Its body is
 	/// `find_if(chain, [](HorizontalMenu* m) { return m->hasItem(item); })` (`:2084`) over
 	/// `getCurrentHorizontalMenusChain(false)` (`:2079`, dispatched on the root at `:2108-2130`).
 	/// This scene has the root (`MenuContext::root`) and the tables, so it answers the same
@@ -477,7 +477,7 @@ private:
 	///        `beginScreen` -- a new screen.
 	struct Visit {
 		/// @brief Use up the current Select press at the next `after_render`: legacy's `SoundEditor::opened` and
-		///        `focusRegained` (`sound_editor.cpp:513-516`, `:531-533`), so the release of a press that opened or
+		///        `focusRegained` (`sound_editor.cpp`), so the release of a press that opened or
 		///        returned to the menu does not act.
 		bool use_up_select = true;
 		/// Whether the next `leds()` restarts the shared normal blink, BACK's and LEARN's (`blinkLed`), and the screen
@@ -503,7 +503,7 @@ public:
 	///
 	/// They belong beside `read_value_again()` in spirit.
 	/// @{
-	/// @brief One level up the path -- `SoundEditor::goUpOneLevel` (`gui/ui/sound_editor.cpp:710-729`), for a
+	/// @brief One level up the path -- `SoundEditor::goUpOneLevel` (`gui/ui/sound_editor.cpp`), for a
 	///        caller outside the scene.
 	///
 	/// For the note-mode handlers that call `soundEditor.goUpOneLevel()` themselves
@@ -520,7 +520,7 @@ public:
 	///         do not want, so this takes that request back on false.
 	bool go_up_one_level();
 	/// @brief Push @p node one level below the focused node -- `SoundEditor::enterSubmenu`
-	///        (`gui/ui/sound_editor.cpp:362-369`), for a caller outside the scene.
+	///        (`gui/ui/sound_editor.cpp`), for a caller outside the scene.
 	///
 	/// For `SoundEditor::toggleNoteEditorParamMenu`'s press arm
 	/// (`:1967-1969`). Legacy's body is `endScreen()`, `navigationDepth++`, the record write and
@@ -537,9 +537,9 @@ public:
 	///       (`:21-37`), which keeps the process-lifetime object's `current_item_`: a second toggle hold
 	///       lands on the column last focused. `descend_to` resets `st_.list[depth]` and
 	///       `st_.columns[depth]` (`MenuWalk::descend_to`, `menu/walk.cpp`), so this always lands on the
-	///       first. It is `src/scenes/README.md`'s carry 5 -- focus kept per depth for a
-	///       session, not per menu object for the process -- met by a descend rather than a re-open.
-	///       Recorded, not changed.
+	///       first. The port keeps focus per depth for a
+	///       session, not per menu object for the process, and meets it by a descend rather than a
+	///       re-open.
 	void enter_submenu(const Node& node);
 	/// @}
 };

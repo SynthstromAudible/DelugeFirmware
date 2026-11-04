@@ -110,7 +110,7 @@ bool is_patch_cable_item(const Node* node) {
 }
 
 /// @brief The answer of the item at @p depth: a horizontal page answers for its focused column
-///        (`Submenu::patchingSourceShortcutPress`, `submenu.cpp:290-297`), and a patched param through the regular
+///        (`Submenu::patchingSourceShortcutPress`), and a patched param through the regular
 ///        source list, keeping its own param selected only when the list opens a page (`patched_param.cpp:78-88`).
 SourcePress answer_at(MenuCore core, uint8_t depth, PatchSource source, bool previous_held, const Node*& open) {
 	MenuContext& ctx = core.ctx;
@@ -191,7 +191,7 @@ std::optional<Result> MenuPads::handle_pad(MenuCore core, MenuWalk& walk, ValueS
 	MenuState& st = core.st;
 	// The shortcut-pad jump. A `Pad` event is never masked (`ui/core/frame_context.h`, rule
 	// 4), so it always arrives here. Legacy gates the non-auditioning case on
-	// `Buttons::isShiftButtonPressed()` (`sound_editor.cpp:1169`); the auditioning half is a UI
+	// `Buttons::isShiftButtonPressed()` (`SoundEditor::potentialShortcutPadAction`); the auditioning half is a UI
 	// mode this layer may not read, so shift is the whole gate.
 	if (event.kind == UiEvent::Kind::Pad && event.on && ui.shift) {
 		// Legacy's second-layer toggle (`sound_editor.cpp:1364-1379`), which is a *double press of
