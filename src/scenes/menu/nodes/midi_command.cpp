@@ -199,8 +199,7 @@ deluge::ui::shell::Result MidiCommandItem::handle(const deluge::ui::shell::UiEve
 }
 
 bool MidiCommandItem::learn_note_on(::MIDICable& cable, int32_t channel, int32_t note) const {
-	// `Command::learnNoteOn` (`command.cpp:113-124`), minus its display arm: see `midi_command.h`'s
-	// note on why only the `renderUIsForOled()` branch is reachable here.
+	// `Command::learnNoteOn`, minus its display arm: `MenuLearn` pops or redraws (`midi_command.h`'s note).
 	LearnedMIDI& command = slot_for(command_);
 	command.cable = &cable;
 	command.channelOrZone = static_cast<uint8_t>(channel);

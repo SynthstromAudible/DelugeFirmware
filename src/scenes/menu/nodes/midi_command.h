@@ -29,11 +29,9 @@
 ///   * `beginSession` is empty in legacy (`command.cpp:30-31`), so `on_focus` keeps its
 ///     do-nothing default rather than being overridden to an empty body.
 ///
-/// @note **No popup on a successful learn.** Legacy pops "LEARNED"/"UNLEARNED" only when the item
-///       is *not* the current menu item (`command.cpp:96-104`, `:110-122`) -- i.e. when a *different*
-///       screen's learn press reached it. In this port a learn only ever arrives at the focused
-///       item (`MenuScene::learn_*` forwards to `focused()`), so the `renderUIsForOled()` branch is
-///       the only reachable one: `Dirty::Oled` is raised instead, and the next render redraws.
+/// @note **The popup is the menu's.** Legacy pops "LEARNED"/"UNLEARNED" only when the item is *not* the
+///       current menu item -- a learn reached through its list -- and redraws otherwise. Here the item raises
+///       `Dirty::Oled`, and `MenuLearn` pops when the item it learned into is not the focused one.
 
 #include "scenes/menu/node.h"
 

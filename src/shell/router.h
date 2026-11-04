@@ -99,7 +99,7 @@ public:
 	/// `MOD_ENCODER_0`/`MOD_ENCODER_1` in the tail (`hid/buttons.cpp:225-231`), after the scene's
 	/// own `buttonAction` at `:134`, and what it runs there is
 	/// `getCurrentUI()->modEncoderButtonAction(n, on)` -- `UI::modEncoderButtonAction`
-	/// (`gui/ui/ui.cpp:43-74`) being another bare forward to `view`, overridden by five UIs
+	/// (`gui/ui/ui.cpp:43-45`) being another bare forward to `view`, overridden by five UIs
 	/// (`gui/views/instrument_clip_view.h:199`, `gui/ui/sound_editor.h:81`,
 	/// `gui/views/session_view.h:80`, `gui/views/performance_view.h:97`,
 	/// `gui/views/automation_view.h:117`). Every `Result` along the way is `apply()`d immediately,

@@ -54,10 +54,8 @@ namespace deluge::gui::ui {
 ///
 /// The failure mode this list exists for is a guest that silently inherits a `UI` default where it
 /// should have forwarded: nothing breaks until a scene needs that hook, and by then it reads as a
-/// scene bug. `::UI` declares 32 virtuals (`gui/ui/ui.h:94-202`, `grep -n virtual`); twenty-one are
-/// overridden below and the other eleven are listed here with the reason. Two of the overridden,
-/// `pcReceivedForMidiLearn` and `noteOnReceivedForMidiLearn`, carry nothing yet -- see `@par MIDI
-/// learn` below before assuming that path is live.
+/// scene bug. `::UI` declares 34 virtuals (`gui/ui/ui.h`, `grep -n virtual`); twenty-three are
+/// overridden below and the other eleven are listed here with the reason.
 ///
 // clang-format off
 /// | not overridden | line | why |
@@ -79,9 +77,8 @@ namespace deluge::gui::ui {
 /// above, and `displayOrLanguageChanged`, which **is** overridden below but only to ask the shell
 /// for a repaint -- see its own note for what that does and does not buy.
 ///
-/// @warning The `UI` virtuals span `ui.h:94-202`, not just the first block of them: seven live at
-///          `:162-173`, and one of them, `getUIType()` (`:164`), is **pure** -- a guest written to
-///          the shorter range alone would not compile.
+/// @warning The `UI` virtuals span the whole of `gui/ui/ui.h`'s class, not just its first block: `getUIType()`,
+///          near its end, is **pure** -- a guest written to the first block alone would not compile.
 ///
 /// @par The tick: `timerCallback` is the only thing that runs the shell
 ///
@@ -379,7 +376,7 @@ private:
 	/// @param x1        One past the last.
 	/// @param region    The region those columns are.
 	/// @return Whether a stacked scene draws \p region (`GuestSurfaceSet::owned_regions`), which is
-	///         legacy's "did I use these rows up" (`gui/ui/ui.h:140-146`). While it is false nothing
+	///         legacy's "did I use these rows up" (`UI::renderMainPads`). While it is false nothing
 	///         is written: those pads are the UI underneath's. `MenuScene` draws no region, so a
 	///         menu alone answers false for both, as `SoundEditor` does (`gui/ui/sound_editor.cpp:217-247`).
 	bool serveGrid(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth], int32_t x0, int32_t x1,

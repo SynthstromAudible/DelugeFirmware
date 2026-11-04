@@ -405,7 +405,9 @@ private:
 	::Song* song_ = nullptr;
 	deluge::scenes::bind::WriteSink* sink_ = nullptr;
 
-	/// `currentUIMode == UI_MODE_MIDI_LEARN`.
+	/// `currentUIMode == UI_MODE_MIDI_LEARN`, and the only gate on the MIDI kinds. The guest's close does not reset
+	/// it: a root scene left learning with LEARN held would swallow note-ons after a reopen until LEARN is pressed
+	/// again. No root scene opens under the guest yet, so nothing reaches that.
 	bool active_ = false;
 	/// The injected half of `View::startMIDILearn`'s guard.
 	bool other_mode_active_ = false;

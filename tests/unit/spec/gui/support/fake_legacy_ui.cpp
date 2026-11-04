@@ -203,7 +203,7 @@ UI::UI() {
 	oledShowsUIUnderneath = false;
 }
 
-// The three mod hooks forward to `view` in legacy (`gui/ui/ui.cpp:35-74`). `view` is the legacy
+// The three mod hooks forward to `view` in legacy (`gui/ui/ui.cpp:35-45`). `view` is the legacy
 // `View` global; here they only record, which is enough for the one thing a guest spec asks of
 // them -- that they still exist and that `ShellHostUI` does not override them.
 void UI::modEncoderAction(int32_t whichModEncoder, int32_t offset) {

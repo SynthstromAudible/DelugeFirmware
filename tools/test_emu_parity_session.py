@@ -123,6 +123,16 @@ class MidiSteps(unittest.TestCase):
                 emu_parity.midi_bytes(cmd, args.split()).hex(" "), want, cmd
             )
 
+    def test_a_data_byte_outside_0_to_127_is_an_error(self):
+        for cmd, args in (
+            ("note", "1 128 100"),
+            ("cc", "1 7 200"),
+            ("pc", "1 -1"),
+            ("bend", "1 16384"),
+        ):
+            with self.assertRaises(ValueError, msg=cmd):
+                emu_parity.midi_bytes(cmd, args.split())
+
     def test_a_channel_outside_1_to_16_is_an_error(self):
         for channel in ("0", "17"):
             with self.assertRaises(ValueError):

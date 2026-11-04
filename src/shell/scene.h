@@ -572,10 +572,9 @@ public:
 	///     load-bearing, because `MidiLearn` is routed last and therefore sees a `LEARN` press under
 	///     a non-root scene where legacy hands it to `SoundEditor::buttonAction`'s own arm.
 	///
-	///     The two MIDI arms (`UiEvent::Kind::MidiNoteOn`/`MidiCc`) sit deliberately *above* the
-	///     gate (`MidiLearn::handle`): legacy reaches `view.noteOnReceivedForMidiLearn` from
-	///     `PlaybackHandler` with no root-UI test anywhere on the path, so gating them would invent a
-	///     restriction legacy does not have.
+	///     The MIDI kinds sit deliberately *above* the gate (`MidiLearn::handle`), gated only on the
+	///     service's own learn mode: legacy reaches `View`'s learn from `PlaybackHandler` with no root-UI
+	///     test anywhere on the path, so gating them would invent a restriction legacy does not have.
 	///
 	/// @warning **Keep this list current.** Whoever adds another reader of `is_root()` adds it here,
 	///          with what it gates; a stale list reads as evidence that the gate has one consumer
@@ -592,7 +591,7 @@ public:
 	///   * `View::buttonAction` (`gui/views/view.cpp:140-487`) is reached only from a **root view**.
 	///     `UI::buttonAction`'s base implementation is `return ActionResult::NOT_DEALT_WITH`
 	///     (`gui/ui/ui.h:98-100`) -- it does *not* forward to `view`, unlike the three mod hooks
-	///     (`gui/ui/ui.cpp:35-74`). `grep "public RootUI"` finds exactly two classes in the tree,
+	///     (`gui/ui/ui.cpp:35-45`). `grep "public RootUI"` finds exactly two classes in the tree,
 	///     `TimelineView` (`gui/views/timeline_view.h:27`) and `KeyboardScreen`
 	///     (`gui/ui/keyboard/keyboard_screen.h:35`), and **both** forward to `View::buttonAction`
 	///     (`gui/views/timeline_view.cpp:119-121`, `gui/ui/keyboard/keyboard_screen.cpp:591`). So

@@ -205,7 +205,12 @@ def midi_bytes(cmd: str, args: list[str]) -> bytes:
     if cmd == "noteoff":
         values = [*values, 0]
     elif cmd == "bend":
+        if not 0 <= values[0] <= 16383:
+            raise ValueError(f"`bend`: {values[0]} is not 0..16383")
         values = [values[0] & 0x7F, values[0] >> 7]
+    # A data byte above 127 would be read as a status byte and garble every message after it.
+    if any(not 0 <= v <= 127 for v in values):
+        raise ValueError(f"`{cmd}`: a data byte of {values} is not 0..127")
     return bytes([MIDI_STATUS[cmd] | (channel - 1), *values])
 
 
@@ -327,17 +332,25 @@ def run_image(
     din_port = free_udp_port()
 
     def emulator(out: Path):
-        return launch_emulator(
-            elf,
-            sd,
-            sock,
-            extra,
-            out,
-            env,
-            # Nothing through the host's speakers: silence, or a WAV written on the virtual clock.
-            f"wav,path={out / 'audio.wav'}" if audio_wav else "none",
-            f"udp:127.0.0.1:{din.getsockname()[1]}@127.0.0.1:{din_port}",
-        )
+        nonlocal din_port
+        # The port is free when picked but QEMU binds it later, so another run can take it first: pick again.
+        for attempt in range(3):
+            try:
+                return launch_emulator(
+                    elf,
+                    sd,
+                    sock,
+                    extra,
+                    out,
+                    env,
+                    # Nothing through the host's speakers: silence, or a WAV written on the virtual clock.
+                    f"wav,path={out / 'audio.wav'}" if audio_wav else "none",
+                    f"udp:127.0.0.1:{din.getsockname()[1]}@127.0.0.1:{din_port}",
+                )
+            except RuntimeError:
+                if attempt == 2:
+                    raise
+                din_port = free_udp_port()
 
     def send_midi(dz, message: bytes):
         # The rig device takes MIDI over USB (tools/rig_session.py); the emulator over DIN.

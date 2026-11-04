@@ -35,7 +35,7 @@
 /// The tail runs for **any** current UI that declined the event. `View::buttonAction` runs only for
 /// a **root view**: `UI::buttonAction`'s base implementation is `return
 /// ActionResult::NOT_DEALT_WITH` (`gui/ui/ui.h:98-100`) and does **not** forward to `view`, unlike
-/// `UI::modEncoderAction`/`modButtonAction`/`modEncoderButtonAction` (`gui/ui/ui.cpp:35-74`), which
+/// `UI::modEncoderAction`/`modButtonAction`/`modEncoderButtonAction` (`gui/ui/ui.cpp:35-45`), which
 /// do and which is why `ModKnobs` really is a base-class fallback. `View::buttonAction` has exactly
 /// two callers, `TimelineView::buttonAction`'s final `else` (`gui/views/timeline_view.cpp`)
 /// and `KeyboardScreen::buttonAction` (`gui/ui/keyboard/keyboard_screen.cpp`) -- and

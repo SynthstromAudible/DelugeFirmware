@@ -732,7 +732,7 @@ describe shell_host_ui("gui::ui::ShellHostUI", $ {
 		r.guest.shell().tick(0);
 		blank_legacy_pads();
 
-		// `UI`'s contract: quizzable without any rendering (`gui/ui/ui.h:140-146`). Legacy asks it
+		// `UI`'s contract: quizzable without any rendering (`UI::renderMainPads`). Legacy asks it
 		// this way in `uiNeedsRendering` (`gui/ui/ui.cpp`) and in `closeUI`
 		// (`:186-187`).
 		expect(static_cast<::UI&>(r.guest).renderMainPads()).to_be_true();

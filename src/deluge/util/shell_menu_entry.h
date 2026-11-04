@@ -152,8 +152,8 @@ bool shellMenuEnabled();
 
 /// @brief Resolve what the menu edits, point `MenuScene` at it, and open the guest.
 ///
-/// The port of the half of `SoundEditor::setup` that decides *what* and *which root*
-/// (`gui/ui/sound_editor.cpp:1673-1904`), plus the `openUI` the fourteen sites do afterwards. The
+/// The port of the half of `SoundEditor::setup` that decides *what* and *which root*,
+/// plus the `openUI` the fourteen sites do afterwards. The
 /// arguments are `menu::context_for`'s own, in its order, because they are the four UI facts
 /// `src/scenes` may not read for itself (`scenes/menu/context.h`'s "No UI reads" note) -- each
 /// caller already knows all four statically from the arm it is in.

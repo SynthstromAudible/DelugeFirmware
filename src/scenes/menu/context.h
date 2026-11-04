@@ -3,10 +3,10 @@
 /// @brief `MenuContext` -- what a menu edits -- and the three pure functions that produce it, reach
 ///        the model through it, and gate entry into a node with it.
 ///
-/// This is the context-resolution half of `SoundEditor::setup`
-/// (`src/deluge/gui/ui/sound_editor.cpp:1673-1904`), `SoundEditor::getCurrentModelStack` (`:1997`)
+/// This is the context-resolution half of `SoundEditor::setup`,
+/// `SoundEditor::getCurrentModelStack`
 /// and the common rule behind the `checkPermissionToBeginSession` overrides
-/// (`SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam`, `:1933`), ported as free
+/// (`SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam`), ported as free
 /// functions over plain arguments. (`gui/menu_item/` has 18 *files* naming
 /// `checkPermissionToBeginSession`; two of them, `menu_item.cpp`/`.h`, are the base rather than
 /// overrides.)

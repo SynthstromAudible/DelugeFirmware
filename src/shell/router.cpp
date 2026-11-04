@@ -18,7 +18,7 @@ namespace {
 /// down the same dispatcher: `Buttons::buttonAction` handles `MOD_ENCODER_0`/`MOD_ENCODER_1` in its
 /// *tail* (`hid/buttons.cpp:225-231`, reached only past the `getCurrentUI()->buttonAction` call at
 /// `:134`), and the line it runs there is `getCurrentUI()->modEncoderButtonAction(n, on)` -- again a
-/// hook whose base implementation (`UI::modEncoderButtonAction`, `gui/ui/ui.cpp:43-74`) is a bare
+/// hook whose base implementation (`UI::modEncoderButtonAction`, `gui/ui/ui.cpp:43-45`) is a bare
 /// forward to `view`, and which five UIs override (`gui/views/instrument_clip_view.h:199`,
 /// `gui/ui/sound_editor.h:81`, `gui/views/session_view.h:80`,
 /// `gui/views/performance_view.h:97`, `gui/views/automation_view.h:117`). Scene first, then here.

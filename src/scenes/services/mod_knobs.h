@@ -25,7 +25,7 @@
 /// @par What the router sends here
 ///
 /// A mod button, a gold-knob turn and a gold-knob push, each only after the top scene has declined it
-/// (`shell/router.h`'s `route()`): `View` is what `UI`'s base-class hooks forward to (`gui/ui/ui.cpp:35-74`).
+/// (`shell/router.h`'s `route()`): `View` is what `UI`'s base-class hooks forward to (`gui/ui/ui.cpp:35-45`).
 ///
 /// @par Acceleration
 ///

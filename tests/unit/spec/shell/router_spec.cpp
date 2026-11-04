@@ -456,7 +456,7 @@ describe shell_router("shell::Router", $ {
 		// The gold-knob PUSH is the third hook with this shape. `Buttons::buttonAction` handles `MOD_ENCODER_0`/`MOD_ENCODER_1` in its TAIL
 		// (`hid/buttons.cpp:225-231`), i.e. after `getCurrentUI()->buttonAction` at `:134` -- and
 		// what it runs there is `getCurrentUI()->modEncoderButtonAction(n, on)`, whose base
-		// implementation (`UI::modEncoderButtonAction`, `gui/ui/ui.cpp:43-74`) is another bare
+		// implementation (`UI::modEncoderButtonAction`, `gui/ui/ui.cpp:43-45`) is another bare
 		// forward to `view`, overridden by five UIs (`gui/views/instrument_clip_view.h:199`,
 		// `gui/ui/sound_editor.h:81`, `gui/views/session_view.h:80`,
 		// `gui/views/performance_view.h:97`, `gui/views/automation_view.h:117`).

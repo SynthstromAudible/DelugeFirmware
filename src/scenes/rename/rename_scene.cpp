@@ -476,7 +476,7 @@ Result RenameScene::handle(const UiEvent& event, const UiContext& ctx) {
 		}
 		break;
 
-	// The two MIDI kinds (the transport in `shell/scene.h`) are declined here for the reason
+	// The MIDI kinds (the transport in `shell/scene.h`) are declined here for the reason
 	// every scene ported so far declines them: claiming one means answering `learnable_at(pad)`,
 	// which is the timeline scenes' work. Declining lets `Router::run_chain` carry the
 	// message on to `services::MidiLearn`, which is where legacy's `view.` fallback puts it.
