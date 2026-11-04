@@ -358,6 +358,35 @@ describe fixed_point_neon("fixed_point NEON vectors", ${
 		expect(out(x)).to_equal(std::array<std::int32_t, 4>{1, -1, INT32_MAX, 0});
 		expect(from_float<24>(Argon<float>{-200.F}).lane(0).raw()).to_equal(INT32_MIN);
 	});
+	it("load and store four lanes from an array of the lane type", _ {
+		const std::array<Q<31>, 4> in{Q<31>::min(), Q<31>::from_raw(-1), Q<31>::from_raw(7), Q<31>::max()};
+		std::array<Q<31>, 4> back{};
+		QVec<31>::load(in.data()).store(back.data());
+		expect(back == in).to_be_true();
+		expect(QVec<31>::load(in.data()).lane(2).raw()).to_equal(7);
+	});
+	it("load the first lanes only, zeroing the rest", _ {
+		// The fourth element is past the lanes asked for: it must not reach lane 3.
+		const std::array<Q<31>, 4> in{Q<31>::from_raw(1), Q<31>::from_raw(-2), Q<31>::max(), Q<31>::from_raw(99)};
+		const auto v = QVec<31>::load(in.data(), 3);
+		expect(out(v)).to_equal(std::array<std::int32_t, 4>{1, -2, INT32_MAX, 0});
+		const auto one = UQVec<32>::load(std::array<UQ<32>, 1>{UQ<32>::from_raw(5u)}.data(), 1);
+		expect(one.lane(0).raw()).to_equal(5u);
+		expect(one.lane(1).raw()).to_equal(0u);
+	});
+	it("store the first lanes only, leaving the rest unwritten", _ {
+		std::array<Q<31>, 4> back;
+		back.fill(Q<31>::from_raw(99));
+		QVec<31>::splat(Q<31>::from_raw(-5)).store(back.data(), 3);
+		expect(back[0].raw()).to_equal(-5);
+		expect(back[2].raw()).to_equal(-5);
+		expect(back[3].raw()).to_equal(99);
+		std::array<Q<31>, 4> two;
+		two.fill(Q<31>::from_raw(99));
+		QVec<31>::splat(Q<31>::from_raw(3)).store(two.data(), 2);
+		expect(two[1].raw()).to_equal(3);
+		expect(two[2].raw()).to_equal(99);
+	});
 	it("splat a lane into every lane", _ {
 		const auto x = Q16x2Vec<15>::splat(Q16x2<15>::from_raw(0x8000'7fffu));
 		expect(x.lane(2).raw()).to_equal(0x8000'7fffu);

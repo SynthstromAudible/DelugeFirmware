@@ -5,16 +5,18 @@
 # Licensed under the GNU General Public License v3 or later; see LICENSE.
 """Ratchet on raw fixed-point arithmetic outside the format types (dsp-next/core/fixed_point.h).
 
-Counts two things per C/C++ file under src/, comments excluded:
+Counts three things per C/C++ file under src/, comments excluded:
 - raw sites: calls to q31_ops.h's raw helpers (multiply_32x32_rshift32, add_saturate, signed_saturate, ...), inline
   asm that issues a DSP instruction (smmul, qadd, ssat, vcvt, ...), NEON arithmetic intrinsics (vqdmulhq_s32,
   vmlal_s16, vshrq_n_s32, ...) and Argon's fixed-point methods (MultiplyFixedQMax, ShiftRightAccumulate, ...);
+- seam views: calls to buffer_view.h's typed_view() and raw_view(), where a raw int32_t buffer is viewed as Q<31>
+  samples or back;
 - boundary crossings: from_raw(), .raw() / ->raw() and reinterpret_bits<>, where typed and raw code meet.
-fixed_point.h, fixed_point_neon.h and q31_ops.h, which define them, are exempt.
+fixed_point.h, fixed_point_neon.h, buffer_view.h and q31_ops.h, which define them, are exempt.
 
-The raw counts are pinned in scripts/fixed_point_raw_allowlist.txt and may only SHRINK: a raw site in a file not on the
-list, a count above its entry, and an entry with headroom left (a count below it) all fail; rewrite the list with
---write after moving code onto the typed operations. Boundary crossings are recorded but not gated: while interfaces
+The raw and view counts are pinned in scripts/fixed_point_raw_allowlist.txt and may only SHRINK: a raw site or a view
+in a file not on the list, a count above its entry, and an entry with headroom left (a count below it) all fail;
+rewrite the list with --write after moving code onto the typed operations or typing a caller's buffers. Boundary crossings are recorded but not gated: while interfaces
 still take raw q31, moving a helper call onto the typed operations adds them. Bare int32_t audio arithmetic (`+`, `<<`
 on samples) cannot be told apart from other integer code lexically, so reviews cover it, not this check.
 
@@ -38,6 +40,7 @@ SCOPE = ("src",)
 SUFFIXES = {".c", ".cc", ".cpp", ".cxx", ".h", ".hh", ".hpp", ".inc"}
 EXEMPT = frozenset(
     {
+        "src/deluge/dsp-next/core/buffer_view.h",
         "src/deluge/dsp-next/core/fixed_point.h",
         "src/deluge/dsp-next/core/fixed_point_neon.h",
         "src/deluge/dsp-next/core/high_word_asm.h",
@@ -65,6 +68,7 @@ ARGON_FIXED_POINT = re.compile(
     r"MultiplyDoubleSaturateLong|MultiplyDoubleAddSaturateLong|MultiplyAddLong|ShiftRightAccumulate|ShiftLeftLong|"
     r"ShiftRightNarrow)\s*[<(]"
 )
+SEAM_VIEW = re.compile(r"(?<![\w.])(?:typed_view|raw_view)\s*\(")
 TYPED_BOUNDARY = re.compile(
     r"\bfrom_raw\s*\(|(?:\.|->)\s*raw\s*\(\s*\)|\breinterpret_bits\s*<"
 )
@@ -81,21 +85,27 @@ DSP_INSTRUCTION = re.compile(
 HEADER = """\
 # Raw fixed-point arithmetic per file (scripts/check_fixed_point_raw.py), outside dsp-next/core/fixed_point.h and
 # q31_ops.h. `raw`: q31_ops.h helper calls, DSP-instruction inline asm, NEON arithmetic intrinsics and Argon's
-# fixed-point methods. `boundary`: from_raw()/.raw()/
-# reinterpret_bits<> crossings, recorded but not gated.
+# fixed-point methods. `view`: buffer_view.h's typed_view()/raw_view() calls, written only where there are any.
+# `boundary`: from_raw()/.raw()/reinterpret_bits<> crossings, recorded but not gated.
 #
-# The raw counts may only SHRINK: a count above its entry, a raw site in a file not on the list, or an entry with
-# headroom left fails the check. After moving a file's arithmetic onto fixed_point.h's typed operations, rewrite with
+# The raw and view counts may only SHRINK: a count above its entry, a raw site or a view in a file not on the list, or
+# an entry with headroom left fails the check. After moving a file's arithmetic onto fixed_point.h's typed operations
+# or typing its buffers, rewrite with
 #   scripts/check_fixed_point_raw.py --write
-# which refuses to raise a raw count or add a file with raw sites.
+# which refuses to raise a raw or view count or add a file with either.
 #
-# <path> raw=<n> boundary=<n>
+# <path> raw=<n> [view=<n>] boundary=<n>
 """
 
 
 class Counts(NamedTuple):
     raw: int
     boundary: int
+    view: int = 0
+
+    def gated(self) -> tuple[tuple[str, int], ...]:
+        """The counts that may only shrink, by name."""
+        return (("raw", self.raw), ("view", self.view))
 
 
 def strip_comments(text: str) -> str:
@@ -125,7 +135,7 @@ def strip_comments(text: str) -> str:
 
 
 def count(text: str) -> Counts:
-    """One file's raw sites and boundary crossings, comments excluded."""
+    """One file's raw sites, boundary crossings and seam views, comments excluded."""
     code = strip_comments(text)
     raw = len(RAW_HELPERS.findall(code))
     raw += len(NEON_ARITHMETIC.findall(code)) + len(ARGON_FIXED_POINT.findall(code))
@@ -134,11 +144,11 @@ def count(text: str) -> Counts:
         for m in ASM_STATEMENT.finditer(code)
         if DSP_INSTRUCTION.search(ESCAPE.sub(" ", m.group(1)))
     )
-    return Counts(raw, len(TYPED_BOUNDARY.findall(code)))
+    return Counts(raw, len(TYPED_BOUNDARY.findall(code)), len(SEAM_VIEW.findall(code)))
 
 
 def scan(root: Path = REPO_ROOT) -> dict[str, Counts]:
-    """Every in-scope file's counts, keyed by its path relative to @p root; files with neither are left out."""
+    """Every in-scope file's counts, keyed by its path relative to @p root; files with none are left out."""
     counts: dict[str, Counts] = {}
     for scope in SCOPE:
         for path in sorted((root / scope).rglob("*")):
@@ -148,7 +158,7 @@ def scan(root: Path = REPO_ROOT) -> dict[str, Counts]:
             if rel in EXEMPT:
                 continue
             counted = count(path.read_text(errors="replace"))
-            if counted.raw or counted.boundary:
+            if any(counted):
                 counts[rel] = counted
     return counts
 
@@ -165,7 +175,9 @@ def load_allowlist(path: Path = ALLOWLIST_PATH) -> dict[str, Counts]:
         name, *fields = line.split()
         values = dict(field.split("=", 1) for field in fields)
         entries[name] = Counts(
-            int(values.get("raw", 0)), int(values.get("boundary", 0))
+            int(values.get("raw", 0)),
+            int(values.get("boundary", 0)),
+            int(values.get("view", 0)),
         )
     return entries
 
@@ -175,21 +187,24 @@ def check(
 ) -> tuple[list[str], list[str]]:
     """The violations, and which of them are stale entries (headroom a --write would take back)."""
     errors, stale = [], []
+    what = {"raw": "raw fixed-point site(s)", "view": "seam view(s)"}
     for name in sorted(set(counts) | set(allowlist)):
-        raw = counts.get(name, Counts(0, 0)).raw
-        pinned = allowlist.get(name, Counts(0, 0)).raw
-        if raw > pinned:
-            where = (
-                f"allowlist pins {pinned}"
-                if name in allowlist
-                else "the file is not on the allowlist"
-            )
-            errors.append(f"{name}: {raw} raw fixed-point site(s), {where}")
-        elif raw < pinned:
-            errors.append(
-                f"{name}: {raw} raw fixed-point site(s), allowlist still pins {pinned}: run --write"
-            )
-            stale.append(name)
+        found = counts.get(name, Counts(0, 0)).gated()
+        pins = allowlist.get(name, Counts(0, 0)).gated()
+        for (field, value), (_, pinned) in zip(found, pins):
+            if value > pinned:
+                where = (
+                    f"allowlist pins {pinned}"
+                    if name in allowlist
+                    else "the file is not on the allowlist"
+                )
+                errors.append(f"{name}: {value} {what[field]}, {where}")
+            elif value < pinned:
+                errors.append(
+                    f"{name}: {value} {what[field]}, allowlist still pins {pinned}: run --write"
+                )
+                if name not in stale:
+                    stale.append(name)
     return errors, stale
 
 
@@ -199,17 +214,24 @@ def write_allowlist(
     previous: dict[str, Counts],
     allow_growth: bool,
 ) -> None:
-    """Writes @p counts as the allowlist; refuses a raw count above @p previous unless @p allow_growth."""
+    """Writes @p counts as the allowlist; refuses a raw or view count above @p previous unless @p allow_growth."""
     if not allow_growth:
         grown = [
-            n for n, c in counts.items() if c.raw > previous.get(n, Counts(0, 0)).raw
+            n
+            for n, c in counts.items()
+            if any(
+                value > pinned
+                for (_, value), (_, pinned) in zip(
+                    c.gated(), previous.get(n, Counts(0, 0)).gated()
+                )
+            )
         ]
         if grown:
             raise ValueError(
-                "would raise the raw count of: " + ", ".join(sorted(grown))
+                "would raise the raw or view count of: " + ", ".join(sorted(grown))
             )
     body = "".join(
-        f"{name} raw={c.raw} boundary={c.boundary}\n"
+        f"{name} raw={c.raw}{f' view={c.view}' if c.view else ''} boundary={c.boundary}\n"
         for name, c in sorted(counts.items())
     )
     path.write_text(HEADER + body)
@@ -228,7 +250,7 @@ def main() -> int:
     parser.add_argument(
         "--allow-growth",
         action="store_true",
-        help="with --write: allow a new file or a higher raw count",
+        help="with --write: allow a new file or a higher raw or view count",
     )
     args = parser.parse_args()
 
@@ -242,17 +264,18 @@ def main() -> int:
             return 1
         raw = sum(c.raw for c in counts.values())
         boundary = sum(c.boundary for c in counts.values())
+        view = sum(c.view for c in counts.values())
         print(
-            f"Wrote {len(counts)} file(s): {raw} raw site(s), {boundary} boundary crossing(s)."
+            f"Wrote {len(counts)} file(s): {raw} raw site(s), {view} seam view(s), {boundary} boundary crossing(s)."
         )
         return 0
 
     if args.list:
         for name, c in sorted(counts.items()):
-            print(f"{c.raw:5d} {c.boundary:5d}  {name}")
+            print(f"{c.raw:5d} {c.view:5d} {c.boundary:5d}  {name}")
         print(
-            f"{sum(c.raw for c in counts.values())} raw site(s), {sum(c.boundary for c in counts.values())} "
-            f"boundary crossing(s), in {len(counts)} file(s)"
+            f"{sum(c.raw for c in counts.values())} raw site(s), {sum(c.view for c in counts.values())} seam view(s), "
+            f"{sum(c.boundary for c in counts.values())} boundary crossing(s), in {len(counts)} file(s)"
         )
         return 0
 
@@ -261,8 +284,9 @@ def main() -> int:
         print(error, file=sys.stderr)
     if len(errors) > len(stale):
         print(
-            "Raw fixed-point arithmetic grew. Write it with dsp-next/core/fixed_point.h's typed operations, or, if a raw "
-            "site is unavoidable, justify it in review and rewrite the list with --write --allow-growth.",
+            "Raw fixed-point arithmetic or the seam views grew. Write it with dsp-next/core/fixed_point.h's typed "
+            "operations and typed buffers, or, if a raw site or a view is unavoidable, justify it in review and rewrite "
+            "the list with --write --allow-growth.",
             file=sys.stderr,
         )
     return 1 if errors else 0

@@ -19,6 +19,7 @@
 
 #include "dsp-next/core/fixed_point.h"
 #include <argon.hpp>
+#include <argon/vectorize/first_n.hpp>
 #include <arm_neon.h>
 #include <cstddef>
 #include <cstdint>
@@ -31,7 +32,8 @@
 /// with the scalars, there are no arithmetic operators: each operation has the name of the scalar operation with the
 /// same per-lane meaning, and compiles to the NEON instructions its comment names, mostly one (tests/unit-arm/codegen
 /// checks them). Kernels keep `Argon` at their interfaces and convert with from_raw() and raw(); helpers private to one
-/// family of kernels, such as the windowed sinc's SincWindow, may pass the vectors between themselves.
+/// family of kernels, such as the windowed sinc's SincWindow, may pass the vectors between themselves. load() and
+/// store() move lanes between a vector and an array of its lane type.
 
 namespace deluge::dsp {
 
@@ -104,11 +106,20 @@ inline constexpr bool kIsQ16<Q16<F>> = true;
 /// @tparam N the lane count.
 template <class Lane, std::size_t N>
 class FixedVec {
+	using storage_type = Lane::storage_type;
+	static_assert(std::is_standard_layout_v<Lane> && sizeof(Lane) == sizeof(storage_type)
+	              && alignof(Lane) == alignof(storage_type));
+
 public:
 	using lane_type = Lane;
 	using register_type = detail::neon_register<Lane, N>::type; ///< The Argon register.
 	static constexpr std::size_t kLanes = N;
 
+private:
+	/// Whether the register is a full Argon of the storage, which the partial loads and stores need.
+	static constexpr bool kFullRegister = std::is_same_v<register_type, Argon<storage_type>>;
+
+public:
 	FixedVec() = default;
 
 	/// @brief Wraps a register; the only way in.
@@ -125,6 +136,30 @@ public:
 	}
 	/// @brief Lane @p i, through memory: for tests, not audio paths.
 	[[nodiscard]] Lane lane(std::size_t i) const noexcept { return Lane::from_raw(raw_.to_array()[i]); }
+
+	/// @brief Lanes 0…N−1 from the array at @p p (`vld1`).
+	/// @details load() and store() are the one place an array of Lane is read and written as its storage. Lane is
+	/// standard layout with its storage as its only member, so a Lane and its storage are pointer-interconvertible,
+	/// and an array of Lane is laid out as an array of its storage (the static_asserts below pin both).
+	[[gnu::always_inline, nodiscard]] static FixedVec load(const Lane* p) noexcept {
+		return from_raw(register_type::Load(storage(p)));
+	}
+	/// @brief Lanes 0…active−1 from the array at @p p; the rest are zero and not read.
+	/// @param active the lanes to load, 0 < active < N: a loop's last, partial step.
+	[[gnu::always_inline, nodiscard]] static FixedVec load(const Lane* p, std::ptrdiff_t active) noexcept
+	requires kFullRegister
+	{
+		return from_raw(argon::vectorize::detail::load_first_n(storage(p), static_cast<std::size_t>(active)));
+	}
+	/// @brief Lanes 0…N−1 to the array at @p p (`vst1`).
+	[[gnu::always_inline]] void store(Lane* p) const noexcept { raw_.StoreTo(storage(p)); }
+	/// @brief Lanes 0…active−1 to the array at @p p; the rest of the array is not written.
+	/// @param active the lanes to store, 0 < active < N: a loop's last, partial step.
+	[[gnu::always_inline]] void store(Lane* p, std::ptrdiff_t active) const noexcept
+	requires kFullRegister
+	{
+		argon::vectorize::detail::store_first_n(storage(p), raw_, static_cast<std::size_t>(active));
+	}
 
 	/// @brief Each pair's low half: Q16x2Vec<F> → Q16Half<F> (`vmovn.i32`).
 	[[gnu::always_inline, nodiscard]] auto lo() const noexcept
@@ -154,6 +189,11 @@ public:
 	}
 
 private:
+	[[gnu::always_inline]] static const storage_type* storage(const Lane* p) noexcept {
+		return reinterpret_cast<const storage_type*>(p);
+	}
+	[[gnu::always_inline]] static storage_type* storage(Lane* p) noexcept { return reinterpret_cast<storage_type*>(p); }
+
 	register_type raw_;
 };
 
