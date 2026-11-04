@@ -17,6 +17,7 @@
 
 #include "model/sample/sample.h"
 #include "definitions_cxx.hpp"
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/fixed/fft/magnitude.h"
 #include "dsp-next/fixed/fft/real_fft.h"
 #include "dsp-next/fixed/shaping/tanh.h"
@@ -1633,8 +1634,8 @@ int32_t Sample::getMaxPeakFromZero() {
 	// Comes out one >> of the value we actually want
 	int32_t halfValue = std::abs(getFoundValueCentrePoint() >> 1) + (maxValueFound >> 2) - (minValueFound >> 2);
 
-	// Does the <<1 and saturates it - this was necessary, it was overflowing sometimes - I think when the audio clipped
-	return lshift_and_saturate<1>(halfValue);
+	// Doubled, held to 31 bits first: a clipped recording's peak would otherwise overflow
+	return scale_shl_wrap<1>(clamp_bits<31>(deluge::dsp::Q<31>::from_raw(halfValue))).raw();
 }
 
 int32_t Sample::getFoundValueCentrePoint() {

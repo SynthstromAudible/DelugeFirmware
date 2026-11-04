@@ -1168,13 +1168,13 @@ skipFirstSmooth:
 			*amplitude += amplitudeIncrement;
 
 			// Mono / left channel (or stereo condensed to mono)
-			*oscBufferPosNow = multiply_accumulate_32x32_rshift32_rounded(existingValueL, sampleRead.l, *amplitude);
+			*oscBufferPosNow = mixed_in(existingValueL, sampleRead.l, *amplitude);
 			oscBufferPosNow++;
 
 			// Right channel
 			if (numChannelsAfterCondensing == 2) {
 				int32_t existingValueR = *oscBufferPosNow;
-				*oscBufferPosNow = multiply_accumulate_32x32_rshift32_rounded(existingValueR, sampleRead.r, *amplitude);
+				*oscBufferPosNow = mixed_in(existingValueR, sampleRead.r, *amplitude);
 				oscBufferPosNow++;
 			}
 		} while (oscBufferPosNow != oscBufferEnd);
@@ -1210,13 +1210,13 @@ skipFirstLinear:
 			*amplitude += amplitudeIncrement;
 
 			// Mono / left channel (or stereo condensed to mono)
-			*oscBufferPosNow = multiply_accumulate_32x32_rshift32_rounded(existingValueL, sampleRead.l, *amplitude);
+			*oscBufferPosNow = mixed_in(existingValueL, sampleRead.l, *amplitude);
 			oscBufferPosNow++;
 
 			// Right channel
 			if (numChannelsAfterCondensing == 2) {
 				int32_t existingValueR = *oscBufferPosNow;
-				*oscBufferPosNow = multiply_accumulate_32x32_rshift32_rounded(existingValueR, sampleRead.r, *amplitude);
+				*oscBufferPosNow = mixed_in(existingValueR, sampleRead.r, *amplitude);
 				oscBufferPosNow++;
 			}
 		} while (oscBufferPosNow != oscBufferEnd);
@@ -1261,15 +1261,14 @@ void SampleLowLevelReader::readSamplesNative(int32_t** __restrict__ bufferPos, i
 		currentPlayPosNow += jumpAmount;
 
 		// Mono / left channel (or stereo condensed to mono)
-		*bufferPosNow = multiply_accumulate_32x32_rshift32_rounded(
-		    existingValueL, sampleReadL,
-		    *amplitude); // *amplitude is modified above; using accumulate made no difference
+		*bufferPosNow = mixed_in(existingValueL, sampleReadL,
+		                         *amplitude); // *amplitude is modified above; using accumulate made no difference
 		bufferPosNow++;
 
 		// Right channel
 		if (numChannelsAfterCondensing == 2) {
 			int32_t existingValueR = *bufferPosNow;
-			*bufferPosNow = multiply_accumulate_32x32_rshift32_rounded(existingValueR, sampleReadR, *amplitude);
+			*bufferPosNow = mixed_in(existingValueR, sampleReadR, *amplitude);
 			bufferPosNow++;
 		}
 	} while (bufferPosNow != bufferEndNow);

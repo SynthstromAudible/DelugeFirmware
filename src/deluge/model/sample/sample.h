@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/q31_ops.h"
 #include "model/sample/overview_cache_entry.h"
 #include "model/sample/sample_length_sentinel.h"
@@ -137,7 +138,7 @@ public:
 	void resizeOverviewCache(size_t n) { overviewCache_.resize(n); }
 
 	// Floating point
-	[[nodiscard]] q31_t convertToNative(float value) const { return q31_from_float(value); }
+	[[nodiscard]] q31_t convertToNative(float value) const { return deluge::dsp::from_float<31>(value).raw(); }
 
 	[[nodiscard]] q31_t convertToNative(int32_t value) const {
 		return deluge::audio::stream::convert_word(value, rawDataFormat);

@@ -20,6 +20,7 @@
 #include "arm_neon_shim.h"
 
 #include "definitions_cxx.hpp"
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/fixed/interpolation/interpolator.h"
 #include "libdeluge/sample_source.h"
 #include <array>
@@ -59,6 +60,13 @@ constexpr RegionOutcome regionOutcomeFrom(DelugeRegionState state) {
 	default:
 		return RegionOutcome::Unavailable;
 	}
+}
+
+/// @brief @p mix plus @p sample times @p amplitude, the rounded high word: the half-scale (Q30) mix a voice's sources
+/// add into, summed wrapping.
+[[gnu::always_inline]] inline int32_t mixed_in(int32_t mix, int32_t sample, int32_t amplitude) {
+	using deluge::dsp::Q;
+	return mla_r(Q<30>::from_raw(mix), Q<31>::from_raw(sample), Q<31>::from_raw(amplitude)).raw();
 }
 
 class SampleLowLevelReader {

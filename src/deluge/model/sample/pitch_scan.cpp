@@ -16,6 +16,7 @@
  */
 
 #include "model/sample/pitch_scan.h"
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/fixed/interpolation/table_interpolation.h"
 
 #include "definitions_cxx.hpp"
@@ -171,7 +172,10 @@ PitchScan::ReadOutcome PitchScan::stepRead() {
 		// Do hanning window
 		const int32_t hanningValue = deluge::dsp::fixed::kLinearTableInterpolator.interpolate_signed(
 		    writeIndex_, kPitchDetectWindowSizeMagnitude, hanningWindow, 8);
-		buffer_[writeIndex_] = multiply_32x32_rshift32_rounded(thisValue_, hanningValue) >> 12;
+		// The value times the Q31 window, rounded, then a 4096th for the scan's headroom
+		buffer_[writeIndex_] = scale_shr_floor<12>(mul_r(deluge::dsp::Q<31>::from_raw(thisValue_),
+		                                                 deluge::dsp::Q<31>::from_raw(hanningValue)))
+		                           .raw();
 		writeIndex_++;
 		thisValue_ = 0;
 		valueIndex_ = 0;
