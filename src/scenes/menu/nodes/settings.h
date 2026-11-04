@@ -141,6 +141,23 @@ void set_follow_channel(const MenuContext&, int32_t value) {
 }
 /// @}
 
+/// @brief `midi::FollowChannel::learnNoteOn` and `learnCC`: a note-on or a CC sets the channel and the cable it came
+///        on. @return Whether it learned: a note-on or a CC with a cable.
+bool follow_channel_learn(int32_t which, const deluge::ui::shell::UiEvent& event);
+/// @brief `midi::FollowChannel::unlearnAction`: the channel goes back to unassigned. @return True.
+bool follow_channel_unlearn(int32_t which);
+template <int Which>
+bool learn_follow_channel(const MenuContext&, const deluge::ui::shell::UiEvent& event) {
+	return follow_channel_learn(Which, event);
+}
+template <int Which>
+bool unlearn_follow_channel(const MenuContext&) {
+	return follow_channel_unlearn(Which);
+}
+
+/// @brief `midi::FollowKitRootNote::learnNoteOn`: a note-on sets the kit root note. @return Whether it learned.
+bool learn_follow_kit_root_note(const MenuContext& ctx, const deluge::ui::shell::UiEvent& event);
+
 int32_t get_follow_kit_root_note(const MenuContext& ctx);
 void set_follow_kit_root_note(const MenuContext& ctx, int32_t value);
 int32_t get_follow_feedback_channel(const MenuContext& ctx);
@@ -511,9 +528,11 @@ inline constexpr IntRange kFollowChannelRange{0, NUM_CHANNELS, 1};
 /// One follow-channel node. `n` is the `MIDIFollowChannelType` enumerator's value
 /// (`definitions_cxx.hpp:609-631`: A = 0, B = 1, C = 2, Track1 = 3 .. Track16 = 18).
 #define DELUGE_FOLLOW_CHANNEL(node_name, n, name_id)                                                                   \
-	inline constexpr Node node_name = with_learn_mode(with_title_arg(                                                  \
-	    int_item(sid(String::name_id), get_follow_channel<(n)>, set_follow_channel<(n)>, kFollowChannelRange),         \
-	    (n) >= 3 ? (n) - 2 : 0))
+	inline constexpr Node node_name =                                                                                  \
+	    with_learn(with_title_arg(int_item(sid(String::name_id), get_follow_channel<(n)>, set_follow_channel<(n)>,     \
+	                                       kFollowChannelRange),                                                       \
+	                              (n) >= 3 ? (n) - 2 : 0),                                                             \
+	               learn_follow_channel<(n)>, unlearn_follow_channel<(n)>)
 
 DELUGE_FOLLOW_CHANNEL(midi_follow_channel_a, 0, STRING_FOR_FOLLOW_CHANNEL_A);
 DELUGE_FOLLOW_CHANNEL(midi_follow_channel_b, 1, STRING_FOR_FOLLOW_CHANNEL_B);
@@ -545,8 +564,9 @@ inline constexpr const Node* kMidiFollowChannelChildren[] = {
 inline constexpr Node midi_follow_channel = submenu(sid(String::STRING_FOR_CHANNEL), kMidiFollowChannelChildren);
 
 inline constexpr Node midi_follow_kit_root_note =
-    with_learn_mode(int_item(sid(String::STRING_FOR_FOLLOW_KIT_ROOT_NOTE), get_follow_kit_root_note,
-                             set_follow_kit_root_note, IntRange{0, kMaxMIDIValue, 1}));
+    with_learn(int_item(sid(String::STRING_FOR_FOLLOW_KIT_ROOT_NOTE), get_follow_kit_root_note,
+                        set_follow_kit_root_note, IntRange{0, kMaxMIDIValue, 1}),
+               learn_follow_kit_root_note);
 
 /// `FollowFeedbackChannelType::getOptions` (`midi/follow/follow_feedback_channel_type.h:24-42`)
 /// builds three of its eight labels at run time ("Track + A", ...), so the list is dynamic.

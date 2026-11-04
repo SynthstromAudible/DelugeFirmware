@@ -165,6 +165,30 @@ void follow_channel_set(int32_t which, int32_t value) {
 	midiEngine.midiFollowChannelType[which].channelOrZone = value; // `follow_channel.h:36 writeCurrentValue`
 }
 
+bool follow_channel_learn(int32_t which, const deluge::ui::shell::UiEvent& event) {
+	using Kind = deluge::ui::shell::UiEvent::Kind;
+	if ((event.kind != Kind::MidiNoteOn && event.kind != Kind::MidiCc) || event.cable == nullptr) {
+		return false;
+	}
+	LearnedMIDI& input = midiEngine.midiFollowChannelType[which];
+	input.cable = event.cable;
+	input.channelOrZone = event.channel;
+	return true;
+}
+
+bool follow_channel_unlearn(int32_t which) {
+	midiEngine.midiFollowChannelType[which].clear();
+	return true;
+}
+
+bool learn_follow_kit_root_note(const MenuContext&, const deluge::ui::shell::UiEvent& event) {
+	if (event.kind != deluge::ui::shell::UiEvent::Kind::MidiNoteOn) {
+		return false;
+	}
+	midiEngine.midiFollowKitRootNote = event.data1;
+	return true;
+}
+
 int32_t get_follow_kit_root_note(const MenuContext&) {
 	return midiEngine.midiFollowKitRootNote; // `midi/follow/follow_kit_root_note.h:28 readCurrentValue`
 }

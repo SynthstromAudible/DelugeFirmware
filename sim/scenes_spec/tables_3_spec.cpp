@@ -50,8 +50,11 @@
 #include "gui/l10n/strings.h"
 #include "gui/menu_item/colour.h"
 #include "gui/menu_item/cpu/voice_usage.h"
+#include "gui/menu_item/formatted_title.h"
 #include "gui/menu_item/menu_item_with_cc_learning.h"
 #include "gui/menu_item/midi/command.h"
+#include "gui/menu_item/midi/follow/follow_channel.h"
+#include "gui/menu_item/midi/follow/follow_kit_root_note.h"
 #include "gui/menu_item/selection.h"
 #include "gui/menu_item/submenu.h"
 #include "gui/ui/menus.h"
@@ -895,6 +898,56 @@ const std::vector<CommandPair>& command_pairs() {
 		return v;
 	}();
 	return list;
+}
+
+/// @brief Shift+LEARN on the menu: unlearn the learn node.
+void shift_learn() {
+	using deluge::ui::shell::ButtonId;
+	using deluge::ui::shell::UiEvent;
+	const deluge::ui::shell::ButtonSet held{};
+	const deluge::ui::PadMask pads{};
+	const deluge::ui::shell::UiContext ui{held, pads, true, false, 0, deluge::scenes::deluge_profile()};
+	(void)menu_scene().handle(UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::Learn}, ui);
+	(void)menu_scene().handle(UiEvent{.kind = UiEvent::Kind::Button, .on = false, .button = ButtonId::Learn}, ui);
+}
+
+/// @brief The legacy item paired with @p node, as @p T, or null.
+template <typename T>
+T* legacy_item_for(const Node& node) {
+	for (const Pair& pair : tree().pairs) {
+		if (pair.node == &node) {
+			return dynamic_cast<T*>(pair.item);
+		}
+	}
+	return nullptr;
+}
+
+/// @brief The MIDI follow channels and kit root note, saved for one example and put back after it.
+struct FollowSaved {
+	::LearnedMIDI channels[kNumMIDIFollowChannelTypesIncludingTracks];
+	uint8_t root = midiEngine.midiFollowKitRootNote;
+	FollowSaved() { std::ranges::copy(midiEngine.midiFollowChannelType, channels); }
+	~FollowSaved() {
+		std::ranges::copy(channels, midiEngine.midiFollowChannelType);
+		midiEngine.midiFollowKitRootNote = root;
+	}
+	FollowSaved(const FollowSaved&) = delete;
+	FollowSaved& operator=(const FollowSaved&) = delete;
+};
+
+/// @brief Follow channel @p which as text: the cable's name and the channel or zone.
+std::string follow_state(size_t which) {
+	const ::LearnedMIDI& m = midiEngine.midiFollowChannelType[which];
+	return std::string{m.cable != nullptr ? m.cable->getDisplayName() : "-"} + "/" + std::to_string(m.channelOrZone);
+}
+
+/// @brief The last popup notice's string id, draining the queue; 0 for none.
+uint16_t last_popup_string() {
+	uint16_t last = 0;
+	for (deluge::notify::Notice n; deluge::notify::notices().pop(n);) {
+		last = n.string_id;
+	}
+	return last;
 }
 
 /// @brief Legacy's MIDI-commands list, the `Submenu` `nodes::midi_commands` is paired with.
@@ -2508,7 +2561,8 @@ describe tables_3_midi_commands("scenes::menu batch-3 tables: the twelve midi_co
 			   CommandSlots::clear_all();
 			   Rig pc_rig;
 			   focus_command_row(pc_rig, settings.ctx, i);
-			   expect(menu_scene().learn_program_change(fake_cable(), 2, static_cast<int32_t>(7 + i))).to_be_true();
+			   expect(menu_scene().learn_program_change(fake_cable(), 2, static_cast<int32_t>(7 + i)))
+			       .to_equal(pairs[i].legacy->commandNumber != GlobalMIDICommand::FILL); // FILL refuses
 			   const std::string pc_got = CommandSlots::capture().describe();
 			   // The port's own half of the refusal: `MidiCommandItem::learn_program_change` raises the
 			   // same `CANT_LEARN_PC` string legacy pops, and only on FILL.
@@ -2576,10 +2630,9 @@ describe tables_3_midi_commands("scenes::menu batch-3 tables: the twelve midi_co
 		saved.restore();
 	});
 
-	it("ignores a zero-valued CC, still reporting the message as used", _ {
-		// `Command::learnCC` (`command.cpp:126-130`): the release half of a momentary controller
-		// binds nothing. Legacy's `SoundEditor::midiCCReceived` returns true for it regardless
-		// (`sound_editor.cpp:1617-1625`), so the port does too.
+	it("ignores a zero-valued CC, which the menu still uses", _ {
+		// `Command::learnCC`: the release half of a momentary controller binds nothing. `SoundEditor` uses the
+		// message regardless, and so does the menu.
 		const Root& settings = roots().back();
 		install(settings.ctx, settings.song);
 		const CommandSlots saved = CommandSlots::capture();
@@ -2587,7 +2640,9 @@ describe tables_3_midi_commands("scenes::menu batch-3 tables: the twelve midi_co
 
 		Rig r;
 		focus_command_row(r, settings.ctx, 0);
-		expect(menu_scene().learn_cc(fake_cable(), 3, 42, 0)).to_be_true();
+		expect(menu_scene().learn_cc(fake_cable(), 3, 42, 0)).to_be_false();
+		expect(CommandSlots::capture().describe()).to_equal(std::string{"(all clear)"});
+		expect(offer_while_learning(deluge::ui::shell::UiEvent::Kind::MidiCc, 3, 42, 0)).to_be_true();
 		expect(CommandSlots::capture().describe()).to_equal(std::string{"(all clear)"});
 		saved.restore();
 	});
@@ -2684,6 +2739,106 @@ describe tables_3_midi_commands("scenes::menu batch-3 tables: the twelve midi_co
 		Rig r;
 		focus_command_row(r, settings.ctx, 0);
 		expect(menu_scene().learn_target().has_value()).to_be_false();
+	});
+});
+
+describe tables_3_midi_follow_learn("scenes::menu batch-3 tables: MIDI follow learns its channel and kit root note", $ {
+	it("each follow channel learns a note-on and a CC as legacy's FollowChannel does, and Shift+LEARN clears it", _ {
+		const Root& settings = roots().back();
+		install(settings.ctx, settings.song);
+		const FollowSaved saved;
+		size_t which = 0;
+		for (const Node* node : nodes::kMidiFollowChannelChildren) {
+			auto* legacy_item = legacy_item_for<legacy::midi::FollowChannel>(*node);
+			expect(legacy_item != nullptr).to_be_true();
+			if (legacy_item == nullptr) {
+				which++;
+				continue;
+			}
+			for (const auto kind : {deluge::ui::shell::UiEvent::Kind::MidiNoteOn, deluge::ui::shell::UiEvent::Kind::MidiCc}) {
+				midiEngine.midiFollowChannelType[which].clear();
+				Rig r;
+				r.open(*node, settings.ctx);
+				r.shell.tick(0);
+				expect(offer_while_learning(kind, 4, 60, 100)).to_be_true();
+				const std::string got = follow_state(which);
+				midiEngine.midiFollowChannelType[which].clear();
+				{
+					LegacyLearnScope legacy_scope{legacy_item};
+					if (kind == deluge::ui::shell::UiEvent::Kind::MidiNoteOn) {
+						(void)legacy_item->learnNoteOn(fake_cable(), 4, 60);
+					}
+					else {
+						legacy_item->learnCC(fake_cable(), 4, 60, 100);
+					}
+				}
+				const std::string want = follow_state(which);
+				expect(got).to_equal(want);
+				expect(want != std::string{"-/"} + std::to_string(MIDI_CHANNEL_NONE)).to_be_true();
+
+				shift_learn();
+				expect(follow_state(which)).to_equal(std::string{"-/"} + std::to_string(MIDI_CHANNEL_NONE));
+			}
+			which++;
+		}
+		expect(which).to_equal(size_t(19));
+	});
+
+	it("the kit root note learns a note-on as legacy's FollowKitRootNote does", _ {
+		const Root& settings = roots().back();
+		install(settings.ctx, settings.song);
+		const FollowSaved saved;
+		auto* legacy_item = legacy_item_for<legacy::midi::FollowKitRootNote>(nodes::midi_follow_kit_root_note);
+		expect(legacy_item != nullptr).to_be_true();
+		if (legacy_item == nullptr) {
+			return;
+		}
+		midiEngine.midiFollowKitRootNote = 36;
+		Rig r;
+		r.open(nodes::midi_follow_kit_root_note, settings.ctx);
+		r.shell.tick(0);
+		expect(offer_while_learning(deluge::ui::shell::UiEvent::Kind::MidiNoteOn, 4, 61, 100)).to_be_true();
+		const uint8_t got = midiEngine.midiFollowKitRootNote;
+		midiEngine.midiFollowKitRootNote = 36;
+		{
+			LegacyLearnScope legacy_scope{legacy_item};
+			(void)legacy_item->learnNoteOn(fake_cable(), 4, 61);
+		}
+		expect(int(got)).to_equal(int(midiEngine.midiFollowKitRootNote));
+		expect(int(got)).to_equal(61);
+	});
+
+	it("from the follow-channel list, a note-on learns the row under the cursor and pops LEARNED, as legacy does", _ {
+		// Legacy's item is not the current one when the list forwards to it, so it pops LEARNED instead of redrawing.
+		const Root& settings = roots().back();
+		install(settings.ctx, settings.song);
+		const FollowSaved saved;
+		midiEngine.midiFollowChannelType[0].clear();
+		(void)last_popup_string();
+		Rig r;
+		r.open(nodes::midi_follow_channel, settings.ctx);
+		r.shell.tick(0);
+		expect(offer_while_learning(deluge::ui::shell::UiEvent::Kind::MidiNoteOn, 4, 60, 100)).to_be_true();
+		expect(follow_state(0)).to_equal(std::string{fake_cable().getDisplayName()} + "/4");
+		expect(last_popup_string()).to_equal(uint16_t(String::STRING_FOR_LEARNED));
+	});
+
+	it("a MIDI command learned from the list pops LEARNED, and one learned on its own screen does not", _ {
+		const Root& settings = roots().back();
+		install(settings.ctx, settings.song);
+		const CommandSlots saved = CommandSlots::capture();
+		CommandSlots::clear_all();
+		Rig list;
+		cursor_on_command_row(list, settings.ctx, 0);
+		(void)last_popup_string();
+		expect(offer_while_learning(deluge::ui::shell::UiEvent::Kind::MidiNoteOn, 5, 61, 100)).to_be_true();
+		expect(last_popup_string()).to_equal(uint16_t(String::STRING_FOR_LEARNED));
+		Rig leaf;
+		focus_command_row(leaf, settings.ctx, 0);
+		(void)last_popup_string();
+		expect(offer_while_learning(deluge::ui::shell::UiEvent::Kind::MidiNoteOn, 5, 62, 100)).to_be_true();
+		expect(last_popup_string()).to_equal(uint16_t(0));
+		saved.restore();
 	});
 });
 
@@ -3559,4 +3714,5 @@ describe tables_4_items("scenes::menu batch-4 items: the last placeholders that 
 // clang-format on
 
 DELUGE_SPEC(tables_3_spec, tables_3_shape, tables_3_values, tables_3_validation, tables_3_writes, tables_3_chaining,
-            tables_3_reset_items, tables_3_midi_commands, tables_3_dynamic, tables_3_pixels, tables_4_items)
+            tables_3_reset_items, tables_3_midi_commands, tables_3_midi_follow_learn, tables_3_dynamic, tables_3_pixels,
+            tables_4_items)

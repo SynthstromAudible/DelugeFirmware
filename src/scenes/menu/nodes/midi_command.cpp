@@ -211,30 +211,28 @@ bool MidiCommandItem::learn_note_on(::MIDICable& cable, int32_t channel, int32_t
 
 bool MidiCommandItem::learn_cc(::MIDICable& cable, int32_t channel, int32_t cc, int32_t value) const {
 	// `Command::learnCC` (`command.cpp:126-130`): a zero-valued CC is the release half of a
-	// momentary controller and binds nothing. The message is still *used* -- legacy's
-	// `SoundEditor::ccReceivedForMidiLearn` returns true for it -- so this
-	// says so rather than letting the caller route the same CC on somewhere else.
+	// momentary controller and binds nothing; the menu still uses the message, as `SoundEditor` does.
 	if (value != 0) {
 		return learn_note_on(cable, channel + IS_A_CC, cc);
 	}
-	return true;
+	return false;
 }
 
 bool MidiCommandItem::learn_program_change(::MIDICable& cable, int32_t channel, int32_t program) const {
 	// `Command::learnProgramChange` (`command.cpp:105-111`). FILL is the one command a program
 	// change cannot drive -- it is a momentary hold, and a PC has no off half -- so legacy refuses
-	// it with a popup, which `SoundEditor::pcReceivedForMidiLearn` still reports as a message used
-	// (it returns true either way).
+	// it with a popup; the menu still uses the message, as `SoundEditor::pcReceivedForMidiLearn` does.
 	if (command_ == GlobalMIDICommand::FILL) {
 		deluge::notify::notice_string(sid(String::STRING_FOR_CANT_LEARN_PC));
-		return true;
+		return false;
 	}
 	return learn_note_on(cable, channel + IS_A_PC, program);
 }
 
-void MidiCommandItem::unlearn() const {
-	slot_for(command_).clear(); // `Command::unlearnAction` (`command.cpp:96-104`)
+bool MidiCommandItem::unlearn() const {
+	slot_for(command_).clear(); // `Command::unlearnAction`
 	deluge::notify::dirty().raise(deluge::notify::Dirty::Oled);
+	return true;
 }
 
 } // namespace deluge::scenes::menu::nodes

@@ -67,7 +67,7 @@ public:
 	bool learn_note_on(::MIDICable& cable, int32_t channel, int32_t note) const override;
 	bool learn_cc(::MIDICable& cable, int32_t channel, int32_t cc, int32_t value) const override;
 	bool learn_program_change(::MIDICable& cable, int32_t channel, int32_t program) const override;
-	void unlearn() const override;
+	bool unlearn() const override;
 	bool wants_learn_blink() const override { return true; } ///< `command.h:34`, true on all twelve.
 
 	/// @brief Which command this item binds. For specs, and for the twelve-way mapping check.

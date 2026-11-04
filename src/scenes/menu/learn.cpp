@@ -30,6 +30,7 @@
 #include "deluge-project/song.h"
 
 #include "gui/l10n/strings.h"
+#include "notify/dirty_set.h"
 #include "notify/notice_queue.h"
 
 #include <algorithm>
@@ -45,6 +46,57 @@ namespace {
 /// @brief The learn node's `CustomItem`, or null when it is not a `Kind::Custom` leaf.
 const CustomItem* custom_of(const Node* node) {
 	return node != nullptr && node->kind == Kind::Custom ? node->custom : nullptr;
+}
+
+/// @brief Tell the user what a learn did, as legacy's items do: the item on its own screen redraws, and one reached
+///        through its page (`soundEditor.getCurrentMenuItem() != this`) pops @p what instead.
+void announce(const MenuState& st, const Node& learned, deluge::l10n::String what) {
+	if (&learned == focused(st)) {
+		deluge::notify::dirty().raise(deluge::notify::Dirty::Oled);
+	}
+	else {
+		deluge::notify::notice_string(static_cast<uint16_t>(what));
+	}
+}
+
+/// @brief Deliver one MIDI learn message to the learn node: its own hook for a plain item, its members for a bespoke
+///        one. @return Whether it learned.
+bool learn_into(const MenuContext& ctx, const MenuState& st, const UiEvent& event) {
+	const Node* at = MenuLearn::node(ctx, st);
+	if (at == nullptr || event.cable == nullptr) {
+		return false;
+	}
+	bool learned = false;
+	if (at->learn != nullptr) {
+		learned = at->learn(ctx, event);
+	}
+	else if (const CustomItem* item = custom_of(at)) {
+		switch (event.kind) {
+		case UiEvent::Kind::MidiNoteOn:
+			learned = item->learn_note_on(*event.cable, event.channel, event.data1);
+			break;
+		case UiEvent::Kind::MidiCc:
+			learned = item->learn_cc(*event.cable, event.channel, event.data1, event.data2);
+			break;
+		case UiEvent::Kind::MidiProgramChange:
+			learned = item->learn_program_change(*event.cable, event.channel, event.data1);
+			break;
+		default:
+			break;
+		}
+	}
+	if (learned) {
+		announce(st, *at, deluge::l10n::String::STRING_FOR_LEARNED);
+	}
+	return learned;
+}
+
+UiEvent midi_event(UiEvent::Kind kind, ::MIDICable& cable, int32_t channel, int32_t data1, int32_t data2) {
+	return UiEvent{.kind = kind,
+	               .channel = static_cast<uint8_t>(channel),
+	               .data1 = static_cast<uint8_t>(data1),
+	               .data2 = static_cast<uint8_t>(data2),
+	               .cable = &cable};
 }
 
 } // namespace
@@ -98,39 +150,31 @@ bool MenuLearn::wants_blink(const MenuState& st) const {
 
 bool MenuLearn::note_on(const MenuContext& ctx, const MenuState& st, ::MIDICable& cable, int32_t channel,
                         int32_t note) const {
-	const CustomItem* item = custom_of(node(ctx, st));
-	return item != nullptr && item->learn_note_on(cable, channel, note);
+	return learn_into(ctx, st, midi_event(UiEvent::Kind::MidiNoteOn, cable, channel, note, 0));
 }
 
 bool MenuLearn::cc(const MenuContext& ctx, const MenuState& st, ::MIDICable& cable, int32_t channel, int32_t cc,
                    int32_t value) const {
-	const CustomItem* item = custom_of(node(ctx, st));
-	return item != nullptr && item->learn_cc(cable, channel, cc, value);
+	return learn_into(ctx, st, midi_event(UiEvent::Kind::MidiCc, cable, channel, cc, value));
 }
 
 bool MenuLearn::program_change(const MenuContext& ctx, const MenuState& st, ::MIDICable& cable, int32_t channel,
                                int32_t program) const {
-	const CustomItem* item = custom_of(node(ctx, st));
-	return item != nullptr && item->learn_program_change(cable, channel, program);
+	return learn_into(ctx, st, midi_event(UiEvent::Kind::MidiProgramChange, cable, channel, program, 0));
 }
 
 bool MenuLearn::offer(const MenuContext& ctx, const MenuState& st, const UiEvent& event, const UiContext& ui) const {
 	if (!mode_ || event.cable == nullptr) {
 		return false;
 	}
-	::MIDICable& cable = *event.cable;
 	switch (event.kind) {
 	case UiEvent::Kind::MidiNoteOn:
-		(void)note_on(ctx, st, cable, event.channel, event.data1);
+		(void)learn_into(ctx, st, event);
 		return true;
 	case UiEvent::Kind::MidiProgramChange:
-		if (!ui.shift) {
-			(void)program_change(ctx, st, cable, event.channel, event.data1);
-		}
-		return true;
 	case UiEvent::Kind::MidiCc:
 		if (!ui.shift) {
-			(void)cc(ctx, st, cable, event.channel, event.data1, event.data2);
+			(void)learn_into(ctx, st, event);
 		}
 		return true;
 	case UiEvent::Kind::MidiPitchBend:
@@ -143,8 +187,16 @@ bool MenuLearn::offer(const MenuContext& ctx, const MenuState& st, const UiEvent
 void MenuLearn::unlearn(const MenuContext& ctx, const MenuState& st) const {
 	// Unconditional, like legacy's own call: `MenuItem::unlearnAction`'s base is an empty body, so
 	// an item with nothing to forget forgets nothing and no caller has to ask first.
-	if (const CustomItem* item = custom_of(node(ctx, st)); item != nullptr) {
-		item->unlearn();
+	const Node* at = node(ctx, st);
+	bool forgot = false;
+	if (at != nullptr && at->unlearn != nullptr) {
+		forgot = at->unlearn(ctx);
+	}
+	else if (const CustomItem* item = custom_of(at)) {
+		forgot = item->unlearn();
+	}
+	if (forgot) {
+		announce(st, *at, deluge::l10n::String::STRING_FOR_UNLEARNED);
 	}
 	// `MenuItemWithCCLearning::unlearnAction` (`menu_item_with_cc_learning.cpp:25-41`): a param's learned knob goes,
 	// with a popup when there was one.
