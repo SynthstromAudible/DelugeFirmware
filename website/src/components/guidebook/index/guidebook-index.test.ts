@@ -69,6 +69,14 @@ test("every Guidebook title and heading is under some headword", () => {
   )
 })
 
+test("a head is a headword or an external entry, not both", () => {
+  const heads = new Set(vocab.headwords.map((h) => h.head.toLowerCase()))
+  assert.deepEqual(
+    vocab.external.filter((e) => heads.has(e.head.toLowerCase())),
+    [],
+  )
+})
+
 test("see and also point at headwords; links point at pages", () => {
   const heads = new Set(vocab.headwords.map((h) => h.head))
   for (const s of vocab.see)

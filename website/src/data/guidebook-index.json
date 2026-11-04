@@ -724,7 +724,7 @@
     },
     {
       "term": "Export",
-      "see": ["Resampling"]
+      "see": ["Audio export", "Resampling"]
     },
     {
       "term": "Instrument",
@@ -765,19 +765,9 @@
   ],
   "external": [
     {
-      "head": "Performance view",
-      "label": "Features: Performance View",
-      "href": "/features/performance_view"
-    },
-    {
       "head": "Note row menu",
       "label": "Features: Note and Note Row Editor",
       "href": "/features/note_noterow_editor"
-    },
-    {
-      "head": "Audio export",
-      "label": "Features: Audio Export",
-      "href": "/features/audio_export"
     },
     {
       "head": "DX7 synth",
