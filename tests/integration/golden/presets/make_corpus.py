@@ -803,7 +803,12 @@ RINGMOD_SUPERSAWS = {
     "osc1": {"type": "supersaw"},
     "osc2": {"type": "supersaw", "transpose": "7"},
 }
-case("voice/ringmod_supersaws", **RINGMOD_SUPERSAWS)
+case(
+    "voice/ringmod_supersaws",
+    sound={"mode": "ringmod", "lpfMode": "Off", "hpfMode": "Off"},
+    osc1=RINGMOD_SUPERSAWS["osc1"],
+    osc2=RINGMOD_SUPERSAWS["osc2"],
+)
 case(
     "voice/ringmod_supersaws_resonance_middle",
     params={"lpfFrequency": "0x40000000", "lpfResonance": "0x00000000"},

@@ -2389,9 +2389,9 @@
  },
  "voice/ringmod_supersaws": {
   "frames": 88200,
-  "peak": 173382912,
-  "rms_db": -29.24,
-  "sha256": "bb67a4dd66900c7bde2257a0ff30e27467be58052df0d8713b92fd5e6a2f8926"
+  "peak": 208151296,
+  "rms_db": -29.04,
+  "sha256": "39a1681b88293f877d445993faa69b8e72e5bcbac0bec52e12e0f1a0c19f9d7c"
  },
  "voice/ringmod_supersaws_resonance_middle": {
   "frames": 88200,
