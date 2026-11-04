@@ -245,6 +245,17 @@ describe lfo_spec("LFO", ${
 		expect(lfo.phase()).to_equal(2000u);
 	});
 
+	it("warbles toward a target more than full scale away, not away from it", _ {
+		// Held near the top, the target near the bottom: the distance, about -2^32, saturates rather than wrapping
+		// positive, so the held value moves down toward the target.
+		lfo_wave::Warbler warbler;
+		warbler.held_value_ = 2000000000;
+		warbler.target_ = -2000000000;
+		uint32_t phase = 0;
+		const int32_t held = warbler.render(phase, 1 << 20, 16, deluge::synth_noise);
+		expect(held < 2000000000).to_be_true();
+	});
+
 	// ---- The individual generators in isolation (the payoff of the decomposition) ----
 	it("advances phase through a stateless generator", _ {
 		lfo_wave::Sine sine;

@@ -152,7 +152,9 @@ struct Warbler {
 			target_ = noise.next();
 			speed_ = 0;
 		}
-		int32_t distance_to_target = target_ - held_value_;
+		// Saturating: a target more than full scale away is still the way to go
+		const int32_t distance_to_target =
+		    sub_sat(deluge::dsp::Q<31>::from_raw(target_), deluge::dsp::Q<31>::from_raw(held_value_)).raw();
 		// The distance's high word scaled by the increment's top 24 bits: the speed's change per sample, in the held
 		// value's Q31 units
 		const int32_t pull = mul(deluge::dsp::Q<31>::from_raw(distance_to_target),
