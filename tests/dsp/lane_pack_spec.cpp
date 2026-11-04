@@ -462,27 +462,30 @@ describe lane_pack_spec("LanePack", ${
 			Tally s;
 			for (uint32_t drive = 0; drive <= 30; ++drive) {
 				const AntialiasedTanh::Coefficients c = AntialiasedTanh::coefficients({.drive = drive});
-				const auto ternaries = [&c](const Trial<N>& x, std::size_t i) {
-					const q31 low_clamped = x.a.lane[i] < c.floor ? c.floor : x.a.lane[i];
-					return low_clamped > c.ceiling ? c.ceiling : low_clamped;
+				// The bounds as raw words, the lanes' format here
+				const q31 floor = c.floor.raw();
+				const q31 ceiling = c.ceiling.raw();
+				const auto ternaries = [&](const Trial<N>& x, std::size_t i) {
+					const q31 low_clamped = x.a.lane[i] < floor ? floor : x.a.lane[i];
+					return low_clamped > ceiling ? ceiling : low_clamped;
 				};
-				s += tally<N>([&c](const Trial<N>& x) { return probe::clamp(x.a, c.floor, c.ceiling); }, ternaries);
-				s += tally<N>([&c](const Trial<N>& x) { return probe::clamp_by_select(x.a, c.floor, c.ceiling); },
+				s += tally<N>([&](const Trial<N>& x) { return probe::clamp(x.a, floor, ceiling); }, ternaries);
+				s += tally<N>([&](const Trial<N>& x) { return probe::clamp_by_select(x.a, floor, ceiling); },
 				              ternaries);
 				s += tally<N>(
-				    [&c](const Trial<N>& x) {
+				    [&](const Trial<N>& x) {
 					    LanePack<q31, N> scalar{};
 					    for (std::size_t i = 0; i < N; ++i) {
-						    scalar.lane[i] = probe::clamp(x.a.lane[i], c.floor, c.ceiling);
+						    scalar.lane[i] = probe::clamp(x.a.lane[i], floor, ceiling);
 					    }
 					    return scalar;
 				    },
 				    ternaries);
 				s += tally<N>(
-				    [&c](const Trial<N>& x) {
+				    [&](const Trial<N>& x) {
 					    LanePack<q31, N> scalar{};
 					    for (std::size_t i = 0; i < N; ++i) {
-						    scalar.lane[i] = probe::clamp_by_select(x.a.lane[i], c.floor, c.ceiling);
+						    scalar.lane[i] = probe::clamp_by_select(x.a.lane[i], floor, ceiling);
 					    }
 					    return scalar;
 				    },

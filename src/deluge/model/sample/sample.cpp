@@ -777,7 +777,7 @@ doLoading:
 				// renderer) traps with SIGFPE instead, so guard explicitly to keep host/hardware parity.
 				int32_t percussiveness = (angle != 0) ? (((uint64_t)difference * 262144 / angle) >> 1) : 0;
 
-				percussiveness = deluge::dsp::fixed::tanh<23>(percussiveness);
+				percussiveness = deluge::dsp::fixed::tanh<23>(deluge::dsp::Q<31>::from_raw(percussiveness)).raw();
 
 				percCacheNow[startPosSamples >> kPercBufferReductionMagnitude] = percussiveness;
 			}

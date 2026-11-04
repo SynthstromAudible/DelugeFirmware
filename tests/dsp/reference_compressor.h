@@ -42,6 +42,7 @@
 #include "dsp-next/fixed/dynamics/rms_feedback_compressor.h" // CompressorKnobs, RmsFeedbackCompressor::View
 #include "dsp-next/fixed/filter/one_pole.h"
 #include "dsp-next/fixed/shaping/antialiased_tanh.h"
+#include "raw_shaping.h"
 #include "reference_filters.h"
 
 #include <algorithm>
@@ -414,8 +415,8 @@ public:
 		}
 
 		if (!seeded_) {
-			AntialiasedTanh::seed(kSaturator, saturation_l_, block[0].l);
-			AntialiasedTanh::seed(kSaturator, saturation_r_, block[0].r);
+			raw_shaping::antialiased_tanh_seed(kSaturator, saturation_l_, block[0].l);
+			raw_shaping::antialiased_tanh_seed(kSaturator, saturation_r_, block[0].r);
 			seeded_ = true;
 		}
 		const float threshold = updateMakeup(static_cast<float>(block.size()), final_volume);
@@ -447,10 +448,10 @@ public:
 			current_volume_r_ = add_saturate(current_volume_r_, increment_r);
 
 			sample.l = multiply_32x32_rshift32(sample.l, current_volume_l_) << 4;
-			sample.l = AntialiasedTanh::step(kSaturator, EmptyBlock{}, saturation_l_, sample.l);
+			sample.l = raw_shaping::antialiased_tanh(kSaturator, saturation_l_, sample.l);
 
 			sample.r = multiply_32x32_rshift32(sample.r, current_volume_r_) << 4;
-			sample.r = AntialiasedTanh::step(kSaturator, EmptyBlock{}, saturation_r_, sample.r);
+			sample.r = raw_shaping::antialiased_tanh(kSaturator, saturation_r_, sample.r);
 
 			if (wet_ != kOneQ31) {
 				sample.l = multiply_32x32_rshift32(sample.l, wet_);

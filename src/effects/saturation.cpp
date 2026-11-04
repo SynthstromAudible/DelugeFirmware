@@ -28,8 +28,8 @@ void Saturation::process(std::span<dsp::StereoSample> block, const SaturationPar
 	const Curve::Coefficients c = Curve::coefficients({.drive = drive(voice, amount)});
 	const uint32_t up = shift(voice, amount);
 	for (dsp::StereoSample& sample : block) {
-		sample.l = Curve::step(c, {}, left_, sample.l) << up;
-		sample.r = Curve::step(c, {}, right_, sample.r) << up;
+		sample.l = Curve::step(c, {}, left_, dsp::Q<31>::from_raw(sample.l)).raw() << up;
+		sample.r = Curve::step(c, {}, right_, dsp::Q<31>::from_raw(sample.r)).raw() << up;
 	}
 }
 

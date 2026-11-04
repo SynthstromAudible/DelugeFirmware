@@ -326,7 +326,7 @@ struct LowPassLadder {
 				// is dropped (the ladder itself filters what that crude downsampling would alias).
 				std::ignore = drive_ladder<kInput>(c, s, x, noise);
 			}
-			return tanh<kOutputDrive>(drive_ladder<kInput>(c, s, x, noise));
+			return tanh<kOutputDrive>(Q<31>::from_raw(drive_ladder<kInput>(c, s, x, noise))).raw();
 		}
 	}
 

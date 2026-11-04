@@ -231,7 +231,7 @@ struct HighPassLadder {
 		    mul_r_as_wrap<Q<31>>(c.divide_by_total_moveability, add_wrap(Q<31>::from_raw(first_output), feedbacks)));
 
 		if constexpr (kSaturation == Saturation::ANTIALIASED) {
-			a = Q<31>::from_raw(AntialiasedTanh::step(kSaturator, EmptyBlock{}, s.saturator, a.raw()));
+			a = AntialiasedTanh::step(kSaturator, EmptyBlock{}, s.saturator, a);
 		}
 		else {
 			// The saturator is placed at shift 2 although it saturates at drive 1 (shift 1): this placement is

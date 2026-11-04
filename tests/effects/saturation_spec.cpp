@@ -20,7 +20,8 @@ int32_t first_sample(uint32_t drive) {
 	using deluge::dsp::fixed::AntialiasedTanh;
 	AntialiasedTanh::State state{};
 	return AntialiasedTanh::step(AntialiasedTanh::coefficients({.drive = drive}), deluge::dsp::EmptyBlock{}, state,
-	                             kInput);
+	                             deluge::dsp::Q<31>::from_raw(kInput))
+	    .raw();
 }
 
 /// The voice variant of one first sample, by hand: tanh at 5 + amount, shifted from amount 2.

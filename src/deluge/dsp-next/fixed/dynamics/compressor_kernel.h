@@ -270,12 +270,14 @@ struct Compressor {
 		// The Q31 frame times its Q26 gain is Q25, lifted to Q29 (wrapping); the saturator reads those bits as its Q31
 		// input, so it takes x × gain / 4.
 		StereoSample y{
-		    .l = AntialiasedTanh::step(
-		        kSaturator, EmptyBlock{}, s.saturation_l,
-		        as_wrap<Q<29>>(mul(Q<31>::from_raw(x.l), Q<26>::from_raw(s.current_volume_l))).raw()),
-		    .r = AntialiasedTanh::step(
-		        kSaturator, EmptyBlock{}, s.saturation_r,
-		        as_wrap<Q<29>>(mul(Q<31>::from_raw(x.r), Q<26>::from_raw(s.current_volume_r))).raw()),
+		    .l = AntialiasedTanh::step(kSaturator, EmptyBlock{}, s.saturation_l,
+		                               reinterpret_bits<Q<31>>(as_wrap<Q<29>>(
+		                                   mul(Q<31>::from_raw(x.l), Q<26>::from_raw(s.current_volume_l)))))
+		             .raw(),
+		    .r = AntialiasedTanh::step(kSaturator, EmptyBlock{}, s.saturation_r,
+		                               reinterpret_bits<Q<31>>(as_wrap<Q<29>>(
+		                                   mul(Q<31>::from_raw(x.r), Q<26>::from_raw(s.current_volume_r)))))
+		             .raw(),
 		};
 
 		if constexpr (M == Mode::BLEND) {

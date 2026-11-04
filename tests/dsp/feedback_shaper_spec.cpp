@@ -35,6 +35,7 @@
 #include "dsp-next/fixed/noise/noise.h"
 #include "dsp-next/fixed/shaping/tanh.h"
 
+#include "raw_shaping.h"
 #include <algorithm>
 #include <array>
 #include <cppspec.hpp>
@@ -103,8 +104,8 @@ struct ReferenceShaper {
 			// Less headroom than digital: the analog saturation sounds fine driven.
 			const auto drive = static_cast<uint32_t>(settings.analog_saturation);
 			for (StereoSample& sample : work) {
-				sample.l = tanh(multiply_32x32_rshift32(sample.l, settings.feedback), drive) << 2;
-				sample.r = tanh(multiply_32x32_rshift32(sample.r, settings.feedback), drive) << 2;
+				sample.l = raw_shaping::tanh(multiply_32x32_rshift32(sample.l, settings.feedback), drive) << 2;
+				sample.r = raw_shaping::tanh(multiply_32x32_rshift32(sample.r, settings.feedback), drive) << 2;
 			}
 			return;
 		}

@@ -62,13 +62,13 @@ struct SampleRateReducer {
 
 	/// @brief The param, and the mask the bit depth puts on each grab.
 	struct Settings {
-		q31 sample_rate_reduction = std::numeric_limits<q31>::min(); ///< The param, Q31; on above its minimum.
-		uint32_t grab_mask = kAllBits;                               ///< BitDepth::mask at BitDepth::kGrabMaskBase.
+		Q<31> sample_rate_reduction = Q<31>::min(); ///< The param; on above its minimum.
+		uint32_t grab_mask = kAllBits;              ///< BitDepth::mask at BitDepth::kGrabMaskBase.
 	};
 	/// @brief The two rates and the grab mask.
 	struct Coefficients {
-		q31 low_increment = 0;         ///< Per frame, Q22.
-		q31 high_increment = 0;        ///< Per frame, Q22: the low increment's reciprocal ≪ 6.
+		Q<22> low_increment{};         ///< Per frame.
+		Q<22> high_increment{};        ///< Per frame: the low increment's reciprocal ≪ 6.
 		uint32_t grab_mask = kAllBits; ///< The bits a grab keeps.
 	};
 	/// @brief The positions and the frames the interpolations read.
@@ -81,17 +81,19 @@ struct SampleRateReducer {
 	};
 
 	/// @brief Whether @p sample_rate_reduction reduces the rate.
-	[[nodiscard]] static constexpr bool on(q31 sample_rate_reduction) {
-		return sample_rate_reduction != std::numeric_limits<q31>::min();
+	[[nodiscard]] static constexpr bool on(Q<31> sample_rate_reduction) {
+		return sample_rate_reduction != Q<31>::min();
 	}
 
 	/// @brief The rates for @p s; the param must be on.
 	[[nodiscard]] static Coefficients coefficients(const Settings& s) {
-		const uint32_t preset = static_cast<uint32_t>(s.sample_rate_reduction) + kParamOffset;
-		const q31 low = exp_curve(static_cast<q31>(kOne), static_cast<q31>(preset >> kPresetToAdjustShift));
+		const uint32_t preset = static_cast<uint32_t>(s.sample_rate_reduction.raw()) + kParamOffset;
+		// exp_curve scales one frame, so the rate keeps its Q22
+		const int32_t low = exp_curve(static_cast<int32_t>(kOne), static_cast<int32_t>(preset >> kPresetToAdjustShift));
 		const auto high =
-		    static_cast<q31>((kAllBits / static_cast<uint32_t>(low >> kReciprocalShift)) << kReciprocalShift);
-		return {.low_increment = low, .high_increment = high, .grab_mask = s.grab_mask};
+		    static_cast<int32_t>((kAllBits / static_cast<uint32_t>(low >> kReciprocalShift)) << kReciprocalShift);
+		return {
+		    .low_increment = Q<22>::from_raw(low), .high_increment = Q<22>::from_raw(high), .grab_mask = s.grab_mask};
 	}
 
 	/// @brief The effect switched on: zero the last input, the grab and the low position.
@@ -105,23 +107,23 @@ struct SampleRateReducer {
 	[[nodiscard]] [[gnu::always_inline]] static StereoSample step(const Coefficients& c, const EmptyBlock& /*b*/,
 	                                                              State& s, StereoSample x) {
 		if (s.low_pos < kOne) {
-			const auto toward_this = Q<22>::from_raw(static_cast<q31>(s.low_pos));
+			const auto toward_this = Q<22>::from_raw(static_cast<int32_t>(s.low_pos));
 			const Q<22> toward_last = sub_wrap(Q<22>::from_raw(kBelowOne), toward_this);
 			s.last_grabbed = s.grabbed;
 			s.grabbed = {
 			    .l = grab(s.last_sample.l, x.l, toward_last, toward_this, c.grab_mask),
 			    .r = grab(s.last_sample.r, x.r, toward_last, toward_this, c.grab_mask),
 			};
-			s.low_pos += static_cast<uint32_t>(c.low_increment);
+			s.low_pos += static_cast<uint32_t>(c.low_increment.raw());
 			// Where in the frame the grab fell, in the high rate's frames
-			const Q<20> resync = mul_r(Q<22>::from_raw(static_cast<q31>(s.low_pos & kBelowOne)),
-			                           as_wrap<Q<30>>(Q<22>::from_raw(c.high_increment)));
+			const Q<20> resync =
+			    mul_r(Q<22>::from_raw(static_cast<int32_t>(s.low_pos & kBelowOne)), as_wrap<Q<30>>(c.high_increment));
 			s.high_pos = static_cast<uint32_t>(as_wrap<Q<22>>(resync).raw());
 		}
 		s.low_pos -= kOne;
 		s.last_sample = x;
 
-		const auto toward_grabbed = Q<22>::from_raw(static_cast<q31>(std::min(s.high_pos, kBelowOne)));
+		const auto toward_grabbed = Q<22>::from_raw(static_cast<int32_t>(std::min(s.high_pos, kBelowOne)));
 		const Q<22> toward_last_grabbed = sub_wrap(Q<22>::from_raw(kBelowOne), toward_grabbed);
 		const StereoSample out{
 		    .l = as_wrap<Q<31>>(between(Q<30>::from_raw(s.last_grabbed.l), Q<30>::from_raw(s.grabbed.l),
@@ -131,7 +133,7 @@ struct SampleRateReducer {
 		                                toward_last_grabbed, toward_grabbed))
 		             .raw(),
 		};
-		s.high_pos += static_cast<uint32_t>(c.high_increment);
+		s.high_pos += static_cast<uint32_t>(c.high_increment.raw());
 		return out;
 	}
 
@@ -144,10 +146,10 @@ private:
 	}
 
 	/// @brief A grab: @ref between the last input and this one, Q30, masked by @p mask.
-	[[nodiscard]] [[gnu::always_inline]] static q31 grab(q31 last, q31 now, Q<22> toward_last, Q<22> toward_now,
-	                                                     uint32_t mask) {
+	[[nodiscard]] [[gnu::always_inline]] static q31_t grab(q31_t last, q31_t now, Q<22> toward_last, Q<22> toward_now,
+	                                                       uint32_t mask) {
 		const Q<30> grabbed = between(Q<31>::from_raw(last), Q<31>::from_raw(now), toward_last, toward_now);
-		return static_cast<q31>(static_cast<uint32_t>(grabbed.raw()) & mask);
+		return static_cast<q31_t>(static_cast<uint32_t>(grabbed.raw()) & mask);
 	}
 };
 

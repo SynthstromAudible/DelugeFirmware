@@ -98,8 +98,8 @@ struct FeedbackShaper {
 	/// together (@ref AnalogImpulseResponse::step_pair).
 	[[nodiscard]] [[gnu::always_inline]] static q31 analog(const Coefficients& c, q31 response) {
 		const Q<30> product = mul(Q<31>::from_raw(response), Q<31>::from_raw(c.feedback));
-		// Raw: the run-time-drive tanh has no typed form; it reads the product's bits as its Q31 input.
-		return scale_shl_wrap<kOutputShift>(Q<31>::from_raw(tanh(product.raw(), c.drive))).raw();
+		// The run-time-drive tanh reads the product's bits as its Q31 input
+		return scale_shl_wrap<kOutputShift>(tanh(reinterpret_bits<Q<31>>(product), c.drive)).raw();
 	}
 
 	/// @brief One sample of feedback, shaped.

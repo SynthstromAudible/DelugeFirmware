@@ -17,6 +17,7 @@
 
 #include "synth/voice/voice.h"
 #include "definitions_cxx.hpp"
+#include "dsp-next/core/buffer_view.h"
 #include "dsp-next/core/fixed_point.h"
 #include "dsp-next/fixed/curves/param_curve.h"
 #include "dsp-next/fixed/interpolation/table_interpolation.h" // get_decay4
@@ -425,7 +426,8 @@ uint32_t Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge::m
 	if (did_stereo_temp_buffer) {
 		const std::span<dsp::q31> stereo{osc_buffer, osc_buffer + (num_samples << 1)};
 		if (params_.param_final_values[params::LOCAL_FOLD] > 0) {
-			dsp::fixed::Wavefolder{params_.param_final_values[params::LOCAL_FOLD]}.render_block(stereo, stereo);
+			dsp::fixed::Wavefolder{dsp::Q<31>::from_raw(params_.param_final_values[params::LOCAL_FOLD])}.render_block(
+			    dsp::typed_view(stereo), dsp::typed_view(stereo));
 		}
 		filter_set_.render_stereo(stereo, args.filter_scratch, *noise_);
 		if (cfg.clipping_amount == 0u) {
@@ -439,7 +441,8 @@ uint32_t Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge::m
 		const std::span<dsp::q31> mono{osc_buffer, osc_buffer + num_samples};
 		// wavefolding pre filter
 		if (params_.param_final_values[params::LOCAL_FOLD] > 0) {
-			dsp::fixed::Wavefolder{params_.param_final_values[params::LOCAL_FOLD]}.render_block(mono, mono);
+			dsp::fixed::Wavefolder{dsp::Q<31>::from_raw(params_.param_final_values[params::LOCAL_FOLD])}.render_block(
+			    dsp::typed_view(mono), dsp::typed_view(mono));
 		}
 		filter_set_.render_mono(mono, args.filter_scratch, *noise_);
 		if (cfg.clipping_amount == 0u) {

@@ -27,6 +27,7 @@
 
 #include "bench/reference_impulse_response.h"
 #include "bench/runner.h"
+#include "dsp-next/core/buffer_view.h"
 #include "dsp-next/core/chain.h"
 #include "dsp-next/core/control.h"
 #include "dsp-next/core/fixed_point.h"
@@ -1024,8 +1025,23 @@ private:
 
 /// @brief The chain3 cases' low-pass, pinned: the one-pole at the granular moveability.
 using Chain3LowPass = dsp::Pinned<dsp::fixed::OnePole, dsp::fixed::OnePole::Mode::LOW_PASS>;
+/// @brief The chain3 cases' tanh at drive 3 as a part over raw q31, the other parts' value type: Tanh3Case's kernel,
+/// converting at entry and exit.
+struct Chain3Tanh {
+	using value_type = q31;
+	using step_type = q31;
+	struct Settings {};
+	struct Coefficients {};
+	struct State {};
+	[[nodiscard]] static constexpr Coefficients coefficients(const Settings& /*s*/) { return {}; }
+	[[nodiscard]] [[gnu::always_inline]] static q31 step(const Coefficients& /*c*/, const dsp::EmptyBlock& /*b*/,
+	                                                     State& /*s*/, q31 x) {
+		return dsp::fixed::tanh<3>(dsp::Q<31>::from_raw(x)).raw();
+	}
+};
+
 /// @brief Three stages as one kernel: tanh at drive 3, the low-pass, then the delay's high-pass.
-using Chain3 = dsp::Chain<Tanh3Case::Kernel, Chain3LowPass, DelayHighPass>;
+using Chain3 = dsp::Chain<Chain3Tanh, Chain3LowPass, DelayHighPass>;
 
 /// @brief Tanh at drive 3, the one-pole low-pass and the delay's high-pass as three `Mono` passes: the first from
 /// input_a into the output, the others over the output in place.

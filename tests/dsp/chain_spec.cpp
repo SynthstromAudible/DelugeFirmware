@@ -35,6 +35,7 @@
 
 #include "loop_state_kernels.h"
 
+#include "raw_shaping.h"
 #include <argon.hpp>
 #include <array>
 #include <bit>
@@ -50,10 +51,24 @@ using namespace deluge::dsp;
 
 namespace {
 
+/// fixed::Tanh<Drive> over raw q31, converting at entry and exit: a stateless part that can sit in the raw chains here.
+template <uint32_t Drive>
+struct RawTanh {
+	using value_type = q31;
+	using step_type = q31;
+	struct Settings {};
+	struct Coefficients {};
+	struct State {};
+	[[nodiscard]] static constexpr Coefficients coefficients(const Settings& /*s*/) { return {}; }
+	[[nodiscard]] [[gnu::always_inline]] static q31 step(const Coefficients& /*c*/, const EmptyBlock& /*b*/,
+	                                                     State& /*s*/, q31 x) {
+		return raw_shaping::tanh<Drive>(x);
+	}
+};
+
 using fixed::DuckEnvelope;
 using fixed::OnePole;
 using fixed::SeededNoise;
-using fixed::Tanh;
 using Tracker = fixed::ShiftTracker<11>;
 /// The shift tracker as a high-pass, its mode fixed at compile time.
 using Remove = Pinned<Tracker, Tracker::Mode::REMOVE>;
@@ -262,9 +277,9 @@ static_assert(processor_kernel<AddK> && processor_kernel<ScaleK> && generator_ke
 
 using Three = Chain<AddK, ScaleK, Remove>;
 using Inner = Chain<AddK, ScaleK>;
-using Nested = Chain<Inner, Tanh<3>>;
-using Flat = Chain<AddK, ScaleK, Tanh<3>>;
-using Generated = Chain<RampGen, Tanh<3>>;
+using Nested = Chain<Inner, RawTanh<3>>;
+using Flat = Chain<AddK, ScaleK, RawTanh<3>>;
+using Generated = Chain<RampGen, RawTanh<3>>;
 using Mixed = Chain<SumMix, AddK>;
 using Quirky = Chain<AddK, QuirkK, ScaleK>;
 
@@ -290,7 +305,7 @@ static_assert(!detail::declares_prepare<Generated> && !detail::declares_prepare<
 static_assert(std::same_as<kernel_block_t<Generated>, EmptyBlock>);
 static_assert(!detail::declares_reset<Three> && !detail::declares_reset<Nested>);
 static_assert(detail::declares_reset<Quirky> && detail::resets_exactly<Quirky>);
-static_assert(detail::declares_reset<Chain<Quirky, Tanh<3>>>, "a nested chain's reset quirk is the outer chain's");
+static_assert(detail::declares_reset<Chain<Quirky, RawTanh<3>>>, "a nested chain's reset quirk is the outer chain's");
 
 // Every aggregate of a three-part chain is a plain value.
 static_assert(detail::plain_value<Three::Settings> && detail::plain_value<Three::Coefficients>
@@ -316,7 +331,7 @@ using FilteredBoth = Chain<OnePole, Tracker>;
 
 // A chain's mode is its moded parts' modes; a chain of unmoded parts stays unmoded.
 static_assert(moded_kernel<Picked> && processor_kernel<Picked> && moded_kernel<PickedAround>);
-static_assert(moded_kernel<Filtered> && moded_kernel<FilteredBoth> && moded_kernel<Chain<Filtered, Tanh<3>>>);
+static_assert(moded_kernel<Filtered> && moded_kernel<FilteredBoth> && moded_kernel<Chain<Filtered, RawTanh<3>>>);
 static_assert(!detail::has_modes<Three> && !detail::has_modes<Nested> && !detail::has_modes<Chain<Remove, Remove>>);
 static_assert(std::same_as<std::remove_cv_t<decltype(Picked::Coefficients{}.mode)>, Picked::Mode>);
 static_assert(detail::plain_value<Picked::Coefficients> && detail::plain_value<Filtered::Coefficients>
@@ -359,8 +374,8 @@ struct ModeOnly {
 static_assert(sizeof(Parts<ShaperLike, ModeOnly>) >= sizeof(ShaperLike) + sizeof(ModeOnly),
               "no part sits in another's tail padding");
 static_assert(sizeof(Parts<q31, EmptyBlock>) == sizeof(q31) && sizeof(Parts<EmptyBlock, q31>) == sizeof(q31)
-                  && sizeof(Parts<EmptyBlock, q31, Tanh<3>::State, AddK::Settings>) == 2 * sizeof(q31)
-                  && sizeof(Parts<q31, EmptyBlock, Tanh<3>::State>) == sizeof(q31),
+                  && sizeof(Parts<EmptyBlock, q31, RawTanh<3>::State, AddK::Settings>) == 2 * sizeof(q31)
+                  && sizeof(Parts<q31, EmptyBlock, RawTanh<3>::State>) == sizeof(q31),
               "an empty part takes no space beside parts holding bytes");
 
 /// The block lengths every case runs.
@@ -585,9 +600,9 @@ describe chain("Chain", ${
 	it("starts from a generator", _ {
 		for (std::size_t n = 1; n <= kMaxLength; ++n) {
 			const RampGen::Settings ramp{.by = 0x01300000};
-			Mono<Generated> fused{Generated::Settings{ramp, Tanh<3>::Settings{}}};
+			Mono<Generated> fused{Generated::Settings{ramp, RawTanh<3>::Settings{}}};
 			Mono<RampGen> gen{ramp};
-			Mono<Tanh<3>> shape;
+			Mono<RawTanh<3>> shape;
 			for (int block = 0; block < 2; ++block) {
 				std::vector<q31> got(n);
 				std::vector<q31> want(n);
@@ -718,8 +733,8 @@ describe chain("Chain", ${
 	it("nests: a chain as a part equals the flat chain", _ {
 		const Inner::Settings inner{AddK::Settings{.offset = 0x00abcdef}, ScaleK::Settings{.base = 0x60000000}};
 		for (std::size_t n = 1; n <= kMaxLength; ++n) {
-			Mono<Nested> nested{Nested::Settings{inner, Tanh<3>::Settings{}}};
-			Mono<Flat> flat{Flat::Settings{get<0>(inner), get<1>(inner), Tanh<3>::Settings{}}};
+			Mono<Nested> nested{Nested::Settings{inner, RawTanh<3>::Settings{}}};
+			Mono<Flat> flat{Flat::Settings{get<0>(inner), get<1>(inner), RawTanh<3>::Settings{}}};
 			for (uint32_t block = 0; block < 2; ++block) {
 				const std::vector<q31> in = noise(n, 0x1234 + block);
 				std::vector<q31> got(n);
@@ -869,15 +884,15 @@ describe chain("Chain", ${
 	});
 
 	it("nests a moded chain: the outer chain's mode holds the inner chain's", _ {
-		using Shaped = Chain<Filtered, Tanh<3>>;
+		using Shaped = Chain<Filtered, RawTanh<3>>;
 		for (std::size_t n = 1; n <= kMaxLength; ++n) {
 			Mono<Shaped> nested;
 			Mono<Filtered> filtered;
-			Mono<Tanh<3>> shape;
+			Mono<RawTanh<3>> shape;
 			std::vector<std::vector<q31>> got;
 			std::vector<std::vector<q31>> want;
 			for (std::size_t block = 0; block < kFilterModes.size(); ++block) {
-				nested.configure(Shaped::Settings{filtered_settings(kFilterModes[block]), Tanh<3>::Settings{}});
+				nested.configure(Shaped::Settings{filtered_settings(kFilterModes[block]), RawTanh<3>::Settings{}});
 				filtered.configure(filtered_settings(kFilterModes[block]));
 				expect(get<0>(get<0>(nested.coefficients().mode))).to_equal(kFilterModes[block]);
 				const std::vector<q31> in = noise(n, 0xb0b + static_cast<uint32_t>((block * 3) + n));

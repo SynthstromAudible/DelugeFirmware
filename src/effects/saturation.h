@@ -71,7 +71,7 @@ public:
 		Curve::State& position = channel == 0 ? left_ : right_;
 		const bool voice = params.variant == SaturationVariant::VOICE;
 		const Curve::Coefficients c = Curve::coefficients({.drive = drive(voice, amount)});
-		return Curve::step(c, {}, position, sample) << shift(voice, amount);
+		return Curve::step(c, {}, position, dsp::Q<31>::from_raw(sample)).raw() << shift(voice, amount);
 	}
 
 	/// @brief A stereo block, in place; a CHAIN variant at amount 0 leaves it untouched.

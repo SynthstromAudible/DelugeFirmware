@@ -34,6 +34,7 @@
 #include <utility>
 #include <vector>
 
+#include "../dsp/raw_shaping.h"
 #include <cppspec.hpp>
 
 using namespace deluge::bench;
@@ -108,7 +109,9 @@ struct HandTanh {
 	/// @brief One sample through the curve.
 	q31 render(q31 x) {
 		using dsp::fixed::AntialiasedTanh;
-		return AntialiasedTanh::step(AntialiasedTanh::coefficients({.drive = 3}), dsp::EmptyBlock{}, state, x);
+		return AntialiasedTanh::step(AntialiasedTanh::coefficients({.drive = 3}), dsp::EmptyBlock{}, state,
+		                             dsp::Q<31>::from_raw(x))
+		    .raw();
 	}
 	/// @brief The position the next sample is interpolated against.
 	[[nodiscard]] uint32_t previous() const { return state.position; }
@@ -584,8 +587,8 @@ DelayFeedbackReference delay_feedback_reference(std::size_t n, bool analog, std:
 				sample = response.process(sample);
 			}
 			for (StereoSample& sample : work) {
-				sample.l = dsp::fixed::tanh(multiply_32x32_rshift32(sample.l, kDelayFeedback), kDelayDrive) << 2;
-				sample.r = dsp::fixed::tanh(multiply_32x32_rshift32(sample.r, kDelayFeedback), kDelayDrive) << 2;
+				sample.l = raw_shaping::tanh(multiply_32x32_rshift32(sample.l, kDelayFeedback), kDelayDrive) << 2;
+				sample.r = raw_shaping::tanh(multiply_32x32_rshift32(sample.r, kDelayFeedback), kDelayDrive) << 2;
 			}
 		}
 		else {
@@ -766,7 +769,7 @@ std::vector<q31> chain3_reference(std::size_t n, uint32_t& low, q31& high) {
 	high = 0;
 	for (std::size_t block = 0; block < 2; ++block) {
 		for (std::size_t i = 0; i < n; ++i) {
-			const auto x = static_cast<uint32_t>(dsp::fixed::tanh<3>(input_a()[i]));
+			const auto x = static_cast<uint32_t>(raw_shaping::tanh<3>(input_a()[i]));
 			const auto difference = static_cast<q31>(x - low);
 			const auto step = static_cast<uint32_t>(multiply_32x32_rshift32_rounded(difference, 1 << 29) << 1);
 			const uint32_t low_passed = step + low;
@@ -1355,7 +1358,7 @@ describe bench_runner("The DSP benchmark runner", ${
 				set.tanh3.setup(n);
 				render(set.tanh3, n, 2);
 				for (std::size_t i = 0; i < n; ++i) {
-					expect(output()[i]).to_equal(dsp::fixed::tanh<3>(input_a()[i]));
+					expect(output()[i]).to_equal(raw_shaping::tanh<3>(input_a()[i]));
 				}
 			}
 		});

@@ -253,22 +253,27 @@ bool same_state(const State& a, const State& b) {
 }
 
 /// @p n frames of seeded noise, every lane its own stream, distinct per @p seed.
-template <std::size_t N>
-std::vector<Frame<q31, N>> noise_frames(std::size_t n, uint32_t seed) {
-	std::vector<Frame<q31, N>> v(n);
+template <std::size_t N, typename T = q31>
+std::vector<Frame<T, N>> noise_frames(std::size_t n, uint32_t seed) {
+	std::vector<Frame<T, N>> v(n);
 	for (std::size_t lane = 0; lane < N; ++lane) {
 		SeededNoise noise{seed + (static_cast<uint32_t>(lane) * 0x9e3779b9u)};
 		for (std::size_t i = 0; i < n; ++i) {
-			v[i][lane] = noise.render();
+			if constexpr (std::same_as<T, q31>) {
+				v[i][lane] = noise.render();
+			}
+			else {
+				v[i][lane] = T::from_raw(noise.render());
+			}
 		}
 	}
 	return v;
 }
 
 /// Lane @p lane of @p frames, as a mono block.
-template <std::size_t N>
-std::vector<q31> lane_of(const std::vector<Frame<q31, N>>& frames, std::size_t lane) {
-	std::vector<q31> v(frames.size());
+template <std::size_t N, typename T>
+std::vector<T> lane_of(const std::vector<Frame<T, N>>& frames, std::size_t lane) {
+	std::vector<T> v(frames.size());
 	for (std::size_t i = 0; i < frames.size(); ++i) {
 		v[i] = frames[i][lane];
 	}
@@ -300,12 +305,13 @@ Mismatches lanes_against_monos(const typename K::Settings& first, const typename
 					mono.configure(second);
 				}
 			}
-			const std::vector<Frame<q31, N>> in = noise_frames<N>(n, (static_cast<uint32_t>(n) * 977u) + block);
-			std::vector<Frame<q31, N>> out(n);
+			const std::vector<Frame<typename K::value_type, N>> in =
+			    noise_frames<N, typename K::value_type>(n, (static_cast<uint32_t>(n) * 977u) + block);
+			std::vector<Frame<typename K::value_type, N>> out(n);
 			lanes.render_block(in, out);
 			for (std::size_t lane = 0; lane < N; ++lane) {
-				const std::vector<q31> mono_in = lane_of(in, lane);
-				std::vector<q31> mono_out(n);
+				const std::vector<typename K::value_type> mono_in = lane_of(in, lane);
+				std::vector<typename K::value_type> mono_out(n);
 				monos[lane].render_block(mono_in, mono_out);
 				for (std::size_t i = 0; i < n; ++i) {
 					++m.compared;
@@ -358,32 +364,35 @@ Mismatches lane_alone_against_monos(const typename K::Settings& settings) {
 		for (Mono<K>& mono : monos) {
 			mono.configure(settings);
 		}
-		const auto compare = [&](const std::vector<q31>& got, const std::vector<q31>& want) {
+		const auto compare = [&](const std::vector<typename K::value_type>& got,
+		                         const std::vector<typename K::value_type>& want) {
 			for (std::size_t i = 0; i < n; ++i) {
 				++m.compared;
 				m.samples += got[i] != want[i] ? 1 : 0;
 			}
 		};
 		const auto whole = [&](uint32_t seed) {
-			const std::vector<Frame<q31, N>> in = noise_frames<N>(n, seed);
-			std::vector<Frame<q31, N>> out(n);
+			const std::vector<Frame<typename K::value_type, N>> in = noise_frames<N, typename K::value_type>(n, seed);
+			std::vector<Frame<typename K::value_type, N>> out(n);
 			lanes.render_block(in, out);
 			for (std::size_t l = 0; l < N; ++l) {
-				std::vector<q31> mono_out(n);
+				std::vector<typename K::value_type> mono_out(n);
 				monos[l].render_block(lane_of(in, l), mono_out);
 				compare(lane_of(out, l), mono_out);
 			}
 		};
 		const auto seed = static_cast<uint32_t>(n) * 31u;
 		whole(seed);
-		const std::vector<q31> in = lane_of(noise_frames<N>(n, seed + 1), Lane);
-		std::vector<q31> out(n);
-		std::vector<q31> mono_out(n);
+		const std::vector<typename K::value_type> in =
+		    lane_of(noise_frames<N, typename K::value_type>(n, seed + 1), Lane);
+		std::vector<typename K::value_type> out(n);
+		std::vector<typename K::value_type> mono_out(n);
 		lanes.template render_lane<Lane>(in, out);
 		monos[Lane].render_block(in, mono_out);
 		compare(out, mono_out);
-		const std::vector<q31> in_place_in = lane_of(noise_frames<N>(n, seed + 3), Lane);
-		std::vector<q31> in_place = in_place_in;
+		const std::vector<typename K::value_type> in_place_in =
+		    lane_of(noise_frames<N, typename K::value_type>(n, seed + 3), Lane);
+		std::vector<typename K::value_type> in_place = in_place_in;
 		lanes.template render_lane<Lane>(in_place, in_place);
 		monos[Lane].render_block(in_place_in, mono_out);
 		compare(in_place, mono_out);
@@ -429,9 +438,10 @@ std::size_t in_place_mismatches(const typename K::Settings& settings) {
 		Lanes<K, N> out_of_place{settings};
 		Lanes<K, N> in_place{settings};
 		for (uint32_t block = 0; block < 2; ++block) {
-			const std::vector<Frame<q31, N>> in = noise_frames<N>(n, 0x1234u + block);
-			std::vector<Frame<q31, N>> out(n);
-			std::vector<Frame<q31, N>> buffer = in;
+			const std::vector<Frame<typename K::value_type, N>> in =
+			    noise_frames<N, typename K::value_type>(n, 0x1234u + block);
+			std::vector<Frame<typename K::value_type, N>> out(n);
+			std::vector<Frame<typename K::value_type, N>> buffer = in;
 			out_of_place.render_block(in, out);
 			in_place.render_block(buffer, buffer);
 			for (std::size_t i = 0; i < n; ++i) {

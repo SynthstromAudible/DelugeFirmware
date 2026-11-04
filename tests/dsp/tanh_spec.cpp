@@ -21,6 +21,7 @@
 // saturation width and on random inputs, and on a recorded digest of those outputs.
 
 #include "dsp-next/fixed/shaping/tanh.h"
+#include "raw_shaping.h"
 
 #include <array>
 #include <cppspec.hpp>
@@ -102,7 +103,7 @@ int32_t reference_lookup(uint32_t position, uint32_t drive) {
 template <uint32_t Drive>
 void run_fixed(const std::vector<int32_t>& inputs, std::vector<int32_t>& plain, std::vector<int32_t>& reference) {
 	for (const int32_t x : inputs) {
-		plain.push_back(tanh<Drive>(x));
+		plain.push_back(raw_shaping::tanh<Drive>(x));
 		reference.push_back(reference_lookup(reference_position(x, 32 - static_cast<int>(Drive), Drive), Drive));
 	}
 }
@@ -120,7 +121,7 @@ void run_runtime(uint32_t drive, const std::vector<int32_t>& inputs, std::vector
                  std::vector<int32_t>& reference) {
 	const int bits = drive == 0 ? 32 : (drive <= 20 ? 32 - static_cast<int>(drive) : 12);
 	for (const int32_t x : inputs) {
-		plain.push_back(tanh(x, drive));
+		plain.push_back(raw_shaping::tanh(x, drive));
 		reference.push_back(reference_lookup(reference_position(x, bits, drive), drive));
 	}
 }
@@ -131,59 +132,43 @@ describe tanh_spec("tanh", ${
 	it("passes a signal undriven, at a quarter of its level", _ {
 		constexpr std::array<int32_t, 7> expected{0, 248250368, -248250368, 517898240, 12345600, -536854528, 536854527};
 		for (std::size_t i = 0; i < kInputs.size(); i++) {
-			expect(tanh(kInputs[i], 0)).to_equal(expected[i]);
+			expect(raw_shaping::tanh(kInputs[i], 0)).to_equal(expected[i]);
 		}
 	});
 	it("saturates a signal driven by 2^2", _ {
 		constexpr std::array<int32_t, 7> expected{0, 129474560, -129474560, 134213631, 12318382, -134213632, 134213631};
 		for (std::size_t i = 0; i < kInputs.size(); i++) {
-			expect(tanh(kInputs[i], 2)).to_equal(expected[i]);
+			expect(raw_shaping::tanh(kInputs[i], 2)).to_equal(expected[i]);
 		}
 	});
 	it("saturates a signal driven by 2^5", _ {
 		constexpr std::array<int32_t, 7> expected{0, 16776703, -16776704, 16776703, 10518343, -16776704, 16776703};
 		for (std::size_t i = 0; i < kInputs.size(); i++) {
-			expect(tanh(kInputs[i], 5)).to_equal(expected[i]);
+			expect(raw_shaping::tanh(kInputs[i], 5)).to_equal(expected[i]);
 		}
 	});
 	it("saturates a signal driven by 2^8", _ {
 		constexpr std::array<int32_t, 7> expected{0, 2097087, -2097088, 2097087, 2097087, -2097088, 2097087};
 		for (std::size_t i = 0; i < kInputs.size(); i++) {
-			expect(tanh(kInputs[i], 8)).to_equal(expected[i]);
+			expect(raw_shaping::tanh(kInputs[i], 8)).to_equal(expected[i]);
 		}
 	});
 	it("gives a compile-time drive the runtime drive's output", _ {
 		for (int32_t input : kInputs) {
-			expect(tanh<0>(input)).to_equal(tanh(input, 0));
-			expect(tanh<2>(input)).to_equal(tanh(input, 2));
-			expect(tanh<5>(input)).to_equal(tanh(input, 5));
+			expect(raw_shaping::tanh<0>(input)).to_equal(raw_shaping::tanh(input, 0));
+			expect(raw_shaping::tanh<2>(input)).to_equal(raw_shaping::tanh(input, 2));
+			expect(raw_shaping::tanh<5>(input)).to_equal(raw_shaping::tanh(input, 5));
 		}
-	});
-	it("gives a typed sample the raw form's output", _ {
-		const auto typed = [](uint32_t drive_of, int32_t x) {
-			using deluge::dsp::Q;
-			return drive_of == 0 ? tanh<0>(Q<31>::from_raw(x)).raw()
-			     : drive_of == 3 ? tanh<3>(Q<31>::from_raw(x)).raw()
-			                     : tanh<kTopDrive>(Q<31>::from_raw(x)).raw();
-		};
-		std::size_t bad = 0;
-		for (const int32_t x : reference_inputs()) {
-			bad += typed(0, x) != tanh<0>(x) || typed(3, x) != tanh<3>(x)
-			               || typed(kTopDrive, x) != tanh<kTopDrive>(x)
-			           ? 1
-			           : 0;
-		}
-		expect(bad).to_equal(std::size_t{0});
 	});
 	it("saturates a compile-time drive past 2^19 at its own width", _ {
 		constexpr std::array<int32_t, 7> expected{0, 63, -64, 63, 63, -64, 63};
 		for (std::size_t i = 0; i < kInputs.size(); i++) {
-			expect(tanh<23>(kInputs[i])).to_equal(expected[i]);
+			expect(raw_shaping::tanh<23>(kInputs[i])).to_equal(expected[i]);
 		}
-		expect(tanh<23>(100)).to_equal(58);
-		expect(tanh<23>(-100)).to_equal(-59);
-		expect(tanh<23>(200)).to_equal(63);
-		expect(tanh<23>(-3000)).to_equal(-64);
+		expect(raw_shaping::tanh<23>(100)).to_equal(58);
+		expect(raw_shaping::tanh<23>(-100)).to_equal(-59);
+		expect(raw_shaping::tanh<23>(200)).to_equal(63);
+		expect(raw_shaping::tanh<23>(-3000)).to_equal(-64);
 	});
 	it("reads kTanhSmallTable's recorded entries", _ {
 		uint64_t h = kDigestBasis;
@@ -226,7 +211,7 @@ describe tanh_spec("tanh", ${
 	it("saturates a runtime drive past 2^19 at 12 bits", _ {
 		constexpr std::array<int32_t, 7> expected{0, -1, 0, -1, -1, 0, -1};
 		for (std::size_t i = 0; i < kInputs.size(); i++) {
-			expect(tanh(kInputs[i], 23)).to_equal(expected[i]);
+			expect(raw_shaping::tanh(kInputs[i], 23)).to_equal(expected[i]);
 		}
 	});
 });

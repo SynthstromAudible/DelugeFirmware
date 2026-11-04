@@ -28,6 +28,7 @@
 
 #include "dsp-next/fixed/shaping/antialiased_tanh.h"
 
+#include "dsp-next/core/buffer_view.h"
 #include "dsp-next/core/concepts.h"
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/mono.h"
@@ -64,11 +65,11 @@ static_assert(AntialiasedTanh::coefficients({.drive = 5}).drive == 5);
 static_assert(AntialiasedTanh::coefficients({}).drive == 0);
 static_assert(AntialiasedTanh::coefficients({}).floor == AntialiasedTanh::Coefficients{}.floor);
 static_assert(AntialiasedTanh::coefficients({}).ceiling == AntialiasedTanh::Coefficients{}.ceiling);
-static_assert(AntialiasedTanh::coefficients({.drive = 1}).floor == -(1 << 30));
-static_assert(AntialiasedTanh::coefficients({.drive = 1}).ceiling == (1 << 30) - 1);
-static_assert(AntialiasedTanh::coefficients({.drive = 20}).ceiling == 2047);
-static_assert(AntialiasedTanh::coefficients({.drive = 21}).ceiling == 2047);
-static_assert(AntialiasedTanh::coefficients({.drive = 30}).floor == -2048);
+static_assert(AntialiasedTanh::coefficients({.drive = 1}).floor.raw() == -(1 << 30));
+static_assert(AntialiasedTanh::coefficients({.drive = 1}).ceiling.raw() == (1 << 30) - 1);
+static_assert(AntialiasedTanh::coefficients({.drive = 20}).ceiling.raw() == 2047);
+static_assert(AntialiasedTanh::coefficients({.drive = 21}).ceiling.raw() == 2047);
+static_assert(AntialiasedTanh::coefficients({.drive = 30}).floor.raw() == -2048);
 static_assert(AntialiasedTanh::State{}.position == kTanhCentre);
 static_assert(kTanhCentre == 2147483648u);
 static_assert(LegacyTanh::kSilent == kTanhCentre);
@@ -131,7 +132,7 @@ Run run_kernel(uint32_t drive, AntialiasedTanh::State& state, const std::vector<
 	const AntialiasedTanh::Coefficients c = AntialiasedTanh::coefficients({.drive = drive});
 	Run run;
 	for (const q31 x : input) {
-		run.out.push_back(AntialiasedTanh::step(c, EmptyBlock{}, state, x));
+		run.out.push_back(AntialiasedTanh::step(c, EmptyBlock{}, state, Q<31>::from_raw(x)).raw());
 		run.positions.push_back(state.position);
 	}
 	return run;
@@ -159,8 +160,8 @@ void run_tanh(const std::vector<q31>& input, std::vector<q31>& kernel, std::vect
 	typename Tanh<Drive>::State state{};
 	const auto c = Tanh<Drive>::coefficients({});
 	for (const q31 x : input) {
-		kernel.push_back(Tanh<Drive>::step(c, EmptyBlock{}, state, x));
-		plain.push_back(tanh<Drive>(x));
+		kernel.push_back(Tanh<Drive>::step(c, EmptyBlock{}, state, Q<31>::from_raw(x)).raw());
+		plain.push_back(tanh<Drive>(Q<31>::from_raw(x)).raw());
 	}
 }
 
@@ -258,7 +259,7 @@ struct KernelCurve {
 	AntialiasedTanh::Coefficients c;
 	AntialiasedTanh::State s{};
 	explicit KernelCurve(uint32_t drive) : c{AntialiasedTanh::coefficients({.drive = drive})} {}
-	q31 step(q31 x) { return AntialiasedTanh::step(c, EmptyBlock{}, s, x); }
+	q31 step(q31 x) { return AntialiasedTanh::step(c, EmptyBlock{}, s, Q<31>::from_raw(x)).raw(); }
 	void place(uint32_t p) { AntialiasedTanh::place(s, p); }
 	[[nodiscard]] uint32_t position() const { return s.position; }
 };
@@ -406,10 +407,10 @@ describe antialiased_tanh_kernel("AntialiasedTanh", ${
 		const std::size_t half = input.size() / 2;
 		Mono<AntialiasedTanh> mono{{.drive = kFrom}};
 		std::vector<q31> out(input.size());
-		mono.render_block(std::span<const q31>{input.data(), half}, std::span<q31>{out.data(), half});
+		mono.render_block(typed_view(std::span<const q31>{input.data(), half}), typed_view(std::span<q31>{out.data(), half}));
 		mono.configure({.drive = kTo});
-		mono.render_block(std::span<const q31>{input.data() + half, input.size() - half},
-		                 std::span<q31>{out.data() + half, input.size() - half});
+		mono.render_block(typed_view(std::span<const q31>{input.data() + half, input.size() - half}),
+		                 typed_view(std::span<q31>{out.data() + half, input.size() - half}));
 		LegacyTanh curve{kFrom};
 		for (std::size_t i = 0; i < input.size(); ++i) {
 			if (i == half) {
@@ -425,7 +426,7 @@ describe antialiased_tanh_kernel("AntialiasedTanh", ${
 			const AntialiasedTanh::Coefficients c = AntialiasedTanh::coefficients({.drive = drive});
 			for (const q31 sample : kEventSamples) {
 				AntialiasedTanh::State state{.position = 0x5555'5555u};
-				AntialiasedTanh::seed(c, state, sample);
+				AntialiasedTanh::seed(c, state, Q<31>::from_raw(sample));
 				expect(state.position).to_equal(compressor_seed(sample, drive));
 				LegacyTanh fresh{drive, compressor_seed(sample, drive)};
 				const Run kernel = run_kernel(drive, state, input);
@@ -440,9 +441,9 @@ describe antialiased_tanh_kernel("AntialiasedTanh", ${
 			const AntialiasedTanh::Coefficients c = AntialiasedTanh::coefficients({.drive = drive});
 			for (const q31 sample : kEventSamples) {
 				AntialiasedTanh::State seeded{};
-				AntialiasedTanh::seed(c, seeded, sample);
+				AntialiasedTanh::seed(c, seeded, Q<31>::from_raw(sample));
 				AntialiasedTanh::State stepped{};
-				std::ignore = AntialiasedTanh::step(c, EmptyBlock{}, stepped, sample);
+				std::ignore = AntialiasedTanh::step(c, EmptyBlock{}, stepped, Q<31>::from_raw(sample));
 				expect(seeded.position).to_equal(stepped.position);
 			}
 		}
@@ -450,9 +451,9 @@ describe antialiased_tanh_kernel("AntialiasedTanh", ${
 	it("seeds within 12 bits of the centre at drive 0, where the drive's shift saturates at 12 bits", _ {
 		const AntialiasedTanh::Coefficients c = AntialiasedTanh::coefficients({.drive = 0});
 		AntialiasedTanh::State state{};
-		AntialiasedTanh::seed(c, state, kMax);
+		AntialiasedTanh::seed(c, state, Q<31>::from_raw(kMax));
 		expect(state.position).to_equal(kTanhCentre + 2047u);
-		AntialiasedTanh::seed(c, state, kMin);
+		AntialiasedTanh::seed(c, state, Q<31>::from_raw(kMin));
 		expect(state.position).to_equal(kTanhCentre - 2048u);
 	});
 	it("places a raw position as the class constructs one, at the table's ends and the high-pass ladder's bypass", _ {
@@ -528,9 +529,9 @@ describe tanh_kernel("Tanh<Drive>", ${
 		const std::vector<q31> input = test_input(kLongRun / 10, kSeed + 6);
 		Mono<Tanh<3>> mono{};
 		std::vector<q31> out(input.size());
-		mono.render_block(std::span<const q31>{input.data(), input.size()}, std::span<q31>{out.data(), out.size()});
+		mono.render_block(typed_view(std::span<const q31>{input.data(), input.size()}), typed_view(std::span<q31>{out.data(), out.size()}));
 		for (std::size_t i = 0; i < input.size(); ++i) {
-			expect(out[i]).to_equal(tanh<3>(input[i]));
+			expect(out[i]).to_equal(tanh<3>(Q<31>::from_raw(input[i])).raw());
 		}
 	});
 });

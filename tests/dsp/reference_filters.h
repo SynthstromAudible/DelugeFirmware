@@ -46,6 +46,7 @@
 #include "dsp-next/fixed/mix/dry_wet.h"
 #include "dsp-next/fixed/shaping/tanh.h"
 #include "dsp-next/fixed/shaping/tanh_table.h"
+#include "raw_shaping.h"
 #include "util/synth_noise.h"
 
 #include <algorithm>
@@ -506,7 +507,7 @@ private:
 		                   << 2;
 		if (morph_ > 0 || processed_resonance_ > 510000000) {
 			const q31 extra = 2 * multiply_32x32_rshift32(input, morph_);
-			return deluge::dsp::fixed::tanh<2>(scaled + extra);
+			return raw_shaping::tanh<2>(scaled + extra);
 		}
 		return scaled;
 	}
@@ -546,7 +547,7 @@ private:
 		     + fourth.feedbackOutputUnshifted(divide_by_one_plus_tanned_))
 		    << 2;
 		// The feedback is saturated; the input is not, as that is where it would alias most.
-		const q31 x = scaleInput(input, deluge::dsp::fixed::tanh<7>(feedbacks_sum));
+		const q31 x = scaleInput(input, raw_shaping::tanh<7>(feedbacks_sum));
 		const q31 a = first.lowPass(x, noisy_m);
 		const q31 b = second.lowPass(a, noisy_m);
 		const q31 c = third.lowPass(b, noisy_m);
@@ -558,7 +559,7 @@ private:
 			// The input held for both halves of the sample; the first output is dropped.
 			std::ignore = renderDrive(input, channel);
 		}
-		return deluge::dsp::fixed::tanh<4>(renderDrive(input, channel));
+		return raw_shaping::tanh<4>(renderDrive(input, channel));
 	}
 
 	void filterMono(std::span<q31> block) {
@@ -794,7 +795,7 @@ private:
 			channel.last_working_value =
 			    static_cast<uint32_t>(lshift_and_saturate<2>(a)) + deluge::dsp::fixed::kTanhCentre;
 			if (processed_resonance_ > 750000000) {
-				a = deluge::dsp::fixed::tanh<2>(a);
+				a = raw_shaping::tanh<2>(a);
 			}
 		}
 
@@ -956,7 +957,7 @@ private:
 		q31 high = input - low;
 		high = high - 2 * multiply_32x32_rshift32(band, q_);
 		band = 2 * multiply_32x32_rshift32(high, fc_) + band;
-		band = deluge::dsp::fixed::tanh<3>(band); // the band feedback saturates
+		band = raw_shaping::tanh<3>(band); // the band feedback saturates
 
 		q31 low_sum = low;
 		q31 high_sum = high;
@@ -978,7 +979,7 @@ private:
 			result = multiply_accumulate_32x32_rshift32_rounded(result, band_sum, c_band_);
 		}
 
-		band = deluge::dsp::fixed::tanh<3>(band);
+		band = raw_shaping::tanh<3>(band);
 		// × 2 undoes each multiply's halving, × 1.5 matches the ladders.
 		result = 3 * result;
 

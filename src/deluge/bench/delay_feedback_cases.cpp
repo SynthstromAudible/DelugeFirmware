@@ -88,8 +88,10 @@ void DelayFeedbackLegacyAnalogCase::block(std::size_t /*n*/) {
 	}
 	// Less headroom than digital: the analog saturation sounds fine driven.
 	for (StereoSample& sample : work_) {
-		sample.l = dsp::fixed::tanh(multiply_32x32_rshift32(sample.l, feedback_), drive_) << 2;
-		sample.r = dsp::fixed::tanh(multiply_32x32_rshift32(sample.r, feedback_), drive_) << 2;
+		sample.l = dsp::fixed::tanh(dsp::Q<31>::from_raw(multiply_32x32_rshift32(sample.l, feedback_)), drive_).raw()
+		           << 2;
+		sample.r = dsp::fixed::tanh(dsp::Q<31>::from_raw(multiply_32x32_rshift32(sample.r, feedback_)), drive_).raw()
+		           << 2;
 	}
 	for (StereoSample& sample : work_) {
 		high_pass_l_ += (sample.l - high_pass_l_) >> 11;

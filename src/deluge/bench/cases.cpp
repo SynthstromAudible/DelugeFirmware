@@ -393,7 +393,7 @@ void AntialiasedTanhCase::setup(std::size_t n) {
 }
 
 void AntialiasedTanhCase::block(std::size_t /*n*/) {
-	mono_.render_block(spans_.a, spans_.out);
+	mono_.render_block(dsp::typed_view(spans_.a), dsp::typed_view(spans_.out));
 }
 
 void Tanh3Case::setup(std::size_t n) {
@@ -402,7 +402,7 @@ void Tanh3Case::setup(std::size_t n) {
 }
 
 void Tanh3Case::block(std::size_t /*n*/) {
-	mono_.render_block(spans_.a, spans_.out);
+	mono_.render_block(dsp::typed_view(spans_.a), dsp::typed_view(spans_.out));
 }
 
 void DryWetBlendCase::setup(std::size_t n) {
@@ -539,7 +539,7 @@ void Chain3PassesCase::setup(std::size_t n) {
 }
 
 void Chain3PassesCase::block(std::size_t /*n*/) {
-	tanh_.render_block(spans_.a, spans_.out);
+	tanh_.render_block(dsp::typed_view(spans_.a), dsp::typed_view(spans_.out));
 	low_pass_.render_block(written_, spans_.out);
 	high_pass_.render_block(written_, spans_.out);
 }
@@ -547,7 +547,7 @@ void Chain3PassesCase::block(std::size_t /*n*/) {
 void Chain3FusedCase::setup(std::size_t n) {
 	spans_ = spans(n);
 	fill_inputs();
-	chain_.configure(Chain3::Settings{Tanh3Case::Kernel::Settings{},
+	chain_.configure(Chain3::Settings{Chain3Tanh::Settings{},
 	                                  Chain3LowPass::Settings{.moveability = OnePoleLowPassCase::kMoveability},
 	                                  DelayHighPass::Settings{}});
 	chain_.reset();
