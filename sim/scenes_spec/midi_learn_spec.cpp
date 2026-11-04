@@ -16,8 +16,8 @@
 ///     local.
 ///   * **The model is then poisoned** with a value neither side can produce (a `LearnedMIDI` whose
 ///     `channelOrZone` is `kPoisonChannel`), and the poison is asserted. A port that stores nothing
-///     therefore sees the poison, not legacy's leftovers -- which is the exact blindness plan E2
-///     shipped and the discipline migration spec §10.6 exists for.
+///     therefore sees the poison, not legacy's leftovers -- which is the blindness a comparison against
+///     legacy alone has.
 ///   * **The port is driven from its own sentinel** -- its own `MidiLearn`, its own `LearnTarget`,
 ///     its own note-on -- and the *model* is read back and compared.
 ///   * **Both sides are asserted to have MOVED**, so a run in which neither wrote anything cannot
@@ -37,7 +37,7 @@
 ///     `INSTRUMENT_INPUT` examples, so those examples compare the `LearnedMIDI` and **not** the
 ///     instrument's expression params; the port's *reaching* the call is asserted through
 ///     `MidiLearn::unported_calls(UnportedCall::ClearMonoExpression)`.
-///   * **`iterateAndCallSpecificDeviceHook(HOOK_ON_MIDI_LEARN)`** (`view.cpp:637`). Same shape:
+///   * **`iterateAndCallSpecificDeviceHook(HOOK_ON_MIDI_LEARN)`** (`View::endMidiLearnPressSession`). Same shape:
 ///     counted, not called, and nothing in this layer's model reach could observe it anyway.
 ///   * **`FlashStorage::writeSettings()`** (`view.cpp:502`). Both sides guard it on
 ///     `!AudioEngine::audioRoutineLocked`, and `spec::QuietAudio` holds that latch for the whole
@@ -158,7 +158,7 @@ extern bool ledStates[];
 
 namespace {
 
-/// @brief A `channelOrZone` neither side can produce, used to poison a `LearnedMIDI` between the
+/// @brief A `channelOrZone` neither side can produce, for poisoning a `LearnedMIDI` between the
 ///        legacy run and the port run.
 ///
 /// `LearnedMIDI::channelOrZone` is a `uint8_t` whose meaningful range tops out at
@@ -303,7 +303,7 @@ StubDisplay& stub_display() {
 ///
 /// Two reasons here, not one. `PlaybackHandler::playButtonPressed` reaches
 /// `AudioEngine::routineWithClusterLoading` (`playback/playback_handler.cpp:572`), which segfaults
-/// a spec process on the host input ring (`processing/engines/audio_engine.cpp:183`) -- the reason
+/// a spec process on the host input ring (in `processing/engines/audio_engine.cpp`) -- the reason
 /// `global_controls_spec.cpp` holds it. And `View::endMIDILearn` writes the settings to flash
 /// unless `AudioEngine::audioRoutineLocked` (`view.cpp:500-504`), which is a real card write; the
 /// port guards on the same latch, so holding it keeps both sides on the same branch.
@@ -335,9 +335,9 @@ deluge::hid::Button legacy_button(ButtonId b) {
 /// @brief A scene that declares itself a root and claims nothing -- the port-side counterpart of
 ///        `StubRootUI`, and the thing `MidiLearn`'s reachability gate reads.
 ///
-/// Spec-local rather than a registry scene for the reason `Scene::is_root()` is a virtual at all
-/// (E4 task 4 §9.1): the registry's scenes are process singletons, so pushing one to satisfy a
-/// stack-position rule would leak it into the next example. `root` is a plain member so one example
+/// Spec-local rather than a registry scene for the reason `Scene::is_root()` is a virtual at all:
+/// the registry's scenes are process singletons, so pushing one to satisfy a stack-position rule
+/// would leak it into the next example. `root` is a plain member so one example
 /// can flip it.
 class RootScene final : public Scene {
 public:
@@ -346,8 +346,8 @@ public:
 	Result handle(const UiEvent& e, const UiContext&) override {
 		// `claim_midi` is the port-side stand-in for a UI that overrides
 		// `noteOnReceivedForMidiLearn` and answers true -- `SoundEditor` is the one that does
-		// (`gui/ui/sound_editor.cpp:1612-1614`), and the scenes that will are E5's and E6's,
-		// answering `learnable_at(pad)`. Off by default, so every other example in this file routes
+		// (`SoundEditor::noteOnReceivedForMidiLearn`), and the scenes that will answer
+		// `learnable_at(pad)`. Off by default, so every other example in this file routes
 		// through a scene that declines exactly as `StubRootUI` does.
 		if (claim_midi && (e.kind == UiEvent::Kind::MidiNoteOn || e.kind == UiEvent::Kind::MidiCc)) {
 			midi_seen++;
@@ -362,7 +362,7 @@ public:
 };
 
 /// @brief The `channelOrZone` legacy's dispatchers compute before they call either learn function
-///        (`playback/playback_handler.cpp:2966`, `:3140`).
+///        (`PlaybackHandler::noteMessageReceived`, `PlaybackHandler::midiCCReceived`).
 ///
 /// The port is driven with this same value rather than the raw channel, because that is what its
 /// producer is handed: `ShellHostUI::noteOnReceivedForMidiLearn`'s `channel` argument IS
@@ -787,7 +787,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		const Learned legacy = Learned::of(slot);
 		const uint8_t legacy_playback = playbackHandler.playbackState;
 		expect(legacy.channel_or_zone == 1).to_be_true();
-		// The tail was skipped: `view.cpp:486`'s `DEALT_WITH` makes `hid/buttons.cpp:139-141`
+		// The tail was skipped: `View::buttonAction`'s `DEALT_WITH` makes `hid/buttons.cpp:139-141`
 		// jump past `:144-167`, so playback never started.
 		expect(legacy_playback == 0).to_be_true();
 		(void)Buttons::buttonAction(legacy_button(ButtonId::Play), false);
@@ -857,8 +857,8 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 	});
 
 	it("TAP_TEMPO under learn: learns TAP, and the metronome/tap arm stays out of it", _ {
-		// Legacy's two TAP_TEMPO branches are disjoint by its own `if`/`else if` (`view.cpp:149`
-		// vs `:167`). The port splits them across two services, so the disjointness has to be
+		// Legacy's two TAP_TEMPO branches are disjoint by its own `if`/`else if` (`View::buttonAction`'s
+		// two arms). The port splits them across two services, so the disjointness has to be
 		// re-proved: `GlobalControls` asks `LearnMode::active()` and abstains.
 		static spec::SongFixture fixture = spec::make_synth_song();
 		::LearnedMIDI& slot = midiEngine.globalMIDICommands[static_cast<size_t>(GlobalMIDICommand::TAP)];
@@ -972,8 +972,8 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 	// -- Step 4: the flash -----------------------------------------------------------------------
 
 	it("the flash is time-driven: the phase moves on a QUIET tick, with no input at all", _ {
-		// `View::midiLearnFlash` (`view.cpp:813-833`) re-arms itself at `kFastFlashTime` and is
-		// driven from `gui/ui_timer_manager.cpp:75`. Here that is `next_timer()` + `tick()`, and
+		// `View::midiLearnFlash` re-arms itself at `kFastFlashTime` and is
+		// driven from `UITimerManager::routine`. Here that is `next_timer()` + `tick()`, and
 		// the point of the example is that NOTHING is pressed between the assertions.
 		LearnRig rig;
 		expect(rig.ml.next_timer().has_value()).to_be_false(); // nothing armed while learn is off
@@ -1002,7 +1002,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 	});
 
 	it("the flash arms the GRID and never the OLED", _ {
-		// Shell spec §15.1/§15.3: the grid's flush diffs against `last_sent`, so an unneeded grid
+		// The grid's flush diffs against `last_sent`, so an unneeded grid
 		// arm costs a repaint; an OLED surface is blitted unconditionally once it has rendered, so
 		// an unneeded OLED arm is a permanent blit at the timer's cadence. Every reader of
 		// `midiLearnFlashOn` in legacy is a pad renderer.
@@ -1014,7 +1014,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 	});
 
 	it("ending learn stops the flash and its timer", _ {
-		// `view.cpp:505-506`: `unsetTimer(MIDI_LEARN_FLASH)` and `midiLearnFlashOn = false`.
+		// `View::endMIDILearn`: `unsetTimer(MIDI_LEARN_FLASH)` and `midiLearnFlashOn = false`.
 		// Asserted set, then asserted cleared -- never defensively cleared.
 		LearnRig rig;
 		rig.ml.begin();
@@ -1286,10 +1286,9 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 
 	// -- The transport: `UiEvent::Kind::MidiNoteOn` / `MidiCc` through the real `Router` -----------
 	//
-	// F1 task 10 / migration §10.2 item 8. Until this section existed, `note_on_received` and
-	// `cc_received` had **no caller anywhere in `src/`** -- every example above reaches them by
-	// calling the service directly, which pins the service's behaviour and says nothing about
-	// whether anything can deliver a message to it.
+	// `note_on_received` and `cc_received` are reached by every example above by calling the
+	// service directly, which pins the service's behaviour and says nothing about whether anything
+	// can deliver a message to it.
 	//
 	// So these four drive the port from a **different sentinel to the rest of the file**:
 	// `rig.router.route(...)`, the same call `Shell::route_midi` makes. `GlobalControls` is live in
@@ -1309,7 +1308,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 		expect(reset_legacy_learn()).to_be_true();
 		slot.clear();
 		view.startMIDILearn();
-		// `:2963`'s gate, which `startMIDILearn` is what sets (`view.cpp:493`). Asserted rather
+		// `:2963`'s gate, which `startMIDILearn` is what sets (`View::startMIDILearn`). Asserted rather
 		// than assumed: with it false the dispatcher falls through to `offerNoteToLearnedThings`
 		// and this example would compare two untouched slots.
 		expect(currentUIMode == UI_MODE_MIDI_LEARN).to_be_true();
@@ -1446,7 +1445,7 @@ describe midi_learn_spec_body("scenes::services::MidiLearn", $ {
 	// -- `startMIDILearn`'s guard ------------------------------------------------------------------
 
 	it("begin() refuses while another UI mode is active, exactly as `startMIDILearn` does", _ {
-		// `view.cpp:490`'s `currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_MIDI_LEARN`.
+		// `View::startMIDILearn`'s `currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_MIDI_LEARN`.
 		// The mode lives on the root scene, so the port takes it through `set_other_mode_active`
 		// -- the `ViewState` injection pattern, reduced to its one field.
 		expect(reset_legacy_learn()).to_be_true();

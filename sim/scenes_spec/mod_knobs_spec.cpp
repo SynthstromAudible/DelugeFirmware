@@ -175,9 +175,8 @@ InstrumentClip* add_synth_clip(Song* song, const char* name) {
 
 /// @brief Every stored param value in @p pm, by identity: the patched set then the unpatched set.
 ///
-/// The model-side readback the central example compares. `ParamSet::getValue`
-/// (`modulation/params/param_set.h:45`) is `AutoParam::getCurrentValue()` -- what is actually in
-/// the model, not what either side reported having put there.
+/// The model-side readback the central example compares. `ParamSet::getValue` is `AutoParam::getCurrentValue()` -- what
+/// is actually in the model, not what either side reported having put there.
 /// @param pm The param manager to read.
 /// @return One entry per param, patched set first.
 std::vector<int32_t> param_snapshot(ParamManager& pm) {
@@ -329,7 +328,7 @@ UiEvent gold_turn(EncoderRole role, int8_t delta) {
 }
 
 /// An encoder-button event -- the shape `InputLowering` emits for `ButtonId::ModEnc0`/`ModEnc1`
-/// and `SelectEnc` (`shell/input_lowering.cpp:42-53`, `:300`).
+/// and `SelectEnc` (`InputLowering::on_button`).
 UiEvent encoder_button_event(ButtonId b, bool on) {
 	UiEvent e{};
 	e.kind = UiEvent::Kind::EncoderButton;
@@ -410,7 +409,7 @@ struct RouteRig {
 // (`processing/sound/sound.cpp:98`), which is what `GoldLower` actually edits on the
 // `SoundInstrument` `spec::make_synth_song()` builds: measured (not assumed) against the fixture's
 // own default mod-knob mode, which is 1 (the FILTER page), not 0. Built to test
-// `ModKnobs::popup_suppressed`'s horizontal-page forwarding (`mod_knobs.cpp:342`): the menu's own
+// `ModKnobs::popup_suppressed`'s horizontal-page forwarding: the menu's own
 // focused *column*, not the page node, is what the same-param guard has to compare against.
 namespace mod_knobs_spec_nodes {
 inline constexpr deluge::scenes::menu::Node res_col = deluge::scenes::menu::param(
@@ -475,7 +474,7 @@ struct KnobRig {
 	KnobRig& operator=(const KnobRig&) = delete;
 
 	/// Leave the stack empty again: the popup scene is a process singleton, so a pushed one would
-	/// leak into the next example (E3 task 10's cross-contamination lesson).
+	/// leak into the next example (the cross-contamination every `~Rig` in this directory guards against).
 	~KnobRig() {
 		while (stack.depth() > 0) {
 			stack.pop(SceneKind::Null);
@@ -564,7 +563,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 
 	it("clamps a turn exactly as View::calculateKnobPosForModEncoderTurn does", _ {
 		// The pure half, compared against the live legacy function for every kind that branches in
-		// it and every edge the clamp has. Both sides are mutation-proved in the task report.
+		// it and every edge the clamp has. Both sides are mutation-proved.
 		const Kind kinds[] = {Kind::PATCH_CABLE, Kind::MIDI, Kind::PATCHED, Kind::UNPATCHED_SOUND,
 		                      Kind::UNPATCHED_GLOBAL, Kind::EXPRESSION, Kind::NONE};
 		const int32_t positions[] = {-256, -192, -193, -64, -65, -1, 0, 1, 62, 63, 64, 65};
@@ -1351,9 +1350,9 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 	});
 
 	it("accelerates a repeated turn through InputLowering::calc_next_knob_speed", _ {
-		// The carry item E1 opened and this task closes. `calc_next_knob_speed` itself is pinned by
+		// `calc_next_knob_speed` itself is pinned by
 		// `tests/spec/shell/input_lowering_spec.cpp` against the legacy arithmetic; what is checked
-		// here is that `ModKnobs` is the consumer legacy's `hid/encoder_input.cpp:192` is -- i.e.
+		// here is that `ModKnobs` is the consumer legacy's `interpretEncoders` (`hid/encoder_input.cpp`) is -- i.e.
 		// that a fast repeat moves the model further than a slow one does.
 		StubDisplay stub;
 		display = &stub;
@@ -1448,12 +1447,12 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 
 	it("suppresses the popup when the menu is focused on a horizontal page's same-param column",
 	   _ {
-		// `ModKnobs::popup_suppressed` (`scenes/services/mod_knobs.cpp:342`) now compares against
+		// `ModKnobs::popup_suppressed` compares against
 		// `MenuScene::focused_value()`, not `focused()`: legacy's same-param test forwards through a
 		// horizontal page to the focused *column* (`Submenu::getParamKind`/`getParamIndex`,
-		// `gui/menu_item/submenu.cpp:205-219`, both gated on `shouldForwardButtons`, `:181-185`),
-		// and the page node itself has no `bind.param` to ever match against -- so the un-fixed
-		// version could never suppress on a horizontal page, only on a full-page leaf. `GoldLower`
+		// `gui/menu_item/submenu.cpp:205-219`, both gated on `shouldForwardButtons`),
+		// and the page node itself has no `bind.param` to ever match against -- so comparing against
+		// `focused()` could never suppress on a horizontal page, only on a full-page leaf. `GoldLower`
 		// edits `LOCAL_LPF_RESONANCE` on this fixture (see
 		// `mod_knobs_spec_nodes`'s own note), which `res_page`'s one column is bound to, so this is
 		// `LOCAL_LPF_RESONANCE` on both sides of the comparison.
@@ -1484,9 +1483,9 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 	});
 
 	it("files an OLED repaint for every COMMITTED popup update, not only the first", _ {
-		// **The defect E4 task 13's level-2 golden found, pinned at the unit level.**
+		// **A defect the level-2 golden found, pinned at the unit level.**
 		// `ParamPopupScene::show` writes the popup's text; legacy's counterpart,
-		// `display->displayNotification(...)` at `view.cpp:1262`, writes AND blits. The scene has no
+		// `display->displayNotification(...)` in `View::displayModEncoderValuePopup`, writes AND blits. The scene has no
 		// `Result` of its own to file a repaint in (`show()` is not a `Scene::handle`) and its
 		// `next_timer()` while showing is the popup's whole 2000 ms lifetime -- so without this
 		// action the panel keeps the value it had when the popup opened, and the next OLED frame is
@@ -1530,7 +1529,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		expect(repaints_main(r1)).to_equal(int32_t{1});
 
 		// A LATER turn, far enough apart that `kMinUpdateIntervalMs` (45 ms) has elapsed, so this
-		// takes the immediate-commit arm too -- the arm that used to file nothing. `kMinDisplayOwnership`
+		// takes the immediate-commit arm too -- the arm that has to file a repaint. `kMinDisplayOwnership`
 		// does not bite: it is the same param, so `current_param_owns_display` is true.
 		DirectCtx second{2500};
 		const Result r2 = rig.knobs.handle(gold_turn(EncoderRole::GoldLower, 5), second.ctx);
@@ -1548,14 +1547,12 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 	});
 
 	it("gives the popup the model context legacy reads off View, so its filter-morph name can fire", _ {
-		// The interface decision this task made, and the example that spends it. E4 task 1 shipped
-		// `ParamPopupScene::show()` with legacy's five value-conversion arguments only, so three of
-		// legacy's arms -- the `ModControllableAudio*`-aware LPF/HPF-morph rename
-		// (`modulation/params/param.cpp:356-381`), the stutter rate-bucket text, and the MIDI-clip
-		// CC naming -- could never fire and were recorded as uncovered. `ModKnobs` is the class
-		// that HAS that context and is the popup's first real caller, so `show()` was widened
-		// (`overlay::PopupContext`) instead of leaving them dead. This drives the widened path and
-		// the un-widened one and compares BOTH against the real
+		// `ParamPopupScene::show()` takes legacy's five value-conversion arguments and, optionally, a
+		// model context (`overlay::PopupContext`). Without the context three of legacy's arms -- the
+		// `ModControllableAudio*`-aware LPF/HPF-morph rename (`modulation/params/param.cpp:356-381`),
+		// the stutter rate-bucket text, and the MIDI-clip CC naming -- cannot fire. `ModKnobs` is the
+		// class that HAS that context, so it passes it. This drives the path with the context and the
+		// one without and compares BOTH against the real
 		// `View::displayModEncoderValuePopup`.
 		StubDisplay stub;
 		display = &stub;
@@ -1587,7 +1584,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		                                  popup_context);
 		const std::string port_named{overlay::param_popup_scene().shown_name()};
 
-		// And with NO context -- task 1's shape, which is what the widening was needed to escape.
+		// And with NO context -- the shape that cannot reach the context-aware arms.
 		overlay::param_popup_scene().tick(0); // the tick after a show takes nothing off its lifetime
 		overlay::param_popup_scene().tick(10000);
 		overlay::param_popup_scene().show(Kind::PATCHED, kMorph, 0, PatchSource::NONE, PatchSource::NONE, 120000);
@@ -1596,7 +1593,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		expect(legacy_named.empty()).to_be_false();
 		expect(port_named).to_equal(legacy_named);
 		// Not vacuous: the context really is what selects this name. Without it the port falls back
-		// to the mode-agnostic one, which is exactly the arm task 1 could not leave.
+		// to the mode-agnostic one, which is exactly the arm the context-less call cannot leave.
 		expect(port_unnamed == port_named).to_be_false();
 	});
 
@@ -1671,17 +1668,16 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 	it("takes a gold turn, a mod button and a gold push only after the scene declines them", _ {
 		// All three of `View`'s base-class-fallback hooks, against the real service event set.
 		// Legacy dispatches every one of them through `getCurrentUI()` and reaches `view` only
-		// through `UI`'s own forwarding bodies: `modEncoderAction` (`hid/encoder_input.cpp:194`,
-		// `gui/ui/ui.cpp:35-37`), `modButtonAction` (`hid/buttons.cpp:104`, `ui.cpp:39-41`) and
-		// `modEncoderButtonAction` (`hid/buttons.cpp:227`, `:230`, `ui.cpp:43-45`). E4 task 2 found the
-		// chain inverted (service first); E4 task 3 part A fixed it and added the two pushes, which
-		// plan D had excluded outright. `tests/spec/shell/router_spec.cpp` holds the ordering proof
+		// through `UI`'s own forwarding bodies: `modEncoderAction` (`interpretEncoders` in `hid/encoder_input.cpp`,
+		// then `UI::modEncoderAction` in `gui/ui/ui.cpp`), `modButtonAction` (`Buttons::buttonAction`,
+		// then `UI::modButtonAction`) and `modEncoderButtonAction` (`Buttons::buttonAction`, then
+		// `UI::modEncoderButtonAction`). The scene gets each first and the service only after it
+		// declines; `tests/spec/shell/router_spec.cpp` holds the ordering proof
 		// with a shared call log; this example pins WHICH events reach the service at all.
 		//
 		// The pushes are built as `UiEvent::Kind::EncoderButton`, which is what `InputLowering`
-		// actually emits for `ButtonId::ModEnc0`/`ModEnc1` (`shell/input_lowering.cpp:42-53` and
-		// `:298`). Building them as plain `Kind::Button`, as this example did before, tested a
-		// shape the lowering never produces.
+		// actually emits for `ButtonId::ModEnc0`/`ModEnc1` (`InputLowering::on_button`). Plain
+		// `Kind::Button` events would be a shape the lowering never produces.
 		RouteRig r;
 
 		// A scene that claims -- one of the six/two/five overriding UIs -- is the end of the line
@@ -1728,7 +1724,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		// Defence in depth behind the routing example above: what `ModKnobs::handle` reports
 		// `handled` for, called directly. Legacy consumes all three unconditionally -- the mod
 		// button and the push both end in `Buttons::buttonAction`'s `dealtWith`
-		// (`hid/buttons.cpp:105`, `:232`) and the turn is the last thing `interpretEncoders` does
+		// (`Buttons::buttonAction`) and the turn is the last thing `interpretEncoders` does
 		// with it -- so `handled` is true even on the arms that do nothing.
 		spec::SongFixture f = spec::make_synth_song();
 		KnobRig rig;
@@ -1743,7 +1739,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		expect(rig.knobs.handle(gold_turn(EncoderRole::GoldLower, 0), c.ctx).handled).to_be_false();
 	});
 
-	// --- E4 task 3: the buttons, the mode, the LEDs and the indicators -------------------------
+	// --- The buttons, the mode, the LEDs and the indicators -------------------------
 
 	it("a mod button changes the knob owner's mode in its record: a track's and the song's", _ {
 		StubDisplay stub;
@@ -2284,8 +2280,8 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 	it("handles a gold-knob push the way View::modEncoderButtonAction does", _ {
 		// `view.cpp:1349-1366` and its two helpers. The push arrives as an `EncoderButton` event,
 		// which is what `InputLowering` actually emits for `ButtonId::ModEnc0`
-		// (`shell/input_lowering.cpp:42-53`, `:300`) -- and which the router now routes here, after
-		// the scene (E4 task 3 part A; `tests/spec/shell/router_spec.cpp`).
+		// (`InputLowering::on_button`) -- and which the router routes here, after
+		// the scene (`tests/spec/shell/router_spec.cpp`).
 		StubDisplay stub;
 		display = &stub;
 		spec::SongFixture f = spec::make_synth_song();
@@ -2352,7 +2348,7 @@ describe mod_knobs_spec_body("scenes::services::ModKnobs", $ {
 		rig.set_target_with_timeline(f.clip, false);
 		rig.knobs.tick(5000, 0);
 
-		// An owner the knobs are NOT pointed at arms nothing (`view.cpp:1709`).
+		// An owner the knobs are NOT pointed at arms nothing (`View::notifyParamAutomationOccurred`).
 		const deluge::project::ParamAddress other{.owner = deluge::project::OwnerId::song()};
 		rig.knobs.notify_param_automation_occurred(other, true);
 		expect(rig.knobs.automation_display_pending()).to_be_false();

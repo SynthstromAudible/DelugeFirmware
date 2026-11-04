@@ -4,7 +4,7 @@
 ///        scene registry.
 ///
 /// This is `menu_actions_spec.cpp`'s `menu_action_dispatch` group for the noun half of the same
-/// wall, and what is covered here matters more than usual because F3 splits one legacy statement in
+/// wall, and what is covered here matters more than usual because one legacy statement is split in
 /// two:
 ///
 ///   * **Covered:** that a real file press through the ported browser parks exactly one
@@ -26,12 +26,13 @@
 /// @par Why the guest examples open the browser from the menu rather than as the initial scene
 ///
 /// Because that is the only way it is ever open. `FileBrowserItem::on_focus`
-/// (`scenes/menu/nodes/sample.cpp:77-106`) opens the scene and files `MenuWalkState::pending_scene`
+/// (in `scenes/menu/nodes/sample.cpp`) opens the scene and files `MenuWalkState::pending_scene`
 /// (`:104-105`), so the browser is always **above** a `MenuScene` on the shell stack. Pushed alone,
 /// the stack would empty the moment `Defer` closed it, and `ShellHostUI::timerCallback` would take
-/// its `closeGuest()` arm (`gui/ui/shell_host_ui.cpp:556-559`) -- `closeUI` on a guest that is not
-/// on the legacy UI stack, i.e. the index `-1` read `gui/ui/shell_action_dispatch.cpp:130-136`
-/// describes. A rig that has to avoid a production path is a rig that is testing something else.
+/// its `closeGuest()` arm -- `closeUI` on a guest that is not
+/// on the legacy UI stack, i.e. the index `-1` read `openPerformanceView`'s doc in
+/// `gui/ui/shell_action_dispatch.cpp` describes. A rig that has to avoid a production path is a rig that is testing
+/// something else.
 ///
 /// @note The spec may include `gui/` (for the dispatcher and the guest); the library may not. Same
 ///       rule `sample_items_spec.cpp` and `browser_scene_spec.cpp` run under.
@@ -171,7 +172,7 @@ private:
 /// @brief The claim seam, swapped for a recorder -- what lets these examples press a real file.
 ///
 /// `deluge::gui::ui::setSampleClaimDispatch` exists for this and nothing else; its own note argues
-/// why. **This is not `BrowserScene::set_dispatch`** (`scenes/browser/browser_scene.h:384-392`),
+/// why. **This is not `BrowserScene::set_dispatch`** (`BrowserScene::set_dispatch`),
 /// which swaps the dispatcher on the scene's `Listing` -- the directory read, one layer down. There
 /// is no claim seam on `BrowserScene`: the claim happens in the legacy-side dispatcher, so the
 /// settable dispatcher is the dispatcher's own.
@@ -331,7 +332,7 @@ struct ShellRig {
 	ShellRig& operator=(const ShellRig&) = delete;
 
 	/// Tear the stack down, so every scene's `on_exit` runs and the next example gets a fresh
-	/// singleton -- E3 task 10's rule, and `sample_items_spec.cpp`'s `~SoundRig`.
+	/// singleton -- the same rule as `sample_items_spec.cpp`'s `~SoundRig`.
 	~ShellRig() {
 		while (shell.stack().depth() > 0) {
 			shell.stack().pop(SceneKind::Null);
@@ -396,7 +397,7 @@ struct ShellRig {
 /// supports an all-in-one-process mode, so a scene left on its stack is a real contamination path.
 ///
 /// @note `opened()` calls the real `wireShellGuestServices()`, which installs into the **global**
-///       guest's shell rather than into this one (`gui/ui/shell_guest_services.cpp:66`, `:173`).
+///       guest's shell rather than into this one (`wireShellGuestServices` in `gui/ui/shell_guest_services.cpp`).
 ///       That is documented as idempotent, so re-running it is a re-seed and not a second set.
 struct GuestRig {
 	SongRig model;
@@ -434,7 +435,7 @@ struct GuestRig {
 	void guest_step() { (void)ui.timerCallback(); }
 
 	/// @brief Press and release the enter pad through the guest's own hook -- which is the point:
-	///        `padAction` only queues (`gui/ui/shell_host_ui.cpp:787-853`), and a tick is what routes.
+	///        `padAction` only queues (`ShellHostUI::padAction`), and a tick is what routes.
 	void press_enter(void (GuestRig::*tick)()) {
 		const Pad p = pad_for(deluge::ui::grid::kTextKeyboardEnter);
 		(void)ui.padAction(p.x, p.y, 64);
@@ -457,7 +458,7 @@ struct GuestRig {
 /// rather than re-deriving `nodes::MidiDeviceLinkedItem` (`scenes/menu/nodes/output_items.h`): what
 /// is under test here is what the dispatcher does with a descriptor's answer, not how that item's
 /// toggle opens the scene. And it is a bare `Shell`, not the guest, so the empty stack that `Close`
-/// leaves behind reaches no `closeGuest()` arm (`gui/ui/shell_host_ui.cpp:556-559`).
+/// leaves behind reaches no `closeGuest()` arm (`ShellHostUI::timerCallback`'s).
 struct MidiRig {
 	spec::SongFixture song = spec::make_midi_song();
 	deluge::ui::shell::SceneRegistry reg = scene_registry();
@@ -642,7 +643,7 @@ describe browser_choice_target(
 
 	    it(
 	        "splits a chosen path the way getCurrentFilePath builds one", _ {
-		        // `SampleBrowser::getCurrentFilePath` (`gui/ui/browser/sample_browser.cpp:539-550`) is
+		        // `SampleBrowser::getCurrentFilePath` is
 		        // `currentDir`, a separator, and `currentFileItem->filename` with its extension; this is that
 		        // run backwards, and the extension has to survive it.
 		        expect(split_of("SAMPLES/OSC_A/A1.WAV")).to_equal(std::string{"SAMPLES/OSC_A|A1.WAV"});
@@ -658,8 +659,8 @@ describe browser_choice_target(
 
 	    it(
 	        "answers nothing where the path names no file", _ {
-		        // Neither of these can come out of `BrowserScene::enter`, which always appends a `FileItem`'s
-		        // own filename (`scenes/browser/browser_scene.cpp:880-884`) -- they are the defence-in-depth
+		        // Neither of these can come out of `BrowserScene::enter_key_press`, which always appends a
+		        // `FileItem`'s own filename -- they are the defence-in-depth
 		        // arms, pinned so a later caller that is not the scene gets the documented answer.
 		        expect(split_of("")).to_equal(std::string{"-"});
 		        expect(split_of("SAMPLES/OSC_A/")).to_equal(std::string{"-"});
@@ -722,7 +723,7 @@ describe browser_choice_dispatch(
 			        control.open_browser();
 			        expect(control.browser_on_stack()).to_be_true();
 			        control.enter();
-			        // `Defer` parks AND closes in one statement (`scenes/browser/browser_scene.cpp:896-898`),
+			        // `Defer` parks AND closes in one statement (`BrowserScene::enter_key_press`'s `Defer` arm),
 			        // so both halves of it are asserted here, on the leg that is allowed to look.
 			        expect(control.browser_on_stack()).to_be_false();
 			        const std::optional<browser::BrowserChoice> choice = browser::browser_scene().take_choice();
@@ -789,7 +790,7 @@ describe browser_choice_dispatch(
 			        control.press_enter(&GuestRig::shell_step);
 			        // The state the drain actually runs in, asserted on the leg that may look: the browser is
 			        // already gone, and the menu it was opened from is still underneath it -- so the guest's
-			        // own `closeGuest()` arm (`gui/ui/shell_host_ui.cpp:556-559`) is not what happens here.
+			        // own `closeGuest()` arm (`ShellHostUI::timerCallback`'s) is not what happens here.
 			        expect(control.browser_on_stack()).to_be_false();
 			        expect(control.ui.shell().stack().depth() > 0).to_be_true();
 			        // The press really files, on this exact path, through this exact guest. Without this the
@@ -944,7 +945,7 @@ describe browser_choice_claim(
 		        // **The device defect this pins.** `claimCurrentFile`'s success tail is gated on
 		        // `!loadWithoutExiting` (`gui/ui/browser/sample_browser.cpp:1108`), and its first
 		        // statement is `exitAndNeverDeleteDrum()` (`:1109`) -- which is `close()` (`:258-260`),
-		        // `Browser::close()` (`gui/ui/browser/browser.cpp:189-193`), `UI::close()` and finally
+		        // `Browser::close()`, `UI::close()` and finally
 		        // `closeUI(this)` (`gui/ui/ui.cpp:57-59`). Under the guest `sampleBrowser` was never
 		        // opened, so `closeUI`'s search falls out at `u == 0` and reads
 		        // `uiNavigationHierarchy[u - 1]` (`gui/ui/ui.cpp:183-194`), then sets `numUIsOpen = 0`
@@ -986,12 +987,12 @@ describe browser_choice_reroot(
 	    //
 	    // @note The menu here is at **depth 0** on the file selector, and that is not the rig taking a
 	    //       shortcut -- it is the only shape a user can produce today. The port has no port of
-	    //       `MenuItem::allowToBeginSessionFromHorizontalMenu` (`gui/menu_item/menu_item.h:314`,
+	    //       `MenuItem::allowToBeginSessionFromHorizontalMenu` (
 	    //       overridden true by `FileSelector`, `gui/menu_item/file_selector.h:35`), so a select
 	    //       press on the file selector's column of the horizontal `source0` page raises the
 	    //       notification instead of opening the browser (`MenuScene::render_horizontal`'s
-	    //       `column_press`, and `ui/oled/columns.cpp:422` behind it). The shortcut pad is what is
-	    //       left, and it re-roots to depth 0 (`handle`'s `Replace` arm). Reported, not fixed here.
+	    //       `column_press`, and `ui/oled/columns.cpp` behind it). The shortcut pad is what is
+	    //       left, and it re-roots to depth 0 (`handle`'s `Replace` arm).
 
 	    before_each([] {
 		    static QuietDisplay d;
@@ -1072,7 +1073,7 @@ describe browser_choice_reroot(
 		        // four ticks -- but the menu is opened on `sound_root` rather than on the item that
 		        // pushes the browser, so nothing ever recorded an opener. Legacy's guard is the same
 		        // shape: the re-rooting is inside `if (menuItemHeadingTo != nullptr &&
-		        // parentMenuHeadingTo != nullptr)` (`gui/ui/browser/sample_browser.cpp:1111`).
+		        // parentMenuHeadingTo != nullptr)` (`SampleClaim::stepFinish`).
 		        CleanBrowser clean;
 		        ClaimSpy spy;
 		        ScratchCard card;

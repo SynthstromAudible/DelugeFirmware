@@ -11,7 +11,7 @@
 /// the whole of `process()` is a poll of those four fields.
 ///
 /// **Nothing here writes to the SD card, and that is a property of the code rather than of a guard.**
-/// `SampleRecorder::setup` (`model/sample/sample_recorder.cpp:121`) allocates a `Sample` and one
+/// `SampleRecorder::setup` (`model/sample/sample_recorder.cpp`) allocates a `Sample` and one
 /// capture buffer and returns; the file is created in `cardRoutine()`, which only
 /// `AudioEngine::doRecorderCardRoutines()` calls and which nothing in this spec pumps.
 /// `endSyncedRecording` (`:1195`) is arithmetic over `numSamplesCaptured`, and `abort()` (`:367`) is
@@ -22,7 +22,7 @@
 ///
 /// @par The legacy oracle
 ///
-/// `AudioRecorder::renderOLED` (`gui/ui/audio_recorder.cpp:116-119`) is the whole of what this UI
+/// `AudioRecorder::renderOLED` (`gui/ui/audio_recorder.cpp`) is the whole of what this UI
 /// draws, so it is compared pixel-for-pixel: the **shipped `audioRecorder` object** is asked to
 /// render into `OLED::main` from its own `updatedRecordingStatus`, and the port is asked to render
 /// from its own recorder's `numSamplesCaptured`. Neither side reads the other's state.
@@ -228,7 +228,7 @@ struct Rig {
 	///        lowering runs rather than a synthesised `UiEvent`.
 	///
 	/// Press only, no release: `AudioRecorder::buttonAction` acts on the press and refuses the
-	/// release outright (`audio_recorder.cpp:279-285 buttonAction`).
+	/// release outright (`AudioRecorder::buttonAction`).
 	void press(ButtonId b, uint32_t at_ms) {
 		const std::span<const ButtonId> matrix = profile.button_by_matrix;
 		for (size_t i = 0; i < matrix.size(); i++) {
@@ -391,11 +391,10 @@ deluge::ui::BlinkRate led_rate(const deluge::ui::LedFrame& f, ButtonId b) {
 // --- process-global guards -----------------------------------------------------------------
 //
 // **Every process global this spec touches is held in an RAII guard, and the guards REFUSE rather
-// than repair.** `QuietAudio` (`support/card_access.h:82-88`) is the shape; the addition here is
-// the refusal, and it is not fastidiousness -- a silently-repairing reset has propped up a broken
-// assertion three times in this branch stack: task 3's quiet-tick example (covered for by an
-// unrelated repaint), fix round 1's `~Rig` cross-contamination, and fix round 1's mutant F5, which
-// survived because `before_each` cleared the very publication the missing code should have cleared.
+// than repair.** `QuietAudio` (`support/card_access.h`) is the shape; the addition here is the
+// refusal, and it is not fastidiousness -- a silently-repairing reset hides a broken assertion: a
+// quiet-tick example covered for by an unrelated repaint, a `~Rig` that leaks into the next example,
+// or a missing clear that `before_each` performs on the code's behalf.
 //
 // `before_each`/`after_each` take a `std::function<void()>` with no `self`
 // (`cppspec/description.hpp:23,95-97`), so `expect` is not available in them. A named reason on
@@ -409,7 +408,7 @@ deluge::ui::BlinkRate led_rate(const deluge::ui::LedFrame& f, ButtonId b) {
 /// @brief Hold the foreground-recording publication clear for the scope -- and refuse to run, or to
 ///        finish, if it is not.
 ///
-/// The guard fix round 1's F5 needed. `AudioRecorder::recordingSource`/`::recorder` are process
+/// `AudioRecorder::recordingSource`/`::recorder` are process
 /// globals nine subsystems read, so an example that leaks one poisons the next; clearing it
 /// silently is what hid the leak in the first place.
 struct NoForegroundRecording {
@@ -561,7 +560,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		expect(r.on_stack()).to_be_true();
 		expect(recorder_scene().recording()).to_be_true();
 		expect(recorder_scene().recorder() != nullptr).to_be_true();
-		// `AudioRecorder::opened` leaves `updatedRecordingStatus` false (`audio_recorder.cpp:64`);
+		// `AudioRecorder::opened` leaves `updatedRecordingStatus` false;
 		// the port reads `numSamplesCaptured`, which a recorder nothing has fed is zero.
 		expect(recorder_scene().capturing()).to_be_false();
 		expect(recorder_scene().stopping()).to_be_false();
@@ -949,8 +948,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 		expect(rec->pointerHeldElsewhere).to_be_false();
 		// ...and the foreground-recording publication is cleared, so the nine subsystems that gate
 		// on it do not keep seeing a recording that is over. Without this the leak is invisible:
-		// `before_each` clears the pair defensively, so the next example would not notice either
-		// (fix round 1, mutant F5 -- which survived until this assertion was added).
+		// `before_each` clears the pair defensively, so the next example would not notice either.
 		expect(static_cast<int32_t>(audioRecorder.recordingSource))
 		    .to_equal(static_cast<int32_t>(AudioInputChannel::NONE));
 		expect(audioRecorder.recorder == nullptr).to_be_true();
@@ -980,7 +978,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 
 	it("declares the LEDs opened() sets, RECORD blinking at the fast rate", _ {
 		// `AudioRecorder::opened`'s LED tail (`audio_recorder.cpp:100-106`). SYNTH/KIT are the
-		// interesting pair: `SoundEditor::setLedStates` turns BOTH off (`sound_editor.cpp:344-345`)
+		// interesting pair: `SoundEditor::setLedStates` turns BOTH off
 		// and this UI lights exactly one, so a scene that left them to `MenuScene` beneath would
 		// show neither.
 		Guards g;
@@ -991,8 +989,8 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 
 		// Composed over the REAL stack -- `MenuScene` beneath, recorder on top -- rather than by
 		// calling `leds()` directly, because the SYNTH/KIT claim is precisely that this scene's
-		// declaration outranks the menu's (fix round 1, Minor 1). `MenuScene::leds` declares both
-		// OFF, mirroring `SoundEditor::setLedStates` (`sound_editor.cpp:344-345`).
+		// declaration outranks the menu's. `MenuScene::leds` declares both
+		// OFF, mirroring `SoundEditor::setLedStates`.
 		deluge::ui::LedFrame f;
 		deluge::ui::shell::LedCompose::compose(f, {}, r.shell.stack().scenes());
 		expect(static_cast<int32_t>(led_kind(f, ButtonId::Record)))
@@ -1042,7 +1040,7 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 
 	it("keeps input monitoring alive for the whole recording", _ {
 		// The consequence the state assertion above exists for, asserted as BEHAVIOUR:
-		// `AudioEngine::setMonitoringMode` (`audio_engine.cpp:1024-1055`) turns `inputMonitor` on
+		// `AudioEngine::setMonitoringMode` turns `inputMonitor` on
 		// only for `STEREO`/`LEFT` and double-checks the recorder pointer. A port that armed a
 		// recorder without publishing it records correctly and leaves the user hearing nothing.
 		Guards g;
@@ -1082,16 +1080,15 @@ describe recorder_scene_spec_body("scenes/recorder RecorderScene", $ {
 
 	it("notices completion while its own clipping popup is up, through the grid pass", _ {
 		// `PopupScene` is not `oled_transparent`, so `Shell::render_oled`'s walk stops at it
-		// (`shell/shell.cpp:629-633`) and this scene is still not drawn on the panel. It is,
+		// (`Shell::render_oled`) and this scene is still not drawn on the panel. It is,
 		// however, the grid **base** under a popup -- an overlay that composites nothing -- and
 		// `Shell::tick`'s step 8b arms EVERY surface a scene is on at its `next_timer()` deadline,
 		// so the grid gate fires at `kRecorderPollMs`, `render_grid` appends this scene to
 		// `rendered_this_tick_`, and `after_render()`'s completion poll runs with the popup up.
 		//
-		// E3 task 5 recorded the opposite as an accepted, bounded stall (up to `kPopupTimeoutMs`,
-		// 800 ms) and this example asserted it; E3 task 10's fold ended it. **This example is the
-		// mutation guard on that fold**: delete step 8b and completion goes unnoticed at 30 ms
-		// again, exactly as it used to be.
+		// Completion is therefore noticed at `kRecorderPollMs`, not after the popup's timeout
+		// (`kPopupTimeoutMs`, 800 ms). **This example is the mutation guard on step 8b**: delete it
+		// and completion goes unnoticed until the popup closes.
 		Guards g;
 		Rig r;
 		r.open();

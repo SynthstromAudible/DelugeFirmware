@@ -53,8 +53,8 @@
 
 #include "spec/support/spec_main.h"
 
-/// The two real legacy items (`gui/ui/menus.cpp:1670`, `:2071`). Declared here because
-/// `gui/ui/menus.h` exports neither -- the same situation `tables_3_spec.cpp:589` records.
+/// The two real legacy items (`defaultActiveScaleMenu` and `activeScaleMenu` in `gui/ui/menus.cpp`). Declared here
+/// because `gui/ui/menus.h` exports neither -- the same situation `tables_3_spec.cpp`'s `extern` block handles.
 extern deluge::gui::menu_item::ActiveScaleMenu defaultActiveScaleMenu;
 extern deluge::gui::menu_item::ActiveScaleMenu activeScaleMenu;
 
@@ -79,7 +79,7 @@ void select_language() {
 	while (deluge::notify::notices().pop(discard)) {}
 }
 
-/// Board encoder indices (`kDelugeEncoders`, `shell/profiles/deluge.cpp:69-76`) and the
+/// Board encoder indices (`kDelugeEncoders`) and the
 /// select-encoder button's matrix position (`kMatrix`).
 constexpr uint8_t kSelectEncoder = 3;
 constexpr uint8_t kSelectEncButtonX = 4, kSelectEncButtonY = 3;
@@ -107,7 +107,7 @@ struct ScalesGuard {
 	}
 };
 
-/// @brief A 128x64 single-panel board (`menu_scene_spec.cpp:293-314`).
+/// @brief A 128x64 single-panel board (`menu_scene_spec.cpp`'s `board_64`).
 constexpr DelugeDisplayDesc kDisplays64[] = {{128, 64, 0}};
 
 DelugeBoard board_64() {
@@ -138,7 +138,7 @@ struct Rig {
 	Rig(const Rig&) = delete;
 	Rig& operator=(const Rig&) = delete;
 
-	/// @brief Tear the stack down, so every scene's `on_exit` always runs (E3 task 10).
+	/// @brief Tear the stack down, so every scene's `on_exit` always runs.
 	///
 	/// `MenuScene` is a process singleton (`shell/scene.h`'s `SceneState` cache): an example that
 	/// left it -- or anything pushed above it -- on the stack would make the NEXT example's

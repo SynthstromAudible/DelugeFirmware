@@ -1,10 +1,10 @@
 /// @file
-/// @brief Task 5's spec: the note editor and note-row editor menu trees
+/// @brief The note editor and note-row editor menu trees
 ///        (`scenes/menu/nodes/note.h`), tested against `FakeNoteBridgeGuard`
 ///        (`support/fake_note_bridge.h`), and their shape against the live legacy objects
 ///        (`gui/ui/menus.cpp`) rather than a copied list.
 ///
-/// Covered, per the brief's own list:
+/// Covered:
 ///
 ///   * every leaf's `bindings::read` calls its bridge entry;
 ///   * every `adjust` passes its offset through to the bridge unchanged;
@@ -13,7 +13,7 @@
 ///   * each step toggle's `relevant` follows the divisor, including the "OFF, index 0" case;
 ///   * `note_iterance`/`note_row_iterance`'s `select_chain` resolves only on
 ///     `kCustomIterancePreset`;
-///   * the three `value_text` hooks produce the strings spec §5.3 transcribes, including
+///   * the three `value_text` hooks produce legacy's strings, including
 ///     probability's latching and fill's strike;
 ///   * the shape: each root and custom root has legacy's own child count, read from the live
 ///     `noteEditorRootMenu`/`noteRowEditorRootMenu`/`noteCustomIteranceRootMenu`/
@@ -420,7 +420,7 @@ describe note_nodes_no_bridge("scenes::menu note editor/note-row editor: no brid
 	it("answers false/nullptr rather than crashing, for relevant and select_chain", _ {
 		// The whole-tree sweeps this guards against: `tables_2_spec.cpp`'s/`tables_3_spec.cpp`'s
 		// own `EmptySubmenu`/`DuplicateName` checks and its "never lets a select_chain hook name a
-		// node outside its own chain_targets" sweep (`tables_3_spec.cpp:2122`) call these hooks
+		// node outside its own chain_targets" sweep (`tables_3_spec.cpp`) call these hooks
 		// over the whole tree, including this one, with no bridge installed at all -- boot's real one
 		// taken down for the scope, and no fake put up.
 		const deluge::scenes::spec::NoNoteBridge no_bridge;

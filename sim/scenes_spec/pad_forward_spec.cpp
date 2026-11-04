@@ -9,23 +9,24 @@
 /// running a legacy view's own pad handler. Two exceptions run for real instead of through the
 /// recorder: "really removes the ported menu when the tail fires" restores the real `perform` and
 /// runs the real tail arm (`closePortedMenu`) against a real `MenuScene` on the real guest's scene
-/// stack -- that call names no legacy view, so it is safe to run for real here, and it is what makes
-/// behaviour 3 (the tail firing `closePortedMenu`) covered outside the recorder; the four
+/// stack -- that call names no legacy view, so it is safe to run for real here, and it is what covers
+/// the tail firing `closePortedMenu` outside the recorder; the four
 /// `automationView` examples open a real `MenuScene` (via `open_menu_node`, on `menu_scene()`
 /// directly rather than on the guest's stack) because `menuShowsAutomationParam` reads
 /// `menu_scene().focused()` -- there is no other way to give it an answer.
 ///
-/// The two note-mode arms (`sound_editor.cpp:1481-1498`, note-family Task 7) are asked of a real
+/// The two note-mode arms (`sound_editor.cpp:1481-1498`) are asked of a real
 /// `MenuScene` opened at `Root::NoteEditor` / `Root::NoteRowEditor` on the global guest's own stack,
 /// because `activeNoteMode()` reads exactly that. Their performer is pinned without running either
 /// legacy handler: `setNoteModeLegacyCalls` replaces the two `instrumentClipView` calls with
-/// recorders. (Task 7a gated both handlers' `soundEditor` navigation calls -- the legacy arms are now
-/// `gui/views/instrument_clip_view.cpp:3677`, `:3894`, `:3905`, `:3946` -- and `note_mode_reads_spec.cpp` runs them.)
+/// recorders. (Both handlers' `soundEditor` navigation calls -- `readValueAgain`, `goUpOneLevel` and
+/// `toggleNoteEditorParamMenu` in `gui/views/instrument_clip_view.cpp` -- are gated on the ported
+/// note mode, and `note_mode_reads_spec.cpp` runs them.)
 ///
 /// What this deliberately does not cover: the tail's firmware-version diagnostics, out of scope for
 /// this switch -- `shell_pad_forward.h`'s own note says why. And nothing here asks
-/// `Scene::grid_pad_claim()` (Task 1): that question is asked by this function's caller, a later
-/// task, before `forwardGridPad` is ever reached.
+/// `Scene::grid_pad_claim()`: that question is asked by this function's caller, before `forwardGridPad` is ever
+/// reached.
 
 #include "gui/ui/menu_view_of.h"
 #include "gui/ui/shell_pad_forward.h"
@@ -41,7 +42,7 @@
 #include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
 
-#include "modulation/params/param.h" // params::Kind, LOCAL_LPF_FREQ, UNPATCHED_BASS -- task 3's param nodes
+#include "modulation/params/param.h" // params::Kind, LOCAL_LPF_FREQ, UNPATCHED_BASS -- the param nodes
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/node_id.h"
@@ -74,7 +75,7 @@ namespace {
 ///        `menu_actions_spec.cpp`'s `open_global_guest`, narrowed to the one root this file needs.
 ///
 /// `root_song` needs no clip (`context_for`'s second argument is `nullptr`), so this needs nothing
-/// from `spec::SongFixture` but the `Song&` itself -- unlike `sound_root`, which task 1's spec fixture
+/// from `spec::SongFixture` but the `Song&` itself -- unlike `sound_root`, which the spec fixture
 /// resolves a clip and instrument for.
 ///
 /// No `openUI` here, deliberately, matching `open_global_guest`'s own note: this only needs the menu
@@ -208,12 +209,10 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 
 	it("lets a main-grid pad on a clip root fall through to the tail", _ {
 		// `:1500`'s `else if` not taken -> the comment `// fall through below` at `:1504` -> the
-		// tail at `:1520-1545`. M3: this is NOT the note-editor arms -- no ported menu is on the
+		// tail at `:1520-1545`. This is NOT the note-editor arms -- no ported menu is on the
 		// global guest's stack here, so `activeNoteMode()` answers `None`, which is the port of
-		// neither `inNoteEditor()` nor `inNoteRowEditor()` holding. (When this example was written
-		// no guest path could set either mode; note-family Task 7 ported both arms, and the examples
-		// under "the note modes" below are theirs.) This example is ordinary behaviour 3 (§2.1) at
-		// site 5/one of site 6's fan-out arms: `instrumentClipView` matches no coordinate-gated arm
+		// neither `inNoteEditor()` nor `inNoteRowEditor()` holding. (The examples under "the note modes" below cover the
+		// note-editor arms.) This example is ordinary behaviour: `instrumentClipView` matches no coordinate-gated arm
 		// above it for a plain main-grid pad, so both legacy and the port fall to the tail the same
 		// way -- no divergence in this example.
 		UiStackGuard ui_guard;
@@ -247,7 +246,7 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 		currentUIMode = UI_MODE_NONE;
 	});
 
-	it("does not exit on the three firmware-version diagnostic pads (I2)", _ {
+	it("does not exit on the three firmware-version diagnostic pads", _ {
 		// `sound_editor.cpp:1521-1543`: while `&firmwareVersionMenu` is open, `y == 7` and `x` in
 		// {13, 14, 15} return `DEALT_WITH` **without** falling to `exitCompletely()` -- the popups
 		// themselves stay unported (`shell_pad_forward.h`'s own note), but the "menu stays open"
@@ -285,7 +284,7 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 
 	it("really removes the ported menu when the tail fires", _ {
 		// The one example that runs the REAL perform: `closePortedMenu()` names no legacy view, so
-		// it is safe here, and this is what makes behaviour 3 covered outside the recorder.
+		// it is safe here, and this covers the tail firing `closePortedMenu` outside the recorder.
 		deluge::gui::ui::setPadForwardPerform(nullptr);
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
@@ -303,7 +302,7 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 
 	it("under the note editor over the clip view, sends a main-grid pad to its edit action and a "
 	   "sidebar pad to Exit", _ {
-		// The edit action's own `if (on)` is the handler's (`instrument_clip_view.cpp:3644`). The arm
+		// The edit action's own `if (on)` is the handler's (`InstrumentClipView::handleNoteEditorEditPadAction`). The arm
 		// itself, `sound_editor.cpp:1481-1490`, tests neither `on` nor `currentUIMode`, and its exit is
 		// unconditional -- so a release and a UI mode take the same arms, which is what separates this
 		// Exit from the tail's (`:1520`), and the audition column is the note arm's, not `:1499`'s.
@@ -371,7 +370,7 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 	});
 
 	it("keeps the note arms inside the clip view's case: another root takes its own arm", _ {
-		// `sound_editor.cpp:1474` comes before `:1480`, and `:1515` is a separate root: the note arms are nested in
+		// `sound_editor.cpp:1474` comes before the note arms, and `:1515` is a separate root: the note arms are nested in
 		// `rootUI == &instrumentClipView`, so a note root over another root view changes nothing.
 		UiStackGuard ui_guard;
 		GlobalGuestGuard guest_guard;
@@ -484,9 +483,8 @@ describe pad_forward("gui::ui::forwardGridPad -- SoundEditor::padAction's root s
 	});
 
 	it("does not dereference a null clip", _ {
-		// The guard migration §10.5 banked for legacy's copy (`:1582-1586` dereferences
-		// `getCurrentClip()` unguarded). This is the port's own copy, so writing the guard here is
-		// not the banked fix -- legacy's copy is untouched.
+		// The port guards a null `getCurrentClip()`; legacy's copy (`:1582-1586`) dereferences it
+		// unguarded and is left as it is.
 		UiStackGuard ui_guard;
 		spec::SongFixture fx = spec::make_synth_song();
 		automationView.onArrangerView = false;

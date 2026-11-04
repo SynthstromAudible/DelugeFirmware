@@ -16,7 +16,7 @@
 ///   3. write the same sentinel again,
 ///   4. drive the port through a real `Shell` and the real input path,
 ///
-/// then compare. That matters more here than anywhere else in this task, because legacy and the port
+/// then compare. That matters more here than anywhere else in this spec, because legacy and the port
 /// address the *same* `AudioOutput` -- a comparison that forgot step 3 would be reading legacy's own
 /// answer back.
 
@@ -60,7 +60,7 @@
 
 #include "spec/support/spec_main.h"
 
-/// `model/song/song.cpp:4896`. Both sides write it (`audio_input_selector.cpp:193`), so an example
+/// `model/song/song.cpp:4896`. Both sides write it (`AudioInputSelector::selectEncoderAction`), so an example
 /// that drives either half has to put it back.
 extern AudioInputChannel defaultAudioOutputInputChannel;
 
@@ -97,7 +97,7 @@ constexpr const Node* kRoots[] = {&nodes::root_audio_clip};
 /// transcribed here so the spec names rows by meaning rather than by number.
 enum : uint8_t { kOff = 0, kLeft, kRight, kStereo, kBalanced, kUsb, kMaster, kOutput, kTrack, kOptionCount };
 
-/// @brief A 128x64 single-panel board (`menu_scene_spec.cpp:293-314`).
+/// @brief A 128x64 single-panel board (`menu_scene_spec.cpp`).
 constexpr DelugeDisplayDesc kDisplays64[] = {{128, 64, 0}};
 
 DelugeBoard board_64() {
@@ -132,7 +132,7 @@ struct Rig {
 	Rig(const Rig&) = delete;
 	Rig& operator=(const Rig&) = delete;
 
-	/// @brief Tear the stack down, so every scene's `on_exit` always runs (E3 task 10).
+	/// @brief Tear the stack down, so every scene's `on_exit` always runs.
 	///
 	/// `MenuScene` is a process singleton (`shell/scene.h`'s `SceneState` cache): an example that
 	/// left it -- or anything pushed above it -- on the stack would make the NEXT example's
@@ -413,7 +413,7 @@ describe audio_source_move("scenes::context_menu the audio-source descriptor: co
 
 			expect(got == want).to_be_true();
 			// The song-wide default is written on every turn, refused ones included -- that is
-			// legacy's shape (`audio_input_selector.cpp:193` is outside every guard), and asserting it
+			// legacy's shape (the write in `AudioInputSelector::selectEncoderAction` is outside every guard), and asserting it
 			// is what stops a "tidy" guard being added later.
 			expect(got.song_default == AudioInputChannel::UNSET).to_be_false();
 		}

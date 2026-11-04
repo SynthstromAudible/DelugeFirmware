@@ -2,7 +2,7 @@
 
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
-// The legacy switch this file transcribes (src/deluge/hid/display/display.cpp:7). The scenes
+// The legacy switch this file transcribes (`getErrorMessage` in src/deluge/hid/display/display.cpp). The scenes
 // LIBRARY may not include hid/ -- this SPEC may, to compare the port against the original.
 #include "hid/display/display.h"
 
@@ -14,7 +14,7 @@
 
 #include "spec/support/spec_main.h"
 
-// getErrorMessage has external linkage (display.cpp:7) but no header declares it -- oled.cpp
+// getErrorMessage has external linkage (hid/display/display.cpp) but no header declares it -- oled.cpp
 // (hid/display/oled.cpp:1171) forward-declares it the same way, in the same namespace, to call it.
 namespace deluge::hid::display {
 extern std::string_view getErrorMessage(Error error);

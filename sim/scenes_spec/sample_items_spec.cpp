@@ -206,8 +206,8 @@ void focus_in(Shell& shell, const MenuContext& ctx, const Node& node) {
 ///
 /// **Assert-then-clear, not defensive-clear.** Scenes are process singletons, so an example that
 /// leaked a listing or an armed recorder would make the *next* example's refusal indistinguishable
-/// from a wiring bug -- and a `before_each` that quietly tidied up is exactly what hid a real defect
-/// through task 5's first fix pass. Each rig's destructor tears its own stack down; this guard's job
+/// from a wiring bug -- and a `before_each` that quietly tidied up hides a real defect.
+/// Each rig's destructor tears its own stack down; this guard's job
 /// is to say so out loud if one did not. `before_each`/`after_each` take a `std::function<void()>`
 /// with no `self` (`cppspec/description.hpp`), so `expect` is unavailable there and a named reason
 /// on stderr plus `std::abort()` is what "loudly" means.
@@ -250,7 +250,7 @@ struct SoundRig {
 
 	/// @brief Tear the stack down, so every scene's `on_exit` always runs.
 	///
-	/// **Scenes are process singletons** (task 5's finding): an example that left the recorder
+	/// **Scenes are process singletons**: an example that left the recorder
 	/// armed would make the next example's `on_enter` refuse and cascade into failures that say
 	/// nothing about the mutation that caused them. Popping here is the assert-then-clear discipline
 	/// as an RAII guard rather than as a `before_each` reset -- the state is destroyed on the way
@@ -523,9 +523,9 @@ describe sample_items_mapping("scenes::menu the sample items: the mapping", $ {
 
 	it("retires nine placeholders, none of which came back", _ {
 		// The count `validate.h` carries, checked from the other end: none of the nine is a
-		// placeholder any more. E3 task 7 then closed out the last two the tree had
-		// (`nodes/output_items.h`), so `kPendingCustomNodes` is 0 -- `output_items_spec.cpp` is
-		// where that milestone is asserted; this only re-checks task 6's own nine.
+		// placeholder any more. The tree has no placeholder anywhere (`nodes/output_items.h`
+		// holds the last two real items), so `kPendingCustomNodes` is 0 -- `output_items_spec.cpp` is
+		// where that is asserted; this only re-checks these nine.
 		for (const Node* n : {&nodes::file0_selector, &nodes::file1_selector, &nodes::sample0_start,
 		                      &nodes::sample1_start, &nodes::sample0_end, &nodes::sample1_end,
 		                      &nodes::audio_clip_waveform, &nodes::sample0_recorder, &nodes::sample1_recorder}) {

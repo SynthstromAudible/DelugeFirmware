@@ -1,6 +1,6 @@
 /// @file
-/// @brief Task 6: `MenuContext::Root::NoteEditor`/`NoteRowEditor`, everything indexed by `Root`
-///        that this task wires (`MenuScene::roots()`, the two shortcut tables, `greyout_mask()`),
+/// @brief `MenuContext::Root::NoteEditor`/`NoteRowEditor`, everything indexed by `Root`
+///        that they wire (`MenuScene::roots()`, the two shortcut tables, `greyout_mask()`),
 ///        the note-row sequence-direction bridge arm, and `openShellMenu`'s `NoteMode`.
 ///
 /// `MenuScene::grid_pad_claim()` for these two roots is `menu_grid_claim_spec.cpp`'s (extended,
@@ -194,7 +194,7 @@ describe note_roots_sequence_direction("scenes::menu bindings::read/write_sequen
 	});
 
 	it("on a kit clip, never asks the bridge, and keeps the kit-row arm unchanged", _ {
-		// Resolution 3: `Root::NoteRowEditor` on a kit falls back to today's arms unchanged --
+		// `Root::NoteRowEditor` on a kit keeps its kit arms --
 		// `selectedNoteRow` is only ever latched by legacy's OWN non-kit else-if
 		// (`sequence/direction.h:117-119`), so a kit clip has no equivalent to model here at all.
 		spec::SongFixture fx = spec::make_kit_song();
@@ -207,7 +207,7 @@ describe note_roots_sequence_direction("scenes::menu bindings::read/write_sequen
 		NoteRow* row = fx.clip->getNoteRowForDrum(drum);
 		expect(row != nullptr).to_be_true();
 		if (row == nullptr) {
-			return; // fix round 1, minor c: a broken fixture must fail loudly, not skip silently
+			return; // a broken fixture must fail loudly, not skip silently
 		}
 
 		spec::FakeNoteBridgeGuard bridge;
@@ -283,7 +283,7 @@ describe note_roots_open_shell_menu("openShellMenu's NoteMode", $ {
 		// own member -- `sequence::Direction::getIndividualNoteRow` reads `clip->affectEntire` LIVE
 		// (`gui/menu_item/sequence/direction.h:44`), after legacy's identical clear, so a stale
 		// `true` left in the installed context would make `bindings::individual_note_row`
-		// (`bindings.cpp:832`) keep reading/writing the kit's own mode instead of the selected
+		// keep reading/writing the kit's own mode instead of the selected
 		// drum's row -- see the dedicated example below.
 		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		spec::SongFixture fx = spec::make_kit_song();
@@ -300,8 +300,7 @@ describe note_roots_open_shell_menu("openShellMenu's NoteMode", $ {
 	});
 
 	it("the same kit affectEntire clear applies to NoteRowEditor too", _ {
-		// Resolution 1: legacy does the identical clear in `enterNoteRowEditor`
-		// (`instrument_clip_view.cpp:3813-3818`), after `soundEditor.setup` and before `openUI`.
+		// Legacy does the identical clear in `InstrumentClipView::enterNoteRowEditor`, after `soundEditor.setup` and before `openUI`.
 		ToggleGuard on{RuntimeFeatureStateToggle::On};
 		spec::SongFixture fx = spec::make_kit_song();
 		(void)spec::add_drum<SoundDrum>(fx);
@@ -320,9 +319,9 @@ describe note_roots_open_shell_menu("openShellMenu's NoteMode", $ {
 	   "affectEntire is cleared", _ {
 		// The load-bearing consequence of the fix above, driven through the real binding rather than
 		// just read back off `MenuContext`: `bindings::read_sequence_direction`
-		// (`bindings.cpp:892-915`) tests `ctx.root == Root::NoteRowEditor && !ctx.is_kit` first (the
+		// tests `ctx.root == Root::NoteRowEditor && !ctx.is_kit` first (the
 		// non-kit bridge arm), then falls through to `individual_note_row`'s kit-row arm
-		// (`bindings.cpp:832`, `!ctx.affect_entire && ctx.is_kit`) -- which only takes the SELECTED
+		// (`!ctx.affect_entire && ctx.is_kit`) -- which only takes the SELECTED
 		// DRUM's row when `ctx.affect_entire` is false, exactly as legacy's live
 		// `clip->affectEntire` read does after its own clear.
 		ToggleGuard on{RuntimeFeatureStateToggle::On};
@@ -351,15 +350,15 @@ describe note_roots_open_shell_menu("openShellMenu's NoteMode", $ {
 	});
 });
 
-describe note_roots_undo_log("pre-review fix: openShellMenu's NoteMode must not wipe the undo log", $ {
+describe note_roots_undo_log("openShellMenu's NoteMode must not wipe the undo log", $ {
 	// `SoundEditor::setup`'s undo-log wipe (`sound_editor.cpp:1769-1771`) is inside its `item ==
 	// nullptr` arm only. `enterNoteEditor`/`enterNoteRowEditor` never take that arm -- each calls
 	// `soundEditor.setup(clip, &noteEditorRootMenu)` / `soundEditor.setup(clip, &noteRowEditorRootMenu)`
 	// (`instrument_clip_view.cpp:3607`, `:3811`), an explicit item -- so legacy never wipes on a
 	// note-editor/note-row-editor open. `openShellMenu`'s own wipe (`gui/ui/shell_menu_entry.cpp`)
-	// used to fire whenever `node == ShellMenuNode::ContextRoot && clip != nullptr`, which is true
-	// for every `NoteMode` call too (neither note root has its own `ShellMenuNode`), so it wiped
-	// where legacy does not. Fixed by adding `&& noteMode == NoteMode::None` to that condition.
+	// is conditioned on `noteMode == NoteMode::None` as well as `node == ShellMenuNode::ContextRoot
+	// && clip != nullptr`: the first two hold for every `NoteMode` call too (neither note root has
+	// its own `ShellMenuNode`), so without the third it would wipe where legacy does not.
 
 	it("NoteMode::NoteEditor leaves an existing undo log intact", _ {
 		ToggleGuard on{RuntimeFeatureStateToggle::On};

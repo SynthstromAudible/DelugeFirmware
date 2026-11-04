@@ -136,7 +136,7 @@ struct Rig {
 	Rig(const Rig&) = delete;
 	Rig& operator=(const Rig&) = delete;
 
-	/// @brief Tear the stack down, so every scene's `on_exit` always runs (E3 task 10).
+	/// @brief Tear the stack down, so every scene's `on_exit` always runs.
 	///
 	/// `ContextMenuScene` is a process singleton (`shell/scene.h`'s `SceneState` cache): an example
 	/// that left it -- or anything pushed above it -- on the stack would make the NEXT example's
@@ -223,10 +223,10 @@ std::string below_bezel(const std::string& pbm, int visible_top) {
 ///
 /// One field per subsystem, chosen so that each action moves its own and leaves the others alone:
 ///
-///  - `midi_thru` / `analog_in_ppqn` / `use_sharps` -- `FlashStorage::resetSettings`
-///    (`flash_storage.cpp:285,278,371`), and nothing else writes them.
-///  - `follow_root_note` / `follow_display_param` -- `MidiFollow::factoryReset`
-///    (`midi_follow.cpp:135-136`). `resetSettings` does NOT touch either, which is exactly what
+///  - `midi_thru` / `analog_in_ppqn` / `use_sharps` -- `FlashStorage::resetSettings`,
+///    and nothing else writes them.
+///  - `follow_root_note` / `follow_display_param` -- `MidiFollow::factoryReset`.
+///    `resetSettings` does NOT touch either, which is exactly what
 ///    makes them a discriminator.
 ///  - `drum_randomizer` -- `RuntimeFeatureSettings::factoryReset`.
 ///
@@ -308,9 +308,9 @@ std::string legacy_pbm(deluge::gui::context_menu::ResetSettingsAction action) {
 // clang-format off
 describe cm_descriptors("scenes::context_menu descriptor table", $ {
 	it("covers exactly the context menus the ported menu tree opens, and no others", _ {
-		// The five `reset_settings::Reset` menu items (`gui/ui/menus.cpp:2108-2117`) and, since E2
-		// task 11b, `audio_clip::AudioSourceSelector` -- and nothing else: every other legacy
-		// `ContextMenu` subclass is opened from a view or a browser this plan does not port. See the
+		// The five `reset_settings::Reset` menu items (`gui/ui/menus.cpp:2108-2117`) and
+		// `audio_clip::AudioSourceSelector` -- and nothing else: every other legacy
+		// `ContextMenu` subclass is opened from a view or a browser the ported menu tree does not open. See the
 		// note on `DescriptorId`.
 		expect(static_cast<int>(DescriptorId::Count)).to_equal(8);
 	});
@@ -349,7 +349,7 @@ describe cm_descriptors("scenes::context_menu descriptor table", $ {
 			expect(d.options.size()).to_equal(size_t(1));
 			expect(static_cast<int>(d.options[0])).to_equal(static_cast<int>(String::STRING_FOR_OK));
 			expect(d.accept != nullptr).to_be_true();
-			// E2 task 11b: the three hooks the sixth descriptor needed are null on all five of these,
+			// The three hooks the sixth descriptor needs are null on all five of these,
 			// which is what "the five reset descriptors are unchanged" means concretely. Asserted, so
 			// a table edit that gave one of them a hook by accident is caught here rather than by a
 			// surprising screen.
@@ -476,7 +476,7 @@ describe cm_open("scenes::context_menu::ContextMenuScene opening", $ {
 		r.tick(0);
 		// `indicator_leds::blinkLed(IndicatorLED::BACK)`, declared rather than driven -- the shell
 		// composes and flushes it. BACK is board LED 16 on the Deluge profile
-		// (`shell/profiles/deluge.cpp:36`, `hid/led/indicator_leds.h:47`).
+		// (`shell/profiles/deluge.cpp`, `hid/led/indicator_leds.h:47`).
 		constexpr uint8_t kBackLed = 16;
 		bool blinked = false;
 		for (const auto& [led, on] : r.fake.led_writes) {
@@ -751,7 +751,7 @@ describe cm_actions("scenes::context_menu::ContextMenuScene actions", $ {
 		spec::SongFixture f = spec::make_synth_song();
 
 		// This one is driven for what it does NOT do. `MIDIDeviceManager::factoryReset`
-		// (`midi_device_manager.cpp:506-523`) placement-news over the four global MIDI cable
+		// placement-news over the four global MIDI cable
 		// objects and re-reads the card; none of that reaches a witness field. Asserting the
 		// witness is *unchanged* is still a real discriminator, because `Deluge::factoryReset`
 		// (the only other undriven action) calls `FlashStorage::factoryReset` among its four

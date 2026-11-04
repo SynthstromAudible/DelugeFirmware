@@ -198,7 +198,7 @@ struct SubmenuPeek : deluge::gui::menu_item::Submenu {
 /// @brief Walk the legacy sound root and the port's in lockstep by child index, recording which
 ///        `Node` each legacy `MenuItem*` is.
 ///
-/// The anchor the name comparison cannot provide (fix round 1, I2). Legacy gives numbered siblings
+/// The anchor the name comparison cannot provide. Legacy gives numbered siblings
 /// *identical* names, identical titles and, for several of them, the same constructor `params::`
 /// id with only an index argument to tell them apart -- `env1AttackMenu` and `env2AttackMenu` are
 /// both `{STRING_FOR_ATTACK, STRING_FOR_ENV_ATTACK_MENU_TITLE, LOCAL_ENV_0_ATTACK, <i>}`
@@ -243,7 +243,7 @@ const std::map<const ::MenuItem*, const Node*>& sound_tree_identity() {
 ///        l10n id its constructor was given, so one static `Node::name` cannot equal it.
 ///
 /// The four filter morph items only: `filter::FilterParam::getName` asks
-/// `FilterInfo::getMorphNameOr` (`gui/menu_item/filter/info.h:81`), which answers "Drive" or "FM"
+/// `FilterInfo::getMorphNameOr` (`gui/menu_item/filter/info.h`), which answers "Drive" or "FM"
 /// depending on the *current* filter mode. `tables_3_spec`'s `has_dynamic_name` holds the same two
 /// sound-root entries for the same reason; these tables add the song/global-FX twins. Their cells
 /// are still checked for presence, and their identity is covered where the trees are walked in
@@ -320,8 +320,8 @@ std::string diff_column(const char* table, ::MenuItem* legacy[kDisplayHeight], s
 
 /// @brief Select `SHORTCUTS_VERSION_1` on both sides for the scope, and put everything back.
 ///
-/// `SoundEditor::setShortcutsVersion` (`gui/ui/sound_editor.cpp:112-181`) *writes into* the legacy
-/// arrays -- and its `SHORTCUTS_VERSION_3` arm is a comment, not an undo (`:139-141`), so nothing but
+/// `SoundEditor::setShortcutsVersion` (`gui/ui/sound_editor.cpp`) *writes into* the legacy
+/// arrays -- and its `SHORTCUTS_VERSION_3` arm is a comment, not an undo, so nothing but
 /// this guard restores them. Twelve cells are snapshotted: the six of `paramShortcutsForSounds` and
 /// four of `paramShortcutsForAudioClips` the V1 arm assigns, plus the two `modSourceShortcuts` ones
 /// (`:134-135`), which is patching-source data the port does not carry but other examples in this
@@ -426,7 +426,7 @@ const std::vector<Root>& all_roots() {
 // clang-format off
 describe shortcuts_transcription("scenes::menu shortcut tables: transcription", $ {
 	it("is transcribed from the default SHORTCUTS_VERSION_3 layout", _ {
-		// `SoundEditor::setShortcutsVersion` (`sound_editor.cpp:112-181`) *mutates* the legacy arrays
+		// `SoundEditor::setShortcutsVersion` *mutates* the legacy arrays
 		// in place for the pre-3.0 layout; the port transcribes them as written. If anything in this
 		// process ever selects version 1, every cross-check below would be comparing against a
 		// different table -- so say so here, once, rather than failing ten cells at a time.
@@ -480,8 +480,8 @@ describe shortcuts_transcription("scenes::menu shortcut tables: transcription", 
 
 	it("matches midiOrCVParamShortcuts, in column 11", _ {
 		select_language();
-		// Column 11 is where `potentialShortcutPadAction` (`sound_editor.cpp:1332`) and
-		// `updatePadLightsFor` (`:848`) index this table -- the task brief said column 0.
+		// Column 11 is where `potentialShortcutPadAction` and
+		// `updatePadLightsFor` index this table.
 		expect(diff_column("midiOrCVParamShortcuts", midiOrCVParamShortcuts,
 		                   menu::shortcut_layer(Root::MidiOrCv, /*second_layer=*/false)))
 		    .to_equal(std::string{});
@@ -616,7 +616,7 @@ describe shortcuts_transcription("scenes::menu shortcut tables: transcription", 
 
 	it("swaps the name editor for the drum one on the two drum roots", _ {
 		install_sound_context();
-		// `potentialShortcutPadAction` (`sound_editor.cpp:1334-1336`, `:1323-1325`) rewrites
+		// `SoundEditor::potentialShortcutPadAction` rewrites
 		// `editNameMenu` to `drumNameEditMenu` for a kit output or a non-audio drum row; the port
 		// bakes that into the drum roots' own layers.
 		const auto at = [](Root root, uint8_t x, uint8_t y) { return menu::shortcut_node(root, false, x, y); };
@@ -737,10 +737,9 @@ describe shortcuts_validation("scenes::menu shortcut tables: validation", $ {
 	});
 
 	it("has exactly the custom-node count the cap is sized from, and does not trip the cap", _ {
-		// Fix round 2, I4. `validate_tree`'s `TooManyCustom` rule used to count distinct
-		// `CustomItem` instances; every one of E1's bespoke nodes points at the single shared
-		// `nodes::kPending`, so that count was 1 for the whole tree and the rule could never fire.
-		// It now counts nodes -- and this pins the real number, which `validate.h`'s
+		// `validate_tree`'s `TooManyCustom` rule counts custom *nodes*, not distinct `CustomItem`
+		// instances (a shared item would collapse the count and the rule could never fire). This
+		// pins the real number, which `validate.h`'s
 		// `kMaxCustomNodes` is sized just above and `src/scenes/README.md` quotes.
 		//
 		// The whole tree is enumerated through the id registry rather than re-walked here:
@@ -760,64 +759,34 @@ describe shortcuts_validation("scenes::menu shortcut tables: validation", $ {
 		distinct_items = items.size();
 		expect(custom_nodes).to_equal(menu::kShippedCustomNodes);
 		expect(custom_nodes <= menu::kMaxCustomNodes).to_be_true();
-		// Sixteen of the fifty-two still share the one placeholder. The real, distinct items are
-		// `battery_level` and `firmware_version` (E2 task 2 fix round 1), E2 task 5's three
-		// `EditNameItem`s -- one per `rename::TargetId`, since the target is the item's only state
-		// (`edit_name.h`) -- E2 task 7's five `ResetItem`s, one per `context_menu::DescriptorId`
-		// (`settings.h`), and E2 task 8's twelve `MidiCommandItem`s, one per learnable
-		// `GlobalMIDICommand` (`midi_command.h`). So twenty-three instances: `nodes::kPending`,
-		// `BatteryLevelItem`, `FirmwareVersionItem`, `kEditClipName`, `kEditOutputName`,
-		// `kEditDrumName`, `kResetFlashItem`, `kResetCommunityFeaturesItem`, `kResetMidiFollowItem`,
-		// `kResetMidiDevicesItem`, `kResetAllItem`, and `kMidiCommandPlayItem` ..
-		// `kMidiCommandShiftItem`. E2 task 9 adds eight more: `kPatchCablesItem`, the two
-		// `SourceSelectionItem`s (regular/range), the two navigated `PatchCableStrengthItem`s plus the
-		// two `Fixed` ones (`kVibratoItem`, `kSidechainVolumeItem`), and `kMultiRangeItem` -- so
-		// thirty-one. E2 task 10 adds three more: `kCvSelectionItem`, `kGateSelectionItem` and
-		// `kMidiDevicesItem` (`nodes/dynamic.h`), the last three settings items that were bespoke
-		// `MenuItem` subclasses in legacy -- so thirty-four. E2 task 11 adds **none**: the nine
-		// placeholders it retires (the six pad colours, the play cursor, the dev-sysex setting and
-		// the shortcuts version) all become ordinary `Kind::Enum` nodes, so the node count falls by
-		// nine while the distinct-instance count is unchanged -- `kPending` still has other users.
-		// E2 task 11b adds five: the four `ActionItem`s (`kStartStemExportItem`, `kSetClipLengthItem`,
-		// `kSongMidiLearnItem`, `kConfigureSongMacrosItem` -- four instances rather than one, for the
-		// same reason the twelve MIDI-command items are twelve: the action is the item's only state)
-		// and `kPerformEditorItem` (`nodes/actions.h`) -- so **thirty-nine**. Those five move no node
-		// count: all were already `Kind::Custom` nodes pointing at `kPending`, and `kPending` still
-		// has other users. It also retires the two `ActiveScaleMenu` placeholders into two
-		// `ActiveScalesItem`s -- one per `ScaleSet`, because the bitset an item edits is its only
-		// state (`nodes/scales.h`) -- so **forty-one**. And it takes three nodes *out* of the escape
-		// hatch: `default_tempo`, `default_swing_amount` and `default_key` become `Kind::Range`
-		// (`node.h`), so the node count falls 55 -> **52** while the instance count rises. Finally it
-		// retires `audio_source_selector` into a sixth `ContextMenuItem` -- the class the five
-		// `ResetItem`s became when a second kind of context-menu opener appeared
-		// (`nodes/context_menu_items.h`) -- so **forty-two**.
+		// Every custom node has an item of its own and no two nodes share one, so there are as many
+		// distinct instances as custom nodes (55) and `nodes::kPending` is not among them -- nothing
+		// points at it. `output_items_spec.cpp` asserts the placeholder-free claim directly.
 		//
-		// E3 task 6 adds **nine**: two `FileBrowserItem`s, five `MarkerItem`s and two
-		// `AudioRecorderItem`s (`nodes/sample.h`) -- so **fifty-one**. Nine instances rather than
-		// three, for the reason the twelve MIDI-command items are twelve: `on_focus` is handed a
-		// `MenuContext` and a `MenuState`, never its own `Node`, so an item shared across the two
-		// oscillators could not tell which source it was being focused as. They move no node count
-		// either: all nine were already `Kind::Custom` nodes pointing at `kPending`.
-		//
-		// E3 task 7 adds the last two -- `kMidiDeviceLinked` and `kSpecificOutputSelector`
-		// (`nodes/output_items.h`) -- and **`nodes::kPending` leaves the set with them**, because
-		// nothing points at it any more. So the count goes 51 -> **52**, not 53, and it is now
-		// exactly `kShippedCustomNodes`: every custom node has an item of its own, and no two nodes
-		// share one. `output_items_spec.cpp` asserts the placeholder-free claim directly.
-		//
-		// Twelve instances rather than one parameterised by the node, because the command a node
-		// binds has to be a property of the item: `CustomItem::learn_*` is handed `MenuState`, not
-		// its own `Node`, so an item that shared one instance across the twelve could not tell which
-		// of the twelve slots it was being asked to learn onto.
-		//
-		// E3 task 8 adds **three**, and they are the first additions that are also *new nodes*
-		// rather than retired placeholders: `kMpeDirectionItem`, `kMpeZoneItem` and
-		// `kMpeZoneChannelsItem` (`nodes/midi_device.h`), the three pages of the MPE arm under the
-		// per-device MIDI page `midi_devices` now chains to. All three are bespoke because their
-		// value is `MenuState` navigation state (`mpe_direction`/`mpe_zone`) that a
-		// `Binding::get`/`set` -- handed only a `const MenuContext&` -- cannot see, and the
-		// direction selector additionally computes its title from that value. The other four
-		// children of that page are ordinary data nodes. So the count goes 52 -> **55**.
+		// Items are per-node rather than shared or parameterised by the node, because the state an
+		// item acts on has to be a property of the item: `CustomItem::on_focus` and
+		// `CustomItem::learn_*` are handed a `MenuContext` and a `MenuState`, never their own
+		// `Node`, so an instance shared across the two oscillators (the `FileBrowserItem`s,
+		// `MarkerItem`s and `AudioRecorderItem`s), across the three `EditNameItem` targets, the five
+		// context-menu openers, the four `ActionItem`s, the two `ActiveScalesItem`s (one per
+		// `ScaleSet`) or the twelve `MidiCommandItem`s (one per learnable `GlobalMIDICommand`) could
+		// not tell which of its nodes it was being asked about. The families are
+		// `BatteryLevelItem` and `FirmwareVersionItem`; `kEditClipName`, `kEditOutputName` and
+		// `kEditDrumName` (`edit_name.h`); the `ContextMenuItem`s (`nodes/context_menu_items.h`);
+		// `kMidiCommandPlayItem` .. `kMidiCommandShiftItem` (`midi_command.h`); `kPatchCablesItem`,
+		// the two `SourceSelectionItem`s (regular/range), the two navigated `PatchCableStrengthItem`s
+		// plus the two `Fixed` ones (`kVibratoItem`, `kSidechainVolumeItem`) and `kMultiRangeItem`;
+		// `kCvSelectionItem`, `kGateSelectionItem` and `kMidiDevicesItem` (`nodes/dynamic.h`); the
+		// four `ActionItem`s (`kStartStemExportItem`, `kSetClipLengthItem`, `kSongMidiLearnItem`,
+		// `kConfigureSongMacrosItem`) and `kPerformEditorItem` (`nodes/actions.h`); the
+		// `ActiveScalesItem`s (`nodes/scales.h`); the sample family (`nodes/sample.h`);
+		// `kMidiDeviceLinked` and `kSpecificOutputSelector` (`nodes/output_items.h`); and
+		// `kMpeDirectionItem`, `kMpeZoneItem` and `kMpeZoneChannelsItem` (`nodes/midi_device.h`), the
+		// three pages of the MPE arm under the per-device MIDI page `midi_devices` chains to. Those
+		// three are bespoke because their value is `MenuState` navigation state
+		// (`mpe_direction`/`mpe_zone`) that a `Binding::get`/`set` -- handed only a
+		// `const MenuContext&` -- cannot see, and the direction selector additionally computes its
+		// title from that value.
 		expect(distinct_items).to_equal(size_t(55));
 		expect(distinct_items).to_equal(menu::kShippedCustomNodes); // one item per node, nothing shared
 
@@ -832,16 +801,14 @@ describe shortcuts_validation("scenes::menu shortcut tables: validation", $ {
 	});
 
 	it("owes no placeholder at all, and says so by identity rather than by a count", _ {
-		// E2 task 12 made this a SET rather than a count, because a count is a net with a hole in
-		// it: an item task that finished one placeholder and a table that added another somewhere
-		// else would cancel out, and the number that says "the tree is not done" would not move.
+		// This is a SET rather than a count, because a count is a net with a hole in it: one
+		// placeholder finished and another added somewhere else would cancel out, and the number that
+		// says "the tree is not done" would not move.
 		//
-		// **E3 tasks 6 and 7 emptied the set.** Task 6 took nine rows out (the file/sample family:
-		// `nodes/sample.h`) and task 7 the last two -- `midi_device_linked` and
-		// `specific_output_selector`, now `nodes::kMidiDeviceLinked` and
-		// `nodes::kSpecificOutputSelector` (`nodes/output_items.h`). The example is kept, empty,
-		// rather than deleted: this is the assertion a table that adds a *new* placeholder fails,
-		// and it is the only one that names which node arrived.
+		// **The set is empty**: the file/sample family (`nodes/sample.h`) and
+		// `nodes::kMidiDeviceLinked` / `nodes::kSpecificOutputSelector` (`nodes/output_items.h`) all
+		// have real items. The example is kept, empty: it is the assertion a table that adds a *new*
+		// placeholder fails, and it is the only one that names which node arrived.
 		//
 		// Named nodes, not string ids: two oscillators declare `FILE_BROWSER` under the same name
 		// (`nodes/sound_osc.h`'s `SOURCE_NODES` macro), so a set keyed on the label could not tell
@@ -881,9 +848,8 @@ describe shortcuts_validation("scenes::menu shortcut tables: validation", $ {
 		}
 		expect(describe(found)).to_equal(describe(want));
 
-		// And the rule itself agrees with the walk. There is no flag to put down any more: the
-		// option that used to suppress `PlaceholderCustom` was deleted with the last placeholder
-		// (`validate.h`), so a default-constructed `ValidateOptions` IS the strict one. (The
+		// And the rule itself agrees with the walk. There is no option that suppresses `PlaceholderCustom` (`validate.h`), so a
+		// default-constructed `ValidateOptions` IS the strict one. (The
 		// shortcut sweep stays on -- this is `kAllRoots`, the one caller for which it means
 		// anything.)
 		const auto strict = menu::validate_tree(nodes::kAllRoots, {}, {}, {}, menu::ValidateOptions{});
@@ -897,10 +863,10 @@ describe shortcuts_validation("scenes::menu shortcut tables: validation", $ {
 	});
 
 	it("numbers the tree when the application's registry is built, not only when a spec asks", _ {
-		// Fix round 2, M1. `assign_node_ids` had no non-spec caller, so `MenuScene::save_state`,
-		// `restore_state` and the shortcut-pad jump each silently no-opped in an application that
-		// had built its registry and nothing else. `scenes::assigned_node_ids()` is now called from
-		// both `menu_scene()` and `scene_registry()`.
+		// `MenuScene::save_state`, `restore_state` and the shortcut-pad jump silently no-op unless
+		// `assign_node_ids` has run, so `scenes::assigned_node_ids()` is called from both
+		// `menu_scene()` and `scene_registry()` and an application that built only its registry
+		// still has numbered nodes.
 		//
 		// Written so it does not depend on which spec ran before it: the registry's own count is
 		// compared against a fresh numbering of the very set it numbers, and the roots are then
@@ -1058,7 +1024,7 @@ describe shortcut_blink_cadence("scenes::menu shortcut blink: legacy's counter",
 	using deluge::ui::grid::FlashColour;
 	using deluge::ui::grid::PadFlash;
 
-	// `SoundEditor::blinkShortcut` (`sound_editor.cpp:1205-1245`): the counter's even steps are the
+	// `SoundEditor::blinkShortcut`: the counter's even steps are the
 	// 20 ms source phase, the odd steps the 180 ms param phase; `counter >> 1` is the cycle the
 	// frequency masks are tested against.
 

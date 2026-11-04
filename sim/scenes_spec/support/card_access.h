@@ -5,11 +5,10 @@
 ///        (`SdRoot`) and why the audio engine must be held still while the catalogue works
 ///        (`QuietAudio`).
 ///
-/// Both were born inside `file_catalogue_spec.cpp` (task 1 of the 2026-09-02 plan) and are hoisted
-/// here by task 2, because `QuietAudio` is not a convenience -- **it is the disarm for a landmine
-/// that segfaults a spec process rather than failing it**, and the next three specs in this plan
-/// all have to step over it. A guard that has to be re-derived from a task report is a guard that
-/// will eventually be re-derived wrong; one `#include` is not.
+/// They live here because `QuietAudio` is not a convenience -- **it is the disarm for a landmine
+/// that segfaults a spec process rather than failing it**, and every spec that drives a listing has
+/// to step over it. A guard that has to be re-derived in each spec will eventually be re-derived
+/// wrong; one `#include` is not.
 ///
 /// @warning **Include this BEFORE `<cppspec.hpp>`.** CppSpec `#define`s `it` (its own DSL keyword),
 ///          and this header pulls in `processing/engines/audio_engine.h`, whose include closure

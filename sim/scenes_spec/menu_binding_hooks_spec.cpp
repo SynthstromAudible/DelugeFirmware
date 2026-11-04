@@ -1,5 +1,5 @@
 /// @file
-/// @brief Three optional `Binding` hooks (E-note-family task 3): `adjust`, `value_text` and
+/// @brief Three optional `Binding` hooks: `adjust`, `value_text` and
 ///        `permitted` -- driven through a real `Shell` over `uitest::FakeSurfaceSet`, the same rig
 ///        `menu_horizontal_controls_spec.cpp` uses, plus direct calls on `menu_scene()` (as
 ///        `menu_scene_spec.cpp`'s `firmware_version` example does) for the checks that need pixels
@@ -295,7 +295,7 @@ describe menu_binding_hooks("scenes::menu::MenuScene Binding hooks (adjust, valu
 	});
 
 	it("on_enter() discards a staged offset through retarget(), unmasked by open()'s own reset", _ {
-		// Fix round 1, Important 1's regression, `retarget()`'s half (fix round 3): `on_enter` is
+		// Regression pin for `retarget()`'s half: `on_enter` is
 		// public (`MenuScene::on_enter`) and, on its `arg == 0` fallback,
 		// reads `ctx_.root` -- already set by `r.open()` below -- looks up `roots()[ctx_.root]`, and
 		// calls `retarget(*target)` with **no preceding `st_ = MenuState{}`**. That is the
@@ -363,11 +363,10 @@ describe menu_binding_hooks("scenes::menu::MenuScene Binding hooks (adjust, valu
 		r.shell.tick(20);
 
 		// Read right here, before any further tick: `Shell::tick` drains `notify::notices()` at
-		// the *start* of the next tick (`shell.cpp:330`), so a second tick before this read would
+		// the *start* of the next tick (`Shell::tick`), so a second tick before this read would
 		// silently eat any notice raised at the tick above, whether or not one actually was --
 		// making the assertion pass either way. `menu_horizontal_controls_spec.cpp`'s "a select
-		// turn on a focused submenu column does nothing" example names the same trap (fix round 1,
-		// Important 2).
+		// turn on a focused submenu column does nothing" example names the same trap.
 		expect(last_notice().empty()).to_be_true();
 
 		expect(g_permit_get_value).to_equal(5);

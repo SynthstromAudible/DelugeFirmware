@@ -3,7 +3,7 @@
 ///        application globals.
 ///
 /// Three settings the ported tree and the guest's `Shell` cannot read for themselves, plus the
-/// three services that could not be installed at all until F1 task 2. This is the spec level they
+/// three services the wiring installs. This is the spec level they
 /// can be checked at: the host suite (`tests/spec/gui/shell_host_ui_spec.cpp`) deliberately never
 /// builds the `deluge_scenes` closure, so it can see that `ShellHostUI::opened()` *calls* the wiring
 /// but not what the wiring installs; this executable links the real `deluge_scenes` **and** the real
@@ -147,13 +147,13 @@ describe boot_shortcuts_version("the shortcut layout follows flash byte 60", $ {
 		// **This function is the whole of the wiring, which is why the example drives it and not a
 		// helper.** It is the sole writer of `shortcutsVersion`, and all four paths that change the
 		// setting go through it: `FlashStorage::readSettings` at boot
-		// (`storage/flash_storage.cpp:568`, from byte 60), `FlashStorage::resetSettings` (`:311`,
-		// reached from the legacy reset menu AND from the ported one --
+		// (`storage/flash_storage.cpp:568`, from byte 60), `FlashStorage::resetSettings` (reached
+		// from the legacy reset menu AND from the ported one --
 		// `scenes/context_menu/context_menu_scene.cpp`'s `accept_reset_flash` / `accept_reset_all`),
 		// and `shortcuts::Version::writeCurrentValue` (`gui/menu_item/shortcuts/version.h:27`).
-		// Each of those four is one call of exactly the shape below; the fix round put the mirror
-		// here for that reason, after a version at three call sites missed the two ported reset
-		// arms. Not driven from `resetSettings` itself: it rewrites every setting this process
+		// Each of those four is one call of exactly the shape below; the mirror is put
+		// here for that reason, because a version set at only three call sites misses the two
+		// ported reset arms. Not driven from `resetSettings` itself: it rewrites every setting this process
 		// shares with the other twenty specs in this binary.
 		//
 		// Both values byte 60 can hold, in both directions -- a mirror that only ever wrote V1
@@ -229,8 +229,8 @@ describe boot_services("the three services, installed into the guest's own Shell
 		expect(slots.global_controls != nullptr).to_be_true();
 		expect(slots.midi_learn != nullptr).to_be_true();
 		// `Services`' own defaults are all three pointing at the one shared `null_service()`, which
-		// is what an application could only ever pass before `Shell::set_services` existed
-		// (migration §10.2 item 7). Naming it is what makes "installed" mean something.
+		// is what an application passes without `Shell::set_services`.
+		// Naming it is what makes "installed" mean something.
 		const deluge::ui::shell::Service* null_slot = &deluge::ui::shell::null_service();
 		expect(slots.mod_knobs != null_slot).to_be_true();
 		expect(slots.global_controls != null_slot).to_be_true();
@@ -247,7 +247,7 @@ describe boot_services("the three services, installed into the guest's own Shell
 	});
 
 	it("none of the three asks to be woken at rest, so the guest's 1 ms floor stays latent", _ {
-		// F1 task 7 recorded a 1 kHz cost that becomes live the moment a stacked scene or an
+		// A 1 kHz cost becomes live the moment a stacked scene or an
 		// installed service reports a **zero** timer: the guest converts `Shell::next_wake()` into a
 		// `UI_SPECIFIC` duration with a 1 ms floor, so a zero answer runs legacy's whole 29-timer
 		// sweep and a full grid render at up to 1 kHz where `graphicsRoutine` runs at ~66 Hz. It is
@@ -268,7 +268,7 @@ describe boot_services("the three services, installed into the guest's own Shell
 		currentSong = f.song;
 
 		// Legacy's root views set this on `focusRegained`
-		// (`model/clip/instrument_clip_minder.cpp:291-294`); the port has no way to read it, and an
+		// (`InstrumentClipMinder::focusRegained`); the port has no way to read it, and an
 		// unseeded `ModKnobs` reports `mode() == -1`, which makes its `leds()` declare all eight mod
 		// LEDs off and its indicators declare level 0 on both rings -- every tick the guest runs.
 		view.setActiveModControllableTimelineCounter(f.clip);

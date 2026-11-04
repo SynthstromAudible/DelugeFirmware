@@ -2,12 +2,11 @@
 /// @brief The batch-2 menu tables -- the whole sound-editor root -- cross-checked against the
 ///        legacy menu items they replace.
 ///
-/// Task 6 declared six subtrees (filters, compressor, unison, oscillators, envelopes, LFOs) and
-/// stopped below the root. Task 7 declares the root itself and everything else hanging off it:
-/// actions, master, arpeggiator, randomizer, FX, sidechain, voice, bend, the sequence direction
-/// and the output-MIDI page. The legacy objects are still linked into this binary (they are
-/// `gui/ui/menus.cpp`'s globals), so the whole transcription is checked against the originals
-/// rather than against a second hand-written list:
+/// Batch 2 covers the six sound subtrees (filters, compressor, unison, oscillators, envelopes,
+/// LFOs) and the root itself with everything else hanging off it: actions, master, arpeggiator,
+/// randomizer, FX, sidechain, voice, bend, the sequence direction and the output-MIDI page. The legacy objects are
+/// still linked into this binary (they are `gui/ui/menus.cpp`'s globals), so the whole transcription is checked against
+/// the originals rather than against a second hand-written list:
 ///
 ///   * the tree walks in lockstep with the legacy tree -- same children, same order, same count,
 ///     at every level from `soundEditorRootMenu` down;
@@ -132,7 +131,7 @@ extern legacy::voice::PolyphonyType polyphonyMenu;
 extern legacy::unison::CountToStereoSpread numUnisonMenu;
 /// @}
 
-/// @name E2 task 9's own legacy globals: the three items and the four pages they chain through.
+/// @name The patch-cable pages' own legacy globals: the three items and the four pages they chain through.
 ///
 /// `patchCablesMenu` (`gui/ui/menus.cpp:1737`), `vibratoMenu` (`:1727`) and
 /// `sidechainVolumeShortcutMenu` (`:806`) are the three the port replaces outright; the four page
@@ -196,7 +195,7 @@ void install(const MenuContext& ctx, Song* song) {
 	// it -- straight from `Sound::allowNoteTails` over the fixture's own model stack -- so the
 	// comparison against the port's `allows_note_tails` fact stays a real one.
 	soundEditor.allowsNoteTails = spec::sound_allows_note_tails(ctx);
-	// Legacy's affect-entire branches all test this (`unpatched_param.cpp:52` and the twenty-odd
+	// Legacy's affect-entire branches all test this (`gui/menu_item/unpatched_param.cpp` and the twenty-odd
 	// items that spell the same condition); the port's half is `MenuContext::affect_entire_held`.
 	// Kept in step so a spec that sets one sets the other.
 	currentUIMode = ctx.affect_entire_held ? UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR : 0;
@@ -272,9 +271,9 @@ MenuContext select_drum(KitRig& k, Drum* drum, bool affect_entire_held = false) 
 /// @brief Why there is no MIDI-clip context here.
 ///
 /// Every `isRelevant` override in this tree begins `static_cast<Sound*>(modControllable)` and
-/// dereferences it (`osc/audio_recorder.h:62`, `synth_mode.h:70-72`, ...): the sound-editor root is
+/// dereferences it (`osc::AudioRecorder::isRelevant`, `synth_mode.h`, ...): the sound-editor root is
 /// only ever opened over a `Sound`, and legacy segfaults if asked otherwise -- which it never is,
-/// because a MIDI clip opens `soundEditorRootMenuMIDIOrCV` instead (task 8's tree). So the two
+/// because a MIDI clip opens `soundEditorRootMenuMIDIOrCV` instead. So the two
 /// contexts a *faithful* comparison can use are a synth clip and a kit row with a `SoundDrum`
 /// selected, and the `midi_cv` variants stay structurally unreachable from this root. That is not a
 /// gap in the check: it is the very property that lets legacy give a variant pair one name, and the
@@ -325,11 +324,11 @@ struct Pair {
 
 	/// @brief The `soundEditor.navigationDepth` this item is *displayed* at.
 	///
-	/// Legacy sets it to 0 while the root list is on screen (`sound_editor.cpp:1902`) and
-	/// increments on the way into a submenu (`:328`), so the items **inside** a first-level
+	/// Legacy sets it to 0 while the root list is on screen and
+	/// increments on the way into a submenu, so the items **inside** a first-level
 	/// submenu are drawn at depth 1 -- i.e. one less than their own distance from the root. Two
-	/// legacy `isRelevant` overrides read it (`bend_range/per_finger.h:41` is the one this tree
-	/// reaches), so a faithful comparison has to supply it (review round 1, I1).
+	/// legacy `isRelevant` overrides read it (`bend_range::PerFinger::isRelevant` is the one this tree
+	/// reaches), so a faithful comparison has to supply it.
 	int32_t navigation_depth() const { return depth > 0 ? depth - 1 : 0; }
 };
 
@@ -431,19 +430,19 @@ bool legacy_write(::MenuItem* item, int32_t v) {
 /// Every one reaches a UI global that only a booted app has. The point of listing them here rather
 /// than quietly narrowing the loop is that the list is short, named and citable.
 ///
-/// **It suppresses the legacy call only** (fix round 2, I1). Skipping the pair used to take the
+/// **It suppresses the legacy call only** Skipping the pair would take the
 /// *port's* hook out of the oracle too, and the read comparison does not stand in for it:
 /// `bindings::read(arp_preset)` sees only `arp->preset`, which `set_arp_preset` assigns trivially,
 /// so `updateSettingsFromCurrentPreset()`, `flagForceArpRestart` and the whole
-/// `silence_for_arp_toggle` block (`nodes/sound_arp.cpp:80-149`) had no assertion anywhere in the
-/// suite. The `drives the port hook of every node the legacy write comparison excludes` example
-/// below drives all four port hooks alone and asserts what each persists; its `covered` tally is
-/// what makes a fifth exclusion without coverage a failure.
+/// arpeggiator-toggle silencing (`silenceArp` in `setting_projection.cpp`, ending in `Sound::allNotesOff` on a sounding
+/// clip) would have no assertion anywhere in the suite. The `drives the port hook of every node the legacy write
+/// comparison excludes` example below drives all four port hooks alone and asserts what each persists; its `covered`
+/// tally is what makes a fifth exclusion without coverage a failure.
 constexpr const Node* kLegacyWriteNeedsUi[] = {
     &nodes::synth_mode,  // `view.setKnobIndicatorLevels()` (`synth_mode.h:57`)
     &nodes::arp_mode,    // `allNotesOff` over `soundEditor.getCurrentModelStack` (`mode.h:45-65`)
     &nodes::arp_preset,  // the same block (`preset_mode.h:50-70`)
-    &nodes::mod_fx_type, // `display->displayError` on failure (`mod_fx/type.h:53 writeCurrentValue`, `:59`)
+    &nodes::mod_fx_type, // `display->displayError` on failure (`mod_fx::Type::writeCurrentValue`)
 };
 
 bool legacy_write_needs_ui(const Node& node) {
@@ -455,7 +454,7 @@ bool legacy_write_needs_ui(const Node& node) {
 	return false;
 }
 
-/// @brief Reach `Output::activeClip`, which is `protected` (`model/output.h:235`) and whose only
+/// @brief Reach `Output::activeClip`, which is `protected` (`model/output.h`) and whose only
 ///        public setter also re-sends MIDI program changes. The [class.protected] route
 ///        `SubmenuPeek` uses, applied to `Output`; never instantiated.
 struct OutputPeek : ::Output {
@@ -524,7 +523,7 @@ struct Rig {
 	Rig(const Rig&) = delete;
 	Rig& operator=(const Rig&) = delete;
 
-	/// @brief Tear the stack down, so every scene's `on_exit` always runs (E3 task 10).
+	/// @brief Tear the stack down, so every scene's `on_exit` always runs.
 	///
 	/// `MenuScene` is a process singleton (`shell/scene.h`'s `SceneState` cache): an example that
 	/// left it -- or anything pushed above it -- on the stack would make the NEXT example's
@@ -552,7 +551,7 @@ struct Rig {
 	/// @brief One select-encoder press edge, at its own matrix position (`kMatrix`,
 	///        `shell/profiles/deluge.cpp` -- the same (4, 3) `menu_scene_spec.cpp` names).
 	///
-	/// Added for E2 task 9's goldens: the patch-cable strength and source-selection pages are
+	/// The patch-cable strength and source-selection pages are
 	/// reached only through a select press, so a golden of either has to press one.
 	void enter(uint32_t at_ms) {
 		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, 4, 3, 255}, at_ms);
@@ -612,7 +611,7 @@ const Node* chained_node_for(::MenuItem* item) {
 	if (item == &legacy::voice::polyphonicVoiceCountMenu) {
 		return &nodes::voice_count;
 	}
-	// E2 task 9's four patch-cable pages.
+	// The four patch-cable pages.
 	if (item == &legacy::source_selection::regularMenu) {
 		return &nodes::source_selection_regular;
 	}
@@ -813,8 +812,8 @@ describe tables_2_shape("scenes::menu batch-2 tables: shape", $ {
 		(void)fixture();
 		// `MenuItem::getOccupiedSlots()` is protected, so the overridden counts are asserted
 		// against the values their sources state: `mod_fx::Type` draws the whole four-slot page
-		// (`mod_fx/type.h:69-72`), and both rhythm items take two
-		// (`arpeggiator/rhythm.h:51-52`, `arpeggiator/midi_cv/rhythm.h:70`).
+		// (`mod_fx/type.h`), and both rhythm items take two
+		// (`arpeggiator/rhythm.h`, `arpeggiator/midi_cv/rhythm.h`).
 		expect(int(nodes::mod_fx_type.slots)).to_equal(4);
 		expect(int(nodes::arp_rhythm.slots)).to_equal(2);
 		expect(int(nodes::arp_rhythm_midi.slots)).to_equal(2);
@@ -921,8 +920,8 @@ describe tables_2_values("scenes::menu batch-2 tables: values", $ {
 	});
 
 	it("shows the per-finger bend range wherever legacy shows it", _ {
-		// Review round 1, I1. `perFingerBendRangeMenu` lives only inside `bendMenu`, i.e. at
-		// `navigationDepth == 1`, where `per_finger.h:41`'s first arm short-circuits to true --
+		// `perFingerBendRangeMenu` lives only inside `bendMenu`, i.e. at
+		// `navigationDepth == 1`, where `bend_range::PerFinger::isRelevant`'s first arm short-circuits to true --
 		// so legacy always draws it on the Bend Range page, including on a synth where
 		// `editingKit()` is false. The node must agree, or the page loses one of its two items.
 		Rigged& synth = fixture();
@@ -1032,18 +1031,18 @@ describe tables_2_chaining("scenes::menu batch-2 tables: selectButtonPress chain
 			int32_t value; ///< written to both sides before the press
 		};
 		const Case cases[] = {
-		    // `PresetMode::selectButtonPress` (`preset_mode.h:109-118`): CUSTOM opens a page, every
+		    // `PresetMode::selectButtonPress` (`arpeggiator/preset_mode.h`): CUSTOM opens a page, every
 		    // other preset ascends. Both ends of that are probed, not just the interesting one.
 		    {&nodes::arp_preset, &arpPresetModeMenu, int32_t(ArpPreset::CUSTOM)},
 		    {&nodes::arp_preset, &arpPresetModeMenu, int32_t(ArpPreset::UP)},
 		    {&nodes::arp_preset, &arpPresetModeMenu, int32_t(ArpPreset::OFF)},
-		    // `PolyphonyType::selectButtonPress` (`voice/polyphony.h:139-143`): POLY opens the voice
+		    // `PolyphonyType::selectButtonPress` (`voice/polyphony.h`): POLY opens the voice
 		    // count, everything else falls through to `Selection::selectButtonPress`, which for the
-		    // open menu is "go up" (`selection.h:54-64`).
+		    // open menu is "go up" (`Selection::selectButtonPress`).
 		    {&nodes::polyphony, &polyphonyMenu, int32_t(PolyphonyMode::POLY)},
 		    {&nodes::polyphony, &polyphonyMenu, int32_t(PolyphonyMode::MONO)},
 		    {&nodes::polyphony, &polyphonyMenu, int32_t(PolyphonyMode::AUTO)},
-		    // `CountToStereoSpread::selectButtonPress` (`unison/count.h:76-79`): unconditional, so
+		    // `CountToStereoSpread::selectButtonPress` (`unison/count.h`): unconditional, so
 		    // two different counts must give the same answer.
 		    {&nodes::unison_count, &numUnisonMenu, 1},
 		    {&nodes::unison_count, &numUnisonMenu, 4},
@@ -1080,7 +1079,7 @@ describe tables_2_chaining("scenes::menu batch-2 tables: selectButtonPress chain
 	});
 
 	it("opens the drum twin of the octave-mode page when a kit row is being edited", _ {
-		// The other half of `PresetMode::selectButtonPress` (`preset_mode.h:112-115`):
+		// The other half of `PresetMode::selectButtonPress` (`PresetMode::selectButtonPress`):
 		// `soundEditor.editingKitRow()` picks `arpOctaveModeToNoteModeMenuForDrums`. The synth
 		// fixture above can never show it, so it needs the kit fixture.
 		KitRig& k = kit_fixture();
@@ -1279,8 +1278,8 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 	});
 
 	it("chains every PATCHED node, and only those", _ {
-		// E2 task 3 measured the affected set by `dynamic_cast<PatchedParam*>` over a lockstep walk
-		// and found it to be **exactly** the nodes with `bind.param.kind == PATCHED`, 53 of them.
+		// The affected set, measured by `dynamic_cast<PatchedParam*>` over a lockstep walk, is
+		// **exactly** the nodes with `bind.param.kind == PATCHED`, 53 of them.
 		// That equality is what `with_patch_chain` is applied on, so it is what is pinned here:
 		// every PATCHED node chains to `source_selection_regular`, and no node that chains there is
 		// anything else.
@@ -1596,7 +1595,7 @@ describe tables_2_pixels("scenes::menu batch-2 tables: pixels", $ {
 	it("renders the mod-matrix list and the cable-strength page, on both shipped panel geometries", _ {
 		// Both geometries for both pages, because neither screen has a golden anywhere else and the
 		// row arithmetic behind them (`menu_rect`, `title`, `decimal_value`) is panel-dependent --
-		// task 8 shipped a 64-row bug for exactly this reason.
+		// a 64-row bug once shipped for exactly this reason.
 		Rigged& f = fixture();
 		install(f.ctx, f.song.song);
 		deluge::synth::CableTarget plain = deluge::synth::CableTarget::depth_of(deluge::modulation::params::LOCAL_LPF_FREQ, PatchSource::ENVELOPE_1);
@@ -1703,14 +1702,14 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 		// `ParamRef` nodes are deliberately not here: legacy's `UnpatchedParam::writeCurrentValue`
 		// resolves its model stack through `SoundEditor::getCurrentModelStack`, which with no root
 		// UI open takes its `!rootUIIsClipMinderScreen()` arm (`sound_editor.cpp:2041`) and writes
-		// the *song's* param collection where the port writes the clip's. That is the divergence
-		// task 6 recorded as its concern 8; it is a property of the harness, not of the tables, and
+		// the *song's* param collection where the port writes the clip's. That is a divergence
+		// that is a property of the harness, not of the tables, and
 		// `bindings_spec` already covers the param write path end to end. The next example covers
 		// what is specific to this batch's param nodes instead.
 		Rigged& f = fixture();
 		install(f.ctx, f.song.song);
 		size_t exercised = 0;
-		// Fix round 2, I2: the assertion is the **set of distinct nodes driven**, derived from the
+		// The assertion is the **set of distinct nodes driven**, derived from the
 		// table itself (every node in the walk with a `set` hook, minus the named exclusions), not a
 		// probe count with slack -- a count of "> 100" could absorb a node dropped from a table or a
 		// relevance predicate going false in this fixture.
@@ -1787,7 +1786,7 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 		}
 		expect(exercised).to_equal(size_t(3) * pair_probes);
 		// Exactly one node in this tree edits such a param; the other `UpdatingReverbParams` item,
-		// `sidechain::GlobalVolume` (`sidechain/volume_global.h:6`), belongs to task 8's roots.
+		// `sidechain::GlobalVolume` (`sidechain/volume_global.h`), belongs to batch 3's roots.
 		std::set<const Node*> flagged;
 		for (const Pair& p : tree().pairs) {
 			if (raises_reverb(*p.node)) {
@@ -1800,14 +1799,13 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 
 	it("sweeps both drums of a kit exactly as legacy's affect-entire loop does", _ {
 		// Review round 1, I5's second half. With AFFECT-ENTIRE held on a kit row, legacy's ~20
-		// hand-written sweeps write every drum in the kit; the port's `apply_to_targets` /
-		// `apply_to_arp_settings` must write the same set. Observing "the same set" generically is
+		// hand-written sweeps write every drum in the kit; the port's the generic fan-out and the
+		// arp items' kit sweep (`SetKitLaneSetting` in `shell_bind_host.cpp`, every lane's arp) must write the same set. Observing "the same set" generically is
 		// what the two-drum fixture buys: select each drum in turn and read the node back.
 		//
-		// Fix round 2: this example kept the pre-I2 shape after fix round 1 touched the three
-		// `*_writes` loops. It ran legacy's sweep first, restored both drums *through the port*, then
-		// ran the port's sweep and compared -- so a port write hook that stored nothing left the kit
-		// at legacy's result throughout and every assertion held. Now each sweep starts from a
+		// Running legacy's sweep first, restoring both drums *through the port*, then running the
+		// port's sweep would leave the kit at legacy's result throughout for a port write hook that
+		// stored nothing, and every assertion would hold. So each sweep starts from a
 		// **sentinel seeded on both drums through legacy's own single-target write**, so a no-op port
 		// sweep leaves `after_port` at the sentinel while `after_legacy` is at `v`.
 		KitRig& k = kit_fixture();
@@ -1891,9 +1889,9 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 		k.drum_a->arpSettings.includeInKitArp = false;
 		k.drum_b->arpSettings.includeInKitArp = false;
 
-		// ... and make drum B refuse: `Sound::envelopeHasSustainEver` (`sound.cpp:4313-4321`) is
+		// ... and make drum B refuse: `Sound::envelopeHasSustainEver` is
 		// false when envelope 0's sustain is at the bottom of its range and its decay does not
-		// exceed its release, and `allowNoteTails` returns false outright when it is (`:1928-1930`).
+		// exceed its release, and `allowNoteTails` returns false outright when it is.
 		NoteRow* row_b = k.song.clip->getNoteRowForDrum(k.drum_b);
 		expect(row_b != nullptr).to_be_true();
 		if (row_b != nullptr) {
@@ -1950,7 +1948,7 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 		// Fix round 2, I1. `kLegacyWriteNeedsUi` above stands the **legacy** call down; it must not
 		// stand the port's down with it. Each of the four hooks is driven here on its own and its
 		// persisted effect asserted -- including the two arpeggiator ones, whose real work
-		// (`silence_for_arp_toggle`, `updatePresetFromCurrentSettings`,
+		// (`silenceArp` on a toggle, `updatePresetFromCurrentSettings`,
 		// `updateSettingsFromCurrentPreset`, `flagForceArpRestart`, and the kit-wide sweep over
 		// every `Drum` rather than every `SoundDrum`) is invisible to `bindings::read`.
 		Rigged& f = fixture();
@@ -1984,8 +1982,8 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 			covered++;
 		}
 
-		// `silence_for_arp_toggle` only fires on a clip that is actually sounding
-		// (`sound_arp.cpp:94`, legacy `mode.h:30`), and `song_fixture.h` never makes its clip the
+		// The toggle's silencing only fires on a clip that is actually sounding
+		// (legacy `arpeggiator/mode.h`), and `song_fixture.h` never makes its clip the
 		// output's active one -- nothing in the fixture plays. Arranged here, and put back.
 		Clip* const saved_active = OutputPeek::active_clip_of(*spec::menu_engine(f.ctx).output);
 		OutputPeek::active_clip_of(*spec::menu_engine(f.ctx).output) = spec::menu_engine(f.ctx).clip;
@@ -1999,7 +1997,7 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 			arp->octaveMode = ArpOctaveMode::DOWN;
 			arp->noteMode = ArpNoteMode::DOWN;
 			// `Sound::allNotesOff` clears this first thing (`sound.cpp:1761-1763`): the one effect
-			// of `silence_for_arp_toggle`'s synth arm that lands in readable model state.
+			// of `silenceArp`'s synth arm that lands in readable model state.
 			spec::menu_engine(f.ctx).sound->invertReversed = true;
 
 			menu::bindings::write(nodes::arp_mode, f.ctx, static_cast<int32_t>(ArpMode::ARP));
@@ -2024,7 +2022,7 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 			menu::bindings::write(nodes::arp_preset, f.ctx, static_cast<int32_t>(ArpPreset::DOWN));
 
 			expect(arp->preset == ArpPreset::DOWN).to_be_true();
-			// `updateSettingsFromCurrentPreset()` (`arpeggiator.cpp:1971-2005`) is the only thing
+			// `ArpeggiatorSettings::updateSettingsFromCurrentPreset()` is the only thing
 			// that moves these three.
 			expect(arp->mode == ArpMode::ARP).to_be_true();
 			expect(arp->octaveMode == ArpOctaveMode::DOWN).to_be_true();
@@ -2042,8 +2040,8 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 		expect(covered).to_equal(std::size(kLegacyWriteNeedsUi));
 
 		// --- and the kit sweep the generic `*_writes` loop cannot reach for these two ----------
-		// `apply_to_arp_settings` (`sound_arp.cpp:56-68`) visits every `Drum`, not every
-		// `SoundDrum` the way `apply_to_targets` does -- so the affect-entire sweep for the arp
+		// The arp items' kit sweep (`SetKitLaneSetting`) reaches every `Drum`'s lane, not every
+		// `SoundDrum` the way the generic fan-out does -- so the affect-entire sweep for the arp
 		// items needs its own check. Both drums must come out fully re-derived, not merely with
 		// `preset` stored.
 		KitRig& k = kit_fixture();

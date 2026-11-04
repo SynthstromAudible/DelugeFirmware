@@ -1,11 +1,11 @@
 /// @file
-/// @brief `MenuScene` horizontal-page controls (E-note-family task 2): the select turn edits the
+/// @brief `MenuScene` horizontal-page controls: the select turn edits the
 ///        focused column, the instrument buttons focus and page-switch, and a select press on a
 ///        value column follows its chain or ascends -- all driven through a real `Shell` over
 ///        `uitest::FakeSurfaceSet`, the same rig `menu_scene_spec.cpp` uses.
 ///
 /// The tree under test is declared here rather than taken from `src/scenes/menu/nodes/`, for the
-/// same reason `menu_scene_spec.cpp`'s is: this task's subject is the interpreter, not the data,
+/// same reason `menu_scene_spec.cpp`'s is: this file's subject is the interpreter, not the data,
 /// and the shipped `nodes::lpf` (four value columns, no submenu column, no range-dependent one) is
 /// not shaped to exercise every arm this file has to -- `is_submenu`'s no-op, `select_chain`'s
 /// both branches, and `Permission::MustSelectRange` reached by a button, all need a column the
@@ -408,7 +408,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(0); // still ENUM_COL
 
 		// ...and notifies (`:328` -> `displayNotification`, `:342`). Read before any further tick:
-		// the next tick's step 2 would drain it (`shell.cpp:330`).
+		// the next tick's notice drain (`Shell::tick`) would take it.
 		const deluge::notify::Notice n = expect_one_notification(self, raised_notices());
 		expect(std::string(n.notification_title())).to_equal(std::string(deluge::l10n::get(String::STRING_FOR_MODE)));
 		expect(std::string(n.notification_value()).empty()).to_be_false();
@@ -564,7 +564,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		expect(static_cast<int>(slot.art.char_gap)).to_equal(2);
 		expect(slot.art.zero_as_x).to_be_true();
 		expect(static_cast<int>(slot.art.dx)).to_equal(2);
-		// Neither overrides `getColumnLabel` (the MIDI/CV one's base spells the full name, `arp_integer.h:30`): the two
+		// Neither overrides `getColumnLabel` (the MIDI/CV one's base spells the full name, `ArpNonSoundInteger::getColumnLabel`): the two
 		// slots carry the whole name.
 		const std::string rhythm = deluge::l10n::get(String::STRING_FOR_RHYTHM);
 		expect(std::string(col.label)).to_equal(rhythm);
@@ -865,7 +865,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 	});
 
 	it("the voice usage sampler keeps main's live, average and maximum", _ {
-		// `cpu::VoiceUsage::sample` and `averageVoiceCount` (`cpu/voice_usage.h:94-106`): a whole-number average.
+		// `cpu::VoiceUsage::sample` and `averageVoiceCount` (`cpu/voice_usage.h`): a whole-number average.
 		menu::VoiceUsageSampler s;
 		s.sample(4);
 		s.sample(8);
@@ -1259,7 +1259,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 
 	it("the sample and audio-clip reverse turn the other way on a page; the oscillator type wraps", _ {
 		// `sample::Reverse`/`audio_clip::Reverse::selectEncoderAction` (`sample/reverse.h:81-86`,
-		// `audio_clip/reverse.h:84`); `osc::Type::wrapAround` (`osc/type.h:158-160`).
+		// `audio_clip/reverse.h`); `osc::Type::wrapAround` (`osc/type.h:158-160`).
 		select_language();
 		Rig r;
 		const MenuContext ctx = r.open(horiz_page);
@@ -1480,7 +1480,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		                                                       listed, menu::bindings::ListFor::Columns);
 		expect(columns > 16).to_be_true();
 
-		// A shortcut to the last column lands on it (`focusChild` over every member, `horizontal_menu_group.cpp:209-221`).
+		// A shortcut to the last column lands on it (`focusChild` over every member, `HorizontalMenuGroup::focusChild`).
 		const Node* last = listed[columns - 1];
 		const uint16_t arg = menu_scene().arm_shortcut_landing(*last);
 		r.shell.init(SceneId{SceneKind::FirstApp, arg});
@@ -1542,7 +1542,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 	});
 
 	it("a group lists its members' columns, not the member pages themselves", _ {
-		// `HorizontalMenuGroup::hasItem` asks each member menu's items (`horizontal_menu_group.cpp:209-211`): entering
+		// `HorizontalMenuGroup::hasItem` asks each member menu's items (`horizontal_menu_group.cpp`): entering
 		// ARPEGGIATOR > BASIC from the vertical list opens the BASIC page alone, not the arpeggiator group.
 		expect(menu::page_lists(menu::nodes::arp_group, menu::nodes::arp_gate)).to_be_true();
 		expect(menu::page_lists(menu::nodes::arp_group, menu::nodes::arp_basic)).to_be_false();
@@ -1657,12 +1657,11 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 		// below).
 		//
 		// **Must be read right here, before any further tick.** `Shell::tick` drains
-		// `notify::notices()` at the *start* of the next tick (`shell.cpp:330`), so an extra
-		// `r.shell.tick(220)` here (as an earlier version of this test had) would silently eat any
+		// `notify::notices()` at the *start* of the next tick, so an extra
+		// `r.shell.tick(220)` here would silently eat any
 		// notice raised at `press()`'s own internal tick before `last_notice()` ever read it --
 		// making this assertion pass whether or not a banner was actually raised. Verified by
-		// mutation: temporarily deleting `notify_column`'s `Kind::Submenu` guard made this fail
-		// (see task-2-report.md's fix-round-2 section for the failing output).
+		// mutation: temporarily deleting `notify_column`'s `Kind::Submenu` guard makes this fail.
 		expect(last_notice().empty()).to_be_true();
 		r.shell.tick(220);
 
@@ -1685,7 +1684,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 
 		// `press()` already settles with its own internal tick; reading the notice after a
 		// SECOND tick would drain it first (`Shell::tick` drains `notify::notices()` at the start
-		// of the next tick, `shell.cpp:330`), so it must be read right after `press()` returns.
+		// of the next tick), so it must be read right after `press()` returns.
 		(void)last_notice(); // drain
 		r.press(kKitX, kKitY, 200); // new focus: notifies, does not flip
 		expect(static_cast<int>(menu_scene().state().columns[0].focused)).to_equal(1);
@@ -1747,7 +1746,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 	   _ {
 		// `randomizer_lock` (`nodes/sound_randomizer.h`) is `Kind::Enum` with `Node::
 		// selection_is_toggle` set, the port of `randomizer::RandomizerLock::isToggle() { return
-		// true; }` (`gui/menu_item/randomizer/randomizer_lock.h:62`) -- one of the three live
+		// true; }` (`RandomizerLock::isToggle`) -- one of the three live
 		// examples `Node::selection_is_toggle`'s doc names, and the first column
 		// (`kRandomizerChildren[0]`, SYNTH) of the real, shipped `randomizer` horizontal page.
 		select_language();
@@ -1814,7 +1813,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 
 	it("Back at depth 0 on a horizontal page cancels its notification too", _ {
 		// `SoundEditor::goUpOneLevel` runs `endScreen()` (-> `HorizontalMenu::endSession`'s cancel)
-		// **before** its depth-0 arm's `exitCompletely()` (`sound_editor.cpp:711-716`) -- the one
+		// **before** its depth-0 arm's `exitCompletely()` (`SoundEditor::goUpOneLevel`) -- the one
 		// path `descend_to`/`ascend`'s own cancels do not cover, since neither runs for a Back that
 		// closes the whole menu. Ships for real: `reroot_to_scene_opener_page()` lands a claimed
 		// file selector's browser back at depth 0.
@@ -1827,7 +1826,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 
 		r.turn(1, 100); // a select turn on ENUM_COL (column 0) notifies unconditionally
 		r.shell.tick(110); // pump_input raises the notice (queued, not yet drained --
-		                   // `Shell::tick` step 2 drains what a PRIOR tick queued, `shell.cpp:330`)
+		                   // `Shell::tick` drains what a PRIOR tick queued)
 		r.shell.tick(120); // this tick's step 2 drains it, pushing `SceneKind::Notification` (no sink)
 		expect(r.shell.state_lines().find("scene Notification") != std::string::npos).to_be_true();
 		expect(r.shell.state_lines().find("scene Console") != std::string::npos).to_be_false();
@@ -1892,7 +1891,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 	});
 
 	it("CROSS_SCREEN / SCALE page forward and back with wrap", _ {
-		// `switchVisiblePage` (`horizontal_menu.cpp:345-366`), reached from `:85-94`.
+		// `HorizontalMenu::switchVisiblePage`, reached from `:85-94`.
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
@@ -2083,7 +2082,7 @@ describe menu_horizontal_controls("scenes::menu::MenuScene horizontal-page contr
 	});
 
 	it("LEDs: SYNTH/KIT/MIDI/CV light the focused column's slots", _ {
-		// `updateSelectedMenuItemLED` (`horizontal_menu.cpp:546-572`).
+		// `HorizontalMenu::updateSelectedMenuItemLED`.
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;

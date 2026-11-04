@@ -63,7 +63,7 @@
 
 /// The three real legacy items. Defined at global scope in `gui/ui/menus.cpp:1645-1650`; only
 /// `startStemExportMenu`'s neighbours make it into `gui/ui/menus.h`, so these are declared here --
-/// the situation `tables_3_spec.cpp:589` already records for the other file-scope menu globals.
+/// the situation `tables_3_spec.cpp`'s `extern` block already handles for the other file-scope menu globals.
 extern deluge::gui::menu_item::IntegerRange defaultTempoMenu;
 extern deluge::gui::menu_item::IntegerRange defaultSwingAmountMenu;
 extern deluge::gui::menu_item::KeyRange defaultKeyMenu;
@@ -90,7 +90,7 @@ void select_language() {
 	while (deluge::notify::notices().pop(discard)) {}
 }
 
-/// Board encoder indices (`kDelugeEncoders`, `shell/profiles/deluge.cpp:69-76`).
+/// Board encoder indices (`kDelugeEncoders`).
 constexpr uint8_t kHorizontalEncoder = 1;
 constexpr uint8_t kSelectEncoder = 3;
 constexpr uint8_t kGoldUpper = 4;
@@ -135,7 +135,7 @@ struct Rig {
 	Rig(const Rig&) = delete;
 	Rig& operator=(const Rig&) = delete;
 
-	/// @brief Tear the stack down, so every scene's `on_exit` always runs (E3 task 10).
+	/// @brief Tear the stack down, so every scene's `on_exit` always runs.
 	///
 	/// `MenuScene` is a process singleton (`shell/scene.h`'s `SceneState` cache): an example that
 	/// left it -- or anything pushed above it -- on the stack would make the NEXT example's
@@ -165,7 +165,7 @@ struct Rig {
 	void edges(uint8_t index, int16_t count, uint32_t at_ms) {
 		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_ENCODER, index, 0, count}, at_ms);
 	}
-	/// One detent of a *detented* encoder is two A-pin edges (`shell/input_lowering.h:28`).
+	/// One detent of a *detented* encoder is two A-pin edges (`LoweringConfig::edges_per_detent`).
 	void detent(uint8_t index, int32_t detents, uint32_t at_ms) {
 		edges(index, static_cast<int16_t>(detents * 2), at_ms);
 	}
@@ -175,7 +175,7 @@ struct Rig {
 };
 
 /// @brief A 128x64 single-panel board, so the same scene is recorded at the other shipped panel
-///        geometry too -- `menu_scene_spec.cpp:293-314`'s helpers, and the same ruling: the 48/64
+///        geometry too -- `menu_scene_spec.cpp`'s `board_64` helpers, and the same ruling: the 48/64
 ///        split comes from `BoardProfile::style_by_index`, not from a switch inside the scene.
 constexpr DelugeDisplayDesc kDisplays64[] = {{128, 64, 0}};
 
@@ -266,9 +266,8 @@ struct EditCase {
 // clang-format off
 describe menu_range_tables("scenes::menu Kind::Range -- the table", $ {
 	it("has exactly three consumers in the whole tree, by identity", _ {
-		// Spec E §4's threshold is "a kind exists only if at least 3 items use it", and this kind was
-		// deleted once for having none. Three is what brought it back, so three is what the tree must
-		// hold -- asserted as a *set of nodes*, not a count with slack: a fourth range item added
+		// The rule is "a kind exists only if at least 3 items use it". Three is what justifies
+		// `Kind::Range`, so three is what the tree must hold -- asserted as a *set of nodes*, not a count with slack: a fourth range item added
 		// without revisiting the rule fails here, and so does one of these three quietly reverting to
 		// `Kind::Custom`.
 		select_language();

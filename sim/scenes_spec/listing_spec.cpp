@@ -17,10 +17,10 @@
 /// ordering, not about a second execution context. The `std::atomic` in `Listing` is written for
 /// the real case and is never put under any load here.
 ///
-/// This warning is written out because a comparable gap has already cost this plan a task: E2
-/// shipped an auto-repeat whose unit spec was structurally blind to the thing it was meant to
-/// cover, and it took a level-2 acceptance script to find it. A green run of this file means the
-/// state machine and the five actions behave; it does not mean the seam is race-free on device.
+/// This warning is written out because a unit spec can be structurally blind to the thing it is
+/// meant to cover (an auto-repeat whose spec could not see the race took a level-2 acceptance
+/// script to find). A green run of this file means the state machine and the five actions behave;
+/// it does not mean the seam is race-free on device.
 ///
 /// One further gap, of a different kind: **the destroy-while-in-flight rule is asserted, not
 /// tested.** `~Listing` `assert`s that the seam is not `InFlight` (the dispatched op holds `this`),
@@ -134,8 +134,8 @@ describe listing("the async listing seam", $ {
 	it("guards the catalogue across INSTANCES, not just within one", _ {
 		CleanListing clean;
 		SdRoot root(kFixtureCard);
-		// Tasks 3-5 of this plan give one of these to the browser, the marker editor and the
-		// recorder, so several exist in one process and they share the one `FileCatalogue`.
+		// The browser, the marker editor and the
+		// recorder each own one of these, so several exist in one process and they share the one `FileCatalogue`.
 		Listing browser_seam(&Deferred::dispatch);
 		Listing marker_seam(&Deferred::dispatch);
 
@@ -218,7 +218,7 @@ describe listing("the async listing seam", $ {
 		expect(outcome_of(listing.request(open_request()))).to_equal(kAccepted);
 		// Legacy shows its loading animation here (`browser.cpp:111
 		// displayLoadingAnimationText("Working")`); the port raises the notice `Notices::drain`
-		// turns into a pushed `SceneKind::Working` (`shell/notices.cpp:306-311`).
+		// turns into a pushed `SceneKind::Working` (`Notices::drain`).
 		NoticeTally after_request = drain_notices();
 		expect(after_request.working).to_equal(1);
 		expect(after_request.clear_working).to_equal(0);
@@ -245,7 +245,7 @@ describe listing("the async listing seam", $ {
 		// FILE_NOT_FOUND, not FOLDER_DOESNT_EXIST -- pinned exactly because a whole legacy branch
 		// turns on the difference. `Directory::open` on a missing folder yields
 		// `DELUGE_ERR_NOT_FOUND`, which `delugeStatusToError` maps to `Error::FILE_NOT_FOUND`
-		// (`util/functions.cpp:1879-1880`); nothing on a listing path can produce
+		// (`delugeStatusToError` in `util/functions.cpp`); nothing on a listing path can produce
 		// `Error::FOLDER_DOESNT_EXIST` any more, which is why legacy's default-directory fallback
 		// (`browser.cpp:293`) is dead and this port's fallback accepts both codes.
 		expect(static_cast<int>(result->error)).to_equal(static_cast<int>(Error::FILE_NOT_FOUND));

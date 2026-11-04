@@ -1,9 +1,9 @@
 /// @file
-/// @brief `ParamPopupScene` -- driven directly (this scene has no caller yet; `ModKnobs`, E4 task
-///        2, is the one spec E names for that) and compared against the real legacy it ports:
+/// @brief `ParamPopupScene` -- driven directly (its first real caller is `services::ModKnobs`) and
+///        compared against the real legacy it ports:
 ///        `View::displayModEncoderValuePopup` / `flushPendingModEncoderValuePopup`
 ///        (`gui/views/view.cpp`) for the arbitration and text, and the real
-///        `OLED::displayNotification` (`hid/display/oled.cpp:744-794`) for the pixels the new
+///        `OLED::displayNotification` (`hid/display/oled.cpp`) for the pixels the new
 ///        `ui::oled::popup::notification` widget draws -- reached end to end through a real
 ///        `Shell`, so the comparison is the assembled scene's own pixels, not the widget in
 ///        isolation.
@@ -18,9 +18,8 @@
 ///   * the MIDI-clip CC/expression-axis naming (`knobsOnClipContext() && getCurrentOutputType() ==
 ///     OutputType::MIDI_OUT`).
 ///
-/// They are no longer *unreachable*, which is what this note said when E4 task 1 wrote it: task 2
-/// widened `show()` with `overlay::PopupContext` precisely so the class that has the context --
-/// `services::ModKnobs`, the popup's first real caller -- can fire them. The arm that is now
+/// They are reachable: `show()` takes an `overlay::PopupContext` precisely so the class that has the
+/// context -- `services::ModKnobs`, the popup's first real caller -- can fire them. The arm that is
 /// covered is covered where that context lives, in `sim/scenes_spec/mod_knobs_spec.cpp`'s
 /// "gives the popup the model context legacy reads off View" example, which drives the LPF-morph
 /// rename against the real `View::displayModEncoderValuePopup` on a real `Sound`. What stays
@@ -168,9 +167,9 @@ struct Rig {
 	Rig(const Rig&) = delete;
 	Rig& operator=(const Rig&) = delete;
 
-	/// @brief Tear the stack down, so `ParamPopupScene::on_exit` always runs (E3 task 10's
-	///        cross-contamination lesson: this scene is a process singleton, like every other
-	///        scene in this tree).
+	/// @brief Tear the stack down, so `ParamPopupScene::on_exit` always runs (this scene is a process
+	///        singleton, like every other scene in this tree, so a stale stack would leak into the
+	///        next example).
 	~Rig() {
 		while (shell.stack().depth() > 0) {
 			shell.stack().pop(SceneKind::Null);
@@ -191,7 +190,7 @@ struct Rig {
 /// `display->displayNotification`), reading the shipped popup canvas back afterward.
 ///
 /// Always 48 rows, never 64: `deluge::hid::display::OLED::popup` is a
-/// `gfx::oled::OwnedCanvas<kDelugeOled>`, and `kDelugeOled` (`gfx/oled/geometry.h:21`) is a fixed
+/// `gfx::oled::OwnedCanvas<kDelugeOled>`, and `kDelugeOled` (`gfx/oled/geometry.h`) is a fixed
 /// `{128, 48, 5}` -- the real board's own panel. Legacy has no 64-row mode to compare against; a
 /// wider read past its 6 pages is simply past the buffer.
 /// @return The popup canvas as a PBM, 48 rows tall.

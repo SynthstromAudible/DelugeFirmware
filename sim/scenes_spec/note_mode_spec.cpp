@@ -1,7 +1,6 @@
 /// @file
-/// @brief Note-family Task 7: `gui/ui/shell_note_mode.h` -- the note editor's and note-row editor's
-///        routing through the guest, as `SoundEditor` routes them (design spec §4, sites 2, 3, 4, 6
-///        and 7; site 8, the pads, is `pad_forward_spec.cpp`'s).
+/// @brief `gui/ui/shell_note_mode.h` -- the note editor's and note-row editor's routing through the
+///        guest, as `SoundEditor` routes them (the pads are `pad_forward_spec.cpp`'s).
 ///
 /// **Against a real `MenuScene` on the global guest's own stack**, because `activeNoteMode()` reads
 /// exactly that: `shellHostUI`'s `SceneStack` for the menu's identity, then `menu_context().root`.
@@ -10,9 +9,9 @@
 /// dereference `soundEditor.getCurrentMenuItem()` -- `menuItemNavigationRecord[navigationDepth]`,
 /// null under the guest -- on most of their paths: `readValueAgain` (`instrument_clip_view.cpp:3677`,
 /// `:3905`, `:3946`, `:3982-3984`), `goUpOneLevel` (`:3720-3721`) and `toggleNoteEditorParamMenu`
-/// (`:3894`). Task 7a put an `activeNoteMode()` arm ahead of each, and `note_mode_reads_spec.cpp`
-/// drives those; this file predates it, so no example here takes a handler down one of those paths
-/// with the ported menu open. `setNoteModeLegacyCalls` replaces every `instrumentClipView` call with a recorder that
+/// (`:3894`). Each has an `activeNoteMode()` arm ahead of it, and `note_mode_reads_spec.cpp`
+/// drives those; no example here takes a handler down one of those paths with the ported menu
+/// open. `setNoteModeLegacyCalls` replaces every `instrumentClipView` call with a recorder that
 /// answers a settable `ActionResult`, and the routing is pinned through it.
 ///
 /// **Driven for real, and why each is safe:** the two button handlers on the paths that touch no
@@ -20,8 +19,8 @@
 /// `:3762`; `handleNoteRowEditorButtonAction`'s kit toggle, `:4043-4049`) and every swallowed button
 /// (`:3762`, `:4057`). X_ENC and SYNC_SCALING are pinned through the seam only: their `return
 /// buttonAction(...)` arm (`:3752-3754`) reaches `InstrumentClipView::buttonAction`, whose SYNC_SCALING fill arm asks
-/// `noteEditorOpen() || noteRowEditorOpen()` (`gui/views/view.cpp:340`) -- one of correction 7's
-/// reads, which Task 7a widened to see the ported note mode, so it takes the in-editor arm now.
+/// `noteEditorOpen() || noteRowEditorOpen()` (`gui/views/view.cpp:340`) -- one of the reads
+/// widened to see the ported note mode, so it takes the in-editor arm.
 ///
 /// **Not covered here:** that a hook feeds the shell when a function answers `std::nullopt` and not
 /// when it answers a value -- `tests/spec/gui/shell_host_ui_spec.cpp`'s, against fakes.
@@ -172,7 +171,7 @@ struct RecordingCalls {
 	~RecordingCalls() { guest::setNoteModeLegacyCalls(nullptr); }
 };
 
-/// @brief The button handler the mode's own arm names (`sound_editor.cpp:618`, `:622`).
+/// @brief The button handler the mode's own arm names (`SoundEditor::buttonAction`'s note-mode arm).
 Call button_call_for(Root root) {
 	return root == Root::NoteEditor ? Call::EditorButton : Call::RowButton;
 }
@@ -218,7 +217,7 @@ describe note_mode_active("gui::ui::activeNoteMode -- inNoteEditor() / inNoteRow
 	});
 
 	it("leaves the mode on under a scene that takes input above the menu, and under one that does not", _ {
-		// Legacy's `inNoteEditor()` reads `menuItemNavigationRecord[0]` (`sound_editor.cpp:1916-1918`),
+		// Legacy's `inNoteEditor()` reads `menuItemNavigationRecord[0]` (`SoundEditor::inNoteEditor`),
 		// not `getCurrentUI()`, so a UI opened over the sound editor does not switch the mode off --
 		// which is why this is "on the stack" and not `menuIsFrontmost`'s `input_top()`.
 		GlobalGuestGuard guest_guard;
@@ -226,8 +225,8 @@ describe note_mode_active("gui::ui::activeNoteMode -- inNoteEditor() / inNoteRow
 		expect(open_menu_on_global_guest_at(fx, Root::NoteEditor)).to_be_true();
 
 		// `SceneKind::Loading` is the loading scene the shell registers for itself
-		// (`shell/shell.cpp:187`), and it takes input -- `input_transparent()` is false
-		// (`shell/loading_scene.h:33`) -- so with it on top, the menu is on the stack and NOT the input
+		// (`Shell`'s `table_`), and it takes input -- `input_transparent()` is false
+		// (`LoadingScene::input_transparent`) -- so with it on top, the menu is on the stack and NOT the input
 		// top.
 		expect(shellHostUI.shell().stack().push(SceneId{SceneKind::Loading, 0})).to_be_true();
 		expect(&shellHostUI.shell().stack().input_top()
@@ -236,9 +235,9 @@ describe note_mode_active("gui::ui::activeNoteMode -- inNoteEditor() / inNoteRow
 		expect(guest::activeNoteMode() == NoteModeKind::NoteEditor).to_be_true();
 
 		// The mod-encoder value popup, named by its own registration constant
-		// (`scenes/overlay/param_popup_scene.h:109-110`) and asserted to BE that scene once pushed, so
+		// (`overlay::kParamPopupSceneKind`) and asserted to BE that scene once pushed, so
 		// a registry reorder cannot silently retarget this half at another kind. It is
-		// input-transparent (`param_popup_scene.h:195`).
+		// input-transparent (`ParamPopupScene::input_transparent`).
 		expect(shellHostUI.shell().stack().push(SceneId{overlay::kParamPopupSceneKind, 0})).to_be_true();
 		expect(&shellHostUI.shell().stack().top() == static_cast<deluge::ui::shell::Scene*>(&overlay::param_popup_scene()))
 		    .to_be_true();
@@ -247,7 +246,7 @@ describe note_mode_active("gui::ui::activeNoteMode -- inNoteEditor() / inNoteRow
 
 	it("answers None after a song swap resets the menu's context", _ {
 		// `MenuScene::on_model_changed`'s `SongSwapped` arm replaces `ctx_` with a default context,
-		// whose root is `Settings` (`scenes/menu/context.h:162`).
+		// whose root is `Settings` (`MenuContext::root`'s default).
 		GlobalGuestGuard guest_guard;
 		deluge::scenes::spec::SongFixture fx = deluge::scenes::spec::make_synth_song();
 		expect(open_menu_on_global_guest_at(fx, Root::NoteRowEditor)).to_be_true();
@@ -274,8 +273,8 @@ describe note_mode_buttons("gui::ui::forwardNoteButton -- SoundEditor::buttonAct
 	});
 
 	it("answers nothing in either mode for the six buttons legacy's chain takes first", _ {
-		// `sound_editor.cpp:385`, `:456`, `:488`, `:505`, `:564`, `:605`: each an outer `else if` on
-		// the button alone, so it consumes the press before `:617` is reached, inner test or not.
+		// Six outer `else if` arms of `SoundEditor::buttonAction`, each on the button alone, so each
+		// consumes the press before the note-mode arm is reached, inner test or not.
 		RecordingCalls recording;
 		GlobalGuestGuard guest_guard;
 		deluge::scenes::spec::SongFixture fx = deluge::scenes::spec::make_synth_song();
@@ -294,7 +293,7 @@ describe note_mode_buttons("gui::ui::forwardNoteButton -- SoundEditor::buttonAct
 	it("answers nothing in either mode for SYNTH, KIT, MIDI and CV -- the column focus is the menu's", _ {
 		// Both handlers send these to `soundEditor.getCurrentMenuItem()->buttonAction(...)`
 		// (`instrument_clip_view.cpp:3746-3748`, `:4033-4035`), i.e. to the horizontal menu's column
-		// focus -- design spec §3's, which `MenuScene` owns -- through a record that is null here.
+		// focus -- which `MenuScene` owns -- through a record that is null here.
 		RecordingCalls recording;
 		GlobalGuestGuard guest_guard;
 		deluge::scenes::spec::SongFixture fx = deluge::scenes::spec::make_synth_song();

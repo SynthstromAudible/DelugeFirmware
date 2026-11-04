@@ -1,6 +1,6 @@
 #pragma once
 
-/// @brief A recording fake for `deluge::scenes::menu::NoteBridge` -- Task 5's leaves are tested
+/// @brief A recording fake for `deluge::scenes::menu::NoteBridge` -- the note leaves are tested
 ///        against this, not the real `instrumentClipView`. Every entry records that it was called
 ///        (a count) and, where legacy's statement takes one, its argument, and returns a settable
 ///        value.
@@ -260,7 +260,7 @@ struct FakeNoteBridgeGuard {
 	// A copy or move would leave `bridge`'s function pointers referencing a `g_fake_note_bridge`
 	// that outlives (or a `fake` that does not outlive) the copy, and would run this constructor a
 	// second time for a `bridge` that was never re-pointed at the new object's own `fake` -- neither
-	// is a shape this guard is meant to support (fix round 1, minor c).
+	// is a shape this guard is meant to support.
 	FakeNoteBridgeGuard(const FakeNoteBridgeGuard&) = delete;
 	FakeNoteBridgeGuard& operator=(const FakeNoteBridgeGuard&) = delete;
 	FakeNoteBridgeGuard(FakeNoteBridgeGuard&&) = delete;

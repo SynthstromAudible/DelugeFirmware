@@ -42,7 +42,7 @@
 #include "gui/menu_item/envelope/envelope_menu.h"
 #include "gui/menu_item/horizontal_menu.h"
 #include "gui/menu_item/menu_item_with_cc_learning.h"
-#include "gui/menu_item/multi_range.h" // E2 task 9: the range picker's legacy counterpart
+#include "gui/menu_item/multi_range.h" // the range picker's legacy counterpart
 #include "gui/menu_item/range.h"
 #include "gui/menu_item/selection.h"
 #include "gui/menu_item/submenu.h"
@@ -93,8 +93,8 @@ namespace legacy = deluge::gui::menu_item;
 // the horizontal submenus are named here: every leaf is reached through
 // `HorizontalMenu::getItems()`. `soundFiltersMenu` itself is a plain vertical `Submenu` whose
 // `items` are protected with no public accessor, so its three children are named directly: the two
-// horizontal pages below, plus `filterRoutingMenu` (fix round 1, I4 -- it is a whole node with a
-// bespoke enum, `get`/`set` and `slots = 4`, and was previously the one leaf outside the net).
+// horizontal pages below, plus `filterRoutingMenu` (it is a whole node with a
+// bespoke enum, `get`/`set` and `slots = 4`, so it must be in the net too).
 
 extern legacy::HorizontalMenu lpfMenu;
 extern legacy::HorizontalMenu hpfMenu;
@@ -252,7 +252,7 @@ std::vector<Pair> all_pairs() {
 			out.push_back(p);
 		}
 	}
-	// `soundFiltersMenu`'s third child, which no horizontal page contains (fix round 1, I4).
+	// `soundFiltersMenu`'s third child, which no horizontal page contains.
 	out.push_back(Pair{nodes::kSoundFiltersChildren[0]->children[2], &filterRoutingMenu});
 	return out;
 }
@@ -362,7 +362,7 @@ struct Rig {
 	Rig& operator=(const Rig&) = delete;
 	Rig() = default;
 
-	/// @brief Tear the stack down, so every scene's `on_exit` always runs (E3 task 10).
+	/// @brief Tear the stack down, so every scene's `on_exit` always runs.
 	///
 	/// `MenuScene` is a process singleton (`shell/scene.h`'s `SceneState` cache): an example that
 	/// left it -- or anything pushed above it -- on the stack would make the NEXT example's
@@ -398,7 +398,7 @@ struct RangePeek : legacy::Range {
 	static std::string text_of_range(legacy::Range& r, int32_t value) {
 		static_cast<legacy::MultiRange&>(r).setValue(value);
 		char buf[32] = {};
-		(r.*(&RangePeek::getText))(buf, nullptr, nullptr, /*mayShowJustOne=*/false); // `multi_range.cpp:401`
+		(r.*(&RangePeek::getText))(buf, nullptr, nullptr, /*mayShowJustOne=*/false); // `MultiRange::getText`
 		return std::string{buf};
 	}
 };
@@ -570,8 +570,8 @@ describe tables_1_shape("scenes::menu batch-1 tables: shape", $ {
 		size_t learnable = 0;
 		for (const Pair& p : all_pairs()) {
 			// `MenuItemWithCCLearning::getLearningThing()` (`menu_item_with_cc_learning.h:27`) is
-			// the authority, and it is what catches the four `menu_item::Transpose` derivatives
-			// (fix round 1, I1): they are a `Decimal` with their own read/write AND a
+			// the authority, and it is what catches the four `menu_item::Transpose` derivatives:
+			// they are a `Decimal` with their own read/write AND a
 			// `PatchedParam` with a real id, so `getParamKind()` reports NONE for them
 			// (`transpose.h:26-51` bridges only `getParamIndex`) while their learn target is real.
 			// The nodes carry that id as a learn-only `ParamRef` beside their `get`/`set`
@@ -601,7 +601,7 @@ describe tables_1_shape("scenes::menu batch-1 tables: shape", $ {
 			}
 			expect(uint32_t(p.node->bind.param.index) == p.item->getParamIndex()).to_be_true();
 			// The *index* is the item's own; the *kind* is not. `UnpatchedParam::getParamKind`
-			// (`gui/menu_item/unpatched_param.cpp:98-101`) reports whatever param collection
+			// (`gui/menu_item/unpatched_param.cpp`) reports whatever param collection
 			// `SoundEditor::getCurrentModelStack` lands on, and with no root UI open that function
 			// takes its `!rootUIIsClipMinderScreen()` arm (`gui/ui/sound_editor.cpp:2041`) and
 			// returns the *song's* stack -- so an unpatched item reports UNPATCHED_GLOBAL here and
@@ -628,7 +628,7 @@ describe tables_1_shape("scenes::menu batch-1 tables: shape", $ {
 			// legacy item that overrides `isRangeDependent()`. The converse does not hold, because
 			// two of the four legacy classes reach the same rule *without* the override -- through
 			// `checkPermissionToBeginSessionForRangeSpecificParam` in their own
-			// `checkPermissionToBeginSession` (`file_selector.cpp:68-86`,
+			// `checkPermissionToBeginSession` (`FileSelector::checkPermissionToBeginSession`,
 			// `osc/audio_recorder.h:65-74`) -- which is exactly what `node.h`'s own list says.
 			if (!p.node->range_dependent) {
 				expect(p.item->isRangeDependent()).to_be_false();
@@ -737,10 +737,8 @@ describe tables_1_validation("scenes::menu batch-1 tables: validation", $ {
 		const MenuContext contexts[] = {f.ctx};
 		// Only the shortcut sweep is stood down, and only because this is a *subtree*: the rule is
 		// quantified over every root's table, so pointed at batch 1 it would report every cell in
-		// every other root's (`validate.h`'s `skip_shortcut_sweep`). Nothing else is: this example
-		// used to also pass `allow_placeholder_custom`, for the eight bespoke oscillator items that
-		// pointed at `kPending`; E3 tasks 6 and 7 gave every node in the tree a real item and the
-		// option no longer exists.
+		// every other root's (`validate.h`'s `skip_shortcut_sweep`). Nothing else is: no
+		// placeholder option is passed: every node in the tree has a real item.
 		const auto issues =
 		    menu::validate_tree(nodes::kBatch1Roots, contexts, nodes::kRangeDependentNodes,
 		                        nodes::kHalfPrecisionNodes, menu::ValidateOptions{.skip_shortcut_sweep = true});
@@ -763,13 +761,10 @@ describe tables_1_validation("scenes::menu batch-1 tables: validation", $ {
 	it("reports no placeholder at all any more, even when strict", _ {
 		Fixture& f = fixture();
 		const MenuContext contexts[] = {f.ctx};
-		// This example used to expect **eight** -- one `PlaceholderCustom` per batch-1 node pointing
-		// at `kPending`: both file selectors, the four sample loop points and both audio recorders.
-		// E3 task 6 gave all eight a real item (`nodes/sample.h`), so the batch-1 tree is now clean
-		// under the default (strict) options and the number is zero rather than smaller.
-		// `sim/scenes_spec/sample_items_spec.cpp` pins which item each of those nodes got, and E3
-		// task 7 closed out the last two anywhere in the tree -- so this is now the same claim
-		// `output_items_spec.cpp` makes over `kAllRoots`, made here over batch 1.
+		// The batch-1 tree is clean under the default (strict) options: both file selectors, the
+		// four sample loop points and both audio recorders have real items (`nodes/sample.h`).
+		// `sim/scenes_spec/sample_items_spec.cpp` pins which item each of those nodes got, and this
+		// is the same claim `output_items_spec.cpp` makes over `kAllRoots`, made here over batch 1.
 		const auto issues =
 		    menu::validate_tree(nodes::kBatch1Roots, contexts, nodes::kRangeDependentNodes,
 		                        nodes::kHalfPrecisionNodes, menu::ValidateOptions{.skip_shortcut_sweep = true});
@@ -810,14 +805,13 @@ describe tables_1_pixels("scenes::menu batch-1 tables: pixels", $ {
 });
 describe tables_1_writes("scenes::menu batch-1 tables: writes", $ {
 	it("leaves the model where the legacy item leaves it, for every set hook", _ {
-		// Task 6 had the same gap task 7's review found in batch 2 (review round 1, I5): the spec
-		// compared reads, names, params, enums, learn targets and relevance, but never drove a
-		// single `set` hook. Every batch-1 hook is driven here, the same way `tables_2_spec` and
+		// Reads, names, params, enums, learn targets and relevance are compared elsewhere; this
+		// drives the `set` hooks. Every batch-1 hook is driven here, the same way `tables_2_spec` and
 		// `tables_3_spec` drive batches 2 and 3: for three values spanning the node's range, each
 		// write path is run **from its own copy of a common starting state** (`probe_write`) and the
-		// two results are compared through both readers. Fix round 1, I2: the original shape ran
-		// legacy first and the port second and asserted the port changed nothing, which a port hook
-		// that stores nothing also satisfies.
+		// two results are compared through both readers. Running legacy first and the port
+		// second and asserting the port changed nothing would be satisfied by a port hook that stores
+		// nothing.
 		//
 		// `ParamRef` nodes are not here, for the reason `tables_2_spec` spells out: with no root UI
 		// open, legacy's `UnpatchedParam::writeCurrentValue` resolves the *song's* param collection
@@ -825,7 +819,7 @@ describe tables_1_writes("scenes::menu batch-1 tables: writes", $ {
 		// path directly.
 		Fixture& f = fixture();
 		size_t exercised = 0;
-		// Fix round 2, I2: a probe count with slack ("> 45") cannot tell a node that left the table
+		// A probe count with slack ("> 45") cannot tell a node that left the table
 		// from one that never had a hook. What is asserted is the **set of distinct nodes driven**,
 		// against a set derived from the table itself -- every node in the walk carrying a `set`
 		// hook -- so dropping a node, or a relevance predicate going false in the fixture, fails

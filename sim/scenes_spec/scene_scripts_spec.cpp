@@ -1,6 +1,6 @@
 /// @file
-/// @brief Level-2 acceptance scripts for what E4 shipped -- the three overlay scenes, the two root
-///        scenes, and (for the first time on this stack) the three **real** shell services.
+/// @brief Level-2 acceptance scripts for the three overlay scenes, the two root scenes, and the
+///        three **real** shell services.
 ///
 /// The mechanism is `menu_scripts_spec.cpp`'s exactly: a UI script (`tests/ui-scripts/shell/`)
 /// driven through the real `Shell` over `uitest::FakeSurfaceSet`, with every `snapshot` step's
@@ -10,12 +10,12 @@
 // clang-format off
 /// | script | subject | how the scene gets on the stack |
 /// |---|---|---|
-/// | `audio_clip` | `audio_clip::AudioClipScene` (E4 tasks 11-12) | `RunOptions::initial_scene` -- it is a ROOT scene, and a root is what the shell is booted onto |
-/// | `slicer` | `slicing::SlicerScene` (E4 tasks 9-10) | `RunOptions::initial_scene`, after `slicer_scene().open(sample)` -- legacy's `SampleBrowser` opens it the same way, `open()` first and the push second |
-/// | `param_popup` | `overlay::ParamPopupScene` (E4 task 1) **pushed by `services::ModKnobs`** (task 2) | nothing in the script pushes it: a gold-knob turn reaches the service, and `ModKnobs::show_popup` pushes the scene (`services/mod_knobs.cpp:417`) |
-/// | `screensaver` | `overlay::ScreensaverScene` (E4 task 7) **pushed by `shell::Screensaver`** | nothing in the script pushes it either: the script simply stops touching anything for longer than `ShellConfig::screensaver_idle_ms` |
-/// | `count_in` | `overlay::CountInScene` (E4 task 6) | **the spec pushes it**, from `RunOptions::before_tick`, over an `AudioClipScene` root. Nothing in the tree pushes this kind -- see the honesty note below |
-/// | `menu_gold_turn` | `menu::MenuScene` and a real `services::ModKnobs` in one run (E4 final review) | `RunOptions::initial_scene` at `nodes::saturation`, exactly as `menu_scripts_spec.cpp` opens a menu. The only recorded frame on this stack with a menu and a real service together |
+/// | `audio_clip` | `audio_clip::AudioClipScene` | `RunOptions::initial_scene` -- it is a ROOT scene, and a root is what the shell is booted onto |
+/// | `slicer` | `slicing::SlicerScene` | `RunOptions::initial_scene`, after `slicer_scene().open(sample)` -- legacy's `SampleBrowser` opens it the same way, `open()` first and the push second |
+/// | `param_popup` | `overlay::ParamPopupScene` **pushed by `services::ModKnobs`** | nothing in the script pushes it: a gold-knob turn reaches the service, and `ModKnobs::show_popup` pushes the scene |
+/// | `screensaver` | `overlay::ScreensaverScene` **pushed by `shell::Screensaver`** | nothing in the script pushes it either: the script simply stops touching anything for longer than `ShellConfig::screensaver_idle_ms` |
+/// | `count_in` | `overlay::CountInScene` | **the spec pushes it**, from `RunOptions::before_tick`, over an `AudioClipScene` root. Nothing in the tree pushes this kind -- see the honesty note below |
+/// | `menu_gold_turn` | `menu::MenuScene` and a real `services::ModKnobs` in one run | `RunOptions::initial_scene` at `nodes::saturation`, exactly as `menu_scripts_spec.cpp` opens a menu. The only recorded frame on this stack with a menu and a real service together |
 // clang-format on
 ///
 /// Each script has a `_64` sibling that re-runs the geometry-sensitive frames on the 128x64 panel
@@ -24,41 +24,22 @@
 /// path and the golden directory from one name; the 64-row files say in their own headers which
 /// frames they kept and why the rest would have added nothing.
 ///
-/// @par The real services, and the wiring gap this file found
+/// @par The real services, and why they are installed after construction
 ///
-/// **Every script on this stack before this one runs with `Services{}` -- three null services --
-/// and they all still do.** That is a controller ruling and not an oversight: three plans' goldens
-/// were recorded against null services, and re-recording forty-seven of them as a side effect of
-/// this task would be a diff nobody could review. The five scripts here are the ones that get real
-/// ones.
+/// **Every other script on this stack runs with `Services{}` -- three null services.** Their goldens
+/// were recorded against null services, so the scripts here are the only ones that get real ones.
 ///
-/// Passing them was not as simple as filling in the struct, and the reason was a real gap in the
-/// application's own boot path, not a test-harness quirk:
-///
-///   * `services::ModKnobs`, `GlobalControls` and `MidiLearn` each take a `SceneStack&` and (for
-///     the first two) an `InputLowering&` at construction, and they *use* them --
-///     `ModKnobs::show_popup` pushes the param popup onto that stack
-///     (`scenes/services/mod_knobs.cpp:417`), and `ModKnobs::popup_suppressed` (`:351`) and
-///     `ModKnobs::mod_encoder_button_action` (`:568`) read `stack_.input_top()`;
-///     `GlobalControls::handle` gates its `View::buttonAction` group on
-///     `stack_.input_top().is_root()` (`scenes/services/global_controls.cpp:580`);
-///     `MidiLearn::handle` reads the same (`scenes/services/midi_learn.cpp:491`).
-///   * The only `SceneStack` and `InputLowering` in an application are the ones the `Shell` **owns**
-///     (`shell/shell.h`'s `stack_`, `lowering_`), and `Services` was fixed at the shell's
-///     construction. There was no `Shell::set_services`.
-///
-/// So a real service could not be built before the shell it serves, and could not be installed
-/// after it -- which meant **no application could install a service at all**, and no gold-knob
-/// turn, transport button or MIDI-learn press reached anything outside the scene stack. This file
-/// worked around it with a `LateService` forwarding shim, and reported the gap rather than fixing
-/// it, because adding a setter to `src/shell` was spec F's wiring decision and not a side effect of
-/// writing acceptance scripts.
-///
-/// **F1 task 2 fixed it.** `Shell::set_services` (`shell/shell.h`) re-seats all three of the things
-/// that hold the slots -- the shell's copy, the `Router`'s, and the deduplicated `service_list_` --
-/// and `RealServices::installer()` below now calls it from `after_construct` and hands the shell
-/// `Services{}` at construction, exactly as an application does. The shim is gone; the 34 golden
-/// snapshots did not move.
+/// `services::ModKnobs`, `GlobalControls` and `MidiLearn` each take a `SceneStack&` and (for the
+/// first two) an `InputLowering&` at construction, and they *use* them: `ModKnobs::show_popup`
+/// pushes the param popup onto that stack, and `ModKnobs::popup_suppressed` and
+/// `ModKnobs::mod_encoder_button_action` read `stack_.input_top()`; `GlobalControls::handle` gates
+/// its `View::buttonAction` group on `stack_.input_top().is_root()`; `MidiLearn::handle` reads the
+/// same. The only `SceneStack` and `InputLowering` in an application are the ones the `Shell`
+/// **owns** (`shell/shell.h`'s `stack_`, `lowering_`), so a real service cannot be built before the
+/// shell it serves. `Shell::set_services` (`shell/shell.h`) re-seats all three of the things that
+/// hold the slots -- the shell's copy, the `Router`'s, and the deduplicated `service_list_` -- and
+/// `RealServices::installer()` calls it from `after_construct`, handing the shell `Services{}` at
+/// construction, exactly as an application does.
 ///
 /// @par What passing them changed, visibly -- and what it did not
 ///
@@ -71,15 +52,14 @@
 ///     and they differ between scripts because the mod target does (`Mod1` and a non-zero lower ring
 ///     in `slicer`, whose target is a synth clip; `Mod0` in the audio-clip scripts).
 ///   * `led Record on` and `led Play on`, in `audio_clip`'s last three frames -- `GlobalControls`
-///     (`services/global_controls.cpp:601-616`, the port of `PlaybackHandler::setLedStates`),
-///     after the script presses RECORD and PLAY for real. That is the brief's own motivating
-///     gesture, and it is reachable in exactly one script here: `GlobalControls::handle` gates its
-///     `View::buttonAction` group on `stack_.input_top().is_root()` (`:580`) and `AudioClipScene`
+///     (`GlobalControls::leds`, the port of `PlaybackHandler::setLedStates`),
+///     after the script presses RECORD and PLAY for real. That is reachable in exactly one script
+///     here: `GlobalControls::handle` gates its `View::buttonAction` group on
+///     `stack_.input_top().is_root()` and `AudioClipScene`
 ///     is the only root scene that exists.
 ///   * **Nothing from `MidiLearn`.** LEARN is off unless learn mode is entered, and no script here
 ///     enters it -- `MidiLearn` is wired in and contributes no observable line. Stated rather than
-///     implied: an earlier version of this docstring claimed seven `GlobalControls` LEDs and a
-///     LEARN line that no golden contains, which the review caught by counting them.
+///     implied: no golden contains a LEARN line.
 ///
 /// And `param_popup` is the script that could not exist at all without the services: the popup is
 /// *pushed by a service*, so with `Services{}` a gold-knob turn produces no frame of any kind.
@@ -201,7 +181,7 @@ namespace bindings = deluge::scenes::menu::bindings;
 namespace nodes = deluge::scenes::menu::nodes;
 
 /// @brief `PlaybackHandler`'s "we are inside a swung tick" latch, declared rather than included
-///        exactly as `audio_clip_scene_spec.cpp:122` and `timeline_spec.cpp` declare it.
+///        exactly as `audio_clip_scene_spec.cpp` and `timeline_spec.cpp` declare it.
 ///
 /// `audio_clip.txt` starts real playback, and `AudioClipScene::compute_tick_square` then asks
 /// `Clip::getLivePos()` where the clip is -- which, on a song whose transport a spec started but
@@ -315,7 +295,7 @@ void reset_globals() {
 
 // --- the services ---------------------------------------------------------------------------------
 
-/// The fixture that installs the real three. Moved to `support/real_services.h` by F1 task 11 so
+/// The fixture that installs the real three. It lives in `support/real_services.h` so
 /// `menu_scripts_spec.cpp` can install the same three -- see that header for what it is and why.
 using deluge::scenes::spec::RealServices;
 
@@ -407,7 +387,7 @@ void open_slicer(Sample* sample, deluge::scenes::slicing::SliceOps& ops) {
 /// `manualSlicePoints` entry zeroed. The push that opens the scene therefore erases anything placed
 /// before it, on the device as much as here. So the slices go in on the first tick, after the open.
 ///
-/// They cannot go in as a *gesture* either: the pad arm that adds one (`slicer.cpp:506-534`) walks
+/// They cannot go in as a *gesture* either: the pad arm of `Slicer::padAction` that adds one walks
 /// `Sound::voices()` for a live play position, which needs a running `AudioEngine` a spec process
 /// has none of -- `slicer_scene_spec.cpp`'s file docstring records that as uncovered and seeds its
 /// own table through the same front door, `SlicerScene::add_slice_at` (the port of `:535-551`).
@@ -428,7 +408,7 @@ std::function<void(uint32_t)> slicer_seed() {
 ///
 /// **Both halves are stand-ins, and each is a stand-in for something different.** The push stands
 /// in for wiring that does not exist -- nothing in `src/` pushes `kCountInSceneKind`, which
-/// `count_in_scene.h` says outright and which is spec F's to supply. The schedule stands in for
+/// `count_in_scene.h` says outright. The schedule stands in for
 /// `PlaybackHandler::considerPlaybackTiming`'s swung-tick tree (`playback_handler.cpp:1044-1051`),
 /// which needs a running `AudioEngine`; `count_in_spec.cpp` writes the same field directly for the
 /// same reason. Both are written into `tests/ui-scripts/shell/count_in.txt`'s header so the golden
@@ -664,8 +644,7 @@ describe scene_scripts("scenes E4 level-2 acceptance scripts", $ {
 		expect(std::string(overlay::param_popup_scene().shown_name())).to_equal(std::string("Master level"));
 		expect(std::string(overlay::param_popup_scene().shown_value())).to_equal(std::string("45"));
 		// ---------------------------------------------------------------------------------------
-		// **What `popup_moved` guards, and how it was found.** Task 13's first cut of this script
-		// had no such frame: a second detent on an already-open popup moved the scene's text from
+		// **What `popup_moved` guards.** Without that frame a second detent on an already-open popup moved the scene's text from
 		// "26" to "45" and **nothing repainted the panel**, so the golden showed "26" while
 		// `shown_value()` said "45". The narrow cause was the arbitration's immediate-commit arm
 		// alone -- the throttled arm (a turn inside `kMinUpdateIntervalMs`) arms
@@ -673,7 +652,7 @@ describe scene_scripts("scenes E4 level-2 acceptance scripts", $ {
 		// resolves to `{.oled = true}`, so a *fast* turn repainted itself and only a slow one did
 		// not. `ParamPopupScene::show` now returns whether it committed and
 		// `ModKnobs::mod_encoder_action` files `Action::Kind::Repaint` on `SurfaceRole::Main` when
-		// it did (legacy's `display->displayNotification(...)`, `view.cpp:1262`, being a write AND
+		// it did (legacy's `display->displayNotification(...)` in `View::displayModEncoderValuePopup` being a write AND
 		// a blit). Mutation-proved from both ends: deleting that `Repaint` turns `popup_moved` back
 		// into a copy of `popup_shown` and this script fails, and `mod_knobs_spec.cpp`'s
 		// "files an OLED repaint for every committed popup update" example fails with it.
@@ -702,27 +681,24 @@ describe scene_scripts("scenes E4 level-2 acceptance scripts", $ {
 	// ---- a menu and a real ModKnobs in the same run ---------------------------------------------
 
 	it("a gold turn in a MENU with the real services now reaches ModKnobs, and pushes a popup", _ {
-		// **E4 final-review fix wave, the ruling's step 1** -- and now also the note-family task 1
-		// fix this header was rewritten for. Every menu golden in `menu_scripts_spec.cpp` was
+		// Every menu golden in `menu_scripts_spec.cpp` was
 		// recorded with `Services{}` -- three `NullService`s -- so none of them can show what a menu
 		// does with a service that also wants gold-knob turns present. This is that frame, on the
 		// same node `menu_int.txt` opens.
 		//
-		// **What changed, and why this script now pins the opposite of its old name.** Legacy edits
+		// **Why this script pins a popup rather than a menu edit.** Legacy edits
 		// a menu value with the *select* encoder; the gold knobs never touch a menu at all --
 		// `SoundEditor::modEncoderAction` falls through to `View::modEncoderAction`
-		// (`gui/views/view.cpp:835`), which edits the mod-controllable's param instead. The port
-		// used to have `int_value` read the gold pair, under a comment that (wrongly) called that a
-		// port of `Integer::selectEncoderAction` -- the defect note-family task 1 fixed. `int_value`
-		// now claims only the select turn (`ui/oled/values.cpp`'s `select_delta`), so the two
+		// (`View::modEncoderAction`), which edits the mod-controllable's param instead. `int_value`
+		// claims only the select turn (`ui/oled/values.cpp`'s `select_delta`), so the two
 		// `GoldUpper` turns below are unclaimed by `MenuScene` and reach `services::ModKnobs`
 		// through the routing chain `View::modEncoderAction` names.
 		//
 		// **Why a popup, where `menu_int.txt` still says none is pushed there.** `ModKnobs`'s port
 		// of "let's see if we're editing the same param in the menu, if so, don't show pop-up"
-		// (`view.cpp:893-900`) is `ModKnobs::popup_suppressed` (`scenes/services/mod_knobs.cpp:342`):
+		// (`view.cpp:893-900`) is `ModKnobs::popup_suppressed` (`services/mod_knobs.cpp`):
 		// it compares the turn's param against `menu_scene().focused()->bind.param`. `nodes::saturation`
-		// is built with `int_item()` (`nodes/sound_fx.h:318`), which never sets `bind.param` at all
+		// is built with `int_item()` (`nodes/sound_fx.h`), which never sets `bind.param` at all
 		// (`node.h`'s `int_item` builder) -- so `bind.param.valid()` is false, `popup_suppressed`
 		// returns false unconditionally, and the popup goes up. A node built with `param()` instead,
 		// showing the exact modulation param GoldUpper points at, would suppress it; this node
@@ -759,17 +735,17 @@ describe scene_scripts("scenes E4 level-2 acceptance scripts", $ {
 		// **`nodes::saturation` itself never moves.** `int_value` claims only the select turn now,
 		// so the `+1`/`+2` `GoldUpper` steps below are entirely unclaimed by `MenuScene` -- and
 		// `int_item()` never gave this node a `bind.param` for `ModKnobs` to write through even if
-		// they did reach it (it has its own `get`/`set` pair instead, `nodes/sound_fx.h:318`). So the
+		// they did reach it (it has its own `get`/`set` pair instead, in `nodes/sound_fx.h`). So the
 		// node this script opens is not, and cannot be, the thing a gold turn here moves.
 		expect(bindings::read(nodes::saturation, ctx)).to_equal(before);
 
 		// **`ModKnobs` DOES see the turn now, and shows it.** With `int_value` claiming only the
 		// turn, the two `GoldUpper` steps reach `services::ModKnobs::mod_encoder_action`, the port of
-		// `View::modEncoderAction` (`view.cpp:835`) -- the `+1` at 100 ms is swallowed by
+		// `View::modEncoderAction` -- the `+1` at 100 ms is swallowed by
 		// `pretend_knobs_untouched()` exactly as before, and the `+2` at 150 ms edits whatever real
 		// modulation param GoldUpper is currently pointed at (not `nodes::saturation`, per above),
 		// moving that param's own knob-indicator ring: `idle`'s `indicator upper` is `16`, and
-		// `after_gold_turn`'s is `36`. `ModKnobs::popup_suppressed` (`mod_knobs.cpp:342`), the port
+		// `after_gold_turn`'s is `36`. `ModKnobs::popup_suppressed`, the port
 		// of legacy's same-param popup guard (`view.cpp:893-900`), compares the turn's param against
 		// `menu_scene().focused()->bind.param` -- and `nodes::saturation` has none (see above), so
 		// the guard cannot suppress here and the popup goes up: `idle` carries one `scene` line,
@@ -781,9 +757,8 @@ describe scene_scripts("scenes E4 level-2 acceptance scripts", $ {
 		expect(overlay::param_popup_scene().has_pending()).to_be_false();
 		// ---------------------------------------------------------------------------------------
 		// **This is NOT a guard on the router's chain order, and that was measured rather than
-		// assumed.** It was written to be one: E4 task 3 corrected the chain from
-		// `mod_knobs -> top scene` to `top scene -> mod_knobs` (shell spec §15.4), and the ruling
-		// asked for a recorded frame behind it. Swapping the two steps back inside
+		// assumed.** The chain runs `top scene -> mod_knobs`, and a recorded frame might be expected
+		// to pin that order. Swapping the two steps back inside
 		// `Router::run_chain` and re-running leaves all three goldens byte-identical and every
 		// assertion here green -- because the ownership check that decides this gesture runs in
 		// `Shell::pump_input`, BEFORE `run_chain` is entered, and an owned event never reaches the
@@ -791,12 +766,12 @@ describe scene_scripts("scenes E4 level-2 acceptance scripts", $ {
 		//
 		// The order is observable only where a scene and `mod_knobs` could both claim the same
 		// event from `handle()`, and **no real scene in the tree claims a gold turn there**:
-		// `AudioClipScene` declines it explicitly (`audio_clip_scene.cpp:247-251`), `MenuScene` has
+		// `AudioClipScene` declines it explicitly (`AudioClipScene::handle`), `MenuScene` has
 		// no gold arm at all, and `grep -rn "GoldUpper\|GoldLower" src/scenes/` finds nothing
 		// outside `ModKnobs` itself. So the order stays pinned by `router_spec.cpp`'s "a scene that
 		// claims a gold-knob turn gets it, and mod_knobs never sees it", which uses a spec-local
 		// scene that does -- and a recorded frame for it cannot exist until a ported scene has such
-		// an arm. That is the finding, and it is in this fix wave's report.
+		// an arm.
 		//
 		// What this DOES pin is still worth its three goldens: a gold turn taken inside a menu now
 		// reaches the real `ModKnobs` and moves a real mod-controllable param, exactly as it does

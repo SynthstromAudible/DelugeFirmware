@@ -1,6 +1,6 @@
 /// @file
 /// @brief `CountInScene` -- driven directly by mutating `playbackHandler.currentVisualCountForCountIn`
-///        (its own sentinel, public: `playback_handler.h:169`) and quiet-ticking the scene's own
+///        (its own sentinel, public: `PlaybackHandler::currentVisualCountForCountIn`) and quiet-ticking the scene's own
 ///        poll, exactly the way a real count-in tick would leave it (`playback_handler.cpp:1051`).
 ///        Compared against the real legacy it ports -- `gui/ui/notify_drain.cpp`'s count-in block
 ///        (`:92-113`) -- reached end to end through a real `deluge::hid::display::OLED` and a real
@@ -121,9 +121,9 @@ struct Rig {
 	Rig(const Rig&) = delete;
 	Rig& operator=(const Rig&) = delete;
 
-	/// @brief Tear the stack down, so `CountInScene::on_exit` always runs (E3 task 10's
-	///        cross-contamination lesson: this scene is a process singleton, like every other
-	///        scene in this tree).
+	/// @brief Tear the stack down, so `CountInScene::on_exit` always runs (this scene is a process
+	///        singleton, like every other scene in this tree, so a leftover would leak into the
+	///        next example).
 	~Rig() {
 		while (shell.stack().depth() > 0) {
 			shell.stack().pop(SceneKind::Null);
@@ -140,7 +140,7 @@ struct Rig {
 /// @brief The 128x48 canvas `OLED::displayPopup`/`cancelPopup` would have left, as a PBM.
 ///
 /// Always 48 rows: `deluge::hid::display::OLED::popup` is a fixed `kDelugeOled` canvas
-/// (`gfx/oled/geometry.h:21`, `{128, 48, 5}`) -- the real board's own panel. Legacy has no 64-row
+/// (`kDelugeOled` in `gfx/oled/geometry.h`, `{128, 48, 5}`) -- the real board's own panel. Legacy has no 64-row
 /// mode to compare against.
 std::string legacy_popup_pbm() {
 	return page_major_to_pbm(deluge::hid::display::OLED::popup.bytes().data(), 128, 48);

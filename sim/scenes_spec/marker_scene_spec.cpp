@@ -25,14 +25,14 @@
 /// `horizontalEncoderAction`, `renderMainPads`, `renderOLED`). `open_legacy` calls
 /// `waveformBasicNavigator.opened(&holder)`, which is `SampleMarkerEditor::opened`'s own line, so
 /// even the scroll and zoom legacy renders from are ones IT derived; nothing the port computed
-/// reaches the oracle. This replaced a `mirror_to_legacy` that handed legacy the port's own view
-/// (E3 final review, B3).
+/// reaches the oracle. A `mirror_to_legacy` that handed legacy the port's own view
+/// would make the oracle echo the port.
 ///
 /// The pad overlay in particular is compared against the real `renderColumn`/`renderMarkerInCol`,
 /// reached through the public `renderMainPads` because both are private
-/// (`sample_marker_editor.h:90-94`). That comparison used to be a transcription of those two bodies
-/// living in `tests/spec/ui/markers_grid_spec.cpp`, whose host target cannot link `deluge_app`
-/// (E3 final review, B2).
+/// (`sample_marker_editor.h:90-94`). A transcription of those two bodies, as the host target
+/// `tests/spec/ui/markers_grid_spec.cpp` would have to keep (it cannot link `deluge_app`), would
+/// drift from them.
 ///
 /// Two divergences are **measured** here rather than only written down: `renderMainPads`'
 /// phase-2 suppression, which the scene deliberately does not follow (see `marker_scene.h`), and
@@ -214,7 +214,7 @@ struct Rig {
 	Rig(const Rig&) = delete;
 	Rig& operator=(const Rig&) = delete;
 
-	/// @brief Tear the stack down, so every scene's `on_exit` always runs (E3 task 10).
+	/// @brief Tear the stack down, so every scene's `on_exit` always runs.
 	///
 	/// `MarkerScene` is a process singleton (`shell/scene.h`'s `SceneState` cache): an example that
 	/// left it -- or anything pushed above it -- on the stack would make the NEXT example's
@@ -359,8 +359,8 @@ void restore(Rig& r, const HolderState& s) {
 /// Not a mirror of the port's scroll and zoom: `waveformBasicNavigator.opened(&holder)` is
 /// `SampleMarkerEditor::opened`'s own line (`sample_marker_editor.cpp:119-128`), so the view legacy
 /// navigates and renders from is the one IT computes from the holder. The caller `restore()`s the
-/// holder first, so not even the remembered-view fields carry the port's answer across (E3 final
-/// review, B1/B3: each side from its own sentinel).
+/// holder first, so not even the remembered-view fields carry the port's answer across (each side starts from its own
+/// sentinel).
 /// @brief An audio clip holding the sample, its markers set through the clip's own setters, with a `Shell` for the
 ///        scene. An audio clip's markers live in its descriptor record (`AudioClip::docAudioClip_`), which a save
 ///        writes.
@@ -445,9 +445,8 @@ struct LegacyPads {
 ///
 /// This is the whole overlay -- `renderColumn` (`:1268`) and `renderMarkerInCol` (`:1058`), which
 /// are private and so unreachable except through this public entry -- on top of
-/// `waveformRenderer.renderFullScreen`. It replaces the transcription of those two bodies that used
-/// to live in `tests/spec/ui/markers_grid_spec.cpp`, which the host target cannot link
-/// `deluge_app` to reach (E3 final review, B2).
+/// `waveformRenderer.renderFullScreen`. It stands in for a transcription of those two bodies in
+/// `tests/spec/ui/markers_grid_spec.cpp`, which the host target cannot link `deluge_app` to reach.
 /// @param blink_phase `SampleMarkerEditor::blinkPhase`, which decides the suppression mask.
 LegacyPads legacy_pads(int8_t blink_phase) {
 	sampleMarkerEditor.blinkPhase = blink_phase;
@@ -1009,7 +1008,7 @@ describe marker_scene_spec_body("scenes/marker MarkerScene", $ {
 	});
 
 	it("paints the blink: phases 0, 1 and 2 alike, the selected marker gone on phase 3", _ {
-		// The visible half of the blink, and the half `timerCallback` (`sample_marker_editor.cpp:806-862`)
+		// The visible half of the blink, and the half `SampleMarkerEditor::timerCallback`
 		// disagrees with `renderMainPads` about -- see `marker_scene.h`. Phases 0 and 2 must look the
 		// same as each other; 1 and 3 must each look different from them and from one another.
 		Rig r;

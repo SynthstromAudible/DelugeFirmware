@@ -4,7 +4,7 @@
 /// @brief The ported menu, opened at a chosen root on the GLOBAL guest's own scene stack, and the
 ///        two guards that put the guest and legacy's UI hierarchy back afterwards.
 ///
-/// Shared by `note_mode_spec.cpp` and `pad_forward_spec.cpp` (note-family Task 7), which both ask
+/// Shared by `note_mode_spec.cpp` and `pad_forward_spec.cpp` which both ask
 /// `gui::ui::activeNoteMode()`. That function reads `shellHostUI`'s real `SceneStack`, so the menu
 /// has to be on the singleton guest's stack -- a spec-local `ShellHostUI` would not be seen.
 
@@ -77,7 +77,7 @@ inline const menu::Node& menu_node_for_root(menu::MenuContext::Root root) {
 }
 
 /// @brief The context `openShellMenu`'s `NoteMode` installs -- `context_for` over the fixture's song
-///        and clip, then `ctx.root` set (`gui/ui/shell_menu_entry.cpp:136-139`) -- for any root.
+///        and clip, then `ctx.root` set (`gui/ui/shell_menu_entry.cpp`) -- for any root.
 inline menu::MenuContext menu_context_at(SongFixture& fx, menu::MenuContext::Root root) {
 	menu::MenuContext ctx = menu::context_for(*fx.song, deluge::gui::menuViewOf(fx.clip), 0, /*performance_view=*/false,
 	                                          /*session_or_arranger_root=*/false, /*session_view_root=*/false,

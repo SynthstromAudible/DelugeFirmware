@@ -1,22 +1,21 @@
 /// @file
-/// @brief Note-family Task 7a: legacy's own "is a note editor open?" reads, and the note-mode
-///        handlers' own menu calls, against the ported note mode (design spec §4, "Beyond the eight
-///        sites -- correction 7").
+/// @brief Legacy's own "is a note editor open?" reads, and the note-mode handlers' own menu
+///        calls, against the ported note mode.
 ///
 /// **Everything real.** A real `Song`/clip (`support/song_fixture.h`), the real `instrumentClipView`,
 /// the real `MenuScene` on the GLOBAL guest's stack, and the guest itself opened over
 /// `instrumentClipView` with `openUI` -- production's shape, which is what makes
 /// `ActionLogger::getNewAction`'s current-UI gate a real question. No recorder: the forwarded
-/// handlers run for real, which is what the task is for. Before it, every navigation-record example
-/// below dereferenced `soundEditor`'s null record or ran legacy's `exitCompletely`.
+/// handlers run for real. Without that, every navigation-record example below would dereference
+/// `soundEditor`'s null record or run legacy's `exitCompletely`.
 ///
 /// **What is pinned:** `noteEditorOpen()`/`noteRowEditorOpen()` per root, closed and open; each gated
 /// pair's port observed through the menu's own state (its depth, its focused node, the value its edit
 /// storage re-read) with `activeNoteMode()` asked at every step of the toggle; and, per edited file a
 /// spec can reach, the legacy arm with the ported menu closed. The offset gate's note-mode arm is
-/// `note_bridge_spec.cpp`'s, beside Task 4's legacy-arm example.
+/// `note_bridge_spec.cpp`'s, beside its legacy-arm example.
 ///
-/// **Not reachable here, argued in the task report instead:** `timeline_view.cpp`'s zoom read (its
+/// **Not reachable here, argued per site instead:** `timeline_view.cpp`'s zoom read (its
 /// arm starts an `initiateXZoom` animation), `notify_drain.cpp`'s playback re-dispatch (it needs a
 /// playback-state edge), and `note_row.cpp`'s render read (it is inside `NoteRow::renderRow`).
 
@@ -71,7 +70,7 @@
 /// @name Legacy's held-button state, reached by bare `extern`
 ///
 /// `audio_clip_scene_spec.cpp`'s block, for its reason: `Buttons::isButtonPressed` reads
-/// `buttonStates` (`hid/buttons.cpp:73`), which the header does not export, and `Buttons::buttonAction`
+/// `buttonStates` (`hid/buttons.cpp`), which the header does not export, and `Buttons::buttonAction`
 /// cannot set it in a spec process.
 /// @{
 namespace Buttons {
@@ -557,7 +556,7 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 		(void)drain_last_notice();
 
 		// The port directly, not through the pad handler: every real press that holds a note also selects
-		// it (`gui/views/instrument_clip_view.cpp:2512-2513`, `:2705-2706`), so no press reaches `:3891` with
+		// it (`InstrumentClipView::editPadAction`, `:2705-2706`), so no press reaches `:3891` with
 		// nothing selected. This is the call that line makes.
 		guest::noteModeToggleNoteEditorParamMenu(1);
 
@@ -746,8 +745,8 @@ describe note_mode_reads_note_row_editor("the note-row editor's handlers' own me
 		Kit* const kit = static_cast<Kit*>(fx.clip->output);
 		kit->selectedDrum = row0;
 		// The clip already active on its kit, as a booted session has it: otherwise the audition's
-		// `makeCurrentClipActiveOnInstrumentIfPossible` (`model/clip/instrument_clip_minder.cpp:587-598`) runs
-		// `Kit::setActiveClip`, which services the audio routine for a SOUND drum (`model/instrument/kit.cpp:1059`)
+		// `makeCurrentClipActiveOnInstrumentIfPossible` runs
+		// `Kit::setActiveClip`, which services the audio routine for a SOUND drum (`model/instrument/kit.cpp`)
 		// and faults in a spec process, as `note_bridge_spec.cpp`'s `ActionLogGuard` records.
 		ActiveClipSeed active_clip(*kit, fx.clip);
 		LegacyViewGuard::audition_row(0);

@@ -29,35 +29,34 @@
 ///
 /// @par What is NOT covered here, and why
 ///
-///   * **`Slicer::graphicsRoutine` (`slicer.cpp:156-203`), the playhead.** Its only interesting
+///   * **`Slicer::graphicsRoutine`, the playhead.** Its only interesting
 ///     branch needs `Sound::voices()` to report a live voice, which needs a running
 ///     `AudioEngine`; `support/song_fixture.h` builds a `Song` by direct construction and never
 ///     calls `AudioEngine::init()`, so the only branch a spec can reach is "no voices, no tick
 ///     square", which asserts nothing. The scene does not port it -- see `slicer_scene.h`.
-///   * **`Slicer::redraw` (`slicer.cpp:100-101`)**, which is empty: a 7SEG-only hook with no body.
-///   * **`Slicer::padAction`'s "do slice" branch (`slicer.cpp:508-534`)** -- the voice walk, which is
+///   * **`Slicer::redraw`**, which is empty: a 7SEG-only hook with no body.
+///   * **`Slicer::padAction`'s "do slice" branch** -- the voice walk, which is
 ///     `graphicsRoutine`'s walk again, needs a live voice for the same reason and is unreachable for
 ///     the same reason. `Sound::voices()` reads a private `fast_vector<ActiveVoice>`
-///     (`processing/sound/sound.h:311, 358`) filled only by `AudioEngine`'s voice pool, and nothing
+///     (`processing/sound/sound.h`) filled only by `AudioEngine`'s voice pool, and nothing
 ///     in a spec process boots one. The *arithmetic* it feeds is ported as
 ///     `SlicerScene::add_slice_at` and is compared against a table the spec seeds legacy with
 ///     (below); only the source of the number is uncovered.
-///   * **`Slicer::doSlice` (`slicer.cpp:596-751`) itself.** It calls
-///     `sampleBrowser.claimAudioFileForInstrument` (`:600`), reads `soundEditor.currentSource` /
-///     `currentSound` (`:612-614`, `:634`), calls `instrumentClipView.recalculateColours` (`:747`)
-///     and ends in `sampleBrowser.exitAndNeverDeleteDrum()` (`:749`) -- four `gui/` globals
-///     `src/scenes/**` may never name, and a card read. So the commit's *body* is behind
+///   * **Legacy's slice body, `SliceCore::do_slice` (`gui/ui/slice_core.cpp`).** It reads
+///     `soundEditor.currentSource` / `currentSound`, calls `instrumentClipView.recalculateColours`,
+///     and `Slicer::graphicsRoutine` then ends the slice in `sampleBrowser.exitAndNeverDeleteDrum()`
+///     -- `gui/` globals `src/scenes/**` may never name, and a card read. So the commit's *body* is behind
 ///     `SliceOps::commit` and the spec drives a fake; what IS compared, and mutation-proved, is
 ///     everything around it: the snapshot, the gate, the dispatch and the release.
 ///
 /// @par What the two sides are TOLD, and by whom
 ///
-/// Task 9's rule stands -- each side computes from its own sentinel -- with one addition this task
-/// had to make. Several arms need a slice table with more than one entry in it, and neither side can
-/// build one from its own `padAction`: legacy's adder is behind the voice walk above. So the spec
+/// Each side computes from its own sentinel, with one addition. Several arms need a slice table with more than one
+/// entry in it, and neither side can build one from its own `padAction`: legacy's adder is behind the voice walk above.
+/// So the spec
 /// **tells both sides the same table**, each through its own front door -- the port through its own
-/// ported adder (`SlicerScene::add_slice_at`, which is `slicer.cpp:535-551`), legacy through its own
-/// public members -- and then **asserts the two tables agree before the gesture under test runs**
+/// ported adder (`SlicerScene::add_slice_at`, the port of `Slicer::padAction`'s slice-adding arm), legacy through its
+/// own public members -- and then **asserts the two tables agree before the gesture under test runs**
 /// (`expect_tables_match`). The seeding is therefore an assertion, not an assumption, and every
 /// comparison after it is still legacy's own code against the port's own code.
 ///
@@ -87,12 +86,11 @@
 
 #include "support/song_fixture.h"
 
-// NOT `support/card_access.h`. Task 9 included it and used neither guard; task 10 deleted it, and
-// the reason is worth stating because the omission looks like one. `QuietAudio` disarms exactly one
+// NOT `support/card_access.h`; the omission is deliberate. `QuietAudio` disarms exactly one
 // landmine -- `FileCatalogue`'s `emptyFileItems`/`deleteSomeFileItems` pump
 // `AudioEngine::routineWithClusterLoading()` between chunks, and an un-booted engine dies in
-// `fillInputRing` (`card_access.h:59-81`). Nothing here drives a listing, and the card-touching half
-// of `Slicer::doSlice` is behind `SliceOps::commit`, whose fake performs no I/O -- so nothing in this
+// `fillInputRing` (`support/card_access.h`). Nothing here drives a listing, and the card-touching half
+// of `SliceCore::do_slice` is behind `SliceOps::commit`, whose fake performs no I/O -- so nothing in this
 // file reaches an audio-engine yield point at all. Holding the latch anyway would assert a card
 // touch that does not happen. `SdRoot` likewise: no file is opened.
 
@@ -280,8 +278,8 @@ struct Rig {
 	/// @brief One tick to deliver the turn, one to draw its consequence.
 	///
 	/// `Shell::tick` delivers encoder events at **step 8**, after step 5/6 have already built this
-	/// tick's frames (`shell/shell.cpp:411-412`), and the `Repaint` the arm files is therefore for
-	/// the tick after (`shell.cpp:413-419`). So a pixel comparison taken one tick after a turn shows
+	/// tick's frames (`Shell::tick`), and the `Repaint` the arm files is therefore for
+	/// the tick after. So a pixel comparison taken one tick after a turn shows
 	/// the value from *before* it -- found by writing exactly that and watching the panel read 17
 	/// where legacy read 20. Every gesture below therefore settles before anything is read.
 	void settle(uint32_t at_ms) {
@@ -293,7 +291,7 @@ struct Rig {
 	///        (`shell/profiles/deluge.cpp`).
 	///
 	/// @warning **At most 63 detents per call.** `InputLowering::apply_encoder_edges` takes its
-	///          edge count as an `int8_t` (`shell/input_lowering.cpp:165`), so 64 detents is 128
+	///          edge count as an `int8_t` (`InputLowering::apply_encoder_edges`), so 64 detents is 128
 	///          edges and wraps negative -- 120 detents arrived as -16 and turned a count of 136
 	///          into 0, which is how this was found. Legacy has no such limit
 	///          (`selectEncoderAction(int8_t offset)` is handed whole detents), so every multi-turn
@@ -309,12 +307,12 @@ struct Rig {
 	void turn_vertical(int32_t detents, uint32_t at_ms) {
 		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_ENCODER, 0, 0, static_cast<int16_t>(detents * 2)}, at_ms);
 	}
-	/// @brief Press or release SHIFT, at matrix (8, 0) (`shell/profiles/deluge.cpp:14`).
+	/// @brief Press or release SHIFT, at matrix (8, 0) (`shell/profiles/deluge.cpp`).
 	void shift(bool on, uint32_t at_ms) {
 		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, 8, 0, static_cast<int16_t>(on ? 255 : 0)}, at_ms);
 	}
 
-	/// @brief Press or release one button, by matrix coordinates (`shell/profiles/deluge.cpp:13-18`).
+	/// @brief Press or release one button, by matrix coordinates (`shell/profiles/deluge.cpp`).
 	void button(uint8_t mx, uint8_t my, bool on, uint32_t at_ms) {
 		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, mx, my, static_cast<int16_t>(on ? 255 : 0)}, at_ms);
 	}
@@ -347,13 +345,13 @@ struct Rig {
 	/// @return The text the shell's popup service last showed.
 	///
 	/// @warning This is a *record*, not a level -- `Notices::last_popup_text()` is "the text last
-	///          shown" and survives the popup's removal (`shell/notices.h:524-527`). Ask
+	///          shown" and survives the popup's removal (`shell/notices.h`). Ask
 	///          `popup_showing()` whether one is on screen.
 	std::string popup() { return shell.notices().last_popup_text(); }
 
 	/// @return Is a popup scene on the stack right now? `Notices` pushes `SceneKind::Popup` for one
-	///         and `SceneStack::remove`s it on cancel (`Notices::drain`'s `CancelPopup` case,
-	///         `shell/notices.cpp:331-395`) or on timeout (`Notices::tick`, `notices.cpp:440-470`).
+	///         and `SceneStack::remove`s it on cancel (`Notices::drain`'s `CancelPopup` case)
+	///         or on timeout (`Notices::tick`).
 	bool popup_showing() {
 		for (const deluge::ui::shell::Scene* s : shell.stack().scenes()) {
 			if (s->kind() == SceneKind::Popup) {
@@ -369,7 +367,7 @@ struct Rig {
 
 // --- the legacy oracle ------------------------------------------------------------------------
 
-/// @brief The legacy global (`Slicer slicer`, `gui/ui/slicer.cpp:55`), aliased so every oracle call
+/// @brief The legacy global (`Slicer slicer`, `gui/ui/slicer.cpp`), aliased so every oracle call
 ///        below says out loud which side it is driving.
 Slicer& legacy_slicer = ::slicer;
 
@@ -498,8 +496,9 @@ PadXY legacy_slot_pad(int32_t index) {
 /// engine, a kit, or a card. Everything the scene decides on its own -- the slice table, the modes,
 /// the popup, the gate, the coalescer, the dispatch -- is real and is compared against legacy.
 ///
-/// `play_position` is the one that answers back: it stands for the voice walk at
-/// `slicer.cpp:508-534`, and `nullopt` (its default) is legacy's `voiceSample == nullptr` at `:533`.
+/// `play_position` is the one that answers back: it stands for the voice walk in
+/// `Slicer::padAction`'s do-slice arm, and `nullopt` (its default) is legacy's
+/// `voiceSample == nullptr`.
 struct FakeOps final : deluge::scenes::slicing::SliceOps {
 	int32_t stop_previewing_calls = 0;
 	int32_t kill_voices_calls = 0;
@@ -546,7 +545,7 @@ struct FakeOps final : deluge::scenes::slicing::SliceOps {
 /// @brief Seed BOTH sides with the same manual slice table, each through its own front door.
 ///
 /// See "What the two sides are TOLD" in the file docstring. The port goes through its own ported
-/// adder (`SlicerScene::add_slice_at`, `slicer.cpp:535-551`) with the play positions handed in;
+/// adder (`SlicerScene::add_slice_at`) with the play positions handed in;
 /// legacy is assigned its own public members, because its adder is behind the voice walk no spec can
 /// drive. `expect_tables_match` then makes the seeding an assertion.
 ///
@@ -747,8 +746,8 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 
 	it("lets a fast turn drive the REGION count negative, exactly as legacy does", _ {
 		// The floor wrap tests for equality with 1, so a turn that STEPS OVER 1 misses it: 16 - 20
-		// is -4, and -4 is what both sides keep. Recorded in `src/scenes/README.md`'s defect ledger
-		// as a legacy defect the port reproduces rather than fixes -- a one-sided fix would be a
+		// is -4, and -4 is what both sides keep. Recorded in `src/scenes/README.md`'s "Defects this
+		// port found in shipping firmware" as a legacy defect the port reproduces rather than fixes -- a one-sided fix would be a
 		// silent divergence, which is what every other example here exists to catch.
 		Rig r;
 		r.open();
@@ -771,7 +770,7 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 		r.open();
 		slicer_scene().set_mode(Mode::Manual);
 		r.tick(0);
-		// A positive turn adds nothing (adding is `padAction`'s, Task 10) ...
+		// A positive turn adds nothing (adding is `padAction`'s) ...
 		r.turn_select(4, 10);
 		r.settle(10);
 		const int32_t after_up = slicer_scene().num_manual_slices();
@@ -1005,8 +1004,8 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 	// --- the slice table, against legacy ------------------------------------------------------
 
 	it("places slices in sorted order, as legacy's padAction does", _ {
-		// `slicer.cpp:535-551`. The taps go in unsorted deliberately: the bubble sort at `:542-551`
-		// is what puts them in order, and a table that arrived sorted would not exercise it.
+		// `Slicer::padAction`'s slice-adding arm. The taps go in unsorted deliberately: its bubble
+		// sort is what puts them in order, and a table that arrived sorted would not exercise it.
 		Rig r;
 		r.open();
 		slicer_scene().set_mode(Mode::Manual);
@@ -1182,15 +1181,13 @@ describe slicer_scene_spec_body("scenes/slicer SlicerScene", $ {
 	});
 
 	it("keeps its slice table when a popup it raised itself expires", _ {
-		// The regression Task 10 found and Task 9 shipped: `on_resume()` used to re-run
-		// `focusRegained`, and a popup is a scene in the shell (`SceneKind::Popup`), so the removal
-		// `Notices` performs 800 ms later called it. Forty hand-placed slices vanished because the
+		// `on_resume()` must not re-run `focusRegained`: a popup is a scene in the shell
+		// (`SceneKind::Popup`), so the removal `Notices` performs 800 ms later calls `on_resume()`. Forty hand-placed slices vanished because the
 		// user tapped a pad. See `SlicerScene::on_resume` for the whole argument.
 		//
-		// The popup here is raised by the scene's own Y_ENC arm (`slicer.cpp:301`), and the 800 ms
-		// is `kPopupTimeoutMs` (`shell/notices.cpp:31`), returned by `Notices::timeout_for`
-		// (`notices.cpp:472-475`); the push is `Notices::show_popup_with_timeout`
-		// (`notices.cpp:408-438`) and the removal `Notices::tick` (`notices.cpp:440-470`).
+		// The popup here is raised by the scene's own Y_ENC arm (`Slicer::buttonAction`), and the 800 ms
+		// is `kPopupTimeoutMs` (`shell/notices.cpp`), returned by `Notices::timeout_for`; the push is
+		// `Notices::show_popup_with_timeout` and the removal `Notices::tick`.
 		Rig r;
 		FakeOps ops;
 		slicer_scene().set_ops(&ops);

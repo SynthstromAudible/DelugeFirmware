@@ -42,8 +42,7 @@
 #include "spec/support/spec_main.h"
 
 // The two file-scope globals `readFileItemsForFolder` sets and `getNewFileItem`/`cullSomeFileItems`
-// read (`storage/file_catalogue.cpp:80 maxNumFileItemsNow`, `:81 catalogSearchDirection`; they were
-// `browser.cpp`'s before the extraction). They
+// read (`maxNumFileItemsNow` and `catalogSearchDirection` in `storage/file_catalogue.cpp`). They
 // have external linkage but no header declares them -- the same situation `menu_ranges_spec.cpp`
 // records for the file-scope menu globals -- so this spec declares them to drive a cull directly,
 // deterministically, instead of hoping a mid-listing cull lands where readdir order happens to put
@@ -53,10 +52,10 @@ extern int32_t catalogSearchDirection;
 
 namespace {
 
-/// `SdRoot` and `QuietAudio` moved to `support/card_access.h` in task 2 of this plan: `QuietAudio`
-/// in particular is the disarm for a landmine that *segfaults* an un-booted spec process rather
-/// than failing it, and every later spec in this plan drives a listing too. Their documentation --
-/// including why the shipped seam must NOT hold that latch -- moved with them, unchanged.
+/// `SdRoot` and `QuietAudio` live in `support/card_access.h`: `QuietAudio` in particular is the
+/// disarm for a landmine that *segfaults* an un-booted spec process rather than failing it, and
+/// every spec that drives a listing needs it. Their documentation there says why the shipped seam
+/// must NOT hold that latch.
 using namespace deluge::scenes::spec::catalogue;
 using deluge::scenes::spec::SdRoot;
 using deluge::storage::FileCatalogue;

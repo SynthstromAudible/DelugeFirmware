@@ -8,8 +8,8 @@
 ///   * **The mapping, by identity.** Both nodes carry the item their legacy class became, with the
 ///     `BrowserId` that class opened; no other node in `nodes::kAllRoots` carries either item; and
 ///     a deliberately crossed copy of the observed table is asserted *not* to match, so the
-///     comparison cannot be passing on an all-null read. Task 6's tenth mutant is the reason this
-///     is an identity table and not only a behaviour check.
+///     comparison cannot be passing on an all-null read. A behaviour check alone passes with the
+///     wrong item on the node, which is why this is an identity table too.
 ///   * **The behaviour, against legacy on the same fixture.** `midi::device_definition::Linked` and
 ///     `audio_clip::SpecificSourceOutputSelector` are both reachable from a spec process, so both
 ///     are run: the real `midiDeviceLinkedMenu`'s `readCurrentValue`, and the real
@@ -20,8 +20,8 @@
 ///     behind.
 ///   * **The milestone.** `validate_tree(kAllRoots, ...)` with strict `ValidateOptions` reports
 ///     **zero** `PlaceholderCustom`, `kPendingCustomNodes` is 0, and nothing reachable from the
-///     roots answers `is_placeholder()`. `ValidateOptions::allow_placeholder_custom` no longer
-///     exists, so there is no flag left that could hide a regression here.
+///     roots answers `is_placeholder()`. `ValidateOptions` has no `allow_placeholder_custom` flag, so there is no flag
+///     that could hide a regression here.
 ///
 /// @note The spec may include `gui/` (for the legacy menu items); the library may not. Same rule
 ///       `tables_1_spec.cpp`, `menu_actions_spec.cpp` and `browser_scene_spec.cpp` run under.
@@ -146,7 +146,7 @@ struct ScratchCard {
 
 /// @brief Refuse to start, or to finish, with the browser singleton still holding a listing.
 ///
-/// **Assert-then-clear, not defensive-clear** (task 5's finding, task 6 §7): scenes are process
+/// **Assert-then-clear, not defensive-clear** scenes are process
 /// singletons, so an example that leaked a listing would make the *next* one's refusal
 /// indistinguishable from a wiring bug. Each rig's destructor tears its own stack down; this guard
 /// says so out loud if one did not. `before_each`/`after_each` get no `self`, so `expect` is
@@ -387,9 +387,9 @@ std::vector<Wiring> expected_wiring() {
 	return {
 	    // `midi::device_definition::Linked::writeCurrentValue`'s ON arm is
 	    // `openUI(&loadMidiDeviceDefinitionUI)` (`midi/device_definition/linked.h:42`), which is
-	    // `browser::BrowserId::MidiDeviceDefinition` == 1 (`scenes/browser/browser_scene.h:113`).
+	    // `browser::BrowserId::MidiDeviceDefinition` == 1 (`browser::BrowserId`).
 	    {"midi_device_linked", 0, 1},
-	    // `audio_clip::SpecificSourceOutputSelector` (`audio_clip/specific_output_source_selector.h:26`)
+	    // `audio_clip::SpecificSourceOutputSelector` (`audio_clip/specific_output_source_selector.h`)
 	    // opens nothing at all -- it is a page, so it carries no browser id.
 	    {"specific_output_selector", 1, -1},
 	};
@@ -636,7 +636,7 @@ describe midi_device_linked_item("scenes::menu midi_device_linked", $ {
 	});
 
 	it("does not toggle when the menu is restored onto it -- the browser's own load survives", _ {
-		// **The defect fix round 1 closes.** `SceneStack::replace_root` saves every scene, and this
+		// **The defect this pins.** `SceneStack::replace_root` saves every scene, and this
 		// menu is parked on the leaf while `BrowserScene` sits above it -- `MenuSavedState` does not
 		// carry `go_up_on_resume`, so the restore lands back on the leaf. `restore_state` ->
 		// `enter_leaf` -> `on_focus` then replayed the *press*, and on the linked arm cleared the

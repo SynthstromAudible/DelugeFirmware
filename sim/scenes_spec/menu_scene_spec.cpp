@@ -194,18 +194,18 @@ constexpr Node decimal_leaf =
     menu::decimal_item(sid(String::STRING_FOR_TEMPO), get_decimal, set_decimal, deluge::ui::oled::Range{0, 9999, 1}, 2);
 constexpr Node enum_leaf = menu::enumeration(sid(String::STRING_FOR_MODE), kEnumNames, get_enum, set_enum);
 constexpr Node toggle_leaf = menu::toggle_item(sid(String::STRING_FOR_MONOPHONIC), get_toggle, set_toggle);
-/// A `Kind::SyncLevel` leaf, so the interpreter's one arm for it (task 1 of E2) is exercised
+/// A `Kind::SyncLevel` leaf, so the interpreter's one arm for it is exercised
 /// through a real tree rather than only through `validate.cpp`'s tables. Reuses
-/// `nodes::kSyncLevelRange` (`sound_lfo.h:66`) rather than spelling `NUM_SYNC_VALUES` again.
+/// `nodes::kSyncLevelRange` rather than spelling `NUM_SYNC_VALUES` again.
 constexpr Node sync_leaf = menu::sync_level_item(sid(String::STRING_FOR_SYNC), sid(String::STRING_FOR_DELAY_SYNC),
                                                  get_sync, set_sync, nodes::kSyncLevelRange);
-/// The range-dependent item spec E §4.1's `MustSelectRange` arm fires on.
+/// The range-dependent item the `MustSelectRange` arm fires on.
 constexpr Node transpose_leaf = menu::with_range_dependent(
     menu::param(sid(String::STRING_FOR_TRANSPOSE),
                 {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_LPF_FREQ}));
 
 /// @brief A `CustomItem` that reports whether/how many times it saw `Back`, and either consumes it
-///        (returning `Pop`) or lets it fall through -- the two halves of task 2's precedence claim.
+///        (returning `Pop`) or lets it fall through -- the two halves of the Back-precedence claim.
 ///
 /// Not added to `settings_children`: these are opened directly via `menu_scene().open(...)`
 /// (`Rig::open` already gave the tree a real `MenuContext` to reuse), so nothing here can move an
@@ -228,7 +228,7 @@ struct CountingCustom final : menu::CustomItem {
 		}
 		return Result::unhandled();
 	}
-	// `on_focus` (fix round 2): counts focus transitions, so the spec can prove it fires once per
+	// `on_focus`: counts focus transitions, so the spec can prove it fires once per
 	// `open()`/descent, not once per `render_oled` tick.
 	void on_focus(const MenuContext&, menu::MenuState&) const override { focused++; }
 };
@@ -269,9 +269,8 @@ constexpr Node chain_source_leaf = menu::with_select_chain(
     menu::int_item(sid(String::STRING_FOR_PAN), get_int, set_int, deluge::ui::oled::Range{0, 50, 1}),
     chain_source_chain, chain_source_targets);
 
-/// A three-deep chain, so `save_state`/`restore_state` can be round-tripped at the depth the brief
-/// asks for. Appended *last* so the visible window at cursor 0 -- and therefore the recorded root
-/// goldens -- is unchanged.
+/// A three-deep chain, so `save_state`/`restore_state` can be round-tripped at depth three. Appended *last* so the
+/// visible window at cursor 0 -- and therefore the recorded root goldens -- is unchanged.
 constexpr Node deep_leaf =
     menu::int_item(sid(String::STRING_FOR_PAN), get_int, set_int, deluge::ui::oled::Range{0, 50, 1});
 constexpr const Node* deep_inner_children[] = {&deep_leaf};
@@ -289,7 +288,7 @@ constexpr const Node* settings_children[] = {&lpf_page,   &int_leaf,    &decimal
 constexpr Node settings_root = menu::submenu(sid(String::STRING_FOR_SETTINGS), settings_children);
 
 /// The synthetic tree above **and** the real sound root: the shortcut examples below press real
-/// pads on the real `Root::Sound` table (task 9 deleted the installable stub table), and a jump
+/// pads on the real `Root::Sound` table, and a jump
 /// target has to have been given a node id or `handle()` refuses to offer the jump at all.
 constexpr const Node* kRoots[] = {&settings_root,       &nodes::sound_root,   &nodes::filters_group,
                                   &nodes::source_group, &nodes::voice_group,  &nodes::env_group,
@@ -357,7 +356,7 @@ struct Rig {
 	Rig(const Rig&) = delete;
 	Rig& operator=(const Rig&) = delete;
 
-	/// @brief Tear the stack down, so every scene's `on_exit` always runs (E3 task 10).
+	/// @brief Tear the stack down, so every scene's `on_exit` always runs.
 	///
 	/// `MenuScene` is a process singleton (`shell/scene.h`'s `SceneState` cache): an example that
 	/// left it -- or anything pushed above it -- on the stack would make the NEXT example's
@@ -392,13 +391,13 @@ struct Rig {
 	/// @brief \p detents clicks of the (detented) select encoder.
 	///
 	/// A `EncoderKind::Detented` encoder takes `LoweringConfig::edges_per_detent` (2) A-pin edges
-	/// per click (`shell/input_lowering.h:28`), so a spec that wants one detent sends two edges.
+	/// per click, so a spec that wants one detent sends two edges.
 	void turn(int32_t detents, uint32_t at_ms) { edges(kSelectEncoder, static_cast<int16_t>(detents * 2), at_ms); }
 	/// @brief \p delta detents of a gold knob.
 	///
 	/// The gold knobs are `EncoderKind::Accelerating`, so the raw edge count IS the magnitude and
 	/// no `edges_per_detent` division applies. `InputLowering::action_gold_turn`
-	/// (`shell/input_lowering.cpp:209-231`) additionally swallows the first turn after a *pause*
+	/// additionally swallows the first turn after a *pause*
 	/// longer than `short_press_ms` (500 ms) as a possible accidental wiggle -- but
 	/// `last_turn_ms_` starts at 0, so every clock this spec uses (all under 500 ms) already
 	/// counts as "turned recently" and one event is one acted-on turn. Keep spec clocks under
@@ -479,7 +478,7 @@ describe menu_scene_row_icons("scenes::menu::row_icon", $ {
 	});
 
 	it("marks the arpeggiator's mode and kit-arp rows toggle-style, as their isToggle() does", _ {
-		// `arpeggiator/mode.h:100`, `arpeggiator/include_in_kit_arp.h:88`.
+		// `arpeggiator::Mode::isToggle` (`arpeggiator/mode.h`), `arpeggiator/include_in_kit_arp.h:88`.
 		expect(nodes::arp_mode.selection_is_toggle).to_be_true();
 		expect(nodes::arp_include_in_kit_arp.selection_is_toggle).to_be_true();
 	});
@@ -560,8 +559,7 @@ describe menu_scene_composition("scenes::menu::MenuScene composition", $ {
 		expect(menu_scene().on_enter(SceneId{SceneKind::FirstApp, menu::node_id(int_leaf)})).to_be_true();
 		expect(menu_scene().focused() == &int_leaf).to_be_true();
 		expect(menu_scene().on_enter(SceneId{SceneKind::FirstApp, 60000})).to_be_false();
-		// Arg 0 means "the root this context chose". Until task 8 filled `MenuScene::roots()` there
-		// was nothing to choose and this refused; now it lands on the application's own root for the
+		// Arg 0 means "the root this context chose". With `MenuScene::roots()` filled it lands on the application's own root for the
 		// context the fixture resolved -- a synth clip, so `Root::Sound` -- which is a different node
 		// from this spec's hand-built `settings_root`, and that is the point of the check.
 		expect(menu_scene().on_enter(SceneId{SceneKind::FirstApp, 0})).to_be_true();
@@ -571,7 +569,7 @@ describe menu_scene_composition("scenes::menu::MenuScene composition", $ {
 	});
 });
 
-describe menu_scene_info_and_custom("scenes::menu::MenuScene Kind::Custom input, and its two battery/firmware CustomItems (task 2)", $ {
+describe menu_scene_info_and_custom("scenes::menu::MenuScene Kind::Custom input, and its two battery/firmware CustomItems", $ {
 	it("delivers input to a focused custom item, ahead of the scene's own handling", _ {
 		select_language();
 		deluge::notify::dirty().drain();
@@ -674,7 +672,7 @@ describe menu_scene_info_and_custom("scenes::menu::MenuScene Kind::Custom input,
 		expect(rig.pbm()).to_equal(rig.reference_pbm());
 	});
 
-	it("CustomItem::on_focus fires once per focus transition, not once per render (fix round 2)", _ {
+	it("CustomItem::on_focus fires once per focus transition, not once per render", _ {
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
@@ -743,7 +741,7 @@ describe menu_scene_info_and_custom("scenes::menu::MenuScene Kind::Custom input,
 	});
 
 	it("GateSelectionItem's backward arm snaps the cursor to the last REAL output, not to the "
-	   "off-time row it just left (task 10)", _ {
+	   "off-time row it just left", _ {
 		// `gate::Selection::beginSession` restores `soundEditor.currentSourceIndex` on the way back
 		// (`gate/selection.h:33-41`), and `selectButtonPress` never writes that field for the
 		// minimum-off-time row -- it returns `&gateOffTimeMenu` before the assignment
@@ -752,7 +750,7 @@ describe menu_scene_info_and_custom("scenes::menu::MenuScene Kind::Custom input,
 		// blanket `Kind::Custom` exclusion -- "leave `MenuState::list[depth]` alone" -- gives the
 		// WRONG answer here: it keeps the cursor on the off-time row itself, because nothing ever
 		// moved it. `GateSelectionItem::on_focus_backward` (`nodes/dynamic.cpp`) is what fixes it,
-		// and this is the case E3 task 10's `node.h` doc names as the reason a backward arm is
+		// and this is the case `node.h` names as the reason a backward arm is
 		// needed at all: the forward arm alone (`CustomItem::on_focus`) never fires on the way up.
 		select_language();
 		deluge::notify::dirty().drain();
@@ -801,13 +799,13 @@ describe menu_scene_info_and_custom("scenes::menu::MenuScene Kind::Custom input,
 		expect(cursor_of(0)).to_equal(2);
 	});
 
-	it("a SELECTED over-long row scrolls, held across quiet ticks (task 10)", _ {
-		// `ui/oled/list.cpp:156` -- the selected row's label runs through `scroll_text`, which
-		// self-arms the panel's own gate (`ui/oled/scroll_text.cpp:68`) whenever the label overflows
+	it("a SELECTED over-long row scrolls, held across quiet ticks", _ {
+		// `oled::list`'s selected row runs its label through `scroll_text`, which
+		// self-arms the panel's own gate (`request_repaint_after`) whenever the label overflows
 		// its row; `tests/spec/ui/list_spec.cpp`'s "scrolls a selected label..." already pins that
 		// mechanics directly. What was untested is the OTHER half: does `MenuScene::render_vertical`
-		// actually reach it with a real, focused, over-long node? Every over-long row E2 task 12's
-		// goldens ever recorded was unselected -- legacy truncates that case too, so nothing was
+		// actually reach it with a real, focused, over-long node? Every over-long row the goldens
+		// record is unselected -- legacy truncates that case too, so nothing was
 		// missing there -- and nothing exercised the selected one through the real scene.
 		//
 		// `nodes::feature_alt_delay_params`'s label is "Alternative Golden Knob Delay Params" (36
@@ -1054,7 +1052,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 	});
 
 	it("while learning, LEARN fast-blinks at main's 60 ms", _ {
-		// `blinkLed(IndicatorLED::LEARN, 255, 1)` (`sound_editor.cpp:729`), `kFastFlashTime`; the release puts back
+		// `blinkLed(IndicatorLED::LEARN, 255, 1)` (`SoundEditor::buttonAction`), `kFastFlashTime`; the release puts back
 		// the item's own blink or nothing (`:736-741`).
 		select_language();
 		deluge::notify::dirty().drain();
@@ -1174,9 +1172,9 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		expect(r.shell.stack().depth()).to_equal(size_t(1));
 
 		// `handle()` directly, so the `Result` itself is the assertion (`sound_editor.cpp:456` ->
-		// `:433` `goUpOneLevel()` -> `:678` `exitCompletely()`). `Remove`, not `Pop`: review round 1
-		// (task 11) -- `Pop{.pop_to = kind}` still pops everything ABOVE `kind` too
-		// (`scene_stack.cpp:63-95`), which is wrong for "close just me" the moment a `Notices`
+		// `:433` `goUpOneLevel()` -> `:678` `exitCompletely()`). `Remove`, not `Pop`:
+		// `Pop{.pop_to = kind}` still pops everything ABOVE `kind` too
+		// (`SceneStack::pop`), which is wrong for "close just me" the moment a `Notices`
 		// overlay legitimately sits above this scene (see the test right after this one).
 		DirectCtx d;
 		const Result res = menu_scene().handle(
@@ -1247,7 +1245,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 	});
 
 	it("going up from a leaf at the root closes the menu", _ {
-		// `SoundEditor::goUpOneLevel`'s depth-0 arm is `exitCompletely()` (`sound_editor.cpp:715-717`): a leaf a
+		// `SoundEditor::goUpOneLevel`'s depth-0 arm is `exitCompletely()` (`SoundEditor::goUpOneLevel`): a leaf a
 		// shortcut jumped straight to, or a scene opener whose scene returned, closes the editor when it goes up.
 		select_language();
 		deluge::notify::dirty().drain();
@@ -1264,9 +1262,8 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 	});
 
 	it("back at the root leaves a live overlay above it untouched", _ {
-		// Review round 1 (task 11), I3: with the old `Pop{.pop_to = FirstApp}`, this scenario tore
-		// the overlay down along with the menu -- `SceneStack::pop(kind)` removes that kind AND
-		// everything above it. `Remove` must excise only the menu, leaving the overlay (wherever it
+		// `Pop{.pop_to = FirstApp}` would tear the overlay down along with the menu --
+		// `SceneStack::pop(kind)` removes that kind AND everything above it. `Remove` must excise only the menu, leaving the overlay (wherever it
 		// sits) exactly as it was.
 		select_language();
 		deluge::notify::dirty().drain();
@@ -1311,7 +1308,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		       != std::string::npos)
 		    .to_be_true();
 
-		// Without shift the pad is not a shortcut (`sound_editor.cpp:1169`'s
+		// Without shift the pad is not a shortcut (`SoundEditor::potentialShortcutPadAction`'s
 		// `Buttons::isShiftButtonPressed()` gate), and nothing moves.
 		r.button(kShiftX, kShiftY, false, 40);
 		r.pad(kHpfFreqX, kHpfFreqY, 64, 50);
@@ -1538,7 +1535,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
 		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 100);
 		r.shell.tick(110);
-		// E2 task 9: `enter_child` substitutes the picker for the item, which is legacy's own
+		// `enter_child` substitutes the picker for the item, which is legacy's own
 		// `multiRangeMenu.menuItemHeadingTo = newItem; newItem = &multiRangeMenu;`
 		// (`sound_editor.cpp:1857-1858`). So the *picker* is entered, not the leaf.
 		expect(depth_of()).to_equal(1);
@@ -1546,8 +1543,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		expect(menu_scene().state().walk.range_picker_pending).to_be_true();
 		expect(menu_scene().state().walk.pending_after_range == &transpose_leaf).to_be_true();
 
-		// Both ranges are on screen, and the picker has selected one -- `setCurrentMultiRange`
-		// (`sound_editor.cpp:1983-1986`), applied by `after_render` from `MenuWalkState::range_choice`.
+		// Both ranges are on screen, and the picker has selected one -- `SoundEditor::setCurrentMultiRange`, applied by `after_render` from `MenuWalkState::range_choice`.
 		// `MultiRange::beginSession` (`multi_range.cpp:46-50`): a `defaultRangeI` of -1 is invalid, so
 		// the picker opens on `numRanges >> 1` -- range 1 of the two -- and `select_range` writes that
 		// back, which is legacy's `soundEditor.currentSource->defaultRangeI = ...` (`:225`).
@@ -1572,7 +1568,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 	});
 
 	it("a range-dependent node on a ZERO-range source opens, because enter_child creates the range", _ {
-		// E1's carried debt, end to end: `checkPermissionToBeginSessionForRangeSpecificParam`'s very
+		// End to end: `checkPermissionToBeginSessionForRangeSpecificParam`'s very
 		// first statement is `source->getOrCreateFirstRange()` (`sound_editor.cpp:1993`), so a
 		// sample item on a source with no ranges at all opens -- it does not bounce to a picker with
 		// nothing in it. `tables_1_spec` drives `menu::ensure_first_range` directly; this drives the
@@ -1616,11 +1612,11 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		//
 		// Two callers arrive this way and both were affected: site 8 of
 		// `gui/ui/shell_menu_entry.cpp`'s table (`soundEditor.setup(getCurrentInstrumentClip(),
-		// &menu_item::file0SelectorMenu, 0)`, `gui/views/instrument_clip_view.cpp:515`) and the
+		// &menu_item::file0SelectorMenu, 0)`, `InstrumentClipView`'s file-selector entry) and the
 		// shortcut-pad jump, which re-enters through `Action::Kind::Replace` carrying the same
 		// `arg`. Measured at level 3 before the fix: the ported file selector's browser refused to
 		// open on a fresh synth clip -- `browser::sample_can` wants a non-null `AudioFileHolder`
-		// (`scenes/browser/browser_scene.cpp:152-164`) and `ctx.range` was still null -- while the
+		// (`sample_can` in `scenes/browser/browser_scene.cpp`) and `ctx.range` was still null -- while the
 		// toggle-OFF leg opened it. `tests/ui-scripts/app/menu.txt`'s `file-selector` snapshot is
 		// that measurement; this is the same claim at fixture level.
 		select_language();
@@ -1641,7 +1637,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 	});
 
 	it("a deep link onto a MULTI-range source opens the picker, not the item", _ {
-		// The other arm of the same gate, and the one F3 task 4's review caught missing. Legacy's
+		// The other arm of the same gate, and the one that is easy to miss. Legacy's
 		// `checkPermissionToBeginSessionForRangeSpecificParam` answers `MUST_SELECT_RANGE` when the
 		// source has more than one range and none is remembered (`sound_editor.cpp:2010-2014`), and
 		// `SoundEditor::setup` then opens `multiRangeMenu` *instead of* the named item
@@ -1676,8 +1672,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 	it("a deep link to a node that is NOT range-dependent allocates nothing", _ {
 		// The other half of the guard, so the arm above cannot be satisfied by allocating for every
 		// deep link. Legacy runs the range check only for the items whose
-		// `checkPermissionToBeginSession` routes into it -- `MenuItem::isRangeDependent()`
-		// (`gui/menu_item/menu_item.h:202`), which is `Node::range_dependent` -- and an ordinary
+		// `checkPermissionToBeginSession` routes into it -- `MenuItem::isRangeDependent()`, which is `Node::range_dependent` -- and an ordinary
 		// param takes `MenuItem::checkPermissionToBeginSession` (`menu_item.cpp:27-31`), which
 		// never looks at a range at all.
 		select_language();
@@ -1868,7 +1863,7 @@ describe menu_scene_editing("scenes::menu::MenuScene leaf editing", $ {
 		r.shell.tick(110);
 		expect(menu_scene().focused() == &toggle_leaf).to_be_true();
 
-		// `values.h:202-206`: a select press reports `entered` and leaves `changed` false.
+		// `oled::toggle`: a select press reports `entered` and leaves `changed` false.
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 130);
 		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 130);
 		r.shell.tick(140);
@@ -1962,9 +1957,8 @@ describe menu_scene_editing("scenes::menu::MenuScene leaf editing", $ {
 
 	it("the horizontal page edits the focused column through the select encoder", _ {
 		// `HorizontalMenu::selectEncoderAction` (`horizontal_menu.cpp:309-326`): the select turn
-		// edits the focused column and never moves focus. Re-derived from the gold-knob version
-		// this replaces (E-note-family task 2): the gold knobs no longer touch a horizontal page at
-		// all -- they fall through to `services::ModKnobs` (spec §3.2's fourth bullet).
+		// edits the focused column and never moves focus. The gold knobs do not touch a horizontal page at
+		// all -- they fall through to `services::ModKnobs`.
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
@@ -2282,7 +2276,7 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 			const std::span<const PadFlash> got = grid.flashes.flashes();
 			return got.size() == 1 ? got[0] : PadFlash{255, 255, FlashColour::Default};
 		};
-		// `setupShortcutBlink(x, y, 0, 0b00000011 /* yellow */)` (`sound_editor.cpp:1119`).
+		// `setupShortcutBlink(x, y, 0, 0b00000011 /* yellow */)` (`SoundEditor::setupShortcutBlink`).
 		expect(flash_at_param_phase() == PadFlash{kEnv1RelX, kEnv1RelY, FlashColour::Yellow}).to_be_true();
 
 		// The first-layer item on the same pad flashes the default colour.
@@ -2295,7 +2289,7 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 	});
 
 	it("flashes no pad for the name editors and the sample-marker editors", _ {
-		// `SoundEditor::updatePadLightsFor` (`sound_editor.cpp:1036-1040`) sets no shortcut blink
+		// `SoundEditor::updatePadLightsFor` sets no shortcut blink
 		// for these items although the tables hold them; the EDIT NAME page's (11, 5) never flashes.
 		for (const Node* node : {&nodes::edit_name, &nodes::sample0_start, &nodes::sample1_start}) {
 			select_language();
@@ -2402,7 +2396,7 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 		expect(r.pad_colour(kLpfFreqX, kLpfFreqY) == RGB{0, 0, 0}).to_be_true();
 	});
 
-	it("the source-pad blink cadence never blits the OLED panels (E3 task 10 fix round 1)", _ {
+	it("the source-pad blink cadence never blits the OLED panels", _ {
 		// The regression the fold's first cut introduced: `MenuScene::next_timer()` returns a blink
 		// interval while the focused node's shortcut pad blinks -- `lpf_freq`'s does, which is
 		// exactly the previous test's fixture -- and that timer is purely a GRID concern
@@ -2481,7 +2475,7 @@ describe menu_scene_columns("scenes::menu::MenuScene horizontal page", $ {
 	/// @brief Open the LPF page and focus column \p column (0 = FREQ .. 3 = MORPH).
 	///
 	/// Shared by the formatting cases below and by the goldens, so both start from exactly the
-	/// same state. Re-derived for E-note-family task 2: legacy moves horizontal focus by
+	/// same state. Legacy moves horizontal focus by
 	/// instrument button, never by turn (`HorizontalMenu::selectEncoderAction`,
 	/// `horizontal_menu.cpp:309-326`, edits and never moves focus), and SYNTH/KIT/MIDI/CV name a
 	/// page's four columns directly (`select_map`, `:97`) rather than being walked to one at a
@@ -2578,10 +2572,10 @@ describe menu_scene_columns("scenes::menu::MenuScene horizontal page", $ {
 		for (const Case& c : kCases) {
 			g_morph = c.value;
 			(void)last_notice(); // drain
-			// A select press on a value column no longer raises this notification -- it follows the
-			// column's `select_chain`, or ascends, and stays silent either way (spec E-note-family
-			// §3.2's third bullet). The already-focused CV press does instead:
-			// `handleItemAction` (`horizontal_menu.cpp:663-679`) runs the column's own press (a
+			// A select press on a value column raises no notification -- it follows the
+			// column's `select_chain`, or ascends, and stays silent either way (a select press never raises
+			// it). The already-focused CV press does instead:
+			// `HorizontalMenu::handleItemAction` runs the column's own press (a
 			// no-op here -- only `Toggle` overrides `selectButtonPress`) and notifies, without
 			// touching the value, which is exactly what this case wants formatted.
 			r.button(kCvX, kCvY, true, at);
@@ -2589,7 +2583,7 @@ describe menu_scene_columns("scenes::menu::MenuScene horizontal page", $ {
 			expect(depth_of()).to_equal(1);
 			// Read the notice off the same tick that raised it: `Shell::tick` drains
 			// `notify::notices()` into its own `NoticesController` at the *start* of the next tick
-			// (`shell.cpp:330`), so a second tick here (the button's release) would consume it
+			// so a second tick here (the button's release) would consume it
 			// before this can.
 			const deluge::notify::Notice notice = last_raised_notice();
 			expect(notice.kind == deluge::notify::Notice::Kind::Notification).to_be_true();

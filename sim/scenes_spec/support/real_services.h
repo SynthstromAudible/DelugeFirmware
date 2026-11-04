@@ -5,14 +5,9 @@
 ///        into it -- the fixture a level-2 script uses when it wants an *application's* shell
 ///        rather than an empty one.
 ///
-/// Lifted out of `scene_scripts_spec.cpp` by F1 task 11, unchanged, and **it has one consumer, not
-/// two.** That is deliberate and it is the honest state: task 11 wired this fixture into
-/// `menu_scripts_spec.cpp`'s twelve gold-turn blocks to carry out the re-record the migration
-/// spec's §10.2 row asks of it, measured what happened, and **refused the re-record** -- see that
-/// file's `@par Every script here runs with `Services{}`` and F1 task 11's report for the
-/// measurement and the reason. The move stays because the next attempt needs exactly this fixture
-/// and two copies of "install exactly what the application installs" is the shape that lets the two
-/// drift; it is one edit of owed work already done, not a second caller pretending to exist.
+/// Shared by `scene_scripts_spec.cpp` and `menu_scripts_spec.cpp` (see that file's
+/// `@par The twelve gold-turn scripts install the real three, UNSEEDED`), because two copies of
+/// "install exactly what the application installs" is the shape that lets the two drift.
 
 #include "scenes/overlay/param_popup_scene.h"
 #include "scenes/services/global_controls.h"
@@ -36,13 +31,9 @@ namespace deluge::scenes::spec {
 /// constructed and destroyed inside `expect_script_goldens`, which this outlives, so nothing here
 /// is ever reached through a shell that has gone away.
 ///
-/// @note This used to hold three `LateService` shims -- `Service`s that forwarded every hook to a
-///       real one bound in afterwards -- because `Services` was fixed at the `Shell`'s
-///       construction and the three real services each need the `SceneStack&` (and, for two of
-///       them, the `InputLowering&`) that only exists once that shell does. `Shell::set_services`
-///       (F1 task 2) closed that loop for the application, and `scene_scripts_spec.cpp` is the
-///       reason it was found; the shim is gone and the 34 golden snapshots there did not move,
-///       which is the check that the setter installs exactly what the shim forwarded to.
+/// @note The services are installed after construction because the three real services each need
+///       the `SceneStack&` (and, for two of them, the `InputLowering&`) that only exists once the
+///       shell does; `Shell::set_services` is how an application installs them too.
 struct RealServices {
 	std::optional<services::MidiLearn> learn;
 	std::optional<services::ModKnobs> knobs;

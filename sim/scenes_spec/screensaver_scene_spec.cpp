@@ -1,11 +1,11 @@
 /// @file
-/// @brief `ScreensaverScene`, and the two animations E4 task 7 moved out of `hid/display/` into
-///        `src/ui/oled/`.
+/// @brief `ScreensaverScene`, and the two animations (`Rainfall`, `Starfield`) in `src/ui/oled/`
+///        that port the legacy `hid/display/` ones.
 ///
 /// @par Two oracles, because there are two claims
 ///
-/// **The move did not change the arithmetic.** `sim/scenes_spec/support/oracle_rainfall.{h,cpp}`
-/// and `oracle_starfield.{h,cpp}` are the PRE-MOVE `hid/display/` sources, transcribed by a
+/// **The port keeps legacy's arithmetic.** `sim/scenes_spec/support/oracle_rainfall.{h,cpp}`
+/// and `oracle_starfield.{h,cpp}` are the legacy `hid/display/` sources, transcribed by a
 /// three-substitution `sed` recorded verbatim at the top of each of those files (namespace, include
 /// path -- nothing else). They are compiled into this spec under `namespace screensaver_oracle` and
 /// run beside `deluge::ui::oled::Rainfall`/`Starfield` frame by frame, from the same seed, for
@@ -117,8 +117,8 @@ struct Rig {
 	Rig(const Rig&) = delete;
 	Rig& operator=(const Rig&) = delete;
 
-	/// @brief Tear the stack down, so `on_exit` always runs (E3 task 10's cross-contamination
-	///        lesson: every scene in this tree is a process singleton).
+	/// @brief Tear the stack down, so `on_exit` always runs (every scene in this tree is a process
+	///        singleton, so a stale stack leaks into the next example).
 	~Rig() {
 		while (shell.stack().depth() > 0) {
 			shell.stack().pop(SceneKind::Null);
@@ -450,8 +450,8 @@ describe screensaver_scene_spec_body("scenes::overlay::ScreensaverScene", $ {
 		expected.scatter();
 		expect(same_field(scene.rainfall(), expected)).to_be_true();
 
-		// The shell's very first tick reports `dt == 0` deliberately (`Shell::tick`,
-		// `shell.cpp:301-305`: a shell first ticked at a non-zero clock must not fast-forward every
+		// The shell's very first tick reports `dt == 0` deliberately (`Shell::tick`:
+		// a shell first ticked at a non-zero clock must not fast-forward every
 		// animation by the boot time), so the clock starts here.
 		r.tick(0);
 		expect(scene.since_frame_ms()).to_equal(0u);
@@ -545,8 +545,8 @@ describe screensaver_scene_spec_body("scenes::overlay::ScreensaverScene", $ {
 
 	it("is what shell::Screensaver has been pushing at all along: the service now succeeds", _ {
 		// The latch `shell/screensaver.h` documents is a latch on a REFUSED push, and a refusal is
-		// what an unregistered `SceneKind::Screensaver` used to produce. With this task's registry
-		// entry it never fires.
+		// what an unregistered `SceneKind::Screensaver` would produce. With the registry entry it
+		// never fires.
 		set_mode(::ScreensaverMode::DELUGE);
 		ShellConfig config;
 		config.screensaver_idle_ms = 100;

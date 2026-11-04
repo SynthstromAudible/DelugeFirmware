@@ -37,7 +37,7 @@ namespace {
 
 /// @brief The context `SoundEditor::setup` resolves for a synth instrument clip: no kit, no
 ///        performance view, no session/arranger root -- `context_for`'s branch that lands on
-///        `MenuContext::Root::Sound` (`scenes/menu/context.cpp:357`).
+///        `MenuContext::Root::Sound` (`menu::context_for`).
 MenuContext sound_context(spec::SongFixture& fx) {
 	return menu::context_for(*fx.song, deluge::gui::menuViewOf(fx.clip), 0, false, false, false,
 	                         /*kit_global_fx=*/false);
@@ -70,7 +70,7 @@ describe menu_grid_claim("MenuScene::grid_pad_claim -- SoundEditor::padAction's 
 	});
 
 	it("answers None on the note editor and the note-row editor roots", _ {
-		// Task 6: `:1467`'s other two predicates, `!inNoteEditor()` and `!inNoteRowEditor()`, are the
+		// `:1467`'s other two predicates, `!inNoteEditor()` and `!inNoteRowEditor()`, are the
 		// other half of the same gate `Root::Settings` above pins -- both roots skip the shortcut
 		// arm exactly as the settings root does.
 		spec::SongFixture fx = spec::make_synth_song();

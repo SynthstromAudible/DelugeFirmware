@@ -1,5 +1,5 @@
 /// @file
-/// @brief The gate F1 task 9 puts in front of the fourteen `openUI(&soundEditor)` sites, driven
+/// @brief The gate in front of the fourteen `openUI(&soundEditor)` sites, driven
 ///        against the real application globals.
 ///
 /// `gui/ui/shell_menu_entry.cpp` carries the fourteen-site table; this file drives the eight that
@@ -12,8 +12,8 @@
 /// @note **What this file cannot cover, stated rather than implied.** It drives `openShellMenu`,
 ///       which is what the eight gated sites call; it does **not** drive the eight sites, because
 ///       reaching `AudioClipView::buttonAction` here would need the whole legacy view stack. So
-///       "the site passes the right arguments" is uncovered until task 11's level-3 A/B run, in
-///       exactly the way task 8's `deluge.cpp` boot calls were. Each example names the site whose
+///       "the site passes the right arguments" is not covered here: like the `deluge.cpp` boot calls, it is
+///       left to a level-3 A/B run. Each example names the site whose
 ///       argument shape it replays so the two can be compared by eye in the meantime.
 ///
 /// @note **Every example puts the process back.** These are shared globals -- `numUIsOpen`,
@@ -147,7 +147,7 @@ constexpr uint8_t kPoisonChannel = 0xEE;
 /// Not through `openShellMenu` itself, because that resolves a *root* from the calling site's
 /// arguments and `ShellMenuNode` names only two leaves, neither of them a MIDI command. What these
 /// examples need is a focused item whose `learn_note_on` writes something -- `MidiCommandItem`
-/// (`scenes/menu/nodes/midi_command.cpp:204-213`) is the only ported one that does.
+/// (in `scenes/menu/nodes/midi_command.cpp`) is the only ported one that does.
 ///
 /// The node is named through `SceneId::arg`, not through `open()`'s root argument, and that is the
 /// warning `MenuScene::open` carries: `on_enter` re-roots from `arg`, or from `ctx_.root` when
@@ -155,15 +155,15 @@ constexpr uint8_t kPoisonChannel = 0xEE;
 /// settings root instead, which is exactly how this helper failed the first time it was run.
 /// @brief `spec::QuietAudio`, held from the first example that can leave a card listing behind.
 ///
-/// **Since F3 task 4 the site-8 example really opens the ported browser**, because
+/// **The site-8 example really opens the ported browser**, because
 /// `MenuScene::on_enter` now performs the `Source::getOrCreateFirstRange()` legacy's permission
 /// check performs (`gui/ui/sound_editor.cpp:1993`) -- so `browser::sample_can` stops refusing and
-/// the scene reads `SAMPLES/` off the fixture card, which since the same task holds a file. The
+/// the scene reads `SAMPLES/` off the fixture card, which holds a file. The
 /// next `openUI(&shellHostUI)` resets the stack, `BrowserScene::on_exit` calls
 /// `FileCatalogue::emptyFileItems`, and that pumps `AudioEngine::routineWithClusterLoading()`
 /// between chunks (`storage/file_catalogue.cpp:94`) -- which **segfaults** in a spec process,
 /// because nothing here ran `AudioEngine::init()` and so `inputRingPos` is still 0
-/// (`processing/engines/audio_engine.cpp:183`; `support/card_access.h` has the whole diagnosis).
+/// (`AudioEngine::inputRingPos`; `support/card_access.h` has the whole diagnosis).
 /// Measured: with the fix and without this latch, `menu_entry_spec` dies with SIGSEGV in
 /// `fillInputRing`; with either one absent it passes.
 ///
@@ -222,8 +222,8 @@ bool openGuestOnPlayCommand(Song& song) {
 // clang-format off
 describe menu_entry_toggle("the ShellMenu toggle", $ {
 	it("is Off by default, and shellMenuEnabled() follows it in both directions", _ {
-		// Read from the settings object rather than asserted on the enum: F1 task 3's own rule, and
-		// the reason is that a default-On toggle would ship the guest to every user.
+		// Read from the settings object rather than asserted on the enum, because
+		// a default-On toggle would ship the guest to every user.
 		expect(runtimeFeatureSettings.get(RuntimeFeatureSettingType::ShellMenu)
 		       == RuntimeFeatureStateToggle::Off)
 		    .to_be_true();
@@ -356,7 +356,7 @@ describe menu_entry_node_arg("openShellMenu can name a node, not only a root", $
 
 		const uint16_t id = menu::node_id(nodes::file0_selector);
 		// The id is what makes the mapping possible at all, and it is `scenes::assigned_node_ids()`
-		// (F1 task 8) that produces it. Asserted non-zero here because zero means "the context's
+		// that produces it. Asserted non-zero here because zero means "the context's
 		// root" downstream, which would silently open the sound root instead.
 		expect(id != 0).to_be_true();
 
@@ -532,8 +532,8 @@ describe menu_entry_refusal("openShellMenu refuses where SoundEditor::setup refu
 		expect(entry::openShellMenu(kit.clip, 0, false, false, false, /*kitGlobalFx=*/false)).to_be_false();
 		// `isUIOpen`, deliberately, and NOT `getCurrentUI()`: with an empty hierarchy `getCurrentUI()`
 		// answers `lastUIBeforeNullifying` (`gui/ui/ui.cpp:136-141`), which the previous example's
-		// teardown left pointing at the guest. Task 8 tripped on the same accessor from the other
-		// side (its `currentUIIsClipMinderScreen()` null guard), which is why it is named here.
+		// teardown left pointing at the guest. `currentUIIsClipMinderScreen()`'s null guard trips on the
+		// same accessor from the other side, which is why it is named here.
 		expect(isUIOpen(&shellHostUI)).to_be_false();
 
 		// And the same clip with the one argument flipped DOES open, so the refusal is about the
@@ -551,8 +551,8 @@ describe menu_entry_undo_log("the undo-log wipe SoundEditor::setup does on every
 		deluge::scenes::spec::SongFixture f = deluge::scenes::spec::make_synth_song();
 
 		// `sound_editor.cpp:1771` is inside `if (item) ... else if (clip)`, so the wipe follows the
-		// clip and not the open. `scenes/menu/context.cpp:44` records it as owed to whoever landed
-		// the port's entry point; this is that entry point.
+		// clip and not the open. the "Not owned by this file" note in `scenes/menu/context.cpp` records it as owed to
+		// whoever lands the port's entry point; this is that entry point.
 		// The seed has to happen with the guest open, and that is not a detail:
 		// `ActionLogger::getNewAction` refuses unless `getCurrentUI() == getRootUI()`
 		// (`model/action/action_logger.cpp:98-102`), which in a spec process is only true while
@@ -578,7 +578,7 @@ describe menu_entry_undo_log("the undo-log wipe SoundEditor::setup does on every
 
 describe menu_entry_screensaver("legacy's screensaver stands down while the guest is current", $ {
 	it("re-arms at the full idle period instead of animating, and wakes if it was showing", _ {
-		// The collision F1 task 8 recorded at `hid/display/screensaver.cpp` and left for this task:
+		// The collision at `hid/display/screensaver.cpp`:
 		// with the guest open, `shell::Screensaver` pushes `overlay::ScreensaverScene` through the
 		// guest's surfaces while this class draws its own canvas over the same panel. The fix is an
 		// early return in `Screensaver::timerEvent()` while the guest is the current UI.
@@ -659,8 +659,8 @@ describe menu_entry_tick_rate("the guest's tick rate with MenuScene as its tenan
 
 		// `Shell::next_wake()`'s own warning: a scene whose `next_timer()` answers 0 makes the
 		// guest re-arm `UI_SPECIFIC` at its 1 ms floor for as long as it is stacked, i.e. ~15x
-		// legacy's 15 ms `graphicsRoutine`. F1 task 7 left that latent because nothing opened the
-		// guest; this task opens it, so the property is asserted rather than assumed.
+		// legacy's 15 ms `graphicsRoutine`. This group opens the guest, so the
+		// property is asserted rather than assumed.
 		//
 		// `MenuScene::next_timer()` answers `std::nullopt`, `kSourceBlinkMs` (20) or
 		// `kShortcutBlinkMs` (180) -- never 0 (`pad_next_timer`, `scenes/menu/pads.cpp`).
@@ -674,7 +674,7 @@ describe menu_entry_tick_rate("the guest's tick rate with MenuScene as its tenan
 		// one root would not even sample the two branches. Do not read it as coverage of the roots
 		// the sites open.
 		// `Shell::tick` renders, and rendering resolves l10n strings -- `l10n::chosenLanguage` is
-		// null in a spec process because nothing constructed a `Display` (`l10n_bridge_spec.cpp:29`
+		// null in a spec process because nothing constructed a `Display` (`l10n_bridge_spec.cpp`
 		// records the same trap, and five other specs in this binary do the same line).
 		deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
 
@@ -699,7 +699,7 @@ describe menu_entry_tick_rate("the guest's tick rate with MenuScene as its tenan
 	});
 });
 describe menu_entry_midi_learn("the guest's two MIDI-learn hooks reach the ported menu", $ {
-	// F1 task 10, the guest half. `ShellHostUI::pcReceivedForMidiLearn` and
+	// The guest half. `ShellHostUI::pcReceivedForMidiLearn` and
 	// `noteOnReceivedForMidiLearn` are the ports of `SoundEditor`'s two hooks
 	// (`gui/ui/sound_editor.cpp:1605-1614`), and they reach `MenuScene` through
 	// `gui/ui/shell_guest_services.h`'s two free functions -- the seam the host suite has to fake,
@@ -707,14 +707,14 @@ describe menu_entry_midi_learn("the guest's two MIDI-learn hooks reach the porte
 	//
 	// **What this group is and is not.** It is the SEAM: the mode/shift gate, the "is the menu the
 	// frontmost scene" test, and the model write actually landing. It is not an oracle for
-	// `MenuScene::learn_note_on` against `MenuItem::learnNoteOn` -- that comparison is E2 task 8's
-	// and is already made in `menu_scene_spec.cpp`; repeating it here would be a second copy, and
+	// `MenuScene::learn_note_on` against `MenuItem::learnNoteOn` -- that comparison is made
+	// in `menu_scene_spec.cpp`; repeating it here would be a second copy, and
 	// claiming it would be a claim broader than what these examples run.
 	//
 	// @warning Every one of these paths is unreachable in the shipped firmware today, for a reason
 	//          neither the hooks nor this group can fix: `PlaybackHandler`'s learn dispatchers are
 	//          gated on `currentUIMode == UI_MODE_MIDI_LEARN`, and the only two lines that ever set
-	//          it (`gui/views/view.cpp:493`, `gui/ui/sound_editor.cpp:520`) both belong to UIs that
+	//          it (`View::startMIDILearn`, `gui/ui/sound_editor.cpp:520`) both belong to UIs that
 	//          are not open while the guest is. See `ShellHostUI`'s `@par MIDI learn`. So these
 	//          examples call the hooks directly, exactly as legacy's dispatcher would if it could.
 
@@ -754,7 +754,7 @@ describe menu_entry_midi_learn("the guest's two MIDI-learn hooks reach the porte
 		// **What the negative half is, exactly.** It removes the menu rather than covering it with
 		// an input-taking scene, because every opaque scene in the registry refuses `on_enter`
 		// without setup this file has no business building -- `RenameScene::on_enter` wants a
-		// target its `can(ctx_)` accepts (`scenes/rename/rename_scene.cpp:220-232`), the browser a
+		// target its `can(ctx_)` accepts (`RenameScene::on_enter`), the browser a
 		// path, the marker a sample. So this pins "the input top is not `menu_scene()`", which is
 		// the condition the seam actually tests; it does not separately pin the *opaque overlay*
 		// case, and saying it did would be a claim broader than what runs.
@@ -768,7 +768,7 @@ describe menu_entry_midi_learn("the guest's two MIDI-learn hooks reach the porte
 		expect(openGuestOnPlayCommand(*f.song)).to_be_true();
 
 		// `FirstApp + 6` is `overlay::param_popup_scene()` (`scenes/registry.h`), whose
-		// `input_transparent()` is true (`overlay/param_popup_scene.h:195`). It becomes `top()` and
+		// `input_transparent()` is true (`overlay/param_popup_scene.h`). It becomes `top()` and
 		// the menu stays `input_top()`, so the hook still reaches the item.
 		const auto popup = static_cast<shell::SceneKind>(static_cast<uint8_t>(shell::SceneKind::FirstApp) + 6);
 		expect(shellHostUI.shell().stack().push(shell::SceneId{.kind = popup, .arg = 0})).to_be_true();
@@ -779,7 +779,7 @@ describe menu_entry_midi_learn("the guest's two MIDI-learn hooks reach the porte
 		expect(slot.noteOrCC == 40).to_be_true();
 
 		// Now take the menu itself away and leave the overlay: `input_top()` is the shell's
-		// `NullScene` (`shell/scene_stack.h:10-18`), which is not `menu_scene()`, and both hooks
+		// `NullScene` (`shell/scene_stack.h`), which is not `menu_scene()`, and both hooks
 		// must write nothing rather than reaching whatever the menu happens to still be focused on.
 		expect(shellHostUI.shell().stack().remove(shell::SceneKind::FirstApp)).to_be_true();
 		expect(poison(slot)).to_be_true();
@@ -790,8 +790,8 @@ describe menu_entry_midi_learn("the guest's two MIDI-learn hooks reach the porte
 		// note-on hook: it goes on to `Shell::route_midi`, and `services::MidiLearn` -- installed in
 		// this guest's own shell by `wireShellGuestServices()`, which `opened()` calls -- claims a
 		// MIDI event whenever the cable is non-null, matching its dispatcher's unconditional
-		// `return` (`playback/playback_handler.cpp:2972`). It writes nothing, because nothing has
-		// called `thing_pressed` (migration §10.2 item 8: those scenes are E5's and E6's), but it
+		// `return` (`PlaybackHandler::programChangeReceived`). It writes nothing, because nothing has
+		// called `thing_pressed`, but it
 		// does consume the message. Asserted rather than left implicit: this is the composition, and
 		// a hook that stopped at the menu would answer false here.
 		expect(handled).to_be_true();
@@ -808,7 +808,7 @@ describe menu_entry_midi_learn("the guest's two MIDI-learn hooks reach the porte
 	});
 
 	it("the program-change hook keeps SoundEditor's UI_MODE_MIDI_LEARN gate, and its return-true", _ {
-		// `SoundEditor::pcReceivedForMidiLearn` (`gui/ui/sound_editor.cpp:1605-1611`): acts only
+		// `SoundEditor::pcReceivedForMidiLearn`: acts only
 		// under `currentUIMode == UI_MODE_MIDI_LEARN && !isShiftButtonPressed()`, and inside that
 		// gate returns **true whatever the item answered** -- which is what stops
 		// `PlaybackHandler::programChangeReceived`'s `else` handing the same message to `view`
@@ -830,7 +830,7 @@ describe menu_entry_midi_learn("the guest's two MIDI-learn hooks reach the porte
 		expect(slot.channelOrZone == kPoisonChannel).to_be_true();
 
 		// Gate open: the item learns, with the `IS_A_PC` bias `MidiCommandItem::learn_program_change`
-		// applies (`scenes/menu/nodes/midi_command.cpp:235`) -- so the bias is the item's, not the
+		// applies (`MidiCommandItem::learn_program_change`) -- so the bias is the item's, not the
 		// transport's, exactly as it is on the CC side.
 		currentUIMode = UI_MODE_MIDI_LEARN;
 		expect(shellHostUI.pcReceivedForMidiLearn(cable(), 3, 7)).to_be_true();

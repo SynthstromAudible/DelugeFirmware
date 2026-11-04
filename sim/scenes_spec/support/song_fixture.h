@@ -3,11 +3,11 @@
 /// @brief A real `Song` (and the clips/instruments a `MenuContext` is resolved from), built
 ///        directly on the host -- no `deluge_main()`, no UI, no SD card.
 ///
-/// **Why direct construction and not the loadcheck shape** (task-3 ruling 1): the legacy bring-up
-/// that precedes a song, `deluge_boot()` (`src/deluge/deluge.cpp:639`), is almost entirely device
+/// **Why direct construction and not the loadcheck shape** the legacy bring-up
+/// that precedes a song, `deluge_boot()` (`src/deluge/deluge.cpp`), is almost entirely device
 /// bring-up -- OLED probe, control surface, CV DAC, USB host/peripheral, PIC boot info -- and it
 /// ends by calling `setupBlankSong()` (`:748`), whose song is built out of `Song`'s own members
-/// plus `Song::ensureAtLeastOneSessionClip()` (`model/song/song.cpp:337`). Only two things in that
+/// plus `Song::ensureAtLeastOneSessionClip()`. Only two things in that
 /// path are actually load-bearing for owning a `Song`:
 ///
 ///   * the general-memory allocator, which self-initialises on first use
@@ -77,7 +77,7 @@ inline Song* make_bare_song() {
 
 	// `deluge.cpp:392`. The scenes layer itself never reads this global (`context.cpp` takes a
 	// `Song&`), but the model does, unguarded, in places a spec's writes can reach --
-	// `modulation/params/param.cpp:71`, `modulation/params/param_set.cpp:414`, the `getCurrent*()`
+	// `isParamQuantizedStutter` (`modulation/params/param.cpp`), the `getCurrent*()`
 	// helpers at `model/song/song.cpp:90-136`. Leaving it null would make those a latent crash for
 	// the first spec that touches one. The most recently built fixture wins, which is what a spec
 	// working with one song at a time wants.
@@ -159,7 +159,7 @@ inline SongFixture make_cv_song() {
 
 /// @brief A song whose one session clip is an `AudioClip` over a new `AudioOutput`.
 ///
-/// The audio-clip root's fixture. `Song::createNewAudioOutput` (`model/song/song.cpp:4898`) is the
+/// The audio-clip root's fixture. `Song::createNewAudioOutput` is the
 /// model's own recipe and already adds the output to the song; the clip is placed and attached the
 /// way `make_session_clip` places an `InstrumentClip`, with the `GlobalEffectableForClip` param set
 /// the audio-clip menus read.

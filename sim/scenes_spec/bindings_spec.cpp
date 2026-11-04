@@ -104,8 +104,8 @@ describe menu_bindings_notify("scenes::menu::bindings notify", $ {
 		const deluge::notify::DirtySet d = deluge::notify::dirty().drain();
 		expect(d.has(deluge::notify::Dirty::ParamAutomation)).to_be_true();
 		expect(d.has(deluge::notify::Dirty::ModTarget)).to_be_true();
-		// The pad half of `possiblyRefreshAutomationEditorGrid` (`automation_view.cpp:625`'s
-		// `uiNeedsRendering(&automationView)`): `ParamAutomation`/`ModTarget` reach only `r.oled`
+		// The pad half of `AutomationView::possiblyRefreshAutomationEditorGrid`'s
+		// `uiNeedsRendering(&automationView)`: `ParamAutomation`/`ModTarget` reach only `r.oled`
 		// (`notify_drain_mapping.cpp:20`), so without GridMain the automation grid would stop
 		// repainting.
 		expect(d.has(deluge::notify::Dirty::GridMain)).to_be_true();

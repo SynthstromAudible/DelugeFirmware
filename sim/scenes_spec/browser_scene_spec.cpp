@@ -178,20 +178,20 @@ struct BrowserDisplay final : deluge::hid::Display {
 ///
 /// @par What this is for
 ///
-/// This used to be a `mirror()` that copied the scene's `file_index`/`scroll`/`enteredText`/cursor
-/// onto legacy's statics before rendering. That validated the renderer and nothing else: legacy's
-/// navigation -- `Browser::clampFileSelectionAndScroll` (`browser.cpp:1009`),
-/// `Browser::selectEncoderAction` (`:549`), `Browser::finishSelectEncoderAction` (`:702`),
-/// `Browser::predictExtendedText` (`:782`), `Browser::arrivedInNewFolder` (`:367`) -- never ran, so
-/// a port that navigated wrongly still matched, because the oracle was being handed the port's
-/// answer (E3 final review, B1; the same defect E2 found in the write comparisons). Now legacy gets
-/// the *inputs* -- the same encoder detents and the same pad coordinates -- computes its own
-/// selection, scroll, text and cursor, and both sides' answers are compared.
+/// Legacy is handed the *inputs*, never the port's state: a `mirror()` that copied the scene's
+/// `file_index`/`scroll`/`enteredText`/cursor onto legacy's statics before rendering would validate
+/// the renderer and nothing else, because legacy's navigation --
+/// `Browser::clampFileSelectionAndScroll`, `Browser::selectEncoderAction` (`:549`),
+/// `Browser::finishSelectEncoderAction` (`:702`), `Browser::predictExtendedText` (`:782`),
+/// `Browser::arrivedInNewFolder` (`:367`) -- would never run, so a port that navigated wrongly
+/// would still match, the oracle having been handed the port's answer. Legacy gets the same
+/// encoder detents and the same pad coordinates, computes its own selection, scroll, text and
+/// cursor, and both sides' answers are compared.
 ///
 /// @par Why a subclass and not `sampleBrowser` itself
 ///
 /// `SampleBrowser` is `final`, and `SampleBrowser::opened()` cannot run in a spec process: it
-/// dereferences `soundEditor.getCurrentAudioFileHolder()` (`sample_browser.cpp:131`) and drives
+/// dereferences `soundEditor.getCurrentAudioFileHolder()` (`SampleBrowser::opened`) and drives
 /// `actionLogger`, `favouritesManager` and `instrumentClipView` (`:105-122`). So this derives from
 /// `Browser` and `open_samples()` performs `SampleBrowser::opened`'s **configuration** assignments,
 /// each cited. Everything past that point -- the listing, the search, the clamp, the prediction --
@@ -236,7 +236,7 @@ public:
 		}
 	}
 
-	/// `Browser::isFavouritesVisible` (`browser.cpp:1462`) opens with `getCurrentUI()`, which indexes
+	/// `Browser::isFavouritesVisible` opens with `getCurrentUI()`, which indexes
 	/// `uiNavigationHierarchy[numUIsOpen - 1]` with `numUIsOpen == 0` in a spec process. Both answers
 	/// are false in legacy too through every state this spec drives, because `SampleBrowser::opened`
 	/// leaves `qwertyVisible` false (`sample_browser.cpp:113`) and the layout defaults to
@@ -454,7 +454,7 @@ struct Rig {
 	Rig(const Rig&) = delete;
 	Rig& operator=(const Rig&) = delete;
 
-	/// @brief Tear the stack down, so every scene's `on_exit` always runs (E3 task 10).
+	/// @brief Tear the stack down, so every scene's `on_exit` always runs.
 	///
 	/// `BrowserScene` is a process singleton (`shell/scene.h`'s `SceneState` cache): an example that
 	/// left it -- or anything pushed above it -- on the stack would make the NEXT example's
@@ -488,7 +488,7 @@ struct Rig {
 	/// @brief Run the parked listing op and settle the scene on its result.
 	///
 	/// **Two ticks, and the second is not padding.** `Shell::tick` renders at steps 5-6 and calls
-	/// `after_render()` at step 7 (`shell/shell.cpp:374-410`), so the tick that *collects* the
+	/// `after_render()` at step 7 (`Shell::tick`), so the tick that *collects* the
 	/// listing draws the state from before it landed; the `RepaintAll` that collection files is for
 	/// the tick after. Anything comparing pixels needs both.
 	void land() {
@@ -629,7 +629,7 @@ BrowserState legacy_run(Drive&& drive) {
 	// `sampleBrowser` is the shipped object -- its constructor set `fileIcon` to `OLED::waveIcon` and
 	// `title` to "Audio files" (`sample_browser.cpp:88-89`) -- and every number it renders from is a
 	// `Browser`/`QwertyUI` static that the `SpecBrowser` run above computed. This is
-	// `Browser::renderOLED` (`browser.cpp:925`) itself, over legacy's own state.
+	// `Browser::renderOLED` itself, over legacy's own state.
 	static deluge::hid::display::oled_canvas::Canvas canvas;
 	canvas.clear();
 	sampleBrowser.renderOLED(canvas);
@@ -653,9 +653,9 @@ void expect_same(Self& self, const BrowserState& port, const BrowserState& legac
 	// The FULL 128x48 panel, title rows included. The old comparison trimmed the top five rows on the
 	// grounds that the port's root frame has origin `(0, visible_top)` and legacy's canvas does not
 	// -- but `OLED_MAIN_TOPMOST_PIXEL` is 5 (`board_config.h:64`) and legacy offsets its own drawing
-	// by it (`Browser::renderOLED`, `browser.cpp:938`; `Canvas::draw_screen_title`), so rows 0-4 are
+	// by it (`Browser::renderOLED`; `Canvas::draw_screen_title`), so rows 0-4 are
 	// blank on both sides and the trim was hiding `drawScreenTitle` rather than normalising anything.
-	// Compared, and they match (E3 final review, B1).
+	// Compared, and they match.
 	expect(port.pbm).to_equal(legacy.pbm);
 }
 
@@ -834,7 +834,7 @@ describe browser_descriptors("scenes::browser descriptor table", $ {
 		expect(std::string{midi.default_dir}).to_equal(std::string{"MIDI_DEVICES/DEFINITION"});
 
 		// `shouldInterpretNoteNamesForThisBrowser = true` (`sample_browser.cpp:92`); the base leaves
-		// it false (`browser.cpp:92`).
+		// it false.
 		expect(sample.interpret_note_names).to_be_true();
 		expect(midi.interpret_note_names).to_be_false();
 
@@ -959,7 +959,7 @@ describe browser_open("scenes::browser::BrowserScene opening", $ {
 		CleanBrowser clean;
 		{
 			// The sample browser over a MIDI clip: no audio-file holder at all, which legacy would
-			// answer by dereferencing null (`sample_browser.cpp:131`).
+			// answer by dereferencing null (`SampleBrowser::opened`).
 			spec::SongFixture f = spec::make_midi_song();
 			expect(browser::descriptor(BrowserId::Sample).can(context_of(f))).to_be_false();
 			browser_scene().open(context_of(f));
@@ -1007,7 +1007,7 @@ describe browser_in_flight("scenes::browser::BrowserScene while a listing is in 
 		r.tick(0);
 
 		// `Listing::request` raises `Notice::Kind::Working`, which E1's `Notices` turns into a
-		// pushed `SceneKind::Working` (`shell/notices.cpp:306-311`). Nothing in this scene draws a
+		// pushed `SceneKind::Working` (`Notices::drain`). Nothing in this scene draws a
 		// spinner; the busy indicator is the seam's.
 		expect(browser_scene().listing_in_flight()).to_be_true();
 		expect(r.working_shown()).to_be_true();
@@ -1029,14 +1029,14 @@ describe browser_in_flight("scenes::browser::BrowserScene while a listing is in 
 	});
 
 	it("never takes the shell's input lock, and leaves it clear across a whole listing", _ {
-		// **Fix round 1, Critical 1.** This scene used to file `Action::Kind::LockInput{true}` while
-		// `in_flight()` and clear its own flag in `on_exit()` -- which returns `void`, so the
-		// matching release could never be filed on the one path that needs it. `set_input_lock` is
-		// one bare global bool with no owner (`shell/router.cpp:155` ->
-		// `shell/input_lowering.h:331 set_input_lock`), so an external `Pop` mid-listing left the ENTIRE device
-		// deaf until something else happened to clear it. It is also the wrong lock: it *drops*
-		// events, including encoder edges (`shell/input_lowering.cpp:159`), where legacy's
-		// `waitingForSDRoutineToEnd` defers and retries.
+		// This scene must not file `Action::Kind::LockInput{true}` while `in_flight()` and clear its own
+		// flag in `on_exit()`: `on_exit()` returns `void`, so the matching release could never be
+		// filed on the one path that needs it. `set_input_lock` is one bare global bool with no
+		// owner (`Router`'s `LockInput` arm -> `InputLowering::set_input_lock`), so an external
+		// `Pop` mid-listing would leave the ENTIRE device deaf until something else happened to clear
+		// it. It is also the wrong lock: it *drops* events, including encoder edges
+		// (`InputLowering::on_encoder_edges`), where legacy's `waitingForSDRoutineToEnd` defers and
+		// retries.
 		CleanBrowser clean;
 		ScratchCard card;
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
@@ -1049,7 +1049,7 @@ describe browser_in_flight("scenes::browser::BrowserScene while a listing is in 
 		// In flight, and the lock is still clear.
 		expect(r.shell.lowering().input_locked()).to_be_false();
 
-		// The removal that used to strand it: the scene leaves the stack with a listing dispatched
+		// The removal that would strand it: the scene leaves the stack with a listing dispatched
 		// and no `Result` of its own. Nothing can have been leaked, because nothing was taken.
 		browser_scene().on_exit();
 		expect(r.shell.lowering().input_locked()).to_be_false();
@@ -1062,11 +1062,10 @@ describe browser_in_flight("scenes::browser::BrowserScene while a listing is in 
 	});
 
 	it("refuses input while a refused request is still parked, so it cannot be overwritten", _ {
-		// **Fix round 1, Critical 2.** `pending_` is a single slot, and it is created in exactly the
-		// state the other two busy tests miss: a `Busy` refusal leaves nothing in flight and no
-		// result owed. With an `Open` parked, a BACK press used to reach `back()` and file an
-		// `UpLevel` straight over it -- losing the `Open` and then listing a directory derived from
-		// the FOREIGN holder's `currentDir`.
+		// `pending_` is a single slot, and it is occupied in exactly the state the other two busy tests
+		// miss: a `Busy` refusal leaves nothing in flight and no result owed. With an `Open` parked, a
+		// BACK press must not reach `back()` and file an `UpLevel` straight over it -- that would lose
+		// the `Open` and then list a directory derived from the FOREIGN holder's `currentDir`.
 		CleanBrowser clean;
 		ScratchCard card;
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
@@ -1104,7 +1103,7 @@ describe browser_in_flight("scenes::browser::BrowserScene while a listing is in 
 	it("collects a listing that lands on a tick with NO input at all", _ {
 		// The quiet-tick example, and it has to be one: `after_render()` -- the only hook that can
 		// collect a result or file an action -- runs only for scenes the shell actually *rendered*
-		// this tick (`shell/shell.cpp:408-410`). With no input arriving, nothing else asks for a
+		// this tick (`Shell::tick`). With no input arriving, nothing else asks for a
 		// frame, so `render_oled`'s `kListingPollMs` gate arm and `next_timer()`'s matching answer
 		// are the ONLY things that bring the browser back. A spec that supplied input on every tick
 		// would pass with both deleted.
@@ -1136,14 +1135,14 @@ describe browser_in_flight("scenes::browser::BrowserScene while a listing is in 
 		// `ClearWorking` down), and E1's `Notices` pushing or popping `SceneKind::Working` is itself
 		// enough to bring a frame back -- so neither can tell whether the scene asked to be woken.
 		// A `Busy` refusal is different: `Listing::request` tests `FileCatalogue::claim` BEFORE it
-		// raises anything (`listing.cpp:105`), so the queue never moves. Nothing else in the shell
+		// raises anything (`Listing::request`), so the queue never moves. Nothing else in the shell
 		// has any reason to render this scene again, and without the poll the retry never happens.
 		CleanBrowser clean;
 		ScratchCard card;
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
 
 		// Something else holds the catalogue -- a second seam, or a legacy `Browser` mid-listing;
-		// the claim is on the resource, so a raw token stands in for either (task 2, fix round 2).
+		// the claim is on the resource, so a raw token stands in for either.
 		int other = 0;
 		expect(FileCatalogue::claim(&other)).to_be_true();
 
@@ -1217,7 +1216,7 @@ describe browser_navigation("scenes::browser::BrowserScene navigation", $ {
 		expect(browser_scene().listing_in_flight()).to_be_true();
 		r.land();
 
-		// `goIntoFolderImpl` (`browser.cpp:1339`): the folder name is appended to `currentDir`.
+		// `Browser::goIntoFolderImpl`: the folder name is appended to `currentDir`.
 		expect(std::string{browser_scene().current_dir()}).to_equal(std::string{"SAMPLES/KICKS"});
 		expect(catalogue_order()).to_equal(std::string("KICK1.WAV"));
 		expect(std::string{browser_scene().entered_text()}).to_equal(std::string{"KICK1"});
@@ -1234,7 +1233,7 @@ describe browser_navigation("scenes::browser::BrowserScene navigation", $ {
 	});
 
 	it("enters a folder on a SELECT press and release, whatever the menu does with Select", _ {
-		// `Browser::mainButtonAction` (`browser.cpp:1250-1279`) acts on the release through `handle()`; the menu's own
+		// `Browser::mainButtonAction` acts on the release through `handle()`; the menu's own
 		// release edge (`Scene::select_acts_on_release`) is not this scene's.
 		CleanBrowser clean;
 		ScratchCard card;
@@ -1327,7 +1326,7 @@ describe browser_navigation("scenes::browser::BrowserScene navigation", $ {
 		}
 		expect(browser_scene().file_index()).to_equal(4);
 		expect(std::string{browser_scene().entered_text()}).to_equal(std::string{"TOM"});
-		// `clampFileSelectionAndScroll` (`browser.cpp:1050-1052`): the selected item is below the
+		// `Browser::clampFileSelectionAndScroll`: the selected item is below the
 		// viewport, so it moves to the LAST visible row -- 4 - 3 + 1.
 		expect(browser_scene().scroll()).to_equal(2);
 
@@ -1448,7 +1447,7 @@ describe browser_typing("scenes::browser::BrowserScene typed search", $ {
 		ScratchCard card;
 		spec::AudioSongFixture f = spec::make_audio_clip_song();
 		// `SampleBrowser::opened`'s first arm: the holder's path decides where the browser opens and
-		// which entry it lands on (`sample_browser.cpp:131`).
+		// which entry it lands on (`SampleBrowser::opened`).
 		f.clip->setSampleFilePath("SAMPLES/CLIPS/A3.WAV");
 
 		Rig r;
@@ -1498,8 +1497,7 @@ describe browser_accept("scenes::browser::BrowserScene accepting a file", $ {
 		r.open_and_land(context_of(f), BrowserId::Sample);
 		(void)browser_scene().take_choice(); // drain
 
-		// `SampleBrowser::enterKeyPress`'s file arm is `claimCurrentFile()`
-		// (`sample_browser.cpp:398`), which names `soundEditor`, `AudioEngine`, `slicer`, `PadLEDs`
+		// `SampleBrowser::enterKeyPress`'s file arm is `claimCurrentFile()`, which names `soundEditor`, `AudioEngine`, `slicer`, `PadLEDs`
 		// and `instrumentClipView` -- five symbols behind the `scenes-includes-outside` wall. So the
 		// descriptor answers `Defer` and the scene parks the path, exactly as
 		// `MenuScene::take_action()` parks a verb it cannot perform.
@@ -1588,9 +1586,9 @@ describe browser_accept("scenes::browser::BrowserScene accepting a file", $ {
 /// answers are compared: `fileIndexSelected`, `scrollPosVertical`, `enteredText`,
 /// `enteredTextEditPos`, `scrollPosHorizontal`, and the 128x48 panel.
 ///
-/// That is what makes `Browser::arrivedInNewFolder` (`browser.cpp:367`),
+/// That is what makes `Browser::arrivedInNewFolder`,
 /// `Browser::selectEncoderAction` (`:549`), `Browser::finishSelectEncoderAction` (`:702`),
-/// `Browser::clampFileSelectionAndScroll` (`:1009`), `Browser::goIntoFolderImpl` (`:1339`) and
+/// `Browser::clampFileSelectionAndScroll` (`:1009`), `Browser::goIntoFolderImpl` and
 /// `Browser::predictExtendedText` (`:782`) part of the oracle rather than dead code beside it. Both
 /// mutation directions were checked when this was written: an off-by-one in the port's clamp
 /// (`browser_scene.cpp`'s `clamp_selection_and_scroll`) fails these, and an off-by-one in
@@ -1750,7 +1748,7 @@ describe browser_legacy_pixels("scenes::browser::BrowserScene against the legacy
 			b.padAction(enter_pad.x, enter_pad.y, 0);
 		}));
 		// Legacy walked into the same folder for itself, through `Browser::goIntoFolderImpl`
-		// (`browser.cpp:1339`) rather than through a name this spec supplied.
+		// rather than through a name this spec supplied.
 		expect(Browser::currentDir).to_equal(std::string{"SAMPLES/KICKS"});
 	});
 });

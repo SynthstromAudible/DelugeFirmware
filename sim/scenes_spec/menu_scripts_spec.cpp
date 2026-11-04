@@ -3,39 +3,39 @@
 ///        `uitest::FakeSurfaceSet` (`tests/spec/shell/support/script_runner.h`) against the REAL
 ///        declarative tables (`src/scenes/menu/nodes/`) -- not a synthetic tree.
 ///
-/// Three generations of script live here.
+/// Three groups of script live here.
 ///
-/// **E2 task 11's seven** run the same generic recipe -- a Select-encoder detent, a select-encoder
+/// **Seven scripts** run the same generic recipe -- a Select-encoder detent, a select-encoder
 /// press/release, a GoldUpper detent, a Back press/release, snapshotting after every step -- against
 /// a real node `RunOptions::initial_scene` opens directly (`SceneId{FirstApp, node_id(target)}`).
 /// What that recipe visibly DOES depends entirely on the target's own `Kind`, which is the point:
 /// one interpreter, seven different real screens.
 ///
-/// **E2 task 12's twelve** cover what E2 itself added, and each one is shaped by its subject rather
-/// than by a shared recipe, because the subjects are no longer all one kind of leaf:
+/// **Twelve scripts** are each shaped by their subject rather than by a shared recipe, because the
+/// subjects are not all one kind of leaf:
 ///
 // clang-format off
-/// | script | subject | shipped by |
-/// |---|---|---|
-/// | `menu_sync_level` | `Kind::SyncLevel`'s renderer | task 1 |
-/// | `menu_chain` | `Node::select_chain` on a value-leaf target | task 3 |
-/// | `rename` | `nodes::EditNameItem` -> `rename::RenameScene` | tasks 4-5 |
-/// | `menu_reset` | the five reset `nodes::ContextMenuItem`s, and `go_up_on_resume` | tasks 6-7 |
-/// | `context_menu` | `context_menu::ContextMenuScene`'s multi-option descriptor | tasks 6, 11b |
-/// | `menu_midi_learn` | `nodes::MidiCommandItem`, and the LEARN blink in `.state` | task 8 |
-/// | `menu_patch_cables` | `nodes::PatchCablesItem` and the chain into a strength page | task 9 |
-/// | `menu_cv_selection` | `nodes::CvSelectionItem`, a runtime list, and its `source_index` write | task 10 |
-/// | `menu_action` | `nodes::ActionItem`: file a `MenuAction`, ascend straight back out | task 11b |
-/// | `menu_perform_editor` | `nodes::PerformEditorItem`: the action item that is also a page | task 11b |
-/// | `menu_range` | `Kind::Range`'s two-edge editor | task 11b |
-/// | `menu_scales` | `nodes::ActiveScalesItem`, the preset-scale checklist | task 11b |
+/// | script | subject |
+/// |---|---|
+/// | `menu_sync_level` | `Kind::SyncLevel`'s renderer |
+/// | `menu_chain` | `Node::select_chain` on a value-leaf target |
+/// | `rename` | `nodes::EditNameItem` -> `rename::RenameScene` |
+/// | `menu_reset` | the five reset `nodes::ContextMenuItem`s, and `go_up_on_resume` |
+/// | `context_menu` | `context_menu::ContextMenuScene`'s multi-option descriptor |
+/// | `menu_midi_learn` | `nodes::MidiCommandItem`, and the LEARN blink in `.state` |
+/// | `menu_patch_cables` | `nodes::PatchCablesItem` and the chain into a strength page |
+/// | `menu_cv_selection` | `nodes::CvSelectionItem`, a runtime list, and its `source_index` write |
+/// | `menu_action` | `nodes::ActionItem`: file a `MenuAction`, ascend straight back out |
+/// | `menu_perform_editor` | `nodes::PerformEditorItem`: the action item that is also a page |
+/// | `menu_range` | `Kind::Range`'s two-edge editor |
+/// | `menu_scales` | `nodes::ActiveScalesItem`, the preset-scale checklist |
 // clang-format on
 ///
 /// Three of the twelve deliberately carry a script *step* with no snapshot after it. That is not an
 /// omission: the frame would have been byte-identical to the one before it, and a golden whose whole
-/// content repeats its predecessor can never fail for the right reason (E2 task 9, fix round 1 --
-/// which deleted three such frames). Each of those steps is asserted in C++ instead, against the
-/// state the pixels could not have shown anyway; the script files say which and why.
+/// content repeats its predecessor can never fail for the right reason. Each of those steps is
+/// asserted in C++ instead, against the state the pixels could not have shown anyway; the script
+/// files say which and why.
 ///
 /// **Why one node id resolves correctly across every script.** `MenuScene::on_enter` re-targets the
 /// path from `SceneId::arg` (`node_by_id`) but never touches `ctx_` (`MenuScene::on_enter`), so
@@ -50,29 +50,29 @@
 /// in the committed tables (`nodes::kRangeDependentArray`, `nodes/nodes.h`) is a value column of a
 /// `Layout::Horizontal` page (`source0`/`source1`), and a horizontal page's `columns` widget claims
 /// `entered` only for a `Kind::Submenu` column (`ui/oled/columns.cpp`) -- so `enter_child` (the only
-/// caller of `permission_for`) is never reached through the real committed tree today; that is an
-/// E2 gap (Custom-column navigation), not something this task can wire around. To still exercise the
-/// REAL `source0_transpose` node's permission gate, this file declares one small vertical wrapper
-/// submenu naming it as a real child alongside `nodes::lpf_mode` -- the wrapper is synthetic, the
-/// leaf it gates is not.
+/// caller of `permission_for`) is never reached through the real committed tree. To still exercise
+/// the REAL `source0_transpose` node's permission gate, this file declares one small vertical
+/// wrapper submenu naming it as a real child alongside `nodes::lpf_mode` -- the wrapper is
+/// synthetic, the leaf it gates is not.
 ///
-/// **E3 task 11's four** cover what E3 shipped -- and three of the four are the *sequel to that
-/// last paragraph*, because the same Custom-column gap governs them:
+/// **Four scripts** cover the per-device MIDI page and the three scenes the sample items open, and
+/// three of the four are the *sequel to that last paragraph*, because the same Custom-column gap
+/// governs them:
 ///
 // clang-format off
-/// | script | subject | shipped by |
-/// |---|---|---|
-/// | `menu_midi_device` | the per-device MIDI page and its MPE chain (`nodes/midi_device.h`) | task 8 |
-/// | `browser` | `browser::BrowserScene` over a real card: list, descend, search, ascend, close | tasks 2-3, 6 |
-/// | `marker` | `marker::MarkerScene`: the pad waveform, the four-phase blink, the two ways to move a marker | tasks 4, 6 |
-/// | `recorder` | `recorder::RecorderScene`: a real `SampleRecorder` armed, and the whole close path | tasks 5-6 |
+/// | script | subject |
+/// |---|---|
+/// | `menu_midi_device` | the per-device MIDI page and its MPE chain (`nodes/midi_device.h`) |
+/// | `browser` | `browser::BrowserScene` over a real card: list, descend, search, ascend, close |
+/// | `marker` | `marker::MarkerScene`: the pad waveform, the four-phase blink, the two ways to move a marker |
+/// | `recorder` | `recorder::RecorderScene`: a real `SampleRecorder` armed, and the whole close path |
 // clang-format on
 ///
 /// **How the three scene scripts get in, and why it is not a workaround.** Every one of the nine
 /// `nodes/sample.h` items is declared on a `Layout::Horizontal` page (`source0`, `audio_clip_sample`,
 /// `recorder`), so the paragraph above applies to them verbatim: no select press in the committed
 /// tree descends into any of them. Unlike `source0_transpose`, though, these three DO have a real
-/// door -- the shortcut-pad jump, whose table names all of them (`menu/shortcuts.cpp:100`, legacy's
+/// door -- the shortcut-pad jump, whose table names all of them (`menu/shortcuts.cpp`, legacy's
 /// own `paramShortcutsForSounds` cells). So these scripts use a real shift+pad press rather than a
 /// synthetic wrapper submenu, and what they exercise is the path a user actually has.
 ///
@@ -84,9 +84,8 @@
 ///     frame is therefore the view under the menu;
 ///   * a gold-knob turn is **swallowed** unless another gold turn happened within
 ///     `LoweringConfig::short_press_ms` (500 ms) -- `InputLowering::action_gold_turn`'s wiggle
-///     debounce. Every script written before this task turns a gold knob before t=500 and so is
-///     inside that window from the shell's own zero; `menu_midi_device` edits at t=800 and has to
-///     spend a detent arming it. Found by recording the frame and looking at it.
+///     debounce. The scripts that turn a gold knob before t=500 are inside that window from the
+///     shell's own zero; `menu_midi_device` edits at t=800 and has to spend a detent arming it.
 ///
 /// **And the second of those has a consequence for the whole directory, which no test covers.**
 /// `last_turn_ms_` starts at 0 and `now_ms` is a script's own clock here, but on the device it is
@@ -95,9 +94,8 @@
 /// directory therefore depicts the armed arm, which is the second detent of a gesture, and none of
 /// them depicts the arm a user actually meets first. The goldens are not vacuous -- each records a
 /// real edit and fails if that edit breaks -- but "one detent moves the value" is not what the
-/// device does from cold, and nothing at any level asserts what it does instead. Recorded here
-/// rather than papered over; closing it means a script whose clock starts past `short_press_ms`,
-/// which `RunOptions` has no way to express today.
+/// device does from cold, and nothing at any level asserts what it does instead. Closing it means
+/// a script whose clock starts past `short_press_ms`, which `RunOptions` has no way to express.
 ///
 /// @par The twelve gold-turn scripts install the real three, UNSEEDED -- and what that does not settle
 ///
@@ -107,21 +105,19 @@
 /// `deluge::ui::shell::Services{}` -- three `NullService`s -- because they drive no gold turn and
 /// the install would move their goldens for nothing.
 ///
-/// Migration §10.2 blocker 9 asked for this, F1 task 11 first refused it, and the task-11 re-review
-/// reversed that by doing the recording itself and showing what it costs: **57 `.state` files, 114
-/// insertions, 0 deletions, 0 `.pbm` files, 0 value assertions**. Every inserted line is one of
-/// exactly two:
+/// The install costs: **57 `.state` files, 114 insertions, 0 deletions, 0 `.pbm` files, 0 value
+/// assertions**. Every inserted line is one of exactly two:
 ///
 ///     indicator lower 0 0 0 0
 ///     indicator upper 0 0 0 0
 ///
 /// -- `ModKnobs::leds` declaring both mod-knob rings on every tick, all four quadrants dark because
 /// there is no target to read a level from. `led Mod1 on` does **not** appear; that comes from
-/// seeding, and seeding is still owed. The reversal's argument is the one that matters: `Services{}`
-/// is three nulls, which is *further* from the application than an unseeded `ModKnobs`, so this was
-/// never a choice between a right fixture and a wrong one -- it is very wrong versus one seeded step
-/// from right, and 114 lines of a single repeated pair is not the ambiguous two-cause diff E4 task
-/// 13's rule exists to prevent.
+/// seeding, and seeding is still owed. `Services{}` is three nulls, which is *further* from the
+/// application than an unseeded `ModKnobs`, so this is not a choice between a right fixture and a
+/// wrong one -- it is very wrong versus one seeded step from right, and 114 lines of a single
+/// repeated pair is not the ambiguous two-cause diff that the one-cause-per-golden-change rule
+/// exists to prevent.
 ///
 /// @warning **Unseeded is exactly the configuration in which the swallowed-turn defect cannot
 ///          bite.** Do not read these goldens as settling anything about gold turns under real
@@ -132,35 +128,31 @@
 ///          as it did under `Services{}`. These 57 frames record the *services being present*. They
 ///          record nothing about the gesture.
 ///
-/// **Still owed, and it is now a named edit rather than a research task:** seed `svc.mod_target`,
-/// arm the debounce in each script the way `tests/ui-scripts/shell/menu_gold_turn.txt` already does
-/// (one leading detent inside `short_press_ms`), and re-record. Measured cost of that step, from the
-/// task-11 scratch run with targets seeded: `led Mod1 on` on 57 frames plus **11 `.pbm` files moving
-/// pixels** -- `menu_chain` (3), `menu_int` (1), `menu_patch_cables` (1), `menu_range` (4),
-/// `menu_submenu_horizontal` (2) -- and two C++ value assertions changing, which is precisely the
-/// diff the debounce arming is there to prevent.
+/// **Still owed, as a named edit:** seed `svc.mod_target`, arm the debounce in each script the way
+/// `tests/ui-scripts/shell/menu_gold_turn.txt` already does (one leading detent inside
+/// `short_press_ms`), and re-record. Measured cost of that step with targets seeded: `led Mod1 on`
+/// on 57 frames plus **11 `.pbm` files moving pixels** -- `menu_chain` (3), `menu_int` (1),
+/// `menu_patch_cables` (1), `menu_range` (4), `menu_submenu_horizontal` (2) -- and two C++ value
+/// assertions changing, which is precisely the diff the debounce arming is there to prevent.
 ///
 /// @par Why a seeded install swallows the turn: a service reaching into the lowering behind the router
 ///
-/// The prediction this file used to carry was that the split was decided by the page -- a turn the
-/// page's widget CLAIMS is never routed to `Router::run_chain` (`Scene::owns`), so
-/// installing the services would change nothing; an unclaimed turn would fall through and make
-/// `ModKnobs` push a `ParamPopupScene`. **Neither half held.** No `ParamPopupScene` appears anywhere
-/// (not one added or removed `scene` line, in either the seeded or the unseeded recording), and the
-/// CLAIMED turns changed under seeding. The mechanism is three files away and the router is not in
-/// it, which is why looking at the router found nothing:
+/// One might expect the split to be decided by the page: a turn the page's widget CLAIMS is never
+/// routed to `Router::run_chain` (`Scene::owns`), so installing the services would change nothing,
+/// while an unclaimed turn would fall through and make `ModKnobs` push a `ParamPopupScene`.
+/// **Neither half holds.** No `ParamPopupScene` appears anywhere (not one added or removed `scene`
+/// line, in either the seeded or the unseeded recording), and the CLAIMED turns change under
+/// seeding. The mechanism is three files away and the router is not in it, which is why looking at
+/// the router finds nothing:
 ///
 ///   1. The gold path runs `InputLowering::action_gold_turn` **unconditionally** -- the Continuous
-///      arm of `InputLowering::apply_encoder_edges` (`shell/input_lowering.cpp:191`), which
-///      `on_encoder_edges` forwards to (`:158-163`), gated on no service at all. Its
-///      wiggle debounce is `(now_ms - last_turn_ms_[role]) < cfg_.short_press_ms` (`:214`, with
-///      `short_press_ms` = 500, `input_lowering.h:26`), and a turn that fails it is recorded and
-///      **swallowed** -- the test at `:216`, the direction recorded at `:223`, the refusal at
-///      `:224`.
-///   2. `ModKnobs::pretend_knobs_untouched()` (`scenes/services/mod_knobs.cpp:193-197`) writes that
-///      same array from the other side, through `InputLowering::pretend_knob_untouched`
-///      (`input_lowering.cpp:451-461`): `last_turn_ms_[role] = now_ms - kPretendUntouchedMs`, and
-///      `kPretendUntouchedMs` is 1000 (`input_lowering.h:395`).
+///      arm of `InputLowering::apply_encoder_edges`, which `InputLowering::on_encoder_edges`
+///      forwards to, gated on no service at all. Its wiggle debounce is
+///      `(now_ms - last_turn_ms_[role]) < cfg_.short_press_ms` (with `short_press_ms` = 500, see
+///      `LoweringConfig`), and a turn that fails it is recorded and **swallowed**.
+///   2. `ModKnobs::pretend_knobs_untouched()` writes that same array from the other side, through
+///      `InputLowering::pretend_knob_untouched`: `last_turn_ms_[role] = now_ms -
+///      kPretendUntouchedMs`, and `kPretendUntouchedMs` is 1000.
 ///   3. `RealServices::installer()` reaches it twice at construction -- `set_focus` and
 ///      `set_mod_region` -- but **only when a `mod_target` is
 ///      seeded**, since both are skipped for a null one. That is the whole reason the fixture below
@@ -182,13 +174,6 @@
 /// **The seam worth naming for whoever installs the next service**: a service mutated shared
 /// `InputLowering` state at construction, and the effect is observable in a debounce that no
 /// routed event passes through. "The router never gave it the event" was true and irrelevant.
-///
-/// **One number in this file's history was wrong and is corrected here**: task 11's first pass
-/// reported "1 with `svc.mod_target = nullptr`", which was a misread of interleaved CppSpec output.
-/// Re-run with a single block patched, unseeded raises no failure at all.
-///
-/// `src/scenes/README.md`'s carry table, the migration spec's §10.2 blocker list and F1 task 11's
-/// report all carry this row.
 
 #include "gui/ui/menu_view_of.h"
 #include "scenes/browser/browser_scene.h"
@@ -244,7 +229,7 @@
 // rule `browser_scene_spec.cpp`, `marker_scene_spec.cpp` and `recorder_scene_spec.cpp` run under.
 #include "support/card_access.h"
 
-// Before `script_runner.h`, which is what actually drags `<cppspec.hpp>` in (`script_runner.h:10`)
+// Before `script_runner.h`, which is what actually drags `<cppspec.hpp>` in (`script_runner.h`)
 // -- so "before cppspec" is not enough here, it has to be before this line. `real_services.h`
 // reaches `scenes/overlay/param_popup_scene.h`, whose `push` takes a parameter named `context`
 // (`:163`), and CppSpec `#define`s `context` to `self.context` (`cppspec.hpp:23`). The same
@@ -311,7 +296,7 @@ int cursor0() {
 
 /// @brief The cursor of the row list at whatever depth the menu is currently at.
 ///
-/// `cursor0()` is right only while the target sits at depth 0. Task 12's scripts open nodes several
+/// `cursor0()` is right only while the target sits at depth 0. Several scripts open nodes
 /// levels down and some of them descend further, so the depth has to be read rather than assumed.
 int cursor_now() {
 	const deluge::scenes::menu::MenuState& st = menu_scene().state();
@@ -401,21 +386,21 @@ struct SavedRange {
 };
 
 // ---------------------------------------------------------------------------------------------
-// E3 task 11's four scripts, and the fixtures they need.
+// The per-device MIDI page and the three scene scripts, and the fixtures they need.
 //
 // The browser and the marker editor are reached here through the **shortcut-pad jump**, and that is
 // not a shortcut in the convenience sense: `file0_selector` and `sample0_start` are declared only on
 // `Layout::Horizontal` pages (`source0`, `audio_clip_sample`), and a horizontal page's `columns`
 // widget claims `entered` only for a `Kind::Submenu` column (`ui/oled/columns.cpp`) -- so no select
 // press in the committed tree descends into either. The shortcut table does
-// (`menu/shortcuts.cpp:100`, legacy's own `paramShortcutsForSounds` cells), which makes it the only
+// (`menu/shortcuts.cpp`, legacy's own `paramShortcutsForSounds` cells), which makes it the only
 // door those two have -- the same Custom-column navigation gap `menu_range_permission`'s synthetic
 // wrapper already records one level up, met here with a real path instead of a synthetic one.
 //
-// **The recorder is the exception, and fix round 1 corrected this comment for it.**
-// `sample0_recorder` is also a child of the *vertical* `sound_actions` (`nodes/sound_actions.h:82`)
-// and `drum_actions` (`nodes/roots.h:315`), and `ui::oled::list` sets `entered` for any selectable
-// row (`ui/oled/list.cpp:121`) -- so SOUND -> ACTIONS -> RECORD TO SAMPLE is two ordinary select
+// **The recorder is the exception.**
+// `sample0_recorder` is also a child of the *vertical* `sound_actions` (`nodes/sound_actions.h`)
+// and `drum_actions` (`nodes/roots.h`), and `ui::oled::list` sets `entered` for any selectable
+// row -- so SOUND -> ACTIONS -> RECORD TO SAMPLE is two ordinary select
 // presses. `recorder.txt` drives that door first and the shortcut second, in one run, because the
 // two do not end the same way: the ordinary route leaves the item at depth 2 where
 // `MenuWalkState::go_up_on_resume` ascends to the ACTIONS list, and the jump re-roots onto the item at
@@ -612,17 +597,16 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		// Q7: the `.state` pins WHICH node is open; it says nothing about its label or value, so
 		// both are asserted here directly. The name check is against the EXPECTED `l10n::String` id,
 		// not `nodes::saturation.name` -- comparing a node's own field against itself cannot fail
-		// once the pointer-identity check just above already holds (review round 1, I2); this is the
-		// independent value Q7 actually wants pinned.
+		// once the pointer-identity check just above already holds; this is the independent
+		// value that has to be pinned.
 		expect(menu_scene().focused() == &nodes::saturation).to_be_true();
 		expect(static_cast<uint32_t>(menu_scene().focused()->name)).to_equal(static_cast<uint32_t>(sid(String::STRING_FOR_SATURATION)));
-		// `int_value` now edits on the select encoder, not the gold knobs (`ui/oled/values.cpp`'s
+		// `int_value` edits on the select encoder, not the gold knobs (`ui/oled/values.cpp`'s
 		// `select_delta`): the script's `100 encoder Select +1` step -- once a claimed-and-ignored
-		// no-op (this file used to say so) -- is what moves the value now, by exactly 1 select
-		// detent * the node's own `IntRange{0,15,1}.step` (1). Fix round 1's follow-up review found
-		// the script's OLD closing `300 encoder GoldUpper +2` step no longer tested anything (gold
+		// no-op -- is what moves the value, by exactly 1 select detent * the
+		// node's own `IntRange{0,15,1}.step` (1). A closing `GoldUpper` step would test nothing (gold
 		// reaches nobody: `int_value` claims no gold input, and the unseeded `ModKnobs` behind it has
-		// no target to write through) -- so that step is now `encoder Select +2` too, a second select
+		// no target to write through) -- so that step is `encoder Select +2` too, a second select
 		// edit on the same leaf, landing at `1 + 2 = 3`.
 		expect(bindings::read(nodes::saturation, ctx)).to_equal(std::min(before + 3, 15));
 	});
@@ -651,31 +635,29 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		const uitest::RunResult result = uitest::expect_script_goldens(
 		    self, "menu_decimal", scenes::scene_registry(), svc.slots(), opts);
 		// Five, not six: the script's first GoldUpper turn lands on a page that reads no edit
-		// encoder, so its snapshot was byte-identical to `after_select_press` and was dropped (fix
-		// round 1) -- the *step* stays, because the "unchanged" assertion below is about it.
+		// encoder, so its snapshot was byte-identical to `after_select_press` and is not recorded -- the
+		// *step* stays, because the "unchanged" assertion below is about it.
 		expect(result.snapshots).to_equal(uint32_t{5});
 
-		// E2 task 9: `source0_transpose` is one of the 53 `PatchedParam` nodes, so its select press
+		// `source0_transpose` is one of the 53 `PatchedParam` nodes, so its select press
 		// opens the source picker rather than ascending (`patched_param.cpp:32-40`). The script's
 		// first GoldUpper turn therefore lands on that picker and edits nothing; the Back brings the
 		// leaf back and the script's closing select turn is the one that moves the value a second time.
 		expect(menu_scene().focused() == &nodes::source0_transpose).to_be_true();
 		expect(static_cast<uint32_t>(menu_scene().focused()->name)).to_equal(static_cast<uint32_t>(sid(String::STRING_FOR_TRANSPOSE)));
-		// `decimal_value` now edits on the select encoder (`ui/oled/values.cpp`'s `select_delta`),
+		// `decimal_value` edits on the select encoder (`ui/oled/values.cpp`'s `select_delta`),
 		// by `10^edit_pos` per detent -- `edit_pos` stays 0 throughout, so the script's very first
 		// step, `100 encoder Select +1`, moves the value by 1 * 1 on its own. The `GoldUpper` turn
 		// that follows still reaches nobody -- it lands on the source picker the select press opens,
-		// which reads no edit encoder, as before -- but fix round 1's follow-up review found the
-		// script's OLD closing `GoldUpper` turn (back on the leaf) no longer tested anything either,
-		// since `decimal_value` claims no gold input at all now. That step is `encoder Select +2` now,
+		// which reads no edit encoder -- and a closing `GoldUpper` turn (back on the leaf) would test
+		// nothing either, since `decimal_value` claims no gold input at all. That step is `encoder Select +2`,
 		// landing at `1 + 2 = 3`.
 		expect(bindings::read(nodes::source0_transpose, ctx)).to_equal(std::min(before + 3, 9600));
-		// `after_select_turn`'s pixel diff against `idle` is now a real effect of the Select turn
-		// (the digits move by 1), not only the cursor's own time-driven blink as it was before this
-		// fix. What still verifies the cursor specifically: `edit_pos` moves only on the
+		// `after_select_turn`'s pixel diff against `idle` is a real effect of the Select turn
+		// (the digits move by 1), not only the cursor's own time-driven blink. What verifies the cursor specifically: `edit_pos` moves only on the
 		// "Horizontal" encoder, which this script never touches, so it must still be 0 after both
 		// select turns, a select press/release and the one remaining `GoldUpper` turn -- Select edits
-		// the value on a Decimal screen now, exactly as it always moved the cursor's *place*, but it
+		// the value on a Decimal screen, exactly as it moves the cursor's *place*, but it
 		// still never moves the cursor's *position*.
 		expect(static_cast<int>(menu_scene().state().decimal_pos)).to_equal(0);
 	});
@@ -703,8 +685,8 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		opts.after_construct = svc.installer();
 		const uitest::RunResult result =
 		    uitest::expect_script_goldens(self, "menu_enum", scenes::scene_registry(), svc.slots(), opts);
-		// Three, not five: E3 task 10 dropped the Select-press and GoldUpper-turn snapshots -- both
-		// were byte-identical to `after_select_turn`, for the two reasons the script file's own
+		// Three, not five: the Select-press and GoldUpper-turn snapshots are not recorded -- both
+		// would be byte-identical to `after_select_turn`, for the two reasons the script file's own
 		// comments name. The steps stay; the final assertion below (`before + 1`, not `+2`) is their
 		// proof: either one moving the value too would show up in that total.
 		expect(result.snapshots).to_equal(uint32_t{3});
@@ -740,7 +722,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		opts.after_construct = svc.installer();
 		const uitest::RunResult result = uitest::expect_script_goldens(
 		    self, "menu_toggle", scenes::scene_registry(), svc.slots(), opts);
-		// Three, not five: E3 task 10 dropped the Select-press and GoldUpper-turn snapshots, for the
+		// Three, not five: the Select-press and GoldUpper-turn snapshots are not recorded, for the
 		// same two reasons as `menu_enum` above. The steps stay; the final assertion below (flipped
 		// exactly once, not twice) is their proof.
 		expect(result.snapshots).to_equal(uint32_t{3});
@@ -756,7 +738,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 	it("Submenu (horizontal): nodes::lpf renders and edits its focused column through the real Shell", _ {
 		// The script reads the shell's own banner, not the guest's.
 		const spec::NoNotificationSink no_sink;
-		// **Rewritten for note-family task 2's fix.** The select turn now edits the focused column
+		// The select turn edits the focused column
 		// and never moves focus (`HorizontalMenu::selectEncoderAction`, `horizontal_menu.cpp:309-326`);
 		// KIT focuses column 1 directly (`buttonAction`'s `select_map`, `:97`); the gold knob no
 		// longer touches the menu at all, falling through to the real (unseeded) `ModKnobs`; and the
@@ -826,8 +808,8 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		const uitest::RunResult result = uitest::expect_script_goldens(
 		    self, "menu_shortcut", scenes::scene_registry(), svc.slots(), opts);
 		// Five: `lpf_freq` is a `PatchedParam` node too, so the script gained a second GoldUpper turn
-		// after the Back -- and lost the first one's empty snapshot, same as `menu_decimal` above. E3
-		// task 10 dropped a second one, `after_select_turn` (byte-identical to `after_shortcut`, for
+		// after the Back -- and the first one's snapshot would be empty, same as `menu_decimal` above. The
+		// `after_select_turn` snapshot is not recorded either (byte-identical to `after_shortcut`, for
 		// the reason `render_leaf_decimal` claims-and-ignores the select encoder) -- see the script
 		// file's own notes for both.
 		expect(result.snapshots).to_equal(uint32_t{5});
@@ -839,13 +821,13 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		expect(menu_scene().focused_value() == &nodes::lpf_freq).to_be_true();
 		expect(static_cast<uint32_t>(menu_scene().focused_value()->name))
 		    .to_equal(static_cast<uint32_t>(sid(String::STRING_FOR_FREQUENCY)));
-		// `int_value` now edits on the select encoder (`ui/oled/values.cpp`'s `select_delta`), so the
+		// `int_value` edits on the select encoder (`ui/oled/values.cpp`'s `select_delta`), so the
 		// script's `200 encoder Select +1` step -- once claimed-and-ignored here too -- is what moves
 		// the value first, by 1 select detent * the node's own step (1). The `GoldUpper` turn that
 		// follows still lands on the source picker the select press opens and still does nothing
-		// there. Fix round 1's follow-up review found the script's OLD closing `GoldUpper` turn (back
-		// on this leaf) no longer tested anything either, since `int_value` claims no gold input at
-		// all any more -- so that step is `encoder Select +2` now, landing at `1 + 2 = 3`.
+		// there. A closing `GoldUpper` turn (back
+		// on this leaf) would test nothing either, since `int_value` claims no gold input at
+		// all -- so that step is `encoder Select +2`, landing at `1 + 2 = 3`.
 		expect(bindings::read(nodes::lpf_freq, ctx)).to_equal(std::min(before + 3, 50));
 	});
 
@@ -883,8 +865,8 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 
 		// The script ends with a Back, so the wrapper is on screen again -- but `after_select_press`
 		// is the REAL range picker (its two rows, named by `MultiRange::getText`), not the
-		// refused-entry no-op E1 recorded here. (The GoldUpper snapshot that used to follow it was
-		// dropped in fix round 1: the picker reads no edit encoder, so it was byte-identical.)
+		// refused-entry no-op. (No GoldUpper snapshot follows it: the picker reads no edit encoder, so
+		// it would be byte-identical.)
 		expect(menu_scene().focused() == &range_perm_root).to_be_true();
 		expect(static_cast<uint32_t>(menu_scene().focused()->name)).to_equal(static_cast<uint32_t>(sid(String::STRING_FOR_TRANSPOSE)));
 		expect(cursor0()).to_equal(1); // the Select detent landed the cursor on row 1
@@ -902,7 +884,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 	});
 
 	// -----------------------------------------------------------------------------------------
-	// E2 task 12. One block per thing E2 added; see this file's own table.
+	// One block per row of this file's own table.
 
 	it("SyncLevel: nodes::delay_sync draws legacy's note-length string, and only the SELECT encoder moves it", _ {
 		reset_globals();
@@ -930,12 +912,12 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		// `Enumeration::selectEncoderAction` (`enumeration.cpp:18-36`) clamps rather than wraps. So the
 		// +40 detents stop at the top of the node's own range instead of coming back round to OFF.
 		//
-		// **And this is what backs the dropped gold-turn snapshot** (fix round 1). The script's last
+		// **And this is what backs the missing gold-turn snapshot.** The script's last
 		// step is `GoldUpper -4`, after the clamp: `render_leaf_sync_level` never calls `f.edit()`, so
 		// the value must still be sitting on `range.max`. A gold knob that was live would have dragged
-		// it 8 steps down off the clamp and failed here. (Until fix round 1 the gold step sat between
-		// the two select turns, where the following clamp made this assertion true whatever the gold
-		// turn had done -- the one dropped golden in this file's set that nothing actually backed.)
+		// it 8 steps down off the clamp and failed here. (The gold step comes after the clamp on purpose: placed between
+		// the two select turns, the following clamp would make this assertion true whatever the gold
+		// turn had done.)
 		expect(bindings::read(nodes::delay_sync, ctx)).to_equal(sync_range.max);
 		expect(sync_range.max > int32_t{4}).to_be_true(); // the -4 really could have shown, had it acted
 		expect(menu_scene().focused() == &nodes::delay_sync).to_be_true();
@@ -963,19 +945,16 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		    self, "menu_chain", scenes::scene_registry(), svc.slots(), opts);
 		expect(result.snapshots).to_equal(uint32_t{6});
 
-		// `CountToStereoSpread::selectButtonPress` (`gui/menu_item/unison/count.h:76-79`) navigates
+		// `CountToStereoSpread::selectButtonPress` (`gui/menu_item/unison/count.h`) navigates
 		// *into* the spread, so the press must not have ascended -- and the second select turn, after
 		// the Back, must have landed on the count again.
 		expect(menu_scene().focused() == &nodes::unison_count).to_be_true();
-		// `int_value` now edits on the select encoder, not the gold knobs (`ui/oled/values.cpp`'s
-		// `select_delta`); fix round 1's follow-up review found this script's three OLD `GoldUpper`
-		// turns (on the count, on the spread the select press opens, on the count again after the
-		// Back) no longer tested anything, since `int_value` claims no gold input at all now. All
-		// three are `encoder Select` turns now, sized at `+/-4` (double the old gold script number,
-		// since a select detent is not doubled by `edges_per_detent` the way an `Accelerating` gold
-		// knob's magnitude is) -- so the arithmetic below is unchanged from before this fix, only the
-		// encoder producing it is different: the select turns land the count at exactly the same
-		// clamp the gold turns used to.
+		// `int_value` edits on the select encoder, not the gold knobs (`ui/oled/values.cpp`'s
+		// `select_delta`); a `GoldUpper` turn here would test nothing, since `int_value` claims no
+		// gold input. The script's three turns (on the count, on the spread the select press opens, on
+		// the count again after the Back) are `encoder Select` turns, sized at `+/-4` (a select
+		// detent is not doubled by `edges_per_detent` the way an `Accelerating` gold knob's magnitude
+		// is) -- so the select turns land the count at the clamp.
 		const int32_t after_first = std::min(count_before + 4, count_range.max);
 		expect(after_first).to_equal(count_range.max); // the clamp really did happen, so -4 is visible
 		expect(bindings::read(nodes::unison_count, ctx)).to_equal(std::max(after_first - 4, count_range.min));
@@ -1007,13 +986,13 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		    self, "menu_range", scenes::scene_registry(), svc.slots(), opts);
 		expect(result.snapshots).to_equal(uint32_t{5});
 
-		// `range_value` now edits the selected edge on the select encoder, not the gold knobs
+		// `range_value` edits the selected edge on the select encoder, not the gold knobs
 		// (`ui/oled/values.cpp`'s `select_delta`, and its doc's note on the two ported
 		// `selectEncoderAction`s). This script only ever turns `GoldUpper`, so neither edge moves:
 		// `range_value` claims none of those turns, and the unseeded `ModKnobs` behind them (`@par
 		// Every script here installs the real three, unseeded`, above) has no target to write
-		// through. The horizontal encoder still walks the edge exactly as before -- that half of
-		// this script's own name still holds -- it is only the edit half that goes quiet.
+		// through. The horizontal encoder still walks the edge -- that half of
+		// this script's own name holds -- it is only the edit half that goes quiet.
 		expect(FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_TEMPO].lower).to_equal(int32_t{100});
 		expect(FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_TEMPO].upper).to_equal(int32_t{200});
 		saved.restore();
@@ -1064,7 +1043,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		expect(context_menu::context_menu_scene().descriptor_id() == context_menu::DescriptorId::ResetFlash)
 		    .to_be_true();
 		// The Select detent inside the window moved nothing: `ResetSettings::getOptions()` is a single
-		// `STRING_FOR_OK` (task 6's correction -- not a NO/YES pair), and `step()` clamps.
+		// `STRING_FOR_OK` (not a NO/YES pair), and `step()` clamps.
 		expect(static_cast<int>(context_menu::context_menu_scene().selection().option)).to_equal(0);
 		// `shouldGoUpOneLevelOnBegin` (`gui/menu_item/reset_settings/reset.h:29-33`) as
 		// `MenuWalkState::go_up_on_resume`: the resume ascends OUT of the item the press descended into,
@@ -1109,10 +1088,10 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		expect(result.snapshots).to_equal(uint32_t{12});
 
 		// Typed "ABAD", then a held backspace: the press itself deletes one
-		// (`gui/ui/qwerty_ui.cpp:219`), the first repeat fires 500 ms later (`:220`) and the second
-		// 80 ms after that (`:452`), before the pad is released at 1540 ms.
+		// (`QwertyUI::padAction`), the first repeat fires 500 ms later (its `UI_SPECIFIC` timer) and the
+		// second 80 ms after that, before the pad is released at 1540 ms.
 		//
-		// Three deletions, not two (fix round 1). One repeat proves the hold is armed; it says
+		// Three deletions, not two. One repeat proves the hold is armed; it says
 		// nothing about `kBackspaceRepeatMs`, the 80 ms steady state -- and that interval's only
 		// other cover is `rename_scene_spec.cpp`, whose hand-placed ticks all land on grid passes and
 		// which was therefore blind to the bug this script found. A regression that fired once and
@@ -1216,15 +1195,13 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		// The script's two saturating `Horizontal` steps left the digit cursor on the hundreds place
 		// whatever an earlier block's page had left in `MenuState::decimal_pos`, so "one gold detent
 		// is 1.00" is pinned rather than inherited -- and so is the arithmetic behind the two frames
-		// the fix-round-1 font change is judged on.
+		// the font choice is judged on.
 		expect(static_cast<int>(menu_scene().state().decimal_pos)).to_equal(2);
-		// `decimal_value` now edits on the select encoder, not the gold knobs (`ui/oled/values.cpp`'s
-		// `select_delta`); fix round 1's follow-up review found this script's two OLD `GoldUpper`
-		// turns on the strength page no longer tested anything, since `decimal_value` claims no gold
-		// input at all now. Both are `encoder Select` turns now, sized at double the old gold script
-		// number (`+4`, `-64` in place of `+2`, `-32`) -- a select detent is not doubled by
-		// `edges_per_detent` the way an `Accelerating` gold knob's magnitude is, so this reproduces
-		// the exact same internal delta and the cable the press selected moves again.
+		// `decimal_value` edits on the select encoder, not the gold knobs (`ui/oled/values.cpp`'s
+		// `select_delta`); a `GoldUpper` turn on the strength page would test nothing, since
+		// `decimal_value` claims no gold input. The script's two turns are `encoder Select` turns
+		// sized `+4` and `-64` -- a select detent is not doubled by `edges_per_detent` the way an
+		// `Accelerating` gold knob's magnitude is, so the cable the press selected moves.
 		expect(set->patchCables[0].param.getCurrentValue() != selected_before).to_be_true();
 		// The other cable never had a turn aimed at it either way, which is still worth pinning: a
 		// port that somehow wrote through the wrong `patch_cables_chain` entry would show up here.
@@ -1292,7 +1269,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 	});
 
 	// -----------------------------------------------------------------------------------------
-	// E3 task 11. The four scenes/pages this plan shipped; see the block above `ScriptDisplay`
+	// The per-device MIDI page and the three scene scripts; see the block above `ScriptDisplay`
 	// for why three of the four are entered through the shortcut-pad jump.
 
 	it("the per-device MIDI page: the cable, the direction and the zone all survive to the write", _ {
@@ -1303,7 +1280,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 
 		const SavedCables saved = SavedCables::capture();
 		// `connected_cables` walks `kLowestDeviceNum..hostedMIDIDevices.size()` and keeps every cable
-		// whose `connectionFlags` is non-zero (`nodes/dynamic.cpp:155-169`). With no hosted devices
+		// whose `connectionFlags` is non-zero (`connected_cables` in `nodes/dynamic.cpp`). With no hosted devices
 		// the walk is the three built-in cables, so lighting two of them is a two-row list -- and two
 		// is the number that matters: a page that read a *global* cable rather than
 		// `MenuContext::midi_cable` would pass a one-row list.
@@ -1333,13 +1310,11 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 
 		// The script picked the SECOND row, the OUT direction and the UPPER zone -- the non-default
 		// arm of all three -- and then turned the select encoder twice on the member-channel count.
-		// `int_value` now edits on the select encoder, not the gold knobs (`ui/oled/values.cpp`'s
-		// `select_delta`); fix round 1's follow-up review found this script's two OLD `GoldUpper`
-		// turns no longer tested anything, since `int_value` claims no gold input at all now. Both
-		// are `encoder Select +2` turns now -- and unlike the gold knobs, the select encoder is not
+		// `int_value` edits on the select encoder, not the gold knobs (`ui/oled/values.cpp`'s
+		// `select_delta`); a `GoldUpper` turn would test nothing, since `int_value` claims no gold
+		// input. The script's two turns are `encoder Select +2` -- and unlike the gold knobs, the select encoder is not
 		// `EncoderKind::Accelerating`, so it has no wiggle debounce to swallow the first one: both
-		// turns act, landing the count at the same `0 -> 4` the gold turns used to (one of theirs
-		// used to be swallowed; neither of these is). `commit` writes `15 - 4` into the UPPER zone's
+		// turns act, landing the count at `0 -> 4`. `commit` writes `15 - 4` into the UPPER zone's
 		// field (`mpe/zone_num_member_channels.cpp:66-77`).
 		expect(static_cast<int>(usb.ports[1].mpeUpperZoneLastMemberChannel)).to_equal(11);
 		// And to that one field only. Every other one of the eight is still at its fixture value, so
@@ -1377,7 +1352,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 
 		// The script descended into KICKS, typed one character there, and came back out -- so the
 		// scene really did run all three listings, and the last BACK (`Browser::backButtonAction`'s
-		// top-of-tree arm, `browser.cpp:1283`) closed it. `MenuWalkState::go_up_on_resume` (`nodes/sample.h`,
+		// top-of-tree arm) closed it. `MenuWalkState::go_up_on_resume` (`nodes/sample.h`,
 		// legacy's `shouldGoUpOneLevelOnBegin`) then went up from the item the jump re-rooted onto, at
 		// depth 0, which closed the menu too: `after_close.state` names no menu scene.
 		expect(browser::browser_scene().browser_id() == browser::BrowserId::Sample).to_be_true();
@@ -1416,7 +1391,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		expect(static_cast<int>(marker::marker_scene().blink_phase())).to_equal(0);
 		// BACK closed the editor, and going up from the item the jump landed on at depth 0 closed the menu:
 		// `after_back.state` names no menu scene.
-		// The held-marker gesture did not survive `on_exit` (`marker_scene.cpp:197-205`).
+		// The held-marker gesture did not survive `on_exit` (`MarkerScene::on_exit`).
 		expect(marker::marker_scene().holding_marker()).to_be_false();
 	});
 
@@ -1431,7 +1406,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		menu_scene().open(nodes::sound_root, ctx);
 		// `RecorderScene::can` refuses while a foreground recording is live, and this is the storage
 		// nine subsystems read (`recorder_scene.h`). Asserted rather than cleared: if an earlier
-		// block left one armed, that is the bug this task was told to look for, not something to
+		// block left one armed, that is the bug to find, not something to
 		// paper over.
 		expect(static_cast<int>(AudioEngine::foregroundRecordingSource())).to_equal(
 		    static_cast<int>(AudioInputChannel::NONE));
@@ -1453,7 +1428,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		expect(recorder::recorder_scene().recording()).to_be_false();
 		expect(recorder::recorder_scene().stopping()).to_be_false();
 		// **This is the assertion that made `script_runner.h`'s carried gap stop being latent.**
-		// `RecorderScene::on_enter` refuses on its own leaked `recorder_` (`recorder_scene.cpp:149`)
+		// `RecorderScene::on_enter` refuses on its own leaked `recorder_`
 		// and `setup_recording` publishes a live foreground recording nine other subsystems read, so
 		// a run that ended with the scene still on the stack would leave both behind for every later
 		// spec in the process. `run_script` tears its stack down now, which is what makes this hold

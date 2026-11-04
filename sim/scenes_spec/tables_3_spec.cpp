@@ -2,10 +2,9 @@
 /// @brief The batch-3 menu tables -- the settings root and the nine other roots -- cross-checked
 ///        against the legacy menu items they replace.
 ///
-/// Task 6 declared six subtrees and task 7 the sound-editor root; task 8 declares everything else
-/// `SoundEditor::setup` can open: the kit-drum root, the MIDI/CV root (both of its titles), the
-/// MIDI- and gate-drum roots, the audio-clip root, the performance-view root, the song root, the
-/// kit global-FX root, and the settings root with its whole subtree.
+/// Batch 3 declares everything `SoundEditor::setup` can open beyond the sound-editor root's subtrees: the kit-drum
+/// root, the MIDI/CV root (both of its titles), the MIDI- and gate-drum roots, the audio-clip root, the
+/// performance-view root, the song root, the kit global-FX root, and the settings root with its whole subtree.
 ///
 /// The checks are `tables_2_spec`'s, generalised over **ten** roots rather than one -- each with
 /// its own fixture and its own `MenuContext`, because a MIDI clip, an audio clip and the settings
@@ -21,7 +20,8 @@
 ///     **every** node with a `set` hook (task-7 ruling);
 ///
 /// plus what only a complete tree can be asked: `MenuScene::roots()` resolves all ten,
-/// `validate_tree` over every root under every context, and the spec E §4 `Kind`-count rule.
+/// `validate_tree` over every root under every context, and the cap on `Kind::Custom` nodes
+/// (`kMaxCustomNodes`).
 ///
 /// @note The SPEC may include `gui/menu_item/` and `gui/ui/menus.h`; the library may not
 ///       (`scripts/check_layer_rules.py`'s `scenes-includes-outside`). Same rule
@@ -141,10 +141,9 @@ namespace legacy = deluge::gui::menu_item;
 
 /// @name The chaining group's legacy globals.
 ///
-/// `cvSubmenu`, `gateModeMenu` and `gateOffTimeMenu` are children of nothing (`menus.cpp:1223`,
-/// `:1224`, `:1232`) -- legacy reaches all three only through a `selectButtonPress()` override, so
-/// unlike everything else in this spec they cannot be found by walking `settingsRootMenu`.
-/// `cvSubmenu` is `extern` in `cv/selection.h` already; the rest are named here.
+/// `cvSubmenu`, `gateModeMenu` and `gateOffTimeMenu` are children of nothing (`gui/ui/menus.cpp`) -- legacy reaches all
+/// three only through a `selectButtonPress()` override, so unlike everything else in this spec they cannot be found by
+/// walking `settingsRootMenu`. `cvSubmenu` is `extern` in `cv/selection.h` already; the rest are named here.
 /// @{
 extern legacy::cv::Selection cvSelectionMenu;
 extern legacy::gate::Selection gateSelectionMenu;
@@ -165,12 +164,12 @@ struct SubmenuPeek : legacy::Submenu {
 	}
 };
 
-/// @brief Reach `Output::activeClip`, which is `protected` (`model/output.h:235`) and whose only
+/// @brief Reach `Output::activeClip`, which is `protected` (`model/output.h`) and whose only
 ///        public setter, `Output::setActiveClip`, also re-sends MIDI program changes and wants a
 ///        timeline-counter model stack. Same [class.protected] route `SubmenuPeek` uses: the
 ///        pointer-to-member is formed inside a class derived from `Output`, and its type is still
 ///        `Clip* Output::*`. Never instantiated -- `Output` is abstract and has no default
-///        constructor, which is exactly why this is only ever used to name the member.
+///        constructor, which is exactly why this is only ever applied to name the member.
 struct OutputPeek : ::Output {
 	static Clip*& active_clip_of(::Output& out) { return out.*(&OutputPeek::activeClip); }
 };
@@ -200,7 +199,7 @@ void install(const MenuContext& ctx, Song* song) {
 	                                   ? &deluge::scenes::spec::menu_engine(ctx).mod->core().sidechain()
 	                                   : nullptr;
 	soundEditor.allowsNoteTails = spec::sound_allows_note_tails(ctx);
-	// `SoundEditor::editingKitAffectEntire()` (`sound_editor.cpp:203-205`) reads this member, and the
+	// `SoundEditor::editingKitAffectEntire()` reads this member, and the
 	// whole kit-global-FX arpeggiator page's relevance turns on it. `context_for` takes the same fact
 	// as its `kit_global_fx` argument and reports it back as `is_kit_global_fx`.
 	soundEditor.setupKitGlobalFXMenu = ctx.is_kit_global_fx;
@@ -507,12 +506,10 @@ bool has_dynamic_name(const Node& node) {
 ///        `song::ConfigureMacros` and `song::MidiLearn`, both `return (getRootUI() == &sessionView);`
 ///        (`gui/menu_item/song/configure_macros.h:35-37`, `song/midi_learn.h:35-37`).
 ///
-/// This used to be an exclusion list -- the comparison below skipped both, because task-3 ruling 2
-/// keeps `getRootUI()` out of `src/scenes` and `MenuContext` carried no field that could stand in
-/// for it. E3 task 9 added one (`MenuContext::is_session_view`, `context_for`'s `session_view_root`
-/// argument) and `relevance::is_session_view` to spend it, so both nodes are now compared like every
-/// other -- with legacy's own read driven from the root's `root_ui` sentinel while the port's is
-/// driven from the context field.
+/// `getRootUI()` stays out of `src/scenes`, so `MenuContext::is_session_view` (`context_for`'s
+/// `session_view_root` argument) and `relevance::is_session_view` stand in for it, and both nodes
+/// are compared like every other -- with legacy's own read driven from the root's `root_ui` sentinel while the port's
+/// is driven from the context field.
 ///
 /// It stays a by-identity predicate rather than a count so that a third node acquiring
 /// `relevance::is_session_view` is a *visible* edit here: `the only nodes guarded by
@@ -540,16 +537,16 @@ bool legacy_relevance_needs_sound(const Pair& p) {
 /// @brief Nodes whose **legacy** `writeCurrentValue()` this spec cannot drive, and why. Every one
 ///        reaches a `gui/` or `hid/` global that only a booted app has.
 ///
-/// **This list suppresses the legacy call only** (fix round 2, I1/I3). It used to skip the whole
-/// `(node, item)` pair, which took the *port's* hook out of the oracle along with legacy's -- and
+/// **This list suppresses the legacy call only.** Skipping the whole
+/// `(node, item)` pair would take the *port's* hook out of the oracle along with legacy's, and
 /// the read comparison does not make up the difference: `bindings::read(arp_mode)` observes only
-/// `arp->mode`, which `set_arp_mode` assigns trivially, so `updatePresetFromCurrentSettings()`,
+/// `arp->mode`, which the mode write assigns trivially, so `updatePresetFromCurrentSettings()`,
 /// `updateSettingsFromCurrentPreset()`, `flagForceArpRestart` and the whole
-/// `silence_for_arp_toggle` block (`nodes/sound_arp.cpp:80-149`) were asserted by nothing at all.
-/// Deleting any of them left the suite green. So the `drives the port hook of every node the legacy
-/// write comparison excludes` example below drives **every one of these fourteen port hooks on its
-/// own** and asserts what each actually persists, and the loop over this list is what makes adding a
-/// fifteenth exclusion without covering it a failure rather than a quiet hole.
+/// `silenceArp` block (`setting_projection.cpp`; `Sound::allNotesOff` on a sounding clip) would be asserted by nothing
+/// at all. Deleting any of them left the suite green. So the `drives the port hook of every node the legacy write
+/// comparison excludes` example below drives **every one of these fourteen port hooks on its own** and asserts what
+/// each actually persists, and the loop over this list is what makes adding a fifteenth exclusion without covering it a
+/// failure rather than a quiet hole.
 ///
 /// Fix round 1, I3: `default_velocity` and `trigger_in_ppqn` were on this list and should not have
 /// been. `defaults::Velocity::writeCurrentValue` (`defaults/velocity.h:29-32`) is `FlashStorage`
@@ -559,11 +556,11 @@ bool legacy_relevance_needs_sound(const Pair& p) {
 /// `isExternalClockActive() && usingAnalogClockInput` (`trigger/in/ppqn.h:24-26`), both false in
 /// this fixture. Both are driven now.
 constexpr const Node* kLegacyWriteNeedsUi[] = {
-    &nodes::synth_mode,                // `view.setKnobIndicatorLevels()` (`synth_mode.h:57`)
+    &nodes::synth_mode,                // `view.setKnobIndicatorLevels()` (`synth_mode.h`)
     &nodes::arp_mode,                  // `allNotesOff` over `soundEditor.getCurrentModelStack`
-    &nodes::arp_preset,                // the same block (`preset_mode.h:50-70`)
-    &nodes::mod_fx_type,               // `display->displayError` (`mod_fx/type.h:53 writeCurrentValue`, `:59`)
-    &nodes::audio_clip_reverse,        // `uiNeedsRendering(&audioClipView)` (`reverse.h:63 writeCurrentValue`)
+    &nodes::arp_preset,                // the same block (`arpeggiator/preset_mode.h`)
+    &nodes::mod_fx_type,               // `display->displayError` (`mod_fx::Type::writeCurrentValue`)
+    &nodes::audio_clip_reverse,        // `uiNeedsRendering(&audioClipView)` (`audio_clip::Reverse::writeCurrentValue`)
     &nodes::midi_clock_out,            // `playbackHandler.setMidiOutClockMode` sends real MIDI
     &nodes::midi_clock_in,             // ... and `setMidiInClockEnabled` re-syncs playback
     &nodes::trigger_out_ppqn,          // `resyncAnalogOutTicksToInternalTicks` (`out/ppqn.h:29`)
@@ -604,7 +601,7 @@ bool value_is_port_owned(const Node& node) {
 /// @brief The three nodes whose value is a **pair**, so the one-`int32_t` loops below have nothing
 ///        to compare.
 ///
-/// `default_tempo`, `default_swing_amount` and `default_key` are `Kind::Range` (E2 task 11b): their
+/// `default_tempo`, `default_swing_amount` and `default_key` are `Kind::Range`: their
 /// `lower` and `upper` live in `FlashStorage::defaultRanges` and legacy edits both of them in
 /// `IntegerRange`/`KeyRange::selectEncoderAction`. Neither legacy class has a `writeCurrentValue` at
 /// all -- the members *are* the storage -- so `legacy_value` reads `Value<int32_t>::value_`, a field
@@ -726,8 +723,8 @@ std::array<int32_t, 3> probe_values(const menu::IntRange& r) {
 /// spec in this suite uses.
 constexpr uint8_t kSelectEncoderIndex = 3;
 constexpr uint8_t kSelectEncButtonX = 4, kSelectEncButtonY = 3;
-/// The BACK button's matrix position, the same pair `context_menu_scene_spec.cpp:124` and
-/// `rename_scene_spec.cpp:110` use.
+/// The BACK button's matrix position, the same pair `context_menu_scene_spec.cpp` and
+/// `rename_scene_spec.cpp` use.
 constexpr uint8_t kBackX = 7, kBackY = 1;
 
 /// @brief A `Shell` over `FakeSurfaceSet` with the application's scene registry, for the goldens.
@@ -740,7 +737,7 @@ struct Rig {
 	Rig(const Rig&) = delete;
 	Rig& operator=(const Rig&) = delete;
 
-	/// @brief Tear the stack down, so every scene's `on_exit` always runs (E3 task 10).
+	/// @brief Tear the stack down, so every scene's `on_exit` always runs.
 	///
 	/// `MenuScene` is a process singleton (`shell/scene.h`'s `SceneState` cache): an example that
 	/// left it -- or anything pushed above it -- on the stack would make the NEXT example's
@@ -966,7 +963,7 @@ void focus_command_row(Rig& r, const MenuContext& ctx, size_t row) {
 	// Both global queues first. An undrained `Kind::Text` notice -- a `CANT_LEARN_PC` refusal from a
 	// previous iteration, or a stray fact from an earlier describe block in this same process --
 	// becomes a `PopupScene` on this Rig's very first tick, which is not `oled_transparent` for
-	// `Main` and takes the input top with it (`shell/notices.cpp:124-126`). The select press below
+	// `Main` and takes the input top with it (`shell/notices.cpp`). The select press below
 	// would then never reach the menu, and the descent would silently not happen.
 	// `tables_3_reset_items` and `tables_3_pixels` drain for exactly this reason.
 	deluge::notify::dirty().drain();
@@ -1183,9 +1180,9 @@ describe tables_3_shape("scenes::menu batch-3 tables: shape", $ {
 			expect(uint32_t(p.node->bind.param.index) == p.item->getParamIndex()).to_be_true();
 			compared++;
 
-			// `UnpatchedParam::getParamKind` (`unpatched_param.cpp:96-101`) answers by building
+			// `UnpatchedParam::getParamKind` (`gui/menu_item/unpatched_param.cpp`) answers by building
 			// `SoundEditor::getCurrentModelStack`, which dereferences `getCurrentInstrumentClip()`
-			// (`sound_editor.cpp:2038`) -- so it can only be asked where the fixture HAS a clip. The
+			// -- so it can only be asked where the fixture HAS a clip. The
 			// song, performance and settings roots have none by construction (`context_for`'s
 			// `clip == nullptr` arm is what selects them), so the *kind* half of this comparison is
 			// restricted to the seven clip-backed roots; the *index* half above covers all ten.
@@ -1408,7 +1405,7 @@ describe tables_3_values("scenes::menu batch-3 tables: values", $ {
 	});
 
 	it("refuses an unpatched param on a MIDI clip rather than reinterpreting its collection", _ {
-		// Pre-review fix round. `ParamManager::setupMIDI` and `setupUnpatched`
+		// `ParamManager::setupMIDI` and `setupUnpatched`
 		// (`modulation/params/param_manager.cpp:60-82`) both leave `expressionParamSetOffset == 1`
 		// and `summaries[0].paramCollection` non-null, and `getUnpatchedParamSet()` is a bare cast of
 		// that pointer -- so on a MIDI or CV clip an unpatched `ParamRef` read would reinterpret a
@@ -1531,7 +1528,7 @@ describe tables_3_validation("scenes::menu batch-3 tables: validation", $ {
 
 	it("validates the settings root clean, its sixteen follow-channel tracks included", _ {
 		// Legacy names the sixteen tracks identically and formats the track number in
-		// (`midi/follow/follow_channel.h:176-185`); their `title_arg` tells them apart.
+		// (`FollowChannelTrack` in `midi/follow/follow_channel.h`); their `title_arg` tells them apart.
 		const Root& settings = roots().back();
 		install(settings.ctx, settings.song);
 		const Node* root[] = {&nodes::root_settings};
@@ -1558,7 +1555,7 @@ describe tables_3_validation("scenes::menu batch-3 tables: validation", $ {
 		// `Kind` comment records the outcome of). A kind below three nodes is speculation, and the
 		// four that were -- `Bipolar`, `Range`, `MultiRange`, `Colour` -- plus `Action`, which no
 		// table declares either, were removed from the enum rather than left in.
-		// Sized from the enum's own last enumerator and swept in full (fix round 1, minor 8): a
+		// Sized from the enum's own last enumerator and swept in full: a
 		// hand-written list of kinds would let a future enumerator escape the rule silently, and an
 		// oversized array would report a phantom zero-count kind.
 		constexpr size_t kNumKinds = static_cast<size_t>(menu::Kind::Custom) + 1;
@@ -1627,7 +1624,7 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 		// reachable from three roots is driven three times, on three different fixtures. A node bound to a
 		// target has no `set` hook: the binding library's specs (sound_settings_spec, effect_settings_spec,
 		// arp_targets_spec, model_targets_spec, model_nodes_spec) drive it instead. The thresholds stay loose rather than exact;
-		// a drop in either number means the loop stopped reaching hooks it used to.
+		// a drop in either number means the loop stopped reaching hooks.
 		expect(exercised > size_t(400)).to_be_true();
 		expect(covered.size() > size_t(105)).to_be_true();
 	});
@@ -1679,15 +1676,15 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 		}
 
 		{ // --- arp_mode: the preset re-derivation AND the silence block --------------------------
-			// `set_arp_mode` (`nodes/sound_arp.cpp:126-135`) is three effects, not one:
-			// `silence_for_arp_toggle`, `arp.mode = mode`, `arp.updatePresetFromCurrentSettings()`.
+			// Writing `arp_mode` is three effects, not one:
+			// `silenceArp`, `arp.mode = mode`, `arp.updatePresetFromCurrentSettings()`.
 			// `bindings::read` sees only the middle one, which is why deleting either of the others
-			// used to leave this suite green.
+			// would leave this suite green without a direct check.
 			const Root& sound = installed_root("sound");
 			ArpeggiatorSettings* arp = spec::menu_engine(sound.ctx).arp;
 			expect(arp != nullptr).to_be_true();
-			// `silence_for_arp_toggle` only fires on a clip that is actually sounding
-			// (`sound_arp.cpp:94`, legacy `mode.h:30`). `song_fixture.h` builds the clip without
+			// The toggle's silencing only fires on a clip that is actually sounding
+			// (legacy `arpeggiator/mode.h`). `song_fixture.h` builds the clip without
 			// making it its output's active one -- nothing in the fixture plays -- so this is the
 			// one bit of state the example has to arrange for itself.
 			expect(spec::menu_engine(sound.ctx).clip != nullptr).to_be_true();
@@ -1700,7 +1697,7 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 			arp->octaveMode = ArpOctaveMode::DOWN;
 			arp->noteMode = ArpNoteMode::DOWN;
 			// `Sound::allNotesOff` clears this first thing (`sound.cpp:1761-1763`) -- the one effect
-			// of `silence_for_arp_toggle`'s synth arm that survives in model state a spec can read.
+			// of `silenceArp`'s synth arm that survives in model state a spec can read.
 			spec::menu_engine(sound.ctx).sound->invertReversed = true;
 
 			menu::bindings::write(nodes::arp_mode, sound.ctx, static_cast<int32_t>(ArpMode::ARP));
@@ -1731,7 +1728,7 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 			menu::bindings::write(nodes::arp_preset, sound.ctx, static_cast<int32_t>(ArpPreset::DOWN));
 
 			expect(arp->preset == ArpPreset::DOWN).to_be_true();
-			// `updateSettingsFromCurrentPreset()` (`arpeggiator.cpp:1971-2005`) is the only thing
+			// `ArpeggiatorSettings::updateSettingsFromCurrentPreset()` is the only thing
 			// that moves these three; delete its call from `set_arp_preset` and all three fail.
 			expect(arp->mode == ArpMode::ARP).to_be_true();
 			expect(arp->octaveMode == ArpOctaveMode::DOWN).to_be_true();
@@ -1944,7 +1941,7 @@ describe tables_3_chaining("scenes::menu batch-3 tables: selectButtonPress chain
 	});
 
 	it("declares the three chain-only pages with the legacy items' own shape and values", _ {
-		// `cvSubmenu` (`menus.cpp:1232`), `gateModeMenu` (`:1223`) and `gateOffTimeMenu` (`:1224`)
+		// `cvSubmenu` (`gui/ui/menus.cpp`), `gateModeMenu` and `gateOffTimeMenu`
 		// are children of nothing, so the lockstep walk above can never see them. Their shape and
 		// their reads are compared here instead, against the same live objects.
 		const Root& settings = roots().back();
@@ -2091,33 +2088,25 @@ describe tables_3_chaining("scenes::menu batch-3 tables: selectButtonPress chain
 		}
 		// The chaining nodes of the shipped tree; a chain added without a spec fails here.
 		//
-		// **68 after E2 task 9**, up from task 3's seven: 53 `PatchedParam` nodes
-		// (`with_patch_chain`, every node with `bind.param.kind == PATCHED`), the four patch-cable
-		// pages (`source_selection_{regular,range}`, `patch_cable_strength_{regular,range}`), the
-		// three items that open one (`patch_cables`, `vibrato`, `sidechain_volume`), and the range
-		// picker. 7 + 53 + 4 + 3 + 1 = 68.
-		//
-		// **71 after E3 task 8**: `midi_devices` gains the chain to the per-device page
-		// (`midi::Devices::selectButtonPress`, `gui/menu_item/midi/devices.cpp:154-156`), and the
-		// two MPE selectors under it chain onward -- `mpe_direction` -> `mpe_zone`
-		// (`mpe/direction_selector.cpp:31-33`) -> `mpe_zone_num_member_channels`
-		// (`mpe/zone_selector.cpp:32-34`). All three are unconditional, so all three are swept here
-		// under every context and every one lands inside its own one-element span.
-		//
-		// **73 after spec E-note-family task 5**: `nodes::note_iterance` and
-		// `nodes::note_row_iterance` each chain to their own custom-iterance root on
-		// `kCustomIterancePreset` (`note/iterance_preset.h:59-67`,
-		// `note_row/iterance_preset.h:72-80`) -- the two new nodes `nodes/note.h` appends to
-		// `kAllRootArray`'s reachable set. 71 + 2 = 73.
+		// **73** = 7 + 53 + 4 + 3 + 1 + 3 + 2. The seven original chain nodes; 53 `PatchedParam`
+		// nodes (`with_patch_chain`, every node with `bind.param.kind == PATCHED`); the four
+		// patch-cable pages (`source_selection_{regular,range}`,
+		// `patch_cable_strength_{regular,range}`); the three items that open one (`patch_cables`,
+		// `vibrato`, `sidechain_volume`); the range picker; `midi_devices`, which chains to the
+		// per-device page (`midi::Devices::selectButtonPress`, `gui/menu_item/midi/devices.cpp`),
+		// with the two MPE selectors under it chaining onward -- `mpe_direction` -> `mpe_zone`
+		// (`mpe/direction_selector.cpp`) -> `mpe_zone_num_member_channels` (`mpe/zone_selector.cpp`),
+		// all three unconditional, so all three are swept here under every context and every one
+		// lands inside its own one-element span; and `nodes::note_iterance` and
+		// `nodes::note_row_iterance`, which each chain to their own custom-iterance root on
+		// `kCustomIterancePreset` (`note/iterance_preset.h`, `note_row/iterance_preset.h`).
 		expect(chaining_nodes).to_equal(size_t(73));
 		expect(answers > size_t(0)).to_be_true();
 	});
 
 	it("has exactly one chain edge that closes a cycle, and it is the legacy one", _ {
-		// The guard the `"ref"` stub cost us. Before E2 task 9 the dump's `fail_on_chain_cycle`
-		// *stopped* on a cycle, so an unintended one could not be committed; now it is emitted as a
-		// `{"ref": true}` stub and the only remaining net is "the JSON changed", which says nothing
-		// about why. This names the edge instead.
+		// The dump emits a cycle as a `{"ref": true}` stub, so the only net the dump itself has is
+		// "the JSON changed", which says nothing about why. This names the edge instead.
 		//
 		// A **path-aware** walk, not the seen-set one above: a cycle is a target that is already
 		// open on the current path, which is exactly `menu_dump_main.cpp`'s `g_path` test and
@@ -2207,7 +2196,7 @@ describe tables_3_chaining("scenes::menu batch-3 tables: selectButtonPress chain
 });
 
 describe tables_3_reset_items("scenes::menu batch-3 tables: the five reset_* items", $ {
-	// Task 6 shipped `ContextMenuScene`, its `Descriptor` table and all five accept hooks, driven
+	// `ContextMenuScene`, its `Descriptor` table and all five accept hooks are driven
 	// and cross-checked against legacy directly by `DescriptorId`
 	// (`context_menu_scene_spec.cpp`'s `cm_actions`). What that spec does NOT drive is the settings
 	// tree itself: it opens `ContextMenuScene` straight off a `DescriptorId`, never through
@@ -2442,9 +2431,9 @@ describe tables_3_midi_commands("scenes::menu batch-3 tables: the twelve midi_co
 	   });
 
 	it("stores an MPE zone the way legacy does, and renders it as a zone rather than a channel", _ {
-		// Fix round 1, I3. This arm is live, not defensive: `PlaybackHandler::noteMessageReceived`
-		// (`playback/playback_handler.cpp:2966-2968`) resolves the incoming channel through
-		// `MIDIPort::channelToZone` (`io/midi/midi_device.cpp:236-238`) *before* dispatching to
+		// This arm is live, not defensive: `PlaybackHandler::noteMessageReceived`
+		// resolves the incoming channel through
+		// `MIDIPort::channelToZone` (`io/midi/midi_device.cpp`) *before* dispatching to
 		// `SoundEditor::noteOnReceivedForMidiLearn`, so a note-on learn from an MPE-configured input
 		// port really does arrive as `MIDI_CHANNEL_MPE_LOWER_ZONE`/`UPPER_ZONE` and really does take
 		// `MidiCommandItem::render`'s zone branch. (The CC path is unaffected -- `midiCCReceived`
@@ -2539,7 +2528,7 @@ describe tables_3_midi_commands("scenes::menu batch-3 tables: the twelve midi_co
 		   // `MenuItem::shouldBlinkLearnLed` is true only on `midi::Command` (`command.h:34`; the
 		   // base returns false, `menu_item.h:196`), and `SoundEditor::beginScreen` turns that into
 		   // `blinkLed(IndicatorLED::LEARN)` or `setLedState(LEARN, false)` on every screen change
-		   // (`sound_editor.cpp:949-954`). Board LED 7 is LEARN (`shell/profiles/deluge.cpp:39`).
+		   // (`sound_editor.cpp:949-954`). Board LED 7 is LEARN (`shell/profiles/deluge.cpp`).
 		   constexpr uint8_t kLearnBoardLed = 7;
 		   const Root& settings = roots().back();
 		   install(settings.ctx, settings.song);
@@ -2800,8 +2789,8 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 		at += 10;
 		expect(int(menu_scene().state().list[1].cursor)).to_equal(2);
 
-		// E3 task 8: this press no longer ascends. `midi_devices` chains to the per-device page
-		// (`Devices::selectButtonPress`, `gui/menu_item/midi/devices.cpp:154-156`), so the way back
+		// This press does not ascend. `midi_devices` chains to the per-device page
+		// (`Devices::selectButtonPress`, `gui/menu_item/midi/devices.cpp`), so the way back
 		// up to the MIDI page is now two BACK presses rather than one select press -- which is a
 		// *stronger* round trip for what this example is about, because `MenuScene::ascend` never
 		// runs `on_focus` and only the re-descent below can put the cursor back.
@@ -3140,13 +3129,13 @@ describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors an
 
 describe tables_3_pixels("scenes::menu batch-3 tables: pixels", $ {
 	// Shared setup, so a pixel test added here later gets it for free rather than needing to
-	// remember to copy it in (review round 1, I4 -- the two tests below used to each inline this).
+	// remember to copy it in.
 	// `tables_3_writes` above drives every set hook across the whole tree, including params an
 	// alpha/beta build's `bindings::write` cannot serve in the probe context it uses -- which raises
 	// a real `Kind::Console` "MENU PARAM UNBOUND" notice (`bindings.cpp`'s `notice_unservable_param`).
-	// That notice sat harmlessly undrained in the global queue until `shell/notices.cpp`'s
-	// `Kind::Console` fix (task 11) made a drained Console notice actually composite into whatever
-	// next calls `shell.tick()` -- one of the tests below, in the same process. Drain both global
+	// That notice sat harmlessly undrained in the global queue until `shell/notices.cpp`
+	// composites a drained Console notice into whatever next calls `shell.tick()` -- one of the
+	// tests below, in the same process. Drain both global
 	// queues before each `it` here so a stray fact from an earlier describe block, or from the
 	// *other* test in this one, never bleeds into a golden.
 	before_each([] {
@@ -3158,7 +3147,7 @@ describe tables_3_pixels("scenes::menu batch-3 tables: pixels", $ {
 	});
 
 	// The golden names are `menu_settings_tree_*`, not `menu_settings_root_*`: those belong to
-	// `menu_scene_spec`, whose own `settings_root` is a hand-built three-item tree used to exercise
+	// `menu_scene_spec`, whose own `settings_root` is a hand-built three-item tree that exercises
 	// the interpreter. This one is the real thirteen-item settings root.
 	it("renders the settings root list", _ {
 		const Root& settings = roots().back();
@@ -3212,7 +3201,7 @@ describe tables_3_pixels("scenes::menu batch-3 tables: pixels", $ {
 		// `command.cpp:54-58`: an MPE zone prints "MPE LOWER ZONE" on the channel row instead of
 		// "CHANNEL n", and -- being below `IS_A_CC` -- still prints "Note" on the third. A golden,
 		// not an inequality: deleting the zone arm falls through to "CHANNEL 17", which is different
-		// from every other frame in this file and so passes any inequality check (fix round 1, I3).
+		// from every other frame in this file and so passes any inequality check.
 		const Root& settings = roots().back();
 		const CommandSlots saved = CommandSlots::capture();
 		CommandSlots::clear_all();

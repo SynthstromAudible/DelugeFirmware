@@ -1,20 +1,19 @@
 /// @file
-/// @brief Task 4's spec: `deluge::scenes::menu::NoteBridge`, installed by `wireShellNoteBridge()`,
-///        against the REAL `instrumentClipView` and a real `Song`/clip (ruling 5: the bridge's spec
-///        is a stated sample, not full coverage of all sixteen members).
+/// @brief `deluge::scenes::menu::NoteBridge`, installed by `wireShellNoteBridge()`,
+///        against the REAL `instrumentClipView` and a real `Song`/clip (the spec is a stated
+///        sample, not full coverage of all sixteen members).
 ///
 /// **Selecting a note through the real view.** `support/song_fixture.h` builds a synth/MIDI/kit
 /// clip but places no `Note` and sets none of `instrumentClipView`'s selection fields, so this file
-/// does both itself: a note is added through the model (`NoteRow::attemptNoteAdd`,
-/// `model/note/note_row.h:204`, with a known non-zero velocity so the read below has something
-/// concrete to check) and selected the way `InstrumentClipView` itself does, by driving
-/// `editPadAction` (`gui/views/instrument_clip_view.cpp:2345`).
+/// does both itself: a note is added through the model (`NoteRow::attemptNoteAdd`, with a known non-zero velocity so
+/// the read below has something concrete to check) and selected the way `InstrumentClipView` itself does, by driving
+/// `InstrumentClipView::editPadAction`.
 ///
 /// `editPadAction`'s "regular create-or-select press" branch unconditionally calls
 /// `reassessAuditionStatus` (`:2702`), which calls `getVelocityForAudition` (`:4784`), which calls
 /// `InstrumentClipMinder::makeCurrentClipActiveOnInstrumentIfPossible`
-/// (`model/clip/instrument_clip_minder.cpp:591`) -- and THAT dereferences `currentPlaybackMode`, a
-/// global only `deluge_boot()` sets (`deluge.cpp:660`), null under every `song_fixture.h`
+/// -- and THAT dereferences `currentPlaybackMode`, a
+/// global only `deluge_boot()` sets, null under every `song_fixture.h`
 /// direct-construction fixture. `RealNoteSelectionGuard` below seeds it with the real `session`,
 /// exactly the precedent `audio_clip_scene_spec.cpp` already sets (`:349`), and seeds `display`
 /// with a local `OLED`, exactly `count_in_spec.cpp`'s precedent (`:185-187`) -- both restored on
@@ -24,8 +23,8 @@
 /// a note actually selected this way; `adjust_note_velocity`'s write pinned against legacy's own
 /// gate, unchanged -- see below; `row_probability` creates a note row on a non-kit clip at an
 /// auditioned y with none yet; `row_sequence_direction` answers false on a KIT clip even when a
-/// drum's own row exists at that same y (fix round 1, important 3 -- without the `:50` non-kit test
-/// this would have read that displayed drum's row instead); `iterance_preset_label` for preset 1,
+/// drum's own row exists at that same y (without the `:50` non-kit test
+/// this would read that displayed drum's row instead); `iterance_preset_label` for preset 1,
 /// both `compact` spellings, plus its out-of-range guard.
 ///
 /// **The offset-write gate, pinned rather than assumed.** `adjustVelocity` only actually changes a
@@ -41,9 +40,9 @@
 /// through `adjustNoteParameterValue`'s `hasPopup || inNoteEditor` (`:3067`, `:3118`) and
 /// `setNoteRowParameterValue`'s `hasPopup || inNoteRowEditor` (`:4141`, `:4144`) -- not re-pinned
 /// here one entry at a time; velocity's gate is the stated sample for all of them. That example opens no
-/// ported menu, so it is legacy's arm, and it stays exactly as Task 4 pinned it.
+/// ported menu, so it is legacy's arm, and it stays legacy's arm.
 ///
-/// **The note-mode arm of the same gate (note-family Task 7a).** With the ported menu on the guest's
+/// **The note-mode arm of the same gate.** With the ported menu on the guest's
 /// stack at a note root, `util/note_editor_open.h`'s `noteEditorOpen()`/`noteRowEditorOpen()` answer
 /// true, so `adjustVelocity`'s `inSoundEditor` (`:2852`), `adjustNoteParameterValue`'s `inNoteEditor`
 /// (`:3067`) and `setNoteRowParameterValue`'s `inNoteRowEditor` (`:4141`) all hold with no popup up:
@@ -154,7 +153,7 @@ struct RealNoteSelectionGuard {
 };
 
 /// @brief `instrumentClipView.lastAuditionedYDisplay` is real UI state a spec borrows and must give
-///        back -- fix round 1, minor g.
+///        back.
 struct RestoreLastAuditionedY {
 	int32_t saved = instrumentClipView.lastAuditionedYDisplay;
 	~RestoreLastAuditionedY() { instrumentClipView.lastAuditionedYDisplay = saved; }
@@ -317,12 +316,12 @@ describe note_bridge_group("scenes::menu note bridge, installed via wireShellNot
 	});
 
 	it("row_sequence_direction answers false on a KIT clip even though a drum's own row exists at "
-	   "that same y -- fix round 1, important 3: without sequence::Direction::getIndividualNoteRow's "
-	   "`:50` non-kit test, this would have read that DISPLAYED DRUM's row instead", _ {
+	   "that same y: without sequence::Direction::getIndividualNoteRow's "
+	   "non-kit test, this would read that DISPLAYED DRUM's row instead", _ {
 		RestoreLastAuditionedY restore_y;
 		auto f = deluge::scenes::spec::make_kit_song();
-		// `InstrumentClip::getNoteRowOnScreen`'s kit arm indexes `noteRows` at `yDisplay + yScroll`
-		// (`instrument_clip.cpp:973`); `yScroll` is `uint8_t lastAuditionedYDisplay` (`gui/views/
+		// `InstrumentClip::getNoteRowOnScreen`'s kit arm indexes `noteRows` at `yDisplay + yScroll`;
+		// `yScroll` is `uint8_t lastAuditionedYDisplay` (`gui/views/
 		// instrument_clip_view.h:263`) added to a signed offset the constructor derives from the
 		// song's root note (`instrument_clip.cpp:90-96`), which is not 0 and not something a
 		// `uint8_t` can cancel out (measured: 35 on this fixture's default song). Pinned to 0

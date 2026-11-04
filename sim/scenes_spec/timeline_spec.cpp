@@ -1,8 +1,8 @@
 /// @file
 /// @brief `timeline::TimelineState` -- the port of legacy's `TimelineView` ->
 ///        `ClipNavigationTimelineView` -> `ClipView` scroll/zoom arithmetic -- driven against
-///        **those classes themselves**, through the one concrete subclass this plan's next tasks
-///        target (`audioClipView`) and, for the triplet arms it disables, `instrumentClipView`.
+///        **those classes themselves**, through the one concrete subclass it targets
+///        (`audioClipView`) and, for the triplet arms it disables, `instrumentClipView`.
 ///
 /// @par Each side from its own sentinel
 ///
@@ -10,21 +10,21 @@
 /// the **`Song`** twice: once before the port runs (which reaches it through `TimelineState::adopt`)
 /// and once again before legacy runs (which reads `currentSong->persistentView.xScroll[NAVIGATION_CLIP]` itself).
 /// Neither side is ever handed the other's numbers. The limits legacy asks its own virtuals for
-/// (`AudioClipView::getMaxZoom`/`getMaxLength`, `audio_clip_view.cpp:875-880`/`:882-888`) reach the port as
-/// `Clip::getMaxZoom()`/`Clip::getMaxLength()` (`model/clip/clip.cpp:142-149`, `:1066-1068`) --
+/// (`AudioClipView::getMaxZoom`/`getMaxLength`) reach the port as
+/// `Clip::getMaxZoom()`/`Clip::getMaxLength()` (`model/clip/clip.cpp`) --
 /// the same model question, asked of the model rather than of legacy's answer.
 ///
 /// @par The one-detent ceiling, measured
 ///
 /// Legacy's scroll and zoom each end in a `PadLEDs` transition the port does not carry
-/// (`src/scenes/timeline/timeline.h`). `initiateXScroll` sets `UI_MODE_HORIZONTAL_SCROLL`
-/// (`timeline_view.cpp:279`) and `initiateXZoom` sets `UI_MODE_HORIZONTAL_ZOOM` (`:325`), and
+/// (`src/scenes/timeline/timeline.h`). `TimelineView::initiateXScroll` sets `UI_MODE_HORIZONTAL_SCROLL`
+/// and `TimelineView::initiateXZoom` sets `UI_MODE_HORIZONTAL_ZOOM`, and
 /// nothing in a spec process runs either animation to the frame that clears them -- so the *next*
 /// detent hits `horizontalEncoderAction`'s own `isNoUIModeActive()` (`:203`) or
 /// `isUIModeActiveExclusively(UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON)` (`:164`) gate and does
-/// nothing. E3 recorded the same ceiling for the marker editor
-/// (`sim/scenes_spec/marker_scene_spec.cpp`'s zoom example) and found that clearing the mode by
-/// hand did **not** buy a second detent there.
+/// nothing. The marker editor has the same ceiling
+/// (`sim/scenes_spec/marker_scene_spec.cpp`'s zoom example), but clearing the mode by hand did
+/// **not** buy a second detent there.
 ///
 /// **Here clearing it does buy the next detent, and that is measured, not argued.** The evidence is
 /// "scrolls a second page when the transition mode is cleared": it asserts
@@ -33,17 +33,17 @@
 /// the same move to reach legacy's max-zoom *delay* (`:171-186`), which is otherwise unobservable
 /// because the mode gate would refuse first.
 ///
-/// No claim is made here about **why** E3 saw the opposite. `WaveformBasicNavigator::zoom`'s tail
-/// (`gui/waveform/waveform_basic_navigator.cpp:64-69`) is the same three statements `initiateXZoom`
-/// ends in (`timeline_view.cpp:325-327`) and contains no wait of its own; the only structural
+/// No claim is made here about **why** the marker editor shows the opposite. `WaveformBasicNavigator::zoom`'s tail
+/// (`gui/waveform/waveform_basic_navigator.cpp:64-69`) is the same three statements
+/// `TimelineView::initiateXZoom` ends in and contains no wait of its own; the only structural
 /// difference is the `waveformRenderer.renderFullScreen` at `:59`, which `initiateXZoom` has no
-/// analogue for. Task 8's first round asserted a blocking transition as the cause and that was
-/// wrong -- the conclusion stood on the scroll example all along.
+/// analogue for. A blocking transition is not the cause -- the conclusion stands on the scroll
+/// example alone.
 ///
 /// @par What this spec does not cover
 ///
 ///   * **`TimelineState::tick_square`'s auto-scroll arm.** `ClipView::getTickSquare` is protected
-///     (`clip_view.h:38`) and its follow arm is gated on `getCurrentlyRecordingLinearly()` and
+///     (`gui/views/clip_view.h`) and its follow arm is gated on `getCurrentlyRecordingLinearly()` and
 ///     `getCurrentUI() == this` -- a live recorder and a real root UI, neither of which this
 ///     fixture has. The pointer-to-member handle below reaches the *body*; the arms it can reach
 ///     from a non-recording clip are compared, the recording ones are named uncovered here.
@@ -89,7 +89,7 @@ namespace spec_fixture = deluge::scenes::spec;
 ///
 /// Declared here rather than included because it is a file-scope global with no header declaration
 /// -- the same shape `menu/nodes/settings.cpp` uses for `jcong`. **Not a convenience.**
-/// `Clip::getLivePos()` (`model/clip/clip.cpp:151-166`) adds
+/// `Clip::getLivePos()` (`model/clip/clip.cpp`) adds
 /// `getNumSwungTicksInSinceLastActionedSwungTick()` to `lastProcessedPos`; on a song no transport
 /// ever started that reaches `getActualSwungTickCount`'s external-clock swing branch and divides by
 /// `(uint32_t)(50 + currentSong->swingAmount)` (`:1263`), which is a **SIGFPE, not a failure** --
@@ -115,13 +115,13 @@ struct Sentinel {
 	uint32_t x_zoom = 6;
 	bool triplets_on = false;
 	uint32_t triplets_level = 0;
-	/// `Clip::getMaxLength()` is `loopLength` (`model/clip/clip.cpp:1066-1068`), and
-	/// `Clip::getMaxZoom()` (`:142-149`) is derived from it: 768 ticks gives a max zoom of 48, so
+	/// `Clip::getMaxLength()` is `loopLength` (`model/clip/clip.cpp`), and
+	/// `Clip::getMaxZoom()` is derived from it: 768 ticks gives a max zoom of 48, so
 	/// the reachable zoom ladder is 3, 6, 12, 24, 48, 96, 192, 384, 768.
 	int32_t loop_length = 768;
 };
 
-/// @brief `ClipView::getTickSquare` is protected (`clip_view.h:38`).
+/// @brief `ClipView::getTickSquare` is protected (`gui/views/clip_view.h`).
 ///
 /// A class derived from `ClipView` may name it, and `&TickProbe::getTickSquare` then has type
 /// `int32_t (ClipView::*)()` -- a legal handle to legacy's own body, with no cast anywhere and no
@@ -147,7 +147,8 @@ struct TickProbe : ClipView {
 /// A spec process never calls `deluge_boot()` (see `support/song_fixture.h` for why), so the
 /// `display` global is null (`hid/display/display.cpp:4`). Legacy's scroll arm ends in
 /// `displayScrollPos()` -> `display->popupTextTemporary` **unconditionally**
-/// (`timeline_view.cpp:221`, `:264`), and its zoom arm in `displayZoomLevel()` -> `displayPopup`
+/// (`TimelineView::displayScrollPos`, `TimelineView::initiateXScroll`), and its zoom arm in `displayZoomLevel()` ->
+/// `displayPopup`
 /// (`:198`, `:130`). Without this the gesture examples below do not fail, they segfault -- found by
 /// running them without it.
 void ensure_display() {
@@ -169,7 +170,7 @@ struct Rig {
 	/// It also expires any max-zoom delay a *previous* example armed. That latch
 	/// (`TimelineView::delayHorizontalZoomUntil`, `timeline_view.h:78`) is a member of the
 	/// `audioClipView` **singleton**, and it is compared against `AudioEngine::audioSampleTimer`
-	/// (`timeline_view.cpp:172`), which a spec process never advances -- so once armed it stays
+	/// (`TimelineView::horizontalEncoderAction`), which a spec process never advances -- so once armed it stays
 	/// armed for the rest of the process and silently refuses every later zoom in that direction.
 	/// Not hypothetical: the three "forgets the restore point" examples below were written after
 	/// the delay example and legacy sat at zoom 12 while the port zoomed to 6, until this line
@@ -215,10 +216,10 @@ struct Rig {
 	///        legacy is told the horizontal encoder's button is held.
 	static void hold_x_enc(bool on) { audioClipView.buttonAction(deluge::hid::button::X_ENC, on); }
 
-	/// @brief Clear the transition mode `initiateXZoom` left behind (`timeline_view.cpp:325`),
+	/// @brief Clear the transition mode `initiateXZoom` left behind,
 	///        keeping the held-button mode, so legacy will consider a second detent.
 	static void clear_zoom_transition() { currentUIMode &= ~UI_MODE_HORIZONTAL_ZOOM; }
-	/// @brief The same for `initiateXScroll` (`timeline_view.cpp:279`).
+	/// @brief The same for `initiateXScroll`.
 	static void clear_scroll_transition() { currentUIMode &= ~UI_MODE_HORIZONTAL_SCROLL; }
 };
 
@@ -456,9 +457,9 @@ describe timeline_spec_body(
 
 	    it(
 	        "refuses a right scroll that would leave the clip, exactly as the right guard does", _ {
-		        // `timeline_view.cpp:216`: a rightward scroll is only taken when the new scroll is still
-		        // inside `getMaxLength()`. At zoom 48 one page IS the 768-tick clip, so one detent right
-		        // lands exactly on the length and must be refused.
+		        // `TimelineView::horizontalEncoderAction`: a rightward scroll is only taken when the new scroll is
+		        // still inside `getMaxLength()`. At zoom 48 one page IS the 768-tick clip, so one detent right lands
+		        // exactly on the length and must be refused.
 		        spec_fixture::QuietAudio quiet;
 		        Rig r;
 		        const Sentinel s{.x_scroll = 0, .x_zoom = 48};
@@ -477,8 +478,8 @@ describe timeline_spec_body(
 	    it(
 	        "scrolls a second page when the transition mode is cleared, as legacy does", _ {
 		        // The scroll half of the one-detent ceiling: `initiateXScroll` sets
-		        // `UI_MODE_HORIZONTAL_SCROLL` (`timeline_view.cpp:279`) and the next detent then fails
-		        // `isNoUIModeActive()` (`:203`). Unlike E3's marker-editor zoom, clearing the mode really
+		        // `UI_MODE_HORIZONTAL_SCROLL` and the next detent then fails
+		        // `isNoUIModeActive()` (`:203`). Unlike the marker-editor zoom, clearing the mode really
 		        // does buy the next detent here -- measured by this example, which would land on page one
 		        // rather than page two if it did not.
 		        spec_fixture::QuietAudio quiet;
@@ -524,7 +525,7 @@ describe timeline_spec_body(
 
 	    it(
 	        "snaps the scroll to a whole page when it zooms out, exactly as legacy does", _ {
-		        // `timeline_view.cpp:195`: the new scroll is the old one floored to a multiple of
+		        // `TimelineView::horizontalEncoderAction`: the new scroll is the old one floored to a multiple of
 		        // `newZoom * kDisplayWidth`. From 192 at zoom 12, zooming OUT to 24 makes a page 384 ticks
 		        // wide, so the scroll must snap back to 0 rather than stay at 192.
 		        spec_fixture::QuietAudio quiet;
@@ -712,7 +713,7 @@ describe timeline_spec_body(
 	    it(
 	        "forgets it even when the zoom limit then refuses the turn", _ {
 		        // The clear is legacy's FIRST statement, above every gate `TimelineView` applies
-		        // (`timeline_view.cpp:137-151`, `:161`, `:164`, `:189-192`), so a refused turn still
+		        // (`TimelineView::horizontalEncoderAction`), so a refused turn still
 		        // wipes the restore point. At zoom 3 the floor refuses, and both sides must still have
 		        // forgotten.
 		        spec_fixture::QuietAudio quiet;

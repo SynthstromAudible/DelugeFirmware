@@ -150,7 +150,7 @@ struct Rig {
 	Rig(const Rig&) = delete;
 	Rig& operator=(const Rig&) = delete;
 
-	/// @brief Tear the stack down, so every scene's `on_exit` always runs (E3 task 10).
+	/// @brief Tear the stack down, so every scene's `on_exit` always runs.
 	///
 	/// `RenameScene` is a process singleton (`shell/scene.h`'s `SceneState` cache): an example that
 	/// left it -- or anything pushed above it -- on the stack would make the NEXT example's
@@ -242,7 +242,7 @@ Result commit(RenameScene& scene) {
 
 /// @brief The first action of kind @p k, or null.
 ///
-/// Fix round 1, Minor 4: found rather than assumed to be `actions[0]`, so prepending an unrelated
+/// Found rather than assumed to be `actions[0]`, so prepending an unrelated
 /// action (a `Repaint`, say) does not silently retarget every assertion below onto the wrong one.
 const ShellAction* find_action(const Result& r, ShellAction::Kind k) {
 	for (const ShellAction& a : r.actions) {
@@ -376,7 +376,7 @@ describe rename_open("scenes::rename::RenameScene opening", $ {
 		r.tick(100);
 		expect(r.shell.stack().depth()).to_equal(size_t(0));
 
-		// Fix round 1, Minor 1. `open()` is the only writer of `ctx_` and this scene is a singleton
+		// `open()` is the only writer of `ctx_` and this scene is a singleton
 		// that outlives every visit, so `on_exit` zeroes it: an entry that forgot its `open()` --
 		// a `SceneId` restored from somewhere, a caller that only pushed -- must not validate
 		// against the previous song's pointers. A zeroed context has a null clip/kit/output, every
@@ -571,7 +571,7 @@ describe rename_typing("scenes::rename::RenameScene typing", $ {
 		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Abcde"});
 
 		// The press itself deletes one character and arms the hold
-		// (`QwertyUI::padAction`, `qwerty_ui.cpp:219-220`: `processBackspace()` then
+		// (`QwertyUI::padAction`: `processBackspace()` then
 		// `setTimer(UI_SPECIFIC, 500)`).
 		r.press(deluge::ui::grid::kTextKeyboardBackspace, 1000);
 		r.tick(1000);
@@ -635,7 +635,7 @@ describe rename_typing("scenes::rename::RenameScene typing", $ {
 		r.tick(0);
 
 		// Legacy arms `UI_MODE_HOLDING_BACKSPACE` from the backspace arm only
-		// (`qwerty_ui.cpp:218`); the "normal keys" arm at `:254` arms no timer at all.
+		// (`QwertyUI::padAction`); the "normal keys" arm at `:254` arms no timer at all.
 		r.press('A', 1000);
 		r.tick(1000);
 		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"A"});
@@ -648,10 +648,10 @@ describe rename_typing("scenes::rename::RenameScene typing", $ {
 	});
 
 	it("repaints the panel on a tick with no input at all, so the cursor actually blinks", _ {
-		// Fix round 2. The regression test for the gate-arm in `render_oled`, and it has to drive
+		// The regression test for the gate-arm in `render_oled`, and it has to drive
 		// *quiet* ticks to be one. `Shell::tick` renders an OLED surface only when
 		// `s.gate.needs_frame(now, had_input_, false)`, the shell-wide widgets gate, or
-		// `router_.repaint_requested(role)` says so (`shell/shell.cpp:375-383`). On a tick with no
+		// `router_.repaint_requested(role)` says so (`Shell::tick`). On a tick with no
 		// input none of those fire on their own here: nothing in this scene arms the widgets gate
 		// (`text_edit` is render-only and owns no clock, `ui/oled/text_edit.h`), and no `Repaint`
 		// action is in flight. So the scene's own `request_repaint_after` is the *only* thing that
@@ -714,7 +714,7 @@ describe rename_typing("scenes::rename::RenameScene typing", $ {
 		r.open_rename(context_of(f), TargetId::Drum);
 		r.tick(0);
 
-		// `QwertyUI::horizontalEncoderAction` (`qwerty_ui.cpp:420-447`). The cursor starts at 0.
+		// `QwertyUI::horizontalEncoderAction` (`gui/ui/qwerty_ui.cpp`). The cursor starts at 0.
 		r.scroll(-1, 10);
 		r.tick(10);
 		expect(rename_scene().cursor()).to_equal(0); // "if (enteredTextEditPos == 0) return"
@@ -787,7 +787,7 @@ describe rename_rejection("scenes::rename::RenameScene rejection", $ {
 		r.tick(r.clock);
 
 		// `Action::Kind::Popup` reaches `Notices::show_popup`, which stacks a `SceneKind::Popup`
-		// over whatever is there (`shell/notices.cpp:408-438`) rather than queueing a notice -- so
+		// over whatever is there (`Notices::show_popup`) rather than queueing a notice -- so
 		// the visible proof is the popup ON the stack, not the notice ring.
 		bool popup_stacked = false;
 		for (const deluge::ui::shell::Scene* scene : r.shell.stack().scenes()) {
@@ -954,7 +954,7 @@ describe rename_from_menu("scenes::rename::RenameScene from the menu", $ {
 		expect(r.shell.stack().depth()).to_equal(size_t(1));
 		expect(menu_scene().focused() == &nodes::drum_actions).to_be_true();
 
-		// Fix round 1, Minor 2. `restore_state` -> `enter_leaf` -> `CustomItem::on_focus` fires,
+		// `restore_state` -> `enter_leaf` -> `CustomItem::on_focus` fires,
 		// and the editor comes back -- legacy's `focusRegained` -> `beginScreen` -> `beginSession`
 		// (`sound_editor.cpp:330,1053`), which `EditName` answers by opening `RenameUI`
 		// unconditionally. Restoring the user's place means restoring the editor they were in.

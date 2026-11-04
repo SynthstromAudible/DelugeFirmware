@@ -96,7 +96,7 @@ namespace legacy = deluge::gui::menu_item;
 ///
 /// `midiDeviceMenu` is the page itself (`gui/ui/menus.cpp:1444`) and the four non-MPE children are
 /// its leaves (`:1440-1443`); none is declared in `gui/ui/menus.h`, which is the same situation
-/// `tables_3_spec.cpp:130-142` records for the CV/gate chaining group. The three MPE items *are*
+/// `tables_3_spec.cpp`'s `extern` block handles for the CV/gate chaining group. The three MPE items *are*
 /// declared, by their own headers.
 /// @{
 extern legacy::midi::Device midiDeviceMenu;
@@ -133,13 +133,13 @@ void select_language() {
 constexpr uint8_t kSelectEncoder = 3;
 constexpr uint8_t kSelectEncButtonX = 4, kSelectEncButtonY = 3;
 
-/// @brief Read a `Submenu`'s protected child list -- `tables_3_spec.cpp:150-152`'s `SubmenuPeek`,
+/// @brief Read a `Submenu`'s protected child list -- `tables_3_spec.cpp`'s `SubmenuPeek`,
 ///        verbatim and for the same [class.protected] reason.
 struct SubmenuPeek : legacy::Submenu {
 	static const deluge::vector<::MenuItem*>& items_of(legacy::Submenu& menu) { return menu.*(&SubmenuPeek::items); }
 };
 
-/// @brief Call a legacy item's protected `writeCurrentValue()` -- `tables_3_spec.cpp:166-168`.
+/// @brief Call a legacy item's protected `writeCurrentValue()` -- `tables_3_spec.cpp`'s `ValuePeek`.
 template <typename T>
 struct ValuePeek : legacy::Value<T> {
 	static void write(legacy::Value<T>& value) { (value.*(&ValuePeek::writeCurrentValue))(); }
@@ -148,7 +148,7 @@ struct ValuePeek : legacy::Value<T> {
 /// @brief A cable this spec owns outright.
 ///
 /// `MIDICable` is abstract (six pure virtuals) and none of the shipped cable types can be built in
-/// a host spec without a USB or DIN backend behind it -- `tables_3_spec.cpp:793-802`'s `FakeCable`
+/// a host spec without a USB or DIN backend behind it -- `tables_3_spec.cpp`'s `FakeCable`
 /// makes the same observation. This one additionally **records what was sent**, which is how
 /// `ZoneNumMemberChannels::writeCurrentValue`'s MCM tail (`mpe/zone_num_member_channels.cpp:78-84`)
 /// is proved rather than assumed.
@@ -259,7 +259,7 @@ void install_legacy(::MIDICable* cable, Song* song) {
 	soundEditor.currentMIDICable = cable;
 }
 
-/// @brief A 128x64 single-panel board (`menu_scene_spec.cpp:293-314`).
+/// @brief A 128x64 single-panel board (`menu_scene_spec.cpp`'s `board_64`).
 constexpr DelugeDisplayDesc kDisplays64[] = {{128, 64, 0}};
 
 DelugeBoard board_64() {
@@ -289,7 +289,7 @@ struct Rig {
 	Rig(const Rig&) = delete;
 	Rig& operator=(const Rig&) = delete;
 
-	/// @brief Tear the stack down, so every scene's `on_exit` always runs (E3 task 10).
+	/// @brief Tear the stack down, so every scene's `on_exit` always runs.
 	///
 	/// `MenuScene` is a process singleton (`shell/scene.h`'s `SceneState` cache): an example that
 	/// left it -- or anything pushed above it -- on the stack would make the NEXT example's
@@ -592,9 +592,8 @@ describe midi_device_per_cable("scenes::menu E3 task 8: the per-cable binding fa
 		on_b.midi_cable = f.b.get();
 
 		// Each write is deliberately a **no-op on the cable it addresses** and would be a *change*
-		// on the other one, because `baseline()` gives the two cables opposite values (fix round 1,
-		// minor 4: the first cut wrote the value the neighbour already held, so half of it passed
-		// whichever cable the hook reached). The four assertions below can therefore only hold if
+		// on the other one, because `baseline()` gives the two cables opposite values, so a write of the value
+		// the neighbour already held would pass whichever cable the hook reached. The four assertions below can therefore only hold if
 		// the write landed where it was addressed.
 		baseline(*f.a, *f.b);
 		bindings::write(nodes::device_is_relative, on_a, 0); // A is already false, B is true
@@ -789,7 +788,7 @@ describe midi_device_mpe("scenes::menu E3 task 8: the MPE direction, zone and me
 		// `direction_selector.h:40-43` -- the runtime title. `Node::title` is one static id, which is
 		// half of why this item is bespoke.
 		//
-		// **What this pins, and what it does not** (fix round 1, minor 3). Both sides spell the same
+		// **What this pins, and what it does not.** Both sides spell the same
 		// l10n mapping -- legacy's `getTitle()` picks MPE OUTPUT on a non-zero `whichDirection`, and
 		// the expectation below restates that -- so this is a *transcription* check on the mapping,
 		// not an independent comparison: swap the two ids inside `MpeDirectionItem::render` and this
