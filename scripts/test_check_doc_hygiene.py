@@ -30,6 +30,20 @@ class HistoryTest(unittest.TestCase):
             "// spec E-note-family §5.2",
             "// a permanent blit (shell spec §15.1, §15.3)",
             "// design spec §15.7",
+            "// (task-3 ruling 2)",
+            "// Spec E §4.1's one rule",
+            "// the rule (spec §5.3)",
+            "// migration §10.2 item 8",
+            "// the brief mandates this",
+            "// The brief's four facts",
+            "// not this plan's job",
+            "// A later plan wires it",
+            "// the wiring plan's seam",
+            "// what this task adds",
+            "// as on this branch",
+            "// Review round 1, I4",
+            "// (Kate, 2026-10-25: match main)",
+            "// measured 2026-10-25",
         ):
             with self.subTest(note=note):
                 self.assertEqual(kinds(note), ["history"])
@@ -46,6 +60,9 @@ class HistoryTest(unittest.TestCase):
         )
         self.assertEqual(kinds("// A task the scheduler runs."), [])
         self.assertEqual(kinds("// the spec examples pin it"), [])
+        self.assertEqual(kinds("// the branch this if takes"), [])
+        self.assertEqual(kinds("// a plan of the song's arrangement"), [])
+        self.assertEqual(kinds("// the briefest pause"), [])
 
     def test_reads_comments_only(self):
         self.assertEqual(kinds('const char* s = "Task 7";\n'), [])

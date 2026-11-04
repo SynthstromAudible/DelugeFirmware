@@ -8,7 +8,8 @@
 A comment says what the code is and why; how it got there is git's. Two kinds of finding:
 
 - ``history``: a task, review or workstream breadcrumb (``Task 7``, ``fix round 1``, ``F1 task 11``, ``WS4b``,
-  ``spec D §7``, ``spec E3``, ``shell spec §15.1`` -- the plan specs live outside the tree) or rename/former narration (``used to``, ``was renamed``).
+  ``spec D §7``, ``spec E3``, ``shell spec §15.1``, ``task-3 ruling``, ``the brief``, ``this plan's`` -- the plans
+  and specs live outside the tree), a date, or rename/former narration (``used to``, ``was renamed``).
 - ``own-citation``: a ``file:N`` citation whose file is ours -- the port's trees and the guest glue -- which a later
   edit moves out from under it. Cite the symbol instead. Citations into legacy code are ``check_citations.py``'s.
 
@@ -35,6 +36,8 @@ TREES = (
     "tests/unit/spec/shell",
     "tests/unit/spec/ui",
     "tests/unit/spec/gui",
+    "tests/unit/spec/scenes",
+    "tests/unit/spec/harness",
 )
 # The guest glue: our code that lives inside the legacy tree.
 GLUE = (
@@ -53,6 +56,12 @@ HISTORY = re.compile(
     r"|\bWS\d+[a-z]?(?:-\d+)?\b"
     r"|\bspec [A-H](?:\d+)?(?:-[a-z-]+)?\b"
     r"|\b(?:shell|design|migration) spec\b"
+    r"|\b[Ss]pec [A-H]?\s?§|\bmigration §"
+    r"|\btask-\d+\b|\b[Rr]uling\b"
+    r"|\b[Tt]he brief\b|\bbrief's\b"
+    r"|\b(?:[Tt]his|[Aa] later|[Tt]he wiring) plan\b|\bplan's\b"
+    r"|\b[Tt]his task\b|\bon this branch\b|\bthis branch stack\b"
+    r"|\b[Rr]eview round\b|\(Kate,|\b20\d\d-\d\d-\d\d\b"
     r"|(?<!is )(?<!are )(?<!be )(?<!been )\bused to\b"
     r"|\bwas renamed\b|\brenamed from\b|\bthe old name\b"
 )

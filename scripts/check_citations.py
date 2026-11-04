@@ -334,7 +334,7 @@ SCAN_ROOTS = (
     "src/scenes",
     "src/ui",
     "sim/scenes_spec",
-    "tests/spec",
+    "tests/unit/spec",
     "tests/ui-scripts",
     "src/shell",
     "src/deluge/gui/ui",
@@ -882,6 +882,15 @@ def load_exceptions() -> set[str]:
     }
 
 
+def unscanned_paths(paths: tuple[str, ...]) -> list[str]:
+    """The entries of @p paths that no scan root reaches -- a filter that would silently read nothing."""
+    return [
+        p
+        for p in paths
+        if not any(p.startswith(r) or r.startswith(p) for r in SCAN_ROOTS)
+    ]
+
+
 def scan(paths: tuple[str, ...] = ()) -> list[tuple[str, int, str, str, str]]:
     """Every certainly-wrong citation as `(citing file, line, token, resolved path, why)`; with @p paths, only
     those written in files under these path prefixes."""
@@ -987,6 +996,12 @@ def main() -> int:
     )
     a = ap.parse_args()
 
+    missed = unscanned_paths(tuple(a.paths))
+    if missed:
+        print(
+            f"check_citations: no scan root reaches {', '.join(missed)}; see SCAN_ROOTS"
+        )
+        return 2
     excepted = set() if a.list_all else load_exceptions()
     hits = scan(tuple(a.paths))
     shown = [h for h in hits if f"{h[0]}:{h[2]}" not in excepted]
