@@ -1,10 +1,17 @@
-#include "util/triangle_distribution.h"
+#include "dsp-next/core/triangle.h"
 
 #include "cppspec.hpp"
 #include <cstdint>
 #include <cstdlib>
 
 namespace {
+using deluge::dsp::Q;
+
+/// The triangle of two raw draws.
+int32_t triangle_of(int32_t u1, int32_t u2) {
+	return deluge::dsp::triangle(Q<31>::from_raw(u1), Q<31>::from_raw(u2)).raw();
+}
+
 constexpr int kDraws = 100000;
 
 /// A uniform 32-bit stream, xorshift, from a fixed seed.
@@ -37,7 +44,7 @@ describe triangle_distribution("the arp's triangle-distributed random value", ${
 		// Saturating the two uniform draws' sum would put about 1/4 of the draws there
 		expect(near_the_ends() < kDraws / 1000).to_be_true();
 	});
-	it("is the mean of its two draws, rounded toward −∞, so it never leaves the range", _ {
+	it("is the sum of its two draws' halves, each floored, so it never leaves the range", _ {
 		expect(triangle_of(INT32_MAX, INT32_MAX)).to_equal(INT32_MAX - 1);
 		expect(triangle_of(INT32_MIN, INT32_MIN)).to_equal(INT32_MIN);
 		expect(triangle_of(1 << 30, -(1 << 30))).to_equal(0);

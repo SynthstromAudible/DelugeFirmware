@@ -96,6 +96,12 @@
 #include "model/project_bridge/mapping_bridge.h"
 #include "model/project_bridge/midi_command.h"
 
+PlaybackHandler playbackHandler{};
+
+extern void songLoaded(Song* song);
+
+#define slowpassedTimePerInternalTickSlowness 8
+
 namespace {
 /// @brief A quarter of the tick time @p t (a sample count's word, read as Q31) raised by the Q30 @p factor (1.05 or
 /// 1.01): the high word, to compare with t >> 2.
@@ -103,12 +109,6 @@ int32_t quarter_raised(int32_t factor, int32_t t) {
 	return mul(deluge::dsp::Q<30>::from_raw(factor), deluge::dsp::Q<31>::from_raw(t)).raw();
 }
 } // namespace
-
-PlaybackHandler playbackHandler{};
-
-extern void songLoaded(Song* song);
-
-#define slowpassedTimePerInternalTickSlowness 8
 
 GlobalMIDICommand pendingGlobalMIDICommand = GlobalMIDICommand::NONE; // -1 means none
 int32_t pendingGlobalMIDICommandNumClustersWritten;

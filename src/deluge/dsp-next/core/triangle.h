@@ -1,5 +1,5 @@
 /*
- * Copyright © 2014-2023 Synthstrom Audible Limited
+ * Copyright © 2026 Synthstrom Audible Limited
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -14,15 +14,18 @@
  * You should have received a copy of the GNU General Public License along with this program.
  * If not, see <https://www.gnu.org/licenses/>.
  */
+#pragma once
 
 #pragma once
 
 #include "dsp-next/core/fixed_point.h"
 
-#include <cstdint>
+namespace deluge::dsp {
 
-/// @brief A triangle-distributed Q31 value on [−1, 1), centred on 0 (Irwin–Hall), from two uniform Q31 draws: their
-/// mean, each halved, so the sum never leaves the range.
-[[nodiscard]] inline int32_t triangle_of(int32_t u1, int32_t u2) {
-	return add_wrap(halve_floor(deluge::dsp::Q<31>::from_raw(u1)), halve_floor(deluge::dsp::Q<31>::from_raw(u2))).raw();
+/// @brief A triangle distribution on [−1, 1), centred on 0 (Irwin–Hall of two), from two uniform Q31 draws: the sum of
+/// their halves, each floored, so it never leaves the range.
+[[nodiscard, gnu::always_inline]] constexpr Q<31> triangle(Q<31> u1, Q<31> u2) {
+	return add_wrap(halve_floor(u1), halve_floor(u2));
 }
+
+} // namespace deluge::dsp

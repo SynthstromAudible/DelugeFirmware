@@ -1851,7 +1851,8 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	}
 
 	// Setup some reverb-related stuff
-	// The Q27 adjust (2^27 unity) times the Q31 reverb amount, rounded to Q26, moved to the Q31 send
+	// The Q27 adjust (2^27 is 1; the song's default volume gives a half) times the Q31 reverb amount, rounded to Q26,
+	// moved to the Q31 send
 	int32_t reverbSendAmount =
 	    mul_r_as_wrap<dsp::Q<31>>(
 	        dsp::Q<27>::from_raw(reverbAmountAdjust),

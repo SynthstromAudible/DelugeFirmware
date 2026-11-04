@@ -59,13 +59,6 @@
 #include <math.h>
 #include <utility>
 
-namespace {
-/// @brief A patch cable's Q30 value as the param's Q31: doubled, held to 31 bits first, so its top is 2^31 − 2.
-int32_t cable_node_value(int32_t value) {
-	return scale_shl_wrap<1>(clamp_bits<31>(deluge::dsp::Q<30>::from_raw(value))).raw();
-}
-} // namespace
-
 #define SAMPLES_TO_CLEAR_AFTER_RECORD 8820          // 200ms
 #define SAMPLES_TO_IGNORE_AFTER_BEGIN_OVERRIDE 9200 // 200ms + a bit
 #define TIME_TO_INTERPOLATE_WITHIN 6615             // 150ms
@@ -121,6 +114,11 @@ namespace {
 /// The lane the render reads for a param nothing holds yet: no nodes, so it plays as unautomated. Constant-initialised,
 /// so the render never runs a first-use guard to reach it.
 constinit deluge::project::DocAutoParam g_unheldLane{};
+
+/// @brief A patch cable's Q30 value as the param's Q31: doubled, held to 31 bits first, so its top is 2^31 − 2.
+int32_t cable_node_value(int32_t value) {
+	return as_clamp_then_shift<deluge::dsp::Q<31>>(deluge::dsp::Q<30>::from_raw(value)).raw();
+}
 } // namespace
 
 // The DOM node store is resolved from the owner, by paramId; no engine object holds node storage. Every saved owner

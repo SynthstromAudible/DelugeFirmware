@@ -59,8 +59,8 @@ TrackChannel::~TrackChannel() {
 	int32_t a = dsp::fixed::preset_combination(unpatchedParams->getValue(params::UNPATCHED_VOLUME));
 	int32_t volumeAdjustment = dsp::fixed::curve_square(134217728, a) >> 1;
 
-	// The reverb adjust times the Q27 volume adjustment (2^27 unity), rounded, moved to Q31
-	int32_t reverbAmountAdjustForDrums = mul_r_as_wrap<dsp::Q<31>>(dsp::Q<31>::from_raw(block.reverb_amount_adjust),
+	// The song's Q27 reverb adjust times the channel's Q27 volume adjustment, rounded to Q22, moved to Q27
+	int32_t reverbAmountAdjustForDrums = mul_r_as_wrap<dsp::Q<27>>(dsp::Q<27>::from_raw(block.reverb_amount_adjust),
 	                                                               dsp::Q<27>::from_raw(volumeAdjustment))
 	                                         .raw();
 

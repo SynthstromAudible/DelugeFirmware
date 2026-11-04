@@ -270,7 +270,7 @@ instructions.
   voice's stereo buffer adds a Q30-pan frame (`add_panned`). What stays integer: the matrix's depth square, run-time
   shifts (octave, sync level, play-head mode), MIDI and table scalings, block-length divisions.
 - **App:** a sample is added into a voice's half-scale (Q30) mix by the rounded high word (`mixed_in`); an audio
-  clip's phase increments are Q24 of the engine's rate (2^24 its own rate), scaled by Q24 ratios in 64 bits and held
+  clip's phase increments are source samples per output sample, Q24 (2^24 one per sample), scaled by Q24 ratios in 64 bits and held
   under 2^31 (`scaled_increment`, `transposed_neutral`). The output stage doubles AUDIO_OUTPUT_GAIN_DOUBLINGS times
   held to the word (`output_gain`), its dithered volume product 64-bit integer. Expression is Q31, a drum's inputs Q7
   combined to Q15 held to 16 bits (`combined_expression`); patch-cable nodes are Q30, doubled to the param's Q31; a

@@ -1635,7 +1635,7 @@ int32_t Sample::getMaxPeakFromZero() {
 	int32_t halfValue = std::abs(getFoundValueCentrePoint() >> 1) + (maxValueFound >> 2) - (minValueFound >> 2);
 
 	// Doubled, held to 31 bits first: a clipped recording's peak would otherwise overflow
-	return scale_shl_wrap<1>(clamp_bits<31>(deluge::dsp::Q<31>::from_raw(halfValue))).raw();
+	return scale_shl_clamp_then_shift<1>(deluge::dsp::Q<31>::from_raw(halfValue)).raw();
 }
 
 int32_t Sample::getFoundValueCentrePoint() {

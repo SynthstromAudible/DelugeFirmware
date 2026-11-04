@@ -23,6 +23,7 @@
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/stereo_sample.h"
+#include "dsp-next/core/triangle.h"
 #include "dsp-next/core/types.h"
 #include "dsp-next/fixed/curves/quick_log.h"
 #include "dsp-next/fixed/filter/one_pole.h"
@@ -333,7 +334,7 @@ private:
 	[[nodiscard]] [[gnu::always_inline]] static q31 triangle(Noise& noise) {
 		const auto u1 = Q<31>::from_raw(static_cast<q31>(noise.next()));
 		const auto u2 = Q<31>::from_raw(static_cast<q31>(noise.next()));
-		return add_wrap(halve_floor(u1), halve_floor(u2)).raw();
+		return dsp::triangle(u1, u2).raw();
 	}
 
 	/// @brief Starts the first silent grain, if any, at @p write_index: its spray, direction, pitch, length, window and

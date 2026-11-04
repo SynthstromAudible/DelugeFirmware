@@ -1168,13 +1168,13 @@ skipFirstSmooth:
 			*amplitude += amplitudeIncrement;
 
 			// Mono / left channel (or stereo condensed to mono)
-			*oscBufferPosNow = mixed_in(existingValueL, sampleRead.l, *amplitude);
+			*oscBufferPosNow = deluge::audio::mixed_in(existingValueL, sampleRead.l, *amplitude);
 			oscBufferPosNow++;
 
 			// Right channel
 			if (numChannelsAfterCondensing == 2) {
 				int32_t existingValueR = *oscBufferPosNow;
-				*oscBufferPosNow = mixed_in(existingValueR, sampleRead.r, *amplitude);
+				*oscBufferPosNow = deluge::audio::mixed_in(existingValueR, sampleRead.r, *amplitude);
 				oscBufferPosNow++;
 			}
 		} while (oscBufferPosNow != oscBufferEnd);
@@ -1210,13 +1210,13 @@ skipFirstLinear:
 			*amplitude += amplitudeIncrement;
 
 			// Mono / left channel (or stereo condensed to mono)
-			*oscBufferPosNow = mixed_in(existingValueL, sampleRead.l, *amplitude);
+			*oscBufferPosNow = deluge::audio::mixed_in(existingValueL, sampleRead.l, *amplitude);
 			oscBufferPosNow++;
 
 			// Right channel
 			if (numChannelsAfterCondensing == 2) {
 				int32_t existingValueR = *oscBufferPosNow;
-				*oscBufferPosNow = mixed_in(existingValueR, sampleRead.r, *amplitude);
+				*oscBufferPosNow = deluge::audio::mixed_in(existingValueR, sampleRead.r, *amplitude);
 				oscBufferPosNow++;
 			}
 		} while (oscBufferPosNow != oscBufferEnd);
@@ -1261,14 +1261,15 @@ void SampleLowLevelReader::readSamplesNative(int32_t** __restrict__ bufferPos, i
 		currentPlayPosNow += jumpAmount;
 
 		// Mono / left channel (or stereo condensed to mono)
-		*bufferPosNow = mixed_in(existingValueL, sampleReadL,
-		                         *amplitude); // *amplitude is modified above; using accumulate made no difference
+		*bufferPosNow =
+		    deluge::audio::mixed_in(existingValueL, sampleReadL,
+		                            *amplitude); // *amplitude is modified above; using accumulate made no difference
 		bufferPosNow++;
 
 		// Right channel
 		if (numChannelsAfterCondensing == 2) {
 			int32_t existingValueR = *bufferPosNow;
-			*bufferPosNow = mixed_in(existingValueR, sampleReadR, *amplitude);
+			*bufferPosNow = deluge::audio::mixed_in(existingValueR, sampleReadR, *amplitude);
 			bufferPosNow++;
 		}
 	} while (bufferPosNow != bufferEndNow);

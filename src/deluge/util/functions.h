@@ -21,6 +21,7 @@
 #include "definitions_cxx.hpp"
 #include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/q31_ops.h"
+#include "dsp-next/core/triangle.h"
 #include "libdeluge/file_io.h"
 #include "util/audio_format_helpers.h" // byte/format helpers (charsToIntegerConstant, swapEndianness*, …) re-exported
 #include "util/c_string.h"
@@ -30,7 +31,6 @@
 #include "util/lookuptables/lookuptables.h"
 #include "util/name_compare.h" // IWYU pragma: export - strcmpspecial and friends used to live here
 #include "util/synth_noise.h"
-#include "util/triangle_distribution.h"
 #include <bit>
 #include <cstdint>
 #include <cstring>
@@ -161,11 +161,11 @@ char const* sourceToStringShort(PatchSource source);
 	return static_cast<int32_t>(deluge::synth_noise.next());
 }
 
-/// @brief A triangle-distributed Q31 value on [−1, 1), centred on 0, from two of the synth's noise draws (triangle_of).
+/// @brief A triangle-distributed Q31 value on [−1, 1), centred on 0, from two of the synth's noise draws.
 inline q31_t sampleTriangleDistribution() {
 	auto u1 = getNoise();
 	auto u2 = getNoise();
-	return triangle_of(u1, u2);
+	return deluge::dsp::triangle(deluge::dsp::Q<31>::from_raw(u1), deluge::dsp::Q<31>::from_raw(u2)).raw();
 }
 
 void seedRandom();

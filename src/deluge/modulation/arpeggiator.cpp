@@ -29,9 +29,19 @@
 #include "util/functions.h"
 #include <cstdint>
 
+#define MIN_MPE_MODULATED_VELOCITY 10
+#define ARP_DEBUG false
+
+#if ARP_DEBUG
+#define ARP_PRINTLN D_PRINTLN
+#else
+#define ARP_PRINTLN(...)
+#endif
+namespace params = deluge::modulation::params;
+
 namespace {
-/// @brief A spread (−127..127, Q7) lifted to Q31 times an integer @p count read as Q31: the high word doubled, so
-/// spread × count / 128, toward −∞.
+/// @brief A spread (0..128, Q7) lifted to Q31 times an integer @p count read as Q31: the high word doubled, so
+/// spread × count / 128 to an even step, 2 · floor(spread × count / 256).
 int32_t spread_of(int32_t spread, int32_t count) {
 	using deluge::dsp::Q;
 	return mul_as_wrap<Q<31>>(as_wrap<Q<31>>(Q<7>::from_raw(spread)), Q<31>::from_raw(count)).raw();
@@ -46,16 +56,6 @@ int32_t random_amount(uint32_t value, int32_t range) {
 	return mul(amount, Q<31>::from_raw(range)).raw();
 }
 } // namespace
-
-#define MIN_MPE_MODULATED_VELOCITY 10
-#define ARP_DEBUG false
-
-#if ARP_DEBUG
-#define ARP_PRINTLN D_PRINTLN
-#else
-#define ARP_PRINTLN(...)
-#endif
-namespace params = deluge::modulation::params;
 
 ArpeggiatorSettings::ArpeggiatorSettings() {
 

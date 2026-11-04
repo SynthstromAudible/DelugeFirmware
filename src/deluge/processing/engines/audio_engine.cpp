@@ -126,12 +126,9 @@ extern int32_t spareRenderingBuffer[][SSI_TX_BUFFER_NUM_SAMPLES];
 #define AUDIO_OUTPUT_GAIN_DOUBLINGS 8
 
 namespace {
-/// @brief An output sample at the output's gain: doubled AUDIO_OUTPUT_GAIN_DOUBLINGS times, held to the word first.
+/// @brief An output sample at the output's gain: held to 24 bits, then doubled AUDIO_OUTPUT_GAIN_DOUBLINGS times.
 [[gnu::always_inline]] inline int32_t output_gain(int32_t sample) {
-	using deluge::dsp::Q;
-	return scale_shl_wrap<AUDIO_OUTPUT_GAIN_DOUBLINGS>(
-	           clamp_bits<32 - AUDIO_OUTPUT_GAIN_DOUBLINGS>(Q<31>::from_raw(sample)))
-	    .raw();
+	return scale_shl_clamp_then_shift<AUDIO_OUTPUT_GAIN_DOUBLINGS>(deluge::dsp::Q<31>::from_raw(sample)).raw();
 }
 
 /// @brief @p sample plus the USB input it monitors, brought down to the output stage's level before its gain,

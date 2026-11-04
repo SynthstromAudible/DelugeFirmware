@@ -22,7 +22,7 @@
 #include "dsp/timestretch/time_stretcher.h"
 #include "model/sample/clip_increment.h"
 // The one `gui/` include this file still needs after the scan/navigator moved down to
-// `model/sample/` (E3 task 4): `AudioClip::renderAsSingleRow` below really does call
+// `model/sample/`: `AudioClip::renderAsSingleRow` below really does call
 // `waveformRenderer.renderAsSingleRow`, which writes into an `RGB*` and so stayed on the `gui/`
 // side. The inversion is this method, not the include -- a `model/` class that renders. Its
 // extracted form is `ui::grid::waveform_row`, which takes a `GridFrame` that `model/` cannot
