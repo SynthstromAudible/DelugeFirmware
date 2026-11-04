@@ -95,6 +95,15 @@ bool SlotEngine::mark_active(const EngineNote& note, bool refuse_silent) {
 	return true;
 }
 
+std::optional<uint32_t> detuned_increment(uint32_t phase_increment, const PhaseIncrementFineTuner& detuner) {
+	// The tuner works on signed increments: below 2^31 the bits are the same
+	const auto detuned = static_cast<uint32_t>(detuner.detune(static_cast<int32_t>(phase_increment)));
+	if (detuned >= (uint32_t{1} << 31)) {
+		return std::nullopt;
+	}
+	return detuned;
+}
+
 void SlotEngine::calculate_phase_increments(const EngineNote& note) {
 	const NoteSetup& setup = *note.setup;
 	const SoundSnapshot& snapshot = *note.snapshot;
@@ -124,8 +133,13 @@ void SlotEngine::calculate_phase_increments(const EngineNote& note) {
 		}
 		else {
 			for (int32_t u = 0; u < snapshot.num_unison; u++) {
-				note.parts[u].slots[s].phase_increment_stored_value =
-				    static_cast<uint32_t>(snapshot.unison_detuners[u].detune(static_cast<int32_t>(phase_increment)));
+				const std::optional<uint32_t> part = detuned_increment(phase_increment, snapshot.unison_detuners[u]);
+				if (part.has_value()) {
+					note.parts[u].slots[s].phase_increment_stored_value = *part;
+				}
+				else {
+					note.parts[u].slots[s].active = false;
+				}
 			}
 		}
 	}
