@@ -87,17 +87,17 @@ const std::vector<FilterConfig> kConfigs{
 };
 
 /// A block at the rails and between: full-scale square bursts, then xorshift noise across the whole range.
-std::vector<q31> loud_block() {
-	std::vector<q31> block;
+std::vector<q31_t> loud_block() {
+	std::vector<q31_t> block;
 	for (std::size_t i = 0; i < 128; ++i) {
-		block.push_back((i / 8) % 2 == 0 ? q31{kOneQ31} : q31{INT32_MIN});
+		block.push_back((i / 8) % 2 == 0 ? q31_t{kOneQ31} : q31_t{INT32_MIN});
 	}
 	uint32_t state = 0x1357'9bdfu;
 	for (std::size_t i = 0; i < 384; ++i) {
 		state ^= state << 13;
 		state ^= state >> 17;
 		state ^= state << 5;
-		block.push_back(static_cast<q31>(state));
+		block.push_back(static_cast<q31_t>(state));
 	}
 	return block;
 }
@@ -110,18 +110,18 @@ std::size_t loud_partings() {
 			filters_reference::ReferenceStateVariableFilter reference;
 			reference.zero(); // no fade: the step alone
 			(void)reference.configure(kOneQ31, config, mode);
-			std::vector<q31> expected = loud_block();
-			std::vector<q31> scratch(expected.size());
+			std::vector<q31_t> expected = loud_block();
+			std::vector<q31_t> scratch(expected.size());
 			reference.render_mono(expected, scratch);
 
 			const Svf::Coefficients c =
 			    Svf::coefficients({.gain = kOneQ31, .config = filters_reference::typed(config), .mode = mode});
 			Svf::State s{};
-			const std::vector<q31> in = loud_block();
+			const std::vector<q31_t> in = loud_block();
 			for (std::size_t i = 0; i < in.size(); ++i) {
-				const q31 out = mode == SvfMode::BAND
-				                    ? Svf::step<Svf::Mode::BAND>(c, {}, s, Q<31>::from_raw(in[i])).raw()
-				                    : Svf::step<Svf::Mode::NOTCH>(c, {}, s, Q<31>::from_raw(in[i])).raw();
+				const q31_t out = mode == SvfMode::BAND
+				                      ? Svf::step<Svf::Mode::BAND>(c, {}, s, Q<31>::from_raw(in[i])).raw()
+				                      : Svf::step<Svf::Mode::NOTCH>(c, {}, s, Q<31>::from_raw(in[i])).raw();
 				parted += out != expected[i] ? 1 : 0;
 			}
 		}
@@ -152,7 +152,7 @@ describe svf("Svf", ${
 	it("passes the gain through as its compensation, as the reference's configure returns it", _ {
 		for (const auto& config : kConfigs) {
 			for (const SvfMode mode : {SvfMode::BAND, SvfMode::NOTCH}) {
-				for (const q31 gain : {q31{0}, q31{1 << 29}, q31{kOneQ31}}) {
+				for (const q31_t gain : {q31_t{0}, q31_t{1 << 29}, q31_t{kOneQ31}}) {
 					filters_reference::ReferenceStateVariableFilter reference;
 					const Svf::Coefficients c = Svf::coefficients({.gain = gain, .config = filters_reference::typed(config), .mode = mode});
 					expect(Svf::gain(c)).to_equal(reference.configure(gain, config, mode));

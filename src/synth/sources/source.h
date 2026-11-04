@@ -20,7 +20,7 @@
 #include "dsp-next/core/phasor.h" // deluge::dsp::Phasor
 #include "dsp-next/core/ramp.h"   // deluge::dsp::Ramp
 #include "dsp-next/core/stereo_sample.h"
-#include "dsp-next/core/types.h" // deluge::dsp::fixed::Buffer
+#include "dsp-next/core/types.h" // std::span<int32_t>
 #include "dsp-next/fixed/noise/cong.h"
 #include "dsp-next/fixed/wavetable/wave_table_data.h" // deluge::dsp::fixed::WaveTableData (storage-independent view)
 #include "synth/sources/backend.h"

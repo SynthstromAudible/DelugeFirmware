@@ -108,7 +108,7 @@ namespace {
 struct HandTanh {
 	dsp::fixed::AntialiasedTanh::State state{}; ///< The curve's last position.
 	/// @brief One sample through the curve.
-	q31 render(q31 x) {
+	q31_t render(q31_t x) {
 		using dsp::fixed::AntialiasedTanh;
 		return AntialiasedTanh::step(AntialiasedTanh::coefficients({.drive = 3}), dsp::EmptyBlock{}, state,
 		                             dsp::Q<31>::from_raw(x))
@@ -532,7 +532,7 @@ struct FourLanes {
 };
 
 /// Lane @p lane of frame @p i of a lanes block of @p lanes lanes.
-q31 lane_sample(std::span<const q31> block, std::size_t lanes, std::size_t i, std::size_t lane) {
+q31_t lane_sample(std::span<const q31_t> block, std::size_t lanes, std::size_t i, std::size_t lane) {
 	return block[(i * lanes) + lane];
 }
 
@@ -555,10 +555,10 @@ void* component_of(const Case& c) {
 
 /// The delay's high-pass: a one-pole low-pass, a 1/2048 step per sample, taken out of the input, wrapping as the
 /// hardware's add and sub do. Steps @p memory and returns the high-passed sample.
-q31 delay_high_pass(q31 x, q31& memory) {
-	const auto step = static_cast<q31>(static_cast<uint32_t>(x) - static_cast<uint32_t>(memory)) >> 11;
-	memory = static_cast<q31>(static_cast<uint32_t>(memory) + static_cast<uint32_t>(step));
-	return static_cast<q31>(static_cast<uint32_t>(x) - static_cast<uint32_t>(memory));
+q31_t delay_high_pass(q31_t x, q31_t& memory) {
+	const auto step = static_cast<q31_t>(static_cast<uint32_t>(x) - static_cast<uint32_t>(memory)) >> 11;
+	memory = static_cast<q31_t>(static_cast<uint32_t>(memory) + static_cast<uint32_t>(step));
+	return static_cast<q31_t>(static_cast<uint32_t>(x) - static_cast<uint32_t>(memory));
 }
 
 /// The delay's feedback as separate stages: the stereo impulse response (analog only), the
@@ -567,9 +567,9 @@ q31 delay_high_pass(q31 x, q31& memory) {
 /// filled as the delay cases fill it, at the delay cases' feedback and drive: in place, each block after the first
 /// renders the one before's output.
 struct DelayFeedbackReference {
-	std::vector<q31> last_block; ///< The last block's output, left and right interleaved.
-	q31 memory_l = 0;            ///< The left high-pass memory after every block.
-	q31 memory_r = 0;            ///< The right high-pass memory after every block.
+	std::vector<q31_t> last_block; ///< The last block's output, left and right interleaved.
+	q31_t memory_l = 0;            ///< The left high-pass memory after every block.
+	q31_t memory_r = 0;            ///< The right high-pass memory after every block.
 };
 
 DelayFeedbackReference delay_feedback_reference(std::size_t n, bool analog, std::size_t blocks, Placement placement) {
@@ -611,13 +611,13 @@ DelayFeedbackReference delay_feedback_reference(std::size_t n, bool analog, std:
 }
 
 /// The lanes output's first @p n stereo frames, left and right interleaved.
-std::vector<q31> stereo_output(std::size_t n) {
+std::vector<q31_t> stereo_output(std::size_t n) {
 	return {lanes_output().begin(), lanes_output().begin() + static_cast<std::ptrdiff_t>(2 * n)};
 }
 
-/// @p frames as interleaved q31, so a comparison prints them.
-std::vector<q31> interleaved(std::span<const StereoSample> frames) {
-	std::vector<q31> out;
+/// @p frames as interleaved Q31 words, so a comparison prints them.
+std::vector<q31_t> interleaved(std::span<const StereoSample> frames) {
+	std::vector<q31_t> out;
 	out.reserve(2 * frames.size());
 	for (const StereoSample frame : frames) {
 		out.push_back(frame.l.raw());
@@ -628,9 +628,9 @@ std::vector<q31> interleaved(std::span<const StereoSample> frames) {
 
 /// A filter case's run, rendered by direct calls to a filter set of its own.
 struct FilterReference {
-	std::vector<q31> last_block; ///< The block after the run, mono or interleaved.
-	q31 gain{};                  ///< The last configure's gain.
-	uint32_t noise{};            ///< The synth-wide noise state after the run.
+	std::vector<q31_t> last_block; ///< The block after the run, mono or interleaved.
+	q31_t gain{};                  ///< The last configure's gain.
+	uint32_t noise{};              ///< The synth-wide noise state after the run.
 };
 
 /// @p config's run of @p blocks blocks of @p n frames (one sample each, two in @p stereo), from the filter cases'
@@ -642,8 +642,8 @@ FilterReference filter_reference(const FilterCaseConfig& config, std::size_t n, 
 	fill_filter_input();
 	FilterReference out;
 	out.last_block.assign(lanes_input().begin(), lanes_input().begin() + static_cast<std::ptrdiff_t>(samples));
-	std::vector<q31> fade(samples);
-	std::vector<q31> parallel(samples);
+	std::vector<q31_t> fade(samples);
+	std::vector<q31_t> parallel(samples);
 	deluge::synth_noise.seed(kFilterNoiseSeed);
 	dsp::fixed::FilterSet set;
 	for (std::size_t b = 0; b < blocks; ++b) {
@@ -672,7 +672,7 @@ FilterReference filter_reference(const FilterCaseConfig& config, std::size_t n, 
 
 /// A compressor case's run, rendered by direct calls to a compressor of its own.
 struct CompressorReference {
-	std::vector<q31> last_block;                  ///< The block after the run, interleaved.
+	std::vector<q31_t> last_block;                ///< The block after the run, interleaved.
 	dsp::fixed::RmsFeedbackCompressor compressor; ///< The compressor after the run.
 };
 
@@ -711,7 +711,7 @@ uint32_t noise_after(uint32_t seed, std::size_t draws) {
 
 /// A delay whole case's run, rendered by a direct call to `DelayProcessor::process` per block over tapes of its own.
 struct DelayWholeReference {
-	std::vector<q31> last_block;                  ///< The last block, interleaved.
+	std::vector<q31_t> last_block;                ///< The last block, interleaved.
 	std::vector<StereoSample> primary;            ///< The primary tape's storage after the run.
 	std::vector<StereoSample> secondary;          ///< The secondary's, empty unless the case grows one.
 	dsp::fixed::DelayTape::Head primary_head{};   ///< The primary's read head after the run.
@@ -775,18 +775,18 @@ DelayWholeReference delay_whole_reference(const DelayWholeConfig& config, std::s
 /// The chain3 cases' stages on full-scale input over two blocks of input_a's first @p n samples from silence: tanh at
 /// drive 3, the one-pole low-pass at the granular moveability, then the delay's high-pass. Returns the second block,
 /// and leaves each memory in @p low and @p high.
-std::vector<q31> chain3_reference(std::size_t n, uint32_t& low, q31& high) {
-	std::vector<q31> second(n);
+std::vector<q31_t> chain3_reference(std::size_t n, uint32_t& low, q31_t& high) {
+	std::vector<q31_t> second(n);
 	low = 0;
 	high = 0;
 	for (std::size_t block = 0; block < 2; ++block) {
 		for (std::size_t i = 0; i < n; ++i) {
 			const auto x = static_cast<uint32_t>(raw_shaping::tanh<3>(input_a()[i]));
-			const auto difference = static_cast<q31>(x - low);
+			const auto difference = static_cast<q31_t>(x - low);
 			const auto step = static_cast<uint32_t>(multiply_32x32_rshift32_rounded(difference, 1 << 29) << 1);
 			const uint32_t low_passed = step + low;
 			low = low_passed + step;
-			second[i] = delay_high_pass(static_cast<q31>(low_passed), high);
+			second[i] = delay_high_pass(static_cast<q31_t>(low_passed), high);
 		}
 	}
 	return second;
@@ -1168,11 +1168,11 @@ describe bench_runner("The DSP benchmark runner", ${
 		it("fills the inputs from the same seed at every setup", _ {
 			CaseSet& set = case_set();
 			set.amplitude.setup(32);
-			const std::vector<q31> first_a{input_a().begin(), input_a().end()};
-			const std::vector<q31> first_b{input_b().begin(), input_b().end()};
+			const std::vector<q31_t> first_a{input_a().begin(), input_a().end()};
+			const std::vector<q31_t> first_b{input_b().begin(), input_b().end()};
 			set.amplitude.setup(128);
-			expect(std::vector<q31>{input_a().begin(), input_a().end()}).to_equal(first_a);
-			expect(std::vector<q31>{input_b().begin(), input_b().end()}).to_equal(first_b);
+			expect(std::vector<q31_t>{input_a().begin(), input_a().end()}).to_equal(first_a);
+			expect(std::vector<q31_t>{input_b().begin(), input_b().end()}).to_equal(first_b);
 			expect(first_a).not_().to_equal(first_b);
 			expect(std::ranges::count(first_a, 0)).to_be_less_than(std::ptrdiff_t{2});
 		});
@@ -1199,13 +1199,13 @@ describe bench_runner("The DSP benchmark runner", ${
 			render(set.amplitude, kMaxBlock, 1);
 			const int64_t half_amplitude = (int64_t{AmplitudeCase::kRamp.value().raw()} + AmplitudeCase::kRamp.increment().raw()) >> 1;
 			const int64_t scaled = (2 * half_amplitude * int64_t{input_a()[0]}) >> 32;
-			expect(output()[0]).to_equal(static_cast<q31>(scaled + int64_t{input_b()[0]}));
+			expect(output()[0]).to_equal(static_cast<q31_t>(scaled + int64_t{input_b()[0]}));
 
 			// CrudeAmplitude: the amplitude steps first, then a rounded 32x32 high multiply-accumulate.
 			render(set.crude_amplitude, kMaxBlock, 1);
 			const int64_t amplitude = int64_t{CrudeAmplitudeCase::kRamp.value().raw()} + CrudeAmplitudeCase::kRamp.increment().raw();
 			const int64_t product = ((amplitude * int64_t{input_a()[0]}) + (int64_t{1} << 31)) >> 32;
-			expect(output()[0]).to_equal(static_cast<q31>(product + int64_t{input_b()[0]}));
+			expect(output()[0]).to_equal(static_cast<q31_t>(product + int64_t{input_b()[0]}));
 		});
 
 		it("runs each oscillator free at its configured increment", _ {
@@ -1258,11 +1258,11 @@ describe bench_runner("The DSP benchmark runner", ${
 		it("configures each gain as documented", _ {
 			CaseSet& set = case_set();
 			set.mono_gain.setup(32);
-			expect(set.mono_gain.component().coefficients().gain).to_equal(MonoGainCase::kGain);
+			expect(set.mono_gain.component().coefficients().gain.raw()).to_equal(MonoGainCase::kGain);
 			set.mono_vec_gain.setup(32);
-			expect(set.mono_vec_gain.component().coefficients().gain).to_equal(MonoVecGainCase::kGain);
+			expect(set.mono_vec_gain.component().coefficients().gain.raw()).to_equal(MonoVecGainCase::kGain);
 			set.stereo_gain.setup(32);
-			expect(set.stereo_gain.component().coefficients().gain).to_equal(StereoGainCase::kGain);
+			expect(set.stereo_gain.component().coefficients().gain.raw()).to_equal(StereoGainCase::kGain);
 		});
 
 		it("keeps the stereo frames at full scale through a whole in-place run at every block size", _ {
@@ -1287,18 +1287,18 @@ describe bench_runner("The DSP benchmark runner", ${
 			for (const std::size_t n : kSizes) {
 				set.shift_tracker.setup(n);
 				expect(set.shift_tracker.component().coefficients().mode).to_equal(Tracker::Mode::REMOVE);
-				expect(set.shift_tracker.component().state().y.raw()).to_equal(q31{0});
+				expect(set.shift_tracker.component().state().y.raw()).to_equal(q31_t{0});
 
 				render(set.shift_tracker, n, 2);
-				q31 hp = 0;
+				q31_t hp = 0;
 				for (std::size_t block = 0; block < 2; ++block) {
 					for (std::size_t i = 0; i < n; ++i) {
 						// The delay's blocker on full-scale input, wrapping as the hardware's add and sub do.
 						const auto x = static_cast<uint32_t>(input_a()[i]);
-						const auto step = static_cast<q31>(x - static_cast<uint32_t>(hp)) >> 11;
-						hp = static_cast<q31>(static_cast<uint32_t>(hp) + static_cast<uint32_t>(step));
+						const auto step = static_cast<q31_t>(x - static_cast<uint32_t>(hp)) >> 11;
+						hp = static_cast<q31_t>(static_cast<uint32_t>(hp) + static_cast<uint32_t>(step));
 						if (block == 1) {
-							expect(output()[i]).to_equal(static_cast<q31>(x - static_cast<uint32_t>(hp)));
+							expect(output()[i]).to_equal(static_cast<q31_t>(x - static_cast<uint32_t>(hp)));
 						}
 					}
 				}
@@ -1313,8 +1313,8 @@ describe bench_runner("The DSP benchmark runner", ${
 				set.one_pole_lp.setup(n);
 				set.one_pole_ap.setup(n);
 				for (const auto* mono : {&set.one_pole_lp.component(), &set.one_pole_ap.component()}) {
-					expect(mono->coefficients().m.raw()).to_equal(q31{1 << 29});
-					expect(mono->state().z.raw()).to_equal(q31{0});
+					expect(mono->coefficients().m.raw()).to_equal(q31_t{1 << 29});
+					expect(mono->state().z.raw()).to_equal(q31_t{0});
 				}
 				expect(set.one_pole_lp.component().coefficients().mode).to_equal(Mode::LOW_PASS);
 				expect(set.one_pole_ap.component().coefficients().mode).to_equal(Mode::ALL_PASS);
@@ -1326,17 +1326,17 @@ describe bench_runner("The DSP benchmark runner", ${
 					for (std::size_t block = 0; block < 2; ++block) {
 						for (std::size_t i = 0; i < n; ++i) {
 							const auto x = static_cast<uint32_t>(input_a()[i]);
-							const auto difference = static_cast<q31>(x - memory);
+							const auto difference = static_cast<q31_t>(x - memory);
 							const auto step =
 							    static_cast<uint32_t>(multiply_32x32_rshift32_rounded(difference, 1 << 29) << 1);
 							const uint32_t low = step + memory;
 							memory = low + step;
 							if (block == 1) {
-								expect(output()[i]).to_equal(static_cast<q31>(all_pass ? (low * 2) - x : low));
+								expect(output()[i]).to_equal(static_cast<q31_t>(all_pass ? (low * 2) - x : low));
 							}
 						}
 					}
-					expect(one_pole_case.component().state().z.raw()).to_equal(static_cast<q31>(memory));
+					expect(one_pole_case.component().state().z.raw()).to_equal(static_cast<q31_t>(memory));
 				};
 				check(set.one_pole_lp, false);
 				check(set.one_pole_ap, true);
@@ -1354,7 +1354,7 @@ describe bench_runner("The DSP benchmark runner", ${
 				HandTanh curve;
 				for (std::size_t block = 0; block < 2; ++block) {
 					for (std::size_t i = 0; i < n; ++i) {
-						const q31 expected = curve.render(input_a()[i]);
+						const q31_t expected = curve.render(input_a()[i]);
 						if (block == 1) {
 							expect(output()[i]).to_equal(expected);
 						}
@@ -1379,13 +1379,13 @@ describe bench_runner("The DSP benchmark runner", ${
 			CaseSet& set = case_set();
 			for (const std::size_t n : kSizes) {
 				set.dry_wet_blend.setup(n);
-				expect(set.dry_wet_blend.component().coefficients().level.raw()).to_equal(q31{1 << 30});
+				expect(set.dry_wet_blend.component().coefficients().level.raw()).to_equal(q31_t{1 << 30});
 				expect(set.dry_wet_blend.component().coefficients().mode).to_equal(dsp::fixed::DryWetBlend::Mode::BLEND);
 				render(set.dry_wet_blend, n, 2);
 				for (std::size_t i = 0; i < n; ++i) {
 					// The fade's arithmetic, at a wet level of a half.
-					const q31 wet = multiply_32x32_rshift32(input_b()[i], 1 << 30);
-					const q31 expected =
+					const q31_t wet = multiply_32x32_rshift32(input_b()[i], 1 << 30);
+					const q31_t expected =
 					    multiply_accumulate_32x32_rshift32_rounded(wet, input_a()[i], kOneQ31 - (1 << 30)) << 1;
 					expect(output()[i]).to_equal(expected);
 				}
@@ -1397,27 +1397,27 @@ describe bench_runner("The DSP benchmark runner", ${
 			const auto check = [&]<std::size_t N>(LanesOnePoleCase<N>& c) {
 				for (const std::size_t n : kSizes) {
 					c.setup(n);
-					expect(c.component().coefficients().m.raw()).to_equal(q31{1 << 29});
+					expect(c.component().coefficients().m.raw()).to_equal(q31_t{1 << 29});
 					expect(c.component().coefficients().mode).to_equal(dsp::fixed::OnePole::Mode::LOW_PASS);
 					render(c, n, 2);
 					for (std::size_t lane = 0; lane < N; ++lane) {
-						expect(c.component().state(lane).z.raw()).not_().to_equal(q31{0});
+						expect(c.component().state(lane).z.raw()).not_().to_equal(q31_t{0});
 						// The class's lowPass on lane `lane`'s stream, wrapping as the hardware's add and sub do.
 						uint32_t memory = 0;
 						for (std::size_t block = 0; block < 2; ++block) {
 							for (std::size_t i = 0; i < n; ++i) {
 								const auto x = static_cast<uint32_t>(lane_sample(lanes_input(), N, i, lane));
-								const auto difference = static_cast<q31>(x - memory);
+								const auto difference = static_cast<q31_t>(x - memory);
 								const auto step =
 								    static_cast<uint32_t>(multiply_32x32_rshift32_rounded(difference, 1 << 29) << 1);
 								const uint32_t low = step + memory;
 								memory = low + step;
 								if (block == 1) {
-									expect(lane_sample(lanes_output(), N, i, lane)).to_equal(static_cast<q31>(low));
+									expect(lane_sample(lanes_output(), N, i, lane)).to_equal(static_cast<q31_t>(low));
 								}
 							}
 						}
-						expect(c.component().state(lane).z.raw()).to_equal(static_cast<q31>(memory));
+						expect(c.component().state(lane).z.raw()).to_equal(static_cast<q31_t>(memory));
 					}
 				}
 			};
@@ -1433,15 +1433,15 @@ describe bench_runner("The DSP benchmark runner", ${
 					expect(c.component().coefficients().mode).to_equal(ShiftTrackerCase::Tracker::Mode::REMOVE);
 					render(c, n, 2);
 					for (std::size_t lane = 0; lane < N; ++lane) {
-						q31 hp = 0;
+						q31_t hp = 0;
 						for (std::size_t block = 0; block < 2; ++block) {
 							for (std::size_t i = 0; i < n; ++i) {
 								const auto x = static_cast<uint32_t>(lane_sample(lanes_input(), N, i, lane));
-								const auto step = static_cast<q31>(x - static_cast<uint32_t>(hp)) >> 11;
-								hp = static_cast<q31>(static_cast<uint32_t>(hp) + static_cast<uint32_t>(step));
+								const auto step = static_cast<q31_t>(x - static_cast<uint32_t>(hp)) >> 11;
+								hp = static_cast<q31_t>(static_cast<uint32_t>(hp) + static_cast<uint32_t>(step));
 								if (block == 1) {
 									expect(lane_sample(lanes_output(), N, i, lane))
-									    .to_equal(static_cast<q31>(x - static_cast<uint32_t>(hp)));
+									    .to_equal(static_cast<q31_t>(x - static_cast<uint32_t>(hp)));
 								}
 							}
 						}
@@ -1466,7 +1466,7 @@ describe bench_runner("The DSP benchmark runner", ${
 					HandTanh curve;
 					for (std::size_t block = 0; block < 2; ++block) {
 						for (std::size_t i = 0; i < n; ++i) {
-							const q31 expected = curve.render(lane_sample(lanes_input(), 2, i, lane));
+							const q31_t expected = curve.render(lane_sample(lanes_input(), 2, i, lane));
 							if (block == 1) {
 								expect(lane_sample(lanes_output(), 2, i, lane)).to_equal(expected);
 							}
@@ -1659,7 +1659,7 @@ describe bench_runner("The DSP benchmark runner", ${
 						c.block(component_of(c), n);
 					}
 					const std::size_t samples = stereo ? 2 * n : n;
-					expect(std::vector<q31>{lanes_output().begin(),
+					expect(std::vector<q31_t>{lanes_output().begin(),
 					                        lanes_output().begin() + static_cast<std::ptrdiff_t>(samples)})
 					    .to_equal(expected.last_block);
 					expect(std::ranges::count(expected.last_block, 0)).to_be_less_than(std::ptrdiff_t{2});
@@ -1710,21 +1710,21 @@ describe bench_runner("The DSP benchmark runner", ${
 			CaseSet& set = case_set();
 			for (const std::size_t n : kSizes) {
 				uint32_t low = 0;
-				q31 high = 0;
-				const std::vector<q31> expected = chain3_reference(n, low, high);
+				q31_t high = 0;
+				const std::vector<q31_t> expected = chain3_reference(n, low, high);
 				expect(std::ranges::count(expected, 0)).to_be_less_than(std::ptrdiff_t{2});
 
 				render(set.chain3_passes, n, 2);
-				expect(std::vector<q31>{output().begin(), output().begin() + static_cast<std::ptrdiff_t>(n)})
+				expect(std::vector<q31_t>{output().begin(), output().begin() + static_cast<std::ptrdiff_t>(n)})
 				    .to_equal(expected);
-				expect(set.chain3_passes.low_pass().state().z.raw()).to_equal(static_cast<q31>(low));
+				expect(set.chain3_passes.low_pass().state().z.raw()).to_equal(static_cast<q31_t>(low));
 				expect(set.chain3_passes.high_pass().state().y.raw()).to_equal(high);
 
 				render(set.chain3_fused, n, 2);
-				expect(std::vector<q31>{output().begin(), output().begin() + static_cast<std::ptrdiff_t>(n)})
+				expect(std::vector<q31_t>{output().begin(), output().begin() + static_cast<std::ptrdiff_t>(n)})
 				    .to_equal(expected);
 				const auto& fused = set.chain3_fused.component();
-				expect(dsp::get<1>(fused.state()).z.raw()).to_equal(static_cast<q31>(low));
+				expect(dsp::get<1>(fused.state()).z.raw()).to_equal(static_cast<q31_t>(low));
 				expect(dsp::get<2>(fused.state()).y.raw()).to_equal(high);
 				expect(dsp::get<1>(fused.coefficients()).m.raw()).to_equal(OnePoleLowPassCase::kMoveability.raw());
 			}

@@ -23,7 +23,7 @@
 namespace deluge::effects {
 
 dsp::fixed::DuckEnvelope::Settings Sidechain::settings(const SidechainState& state, uint32_t time_per_tick_inverse,
-                                                       dsp::q31 shape) {
+                                                       q31_t shape) {
 	dsp::fixed::DuckEnvelope::Settings out{
 	    .attack = state.attack,
 	    .release = state.release,

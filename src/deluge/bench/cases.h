@@ -74,7 +74,6 @@
 
 namespace deluge::bench {
 
-using dsp::q31;
 using dsp::StereoSample;
 
 /// @brief The block sizes the device times every case at, in samples.
@@ -106,15 +105,15 @@ inline constexpr uint32_t kA1Increment = 5'356'535;
 
 /// @brief The q31 input block every case's first input reads.
 /// @return kMaxBlock samples, filled by the case's setup.
-[[nodiscard]] std::span<const q31, kMaxBlock> input_a();
+[[nodiscard]] std::span<const q31_t, kMaxBlock> input_a();
 
 /// @brief The q31 input block a mixer's second input reads.
 /// @return kMaxBlock samples, filled by the case's setup.
-[[nodiscard]] std::span<const q31, kMaxBlock> input_b();
+[[nodiscard]] std::span<const q31_t, kMaxBlock> input_b();
 
 /// @brief The q31 block every mono case writes.
 /// @return kMaxBlock samples.
-[[nodiscard]] std::span<const q31, kMaxBlock> output();
+[[nodiscard]] std::span<const q31_t, kMaxBlock> output();
 
 /// @brief The stereo block the stereo case processes in place.
 /// @return kMaxBlock frames, filled by the case's setup.
@@ -125,11 +124,11 @@ inline constexpr std::size_t kMaxLanes = 8;
 
 /// @brief The block every lanes case reads: kMaxBlock frames of kMaxLanes lanes, as interleaved q31.
 /// @return kMaxBlock · kMaxLanes samples, filled by the case's setup.
-[[nodiscard]] std::span<const q31, kMaxBlock * kMaxLanes> lanes_input();
+[[nodiscard]] std::span<const q31_t, kMaxBlock * kMaxLanes> lanes_input();
 
 /// @brief The block every lanes case writes: kMaxBlock frames of kMaxLanes lanes, as interleaved q31.
 /// @return kMaxBlock · kMaxLanes samples.
-[[nodiscard]] std::span<const q31, kMaxBlock * kMaxLanes> lanes_output();
+[[nodiscard]] std::span<const q31_t, kMaxBlock * kMaxLanes> lanes_output();
 
 /// @brief The lanes blocks' first n frames of N lanes: the spans a lanes case's component renders between.
 /// @details Built at setup, as BlockSpans are. The blocks are q31 storage viewed as frames, whose layout is N q31 in
@@ -145,22 +144,22 @@ struct FrameSpans {
 /// by copy and makes no call besides its component's own: whether building a span inlines is the app inliner's choice,
 /// and a call there is one the calibration would not cancel.
 struct BlockSpans {
-	dsp::fixed::Signal a;   ///< input_a's first n samples.
-	dsp::fixed::Signal b;   ///< input_b's first n samples.
-	dsp::fixed::Buffer out; ///< The output block's first n samples.
+	std::span<const int32_t> a; ///< input_a's first n samples.
+	std::span<const int32_t> b; ///< input_b's first n samples.
+	std::span<int32_t> out;     ///< The output block's first n samples.
 };
 
-/// @brief A q31 gain: the reference processor kernel, as in the Mono and Stereo unit specs.
+/// @brief A Q31 gain: the reference processor kernel, as in the Mono and Stereo unit specs.
 struct Gain {
-	using value_type = q31; ///< Q31 samples.
-	using step_type = q31;  ///< One sample per step.
+	using value_type = dsp::Q<31>; ///< A sample.
+	using step_type = dsp::Q<31>;  ///< One sample per step.
 	/// @brief The gain to apply.
 	struct Settings {
-		q31 gain; ///< Q31 in [-1, 1); 0x7FFFFFFF is unity.
+		dsp::Q<31> gain; ///< In [-1, 1); Q<31>::max() is unity.
 	};
 	/// @brief The gain, as configured.
 	struct Coefficients {
-		q31 gain; ///< Q31 in [-1, 1).
+		dsp::Q<31> gain; ///< In [-1, 1).
 	};
 	/// @brief A gain is stateless.
 	struct State {};
@@ -168,9 +167,9 @@ struct Gain {
 	/// @return The gain, unchanged.
 	static Coefficients coefficients(const Settings& s) { return {.gain = s.gain}; }
 	/// @return @p x · gain, Q31: the Q30 high word moved to Q31, wrapping at −1 · −1.
-	[[gnu::always_inline]] static q31 step(const Coefficients& c, const dsp::EmptyBlock& /*block*/, State& /*state*/,
-	                                       q31 x) {
-		return mul_as_wrap<dsp::Q<31>>(dsp::Q<31>::from_raw(x), dsp::Q<31>::from_raw(c.gain)).raw();
+	[[gnu::always_inline]] static dsp::Q<31> step(const Coefficients& c, const dsp::EmptyBlock& /*block*/,
+	                                              State& /*state*/, dsp::Q<31> x) {
+		return mul_as_wrap<dsp::Q<31>>(x, c.gain);
 	}
 };
 static_assert(dsp::processor_kernel<Gain>);
@@ -180,8 +179,8 @@ static_assert(dsp::processor_kernel<Gain>);
 /// the bit Gain's shift clears and differs from Gain in the LSB wherever that bit is set; it saturates −1 · −1, which
 /// Gain wraps.
 struct VecGain {
-	using value_type = q31;       ///< Q31 samples.
-	using step_type = Argon<q31>; ///< One vector of four samples per step.
+	using value_type = dsp::Q<31>;   ///< A sample.
+	using step_type = dsp::QVec<31>; ///< One vector of four samples per step.
 	using Settings = Gain::Settings;
 	using Coefficients = Gain::Coefficients;
 	/// @brief A gain is stateless.
@@ -190,9 +189,9 @@ struct VecGain {
 	/// @return The gain, unchanged.
 	static Coefficients coefficients(const Settings& s) { return {.gain = s.gain}; }
 	/// @return Each lane of @p x · gain, Q31.
-	[[gnu::always_inline]] static Argon<q31> step(const Coefficients& c, const dsp::EmptyBlock& /*block*/,
-	                                              State& /*state*/, Argon<q31> x) {
-		return mul_doubling_sat(dsp::QVec<31>::from_raw(x), dsp::Q<31>::from_raw(c.gain)).raw();
+	[[gnu::always_inline]] static dsp::QVec<31> step(const Coefficients& c, const dsp::EmptyBlock& /*block*/,
+	                                                 State& /*state*/, dsp::QVec<31> x) {
+		return mul_doubling_sat(x, c.gain);
 	}
 };
 static_assert(dsp::processor_kernel<VecGain>);
@@ -500,7 +499,7 @@ private:
 class MonoGainCase {
 public:
 	/// @brief The gain: -3 dB, Q31.
-	static constexpr q31 kGain = 0x5A82'799A;
+	static constexpr q31_t kGain = 0x5A82'799A;
 
 	/// @brief Configures the gain, fills input_a and takes the blocks' spans for @p n.
 	/// @param n Block size to set up for, in samples (frames for the stereo and lanes cases).
@@ -521,7 +520,7 @@ private:
 class MonoVecGainCase {
 public:
 	/// @brief The gain: -3 dB, Q31.
-	static constexpr q31 kGain = MonoGainCase::kGain;
+	static constexpr q31_t kGain = MonoGainCase::kGain;
 
 	/// @brief Configures the gain, fills input_a and takes the blocks' spans for @p n.
 	/// @param n Block size to set up for, in samples (frames for the stereo and lanes cases).
@@ -545,7 +544,7 @@ class StereoGainCase {
 public:
 	static constexpr std::size_t kLanes = 2; ///< Left and right.
 	/// @brief The gain: unity, Q31.
-	static constexpr q31 kGain = 0x7FFF'FFFF;
+	static constexpr q31_t kGain = 0x7FFF'FFFF;
 
 	/// @brief Configures the gain, fills the stereo block and takes its span for @p n.
 	/// @param n Block size to set up for, in samples (frames for the stereo and lanes cases).
@@ -886,7 +885,7 @@ using DelayHighPass = dsp::Pinned<ShiftTrackerCase::Tracker, ShiftTrackerCase::T
 using DelayFeedbackChain = dsp::Chain<dsp::fixed::FeedbackShaper, DelayHighPass>;
 
 /// @brief The delay feedback cases' feedback amount, Q31: a half.
-inline constexpr q31 kDelayFeedback = 1 << 30;
+inline constexpr q31_t kDelayFeedback = 1 << 30;
 /// @brief The delay feedback cases' tanh drive, as a power of two: a sound's.
 inline constexpr uint32_t kDelayDrive = 8;
 
@@ -1010,7 +1009,7 @@ public:
 	/// @return The right high-pass memory, Q31.
 	[[nodiscard]] int32_t high_pass_r() const { return high_pass_r_; }
 	/// @return The feedback amount, Q31.
-	[[nodiscard]] q31 feedback() const { return feedback_; }
+	[[nodiscard]] q31_t feedback() const { return feedback_; }
 	/// @return The tanh drive, as a power of two.
 	[[nodiscard]] uint32_t drive() const { return drive_; }
 
@@ -1018,7 +1017,7 @@ private:
 	reference::WrappingReferenceImpulseResponse response_;
 	int32_t high_pass_l_ = 0;
 	int32_t high_pass_r_ = 0;
-	q31 feedback_ = kDelayFeedback;
+	q31_t feedback_ = kDelayFeedback;
 	uint32_t drive_ = kDelayDrive;
 	std::span<StereoSample> work_{};
 };
@@ -1051,7 +1050,7 @@ private:
 	dsp::Mono<Chain3LowPass> low_pass_;
 	dsp::Mono<DelayHighPass> high_pass_;
 	BlockSpans spans_{};
-	dsp::fixed::Signal written_{}; ///< The output's first n samples, read by the later passes.
+	std::span<const int32_t> written_{}; ///< The output's first n samples, read by the later passes.
 };
 
 /// @brief `Mono<Chain3>`: the three stages in one pass from input_a into the output.
@@ -1193,7 +1192,7 @@ inline constexpr DelayWholeConfig kDelayWholeGrowing{
 /// the low-pass ladder draws from: the app's boot value.
 inline constexpr uint32_t kFilterNoiseSeed = 380'116'160;
 /// @brief The gain going into every filter case's set, Q31: a quarter.
-inline constexpr q31 kFilterGain = 536'870'912;
+inline constexpr q31_t kFilterGain = 536'870'912;
 
 /// @brief The low-pass settings the filter cases run at: the cutoff at 2^23 (Q31), half resonance (2^28 of Q29's
 /// 2^29), no morph. The drive ladder does not oversample here: the cutoff's quick_log is 50 · 2^24, below the 52 at
@@ -1331,14 +1330,14 @@ void fill_filter_input();
 /// @brief Fills the lanes input (fill_filter_input()) and copies its first @p samples samples into the lanes output.
 /// @param samples How many samples to copy.
 /// @return Those output samples: the block a filter case renders first, in place.
-[[nodiscard]] std::span<q31> in_place_filter_block(std::size_t samples);
+[[nodiscard]] std::span<q31_t> in_place_filter_block(std::size_t samples);
 
 /// @brief What every filter case renders with: one filter set, as a voice holds it. The cases run one after another,
 /// so they share it; each case's setup resets it.
 struct FilterRig {
 	dsp::fixed::FilterSet set; ///< The set, as a Voice's filterSet.
-	q31 gain{};                ///< The last configure's gain.
-	std::span<q31> work{};     ///< The lanes output's first n samples (2n in stereo), filtered in place.
+	q31_t gain{};              ///< The last configure's gain.
+	std::span<q31_t> work{};   ///< The lanes output's first n samples (2n in stereo), filtered in place.
 };
 
 /// @return The rig the filter cases render with.

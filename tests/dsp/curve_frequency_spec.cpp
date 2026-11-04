@@ -27,14 +27,13 @@
 #include <cstdint>
 #include <vector>
 
-using deluge::dsp::q31;
 using deluge::dsp::fixed::curve_frequency;
 
 namespace {
 
 /// Every 2^16th positive cutoff, then 1, 2^26 (the top of the tan table) and INT32_MAX.
-std::vector<q31> cutoffs() {
-	std::vector<q31> v;
+std::vector<q31_t> cutoffs() {
+	std::vector<q31_t> v;
 	for (int32_t k = 1; k < (1 << 15); ++k) {
 		v.push_back(k << 16);
 	}
@@ -43,9 +42,9 @@ std::vector<q31> cutoffs() {
 }
 
 /// Cutoffs where any field parts from the reference's.
-std::size_t partings(const std::vector<q31>& frequencies) {
+std::size_t partings(const std::vector<q31_t>& frequencies) {
 	std::size_t parted = 0;
-	for (const q31 frequency : frequencies) {
+	for (const q31_t frequency : frequencies) {
 		const auto curved = curve_frequency(deluge::dsp::Q<31>::from_raw(frequency));
 		const filters_reference::CurvedFrequency reference = filters_reference::curve_frequency(frequency);
 		parted += curved.tanned.raw() != reference.tanned
@@ -64,7 +63,7 @@ describe curve_frequency_spec("curve_frequency", ${
 	it("warps every 2^16th cutoff and the edges as the legacy warp does", _ {
 		expect(partings(cutoffs())).to_equal(std::size_t{0});
 	});
-	// Cutoff 0 divides one at Q58 by one at Q27: 2^31, one past q31's top. The A9's VCVT saturates it to INT32_MAX,
+	// Cutoff 0 divides one at Q58 by one at Q27: 2^31, one past Q31's top. The A9's VCVT saturates it to INT32_MAX,
 	// one at Q31, and so does every target.
 	it("gives cutoff 0 a reciprocal of one, saturated, and no moveability, on every target", _ {
 		const auto curved = curve_frequency(deluge::dsp::Q<31>{});

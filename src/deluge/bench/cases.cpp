@@ -35,17 +35,17 @@ constexpr std::size_t kBlockGap = 64;
 /// partial addresses), which costs a mono case about 1 cycle per sample whenever its output sits a multiple of 1 KB
 /// from its input.
 struct SharedBlocks {
-	alignas(16) std::array<q31, kMaxBlock> input_a;                  ///< The first input.
-	std::array<q31, kBlockGap> after_a;                              ///< Padding, never read or written.
-	alignas(16) std::array<q31, kMaxBlock> input_b;                  ///< The second input.
-	std::array<q31, kBlockGap> after_b;                              ///< Padding, never read or written.
-	alignas(16) std::array<q31, kMaxBlock> output;                   ///< The output.
-	std::array<q31, kBlockGap> after_output;                         ///< Padding, never read or written.
-	alignas(16) std::array<StereoSample, kMaxBlock> stereo;          ///< The stereo block, read and written in place.
-	std::array<q31, kBlockGap / 2> after_stereo;                     ///< Padding, never read or written.
-	alignas(16) std::array<q31, kMaxBlock * kMaxLanes> lanes_input;  ///< The lanes cases' input frames.
-	std::array<q31, kBlockGap> after_lanes_input;                    ///< Padding, never read or written.
-	alignas(16) std::array<q31, kMaxBlock * kMaxLanes> lanes_output; ///< The lanes cases' output frames.
+	alignas(16) std::array<q31_t, kMaxBlock> input_a;                  ///< The first input.
+	std::array<q31_t, kBlockGap> after_a;                              ///< Padding, never read or written.
+	alignas(16) std::array<q31_t, kMaxBlock> input_b;                  ///< The second input.
+	std::array<q31_t, kBlockGap> after_b;                              ///< Padding, never read or written.
+	alignas(16) std::array<q31_t, kMaxBlock> output;                   ///< The output.
+	std::array<q31_t, kBlockGap> after_output;                         ///< Padding, never read or written.
+	alignas(16) std::array<StereoSample, kMaxBlock> stereo;            ///< The stereo block, read and written in place.
+	std::array<q31_t, kBlockGap / 2> after_stereo;                     ///< Padding, never read or written.
+	alignas(16) std::array<q31_t, kMaxBlock * kMaxLanes> lanes_input;  ///< The lanes cases' input frames.
+	std::array<q31_t, kBlockGap> after_lanes_input;                    ///< Padding, never read or written.
+	alignas(16) std::array<q31_t, kMaxBlock * kMaxLanes> lanes_output; ///< The lanes cases' output frames.
 };
 
 /// @brief Whether the blocks at byte offsets @p a and @p b of SharedBlocks sit a multiple of 1 KB apart.
@@ -90,9 +90,9 @@ const dsp::fixed::WaveTableBand wavetable_band{
 };
 
 /// @brief Fills @p block from a fresh stream at @p seed.
-void fill(std::span<q31> block, uint32_t seed) {
+void fill(std::span<q31_t> block, uint32_t seed) {
 	dsp::fixed::SeededNoise noise{seed};
-	for (q31& sample : block) {
+	for (q31_t& sample : block) {
 		sample = noise.render();
 	}
 }
@@ -106,7 +106,7 @@ void fill_inputs() {
 /// @brief The lanes blocks' first @p n frames of type F: the q31 storage viewed as frames of interleaved lanes.
 template <class F>
 [[nodiscard]] FrameSpans<F> frame_spans(std::size_t n) {
-	static_assert(sizeof(F) % sizeof(q31) == 0 && sizeof(F) <= kMaxLanes * sizeof(q31)
+	static_assert(sizeof(F) % sizeof(q31_t) == 0 && sizeof(F) <= kMaxLanes * sizeof(q31_t)
 	              && std::is_trivially_copyable_v<F>);
 	return FrameSpans<F>{
 	    .in = dsp::Signal<F>{reinterpret_cast<const F*>(shared.lanes_input.data()), n},
@@ -117,23 +117,23 @@ template <class F>
 /// @return The first @p n samples of each shared q31 block.
 [[nodiscard]] BlockSpans spans(std::size_t n) {
 	return BlockSpans{
-	    .a = dsp::fixed::Signal{shared.input_a.data(), n},
-	    .b = dsp::fixed::Signal{shared.input_b.data(), n},
-	    .out = dsp::fixed::Buffer{shared.output.data(), n},
+	    .a = std::span<const int32_t>{shared.input_a.data(), n},
+	    .b = std::span<const int32_t>{shared.input_b.data(), n},
+	    .out = std::span<int32_t>{shared.output.data(), n},
 	};
 }
 
 } // namespace
 
-std::span<const q31, kMaxBlock> input_a() {
+std::span<const q31_t, kMaxBlock> input_a() {
 	return shared.input_a;
 }
 
-std::span<const q31, kMaxBlock> input_b() {
+std::span<const q31_t, kMaxBlock> input_b() {
 	return shared.input_b;
 }
 
-std::span<const q31, kMaxBlock> output() {
+std::span<const q31_t, kMaxBlock> output() {
 	return shared.output;
 }
 
@@ -141,11 +141,11 @@ std::span<const StereoSample, kMaxBlock> stereo() {
 	return shared.stereo;
 }
 
-std::span<const q31, kMaxBlock * kMaxLanes> lanes_input() {
+std::span<const q31_t, kMaxBlock * kMaxLanes> lanes_input() {
 	return shared.lanes_input;
 }
 
-std::span<const q31, kMaxBlock * kMaxLanes> lanes_output() {
+std::span<const q31_t, kMaxBlock * kMaxLanes> lanes_output() {
 	return shared.lanes_output;
 }
 
@@ -314,21 +314,21 @@ void WavetableCase::block(std::size_t /*n*/) {
 void MonoGainCase::setup(std::size_t n) {
 	spans_ = spans(n);
 	fill_inputs();
-	mono_.configure({.gain = kGain});
+	mono_.configure({.gain = dsp::Q<31>::from_raw(kGain)});
 }
 
 void MonoGainCase::block(std::size_t /*n*/) {
-	mono_.render_block(spans_.a, spans_.out);
+	mono_.render_block(dsp::typed_view(spans_.a), dsp::typed_view(spans_.out));
 }
 
 void MonoVecGainCase::setup(std::size_t n) {
 	spans_ = spans(n);
 	fill_inputs();
-	mono_.configure({.gain = kGain});
+	mono_.configure({.gain = dsp::Q<31>::from_raw(kGain)});
 }
 
 void MonoVecGainCase::block(std::size_t /*n*/) {
-	mono_.render_block(spans_.a, spans_.out);
+	mono_.render_block(dsp::typed_view(spans_.a), dsp::typed_view(spans_.out));
 }
 
 void StereoGainCase::setup(std::size_t n) {
@@ -339,7 +339,7 @@ void StereoGainCase::setup(std::size_t n) {
 		frame.l = dsp::Q<31>::from_raw(noise.render()); // the noise's raw words
 		frame.r = dsp::Q<31>::from_raw(noise.render());
 	}
-	stereo_.configure({.gain = kGain});
+	stereo_.configure({.gain = dsp::Q<31>::from_raw(kGain)});
 }
 
 void StereoGainCase::block(std::size_t /*n*/) {
@@ -449,8 +449,8 @@ void SampleInterpolateCase::block(std::size_t n) {
 }
 
 void SupersawCase::block(std::size_t /*n*/) {
-	dsp::fixed::Supersaw::render(spans_.out, kIncrement, kSpread, dsp::fixed::Supersaw::kNumSaws, centre_phase_,
-	                             side_phases_, true);
+	dsp::fixed::Supersaw::render(dsp::typed_view(spans_.out), kIncrement, kSpread, dsp::fixed::Supersaw::kNumSaws,
+	                             centre_phase_, side_phases_, true);
 }
 
 template <std::size_t N>
@@ -498,28 +498,28 @@ void StereoAntialiasedTanhCase::block(std::size_t /*n*/) {
 
 void fill_delay_input() {
 	fill(shared.lanes_input, kSeed);
-	for (q31& sample : shared.lanes_input) {
+	for (q31_t& sample : shared.lanes_input) {
 		sample >>= 1;
 	}
 }
 
 void fill_filter_input() {
 	fill(shared.lanes_input, kSeed);
-	for (q31& sample : shared.lanes_input) {
+	for (q31_t& sample : shared.lanes_input) {
 		sample >>= 4;
 	}
 }
 
 void fill_compressor_input() {
 	fill(shared.lanes_input, kSeed);
-	for (q31& sample : shared.lanes_input) {
+	for (q31_t& sample : shared.lanes_input) {
 		sample >>= 3;
 	}
 }
 
-std::span<q31> in_place_filter_block(std::size_t samples) {
+std::span<q31_t> in_place_filter_block(std::size_t samples) {
 	fill_filter_input();
-	const std::span<q31> work{shared.lanes_output.data(), samples};
+	const std::span<q31_t> work{shared.lanes_output.data(), samples};
 	std::ranges::copy(std::span{shared.lanes_input}.first(samples), work.begin());
 	return work;
 }

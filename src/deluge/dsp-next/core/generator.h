@@ -96,10 +96,10 @@ struct Generator {
 		}
 		else if constexpr (detail::simd_stereo_generator_render<Derived, T>) {
 			const auto size = static_cast<std::ptrdiff_t>(n);
-			q31* out = detail::interleaved(output);
-			argon::vectorize::for_each_interleaved<q31, 2>(size, [&] [[gnu::always_inline]] (auto step) {
+			std::int32_t* out = detail::interleaved(output);
+			argon::vectorize::for_each_interleaved<std::int32_t, 2>(size, [&] [[gnu::always_inline]] (auto step) {
 				const StereoVector frames = self.render();
-				step.Store(out, {frames.l, frames.r});
+				step.Store(out, {frames.l.raw(), frames.r.raw()});
 			});
 		}
 		else {

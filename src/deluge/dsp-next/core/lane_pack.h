@@ -29,11 +29,12 @@
 /// @file
 /// @brief LanePack: N lanes as one value, whose operations apply their scalar counterparts lane by lane.
 ///
-/// A kernel's step written once over its value type V runs on q31 for one stream and on `LanePack<q31, N>` for N
+/// A kernel's step written once over its value type V runs on Q<31> for one stream and on `LanePack<Q<31>, N>` for N
 /// streams at once, each operation across every lane before the next. The same expression resolves for both: the
 /// pack's operations are hidden friends, found by argument-dependent lookup on a pack and invisible otherwise, so they
-/// never hide the scalar functions a kernel reaches by ordinary lookup (`::multiply_32x32_rshift32_rounded`,
-/// `dsp::wrapping_add`). The scalar @ref select, @ref min and @ref max below complete the set for a clamp.
+/// never hide the scalar functions a kernel reaches by ordinary lookup (fixed_point.h's `add_wrap`, `mul_r`, ...;
+/// fixed_point_lanes.h applies them to a pack). The scalar @ref select, @ref min and @ref max below complete the set
+/// for a clamp.
 ///
 /// Every operation is a fixed-trip loop over the lanes, in lane order, applying the scalar operation, so a pack's
 /// result is bit for bit the scalar results side by side. Clang unrolls the loops, leaving one operation's lanes next
@@ -42,12 +43,10 @@ namespace deluge::dsp {
 
 /// @brief N lanes of @p T as one value: each operation is its scalar counterpart applied lane by lane, in lane order.
 /// @details A scalar operand broadcasts to every lane, as a kernel's coefficients, which every lane shares, do; so does
-/// a q31 initialiser, so `V z{q31{0}}` is silence in every lane. `V z{}` is silence too, and is the form a StateT
-/// member uses: the converting constructor takes exactly a T, and a bare `0` is an `int`, which is a q31 only where
-/// `int32_t` is `int`. A default-initialised pack's lanes are indeterminate, as a q31's would be. The comparisons give
-/// a pack of bool, which @ref select reads.
-/// @tparam T The lane type: q31 for the raw fixed-point operations here, a `Fixed` for fixed_point_lanes.h's, any
-/// arithmetic type for the rest.
+/// a T initialiser, so `V z{Q<31>{}}` is silence in every lane. `V z{}` is silence too, and is the form a StateT
+/// member uses: the converting constructor takes exactly a T. A default-initialised pack's lanes are indeterminate,
+/// as a T's would be. The comparisons give a pack of bool, which @ref select reads.
+/// @tparam T The lane type: a `Fixed` for fixed_point_lanes.h's operations, any arithmetic type for the ones here.
 /// @tparam N The number of lanes. At least 1.
 template <class T, std::size_t N>
 requires(N >= 1)
@@ -87,8 +86,7 @@ struct LanePack {
 		}
 	}
 
-	/// @brief @p a + @p b in each lane. As for a scalar, a sum that leaves T's range is undefined: a q31 sum that may
-	/// leave Q31 goes through @ref wrapping_add.
+	/// @brief @p a + @p b in each lane. As for a scalar, a sum that leaves T's range is undefined.
 	/// @details Only for a T whose scalar sum is a T: a narrower T promotes to int, which a lane could not hold.
 	[[nodiscard]] [[gnu::always_inline]] friend constexpr LanePack operator+(LanePack a, LanePack b)
 	requires(std::is_arithmetic_v<T> && std::same_as<decltype(T{} + T{}), T>)
@@ -100,8 +98,7 @@ struct LanePack {
 		return r;
 	}
 
-	/// @brief @p a − @p b in each lane. As for a scalar, a difference that leaves T's range is undefined: a q31
-	/// difference that may leave Q31 goes through @ref wrapping_sub.
+	/// @brief @p a − @p b in each lane. As for a scalar, a difference that leaves T's range is undefined.
 	/// @details Only for a T whose scalar difference is a T: a narrower T promotes to int, which a lane could not hold.
 	[[nodiscard]] [[gnu::always_inline]] friend constexpr LanePack operator-(LanePack a, LanePack b)
 	requires(std::is_arithmetic_v<T> && std::same_as<decltype(T{} - T{}), T>)
@@ -247,65 +244,6 @@ struct LanePack {
 		LanePack r;
 		for (std::size_t i = 0; i < N; ++i) {
 			r.lane[i] = a.lane[i] > b.lane[i] ? b.lane[i] : a.lane[i];
-		}
-		return r;
-	}
-
-	/// @brief @p a + @p b, Q31, in each lane, wrapping modulo 2^32 as dsp::wrapping_add does.
-	[[nodiscard]] [[gnu::always_inline]] friend constexpr LanePack wrapping_add(LanePack a, LanePack b)
-	requires std::same_as<T, q31>
-	{
-		LanePack r;
-		for (std::size_t i = 0; i < N; ++i) {
-			r.lane[i] = dsp::wrapping_add(a.lane[i], b.lane[i]);
-		}
-		return r;
-	}
-
-	/// @brief @p a − @p b, Q31, in each lane, wrapping modulo 2^32 as dsp::wrapping_sub does.
-	[[nodiscard]] [[gnu::always_inline]] friend constexpr LanePack wrapping_sub(LanePack a, LanePack b)
-	requires std::same_as<T, q31>
-	{
-		LanePack r;
-		for (std::size_t i = 0; i < N; ++i) {
-			r.lane[i] = dsp::wrapping_sub(a.lane[i], b.lane[i]);
-		}
-		return r;
-	}
-
-	/// @brief The high word of @p a × @p b in each lane, truncated: Q31 × Q31 gives Q30, as ::multiply_32x32_rshift32
-	/// (`smmul`).
-	[[nodiscard]] [[gnu::always_inline]] friend LanePack multiply_32x32_rshift32(LanePack a, LanePack b)
-	requires std::same_as<T, q31>
-	{
-		LanePack r;
-		for (std::size_t i = 0; i < N; ++i) {
-			r.lane[i] = ::multiply_32x32_rshift32(a.lane[i], b.lane[i]);
-		}
-		return r;
-	}
-
-	/// @brief The high word of @p a × @p b in each lane, rounded to nearest: Q31 × Q31 gives Q30, as
-	/// ::multiply_32x32_rshift32_rounded (`smmulr`). Neither saturates: INT32_MIN squared gives 2^30.
-	[[nodiscard]] [[gnu::always_inline]] friend LanePack multiply_32x32_rshift32_rounded(LanePack a, LanePack b)
-	requires std::same_as<T, q31>
-	{
-		LanePack r;
-		for (std::size_t i = 0; i < N; ++i) {
-			r.lane[i] = ::multiply_32x32_rshift32_rounded(a.lane[i], b.lane[i]);
-		}
-		return r;
-	}
-
-	/// @brief @p sum plus the rounded high word of @p a × @p b in each lane, Q30 added to @p sum's format and wrapping
-	/// modulo 2^32, as ::multiply_accumulate_32x32_rshift32_rounded (`smmlar`).
-	[[nodiscard]] [[gnu::always_inline]] friend LanePack
-	multiply_accumulate_32x32_rshift32_rounded(LanePack sum, LanePack a, LanePack b)
-	requires std::same_as<T, q31>
-	{
-		LanePack r;
-		for (std::size_t i = 0; i < N; ++i) {
-			r.lane[i] = ::multiply_accumulate_32x32_rshift32_rounded(sum.lane[i], a.lane[i], b.lane[i]);
 		}
 		return r;
 	}

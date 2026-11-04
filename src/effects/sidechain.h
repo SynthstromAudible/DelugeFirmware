@@ -60,7 +60,7 @@ public:
 	/// release by 9 less it.
 	/// @return The settings to configure the duck envelope with.
 	[[nodiscard]] static dsp::fixed::DuckEnvelope::Settings settings(const SidechainState& state,
-	                                                                 uint32_t time_per_tick_inverse, dsp::q31 shape);
+	                                                                 uint32_t time_per_tick_inverse, q31_t shape);
 
 	/// @brief Records a hit of @p strength (Q31) for the next render, combined with any already pending.
 	/// @param strength The hit's strength, Q31.

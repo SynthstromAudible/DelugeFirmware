@@ -17,7 +17,7 @@
 
 #include "synth/engines/ring_mod_engine.h"
 #include "dsp-next/core/fixed_point.h"
-#include "dsp-next/core/types.h" // deluge::dsp::fixed::Buffer
+#include "dsp-next/core/types.h" // std::span<int32_t>
 #include "dsp-next/fixed/vca/pan.h"
 #include "synth/engines/block_controls.h" // make_block_controls
 #include "synth/engines/pitch.h"
@@ -172,8 +172,8 @@ void RingModEngine::render_unison_part(const RingSource& src0, const RingSource&
 		    make_block_controls(0, 0, source.pulse_width, /*apply_amplitude=*/false, synced, osc_sync_pos,
 		                        src0.phase_increment, source.retrigger_phase, cpu_direness);
 		// NOLINTEND(readability-suspicious-call-argument)
-		const dsp::fixed::Buffer out{scratch[s], static_cast<size_t>(num_samples)};
-		const dsp::fixed::Buffer sync_block = sync_scratch.first(static_cast<size_t>(num_samples));
+		const std::span<int32_t> out{scratch[s], static_cast<size_t>(num_samples)};
+		const std::span<int32_t> sync_block = sync_scratch.first(static_cast<size_t>(num_samples));
 		std::visit(
 		    [&]<class Held>(Held& held) {
 			    if constexpr (std::is_same_v<Held, VirtualAnalogSource>) {

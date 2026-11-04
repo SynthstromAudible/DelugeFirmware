@@ -34,12 +34,12 @@ using namespace deluge::dsp::fixed;
 namespace {
 
 /// The depths compared, Q29: none, the least, the patch cable's range at a quarter, a half and full, and negative.
-constexpr std::array<q31, 7> kDepths{0, 1, 1 << 27, 0x20000000, 0x3FFFFFFF, -0x20000000, -1};
+constexpr std::array<q31_t, 7> kDepths{0, 1, 1 << 27, 0x20000000, 0x3FFFFFFF, -0x20000000, -1};
 /// The ducks compared before the noise: the extremes and zero's neighbours.
-constexpr std::array<q31, 5> kEdges{std::numeric_limits<q31>::min(), -1, 0, 1, std::numeric_limits<q31>::max()};
+constexpr std::array<q31_t, 5> kEdges{std::numeric_limits<q31_t>::min(), -1, 0, 1, std::numeric_limits<q31_t>::max()};
 /// duck_gain on raw words: the duck Q31, the depth Q29.
 template <DuckScale S>
-int32_t raw_duck_gain(q31 duck, q31 depth) {
+int32_t raw_duck_gain(q31_t duck, q31_t depth) {
 	return duck_gain<S>(deluge::dsp::Q<31>::from_raw(duck), deluge::dsp::Q<29>::from_raw(depth));
 }
 
@@ -53,19 +53,19 @@ describe duck_gain_spec("the duck's squared level at the clip's and the reverb r
 	it("is neutral at no duck", _ {
 		expect(raw_duck_gain<DuckScale::CLIP>(0, 0x20000000)).to_equal(134217728);
 		expect(raw_duck_gain<DuckScale::REVERB_RETURN>(0, 0x20000000)).to_equal(1 << 29);
-		expect(raw_duck_gain<DuckScale::REVERB_RETURN>(std::numeric_limits<q31>::min(), 0)).to_equal(1 << 29);
+		expect(raw_duck_gain<DuckScale::REVERB_RETURN>(std::numeric_limits<q31_t>::min(), 0)).to_equal(1 << 29);
 	});
 
 	it("equals both legacy expressions across the duck's range", _ {
-		for (const q31 depth : kDepths) {
-			for (const q31 duck : kEdges) {
+		for (const q31_t depth : kDepths) {
+			for (const q31_t duck : kEdges) {
 				expect(raw_duck_gain<DuckScale::CLIP>(duck, depth)).to_equal(reference::clip_duck_level(duck, depth));
 				expect(raw_duck_gain<DuckScale::REVERB_RETURN>(duck, depth))
 				    .to_equal(reference::reverb_duck_level(duck, depth));
 			}
 			SeededNoise noise{0xD0C40001};
 			for (int i = 0; i < kNoise; ++i) {
-				const q31 duck = noise.render();
+				const q31_t duck = noise.render();
 				expect(raw_duck_gain<DuckScale::CLIP>(duck, depth)).to_equal(reference::clip_duck_level(duck, depth));
 				expect(raw_duck_gain<DuckScale::REVERB_RETURN>(duck, depth))
 				    .to_equal(reference::reverb_duck_level(duck, depth));

@@ -24,7 +24,7 @@ struct AddNoise {
 	static constexpr Coefficients coefficients(const Settings& /*s*/) { return {}; }
 	[[nodiscard, gnu::always_inline]] static q31 step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& /*s*/,
 	                                                  q31 x, Context& noise) {
-		return x + static_cast<q31>(noise.next() >> 8);
+		return add_wrap(x, q31::from_raw(static_cast<int32_t>(noise.next() >> 8)));
 	}
 };
 static_assert(processor_kernel<AddNoise>);
@@ -58,6 +58,15 @@ concept renders_with_context =
     requires(M m, std::span<const q31> in, std::span<q31> out, Cong& c) { m.render_block(in, out, c); };
 static_assert(!renders_without_context<Mono<AddNoise>> && renders_with_context<Mono<AddNoise>>);
 static_assert(renders_without_context<Mono<Identity>> && !renders_with_context<Mono<Identity>>);
+
+/// @return @p block's raw words, which CppSpec compares and prints.
+std::vector<int32_t> raw_words(const std::vector<q31>& block) {
+	std::vector<int32_t> words;
+	for (const q31 v : block) {
+		words.push_back(v.raw());
+	}
+	return words;
+}
 } // namespace
 
 // clang-format off
@@ -66,11 +75,11 @@ describe kernel_context("a kernel's per-block context", ${
 		Mono<AddNoise> mono;
 		Cong noise{99};
 		Cong reference{99};
-		std::vector<q31> block(37, 0);
+		std::vector<q31> block(37, q31::from_raw(0));
 		mono.render_block(block, block, noise);
 		int32_t mismatches = 0;
 		for (q31 v : block) {
-			mismatches += v != static_cast<q31>(reference.next() >> 8);
+			mismatches += v != q31::from_raw(static_cast<int32_t>(reference.next() >> 8));
 		}
 		expect(mismatches).to_equal(0);
 		expect(noise.state()).to_equal(reference.state());
@@ -80,11 +89,11 @@ describe kernel_context("a kernel's per-block context", ${
 		Stereo<AddNoise> stereo;
 		Cong noise{7};
 		Cong reference{7};
-		std::vector<q31> interleaved(2 * 19, 0);
+		std::vector<q31> interleaved(2 * 19, q31::from_raw(0));
 		stereo.render_block(as_frames(interleaved), as_frames(interleaved), noise);
 		int32_t mismatches = 0;
 		for (q31 v : interleaved) { // L0 R0 L1 R1 ...: the draws in order
-			mismatches += v != static_cast<q31>(reference.next() >> 8);
+			mismatches += v != q31::from_raw(static_cast<int32_t>(reference.next() >> 8));
 		}
 		expect(mismatches).to_equal(0);
 		expect(noise.state()).to_equal(reference.state());
@@ -93,16 +102,16 @@ describe kernel_context("a kernel's per-block context", ${
 	it("carries across blocks through the owner's stream", _ {
 		Stereo<AddNoise> stereo;
 		Cong noise{3};
-		std::vector<q31> first(2 * 8, 0);
-		std::vector<q31> second(2 * 8, 0);
+		std::vector<q31> first(2 * 8, q31::from_raw(0));
+		std::vector<q31> second(2 * 8, q31::from_raw(0));
 		stereo.render_block(as_frames(first), as_frames(first), noise);
 		stereo.render_block(as_frames(second), as_frames(second), noise);
 		Stereo<AddNoise> whole;
 		Cong once{3};
-		std::vector<q31> both(2 * 16, 0);
+		std::vector<q31> both(2 * 16, q31::from_raw(0));
 		whole.render_block(as_frames(both), as_frames(both), once);
 		first.insert(first.end(), second.begin(), second.end());
-		expect(first).to_equal(both);
+		expect(raw_words(first)).to_equal(raw_words(both));
 	});
 });
 // clang-format on

@@ -43,8 +43,8 @@ struct Rig {
 	uint32_t clock_next{1};
 	Voice voice;
 	std::array<std::array<int32_t, kBlock * 2>, 4> spare{};
-	std::array<deluge::dsp::q31, kBlock * 2> fade{};
-	std::array<deluge::dsp::q31, kBlock * 2> parallel{};
+	std::array<int32_t, kBlock * 2> fade{};
+	std::array<int32_t, kBlock * 2> parallel{};
 	std::array<int32_t, kBlock + 4> sync{};
 	std::array<int32_t, kBlock * 2> out{};
 

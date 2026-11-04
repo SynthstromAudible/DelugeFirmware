@@ -425,7 +425,7 @@ uint32_t Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge::m
 	    .clipping_amount = cfg.clipping_amount,
 	};
 	if (did_stereo_temp_buffer) {
-		const std::span<dsp::q31> stereo{osc_buffer, osc_buffer + (num_samples << 1)};
+		const std::span<q31_t> stereo{osc_buffer, osc_buffer + (num_samples << 1)};
 		if (params_.param_final_values[params::LOCAL_FOLD] > 0) {
 			dsp::fixed::Wavefolder{dsp::Q<31>::from_raw(params_.param_final_values[params::LOCAL_FOLD])}.render_block(
 			    dsp::typed_view(stereo), dsp::typed_view(stereo));
@@ -439,7 +439,7 @@ uint32_t Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge::m
 		}
 	}
 	else {
-		const std::span<dsp::q31> mono{osc_buffer, osc_buffer + num_samples};
+		const std::span<q31_t> mono{osc_buffer, osc_buffer + num_samples};
 		// wavefolding pre filter
 		if (params_.param_final_values[params::LOCAL_FOLD] > 0) {
 			dsp::fixed::Wavefolder{dsp::Q<31>::from_raw(params_.param_final_values[params::LOCAL_FOLD])}.render_block(

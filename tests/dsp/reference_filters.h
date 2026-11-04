@@ -68,7 +68,6 @@
 
 namespace filters_reference {
 
-using deluge::dsp::q31;
 using deluge::dsp::StereoSample;
 using deluge::dsp::fixed::FilterRoute;
 using deluge::dsp::fixed::HighPassSlot;
@@ -82,9 +81,9 @@ using deluge::dsp::test::RawFrame;
 /// @brief One block's filter settings as raw words, as the references read them: the cutoff Q31, the resonance and
 /// morph Q29. @ref typed gives the kernels' FilterConfig.
 struct FilterConfig {
-	q31 frequency;
-	q31 resonance;
-	q31 morph;
+	q31_t frequency;
+	q31_t resonance;
+	q31_t morph;
 	bool allow_oversampling;
 };
 
@@ -104,7 +103,7 @@ struct Digest {
 
 	/// @brief Folds in one 32-bit word.
 	void add(uint32_t word) { value = (value ^ word) * 1099511628211ULL; }
-	/// @brief Folds in a signed word (a q31 sample or coefficient) by its bits.
+	/// @brief Folds in a signed word (a Q31 sample or coefficient) by its bits.
 	void add(int32_t word) { add(static_cast<uint32_t>(word)); }
 	/// @brief Folds in a byte, widened to a word.
 	void add(uint8_t word) { add(static_cast<uint32_t>(word)); }
@@ -119,8 +118,8 @@ struct Digest {
 		add(static_cast<uint32_t>(word));
 	}
 	/// @brief Folds in each sample, in order.
-	void add(std::span<const q31> samples) {
-		for (const q31 s : samples) {
+	void add(std::span<const q31_t> samples) {
+		for (const q31_t s : samples) {
 			add(s);
 		}
 	}
@@ -142,22 +141,22 @@ struct Digest {
 
 /// @brief What the legacy cutoff warp returns: tan(f) (Q28), 1 / (1 + tan(f)) (Q31) and the moveability (Q31).
 struct CurvedFrequency {
-	q31 tanned;
-	q31 divide_by_one_plus_tanned;
-	q31 fc;
+	q31_t tanned;
+	q31_t divide_by_one_plus_tanned;
+	q31_t fc;
 };
 
 /// @brief The cutoff warp the filters configure from: `curve_frequency` (filter_modes.h), copied.
-[[nodiscard]] inline CurvedFrequency curve_frequency(q31 frequency) {
+[[nodiscard]] inline CurvedFrequency curve_frequency(q31_t frequency) {
 	/// One at Q27 (where half of a Q28 tan lands).
 	constexpr int32_t kOneQ27 = 134217728;
 	/// One at Q58: divided by a Q27 value, it gives the reciprocal at Q31.
 	constexpr double kOneQ58 = 288230376151711744.0;
-	const q31 tanned = deluge::dsp::fixed::instant_tan(lshift_and_saturate<5>(frequency));
+	const q31_t tanned = deluge::dsp::fixed::instant_tan(lshift_and_saturate<5>(frequency));
 	// Saturated before the cast, as the legacy firmware's VCVT saturates it on the A9: at cutoff 0 the quotient is
 	// 2^31, whose plain cast is undefined (INT32_MIN on x86).
 	const auto divide_by_one_plus_tanned =
-	    static_cast<q31>(std::min(kOneQ58 / static_cast<double>(kOneQ27 + (tanned >> 1)), double{INT32_MAX}));
+	    static_cast<q31_t>(std::min(kOneQ58 / static_cast<double>(kOneQ27 + (tanned >> 1)), double{INT32_MAX}));
 	return {
 	    .tanned = tanned,
 	    .divide_by_one_plus_tanned = divide_by_one_plus_tanned,
@@ -170,9 +169,9 @@ class ReferenceOnePole {
 public:
 	/// @brief One sample through the low-pass: returns the section's output, Q31, and advances its memory.
 	/// @param moveability tan(f)/(1+tan(f)), Q31.
-	[[nodiscard, gnu::always_inline]] DELUGE_REFERENCE_LEGACY_ARITHMETIC q31 lowPass(q31 input, q31 moveability) {
-		const q31 step = multiply_32x32_rshift32_rounded(input - memory_, moveability) << 1;
-		const q31 output = step + memory_;
+	[[nodiscard, gnu::always_inline]] DELUGE_REFERENCE_LEGACY_ARITHMETIC q31_t lowPass(q31_t input, q31_t moveability) {
+		const q31_t step = multiply_32x32_rshift32_rounded(input - memory_, moveability) << 1;
+		const q31_t output = step + memory_;
 		memory_ = output + step;
 		return output;
 	}
@@ -180,20 +179,20 @@ public:
 	/// @brief One sample through the all-pass built on the same section: twice the low-pass output less the
 	/// input, Q31.
 	/// @param moveability tan(f)/(1+tan(f)), Q31.
-	[[nodiscard, gnu::always_inline]] DELUGE_REFERENCE_LEGACY_ARITHMETIC q31 allPass(q31 input, q31 moveability) {
-		const q31 step = multiply_32x32_rshift32_rounded(input - memory_, moveability) << 1;
-		const q31 output = step + memory_;
+	[[nodiscard, gnu::always_inline]] DELUGE_REFERENCE_LEGACY_ARITHMETIC q31_t allPass(q31_t input, q31_t moveability) {
+		const q31_t step = multiply_32x32_rshift32_rounded(input - memory_, moveability) << 1;
+		const q31_t output = step + memory_;
 		memory_ = step + output;
 		return (output * 2) - input;
 	}
 
 	/// @brief The memory scaled for a ladder's feedback: memory × @p feedback_amount (Q31) × 2.
-	[[nodiscard, gnu::always_inline]] q31 feedbackOutput(q31 feedback_amount) const {
+	[[nodiscard, gnu::always_inline]] q31_t feedbackOutput(q31_t feedback_amount) const {
 		return multiply_32x32_rshift32_rounded(memory_, feedback_amount) << 2;
 	}
 
 	/// @brief The memory scaled for a ladder's feedback, at half scale: memory × @p feedback_amount (Q31) ÷ 2.
-	[[nodiscard, gnu::always_inline]] q31 feedbackOutputUnshifted(q31 feedback_amount) const {
+	[[nodiscard, gnu::always_inline]] q31_t feedbackOutputUnshifted(q31_t feedback_amount) const {
 		return multiply_32x32_rshift32_rounded(memory_, feedback_amount);
 	}
 
@@ -201,10 +200,10 @@ public:
 	void reset() { memory_ = 0; }
 
 	/// @brief The memory, Q31.
-	[[nodiscard]] q31 memory() const { return memory_; }
+	[[nodiscard]] q31_t memory() const { return memory_; }
 
 private:
-	q31 memory_{0};
+	q31_t memory_{0};
 };
 
 /// @brief The legacy antialiased tanh, copied: each output interpolated between this sample's and the previous one's
@@ -223,7 +222,7 @@ public:
 	void setDrive(uint32_t drive) { drive_ = drive; }
 
 	/// @brief One sample (Q31) through the curve, shifted down by drive + 1.
-	[[nodiscard, gnu::always_inline]] q31 render(q31 sample) {
+	[[nodiscard, gnu::always_inline]] q31_t render(q31_t sample) {
 		const uint32_t position =
 		    static_cast<uint32_t>(lshift_and_saturate_unknown(sample, static_cast<uint8_t>(drive_))) + kSilent;
 		const int32_t out =
@@ -245,7 +244,7 @@ private:
 };
 
 /// @brief The scratch a filter needs while it fades: at least the block's samples (two per frame in stereo).
-using FadeScratch = std::span<q31>;
+using FadeScratch = std::span<q31_t>;
 
 /// @brief The legacy filters' dry/wet fade, copied: the dry level a float stepped by ×0.99 per sample, the fade ending
 /// once it falls below 0.001 (compared as a double), the wet level derived from it at Q31.
@@ -261,11 +260,11 @@ public:
 	[[nodiscard]] bool active() const { return !(dry_ < 0.001); }
 
 	/// @brief Copies the dry @p block into @p scratch before the filter runs over it.
-	void keepDry(std::span<const q31> block, FadeScratch scratch) const { std::ranges::copy(block, scratch.begin()); }
+	void keepDry(std::span<const q31_t> block, FadeScratch scratch) const { std::ranges::copy(block, scratch.begin()); }
 
 	/// @brief Blends the filtered @p block with the dry copy in @p scratch, stepping the fade once per sample (each
 	/// channel's sample in an interleaved stereo block steps it).
-	void blend(std::span<q31> block, FadeScratch scratch) {
+	void blend(std::span<q31_t> block, FadeScratch scratch) {
 		for (std::size_t i = 0; i < block.size(); i++) {
 			block[i] = deluge::dsp::fixed::dry_wet_blend(deluge::dsp::Q<31>::from_raw(scratch[i]),
 			                                             deluge::dsp::Q<31>::from_raw(block[i]),
@@ -284,7 +283,7 @@ public:
 	/// @brief The dry level.
 	[[nodiscard]] float dry() const { return dry_; }
 	/// @brief The wet level, Q31.
-	[[nodiscard]] q31 wet() const { return wet_; }
+	[[nodiscard]] q31_t wet() const { return wet_; }
 
 	/// @brief Folds the dry and wet levels into @p d.
 	void digest(Digest& d) const {
@@ -296,11 +295,11 @@ private:
 	/// @brief One sample's step: dry × 0.99 (in double, stored as float), wet = kOneQ31 × (1 - dry) in float.
 	void step() {
 		dry_ = static_cast<float>(dry_ * 0.99);
-		wet_ = static_cast<q31>(static_cast<float>(kOneQ31) * (1.0F - dry_));
+		wet_ = static_cast<q31_t>(static_cast<float>(kOneQ31) * (1.0F - dry_));
 	}
 
 	float dry_{1.0F};
-	q31 wet_{kOneQ31};
+	q31_t wet_{kOneQ31};
 };
 
 namespace detail {
@@ -324,8 +323,8 @@ inline constexpr std::array<int16_t, 65> kResonanceLimits = {
 };
 
 /// The next value of the synth-wide noise generator, Q31 across its full range.
-[[gnu::always_inline]] inline q31 draw_ladder_noise() {
-	return static_cast<q31>(deluge::synth_noise.next());
+[[gnu::always_inline]] inline q31_t draw_ladder_noise() {
+	return static_cast<q31_t>(deluge::synth_noise.next());
 }
 
 } // namespace detail
@@ -337,7 +336,7 @@ class ReferenceLowPassLadder {
 public:
 	/// One channel's ladder: its noise follower (Q31, a quarter of the noise's range) and its four sections.
 	struct Channel {
-		q31 noise_last{};
+		q31_t noise_last{};
 		std::array<ReferenceOnePole, 4> sections{};
 
 		void reset() {
@@ -349,10 +348,10 @@ public:
 
 	/// @brief Takes one block's settings.
 	/// @return @p gain (Q31) compensated for this filter's resonance and mode.
-	[[nodiscard]] q31 configure(q31 gain, const FilterConfig& config, LowPassLadderMode mode) {
+	[[nodiscard]] q31_t configure(q31_t gain, const FilterConfig& config, LowPassLadderMode mode) {
 		mode_ = mode;
 		morph_ = lshift_and_saturate<2>(config.morph);
-		q31 frequency = config.frequency;
+		q31_t frequency = config.frequency;
 
 		if (mode_ == LowPassLadderMode::TRANSISTOR_24DB_DRIVE) {
 			const int32_t resonance = kOneQ31 - (config.resonance << 2);
@@ -392,14 +391,14 @@ public:
 
 		const CurvedFrequency curved = curve_frequency(frequency);
 		divide_by_one_plus_tanned_ = curved.divide_by_one_plus_tanned;
-		moveability_ = std::max(curved.fc, q31{4317840});
+		moveability_ = std::max(curved.fc, q31_t{4317840});
 
 		if (mode_ == LowPassLadderMode::TRANSISTOR_12DB) {
 			// Between -2 and 0, Q30.
 			const int32_t moveability_negative = moveability_ - 1073741824;
 			feedbacks_[1] = multiply_32x32_rshift32_rounded(moveability_negative, divide_by_one_plus_tanned_) << 1;
 			feedbacks_[0] = multiply_32x32_rshift32_rounded(feedbacks_[1], moveability_) << 1;
-			divide_by_total_moveability_and_processed_resonance_ = static_cast<q31>(
+			divide_by_total_moveability_and_processed_resonance_ = static_cast<q31_t>(
 			    int64_t{67108864} * 1073741824
 			    / (67108864
 			       + multiply_32x32_rshift32_rounded(
@@ -422,7 +421,7 @@ public:
 			            multiply_32x32_rshift32_rounded(
 			                moveability_, multiply_32x32_rshift32_rounded(moveability_, processed_resonance_))));
 			divide_by_total_moveability_and_processed_resonance_ =
-			    static_cast<q31>(72057594037927936.0 / static_cast<double>(one_plus_loop_gain));
+			    static_cast<q31_t>(72057594037927936.0 / static_cast<double>(one_plus_loop_gain));
 		}
 
 		if (mode_ != LowPassLadderMode::TRANSISTOR_24DB_DRIVE) {
@@ -443,13 +442,13 @@ public:
 		}
 		else {
 			// The drive ladder's output is louder.
-			gain = static_cast<q31>(gain * 0.8);
+			gain = static_cast<q31_t>(gain * 0.8);
 		}
 		return gain;
 	}
 
 	/// @brief Filters a mono @p block in place.
-	void render_mono(std::span<q31> block, FadeScratch scratch) {
+	void render_mono(std::span<q31_t> block, FadeScratch scratch) {
 		const bool fading = fade_.active();
 		if (fading) {
 			fade_.keepDry(block, scratch);
@@ -461,7 +460,7 @@ public:
 	}
 
 	/// @brief Filters an interleaved L/R block in place.
-	void render_stereo(std::span<q31> interleaved, FadeScratch scratch) {
+	void render_stereo(std::span<q31_t> interleaved, FadeScratch scratch) {
 		const bool fading = fade_.active();
 		if (fading) {
 			fade_.keepDry(interleaved, scratch);
@@ -514,7 +513,7 @@ public:
 		d.add(moveability_);
 		d.add(morph_);
 		d.add(divide_by_one_plus_tanned_);
-		for (const q31 feedback : feedbacks_) {
+		for (const q31_t feedback : feedbacks_) {
 			d.add(feedback);
 		}
 		d.add(oversample_);
@@ -522,69 +521,69 @@ public:
 	}
 
 private:
-	[[nodiscard, gnu::always_inline]] q31 noisyMoveability(Channel& channel) const {
-		const q31 noise = detail::draw_ladder_noise() >> 2;
-		const q31 distance_to_go = noise - channel.noise_last;
+	[[nodiscard, gnu::always_inline]] q31_t noisyMoveability(Channel& channel) const {
+		const q31_t noise = detail::draw_ladder_noise() >> 2;
+		const q31_t distance_to_go = noise - channel.noise_last;
 		channel.noise_last += distance_to_go >> 7;
 		return moveability_ + multiply_32x32_rshift32(moveability_, channel.noise_last);
 	}
 
-	[[nodiscard, gnu::always_inline]] DELUGE_REFERENCE_LEGACY_ARITHMETIC q31 scaleInput(q31 input,
-	                                                                                    q31 feedbacks_sum) const {
-		const q31 scaled = multiply_32x32_rshift32_rounded(
-		                       (input - (multiply_32x32_rshift32_rounded(feedbacks_sum, processed_resonance_) << 3)),
-		                       divide_by_total_moveability_and_processed_resonance_)
-		                   << 2;
+	[[nodiscard, gnu::always_inline]] DELUGE_REFERENCE_LEGACY_ARITHMETIC q31_t scaleInput(q31_t input,
+	                                                                                      q31_t feedbacks_sum) const {
+		const q31_t scaled = multiply_32x32_rshift32_rounded(
+		                         (input - (multiply_32x32_rshift32_rounded(feedbacks_sum, processed_resonance_) << 3)),
+		                         divide_by_total_moveability_and_processed_resonance_)
+		                     << 2;
 		if (morph_ > 0 || processed_resonance_ > 510000000) {
-			const q31 extra = 2 * multiply_32x32_rshift32(input, morph_);
+			const q31_t extra = 2 * multiply_32x32_rshift32(input, morph_);
 			return raw_shaping::tanh<2>(scaled + extra);
 		}
 		return scaled;
 	}
 
-	[[nodiscard, gnu::always_inline]] DELUGE_REFERENCE_LEGACY_ARITHMETIC q31 render12dB(q31 input,
-	                                                                                    Channel& channel) const {
-		const q31 noisy_m = noisyMoveability(channel);
+	[[nodiscard, gnu::always_inline]] DELUGE_REFERENCE_LEGACY_ARITHMETIC q31_t render12dB(q31_t input,
+	                                                                                      Channel& channel) const {
+		const q31_t noisy_m = noisyMoveability(channel);
 		auto& [first, second, third, fourth] = channel.sections;
-		const q31 feedbacks_sum = first.feedbackOutput(feedbacks_[0]) + second.feedbackOutput(feedbacks_[1])
-		                          + third.feedbackOutput(divide_by_one_plus_tanned_);
-		const q31 x = scaleInput(input, feedbacks_sum);
+		const q31_t feedbacks_sum = first.feedbackOutput(feedbacks_[0]) + second.feedbackOutput(feedbacks_[1])
+		                            + third.feedbackOutput(divide_by_one_plus_tanned_);
+		const q31_t x = scaleInput(input, feedbacks_sum);
 		return third.allPass(second.lowPass(first.lowPass(x, noisy_m), noisy_m), noisy_m) << 1;
 	}
 
-	[[nodiscard, gnu::always_inline]] DELUGE_REFERENCE_LEGACY_ARITHMETIC q31 render24dB(q31 input,
-	                                                                                    Channel& channel) const {
-		const q31 noisy_m = noisyMoveability(channel);
+	[[nodiscard, gnu::always_inline]] DELUGE_REFERENCE_LEGACY_ARITHMETIC q31_t render24dB(q31_t input,
+	                                                                                      Channel& channel) const {
+		const q31_t noisy_m = noisyMoveability(channel);
 		auto& [first, second, third, fourth] = channel.sections;
 		// The last section's feedback "should" be halved onto Q30, but the ladder sounds better (and reaches full
 		// resonance) without.
-		const q31 feedbacks_sum =
+		const q31_t feedbacks_sum =
 		    (first.feedbackOutputUnshifted(feedbacks_[0]) + second.feedbackOutputUnshifted(feedbacks_[1])
 		     + third.feedbackOutputUnshifted(feedbacks_[2])
 		     + fourth.feedbackOutputUnshifted(divide_by_one_plus_tanned_))
 		    << 2;
-		const q31 x = scaleInput(input, feedbacks_sum);
+		const q31_t x = scaleInput(input, feedbacks_sum);
 		return fourth.lowPass(third.lowPass(second.lowPass(first.lowPass(x, noisy_m), noisy_m), noisy_m), noisy_m) << 1;
 	}
 
-	[[nodiscard, gnu::always_inline]] DELUGE_REFERENCE_LEGACY_ARITHMETIC q31 renderDrive(q31 input,
-	                                                                                     Channel& channel) const {
-		const q31 noisy_m = noisyMoveability(channel);
+	[[nodiscard, gnu::always_inline]] DELUGE_REFERENCE_LEGACY_ARITHMETIC q31_t renderDrive(q31_t input,
+	                                                                                       Channel& channel) const {
+		const q31_t noisy_m = noisyMoveability(channel);
 		auto& [first, second, third, fourth] = channel.sections;
-		const q31 feedbacks_sum =
+		const q31_t feedbacks_sum =
 		    (first.feedbackOutputUnshifted(feedbacks_[0]) + second.feedbackOutputUnshifted(feedbacks_[1])
 		     + third.feedbackOutputUnshifted(feedbacks_[2])
 		     + fourth.feedbackOutputUnshifted(divide_by_one_plus_tanned_))
 		    << 2;
 		// The feedback is saturated; the input is not, as that is where it would alias most.
-		const q31 x = scaleInput(input, raw_shaping::tanh<7>(feedbacks_sum));
-		const q31 a = first.lowPass(x, noisy_m);
-		const q31 b = second.lowPass(a, noisy_m);
-		const q31 c = third.lowPass(b, noisy_m);
+		const q31_t x = scaleInput(input, raw_shaping::tanh<7>(feedbacks_sum));
+		const q31_t a = first.lowPass(x, noisy_m);
+		const q31_t b = second.lowPass(a, noisy_m);
+		const q31_t c = third.lowPass(b, noisy_m);
 		return fourth.lowPass(c, noisy_m) << 1;
 	}
 
-	[[nodiscard, gnu::always_inline]] q31 renderDriveOutput(q31 input, Channel& channel, bool oversample) const {
+	[[nodiscard, gnu::always_inline]] q31_t renderDriveOutput(q31_t input, Channel& channel, bool oversample) const {
 		if (oversample) {
 			// The input held for both halves of the sample; the first output is dropped.
 			std::ignore = renderDrive(input, channel);
@@ -592,26 +591,26 @@ private:
 		return raw_shaping::tanh<4>(renderDrive(input, channel));
 	}
 
-	void filterMono(std::span<q31> block) {
+	void filterMono(std::span<q31_t> block) {
 		switch (mode_) {
 		case LowPassLadderMode::TRANSISTOR_12DB:
-			for (q31& sample : block) {
+			for (q31_t& sample : block) {
 				sample = render12dB(sample, left_);
 			}
 			break;
 		case LowPassLadderMode::TRANSISTOR_24DB:
-			for (q31& sample : block) {
+			for (q31_t& sample : block) {
 				sample = render24dB(sample, left_);
 			}
 			break;
 		case LowPassLadderMode::TRANSISTOR_24DB_DRIVE:
 			if (oversample_) {
-				for (q31& sample : block) {
+				for (q31_t& sample : block) {
 					sample = renderDriveOutput(sample, left_, true);
 				}
 			}
 			else {
-				for (q31& sample : block) {
+				for (q31_t& sample : block) {
 					sample = renderDriveOutput(sample, left_, false);
 				}
 			}
@@ -619,7 +618,7 @@ private:
 		}
 	}
 
-	void filterStereo(std::span<q31> interleaved) {
+	void filterStereo(std::span<q31_t> interleaved) {
 		switch (mode_) {
 		case LowPassLadderMode::TRANSISTOR_12DB:
 			for (std::size_t i = 0; i < interleaved.size(); i += 2) {
@@ -655,17 +654,17 @@ private:
 	Channel right_{};
 
 	/// The resonance as fed back, Q30.
-	q31 processed_resonance_{};
+	q31_t processed_resonance_{};
 	/// 1 / (1 + the loop gain through the sections and resonance), Q30.
-	q31 divide_by_total_moveability_and_processed_resonance_{};
+	q31_t divide_by_total_moveability_and_processed_resonance_{};
 	/// tan(f) / (1 + tan(f)), Q31, held at least 4317840.
-	q31 moveability_{};
+	q31_t moveability_{};
 	/// The morph, Q31.
-	q31 morph_{};
+	q31_t morph_{};
 	/// 1 / (1 + tan(f)), Q31: the last section's feedback.
-	q31 divide_by_one_plus_tanned_{};
+	q31_t divide_by_one_plus_tanned_{};
 	/// The first three sections' feedbacks, Q30.
-	std::array<q31, 3> feedbacks_{};
+	std::array<q31_t, 3> feedbacks_{};
 	/// Whether the drive ladder runs at twice the rate this block.
 	bool oversample_{};
 
@@ -691,7 +690,7 @@ public:
 
 	/// @brief Takes one block's settings.
 	/// @return @p gain (Q31) cut as the resonance rises.
-	[[nodiscard]] q31 configure(q31 gain, const FilterConfig& config) {
+	[[nodiscard]] q31_t configure(q31_t gain, const FilterConfig& config) {
 		constexpr int32_t kExtraFeedback = 1200000000;
 		morph_ = lshift_and_saturate<2>(config.morph);
 		const CurvedFrequency curved = curve_frequency(config.frequency);
@@ -706,7 +705,7 @@ public:
 
 		processed_resonance_ = multiply_32x32_rshift32(processed_resonance_, kExtraFeedback) << 1;
 		divide_by_processed_resonance_ =
-		    static_cast<q31>(2147483648.0 / static_cast<double>(processed_resonance_ >> 23));
+		    static_cast<q31_t>(2147483648.0 / static_cast<double>(processed_resonance_ >> 23));
 
 		// Q29 (1 is 536870912).
 		const int32_t moveability_times_resonance = multiply_32x32_rshift32(processed_resonance_unaltered, fc_);
@@ -722,19 +721,19 @@ public:
 		                                                    / static_cast<double>(to_divide_by));
 
 		// The volume falls as the resonance rises.
-		const q31 raw_resonance = std::min(config.resonance, q31{kOneQ31 >> 2}) << 2;
-		q31 squared = multiply_32x32_rshift32(raw_resonance, raw_resonance) << 1;
+		const q31_t raw_resonance = std::min(config.resonance, q31_t{kOneQ31 >> 2}) << 2;
+		q31_t squared = multiply_32x32_rshift32(raw_resonance, raw_resonance) << 1;
 		squared = (multiply_32x32_rshift32(squared, squared) >> 4) * 19;
 		return multiply_32x32_rshift32(gain, kOneQ31 - squared) << 1;
 	}
 
 	/// @brief Filters a mono @p block in place.
-	void render_mono(std::span<q31> block, FadeScratch scratch) {
+	void render_mono(std::span<q31_t> block, FadeScratch scratch) {
 		const bool fading = fade_.active();
 		if (fading) {
 			fade_.keepDry(block, scratch);
 		}
-		for (q31& sample : block) {
+		for (q31_t& sample : block) {
 			sample = render(sample, left_);
 		}
 		if (fading) {
@@ -743,7 +742,7 @@ public:
 	}
 
 	/// @brief Filters an interleaved L/R block in place.
-	void render_stereo(std::span<q31> interleaved, FadeScratch scratch) {
+	void render_stereo(std::span<q31_t> interleaved, FadeScratch scratch) {
 		const bool fading = fade_.active();
 		if (fading) {
 			fade_.keepDry(interleaved, scratch);
@@ -802,16 +801,18 @@ public:
 	}
 
 private:
-	[[nodiscard, gnu::always_inline]] DELUGE_REFERENCE_LEGACY_ARITHMETIC q31 render(q31 input, Channel& channel) const {
+	[[nodiscard, gnu::always_inline]] DELUGE_REFERENCE_LEGACY_ARITHMETIC q31_t render(q31_t input,
+	                                                                                  Channel& channel) const {
 		// The inputs are small (about 16 bits), so this nudge is too; the floor is about as low as the cutoff goes
 		// without sounding broken.
-		constexpr q31 kLowerLimit = -(kOneQ31 >> 8);
-		const q31 temp_fc = std::max(multiply_accumulate_32x32_rshift32_rounded(fc_, input << 4, morph_), kLowerLimit);
+		constexpr q31_t kLowerLimit = -(kOneQ31 >> 8);
+		const q31_t temp_fc =
+		    std::max(multiply_accumulate_32x32_rshift32_rounded(fc_, input << 4, morph_), kLowerLimit);
 
-		const q31 first_output = input - channel.high_pass_1.lowPass(input, temp_fc);
-		const q31 feedbacks = channel.high_pass_3.feedbackOutput(high_pass_3_feedback_)
-		                      + channel.low_pass_1.feedbackOutput(low_pass_1_feedback_);
-		q31 a = multiply_32x32_rshift32_rounded(divide_by_total_moveability_, first_output + feedbacks) << (4 + 1);
+		const q31_t first_output = input - channel.high_pass_1.lowPass(input, temp_fc);
+		const q31_t feedbacks = channel.high_pass_3.feedbackOutput(high_pass_3_feedback_)
+		                        + channel.low_pass_1.feedbackOutput(low_pass_1_feedback_);
+		q31_t a = multiply_32x32_rshift32_rounded(divide_by_total_moveability_, first_output + feedbacks) << (4 + 1);
 
 		// Saturate (and antialias) only at high resonance.
 		if (processed_resonance_ > 900000000) {
@@ -839,19 +840,19 @@ private:
 	Channel right_{};
 
 	/// tan(f) / (1 + tan(f)), Q31.
-	q31 fc_{};
+	q31_t fc_{};
 	/// The morph, Q31.
-	q31 morph_{};
+	q31_t morph_{};
 	/// The resonance as fed back, Q30, with the extra feedback applied.
-	q31 processed_resonance_{};
+	q31_t processed_resonance_{};
 	/// The output normalisation: 2^31 over the processed resonance's top 8 bits.
-	q31 divide_by_processed_resonance_{};
+	q31_t divide_by_processed_resonance_{};
 	/// The low-pass section's feedback, Q30.
-	q31 low_pass_1_feedback_{};
+	q31_t low_pass_1_feedback_{};
 	/// The third section's feedback, Q30.
-	q31 high_pass_3_feedback_{};
+	q31_t high_pass_3_feedback_{};
 	/// 1 / (1 - the loop gain), Q28.
-	q31 divide_by_total_moveability_{};
+	q31_t divide_by_total_moveability_{};
 
 	ReferenceDryWetFade fade_{};
 };
@@ -861,17 +862,17 @@ class ReferenceStateVariableFilter {
 public:
 	/// One channel's integrators, Q31.
 	struct Channel {
-		q31 low{};
-		q31 band{};
+		q31_t low{};
+		q31_t band{};
 	};
 
 	/// @brief Takes one block's settings.
 	/// @return @p gain, unchanged.
-	[[nodiscard]] q31 configure(q31 gain, const FilterConfig& config, SvfMode mode) {
-		q31 morph = lshift_and_saturate<2>(config.morph);
+	[[nodiscard]] q31_t configure(q31_t gain, const FilterConfig& config, SvfMode mode) {
+		q31_t morph = lshift_and_saturate<2>(config.morph);
 		fc_ = curve_frequency(config.frequency).fc;
 		// The filter's true cutoff is the arcsine of this rate; × 1.25 brings it loosely in line with the ladders'.
-		constexpr auto kQuarter = static_cast<q31>(kOneQ31 * 0.25);
+		constexpr auto kQuarter = static_cast<q31_t>(kOneQ31 * 0.25);
 		fc_ = fc_ + multiply_32x32_rshift32(fc_, kQuarter);
 
 		band_mode_ = (mode == SvfMode::BAND);
@@ -882,7 +883,7 @@ public:
 		q_ = multiply_32x32_rshift32_rounded(q_, q_) << 1;
 
 		// Each branch keeps the weights from overflowing.
-		constexpr q31 kOneHalf = kOneQ31 >> 1;
+		constexpr q31_t kOneHalf = kOneQ31 >> 1;
 		if (band_mode_) {
 			if (morph > kOneHalf) {
 				morph = 2 * (morph - kOneHalf);
@@ -906,12 +907,12 @@ public:
 	}
 
 	/// @brief Filters a mono @p block in place.
-	void render_mono(std::span<q31> block, FadeScratch scratch) {
+	void render_mono(std::span<q31_t> block, FadeScratch scratch) {
 		const bool fading = fade_.active();
 		if (fading) {
 			fade_.keepDry(block, scratch);
 		}
-		for (q31& sample : block) {
+		for (q31_t& sample : block) {
 			sample = render(sample, left_);
 		}
 		if (fading) {
@@ -920,7 +921,7 @@ public:
 	}
 
 	/// @brief Filters an interleaved L/R block in place.
-	void render_stereo(std::span<q31> interleaved, FadeScratch scratch) {
+	void render_stereo(std::span<q31_t> interleaved, FadeScratch scratch) {
 		const bool fading = fade_.active();
 		if (fading) {
 			fade_.keepDry(interleaved, scratch);
@@ -977,21 +978,22 @@ public:
 	}
 
 private:
-	[[nodiscard, gnu::always_inline]] DELUGE_REFERENCE_LEGACY_ARITHMETIC q31 render(q31 input, Channel& channel) const {
-		q31 low = channel.low;
-		q31 band = channel.band;
+	[[nodiscard, gnu::always_inline]] DELUGE_REFERENCE_LEGACY_ARITHMETIC q31_t render(q31_t input,
+	                                                                                  Channel& channel) const {
+		q31_t low = channel.low;
+		q31_t band = channel.band;
 
 		input = multiply_32x32_rshift32(in_, input);
 
 		low = low + 2 * multiply_32x32_rshift32(band, fc_);
-		q31 high = input - low;
+		q31_t high = input - low;
 		high = high - 2 * multiply_32x32_rshift32(band, q_);
 		band = 2 * multiply_32x32_rshift32(high, fc_) + band;
 		band = raw_shaping::tanh<3>(band); // the band feedback saturates
 
-		q31 low_sum = low;
-		q31 high_sum = high;
-		q31 band_sum = band;
+		q31_t low_sum = low;
+		q31_t high_sum = high;
+		q31_t band_sum = band;
 
 		// The second pass doubles the reach in cutoff.
 		low = low + 2 * multiply_32x32_rshift32(band, fc_);
@@ -1003,7 +1005,7 @@ private:
 		high_sum = high_sum + high;
 		band_sum = band_sum + band;
 
-		q31 result = multiply_32x32_rshift32_rounded(low_sum, c_low_);
+		q31_t result = multiply_32x32_rshift32_rounded(low_sum, c_low_);
 		result = multiply_accumulate_32x32_rshift32_rounded(result, high_sum, c_high_);
 		if (band_mode_) {
 			result = multiply_accumulate_32x32_rshift32_rounded(result, band_sum, c_band_);
@@ -1022,17 +1024,17 @@ private:
 	Channel right_{};
 
 	/// The integrators' rate: tan(f) / (1 + tan(f)) × 1.25, Q31.
-	q31 fc_{};
+	q31_t fc_{};
 	/// The damping, squared, Q31.
-	q31 q_{};
+	q31_t q_{};
 	/// The input's scale, Q31.
-	q31 in_{};
+	q31_t in_{};
 	/// The low output's weight in the blend, Q31.
-	q31 c_low_{};
+	q31_t c_low_{};
 	/// The band output's weight in the blend (band mode only), Q31.
-	q31 c_band_{};
+	q31_t c_band_{};
 	/// The high output's weight in the blend, Q31.
-	q31 c_high_{};
+	q31_t c_high_{};
 	/// Whether the band output joins the blend.
 	bool band_mode_{};
 
@@ -1042,7 +1044,7 @@ private:
 /// @brief The scratch a set needs: the fades', and the parallel route's second copy of the block.
 struct FilterScratch {
 	FadeScratch fade;
-	std::span<q31> parallel;
+	std::span<q31_t> parallel;
 };
 
 /// @brief The legacy filter set, copied: a low-pass and a high-pass slot, each holding a ladder or an SVF in a union,
@@ -1054,8 +1056,8 @@ public:
 
 	/// @brief Takes one block's settings.
 	/// @return The gain going out of the set (Q31).
-	[[nodiscard]] q31 configure(q31 gain, const FilterConfig& low, LowPassSlot low_slot, const FilterConfig& high,
-	                            HighPassSlot high_slot, FilterRoute route) {
+	[[nodiscard]] q31_t configure(q31_t gain, const FilterConfig& low, LowPassSlot low_slot, const FilterConfig& high,
+	                              HighPassSlot high_slot, FilterRoute route) {
 		low_slot_ = low_slot;
 		high_slot_ = high_slot;
 		route_ = route;
@@ -1110,7 +1112,7 @@ public:
 	}
 
 	/// @brief Filters a mono @p block in place.
-	void render_mono(std::span<q31> block, FilterScratch scratch) {
+	void render_mono(std::span<q31_t> block, FilterScratch scratch) {
 		switch (route_) {
 		case FilterRoute::HIGH_TO_LOW:
 			render_high_pass_mono(block, scratch.fade);
@@ -1121,7 +1123,7 @@ public:
 			render_high_pass_mono(block, scratch.fade);
 			break;
 		case FilterRoute::PARALLEL: {
-			const std::span<q31> copy = scratch.parallel.first(block.size());
+			const std::span<q31_t> copy = scratch.parallel.first(block.size());
 			std::ranges::copy(block, copy.begin());
 			render_high_pass_mono(copy, scratch.fade);
 			render_low_pass_mono(block, scratch.fade);
@@ -1132,7 +1134,7 @@ public:
 	}
 
 	/// @brief Filters an interleaved L/R block in place.
-	void render_stereo(std::span<q31> interleaved, FilterScratch scratch) {
+	void render_stereo(std::span<q31_t> interleaved, FilterScratch scratch) {
 		switch (route_) {
 		case FilterRoute::HIGH_TO_LOW:
 			render_high_pass_stereo(interleaved, scratch.fade);
@@ -1143,7 +1145,7 @@ public:
 			render_high_pass_stereo(interleaved, scratch.fade);
 			break;
 		case FilterRoute::PARALLEL: {
-			const std::span<q31> copy = scratch.parallel.first(interleaved.size());
+			const std::span<q31_t> copy = scratch.parallel.first(interleaved.size());
 			std::ranges::copy(interleaved, copy.begin());
 			render_high_pass_stereo(copy, scratch.fade);
 			render_low_pass_stereo(interleaved, scratch.fade);
@@ -1234,7 +1236,7 @@ private:
 		filter->carryFade(fade);
 	}
 
-	static void add_wrapping(std::span<q31> block, std::span<const q31> other) {
+	static void add_wrapping(std::span<q31_t> block, std::span<const q31_t> other) {
 		for (std::size_t i = 0; i < block.size(); i++) {
 			block[i] = deluge::dsp::wrapping_add(block[i], other[i]);
 		}
@@ -1266,7 +1268,7 @@ private:
 		high_held_ = kind;
 	}
 
-	void render_low_pass_mono(std::span<q31> block, FadeScratch scratch) {
+	void render_low_pass_mono(std::span<q31_t> block, FadeScratch scratch) {
 		switch (low_slot_.kind) {
 		case LowPassSlot::Kind::LADDER:
 			low_pass_.ladder.render_mono(block, scratch);
@@ -1279,7 +1281,7 @@ private:
 		}
 	}
 
-	void render_high_pass_mono(std::span<q31> block, FadeScratch scratch) {
+	void render_high_pass_mono(std::span<q31_t> block, FadeScratch scratch) {
 		switch (high_slot_.kind) {
 		case HighPassSlot::Kind::LADDER:
 			high_pass_.ladder.render_mono(block, scratch);
@@ -1292,7 +1294,7 @@ private:
 		}
 	}
 
-	void render_low_pass_stereo(std::span<q31> interleaved, FadeScratch scratch) {
+	void render_low_pass_stereo(std::span<q31_t> interleaved, FadeScratch scratch) {
 		switch (low_slot_.kind) {
 		case LowPassSlot::Kind::LADDER:
 			low_pass_.ladder.render_stereo(interleaved, scratch);
@@ -1305,7 +1307,7 @@ private:
 		}
 	}
 
-	void render_high_pass_stereo(std::span<q31> interleaved, FadeScratch scratch) {
+	void render_high_pass_stereo(std::span<q31_t> interleaved, FadeScratch scratch) {
 		switch (high_slot_.kind) {
 		case HighPassSlot::Kind::LADDER:
 			high_pass_.ladder.render_stereo(interleaved, scratch);

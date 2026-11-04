@@ -39,13 +39,12 @@
 
 using namespace deluge::dsp::fixed;
 using deluge::dsp::Q;
-using deluge::dsp::q31;
 using deluge::dsp::StereoSample;
 
 namespace {
 
 constexpr std::size_t kBlock = 128;
-constexpr q31 kUnity = 1 << 27; // a channel gain of 1, 4.27 signed
+constexpr q31_t kUnity = 1 << 27; // a channel gain of 1, 4.27 signed
 
 /// The input: 512 frames, four blocks.
 const std::vector<int32_t> kSignal{
@@ -741,11 +740,11 @@ struct Rig {
 
 	explicit Rig(const CompressorKnobs& knobs = {}) { compressor.configure(knobs); }
 
-	std::vector<int32_t> render(std::vector<StereoSample> block, q31 volume_l, q31 volume_r, q31 final_volume) {
+	std::vector<int32_t> render(std::vector<StereoSample> block, q31_t volume_l, q31_t volume_r, q31_t final_volume) {
 		compressor.render(block, Q<27>::from_raw(volume_l), Q<27>::from_raw(volume_r), Q<29>::from_raw(final_volume));
 		return interleave(block);
 	}
-	std::vector<int32_t> render(std::size_t index, q31 final_volume = kFinalDefault) {
+	std::vector<int32_t> render(std::size_t index, q31_t final_volume = kFinalDefault) {
 		return render(signalBlock(index), kUnity, kUnity, final_volume);
 	}
 };
@@ -782,9 +781,9 @@ describe rms_feedback_compressor("RmsFeedbackCompressor", ${
 	it("takes a threshold set after the knobs", _ {
 		Rig rig;
 		rig.compressor.set_threshold(Q<31>::from_raw(1 << 30));
-		expect(rig.compressor.threshold().raw()).to_equal(q31{1 << 30});
+		expect(rig.compressor.threshold().raw()).to_equal(q31_t{1 << 30});
 		rig.compressor.configure(CompressorKnobs{.blend = Q<31>::from_raw(kOneQ31 - 1)});
-		expect(rig.compressor.threshold().raw()).to_equal(q31{1 << 30});
+		expect(rig.compressor.threshold().raw()).to_equal(q31_t{1 << 30});
 	});
 
 	it("blends at half wet exactly, in place", _ {
@@ -860,7 +859,7 @@ describe rms_feedback_compressor("RmsFeedbackCompressor", ${
 		                                         .sidechain_hpf = Q<31>::from_raw(1 << 30), .blend = Q<31>::from_raw(1 << 30)});
 		const RmsFeedbackCompressor::View knobs = rig.compressor.view();
 		expect(knobs.attack_ms).to_equal(kSecondAttackMs);
-		expect(knobs.wet.raw()).to_equal(q31{1 << 30});
+		expect(knobs.wet.raw()).to_equal(q31_t{1 << 30});
 		expect(digest(with_coefficients_of(knobs, before))).to_equal(digest(before));
 
 		rig.compressor.set_base_gain(0.85F);
@@ -874,8 +873,8 @@ describe rms_feedback_compressor("RmsFeedbackCompressor", ${
 		FixedReferenceRmsFeedbackCompressor set_reference;
 		set.set_threshold(Q<31>::from_raw(1 << 30));
 		set_reference.set_threshold(1 << 30);
-		expect(set.threshold().raw()).to_equal(q31{1 << 30});
-		expect(set.view().threshold_knob.raw()).to_equal(q31{1 << 30});
+		expect(set.threshold().raw()).to_equal(q31_t{1 << 30});
+		expect(set.view().threshold_knob.raw()).to_equal(q31_t{1 << 30});
 		expect(digest(set.view())).to_equal(digest(set_reference.view()));
 
 		RmsFeedbackCompressor configured;
@@ -905,7 +904,7 @@ describe rms_feedback_compressor("RmsFeedbackCompressor", ${
 	});
 
 	it("maps the knobs to times, ratio, cutoff and blend exactly", _ {
-		constexpr std::array<q31, 5> kKnobs{0, 1 << 20, 6 << 24, 1 << 30, kOneQ31};
+		constexpr std::array<q31_t, 5> kKnobs{0, 1 << 20, 6 << 24, 1 << 30, kOneQ31};
 		const std::array<float, 5> attack{kAttackMsZero, kAttackMsLow, kAttackMsMenu, kAttackMsHalf, kAttackMsMax};
 		const std::array<float, 5> release{kReleaseMsZero, kReleaseMsLow, kReleaseMsMenu, kReleaseMsHalf, kReleaseMsMax};
 		const std::array<float, 5> ratio{kRatioZero, kRatioLow, kRatioMenu, kRatioHalf, kRatioMax};

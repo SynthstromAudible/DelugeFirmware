@@ -203,7 +203,7 @@ describe pulse_oscillator("deluge::dsp::fixed PulseOscillator", ${
 
 			PulseOscillator b{Table{kTable, kMag}, 0u, kInc, 0x60000000u};
 			std::array<int32_t, 4> buf{};
-			b.render_block(deluge::dsp::typed_view(deluge::dsp::fixed::Buffer{buf}));
+			b.render_block(deluge::dsp::typed_view(std::span{buf}));
 
 			expect(buf).to_equal(expected);
 		});

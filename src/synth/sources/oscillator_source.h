@@ -16,7 +16,7 @@
  */
 #pragma once
 
-#include "dsp-next/core/types.h"  // deluge::dsp::fixed::Buffer
+#include "dsp-next/core/types.h"  // std::span<int32_t>
 #include "synth/sources/source.h" // Source, SourceBlock, BlockControls
 #include <cstdint>
 #include <cstring>
@@ -43,7 +43,7 @@ public:
 		}
 
 		render_osc_block(block.controls, block,
-		                 deluge::dsp::fixed::Buffer{render_buffer, static_cast<size_t>(block.num_samples)});
+		                 std::span<int32_t>{render_buffer, static_cast<size_t>(block.num_samples)});
 
 		if (block.stereo_buffer) {
 			for (int32_t i = 0; i < block.num_samples; i++) {
@@ -56,8 +56,7 @@ public:
 protected:
 	/// Set the engine's per-block inputs (pitch — and, for the wavetable, its table + morph index) and render the
 	/// mono block into @p out. The oscillator hard-sync work buffer is @c block.sync_scratch.
-	virtual void render_osc_block(const BlockControls& controls, const SourceBlock& block,
-	                              deluge::dsp::fixed::Buffer out) = 0;
+	virtual void render_osc_block(const BlockControls& controls, const SourceBlock& block, std::span<int32_t> out) = 0;
 };
 
 } // namespace deluge::synth

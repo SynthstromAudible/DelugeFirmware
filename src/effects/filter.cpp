@@ -69,8 +69,8 @@ void Filter::process(std::span<dsp::StereoSample> block, dsp::fixed::FilterScrat
 	// The set reads the frames as one interleaved run of samples, left then right.
 	static_assert(std::is_standard_layout_v<dsp::StereoSample>);
 	static_assert(offsetof(dsp::StereoSample, l) == 0);
-	static_assert(offsetof(dsp::StereoSample, r) == sizeof(dsp::q31));
-	static_assert(sizeof(dsp::StereoSample) == 2 * sizeof(dsp::q31));
+	static_assert(offsetof(dsp::StereoSample, r) == sizeof(q31_t));
+	static_assert(sizeof(dsp::StereoSample) == 2 * sizeof(q31_t));
 	set_.render_stereo(std::span<dsp::Q<31>>{&block.data()->l, block.size() * 2}, scratch, noise);
 }
 

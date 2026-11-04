@@ -20,11 +20,9 @@
 #include "dsp-next/core/kernel.h"
 #include "dsp-next/core/lanes.h"
 #include "dsp-next/core/mono.h"
-#include "dsp-next/core/q31_ops.h"
 #include "dsp-next/core/stereo.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/core/types.h"
-#include "dsp-next/core/wrapping.h"
 #include "dsp-next/fixed/filter/one_pole.h"
 #include "dsp-next/fixed/filter/shift_tracker.h"
 #include "dsp-next/fixed/noise/noise.h"
@@ -55,7 +53,7 @@ using Tracker = fixed::ShiftTracker<11>;
 /// A tracker at a shift of 1, whose large steps meet the wraps within a few frames.
 using FastTracker = fixed::ShiftTracker<1>;
 
-/// A processor kernel without modes or prepare: a q31 gain (Q1.31, scaled ×2 to reach unity).
+/// A processor kernel without modes or prepare: a Q31 gain (Q1.31, scaled ×2 to reach unity).
 struct Gain {
 	using value_type = q31;
 	using step_type = q31;
@@ -68,7 +66,7 @@ struct Gain {
 	struct State {};
 	static Coefficients coefficients(const Settings& s) { return {.gain = s.gain}; }
 	[[gnu::always_inline]] static q31 step(const Coefficients& c, const EmptyBlock& /*b*/, State& /*s*/, q31 x) {
-		return multiply_32x32_rshift32(x, c.gain) << 1;
+		return mul_as_wrap<q31>(x, c.gain);
 	}
 };
 
@@ -84,7 +82,7 @@ struct NoisyAdd {
 	struct State {};
 	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
 	[[gnu::always_inline]] static q31 step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& /*s*/, q31 x) {
-		return wrapping_add(x, shared_noise.render());
+		return add_wrap(x, q31::from_raw(shared_noise.render()));
 	}
 };
 
@@ -127,10 +125,12 @@ struct StateBiased {
 		q31 bias; ///< A sixteenth of the sum at the start of the block.
 	};
 	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
-	static Block prepare(const Coefficients& /*c*/, State& s, std::size_t /*n*/) { return {.bias = s.acc >> 4}; }
+	static Block prepare(const Coefficients& /*c*/, State& s, std::size_t /*n*/) {
+		return {.bias = scale_shr_floor<4>(s.acc)};
+	}
 	[[gnu::always_inline]] static q31 step(const Coefficients& /*c*/, const Block& b, State& s, q31 x) {
-		s.acc = wrapping_add(s.acc, x >> 1);
-		return wrapping_add(s.acc, b.bias);
+		s.acc = add_wrap(s.acc, scale_shr_floor<1>(x));
+		return add_wrap(s.acc, b.bias);
 	}
 };
 
@@ -149,7 +149,7 @@ struct Counter {
 	};
 	static Coefficients coefficients(const Settings& s) { return {.by = s.by}; }
 	[[gnu::always_inline]] static q31 step(const Coefficients& c, const EmptyBlock& /*b*/, State& s) {
-		s.n = wrapping_add(s.n, c.by);
+		s.n = add_wrap(s.n, c.by);
 		return s.n;
 	}
 };
@@ -165,7 +165,7 @@ struct RunningDifference {
 	};
 	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
 	[[gnu::always_inline]] static q31 step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& s, q31 a, q31 b) {
-		s.acc = wrapping_add(s.acc, wrapping_sub(a, b));
+		s.acc = add_wrap(s.acc, sub_wrap(a, b));
 		return s.acc;
 	}
 };
@@ -196,7 +196,7 @@ struct BlockFall {
 	};
 	static Coefficients coefficients(const Settings& /*s*/) { return {}; }
 	static q31 advance(const Coefficients& /*c*/, State& s, std::size_t n) {
-		s.level -= static_cast<q31>(n);
+		s.level = sub_wrap(s.level, q31::from_raw(static_cast<int32_t>(n)));
 		return s.level;
 	}
 };
@@ -252,21 +252,13 @@ bool same_state(const State& a, const State& b) {
 	}
 }
 
-/// @brief A raw Q31 word as the sample type @p T: the word itself, or Q<31>.
+/// @brief A raw Q31 word as the sample type @p T.
 template <typename T>
-[[nodiscard]] constexpr T sample(q31 x) {
-	if constexpr (std::same_as<T, q31>) {
-		return x;
-	}
-	else {
-		return T::from_raw(x);
-	}
+[[nodiscard]] constexpr T sample(int32_t x) {
+	return T::from_raw(x);
 }
-/// @brief The raw word of a sample, raw q31 or Q<31>.
-[[nodiscard]] constexpr q31 word(q31 x) {
-	return x;
-}
-[[nodiscard]] constexpr q31 word(Q<31> x) {
+/// @brief The raw word of a sample.
+[[nodiscard]] constexpr int32_t word(Q<31> x) {
 	return x.raw();
 }
 
@@ -492,7 +484,7 @@ struct PackedCounter {
 	static Coefficients coefficients(const Settings& s) { return {.by = s.by}; }
 	template <class V>
 	[[gnu::always_inline]] static V step(const Coefficients& c, const EmptyBlock& /*b*/, StateT<V>& s) {
-		s.n = wrapping_add(s.n, V{c.by});
+		s.n = add_wrap(s.n, c.by);
 		return s.n;
 	}
 };
@@ -510,7 +502,7 @@ static_assert(processor<Lanes<loop_state_test::SplitLoopInPlace, 2>>);
 /// The outputs and both lanes' final States of three @p n-frame blocks through Lanes<K, 2>: set_level before each
 /// block, XOR from the third. @p in_place renders each block over its own input.
 struct SplitLanesRun {
-	std::vector<q31> out; ///< Every frame's lanes, lane 0 first.
+	std::vector<int32_t> out; ///< Every frame's lanes' raw words, lane 0 first.
 	loop_state_test::SplitCore::State lane0;
 	loop_state_test::SplitCore::State lane1;
 };
@@ -523,7 +515,7 @@ SplitLanesRun run_split_lanes(std::size_t n, bool in_place) {
 		if (block == 2) {
 			lanes.configure({.mode = loop_state_test::Mode::XOR});
 		}
-		lanes.template on<&K::set_level>(static_cast<q31>((block * 1000) + 7));
+		lanes.template on<&K::set_level>(q31::from_raw(static_cast<int32_t>((block * 1000) + 7)));
 		const std::vector<q31> l = loop_state_test::input(n, block);
 		const std::vector<q31> r = loop_state_test::input(n, block + 10);
 		std::vector<Frame<q31, 2>> buf(n);
@@ -540,8 +532,8 @@ SplitLanesRun run_split_lanes(std::size_t n, bool in_place) {
 			buf = dst;
 		}
 		for (const Frame<q31, 2>& f : buf) {
-			run.out.push_back(f.lane[0]);
-			run.out.push_back(f.lane[1]);
+			run.out.push_back(f.lane[0].raw());
+			run.out.push_back(f.lane[1].raw());
 		}
 	}
 	run.lane0 = lanes.state(0);
@@ -568,7 +560,9 @@ SplitLanesRun run_split_lane1(std::size_t n, bool in_place) {
 			lanes.template render_lane<1>(buf, dst);
 			buf = dst;
 		}
-		run.out.insert(run.out.end(), buf.begin(), buf.end());
+		for (const q31 x : buf) {
+			run.out.push_back(x.raw());
+		}
 	}
 	run.lane0 = lanes.state(0);
 	run.lane1 = lanes.state(1);
@@ -591,7 +585,7 @@ struct PackedDifference {
 	template <class V>
 	[[gnu::always_inline]] static V step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, StateT<V>& s,
 	                                     std::type_identity_t<V> a, std::type_identity_t<V> b) {
-		s.acc = wrapping_add(s.acc, wrapping_sub(a, b));
+		s.acc = add_wrap(s.acc, sub_wrap(a, b));
 		return s.acc;
 	}
 };
@@ -630,7 +624,7 @@ struct OverAlignedCounter : PackedCounter {
 	using State = StateT<q31>;
 	template <class V>
 	[[gnu::always_inline]] static V step(const Coefficients& c, const EmptyBlock& /*b*/, StateT<V>& s) {
-		s.n = wrapping_add(s.n, V{c.by});
+		s.n = add_wrap(s.n, c.by);
 		return s.n;
 	}
 };
@@ -679,9 +673,9 @@ static_assert(std::same_as<decltype(std::declval<const Stereo<LaneByLane<OnePole
                   && std::same_as<decltype(std::declval<const Stereo<LaneByLane<OnePole>>&>().right()), OnePole::State>,
               "a Stereo's channel states are snapshots in both forms");
 
-/// The extremes of q31.
-constexpr q31 kMin = std::numeric_limits<q31>::min();
-constexpr q31 kMax = std::numeric_limits<q31>::max();
+/// The extremes of a Q31 word.
+constexpr int32_t kMin = std::numeric_limits<int32_t>::min();
+constexpr int32_t kMax = std::numeric_limits<int32_t>::max();
 
 /// @p n frames for the wrap cases: in each lane INT32_MIN, INT32_MAX and full-scale noise in turn, the pattern shifted
 /// by one frame per lane, so x − z, x − y and the outputs leave q31 within a few frames in every lane.
@@ -748,8 +742,8 @@ Mismatches op_major_at_every_width(const typename K::Settings& first, const type
 	return sum;
 }
 
-/// Whether @p a − @p b leaves q31.
-bool difference_overflows(q31 a, q31 b) {
+/// Whether @p a − @p b leaves Q31.
+bool difference_overflows(int32_t a, int32_t b) {
 	const int64_t d = int64_t{a} - int64_t{b};
 	return d < int64_t{kMin} || d > int64_t{kMax};
 }
@@ -799,11 +793,12 @@ struct StampLane {
 	};
 	static Coefficients coefficients(const Settings& s) { return {.offset = s.offset}; }
 	[[gnu::always_inline]] static q31 step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, State& s) {
-		return ++s.n;
+		s.n = add_wrap(s.n, q31::from_raw(1));
+		return s.n;
 	}
-	static void stamp(State& s) { s.n = event_counter++; }
-	static void stamp_c(const Coefficients& c, State& s) { s.n = c.offset + event_counter++; }
-	static void set_keep(State& s, q31 base) { s.keep = base + event_counter++; }
+	static void stamp(State& s) { s.n = q31::from_raw(event_counter++); }
+	static void stamp_c(const Coefficients& c, State& s) { s.n = add_wrap(c.offset, q31::from_raw(event_counter++)); }
+	static void set_keep(State& s, q31 base) { s.keep = add_wrap(base, q31::from_raw(event_counter++)); }
 };
 
 /// The same events on a kernel written over its value type, stepped op-major; the events are scalar.
@@ -826,12 +821,12 @@ struct StampPacked {
 	static Coefficients coefficients(const Settings& s) { return {.offset = s.offset}; }
 	template <class V>
 	[[gnu::always_inline]] static V step(const Coefficients& /*c*/, const EmptyBlock& /*b*/, StateT<V>& s) {
-		s.n = wrapping_add(s.n, V{1});
+		s.n = add_wrap(s.n, q31::from_raw(1));
 		return s.n;
 	}
-	static void stamp(State& s) { s.n = event_counter++; }
-	static void stamp_c(const Coefficients& c, State& s) { s.n = c.offset + event_counter++; }
-	static void set_keep(State& s, q31 base) { s.keep = base + event_counter++; }
+	static void stamp(State& s) { s.n = q31::from_raw(event_counter++); }
+	static void stamp_c(const Coefficients& c, State& s) { s.n = add_wrap(c.offset, q31::from_raw(event_counter++)); }
+	static void set_keep(State& s, q31 base) { s.keep = add_wrap(base, q31::from_raw(event_counter++)); }
 };
 
 /// StampPacked as a processor, for Stereo: the input passes through.
@@ -852,24 +847,24 @@ static_assert(generator_kernel<StampPacked> && lane_packable<StampPacked>);
 template <typename K, std::size_t N>
 std::size_t event_mismatches() {
 	std::size_t wrong = 0;
-	Lanes<K, N> lanes{{.offset = 1000}};
+	Lanes<K, N> lanes{{.offset = q31::from_raw(1000)}};
 
 	event_counter = 0;
-	lanes.template on<&K::set_keep>(100);
+	lanes.template on<&K::set_keep>(q31::from_raw(100));
 	for (std::size_t i = 0; i < N; ++i) {
-		wrong += (lanes.state(i).keep != static_cast<q31>(100 + i)) ? 1 : 0;
+		wrong += (lanes.state(i).keep.raw() != static_cast<int32_t>(100 + i)) ? 1 : 0;
 	}
 	event_counter = 0;
 	lanes.template on<&K::stamp>();
 	for (std::size_t i = 0; i < N; ++i) {
-		wrong += (lanes.state(i).n != static_cast<q31>(i)) ? 1 : 0;
-		wrong += (lanes.state(i).keep != static_cast<q31>(100 + i)) ? 1 : 0;
+		wrong += (lanes.state(i).n.raw() != static_cast<int32_t>(i)) ? 1 : 0;
+		wrong += (lanes.state(i).keep.raw() != static_cast<int32_t>(100 + i)) ? 1 : 0;
 	}
 	event_counter = 0;
 	lanes.template on<&K::stamp_c>();
 	for (std::size_t i = 0; i < N; ++i) {
-		wrong += (lanes.state(i).n != static_cast<q31>(1000 + i)) ? 1 : 0;
-		wrong += (lanes.state(i).keep != static_cast<q31>(100 + i)) ? 1 : 0;
+		wrong += (lanes.state(i).n.raw() != static_cast<int32_t>(1000 + i)) ? 1 : 0;
+		wrong += (lanes.state(i).keep.raw() != static_cast<int32_t>(100 + i)) ? 1 : 0;
 	}
 	return wrong;
 }
@@ -885,7 +880,7 @@ std::size_t event_mismatches_at_every_width() {
 // clang-format off
 describe lanes_spec("Lanes<K, N>", ${
 	it("equals N Monos of a gain, bit for bit", _ {
-		const Mismatches m = at_every_width<Gain>({.gain = 0x30000000}, {.gain = 0x7fffffff});
+		const Mismatches m = at_every_width<Gain>({.gain = q31::from_raw(0x30000000)}, {.gain = q31::from_raw(0x7fffffff)});
 		expect(m.samples).to_equal(std::size_t{0});
 		expect(m.states).to_equal(std::size_t{0});
 		expect(m.compared).to_equal(kComparedAllWidths);
@@ -985,7 +980,7 @@ describe lanes_spec("Lanes<K, N>", ${
 					std::vector<q31> block(n);
 					lanes.template render_lane<Lane>(block, block);
 					for (const q31 sample : block) {
-						expect(sample).to_equal(expected.render());
+						expect(sample.raw()).to_equal(expected.render());
 					}
 				}
 				expect(shared_noise.state()).to_equal(expected.state());
@@ -1002,20 +997,20 @@ describe lanes_spec("Lanes<K, N>", ${
 				lanes.render_block(frames, frames);
 				for (const Frame<q31, N>& frame : frames) {
 					for (std::size_t lane = 0; lane < N; ++lane) {
-						expect(frame[lane]).to_equal(expected.render());
+						expect(frame[lane].raw()).to_equal(expected.render());
 					}
 				}
 			}
 			const Frame<q31, N> one = lanes.render(Frame<q31, N>{});
 			for (std::size_t lane = 0; lane < N; ++lane) {
-				expect(one[lane]).to_equal(expected.render());
+				expect(one[lane].raw()).to_equal(expected.render());
 			}
 		});
 	});
 
 	it("renders in place exactly as out of place", _ {
 		AllWidths::each([&]<std::size_t N>() {
-			expect(in_place_mismatches<Gain, N>({.gain = 0x40000000})).to_equal(std::size_t{0});
+			expect(in_place_mismatches<Gain, N>({.gain = q31::from_raw(0x40000000)})).to_equal(std::size_t{0});
 			expect(in_place_mismatches<OnePole, N>({.moveability = Q<31>::from_raw(0x12345678), .mode = OnePole::Mode::ALL_PASS}))
 			    .to_equal(std::size_t{0});
 			expect(in_place_mismatches<Tracker, N>({.mode = Tracker::Mode::REMOVE})).to_equal(std::size_t{0});
@@ -1029,20 +1024,20 @@ describe lanes_spec("Lanes<K, N>", ${
 				const std::vector<Frame<q31, N>> in = noise_frames<N>(n + 1, 0x777u);
 				Frame<q31, N> sentinel{};
 				for (std::size_t lane = 0; lane < N; ++lane) {
-					sentinel[lane] = 77 + static_cast<q31>(lane);
+					sentinel[lane] = q31::from_raw(77 + static_cast<int32_t>(lane));
 				}
 				std::vector<Frame<q31, N>> out(n + 1, sentinel);
-				Lanes<Gain, N> lanes{{.gain = 0x30000000}};
+				Lanes<Gain, N> lanes{{.gain = q31::from_raw(0x30000000)}};
 				lanes.render_block(std::span{in}.first(n), std::span{out}.first(n));
-				const Gain::Coefficients c = Gain::coefficients({.gain = 0x30000000});
+				const Gain::Coefficients c = Gain::coefficients({.gain = q31::from_raw(0x30000000)});
 				Gain::State s{};
 				for (std::size_t i = 0; i < n; ++i) {
 					for (std::size_t lane = 0; lane < N; ++lane) {
-						expect(out[i][lane]).to_equal(Gain::step(c, {}, s, in[i][lane]));
+						expect(out[i][lane].raw()).to_equal(Gain::step(c, {}, s, in[i][lane]).raw());
 					}
 				}
 				for (std::size_t lane = 0; lane < N; ++lane) {
-					expect(out[n][lane]).to_equal(sentinel[lane]);
+					expect(out[n][lane].raw()).to_equal(sentinel[lane].raw());
 				}
 			}
 		});
@@ -1050,8 +1045,8 @@ describe lanes_spec("Lanes<K, N>", ${
 
 	it("generates N streams, each its own Mono", _ {
 		AllWidths::each([&]<std::size_t N>() {
-			Lanes<Counter, N> lanes{{.by = 0x01010101}};
-			Mono<Counter> mono{{.by = 0x01010101}};
+			Lanes<Counter, N> lanes{{.by = q31::from_raw(0x01010101)}};
+			Mono<Counter> mono{{.by = q31::from_raw(0x01010101)}};
 			for (std::size_t n = 1; n <= kMaxLength; ++n) {
 				std::vector<Frame<q31, N>> out(n);
 				lanes.render_block(out);
@@ -1059,19 +1054,19 @@ describe lanes_spec("Lanes<K, N>", ${
 				mono.render_block(expected);
 				for (std::size_t i = 0; i < n; ++i) {
 					for (std::size_t lane = 0; lane < N; ++lane) {
-						expect(out[i][lane]).to_equal(expected[i]);
+						expect(out[i][lane].raw()).to_equal(expected[i].raw());
 					}
 				}
 			}
 			const Frame<q31, N> one = lanes.render();
 			const q31 expected_one = mono.render();
 			for (std::size_t lane = 0; lane < N; ++lane) {
-				expect(one[lane]).to_equal(expected_one);
-				expect(lanes.state(lane).n).to_equal(mono.state().n);
+				expect(one[lane].raw()).to_equal(expected_one.raw());
+				expect(lanes.state(lane).n.raw()).to_equal(mono.state().n.raw());
 			}
 			lanes.reset();
 			for (std::size_t lane = 0; lane < N; ++lane) {
-				expect(lanes.state(lane).n).to_equal(q31{0});
+				expect(lanes.state(lane).n.raw()).to_equal(0);
 			}
 		});
 	});
@@ -1097,15 +1092,15 @@ describe lanes_spec("Lanes<K, N>", ${
 					std::vector<q31> mono_out(n);
 					monos[lane].render_block(mono_a, mono_b, mono_out);
 					for (std::size_t i = 0; i < n; ++i) {
-						expect(out[i][lane]).to_equal(mono_out[i]);
-						expect(in_a[i][lane]).to_equal(mono_out[i]);
-						expect(in_b[i][lane]).to_equal(mono_out[i]);
+						expect(out[i][lane].raw()).to_equal(mono_out[i].raw());
+						expect(in_a[i][lane].raw()).to_equal(mono_out[i].raw());
+						expect(in_b[i][lane].raw()).to_equal(mono_out[i].raw());
 					}
-					expect(lanes.state(lane).acc).to_equal(monos[lane].state().acc);
+					expect(lanes.state(lane).acc.raw()).to_equal(monos[lane].state().acc.raw());
 				}
 				const Frame<q31, N> one = lanes.render(a[0], b[0]);
 				for (std::size_t lane = 0; lane < N; ++lane) {
-					expect(one[lane]).to_equal(monos[lane].render(a[0][lane], b[0][lane]));
+					expect(one[lane].raw()).to_equal(monos[lane].render(a[0][lane], b[0][lane]).raw());
 				}
 			}
 		});
@@ -1116,11 +1111,11 @@ describe lanes_spec("Lanes<K, N>", ${
 		std::vector<Frame<Q<31>, 3>> frames = noise_frames<3, Q<31>>(5, 0x42u);
 		lanes.render_block(frames, frames);
 		for (std::size_t lane = 0; lane < 3; ++lane) {
-			expect(lanes.state(lane).z.raw()).not_().to_equal(q31{0});
+			expect(lanes.state(lane).z.raw()).not_().to_equal(0);
 		}
 		lanes.reset();
 		for (std::size_t lane = 0; lane < 3; ++lane) {
-			expect(lanes.state(lane).z.raw()).to_equal(q31{0});
+			expect(lanes.state(lane).z.raw()).to_equal(0);
 		}
 	});
 	it("resets every lane through K's reset quirk when K declares one", _ {
@@ -1128,11 +1123,11 @@ describe lanes_spec("Lanes<K, N>", ${
 		std::vector<Frame<Q<31>, 3>> frames = noise_frames<3, Q<31>>(5, 0x43u);
 		lanes.render_block(frames, frames);
 		for (std::size_t lane = 0; lane < 3; ++lane) {
-			expect(lanes.state(lane).z.raw()).not_().to_equal(q31{1});
+			expect(lanes.state(lane).z.raw()).not_().to_equal(1);
 		}
 		lanes.reset();
 		for (std::size_t lane = 0; lane < 3; ++lane) {
-			expect(lanes.state(lane).z.raw()).to_equal(q31{1});
+			expect(lanes.state(lane).z.raw()).to_equal(1);
 		}
 	});
 	it("equals N Monos of a one-pole and a shift tracker stepped lane by lane, state included", _ {
@@ -1192,8 +1187,8 @@ describe lanes_spec("Lanes<K, N>", ${
 	it("generates and mixes op-major exactly as lane by lane", _ {
 		AllWidths::each([&]<std::size_t N>() {
 			for (std::size_t n = 1; n <= kMaxLength; ++n) {
-				Lanes<PackedCounter, N> counter{{.by = 0x7f010203}};
-				Lanes<LaneByLane<PackedCounter>, N> counter_by_lane{{.by = 0x7f010203}};
+				Lanes<PackedCounter, N> counter{{.by = q31::from_raw(0x7f010203)}};
+				Lanes<LaneByLane<PackedCounter>, N> counter_by_lane{{.by = q31::from_raw(0x7f010203)}};
 				Lanes<PackedDifference, N> difference;
 				Lanes<LaneByLane<PackedDifference>, N> difference_by_lane;
 				for (uint32_t block = 0; block < 2; ++block) {
@@ -1209,19 +1204,19 @@ describe lanes_spec("Lanes<K, N>", ${
 					difference_by_lane.render_block(a, b, mixed_by_lane);
 					for (std::size_t i = 0; i < n; ++i) {
 						for (std::size_t lane = 0; lane < N; ++lane) {
-							expect(generated[i][lane]).to_equal(generated_by_lane[i][lane]);
-							expect(mixed[i][lane]).to_equal(mixed_by_lane[i][lane]);
+							expect(generated[i][lane].raw()).to_equal(generated_by_lane[i][lane].raw());
+							expect(mixed[i][lane].raw()).to_equal(mixed_by_lane[i][lane].raw());
 						}
 					}
 				}
 				for (std::size_t lane = 0; lane < N; ++lane) {
-					expect(counter.state(lane).n).to_equal(counter_by_lane.state(lane).n);
-					expect(difference.state(lane).acc).to_equal(difference_by_lane.state(lane).acc);
+					expect(counter.state(lane).n.raw()).to_equal(counter_by_lane.state(lane).n.raw());
+					expect(difference.state(lane).acc.raw()).to_equal(difference_by_lane.state(lane).acc.raw());
 				}
 			}
-			const Frame<q31, N> one = Lanes<PackedCounter, N>{{.by = 5}}.render();
+			const Frame<q31, N> one = Lanes<PackedCounter, N>{{.by = q31::from_raw(5)}}.render();
 			for (std::size_t lane = 0; lane < N; ++lane) {
-				expect(one[lane]).to_equal(q31{5});
+				expect(one[lane].raw()).to_equal(5);
 			}
 		});
 	});
@@ -1292,7 +1287,7 @@ describe lanes_spec("Lanes<K, N>", ${
 					expect(loop_state_test::state_words(got.lane0)).to_equal(loop_state_test::state_words(want.lane0));
 					expect(loop_state_test::state_words(got.lane1)).to_equal(loop_state_test::state_words(want.lane1));
 					expect(got.lane1.prepares).to_equal(3U);
-					expect(got.lane1.level).to_equal(2007);
+					expect(got.lane1.level.raw()).to_equal(2007);
 				}
 			}
 		}
@@ -1316,20 +1311,20 @@ describe lanes_spec("Lanes<K, N>", ${
 
 	it("steps a lane-packable kernel declaring kStateInPlace lane by lane, to its op-major output", _ {
 		for (std::size_t n = 1; n <= 9; ++n) {
-			Lanes<PackedCounter, 2> packed{{.by = 0x01234567}};
-			Lanes<PackedCounterInPlace, 2> in_place{{.by = 0x01234567}};
+			Lanes<PackedCounter, 2> packed{{.by = q31::from_raw(0x01234567)}};
+			Lanes<PackedCounterInPlace, 2> in_place{{.by = q31::from_raw(0x01234567)}};
 			for (int block = 0; block < 3; ++block) {
 				std::vector<Frame<q31, 2>> want(n);
 				std::vector<Frame<q31, 2>> got(n);
 				packed.render_block(want);
 				in_place.render_block(got);
 				for (std::size_t i = 0; i < n; ++i) {
-					expect(got[i].lane[0]).to_equal(want[i].lane[0]);
-					expect(got[i].lane[1]).to_equal(want[i].lane[1]);
+					expect(got[i].lane[0].raw()).to_equal(want[i].lane[0].raw());
+					expect(got[i].lane[1].raw()).to_equal(want[i].lane[1].raw());
 				}
 			}
-			expect(in_place.state(0).n).to_equal(packed.state(0).n);
-			expect(in_place.state(1).n).to_equal(packed.state(1).n);
+			expect(in_place.state(0).n.raw()).to_equal(packed.state(0).n.raw());
+			expect(in_place.state(1).n.raw()).to_equal(packed.state(1).n.raw());
 		}
 	});
 });
@@ -1346,21 +1341,21 @@ describe lanes_events("Lanes::on", ${
 	});
 
 	it("keeps rendering from the changed states", _ {
-		Lanes<StampPacked, 4> lanes{{.offset = 0}};
+		Lanes<StampPacked, 4> lanes{{.offset = q31::from_raw(0)}};
 		event_counter = 10;
 		lanes.on<&StampPacked::stamp>();
 		const Frame<q31, 4> frame = lanes.render();
 		for (std::size_t i = 0; i < 4; ++i) {
-			expect(frame[i]).to_equal(static_cast<q31>(11 + i));
+			expect(frame[i].raw()).to_equal(static_cast<int32_t>(11 + i));
 		}
 	});
 
 	it("gives a stereo component the same events, left first", _ {
-		Stereo<StampPackedPass> stereo{{.offset = 0}};
+		Stereo<StampPackedPass> stereo{{.offset = q31::from_raw(0)}};
 		event_counter = 7;
 		stereo.on<&StampPackedPass::stamp>();
-		expect(stereo.left().n).to_equal(7);
-		expect(stereo.right().n).to_equal(8);
+		expect(stereo.left().n.raw()).to_equal(7);
+		expect(stereo.right().n.raw()).to_equal(8);
 	});
 });
 // clang-format on

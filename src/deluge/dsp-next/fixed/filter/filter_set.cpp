@@ -69,8 +69,7 @@ void render_slot_stereo(Filter& filter, Fade& fade, std::span<Q<31>> interleaved
 		dry = scratch.first(interleaved.size());
 		std::ranges::copy(interleaved, dry.begin());
 	}
-	// The frames are raw StereoSample words: the seam view reads the typed block as them.
-	const auto frames = as_frames(raw_view(interleaved));
+	const auto frames = as_frames(interleaved);
 	filter.render_block(frames, frames, context...);
 	if (fading) {
 		fade.render_block(dry, interleaved, interleaved);

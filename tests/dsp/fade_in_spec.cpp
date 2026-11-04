@@ -78,10 +78,10 @@ WholeFade whole_fade(size_t frames) {
 	reference.begin();
 	kernel.template on<&FadeIn::begin>();
 	const size_t n = frames * (kStereo ? 2 : 1);
-	std::vector<q31> dry(n);
-	std::vector<q31> wet(n);
-	std::vector<q31> out(n);
-	std::vector<q31> scratch(n);
+	std::vector<q31_t> dry(n);
+	std::vector<q31_t> wet(n);
+	std::vector<q31_t> out(n);
+	std::vector<q31_t> scratch(n);
 	WholeFade result;
 	uint32_t k = 0;
 	while (result.blocks < kMaxBlocks) {
@@ -93,13 +93,13 @@ WholeFade whole_fade(size_t frames) {
 			break;
 		}
 		for (size_t i = 0; i < n; ++i) {
-			dry[i] = static_cast<q31>(filter_workloads::detail::mix(k++)) >> 4;
+			dry[i] = static_cast<q31_t>(filter_workloads::detail::mix(k++)) >> 4;
 			wet[i] = filter_workloads::fade_wet(dry[i]);
 		}
 		std::ranges::copy(wet, out.begin());
 		std::ranges::copy(dry, scratch.begin());
 		reference.blend(out, scratch);
-		const std::vector<q31> expected = out;
+		const std::vector<q31_t> expected = out;
 		std::ranges::copy(wet, out.begin());
 		kernel_filters::blend<kStereo>(kernel, out, dry);
 		if (out != expected) {
@@ -141,11 +141,11 @@ describe fade_in("FadeIn", ${
 		FadeIn::State s{.dry = 0.5F, .wet = Q<31>::from_raw(123)};
 		FadeIn::begin(s);
 		expect(s.dry).to_equal(1.0F);
-		expect(s.wet.raw()).to_equal(q31{0});
+		expect(s.wet.raw()).to_equal(q31_t{0});
 		expect(FadeIn::active(s)).to_be_true();
 		FadeIn::zero(s);
 		expect(s.dry).to_equal(0.0F);
-		expect(s.wet.raw()).to_equal(q31{0});
+		expect(s.wet.raw()).to_equal(q31_t{0});
 		expect(FadeIn::active(s)).to_be_false();
 	});
 

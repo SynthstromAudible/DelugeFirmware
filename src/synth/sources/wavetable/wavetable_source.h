@@ -66,15 +66,14 @@ public:
 		wave_index_increment_ = increment;
 	}
 
-	void render_block(const BlockControls& controls, deluge::dsp::fixed::Buffer output,
-	                  deluge::dsp::fixed::Buffer scratch);
+	void render_block(const BlockControls& controls, std::span<int32_t> output, std::span<int32_t> scratch);
 
 	/// Render one block into @p output (sets the wavetable + per-block pitch + wave-index/morph inputs first), VCA
 	/// per @p controls. The public block-render API used by @ref RingModEngine (raw render) and by
 	/// @ref renderOscBlock. The engine owns its phase across blocks.
 	void render_into(const BlockControls& controls, const deluge::dsp::fixed::WaveTableData& table,
 	                 int32_t last_wave_index, int32_t wave_index_increment, uint32_t phase_increment,
-	                 deluge::dsp::fixed::Buffer output, deluge::dsp::fixed::Buffer scratch) {
+	                 std::span<int32_t> output, std::span<int32_t> scratch) {
 		set_wave_data(table);
 		set_increment(phase_increment);
 		set_wave_index(last_wave_index, wave_index_increment);
@@ -82,11 +81,10 @@ public:
 	}
 
 protected:
-	void render_osc_block(const BlockControls& controls, const SourceBlock& block,
-	                      deluge::dsp::fixed::Buffer out) override {
+	void render_osc_block(const BlockControls& controls, const SourceBlock& block, std::span<int32_t> out) override {
 		render_into(controls, block.wavetable.data, block.wavetable.index_last, block.wavetable.index_increment,
 		            block.phase_increment, out,
-		            deluge::dsp::fixed::Buffer{block.sync_scratch, static_cast<size_t>(block.num_samples)});
+		            std::span<int32_t>{block.sync_scratch, static_cast<size_t>(block.num_samples)});
 	}
 };
 

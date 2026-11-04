@@ -22,8 +22,7 @@
 namespace deluge::synth {
 
 void SupersawSource::render_into(const BlockControls& controls, uint32_t phase_increment, int32_t wave_index_last,
-                                 int32_t wave_index_increment, deluge::dsp::fixed::Buffer output,
-                                 deluge::dsp::fixed::Buffer scratch) {
+                                 int32_t wave_index_increment, std::span<int32_t> output, std::span<int32_t> scratch) {
 	using deluge::dsp::fixed::Supersaw;
 	const size_t num_samples = output.size();
 
@@ -32,15 +31,15 @@ void SupersawSource::render_into(const BlockControls& controls, uint32_t phase_i
 	const int32_t spread = wave_index_last + wave_index_increment * static_cast<int32_t>(num_samples);
 
 	int32_t* dst = controls.apply_amplitude ? scratch.data() : output.data();
-	Supersaw::render(deluge::dsp::fixed::Buffer{dst, num_samples}, phase_increment, spread,
+	Supersaw::render(deluge::dsp::typed_view(std::span<int32_t>{dst, num_samples}), phase_increment, spread,
 	                 Supersaw::num_saws_from_pulse_width(controls.pulse_width), centre_phase_, side_phases_,
 	                 band_limit);
 
 	if (controls.apply_amplitude) {
 		// The supersaw comes out at a quarter of a saw's level; out = scratch*amp + out.
 		deluge::dsp::fixed::Amplitude vca{scale_shl_wrap<2>(controls.amplitude)};
-		vca.render_block(deluge::dsp::typed_view(deluge::dsp::fixed::Signal{scratch.data(), num_samples}),
-		                 deluge::dsp::typed_view(deluge::dsp::fixed::Signal{output}), deluge::dsp::typed_view(output));
+		vca.render_block(deluge::dsp::typed_view(std::span<const int32_t>{scratch.data(), num_samples}),
+		                 deluge::dsp::typed_view(std::span<const int32_t>{output}), deluge::dsp::typed_view(output));
 	}
 }
 

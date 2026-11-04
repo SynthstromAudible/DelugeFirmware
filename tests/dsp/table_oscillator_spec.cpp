@@ -160,7 +160,7 @@ describe table_oscillator("deluge::dsp::fixed TableOscillator", ${
 
 			TableOscillator b{Table{table, kMag}, 0u, kInc};
 			std::array<int32_t, 4> buf{};
-			b.render_block(deluge::dsp::typed_view(deluge::dsp::fixed::Buffer{buf}));
+			b.render_block(deluge::dsp::typed_view(std::span{buf}));
 
 			expect(buf[0]).to_equal(vgetq_lane_s32(expected, 0));
 			expect(buf[1]).to_equal(vgetq_lane_s32(expected, 1));

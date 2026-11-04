@@ -45,10 +45,11 @@ namespace deluge::dsp {
 /// state (@ref loop_state_t); the rest of the State is `prepare`'s and the events'.
 ///
 /// **The loop** is chosen from K's step type:
-/// - `step_type == value_type` (q31 or StereoSample): a raw-pointer index loop, one `step` per sample.
-/// - `Argon<q31>` over q31 blocks, or `QVec<31>` over Q<31> blocks: `argon::vectorize::for_each` counting the
+/// - `step_type == value_type` (a Q<F> or StereoSample): a raw-pointer index loop, one `step` per sample.
+/// - `QVec<F>` over Q<F> blocks: `argon::vectorize::for_each` counting the
 ///   samples, one `step` per vector.
-/// - StereoVector over StereoSample blocks: `argon::vectorize::for_each_interleaved<q31, 2>` over the interleaved
+/// - StereoVector over StereoSample blocks: `argon::vectorize::for_each_interleaved<std::int32_t, 2>` over the
+/// interleaved
 ///   frames, de-interleaved on load and re-interleaved on store, one `step` per vector of frames.
 ///
 /// **The partial last vector.** On the vector loops a block that is not a lane multiple ends with one partial step,
@@ -84,7 +85,7 @@ class Mono {
 	using Context = typename detail::context_of<K>::type; ///< K's per-block context, or detail::NoContext.
 
 public:
-	using value_type = typename K::value_type; ///< A block's sample: q31 or StereoSample.
+	using value_type = K::value_type; ///< A block's sample: a Q<F> or StereoSample.
 
 	/// @brief Value-initialised Coefficients and State{}.
 	Mono() = default;
@@ -329,8 +330,8 @@ private:
 
 	/// @brief One `step` per vector of 32-bit samples: @p n samples of @p src into @p dst, the partial last vector
 	/// included. A kernel declaring chains (@ref chains_of_v) steps every whole group of that many vectors through its
-	/// `step_chains` first. The loop counts samples with `for_each<std::int32_t>`, whose steps load and store raw q31
-	/// themselves and any Q<F> through FixedVec (@ref detail::load_step).
+	/// `step_chains` first. The loop counts samples with `for_each<std::int32_t>`, whose steps load and store the
+	/// samples through FixedVec (@ref detail::load_step).
 	template <auto M, typename Ctx, typename... Src>
 	[[gnu::always_inline]] static void vector_loop(const Coefficients& c, const Block& block, LoopState& s,
 	                                               Ctx& context, value_type* dst, std::ptrdiff_t n, const Src*... src) {
@@ -404,11 +405,12 @@ private:
 	/// @p dst, the partial last vector included.
 	template <auto M, typename Ctx, typename... Src>
 	[[gnu::always_inline]] static void interleaved_loop(const Coefficients& c, const Block& block, LoopState& s,
-	                                                    Ctx& context, q31* dst, std::ptrdiff_t n, const Src*... src) {
-		argon::vectorize::for_each_interleaved<q31, 2>(n, [&] [[gnu::always_inline]] (auto step) {
+	                                                    Ctx& context, std::int32_t* dst, std::ptrdiff_t n,
+	                                                    const Src*... src) {
+		argon::vectorize::for_each_interleaved<std::int32_t, 2>(n, [&] [[gnu::always_inline]] (auto step) {
 			const StereoVector frames =
 			    vector_step_at<M>(c, block, s, context, step, detail::to_stereo(step.Load(src))...);
-			step.Store(dst, {frames.l, frames.r});
+			step.Store(dst, {frames.l.raw(), frames.r.raw()});
 		});
 	}
 

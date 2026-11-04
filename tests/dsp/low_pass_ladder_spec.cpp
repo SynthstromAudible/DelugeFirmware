@@ -78,7 +78,6 @@ constexpr FilterConfig kBrightUnderLoad{
     .frequency = 50000000, .resonance = 500000000, .morph = 1 << 28, .allow_oversampling = false};
 
 using deluge::dsp::Mono;
-using deluge::dsp::q31;
 using deluge::dsp::Stereo;
 using deluge::dsp::StereoSample;
 using filter_workloads::WorkloadId;
@@ -137,29 +136,29 @@ const std::array<Setting, 4> kSettings{{
 /// past 51 on quick_log's scale, two units per octave from 2^24 at 52) stepped through every entry of its threshold
 /// and limit tables from 52 to 56 and the interior of every segment between them (21e6 at 52.6, 30e6 at 53.6, 40e6
 /// and 50e6 at 54.4 and 55.0, 55e6 at 55.4), then up to kOneQ31.
-constexpr std::array<q31, 15> kSweepFrequencies{
-    q31{1 << 20},   q31{1 << 22},  q31{1 << 24},   q31{21000000}, q31{30000000},
-    q31{1 << 25},   q31{40000000}, q31{50000000},  q31{55000000}, q31{1 << 26},
-    q31{100000000}, q31{1 << 27},  q31{200000000}, q31{1 << 28},  q31{kOneQ31},
+constexpr std::array<q31_t, 15> kSweepFrequencies{
+    q31_t{1 << 20},   q31_t{1 << 22},  q31_t{1 << 24},   q31_t{21000000}, q31_t{30000000},
+    q31_t{1 << 25},   q31_t{40000000}, q31_t{50000000},  q31_t{55000000}, q31_t{1 << 26},
+    q31_t{100000000}, q31_t{1 << 27},  q31_t{200000000}, q31_t{1 << 28},  q31_t{kOneQ31},
 };
 
 /// @return The resonances (Q29) just either side of where the reference's drive ladder starts oversampling at
 /// @p frequency (the last resonance that does not and the first two that do), or none if it never or always does.
-std::vector<q31> threshold_resonances(q31 frequency) {
-	const auto oversamples = [frequency](q31 resonance) {
+std::vector<q31_t> threshold_resonances(q31_t frequency) {
+	const auto oversamples = [frequency](q31_t resonance) {
 		ReferenceLowPassLadder reference;
 		std::ignore = reference.configure(
 		    kGain, {.frequency = frequency, .resonance = resonance, .morph = 0, .allow_oversampling = true},
 		    LowPassLadderMode::TRANSISTOR_24DB_DRIVE);
 		return reference.oversample();
 	};
-	q31 below = 0;
-	q31 above = 536870911;
+	q31_t below = 0;
+	q31_t above = 536870911;
 	if (oversamples(below) || !oversamples(above)) {
 		return {};
 	}
 	while (above - below > 1) {
-		const q31 middle = below + ((above - below) / 2);
+		const q31_t middle = below + ((above - below) / 2);
 		(oversamples(middle) ? above : below) = middle;
 	}
 	return {below, above, above + 1};
@@ -169,14 +168,14 @@ std::vector<q31> threshold_resonances(q31 frequency) {
 /// side of the oversampling threshold, morph on and off, each with oversampling allowed and not.
 std::vector<FilterConfig> sweep_configs() {
 	std::vector<FilterConfig> configs;
-	for (const q31 frequency : kSweepFrequencies) {
+	for (const q31_t frequency : kSweepFrequencies) {
 		// 1 << 26 keeps the drive ladder, whose resonance is not capped, below the input's saturation threshold.
-		std::vector<q31> resonances{0, 1 << 26, 1 << 27, 400000000, 500000000, 536870911};
-		for (const q31 resonance : threshold_resonances(frequency)) {
+		std::vector<q31_t> resonances{0, 1 << 26, 1 << 27, 400000000, 500000000, 536870911};
+		for (const q31_t resonance : threshold_resonances(frequency)) {
 			resonances.push_back(resonance);
 		}
-		for (const q31 resonance : resonances) {
-			for (const q31 morph : {q31{0}, q31{1 << 28}}) {
+		for (const q31_t resonance : resonances) {
+			for (const q31_t morph : {q31_t{0}, q31_t{1 << 28}}) {
 				for (const bool allow : {true, false}) {
 					configs.push_back(
 					    {.frequency = frequency, .resonance = resonance, .morph = morph, .allow_oversampling = allow});
@@ -188,7 +187,7 @@ std::vector<FilterConfig> sweep_configs() {
 }
 
 /// A channel's follower and its four sections' memories, Q31.
-using ChannelWords = std::array<q31, 5>;
+using ChannelWords = std::array<q31_t, 5>;
 
 template <class Noise>
 ChannelWords words(const typename LowPassLadder<Noise>::State& s) {
@@ -250,7 +249,7 @@ describe low_pass_ladder("LowPassLadder", ${
 		std::size_t oversampled = 0;
 		std::size_t at_rate = 0;
 		std::size_t thresholds = 0;
-		for (const q31 frequency : kSweepFrequencies) {
+		for (const q31_t frequency : kSweepFrequencies) {
 			thresholds += threshold_resonances(frequency).empty() ? 0 : 1;
 		}
 		for (const auto& config : sweep_configs()) {
@@ -258,7 +257,7 @@ describe low_pass_ladder("LowPassLadder", ${
 			                                     LowPassLadderMode::TRANSISTOR_24DB_DRIVE}) {
 				ReferenceLowPassLadder reference;
 				reference.zero();
-				const q31 gain = reference.configure(kGain, config, mode);
+				const q31_t gain = reference.configure(kGain, config, mode);
 				const Ladder::Coefficients c = Ladder::coefficients({.gain = kGain, .config = filters_reference::typed(config), .mode = mode});
 				expect(Ladder::gain(c)).to_equal(gain);
 				Ladder::Ladder expected = Ladder::Ladder::T12;
@@ -308,7 +307,7 @@ describe low_pass_ladder("LowPassLadder", ${
 		expect(Ladder::ladder_of(Ladder::coefficients(settings_for(kSettings[3])).mode))
 		    .to_equal(Ladder::Ladder::DRIVE_OVERSAMPLED);
 
-		std::vector<q31> scratch(kInput.size());
+		std::vector<q31_t> scratch(kInput.size());
 		for (const Setting& setting : kSettings) {
 			const uint32_t per_sample =
 			    Ladder::ladder_of(Ladder::coefficients(settings_for(setting)).mode) == Ladder::Ladder::DRIVE_OVERSAMPLED ? 2
@@ -317,7 +316,7 @@ describe low_pass_ladder("LowPassLadder", ${
 				ReferenceLowPassLadder reference;
 				reference.zero();
 				std::ignore = reference.configure(kGain, setting.config, setting.mode);
-				std::vector<q31> expected = kInput;
+				std::vector<q31_t> expected = kInput;
 				filter_workloads::reset_cong();
 				if (stereo) {
 					reference.render_stereo(expected, scratch);
@@ -327,11 +326,11 @@ describe low_pass_ladder("LowPassLadder", ${
 				}
 				const uint32_t reference_end = deluge::synth_noise.state();
 
-				std::vector<q31> out = kInput;
+				std::vector<q31_t> out = kInput;
 				filter_workloads::reset_cong();
 				if (stereo) {
 					Stereo<Ladder> ladder{settings_for(setting)};
-					const auto frames = deluge::dsp::as_frames(out);
+					const auto frames = deluge::dsp::as_frames(deluge::dsp::typed_view(std::span{out}));
 					ladder.render_block(frames, frames, deluge::synth_noise);
 				}
 				else {
@@ -352,13 +351,13 @@ describe low_pass_ladder("LowPassLadder", ${
 	   "scale included", _ {
 		std::array<bool, 7> reached{};
 		// Full-scale samples either side of the wrap, where the unresonant form's rounding is checked hardest.
-		std::vector<q31> full_scale;
-		for (const q31 x : {INT32_MIN, INT32_MIN + 1, INT32_MIN + 2, -3, -2, -1, 0, 1, 2, 3, INT32_MAX - 2,
+		std::vector<q31_t> full_scale;
+		for (const q31_t x : {INT32_MIN, INT32_MIN + 1, INT32_MIN + 2, -3, -2, -1, 0, 1, 2, 3, INT32_MAX - 2,
 		                    INT32_MAX - 1, INT32_MAX}) {
 			full_scale.insert(full_scale.end(), {x, x});
 		}
-		const std::vector<q31>& extremes = full_scale;
-		std::vector<q31> scratch(std::max(kInput.size(), extremes.size()));
+		const std::vector<q31_t>& extremes = full_scale;
+		std::vector<q31_t> scratch(std::max(kInput.size(), extremes.size()));
 		for (const auto& config : sweep_configs()) {
 			for (const LowPassLadderMode mode : {LowPassLadderMode::TRANSISTOR_12DB, LowPassLadderMode::TRANSISTOR_24DB,
 			                                     LowPassLadderMode::TRANSISTOR_24DB_DRIVE}) {
@@ -367,7 +366,7 @@ describe low_pass_ladder("LowPassLadder", ${
 				reached[static_cast<std::size_t>(c.mode)] = true;
 
 				const bool unresonant = c.morph.raw() <= 0 && c.processed_resonance.raw() == 0
-				                        && c.divide_by_total_moveability_and_processed_resonance.raw() == (q31{1} << 30);
+				                        && c.divide_by_total_moveability_and_processed_resonance.raw() == (q31_t{1} << 30);
 				const Ladder::Input expected = unresonant ? Ladder::Input::UNRESONANT : Ladder::Input::FED_BACK;
 				expect(Ladder::input_of(c.mode)).to_equal(expected);
 
@@ -376,7 +375,7 @@ describe low_pass_ladder("LowPassLadder", ${
 					ReferenceLowPassLadder reference;
 					reference.zero();
 					std::ignore = reference.configure(kGain, config, mode);
-					std::vector<q31> want = *input;
+					std::vector<q31_t> want = *input;
 					filter_workloads::reset_cong();
 					if (stereo) {
 						reference.render_stereo(want, scratch);
@@ -386,11 +385,11 @@ describe low_pass_ladder("LowPassLadder", ${
 					}
 					const uint32_t reference_end = deluge::synth_noise.state();
 
-					std::vector<q31> out = *input;
+					std::vector<q31_t> out = *input;
 					filter_workloads::reset_cong();
 					if (stereo) {
 						Stereo<Ladder> ladder{settings};
-						const auto frames = deluge::dsp::as_frames(out);
+						const auto frames = deluge::dsp::as_frames(deluge::dsp::typed_view(std::span{out}));
 						ladder.render_block(frames, frames, deluge::synth_noise);
 					}
 					else {
@@ -444,7 +443,7 @@ describe low_pass_ladder("LowPassLadder", ${
 
 	it("carries each channel's state across every mode change, oversampling switched on and off, as the reference "
 	   "does", _ {
-		std::vector<q31> scratch(kInput.size());
+		std::vector<q31_t> scratch(kInput.size());
 		for (const Setting& from : kSettings) {
 			for (const Setting& to : kSettings) {
 				ReferenceLowPassLadder reference;
@@ -453,7 +452,7 @@ describe low_pass_ladder("LowPassLadder", ${
 				uint32_t reference_cong = filter_workloads::kCongSeed;
 				uint32_t kernel_cong = filter_workloads::kCongSeed;
 				for (const Setting& setting : {from, to, from}) {
-					std::vector<q31> expected = kInput;
+					std::vector<q31_t> expected = kInput;
 					deluge::synth_noise.seed(reference_cong);
 					std::ignore = reference.configure(kGain, setting.config, setting.mode);
 					reference.render_stereo(expected, scratch);
@@ -465,9 +464,9 @@ describe low_pass_ladder("LowPassLadder", ${
 					expect(words(ladder.left())).to_equal(words(left));
 					expect(words(ladder.right())).to_equal(words(right));
 
-					std::vector<q31> out = kInput;
+					std::vector<q31_t> out = kInput;
 					deluge::synth_noise.seed(kernel_cong);
-					const auto frames = deluge::dsp::as_frames(out);
+					const auto frames = deluge::dsp::as_frames(deluge::dsp::typed_view(std::span{out}));
 					ladder.render_block(frames, frames, deluge::synth_noise);
 					kernel_cong = deluge::synth_noise.state();
 
@@ -482,17 +481,17 @@ describe low_pass_ladder("LowPassLadder", ${
 	});
 
 	it("silences the sections on reset and keeps the noise follower, as the reference's reset does", _ {
-		std::vector<q31> scratch(kInput.size());
+		std::vector<q31_t> scratch(kInput.size());
 		ReferenceLowPassLadder reference;
 		reference.zero();
 		std::ignore = reference.configure(kGain, kMid, LowPassLadderMode::TRANSISTOR_24DB);
-		std::vector<q31> expected = kInput;
+		std::vector<q31_t> expected = kInput;
 		filter_workloads::reset_cong();
 		reference.render_mono(expected, scratch);
 		reference.reset(false);
 
 		Mono<Ladder> ladder{Ladder::Settings{.gain = kGain, .config = filters_reference::typed(kMid), .mode = LowPassLadderMode::TRANSISTOR_24DB}};
-		std::vector<q31> out = kInput;
+		std::vector<q31_t> out = kInput;
 		filter_workloads::reset_cong();
 		ladder.render_block(typed_view(std::span{out}), typed_view(std::span{out}), deluge::synth_noise);
 		ladder.reset();

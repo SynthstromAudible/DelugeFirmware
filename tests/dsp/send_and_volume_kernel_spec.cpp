@@ -17,7 +17,7 @@
 
 // The send and the volumes: effects::SendAndVolume, the adapter the chains run, over Mono<SendAndVolume>, against the
 // frozen send-and-volume over seeded full-scale frames cut into blocks of every size, the post-reverb volume stepping
-// through q31 so the ramp moves, across the volumes, the send (none, positive, negative and full), pan, ramp and
+// through Q31 so the ramp moves, across the volumes, the send (none, positive, negative and full), pan, ramp and
 // stereo, forgetting and priming as a sound does; then the constructor's volume, an unset volume never primed, a prime
 // after a block whose volume was the unset value, and the ramp's named quirk on the kernel itself.
 
@@ -165,7 +165,7 @@ describe send_and_volume_kernel_spec("the send and the post-FX and post-reverb v
 		// The gain at this block's volume, held: what a ramp ending on its target would give at its last frame.
 		using Volume = Kernel::Volume;
 		const Volume held_gain = mul_as_wrap<Volume>(Volume::from_raw(1 << 27), Volume::from_raw(1 << 27));
-		const q31 at_target = mul_as_wrap<deluge::dsp::Q<31>>(deluge::dsp::Q<31>::from_raw(1 << 30), held_gain).raw();
+		const q31_t at_target = mul_as_wrap<deluge::dsp::Q<31>>(deluge::dsp::Q<31>::from_raw(1 << 30), held_gain).raw();
 		expect(ones[0].l.raw() > at_target).to_be_true();
 	});
 });

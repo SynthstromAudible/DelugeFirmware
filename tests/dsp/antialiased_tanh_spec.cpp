@@ -87,9 +87,9 @@ static_assert(!tanh_drive_allowed<30>);
 static_assert(!tanh_drive_allowed<31>);
 static_assert(processor<Mono<Tanh<3>>>);
 
-/// The extremes of q31.
-constexpr q31 kMin = std::numeric_limits<q31>::min();
-constexpr q31 kMax = std::numeric_limits<q31>::max();
+/// The extremes of Q31.
+constexpr q31_t kMin = std::numeric_limits<q31_t>::min();
+constexpr q31_t kMax = std::numeric_limits<q31_t>::max();
 /// The highest drive a caller reaches: the saturation effect's voice variant at amount 15, 5 + 15.
 constexpr uint32_t kMaxDrive = 20;
 /// Drives past the callers' range, up to the documented 30, where the 12-bit saturation's shift wraps.
@@ -99,7 +99,7 @@ constexpr std::size_t kLongRun = 10'000;
 /// The seed of every noise input.
 constexpr uint32_t kSeed = 0x7A11'5EED;
 /// The samples the events are pinned at: silence, the extremes, and mid values either side.
-constexpr std::array<q31, 5> kEventSamples{0, kMin, kMax, 1 << 28, -(3 << 26)};
+constexpr std::array<q31_t, 5> kEventSamples{0, kMin, kMax, 1 << 28, -(3 << 26)};
 /// The raw positions place is pinned at: the table's two ends, its centre, and two between.
 constexpr std::array<uint32_t, 5> kPlacePositions{0u, 0xFFFF'FFFFu, kTanhCentre, 0x1234'5678u, 0xC000'0001u};
 /// The drives the events are pinned at: the extremes, the compressor's and the high-pass ladder's.
@@ -107,8 +107,8 @@ constexpr std::array<uint32_t, 5> kEventDrives{0, 1, 3, 8, kMaxDrive};
 
 /// 64 samples alternating between INT32_MIN and INT32_MAX, then seeded noise at full scale, then at 2^-8 and 2^-16
 /// of it, @p n samples each, so that every drive both saturates and stays in the curve's middle.
-std::vector<q31> test_input(std::size_t n, uint32_t seed) {
-	std::vector<q31> v;
+std::vector<q31_t> test_input(std::size_t n, uint32_t seed) {
+	std::vector<q31_t> v;
 	for (std::size_t i = 0; i < 64; ++i) {
 		v.push_back(i % 2 == 0 ? kMin : kMax);
 	}
@@ -123,15 +123,15 @@ std::vector<q31> test_input(std::size_t n, uint32_t seed) {
 
 /// Each sample's output and the position it leaves.
 struct Run {
-	std::vector<q31> out;
+	std::vector<q31_t> out;
 	std::vector<uint32_t> positions;
 };
 
 /// @p input through the kernel at @p drive from @p state, which is left where the last step put it.
-Run run_kernel(uint32_t drive, AntialiasedTanh::State& state, const std::vector<q31>& input) {
+Run run_kernel(uint32_t drive, AntialiasedTanh::State& state, const std::vector<q31_t>& input) {
 	const AntialiasedTanh::Coefficients c = AntialiasedTanh::coefficients({.drive = drive});
 	Run run;
-	for (const q31 x : input) {
+	for (const q31_t x : input) {
 		run.out.push_back(AntialiasedTanh::step(c, EmptyBlock{}, state, Q<31>::from_raw(x)).raw());
 		run.positions.push_back(state.position);
 	}
@@ -139,9 +139,9 @@ Run run_kernel(uint32_t drive, AntialiasedTanh::State& state, const std::vector<
 }
 
 /// @p input through the class @p curve at the drive it holds.
-Run run_legacy(LegacyTanh& curve, const std::vector<q31>& input) {
+Run run_legacy(LegacyTanh& curve, const std::vector<q31_t>& input) {
 	Run run;
-	for (const q31 x : input) {
+	for (const q31_t x : input) {
 		run.out.push_back(curve.render(x));
 		run.positions.push_back(curve.previous());
 	}
@@ -149,17 +149,17 @@ Run run_legacy(LegacyTanh& curve, const std::vector<q31>& input) {
 }
 
 /// The compressor's seed: the position its first pre-gain sample takes at @p drive.
-uint32_t compressor_seed(q31 sample, uint32_t drive) {
+uint32_t compressor_seed(q31_t sample, uint32_t drive) {
 	return static_cast<uint32_t>(lshift_and_saturate_unknown(sample, static_cast<uint8_t>(drive)))
 	       + LegacyTanh::kSilent;
 }
 
 /// @p input through Tanh<Drive>, and through tanh<Drive>, appended to @p kernel and @p plain.
 template <uint32_t Drive>
-void run_tanh(const std::vector<q31>& input, std::vector<q31>& kernel, std::vector<q31>& plain) {
+void run_tanh(const std::vector<q31_t>& input, std::vector<q31_t>& kernel, std::vector<q31_t>& plain) {
 	typename Tanh<Drive>::State state{};
 	const auto c = Tanh<Drive>::coefficients({});
-	for (const q31 x : input) {
+	for (const q31_t x : input) {
 		kernel.push_back(Tanh<Drive>::step(c, EmptyBlock{}, state, Q<31>::from_raw(x)).raw());
 		plain.push_back(tanh<Drive>(Q<31>::from_raw(x)).raw());
 	}
@@ -167,8 +167,8 @@ void run_tanh(const std::vector<q31>& input, std::vector<q31>& kernel, std::vect
 
 /// run_tanh at every drive in @p Drives, in order.
 template <uint32_t... Drives>
-void run_tanh_at(std::integer_sequence<uint32_t, Drives...> /*drives*/, const std::vector<q31>& input,
-                 std::vector<q31>& kernel, std::vector<q31>& plain) {
+void run_tanh_at(std::integer_sequence<uint32_t, Drives...> /*drives*/, const std::vector<q31_t>& input,
+                 std::vector<q31_t>& kernel, std::vector<q31_t>& plain) {
 	(run_tanh<Drives>(input, kernel, plain), ...);
 }
 
@@ -207,13 +207,13 @@ struct XorShift {
 
 /// The inputs at which a drive's saturation starts, stops or wraps: zero, the extremes, and the bounds of every
 /// saturation width from 1 to 32 bits, each ±64.
-std::vector<q31> saturation_edges() {
-	std::vector<q31> e;
+std::vector<q31_t> saturation_edges() {
+	std::vector<q31_t> e;
 	for (int64_t d = -64; d <= 64; ++d) {
 		const int64_t m = d < 0 ? -d : d;
-		e.push_back(static_cast<q31>(d));
-		e.push_back(static_cast<q31>(int64_t{kMax} - m));
-		e.push_back(static_cast<q31>(int64_t{kMin} + m));
+		e.push_back(static_cast<q31_t>(d));
+		e.push_back(static_cast<q31_t>(int64_t{kMax} - m));
+		e.push_back(static_cast<q31_t>(int64_t{kMin} + m));
 	}
 	for (int bits = 1; bits <= 32; ++bits) {
 		const int64_t high = (int64_t{1} << (bits - 1)) - 1;
@@ -221,7 +221,7 @@ std::vector<q31> saturation_edges() {
 			for (const int64_t bound : {high, -high - 1}) {
 				const int64_t v = bound + d;
 				if (v >= kMin && v <= kMax) {
-					e.push_back(static_cast<q31>(v));
+					e.push_back(static_cast<q31_t>(v));
 				}
 			}
 		}
@@ -231,7 +231,7 @@ std::vector<q31> saturation_edges() {
 
 /// The reference's position for @p x at @p drive, from the documented rule: x saturated to 32 − drive bits for drives
 /// 1 to 20 and to 12 bits otherwise, shifted up by the drive (wrapping), plus the centre.
-uint32_t reference_position(uint32_t drive, q31 x) {
+uint32_t reference_position(uint32_t drive, q31_t x) {
 	const int bits = (drive >= 1 && drive <= 20) ? 32 - static_cast<int>(drive) : 12;
 	const int64_t high = (int64_t{1} << (bits - 1)) - 1;
 	const int64_t clamped = x < -high - 1 ? -high - 1 : (x > high ? high : x);
@@ -240,7 +240,7 @@ uint32_t reference_position(uint32_t drive, q31 x) {
 
 /// The reference's output for a step from @p previous to @p position at @p drive: kTanhTable read entry by entry,
 /// each row blended at a Q16 weight, the two rows at a Q31 weight with 64-bit products, shifted down by drive + 1.
-q31 reference_output(uint32_t drive, uint32_t previous, uint32_t position) {
+q31_t reference_output(uint32_t drive, uint32_t previous, uint32_t position) {
 	const uint32_t row = previous >> 26;    // 64 row intervals: the top 6 bits
 	const uint32_t column = position >> 25; // 128 column intervals: the top 7 bits
 	const int64_t along = (position >> 9) & 0xFFFFu;
@@ -259,7 +259,7 @@ struct KernelCurve {
 	AntialiasedTanh::Coefficients c;
 	AntialiasedTanh::State s{};
 	explicit KernelCurve(uint32_t drive) : c{AntialiasedTanh::coefficients({.drive = drive})} {}
-	q31 step(q31 x) { return AntialiasedTanh::step(c, EmptyBlock{}, s, Q<31>::from_raw(x)).raw(); }
+	q31_t step(q31_t x) { return AntialiasedTanh::step(c, EmptyBlock{}, s, Q<31>::from_raw(x)).raw(); }
 	void place(uint32_t p) { AntialiasedTanh::place(s, p); }
 	[[nodiscard]] uint32_t position() const { return s.position; }
 };
@@ -269,7 +269,7 @@ struct LegacyCurve {
 	uint32_t drive;
 	LegacyTanh curve;
 	explicit LegacyCurve(uint32_t d) : drive{d}, curve{d} {}
-	q31 step(q31 x) { return curve.render(x); }
+	q31_t step(q31_t x) { return curve.render(x); }
 	void place(uint32_t p) { curve = LegacyTanh{drive, p}; }
 	[[nodiscard]] uint32_t position() const { return curve.previous(); }
 };
@@ -279,9 +279,9 @@ struct ReferenceCurve {
 	uint32_t drive;
 	uint32_t previous = kTanhCentre;
 	explicit ReferenceCurve(uint32_t d) : drive{d} {}
-	q31 step(q31 x) {
+	q31_t step(q31_t x) {
 		const uint32_t position = reference_position(drive, x);
-		const q31 out = reference_output(drive, previous, position);
+		const q31_t out = reference_output(drive, previous, position);
 		previous = position;
 		return out;
 	}
@@ -292,15 +292,15 @@ struct ReferenceCurve {
 /// @p Curve at @p drive from silence through: each edge stepped from the previous edge and again from a random
 /// position; full-range random inputs, from a random position every 16 steps; and random inputs at random levels.
 template <typename Curve>
-Run sweep(uint32_t drive, const std::vector<q31>& edges) {
+Run sweep(uint32_t drive, const std::vector<q31_t>& edges) {
 	Curve curve{drive};
 	XorShift rng{0x9E37'79B9'7F4A'7C15ull + drive};
 	Run run;
-	const auto step = [&](q31 x) {
+	const auto step = [&](q31_t x) {
 		run.out.push_back(curve.step(x));
 		run.positions.push_back(curve.position());
 	};
-	for (const q31 x : edges) {
+	for (const q31_t x : edges) {
 		step(x);
 		curve.place(rng.next());
 		step(x);
@@ -309,11 +309,11 @@ Run sweep(uint32_t drive, const std::vector<q31>& edges) {
 		if (i % 16 == 0) {
 			curve.place(rng.next());
 		}
-		step(static_cast<q31>(rng.next()));
+		step(static_cast<q31_t>(rng.next()));
 	}
 	for (uint32_t i = 0; i < 2048; ++i) {
 		const uint32_t level = rng.next() & 31u;
-		step(static_cast<q31>(rng.next()) >> level);
+		step(static_cast<q31_t>(rng.next()) >> level);
 	}
 	return run;
 }
@@ -359,7 +359,7 @@ describe legacy_antialiased_tanh("the legacy antialiased tanh, copied", ${
 // clang-format off
 describe antialiased_tanh_kernel("AntialiasedTanh", ${
 	it("steps as the class renders, at every drive, from silence", _ {
-		const std::vector<q31> input = test_input(kLongRun, kSeed);
+		const std::vector<q31_t> input = test_input(kLongRun, kSeed);
 		for (uint32_t drive = 0; drive <= kMaxDrive; ++drive) {
 			AntialiasedTanh::State state{};
 			LegacyTanh curve{drive};
@@ -370,7 +370,7 @@ describe antialiased_tanh_kernel("AntialiasedTanh", ${
 		}
 	});
 	it("steps as the class renders past the callers' drives, where the shift wraps", _ {
-		const std::vector<q31> input = test_input(kLongRun, kSeed);
+		const std::vector<q31_t> input = test_input(kLongRun, kSeed);
 		for (const uint32_t drive : kWrappingDrives) {
 			AntialiasedTanh::State state{};
 			LegacyTanh curve{drive};
@@ -382,9 +382,9 @@ describe antialiased_tanh_kernel("AntialiasedTanh", ${
 	});
 	it("keeps the position across a drive change in the middle of a block, as the class's setDrive does", _ {
 		constexpr std::size_t kChangeAt = 37;
-		const std::vector<q31> input = test_input(kLongRun / 10, kSeed + 1);
-		const std::vector<q31> before(input.begin(), input.begin() + kChangeAt);
-		const std::vector<q31> after(input.begin() + kChangeAt, input.end());
+		const std::vector<q31_t> input = test_input(kLongRun / 10, kSeed + 1);
+		const std::vector<q31_t> before(input.begin(), input.begin() + kChangeAt);
+		const std::vector<q31_t> after(input.begin() + kChangeAt, input.end());
 		for (const auto& [from, to] : std::array<std::pair<uint32_t, uint32_t>, 6>{
 		         {{3, 8}, {8, 3}, {0, kMaxDrive}, {kMaxDrive, 0}, {5, 6}, {1, 0}}}) {
 			AntialiasedTanh::State state{};
@@ -403,14 +403,14 @@ describe antialiased_tanh_kernel("AntialiasedTanh", ${
 	it("keeps the position across a drive change between blocks in Mono, as the class's setDrive does", _ {
 		constexpr uint32_t kFrom = 3;
 		constexpr uint32_t kTo = 11;
-		const std::vector<q31> input = test_input(kLongRun / 10, kSeed + 2);
+		const std::vector<q31_t> input = test_input(kLongRun / 10, kSeed + 2);
 		const std::size_t half = input.size() / 2;
 		Mono<AntialiasedTanh> mono{{.drive = kFrom}};
-		std::vector<q31> out(input.size());
-		mono.render_block(typed_view(std::span<const q31>{input.data(), half}), typed_view(std::span<q31>{out.data(), half}));
+		std::vector<q31_t> out(input.size());
+		mono.render_block(typed_view(std::span<const q31_t>{input.data(), half}), typed_view(std::span<q31_t>{out.data(), half}));
 		mono.configure({.drive = kTo});
-		mono.render_block(typed_view(std::span<const q31>{input.data() + half, input.size() - half}),
-		                 typed_view(std::span<q31>{out.data() + half, input.size() - half}));
+		mono.render_block(typed_view(std::span<const q31_t>{input.data() + half, input.size() - half}),
+		                 typed_view(std::span<q31_t>{out.data() + half, input.size() - half}));
 		LegacyTanh curve{kFrom};
 		for (std::size_t i = 0; i < input.size(); ++i) {
 			if (i == half) {
@@ -421,10 +421,10 @@ describe antialiased_tanh_kernel("AntialiasedTanh", ${
 		expect(mono.state().position).to_equal(curve.previous());
 	});
 	it("seeds the position the compressor constructs from a first sample, at the drive extremes and full scale", _ {
-		const std::vector<q31> input = test_input(kLongRun / 10, kSeed + 3);
+		const std::vector<q31_t> input = test_input(kLongRun / 10, kSeed + 3);
 		for (const uint32_t drive : kEventDrives) {
 			const AntialiasedTanh::Coefficients c = AntialiasedTanh::coefficients({.drive = drive});
-			for (const q31 sample : kEventSamples) {
+			for (const q31_t sample : kEventSamples) {
 				AntialiasedTanh::State state{.position = 0x5555'5555u};
 				AntialiasedTanh::seed(c, state, Q<31>::from_raw(sample));
 				expect(state.position).to_equal(compressor_seed(sample, drive));
@@ -439,7 +439,7 @@ describe antialiased_tanh_kernel("AntialiasedTanh", ${
 	it("seeds the position a step on the same sample leaves", _ {
 		for (const uint32_t drive : kEventDrives) {
 			const AntialiasedTanh::Coefficients c = AntialiasedTanh::coefficients({.drive = drive});
-			for (const q31 sample : kEventSamples) {
+			for (const q31_t sample : kEventSamples) {
 				AntialiasedTanh::State seeded{};
 				AntialiasedTanh::seed(c, seeded, Q<31>::from_raw(sample));
 				AntialiasedTanh::State stepped{};
@@ -457,9 +457,9 @@ describe antialiased_tanh_kernel("AntialiasedTanh", ${
 		expect(state.position).to_equal(kTanhCentre - 2048u);
 	});
 	it("places a raw position as the class constructs one, at the table's ends and the high-pass ladder's bypass", _ {
-		const std::vector<q31> input = test_input(kLongRun / 10, kSeed + 4);
+		const std::vector<q31_t> input = test_input(kLongRun / 10, kSeed + 4);
 		std::vector<uint32_t> positions(kPlacePositions.begin(), kPlacePositions.end());
-		for (const q31 a : kEventSamples) {
+		for (const q31_t a : kEventSamples) {
 			positions.push_back(static_cast<uint32_t>(lshift_and_saturate<2>(a)) + kTanhCentre);
 		}
 		for (const uint32_t drive : kEventDrives) {
@@ -488,7 +488,7 @@ describe antialiased_tanh_reference("AntialiasedTanh against its definition", ${
 		expect(h).to_equal(kTanhTableDigest);
 	});
 	it("steps as the reference at every drive, at each saturation width's bounds and across the table", _ {
-		const std::vector<q31> edges = saturation_edges();
+		const std::vector<q31_t> edges = saturation_edges();
 		for (uint32_t drive = 0; drive <= kTopDrive; ++drive) {
 			const Run kernel = sweep<KernelCurve>(drive, edges);
 			const Run reference = sweep<ReferenceCurve>(drive, edges);
@@ -497,7 +497,7 @@ describe antialiased_tanh_reference("AntialiasedTanh against its definition", ${
 		}
 	});
 	it("renders as the reference in the class at every drive, at each saturation width's bounds", _ {
-		const std::vector<q31> edges = saturation_edges();
+		const std::vector<q31_t> edges = saturation_edges();
 		for (uint32_t drive = 0; drive <= kTopDrive; ++drive) {
 			const Run legacy = sweep<LegacyCurve>(drive, edges);
 			const Run reference = sweep<ReferenceCurve>(drive, edges);
@@ -506,7 +506,7 @@ describe antialiased_tanh_reference("AntialiasedTanh against its definition", ${
 		}
 	});
 	it("steps the recorded outputs at every drive", _ {
-		const std::vector<q31> edges = saturation_edges();
+		const std::vector<q31_t> edges = saturation_edges();
 		uint64_t h = kDigestBasis;
 		for (uint32_t drive = 0; drive <= kTopDrive; ++drive) {
 			const Run kernel = sweep<KernelCurve>(drive, edges);
@@ -518,18 +518,18 @@ describe antialiased_tanh_reference("AntialiasedTanh against its definition", ${
 
 describe tanh_kernel("Tanh<Drive>", ${
 	it("steps as tanh<Drive> at every drive", _ {
-		const std::vector<q31> input = test_input(kLongRun, kSeed + 5);
-		std::vector<q31> kernel;
-		std::vector<q31> plain;
+		const std::vector<q31_t> input = test_input(kLongRun, kSeed + 5);
+		std::vector<q31_t> kernel;
+		std::vector<q31_t> plain;
 		run_tanh_at(std::make_integer_sequence<uint32_t, kMaxDrive + 1>{}, input, kernel, plain);
 		expect(kernel.size()).to_equal(input.size() * (kMaxDrive + 1));
 		expect(kernel).to_equal(plain);
 	});
 	it("needs no state: a block in Mono is tanh<3> sample by sample", _ {
-		const std::vector<q31> input = test_input(kLongRun / 10, kSeed + 6);
+		const std::vector<q31_t> input = test_input(kLongRun / 10, kSeed + 6);
 		Mono<Tanh<3>> mono{};
-		std::vector<q31> out(input.size());
-		mono.render_block(typed_view(std::span<const q31>{input.data(), input.size()}), typed_view(std::span<q31>{out.data(), out.size()}));
+		std::vector<q31_t> out(input.size());
+		mono.render_block(typed_view(std::span<const q31_t>{input.data(), input.size()}), typed_view(std::span<q31_t>{out.data(), out.size()}));
 		for (std::size_t i = 0; i < input.size(); ++i) {
 			expect(out[i]).to_equal(tanh<3>(Q<31>::from_raw(input[i])).raw());
 		}

@@ -58,7 +58,6 @@
 
 namespace filter_workloads {
 
-using deluge::dsp::q31;
 using deluge::dsp::StereoSample;
 using deluge::dsp::fixed::CongruentialStep;
 using deluge::dsp::fixed::FilterRoute;
@@ -95,7 +94,7 @@ enum class Signal : uint8_t {
 	SILENCE,    ///< Zeros.
 	VOICE,      ///< Pseudo-random, ±2^27: a voice's level.
 	LOUD,       ///< ±0x60000000 flipping sign every two samples, with pseudo-random low bits: near full scale.
-	FULL_SCALE, ///< Pseudo-random across the whole q31 range.
+	FULL_SCALE, ///< Pseudo-random across the whole Q31 range.
 };
 
 /// @brief What happens to the target before a block is configured.
@@ -111,7 +110,7 @@ struct FilterStep {
 	size_t frames = 1;                            ///< The block's length, in frames: 1 to @ref kMaxFrames.
 	Signal signal = Signal::VOICE;                ///< The block's input.
 	Event event = Event::NONE;                    ///< Taken before the block is configured.
-	q31 gain = 1 << 29;                           ///< The volume going in, Q31.
+	q31_t gain = 1 << 29;                         ///< The volume going in, Q31.
 	FilterConfig low{};                           ///< The low-pass's settings (and a lone SVF's).
 	LowPassSlot low_slot{};                       ///< The low-pass slot (a lone ladder's or SVF's mode).
 	FilterConfig high{};                          ///< The high-pass's settings.
@@ -219,16 +218,16 @@ namespace detail {
 }
 
 /// @return Sample @p k of @p signal.
-[[nodiscard]] inline q31 signal_sample(Signal signal, uint32_t k) {
+[[nodiscard]] inline q31_t signal_sample(Signal signal, uint32_t k) {
 	switch (signal) {
 	case Signal::SILENCE:
 		return 0;
 	case Signal::VOICE:
-		return static_cast<q31>(mix(k)) >> 4;
+		return static_cast<q31_t>(mix(k)) >> 4;
 	case Signal::LOUD:
-		return (((k / 2) % 2) != 0U ? -0x60000000 : 0x60000000) + (static_cast<q31>(mix(k)) >> 8);
+		return (((k / 2) % 2) != 0U ? -0x60000000 : 0x60000000) + (static_cast<q31_t>(mix(k)) >> 8);
 	case Signal::FULL_SCALE:
-		return static_cast<q31>(mix(k ^ 0x9E3779B9U));
+		return static_cast<q31_t>(mix(k ^ 0x9E3779B9U));
 	}
 	return 0;
 }
@@ -244,19 +243,19 @@ inline constexpr std::array<size_t, 12> kLengths{1, 2, 3, 4, 5, 6, 7, 8, 9, 24, 
 inline constexpr size_t kBlocks = 40;
 
 /// @return The gain into block @p b: about 2^29, moving a little.
-[[nodiscard]] inline q31 gain_at(size_t b) {
-	return (1 << 29) - static_cast<q31>((b % 5) * 1000003);
+[[nodiscard]] inline q31_t gain_at(size_t b) {
+	return (1 << 29) - static_cast<q31_t>((b % 5) * 1000003);
 }
 
 /// @return @p config with its cutoff raised by up to 6/16 across every 7 blocks.
 [[nodiscard]] inline FilterConfig swept(FilterConfig config, size_t b) {
-	config.frequency += static_cast<q31>(b % 7) * (config.frequency >> 4);
+	config.frequency += static_cast<q31_t>(b % 7) * (config.frequency >> 4);
 	return config;
 }
 
 /// @return A morph (Q29) that crosses the whole range in 9 blocks.
-[[nodiscard]] inline q31 morph_at(size_t b) {
-	return static_cast<q31>((b % 9) * ((1 << 29) / 8)) - static_cast<q31>(b % 9 == 8);
+[[nodiscard]] inline q31_t morph_at(size_t b) {
+	return static_cast<q31_t>((b % 9) * ((1 << 29) / 8)) - static_cast<q31_t>(b % 9 == 8);
 }
 
 inline constexpr FilterConfig kLow{.frequency = 1 << 23, .resonance = 1 << 28, .morph = 0, .allow_oversampling = true};
@@ -267,9 +266,9 @@ inline constexpr FilterConfig kHigh{
     .frequency = 1 << 23, .resonance = 50000000, .morph = 1 << 26, .allow_oversampling = true};
 /// The high-pass ladder's resonances: its saturator bypassed (processed resonance about 214,000,000), tanh (about
 /// 833,000,000, past 750,000,000) and the antialiased tanh (about 1,122,000,000, past 900,000,000).
-inline constexpr q31 kHpBypass = 50000000;
-inline constexpr q31 kHpTanh = 240000000;
-inline constexpr q31 kHpSaturated = 400000000;
+inline constexpr q31_t kHpBypass = 50000000;
+inline constexpr q31_t kHpTanh = 240000000;
+inline constexpr q31_t kHpSaturated = 400000000;
 inline constexpr FilterConfig kSvf{.frequency = 1 << 24, .resonance = 1 << 28, .morph = 0, .allow_oversampling = true};
 
 inline constexpr LowPassSlot kLowOff{.kind = LowPassSlot::Kind::OFF};
@@ -290,7 +289,7 @@ inline constexpr HighPassSlot kHighNotch{.kind = HighPassSlot::Kind::SVF, .svf =
 }
 
 /// @return The high-pass settings at resonance @p resonance, the cutoff and morph moving.
-[[nodiscard]] inline FilterConfig high_at(q31 resonance, size_t b) {
+[[nodiscard]] inline FilterConfig high_at(q31_t resonance, size_t b) {
 	FilterConfig config = swept(kHigh, b);
 	config.resonance = resonance;
 	config.morph = (b % 3 == 2) ? 0 : morph_at(b);
@@ -323,7 +322,7 @@ inline constexpr HighPassSlot kHighNotch{.kind = HighPassSlot::Kind::SVF, .svf =
 }
 
 /// A lone high-pass ladder at @p resonance, zeroed first.
-[[nodiscard]] inline FilterWorkload high_pass(WorkloadId id, std::string_view name, bool stereo, q31 resonance) {
+[[nodiscard]] inline FilterWorkload high_pass(WorkloadId id, std::string_view name, bool stereo, q31_t resonance) {
 	return {.id = id,
 	        .name = name,
 	        .target = Target::HIGH_PASS_LADDER,
@@ -546,7 +545,7 @@ inline constexpr HighPassSlot kHighNotch{.kind = HighPassSlot::Kind::SVF, .svf =
 		             .stereo = stereo,
 		             .blocks = kBlocks,
 		             .step = [](size_t b) {
-			             constexpr std::array<q31, 4> kResonances{kHpBypass, kHpTanh, kHpSaturated, kHpTanh};
+			             constexpr std::array<q31_t, 4> kResonances{kHpBypass, kHpTanh, kHpSaturated, kHpTanh};
 			             FilterStep s = at(b);
 			             s.event = b == 0 ? Event::ZERO : Event::NONE;
 			             s.signal = b % 5 == 4 ? Signal::LOUD : Signal::VOICE;
@@ -663,9 +662,9 @@ inline constexpr HighPassSlot kHighNotch{.kind = HighPassSlot::Kind::SVF, .svf =
 }
 
 /// @return Block @p b's input: interleaved L/R in stereo.
-[[nodiscard]] inline std::vector<q31> filter_input(const FilterWorkload& workload, size_t b) {
+[[nodiscard]] inline std::vector<q31_t> filter_input(const FilterWorkload& workload, size_t b) {
 	const FilterStep s = workload.step(b);
-	std::vector<q31> block(workload.samples(b));
+	std::vector<q31_t> block(workload.samples(b));
 	for (size_t i = 0; i < block.size(); ++i) {
 		block[i] = detail::signal_sample(s.signal, static_cast<uint32_t>((b * 1024) + i));
 	}
@@ -673,7 +672,7 @@ inline constexpr HighPassSlot kHighNotch{.kind = HighPassSlot::Kind::SVF, .svf =
 }
 
 /// @return What the fade-alone workloads blend toward from the dry sample @p dry.
-[[nodiscard]] constexpr q31 fade_wet(q31 dry) {
+[[nodiscard]] constexpr q31_t fade_wet(q31_t dry) {
 	return ~dry;
 }
 
@@ -701,7 +700,8 @@ struct ReferenceFamily {
 	using DryWetFade = filters_reference::ReferenceDryWetFade;
 	using FilterSet = filters_reference::ReferenceFilterSet;
 
-	[[nodiscard]] static filters_reference::FilterScratch filter_scratch(std::span<q31> fade, std::span<q31> parallel) {
+	[[nodiscard]] static filters_reference::FilterScratch filter_scratch(std::span<q31_t> fade,
+	                                                                     std::span<q31_t> parallel) {
 		return {.fade = fade, .parallel = parallel};
 	}
 
@@ -713,7 +713,7 @@ struct ReferenceFamily {
 
 /// @brief What one block of a run did.
 struct BlockResult {
-	q31 gain = 0;       ///< The gain the target returned (0 for the fade alone).
+	q31_t gain = 0;     ///< The gain the target returned (0 for the fade alone).
 	uint32_t draws = 0; ///< How many values the block drew from the generator.
 	uint32_t cong = 0;  ///< The generator after the block.
 };
@@ -727,11 +727,11 @@ public:
 
 	/// @brief Renders block @p b into @p out (resized to the block), the noise values it draws folded into
 	/// @p noise.
-	BlockResult block(size_t b, std::vector<q31>& out, Digest& noise) {
+	BlockResult block(size_t b, std::vector<q31_t>& out, Digest& noise) {
 		const FilterStep s = workload_.step(b);
 		out = filter_input(workload_, b);
-		const std::span<q31> fade{fade_scratch_.data(), out.size()};
-		const std::span<q31> parallel{parallel_scratch_};
+		const std::span<q31_t> fade{fade_scratch_.data(), out.size()};
+		const std::span<q31_t> parallel{parallel_scratch_};
 		const uint32_t outer_cong = deluge::synth_noise.state();
 		deluge::synth_noise.seed(cong_);
 		BlockResult result{};
@@ -762,7 +762,7 @@ public:
 			if (fading) {
 				fade_.keepDry(out, fade);
 			}
-			for (q31& sample : out) {
+			for (q31_t& sample : out) {
 				sample = fade_wet(sample);
 			}
 			if (fading) {
@@ -836,7 +836,7 @@ private:
 	}
 
 	template <typename Filter>
-	void render(Filter& filter, std::span<q31> block, std::span<q31> fade) {
+	void render(Filter& filter, std::span<q31_t> block, std::span<q31_t> fade) {
 		if (workload_.stereo) {
 			filter.render_stereo(block, fade);
 		}
@@ -851,8 +851,8 @@ private:
 	typename Family::StateVariableFilter svf_{};
 	typename Family::DryWetFade fade_{};
 	typename Family::FilterSet set_{};
-	std::array<q31, 2 * kMaxFrames> fade_scratch_{};
-	std::array<q31, 2 * kMaxFrames> parallel_scratch_{};
+	std::array<q31_t, 2 * kMaxFrames> fade_scratch_{};
+	std::array<q31_t, 2 * kMaxFrames> parallel_scratch_{};
 	uint32_t cong_ = kCongSeed;
 };
 
@@ -870,8 +870,8 @@ template <typename A, typename B>
 [[nodiscard]] std::optional<Parting> first_parting(const FilterWorkload& workload) {
 	FilterRun<A> a{workload};
 	FilterRun<B> b{workload};
-	std::vector<q31> out_a;
-	std::vector<q31> out_b;
+	std::vector<q31_t> out_a;
+	std::vector<q31_t> out_b;
 	Digest noise_a;
 	Digest noise_b;
 	for (size_t block = 0; block < workload.blocks; ++block) {
@@ -922,11 +922,11 @@ template <typename Family>
 	FilterRun<Family> run{workload};
 	WorkloadRecord out;
 	Digest noise;
-	std::vector<q31> block;
+	std::vector<q31_t> block;
 	for (size_t b = 0; b < workload.blocks; ++b) {
 		const BlockResult result = run.block(b, block, noise);
 		Digest output;
-		output.add(std::span<const q31>{block});
+		output.add(std::span<const q31_t>{block});
 		output.add(result.gain);
 		out.outputs.push_back(output.value);
 		out.draws.push_back(result.draws);

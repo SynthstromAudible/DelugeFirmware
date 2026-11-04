@@ -175,10 +175,10 @@ public:
 
 private:
 	/// @return The two taps @p a and @p b weighed by @p strength1 and @p strength2 (16.16, summing to 65536), Q31.
-	[[nodiscard]] static q31 mix(q31 a, q31 b, int32_t strength1, int32_t strength2) {
-		const q31 sum =
+	[[nodiscard]] static q31_t mix(q31_t a, q31_t b, int32_t strength1, int32_t strength2) {
+		const q31_t sum =
 		    wrapping_add(multiply_32x32_rshift32(a, strength1 << 14), multiply_32x32_rshift32(b, strength2 << 14));
-		return static_cast<q31>(static_cast<uint32_t>(sum) << 2);
+		return static_cast<q31_t>(static_cast<uint32_t>(sum) << 2);
 	}
 
 	std::vector<StereoSample> storage_;

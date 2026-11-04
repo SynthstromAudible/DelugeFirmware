@@ -45,7 +45,7 @@ struct vector_of<Q<F>> {
 };
 } // namespace detail
 
-/// @brief The vector of @p T a block loop steps: `Argon<q31>` for q31, `QVec<31>` for Q<31>, `Argon<f32>` for f32.
+/// @brief The vector of @p T a block loop steps: `QVec<F>` for Q<F>, `Argon<f32>` for f32.
 template <typename T>
 using vector_t = detail::vector_of<T>::type;
 

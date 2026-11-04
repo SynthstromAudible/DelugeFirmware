@@ -55,20 +55,22 @@ struct Countdown {
 		q31 rate; ///< Fall per sample, Q1.31.
 	};
 	struct State {
-		q31 level = kOneQ31; ///< Q1.31.
-		uint32_t calls;      ///< How many times `advance` has run.
+		q31 level = q31::from_raw(kOneQ31); ///< Q1.31.
+		uint32_t calls;                     ///< How many times `advance` has run.
 	};
 	static Coefficients coefficients(const Settings& s) { return {.rate = s.rate}; }
 	static q31 advance(const Coefficients& c, State& s, std::size_t n) {
-		const int64_t next = int64_t{s.level} - (int64_t{c.rate} * static_cast<int64_t>(n));
-		s.level = next < 0 ? 0 : static_cast<q31>(next);
+		const int64_t next = int64_t{s.level.raw()} - (int64_t{c.rate.raw()} * static_cast<int64_t>(n));
+		s.level = q31::from_raw(next < 0 ? 0 : static_cast<q31_t>(next));
 		++s.calls;
 		return s.level;
 	}
 	/// Sets the level to @p to.
 	static void kick(State& s, q31 to) { s.level = to; }
-	/// Lowers the level by the configured rate times @p by.
-	static void kick_scaled(const Coefficients& c, State& s, q31 by) { s.level -= c.rate * by; }
+	/// Lowers the level by the configured rate times @p by, a raw count.
+	static void kick_scaled(const Coefficients& c, State& s, q31 by) {
+		s.level = q31::from_raw(s.level.raw() - (c.rate.raw() * by.raw()));
+	}
 	/// Sets the level to @p to and returns the level it replaced.
 	static q31 swap_level(State& s, q31 to) {
 		const q31 old = s.level;
@@ -100,17 +102,17 @@ struct SignedCountdown {
 		Dir mode = Dir::DOWN; ///< Which way it changes.
 	};
 	struct State {
-		q31 level = 1000; ///< The current level.
+		q31 level = q31::from_raw(1000); ///< The current level.
 	};
 	static Coefficients coefficients(const Settings& s) { return {.rate = s.rate, .mode = s.dir}; }
 	template <Dir M>
 	static q31 advance(const Coefficients& c, State& s, std::size_t n) {
-		const auto change = static_cast<q31>(c.rate * static_cast<q31>(n));
+		const auto change = q31::from_raw(c.rate.raw() * static_cast<q31_t>(n));
 		if constexpr (M == Dir::DOWN) {
-			s.level -= change;
+			s.level = sub_wrap(s.level, change);
 		}
 		else {
-			s.level += change;
+			s.level = add_wrap(s.level, change);
 		}
 		return s.level;
 	}
@@ -130,9 +132,9 @@ struct RestartsAtSeven {
 		q31 level; ///< The current level.
 	};
 	static Coefficients coefficients(const Settings& s) { return {.rate = s.rate}; }
-	static void reset(State& s) { s.level = 7; }
+	static void reset(State& s) { s.level = q31::from_raw(7); }
 	static q31 advance(const Coefficients& c, State& s, std::size_t n) {
-		s.level += c.rate * static_cast<q31>(n);
+		s.level = add_wrap(s.level, q31::from_raw(c.rate.raw() * static_cast<q31_t>(n)));
 		return s.level;
 	}
 };
@@ -153,7 +155,7 @@ struct ConstAdvance {
 	};
 	static Coefficients coefficients(const Settings& s) { return {.rate = s.rate}; }
 	static q31 advance(const Coefficients& c, State& s, std::size_t n) {
-		s.level += c.rate * static_cast<q31>(n);
+		s.level = add_wrap(s.level, q31::from_raw(c.rate.raw() * static_cast<q31_t>(n)));
 		return s.level;
 	}
 	static q31 advance(Coefficients& c, State& s, std::size_t n) = delete;
@@ -174,13 +176,13 @@ struct ModedConstAdvance {
 		Dir mode = Dir::DOWN; ///< Which way it changes.
 	};
 	struct State {
-		q31 level = 1000; ///< The current level.
+		q31 level = q31::from_raw(1000); ///< The current level.
 	};
 	static Coefficients coefficients(const Settings& s) { return {.rate = s.rate, .mode = s.dir}; }
 	template <Dir M>
 	static q31 advance(const Coefficients& c, State& s, std::size_t n) {
-		const auto change = static_cast<q31>(c.rate * static_cast<q31>(n));
-		s.level += M == Dir::UP ? change : -change;
+		const auto change = q31::from_raw(c.rate.raw() * static_cast<q31_t>(n));
+		s.level = M == Dir::UP ? add_wrap(s.level, change) : sub_wrap(s.level, change);
 		return s.level;
 	}
 	template <Dir M>
@@ -188,7 +190,7 @@ struct ModedConstAdvance {
 };
 
 /// A fall per sample of 2^-11 of full scale, Q1.31.
-constexpr q31 kRate = 1 << 20;
+constexpr q31_t kRate = 1 << 20;
 
 static_assert(control_kernel<Countdown>);
 static_assert(control_kernel<SignedCountdown> && moded_kernel<SignedCountdown>);
@@ -211,66 +213,66 @@ static_assert(!detail::event_takes_state<Countdown, &Countdown::by_const>);
 describe control("Control", ${
 	it("advances a block at a time, one kernel call per advance, an empty block included", _ {
 		Control<Countdown> countdown;
-		countdown.configure({.rate = kRate});
-		expect(countdown.advance(4)).to_equal(kOneQ31 - (4 * kRate));
-		expect(countdown.advance(0)).to_equal(kOneQ31 - (4 * kRate));
-		expect(countdown.advance(7)).to_equal(kOneQ31 - (11 * kRate));
-		expect(countdown.state().level).to_equal(2135949311);
+		countdown.configure({.rate = q31::from_raw(kRate)});
+		expect(countdown.advance(4).raw()).to_equal(kOneQ31 - (4 * kRate));
+		expect(countdown.advance(0).raw()).to_equal(kOneQ31 - (4 * kRate));
+		expect(countdown.advance(7).raw()).to_equal(kOneQ31 - (11 * kRate));
+		expect(countdown.state().level.raw()).to_equal(2135949311);
 		expect(countdown.state().calls).to_equal(3U);
 	});
 
 	it("saturates as its kernel does", _ {
-		Control<Countdown> countdown{Countdown::Settings{.rate = kOneQ31}};
-		expect(countdown.advance(2)).to_equal(0);
-		expect(countdown.coefficients().rate).to_equal(kOneQ31);
+		Control<Countdown> countdown{Countdown::Settings{.rate = q31::from_raw(kOneQ31)}};
+		expect(countdown.advance(2).raw()).to_equal(0);
+		expect(countdown.coefficients().rate.raw()).to_equal(kOneQ31);
 	});
 
 	it("uses a configure between blocks from the next block on, its state carried over", _ {
-		Control<Countdown> countdown{Countdown::Settings{.rate = kRate}};
+		Control<Countdown> countdown{Countdown::Settings{.rate = q31::from_raw(kRate)}};
 		std::ignore = countdown.advance(4);
-		countdown.configure({.rate = 3 * kRate});
-		expect(countdown.advance(4)).to_equal(kOneQ31 - (4 * kRate) - (4 * 3 * kRate));
-		expect(countdown.state().level).to_equal(2130706431);
+		countdown.configure({.rate = q31::from_raw(3 * kRate)});
+		expect(countdown.advance(4).raw()).to_equal(kOneQ31 - (4 * kRate) - (4 * 3 * kRate));
+		expect(countdown.state().level.raw()).to_equal(2130706431);
 		expect(countdown.state().calls).to_equal(2U);
 	});
 
 	it("runs each block in its own mode, the state carried across a switch", _ {
 		Control<SignedCountdown> signed_countdown;
-		expect(signed_countdown.advance(3)).to_equal(1000);
-		signed_countdown.configure({.rate = 10, .dir = SignedCountdown::Dir::DOWN});
-		expect(signed_countdown.advance(3)).to_equal(970);
-		signed_countdown.configure({.rate = 10, .dir = SignedCountdown::Dir::UP});
-		expect(signed_countdown.advance(3)).to_equal(1000);
-		expect(signed_countdown.advance(2)).to_equal(1020);
+		expect(signed_countdown.advance(3).raw()).to_equal(1000);
+		signed_countdown.configure({.rate = q31::from_raw(10), .dir = SignedCountdown::Dir::DOWN});
+		expect(signed_countdown.advance(3).raw()).to_equal(970);
+		signed_countdown.configure({.rate = q31::from_raw(10), .dir = SignedCountdown::Dir::UP});
+		expect(signed_countdown.advance(3).raw()).to_equal(1000);
+		expect(signed_countdown.advance(2).raw()).to_equal(1020);
 	});
 
 	it("calls the kernel's const-coefficients advance, never an overload taking them by non-const reference", _ {
-		Control<ConstAdvance> rising{ConstAdvance::Settings{.rate = 3}};
-		expect(rising.advance(4)).to_equal(12);
-		expect(rising.advance(1)).to_equal(15);
+		Control<ConstAdvance> rising{ConstAdvance::Settings{.rate = q31::from_raw(3)}};
+		expect(rising.advance(4).raw()).to_equal(12);
+		expect(rising.advance(1).raw()).to_equal(15);
 
-		Control<ModedConstAdvance> moded{ModedConstAdvance::Settings{.rate = 10, .dir = ModedConstAdvance::Dir::UP}};
-		expect(moded.advance(3)).to_equal(1030);
-		moded.configure({.rate = 10, .dir = ModedConstAdvance::Dir::DOWN});
-		expect(moded.advance(2)).to_equal(1010);
+		Control<ModedConstAdvance> moded{ModedConstAdvance::Settings{.rate = q31::from_raw(10), .dir = ModedConstAdvance::Dir::UP}};
+		expect(moded.advance(3).raw()).to_equal(1030);
+		moded.configure({.rate = q31::from_raw(10), .dir = ModedConstAdvance::Dir::DOWN});
+		expect(moded.advance(2).raw()).to_equal(1010);
 	});
 
 	it("runs an event on the state, with the coefficients when the event takes them", _ {
-		Control<Countdown> countdown{Countdown::Settings{.rate = kRate}};
-		countdown.on<&Countdown::kick>(1000000000);
-		expect(countdown.state().level).to_equal(1000000000);
-		countdown.on<&Countdown::kick_scaled>(2);
-		expect(countdown.state().level).to_equal(1000000000 - (2 * kRate));
-		expect(countdown.advance(1)).to_equal(1000000000 - (3 * kRate));
+		Control<Countdown> countdown{Countdown::Settings{.rate = q31::from_raw(kRate)}};
+		countdown.on<&Countdown::kick>(q31::from_raw(1000000000));
+		expect(countdown.state().level.raw()).to_equal(1000000000);
+		countdown.on<&Countdown::kick_scaled>(q31::from_raw(2));
+		expect(countdown.state().level.raw()).to_equal(1000000000 - (2 * kRate));
+		expect(countdown.advance(1).raw()).to_equal(1000000000 - (3 * kRate));
 	});
 
 	it("returns an event's result", _ {
 		Control<Countdown> countdown;
 		static_assert(std::same_as<decltype(countdown.on<&Countdown::swap_level>(q31{})), q31>);
 		static_assert(std::same_as<decltype(countdown.on<&Countdown::kick>(q31{})), void>);
-		expect(countdown.on<&Countdown::swap_level>(5)).to_equal(kOneQ31);
-		expect(countdown.on<&Countdown::swap_level>(9)).to_equal(5);
-		expect(countdown.state().level).to_equal(9);
+		expect(countdown.on<&Countdown::swap_level>(q31::from_raw(5)).raw()).to_equal(kOneQ31);
+		expect(countdown.on<&Countdown::swap_level>(q31::from_raw(9)).raw()).to_equal(5);
+		expect(countdown.state().level.raw()).to_equal(9);
 	});
 
 	it("returns a reference an event returns, to the wrapper's own state", _ {
@@ -282,30 +284,30 @@ describe control("Control", ${
 
 	it("forwards a move-only argument to the event", _ {
 		Control<Countdown> countdown;
-		countdown.on<&Countdown::kick_owned>(MoveOnlyLevel{42});
-		expect(countdown.state().level).to_equal(42);
-		MoveOnlyLevel held{43};
+		countdown.on<&Countdown::kick_owned>(MoveOnlyLevel{q31::from_raw(42)});
+		expect(countdown.state().level.raw()).to_equal(42);
+		MoveOnlyLevel held{q31::from_raw(43)};
 		countdown.on<&Countdown::kick_owned>(std::move(held));
-		expect(countdown.state().level).to_equal(43);
+		expect(countdown.state().level.raw()).to_equal(43);
 	});
 
 	it("resets to State{}, keeping its coefficients", _ {
-		Control<Countdown> countdown{Countdown::Settings{.rate = kRate}};
+		Control<Countdown> countdown{Countdown::Settings{.rate = q31::from_raw(kRate)}};
 		std::ignore = countdown.advance(4);
 		countdown.reset();
-		expect(countdown.state().level).to_equal(kOneQ31);
+		expect(countdown.state().level.raw()).to_equal(kOneQ31);
 		expect(countdown.state().calls).to_equal(0U);
-		expect(countdown.coefficients().rate).to_equal(kRate);
-		expect(countdown.advance(1)).to_equal(kOneQ31 - kRate);
+		expect(countdown.coefficients().rate.raw()).to_equal(kRate);
+		expect(countdown.advance(1).raw()).to_equal(kOneQ31 - kRate);
 	});
 
 	it("resets through the kernel's reset quirk when it declares one", _ {
-		Control<RestartsAtSeven> restarts{RestartsAtSeven::Settings{.rate = 2}};
-		expect(restarts.advance(3)).to_equal(6);
+		Control<RestartsAtSeven> restarts{RestartsAtSeven::Settings{.rate = q31::from_raw(2)}};
+		expect(restarts.advance(3).raw()).to_equal(6);
 		restarts.reset();
-		expect(restarts.state().level).to_equal(7);
-		expect(restarts.coefficients().rate).to_equal(2);
-		expect(restarts.advance(1)).to_equal(9);
+		expect(restarts.state().level.raw()).to_equal(7);
+		expect(restarts.coefficients().rate.raw()).to_equal(2);
+		expect(restarts.advance(1).raw()).to_equal(9);
 	});
 });
 

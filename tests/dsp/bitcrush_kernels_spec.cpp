@@ -52,17 +52,17 @@ static_assert(!std::is_polymorphic_v<BitDepth>);
 static_assert(!std::is_polymorphic_v<SampleRateReducer>);
 static_assert(!BitDepth::on(Q<31>::from_raw(-2113929217)));
 static_assert(BitDepth::on(Q<31>::from_raw(-2113929216)));
-static_assert(BitDepth::volume_shift(Q<31>::from_raw(std::numeric_limits<q31>::max())) == 3);
+static_assert(BitDepth::volume_shift(Q<31>::from_raw(std::numeric_limits<q31_t>::max())) == 3);
 static_assert(BitDepth::volume_shift(Q<31>::from_raw(0x40000000)) == 2);
 static_assert(BitDepth::volume_shift(Q<31>::from_raw(0x20000000)) == 1);
 static_assert(BitDepth::volume_shift(Q<31>::from_raw(0)) == 0);
-static_assert(BitDepth::volume_shift(Q<31>::from_raw(std::numeric_limits<q31>::min())) == 0);
-static_assert(BitDepth::mask(Q<31>::from_raw(std::numeric_limits<q31>::min()), BitDepth::kMaskBase) == 0xFFFFFFFFu);
+static_assert(BitDepth::volume_shift(Q<31>::from_raw(std::numeric_limits<q31_t>::min())) == 0);
+static_assert(BitDepth::mask(Q<31>::from_raw(std::numeric_limits<q31_t>::min()), BitDepth::kMaskBase) == 0xFFFFFFFFu);
 static_assert(BitDepth::mask(Q<31>::from_raw(-2113929216), BitDepth::kMaskBase) == 0xFFFFFFFFu << 19);
-static_assert(BitDepth::mask(Q<31>::from_raw(std::numeric_limits<q31>::max()), BitDepth::kGrabMaskBase)
+static_assert(BitDepth::mask(Q<31>::from_raw(std::numeric_limits<q31_t>::max()), BitDepth::kGrabMaskBase)
               == 0xFFFFFFFFu << 25);
-static_assert(!SampleRateReducer::on(Q<31>::from_raw(std::numeric_limits<q31>::min())));
-static_assert(SampleRateReducer::on(Q<31>::from_raw(std::numeric_limits<q31>::min() + 1)));
+static_assert(!SampleRateReducer::on(Q<31>::from_raw(std::numeric_limits<q31_t>::min())));
+static_assert(SampleRateReducer::on(Q<31>::from_raw(std::numeric_limits<q31_t>::min() + 1)));
 
 constexpr std::size_t kFrames = 2048;
 

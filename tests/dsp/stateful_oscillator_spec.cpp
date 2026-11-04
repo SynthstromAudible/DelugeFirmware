@@ -48,7 +48,7 @@ constexpr std::size_t kN = 16; // a render block
 template <typename Osc>
 std::array<int32_t, kN> block(Osc& osc) {
 	std::array<int32_t, kN> out{};
-	osc.render_block(deluge::dsp::typed_view(Buffer{out}));
+	osc.render_block(deluge::dsp::typed_view(std::span{out}));
 	return out;
 }
 } // namespace

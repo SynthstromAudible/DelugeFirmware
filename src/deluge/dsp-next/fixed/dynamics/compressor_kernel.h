@@ -334,7 +334,7 @@ private:
 	}
 
 	/// @return |@p x| as an unsigned value: INT32_MIN gives 2^31.
-	[[nodiscard]] [[gnu::always_inline]] static uint32_t magnitude(q31 x) {
+	[[nodiscard]] [[gnu::always_inline]] static uint32_t magnitude(int32_t x) {
 		return x < 0 ? 0u - static_cast<uint32_t>(x) : static_cast<uint32_t>(x);
 	}
 

@@ -29,12 +29,12 @@
 /// @brief Stereo frames over the app's interleaved buffers, and Stereo<K>: a mono kernel run on both channels.
 namespace deluge::dsp {
 
-/// @brief An interleaved L/R q31 buffer viewed as frames: `size() / 2` frames; an odd trailing sample is outside.
-/// @details Any contiguous range of q31 (a span, an array, a vector). A const range gives a
+/// @brief An interleaved L/R Q31 buffer viewed as frames: `size() / 2` frames; an odd trailing sample is outside.
+/// @details Any contiguous range of Q<31> (a span, an array, a vector). A const range gives a
 /// @ref fixed::StereoSignal, a mutable one a @ref fixed::StereoBuffer. The view aliases @p interleaved: a frame is
-/// its two consecutive q31 samples, left first, which the layout assert in stereo_sample.h guarantees. The app's
-/// buffers are int32 storage, so no object of another type is created. A range that owns its storage must be an
-/// lvalue, since a view of a temporary would dangle.
+/// its two consecutive samples, left first, which the layout assert in stereo_sample.h guarantees. The app's
+/// buffers are int32 storage that buffer_view.h views as Q<31>, so no object of another type is created. A range that
+/// owns its storage must be an lvalue, since a view of a temporary would dangle.
 /// @param interleaved The interleaved samples, left first.
 /// @return A span of `size() / 2` frames over the same storage.
 template <std::ranges::contiguous_range R>

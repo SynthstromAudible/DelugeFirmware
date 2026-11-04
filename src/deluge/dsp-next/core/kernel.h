@@ -384,15 +384,15 @@ concept declares_kernel_types = std::is_class_v<K> && !std::is_final_v<K> && req
 template <typename K>
 concept scalar_step_kernel = std::same_as<typename K::step_type, typename K::value_type>;
 
-/// @brief Whether @p T is a Q31 sample: raw q31 or Q<31>.
+/// @brief Whether @p T is a Q31 sample.
 template <typename T>
-concept q31_sample = std::same_as<T, q31> || std::same_as<T, Q<31>>;
+concept q31_sample = std::same_as<T, Q<31>>;
 
-/// @brief Whether @p T is a 32-bit fixed-point sample a kernel steps: raw q31, or Q<F> of any format.
+/// @brief Whether @p T is a 32-bit fixed-point sample a kernel steps: Q<F> of any format.
 template <typename T>
-concept q_sample = std::same_as<T, q31> || std::same_as<T, Q<T::kFractionalBits>>;
+concept q_sample = std::same_as<T, Q<T::kFractionalBits>>;
 
-/// @brief K steps a vector of consecutive 32-bit samples: `Argon<q31>` over q31, `QVec<F>` over Q<F>.
+/// @brief K steps a vector of consecutive 32-bit samples: `QVec<F>` over Q<F>.
 template <typename K>
 concept vector_step_kernel =
     q_sample<typename K::value_type> && std::same_as<typename K::step_type, vector_t<typename K::value_type>>;
@@ -403,7 +403,7 @@ concept stereo_vector_step_kernel =
     std::same_as<typename K::value_type, StereoSample> && std::same_as<typename K::step_type, StereoVector>;
 
 /// @brief Whether a wrapper has a loop for K's step type over its value type: the step type is the value type,
-/// `Argon<q31>` over q31, `QVec<F>` over Q<F>, or StereoVector over StereoSample.
+/// `QVec<F>` over Q<F>, or StereoVector over StereoSample.
 template <typename K>
 concept supported_step_pair = scalar_step_kernel<K> || vector_step_kernel<K> || stereo_vector_step_kernel<K>;
 
@@ -507,7 +507,7 @@ inline constexpr std::size_t chains_of_v<K> = [] {
 /// @brief The shape every kernel has: value/step types, Settings → Coefficients (pure), State, optional prepare.
 /// @details Requires:
 /// - a non-final class declaring `value_type`, `step_type` and `Settings`, with a step type a wrapper has a loop
-///   for: the value type itself, `Argon<q31>` over q31 blocks, or StereoVector over StereoSample blocks;
+///   for: the value type itself, `QVec<F>` over Q<F> blocks, or StereoVector over StereoSample blocks;
 /// - `Coefficients`, `State` and kernel_block_t<K> as plain value structs (default-constructible, trivially
 ///   copyable);
 /// - `static Coefficients coefficients(const Settings&)`;
@@ -632,7 +632,8 @@ concept state_written_over_value =
     requires { typename K::template StateT<P>; }
     && std::same_as<typename K::template StateT<typename K::value_type>, typename K::State>
     && plain_value<typename K::template StateT<P>> && std::is_trivially_copyable_v<typename K::State>
-    && sizeof(typename K::State) % sizeof(q31) == 0 && alignof(typename K::template StateT<P>) == alignof(q31)
+    && sizeof(typename K::State) % sizeof(std::int32_t) == 0
+    && alignof(typename K::template StateT<P>) == alignof(std::int32_t)
     && sizeof(typename K::template StateT<P>) == 2 * sizeof(typename K::State);
 
 /// @brief Whether K's `step` written over a value type is callable at pack P, with the form's step values as P's, and
@@ -661,12 +662,11 @@ concept steps_packed =
 /// - `static constexpr bool kLanePackable = true`;
 /// - `template <class V> struct StateT`, every member a V, with `using State = StateT<value_type>`;
 /// - `template <Mode M, class V> static V step(const Coefficients&, const EmptyBlock&, StateT<V>&, …)` (without the
-///   mode when K has none), its arithmetic written so it resolves for its value type and for a LanePack of it: over
-///   q31, `wrapping_add`, `wrapping_sub` and the fixed-point multiplies called unqualified; over Q<31>,
+///   mode when K has none), its arithmetic written so it resolves for its value type and for a LanePack of it:
 ///   fixed_point.h's operations, which fixed_point_lanes.h applies lane by lane.
 ///
 /// The coefficients stay scalar: every lane shares them, and a pack's operations broadcast a scalar operand. K is a
-/// generator, processor or mixer kernel stepping one Q31 sample, q31 or Q<31>. The op-major step is not offered to a
+/// generator, processor or mixer kernel stepping one Q<F> sample. The op-major step is not offered to a
 /// kernel that declares a `prepare`, whose Block may depend on each lane's State, nor to one with a `reset` quirk,
 /// which acts on one State, nor to one declaring `kLoopState` or `kStateInPlace`, whose State is not one set of
 /// registers: `Lanes` steps those lane by lane. Nor to one with a Context, whose lanes draw on it in turn: a packed

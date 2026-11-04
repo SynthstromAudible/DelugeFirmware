@@ -65,7 +65,7 @@ concept scalar_mixer_render = requires(D d, T a, T b) {
 
 /// @brief CRTP mixin: builds a mixer's `render_block` from its `render(a, b)`.
 /// @tparam Derived the component, which defines `render(a, b)`.
-/// @tparam T the sample type of the blocks (`q31`, `Q<31>`, `f32` or @ref StereoSample).
+/// @tparam T the sample type of the blocks (`Q<31>`, `f32` or @ref StereoSample).
 /// @details Non-virtual: the mixin adds no vptr and no state. The path is chosen from the signature of
 /// `Derived::render`:
 /// - SIMD, when it takes and returns `Argon<T>` (or `QVec<31>` over Q<31>): one `render` per vector, through
@@ -105,13 +105,13 @@ struct Mixer {
 		}
 		else if constexpr (detail::simd_stereo_mixer_render<Derived, T>) {
 			const auto size = static_cast<std::ptrdiff_t>(n);
-			const q31* a = detail::interleaved(input_a);
-			const q31* b = detail::interleaved(input_b);
-			q31* out = detail::interleaved(output);
-			argon::vectorize::for_each_interleaved<q31, 2>(size, [&] [[gnu::always_inline]] (auto step) {
+			const std::int32_t* a = detail::interleaved(input_a);
+			const std::int32_t* b = detail::interleaved(input_b);
+			std::int32_t* out = detail::interleaved(output);
+			argon::vectorize::for_each_interleaved<std::int32_t, 2>(size, [&] [[gnu::always_inline]] (auto step) {
 				const StereoVector frames =
 				    self.render(detail::to_stereo(step.Load(a)), detail::to_stereo(step.Load(b)));
-				step.Store(out, {frames.l, frames.r});
+				step.Store(out, {frames.l.raw(), frames.r.raw()});
 			});
 		}
 		else {

@@ -99,11 +99,11 @@ struct Processor {
 		}
 		else if constexpr (detail::simd_stereo_processor_render<Derived, T>) {
 			const auto size = static_cast<std::ptrdiff_t>(n);
-			const q31* in = detail::interleaved(input);
-			q31* out = detail::interleaved(output);
-			argon::vectorize::for_each_interleaved<q31, 2>(size, [&] [[gnu::always_inline]] (auto step) {
+			const std::int32_t* in = detail::interleaved(input);
+			std::int32_t* out = detail::interleaved(output);
+			argon::vectorize::for_each_interleaved<std::int32_t, 2>(size, [&] [[gnu::always_inline]] (auto step) {
 				const StereoVector frames = self.render(detail::to_stereo(step.Load(in)));
-				step.Store(out, {frames.l, frames.r});
+				step.Store(out, {frames.l.raw(), frames.r.raw()});
 			});
 		}
 		else {

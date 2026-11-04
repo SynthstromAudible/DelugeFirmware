@@ -23,7 +23,7 @@ namespace {
 namespace va = deluge::synth::va_shape;
 
 /// @brief The VCA's amplitude: a quarter, steady.
-constexpr q31 kAmplitude = q31{1} << 29;
+constexpr q31_t kAmplitude = q31_t{1} << 29;
 
 dsp::Phasor phasor(uint32_t increment) {
 	return dsp::Phasor{dsp::UQ<32>::from_raw(0), dsp::UQ<32>::from_raw(increment)};
@@ -32,8 +32,8 @@ dsp::Phasor phasor(uint32_t increment) {
 struct VaShapeRig {
 	std::variant<va::Saw, va::Square, va::Triangle, va::AnalogSaw> shape{va::Saw{phasor(0)}};
 	dsp::Phasor master = phasor(0);
-	alignas(16) std::array<q31, kMaxBlock> output{};
-	alignas(16) std::array<q31, kMaxBlock> scratch{};
+	alignas(16) std::array<q31_t, kMaxBlock> output{};
+	alignas(16) std::array<q31_t, kMaxBlock> scratch{};
 };
 
 VaShapeRig rig{};
@@ -66,8 +66,8 @@ void VaShapeCase::block(std::size_t n) {
 	if (config_.sync) {
 		controls.sync = rig.master;
 	}
-	const dsp::fixed::Buffer output{rig.output.data(), n};
-	const dsp::fixed::Buffer scratch{rig.scratch.data(), n};
+	const std::span<int32_t> output{rig.output.data(), n};
+	const std::span<int32_t> scratch{rig.scratch.data(), n};
 	std::visit([&](auto& shape) { shape.render_block(controls, output, scratch); }, rig.shape);
 	rig.master.seek(
 	    dsp::UQ<32>::from_raw(rig.master.phase().raw() + (rig.master.increment().raw() * static_cast<uint32_t>(n))));

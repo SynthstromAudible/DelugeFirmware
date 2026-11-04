@@ -51,10 +51,10 @@ struct frame_lanes<Frame<T, N>, T> {
 	[[nodiscard]] [[gnu::always_inline]] static constexpr Frame<T, N> from_lanes(Frame<T, N> f) { return f; }
 };
 
-/// @brief A @ref StereoSample is two Q31 lanes, left in lane 0, as raw q31 or as Q<31>, converted by bit cast (the
-/// layouts agree, as @ref to_frame asserts for q31).
+/// @brief A @ref StereoSample is two Q<31> lanes, left in lane 0, converted by bit cast (the layouts agree, as
+/// @ref to_frame asserts).
 template <class Lane>
-requires std::same_as<Lane, q31> || std::same_as<Lane, Q<31>>
+requires std::same_as<Lane, Q<31>>
 struct frame_lanes<StereoSample, Lane> {
 	using lane_type = Lane;                  ///< One channel's sample, Q31.
 	static constexpr std::size_t kLanes = 2; ///< Left and right.
@@ -225,7 +225,8 @@ public:
 
 	/// @brief A snapshot of lane @p lane's state between blocks. @p lane is less than N.
 	/// @details By value in both forms, so a caller never holds a view into state the next block rewrites. Op-major,
-	/// it is read out of the packed state: member m is N q31 lanes, so lane @p lane's word m sits at m × N + @p lane.
+	/// it is read out of the packed state: member m is N 32-bit lanes, so lane @p lane's word m sits at m × N + @p
+	/// lane.
 	/// @param lane The lane, less than N.
 	/// @return A copy of the lane's State.
 	[[nodiscard]] [[gnu::always_inline]] State state(std::size_t lane) const {
@@ -446,19 +447,19 @@ public:
 	}
 
 private:
-	/// @brief The q31 words in one State. Member m of a packed state is N q31 lanes, so lane i's word m sits at
+	/// @brief The 32-bit words in one State. Member m of a packed state is N 32-bit lanes, so lane i's word m sits at
 	/// m × N + i.
-	static constexpr std::size_t kWords = sizeof(State) / sizeof(q31);
+	static constexpr std::size_t kWords = sizeof(State) / sizeof(std::int32_t);
 	static_assert(!kOpMajor || kWords > 0,
-	              "an op-major State is whole q31 words, at least one, so a packed lane never forms Words<0>");
+	              "an op-major State is whole 32-bit words, at least one, so a packed lane never forms Words<0>");
 
-	/// @brief @p W q31 words, for reading a trivially copyable value as words. Named only on the op-major paths, whose
-	/// State is at least one word: @ref lane_packable requires a State made of whole q31 words, and an empty struct
-	/// is one byte.
+	/// @brief @p W 32-bit words, for reading a trivially copyable value as words. Named only on the op-major paths,
+	/// whose State is at least one word: @ref lane_packable requires a State made of whole 32-bit words, and an empty
+	/// struct is one byte.
 	template <std::size_t W>
 	struct Words {
 		// NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays)
-		q31 word[W]; ///< The words.
+		std::int32_t word[W]; ///< The words.
 	};
 
 	/// @brief Lane @p lane's State, read out of the packed state. Op-major only.
