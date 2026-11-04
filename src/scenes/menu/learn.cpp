@@ -40,8 +40,25 @@ using deluge::ui::shell::ButtonId;
 using deluge::ui::shell::UiContext;
 using deluge::ui::shell::UiEvent;
 
+namespace {
+
+/// @brief The learn node's `CustomItem`, or null when it is not a `Kind::Custom` leaf.
+const CustomItem* custom_of(const Node* node) {
+	return node != nullptr && node->kind == Kind::Custom ? node->custom : nullptr;
+}
+
+} // namespace
+
+const Node* MenuLearn::node(const MenuContext& ctx, const MenuState& st) {
+	const Node* at = focused(st);
+	if (at != nullptr && at->kind == Kind::Submenu) {
+		at = selected_child(ctx, st, *at);
+	}
+	return at != nullptr && at->kind != Kind::Submenu ? at : nullptr;
+}
+
 std::optional<deluge::project::OwnerParamTarget> MenuLearn::target(const MenuContext& ctx, const MenuState& st) const {
-	const Node* node = focused(st);
+	const Node* node = MenuLearn::node(ctx, st);
 	if (node == nullptr) {
 		return std::nullopt;
 	}
@@ -64,11 +81,8 @@ std::optional<deluge::project::OwnerParamTarget> MenuLearn::target(const MenuCon
 }
 
 bool MenuLearn::allows_mode(const MenuContext& ctx, const MenuState& st) const {
-	const Node* node = focused(st);
-	if (node != nullptr && node->kind == Kind::Submenu) {
-		node = selected_child(ctx, st, *node);
-	}
-	if (node == nullptr || node->kind == Kind::Submenu) {
+	const Node* node = MenuLearn::node(ctx, st);
+	if (node == nullptr) {
 		return false;
 	}
 	if (node->allows_learn_mode || bindings::learn_target(*node, ctx).has_value()) {
@@ -82,39 +96,41 @@ bool MenuLearn::wants_blink(const MenuState& st) const {
 	return item != nullptr && item->wants_learn_blink();
 }
 
-bool MenuLearn::note_on(const MenuState& st, ::MIDICable& cable, int32_t channel, int32_t note) const {
-	const CustomItem* item = focused_custom(st);
+bool MenuLearn::note_on(const MenuContext& ctx, const MenuState& st, ::MIDICable& cable, int32_t channel,
+                        int32_t note) const {
+	const CustomItem* item = custom_of(node(ctx, st));
 	return item != nullptr && item->learn_note_on(cable, channel, note);
 }
 
-bool MenuLearn::cc(const MenuState& st, ::MIDICable& cable, int32_t channel, int32_t cc, int32_t value) const {
-	const CustomItem* item = focused_custom(st);
+bool MenuLearn::cc(const MenuContext& ctx, const MenuState& st, ::MIDICable& cable, int32_t channel, int32_t cc,
+                   int32_t value) const {
+	const CustomItem* item = custom_of(node(ctx, st));
 	return item != nullptr && item->learn_cc(cable, channel, cc, value);
 }
 
-bool MenuLearn::program_change(const MenuState& st, ::MIDICable& cable, int32_t channel, int32_t program) const {
-	const CustomItem* item = focused_custom(st);
+bool MenuLearn::program_change(const MenuContext& ctx, const MenuState& st, ::MIDICable& cable, int32_t channel,
+                               int32_t program) const {
+	const CustomItem* item = custom_of(node(ctx, st));
 	return item != nullptr && item->learn_program_change(cable, channel, program);
 }
 
-bool MenuLearn::offer(const MenuContext& /*ctx*/, const MenuState& st, const UiEvent& event,
-                      const UiContext& ui) const {
+bool MenuLearn::offer(const MenuContext& ctx, const MenuState& st, const UiEvent& event, const UiContext& ui) const {
 	if (!mode_ || event.cable == nullptr) {
 		return false;
 	}
 	::MIDICable& cable = *event.cable;
 	switch (event.kind) {
 	case UiEvent::Kind::MidiNoteOn:
-		(void)note_on(st, cable, event.channel, event.data1);
+		(void)note_on(ctx, st, cable, event.channel, event.data1);
 		return true;
 	case UiEvent::Kind::MidiProgramChange:
 		if (!ui.shift) {
-			(void)program_change(st, cable, event.channel, event.data1);
+			(void)program_change(ctx, st, cable, event.channel, event.data1);
 		}
 		return true;
 	case UiEvent::Kind::MidiCc:
 		if (!ui.shift) {
-			(void)cc(st, cable, event.channel, event.data1, event.data2);
+			(void)cc(ctx, st, cable, event.channel, event.data1, event.data2);
 		}
 		return true;
 	case UiEvent::Kind::MidiPitchBend:
@@ -127,7 +143,7 @@ bool MenuLearn::offer(const MenuContext& /*ctx*/, const MenuState& st, const UiE
 void MenuLearn::unlearn(const MenuContext& ctx, const MenuState& st) const {
 	// Unconditional, like legacy's own call: `MenuItem::unlearnAction`'s base is an empty body, so
 	// an item with nothing to forget forgets nothing and no caller has to ask first.
-	if (const CustomItem* item = focused_custom(st); item != nullptr) {
+	if (const CustomItem* item = custom_of(node(ctx, st)); item != nullptr) {
 		item->unlearn();
 	}
 	// `MenuItemWithCCLearning::unlearnAction` (`menu_item_with_cc_learning.cpp:25-41`): a param's learned knob goes,

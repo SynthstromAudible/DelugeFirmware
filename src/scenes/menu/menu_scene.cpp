@@ -304,15 +304,15 @@ std::optional<deluge::project::OwnerParamTarget> MenuScene::learn_target() const
 }
 
 bool MenuScene::learn_note_on(::MIDICable& cable, int32_t channel, int32_t note) {
-	return visit_.learn.note_on(st_, cable, channel, note);
+	return visit_.learn.note_on(ctx_, st_, cable, channel, note);
 }
 
 bool MenuScene::learn_cc(::MIDICable& cable, int32_t channel, int32_t cc, int32_t value) {
-	return visit_.learn.cc(st_, cable, channel, cc, value);
+	return visit_.learn.cc(ctx_, st_, cable, channel, cc, value);
 }
 
 bool MenuScene::learn_program_change(::MIDICable& cable, int32_t channel, int32_t program) {
-	return visit_.learn.program_change(st_, cable, channel, program);
+	return visit_.learn.program_change(ctx_, st_, cable, channel, program);
 }
 
 void MenuScene::unlearn() {

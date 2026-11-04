@@ -20,7 +20,10 @@ namespace deluge::scenes::menu {
 /// @brief Learn mode and the learn delivery for the menu. Its state belongs to one visit of the scene.
 class MenuLearn {
 public:
-	/// @brief The param a learned knob binds to on the focused node -- `MenuScene::learn_target`.
+	/// @brief The node learn acts on: on a page, its list row under the cursor or its focused column; else the focused
+	///        item. `Submenu` forwards its learn members to its current child the same way. Null for a nested page.
+	static const Node* node(const MenuContext& ctx, const MenuState& st);
+	/// @brief The param a learned knob binds to on the learn node -- `MenuScene::learn_target`.
 	std::optional<deluge::project::OwnerParamTarget> target(const MenuContext& ctx, const MenuState& st) const;
 	/// @brief `getCurrentMenuItem()->allowsLearnMode()`: on a page, its selected child's (`Submenu::allowsLearnMode`,
 	///        `submenu.cpp:233-238`), which a child page never allows.
@@ -28,13 +31,15 @@ public:
 	/// @brief Whether the focused item wants the LEARN LED blinking.
 	bool wants_blink(const MenuState& st) const;
 
-	/// @brief Deliver a note-on to the focused item; true if it used it.
-	bool note_on(const MenuState& st, ::MIDICable& cable, int32_t channel, int32_t note) const;
-	/// @brief Deliver a CC to the focused item; true if it used it.
-	bool cc(const MenuState& st, ::MIDICable& cable, int32_t channel, int32_t cc, int32_t value) const;
-	/// @brief Deliver a program change to the focused item; true if it used it.
-	bool program_change(const MenuState& st, ::MIDICable& cable, int32_t channel, int32_t program) const;
-	/// @brief Ask the focused item to forget what it learned, and drop a param's learned knob.
+	/// @brief Deliver a note-on to the learn node's item; true if it used it.
+	bool note_on(const MenuContext& ctx, const MenuState& st, ::MIDICable& cable, int32_t channel, int32_t note) const;
+	/// @brief Deliver a CC to the learn node's item; true if it used it.
+	bool cc(const MenuContext& ctx, const MenuState& st, ::MIDICable& cable, int32_t channel, int32_t cc,
+	        int32_t value) const;
+	/// @brief Deliver a program change to the learn node's item; true if it used it.
+	bool program_change(const MenuContext& ctx, const MenuState& st, ::MIDICable& cable, int32_t channel,
+	                    int32_t program) const;
+	/// @brief Ask the learn node's item to forget what it learned, and drop a param's learned knob.
 	void unlearn(const MenuContext& ctx, const MenuState& st) const;
 
 	/// @brief Offer a MIDI message for learn: `SoundEditor`'s four learn answers.

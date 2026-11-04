@@ -897,6 +897,16 @@ const std::vector<CommandPair>& command_pairs() {
 	return list;
 }
 
+/// @brief Legacy's MIDI-commands list, the `Submenu` `nodes::midi_commands` is paired with.
+legacy::Submenu& legacy_commands_list() {
+	for (const Pair& pair : tree().pairs) {
+		if (pair.node == &nodes::midi_commands) {
+			return *dynamic_cast<legacy::Submenu*>(pair.item);
+		}
+	}
+	std::abort();
+}
+
 /// @brief Records `display->displayPopup(...)`, so the legacy item can be driven at all.
 ///
 /// `display` is null in this process (`hid/display/display.cpp:4`; nothing in a host spec boots the
@@ -982,6 +992,39 @@ void focus_command_row(Rig& r, const MenuContext& ctx, size_t row) {
 	r.button(kSelectEncButtonX, kSelectEncButtonY, true, 200);
 	r.button(kSelectEncButtonX, kSelectEncButtonY, false, 200);
 	r.shell.tick(210);
+}
+
+/// @brief Open the MIDI-commands list on `Rig` @p r with the cursor on its @p row'th child, not entered.
+void cursor_on_command_row(Rig& r, const MenuContext& ctx, size_t row) {
+	deluge::notify::dirty().drain();
+	{
+		deluge::notify::Notice stray;
+		while (deluge::notify::notices().pop(stray)) {}
+	}
+	menu_scene().reset_process_state();
+	r.open(nodes::midi_commands, ctx);
+	r.shell.tick(0);
+	for (size_t t = 0; t < row; t++) {
+		r.turn(1, static_cast<uint32_t>(10 + t * 10));
+		r.shell.tick(static_cast<uint32_t>(15 + t * 10));
+	}
+}
+
+/// @brief Offer the menu one MIDI message in learn mode: LEARN held for it, Shift up.
+bool offer_while_learning(deluge::ui::shell::UiEvent::Kind kind, uint8_t channel, uint8_t data1, uint8_t data2) {
+	using deluge::ui::shell::ButtonId;
+	using deluge::ui::shell::UiEvent;
+	const deluge::ui::shell::ButtonSet held{};
+	const deluge::ui::PadMask pads{};
+	const deluge::ui::shell::UiContext ui{held, pads, false, false, 0, deluge::scenes::deluge_profile()};
+	(void)menu_scene().handle(UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::Learn}, ui);
+	const bool used =
+	    menu_scene()
+	        .handle(UiEvent{.kind = kind, .channel = channel, .data1 = data1, .data2 = data2, .cable = &fake_cable()},
+	                ui)
+	        .handled;
+	(void)menu_scene().handle(UiEvent{.kind = UiEvent::Kind::Button, .on = false, .button = ButtonId::Learn}, ui);
+	return used;
 }
 /// @}
 
@@ -2367,6 +2410,71 @@ describe tables_3_midi_commands("scenes::menu batch-3 tables: the twelve midi_co
 		   saved.restore();
 	   });
 
+	it("from the list, a note-on and a program change learn the row under the cursor as legacy's Submenu does", _ {
+		// `Submenu::learnNoteOn` / `learnProgramChange` forward to the current child when the list is the current item.
+		const Root& settings = roots().back();
+		install(settings.ctx, settings.song);
+		const CommandSlots saved = CommandSlots::capture();
+		const std::vector<CommandPair>& pairs = command_pairs();
+		const size_t play = 0;
+
+		CommandSlots::clear_all();
+		Rig note_rig;
+		cursor_on_command_row(note_rig, settings.ctx, play);
+		expect(menu_scene().focused() == &nodes::midi_commands).to_be_true();
+		expect(offer_while_learning(deluge::ui::shell::UiEvent::Kind::MidiNoteOn, 5, 61, 100)).to_be_true();
+		const std::string note_got = CommandSlots::capture().describe();
+		CommandSlots::clear_all();
+		{
+			legacy::Submenu& list = legacy_commands_list();
+			(void)list.focusChild(pairs[play].legacy);
+			LegacyLearnScope legacy_scope{&list};
+			expect(list.learnNoteOn(fake_cable(), 5, 61)).to_be_true();
+		}
+		const std::string note_want = CommandSlots::capture().describe();
+		expect(note_got).to_equal(note_want);
+		expect(note_want != std::string{"(all clear)"}).to_be_true();
+
+		CommandSlots::clear_all();
+		Rig pc_rig;
+		cursor_on_command_row(pc_rig, settings.ctx, play);
+		expect(offer_while_learning(deluge::ui::shell::UiEvent::Kind::MidiProgramChange, 2, 9, 0)).to_be_true();
+		const std::string pc_got = CommandSlots::capture().describe();
+		CommandSlots::clear_all();
+		{
+			legacy::Submenu& list = legacy_commands_list();
+			(void)list.focusChild(pairs[play].legacy);
+			LegacyLearnScope legacy_scope{&list};
+			list.learnProgramChange(fake_cable(), 2, 9);
+		}
+		expect(pc_got).to_equal(CommandSlots::capture().describe());
+		saved.restore();
+	});
+
+	it("from the list, a CC learns the row under the cursor as the item itself does", _ {
+		// Legacy's `Submenu` has no `learnCC`, so main's list drops a CC a command would learn; the port forwards it to
+		// the row, as entering the row and learning there does (an accepted difference, `parity/DIFFERENCES.md`).
+		const Root& settings = roots().back();
+		install(settings.ctx, settings.song);
+		const CommandSlots saved = CommandSlots::capture();
+		const std::vector<CommandPair>& pairs = command_pairs();
+		const size_t play = 0;
+
+		CommandSlots::clear_all();
+		Rig r;
+		cursor_on_command_row(r, settings.ctx, play);
+		expect(offer_while_learning(deluge::ui::shell::UiEvent::Kind::MidiCc, 3, 42, 127)).to_be_true();
+		const std::string got = CommandSlots::capture().describe();
+		CommandSlots::clear_all();
+		{
+			LegacyLearnScope legacy_scope{pairs[play].legacy};
+			pairs[play].legacy->learnCC(fake_cable(), 3, 42, 127);
+		}
+		expect(got).to_equal(CommandSlots::capture().describe());
+		expect(got != std::string{"(all clear)"}).to_be_true();
+		saved.restore();
+	});
+
 	it("learns a note-on and a program change the way the legacy item does, including FILL's refusal",
 	   _ {
 		   const Root& settings = roots().back();
@@ -2558,20 +2666,12 @@ describe tables_3_midi_commands("scenes::menu batch-3 tables: the twelve midi_co
 			   expect(!(w.first == kLearnBoardLed && w.second)).to_be_true();
 		   }
 
-		   // And the submenu the twelve hang off: `MenuScene::learn_*` has no custom item to forward
-		   // to, so every message is reported unused rather than silently swallowed.
-		   const CommandSlots saved = CommandSlots::capture();
-		   CommandSlots::clear_all();
+		   // And the submenu the twelve hang off does not blink LEARN itself; its learn goes to the row under the
+		   // cursor, which the list examples above pin.
 		   Rig sub;
 		   sub.open(nodes::midi_commands, settings.ctx);
 		   sub.shell.tick(0);
 		   expect(menu_scene().wants_learn_blink()).to_be_false();
-		   expect(menu_scene().learn_cc(fake_cable(), 3, 42, 127)).to_be_false();
-		   expect(menu_scene().learn_note_on(fake_cable(), 3, 42)).to_be_false();
-		   expect(menu_scene().learn_program_change(fake_cable(), 3, 42)).to_be_false();
-		   menu_scene().unlearn(); // a no-op, not a crash
-		   expect(CommandSlots::capture().describe()).to_equal(std::string{"(all clear)"});
-		   saved.restore();
 	   });
 
 	it("has no param learn target: this is global-command learn, not param learn", _ {

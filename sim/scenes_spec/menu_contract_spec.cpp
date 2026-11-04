@@ -5,6 +5,7 @@
 
 #include "gui/ui/menu_view_of.h"
 #include "scenes/menu/action.h"
+#include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/node.h"
@@ -282,6 +283,31 @@ describe menu_contract_learn("scenes::MenuScene -- MIDI learn offers", $ {
 		const Result back_after = button(ButtonId::Back, true);
 		r.shell.tick(20);
 		expect(!back_after.actions.empty() || menu_scene().state_for_spec().depth != depth).to_be_true();
+	});
+
+	it("on a horizontal page, learns onto and unlearns the focused column's param", _ {
+		// `Submenu::unlearnAction` and `learnKnob` forward to the current child, the focused column.
+		select_language();
+		Rig r;
+		r.open(nodes::sound_root, nodes::lpf);
+		r.shell.tick(0);
+		expect(menu_scene().focused() == &nodes::lpf).to_be_true();
+		MenuState& st = menu_scene().state_for_spec();
+		st.columns[st.depth].focused = 1; // LPF's columns: MODE, FREQUENCY, RESONANCE, MORPH
+		expect(menu::MenuLearn::node(r.menu_context(), st) == &nodes::lpf_freq).to_be_true();
+		const MenuContext ctx = r.menu_context();
+		const std::optional<deluge::project::OwnerParamTarget> column = menu::bindings::learn_target(nodes::lpf_freq, ctx);
+		expect(column.has_value()).to_be_true();
+		expect(menu_scene().learn_target() == column).to_be_true();
+		if (!column) {
+			return;
+		}
+		expect(ctx.sink->learn(*column, deluge::project::MidiCommand{.channel_or_zone = 18, .note_or_cc = 20},
+		                       std::nullopt))
+		    .to_be_true();
+		expect(ctx.model->mappings.find(*column) != nullptr).to_be_true();
+		(void)send(UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::Learn}, true);
+		expect(ctx.model->mappings.find(*column) == nullptr).to_be_true();
 	});
 
 	it("is not learning when input comes back to it from a scene above", _ {
