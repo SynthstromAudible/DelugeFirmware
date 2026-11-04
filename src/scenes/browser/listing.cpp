@@ -53,9 +53,9 @@ bool caseless_equals(std::string_view a, std::string_view b) {
 /// @brief Should a failure of \p action be announced as a popup?
 ///
 /// Every action but `Reload`: legacy's `runPendingListing` routes a failure to `onListingFailed`
-/// (`browser.cpp:154`), which calls `display->displayError` (`:148`) -- except `reloadImpl`, which swallows
+/// (`Browser::onListingFailed`), which calls `display->displayError` -- except `reloadImpl`, which swallows
 /// its read failure entirely and returns `Error::NONE` so the browser neither pops up nor closes
-/// (`browser.cpp:747-753`, "Reload failure stays silent"). The seam keeps that distinction, but
+/// (`Browser::reloadImpl`, "Reload failure stays silent"). The seam keeps that distinction, but
 /// unlike legacy it still reports the error in `ListingResult::error`, so a caller that *wants* to
 /// announce a reload failure has the fact and can raise its own notice.
 /// @param action The action that failed.
@@ -97,8 +97,8 @@ RequestOutcome Listing::request(ListingRequest req) {
 
 	// Then the guard, which lives on the resource rather than here: `FileCatalogue::claim`. That
 	// is what makes single flight a property of the shared catalogue rather than of this object --
-	// tasks 3-5 of this plan put three of these seams in the same process, AND legacy's
-	// `Browser::beginListing` (`gui/ui/browser/browser.cpp:97`) claims through the very same call,
+	// the browser, marker editor and recorder scenes put three of these seams in the same process, AND legacy's
+	// `Browser::beginListing` claims through the very same call,
 	// so a legacy browser listing and a scenes listing can no longer both believe they are alone
 	// over one `fileItems`. A claim held by anyone -- this instance already in flight, another
 	// seam, or a legacy browser -- is `Busy`.
@@ -110,10 +110,10 @@ RequestOutcome Listing::request(ListingRequest req) {
 	result_ = {};
 	state_.store(State::InFlight, std::memory_order_release);
 
-	// The busy indicator, raised the way E1 built it: `Notices::drain` arms `WorkingScene` and
-	// pushes `SceneKind::Working` on this notice (`shell/notices.cpp:306-311`). "Working" is
+	// The busy indicator: `Notices::drain` arms `WorkingScene` and
+	// pushes `SceneKind::Working` on this notice. "Working" is
 	// legacy's own word here -- `beginListing` calls
-	// `display->displayLoadingAnimationText("Working", /*delayed=*/true)` (`browser.cpp:112`).
+	// `display->displayLoadingAnimationText("Working", /*delayed=*/true)` (`Browser::beginListing`).
 	notify::notice_text("Working", notify::Notice::Kind::Working);
 
 	if (!dispatch_(&Listing::trampoline, this)) {
@@ -185,7 +185,7 @@ Error Listing::run_action(ListingResult& out) {
 	switch (request_.action) {
 
 	case ListingAction::Open: {
-		// `openListingImpl` (`browser.cpp:349`) lists whatever `currentDir` already holds; the seam
+		// `openListingImpl` lists whatever `currentDir` already holds; the seam
 		// lets a caller set it in the same request rather than reaching into the catalogue first.
 		if (!request_.path.empty()) {
 			FileCatalogue::currentDir = request_.path;
@@ -195,7 +195,7 @@ Error Listing::run_action(ListingResult& out) {
 	}
 
 	case ListingAction::IntoFolder: {
-		// `goIntoFolderImpl` (`browser.cpp:1339`): append the name, separator only when there is
+		// `goIntoFolderImpl`: append the name, separator only when there is
 		// something to separate from.
 		// A malformed request, not a card condition: appending nothing would silently re-list the
 		// directory the caller thought it was leaving.
@@ -210,7 +210,7 @@ Error Listing::run_action(ListingResult& out) {
 	}
 
 	case ListingAction::UpLevel: {
-		// `goUpOneDirectoryLevelImpl` (`browser.cpp:1379`). The refusal at a single-segment
+		// `goUpOneDirectoryLevelImpl`. The refusal at a single-segment
 		// directory is legacy's, and it is a *level* test, not an emptiness test: legacy takes
 		// `strrchr(currentDir, '/')` and refuses both when there is no slash and when the slash is
 		// the first character, so "SETTINGS" cannot be ascended out of but "SAMPLES/KICKS" can.
@@ -226,7 +226,7 @@ Error Listing::run_action(ListingResult& out) {
 	}
 
 	case ListingAction::ByPath: {
-		// `setFileByFullPathImpl` (`browser.cpp:235`).
+		// `setFileByFullPathImpl`.
 		// TODO(conflation-batch-4): legacy treats an unknown `fileExists` as absent here and carries
 		// the same marker; the load/browse/favourites batch gives that site its ruling, and this
 		// port inherits whatever it decides.
@@ -260,7 +260,7 @@ Error Listing::run_action(ListingResult& out) {
 		// consequence is real and is NOT a divergence hidden by omission: `searchFileItems` returns
 		// the match index *or the insertion point*, and an insertion point may be exactly
 		// `fileItems.size()`, one past the end -- which this check lets through with `Error::NONE`.
-		// Legacy survives it because `clampFileSelectionAndScroll` (`browser.cpp:1009`) reins
+		// Legacy survives it because `clampFileSelectionAndScroll` reins
 		// `fileIndexSelected` in before anything dereferences it. This port does not silently
 		// re-decide legacy's comparisons, so the check stays and the hazard is pushed to the
 		// caller, spelled out on `ListingResult::file_index`: index the catalogue with it only
@@ -272,7 +272,7 @@ Error Listing::run_action(ListingResult& out) {
 	}
 
 	case ListingAction::Reload: {
-		// `reloadImpl` (`browser.cpp:735`), both arms: with a name to centre on it re-reads around
+		// `reloadImpl`, both arms: with a name to centre on it re-reads around
 		// that name (legacy's `CATALOG_SEARCH_BOTH` on `enteredText`), and without one it re-reads
 		// from whichever end `search_direction` names -- legacy's `pendingReloadSearchFromEnd_`
 		// pair (`browser.h:178`). Choosing the new selection index from the reloaded list is the

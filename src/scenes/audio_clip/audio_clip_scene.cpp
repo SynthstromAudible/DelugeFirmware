@@ -51,7 +51,7 @@
 
 // `util/functions.h` is not reachable from this layer (`check_layer_rules.py`'s
 // `scenes-includes-outside` row lists no `util/`), and this is the one free function in it the OLED
-// page needs. Declared rather than included -- the spelling `menu/nodes/output_items.cpp:48` already
+// page needs. Declared rather than included -- the spelling `menu/nodes/output_items.cpp` already
 // uses for the same symbol.
 char const* getOutputTypeName(OutputType outputType, int32_t channel);
 
@@ -196,20 +196,19 @@ void AudioClipScene::focus_regained() {
 	// `AudioClipView::focusRegained` (`audio_clip_view.cpp:79-90`); see the private declaration for
 	// the four statements that have no counterpart in this layer.
 	//
-	// `ClipView::focusRegained` (`gui/views/clip_view.cpp:43-45`) forwards to
+	// `ClipView::focusRegained` forwards to
 	// `ClipNavigationTimelineView::focusRegained` (`clip_navigation_timeline_view.cpp:26-28`),
 	// whose whole body is the restore-point clear -- `TimelineState::focus_regained()`.
 	timeline_.focus_regained();
 	end_marker_visible_ = false;
 	start_marker_visible_ = false;
-	// **And nothing else.** `blink_on_` and `blink_accum_ms_` are deliberately NOT reset here: an
-	// earlier cut did reset them, and legacy's `focusRegained` touches `blinkOn` on none of its
+	// **And nothing else.** `blink_on_` and `blink_accum_ms_` are deliberately NOT reset here:
+	// legacy's `focusRegained` touches `blinkOn` on none of its
 	// paths (`:79-88`, read line by line). It does not have to -- with both markers down nothing
 	// reads the phase, and the one gesture that raises a marker restarts it, which is `padAction`'s
 	// own `blinkOn = true; setTimer(UI_SPECIFIC, kSampleMarkerBlinkTime)` pair (`:553-554`,
 	// `:563-564`) and is ported as `set_end_marker_visible`/`set_start_marker_visible`. Unobservable
-	// either way; removed because this function's whole documentation is what it does not do, and an
-	// added write inside that is the last place to leave one (fix round 1, Minor 2).
+	// either way.
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -237,7 +236,7 @@ void AudioClipScene::set_start_marker_visible(bool on) {
 }
 
 uint32_t AudioClipScene::max_length() const {
-	// `AudioClipView::getMaxLength` (`audio_clip_view.cpp:875-880`).
+	// `AudioClipView::getMaxLength`.
 	if (!clip_) {
 		return 0;
 	}
@@ -248,7 +247,7 @@ uint32_t AudioClipScene::max_length() const {
 }
 
 uint32_t AudioClipScene::max_zoom() const {
-	// `AudioClipView::getMaxZoom` (`audio_clip_view.cpp:882-888`). The 1073741824 is legacy's own
+	// `AudioClipView::getMaxZoom`. The 1073741824 is legacy's own
 	// literal, not `kMaxZoom`: it is the largest value that can be doubled inside an `int32_t`.
 	const std::optional<deluge::scenes::bind::AudioClipFact> f = fact();
 	if (!f) {
@@ -280,7 +279,7 @@ Result AudioClipScene::handle(const UiEvent& event, const UiContext& ctx) {
 		// (`hid/buttons.cpp:134`) hands `X_ENC`, `Y_ENC`, `SELECT_ENC` and `TEMPO_ENC` to
 		// `getCurrentUI()->buttonAction` through the same call the ordinary buttons take, and
 		// `AudioClipView::buttonAction` claims two of them. `services::GlobalControls::handle`
-		// accepts the same pair for the same reason (`services/global_controls.cpp:564-566`).
+		// accepts the same pair for the same reason.
 		return button_action(event, ctx);
 
 	case UiEvent::Kind::Pad:
@@ -289,7 +288,7 @@ Result AudioClipScene::handle(const UiEvent& event, const UiContext& ctx) {
 	case UiEvent::Kind::Encoder:
 		switch (event.encoder) {
 		case deluge::ui::EncoderRole::Select: {
-			// `AudioClipView::selectEncoderAction` (`audio_clip_view.cpp:744-756`) returns void:
+			// `AudioClipView::selectEncoderAction` returns void:
 			// legacy's `Encoders` calls it on the current UI and there is no "not dealt with".
 			// Applied here, before the tick's render.
 			Result r;
@@ -309,9 +308,9 @@ Result AudioClipScene::handle(const UiEvent& event, const UiContext& ctx) {
 			return Result::unhandled();
 		}
 
-	// The two MIDI kinds (F1 task 10's transport, `shell/scene.h`) are declined here for the reason
-	// every scene ported so far declines them: claiming one means answering `learnable_at(pad)`,
-	// which is the timeline scenes' work (E5/E6). Declining lets `Router::run_chain` carry the
+	// The two MIDI kinds (the transport in `shell/scene.h`) are declined here for the reason
+	// every scene declines them: claiming one means answering `learnable_at(pad)`,
+	// which is the timeline scenes' work. Declining lets `Router::run_chain` carry the
 	// message on to `services::MidiLearn`, which is where legacy's `view.` fallback puts it.
 	case UiEvent::Kind::MidiNoteOn:
 	case UiEvent::Kind::MidiCc:
@@ -321,10 +320,10 @@ Result AudioClipScene::handle(const UiEvent& event, const UiContext& ctx) {
 	return Result::unhandled();
 }
 
-// -- The UI-mode word (`gui/ui/ui.cpp:400-461`), transcribed ------------------------------------
+// -- The UI-mode word (`gui/ui/ui.cpp`), transcribed ------------------------------------
 
 void AudioClipScene::enter_ui_mode(uint32_t mode) {
-	// `enterUIMode` (`gui/ui/ui.cpp:454-461`).
+	// `enterUIMode` (`gui/ui/ui.cpp`).
 	if (mode > kExclusiveUiModesMask) {
 		ui_mode_ |= mode;
 	}
@@ -334,7 +333,7 @@ void AudioClipScene::enter_ui_mode(uint32_t mode) {
 }
 
 void AudioClipScene::exit_ui_mode(uint32_t mode) {
-	// `exitUIMode` (`gui/ui/ui.cpp:443-452`).
+	// `exitUIMode` (`gui/ui/ui.cpp`).
 	if (mode > kExclusiveUiModesMask) {
 		ui_mode_ &= ~mode;
 	}
@@ -344,7 +343,7 @@ void AudioClipScene::exit_ui_mode(uint32_t mode) {
 }
 
 bool AudioClipScene::ui_mode_active(uint32_t mode) const {
-	// `isUIModeActive` (`gui/ui/ui.cpp:400-408`).
+	// `isUIModeActive` (`gui/ui/ui.cpp`).
 	if (mode > kExclusiveUiModesMask) {
 		return (ui_mode_ & mode) != 0u;
 	}
@@ -524,7 +523,7 @@ Result AudioClipScene::button_action(const UiEvent& event, const UiContext& ctx)
 	// and nothing else, so this reduces to `ClipView::buttonAction` -> (no override) ->
 	// `TimelineView::buttonAction`, whose only remaining arm is TRIPLETS.
 	if (b == ButtonId::Triplets && on) {
-		// `timeline_view.cpp:93-99`. `setTripletsLEDState` (`timeline_view.cpp:365-372`) is
+		// `timeline_view.cpp:93-99`. `TimelineView::setTripletsLEDState` is
 		// `LedFrame`'s and this scene declares no LEDs.
 		timeline_.toggle_triplets();
 		r.handled = true;
@@ -543,7 +542,7 @@ Result AudioClipScene::button_action(const UiEvent& event, const UiContext& ctx)
 // -- Pads ---------------------------------------------------------------------------------------
 
 Result AudioClipScene::pad_action(const UiEvent& event, const UiContext& ctx) {
-	// `AudioClipView::padAction` (`audio_clip_view.cpp:490-607`). Every path of it returns
+	// `AudioClipView::padAction`. Every path of it returns
 	// DEALT_WITH (`:588`, and the sidebar arm's own `:585`), so this claims every pad it is given.
 	Result r;
 	r.handled = true;
@@ -654,7 +653,7 @@ Result AudioClipScene::pad_action(const UiEvent& event, const UiContext& ctx) {
 // -- Encoders -----------------------------------------------------------------------------------
 
 bool AudioClipScene::select_encoder_action(int32_t offset, bool shift) {
-	// `AudioClipView::selectEncoderAction` (`audio_clip_view.cpp:744-756`).
+	// `AudioClipView::selectEncoderAction`.
 	if (!no_ui_mode_active()) { // `:727-729`
 		return false;
 	}
@@ -687,7 +686,7 @@ bool AudioClipScene::select_encoder_action(int32_t offset, bool shift) {
 }
 
 Result AudioClipScene::vertical_encoder_action(int32_t offset, const UiContext& ctx) {
-	// `AudioClipView::verticalEncoderAction` (`audio_clip_view.cpp:855-866`).
+	// `AudioClipView::verticalEncoderAction`.
 	Result r;
 	r.handled = true; // `:847`: DEALT_WITH on every path, claimed or not
 	if (no_ui_mode_active() && ctx.shift && !ctx.held.has(ButtonId::YEnc)) { // `:838`
@@ -786,7 +785,7 @@ Result AudioClipScene::nav_horizontal_encoder_action(int32_t offset, const UiCon
 
 	if (ui_mode_active(kUiModeHoldingHorizontalEncoder)) { // `:161`
 		if (ui_mode_ == kUiModeHoldingHorizontalEncoder) { // `:163`, exclusively
-			// `:165-198`, whose state half is `TimelineState::zoom` (E4 task 8) -- the max-zoom
+			// `:165-198`, whose state half is `TimelineState::zoom` -- the max-zoom
 			// delay, the zoom limits and the scroll realignment included.
 			const timeline::ZoomOutcome outcome = timeline_.zoom(offset, max_zoom(), ctx.now_ms);
 			if (outcome == timeline::ZoomOutcome::Zoomed) {
@@ -822,7 +821,7 @@ Result AudioClipScene::nav_horizontal_encoder_action(int32_t offset, const UiCon
 // arithmetic from the view's squares, and the scroll and zoom after.
 
 uint32_t AudioClipScene::change_clip_length(int32_t offset, uint32_t old_length, ResizeKind kind) {
-	// `ClipView::changeClipLength` (`gui/views/clip_view.cpp:264-313`).
+	// `ClipView::changeClipLength`.
 	bool right_on_square = false;
 	uint32_t new_length = 0;
 	const int32_t end_square = timeline_.square_from_pos(static_cast<int32_t>(old_length), &right_on_square); // `:267`
@@ -857,7 +856,7 @@ uint32_t AudioClipScene::change_clip_length(int32_t offset, uint32_t old_length,
 }
 
 Result AudioClipScene::edit_clip_length_without_timestretching(int32_t offset) {
-	// `AudioClipView::editClipLengthWithoutTimestretching` (`audio_clip_view.cpp:816-853`).
+	// `AudioClipView::editClipLengthWithoutTimestretching`.
 	//
 	// A DISTINCT arm from the shift-turn length edit: this one moves the sample's own end marker with the
 	// clip (`:826`), so the audio keeps its pitch and speed and gets longer or shorter; the other
@@ -907,12 +906,12 @@ void AudioClipScene::after_loop_length_change(int32_t old_length, int32_t new_le
 }
 
 void AudioClipScene::set_clip_length_equal_to_sample_length() {
-	// `AudioClipView::setClipLengthEqualToSampleLength` (`audio_clip_view.cpp:758-769`).
+	// `AudioClipView::setClipLengthEqualToSampleLength`.
 	//
 	// `MenuAction::SetClipLengthToSampleLength`'s callee -- in the sense that the enumerator names
 	// the same legacy statement, NOT that the dispatcher calls this. It calls
 	// `audioClipView.setClipLengthEqualToSampleLength()` on the real legacy view
-	// (`gui/ui/shell_action_dispatch.cpp`'s arm, F2 task 4), because that is the object the running
+	// (`gui/ui/shell_action_dispatch.cpp`'s arm), because that is the object the running
 	// firmware's clip belongs to. So this method's only caller in this library is still
 	// `button_action`'s X_ENC+Y_ENC chord, and it is the port's own copy of the verb rather than
 	// the one a ported menu item reaches.
@@ -931,9 +930,9 @@ void AudioClipScene::set_clip_length_equal_to_sample_length() {
 }
 
 void AudioClipScene::show_bars_and_beats(uint32_t number, bool count_from_one) {
-	// `TimelineView::displayNumberOfBarsAndBeats`' popup half (`gui/views/timeline_view.cpp:241-265`).
-	// The decomposition is `TimelineState::bars_and_beats`, which took it in E4 task 8 and records
-	// there that legacy's `quantization` and `tooLongText` parameters are read by nothing.
+	// `TimelineView::displayNumberOfBarsAndBeats`' popup half.
+	// The decomposition is `TimelineState::bars_and_beats`, which records
+	// that legacy's `quantization` and `tooLongText` parameters are read by nothing.
 	if (song_ == nullptr) {
 		return;
 	}
@@ -979,9 +978,9 @@ void AudioClipScene::show_bars_and_beats(uint32_t number, bool count_from_one) {
 // Model notifications
 
 void AudioClipScene::on_model_changed(const deluge::notify::DirtySet& dirty) {
-	// `clipNeedsReRendering` (`audio_clip_view.cpp:725-736`), `sampleNeedsReRendering` (`:738-742`)
+	// `clipNeedsReRendering`, `sampleNeedsReRendering` (`:738-742`)
 	// and `playbackEnded` (`:703-705`). Two of the three are pure `uiNeedsRendering` calls, which
-	// `Shell::apply_dirty` (`shell/shell.cpp:543-568`) already does for these facts; what is left is
+	// `Shell::apply_dirty` already does for these facts; what is left is
 	// the scroll-back-left legacy hides inside `clipNeedsReRendering`.
 	if (!dirty.has(deluge::notify::Dirty::ClipContent) || !clip_) {
 		return;
@@ -1011,8 +1010,7 @@ void AudioClipScene::on_model_changed(const deluge::notify::DirtySet& dirty) {
 // Time
 
 void AudioClipScene::tick(uint32_t dt_ms) {
-	// `AudioClipView::timerCallback` (`audio_clip_view.cpp:224-230`): toggle `blinkOn` (`:225`) and
-	// re-arm (`:227`).
+	// `AudioClipView::timerCallback`: toggle `blinkOn` and re-arm.
 	// Legacy arms the timer only from `padAction`, when a marker goes up, and unsets it when one
 	// goes down (`:353`, `:444`, `:460`), so the toggle runs only while a marker is visible.
 	if (!end_marker_visible_ && !start_marker_visible_) {
@@ -1034,8 +1032,8 @@ std::optional<uint32_t> AudioClipScene::next_timer() const {
 	const bool cursor_live =
 	    flash_cursor_ != FlashCursor::Off && clip_ && facts_ != nullptr && facts_->clip_playing(*clip_);
 	if (cursor_live) {
-		// **The gap this pins, recorded at `Shell::next_wake()` where a host author reads it**
-		// (E4 final review, M3): while this returns zero the shell's next wake is `now_ms` on every
+		// **The gap this pins, recorded at `Shell::next_wake()` where a host author reads it**:
+		// while this returns zero the shell's next wake is `now_ms` on every
 		// tick, and nothing in the shell's vocabulary distinguishes that from a spin. Faithful and
 		// free here -- the host chooses the tick rate and the grid's flush diffs -- but the shell
 		// owes a way to say "every frame" that is not the same answer as "as soon as possible".
@@ -1077,9 +1075,9 @@ int32_t AudioClipScene::compute_tick_square() {
 		}
 	}
 	else {
-		// `:285-294`. `getTickSquare()` is `ClipView::getTickSquare` (`clip_view.cpp:354-389`),
-		// whose state half is `TimelineState::tick_square` -- ported and measured by E4 task 8,
-		// including the `xZoom`-for-`xScroll` defect in its restore arm.
+		// `:285-294`. `getTickSquare()` is `ClipView::getTickSquare`,
+		// whose state half is `TimelineState::tick_square`, including the `xZoom`-for-`xScroll` defect in its restore
+		// arm.
 		timeline::TimelineState::TickSquareGates gates{
 		    .recording_linearly = recording,
 		    // `(!currentUIMode || currentUIMode == UI_MODE_AUDITIONING) && getCurrentUI() == this`
@@ -1100,8 +1098,8 @@ int32_t AudioClipScene::compute_tick_square() {
 		}
 	}
 
-	// `:296-309`. The latch is `AudioClipView`'s own two private fields, which task 8's table
-	// assigns here by name.
+	// `:296-309`. The latch is `AudioClipView`'s own two private fields, which `timeline/timeline.h`'s
+	// table assigns here by name.
 	if (flash_cursor_ != FlashCursor::Off && (square != last_tick_square_ || must_redraw_tick_squares_)) {
 		last_tick_square_ = square;
 		must_redraw_tick_squares_ = false;
@@ -1182,7 +1180,7 @@ void AudioClipScene::render_grid(GridFrame& f) {
 
 			f.region(deluge::gfx::grid::Rect{0, 0, kMainCols, f.bounds().h}, [&](GridFrame& main) {
 				// `renderOneCol`'s coloured arm: `rgb` is engaged on this call site
-				// (`audio_clip_view.cpp:149`), so `brightness` is 256
+				// (`AudioClipView::renderMainPads`), so `brightness` is 256
 				// (`waveform_renderer.cpp:243`). `waveform_full`'s precondition, honoured.
 				deluge::ui::grid::waveform_full(main, peaks, deluge::ui::grid::kWaveformBarBrightnessColoured, rgb);
 
@@ -1250,7 +1248,7 @@ void AudioClipScene::render_grid(GridFrame& f) {
 
 void AudioClipScene::render_oled(SurfaceRole role, OledFrame& f) {
 	(void)role;
-	// `AudioClipView::renderOLED` (`audio_clip_view.cpp:92-94`) is one call:
+	// `AudioClipView::renderOLED` is one call:
 	// `view.displayOutputName(getCurrentOutput(), false, getCurrentClip())`
 	// (`gui/views/view.cpp:2009-2038`), which flattens the output into five values and hands them
 	// to `View::drawOutputNameFromDetails` (`:2025-2170`). `doBlink` is **false** here, so that
@@ -1269,7 +1267,7 @@ void AudioClipScene::render_oled(SurfaceRole role, OledFrame& f) {
 
 	// **`name_empty` is deliberately false even when the name IS empty**, and this is a real
 	// difference between the widget and this call site. `ui::oled::output_name`'s `name_empty`
-	// branch draws a SLOT (`ui/oled/misc.cpp:63-64`), which is legacy's substitution for an unnamed
+	// branch draws a SLOT (`ui::oled::output_name`), which is legacy's substitution for an unnamed
 	// **MIDI or CV** output (`view.cpp:2162-2187`). `drawOutputNameFromDetails`' name block is one
 	// `if (!isNameEmpty) ... else if (outputType == MIDI_OUT) ... else if (outputType == CV)`
 	// chain (`:2101-2168`), and an `OutputType::AUDIO` output with no name matches **none** of the
@@ -1302,7 +1300,7 @@ void AudioClipScene::render_oled(SurfaceRole role, OledFrame& f) {
 
 	// The y is legacy's `yPos = yPos + 14` (`:2137`) over the name's own y, which
 	// `ui::oled::output_name` picks from the same profile value this does
-	// (`ui/oled/misc.cpp:52-58`).
+	// (`ui::oled::output_name`).
 	const bool tall = f.style.menu_base_y == deluge::ui::kMenuBaseY64;
 	const int32_t name_y = f.bounds().y + (tall ? deluge::ui::kOutputNameY64 : deluge::ui::kOutputNameY48);
 

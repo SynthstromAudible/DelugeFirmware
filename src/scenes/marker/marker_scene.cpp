@@ -91,7 +91,7 @@ std::span<const RGB> marker_colours() {
 // Context
 
 std::optional<services::WaveformAddress> MarkerScene::address_of(const menu::MenuContext& ctx) {
-	// `getCurrentSampleHolder` (`sample_marker_editor.cpp:62`): the audio clip's own sample, else the
+	// `getCurrentSampleHolder` (`sample_marker_editor.cpp`): the audio clip's own sample, else the
 	// selected multisample range's.
 	if (ctx.is_audio_clip) {
 		if (!ctx.addresses.clip) {
@@ -848,9 +848,9 @@ Result MarkerScene::handle(const UiEvent& event, const UiContext& ctx) {
 		return r;
 	}
 
-	// The two MIDI kinds (F1 task 10's transport, `shell/scene.h`) are declined here for the reason
-	// every scene ported so far declines them: claiming one means answering `learnable_at(pad)`,
-	// which is the timeline scenes' work (E5/E6). Declining lets `Router::run_chain` carry the
+	// The two MIDI kinds (the transport in `shell/scene.h`) are declined here for the reason
+	// every scene declines them: claiming one means answering `learnable_at(pad)`,
+	// which is the timeline scenes' work. Declining lets `Router::run_chain` carry the
 	// message on to `services::MidiLearn`, which is where legacy's `view.` fallback puts it.
 	case UiEvent::Kind::MidiNoteOn:
 	case UiEvent::Kind::MidiCc:
@@ -1028,14 +1028,12 @@ void MarkerScene::render_grid(deluge::ui::grid::GridFrame& f) {
 		// marker is actually inside the display.
 		marker_on_screen_ = selected_col >= 0 && selected_col < main_cols;
 		if (marker_on_screen_) {
-			// This arm is what *used* to make the blink visible at all: `tick()` advancing
-			// `blink_phase_` changes nothing anyone can see unless the surface is asked for another
-			// frame, and until E3 task 10 `next_timer()` only woke the shell without marking the
-			// pads dirty (`RepaintGate::needs_frame`). Found by writing the blink's render example
-			// and watching all four phases come back byte-identical. `Shell::tick`'s step 8b now
-			// arms this same gate from `next_timer()` itself, so the blink no longer depends on
-			// this line -- it is kept as the tighter statement (armed from the frame being drawn,
-			// and only while the marker is on screen). Legacy has no equivalent either way, because
+			// `tick()` advancing `blink_phase_` changes nothing anyone can see unless the surface
+			// is asked for another frame, and `next_timer()` alone only wakes the shell without
+			// marking the pads dirty (`RepaintGate::needs_frame`). `Shell::tick`'s step 8b arms
+			// this same gate from `next_timer()` itself, so the blink does not depend on this line
+			// -- it is kept as the tighter statement (armed from the frame being drawn, and only
+			// while the marker is on screen). Legacy has no equivalent either way, because
 			// its `timerCallback` paints straight into `PadLEDs::image` itself.
 			f.gate().request_repaint_after(kBlinkPhaseMs, f.now_ms());
 		}

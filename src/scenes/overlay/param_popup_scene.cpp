@@ -67,7 +67,7 @@ const char* source_short_name(PatchSource source) {
 	return services::source_short_name(source);
 }
 
-/// @brief `View::calculateKnobPosForDisplay` (`view.cpp:1319-1342`), transcribed. The unused
+/// @brief `View::calculateKnobPosForDisplay`, transcribed. The unused
 ///        `knobPosOffsetFloat` local and the dead `returnValue:` label legacy carries are not
 ///        reproduced -- neither has any effect on the value returned.
 /// @param kind     The param's kind; `Kind::MIDI` passes @p knob_pos through unchanged.
@@ -87,8 +87,7 @@ int32_t calculate_knob_pos_for_display(Kind kind, int32_t param_id, int32_t knob
 /// All three of legacy's arms, with `PopupContext` supplying what `View` supplied there: the
 /// patch-cable form (`:1114-1121`), the MIDI-clip CC/expression form (`:1122-1147`) and the plain
 /// form (`:1148-1155`). A default `PopupContext` selects the plain form's context-free overload
-/// and skips the MIDI arm entirely -- which is what E4 task 1 shipped, and still exactly what a
-/// context-free caller gets.
+/// and skips the MIDI arm entirely, which is exactly what a context-free caller gets.
 /// @param kind     The param's kind.
 /// @param param_id The param id within @p kind.
 /// @param source1  The first patch source, for `Kind::PATCH_CABLE`.
@@ -309,8 +308,7 @@ bool ParamPopupScene::attempt_display(Kind kind, int32_t param_id, int32_t knob_
 		pending_flush_remaining_ms_ = kMinUpdateIntervalMs - time_since_last_actual_display;
 		// No repaint asked for here, and none needed: `pending_flush_remaining_ms_` is what
 		// `next_timer()` reports, and `timer_repaints()` names `{.oled = true}` -- so this arm arms
-		// its own frame. That asymmetry is why a *fast* gold turn always updated the panel and a
-		// slow one never did (E4 task 13).
+		// its own frame, where the immediate-draw path relies on the caller's repaint.
 	}
 	else if (current_param_owns_display && notification_active) {
 		remaining_ms_ = kPopupLifetimeMs;
@@ -365,7 +363,7 @@ void ParamPopupScene::tick(uint32_t dt_ms) {
 	}
 	if (has_pending_) {
 		if (dt_ms >= pending_flush_remaining_ms_) {
-			// `flushPendingModEncoderValuePopup` (`view.cpp:1307-1318`): replay the cached call
+			// `flushPendingModEncoderValuePopup`: replay the cached call
 			// through the same arbitration core, using the deadline's own target time as "now" --
 			// exact by construction, since that is the instant this flush was scheduled to fire.
 			const uint32_t flush_now_ms = last_actual_display_ms_ + kMinUpdateIntervalMs;

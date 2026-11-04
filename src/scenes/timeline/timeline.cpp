@@ -7,10 +7,10 @@
 /// Every body below keeps legacy's **declared types** rather than tidying them, because the
 /// conversions those types cause are part of the answer. `int32_t / uint32_t` is an *unsigned*
 /// division in C++, and three of the expressions here rely on it -- `newScroll`'s page snap
-/// (`timeline_view.cpp:195`), `prevBlockStart` (`:374`) and the max-length comparisons
-/// (`:216`, `clip_navigation_timeline_view.cpp:38`). Rewriting them "cleanly" in one signed type
-/// would change results for negative scrolls, which is exactly the eleventh value a spec that
-/// agreed on ten would miss. The project builds without `-Wconversion`
+/// (`TimelineView::horizontalEncoderAction`), `prevBlockStart` and the max-length comparisons
+/// (`TimelineView::horizontalEncoderAction`, `ClipNavigationTimelineView::horizontalScrollForLinearRecording`).
+/// Rewriting them "cleanly" in one signed type would change results for negative scrolls, which is exactly the eleventh
+/// value a spec that agreed on ten would miss. The project builds without `-Wconversion`
 /// (`cmake/deluge_common_options.cmake`), so the mixed-type spellings compile as written.
 ///
 /// @par Two things legacy does here that are dead, and are transcribed anyway
@@ -22,8 +22,8 @@
 ///   * `displayNumberOfBarsAndBeats` (`:241-265`) declares `quantization` and `tooLongText` and
 ///     **reads neither** -- the body uses `Song::getBarLength()` for the quantum and never mentions
 ///     the "too long" text. Every one of its five call sites passes both
-///     (`:238`, `clip_view.cpp:175`, `audio_clip_view.cpp:798`, `:848`,
-///     `arranger_view.cpp:2970`). `bars_and_beats` takes
+///     (in `timeline_view.cpp`, `clip_view.cpp`, `audio_clip_view.cpp` (two)
+///     and `arranger_view.cpp`). `bars_and_beats` takes
 ///     neither; the caller keeps `Song::getBarLength()`, which is the one input that mattered.
 ///
 /// @par A legacy bug, ported rather than fixed
@@ -184,7 +184,7 @@ bool TimelineState::square_defined(int32_t square) const {
 }
 
 int32_t TimelineState::length_chop_amount(int32_t square) const {
-	// `ClipView::getLengthChopAmount` (`clip_view.cpp:315-333`).
+	// `ClipView::getLengthChopAmount` (`clip_view.cpp`).
 	square--; // We want the width of the square before
 	while (!square_defined(square)) {
 		square--;
@@ -202,7 +202,7 @@ int32_t TimelineState::length_chop_amount(int32_t square) const {
 }
 
 int32_t TimelineState::length_extend_amount(int32_t square) const {
-	// `ClipView::getLengthExtendAmount` (`clip_view.cpp:335-352`). Same body as the chop, minus the
+	// `ClipView::getLengthExtendAmount` (`clip_view.cpp`). Same body as the chop, minus the
 	// initial decrement and searching forwards rather than back.
 	while (!square_defined(square)) {
 		square++;
@@ -248,7 +248,7 @@ void TimelineState::stop_following() {
 
 void TimelineState::focus_regained() {
 	// `ClipNavigationTimelineView::focusRegained` (`clip_navigation_timeline_view.cpp:26-28`), whose
-	// whole body is this one line. `ClipView::focusRegained` (`clip_view.cpp:43-45`) is a straight
+	// whole body is this one line. `ClipView::focusRegained` (`clip_view.cpp`) is a straight
 	// delegation to it.
 	scroll_before_following = kNotFollowing;
 }
@@ -269,7 +269,7 @@ ZoomOutcome TimelineState::zoom(int32_t offset, uint32_t max_zoom, uint32_t now_
 
 	// When this timer is set, we may need to wait a bit before allowing zooming
 	if (delay_zoom_until_ms != 0) {
-		// `util::infinite_a_lt_b` (`util/misc.h:100-102`), transcribed for the same reason
+		// `util::infinite_a_lt_b` (`util/misc.h`), transcribed for the same reason
 		// `divide_round_negative` is: this layer may not include `util/`. Wrap-safe on the shell's
 		// millisecond clock exactly as legacy's is on `AudioEngine::audioSampleTimer`.
 		bool isWithinZoomDelay = static_cast<int32_t>(now_ms - delay_zoom_until_ms) < 0;
@@ -330,8 +330,8 @@ bool TimelineState::scroll(int32_t offset, uint32_t max_length) {
 }
 
 bool TimelineState::zoom_to_max(uint32_t max_zoom, bool in_only) {
-	// `TimelineView::zoomToMax` (`timeline_view.cpp:286-302`), with `initiateXZoom`'s scroll store
-	// (`:312`) folded in and its animation dropped. `howMuchMoreMagnitude` (`:296`) is not
+	// `TimelineView::zoomToMax` (`timeline_view.cpp`), with `initiateXZoom`'s scroll store
+	// folded in and its animation dropped. `howMuchMoreMagnitude` is not
 	// transcribed: its only consumer is `PadLEDs::zoomMagnitude`, which is the animation.
 	uint32_t maxZoom = max_zoom;
 	uint32_t oldZoom = x_zoom;
@@ -345,7 +345,7 @@ bool TimelineState::zoom_to_max(uint32_t max_zoom, bool in_only) {
 }
 
 bool TimelineState::scroll_right_to_end_of_length_if_necessary(int32_t max_length) {
-	// `TimelineView::scrollRightToEndOfLengthIfNecessary` (`timeline_view.cpp:331-343`).
+	// `TimelineView::scrollRightToEndOfLengthIfNecessary` (`timeline_view.cpp`).
 	if (pos_from_square(kDisplayWidth) < max_length) {
 		uint32_t displayLength = x_zoom * kDisplayWidth;
 		x_scroll = (max_length - 1) / displayLength * displayLength;
@@ -355,7 +355,7 @@ bool TimelineState::scroll_right_to_end_of_length_if_necessary(int32_t max_lengt
 }
 
 bool TimelineState::scroll_left_if_too_far_right(int32_t max_length) {
-	// `TimelineView::scrollLeftIfTooFarRight` (`timeline_view.cpp:345-353`).
+	// `TimelineView::scrollLeftIfTooFarRight` (`timeline_view.cpp`).
 	if (pos_from_square(0) >= max_length) {
 		x_scroll = x_scroll - x_zoom * kDisplayWidth;
 		return true;
@@ -379,7 +379,7 @@ bool TimelineState::scroll_for_linear_recording(int32_t new_scroll, uint32_t max
 }
 
 void TimelineState::toggle_triplets() {
-	// `TimelineView::tripletsButtonPressed` (`timeline_view.cpp:355-363`), minus `uiNeedsRendering`
+	// `TimelineView::tripletsButtonPressed` (`timeline_view.cpp`), minus `uiNeedsRendering`
 	// and `setTripletsLEDState()`.
 	triplets_on = !triplets_on;
 	if (triplets_on) {
@@ -390,7 +390,7 @@ void TimelineState::toggle_triplets() {
 // --- tick square ------------------------------------------------------------------------------
 
 TimelineState::TickSquare TimelineState::tick_square(int32_t live_pos, const TickSquareGates& gates) {
-	// `ClipView::getTickSquare` (`clip_view.cpp:354-389`).
+	// `ClipView::getTickSquare` (`clip_view.cpp`).
 	TickSquare out;
 	out.square = square_from_pos(live_pos);
 

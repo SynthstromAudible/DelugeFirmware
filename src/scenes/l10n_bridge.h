@@ -14,7 +14,7 @@ std::string_view text_lookup(uint16_t string_id);
 
 /// @brief The scenes layer's error-code bridge: resolve an `Error` value to display text.
 ///
-/// A transcription of the `getErrorMessage(Error)` switch (`src/deluge/hid/display/display.cpp:7`)
+/// A transcription of the `getErrorMessage(Error)` switch (`getErrorMessage` in `src/deluge/hid/display/display.cpp`)
 /// -- the scenes layer may not include `hid/`, so this is a second copy of that mapping, not a
 /// call to it. Matches `ui::shell::ErrorLookup`, so this is what `deluge_profile()` fills the
 /// shell's `BoardProfile::error_text` hook with.

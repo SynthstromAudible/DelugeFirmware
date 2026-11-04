@@ -5,10 +5,10 @@
 ///        listing.
 ///
 /// **The problem.** Legacy dispatches a listing onto the storage-owner fiber and completes *on*
-/// that fiber: `Browser::beginListing` (`gui/ui/browser/browser.cpp:97 beginListing`) stores a
+/// that fiber: `Browser::beginListing` stores a
 /// request, sets `listingInProgress_`, shows a loading animation and calls
-/// `deluge::storage::Owner::run` (`storage/owner.h:43 run`); `Browser::runPendingListing`
-/// (`browser.cpp:126 runPendingListing`) then switches on a `ListingAction` -- Open, IntoFolder,
+/// `deluge::storage::Owner::run` (`storage/owner.h`); `Browser::runPendingListing`
+/// then switches on a `ListingAction` -- Open, IntoFolder,
 /// UpLevel, ByPath, Reload -- and calls the UI back from inside the op. The new shell is
 /// immediate-mode and tick-driven, so a scene cannot sit inside that call: it has to render
 /// something while the listing is in flight and repaint when it lands.
@@ -16,19 +16,19 @@
 /// **The shape.** Request / poll / collect. A scene calls `request()` once, renders whatever it
 /// wants while `in_flight()` is true, and calls `take_result()` on a later tick. The listing runs
 /// where legacy runs it -- on the owner -- and writes into `deluge::storage::FileCatalogue`
-/// (`storage/file_catalogue.h`, extracted in task 1 of this plan), which is where the scene reads
+/// (`storage/file_catalogue.h`), which is where the scene reads
 /// its entries from afterwards.
 ///
 /// **The busy indicator is not invented here.** `request()` raises a `notify::Notice::Kind::Working`
-/// and completion raises `Kind::ClearWorking`; the shell's `Notices` (`shell/notices.cpp:306-315`)
+/// and completion raises `Kind::ClearWorking`; the shell's `Notices` (`shell/notices.cpp`)
 /// turns those into pushing and removing `SceneKind::Working`. A failed listing raises
 /// `notice_error_code`, which `Notices` turns into the same popup legacy's
-/// `Browser::onListingFailed` (`browser.cpp:166 onListingFailed`) shows via `display->displayError`.
+/// `Browser::onListingFailed` shows via `display->displayError`.
 /// This file therefore reaches nothing in `shell/` directly -- only `notify/`.
 ///
 /// @warning **`ClearWorking` is global and unrefcounted, and that is already live.**
 ///          `Notices::drain`'s `Kind::ClearWorking` case calls `working_.clear()` unconditionally
-///          (`shell/notices.cpp:312-315`) -- there is one `WorkingScene` and no count of who armed
+///          (`Notices::drain`) -- there is one `WorkingScene` and no count of who armed
 ///          it. So if a listing overlaps with any other `Kind::Working` raiser, whichever finishes
 ///          first takes the other's animation down. This is not a hypothetical future collision:
 ///          `PlaybackHandler::doSongSwap` raises one today through the same queue
@@ -80,26 +80,25 @@
 ///       event to the topmost non-input-transparent scene, so swallowing them there is a complete
 ///       gate.
 ///
-/// @warning **This note used to say "hold the shell's input lock (`Action::Kind::LockInput`,
-///          legacy's `waitingForSDRoutineToEnd` gate)", and both halves of that were wrong.**
-///          `BrowserScene` followed it and shipped a whole-device failure (E3 task 3 fix round 1):
-///          a scene cannot release that lock from `on_exit()`, which returns `void`, so an external
-///          `Pop` while a listing was in flight left the entire UI deaf. And `LockInput` is not
+/// @warning **A scene must not hold the shell's input lock (`Action::Kind::LockInput`) as legacy's
+///          `waitingForSDRoutineToEnd` gate.** A scene cannot release that lock from `on_exit()`,
+///          which returns `void`, so an external `Pop` while a listing was in flight would leave
+///          the entire UI deaf. And `LockInput` is not
 ///          `waitingForSDRoutineToEnd` -- it is the stem-export/song-load bracket, which **drops**
-///          events (encoder edges included, `shell/input_lowering.cpp:159`) where the legacy gate
+///          events (encoder edges included, `InputLowering::on_encoder_edges`) where the legacy gate
 ///          defers and retries. The port of the legacy gate is `InputLowering::set_sd_busy`, which
 ///          deliberately has no `Action` behind it. See the warning on `Action` in
 ///          `shell/scene.h`.
 ///
 /// @par What this seam does NOT do
 ///
-/// It performs the **SD half** of legacy's `Browser::arrivedInNewFolder` (`browser.cpp:367`) --
+/// It performs the **SD half** of legacy's `Browser::arrivedInNewFolder` --
 /// `FileCatalogue::readFileItemsForFolder`, the default-directory retry, `sortFileItems`,
 /// `deleteFolderAndDuplicateItems` -- and stops there. Three things legacy does around it are
 /// deliberately absent:
 ///
 /// 1. **The in-memory instrument merge.** `readFileItemsFromFolderAndMemory` calls
-///    `song->addInstrumentsToFileItems(outputType)` (`browser.cpp:324`). That needs a `Song`, and
+///    `song->addInstrumentsToFileItems(outputType)`. That needs a `Song`, and
 ///    `src/scenes` may not name `currentSong` (`scripts/check_layer_rules.py`,
 ///    `scenes-currentSong`). The scene that owns a `MenuContext` has a `Song&` and can do the merge
 ///    itself between `take_result()` and its next render; the seam takes no `Song` so it cannot be
@@ -146,19 +145,19 @@
 namespace deluge::scenes::browser {
 
 /// @brief The five listings a scene can ask for -- legacy's `Browser::ListingAction`
-///        (`gui/ui/browser/browser.h:160`), one for one.
+///        (`gui/ui/browser/browser.h`), one for one.
 enum class ListingAction : uint8_t {
-	/// Legacy `openListingImpl` (`browser.cpp:349`): list `path` (or the current directory when
+	/// Legacy `openListingImpl`: list `path` (or the current directory when
 	/// `path` is empty), optionally starting at `filename_to_start_at`.
 	Open,
-	/// Legacy `goIntoFolderImpl` (`browser.cpp:1339`): append `path` as one folder name.
+	/// Legacy `goIntoFolderImpl`: append `path` as one folder name.
 	IntoFolder,
-	/// Legacy `goUpOneDirectoryLevelImpl` (`browser.cpp:1379`): drop the last segment.
+	/// Legacy `goUpOneDirectoryLevelImpl`: drop the last segment.
 	UpLevel,
-	/// Legacy `setFileByFullPathImpl` (`browser.cpp:235`): split `path`, list its directory, and
+	/// Legacy `setFileByFullPathImpl`: split `path`, list its directory, and
 	/// find the file in the result.
 	ByPath,
-	/// Legacy `reloadImpl` (`browser.cpp:735`): re-read the current directory in place.
+	/// Legacy `reloadImpl`: re-read the current directory in place.
 	Reload,
 };
 
@@ -242,7 +241,7 @@ struct ListingResult {
 	///          re-decide legacy's comparisons), and recorded here because the consequence lands on
 	///          the caller: **index `FileCatalogue::fileItems` with this only after checking
 	///          `found_exact`.** Legacy gets away with it because `clampFileSelectionAndScroll`
-	///          (`browser.cpp:1009 clampFileSelectionAndScroll`) reins `fileIndexSelected` in before
+	///          reins `fileIndexSelected` in before
 	///          anything dereferences it; a scene that skips that step has no such net.
 	int32_t file_index = -1;
 	/// `ByPath`: whether that search matched exactly rather than returning an insertion point.
@@ -274,10 +273,10 @@ enum class RequestOutcome : uint8_t {
 /// The guard is `FileCatalogue::claim`/`release` (`storage/file_catalogue.h`), not a member and not
 /// even a static of this class. Two reasons, and the second is the one that made it move:
 ///
-/// 1. Tasks 3, 4 and 5 of this plan give one of these to the file browser, the sample marker editor
-///    and the audio recorder, so several `Listing`s exist at once over one catalogue.
+/// 1. The file browser, the sample marker editor and the audio recorder each own one of these,
+///    so several `Listing`s exist at once over one catalogue.
 /// 2. **Legacy claims through the same call.** `Browser::beginListing`
-///    (`gui/ui/browser/browser.cpp:97`) used to guard with its own static `listingInProgress_`
+///    guards with its own static `listingInProgress_`
 ///    (`browser.h:170`), which only ever guarded `Browser` against `Browser`. For as long as the
 ///    legacy UI and the scenes stack coexist -- the whole point of this branch stack -- a legacy
 ///    browser listing and a scenes listing were mutually invisible over one shared `fileItems`.
@@ -391,12 +390,12 @@ private:
 	/// @brief Runs on the owner: perform the request, fill `result_`, raise the completion
 	///        notices, and publish `Ready`.
 	void perform();
-	/// @brief The action switch -- legacy's `runPendingListing` (`browser.cpp:126`) without the UI
+	/// @brief The action switch -- legacy's `runPendingListing` without the UI
 	///        callbacks.
 	/// @param out The result being filled in; the per-action fields are written here.
 	/// @return The listing's error.
 	Error run_action(ListingResult& out);
-	/// @brief The SD half of `arrivedInNewFolder` (`browser.cpp:367`): read, retry in
+	/// @brief The SD half of `arrivedInNewFolder`: read, retry in
 	///        `default_dir`, sort, de-duplicate.
 	/// @param filename_to_start_at The name a `CATALOG_SEARCH_BOTH` cull centres on; may be null.
 	/// @return The listing's error.

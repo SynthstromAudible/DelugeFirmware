@@ -5,7 +5,7 @@
 ///
 /// The port of `AudioRecorder` (`gui/ui/audio_recorder.{h,cpp}`), which the sample-recorder page's
 /// two items open (`gui/menu_item/osc/audio_recorder.h:36 beginSession`; the ported nodes are
-/// `nodes::sample0_recorder` / `sample1_recorder`, `menu/nodes/sound_osc.h:316`, `:320`).
+/// `nodes::sample0_recorder` / `sample1_recorder`, `menu/nodes/sound_osc.h`).
 ///
 /// @par Legacy's menu item drives the UI, and that is the shape this replaces
 ///
@@ -16,7 +16,7 @@
 ///     audioRecorder.process();
 /// ```
 ///
-/// `openUI` runs `AudioRecorder::opened()` (`audio_recorder.cpp:63`), which allocates the
+/// `openUI` runs `AudioRecorder::opened()` (`AudioRecorder::opened`), which allocates the
 /// `SampleRecorder`; `process()` (`:193`) is then an **infinite loop inside the menu item's own
 /// stack frame** that pumps the audio engine, the UI timers, the display and the button/pad scan by
 /// hand, polls `recorder->status` every pass, and only returns after it has called `close()`. The
@@ -27,33 +27,34 @@
 /// **The port keeps the state machine and throws the loop away.** Its five statements map like
 /// this:
 ///
-/// | `process()`'s loop body (`:194-241`) | here |
-/// |---|---|
-/// | `AudioEngine::routineWithClusterLoading()`, `uiTimerManager.routine()`, `deluge_display_service()`,
-/// `deluge_control_flush()`, `readButtonsAndPads()`, `AudioEngine::slowRoutine()` | the shell's own tick -- none of it
-/// is this scene's | | `if (recorder->status >= COMPLETE \|\| hadCardError)` -> attach the sample, `finishRecording()`,
-/// `close()` | `after_render()`'s completion arm, which files `Action::Kind::Remove` | | `recordingClippedRecently` ->
-/// popup | `after_render()`'s clipping arm, which files `Action::Kind::Popup` | | `!updatedRecordingStatus &&
-/// numSamplesCaptured` -> redraw with "Recording" | `render_oled` reads `capturing()`; see `updatedRecordingStatus`
-/// below | | the `while (true)` itself | `next_timer()` + the repaint-gate arm in `render_oled`, both at
-/// `kRecorderPollMs` |
+/// - `process()`'s loop body (`:194-241`), and where each part goes here:
+///   - `AudioEngine::routineWithClusterLoading()`, `uiTimerManager.routine()`, `deluge_display_service()`,
+///     `deluge_control_flush()`, `readButtonsAndPads()`, `AudioEngine::slowRoutine()` -- the shell's own tick;
+///     none of it is this scene's.
+///   - `if (recorder->status >= COMPLETE || hadCardError)` -> attach the sample, `finishRecording()`,
+///     `close()` -- `after_render()`'s completion arm, which files `Action::Kind::Remove`.
+///   - `recordingClippedRecently` -> popup -- `after_render()`'s clipping arm, which files
+///     `Action::Kind::Popup`.
+///   - `!updatedRecordingStatus && numSamplesCaptured` -> redraw with "Recording" -- `render_oled`
+///     reads `capturing()`; see `updatedRecordingStatus` below.
+///   - the `while (true)` itself -- `next_timer()` + the repaint-gate arm in `render_oled`, both at
+///     `kRecorderPollMs`.
 ///
 /// `after_render()` is the hook the poll has to live in, for `BrowserScene`'s reason: it is the only
 /// one that can file an `Action`, and the shell calls it only for a scene that actually *drew* this
-/// tick (`shell/shell.cpp:408-410`). So `next_timer()` asks the shell back at `kRecorderPollMs`, and
+/// tick (`Shell::tick`'s `after_render` loop). So `next_timer()` asks the shell back at `kRecorderPollMs`, and
 /// `Shell::tick`'s step 8b turns that answer into a repaint of every surface this scene both claims
 /// and is not covered on -- which is what makes the woken tick actually render, and therefore call
 /// `after_render()`.
 ///
-/// `render_oled` **also** arms the panel's gate itself, at the same interval. That arm predates the
-/// step-8b fold and is now a refinement rather than the load-bearing part; it is kept because it is
+/// `render_oled` **also** arms the panel's gate itself, at the same interval. That arm is a
+/// refinement rather than the load-bearing part; it is kept because it is
 /// the tighter statement (the panel is armed from the moment the frame is drawn rather than from the
-/// bottom of the tick) and because it is what a reader of this scene alone can see. When the fold
-/// landed, this scene was the fourth in a row whose timer had been written without the arm at least
-/// once -- and the only one where the consequence was not a dead animation but a recording that
-/// never noticed it had finished. See `Scene::next_timer` for that history.
+/// bottom of the tick) and because it is what a reader of this scene alone can see. A timer written
+/// without the arm is a dead animation for most scenes, but here it is a recording that
+/// never notices it has finished. See `Scene::next_timer`.
 ///
-/// `updatedRecordingStatus` (`audio_recorder.h:48`) has no member here. Legacy needs it because
+/// `AudioRecorder::updatedRecordingStatus` has no member here. Legacy needs it because
 /// `process()` paints imperatively and must not repaint every pass; it is set exactly when
 /// `numSamplesCaptured` first goes non-zero (`:234-239`) and cleared in `opened()` (`:64`), so it is
 /// a cache of `numSamplesCaptured != 0`. `render_oled` reads the recorder instead, which also drops
@@ -69,18 +70,18 @@
 /// `opened()`, `process()`, `renderOLED`, `buttonAction`, `endRecordingSoon`, `finishRecording` and
 /// `getGreyoutColsAndRows`.
 ///
-/// @par `recordingSource` is not bookkeeping, and this scene publishes it (fix round 1)
+/// @par `recordingSource` is not bookkeeping, and this scene publishes it
 ///
-/// `AudioRecorder::recordingSource` and `::recorder` (`audio_recorder.h:40-42`) are read by **nine
+/// `AudioRecorder::recordingSource` and `::recorder` (`audio_recorder.h`) are read by **nine
 /// subsystems** as "a foreground recording is live". Most consequentially
-/// `AudioEngine::setMonitoringMode` (`audio_engine.cpp:1024-1055`) enables input monitoring only
+/// `AudioEngine::setMonitoringMode` (`audio_engine.cpp`) enables input monitoring only
 /// when `recordingSource` is `STEREO` or `LEFT` -- exactly the two values `opened()` sets -- and
 /// derives `monitoringAction` (differential / no-right-channel) from the recorder pointer. The
 /// other eight are `hid/buttons.cpp:147,180` (shift+RECORD must not start an *output* recording on
 /// top of a live mic one), `processing/stem_export/stem_export.cpp:195,412,460,594,716`,
-/// `playback/playback_handler.cpp:2503` (the RECORD LED), `playback/mode/arrangement.cpp:328`,
+/// `playback/playback_handler.cpp` (the RECORD LED), `playback/mode/arrangement.cpp:328`,
 /// `gui/ui/keyboard/keyboard_screen.cpp:305`, `gui/views/instrument_clip_view.cpp:354,5535` and
-/// `gui/ui/browser/sample_browser.cpp:492`.
+/// `gui/ui/browser/sample_browser.cpp`.
 ///
 /// This layer may not name `audioRecorder` (`check_layer_rules.py`, `scenes-no-root-ui`), so both
 /// directions go through `AudioEngine::setForegroundRecording` /
@@ -117,33 +118,33 @@
 ///     `nodes::sample0_recorder` hide the item in FM mode in the first place, so the popup only
 ///     ever fired on legacy's shortcut-pad path, which `MenuScene` owns.
 ///
-/// @par The completion poll used to stall under this scene's own popup, and no longer does
+/// @par The completion poll runs under this scene's own popup
 ///
 /// `PopupScene` is not `oled_transparent` (`shell/notices.h`), so `Shell::render_oled`'s
-/// transparency walk stops at it (`shell/shell.cpp:629-633`): while a popup is up **this scene is
-/// still not drawn on the OLED**. That much is unchanged, and it is why the `render_oled` gate arm
+/// transparency walk stops at it: while a popup is up **this scene is
+/// not drawn on the OLED**. That is why the `render_oled` gate arm
 /// above cannot be the poll's only lifeline -- a recording that finished while this scene's own
-/// clipping popup was on screen went unnoticed until the popup expired (`kPopupTimeoutMs`, 800 ms),
-/// which E3 task 5 recorded here as a bounded, accepted stall.
+/// clipping popup was on screen would otherwise go unnoticed until the popup expired
+/// (`kPopupTimeoutMs`, 800 ms).
 ///
-/// E3 task 10's step-8b fold ended it, and did so through the *grid* rather than the panel.
+/// Step 8b of `Shell::tick` closes that gap, through the *grid* rather than the panel.
 /// `PopupScene` is a grid overlay that composites nothing (`is_grid_overlay()` true), so this scene remains the grid
 /// **base** underneath it; `Shell::render_grid` draws and `append_rendered`s the base on every tick the grid gate
-/// fires. Step 8b arms each surface this scene claims and is not covered on -- the grid, here, and (since the final
-/// review's A2) *not* the OLED panels the opaque popup covers -- so the grid gate fires at `kRecorderPollMs`, this
+/// fires. Step 8b arms each surface this scene claims and is not covered on -- the grid, here, and
+/// *not* the OLED panels the opaque popup covers -- so the grid gate fires at `kRecorderPollMs`, this
 /// scene enters `rendered_this_tick_`, and `after_render()` runs on schedule with the popup still
-/// up. The OLED half of that arm was pure cost: `flush` blits an OLED surface unconditionally once
-/// rendered, so it was a 100 Hz two-panel blit of a frame this scene was not even in. Nothing about the OLED walk had
-/// to change, and neither of the two alternatives the stall's note rejected (making the scene `oled_transparent`, or
-/// moving the poll out of `after_render` where it could no longer file the `Remove`) was needed.
+/// up. Arming the OLED half would be pure cost: `flush` blits an OLED surface unconditionally once
+/// rendered, so it would be a 100 Hz two-panel blit of a frame this scene is not even in. Nothing about the OLED walk
+/// has to change, and neither alternative (making the scene `oled_transparent`, or moving the poll out of
+/// `after_render` where it could no longer file the `Remove`) is needed.
 ///
-/// `recorder_scene_spec` pins the new behaviour where it used to pin the stall -- "notices
+/// `recorder_scene_spec` pins this -- "notices
 /// completion while its own clipping popup is up, through the grid pass".
 ///
 /// @warning **This scene must not raise `Action::Kind::LockInput`**, and does not. See the warning
 ///          on `Action` in `shell/scene.h`. Legacy's own gate here is
 ///          `buttonAction`'s `inCardRoutine` -> `REMIND_ME_OUTSIDE_CARD_ROUTINE`
-///          (`audio_recorder.cpp:291-293 buttonAction`), which **defers and retries**; its port is
+///          (`AudioRecorder::buttonAction`), which **defers and retries**; its port is
 ///          `InputLowering::set_sd_busy`, which is deliberately not an `Action` and is not this
 ///          scene's to file. `LockInput` would *drop* those presses instead, and could not be
 ///          released from `on_exit()`.
@@ -180,7 +181,7 @@ inline constexpr uint32_t kRecorderPollMs = 10;
 
 /// @brief The row `render_oled` draws its status word on, in frame-local coordinates.
 ///
-/// `AudioRecorder::renderOLED` (`audio_recorder.cpp:116-119`) is one call:
+/// `AudioRecorder::renderOLED` is one call:
 /// `drawStringCentred(text, 19, kTextBigSpacingX, kTextBigSizeY)`. That 19 is an *absolute* canvas
 /// row and the frame's origin already accounts for the bezel, so the frame-local row is
 /// `19 - OLED_MAIN_TOPMOST_PIXEL` = 14 on the shipped panel -- exactly the subtraction
@@ -208,7 +209,7 @@ public:
 	/// the context reads `process()`'s completion arm makes unchecked (`:213-217`): a sound, a
 	/// source and a range to attach the finished sample to. Legacy gets the last of those from
 	/// `soundEditor.checkPermissionToBeginSessionForRangeSpecificParam`
-	/// (`osc/audio_recorder.h:73`), which refuses before opening.
+	/// (`osc/audio_recorder.h`), which refuses before opening.
 	/// @param ctx The context to test.
 	/// @return True if `on_enter` will get as far as trying to allocate a recorder.
 	static bool can(const menu::MenuContext& ctx);
@@ -229,7 +230,7 @@ public:
 	/// The scene itself paints no pads at all (legacy overrides neither `renderMainPads` nor
 	/// `renderSidebar`), so it is not a grid overlay and occludes nothing: what is beneath keeps
 	/// drawing, greyed. `Shell::tick` ORs this mask over every scene on the stack
-	/// (`shell/shell.cpp:332-338`), which is where the greying happens.
+	/// (`Shell::tick`), which is where the greying happens.
 	deluge::ui::grid::GreyoutMask greyout_mask() const override { return {0xFFFFFFFFu, 0}; }
 
 	/// @name Observable state

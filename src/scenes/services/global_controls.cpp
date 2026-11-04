@@ -47,13 +47,13 @@
 /// @name The two pending-command globals the `BACK` arm writes
 ///
 /// Declared here rather than included, exactly as `View::buttonAction` itself declares them
-/// (`gui/views/view.cpp:101`, `:138`): they are defined in `playback/playback_handler.cpp:94-95`
+/// (`gui/views/view.cpp`): they are defined in `playback/playback_handler.cpp`
 /// with no declaration in `playback_handler.h`, so a bare `extern` is the only spelling either
 /// side has. (`nodes/settings.cpp`'s `extern uint32_t jcong;` is the same pattern, and
 /// `scripts/check_layer_rules.py`'s `scenes-no-root-ui` comment names it as the expected shape.)
 ///
-/// @warning The second one is declared `extern GlobalMIDICommand` at `view.cpp:138` and **defined
-///          `int32_t`** at `playback_handler.cpp:95` -- a type mismatch across translation units.
+/// @warning The second one is declared `extern GlobalMIDICommand` in `view.cpp` and **defined
+///          `int32_t`** in `playback_handler.cpp` -- a type mismatch across translation units.
 ///          It is benign only because `GlobalMIDICommand` has a negative enumerator (`NONE = -1`,
 ///          `definitions_cxx.hpp:584`) and so takes `int` as its underlying type, making the two
 ///          spellings the same size and the one value written (`GlobalMIDICommand::PLAYBACK_RESTART`
@@ -104,7 +104,7 @@ constexpr deluge::ui::LedState kOn{deluge::ui::LedState::Kind::On, 0, 0};
 /// @brief `IndicatorLED`'s value for @p b, as the toolkit's opaque `LedId`.
 ///
 /// `LedId` values are `ButtonId` values by the board profile's own contract
-/// (`shell/profiles/deluge.h:19`), so this is the whole of the mapping.
+/// (`shell/profiles/deluge.h`'s `kDelugeLedByButton`), so this is the whole of the mapping.
 /// @param b The button whose LED to name.
 /// @return The LED id.
 constexpr deluge::ui::LedId led(ButtonId b) {
@@ -141,7 +141,7 @@ uint32_t GlobalControls::unported_opens_total() const {
 
 GlobalControls::UiMode GlobalControls::effective_ui_mode() const {
 	// Legacy has one `currentUIMode`; this reassembles it from its three owners. `MidiLearn` first
-	// because that is the value `View::buttonAction`'s own arms test first (`view.cpp:149`), and
+	// because that is the value `View::buttonAction`'s own arms test first, and
 	// because `View::startMIDILearn` (`:473`) only enters the mode from `UI_MODE_NONE` or from
 	// itself -- so a learn-active mode can never be one of the others.
 	if (learn_.active()) {
@@ -204,7 +204,7 @@ void GlobalControls::handle_save(bool on, const UiContext& ctx, Result& result) 
 	}
 	// `:261` `openUI(&saveSongUI)`.
 	//
-	// @warning **Not ported.** The load/save browser family is phase 6 (migration spec §10.4) and
+	// @warning **Not ported.** The load/save browser family is not ported and
 	//          `saveSongUI` is on `scenes-no-root-ui`'s forbidden list. Everything above this line
 	//          -- the four-button guard, the mode test, the shift test, the hold clock, the
 	//          overdub refusal -- is the arm's decision and it is ported and specced; this is the
@@ -227,7 +227,7 @@ void GlobalControls::handle_load(bool on, const UiContext& ctx) {
 			// `openUI(&context_menu::clearSong)`.
 			//
 			// @warning **Not ported.** `ContextMenuScene` exists, but the clear-song menu is not
-			//          among the context menus E2 task 6 ported and its availability check is a
+			//          among the ported context menus and its availability check is a
 			//          `gui/` call. Decision ported (shift+LOAD from a clean mode), open missing.
 			count_unported(UnportedOpen::ClearSong);
 			return;
@@ -264,14 +264,13 @@ void GlobalControls::handle_sync_scaling(bool on, const UiContext& ctx, Result& 
 	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::SyncScalingAction)
 	    == RuntimeFeatureStateSyncScalingAction::Fill) { // `:335-336`
 		// `gui/views/view.cpp:340-343` (the note editor / note-row editor test) needs no port here: in a
-		// ported note mode the press never gets here -- `forwardNoteButton` takes it (`gui/ui/shell_host_ui.cpp:907`)
-		// and gives it to the mode's handler (`gui/ui/shell_note_mode.cpp:187-191`), which reaches that test.
-		// The fill adjustments (`gui/views/view.cpp:345-354`) name `instrumentClipView`: E5's, unported.
+		// ported note mode the press never gets here -- `forwardNoteButton` takes it (`gui/ui/shell_host_ui.cpp`)
+		// and gives it to the mode's handler (`gui/ui/shell_note_mode.cpp`), which reaches that test.
+		// The fill adjustments (`gui/views/view.cpp:345-354`) name `instrumentClipView`, whose scene is unported.
 		//
 		// @warning **Not ported.** In this port the arm always takes legacy's "otherwise" branch,
 		//          so SYNC_SCALING under the Fill setting toggles fill mode even in the two cases
-		//          legacy redirects it to a note-fill adjustment. Recorded in the E4 task-4
-		//          report's owed list.
+		//          legacy redirects it to a note-fill adjustment.
 		song_->changeFillMode(on); // `:357`
 		return;
 	}
@@ -335,7 +334,7 @@ void GlobalControls::handle_settings_menu(const UiContext& ctx, Result& result) 
 	}
 	// `:461-462` `soundEditor.setup(); openUI(&soundEditor);`.
 	//
-	// `SoundEditor::setup`'s default `clip` argument is `nullptr` (`gui/ui/sound_editor.h:122`), so
+	// `SoundEditor::setup`'s default `clip` argument is `nullptr` (`gui/ui/sound_editor.h`), so
 	// this call always takes the `else` at `sound_editor.cpp:1815`, and both of that branch's
 	// view tests are `&& !Buttons::isShiftButtonPressed()` (`:1761`, `:1764`) -- which is false
 	// here by construction, because this arm's own condition is `b == SELECT_ENC &&
@@ -364,7 +363,7 @@ GlobalControls::ViewArm GlobalControls::view_button_action(ButtonId button, bool
 	case ButtonId::TapTempo: { // `view.cpp:147-183`
 		if (mode == UiMode::MidiLearn) {
 			// `:148-166` is learn work end to end -- `deleteMidiCommandOnRelease`,
-			// `endMidiLearnPressSession`, `learnedThing`. E4 task 5's; see the class doc's
+			// `endMidiLearnPressSession`, `learnedThing`. `MidiLearn`'s; see the class doc's
 			// boundary note and `LearnMode`. Left unhandled deliberately -- but NOT passed to the
 			// tail, because legacy's arm reaches `:469`'s `DEALT_WITH` and so suppresses it.
 			return ViewArm::LearnOwns;
@@ -387,7 +386,7 @@ GlobalControls::ViewArm GlobalControls::view_button_action(ButtonId button, bool
 	}
 
 	case ButtonId::Learn: // `:185-196`
-		// `startMIDILearn`/`endMIDILearn` -- the mode itself, so E4 task 5's whole. Legacy claims
+		// `startMIDILearn`/`endMIDILearn` -- the mode itself, so all of it is `MidiLearn`'s. Legacy claims
 		// LEARN unconditionally (`:185`), so the tail is suppressed here too.
 		return ViewArm::LearnOwns;
 
@@ -395,7 +394,7 @@ GlobalControls::ViewArm GlobalControls::view_button_action(ButtonId button, bool
 	case ButtonId::Record:
 		if (mode == UiMode::MidiLearn) {
 			// `:199-212` and `:215-228`: under learn these two buttons ARE learn targets and
-			// nothing else. E4 task 5's. Unhandled -- and note that legacy's arms are guarded by
+			// nothing else. `MidiLearn`'s. Unhandled -- and note that legacy's arms are guarded by
 			// `&& currentUIMode == UI_MODE_MIDI_LEARN`, so outside learn the chain falls to
 			// `:465-467`'s `NOT_DEALT_WITH` and `Buttons::buttonAction`'s tail runs. That is the
 			// `break` below.
@@ -427,10 +426,10 @@ GlobalControls::ViewArm GlobalControls::view_button_action(ButtonId button, bool
 				// perform it immediately if the card is not being read.
 				pendingGlobalMIDICommand = ctx.shift ? GlobalMIDICommand::REDO : GlobalMIDICommand::UNDO; // `:414-415`
 				// `:416` writes `GlobalMIDICommand::PLAYBACK_RESTART` (== 0) into a variable
-				// `playback_handler.cpp:95` defines as `int32_t`, through a mismatched `extern
-				// GlobalMIDICommand` declaration at `view.cpp:138`. The value is 0 either way (and
-				// `:435`, the dead-code twin, simply writes `0`), so this writes 0. Recorded in the
-				// task report as a legacy oddity rather than reproduced as a type pun.
+				// `playback_handler.cpp` defines as `int32_t`, through a mismatched `extern
+				// GlobalMIDICommand` declaration in `view.cpp`. The value is 0 either way (and
+				// `:435`, the dead-code twin, simply writes `0`), so this writes 0 rather than reproducing the type
+				// pun.
 				pendingGlobalMIDICommandNumClustersWritten = 0;
 				playbackHandler.slowRoutine(); // `:417`
 			}
@@ -503,7 +502,7 @@ Result GlobalControls::tail_button_action(ButtonId button, bool on, const UiCont
 
 	case ButtonId::Shift: // `:169-171`
 		// `commandToggleShift(on)` (`:170`) is already `InputLowering::toggle_shift`
-		// (`shell/input_lowering.cpp:304-324`), which `on_button` calls *before* this event was
+		// (`shell/input_lowering.cpp`), which `on_button` calls *before* this event was
 		// ever emitted. Reported handled because legacy's tail deals with it; nothing to do.
 		r.handled = true;
 		return r;
@@ -512,7 +511,7 @@ Result GlobalControls::tail_button_action(ButtonId button, bool on, const UiCont
 		if (on) {
 			// `:176` `timeRecordButtonPressed = AudioEngine::audioSampleTimer` and `:178`
 			// `recordButtonPressUsedUp = false` are both already done by
-			// `InputLowering::on_button` (`input_lowering.cpp:281-283`), which stamps the press
+			// `InputLowering::on_button` (`InputLowering::on_button`), which stamps the press
 			// clock and clears the used-up bit for every button on its own press.
 			if (AudioEngine::foregroundRecordingSource() == AudioInputChannel::NONE) { // `:180`
 				if (ctx.shift) {                                                       // `:181`
@@ -528,7 +527,7 @@ Result GlobalControls::tail_button_action(ButtonId button, bool on, const UiCont
 			// `cancelPopup()`.
 			//
 			// @warning **Not ported, and this one changes behaviour.** That popup is raised by
-			//          model code straight to the legacy display (`model/song/song.cpp:5856`),
+			//          model code straight to the legacy display (`model/song/song.cpp`),
 			//          never through `notify::` or `shell::PopupScene`, so this layer has no way to
 			//          ask. Legacy's short RECORD tap with that popup up dismisses it and does
 			//          nothing else; here it falls through and toggles recording.
@@ -567,8 +566,8 @@ Result GlobalControls::tail_button_action(ButtonId button, bool on, const UiCont
 	case ButtonId::ModEnc1:
 		// `:226-231` `getCurrentUI()->modEncoderButtonAction(n, on)`. These never reach this
 		// service: `Router::route`'s `is_mod_or_gold` sends them to `services.mod_knobs` one step
-		// earlier (`shell/router.cpp`), which is where E4 task 3 ported
-		// `View::modEncoderButtonAction`. Listed so the tail's arm census is complete.
+		// earlier (`shell/router.cpp`), which is where
+		// `View::modEncoderButtonAction` is ported. Listed so the tail's arm census is complete.
 		return r;
 
 	default:
@@ -605,7 +604,7 @@ Result GlobalControls::handle(const UiEvent& event, const UiContext& ctx) {
 		// Legacy's arm returned `DEALT_WITH`, so the tail is skipped -- but the work is
 		// `MidiLearn`'s and this service did none of it, so the event is reported **unhandled**
 		// and continues down the chain. `services::MidiLearn` is routed one step further on
-		// (E4 task 5; `shell/router.cpp`'s `run_chain`, which ends
+		// (`shell/router.cpp`'s `run_chain`, which ends
 		// `global_controls` -> `midi_learn` -> drop) and claims exactly these four buttons, so
 		// what this returns is a hand-off, not a drop. See the class doc's @warning.
 		return Result::unhandled();
@@ -618,7 +617,7 @@ Result GlobalControls::handle(const UiEvent& event, const UiContext& ctx) {
 // -- LEDs ----------------------------------------------------------------------------------------
 
 void GlobalControls::leds(deluge::ui::LedFrame& frame) {
-	// `PlaybackHandler::setLedStates` (`playback/playback_handler.cpp:2499-2512`).
+	// `PlaybackHandler::setLedStates` (`playback/playback_handler.cpp`).
 	(void)frame.set(led(ButtonId::Play), playbackHandler.playbackState != 0 ? kOn : kOff); // `:2501`
 
 	// `:2503-2506`. The guard is legacy's: while an internal (resample/output) recording is live,
@@ -633,8 +632,8 @@ void GlobalControls::leds(deluge::ui::LedFrame& frame) {
 	// class doc.
 	(void)frame.set(led(ButtonId::TapTempo), playbackHandler.metronomeOn ? kOn : kOff); // `:2511`
 
-	// `View::setTimeBaseScaleLedState` (`view.cpp:519-529`), which is the whole of
-	// `View::setLedStates` (`:514-516`).
+	// `View::setTimeBaseScaleLedState`, which is the whole of
+	// `View::setLedStates`.
 	if (blinking_sync_scaling()) {
 		// `:504-506` `indicator_leds::blinkLed(IndicatorLED::SYNC_SCALING)` -- the defaults are
 		// `numBlinks` 255 (forever) on the normal blink every `blinkingType` 0 LED shares.
@@ -648,12 +647,12 @@ void GlobalControls::leds(deluge::ui::LedFrame& frame) {
 		                song_ != nullptr && song_->project.transport.sync_scaling_clip_id ? kOn : kOff); // `:510`
 	}
 
-	// `View::buttonAction`'s own two LEDs: SAVE on while held (`view.cpp:243`), off otherwise
+	// `View::buttonAction`'s own two LEDs: SAVE on while held (`View::buttonAction`), off otherwise
 	// (`:265`, `:269`); LOAD the same (`:299`, `:323`, `:327`).
 	(void)frame.set(led(ButtonId::Save), holding_save_ ? kOn : kOff);
 	(void)frame.set(led(ButtonId::Load), holding_load_ ? kOn : kOff);
 
-	// `indicator_leds::indicateAlertOnLed(IndicatorLED::CLIP_VIEW)` (`view.cpp:375`) =
+	// `indicator_leds::indicateAlertOnLed(IndicatorLED::CLIP_VIEW)` (`View::buttonAction`) =
 	// `blinkLed(led, 3, 1)` (`hid/led/indicator_leds.cpp:160-162`): FIVE half-periods of
 	// `kFastFlashTime` -- see `kAlertMs`, and the spec pins it against legacy's own countdown --
 	// then `setLedState(led, returnToState)` (`:128`), the state the LED had when the alert began.
@@ -671,13 +670,13 @@ void GlobalControls::leds(deluge::ui::LedFrame& frame) {
 // -- Time ------------------------------------------------------------------------------------------
 
 void GlobalControls::flash_play_enable(uint32_t now_ms) {
-	// `View::flashPlayEnable` (`view.cpp:2783-2785`): `setTimer(PLAY_ENABLE_FLASH, kFastFlashTime)`.
+	// `View::flashPlayEnable`: `setTimer(PLAY_ENABLE_FLASH, kFastFlashTime)`.
 	clip_arm_flash_deadline_ms_ = now_ms + kClipArmFlashMs;
 }
 
 void GlobalControls::flash_play_disable() {
-	// `View::flashPlayDisable` (`view.cpp:2787-2800`): clear the phase and unset the timer. The
-	// render requests at `:2774-2782` are view-side and not ported.
+	// `View::flashPlayDisable`: clear the phase and unset the timer. The
+	// render requests in `View::flashPlayRoutine` are view-side and not ported.
 	clip_arm_flash_on_ = false;
 	clip_arm_flash_deadline_ms_.reset();
 }
@@ -686,7 +685,7 @@ void GlobalControls::tick(uint32_t now_ms, uint32_t /*dt_ms*/) {
 	now_ms_ = now_ms;
 
 	if (clip_arm_flash_deadline_ms_.has_value() && static_cast<int32_t>(now_ms - *clip_arm_flash_deadline_ms_) >= 0) {
-		// `View::flashPlayRoutine` (`view.cpp:2771-2781`): toggle the phase, then ask for a render.
+		// `View::flashPlayRoutine`: toggle the phase, then ask for a render.
 		// The re-arm is `SessionView::flashPlayRoutine`'s (`gui/views/session_view.cpp:2441-2442`,
 		// `:2441-2444`) and is view-side, so this fires once per `flash_play_enable()`.
 		clip_arm_flash_on_ = !clip_arm_flash_on_;
@@ -719,7 +718,7 @@ std::optional<uint32_t> GlobalControls::next_timer() const {
 }
 
 bool GlobalControls::blinking_sync_scaling() const {
-	// The sync-scaling clip is the one the view has open (`view.cpp:504-506`).
+	// The sync-scaling clip is the one the view has open (`View::setTimeBaseScaleLedState`).
 	if (!view_.current_ui_is_clip_minder || song_ == nullptr) {
 		return false;
 	}

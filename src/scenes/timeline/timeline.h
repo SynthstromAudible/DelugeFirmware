@@ -23,8 +23,8 @@
 /// | `TimelineView::getSquareEndFromPos` (`:475-482`) | here | ditto |
 /// | `TimelineView::isSquareDefined` (`:484-505`) | here | ditto |
 /// | `TimelineView::inTripletsView` (`:507-509`) | here | reads `supportsTriplets()` (a scene fact, so a field) and `tripletsOn` |
-/// | `ClipView::getLengthChopAmount` (`clip_view.cpp:315-333`) | here | pure arithmetic over zoom and triplets |
-/// | `ClipView::getLengthExtendAmount` (`clip_view.cpp:335-352`) | here | ditto |
+/// | `ClipView::getLengthChopAmount` (`clip_view.cpp`) | here | pure arithmetic over zoom and triplets |
+/// | `ClipView::getLengthExtendAmount` (`clip_view.cpp`) | here | ditto |
 /// | `TimelineView::horizontalEncoderAction`'s zoom arm (`:161-199`) | **splits** | the arithmetic and the zoom-delay latch are here; the UI-mode gates and the popup are the scene's |
 /// | `TimelineView::horizontalEncoderAction`'s scroll arm (`:203-223`) | **splits** | same split |
 /// | `TimelineView::initiateXScroll` (`:268-283`) | **splits** | `xScroll = newXScroll` is here; `setupScroll` + `PadLEDs::horizontal::setupScroll` + `UI_MODE_HORIZONTAL_SCROLL` are the dropped animation |
@@ -36,16 +36,16 @@
 /// | `TimelineView::displayNumberOfBarsAndBeats` (`:241-265`) | **splits** | the bar/beat/sub-beat decomposition is here (`bars_and_beats`); the popup is the scene's |
 /// | `ClipNavigationTimelineView::xScrollBeforeFollowingAutoExtendingLinearRecording` (`clip_navigation_timeline_view.h:32`) | here (`scroll_before_following`) | state |
 /// | `ClipNavigationTimelineView::focusRegained` (`:26-28`) | here (`focus_regained`) | it does nothing but reset that field |
-/// | `ClipNavigationTimelineView::horizontalEncoderAction`'s first statement (`:32`) | here (`stop_following`, called by both gestures) | it clears that same field on every horizontal turn, so a manual scroll or zoom during an auto-extending linear recording forgets the restore point. Missed by the first round of this port; see the ordering note on `stop_following` |
+/// | `ClipNavigationTimelineView::horizontalEncoderAction`'s first statement (`:32`) | here (`stop_following`, called by both gestures) | it clears that same field on every horizontal turn, so a manual scroll or zoom during an auto-extending linear recording forgets the restore point. See the ordering note on `stop_following` |
 /// | `ClipNavigationTimelineView::horizontalScrollForLinearRecording` (`:36-51`) | **splits** | the length guard and the scroll write are here; the animate-or-not choice, `uiNeedsRendering` and the popup are the scene's |
-/// | `ClipView::getTickSquare` (`clip_view.cpp:354-389`) | **splits** | the square and the follow arithmetic are here; `getCurrentlyRecordingLinearly()`, `currentUIMode`, `getCurrentUI() == this` and `armState` are the scene's, and arrive as `TickSquareGates` |
-/// | `AudioClipView`'s `lastTickSquare` / `mustRedrawTickSquares` latch (`audio_clip_view.cpp:297-310`) | the scene (E4 task 11) | the plan's file table said "tick squares" here, and that was a plan error corrected in task 8's review: the two fields are `AudioClipView`-**private** (`audio_clip_view.h:68-69`), have no counterpart anywhere in the timeline chain, and have exactly one consumer. `ClipView::getTickSquare` below is the genuinely shared half |
-/// | `TimelineView::getMaxZoom` / `getMaxLength` (pure virtual, `timeline_view.h:35`, `:38`) | the scene | model questions whose answer differs per view (`ClipView`'s two at `clip_view.cpp:35-37`/`:39-41`, `AudioClipView`'s at `audio_clip_view.cpp:875-880`/`:882-888`); they arrive here as arguments |
+/// | `ClipView::getTickSquare` (`clip_view.cpp`) | **splits** | the square and the follow arithmetic are here; `getCurrentlyRecordingLinearly()`, `currentUIMode`, `getCurrentUI() == this` and `armState` are the scene's, and arrive as `TickSquareGates` |
+/// | `AudioClipView`'s `lastTickSquare` / `mustRedrawTickSquares` latch (`AudioClipView`) | the scene | not part of the shared tick-square arithmetic: the two fields are `AudioClipView`-**private** (`audio_clip_view.h:68-69`), have no counterpart anywhere in the timeline chain, and have exactly one consumer. `ClipView::getTickSquare` below is the genuinely shared half |
+/// | `TimelineView::getMaxZoom` / `getMaxLength` (pure virtual, `timeline_view.h:35`, `:38`) | the scene | model questions whose answer differs per view (`ClipView`'s two at `clip_view.cpp:35-37`/`:39-41`, `AudioClipView`'s in `audio_clip_view.cpp`); they arrive here as arguments |
 /// | `TimelineView::setupScroll` (`:44-50`), `calculateZoomPinSquares` (`:52-63`), `tellMatrixDriverWhichRowsContainSomethingZoomable` (`:65-67`), `scrollFinished` (`:36-41`) | **dropped** | they are the `PadLEDs` zoom/scroll transition, which the port does not carry (see below) |
 /// | `TimelineView::displayZoomLevel` (`:126-131`), `displayScrollPos` (`:230-239`), `setTripletsLEDState` (`:365-367`), `midiLearnFlash` (`:511-513`) | the scene | they draw, blink an LED, or ask for a redraw |
 /// | `TimelineView::buttonAction` (`:69-124`), `ClipView::buttonAction` (`clip_view.cpp:47-70`) | the scene / `GlobalControls` | button routing; the tail is `view.buttonAction`, which is `services/global_controls.h` |
 /// | `TimelineView::toTimelineView` (`timeline_view.h:33`), `getNavSysId` (`:40`) | **dropped** | a downcast in legacy's `UI` chain, and an index into the two-slot `Song::xScroll`/`xZoom` arrays. One `TimelineState` *is* one slot, so neither has anything to name |
-/// | `ClipView::lengthenClip` (`clip_view.cpp:75-121`), `shortenClip` (`:124-144`), `changeClipLength` (`:264-313`), `horizontalEncoderAction` (`:146-263`) | the scene (E4 task 12) | they run the action logger and write `Clip::loopLength`; they *use* the helpers here, they are not them |
+/// | `ClipView::lengthenClip` (`clip_view.cpp:75-121`), `shortenClip` (`:124-144`), `changeClipLength` (`:264-313`), `horizontalEncoderAction` (`:146-263`) | the scene | they run the action logger and write `Clip::loopLength`; they *use* the helpers here, they are not them |
 ///
 /// @par The zoom and scroll transitions are legacy's `PadLEDs` animation, and the port does not carry them
 ///
@@ -89,8 +89,8 @@ namespace deluge::scenes::timeline {
 /// @brief `kShortPressTime` (`definitions_cxx.hpp:1028`, `kSampleRate / 2`) in milliseconds.
 ///
 /// Legacy measures the zoom delay in audio samples off `AudioEngine::audioSampleTimer`
-/// (`timeline_view.cpp:172`, `:184`). This layer has no clock at all -- every deadline is against
-/// the `now_ms` the shell passes in (plan constraint 6) -- so the same half second is spelled in
+/// (`TimelineView::horizontalEncoderAction`). This layer has no clock at all -- every deadline is against
+/// the `now_ms` the shell passes in -- so the same half second is spelled in
 /// milliseconds, exactly as `GlobalControls::kShortPressMs` already does.
 inline constexpr uint32_t kShortPressMs = 500;
 
@@ -98,7 +98,7 @@ inline constexpr uint32_t kShortPressMs = 500;
 ///        (`clip_navigation_timeline_view.cpp:24`, `:27`).
 inline constexpr int32_t kNotFollowing = -1;
 
-/// @brief `divide_round_negative` (`util/functions.cpp:1739-1746`), transcribed.
+/// @brief `divide_round_negative` (`util/functions.cpp`), transcribed.
 ///
 /// Not called through `util/functions.h`: `check_layer_rules.py`'s `scenes-includes-outside` row
 /// allows this layer no `util/` include, and the whole function is five lines. Divisor must be
@@ -123,7 +123,7 @@ struct BarsBeats {
 };
 
 /// @brief The three outcomes of one zoom detent, which legacy spells as two `goto getOut`s and a
-///        fall-through (`timeline_view.cpp:176`, `:191`, `:194-198`).
+///        fall-through (`TimelineView::horizontalEncoderAction`).
 enum class ZoomOutcome : uint8_t {
 	/// The zoom limit refused it (`:189-192`).
 	Refused,
@@ -154,7 +154,7 @@ struct TimelineState {
 	bool supports_triplets = true;
 	/// @brief Legacy's `Song::tripletsOn` (`song.h:200`).
 	bool triplets_on = false;
-	/// @brief Legacy's `Song::tripletsLevel` (`song.h:201`) -- ticks in one of the three triplets.
+	/// @brief Legacy's `Song::tripletsLevel` (`model/song/song.h`) -- ticks in one of the three triplets.
 	uint32_t triplets_level = 0;
 
 	/// @brief `TimelineView::delayHorizontalZoomUntil` (`timeline_view.h:78`), in milliseconds.
@@ -232,11 +232,11 @@ struct TimelineState {
 	/// @param square Pad column.
 	[[nodiscard]] bool square_defined(int32_t square) const;
 
-	/// @brief `ClipView::getLengthChopAmount` (`clip_view.cpp:315-333`).
+	/// @brief `ClipView::getLengthChopAmount` (`clip_view.cpp`).
 	/// @param square The column whose *preceding* square's width is wanted.
 	/// @return Ticks to remove when shortening by one square.
 	[[nodiscard]] int32_t length_chop_amount(int32_t square) const;
-	/// @brief `ClipView::getLengthExtendAmount` (`clip_view.cpp:335-352`).
+	/// @brief `ClipView::getLengthExtendAmount` (`clip_view.cpp`).
 	/// @param square The column to extend into.
 	/// @return Ticks to add when lengthening by one square.
 	[[nodiscard]] int32_t length_extend_amount(int32_t square) const;
@@ -247,7 +247,7 @@ struct TimelineState {
 	/// note in `timeline.cpp`. Only the three numbers it actually computes are here; the popup, and
 	/// `Song::getBarLength()`, stay with the caller.
 	/// @param number         The tick position or length to describe.
-	/// @param one_bar        `Song::getBarLength()` (`model/song/song.cpp:5518-5520`).
+	/// @param one_bar        `Song::getBarLength()` (`model/song/song.cpp`).
 	/// @param count_from_one True to number bars/beats from 1 rather than 0.
 	/// @return The bar, beat and sub-beat.
 	[[nodiscard]] static BarsBeats bars_and_beats(uint32_t number, uint32_t one_bar, bool count_from_one);
@@ -271,7 +271,7 @@ struct TimelineState {
 	/// free. It is public because of **where** legacy does it: at the top of
 	/// `ClipNavigationTimelineView::horizontalEncoderAction`, which is *above*
 	/// `TimelineView::horizontalEncoderAction`'s SD-routine, rendering-lock and UI-mode gates
-	/// (`timeline_view.cpp:137-151`, `:161`, `:203`). So legacy clears the field even when those
+	/// (`timeline_view.cpp`). So legacy clears the field even when those
 	/// gates then refuse the turn, and this port -- whose scene applies those gates before calling
 	/// a gesture -- does not. A scene that wants that last case exactly can call this at its own
 	/// horizontal-encoder entry; calling it twice costs nothing.
@@ -304,18 +304,18 @@ struct TimelineState {
 	/// @return True if `x_scroll` moved.
 	bool scroll(int32_t offset, uint32_t max_length);
 
-	/// @brief `TimelineView::zoomToMax` (`timeline_view.cpp:286-302`), state half.
+	/// @brief `TimelineView::zoomToMax` (`timeline_view.cpp`), state half.
 	/// @param max_zoom The scene's `getMaxZoom()`.
 	/// @param in_only  True to zoom only when @p max_zoom is *further in* than the current zoom.
 	/// @return True if anything moved.
 	bool zoom_to_max(uint32_t max_zoom, bool in_only = false);
 
-	/// @brief `TimelineView::scrollRightToEndOfLengthIfNecessary` (`timeline_view.cpp:331-343`).
+	/// @brief `TimelineView::scrollRightToEndOfLengthIfNecessary` (`timeline_view.cpp`).
 	/// @param max_length The length to scroll to the end of.
 	/// @return True if it scrolled.
 	bool scroll_right_to_end_of_length_if_necessary(int32_t max_length);
 
-	/// @brief `TimelineView::scrollLeftIfTooFarRight` (`timeline_view.cpp:345-353`).
+	/// @brief `TimelineView::scrollLeftIfTooFarRight` (`timeline_view.cpp`).
 	/// @param max_length The length the view must not sit entirely past.
 	/// @return True if it scrolled.
 	bool scroll_left_if_too_far_right(int32_t max_length);
@@ -337,7 +337,7 @@ struct TimelineState {
 	///         shows one unconditionally will show a popup legacy suppresses.
 	bool scroll_for_linear_recording(int32_t new_scroll, uint32_t max_length);
 
-	/// @brief `TimelineView::tripletsButtonPressed` (`timeline_view.cpp:355-363`), state half.
+	/// @brief `TimelineView::tripletsButtonPressed` (`timeline_view.cpp`), state half.
 	///
 	/// The redraw request and `setTripletsLEDState()` are the caller's.
 	void toggle_triplets();
@@ -371,7 +371,7 @@ struct TimelineState {
 		bool scrolled = false;
 	};
 
-	/// @brief `ClipView::getTickSquare` (`clip_view.cpp:354-389`), state half.
+	/// @brief `ClipView::getTickSquare` (`clip_view.cpp`), state half.
 	///
 	/// @warning **This reproduces a defect in shipping firmware.** The arm that stops following an
 	///          auto-extending linear recording and restores the scroll it started from compares
@@ -393,7 +393,7 @@ struct TimelineState {
 	/// @note `AudioClipView`'s `lastTickSquare` / `mustRedrawTickSquares` latch
 	///       (`audio_clip_view.cpp:297-310`) is **not** here. It is private to that one view, has
 	///       no counterpart in the timeline chain, and has one consumer; it belongs to
-	///       `AudioClipScene` (E4 task 11). See the table at the top of this file.
+	///       `AudioClipScene`. See the table at the top of this file.
 	/// @}
 };
 

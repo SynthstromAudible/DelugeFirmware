@@ -76,7 +76,7 @@ constexpr uint16_t sid(String s) {
 // browser borrows from it are spelled out here rather than included -- the same call
 // `rename_scene.cpp` and `listing.cpp` both already made.
 
-/// @brief `charCaseEqual` (`util/functions.cpp:1635`): equal ignoring ASCII letter case.
+/// @brief `charCaseEqual` (`util/functions.cpp`): equal ignoring ASCII letter case.
 bool char_case_equal(char a, char b) {
 	const char la = (a >= 'A' && a <= 'Z') ? static_cast<char>(a + 32) : a;
 	const char lb = (b >= 'A' && b <= 'Z') ? static_cast<char>(b + 32) : b;
@@ -135,7 +135,7 @@ char const* kAudioExtensions[] = {"WAV", "AIFF", "AIF", nullptr};
 
 // --- Sample: `SampleBrowser` (`gui/ui/browser/sample_browser.cpp`) ---
 
-/// @brief The file `SoundEditor::getCurrentAudioFileHolder` (`gui/ui/sound_editor.cpp:2026-2035`) holds, as the
+/// @brief The file `SoundEditor::getCurrentAudioFileHolder` holds, as the
 ///        record names it: an audio clip's own, or the selected range's.
 /// @param ctx What the browser was opened over.
 /// @return The path (empty for a holder with no file), or nullopt when neither arm resolves.
@@ -167,7 +167,7 @@ std::optional<std::string> sample_path(const menu::MenuContext& ctx) {
 
 bool sample_can(const menu::MenuContext& ctx) {
 	// `SampleBrowser::opened` has no refusal of its own: it walks straight into
-	// `soundEditor.getCurrentAudioFileHolder()->filePath` (`sample_browser.cpp:131`). Declining to
+	// `soundEditor.getCurrentAudioFileHolder()->filePath` (in `SampleBrowser::opened`). Declining to
 	// open is the survivable spelling of that dereference, exactly as `rename::Target::can` is for
 	// `RenameDrumUI`'s `FREEZE_WITH_ERROR`.
 	return sample_path(ctx).has_value();
@@ -183,13 +183,11 @@ void sample_start_at(const menu::MenuContext& ctx, std::string& dir, std::string
 	// browser opens on the default folder where legacy would have reopened on the last
 	// manually-loaded sample's folder.
 	//
-	// **The reason has changed, and only half of it still holds.** It used to be that nothing could
-	// keep the member current, because `claimCurrentFile()` writes it (through
-	// `SampleHolder::setAudioFile`'s `manuallySelected` arm, `model/sample/sample_holder.cpp:120-124`,
-	// reached from both `claimAudioFileForInstrument` and `claimAudioFileForAudioClip`) and this layer
-	// cannot perform it. **Since F3 task 2 the wiring layer does perform it**
-	// (`gui/ui/shell_choice_dispatch.cpp`'s `claimSampleFile`), so under the toggle the member is
-	// current again and a mirror would be authoritative. What is still true is that
+	// `claimCurrentFile()` writes the member (through `SampleHolder::setAudioFile`'s
+	// `manuallySelected` arm, `model/sample/sample_holder.cpp:120-124`, reached from both
+	// `claimAudioFileForInstrument` and `claimAudioFileForAudioClip`) and this layer cannot perform
+	// it; the wiring layer does (`gui/ui/shell_choice_dispatch.cpp`'s `claimSampleFile`), so under
+	// the toggle the member is current and a mirror would be authoritative. What is true is that
 	// `lastFilePathLoaded` lives on a `gui/` object this layer may not name, so closing the divergence
 	// means the value arriving through `MenuContext` or a `Services` hook -- not a mirror written
 	// here. Natural home: beside `menu::performance_editing_mode()`.
@@ -220,8 +218,8 @@ AcceptOutcome sample_accept(const menu::MenuContext& ctx, std::string_view path,
 	(void)ctx;
 	(void)path;
 	(void)error;
-	// See `Descriptor::accept`: `SampleBrowser::enterKeyPress`'s file arm is `claimCurrentFile()`
-	// (`sample_browser.cpp:398`), which names `soundEditor`, `AudioEngine`, `slicer`, `PadLEDs` and
+	// See `Descriptor::accept`: `SampleBrowser::enterKeyPress`'s file arm is `claimCurrentFile()`,
+	// which names `soundEditor`, `AudioEngine`, `slicer`, `PadLEDs` and
 	// `instrumentClipView`. The scene parks the path instead, and the wiring plan's dispatcher runs
 	// the load against the legacy object -- the noun half of `scenes/menu/action.h`'s seam.
 	return AcceptOutcome::Defer;
@@ -230,7 +228,7 @@ AcceptOutcome sample_accept(const menu::MenuContext& ctx, std::string_view path,
 // --- MIDI device definition: `LoadMidiDeviceDefinitionUI`
 //     (`gui/ui/load/load_midi_device_definition_ui.cpp`) ---
 
-/// @brief `MIDI_DEVICES_DEFINITION_DEFAULT_FOLDER` (`load_midi_device_definition_ui.cpp:36`).
+/// @brief `MIDI_DEVICES_DEFINITION_DEFAULT_FOLDER` (`load_midi_device_definition_ui.cpp`).
 constexpr std::string_view kMidiDeviceDir = "MIDI_DEVICES/DEFINITION";
 
 /// @brief The MIDI track's remembered device definition file, as its record holds it, or nullopt off a MIDI track.
@@ -323,8 +321,7 @@ const std::array<Descriptor, static_cast<size_t>(BrowserId::Count)> kDescriptors
     },
 }};
 
-/// @brief The entry the selection names, or null -- `Browser::getCurrentFileItem`
-///        (`browser.cpp:1138`).
+/// @brief The entry the selection names, or null -- `Browser::getCurrentFileItem`.
 /// @param index The selected index.
 /// @return The entry, or null when nothing is selected or the index is out of range.
 const FileItem* item_at(int32_t index) {
@@ -381,7 +378,7 @@ bool BrowserScene::on_enter(const SceneId& id) {
 	choice_.reset();
 	searching_ = false;
 	select_after_listing_.clear();
-	// `keyboardChars[util::to_underlying(FlashStorage::keyboardLayout)]` (`qwerty_ui.cpp:268`).
+	// `keyboardChars[util::to_underlying(FlashStorage::keyboardLayout)]` (`QwertyUI`'s `keyboardChars`).
 	// `KeyboardLayoutKind`'s values match legacy's enum exactly, so this is a cast (`keyboard.h`).
 	layout_ = static_cast<deluge::ui::grid::KeyboardLayoutKind>(static_cast<uint8_t>(FlashStorage::keyboardLayout));
 	cursor_blink_ = deluge::ui::Blink{};
@@ -391,7 +388,7 @@ bool BrowserScene::on_enter(const SceneId& id) {
 }
 
 void BrowserScene::on_exit() {
-	// `Browser::close()` (`browser.cpp:189`) empties the catalogue. Collect first: an uncollected
+	// `Browser::close()` empties the catalogue. Collect first: an uncollected
 	// result still holds `FileCatalogue`'s claim, and leaving it held would refuse every later
 	// listing -- this layer's or a legacy browser's -- for the life of the process.
 	//
@@ -436,7 +433,7 @@ ListingRequest BrowserScene::make_request(ListingAction action) const {
 	ListingRequest req;
 	req.action = action;
 	req.allowed_extensions = d.extensions;
-	req.allow_folders = true; // `arrivedInNewFolder` passes `allowFolders = true` (`browser.cpp:382`)
+	req.allow_folders = true; // `arrivedInNewFolder` passes `allowFolders = true` (`Browser::arrivedInNewFolder`)
 	req.allow_folders_sharing_name_with_file = d.allow_folders_sharing_name_with_file;
 	req.interpret_note_names = d.interpret_note_names;
 	req.default_dir = d.default_dir;
@@ -471,7 +468,7 @@ void BrowserScene::file_request(ListingRequest req) {
 }
 
 Result BrowserScene::apply(const ListingResult& out) {
-	// `runPendingListing`'s failure arm -> `Browser::onListingFailed` (`browser.cpp:166`):
+	// `runPendingListing`'s failure arm -> `Browser::onListingFailed`:
 	// `displayError` (already raised by the seam, which is why nothing is announced here) then
 	// `close()`. Reload is legacy's one silent exception (`browser.cpp:747-753`): it empties the
 	// catalogue and leaves the browser standing.
@@ -617,7 +614,7 @@ void BrowserScene::set_entered_text(std::string_view s) {
 }
 
 void BrowserScene::set_entered_text_from_current_filename() {
-	// `Browser::setEnteredTextFromCurrentFilename` (`browser.cpp:1316-1332`): the entry's display
+	// `Browser::setEnteredTextFromCurrentFilename`: the entry's display
 	// name, with the extension cut off for a file.
 	const FileItem* item = item_at(file_index_);
 	if (item == nullptr) {
@@ -628,7 +625,7 @@ void BrowserScene::set_entered_text_from_current_filename() {
 }
 
 BrowserScene::SearchOutcome BrowserScene::search_for_entered_text() {
-	// The in-memory half of `Browser::predictExtendedText` (`browser.cpp:782-898`). Legacy searches
+	// The in-memory half of `Browser::predictExtendedText`. Legacy searches
 	// for the text **left of the cursor**, not the whole string (`:800`, `searchString.resize
 	// (enteredTextEditPos)`), which is what makes typing over a prediction search for the prefix
 	// rather than for the prediction.
@@ -700,7 +697,7 @@ void BrowserScene::run_search_after_typing(int32_t revert_cursor_to) {
 		// route, which here lands a whole tick later. Without carrying it, a typed character that
 		// needs a re-read and then still finds nothing would leave the cursor one column past
 		// legacy's: the prediction highlight starts a column late and the NEXT keystroke truncates
-		// at the wrong index (fix round 1, Important 3).
+		// at the wrong index.
 		search_revert_cursor_ = revert_cursor_to;
 		ListingRequest req = make_request(ListingAction::Reload);
 		req.filename_to_start_at = std::string{entered_, entered_len_};
@@ -748,7 +745,7 @@ void BrowserScene::type_char(char c) {
 }
 
 void BrowserScene::backspace() {
-	// `QwertyUI::processBackspace` (`qwerty_ui.cpp:408-418`), including its asymmetry: the edit
+	// `QwertyUI::processBackspace`, including its asymmetry: the edit
 	// position steps back whether or not there is any text, and the string is only truncated -- and
 	// the search only re-run -- when there is.
 	if (edit_.cursor > 0) {
@@ -761,7 +758,7 @@ void BrowserScene::backspace() {
 }
 
 void BrowserScene::finish_select(int32_t new_index, int32_t offset) {
-	// `Browser::finishSelectEncoderAction` (`browser.cpp:702-730`).
+	// `Browser::finishSelectEncoderAction`.
 	file_index_ = new_index;
 	// "A fast turn may be delivered as a multi-file offset; after a folder-window re-read, that
 	// offset can still overshoot."
@@ -776,7 +773,7 @@ void BrowserScene::finish_select(int32_t new_index, int32_t offset) {
 }
 
 void BrowserScene::step_selection(int32_t offset) {
-	// `Browser::selectEncoderAction` (`browser.cpp:549-697`), the non-slot path.
+	// `Browser::selectEncoderAction`, the non-slot path.
 	//
 	// @note Legacy's shift/`numberEditPos` arm (`:576-629`) walks whole slot numbers -- "SONG12" ->
 	//       "SONG13" -- and is guarded by `nameAfterPrefix`, which returns null unless the name
@@ -855,7 +852,7 @@ Result BrowserScene::enter_key_press(bool shift) {
 	const Descriptor& d = descriptor(id_);
 	const FileItem* item = item_at(file_index_);
 	if (item == nullptr) {
-		// `SampleBrowser::enterKeyPress` (`sample_browser.cpp:337-340`) announces
+		// `SampleBrowser::enterKeyPress` announces
 		// `Error::FILE_NOT_FOUND`; `LoadMidiDeviceDefinitionUI` (`:144-147`) returns silently. The
 		// louder of the two is kept for both -- a select press that does nothing at all is the shape
 		// of bug this stack has been bitten by twice.
@@ -874,7 +871,7 @@ Result BrowserScene::enter_key_press(bool shift) {
 			    Action{.kind = Action::Kind::Popup, .surface = SurfaceRole::Main, .popup_string = refusal});
 			return r;
 		}
-		// `goIntoFolderImpl` (`browser.cpp:1339`) clears the entered text before it lists.
+		// `Browser::goIntoFolderImpl` clears the entered text before it lists.
 		entered_len_ = 0;
 		edit_ = deluge::ui::oled::TextEditState{};
 		ListingRequest req = make_request(ListingAction::IntoFolder);
@@ -900,7 +897,7 @@ Result BrowserScene::enter_key_press(bool shift) {
 		return r;
 	}
 
-	// `getCurrentFilePath()` (`sample_browser.h:172 getCurrentFilePath`, `load_midi_device_definition_ui.cpp:214-218`):
+	// `getCurrentFilePath()` (`SampleBrowser`, `LoadMidiDeviceDefinitionUI`):
 	// the directory, a separator, and the entry's own filename with its extension.
 	std::string path{current_dir()};
 	if (!path.empty()) {
@@ -926,9 +923,8 @@ Result BrowserScene::enter_key_press(bool shift) {
 }
 
 Result BrowserScene::back() {
-	// `Browser::backButtonAction` (`browser.cpp:1283-1300`) -> `goUpOneDirectoryLevel`
-	// (`:1359-1372`): the "already at the top" case is answered synchronously and exits the
-	// browser; anything else dispatches the listing.
+	// `Browser::backButtonAction` -> `goUpOneDirectoryLevel`: the "already at the top" case is answered synchronously
+	// and exits the browser; anything else dispatches the listing.
 	const std::string_view dir = current_dir();
 	const size_t slash = dir.rfind('/');
 	if (slash == std::string_view::npos || slash == 0) {
@@ -1084,11 +1080,10 @@ Result BrowserScene::after_render() {
 
 	Result r;
 
-	// 1. **No input lock, deliberately -- see `handle()`.** This is where `Action::Kind::LockInput`
-	//    used to be filed while `in_flight()`, and it was a whole-device failure waiting for an
-	//    external `Pop`: `on_exit()` returns `void`, so the release could never be filed from the
-	//    one path that needs it. The scene swallows input in `handle()` instead, which is all the
-	//    lock was buying here.
+	// 1. **No input lock, deliberately -- see `handle()`.** Filing `Action::Kind::LockInput` while
+	//    `in_flight()` would be a whole-device failure waiting for an external `Pop`: `on_exit()`
+	//    returns `void`, so the release could never be filed from the one path that needs it. The
+	//    scene swallows input in `handle()` instead, which is all the lock would buy here.
 
 	// 1b. A folder menu's load ended (`long_press_done`): close what `main` closes.
 	if (long_press_done_.has_value()) {
@@ -1198,8 +1193,7 @@ Result BrowserScene::handle(const UiEvent& event, const UiContext& ctx) {
 
 	// **What keeps button and encoder input out while a listing runs** (pad events are gated by
 	// `after_render` instead -- see the class docstring), and legacy's own first line:
-	// `padAction` (`browser.cpp:1187`), `mainButtonAction` (`:1251`), `backButtonAction`
-	// (`:1284`) and `selectEncoderAction` (`:550`) each open with
+	// `padAction`, `mainButtonAction`, `backButtonAction` and `selectEncoderAction` each open with
 	// `if (listingInProgress_) return;`. Swallowed rather than passed down: this scene is
 	// `SceneStack::input_top()` (`input_transparent()` is false), so nothing beneath it would see
 	// the event either, and the listing is about to redraw everything underneath the press.
@@ -1275,7 +1269,7 @@ Result BrowserScene::handle(const UiEvent& event, const UiContext& ctx) {
 			return r;
 		}
 		if (event.encoder == deluge::ui::EncoderRole::Select) {
-			// `Browser::selectEncoderAction` (`browser.cpp:549`), applied here, before the tick's render; the
+			// `Browser::selectEncoderAction`, applied here, before the tick's render; the
 			// `RepaintAll` makes that render draw the moved selection.
 			step_selection(event.delta);
 			Result r;
@@ -1284,7 +1278,7 @@ Result BrowserScene::handle(const UiEvent& event, const UiContext& ctx) {
 			return r;
 		}
 		if (event.encoder == deluge::ui::EncoderRole::Horizontal) {
-			// `QwertyUI::horizontalEncoderAction` (`qwerty_ui.cpp:420-447`): walk the cursor, and at
+			// `QwertyUI::horizontalEncoderAction`: walk the cursor, and at
 			// either end do nothing. Legacy's two `predictExtendedText()` calls at the ends are what
 			// extend a prediction further; here the search runs on every keystroke instead, so
 			// re-running it on a turn that moves nothing would only re-read the card.
@@ -1301,7 +1295,7 @@ Result BrowserScene::handle(const UiEvent& event, const UiContext& ctx) {
 			return r;
 		}
 		if (event.encoder == deluge::ui::EncoderRole::Vertical) {
-			// `Browser::verticalEncoderAction` (`browser.cpp:1238-1248`) only ever recolours a
+			// `Browser::verticalEncoderAction` only ever recolours a
 			// favourite, which this scene does not draw; it still answers `DEALT_WITH`, so the turn
 			// does not scroll whatever is underneath.
 			Result r;
@@ -1310,9 +1304,9 @@ Result BrowserScene::handle(const UiEvent& event, const UiContext& ctx) {
 		}
 		break;
 
-	// The two MIDI kinds (F1 task 10's transport, `shell/scene.h`) are declined here for the reason
-	// every scene ported so far declines them: claiming one means answering `learnable_at(pad)`,
-	// which is the timeline scenes' work (E5/E6). Declining lets `Router::run_chain` carry the
+	// The two MIDI kinds (the transport in `shell/scene.h`) are declined here for the reason
+	// every scene declines them: claiming one means answering `learnable_at(pad)`,
+	// which is the timeline scenes' work. Declining lets `Router::run_chain` carry the
 	// message on to `services::MidiLearn`, which is where legacy's `view.` fallback puts it.
 	case UiEvent::Kind::MidiNoteOn:
 	case UiEvent::Kind::MidiCc:

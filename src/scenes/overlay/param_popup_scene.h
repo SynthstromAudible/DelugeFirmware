@@ -17,13 +17,12 @@
 ///
 /// @par What is deliberately not ported
 ///
-///   * **7SEG.** The brief for this task describes a "7SEG/OLED split" in the legacy function.
-///     There is none: `Display::displayNotification` (`hid/display/display.h:72`) is pure virtual
-///     with exactly one override, `OLED::displayNotification` (`hid/display/oled.cpp:744-794`) --
-///     7SEG support was removed from legacy itself before this task (there is a
+///   * **7SEG.** Legacy's function has no "7SEG/OLED split".
+///     `Display::displayNotification` (`hid/display/display.h`) is pure virtual
+///     with exactly one override, `OLED::displayNotification` (`hid/display/oled.cpp`) --
+///     7SEG support was removed from legacy itself (there is a
 ///     `seven_segment_tombstone.cpp` in `hid/display/` and nothing else there answers to the
-///     name), so `displayModEncoderValuePopup` has no 7SEG arm to drop. This is an error in the
-///     task brief, not a decision made here.
+///     name), so `displayModEncoderValuePopup` has no 7SEG arm to drop.
 ///
 /// @par The arbitration ("juggling ball") system
 ///
@@ -151,9 +150,8 @@ public:
 	///         This scene has no `Result` of its own to file one in -- `show()` is not a
 	///         `Scene::handle` -- and its `next_timer()` while showing is the popup's whole
 	///         `kPopupLifetimeMs`, so without the caller's repaint the next OLED frame is the one
-	///         that draws the popup *disappearing*. E4 task 13 found exactly that by looking at a
-	///         golden: a second gold-knob detent moved this scene's text from "26" to "45" and the
-	///         panel kept showing "26" until the popup expired.
+	///         that draws the popup *disappearing*: a second gold-knob detent that moved this scene's text
+	///         from "26" to "45" would leave the panel showing "26" until the popup expired.
 	///
 	/// @note A draw, here or in `tick()`'s deferred flush, raises a `CancelNotification` notice: legacy's popup is the
 	///       display's notification, so it replaces whatever notification was up. A hand-off raises none.
@@ -175,11 +173,11 @@ public:
 	std::optional<uint32_t> next_timer() const override;
 	/// @return `{oled=true, grid=false}` -- this scene paints the OLED only; arming the grid for a
 	///         surface it never touches is a permanent blit every tick until something else covers
-	///         for it (shell spec §15.1, §15.3).
+	///         for it.
 	deluge::ui::shell::Scene::RepaintSurfaces timer_repaints() const override { return {.oled = true, .grid = false}; }
 
 	/// @brief True: the scene beneath keeps painting the `Main` surface around this popup's small
-	///        top strip (spec E §6). This popup covers eleven rows, not the whole panel.
+	///        top strip. This popup covers eleven rows, not the whole panel.
 	bool oled_transparent(deluge::ui::shell::SurfaceRole role) const override {
 		return role == deluge::ui::shell::SurfaceRole::Main;
 	}

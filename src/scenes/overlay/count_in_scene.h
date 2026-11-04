@@ -6,7 +6,7 @@
 ///
 /// Ports the count-in half of `drain_notifications` (`gui/ui/notify_drain.cpp:92-114`). This is
 /// **not** a `View`/UI method at all -- the digit itself is `PlaybackHandler::count_in_visual()`
-/// (`playback_handler.h:175`), moved by `PlaybackHandler::setupPlayback()`'s count-in entry
+/// (`PlaybackHandler::count_in_visual`), moved by `PlaybackHandler::setupPlayback()`'s count-in entry
 /// (`playback_handler.cpp:441-447`, resetting it to 0 and setting `UI_MODE_RECORD_COUNT_IN`) and
 /// by `PlaybackHandler::considerPlaybackTiming()`'s tick tree, both when a count-in position first
 /// starts recording (`:1037-1039`, resetting the count to 0) and, otherwise, on every remaining
@@ -20,25 +20,25 @@
 /// Reading the call site alone, that looks right --
 /// `display->displayPopup(buffer, 0, true, 255, 2)` does pass `alignRight = true` and
 /// `blinkSpeed = 2`. But those two arguments are **dead** on this codebase, and shipping either
-/// behaviour would be new UX legacy does not have (Global Constraint 1) -- the same shape Task 1
-/// found in its "7SEG/OLED split" note:
+/// behaviour would be new UX legacy does not have (the same shape as the "7SEG/OLED split" note in
+/// `param_popup_scene.h`):
 ///
 ///   * `Display::displayPopup` (`hid/display/display.h:48-49`: `bool alignRight = false,
 ///     uint8_t drawDot = 255, int32_t blinkSpeed = 1`) is a `numeric_driver`-era interface written
 ///     for the retired 7SEG display, and `OLED` is its **only** surviving override --
 ///     `grep -rn "class .*Display\|: public Display" src/deluge/hid/display/*.h` finds nothing
-///     else. `OLED::displayPopup` (`oled.h:154-157`) takes `alignRight`/`drawDot`/`blinkSpeed` as
+///     else. `OLED::displayPopup` (`oled.h`) takes `alignRight`/`drawDot`/`blinkSpeed` as
 ///     **unnamed** parameters and reads none of the three; its whole body is
 ///     `popupText(newText, !numFlashes, type)`.
-///   * `OLED::popupText` (`oled.cpp:605-644`) centres every line
+///   * `OLED::popupText` (`oled.cpp`) centres every line
 ///     (`textPixelX = (OLED_MAIN_WIDTH_PIXELS - lineWidths[l]) >> 1`, `:629`) and has no blink or
 ///     phase of any kind -- the only timer it touches is `uiTimerManager.setTimer(TimerName::DISPLAY,
 ///     800)` for a **non-persistent** popup (`:636-638`), and this one is not: `numFlashes == 0`
 ///     makes `persistent` true (`popupText`'s `bool persistent = !numFlashes` at the call site,
-///     `oled.h:156`), which takes the `else` branch (`oled.cpp:640-643`) and *cancels* any pending
+///     `OLED::displayPopup` in `oled.h`), which takes the `else` branch (`oled.cpp:640-643`) and *cancels* any pending
 ///     timeout.
 ///     `grep -rn blinkSpeed src/deluge` turns up no reader anywhere in the tree, and `alignRight`'s
-///     only other use is an unrelated local in `instrument_clip_view.cpp:7111`.
+///     only other use is an unrelated local in `instrument_clip_view.cpp`.
 ///
 ///   So on the shipped OLED-only build the digit is centred, not right-aligned, and it never
 ///   blinks. This scene reproduces the real, observable behaviour -- centred, static -- not the
@@ -54,7 +54,7 @@
 ///     an audition-pad or keyboard hold. `currentUIMode` is declared in `gui/ui/ui.h:30`, which
 ///     `src/scenes` may never include (Global Constraint 3) -- this scene has no way to touch it.
 ///     This is the same wall `services::GlobalControls` already documents for its own
-///     `UiMode::RecordCountIn` (`services/global_controls.h:244-264`, `:331-337`): the mode is
+///     `UiMode::RecordCountIn` (`services/global_controls.h`): the mode is
 ///     something a future root scene's `ViewState` carries and clears, not this overlay. Recorded
 ///     here as a citation-backed gap, not silently assumed away.
 ///
@@ -64,7 +64,7 @@
 /// `ModKnobs::mod_encoder_action`), so that caller's own `Result` can ask for a repaint the same
 /// tick. The count-in digit has no such caller: legacy's own mechanism is a poll -- "the tick tree
 /// only moves `currentVisualCountForCountIn` ... the digit is formatted and shown [in the drain],
-/// in task context" (`notify_drain.cpp:92-93`) -- run every drain pass, unconditionally, whether or
+/// in task context" (`notify_drain.cpp`) -- run every drain pass, unconditionally, whether or
 /// not any input arrived. The only port-side hook that runs unconditionally on that shape is
 /// `Scene::tick()` armed by `next_timer()`, exactly as `RecorderScene`'s completion poll is
 /// (`recorder_scene.h`'s class doc, `kRecorderPollMs`) -- so `tick()` here reads
@@ -138,8 +138,8 @@ public:
 	///         doc's "poll, not a caller-driven popup" note.
 	std::optional<uint32_t> next_timer() const override { return kCountInPollMs; }
 	/// @return `{oled=true, grid=false}` -- this scene paints the OLED only; arming the grid for a
-	///         surface it never touches would be a permanent blit every poll (shell spec §15.1,
-	///         §15.3), the same reasoning `ParamPopupScene` states explicitly.
+	///         surface it never touches would be a permanent blit every poll, the same reasoning `ParamPopupScene`
+	///         states explicitly.
 	deluge::ui::shell::Scene::RepaintSurfaces timer_repaints() const override { return {.oled = true, .grid = false}; }
 
 	/// @brief True: the scene beneath keeps painting the OLED around this popup's small centred
@@ -171,7 +171,7 @@ private:
 	bool showing_ = false;     // Whether the box is currently drawn.
 	bool was_showing_ = false; // Set true whenever showing_ becomes true; after_render's "just
 	                           // stopped showing" edge.
-	int32_t shown_count_ = 0;  // `notify_drain.cpp:94`'s `shown_count_in` static.
+	int32_t shown_count_ = 0;  // `notify_drain.cpp`'s `shown_count_in` static.
 };
 
 /// @brief The application's one record count-in popup.

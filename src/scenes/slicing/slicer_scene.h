@@ -18,7 +18,7 @@
 ///
 /// @par This is not a root scene
 ///
-/// `class Slicer final : public UI` (`gui/ui/slicer.h:33`) is a plain `UI`, opened with `openUI(&slicer)`; the only
+/// `class Slicer final : public UI` (`gui/ui/slicer.h`) is a plain `UI`, opened with `openUI(&slicer)`; the only
 /// `RootUI`s are `TimelineView` and `KeyboardScreen` (`shell/scene.h`). So `is_root()` is false, and
 /// `services::GlobalControls` gates the `View::buttonAction` group of legacy's global button arms off it: with the
 /// slicer up, those arms are unreachable in legacy too, because `UI::buttonAction`'s base returns `NOT_DEALT_WITH`
@@ -29,7 +29,7 @@
 ///
 ///   * **`is_root()` -> false**, above.
 ///   * **`oled_transparent(role) -> true`.** `Slicer()` sets `oledShowsUIUnderneath = true`
-///     (`gui/ui/slicer.h:35`), and `renderOLED` then clears only its own window.
+///     (`gui/ui/slicer.h`), and `renderOLED` then clears only its own window.
 ///   * **`is_grid_overlay() -> true`.** `renderMainPads` returns true unconditionally, so this is drawn over whatever
 ///     root is beneath and is not the grid base.
 ///   * **`occludes_grid() -> false.`** `Slicer` overrides `renderMainPads` only. It has no `renderSidebar`, and
@@ -79,16 +79,17 @@
 /// slice table (`shell/scene_stack.h`'s contract table). Both directions are asserted in
 /// `sim/scenes_spec/slicer_scene_spec.cpp`.
 ///
-/// @par Two legacy defects, clipped rather than reproduced
+/// @par Two legacy hazards
 ///
-///   * **`Slicer::renderMainPads` does not check `image != nullptr`**, which `UI`'s header requires
-///     (`gui/ui/ui.h:141-142`); closing the slicer quizzes it with the no-argument form (`gui/ui/ui.cpp:186`). The port
-///     has no equivalent: `render_grid` is always handed a real frame.
-///   * **The MANUAL slice mark can land in the sidebar.** `x = startPos / lengthInSamples * 16` is 16 once a slice has
-///     been clamped to the end of the sample, and column 16 is the first sidebar column. Legacy composes the grid
-///     top-down, so the sidebar beneath overwrites that pad in the same pass; the shell composes bottom-up
-///     (`Shell::render_grid`), so the write would leave a stray pad. The marks are painted inside the main-column
-///     region, which clips it.
+/// Legacy's `closeUI` quizzes `Slicer::renderMainPads` with the no-argument form (`gui/ui/ui.cpp`), which `UI`'s
+/// header requires every override to survive (`gui/ui/ui.h:141-142`); `renderMainPads` returns early on `!image`. The
+/// port has no such call: `render_grid` is always handed a real frame.
+///
+/// **The MANUAL slice mark can land in the sidebar, and the port clips it rather than reproducing it.**
+/// `x = startPos / lengthInSamples * 16` is 16 once a slice has been clamped to the end of the sample, and column 16
+/// is the first sidebar column. Legacy composes the grid top-down, so the sidebar beneath overwrites that pad in the
+/// same pass; the shell composes bottom-up (`Shell::render_grid`), so the write would leave a stray pad. The marks
+/// are painted inside the main-column region, which clips it.
 ///
 /// @par Why the directory and namespace are `slicing/` and not `slicer/`
 ///
@@ -129,7 +130,7 @@ enum class Mode : uint8_t {
 	Manual = 1,
 };
 
-/// @brief Legacy's `MAX_MANUAL_SLICES` (`gui/ui/slicer.h:26`).
+/// @brief Legacy's `MAX_MANUAL_SLICES` (`gui/ui/slicer.h`).
 inline constexpr int32_t kMaxManualSlices = 64;
 
 /// @brief One manual slice: legacy's `SliceItem` (`gui/ui/slicer.h:28-31`).
@@ -143,7 +144,7 @@ struct SlicePoint {
 
 /// @brief One pad-hold/tap audition request, snapshotted at trigger time.
 ///
-/// Legacy's `Slicer::PreviewTarget` (`gui/ui/slicer.h:93-98`), field for field, and for its reason:
+/// Legacy's `Slicer::PreviewTarget` (`gui/ui/slicer.h`), field for field, and for its reason:
 /// all plain values, so nothing points into `manualSlicePoints[]` or any other live state once the
 /// request has been queued.
 struct PreviewRequest {
@@ -153,8 +154,8 @@ struct PreviewRequest {
 	int64_t end_point = 0;
 	/// Semitones.
 	int32_t transpose = 0;
-	/// Legacy's `on`, which is `padAction`'s **velocity** and not a bool (`slicer.cpp:494-499`
-	/// passes the third parameter of `Slicer::padAction` straight through); zero silences.
+	/// Legacy's `on`, which is `padAction`'s **velocity** and not a bool (`Slicer::padAction`
+	/// passes its third parameter straight through to `Slicer::preview`); zero silences.
 	int32_t on = 0;
 	bool operator==(const PreviewRequest&) const = default;
 };
@@ -268,7 +269,7 @@ public:
 	/// @return The wired boundary, or null. See `SliceOps`.
 	SliceOps* ops() const { return ops_; }
 
-	/// @brief `Slicer::padAction`'s "do slice" arithmetic (`gui/ui/slicer.cpp:535-551`), with the
+	/// @brief `Slicer::padAction`'s "do slice" arithmetic (`Slicer::padAction`), with the
 	///        play position handed in rather than walked for.
 	///
 	/// Public because the walk that produces @p sample_pos lives behind `SliceOps::play_position`
@@ -306,8 +307,8 @@ public:
 	///        underneath still needs to paint (and, through `Shell::tick_stack`, still needs its
 	///        clock advanced).
 	bool occludes_grid() const override { return false; }
-	/// @brief True: `Slicer()` sets `oledShowsUIUnderneath = true` (`gui/ui/slicer.h:35`), so
-	///        `doAnyPendingOLEDRendering` (`gui/ui/ui.cpp:351-371`) walks past it to the UI below
+	/// @brief True: `Slicer()` sets `oledShowsUIUnderneath = true` (`gui/ui/slicer.h`), so
+	///        `doAnyPendingOLEDRendering` (`gui/ui/ui.cpp`) walks past it to the UI below
 	///        and this page composites over what that drew.
 	bool oled_transparent(deluge::ui::shell::SurfaceRole) const override { return true; }
 
@@ -355,7 +356,7 @@ private:
 	/// @return Handled, with the repaint legacy files as `uiNeedsRendering` + `renderUIsForOled`.
 	deluge::ui::shell::Result select_encoder(int32_t offset);
 
-	/// @brief `Slicer::padAction` (`slicer.cpp:484-568`).
+	/// @brief `Slicer::padAction`.
 	/// @param x        Absolute pad column.
 	/// @param y        Absolute pad row.
 	/// @param velocity Legacy's third parameter, which it names `on`; zero is a release.

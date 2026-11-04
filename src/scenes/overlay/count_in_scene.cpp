@@ -46,8 +46,8 @@ void CountInScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& fr
 	}
 	// `display->displayPopup(buffer, 0, true, 255, 2)` resolves, on the shipped OLED-only build, to
 	// `OLED::displayPopup` -> `popupText(buffer, /*persistent=*/true, PopupType::GENERAL)`
-	// (`oled.h:154-157`; the call at `notify_drain.cpp:100` passes no sixth argument so `type`
-	// defaults to `PopupType::GENERAL`, `display.h:49`) -- a framed (non-`NOTIFICATION`) popup box
+	// (`OLED::displayPopup` in `oled.h`; the call in `notify_drain.cpp` passes no sixth argument so `type`
+	// defaults to `PopupType::GENERAL`, `Display::displayPopup`) -- a framed (non-`NOTIFICATION`) popup box
 	// (`OLED::setupPopup`, `oled.cpp:131-134`). See the class doc for why `alignRight`/`blinkSpeed`
 	// play no part in this.
 	deluge::ui::oled::popup_text(frame, shown_text(), deluge::ui::oled::PopupStyle::Framed);

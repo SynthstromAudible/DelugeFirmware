@@ -18,14 +18,13 @@
 /// (`SlotBrowser`'s brand-new-name machinery, `mayDefaultToBrandNewNameOnEntry`,
 /// `getUnusedSlot`). A later plan gives them their own descriptors or their own scene.
 ///
-/// **Ports.** `Browser::renderOLED` (`browser.cpp:925 renderOLED`),
-/// `Browser::clampFileSelectionAndScroll` (`:1009`), `Browser::setEnteredTextFromCurrentFilename`
-/// (`:1316`), `Browser::backButtonAction` (`:1283`), `Browser::mainButtonAction` (`:1250`),
-/// `Browser::selectEncoderAction`'s in-window arm and its four reload arms (`:549`,
-/// `:641-691`), `Browser::predictExtendedText`'s in-memory search (`:782`), and the enter-key
-/// bodies of both subclasses (`sample_browser.cpp:333 enterKeyPress`,
-/// `load_midi_device_definition_ui.cpp:142 enterKeyPress`). The SD half is not here: it is
-/// `browser::Listing` (task 2), which this scene owns one of.
+/// **Ports.** `Browser::renderOLED`, `Browser::clampFileSelectionAndScroll`,
+/// `Browser::setEnteredTextFromCurrentFilename`, `Browser::backButtonAction`,
+/// `Browser::mainButtonAction`, `Browser::selectEncoderAction`'s in-window arm and its four
+/// reload arms, `Browser::predictExtendedText`'s in-memory search, and the enter-key bodies of
+/// both subclasses (`SampleBrowser::enterKeyPress`,
+/// `LoadMidiDeviceDefinitionUI::enterKeyPress`). The SD half is not here: it is
+/// `browser::Listing`, which this scene owns one of.
 ///
 /// **What this scene may not do.** Like `MenuScene`, `RenameScene` and `ContextMenuScene` it never
 /// calls an `OledFrame` drawing primitive: the title, the row icons, the plain rows and the edited
@@ -40,24 +39,24 @@
 /// Three consequences, all load-bearing:
 ///
 ///   1. **The busy indicator is not this scene's.** `Listing::request` raises
-///      `notify::Notice::Kind::Working` and completion raises `ClearWorking`; E1's `Notices` turns
+///      `notify::Notice::Kind::Working` and completion raises `ClearWorking`; `Notices` turns
 ///      those into pushing and removing `SceneKind::Working` over this scene. Nothing here draws a
 ///      spinner.
 ///   2. **`handle()` swallows every *button and encoder* input while a listing is outstanding**
-///      -- the port of the `if (listingInProgress_) return;` guard at the top of `padAction`
-///      (`browser.cpp:1187`), `mainButtonAction` (`:1251`), `backButtonAction` (`:1284`) and
-///      `selectEncoderAction` (`:550`). This scene is `SceneStack::input_top()`, so nothing
+///      -- the port of the `if (listingInProgress_) return;` guard at the top of
+///      `Browser::padAction`, `Browser::mainButtonAction`, `Browser::backButtonAction` and
+///      `Browser::selectEncoderAction`. This scene is `SceneStack::input_top()`, so nothing
 ///      beneath it sees those events either.
 ///
 ///      **Pad events do not come this way.** They are claimed by the keyboard widget during
 ///      `render_grid` and consumed in `after_render`, whose three early returns (`has_result`,
 ///      a parked `pending_` with nothing in flight, and `in_flight`) are exactly the union
 ///      `seam_busy()` computes. So the gate is these two together, not `handle()` alone --
-///      which matters, because removing the input lock in fix round 1 left `after_render`'s
-///      returns as the only thing standing between a held pad and a second listing.
+///      which matters, because with no input lock `after_render`'s
+///      returns are the only thing standing between a held pad and a second listing.
 ///
 ///      **It deliberately does not take `Action::Kind::LockInput`**, which is what the seam's own
-///      `@note` suggests and what this scene did until fix round 1. A scene cannot release that
+///      `@note` suggests. A scene cannot release that
 ///      lock from `on_exit()` (which returns `void`) and the lock is one bare global bool with no
 ///      owner, so an external `Pop` mid-listing left the entire device deaf. It is also the wrong
 ///      lock: it *drops* events where legacy's `waitingForSDRoutineToEnd` defers and retries. See
@@ -66,7 +65,7 @@
 ///      owner's queue was full) or `Busy` (something else holds the catalogue -- another seam, or a
 ///      legacy `Browser` mid-listing, since the claim now lives on `FileCatalogue`). The scene keeps
 ///      the request and retries it on the next tick, which is legacy's own answer to the same return
-///      ("clear so the next HID event retries", `browser.cpp:113`).
+///      (`Browser`'s `listingInProgress_` is cleared so the next HID event retries).
 ///
 /// @warning **The `Listing` is a member of this scene and must stay one.** See the Lifetime section
 ///          on `browser::Listing`: a dispatched op holds `this`, there is no cancel, and
@@ -103,12 +102,11 @@ enum class BrowserId : uint16_t {
 	/// `sampleBrowser` (`gui/ui/browser/sample_browser.cpp:83`), the audio-file browser the sample
 	/// menu items open.
 	Sample = 0,
-	/// `loadMidiDeviceDefinitionUI` (`gui/ui/load/load_midi_device_definition_ui.cpp:38`), which
+	/// `loadMidiDeviceDefinitionUI` (`gui/ui/load/load_midi_device_definition_ui.cpp`), which
 	/// `midi::device_definition::Linked::writeCurrentValue` opens
 	/// (`gui/menu_item/midi/device_definition/linked.h:42`).
 	///
-	/// @note **Shipped by task 3, wired by task 7** -- which reused this descriptor unchanged, as
-	///       task 3 intended. What task 7 found is that `midi_device_linked` is not a plain browser
+	/// @note `midi_device_linked` is not a plain browser
 	///       opener but a `Toggle`: `linked.h:42` is only the ON arm of `writeCurrentValue`, and the
 	///       OFF arm clears the linked file name. `nodes::MidiDeviceLinkedItem`
 	///       (`menu/nodes/output_items.h`) carries both, and is one of the two items that set
@@ -136,7 +134,7 @@ enum class AcceptOutcome : uint8_t {
 struct Descriptor {
 	/// @brief The screen title, as legacy's constructor spells it -- a literal, not an l10n id.
 	///
-	/// `SampleBrowser::SampleBrowser` sets `title = "Audio files"` (`sample_browser.cpp:89`) and
+	/// `SampleBrowser::SampleBrowser` sets `title = "Audio files"` (`SampleBrowser::SampleBrowser`) and
 	/// `LoadMidiDeviceDefinitionUI::setupForLoadingMidiDeviceDefinition` sets
 	/// `title = "Load midi device"` (`load_midi_device_definition_ui.cpp:87`). Neither is in
 	/// `gui/l10n/strings.h` at all, so there is no id to carry: a `uint16_t` here would have meant
@@ -148,7 +146,7 @@ struct Descriptor {
 	///        `FileCatalogue::readFileItemsForFolder` takes it.
 	char const** extensions;
 
-	/// @brief `arrivedInNewFolder`'s `defaultDirToAlsoTry` (`browser.cpp:367`), and where the
+	/// @brief `arrivedInNewFolder`'s `defaultDirToAlsoTry`, and where the
 	///        browser opens when it has no remembered path.
 	std::string_view default_dir;
 
@@ -169,9 +167,9 @@ struct Descriptor {
 	/// @brief May the browser open on this context at all?
 	///
 	/// The survivable spelling of what each legacy `opened()` does instead: `SampleBrowser` walks
-	/// straight into `soundEditor.getCurrentAudioFileHolder()->filePath` (`sample_browser.cpp:131`)
+	/// straight into `soundEditor.getCurrentAudioFileHolder()->filePath` (in `SampleBrowser::opened`)
 	/// with no null test, and `LoadMidiDeviceDefinitionUI::opened` returns false outright when the
-	/// output is not a MIDI one (`load_midi_device_definition_ui.cpp:45`). Refusing to open is what
+	/// output is not a MIDI one. Refusing to open is what
 	/// `RenameScene` already does with `Target::can`, for the same reason.
 	bool (*can)(const menu::MenuContext&);
 
@@ -206,12 +204,12 @@ struct Descriptor {
 	///       `scenes/menu/action.h` was built for, and the same answer: the scene parks the chosen
 	///       path in `take_choice()` and `gui::ui::dispatchShellChoices` performs the load.
 	///
-	/// @note **The `Defer` dispatcher owes one more thing than `claimCurrentFile()`, and as of F3
-	///       task 3 it is paid.** Legacy pairs the browser with a *return* affordance:
-	///       `SoundEditor::maybeGetParentMenu` (`gui/ui/sound_editor.cpp:2073 maybeGetParentMenu`,
-	///       file-selector arm at `:2089-2095`) writes `sampleBrowser.menuItemHeadingTo` and
-	///       `parentMenuHeadingTo` on the way *in*, and `claimCurrentFile` reads them back
-	///       (`gui/ui/browser/sample_browser.cpp:1111-1122`) to re-root
+	/// @note **The `Defer` dispatcher owes one more thing than claiming the file.** Legacy pairs the browser with a
+	/// *return* affordance:
+	///       `SoundEditor::maybeGetParentMenu` (`gui/ui/sound_editor.cpp`, its
+	///       file-selector arm) writes `sampleBrowser.menuItemHeadingTo` and
+	///       `parentMenuHeadingTo` on the way *in*, and the claim's last step reads them back
+	///       (`SampleClaim::stepFinish`; `SampleBrowser::claimCurrentFile` on `main`) to re-root
 	///       `soundEditor.menuItemNavigationRecord` onto the oscillator's horizontal page with the
 	///       file selector focused. So accepting a file lands the user on the source page, not back
 	///       on the item that opened the browser.
@@ -223,8 +221,8 @@ struct Descriptor {
 	///       contract (`scenes/menu/menu_scene.h`) exists to prevent. Whoever performs
 	///       `claimCurrentFile` against `take_choice()` is therefore the owner of the re-rooting
 	///       too. That is `deluge::gui::ui::shellSampleClaimDone` (`gui/ui/shell_choice_dispatch.h`),
-	///       and the entry point it reaches is `MenuScene::reroot_to_scene_opener_page()` -- so the
-	///       "one extra BACK press" this note used to cost is gone for the browser.
+	///       and the entry point it reaches is `MenuScene::reroot_to_scene_opener_page()` -- so
+	///       the browser needs no extra BACK press.
 	///       **`osc::AudioRecorder` carries the identical pair and is still unpaid**
 	///       (`gui/ui/sound_editor.cpp:2097-2102`, consumed by `osc/audio_recorder.h:40-48`): the
 	///       recorder scene has no `take_choice()` equivalent to drain, so nothing calls the entry
@@ -283,7 +281,7 @@ struct BrowserChoice {
 /// types nothing.
 ///
 /// @note **This scene is not allocation-free, unlike `RenameScene` and `ContextMenuScene`, and the
-///       buffer should not be read as claiming otherwise** (fix round 1, Minor). It sits on
+///       buffer should not be read as claiming otherwise** It sits on
 ///       `browser::Listing`, whose `ListingRequest` carries three owning `std::string`s by
 ///       construction (`listing.h`: on Embassy the caller's buffers are gone by the time the op
 ///       runs), and over `FileCatalogue`, whose `currentDir` and `FileItem::filename` are
@@ -314,7 +312,7 @@ inline constexpr int32_t kRowIconX = 1;
 /// **This is what keeps the seam from jamming, and it is not decoration.** `Listing` must be polled
 /// every tick (`listing.h`'s `@warning`: an uncollected `Ready` refuses every later request), and
 /// the only hook that can file an `Action` is `after_render()` -- which the shell calls only for
-/// scenes that actually *drew* this tick (`shell/shell.cpp:408-410`). With no input arriving and
+/// scenes that actually *drew* this tick (`Shell::tick`'s `after_render` loop). With no input arriving and
 /// nothing else asking for a frame, the browser would neither render nor poll, and the listing would
 /// land into silence. So while a request is in flight or waiting to be retried, `next_timer()` asks
 /// the shell to come back at this interval, and `Shell::tick`'s step 8b turns that answer into the
@@ -437,8 +435,7 @@ public:
 
 	/// @brief Install a dispatcher other than `storage::Owner::run` on the scene's seam.
 	///
-	/// **For specs.** On the host `Owner::run` is inline (`storage/owner.h:28-30`, and `run`'s own
-	/// `@return` says it again at `:40`; `:55-59`, which this line used to cite, is `on_owner()`),
+	/// **For specs.** On the host `Owner::run` is inline (`storage/owner.h`'s `Owner::run`),
 	/// so with the shipped dispatcher a listing has already finished when `request()` returns and
 	/// the in-flight state -- which is most of this scene's behaviour -- can never be observed.
 	/// See the honesty note in `listing.h`.
@@ -472,12 +469,12 @@ private:
 	/// @return What the shell should do about it.
 	deluge::ui::shell::Result apply(const ListingResult& out);
 
-	/// @brief `Browser::clampFileSelectionAndScroll` (`browser.cpp:1009`).
+	/// @brief `Browser::clampFileSelectionAndScroll`.
 	/// @param visible_rows How many rows the panel shows (legacy's
 	///                     `display->getNumBrowserAndMenuLines()`).
 	/// @param allow_no_file_selection Legacy's parameter of the same name.
 	void clamp(int32_t visible_rows, bool allow_no_file_selection = true);
-	/// @brief `Browser::setEnteredTextFromCurrentFilename` (`browser.cpp:1316`): the selected
+	/// @brief `Browser::setEnteredTextFromCurrentFilename`: the selected
 	///        entry's name with its extension cut off.
 	void set_entered_text_from_current_filename();
 	/// @brief Replace the edited text with @p s, truncated at `kMaxEnteredChars`.
@@ -485,25 +482,25 @@ private:
 	void set_entered_text(std::string_view s);
 
 	/// @brief `QwertyUI::padAction`'s "normal keys" arm followed by
-	///        `Browser::predictExtendedText` (`browser.cpp:782`) -- type one character, then find
+	///        `Browser::predictExtendedText` -- type one character, then find
 	///        the entry it names.
 	/// @param c The character typed.
 	void type_char(char c);
-	/// @brief `QwertyUI::processBackspace` (`gui/ui/qwerty_ui.cpp:408-418`), then the same search.
+	/// @brief `QwertyUI::processBackspace`, then the same search.
 	void backspace();
 	/// @brief The in-memory half of `predictExtendedText`: search the cached window for the edited
 	///        text and select what it names.
 	/// @return What the cached window could say.
 	SearchOutcome search_for_entered_text();
-	/// @brief `search_for_entered_text` plus the two arms its caller owes -- put the old name back
+	/// @brief `search_for_entered_text` plus the two arms its caller owes -- restore the previous text
 	///        on a miss, dispatch a wider read on `NeedsRead`.
 	/// @param revert_cursor_to Where the cursor was before the keystroke, for legacy's
 	///                         `enteredTextEditPos--` on a failed prediction (`qwerty_ui.cpp:357`).
 	void run_search_after_typing(int32_t revert_cursor_to);
-	/// @brief `Browser::selectEncoderAction` (`browser.cpp:549`), including its four reload arms.
+	/// @brief `Browser::selectEncoderAction`, including its four reload arms.
 	/// @param offset Signed detents.
 	void step_selection(int32_t offset);
-	/// @brief `Browser::finishSelectEncoderAction` (`browser.cpp:702`): apply a new selection.
+	/// @brief `Browser::finishSelectEncoderAction`: apply a new selection.
 	/// @param new_index The index to select.
 	/// @param offset    The turn that produced it.
 	void finish_select(int32_t new_index, int32_t offset);
@@ -525,7 +522,7 @@ private:
 	///        two folder menus, for the item Select is held on.
 	/// @return What the shell should do.
 	deluge::ui::shell::Result long_press();
-	/// @brief `Browser::backButtonAction` (`browser.cpp:1283`): ascend, or close at the top.
+	/// @brief `Browser::backButtonAction`: ascend, or close at the top.
 	/// @return What the shell should do.
 	deluge::ui::shell::Result back();
 	/// @brief `Browser::close()`, as an `Action`.
@@ -533,7 +530,7 @@ private:
 	/// @brief Is a listing outstanding in any sense -- running, owing a collect, or waiting to be
 	///        re-filed?
 	///
-	/// All three, and the third is the one that bites (fix round 1, Critical 2). `pending_` is a
+	/// All three, and the third is the one that bites. `pending_` is a
 	/// single slot, so an input that files a second listing over a parked one **loses** the first:
 	/// a BACK press would replace a parked `Open` with an `UpLevel`, and the browser would then
 	/// list a directory derived from whatever `currentDir` the *foreign* holder of the catalogue
@@ -569,7 +566,7 @@ private:
 	int32_t reload_offset_ = 0;
 	/// @}
 	/// True while a listing was dispatched to widen the search window: `search_for_entered_text`
-	/// runs again when it lands. Legacy's `doneNewRead` (`browser.cpp:799`), one tick later.
+	/// runs again when it lands. Legacy's `Browser::doneNewRead`, one tick later.
 	bool searching_ = false;
 	/// Where the cursor goes if that second search also finds nothing -- legacy's
 	/// `enteredTextEditPos--` on a false `predictExtendedText()` (`qwerty_ui.cpp:357-359`), which

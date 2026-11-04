@@ -141,7 +141,7 @@ bool RecorderScene::setup_recording() {
 	// `recordingSource = newMode` (`:138`, "This sets recording to begin happening even as the file
 	// is created"). **This is not bookkeeping.** Nine subsystems read the pair
 	// (`recorder`, `recordingSource`) as "a foreground recording is live" -- most consequentially
-	// `AudioEngine::setMonitoringMode` (`audio_engine.cpp:1024-1055`), which enables input
+	// `AudioEngine::setMonitoringMode` (`audio_engine.cpp`), which enables input
 	// monitoring ONLY for `STEREO`/`stereo`-or-`LEFT`, i.e. exactly the two channels this line
 	// arms, and derives `monitoringAction` from the recorder pointer. A port that skipped it would
 	// record correctly and leave the user hearing nothing while they did it.
@@ -359,7 +359,7 @@ void RecorderScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f
 
 	// `renderOLED` (`:116-119`), through the toolkit rather than through `Canvas::drawStringCentred`
 	// (`scenes-no-frame-primitives`). `MetricBold13` is the face `kTextBigSizeY` (13) selects
-	// (`gfx/oled/font.h:14`); the centring is over the frame's own width, which is legacy's
+	// (`gfx/oled/font.h`'s `kTextBigSizeY`); the centring is over the frame's own width, which is legacy's
 	// `OLED_MAIN_WIDTH_PIXELS` on the shipped panel.
 	deluge::ui::oled::text(f, deluge::gfx::oled::Rect{0, kStatusY, f.bounds().w, deluge::gfx::oled::kTextBigSizeY},
 	                       capturing() ? kRecording : kWaiting,
@@ -368,9 +368,9 @@ void RecorderScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f
 	// This arm is not only about the `Waiting` -> `Recording` flip: `after_render()` runs only for a
 	// scene that drew this tick, so without a repaint the completion poll stops the moment the last
 	// input arrives, and the scene sits on "Waiting" over a recorder that finished minutes ago.
-	// Until E3 task 10 this line was the only thing that stopped that happening -- `next_timer()`
-	// woke the shell without marking the panel dirty (`RepaintGate::needs_frame`) -- and it is now
-	// the tighter half of a pair, `Shell::tick`'s step 8b arming from `next_timer()` itself every
+	// `next_timer()` alone wakes the shell without marking the panel dirty
+	// (`RepaintGate::needs_frame`), so this line is the tighter half of a pair with
+	// `Shell::tick`'s step 8b, which arms from `next_timer()` itself every
 	// surface this scene claims and is not covered on. Legacy has no equivalent either way, because `process()` is a
 	// busy loop with `OLED::sendMainImage()` inside it.
 	if (recorder_ != nullptr) {
@@ -380,7 +380,7 @@ void RecorderScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f
 
 void RecorderScene::leds(deluge::ui::LedFrame& f) {
 	// `opened()`'s LED tail (`:100-106`), all seven of it. `LedId` values are `ButtonId` values by
-	// the contract in `shell/profiles/deluge.h:19`, and legacy's own `IndicatorLED` values are the
+	// the contract in `shell/profiles/deluge.h`, and legacy's own `IndicatorLED` values are the
 	// same button matrix coordinates (`hid/led/indicator_leds.h:36-65`), so each of these is the
 	// same lamp.
 	//

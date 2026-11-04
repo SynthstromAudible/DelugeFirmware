@@ -49,7 +49,7 @@ constexpr deluge::ui::LedState kOn{deluge::ui::LedState::Kind::On, 0, 0};
 constexpr uint32_t kFlashMs = MidiLearn::kFlashMs;
 
 /// @brief `LedId` for a `ButtonId`, exactly as `global_controls.cpp` spells it: the Deluge profile
-///        numbers its LEDs by their button (`shell/profiles/deluge.h:19`).
+///        numbers its LEDs by their button (`shell/profiles/deluge.h`'s `kDelugeLedByButton`).
 /// @param b The button.
 /// @return Its LED id.
 constexpr deluge::ui::LedId led(ButtonId b) {
@@ -72,7 +72,7 @@ constexpr deluge::ui::LedId led(ButtonId b) {
 /// @brief The section learn's scratch command: legacy's `View::sectionLearnScratch`.
 ::LearnedMIDI g_section_scratch{};
 
-/// @brief Does @p c already carry a learned message? `containsSomething()` (`view.cpp:821`).
+/// @brief Does @p c already carry a learned message? `containsSomething()` (as `View::midiLearnFlash` tests it).
 /// @param c The command.
 /// @return Whether something is learned to it.
 bool global_command_learned(GlobalMIDICommand c) {
@@ -94,12 +94,12 @@ LearnTarget LearnTarget::section(::Song& song, uint8_t section) {
 }
 
 LearnTarget LearnTarget::clip(deluge::project::ClipAddress clip) {
-	// `View::clipStatusMidiLearnPadPressed` (`view.cpp:551-553`).
+	// `View::clipStatusMidiLearnPadPressed` (`view.cpp`).
 	return LearnTarget{.kind = ::MidiLearn::CLIP, .mapping = deluge::project::ClipMuteTarget{clip.clip_id}};
 }
 
 LearnTarget LearnTarget::note_row_mute(std::optional<uint32_t> drum_id) {
-	// `View::noteRowMuteMidiLearnPadPressed` (`view.cpp:565-567`). Legacy dereferences the row's drum unguarded;
+	// `View::noteRowMuteMidiLearnPadPressed` (`view.cpp`). Legacy dereferences the row's drum unguarded;
 	// every call site has already refused a drumless row (`gui/views/instrument_clip_view.cpp:2270-2272`), so the
 	// guard here is the same refusal spelled where the target is built.
 	if (!drum_id) {
@@ -109,12 +109,12 @@ LearnTarget LearnTarget::note_row_mute(std::optional<uint32_t> drum_id) {
 }
 
 LearnTarget LearnTarget::drum_input(uint32_t drum_id) {
-	// `View::drumMidiLearnPadPressed` (`view.cpp:579-584`).
+	// `View::drumMidiLearnPadPressed` (`view.cpp`).
 	return LearnTarget{.kind = ::MidiLearn::DRUM_INPUT, .mapping = deluge::project::LaneInputTarget{drum_id}};
 }
 
 LearnTarget LearnTarget::instrument_input(uint32_t output_id) {
-	// `View::instrumentMidiLearnPadPressed` (`view.cpp:598-601`).
+	// `View::instrumentMidiLearnPadPressed` (`view.cpp`).
 	return LearnTarget{.kind = ::MidiLearn::INSTRUMENT_INPUT, .mapping = deluge::project::TrackInputTarget{output_id}};
 }
 
@@ -144,7 +144,7 @@ LearnTarget LearnTarget::global_command(GlobalMIDICommand command) {
 // -- The mode ------------------------------------------------------------------------------------
 
 void MidiLearn::begin() {
-	// `View::startMIDILearn` (`view.cpp:489-497`). The guard at `:490` is
+	// `View::startMIDILearn` (`view.cpp`). Its guard is
 	// `currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_MIDI_LEARN`: a press while some
 	// *other* mode is running is refused outright, and re-entering while already in learn is a
 	// deliberate no-op-shaped reset (it clears the held thing).
@@ -160,8 +160,8 @@ void MidiLearn::begin() {
 }
 
 void MidiLearn::end() {
-	// `View::endMIDILearn` (`view.cpp:499-517`).
-	// `:483-487`. Legacy's own comment on the inner guard: "Rare case where we could have been
+	// `View::endMIDILearn` (`view.cpp`).
+	// Legacy's own comment on the inner guard: "Rare case where we could have been
 	// called during audio routine."
 	if (should_save_settings_) {
 		if (!AudioEngine::audioRoutineLocked) {
@@ -196,8 +196,8 @@ void MidiLearn::end_press_session(LearnTarget new_thing) {
 
 void MidiLearn::release_pressed_thing() {
 	// The `else if (thingPressedForMidiLearn == K)` body every caller shares. The `if
-	// (deleteMidiCommandOnRelease)` test is `view.cpp:161`, `:542`, `:556`, `:570`, `:588`, `:605`;
-	// what varies between the six is only what runs *alongside* the `clear()`.
+	// (deleteMidiCommandOnRelease)` test is `View::buttonAction`'s TAP_TEMPO arm and each of the `*MidiLearnPadPressed`
+	// functions; what varies between the six is only what runs *alongside* the `clear()`.
 	if (delete_on_release_ && pressed_.kind != ::MidiLearn::NONE) {
 		switch (pressed_.kind) {
 		case ::MidiLearn::PLAY_BUTTON:
@@ -237,7 +237,7 @@ void MidiLearn::thing_pressed(LearnTarget target, bool on) {
 		return;
 	}
 	if (on) {
-		end_press_session(target); // `view.cpp:537` / `:155`
+		end_press_session(target); // `view.cpp:537` / `View::buttonAction`'s TAP_TEMPO arm
 		delete_on_release_ = true; // `:521` / `:153`
 		// `:522` `learnedThing = &…` is `end_press_session`'s own assignment of `target.thing`.
 		return;
@@ -319,7 +319,7 @@ void MidiLearn::note_on_received(::MIDICable& cable, int32_t channel_or_zone, in
 }
 
 void MidiLearn::cc_received(::MIDICable& cable, int32_t channel, int32_t cc, int32_t value) {
-	// `View::ccReceivedForMIDILearn` (`view.cpp:784-811`).
+	// `View::ccReceivedForMIDILearn` (`view.cpp`).
 	if (pressed_.kind == ::MidiLearn::NONE) { // `:768`
 		return;
 	}
@@ -368,8 +368,8 @@ Result MidiLearn::handle(const UiEvent& event, const UiContext& /*ctx*/) {
 	// invent a restriction legacy does not have.
 	//
 	// Claimed unconditionally, matching legacy's dispatchers: both `return` immediately after the
-	// `view.` call whatever it did (`playback_handler.cpp:2972`, `:3171`), and both ported functions
-	// are no-ops when nothing is held (`view.cpp:641`, and `cc_received`'s own arms). A null
+	// `view.` call whatever it did (`PlaybackHandler::noteMessageReceived`, `PlaybackHandler::midiCCReceived`), and
+	// both ported functions are no-ops when nothing is held (`view.cpp:641`, and `cc_received`'s own arms). A null
 	// `cable` is the "no message" value `UiEvent` documents and is dropped rather than
 	// dereferenced.
 	if (event.kind == UiEvent::Kind::MidiNoteOn || event.kind == UiEvent::Kind::MidiCc) {
@@ -393,7 +393,7 @@ Result MidiLearn::handle(const UiEvent& event, const UiContext& /*ctx*/) {
 	// service is routed AFTER `global_controls`, which answers `ViewArm::NotAnArm` for a non-root
 	// scene and therefore runs its own tail; without this gate a `LEARN` press inside a menu would
 	// reach here and toggle a mode legacy would have handed to `SoundEditor::buttonAction`
-	// (`gui/ui/sound_editor.cpp:505-537`) instead.
+	// (`SoundEditor::buttonAction`) instead.
 	if (!stack_.input_top().is_root()) {
 		return Result::unhandled();
 	}
@@ -411,7 +411,7 @@ Result MidiLearn::handle(const UiEvent& event, const UiContext& /*ctx*/) {
 		return Result{.handled = true};
 
 	case ButtonId::TapTempo:
-		// `view.cpp:147-167`'s learn branch. Its `else if` twin at `:168` is `GlobalControls`'s,
+		// `View::buttonAction`'s TAP_TEMPO learn branch. Its `else if` twin is `GlobalControls`'s,
 		// and the two are disjoint by legacy's own `if`/`else`.
 		if (!active_) {
 			return Result::unhandled();

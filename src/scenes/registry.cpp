@@ -88,12 +88,12 @@ deluge::ui::shell::SceneRegistry scene_registry() {
 		table[static_cast<size_t>(slicing::kSlicerSceneKind)] = &slicing::slicer_scene();
 		// `FirstApp + 9`, likewise -- and the first entry in this table that is a ROOT scene
 		// (`Scene::is_root()`), which is what makes `services::GlobalControls`'
-		// `View::buttonAction` group reachable at all (`services/global_controls.cpp:580`).
+		// `View::buttonAction` group reachable at all (`GlobalControls::handle`).
 		table[static_cast<size_t>(audio_clip::kAudioClipSceneKind)] = &audio_clip::audio_clip_scene();
 		// `SceneKind::Screensaver` -- one of the SHELL's own kinds, not `FirstApp + N`, because
-		// `shell::Screensaver` pushes it by name (`shell/screensaver.cpp:60`). The shell overwrites
+		// `shell::Screensaver` pushes it by name (`Screensaver::tick`). The shell overwrites
 		// the `Popup`/`Console`/`Working`/`Loading`/`Notification` slots with its own instances but deliberately
-		// leaves this one alone (`shell/shell.cpp:179-187`), so this entry is the one that makes
+		// leaves this one alone (the `Shell` constructor), so this entry is the one that makes
 		// that service's push succeed.
 		table[static_cast<size_t>(overlay::kScreensaverSceneKind)] = &overlay::screensaver_scene();
 		// M1: numbered here as well as in `menu_scene()`, so building the table is enough on its

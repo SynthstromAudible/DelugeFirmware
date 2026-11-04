@@ -10,9 +10,8 @@
 ///
 /// **Ports.** `RenameUI::opened` / `renderOLED` / `enterKeyPress` / `buttonAction` / `padAction` /
 /// `verticalEncoderAction` / `getGreyoutColsAndRows` (`gui/ui/rename/rename_ui.cpp`), and the
-/// input half of `QwertyUI` -- its typing rules: `padAction` (`gui/ui/qwerty_ui.cpp:202-373`),
-/// `processBackspace` (`gui/ui/qwerty_ui.cpp:408-419`) and `horizontalEncoderAction`
-/// (`gui/ui/qwerty_ui.cpp:420-448`). The *pixels* are already
+/// input half of `QwertyUI` -- its typing rules: `padAction`,
+/// `processBackspace` and `horizontalEncoderAction` (all in `gui/ui/qwerty_ui.cpp`). The *pixels* are already
 /// ported and are not re-implemented here: `ui::grid::text_keyboard` is `QwertyUI::drawKeys` and
 /// `ui::oled::text_edit` is `QwertyUI::drawTextForOLEDEditing`.
 ///
@@ -93,8 +92,8 @@ inline constexpr size_t kMaxNameChars = 64;
 ///        after that.
 ///
 /// Legacy's own two numbers: `QwertyUI::padAction` arms `TimerName::UI_SPECIFIC` at **500 ms** on
-/// the press (`gui/ui/qwerty_ui.cpp:220`) and `QwertyUI::timerCallback` re-arms it at **80 ms**
-/// after each repeat (`:452`). The press itself deletes one character immediately (`:219`), so a
+/// the press (`QwertyUI::padAction`) and `QwertyUI::timerCallback` re-arms it at **80 ms**
+/// after each repeat. The press itself deletes one character immediately, so a
 /// tap is one deletion and a hold is one, a half-second pause, then twelve and a half a second.
 /// @{
 inline constexpr uint32_t kBackspaceRepeatDelayMs = 500;
@@ -155,9 +154,9 @@ private:
 	/// @brief `QwertyUI::padAction`'s "normal keys" arm (`qwerty_ui.cpp:254-369`), minus the
 	///        prediction and card-routine machinery neither of which a rename has.
 	void type_char(char c);
-	/// @brief `QwertyUI::processBackspace` (`qwerty_ui.cpp:408-418`).
+	/// @brief `QwertyUI::processBackspace` (`gui/ui/qwerty_ui.cpp`).
 	void backspace();
-	/// @brief `QwertyUI::timerCallback`'s `UI_MODE_HOLDING_BACKSPACE` arm (`qwerty_ui.cpp:449-453`):
+	/// @brief `QwertyUI::timerCallback`'s `UI_MODE_HOLDING_BACKSPACE` arm:
 	///        delete another character if the pad is still down and the cadence says it is due.
 	/// @param held_char This tick's `Response::held_index`.
 	/// @param now       This tick's clock.
@@ -185,7 +184,7 @@ private:
 	/// clock the render pass last saw, so `next_timer()` can answer without one of its own.
 	uint32_t last_render_ms_ = 0;
 
-	/// Legacy's `UI_MODE_HOLDING_BACKSPACE` (`qwerty_ui.cpp:218`), as a deadline rather than a mode:
+	/// Legacy's `UI_MODE_HOLDING_BACKSPACE` (`QwertyUI::padAction`), as a deadline rather than a mode:
 	/// the tick the next repeat is due. `repeat_armed_` is the mode bit itself -- set by the press,
 	/// cleared the moment `Response::held_index` stops naming the backspace key.
 	/// @{
@@ -205,12 +204,11 @@ private:
 	/// default-constructed, i.e. `held_index == -1`. Without this flag `advance_repeat` reads that
 	/// as "the backspace pad is no longer down" and disarms the hold on the very first such tick.
 	///
-	/// E2 task 12 found that with a level-2 script and a 10 ms tick: the OLED repaints on its own
-	/// for the cursor blink (and again for whatever is drawn underneath this overlay), so the
-	/// disarming tick arrives ~10 ms after the press and the auto-repeat task 5's ruling asked for
-	/// never fired ONCE on the real path. `rename_scene_spec.cpp`'s own repeat example missed it
-	/// only because its three hand-placed ticks all happened to land on grid passes -- the exact
-	/// failure a single-frame or sparse-tick test cannot see.
+	/// With a level-2 script and a 10 ms tick the OLED repaints on its own for the cursor blink (and
+	/// again for whatever is drawn underneath this overlay), so a disarming tick would arrive ~10 ms
+	/// after the press and the auto-repeat would never fire on the real path. A single-frame or
+	/// sparse-tick test cannot see that failure; `rename_scene_spec.cpp`'s repeat example lands its
+	/// ticks on grid passes.
 	bool grid_pass_ = false;
 };
 

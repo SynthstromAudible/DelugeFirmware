@@ -22,7 +22,7 @@
 /// scatters), `:163` (the per-frame switch that advances) and `:185` (the frame interval), and
 /// `Screensaver::render` reads it again at `:235` (the switch that draws). Nothing here snapshots
 /// it at `on_enter`, because legacy does not: a mode edit while the screensaver is showing is
-/// legacy's `settingsChanged()` path (ported by F1 task 8 as `shell::Screensaver::set_idle_ms`, and
+/// legacy's `settingsChanged()` path (`shell::Screensaver::set_idle_ms`, and
 /// see the policy list below), and outside that path the remaining
 /// behaviour is whatever the live read produces -- which is what legacy would do too.
 ///
@@ -53,9 +53,9 @@
 /// @par Why this is a `SceneKind::Screensaver` and not a `FirstApp + N`
 ///
 /// `shell::Screensaver` pushes `SceneId{SceneKind::Screensaver, seed}` by name
-/// (`shell/screensaver.cpp:60`). The kind is one of the shell's own six, and -- unlike
+/// (`shell::Screensaver::tick`). The kind is one of the shell's own six, and -- unlike
 /// `Popup`/`Console`/`Working`/`Loading` -- the shell deliberately does **not** overwrite the
-/// registry slot for it (`shell/shell.cpp:179-187`), precisely so an application can register this.
+/// registry slot for it (`Shell::Shell`), precisely so an application can register this.
 ///
 /// @warning **Must not raise `Action::Kind::LockInput`**, and does not -- see the warning on
 ///          `Action` in `shell/scene.h`. `handle()` is unreachable (`input_transparent()` is true).
@@ -93,9 +93,9 @@ public:
 	/// of the two fields and leaves `BLANK`/`OFF` alone.
 	///
 	/// @param id The push. `id.arg` is `shell::Screensaver`'s `seed` (its low 16 bits,
-	///           `shell/screensaver.cpp:60`); a non-zero one reseeds the animation's generator so a
+	///           `shell::Screensaver::tick`); a non-zero one reseeds the animation's generator so a
 	///           spec can reproduce a field. **Zero -- `ShellConfig::seed`'s shipped default
-	///           (`shell/shell.h:46`) -- reseeds nothing**, which is what makes this an exact port:
+	///           (`ShellConfig::seed`) -- reseeds nothing**, which is what makes this an exact port:
 	///           legacy has no seed at all and simply lets the generator run on across activations
 	///           (`Rainfall::scatter`'s own note).
 	/// @return Always true.
@@ -105,7 +105,7 @@ public:
 	///
 	/// The port of `Screensaver::timerEvent`'s `else` arm (`hid/display/screensaver.cpp:174-189`)
 	/// plus the `setTimer(..., kFrameIntervalMS)` re-arm at `:161-162`. The shell calls `tick()`
-	/// every tick rather than only at a deadline (`Shell::tick_stack`, `shell.cpp:594-604`), so the
+	/// every tick rather than only at a deadline (`Shell::tick_stack`), so the
 	/// deadline is kept here: elapsed time accumulates and the counter is **reset to zero**, not
 	/// decremented by the interval, because legacy re-arms its timer from the moment the timer
 	/// fired -- a late tick is one frame there, and must be one frame here.
@@ -117,7 +117,7 @@ public:
 	/// The port of `Screensaver::render` (`hid/display/screensaver.cpp:243-257`) and the two
 	/// per-mode renderers it dispatches to (`:225-248`). Legacy's leading `canvas_.clear()`
 	/// (`:210`) has no counterpart here because `Shell::render_oled` clears the canvas before the
-	/// pass (`shell.cpp:683`).
+	/// pass (`Shell::render_oled`).
 	void render_oled(deluge::ui::shell::SurfaceRole role, deluge::ui::oled::OledFrame& frame) override;
 
 	/// @brief The screensaver routes nothing: legacy's is a canvas override, never a `UI`.
@@ -141,7 +141,7 @@ public:
 	/// `main` alone (`hid/display/oled.cpp:342-348`) -- no other panel is touched. Opaque on `Main`
 	/// is therefore what "replaces the panel" means, and it is also what makes waking cheap: the
 	/// scene beneath was never overwritten, so popping this scene is the whole of the wake
-	/// (`shell/screensaver.cpp:10-17`, `hid/display/screensaver.h:30-34`).
+	/// (`shell/screensaver.cpp`, `hid/display/screensaver.h`).
 	bool oled_transparent(deluge::ui::shell::SurfaceRole role) const override {
 		return role != deluge::ui::shell::SurfaceRole::Main;
 	}
@@ -150,7 +150,7 @@ public:
 	bool is_grid_overlay() const override { return true; }
 	/// @brief True: legacy's screensaver is a canvas override, not a `UI`. Input reaches it only
 	///        through `shell::Screensaver::note_activity`, which pops this scene *before* the event
-	///        is lowered (`shell/shell.cpp:271-274`), exactly as legacy's `dispatchInputEvent`
+	///        is lowered (`Shell::on_board_event`), exactly as legacy's `dispatchInputEvent`
 	///        calls `noteActivity()` and then continues into the real UI's handler.
 	bool input_transparent() const override { return true; }
 
@@ -170,8 +170,8 @@ public:
 private:
 	/// @brief Is the current mode one that redraws every frame?
 	///
-	/// `hid/display/screensaver.cpp:60-63`'s `isAnimated`, which is the same test its `:174` frame
-	/// interval and its `:140` advance switch make.
+	/// `hid/display/screensaver.cpp`'s `isAnimated`, which is the same test its frame
+	/// interval and its advance switch make.
 	static bool animated(::ScreensaverMode mode);
 
 	deluge::ui::oled::Rainfall rainfall_;

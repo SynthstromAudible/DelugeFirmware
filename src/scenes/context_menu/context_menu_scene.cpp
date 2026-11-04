@@ -30,11 +30,11 @@
 #include "ui/core/metrics.h"
 #include "ui/oled/popup.h"
 
-// `Deluge::factoryReset` (`deluge.cpp:223-229`). `deluge.h` is a ROOT-LEVEL app header, so it is named
+// `Deluge::factoryReset` (`deluge.cpp`). `deluge.h` is a ROOT-LEVEL app header, so it is named
 // explicitly in this layer's include allow-list (`src/scenes/CMakeLists.txt`) the way
-// `definitions_cxx.hpp` is, rather than being covered by one of the allowed subdirectories. Fix
-// round 1, Minor 2: included rather than re-declared locally, and re-implementing its body here (a
-// notice plus the other four resets) was rejected -- that would fork a legacy composite.
+// `definitions_cxx.hpp` is, rather than being covered by one of the allowed subdirectories. It is included rather than
+// re-declared locally, and its body is not re-implemented here (a notice plus the other four
+// resets) -- that would fork a legacy composite.
 #include "deluge-project/audio_input.h"
 #include "deluge-project/setting_group.h"
 #include "deluge.h"
@@ -529,8 +529,8 @@ void ContextMenuScene::leds(deluge::ui::LedFrame& f) {
 	//
 	// The period is `ui::kFlashTime` (`ui/core/metrics.h`), imported rather than re-spelled as a
 	// literal 110: `indicator_leds::blinkLed` runs at exactly that constant
-	// (`hid/led/indicator_leds.cpp:108`, `definitions_cxx.hpp:159`), and `rename_scene.cpp:44`
-	// already imports it this way. (Fix round 1, Minor 3 -- this was a third hand-written copy.)
+	// (`hid/led/indicator_leds.cpp:108`, `definitions_cxx.hpp:159`), and `rename_scene.cpp`
+	// imports it the same way.
 	// `blinkLed`'s default blink on the phase every normal blink shares, restarted at the open
 	// (`context_menu.cpp:54`).
 	if (blink_restart_) {
@@ -614,9 +614,9 @@ Result ContextMenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 			return r;
 		}
 
-	// The two MIDI kinds (F1 task 10's transport, `shell/scene.h`) are declined here for the reason
-	// every scene ported so far declines them: claiming one means answering `learnable_at(pad)`,
-	// which is the timeline scenes' work (E5/E6). Declining lets `Router::run_chain` carry the
+	// The two MIDI kinds (the transport in `shell/scene.h`) are declined here for the reason
+	// every scene declines them: claiming one means answering `learnable_at(pad)`,
+	// which is the timeline scenes' work. Declining lets `Router::run_chain` carry the
 	// message on to `services::MidiLearn`, which is where legacy's `view.` fallback puts it.
 	case UiEvent::Kind::MidiNoteOn:
 	case UiEvent::Kind::MidiCc:

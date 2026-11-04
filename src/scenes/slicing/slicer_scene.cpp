@@ -314,7 +314,7 @@ std::optional<uint32_t> SlicerScene::next_timer() const {
 }
 
 // ---------------------------------------------------------------------------------------------
-// Pads -- `Slicer::padAction` (`slicer.cpp:484-568`)
+// Pads -- `Slicer::padAction`
 
 bool SlicerScene::add_slice_at(int32_t sample_pos) {
 	// `:535-551`, with the play position handed in. Legacy compares a signed `samplePos` against an
@@ -535,7 +535,8 @@ Result SlicerScene::button_action(ButtonId b, const UiContext& ctx) {
 			// (`:376`'s own `RGB myImage[...]` is 432 bytes of dead stack -- declared, never read,
 			// never written, and `:378` renders into `PadLEDs::image` instead. The REGION arm of
 			// `renderMainPads` has the identical dead array at `:107`. Recorded in
-			// `src/scenes/README.md`'s ledger; not fixed, and nothing to port.)
+			// the first entry of `src/scenes/README.md`'s "Defects this port found in shipping
+			// firmware"; not fixed, and nothing to port.)
 			ops_->kill_voices();        // `:380`
 			ops_->restore_full_range(); // `:381-388`
 		}
@@ -555,8 +556,8 @@ Result SlicerScene::handle(const UiEvent& event, const UiContext& ctx) {
 	switch (event.kind) {
 	case UiEvent::Kind::Pad:
 		// Legacy's third parameter is the raw velocity, which it names `on` and passes straight
-		// through to `preview` (`:494`). The shell keeps `on == (velocity != 0)` invariantly
-		// (`InputLowering::on_pad`, `shell/input_lowering.cpp:243-251`), so the velocity alone is
+		// through to `preview` (`Slicer::padAction`). The shell keeps `on == (velocity != 0)` invariantly
+		// (`InputLowering::on_pad`, `shell/input_lowering.cpp`), so the velocity alone is
 		// exactly what legacy is handed. Refused while a commit is out (our legacy's `slicePhase_` gate).
 		if (committing_) {
 			Result swallowed;

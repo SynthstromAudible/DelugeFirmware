@@ -3,12 +3,11 @@
 /// @file
 /// @brief `MidiLearn` -- the MIDI-learn half of legacy's `View`, as a `shell::Service`.
 ///
-/// The port of `View::startMIDILearn` (`gui/views/view.cpp:489-497`), `View::endMIDILearn`
-/// (`:482-500`), the five `*MidiLearnPadPressed` overloads (`:518-530`, `:532-544`, `:546-558`,
-/// `:560-577`, `:579-595`), `View::endMidiLearnPressSession` (`:597-621`),
-/// `View::noteOnReceivedForMidiLearn` (`:623-743`), `View::ccReceivedForMIDILearn` (`:767-794`)
-/// and `View::midiLearnFlash` (`:796-816`), together with the four `View::buttonAction` arms whose
-/// whole body is learn work (`:146-182`'s learn branch, `:185-196`, `:199-212`, `:215-228`).
+/// The port of `View::startMIDILearn` (`gui/views/view.cpp`), `View::endMIDILearn`,
+/// the five `*MidiLearnPadPressed` overloads, `View::endMidiLearnPressSession`,
+/// `View::noteOnReceivedForMidiLearn`, `View::ccReceivedForMIDILearn`
+/// and `View::midiLearnFlash`, together with the four `View::buttonAction` arms whose
+/// whole body is learn work (the TAP_TEMPO learn branch, LEARN, and PLAY and RECORD under learn).
 ///
 /// @par Why a service in `src/scenes/` and not in `src/shell/`
 ///
@@ -35,15 +34,15 @@
 ///      their relative order is only observable if both services could claim the same event --
 ///      and they cannot. `GlobalControls::view_button_action` answers `ViewArm::LearnOwns` for
 ///      precisely these four and suppresses its own tail for them
-///      (`services/global_controls.h`'s `ViewArm`), which reproduces `view.cpp:486`'s
+///      (`services/global_controls.h`'s `ViewArm`), which reproduces `View::buttonAction`'s
 ///      `DEALT_WITH`. Placing this service last is what keeps that abstention live rather than
-///      dead code, and it is the seam task 4 built.
+///      dead code.
 ///   3. **LED composition requires last.** `LedCompose::compose` runs services in `Shell`'s own
-///      order (`shell/shell.cpp:213-214`: `mod_knobs`, `global_controls`, `midi_learn`, notices,
-///      screensaver) and the last writer wins. `View::midiLearnFlash` (`view.cpp:821-832`)
+///      order (the `Shell` constructor: `mod_knobs`, `global_controls`, `midi_learn`, notices,
+///      screensaver) and the last writer wins. `View::midiLearnFlash`
 ///      *overwrites* the PLAY, RECORD and TAP_TEMPO LEDs that `PlaybackHandler::setLedStates`
-///      (`playback/playback_handler.cpp:2499-2512`, i.e. `GlobalControls::leds`) had just set, and
-///      `View::endMIDILearn` hands them back by calling `setLedStates` again (`view.cpp:515`).
+///      (i.e. `GlobalControls::leds`) had just set, and
+///      `View::endMIDILearn` hands them back by calling `setLedStates` again.
 ///      A `MidiLearn` composed *before* `GlobalControls` could never flash them.
 ///
 /// @par The reachability rule for the four button arms is `GlobalControls`'s, and it is repeated
@@ -52,8 +51,8 @@
 /// `View::buttonAction` is the **root view's** fallback and only the root view's:
 /// `UI::buttonAction`'s base implementation is `return ActionResult::NOT_DEALT_WITH`
 /// (`gui/ui/ui.h:98-100`) and does not forward to `view`, and `View::buttonAction` has exactly two
-/// callers -- `TimelineView::buttonAction`'s final `else` (`gui/views/timeline_view.cpp:119-121`)
-/// and `KeyboardScreen::buttonAction` (`gui/ui/keyboard/keyboard_screen.cpp:591`) -- which are
+/// callers -- `TimelineView::buttonAction`'s final `else` (`gui/views/timeline_view.cpp`)
+/// and `KeyboardScreen::buttonAction` (`gui/ui/keyboard/keyboard_screen.cpp`) -- which are
 /// exactly the two classes `grep "public RootUI"` finds (`gui/views/timeline_view.h:27`,
 /// `gui/ui/keyboard/keyboard_screen.h:35`). So `handle()` gates all four arms on
 /// `stack_.input_top().is_root()`.
@@ -80,20 +79,20 @@
 ///
 /// @par The flash
 ///
-/// `View::midiLearnFlash` (`view.cpp:813-833`) is a self-re-arming `kFastFlashTime` timer
-/// (`TimerName::MIDI_LEARN_FLASH`, driven from `gui/ui_timer_manager.cpp:75`) that toggles
-/// `midiLearnFlashOn`, asks the root UI to repaint its grid (`:800-802`) and writes three
+/// `View::midiLearnFlash` is a self-re-arming `kFastFlashTime` timer
+/// (`TimerName::MIDI_LEARN_FLASH`, driven from `gui/ui_timer_manager.cpp`) that toggles
+/// `midiLearnFlashOn`, asks the root UI to repaint its grid and writes three
 /// indicator LEDs from the same phase. Here it is `tick()` + `next_timer()` + `flash_on()`, with
 /// `timer_repaints()` claiming **the grid only**: every reader of `midiLearnFlashOn` in the tree
-/// is a pad renderer (`gui/views/session_view.cpp:1548`, `:2550`, `:3237`,
-/// `gui/views/instrument_clip_view.cpp:6080`, `:6124`, `gui/views/arranger_view.cpp:675`,
-/// `gui/views/view.cpp:2636`), and arming an OLED surface that never changes is an unconditional
-/// blit at 60 ms forever (`Scene::timer_repaints`'s own account; shell spec §15.1, §15.3).
+/// is a pad renderer (in `gui/views/session_view.cpp`,
+/// `gui/views/instrument_clip_view.cpp`, `gui/views/arranger_view.cpp` and
+/// `gui/views/view.cpp`), and arming an OLED surface that never changes is an unconditional
+/// blit at 60 ms forever (see `Scene::timer_repaints`).
 ///
 /// @note The three flashing LEDs are declared from `flash_on()` rather than as
 ///       `LedState::Kind::Blink`, deliberately. `led_is_on` derives a blink's phase from `now_ms`
 ///       (`shell/leds.h`), which would let the LEDs and the pads fall out of step; legacy drives
-///       both from the one `midiLearnFlashOn` bit (`view.cpp:814`, `:823`, `:827`, `:831`) and so
+///       both from the one `midiLearnFlashOn` bit (`View::midiLearnFlash`) and so
 ///       does this. The LEARN LED is the exception and *is* a `Blink`, because legacy drives that
 ///       one from a separate blinker with its own phase --
 ///       `indicator_leds::blinkLed(IndicatorLED::LEARN, 255, 1)` (`view.cpp:495`), whose
@@ -111,19 +110,19 @@
 ///     (`:589`). Its body builds a `ModelStackWithParamCollection` through
 ///     `setupModelStackWithSong(...)->addTimelineCounter(...)->addOtherTwoThingsButNoNoteRow(...)`
 ///     `->addParamCollection(...)` and calls `ExpressionParamSet::clearValues(modelStack)`.
-///     `model/model_stack.h` is confined to `menu/context.cpp` and `menu/bindings.cpp`
-///     (`scenes-model-stack-outside-context`), and neither builds this stack from an `Instrument`
-///     alone. Counted by `unported_calls(UnportedCall::ClearMonoExpression)` rather
+///     No scene includes `model/model_stack.h` (`scenes-model-stack`), so no scene can build
+///     this stack. Counted by `unported_calls(UnportedCall::ClearMonoExpression)` rather
 ///     than silently dropped, following `GlobalControls::unported_opens`'s precedent: the counter
 ///     exists so a spec can prove the arm reached the point legacy makes the call at, which is the
 ///     only part of it this layer can assert.
 ///   * **`iterateAndCallSpecificDeviceHook(MIDICableUSBHosted::Hook::HOOK_ON_MIDI_LEARN)`**
-///     (`view.cpp:637`), the tail of `endMidiLearnPressSession`. Counted the same way
+///     (`View::endMidiLearnPressSession`'s tail). Counted the same way
 ///     (`UnportedCall::SpecificDeviceHook`) -- it is a `io/midi/cable_types/usb_hosted.h` walk
 ///     over the hosted-device list whose only in-tree implementation is
 ///     `MIDICableUSBHosted::hookOnMIDILearn`, and nothing in this layer's model reach can observe
 ///     whether it ran.
-///   * **`playbackHandler.setLedStates()`** (`view.cpp:515`, `:620`). Not a gap: in a declarative
+///   * **`playbackHandler.setLedStates()`** (`View::endMIDILearn`, `View::endMidiLearnPressSession`). Not a gap: in a
+///   declarative
 ///     LED model those calls *are* "stop declaring the flash and let `GlobalControls` win again",
 ///     which happens for free on the next `leds()` pass. Recorded here so the absence is not read
 ///     as an omission.
@@ -154,15 +153,15 @@ namespace deluge::scenes::services {
 ///        thing it belongs to.
 ///
 /// **The five overloads are one question asked five times.** `View::sectionMidiLearnPadPressed`
-/// (`view.cpp:535-547`), `clipStatusMidiLearnPadPressed` (`:549-561`),
-/// `noteRowMuteMidiLearnPadPressed` (`:546-558`), `drumMidiLearnPadPressed` (`:560-577`) and
-/// `instrumentMidiLearnPadPressed` (`:579-595`) have byte-for-byte the same shape -- press:
+/// (`view.cpp`), `clipStatusMidiLearnPadPressed`,
+/// `noteRowMuteMidiLearnPadPressed`, `drumMidiLearnPadPressed` and
+/// `instrumentMidiLearnPadPressed` have byte-for-byte the same shape -- press:
 /// `endMidiLearnPressSession(K)`, `deleteMidiCommandOnRelease = true`, `learnedThing = &X`;
 /// release, if `thingPressedForMidiLearn == K`: clear `X` if the flag is still set, then
 /// `endMidiLearnPressSession()`. They differ in exactly three ways, and all three are fields here:
 /// the `MidiLearn` enumerator (`kind`), the address of the `LearnedMIDI` (`thing`), and the two
 /// model pointers the drum and instrument arms stash for the commit that may follow
-/// (`view.cpp:582-584`, `:601`).
+/// (`View::drumMidiLearnPadPressed`, `View::instrumentMidiLearnPadPressed`).
 ///
 /// The three transport buttons take the same shape from `View::buttonAction`
 /// (`view.cpp:153-157`, `:205-209`, `:221-225`) -- the same three statements over
@@ -203,7 +202,7 @@ struct LearnTarget {
 	static LearnTarget clip(deluge::project::ClipAddress clip);
 	/// @brief `View::noteRowMuteMidiLearnPadPressed`'s target (`view.cpp:565-567`): the row's drum's mute.
 	/// @param drum_id The row's drum's id, or nullopt for a row with no drum, which every call site has already
-	///                refused (`gui/views/instrument_clip_view.cpp:2270`).
+	///                refused (`gui/views/instrument_clip_view.cpp`).
 	/// @return The target, or a `NONE` target for a row with no drum.
 	static LearnTarget note_row_mute(std::optional<uint32_t> drum_id);
 	/// @brief `View::drumMidiLearnPadPressed`'s target (`view.cpp:579-584`): the kit row's input.
@@ -233,14 +232,14 @@ public:
 	/// of these two calls this layer can assert. See the class-doc's "not ported" list.
 	///
 	/// @note The doc comments are on their own lines, not trailing: `check_layer_rules.py`'s
-	///       `is_comment_line` (`:490-511`) skips only a line that is *nothing but* comment, so a
-	///       trailing `///<` naming a forbidden symbol would count as a real violation. Task 4 hit
-	///       this exact thing; do not reformat them back.
+	///       `is_comment_line` skips only a line that is *nothing but* comment, so a
+	///       trailing `///<` naming a forbidden symbol would count as a real violation; do not reformat
+	///       them back.
 	enum class UnportedCall : uint8_t {
-		/// `View::clearMelodicInstrumentMonoExpressionIfPossible` (`view.cpp:762-782`), reached
-		/// from the `INSTRUMENT_INPUT` commit (`:728`) and its delete-on-release (`:589`).
+		/// `View::clearMelodicInstrumentMonoExpressionIfPossible` (`view.cpp`), reached
+		/// from the `INSTRUMENT_INPUT` commit and its delete-on-release.
 		ClearMonoExpression,
-		/// `iterateAndCallSpecificDeviceHook(HOOK_ON_MIDI_LEARN)` (`view.cpp:637`).
+		/// `iterateAndCallSpecificDeviceHook(HOOK_ON_MIDI_LEARN)` (`View::endMidiLearnPressSession`).
 		SpecificDeviceHook,
 		/// Not a site: the array bound.
 		kCount,
@@ -263,7 +262,7 @@ public:
 	///        `scenes-currentSong` forbids this layer.
 	///
 	/// Read by the `DRUM_INPUT` and `INSTRUMENT_INPUT` commits
-	/// (`view.cpp:661`, `:673-674`, `:698`, `:753-754`) and nothing else; a null song makes those
+	/// (`View::endMidiLearnPressSession`, `View::noteOnReceivedForMidiLearn`) and nothing else; a null song makes those
 	/// arms skip the parts that need it, and the three-field write still happens.
 	/// @param song The song, or null.
 	void set_song(::Song* song) { song_ = song; }
@@ -277,14 +276,14 @@ public:
 	/// @return True while learn mode is engaged.
 	bool active() const override { return active_; }
 
-	/// @brief `View::startMIDILearn` (`view.cpp:489-497`).
+	/// @brief `View::startMIDILearn`.
 	///
 	/// Legacy's guard is `currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_MIDI_LEARN`
 	/// (`:473`) -- i.e. it refuses to start while any *other* mode is active. That mode lives on
 	/// the root scene, which this service reaches through `set_other_mode_active()`; the default
 	/// is "no other mode", which is the state of every scene ported so far.
 	void begin();
-	/// @brief `View::endMIDILearn` (`view.cpp:499-517`).
+	/// @brief `View::endMIDILearn`.
 	///
 	/// Writes settings to flash when a global command was learned or cleared during the session
 	/// (`:483-487`), stops the flash (`:488-489`), and leaves the mode
@@ -347,27 +346,25 @@ public:
 	/// @param velocity       The velocity. Legacy takes it and never reads it; kept so the
 	///                       signature is legacy's and a future arm has it.
 	///
-	/// @note **Routed, not called.** F1 task 10 gave this its transport:
+	/// @note **Routed, not called.** Its transport is
 	///       `UiEvent::Kind::MidiNoteOn` (`shell/scene.h`) carried by `Router::run_chain`'s
 	///       `midi_learn` step, produced by `ShellHostUI::noteOnReceivedForMidiLearn`. `handle()`
 	///       is the only caller in `src/`; this stays public because the spec drives it directly
 	///       for the arms it compares against legacy, and because `cc_received` re-enters it.
 	void note_on_received(::MIDICable& cable, int32_t channel_or_zone, int32_t note, int32_t velocity);
-	/// @brief `View::ccReceivedForMIDILearn` (`view.cpp:784-811`).
+	/// @brief `View::ccReceivedForMIDILearn`.
 	///
-	/// Two arms: a MIDI-output instrument learns its input *channel* from a CC (`:772-783`), and
-	/// everything else treats a non-zero CC as a note-on with `channel + IS_A_CC`
-	/// (`:788-791`).
+	/// Two arms: a MIDI-output instrument learns its input *channel* from a CC, and
+	/// everything else treats a non-zero CC as a note-on with `channel + IS_A_CC`.
 	/// @param cable   The cable.
 	/// @param channel The channel.
 	/// @param cc      The CC number.
-	/// @param value   The CC value; zero is ignored by the second arm (`:789`).
+	/// @param value   The CC value; zero is ignored by the second arm.
 	///
 	/// @warning **`UiEvent::Kind::MidiCc` exists and `handle()` consumes it, but nothing in `src/`
-	///          produces one.** F1 task 10 built the transport for both MIDI kinds and could only
-	///          wire a producer for the note-on half, because legacy's two dispatchers are not the
-	///          same shape: `PlaybackHandler::noteMessageReceived` asks
-	///          `getCurrentUI()->noteOnReceivedForMidiLearn` first
+	///          produces one.** The transport exists for both MIDI kinds but a producer is wired only for
+	///          the note-on half, because legacy's two dispatchers are not the same shape:
+	///          `PlaybackHandler::noteMessageReceived` asks `getCurrentUI()->noteOnReceivedForMidiLearn` first
 	///          (`playback/playback_handler.cpp:2968`), which is a `UI` virtual the guest can
 	///          override, while `PlaybackHandler::midiCCReceived` has **no such virtual to
 	///          override** -- `gui/ui/ui.h` declares exactly two `*ForMidiLearn` hooks (`:130`
@@ -428,7 +425,7 @@ private:
 
 	/// `currentUIMode == UI_MODE_MIDI_LEARN`.
 	bool active_ = false;
-	/// The injected half of `startMIDILearn`'s guard (`view.cpp:490`).
+	/// The injected half of `startMIDILearn`'s guard (`View::startMIDILearn`).
 	bool other_mode_active_ = false;
 	/// `thingPressedForMidiLearn` + `learnedThing` + the two stashed model pointers.
 	LearnTarget pressed_{};
@@ -439,7 +436,7 @@ private:
 	/// `midiLearnFlashOn` (`gui/views/view.h:110`).
 	bool flash_on_ = false;
 	/// Milliseconds left of the current `kFastFlashTime` half-period, or `nullopt` when the flash
-	/// timer is unset (`uiTimerManager.unsetTimer(TimerName::MIDI_LEARN_FLASH)`, `view.cpp:505`).
+	/// timer is unset (`uiTimerManager.unsetTimer(TimerName::MIDI_LEARN_FLASH)`, `View::endMIDILearn`).
 	std::optional<uint32_t> flash_remaining_ms_{};
 	/// `UnportedCall`'s tallies.
 	uint32_t unported_[static_cast<size_t>(UnportedCall::kCount)]{};

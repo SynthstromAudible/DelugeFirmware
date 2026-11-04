@@ -274,9 +274,8 @@ Result ModKnobs::handle(const deluge::ui::shell::UiEvent& event, const deluge::u
 		return Result::unhandled();
 	}
 
-	// `hid/encoder_input.cpp:192`: `offset * encoder.calcNextKnobSpeed(offset)`, narrowed back to `int8_t` as legacy
-	// narrows it (truncation toward zero).
-	// A host's lowered turn is accelerated already.
+	// `interpretEncoders` (`hid/encoder_input.cpp`): `offset * encoder.calcNextKnobSpeed(offset)`, narrowed back to
+	// `int8_t` as legacy narrows it (truncation toward zero). A host's lowered turn is accelerated already.
 	const double speed = event.lowered ? 1.0 : lowering_.calc_next_knob_speed(event.encoder, event.delta, ctx.now_ms);
 	const int32_t offset = static_cast<int8_t>(static_cast<double>(event.delta) * speed);
 	return mod_encoder_action(which_encoder, offset, ctx.now_ms);
@@ -367,8 +366,7 @@ bool ModKnobs::popup_suppressed(const ModTurn& turn) const {
 	// `:876-882` -- "let's see if we're editing the same param in the menu, if so, don't show
 	// pop-up". `SoundEditor`'s port is `MenuScene`, so legacy's `getCurrentUI() == &soundEditor` is
 	// this identity test against the one menu interpreter (`scenes/registry.h`'s `menu_scene()`) --
-	// not a `kind()` comparison, which would only *infer* that the scene on top is that object
-	// (fix round 1, Minor 6).
+	// not a `kind()` comparison, which would only *infer* that the scene on top is that object.
 	//
 	// The other two arms (`:869-874` performance view, `:885` the song browser) have no scene to
 	// ask yet; the header records both as uncovered rather than guessed at.
@@ -443,7 +441,7 @@ void ModKnobs::potentially_make_it_harder_to_turn_knob(int32_t which_encoder, co
 	}
 
 	if (knob_pos == 0 && turn.should_indicate_middle_value) { // `:1071`
-		// One indicator blinks at a time (`indicator_leds.cpp:39`, `whichLevelIndicatorBlinking`): starting
+		// One indicator blinks at a time (`indicator_leds.cpp`'s `whichLevelIndicatorBlinking`): starting
 		// this knob's blink ends the other's, which then shows its level again.
 		for (int32_t k = 0; k < kKnobCount; k++) {
 			blink_indicator_[k] = false;
@@ -457,7 +455,7 @@ void ModKnobs::potentially_make_it_harder_to_turn_knob(int32_t which_encoder, co
 		// moves with it.
 		blink_indicator_start_ms_[which_encoder] = now_ms_;
 		// `:1074` `indicator_leds::blinkKnobIndicator(whichModEncoder, isBipolar)` -- recorded here,
-		// declared by task 3's `leds()`.
+		// declared by `leds()`.
 		//
 		// `:1077` -- "Make it harder to turn that knob away from its centred position". In *current*
 		// legacy this write is inert (the encoder overhaul dropped the only reader); the shell's
@@ -670,7 +668,7 @@ ModKnobs::IndicatorLevel ModKnobs::indicator_level(const ModIndicatorInfo& info,
 
 	// Legacy's fourth case: no `autoParam`, `paramId != 255`, and it *is* just a param.
 	//
-	// @warning **Legacy defect (5 of 5), recorded in `src/scenes/README.md`'s "Defects this port
+	// @warning **Legacy defect (the fifth entry), recorded in `src/scenes/README.md`'s "Defects this port
 	//          found in shipping firmware".** `View::setKnobIndicatorLevel` declares
 	//          `int32_t knobPos;` with no initialiser (`View::setKnobIndicatorLevel`) and assigns it on three of
 	//          its four paths -- `:1413`, `:1454`, `:1460` -- leaving it **uninitialised** on this
@@ -831,7 +829,7 @@ void ModKnobs::tick(uint32_t now_ms, uint32_t /*dt_ms*/) {
 	if (automation_display_ms_.has_value() && static_cast<int32_t>(now_ms - *automation_display_ms_) >= 0) {
 		// `TimerName::DISPLAY_AUTOMATION`'s callback (`gui/ui_timer_manager.cpp:157-171`) is
 		// `automationView.displayAutomation()` / `view.displayAutomation()`, both view-side and not
-		// ported. Disarming is all this can do; `automation_display_pending()` is the fact task 3's
+		// ported. Disarming is all this can do; `automation_display_pending()` is the fact
 		// `leds()` reads, exactly as legacy reads `isTimerSet(DISPLAY_AUTOMATION)`.
 		automation_display_ms_.reset();
 	}

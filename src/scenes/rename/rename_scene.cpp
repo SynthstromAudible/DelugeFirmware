@@ -114,7 +114,7 @@ bool output_write(const menu::MenuContext& ctx, std::string_view name) {
 	return write_name(ctx, project::SettingGroupId::TRACK, name); // no two audio tracks share a name
 }
 
-// --- Drum: `RenameDrumUI` (`gui/ui/rename/rename_drum_ui.cpp:30`) ---
+// --- Drum: `RenameDrumUI` (`gui/ui/rename/rename_drum_ui.cpp`) ---
 
 bool drum_can(const menu::MenuContext& ctx) {
 	// `RenameDrumUI` has no `canRename` override either; instead `getCurrentName` and `trySetName` each
@@ -132,12 +132,12 @@ bool drum_write(const menu::MenuContext& ctx, std::string_view name) {
 }
 
 constexpr std::array<Target, static_cast<size_t>(TargetId::Count)> kTargets{{
-    // `RenameClipUI renameClipUI{"Clip Name"}` (`rename_clip_ui.cpp:28`).
+    // `RenameClipUI renameClipUI{"Clip Name"}` (`rename_clip_ui.cpp`).
     {sid(String::STRING_FOR_CLIP_NAME), clip_can, clip_read, clip_write, /*allow_empty=*/true},
-    // `RenameOutputUI renameOutputUI{"Track name"}` (`rename_output_ui.cpp:28`).
+    // `RenameOutputUI renameOutputUI{"Track name"}` (`rename_output_ui.cpp`).
     {sid(String::STRING_FOR_TRACK_NAME), output_can, output_read, output_write, /*allow_empty=*/true},
-    // `RenameDrumUI renameDrumUI{"Drum Name"}` (`rename_drum_ui.cpp:32`), and the one
-    // `allowEmpty() = false` in the family (`rename_drum_ui.h:32 allowEmpty`).
+    // `RenameDrumUI renameDrumUI{"Drum Name"}` (`rename_drum_ui.cpp`), and the one
+    // `allowEmpty() = false` in the family (`RenameDrumUI::allowEmpty`).
     {sid(String::STRING_FOR_DRUM_NAME), drum_can, drum_read, drum_write, /*allow_empty=*/false},
 }};
 
@@ -146,7 +146,7 @@ constexpr std::array<Target, static_cast<size_t>(TargetId::Count)> kTargets{{
 // (`check_layer_rules.py`'s `scenes-includes-outside`), so the two things `qwerty_ui.cpp` borrows
 // from it are spelled out here rather than included.
 
-/// @brief `charCaseEqual` (`util/functions.cpp:1635`): equal ignoring ASCII letter case.
+/// @brief `charCaseEqual` (`util/functions.cpp`): equal ignoring ASCII letter case.
 bool char_case_equal(char a, char b) {
 	const char la = (a >= 'A' && a <= 'Z') ? static_cast<char>(a + 32) : a;
 	const char lb = (b >= 'A' && b <= 'Z') ? static_cast<char>(b + 32) : b;
@@ -221,7 +221,7 @@ bool RenameScene::on_enter(const SceneId& id) {
 	edit_ = deluge::ui::oled::TextEditState{};
 	kb_ = deluge::ui::grid::TextKeyboardState{};
 	resp_ = {};
-	// `keyboardChars[util::to_underlying(FlashStorage::keyboardLayout)]` (`qwerty_ui.cpp:268`).
+	// `keyboardChars[util::to_underlying(FlashStorage::keyboardLayout)]` (`QwertyUI::padAction`).
 	// `KeyboardLayoutKind`'s values match legacy's enum exactly, so this is a cast (`keyboard.h`).
 	layout_ = static_cast<deluge::ui::grid::KeyboardLayoutKind>(static_cast<uint8_t>(FlashStorage::keyboardLayout));
 	// Unarm the blink: the first render arms it against that tick's clock, so the cursor is lit on
@@ -266,9 +266,8 @@ void RenameScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) 
 	// Arm the panel's own gate at the cursor's *next flip*, which is what `next_timer()` cannot
 	// name: it answers one interval for the scene, this names the edge. `text_edit` cannot arm it
 	// itself either, because it takes no clock and owns no state (`ui/oled/text_edit.h`:
-	// "Render-only"). Before E3 task 10 this was also the only thing that repainted at all --
-	// `next_timer()` woke the host and `RepaintGate` still said no -- and the bar would have been
-	// computed correctly and never drawn; `Shell::tick`'s step 8b now covers that half. Only while
+	// "Render-only"). Without `Shell::tick`'s step 8b the host would wake on `next_timer()` while
+	// `RepaintGate` still said no, and the bar would be computed correctly and never drawn. Only while
 	// the bar exists at all: mid-string `cursor_lit` gates nothing.
 	if (edit_.cursor == static_cast<int16_t>(len_)) {
 		f.gate().request_repaint_after(deluge::ui::blink_next_flip_in(cursor_blink_, now), now);
@@ -392,7 +391,7 @@ bool RenameScene::advance_repeat(int16_t held_char, uint32_t now) {
 	// pad that types a character in the keyboard's bottom-up sweep, and every letter row sits below
 	// the backspace row -- so pressing a letter while backspace is still down reports the letter
 	// here and ends the repeat, and the letter is typed. Legacy instead swallows that press
-	// outright: its "normal keys" arm is gated on `!currentUIMode` (`qwerty_ui.cpp:265`) and
+	// outright: its "normal keys" arm is gated on `!currentUIMode` (`QwertyUI::padAction`) and
 	// `currentUIMode` is `UI_MODE_HOLDING_BACKSPACE`, so the keystroke is simply lost while the
 	// repeat carries on. Keeping the keystroke and stopping the repeat is the friendlier of the two
 	// and needs no per-pad hold reporting; reproducing the swallow would mean `text_keyboard`
@@ -406,7 +405,7 @@ bool RenameScene::advance_repeat(int16_t held_char, uint32_t now) {
 	if (static_cast<int32_t>(now - repeat_at_ms_) < 0) {
 		return false;
 	}
-	// `timerCallback` (`qwerty_ui.cpp:449-453`): one more deletion, then re-arm at the faster
+	// `QwertyUI::timerCallback`'s `UI_MODE_HOLDING_BACKSPACE` arm: one more deletion, then re-arm at the faster
 	// cadence. Re-armed from `now` rather than from `repeat_at_ms_`, so a tick that arrived late
 	// (a long render, a card access) deletes one character and not a burst catching up.
 	backspace();
@@ -439,7 +438,7 @@ Result RenameScene::handle(const UiEvent& event, const UiContext& ctx) {
 		break;
 
 	case UiEvent::Kind::Pad:
-		// `RenameUI::padAction` (`rename_ui.cpp:123-139`): a main pad goes to the keyboard --
+		// `RenameUI::padAction`: a main pad goes to the keyboard --
 		// which, in this stack, already claimed it while `render_grid` painted it, so anything
 		// arriving here is by definition outside the keyboard's columns. "Otherwise, exit."
 		if (event.on && event.x >= deluge::ui::grid::kTextKeyboardCols) {
@@ -449,9 +448,9 @@ Result RenameScene::handle(const UiEvent& event, const UiContext& ctx) {
 
 	case UiEvent::Kind::Encoder:
 		if (event.encoder == deluge::ui::EncoderRole::Horizontal) {
-			// `QwertyUI::horizontalEncoderAction` (`qwerty_ui.cpp:420-447`) with the two
+			// `QwertyUI::horizontalEncoderAction` with the two
 			// `predictExtendedText()` calls dropped: `QwertyUI::predictExtendedText` is a
-			// do-nothing `return true` for everything but `Browser` (`qwerty_ui.h:47`), so on a
+			// do-nothing `return true` for everything but `Browser` (`QwertyUI::predictExtendedText`), so on a
 			// rename the right-hand arm is exactly "already at the far right end, get out".
 			const int32_t at = edit_.cursor;
 			if ((event.delta > 0 && at >= len_) || (event.delta < 0 && at == 0) || event.delta == 0) {
@@ -469,7 +468,7 @@ Result RenameScene::handle(const UiEvent& event, const UiContext& ctx) {
 			return r;
 		}
 		if (event.encoder == deluge::ui::EncoderRole::Vertical) {
-			// `RenameUI::verticalEncoderAction` (`rename_ui.cpp:141-143`): swallowed, so a turn
+			// `RenameUI::verticalEncoderAction`: swallowed, so a turn
 			// does not scroll whatever view is showing underneath.
 			Result r;
 			r.handled = true;
@@ -477,9 +476,9 @@ Result RenameScene::handle(const UiEvent& event, const UiContext& ctx) {
 		}
 		break;
 
-	// The two MIDI kinds (F1 task 10's transport, `shell/scene.h`) are declined here for the reason
+	// The two MIDI kinds (the transport in `shell/scene.h`) are declined here for the reason
 	// every scene ported so far declines them: claiming one means answering `learnable_at(pad)`,
-	// which is the timeline scenes' work (E5/E6). Declining lets `Router::run_chain` carry the
+	// which is the timeline scenes' work. Declining lets `Router::run_chain` carry the
 	// message on to `services::MidiLearn`, which is where legacy's `view.` fallback puts it.
 	case UiEvent::Kind::MidiNoteOn:
 	case UiEvent::Kind::MidiCc:
@@ -525,7 +524,7 @@ void RenameScene::type_char(char c) {
 }
 
 void RenameScene::backspace() {
-	// `QwertyUI::processBackspace` (`qwerty_ui.cpp:408-418`), including its asymmetry: the edit
+	// `QwertyUI::processBackspace`, including its asymmetry: the edit
 	// position steps back whether or not there is any text, and the string is only truncated when
 	// there is.
 	if (edit_.cursor > 0) {
