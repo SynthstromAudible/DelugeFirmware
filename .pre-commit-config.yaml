@@ -139,7 +139,7 @@ repos:
         # scenes-no-root-ui, scenes-no-display) and without it a scenes-only commit never ran them.
         files: ^(src/deluge/|src/notify/|src/gfx/|src/ui/|src/scenes/|scripts/(check_layer_rules\.py|layer_rules_baseline\.txt))
       - id: check-citations
-        name: legacy citations resolve (warning only here; CI is strict)
+        name: legacy citations resolve (warning only; the UI trees are strict below)
         description: warn when a `foo.h:NN` citation points past EOF, into the licence header, at nothing but braces, or at a range that no longer contains the symbol written beside it
         # Warning-only over the whole tree: legacy's own comments carry citations this hook only
         # reports. The UI trees are held strictly by `check-citations-ui` below and by CI's lint job.

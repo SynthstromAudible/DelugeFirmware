@@ -26,7 +26,7 @@ NON_UI = "src/deluge/{model,playback,processing,storage,io,modulation,memory,syn
 # check that each one is a symbol this tree actually has. Every entry below was taken from an
 # `extern <T> <name>;` declaration in `src/deluge/gui/views/*.h`, `src/deluge/gui/ui/**/*.h` or
 # `src/deluge/gui/context_menu/*.h` whose type is a `UI` subclass -- i.e. from the declarations,
-# not from memory. (The third directory is F2 task 9's; see the two entries at the end.)
+# not from memory.
 #
 # `view` (`View view`, `gui/views/view.h`) is deliberately NOT here: as a whole-word pattern it
 # would match the English word in prose and any local named `view`, and its false-positive rate
@@ -48,11 +48,9 @@ ROOT_UI_GLOBALS = (
     "renameOutputUI",
     "renameDrumUI",
     "renameMidiCCUI",
-    # the browsers, savers and recorders the eleven `kPendingCustomNodes` wanted when E3 implemented
-    # the file/sample family -- listed ahead of that work so the ratchet was already in place for the
-    # exact group most likely to reach for them (`gui/ui/browser/`, `gui/ui/save/`, `gui/ui/load/`,
-    # `gui/ui/audio_recorder.h`, `gui/ui/sample_marker_editor.h`, `gui/ui/slicer.h`). It worked:
-    # E3 tasks 3-7 landed all eleven and named none of these.
+    # the browsers, savers and recorders the file/sample scenes replace (`gui/ui/browser/`,
+    # `gui/ui/save/`, `gui/ui/load/`, `gui/ui/audio_recorder.h`, `gui/ui/sample_marker_editor.h`,
+    # `gui/ui/slicer.h`) -- the group a scene is most likely to reach for.
     "sampleBrowser",
     "audioRecorder",
     "sampleMarkerEditor",
@@ -67,24 +65,13 @@ ROOT_UI_GLOBALS = (
     "saveKitRowUI",
     "loadMidiDeviceDefinitionUI",
     "saveMidiDeviceDefinitionUI",
-    # The two `gui/context_menu/` singletons `dispatchShellActions`' fourth and fifth arms open
-    # (F2 tasks 2 and 4). Added by F2 task 9, and the argument is the one this row was built on:
-    # `MenuAction::OpenSongMidiLearn` and `OpenSongMacros` exist BECAUSE the scenes layer may not
-    # name these two, and until now nothing checked that it did not. Probed rather than assumed --
-    # a `namespace probe { extern int midiLearnMode, configureSongMacros; }` plus a use, dropped
-    # into `menu/nodes/roots.cpp`, left `check_layer_rules.py` reporting **zero** regressions
-    # before this entry and reports both after it.
-    #
-    # They are `UI` subclasses like every other name here (`ContextMenu : public UI`,
-    # `gui/context_menu/context_menu.h:27`), just from a third directory -- which is why the
-    # comment above now names three rather than two. `--audit-symbols`' root for this row is
-    # `src/deluge/gui`, so both are already inside what it reads.
-    #
-    # Measured on the tree at the time of writing: zero non-comment hits in `src/scenes/**`,
-    # `src/shell/**` or `src/ui/**`, so the baseline does not move. The four hits under
-    # `src/scenes` (`menu/action.h:18`, `:19`, `:140`, `:143`, `context_menu/context_menu_scene.h`)
-    # are all whole-line `///` comments, which `is_comment_line` skips -- they are the seam's own
-    # description of what the dispatcher does, and the row is what keeps them descriptions.
+    # The two `gui/context_menu/` singletons `dispatchShellActions` opens for
+    # `MenuAction::OpenSongMidiLearn` and `OpenSongMacros`: those verbs exist BECAUSE the scenes
+    # layer may not name these two. They are `UI` subclasses like every other name here
+    # (`ContextMenu : public UI`, `gui/context_menu/context_menu.h`), from a third directory.
+    # `--audit-symbols`' root for this row is `src/deluge/gui`, so both are inside what it reads.
+    # Mentions in `src/scenes` (`menu/action.h`, `context_menu/context_menu_scene.h`) are whole-line
+    # `///` comments, which `is_comment_line` skips -- the row keeps them descriptions.
     "midiLearnMode",
     "configureSongMacros",
 )
@@ -125,7 +112,7 @@ STEM_EXPORT_PROCESS_CALLS = (
 # `gui/waveform/waveform_renderer.h:65 extern WaveformRenderer waveformRenderer` and
 # `gui/waveform/waveform_basic_navigator.h:64 extern WaveformBasicNavigator waveformBasicNavigator`.
 #
-# E3 task 4 split `gui/waveform/` in two: the *arithmetic* (peak scanning, the scroll/zoom
+# `gui/waveform/` is split in two: the *arithmetic* (peak scanning, the scroll/zoom
 # navigator) moved verbatim to `model/sample/waveform_scan.h` and
 # `model/sample/waveform_navigator.h`, where `src/scenes` may reach it, while the *drawing* stayed
 # behind in `gui/waveform/waveform_renderer.h`, which the scenes layer draws for itself through
@@ -157,8 +144,7 @@ CATALOGUE_DISPATCH_CALLS = (
 # This is `model-calls-ui`'s alternative list minus everything another row already holds the
 # scenes layer to: `display->` is `scenes-no-display`, and `getRootUI(`/`getCurrentUI(`/
 # `openUI(`/`changeRootUI(` are `scenes-no-root-ui`'s `UI_STACK_CALLS`. What was left over was
-# uncovered for the scenes layer until E4 task 14, and E4 is the plan that made it matter: the
-# three services here are the port of `View` (`gui/views/view.cpp`), which is *the* legacy
+# what this row covers for the scenes layer, and it matters because the three services here are the port of `View` (`gui/views/view.cpp`), which is *the* legacy
 # caller of all five -- `indicator_leds::setLedState`/`blinkLed`/`setKnobIndicatorLevel`/
 # `indicateAlertOnLed` for the transport and gold-knob LEDs, `uiTimerManager.setTimer` for the
 # MIDI-learn flash and the two 25 ms automation timers, `uiNeedsRendering`/`renderUIsForOled`
@@ -203,7 +189,7 @@ UI_STACK_CALLS = (
     "swapOutRootUILowLevel",
 )
 
-# The two legacy methods F3 added FOR the guest and for nothing else -- the claim seam's
+# The two legacy methods that exist FOR the guest and for nothing else -- the claim seam's
 # legacy-side half -- and the invariant that keeps them dead with the toggle off.
 #
 # `SampleBrowser::selectFileForClaim` (`gui/ui/browser/sample_browser.h:99`, defined
@@ -211,12 +197,12 @@ UI_STACK_CALLS = (
 # `claimCurrentFile` reads `currentDir` and the selected `FileItem` rather than taking a path.
 # `SoundEditor::adoptResolvedContext` (`gui/ui/sound_editor.h:220`, defined
 # `sound_editor.cpp:2152`) writes the editor context legacy's own `setup()` would have resolved --
-# which under the toggle nothing calls, and which F3 task 4 found by SIGSEGV. Eleven assignments;
+# which under the toggle nothing calls; without it the claim dereferences a null context. Eleven assignments;
 # ten cite a `setup()` line and the eleventh is argued at the write.
 #
-# Why this needs a row rather than review. Both were argued as additive and BOTH ARE DEAD WITH
-# THE TOGGLE OFF -- that is the property the whole guest rests on (spec F §2.1: with the toggle
-# off the firmware runs the exact legacy statements it ran before), and it holds for exactly one
+# Why this needs a row rather than review. Both are additive and BOTH ARE DEAD WITH THE TOGGLE
+# OFF -- the property the whole guest rests on (with the toggle off the firmware runs the exact
+# legacy statements it ran before), and it holds for exactly one
 # reason: their only caller is `shell_choice_dispatch.cpp`, which only `ShellHostUI::timerCallback`
 # reaches. A second caller anywhere under `src/deluge/**` -- inside `SampleBrowser` itself, in a
 # view, in a future save browser -- would make them live on the OFF leg silently, and nothing
@@ -245,7 +231,7 @@ CLAIM_SEAM_CALLS = (
 )
 CLAIM_SEAM_RE = r"\.(selectFileForClaim|adoptResolvedContext)\("
 
-# The legacy files F1 authorised to reach into the ported UI -- the `legacy-includes-port` and
+# The legacy files authorised to reach into the ported UI -- the `legacy-includes-port` and
 # `legacy-names-port` rows' exclusion list, one entry per argued seam. Everything else under
 # `src/deluge/**` is held to zero.
 #
@@ -253,27 +239,26 @@ CLAIM_SEAM_RE = r"\.(selectFileForClaim|adoptResolvedContext)\("
 # exempt the next `shell_`-prefixed file somebody drops into `gui/ui/`, and the whole value of
 # these two rows is that adding a legacy->port edge is a decision somebody has to write down here.
 #
-# * `deluge.cpp` -- the three boot calls (F1 task 8): `scenes::assigned_node_ids()` and the service
+# * `deluge.cpp` -- the three boot calls: `scenes::assigned_node_ids()` and the service
 #   install. `src/scenes/registry.h`'s own note is the boot author's copy of this.
-# * `gui/ui/shell_host_ui.{h,cpp}` -- the guest itself, `ShellHostUI : UI` (spec F §2.1).
+# * `gui/ui/shell_host_ui.{h,cpp}` -- the guest itself, `ShellHostUI : UI`.
 # * `gui/ui/shell_guest_surfaces.{h,cpp}` -- `GuestSurfaceSet`, the `SurfaceSet` that copies into
-#   legacy's `OLED::main` and `PadLEDs::image` (F1 task 4).
+#   legacy's `OLED::main` and `PadLEDs::image`.
 # * `gui/ui/shell_guest_services.cpp` -- where the three `scenes::services::` singletons are built
-#   and handed to `Shell::set_services` (F1 task 8). Its HEADER is deliberately NOT excluded: it
+#   and handed to `Shell::set_services`. Its HEADER is deliberately NOT excluded: it
 #   names none of this, and leaving it in scope is what keeps that true.
 # * `gui/ui/shell_action_dispatch.cpp` -- `dispatchShellActions`, the poll of
-#   `MenuScene::take_action()` that `ShellHostUI::timerCallback` runs once per tick (F2 task 1). Its
+#   `MenuScene::take_action()` that `ShellHostUI::timerCallback` runs once per tick. Its
 #   HEADER is deliberately NOT excluded, on `shell_guest_services.h`'s terms: it declares one
 #   no-arguments free function and names no port type, and leaving it in scope is what keeps that
 #   true.
 # * `gui/ui/shell_menu_entry.cpp` -- `openShellMenu`, the one door the fourteen entry points use.
 #   Its DECLARATION (`util/shell_menu_entry.h`) is likewise not excluded, and must stay includable
-#   from `model/clip/instrument_clip_minder.cpp`, which is why it names no port type (F1 task 9).
+#   from `model/clip/instrument_clip_minder.cpp`, which is why it names no port type.
 # * `gui/ui/sound_editor.cpp` -- `SoundEditor::setShortcutsVersion` mirrors flash byte 60 into
-#   `menu::set_shortcuts_version`, covering all four legacy writers in one call (F1 task 8 fix
-#   round 1). The one seam that is not part of the guest.
+#   `menu::set_shortcuts_version`, covering all four legacy writers in one call. The one seam that is not part of the guest.
 # * `gui/views/performance_view.cpp` -- `syncEditingModeMirror`, the four calls into
-#   `menu::set_performance_editing_mode` (F2 task 5). The SECOND seam that is not part of the guest,
+#   `menu::set_performance_editing_mode`. The SECOND seam that is not part of the guest,
 #   and it is `sound_editor.cpp`'s exactly: a piece of legacy state the ported menu has to display
 #   but may not read, mirrored by its writers. `PerformEditorItem` shows
 #   `performanceView.defaultEditingMode`/`editingParam` (`gui/menu_item/performance_session_view/
@@ -282,21 +267,16 @@ CLAIM_SEAM_RE = r"\.(selectFileForClaim|adoptResolvedContext)\("
 #   mirror the only shape available rather than the convenient one. Four call sites in one file,
 #   each writing nothing but the mirror; `scenes/menu/action.h` is the contract they answer to.
 # * `gui/menu_item/performance_session_view/editing_mode.h` -- the FIFTH call into
-#   `menu::set_performance_editing_mode` (F2 task 5, review round 1), and the only one outside
+#   `menu::set_performance_editing_mode`, and the only one outside
 #   `PerformanceView`. It is here because the mirror has to survive the toggle being flipped ON:
 #   `EditingMode::selectButtonPress` is legacy's own way into an editing mode, it runs with the
 #   toggle OFF, and it writes both bools. Without this call the mirror rots while the port is off
 #   and `PerformEditorItem` seeds its cursor from the rot at the next flip-on.
 #
-#   A HEADER rather than a `.cpp`. **Not the first on this list** -- `shell_host_ui.h` and
-#   `shell_guest_surfaces.h` are both headers and both predate it, and `shell_host_ui.h` reaches
-#   eighteen files under `src`/`sim`/`tests`, far wider than this. (An earlier version of this
-#   comment claimed "the first header", which was asserted rather than grepped -- exactly the shape
-#   of mistake F2 task 5 exists to correct. The recipe is one line:
-#   `grep -c '\.h",' <this list>`.) What is worth stating is the narrow fact rather than a
-#   superlative: exactly two translation units include this header (`gui/ui/menus.cpp:154` and
-#   `sim/scenes_spec/menu_actions_spec.cpp:62`, with no transitive includers), so the port include
-#   it carries is not being smuggled into the tree at large. If it ever gains a `.cpp`, the call
+#   A HEADER rather than a `.cpp`, like `shell_host_ui.h` and `shell_guest_surfaces.h`. Exactly
+#   two translation units include it (`gui/ui/menus.cpp` and `sim/scenes_spec/menu_actions_spec.cpp`,
+#   with no transitive includers), so the port include it carries is not smuggled into the tree at
+#   large. If it ever gains a `.cpp`, the call
 #   belongs there and this entry should move with it.
 LEGACY_PORT_SEAMS = (
     "src/deluge/deluge.cpp",
@@ -306,29 +286,29 @@ LEGACY_PORT_SEAMS = (
     "src/deluge/gui/ui/shell_guest_surfaces.cpp",
     "src/deluge/gui/ui/shell_guest_services.cpp",
     "src/deluge/gui/ui/shell_action_dispatch.cpp",
-    # F3 task 1: the noun half of the same seam. It names
+    # The noun half of the same seam. It names
     # `deluge::scenes::browser::browser_scene()` for exactly the reason the row above does -- the
     # scene parks a chosen file it may not load, and this is the side of the wall that gets to name
     # `soundEditor`, `AudioEngine`, `slicer`, `PadLEDs` and `instrumentClipView`. Its HEADER
     # (`shell_choice_dispatch.h`) is deliberately NOT listed: it names no `scenes/` type, taking
     # `std::string_view` where the choice's path would go, so the seam is one translation unit wide.
     "src/deluge/gui/ui/shell_choice_dispatch.cpp",
-    # This plan's task 2: the pad half of the same seam. It names `keyboardScreen`,
+    # The pad half of the same seam. It names `keyboardScreen`,
     # `instrumentClipView` and `performanceView` -- the legacy views `SoundEditor::padAction`
-    # forwards to (`gui/ui/sound_editor.cpp:1474-1517`) -- for the same reason the row above names
+    # forwards to -- for the same reason the row above names
     # `soundEditor`/`AudioEngine`/`slicer`/`PadLEDs`/`instrumentClipView`: this is the side of the
     # wall that gets to name them. Its HEADER (`shell_pad_forward.h`) is deliberately NOT listed: it
     # names no `scenes/` or `shell/` type, taking plain `int32_t` coordinates, so this seam is one
     # translation unit wide -- exactly the line `shell_choice_dispatch.h` draws above.
     #
-    # Task 3 adds the sixth arm, `automationView`, and it is the one arm that cannot be a bare
+    # The sixth arm, `automationView`, is the one arm that cannot be a bare
     # forward: `SoundEditor::isEditingAutomationViewParam` reads `SoundEditor` state no guest path
-    # writes (`gui/ui/sound_editor.cpp:1564-1590`), so the question is ported rather than called.
+    # writes, so the question is ported rather than called.
     # That port is why this `.cpp` now also names `deluge::scenes::menu_scene()`
     # (`scenes/registry.h`) and reads a focused node's `deluge::scenes::menu::ParamRef`
     # (`scenes/menu/node.h`) -- both `scenes/` names, both covered by this same entry.
     "src/deluge/gui/ui/shell_pad_forward.cpp",
-    # Step 2a (scenes bind to the model): the binding's host half. It names the scenes' binding types
+    # The binding's host half. It names the scenes' binding types
     # (`scenes/bind/*`, `scenes/menu/bind_host.h`) because it IS their implementation on this side of the wall:
     # the write sink that applies a menu's requests as Edits, and the runtime facts a menu reads (the audio
     # engine's inputs, a sound's loaded sources and typed state). Host builds only (gui/ui/shell_*). Its HEADER
@@ -345,10 +325,10 @@ LEGACY_PORT_SEAMS = (
     "src/deluge/gui/ui/sound_editor.cpp",
     "src/deluge/gui/views/performance_view.cpp",
     "src/deluge/gui/menu_item/performance_session_view/editing_mode.h",
-    # This plan's task 4: the note bridge's installer. `src/scenes` may include `model/**`
-    # (`src/scenes/CMakeLists.txt:3`), so `Note`/`NoteRow` are not what earns this file its place
+    # The note bridge's installer. `src/scenes` may include `model/**`
+    # (`src/scenes/CMakeLists.txt`), so `Note`/`NoteRow` are not what earns this file its place
     # here -- it is `gui/views/instrument_clip_view.h`, which `src/scenes` may NOT include, and the
-    # iterance preset table, `iterancePresets` (`util/lookuptables/lookuptables.cpp:508`), which
+    # iterance preset table, `iterancePresets` (`util/lookuptables/lookuptables.cpp`), which
     # `src/scenes` may not reach either (it lives in a `.cpp`, not the model header the table's
     # declaration sits in). This is the side of the wall that gets to name `instrumentClipView`
     # itself and that table, the same reason `shell_pad_forward.cpp` above gets to name
@@ -360,16 +340,15 @@ LEGACY_PORT_SEAMS = (
     # one translation unit wide -- exactly the line `shell_choice_dispatch.h` and
     # `shell_pad_forward.h` draw above.
     "src/deluge/gui/ui/shell_note_bridge.cpp",
-    # Note-family Task 7: the note modes' routing through the guest. It names
+    # The note modes' routing through the guest. It names
     # `deluge::scenes::menu_scene()` (`scenes/registry.h`) and reads its `menu_context().root`
     # (`scenes/menu/menu_scene.h`), and walks `shellHostUI`'s `deluge::ui::shell::SceneStack` for the
     # menu's identity -- the port's side of `SoundEditor::inNoteEditor()` / `inNoteRowEditor()`
-    # (`gui/ui/sound_editor.cpp:1916-1922`). And it names `instrumentClipView`, whose note handlers
-    # `SoundEditor::buttonAction`, its two encoder hooks and `exitCompletely` forward to
-    # (`:617-623`, `:1047-1052`, `:1593-1598`, `:749-756`). That is the same pair of names
+    # And it names `instrumentClipView`, whose note handlers `SoundEditor::buttonAction`, its two
+    # encoder hooks and `exitCompletely` forward to. That is the same pair of names
     # `shell_pad_forward.cpp` above is listed for, and the same side of the wall.
     #
-    # Note-family Task 7a widened what it names on both sides. Legacy side: `soundEditor`,
+    # What it names on each side. Legacy side: `soundEditor`,
     # `closePortedMenu()` (`gui/ui/shell_action_dispatch.h`) and `runtimeFeatureSettings` (the toggle's `HorizontalMenus`
     # read). Port side: the `deluge::scenes::menu::nodes::*` note and row nodes plus
     # `sequence_direction` (`scenes/menu/nodes/note.h`), and `MenuScene::focused`, `read_value_again`,
@@ -380,7 +359,7 @@ LEGACY_PORT_SEAMS = (
     # `shell_host_ui.cpp` and the host spec suite's fake reach it without the `deluge_scenes`
     # closure, and this seam too is one translation unit wide.
     "src/deluge/gui/ui/shell_note_mode.cpp",
-    # Note-family Task 8b: the notification sink's installer. It names
+    # The notification sink's installer. It names
     # `deluge::ui::shell::NotificationSink` and `deluge::ui::shell::set_notification_sink`
     # (`shell/notices.h`) to point the shell's `Notice::Kind::Notification` consumer at
     # `showNoticeNotification` / `cancelNoticeNotification` (`gui/ui/notify_drain.h`) -- the legacy
@@ -395,27 +374,21 @@ LEGACY_PORT_SEAMS = (
 
 RULES = [
     (
-        # F1's own boundary, and the one this plan CREATED rather than inherited. Until F1 task 1
-        # (`eb17d4688`) nothing linked `deluge_scenes` into the firmware or the host sim, so a
-        # `#include "scenes/..."` from a legacy translation unit compiled and then failed to
-        # resolve at link time -- the build was the enforcement. Task 1 put
-        # `libdeluge_scenes.a` into both closures (`src/bsp/rust/build.rs`,
-        # `sim/CMakeLists.txt:446`) and that enforcement is gone: any legacy file may now reach
-        # into the ported UI and link.
+        # The guest's boundary. `libdeluge_scenes.a` is in both the firmware and the host-sim link
+        # closures (`src/bsp/rust/build.rs`, `sim/CMakeLists.txt`), so the link does not stop a
+        # legacy file reaching into the ported UI: this row does.
         #
-        # The rule this replaces it with is spec F §2.1's: the ported UI enters the firmware
+        # The rule: the ported UI enters the firmware
         # through ONE guest (`ShellHostUI`), and the legacy files that may name it are the seams
         # listed in `LEGACY_PORT_SEAMS` above. Everything else under `src/deluge/**` -- 1,000-odd
         # files, `model/`, `storage/`, `playback/`, and the rest of `gui/` -- is held to zero, so
         # the second legacy->port edge is a decision somebody writes into that list.
         #
         # `ui/`, `gfx/` and `notify/` are deliberately NOT in the pattern, and the reason is that
-        # they are not F1's seams to police: `hid/display/screensaver.h` includes
-        # `ui/oled/rainfall.h` because E4 task 7 MOVED `Rainfall`/`Starfield` there,
-        # `gui/colour/rgb.h` re-exports `gfx/grid/rgb.h`, and `util/notify.h` is the notify
-        # channel's own legacy-side header. Those three are earlier plans' seams with earlier
-        # plans' owners; widening this row over them would be this row claiming more than its
-        # mechanism.
+        # they are other seams: `hid/display/screensaver.h` includes `ui/oled/rainfall.h` because
+        # `Rainfall`/`Starfield` live there, `gui/colour/rgb.h` re-exports `gfx/grid/rgb.h`, and
+        # `util/notify.h` is the notify channel's own legacy-side header. Widening this row over
+        # them would claim more than its mechanism.
         "legacy-includes-port",
         ("src/deluge/**", *LEGACY_PORT_SEAMS),
         "include",
@@ -426,19 +399,16 @@ RULES = [
         # The symbol half of `legacy-includes-port`, for exactly the reason `scenes-no-root-ui` is
         # a symbol row rather than an include row: this tree routinely names a symbol through a
         # bare declaration BECAUSE the include is forbidden (`extern uint32_t jcong;`,
-        # `src/scenes/menu/nodes/settings.cpp:78`). A legacy file that wants
+        # `src/scenes/menu/nodes/settings.cpp`). A legacy file that wants
         # `deluge::scenes::scene_registry()` and finds the include row in its way can write
         # `namespace deluge::scenes { const SceneTable& scene_registry(); }` and link, because
-        # task 1 put the archive in the closure. This row is what sees that spelling.
+        # the archive is in the closure. This row is what sees that spelling.
         #
         # Matched without a trailing `::` so that the namespace-reopening form above counts too,
         # and `\b`-anchored on `deluge::` so it cannot fire on the English words "scenes" and
         # "shell", which this tree's prose is full of. Same ratchet-not-proof caveat as every
         # symbol row here: a `using namespace` plus an unqualified type would slip past, and
         # `is_comment_line` skips only whole-line comments.
-        #
-        # Measured on the tree at the time of writing: zero hits outside `LEGACY_PORT_SEAMS`, so
-        # the baseline does not move.
         "legacy-names-port",
         ("src/deluge/**", *LEGACY_PORT_SEAMS),
         "symbol",
@@ -449,11 +419,6 @@ RULES = [
         # The third row of the same wall, and the only one that points at legacy symbols rather
         # than port ones: `CLAIM_SEAM_CALLS` above is the argument, and the scope is the whole of
         # `src/deluge/**` less the one translation unit the seam was added for.
-        #
-        # Measured on the tree at the time of writing: `grep -rn` over `src`, `sim` and `tests`
-        # finds `selectFileForClaim` and `adoptResolvedContext` at their declarations, their
-        # definitions, three prose mentions and exactly two calls, both in
-        # `gui/ui/shell_choice_dispatch.cpp` (`:117`, `:137`). So the baseline does not move.
         "legacy-calls-claim-seam",
         ("src/deluge/**", "src/deluge/gui/ui/shell_choice_dispatch.cpp"),
         "symbol",
@@ -581,25 +546,24 @@ RULES = [
         # shell must NOT reach): scenes is deliberately the first model-aware UI layer, so the
         # header that pulls in `params::Kind` and friends is expected, not a back door.
         #
-        # `io/**` joined the list in task 8 (spec E1), on the argument made for `processing/**`
-        # below: `check_layer_rules`'s own NON_UI glob counts `src/deluge/io/` as non-UI, held to
-        # the same no-`gui/`, no-`hid/` rules as `model/`. The settings root is where it became unavoidable -- `midiEngine`
+        # `io/**` is on the list on the argument made for `processing/**` below: `check_layer_rules`'s own NON_UI glob counts `src/deluge/io/` as non-UI, held to
+        # the same no-`gui/`, no-`hid/` rules as `model/`. The settings root needs it -- `midiEngine`
         # (`io/midi/midi_engine.h`), `MIDIDeviceManager` (`io/midi/midi_device_manager.h`) and
         # `MIDITranspose` (`io/midi/midi_transpose.h`) hold the state seven of the MIDI page's
         # items edit, and there is no `model/` spelling of any of them.
         #
-        # `processing/**` joined the list in task 3 (spec E1). It is not a widening of what
+        # `processing/**` is on the list. It is not a widening of what
         # "model-aware" means -- `check_layer_rules`'s own NON_UI glob above already counts
         # `src/deluge/processing/` as non-UI, held to the same no-`gui/`, no-`hid/` rules as
-        # `model/` -- it is where two of the types spec E §4's `MenuContext` is *defined* in terms
+        # `model/` -- it is where two of the types `MenuContext` is *defined* in terms
         # of happen to live: `Sound` (`processing/sound/sound.h`) and `Source`
         # (`processing/source.h`). `menu/context.cpp` cannot resolve `sound->sources[i]`,
         # `source->ranges` or `sound->voicePriority` from a forward declaration, so without this
         # the ported `SoundEditor::setup` could not be written at all.
-        # NOTE (E2 task 6 fix round 1, Minor 2): the pattern's `(?:.*/)` tail means this row only
+        # NOTE: the pattern's `(?:.*/)` tail means this row only
         # ever inspects include paths that contain a `/`. A ROOT-LEVEL header -- `definitions_cxx.hpp`,
         # `deluge.h`, `<version.h>` -- is therefore not gated here at all, whether or not it is
-        # allowed. That is deliberate rather than merely accidental now: dropping the tail would
+        # allowed. That is deliberate: dropping the tail would
         # also flag every standard-library include, and this row has no way to tell `<cstdint>`
         # from `<stdint.h>`. The authoritative list of root-level headers `src/scenes` may include
         # is the comment at the top of src/scenes/CMakeLists.txt, enforced by review.
@@ -718,10 +682,8 @@ RULES = [
         "2026-10-18-scenes-bind-to-model-design.md",
     ),
     (
-        # Spec E §3 rule 4: `currentSong` is confined to the two files that resolve a MenuContext
-        # (context.cpp, bindings.cpp) and even there only inside doc comments describing what was
-        # *not* ported -- the live code takes the Song& from MenuContext. Baseline is the counted
-        # number of currentSong uses in context.cpp after Task 3: 0 (shrink-only).
+        # No scene names `currentSong`: the live code takes the Song& from MenuContext. Baseline 0
+        # (shrink-only).
         "scenes-currentSong",
         "src/scenes/**",
         "symbol",
@@ -737,9 +699,8 @@ RULES = [
         # primitive reached through some other local (`region.pixel(...)`, say) slips past. Same
         # caveat as ui-widgets-read-input-directly -- the row catches the habit, not every spelling.
         "scenes-no-frame-primitives",
-        # `src/scenes/**`, not just `menu/**`: the rule is about the scenes layer, and E2 task 5
-        # added a second scene directory (`src/scenes/rename/`) that draws its box through
-        # `ui::oled::popup_frame` rather than `f.rect`, exactly as this row asks.
+        # `src/scenes/**`, not just `menu/**`: the rule is about the scenes layer (`rename/`, for
+        # one, draws its box through `ui::oled::popup_frame` rather than `f.rect`, as this row asks).
         "src/scenes/**",
         "symbol",
         r"\b(canvas|f)\.(pixel|hline|vline|line|rect|invert|clear|glyph)",
@@ -756,7 +717,7 @@ RULES = [
         "2026-08-26-ui-test-harness-design.md",
     ),
     (
-        # E2 task 11b's action seam, stated as a rule rather than as a convention. Five menu items
+        # The action seam, stated as a rule rather than as a convention. Five menu items
         # perform an action that legacy does by opening or reconfiguring a ROOT UI --
         # `performanceView`, `sessionView`'s macro editor, the MIDI-learn overlay. The
         # scenes layer may not do that: it files a `MenuAction` (`menu/action.h`) into
@@ -766,26 +727,21 @@ RULES = [
         # It must be a SYMBOL row, not an include row: `scenes-includes-gui` above already
         # forbids `#include "gui/ui/session_view.h"`, but this library routinely names a legacy
         # global through a bare `extern` declaration instead of its header (`extern uint32_t
-        # jcong;`, `nodes/settings.cpp:78`) precisely because the include rule forbids the
+        # jcong;`, `nodes/settings.cpp`) precisely because the include rule forbids the
         # header -- so an include row alone cannot see the call.
         #
         # `getRootUI()`/`getCurrentUI()` are listed alongside the view globals because reading
         # which root UI is current is the same coupling as calling into it: legacy's
-        # `isRelevant() == (getRootUI() == &sessionView)` predicates (`song/midi_learn.h:34-36`)
-        # are ported as `MenuContext` questions, not as root-UI reads. Task 11b's deferred
-        # session-vs-arranger split is the one place that costs something, and it is recorded in
-        # the spec's E3 carry list rather than papered over here.
+        # `isRelevant() == (getRootUI() == &sessionView)` predicates (`song/midi_learn.h`) are
+        # ported as `MenuContext` questions, not as root-UI reads.
         #
         # Same ratchet-not-proof caveat as the rows above: it sees these spellings, not every
         # possible one.
         #
         # The identifier list is `ROOT_UI_GLOBALS` / `UI_STACK_CALLS` below, and `--audit-symbols`
-        # is why: E2 task 13 shipped this row spelling the performance view
-        # `performanceSessionView`, which is the name of no symbol in this tree (the global is
-        # `performanceView`, `gui/views/performance_view.h:207 extern PerformanceView
-        # performanceView`) -- so the very global `menu/action.h`'s mirror apparatus exists to
-        # avoid touching was the one the row could not see. A ratchet listing a name that does not
-        # exist guards nothing while reading as though it does.
+        # checks every name in it is a symbol this tree declares: a ratchet listing a name that does
+        # not exist (`performanceSessionView` for `performanceView`, say) guards nothing while
+        # reading as though it does.
         "scenes-no-root-ui",
         "src/scenes/**",
         "symbol",
@@ -798,22 +754,12 @@ RULES = [
     ),
     (
         # Same rule, `src/shell/**` side -- one glob per row, as `shell-no-clock` is three rows and
-        # `scenes-no-legacy-waveform` two. Added by F1 task 12, and the argument is NOT that F1
-        # created the exposure. It did not, and that was checked before the row was written:
-        # `deluge_app` has `PUBLIC`-linked `deluge_ui_shell` since `6bf7f1dbf` (plan D's shell
-        # skeleton, `src/deluge/CMakeLists.txt:47-62`), an ancestor of F1's own base -- so a bare
-        # `extern SoundEditor soundEditor;` in `src/shell` has resolved in every binary that
-        # matters for several plans. What is true is that **nothing has ever checked it**:
-        # `scenes-no-root-ui` and `scenes-no-legacy-hid-drivers` are scoped to `src/scenes/**` and
-        # `src/ui/**` and to neither is `src/shell/**` added, while `shell-includes-outside` is an
-        # INCLUDE row that a bare `extern` walks straight past -- which is the same gap, in the same
-        # spelling, that `scenes-no-root-ui` exists for one layer up.
-        #
-        # F1 is only why it became worth closing: the shell now runs inside the shipping firmware as
-        # `ShellHostUI`'s guest, so a shell file naming `soundEditor` would be naming the very object
-        # the guest replaces, in the same image, at run time.
-        #
-        # Measured on the tree at the time of writing: zero hits, so the baseline does not move.
+        # `scenes-no-legacy-waveform` two. `deluge_app` links `deluge_ui_shell` `PUBLIC`
+        # (`src/deluge/CMakeLists.txt`), so a bare `extern SoundEditor soundEditor;` in `src/shell`
+        # resolves, and `shell-includes-outside` is an INCLUDE row that a bare `extern` walks
+        # straight past -- the same gap `scenes-no-root-ui` closes one layer up. The shell runs
+        # inside the shipping firmware as `ShellHostUI`'s guest, so a shell file naming
+        # `soundEditor` would be naming the very object the guest replaces, in the same image.
         "scenes-no-root-ui",
         "src/shell/**",
         "symbol",
@@ -826,9 +772,9 @@ RULES = [
     ),
     (
         # The notify seam's half of the same argument. `model-calls-display` above holds the
-        # model layer to this; NON_UI does not cover `src/scenes`, so until now nothing did.
-        # A scene reports to the user through `notify::` and `Action::Kind::Popup` (E2 task 5's
-        # rename-refusal path), never by reaching for the global `display`.
+        # model layer to this; NON_UI does not cover `src/scenes`, so this row does. A scene
+        # reports to the user through `notify::` and `Action::Kind::Popup` (the rename refusal,
+        # for one), never by reaching for the global `display`.
         "scenes-no-display",
         "src/scenes/**",
         "symbol",
@@ -836,11 +782,11 @@ RULES = [
         "2026-08-26-ui-notifications-design.md",
     ),
     (
-        # F2's own boundary, and the ONE arm of `dispatchShellActions` no existing row could see.
+        # The ONE arm of `dispatchShellActions` no other row can see.
         # See `STEM_EXPORT_PROCESS_CALLS` above for why: `processing/**` is on
         # `scenes-includes-outside`' allow-list, so unlike every other verb's target this one is
         # reachable from `src/scenes` through an include the rules already permit -- and the layer
-        # really does use it, for the seven stem-export toggles at `menu/nodes/roots.cpp:354-360`.
+        # really does use it, for the seven stem-export toggles in `menu/nodes/roots.cpp`.
         #
         # `src/scenes/**` only, and one glob per row as ever. `src/shell/**` is not in scope
         # because `shell-includes-outside` refuses `processing/` outright and the shell has no
@@ -850,8 +796,6 @@ RULES = [
         # call through a member function pointer slips past, and `is_comment_line` skips only
         # whole-line comments. What it catches is a scene deciding to do the export itself instead
         # of filing `MenuAction::StartStemExport` -- which is the habit the seam exists to prevent.
-        #
-        # Measured on the tree at the time of writing: zero hits, so the baseline does not move.
         "scenes-no-stem-export-process",
         "src/scenes/**",
         "symbol",
@@ -859,11 +803,10 @@ RULES = [
         "2026-08-26-ui-migration-design.md",
     ),
     (
-        # E3's async listing seam, stated as a rule. `storage::FileCatalogue` holds ONE shared
+        # The async listing seam, stated as a rule. `storage::FileCatalogue` holds ONE shared
         # `fileItems` vector and ONE single-flight claim, and the claim is what stops a scenes
-        # listing and a legacy `Browser` listing from interleaving over it (task 2 fix round 2 moved
-        # the guard off `Browser` and onto the resource so both dispatch paths claim through the
-        # same object). `browser::Listing` is the only thing in this layer that claims, so it must
+        # listing and a legacy `Browser` listing from interleaving over it (the guard is on the
+        # resource, so both dispatch paths claim through the same object). `browser::Listing` is the only thing in this layer that claims, so it must
         # be the only thing in this layer that dispatches -- a scene calling
         # `FileCatalogue::readFileItemsForFolder` for itself would refill the vector with no claim
         # held, exactly the exposure the guard exists to close.
@@ -887,7 +830,7 @@ RULES = [
         "2026-08-26-ui-scenes-menus-design.md",
     ),
     (
-        # E3 task 4's waveform split, scenes side. See `LEGACY_WAVEFORM_GLOBALS` above for why the
+        # The waveform split, scenes side. See `LEGACY_WAVEFORM_GLOBALS` above for why the
         # split exists and why this must be a symbol row.
         "scenes-no-legacy-waveform",
         "src/scenes/**",
@@ -907,7 +850,7 @@ RULES = [
         "2026-08-26-ui-toolkit-design.md",
     ),
     (
-        # E4's service boundary, stated as a rule. See `LEGACY_HID_DRIVERS` above for what the
+        # The services' boundary, stated as a rule. See `LEGACY_HID_DRIVERS` above for what the
         # five spellings are, why the other seven of `model-calls-ui`'s alternatives are not
         # repeated here, and why `PadLEDs::flashCursor` is excluded by name.
         #
@@ -921,11 +864,9 @@ RULES = [
     ),
     (
         # Same rule, `src/ui/**` side -- one glob per row, as `shell-no-clock` is three rows and
-        # `scenes-no-legacy-waveform` is two. E4 is why the toolkit half is needed: task 7 moved
-        # `Rainfall` and `Starfield` out of `hid/display/` into `src/ui/oled/`, so the toolkit now
-        # contains code whose ORIGINAL home was the same directory as `indicator_leds` and
-        # `PadLEDs`. A future edit restoring one of those calls would be restoring it to a file
-        # that used to be allowed to make it.
+        # `scenes-no-legacy-waveform` is two. The toolkit half matters because `Rainfall` and
+        # `Starfield` (`src/ui/oled/`) are ports of code from `hid/display/`, the directory
+        # `indicator_leds` and `PadLEDs` live in, where those calls were allowed.
         "scenes-no-legacy-hid-drivers",
         "src/ui/**",
         "symbol",
@@ -933,9 +874,8 @@ RULES = [
         "2026-08-26-ui-toolkit-design.md",
     ),
     (
-        # ...and the `src/shell/**` side, F1 task 12, on the argument the `scenes-no-root-ui` shell
-        # row above sets out in full: the exposure is plan D's, not F1's, and what was missing is
-        # the check. It matters more here than the root-UI half, because these five are exactly what
+        # ...and the `src/shell/**` side, on the argument the `scenes-no-root-ui` shell row above
+        # sets out. It matters more here than the root-UI half, because these five are exactly what
         # the shell's own seams replace -- `SurfaceSet::set_led`/`set_indicator` for
         # `indicator_leds::` and `PadLEDs::`, `Service::next_timer()` for `uiTimerManager.`, and the
         # `RepaintGate`s for `uiNeedsRendering`/`renderUIsForOled`. A shell file reaching for one is
@@ -943,8 +883,6 @@ RULES = [
         #
         # `src/shell/board_surfaces.cpp` is deliberately NOT excluded: it binds the sinks to
         # `libdeluge`, not to legacy's `hid/`, and it has zero hits.
-        #
-        # Measured on the tree at the time of writing: zero hits, so the baseline does not move.
         "scenes-no-legacy-hid-drivers",
         "src/shell/**",
         "symbol",
@@ -952,16 +890,14 @@ RULES = [
         "2026-08-26-ui-shell-design.md",
     ),
     (
-        # Global Constraint 5, which every plan since E2 has restated in prose and no checker has
-        # ever held anyone to: no scene raises `Action::Kind::LockInput`. It is the shell's own
+        # No scene raises `Action::Kind::LockInput`. It is the shell's own
         # word (`shell/scene.h`'s `Action` enum carries the warning), and the scenes library has
-        # six @warnings saying "must not, and does not" -- `browser/listing.h:83-87` and `:335`,
-        # `browser/browser_scene.h:59`, `marker/marker_scene.h:73`, `recorder/recorder_scene.h:144`,
-        # `overlay/count_in_scene.h:97`. Six repetitions of a claim with no mechanism behind it is
-        # the shape this plan kept finding and fixing, so it gets the mechanism.
+        # @warnings saying "must not, and does not" (`browser/listing.h`, `browser/browser_scene.h`,
+        # `marker/marker_scene.h`, `recorder/recorder_scene.h`, `overlay/count_in_scene.h`); this
+        # row is the mechanism behind them.
         #
-        # The reason it matters is in `listing.h:83-87`: a scene that takes the lock across an
-        # operation with no cancel and no timeout leaves the whole UI deaf, which E3 shipped once.
+        # The reason it matters is in `listing.h`: a scene that takes the lock across an operation
+        # with no cancel and no timeout leaves the whole UI deaf.
         # `src/shell/**` is NOT in scope -- the shell defines the enum and `Router::route` is what
         # honours it (`router.cpp`'s `case Action::Kind::LockInput`).
         "scenes-no-input-lock",
@@ -971,16 +907,16 @@ RULES = [
         "2026-08-26-ui-shell-design.md",
     ),
     (
-        # E4 task 5's residual, made into a tripwire rather than left as a docstring.
+        # A tripwire for the services' OLED timer claim.
         #
         # `Shell::tick`'s step 8b skips a SCENE whose surface is covered (`Shell::oled_paintable`),
         # so a scene's OLED claim is checked by machine. Step 8c cannot do that for a SERVICE --
         # a service has no stack index and draws nothing -- so a service claiming `oled` arms
         # EVERY OLED surface, every period, unconditionally. An OLED surface blits whenever it
         # rendered (`Shell::tick` step 5 sets `blit_pending` on any successful `render_oled`; there
-        # is no content diff, unlike the grid's `last_sent`), so the claim IS the blit rate. That
-        # branch is the one whose scene-side twin shipped a 50 Hz and then a 100 Hz two-panel blit
-        # in E3, and its only machine check is one leg of `tests/spec/shell/flush_spec.cpp`.
+        # is no content diff, unlike the grid's `last_sent`), so the claim IS the blit rate -- an
+        # unconditional claim is a 50-100 Hz two-panel blit -- and its only other machine check is
+        # one leg of `tests/spec/shell/flush_spec.cpp`.
         #
         # `Service::timer_repaints`'s doc (`src/shell/service.h`) says all of that and says "claim
         # `oled` only for a timer whose deadline really does change OLED content" -- but nothing
@@ -989,14 +925,11 @@ RULES = [
         # `--update` with the argument in the commit message and a `flush_spec` leg to match. What
         # it stops is the claim arriving as a habit.
         #
-        # SCOPE (E4 final review, I1 -- the row as first written had two holes and caught nothing
-        # it was written for). It is `src/shell/**` AND `src/scenes/services/**`, less
-        # `src/shell/scene.h`:
+        # SCOPE. It is `src/shell/**` AND `src/scenes/services/**`, less `src/shell/scene.h`:
         #
-        # * `src/scenes/services/**` alone left `shell::Notices` and `shell::Screensaver` -- two
-        #   live `Service` implementations -- outside the row entirely, and any future service the
-        #   shell owns with them. `audit_service_scope()` below now makes that hole a build
-        #   failure rather than something a reviewer has to notice.
+        # * `src/shell/**` because `shell::Notices` and `shell::Screensaver` are live `Service`
+        #   implementations too. `audit_service_scope()` below fails the build for a `Service`
+        #   declared outside this scope.
         # * `src/shell/scene.h` is excluded because it DEFINES `RepaintSurfaces` and is where
         #   `Scene::timer_repaints()`'s `{true, true}` base body lives. It declares no `Service`.
         #
@@ -1004,28 +937,19 @@ RULES = [
         # `ScreensaverScene`, and the menu's own) legitimately claim `{.oled = true}` and have
         # `oled_paintable` standing behind them.
         #
-        # REGEX. The first cut was `\.oled\s*=\s*true`, which matched only the spelling nobody was
-        # going to get wrong. What it missed was everything the type's own defaults used to arm for
-        # you -- `return {.grid = true};` and `return {};` both carried `oled == true` while
-        # `RepaintSurfaces`' members defaulted to `true`. Those two spellings are now SAFE rather
-        # than merely unmatched (the members are `false`; `shell/scene.h`'s `static_assert`s pin
-        # it), so this row does not have to catch them. What it must catch is every remaining way
-        # to arm the OLED:
+        # REGEX. `return {.grid = true};` and `return {};` are SAFE (`RepaintSurfaces`' members
+        # default to `false`; `shell/scene.h`'s `static_assert`s pin it), so this row does not
+        # have to catch them. What it must catch is every remaining way to arm the OLED:
         #
         # * `.oled = <anything not literally false>` -- the designated initializer, and the
-        #   field-by-field local (`RepaintSurfaces s; s.oled = flashing;`) the old regex also
-        #   missed. The lookahead is `(?!\s*false\b)` and not `(?!false\b)`: `\s*` before it can
+        #   field-by-field local (`RepaintSurfaces s; s.oled = flashing;`). The lookahead is `(?!\s*false\b)` and not `(?!false\b)`: `\s*` before it can
         #   backtrack to zero width, so the shorter form matches `.oled = false` and reports it.
-        #   (Found by measuring: the shorter form hit `service.h` and `midi_learn.h`, both of which
-        #   spell `false`.)
         # * a POSITIONAL brace, `{true, ...}`, whose first member is `oled` -- `return {true, ...}`
         #   in a body, `RepaintSurfaces{true, ...}` anywhere.
         #
         # What it still cannot see is a claim computed elsewhere and returned by name
         # (`return my_claim;`). That is the residual, and it is why the type change is the fix and
         # this row is the tripwire rather than the other way round.
-        #
-        # Measured on the tree at the time of writing: zero hits, so the baseline does not move.
         "services-no-oled-timer-claim",
         ("src/{shell,scenes/services}/**", "src/shell/scene.h"),
         "symbol",
@@ -1078,10 +1002,8 @@ def is_comment_line(line: str) -> bool:
     """Is this line nothing but comment text, for the purposes of a SYMBOL rule?
 
     `//` and `///` cover the line-comment spellings. ` * ` and ` */` cover a C/Doxygen block
-    comment's continuation and close, which the first cut of this skip missed: a
-    `/** ... * waveformRenderer ... */` block would have counted against the symbol rows E3 task 12
-    added (found by the E3 final review, A8; every such mention in the tree happens to use `///`
-    today, so no count moved when this was fixed).
+    comment's continuation and close, so a `/** ... * waveformRenderer ... */` block does not
+    count against a symbol row.
 
     Deliberately NOT a general comment stripper. A `/*`...`*/` state machine, or removing the
     trailing text of a `code(); // mentions waveformRenderer` line, would change what the *existing*
@@ -1095,9 +1017,8 @@ def is_comment_line(line: str) -> bool:
     if s.startswith("/*"):
         # A `/*` that closes on the same line is a comment *and*, possibly, code after it:
         # `/* why */ waveformRenderer.render(...)` mentions the symbol in a call. Only a line that
-        # leaves the comment open is certainly comment all the way to its end. (E3 final review
-        # residual 1; `*/ code()` has the same shape and is left counted, which is the safe
-        # direction -- this predicate may only ever skip *less* than it did.)
+        # leaves the comment open is certainly comment all the way to its end. (`*/ code()` has
+        # the same shape and is left counted, which is the safe direction.)
         return "*/" not in s[2:]
     return s == "*" or s.startswith(("*/", "* "))
 
@@ -1106,12 +1027,9 @@ def count_file(path: Path) -> dict[str, int]:
     """Count each rule's hits in one file.
 
     A SYMBOL rule skips two kinds of line: a comment (`is_comment_line` above) and an
-    `#include` directive. The include skip was added in E4 task 14, for a cost this plan
-    actually paid: `scenes-no-root-ui` lists `slicer` as a whole word, so the mandated path
-    `src/scenes/slicer/slicer_scene.h` tripped the row from its own `#include` lines --
-    2 violations in 2 files, `registry.cpp` and `slicer_scene.cpp`, 1 each -- and the
-    directory was renamed to `slicing/` to get around a rule that was not describing the
-    coupling it exists to forbid.
+    `#include` directive. A symbol row matches whole words, so without the include skip a path
+    such as `scenes/slicer/slicer_scene.h` would trip `scenes-no-root-ui`'s `slicer` -- a
+    directory name, not the coupling the row exists to forbid.
 
     It loses nothing, and that is checkable rather than argued. Every symbol row here is
     scoped to a directory that an INCLUDE row already gates: `scenes-no-root-ui` and
@@ -1197,8 +1115,7 @@ def audit_symbols() -> int:
     """Check every named row's alternatives are symbols this tree actually declares.
 
     A ratchet row that lists a name nothing declares reads as protection and provides none --
-    which is exactly what `performanceSessionView` was between E2 task 13 and its fix, and what a
-    mistyped `readFileItemsForFolder` would silently be here. The test is deliberately crude (does
+    as a misspelt `performanceView` or `readFileItemsForFolder` would silently be. The test is deliberately crude (does
     the identifier appear anywhere under the directory it was copied from?) because the failure it
     catches is crude: a name invented rather than copied.
     """
@@ -1222,12 +1139,10 @@ def audit_symbols() -> int:
 def audit_service_scope() -> int:
     """Check `services-no-oled-timer-claim`'s glob still covers every `Service` in the tree.
 
-    This is the second half of the E4 final review's I1, and it exists because the first half
-    alone would rot. The row was written scoped to `src/scenes/services/**` while two live
-    `Service` implementations -- `shell::Notices` and `shell::Screensaver` -- sat in `src/shell/`,
-    outside it, so the row protected three of the five services that existed and nobody noticed
-    for a whole plan. Widening the glob fixes today; this makes tomorrow's service a build failure
-    instead of a discovery.
+    Services live in both `src/scenes/services/` and `src/shell/` (`shell::Notices`,
+    `shell::Screensaver`); a glob that missed one of them would protect only some of the
+    services. This makes a service declared outside the glob a build failure instead of a
+    discovery.
 
     Deliberately crude, in the same way `audit_symbols` is: it asks whether a file that declares a
     `Service` subclass is covered by the row's scope, not whether the class is correct. A new
