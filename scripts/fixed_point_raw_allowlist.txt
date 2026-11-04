@@ -106,7 +106,7 @@ src/effects/param_fragment.h raw=0 boundary=3
 src/effects/sidechain.cpp raw=0 boundary=5
 src/synth/engines/block_controls.cpp raw=0 boundary=4
 src/synth/engines/dual_source_engine.cpp raw=3 boundary=0
-src/synth/engines/fm_engine.cpp raw=24 boundary=0
+src/synth/engines/fm_engine.cpp raw=0 boundary=49
 src/synth/engines/pitch.h raw=0 boundary=6
 src/synth/engines/ring_mod_engine.cpp raw=8 boundary=0
 src/synth/engines/slot_engine.cpp raw=0 boundary=3
