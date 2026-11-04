@@ -260,6 +260,15 @@ instructions.
   Q30, and it halves its volume into the compressor's 4.27 gains and takes an eighth of the song volume as its 3.29
   final volume (`scale_shr_floor`). The bench's chain and impulse-response references keep their raw arithmetic, written
   independently of what they check, and so does its legacy analog case, the arithmetic the kernel is compared against.
+- **Legacy synth:** the matrix's combinations are Q29 ("1" is 2^29): a cable's term is its Q31 source times its Q30
+  depth, times its Q29 range, held to [−1, 1) (so a multiply chain's 1 + term never wraps); a multiply step is held to
+  [−4, 4); an add step saturates; the depth square and its lanes' integer square stay raw. Envelopes are Q31 levels
+  over UQ23 stage positions (2^23 a stage's end), stepped in 64 bits and held at the end; LFO phases are `UQ<32>`.
+  Pitch multipliers are Q24 (2^24 unity) on `UQ<32>` increments, read as signed Q31 for the multiply (they stay under 2^31, so the bits agree); the
+  fine tuner's multiplier is Q30. The engines' filter gain is Q28 (2^28 unity), so a gain product is Q27 moved back to
+  Q31; the FM operators' NEON loops read the amplitude at Q30 and round on both paths. A source panned into the
+  voice's stereo buffer adds a Q30-pan frame (`add_panned`). What stays integer: the matrix's depth square, run-time
+  shifts (octave, sync level, play-head mode), MIDI and table scalings, block-length divisions.
 - **Buffers and frame fields** stay raw `q31` until the kernels that read them use the named operations; each
   kernel's interface stays raw and converts at its entry and exit.
 

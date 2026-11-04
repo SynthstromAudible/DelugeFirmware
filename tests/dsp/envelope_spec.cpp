@@ -78,6 +78,18 @@ describe envelope_spec("Envelope", ${
 		expect(env.is_at_attack_start()).to_equal(false); // it has advanced
 	});
 
+	it("ends an attack under way at once at a very fast rate, however the rate times the block wraps", _ {
+		// 2^28 × 16 samples is 2^32, which a 32-bit step wraps to 0, and INT32_MAX × 16 to −16: the attack must still
+		// end, as a step past the stage's end does.
+		for (const uint32_t fast : {uint32_t{1} << 28, uint32_t{0x7fffffff}}) {
+			Envelope env;
+			env.note_on(false);
+			render(env, kRate, kRate, kFull, kRate); // the attack under way
+			render(env, fast, kRate, kFull, kRate);
+			expect(env.stage() == Stage::ATTACK).to_be_falsy();
+		}
+	});
+
 	it("settles in sustain near the sustain level", _ {
 		Envelope env;
 		env.note_on(false);

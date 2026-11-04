@@ -19,7 +19,8 @@
 #include "definitions_cxx.hpp"    // OscType
 #include "dsp-next/core/phasor.h" // deluge::dsp::Phasor
 #include "dsp-next/core/ramp.h"   // deluge::dsp::Ramp
-#include "dsp-next/core/types.h"  // deluge::dsp::fixed::Buffer
+#include "dsp-next/core/stereo_sample.h"
+#include "dsp-next/core/types.h" // deluge::dsp::fixed::Buffer
 #include "dsp-next/fixed/noise/cong.h"
 #include "dsp-next/fixed/wavetable/wave_table_data.h" // deluge::dsp::fixed::WaveTableData (storage-independent view)
 #include "synth/sources/backend.h"
@@ -36,6 +37,31 @@ namespace deluge::synth {
 /// objects — the Plaits "engine" idea at the right altitude ("Engine" itself is reserved for the *coordinator*
 /// tier above). Per-source state (phase, feedback, sample position) lives *in the concrete source* (e.g. a
 /// @ref deluge::dsp::Phasor member); the app hands down only the modulated numbers, never references upward.
+
+/// @brief Adds @p value into the buffer word at @p word, wrapping.
+[[gnu::always_inline]] inline void add_into(int32_t* word, int32_t value) {
+	*word = add_wrap(dsp::Q<31>::from_raw(*word), dsp::Q<31>::from_raw(value)).raw();
+}
+
+/// @brief Adds @p frame_in into the interleaved stereo frame at @p frame, each channel wrapping.
+[[gnu::always_inline]] inline void add_frame(int32_t* frame, dsp::StereoSample frame_in) {
+	add_into(&frame[0], frame_in.l);
+	add_into(&frame[1], frame_in.r);
+}
+
+/// @brief Adds @p sample, panned by the Q30 amplitudes (2^30 unity), into the interleaved stereo frame at @p frame,
+/// wrapping.
+[[gnu::always_inline]] inline void add_panned(int32_t* frame, int32_t sample, int32_t amplitude_l,
+                                              int32_t amplitude_r) {
+	add_frame(frame, dsp::panned_mono(sample, dsp::Q<30>::from_raw(amplitude_l), dsp::Q<30>::from_raw(amplitude_r)));
+}
+
+/// @brief Adds the two channels, each by its Q30 amplitude, into the interleaved stereo frame at @p frame, wrapping.
+[[gnu::always_inline]] inline void add_panned(int32_t* frame, int32_t left, int32_t right, int32_t amplitude_l,
+                                              int32_t amplitude_r) {
+	add_frame(frame,
+	          dsp::panned_stereo(left, right, dsp::Q<30>::from_raw(amplitude_l), dsp::Q<30>::from_raw(amplitude_r)));
+}
 
 /// An oscillator's retrigger phase when it runs free: its phase carries on from note to note.
 inline constexpr uint32_t kNoRetrigger = 0xFFFFFFFF;

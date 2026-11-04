@@ -16,7 +16,7 @@
  */
 
 #include "synth/modulation/envelope.h"
-#include "dsp-next/core/q31_ops.h"                            // multiply_32x32_rshift32, add_saturate
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/fixed/interpolation/table_interpolation.h" // get_decay4/8, kLinearTableInterpolator
 #include "dsp-next/fixed/osc/sine_table.h"                    // kSineTable (sine-shaped fast-release)
 #include "dsp-next/fixed/tables/decay_small.h"
@@ -34,9 +34,27 @@ constexpr int32_t kFullScale = 2147483647; ///< q31 max — a fully-open envelop
 constexpr int32_t kHalfScale = 1073741824; ///< 2^30 — the mid level (the output's zero-centre / the sine DC offset).
 constexpr int32_t kOff = std::numeric_limits<int32_t>::min(); ///< The centred output of a silent (level-0) envelope.
 
-/// Map an uncentred level (0..kFullScale) to the centred output range (about 0).
+using deluge::dsp::Q;
+
+/// Map an uncentred Q31 level (0..kFullScale) to the centred output range (about 0): less a half, doubled.
 constexpr int32_t centred(int32_t level) {
-	return (level - kHalfScale) << 1;
+	return scale_shl_wrap<1>(sub_wrap(Q<31>::from_raw(level), Q<31>::from_raw(kHalfScale))).raw();
+}
+
+/// A stage's position, UQ23 of the stage (kStageEnd is its end), moved on by @p rate for @p num_samples: the integer
+/// step in 64 bits, as a patched attack's rate times a block can pass 2^32, and held at the stage's end, as no stage
+/// reads its position once it has ended.
+constexpr uint32_t advanced(uint32_t position, uint32_t rate, uint32_t num_samples) {
+	const uint64_t moved = uint64_t{position} + (uint64_t{rate} * num_samples);
+	return static_cast<uint32_t>(std::min<uint64_t>(moved, kStageEnd));
+}
+
+/// The smoothed sustain moved toward @p sustain_level: an integer step of 1/512 of the distance per sample, the Q31
+/// sum saturating.
+constexpr int32_t smoothed(int32_t smoothed_sustain, uint32_t sustain_level, uint32_t num_samples) {
+	const int32_t step =
+	    static_cast<int32_t>(num_samples) * ((static_cast<int32_t>(sustain_level) - smoothed_sustain) >> 9);
+	return add_sat(Q<31>::from_raw(smoothed_sustain), Q<31>::from_raw(step)).raw();
 }
 } // namespace
 
@@ -79,7 +97,7 @@ int32_t Envelope::render(uint32_t num_samples, uint32_t attack_rate, uint32_t de
 
 Envelope::StepOutcome Envelope::step_attack(uint32_t attack_rate, uint32_t num_samples) {
 	// Increment the position *before* taking a value, so a high rate can skip the attack entirely.
-	stage_position_ += attack_rate * num_samples;
+	stage_position_ = advanced(stage_position_, attack_rate, num_samples);
 	if (stage_position_ >= kStageEnd) {
 		stage_position_ = 0;
 		set_state(Stage::DECAY);
@@ -96,13 +114,13 @@ Envelope::StepOutcome Envelope::step_decay(uint32_t decay_rate, uint32_t sustain
 	// rendered before the other params (including their own sustain) are calculated. Doing it properly
 	// would mean patch+smooth expression→envelope, then render the envelope, then everything else —
 	// too involved for now, and this is close enough since we'd usually need to smooth it anyway.
-	smoothed_sustain_ =
-	    add_saturate(smoothed_sustain_, static_cast<int32_t>(num_samples)
-	                                        * ((static_cast<int32_t>(sustain_level) - smoothed_sustain_) >> 9));
-	current_level_ = smoothed_sustain_
-	                 + multiply_32x32_rshift32(get_decay8(stage_position_, 23), kFullScale - smoothed_sustain_) * 2;
+	smoothed_sustain_ = smoothed(smoothed_sustain_, sustain_level, num_samples);
+	// The sustain plus the Q31 decay curve's share of what lies above it: within full scale
+	const auto above = mul_as_wrap<Q<31>>(Q<31>::from_raw(get_decay8(stage_position_, 23)),
+	                                      Q<31>::from_raw(kFullScale - smoothed_sustain_));
+	current_level_ = add_wrap(Q<31>::from_raw(smoothed_sustain_), above).raw();
 
-	stage_position_ += decay_rate * num_samples;
+	stage_position_ = advanced(stage_position_, decay_rate, num_samples);
 
 	if (stage_position_ >= kStageEnd) {
 		set_state(Stage::SUSTAIN);
@@ -111,9 +129,7 @@ Envelope::StepOutcome Envelope::step_decay(uint32_t decay_rate, uint32_t sustain
 }
 
 Envelope::StepOutcome Envelope::step_sustain(uint32_t sustain_level, uint32_t num_samples) {
-	smoothed_sustain_ =
-	    add_saturate(smoothed_sustain_, static_cast<int32_t>(num_samples)
-	                                        * ((static_cast<int32_t>(sustain_level) - smoothed_sustain_) >> 9));
+	smoothed_sustain_ = smoothed(smoothed_sustain_, sustain_level, num_samples);
 	current_level_ = smoothed_sustain_;
 	// A zero sustain means there's nothing to hold — we may as well be off already.
 	if (sustain_level == 0) {
@@ -127,15 +143,17 @@ Envelope::StepOutcome Envelope::step_sustain(uint32_t sustain_level, uint32_t nu
 
 Envelope::StepOutcome Envelope::step_release(uint32_t release_rate, uint32_t num_samples,
                                              const uint16_t* release_table) {
-	stage_position_ += release_rate * num_samples;
+	stage_position_ = advanced(stage_position_, release_rate, num_samples);
 	if (stage_position_ >= kStageEnd) {
 		set_state(Stage::OFF);
 		current_level_ = 0;
 		return StepOutcome::EMIT_OFF;
 	}
-	current_level_ = multiply_32x32_rshift32(kLinearTableInterpolator.interpolate(stage_position_, 23, release_table),
-	                                         level_at_stage_entry_)
-	                 << 1;
+	// The release table's Q31 curve times the level the release started from
+	current_level_ =
+	    mul_as_wrap<Q<31>>(Q<31>::from_raw(kLinearTableInterpolator.interpolate(stage_position_, 23, release_table)),
+	                       Q<31>::from_raw(level_at_stage_entry_))
+	        .raw();
 	return StepOutcome::EMIT_LEVEL;
 }
 
@@ -144,17 +162,17 @@ Envelope::StepOutcome Envelope::step_fast_release(uint32_t release_rate, uint32_
 		release_rate = 2 * release_rate;
 		fast_release_rate_ = release_rate;
 	}
-	stage_position_ += fast_release_rate_ * num_samples;
+	stage_position_ = advanced(stage_position_, fast_release_rate_, num_samples);
 	if (stage_position_ >= kStageEnd) {
 		set_state(Stage::OFF);
 		return StepOutcome::EMIT_OFF;
 	}
 	// A sine-shaped release: less high-frequency content than a linear ramp, and sounds a touch better
 	// on deep bass samples.
-	current_level_ =
-	    multiply_32x32_rshift32((kSineTable.value(stage_position_ + (kStageEnd >> 1), 24) >> 1) + kHalfScale,
-	                            level_at_stage_entry_)
-	    << 1;
+	// The Q31 sine from its peak, made unipolar (halved, plus a half), times the level the release started from
+	const Q<31> sine = Q<31>::from_raw(kSineTable.value(stage_position_ + (kStageEnd >> 1), 24));
+	const Q<31> shape = add_wrap(halve_floor(sine), Q<31>::from_raw(kHalfScale));
+	current_level_ = mul_as_wrap<Q<31>>(shape, Q<31>::from_raw(level_at_stage_entry_)).raw();
 	return StepOutcome::EMIT_LEVEL;
 }
 

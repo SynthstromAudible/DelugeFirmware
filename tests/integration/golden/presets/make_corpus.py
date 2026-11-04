@@ -796,6 +796,29 @@ RINGMOD_SYNC = {
 }
 case("voice/ringmod_sync", **RINGMOD_SYNC)
 stereo_case("ringmod_sync_unison", **RINGMOD_SYNC)
+# Ring-mod of two supersaws, whose level is shifted up the most: unfiltered, and through a 24 dB ladder at the
+# resonance knob's middle and at its top, where the filters' gain compensation lifts the level to full scale.
+RINGMOD_SUPERSAWS = {
+    "sound": {"mode": "ringmod", "lpfMode": "24dB"},
+    "osc1": {"type": "supersaw"},
+    "osc2": {"type": "supersaw", "transpose": "7"},
+}
+case(
+    "voice/ringmod_supersaws",
+    sound={"mode": "ringmod", "lpfMode": "Off", "hpfMode": "Off"},
+    osc1=RINGMOD_SUPERSAWS["osc1"],
+    osc2=RINGMOD_SUPERSAWS["osc2"],
+)
+case(
+    "voice/ringmod_supersaws_resonance_middle",
+    params={"lpfFrequency": "0x40000000", "lpfResonance": "0x00000000"},
+    **RINGMOD_SUPERSAWS,
+)
+case(
+    "voice/ringmod_supersaws_resonance_top",
+    params={"lpfFrequency": "0x40000000", "lpfResonance": "0x7FFFFFFF"},
+    **RINGMOD_SUPERSAWS,
+)
 # A DX7 patch in osc 2, beside a silent osc 1.
 case(
     "voice/dx7_osc_b",

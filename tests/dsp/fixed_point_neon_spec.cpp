@@ -32,6 +32,7 @@ static_assert(std::is_same_v<decltype(mul_doubling_sat(QVec<31>{}, QVec<30>{})),
 static_assert(std::is_same_v<decltype(mul_doubling_sat(QVec<31>{}, Q<29>{})), QVec<29>>);
 static_assert(std::is_same_v<decltype(mul_doubling_sat(Q16Vec<15>{}, Q16<15>{})), Q16Vec<15>>);
 static_assert(std::is_same_v<decltype(mul_doubling_r_sat(QVec<31>{}, QVec<31>{})), QVec<31>>);
+static_assert(std::is_same_v<decltype(mul_doubling_r_sat(QVec<31>{}, Q<30>{})), QVec<30>>);
 static_assert(std::is_same_v<decltype(as_floor<QVec<30>>(QVec<31>{})), QVec<30>>);
 static_assert(std::is_same_v<decltype(reinterpret_bits<QVec<31>>(UQVec<32>{})), QVec<31>>);
 static_assert(std::is_same_v<decltype(sum_wrap(QVec<30>{})), Q<30>>);
@@ -130,6 +131,8 @@ std::size_t arithmetic_mismatches() {
 	                    [](auto a, auto, auto c) { return mul_doubling_sat(q<31>(a), q<29>(c)).raw(); });
 	bad += mismatches32([](auto a, auto b, auto) { return out(mul_doubling_r_sat(vec<31>(a), vec<31>(b))); },
 	                    [](auto a, auto b, auto) { return mul_doubling_r_sat(q<31>(a), q<31>(b)).raw(); });
+	bad += mismatches32([](auto a, auto, auto c) { return out(mul_doubling_r_sat(vec<31>(a), q<30>(c))); },
+	                    [](auto a, auto, auto c) { return mul_doubling_r_sat(q<31>(a), q<30>(c)).raw(); });
 	bad += mismatches32([](auto a, auto, auto) { return out(scale_shl_wrap<3>(vec<31>(a))); },
 	                    [](auto a, auto, auto) { return scale_shl_wrap<3>(q<31>(a)).raw(); });
 	bad += mismatches32([](auto a, auto, auto) { return out(scale_shr_floor<3>(vec<31>(a))); },
@@ -335,6 +338,7 @@ describe fixed_point_neon("fixed_point NEON vectors", ${
 		const auto min = QVec<31>::splat(Q<31>::min());
 		expect(mul_doubling_sat(min, min).lane(0).raw()).to_equal(INT32_MAX);
 		expect(mul_doubling_r_sat(min, min).lane(3).raw()).to_equal(INT32_MAX);
+		expect(mul_doubling_r_sat(min, Q<31>::min()).lane(1).raw()).to_equal(INT32_MAX);
 		expect(mul_doubling_sat(min, Q<31>::min()).lane(2).raw()).to_equal(INT32_MAX);
 		expect(mul_doubling_sat_lane<0>(min, min).lane(1).raw()).to_equal(INT32_MAX);
 		expect(mul_doubling_sat_lane<3>(min, min).lane(0).raw()).to_equal(INT32_MAX);

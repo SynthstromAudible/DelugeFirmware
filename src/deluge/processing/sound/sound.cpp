@@ -2499,7 +2499,7 @@ void Sound::set_cents(int8_t new_cents) {
 
 // Setup master transpose
 void Sound::recalculateFineTuner() {
-	snapshot_.fine_tuner.setup((int32_t)snapshot_.cents * 42949672);
+	snapshot_.fine_tuner.setup_cents(snapshot_.cents);
 }
 
 // Unusually, modelStack may be supplied as NULL, because when unassigning all voices e.g. on song swap, we won't have
@@ -2622,7 +2622,7 @@ void Sound::setModulatorCents(int32_t m, int32_t value, ModelStackWithSoundFlags
 
 // Can handle NULL modelStack, which you'd only want to do if no Voices active
 void Sound::recalculateModulatorTransposer(uint8_t m, ModelStackWithSoundFlags* modelStack) {
-	snapshot_.modulator_transposers[m].setup((int32_t)snapshot_.modulator_cents[m] * 42949672);
+	snapshot_.modulator_transposers[m].setup_cents(snapshot_.modulator_cents[m]);
 	recalculateAllVoicePhaseIncrements(modelStack); // Can handle NULL
 }
 
@@ -2901,7 +2901,7 @@ void Sound::projectSnapshot() {
 	snapshot_.modulator1_to_modulator0 = state_->modulator1_to_modulator0;
 	for (int32_t i = 0; i < kNumModulators; i++) {
 		snapshot_.modulator_cents[i] = state_->modulator_cents[i];
-		snapshot_.modulator_transposers[i].setup((int32_t)snapshot_.modulator_cents[i] * 42949672);
+		snapshot_.modulator_transposers[i].setup_cents(snapshot_.modulator_cents[i]);
 		snapshot_.modulator_transpose[i] = state_->modulator_transpose[i];
 		snapshot_.modulator_retrigger_phase[i] = state_->modulator_retrigger_phase[i];
 	}

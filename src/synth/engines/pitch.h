@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "definitions_cxx.hpp"     // kMaxSampleValue
-#include "dsp-next/core/q31_ops.h" // multiply_32x32_rshift32_rounded
+#include "definitions_cxx.hpp" // kMaxSampleValue
+#include "dsp-next/core/fixed_point.h"
 #include <cstdint>
 
 namespace deluge::synth {
@@ -27,11 +27,15 @@ namespace deluge::synth {
 /// @return false when the result is too high to render (above 22.05 kHz); @p phase_increment is then not valid.
 [[nodiscard]] inline bool adjust_pitch(uint32_t& phase_increment, int32_t adjustment) {
 	if (adjustment != kMaxSampleValue) {
-		const int32_t output = multiply_32x32_rshift32_rounded(static_cast<int32_t>(phase_increment), adjustment);
-		if (output >= (1 << 23)) {
+		using dsp::Q;
+		// The increment's word read as signed Q31 (base increments stay under 2^31) times the Q24 adjustment, rounded:
+		// Q23, too high at 1.0 and above, else moved back to Q31 and its word read as the increment again
+		const Q<23> output =
+		    mul_r(dsp::reinterpret_bits<Q<31>>(dsp::UQ<32>::from_raw(phase_increment)), Q<24>::from_raw(adjustment));
+		if (output.raw() >= (1 << 23)) {
 			return false;
 		}
-		phase_increment = static_cast<uint32_t>(output) << 8;
+		phase_increment = dsp::reinterpret_bits<dsp::UQ<32>>(as_wrap<Q<31>>(output)).raw();
 	}
 	return true;
 }

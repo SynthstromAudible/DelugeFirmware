@@ -16,12 +16,13 @@
  */
 
 #include "synth/engines/dual_source_engine.h"
-#include "dsp-next/core/q31_ops.h" // multiply_32x32_rshift32, lshift_and_saturate
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/fixed/vca/pan.h"
 #include "synth/engines/block_controls.h"
 #include "synth/engines/pitch.h"
 #include "synth/sources/interpolation_buffer_size.h"
 #include <algorithm>
+#include <cassert>
 #include <cstring>
 #include <optional>
 #include <utility>
@@ -34,18 +35,24 @@ bool DualSourceEngine::render_noise(const EngineBlock& block, int32_t channels) 
 	// Rendered once for every unison part rather than for each: more unison parts turn the oscillators down
 	if (c.noise_volume != 0) [[unlikely]] {
 		// >>1 rather than >>2: noise was too loud with a filter on in V2.0.x, and is kept as loud since
-		int32_t n = c.noise_volume >> 1;
+		using dsp::Q;
+		Q<31> n = halve_floor(Q<31>::from_raw(c.noise_volume));
 		if (block.cfg->has_filters) {
-			n = multiply_32x32_rshift32(n, c.filter_gain) << 4;
+			// Times the filters' Q28 gain (2^28 unity), Q27, back at Q31. It cannot wrap: the noise volume is at most
+			// 2147385344 and the gain at most 322500000 (a 12 or 24 dB ladder at full resonance, one unison part), so
+			// the Q27 product peaks at 80621309, 0.60 of the 2^27 its move would wrap at.
+			const Q<27> product = mul(n, Q<28>::from_raw(c.filter_gain));
+			assert(product.raw() < (1 << 27) && product.raw() >= -(1 << 27));
+			n = as_wrap<Q<31>>(product);
 		}
 
 		// The same limit as the oscillators'
-		const int32_t noise_amplitude = std::min(n, static_cast<int32_t>(268435455)) >> 2;
+		const Q<31> noise_amplitude = scale_shr_floor<2>(clamp_high(n, Q<31>::from_raw(268435455)));
 
 		int32_t const* const noise_end = osc_buffer + (block.num_samples * channels);
 		int32_t* __restrict__ this_sample = osc_buffer;
 		do {
-			*this_sample = multiply_32x32_rshift32(static_cast<int32_t>(block.noise->next()), noise_amplitude);
+			*this_sample = mul(Q<31>::from_raw(static_cast<int32_t>(block.noise->next())), noise_amplitude).raw();
 			this_sample++;
 		} while (this_sample != noise_end);
 		return true;
@@ -184,7 +191,7 @@ SourceRenderResult DualSourceEngine::render_part(const EngineBlock& block, int32
 	const uint32_t osc_retrigger_phase = cfg.osc_retrigger_phase[s]; // needed even without osc sync
 	const uint32_t sync_pos_this_unison = do_osc_sync ? sync_pos[u] : 0;
 	const uint32_t sync_increment_this_unison = do_osc_sync ? sync_increments[u] : 0;
-	const auto pulse_width = static_cast<uint32_t>(lshift_and_saturate<1>(c.phase_width[s]));
+	const uint32_t pulse_width = pulse_width_from(c.phase_width[s]);
 
 	std::optional<SyncMaster> sync;
 	if (do_osc_sync) {

@@ -48,6 +48,11 @@ public:
 	/// next block starts from. The unison parts render in ascending frequency, so one too high to render ends the rest.
 	EngineRenderResult render(const EngineBlock& block) override;
 
+	/// @brief The level the two sources' product is scaled by: 2^27, times the filters' Q28 gain (2^28 unity) when
+	/// there are filters, then doubled for a saw source and quadrupled for a wavetable or supersaw one, as those waves
+	/// render smaller.
+	[[nodiscard]] static int32_t level(bool has_filters, int32_t filter_gain, OscType source0, OscType source1);
+
 private:
 	/// Renders each unison part; stops at the first too high to render.
 	static void render_parts(const EngineBlock& block, const std::array<uint32_t, kMaxNumVoicesUnison>& sync_pos,

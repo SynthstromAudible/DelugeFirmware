@@ -15,8 +15,8 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #include "synth/sources/wavetable/wavetable_source.h"
-#include "dsp-next/core/q31_ops.h" // multiply_32x32_rshift32_rounded
 #include "dsp-next/fixed/vca/amplitude.h"
+#include "synth/sources/va/va_shapes.h" // multiply_pulse_rewrite
 
 namespace deluge::synth {
 
@@ -38,25 +38,12 @@ void WavetableSource::render_block(const BlockControls& controls, deluge::dsp::f
 
 	if (do_pulse_wave) {
 		do_osc_sync = true;
-		const uint32_t pulse_width_absolute =
-		    (static_cast<int32_t>(controls.pulse_width) >= 0) ? controls.pulse_width : -controls.pulse_width;
 		resetter_phase = orig_phase;
 		resetter_inc = orig_inc;
-
-		auto resetter_phase_to_multiply = static_cast<int32_t>(resetter_phase >> 1);
-		if (resetter_phase >= -(resetter_inc >> 1)) {
-			// Count the last little bit of the cycle as actually a negative-number bit of the next one: half a cycle
-			// subtracted in unsigned arithmetic, the int32 wrapping two's-complement.
-			resetter_phase_to_multiply =
-			    static_cast<int32_t>(static_cast<uint32_t>(resetter_phase_to_multiply) - (uint32_t{1} << 31));
-		}
-
-		const auto half_width = static_cast<q31_t>((pulse_width_absolute >> 1) + 1073741824);
-		render_phase =
-		    (static_cast<uint32_t>(multiply_32x32_rshift32_rounded(half_width, resetter_phase_to_multiply)) << 3)
-		    + controls.retrigger_phase;
-		render_inc =
-		    static_cast<uint32_t>(multiply_32x32_rshift32_rounded(half_width, static_cast<q31_t>(orig_inc >> 1))) << 3;
+		const va_shape::PulseRewrite rewrite =
+		    va_shape::multiply_pulse_rewrite(controls.pulse_width, resetter_phase, resetter_inc);
+		render_phase = rewrite.phase + controls.retrigger_phase;
+		render_inc = rewrite.increment;
 	}
 
 	const int32_t wave_index = wave_index_last_ + 1073741824;

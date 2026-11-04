@@ -61,4 +61,9 @@ public:
 	[[gnu::always_inline]] constexpr void set_increment(UQ<32> increment) { increment_ = increment; }
 };
 
+/// @brief @p phase moved on by @p increment for a block of @p num_samples: the integer block step, wrapping.
+[[nodiscard, gnu::always_inline]] constexpr UQ<32> advanced(UQ<32> phase, UQ<32> increment, uint32_t num_samples) {
+	return add_wrap(phase, UQ<32>::from_raw(increment.raw() * num_samples));
+}
+
 } // namespace deluge::dsp
