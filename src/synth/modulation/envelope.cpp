@@ -35,17 +35,18 @@ constexpr int32_t kHalfScale = 1073741824; ///< 2^30 — the mid level (the outp
 constexpr int32_t kOff = std::numeric_limits<int32_t>::min(); ///< The centred output of a silent (level-0) envelope.
 
 using deluge::dsp::Q;
-using deluge::dsp::UQ;
 
 /// Map an uncentred Q31 level (0..kFullScale) to the centred output range (about 0): less a half, doubled.
 constexpr int32_t centred(int32_t level) {
 	return scale_shl_wrap<1>(sub_wrap(Q<31>::from_raw(level), Q<31>::from_raw(kHalfScale))).raw();
 }
 
-/// A stage's position, UQ23 of the stage (kStageEnd is its end), moved on by @p rate for @p num_samples: an integer
-/// product, wrapping.
+/// A stage's position, UQ23 of the stage (kStageEnd is its end), moved on by @p rate for @p num_samples: the integer
+/// step in 64 bits, as a patched attack's rate times a block can pass 2^32, and held at the stage's end, as no stage
+/// reads its position once it has ended.
 constexpr uint32_t advanced(uint32_t position, uint32_t rate, uint32_t num_samples) {
-	return add_wrap(UQ<23>::from_raw(position), UQ<23>::from_raw(rate * num_samples)).raw();
+	const uint64_t moved = uint64_t{position} + (uint64_t{rate} * num_samples);
+	return static_cast<uint32_t>(std::min<uint64_t>(moved, kStageEnd));
 }
 
 /// The smoothed sustain moved toward @p sustain_level: an integer step of 1/512 of the distance per sample, the Q31
