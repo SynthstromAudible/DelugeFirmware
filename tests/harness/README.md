@@ -37,10 +37,11 @@ deluge-sdk's headless format, one step per line: `<at_ms> <command> <args…>`; 
   (`parse_script(string_view) -> FixedVector<Step, 256>`; `Step{at_ms, kind, args}`),
   shared by levels 1-2 and compiled into the host BSP for level 3.
 - Unknown commands are errors, not warnings.
-- `midi <hex bytes>` (e.g. `2000 midi 90 3c 64`) sends USB-MIDI to the Deluge on the probe rig
-  (`tools/device_parity.py`, through `amidi` on the probe host). Only the rig runs it: scripts with
-  it live under `tests/ui-scripts/device/` and run with `--record-only`; `ui_script.cpp` does not
-  parse it.
+- MIDI steps, channels 1..16: `note CH NOTE VEL`, `noteoff CH NOTE`, `cc CH NUMBER VALUE`, `pc CH PROGRAM`,
+  `bend CH VALUE` (14 bits, 8192 centred), and `midi <hex bytes>` for any other message (e.g.
+  `2000 midi 90 3c 64`). `tools/emu_parity.py` sends them to delugemu's DIN MIDI input; on the probe rig
+  (`tools/device_parity.py`) they go to the Deluge's USB-MIDI through `amidi` on the probe host.
+  `ui_script.cpp` does not parse them.
 - Level-3 scripts also run on the real Deluge on the probe rig, through a `rig-harness` image and
   `tools/device_parity.py`, compared with delugemu (`docs/dev/device_benchmarking.md`).
 

@@ -13,3 +13,6 @@ same presses walk the legacy menus.
 detents each move the sound menu's list one row on both images, ShellMenu on and off. `sm10-patched-blink` covers the
 patched-param and patching-source blinks; its snapshots have 1 s windows because a source patched to a param flashes
 once every 800 ms, and a shorter window decides by phase alone whether it sees the flash.
+
+`sm13-midi-selftest` checks the emulator's DIN MIDI input the same way: a note and then a CC learned to RECORD each
+toggle its LED, once per message, on both images.

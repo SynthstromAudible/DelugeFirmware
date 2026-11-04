@@ -16,8 +16,8 @@ halted for the copy, and QSPI is never written) and delugemu starts from it, so 
 does not show as a UI difference. Panel state the device cannot report the same way as delugemu: the pads
 during a PIC scroll animation (the PIC moves them itself; tools/rig_session.py records when it scrolled).
 
-`midi <hex bytes>` script steps go to the Deluge's USB-MIDI through `amidi` on the probe host (--midi-port);
-delugemu has no USB-MIDI input, so scripts with them run with --record-only.
+MIDI script steps (`note`, `cc`, `midi <hex bytes>`, ...) go to the Deluge's USB-MIDI through `amidi` on the probe
+host (--midi-port), and to delugemu's DIN MIDI input.
 
 Exit codes: 0 every snapshot matched (or, with --record-only, every script ran); 1 a snapshot differed or a run failed; 3 the rig failed; 4 usage.
 """

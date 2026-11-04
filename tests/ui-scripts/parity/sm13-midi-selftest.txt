@@ -1,0 +1,28 @@
+# DIN MIDI into the emulator: the song view's learn takes the RECORD command from a note and then from a CC, and
+# each learned message toggles RECORD. RECORD's LED is the check that the message arrived, and arrived once. The boot
+# preset's name scrolls, so each snapshot's window is a whole scroll cycle (8 s).
+100    snapshot boot
+8100   button Learn down
+8140   button Record down
+8400   note 1 60 100
+8500   noteoff 1 60
+8700   button Record up
+8740   button Learn up
+9000   snapshot note_learned
+17000  note 1 60 100
+17100  noteoff 1 60
+17400  snapshot note_toggled_on
+25400  note 1 60 100
+25500  noteoff 1 60
+25800  snapshot note_toggled_off
+33800  button Learn down
+33840  button Record down
+34100  cc 1 20 127
+34200  cc 1 20 0
+34400  button Record up
+34440  button Learn up
+34700  snapshot cc_learned
+42700  cc 1 20 127
+42800  cc 1 20 0
+43100  snapshot cc_toggled_on
+51100  quit

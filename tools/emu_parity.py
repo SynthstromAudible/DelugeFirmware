@@ -29,8 +29,10 @@ import json
 import os
 import re
 import shutil
+import socket
 import subprocess
 import sys
+import time
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
@@ -188,6 +190,96 @@ def load(dz, at: int, name: str, buttons) -> int:
     return t + 20 * MS
 
 
+# Script steps that send MIDI, and their DIN status byte; channels are 1..16.
+MIDI_STATUS = {"note": 0x90, "noteoff": 0x80, "cc": 0xB0, "pc": 0xC0, "bend": 0xE0}
+
+
+def midi_bytes(cmd: str, args: list[str]) -> bytes:
+    """The message a MIDI step sends: `midi HEX...` as written, `note CH NOTE VEL`, `noteoff CH NOTE`,
+    `cc CH NUMBER VALUE`, `pc CH PROGRAM`, `bend CH VALUE14` (0..16383, 8192 centred)."""
+    if cmd == "midi":
+        return bytes.fromhex("".join(args))
+    channel, *values = (int(a) for a in args)
+    if not 1 <= channel <= 16:
+        raise ValueError(f"`{cmd}`: channel {channel} is not 1..16")
+    if cmd == "noteoff":
+        values = [*values, 0]
+    elif cmd == "bend":
+        values = [values[0] & 0x7F, values[0] >> 7]
+    return bytes([MIDI_STATUS[cmd] | (channel - 1), *values])
+
+
+def free_udp_port() -> int:
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+        s.bind(("127.0.0.1", 0))
+        return s.getsockname()[1]
+
+
+def launch_emulator(
+    elf: Path,
+    sd: Path,
+    sock: str,
+    extra: list[str],
+    out: Path,
+    env: dict,
+    audio: str,
+    midi: str,
+):
+    """delugemu's `DelugeSession.launch`, with SCIF0 (DIN MIDI) on the chardev `midi`: `launch` has no option for it,
+    and run.sh's `--midi` puts it on the first serial port, where the firmware's DIN UART is."""
+    from delugemu import DelugeSession
+    from delugemu.qmp import QmpClient
+    from delugemu.session import find_repo_root
+
+    root = find_repo_root()
+    Path(sock).unlink(missing_ok=True)
+    log = out / "run.log"
+    cmd = [
+        os.path.join(root, "scripts", "run.sh"),
+        str(elf),
+        "--sd",
+        str(sd),
+        "--display",
+        "none",
+        "--audio",
+        audio,
+        "--midi",
+        midi,
+        "--",
+        "-qmp",
+        f"unix:{sock},server,nowait",
+        "-d",
+        "int",
+        "-D",
+        str(out / "int.log"),
+        *extra,
+    ]
+    with open(log, "w") as log_fh:  # the emulator keeps its own copy of the descriptor
+        proc = subprocess.Popen(
+            cmd,
+            cwd=root,
+            stdout=log_fh,
+            stderr=subprocess.STDOUT,
+            stdin=subprocess.DEVNULL,
+            start_new_session=True,
+            env=env,
+        )
+    deadline = time.monotonic() + 90
+    while not os.path.exists(sock):
+        if proc.poll() is not None or time.monotonic() > deadline:
+            proc.kill()
+            raise RuntimeError(f"run.sh did not start; see {log}")
+        time.sleep(0.1)
+    return DelugeSession(
+        QmpClient(sock, connect_timeout=15.0),
+        proc=proc,
+        int_log=str(out / "int.log"),
+        repo_root=root,
+        artifacts_dir=str(out),
+        run_log=str(log),
+    )
+
+
 def run_image(
     elf: Path,
     sd: Path,
@@ -229,23 +321,32 @@ def run_image(
     if audio_wav:
         env["DELUGEMU_SSIF_DUMP"] = str(out / "raw.s32")
 
-    def emulator(out: Path):
-        from delugemu import DelugeSession
+    # DIN MIDI: the emulator listens on `din_port` and sends what the image transmits to `din`, which nothing reads.
+    din = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    din.bind(("127.0.0.1", 0))
+    din_port = free_udp_port()
 
-        return DelugeSession.launch(
-            firmware=str(elf),
-            sd=str(sd),
-            boot_wait=0.0,
-            sock=sock,
-            extra_qemu=tuple(extra),
-            artifacts_dir=str(out),
-            int_log=str(out / "int.log"),
-            env=env,
+    def emulator(out: Path):
+        return launch_emulator(
+            elf,
+            sd,
+            sock,
+            extra,
+            out,
+            env,
             # Nothing through the host's speakers: silence, or a WAV written on the virtual clock.
-            audio=f"wav,path={out / 'audio.wav'}" if audio_wav else "none",
+            f"wav,path={out / 'audio.wav'}" if audio_wav else "none",
+            f"udp:127.0.0.1:{din.getsockname()[1]}@127.0.0.1:{din_port}",
         )
 
-    with (session or emulator)(out) as dz:
+    def send_midi(dz, message: bytes):
+        # The rig device takes MIDI over USB (tools/rig_session.py); the emulator over DIN.
+        if hasattr(dz, "midi"):
+            dz.midi(message.hex(" "))
+        else:
+            din.sendto(message, ("127.0.0.1", din_port))
+
+    with din, (session or emulator)(out) as dz:
         run_until = dz.run_until
         reached = 0
 
@@ -276,13 +377,8 @@ def run_image(
                 dz.button(x, y, args[1] == "down")
             elif cmd == "pad":
                 dz.pad_event(int(args[0]), int(args[1]), args[2] == "down")
-            elif cmd == "midi":
-                # USB-MIDI into the Deluge: only the rig device (tools/rig_session.py) takes it.
-                if not hasattr(dz, "midi"):
-                    raise NotImplementedError(
-                        f"{script.name}: `midi` runs on the device only"
-                    )
-                dz.midi(" ".join(args))
+            elif cmd == "midi" or cmd in MIDI_STATUS:
+                send_midi(dz, midi_bytes(cmd, args))
             elif cmd == "encoder":
                 dz.encoder(ENCODER_ROLES.index(args[0]), int(args[1]))
             elif cmd == "load":

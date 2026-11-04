@@ -87,6 +87,47 @@ class SessionSeam(unittest.TestCase):
         self.assertEqual(presses[1][4] - presses[0][4], 20_000_000)
         self.assertEqual(list(snaps)[:3], ["boot", "song", "song-again"])
 
+    def test_midi_steps_go_to_a_session_that_takes_midi(self):
+        fake = FakeSession()
+        sent = []
+        fake.midi = sent.append
+        script = "100 note 2 60 100\n200 cc 16 74 64\n300 snapshot after\n400 quit\n"
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "midi.txt"
+            path.write_text(script)
+            emu_parity.run_image(
+                None,
+                None,
+                None,
+                path,
+                Path(tmp) / "out",
+                emu_parity.button_table(),
+                session=lambda _out: contextlib.nullcontext(fake),
+            )
+        self.assertEqual(sent, ["91 3c 64", "bf 4a 40"])
+
+
+class MidiSteps(unittest.TestCase):
+    def test_each_step_is_its_channel_message(self):
+        cases = {
+            ("note", "1 60 100"): "90 3c 64",
+            ("noteoff", "16 60"): "8f 3c 00",
+            ("cc", "3 74 127"): "b2 4a 7f",
+            ("pc", "10 5"): "c9 05",
+            ("bend", "1 8192"): "e0 00 40",
+            ("bend", "1 16383"): "e0 7f 7f",
+            ("midi", "f8"): "f8",
+        }
+        for (cmd, args), want in cases.items():
+            self.assertEqual(
+                emu_parity.midi_bytes(cmd, args.split()).hex(" "), want, cmd
+            )
+
+    def test_a_channel_outside_1_to_16_is_an_error(self):
+        for channel in ("0", "17"):
+            with self.assertRaises(ValueError):
+                emu_parity.midi_bytes("note", [channel, "60", "100"])
+
 
 if __name__ == "__main__":
     unittest.main()
