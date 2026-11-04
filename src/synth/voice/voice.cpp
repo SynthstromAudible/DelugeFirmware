@@ -582,8 +582,9 @@ Voice::VoicePan Voice::voice_pan(const VoiceConfig& cfg, bool applying_pan_at_vo
 		return {};
 	}
 	const int32_t pan = params_.param_final_values[params::LOCAL_PAN];
-	const deluge::dsp::fixed::PanAmplitudes amplitudes = deluge::dsp::fixed::pan_amplitudes(pan);
-	return {.do_panning = pan != 0, .amplitude_l = amplitudes.left, .amplitude_r = amplitudes.right};
+	const deluge::dsp::fixed::PanAmplitudes amplitudes =
+	    deluge::dsp::fixed::pan_amplitudes(deluge::dsp::Q<31>::from_raw(pan));
+	return {.do_panning = pan != 0, .amplitude_l = amplitudes.left.raw(), .amplitude_r = amplitudes.right.raw()};
 }
 
 template <bool kClipping>

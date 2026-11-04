@@ -266,11 +266,14 @@ public:
 		}
 
 		if (params.pan != 0 && params.stereo) {
-			const deluge::dsp::fixed::PanAmplitudes pan = deluge::dsp::fixed::pan_amplitudes(params.pan);
-			gain_l = multiply_32x32_rshift32(gain_l, pan.left) << 2;
-			gain_r = multiply_32x32_rshift32(gain_r, pan.right) << 2;
-			step_l = multiply_32x32_rshift32(step_l, pan.left) << 2;
-			step_r = multiply_32x32_rshift32(step_r, pan.right) << 2;
+			const deluge::dsp::fixed::PanAmplitudes pan =
+			    deluge::dsp::fixed::pan_amplitudes(deluge::dsp::Q<31>::from_raw(params.pan));
+			const int32_t pan_l = pan.left.raw();
+			const int32_t pan_r = pan.right.raw();
+			gain_l = multiply_32x32_rshift32(gain_l, pan_l) << 2;
+			gain_r = multiply_32x32_rshift32(gain_r, pan_r) << 2;
+			step_l = multiply_32x32_rshift32(step_l, pan_l) << 2;
+			step_r = multiply_32x32_rshift32(step_r, pan_r) << 2;
 		}
 
 		auto reverb_out = reverb.begin();

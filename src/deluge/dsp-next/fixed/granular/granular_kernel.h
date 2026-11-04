@@ -430,9 +430,9 @@ private:
 			if (g.length > 0) {
 				g.vol_scale = 2147483647 / (g.length >> 1);
 				g.vol_scale_max = g.vol_scale * (g.length >> 1);
-				const PanAmplitudes pan = pan_amplitudes((random255(noise) - 128) << 23);
-				g.pan_l = pan.left;
-				g.pan_r = pan.right;
+				const PanAmplitudes pan = pan_amplitudes(Q<31>::from_raw((random255(noise) - 128) << 23));
+				g.pan_l = pan.left.raw();
+				g.pan_r = pan.right.raw();
 			}
 			return;
 		}

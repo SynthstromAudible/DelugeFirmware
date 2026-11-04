@@ -464,9 +464,9 @@ private:
 					grains[i].volScale = (2147483647 / (grains[i].length >> 1));
 					grains[i].volScaleMax = grains[i].volScale * (grains[i].length >> 1);
 					const deluge::dsp::fixed::PanAmplitudes pan =
-					    deluge::dsp::fixed::pan_amplitudes((getRandom255() - 128) << 23); // Pan Law 0
-					grains[i].panVolL = pan.left;
-					grains[i].panVolR = pan.right;
+					    deluge::dsp::fixed::pan_amplitudes(deluge::dsp::Q<31>::from_raw((getRandom255() - 128) << 23));
+					grains[i].panVolL = pan.left.raw();
+					grains[i].panVolR = pan.right.raw();
 				}
 				break;
 			}

@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #include "synth/sources/va/va_shapes.h"
+#include "dsp-next/core/buffer_view.h"
 #include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/ramp.h"
 #include "dsp-next/fixed/bandlimited/analog_saw.h"
@@ -159,7 +160,8 @@ Resolved resolve_multiply(Phasor original, const BlockControls& controls, uint32
 /// arms render the wave into `scratch`, then mix it into `output`'s prior contents (the normal voice path).
 void mix_through_vca(Ramp amplitude, fixed::Buffer output, fixed::Buffer scratch) {
 	fixed::Amplitude vca{amplitude};
-	vca.render_block(fixed::Signal{scratch}, fixed::Signal{output}, output);
+	vca.render_block(dsp::typed_view(fixed::Signal{scratch}), dsp::typed_view(fixed::Signal{output}),
+	                 dsp::typed_view(output));
 }
 
 /// Render `osc`'s raw wave, then either scale-and-mix it through its VCA (when amplitude applies) or write the
@@ -170,7 +172,8 @@ void render_through_vca(Osc& osc, MakeVca make_vca, Standalone scale, bool apply
 	if (apply_amplitude) {
 		osc.render_block(scratch);
 		auto vca = make_vca();
-		vca.render_block(fixed::Signal{scratch}, fixed::Signal{output}, output);
+		vca.render_block(dsp::typed_view(fixed::Signal{scratch}), dsp::typed_view(fixed::Signal{output}),
+		                 dsp::typed_view(output));
 	}
 	else {
 		osc.render_block(output);

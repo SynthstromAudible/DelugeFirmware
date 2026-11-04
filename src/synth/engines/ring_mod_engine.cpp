@@ -68,9 +68,9 @@ void RingModEngine::render_parts(const EngineBlock& block, const std::array<uint
 	for (int32_t u = 0; u < cfg.num_unison; u++) {
 
 		const deluge::dsp::fixed::PanAmplitudes unison_pan_amplitudes =
-		    deluge::dsp::fixed::pan_amplitudes(stereo_unison ? cfg.unison_pan[u] : 0);
-		int32_t unison_amplitude_l = unison_pan_amplitudes.left;
-		int32_t unison_amplitude_r = unison_pan_amplitudes.right;
+		    deluge::dsp::fixed::pan_amplitudes(deluge::dsp::Q<31>::from_raw(stereo_unison ? cfg.unison_pan[u] : 0));
+		int32_t unison_amplitude_l = unison_pan_amplitudes.left.raw();
+		int32_t unison_amplitude_r = unison_pan_amplitudes.right.raw();
 
 		// The two sources' phase increments. One too high abandons every remaining unison part: the parts ascend in
 		// frequency, so the rest are too high as well.

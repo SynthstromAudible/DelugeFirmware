@@ -367,8 +367,8 @@ renderEnvelope:
 		std::memcpy(input.data() + before_wrap, ring_start, (input.size() - before_wrap) * sizeof(StereoSample));
 
 		deluge::dsp::Mono<TrackMonitor> monitor{{
-		    .amplitude_start = amplitude_start,
-		    .amplitude_end = amplitude_end,
+		    .amplitude_start = deluge::dsp::Q<30>::from_raw(amplitude_start),
+		    .amplitude_end = deluge::dsp::Q<30>::from_raw(amplitude_end),
 		    .mode = mode,
 		}};
 		monitor.render_block(output, input, output);

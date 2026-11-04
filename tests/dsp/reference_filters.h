@@ -258,7 +258,10 @@ public:
 	/// channel's sample in an interleaved stereo block steps it).
 	void blend(std::span<q31> block, FadeScratch scratch) {
 		for (std::size_t i = 0; i < block.size(); i++) {
-			block[i] = deluge::dsp::fixed::dry_wet_blend(scratch[i], block[i], wet_);
+			block[i] = deluge::dsp::fixed::dry_wet_blend(deluge::dsp::Q<31>::from_raw(scratch[i]),
+			                                             deluge::dsp::Q<31>::from_raw(block[i]),
+			                                             deluge::dsp::Q<31>::from_raw(wet_))
+			               .raw();
 			step();
 		}
 	}

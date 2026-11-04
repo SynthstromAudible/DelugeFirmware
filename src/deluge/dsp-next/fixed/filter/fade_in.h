@@ -90,7 +90,7 @@ struct FadeIn {
 	/// @param wet The filtered sample, Q31.
 	/// @return dry_wet_blend(dry, wet, level) at the level before the step, Q31.
 	[[nodiscard]] [[gnu::always_inline]] static Q<31> blend_step(State& s, Q<31> dry, Q<31> wet) {
-		const auto out = Q<31>::from_raw(dry_wet_blend(dry.raw(), wet.raw(), s.wet.raw()));
+		const Q<31> out = dry_wet_blend(dry, wet, s.wet);
 		s.dry = static_cast<float>(static_cast<double>(s.dry) * kDecay);
 		// Raw: the level's float ramp, converted by the same cast the target makes
 		s.wet = Q<31>::from_raw(static_cast<int32_t>(static_cast<float>(kOneQ31) * (1.0F - s.dry)));

@@ -301,6 +301,12 @@ requires std::is_same_v<To, QVec<To::lane_type::kFractionalBits>>
 [[gnu::always_inline, nodiscard]] inline To reinterpret_bits(UQVec<F> x) noexcept {
 	return To::from_raw(vreinterpretq_s32_u32(x.raw()));
 }
+/// @brief The same bits read in another format: QVec<F> → QVec<T> (no instruction), as the scalar reinterpret_bits.
+template <class To, int F>
+requires std::is_same_v<To, QVec<To::lane_type::kFractionalBits>>
+[[gnu::always_inline, nodiscard]] inline To reinterpret_bits(QVec<F> x) noexcept {
+	return To::from_raw(x.raw());
+}
 
 /// @brief A 16-bit value per lane in the top half of 32 bits: Q16Half<F> → QVec<F+16>; exact (`vshll.i16 #16`, the
 /// full-width form).

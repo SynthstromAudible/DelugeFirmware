@@ -35,6 +35,7 @@ static_assert(std::is_same_v<decltype(mul_doubling_r_sat(QVec<31>{}, QVec<31>{})
 static_assert(std::is_same_v<decltype(mul_doubling_r_sat(QVec<31>{}, Q<30>{})), QVec<30>>);
 static_assert(std::is_same_v<decltype(as_floor<QVec<30>>(QVec<31>{})), QVec<30>>);
 static_assert(std::is_same_v<decltype(reinterpret_bits<QVec<31>>(UQVec<32>{})), QVec<31>>);
+static_assert(std::is_same_v<decltype(reinterpret_bits<QVec<30>>(QVec<31>{})), QVec<30>>);
 static_assert(std::is_same_v<decltype(sum_wrap(QVec<30>{})), Q<30>>);
 static_assert(std::is_same_v<decltype(add_scale_shr_floor<4>(QVec<31>{}, QVec<31>{})), QVec<31>>);
 static_assert(std::is_same_v<decltype(mul_doubling_sat_lane<1>(QVec<31>{}, QVec<29>{})), QVec<29>>);

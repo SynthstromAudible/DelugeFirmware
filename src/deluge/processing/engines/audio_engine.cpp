@@ -1552,9 +1552,10 @@ void renderReverb(size_t numSamples) {
 		// Reverb panning
 		bool thisDoPanning = false;
 		if (renderInStereo) {
-			const deluge::dsp::fixed::PanAmplitudes amplitudes = deluge::dsp::fixed::pan_amplitudes(reverbPan);
-			reverbAmplitudeL = amplitudes.left;
-			reverbAmplitudeR = amplitudes.right;
+			const deluge::dsp::fixed::PanAmplitudes amplitudes =
+			    deluge::dsp::fixed::pan_amplitudes(deluge::dsp::Q<31>::from_raw(reverbPan));
+			reverbAmplitudeL = amplitudes.left.raw();
+			reverbAmplitudeR = amplitudes.right.raw();
 			thisDoPanning = reverbPan != 0;
 		}
 

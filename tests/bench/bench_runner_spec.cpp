@@ -1373,7 +1373,7 @@ describe bench_runner("The DSP benchmark runner", ${
 			CaseSet& set = case_set();
 			for (const std::size_t n : kSizes) {
 				set.dry_wet_blend.setup(n);
-				expect(set.dry_wet_blend.component().coefficients().level).to_equal(q31{1 << 30});
+				expect(set.dry_wet_blend.component().coefficients().level.raw()).to_equal(q31{1 << 30});
 				expect(set.dry_wet_blend.component().coefficients().mode).to_equal(dsp::fixed::DryWetBlend::Mode::BLEND);
 				render(set.dry_wet_blend, n, 2);
 				for (std::size_t i = 0; i < n; ++i) {

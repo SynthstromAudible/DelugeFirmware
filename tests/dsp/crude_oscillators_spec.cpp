@@ -19,6 +19,7 @@
 // VCA, run on x86 (SIMDe) and ARM/QEMU via CTest. Bit-exact equivalence with the legacy crude
 // loops on real presets is the golden harness's job; here we pin the per-sample kernels.
 
+#include "dsp-next/core/buffer_view.h"
 #include "dsp-next/core/phasor.h"
 #include "dsp-next/core/q31_ops.h"            // multiply_accumulate_32x32_rshift32_rounded
 #include "dsp-next/fixed/bandlimited/waves.h" // square, triangle_half_scale
@@ -32,6 +33,8 @@
 
 namespace {
 using deluge::dsp::Phasor;
+using deluge::dsp::Q;
+using deluge::dsp::typed_view;
 using deluge::dsp::UQ;
 using deluge::dsp::fixed::CrudeAmplitude;
 using deluge::dsp::fixed::CrudeSaw;
@@ -117,8 +120,8 @@ describe crude_oscillators("deluge::dsp::fixed crude oscillators", ${
 			std::array<int32_t, 4> out{};
 			constexpr int32_t kAmp = 0x20000000;
 			constexpr int32_t kInc = 0x00100000;
-			CrudeAmplitude vca{kAmp, kInc};
-			vca.render_block(Signal{raw}, Signal{mix}, Buffer{out});
+			CrudeAmplitude vca{Q<31>::from_raw(kAmp), Q<31>::from_raw(kInc)};
+			vca.render_block(typed_view(Signal{raw}), typed_view(Signal{mix}), typed_view(Buffer{out}));
 			for (int i = 0; i < 4; ++i) {
 				// Pre-increment: sample i uses amplitude kAmp + (i+1) * kInc.
 				int32_t expected = multiply_accumulate_32x32_rshift32_rounded(mix[i], raw[i], kAmp + (i + 1) * kInc);
@@ -141,7 +144,8 @@ describe crude_oscillators("deluge::dsp::fixed crude oscillators", ${
 				const int32_t increment = block % 4 == 0 ? 0 : static_cast<int32_t>(xorshift(x)) >> (7 + (block % 17));
 				std::array<int32_t, 64> live{};
 				std::array<int32_t, 64> ref{};
-				CrudeAmplitude{amplitude, increment}.render_block(Signal{raw}, Signal{mix}, Buffer{live});
+				CrudeAmplitude{Q<31>::from_raw(amplitude), Q<31>::from_raw(increment)}.render_block(
+				    typed_view(Signal{raw}), typed_view(Signal{mix}), typed_view(Buffer{live}));
 				reference_crude_amplitude(amplitude, increment, Signal{raw}, Signal{mix}, Buffer{ref});
 				bad += live != ref ? 1 : 0;
 			}

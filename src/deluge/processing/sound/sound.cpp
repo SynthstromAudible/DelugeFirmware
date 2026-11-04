@@ -2057,9 +2057,10 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		int32_t amplitudeL, amplitudeR;
 		bool doPanning = false;
 		if (AudioEngine::renderInStereo) {
-			const deluge::dsp::fixed::PanAmplitudes amplitudes = deluge::dsp::fixed::pan_amplitudes(pan);
-			amplitudeL = amplitudes.left;
-			amplitudeR = amplitudes.right;
+			const deluge::dsp::fixed::PanAmplitudes amplitudes =
+			    deluge::dsp::fixed::pan_amplitudes(deluge::dsp::Q<31>::from_raw(pan));
+			amplitudeL = amplitudes.left.raw();
+			amplitudeR = amplitudes.right.raw();
 			doPanning = pan != 0;
 		}
 

@@ -667,7 +667,7 @@ private:
 class DryWetBlendCase {
 public:
 	/// @brief The wet level, Q31: a half.
-	static constexpr q31 kLevel = 1 << 30;
+	static constexpr dsp::Q<31> kLevel = dsp::Q<31>::from_raw(1 << 30);
 
 	/// @brief Configures the level, fills the inputs and takes the blocks' spans for @p n.
 	/// @param n Block size to set up for, in samples (frames for the stereo and lanes cases).

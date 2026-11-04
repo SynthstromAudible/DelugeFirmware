@@ -116,7 +116,7 @@ describe input_monitor_spec("the input folds monitoring adds to the output", ${
 					reference::track_monitor(channel, std::span{a}.subspan(at, n), &ring[read].l, ring_end,
 					                         static_cast<int32_t>(kRingFrames), from, to);
 					const std::vector<StereoSample> input = ring_read(ring, read, n);
-					k.configure({.amplitude_start = from, .amplitude_end = to, .mode = mode});
+					k.configure({.amplitude_start = Q<30>::from_raw(from), .amplitude_end = Q<30>::from_raw(to), .mode = mode});
 					k.render_block(std::span{b}.subspan(at, n), input, std::span{b}.subspan(at, n));
 					read = (read + n) % kRingFrames;
 					at += n;
@@ -129,7 +129,9 @@ describe input_monitor_spec("the input folds monitoring adds to the output", ${
 		Mono<TrackMonitor> k;
 		std::vector<StereoSample> input{{.l = 0x12345677, .r = -0x12345677}, {.l = INT32_MAX, .r = INT32_MIN}};
 		std::vector<StereoSample> out(input.size(), StereoSample{.l = 0, .r = 0});
-		k.configure({.amplitude_start = 1 << 30, .amplitude_end = 1 << 30, .mode = TrackMonitor::Mode::STEREO});
+		k.configure({.amplitude_start = Q<30>::from_raw(1 << 30),
+		             .amplitude_end = Q<30>::from_raw(1 << 30),
+		             .mode = TrackMonitor::Mode::STEREO});
 		k.render_block(out, input, out);
 		for (std::size_t i = 0; i < input.size(); ++i) {
 			expect(out[i].l).to_equal(input[i].l & ~3);

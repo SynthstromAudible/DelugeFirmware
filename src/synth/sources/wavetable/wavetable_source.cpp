@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #include "synth/sources/wavetable/wavetable_source.h"
+#include "dsp-next/core/buffer_view.h"
 #include "dsp-next/fixed/vca/amplitude.h"
 #include "synth/sources/va/va_shapes.h" // multiply_pulse_rewrite
 
@@ -74,7 +75,8 @@ void WavetableSource::render_block(const BlockControls& controls, deluge::dsp::f
 	if (controls.apply_amplitude) {
 		// The wavetable's amplitude is pre-shifted <<3 (as the legacy renderOsc did); out = scratch*amp + out.
 		deluge::dsp::fixed::Amplitude vca{scale_shl_wrap<3>(controls.amplitude)};
-		vca.render_block(deluge::dsp::fixed::Signal{scratch}, deluge::dsp::fixed::Signal{output}, output);
+		vca.render_block(deluge::dsp::typed_view(deluge::dsp::fixed::Signal{scratch}),
+		                 deluge::dsp::typed_view(deluge::dsp::fixed::Signal{output}), deluge::dsp::typed_view(output));
 	}
 
 	// Phase persistence — the legacy maybeStorePhase rule, now internal: a pulse keeps the original-domain advance

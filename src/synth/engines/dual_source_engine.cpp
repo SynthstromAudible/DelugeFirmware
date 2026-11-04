@@ -165,12 +165,12 @@ bool DualSourceEngine::render_source(const EngineBlock& block, int32_t s, bool s
 
 		const bool stereo_unison = (cfg.unison_stereo_spread != 0u) && cfg.num_unison > 1 && stereo_buffer;
 		const dsp::fixed::PanAmplitudes unison_pan_amplitudes =
-		    dsp::fixed::pan_amplitudes(stereo_unison ? cfg.unison_pan[u] : 0);
+		    dsp::fixed::pan_amplitudes(dsp::Q<31>::from_raw(stereo_unison ? cfg.unison_pan[u] : 0));
 
 		const SourceRenderResult result =
 		    render_part(block, u, s, stereo_buffer, source_amplitude, amplitude_increment, phase_increment, do_osc_sync,
-		                sync_pos, sync_increments, wave_index_increment, stereo_unison, unison_pan_amplitudes.left,
-		                unison_pan_amplitudes.right);
+		                sync_pos, sync_increments, wave_index_increment, stereo_unison,
+		                unison_pan_amplitudes.left.raw(), unison_pan_amplitudes.right.raw());
 		if (result == SourceRenderResult::UNASSIGN) {
 			unison_part_became_inactive = true;
 			slot.unassign(false);

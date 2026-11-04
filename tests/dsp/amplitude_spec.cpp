@@ -22,6 +22,7 @@
 // "blocks that are not a lane multiple" cases here, whose values were recorded from the legacy
 // function (which rounds the block up to whole vectors) at -m32 and -m64.
 
+#include "dsp-next/core/buffer_view.h"
 #include "dsp-next/fixed/vca/amplitude.h"
 #include <arm_neon.h>
 #include <array>
@@ -51,6 +52,9 @@ public:
 } // namespace reference
 
 namespace {
+using deluge::dsp::Q;
+using deluge::dsp::QVec;
+using deluge::dsp::typed_view;
 using deluge::dsp::fixed::Amplitude;
 
 std::uint32_t xorshift(std::uint32_t& s) {
@@ -69,7 +73,7 @@ std::size_t reference_mismatches() {
 	for (int k = 0; k < (1 << 12); ++k) {
 		const auto amplitude = static_cast<int32_t>(xorshift(s)) >> 1;
 		const int32_t increment = k % 4 == 0 ? 0 : static_cast<int32_t>(xorshift(s)) >> 7;
-		Amplitude vca{amplitude, increment};
+		Amplitude vca{Q<31>::from_raw(amplitude), Q<31>::from_raw(increment)};
 		reference::Amplitude expected{amplitude, increment};
 		for (int block = 0; block < 4; ++block) {
 			std::array<int32_t, 4> raw{};
@@ -81,7 +85,10 @@ std::size_t reference_mismatches() {
 			if (k < 16) {
 				raw.fill(k % 2 == 0 ? INT32_MIN : INT32_MAX);
 			}
-			const auto got = vca.render(Argon<int32_t>::Load(raw.data()), Argon<int32_t>::Load(mix.data())).to_array();
+			const auto got = vca.render(QVec<31>::from_raw(Argon<int32_t>::Load(raw.data())),
+			                            QVec<31>::from_raw(Argon<int32_t>::Load(mix.data())))
+			                     .raw()
+			                     .to_array();
 			const auto want =
 			    expected.render(Argon<int32_t>::Load(raw.data()), Argon<int32_t>::Load(mix.data())).to_array();
 			for (std::size_t i = 0; i < 4; ++i) {
@@ -94,8 +101,8 @@ std::size_t reference_mismatches() {
 
 // Apply a fresh VCA to one broadcast 4-lane vector: out = (raw * amp) + mix.
 int32x4_t applyOnce(int32_t amplitude, int32_t increment, int32_t raw, int32_t mix) {
-	Amplitude vca{amplitude, increment};
-	return vca.render(Argon<int32_t>{raw}, Argon<int32_t>{mix});
+	Amplitude vca{Q<31>::from_raw(amplitude), Q<31>::from_raw(increment)};
+	return vca.render(QVec<31>::from_raw(Argon<int32_t>{raw}), QVec<31>::from_raw(Argon<int32_t>{mix})).raw();
 }
 
 constexpr std::array<int32_t, 7> kRaw{0x7FFFFFFF, -0x40000000, 0x12345678, -0x7FFFFFFF,
@@ -106,8 +113,8 @@ constexpr std::array<int32_t, 7> kMix{0x01000000,  -0x02000000, 0x00ABCDEF, 0x10
 // A fresh VCA over the first n samples, mixed in place into the mix (as the voice calls it).
 std::vector<int32_t> mixBlock(int32_t amplitude, int32_t increment, std::size_t n) {
 	std::vector<int32_t> out(kMix.begin(), kMix.begin() + static_cast<std::ptrdiff_t>(n));
-	Amplitude vca{amplitude, increment};
-	vca.render_block(std::span{kRaw}.first(n), out, out);
+	Amplitude vca{Q<31>::from_raw(amplitude), Q<31>::from_raw(increment)};
+	vca.render_block(typed_view(std::span{kRaw}.first(n)), typed_view(std::span{out}), typed_view(std::span{out}));
 	return out;
 }
 } // namespace

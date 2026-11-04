@@ -46,21 +46,21 @@ class CrudeAmplitude {
 	Q<31> increment_;
 
 public:
-	using value_type = q31; ///< q31 wave and mix samples.
+	using value_type = Q<31>; ///< Wave and mix samples.
 
 	/// @param amplitude starting amplitude; the 32x32 MAC scales raw by `amplitude / 2^32`
 	/// @param increment per-sample amplitude step, in the same units
-	CrudeAmplitude(int32_t amplitude, int32_t increment)
-	    : amplitude_{Q<31>::from_raw(amplitude)}, increment_{Q<31>::from_raw(increment)} {}
+	CrudeAmplitude(Q<31> amplitude, Q<31> increment) : amplitude_{amplitude}, increment_{increment} {}
 
 	/// Build from an amplitude @ref deluge::dsp::Ramp (its value + per-sample increment).
 	explicit CrudeAmplitude(Ramp ramp) : amplitude_{ramp.value()}, increment_{ramp.increment()} {}
 
 	/// out = raw * amplitude + mix (raw == @p input_a, mix == @p input_b), scalar rounded MAC.
-	void render_block(Signal input_a, Signal input_b, Buffer output) {
+	void render_block(dsp::Signal<Q<31>> input_a, dsp::Signal<Q<31>> input_b, dsp::Buffer<Q<31>> output) {
 		for (std::size_t i = 0; i < output.size(); ++i) {
 			amplitude_ = add_wrap(amplitude_, increment_);
-			output[i] = mla_r(Q<30>::from_raw(input_b[i]), Q<31>::from_raw(input_a[i]), amplitude_).raw();
+			// The mix block holds Q30 words, the sum's format
+			output[i] = reinterpret_bits<Q<31>>(mla_r(reinterpret_bits<Q<30>>(input_b[i]), input_a[i], amplitude_));
 		}
 	}
 };

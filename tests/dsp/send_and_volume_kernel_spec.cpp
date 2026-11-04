@@ -152,8 +152,12 @@ describe send_and_volume_kernel_spec("the send and the post-FX and post-reverb v
 
 	it("ends one block's change past the target when ramping (the named quirk)", _ {
 		Mono<Kernel> k;
-		k.on<&Kernel::start_from>(q31{0});
-		k.configure({.post_fx_volume = 1 << 27, .post_reverb_volume = 1 << 27, .pan = 0, .ramp = true, .stereo = true});
+		k.on<&Kernel::start_from>(Kernel::Volume{});
+		k.configure({.post_fx_volume = Kernel::Volume::from_raw(1 << 27),
+		             .post_reverb_volume = Kernel::Volume::from_raw(1 << 27),
+		             .pan = deluge::dsp::Q<31>{},
+		             .ramp = true,
+		             .stereo = true});
 		std::vector<StereoSample> ones(4, StereoSample{.l = 1 << 30, .r = 1 << 30});
 		k.render_block(ones, ones);
 		// The gain at this block's volume, held: what a ramp ending on its target would give at its last frame.

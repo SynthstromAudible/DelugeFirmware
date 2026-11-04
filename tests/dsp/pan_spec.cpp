@@ -26,8 +26,13 @@
 using deluge::dsp::fixed::pan_amplitudes;
 
 namespace reference {
+/// The two channels' amplitudes as raw Q30 words.
+struct PanAmplitudes {
+	int32_t left;
+	int32_t right;
+};
 // Verbatim: the raw form.
-constexpr deluge::dsp::fixed::PanAmplitudes pan_amplitudes(int32_t pan) {
+constexpr PanAmplitudes pan_amplitudes(int32_t pan) {
 	constexpr int32_t kUnity = 1073741823;
 	constexpr int32_t kHalfRange = 1073741824;
 	if (pan == 0) {
@@ -41,26 +46,26 @@ constexpr deluge::dsp::fixed::PanAmplitudes pan_amplitudes(int32_t pan) {
 // clang-format off
 describe pan_spec("pan_amplitudes", ${
 	it("leaves both channels at unity in the centre", _ {
-		expect(pan_amplitudes(0).left).to_equal(1073741823);
-		expect(pan_amplitudes(0).right).to_equal(1073741823);
+		expect(pan_amplitudes(deluge::dsp::Q<31>::from_raw(0)).left.raw()).to_equal(1073741823);
+		expect(pan_amplitudes(deluge::dsp::Q<31>::from_raw(0)).right.raw()).to_equal(1073741823);
 	});
 	it("lowers the far channel part way at a mid pan", _ {
-		expect(pan_amplitudes(0x10000000).left).to_equal(805306368);
-		expect(pan_amplitudes(0x10000000).right).to_equal(1073741823);
-		expect(pan_amplitudes(-0x10000000).left).to_equal(1073741823);
-		expect(pan_amplitudes(-0x10000000).right).to_equal(805306368);
+		expect(pan_amplitudes(deluge::dsp::Q<31>::from_raw(0x10000000)).left.raw()).to_equal(805306368);
+		expect(pan_amplitudes(deluge::dsp::Q<31>::from_raw(0x10000000)).right.raw()).to_equal(1073741823);
+		expect(pan_amplitudes(deluge::dsp::Q<31>::from_raw(-0x10000000)).left.raw()).to_equal(1073741823);
+		expect(pan_amplitudes(deluge::dsp::Q<31>::from_raw(-0x10000000)).right.raw()).to_equal(805306368);
 	});
 	it("silences the far channel at the ends and beyond", _ {
-		expect(pan_amplitudes(1 << 30).left).to_equal(0);
-		expect(pan_amplitudes(-(1 << 30)).right).to_equal(0);
-		expect(pan_amplitudes(0x7FFFFFFF).left).to_equal(0);
+		expect(pan_amplitudes(deluge::dsp::Q<31>::from_raw(1 << 30)).left.raw()).to_equal(0);
+		expect(pan_amplitudes(deluge::dsp::Q<31>::from_raw(-(1 << 30))).right.raw()).to_equal(0);
+		expect(pan_amplitudes(deluge::dsp::Q<31>::from_raw(0x7FFFFFFF)).left.raw()).to_equal(0);
 	});
 	it("gives the reference's amplitudes at every pan", _ {
 		int32_t bad = 0;
 		auto check = [&](int32_t pan) {
-			const auto live = pan_amplitudes(pan);
+			const auto live = pan_amplitudes(deluge::dsp::Q<31>::from_raw(pan));
 			const auto ref = reference::pan_amplitudes(pan);
-			bad += (live.left != ref.left || live.right != ref.right) ? 1 : 0;
+			bad += (live.left.raw() != ref.left || live.right.raw() != ref.right) ? 1 : 0;
 		};
 		for (int32_t pan : {INT32_MIN, -(1 << 30) - 1, -(1 << 30), -1, 0, 1, 1 << 30, (1 << 30) + 1, INT32_MAX}) {
 			check(pan);

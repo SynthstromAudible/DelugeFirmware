@@ -190,9 +190,10 @@ effects::MasterPostInputs masterPostInputs(Song& song) {
 	int32_t amplitudeR = 0;
 	const bool doPanning = pan != 0 && AudioEngine::renderInStereo;
 	if (doPanning) {
-		const deluge::dsp::fixed::PanAmplitudes amplitudes = deluge::dsp::fixed::pan_amplitudes(pan);
-		amplitudeL = amplitudes.left;
-		amplitudeR = amplitudes.right;
+		const deluge::dsp::fixed::PanAmplitudes amplitudes =
+		    deluge::dsp::fixed::pan_amplitudes(deluge::dsp::Q<31>::from_raw(pan));
+		amplitudeL = amplitudes.left.raw();
+		amplitudeR = amplitudes.right.raw();
 	}
 
 	return {

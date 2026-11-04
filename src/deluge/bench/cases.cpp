@@ -187,7 +187,7 @@ void AmplitudeCase::setup(std::size_t n) {
 }
 
 void AmplitudeCase::block(std::size_t /*n*/) {
-	vca_.render_block(spans_.a, spans_.b, spans_.out);
+	vca_.render_block(dsp::typed_view(spans_.a), dsp::typed_view(spans_.b), dsp::typed_view(spans_.out));
 }
 
 void CrudeAmplitudeCase::setup(std::size_t n) {
@@ -197,7 +197,7 @@ void CrudeAmplitudeCase::setup(std::size_t n) {
 }
 
 void CrudeAmplitudeCase::block(std::size_t /*n*/) {
-	vca_.render_block(spans_.a, spans_.b, spans_.out);
+	vca_.render_block(dsp::typed_view(spans_.a), dsp::typed_view(spans_.b), dsp::typed_view(spans_.out));
 }
 
 dsp::fixed::PulseOscillator PulseCase::make() {
@@ -412,7 +412,7 @@ void DryWetBlendCase::setup(std::size_t n) {
 }
 
 void DryWetBlendCase::block(std::size_t /*n*/) {
-	mono_.render_block(spans_.a, spans_.b, spans_.out);
+	mono_.render_block(dsp::typed_view(spans_.a), dsp::typed_view(spans_.b), dsp::typed_view(spans_.out));
 }
 
 void ReleaseRateCase::setup(std::size_t n) {

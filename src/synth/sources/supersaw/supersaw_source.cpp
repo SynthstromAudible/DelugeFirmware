@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #include "synth/sources/supersaw/supersaw_source.h"
+#include "dsp-next/core/buffer_view.h"
 #include "dsp-next/fixed/bandlimited/band_limited_table.h" // get_table_number
 #include "dsp-next/fixed/vca/amplitude.h"
 
@@ -38,8 +39,8 @@ void SupersawSource::render_into(const BlockControls& controls, uint32_t phase_i
 	if (controls.apply_amplitude) {
 		// The supersaw comes out at a quarter of a saw's level; out = scratch*amp + out.
 		deluge::dsp::fixed::Amplitude vca{scale_shl_wrap<2>(controls.amplitude)};
-		vca.render_block(deluge::dsp::fixed::Signal{scratch.data(), num_samples}, deluge::dsp::fixed::Signal{output},
-		                 output);
+		vca.render_block(deluge::dsp::typed_view(deluge::dsp::fixed::Signal{scratch.data(), num_samples}),
+		                 deluge::dsp::typed_view(deluge::dsp::fixed::Signal{output}), deluge::dsp::typed_view(output));
 	}
 }
 
