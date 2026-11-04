@@ -116,9 +116,9 @@ struct BoardProfile {
 	std::span<const EncoderRole> encoder_by_index;
 	std::span<const EncoderKind> encoder_kind;       ///< [EncoderRole]
 	std::span<const SurfaceRole> oled_role_by_index; ///< libdeluge display index -> role
-	/// libdeluge display index -> toolkit `Style` (task-9 reconciliation: was a single `style`;
-	/// a board with more than one OLED, or a panel-height-64 second frontend, needs a `Style`
-	/// per surface -- `OledSurface::style` (Task 2) is chosen from here at build time).
+	/// libdeluge display index -> toolkit `Style`. A board with more than one OLED, or a
+	/// panel-height-64 second frontend, needs a `Style` per surface; `OledSurface::style` is chosen
+	/// from here at build time.
 	std::span<const Style* const> style_by_index;
 	TextLookup text;
 	ErrorLookup error_text;

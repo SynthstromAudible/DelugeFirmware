@@ -60,7 +60,7 @@ bool led_is_on(const LedState& s, uint32_t now_ms, std::span<const ui::BlinkPhas
 		// Difference form, not `now_ms >= s.until_ms`: `until_ms` is an absolute clock that wraps
 		// at ~49.7 days of uptime, and an absolute compare would read a blink armed across the wrap
 		// as already finished and latch it solid-on instead of blinking. Same form as
-		// `RepaintGate::needs_frame` (`ui/core/repaint_gate.cpp:13`).
+		// `RepaintGate::needs_frame`.
 		if (s.until_ms != 0 && static_cast<int32_t>(now_ms - s.until_ms) >= 0) {
 			return true;
 		}

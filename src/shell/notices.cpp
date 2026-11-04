@@ -40,14 +40,13 @@ inline constexpr uint32_t kPopupTimeoutMs = 800;
 /// 44100 Hz sample rate that is `52000 / 44100 * 1000` = ~1179.14ms of full-strength life per
 /// line before it starts to go, and `264 / 44100 * 1000` = ~5.99ms per scroll-off row. This port
 /// has no pixel-scroll animation -- `ConsoleScene` keeps up to `kMaxLines` whole lines and simply
-/// stops drawing one once its time is up -- so `kConsoleLineMs` uses the display lifetime
-/// (rounded to the nearest millisecond, 1179), not the scroll-off frame interval; the latter is
-/// recorded above only for provenance.
+/// stops drawing one once its time is up -- so `kConsoleLineMs` is the display lifetime
+/// (rounded to the nearest millisecond, 1179), not the scroll-off frame interval.
 inline constexpr uint32_t kConsoleLineMs = 1179;
 
 /// @name Legacy `Error`, mirrored numerically for the two codes `Notices` must suppress
 ///
-/// `OLED::displayError` (`oled.cpp:1173-1185`) `return`s before ever calling `displayPopup` for
+/// `OLED::displayError` `return`s before ever calling `displayPopup` for
 /// `Error::NONE`/`Error::ABORTED_BY_USER`. `Error` is declared in `src/definitions_cxx.hpp`
 /// (`:454-488`), which `src/shell` may not include (the same libdeluge-boundary reason
 /// `notices.h`'s `PopupType` mirror documents), so the two codes this case actually tests are
@@ -108,7 +107,7 @@ bool PopupScene::expired(uint32_t now_ms) const {
 	// Difference form, not `now_ms >= deadline_ms_`: `deadline_ms_` is an absolute clock that wraps
 	// at ~49.7 days of uptime, and an absolute compare would read a popup shown in the last
 	// `timeout_ms` before the wrap as already expired -- it would flash and vanish on the very next
-	// tick. Same form as `RepaintGate::needs_frame` (`ui/core/repaint_gate.cpp:13`).
+	// tick. Same form as `RepaintGate::needs_frame`.
 	return timeout_ms_ != 0 && static_cast<int32_t>(now_ms - deadline_ms_) >= 0;
 }
 
@@ -158,8 +157,8 @@ void ConsoleScene::render_oled(SurfaceRole role, ui::oled::OledFrame& frame) {
 	// `text_height_for(Apple7)`, NOT a hand-picked 7: `FontId::Apple7` draws at height 9
 	// (`ui/core/metrics.h`'s own note -- the Apple ][ face's "Up" variant, one row lower than its
 	// 7-8 sibling, and 9 is what this `FontId` means). A hard-coded 7 clipped the glyphs' bottom
-	// row inside every `region` below -- caught by task 11's review round 1: with the row gone,
-	// `E` and `F` render pixel-identical, which a set-pixel-count assertion alone cannot catch.
+	// row inside every `region` below: with the row gone, `E` and `F` render pixel-identical, which a
+	// set-pixel-count assertion alone cannot catch.
 	const int32_t kLineHeight = ui::oled::text_height_for(gfx::oled::FontId::Apple7);
 	int32_t y = frame.bounds().h;
 	for (const Line& line : lines_) {
@@ -234,13 +233,13 @@ void Notices::drain(notify::NoticeQueue& queue, uint32_t now_ms) {
 	while (queue.pop(n)) {
 		// Every id resolved below goes through `BoardProfile::text_or_digits`/`error_text_or_digits`
 		// rather than testing the hook itself, so a profile with no l10n bridge -- which is every
-		// profile on this branch, `deluge_profile()` included -- shows the numeric id instead of an
+		// current profile, `deluge_profile()` included -- shows the numeric id instead of an
 		// empty popup box. `scratch` is what the digits are rendered into; it outlives each view
 		// built from it, and `show_popup`/`console_.append` copy the text before the case ends.
 		TextScratch scratch;
 		switch (n.kind) {
 		case notify::Notice::Kind::Error:
-			// Legacy's `OLED::displayError` (oled.cpp:1173-1180) shows nothing at all for
+			// Legacy's `OLED::displayError` shows nothing at all for
 			// Error::NONE/Error::ABORTED_BY_USER -- suppressed here the same way, before ever
 			// resolving error_text or touching the stack.
 			if (n.error_code == kErrorNone || n.error_code == kErrorAbortedByUser) {
@@ -258,7 +257,7 @@ void Notices::drain(notify::NoticeQueue& queue, uint32_t now_ms) {
 			const uint8_t type = popup_type_of(n.popup_type);
 			// Severity::Warn -> persistent, exactly as legacy's notify_drain.cpp:137
 			// (`flashes = (severity == Warn) ? 0 : 3`) feeds OLED::displayPopup's inline
-			// `persistent = !numFlashes` (oled.h:156), which oled.cpp:642 turns into "never set
+			// `persistent = !numFlashes` (in `oled.h`), which `OLED::popupText` turns into "never set
 			// the DISPLAY timer" -- everything else keeps the ordinary timeout_for() duration.
 			const uint32_t timeout_ms = n.severity == notify::Notice::Severity::Warn ? 0 : timeout_for(type);
 			show_popup_with_timeout(text, type, now_ms, timeout_ms, notify::Notice::Kind::Text);
@@ -272,12 +271,10 @@ void Notices::drain(notify::NoticeQueue& queue, uint32_t now_ms) {
 			// unconditionally composites the console strip into every frame, so a console line is
 			// always potentially visible the instant it is appended. The port's equivalent is
 			// making this scene's OWN presence self-managing, exactly as the `Popup`/`Working`
-			// cases already do -- found missing by task 11's `menu_submenu_horizontal` acceptance
-			// script: a value-column select press raised a real `Kind::Console` notice
-			// (`MenuScene::after_render`), `console_.append` ran, and the appended text never
-			// appeared in ANY snapshot because nothing, anywhere (`Shell::boot`/`init` included),
-			// ever pushed `SceneKind::Console` onto the stack -- unlike `Working`, whose case
-			// below has always self-managed its own push. Scanned like `show_popup_with_timeout`'s
+			// cases do: nothing else (`Shell::boot`/`init` included) ever pushes `SceneKind::Console` onto the
+			// stack, so without this push a raised `Kind::Console` notice (a value-column select press raises
+			// one, `MenuScene::after_render`) would append its text and never appear in any snapshot. Scanned
+			// like `show_popup_with_timeout`'s
 			// own check (the whole stack, not just `top()`): a scene may legitimately sit above an
 			// already-live console strip, and re-pushing would plant a second entry pointing at
 			// this same instance. Never removed again -- `tick()` below only polls popup expiry
@@ -313,8 +310,8 @@ void Notices::drain(notify::NoticeQueue& queue, uint32_t now_ms) {
 			// `notice_working`, `util/notify.h:52`) and the scenes layer's async listing seam
 			// (`scenes/browser/listing.cpp`), and a song swap can overlap a directory listing.
 			// Closing it means a refcount, or an owner token on the arm/clear pair, so a clear from
-			// a subsystem that did not arm the current animation is ignored -- deliberately not
-			// done as a drive-by here, because it changes the meaning of every existing raise.
+			// a subsystem that did not arm the current animation is ignored. That would change the meaning of
+			// every existing raise.
 			working_.clear();
 			// `OLED::removeWorkingAnimation` also takes down a `NOTIFICATION` popup
 			// (`oled.cpp:733-737`), so the banner goes with it -- a no-op when none is stacked.
@@ -342,7 +339,7 @@ void Notices::drain(notify::NoticeQueue& queue, uint32_t now_ms) {
 				break;
 			}
 			notification_.show(n.notification_title(), n.notification_value(), now_ms);
-			// One popup slot: `setupPopup(PopupType::NOTIFICATION, ...)` (`oled.cpp:768`) overwrites
+			// One popup slot: `OLED::displayNotification`'s `setupPopup(PopupType::NOTIFICATION, ...)` overwrites
 			// whatever popup held it (`:122-132`), so a live `PopupScene` goes.
 			stack_.remove(SceneKind::Popup);
 			// Pushed -- and, when a banner is already up, removed first and pushed again, where the
@@ -398,9 +395,9 @@ void Notices::show_popup_with_timeout(std::string_view text, uint8_t popup_type,
 	// scene may have been legitimately `Push`ed above a live popup (it is `input_transparent()`, so
 	// that scene still has input), and testing `top()` alone would read that scene's kind, not the
 	// popup's, and push a second `SceneKind::Popup` entry pointing at this same instance.
-	// (Recorded, not changed: re-targeting in place changes no stack, so on a tick with no input the
-	// panel can keep the old text until something else asks for a frame -- Task 8b's gap, closed
-	// for the banner in `drain()`'s `Notification` case by removing and pushing again.)
+	// Re-targeting in place changes no stack, so on a tick with no input the panel can keep the old
+	// text until something else asks for a frame; `drain()`'s `Notification` case avoids that for the
+	// banner by removing and pushing again.
 	bool popup_stacked = false;
 	for (Scene* scene : stack_.scenes()) {
 		if (scene->kind() == SceneKind::Popup) {
@@ -422,7 +419,7 @@ void Notices::tick(uint32_t now_ms, uint32_t dt_ms) {
 	// None of the three is guarded on the scene being stacked at all -- `SceneStack::remove` for a
 	// kind that is not there touches nothing and does not flag the stack as changed either, so
 	// calling it on every tick costs one downward scan.
-	// `OLED::timerRoutine` (`oled.cpp:929-937`): while the working animation runs, the popup's timer animates it
+	// `OLED::timerRoutine`: while the working animation runs, the popup's timer animates it
 	// instead of removing the popup.
 	if (!working_.armed() && popup_.expired(now_ms)) {
 		stack_.remove(SceneKind::Popup);
@@ -430,11 +427,11 @@ void Notices::tick(uint32_t now_ms, uint32_t dt_ms) {
 	if (!working_.armed()) {
 		stack_.remove(SceneKind::Working);
 	}
-	// Review round 1, I4: `Kind::Console`'s `drain()` case pushes this scene (self-managing, like
-	// the two above) but had no matching removal at all -- once every line it ever showed had
-	// expired, the entry just sat on the stack forever. `any_active` is content-level (per line),
-	// unlike `popup_.expired()`/`working_.armed()`, so this is the same level test the two above
-	// are, just phrased over three lines instead of one.
+	// `Kind::Console`'s `drain()` case pushes this scene (self-managing, like the two above), so this
+	// is its matching removal: once every line it ever showed has expired, the entry must not sit on
+	// the stack. `any_active` is content-level (per line), unlike `popup_.expired()`/
+	// `working_.armed()`, so this is the same level test the two above are, just phrased over three
+	// lines instead of one.
 	if (!console_.any_active(now_ms)) {
 		stack_.remove(SceneKind::Console);
 	}

@@ -58,7 +58,7 @@ public:
 	///                    size), truncated if longer.
 	/// @param popup_type The legacy `PopupType` value, as a bare `uint8_t` -- see the numbering
 	///                    above. Selects `Framed` vs. `Notification` in `render_oled`.
-	/// @param now_ms     The tick's wall clock, used to compute the expiry deadline.
+	/// @param now_ms     The tick's wall clock, from which the expiry deadline is computed.
 	/// @param timeout_ms How long until this popup should be popped; 0 means persistent (never
 	///                    expires on its own -- `expired()` always reports false).
 	void show(std::string_view text, uint8_t popup_type, uint32_t now_ms, uint32_t timeout_ms);
@@ -125,7 +125,7 @@ private:
 class ConsoleScene final : public Scene {
 public:
 	/// How many most-recent lines are kept; legacy's `MAX_NUM_CONSOLE_ITEMS` is 4, but the shell
-	/// keeps 3 (per the brief driving this port).
+	/// keeps 3.
 	static constexpr size_t kMaxLines = 3;
 
 	SceneKind kind() const override { return SceneKind::Console; }
@@ -140,12 +140,10 @@ public:
 	/// @brief Does any line still have time left to show?
 	///
 	/// The mirror of `PopupScene::expired()`/`WorkingScene::armed()`: what `Notices::tick()` polls
-	/// to remove this scene from the stack once every line it was ever shown has expired (review
-	/// round 1, I4 -- `Kind::Console`'s own `drain()` case pushes this scene but, unlike `Popup`
-	/// and `Working`, nothing previously ever removed it again, leaking one stack entry for the rest
-	/// of the process's life the first time any console notice fired). Extracted from
-	/// `render_oled`'s own per-line skip test so `tick()` does not need a frame to ask the same
-	/// question.
+	/// to remove this scene from the stack once every line it was ever shown has expired.
+	/// `Kind::Console`'s `drain()` case pushes this scene, so without that removal the entry would stay
+	/// on the stack for the rest of the process's life. It is `render_oled`'s own per-line skip test, so
+	/// `tick()` does not need a frame to ask the same question.
 	/// @param now_ms The tick's wall clock.
 	/// @return True if at least one line is `active` and not yet past its `expire_ms`.
 	bool any_active(uint32_t now_ms) const;
@@ -264,17 +262,17 @@ void set_notification_sink(const NotificationSink* sink);
 const NotificationSink* notification_sink();
 
 /// @brief The one-line "title: value" banner pinned to the top of the panel: legacy's
-///        `OLED::displayNotification` (`hid/display/oled.cpp:744-795`), for a shell with no
+///        `OLED::displayNotification`, for a shell with no
 ///        notification sink.
 ///
 /// Driven entirely by `Notices`, like the three scenes above. What it ports, statement by
 /// statement:
-///   * **Position and pixels.** `render_oled` is `ui::oled::notification` (`ui/oled/popup.h:302`),
+///   * **Position and pixels.** `render_oled` is `ui::oled::notification`,
 ///     that function's own transcription: the band from `OLED_MAIN_TOPMOST_PIXEL` to
 ///     `+ kTextSpacingY + 1` (`oled.cpp:750-751`), inverted (`:788`).
-///   * **Lifetime.** `uiTimerManager.setTimer(TimerName::DISPLAY, 2000)` (`oled.cpp:794`), whose
+///   * **Lifetime.** `uiTimerManager.setTimer(TimerName::DISPLAY, 2000)` (in `OLED::displayNotification`), whose
 ///     expiry runs `OLED::timerRoutine` (`gui/ui_timer_manager.cpp:91-93`) and, with no working
-///     animation, `removePopup()` (`oled.cpp:929-937`). `kNotificationMs`; `Notices::tick` removes the
+///     animation, `removePopup()`. `kNotificationMs`; `Notices::tick` removes the
 ///     scene once `expired()` **and** the working animation is not armed -- while one runs,
 ///     `timerRoutine` animates instead, and the banner stays until `removeWorkingAnimation` takes it
 ///     down (`oled.cpp:735-736`), which is `Notices::drain`'s `ClearWorking` case.
@@ -285,7 +283,7 @@ const NotificationSink* notification_sink();
 ///     `Notices::drain` for the slot it shares with `PopupScene`.
 class NotificationScene final : public Scene {
 public:
-	/// Legacy's `TimerName::DISPLAY` duration for a notification (`oled.cpp:794`).
+	/// Legacy's `TimerName::DISPLAY` duration for a notification (`OLED::displayNotification`).
 	static constexpr uint32_t kNotificationMs = 2000;
 
 	SceneKind kind() const override { return SceneKind::Notification; }
@@ -352,12 +350,12 @@ public:
 	/// `Notice::Kind::Error` resolves to a popup through `show_popup()`, always at `General`,
 	/// ignoring \p n.popup_type -- legacy's `displayError` reaches `displayPopup` with its default
 	/// `type = GENERAL` (`display.h:48-49`) -- *unless* \p n.error_code is legacy's `Error::NONE`
-	/// or `Error::ABORTED_BY_USER`, which `OLED::displayError` (`oled.cpp:1173-1180`) suppresses
+	/// or `Error::ABORTED_BY_USER`, which `OLED::displayError` suppresses
 	/// entirely (`return;` before ever reaching `displayPopup`); this drops the notice the same
 	/// way, showing nothing. `Kind::Text` also resolves to a popup, but not always through the
 	/// plain `show_popup()` path: legacy's `notify_drain.cpp:137` computes
 	/// `flashes = (severity == Warn) ? 0 : 3`, and `OLED::displayPopup`'s inline body
-	/// (`oled.h:156`) turns that into `persistent = !numFlashes`, so a `Severity::Warn` text notice
+	/// (in `oled.h`) turns that into `persistent = !numFlashes`, so a `Severity::Warn` text notice
 	/// is persistent (`oled.cpp:642`, `unsetTimer(TimerName::DISPLAY)`) while every other severity
 	/// gets the ordinary `timeout_for()` duration (`oled.cpp:637`) -- this drains that distinction
 	/// through to `PopupScene::show`'s own `timeout_ms == 0` persistence, via the private helper
@@ -407,9 +405,9 @@ public:
 	///
 	/// If the popup scene is already stacked anywhere -- top or not, a scene may legitimately sit
 	/// above a live popup -- this only replaces its text/type/timeout in place (no second push);
-	/// otherwise it pushes the popup scene. (Recorded, not changed: an in-place rewrite does not
-	/// change the stack, so on a tick with no input the panel can keep the old text until something
-	/// else asks for a frame -- the gap Task 8b found and closed for `NotificationScene`.)
+	/// otherwise it pushes the popup scene. An in-place rewrite does not change the stack, so on a tick
+	/// with no input the panel can keep the old text until something else asks for a frame;
+	/// `NotificationScene` avoids that by being removed and pushed again.
 	/// @param text       The resolved text to show.
 	/// @param popup_type The legacy `PopupType` value, as a bare `uint8_t`; 0 is folded to
 	///                    `General`, exactly as `notify_drain.cpp`'s `popup_type_of` does.
@@ -422,9 +420,9 @@ public:
 	/// All three are `SceneStack::remove`, for the same reason `drain()`'s `CancelPopup` case is: a
 	/// popup, working animation or console strip is `input_transparent()`, so a scene pushed over any
 	/// of them is there legitimately and must survive the notice's own expiry -- only the notice
-	/// scene itself is excised, wherever it sits. The console case is review round 1's addition
-	/// (I4): unlike `Popup`/`Working`, its `drain()` case had a push with no matching removal at all,
-	/// leaking one stack entry, permanently, from the first console notice the process ever raised.
+	/// scene itself is excised, wherever it sits. The console case matters because `drain()` pushes the
+	/// console scene on the first console notice; without the removal that entry would leak for the
+	/// rest of the process's life.
 	/// @param now_ms The tick's wall clock.
 	/// @param dt_ms  Unused: all three checks are level tests against the scenes' own state, not
 	///               accumulators -- there is nothing to integrate.
@@ -432,14 +430,14 @@ public:
 
 	/// @brief How long a popup of \p popup_type should stay up before `tick()` pops it.
 	///
-	/// Ported from `OLED::popupText` (`oled.cpp:605-644`): every non-persistent popup gets the
+	/// Ported from `OLED::popupText`: every non-persistent popup gets the
 	/// same `TimerName::DISPLAY` timeout, 800ms, regardless of `PopupType`
 	/// (`oled.cpp:637`; unset entirely for a persistent popup, `oled.cpp:642`). Every
 	/// `Notice`-reachable popup call -- `displayPopup` (used by `Notice::Kind::Error` and
 	/// `Kind::Text` alike, `notify_drain.cpp:130,139,142`), `popupText`, `popupTextTemporary` --
 	/// funnels through this one routine (`oled.h:154-162`), so there is no per-`PopupType`
 	/// duration to port: this table is flat by construction, not by omission. (The one *other*
-	/// `DISPLAY`-timer setter tied to a specific type, `oled.cpp:794` in `OLED::displayNotification`,
+	/// `DISPLAY`-timer setter tied to a specific type, in `OLED::displayNotification`,
 	/// sets 2000ms for `PopupType::NOTIFICATION` -- that call path is `Notice::Kind::Notification`'s,
 	/// and `NotificationScene::kNotificationMs` models it, not this table.)
 	/// @param popup_type The legacy `PopupType` value; unused today (see above), kept for

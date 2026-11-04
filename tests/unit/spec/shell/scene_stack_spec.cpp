@@ -216,10 +216,10 @@ describe shell_scene_stack("shell::SceneStack", $ {
 	});
 
 	it("pop(kind) pops down to and including that kind", _ {
-		// Three *distinct* kinds. This used to stack `kA` twice for want of a third scene, which
-		// with one `Scene` per kind put the same object at indices 0 and 2 -- so "the root resumed"
-		// and "the popped copy was told it left" were the same counter, and neither claim below was
-		// actually being made.
+		// Three *distinct* kinds. Stacking `kA` twice would, with one `Scene` per kind, put the same
+		// object at indices 0 and 2 -- so "the root resumed" and
+		// "the popped copy was told it left" would be the same counter, and neither claim below
+		// would actually be made.
 		Rig r;
 		expect(r.st.push({kA})).to_be_true();
 		expect(r.st.push({kB})).to_be_true();
@@ -275,10 +275,9 @@ describe shell_scene_stack("shell::SceneStack", $ {
 
 	// --- the input top is what `on_resume` is about ------------------------------------------
 	//
-	// The four rows below are the shell defect E4 task 10 measured: `SceneKind::Popup` is a scene
-	// here where legacy's popup is a display overlay, so `remove`ing one used to fire `on_resume`
-	// on the scene beneath -- and `SlicerScene::on_resume` is `Slicer::focusRegained`
-	// (`gui/ui/slicer.cpp:59-72`), which wipes the slice table. See §15.7 of the shell design spec.
+	// The four rows below pin a shell hazard: `SceneKind::Popup` is a scene here where legacy's
+	// popup is a display overlay, so `remove`ing one must not fire `on_resume` on the scene beneath -- and `SlicerScene::on_resume` is `Slicer::focusRegained`
+	// (`gui/ui/slicer.cpp:59-72`), which wipes the slice table.
 
 	it("has an input scene only while a non-transparent scene is stacked", _ {
 		Rig r;

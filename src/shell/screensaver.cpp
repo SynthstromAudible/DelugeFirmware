@@ -72,7 +72,7 @@ void Screensaver::tick(uint32_t now_ms, uint32_t /*dt_ms*/) {
 	// Difference form, not `now_ms >= deadline_ms_`: the deadline is an absolute clock that wraps
 	// at ~49.7 days of uptime, and an absolute compare across that wrap reads a freshly armed
 	// (wrapped, therefore small) deadline as long past and pushes the screensaver over the view the
-	// user is actively using. The same form `RepaintGate::needs_frame` (`ui/core/repaint_gate.cpp:13`),
+	// user is actively using. The same form `RepaintGate::needs_frame`,
 	// `Mirror::due` and every `InputLowering` hold comparison already use.
 	if (!active_ && !refused_ && static_cast<int32_t>(now_ms - deadline_ms_) >= 0) {
 		if (inhibited()) {
@@ -87,9 +87,9 @@ void Screensaver::tick(uint32_t now_ms, uint32_t /*dt_ms*/) {
 			// The stack refused it -- because `SceneKind::Screensaver` names no registered scene
 			// (the shipped registry does register one; a profile or spec need not). Latch off
 			// rather than retrying: the deadline is still past on the next tick, so an unlatched
-			// retry is an unbounded loop that pushes, fails, and (before the `SceneStack::push`
-			// fix above it) invalidated every gate, once per tick, for ever. See this class's own
-			// doc.
+			// retry is an unbounded loop that pushes and fails once per tick for ever (a refused push
+			// that flagged the stack would also invalidate every gate each time; see
+			// `SceneStack::push`). See this class's own doc.
 			refused_ = true;
 			push_refused_++;
 		}

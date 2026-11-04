@@ -121,7 +121,7 @@ struct Rig {
 	Rig& operator=(const Rig&) = delete;
 };
 
-/// @brief `Rig` with the third slot filled too -- the chain E4 task 5 completed.
+/// @brief `Rig` with the third slot filled too -- the full chain.
 ///
 /// A separate struct rather than a field on `Rig`: every example above was written against a chain
 /// whose fourth step contributes nothing, and `Services::midi_learn` defaulting to
@@ -170,8 +170,8 @@ describe shell_router("shell::Router", $ {
 		expect(r.global_controls.calls).to_equal(0);  // nor this
 	});
 
-	// The two examples below are the proof of E4 task 3's part A, the fix to a plan-D defect: the
-	// chain used to consult `mod_knobs` BEFORE the top scene. Legacy is unambiguous the other way.
+	// The two examples below prove the chain consults the top scene BEFORE `mod_knobs`. Legacy is
+	// unambiguous about the order.
 	// `interpretEncoders` calls `getCurrentUI()->modEncoderAction(e, offset_accelerated)`
 	// (`Encoders::interpretEncoders`, `hid/encoder_input.cpp:194`) and `Buttons::buttonAction`'s
 	// mod-button loop calls `getCurrentUI()->modButtonAction(i, on)` (`hid/buttons.cpp:104`);
@@ -246,7 +246,7 @@ describe shell_router("shell::Router", $ {
 	});
 
 	it("midi_learn is the LAST step, after global_controls, and only for events nothing else took", _ {
-		// E4 task 5's routing claim, and the three legacy facts behind it are on
+		// The routing claim, and the three legacy facts behind it are on
 		// `scenes/services/midi_learn.h`:
 		//
 		//   1. `View` is the fallback AFTER the current UI in both MIDI-learn dispatchers --
@@ -325,7 +325,7 @@ describe shell_router("shell::Router", $ {
 		// scene that wants to close ITSELF specifically (an overlay may legitimately have been
 		// pushed above it since it rendered) wants `Action::Kind::Remove` instead, which excises a
 		// named kind wherever it sits and leaves everything else alone -- see `Action`'s own doc
-		// comment and `MenuScene::handle`'s root-`Back` case (task 11 review round 1, I3).
+		// comment and `MenuScene::handle`'s root-`Back` case 
 		Action lock;
 		lock.kind = Action::Kind::LockInput;
 		lock.lock = true;
@@ -398,7 +398,7 @@ describe shell_router("shell::Router", $ {
 	});
 
 	it("a Remove action excises only the named kind, leaving an overlay above it in place", _ {
-		// The reason `Remove` exists at all (task 11 review round 1, I3): unlike `Pop(kind)`, which
+		// The reason `Remove` exists at all: unlike `Pop(kind)`, which
 		// also takes everything ABOVE `kind` down with it, `Remove(kind)` must leave `kB` -- pushed
 		// above `kA` here to stand in for a `Notices` overlay legitimately shown over an app scene --
 		// exactly where it was.
@@ -456,8 +456,7 @@ describe shell_router("shell::Router", $ {
 
 	it("ButtonId::ModEnc0/ModEnc1 presses reach the scene first and mod_knobs second, "
 	   "like every other View fallback", _ {
-		// The gold-knob PUSH is the third hook with this shape, and the last one E4 task 3 had to
-		// put back. `Buttons::buttonAction` handles `MOD_ENCODER_0`/`MOD_ENCODER_1` in its TAIL
+		// The gold-knob PUSH is the third hook with this shape. `Buttons::buttonAction` handles `MOD_ENCODER_0`/`MOD_ENCODER_1` in its TAIL
 		// (`hid/buttons.cpp:225-231`), i.e. after `getCurrentUI()->buttonAction` at `:134` -- and
 		// what it runs there is `getCurrentUI()->modEncoderButtonAction(n, on)`, whose base
 		// implementation (`UI::modEncoderButtonAction`, `gui/ui/ui.cpp:43-45`) is another bare
@@ -465,10 +464,9 @@ describe shell_router("shell::Router", $ {
 		// `gui/ui/sound_editor.h:81`, `gui/views/session_view.h:80`,
 		// `gui/views/performance_view.h:97`, `gui/views/automation_view.h:117`).
 		//
-		// Plan D excluded these two from `mod_knobs` on the correct observation that legacy reaches
-		// them only after the current UI -- but with the chain inverted, "after the UI" and "not a
-		// `mod_knobs` event" were the same statement. Once the scene goes first they are not, and
-		// excluding them would leave `View::modEncoderButtonAction` (`gui/views/view.cpp:1349-1367`)
+		// `mod_knobs` must not exclude these two on the observation that legacy reaches them only
+		// after the current UI: with the scene first, "after the UI" and "not a `mod_knobs` event"
+		// are different statements, and excluding them would leave `View::modEncoderButtonAction` (`gui/views/view.cpp:1349-1367`)
 		// with no route to it at all.
 		Rig r;
 		UiEvent mod_enc_event{};

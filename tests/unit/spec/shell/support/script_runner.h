@@ -34,7 +34,7 @@
 #error "UI_GOT_DIR must be defined by CMake"
 #endif
 
-/// Level 2 of the UI test harness (spec G §4): drive the real `Shell` over `FakeSurfaceSet` from a
+/// Level 2 of the UI test harness: drive the real `Shell` over `FakeSurfaceSet` from a
 /// UI script, write `.pbm`/`.state` snapshots, and diff them against the recorded goldens.
 namespace uitest {
 
@@ -53,19 +53,19 @@ using deluge::ui::shell::ShellConfig;
 /// @brief What one `run_script` call is parameterised by.
 ///
 /// The clock is entirely the script's: `tick_ms` is the step between `Shell::tick` calls and the
-/// only unit of time the run knows (spec G §5 -- no wall clock in the UI). `ShellConfig::seed` is
+/// only unit of time the run knows (there is no wall clock in the UI). `ShellConfig::seed` is
 /// left at its 0 default, which is what the harness seeds every random element from.
 ///
-/// @par The three hooks E4 task 13 added, and why a script alone could not express them
+/// @par The three hooks, and why a script alone cannot express them
 ///
 /// A script is a list of board events, and three things this stack's scenes depend on are not
 /// board events at all. Each is a `std::function` a caller may leave empty, and an empty one is
-/// exactly the behaviour every script written before E4 task 13 already had:
+/// exactly the behaviour of a script that needs none of them:
 ///
-///   * `config` -- the `ShellConfig` the run's `Shell` is built with. It was a hard-coded default
-///     here, which meant `screensaver_idle_ms` was always 0 and `shell::Screensaver` was **off in
-///     every level-2 script that has ever run** (`shell/screensaver.h`: "`idle_ms == 0` disables
-///     the service outright"). Nothing a script could type turned it on.
+///   * `config` -- the `ShellConfig` the run's `Shell` is built with. Without it the default would apply,
+///   `screensaver_idle_ms` would be 0, and
+///     `shell::Screensaver` would be **off in every level-2 script** (`shell/screensaver.h`:
+///     "`idle_ms == 0` disables the service outright"). Nothing a script can type turns it on.
 ///   * `after_construct` -- run once, after the `Shell` exists and before `init()`/`boot()`.
 ///     `scenes::services::ModKnobs`, `GlobalControls` and `MidiLearn` are each constructed from
 ///     `SceneStack&` and `InputLowering&`, and the only instances of those two are the ones the
@@ -73,9 +73,7 @@ using deluge::ui::shell::ShellConfig;
 ///     built until the shell it serves already exists. This hook is where a caller closes that
 ///     loop: construct the three here over `shell.stack()`/`shell.lowering()` and install them
 ///     with `Shell::set_services`, which is what an application's own boot does. See
-///     `sim/scenes_spec/scene_scripts_spec.cpp`'s `RealServices` for the shape, and that file's
-///     header for the account of the gap (`Services` used to be fixed at the shell's construction,
-///     so this hook had to drive a forwarding shim instead; F1 task 2 removed the need).
+///     `sim/scenes_spec/scene_scripts_spec.cpp`'s `RealServices` for the shape.
 ///   * `before_tick` -- run immediately before each `Shell::tick`, with that tick's clock. The
 ///     stand-in for a model that moves on its own: `overlay::CountInScene` is a **poll** of
 ///     `playbackHandler.count_in_visual()` (`scenes/overlay/count_in_scene.h`), and the only thing
@@ -95,11 +93,11 @@ struct RunOptions {
 	/// otherwise `Shell::boot()` -- the default boot path, which pushes nothing and leaves the
 	/// panel blank until a script's own steps put something up.
 	std::optional<SceneId> initial_scene;
-	/// Spec G §6's migration acceptance hook. When set, `expect_script_goldens` runs the script
+	/// The migration acceptance hook. When set, `expect_script_goldens` runs the script
 	/// TWICE -- once against `registry` (its own parameter), once against `*second_registry` --
 	/// into sibling `got/` trees, and diffs those two trees against EACH OTHER (byte-for-byte,
 	/// with an extra/missing-file check) instead of against the recorded goldens. This is how
-	/// spec F asserts "the same script produces the same snapshots against the legacy UI and the
+	/// the migration asserts "the same script produces the same snapshots against the legacy UI and the
 	/// new scene": two scene tables, one script, nothing to record ahead of time.
 	const SceneRegistry* second_registry = nullptr;
 	/// The `ShellConfig` the run's `Shell` is built with; `seed` stays at its 0 default unless a
@@ -317,7 +315,7 @@ inline std::string led_name(deluge::ui::LedId id) {
 
 /// @brief The `.state` text for the current moment: the shell's own lines plus the fake's pads,
 ///        LEDs, knob indicators and the pad flashes sent since the previous snapshot, all through the harness's
-///        builders so spec G §3's category ordering applies to the whole file rather than to each half separately.
+///        builders so the harness's category ordering applies to the whole file rather than to each half separately.
 /// @param shell The shell to ask for scene/lock/notice lines.
 /// @param fake  The surfaces to read pads, LEDs, indicators and flashes from; its
 ///              `flashes_reported` advances past the flashes reported here.
@@ -352,7 +350,7 @@ inline std::string state_text(const Shell& shell, FakeSurfaceSet& fake, bool& ov
 	// Read from `LedSurface::frame` -- this tick's *declarations*, as `Shell::derive_leds` composed
 	// them -- rather than from the fake's `set_led` shadow. The shadow only ever holds the boolean
 	// `flush` resolved the declaration to against this tick's clock, which cannot tell a lit LED
-	// from a blinking one that happens to be in its on phase; spec G §3 asks for
+	// from a blinking one that happens to be in its on phase; the snapshot format asks for
 	// `led <Name> blink <period>`, and the period exists only here. Same `LedSurface` object the
 	// shell writes (`fake` *is* `shell.surfaces()`), reached through the fake because
 	// `SurfaceSet::leds()` is non-const.
@@ -412,7 +410,7 @@ struct BoardStorage {
 ///        storage, so a script can size the surfaces for a board whose BSP does not exist.
 ///
 /// Every field but the display list is inherited from \p base: the spec's own words are only ever
-/// "which panels", exactly as `DELUGE_HOST_DISPLAYS` is at level 3 (spec G §4.2).
+/// "which panels", exactly as `DELUGE_HOST_DISPLAYS` is at level 3.
 /// @param base The board to start from.
 /// @param spec The comma-separated `WxH+top` list.
 /// @param out  Filled in on success; untouched otherwise. Caller-owned, and it must outlive the
@@ -498,7 +496,7 @@ inline std::string first_mismatch(const std::filesystem::path& a, const std::fil
 /// The two process-global model channels (`notify::dirty()`, `notify::notices()`) are drained
 /// before the first tick: they outlive any one `Shell`, and a fact another spec left behind would
 /// otherwise land in this run's first frame.
-/// @param script_text The script (spec G §2).
+/// @param script_text The script.
 /// @param registry    The application's scene table.
 /// @param services    The shell's services.
 /// @param out_dir     Directory to write snapshots into; created if missing.
@@ -521,7 +519,7 @@ inline RunResult run_script(std::string_view script_text, const SceneRegistry& r
 
 	// A `board` step names the panel set the surfaces are *built* from, so it is read before the
 	// `FakeSurfaceSet` exists rather than applied inside the loop -- there is no way to re-size a
-	// live surface pool, and spec G §2 marks the step "at 0 ms" for exactly that reason.
+	// live surface pool, and a `board` step is only valid "at 0 ms" for exactly that reason.
 	// Declared here, not inside the scan: `FakeSurfaceSet`'s constructor reads through it, so it
 	// must outlive that call.
 	detail::BoardStorage board_storage;
@@ -551,10 +549,9 @@ inline RunResult run_script(std::string_view script_text, const SceneRegistry& r
 	// **Every scene this run pushes gets its `on_exit` before the run returns.** A `Shell` is
 	// per-call but the scenes it drives are process-wide singletons, so a script that ends
 	// mid-navigation -- which every one of them does, that being what a script is -- leaves the top
-	// scene believing it is still open. That was carried as latent in `src/scenes/README.md` for as
-	// long as every scriptable scene refused on `SceneId::arg` or model state alone; E3 task 11's
-	// `recorder.txt` ended it. `RecorderScene::on_enter` refuses outright on its own leaked
-	// `recorder_` (`recorder_scene.cpp:149`) and `setup_recording` publishes a live foreground
+	// scene believing it is still open. That is harmless while every scriptable scene refuses on
+	// `SceneId::arg` or model state alone, but not for `recorder.txt`: `RecorderScene::on_enter`
+	// refuses outright on its own leaked `recorder_` and `setup_recording` publishes a live foreground
 	// recording that nine other subsystems read (`AudioEngine::setForegroundRecording`), so without
 	// this the *next* script in the process opened onto a refusal and every spec after it saw the
 	// device as recording.
@@ -562,8 +559,8 @@ inline RunResult run_script(std::string_view script_text, const SceneRegistry& r
 	// A destructor rather than a line before each `return`: there are eight of those, three of them
 	// error paths, and an error path is exactly when the stack is most likely to be somewhere
 	// strange. Popping unconditionally, not "if something looks wrong" -- the same
-	// assert-then-clear-free teardown `recorder_scene_spec.cpp`'s `~Rig` and E3 task 10's rollout
-	// use one layer up, for the same reason and with the same argument.
+	// assert-then-clear-free teardown `recorder_scene_spec.cpp`'s `~Rig` uses one layer up, for the
+	// same reason.
 	//
 	// @warning **This runs BEFORE the caller's post-run assertions, and `on_exit` is allowed to
 	//          clear the very state those assertions read.** Five shipped scenes do:
@@ -571,8 +568,7 @@ inline RunResult run_script(std::string_view script_text, const SceneRegistry& r
 	//          `ctx_`, resets `searching_`/`pending_` and takes the listing result,
 	//          `RecorderScene::on_exit` aborts a live recorder and unpublishes the foreground
 	//          recording, and `RenameScene`/`ContextMenuScene` zero their own `ctx_`. What makes
-	//          this guard safe today is narrower than "nothing clears anything" (fix round 1, which
-	//          is what the first version of this comment implied): **every committed script either
+	//          this guard safe is narrower than "nothing clears anything": **every committed script either
 	//          ends with nothing but `MenuScene` on the stack -- and `MenuScene` overrides no
 	//          `on_exit` at all -- or closes its own scene before `quit`, so that scene's `on_exit`
 	//          has already run inside the run and the caller is asserting about a scene it can see
@@ -674,9 +670,8 @@ inline RunResult run_script(std::string_view script_text, const SceneRegistry& r
 					return result;
 				}
 				// `Step::down` is deliberately unread: the parser already folds `up` into velocity
-				// 0 (`ui_script.cpp:192-195`), which is exactly what `DELUGE_EVENT_PAD`'s `value`
-				// means ("0 = release", `control_surface.h:50`), so the two would say the same
-				// thing twice.
+				// 0 (`tests/harness/ui_script.cpp`'s `pad ... up` parse), which is exactly what `DELUGE_EVENT_PAD`'s
+				// `value` means ("0 = release", `control_surface.h:50`), so the two would say the same thing twice.
 				shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_PAD, static_cast<uint8_t>(s.a),
 				                                      static_cast<uint8_t>(s.b), static_cast<int16_t>(s.c)},
 				                     t);
@@ -829,7 +824,7 @@ inline RunResult expect_script_goldens(Self& self, std::string_view script_name,
 	}
 
 	if (opts.second_registry != nullptr) {
-		// Migration hook (spec G §6, RunOptions::second_registry): the second run's directory is
+		// Migration hook (RunOptions::second_registry): the second run's directory is
 		// a sibling of the first, never the golden tree -- this mode never touches goldens at all.
 		const fs::path got_second = fs::path(UI_GOT_DIR) / "shell" / (name + "-second");
 		fs::remove_all(got_second, ec);

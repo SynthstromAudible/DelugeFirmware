@@ -136,7 +136,7 @@ describe shell_profiles("shell::board profiles", $ {
 		expect(profile.oled_role_by_index[0]).to_equal(SurfaceRole::Main);
 	});
 	it("Deluge profile has no l10n bridge yet, and falls back to digits", _ {
-		// The l10n table is spec E's and wiring it here is spec F's, so both hooks are null on the
+		// The l10n table is not wired into this profile, so both hooks are null on the
 		// shipping profile. Pinned so the fallback path stays the one the real board takes, and so
 		// a future wiring is a deliberate edit to this expectation rather than a silent change of
 		// what an error popup says.

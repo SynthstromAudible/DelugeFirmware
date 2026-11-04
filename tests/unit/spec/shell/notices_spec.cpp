@@ -61,12 +61,10 @@ BoardProfile fixed_lookup_profile() {
 ///        legitimately pushed" wherever a test needs one above a live notice -- registered at
 ///        `SceneKind::FirstApp`, a kind this Rig otherwise never uses.
 ///
-/// Review round 1 (task 11), I4: those tests used to reuse `SceneKind::Console` for this, which
-/// stopped being neutral the moment `Console` gained its own expiry-driven `remove()` (this file's
-/// "glyphs are not clipped" test's sibling fix) -- a `tick()` call now excises a stand-in `Console`
-/// that was never `append()`-ed to (no active lines) exactly as eagerly as a real one that expired,
-/// which is correct for a real console strip and wrong for a scene standing in for something else
-/// entirely.
+/// `SceneKind::Console` is not neutral for this: it has its own expiry-driven `remove()`, so a
+/// `tick()` call excises a stand-in `Console` that was never `append()`-ed to (no active lines)
+/// exactly as eagerly as a real one that expired, which is correct for a real console strip and
+/// wrong for a scene standing in for something else entirely.
 ///
 /// It stood at `SceneKind::Boot` until that kind was removed along with the boot splash.
 /// `FirstApp` is the better home anyway: the point of this scene is that an *application* pushed
@@ -292,8 +290,8 @@ describe shell_notices("shell::Notices", $ {
 	});
 
 	it("a null text/error lookup shows the id as digits, not an empty box", _ {
-		// `deluge_profile()` -- the real board -- leaves both hooks null until spec E's l10n table
-		// and spec F's wiring exist, so this is the shipping path, not a corner. An empty string
+		// `deluge_profile()` -- the real board -- leaves both hooks null until the l10n table and its
+		// wiring exist, so this is the shipping path, not a corner. An empty string
 		// here would draw a correctly framed, correctly sized, completely blank popup: an SD write
 		// failure would be unreportable.
 		Rig r{BoardProfile{}};
@@ -359,7 +357,7 @@ describe shell_notices("shell::Notices", $ {
 
 		// An application scene, pushed above the live popup -- legitimate, since the popup never took
 		// the input this Push responded to. `OtherScene`/`Boot`, not `Console`: `Console` now has its
-		// own expiry-driven removal (I4), so a `Console` pushed here with no active lines would be
+		// own expiry-driven removal, so a `Console` pushed here with no active lines would be
 		// removed by the very `tick()` below this test means to check ONLY pops the expired popup.
 		expect(r.stack.push(SceneId{SceneKind::FirstApp})).to_be_true();
 		expect(r.stack.depth()).to_equal(size_t(3));

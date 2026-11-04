@@ -107,7 +107,7 @@ struct GridSurface {
 	uint8_t pairs = 0;
 	std::optional<ActiveTween> tween;
 	/// Has the grid been re-rendered since the last flush? The grid-side twin of
-	/// `OledSurface::blit_pending`: `Shell::render_grid` raises it and `Shell::flush` (Task 8)
+	/// `OledSurface::blit_pending`: `Shell::render_grid` raises it and `Shell::flush`
 	/// lowers it once the changed column pairs have gone out. It is deliberately *not* "some pad
 	/// changed colour" -- that question is answered by diffing `last_sent`, which is the only
 	/// thing that can tell a re-render that painted the same pixels from one that did not.

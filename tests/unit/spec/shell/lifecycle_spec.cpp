@@ -54,8 +54,8 @@ public:
 	uint16_t last_arg = 0;
 };
 
-/// @brief The test registry's stand-in for spec E3's real `ScreensaverScene` (per this task's
-///        controller ruling): records entry/exit so the idle specs can see it pushed and popped,
+/// @brief The test registry's stand-in for the real `ScreensaverScene` in `src/scenes`: records entry/exit so the idle
+/// specs can see it pushed and popped,
 ///        without drawing anything of its own.
 class ScreensaverStub final : public Scene {
 public:
@@ -73,7 +73,7 @@ public:
 };
 
 /// @param register_screensaver False leaves `SceneKind::Screensaver` unregistered -- the branch's
-///        documented state until spec E3 writes the real animation, and the case the shell has to
+///        state of a build without the real animation, and the case the shell has to
 ///        survive without repainting every surface every tick.
 std::array<Scene*, 18> table_for(Scene& root, Scene& screensaver, bool register_screensaver) {
 	std::array<Scene*, 18> t{};
@@ -139,7 +139,7 @@ describe shell_lifecycle("shell::Shell lifecycle", $ {
 		deluge::notify::dirty().drain();
 		Rig r;
 		r.shell.boot();
-		// **Nothing on the stack, deliberately.** `boot()` used to push a "DELUGE" + version splash;
+		// **Nothing on the stack, deliberately.** `boot()` pushes no "DELUGE" + version splash:
 		// the port must not add UI the instrument did not have, and legacy's firmware draws nothing
 		// before its first root frame (`Shell::boot`'s doc). An empty stack reports the `Null` scene.
 		expect(r.shell.stack().depth()).to_equal(size_t(0));

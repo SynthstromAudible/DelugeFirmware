@@ -84,7 +84,7 @@ public:
 		                deluge::ui::LedState{deluge::ui::LedState::Kind::On, 0, 0});
 		// Blinking, not lit: the two are indistinguishable in the fake's `set_led` shadow (which
 		// only sees the level `flush` resolved for this tick), so this is what pins that `.state`
-		// reports the *declaration* -- spec G §3's `led <Name> blink <period>`.
+		// reports the *declaration* -- the `.state` line `led <Name> blink <period>`.
 		(void)frame.set(static_cast<deluge::ui::LedId>(ButtonId::Record),
 		                deluge::ui::LedState{deluge::ui::LedState::Kind::Blink, kRecordBlinkMs, 0});
 	}
@@ -223,7 +223,7 @@ struct FillRegistry {
 };
 
 /// @brief A `DemoScene` twin that draws one extra OLED pixel -- used only to prove the migration
-///        double-run (`RunOptions::second_registry`, spec G §6) catches a real divergence between
+///        double-run (`RunOptions::second_registry`) catches a real divergence between
 ///        two scene tables. Everything else is identical to `DemoScene`.
 class DemoSceneExtraPixel final : public DemoScene {
 public:

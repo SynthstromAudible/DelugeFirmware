@@ -14,7 +14,7 @@ namespace deluge::ui::shell {
 /// pushed or popped and has no render surface of its own. A minimal service overrides nothing at
 /// all: every hook already does nothing and returns "unhandled".
 ///
-/// Split out of `router.h` (rather than defined alongside `Router`/`Services`) so that a class
+/// It lives apart from `router.h` (`Router`/`Services`) so that a class
 /// that only needs the `Service` interface -- `Notices` (`shell/notices.h`), which is a `Service`
 /// but neither builds nor calls a `Router` -- does not have to pull in `Router`'s own machinery
 /// just to get its base class.
@@ -44,20 +44,12 @@ public:
 	/// The `Service` half of `Scene::timer_repaints`. **The two hooks share one return type and one
 	/// member default -- `RepaintSurfaces{}` is `{false, false}` for both -- and differ only in what
 	/// their un-overridden bodies return:** `Scene`'s returns `{true, true}`, this one returns
-	/// nothing armed. The reason is history, not taste: until E4 task 5 a service timer was *only* a
-	/// wake for `Shell::compute_next_wake`, and every existing service was written on that
-	/// understanding, so returning `{true, true}` here would have silently started arming both gates
-	/// for `ModKnobs`, `GlobalControls`, `Notices` and `Screensaver` -- a behaviour change none of
-	/// them asked for.
-	///
-	/// **What this docstring used to say, and why it was wrong** (E4 final review, I1): it said the
-	/// default was `{false, false}` and left the reader to conclude that an override naming one
-	/// field got `false` for the other. That was true of *this body* and false of the *type*, whose
-	/// members then defaulted to `true`, so the natural override
-	/// `return {.grid = true};` arrived with `oled == true` and armed an unconditional per-timer
-	/// blit on every OLED panel. The type's members are now `false` (`Scene::RepaintSurfaces`), so
-	/// the sentence is finally true of both, and a designated initializer here can only arm what it
-	/// names.
+	/// nothing armed. A service timer is a wake for `Shell::compute_next_wake` and nothing more unless
+	/// the service says otherwise: `ModKnobs`, `GlobalControls`, `Notices` and `Screensaver` are all
+	/// written on that understanding, so a `{true, true}` default would silently arm both gates for
+	/// every one of them. Because the type's members default to `false` (`Scene::RepaintSurfaces`), a
+	/// designated initializer here can only arm what it names: `return {.grid = true};` leaves `oled`
+	/// false.
 	///
 	/// **A service has no stack position, so there is no "can it paint" narrowing.**
 	/// `Shell::tick`'s step 8b skips a *scene* whose surface is covered
@@ -69,26 +61,17 @@ public:
 	/// surface is blitted unconditionally once it has rendered. Claim `oled` only for a timer
 	/// whose deadline really does change OLED content.
 	///
-	/// @warning That last sentence had nothing behind it until E4 task 14, which is the reason
-	///          this warning exists: the paragraph above is advice, and the next service to
-	///          override this was one docstring away from an unconditional periodic blit on every
-	///          panel. Three things stand behind it now, and the order matters because the first
-	///          two are what make the third a tripwire rather than the whole defence.
+	/// @warning An override that arms the OLED costs an unconditional periodic blit on every panel,
+	///          so three things guard it, in this order of strength:
 	///          1. **The type.** `Scene::RepaintSurfaces`' members are `false`, so an override can
-	///             only arm what it names. Until E4's final review they were `true`, and
-	///             `return {.grid = true};` silently claimed the OLED as well.
+	///             only arm what it names.
 	///          2. **`tests/spec/shell/flush_spec.cpp`**, whose two service legs are the only
-	///             machine check on step 8c: "Claiming the OLED: the other branch, and the one
-	///             that had only a docstring" (the first cut set only `{false, false}` and
-	///             `{false, true}`, so deleting step 8c's whole `if (surfaces.oled)` block left all
-	///             98 host tests green), and "a service claiming `{.grid = true}` arms no OLED
-	///             gate", which is written in the dangerous spelling itself.
+	///             machine check on step 8c: one claims the OLED (so deleting step 8c's whole
+	///             `if (surfaces.oled)` block fails it), the other is "a service claiming
+	///             `{.grid = true}` arms no OLED gate", written in the dangerous spelling itself.
 	///          3. **`check_layer_rules.py`'s `services-no-oled-timer-claim` row**, zero-baseline
-	///             over `src/shell/**` *and* `src/scenes/services/**` -- it was scoped to the
-	///             latter alone until E4's final review, which left `Notices` and `Screensaver`,
-	///             two live services in this very directory, outside it. `audit_service_scope()`
-	///             now fails the checker if a `Service` is ever declared where the row cannot see
-	///             it.
+	///             over `src/shell/**` *and* `src/scenes/services/**`. `audit_service_scope()`
+	///             fails the checker if a `Service` is ever declared where the row cannot see it.
 	///
 	///          It is a ratchet and not a ban: if your service really does need the OLED armed,
 	///          make the case in the commit message, run `--update`, and extend flush_spec's OLED

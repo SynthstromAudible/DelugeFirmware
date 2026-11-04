@@ -25,21 +25,22 @@ public:
 /// and owns nothing but its own `NullScene`. Every operation is described in terms of the scene
 /// lifecycle hooks it fires, in the order it fires them:
 ///
-/// | operation | lifecycle, in order |
-/// |---|---|
-/// | `push(id)` | `on_enter(id)`; a refusal rolls back and resumes the new input top, if it moved |
-/// | `pop(kind)` | `on_exit()` top-down through `kind`, then `on_resume()` on the new input top, if it moved |
-/// | `remove(kind)` | `save_state()` then `on_exit()` on that scene alone, wherever it sits; `on_resume()` on the new
-/// input top, if it moved | | `replace_root(id)` | per scene, top first: `save_state()` then `on_exit()`; `push(id)`;
-/// `restore_state()` | | `replace_top(id)` | `on_exit()` on the top, `on_enter(id)` on the replacement; no state save;
-/// a refusal restores and unconditionally resumes the scene it exited | | `reset()` | `on_exit()` on every scene, top
-/// first |
+/// - `push(id)`: `on_enter(id)`; a refusal rolls back and resumes the new input top, if it moved.
+/// - `pop(kind)`: `on_exit()` top-down through `kind`, then `on_resume()` on the new input top, if
+///   it moved.
+/// - `remove(kind)`: `save_state()` then `on_exit()` on that scene alone, wherever it sits;
+///   `on_resume()` on the new input top, if it moved.
+/// - `replace_root(id)`: per scene, top first: `save_state()` then `on_exit()`; `push(id)`;
+///   `restore_state()`.
+/// - `replace_top(id)`: `on_exit()` on the top, `on_enter(id)` on the replacement; no state save; a
+///   refusal restores and unconditionally resumes the scene it exited.
+/// - `reset()`: `on_exit()` on every scene, top first.
 ///
 /// @par What "if it moved" means
 ///
 /// `on_resume()` asserts that this scene is the one input reaches again, so the three arms above
 /// fire it only when `input_top()` -- not `top()` -- is a different scene after the mutation than
-/// it was before. Two consequences, and both were defects until E4 task 10 (design spec §15.7):
+/// it was before. Two consequences:
 /// removing an `input_transparent()` layer notifies **nobody**, because `input_top()` already
 /// skipped it (`SceneStack::input_top`); and removing the top of `[A, popup, B]` notifies `A`, the
 /// scene that genuinely takes input again, rather than the popup that happens to sit highest.
@@ -91,10 +92,10 @@ public:
 	/// `input_top()` and only when removing \p kind's scene changed which scene that is. Removing
 	/// a passive layer therefore notifies nobody at all, which is the case this method exists for:
 	/// the layer never held the input top, so nothing beneath it lost or regained anything.
-	/// @note This is stricter than "was it the top". `remove` used to resume `stack_[n_ - 1]`
-	///       whenever the removed scene sat highest, which both fired on a popup's own timeout --
-	///       wiping the slicer's slice table 800 ms after a pad tap -- and, for `[A, popup, B]`,
-	///       notified the popup instead of `A`. See design spec §15.7.
+	/// @note This is stricter than "was it the top". Resuming `stack_[n_ - 1]` whenever the removed
+	///       scene sat highest would both fire on a popup's own timeout -- wiping the slicer's
+	///       slice table 800 ms after a pad tap -- and, for `[A, popup, B]`, notify the popup
+	///       instead of `A`.
 	/// @param kind The kind to remove the topmost instance of.
 	/// @return False, touching nothing, if no scene of \p kind is on the stack.
 	bool remove(SceneKind kind);
@@ -169,7 +170,7 @@ public:
 	SceneId id_at(size_t i) const { return i < n_ ? ids_[i] : SceneId{}; }
 	/// @brief The greyout of the topmost scene that asks for one.
 	///
-	/// Legacy's `getUIGreyoutColsAndRows` (`gui/ui/ui.cpp:73-83`): the open UIs are asked top down
+	/// Legacy's `getUIGreyoutColsAndRows` (`gui/ui/ui.cpp`): the open UIs are asked top down
 	/// and the first that answers true decides. A scene spells legacy's "obey the UI under me" as an
 	/// all-zero mask, so an empty mask is skipped and the scene beneath is asked instead.
 	/// @return The `greyout_mask()` of the topmost scene whose mask has a column or a row set, or an

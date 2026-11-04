@@ -9,7 +9,7 @@ namespace {
 ///
 /// `mod_knobs` is the port of `View`, and `View` is what `UI`'s **base-class** implementations of
 /// `modEncoderAction`/`modButtonAction` forward to (`gui/ui/ui.cpp:35-41`). The dispatchers call
-/// the current UI, never `view` directly -- `interpretEncoders` at `hid/encoder_input.cpp:194`,
+/// the current UI, never `view` directly -- `interpretEncoders` in `hid/encoder_input.cpp`,
 /// `Buttons::buttonAction`'s mod-button loop at `hid/buttons.cpp:104` -- so a UI that overrides
 /// the hook wins and one that does not falls through to `View`. Hence: scene first, service
 /// second. See `Router::route`'s doc for the override census.
@@ -23,10 +23,10 @@ namespace {
 /// `gui/ui/sound_editor.h:81`, `gui/views/session_view.h:80`,
 /// `gui/views/performance_view.h:97`, `gui/views/automation_view.h:117`). Scene first, then here.
 ///
-/// @note Plan D excluded the two pushes on the correct observation that legacy reaches them only
-///       *after* the current UI. Under the inverted chain that meant "never a `mod_knobs` event",
-///       which left `View::modEncoderButtonAction` (`gui/views/view.cpp:1349-1367`) unreachable in
-///       the port. E4 task 3, which ports it, put them back once the chain was scene-first.
+/// @note Legacy reaches the two pushes only *after* the current UI. In a service-first chain that
+///       would mean "never a `mod_knobs` event", leaving `View::modEncoderButtonAction`
+///       (`gui/views/view.cpp:1349-1367`) unreachable; the scene-first chain is what lets them be
+///       `mod_knobs` events.
 bool is_mod_or_gold(const UiEvent& e) {
 	switch (e.kind) {
 	case UiEvent::Kind::Button:
@@ -70,7 +70,7 @@ bool Router::run_chain(const UiEvent& event, const UiContext& ctx) {
 		return true;
 	}
 
-	// `midi_learn` last, added by E4 task 5. The four `View::buttonAction` arms it owns
+	// `midi_learn` last. The four `View::buttonAction` arms it owns
 	// (`gui/views/view.cpp:149-167`, `:186-197`, `:200-213`, `:216-229`) sit in the SAME
 	// `if`/`else if` chain as the arms `global_controls` owns, so their relative order is only
 	// observable if both could claim one event -- and `GlobalControls::view_button_action` answers
@@ -82,17 +82,15 @@ bool Router::run_chain(const UiEvent& event, const UiContext& ctx) {
 	// `getCurrentUI()->noteOnReceivedForMidiLearn` and only falls through to
 	// `view.noteOnReceivedForMidiLearn` when it declines (`playback/playback_handler.cpp:2968-2971`),
 	// and `PlaybackHandler::programChangeReceived` has the identical shape one dispatcher up
-	// (`:2897-2901`). **The CC dispatcher does NOT** -- this comment claimed it did until F1 task 10
-	// re-resolved the citation. `PlaybackHandler::midiCCReceived` has no
+	// (`:2897-2901`). **The CC dispatcher does NOT:** `PlaybackHandler::midiCCReceived` has no
 	// `getCurrentUI()->…ForMidiLearn` call and `UI` declares no such virtual (`gui/ui/ui.h:130`,
 	// `:132` are the only two); what sits at `playback_handler.cpp:3164` is a hardcoded
 	// `getCurrentUI() == &soundEditor && soundEditor.midiCCReceived(...)` **outside** the
 	// `UI_MODE_MIDI_LEARN` gate, after which learn goes straight to `view.ccReceivedForMIDILearn`
 	// at `playback_handler.cpp:3169` with no UI-first refusal at all. So note-on is the dispatcher
 	// this ordering mirrors, `Kind::MidiCc` is carried in the same position for consistency of the
-	// chain rather
-	// than because legacy asks a UI first, and the divergence that leaves under the guest is
-	// recorded at `playback_handler.cpp:3164`.
+	// chain rather than because legacy asks a UI first, and the divergence that leaves under the
+	// guest is noted at `playback_handler.cpp:3164`.
 	Result learn_result = services_.midi_learn->handle(event, ctx);
 	apply(learn_result);
 	if (learn_result.handled) {

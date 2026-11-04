@@ -111,15 +111,13 @@ static_assert(alignof(SceneState) == 8);
 ///
 /// @par The two MIDI kinds, and why they are `UiEvent`s at all
 ///
-/// They are the transport migration §10.2 item 8 was opened for: `services::MidiLearn`'s
-/// `note_on_received` and `cc_received` are ports of `View::noteOnReceivedForMidiLearn`
-/// (`gui/views/view.cpp:640`) and `View::ccReceivedForMIDILearn` (`:784`), and until F1 task 10
-/// there was no event shape a `Router` could carry them in, so neither had a caller anywhere in
-/// `src/`. Routing them rather than calling the service directly is what puts the **scene** first:
-/// legacy's note-on dispatcher asks `getCurrentUI()->noteOnReceivedForMidiLearn` before it falls
-/// through to `view` (`playback/playback_handler.cpp:2968-2971`), and `Router::run_chain`'s
-/// scene-then-`midi_learn` order is the same shape -- which is what a future `SessionScene` /
-/// `NoteClipScene` needs when it answers `learnable_at(pad)` and claims the message itself.
+/// They are the transport for `services::MidiLearn`'s `note_on_received` and `cc_received`, ports of
+/// `View::noteOnReceivedForMidiLearn` and `View::ccReceivedForMIDILearn`: an event shape a
+/// `Router` can carry. Routing them rather than calling the service directly is what puts the **scene** first: legacy's
+/// note-on dispatcher asks `getCurrentUI()->noteOnReceivedForMidiLearn` before it falls through to `view`
+/// (`playback/playback_handler.cpp:2968-2971`), and `Router::run_chain`'s scene-then-`midi_learn`
+/// order is the same shape -- which is what a `SessionScene` / `NoteClipScene` needs when it answers
+/// `learnable_at(pad)` and claims the message itself.
 ///
 /// Unlike every other kind these are **not** produced by `InputLowering`: they arrive from
 /// legacy's MIDI dispatchers, synchronously, through `Shell::route_midi`.
@@ -216,7 +214,7 @@ struct UiContext {
 ///          It sets one bare global bool (`InputLowering::set_input_lock`, `input_lowering.h`) with
 ///          no owner and no refcount, and while it is set every event except
 ///          `DELUGE_EVENT_NO_PRESSES` is **dropped** -- encoder edges included
-///          (`input_lowering.cpp:159`). `on_exit()` returns `void`, so a scene that took the lock
+///          (`InputLowering::on_encoder_edges`). `on_exit()` returns `void`, so a scene that took the lock
 ///          and is then removed by anything other than its own `Result` -- an external `Pop`, a
 ///          `replace_root`, a song load -- physically cannot give it back, and the whole device
 ///          goes deaf until something else happens to clear it.
@@ -230,8 +228,8 @@ struct UiContext {
 ///          input for a while should just ignore it: `SceneStack::input_top()` routes every event
 ///          to the topmost non-input-transparent scene's own `handle()`, which is free to swallow
 ///          them (`scenes/browser/browser_scene.cpp`'s `after_render` note records that choice and
-///          why). E3 task 3 fix round 1: `BrowserScene` took this lock while a directory listing
-///          was in flight and leaked it on exactly the external-removal path above.
+///          why). A browser that took this lock while a directory listing was in flight would
+///          leak it on exactly the external-removal path above.
 ///
 /// @note `Replace` is deliberately the short name for the common case (swap the top) and
 ///       `ReplaceRoot` the long one for the rarer whole-stack move, matching the pair of
@@ -245,10 +243,10 @@ struct UiContext {
 ///       produced this `Result` and the router applying it, and a blind `Pop` would then remove the
 ///       overlay instead. `Remove` (with `pop_to` naming the caller's own kind) is what "close me,
 ///       leave whatever else is stacked alone" actually means -- see `MenuScene::handle`'s
-///       root-`Back` case for the ported example (task 11 review round 1: it originally used
-///       `Pop{.pop_to = FirstApp}`, which is wrong for the same reason `Pop{.pop_to = Null}` is --
-///       `pop(kind)` still takes everything ABOVE that kind down with it, tearing down a live
-///       `Working`/`Popup` along with the menu it was shown over).
+///       root-`Back` case for the ported example: `Pop{.pop_to = FirstApp}` would be wrong
+///       for the same reason `Pop{.pop_to = Null}` is -- `pop(kind)` still takes everything ABOVE
+///       that kind down with it, tearing down a live `Working`/`Popup` along with the menu it was
+///       shown over.
 struct Action {
 	/// @brief Which action this is; see the table above.
 	enum class Kind : uint8_t {
@@ -309,23 +307,22 @@ struct Result {
 /// reaching through `Scene::`.
 ///
 /// The three values are legacy's three behaviours, not a design: `SoundEditor::padAction`
-/// (`gui/ui/sound_editor.cpp:1460`) tries its shortcut arm only when the menu is not a settings or
-/// note-editor menu (`:1467`), and forwards everything it did not claim to the root view by
-/// identity (`:1474-1517`).
+/// (`gui/ui/sound_editor.cpp`) tries its shortcut arm only when the menu is not a settings or
+/// note-editor menu, and forwards everything it did not claim to the root view by identity.
 enum class GridPadClaim : uint8_t {
 	/// The scene owns the grid; nothing is forwarded. Every root scene, every browser.
 	All,
 	/// The scene owns only the shortcut gesture -- a pressed main-grid pad with shift held.
-	/// Everything else forwards. The port of `:1467` passing.
+	/// Everything else forwards. The port of the shortcut arm running.
 	ShortcutsOnly,
-	/// The scene owns no grid pad. The port of `:1467` failing.
+	/// The scene owns no grid pad. The port of the shortcut arm not running.
 	None,
 };
 
 /// @brief The parts of the pad grid a scene draws itself -- `Scene::pad_regions()`'s return type.
 ///
 /// Legacy asks every UI two separate questions, `renderMainPads` and `renderSidebar`
-/// (`gui/ui/ui.h:143-151`), and an overlay routinely answers them differently: `QwertyUI::drawKeys`
+/// (`gui/ui/ui.h`), and an overlay routinely answers them differently: `QwertyUI::drawKeys`
 /// draws the main pads only (`gui/ui/qwerty_ui.cpp:76-125`), leaving the sidebar to the view
 /// beneath. A host that shares the pads with another owner hands each region over on its own.
 enum class PadRegions : uint8_t {
@@ -478,7 +475,7 @@ public:
 	/// @note There is deliberately no `on_pause` dual. Nothing needs one yet -- `on_enter` already
 	///       runs on the scene taking the top -- and adding one would put a hook on all thirty-odd
 	///       scenes to serve no caller. If one is ever added it must be fired on exactly the same
-	///       condition as this, or the pair stops being a pair; see design spec §15.7.
+	///       condition as this, or the pair stops being a pair.
 	virtual void on_resume() {}
 	/// @}
 
@@ -565,32 +562,23 @@ public:
 	/// Two services, and they gate different amounts:
 	///
 	///   * `services::GlobalControls` gates **one group** of arms -- its port of
-	///     `View::buttonAction` (`global_controls.cpp:580`, the `view_button_action` call). Its
-	///     other group, the port of `Buttons::buttonAction`'s tail, is deliberately *ungated*,
-	///     because legacy runs that tail for any current UI. The two reachability rules below are
-	///     why one call is gated and the other is not.
+	///     `View::buttonAction` (`GlobalControls::handle`'s `view_button_action` call). Its other
+	///     group, the port of `Buttons::buttonAction`'s tail, is deliberately *ungated*, because
+	///     legacy runs that tail for any current UI. The two reachability rules below are why one
+	///     call is gated and the other is not.
 	///   * `services::MidiLearn` gates **all four of its `View::buttonAction` arms** and only those
-	///     (`midi_learn.cpp:491`, the same sentence `services/midi_learn.h:58` makes). It is the
-	///     consumer that made the gate load-bearing, because `MidiLearn` is routed last and therefore
-	///     sees a `LEARN` press under a non-root scene where legacy hands it to
-	///     `SoundEditor::buttonAction`'s own arm.
+	///     (`MidiLearn::handle`, `services/midi_learn.h`). It is the consumer that made the gate
+	///     load-bearing, because `MidiLearn` is routed last and therefore sees a `LEARN` press under
+	///     a non-root scene where legacy hands it to `SoundEditor::buttonAction`'s own arm.
 	///
-	///     **It is no longer the whole of `handle()`, and this bullet said it was until F1 task 10's
-	///     fix round.** That task put the two MIDI arms (`UiEvent::Kind::MidiNoteOn`/`MidiCc`)
-	///     deliberately *above* the gate, and `midi_learn.cpp:457-462` argues why: legacy reaches
-	///     `view.noteOnReceivedForMidiLearn` from `PlaybackHandler` with no root-UI test anywhere on
-	///     the path, so gating them would invent a restriction legacy does not have. The claim was
-	///     falsified by the same commit that then swept this file's citations -- which bumped the
-	///     number and left the sentence. See `scripts/check_citations.py`'s sweeping section: a shift
-	///     map keeps a citation pointing where it pointed, so a freshly-correct line number can sit
-	///     on a sentence the same commit made false, and read as evidence the text was checked.
+	///     The two MIDI arms (`UiEvent::Kind::MidiNoteOn`/`MidiCc`) sit deliberately *above* the
+	///     gate (`MidiLearn::handle`): legacy reaches `view.noteOnReceivedForMidiLearn` from
+	///     `PlaybackHandler` with no root-UI test anywhere on the path, so gating them would invent a
+	///     restriction legacy does not have.
 	///
-	/// @warning **This list is owned by whoever adds the next consumer.** It said "there is
-	///          exactly one consumer today" and named only `GlobalControls` for the whole of E4,
-	///          having been written one task before `MidiLearn` became the second — the same way
-	///          `Router`'s mod-knob ordering note stayed false for three plans because nobody
-	///          re-read it when the consumer changed. If you add a third reader, add it here, with
-	///          what it gates.
+	/// @warning **Keep this list current.** Whoever adds another reader of `is_root()` adds it here,
+	///          with what it gates; a stale list reads as evidence that the gate has one consumer
+	///          when it has several.
 	///
 	/// @par Why the shell needs this at all
 	///
@@ -645,17 +633,13 @@ public:
 	/// scene that overrides this hook gets its blink, scroll or countdown without arming anything
 	/// itself.
 	///
-	/// It did not always mean that, and the history is why the two were folded together. A timer
-	/// used only to feed `Shell::compute_next_wake`, and whether the woken tick drew anything was
-	/// decided separately by `RepaintGate::needs_frame` -- so every animated scene had to *also*
-	/// call `f.gate().request_repaint_after(period_ms, f.now_ms())` from inside its own `render_*`,
-	/// and **four scenes in a row shipped or nearly shipped without it**: E2's menu cursor blink,
-	/// E3 task 3's `BrowserScene` (whose first quiet-tick example passed with the arm deleted,
-	/// because an unrelated repaint covered for it), E3 task 4's `MarkerScene` (whose four blink
-	/// phases all rendered byte-identically), and E3 task 5's `RecorderScene` -- where the cost was
-	/// not cosmetic at all, because without the arm the completion poll never ran and a finished
-	/// recording was never noticed. A defect shape that recurs at that rate is a missing default,
-	/// not four mistakes.
+	/// The two are folded together on purpose. A timer that only fed `Shell::compute_next_wake`
+	/// left whether the woken tick drew anything to `RepaintGate::needs_frame`, so every animated
+	/// scene would also have to call `f.gate().request_repaint_after(period_ms, f.now_ms())` from
+	/// inside its own `render_*` -- and omitting that arm is silent: a blink never blinks, and for
+	/// a poll like `RecorderScene`'s the completion check never runs, so a finished recording is
+	/// never noticed. A defect shape that easy to miss is a missing default, not a series of
+	/// mistakes.
 	///
 	/// A scene may still arm a gate from its own `render_*`, and several do: an arm computed from
 	/// the phase actually being drawn (`MenuScene::render_grid`'s `ms_to_next_step`) is tighter
@@ -666,20 +650,18 @@ public:
 	/// `RepaintGate::request_repaint_after(0, now_ms)`, which sets the deadline to `now_ms` --
 	/// due on the following tick, since `needs_frame` tests `now_ms - deadline >= 0` -- and it is
 	/// the same idiom `Shell::tick`'s own step 8a already uses to turn a router `Repaint` into a
-	/// wake (`shell.cpp:413-434`). It is not a busy loop: the shell still only ticks when its host
+	/// wake (`Shell::tick`). It is not a busy loop: the shell still only ticks when its host
 	/// asks it to, and the grid's flush diffs against `last_sent`, so a repaint that changed no
 	/// pixel costs no blit. It IS a per-tick blit on an OLED surface, which has no such diff, so a
 	/// scene that returns zero should claim `{.oled = false}` in `timer_repaints()` unless its OLED
 	/// content really does change every tick.
 	///
 	/// The case it exists for is `AudioClipView::graphicsRoutine`'s play cursor, ported by
-	/// `scenes::audio_clip::AudioClipScene` (E4 task 11) -- a *frame* animation rather than a
+	/// `scenes::audio_clip::AudioClipScene` -- a *frame* animation rather than a
 	/// scheduled event, which is what "every tick" spells.
 	///
-	/// @warning **Corrected (F1 task 7, 2026-09-07): legacy's `graphicsRoutine` is NOT driven from
-	///          the main loop, and it is not per-iteration.** This paragraph said "a legacy routine
-	///          driven from the main loop rather than from `uiTimerManager`", and both halves are
-	///          wrong. `grep -rn "graphicsRoutine()" src/deluge` gives exactly one call site outside
+	/// @warning **Legacy's `graphicsRoutine` is NOT driven from the main loop, and it is not
+	///          per-iteration.** `grep -rn "graphicsRoutine()" src/deluge` gives exactly one call site outside
 	///          the `UI` hierarchy: `UITimerManager::routine`'s `TimerName::GRAPHICS_ROUTINE` arm,
 	///          which calls `getCurrentUI()->graphicsRoutine()` and then re-arms itself at **15 ms**
 	///          (`gui/ui_timer_manager.cpp:213-218`), behind a pad-output-space gate. So legacy's
@@ -697,46 +679,42 @@ public:
 	/// **A `Scene` that does not override this arms both**, which is what makes `next_timer()` mean
 	/// "repaint me later" (see it). That default lives in *this function's body*
 	/// (`return {true, true};`) and deliberately **not** in `RepaintSurfaces`' member initialisers,
-	/// which are `false`. The distinction is the whole safety property of the type, and E4's final
-	/// review is what forced it out: while the members defaulted to `true`, the natural override
+	/// which are `false`. The distinction is the whole safety property of the type: with `true`
+	/// members, the natural override
 	///
 	/// ```cpp
 	/// RepaintSurfaces timer_repaints() const override { return {.grid = true}; }
 	/// ```
 	///
-	/// silently also claimed the OLED, because a designated initializer leaves unnamed members at
-	/// their member default. Every one of this tree's overrides happens to spell both fields, so
-	/// nothing was broken -- but the next author to write the obvious thing would have armed an
-	/// unconditional per-timer blit on every OLED panel, which is the exact regression that shipped
-	/// twice in E3 (50 Hz, then 100 Hz, both two-panel; the account is below). With `false` members,
-	/// a designated initializer can only ever arm what the author named, and the "both" default is
-	/// still reached by anyone who overrides nothing.
+	/// would silently also claim the OLED, because a designated initializer leaves unnamed members at
+	/// their member default -- arming an unconditional per-timer blit on every OLED panel at the
+	/// timer's rate. With
+	/// `false` members, a designated initializer can only ever arm what the author named, and the
+	/// "both" default is still reached by anyone who overrides nothing.
 	///
-	/// **Per-surface, not all-or-nothing -- E3 task 10 fix round 1.** The fold's first cut armed
-	/// every surface a scene is drawn on from one shared deadline, on the reasoning that
-	/// over-arming only costs a repaint of an unchanged frame. That reasoning held for the grid,
-	/// whose `Shell::flush` diffs against `last_sent` and blits nothing when a repaint changed no
-	/// pixel -- but the OLED panels have no such diff: `flush` blits an OLED surface unconditionally
-	/// once it has rendered. `MenuScene::next_timer()` returns a constant interval whenever the
-	/// focused node has shortcut or source pads (`menu_scene.cpp`), which is purely a GRID
-	/// concern -- the submenu's OLED content never depends on that blink -- so arming the OLED
-	/// gates from it too turned "sitting on a patched-param leaf" into both panels blitting
-	/// unconditionally, forever, at the timer's own cadence. No golden or pixel comparison can see
-	/// this: the content blitted is byte-identical every time, which is exactly why it is a battery
-	/// cost rather than a correctness bug, and exactly why it needed a name rather than a note.
+	/// **Per-surface, not all-or-nothing.** Arming every surface a scene is drawn on from one shared
+	/// deadline only costs a repaint of an unchanged frame on the grid, whose `Shell::flush` diffs
+	/// against `last_sent` and blits nothing when a repaint changed no pixel -- but the OLED panels
+	/// have no such diff: `flush` blits an OLED surface unconditionally once it has rendered.
+	/// `MenuScene::next_timer()` returns a constant interval whenever the focused node has shortcut
+	/// or source pads (`menu_scene.cpp`), which is purely a GRID concern -- the submenu's OLED content
+	/// never depends on that blink -- so arming the OLED gates from it too would have both panels
+	/// blitting unconditionally, forever, at the timer's own cadence. No golden or pixel comparison
+	/// can see this: the content blitted is byte-identical every time, which is exactly why it is a
+	/// battery cost rather than a correctness bug, and exactly why it needs a name rather than a
+	/// note.
 	///
 	/// Override this (`MenuScene` does, `{.oled = false, .grid = true}`) when a scene's timer has a
 	/// visible consequence on only one kind of surface. A scene that needs both -- `RecorderScene`'s
 	/// poll updates the OLED word AND, through the grid, keeps running under its own popup
 	/// (`recorder_scene.h`'s class note) -- takes the default and pays for both, correctly.
 	///
-	/// **A claim, not a prediction -- and only honoured where the scene can paint** (E3 final
-	/// review, A2). The render functions draw from a base up: `Shell::render_grid` from
-	/// `Shell::grid_base()`, `Shell::render_oled` from `Shell::oled_lowest(role)`, per role. Step 8b
-	/// arms a claimed surface only for a scene at or above that surface's base, because a covered
-	/// scene arming a gate buys a repaint it can never appear in -- and on the OLED that is a blit.
-	/// A covered scene loses nothing else: `compute_next_wake` still wakes the shell at its
-	/// deadline, and `Shell::tick_stack` still calls `tick(dt)` on it.
+	/// **A claim, not a prediction -- and only honoured where the scene can paint.** The render functions draw
+	/// from a base up: `Shell::render_grid` from `Shell::grid_base()`, `Shell::render_oled` from
+	/// `Shell::oled_lowest(role)`, per role. Step 8b arms a claimed surface only for a scene at or above that surface's
+	/// base, because a covered scene arming a gate buys a repaint it can never appear in -- and on the OLED that is a
+	/// blit. A covered scene loses nothing else: `compute_next_wake` still wakes the shell at its deadline, and
+	/// `Shell::tick_stack` still calls `tick(dt)` on it.
 	///
 	/// @return `{true, true}` (what the un-overridden body below returns) to arm both kinds of
 	///         surface at the timer's deadline; `{false, false}` -- which is what a

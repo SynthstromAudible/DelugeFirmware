@@ -6,8 +6,7 @@ void SceneStack::resume_new_input_top(Scene* before) {
 	Scene* const after = &input_top();
 	if (after == before || after == &null_) {
 		// Same scene on both sides of the mutation: nothing changed hands, so there is no
-		// transition to announce. This is the whole of the E4 task 10 fix -- see the header's
-		// contract table and design spec §15.7. `null_` is excluded because an empty stack, or one
+		// transition to announce; see the header's contract table. `null_` is excluded because an empty stack, or one
 		// left holding nothing but `input_transparent()` layers, has no input top to resume: the
 		// `NullScene` is what `input_top()` reports for "nobody", not a scene that took over.
 		return;
@@ -31,7 +30,7 @@ bool SceneStack::push(SceneId id) {
 	if (scene == nullptr || n_ == kStackDepth) {
 		// Nothing was touched, so nothing changed. Flagging this would make a caller that retries a
 		// refused push every tick -- `Screensaver::tick` against an unregistered `SceneKind::
-		// Screensaver` was exactly that -- re-query the greyout and invalidate every gate on every
+		// Screensaver` is exactly that case -- re-query the greyout and invalidate every gate on every
 		// one of those ticks, which is a repaint storm rather than the "one redundant re-query"
 		// `changed_since_last_query` budgets for.
 		return false;
@@ -123,14 +122,14 @@ bool SceneStack::remove(SceneKind kind) {
 	ids_[n_] = SceneId{};
 
 	// Whether the *input* top changed hands, which is not the same question as "was the removed
-	// scene the raw top". Both directions matter and both were wrong before E4 task 10:
+	// scene the raw top". Both directions matter:
 	//
 	//   * Removing an `input_transparent()` layer -- the case this method exists for -- changes
 	//     nothing, even though the layer was the raw top. `Notices::tick` retiring an 800 ms popup
-	//     used to fire `on_resume` on the scene beneath, and `SlicerScene::on_resume` is
+	//     must not fire `on_resume` on the scene beneath: `SlicerScene::on_resume` is
 	//     `Slicer::focusRegained` (`gui/ui/slicer.cpp:59-72`), which clears the slice table.
-	//   * Removing the top of `[A, popup, B]` hands the input top to `A`, not to the popup, so the
-	//     old `stack_[n_ - 1]` notified the one scene that had not changed state.
+	//   * Removing the top of `[A, popup, B]` hands the input top to `A`, not to the popup, so
+	//     notifying `stack_[n_ - 1]` would notify the one scene that had not changed state.
 	resume_new_input_top(before);
 	return true;
 }
@@ -181,7 +180,7 @@ bool SceneStack::replace_top(SceneId id) {
 	ids_[n_ - 1] = id;
 	if (!scene->on_enter(id)) {
 		// Put the previous scene back and resume it -- **unconditionally**, which is the one arm
-		// E4 task 10 deliberately left alone.
+		// that does not wait for the input top to change hands.
 		//
 		// The rest of the class fires `on_resume` only when the input top actually changed hands,
 		// because an unpaired edge cannot mean anything stronger. Here the edge *is* paired:

@@ -68,13 +68,10 @@ struct LoweringConfig {
 /// been still for `LoweringConfig::short_press_ms` is recorded but swallowed, and a turn that
 /// exactly cancels the recorded one is written off as an accidental wiggle and swallowed too; only
 /// a turn that carries on past the recorded direction is lowered. Ported from the mod-knob block
-/// of `interpretEncoders` as it stood before the encoder overhaul (`hid/encoders.cpp` lines
-/// 242-292 as of `e460593c8^` -- pinned to that revision and therefore deliberately NOT written in
-/// the live `file:line` form, since `check_citations.py` resolves against the current tree, where
-/// that file is 107 lines) -- the overhaul dropped the `turnedRecently` half and left the
-/// surviving `modEncoderInitialTurnDirection` test unreachable (`hid/encoder_input.cpp:178-205`).
-/// A swallowed turn produces no `UiEvent` and contributes nothing to the snapshot, but still
-/// counts as input.
+/// of `interpretEncoders` in its pre-overhaul form -- the current legacy file dropped the
+/// `turnedRecently` half and left the surviving `modEncoderInitialTurnDirection` test unreachable
+/// (`hid/encoder_input.cpp:178-205`). A swallowed turn produces no `UiEvent` and contributes nothing
+/// to the snapshot, but still counts as input.
 ///
 /// @warning **The first gold turn after boot is always swallowed on device, and every committed
 ///          script depicts the other arm.** `last_turn_ms_` starts at 0 and the test is
@@ -83,12 +80,12 @@ struct LoweringConfig {
 ///          *yes* ever after. On device `now_ms` is uptime, which is long past 500 by the time a
 ///          user reaches a knob -- so the very first turn of a session takes the `!turned_recently`
 ///          arm and is recorded-but-swallowed. In a script the clock starts at 0, so a gold turn
-///          before `t = 500` takes the *acted-on* arm; all 22 pre-existing scripts turn gold inside
-///          that window, by luck rather than design, and their goldens therefore show behaviour the
-///          device never presents first (found by E3 task 11's review). `was_short_press` above
+///          before `t = 500` takes the *acted-on* arm; every committed script that turns gold does so
+///          inside that window, by luck rather than design, and their goldens therefore show
+///          behaviour the device never presents first. `was_short_press` above
 ///          carries a deliberate guard against exactly this shape ("false for a button that has
 ///          never been pressed"); this function has none. Deciding whether that is a defect to fix
-///          or legacy behaviour to keep needs a device, so it is recorded rather than changed --
+///          or legacy behaviour to keep needs a device, so it is documented rather than changed --
 ///          see `src/scenes/README.md`, "Defects this port found in shipping firmware".
 ///
 /// # What is dropped
@@ -211,7 +208,7 @@ public:
 	bool sticky() const { return shift_stuck_; }
 	/// @brief Drop the sticky-shift latch and the pressed flag together.
 	///
-	/// `Buttons::clearShiftSticky` (`buttons.cpp:302-306`): the way out of a latch that nothing is
+	/// `Buttons::clearShiftSticky`: the way out of a latch that nothing is
 	/// going to release, since the physical button is long since up.
 	void clear_shift_sticky();
 	/// @brief Turn the sticky-shift feature on or off at runtime.
@@ -235,12 +232,12 @@ public:
 	/// @brief Set the tap threshold at runtime, in milliseconds.
 	///
 	/// The port of `FlashStorage::holdTime` (`storage/flash_storage.h:70`), which legacy reads
-	/// live on every shift release (`hid/buttons.cpp:264`) and which the settings menu writes
+	/// live on every shift release (`Buttons::commandToggleShift`) and which the settings menu writes
 	/// (`gui/menu_item/defaults/hold_time.h:30-31`). `LoweringConfig::hold_time_ms` is otherwise a
 	/// construction-time field, and a host that is a static-init global cannot read flash at
 	/// construction -- so without this the shell's threshold is stuck at its 100 ms default while
 	/// the user's is anywhere from 50 ms to 1 s, and a sticky-shift tap that legacy latches this
-	/// one does not. F1 task 8; the sibling of `set_shift_is_sticky` above and the same argument.
+	/// one does not. This is the sibling of `set_shift_is_sticky` above and the same argument.
 	///
 	/// @note Not a `LoweringConfig` setter in general. These two fields are settings; the other
 	///       two are not -- `short_press_ms` is legacy's `kShortPressTime` constant
@@ -384,21 +381,20 @@ public:
 	double calc_next_knob_speed(EncoderRole role, int8_t delta, uint32_t now_ms);
 
 	/// @brief Backdate \p role's "last turned" clock so the next turn counts as the first after a
-	///        pause -- `View::pretendModKnobsUntouchedForAWhile` (`gui/views/view.cpp:1968-1972`).
+	///        pause -- `View::pretendModKnobsUntouchedForAWhile`.
 	///
 	/// The state it writes is `last_turn_ms_`, which is `timeModEncoderLastTurned`
-	/// (`hid/encoder_input.cpp:40`) and is read by `action_gold_turn`'s `turned_recently` test
+	/// (`hid/encoder_input.cpp`) and is read by `action_gold_turn`'s `turned_recently` test
 	/// alone. Backdating it makes that test false, so the next detent is remembered as the
 	/// gesture's initial direction rather than actioned -- which is exactly what "harder to turn"
 	/// means, and what legacy spends it on in `View::potentiallyMakeItHarderToTurnKnob`
-	/// (`view.cpp:1094`) and at the three `setActiveModControllable*`/`setModRegion` entry points.
+	/// and at the three `setActiveModControllable*`/`setModRegion` entry points.
 	///
 	/// @note **In current legacy this write is inert**, and here it is not. The encoder overhaul
-	///       dropped the `turnedRecently` branch that used to read `timeModEncoderLastTurned`
-	///       (`hid/encoder_input.cpp:178-205` has no such test left), so legacy's four callers now
-	///       write a field nothing reads; `action_gold_turn` deliberately restored the working
-	///       shape (see its own comment), which makes this setter live again. That restoration is
-	///       the shell's, made in plan D, not a behaviour change decided here.
+	///       dropped the `turnedRecently` branch that read `timeModEncoderLastTurned`
+	///       (`hid/encoder_input.cpp:178-205` has no such test left), so legacy's four callers
+	///       write a field nothing reads; `action_gold_turn` deliberately restores the working
+	///       shape (see its own comment), which makes this setter live.
 	/// @param role   Which encoder to backdate; anything but `GoldUpper`/`GoldLower` is still
 	///               accepted (the array is per role) but only the gold pair is ever consulted.
 	/// @param now_ms The wall clock to backdate from.
@@ -424,13 +420,12 @@ private:
 	///
 	/// @warning **`edges` is an `int8_t` and `dispatch` narrows into it with no clamp** --
 	///          `apply_encoder_edges(ev.x, static_cast<int8_t>(ev.value), now_ms)`
-	///          (`input_lowering.cpp:116`), where `DelugeInputEvent::value` is an `int16_t`. A
+	///          in `dispatch`, where `DelugeInputEvent::value` is an `int16_t`. A
 	///          `DetentedEncoder` reports `edges_per_detent` (2) edges per click, so **an event
 	///          carrying more than 63 detents wraps negative**: 120 detents is 240 edges, which
-	///          narrows to -16. Measured, not predicted -- it is how
-	///          `sim/scenes_spec/slicer_scene_spec.cpp` first failed (a slice count of 136 became 0,
-	///          and a 100-detent vertical turn arrived as -28), and why every multi-turn gesture
-	///          there is split into <= 63-detent turns.
+	///          narrows to -16. Measured: a slice count of 136 became 0 and a 100-detent vertical
+	///          turn arrived as -28, which is why every multi-turn gesture in
+	///          `sim/scenes_spec/slicer_scene_spec.cpp` is split into <= 63-detent turns.
 	///
 	///          **Legacy saturates where this wraps, and does so on the far side of the detent
 	///          division.** `interpretEncoders` takes whole detents from the encoder
@@ -441,10 +436,10 @@ private:
 	///          natural acceleration". So legacy's worst case is a saturated turn; this one's is a
 	///          reversed turn, and its `UiEvent::delta` cannot express more than 127 detents at all.
 	///
-	///          Not widened here, because widening it is not local: it touches the board-event
-	///          boundary (`DelugeInputEvent`), `saturating_add` above (`:37`, which already caps
-	///          `tick_delta_` at `int8_t` -- the file's existing answer to this class of problem),
-	///          and `UiEvent::delta`. Reachable on hardware only by a spin fast enough to deliver 64
+	///          Widening it is not local: it touches the board-event boundary (`DelugeInputEvent`),
+	///          `saturating_add` (in `input_lowering.cpp`, which already caps `tick_delta_` at
+	///          `int8_t` -- the file's existing answer to this class of problem), and
+	///          `UiEvent::delta`. Reachable on hardware only by a spin fast enough to deliver 64
 	///          detents between two dispatches.
 	/// @param index  The board's encoder index, resolved through `BoardProfile::encoder_by_index`.
 	/// @param edges  Signed quadrature edges since the last event; see the warning.

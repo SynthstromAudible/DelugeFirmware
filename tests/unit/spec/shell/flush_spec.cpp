@@ -165,8 +165,8 @@ struct Rig {
 	Rig() = default;
 };
 
-/// @brief A `Service` with a timer and a per-surface repaint claim -- what E4 task 5 added
-///        `Service::timer_repaints()` for.
+/// @brief A `Service` with a timer and a per-surface repaint claim -- what
+///        `Service::timer_repaints()` exists for.
 ///
 /// `services::MidiLearn`'s flash is the real case: `View::midiLearnFlash` toggles
 /// `midiLearnFlashOn` and then asks the ROOT UI to repaint
@@ -184,12 +184,12 @@ struct TimerService final : Service {
 /// @brief A `Service` whose `timer_repaints()` is written the way an author naturally writes it:
 ///        one designated initializer naming the one surface the timer actually moves.
 ///
-/// This double exists to be the E4 final review's I1 in executable form. `services::MidiLearn`
+/// This double pins what an unnamed claim member means. `services::MidiLearn`
 /// spells both fields (`{.oled = false, .grid = true}`), so nothing in the tree exercised what an
-/// *unnamed* member means -- and while `Scene::RepaintSurfaces`' members defaulted to `true`, it
-/// meant "arm it". A service claiming the grid alone would therefore have armed every OLED panel
-/// at its timer's cadence, unconditionally and forever, which is the regression E3 shipped twice
-/// on the scene side (50 Hz, then 100 Hz, both two-panel).
+/// *unnamed* member means -- and were `Scene::RepaintSurfaces`' members to default to `true`, it
+/// would mean "arm it". A service claiming the grid alone would then arm every OLED panel at its
+/// timer's cadence, unconditionally and forever -- the same two-panel blit the scene-side claim
+/// guards against.
 ///
 /// The claim is a fixed `return {.grid = true};` rather than a settable member on purpose: the
 /// thing under test is the *spelling*, so it has to appear literally.
@@ -586,10 +586,10 @@ describe shell_flush("shell::Shell::flush", $ {
 	});
 
 	it("next_wake sees a declared blink, so the phase moves with no input at all", _ {
-		// **A declared blink is a wake source** (E4 task 4 fix round 1). `led_is_on` derives a
+		// **A declared blink is a wake source.** `led_is_on` derives a
 		// blink's phase from `now_ms` alone (`shell/leds.cpp`), and every other source
-		// `compute_next_wake` consults is something a scene or service asked for -- so before this
-		// fix a declared `Kind::Blink` froze at whatever phase the last tick left it in on an
+		// `compute_next_wake` consults is something a scene or service asked for -- so without this a declared
+		// `Kind::Blink` would freeze at whatever phase the last tick left it in on an
 		// otherwise idle system. Live rather than theoretical: `MenuScene::leds` declares BACK and
 		// LEARN as `Blink(kFlashTime)` unconditionally (`MenuScene::leds`, `MenuLearn::leds`)
 		// while `MenuScene::next_timer` (`pad_next_timer`, `scenes/menu/pads.cpp`) answers `nullopt` for
@@ -630,8 +630,8 @@ describe shell_flush("shell::Shell::flush", $ {
 	});
 
 	it("a service timer arms only the surfaces it claims -- grid yes, OLED never", _ {
-		// E4 task 5. `Service::timer_repaints()` defaults to `{false, false}` so nothing that
-		// existed before this fold changed behaviour, and `services::MidiLearn` claims
+		// `Service::timer_repaints()` defaults to `{false, false}` so a service that declares nothing
+		// arms nothing, and `services::MidiLearn` claims
 		// `{.oled = false, .grid = true}` because the MIDI-learn flash is a pad concern
 		// (`gui/views/view.cpp:814-819` asks the ROOT UI to repaint, and every reader of
 		// `midiLearnFlashOn` is a pad renderer).
@@ -670,13 +670,12 @@ describe shell_flush("shell::Shell::flush", $ {
 		expect(r.fake.columns_sent.empty()).to_be_false(); // the grid repainted and the diff sent
 		expect(r.fake.blits.empty()).to_be_true();         // and the OLED panels stayed asleep
 
-		// --- Claiming the OLED: the other branch, and the one that had only a docstring -------
+		// --- Claiming the OLED: the other branch ----------------------------------------------
 		//
-		// **This leg exists because the first cut of this example was a mutation survivor**
-		// (task-5 fix round 1). It set only `{false, false}` and `{false, true}`, so deleting the
-		// whole `if (surfaces.oled)` block from `Shell::tick` step 8c left all 98 host tests green
-		// -- on the exact branch whose scene-side twin shipped a 50 Hz and then a 100 Hz two-panel
-		// blit in E3. The scene fold at least has `oled_paintable()` standing behind it; the
+		// **This leg exists so that deleting the `if (surfaces.oled)` block from `Shell::tick`
+		// step 8c fails a test.** Without it the examples set only `{false, false}` and
+		// `{false, true}`, and that deletion left every one green -- on the exact branch whose
+		// scene-side twin is a two-panel blit at the timer's cadence. The scene fold at least has `oled_paintable()` standing behind it; the
 		// service fold has no narrowing at all, so its only machine check is this.
 		r.service.claim = Scene::RepaintSurfaces{.oled = true, .grid = false};
 		// Distinct content on BOTH surfaces, so "the OLED repainted" and "the grid did not" are
@@ -717,12 +716,12 @@ describe shell_flush("shell::Shell::flush", $ {
 	});
 
 	it("a service claiming {.grid = true} arms no OLED gate -- the unnamed member is not a claim", _ {
-		// E4 final review, I1. The leg above proves the shell HONOURS a claim; this one proves the
+		// The leg above proves the shell HONOURS a claim; this one proves the
 		// claim is what the author wrote. `RepaintSurfaces`' members default to `false`, so
 		// `return {.grid = true};` -- the shape every author reaches for first -- leaves `oled`
-		// false. Before the fix the members defaulted to `true`, this example blitted both panels
-		// every 60 ms forever, and nothing in the tree noticed because every existing override
-		// happens to spell both fields.
+		// false. Were the members to default to `true`, this example would blit both panels every
+		// 60 ms forever, and nothing else in the tree would notice because every existing override
+		// spells both fields.
 		//
 		// Read first, as a type property, so the failure names the cause rather than a blit count:
 		expect(Scene::RepaintSurfaces{}.oled).to_be_false();

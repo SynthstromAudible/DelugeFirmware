@@ -21,11 +21,11 @@ using notify::Dirty;
 /// `greyProportion`, the argument `RGB::greyOut` takes"), and `greyProportion` is not the 0..1
 /// float the callers pass -- `setGreyoutAmount(float)` scales it: `greyProportion = newAmount *
 /// 6500000` (`hid/led/pad_leds.cpp:786-788`). Every place that greys a whole view outright asks
-/// for the full amount, `setGreyoutAmount(1)` (`pad_leds.cpp:753`, `:767`, `:783`, `:988`), so the
-/// scaled constant is `1 * 6500000`. (The fractional values at `pad_leds.cpp:991,1003` are a
-/// transition ramping the same scale in and out, which the tween driver owns.)
-/// `RGB::greyOut` then reads it as `0x808080 - proportion` plus `totalRGB * (proportion >> 5)`
-/// over a 23-bit shift (`gfx/grid/rgb.h`), which is why the number is this size rather than 0..255.
+/// for the full amount, `setGreyoutAmount(1)` (`PadLEDs::reassessGreyout`'s instant branch, `skipGreyoutFade`,
+/// `doGreyoutInstantly`, and the end of the fade in `timerRoutine`), so the scaled constant is `1 * 6500000`. (The
+/// fractional values at `pad_leds.cpp:991,1003` are a transition ramping the same scale in and out, which the tween
+/// driver owns.) `RGB::greyOut` then reads it as `0x808080 - proportion` plus `totalRGB * (proportion >> 5)` over a
+/// 23-bit shift (`gfx/grid/rgb.h`), which is why the number is this size rather than 0..255.
 constexpr int32_t kGreyoutAmountFull = 6500000;
 
 /// @brief Does \p f name a surface the shell can invalidate on its own?
@@ -232,8 +232,7 @@ void Shell::init(SceneId initial) {
 
 void Shell::boot() {
 	// No `init()` call: nothing goes on the stack here, so the panels stay blank until the
-	// application pushes its own root. See the header for the splash this call used to put up and
-	// why it was removed.
+	// application pushes its own root. See the header for why `boot()` puts up no splash.
 	for (OledSurface& s : surfaces_.oled()) {
 		s.gate.request_repaint();
 	}
@@ -298,9 +297,9 @@ bool Shell::route_midi(const UiEvent& event, uint32_t now_ms) {
 	// today and pointless always: nothing this routes reads tick-scoped state.
 	//
 	// The screensaver: legacy does not wake it for MIDI either. `Screensaver::noteActivity()`
-	// (`hid/display/screensaver.cpp:85`) has exactly three callers -- the two board-event arms of
-	// `deluge_control_poll_event`'s dispatch (`deluge.cpp:241`, `:255`) and
-	// `Encoders::interpretEncoders` (`hid/encoder_input.cpp:208`) -- and none of `PlaybackHandler`'s
+	// (`hid/display/screensaver.cpp`) has exactly three callers -- the pad and button arms of
+	// `dispatchInputEvent` in `deluge.cpp` and `interpretEncoders` in `hid/encoder_input.cpp` -- and
+	// none of `PlaybackHandler`'s
 	// MIDI dispatchers is one. A MIDI message is not a user touching the box.
 	return router_.route(event, make_context(now_ms));
 }
@@ -376,7 +375,7 @@ void Shell::tick(uint32_t now_ms) {
 	// third argument fires *every* gate, which would make step 1's careful attribution dead
 	// weight: `apply_dirty` has already called `request_repaint()` on exactly the gates this
 	// tick's facts name, and on every gate for a fact that names none. Passing `dirty.any()` as
-	// well -- spec D §7's shorthand, written before the shell had that finer channel -- would
+	// well -- the coarse alternative, which ignores that finer channel -- would
 	// repaint the OLED for a note-row change and the grid for an OLED one.
 	//
 	// The widgets' gate is shell-wide and `needs_frame` *consumes* the request, so it is evaluated
@@ -414,7 +413,7 @@ void Shell::tick(uint32_t now_ms) {
 	audit_ownership();
 	// 7. Navigation derived from what this tick's render observed.
 	//
-	// Applied as we go rather than collected first: spec D §7 step 7 says every rendered scene gets
+	// Applied as we go rather than collected first: the tick order gives every rendered scene
 	// exactly one `after_render()` call, so an early scene whose `Result` pops the stack still
 	// leaves the later calls to run -- deliberately, on scenes that may no longer be stacked. A
 	// scene's `after_render` is about the frame it just drew, which happened either way.
@@ -434,23 +433,21 @@ void Shell::tick(uint32_t now_ms) {
 		}
 	}
 	// And the grid, for the identical reason. Not folded into the loop above because the grid has
-	// no `SurfaceRole` to look up (`shell/profile.h:60`) -- `RepaintAll` is the only action that
+	// no `SurfaceRole` to look up (`SurfaceRole` in `shell/profile.h`) -- `RepaintAll` is the only action that
 	// reaches it, through `grid_repaint_requested()`. Without this line the flag is read by the
 	// next tick's step 6 but nothing makes that tick happen any sooner: today `RepaintAll` always
 	// sets the OLED flags as well, so the loop above arms a wake and the grid comes along with it,
-	// which is exactly the kind of accident a profile with no OLED surfaces would end (fix round 1,
-	// minor).
+	// which is exactly the kind of accident a profile with no OLED surfaces would end.
 	if (router_.grid_repaint_requested()) {
 		surfaces_.grid().gate.request_repaint_after(0, now_ms);
 	}
 	// 8b. A scene timer is a repaint request, not merely a wake.
 	//
-	// `Scene::next_timer` used to feed `compute_next_wake` and nothing else, so a scene that wanted
-	// its blink to move had to arm the gate itself from inside `render_*` as well -- and four scenes
-	// in a row shipped or nearly shipped without doing so (the history is on `Scene::next_timer`).
-	// Folding the two together here makes the *default* correct: overriding `next_timer()` is now
-	// enough, and `Scene::timer_repaints()` is the explicit, per-scene declaration of which surfaces
-	// (if any) that deadline actually has a visible consequence on.
+	// `Scene::next_timer` feeds `compute_next_wake` and, through this fold, the repaint gate too, so a
+	// scene whose blink must move does not arm the gate itself from inside `render_*`. Folding the
+	// two together here makes the *default* correct: overriding `next_timer()` is enough, and `Scene::timer_repaints()`
+	// is the explicit, per-scene declaration of which surfaces (if any) that deadline actually has a visible
+	// consequence on.
 	//
 	// Same shape as the router arming just above -- `request_repaint_after`, not `request_repaint`:
 	// the deadline is what `compute_next_wake` reads, so this both fires the gate when the moment
@@ -464,25 +461,24 @@ void Shell::tick(uint32_t now_ms) {
 	// `timer_repaints()` is a static claim instead ("my timer matters to the grid", "to the OLED
 	// panels", or both), not a per-tick one.
 	//
-	// **Why the OLED half is not free to over-arm the way the grid half is** (E3 task 10 fix round
-	// 1): the grid's own `Shell::flush` diffs against `last_sent` and blits nothing when a repaint
-	// changed no pixel, so arming it needlessly costs a repaint, not a blit. The OLED panels have no
-	// such diff -- `flush` blits an OLED surface unconditionally once it has rendered -- so arming
-	// them from a timer that never touches OLED content (`MenuScene`'s shortcut/source pad blink
+	// **Why the OLED half is not free to over-arm the way the grid half is.** The grid's own `Shell::flush` diffs
+	// against `last_sent` and blits nothing when a repaint changed no pixel, so arming it needlessly costs a repaint,
+	// not a blit. The OLED panels have no such diff -- `flush` blits an OLED surface unconditionally once it has
+	// rendered -- so arming them from a timer that never touches OLED content (`MenuScene`'s shortcut/source pad blink
 	// cadence, purely a grid concern) turned into both panels blitting unconditionally at that
 	// cadence, forever, with no pixel ever changing. `Scene::timer_repaints()`'s doc has the full
 	// account; `MenuScene::timer_repaints()` is the fix.
 	//
-	// **And only from where the scene can actually paint** (E3 final review, A2). A claim is a
+	// **And only from where the scene can actually paint.** A claim is a
 	// claim about surfaces, not about visibility, and the render functions draw from a base up:
 	// `render_grid` from `grid_base()`, `render_oled` from `oled_lowest(role)`, per role. A scene
 	// below that base is covered, so arming its gate buys a repaint it can never appear in --
 	// which on the OLED is a blit, since that flush has no diff. Two live cases, both regressions
 	// the fold itself introduced: a covered `MenuScene` with source pads on its focused node
-	// (exactly the node that opens Browser/Marker/Recorder) kept the grid gate at 20 ms for the
-	// whole life of the scene above it, where pre-fold that arm lived inside `MenuScene::render_grid`
-	// and simply stopped being called; and `RecorderScene`, whose own opaque clipping `PopupScene`
-	// covers it on the OLED, armed every OLED gate every 10 ms for the popup's lifetime -- a 100 Hz
+	// (exactly the node that opens Browser/Marker/Recorder) would keep the grid gate at 20 ms for the
+	// whole life of the scene above it (an arm made inside `MenuScene::render_grid` simply stops
+	// being called when covered; the fold has to match); and `RecorderScene`, whose own opaque clipping `PopupScene`
+	// covers it on the OLED, would arm every OLED gate every 10 ms for the popup's lifetime -- a 100 Hz
 	// two-panel blit with no pixel changing. The per-surface mask cannot see either one: the surface
 	// is the right surface, the scene is just not the drawn one.
 	//
@@ -510,7 +506,7 @@ void Shell::tick(uint32_t now_ms) {
 			surfaces_.grid().gate.request_repaint_after(*in, now_ms);
 		}
 	}
-	// 8c. And the same fold for the SERVICES, added by E4 task 5.
+	// 8c. And the same fold for the SERVICES.
 	//
 	// A service draws nothing, so what its timer arms is the repaint of whichever scene reads the
 	// state that timer advances. `MidiLearn`'s flash is the case that needed it: legacy's
@@ -575,7 +571,7 @@ void Shell::apply_dirty(const notify::DirtySet& dirty, std::optional<uint32_t> o
 		scene->on_model_changed(dirty);
 	}
 	// A bare `SongSwapped` (no preceding `song_loading(true)`/`(false)` bracket) only re-queries
-	// the root -- spec D §9's second, narrower protocol. Run after the `on_model_changed` loop
+	// the root -- the song-swap protocol's narrower form. Run after the `on_model_changed` loop
 	// above, never inside it: `replace_root` tears down and rebuilds the stack `scenes()` is a
 	// view over, and `SceneStack` is explicitly not reentrant from within a lifecycle hook. With
 	// no hooks set this is a no-op, per this method's own doc.
@@ -715,8 +711,8 @@ bool Shell::grid_paintable(size_t index) {
 	// no storage, so on such a profile *no* scene paints the grid, at any index. That is the same
 	// shape as an OLED claim on a profile with no OLED panels, which `oled_paintable`'s callers get
 	// for free by having nothing to iterate -- but the grid is a single surface reached directly,
-	// so it needs saying (E3 final review residual 2: without this the predicate returned true for
-	// a gate no render could ever service, and its name was false there).
+	// so it needs saying: without this the predicate would return true for a gate no render could
+	// ever service.
 	return surfaces_.grid().grid_storage.has_value() && index >= grid_base();
 }
 
@@ -883,7 +879,7 @@ void Shell::render_grid(uint32_t now_ms) {
 		if (elapsed >= tw.duration_ms) {
 			if (greyout_tween_active && greys_here) {
 				// The ramp has reached its target; settle at full strength once, matching legacy's
-				// `amountDone > 1` snap to `setGreyoutAmount(1)` (`pad_leds.cpp:986-988`) -- the
+				// `amountDone > 1` snap to `setGreyoutAmount(1)` (`timerRoutine` in `pad_leds.cpp`) -- the
 				// static pass above was skipped this tick precisely because this tween was still
 				// live when that check ran.
 				ui::grid::GridFrame frame = ui::grid::root_grid_frame(grid, lowering_.ctx(), InputMask::none());
@@ -1046,14 +1042,13 @@ void Shell::flush(uint32_t now_ms) {
 	// OLED: one blit per surface that rendered this tick, skipping (and leaving `blit_pending`
 	// armed on) a panel the backend says cannot take a frame right now.
 	//
-	// This comment used to say that was "the `deluge_display_busy` skip around
-	// `OLED::sendMainImage`". There is no such skip: `OLED::sendMainImage`
-	// (`hid/display/oled.cpp:335-385`) gates only on its own `needsSending` flag, and no file under
-	// `src/deluge/` calls `deluge_display_busy` or `deluge_display_busy_n` at all -- the only
-	// callers in the tree are the BSPs that define them and `board_surfaces.cpp` (F1 task 4,
-	// grepped repo-wide). What legacy actually consults before pushing a panel is the pad-output
-	// gate in `doAnyPendingUIRendering` (`gui/ui/ui.cpp:375-396`, the `if` at `:389`), which guards
-	// the grid and the OLED render together. `oled_busy` is therefore whatever the backend's own
+	// Legacy has no `deluge_display_busy` skip around `OLED::sendMainImage`: it
+	// (`OLED::sendMainImage` in `hid/display/oled.cpp`) gates only on its own `needsSending` flag, and
+	// no file under `src/deluge/` calls `deluge_display_busy` or `deluge_display_busy_n` at all -- the
+	// only callers in the tree are the BSPs that define them and `board_surfaces.cpp`. What legacy
+	// actually consults before pushing a panel is the pad-output gate in `doAnyPendingUIRendering`
+	// (`gui/ui/ui.cpp`, the `deluge_control_pad_output_space()` test), which guards the grid and the
+	// OLED render together. `oled_busy` is therefore whatever the backend's own
 	// pre-push condition is: `deluge_display_busy_n` for `BoardSurfaceSet`, that legacy gate for
 	// the guest (`gui/ui/shell_guest_surfaces.cpp`).
 	for (OledSurface& s : surfaces_.oled()) {
@@ -1082,7 +1077,7 @@ void Shell::flush(uint32_t now_ms) {
 	// (`hid/led/pad_leds.cpp:1019-1037`, gated on `kNumBytesInMainPadRedraw`) generalised to a
 	// per-pair budget instead of an all-or-nothing gate, so a large backlog drains over several
 	// ticks instead of stalling until the whole frame fits at once -- the same spirit as
-	// `timerRoutine`'s retry-soon (`:850`) and `ui.cpp:389`'s *2 headroom, but pin the tick, not
+	// `timerRoutine`'s retry-soon and `doAnyPendingUIRendering`'s *2 headroom, but pin the tick, not
 	// the byte count, as the unit of back-pressure retry.
 	GridSurface& g = surfaces_.grid();
 	if (g.dirty && !g.grid_storage.has_value()) {
@@ -1158,7 +1153,7 @@ void Shell::flush(uint32_t now_ms) {
 		leds.sent_once[i] = true;
 		if (i >= profile_.led_by_button.size()) {
 			// No board mapping for this `LedId` value at all (an "extras" id past the button
-			// table -- Task 10); nothing to send it as.
+			// table); nothing to send it as.
 			continue;
 		}
 		const int8_t board_index = profile_.led_by_button[i];
@@ -1195,7 +1190,7 @@ std::optional<uint32_t> Shell::compute_next_wake(uint32_t now_ms) {
 	// Difference form, not `*at < *best`: these are absolute clocks that wrap at ~49.7 days of
 	// uptime, and a plain `<` across the wrap picks the *later* of two deadlines that straddle it.
 	// `now_ms + *in` below may itself wrap, which is exactly why the comparison must not care.
-	// Same form as `RepaintGate::request_repaint_after` (`ui/core/repaint_gate.cpp:7`).
+	// Same form as `RepaintGate::request_repaint_after`.
 	const auto consider = [&best](std::optional<uint32_t> at) {
 		if (at.has_value() && (!best.has_value() || static_cast<int32_t>(*at - *best) < 0)) {
 			best = at;
@@ -1213,11 +1208,11 @@ std::optional<uint32_t> Shell::compute_next_wake(uint32_t now_ms) {
 	consider(lowering_.ctx().gate.next_deadline());
 	consider(mirror_.next_deadline());
 	// Every scene whose timer did NOT reach a gate. The skip is on the *arm having happened*, not on
-	// the mask being non-empty (E3 final review, A3): step 8b arms a scene's claimed surfaces only
+	// the mask being non-empty: step 8b arms a scene's claimed surfaces only
 	// where that scene can actually paint, so three cases reach this loop with no gate deadline
 	// standing in for them -- the full opt-out (`RepaintSurfaces::any() == false`), a scene covered
-	// on every surface it claims, and an OLED-only claim on a profile with no OLED surfaces. The
-	// mask-only test missed the last of those even before A2.
+	// on every surface it claims, and an OLED-only claim on a profile with no OLED surfaces. A
+	// mask-only test misses the last of those.
 	//
 	// A covered scene still needs the wake, which is why this is not "a scene that can paint nothing
 	// needs no wake": `Shell::tick_stack` calls `Scene::tick(dt)` on every scene down to the first
@@ -1238,7 +1233,7 @@ std::optional<uint32_t> Shell::compute_next_wake(uint32_t now_ms) {
 			consider(now_ms + *in);
 		}
 	}
-	// **A declared blink is a wake source too** (E4 task 4 fix round 1). Every source above is
+	// **A declared blink is a wake source too.** Every source above is
 	// something a scene or service *asked* for; a `LedState::Kind::Blink` asks for nothing, because
 	// `led_is_on` derives its phase from `now_ms` alone (`shell/leds.cpp`). So without this loop a
 	// declared blink froze at whatever phase the last tick left it in for as long as nothing else

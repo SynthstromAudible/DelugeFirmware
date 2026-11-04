@@ -129,7 +129,7 @@ describe shell_leds("shell::LedCompose", $ {
 	});
 
 	it("led_next_change reports exactly when a blink flips, and nothing for a state that cannot", _ {
-		// The wake source `Shell::compute_next_wake` grew in E4 task 4 fix round 1. Every value
+		// The wake source `Shell::compute_next_wake` consults for declared blinks. Every value
 		// here is the moment `led_is_on` above answers differently, asserted against `led_is_on`
 		// itself rather than restated -- so the two cannot drift apart.
 		const LedState forever = blink(200);

@@ -184,7 +184,7 @@ private:
 /// Sized to `kMaxOled` entries, not just the two `kBoard2` itself declares
 /// (`display_count == 2`): `surfaces_spec.cpp`'s "clamps a board with more displays than the pool
 /// holds" test builds a copy of `kBoard2` with `display_count` raised past `kMaxOled` while
-/// leaving `displays` pointed at this same array, and `SurfaceSet::build()` (`surfaces.cpp:12-13`)
+/// leaving `displays` pointed at this same array, and `SurfaceSet::build()`
 /// indexes `board.displays[i]` for every `i < oled_count_` (`min(display_count, kMaxOled)`) --
 /// up to `kMaxOled - 1` once clamped. A shorter array left indices 2 and 3 reading whatever
 /// happened to sit next in `.rodata`, which `DELUGE_GFX_CONTRACT` in `Canvas`'s constructor only

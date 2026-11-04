@@ -38,15 +38,14 @@ bool led_is_on(const LedState& s, uint32_t now_ms, std::span<const ui::BlinkPhas
 
 /// @brief When will `led_is_on(s, …)` next answer differently?
 ///
-/// **A declared blink is a wake source, and until E4 task 4 nothing treated it as one.**
-/// `led_is_on` derives a blink's phase from `now_ms` alone, and `Shell::compute_next_wake`
-/// considered gate deadlines, scene timers and service timers -- so on an otherwise idle system a
-/// declared `Kind::Blink` simply froze at whatever phase the last tick left it in. That was live:
+/// **A declared blink is a wake source.** `led_is_on` derives a blink's phase from `now_ms` alone,
+/// so without a wake an otherwise idle system would freeze a declared `Kind::Blink` at whatever
+/// phase the last tick left it in. That is a live case:
 /// `MenuScene::leds` declares `Back` and `Learn` as `Blink(kFlashTime)` unconditionally
 /// (`MenuScene::leds`, `MenuLearn::leds`) while `MenuScene::next_timer`
 /// (`pad_next_timer`, `scenes/menu/pads.cpp`) returns `std::nullopt` for any focused node with
 /// neither source pads nor a shortcut position -- which is most of the tree. `Shell::tick`'s
-/// wake loop now asks this for every entry in the composed frame, so the phase moves on its own.
+/// wake loop asks this for every entry in the composed frame, so the phase moves on its own.
 ///
 /// @param s      The declared state.
 /// @param now_ms The tick's wall clock.
@@ -81,8 +80,8 @@ struct LedCompose {
 
 /// @brief Does board LED \p board_led's desired state differ from what was last sent?
 ///
-/// The predicate `Shell::flush` (Task 8) drives `SurfaceSet::set_led` from, factored out here so
-/// this task's specs can pin the diff without a flush to run. An LED nothing declared this tick is
+/// The predicate `Shell::flush` drives `SurfaceSet::set_led` from, factored out so
+/// specs can pin the diff without a flush to run. An LED nothing declared this tick is
 /// never sent: the shell drives the LEDs the stack asked for, not every LED the board has.
 /// @param s         The LED surface, with `desired_*` filled in by `Shell::derive_leds`.
 /// @param board_led The board LED index (`LedId`'s underlying value).

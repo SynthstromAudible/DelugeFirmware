@@ -38,7 +38,7 @@ struct ShellConfig {
 	///       `Shell::set_screensaver_idle_ms` is that entry point and the port of
 	///       `Screensaver::settingsChanged()`; a host built at static-init cannot supply a real
 	///       number here at all, so for such a host this default of 0 is only ever a placeholder.
-	///       F1 task 8 wired the firmware's: `hid/display/screensaver.cpp`'s `settingsChanged()`
+	///       The firmware's wiring is `hid/display/screensaver.cpp`'s `settingsChanged()`, which
 	///       computes the formula and pushes it, which covers boot and both settings items.
 	uint32_t screensaver_idle_ms = 0;
 	/// The seed the screensaver's animation is started from; passed through to the pushed
@@ -166,16 +166,15 @@ public:
 	/// and the only instances of either in an application are the ones this shell **owns**
 	/// (`stack_`, `lowering_`, reachable through `stack()`/`lowering()`). Each of the three really
 	/// uses what it is handed: `ModKnobs::show_popup` pushes the param popup onto that stack
-	/// (`scenes/services/mod_knobs.cpp:417`), and `ModKnobs::popup_suppressed` (`:351`) and
+	/// (`ModKnobs::show_popup`), and `ModKnobs::popup_suppressed` (`:351`) and
 	/// `ModKnobs::mod_encoder_button_action` (`:568`) both read `stack_.input_top()`;
 	/// `GlobalControls::handle` gates its `View::buttonAction` group on
-	/// `stack_.input_top().is_root()` (`scenes/services/global_controls.cpp:580`);
-	/// `MidiLearn::handle` reads the same (`scenes/services/midi_learn.cpp:491`). So a real
+	/// `stack_.input_top().is_root()` (`GlobalControls::handle`);
+	/// `MidiLearn::handle` reads the same. So a real
 	/// service cannot be constructed before the shell it serves, and before this existed it could
 	/// not be installed after it either -- an application could only ever pass `Services{}`, and
 	/// no gold-knob turn, transport button or MIDI-learn press reached anything outside the scene
-	/// stack. Migration spec §10.2's blocker 7; the shell spec's §15.9 has the account.
-	///
+	/// stack. 	///
 	/// Build the shell with `Services{}`, construct the services over `stack()`/`lowering()`, then
 	/// call this. Three things move together and this call is what keeps them in step: `services_`
 	/// (the slots), `Router`'s own by-value copy (what routing reads), and `service_list_` (the
@@ -208,9 +207,8 @@ public:
 	/// firmware's: `hid/display/rainfall.cpp` transcribes its `logoPixels` for the screensaver, and
 	/// that is the only thing here that draws it.
 	///
-	/// This call used to push a `BootScene` -- a "DELUGE" title over the firmware version -- which
-	/// was removed because the port must not add UI the instrument did not have. The shell design
-	/// spec's section 9 amendment has the full account.
+	/// No "DELUGE" title over the firmware version is shown either: the port must not add UI the
+	/// instrument did not have.
 	void boot();
 
 	/// @brief Wire (or clear) the hooks the shell asks for the application's song root through,
@@ -231,8 +229,8 @@ public:
 	/// **This is why the field is not construction-only.** A host that is a static-init global
 	/// cannot read flash when it builds its `Shell`, so without this the value stays at its
 	/// `ShellConfig` default of 0 and the screensaver can never activate however the two settings
-	/// are set. `scenes/registry.h`'s boot-wiring note is the in-tree record; F1 task 8 is the
-	/// caller.
+	/// are set. `scenes/registry.h`'s boot-wiring note is the in-tree record; the firmware's host calls
+	/// it.
 	/// @param idle_ms The new idle period in milliseconds; 0 is off.
 	void set_screensaver_idle_ms(uint32_t idle_ms) {
 		// `config_` is kept in step so it stays the description of the shell it is a member of;
@@ -258,11 +256,11 @@ public:
 	/// @param h The highlighting the card stores.
 	void set_highlighting(ui::Highlighting h);
 
-	/// @brief The shell's half of the song-load protocol (spec D §9): what the firmware calls from
-	///        the load path (spec F wires it) to bracket a song read.
+	/// @brief The shell's half of the song-load protocol: what the firmware calls from
+	///        the load path to bracket a song read.
 	///
 	/// `loading=true`: reset the whole stack, push the shell's own `LoadingScene`, and take the
-	/// input lock -- the port of `nullifyUIs()` (`gui/ui/ui.cpp:257-261`) plus the input side of
+	/// input lock -- the port of `nullifyUIs()` (`nullifyUIs` in `gui/ui/ui.cpp`) plus the input side of
 	/// `gui/ui/load/load_song_ui.*`'s "loading" presentation. `loading=false`: pop the loading
 	/// scene, release the lock, and -- only if `set_song_hooks` was given a real
 	/// `root_for_song` -- `replace_root()` to whatever it returns for the now-loaded song.
@@ -274,7 +272,7 @@ public:
 	/// @param loading True as loading starts, false once the song is ready.
 	void song_loading(bool loading);
 
-	/// @brief One pass of the whole UI, in spec D §7's order.
+	/// @brief One pass of the whole UI, in the shell's tick order.
 	/// @param now_ms The tick's wall clock.
 	void tick(uint32_t now_ms);
 
@@ -294,16 +292,16 @@ public:
 	/// snapshot from an unrelated moment.
 	///
 	/// \p tw.param's meaning depends on `tw.kind`:
-	/// | `kind` | render, per tick | `param` |
-	/// |---|---|---|
-	/// | `Fade` | `gfx::grid::fade(from, live, t, live)` | unused |
-	/// | `ScrollH` | `gfx::grid::scroll_horizontal(from, live, param * t / 65536, live)` | target offset, in main
-	/// columns (`scroll_horizontal`'s own `offset`) | | `ScrollV` | `gfx::grid::scroll_vertical(from, live, param * t /
-	/// 65536, live)` | target offset, in rows | | `GreyOut` | `ui::grid::greyout(live, greyout_mask, param * t /
-	/// 65536)` | target `RGB::greyOut` proportion (the ~0..6500000 scale, e.g. spec D's `kGreyoutAmountFull`), reached
-	/// at `t == 65535`; ramps **in** only -- there is no ramp-out kind |
+	/// - `Fade`: `gfx::grid::fade(from, live, t, live)`; `param` is unused.
+	/// - `ScrollH`: `gfx::grid::scroll_horizontal(from, live, param * t / 65536, live)`; `param` is the
+	///   target offset, in main columns (`scroll_horizontal`'s own `offset`).
+	/// - `ScrollV`: `gfx::grid::scroll_vertical(from, live, param * t / 65536, live)`; `param` is the
+	///   target offset, in rows.
+	/// - `GreyOut`: `ui::grid::greyout(live, greyout_mask, param * t / 65536)`; `param` is the target
+	///   `RGB::greyOut` proportion (the ~0..6500000 scale, e.g. `kGreyoutAmountFull`), reached at
+	///   `t == 65535`; ramps **in** only -- there is no ramp-out kind.
 	///
-	/// where `t` is `(now_ms - tw.start_ms) * 65536 / tw.duration_ms`, clamped to 0..65535.
+	/// Here `t` is `(now_ms - tw.start_ms) * 65536 / tw.duration_ms`, clamped to 0..65535.
 	/// `GreyOut` replaces (not stacks with) the tick's ordinary full-strength greyout pass while it
 	/// runs, and applies only inside the stack's greyout mask, matching legacy's ramp
 	/// (`pad_leds.cpp:983-1005`) feeding the same masked `prepareColour` (`:293-296`).
@@ -380,14 +378,14 @@ public:
 	///          ticking as fast as you can", and a host cannot currently tell them apart.** Zero is
 	///          a legal `Scene::next_timer()` answer meaning "next tick" (its own doc has the
 	///          account), and `scenes::audio_clip::AudioClipScene::next_timer()` returns it for the
-	///          whole of playback (`audio_clip_scene.cpp:1203`) -- faithfully, because legacy drives
+	///          whole of playback (`AudioClipScene::next_timer`) -- faithfully, because legacy drives
 	///          that play cursor from `graphicsRoutine`, which is a per-frame redraw rather than a
 	///          deadline. (It is **not** driven from the main loop: `TimerName::GRAPHICS_ROUTINE`
-	///          re-arms it at 15 ms, `gui/ui_timer_manager.cpp:213-218` -- corrected F1 task 7, and
+	///          re-arms it at 15 ms, `gui/ui_timer_manager.cpp:213-218`, and
 	///          `Scene::next_timer`'s own doc has the measurement.) So while an audio clip is
 	///          playing this hook reports `now_ms` on
 	///          every tick, for ever, which is indistinguishable from the busy loop the screensaver
-	///          service shipped before its refusal latch (see `Screensaver`'s note below).
+	///          service would run without its refusal latch (see `Screensaver`'s note below).
 	///
 	///          `0u` is still the right answer for a scene: zero means "next tick", and the *rate* is
 	///          the host's decision rather than the scene's. `AudioClipScene` claims
@@ -395,10 +393,9 @@ public:
 	///          flush diffs against `last_sent`, so a tick on which the column did not move sends
 	///          nothing.
 	///
-	///          **What is no longer true is "free", and F1 task 7 is what made it untrue.** This
-	///          paragraph used to say "it is not costing anything: the shell only ticks when its host
-	///          asks it to". There is now a host -- `ShellHostUI` (`gui/ui/shell_host_ui.h`) -- and
-	///          it converts this hook's answer into a `TimerName::UI_SPECIFIC` duration with a floor
+	///          **It is not free.** The shell only ticks when its host asks it to, and the host is
+	///          `ShellHostUI` (`gui/ui/shell_host_ui.h`), which
+	///          converts this hook's answer into a `TimerName::UI_SPECIFIC` duration with a floor
 	///          of 1 ms, because zero would leave `triggerTime` at the current audio sample and fire
 	///          the timer on every pass of the main loop. So while a zero-`next_timer()` scene is
 	///          stacked under that host the cost is paid twice: the scene's grid gate is re-armed at
@@ -455,7 +452,7 @@ public:
 	uint32_t screensaver_idle_ms() const { return screensaver_.idle_ms(); }
 	/// @}
 
-	/// @brief The shell's half of the UI test harness's `.state` snapshot (spec G §3).
+	/// @brief The shell's half of the UI test harness's `.state` snapshot.
 	///
 	/// `"scene <KindName>[/<qualifier>]"` per stacked scene, **top first**, then `"lock input"`
 	/// while the input lock is held, then `"notice <Kind> <arg>"` while the popup scene is on the
@@ -502,7 +499,7 @@ private:
 	///
 	/// Factored out of `render_oled` so step 8b's timer arming can ask the same question the render
 	/// answers -- a scene below this index cannot paint this surface, so arming its gate is a
-	/// repaint and a blit that nothing can see (E3 final review, A2).
+	/// repaint and a blit that nothing can see.
 	///
 	/// @param role The surface's role.
 	/// @return The index into `stack_.scenes()`, or 0 for an empty stack.
@@ -608,8 +605,8 @@ private:
 	LoadingScene loading_;
 	/// Pushes/pops `SceneKind::Screensaver` after idle. Deliberately does *not* own a scene
 	/// instance the way `popup_`/`console_`/`working_`/`loading_` do: the real animation
-	/// is spec E3's, registered by the application (or a spec's stand-in) like any other scene, so
-	/// `table_[Screensaver]` is left exactly as `registry.find()` reported it.
+	/// is `ScreensaverScene` in `src/scenes`, registered by the application (or a spec's stand-in) like any other
+	/// scene, so `table_[Screensaver]` is left exactly as `registry.find()` reported it.
 	Screensaver screensaver_;
 	Notices notices_;
 	/// `mod_knobs`, `global_controls`, `midi_learn`, `Notices` and `Screensaver`, each listed
@@ -665,8 +662,7 @@ private:
 	std::optional<uint32_t> next_wake_;
 	uint32_t last_ms_ = 0;
 	/// Whether the lowering accepted anything this tick -- `RepaintGate::needs_frame`'s
-	/// `had_input`, and the place Task 4 parked "set where legacy sets `anything`"
-	/// (`deluge.cpp:613-616`).
+	/// `had_input`, and the port of legacy's `anything` flag in `deluge.cpp`.
 	bool had_input_ = false;
 	/// Whether the lowering's tick window is open; see the class note on the tick window.
 	bool tick_open_ = false;

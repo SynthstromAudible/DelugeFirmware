@@ -284,12 +284,9 @@ void InputLowering::apply_encoder_edges(uint8_t index, int8_t edges, uint32_t no
 }
 
 bool InputLowering::action_gold_turn(size_t role_index, int8_t delta, uint32_t now_ms) {
-	// The mod-knob block of `interpretEncoders` as it stood before the encoder overhaul
-	// (`hid/encoders.cpp` lines 242-292 as of `e460593c8^` -- pinned to that revision and
-	// therefore deliberately NOT written in the live `file:line` form, since `check_citations.py`
-	// resolves against the current tree, where that file is 107 lines). The overhaul kept the
-	// `modEncoderInitialTurnDirection` test but dropped the `turnedRecently` branch that is the
-	// only thing that ever sets the field, so the surviving code can no longer reach its own
+	// The mod-knob block of `interpretEncoders` in its pre-overhaul form. The current legacy code
+	// keeps the `modEncoderInitialTurnDirection` test but dropped the `turnedRecently` branch that
+	// is the only thing that ever sets the field, so the surviving code can no longer reach its own
 	// wiggle case (`hid/encoder_input.cpp:178-205`); this restores the working shape.
 	const bool turned_recently = (now_ms - last_turn_ms_[role_index]) < cfg_.short_press_ms;
 	last_turn_ms_[role_index] = now_ms;
@@ -387,7 +384,7 @@ void InputLowering::on_button(ButtonId b, bool on, uint32_t now_ms) {
 }
 
 void InputLowering::toggle_shift(bool on, uint32_t now_ms) {
-	// `Buttons::commandToggleShift` (`buttons.cpp:237-278`).
+	// `Buttons::commandToggleShift`.
 	if (on) {
 		shift_pressed_at_ = now_ms;
 		shift_pressed_ = true;
@@ -409,7 +406,7 @@ void InputLowering::toggle_shift(bool on, uint32_t now_ms) {
 }
 
 void InputLowering::clear_shift_sticky() {
-	// `Buttons::clearShiftSticky` (`buttons.cpp:302-306`).
+	// `Buttons::clearShiftSticky`.
 	shift_stuck_ = false;
 	shift_pressed_ = false;
 }
@@ -567,7 +564,7 @@ double InputLowering::calc_next_knob_speed(EncoderRole role, int8_t delta, uint3
 }
 
 void InputLowering::pretend_knob_untouched(EncoderRole role, uint32_t now_ms) {
-	// `View::pretendModKnobsUntouchedForAWhile` (`gui/views/view.cpp:1968-1972`):
+	// `View::pretendModKnobsUntouchedForAWhile`:
 	// `timeModEncoderLastTurned[i] = AudioEngine::audioSampleTimer - kSampleRate`. Unsigned wrap is
 	// the same wrap `turned_recently`'s own `now_ms - last_turn_ms_` does, so backdating past zero
 	// is well defined and still reads as "a second ago".

@@ -203,9 +203,9 @@ public:
 	bool emit_repaint_from_handle = false;
 	UiEvent::Kind last_event_kind = UiEvent::Kind::AllReleased;
 	std::optional<uint32_t> timer;
-	/// What `timer_repaints()` answers. Spelled out rather than left default-constructed: since
-	/// E4's final review a default-constructed `RepaintSurfaces` is `{false, false}` (so that a
-	/// designated initializer cannot arm an unnamed surface), while the value this double must
+	/// What `timer_repaints()` answers. Spelled out rather than left default-constructed: a
+	/// default-constructed `RepaintSurfaces` is `{false, false}` (so that a designated initializer
+	/// cannot arm an unnamed surface), while the value this double must
 	/// start at is what `Scene::timer_repaints()`'s un-overridden *body* returns -- both surfaces.
 	Scene::RepaintSurfaces timer_repaints_{.oled = true, .grid = true};
 };
@@ -311,7 +311,7 @@ struct Rig {
 	Rig& operator=(const Rig&) = delete;
 	explicit Rig(ShellConfig config = ShellConfig{}) : shell{fake, profile, reg, Services{}, config} {}
 
-	/// @brief What `Shell::flush` (Task 8) will do at the end of every tick: lower the pending
+	/// @brief What `Shell::flush` does at the end of every tick: lower the pending
 	///        flags, so the next tick's are visible.
 	void consume_pending() {
 		for (OledSurface& s : fake.oled()) {
@@ -574,11 +574,10 @@ describe shell_tick("shell::Shell::tick", $ {
 	});
 
 	it("a scene timer repaints every surface the scene is on, with no gate arm of its own", _ {
-		// `BaseScene` arms nothing from `render_*`. Before E3 task 10 that made `next_timer()` a
-		// bare wake: the shell came back, `RepaintGate::needs_frame` said no on every surface, and
-		// the scene's state advanced against a framebuffer that never changed. Four scenes shipped
-		// or nearly shipped that way (`Scene::next_timer`'s history), so step 8b of `Shell::tick`
-		// now folds the two together.
+		// `BaseScene` arms nothing from `render_*`. Without the fold `next_timer()` would be a bare
+		// wake: the shell would come back, `RepaintGate::needs_frame` would say no on every surface,
+		// and the scene's state would advance against a framebuffer that never changed. So step 8b
+		// of `Shell::tick` folds the two together.
 		deluge::notify::dirty().drain();
 		Rig r;
 		r.shell.init({kBase, 0});
@@ -635,7 +634,7 @@ describe shell_tick("shell::Shell::tick", $ {
 		expect(r.base.grid_renders).to_equal(grid_after_first);
 	});
 
-	it("timer_repaints() can name the grid alone, and the OLED gates are never armed (fix round 1)", _ {
+	it("timer_repaints() can name the grid alone, and the OLED gates are never armed", _ {
 		// The regression the first cut of the fold introduced: `Shell::flush` diffs the grid
 		// against `last_sent` and blits nothing when a repaint changed no pixel, but it blits an
 		// OLED surface unconditionally once it has rendered. `MenuScene::timer_repaints()` returns
@@ -666,13 +665,12 @@ describe shell_tick("shell::Shell::tick", $ {
 	});
 
 	it("a covered scene arms no grid gate, however loudly its timer claims one", _ {
-		// E3 final review, A2 -- and a regression the fold itself introduced. `Shell::render_grid`
-		// draws from the grid BASE up, so a scene underneath a non-overlay scene cannot paint the
-		// grid at all; step 8b nevertheless armed from every stacked scene. Live consequence: a
-		// covered `MenuScene` whose focused node has source pads -- exactly the node that opens
-		// Browser/Marker/Recorder -- kept the grid gate firing at 20 ms for the whole life of the
-		// scene above it. Pre-fold that arm lived inside `MenuScene::render_grid`, which simply
-		// stops being called when covered.
+		// `Shell::render_grid` draws from the grid BASE up, so a scene underneath a non-overlay
+		// scene cannot paint the grid at all; step 8b must not arm from every stacked scene. Were it to,
+		// a covered `MenuScene` whose focused node has source pads -- exactly the node that opens
+		// Browser/Marker/Recorder -- would keep the grid gate firing at 20 ms for the whole life of the
+		// scene above it. (An arm made inside `MenuScene::render_grid` simply stops being called
+		// when covered; the fold has to match.)
 		deluge::notify::dirty().drain();
 		Rig r;
 		r.overlay.overlay = false;    // NOT a grid overlay, so it becomes the grid base itself
@@ -691,7 +689,7 @@ describe shell_tick("shell::Shell::tick", $ {
 
 		// It still gets its wake, and its `tick(dt)` with it -- `Shell::tick_stack` advances every
 		// scene down to the first `occludes_grid()` whatever the render pass decides, so the
-		// deadline moves to `compute_next_wake`'s own loop rather than disappearing (A3).
+		// deadline moves to `compute_next_wake`'s own loop rather than disappearing.
 		expect(r.shell.next_wake().has_value()).to_be_true();
 		expect(*r.shell.next_wake()).to_equal(uint32_t(20));
 		const int ticks_after_first = r.base.ticks;
@@ -704,11 +702,11 @@ describe shell_tick("shell::Shell::tick", $ {
 	});
 
 	it("a covered OLED timer under an opaque popup arms no panel gate and costs no blit", _ {
-		// E3 final review, A2: task 10 fix round 1's blit regression, one level up. `RecorderScene`
-		// takes the default `{oled, grid}` claim with a 10 ms poll, and its own clipping
-		// `PopupScene` is opaque on the OLED -- so while that popup was up, step 8b armed every
-		// OLED gate every 10 ms and `flush` blits an OLED surface unconditionally once rendered:
-		// a 100 Hz two-panel blit for the popup's lifetime, with no pixel ever changing. The
+		// `RecorderScene` takes the default `{oled, grid}` claim with a 10 ms poll, and its own
+		// clipping `PopupScene` is opaque on the OLED -- so were step 8b to arm every OLED gate every
+		// 10 ms while that popup is up, `flush` (which blits an OLED surface unconditionally once
+		// rendered) would blit at 100 Hz on both panels for the popup's lifetime, with no pixel ever
+		// changing. The
 		// per-surface mask cannot catch this one -- the surface is the right surface, the scene is
 		// just not the drawn one.
 		deluge::notify::dirty().drain();
@@ -726,7 +724,7 @@ describe shell_tick("shell::Shell::tick", $ {
 		expect(r.fake.oled()[0].gate.next_deadline().has_value()).to_be_false();
 		expect(r.fake.oled()[1].gate.next_deadline().has_value()).to_be_false();
 		expect(r.shell.next_wake().has_value()).to_be_true();
-		expect(*r.shell.next_wake()).to_equal(uint32_t(10)); // the wake survives (A3)
+		expect(*r.shell.next_wake()).to_equal(uint32_t(10)); // the wake survives
 
 		// Ten poll periods of the popup's lifetime: not one blit, not one render.
 		for (uint32_t t = 10; t <= 100; t += 10) {

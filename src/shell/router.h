@@ -15,8 +15,8 @@ namespace deluge::ui::shell {
 ///
 /// Each slot defaults to `null_service()`, so a `Router` built with `Services{}` -- or with only
 /// the slots a caller cares about set -- runs the full legacy chain shape with the unfilled
-/// slots contributing nothing. Spec E supplies all three: `mod_knobs` and `global_controls` from
-/// E4 tasks 2-4, `midi_learn` from E4 task 5, which is when `Router::route` gained its step.
+/// slots contributing nothing. The application fills all three, and `Router::route` has a step
+/// for each.
 struct Services {
 	Service* mod_knobs = &null_service();
 	Service* global_controls = &null_service();
@@ -78,7 +78,7 @@ public:
 	/// `mod_knobs` is the port of `View`, and legacy never dispatches to `view` directly for
 	/// either of these two event shapes. `interpretEncoders` calls
 	/// `getCurrentUI()->modEncoderAction(e, offset_accelerated)`
-	/// (`Encoders::interpretEncoders`, `hid/encoder_input.cpp:194`) and `Buttons::buttonAction`'s
+	/// (`Encoders::interpretEncoders`, `hid/encoder_input.cpp`) and `Buttons::buttonAction`'s
 	/// mod-button loop calls `getCurrentUI()->modButtonAction(i, on)` (`hid/buttons.cpp:104`).
 	/// `UI::modEncoderAction` and `UI::modButtonAction` (`gui/ui/ui.cpp:35-41`) are the
 	/// **base-class** implementations, and both do nothing but forward to `view` -- so the current
@@ -88,12 +88,11 @@ public:
 	/// `gui/views/performance_view.h:96`; `SessionView`, `gui/views/session_view.h:100`;
 	/// `InstrumentClipView`, `gui/views/instrument_clip_view.h:215`) and two override the second
 	/// (`SessionView`, `gui/views/session_view.h:81`; `PerformanceView`,
-	/// `gui/views/performance_view.h:98`).
+	/// `gui/views/performance_view.h`).
 	///
-	/// **This was inverted from plan D until E4 task 3.** It was invisible for three plans because
-	/// the slot held a `NullService`; the concrete cost was that `SoundEditor::modEncoderAction`'s
+	/// Putting `mod_knobs` first would have a concrete cost: `SoundEditor::modEncoderAction`'s
 	/// MIDI-learn arm (`gui/ui/sound_editor.cpp:1638-1662`), whose port is `MenuScene`, could never
-	/// have fired -- the service would have claimed the turn first.
+	/// fire -- the service would claim the turn first.
 	///
 	/// A gold knob's own push (`ButtonId::ModEnc0`/`ButtonId::ModEnc1`) is a `mod_knobs` event too,
 	/// reached from the same dispatcher one step lower: `Buttons::buttonAction` handles
@@ -111,7 +110,7 @@ public:
 	///         end and was counted by `dropped_events()`. Almost every caller ignores it -- the
 	///         one that does not is `Shell::route_midi`, whose own caller is a legacy `UI` hook
 	///         that must answer legacy's `if (getCurrentUI()->...) {} else { view. ... }` with a
-	///         bool (F1 task 10).
+	///         bool.
 	bool route(const UiEvent& event, const UiContext& ctx);
 
 	/// @brief Apply every action in \p result, in order.
@@ -134,7 +133,7 @@ public:
 	///        `clear_repaint_requests()`?
 	///
 	/// Separate from `repaint_requested()` because `SurfaceRole` names OLED panels only
-	/// (`shell/profile.h:60`) -- there is no role a `Repaint` action could give the grid, so
+	/// (`SurfaceRole` in `shell/profile.h`) -- there is no role a `Repaint` action could give the grid, so
 	/// `RepaintAll` is the one action that reaches it and this is the one way to ask.
 	///
 	/// A scene that changes what the *pads* show from `handle()` -- `MarkerScene::handle`'s select
@@ -157,7 +156,7 @@ public:
 	uint8_t pending_popup_type() const { return popup_type_; }
 	/// @brief Clear the pending popup string and type together.
 	///
-	/// Read and cleared by Notices (task 6); the two are stored and cleared as a pair so a reader
+	/// Read and cleared by `Notices`; the two are stored and cleared as a pair so a reader
 	/// never sees one updated without the other.
 	void clear_pending_popup() {
 		popup_string_ = 0;
