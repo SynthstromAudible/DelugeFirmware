@@ -20,6 +20,7 @@
 #include "dsp-next/core/mode.h"
 #include "dsp-next/core/stereo_vector.h"
 #include "dsp-next/core/types.h"
+#include "dsp-next/core/vector_step.h"
 #include <argon.hpp>
 #include <argon/vectorize/for_each.hpp>
 #include <array>
@@ -31,73 +32,6 @@
 /// @file
 /// @brief Mono<K>: a kernel as a mono component, and the only loop a kernel runs in.
 namespace deluge::dsp {
-
-namespace detail {
-
-/// @brief Whether the Argon loop step @p S is the partial last step of its block. Full steps are a distinct type.
-template <typename S>
-inline constexpr bool is_partial_step_v = false;
-
-/// @brief A partial step of `argon::vectorize::for_each`.
-template <typename T>
-inline constexpr bool is_partial_step_v<argon::vectorize::Step<T, false>> = true;
-
-/// @brief A partial step of `argon::vectorize::for_each_interleaved`.
-template <typename T, std::size_t Stride>
-inline constexpr bool is_partial_step_v<argon::vectorize::InterleavedStep<T, Stride, false>> = true;
-
-/// @brief The vector V of the samples at @p p: Argon's load for raw q31, FixedVec's for Q<31>.
-template <typename V, typename T>
-[[nodiscard, gnu::always_inline]] inline V load_vector(const T* p) {
-	if constexpr (std::same_as<T, q31>) {
-		return V::Load(p);
-	}
-	else {
-		return V::load(p);
-	}
-}
-
-/// @brief Stores the vector @p v to the samples at @p p.
-template <typename V, typename T>
-[[gnu::always_inline]] inline void store_vector(T* p, const V& v) {
-	if constexpr (std::same_as<T, q31>) {
-		v.StoreTo(p);
-	}
-	else {
-		v.store(p);
-	}
-}
-
-/// @brief This loop step's samples at @p base, as the vector V: lanes past the end of a partial step are zero and not
-/// read. @p step counts Q31 samples; raw q31 loads through it, Q<31> through FixedVec at its index and count.
-template <typename V, typename Step, typename T>
-[[nodiscard, gnu::always_inline]] inline V load_step(const Step& step, const T* base) {
-	if constexpr (std::same_as<T, q31>) {
-		return step.Load(base);
-	}
-	else if constexpr (is_partial_step_v<Step>) {
-		return V::load(base + step.index(), step.count());
-	}
-	else {
-		return V::load(base + step.index());
-	}
-}
-
-/// @brief Stores @p v to this loop step's samples at @p base: lanes past the end of a partial step are not written.
-template <typename V, typename Step, typename T>
-[[gnu::always_inline]] inline void store_step(const Step& step, T* base, const V& v) {
-	if constexpr (std::same_as<T, q31>) {
-		step.Store(base, v);
-	}
-	else if constexpr (is_partial_step_v<Step>) {
-		v.store(base + step.index(), step.count());
-	}
-	else {
-		v.store(base + step.index());
-	}
-}
-
-} // namespace detail
 
 /// @brief A kernel as a mono component: one Coefficients, one State; the only loop.
 /// @tparam K The kernel. Mono<K> is a @ref generator, @ref processor or @ref mixer to match K's step arity; a staged

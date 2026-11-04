@@ -17,11 +17,11 @@
 #pragma once
 
 #include "dsp-next/core/fixed_point.h"
-#include "dsp-next/core/fixed_point_neon.h"
 #include "dsp-next/core/lane_pack.h"
 #include "dsp-next/core/mode.h"
 #include "dsp-next/core/stereo_vector.h"
 #include "dsp-next/core/types.h"
+#include "dsp-next/core/vector_step.h"
 #include <array>
 #include <concepts>
 #include <cstddef>
@@ -64,32 +64,6 @@ namespace deluge::dsp {
 
 /// @brief A kernel's per-block values when it declares none.
 struct EmptyBlock {};
-
-namespace detail {
-/// @brief The vector a kernel over @p T steps, when it steps vectors.
-template <typename T>
-struct vector_of;
-template <>
-struct vector_of<q31> {
-	using type = Argon<q31>;
-};
-template <>
-struct vector_of<Q<31>> {
-	using type = QVec<31>;
-};
-template <>
-struct vector_of<f32> {
-	using type = Argon<f32>;
-};
-} // namespace detail
-
-/// @brief The vector of @p T a vector kernel steps: `Argon<q31>` for q31, `QVec<31>` for Q<31>, `Argon<f32>` for f32.
-template <typename T>
-using vector_t = detail::vector_of<T>::type;
-
-/// @brief The samples of @p T in one vector_t<T>.
-template <typename T>
-inline constexpr std::ptrdiff_t lanes_v = static_cast<std::ptrdiff_t>(sizeof(vector_t<T>) / sizeof(T));
 
 /// @brief The active lane count of a partial last vector, passed to a kernel's counted step.
 /// @details A kernel declaring `kPartialStepAdvancesByCount` provides `step(c, b, s, x, ActiveLanes)` (processor) or

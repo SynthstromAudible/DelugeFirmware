@@ -18,6 +18,7 @@
 
 #include "dsp-next/core/stereo_vector.h"
 #include "dsp-next/core/types.h"
+#include "dsp-next/core/vector_step.h"
 #include <argon.hpp>
 #include <argon/vectorize/for_each.hpp>
 #include <concepts>
@@ -39,10 +40,10 @@ struct BlockProcessor {
 
 namespace detail {
 
-/// @brief @p D processes a vector of arithmetic @p T per call.
+/// @brief @p D processes a vector of @p T per call: `Argon<T>` for an arithmetic T, `QVec<31>` for Q<31>.
 template <typename D, typename T>
-concept simd_processor_render = std::is_arithmetic_v<T> && requires(D d, Argon<T> v) {
-	{ d.render(v) } -> std::same_as<Argon<T>>;
+concept simd_processor_render = (std::is_arithmetic_v<T> || std::same_as<T, Q<31>>) && requires(D d, vector_t<T> v) {
+	{ d.render(v) } -> std::same_as<vector_t<T>>;
 };
 
 /// @brief @p D processes a vector of stereo frames per call.
@@ -61,10 +62,11 @@ concept scalar_processor_render = requires(D d, T s) {
 
 /// @brief CRTP mixin: builds a processor's `render_block` from its `render(...)`.
 /// @tparam Derived the component, which defines `render(...)`.
-/// @tparam T the sample type of the blocks (`q31`, `f32` or @ref StereoSample).
+/// @tparam T the sample type of the blocks (`q31`, `Q<31>`, `f32` or @ref StereoSample).
 /// @details Non-virtual: the mixin adds no vptr and no state. The path is chosen from the signature of
 /// `Derived::render`:
-/// - SIMD, when it takes and returns `Argon<T>`: one `render` per vector, through `argon::vectorize::for_each`.
+/// - SIMD, when it takes and returns `Argon<T>` (or `QVec<31>` over Q<31>): one `render` per vector, through
+///   `argon::vectorize::for_each`.
 /// - SIMD stereo, when `T` is @ref StereoSample and it takes and returns @ref StereoVector: one `render` per
 ///   vector of frames, de-interleaved on load and re-interleaved on store through
 ///   `argon::vectorize::for_each_interleaved`.
@@ -91,8 +93,9 @@ struct Processor {
 			const auto size = static_cast<std::ptrdiff_t>(n);
 			const T* in = input.data();
 			T* out = output.data();
-			argon::vectorize::for_each<T>(
-			    size, [&] [[gnu::always_inline]] (auto step) { step.Store(out, self.render(step.Load(in))); });
+			argon::vectorize::for_each<detail::loop_lane_t<T>>(size, [&] [[gnu::always_inline]] (auto step) {
+				detail::store_step(step, out, self.render(detail::load_step<vector_t<T>>(step, in)));
+			});
 		}
 		else if constexpr (detail::simd_stereo_processor_render<Derived, T>) {
 			const auto size = static_cast<std::ptrdiff_t>(n);

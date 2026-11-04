@@ -16,6 +16,7 @@
  */
 #include "dsp-next/core/as_block.h"
 #include "dsp-next/core/concepts.h"
+#include "dsp-next/core/fixed_point_neon.h"
 #include "dsp-next/core/generator.h"
 #include "dsp-next/core/mixer.h"
 #include "dsp-next/core/processor.h"
@@ -24,7 +25,9 @@
 #include <array>
 #include <cppspec.hpp>
 #include <numeric>
+#include <span>
 #include <type_traits>
+#include <vector>
 
 using namespace deluge::dsp;
 
@@ -138,6 +141,82 @@ std::vector<StereoSample> stereo_ramp(std::size_t frames) {
 		v[i] = {.l = static_cast<q31>(i + 1), .r = -static_cast<q31>(i + 1)};
 	}
 	return v;
+}
+
+/// The SIMD doubling processor over Q<31>: the typed path, against SimdDouble's raw one.
+struct TypedDouble : Processor<TypedDouble, Q<31>> {
+	[[nodiscard]] QVec<31> render(QVec<31> v) { return add_wrap(v, v); }
+};
+/// The SIMD adding mixer over Q<31>.
+struct TypedAdd : Mixer<TypedAdd, Q<31>> {
+	[[nodiscard]] QVec<31> render(QVec<31> a, QVec<31> b) { return add_wrap(a, b); }
+};
+/// A SIMD generator over Q<31> counting up by four lanes a vector, against a raw twin.
+struct TypedCount : Generator<TypedCount, Q<31>> {
+	QVec<31> next = QVec<31>::from_raw(Argon<int32_t>{int32x4_t{1, 2, 3, 4}});
+	[[nodiscard]] QVec<31> render() {
+		const QVec<31> out = next;
+		next = add_wrap(next, QVec<31>::splat(Q<31>::from_raw(4)));
+		return out;
+	}
+};
+struct RawCount : Generator<RawCount, q31> {
+	Argon<q31> next = Argon<q31>{int32x4_t{1, 2, 3, 4}};
+	[[nodiscard]] Argon<q31> render() {
+		const Argon<q31> out = next;
+		next = next + Argon<q31>{4};
+		return out;
+	}
+};
+
+/// Samples past a block's end, holding kSentinel: a load reading them changes nothing stored, a store writing them is
+/// seen.
+constexpr std::size_t kTail = 4;
+constexpr q31 kSentinel = 0x5a5a'5a5a;
+
+std::vector<Q<31>> typed(const std::vector<q31>& raw) {
+	std::vector<Q<31>> v(raw.size());
+	for (std::size_t i = 0; i < raw.size(); i++) {
+		v[i] = Q<31>::from_raw(raw[i]);
+	}
+	return v;
+}
+
+std::vector<q31> raw(std::span<const Q<31>> typed) {
+	std::vector<q31> v(typed.size());
+	for (std::size_t i = 0; i < typed.size(); i++) {
+		v[i] = typed[i].raw();
+	}
+	return v;
+}
+
+/// The typed mixins against their raw twins at @p n samples: whether every sample agrees and the tail is untouched.
+bool typed_mixins_agree(std::size_t n) {
+	const auto in = ramp(n);
+	auto typed_in = typed(in);
+	typed_in.resize(n + kTail, Q<31>::from_raw(kSentinel));
+	const std::span<const Q<31>> a = std::span{typed_in}.first(n);
+	bool agree = true;
+	const auto check = [&](const std::vector<q31>& want, std::vector<Q<31>>& got) {
+		agree = agree && raw(std::span{got}.first(n)) == want;
+		for (std::size_t i = n; i < got.size(); i++) {
+			agree = agree && got[i].raw() == kSentinel;
+		}
+	};
+	std::vector<q31> want(n);
+	std::vector<Q<31>> got(n + kTail, Q<31>::from_raw(kSentinel));
+	SimdDouble{}.render_block(in, want);
+	TypedDouble{}.render_block(a, std::span{got}.first(n));
+	check(want, got);
+	got.assign(n + kTail, Q<31>::from_raw(kSentinel));
+	SimdAdd{}.render_block(in, in, want);
+	TypedAdd{}.render_block(a, a, std::span{got}.first(n));
+	check(want, got);
+	got.assign(n + kTail, Q<31>::from_raw(kSentinel));
+	RawCount{}.render_block(want);
+	TypedCount{}.render_block(std::span{got}.first(n));
+	check(want, got);
+	return agree;
 }
 
 } // namespace
@@ -311,6 +390,11 @@ describe component_framework("the component mixins, AsBlock and control_generato
 		BlockProcessor<q31>& selected = wrapped;
 		selected.render_block(in, through);
 		expect(through).to_equal(direct);
+	});
+	it("steps Q<31> vectors through each mixin as its raw twin does, the partial last vector included", _ {
+		for (std::size_t n : {1u, 3u, 4u, 5u, 7u, 8u, 33u}) {
+			expect(typed_mixins_agree(n)).to_be_true();
+		}
 	});
 	it("advances a control signal by the samples asked", _ {
 		Ramp r;
