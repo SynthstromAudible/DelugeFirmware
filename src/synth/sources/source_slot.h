@@ -42,7 +42,7 @@ struct SlotPhase {
 	/// The phase of a source no oscillator holds (FM's carriers, noise); a free-running oscillator's first phase.
 	dsp::UQ<32> osc_pos{};
 	dsp::UQ<32> phase_increment_stored_value{}; ///< The source's pitch before modulation
-	int32_t carrier_feedback{};                 ///< FM's carrier feedback memory
+	dsp::Q<31> carrier_feedback{};              ///< FM's carrier feedback memory
 	bool active{};                              ///< The slot sounds in this unison part
 };
 

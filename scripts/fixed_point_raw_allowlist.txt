@@ -68,7 +68,7 @@ src/deluge/dsp-next/fixed/mod_fx/mod_fx_kernel.h raw=0 boundary=32
 src/deluge/dsp-next/fixed/osc/band_limited_table_oscillator.h raw=0 boundary=4
 src/deluge/dsp-next/fixed/osc/crude_oscillators.h raw=0 boundary=7
 src/deluge/dsp-next/fixed/osc/pulse_oscillator.h raw=0 boundary=8
-src/deluge/dsp-next/fixed/osc/sine.cpp raw=1 boundary=4
+src/deluge/dsp-next/fixed/osc/sine.cpp raw=1 boundary=6
 src/deluge/dsp-next/fixed/osc/supersaw.cpp raw=0 view=1 boundary=7
 src/deluge/dsp-next/fixed/osc/table_oscillator.h raw=0 boundary=3
 src/deluge/dsp-next/fixed/reverb/freeverb.h raw=0 boundary=3
@@ -154,7 +154,7 @@ src/scenes/services/knob_push.cpp raw=0 boundary=5
 src/synth/engines/block_controls.cpp raw=0 boundary=2
 src/synth/engines/block_controls.h raw=0 boundary=2
 src/synth/engines/dual_source_engine.cpp raw=0 boundary=11
-src/synth/engines/fm_engine.cpp raw=0 boundary=53
+src/synth/engines/fm_engine.cpp raw=0 boundary=47
 src/synth/engines/pitch.h raw=0 boundary=4
 src/synth/engines/ring_mod_engine.cpp raw=0 boundary=6
 src/synth/engines/slot_engine.cpp raw=0 boundary=5

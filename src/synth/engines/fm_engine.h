@@ -49,7 +49,7 @@ public:
 	/// A new voice's random modulator phases for unison part @p u, drawn after its sources' (the draw order).
 	void randomize_part(int32_t u, dsp::fixed::Cong& noise) override;
 	/// Clears the modulator levels' de-zipper (a new voice, whatever its mode).
-	void reset_levels() { modulator_amplitude_last_time_.fill(0); }
+	void reset_levels() { modulator_amplitude_last_time_.fill(dsp::Q<31>{}); }
 	/// Sets the modulator levels to @p modulator_volume: held still on a slow attack's first block, and stored for the
 	/// next block at each block's end, whatever the mode.
 	void set_levels(std::span<const int32_t, kNumModulators> modulator_volume);
@@ -87,29 +87,31 @@ private:
 
 	// The FM operator renders: pure DSP over the buffers and phases they are handed.
 	static void render_sine_wave_with_feedback(dsp::Q<31>* buffer_start, int32_t num_samples, dsp::UQ<32>* phase,
-	                                           int32_t amplitude, uint32_t phase_increment, int32_t feedback_amount,
-	                                           int32_t* last_feedback_value, bool add, int32_t amplitude_increment);
+	                                           dsp::Q<31> amplitude, dsp::UQ<32> phase_increment,
+	                                           dsp::Q<31> feedback_amount, dsp::Q<31>* last_feedback_value, bool add,
+	                                           dsp::Q<31> amplitude_increment);
 	static void render_fm_with_feedback(dsp::Q<31>* buffer_start, int32_t num_samples, dsp::UQ<32>* phase,
-	                                    int32_t amplitude, uint32_t phase_increment, int32_t feedback_amount,
-	                                    int32_t* last_feedback_value, int32_t amplitude_increment);
+	                                    dsp::Q<31> amplitude, dsp::UQ<32> phase_increment, dsp::Q<31> feedback_amount,
+	                                    dsp::Q<31>* last_feedback_value, dsp::Q<31> amplitude_increment);
 	static void render_fm_with_feedback_add(dsp::Q<31>* buffer_start, int32_t num_samples, const dsp::Q<31>* fm_buffer,
-	                                        dsp::UQ<32>* phase, int32_t amplitude, uint32_t phase_increment,
-	                                        int32_t feedback_amount, int32_t* last_feedback_value,
-	                                        int32_t amplitude_increment);
+	                                        dsp::UQ<32>* phase, dsp::Q<31> amplitude, dsp::UQ<32> phase_increment,
+	                                        dsp::Q<31> feedback_amount, dsp::Q<31>* last_feedback_value,
+	                                        dsp::Q<31> amplitude_increment);
 	/// The sine operator without feedback, four samples at a time (NEON).
-	static void render_sine_wave(dsp::Q<31>* buffer_start, int32_t num_samples, uint32_t phase_now, int32_t amplitude,
-	                             uint32_t phase_increment, bool add, int32_t amplitude_increment);
+	static void render_sine_wave(dsp::Q<31>* buffer_start, int32_t num_samples, dsp::UQ<32> phase_now,
+	                             dsp::Q<31> amplitude, dsp::UQ<32> phase_increment, bool add,
+	                             dsp::Q<31> amplitude_increment);
 	/// The carrier frequency-modulated by @p fm_buffer without feedback, added, four samples at a time (NEON).
 	static void render_fm_add(dsp::Q<31>* buffer_start, int32_t num_samples, const dsp::Q<31>* fm_buffer,
-	                          uint32_t phase_now, int32_t amplitude, uint32_t phase_increment,
-	                          int32_t amplitude_increment);
+	                          dsp::UQ<32> phase_now, dsp::Q<31> amplitude, dsp::UQ<32> phase_increment,
+	                          dsp::Q<31> amplitude_increment);
 
 	// The state only FM uses, indexed [unison part][modulator]
 	std::array<std::array<dsp::UQ<32>, kNumModulators>, kMaxNumVoicesUnison> modulator_phase_{};
 	std::array<std::array<dsp::UQ<32>, kNumModulators>, kMaxNumVoicesUnison>
 	    modulator_phase_increment_{}; // or kInactive
-	std::array<std::array<int32_t, kNumModulators>, kMaxNumVoicesUnison> modulator_feedback_{};
-	std::array<int32_t, kNumModulators> modulator_amplitude_last_time_{}; ///< The modulator volumes' de-zipper
+	std::array<std::array<dsp::Q<31>, kNumModulators>, kMaxNumVoicesUnison> modulator_feedback_{};
+	std::array<dsp::Q<31>, kNumModulators> modulator_amplitude_last_time_{}; ///< The modulator volumes' de-zipper
 };
 
 } // namespace deluge::synth

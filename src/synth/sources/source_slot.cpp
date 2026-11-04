@@ -64,7 +64,7 @@ bool SourceSlot::note_on(const SourceSetup& source, uint32_t samples_late, uint3
 	}
 
 	if (reset_everything) {
-		carrier_feedback = 0;
+		carrier_feedback = dsp::Q<31>{};
 	}
 
 	return true;
