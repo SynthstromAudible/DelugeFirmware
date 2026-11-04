@@ -32,12 +32,6 @@ namespace {
 	return scale_shl_wrap<4>(mul(dsp::Q<31>::from_raw(sample), dsp::Q<31>::from_raw(amplitude))).raw();
 }
 
-/// @brief @p value added into the buffer word at @p sample, wrapping.
-[[gnu::always_inline]] inline void add_into(int32_t* sample, int32_t value) {
-	*sample = add_wrap(dsp::Q<31>::from_raw(*sample), dsp::Q<31>::from_raw(value)).raw();
-}
-} // namespace
-namespace {
 /// The input channel a live-input `OscType` names: the note-on boundary is the only place the synth reads it.
 InputChannel channel_from_osc_type(OscType input_type) {
 	switch (input_type) {

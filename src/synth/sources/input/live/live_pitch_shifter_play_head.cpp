@@ -38,8 +38,8 @@
 namespace deluge::synth {
 
 namespace {
-/// @brief Adds @p sample times the amplitude into the buffer word at @p out: the rounded product moved to Q31, then
-/// ×2^(N − 1) for the play head mode's level (×32 in all repitched or interpolated, ×16 direct), wrapping.
+/// @brief Adds @p sample times the amplitude into the buffer word at @p out, wrapping: the rounded product moved to
+/// Q31, then ×2^(N − 1) for the play head mode's level, ×16 repitched or interpolated and ×8 direct.
 template <int N>
 [[gnu::always_inline]] inline void add_levelled(int32_t* out, int32_t sample, int32_t amplitude) {
 	const auto product = mul_r_as_wrap<dsp::Q<31>>(dsp::Q<31>::from_raw(sample), dsp::Q<31>::from_raw(amplitude));

@@ -38,10 +38,15 @@ namespace deluge::synth {
 /// tier above). Per-source state (phase, feedback, sample position) lives *in the concrete source* (e.g. a
 /// @ref deluge::dsp::Phasor member); the app hands down only the modulated numbers, never references upward.
 
+/// @brief Adds @p value into the buffer word at @p word, wrapping.
+[[gnu::always_inline]] inline void add_into(int32_t* word, int32_t value) {
+	*word = add_wrap(dsp::Q<31>::from_raw(*word), dsp::Q<31>::from_raw(value)).raw();
+}
+
 /// @brief Adds @p frame_in into the interleaved stereo frame at @p frame, each channel wrapping.
 [[gnu::always_inline]] inline void add_frame(int32_t* frame, dsp::StereoSample frame_in) {
-	frame[0] = add_wrap(dsp::Q<31>::from_raw(frame[0]), dsp::Q<31>::from_raw(frame_in.l)).raw();
-	frame[1] = add_wrap(dsp::Q<31>::from_raw(frame[1]), dsp::Q<31>::from_raw(frame_in.r)).raw();
+	add_into(&frame[0], frame_in.l);
+	add_into(&frame[1], frame_in.r);
 }
 
 /// @brief Adds @p sample, panned by the Q30 amplitudes (2^30 unity), into the interleaved stereo frame at @p frame,

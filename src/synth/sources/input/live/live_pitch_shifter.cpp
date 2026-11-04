@@ -531,13 +531,11 @@ void LivePitchShifter::hop_end(int32_t phase_increment, LiveInputBuffer* live_in
 			// tried yet.
 
 #if !MEASURE_HOP_END_PERFORMANCE
-			// The search length's word times a random fraction (the Q31 noise times the random element moved up 8), the
-			// high words, ×4
+			// A random fraction of the search length: the Q31 noise times the random element moved up 8, Q30, times the
+			// length's word read as Q31 (an integer count, so the product is its fraction at Q29), ×4
 			const auto fraction = mul(deluge::dsp::Q<31>::from_raw(static_cast<int32_t>(noise.next())),
 			                          deluge::dsp::Q<31>::from_raw(random_element << 8));
-			min_search += scale_shl_wrap<2>(mul(deluge::dsp::Q<31>::from_raw(min_search),
-			                                    deluge::dsp::Q<31>::from_raw(fraction.raw())))
-			                  .raw();
+			min_search += scale_shl_wrap<2>(mul(deluge::dsp::Q<31>::from_raw(min_search), fraction)).raw();
 #endif
 
 			int32_t back_edge = min_search >> kPercBufferReductionMagnitude; // Pixellated

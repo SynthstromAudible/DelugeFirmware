@@ -17,11 +17,11 @@
 
 #include "synth/engines/ring_mod_engine.h"
 #include "dsp-next/core/fixed_point.h"
-#include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/core/types.h" // deluge::dsp::fixed::Buffer
 #include "dsp-next/fixed/vca/pan.h"
 #include "synth/engines/block_controls.h" // make_block_controls
 #include "synth/engines/pitch.h"
+#include "synth/sources/source.h" // add_panned
 #include "synth/sources/source_slot.h"
 #include <algorithm>
 #include <type_traits>
@@ -203,10 +203,7 @@ void RingModEngine::render_unison_part(const RingSource& src0, const RingSource&
 		int32_t const* const osc_buffer_end = osc_buffer + 2 * num_samples;
 		do {
 			const int32_t out = ring_product(*input0, *input1, amplitude_for_ring_mod);
-			const dsp::StereoSample panned =
-			    dsp::panned_mono(out, Q<30>::from_raw(unison_amplitude_l), Q<30>::from_raw(unison_amplitude_r));
-			output[0] = add_wrap(Q<31>::from_raw(output[0]), Q<31>::from_raw(panned.l)).raw();
-			output[1] = add_wrap(Q<31>::from_raw(output[1]), Q<31>::from_raw(panned.r)).raw();
+			add_panned(output, out, unison_amplitude_l, unison_amplitude_r);
 			output += 2;
 			input0++;
 			input1++;

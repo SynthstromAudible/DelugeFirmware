@@ -47,8 +47,7 @@ bool DualSourceEngine::render_noise(const EngineBlock& block, int32_t channels) 
 		}
 
 		// The same limit as the oscillators'
-		const Q<31> noise_amplitude =
-		    scale_shr_floor<2>(Q<31>::from_raw(std::min(n.raw(), static_cast<int32_t>(268435455))));
+		const Q<31> noise_amplitude = scale_shr_floor<2>(clamp_high(n, Q<31>::from_raw(268435455)));
 
 		int32_t const* const noise_end = osc_buffer + (block.num_samples * channels);
 		int32_t* __restrict__ this_sample = osc_buffer;

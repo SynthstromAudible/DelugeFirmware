@@ -264,7 +264,7 @@ instructions.
   depth, times its Q29 range, held to [−1, 1) (so a multiply chain's 1 + term never wraps); a multiply step is held to
   [−4, 4); an add step saturates; the depth square and its lanes' integer square stay raw. Envelopes are Q31 levels
   over UQ23 stage positions (2^23 a stage's end), stepped in 64 bits and held at the end; LFO phases are `UQ<32>`.
-  Pitch multipliers are Q24 (2^24 unity) on `UQ<32>` increments, read as signed Q31 for the multiply, as legacy; the
+  Pitch multipliers are Q24 (2^24 unity) on `UQ<32>` increments, read as signed Q31 for the multiply (they stay under 2^31, so the bits agree); the
   fine tuner's multiplier is Q30. The engines' filter gain is Q28 (2^28 unity), so a gain product is Q27 moved back to
   Q31; the FM operators' NEON loops read the amplitude at Q30 and round on both paths. A source panned into the
   voice's stereo buffer adds a Q30-pan frame (`add_panned`). What stays integer: the matrix's depth square, run-time

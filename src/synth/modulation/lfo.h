@@ -19,6 +19,7 @@
 
 #include "definitions_cxx.hpp"
 #include "dsp-next/core/fixed_point.h"
+#include "dsp-next/core/phasor.h"
 #include "dsp-next/fixed/bandlimited/waves.h" // square, triangle
 #include "dsp-next/fixed/noise/cong.h"        // the noise stream the random waves draw from
 #include "dsp-next/fixed/osc/sine_table.h"    // kSineTable
@@ -58,8 +59,9 @@ namespace lfo_wave {
 /// @param phase_increment per-sample phase step, UQ0.32 (freq·2^32/sampleRate).
 /// @param num_samples     samples in this render block.
 [[gnu::always_inline]] inline void advance(uint32_t& phase, uint32_t phase_increment, int32_t num_samples) {
-	// The block's step is an integer product, wrapping
-	phase = add_wrap(deluge::dsp::UQ<32>::from_raw(phase), deluge::dsp::UQ<32>::from_raw(phase_increment * num_samples))
+	using deluge::dsp::UQ;
+	phase = deluge::dsp::advanced(UQ<32>::from_raw(phase), UQ<32>::from_raw(phase_increment),
+	                              static_cast<uint32_t>(num_samples))
 	            .raw();
 }
 
@@ -155,11 +157,11 @@ struct Warbler {
 		// Saturating: a target more than full scale away is still the way to go
 		const int32_t distance_to_target =
 		    sub_sat(deluge::dsp::Q<31>::from_raw(target_), deluge::dsp::Q<31>::from_raw(held_value_)).raw();
-		// The distance's high word scaled by the increment's top 24 bits: the speed's change per sample, in the held
-		// value's Q31 units
-		const int32_t pull = mul(deluge::dsp::Q<31>::from_raw(distance_to_target),
-		                         deluge::dsp::Q<31>::from_raw(static_cast<int32_t>(phase_increment >> 8)))
-		                         .raw();
+		// The distance scaled by the increment's top 24 bits, read as a UQ<32> fraction: the speed's change per
+		// sample, in the held value's Q31 units
+		const int32_t pull =
+		    mul(deluge::dsp::UQ<32>::from_raw(phase_increment >> 8), deluge::dsp::Q<31>::from_raw(distance_to_target))
+		        .raw();
 		speed_ = speed_ + (num_samples * pull);
 		held_value_ = add_sat(deluge::dsp::Q<31>::from_raw(held_value_), deluge::dsp::Q<31>::from_raw(speed_)).raw();
 		advance(phase, phase_increment, num_samples);

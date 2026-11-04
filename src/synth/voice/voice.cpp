@@ -55,10 +55,8 @@ using deluge::dsp::Q;
 
 int32_t Voice::combine_expression_values(int32_t synth_level_value, int32_t expression_dimension) const {
 	int32_t voice_level_value = this->local_expression_source_values_before_smoothing_[expression_dimension];
-	// The two Q31 values' mean, doubled back held to the 31-bit range: their sum, saturating at 2^31 − 2
-	const Q<31> mean =
-	    add_wrap(halve_floor(Q<31>::from_raw(synth_level_value)), halve_floor(Q<31>::from_raw(voice_level_value)));
-	return scale_shl_wrap<1>(clamp_bits<31>(mean)).raw();
+	// The two Q31 values' halves summed and saturate-doubled: their sum within 2 LSBs, saturating at 2^31 − 2
+	return add_halves_sat(Q<31>::from_raw(synth_level_value), Q<31>::from_raw(voice_level_value)).raw();
 }
 
 Voice::Voice() = default;
@@ -361,7 +359,8 @@ uint32_t Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge::m
 	if (synth_mode == SynthMode::FM) {
 		// FM works the overall amplitude, compensated for unison, into each carrier's, saving a multiplication per
 		// sample at the end
-		// The amplitude times the unison's neutral (2^27 for one part): the rounded high word, ×8 in its units
+		// The amplitude times the unison's neutral (2^27 for one part): the rounded high word, Q30 of the amplitude's
+		// units, ×8
 		overall_osc_amplitude = scale_shl_wrap<3>(mul_r(Q<31>::from_raw(overall_osc_amplitude),
 		                                                Q<31>::from_raw(cfg.volume_neutral_value_for_unison)))
 		                            .raw();
@@ -536,7 +535,7 @@ namespace {
 /// to Q24 cannot wrap.
 int32_t pitch_product(int32_t a, int32_t b) {
 	const Q<16> product = mul_r(Q<24>::from_raw(a), Q<24>::from_raw(b));
-	return as_wrap<Q<24>>(Q<16>::from_raw(std::min(product.raw(), 8388607))).raw();
+	return as_wrap<Q<24>>(clamp_high(product, Q<16>::from_raw(8388607))).raw();
 }
 } // namespace
 

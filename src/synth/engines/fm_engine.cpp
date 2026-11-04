@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/fixed_point_neon.h"
+#include "dsp-next/core/phasor.h"
 #include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/fixed/osc/sine.h" // deluge::dsp::fixed::sine / sine_fm_operator
 #include "dsp-next/fixed/vca/pan.h"
@@ -42,7 +43,9 @@ using dsp::UQ;
 
 /// @brief @p phase moved on by a block's step, an integer product, wrapping.
 [[gnu::always_inline]] inline void advance(uint32_t* phase, uint32_t phase_increment, int32_t num_samples) {
-	*phase = add_wrap(UQ<32>::from_raw(*phase), UQ<32>::from_raw(phase_increment * num_samples)).raw();
+	*phase =
+	    dsp::advanced(UQ<32>::from_raw(*phase), UQ<32>::from_raw(phase_increment), static_cast<uint32_t>(num_samples))
+	        .raw();
 }
 
 /// @brief The feedback's phase modulation: the last output's Q31 word times the amount, Q30, held to 22 bits. Hard
@@ -336,11 +339,7 @@ void FMEngine::render_unison_part(const EngineBlock& block, int32_t u,
 		// Pan this part's carriers into the stereo buffer
 		const dsp::fixed::PanAmplitudes pan = dsp::fixed::pan_amplitudes(block.cfg->unison_pan[u]);
 		for (int32_t i = 0; i < num_samples; i++) {
-			const dsp::StereoSample panned =
-			    dsp::panned_mono(fm_osc_buffer[i], Q<30>::from_raw(pan.left), Q<30>::from_raw(pan.right));
-			int32_t* frame = &osc_buffer[i << 1];
-			frame[0] = add_wrap(Q<31>::from_raw(frame[0]), Q<31>::from_raw(panned.l)).raw();
-			frame[1] = add_wrap(Q<31>::from_raw(frame[1]), Q<31>::from_raw(panned.r)).raw();
+			add_panned(&osc_buffer[i << 1], fm_osc_buffer[i], pan.left, pan.right);
 		}
 	}
 }

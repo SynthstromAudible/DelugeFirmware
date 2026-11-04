@@ -111,7 +111,7 @@ void SampleHolderForVoice::setCents(int32_t newCents) {
 }
 
 void SampleHolderForVoice::recalculateFineTuner() {
-	fineTuner.setup((int32_t)cents * 42949672);
+	fineTuner.setup_cents(cents);
 }
 
 uint32_t SampleHolderForVoice::getMSecLimit(Source* source) {

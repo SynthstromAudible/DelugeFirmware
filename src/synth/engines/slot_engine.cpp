@@ -36,8 +36,8 @@ std::optional<uint32_t> base_phase_increment(const SourceSetup& source, SynthMod
 		int32_t note_within_octave = static_cast<uint16_t>(transposed_note_code + 240) % 12;
 		int32_t octave = static_cast<uint16_t>(transposed_note_code + 120) / 12;
 
-		// The neutral increment times the Q30 interval: the high word, a quarter of it, which the octave's run-time
-		// shift places
+		// The neutral increment (under 2^31, so read as Q31 its bits agree) times the Q30 interval: the high word, a
+		// quarter of it, which the octave's run-time shift places
 		const auto phase_increment =
 		    static_cast<uint32_t>(mul(dsp::Q<30>::from_raw(noteIntervalTable[note_within_octave]),
 		                              dsp::Q<31>::from_raw(static_cast<int32_t>(source.neutral_phase_increment)))

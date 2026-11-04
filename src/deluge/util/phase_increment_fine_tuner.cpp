@@ -35,7 +35,8 @@ void PhaseIncrementFineTuner::setNoDetune() {
 }
 
 int32_t PhaseIncrementFineTuner::detune(int32_t phaseIncrement) const {
-	// The increment read as Q31 times the Q30 multiplier (1.0 is 2^30), moved back to Q31
+	// The increment read as Q31 times the Q30 multiplier (1.0 is 2^30), moved back to Q31: increments stay under 2^31
+	// (the base is held under it, and detuned_increment mutes a unison part that reaches it), so the bits agree
 	return mul_as_wrap<deluge::dsp::Q<31>>(deluge::dsp::Q<31>::from_raw(phaseIncrement),
 	                                       deluge::dsp::Q<30>::from_raw(multiplier))
 	    .raw();
