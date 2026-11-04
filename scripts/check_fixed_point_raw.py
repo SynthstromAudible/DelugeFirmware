@@ -69,7 +69,9 @@ ARGON_FIXED_POINT = re.compile(
     r"MultiplyDoubleSaturateLong|MultiplyDoubleAddSaturateLong|MultiplyAddLong|ShiftRightAccumulate|ShiftLeftLong|"
     r"ShiftRightNarrow)\s*[<(]"
 )
-SEAM_VIEW = re.compile(r"(?<![\w.])(?:typed_view|raw_view)\s*\(")
+SEAM_VIEW = re.compile(
+    r"(?<![\w.])(?:typed_view|raw_view)\s*(?:<(?:[^<>()]|<[^<>()]*>)*>)?\s*\("
+)
 TYPED_BOUNDARY = re.compile(
     r"\bfrom_raw\s*\(|(?:\.|->)\s*raw\s*\(\s*\)|\breinterpret_bits\s*<"
 )

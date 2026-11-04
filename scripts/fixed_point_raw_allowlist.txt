@@ -114,7 +114,7 @@ src/deluge/modulation/arpeggiator.cpp raw=0 boundary=7
 src/deluge/modulation/automation/auto_param.cpp raw=0 boundary=8
 src/deluge/playback/playback_handler.cpp raw=0 boundary=3
 src/deluge/processing/audio_output.cpp raw=0 view=1 boundary=14
-src/deluge/processing/dx7/dx_voice_adapter.cpp raw=0 boundary=1
+src/deluge/processing/dx7/dx_voice_adapter.cpp raw=0 view=1 boundary=1
 src/deluge/processing/engines/audio_engine.cpp raw=0 boundary=31
 src/deluge/processing/metronome/metronome.cpp raw=0 boundary=3
 src/deluge/processing/sound/sound.cpp raw=0 boundary=13
