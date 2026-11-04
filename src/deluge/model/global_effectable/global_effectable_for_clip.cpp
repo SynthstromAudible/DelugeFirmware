@@ -58,8 +58,9 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 	// Process FX and stuff. For kits, stutter happens before reverb send
 	// The >>1 is to make up for the fact that we've got the preset default to effect a multiplication of 2 already (the
 	// maximum multiplication would be 4)
-	int32_t a = cableToLinearParamShortcut(unpatchedParams->getValue(params::UNPATCHED_VOLUME));
-	int32_t volumeAdjustment = getFinalParameterValueVolume(134217728, a) >> kClipVolumeAdjustmentShift;
+	int32_t volumeAdjustment = conversions.volume(unpatchedParams->getValue(params::UNPATCHED_VOLUME), [](int32_t v) {
+		return getFinalParameterValueVolume(134217728, cableToLinearParamShortcut(v)) >> kClipVolumeAdjustmentShift;
+	});
 
 	int32_t volumePostFX = volumeAdjustment;
 
@@ -72,7 +73,8 @@ GlobalEffectableForClip::GlobalEffectableForClip() {
 	int32_t reverbAmountAdjustForDrums = multiply_32x32_rshift32_rounded(reverbAmountAdjust, volumeAdjustment) << 5;
 
 	int32_t pitchAdjust =
-	    getFinalParameterValueExp(kMaxSampleValue, unpatchedParams->getValue(params::UNPATCHED_PITCH_ADJUST) >> 3);
+	    conversions.pitchAdjust(unpatchedParams->getValue(params::UNPATCHED_PITCH_ADJUST),
+	                            [](int32_t v) { return getFinalParameterValueExp(kMaxSampleValue, v >> 3); });
 
 	Delay::State delayWorkingState =
 	    createDelayWorkingState(*paramManagerForClip, shouldLimitDelayFeedback, renderedLastTime);
