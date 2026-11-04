@@ -269,6 +269,14 @@ instructions.
   Q31; the FM operators' NEON loops read the amplitude at Q30 and round on both paths. A source panned into the
   voice's stereo buffer adds a Q30-pan frame (`add_panned`). What stays integer: the matrix's depth square, run-time
   shifts (octave, sync level, play-head mode), MIDI and table scalings, block-length divisions.
+- **App:** a sample is added into a voice's half-scale (Q30) mix by the rounded high word (`mixed_in`); an audio
+  clip's phase increments are Q24 of the engine's rate (2^24 its own rate), scaled by Q24 ratios in 64 bits and held
+  under 2^31 (`scaled_increment`, `transposed_neutral`). The output stage doubles AUDIO_OUTPUT_GAIN_DOUBLINGS times
+  held to the word (`output_gain`), its dithered volume product 64-bit integer. Expression is Q31, a drum's inputs Q7
+  combined to Q15 held to 16 bits (`combined_expression`); patch-cable nodes are Q30, doubled to the param's Q31; a
+  0..128 knob is Q7 lifted to Q31 (`knob_level`); the arp's spreads are Q7 and its random amounts a true triangle
+  (`triangle_of`). What stays integer: the 64-bit tick and increment arithmetic, run-time shifts (the recorder's input
+  gain among them), MIDI and menu scalings, and the UI's display mappings.
 - **Buffers and frame fields** stay raw `q31` until the kernels that read them use the named operations; each
   kernel's interface stays raw and converts at its entry and exit.
 
