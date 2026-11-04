@@ -27,30 +27,32 @@ constexpr std::array<std::string_view, 8> kOrder{"saturation", "filter", "bitcru
 } // namespace
 
 TrackChain::TrackChain(RingAllocator mod_fx_allocator, RingAllocator granular_allocator, DelayArena& arena,
-                       int32_t post_reverb_volume_neutral)
-    : core_{mod_fx_allocator, granular_allocator, EnterGrain::KEEP, arena, post_reverb_volume_neutral} {
+                       dsp::Q<27> post_reverb_volume_neutral)
+    // The core's start volume is a word, as its −1 marks one unset
+    : core_{mod_fx_allocator, granular_allocator, EnterGrain::KEEP, arena, post_reverb_volume_neutral.raw()} {
 }
 
 TrackBlock TrackChain::begin_block(const TrackChainInputs& in, std::size_t frames) {
 	const EffectStates& settings = *in.fx.settings;
 	TrackBlock levels{
-	    .volume_post_fx = filter_.configure(settings.filter, in.filter, in.volume_post_fx),
+	    .volume_post_fx = filter_.configure(settings.filter, in.filter, in.volume_post_fx.raw()),
 	    .post_reverb_volume = in.post_reverb_volume_neutral,
 	};
 
 	if (in.sidechain_on) {
-		levels.post_reverb_volume = core_.sidechain().level<dsp::fixed::DuckScale::CLIP>({
+		// The level at the clip's scale is Q27
+		levels.post_reverb_volume = dsp::Q<27>::from_raw(core_.sidechain().level<dsp::fixed::DuckScale::CLIP>({
 		    .frames = static_cast<uint32_t>(frames),
 		    .hit = in.sidechain_hit,
 		    .shape = in.sidechain_shape,
 		    .depth = in.sidechain_depth,
 		    .state = settings.sidechain,
 		    .tick_inverse = in.tick_inverse,
-		});
+		}));
 	}
 
 	core_.compressor().configure(settings.compressor);
-	core_.compressor().dsp().set_threshold(dsp::Q<31>::from_raw(in.compressor_threshold)); // its param
+	core_.compressor().dsp().set_threshold(in.compressor_threshold); // its param
 	return levels;
 }
 
@@ -73,13 +75,13 @@ void TrackChain::pre_tap(std::span<dsp::StereoSample> block, const TrackChainInp
 bool TrackChain::post_tap(std::span<dsp::StereoSample> block, const TrackChainInputs& in, const TrackBlock& levels,
                           ReverbSend send) {
 	const bool sent = core_.send_and_volume().process(block, send.first(block.size()),
-	                                                  {.post_fx_volume = levels.volume_post_fx,
+	                                                  {.post_fx_volume = dsp::Q<27>::from_raw(levels.volume_post_fx),
 	                                                   .post_reverb_volume = levels.post_reverb_volume,
 	                                                   .reverb_send = in.reverb_send,
 	                                                   .pan = in.pan,
 	                                                   .ramp = true,
 	                                                   .stereo = in.fx.stereo});
-	if (in.compressor_threshold > 0) {
+	if (in.compressor_threshold > dsp::Q<31>{}) {
 		core_.compressor().dsp().render_volume_neutral(block, dsp::Q<29>::from_raw(levels.volume_post_fx));
 	}
 	else {

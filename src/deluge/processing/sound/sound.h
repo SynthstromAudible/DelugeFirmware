@@ -289,7 +289,7 @@ public:
 	                                    int32_t newValue);
 	void render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSample> output,
 	            deluge::dsp::Q<31>* reverbBuffer, int32_t sideChainHitPending, int32_t reverbAmountAdjust = 134217728,
-	            bool shouldLimitDelayFeedback = false, int32_t pitchAdjust = kMaxSampleValue,
+	            bool shouldLimitDelayFeedback = false, deluge::dsp::Q<24> pitchAdjust = deluge::dsp::Q<24>::one(),
 	            SampleRecorder* recorder = nullptr);
 
 	void ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(Song* song) final; // Song may be NULL

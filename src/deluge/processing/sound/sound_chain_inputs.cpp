@@ -24,12 +24,14 @@
 #include "modulation/params/param_set.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
+#include "synth/matrix/param_format.h"
 
 namespace params = deluge::modulation::params;
 
 deluge::effects::SoundChainInputs soundChainInputs(Sound& sound, ParamManager& paramManager,
                                                    const deluge::effects::Delay::State& delay, bool anyVoices,
-                                                   int32_t reverbSendAmount) {
+                                                   deluge::dsp::Q<31> reverbSendAmount) {
+	using deluge::synth::matrix::global_param_value;
 	const auto& finals = sound.params.param_final_values;
 	UnpatchedParamSet* unpatched = paramManager.getUnpatchedParamSet();
 	const deluge::model::StutterInput stutter = deluge::model::stutterInput(sound.core(), &paramManager);
@@ -49,16 +51,16 @@ deluge::effects::SoundChainInputs soundChainInputs(Sound& sound, ParamManager& p
 	                       deluge::dsp::Q<31>::from_raw(unpatched->getValue(params::UNPATCHED_TREBLE_FREQ))},
 	            .delay = delay,
 	            .stereo = AudioEngine::renderInStereo,
-	            .grain_send = reverbSendAmount >> 1,
+	            .grain_send = halve_floor(reverbSendAmount),
 	            .noise = &deluge::synth_noise,
 	        },
 	    .bitcrush = {.bitcrush = unpatched->getValue(params::UNPATCHED_BITCRUSHING),
 	                 .sample_rate_reduction = unpatched->getValue(params::UNPATCHED_SAMPLE_RATE_REDUCTION)},
-	    .post_fx_volume = finals[params::GLOBAL_VOLUME_POST_FX - params::FIRST_GLOBAL],
-	    .post_reverb_volume = finals[params::GLOBAL_VOLUME_POST_REVERB_SEND - params::FIRST_GLOBAL],
+	    .post_fx_volume = global_param_value<params::GLOBAL_VOLUME_POST_FX>(finals),
+	    .post_reverb_volume = global_param_value<params::GLOBAL_VOLUME_POST_REVERB_SEND>(finals),
 	    .reverb_send = reverbSendAmount,
 	    .sound = anyVoices,
-	    .compressor_threshold = unpatched->getValue(params::UNPATCHED_COMPRESSOR_THRESHOLD),
+	    .compressor_threshold = unpatched->getKnob(params::UNPATCHED_COMPRESSOR_THRESHOLD),
 	    .stutter = stutter.stutter,
 	    .stutter_rate = stutter.rate,
 	};

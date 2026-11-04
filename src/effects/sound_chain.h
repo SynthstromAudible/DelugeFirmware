@@ -32,13 +32,13 @@ namespace deluge::effects {
 struct SoundChainInputs {
 	FxInputs fx;
 	BitcrushParams bitcrush;
-	int32_t post_fx_volume;       ///< GLOBAL_VOLUME_POST_FX's final, Q27: 2^27 unity.
-	int32_t post_reverb_volume;   ///< GLOBAL_VOLUME_POST_REVERB_SEND's final, Q27: 2^27 unity.
-	int32_t reverb_send;          ///< The reverb send amount, Q31.
-	bool sound;                   ///< Whether the sound has voices.
-	int32_t compressor_threshold; ///< The threshold param, Q31; at or below 0 the compressor resets instead.
-	Stutter* stutter;             ///< The song's stutter while this sound is the one stuttering, else null.
-	uint32_t stutter_rate;        ///< The stutter's rate on the delay's rate scale (16777216 neutral).
+	dsp::Q<27> post_fx_volume;       ///< GLOBAL_VOLUME_POST_FX's final, Q27: 2^27 unity.
+	dsp::Q<27> post_reverb_volume;   ///< GLOBAL_VOLUME_POST_REVERB_SEND's final, Q27: 2^27 unity.
+	dsp::Q<31> reverb_send;          ///< The reverb send amount, Q31.
+	bool sound;                      ///< Whether the sound has voices.
+	dsp::Q<31> compressor_threshold; ///< The threshold param, Q31; at or below 0 the compressor resets instead.
+	Stutter* stutter;                ///< The song's stutter while this sound is the one stuttering, else null.
+	uint32_t stutter_rate;           ///< The stutter's rate on the delay's rate scale (16777216 neutral).
 };
 
 /// @brief A sound's effects after its voices: bitcrush, mod FX or grain, EQ, delay, stutter, reverb send and volume,

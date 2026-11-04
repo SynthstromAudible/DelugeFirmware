@@ -310,7 +310,7 @@ describe reverb("the reverb component", ${
 		expect(reverb->return_ducks()).to_be_false();
 		expect(reverb->return_level(128, kHit, rates, kInverse)).to_equal(1 << 29);
 
-		reverb->set_return_duck(ReturnDuck{.depth = 0x20000000, .shape = kShape});
+		reverb->set_return_duck(ReturnDuck{.depth = deluge::dsp::Q<29>::from_raw(0x20000000), .shape = deluge::dsp::Q<31>::from_raw(kShape)});
 		expect(reverb->return_ducks()).to_be_true();
 		for (int block = 0; block < 40; block++) {
 			const int32_t hit = block == 2 || block == 25 ? kHit : 0;
@@ -339,7 +339,7 @@ describe reverb("the reverb component", ${
 		for (int block = 0; block < 36; block++) {
 			const int32_t depth = block < 10 ? 0x20000000 : (block < 20 ? 0 : 0x30000000);
 			const int32_t hit = block == 2 || block == 12 || block == 25 ? kHit : 0;
-			reverb->set_return_duck(ReturnDuck{.depth = depth, .shape = kShape});
+			reverb->set_return_duck(ReturnDuck{.depth = deluge::dsp::Q<29>::from_raw(depth), .shape = deluge::dsp::Q<31>::from_raw(kShape)});
 			int32_t duck = 0;
 			if (depth != 0) {
 				if (hit != 0) {

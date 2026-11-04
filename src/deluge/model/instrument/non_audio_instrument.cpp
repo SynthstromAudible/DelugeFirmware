@@ -58,13 +58,9 @@ void NonAudioInstrument::renderOutput(ModelStack* modelStack, std::span<StereoSa
 
 		if (activeInstrumentClip->arpSettings.mode != ArpMode::OFF) {
 			uint32_t gateThreshold = (uint32_t)activeInstrumentClip->arpSettings.gate + 2147483648;
-			// The arp rate around its neutral, the base rate
-			uint32_t phaseIncrement = activeInstrumentClip->arpSettings.getPhaseIncrement(
-			    deluge::dsp::fixed::curve_exponential(
-			        deluge::synth::matrix::param_neutral<deluge::modulation::params::GLOBAL_ARP_RATE>(),
-			        deluge::dsp::fixed::preset_combination(
-			            deluge::dsp::Q<31>::from_raw(activeInstrumentClip->arpSettings.rate)))
-			        .raw());
+			uint32_t phaseIncrement =
+			    activeInstrumentClip->arpSettings.getPhaseIncrement(ArpeggiatorSettings::rate_from_knob(
+			        deluge::dsp::Q<31>::from_raw(activeInstrumentClip->arpSettings.rate)));
 
 			ArpReturnInstruction instruction;
 

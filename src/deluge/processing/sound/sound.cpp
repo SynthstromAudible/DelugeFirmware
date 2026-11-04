@@ -1642,17 +1642,17 @@ deluge::model::ReverbCandidate Sound::reverbCandidate(deluge::model::ReverbCandi
 	PatchCableSet* patchCableSet = paramManager.getPatchCableSet();
 	const int32_t whichCable = patchCableSet->getPatchCableIndex(
 	    PatchSource::SIDECHAIN, deluge::synth::CableTarget::param(params::GLOBAL_VOLUME_POST_REVERB_SEND));
-	const int32_t depth =
-	    (whichCable != 255)
-	        ? deluge::synth::modified_depth(patchCableSet->patchCables[whichCable].depth(), PatchSource::SIDECHAIN,
-	                                        params::GLOBAL_VOLUME_POST_REVERB_SEND)
-	              .raw()
-	        : 0;
+	// The duck reads the cable's Q30 depth word as its Q29 depth
+	const auto depth = (whichCable != 255)
+	                       ? deluge::dsp::reinterpret_bits<deluge::dsp::Q<29>>(deluge::synth::modified_depth(
+	                             patchCableSet->patchCables[whichCable].depth(), PatchSource::SIDECHAIN,
+	                             params::GLOBAL_VOLUME_POST_REVERB_SEND))
+	                       : deluge::dsp::Q<29>{};
 	return {
 	    .amount = reverbHere,
 	    .found = true,
 	    .duck_depth = depth,
-	    .duck_shape = paramManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_SIDECHAIN_SHAPE),
+	    .duck_shape = paramManager.getUnpatchedParamSet()->getKnob(params::UNPATCHED_SIDECHAIN_SHAPE),
 	    .rates = modControllableSnapshot().effects.sidechain,
 	};
 }
@@ -1777,7 +1777,7 @@ void Sound::process_postarp_notes(ModelStackWithSoundFlags* modelStackWithSoundF
 
 void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSample> output,
                    deluge::dsp::Q<31>* reverbBuffer, int32_t sideChainHitPending, int32_t reverbAmountAdjust,
-                   bool shouldLimitDelayFeedback, int32_t pitchAdjust, SampleRecorder* recorder) {
+                   bool shouldLimitDelayFeedback, deluge::dsp::Q<24> pitchAdjust, SampleRecorder* recorder) {
 
 	if (skippingRendering) {
 		core().compressor().dsp().clear_gain_reduction();
@@ -1860,11 +1860,9 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	// Setup some reverb-related stuff
 	// The Q27 adjust (2^27 is 1; the song's default volume gives a half) times the Q31 reverb amount, rounded to Q26,
 	// moved to the Q31 send
-	int32_t reverbSendAmount =
-	    mul_r_as_wrap<dsp::Q<31>>(
-	        dsp::Q<27>::from_raw(reverbAmountAdjust),
-	        deluge::synth::matrix::global_param_value<params::GLOBAL_REVERB_AMOUNT>(params.param_final_values))
-	        .raw();
+	const dsp::Q<31> reverbSendAmount = mul_r_as_wrap<dsp::Q<31>>(
+	    dsp::Q<27>::from_raw(reverbAmountAdjust),
+	    deluge::synth::matrix::global_param_value<params::GLOBAL_REVERB_AMOUNT>(params.param_final_values));
 
 	ModelStackWithSoundFlags* modelStackWithSoundFlags = modelStack->addSoundFlags();
 
@@ -1880,8 +1878,8 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 
 	if (arpSettings != nullptr && arpSettings->mode != ArpMode::OFF) {
 		uint32_t gateThreshold = (uint32_t)unpatchedParams->getValue(params::UNPATCHED_ARP_GATE) + 2147483648;
-		uint32_t phaseIncrement =
-		    arpSettings->getPhaseIncrement(params.param_final_values[params::GLOBAL_ARP_RATE - params::FIRST_GLOBAL]);
+		uint32_t phaseIncrement = arpSettings->getPhaseIncrement(
+		    deluge::synth::matrix::global_param_value<params::GLOBAL_ARP_RATE>(params.param_final_values));
 
 		getArp()->render(arpSettings, &instruction, output.size(), gateThreshold, phaseIncrement);
 	}
@@ -2044,7 +2042,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 			                                    .sound_in_stereo = voice_rendered_in_stereo,
 			                                    .pan_at_voice_level = applyingPanAtVoiceLevel,
 			                                    .sources_changed = voiceSourcesChanged,
-			                                    .pitch_adjust = deluge::dsp::Q<24>::from_raw(pitchAdjust),
+			                                    .pitch_adjust = pitchAdjust,
 			                                    .spare_buffers = {spareRenderingBuffer[0], spareRenderingBuffer[1],
 			                                                      spareRenderingBuffer[2], spareRenderingBuffer[3]},
 			                                    .filter_scratch = deluge::render::filter_scratch(),
@@ -2211,7 +2209,7 @@ void Sound::getArpBackInTimeAfterSkippingRendering(ArpeggiatorSettings* arpSetti
 	if (skippingRendering) {
 		if (arpSettings != nullptr && arpSettings->mode != ArpMode::OFF) {
 			uint32_t phaseIncrement = arpSettings->getPhaseIncrement(
-			    params.param_final_values[params::GLOBAL_ARP_RATE - params::FIRST_GLOBAL]);
+			    deluge::synth::matrix::global_param_value<params::GLOBAL_ARP_RATE>(params.param_final_values));
 			getArp()->gatePos +=
 			    (phaseIncrement >> 8) * (AudioEngine::audioSampleTimer - timeStartedSkippingRenderingArp);
 

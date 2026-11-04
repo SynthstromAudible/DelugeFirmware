@@ -231,9 +231,9 @@ describe sidechain("an owner's sidechain on the dsp-next duck envelope", ${
 				}
 				const int32_t duck = by_hand.render(128, kStraightShape, s, kFastInverse);
 				const DuckBlock b{.frames = 128,
-				                  .hit = hit,
-				                  .shape = kStraightShape,
-				                  .depth = 0x20000000,
+				                  .hit = deluge::dsp::Q<31>::from_raw(hit),
+				                  .shape = deluge::dsp::Q<31>::from_raw(kStraightShape),
+				                  .depth = deluge::dsp::Q<29>::from_raw(0x20000000),
 				                  .state = s,
 				                  .tick_inverse = kFastInverse};
 				if (block % 2 == 0) {

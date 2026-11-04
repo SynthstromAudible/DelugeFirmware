@@ -101,10 +101,10 @@ inline bool process_reverb_send_and_volume(fx::ChainCore& c, std::span<StereoSam
                                            int32_t reverbSendAmount, int32_t pan, bool doAmplitudeIncrement,
                                            bool stereo) {
 	return c.send_and_volume().process(buffer, {reverbBuffer.data(), buffer.size()},
-	                                   {.post_fx_volume = postFXVolume,
-	                                    .post_reverb_volume = postReverbVolume,
-	                                    .reverb_send = reverbSendAmount,
-	                                    .pan = pan,
+	                                   {.post_fx_volume = deluge::dsp::Q<27>::from_raw(postFXVolume),
+	                                    .post_reverb_volume = deluge::dsp::Q<27>::from_raw(postReverbVolume),
+	                                    .reverb_send = deluge::dsp::Q<31>::from_raw(reverbSendAmount),
+	                                    .pan = deluge::dsp::Q<31>::from_raw(pan),
 	                                    .ramp = doAmplitudeIncrement,
 	                                    .stereo = stereo});
 }
@@ -118,21 +118,22 @@ inline bool process_reverb_send_and_volume(fx::ChainCore& c, std::span<StereoSam
 inline bool sound(fx::ChainCore& c, const fx::SoundChainInputs& in, std::span<StereoSample> sound_stereo,
                   fx::ReverbSend reverbBuffer) {
 	const fx::EffectStates& settings = *in.fx.settings;
-	int32_t postFXVolume = in.post_fx_volume;
-	int32_t postReverbVolume = in.post_reverb_volume;
+	int32_t postFXVolume = in.post_fx_volume.raw();
+	int32_t postReverbVolume = in.post_reverb_volume.raw();
 
-	c.send_and_volume().prime(postReverbVolume);
+	c.send_and_volume().prime(deluge::dsp::Q<27>::from_raw(postReverbVolume));
 
 	postFXVolume >>= c.bitcrush().process(sound_stereo, in.bitcrush).volume_shift;
-	process_fx(c, sound_stereo, settings.mod_fx.type, in.fx, &postFXVolume, in.sound, in.fx.grain_send, reverbBuffer);
+	process_fx(c, sound_stereo, settings.mod_fx.type, in.fx, &postFXVolume, in.sound, in.fx.grain_send.raw(),
+	           reverbBuffer);
 	if (in.stutter != nullptr) {
 		in.stutter->render(sound_stereo, in.stutter_rate);
 	}
 
 	const bool sent = process_reverb_send_and_volume(c, sound_stereo, reverbBuffer, postFXVolume, postReverbVolume,
-	                                                 in.reverb_send, 0, true, in.fx.stereo);
+	                                                 in.reverb_send.raw(), 0, true, in.fx.stereo);
 
-	q31_t compThreshold = in.compressor_threshold;
+	q31_t compThreshold = in.compressor_threshold.raw();
 	c.compressor().configure(settings.compressor);
 	c.compressor().dsp().set_threshold(deluge::dsp::Q<31>::from_raw(compThreshold));
 	if (compThreshold > 0) {
@@ -161,29 +162,29 @@ bool clip(fx::ChainCore& c, fx::Filter& filter_, fx::Saturation& saturation_, co
           std::span<StereoSample> global_effectable_audio, bool renderedLastTime, fx::ReverbSend reverbBuffer,
           Tap&& tap) {
 	const fx::EffectStates& settings = *in.fx.settings;
-	int32_t volumePostFX = in.volume_post_fx;
+	int32_t volumePostFX = in.volume_post_fx.raw();
 
 	// The filters' settings, which compensate the post-FX volume.
 	volumePostFX = filter_.configure(settings.filter, in.filter, volumePostFX);
 
-	int32_t reverbSendAmount = in.reverb_send;
-	int32_t pan = in.pan;
+	int32_t reverbSendAmount = in.reverb_send.raw();
+	int32_t pan = in.pan.raw();
 
-	int32_t postReverbVolume = in.post_reverb_volume_neutral;
+	int32_t postReverbVolume = in.post_reverb_volume_neutral.raw();
 	if (in.sidechain_on) {
-		if (in.sidechain_hit != 0) {
-			c.sidechain().register_hit(in.sidechain_hit);
+		if (in.sidechain_hit.raw() != 0) {
+			c.sidechain().register_hit(in.sidechain_hit.raw());
 		}
-		int32_t sidechainOutput = c.sidechain().render(global_effectable_audio.size(), in.sidechain_shape,
+		int32_t sidechainOutput = c.sidechain().render(global_effectable_audio.size(), in.sidechain_shape.raw(),
 		                                               settings.sidechain, in.tick_inverse);
 
-		int32_t positivePatchedValue = multiply_32x32_rshift32(sidechainOutput, in.sidechain_depth) + 536870912;
+		int32_t positivePatchedValue = multiply_32x32_rshift32(sidechainOutput, in.sidechain_depth.raw()) + 536870912;
 
 		postReverbVolume = (positivePatchedValue >> 15) * (positivePatchedValue >> 16);
 	}
 
 	c.compressor().configure(settings.compressor);
-	const q31_t compThreshold = in.compressor_threshold;
+	const q31_t compThreshold = in.compressor_threshold.raw();
 	c.compressor().dsp().set_threshold(deluge::dsp::Q<31>::from_raw(compThreshold));
 
 	saturation_.process(global_effectable_audio, {.clipping_amount = settings.saturation.clipping_amount,
@@ -198,8 +199,8 @@ bool clip(fx::ChainCore& c, fx::Filter& filter_, fx::Saturation& saturation_, co
 	if (in.fx.mod_fx_type != fx::ModFXType::GRAIN && settings.mod_fx.type == fx::ModFXType::GRAIN) {
 		c.granular().startSkippingRendering();
 	}
-	process_fx(c, global_effectable_audio, in.fx.mod_fx_type, in.fx, &volumePostFX, renderedLastTime, in.fx.grain_send,
-	           reverbBuffer);
+	process_fx(c, global_effectable_audio, in.fx.mod_fx_type, in.fx, &volumePostFX, renderedLastTime,
+	           in.fx.grain_send.raw(), reverbBuffer);
 	if (in.stutter != nullptr) {
 		in.stutter->render(global_effectable_audio, in.stutter_rate);
 	}
@@ -233,23 +234,24 @@ template <typename Between>
 bool master(fx::ChainCore& c, fx::Filter& filter_, const fx::MasterChainInputs& in,
             std::span<StereoSample> renderingBuffer, fx::ReverbSend reverbBuffer, Between&& between) {
 	const fx::EffectStates& settings = *in.fx.settings;
-	int32_t volumePostFX = in.volume_post_fx;
+	int32_t volumePostFX = in.volume_post_fx.raw();
 
 	if (in.fx.mod_fx_type != fx::ModFXType::GRAIN && settings.mod_fx.type == fx::ModFXType::GRAIN) {
 		c.granular().startSkippingRendering();
 	}
-	process_fx(c, renderingBuffer, in.fx.mod_fx_type, in.fx, &volumePostFX, true, in.fx.grain_send, reverbBuffer);
+	process_fx(c, renderingBuffer, in.fx.mod_fx_type, in.fx, &volumePostFX, true, in.fx.grain_send.raw(), reverbBuffer);
 
-	const bool sent = process_reverb_send_and_volume(c, renderingBuffer, reverbBuffer, volumePostFX,
-	                                                 in.post_reverb_volume, in.reverb_send, 0, false, in.fx.stereo);
+	const bool sent =
+	    process_reverb_send_and_volume(c, renderingBuffer, reverbBuffer, volumePostFX, in.post_reverb_volume.raw(),
+	                                   in.reverb_send.raw(), 0, false, in.fx.stereo);
 
 	const std::optional<fx::MasterPostInputs> post = between(sent);
 	if (!post.has_value()) {
 		return sent;
 	}
 
-	int32_t masterVolumeAdjustmentL = post->master_volume;
-	int32_t masterVolumeAdjustmentR = post->master_volume;
+	int32_t masterVolumeAdjustmentL = post->master_volume.raw();
+	int32_t masterVolumeAdjustmentR = post->master_volume.raw();
 	masterVolumeAdjustmentL = filter_.configure(settings.filter, post->filter, masterVolumeAdjustmentL);
 	filter_.process(renderingBuffer, post->filter_scratch, *post->noise);
 	masterVolumeAdjustmentL >>= c.bitcrush().process(renderingBuffer, post->bitcrush).volume_shift;
@@ -261,14 +263,14 @@ bool master(fx::ChainCore& c, fx::Filter& filter_, const fx::MasterChainInputs& 
 	}
 
 	if (post->do_pan) {
-		masterVolumeAdjustmentL = multiply_32x32_rshift32(masterVolumeAdjustmentL, post->pan_l) << 2;
-		masterVolumeAdjustmentR = multiply_32x32_rshift32(masterVolumeAdjustmentR, post->pan_r) << 2;
+		masterVolumeAdjustmentL = multiply_32x32_rshift32(masterVolumeAdjustmentL, post->pan_l.raw()) << 2;
+		masterVolumeAdjustmentR = multiply_32x32_rshift32(masterVolumeAdjustmentR, post->pan_r.raw()) << 2;
 	}
 
 	c.compressor().configure(settings.compressor);
 	c.compressor().dsp().render(renderingBuffer, deluge::dsp::Q<27>::from_raw(masterVolumeAdjustmentL >> 1),
 	                            deluge::dsp::Q<27>::from_raw(masterVolumeAdjustmentR >> 1),
-	                            deluge::dsp::Q<29>::from_raw(post->song_volume >> 3));
+	                            deluge::dsp::Q<29>::from_raw(post->song_volume.raw() >> 3));
 	return sent;
 }
 

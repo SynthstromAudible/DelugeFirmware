@@ -610,7 +610,7 @@ int64_t AudioClip::getNumSamplesTilLoop(ModelStackWithTimelineCounter* modelStac
 }
 
 void AudioClip::render(ModelStackWithTimelineCounter* modelStack, std::span<deluge::dsp::Q<31>> outputBuffer,
-                       int32_t amplitude, int32_t amplitudeIncrement, int32_t pitchAdjust) {
+                       int32_t amplitude, int32_t amplitudeIncrement, deluge::dsp::Q<24> pitchAdjust) {
 
 	if (!voiceSample) {
 		return;
@@ -643,8 +643,9 @@ void AudioClip::render(ModelStackWithTimelineCounter* modelStack, std::span<delu
 	int32_t timeStretchRatio = kMaxSampleValue;
 	int32_t phaseIncrement = sampleHolder.neutralPhaseIncrement;
 
-	if (pitchAdjust != kMaxSampleValue) {
-		phaseIncrement = scaled_increment(phaseIncrement, pitchAdjust);
+	if (pitchAdjust != deluge::dsp::Q<24>::one()) {
+		// The pitch adjust's word is the Q24 ratio the increment scales by
+		phaseIncrement = scaled_increment(phaseIncrement, pitchAdjust.raw());
 	}
 
 	uint32_t sampleLengthInSamples = sampleHolder.getDurationInSamples(true); // In the sample rate of the file!
@@ -670,7 +671,8 @@ void AudioClip::render(ModelStackWithTimelineCounter* modelStack, std::span<delu
 		// If only the file's sample rate is changing phaseIncrement, playing it back at that speed already keeps it in
 		// time, so like an unadjusted 44100kHz file, it doesn't need time-stretching unless it's drifted out of sync.
 		// Otherwise every non-44100kHz file would always be time-stretched, even at its original tempo.
-		bool pitchManuallyAdjusted = pitchAdjust != kMaxSampleValue || sampleHolder.transpose || sampleHolder.cents;
+		bool pitchManuallyAdjusted =
+		    pitchAdjust != deluge::dsp::Q<24>::one() || sampleHolder.transpose || sampleHolder.cents;
 
 		// Or if no manual pitch adjustment...
 		if (phaseIncrement == kMaxSampleValue || !pitchManuallyAdjusted) {

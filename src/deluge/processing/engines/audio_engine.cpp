@@ -1317,12 +1317,8 @@ int32_t metronomeVolumePostFx() {
 	if (currentSong == nullptr) {
 		return 1 << 27; // unity, Q27: playback triggers the click only with a song, so this is defensive
 	}
-	// The volume knob's square curve around unity, Q27, halved: the curve's neutral doubles already
-	return halve_floor(
-	           deluge::dsp::fixed::curve_square(deluge::dsp::Q<27>::one(),
-	                                            deluge::dsp::fixed::preset_combination(deluge::dsp::Q<31>::from_raw(
-	                                                currentSong->paramManager.getUnpatchedParamSet()->getValue(
-	                                                    deluge::modulation::params::UNPATCHED_VOLUME)))))
+	return deluge::model::volume_from_knob(
+	           currentSong->paramManager.getUnpatchedParamSet()->getKnob(deluge::modulation::params::UNPATCHED_VOLUME))
 	    .raw();
 }
 
@@ -2077,8 +2073,9 @@ void updateReverbParams() {
 		return;
 	}
 
-	// Otherwise, use manually set params for reverb sidechain
-	reverb.set_return_duck({.depth = reverbSidechainVolume, .shape = reverbSidechainShape});
+	// Otherwise, use manually set params for reverb sidechain: the settings' words are the depth (Q29) and shape (Q31)
+	reverb.set_return_duck({.depth = deluge::dsp::Q<29>::from_raw(reverbSidechainVolume),
+	                        .shape = deluge::dsp::Q<31>::from_raw(reverbSidechainShape)});
 }
 
 void registerSideChainHit(int32_t strength) {

@@ -231,7 +231,7 @@ bool AudioOutput::modeAllowsMonitoring() const {
 bool AudioOutput::renderContent(ModelStackWithTimelineCounter* modelStack, std::span<StereoSample> render,
                                 int32_t* bufferToTransferTo, deluge::dsp::Q<31>* reverbBuffer,
                                 int32_t reverbAmountAdjust, int32_t sideChainHitPending, bool shouldLimitDelayFeedback,
-                                bool isClipActive, int32_t pitchAdjust, int32_t amplitudeAtStart,
+                                bool isClipActive, deluge::dsp::Q<24> pitchAdjust, int32_t amplitudeAtStart,
                                 int32_t amplitudeAtEnd) {
 	bool rendered = false;
 	// audio outputs can have an activeClip while being muted

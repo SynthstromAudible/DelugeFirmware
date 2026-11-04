@@ -36,8 +36,7 @@ void ChainCore::render_fx(std::span<dsp::StereoSample> block, const FxInputs& in
 		                     .mix = in.mod_fx_depth,
 		                     .density = in.mod_fx_offset,
 		                     .randomness = in.mod_fx_feedback,
-		                     // The send amount's arithmetic is on raw words
-		                     .send_amount = dsp::Q<31>::from_raw(grain_send_amount(post_fx_volume, in.grain_send)),
+		                     .send_amount = grain_send_amount(dsp::Q<27>::from_raw(post_fx_volume), in.grain_send),
 		                     .sound = sound,
 		                 },
 		                 post_fx_volume, send.first(block.size()), *in.noise);

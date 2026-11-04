@@ -237,7 +237,7 @@ inline fx::FxInputs fx_inputs(const Workload& w, const fx::EffectStates& s) {
 	           .treble_frequency = deluge::dsp::Q<31>::from_raw(-0x10000000)},
 	    .delay = {},
 	    .stereo = w.stereo,
-	    .grain_send = 0x08000000,
+	    .grain_send = deluge::dsp::Q<31>::from_raw(0x08000000),
 	    .noise = &deluge::synth_noise,
 	};
 }

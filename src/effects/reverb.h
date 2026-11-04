@@ -36,8 +36,8 @@ namespace deluge::effects {
 /// @brief The duck the reverb's return takes: the depth and shape in effect, the song's own or those of the owner with
 /// the most reverb, as the engine chooses them.
 struct ReturnDuck {
-	int32_t depth{0}; ///< The sidechain volume as a patch cable's depth, Q29; 0 leaves the envelope still.
-	int32_t shape{0}; ///< The shape param, Q31.
+	dsp::Q<29> depth{}; ///< The sidechain volume as a patch cable's depth; 0 leaves the envelope still.
+	dsp::Q<31> shape{}; ///< The shape param.
 };
 
 /// @brief The song's reverb: Freeverb or the plate (Mutable or Digital) over one buffer of the larger's size, the model
@@ -112,7 +112,7 @@ public:
 
 	/// @brief Whether the return's duck is in effect (a non-zero depth): only then does @ref return_level read its
 	/// rates and tick inverse.
-	[[nodiscard]] bool return_ducks() const { return return_duck_.depth != 0; }
+	[[nodiscard]] bool return_ducks() const { return return_duck_.depth != dsp::Q<29>{}; }
 
 	/// @brief The return's level for a block of @p frames: while the depth is non-zero the duck takes @p hit and
 	/// advances, whether or not the reverb then renders; at depth 0 it holds still and the level is 2^29.

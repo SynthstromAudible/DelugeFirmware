@@ -120,11 +120,11 @@ std::string sound_difference() {
 				SoundChainInputs in{
 				    .fx = cw::fx_inputs(w, s),
 				    .bitcrush = cw::kBitcrush,
-				    .post_fx_volume = 0x0A000000,
-				    .post_reverb_volume = 134217728,
-				    .reverb_send = 0x08000000,
+				    .post_fx_volume = deluge::dsp::Q<27>::from_raw(0x0A000000),
+				    .post_reverb_volume = deluge::dsp::Q<27>::one(),
+				    .reverb_send = deluge::dsp::Q<31>::from_raw(0x08000000),
 				    .sound = sound,
-				    .compressor_threshold = w.threshold,
+				    .compressor_threshold = deluge::dsp::Q<31>::from_raw(w.threshold),
 				    .stutter = nullptr,
 				    .stutter_rate = cw::kStutterRate,
 				};
@@ -168,8 +168,8 @@ std::string clip_difference() {
 		DelayArena arena_b{cw::kArenaMemory};
 		std::string found;
 		{
-			TrackChain run{cw::kAllocator, cw::kAllocator, arena_a, 134217728};
-			TrackChain ref{cw::kAllocator, cw::kAllocator, arena_b, 134217728};
+			TrackChain run{cw::kAllocator, cw::kAllocator, arena_a, deluge::dsp::Q<27>::one()};
+			TrackChain ref{cw::kAllocator, cw::kAllocator, arena_b, deluge::dsp::Q<27>::one()};
 			cw::hand_over(run.core(), s);
 			cw::hand_over(ref.core(), s);
 			Stutter stutter_a{cw::kAllocator};
@@ -188,16 +188,16 @@ std::string clip_difference() {
 				    .bitcrush = cw::kBitcrush,
 				    .filter = cw::kFilter,
 				    .filter_scratch = {},
-				    .volume_post_fx = 0x0A000000,
-				    .reverb_send = 0x08000000,
-				    .pan = w.stereo ? 0x10000000 : 0,
+				    .volume_post_fx = deluge::dsp::Q<27>::from_raw(0x0A000000),
+				    .reverb_send = deluge::dsp::Q<31>::from_raw(0x08000000),
+				    .pan = deluge::dsp::Q<31>::from_raw(w.stereo ? 0x10000000 : 0),
 				    .sidechain_on = w.sidechain,
-				    .sidechain_hit = w.sidechain && b % 7 == 0 ? 0x40000000 : 0,
-				    .sidechain_shape = -601295438,
-				    .sidechain_depth = (0x40000000 >> 2) + 536870912,
+				    .sidechain_hit = deluge::dsp::Q<31>::from_raw(w.sidechain && b % 7 == 0 ? 0x40000000 : 0),
+				    .sidechain_shape = deluge::dsp::Q<31>::from_raw(-601295438),
+				    .sidechain_depth = deluge::dsp::Q<29>::from_raw((0x40000000 >> 2) + 536870912),
 				    .tick_inverse = 0x00800000,
-				    .post_reverb_volume_neutral = 134217728,
-				    .compressor_threshold = w.threshold,
+				    .post_reverb_volume_neutral = deluge::dsp::Q<27>::one(),
+				    .compressor_threshold = deluge::dsp::Q<31>::from_raw(w.threshold),
 				    .stutter = nullptr,
 				    .stutter_rate = cw::kStutterRate,
 				};
@@ -267,9 +267,9 @@ std::string master_difference() {
 				const std::size_t frames = cw::kBlockFrames[b % cw::kBlockFrames.size()];
 				const MasterChainInputs in{
 				    .fx = cw::fx_inputs(w, s),
-				    .volume_post_fx = 0x0A000000,
-				    .post_reverb_volume = 134217728,
-				    .reverb_send = 0x04000000,
+				    .volume_post_fx = deluge::dsp::Q<27>::from_raw(0x0A000000),
+				    .post_reverb_volume = deluge::dsp::Q<27>::one(),
+				    .reverb_send = deluge::dsp::Q<31>::from_raw(0x04000000),
 				};
 				Produced a;
 				Produced r;
@@ -285,11 +285,11 @@ std::string master_difference() {
 					    .filter_scratch = scratch->view(),
 					    .noise = &deluge::synth_noise,
 					    .bitcrush = cw::kBitcrush,
-					    .master_volume = 167763968,
+					    .master_volume = deluge::dsp::Q<27>::from_raw(167763968),
 					    .do_pan = w.stereo,
-					    .pan_l = 0x30000000,
-					    .pan_r = 0x10000000,
-					    .song_volume = 0x40000000,
+					    .pan_l = deluge::dsp::Q<30>::from_raw(0x30000000),
+					    .pan_r = deluge::dsp::Q<30>::from_raw(0x10000000),
+					    .song_volume = deluge::dsp::Q<27>::from_raw(0x40000000),
 					    .stutter = w.stutter ? stutter : nullptr,
 					    .stutter_rate = cw::kStutterRate,
 					};

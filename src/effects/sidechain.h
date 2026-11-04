@@ -30,9 +30,9 @@ namespace deluge::effects {
 /// @brief One block's duck: its length, the hit pending for it, the shape and depth params and the rates.
 struct DuckBlock {
 	uint32_t frames;             ///< The block's length in samples.
-	int32_t hit;                 ///< The hit pending for this block, Q31; 0 for none.
-	int32_t shape;               ///< The shape param, Q31: the release's curve.
-	int32_t depth;               ///< The sidechain volume as a patch cable's depth, Q29.
+	dsp::Q<31> hit;              ///< The hit pending for this block, Q31; 0 for none.
+	dsp::Q<31> shape;            ///< The shape param, Q31: the release's curve.
+	dsp::Q<29> depth;            ///< The sidechain volume as a patch cable's depth, Q29.
 	const SidechainState& state; ///< The attack, release and sync.
 	uint32_t tick_inverse;       ///< The playback handler's getTimePerInternalTickInverse().
 };
@@ -92,14 +92,15 @@ public:
 	/// @return The ducked level at @p S's scale: 2^27 (CLIP) or 2^29 (REVERB_RETURN) unducked.
 	template <dsp::fixed::DuckScale S>
 	[[nodiscard]] int32_t level(const DuckBlock& b) {
-		if (b.hit != 0) {
-			register_hit(b.hit);
+		if (b.hit != dsp::Q<31>{}) {
+			duck_.on<&dsp::fixed::DuckEnvelope::hit>(b.hit);
 		}
-		const int32_t duck = render(b.frames, b.shape, b.state, b.tick_inverse);
+		// render's shape is the word the patcher's sidechain source passes through
+		const int32_t duck = render(b.frames, b.shape.raw(), b.state, b.tick_inverse);
 		// The ranges duck_gain's square stays in range for (see its Wrapping note).
 		assert(duck <= 0 && duck > INT32_MIN);
-		assert(b.depth >= -(1 << 30) && b.depth <= (1 << 30));
-		return dsp::fixed::duck_gain<S>(dsp::Q<31>::from_raw(duck), dsp::Q<29>::from_raw(b.depth));
+		assert(b.depth.raw() >= -(1 << 30) && b.depth.raw() <= (1 << 30));
+		return dsp::fixed::duck_gain<S>(dsp::Q<31>::from_raw(duck), b.depth);
 	}
 
 	/// @brief Ends the duck, as for an owner that will not render for a while; see dsp::fixed::DuckEnvelope::stop.

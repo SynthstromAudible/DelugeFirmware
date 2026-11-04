@@ -112,12 +112,13 @@ void Reverb::render(std::span<dsp::StereoSample> block, std::span<const dsp::Q<3
 }
 
 int32_t Reverb::return_level(uint32_t frames, int32_t hit, const SidechainState& state, uint32_t tick_inverse) {
-	if (return_duck_.depth == 0) {
+	if (return_duck_.depth == dsp::Q<29>{}) {
 		return dsp::fixed::kDuckGainNeutral.raw();
 	}
+	// The hit is the engine's pending sidechain hit word, Q31
 	return return_sidechain_.level<dsp::fixed::DuckScale::REVERB_RETURN>({
 	    .frames = frames,
-	    .hit = hit,
+	    .hit = dsp::Q<31>::from_raw(hit),
 	    .shape = return_duck_.shape,
 	    .depth = return_duck_.depth,
 	    .state = state,

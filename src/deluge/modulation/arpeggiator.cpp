@@ -18,6 +18,7 @@
 #include "modulation/arpeggiator.h"
 #include "definitions_cxx.hpp"
 #include "dsp-next/core/fixed_point.h"
+#include "dsp-next/fixed/curves/param_curve.h"
 #include "gui/menu_item/value_scaling.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
@@ -26,6 +27,7 @@
 #include "modulation/params/param_set.h"
 #include "playback/playback_handler.h"
 #include "storage/flash_storage.h"
+#include "synth/matrix/param_format.h"
 #include "util/functions.h"
 #include <cstdint>
 
@@ -1593,10 +1595,17 @@ int32_t ArpeggiatorBase::doTickForward(ArpeggiatorSettings* settings, ArpReturnI
 	                         // what its name says.
 }
 
-uint32_t ArpeggiatorSettings::getPhaseIncrement(int32_t arpRate) {
+deluge::dsp::Q<24> ArpeggiatorSettings::rate_from_knob(deluge::dsp::Q<31> knob) {
+	return deluge::dsp::fixed::curve_exponential(
+	    deluge::synth::matrix::param_neutral<deluge::modulation::params::GLOBAL_ARP_RATE>(),
+	    deluge::dsp::fixed::preset_combination(knob));
+}
+
+uint32_t ArpeggiatorSettings::getPhaseIncrement(deluge::dsp::Q<24> arpRate) {
 	uint32_t phaseIncrement;
 	if (syncLevel == SYNC_LEVEL_NONE) {
-		phaseIncrement = arpRate >> 5;
+		// The rate's word ≫ 5 is the phase per sample: the base rate's 2^24 steps 2^19
+		phaseIncrement = arpRate.raw() >> 5;
 	}
 	else {
 		int32_t rightShiftAmount = 9 - deluge::plugin::index_of(syncLevel); // Will be max 0

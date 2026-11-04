@@ -29,7 +29,7 @@
 #include "modulation/params/param_set.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
-#include "synth/matrix/descriptors.h" // kParamNeutral
+#include "synth/matrix/param_format.h" // param_neutral
 #include "util/functions.h"
 #include <algorithm>
 #include <cstring>
@@ -41,7 +41,7 @@ namespace deluge::model {
 
 TrackChannel::TrackChannel()
     : chain_{kModFxRingAllocator, kGranularAllocator, delayArena(),
-             synth::matrix::kParamNeutral[params::GLOBAL_VOLUME_POST_REVERB_SEND]} {
+             synth::matrix::param_neutral<params::GLOBAL_VOLUME_POST_REVERB_SEND>()} {
 	initChannelSettings(binding_, view_, chain_.core(), chain_.filter());
 }
 
@@ -54,21 +54,13 @@ TrackChannel::~TrackChannel() {
 	UnpatchedParamSet* unpatchedParams = paramManager.getUnpatchedParamSet();
 
 	// Process FX and stuff. For kits, stutter happens before reverb send
-	// The volume knob's square curve around unity, Q27, halved: the curve's neutral doubles already (the maximum is 4)
-	const dsp::Q<29> a =
-	    dsp::fixed::preset_combination(dsp::Q<31>::from_raw(unpatchedParams->getValue(params::UNPATCHED_VOLUME)));
-	int32_t volumeAdjustment = halve_floor(dsp::fixed::curve_square(dsp::Q<27>::one(), a)).raw();
+	const dsp::Q<27> volumeAdjustment = volume_from_knob(unpatchedParams->getKnob(params::UNPATCHED_VOLUME));
 
 	// The song's Q27 reverb adjust times the channel's Q27 volume adjustment, rounded to Q22, moved to Q27
-	int32_t reverbAmountAdjustForDrums = mul_r_as_wrap<dsp::Q<27>>(dsp::Q<27>::from_raw(block.reverb_amount_adjust),
-	                                                               dsp::Q<27>::from_raw(volumeAdjustment))
-	                                         .raw();
+	int32_t reverbAmountAdjustForDrums =
+	    mul_r_as_wrap<dsp::Q<27>>(dsp::Q<27>::from_raw(block.reverb_amount_adjust), volumeAdjustment).raw();
 
-	// The pitch adjust around unison, Q24; the knob's word ≫ 3 is its octaves at Q26 (±4)
-	int32_t pitchAdjust =
-	    dsp::fixed::exp_curve(dsp::Q<24>::from_raw(kMaxSampleValue),
-	                          dsp::Q<26>::from_raw(unpatchedParams->getValue(params::UNPATCHED_PITCH_ADJUST) >> 3))
-	        .raw();
+	const dsp::Q<24> pitchAdjust = pitch_adjust_from_knob(unpatchedParams->getKnob(params::UNPATCHED_PITCH_ADJUST));
 
 	// The delay starts or stops on whether the content rendered last block.
 	effects::Delay::State delay = delayWorkingState(paramManager, core().delay(), binding_.snapshot().effects.delay,
@@ -143,7 +135,7 @@ ReverbCandidate TrackChannel::reverbCandidate(ReverbCandidate best, ParamManager
 	    .amount = reverbHere,
 	    .found = true,
 	    .duck_depth = sidechainDepth(paramManager),
-	    .duck_shape = unpatchedParams->getValue(params::UNPATCHED_SIDECHAIN_SHAPE),
+	    .duck_shape = unpatchedParams->getKnob(params::UNPATCHED_SIDECHAIN_SHAPE),
 	    .rates = binding_.snapshot().effects.sidechain,
 	};
 }
