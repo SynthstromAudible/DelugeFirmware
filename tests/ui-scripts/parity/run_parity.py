@@ -377,6 +377,8 @@ def main():
             )
         finally:
             shutil.rmtree(workdir, ignore_errors=True)
+        # In the form a cached run is read back in (lists, not tuples), so a fresh run compares equal to a cached one.
+        snaps = json.loads(json.dumps(snaps))
         if cached:
             with open(cached + ".tmp", "w", encoding="utf-8") as f:
                 json.dump(snaps, f)
