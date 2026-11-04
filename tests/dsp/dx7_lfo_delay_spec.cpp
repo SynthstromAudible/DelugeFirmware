@@ -47,7 +47,7 @@ describe dx7_lfo_delay_spec("dx7::LfoDelay", ${
 
 			for (std::size_t block = 0; block < kBlocks; ++block) {
 				const uint16_t n = lengths[block % lengths.size()];
-				expect(lfo_delay.advance(n)).to_equal(reference.getdelay(n));
+				expect(lfo_delay.advance(n).raw()).to_equal(reference.getdelay(n));
 				expect(lfo_delay.state().position).to_equal(reference.delaystate_);
 			}
 		}

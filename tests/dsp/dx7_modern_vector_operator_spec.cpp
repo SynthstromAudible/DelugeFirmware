@@ -3,6 +3,7 @@
 // the asm itself sample by sample. Then the held state against the scalar operator, vcvt's conversion rule and the
 // polynomial's constants.
 
+#include "dsp-next/core/buffer_view.h"
 #include "dsp-next/core/mono.h"
 #include "dsp-next/fixed/dx7/modern_vector_operator.h"
 #include "dsp-next/fixed/dx7/operator.h"
@@ -17,9 +18,12 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <span>
 
 namespace dx7 = deluge::dsp::fixed::dx7;
 namespace dp = dx7_asm_pin;
+using deluge::dsp::Q;
+using deluge::dsp::typed_view;
 
 namespace {
 
@@ -51,11 +55,14 @@ describe dx7_modern_vector_operator_spec("dx7::ModernVectorOperator", ${
 			std::copy(std::begin(inputs.accumulator), std::end(inputs.accumulator), out.begin());
 			deluge::dsp::Mono<dx7::ModernVectorOperator> op{{.input = pin.modulated ? dx7::Input::BUS : dx7::Input::NONE,
 			                                                .output = pin.add ? dx7::Output::ADD : dx7::Output::SET,
-			                                                .level_in = pin.level_in, .freq = pin.freq,
+			                                                .level_in = Q<24>::from_raw(pin.level_in),
+			                                                .freq = dx7::Phase::from_raw(pin.freq),
 			                                                .tables = &tables}};
-			op.on<&dx7::ModernVectorOperator::resume>(dx7::OperatorState{.phase = pin.phase0, .gain_out = pin.gain_out});
+			op.on<&dx7::ModernVectorOperator::resume>(
+			    dx7::OperatorState{.phase = dx7::Phase::from_raw(pin.phase0), .gain_out = pin.gain_out});
 			const auto n = static_cast<std::size_t>(pin.n);
-			op.render_block({inputs.modulation, n}, {out.data(), n}, {out.data(), n});
+			const auto block = typed_view<Q<24>>(std::span{out.data(), n});
+			op.render_block(typed_view<Q<24>>(std::span{inputs.modulation, n}), block, block);
 			bool untouched = true; // writes only n
 			for (std::size_t k = n; k < out.size(); ++k) {
 				untouched = untouched && out[k] == inputs.accumulator[k];
@@ -80,15 +87,19 @@ describe dx7_modern_vector_operator_spec("dx7::ModernVectorOperator", ${
 	it("moves the held state as the scalar operator does", _ {
 		for (const dp::PinCase& pin : dp::all_cases()) {
 			const auto n = static_cast<std::size_t>(pin.n);
-			deluge::dsp::Mono<dx7::Operator> a{{.level_in = pin.level_in, .freq = pin.freq, .tables = &tables}};
-			a.on<&dx7::Operator::resume>(dx7::OperatorState{.phase = pin.phase0, .gain_out = pin.gain_out},
-			                             dx7::FeedbackHistory{});
-			deluge::dsp::Mono<dx7::ModernVectorOperator> b{{.level_in = pin.level_in, .freq = pin.freq, .tables = &tables}};
-			b.on<&dx7::ModernVectorOperator::resume>(dx7::OperatorState{.phase = pin.phase0, .gain_out = pin.gain_out});
-			alignas(16) std::array<int32_t, 144> scratch{};
-			a.render_block({scratch.data(), n}, {scratch.data(), n}, {scratch.data(), n});
-			b.render_block({scratch.data(), n}, {scratch.data(), n}, {scratch.data(), n});
-			expect(b.state().op.phase).to_equal(a.state().op.phase);
+			const auto level_in = Q<24>::from_raw(pin.level_in);
+			const auto freq = dx7::Phase::from_raw(pin.freq);
+			const dx7::OperatorState held{.phase = dx7::Phase::from_raw(pin.phase0), .gain_out = pin.gain_out};
+			deluge::dsp::Mono<dx7::Operator> a{{.level_in = level_in, .freq = freq, .tables = &tables}};
+			a.on<&dx7::Operator::resume>(held, dx7::FeedbackHistory{});
+			deluge::dsp::Mono<dx7::ModernVectorOperator> b{{.level_in = level_in, .freq = freq, .tables = &tables}};
+			b.on<&dx7::ModernVectorOperator::resume>(held);
+			alignas(16) std::array<Q<24>, 144> scratch{};
+			const std::span block{scratch.data(), n};
+			a.render_block(block, block, block);
+			b.render_block(block, block, block);
+			expect(b.state().op.phase.raw()).to_equal(a.state().op.phase.raw());
+
 			expect(b.state().op.gain_out).to_equal(a.state().op.gain_out);
 		}
 	});

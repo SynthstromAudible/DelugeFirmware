@@ -2,6 +2,7 @@
 // (three ops) plus the render loop's phase bookkeeping: op 6's five gain sets, five levels for the ops after it and
 // eight feedback shifts, over consecutive blocks of every length. Then the held and falling attenuation quirk.
 
+#include "dsp-next/core/buffer_view.h"
 #include "dsp-next/core/mono.h"
 #include "dsp-next/fixed/dx7/graph.h"
 #include "dsp-next/fixed/dx7/mki_feedback_stack.h"
@@ -18,6 +19,8 @@
 
 namespace dx7 = deluge::dsp::fixed::dx7;
 using deluge::dsp::Mono;
+using deluge::dsp::Q;
+using deluge::dsp::typed_view;
 
 namespace {
 
@@ -25,7 +28,7 @@ constexpr std::array<int32_t, 5> kLevels{0, 1 << 24, 14 << 24, 0x0fffffff, 0x100
 constexpr std::array<int32_t, 8> kShifts{1, 2, 3, 4, 5, 6, 7, 16};
 constexpr std::array<int32_t, 3> kFreqs{0x00123456, 0x01000000, 0x7fffffff};
 constexpr std::array<int32_t, 3> kPhases{0x7fff0000, 0, 0x00ffffff};
-constexpr dx7::FeedbackHistory kHistory{.y0 = 0x00123456, .y1 = -0x00234567};
+constexpr std::array<int32_t, 2> kHistory{0x00123456, -0x00234567}; // the reference's raw y0, y1
 
 /// @brief EngineMkI::render's gains for op 6.
 DELUGE_REFERENCE_DX7_LEGACY_ARITHMETIC dx7_asm_pin::Gains mki_gains(int32_t gain_out, int32_t level_in, int n) {
@@ -75,28 +78,29 @@ describe dx7_mki_feedback_stack_spec("dx7::MkIFeedbackStack", ${
 					for (std::size_t k = 0; k < N; ++k) {
 						params[k] = {.level_in = k == 0 ? g.level_in : level, .gain_out = k == 0 ? g.gain_out : 0,
 						             .freq = kFreqs[k], .phase = kPhases[k]};
-						ops[k] = {.phase = kPhases[k], .gain_out = params[k].gain_out};
+						ops[k] = {.phase = dx7::Phase::from_raw(kPhases[k]), .gain_out = params[k].gain_out};
 					}
-					int32_t fb[2] = {kHistory.y0, kHistory.y1}; // NOLINT(*-avoid-c-arrays): the reference's history
+					int32_t fb[2] = {kHistory[0], kHistory[1]}; // NOLINT(*-avoid-c-arrays): the reference's history
 
 					typename dx7::MkIFeedbackStack<N>::Settings settings{.feedback_shift = shift, .tables = &tables};
 					for (std::size_t k = 0; k < N; ++k) {
-						settings.level_in[k] = params[k].level_in;
-						settings.freq[k] = params[k].freq;
+						settings.level_in[k] = Q<24>::from_raw(params[k].level_in);
+						settings.freq[k] = dx7::Phase::from_raw(params[k].freq);
 					}
 					Mono<dx7::MkIFeedbackStack<N>> stack{settings};
-					stack.template on<&dx7::MkIFeedbackStack<N>::resume>(ops, kHistory);
+					stack.template on<&dx7::MkIFeedbackStack<N>::resume>(
+					    ops, dx7::FeedbackHistory{.y0 = Q<24>::from_raw(kHistory[0]), .y1 = Q<24>::from_raw(kHistory[1])});
 
 					for (const uint16_t n : dx7_workloads::block_lengths_1_to_132()) {
 						reference_block<N>(reference_tables, reference_out, n, params.data(), fb, shift);
-						stack.render_block({out, n});
+						stack.render_block(typed_view<Q<24>>(std::span{out, n}));
 						expect(std::ranges::equal(std::span{out, n}, std::span{reference_out, n})).to_be_true();
 						for (std::size_t k = 0; k < N; ++k) {
-							expect(stack.state().op[k].phase).to_equal(params[k].phase);
+							expect(stack.state().op[k].phase.raw()).to_equal(params[k].phase);
 							expect(stack.state().op[k].gain_out).to_equal(params[k].gain_out);
 						}
-						expect(stack.state().loop.feedback.y0).to_equal(fb[0]);
-						expect(stack.state().loop.feedback.y1).to_equal(fb[1]);
+						expect(stack.state().loop.feedback.y0.raw()).to_equal(fb[0]);
+						expect(stack.state().loop.feedback.y1.raw()).to_equal(fb[1]);
 					}
 				}
 			}
@@ -109,7 +113,9 @@ describe dx7_mki_feedback_stack_spec("dx7::MkIFeedbackStack", ${
 	it("holds an op's new attenuation, or falls from silence when it is 0", _ {
 		using Stack = dx7::MkIFeedbackStack<3>;
 		const Stack::Coefficients c = Stack::coefficients(
-		    {.level_in = {14 << 24, 0x10000000, 1 << 24}, .freq = {0, 0, 0}, .tables = &tables});
+		    {.level_in = {Q<24>::from_raw(14 << 24), Q<24>::from_raw(0x10000000), Q<24>::from_raw(1 << 24)},
+		     .tables = &tables});
+
 		Stack::State s{};
 		const Stack::Block b = Stack::prepare(c, s, 64);
 		expect(s.op[1].gain_out).to_equal(0);

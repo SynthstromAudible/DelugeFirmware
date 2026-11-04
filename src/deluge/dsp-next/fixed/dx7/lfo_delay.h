@@ -61,8 +61,8 @@ namespace deluge::dsp::fixed::dx7 {
 /// - *No delay is no fade.* A delay of 0 sets both increments to 2^32 - 1, so the first block of any length but 0
 ///   passes 2^32 and returns 1.0.
 struct LfoDelay {
-	using value_type = q31; ///< The depth that applies, Q24: 0 to 1 << 24.
-	using step_type = q31;  ///< A control kernel steps a scalar: the block is its step.
+	using value_type = Q<24>; ///< The depth that applies, 0 to 1.
+	using step_type = Q<24>;  ///< A control kernel steps a scalar: the block is its step.
 
 	/// @brief The patch's LFO delay byte (138).
 	struct Settings {
@@ -104,17 +104,18 @@ struct LfoDelay {
 	/// @brief Moves the delay on by a block of @p n samples.
 	/// @param n The block's length in samples; may be 0.
 	/// @return The depth that applies after the block, Q24.
-	[[nodiscard]] [[gnu::always_inline]] static q31 advance(const Coefficients& c, State& s, std::size_t n) {
+	[[nodiscard]] [[gnu::always_inline]] static Q<24> advance(const Coefficients& c, State& s, std::size_t n) {
 		const uint32_t delta = s.position < (1U << 31) ? c.increment : c.settled_increment;
 		const uint64_t d = uint64_t{s.position} + (delta * static_cast<uint32_t>(n)); // wraps in 32 bits first
 		if (d > ~0U) {
-			return 1 << 24;
+			return Q<24>::one();
 		}
 		s.position = static_cast<uint32_t>(d);
 		if (d < (1U << 31)) {
-			return 0;
+			return Q<24>{};
 		}
-		return static_cast<q31>((d >> 7) & ((1 << 24) - 1));
+		// The fade in: the position's bits below 2^31, read as the depth, so raw.
+		return Q<24>::from_raw(static_cast<int32_t>((d >> 7) & ((1 << 24) - 1)));
 	}
 };
 

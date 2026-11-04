@@ -330,7 +330,7 @@ private:
 	/// @brief One `step` per vector of 32-bit samples: @p n samples of @p src into @p dst, the partial last vector
 	/// included. A kernel declaring chains (@ref chains_of_v) steps every whole group of that many vectors through its
 	/// `step_chains` first. The loop counts samples with `for_each<std::int32_t>`, whose steps load and store raw q31
-	/// themselves and Q<31> through FixedVec (@ref detail::load_step).
+	/// themselves and any Q<F> through FixedVec (@ref detail::load_step).
 	template <auto M, typename Ctx, typename... Src>
 	[[gnu::always_inline]] static void vector_loop(const Coefficients& c, const Block& block, LoopState& s,
 	                                               Ctx& context, value_type* dst, std::ptrdiff_t n, const Src*... src) {

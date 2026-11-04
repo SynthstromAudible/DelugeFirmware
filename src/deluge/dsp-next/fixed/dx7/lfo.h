@@ -61,8 +61,8 @@ namespace deluge::dsp::fixed::dx7 {
 /// - *Waveform 5 (sample and hold) holds the middle,* 1 << 23, as every byte past 4 does.
 /// - *The phase wraps* in 32 bits, and a block's step is the delta times the block's length in 32 bits.
 struct Lfo {
-	using value_type = q31; ///< The wave's value, Q24: 0 to 1 << 24.
-	using step_type = q31;  ///< A control kernel steps a scalar: the block is its step.
+	using value_type = Q<24>; ///< The wave's value, 0 to 1.
+	using step_type = Q<24>;  ///< A control kernel steps a scalar: the block is its step.
 
 	/// @brief The patch's LFO bytes and the engine's tables.
 	struct Settings {
@@ -73,7 +73,7 @@ struct Lfo {
 
 	/// @brief What `advance` reads: the phase step per sample, the waveform and the tables.
 	struct Coefficients {
-		uint32_t delta = 0;             ///< The phase step per sample, Q32 cycles.
+		UQ<32> delta{};                 ///< The phase step per sample, in cycles.
 		uint8_t waveform = 0;           ///< As Settings::waveform.
 		const Tables* tables = nullptr; ///< The engine's tables, for the sine.
 	};
@@ -81,22 +81,25 @@ struct Lfo {
 	/// @brief The LFO between blocks. State{} starts the phase at 0: a new patch's LFO starts at the top of its
 	/// cycle.
 	struct State {
-		uint32_t phase = 0; ///< The phase, Q32 cycles.
+		UQ<32> phase{}; ///< The phase in cycles.
 	};
 
 	/// @brief The phase step for @p s's rate: the rate scaled to 0 to 255, then by 11 and more above 160.
 	[[nodiscard]] [[gnu::always_inline]] static constexpr Coefficients coefficients(const Settings& s) {
 		int32_t sr = s.rate == 0 ? 1 : (165 * s.rate) >> 6;
 		sr *= sr < 160 ? 11 : (11 + ((sr - 160) >> 4));
-		return {.delta = static_cast<uint32_t>(LfoDelay::kLfoUnit * sr), .waveform = s.waveform, .tables = s.tables};
+		// The rate's integer product with the unit step, in the phase's raw units.
+		return {.delta = UQ<32>::from_raw(static_cast<uint32_t>(LfoDelay::kLfoUnit * sr)),
+		        .waveform = s.waveform,
+		        .tables = s.tables};
 	}
 
 	/// @brief Moves the phase on by a block of @p n samples and reads the wave there.
 	/// @param n The block's length in samples; may be 0.
 	/// @return The wave's value after the block, Q24.
-	[[nodiscard]] [[gnu::always_inline]] static q31 advance(const Coefficients& c, State& s, std::size_t n) {
+	[[nodiscard]] [[gnu::always_inline]] static Q<24> advance(const Coefficients& c, State& s, std::size_t n) {
 		// The block's step is an integer product: the delta times the samples.
-		s.phase = add_wrap(UQ<32>::from_raw(s.phase), UQ<32>::from_raw(static_cast<uint32_t>(n) * c.delta)).raw();
+		s.phase = add_wrap(s.phase, UQ<32>::from_raw(static_cast<uint32_t>(n) * c.delta.raw()));
 		return wave_value(c, s.phase);
 	}
 
@@ -104,24 +107,25 @@ struct Lfo {
 	static constexpr Q<24> kMiddle = q<24>(0.5);
 
 	/// @brief Key sync: the phase to just under half a cycle.
-	[[gnu::always_inline]] static void key_sync(State& s) { s.phase = (1U << 31) - 1; }
+	[[gnu::always_inline]] static void key_sync(State& s) { s.phase = UQ<32>::from_raw((1U << 31) - 1); }
 
 	/// @brief The wave at @p phase, Q24 from 0 to 1 << 24.
 	/// @param phase The phase, Q32 cycles, read as a signed word: the square shifts it arithmetically. The saws and
 	/// the square are bit operations on the phase's word, so they stay raw.
-	[[nodiscard]] [[gnu::always_inline]] static q31 wave_value(const Coefficients& c, uint32_t phase) {
-		const auto p = static_cast<int32_t>(phase);
+	[[nodiscard]] [[gnu::always_inline]] static Q<24> wave_value(const Coefficients& c, UQ<32> phase) {
+		const auto p = static_cast<int32_t>(phase.raw());
+
 		switch (c.waveform == 0 ? 4 : c.waveform) {
-		case 1: // saw down
-			return static_cast<q31>((~p ^ (1U << 31)) >> 8);
-		case 2: // saw up
-			return static_cast<q31>((p ^ (1U << 31)) >> 8);
-		case 3: // square
-			return ((~p) >> 7) & (1 << 24);
+		case 1: // saw down: the phase's bits, so raw
+			return Q<24>::from_raw(static_cast<int32_t>((~p ^ (1U << 31)) >> 8));
+		case 2: // saw up: the phase's bits, so raw
+			return Q<24>::from_raw(static_cast<int32_t>((p ^ (1U << 31)) >> 8));
+		case 3: // square: the phase's top bit, so raw
+			return Q<24>::from_raw(((~p) >> 7) & (1 << 24));
 		case 4: // sine: the Q24 sine at the phase in 2^24 per cycle, halved about the middle
-			return add_wrap(kMiddle, halve_floor(Q<24>::from_raw(sin_lookup(*c.tables, p >> 8)))).raw();
+			return add_wrap(kMiddle, halve_floor(Q<24>::from_raw(sin_lookup(*c.tables, p >> 8))));
 		default:
-			return kMiddle.raw();
+			return kMiddle;
 		}
 	}
 };

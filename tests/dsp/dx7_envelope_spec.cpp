@@ -55,8 +55,8 @@ std::vector<dx7_reference::EnvParams> parameter_sets() {
 describe dx7_envelope_spec("dx7::Envelope", ${
 	it("starts, retunes, releases and follows an edit as the reference over every block length", _ {
 		const auto expect_state = [&](const dx7::Envelope::State& s, const dx7_reference::Env& reference) {
-			expect(s.level).to_equal(reference.level_);
-			expect(s.target).to_equal(static_cast<int32_t>(reference.targetlevel_));
+			expect(s.level.raw()).to_equal(reference.level_);
+			expect(s.target.raw()).to_equal(static_cast<int32_t>(reference.targetlevel_));
 			expect(s.stage).to_equal(static_cast<int32_t>(reference.ix_));
 			expect(s.increment).to_equal(static_cast<int32_t>(reference.inc_));
 			expect(s.hold).to_equal(static_cast<int32_t>(reference.staticcount_));
@@ -96,7 +96,7 @@ describe dx7_envelope_spec("dx7::Envelope", ${
 							p = edited(p);
 						}
 						envelope.configure(settings(extra_rate));
-						expect(envelope.advance(n)).to_equal(reference.getsample(p, n, extra_rate));
+						expect(envelope.advance(n).raw()).to_equal(reference.getsample(p, n, extra_rate));
 						expect_state(envelope.state(), reference);
 						++block;
 					}
@@ -116,8 +116,8 @@ describe dx7_envelope_spec("dx7::Envelope", ${
 		envelope.on<&dx7::Envelope::retune>();
 		const int32_t stage_2 = (dx7::Envelope::scale_output_level(40) >> 1) << 6;
 		expect(envelope.state().stage).to_equal(2);
-		expect(envelope.state().target).to_equal((stage_2 + kLevel - dx7::Envelope::kLevelOffset) << 16);
-		expect(envelope.state().target).not_().to_equal(16 << 16); // the level-less target, floored
+		expect(envelope.state().target.raw()).to_equal((stage_2 + kLevel - dx7::Envelope::kLevelOffset) << 16);
+		expect(envelope.state().target.raw()).not_().to_equal(16 << 16); // the level-less target, floored
 	});
 });
 // clang-format on

@@ -59,8 +59,8 @@ namespace deluge::dsp::fixed::dx7 {
 /// **A block.** The level moves by the whole block's samples times the stage's increment at once; a stage whose
 /// target is reached or passed lands on the target and enters the next stage, and the rest of the block is dropped.
 struct PitchEnvelope {
-	using value_type = q31; ///< The pitch offset, Q24 octaves.
-	using step_type = q31;  ///< A control kernel steps a scalar: the block is its step.
+	using value_type = Q<24>; ///< The pitch offset in octaves.
+	using step_type = Q<24>;  ///< A control kernel steps a scalar: the block is its step.
 
 	/// @brief The patch's pitch envelope bytes (126 to 133).
 	struct Settings {
@@ -71,8 +71,8 @@ struct PitchEnvelope {
 
 	/// @brief The envelope between blocks.
 	struct State {
-		int32_t level = 0;     ///< The pitch offset, Q24 octaves.
-		int32_t target = 0;    ///< The stage's target level, Q24 octaves.
+		Q<24> level{};         ///< The pitch offset in octaves.
+		Q<24> target{};        ///< The stage's target level in octaves.
 		int32_t stage = 0;     ///< The stage, 0 to 3; 4 once release has finished.
 		int32_t increment = 0; ///< The stage's level step per sample, Q24 octaves.
 		bool rising = false;   ///< The stage moves up to its target.
@@ -104,20 +104,20 @@ struct PitchEnvelope {
 	/// @brief Moves the envelope on by a block of @p n samples.
 	/// @param n The block's length in samples; may be 0.
 	/// @return The pitch offset after the block, Q24 octaves.
-	[[nodiscard]] [[gnu::always_inline]] static q31 advance(const Coefficients& c, State& s, std::size_t n) {
+	[[nodiscard]] [[gnu::always_inline]] static Q<24> advance(const Coefficients& c, State& s, std::size_t n) {
 		const auto count = static_cast<int32_t>(n);
 		if (s.stage < 3 || (s.stage < 4 && !s.down)) {
 			// A block's step is an integer product, well inside the word: at most 255 kUnit a sample.
 			const Q<24> step = Q<24>::from_raw(count * s.increment);
 			if (s.rising) {
-				s.level = add_wrap(Q<24>::from_raw(s.level), step).raw();
+				s.level = add_wrap(s.level, step);
 				if (s.level >= s.target) {
 					s.level = s.target;
 					enter_stage(c, s, s.stage + 1);
 				}
 			}
 			else {
-				s.level = sub_wrap(Q<24>::from_raw(s.level), step).raw();
+				s.level = sub_wrap(s.level, step);
 				if (s.level <= s.target) {
 					s.level = s.target;
 					enter_stage(c, s, s.stage + 1);
@@ -144,8 +144,8 @@ struct PitchEnvelope {
 
 private:
 	/// @brief A level byte as Q24 octaves: kLevel's 1/32 octave is Q5.
-	[[nodiscard]] [[gnu::always_inline]] static constexpr int32_t level_of(uint8_t level) {
-		return as_wrap<Q<24>>(Q<5>::from_raw(kLevel[level])).raw();
+	[[nodiscard]] [[gnu::always_inline]] static constexpr Q<24> level_of(uint8_t level) {
+		return as_wrap<Q<24>>(Q<5>::from_raw(kLevel[level]));
 	}
 
 	/// @brief Enters @p stage, reading its rate and level; past stage 3 nothing is read and the level holds.

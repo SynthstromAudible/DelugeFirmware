@@ -55,5 +55,5 @@ void DxPatch::setEngineMode(int mode) {
 
 void DxPatch::computeLfo(int n) {
 	lfo.configure({params[137], params[142], &dxEngine->tables});
-	lfo_value = lfo.advance(static_cast<std::size_t>(n));
+	lfo_value = lfo.advance(static_cast<std::size_t>(n)).raw(); // the voice takes it raw, Q24
 }

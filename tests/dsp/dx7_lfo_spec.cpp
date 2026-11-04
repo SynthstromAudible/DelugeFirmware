@@ -55,9 +55,9 @@ describe dx7_lfo_spec("dx7::Lfo", ${
 					const uint16_t n = lengths[block % lengths.size()];
 					lfo.configure({reference.params[kLfoRate], waveform, &tables});
 					reference.computeLfo(reference_tables, n);
-					expect(lfo.advance(n)).to_equal(static_cast<int32_t>(reference.lfo_value));
-					expect(lfo.state().phase).to_equal(reference.lfo_phase);
-					expect(lfo.coefficients().delta).to_equal(reference.lfo_delta);
+					expect(lfo.advance(n).raw()).to_equal(static_cast<int32_t>(reference.lfo_value));
+					expect(lfo.state().phase.raw()).to_equal(reference.lfo_phase);
+					expect(lfo.coefficients().delta.raw()).to_equal(reference.lfo_delta);
 				}
 			}
 		}
@@ -68,9 +68,10 @@ describe dx7_lfo_spec("dx7::Lfo", ${
 			return dx7::Lfo::coefficients({.rate = 0, .waveform = waveform, .tables = &tables});
 		};
 		for (uint32_t i = 0; i < 1000; ++i) {
-			const uint32_t phase = i * 4294967U;
-			expect(dx7::Lfo::wave_value(at(0), phase)).to_equal(dx7::Lfo::wave_value(at(4), phase));
-			expect(dx7::Lfo::wave_value(at(5), phase)).to_equal(1 << 23);
+			const auto phase = deluge::dsp::UQ<32>::from_raw(i * 4294967U);
+			expect(dx7::Lfo::wave_value(at(0), phase).raw()).to_equal(dx7::Lfo::wave_value(at(4), phase).raw());
+			expect(dx7::Lfo::wave_value(at(5), phase).raw()).to_equal(1 << 23);
+
 		}
 	});
 });

@@ -82,10 +82,10 @@ describe dx7_pitch_envelope_spec("dx7::PitchEnvelope", ${
 					p = run.edited;
 				}
 				envelope.configure({params_of(p)});
-				expect(envelope.advance(n)).to_equal(reference.getsample(p, n));
+				expect(envelope.advance(n).raw()).to_equal(reference.getsample(p, n));
 				const dx7::PitchEnvelope::State& s = envelope.state();
-				expect(s.level).to_equal(reference.level_);
-				expect(s.target).to_equal(static_cast<int32_t>(reference.targetlevel_));
+				expect(s.level.raw()).to_equal(reference.level_);
+				expect(s.target.raw()).to_equal(static_cast<int32_t>(reference.targetlevel_));
 				expect(s.stage).to_equal(static_cast<int32_t>(reference.ix_));
 				expect(s.increment).to_equal(static_cast<int32_t>(reference.inc_));
 				expect(s.rising).to_equal(reference.rising_);

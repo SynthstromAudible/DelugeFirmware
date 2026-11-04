@@ -63,8 +63,8 @@ namespace deluge::dsp::fixed::dx7 {
 /// **A block.** The level moves by the whole block at once; a stage whose target is reached or passed lands on the
 /// target and enters the next stage, and the rest of the block is dropped.
 struct Envelope {
-	using value_type = q31; ///< The level, Q24 doublings.
-	using step_type = q31;  ///< A control kernel steps a scalar: the block is its step.
+	using value_type = Q<24>; ///< The level in doublings.
+	using step_type = Q<24>;  ///< A control kernel steps a scalar: the block is its step.
 
 	/// @brief The operator's envelope bytes and the voice's scaling of them.
 	struct Settings {
@@ -80,8 +80,8 @@ struct Envelope {
 
 	/// @brief The envelope between blocks.
 	struct State {
-		int32_t level = 0;     ///< The level, Q24 doublings: 2^24 is one doubling.
-		int32_t target = 0;    ///< The stage's target level, Q24 doublings.
+		Q<24> level{};         ///< The level in doublings.
+		Q<24> target{};        ///< The stage's target level in doublings.
 		int32_t stage = 0;     ///< The stage, 0 to 3; 4 once release has finished.
 		int32_t increment = 0; ///< The stage's step per sample, in the level's Q24 units (rising: times the slope).
 		int32_t hold = 0;      ///< Samples left before a held stage enters the next; 0 when not held.
@@ -114,11 +114,11 @@ struct Envelope {
 	/// @brief Moves the envelope on by a block of @p n samples, entering a stage with the configured extra rate.
 	/// @param n The block's length in samples; may be 0.
 	/// @return The level after the block, Q24 doublings.
-	[[nodiscard]] static q31 advance(const Coefficients& c, State& s, std::size_t n);
+	[[nodiscard]] static Q<24> advance(const Coefficients& c, State& s, std::size_t n);
 
 	/// @brief Key down: the level to 0 and stage 0 entered.
 	[[gnu::always_inline]] static void start(const Coefficients& c, State& s) {
-		s.level = 0;
+		s.level = Q<24>{};
 		s.down = true;
 		enter_stage(c, s, 0, 0);
 	}
@@ -150,7 +150,7 @@ private:
 	/// @brief The target for a stage level byte @p level at @p output_level microsteps: no lower than 16 microsteps.
 	/// @details The microsteps are at most 63 × 64 plus the output level, under 2^15, so moving them from Q8 to the
 	/// level's Q24 stays inside the word.
-	[[nodiscard]] static int32_t stage_target(int32_t level, int32_t output_level);
+	[[nodiscard]] static Q<24> stage_target(int32_t level, int32_t output_level);
 
 	/// @brief Enters @p stage: its target, direction, hold and increment from its level and rate plus @p extra_rate.
 	/// Past stage 3 nothing is read and the level holds.

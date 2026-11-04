@@ -3,6 +3,7 @@
 // samples and lives as long as the reference voice with the device's modern arithmetic (run_reference_vector), which
 // equals the recorded reference wherever the voice stays under MkI; and it draws its noise as many times.
 
+#include "dsp-next/core/buffer_view.h"
 #include "dsp-next/core/control.h"
 #include "dsp-next/fixed/dx7/graph.h"
 #include "dsp-next/fixed/dx7/lfo.h"
@@ -16,6 +17,7 @@
 #include <cppspec.hpp>
 #include <cstddef>
 #include <cstdint>
+#include <span>
 
 namespace dx7 = deluge::dsp::fixed::dx7;
 namespace dw = dx7_workloads;
@@ -104,7 +106,7 @@ Run run_voice(const dw::Workload& w) {
 		}
 		const std::size_t n = w.blocks[b];
 		lfo.configure({patch[137], patch[142], &tables()});
-		const int32_t lfo_value = lfo.advance(n);
+		const int32_t lfo_value = lfo.advance(n).raw(); // the adapter passes it raw
 
 		// dx_voice_adapter.cpp's render
 		alignas(16) std::array<int32_t, dx7::kMaxBlock> buf{};
@@ -116,7 +118,9 @@ Run run_voice(const dw::Workload& w) {
 			voice->retune(settings());
 			patch_changed = false;
 		}
-		const bool live = voice->render_block(settings(), {buf.data(), n}, in, buses);
+		const bool live = voice->render_block(
+		    settings(), deluge::dsp::typed_view<deluge::dsp::Q<24>>(std::span{buf.data(), n}), in, buses);
+
 		for (std::size_t i = 0; i < n; ++i) {
 			outputs.add(buf[i]);
 		}
