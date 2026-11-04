@@ -278,3 +278,28 @@ test("appendix sections sort after numbered ones", () => {
     ["3.2", "21.4", "A"],
   )
 })
+
+test("a version badge in a heading stays out of the index", () => {
+  const badged: IndexPage = {
+    section: "16.8",
+    title: "Threshold Recording",
+    href: "/guidebook/16-audio/08-threshold-recording",
+    headings: [
+      {
+        depth: 2,
+        slug: "arming",
+        text: 'Arming a clip <Badge text="C1.3" variant="tip" />',
+      },
+    ],
+  }
+  const groups = buildIndex([badged], {
+    headwords: [{ head: "Clip", match: ["clip"] }],
+    see: [],
+    external: [],
+  })
+  const entry = groups.flatMap((g) => g.entries)[0]
+  assert.deepEqual(
+    entry.subs.map((s) => s.label),
+    ["Arming a clip"],
+  )
+})

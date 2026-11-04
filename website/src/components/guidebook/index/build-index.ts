@@ -49,6 +49,7 @@ const word = (phrase: string) =>
   new RegExp(`(^|[^\\p{L}\\p{N}])${escape(phrase)}($|[^\\p{L}\\p{N}])`, "iu")
 const clean = (text: string) =>
   text
+    .replace(/<Badge\b[^>]*\/>/g, "")
     .replace(/\s+/g, " ")
     .replace(/[\s:.]+$/, "")
     .trim()
