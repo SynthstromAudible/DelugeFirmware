@@ -28,7 +28,7 @@ struct GranularRig {
 	int32_t volume{kOneQ31 >> 1};              ///< The post-effect volume the component scales, Q27: 8× unity.
 	dsp::Buffer<StereoSample> work{};          ///< The lanes output's first n frames, processed in place.
 	std::span<const StereoSample> input{};     ///< The lanes input's first n frames, the sounding block.
-	std::array<q31_t, kMaxBlock> send{};       ///< The reverb send the component adds its feed into, Q31.
+	std::array<dsp::Q<31>, kMaxBlock> send{};  ///< The reverb send the component adds its feed into.
 };
 
 GranularRig rig{};

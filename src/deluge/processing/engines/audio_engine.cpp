@@ -501,7 +501,7 @@ LiveInputBuffer* liveInputBuffers[3];
 double lastRoutineTime;
 
 alignas(CACHE_LINE_SIZE) std::array<StereoSample, SSI_TX_BUFFER_NUM_SAMPLES> renderingMemory;
-alignas(CACHE_LINE_SIZE) std::array<int32_t, 2 * SSI_TX_BUFFER_NUM_SAMPLES> reverbMemory;
+alignas(CACHE_LINE_SIZE) std::array<deluge::dsp::Q<31>, 2 * SSI_TX_BUFFER_NUM_SAMPLES> reverbMemory;
 
 StereoSample* renderingBufferOutputPos = renderingMemory.begin();
 StereoSample* renderingBufferOutputEnd = renderingMemory.begin();
@@ -1333,7 +1333,7 @@ void renderAudio(size_t numSamples) {
 	std::span reverbBuffer{reverbMemory.data(), numSamples};
 
 	memset(&renderingMemory, 0, renderingBuffer.size_bytes());
-	memset(&reverbMemory, 0, reverbBuffer.size_bytes());
+	std::ranges::fill(reverbBuffer, deluge::dsp::Q<31>{});
 
 	if (sideChainHitPending != 0) {
 		timeLastSideChainHit = audioSampleTimer;
@@ -1375,7 +1375,7 @@ void renderAudioForStemExport(size_t numSamples) {
 	std::span reverbBuffer{reverbMemory.data(), numSamples};
 
 	memset(&renderingMemory, 0, renderingBuffer.size_bytes());
-	memset(&reverbMemory, 0, reverbBuffer.size_bytes());
+	std::ranges::fill(reverbBuffer, deluge::dsp::Q<31>{});
 
 	if (sideChainHitPending) {
 		timeLastSideChainHit = audioSampleTimer;

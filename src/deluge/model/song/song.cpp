@@ -2599,8 +2599,8 @@ void Song::deleteSoundsWhichWontSound() {
 	deleteAllBackedUpParamManagersWithClips();
 }
 
-deluge::effects::MasterChainInputs Song::renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuffer,
-                                                     int32_t sideChainHitPending) {
+deluge::effects::MasterChainInputs Song::renderAudio(std::span<StereoSample> outputBuffer,
+                                                     deluge::dsp::Q<31>* reverbBuffer, int32_t sideChainHitPending) {
 
 	// int32_t volumePostFX = getParamNeutralValue(params::GLOBAL_VOLUME_POST_FX);
 	// The volume knob's square curve around unity, Q27, halved: the curve's neutral doubles already

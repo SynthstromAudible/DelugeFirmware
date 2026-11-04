@@ -311,8 +311,8 @@ public:
 	/// @param reverbBuffer        Reverb send buffer.
 	/// @param sideChainHitPending Pending sidechain hit.
 	/// @return The master chain's inputs for the half before the reverb, read before that tick.
-	deluge::effects::MasterChainInputs renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuffer,
-	                                               int32_t sideChainHitPending);
+	deluge::effects::MasterChainInputs renderAudio(std::span<StereoSample> outputBuffer,
+	                                               deluge::dsp::Q<31>* reverbBuffer, int32_t sideChainHitPending);
 	bool isYNoteAllowed(int32_t yNote, bool inKeyMode);
 	void setTimePerTimerTick(uint64_t newTimeBig, bool shouldLogAction = false);
 	bool hasAnySwing();

@@ -54,7 +54,7 @@ public:
 	/// @param reverb The reverb input the send is added to, one value per frame of @p block.
 	/// @param params The block's volumes, send and pan.
 	/// @return True if anything was sent to the reverb.
-	[[nodiscard]] bool process(std::span<dsp::StereoSample> block, std::span<int32_t> reverb,
+	[[nodiscard]] bool process(std::span<dsp::StereoSample> block, std::span<dsp::Q<31>> reverb,
 	                           const SendAndVolumeParams& params);
 
 	/// @brief Before a first block: ramp from @p post_reverb_volume, if nothing has been ramped from yet.

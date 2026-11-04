@@ -104,11 +104,11 @@ public:
 	/// @param block The stereo block, processed in place.
 	/// @param in The knobs and sound flag for this block.
 	/// @param post_fx_volume The owner's post-FX volume, Q27: 2^27 unity; scaled in place.
-	/// @param reverb_send The reverb feed, one value per frame; the effect adds into it.
+	/// @param reverb_send The reverb feed, one sample per frame; the effect adds into it.
 	/// @param noise The synth's noise stream, which a starting grain draws from.
 	/// @pre @p reverb_send holds at least one value per frame of @p block.
 	void render(std::span<dsp::StereoSample> block, const GranularInputs& in, int32_t& post_fx_volume,
-	            std::span<q31_t> reverb_send, dsp::fixed::Cong& noise);
+	            std::span<dsp::Q<31>> reverb_send, dsp::fixed::Cong& noise);
 	/// @brief Stops the grains and begins the first pass again; no effect without a State.
 	void clear();
 	/// @brief The owner has gone idle or soft off: the ring is taken up afresh and grains wait until it is half full

@@ -16,13 +16,12 @@
  */
 
 #include "effects/send_and_volume.h"
-#include "dsp-next/core/buffer_view.h"
 
 namespace deluge::effects {
 
-bool SendAndVolume::process(std::span<dsp::StereoSample> block, std::span<int32_t> reverb,
+bool SendAndVolume::process(std::span<dsp::StereoSample> block, std::span<dsp::Q<31>> reverb,
                             const SendAndVolumeParams& params) {
-	gains_.on<&dsp::fixed::SendAndVolume::set_send>(dsp::typed_view(reverb).data());
+	gains_.on<&dsp::fixed::SendAndVolume::set_send>(reverb.data());
 	gains_.configure({
 	    .post_fx_volume = dsp::Q<27>::from_raw(params.post_fx_volume),
 	    .post_reverb_volume = dsp::Q<27>::from_raw(params.post_reverb_volume),

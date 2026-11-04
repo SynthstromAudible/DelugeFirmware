@@ -18,7 +18,6 @@ src/deluge/bench/delay_feedback_cases.cpp raw=2 boundary=12
 src/deluge/bench/filter_cases.cpp raw=0 view=4 boundary=0
 src/deluge/bench/reference_chains.h raw=4 boundary=7
 src/deluge/bench/reference_impulse_response.h raw=2 boundary=8
-src/deluge/bench/reverb_cases.cpp raw=0 boundary=1
 src/deluge/bench/va_shape_cases.cpp raw=0 boundary=7
 src/deluge/dsp-next/core/convert.h raw=0 boundary=7
 src/deluge/dsp-next/core/fixed_point_lanes.h raw=0 boundary=5
@@ -133,14 +132,14 @@ src/effects/chain_core.h raw=0 boundary=3
 src/effects/compressor.h raw=0 boundary=6
 src/effects/delay.cpp raw=0 boundary=4
 src/effects/filter.cpp raw=0 boundary=6
-src/effects/granular.cpp raw=0 view=1 boundary=5
+src/effects/granular.cpp raw=0 boundary=5
 src/effects/master_chain.cpp raw=0 boundary=10
 src/effects/mod_fx.cpp raw=0 boundary=6
 src/effects/param_fragment.h raw=0 boundary=8
-src/effects/reverb.cpp raw=0 view=2 boundary=5
+src/effects/reverb.cpp raw=0 boundary=5
 src/effects/saturation.cpp raw=0 boundary=4
 src/effects/saturation.h raw=0 boundary=2
-src/effects/send_and_volume.cpp raw=0 view=1 boundary=4
+src/effects/send_and_volume.cpp raw=0 boundary=4
 src/effects/send_and_volume.h raw=0 boundary=2
 src/effects/sidechain.cpp raw=0 boundary=8
 src/effects/sidechain.h raw=0 boundary=3

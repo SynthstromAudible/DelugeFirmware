@@ -141,8 +141,9 @@ std::string sound_difference() {
 					mine.stutter = w.stutter ? stutter : nullptr;
 					std::vector<StereoSample> block = cw::input(w, b, frames);
 					std::vector<int32_t> send(frames, 0);
-					side->sent = chain == &run ? run.process(block, mine, send)
-					                           : chain_reference::sound(ref.core(), mine, block, send);
+					side->sent = chain == &run ? run.process(block, mine, deluge::dsp::typed_view(std::span{send}))
+					                           : chain_reference::sound(ref.core(), mine, block,
+					                                                    deluge::dsp::typed_view(std::span{send}));
 					side->output = words(block);
 					side->send = send;
 					side->noise = deluge::synth_noise.state();
@@ -219,11 +220,12 @@ std::string clip_difference() {
 					};
 					if (chain == &run) {
 						TrackBlock levels = run.begin_block(mine, frames);
-						side->sent = run.process(block, mine, levels, rendered, send, tap);
+						side->sent =
+						    run.process(block, mine, levels, rendered, deluge::dsp::typed_view(std::span{send}), tap);
 					}
 					else {
 						side->sent = chain_reference::clip(ref.core(), ref.filter(), ref.saturation(), mine, block,
-						                                   rendered, send, tap);
+						                                   rendered, deluge::dsp::typed_view(std::span{send}), tap);
 					}
 					side->output = words(block);
 					side->send = send;
@@ -300,8 +302,9 @@ std::string master_difference() {
 						return w.post ? std::optional{post} : std::nullopt;
 					};
 					side->sent = chain == &run
-					                 ? run.render(block, mine, send, between)
-					                 : chain_reference::master(ref.core(), ref.filter(), mine, block, send, between);
+					                 ? run.render(block, mine, deluge::dsp::typed_view(std::span{send}), between)
+					                 : chain_reference::master(ref.core(), ref.filter(), mine, block,
+					                                           deluge::dsp::typed_view(std::span{send}), between);
 					side->output = words(block);
 					side->send = send;
 					side->noise = deluge::synth_noise.state();

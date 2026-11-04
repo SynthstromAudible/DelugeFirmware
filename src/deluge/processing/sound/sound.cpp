@@ -1772,9 +1772,9 @@ void Sound::process_postarp_notes(ModelStackWithSoundFlags* modelStackWithSoundF
 	}
 }
 
-void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSample> output, int32_t* reverbBuffer,
-                   int32_t sideChainHitPending, int32_t reverbAmountAdjust, bool shouldLimitDelayFeedback,
-                   int32_t pitchAdjust, SampleRecorder* recorder) {
+void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSample> output,
+                   deluge::dsp::Q<31>* reverbBuffer, int32_t sideChainHitPending, int32_t reverbAmountAdjust,
+                   bool shouldLimitDelayFeedback, int32_t pitchAdjust, SampleRecorder* recorder) {
 
 	if (skippingRendering) {
 		core().compressor().dsp().clear_gain_reduction();
