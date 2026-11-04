@@ -277,6 +277,7 @@ struct RefusingSink final : bind::WriteSink {
 	           std::optional<bind::LearnInput>) override {
 		return false;
 	}
+	bool learn_knob(const deluge::project::OwnerParamTarget&, ::MIDICable*, int32_t, int32_t) override { return false; }
 	bool write_source_transpose(const bind::Addresses&, uint8_t, std::optional<uint16_t>, int32_t) override {
 		return false;
 	}

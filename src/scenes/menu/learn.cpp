@@ -167,21 +167,57 @@ bool MenuLearn::offer(const MenuContext& ctx, const MenuState& st, const UiEvent
 	if (!mode_ || event.cable == nullptr) {
 		return false;
 	}
+	// A param item learns a CC or a pitch bend as a MIDI knob (`MenuItem::learnCC` is `learnKnob`); any other item
+	// learns a CC itself.
+	const bool param = target(ctx, st).has_value();
 	switch (event.kind) {
 	case UiEvent::Kind::MidiNoteOn:
 		(void)learn_into(ctx, st, event);
 		return true;
 	case UiEvent::Kind::MidiProgramChange:
-	case UiEvent::Kind::MidiCc:
 		if (!ui.shift) {
 			(void)learn_into(ctx, st, event);
 		}
 		return true;
+	case UiEvent::Kind::MidiCc:
+		if (!ui.shift) {
+			(void)(param ? knob(ctx, st, event.cable, event.data1, event.channel) : learn_into(ctx, st, event));
+		}
+		return true;
 	case UiEvent::Kind::MidiPitchBend:
-		return !ui.shift;
+		if (ui.shift) {
+			return false;
+		}
+		if (param) {
+			(void)knob(ctx, st, event.cable, 128, event.channel);
+		}
+		return true;
 	default:
 		return false;
 	}
+}
+
+bool MenuLearn::knob(const MenuContext& ctx, const MenuState& st, ::MIDICable* cable, int32_t which_knob,
+                     int32_t midi_channel) const {
+	const std::optional<deluge::project::OwnerParamTarget> param = target(ctx, st);
+	if (!param || ctx.sink == nullptr || !ctx.sink->learn_knob(*param, cable, which_knob, midi_channel)) {
+		return false;
+	}
+	deluge::notify::notice_string(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_LEARNED));
+	deluge::notify::dirty().raise(deluge::notify::Dirty::ModTarget); // `view.setKnobIndicatorLevels()`
+	return true;
+}
+
+bool MenuLearn::gold_turn(const MenuContext& ctx, const MenuState& st, const UiEvent& event) const {
+	if (!mode_ || event.kind != UiEvent::Kind::Encoder
+	    || (event.encoder != deluge::ui::EncoderRole::GoldLower
+	        && event.encoder != deluge::ui::EncoderRole::GoldUpper)) {
+		return false;
+	}
+	if (!(ctx.is_kit && ctx.is_kit_global_fx)) {
+		(void)knob(ctx, st, nullptr, event.encoder == deluge::ui::EncoderRole::GoldUpper ? 1 : 0, 255);
+	}
+	return true;
 }
 
 void MenuLearn::unlearn(const MenuContext& ctx, const MenuState& st) const {
@@ -198,7 +234,7 @@ void MenuLearn::unlearn(const MenuContext& ctx, const MenuState& st) const {
 	if (forgot) {
 		announce(st, *at, deluge::l10n::String::STRING_FOR_UNLEARNED);
 	}
-	// `MenuItemWithCCLearning::unlearnAction` (`menu_item_with_cc_learning.cpp:25-41`): a param's learned knob goes,
+	// `MenuItemWithCCLearning::unlearnAction`: a param's learned knob goes,
 	// with a popup when there was one.
 	const std::optional<deluge::project::OwnerParamTarget> learned = target(ctx, st);
 	if (learned && ctx.model != nullptr && ctx.sink != nullptr && ctx.model->mappings.find(*learned) != nullptr

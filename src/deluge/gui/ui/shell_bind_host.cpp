@@ -171,6 +171,8 @@ public:
 	void set_undo_scroll_after(deluge::project::ClipAddress clip, int32_t x_scroll) override;
 	bool learn(deluge::project::MappingTarget target, std::optional<deluge::project::MidiCommand> command,
 	           std::optional<deluge::scenes::bind::LearnInput> input) override;
+	bool learn_knob(const deluge::project::OwnerParamTarget& target, ::MIDICable* cable, int32_t which_knob,
+	                int32_t midi_channel) override;
 	bool write_source_transpose(const deluge::scenes::bind::Addresses& where, uint8_t source,
 	                            std::optional<uint16_t> range, int32_t menu_value) override;
 	bool knob_mode(deluge::project::KnobModeOwner owner, uint8_t mode) override {
@@ -537,6 +539,35 @@ bool ShellEditSink::learn(deluge::project::MappingTarget target, std::optional<d
 	    deluge::project::Mapping{.source = std::move(*command), .target = std::move(target)}, std::nullopt,
 	    learned_input};
 	return applied(edit);
+}
+
+bool ShellEditSink::learn_knob(const deluge::project::OwnerParamTarget& target, ::MIDICable* cable, int32_t which_knob,
+                               int32_t midi_channel) {
+	if (currentSong == nullptr) {
+		return false;
+	}
+	bool isSound = false;
+	::ModControllableAudio* owner = deluge::bridge::controlsOwnerAt(*currentSong, target.owner, &isSound);
+	if (owner == nullptr) {
+		return false;
+	}
+	namespace params = deluge::modulation::params;
+	const deluge::modulation::KnobTarget knob = deluge::bridge::knobOfControl(
+	    target.param, isSound ? params::Kind::UNPATCHED_SOUND : params::Kind::UNPATCHED_GLOBAL);
+	if (!knob) {
+		return false;
+	}
+	// `SoundEditor::modEncoderAction` learns a mod knob in the current output's knob mode.
+	Output* output = getCurrentOutput();
+	const int32_t mode = midi_channel >= 16 && output != nullptr ? output->modKnobMode : 0;
+	if (!deluge::edits::learnKnobOn(*owner, knob, cable, which_knob, mode, midi_channel)) {
+		return false;
+	}
+	// `SoundEditor::markInstrumentAsEdited`.
+	if (Instrument* instrument = getCurrentInstrument()) {
+		instrument->beenEdited();
+	}
+	return true;
 }
 
 bool ShellEditSink::write_source_transpose(const deluge::scenes::bind::Addresses& where, uint8_t source,

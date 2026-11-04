@@ -120,6 +120,33 @@ Result midi(UiEvent::Kind kind, bool shift = false) {
 	return send(UiEvent{.kind = kind, .channel = 3, .data1 = 64, .data2 = 100, .cable = &spec_cable()}, shift);
 }
 
+Result gold(deluge::ui::EncoderRole knob) {
+	return send(UiEvent{.kind = UiEvent::Kind::Encoder, .encoder = knob, .delta = 1});
+}
+
+/// @brief The last notice's string id, draining the queue; 0 for none.
+uint16_t last_notice_string() {
+	uint16_t last = 0;
+	for (deluge::notify::Notice n; deluge::notify::notices().pop(n);) {
+		last = n.string_id;
+	}
+	return last;
+}
+
+/// @brief The param mod knob @p knob moves in knob mode @p mode on @p owner, from the song's model; none if none.
+std::optional<deluge::plugin::ParamId> knob_param(deluge::project::ControlsAddress owner, uint8_t mode, uint8_t knob) {
+	const std::vector<deluge::project::ControllerMapping>* controls = currentSong->project.resolveControls(owner);
+	if (controls == nullptr) {
+		return std::nullopt;
+	}
+	for (const deluge::project::ControllerMapping& m : *controls) {
+		if (m.control == deluge::project::ModKnobControl{.button = mode, .knob = knob}) {
+			return m.target;
+		}
+	}
+	return std::nullopt;
+}
+
 } // namespace
 
 // clang-format off
@@ -310,6 +337,77 @@ describe menu_contract_learn("scenes::MenuScene -- MIDI learn offers", $ {
 		expect(ctx.model->mappings.find(*column) == nullptr).to_be_true();
 	});
 
+	it("a gold turn while learning makes that knob move the param, and pops LEARNED", _ {
+		// `SoundEditor::modEncoderAction`'s learn arm -> `MenuItemWithCCLearning::learnKnob(nullptr, which, mode, 255)`.
+		select_language();
+		Rig r;
+		r.open(nodes::sound_root, nodes::lpf_res);
+		r.shell.tick(0);
+		const std::optional<deluge::project::OwnerParamTarget> target = menu_scene().learn_target();
+		expect(target.has_value()).to_be_true();
+		if (!target) {
+			return;
+		}
+		const uint8_t mode = r.song.clip->output->modKnobMode;
+		expect(knob_param(target->owner, mode, 1) != std::optional{target->param}).to_be_true();
+		(void)last_notice_string();
+		(void)button(ButtonId::Learn, true);
+		expect(gold(deluge::ui::EncoderRole::GoldUpper).handled).to_be_true();
+		(void)button(ButtonId::Learn, false);
+		expect(knob_param(target->owner, mode, 1) == std::optional{target->param}).to_be_true();
+		expect(last_notice_string()).to_equal(uint16_t(deluge::l10n::String::STRING_FOR_LEARNED));
+	});
+
+	it("a CC and a pitch bend while learning learn a MIDI knob onto the param", _ {
+		// `MenuItem::learnCC` is `learnKnob(&cable, cc, 0, channel)`; `SoundEditor`'s pitch bend is
+		// `learnKnob(&cable, 128, 0, channel)`.
+		select_language();
+		Rig r;
+		r.open(nodes::sound_root, nodes::lpf_res);
+		r.shell.tick(0);
+		const std::optional<deluge::project::OwnerParamTarget> target = menu_scene().learn_target();
+		const MenuContext ctx = r.menu_context();
+		expect(target.has_value()).to_be_true();
+		if (!target) {
+			return;
+		}
+		(void)button(ButtonId::Learn, true);
+		expect(send(UiEvent{.kind = UiEvent::Kind::MidiCc, .channel = 2, .data1 = 74, .data2 = 64,
+		                    .cable = &spec_cable()})
+		           .handled)
+		    .to_be_true();
+		const deluge::project::Mapping* cc = ctx.model->mappings.find(*target);
+		expect(cc != nullptr).to_be_true();
+		if (cc != nullptr) {
+			expect(int(cc->source.channel_or_zone)).to_equal(2);
+			expect(int(cc->source.note_or_cc)).to_equal(74);
+		}
+		(void)button(ButtonId::Learn, false);
+		(void)send(UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::Learn}, true); // unlearn
+		expect(ctx.model->mappings.find(*target) == nullptr).to_be_true();
+
+		(void)button(ButtonId::Learn, true);
+		expect(send(UiEvent{.kind = UiEvent::Kind::MidiPitchBend, .channel = 5, .data1 = 0, .data2 = 64,
+		                    .cable = &spec_cable()})
+		           .handled)
+		    .to_be_true();
+		const deluge::project::Mapping* bend = ctx.model->mappings.find(*target);
+		expect(bend != nullptr).to_be_true();
+		if (bend != nullptr) {
+			expect(int(bend->source.channel_or_zone)).to_equal(5);
+			expect(int(bend->source.note_or_cc)).to_equal(128);
+		}
+		(void)button(ButtonId::Learn, false);
+	});
+
+	it("outside learn mode leaves a gold turn to the knobs", _ {
+		select_language();
+		Rig r;
+		r.open(nodes::sound_root, nodes::lpf_res);
+		r.shell.tick(0);
+		expect(gold(deluge::ui::EncoderRole::GoldUpper).handled).to_be_false();
+	});
+
 	it("is not learning when input comes back to it from a scene above", _ {
 		// LEARN's release went to the scene above, so the menu never saw it.
 		select_language();
@@ -320,6 +418,33 @@ describe menu_contract_learn("scenes::MenuScene -- MIDI learn offers", $ {
 		menu_scene().on_resume();
 		expect(menu_scene().select_release_blocked()).to_be_false();
 		expect(midi(UiEvent::Kind::MidiNoteOn).handled).to_be_false();
+	});
+
+	it("with kit affect-entire, a gold turn while learning is used and learns nothing", _ {
+		// `SoundEditor::modEncoderAction`: "can't do it if it's a Kit and affect-entire is on".
+		select_language();
+		Rig r;
+		spec::SongFixture kit = spec::make_kit_song();
+		const MenuContext ctx = menu::context_for(*kit.song, deluge::gui::menuViewOf(kit.clip), 0, false, false, false,
+		                                          /*kit_global_fx=*/true);
+		(void)menu::assign_node_ids(MenuScene::roots());
+		menu_scene().open(nodes::sound_root, ctx);
+		r.shell.init(SceneId{SceneKind::FirstApp, menu::node_id(nodes::lpf_res)});
+		r.shell.tick(0);
+		const std::optional<deluge::project::OwnerParamTarget> target = menu_scene().learn_target();
+		expect(target.has_value()).to_be_true();
+		if (!target) {
+			return;
+		}
+		const uint8_t mode = kit.clip->output->modKnobMode;
+		const std::optional<deluge::plugin::ParamId> before = knob_param(target->owner, mode, 1);
+		(void)last_notice_string();
+		(void)button(ButtonId::Learn, true);
+		expect(menu_scene().select_release_blocked()).to_be_true(); // learn mode
+		expect(gold(deluge::ui::EncoderRole::GoldUpper).handled).to_be_true();
+		(void)button(ButtonId::Learn, false);
+		expect(knob_param(target->owner, mode, 1) == before).to_be_true();
+		expect(last_notice_string()).to_equal(uint16_t(0));
 	});
 });
 // clang-format on

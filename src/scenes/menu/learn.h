@@ -39,14 +39,28 @@ public:
 	/// @brief Deliver a program change to the learn node's item; true if it used it.
 	bool program_change(const MenuContext& ctx, const MenuState& st, ::MIDICable& cable, int32_t channel,
 	                    int32_t program) const;
+	/// @brief Learn a knob onto the learn node's param -- `MenuItemWithCCLearning::learnKnob`, with its LEARNED popup.
+	/// @param ctx          The menu context.
+	/// @param st           The menu state.
+	/// @param cable        The cable a MIDI knob was heard on; null for a gold knob.
+	/// @param which_knob   The gold knob (0 lower, 1 upper), or the CC number (128 for pitch bend).
+	/// @param midi_channel The channel a MIDI knob was heard on, or 255 for a gold knob.
+	/// @return Whether a knob was learned: false where the node has no param.
+	bool knob(const MenuContext& ctx, const MenuState& st, ::MIDICable* cable, int32_t which_knob,
+	          int32_t midi_channel) const;
+	/// @brief A gold-knob turn in learn mode: learn that knob, except on a kit's affect-entire menu, where
+	///        `SoundEditor::modEncoderAction` learns nothing. Outside learn mode the turn is not the menu's.
+	/// @return True when the turn was used.
+	bool gold_turn(const MenuContext& ctx, const MenuState& st, const deluge::ui::shell::UiEvent& event) const;
 	/// @brief Ask the learn node's item to forget what it learned, and drop a param's learned knob.
 	void unlearn(const MenuContext& ctx, const MenuState& st) const;
 
 	/// @brief Offer a MIDI message for learn: `SoundEditor`'s four learn answers.
 	///
 	/// Outside learn mode nothing is used. In learn mode: a note-on learns into the item and is used whether or not the
-	/// item took it; a program change or CC learns with Shift up and is used either way; a pitch bend learns the
-	/// item's knob with Shift up and is used, and with Shift held plays.
+	/// item took it; a program change or CC learns with Shift up and is used either way -- a CC onto a param learns a
+	/// MIDI knob, as `MenuItem::learnCC` does; a pitch bend learns a MIDI knob onto the param with Shift up and is
+	/// used, and with Shift held plays.
 	/// @param ctx   The menu context.
 	/// @param st    The menu state.
 	/// @param event A MIDI kind; anything else is not used.

@@ -134,6 +134,16 @@ public:
 	/// @return Whether it was taken: false where @p target's owner is not in the song.
 	virtual bool learn(project::MappingTarget target, std::optional<project::MidiCommand> command,
 	                   std::optional<LearnInput> input) = 0;
+	/// @brief Learn a knob onto @p target's param -- `MenuItemWithCCLearning::learnKnob`: a mod knob when
+	/// @p midi_channel is 16 or more, in the current output's knob mode; otherwise a MIDI knob heard on @p cable. A
+	/// learned knob marks the current instrument edited.
+	/// @param target       The owner and the param.
+	/// @param cable        The cable a MIDI knob was heard on; null for a mod knob.
+	/// @param which_knob   The mod knob (0 lower, 1 upper), or the CC number (128 for pitch bend).
+	/// @param midi_channel The channel a MIDI knob was heard on, or 16 or more for a mod knob.
+	/// @return Whether the knob was learned.
+	virtual bool learn_knob(const project::OwnerParamTarget& target, ::MIDICable* cable, int32_t which_knob,
+	                        int32_t midi_channel) = 0;
 	/// @brief Transpose source @p source of the sound @p where names -- every sound row of the kit under affect-entire
 	/// -- by @p menu_value, in cents. A sample source with ranges (not FM) takes it in its range: @p range, or range 0
 	/// on a whole kit; any other source in its own transpose and cents.
@@ -191,6 +201,7 @@ struct GestureRequest {
 		ATTACH,
 		RESIZE,
 		LEARN,
+		LEARN_KNOB,
 		TRANSPOSE,
 		KNOB_MODE,
 		CHAIN_VIEW,
@@ -229,6 +240,8 @@ struct GestureRequest {
 	KnobFocus focus{}; ///< a STUTTER's or GRAB_REGION's focus; a GRAB_REGION's position is @ref value
 	bool begin{false}; ///< a STUTTER's begin (true) or end; a MIDI_CC_SELECT's on
 	std::optional<EffectOwner> effect_owner; ///< an EFFECT_WORD's owner; its path in @ref key, its word in @ref text
+	const ::MIDICable* cable{nullptr}; ///< a LEARN_KNOB's cable; its target in @ref mapping, its knob in @ref value
+	int32_t midi_channel{0};           ///< a LEARN_KNOB's channel
 };
 
 /// @brief A param write by address, as a RecordingSink keeps it.
@@ -257,6 +270,8 @@ public:
 	void set_undo_scroll_after(project::ClipAddress clip, int32_t x_scroll) override;
 	bool learn(project::MappingTarget target, std::optional<project::MidiCommand> command,
 	           std::optional<LearnInput> input) override;
+	bool learn_knob(const project::OwnerParamTarget& target, ::MIDICable* cable, int32_t which_knob,
+	                int32_t midi_channel) override;
 	bool write_source_transpose(const Addresses& where, uint8_t source, std::optional<uint16_t> range,
 	                            int32_t menu_value) override;
 	bool knob_mode(project::KnobModeOwner owner, uint8_t mode) override;

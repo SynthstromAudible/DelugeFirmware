@@ -1027,7 +1027,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 	});
 
 	it("Shift+LEARN unlearns the focused param's knob, with main's UNLEARNED popup", _ {
-		// `:724-726` -> `MenuItemWithCCLearning::unlearnAction` (`menu_item_with_cc_learning.cpp:25-41`).
+		// `:724-726` -> `MenuItemWithCCLearning::unlearnAction`.
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;

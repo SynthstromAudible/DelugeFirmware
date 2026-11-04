@@ -16,7 +16,6 @@
  */
 
 #include "menu_item_with_cc_learning.h"
-#include "gui/menu_item/setting_edit.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
@@ -49,18 +48,8 @@ void MenuItemWithCCLearning::learnKnob(MIDICable* cable, int32_t whichKnob, int3
 		return;
 	}
 
-	bool success = false;
-	if (midiChannel >= 16) { // a mod knob: the owner's controls
-		success = soundEditor.currentModControllable->learnKnob(cable, target, whichKnob, modKnobMode, midiChannel,
-		                                                        currentSong);
-		if (success) {
-			deluge::gui::menu_item::recordControlsOf(*soundEditor.currentModControllable);
-		}
-	}
-	else { // a MIDI knob: the song's mapping table
-		success =
-		    deluge::edits::learnKnobFor(*soundEditor.currentModControllable, target, cable, whichKnob, midiChannel);
-	}
+	const bool success = deluge::edits::learnKnobOn(*soundEditor.currentModControllable, target, cable, whichKnob,
+	                                                modKnobMode, midiChannel);
 
 	if (success) {
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_LEARNED));

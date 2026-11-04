@@ -8,6 +8,7 @@
 #include "model/drum/drum.h"
 #include "model/edits/bend_range_for.h"
 #include "model/edits/set_patch_cable.h"
+#include "model/edits/setting_edit.h"
 #include "model/instrument/instrument.h"
 #include "model/instrument/kit.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
@@ -296,6 +297,19 @@ bool learnKnobFor(::ModControllableAudio& owner, const deluge::modulation::KnobT
 	LearnMapping edit{deluge::project::Mapping{.source = deluge::bridge::command_of(learned), .target = *target},
 	                  std::move(replaces)};
 	return deluge::edits::apply(ctx, edit) == Error::NONE;
+}
+
+bool learnKnobOn(::ModControllableAudio& owner, const deluge::modulation::KnobTarget& param, ::MIDICable* cable,
+                 int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) {
+	if (midiChannel >= 16) { // a mod knob: the owner's controls
+		if (!owner.learnKnob(cable, param, whichKnob, modKnobMode, midiChannel, currentSong)) {
+			return false;
+		}
+		recordControlsOf(owner);
+		return true;
+	}
+	// a MIDI knob: the song's mapping table
+	return learnKnobFor(owner, param, cable, whichKnob, midiChannel);
 }
 
 bool unlearnKnobsFor(::ModControllableAudio& owner, const deluge::modulation::KnobTarget& param) {

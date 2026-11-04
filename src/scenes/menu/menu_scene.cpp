@@ -756,6 +756,14 @@ Result MenuScene::handle_event(const UiEvent& event, const UiContext& ctx) {
 		break;
 	}
 
+	// `SoundEditor::modEncoderAction`: in learn mode a gold turn learns that knob. Under the automation view legacy
+	// hands the turn to the view instead, which the knobs' service stands in for.
+	const bool automation_root = ctx_.root_greyout == MenuContext::RootGreyout::SpareSidebar
+	                             || (ctx_.root_greyout == MenuContext::RootGreyout::Nothing && !ctx_.root_is_keyboard);
+	if (!automation_root && visit_.learn.gold_turn(ctx_, st_, event)) {
+		return Result{.handled = true};
+	}
+
 	// `SoundEditor::buttonAction` acts on BACK only outside learn mode; in it, the press does nothing.
 	if (event.kind == UiEvent::Kind::Button && event.button == ButtonId::Back && visit_.learn.mode()) {
 		return Result{.handled = true};

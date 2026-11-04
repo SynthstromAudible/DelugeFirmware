@@ -216,14 +216,11 @@ namespace deluge::gui::ui {
 ///    such overlays are left the guest closes, and its close hook shows the popup through legacy's
 ///    display notification for the lifetime it had left, as legacy's own popup outlives the menu.
 ///
-/// **What it costs.** `SoundEditor::modEncoderAction`'s two arms above its forward to `view`
-/// (`gui/ui/sound_editor.cpp`) have no counterpart, so under the guest:
+/// The scene sees a turn first: in MIDI-learn mode the menu takes it and learns that knob, as
+/// `SoundEditor::modEncoderAction` does (`MenuLearn::gold_turn`).
 ///
-///  - **In MIDI-learn mode a gold turn edits the knob's param instead of learning it.** Legacy's
-///    `UI_MODE_MIDI_LEARN` arm calls `getCurrentMenuItem()->learnKnob(...)` and forwards nothing;
-///    `MenuItem::learnKnob` has no port.
-///  - **Over automation view a gold turn edits through `ModKnobs`**, where legacy hands it to
-///    `automationView.modEncoderAction`.
+/// **What it costs.** Over the automation view a gold turn edits through `ModKnobs`, where legacy hands it to
+/// `automationView.modEncoderAction` -- in learn mode too.
 ///
 /// @par MIDI learn
 ///

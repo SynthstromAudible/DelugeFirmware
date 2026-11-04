@@ -112,6 +112,18 @@ void learnedMappingFor(deluge::project::MappingTarget target, const ::LearnedMID
 bool learnKnobFor(::ModControllableAudio& owner, const deluge::modulation::KnobTarget& param, ::MIDICable* cable,
                   uint8_t noteOrCC, uint8_t channel);
 
+/// @brief A menu's learn of a knob onto @p param of @p owner: a mod knob (@p midiChannel 16 or more) is reassigned on
+/// @p owner and recorded in its controls; a MIDI knob is learned as learnKnobFor does.
+/// @param owner       The owner whose param the knob turns.
+/// @param param       The param.
+/// @param cable       The cable a MIDI knob was heard on; null for a mod knob.
+/// @param whichKnob   The mod knob (0 lower, 1 upper), or the CC number (128 for pitch bend).
+/// @param modKnobMode The mod knob mode a mod knob is learned in.
+/// @param midiChannel The channel a MIDI knob was heard on, or 16 or more for a mod knob.
+/// @return Whether the knob was learned.
+bool learnKnobOn(::ModControllableAudio& owner, const deluge::modulation::KnobTarget& param, ::MIDICable* cable,
+                 int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel);
+
 /// @brief A menu's unlearn of every MIDI knob on @p param of @p owner. Through UnlearnMapping when @p owner holds
 /// controls of the current song; on @p owner's knob list alone otherwise. A preset value no knob can reach any more is
 /// zeroed, as an unlearn always has.

@@ -87,6 +87,16 @@ bool RecordingSink::learn(project::MappingTarget target, std::optional<project::
 	return true;
 }
 
+bool RecordingSink::learn_knob(const project::OwnerParamTarget& target, ::MIDICable* cable, int32_t which_knob,
+                               int32_t midi_channel) {
+	gestures.push_back({.kind = GestureRequest::Kind::LEARN_KNOB,
+	                    .value = which_knob,
+	                    .mapping = project::MappingTarget{target},
+	                    .cable = cable,
+	                    .midi_channel = midi_channel});
+	return true;
+}
+
 bool RecordingSink::write_source_transpose(const Addresses& where, uint8_t source, std::optional<uint16_t> range,
                                            int32_t menu_value) {
 	gestures.push_back({.kind = GestureRequest::Kind::TRANSPOSE,
