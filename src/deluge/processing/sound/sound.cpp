@@ -19,6 +19,8 @@
 #include "bench/render_profile.h"
 #include "definitions_cxx.hpp"
 #include "deluge-project/param_automation.h"
+#include "dsp-next/core/fixed_point.h"
+#include "dsp-next/core/stereo_sample.h"
 #include "dsp-next/fixed/vca/pan.h"
 #include "effects/codec.h"
 #include "effects/filter_slots.h"
@@ -1849,10 +1851,13 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 	}
 
 	// Setup some reverb-related stuff
+	// The Q27 adjust (2^27 is 1; the song's default volume gives a half) times the Q31 reverb amount, rounded to Q26,
+	// moved to the Q31 send
 	int32_t reverbSendAmount =
-	    multiply_32x32_rshift32_rounded(reverbAmountAdjust,
-	                                    params.param_final_values[params::GLOBAL_REVERB_AMOUNT - params::FIRST_GLOBAL])
-	    << 5;
+	    mul_r_as_wrap<dsp::Q<31>>(
+	        dsp::Q<27>::from_raw(reverbAmountAdjust),
+	        dsp::Q<31>::from_raw(params.param_final_values[params::GLOBAL_REVERB_AMOUNT - params::FIRST_GLOBAL]))
+	        .raw();
 
 	ModelStackWithSoundFlags* modelStackWithSoundFlags = modelStack->addSoundFlags();
 
@@ -2063,10 +2068,7 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 			if (doPanning) {
 				// right to left because of in-place mono to stereo expansion
 				std::transform(sound_mono.rbegin(), sound_mono.rend(), sound_stereo.rbegin(), [=](q31_t sample) {
-					return StereoSample{
-					    .l = multiply_32x32_rshift32(sample, amplitudeL) << 2,
-					    .r = multiply_32x32_rshift32(sample, amplitudeR) << 2,
-					};
+					return dsp::panned_mono(sample, dsp::Q<30>::from_raw(amplitudeL), dsp::Q<30>::from_raw(amplitudeR));
 				});
 			}
 			else {
@@ -2079,8 +2081,8 @@ void Sound::render(ModelStackWithThreeMainThings* modelStack, std::span<StereoSa
 		// And if we're only applying pan here at the Sound level...
 		else if (!applyingPanAtVoiceLevel && doPanning) {
 			for (StereoSample& sample : sound_stereo) {
-				sample.l = multiply_32x32_rshift32(sample.l, amplitudeL) << 2;
-				sample.r = multiply_32x32_rshift32(sample.r, amplitudeR) << 2;
+				sample = dsp::panned_stereo(sample.l, sample.r, dsp::Q<30>::from_raw(amplitudeL),
+				                            dsp::Q<30>::from_raw(amplitudeR));
 			}
 		}
 	}

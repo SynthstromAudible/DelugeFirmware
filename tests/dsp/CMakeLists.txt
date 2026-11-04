@@ -111,6 +111,8 @@ set(synth_engine_spec_DEPS ${synth_voice_spec_DEPS})
 set(unison_increment_spec_DEPS ${synth_voice_spec_DEPS})
 # The ring mod's level: the engines' closure, as the engine spec has it.
 set(ring_mod_level_spec_DEPS ${synth_voice_spec_DEPS})
+# An audio clip's phase increments: the note interval table they place.
+set(clip_increment_spec_DEPS ${_repo_root}/src/deluge/util/lookuptables/lookuptables.cpp)
 # An envelope attack's final value: the param math alone.
 set(attack_param_spec_DEPS ${_repo_root}/src/deluge/util/param_functions.cpp)
 # The shared windowed-sinc kernel table + its select()/variant() variant picks.

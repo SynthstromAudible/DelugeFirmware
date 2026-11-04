@@ -2,11 +2,9 @@
 #include <cstdint>
 
 constexpr uint32_t rshift_round(uint32_t value, uint32_t rshift) {
-	return (value + (1 << (rshift - 1))) >> rshift; // (Rohan) I never was quite 100% sure of this...
-}
-
-constexpr int32_t rshift_round_signed(int32_t value, uint32_t rshift) {
-	return (value + (1 << (rshift - 1))) >> rshift; // (Rohan) I never was quite 100% sure of this...
+	// value / 2^rshift rounded half up: the shifted value plus the bit just below it, which cannot overflow as adding
+	// the half first would near UINT32_MAX
+	return (value >> rshift) + ((value >> (rshift - 1)) & 1);
 }
 
 /** Unlike %, guarantees a non-negative result. */

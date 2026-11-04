@@ -17,9 +17,11 @@
 
 #include "modulation/arpeggiator.h"
 #include "definitions_cxx.hpp"
+#include "dsp-next/core/fixed_point.h"
 #include "gui/menu_item/value_scaling.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
+#include "modulation/arp_ratchet.h"
 #include "modulation/arpeggiator_rhythms.h"
 #include "modulation/params/param_set.h"
 #include "playback/playback_handler.h"
@@ -36,6 +38,24 @@
 #define ARP_PRINTLN(...)
 #endif
 namespace params = deluge::modulation::params;
+
+namespace {
+/// @brief A spread (0..128, Q7) lifted to Q31 times an integer @p count read as Q31: the high word doubled, so
+/// spread × count / 128 to an even step, 2 · floor(spread × count / 256).
+int32_t spread_of(int32_t spread, int32_t count) {
+	using deluge::dsp::Q;
+	return mul_as_wrap<Q<31>>(as_wrap<Q<31>>(Q<7>::from_raw(spread)), Q<31>::from_raw(count)).raw();
+}
+
+/// @brief A triangle-distributed random amount up to ±@p range / 2 at a full @p value: the triangle times the amount
+/// (its unsigned word halved, read as Q31), back at Q31, then the high word with @p range: × range / 2^32.
+int32_t random_amount(uint32_t value, int32_t range) {
+	using deluge::dsp::Q;
+	const auto amount = mul_as_wrap<Q<31>>(Q<31>::from_raw(sampleTriangleDistribution()),
+	                                       Q<31>::from_raw(static_cast<int32_t>(value >> 1)));
+	return mul(amount, Q<31>::from_raw(range)).raw();
+}
+} // namespace
 
 ArpeggiatorSettings::ArpeggiatorSettings() {
 
@@ -572,18 +592,9 @@ void ArpeggiatorBase::maybeSetupNewRatchet(ArpeggiatorSettings* settings) {
 	               // For the highest sync we can't divide the time any more, so not possible to ratchet
 	               && !(settings->syncType == SYNC_TYPE_EVEN && settings->syncLevel == SYNC_LEVEL_256TH);
 	if (isRatcheting) {
-		ratchetNotesMultiplier = getRandomWeighted2BitsAmount(settings->ratchetAmount);
+		ratchetNotesMultiplier =
+		    ratchet_doublings(settings->syncLevel, getRandomWeighted2BitsAmount(settings->ratchetAmount));
 		ratchetNotesCount = 1 << ratchetNotesMultiplier;
-		if (settings->syncLevel == SYNC_LEVEL_128TH) {
-			// If the sync level is 128th, we can't have a ratchet of more than 2 notes, so we set it to the minimum
-			ratchetNotesMultiplier = 1;
-			ratchetNotesCount = 2;
-		}
-		else if (settings->syncLevel == SYNC_LEVEL_64TH) {
-			// If the sync level is 64th, the maximum ratchet can be of 4 notes (8 not allowed)
-			ratchetNotesMultiplier = std::max(2_u32, ratchetNotesMultiplier);
-			ratchetNotesCount = std::max(4_u32, ratchetNotesCount);
-		}
 		if (ratchetNotesMultiplier == 0) {
 			// Ratchet probability evaluated to "no ratchet", so we update the status as if ratchet didn't happen
 			isRatcheting = false;
@@ -606,11 +617,11 @@ uint32_t ArpeggiatorBase::calculateSpreadVelocity(uint8_t velocity, int32_t spre
 	int32_t diff = 0;
 	if (spreadVelocityForCurrentStep < 0) {
 		// Reducing velocity
-		diff = -(multiply_32x32_rshift32((-spreadVelocityForCurrentStep) << 24, signedVelocity - 1) << 1);
+		diff = -spread_of(-spreadVelocityForCurrentStep, signedVelocity - 1);
 	}
 	else {
 		// Increasing velocity
-		diff = (multiply_32x32_rshift32(spreadVelocityForCurrentStep << 24, 127 - signedVelocity) << 1);
+		diff = spread_of(spreadVelocityForCurrentStep, 127 - signedVelocity);
 	}
 	signedVelocity = signedVelocity + diff;
 	// And fix it if out of bounds
@@ -898,7 +909,7 @@ int8_t ArpeggiatorBase::getRandomBipolarProbabilityAmount(uint32_t value) {
 	if (value == 0) {
 		return 0;
 	}
-	int32_t randValue = multiply_32x32_rshift32(q31_mult(sampleTriangleDistribution(), value >> 1), 255);
+	int32_t randValue = random_amount(value, 255);
 	if (randValue < -127) {
 		return -127;
 	}
@@ -911,7 +922,7 @@ int8_t ArpeggiatorBase::getRandomWeighted2BitsAmount(uint32_t value) {
 	if (value == 0) {
 		return 0;
 	}
-	return std::abs(multiply_32x32_rshift32(q31_mult(sampleTriangleDistribution(), value >> 1), 5));
+	return std::abs(random_amount(value, 5));
 }
 
 void ArpeggiatorBase::calculateRandomizerAmounts(ArpeggiatorSettings* settings) {
@@ -1489,11 +1500,11 @@ void ArpeggiatorBase::render(ArpeggiatorSettings* settings, ArpReturnInstruction
 		int32_t diff = 0;
 		if (spreadGateForCurrentStep < 0) {
 			// Reducing gate
-			diff = -(multiply_32x32_rshift32((-spreadGateForCurrentStep) << 24, signedGateThreshold) << 1);
+			diff = -spread_of(-spreadGateForCurrentStep, signedGateThreshold);
 		}
 		else {
 			// Increasing gate
-			diff = (multiply_32x32_rshift32(spreadGateForCurrentStep << 24, maxGate - signedGateThreshold) << 1);
+			diff = spread_of(spreadGateForCurrentStep, maxGate - signedGateThreshold);
 		}
 		signedGateThreshold = signedGateThreshold + diff;
 		// And fix it if out of bounds

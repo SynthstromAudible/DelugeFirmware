@@ -16,6 +16,7 @@
  */
 
 #include "model/fx/track_channel.h"
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/fixed/curves/param_curve.h"
 #include "memory/stack_guard.h"
 #include "model/fx/chain_inputs.h"
@@ -58,8 +59,10 @@ TrackChannel::~TrackChannel() {
 	int32_t a = dsp::fixed::preset_combination(unpatchedParams->getValue(params::UNPATCHED_VOLUME));
 	int32_t volumeAdjustment = dsp::fixed::curve_square(134217728, a) >> 1;
 
-	int32_t reverbAmountAdjustForDrums = multiply_32x32_rshift32_rounded(block.reverb_amount_adjust, volumeAdjustment)
-	                                     << 5;
+	// The song's Q27 reverb adjust times the channel's Q27 volume adjustment, rounded to Q22, moved to Q27
+	int32_t reverbAmountAdjustForDrums = mul_r_as_wrap<dsp::Q<27>>(dsp::Q<27>::from_raw(block.reverb_amount_adjust),
+	                                                               dsp::Q<27>::from_raw(volumeAdjustment))
+	                                         .raw();
 
 	int32_t pitchAdjust =
 	    dsp::fixed::curve_exponential(kMaxSampleValue, unpatchedParams->getValue(params::UNPATCHED_PITCH_ADJUST) >> 3);

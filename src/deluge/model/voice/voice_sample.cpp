@@ -17,6 +17,7 @@
 
 #include "model/voice/voice_sample.h"
 #include "definitions_cxx.hpp"
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/fixed/interpolation/windowed_sinc_kernel.h"
 #include "dsp/timestretch/time_stretcher.h"
 #include "harness/streaming_underrun.h"
@@ -859,16 +860,15 @@ readCachedWindow:
 			amplitude += amplitudeIncrement;
 
 			// Mono / left channel (or stereo condensed to mono)
-			*outputBufferWritePos = multiply_accumulate_32x32_rshift32_rounded(existingValueL, sampleRead[0],
-			                                                                   amplitude); // Yup, accumulate is faster
+			*outputBufferWritePos = deluge::audio::mixed_in(existingValueL, sampleRead[0],
+			                                                amplitude); // Yup, accumulate is faster
 			outputBufferWritePos++;
 
 			// Right channel. Surprisingly, putting this as an "else" inside the above "numChannels == 2" was slightly
 			// slower
 			if (numChannelsInOutputBuffer == 2) {
 				int32_t existingValueR = *outputBufferWritePos;
-				*outputBufferWritePos =
-				    multiply_accumulate_32x32_rshift32_rounded(existingValueR, sampleRead[1], amplitude);
+				*outputBufferWritePos = deluge::audio::mixed_in(existingValueR, sampleRead[1], amplitude);
 				outputBufferWritePos++;
 			}
 
@@ -1380,25 +1380,32 @@ readTimestretched:
 
 				// Use linear crossfades. These sound less jarring when doing short hops. Square root ones sound better
 				// for longer hops, with more difference in material between hops (i.e. time more stretched)
-				int32_t newerHopAmplitudeNow = timeStretcher->crossfadeProgress << 7;
+				using deluge::dsp::Q;
+				// The crossfade's progress, an unsigned word read as signed Q24 (it runs 0 to 2^24, so the bits agree),
+				// as the newer hop's Q31 amplitude, the older's the rest of full scale
+				int32_t newerHopAmplitudeNow = as_wrap<Q<31>>(Q<24>::from_raw(timeStretcher->crossfadeProgress)).raw();
 				int32_t olderHopAmplitudeNow = 2147483647 - newerHopAmplitudeNow;
 
 				timeStretcher->crossfadeProgress += timeStretcher->crossfadeIncrement * numSamplesThisTimestretchedRead;
 
-				int32_t newerHopAmplitudeAfter = lshift_and_saturate<7>(timeStretcher->crossfadeProgress);
+				// Where the progress will be, held under 1.0 before its move to Q31: the step can carry it past 2^24
+				int32_t newerHopAmplitudeAfter =
+				    as_clamp_then_shift<Q<31>>(Q<24>::from_raw(timeStretcher->crossfadeProgress)).raw();
 
 				int32_t newerHopAmplitudeIncrement =
 				    (int32_t)(newerHopAmplitudeAfter - newerHopAmplitudeNow) / (int32_t)numSamplesThisTimestretchedRead;
 				int32_t olderHopAmplitudeIncrement = -newerHopAmplitudeIncrement;
 
-				int32_t hopAmplitudeChange = multiply_32x32_rshift32(preCacheAmplitude, newerHopAmplitudeIncrement)
-				                             << 1;
+				// The pre-cache amplitude times each Q31 hop amplitude (and its step), moved back to Q31
+				const auto source = Q<31>::from_raw(preCacheAmplitude);
+				int32_t hopAmplitudeChange =
+				    mul_as_wrap<Q<31>>(source, Q<31>::from_raw(newerHopAmplitudeIncrement)).raw();
 
 				newerAmplitudeIncrementNow = preCacheAmplitudeIncrement + hopAmplitudeChange;
-				newerSourceAmplitudeNow = multiply_32x32_rshift32(preCacheAmplitude, newerHopAmplitudeNow) << 1;
+				newerSourceAmplitudeNow = mul_as_wrap<Q<31>>(source, Q<31>::from_raw(newerHopAmplitudeNow)).raw();
 
 				olderAmplitudeIncrementNow = preCacheAmplitudeIncrement - hopAmplitudeChange;
-				olderSourceAmplitudeNow = multiply_32x32_rshift32(preCacheAmplitude, olderHopAmplitudeNow) << 1;
+				olderSourceAmplitudeNow = mul_as_wrap<Q<31>>(source, Q<31>::from_raw(olderHopAmplitudeNow)).raw();
 			}
 
 			// Or, if we're just hearing the newer play-head
@@ -1633,15 +1640,14 @@ headsFinishedReading:
 					}
 
 					// Mono / left channel (or stereo condensed to mono)
-					*outputBufferWritePos = multiply_accumulate_32x32_rshift32_rounded(
-					    existingValueL, sampleRead[0], amplitude); // amplitude is modified above
+					*outputBufferWritePos = deluge::audio::mixed_in(existingValueL, sampleRead[0],
+					                                                amplitude); // amplitude is modified above
 					outputBufferWritePos++;
 
 					// Right channel
 					if (numChannelsInOutputBuffer == 2) {
 						int32_t existingValueR = *outputBufferWritePos;
-						*outputBufferWritePos =
-						    multiply_accumulate_32x32_rshift32_rounded(existingValueR, sampleRead[1], amplitude);
+						*outputBufferWritePos = deluge::audio::mixed_in(existingValueR, sampleRead[1], amplitude);
 						outputBufferWritePos++;
 					}
 

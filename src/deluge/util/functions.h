@@ -19,7 +19,9 @@
 
 #include "const_functions.h"
 #include "definitions_cxx.hpp"
+#include "dsp-next/core/fixed_point.h"
 #include "dsp-next/core/q31_ops.h"
+#include "dsp-next/core/triangle.h"
 #include "libdeluge/file_io.h"
 #include "util/audio_format_helpers.h" // byte/format helpers (charsToIntegerConstant, swapEndianness*, …) re-exported
 #include "util/c_string.h"
@@ -145,6 +147,12 @@ char const* sourceToString(PatchSource source);
 PatchSource stringToSource(char const* string);
 char const* sourceToStringShort(PatchSource source);
 
+/// @brief A 0..128 knob's level, Q31: the knob read as Q7 (128 is one), held to its 8 bits (so 128 gives 127/128),
+/// lifted to Q31.
+[[nodiscard, gnu::always_inline]] inline q31_t knob_level(int32_t knob) {
+	return as_wrap<deluge::dsp::Q<31>>(clamp_bits<8>(deluge::dsp::Q<7>::from_raw(knob))).raw();
+}
+
 [[gnu::always_inline]] inline uint8_t getRandom255() {
 	return deluge::synth_noise.next() >> 24;
 }
@@ -153,12 +161,11 @@ char const* sourceToStringShort(PatchSource source);
 	return static_cast<int32_t>(deluge::synth_noise.next());
 }
 
-/// generates a triangle distribution from -1q31 to 1q31 centered on 0 (Irwin-Hall)
+/// @brief A triangle-distributed Q31 value on [−1, 1), centred on 0, from two of the synth's noise draws.
 inline q31_t sampleTriangleDistribution() {
 	auto u1 = getNoise();
 	auto u2 = getNoise();
-	auto s = add_saturate(u1, u2);
-	return s;
+	return deluge::dsp::triangle(deluge::dsp::Q<31>::from_raw(u1), deluge::dsp::Q<31>::from_raw(u2)).raw();
 }
 
 void seedRandom();

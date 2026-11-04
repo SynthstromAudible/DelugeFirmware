@@ -20,6 +20,7 @@
 #include "deluge-project/edit_guard.h"
 #include "deluge-project/param_automation.h"
 #include "deluge-project/param_edit.h" // the DOM kernels the engine edit ops forward to
+#include "dsp-next/core/fixed_point.h"
 #include "gui/l10n/l10n.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/view.h"
@@ -113,6 +114,11 @@ namespace {
 /// The lane the render reads for a param nothing holds yet: no nodes, so it plays as unautomated. Constant-initialised,
 /// so the render never runs a first-use guard to reach it.
 constinit deluge::project::DocAutoParam g_unheldLane{};
+
+/// @brief A patch cable's Q30 value as the param's Q31: doubled, held to 31 bits first, so its top is 2^31 − 2.
+int32_t cable_node_value(int32_t value) {
+	return as_clamp_then_shift<deluge::dsp::Q<31>>(deluge::dsp::Q<30>::from_raw(value)).raw();
+}
 } // namespace
 
 // The DOM node store is resolved from the owner, by paramId; no engine object holds node storage. Every saved owner
@@ -1118,7 +1124,7 @@ bool AutoParam::applyValueIncrement(int32_t value_increment) {
 	int32_t oldValue = played_;
 
 	// add value increment, clamp within the int32 limits (-2147483648, 2147483647)
-	played_ = add_saturate(played_, value_increment);
+	played_ = add_sat(deluge::dsp::Q<31>::from_raw(played_), deluge::dsp::Q<31>::from_raw(value_increment)).raw();
 
 	// check if overflow occurred (e.g. increment would push current value over limit)
 	bool overflow_occurred = (value_increment > 0 && oldValue > INT32_MAX - value_increment)
@@ -1152,7 +1158,10 @@ bool AutoParam::tickSamples(int32_t numSamples) {
 	// non-float interpolation
 	if (valueIncrementPerHalfTick != 0) [[likely]] {
 		value_increment = saturatingIncrement(
-		    multiply_32x32_rshift32_rounded(valueIncrementPerHalfTick, playbackHandler.getTimePerInternalTickInverse()),
+		    // the increment per half tick times the tick inverse read as Q31, rounded: the increment per sample
+		    mul_r(deluge::dsp::Q<31>::from_raw(valueIncrementPerHalfTick),
+		          deluge::dsp::Q<31>::from_raw(playbackHandler.getTimePerInternalTickInverse()))
+		        .raw(),
 		    (int64_t)6 * numSamples);
 	}
 	// float interpolation
@@ -1921,7 +1930,7 @@ void AutoParam::copy(int32_t startPos, int32_t endPos, CopiedParamAutomation* co
 			newNode->interpolated = false;
 
 			if (isPatchCable) {
-				newNode->value = lshift_and_saturate<1>(newNode->value);
+				newNode->value = cable_node_value(newNode->value);
 			}
 
 			n++;
@@ -1938,7 +1947,7 @@ void AutoParam::copy(int32_t startPos, int32_t endPos, CopiedParamAutomation* co
 			newNode->pos -= startPos;
 
 			if (isPatchCable) {
-				newNode->value = lshift_and_saturate<1>(newNode->value);
+				newNode->value = cable_node_value(newNode->value);
 			}
 
 			readingNodeI++;
