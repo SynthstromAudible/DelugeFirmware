@@ -21,6 +21,8 @@ class ScanScopeTest(unittest.TestCase):
             "tests/unit/spec/shell",
             "tests/unit/spec/ui",
             "tests/unit/spec/gui",
+            "tests/ui-scripts",
+            "tests/harness",
             "src/deluge/gui/ui/shell_",
             "src/deluge/util/shell_menu_entry",
         ):

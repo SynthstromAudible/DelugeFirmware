@@ -336,6 +336,7 @@ SCAN_ROOTS = (
     "sim/scenes_spec",
     "tests/unit/spec",
     "tests/ui-scripts",
+    "tests/harness",
     "src/shell",
     "src/deluge/gui/ui",
     "src/deluge/util",

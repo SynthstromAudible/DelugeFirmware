@@ -150,17 +150,17 @@ repos:
       - id: check-citations-ui
         name: the UI trees' legacy citations resolve
         description: a `foo.cpp:NN` citation in the ported UI must point at the code it names; cite the symbol instead
-        entry: python3 scripts/check_citations.py --strict --paths src/scenes src/shell src/ui sim/scenes_spec tests/unit/spec/shell tests/unit/spec/ui tests/unit/spec/gui tests/unit/spec/scenes tests/unit/spec/harness src/deluge/gui/ui/shell_ src/deluge/gui/ui/menu_view_of src/deluge/util/shell_menu_entry
+        entry: python3 scripts/check_citations.py --strict --paths src/scenes src/shell src/ui sim/scenes_spec tests/unit/spec/shell tests/unit/spec/ui tests/unit/spec/gui tests/unit/spec/scenes tests/unit/spec/harness tests/ui-scripts tests/harness src/deluge/gui/ui/shell_ src/deluge/gui/ui/menu_view_of src/deluge/util/shell_menu_entry
         language: system
         pass_filenames: false
-        files: ^(src/scenes/|src/shell/|src/ui/|sim/scenes_spec/|tests/unit/spec/(shell|ui|gui|scenes|harness)/|src/deluge/gui/ui/(shell_|menu_view_of)|src/deluge/util/shell_menu_entry|scripts/(check_citations\.py|citation_exceptions\.txt))
+        files: ^(src/scenes/|src/shell/|src/ui/|sim/scenes_spec/|tests/unit/spec/(shell|ui|gui|scenes|harness)/|tests/(ui-scripts|harness)/|src/deluge/gui/ui/(shell_|menu_view_of)|src/deluge/util/shell_menu_entry|scripts/(check_citations\.py|citation_exceptions\.txt))
       - id: check-doc-hygiene
         name: the UI trees' docs carry no history and no line citations into our own code
         description: comments say what the code is and why; task, review and spec breadcrumbs and `our_file.cpp:NN` citations are refused
         entry: python3 scripts/check_doc_hygiene.py --strict
         language: system
         pass_filenames: false
-        files: ^(src/scenes/|src/shell/|src/ui/|sim/scenes_spec/|tests/unit/spec/(shell|ui|gui|scenes|harness)/|src/deluge/gui/ui/(shell_|menu_view_of)|src/deluge/util/shell_menu_entry|scripts/check_doc_hygiene\.py)
+        files: ^(src/scenes/|src/shell/|src/ui/|sim/scenes_spec/|tests/unit/spec/(shell|ui|gui|scenes|harness)/|tests/(ui-scripts|harness)/|src/deluge/gui/ui/(shell_|menu_view_of)|src/deluge/util/shell_menu_entry|scripts/check_doc_hygiene\.py)
 # - repo: local
 
 #   hooks:

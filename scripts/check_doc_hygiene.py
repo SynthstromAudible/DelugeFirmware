@@ -13,7 +13,8 @@ A comment says what the code is and why; how it got there is git's. Two kinds of
 - ``own-citation``: a ``file:N`` citation whose file is ours -- the port's trees and the guest glue -- which a later
   edit moves out from under it. Cite the symbol instead. Citations into legacy code are ``check_citations.py``'s.
 
-Comments only: ``//`` and ``/* */`` text in C/C++, all of a Markdown file. ``--strict`` exits 1 on any finding.
+Comments only: ``//`` and ``/* */`` text in C/C++, ``#`` text in UI scripts and Python, all of a Markdown
+file. ``--strict`` exits 1 on any finding.
 """
 
 from __future__ import annotations
@@ -38,7 +39,11 @@ TREES = (
     "tests/unit/spec/gui",
     "tests/unit/spec/scenes",
     "tests/unit/spec/harness",
+    "tests/ui-scripts",
+    "tests/harness",
 )
+# Records by design: the parity ledger lists each accepted difference with its date and ruling.
+EXEMPT = ("tests/ui-scripts/parity/DIFFERENCES.md",)
 # The guest glue: our code that lives inside the legacy tree.
 GLUE = (
     "src/deluge/gui/ui/shell_",
@@ -46,7 +51,9 @@ GLUE = (
     "src/deluge/util/shell_menu_entry",
 )
 OURS = ("src/scenes/", "src/shell/", "src/ui/", "src/gfx/", "sim/", "tests/") + GLUE
-SUFFIXES = {".h", ".hpp", ".cpp", ".md"}
+SUFFIXES = {".h", ".hpp", ".c", ".cpp", ".md", ".txt", ".py"}
+# Files whose comments start at `#`: the UI scripts and Python.
+HASH_COMMENTS = {".txt", ".py"}
 
 HISTORY = re.compile(
     r"\b[Tt]ask \d+[a-z]?\b"
@@ -54,7 +61,7 @@ HISTORY = re.compile(
     r"|\b[A-Z]\d+ task\b"
     r"|\bfinal review\b"
     r"|\bWS\d+[a-z]?(?:-\d+)?\b"
-    r"|\bspec [A-H](?:\d+)?(?:-[a-z-]+)?\b"
+    r"|\b[Ss]pec [A-H](?:\d+)?(?:-[a-z-]+)?\b"
     r"|\b(?:shell|design|migration) spec\b"
     r"|\b[Ss]pec [A-H]?\s?§|\bmigration §"
     r"|\btask-\d+\b|\b[Rr]uling\b"
@@ -129,13 +136,20 @@ def _comment_text(line: str, in_block: bool) -> tuple[str, bool]:
     return " ".join(out), in_block
 
 
+def is_exempt(path: str) -> bool:
+    return path in EXEMPT
+
+
 def findings_in(path: str, text: str) -> list[Finding]:
     out: list[Finding] = []
     markdown = path.endswith(".md")
+    hashed = Path(path).suffix in HASH_COMMENTS
     in_block = False
     for n, line in enumerate(text.splitlines(), 1):
         if markdown:
             comment = line
+        elif hashed:
+            comment = line.partition("#")[2]
         else:
             comment, in_block = _comment_text(line, in_block)
         if not comment.strip():
@@ -158,7 +172,7 @@ def scan(paths: tuple[str, ...]) -> list[Finding]:
     ).stdout.split()
     out: list[Finding] = []
     for f in files:
-        if Path(f).suffix not in SUFFIXES:
+        if Path(f).suffix not in SUFFIXES or is_exempt(f):
             continue
         out.extend(findings_in(f, (REPO / f).read_text(errors="ignore")))
     return out

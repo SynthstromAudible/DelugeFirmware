@@ -8,7 +8,7 @@ from __future__ import annotations
 
 import unittest
 
-from check_doc_hygiene import findings_in
+from check_doc_hygiene import findings_in, is_exempt
 
 
 def kinds(text: str) -> list[str]:
@@ -31,6 +31,7 @@ class HistoryTest(unittest.TestCase):
             "// a permanent blit (shell spec §15.1, §15.3)",
             "// design spec §15.7",
             "// (task-3 ruling 2)",
+            "/// Spec D's service table says",
             "// Spec E §4.1's one rule",
             "// the rule (spec §5.3)",
             "// migration §10.2 item 8",
@@ -66,6 +67,39 @@ class HistoryTest(unittest.TestCase):
 
     def test_reads_comments_only(self):
         self.assertEqual(kinds('const char* s = "Task 7";\n'), [])
+
+
+class ScriptCommentTest(unittest.TestCase):
+    def test_reads_hash_comments_in_ui_scripts(self):
+        self.assertEqual(
+            [
+                f.kind
+                for f in findings_in("tests/ui-scripts/x.txt", "# added by F3 task 4\n")
+            ],
+            ["history"],
+        )
+        self.assertEqual(
+            [
+                f.kind
+                for f in findings_in(
+                    "tests/ui-scripts/x.txt", "2500 snapshot s   # fix round 1\n"
+                )
+            ],
+            ["history"],
+        )
+
+    def test_reads_only_the_comment_of_a_script_line(self):
+        self.assertEqual(findings_in("tests/ui-scripts/x.txt", "press task 7\n"), [])
+
+    def test_reads_c_comments_in_harness_sources(self):
+        self.assertEqual(
+            [f.kind for f in findings_in("tests/harness/x.c", "/* spec G §3 */\n")],
+            ["history"],
+        )
+
+    def test_the_parity_ledger_is_exempt(self):
+        self.assertTrue(is_exempt("tests/ui-scripts/parity/DIFFERENCES.md"))
+        self.assertFalse(is_exempt("tests/ui-scripts/parity/README.md"))
 
 
 class CitationTest(unittest.TestCase):
