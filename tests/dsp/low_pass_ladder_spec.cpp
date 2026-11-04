@@ -21,6 +21,7 @@
 // 24, 64 and 128, and what it renders must equal the record. Every mode change between the four modes carries the
 // state, and a seeded stream shows the draws are left before right in every frame.
 
+#include "dsp-next/core/buffer_view.h"
 #include "dsp-next/fixed/filter/low_pass_ladder.h"
 
 #include "dsp-next/core/concepts.h"
@@ -48,9 +49,13 @@
 #include <utility>
 #include <vector>
 
+using deluge::dsp::Q;
+using deluge::dsp::typed_view;
 using namespace deluge::dsp::fixed;
 
 namespace {
+
+using filters_reference::FilterConfig; // the references' raw settings; the kernels take typed() of them
 
 constexpr int32_t kGain = 536870912;
 
@@ -187,7 +192,8 @@ using ChannelWords = std::array<q31, 5>;
 
 template <class Noise>
 ChannelWords words(const typename LowPassLadder<Noise>::State& s) {
-	return {s.noise.y, s.sections[0].z, s.sections[1].z, s.sections[2].z, s.sections[3].z};
+	return {s.noise.y.raw(), s.sections[0].z.raw(), s.sections[1].z.raw(), s.sections[2].z.raw(),
+	        s.sections[3].z.raw()};
 }
 
 ChannelWords words(const ReferenceLowPassLadder::Channel& c) {
@@ -211,7 +217,7 @@ ChannelWords words(const Ladder::State& s) {
 
 /// The kernel's settings for @p setting at the test gain.
 Ladder::Settings settings_for(const Setting& setting) {
-	return {.gain = kGain, .config = setting.config, .mode = setting.mode};
+	return {.gain = kGain, .config = filters_reference::typed(setting.config), .mode = setting.mode};
 }
 
 /// kInput as interleaved stereo frames.
@@ -247,13 +253,13 @@ describe low_pass_ladder("LowPassLadder", ${
 		for (const q31 frequency : kSweepFrequencies) {
 			thresholds += threshold_resonances(frequency).empty() ? 0 : 1;
 		}
-		for (const FilterConfig& config : sweep_configs()) {
+		for (const auto& config : sweep_configs()) {
 			for (const LowPassLadderMode mode : {LowPassLadderMode::TRANSISTOR_12DB, LowPassLadderMode::TRANSISTOR_24DB,
 			                                     LowPassLadderMode::TRANSISTOR_24DB_DRIVE}) {
 				ReferenceLowPassLadder reference;
 				reference.zero();
 				const q31 gain = reference.configure(kGain, config, mode);
-				const Ladder::Coefficients c = Ladder::coefficients({.gain = kGain, .config = config, .mode = mode});
+				const Ladder::Coefficients c = Ladder::coefficients({.gain = kGain, .config = filters_reference::typed(config), .mode = mode});
 				expect(Ladder::gain(c)).to_equal(gain);
 				Ladder::Ladder expected = Ladder::Ladder::T12;
 				if (mode == LowPassLadderMode::TRANSISTOR_24DB) {
@@ -330,7 +336,7 @@ describe low_pass_ladder("LowPassLadder", ${
 				}
 				else {
 					Mono<Ladder> ladder{settings_for(setting)};
-					ladder.render_block(out, out, deluge::synth_noise);
+					ladder.render_block(typed_view(std::span{out}), typed_view(std::span{out}), deluge::synth_noise);
 				}
 				const uint32_t limit = 4 * static_cast<uint32_t>(kInput.size());
 				expect(draws_between(filter_workloads::kCongSeed, deluge::synth_noise.state(), limit))
@@ -353,10 +359,10 @@ describe low_pass_ladder("LowPassLadder", ${
 		}
 		const std::vector<q31>& extremes = full_scale;
 		std::vector<q31> scratch(std::max(kInput.size(), extremes.size()));
-		for (const FilterConfig& config : sweep_configs()) {
+		for (const auto& config : sweep_configs()) {
 			for (const LowPassLadderMode mode : {LowPassLadderMode::TRANSISTOR_12DB, LowPassLadderMode::TRANSISTOR_24DB,
 			                                     LowPassLadderMode::TRANSISTOR_24DB_DRIVE}) {
-				const Ladder::Settings settings{.gain = kGain, .config = config, .mode = mode};
+				const Ladder::Settings settings{.gain = kGain, .config = filters_reference::typed(config), .mode = mode};
 				const Ladder::Coefficients c = Ladder::coefficients(settings);
 				reached[static_cast<std::size_t>(c.mode)] = true;
 
@@ -389,7 +395,7 @@ describe low_pass_ladder("LowPassLadder", ${
 					}
 					else {
 						Mono<Ladder> ladder{settings};
-						ladder.render_block(out, out, deluge::synth_noise);
+						ladder.render_block(typed_view(std::span{out}), typed_view(std::span{out}), deluge::synth_noise);
 					}
 					expect(deluge::synth_noise.state()).to_equal(reference_end);
 					expect(out).to_equal(want);
@@ -405,7 +411,7 @@ describe low_pass_ladder("LowPassLadder", ${
 	it("draws for the left channel before the right in every frame, in every mode (a seeded stream)", _ {
 		const std::vector<StereoSample> input = input_frames();
 		for (const Setting& setting : kSettings) {
-			const Ladder::Settings settings{.gain = kGain, .config = setting.config, .mode = setting.mode};
+			const Ladder::Settings settings{.gain = kGain, .config = filters_reference::typed(setting.config), .mode = setting.mode};
 			const uint32_t per_sample =
 			    Ladder::ladder_of(Ladder::coefficients(settings).mode) == Ladder::Ladder::DRIVE_OVERSAMPLED ? 2 : 1;
 
@@ -421,8 +427,8 @@ describe low_pass_ladder("LowPassLadder", ${
 			Mono<Ladder> right{settings};
 			std::vector<StereoSample> expected(input.size());
 			for (std::size_t i = 0; i < input.size(); ++i) {
-				expected[i].l = left.render(input[i].l, mono_stream);
-				expected[i].r = right.render(input[i].r, mono_stream);
+				expected[i].l = left.render(Q<31>::from_raw(input[i].l), mono_stream).raw();
+				expected[i].r = right.render(Q<31>::from_raw(input[i].r), mono_stream).raw();
 			}
 			expect(stereo_end).to_equal(mono_stream.state());
 			expect(draws_between(filter_workloads::kCongSeed, stereo_end, 4 * static_cast<uint32_t>(kInput.size())))
@@ -485,15 +491,15 @@ describe low_pass_ladder("LowPassLadder", ${
 		reference.render_mono(expected, scratch);
 		reference.reset(false);
 
-		Mono<Ladder> ladder{Ladder::Settings{.gain = kGain, .config = kMid, .mode = LowPassLadderMode::TRANSISTOR_24DB}};
+		Mono<Ladder> ladder{Ladder::Settings{.gain = kGain, .config = filters_reference::typed(kMid), .mode = LowPassLadderMode::TRANSISTOR_24DB}};
 		std::vector<q31> out = kInput;
 		filter_workloads::reset_cong();
-		ladder.render_block(out, out, deluge::synth_noise);
+		ladder.render_block(typed_view(std::span{out}), typed_view(std::span{out}), deluge::synth_noise);
 		ladder.reset();
 
-		expect(ladder.state().noise.y).not_().to_equal(0);
+		expect(ladder.state().noise.y.raw()).not_().to_equal(0);
 		expect(words(ladder.state())).to_equal(words(reference.left()));
-		expect(words(ladder.state())).to_equal(ChannelWords{ladder.state().noise.y, 0, 0, 0, 0});
+		expect(words(ladder.state())).to_equal(ChannelWords{ladder.state().noise.y.raw(), 0, 0, 0, 0});
 		filter_workloads::reset_cong();
 	});
 });

@@ -243,8 +243,8 @@ template <typename A, typename B>
 	s.mean = 0.25f;
 	s.loop.saturation_l.position = 8;
 	s.loop.saturation_r.position = 9;
-	s.loop.detector_l.z = 10;
-	s.loop.detector_r.z = 11;
+	s.loop.detector_l.z = deluge::dsp::Q<31>::from_raw(10);
+	s.loop.detector_r.z = deluge::dsp::Q<31>::from_raw(11);
 	s.loop.sum = 12;
 	s.n = 13;
 	s.seeded = true;

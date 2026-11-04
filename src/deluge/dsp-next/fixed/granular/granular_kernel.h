@@ -65,7 +65,8 @@ struct Granular {
 	static constexpr std::size_t kGrains = 8;             ///< Grains sounding at once.
 	static constexpr int32_t kShift = 44 * 300;           ///< How far behind the write index a grain starts: 300 ms.
 	/// @brief The wet signal's low-pass, one pole at about 4.5 kHz: a moveability of 1/4, Q31 (tan(f) = 1/3).
-	static constexpr OnePole::Coefficients kWetLowPass = OnePole::coefficients({.moveability = 1 << 29});
+	static constexpr OnePole::Coefficients kWetLowPass =
+	    OnePole::coefficients({.moveability = Q<31>::from_raw(1 << 29)});
 
 	/// @brief The knobs, set each block.
 	struct Settings {
@@ -253,10 +254,10 @@ struct Granular {
 		s.written = std::max(s.write, written);
 
 		const auto wet = Q<31>::from_raw(b.wet);
-		const auto wet_l = Q<31>::from_raw(
-		    OnePole::step<OnePole::Mode::LOW_PASS>(kWetLowPass, {}, s.lpf_l, mul_as_wrap<Q<31>>(wet_sum_l, wet).raw()));
-		const auto wet_r = Q<31>::from_raw(
-		    OnePole::step<OnePole::Mode::LOW_PASS>(kWetLowPass, {}, s.lpf_r, mul_as_wrap<Q<31>>(wet_sum_r, wet).raw()));
+		const Q<31> wet_l =
+		    OnePole::step<OnePole::Mode::LOW_PASS>(kWetLowPass, {}, s.lpf_l, mul_as_wrap<Q<31>>(wet_sum_l, wet));
+		const Q<31> wet_r =
+		    OnePole::step<OnePole::Mode::LOW_PASS>(kWetLowPass, {}, s.lpf_r, mul_as_wrap<Q<31>>(wet_sum_r, wet));
 		// A little reverb covers much of the granular artifacts.
 		*s.send = add_wrap(Q<31>::from_raw(*s.send),
 		                   mul_as_wrap<Q<31>>(add_wrap(wet_l, wet_r), Q<31>::from_raw(s.send_amount)))

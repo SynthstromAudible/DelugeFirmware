@@ -188,8 +188,9 @@ struct Delay {
 	[[nodiscard]] [[gnu::always_inline]] static Coefficients coefficients(const Settings& s) {
 		Coefficients c{
 		    .feedback = FeedbackChain::coefficients(FeedbackChain::Settings{
-		        FeedbackShaper::Settings{
-		            .feedback = s.feedback, .analog = s.analog, .drive = static_cast<uint32_t>(s.analog_saturation)},
+		        FeedbackShaper::Settings{.feedback = Q<31>::from_raw(s.feedback),
+		                                 .analog = s.analog,
+		                                 .drive = static_cast<uint32_t>(s.analog_saturation)},
 		        {ShiftTracker<11>::Settings{}},
 		    }),
 		    .primary = s.primary,
@@ -288,15 +289,19 @@ struct Delay {
 			const StereoSample response = AnalogImpulseResponse::step_pair(
 			    get<0>(s.left).response, get<0>(s.right).response, delayed.l, delayed.r);
 			const auto& shaper = get<0>(c.feedback);
-			feedback.l = high_pass(c, s.left, FeedbackShaper::analog(shaper, response.l));
-			feedback.r = high_pass(c, s.right, FeedbackShaper::analog(shaper, response.r));
+			feedback.l = high_pass(c, s.left, FeedbackShaper::analog(shaper, Q<31>::from_raw(response.l))).raw();
+			feedback.r = high_pass(c, s.right, FeedbackShaper::analog(shaper, Q<31>::from_raw(response.r))).raw();
 		}
 		else {
 			constexpr FeedbackChain::Mode kFeedback = feedback_mode(M.shaper);
 			constexpr kernel_block_t<FeedbackChain> kNoBlock{};
 			feedback = {
-			    .l = kernel_ops::step_at<FeedbackChain, kFeedback>(c.feedback, kNoBlock, s.left, delayed.l),
-			    .r = kernel_ops::step_at<FeedbackChain, kFeedback>(c.feedback, kNoBlock, s.right, delayed.r),
+			    .l = kernel_ops::step_at<FeedbackChain, kFeedback>(c.feedback, kNoBlock, s.left,
+			                                                       Q<31>::from_raw(delayed.l))
+			             .raw(),
+			    .r = kernel_ops::step_at<FeedbackChain, kFeedback>(c.feedback, kNoBlock, s.right,
+			                                                       Q<31>::from_raw(delayed.r))
+			             .raw(),
 			};
 		}
 
@@ -343,7 +348,8 @@ struct Delay {
 	}
 
 	/// @brief The feedback chain's second part, its high-pass, on @p x for one channel's chain State @p s.
-	[[nodiscard]] [[gnu::always_inline]] static q31 high_pass(const Coefficients& c, FeedbackChain::State& s, q31 x) {
+	[[nodiscard]] [[gnu::always_inline]] static Q<31> high_pass(const Coefficients& c, FeedbackChain::State& s,
+	                                                            Q<31> x) {
 		using HighPass = FeedbackChain::part_t<1>;
 		return kernel_ops::step_at<HighPass, kernel_ops::NoMode::NONE>(get<1>(c.feedback), kernel_block_t<HighPass>{},
 		                                                               kernel_ops::loop_state<HighPass>(get<1>(s)), x);

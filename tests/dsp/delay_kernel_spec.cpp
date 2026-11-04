@@ -127,7 +127,7 @@ std::vector<int64_t> words(const Delay::FeedbackChain::State& s) {
 	const auto& response = deluge::dsp::get<0>(s).response;
 	std::vector<int64_t> out(std::begin(response.history), std::end(response.history));
 	out.push_back(response.oldest);
-	out.push_back(deluge::dsp::get<1>(s).y);
+	out.push_back(deluge::dsp::get<1>(s).y.raw());
 	return out;
 }
 

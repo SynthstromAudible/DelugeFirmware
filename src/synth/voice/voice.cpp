@@ -336,21 +336,22 @@ uint32_t Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge::m
 
 	// Prepare the filters. Level adjustment for unison happens before the filters, so the gain going in is neutral.
 	const bool allow_oversampling = cfg.cpu_direness < 14;
-	filter_gain = filter_set_.configure(cfg.volume_neutral_value_for_unison << 1,
-	                                    {
-	                                        .frequency = params_.param_final_values[params::LOCAL_LPF_FREQ],
-	                                        .resonance = params_.param_final_values[params::LOCAL_LPF_RESONANCE],
-	                                        .morph = params_.param_final_values[params::LOCAL_LPF_MORPH],
-	                                        .allow_oversampling = allow_oversampling,
-	                                    },
-	                                    cfg.low_pass,
-	                                    {
-	                                        .frequency = params_.param_final_values[params::LOCAL_HPF_FREQ],
-	                                        .resonance = params_.param_final_values[params::LOCAL_HPF_RESONANCE],
-	                                        .morph = params_.param_final_values[params::LOCAL_HPF_MORPH],
-	                                        .allow_oversampling = allow_oversampling,
-	                                    },
-	                                    cfg.high_pass, cfg.filter_route);
+	filter_gain = filter_set_.configure(
+	    cfg.volume_neutral_value_for_unison << 1,
+	    {
+	        .frequency = dsp::Q<31>::from_raw(params_.param_final_values[params::LOCAL_LPF_FREQ]),
+	        .resonance = dsp::Q<29>::from_raw(params_.param_final_values[params::LOCAL_LPF_RESONANCE]),
+	        .morph = dsp::Q<29>::from_raw(params_.param_final_values[params::LOCAL_LPF_MORPH]),
+	        .allow_oversampling = allow_oversampling,
+	    },
+	    cfg.low_pass,
+	    {
+	        .frequency = dsp::Q<31>::from_raw(params_.param_final_values[params::LOCAL_HPF_FREQ]),
+	        .resonance = dsp::Q<29>::from_raw(params_.param_final_values[params::LOCAL_HPF_RESONANCE]),
+	        .morph = dsp::Q<29>::from_raw(params_.param_final_values[params::LOCAL_HPF_MORPH]),
+	        .allow_oversampling = allow_oversampling,
+	    },
+	    cfg.high_pass, cfg.filter_route);
 
 	SynthMode synth_mode = cfg.synth_mode;
 
@@ -429,7 +430,7 @@ uint32_t Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge::m
 			dsp::fixed::Wavefolder{dsp::Q<31>::from_raw(params_.param_final_values[params::LOCAL_FOLD])}.render_block(
 			    dsp::typed_view(stereo), dsp::typed_view(stereo));
 		}
-		filter_set_.render_stereo(stereo, args.filter_scratch, *noise_);
+		filter_set_.render_stereo(dsp::typed_view(stereo), args.filter_scratch, *noise_);
 		if (cfg.clipping_amount == 0u) {
 			write_stereo<false>(output);
 		}
@@ -444,7 +445,7 @@ uint32_t Voice::get_local_lfo_phase_increment(const LFOConfig& config, deluge::m
 			dsp::fixed::Wavefolder{dsp::Q<31>::from_raw(params_.param_final_values[params::LOCAL_FOLD])}.render_block(
 			    dsp::typed_view(mono), dsp::typed_view(mono));
 		}
-		filter_set_.render_mono(mono, args.filter_scratch, *noise_);
+		filter_set_.render_mono(dsp::typed_view(mono), args.filter_scratch, *noise_);
 		if (cfg.clipping_amount == 0u) {
 			write_mono<false>(output);
 		}

@@ -57,19 +57,19 @@ struct ShelfPair {
 	using Modes = ModeList<Mode::BOTH, Mode::BASS, Mode::TREBLE>; ///< Each holds the other bands' memory still.
 
 	/// @brief The exp_curve preset the bass's moveability starts from.
-	static constexpr q31 kBassPreset = 120000000;
+	static constexpr int32_t kBassPreset = 120000000;
 	/// @brief The exp_curve preset the treble's moveability starts from.
-	static constexpr q31 kTreblePreset = 700000000;
+	static constexpr int32_t kTreblePreset = 700000000;
 	/// @brief A frequency knob's shift and scale into exp_curve's adjustment.
 	static constexpr int kFrequencyShift = 5;
 	static constexpr int32_t kFrequencyScale = 6;
 
 	/// @brief The four params, Q31; a band at 0 is flat.
 	struct Settings {
-		q31 bass{0};             ///< The bass knob.
-		q31 treble{0};           ///< The treble knob.
-		q31 bass_frequency{0};   ///< The bass split's frequency knob.
-		q31 treble_frequency{0}; ///< The treble split's frequency knob.
+		Q<31> bass{};             ///< The bass knob.
+		Q<31> treble{};           ///< The treble knob.
+		Q<31> bass_frequency{};   ///< The bass split's frequency knob.
+		Q<31> treble_frequency{}; ///< The treble split's frequency knob.
 	};
 
 	/// @brief The bands' moveabilities and gains, and which step.
@@ -88,21 +88,21 @@ struct ShelfPair {
 	};
 
 	/// @brief Whether both bands are flat, where the owner skips the kernel.
-	[[nodiscard]] static constexpr bool flat(const Settings& s) { return s.bass == 0 && s.treble == 0; }
+	[[nodiscard]] static constexpr bool flat(const Settings& s) { return s.bass == Q<31>{} && s.treble == Q<31>{}; }
 
 	/// @brief The coefficients for @p s, of which at least one band is on.
 	[[nodiscard]] static Coefficients coefficients(const Settings& s) {
-		const bool bass = s.bass != 0;
-		const bool treble = s.treble != 0;
+		const bool bass = s.bass != Q<31>{};
+		const bool treble = s.treble != Q<31>{};
 		// 1 + the knob, Q30: in [0, 2).
-		const Q<30> bass_knob = add_wrap(as_floor<Q<30>>(Q<31>::from_raw(s.bass)), Q<30>::one());
-		const Q<30> treble_knob = add_wrap(as_floor<Q<30>>(Q<31>::from_raw(s.treble)), Q<30>::one());
+		const Q<30> bass_knob = add_wrap(as_floor<Q<30>>(s.bass), Q<30>::one());
+		const Q<30> treble_knob = add_wrap(as_floor<Q<30>>(s.treble), Q<30>::one());
 		// Raw: exp_curve's adjustment is an integer scale of the frequency knob.
 		return {
 		    .bass_m = Q<31>::from_raw(
-		        bass ? exp_curve(kBassPreset, (s.bass_frequency >> kFrequencyShift) * kFrequencyScale) : 0),
+		        bass ? exp_curve(kBassPreset, (s.bass_frequency.raw() >> kFrequencyShift) * kFrequencyScale) : 0),
 		    .treble_m = Q<31>::from_raw(
-		        treble ? exp_curve(kTreblePreset, (s.treble_frequency >> kFrequencyShift) * kFrequencyScale) : 0),
+		        treble ? exp_curve(kTreblePreset, (s.treble_frequency.raw() >> kFrequencyShift) * kFrequencyScale) : 0),
 		    .bass_gain = sub_wrap(mul_r_as_wrap<Q<29>>(bass_knob, bass_knob), Q<29>::one()),
 		    .treble_gain = mul_r_as_wrap<Q<29>>(treble_knob, treble_knob),
 		    .mode = bass && treble ? Mode::BOTH : (bass ? Mode::BASS : Mode::TREBLE),

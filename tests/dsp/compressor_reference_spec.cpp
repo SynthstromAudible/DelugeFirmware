@@ -265,7 +265,7 @@ describe fixed_compressor("the compressor's fixed reference", ${
 		expect(block[0].r).to_equal(-(1 << 30));
 		const compressor_reference::View v = run.compressor().view();
 		expect(v.detector_moveability).to_equal(0);
-		expect(v.detector_l.z).to_equal(0);
+		expect(v.detector_l.z.raw()).to_equal(0);
 		constexpr float kNs = 2;
 		const float mean = (static_cast<float>(int64_t{1} << 30) / kOneQ31f) / kNs;
 		expect(v.mean).to_equal((mean * kNs + 0) / (1 + kNs));

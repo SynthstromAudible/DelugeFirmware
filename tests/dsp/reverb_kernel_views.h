@@ -55,7 +55,7 @@ namespace deluge::dsp::test {
 		v.index[(2 * Freeverb::kCombs) + i] = s.left.allpass_index[i];
 		v.index[(2 * Freeverb::kCombs) + Freeverb::kAllpasses + i] = s.right.allpass_index[i];
 	}
-	v.dc = s.dc.y;
+	v.dc = s.dc.y.raw();
 	return v;
 }
 

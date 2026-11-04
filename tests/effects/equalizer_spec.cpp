@@ -33,7 +33,8 @@ int64_t level(const std::vector<StereoSample>& block) {
 }
 
 constexpr EqualizerParams kFlat{};
-constexpr EqualizerParams kBassBoost{.bass = 0x30000000, .bass_frequency = 0x10000000};
+constexpr EqualizerParams kBassBoost{.bass = deluge::dsp::Q<31>::from_raw(0x30000000),
+                                     .bass_frequency = deluge::dsp::Q<31>::from_raw(0x10000000)};
 
 } // namespace
 

@@ -21,6 +21,7 @@
 // are pinned against the same expressions computed through uint32_t, wrapping as the hardware does. Then
 // Mono<ShiftTracker> against a hand loop over the kernel.
 
+#include "dsp-next/core/buffer_view.h"
 #include "dsp-next/fixed/filter/shift_tracker.h"
 
 #include "dsp-next/core/concepts.h"
@@ -108,13 +109,13 @@ describe shift_tracker_spec("ShiftTracker", ${
 	it("takes the difference after the update", _ {
 		constexpr q31 x = q31{1} << 20;
 		Blocker::State track{};
-		expect(Blocker::step<Blocker::Mode::TRACK>({}, {}, track, x)).to_equal(q31{512});
-		expect(track.y).to_equal(q31{512});
+		expect(Blocker::step<Blocker::Mode::TRACK>({}, {}, track, Q<31>::from_raw(x)).raw()).to_equal(q31{512});
+		expect(track.y.raw()).to_equal(q31{512});
 
 		Blocker::State remove{};
-		expect(Blocker::step<Blocker::Mode::REMOVE>({.mode = Blocker::Mode::REMOVE}, {}, remove, x))
+		expect(Blocker::step<Blocker::Mode::REMOVE>({.mode = Blocker::Mode::REMOVE}, {}, remove, Q<31>::from_raw(x)).raw())
 		    .to_equal(x - q31{512});
-		expect(remove.y).to_equal(q31{512});
+		expect(remove.y.raw()).to_equal(q31{512});
 	});
 
 	it("removes the slow part at N = 11 exactly as the delay's DC blocker does", _ {
@@ -126,9 +127,9 @@ describe shift_tracker_spec("ShiftTracker", ${
 			q31 x = sample;
 			hp += (x - hp) >> 11;
 			x -= hp;
-			expect(Blocker::step<Blocker::Mode::REMOVE>(c, {}, s, sample)).to_equal(x);
+			expect(Blocker::step<Blocker::Mode::REMOVE>(c, {}, s, Q<31>::from_raw(sample)).raw()).to_equal(x);
 		}
-		expect(s.y).to_equal(hp);
+		expect(s.y.raw()).to_equal(hp);
 		expect(hp).not_().to_equal(q31{0});
 	});
 
@@ -141,9 +142,9 @@ describe shift_tracker_spec("ShiftTracker", ${
 			const q31 drawn = noise.render() >> 2;
 			const q31 distance_to_go = drawn - noise_last;
 			noise_last += distance_to_go >> 7;
-			expect(Follower::step<Follower::Mode::TRACK>(c, {}, s, drawn)).to_equal(noise_last);
+			expect(Follower::step<Follower::Mode::TRACK>(c, {}, s, Q<31>::from_raw(drawn)).raw()).to_equal(noise_last);
 		}
-		expect(s.y).to_equal(noise_last);
+		expect(s.y.raw()).to_equal(noise_last);
 		expect(noise_last).not_().to_equal(q31{0});
 	});
 
@@ -162,14 +163,14 @@ describe shift_tracker_spec("ShiftTracker", ${
 			hp = add_mod(hp, sub_mod(x, hp) >> 11);
 			const q31 removed = sub_mod(x, hp);
 			remove_wraps += difference_overflows(x, hp) ? 1 : 0;
-			expect(Blocker::step<Blocker::Mode::REMOVE>(remove_c, {}, remove, x)).to_equal(removed);
+			expect(Blocker::step<Blocker::Mode::REMOVE>(remove_c, {}, remove, Q<31>::from_raw(x)).raw()).to_equal(removed);
 
 			track_wraps += difference_overflows(x, noise_last) ? 1 : 0;
 			noise_last = add_mod(noise_last, sub_mod(x, noise_last) >> 7);
-			expect(Follower::step<Follower::Mode::TRACK>(track_c, {}, track, x)).to_equal(noise_last);
+			expect(Follower::step<Follower::Mode::TRACK>(track_c, {}, track, Q<31>::from_raw(x)).raw()).to_equal(noise_last);
 		}
-		expect(remove.y).to_equal(hp);
-		expect(track.y).to_equal(noise_last);
+		expect(remove.y.raw()).to_equal(hp);
+		expect(track.y.raw()).to_equal(noise_last);
 		expect(remove_wraps).to_be_greater_than(std::size_t{100});
 		expect(track_wraps).to_be_greater_than(std::size_t{100});
 	});
@@ -183,14 +184,14 @@ describe shift_tracker_spec("ShiftTracker", ${
 			for (const std::size_t n : kLengths) {
 				const std::vector<q31> in = half_scale_noise(n, seed++);
 				std::vector<q31> got(n);
-				mono.render_block(in, got);
+				mono.render_block(typed_view(std::span{in}), typed_view(std::span{got}));
 				for (std::size_t i = 0; i < n; ++i) {
 					const q31 want = mode == Blocker::Mode::TRACK
-					                     ? Blocker::step<Blocker::Mode::TRACK>(c, {}, s, in[i])
-					                     : Blocker::step<Blocker::Mode::REMOVE>(c, {}, s, in[i]);
+					                     ? Blocker::step<Blocker::Mode::TRACK>(c, {}, s, Q<31>::from_raw(in[i])).raw()
+					                     : Blocker::step<Blocker::Mode::REMOVE>(c, {}, s, Q<31>::from_raw(in[i])).raw();
 					expect(got[i]).to_equal(want);
 				}
-				expect(mono.state().y).to_equal(s.y);
+				expect(mono.state().y.raw()).to_equal(s.y.raw());
 			}
 		}
 	});

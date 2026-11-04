@@ -169,8 +169,8 @@ void push_grain(std::vector<uint32_t>& words, int32_t length, int32_t start, int
 		           g.pan_r);
 	}
 	if (all) {
-		for (const int32_t w : {s.lpf_l.z, s.lpf_r.z, s.levels.size, s.levels.period, s.levels.wet, s.levels.dry,
-		                        s.levels.feedback, s.knobs.rate, s.knobs.mix, s.knobs.density}) {
+		for (const int32_t w : {s.lpf_l.z.raw(), s.lpf_r.z.raw(), s.levels.size, s.levels.period, s.levels.wet,
+		                        s.levels.dry, s.levels.feedback, s.knobs.rate, s.knobs.mix, s.knobs.density}) {
 			words.push_back(static_cast<uint32_t>(w));
 		}
 	}
@@ -200,7 +200,7 @@ void push_grain(std::vector<uint32_t>& words, int32_t length, int32_t start, int
 		const auto lpf = fx.low_pass();
 		const ReferenceGranular::Cache c = fx.cache();
 		for (const int32_t w :
-		     {lpf[0].z, lpf[1].z, c.size, c.period, c.wet, c.dry, c.feedback, c.rate, c.mix, c.density}) {
+		     {lpf[0].z.raw(), lpf[1].z.raw(), c.size, c.period, c.wet, c.dry, c.feedback, c.rate, c.mix, c.density}) {
 			words.push_back(static_cast<uint32_t>(w));
 		}
 	}

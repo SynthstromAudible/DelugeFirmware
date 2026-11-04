@@ -173,8 +173,12 @@ public:
 				auto wetl = q31_mult(grainWet.l, _grainVol);
 				auto wetr = q31_mult(grainWet.r, _grainVol);
 
-				wetl = OnePole::step<OnePole::Mode::LOW_PASS>(kWetLowPass, {}, lpf_state_l_, wetl);
-				wetr = OnePole::step<OnePole::Mode::LOW_PASS>(kWetLowPass, {}, lpf_state_r_, wetr);
+				wetl = OnePole::step<OnePole::Mode::LOW_PASS>(kWetLowPass, {}, lpf_state_l_,
+				                                              deluge::dsp::Q<31>::from_raw(wetl))
+				           .raw();
+				wetr = OnePole::step<OnePole::Mode::LOW_PASS>(kWetLowPass, {}, lpf_state_r_,
+				                                              deluge::dsp::Q<31>::from_raw(wetr))
+				           .raw();
 
 				// WET and DRY Vol
 				sample.l = add_saturate(q31_mult(sample.l, _grainDryVol), wetl);
@@ -511,7 +515,8 @@ private:
 	int32_t _rateKnobPos{0};
 	int32_t _mixKnobPos{0};
 	/// @brief The wet signal's low-pass, one pole at about 4.5 kHz: a moveability of 1/4, Q31 (tan(f) = 1/3).
-	static constexpr OnePole::Coefficients kWetLowPass = OnePole::coefficients({.moveability = 1 << 29});
+	static constexpr OnePole::Coefficients kWetLowPass =
+	    OnePole::coefficients({.moveability = deluge::dsp::Q<31>::from_raw(1 << 29)});
 	/// @brief The wet low-pass memories, kept across blocks and grain changes.
 	OnePole::State lpf_state_l_{};
 	OnePole::State lpf_state_r_{}; ///< @copydoc lpf_state_l_

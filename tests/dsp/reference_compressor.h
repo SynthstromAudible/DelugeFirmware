@@ -238,8 +238,8 @@ public:
 		    .saturation_l = {.position = saturation_[0].previous()},
 		    .saturation_r = {.position = saturation_[1].previous()},
 		    .seeded = seeded_,
-		    .detector_l = {.z = detector_[0].memory()},
-		    .detector_r = {.z = detector_[1].memory()},
+		    .detector_l = {.z = deluge::dsp::Q<31>::from_raw(detector_[0].memory())},
+		    .detector_r = {.z = deluge::dsp::Q<31>::from_raw(detector_[1].memory())},
 		    .attack_ms = attack_ms_,
 		    .release_ms = release_ms_,
 		    .base_gain = base_gain_,
@@ -561,14 +561,19 @@ private:
 
 	float measureLevel(std::span<const StereoSample> block) {
 		const float last_mean = mean_;
-		const OnePole::Coefficients detector{.m = detector_moveability_, .mode = OnePole::Mode::LOW_PASS};
+		const OnePole::Coefficients detector{.m = deluge::dsp::Q<31>::from_raw(detector_moveability_),
+		                                     .mode = OnePole::Mode::LOW_PASS};
 
 		int64_t sum = 0;
 		for (const StereoSample sample : block) {
 			const q31 l = deluge::dsp::wrapping_sub(
-			    sample.l, OnePole::step<OnePole::Mode::LOW_PASS>(detector, EmptyBlock{}, detector_l_, sample.l));
+			    sample.l, OnePole::step<OnePole::Mode::LOW_PASS>(detector, EmptyBlock{}, detector_l_,
+			                                                     deluge::dsp::Q<31>::from_raw(sample.l))
+			                  .raw());
 			const q31 r = deluge::dsp::wrapping_sub(
-			    sample.r, OnePole::step<OnePole::Mode::LOW_PASS>(detector, EmptyBlock{}, detector_r_, sample.r));
+			    sample.r, OnePole::step<OnePole::Mode::LOW_PASS>(detector, EmptyBlock{}, detector_r_,
+			                                                     deluge::dsp::Q<31>::from_raw(sample.r))
+			                  .raw());
 			const uint32_t s = std::max(magnitude(l), magnitude(r));
 			sum += static_cast<int64_t>((static_cast<uint64_t>(s) * s) >> 32);
 		}
@@ -639,8 +644,8 @@ inline void digest(const View& v, Digest& d) {
 	d.add(v.saturation_drive);
 	d.add(v.saturation_r.position);
 	d.add(v.seeded);
-	d.add(v.detector_l.z);
-	d.add(v.detector_r.z);
+	d.add(v.detector_l.z.raw());
+	d.add(v.detector_r.z.raw());
 	d.add(v.attack_ms);
 	d.add(v.release_ms);
 	d.add(v.base_gain);

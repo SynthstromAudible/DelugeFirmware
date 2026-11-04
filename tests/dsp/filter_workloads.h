@@ -61,13 +61,13 @@ namespace filter_workloads {
 using deluge::dsp::q31;
 using deluge::dsp::StereoSample;
 using deluge::dsp::fixed::CongruentialStep;
-using deluge::dsp::fixed::FilterConfig;
 using deluge::dsp::fixed::FilterRoute;
 using deluge::dsp::fixed::HighPassSlot;
 using deluge::dsp::fixed::LowPassLadderMode;
 using deluge::dsp::fixed::LowPassSlot;
 using deluge::dsp::fixed::SvfMode;
 using filters_reference::Digest;
+using filters_reference::FilterConfig;
 
 /// @brief The synth-wide generator's state at boot (util/waves.cpp), where every run starts it.
 inline constexpr uint32_t kCongSeed = 380116160;

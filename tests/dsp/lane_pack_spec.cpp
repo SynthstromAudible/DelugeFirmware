@@ -418,11 +418,11 @@ describe lane_pack_spec("LanePack", ${
 				for (const Trial<N>& x : trials<N>()) {
 					const LanePack<q31, N> got = probe::one_pole_step(m, zp, x.a);
 					for (std::size_t i = 0; i < N; ++i) {
-						OnePole::State st{.z = z[i]};
-						const q31 kernel = OnePole::step<OnePole::Mode::ALL_PASS>({.m = m}, {}, st, x.a.lane[i]);
+						OnePole::State st{.z = Q<31>::from_raw(z[i])};
+						const q31 kernel = OnePole::step<OnePole::Mode::ALL_PASS>({.m = Q<31>::from_raw(m)}, {}, st, Q<31>::from_raw(x.a.lane[i])).raw();
 						const q31 scalar = probe::one_pole_step(m, z[i], x.a.lane[i]);
 						++s.compared;
-						s.mismatched += (got.lane[i] == scalar && scalar == kernel && st.z == z[i]
+						s.mismatched += (got.lane[i] == scalar && scalar == kernel && st.z.raw() == z[i]
 						                 && zp.lane[i] == z[i]) ? 0 : 1;
 					}
 				}
@@ -442,12 +442,11 @@ describe lane_pack_spec("LanePack", ${
 			for (const Trial<N>& x : trials<N>()) {
 				const LanePack<q31, N> got = probe::shift_tracker_step(yp, x.a);
 				for (std::size_t i = 0; i < N; ++i) {
-					Blocker::State st{.y = y[i]};
-					const q31 kernel = Blocker::step<Blocker::Mode::REMOVE>({.mode = Blocker::Mode::REMOVE}, {}, st,
-					                                                        x.a.lane[i]);
+					Blocker::State st{.y = Q<31>::from_raw(y[i])};
+					const q31 kernel = Blocker::step<Blocker::Mode::REMOVE>({.mode = Blocker::Mode::REMOVE}, {}, st, Q<31>::from_raw(x.a.lane[i])).raw();
 					const q31 scalar = probe::shift_tracker_step(y[i], x.a.lane[i]);
 					++s.compared;
-					s.mismatched += (got.lane[i] == scalar && scalar == kernel && st.y == y[i]
+					s.mismatched += (got.lane[i] == scalar && scalar == kernel && st.y.raw() == y[i]
 					                 && yp.lane[i] == y[i]) ? 0 : 1;
 				}
 			}

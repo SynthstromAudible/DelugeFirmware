@@ -22,6 +22,7 @@
 // cutoff and resonance range, the saturator switches at the reference's resonances, and every switch between bypass,
 // tanh and the antialiased tanh carries the state.
 
+#include "dsp-next/core/buffer_view.h"
 #include "dsp-next/fixed/filter/high_pass_ladder.h"
 
 #include "dsp-next/core/concepts.h"
@@ -46,9 +47,13 @@
 #include <utility>
 #include <vector>
 
+using deluge::dsp::Q;
+using deluge::dsp::typed_view;
 using namespace deluge::dsp::fixed;
 
 namespace {
+
+using filters_reference::FilterConfig; // the references' raw settings; the kernels take typed() of them
 
 constexpr int32_t kGain = 536870912;
 
@@ -117,7 +122,8 @@ constexpr std::array<q31, 3> kSaturations{filter_workloads::detail::kHpBypass, f
 /// bisection. The processed resonance the switch reads does not depend on the cutoff.
 std::vector<q31> mode_changes() {
 	const auto mode = [](q31 resonance) {
-		return Ladder::saturation_of(Ladder::coefficients({.gain = kGain, .config = config_at(resonance)}).mode);
+		return Ladder::saturation_of(
+		    Ladder::coefficients({.gain = kGain, .config = filters_reference::typed(config_at(resonance))}).mode);
 	};
 	std::vector<q31> changes;
 	for (const Ladder::Saturation below : {Ladder::Saturation::BYPASS, Ladder::Saturation::TANH}) {
@@ -180,12 +186,13 @@ std::pair<std::size_t, std::size_t> loud_partings() {
 			std::vector<q31> scratch(expected.size());
 			reference.render_mono(expected, scratch);
 
-			const Ladder::Coefficients c = Ladder::coefficients({.gain = kGain, .config = config});
+			const Ladder::Coefficients c =
+			    Ladder::coefficients({.gain = kGain, .config = filters_reference::typed(config)});
 			Ladder::State s{};
 			const std::vector<q31> in = loud_block();
 			for (std::size_t i = 0; i < in.size(); ++i) {
 				const q31 out = deluge::dsp::with_mode<Ladder::Modes>(
-				    c.mode, [&]<Ladder::Mode M>() { return Ladder::step<M>(c, {}, s, in[i]); });
+				    c.mode, [&]<Ladder::Mode M>() { return Ladder::step<M>(c, {}, s, Q<31>::from_raw(in[i])).raw(); });
 				parted += out != expected[i] ? 1 : 0;
 				wrapped += morph != 0 && (in[i] > (kOneQ31 >> 4) || in[i] < (INT32_MIN >> 4)) ? 1 : 0;
 			}
@@ -198,7 +205,7 @@ std::pair<std::size_t, std::size_t> loud_partings() {
 using ChannelWords = std::array<int64_t, 4>;
 
 ChannelWords words(const Ladder::State& s) {
-	return {s.high_pass_1.z, s.low_pass_1.z, s.high_pass_3.z, s.saturator.position};
+	return {s.high_pass_1.z.raw(), s.low_pass_1.z.raw(), s.high_pass_3.z.raw(), s.saturator.position};
 }
 
 ChannelWords words(const ReferenceHighPassLadder::Channel& c) {
@@ -229,11 +236,11 @@ describe high_pass_ladder("HighPassLadder", ${
 
 	it("configures every coefficient and compensates the gain as the reference's configure does", _ {
 		std::array<std::size_t, 6> modes{};
-		for (const FilterConfig& config : sweep_configs()) {
+		for (const auto& config : sweep_configs()) {
 			ReferenceHighPassLadder reference;
 			reference.zero();
 			const q31 gain = reference.configure(kGain, config);
-			const Ladder::Coefficients c = Ladder::coefficients({.gain = kGain, .config = config});
+			const Ladder::Coefficients c = Ladder::coefficients({.gain = kGain, .config = filters_reference::typed(config)});
 			expect(Ladder::gain(c)).to_equal(gain);
 			++modes.at(static_cast<std::size_t>(c.mode));
 
@@ -257,7 +264,7 @@ describe high_pass_ladder("HighPassLadder", ${
 		std::vector<q31> scratch(kInput.size());
 		const std::vector<q31> changes = mode_changes();
 		const auto saturation_at = [](q31 resonance) {
-			return Ladder::saturation_of(Ladder::coefficients({.gain = kGain, .config = config_at(resonance)}).mode);
+			return Ladder::saturation_of(Ladder::coefficients({.gain = kGain, .config = filters_reference::typed(config_at(resonance))}).mode);
 		};
 		expect(saturation_at(changes[0] - 1)).to_equal(Ladder::Saturation::BYPASS);
 		expect(saturation_at(changes[0])).to_equal(Ladder::Saturation::TANH);
@@ -268,10 +275,10 @@ describe high_pass_ladder("HighPassLadder", ${
 				// The morph off and on: the same switches with the cutoff FIXED and MORPHING.
 				for (const auto [resonance, morph] : {std::pair{change - 1, q31{0}}, std::pair{change, q31{0}},
 				                                      std::pair{change - 1, q31{1 << 26}}, std::pair{change, q31{1 << 26}}}) {
-					FilterConfig config = config_at(resonance);
+					auto config = config_at(resonance);
 					config.frequency = frequency;
 					config.morph = morph;
-					expect(Ladder::cutoff_of(Ladder::coefficients({.gain = kGain, .config = config}).mode))
+					expect(Ladder::cutoff_of(Ladder::coefficients({.gain = kGain, .config = filters_reference::typed(config)}).mode))
 					    .to_equal(morph == 0 ? Ladder::Cutoff::FIXED : Ladder::Cutoff::MORPHING);
 					for (const bool stereo : {false, true}) {
 						ReferenceHighPassLadder reference;
@@ -281,7 +288,7 @@ describe high_pass_ladder("HighPassLadder", ${
 						std::vector<q31> out = kInput;
 						if (stereo) {
 							reference.render_stereo(expected, scratch);
-							Stereo<Ladder> ladder{Ladder::Settings{.gain = kGain, .config = config}};
+							Stereo<Ladder> ladder{Ladder::Settings{.gain = kGain, .config = filters_reference::typed(config)}};
 							const auto frames = deluge::dsp::as_frames(out);
 							ladder.render_block(frames, frames);
 							expect(words(ladder.left())).to_equal(words(reference.left()));
@@ -290,8 +297,8 @@ describe high_pass_ladder("HighPassLadder", ${
 						}
 						else {
 							reference.render_mono(expected, scratch);
-							Mono<Ladder> ladder{Ladder::Settings{.gain = kGain, .config = config}};
-							ladder.render_block(out, out);
+							Mono<Ladder> ladder{Ladder::Settings{.gain = kGain, .config = filters_reference::typed(config)}};
+							ladder.render_block(typed_view(std::span{out}), typed_view(std::span{out}));
 							expect(words(ladder.state())).to_equal(words(reference.left()));
 							expect(Ladder::gain(ladder.coefficients())).to_equal(gain);
 						}
@@ -317,7 +324,7 @@ describe high_pass_ladder("HighPassLadder", ${
 
 					const Ladder::State left = ladder.left();
 					const Ladder::State right = ladder.right();
-					ladder.configure({.gain = kGain, .config = config_at(resonance)});
+					ladder.configure({.gain = kGain, .config = filters_reference::typed(config_at(resonance))});
 					expect(words(ladder.left())).to_equal(words(left));
 					expect(words(ladder.right())).to_equal(words(right));
 
@@ -338,7 +345,7 @@ describe high_pass_ladder("HighPassLadder", ${
 		std::vector<q31> scratch(kInput.size());
 		ReferenceHighPassLadder reference;
 		reference.zero();
-		Mono<Ladder> ladder{Ladder::Settings{.gain = kGain, .config = config_at(filter_workloads::detail::kHpSaturated)}};
+		Mono<Ladder> ladder{Ladder::Settings{.gain = kGain, .config = filters_reference::typed(config_at(filter_workloads::detail::kHpSaturated))}};
 		expect(words(ladder.state())).to_equal(words(reference.left()));
 		expect(words(ladder.state())).to_equal(ChannelWords{0, 0, 0, 0});
 
@@ -348,7 +355,7 @@ describe high_pass_ladder("HighPassLadder", ${
 		reference.reset(false);
 
 		std::vector<q31> out = kInput;
-		ladder.render_block(out, out);
+		ladder.render_block(typed_view(std::span{out}), typed_view(std::span{out}));
 		ladder.reset();
 
 		expect(ladder.state().saturator.position).not_().to_equal(0u);
@@ -362,7 +369,7 @@ describe high_pass_ladder("HighPassLadder", ${
 		std::vector<q31> scratch(kInput.size());
 		ReferenceHighPassLadder reference;
 		reference.zero();
-		Stereo<Ladder> ladder{Ladder::Settings{.gain = kGain, .config = config_at(filter_workloads::detail::kHpSaturated)}};
+		Stereo<Ladder> ladder{Ladder::Settings{.gain = kGain, .config = filters_reference::typed(config_at(filter_workloads::detail::kHpSaturated))}};
 		expect(words(ladder.left())).to_equal(words(reference.left()));
 		expect(words(ladder.right())).to_equal(words(reference.right()));
 

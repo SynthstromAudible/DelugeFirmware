@@ -51,8 +51,8 @@ namespace deluge::dsp::fixed {
 /// the result within ±2^(29 − d); shifted up by 2, within ±2^(31 − d): ±2^23 at drive 8 and ±2^26 at drive 5. The
 /// digital clip is within ±2^28, so shifted up by 2 within ±2^30.
 struct FeedbackShaper {
-	using value_type = q31; ///< A sample, Q31.
-	using step_type = q31;  ///< A sample, Q31: one step per sample.
+	using value_type = Q<31>; ///< A sample.
+	using step_type = Q<31>;  ///< A sample: one step per sample.
 
 	/// @brief How the feedback is saturated.
 	enum class Mode : uint8_t {
@@ -69,14 +69,14 @@ struct FeedbackShaper {
 
 	/// @brief What the owner sets.
 	struct Settings {
-		q31 feedback = 0;    ///< The feedback amount, Q31.
+		Q<31> feedback{};    ///< The feedback amount.
 		bool analog = false; ///< Through the impulse response and a tanh; else clipped digitally.
 		uint32_t drive = 8;  ///< The tanh drive, as a power of two: 8 on a sound, 5 on a host chain.
 	};
 
 	/// @brief What a step reads: the amount, the drive, and the mode the wrapper dispatches on once per block.
 	struct Coefficients {
-		q31 feedback = 0;          ///< The feedback amount, Q31.
+		Q<31> feedback{};          ///< The feedback amount.
 		uint32_t drive = 8;        ///< The tanh drive, as a power of two.
 		Mode mode = Mode::DIGITAL; ///< How the feedback is saturated.
 	};
@@ -96,10 +96,10 @@ struct FeedbackShaper {
 	/// @brief The analog shaping of the impulse response's output @p response: tanh(response × f, d) << 2, Q31.
 	/// @details What ANALOG's step returns after stepping the response; for an owner stepping two channels' responses
 	/// together (@ref AnalogImpulseResponse::step_pair).
-	[[nodiscard]] [[gnu::always_inline]] static q31 analog(const Coefficients& c, q31 response) {
-		const Q<30> product = mul(Q<31>::from_raw(response), Q<31>::from_raw(c.feedback));
+	[[nodiscard]] [[gnu::always_inline]] static Q<31> analog(const Coefficients& c, Q<31> response) {
+		const Q<30> product = mul(response, c.feedback);
 		// The run-time-drive tanh reads the product's bits as its Q31 input
-		return scale_shl_wrap<kOutputShift>(tanh(reinterpret_bits<Q<31>>(product), c.drive)).raw();
+		return scale_shl_wrap<kOutputShift>(tanh(reinterpret_bits<Q<31>>(product), c.drive));
 	}
 
 	/// @brief One sample of feedback, shaped.
@@ -109,15 +109,15 @@ struct FeedbackShaper {
 	/// @param x The delayed sample, Q31.
 	/// @return tanh(r(x) × f, d) << 2 (ANALOG) or sat29(x × f) << 2 (DIGITAL), Q31.
 	template <Mode M>
-	[[nodiscard]] [[gnu::always_inline]] static q31 step(const Coefficients& c, const EmptyBlock& /*b*/, State& s,
-	                                                     q31 x) {
+	[[nodiscard]] [[gnu::always_inline]] static Q<31> step(const Coefficients& c, const EmptyBlock& /*b*/, State& s,
+	                                                       Q<31> x) {
 		if constexpr (M == Mode::ANALOG) {
-			return analog(c, AnalogImpulseResponse::step({}, {}, s.response, x));
+			return analog(c, Q<31>::from_raw(AnalogImpulseResponse::step({}, {}, s.response, x.raw())));
 		}
 		else {
-			const Q<30> product = mul(Q<31>::from_raw(x), Q<31>::from_raw(c.feedback));
+			const Q<30> product = mul(x, c.feedback);
 			// The clipped product, ×4 at Q30, is the Q31 output: 2 × x × f within ±1/2.
-			return reinterpret_bits<Q<31>>(scale_shl_wrap<kOutputShift>(clamp_bits<kDigitalBits>(product))).raw();
+			return reinterpret_bits<Q<31>>(scale_shl_wrap<kOutputShift>(clamp_bits<kDigitalBits>(product)));
 		}
 	}
 };

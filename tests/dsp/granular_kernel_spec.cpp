@@ -118,8 +118,8 @@ public:
 			push_grain(words, g.length, g.start, g.counter, g.pitch, g.vol_scale, g.vol_scale_max, g.reverse, g.pan_l,
 			           g.pan_r);
 		}
-		for (const int32_t w : {s.lpf_l.z, s.lpf_r.z, s.levels.size, s.levels.period, s.levels.wet, s.levels.dry,
-		                        s.levels.feedback, s.knobs.rate, s.knobs.mix, s.knobs.density}) {
+		for (const int32_t w : {s.lpf_l.z.raw(), s.lpf_r.z.raw(), s.levels.size, s.levels.period, s.levels.wet,
+		                        s.levels.dry, s.levels.feedback, s.knobs.rate, s.knobs.mix, s.knobs.density}) {
 			words.push_back(static_cast<uint32_t>(w));
 		}
 		return words;
@@ -142,7 +142,8 @@ private:
 	}
 	const auto lpf = fx.low_pass();
 	const ReferenceGranular::Cache c = fx.cache();
-	for (const int32_t w : {lpf[0].z, lpf[1].z, c.size, c.period, c.wet, c.dry, c.feedback, c.rate, c.mix, c.density}) {
+	for (const int32_t w :
+	     {lpf[0].z.raw(), lpf[1].z.raw(), c.size, c.period, c.wet, c.dry, c.feedback, c.rate, c.mix, c.density}) {
 		words.push_back(static_cast<uint32_t>(w));
 	}
 	return words;

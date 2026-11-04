@@ -149,8 +149,8 @@ struct Freeverb {
 	/// @brief One frame: the send's next sample, DC-blocked, through both channels, added to @p x.
 	[[nodiscard]] [[gnu::always_inline]] static StereoSample step(const Coefficients& c, const EmptyBlock& /*b*/,
 	                                                              State& s, StereoSample x) {
-		const auto input = Q<31>::from_raw(
-		    kernel_ops::step_at<DcBlocker, kernel_ops::NoMode::NONE>(c.dc, EmptyBlock{}, s.dc, *s.send));
+		const Q<31> input = kernel_ops::step_at<DcBlocker, kernel_ops::NoMode::NONE>(c.dc, EmptyBlock{}, s.dc,
+		                                                                             Q<31>::from_raw(*s.send));
 		++s.send;
 		Q<31> out_l{};
 		Q<31> out_r{};

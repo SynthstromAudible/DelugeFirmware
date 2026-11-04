@@ -653,10 +653,16 @@ FilterReference filter_reference(const FilterCaseConfig& config, std::size_t n, 
 		out.gain =
 		    set.configure(kFilterGain, config.low_config, config.low, config.high_config, config.high, config.route);
 		if (stereo) {
-			set.render_stereo(out.last_block, {.fade = fade, .parallel = parallel}, deluge::synth_noise);
+			set.render_stereo(
+			    dsp::typed_view(std::span{out.last_block}),
+			    {.fade = dsp::typed_view(std::span{fade}), .parallel = dsp::typed_view(std::span{parallel})},
+			    deluge::synth_noise);
 		}
 		else {
-			set.render_mono(out.last_block, {.fade = fade, .parallel = parallel}, deluge::synth_noise);
+			set.render_mono(
+			    dsp::typed_view(std::span{out.last_block}),
+			    {.fade = dsp::typed_view(std::span{fade}), .parallel = dsp::typed_view(std::span{parallel})},
+			    deluge::synth_noise);
 		}
 	}
 	out.noise = deluge::synth_noise.state();
@@ -719,7 +725,7 @@ std::vector<std::int64_t> delay_feedback_words(const dsp::fixed::DelayProcessor&
 		const auto& response = dsp::get<0>(state).response;
 		out.insert(out.end(), std::begin(response.history), std::end(response.history));
 		out.push_back(response.oldest);
-		out.push_back(dsp::get<1>(state).y);
+		out.push_back(dsp::get<1>(state).y.raw());
 	}
 	return out;
 }
@@ -1275,7 +1281,7 @@ describe bench_runner("The DSP benchmark runner", ${
 			for (const std::size_t n : kSizes) {
 				set.shift_tracker.setup(n);
 				expect(set.shift_tracker.component().coefficients().mode).to_equal(Tracker::Mode::REMOVE);
-				expect(set.shift_tracker.component().state().y).to_equal(q31{0});
+				expect(set.shift_tracker.component().state().y.raw()).to_equal(q31{0});
 
 				render(set.shift_tracker, n, 2);
 				q31 hp = 0;
@@ -1290,7 +1296,7 @@ describe bench_runner("The DSP benchmark runner", ${
 						}
 					}
 				}
-				expect(set.shift_tracker.component().state().y).to_equal(hp);
+				expect(set.shift_tracker.component().state().y.raw()).to_equal(hp);
 			}
 		});
 
@@ -1301,8 +1307,8 @@ describe bench_runner("The DSP benchmark runner", ${
 				set.one_pole_lp.setup(n);
 				set.one_pole_ap.setup(n);
 				for (const auto* mono : {&set.one_pole_lp.component(), &set.one_pole_ap.component()}) {
-					expect(mono->coefficients().m).to_equal(q31{1 << 29});
-					expect(mono->state().z).to_equal(q31{0});
+					expect(mono->coefficients().m.raw()).to_equal(q31{1 << 29});
+					expect(mono->state().z.raw()).to_equal(q31{0});
 				}
 				expect(set.one_pole_lp.component().coefficients().mode).to_equal(Mode::LOW_PASS);
 				expect(set.one_pole_ap.component().coefficients().mode).to_equal(Mode::ALL_PASS);
@@ -1324,7 +1330,7 @@ describe bench_runner("The DSP benchmark runner", ${
 							}
 						}
 					}
-					expect(one_pole_case.component().state().z).to_equal(static_cast<q31>(memory));
+					expect(one_pole_case.component().state().z.raw()).to_equal(static_cast<q31>(memory));
 				};
 				check(set.one_pole_lp, false);
 				check(set.one_pole_ap, true);
@@ -1385,11 +1391,11 @@ describe bench_runner("The DSP benchmark runner", ${
 			const auto check = [&]<std::size_t N>(LanesOnePoleCase<N>& c) {
 				for (const std::size_t n : kSizes) {
 					c.setup(n);
-					expect(c.component().coefficients().m).to_equal(q31{1 << 29});
+					expect(c.component().coefficients().m.raw()).to_equal(q31{1 << 29});
 					expect(c.component().coefficients().mode).to_equal(dsp::fixed::OnePole::Mode::LOW_PASS);
 					render(c, n, 2);
 					for (std::size_t lane = 0; lane < N; ++lane) {
-						expect(c.component().state(lane).z).not_().to_equal(q31{0});
+						expect(c.component().state(lane).z.raw()).not_().to_equal(q31{0});
 						// The class's lowPass on lane `lane`'s stream, wrapping as the hardware's add and sub do.
 						uint32_t memory = 0;
 						for (std::size_t block = 0; block < 2; ++block) {
@@ -1405,7 +1411,7 @@ describe bench_runner("The DSP benchmark runner", ${
 								}
 							}
 						}
-						expect(c.component().state(lane).z).to_equal(static_cast<q31>(memory));
+						expect(c.component().state(lane).z.raw()).to_equal(static_cast<q31>(memory));
 					}
 				}
 			};
@@ -1433,7 +1439,7 @@ describe bench_runner("The DSP benchmark runner", ${
 								}
 							}
 						}
-						expect(c.component().state(lane).y).to_equal(hp);
+						expect(c.component().state(lane).y.raw()).to_equal(hp);
 					}
 				}
 			};
@@ -1498,28 +1504,28 @@ describe bench_runner("The DSP benchmark runner", ${
 						render(set.delay_feedback_passes_analog, n, 2);
 						expect(stereo_output(n)).to_equal(expected.last_block);
 						const auto& high_pass = set.delay_feedback_passes_analog.high_pass();
-						expect(high_pass.left().y).to_equal(expected.memory_l);
-						expect(high_pass.right().y).to_equal(expected.memory_r);
+						expect(high_pass.left().y.raw()).to_equal(expected.memory_l);
+						expect(high_pass.right().y.raw()).to_equal(expected.memory_r);
 
 						render(set.delay_feedback_chain_analog, n, 2);
 						expect(stereo_output(n)).to_equal(expected.last_block);
 						const auto& chain = set.delay_feedback_chain_analog.component();
-						expect(dsp::get<1>(chain.left()).y).to_equal(expected.memory_l);
-						expect(dsp::get<1>(chain.right()).y).to_equal(expected.memory_r);
+						expect(dsp::get<1>(chain.left()).y.raw()).to_equal(expected.memory_l);
+						expect(dsp::get<1>(chain.right()).y.raw()).to_equal(expected.memory_r);
 						expect(dsp::get<0>(chain.coefficients().mode)).to_equal(dsp::fixed::FeedbackShaper::Mode::ANALOG);
 					}
 					else {
 						render(set.delay_feedback_passes_digital, n, 2);
 						expect(stereo_output(n)).to_equal(expected.last_block);
 						const auto& high_pass = set.delay_feedback_passes_digital.high_pass();
-						expect(high_pass.left().y).to_equal(expected.memory_l);
-						expect(high_pass.right().y).to_equal(expected.memory_r);
+						expect(high_pass.left().y.raw()).to_equal(expected.memory_l);
+						expect(high_pass.right().y.raw()).to_equal(expected.memory_r);
 
 						render(set.delay_feedback_chain_digital, n, 2);
 						expect(stereo_output(n)).to_equal(expected.last_block);
 						const auto& chain = set.delay_feedback_chain_digital.component();
-						expect(dsp::get<1>(chain.left()).y).to_equal(expected.memory_l);
-						expect(dsp::get<1>(chain.right()).y).to_equal(expected.memory_r);
+						expect(dsp::get<1>(chain.left()).y.raw()).to_equal(expected.memory_l);
+						expect(dsp::get<1>(chain.right()).y.raw()).to_equal(expected.memory_r);
 						expect(dsp::get<0>(chain.coefficients().mode)).to_equal(dsp::fixed::FeedbackShaper::Mode::DIGITAL);
 						// A digital block holds the response still: its history stays silent, its index at the start.
 						const auto& response = dsp::get<0>(chain.left()).response;
@@ -1538,8 +1544,8 @@ describe bench_runner("The DSP benchmark runner", ${
 				render(set.delay_feedback_chain_digital_out_of_place, n, 2);
 				expect(stereo_output(n)).to_equal(expected.last_block);
 				const auto& chain = set.delay_feedback_chain_digital_out_of_place.component();
-				expect(dsp::get<1>(chain.left()).y).to_equal(expected.memory_l);
-				expect(dsp::get<1>(chain.right()).y).to_equal(expected.memory_r);
+				expect(dsp::get<1>(chain.left()).y.raw()).to_equal(expected.memory_l);
+				expect(dsp::get<1>(chain.right()).y.raw()).to_equal(expected.memory_r);
 				expect(dsp::get<0>(chain.coefficients().mode)).to_equal(dsp::fixed::FeedbackShaper::Mode::DIGITAL);
 			}
 		});
@@ -1556,8 +1562,8 @@ describe bench_runner("The DSP benchmark runner", ${
 				render(set.delay_feedback_legacy_analog, n, blocks);
 				expect(stereo_output(n)).to_equal(expected.last_block);
 				const auto& legacy = set.delay_feedback_legacy_analog;
-				expect(legacy.high_pass_l()).to_equal(dsp::get<1>(chain.left()).y);
-				expect(legacy.high_pass_r()).to_equal(dsp::get<1>(chain.right()).y);
+				expect(legacy.high_pass_l()).to_equal(dsp::get<1>(chain.left()).y.raw());
+				expect(legacy.high_pass_r()).to_equal(dsp::get<1>(chain.right()).y.raw());
 				expect(legacy.high_pass_l()).to_equal(expected.memory_l);
 				expect(legacy.high_pass_r()).to_equal(expected.memory_r);
 				expect(legacy.drive()).to_equal(kDelayDrive);
@@ -1705,16 +1711,16 @@ describe bench_runner("The DSP benchmark runner", ${
 				render(set.chain3_passes, n, 2);
 				expect(std::vector<q31>{output().begin(), output().begin() + static_cast<std::ptrdiff_t>(n)})
 				    .to_equal(expected);
-				expect(set.chain3_passes.low_pass().state().z).to_equal(static_cast<q31>(low));
-				expect(set.chain3_passes.high_pass().state().y).to_equal(high);
+				expect(set.chain3_passes.low_pass().state().z.raw()).to_equal(static_cast<q31>(low));
+				expect(set.chain3_passes.high_pass().state().y.raw()).to_equal(high);
 
 				render(set.chain3_fused, n, 2);
 				expect(std::vector<q31>{output().begin(), output().begin() + static_cast<std::ptrdiff_t>(n)})
 				    .to_equal(expected);
 				const auto& fused = set.chain3_fused.component();
-				expect(dsp::get<1>(fused.state()).z).to_equal(static_cast<q31>(low));
-				expect(dsp::get<2>(fused.state()).y).to_equal(high);
-				expect(dsp::get<1>(fused.coefficients()).m).to_equal(OnePoleLowPassCase::kMoveability);
+				expect(dsp::get<1>(fused.state()).z.raw()).to_equal(static_cast<q31>(low));
+				expect(dsp::get<2>(fused.state()).y.raw()).to_equal(high);
+				expect(dsp::get<1>(fused.coefficients()).m.raw()).to_equal(OnePoleLowPassCase::kMoveability.raw());
 			}
 		});
 	});

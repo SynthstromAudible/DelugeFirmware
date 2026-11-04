@@ -19,6 +19,7 @@
 // modes reaching the set, the parallel route with the high-pass fading in, and the volume compensation, each case from
 // a fresh filter with the synth-wide noise generator seeded the same.
 
+#include "dsp-next/core/buffer_view.h"
 #include "effects/filter.h"
 
 #include "dsp-next/core/q31_ops.h"
@@ -205,7 +206,10 @@ struct Rig {
 	std::vector<int32_t> run(const FilterState& state, const FilterParams& params) {
 		volume = filter.configure(state, params, kVolume);
 		std::vector<StereoSample> block = frames(kInput);
-		filter.process(block, {.fade = fade, .parallel = parallel}, deluge::synth_noise);
+		filter.process(block,
+		               {.fade = deluge::dsp::typed_view(std::span{fade}),
+		                .parallel = deluge::dsp::typed_view(std::span{parallel})},
+		               deluge::synth_noise);
 		return samples(block);
 	}
 };

@@ -45,6 +45,8 @@ using namespace deluge::dsp::fixed;
 
 namespace {
 
+using filters_reference::FilterConfig; // the references' raw settings; the kernels take typed() of them
+
 static_assert(processor_kernel<Svf>);
 static_assert(moded_kernel<Svf>);
 static_assert(!std::is_polymorphic_v<Svf>);
@@ -103,7 +105,7 @@ std::vector<q31> loud_block() {
 /// Samples where the kernel's step parts from the reference's render, over loud_block() at every config and mode.
 std::size_t loud_partings() {
 	std::size_t parted = 0;
-	for (const FilterConfig& config : kConfigs) {
+	for (const auto& config : kConfigs) {
 		for (const SvfMode mode : {SvfMode::BAND, SvfMode::NOTCH}) {
 			filters_reference::ReferenceStateVariableFilter reference;
 			reference.zero(); // no fade: the step alone
@@ -112,12 +114,14 @@ std::size_t loud_partings() {
 			std::vector<q31> scratch(expected.size());
 			reference.render_mono(expected, scratch);
 
-			const Svf::Coefficients c = Svf::coefficients({.gain = kOneQ31, .config = config, .mode = mode});
+			const Svf::Coefficients c =
+			    Svf::coefficients({.gain = kOneQ31, .config = filters_reference::typed(config), .mode = mode});
 			Svf::State s{};
 			const std::vector<q31> in = loud_block();
 			for (std::size_t i = 0; i < in.size(); ++i) {
-				const q31 out = mode == SvfMode::BAND ? Svf::step<Svf::Mode::BAND>(c, {}, s, in[i])
-				                                      : Svf::step<Svf::Mode::NOTCH>(c, {}, s, in[i]);
+				const q31 out = mode == SvfMode::BAND
+				                    ? Svf::step<Svf::Mode::BAND>(c, {}, s, Q<31>::from_raw(in[i])).raw()
+				                    : Svf::step<Svf::Mode::NOTCH>(c, {}, s, Q<31>::from_raw(in[i])).raw();
 				parted += out != expected[i] ? 1 : 0;
 			}
 		}
@@ -146,11 +150,11 @@ describe svf("Svf", ${
 	});
 
 	it("passes the gain through as its compensation, as the reference's configure returns it", _ {
-		for (const FilterConfig& config : kConfigs) {
+		for (const auto& config : kConfigs) {
 			for (const SvfMode mode : {SvfMode::BAND, SvfMode::NOTCH}) {
 				for (const q31 gain : {q31{0}, q31{1 << 29}, q31{kOneQ31}}) {
 					filters_reference::ReferenceStateVariableFilter reference;
-					const Svf::Coefficients c = Svf::coefficients({.gain = gain, .config = config, .mode = mode});
+					const Svf::Coefficients c = Svf::coefficients({.gain = gain, .config = filters_reference::typed(config), .mode = mode});
 					expect(Svf::gain(c)).to_equal(reference.configure(gain, config, mode));
 					expect(Svf::gain(c)).to_equal(gain);
 				}
@@ -159,9 +163,9 @@ describe svf("Svf", ${
 	});
 
 	it("maps the slot's mode onto its own", _ {
-		const FilterConfig config = kConfigs[1];
-		expect(Svf::coefficients({.gain = 0, .config = config, .mode = SvfMode::BAND}).mode).to_equal(Svf::Mode::BAND);
-		expect(Svf::coefficients({.gain = 0, .config = config, .mode = SvfMode::NOTCH}).mode)
+		const auto config = kConfigs[1];
+		expect(Svf::coefficients({.gain = 0, .config = filters_reference::typed(config), .mode = SvfMode::BAND}).mode).to_equal(Svf::Mode::BAND);
+		expect(Svf::coefficients({.gain = 0, .config = filters_reference::typed(config), .mode = SvfMode::NOTCH}).mode)
 		    .to_equal(Svf::Mode::NOTCH);
 	});
 });

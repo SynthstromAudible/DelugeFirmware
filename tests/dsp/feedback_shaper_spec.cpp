@@ -68,8 +68,9 @@ static_assert(FeedbackShaper::Coefficients{}.mode == Mode::DIGITAL);
 static_assert(FeedbackShaper::coefficients({}).mode == FeedbackShaper::Coefficients{}.mode,
               "the default settings name the default mode");
 static_assert(FeedbackShaper::coefficients({.analog = true}).mode == Mode::ANALOG);
-static_assert(FeedbackShaper::coefficients({.feedback = 123, .drive = 5}).feedback == 123);
-static_assert(FeedbackShaper::coefficients({.feedback = 123, .drive = 5}).drive == 5);
+static_assert(FeedbackShaper::coefficients({.feedback = deluge::dsp::Q<31>::from_raw(123), .drive = 5}).feedback.raw()
+              == 123);
+static_assert(FeedbackShaper::coefficients({.feedback = deluge::dsp::Q<31>::from_raw(123), .drive = 5}).drive == 5);
 static_assert(FeedbackShaper::Settings{}.drive == 8 && FeedbackShaper::Coefficients{}.drive == 8);
 
 /// The extremes of q31.
@@ -159,8 +160,9 @@ std::vector<q31> interleaved(std::span<const StereoSample> frames) {
 
 /// The kernel's settings for the delay's @p block.
 FeedbackShaper::Settings settings_of(const ReferenceBlock& block) {
-	return {
-	    .feedback = block.feedback, .analog = block.analog, .drive = static_cast<uint32_t>(block.analog_saturation)};
+	return {.feedback = deluge::dsp::Q<31>::from_raw(block.feedback),
+	        .analog = block.analog,
+	        .drive = static_cast<uint32_t>(block.analog_saturation)};
 }
 
 /// A shaper and its reference, run block by block over the same input.

@@ -52,8 +52,8 @@ namespace deluge::dsp::fixed {
 ///
 /// **Gain.** The filter changes no level going in: @ref gain returns the gain the owner set.
 struct Svf {
-	using value_type = q31; ///< A sample, Q31.
-	using step_type = q31;  ///< A sample, Q31: one step per sample.
+	using value_type = Q<31>; ///< A sample.
+	using step_type = Q<31>;  ///< A sample: one step per sample.
 
 	/// @brief Which outputs the morph blends.
 	enum class Mode : uint8_t {
@@ -64,7 +64,7 @@ struct Svf {
 
 	/// @brief What the owner sets each block.
 	struct Settings {
-		q31 gain = 0; ///< The volume going in, in the owner's format: returned unchanged as the compensation.
+		int32_t gain = 0; ///< The volume going in, in the owner's format: returned unchanged as the compensation.
 		/// The cutoff, resonance (Q29) and morph (Q29). A high-pass slot passes its morph already inverted
 		/// ((1 << 29) - 1 - morph), so it sweeps high → band or notch → low.
 		FilterConfig config{};
@@ -73,20 +73,20 @@ struct Svf {
 
 	/// @brief What a step reads.
 	struct Coefficients {
-		Q<31> fc{};                ///< The integrators' rate, tan(f) / (1 + tan(f)) × 1.125, Q31.
-		Q<31> q{};                 ///< The damping, squared, Q31.
-		Q<31> in{};                ///< The input's scale, Q31: the square root of the damping, so the level holds.
-		Q<31> c_low{};             ///< The low outputs' weight in the blend, Q31.
-		Q<31> c_band{};            ///< The band outputs' weight in the blend (BAND only), Q31.
-		Q<31> c_high{};            ///< The high outputs' weight in the blend, Q31.
-		q31 gain_compensation = 0; ///< The gain the owner set, which @ref gain returns.
-		Mode mode = Mode::BAND;    ///< Which outputs the blend reads, dispatched on once per block.
+		Q<31> fc{};                    ///< The integrators' rate, tan(f) / (1 + tan(f)) × 1.125, Q31.
+		Q<31> q{};                     ///< The damping, squared, Q31.
+		Q<31> in{};                    ///< The input's scale, Q31: the square root of the damping, so the level holds.
+		Q<31> c_low{};                 ///< The low outputs' weight in the blend, Q31.
+		Q<31> c_band{};                ///< The band outputs' weight in the blend (BAND only), Q31.
+		Q<31> c_high{};                ///< The high outputs' weight in the blend, Q31.
+		int32_t gain_compensation = 0; ///< The gain the owner set, which @ref gain returns.
+		Mode mode = Mode::BAND;        ///< Which outputs the blend reads, dispatched on once per block.
 	};
 
 	/// @brief One channel's integrators, Q31. State{} is silence.
 	struct State {
-		q31 low = 0;  ///< The low-pass integrator.
-		q31 band = 0; ///< The band-pass integrator, saturated at the end of each step.
+		Q<31> low{};  ///< The low-pass integrator.
+		Q<31> band{}; ///< The band-pass integrator, saturated at the end of each step.
 	};
 
 	/// @brief Half of the morph's Q31 range, 2^30 − 1, where the BAND blend's two halves meet.
@@ -100,14 +100,14 @@ struct Svf {
 	/// and its upper half band → high, each at twice the rate, so no weight overflows.
 	[[nodiscard]] [[gnu::always_inline]] static Coefficients coefficients(const Settings& s) {
 		Coefficients c{};
-		auto morph = as_clamp_then_shift<Q<31>>(Q<29>::from_raw(s.config.morph));
+		auto morph = as_clamp_then_shift<Q<31>>(s.config.morph);
 		const Q<31> fc = curve_frequency(s.config.frequency).fc;
 		// 2^29 − 1 as a high-word multiplier is an eighth, one LSB short.
 		constexpr auto kEighth = UQ<32>::from_raw(static_cast<uint32_t>(Q<31>::max().raw() / 4));
 		c.fc = add_wrap(fc, mul(kEighth, fc));
 
 		c.mode = s.mode == SvfMode::BAND ? Mode::BAND : Mode::NOTCH;
-		const Q<31> damping = sub_wrap(Q<31>::max(), as_wrap<Q<31>>(Q<29>::from_raw(s.config.resonance)));
+		const Q<31> damping = sub_wrap(Q<31>::max(), as_wrap<Q<31>>(s.config.resonance));
 		c.in = add_wrap(halve_floor(damping), kHalf);
 		c.q = mul_r_as_wrap<Q<31>>(damping, damping);
 
@@ -135,7 +135,7 @@ struct Svf {
 	}
 
 	/// @brief The gain compensation: the gain the owner set, unchanged.
-	[[nodiscard]] [[gnu::always_inline]] static constexpr q31 gain(const Coefficients& c) {
+	[[nodiscard]] [[gnu::always_inline]] static constexpr int32_t gain(const Coefficients& c) {
 		return c.gain_compensation;
 	}
 
@@ -146,12 +146,12 @@ struct Svf {
 	/// @param x The input, Q31.
 	/// @return The blend, Q31.
 	template <Mode M>
-	[[nodiscard]] [[gnu::always_inline]] static q31 step(const Coefficients& c, const EmptyBlock& /*b*/, State& s,
-	                                                     q31 x) {
+	[[nodiscard]] [[gnu::always_inline]] static Q<31> step(const Coefficients& c, const EmptyBlock& /*b*/, State& s,
+	                                                       Q<31> x) {
 		// x × in at Q30, read as Q31: each pass runs at half the input's level.
-		const auto input = reinterpret_bits<Q<31>>(mul(c.in, Q<31>::from_raw(x)));
-		Q<31> low = Q<31>::from_raw(s.low);
-		Q<31> band = Q<31>::from_raw(s.band);
+		const auto input = reinterpret_bits<Q<31>>(mul(c.in, x));
+		Q<31> low = s.low;
+		Q<31> band = s.band;
 
 		low = add_wrap(low, mul_as_wrap<Q<31>>(band, c.fc));
 		Q<31> high = sub_wrap(sub_wrap(input, low), mul_as_wrap<Q<31>>(band, c.q));
@@ -176,10 +176,10 @@ struct Svf {
 			result = mla_r(result, band_sum, c.c_band);
 		}
 
-		s.low = low.raw();
-		s.band = tanh<kBandDrive>(band).raw();
+		s.low = low;
+		s.band = tanh<kBandDrive>(band);
 		// 3 × the Q30 blend, read as Q31: × 1.5.
-		return reinterpret_bits<Q<31>>(add_wrap(scale_shl_wrap<1>(result), result)).raw();
+		return reinterpret_bits<Q<31>>(add_wrap(scale_shl_wrap<1>(result), result));
 	}
 
 private:

@@ -53,7 +53,7 @@ static_assert(!std::is_polymorphic_v<FadeIn>);
 static_assert(mixer<Mono<FadeIn>>);
 static_assert(mixer<Mono<FadeInMono>>);
 static_assert(std::is_same_v<FadeIn::value_type, StereoSample>);
-static_assert(std::is_same_v<FadeInMono::value_type, q31>);
+static_assert(std::is_same_v<FadeInMono::value_type, Q<31>>);
 static_assert(std::is_same_v<FadeIn::State, FadeInMono::State>);
 
 using filter_workloads::WorkloadId;
@@ -105,7 +105,7 @@ WholeFade whole_fade(size_t frames) {
 		if (out != expected) {
 			result.parted.push_back("block " + std::to_string(result.blocks) + ": output");
 		}
-		if (kernel.state().dry != reference.dry() || kernel.state().wet != reference.wet()) {
+		if (kernel.state().dry != reference.dry() || kernel.state().wet.raw() != reference.wet()) {
 			result.parted.push_back("block " + std::to_string(result.blocks) + ": state");
 		}
 		++result.blocks;
@@ -134,25 +134,25 @@ describe fade_in("FadeIn", ${
 	it("starts where the legacy fade does: dry 1 and wet kOneQ31", _ {
 		const FadeIn::State s{};
 		expect(s.dry).to_equal(1.0F);
-		expect(s.wet).to_equal(kOneQ31);
+		expect(s.wet.raw()).to_equal(kOneQ31);
 	});
 
 	it("begins at dry 1 and wet 0, and zeroes to dry 0 and wet 0, which ends the fade", _ {
-		FadeIn::State s{.dry = 0.5F, .wet = 123};
+		FadeIn::State s{.dry = 0.5F, .wet = Q<31>::from_raw(123)};
 		FadeIn::begin(s);
 		expect(s.dry).to_equal(1.0F);
-		expect(s.wet).to_equal(q31{0});
+		expect(s.wet.raw()).to_equal(q31{0});
 		expect(FadeIn::active(s)).to_be_true();
 		FadeIn::zero(s);
 		expect(s.dry).to_equal(0.0F);
-		expect(s.wet).to_equal(q31{0});
+		expect(s.wet.raw()).to_equal(q31{0});
 		expect(FadeIn::active(s)).to_be_false();
 	});
 
 	it("is active while the dry level, compared as a double, is not below 0.001", _ {
-		expect(FadeIn::active({.dry = 0.001F, .wet = 0})).to_be_true();
-		expect(FadeIn::active({.dry = std::nextafter(0.001F, 0.0F), .wet = 0})).to_be_false();
-		expect(FadeIn::active({.dry = std::nanf(""), .wet = 0})).to_be_true();
+		expect(FadeIn::active({.dry = 0.001F, .wet = Q<31>{}})).to_be_true();
+		expect(FadeIn::active({.dry = std::nextafter(0.001F, 0.0F), .wet = Q<31>{}})).to_be_false();
+		expect(FadeIn::active({.dry = std::nanf(""), .wet = Q<31>{}})).to_be_true();
 	});
 
 	it("fades in as the legacy fade does, a whole fade at every block length 1–9, stepping per channel in stereo", _ {

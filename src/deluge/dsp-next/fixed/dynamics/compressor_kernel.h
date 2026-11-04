@@ -235,7 +235,7 @@ struct Compressor {
 		s.loop.sum = 0;
 		s.n = static_cast<uint32_t>(n);
 		// Each detector's own memory as the frame before the first: it high-passes to 0 and leaves the memory as it is.
-		s.loop.pending = {.l = s.loop.detector_l.z, .r = s.loop.detector_r.z};
+		s.loop.pending = {.l = s.loop.detector_l.z.raw(), .r = s.loop.detector_r.z.raw()};
 
 		// The steps that reach the target gains by the end of the block, 13.18 lifted to 5.26. Each quotient is within
 		// ±2^24 (a target and a gain each within 2^23), so its conversion is defined. A step of 32 or more per frame
@@ -332,11 +332,12 @@ private:
 	/// magnitude squared (the high word of an unsigned 32×32 product).
 	[[gnu::always_inline]] static void measure(const Coefficients& c, Loop& s, StereoSample y) {
 		// The output less its one-pole low-pass, wrapping as the target's `sub` does.
-		const OnePole::Coefficients detector{.m = c.detector_moveability, .mode = OnePole::Mode::HIGH_PASS};
-		const uint32_t l =
-		    magnitude(OnePole::step<OnePole::Mode::HIGH_PASS>(detector, EmptyBlock{}, s.detector_l, y.l));
-		const uint32_t r =
-		    magnitude(OnePole::step<OnePole::Mode::HIGH_PASS>(detector, EmptyBlock{}, s.detector_r, y.r));
+		const OnePole::Coefficients detector{.m = Q<31>::from_raw(c.detector_moveability),
+		                                     .mode = OnePole::Mode::HIGH_PASS};
+		const uint32_t l = magnitude(
+		    OnePole::step<OnePole::Mode::HIGH_PASS>(detector, EmptyBlock{}, s.detector_l, Q<31>::from_raw(y.l)).raw());
+		const uint32_t r = magnitude(
+		    OnePole::step<OnePole::Mode::HIGH_PASS>(detector, EmptyBlock{}, s.detector_r, Q<31>::from_raw(y.r)).raw());
 		const uint64_t larger = l > r ? l : r;
 		s.sum += static_cast<int64_t>((larger * larger) >> 32);
 	}

@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "dsp-next/core/buffer_view.h"
 #include "dsp-next/core/chain.h"
 #include "dsp-next/core/concepts.h"
 #include "dsp-next/core/frame.h"
@@ -35,7 +36,6 @@
 
 #include "loop_state_kernels.h"
 
-#include "raw_shaping.h"
 #include <argon.hpp>
 #include <array>
 #include <bit>
@@ -51,20 +51,22 @@ using namespace deluge::dsp;
 
 namespace {
 
-/// fixed::Tanh<Drive> over raw q31, converting at entry and exit: a stateless part that can sit in the raw chains here.
-template <uint32_t Drive>
-struct RawTanh {
+/// A typed processor kernel K without modes over raw q31: K's arithmetic, each sample converted at entry and exit, so
+/// it can sit among the raw test parts here.
+template <class K>
+struct Raw {
 	using value_type = q31;
 	using step_type = q31;
-	struct Settings {};
-	struct Coefficients {};
-	struct State {};
-	[[nodiscard]] static constexpr Coefficients coefficients(const Settings& /*s*/) { return {}; }
-	[[nodiscard]] [[gnu::always_inline]] static q31 step(const Coefficients& /*c*/, const EmptyBlock& /*b*/,
-	                                                     State& /*s*/, q31 x) {
-		return raw_shaping::tanh<Drive>(x);
+	using Settings = K::Settings;
+	using Coefficients = K::Coefficients;
+	using State = K::State;
+	[[nodiscard]] static constexpr Coefficients coefficients(const Settings& s) { return K::coefficients(s); }
+	[[nodiscard]] [[gnu::always_inline]] static q31 step(const Coefficients& c, const EmptyBlock& b, State& s, q31 x) {
+		return K::step(c, b, s, deluge::dsp::Q<31>::from_raw(x)).raw();
 	}
 };
+template <uint32_t Drive>
+using RawTanh = Raw<fixed::Tanh<Drive>>;
 
 using fixed::DuckEnvelope;
 using fixed::OnePole;
@@ -275,7 +277,8 @@ static_assert(processor_kernel<AddK> && processor_kernel<ScaleK> && generator_ke
               && processor_kernel<QuirkK> && staged_kernel<StagedK> && processor_kernel<VecK>
               && processor_kernel<VecCountedK> && control_kernel<DuckEnvelope>);
 
-using Three = Chain<AddK, ScaleK, Remove>;
+using RawRemove = Raw<Remove>;
+using Three = Chain<AddK, ScaleK, RawRemove>;
 using Inner = Chain<AddK, ScaleK>;
 using Nested = Chain<Inner, RawTanh<3>>;
 using Flat = Chain<AddK, ScaleK, RawTanh<3>>;
@@ -297,7 +300,7 @@ static_assert(processor_kernel<Nested> && processor_kernel<Flat>);
 static_assert(processor<Mono<Three>> && processor<Stereo<Three>> && generator<Mono<Generated>> && mixer<Mono<Mixed>>);
 static_assert(std::same_as<Three::value_type, q31> && std::same_as<Three::step_type, q31>);
 static_assert(std::same_as<Three::part_t<0>, AddK> && std::same_as<Three::part_t<1>, ScaleK>
-              && std::same_as<Three::part_t<2>, Remove>);
+              && std::same_as<Three::part_t<2>, RawRemove>);
 
 // prepare and reset are declared exactly when a part declares one.
 static_assert(detail::declares_prepare<Three> && detail::prepares_exactly<Three>);
@@ -331,7 +334,7 @@ using FilteredBoth = Chain<OnePole, Tracker>;
 
 // A chain's mode is its moded parts' modes; a chain of unmoded parts stays unmoded.
 static_assert(moded_kernel<Picked> && processor_kernel<Picked> && moded_kernel<PickedAround>);
-static_assert(moded_kernel<Filtered> && moded_kernel<FilteredBoth> && moded_kernel<Chain<Filtered, RawTanh<3>>>);
+static_assert(moded_kernel<Filtered> && moded_kernel<FilteredBoth> && moded_kernel<Chain<Filtered, fixed::Tanh<3>>>);
 static_assert(!detail::has_modes<Three> && !detail::has_modes<Nested> && !detail::has_modes<Chain<Remove, Remove>>);
 static_assert(std::same_as<std::remove_cv_t<decltype(Picked::Coefficients{}.mode)>, Picked::Mode>);
 static_assert(detail::plain_value<Picked::Coefficients> && detail::plain_value<Filtered::Coefficients>
@@ -421,7 +424,7 @@ struct Sequential {
 	void render_block(const std::vector<q31>& in, std::vector<q31>& out) {
 		add.render_block(in, out);
 		scale.render_block(out, out);
-		remove.render_block(out, out);
+		remove.render_block(typed_view(std::span{out}), typed_view(std::span{out}));
 	}
 };
 
@@ -460,7 +463,7 @@ constexpr std::array<OnePole::Mode, 4> kFilterModes{OnePole::Mode::LOW_PASS, One
 
 /// The filtering chain's settings at @p mode: a one-pole at a fixed moveability, then the pinned tracker.
 Filtered::Settings filtered_settings(OnePole::Mode mode) {
-	return Filtered::Settings{OnePole::Settings{.moveability = 0x0c000000, .mode = mode},
+	return Filtered::Settings{OnePole::Settings{.moveability = Q<31>::from_raw(0x0c000000), .mode = mode},
 	                          Remove::Settings{.mode = Tracker::Mode::TRACK}};
 }
 
@@ -485,25 +488,25 @@ LanesRun run_lanes_and_monos() {
 			const Filtered::Settings settings = filtered_settings(kFilterModes[block]);
 			out_of_place.configure(settings);
 			in_place.configure(settings);
-			std::vector<Frame<q31, N>> frames(n);
+			std::vector<Frame<Q<31>, N>> frames(n);
 			std::vector<std::vector<q31>> want(N);
 			for (std::size_t lane = 0; lane < N; ++lane) {
 				const std::vector<q31> in = noise(n, 0xa11 + static_cast<uint32_t>((lane * 131) + (block * 7) + n));
 				for (std::size_t i = 0; i < n; ++i) {
-					frames[i][lane] = in[i];
+					frames[i][lane] = Q<31>::from_raw(in[i]);
 				}
 				monos[lane].configure(settings);
 				want[lane].resize(n);
-				monos[lane].render_block(in, want[lane]);
+				monos[lane].render_block(typed_view(std::span{in}), typed_view(std::span{want[lane]}));
 			}
-			std::vector<Frame<q31, N>> got(n);
+			std::vector<Frame<Q<31>, N>> got(n);
 			out_of_place.render_block(frames, got);
 			in_place.render_block(frames, frames);
-			for (const std::vector<Frame<q31, N>>* result : {&got, &frames}) {
+			for (const std::vector<Frame<Q<31>, N>>* result : {&got, &frames}) {
 				for (std::size_t lane = 0; lane < N; ++lane) {
 					std::vector<q31> samples;
-					for (const Frame<q31, N>& f : *result) {
-						samples.push_back(f[lane]);
+					for (const Frame<Q<31>, N>& f : *result) {
+						samples.push_back(f[lane].raw());
 					}
 					run.got.push_back(samples);
 					run.want.push_back(want[lane]);
@@ -705,9 +708,9 @@ describe chain("Chain", ${
 		for (const auto& [now, before] : {std::pair{chain.left(), left}, std::pair{chain.right(), right}}) {
 			expect(bytes_of(get<0>(now))).to_equal(bytes_of(get<0>(before)));
 			expect(bytes_of(get<1>(now))).to_equal(bytes_of(get<1>(before)));
-			expect(get<2>(now).y).to_equal(0);
+			expect(get<2>(now).y.raw()).to_equal(0);
 		}
-		expect(get<2>(left).y).not_().to_equal(0);
+		expect(get<2>(left).y.raw()).not_().to_equal(0);
 	});
 
 	it("steps a pinned kernel at its pinned mode, whatever its settings say", _ {
@@ -721,9 +724,9 @@ describe chain("Chain", ${
 				std::vector<q31> got(n);
 				std::vector<q31> removed(n);
 				std::vector<q31> tracked(n);
-				pinned.render_block(in, got);
-				removing.render_block(in, removed);
-				tracking.render_block(in, tracked);
+				pinned.render_block(typed_view(std::span{in}), typed_view(std::span{got}));
+				removing.render_block(typed_view(std::span{in}), typed_view(std::span{removed}));
+				tracking.render_block(typed_view(std::span{in}), typed_view(std::span{tracked}));
 				expect(got).to_equal(removed);
 				expect(got).not_().to_equal(tracked);
 			}
@@ -871,9 +874,9 @@ describe chain("Chain", ${
 				const std::vector<q31> in = noise(n, 0xf11 + static_cast<uint32_t>((block * 13) + n));
 				std::vector<q31> fused_out(n);
 				std::vector<q31> parts_out(n);
-				fused.render_block(in, fused_out);
-				filter.render_block(in, parts_out);
-				remove.render_block(parts_out, parts_out);
+				fused.render_block(typed_view(std::span{in}), typed_view(std::span{fused_out}));
+				filter.render_block(typed_view(std::span{in}), typed_view(std::span{parts_out}));
+				remove.render_block(typed_view(std::span{parts_out}), typed_view(std::span{parts_out}));
 				got.push_back(fused_out);
 				want.push_back(parts_out);
 			}
@@ -884,7 +887,7 @@ describe chain("Chain", ${
 	});
 
 	it("nests a moded chain: the outer chain's mode holds the inner chain's", _ {
-		using Shaped = Chain<Filtered, RawTanh<3>>;
+		using Shaped = Chain<Filtered, fixed::Tanh<3>>;
 		for (std::size_t n = 1; n <= kMaxLength; ++n) {
 			Mono<Shaped> nested;
 			Mono<Filtered> filtered;
@@ -898,8 +901,8 @@ describe chain("Chain", ${
 				const std::vector<q31> in = noise(n, 0xb0b + static_cast<uint32_t>((block * 3) + n));
 				std::vector<q31> nested_out(n);
 				std::vector<q31> parts_out(n);
-				nested.render_block(in, nested_out);
-				filtered.render_block(in, parts_out);
+				nested.render_block(typed_view(std::span{in}), typed_view(std::span{nested_out}));
+				filtered.render_block(typed_view(std::span{in}), typed_view(std::span{parts_out}));
 				shape.render_block(parts_out, parts_out);
 				got.push_back(nested_out);
 				want.push_back(parts_out);
@@ -959,8 +962,8 @@ describe chain("Chain", ${
 				}
 				std::vector<q31> want_l(n);
 				std::vector<q31> want_r(n);
-				left.render_block(l, want_l);
-				right.render_block(r, want_r);
+				left.render_block(typed_view(std::span{l}), typed_view(std::span{want_l}));
+				right.render_block(typed_view(std::span{r}), typed_view(std::span{want_r}));
 				std::vector<StereoSample> want(n);
 				for (std::size_t i = 0; i < n; ++i) {
 					want[i] = {.l = want_l[i], .r = want_r[i]};
@@ -998,8 +1001,8 @@ describe chain("Chain", ${
 		chain.render_block(frames, frames);
 		const Filtered::State left = chain.left();
 		const Filtered::State right = chain.right();
-		expect(get<1>(left).y).not_().to_equal(0);
-		expect(get<1>(right).y).not_().to_equal(0);
+		expect(get<1>(left).y.raw()).not_().to_equal(0);
+		expect(get<1>(right).y.raw()).not_().to_equal(0);
 
 		chain.on<&Filtered::reset_part<1>>();
 		for (const auto& [now, before] : {std::pair{chain.left(), left}, std::pair{chain.right(), right}}) {

@@ -69,7 +69,6 @@ namespace filters_reference {
 
 using deluge::dsp::q31;
 using deluge::dsp::StereoSample;
-using deluge::dsp::fixed::FilterConfig;
 using deluge::dsp::fixed::FilterRoute;
 using deluge::dsp::fixed::HighPassSlot;
 using deluge::dsp::fixed::kBilinearTableInterpolator;
@@ -77,6 +76,25 @@ using deluge::dsp::fixed::kLinearTableInterpolator;
 using deluge::dsp::fixed::LowPassLadderMode;
 using deluge::dsp::fixed::LowPassSlot;
 using deluge::dsp::fixed::SvfMode;
+
+/// @brief One block's filter settings as raw words, as the references read them: the cutoff Q31, the resonance and
+/// morph Q29. @ref typed gives the kernels' FilterConfig.
+struct FilterConfig {
+	q31 frequency;
+	q31 resonance;
+	q31 morph;
+	bool allow_oversampling;
+};
+
+/// @brief @p c as the kernels' typed FilterConfig.
+[[nodiscard]] constexpr deluge::dsp::fixed::FilterConfig typed(const FilterConfig& c) {
+	return {
+	    .frequency = deluge::dsp::Q<31>::from_raw(c.frequency),
+	    .resonance = deluge::dsp::Q<29>::from_raw(c.resonance),
+	    .morph = deluge::dsp::Q<29>::from_raw(c.morph),
+	    .allow_oversampling = c.allow_oversampling,
+	};
+}
 
 /// @brief A 64-bit FNV-1a over 32-bit words: what the records pin.
 struct Digest {

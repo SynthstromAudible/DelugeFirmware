@@ -46,7 +46,7 @@ std::vector<q31> cutoffs() {
 std::size_t partings(const std::vector<q31>& frequencies) {
 	std::size_t parted = 0;
 	for (const q31 frequency : frequencies) {
-		const auto curved = curve_frequency(frequency);
+		const auto curved = curve_frequency(deluge::dsp::Q<31>::from_raw(frequency));
 		const filters_reference::CurvedFrequency reference = filters_reference::curve_frequency(frequency);
 		parted += curved.tanned.raw() != reference.tanned
 		                  || curved.divide_by_one_plus_tanned.raw() != reference.divide_by_one_plus_tanned
@@ -67,7 +67,7 @@ describe curve_frequency_spec("curve_frequency", ${
 	// Cutoff 0 divides one at Q58 by one at Q27: 2^31, one past q31's top. The A9's VCVT saturates it to INT32_MAX,
 	// one at Q31, and so does every target.
 	it("gives cutoff 0 a reciprocal of one, saturated, and no moveability, on every target", _ {
-		const auto curved = curve_frequency(0);
+		const auto curved = curve_frequency(deluge::dsp::Q<31>{});
 		expect(curved.tanned.raw()).to_equal(0);
 		expect(curved.divide_by_one_plus_tanned.raw()).to_equal(INT32_MAX);
 		expect(curved.fc.raw()).to_equal(0);

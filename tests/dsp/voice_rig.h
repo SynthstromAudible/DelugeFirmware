@@ -14,6 +14,7 @@
 #include "fake_voice_ports.h"
 #include "synth/voice/voice.h"
 
+#include "dsp-next/core/buffer_view.h"
 #include "dsp-next/fixed/noise/cong.h"
 #include "modulation/params/param.h"
 
@@ -145,7 +146,8 @@ inline bool render_block(Rig& rig, const NoteSetup& setup, const VoiceConfig& cf
 	        .num_samples = kBlock,
 	        .pitch_adjust = kMaxSampleValue,
 	        .spare_buffers = {rig.spare[0].data(), rig.spare[1].data(), rig.spare[2].data(), rig.spare[3].data()},
-	        .filter_scratch = {.fade = rig.fade, .parallel = rig.parallel},
+	        .filter_scratch = {.fade = deluge::dsp::typed_view(std::span{rig.fade}),
+	                           .parallel = deluge::dsp::typed_view(std::span{rig.parallel})},
 	        .sync_scratch = rig.sync,
 	        .noise = &rig.noise,
 	    });

@@ -366,7 +366,7 @@ void ShiftTrackerCase::setup(std::size_t n) {
 }
 
 void ShiftTrackerCase::block(std::size_t /*n*/) {
-	mono_.render_block(spans_.a, spans_.out);
+	mono_.render_block(dsp::typed_view(spans_.a), dsp::typed_view(spans_.out));
 }
 
 template <OnePole::Mode M>
@@ -379,7 +379,7 @@ void OnePoleCase<M>::setup(std::size_t n) {
 
 template <OnePole::Mode M>
 void OnePoleCase<M>::block(std::size_t /*n*/) {
-	mono_.render_block(spans_.a, spans_.out);
+	mono_.render_block(dsp::typed_view(spans_.a), dsp::typed_view(spans_.out));
 }
 
 template class OnePoleCase<OnePole::Mode::LOW_PASS>;
@@ -455,7 +455,7 @@ void SupersawCase::block(std::size_t /*n*/) {
 
 template <std::size_t N>
 void LanesOnePoleCase<N>::setup(std::size_t n) {
-	spans_ = frame_spans<dsp::Frame<q31, N>>(n);
+	spans_ = frame_spans<dsp::Frame<dsp::Q<31>, N>>(n);
 	fill(shared.lanes_input, kSeed);
 	lanes_.configure({.moveability = kMoveability, .mode = OnePole::Mode::LOW_PASS});
 	lanes_.reset();
@@ -471,7 +471,7 @@ template class LanesOnePoleCase<4>;
 
 template <std::size_t N>
 void LanesShiftTrackerCase<N>::setup(std::size_t n) {
-	spans_ = frame_spans<dsp::Frame<q31, N>>(n);
+	spans_ = frame_spans<dsp::Frame<dsp::Q<31>, N>>(n);
 	fill(shared.lanes_input, kSeed);
 	lanes_.configure({.mode = ShiftTrackerCase::Tracker::Mode::REMOVE});
 	lanes_.reset();
@@ -540,21 +540,21 @@ void Chain3PassesCase::setup(std::size_t n) {
 
 void Chain3PassesCase::block(std::size_t /*n*/) {
 	tanh_.render_block(dsp::typed_view(spans_.a), dsp::typed_view(spans_.out));
-	low_pass_.render_block(written_, spans_.out);
-	high_pass_.render_block(written_, spans_.out);
+	low_pass_.render_block(dsp::typed_view(written_), dsp::typed_view(spans_.out));
+	high_pass_.render_block(dsp::typed_view(written_), dsp::typed_view(spans_.out));
 }
 
 void Chain3FusedCase::setup(std::size_t n) {
 	spans_ = spans(n);
 	fill_inputs();
-	chain_.configure(Chain3::Settings{Chain3Tanh::Settings{},
+	chain_.configure(Chain3::Settings{Tanh3Case::Kernel::Settings{},
 	                                  Chain3LowPass::Settings{.moveability = OnePoleLowPassCase::kMoveability},
 	                                  DelayHighPass::Settings{}});
 	chain_.reset();
 }
 
 void Chain3FusedCase::block(std::size_t /*n*/) {
-	chain_.render_block(spans_.a, spans_.out);
+	chain_.render_block(dsp::typed_view(spans_.a), dsp::typed_view(spans_.out));
 }
 
 CaseSet& case_set() {

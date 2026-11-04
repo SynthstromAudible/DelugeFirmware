@@ -98,9 +98,9 @@ inline constexpr std::array<int16_t, 65> kResonanceLimits = {
 /// @tparam Noise The noise stream the block draws from: a @ref noise_stream, each `next()` the next draw.
 template <noise_stream Noise = Cong>
 struct LowPassLadder {
-	using value_type = q31; ///< A sample, Q31.
-	using step_type = q31;  ///< A sample, Q31: one step per sample.
-	using Context = Noise;  ///< The noise stream the block draws from: one draw per step, two when oversampled.
+	using value_type = Q<31>; ///< A sample.
+	using step_type = Q<31>;  ///< A sample: one step per sample.
+	using Context = Noise;    ///< The noise stream the block draws from: one draw per step, two when oversampled.
 
 	/// @brief Which ladder runs.
 	enum class Ladder : uint8_t {
@@ -144,7 +144,7 @@ struct LowPassLadder {
 
 	/// @brief What the owner sets each block.
 	struct Settings {
-		q31 gain = 0; ///< The volume going in, in the owner's format.
+		int32_t gain = 0; ///< The volume going in, in the owner's format.
 		/// The cutoff (Q31, lifted by 2^5 onto the tan table: see @ref FilterConfig::frequency), the resonance (Q29)
 		/// and the morph (Q29), and whether the drive ladder may oversample.
 		FilterConfig config{};
@@ -162,8 +162,8 @@ struct LowPassLadder {
 		/// The first three sections' feedbacks, Q30; the 12dB ladder reads the first two.
 		// NOLINTNEXTLINE(cppcoreguidelines-avoid-c-arrays,modernize-avoid-c-arrays): indexing is no call
 		Q<30> feedbacks[3]{};
-		q31 gain_compensation = 0; ///< The gain going in, compensated for the resonance and mode, in its format.
-		Mode mode = Mode::T12;     ///< The ladder and its input form, dispatched on once per block.
+		int32_t gain_compensation = 0; ///< The gain going in, compensated for the resonance and mode, in its format.
+		Mode mode = Mode::T12;         ///< The ladder and its input form, dispatched on once per block.
 	};
 
 	/// @brief The noise follower: a one-pole at shift 7 over a quarter of each draw.
@@ -192,14 +192,15 @@ struct LowPassLadder {
 	/// held below 39056384, and its resonance is limited. Its gain is 0.8 of the gain going in.
 	[[nodiscard]] [[gnu::always_inline]] static Coefficients coefficients(const Settings& s) {
 		Coefficients c{};
-		c.morph = as_clamp_then_shift<Q<31>>(Q<29>::from_raw(s.config.morph));
-		q31 frequency = s.config.frequency;
+		c.morph = as_clamp_then_shift<Q<31>>(s.config.morph);
+		// Raw: the cutoff's log and its oversampling pull-back below are integer arithmetic on its Q31 bits
+		int32_t frequency = s.config.frequency.raw();
 		bool oversample = false;
 		Ladder ladder = Ladder::T12;
 
 		if (s.mode == LowPassLadderMode::TRANSISTOR_24DB_DRIVE) {
 			// Twice the resonance, Q30.
-			c.processed_resonance = as_wrap<Q<30>>(scale_shl_wrap<1>(Q<29>::from_raw(s.config.resonance)));
+			c.processed_resonance = as_wrap<Q<30>>(scale_shl_wrap<1>(s.config.resonance));
 
 			// Raw: a log cutoff, 2^24 per octave, and the integer table positions read from it.
 			int32_t log_frequency = quick_log(static_cast<uint32_t>(frequency));
@@ -229,9 +230,9 @@ struct LowPassLadder {
 		}
 		else {
 			constexpr auto kHowMuchToKeep = Q<31>::from_raw(Q<31>::max().raw() - 33);
-			constexpr int32_t kResonanceUpperLimit = 510000000; // above this it feeds back lots
-			const Q<31> damping = sub_wrap(
-			    Q<31>::max(), as_wrap<Q<31>>(Q<29>::from_raw(std::min(s.config.resonance, kResonanceUpperLimit))));
+			constexpr auto kResonanceUpperLimit = Q<29>::from_raw(510000000); // above this it feeds back lots
+			const Q<31> damping =
+			    sub_wrap(Q<31>::max(), as_wrap<Q<31>>(std::min(s.config.resonance, kResonanceUpperLimit)));
 			// 1 − damping² at Q31, read as Q30: twice it, as the drive ladder's is twice the resonance.
 			const auto fed_back =
 			    reinterpret_bits<Q<30>>(sub_wrap(Q<31>::max(), mul_r_as_wrap<Q<31>>(damping, damping)));
@@ -239,7 +240,7 @@ struct LowPassLadder {
 			ladder = s.mode == LowPassLadderMode::TRANSISTOR_12DB ? Ladder::T12 : Ladder::T24;
 		}
 
-		const CurvedFrequency curved = curve_frequency(frequency);
+		const CurvedFrequency curved = curve_frequency(Q<31>::from_raw(frequency));
 		c.divide_by_one_plus_tanned = curved.divide_by_one_plus_tanned;
 		const Q<31> m = std::max(curved.fc, Q<31>::from_raw(4317840));
 		c.moveability = m;
@@ -252,7 +253,7 @@ struct LowPassLadder {
 			const Q<26> loop_gain = mul_r(c.processed_resonance, mul_r(moveability_negative, mul_r(m, m)));
 			// Raw: an integer reciprocal, one at Q56 over the Q26 loop gain plus one, gives Q30.
 			c.divide_by_total_moveability_and_processed_resonance =
-			    Q<30>::from_raw(static_cast<q31>((int64_t{1} << 56) / add_wrap(Q<26>::one(), loop_gain).raw()));
+			    Q<30>::from_raw(static_cast<int32_t>((int64_t{1} << 56) / add_wrap(Q<26>::one(), loop_gain).raw()));
 		}
 		else {
 			c.feedbacks[2] = mul_r(c.divide_by_one_plus_tanned, m);
@@ -262,11 +263,11 @@ struct LowPassLadder {
 			const Q<26> loop_gain = mul_r(m, mul_r(m, mul_r(m, mul_r(m, c.processed_resonance))));
 			const Q<26> one_plus_loop_gain = add_wrap(Q<26>::one(), loop_gain);
 			// Raw: a double reciprocal, 2^56 over the Q26 loop gain plus one, gives Q30.
-			c.divide_by_total_moveability_and_processed_resonance =
-			    Q<30>::from_raw(static_cast<q31>(72057594037927936.0 / static_cast<double>(one_plus_loop_gain.raw())));
+			c.divide_by_total_moveability_and_processed_resonance = Q<30>::from_raw(
+			    static_cast<int32_t>(72057594037927936.0 / static_cast<double>(one_plus_loop_gain.raw())));
 		}
 
-		q31 gain = s.gain;
+		int32_t gain = s.gain;
 		if (s.mode != LowPassLadderMode::TRANSISTOR_24DB_DRIVE) {
 			// Extra feedback, but only while the cutoff is low enough not to alias: × 0.536 rather than a half.
 			if (curved.tanned <= Q<28>::from_raw(304587486)) {
@@ -277,7 +278,7 @@ struct LowPassLadder {
 			}
 
 			// 1 − (1 − r)², Q29, then the gain at 1/2 plus it.
-			const Q<29> cut = sub_wrap(Q<29>::one(), Q<29>::from_raw(std::min(s.config.resonance, int32_t{536870911})));
+			const Q<29> cut = sub_wrap(Q<29>::one(), std::min(s.config.resonance, Q<29>::from_raw(536870911)));
 			const Q<29> resonant = sub_wrap(Q<29>::one(), mul_as_wrap<Q<29>>(cut, cut));
 			const Q<29> gain_modifier = add_wrap(Q<29>::from_raw(268435456), resonant);
 			// Read as Q31 only to scale it: the Q29 factor moved back gives the same bits in any format.
@@ -285,7 +286,7 @@ struct LowPassLadder {
 		}
 		else {
 			// The drive ladder's output is louder.
-			gain = static_cast<q31>(gain * 0.8);
+			gain = static_cast<int32_t>(gain * 0.8);
 		}
 		c.gain_compensation = gain;
 
@@ -298,7 +299,7 @@ struct LowPassLadder {
 	}
 
 	/// @brief The gain compensation: the gain going in, in its format, compensated for the resonance and mode.
-	[[nodiscard]] [[gnu::always_inline]] static constexpr q31 gain(const Coefficients& c) {
+	[[nodiscard]] [[gnu::always_inline]] static constexpr int32_t gain(const Coefficients& c) {
 		return c.gain_compensation;
 	}
 
@@ -310,8 +311,8 @@ struct LowPassLadder {
 	/// @param noise The block's noise stream, drawn once (twice when oversampled).
 	/// @return The ladder's output, Q31.
 	template <Mode M>
-	[[nodiscard]] [[gnu::always_inline]] static q31 step(const Coefficients& c, const EmptyBlock& /*b*/, State& s,
-	                                                     q31 x, Noise& noise) {
+	[[nodiscard]] [[gnu::always_inline]] static Q<31> step(const Coefficients& c, const EmptyBlock& /*b*/, State& s,
+	                                                       Q<31> x, Noise& noise) {
 		constexpr Ladder kLadder = ladder_of(M);
 		constexpr Input kInput = input_of(M);
 		if constexpr (kLadder == Ladder::T12) {
@@ -326,7 +327,7 @@ struct LowPassLadder {
 				// is dropped (the ladder itself filters what that crude downsampling would alias).
 				std::ignore = drive_ladder<kInput>(c, s, x, noise);
 			}
-			return tanh<kOutputDrive>(Q<31>::from_raw(drive_ladder<kInput>(c, s, x, noise))).raw();
+			return tanh<kOutputDrive>(drive_ladder<kInput>(c, s, x, noise));
 		}
 	}
 
@@ -336,7 +337,7 @@ private:
 	/// @brief The lowest resonance the drive ladder oversamples above, Q30: its threshold table's least entry, which
 	/// the table holds at 2^-16 of the threshold, and any blend of two entries is at least that.
 	static constexpr auto kLowestOversamplingResonance = Q<30>::from_raw(
-	    q31{*std::ranges::min_element(low_pass_ladder_detail::kResonanceThresholdsForOversampling)} << 16);
+	    int32_t{*std::ranges::min_element(low_pass_ladder_detail::kResonanceThresholdsForOversampling)} << 16);
 	static_assert(kLowestOversamplingResonance > Q<30>{},
 	              "an oversampling drive ladder must always feed back: DRIVE_OVERSAMPLED has no other mode");
 	/// @brief The input saturation's drive, as a power of two.
@@ -348,9 +349,9 @@ private:
 
 	/// @brief This sample's moveability, Q31: the block's nudged by the channel's follower after one noise draw.
 	[[nodiscard]] [[gnu::always_inline]] static Q<31> noisy_moveability(const Coefficients& c, State& s, Noise& noise) {
-		const auto drawn = scale_shr_floor<2>(Q<31>::from_raw(static_cast<q31>(noise.next())));
-		const auto follower = Q<31>::from_raw(Follower::template step<Follower::Mode::TRACK>(
-		    Follower::Coefficients{}, EmptyBlock{}, s.noise, drawn.raw()));
+		const auto drawn = scale_shr_floor<2>(Q<31>::from_raw(static_cast<int32_t>(noise.next())));
+		const Q<31> follower =
+		    Follower::template step<Follower::Mode::TRACK>(Follower::Coefficients{}, EmptyBlock{}, s.noise, drawn);
 		// m × n at Q30, read as Q31: m × (1 + n/2).
 		return add_wrap(c.moveability, reinterpret_bits<Q<31>>(mul(c.moveability, follower)));
 	}
@@ -358,29 +359,30 @@ private:
 	/// @brief The input less the scaled feedback, normalised, Q31; saturated with the morph's share of the input
 	/// added when the morph is up or the resonance high.
 	/// @param feedbacks_sum The sections' feedback, Q31.
-	[[nodiscard]] [[gnu::always_inline]] static q31 scale_input(const Coefficients& c, q31 x, Q<31> feedbacks_sum) {
-		const auto input = Q<31>::from_raw(x);
+	[[nodiscard]] [[gnu::always_inline]] static Q<31> scale_input(const Coefficients& c, Q<31> input,
+	                                                              Q<31> feedbacks_sum) {
 		// 2 × R × the feedback, Q31.
 		const Q<31> fed_back = scale_shl_wrap<1>(mul_r_as_wrap<Q<31>>(feedbacks_sum, c.processed_resonance));
 		const Q<31> scaled =
 		    mul_r_as_wrap<Q<31>>(sub_wrap(input, fed_back), c.divide_by_total_moveability_and_processed_resonance);
 		if (c.morph > Q<31>{} || c.processed_resonance > kSaturateAbove) {
-			return tanh<kInputDrive>(add_wrap(scaled, mul_as_wrap<Q<31>>(input, c.morph))).raw();
+			return tanh<kInputDrive>(add_wrap(scaled, mul_as_wrap<Q<31>>(input, c.morph)));
 		}
-		return scaled.raw();
+		return scaled;
 	}
 
 	/// @brief The input normalised with nothing fed back, Q31: scale_input with the resonance and morph at zero.
 	/// @details R = 0 and D = 1 (Q30), so nothing is fed back, and x × 2^30 rounded off its low 32 bits is (x + 2) >>
 	/// 2, which the << 2 makes (x + 2) with its low two bits cleared, modulo 2^32.
-	[[nodiscard]] [[gnu::always_inline]] static q31 unresonant_input(q31 x) {
-		return static_cast<q31>((static_cast<uint32_t>(x) + 2u) & ~3u);
+	[[nodiscard]] [[gnu::always_inline]] static Q<31> unresonant_input(Q<31> x) {
+		// Raw: a rounding to a multiple of 4 that wraps at the top
+		return Q<31>::from_raw(static_cast<int32_t>((static_cast<uint32_t>(x.raw()) + 2u) & ~3u));
 	}
 
 	/// @brief One step of @p section at moveability @p m in mode @p M.
 	template <OnePole::Mode M>
-	[[nodiscard]] [[gnu::always_inline]] static q31 section_step(OnePole::State& section, Q<31> m, q31 x) {
-		return OnePole::step<M>(OnePole::Coefficients{.m = m.raw(), .mode = M}, EmptyBlock{}, section, x);
+	[[nodiscard]] [[gnu::always_inline]] static Q<31> section_step(OnePole::State& section, Q<31> m, Q<31> x) {
+		return OnePole::step<M>(OnePole::Coefficients{.m = m, .mode = M}, EmptyBlock{}, section, x);
 	}
 
 	/// @brief The last section's feedback amount: 1 / (1 + tan(f)), Q31, read as Q30.
@@ -399,16 +401,14 @@ private:
 	}
 
 	/// @brief A ladder's output, Q31: its last section's, doubled (wrapping) to make up the level.
-	[[nodiscard]] [[gnu::always_inline]] static q31 made_up(q31 y) {
-		return scale_shl_wrap<1>(Q<31>::from_raw(y)).raw();
-	}
+	[[nodiscard]] [[gnu::always_inline]] static Q<31> made_up(Q<31> y) { return scale_shl_wrap<1>(y); }
 
 	/// @brief One sample (Q31) through the half ladder, its input formed as @p I.
 	template <Input I>
-	[[nodiscard]] [[gnu::always_inline]] static q31 half_ladder(const Coefficients& c, State& s, q31 input,
-	                                                            Noise& noise) {
+	[[nodiscard]] [[gnu::always_inline]] static Q<31> half_ladder(const Coefficients& c, State& s, Q<31> input,
+	                                                              Noise& noise) {
 		const Q<31> m = noisy_moveability(c, s, noise);
-		q31 x = 0;
+		Q<31> x{};
 		if constexpr (I == Input::UNRESONANT) {
 			x = unresonant_input(input);
 		}
@@ -418,36 +418,36 @@ private:
 			                                     OnePole::feedback(s.sections[2], last_feedback(c)));
 			x = scale_input(c, input, feedbacks_sum);
 		}
-		const q31 a = section_step<OnePole::Mode::LOW_PASS>(s.sections[0], m, x);
-		const q31 b = section_step<OnePole::Mode::LOW_PASS>(s.sections[1], m, a);
+		const Q<31> a = section_step<OnePole::Mode::LOW_PASS>(s.sections[0], m, x);
+		const Q<31> b = section_step<OnePole::Mode::LOW_PASS>(s.sections[1], m, a);
 		return made_up(section_step<OnePole::Mode::ALL_PASS>(s.sections[2], m, b));
 	}
 
 	/// @brief One sample (Q31) through the full ladder, its input formed as @p I.
 	template <Input I>
-	[[nodiscard]] [[gnu::always_inline]] static q31 full_ladder(const Coefficients& c, State& s, q31 input,
-	                                                            Noise& noise) {
+	[[nodiscard]] [[gnu::always_inline]] static Q<31> full_ladder(const Coefficients& c, State& s, Q<31> input,
+	                                                              Noise& noise) {
 		const Q<31> m = noisy_moveability(c, s, noise);
-		const q31 x = I == Input::UNRESONANT ? unresonant_input(input) : scale_input(c, input, full_feedback(c, s));
+		const Q<31> x = I == Input::UNRESONANT ? unresonant_input(input) : scale_input(c, input, full_feedback(c, s));
 		return made_up(four_sections(s, m, x));
 	}
 
 	/// @brief One step (Q31) of the drive ladder, its feedback saturated (the input is not, as that is where it would
 	/// alias most); the output is not yet saturated. The input is formed as @p I.
 	template <Input I>
-	[[nodiscard]] [[gnu::always_inline]] static q31 drive_ladder(const Coefficients& c, State& s, q31 input,
-	                                                             Noise& noise) {
+	[[nodiscard]] [[gnu::always_inline]] static Q<31> drive_ladder(const Coefficients& c, State& s, Q<31> input,
+	                                                               Noise& noise) {
 		const Q<31> m = noisy_moveability(c, s, noise);
-		const q31 x = I == Input::UNRESONANT ? unresonant_input(input)
-		                                     : scale_input(c, input, tanh<kFeedbackDrive>(full_feedback(c, s)));
+		const Q<31> x = I == Input::UNRESONANT ? unresonant_input(input)
+		                                       : scale_input(c, input, tanh<kFeedbackDrive>(full_feedback(c, s)));
 		return made_up(four_sections(s, m, x));
 	}
 
 	/// @brief @p x through the four sections' low-passes in turn at moveability @p m.
-	[[nodiscard]] [[gnu::always_inline]] static q31 four_sections(State& s, Q<31> m, q31 x) {
-		const q31 a = section_step<OnePole::Mode::LOW_PASS>(s.sections[0], m, x);
-		const q31 b = section_step<OnePole::Mode::LOW_PASS>(s.sections[1], m, a);
-		const q31 d = section_step<OnePole::Mode::LOW_PASS>(s.sections[2], m, b);
+	[[nodiscard]] [[gnu::always_inline]] static Q<31> four_sections(State& s, Q<31> m, Q<31> x) {
+		const Q<31> a = section_step<OnePole::Mode::LOW_PASS>(s.sections[0], m, x);
+		const Q<31> b = section_step<OnePole::Mode::LOW_PASS>(s.sections[1], m, a);
+		const Q<31> d = section_step<OnePole::Mode::LOW_PASS>(s.sections[2], m, b);
 		return section_step<OnePole::Mode::LOW_PASS>(s.sections[3], m, d);
 	}
 };

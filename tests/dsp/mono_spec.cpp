@@ -696,7 +696,7 @@ struct SeriesPoles {
 	}
 	template <Mode M>
 	[[gnu::always_inline]] static q31 step(const Coefficients& c, const Block& b, State& s, q31 x) {
-		const q31 y = kernel_ops::step_at<Tracker, M>(c.first, b.first, s.first, x);
+		const q31 y = kernel_ops::step_at<Tracker, M>(c.first, b.first, s.first, deluge::dsp::Q<31>::from_raw(x)).raw();
 		return kernel_ops::step_at<BiasedPole, kernel_ops::NoMode::NONE>(c.second, b.second, s.second, y);
 	}
 };
@@ -1417,11 +1417,11 @@ describe mono("Mono", ${
 				const BiasedPole::Block b2 = BiasedPole::prepare({}, second, n);
 				for (std::size_t i = 0; i < n; ++i) {
 					const q31 y = mode == Tracker::Mode::TRACK
-					                  ? Tracker::step<Tracker::Mode::TRACK>(c1, {}, first, in[i])
-					                  : Tracker::step<Tracker::Mode::REMOVE>(c1, {}, first, in[i]);
+					                  ? Tracker::step<Tracker::Mode::TRACK>(c1, {}, first, Q<31>::from_raw(in[i])).raw()
+					                  : Tracker::step<Tracker::Mode::REMOVE>(c1, {}, first, Q<31>::from_raw(in[i])).raw();
 					expect(got[i]).to_equal(BiasedPole::step({}, b2, second, y));
 				}
-				expect(mono.state().first.y).to_equal(first.y);
+				expect(mono.state().first.y.raw()).to_equal(first.y.raw());
 				expect(mono.state().second.y).to_equal(second.y);
 			}
 		}

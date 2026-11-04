@@ -51,8 +51,8 @@ namespace deluge::dsp::fixed {
 /// **Feedback.** The ladders read z, scaled, for their resonance: @ref feedback and @ref feedback_unshifted read the
 /// state without stepping it.
 struct OnePole {
-	using value_type = q31; ///< A sample, Q31.
-	using step_type = q31;  ///< A sample, Q31: one step per sample.
+	using value_type = Q<31>; ///< A sample.
+	using step_type = Q<31>;  ///< A sample: one step per sample.
 
 	/// @brief What a step returns.
 	enum class Mode : uint8_t {
@@ -64,23 +64,23 @@ struct OnePole {
 
 	/// @brief What the owner sets.
 	struct Settings {
-		q31 moveability = 0;        ///< tan(f)/(1+tan(f)), Q31: 0 holds the memory still, toward kOneQ31 it follows x.
+		Q<31> moveability{};        ///< tan(f)/(1+tan(f)): 0 holds the memory still, toward one it follows x.
 		Mode mode = Mode::LOW_PASS; ///< What a step returns.
 	};
 
 	/// @brief What a step reads: the moveability and the mode the wrapper dispatches on once per block.
 	struct Coefficients {
-		q31 m = 0;                  ///< The moveability, Q31.
+		Q<31> m{};                  ///< The moveability.
 		Mode mode = Mode::LOW_PASS; ///< What a step returns.
 	};
 
-	/// @brief The memory, over the value type V: q31 for one stream, a LanePack of q31 for one per lane. StateT{} is
-	/// silence: z at 0 in every lane.
+	/// @brief The memory, over the value type V: Q<31> for one stream, a LanePack of Q<31> for one per lane. StateT{}
+	/// is silence: z at 0 in every lane.
 	template <class V>
 	struct StateT {
 		V z{}; ///< The memory after the last step, Q31.
 	};
-	using State = StateT<q31>; ///< One stream's memory.
+	using State = StateT<Q<31>>; ///< One stream's memory.
 
 	/// @brief The step is written once over its value type, so `Lanes` steps a whole frame as one LanePack.
 	static constexpr bool kLanePackable = true;
@@ -91,11 +91,11 @@ struct OnePole {
 	}
 
 	/// @brief One sample: v = (x − z) × m, y = v + z, z ← y + v, wrapping; then y, x − y or 2y − x.
-	/// @details Written over V: on q31 it steps one stream; on a LanePack every operation runs across the lanes, each
-	/// lane exactly the q31 step, with the moveability broadcast. The operations are called unqualified, so a pack's
+	/// @details Written over V: on Q<31> it steps one stream; on a LanePack every operation runs across the lanes, each
+	/// lane exactly the scalar step, with the moveability broadcast. The operations are called unqualified, so a pack's
 	/// are found by argument-dependent lookup.
 	/// @tparam M The block's mode.
-	/// @tparam V The value type: q31, or a LanePack of q31. Deduced from @p s.
+	/// @tparam V The value type: Q<31>, or a LanePack of Q<31>. Deduced from @p s.
 	/// @param c The moveability, shared by every lane.
 	/// @param s The memory, updated before the return value is taken.
 	/// @param x The input, Q31.
@@ -103,20 +103,19 @@ struct OnePole {
 	template <Mode M, class V>
 	[[nodiscard]] [[gnu::always_inline]] static V step(const Coefficients& c, const EmptyBlock& /*b*/, StateT<V>& s,
 	                                                   std::type_identity_t<V> x) {
-		const auto x_q = from_raw<Q<31>>(x);
-		const auto z = from_raw<Q<31>>(s.z);
+		const V z = s.z;
 		// (x − z) × m rounds to Q30, and its doubling back to Q31 wraps: at full scale the product leaves Q31.
-		const auto v = mul_r_as_wrap<Q<31>>(sub_wrap(x_q, z), Q<31>::from_raw(c.m));
-		const auto y = add_wrap(v, z);
-		s.z = to_raw(add_wrap(y, v));
+		const V v = mul_r_as_wrap<Q<31>>(sub_wrap(x, z), c.m);
+		const V y = add_wrap(v, z);
+		s.z = add_wrap(y, v);
 		if constexpr (M == Mode::LOW_PASS) {
-			return to_raw(y);
+			return y;
 		}
 		else if constexpr (M == Mode::HIGH_PASS) {
-			return to_raw(sub_wrap(x_q, y));
+			return sub_wrap(x, y);
 		}
 		else {
-			return to_raw(sub_wrap(add_wrap(y, y), x_q));
+			return sub_wrap(add_wrap(y, y), x);
 		}
 	}
 
@@ -127,7 +126,7 @@ struct OnePole {
 	/// @param amount The feedback amount, Q30.
 	/// @return z × @p amount, Q31, wrapping at full scale.
 	[[nodiscard]] [[gnu::always_inline]] static Q<31> feedback(const State& s, Q<30> amount) {
-		return as_wrap<Q<31>>(mul_r(Q<31>::from_raw(s.z), amount));
+		return as_wrap<Q<31>>(mul_r(s.z, amount));
 	}
 
 	/// @brief @ref feedback at a quarter of its scale, z × @p amount at Q29, for a caller that sums several at Q29
@@ -136,7 +135,7 @@ struct OnePole {
 	/// @param amount The feedback amount, Q30.
 	/// @return z × @p amount, Q29.
 	[[nodiscard]] [[gnu::always_inline]] static Q<29> feedback_unshifted(const State& s, Q<30> amount) {
-		return mul_r(Q<31>::from_raw(s.z), amount);
+		return mul_r(s.z, amount);
 	}
 };
 

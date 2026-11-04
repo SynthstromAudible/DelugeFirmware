@@ -595,7 +595,7 @@ class OnePoleCase {
 public:
 	/// @brief The moveability, Q31: the granular kernel's wet low-pass. m = 1/4 gives tan(πf/fs) = 1/3, a cutoff of
 	/// about 4.5 kHz at 44.1 kHz.
-	static constexpr q31 kMoveability = 1 << 29;
+	static constexpr dsp::Q<31> kMoveability = dsp::Q<31>::from_raw(1 << 29);
 
 	/// @brief Configures the pole in @p M from silence, fills input_a and takes the blocks' spans for @p n.
 	/// @param n Block size to set up for, in samples (frames for the stereo and lanes cases).
@@ -760,7 +760,7 @@ class LanesOnePoleCase {
 public:
 	static constexpr std::size_t kLanes = N; ///< The lanes per frame.
 	/// @brief The moveability, Q31: the mono case's.
-	static constexpr q31 kMoveability = OnePoleLowPassCase::kMoveability;
+	static constexpr dsp::Q<31> kMoveability = OnePoleLowPassCase::kMoveability;
 	using Component = dsp::Lanes<dsp::fixed::OnePole, N>; ///< The component timed.
 
 	/// @brief Configures the pole from silence, fills the lanes input and takes the blocks' spans for @p n frames.
@@ -774,7 +774,7 @@ public:
 
 private:
 	Component lanes_;
-	FrameSpans<dsp::Frame<q31, N>> spans_{};
+	FrameSpans<dsp::Frame<dsp::Q<31>, N>> spans_{};
 };
 
 /// @brief `one_pole_x2`.
@@ -806,7 +806,7 @@ public:
 
 private:
 	Component lanes_;
-	FrameSpans<dsp::Frame<q31, N>> spans_{};
+	FrameSpans<dsp::Frame<dsp::Q<31>, N>> spans_{};
 };
 
 /// @brief `shift_tracker_x4`.
@@ -893,7 +893,7 @@ inline constexpr uint32_t kDelayDrive = 8;
 /// @brief The delay feedback cases' settings for one mode: kDelayFeedback at kDelayDrive.
 /// @param analog Through the impulse response and a tanh; else clipped digitally.
 [[nodiscard]] constexpr dsp::fixed::FeedbackShaper::Settings delay_feedback_settings(bool analog) {
-	return {.feedback = kDelayFeedback, .analog = analog, .drive = kDelayDrive};
+	return {.feedback = dsp::Q<31>::from_raw(kDelayFeedback), .analog = analog, .drive = kDelayDrive};
 }
 
 /// @brief Where a delay feedback case renders its blocks.
@@ -1025,23 +1025,8 @@ private:
 
 /// @brief The chain3 cases' low-pass, pinned: the one-pole at the granular moveability.
 using Chain3LowPass = dsp::Pinned<dsp::fixed::OnePole, dsp::fixed::OnePole::Mode::LOW_PASS>;
-/// @brief The chain3 cases' tanh at drive 3 as a part over raw q31, the other parts' value type: Tanh3Case's kernel,
-/// converting at entry and exit.
-struct Chain3Tanh {
-	using value_type = q31;
-	using step_type = q31;
-	struct Settings {};
-	struct Coefficients {};
-	struct State {};
-	[[nodiscard]] static constexpr Coefficients coefficients(const Settings& /*s*/) { return {}; }
-	[[nodiscard]] [[gnu::always_inline]] static q31 step(const Coefficients& /*c*/, const dsp::EmptyBlock& /*b*/,
-	                                                     State& /*s*/, q31 x) {
-		return dsp::fixed::tanh<3>(dsp::Q<31>::from_raw(x)).raw();
-	}
-};
-
 /// @brief Three stages as one kernel: tanh at drive 3, the low-pass, then the delay's high-pass.
-using Chain3 = dsp::Chain<Chain3Tanh, Chain3LowPass, DelayHighPass>;
+using Chain3 = dsp::Chain<Tanh3Case::Kernel, Chain3LowPass, DelayHighPass>;
 
 /// @brief Tanh at drive 3, the one-pole low-pass and the delay's high-pass as three `Mono` passes: the first from
 /// input_a into the output, the others over the output in place.
@@ -1214,17 +1199,23 @@ inline constexpr q31 kFilterGain = 536'870'912;
 /// 2^29), no morph. The drive ladder does not oversample here: the cutoff's quick_log is 50 · 2^24, below the 52 at
 /// which oversampling starts (2^24 would reach it, and oversample at this resonance). The resonance is high enough that
 /// the ladders saturate their input.
-inline constexpr dsp::fixed::FilterConfig kFilterLowSettings{
-    .frequency = 1 << 23, .resonance = 1 << 28, .morph = 0, .allow_oversampling = true};
+inline constexpr dsp::fixed::FilterConfig kFilterLowSettings{.frequency = dsp::Q<31>::from_raw(1 << 23),
+                                                             .resonance = dsp::Q<29>::from_raw(1 << 28),
+                                                             .morph = dsp::Q<29>::from_raw(0),
+                                                             .allow_oversampling = true};
 /// @brief The drive ladder's oversampling settings: a bright cutoff (50,000,000, Q31) at high resonance (500,000,000,
 /// Q29), past the threshold above which the drive ladder runs at twice the rate.
-inline constexpr dsp::fixed::FilterConfig kFilterBrightSettings{
-    .frequency = 50'000'000, .resonance = 500'000'000, .morph = 0, .allow_oversampling = true};
+inline constexpr dsp::fixed::FilterConfig kFilterBrightSettings{.frequency = dsp::Q<31>::from_raw(50'000'000),
+                                                                .resonance = dsp::Q<29>::from_raw(500'000'000),
+                                                                .morph = dsp::Q<29>::from_raw(0),
+                                                                .allow_oversampling = true};
 /// @brief The high-pass settings the filter cases run at: the cutoff at 2^23 (Q31), a quarter resonance (2^27 of Q29's
 /// 2^29), no morph. The ladder's processed resonance stays below the level at which it saturates: the high-pass
 /// ladder's unsaturated path, where most sounds run it.
-inline constexpr dsp::fixed::FilterConfig kFilterHighSettings{
-    .frequency = 1 << 23, .resonance = 1 << 27, .morph = 0, .allow_oversampling = true};
+inline constexpr dsp::fixed::FilterConfig kFilterHighSettings{.frequency = dsp::Q<31>::from_raw(1 << 23),
+                                                              .resonance = dsp::Q<29>::from_raw(1 << 27),
+                                                              .morph = dsp::Q<29>::from_raw(0),
+                                                              .allow_oversampling = true};
 
 /// @brief One filter case's configuration: what each slot of the set runs, the route, and each filter's settings.
 struct FilterCaseConfig {
@@ -1263,12 +1254,16 @@ inline constexpr FilterCaseConfig kFilterLowDriveOs = filter_low_case(
     kFilterBrightSettings);
 /// @brief The low-pass settings of the `*_resonant_*` cases: kFilterLowSettings at a resonance (2^25, Q29) that
 /// keeps every ladder's processed resonance below its input's saturation threshold.
-inline constexpr dsp::fixed::FilterConfig kFilterLowResonantSettings{
-    .frequency = 1 << 23, .resonance = 1 << 25, .morph = 0, .allow_oversampling = true};
+inline constexpr dsp::fixed::FilterConfig kFilterLowResonantSettings{.frequency = dsp::Q<31>::from_raw(1 << 23),
+                                                                     .resonance = dsp::Q<29>::from_raw(1 << 25),
+                                                                     .morph = dsp::Q<29>::from_raw(0),
+                                                                     .allow_oversampling = true};
 /// @brief The low-pass settings of the `*_unresonant_*` cases: kFilterLowSettings at no resonance, so nothing is fed
 /// back.
-inline constexpr dsp::fixed::FilterConfig kFilterLowUnresonantSettings{
-    .frequency = 1 << 23, .resonance = 0, .morph = 0, .allow_oversampling = true};
+inline constexpr dsp::fixed::FilterConfig kFilterLowUnresonantSettings{.frequency = dsp::Q<31>::from_raw(1 << 23),
+                                                                       .resonance = dsp::Q<29>::from_raw(0),
+                                                                       .morph = dsp::Q<29>::from_raw(0),
+                                                                       .allow_oversampling = true};
 /// @brief `filter_lp12_resonant_*`: the 12 dB ladder fed back, its input not saturated.
 inline constexpr FilterCaseConfig kFilterLow12Resonant = filter_low_case(kFilterLow12.low, kFilterLowResonantSettings);
 /// @brief `filter_lp24_resonant_*`: the 24 dB ladder fed back, its input not saturated.
@@ -1300,12 +1295,14 @@ inline constexpr FilterCaseConfig kFilterHigh{.low = {},
 
 /// @brief `filter_hp_morph_*`: the high-pass ladder with its morph up (2^26, Q29), each sample's cutoff nudged by its
 /// input.
-inline constexpr FilterCaseConfig kFilterHighMorph{
-    .low = {},
-    .high = {.kind = dsp::fixed::HighPassSlot::Kind::LADDER},
-    .route = dsp::fixed::FilterRoute::HIGH_TO_LOW,
-    .low_config = kFilterLowSettings,
-    .high_config = {.frequency = 1 << 23, .resonance = 1 << 27, .morph = 1 << 26, .allow_oversampling = true}};
+inline constexpr FilterCaseConfig kFilterHighMorph{.low = {},
+                                                   .high = {.kind = dsp::fixed::HighPassSlot::Kind::LADDER},
+                                                   .route = dsp::fixed::FilterRoute::HIGH_TO_LOW,
+                                                   .low_config = kFilterLowSettings,
+                                                   .high_config = {.frequency = dsp::Q<31>::from_raw(1 << 23),
+                                                                   .resonance = dsp::Q<29>::from_raw(1 << 27),
+                                                                   .morph = dsp::Q<29>::from_raw(1 << 26),
+                                                                   .allow_oversampling = true}};
 
 /// @brief The configuration of `filterset_<hl|lh|par>_stereo`: the 24 dB ladder and the high-pass ladder (a sound's
 /// default modes) on @p route.
