@@ -220,6 +220,13 @@ requires(A + B >= 31 && A + B - 31 <= 31)
 [[gnu::always_inline, nodiscard]] inline QVec<A + B - 31> mul_doubling_r_sat(QVec<A> a, QVec<B> b) noexcept {
 	return QVec<A + B - 31>::from_raw(vqrdmulhq_s32(a.raw(), b.raw()));
 }
+/// @brief sat((2 × a × b + 2^31) >> 32) per lane, by one scalar: Q<A> × Q<B> → Q<A+B−31> (`vdup.32`,
+/// `vqrdmulh.s32`; a loop hoists the `vdup`).
+template <int A, int B>
+requires(A + B >= 31 && A + B - 31 <= 31)
+[[gnu::always_inline, nodiscard]] inline QVec<A + B - 31> mul_doubling_r_sat(QVec<A> a, Q<B> b) noexcept {
+	return QVec<A + B - 31>::from_raw(vqrdmulhq_n_s32(a.raw(), b.raw()));
+}
 
 /// @brief x × 2^N per lane in the same format, wrapping (`vshl.i32 #N`).
 template <int N, int F>
